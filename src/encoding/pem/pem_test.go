@@ -6,8 +6,11 @@ package pem
 
 import (
 	"bytes"
+	"io/ioutil"
 	"reflect"
+	"strings"
 	"testing"
+	"testing/quick"
 )
 
 type GetLineTest struct {
@@ -43,6 +46,32 @@ func TestDecode(t *testing.T) {
 	if !reflect.DeepEqual(result, privateKey) {
 		t.Errorf("#1 got:%#v want:%#v", result, privateKey)
 	}
+
+	isEmpty := func(block *Block) bool {
+		return block != nil && block.Type == "EMPTY" && len(block.Headers) == 0 && len(block.Bytes) == 0
+	}
+	result, remainder = Decode(remainder)
+	if !isEmpty(result) {
+		t.Errorf("#2 should be empty but got:%#v", result)
+	}
+	result, remainder = Decode(remainder)
+	if !isEmpty(result) {
+		t.Errorf("#3 should be empty but got:%#v", result)
+	}
+	result, remainder = Decode(remainder)
+	if !isEmpty(result) {
+		t.Errorf("#4 should be empty but got:%#v", result)
+	}
+
+	result, remainder = Decode(remainder)
+	if result == nil || result.Type != "HEADERS" || len(result.Headers) != 1 {
+		t.Errorf("#5 expected single header block but got :%v", result)
+	}
+
+	if len(remainder) != 0 {
+		t.Errorf("expected nothing remaining of pemData, but found %s", string(remainder))
+	}
+
 	result, _ = Decode([]byte(pemPrivateKey2))
 	if !reflect.DeepEqual(result, privateKey2) {
 		t.Errorf("#2 got:%#v want:%#v", result, privateKey2)
@@ -116,6 +145,70 @@ func TestLineBreaker(t *testing.T) {
 	}
 }
 
+func TestFuzz(t *testing.T) {
+	testRoundtrip := func(block Block) bool {
+		for key := range block.Headers {
+			if strings.Contains(key, ":") {
+				// Keys with colons cannot be encoded.
+				return true
+			}
+		}
+
+		var buf bytes.Buffer
+		if err := Encode(&buf, &block); err != nil {
+			t.Errorf("Encode of %#v resulted in error: %s", &block, err)
+			return false
+		}
+		decoded, rest := Decode(buf.Bytes())
+		if block.Headers == nil {
+			// Encoder supports nil Headers but decoder returns initialized.
+			block.Headers = make(map[string]string)
+		}
+		if block.Bytes == nil {
+			// Encoder supports nil Bytes but decoder returns initialized.
+			block.Bytes = make([]byte, 0)
+		}
+		if !reflect.DeepEqual(decoded, &block) {
+			t.Errorf("Encode of %#v decoded as %#v", &block, decoded)
+			return false
+		}
+		if len(rest) != 0 {
+			t.Errorf("Encode of %#v decoded correctly, but with %x left over", block, rest)
+			return false
+		}
+		return true
+	}
+
+	// Explicitly test the empty block.
+	if !testRoundtrip(Block{
+		Type:    "EMPTY",
+		Headers: make(map[string]string),
+		Bytes:   []byte{},
+	}) {
+		return
+	}
+
+	quick.Check(testRoundtrip, nil)
+}
+
+func BenchmarkEncode(b *testing.B) {
+	data := &Block{Bytes: make([]byte, 65536)}
+	b.SetBytes(int64(len(data.Bytes)))
+	for i := 0; i < b.N; i++ {
+		Encode(ioutil.Discard, data)
+	}
+}
+
+func BenchmarkDecode(b *testing.B) {
+	block := &Block{Bytes: make([]byte, 65536)}
+	data := EncodeToMemory(block)
+	b.SetBytes(int64(len(data)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Decode(data)
+	}
+}
+
 var pemData = `verify return:0
 -----BEGIN CERTIFICATE-----
 sdlfkjskldfj
@@ -169,7 +262,32 @@ BTiHcL3s3KrJu1vDVrshvxfnz71KTeNnZH8UbOqT5i7fPGyXtY1XJddcbI/Q6tXf
 wHFsZc20TzSdsVLBtwksUacpbDogcEVMctnNrB8FIrB3vZEv9Q0Z1VeY7nmTpF+6
 a+z2P7acL7j6A6Pr3+q8P9CPiPC7zFonVzuVPyB8GchGR2hytyiOVpuD9+k8hcuw
 ZWAaUoVtWIQ52aKS0p19G99hhb+IVANC4akkdHV4SP8i7MVNZhfUmg==
------END RSA PRIVATE KEY-----`
+-----END RSA PRIVATE KEY-----
+
+
+-----BEGIN EMPTY-----
+-----END EMPTY-----
+
+-----BEGIN EMPTY-----
+
+-----END EMPTY-----
+
+-----BEGIN EMPTY-----
+
+
+-----END EMPTY-----
+
+# This shouldn't be recognised because of the missing newline after the
+headers.
+-----BEGIN HEADERS-----
+Header: 1
+-----END HEADERS-----
+
+# This should be valid, however.
+-----BEGIN HEADERS-----
+Header: 1
+
+-----END HEADERS-----`
 
 var certificate = &Block{Type: "CERTIFICATE",
 	Headers: map[string]string{},

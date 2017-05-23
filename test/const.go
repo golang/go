@@ -19,6 +19,9 @@ const (
 	c3div2  = 3 / 2
 	c1e3    = 1e3
 
+	rsh1 = 1e100 >> 1000
+	rsh2 = 1e302 >> 1000
+
 	ctrue  = true
 	cfalse = !ctrue
 )
@@ -48,6 +51,8 @@ func ints() {
 	assert(c3div2 == 1, "3/2")
 	assert(c1e3 == 1000, "c1e3 int")
 	assert(c1e3 == 1e3, "c1e3 float")
+	assert(rsh1 == 0, "rsh1")
+	assert(rsh2 == 9, "rsh2")
 
 	// verify that all (in range) are assignable as ints
 	var i int

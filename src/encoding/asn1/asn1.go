@@ -20,11 +20,13 @@ package asn1
 // everything by any means.
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
 	"strconv"
 	"time"
+	"unicode/utf8"
 )
 
 // A StructuralError suggests that the ASN.1 data is valid, but the Go type
@@ -69,9 +71,28 @@ func parseBool(bytes []byte) (ret bool, err error) {
 
 // INTEGER
 
+// checkInteger returns nil if the given bytes are a valid DER-encoded
+// INTEGER and an error otherwise.
+func checkInteger(bytes []byte) error {
+	if len(bytes) == 0 {
+		return StructuralError{"empty integer"}
+	}
+	if len(bytes) == 1 {
+		return nil
+	}
+	if (bytes[0] == 0 && bytes[1]&0x80 == 0) || (bytes[0] == 0xff && bytes[1]&0x80 == 0x80) {
+		return StructuralError{"integer not minimally-encoded"}
+	}
+	return nil
+}
+
 // parseInt64 treats the given bytes as a big-endian, signed integer and
 // returns the result.
 func parseInt64(bytes []byte) (ret int64, err error) {
+	err = checkInteger(bytes)
+	if err != nil {
+		return
+	}
 	if len(bytes) > 8 {
 		// We'll overflow an int64 in this case.
 		err = StructuralError{"integer too large"}
@@ -91,6 +112,9 @@ func parseInt64(bytes []byte) (ret int64, err error) {
 // parseInt treats the given bytes as a big-endian, signed integer and returns
 // the result.
 func parseInt32(bytes []byte) (int32, error) {
+	if err := checkInteger(bytes); err != nil {
+		return 0, err
+	}
 	ret64, err := parseInt64(bytes)
 	if err != nil {
 		return 0, err
@@ -105,7 +129,10 @@ var bigOne = big.NewInt(1)
 
 // parseBigInt treats the given bytes as a big-endian, signed integer and returns
 // the result.
-func parseBigInt(bytes []byte) *big.Int {
+func parseBigInt(bytes []byte) (*big.Int, error) {
+	if err := checkInteger(bytes); err != nil {
+		return nil, err
+	}
 	ret := new(big.Int)
 	if len(bytes) > 0 && bytes[0]&0x80 == 0x80 {
 		// This is a negative number.
@@ -116,10 +143,10 @@ func parseBigInt(bytes []byte) *big.Int {
 		ret.SetBytes(notBytes)
 		ret.Add(ret, bigOne)
 		ret.Neg(ret)
-		return ret
+		return ret, nil
 	}
 	ret.SetBytes(bytes)
-	return ret
+	return ret, nil
 }
 
 // BIT STRING
@@ -267,7 +294,7 @@ type Flag bool
 func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) {
 	offset = initOffset
 	for shifted := 0; offset < len(bytes); shifted++ {
-		if shifted > 4 {
+		if shifted == 4 {
 			err = StructuralError{"base 128 integer too large"}
 			return
 		}
@@ -287,11 +314,23 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) 
 
 func parseUTCTime(bytes []byte) (ret time.Time, err error) {
 	s := string(bytes)
-	ret, err = time.Parse("0601021504Z0700", s)
+
+	formatStr := "0601021504Z0700"
+	ret, err = time.Parse(formatStr, s)
 	if err != nil {
-		ret, err = time.Parse("060102150405Z0700", s)
+		formatStr = "060102150405Z0700"
+		ret, err = time.Parse(formatStr, s)
 	}
-	if err == nil && ret.Year() >= 2050 {
+	if err != nil {
+		return
+	}
+
+	if serialized := ret.Format(formatStr); serialized != s {
+		err = fmt.Errorf("asn1: time did not serialize back to the original value and may be invalid: given %q, but serialized as %q", s, serialized)
+		return
+	}
+
+	if ret.Year() >= 2050 {
 		// UTCTime only encodes times prior to 2050. See https://tools.ietf.org/html/rfc5280#section-4.1.2.5.1
 		ret = ret.AddDate(-100, 0, 0)
 	}
@@ -302,7 +341,18 @@ func parseUTCTime(bytes []byte) (ret time.Time, err error) {
 // parseGeneralizedTime parses the GeneralizedTime from the given byte slice
 // and returns the resulting time.
 func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
-	return time.Parse("20060102150405Z0700", string(bytes))
+	const formatStr = "20060102150405Z0700"
+	s := string(bytes)
+
+	if ret, err = time.Parse(formatStr, s); err != nil {
+		return
+	}
+
+	if serialized := ret.Format(formatStr); serialized != s {
+		err = fmt.Errorf("asn1: time did not serialize back to the original value and may be invalid: given %q, but serialized as %q", s, serialized)
+	}
+
+	return
 }
 
 // PrintableString
@@ -320,7 +370,7 @@ func parsePrintableString(bytes []byte) (ret string, err error) {
 	return
 }
 
-// isPrintable returns true iff the given b is in the ASN.1 PrintableString set.
+// isPrintable reports whether the given b is in the ASN.1 PrintableString set.
 func isPrintable(b byte) bool {
 	return 'a' <= b && b <= 'z' ||
 		'A' <= b && b <= 'Z' ||
@@ -343,7 +393,7 @@ func isPrintable(b byte) bool {
 // byte slice and returns it.
 func parseIA5String(bytes []byte) (ret string, err error) {
 	for _, b := range bytes {
-		if b >= 0x80 {
+		if b >= utf8.RuneSelf {
 			err = SyntaxError{"IA5String contains invalid character"}
 			return
 		}
@@ -365,6 +415,9 @@ func parseT61String(bytes []byte) (ret string, err error) {
 // parseUTF8String parses a ASN.1 UTF8String (raw UTF-8) from the given byte
 // array and returns it.
 func parseUTF8String(bytes []byte) (ret string, err error) {
+	if !utf8.Valid(bytes) {
+		return "", errors.New("asn1: invalid UTF-8 string")
+	}
 	return string(bytes), nil
 }
 
@@ -389,6 +442,12 @@ type RawContent []byte
 // don't distinguish between ordered and unordered objects in this code.
 func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset int, err error) {
 	offset = initOffset
+	// parseTagAndLength should not be called without at least a single
+	// byte to read. Thus this check is for robustness:
+	if offset >= len(bytes) {
+		err = errors.New("asn1: internal error in parseTagAndLength")
+		return
+	}
 	b := bytes[offset]
 	offset++
 	ret.class = int(b >> 6)
@@ -400,6 +459,11 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 	if ret.tag == 0x1f {
 		ret.tag, offset, err = parseBase128Int(bytes, offset)
 		if err != nil {
+			return
+		}
+		// Tags should be encoded in minimal form.
+		if ret.tag < 0x1f {
+			err = SyntaxError{"non-minimal tag"}
 			return
 		}
 	}
@@ -441,6 +505,11 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 				return
 			}
 		}
+		// Short lengths must be encoded in short form.
+		if ret.length < 0x80 {
+			err = StructuralError{"non-minimal length"}
+			return
+		}
 	}
 
 	return
@@ -466,17 +535,17 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 			return
 		}
 		switch t.tag {
-		case tagIA5String, tagGeneralString, tagT61String, tagUTF8String:
+		case TagIA5String, TagGeneralString, TagT61String, TagUTF8String:
 			// We pretend that various other string types are
 			// PRINTABLE STRINGs so that a sequence of them can be
 			// parsed into a []string.
-			t.tag = tagPrintableString
-		case tagGeneralizedTime, tagUTCTime:
+			t.tag = TagPrintableString
+		case TagGeneralizedTime, TagUTCTime:
 			// Likewise, both time types are treated the same.
-			t.tag = tagUTCTime
+			t.tag = TagUTCTime
 		}
 
-		if t.class != classUniversal || t.isCompound != compoundType || t.tag != expectedTag {
+		if t.class != ClassUniversal || t.isCompound != compoundType || t.tag != expectedTag {
 			err = StructuralError{"sequence tag mismatch"}
 			return
 		}
@@ -560,26 +629,28 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			return
 		}
 		var result interface{}
-		if !t.isCompound && t.class == classUniversal {
+		if !t.isCompound && t.class == ClassUniversal {
 			innerBytes := bytes[offset : offset+t.length]
 			switch t.tag {
-			case tagPrintableString:
+			case TagPrintableString:
 				result, err = parsePrintableString(innerBytes)
-			case tagIA5String:
+			case TagIA5String:
 				result, err = parseIA5String(innerBytes)
-			case tagT61String:
+			case TagT61String:
 				result, err = parseT61String(innerBytes)
-			case tagUTF8String:
+			case TagUTF8String:
 				result, err = parseUTF8String(innerBytes)
-			case tagInteger:
+			case TagInteger:
 				result, err = parseInt64(innerBytes)
-			case tagBitString:
+			case TagBitString:
 				result, err = parseBitString(innerBytes)
-			case tagOID:
+			case TagOID:
 				result, err = parseObjectIdentifier(innerBytes)
-			case tagUTCTime:
+			case TagUTCTime:
 				result, err = parseUTCTime(innerBytes)
-			case tagOctetString:
+			case TagGeneralizedTime:
+				result, err = parseGeneralizedTime(innerBytes)
+			case TagOctetString:
 				result = innerBytes
 			default:
 				// If we don't know how to handle the type, we just leave Value as nil.
@@ -605,9 +676,13 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		return
 	}
 	if params.explicit {
-		expectedClass := classContextSpecific
+		expectedClass := ClassContextSpecific
 		if params.application {
-			expectedClass = classApplication
+			expectedClass = ClassApplication
+		}
+		if offset == len(bytes) {
+			err = StructuralError{"explicit tag has no child"}
+			return
 		}
 		if t.class == expectedClass && t.tag == *params.tag && (t.length == 0 || t.isCompound) {
 			if t.length > 0 {
@@ -639,10 +714,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	// type string. getUniversalType returns the tag for PrintableString
 	// when it sees a string, so if we see a different string type on the
 	// wire, we change the universal type to match.
-	if universalTag == tagPrintableString {
-		if t.class == classUniversal {
+	if universalTag == TagPrintableString {
+		if t.class == ClassUniversal {
 			switch t.tag {
-			case tagIA5String, tagGeneralString, tagT61String, tagUTF8String:
+			case TagIA5String, TagGeneralString, TagT61String, TagUTF8String:
 				universalTag = t.tag
 			}
 		} else if params.stringType != 0 {
@@ -652,24 +727,24 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 
 	// Special case for time: UTCTime and GeneralizedTime both map to the
 	// Go type time.Time.
-	if universalTag == tagUTCTime && t.tag == tagGeneralizedTime && t.class == classUniversal {
-		universalTag = tagGeneralizedTime
+	if universalTag == TagUTCTime && t.tag == TagGeneralizedTime && t.class == ClassUniversal {
+		universalTag = TagGeneralizedTime
 	}
 
 	if params.set {
-		universalTag = tagSet
+		universalTag = TagSet
 	}
 
-	expectedClass := classUniversal
+	expectedClass := ClassUniversal
 	expectedTag := universalTag
 
 	if !params.explicit && params.tag != nil {
-		expectedClass = classContextSpecific
+		expectedClass = ClassContextSpecific
 		expectedTag = *params.tag
 	}
 
 	if !params.explicit && params.application && params.tag != nil {
-		expectedClass = classApplication
+		expectedClass = ClassApplication
 		expectedTag = *params.tag
 	}
 
@@ -711,7 +786,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	case timeType:
 		var time time.Time
 		var err1 error
-		if universalTag == tagUTCTime {
+		if universalTag == TagUTCTime {
 			time, err1 = parseUTCTime(innerBytes)
 		} else {
 			time, err1 = parseGeneralizedTime(innerBytes)
@@ -732,8 +807,11 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		v.SetBool(true)
 		return
 	case bigIntType:
-		parsedInt := parseBigInt(innerBytes)
-		v.Set(reflect.ValueOf(parsedInt))
+		parsedInt, err1 := parseBigInt(innerBytes)
+		if err1 == nil {
+			v.Set(reflect.ValueOf(parsedInt))
+		}
+		err = err1
 		return
 	}
 	switch val := v; val.Kind() {
@@ -800,15 +878,15 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	case reflect.String:
 		var v string
 		switch universalTag {
-		case tagPrintableString:
+		case TagPrintableString:
 			v, err = parsePrintableString(innerBytes)
-		case tagIA5String:
+		case TagIA5String:
 			v, err = parseIA5String(innerBytes)
-		case tagT61String:
+		case TagT61String:
 			v, err = parseT61String(innerBytes)
-		case tagUTF8String:
+		case TagUTF8String:
 			v, err = parseUTF8String(innerBytes)
-		case tagGeneralString:
+		case TagGeneralString:
 			// GeneralString is specified in ISO-2022/ECMA-35,
 			// A brief review suggests that it includes structures
 			// that allow the encoding to change midstring and

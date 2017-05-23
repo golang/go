@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 // Used to crash the compiler.
-// http://code.google.com/p/go/issues/detail?id=158
+// https://golang.org/issue/158
 
 package main
 

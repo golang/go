@@ -1,0 +1,923 @@
+<!--{
+	"Title": "Go 1.6 Release Notes",
+	"Path":  "/doc/go1.6",
+	"Template": true
+}-->
+
+<!--
+Edit .,s;^PKG:([a-z][A-Za-z0-9_/]+);<a href="/pkg/\1/"><code>\1</code></a>;g
+Edit .,s;^([a-z][A-Za-z0-9_/]+)\.([A-Z][A-Za-z0-9_]+\.)?([A-Z][A-Za-z0-9_]+)([ .',]|$);<a href="/pkg/\1/#\2\3"><code>\3</code></a>\4;g
+-->
+
+<style>
+ul li { margin: 0.5em 0; }
+</style>
+
+<h2 id="introduction">Introduction to Go 1.6</h2>
+
+<p>
+The latest Go release, version 1.6, arrives six months after 1.5.
+Most of its changes are in the implementation of the language, runtime, and libraries.
+There are no changes to the language specification.
+As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
+We expect almost all Go programs to continue to compile and run as before.
+</p>
+
+<p>
+The release adds new ports to <a href="#ports">Linux on 64-bit MIPS and Android on 32-bit x86</a>;
+defined and enforced <a href="#cgo">rules for sharing Go pointers with C</a>;
+transparent, automatic <a href="#http2">support for HTTP/2</a>;
+and a new mechanism for <a href="#template">template reuse</a>.
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<p>
+There are no language changes in this release.
+</p>
+
+<h2 id="ports">Ports</h2>
+
+<p>
+Go 1.6 adds experimental ports to
+Linux on 64-bit MIPS (<code>linux/mips64</code> and <code>linux/mips64le</code>).
+These ports support <code>cgo</code> but only with internal linking.
+</p>
+
+<p>
+Go 1.6 also adds an experimental port to Android on 32-bit x86 (<code>android/386</code>).
+</p>
+
+<p>
+On FreeBSD, Go 1.6 defaults to using <code>clang</code>, not <code>gcc</code>, as the external C compiler.
+</p>
+
+<p>
+On Linux on little-endian 64-bit PowerPC (<code>linux/ppc64le</code>),
+Go 1.6 now supports <code>cgo</code> with external linking and
+is roughly feature complete.
+</p>
+
+<p>
+On NaCl, Go 1.5 required SDK version pepper-41.
+Go 1.6 adds support for later SDK versions.
+</p>
+
+<p>
+On 32-bit x86 systems using the <code>-dynlink</code> or <code>-shared</code> compilation modes,
+the register CX is now overwritten by certain memory references and should
+be avoided in hand-written assembly.
+See the <a href="/doc/asm#x86">assembly documentation</a> for details.
+</p>
+
+<h2 id="tools">Tools</h2>
+
+<h3 id="cgo">Cgo</h3>
+
+<p>
+There is one major change to <a href="/cmd/cgo/"><code>cgo</code></a>, along with one minor change.
+</p>
+
+<p>
+The major change is the definition of rules for sharing Go pointers with C code,
+to ensure that such C code can coexist with Go's garbage collector.
+Briefly, Go and C may share memory allocated by Go
+when a pointer to that memory is passed to C as part of a <code>cgo</code> call,
+provided that the memory itself contains no pointers to Go-allocated memory,
+and provided that C does not retain the pointer after the call returns.
+These rules are checked by the runtime during program execution:
+if the runtime detects a violation, it prints a diagnosis and crashes the program.
+The checks can be disabled by setting the environment variable
+<code>GODEBUG=cgocheck=0</code>, but note that the vast majority of
+code identified by the checks is subtly incompatible with garbage collection
+in one way or another.
+Disabling the checks will typically only lead to more mysterious failure modes.
+Fixing the code in question should be strongly preferred
+over turning off the checks.
+See the <a href="/cmd/cgo/#hdr-Passing_pointers"><code>cgo</code> documentation</a> for more details.
+</p>
+
+<p>
+The minor change is
+the addition of explicit <code>C.complexfloat</code> and <code>C.complexdouble</code> types,
+separate from Go's <code>complex64</code> and <code>complex128</code>.
+Matching the other numeric types, C's complex types and Go's complex type are
+no longer interchangeable.
+</p>
+
+<h3 id="compiler">Compiler Toolchain</h3>
+
+<p>
+The compiler toolchain is mostly unchanged.
+Internally, the most significant change is that the parser is now hand-written
+instead of generated from <a href="/cmd/yacc/">yacc</a>.
+</p>
+
+<p>
+The compiler, linker, and <code>go</code> command have a new flag <code>-msan</code>,
+analogous to <code>-race</code> and only available on linux/amd64,
+that enables interoperation with the <a href="http://clang.llvm.org/docs/MemorySanitizer.html">Clang MemorySanitizer</a>.
+Such interoperation is useful mainly for testing a program containing suspect C or C++ code.
+</p>
+
+<p>
+The linker has a new option <code>-libgcc</code> to set the expected location
+of the C compiler support library when linking <a href="/cmd/cgo/"><code>cgo</code></a> code.
+The option is only consulted when using <code>-linkmode=internal</code>,
+and it may be set to <code>none</code> to disable the use of a support library.
+</p>
+
+<p>
+The implementation of <a href="/doc/go1.5#link">build modes started in Go 1.5</a> has been expanded to more systems.
+This release adds support for the <code>c-shared</code> mode on <code>android/386</code>, <code>android/amd64</code>,
+<code>android/arm64</code>, <code>linux/386</code>, and <code>linux/arm64</code>;
+for the <code>shared</code> mode on <code>linux/386</code>, <code>linux/arm</code>, <code>linux/amd64</code>, and <code>linux/ppc64le</code>;
+and for the new <code>pie</code> mode (generating position-independent executables) on
+<code>android/386</code>, <code>android/amd64</code>, <code>android/arm</code>, <code>android/arm64</code>, <code>linux/386</code>,
+<code>linux/amd64</code>, <code>linux/arm</code>, <code>linux/arm64</code>, and <code>linux/ppc64le</code>.
+See the <a href="https://golang.org/s/execmodes">design document</a> for details.
+</p>
+
+<p>
+As a reminder, the linker's <code>-X</code> flag changed in Go 1.5.
+In Go 1.4 and earlier, it took two arguments, as in
+</p>
+
+<pre>
+-X importpath.name value
+</pre>
+
+<p>
+Go 1.5 added an alternative syntax using a single argument
+that is itself a <code>name=value</code> pair:
+</p>
+
+<pre>
+-X importpath.name=value
+</pre>
+
+<p>
+In Go 1.5 the old syntax was still accepted, after printing a warning
+suggesting use of the new syntax instead.
+Go 1.6 continues to accept the old syntax and print the warning.
+Go 1.7 will remove support for the old syntax.
+</p>
+
+<h3 id="gccgo">Gccgo</h3>
+
+<p>
+The release schedules for the GCC and Go projects do not coincide.
+GCC release 5 contains the Go 1.4 version of gccgo.
+The next release, GCC 6, will have the Go 1.6.1 version of gccgo.
+</p>
+
+<h3 id="go_command">Go command</h3>
+
+<p>
+The <a href="/cmd/go"><code>go</code></a> command's basic operation
+is unchanged, but there are a number of changes worth noting.
+</p>
+
+<p>
+Go 1.5 introduced experimental support for vendoring,
+enabled by setting the <code>GO15VENDOREXPERIMENT</code> environment variable to <code>1</code>.
+Go 1.6 keeps the vendoring support, no longer considered experimental,
+and enables it by default.
+It can be disabled explicitly by setting
+the <code>GO15VENDOREXPERIMENT</code> environment variable to <code>0</code>.
+Go 1.7 will remove support for the environment variable.
+</p>
+
+<p>
+The most likely problem caused by enabling vendoring by default happens
+in source trees containing an existing directory named <code>vendor</code> that
+does not expect to be interpreted according to new vendoring semantics.
+In this case, the simplest fix is to rename the directory to anything other
+than <code>vendor</code> and update any affected import paths.
+</p>
+
+<p>
+For details about vendoring,
+see the documentation for the <a href="/cmd/go/#hdr-Vendor_Directories"><code>go</code> command</a>
+and the <a href="https://golang.org/s/go15vendor">design document</a>.
+</p>
+
+<p>
+There is a new build flag, <code>-msan</code>,
+that compiles Go with support for the LLVM memory sanitizer.
+This is intended mainly for use when linking against C or C++ code
+that is being checked with the memory sanitizer.
+</p>
+
+<h3 id="doc_command">Go doc command</h3>
+
+<p>
+Go 1.5 introduced the
+<a href="/cmd/go/#hdr-Show_documentation_for_package_or_symbol"><code>go doc</code></a> command,
+which allows references to packages using only the package name, as in
+<code>go</code> <code>doc</code> <code>http</code>.
+In the event of ambiguity, the Go 1.5 behavior was to use the package
+with the lexicographically earliest import path.
+In Go 1.6, ambiguity is resolved by preferring import paths with
+fewer elements, breaking ties using lexicographic comparison.
+An important effect of this change is that original copies of packages
+are now preferred over vendored copies.
+Successful searches also tend to run faster.
+</p>
+
+<h3 id="vet_command">Go vet command</h3>
+
+<p>
+The <a href="/cmd/vet"><code>go vet</code></a> command now diagnoses
+passing function or method values as arguments to <code>Printf</code>,
+such as when passing <code>f</code> where <code>f()</code> was intended.
+</p>
+
+<h2 id="performance">Performance</h2>
+
+<p>
+As always, the changes are so general and varied that precise statements
+about performance are difficult to make.
+Some programs may run faster, some slower.
+On average the programs in the Go 1 benchmark suite run a few percent faster in Go 1.6
+than they did in Go 1.5.
+The garbage collector's pauses are even lower than in Go 1.5,
+especially for programs using
+a large amount of memory.
+</p>
+
+<p>
+There have been significant optimizations bringing more than 10% improvements
+to implementations of the
+<a href="/pkg/compress/bzip2/"><code>compress/bzip2</code></a>,
+<a href="/pkg/compress/gzip/"><code>compress/gzip</code></a>,
+<a href="/pkg/crypto/aes/"><code>crypto/aes</code></a>,
+<a href="/pkg/crypto/elliptic/"><code>crypto/elliptic</code></a>,
+<a href="/pkg/crypto/ecdsa/"><code>crypto/ecdsa</code></a>, and
+<a href="/pkg/sort/"><code>sort</code></a> packages.
+</p>
+
+<h2 id="library">Core library</h2>
+
+<h3 id="http2">HTTP/2</h3>
+
+<p>
+Go 1.6 adds transparent support in the
+<a href="/pkg/net/http/"><code>net/http</code></a> package
+for the new <a href="https://http2.github.io/">HTTP/2 protocol</a>.
+Go clients and servers will automatically use HTTP/2 as appropriate when using HTTPS.
+There is no exported API specific to details of the HTTP/2 protocol handling,
+just as there is no exported API specific to HTTP/1.1.
+</p>
+
+<p>
+Programs that must disable HTTP/2 can do so by setting
+<a href="/pkg/net/http/#Transport"><code>Transport.TLSNextProto</code></a> (for clients)
+or
+<a href="/pkg/net/http/#Server"><code>Server.TLSNextProto</code></a> (for servers)
+to a non-nil, empty map.
+</p>
+
+<p>
+Programs that must adjust HTTP/2 protocol-specific details can import and use
+<a href="https://golang.org/x/net/http2"><code>golang.org/x/net/http2</code></a>,
+in particular its
+<a href="https://godoc.org/golang.org/x/net/http2/#ConfigureServer">ConfigureServer</a>
+and
+<a href="https://godoc.org/golang.org/x/net/http2/#ConfigureTransport">ConfigureTransport</a>
+functions.
+</p>
+
+<h3 id="runtime">Runtime</h3>
+
+<p>
+The runtime has added lightweight, best-effort detection of concurrent misuse of maps.
+As always, if one goroutine is writing to a map, no other goroutine should be
+reading or writing the map concurrently.
+If the runtime detects this condition, it prints a diagnosis and crashes the program.
+The best way to find out more about the problem is to run the program
+under the
+<a href="https://blog.golang.org/race-detector">race detector</a>,
+which will more reliably identify the race
+and give more detail.
+</p>
+
+<p>
+For program-ending panics, the runtime now by default
+prints only the stack of the running goroutine,
+not all existing goroutines.
+Usually only the current goroutine is relevant to a panic,
+so omitting the others significantly reduces irrelevant output
+in a crash message.
+To see the stacks from all goroutines in crash messages, set the environment variable
+<code>GOTRACEBACK</code> to <code>all</code>
+or call
+<a href="/pkg/runtime/debug/#SetTraceback"><code>debug.SetTraceback</code></a>
+before the crash, and rerun the program.
+See the <a href="/pkg/runtime/#hdr-Environment_Variables">runtime documentation</a> for details.
+</p>
+
+<p>
+<em>Updating</em>:
+Uncaught panics intended to dump the state of the entire program,
+such as when a timeout is detected or when explicitly handling a received signal,
+should now call <code>debug.SetTraceback("all")</code> before panicking.
+Searching for uses of
+<a href="/pkg/os/signal/#Notify"><code>signal.Notify</code></a> may help identify such code.
+</p>
+
+<p>
+On Windows, Go programs in Go 1.5 and earlier forced
+the global Windows timer resolution to 1ms at startup
+by calling <code>timeBeginPeriod(1)</code>.
+Go no longer needs this for good scheduler performance,
+and changing the global timer resolution caused problems on some systems,
+so the call has been removed.
+</p>
+
+<p>
+When using <code>-buildmode=c-archive</code> or
+<code>-buildmode=c-shared</code> to build an archive or a shared
+library, the handling of signals has changed.
+In Go 1.5 the archive or shared library would install a signal handler
+for most signals.
+In Go 1.6 it will only install a signal handler for the
+synchronous signals needed to handle run-time panics in Go code:
+SIGBUS, SIGFPE, SIGSEGV.
+See the <a href="/pkg/os/signal">os/signal</a> package for more
+details.
+</p>
+
+<h3 id="reflect">Reflect</h3>
+
+<p>
+The
+<a href="/pkg/reflect/"><code>reflect</code></a> package has
+<a href="https://golang.org/issue/12367">resolved a long-standing incompatibility</a>
+between the gc and gccgo toolchains
+regarding embedded unexported struct types containing exported fields.
+Code that walks data structures using reflection, especially to implement
+serialization in the spirit
+of the
+<a href="/pkg/encoding/json/"><code>encoding/json</code></a> and
+<a href="/pkg/encoding/xml/"><code>encoding/xml</code></a> packages,
+may need to be updated.
+</p>
+
+<p>
+The problem arises when using reflection to walk through
+an embedded unexported struct-typed field
+into an exported field of that struct.
+In this case, <code>reflect</code> had incorrectly reported
+the embedded field as exported, by returning an empty <code>Field.PkgPath</code>.
+Now it correctly reports the field as unexported
+but ignores that fact when evaluating access to exported fields
+contained within the struct.
+</p>
+
+<p>
+<em>Updating</em>:
+Typically, code that previously walked over structs and used
+</p>
+
+<pre>
+f.PkgPath != ""
+</pre>
+
+<p>
+to exclude inaccessible fields
+should now use
+</p>
+
+<pre>
+f.PkgPath != "" &amp;&amp; !f.Anonymous
+</pre>
+
+<p>
+For example, see the changes to the implementations of
+<a href="https://go-review.googlesource.com/#/c/14011/2/src/encoding/json/encode.go"><code>encoding/json</code></a> and
+<a href="https://go-review.googlesource.com/#/c/14012/2/src/encoding/xml/typeinfo.go"><code>encoding/xml</code></a>.
+</p>
+
+<h3 id="sort">Sorting</h3>
+
+<p>
+In the
+<a href="/pkg/sort/"><code>sort</code></a>
+package,
+the implementation of
+<a href="/pkg/sort/#Sort"><code>Sort</code></a>
+has been rewritten to make about 10% fewer calls to the
+<a href="/pkg/sort/#Interface"><code>Interface</code></a>'s
+<code>Less</code> and <code>Swap</code>
+methods, with a corresponding overall time savings.
+The new algorithm does choose a different ordering than before
+for values that compare equal (those pairs for which <code>Less(i,</code> <code>j)</code> and <code>Less(j,</code> <code>i)</code> are false).
+</p>
+
+<p>
+<em>Updating</em>:
+The definition of <code>Sort</code> makes no guarantee about the final order of equal values,
+but the new behavior may still break programs that expect a specific order.
+Such programs should either refine their <code>Less</code> implementations
+to report the desired order
+or should switch to
+<a href="/pkg/sort/#Stable"><code>Stable</code></a>,
+which preserves the original input order
+of equal values.
+</p>
+
+<h3 id="template">Templates</h3>
+
+<p>
+In the
+<a href="/pkg/text/template/">text/template</a> package,
+there are two significant new features to make writing templates easier.
+</p>
+
+<p>
+First, it is now possible to <a href="/pkg/text/template/#hdr-Text_and_spaces">trim spaces around template actions</a>,
+which can make template definitions more readable.
+A minus sign at the beginning of an action says to trim space before the action,
+and a minus sign at the end of an action says to trim space after the action.
+For example, the template
+</p>
+
+<pre>
+{{"{{"}}23 -}}
+   &lt;
+{{"{{"}}- 45}}
+</pre>
+
+<p>
+formats as <code>23&lt;45</code>.
+</p>
+
+<p>
+Second, the new <a href="/pkg/text/template/#hdr-Actions"><code>{{"{{"}}block}}</code> action</a>,
+combined with allowing redefinition of named templates,
+provides a simple way to define pieces of a template that
+can be replaced in different instantiations.
+There is <a href="/pkg/text/template/#example_Template_block">an example</a>
+in the <code>text/template</code> package that demonstrates this new feature.
+</p>
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<ul>
+
+<li>
+The <a href="/pkg/archive/tar/"><code>archive/tar</code></a> package's
+implementation corrects many bugs in rare corner cases of the file format.
+One visible change is that the
+<a href="/pkg/archive/tar/#Reader"><code>Reader</code></a> type's
+<a href="/pkg/archive/tar/#Reader.Read"><code>Read</code></a> method
+now presents the content of special file types as being empty,
+returning <code>io.EOF</code> immediately.
+</li>
+
+<li>
+In the <a href="/pkg/archive/zip/"><code>archive/zip</code></a> package, the
+<a href="/pkg/archive/zip/#Reader"><code>Reader</code></a> type now has a
+<a href="/pkg/archive/zip/#Reader.RegisterDecompressor"><code>RegisterDecompressor</code></a> method,
+and the
+<a href="/pkg/archive/zip/#Writer"><code>Writer</code></a> type now has a
+<a href="/pkg/archive/zip/#Writer.RegisterCompressor"><code>RegisterCompressor</code></a> method,
+enabling control over compression options for individual zip files.
+These take precedence over the pre-existing global
+<a href="/pkg/archive/zip/#RegisterDecompressor"><code>RegisterDecompressor</code></a> and
+<a href="/pkg/archive/zip/#RegisterCompressor"><code>RegisterCompressor</code></a> functions.
+</li>
+
+<li>
+The <a href="/pkg/bufio/"><code>bufio</code></a> package's
+<a href="/pkg/bufio/#Scanner"><code>Scanner</code></a> type now has a
+<a href="/pkg/bufio/#Scanner.Buffer"><code>Buffer</code></a> method,
+to specify an initial buffer and maximum buffer size to use during scanning.
+This makes it possible, when needed, to scan tokens larger than
+<code>MaxScanTokenSize</code>.
+Also for the <code>Scanner</code>, the package now defines the
+<a href="/pkg/bufio/#ErrFinalToken"><code>ErrFinalToken</code></a> error value, for use by
+<a href="/pkg/bufio/#SplitFunc">split functions</a> to abort processing or to return a final empty token.
+</li>
+
+<li>
+The <a href="/pkg/compress/flate/"><code>compress/flate</code></a> package
+has deprecated its
+<a href="/pkg/compress/flate/#ReadError"><code>ReadError</code></a> and
+<a href="/pkg/compress/flate/#WriteError"><code>WriteError</code></a> error implementations.
+In Go 1.5 they were only rarely returned when an error was encountered;
+now they are never returned, although they remain defined for compatibility.
+</li>
+
+<li>
+The <a href="/pkg/compress/flate/"><code>compress/flate</code></a>,
+<a href="/pkg/compress/gzip/"><code>compress/gzip</code></a>, and
+<a href="/pkg/compress/zlib/"><code>compress/zlib</code></a> packages
+now report
+<a href="/pkg/io/#ErrUnexpectedEOF"><code>io.ErrUnexpectedEOF</code></a> for truncated input streams, instead of
+<a href="/pkg/io/#EOF"><code>io.EOF</code></a>.
+</li>
+
+<li>
+The <a href="/pkg/crypto/cipher/"><code>crypto/cipher</code></a> package now
+overwrites the destination buffer in the event of a GCM decryption failure.
+This is to allow the AESNI code to avoid using a temporary buffer.
+</li>
+
+<li>
+The <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
+has a variety of minor changes.
+It now allows
+<a href="/pkg/crypto/tls/#Listen"><code>Listen</code></a>
+to succeed when the
+<a href="/pkg/crypto/tls/#Config"><code>Config</code></a>
+has a nil <code>Certificates</code>, as long as the <code>GetCertificate</code> callback is set,
+it adds support for RSA with AES-GCM cipher suites,
+and
+it adds a
+<a href="/pkg/crypto/tls/#RecordHeaderError"><code>RecordHeaderError</code></a>
+to allow clients (in particular, the <a href="/pkg/net/http/"><code>net/http</code></a> package)
+to report a better error when attempting a TLS connection to a non-TLS server.
+</li>
+
+<li>
+The <a href="/pkg/crypto/x509/"><code>crypto/x509</code></a> package
+now permits certificates to contain negative serial numbers
+(technically an error, but unfortunately common in practice),
+and it defines a new
+<a href="/pkg/crypto/x509/#InsecureAlgorithmError"><code>InsecureAlgorithmError</code></a>
+to give a better error message when rejecting a certificate
+signed with an insecure algorithm like MD5.
+</li>
+
+<li>
+The <a href="/pkg/debug/dwarf"><code>debug/dwarf</code></a> and
+<a href="/pkg/debug/elf/"><code>debug/elf</code></a> packages
+together add support for compressed DWARF sections.
+User code needs no updating: the sections are decompressed automatically when read.
+</li>
+
+<li>
+The <a href="/pkg/debug/elf/"><code>debug/elf</code></a> package
+adds support for general compressed ELF sections.
+User code needs no updating: the sections are decompressed automatically when read.
+However, compressed
+<a href="/pkg/debug/elf/#Section"><code>Sections</code></a> do not support random access:
+they have a nil <code>ReaderAt</code> field.
+</li>
+
+<li>
+The <a href="/pkg/encoding/asn1/"><code>encoding/asn1</code></a> package
+now exports
+<a href="/pkg/encoding/asn1/#pkg-constants">tag and class constants</a>
+useful for advanced parsing of ASN.1 structures.
+</li>
+
+<li>
+Also in the <a href="/pkg/encoding/asn1/"><code>encoding/asn1</code></a> package,
+<a href="/pkg/encoding/asn1/#Unmarshal"><code>Unmarshal</code></a> now rejects various non-standard integer and length encodings.
+</li>
+
+<li>
+The <a href="/pkg/encoding/base64"><code>encoding/base64</code></a> package's
+<a href="/pkg/encoding/base64/#Decoder"><code>Decoder</code></a> has been fixed
+to process the final bytes of its input. Previously it processed as many four-byte tokens as
+possible but ignored the remainder, up to three bytes.
+The <code>Decoder</code> therefore now handles inputs in unpadded encodings (like
+<a href="/pkg/encoding/base64/#RawURLEncoding">RawURLEncoding</a>) correctly,
+but it also rejects inputs in padded encodings that are truncated or end with invalid bytes,
+such as trailing spaces.
+</li>
+
+<li>
+The <a href="/pkg/encoding/json/"><code>encoding/json</code></a> package
+now checks the syntax of a
+<a href="/pkg/encoding/json/#Number"><code>Number</code></a>
+before marshaling it, requiring that it conforms to the JSON specification for numeric values.
+As in previous releases, the zero <code>Number</code> (an empty string) is marshaled as a literal 0 (zero).
+</li>
+
+<li>
+The <a href="/pkg/encoding/xml/"><code>encoding/xml</code></a> package's
+<a href="/pkg/encoding/xml/#Marshal"><code>Marshal</code></a>
+function now supports a <code>cdata</code> attribute, such as <code>chardata</code>
+but encoding its argument in one or more <code>&lt;![CDATA[ ... ]]&gt;</code> tags.
+</li>
+
+<li>
+Also in the <a href="/pkg/encoding/xml/"><code>encoding/xml</code></a> package,
+<a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a>'s
+<a href="/pkg/encoding/xml/#Decoder.Token"><code>Token</code></a> method
+now reports an error when encountering EOF before seeing all open tags closed,
+consistent with its general requirement that tags in the input be properly matched.
+To avoid that requirement, use
+<a href="/pkg/encoding/xml/#Decoder.RawToken"><code>RawToken</code></a>.
+</li>
+
+<li>
+The <a href="/pkg/fmt/"><code>fmt</code></a> package now allows
+any integer type as an argument to
+<a href="/pkg/fmt/#Printf"><code>Printf</code></a>'s <code>*</code> width and precision specification.
+In previous releases, the argument to <code>*</code> was required to have type <code>int</code>.
+</li>
+
+<li>
+Also in the <a href="/pkg/fmt/"><code>fmt</code></a> package,
+<a href="/pkg/fmt/#Scanf"><code>Scanf</code></a> can now scan hexadecimal strings using %X, as an alias for %x.
+Both formats accept any mix of upper- and lower-case hexadecimal.
+</li>
+
+<li>
+The <a href="/pkg/image/"><code>image</code></a>
+and
+<a href="/pkg/image/color/"><code>image/color</code></a> packages
+add
+<a href="/pkg/image/#NYCbCrA"><code>NYCbCrA</code></a>
+and
+<a href="/pkg/image/color/#NYCbCrA"><code>NYCbCrA</code></a>
+types, to support Y'CbCr images with non-premultiplied alpha.
+</li>
+
+<li>
+The <a href="/pkg/io/"><code>io</code></a> package's
+<a href="/pkg/io/#MultiWriter"><code>MultiWriter</code></a>
+implementation now implements a <code>WriteString</code> method,
+for use by
+<a href="/pkg/io/#WriteString"><code>WriteString</code></a>.
+</li>
+
+<li>
+In the <a href="/pkg/math/big/"><code>math/big</code></a> package,
+<a href="/pkg/math/big/#Int"><code>Int</code></a> adds
+<a href="/pkg/math/big/#Int.Append"><code>Append</code></a>
+and
+<a href="/pkg/math/big/#Int.Text"><code>Text</code></a>
+methods to give more control over printing.
+</li>
+
+<li>
+Also in the <a href="/pkg/math/big/"><code>math/big</code></a> package,
+<a href="/pkg/math/big/#Float"><code>Float</code></a> now implements
+<a href="/pkg/encoding/#TextMarshaler"><code>encoding.TextMarshaler</code></a> and
+<a href="/pkg/encoding/#TextUnmarshaler"><code>encoding.TextUnmarshaler</code></a>,
+allowing it to be serialized in a natural form by the
+<a href="/pkg/encoding/json/"><code>encoding/json</code></a> and
+<a href="/pkg/encoding/xml/"><code>encoding/xml</code></a> packages.
+</li>
+
+<li>
+Also in the <a href="/pkg/math/big/"><code>math/big</code></a> package,
+<a href="/pkg/math/big/#Float"><code>Float</code></a>'s
+<a href="/pkg/math/big/#Float.Append"><code>Append</code></a> method now supports the special precision argument -1.
+As in
+<a href="/pkg/strconv/#ParseFloat"><code>strconv.ParseFloat</code></a>,
+precision -1 means to use the smallest number of digits necessary such that
+<a href="/pkg/math/big/#Float.Parse"><code>Parse</code></a>
+reading the result into a <code>Float</code> of the same precision
+will yield the original value.
+</li>
+
+<li>
+The <a href="/pkg/math/rand/"><code>math/rand</code></a> package
+adds a
+<a href="/pkg/math/rand/#Read"><code>Read</code></a>
+function, and likewise
+<a href="/pkg/math/rand/#Rand"><code>Rand</code></a> adds a
+<a href="/pkg/math/rand/#Rand.Read"><code>Read</code></a> method.
+These make it easier to generate pseudorandom test data.
+Note that, like the rest of the package,
+these should not be used in cryptographic settings;
+for such purposes, use the <a href="/pkg/crypto/rand/"><code>crypto/rand</code></a> package instead.
+</li>
+
+<li>
+The <a href="/pkg/net/"><code>net</code></a> package's
+<a href="/pkg/net/#ParseMAC"><code>ParseMAC</code></a> function now accepts 20-byte IP-over-InfiniBand (IPoIB) link-layer addresses.
+</li>
+
+
+<li>
+Also in the <a href="/pkg/net/"><code>net</code></a> package,
+there have been a few changes to DNS lookups.
+First, the
+<a href="/pkg/net/#DNSError"><code>DNSError</code></a> error implementation now implements
+<a href="/pkg/net/#Error"><code>Error</code></a>,
+and in particular its new
+<a href="/pkg/net/#DNSError.IsTemporary"><code>IsTemporary</code></a>
+method returns true for DNS server errors.
+Second, DNS lookup functions such as
+<a href="/pkg/net/#LookupAddr"><code>LookupAddr</code></a>
+now return rooted domain names (with a trailing dot)
+on Plan 9 and Windows, to match the behavior of Go on Unix systems.
+</li>
+
+<li>
+The <a href="/pkg/net/http/"><code>net/http</code></a> package has
+a number of minor additions beyond the HTTP/2 support already discussed.
+First, the
+<a href="/pkg/net/http/#FileServer"><code>FileServer</code></a> now sorts its generated directory listings by file name.
+Second, the
+<a href="/pkg/net/http/#ServeFile"><code>ServeFile</code></a> function now refuses to serve a result
+if the request's URL path contains &ldquo;..&rdquo; (dot-dot) as a path element.
+Programs should typically use <code>FileServer</code> and 
+<a href="/pkg/net/http/#Dir"><code>Dir</code></a>
+instead of calling <code>ServeFile</code> directly.
+Programs that need to serve file content in response to requests for URLs containing dot-dot can 
+still call <a href="/pkg/net/http/#ServeContent"><code>ServeContent</code></a>.
+Third, the
+<a href="/pkg/net/http/#Client"><code>Client</code></a> now allows user code to set the
+<code>Expect:</code> <code>100-continue</code> header (see
+<a href="/pkg/net/http/#Transport"><code>Transport.ExpectContinueTimeout</code></a>).
+Fourth, there are
+<a href="/pkg/net/http/#pkg-constants">five new error codes</a>:
+<code>StatusPreconditionRequired</code> (428),
+<code>StatusTooManyRequests</code> (429),
+<code>StatusRequestHeaderFieldsTooLarge</code> (431), and
+<code>StatusNetworkAuthenticationRequired</code> (511) from RFC 6585,
+as well as the recently-approved
+<code>StatusUnavailableForLegalReasons</code> (451).
+Fifth, the implementation and documentation of
+<a href="/pkg/net/http/#CloseNotifier"><code>CloseNotifier</code></a>
+has been substantially changed.
+The <a href="/pkg/net/http/#Hijacker"><code>Hijacker</code></a>
+interface now works correctly on connections that have previously
+been used with <code>CloseNotifier</code>.
+The documentation now describes when <code>CloseNotifier</code>
+is expected to work.
+</li>
+
+<li>
+Also in the <a href="/pkg/net/http/"><code>net/http</code></a> package,
+there are a few changes related to the handling of a
+<a href="/pkg/net/http/#Request"><code>Request</code></a> data structure with its <code>Method</code> field set to the empty string.
+An empty <code>Method</code> field has always been documented as an alias for <code>"GET"</code>
+and it remains so.
+However, Go 1.6 fixes a few routines that did not treat an empty
+<code>Method</code> the same as an explicit <code>"GET"</code>.
+Most notably, in previous releases
+<a href="/pkg/net/http/#Client"><code>Client</code></a> followed redirects only with
+<code>Method</code> set explicitly to <code>"GET"</code>;
+in Go 1.6 <code>Client</code> also follows redirects for the empty <code>Method</code>.
+Finally,
+<a href="/pkg/net/http/#NewRequest"><code>NewRequest</code></a> accepts a <code>method</code> argument that has not been
+documented as allowed to be empty.
+In past releases, passing an empty <code>method</code> argument resulted
+in a <code>Request</code> with an empty <code>Method</code> field.
+In Go 1.6, the resulting <code>Request</code> always has an initialized
+<code>Method</code> field: if its argument is an empty string, <code>NewRequest</code>
+sets the <code>Method</code> field in the returned <code>Request</code> to <code>"GET"</code>.
+</li>
+
+<li>
+The <a href="/pkg/net/http/httptest/"><code>net/http/httptest</code></a> package's
+<a href="/pkg/net/http/httptest/#ResponseRecorder"><code>ResponseRecorder</code></a> now initializes a default Content-Type header
+using the same content-sniffing algorithm as in
+<a href="/pkg/net/http/#Server"><code>http.Server</code></a>.
+</li>
+
+<li>
+The <a href="/pkg/net/url/"><code>net/url</code></a> package's
+<a href="/pkg/net/url/#Parse"><code>Parse</code></a> is now stricter and more spec-compliant regarding the parsing
+of host names.
+For example, spaces in the host name are no longer accepted.
+</li>
+
+<li>
+Also in the <a href="/pkg/net/url/"><code>net/url</code></a> package,
+the <a href="/pkg/net/url/#Error"><code>Error</code></a> type now implements
+<a href="/pkg/net/#Error"><code>net.Error</code></a>.
+</li>
+
+<li>
+The <a href="/pkg/os/"><code>os</code></a> package's
+<a href="/pkg/os/#IsExist"><code>IsExist</code></a>,
+<a href="/pkg/os/#IsNotExist"><code>IsNotExist</code></a>,
+and
+<a href="/pkg/os/#IsPermission"><code>IsPermission</code></a>
+now return correct results when inquiring about an
+<a href="/pkg/os/#SyscallError"><code>SyscallError</code></a>.
+</li>
+
+<li>
+On Unix-like systems, when a write
+to <a href="/pkg/os/#pkg-variables"><code>os.Stdout</code>
+or <code>os.Stderr</code></a> (more precisely, an <code>os.File</code>
+opened for file descriptor 1 or 2) fails due to a broken pipe error,
+the program will raise a <code>SIGPIPE</code> signal.
+By default this will cause the program to exit; this may be changed by
+calling the
+<a href="/pkg/os/signal"><code>os/signal</code></a>
+<a href="/pkg/os/signal/#Notify"><code>Notify</code></a> function
+for <code>syscall.SIGPIPE</code>.
+A write to a broken pipe on a file descriptor other 1 or 2 will simply
+return <code>syscall.EPIPE</code> (possibly wrapped in
+<a href="/pkg/os#PathError"><code>os.PathError</code></a>
+and/or <a href="/pkg/os#SyscallError"><code>os.SyscallError</code></a>)
+to the caller.
+The old behavior of raising an uncatchable <code>SIGPIPE</code> signal
+after 10 consecutive writes to a broken pipe no longer occurs.
+</li>
+
+<li>
+In the <a href="/pkg/os/exec/"><code>os/exec</code></a> package,
+<a href="/pkg/os/exec/#Cmd"><code>Cmd</code></a>'s
+<a href="/pkg/os/exec/#Cmd.Output"><code>Output</code></a> method continues to return an
+<a href="/pkg/os/exec/#ExitError"><code>ExitError</code></a> when a command exits with an unsuccessful status.
+If standard error would otherwise have been discarded,
+the returned <code>ExitError</code> now holds a prefix and suffix
+(currently 32 kB) of the failed command's standard error output,
+for debugging or for inclusion in error messages.
+The <code>ExitError</code>'s
+<a href="/pkg/os/exec/#ExitError.String"><code>String</code></a>
+method does not show the captured standard error;
+programs must retrieve it from the data structure
+separately.
+</li>
+
+<li>
+On Windows, the <a href="/pkg/path/filepath/"><code>path/filepath</code></a> package's
+<a href="/pkg/path/filepath/#Join"><code>Join</code></a> function now correctly handles the case when the base is a relative drive path.
+For example, <code>Join(`c:`,</code> <code>`a`)</code> now
+returns <code>`c:a`</code> instead of <code>`c:\a`</code> as in past releases.
+This may affect code that expects the incorrect result.
+</li>
+
+<li>
+In the <a href="/pkg/regexp/"><code>regexp</code></a> package,
+the
+<a href="/pkg/regexp/#Regexp"><code>Regexp</code></a> type has always been safe for use by
+concurrent goroutines.
+It uses a <a href="/pkg/sync/#Mutex"><code>sync.Mutex</code></a> to protect
+a cache of scratch spaces used during regular expression searches.
+Some high-concurrency servers using the same <code>Regexp</code> from many goroutines
+have seen degraded performance due to contention on that mutex.
+To help such servers, <code>Regexp</code> now has a
+<a href="/pkg/regexp/#Regexp.Copy"><code>Copy</code></a> method,
+which makes a copy of a <code>Regexp</code> that shares most of the structure
+of the original but has its own scratch space cache.
+Two goroutines can use different copies of a <code>Regexp</code>
+without mutex contention.
+A copy does have additional space overhead, so <code>Copy</code>
+should only be used when contention has been observed.
+</li>
+
+<li>
+The <a href="/pkg/strconv/"><code>strconv</code></a> package adds
+<a href="/pkg/strconv/#IsGraphic"><code>IsGraphic</code></a>,
+similar to <a href="/pkg/strconv/#IsPrint"><code>IsPrint</code></a>.
+It also adds
+<a href="/pkg/strconv/#QuoteToGraphic"><code>QuoteToGraphic</code></a>,
+<a href="/pkg/strconv/#QuoteRuneToGraphic"><code>QuoteRuneToGraphic</code></a>,
+<a href="/pkg/strconv/#AppendQuoteToGraphic"><code>AppendQuoteToGraphic</code></a>,
+and
+<a href="/pkg/strconv/#AppendQuoteRuneToGraphic"><code>AppendQuoteRuneToGraphic</code></a>,
+analogous to
+<a href="/pkg/strconv/#QuoteToASCII"><code>QuoteToASCII</code></a>,
+<a href="/pkg/strconv/#QuoteRuneToASCII"><code>QuoteRuneToASCII</code></a>,
+and so on.
+The <code>ASCII</code> family escapes all space characters except ASCII space (U+0020).
+In contrast, the <code>Graphic</code> family does not escape any Unicode space characters (category Zs).
+</li>
+
+<li>
+In the <a href="/pkg/testing/"><code>testing</code></a> package,
+when a test calls
+<a href="/pkg/testing/#T.Parallel">t.Parallel</a>,
+that test is paused until all non-parallel tests complete, and then
+that test continues execution with all other parallel tests.
+Go 1.6 changes the time reported for such a test:
+previously the time counted only the parallel execution,
+but now it also counts the time from the start of testing
+until the call to <code>t.Parallel</code>.
+</li>
+
+<li>
+The <a href="/pkg/text/template/"><code>text/template</code></a> package
+contains two minor changes, in addition to the <a href="#template">major changes</a>
+described above.
+First, it adds a new
+<a href="/pkg/text/template/#ExecError"><code>ExecError</code></a> type
+returned for any error during
+<a href="/pkg/text/template/#Template.Execute"><code>Execute</code></a>
+that does not originate in a <code>Write</code> to the underlying writer.
+Callers can distinguish template usage errors from I/O errors by checking for
+<code>ExecError</code>.
+Second, the
+<a href="/pkg/text/template/#Template.Funcs"><code>Funcs</code></a> method
+now checks that the names used as keys in the
+<a href="/pkg/text/template/#FuncMap"><code>FuncMap</code></a>
+are identifiers that can appear in a template function invocation.
+If not, <code>Funcs</code> panics.
+</li>
+
+<li>
+The <a href="/pkg/time/"><code>time</code></a> package's
+<a href="/pkg/time/#Parse"><code>Parse</code></a> function has always rejected any day of month larger than 31,
+such as January 32.
+In Go 1.6, <code>Parse</code> now also rejects February 29 in non-leap years,
+February 30, February 31, April 31, June 31, September 31, and November 31.
+</li>
+
+</ul>
+

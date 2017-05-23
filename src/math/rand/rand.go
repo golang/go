@@ -9,6 +9,9 @@
 // sequence of values each time a program is run. Use the Seed function to
 // initialize the default Source if different behavior is required for each run.
 // The default Source is safe for concurrent use by multiple goroutines.
+//
+// For random numbers suitable for security-sensitive work, see the crypto/rand
+// package.
 package rand
 
 import "sync"
@@ -30,14 +33,32 @@ func NewSource(seed int64) Source {
 // A Rand is a source of random numbers.
 type Rand struct {
 	src Source
+
+	// readVal contains remainder of 63-bit integer used for bytes
+	// generation during most recent Read call.
+	// It is saved so next Read call can start where the previous
+	// one finished.
+	readVal int64
+	// readPos indicates the number of low-order bytes of readVal
+	// that are still valid.
+	readPos int8
 }
 
 // New returns a new Rand that uses random values from src
 // to generate other random values.
-func New(src Source) *Rand { return &Rand{src} }
+func New(src Source) *Rand { return &Rand{src: src} }
 
 // Seed uses the provided seed value to initialize the generator to a deterministic state.
-func (r *Rand) Seed(seed int64) { r.src.Seed(seed) }
+// Seed should not be called concurrently with any other Rand method.
+func (r *Rand) Seed(seed int64) {
+	if lk, ok := r.src.(*lockedSource); ok {
+		lk.seedPos(seed, &r.readPos)
+		return
+	}
+
+	r.src.Seed(seed)
+	r.readPos = 0
+}
 
 // Int63 returns a non-negative pseudo-random 63-bit integer as an int64.
 func (r *Rand) Int63() int64 { return r.src.Int63() }
@@ -110,19 +131,18 @@ func (r *Rand) Float64() float64 {
 	//
 	// There is one bug in the value stream: r.Int63() may be so close
 	// to 1<<63 that the division rounds up to 1.0, and we've guaranteed
-	// that the result is always less than 1.0. To fix that, we treat the
-	// range as cyclic and map 1 back to 0. This is justified by observing
-	// that while some of the values rounded down to 0, nothing was
-	// rounding up to 0, so 0 was underrepresented in the results.
-	// Mapping 1 back to zero restores some balance.
-	// (The balance is not perfect because the implementation
-	// returns denormalized numbers for very small r.Int63(),
-	// and those steal from what would normally be 0 results.)
-	// The remapping only happens 1/2⁵³ of the time, so most clients
+	// that the result is always less than 1.0.
+	//
+	// We tried to fix this by mapping 1.0 back to 0.0, but since float64
+	// values near 0 are much denser than near 1, mapping 1 to 0 caused
+	// a theoretically significant overshoot in the probability of returning 0.
+	// Instead of that, if we round up to 1, just try again.
+	// Getting 1 only happens 1/2⁵³ of the time, so most clients
 	// will not observe it anyway.
+again:
 	f := float64(r.Int63()) / (1 << 63)
 	if f == 1 {
-		f = 0
+		goto again // resample; this branch is taken O(never)
 	}
 	return f
 }
@@ -131,13 +151,11 @@ func (r *Rand) Float64() float64 {
 func (r *Rand) Float32() float32 {
 	// Same rationale as in Float64: we want to preserve the Go 1 value
 	// stream except we want to fix it not to return 1.0
-	// There is a double rounding going on here, but the argument for
-	// mapping 1 to 0 still applies: 0 was underrepresented before,
-	// so mapping 1 to 0 doesn't cause too many 0s.
 	// This only happens 1/2²⁴ of the time (plus the 1/2⁵³ of the time in Float64).
+again:
 	f := float32(r.Float64())
 	if f == 1 {
-		f = 0
+		goto again // resample; this branch is taken O(very rarely)
 	}
 	return f
 }
@@ -145,12 +163,44 @@ func (r *Rand) Float32() float32 {
 // Perm returns, as a slice of n ints, a pseudo-random permutation of the integers [0,n).
 func (r *Rand) Perm(n int) []int {
 	m := make([]int, n)
+	// In the following loop, the iteration when i=0 always swaps m[0] with m[0].
+	// A change to remove this useless iteration is to assign 1 to i in the init
+	// statement. But Perm also effects r. Making this change will affect
+	// the final state of r. So this change can't be made for compatibility
+	// reasons for Go 1.
 	for i := 0; i < n; i++ {
 		j := r.Intn(i + 1)
 		m[i] = m[j]
 		m[j] = i
 	}
 	return m
+}
+
+// Read generates len(p) random bytes and writes them into p. It
+// always returns len(p) and a nil error.
+// Read should not be called concurrently with any other Rand method.
+func (r *Rand) Read(p []byte) (n int, err error) {
+	if lk, ok := r.src.(*lockedSource); ok {
+		return lk.read(p, &r.readVal, &r.readPos)
+	}
+	return read(p, r.Int63, &r.readVal, &r.readPos)
+}
+
+func read(p []byte, int63 func() int64, readVal *int64, readPos *int8) (n int, err error) {
+	pos := *readPos
+	val := *readVal
+	for n = 0; n < len(p); n++ {
+		if pos == 0 {
+			val = int63()
+			pos = 7
+		}
+		p[n] = byte(val)
+		val >>= 8
+		pos--
+	}
+	*readPos = pos
+	*readVal = val
+	return
 }
 
 /*
@@ -161,7 +211,9 @@ var globalRand = New(&lockedSource{src: NewSource(1)})
 
 // Seed uses the provided seed value to initialize the default Source to a
 // deterministic state. If Seed is not called, the generator behaves as
-// if seeded by Seed(1).
+// if seeded by Seed(1). Seed values that have the same remainder when
+// divided by 2^31-1 generate the same pseudo-random sequence.
+// Seed, unlike the Rand.Seed method, is safe for concurrent use.
 func Seed(seed int64) { globalRand.Seed(seed) }
 
 // Int63 returns a non-negative pseudo-random 63-bit integer as an int64
@@ -206,6 +258,11 @@ func Float32() float32 { return globalRand.Float32() }
 // from the default Source.
 func Perm(n int) []int { return globalRand.Perm(n) }
 
+// Read generates len(p) random bytes from the default Source and
+// writes them into p. It always returns len(p) and a nil error.
+// Read, unlike the Rand.Read method, is safe for concurrent use.
+func Read(p []byte) (n int, err error) { return globalRand.Read(p) }
+
 // NormFloat64 returns a normally distributed float64 in the range
 // [-math.MaxFloat64, +math.MaxFloat64] with
 // standard normal distribution (mean = 0, stddev = 1)
@@ -243,4 +300,20 @@ func (r *lockedSource) Seed(seed int64) {
 	r.lk.Lock()
 	r.src.Seed(seed)
 	r.lk.Unlock()
+}
+
+// seedPos implements Seed for a lockedSource without a race condiiton.
+func (r *lockedSource) seedPos(seed int64, readPos *int8) {
+	r.lk.Lock()
+	r.src.Seed(seed)
+	*readPos = 0
+	r.lk.Unlock()
+}
+
+// read implements Read for a lockedSource without a race condition.
+func (r *lockedSource) read(p []byte, readVal *int64, readPos *int8) (n int, err error) {
+	r.lk.Lock()
+	n, err = read(p, r.src.Int63, readVal, readPos)
+	r.lk.Unlock()
+	return
 }

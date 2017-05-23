@@ -8,6 +8,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -100,7 +101,7 @@ func newBucket(typ bucketType, nstk int) *bucket {
 	size := unsafe.Sizeof(bucket{}) + uintptr(nstk)*unsafe.Sizeof(uintptr(0))
 	switch typ {
 	default:
-		gothrow("invalid profile bucket type")
+		throw("invalid profile bucket type")
 	case memProfile:
 		size += unsafe.Sizeof(memRecord{})
 	case blockProfile:
@@ -123,7 +124,7 @@ func (b *bucket) stk() []uintptr {
 // mp returns the memRecord associated with the memProfile bucket b.
 func (b *bucket) mp() *memRecord {
 	if b.typ != memProfile {
-		gothrow("bad use of bucket.mp")
+		throw("bad use of bucket.mp")
 	}
 	data := add(unsafe.Pointer(b), unsafe.Sizeof(*b)+b.nstk*unsafe.Sizeof(uintptr(0)))
 	return (*memRecord)(data)
@@ -132,7 +133,7 @@ func (b *bucket) mp() *memRecord {
 // bp returns the blockRecord associated with the blockProfile bucket b.
 func (b *bucket) bp() *blockRecord {
 	if b.typ != blockProfile {
-		gothrow("bad use of bucket.bp")
+		throw("bad use of bucket.bp")
 	}
 	data := add(unsafe.Pointer(b), unsafe.Sizeof(*b)+b.nstk*unsafe.Sizeof(uintptr(0)))
 	return (*blockRecord)(data)
@@ -143,7 +144,7 @@ func stkbucket(typ bucketType, size uintptr, stk []uintptr, alloc bool) *bucket 
 	if buckhash == nil {
 		buckhash = (*[buckHashSize]*bucket)(sysAlloc(unsafe.Sizeof(*buckhash), &memstats.buckhash_sys))
 		if buckhash == nil {
-			gothrow("runtime: cannot allocate memory")
+			throw("runtime: cannot allocate memory")
 		}
 	}
 
@@ -190,8 +191,6 @@ func stkbucket(typ bucketType, size uintptr, stk []uintptr, alloc bool) *bucket 
 	return b
 }
 
-func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer
-
 func eqslice(x, y []uintptr) bool {
 	if len(x) != len(y) {
 		return false
@@ -234,7 +233,7 @@ func mProf_GC() {
 // Called by malloc to record a profiled block.
 func mProf_Malloc(p unsafe.Pointer, size uintptr) {
 	var stk [maxStack]uintptr
-	nstk := callers(4, &stk[0], len(stk))
+	nstk := callers(4, stk[:])
 	lock(&proflock)
 	b := stkbucket(memProfile, size, stk[:nstk], true)
 	mp := b.mp()
@@ -246,36 +245,24 @@ func mProf_Malloc(p unsafe.Pointer, size uintptr) {
 	// This reduces potential contention and chances of deadlocks.
 	// Since the object must be alive during call to mProf_Malloc,
 	// it's fine to do this non-atomically.
-	setprofilebucket(p, b)
-}
-
-func setprofilebucket_m() // mheap.c
-
-func setprofilebucket(p unsafe.Pointer, b *bucket) {
-	g := getg()
-	g.m.ptrarg[0] = p
-	g.m.ptrarg[1] = unsafe.Pointer(b)
-	onM(setprofilebucket_m)
+	systemstack(func() {
+		setprofilebucket(p, b)
+	})
 }
 
 // Called when freeing a profiled block.
-func mProf_Free(b *bucket, size uintptr, freed bool) {
+func mProf_Free(b *bucket, size uintptr) {
 	lock(&proflock)
 	mp := b.mp()
-	if freed {
-		mp.recent_frees++
-		mp.recent_free_bytes += size
-	} else {
-		mp.prev_frees++
-		mp.prev_free_bytes += size
-	}
+	mp.prev_frees++
+	mp.prev_free_bytes += size
 	unlock(&proflock)
 }
 
 var blockprofilerate uint64 // in CPU ticks
 
 // SetBlockProfileRate controls the fraction of goroutine blocking events
-// that are reported in the blocking profile.  The profiler aims to sample
+// that are reported in the blocking profile. The profiler aims to sample
 // an average of one blocking event per rate nanoseconds spent blocked.
 //
 // To include every blocking event in the profile, pass rate = 1.
@@ -294,14 +281,14 @@ func SetBlockProfileRate(rate int) {
 		}
 	}
 
-	atomicstore64(&blockprofilerate, uint64(r))
+	atomic.Store64(&blockprofilerate, uint64(r))
 }
 
 func blockevent(cycles int64, skip int) {
 	if cycles <= 0 {
 		cycles = 1
 	}
-	rate := int64(atomicload64(&blockprofilerate))
+	rate := int64(atomic.Load64(&blockprofilerate))
 	if rate <= 0 || (rate > cycles && int64(fastrand1())%rate > cycles) {
 		return
 	}
@@ -309,9 +296,9 @@ func blockevent(cycles int64, skip int) {
 	var nstk int
 	var stk [maxStack]uintptr
 	if gp.m.curg == nil || gp.m.curg == gp {
-		nstk = callers(skip, &stk[0], len(stk))
+		nstk = callers(skip, stk[:])
 	} else {
-		nstk = gcallers(gp.m.curg, skip, &stk[0], len(stk))
+		nstk = gcallers(gp.m.curg, skip, stk[:])
 	}
 	lock(&proflock)
 	b := stkbucket(blockProfile, 0, stk[:nstk], true)
@@ -348,7 +335,7 @@ func (r *StackRecord) Stack() []uintptr {
 //
 // The tools that process the memory profiles assume that the
 // profile rate is constant across the lifetime of the program
-// and equal to the current value.  Programs that change the
+// and equal to the current value. Programs that change the
 // memory profiling rate should do so just once, as early as
 // possible in the execution of the program (for example,
 // at the beginning of main).
@@ -381,6 +368,9 @@ func (r *MemProfileRecord) Stack() []uintptr {
 	return r.Stack0[0:]
 }
 
+// MemProfile returns a profile of memory allocated and freed per allocation
+// site.
+//
 // MemProfile returns n, the number of records in the current memory profile.
 // If len(p) >= n, MemProfile copies the profile into p and returns n, true.
 // If len(p) < n, MemProfile does not change p and returns n, false.
@@ -389,6 +379,12 @@ func (r *MemProfileRecord) Stack() []uintptr {
 // where r.AllocBytes > 0 but r.AllocBytes == r.FreeBytes.
 // These are sites where memory was allocated, but it has all
 // been released back to the runtime.
+//
+// The returned profile may be up to two garbage collection cycles old.
+// This is to avoid skewing the profile toward allocations; because
+// allocations happen in real time but frees are delayed until the garbage
+// collector performs sweeping, the profile only accounts for allocations
+// that have had a chance to be freed by the garbage collector.
 //
 // Most clients should use the runtime/pprof package or
 // the testing package's -test.memprofile flag instead
@@ -452,7 +448,7 @@ func iterate_memprof(fn func(*bucket, uintptr, *uintptr, uintptr, uintptr, uintp
 	lock(&proflock)
 	for b := mbuckets; b != nil; b = b.allnext {
 		mp := b.mp()
-		fn(b, uintptr(b.nstk), &b.stk()[0], b.size, mp.allocs, mp.frees)
+		fn(b, b.nstk, &b.stk()[0], b.size, mp.allocs, mp.frees)
 	}
 	unlock(&proflock)
 }
@@ -482,8 +478,8 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 		for b := bbuckets; b != nil; b = b.allnext {
 			bp := b.bp()
 			r := &p[0]
-			r.Count = int64(bp.count)
-			r.Cycles = int64(bp.cycles)
+			r.Count = bp.count
+			r.Cycles = bp.cycles
 			i := copy(r.Stack0[:], b.stk())
 			for ; i < len(r.Stack0); i++ {
 				r.Stack0[i] = 0
@@ -502,7 +498,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 // Most clients should use the runtime/pprof package instead
 // of calling ThreadCreateProfile directly.
 func ThreadCreateProfile(p []StackRecord) (n int, ok bool) {
-	first := (*m)(atomicloadp(unsafe.Pointer(&allm)))
+	first := (*m)(atomic.Loadp(unsafe.Pointer(&allm)))
 	for mp := first; mp != nil; mp = mp.alllink {
 		n++
 	}
@@ -510,16 +506,12 @@ func ThreadCreateProfile(p []StackRecord) (n int, ok bool) {
 		ok = true
 		i := 0
 		for mp := first; mp != nil; mp = mp.alllink {
-			for s := range mp.createstack {
-				p[i].Stack0[s] = uintptr(mp.createstack[s])
-			}
+			p[i].Stack0 = mp.createstack
 			i++
 		}
 	}
 	return
 }
-
-var allgs []*g // proc.c
 
 // GoroutineProfile returns n, the number of records in the active goroutine stack profile.
 // If len(p) >= n, GoroutineProfile copies the profile into p and returns n, true.
@@ -528,35 +520,50 @@ var allgs []*g // proc.c
 // Most clients should use the runtime/pprof package instead
 // of calling GoroutineProfile directly.
 func GoroutineProfile(p []StackRecord) (n int, ok bool) {
-	sp := getcallersp(unsafe.Pointer(&p))
-	pc := getcallerpc(unsafe.Pointer(&p))
+	gp := getg()
 
-	n = NumGoroutine()
+	isOK := func(gp1 *g) bool {
+		// Checking isSystemGoroutine here makes GoroutineProfile
+		// consistent with both NumGoroutine and Stack.
+		return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1)
+	}
+
+	stopTheWorld("profile")
+
+	n = 1
+	for _, gp1 := range allgs {
+		if isOK(gp1) {
+			n++
+		}
+	}
+
 	if n <= len(p) {
-		gp := getg()
-		semacquire(&worldsema, false)
-		gp.m.gcing = 1
-		onM(stoptheworld)
+		ok = true
+		r := p
 
-		n = NumGoroutine()
-		if n <= len(p) {
-			ok = true
-			r := p
+		// Save current goroutine.
+		sp := getcallersp(unsafe.Pointer(&p))
+		pc := getcallerpc(unsafe.Pointer(&p))
+		systemstack(func() {
 			saveg(pc, sp, gp, &r[0])
-			r = r[1:]
-			for _, gp1 := range allgs {
-				if gp1 == gp || readgstatus(gp1) == _Gdead {
-					continue
+		})
+		r = r[1:]
+
+		// Save other goroutines.
+		for _, gp1 := range allgs {
+			if isOK(gp1) {
+				if len(r) == 0 {
+					// Should be impossible, but better to return a
+					// truncated profile than to crash the entire process.
+					break
 				}
 				saveg(^uintptr(0), ^uintptr(0), gp1, &r[0])
 				r = r[1:]
 			}
 		}
-
-		gp.m.gcing = 0
-		semrelease(&worldsema)
-		onM(starttheworld)
 	}
+
+	startTheWorld()
 
 	return n, ok
 }
@@ -573,38 +580,36 @@ func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
 // If all is true, Stack formats stack traces of all other goroutines
 // into buf after the trace for the current goroutine.
 func Stack(buf []byte, all bool) int {
-	sp := getcallersp(unsafe.Pointer(&buf))
-	pc := getcallerpc(unsafe.Pointer(&buf))
-	mp := acquirem()
-	gp := mp.curg
 	if all {
-		semacquire(&worldsema, false)
-		mp.gcing = 1
-		releasem(mp)
-		onM(stoptheworld)
-		if mp != acquirem() {
-			gothrow("Stack: rescheduled")
-		}
+		stopTheWorld("stack trace")
 	}
 
 	n := 0
 	if len(buf) > 0 {
-		gp.writebuf = buf[0:0:len(buf)]
-		goroutineheader(gp)
-		traceback(pc, sp, 0, gp)
-		if all {
-			tracebackothers(gp)
-		}
-		n = len(gp.writebuf)
-		gp.writebuf = nil
+		gp := getg()
+		sp := getcallersp(unsafe.Pointer(&buf))
+		pc := getcallerpc(unsafe.Pointer(&buf))
+		systemstack(func() {
+			g0 := getg()
+			// Force traceback=1 to override GOTRACEBACK setting,
+			// so that Stack's results are consistent.
+			// GOTRACEBACK is only about crash dumps.
+			g0.m.traceback = 1
+			g0.writebuf = buf[0:0:len(buf)]
+			goroutineheader(gp)
+			traceback(pc, sp, 0, gp)
+			if all {
+				tracebackothers(gp)
+			}
+			g0.m.traceback = 0
+			n = len(g0.writebuf)
+			g0.writebuf = nil
+		})
 	}
 
 	if all {
-		mp.gcing = 0
-		semrelease(&worldsema)
-		onM(starttheworld)
+		startTheWorld()
 	}
-	releasem(mp)
 	return n
 }
 
@@ -619,11 +624,15 @@ func tracealloc(p unsafe.Pointer, size uintptr, typ *_type) {
 	if typ == nil {
 		print("tracealloc(", p, ", ", hex(size), ")\n")
 	} else {
-		print("tracealloc(", p, ", ", hex(size), ", ", *typ._string, ")\n")
+		print("tracealloc(", p, ", ", hex(size), ", ", typ.string(), ")\n")
 	}
 	if gp.m.curg == nil || gp == gp.m.curg {
 		goroutineheader(gp)
-		traceback(getcallerpc(unsafe.Pointer(&p)), getcallersp(unsafe.Pointer(&p)), 0, gp)
+		pc := getcallerpc(unsafe.Pointer(&p))
+		sp := getcallersp(unsafe.Pointer(&p))
+		systemstack(func() {
+			traceback(pc, sp, 0, gp)
+		})
 	} else {
 		goroutineheader(gp.m.curg)
 		traceback(^uintptr(0), ^uintptr(0), 0, gp.m.curg)
@@ -639,7 +648,11 @@ func tracefree(p unsafe.Pointer, size uintptr) {
 	gp.m.traceback = 2
 	print("tracefree(", p, ", ", hex(size), ")\n")
 	goroutineheader(gp)
-	traceback(getcallerpc(unsafe.Pointer(&p)), getcallersp(unsafe.Pointer(&p)), 0, gp)
+	pc := getcallerpc(unsafe.Pointer(&p))
+	sp := getcallersp(unsafe.Pointer(&p))
+	systemstack(func() {
+		traceback(pc, sp, 0, gp)
+	})
 	print("\n")
 	gp.m.traceback = 0
 	unlock(&tracelock)

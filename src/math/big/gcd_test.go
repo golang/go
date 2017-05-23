@@ -20,13 +20,27 @@ func randInt(r *rand.Rand, size uint) *Int {
 }
 
 func runGCD(b *testing.B, aSize, bSize uint) {
+	b.Run("WithoutXY", func(b *testing.B) {
+		runGCDExt(b, aSize, bSize, false)
+	})
+	b.Run("WithXY", func(b *testing.B) {
+		runGCDExt(b, aSize, bSize, true)
+	})
+}
+
+func runGCDExt(b *testing.B, aSize, bSize uint, calcXY bool) {
 	b.StopTimer()
 	var r = rand.New(rand.NewSource(1234))
 	aa := randInt(r, aSize)
 	bb := randInt(r, bSize)
+	var x, y *Int
+	if calcXY {
+		x = new(Int)
+		y = new(Int)
+	}
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		new(Int).GCD(nil, nil, aa, bb)
+		new(Int).GCD(x, y, aa, bb)
 	}
 }
 

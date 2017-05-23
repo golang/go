@@ -1,0 +1,8 @@
+The pprof in this directory is adapted from the pprof used inside Google
+for C++, Java, and Go programs. Because it was developed for that broader
+context, it is overgeneralized when used here for the specific use case
+of profiling standard Go programs. However, we've left the abstractions
+intact in order to share updates between this copy and Google's internal one.
+
+Please do not take the level of abstraction in this program as an example
+to follow in your own.

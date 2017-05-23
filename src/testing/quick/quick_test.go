@@ -10,6 +10,12 @@ import (
 	"testing"
 )
 
+func fArray(a [4]byte) [4]byte { return a }
+
+type TestArrayAlias [4]byte
+
+func fArrayAlias(a TestArrayAlias) TestArrayAlias { return a }
+
 func fBool(a bool) bool { return a }
 
 type TestBoolAlias bool
@@ -76,6 +82,18 @@ type TestMapAlias map[int]int
 
 func fMapAlias(a TestMapAlias) TestMapAlias { return a }
 
+func fPtr(a *int) *int {
+	if a == nil {
+		return nil
+	}
+	b := *a
+	return &b
+}
+
+type TestPtrAlias *int
+
+func fPtrAlias(a TestPtrAlias) TestPtrAlias { return a }
+
 func fSlice(a []byte) []byte { return a }
 
 type TestSliceAlias []byte
@@ -135,15 +153,6 @@ type TestUintptrAlias uintptr
 
 func fUintptrAlias(a TestUintptrAlias) TestUintptrAlias { return a }
 
-func fIntptr(a *int) *int {
-	b := *a
-	return &b
-}
-
-type TestIntptrAlias *int
-
-func fIntptrAlias(a TestIntptrAlias) TestIntptrAlias { return a }
-
 func reportError(property string, err error, t *testing.T) {
 	if err != nil {
 		t.Errorf("%s: %s", property, err)
@@ -151,6 +160,8 @@ func reportError(property string, err error, t *testing.T) {
 }
 
 func TestCheckEqual(t *testing.T) {
+	reportError("fArray", CheckEqual(fArray, fArray, nil), t)
+	reportError("fArrayAlias", CheckEqual(fArrayAlias, fArrayAlias, nil), t)
 	reportError("fBool", CheckEqual(fBool, fBool, nil), t)
 	reportError("fBoolAlias", CheckEqual(fBoolAlias, fBoolAlias, nil), t)
 	reportError("fFloat32", CheckEqual(fFloat32, fFloat32, nil), t)
@@ -175,6 +186,8 @@ func TestCheckEqual(t *testing.T) {
 	reportError("fInt32Alias", CheckEqual(fInt32Alias, fInt32Alias, nil), t)
 	reportError("fMap", CheckEqual(fMap, fMap, nil), t)
 	reportError("fMapAlias", CheckEqual(fMapAlias, fMapAlias, nil), t)
+	reportError("fPtr", CheckEqual(fPtr, fPtr, nil), t)
+	reportError("fPtrAlias", CheckEqual(fPtrAlias, fPtrAlias, nil), t)
 	reportError("fSlice", CheckEqual(fSlice, fSlice, nil), t)
 	reportError("fSliceAlias", CheckEqual(fSliceAlias, fSliceAlias, nil), t)
 	reportError("fString", CheckEqual(fString, fString, nil), t)
@@ -193,8 +206,6 @@ func TestCheckEqual(t *testing.T) {
 	reportError("fUintAlias", CheckEqual(fUintAlias, fUintAlias, nil), t)
 	reportError("fUintptr", CheckEqual(fUintptr, fUintptr, nil), t)
 	reportError("fUintptrAlias", CheckEqual(fUintptrAlias, fUintptrAlias, nil), t)
-	reportError("fIntptr", CheckEqual(fIntptr, fIntptr, nil), t)
-	reportError("fIntptrAlias", CheckEqual(fIntptrAlias, fIntptrAlias, nil), t)
 }
 
 // This tests that ArbitraryValue is working by checking that all the arbitrary
@@ -245,5 +256,54 @@ func TestFailure(t *testing.T) {
 	}
 	if _, ok := err.(SetupError); !ok {
 		t.Errorf("#3 Error was not a SetupError: %s", err)
+	}
+}
+
+// Recursive data structures didn't terminate.
+// Issues 8818 and 11148.
+func TestRecursive(t *testing.T) {
+	type R struct {
+		Ptr      *R
+		SliceP   []*R
+		Slice    []R
+		Map      map[int]R
+		MapP     map[int]*R
+		MapR     map[*R]*R
+		SliceMap []map[int]R
+	}
+
+	f := func(r R) bool { return true }
+	Check(f, nil)
+}
+
+func TestEmptyStruct(t *testing.T) {
+	f := func(struct{}) bool { return true }
+	Check(f, nil)
+}
+
+type (
+	A struct{ B *B }
+	B struct{ A *A }
+)
+
+func TestMutuallyRecursive(t *testing.T) {
+	f := func(a A) bool { return true }
+	Check(f, nil)
+}
+
+// Some serialization formats (e.g. encoding/pem) cannot distinguish
+// between a nil and an empty map or slice, so avoid generating the
+// zero value for these.
+func TestNonZeroSliceAndMap(t *testing.T) {
+	type Q struct {
+		M map[int]int
+		S []int
+	}
+	f := func(q Q) bool {
+		return q.M != nil && q.S != nil
+	}
+	err := Check(f, nil)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

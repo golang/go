@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,6 +8,7 @@ package cgotest
 import "C"
 
 import (
+	"runtime"
 	"sync"
 	"testing"
 )
@@ -30,6 +31,9 @@ func Add(x int) {
 }
 
 func testCthread(t *testing.T) {
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skip("the iOS exec wrapper is unable to properly handle the panic from Add")
+	}
 	sum.i = 0
 	C.doAdd(10, 6)
 

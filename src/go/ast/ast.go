@@ -99,7 +99,7 @@ func (g *CommentGroup) Text() string {
 	}
 	comments := make([]string, len(g.List))
 	for i, c := range g.List {
-		comments[i] = string(c.Text)
+		comments[i] = c.Text
 	}
 
 	lines := make([]string, 0, 10) // most comments are less than 10 lines
@@ -418,7 +418,7 @@ type (
 )
 
 // Pos and End implementations for expression/type nodes.
-//
+
 func (x *BadExpr) Pos() token.Pos  { return x.From }
 func (x *Ident) Pos() token.Pos    { return x.NamePos }
 func (x *Ellipsis) Pos() token.Pos { return x.Ellipsis }
@@ -486,7 +486,7 @@ func (x *MapType) End() token.Pos       { return x.Value.End() }
 func (x *ChanType) End() token.Pos      { return x.Value.End() }
 
 // exprNode() ensures that only expression/type nodes can be
-// assigned to an ExprNode.
+// assigned to an Expr.
 //
 func (*BadExpr) exprNode()        {}
 func (*Ident) exprNode()          {}
@@ -562,10 +562,11 @@ type (
 
 	// An EmptyStmt node represents an empty statement.
 	// The "position" of the empty statement is the position
-	// of the immediately preceding semicolon.
+	// of the immediately following (explicit or implicit) semicolon.
 	//
 	EmptyStmt struct {
-		Semicolon token.Pos // position of preceding ";"
+		Semicolon token.Pos // position of following ";"
+		Implicit  bool      // if set, ";" was omitted in the source
 	}
 
 	// A LabeledStmt node represents a labeled statement.
@@ -708,7 +709,7 @@ type (
 )
 
 // Pos and End implementations for statement nodes.
-//
+
 func (s *BadStmt) Pos() token.Pos        { return s.From }
 func (s *DeclStmt) Pos() token.Pos       { return s.Decl.Pos() }
 func (s *EmptyStmt) Pos() token.Pos      { return s.Semicolon }
@@ -734,6 +735,9 @@ func (s *RangeStmt) Pos() token.Pos      { return s.For }
 func (s *BadStmt) End() token.Pos  { return s.To }
 func (s *DeclStmt) End() token.Pos { return s.Decl.End() }
 func (s *EmptyStmt) End() token.Pos {
+	if s.Implicit {
+		return s.Semicolon
+	}
 	return s.Semicolon + 1 /* len(";") */
 }
 func (s *LabeledStmt) End() token.Pos { return s.Stmt.End() }
@@ -783,7 +787,7 @@ func (s *ForStmt) End() token.Pos    { return s.Body.End() }
 func (s *RangeStmt) End() token.Pos  { return s.Body.End() }
 
 // stmtNode() ensures that only statement nodes can be
-// assigned to a StmtNode.
+// assigned to a Stmt.
 //
 func (*BadStmt) stmtNode()        {}
 func (*DeclStmt) stmtNode()       {}
@@ -850,7 +854,7 @@ type (
 )
 
 // Pos and End implementations for spec nodes.
-//
+
 func (s *ImportSpec) Pos() token.Pos {
 	if s.Name != nil {
 		return s.Name.Pos()
@@ -927,7 +931,7 @@ type (
 )
 
 // Pos and End implementations for declaration nodes.
-//
+
 func (d *BadDecl) Pos() token.Pos  { return d.From }
 func (d *GenDecl) Pos() token.Pos  { return d.TokPos }
 func (d *FuncDecl) Pos() token.Pos { return d.Type.Pos() }
@@ -947,7 +951,7 @@ func (d *FuncDecl) End() token.Pos {
 }
 
 // declNode() ensures that only declaration nodes can be
-// assigned to a DeclNode.
+// assigned to a Decl.
 //
 func (*BadDecl) declNode()  {}
 func (*GenDecl) declNode()  {}

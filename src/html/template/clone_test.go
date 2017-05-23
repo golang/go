@@ -78,9 +78,17 @@ func TestClone(t *testing.T) {
 	Must(t0.Parse(`{{define "lhs"}} ( {{end}}`))
 	Must(t0.Parse(`{{define "rhs"}} ) {{end}}`))
 
-	// Clone t0 as t4. Redefining the "lhs" template should fail.
+	// Clone t0 as t4. Redefining the "lhs" template should not fail.
 	t4 := Must(t0.Clone())
-	if _, err := t4.Parse(`{{define "lhs"}} FAIL {{end}}`); err == nil {
+	if _, err := t4.Parse(`{{define "lhs"}} OK {{end}}`); err != nil {
+		t.Errorf(`redefine "lhs": got err %v want nil`, err)
+	}
+	// Cloning t1 should fail as it has been executed.
+	if _, err := t1.Clone(); err == nil {
+		t.Error("cloning t1: got nil err want non-nil")
+	}
+	// Redefining the "lhs" template in t1 should fail as it has been executed.
+	if _, err := t1.Parse(`{{define "lhs"}} OK {{end}}`); err == nil {
 		t.Error(`redefine "lhs": got nil err want non-nil`)
 	}
 
@@ -142,7 +150,7 @@ func TestTemplates(t *testing.T) {
 	}
 }
 
-// This used to crash; http://golang.org/issue/3281
+// This used to crash; https://golang.org/issue/3281
 func TestCloneCrash(t *testing.T) {
 	t1 := New("all")
 	Must(t1.New("t1").Parse(`{{define "foo"}}foo{{end}}`))
@@ -166,7 +174,7 @@ func TestCloneThenParse(t *testing.T) {
 	}
 }
 
-// https://code.google.com/p/go/issues/detail?id=5980
+// https://golang.org/issue/5980
 func TestFuncMapWorksAfterClone(t *testing.T) {
 	funcs := FuncMap{"customFunc": func() (string, error) {
 		return "", errors.New("issue5980")

@@ -5,6 +5,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -16,46 +17,11 @@ import (
 // our command line are for us, and some are for 6.out, and
 // some are for both.
 
-var usageMessage = `Usage of go test:
-  -c=false: compile but do not run the test binary
-  -file=file_test.go: specify file to use for tests;
-      use multiple times for multiple files
-  -p=n: build and test up to n packages in parallel
-  -x=false: print command lines as they are executed
-
-  // These flags can be passed with or without a "test." prefix: -v or -test.v.
-  -bench="": passes -test.bench to test
-  -benchmem=false: print memory allocation statistics for benchmarks
-  -benchtime=1s: passes -test.benchtime to test
-  -cover=false: enable coverage analysis
-  -covermode="set": specifies mode for coverage analysis
-  -coverpkg="": comma-separated list of packages for coverage analysis
-  -coverprofile="": passes -test.coverprofile to test if -cover
-  -cpu="": passes -test.cpu to test
-  -cpuprofile="": passes -test.cpuprofile to test
-  -memprofile="": passes -test.memprofile to test
-  -memprofilerate=0: passes -test.memprofilerate to test
-  -blockprofile="": pases -test.blockprofile to test
-  -blockprofilerate=0: passes -test.blockprofilerate to test
-  -outputdir=$PWD: passes -test.outputdir to test
-  -parallel=0: passes -test.parallel to test
-  -run="": passes -test.run to test
-  -short=false: passes -test.short to test
-  -timeout=0: passes -test.timeout to test
-  -v=false: passes -test.v to test
-`
-
-// usage prints a usage message and exits.
-func testUsage() {
-	fmt.Fprint(os.Stderr, usageMessage)
-	setExitStatus(2)
-	exit()
-}
-
 // testFlagSpec defines a flag we know about.
 type testFlagSpec struct {
 	name       string
 	boolVar    *bool
+	flagValue  flag.Value
 	passToTest bool // pass to Test
 	multiOK    bool // OK to have multiple instances
 	present    bool // flag has been seen
@@ -65,32 +31,18 @@ type testFlagSpec struct {
 var testFlagDefn = []*testFlagSpec{
 	// local.
 	{name: "c", boolVar: &testC},
-	{name: "cover", boolVar: &testCover},
-	{name: "coverpkg"},
-	{name: "o"},
-
-	// build flags.
-	{name: "a", boolVar: &buildA},
-	{name: "n", boolVar: &buildN},
-	{name: "p"},
-	{name: "x", boolVar: &buildX},
 	{name: "i", boolVar: &buildI},
-	{name: "work", boolVar: &buildWork},
-	{name: "ccflags"},
-	{name: "gcflags"},
+	{name: "o"},
+	{name: "cover", boolVar: &testCover},
+	{name: "covermode"},
+	{name: "coverpkg"},
 	{name: "exec"},
-	{name: "ldflags"},
-	{name: "gccgoflags"},
-	{name: "tags"},
-	{name: "compiler"},
-	{name: "race", boolVar: &buildRace},
-	{name: "installsuffix"},
 
 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
 	{name: "bench", passToTest: true},
 	{name: "benchmem", boolVar: new(bool), passToTest: true},
 	{name: "benchtime", passToTest: true},
-	{name: "covermode"},
+	{name: "count", passToTest: true},
 	{name: "coverprofile", passToTest: true},
 	{name: "cpu", passToTest: true},
 	{name: "cpuprofile", passToTest: true},
@@ -103,7 +55,24 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "run", passToTest: true},
 	{name: "short", boolVar: new(bool), passToTest: true},
 	{name: "timeout", passToTest: true},
+	{name: "trace", passToTest: true},
 	{name: "v", boolVar: &testV, passToTest: true},
+}
+
+// add build flags to testFlagDefn
+func init() {
+	var cmd Command
+	addBuildFlags(&cmd)
+	cmd.Flag.VisitAll(func(f *flag.Flag) {
+		if f.Name == "v" {
+			// test overrides the build -v flag
+			return
+		}
+		testFlagDefn = append(testFlagDefn, &testFlagSpec{
+			name:      f.Name,
+			flagValue: f.Value,
+		})
+	})
 }
 
 // testFlags processes the command line, grabbing -x and -c, rewriting known flags
@@ -118,6 +87,7 @@ var testFlagDefn = []*testFlagSpec{
 func testFlags(args []string) (packageNames, passToTest []string) {
 	inPkg := false
 	outputDir := ""
+	var explicitArgs []string
 	for i := 0; i < len(args); i++ {
 		if !strings.HasPrefix(args[i], "-") {
 			if !inPkg && packageNames == nil {
@@ -145,76 +115,66 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 				// make non-nil: we have seen the empty package list
 				packageNames = []string{}
 			}
+			if args[i] == "-args" || args[i] == "--args" {
+				// -args or --args signals that everything that follows
+				// should be passed to the test.
+				explicitArgs = args[i+1:]
+				break
+			}
 			passToTest = append(passToTest, args[i])
 			continue
 		}
-		var err error
-		switch f.name {
-		// bool flags.
-		case "a", "c", "i", "n", "x", "v", "race", "cover", "work":
-			setBoolFlag(f.boolVar, value)
-		case "o":
-			testO = value
-			testNeedBinary = true
-		case "p":
-			setIntFlag(&buildP, value)
-		case "exec":
-			execCmd, err = splitQuotedFields(value)
-			if err != nil {
+		if f.flagValue != nil {
+			if err := f.flagValue.Set(value); err != nil {
 				fatalf("invalid flag argument for -%s: %v", f.name, err)
 			}
-		case "ccflags":
-			buildCcflags, err = splitQuotedFields(value)
-			if err != nil {
-				fatalf("invalid flag argument for -%s: %v", f.name, err)
+		} else {
+			// Test-only flags.
+			// Arguably should be handled by f.flagValue, but aren't.
+			var err error
+			switch f.name {
+			// bool flags.
+			case "c", "i", "v", "cover":
+				setBoolFlag(f.boolVar, value)
+			case "o":
+				testO = value
+				testNeedBinary = true
+			case "exec":
+				execCmd, err = splitQuotedFields(value)
+				if err != nil {
+					fatalf("invalid flag argument for -%s: %v", f.name, err)
+				}
+			case "bench":
+				// record that we saw the flag; don't care about the value
+				testBench = true
+			case "timeout":
+				testTimeout = value
+			case "blockprofile", "cpuprofile", "memprofile":
+				testProfile = true
+				testNeedBinary = true
+			case "trace":
+				testProfile = true
+			case "coverpkg":
+				testCover = true
+				if value == "" {
+					testCoverPaths = nil
+				} else {
+					testCoverPaths = strings.Split(value, ",")
+				}
+			case "coverprofile":
+				testCover = true
+				testProfile = true
+			case "covermode":
+				switch value {
+				case "set", "count", "atomic":
+					testCoverMode = value
+				default:
+					fatalf("invalid flag argument for -covermode: %q", value)
+				}
+				testCover = true
+			case "outputdir":
+				outputDir = value
 			}
-		case "gcflags":
-			buildGcflags, err = splitQuotedFields(value)
-			if err != nil {
-				fatalf("invalid flag argument for -%s: %v", f.name, err)
-			}
-		case "ldflags":
-			buildLdflags, err = splitQuotedFields(value)
-			if err != nil {
-				fatalf("invalid flag argument for -%s: %v", f.name, err)
-			}
-		case "gccgoflags":
-			buildGccgoflags, err = splitQuotedFields(value)
-			if err != nil {
-				fatalf("invalid flag argument for -%s: %v", f.name, err)
-			}
-		case "tags":
-			buildContext.BuildTags = strings.Fields(value)
-		case "compiler":
-			buildCompiler{}.Set(value)
-		case "bench":
-			// record that we saw the flag; don't care about the value
-			testBench = true
-		case "timeout":
-			testTimeout = value
-		case "blockprofile", "cpuprofile", "memprofile":
-			testProfile = true
-			testNeedBinary = true
-		case "coverpkg":
-			testCover = true
-			if value == "" {
-				testCoverPaths = nil
-			} else {
-				testCoverPaths = strings.Split(value, ",")
-			}
-		case "coverprofile":
-			testCover = true
-			testProfile = true
-		case "covermode":
-			switch value {
-			case "set", "count", "atomic":
-				testCoverMode = value
-			default:
-				fatalf("invalid flag argument for -cover: %q", value)
-			}
-			testCover = true
-		case "outputdir":
-			outputDir = value
 		}
 		if extraWord {
 			i++
@@ -240,6 +200,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		}
 		passToTest = append(passToTest, "-test.outputdir", dir)
 	}
+
+	passToTest = append(passToTest, explicitArgs...)
 	return
 }
 
@@ -267,7 +229,7 @@ func testFlag(args []string, i int) (f *testFlagSpec, value string, extra bool) 
 	for _, f = range testFlagDefn {
 		if name == f.name {
 			// Booleans are special because they have modes -x, -x=true, -x=false.
-			if f.boolVar != nil {
+			if f.boolVar != nil || isBoolFlag(f.flagValue) {
 				if equals < 0 { // otherwise, it's been set and will be verified in setBoolFlag
 					value = "true"
 				} else {
@@ -292,6 +254,17 @@ func testFlag(args []string, i int) (f *testFlagSpec, value string, extra bool) 
 	}
 	f = nil
 	return
+}
+
+// isBoolFlag reports whether v is a bool flag.
+func isBoolFlag(v flag.Value) bool {
+	vv, ok := v.(interface {
+		IsBoolFlag() bool
+	})
+	if ok {
+		return vv.IsBoolFlag()
+	}
+	return false
 }
 
 // setBoolFlag sets the addressed boolean to the value.

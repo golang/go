@@ -5,7 +5,7 @@
 package math
 
 // Modf returns integer and fractional floating-point numbers
-// that sum to f.  Both values have the same sign as f.
+// that sum to f. Both values have the same sign as f.
 //
 // Special cases are:
 //	Modf(±Inf) = ±Inf, NaN
@@ -14,9 +14,12 @@ func Modf(f float64) (int float64, frac float64)
 
 func modf(f float64) (int float64, frac float64) {
 	if f < 1 {
-		if f < 0 {
+		switch {
+		case f < 0:
 			int, frac = Modf(-f)
 			return -int, -frac
+		case f == 0:
+			return f, f // Return -0, -0 when f == -0
 		}
 		return 0, f
 	}

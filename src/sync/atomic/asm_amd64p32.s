@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -30,9 +30,6 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0-24
 TEXT ·SwapUintptr(SB),NOSPLIT,$0-12
 	JMP	·SwapUint32(SB)
 
-TEXT ·SwapPointer(SB),NOSPLIT,$0-12
-	JMP	·SwapUint32(SB)
-
 TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-17
 	JMP	·CompareAndSwapUint32(SB)
 
@@ -46,9 +43,6 @@ TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
 	RET
 
 TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-17
-	JMP	·CompareAndSwapUint32(SB)
-
-TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0-17
 	JMP	·CompareAndSwapUint32(SB)
 
 TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-25
@@ -150,10 +144,4 @@ TEXT ·StoreUint64(SB),NOSPLIT,$0-16
 	RET
 
 TEXT ·StoreUintptr(SB),NOSPLIT,$0-8
-	JMP	·StorePointer(SB)
-
-TEXT ·StorePointer(SB),NOSPLIT,$0-8
-	MOVL	addr+0(FP), BX
-	MOVL	val+4(FP), AX
-	XCHGL	AX, 0(BX)
-	RET
+	JMP	·StoreUint32(SB)

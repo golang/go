@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+// +build darwin,386 darwin,amd64 dragonfly freebsd linux nacl netbsd openbsd solaris
 
 // Parse "zoneinfo" time zone file.
 // This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.
@@ -74,11 +74,17 @@ func initLocal() {
 }
 
 func loadLocation(name string) (*Location, error) {
+	var firstErr error
 	for _, zoneDir := range zoneDirs {
 		if z, err := loadZoneFile(zoneDir, name); err == nil {
 			z.name = name
 			return z, nil
+		} else if firstErr == nil && !isNotExist(err) {
+			firstErr = err
 		}
+	}
+	if firstErr != nil {
+		return nil, firstErr
 	}
 	return nil, errors.New("unknown time zone " + name)
 }

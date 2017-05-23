@@ -144,6 +144,54 @@ func TestNoRaceSliceCopyRead(t *testing.T) {
 	<-ch
 }
 
+func TestRacePointerSliceCopyRead(t *testing.T) {
+	ch := make(chan bool, 1)
+	a := make([]*int, 10)
+	b := make([]*int, 10)
+	go func() {
+		_ = a[5]
+		ch <- true
+	}()
+	copy(a, b)
+	<-ch
+}
+
+func TestNoRacePointerSliceWriteCopy(t *testing.T) {
+	ch := make(chan bool, 1)
+	a := make([]*int, 10)
+	b := make([]*int, 10)
+	go func() {
+		a[5] = new(int)
+		ch <- true
+	}()
+	copy(a[:5], b[:5])
+	<-ch
+}
+
+func TestRacePointerSliceCopyWrite2(t *testing.T) {
+	ch := make(chan bool, 1)
+	a := make([]*int, 10)
+	b := make([]*int, 10)
+	go func() {
+		b[5] = new(int)
+		ch <- true
+	}()
+	copy(a, b)
+	<-ch
+}
+
+func TestNoRacePointerSliceCopyRead(t *testing.T) {
+	ch := make(chan bool, 1)
+	a := make([]*int, 10)
+	b := make([]*int, 10)
+	go func() {
+		_ = b[5]
+		ch <- true
+	}()
+	copy(a, b)
+	<-ch
+}
+
 func TestNoRaceSliceWriteSlice2(t *testing.T) {
 	ch := make(chan bool, 1)
 	a := make([]float64, 10)
@@ -395,6 +443,53 @@ func TestRaceSliceAppendString(t *testing.T) {
 	<-c
 }
 
+func TestRacePointerSliceAppend(t *testing.T) {
+	c := make(chan bool, 1)
+	s := make([]*int, 10, 20)
+	go func() {
+		_ = append(s, new(int))
+		c <- true
+	}()
+	_ = append(s, new(int))
+	<-c
+}
+
+func TestRacePointerSliceAppendWrite(t *testing.T) {
+	c := make(chan bool, 1)
+	s := make([]*int, 10)
+	go func() {
+		_ = append(s, new(int))
+		c <- true
+	}()
+	s[0] = new(int)
+	<-c
+}
+
+func TestRacePointerSliceAppendSlice(t *testing.T) {
+	c := make(chan bool, 1)
+	s := make([]*int, 10)
+	go func() {
+		s2 := make([]*int, 10)
+		_ = append(s, s2...)
+		c <- true
+	}()
+	s[0] = new(int)
+	<-c
+}
+
+func TestRacePointerSliceAppendSlice2(t *testing.T) {
+	c := make(chan bool, 1)
+	s := make([]*int, 10)
+	s2foobar := make([]*int, 10)
+	go func() {
+		_ = append(s, s2foobar...)
+		c <- true
+	}()
+	println("WRITE:", &s2foobar[5])
+	s2foobar[5] = nil
+	<-c
+}
+
 func TestNoRaceSliceIndexAccess(t *testing.T) {
 	c := make(chan bool, 1)
 	s := make([]int, 10)
@@ -482,4 +577,16 @@ func TestRaceCompareString(t *testing.T) {
 	}()
 	s1 = s2
 	<-c
+}
+
+func TestRaceSlice3(t *testing.T) {
+	done := make(chan bool)
+	x := make([]int, 10)
+	i := 2
+	go func() {
+		i = 3
+		done <- true
+	}()
+	_ = x[:1:i]
+	<-done
 }

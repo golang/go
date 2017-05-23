@@ -7,7 +7,7 @@
 // function call arg reordering was picking out 1 call that
 // didn't need to be in a temporary, but it was picking
 // out the first call instead of the last call.
-// http://code.google.com/p/go/issues/detail?id=370
+// https://golang.org/issue/370
 
 package main
 

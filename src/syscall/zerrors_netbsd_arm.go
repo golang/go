@@ -4,6 +4,8 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs -- -marm _const.go
 
+// +build arm,netbsd
+
 package syscall
 
 const (

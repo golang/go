@@ -60,6 +60,28 @@ func ExampleEqualFold() {
 	// Output: true
 }
 
+func ExampleHasPrefix() {
+	fmt.Println(strings.HasPrefix("Gopher", "Go"))
+	fmt.Println(strings.HasPrefix("Gopher", "C"))
+	fmt.Println(strings.HasPrefix("Gopher", ""))
+	// Output:
+	// true
+	// false
+	// true
+}
+
+func ExampleHasSuffix() {
+	fmt.Println(strings.HasSuffix("Amigo", "go"))
+	fmt.Println(strings.HasSuffix("Amigo", "O"))
+	fmt.Println(strings.HasSuffix("Amigo", "Ami"))
+	fmt.Println(strings.HasSuffix("Amigo", ""))
+	// Output:
+	// true
+	// false
+	// false
+	// true
+}
+
 func ExampleIndex() {
 	fmt.Println(strings.Index("chicken", "ken"))
 	fmt.Println(strings.Index("chicken", "dmr"))

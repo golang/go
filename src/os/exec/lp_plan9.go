@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,6 +7,7 @@ package exec
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -44,9 +45,10 @@ func LookPath(file string) (string, error) {
 	}
 
 	path := os.Getenv("path")
-	for _, dir := range strings.Split(path, "\000") {
-		if err := findExecutable(dir + "/" + file); err == nil {
-			return dir + "/" + file, nil
+	for _, dir := range filepath.SplitList(path) {
+		path := filepath.Join(dir, file)
+		if err := findExecutable(path); err == nil {
+			return path, nil
 		}
 	}
 	return "", &Error{file, ErrNotFound}

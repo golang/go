@@ -19,7 +19,7 @@ func TestNoRaceSelect1(t *testing.T) {
 		x = 1
 		// At least two channels are needed because
 		// otherwise the compiler optimizes select out.
-		// See comment in runtime/chan.c:^selectgo.
+		// See comment in runtime/select.go:^func selectgoImpl.
 		select {
 		case c <- true:
 		case c1 <- true:
@@ -236,7 +236,7 @@ func TestRaceSelect4(t *testing.T) {
 // there are two variables, access to one
 // of them is synchronized, access to the other
 // is not.
-// Select must (unconditionaly) choose the non-synchronized variable
+// Select must (unconditionally) choose the non-synchronized variable
 // thus causing exactly one race.
 // Currently this test doesn't look like it accomplishes
 // this goal.

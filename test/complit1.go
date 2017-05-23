@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -40,3 +40,17 @@ var (
 	_ = &T{i: 0, f: 0, s: "", next: {}} // ERROR "missing type in composite literal|omit types within composite literal"
 	_ = &T{0, 0, "", {}}                // ERROR "missing type in composite literal|omit types within composite literal"
 )
+
+type M map[T]T
+
+var (
+	_ = M{{i:1}: {i:2}}
+	_ = M{T{i:1}: {i:2}}
+	_ = M{{i:1}: T{i:2}}
+	_ = M{T{i:1}: T{i:2}}
+)
+
+type S struct { s [1]*M1 }
+type M1 map[S]int
+var _ = M1{{s:[1]*M1{&M1{{}:1}}}:2}
+

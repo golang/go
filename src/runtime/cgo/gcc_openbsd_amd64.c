@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,9 +13,15 @@
 static void* threadentry(void*);
 static void (*setg_gcc)(void*);
 
-// TCB_SIZE is sizeof(struct thread_control_block),
-// as defined in /usr/src/lib/librthread/tcb.h
+// TCB_SIZE is sizeof(struct thread_control_block), as defined in
+// /usr/src/lib/librthread/tcb.h on OpenBSD 5.9 and earlier.
 #define TCB_SIZE (4 * sizeof(void *))
+
+// TIB_SIZE is sizeof(struct tib), as defined in
+// /usr/include/tib.h on OpenBSD 6.0 and later.
+#define TIB_SIZE (4 * sizeof(void *) + 6 * sizeof(int))
+
+// TLS_SIZE is the size of TLS needed for Go.
 #define TLS_SIZE (2 * sizeof(void *))
 
 void *__get_tcb(void);
@@ -29,25 +35,38 @@ struct thread_args {
 	void *arg;
 };
 
+static int has_tib = 0;
+
 static void
 tcb_fixup(int mainthread)
 {
-	void *newtcb, *oldtcb;
+	void *tls, *newtcb, *oldtcb;
+	size_t tls_size, tcb_size;
+
+	// TODO(jsing): Remove once OpenBSD 6.1 is released and OpenBSD 5.9 is
+	// no longer supported.
 
 	// The OpenBSD ld.so(1) does not currently support PT_TLS. As a result,
 	// we need to allocate our own TLS space while preserving the existing
-	// TCB that has been setup via librthread.
+	// TCB or TIB that has been setup via librthread.
 
-	newtcb = malloc(TCB_SIZE + TLS_SIZE);
-	if(newtcb == NULL)
+	tcb_size = has_tib ? TIB_SIZE : TCB_SIZE;
+	tls_size = TLS_SIZE + tcb_size;
+	tls = malloc(tls_size);
+	if(tls == NULL)
 		abort();
 
 	// The signal trampoline expects the TLS slots to be zeroed.
-	bzero(newtcb, TLS_SIZE);
+	bzero(tls, TLS_SIZE);
 
 	oldtcb = __get_tcb();
-	bcopy(oldtcb, newtcb + TLS_SIZE, TCB_SIZE);
-	__set_tcb(newtcb + TLS_SIZE);
+	newtcb = tls + TLS_SIZE;
+	bcopy(oldtcb, newtcb, tcb_size);
+	if(has_tib) {
+		 // Fix up self pointer.
+		*(uintptr_t *)(newtcb) = (uintptr_t)newtcb;
+	}
+	__set_tcb(newtcb);
 
 	// NOTE(jsing, minux): we can't free oldtcb without causing double-free
 	// problem. so newtcb will be memory leaks. Get rid of this when OpenBSD
@@ -65,11 +84,42 @@ thread_start_wrapper(void *arg)
 	return args.func(args.arg);
 }
 
+static void init_pthread_wrapper(void) {
+	void *handle;
+
+	// Locate symbol for the system pthread_create function.
+	handle = dlopen("libpthread.so", RTLD_LAZY);
+	if(handle == NULL) {
+		fprintf(stderr, "runtime/cgo: dlopen failed to load libpthread: %s\n", dlerror());
+		abort();
+	}
+	sys_pthread_create = dlsym(handle, "pthread_create");
+	if(sys_pthread_create == NULL) {
+		fprintf(stderr, "runtime/cgo: dlsym failed to find pthread_create: %s\n", dlerror());
+		abort();
+	}
+	// _rthread_init is hidden in OpenBSD librthread that has TIB.
+	if(dlsym(handle, "_rthread_init") == NULL) {
+		has_tib = 1;
+	}
+	dlclose(handle);
+}
+
+static pthread_once_t init_pthread_wrapper_once = PTHREAD_ONCE_INIT;
+
 int
 pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 	void *(*start_routine)(void *), void *arg)
 {
 	struct thread_args *p;
+
+	// we must initialize our wrapper in pthread_create, because it is valid to call
+	// pthread_create in a static constructor, and in fact, our test for issue 9456
+	// does just that.
+	if(pthread_once(&init_pthread_wrapper_once, init_pthread_wrapper) != 0) {
+		fprintf(stderr, "runtime/cgo: failed to initialize pthread_create wrapper\n");
+		abort();
+	}
 
 	p = malloc(sizeof(*p));
 	if(p == NULL) {
@@ -87,7 +137,6 @@ x_cgo_init(G *g, void (*setg)(void*))
 {
 	pthread_attr_t attr;
 	size_t size;
-	void *handle;
 
 	setg_gcc = setg;
 	pthread_attr_init(&attr);
@@ -95,18 +144,10 @@ x_cgo_init(G *g, void (*setg)(void*))
 	g->stacklo = (uintptr)&attr - size + 4096;
 	pthread_attr_destroy(&attr);
 
-	// Locate symbol for the system pthread_create function.
-	handle = dlopen("libpthread.so", RTLD_LAZY);
-	if(handle == NULL) {
-		fprintf(stderr, "dlopen: failed to load libpthread: %s\n", dlerror());
+	if(pthread_once(&init_pthread_wrapper_once, init_pthread_wrapper) != 0) {
+		fprintf(stderr, "runtime/cgo: failed to initialize pthread_create wrapper\n");
 		abort();
 	}
-	sys_pthread_create = dlsym(handle, "pthread_create");
-	if(sys_pthread_create == NULL) {
-		fprintf(stderr, "dlsym: failed to find pthread_create: %s\n", dlerror());
-		abort();
-	}
-	dlclose(handle);
 
 	tcb_fixup(1);
 }

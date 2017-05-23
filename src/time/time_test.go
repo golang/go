@@ -22,7 +22,7 @@ import (
 // the subsequent tests fail.
 func TestZoneData(t *testing.T) {
 	lt := Now()
-	// PST is 8 hours west, PDT is 7 hours west.  We could use the name but it's not unique.
+	// PST is 8 hours west, PDT is 7 hours west. We could use the name but it's not unique.
 	if name, off := lt.Zone(); off != -8*60*60 && off != -7*60*60 {
 		t.Errorf("Unable to find US Pacific time zone data for testing; time zone is %q offset %d", name, off)
 		t.Error("Likely problem: the time zone files have not been installed.")
@@ -533,7 +533,7 @@ var durationTests = []struct {
 	str string
 	d   Duration
 }{
-	{"0", 0},
+	{"0s", 0},
 	{"1ns", 1 * Nanosecond},
 	{"1.1µs", 1100 * Nanosecond},
 	{"2.2ms", 2200 * Microsecond},
@@ -830,8 +830,16 @@ var parseDurationTests = []struct {
 	{"39h9m14.425s", true, 39*Hour + 9*Minute + 14*Second + 425*Millisecond},
 	// large value
 	{"52763797000ns", true, 52763797000 * Nanosecond},
-	// more than 9 digits after decimal point, see http://golang.org/issue/6617
+	// more than 9 digits after decimal point, see https://golang.org/issue/6617
 	{"0.3333333333333333333h", true, 20 * Minute},
+	// 9007199254740993 = 1<<53+1 cannot be stored precisely in a float64
+	{"9007199254740993ns", true, (1<<53 + 1) * Nanosecond},
+	// largest duration that can be represented by int64 in nanoseconds
+	{"9223372036854775807ns", true, (1<<63 - 1) * Nanosecond},
+	{"9223372036854775.807us", true, (1<<63 - 1) * Nanosecond},
+	{"9223372036s854ms775us807ns", true, (1<<63 - 1) * Nanosecond},
+	// large negative value
+	{"-9223372036854775807ns", true, -1<<63 + 1*Nanosecond},
 
 	// errors
 	{"", false, 0},
@@ -842,7 +850,13 @@ var parseDurationTests = []struct {
 	{"-.", false, 0},
 	{".s", false, 0},
 	{"+.s", false, 0},
-	{"3000000h", false, 0}, // overflow
+	{"3000000h", false, 0},                  // overflow
+	{"9223372036854775808ns", false, 0},     // overflow
+	{"9223372036854775.808us", false, 0},    // overflow
+	{"9223372036854ms775us808ns", false, 0}, // overflow
+	// largest negative value of type int64 in nanoseconds should fail
+	// see https://go-review.googlesource.com/#/c/2461/
+	{"-9223372036854775808ns", false, 0},
 }
 
 func TestParseDuration(t *testing.T) {
@@ -925,8 +939,11 @@ func TestLoadFixed(t *testing.T) {
 	// but Go and most other systems use "east is positive".
 	// So GMT+1 corresponds to -3600 in the Go zone, not +3600.
 	name, offset := Now().In(loc).Zone()
-	if name != "GMT+1" || offset != -1*60*60 {
-		t.Errorf("Now().In(loc).Zone() = %q, %d, want %q, %d", name, offset, "GMT+1", -1*60*60)
+	// The zone abbreviation is "-01" since tzdata-2016g, and "GMT+1"
+	// on earlier versions; we accept both. (Issue #17276).
+	if !(name == "GMT+1" || name == "-01") || offset != -1*60*60 {
+		t.Errorf("Now().In(loc).Zone() = %q, %d, want %q or %q, %d",
+			name, offset, "GMT+1", "-01", -1*60*60)
 	}
 }
 
@@ -1046,9 +1063,30 @@ func BenchmarkFormatNow(b *testing.B) {
 	}
 }
 
+func BenchmarkMarshalJSON(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		t.MarshalJSON()
+	}
+}
+
+func BenchmarkMarshalText(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		t.MarshalText()
+	}
+}
+
 func BenchmarkParse(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Parse(ANSIC, "Mon Jan  2 15:04:05 2006")
+	}
+}
+
+func BenchmarkParseDuration(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ParseDuration("9007199254.740993ms")
+		ParseDuration("9007199254740993ns")
 	}
 }
 

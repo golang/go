@@ -17,11 +17,7 @@ func ExampleResponseRecorder() {
 		http.Error(w, "something failed", http.StatusInternalServerError)
 	}
 
-	req, err := http.NewRequest("GET", "http://example.com/foo", nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	req := httptest.NewRequest("GET", "http://example.com/foo", nil)
 	w := httptest.NewRecorder()
 	handler(w, req)
 

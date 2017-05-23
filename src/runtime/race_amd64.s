@@ -1,10 +1,11 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // +build race
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "funcdata.h"
 #include "textflag.h"
 
@@ -57,6 +58,7 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
 	MOVQ	addr+0(FP), RARG1
 	MOVQ	callpc+8(FP), RARG2
 	MOVQ	pc+16(FP), RARG3
+	ADDQ	$1, RARG3 // pc is function start, tsan wants return address
 	// void __tsan_read_pc(ThreadState *thr, void *addr, void *callpc, void *pc);
 	MOVQ	$__tsan_read_pc(SB), AX
 	JMP	racecalladdr<>(SB)
@@ -80,6 +82,7 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
 	MOVQ	addr+0(FP), RARG1
 	MOVQ	callpc+8(FP), RARG2
 	MOVQ	pc+16(FP), RARG3
+	ADDQ	$1, RARG3 // pc is function start, tsan wants return address
 	// void __tsan_write_pc(ThreadState *thr, void *addr, void *callpc, void *pc);
 	MOVQ	$__tsan_write_pc(SB), AX
 	JMP	racecalladdr<>(SB)
@@ -104,6 +107,7 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
 	MOVQ	addr+0(FP), RARG1
 	MOVQ	size+8(FP), RARG2
 	MOVQ	pc+16(FP), RARG3
+	ADDQ	$1, RARG3 // pc is function start, tsan wants return address
 	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVQ	$__tsan_read_range(SB), AX
 	JMP	racecalladdr<>(SB)
@@ -128,6 +132,7 @@ TEXT	runtime·racewriterangepc1(SB), NOSPLIT, $0-24
 	MOVQ	addr+0(FP), RARG1
 	MOVQ	size+8(FP), RARG2
 	MOVQ	pc+16(FP), RARG3
+	ADDQ	$1, RARG3 // pc is function start, tsan wants return address
 	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVQ	$__tsan_write_range(SB), AX
 	JMP	racecalladdr<>(SB)
@@ -138,17 +143,15 @@ TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
 	get_tls(R12)
 	MOVQ	g(R12), R14
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
-	// Check that addr is within [arenastart, arenaend) or within [noptrdata, enoptrbss).
+	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
 	CMPQ	RARG1, runtime·racearenastart(SB)
 	JB	data
 	CMPQ	RARG1, runtime·racearenaend(SB)
 	JB	call
 data:
-	MOVQ	$runtime·noptrdata(SB), R13
-	CMPQ	RARG1, R13
+	CMPQ	RARG1, runtime·racedatastart(SB)
 	JB	ret
-	MOVQ	$runtime·enoptrbss(SB), R13
-	CMPQ	RARG1, R13
+	CMPQ	RARG1, runtime·racedataend(SB)
 	JAE	ret
 call:
 	MOVQ	AX, AX		// w/o this 6a miscompiles this function
@@ -156,16 +159,31 @@ call:
 ret:
 	RET
 
+// func runtime·racefuncenterfp(fp uintptr)
+// Called from instrumented code.
+// Like racefuncenter but passes FP, not PC
+TEXT	runtime·racefuncenterfp(SB), NOSPLIT, $0-8
+	MOVQ	fp+0(FP), R11
+	MOVQ	-8(R11), R11
+	JMP	racefuncenter<>(SB)
+
 // func runtime·racefuncenter(pc uintptr)
 // Called from instrumented code.
 TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
+	MOVQ	callpc+0(FP), R11
+	JMP	racefuncenter<>(SB)
+
+// Common code for racefuncenter/racefuncenterfp
+// R11 = caller's return address
+TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 	MOVQ	DX, R15		// save function entry context (for closures)
 	get_tls(R12)
 	MOVQ	g(R12), R14
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
-	MOVQ	callpc+0(FP), RARG1
+	MOVQ	R11, RARG1
 	// void __tsan_func_enter(ThreadState *thr, void *pc);
 	MOVQ	$__tsan_func_enter(SB), AX
+	// racecall<> preserves R15
 	CALL	racecall<>(SB)
 	MOVQ	R15, DX	// restore function entry context
 	RET
@@ -225,9 +243,6 @@ TEXT	sync∕atomic·StoreUint64(SB), NOSPLIT, $0-0
 TEXT	sync∕atomic·StoreUintptr(SB), NOSPLIT, $0-0
 	JMP	sync∕atomic·StoreInt64(SB)
 
-TEXT	sync∕atomic·StorePointer(SB), NOSPLIT, $0-0
-	JMP	sync∕atomic·StoreInt64(SB)
-
 // Swap
 TEXT	sync∕atomic·SwapInt32(SB), NOSPLIT, $0-0
 	MOVQ	$__tsan_go_atomic32_exchange(SB), AX
@@ -246,9 +261,6 @@ TEXT	sync∕atomic·SwapUint64(SB), NOSPLIT, $0-0
 	JMP	sync∕atomic·SwapInt64(SB)
 
 TEXT	sync∕atomic·SwapUintptr(SB), NOSPLIT, $0-0
-	JMP	sync∕atomic·SwapInt64(SB)
-
-TEXT	sync∕atomic·SwapPointer(SB), NOSPLIT, $0-0
 	JMP	sync∕atomic·SwapInt64(SB)
 
 // Add
@@ -275,9 +287,6 @@ TEXT	sync∕atomic·AddUint64(SB), NOSPLIT, $0-0
 TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-0
 	JMP	sync∕atomic·AddInt64(SB)
 
-TEXT	sync∕atomic·AddPointer(SB), NOSPLIT, $0-0
-	JMP	sync∕atomic·AddInt64(SB)
-
 // CompareAndSwap
 TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0-0
 	MOVQ	$__tsan_go_atomic32_compare_exchange(SB), AX
@@ -298,21 +307,51 @@ TEXT	sync∕atomic·CompareAndSwapUint64(SB), NOSPLIT, $0-0
 TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0-0
 	JMP	sync∕atomic·CompareAndSwapInt64(SB)
 
-TEXT	sync∕atomic·CompareAndSwapPointer(SB), NOSPLIT, $0-0
-	JMP	sync∕atomic·CompareAndSwapInt64(SB)
-
 // Generic atomic operation implementation.
 // AX already contains target function.
 TEXT	racecallatomic<>(SB), NOSPLIT, $0-0
 	// Trigger SIGSEGV early.
 	MOVQ	16(SP), R12
-	MOVL	(R12), R12
+	MOVL	(R12), R13
+	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
+	CMPQ	R12, runtime·racearenastart(SB)
+	JB	racecallatomic_data
+	CMPQ	R12, runtime·racearenaend(SB)
+	JB	racecallatomic_ok
+racecallatomic_data:
+	CMPQ	R12, runtime·racedatastart(SB)
+	JB	racecallatomic_ignore
+	CMPQ	R12, runtime·racedataend(SB)
+	JAE	racecallatomic_ignore
+racecallatomic_ok:
+	// Addr is within the good range, call the atomic function.
 	get_tls(R12)
 	MOVQ	g(R12), R14
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	MOVQ	8(SP), RARG1	// caller pc
 	MOVQ	(SP), RARG2	// pc
 	LEAQ	16(SP), RARG3	// arguments
+	JMP	racecall<>(SB)	// does not return
+racecallatomic_ignore:
+	// Addr is outside the good range.
+	// Call __tsan_go_ignore_sync_begin to ignore synchronization during the atomic op.
+	// An attempt to synchronize on the address would cause crash.
+	MOVQ	AX, R15	// remember the original function
+	MOVQ	$__tsan_go_ignore_sync_begin(SB), AX
+	get_tls(R12)
+	MOVQ	g(R12), R14
+	MOVQ	g_racectx(R14), RARG0	// goroutine context
+	CALL	racecall<>(SB)
+	MOVQ	R15, AX	// restore the original function
+	// Call the atomic function.
+	MOVQ	g_racectx(R14), RARG0	// goroutine context
+	MOVQ	8(SP), RARG1	// caller pc
+	MOVQ	(SP), RARG2	// pc
+	LEAQ	16(SP), RARG3	// arguments
+	CALL	racecall<>(SB)
+	// Call __tsan_go_ignore_sync_end.
+	MOVQ	$__tsan_go_ignore_sync_end(SB), AX
+	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	JMP	racecall<>(SB)
 
 // void runtime·racecall(void(*f)(...), ...)
@@ -346,7 +385,24 @@ call:
 // C->Go callback thunk that allows to call runtime·racesymbolize from C code.
 // Direct Go->C race call has only switched SP, finish g->g0 switch by setting correct g.
 // The overall effect of Go->C->Go call chain is similar to that of mcall.
-TEXT	runtime·racesymbolizethunk(SB), NOSPLIT, $56-8
+// RARG0 contains command code. RARG1 contains command-specific context.
+// See racecallback for command codes.
+TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $56-8
+	// Handle command raceGetProcCmd (0) here.
+	// First, code below assumes that we are on curg, while raceGetProcCmd
+	// can be executed on g0. Second, it is called frequently, so will
+	// benefit from this fast path.
+	CMPQ	RARG0, $0
+	JNE	rest
+	get_tls(RARG0)
+	MOVQ	g(RARG0), RARG0
+	MOVQ	g_m(RARG0), RARG0
+	MOVQ	m_p(RARG0), RARG0
+	MOVQ	p_racectx(RARG0), RARG0
+	MOVQ	RARG0, (RARG1)
+	RET
+
+rest:
 	// Save callee-saved registers (Go code won't respect that).
 	// This is superset of darwin/linux/windows registers.
 	PUSHQ	BX
@@ -363,8 +419,11 @@ TEXT	runtime·racesymbolizethunk(SB), NOSPLIT, $56-8
 	MOVQ	g_m(R13), R13
 	MOVQ	m_g0(R13), R14
 	MOVQ	R14, g(R12)	// g = m->g0
-	MOVQ	RARG0, 0(SP)	// func arg
-	CALL	runtime·racesymbolize(SB)
+	PUSHQ	RARG1	// func arg
+	PUSHQ	RARG0	// func arg
+	CALL	runtime·racecallback(SB)
+	POPQ	R12
+	POPQ	R12
 	// All registers are smashed after Go code, reload.
 	get_tls(R12)
 	MOVQ	g(R12), R13

@@ -1,0 +1,1282 @@
+<!--{
+	"Title": "Go 1.7 Release Notes",
+	"Path":  "/doc/go1.7",
+	"Template": true
+}-->
+
+<!--
+for acme:
+Edit .,s;^PKG:([a-z][A-Za-z0-9_/]+);<a href="/pkg/\1/"><code>\1</code></a>;g
+Edit .,s;^([a-z][A-Za-z0-9_/]+)\.([A-Z][A-Za-z0-9_]+\.)?([A-Z][A-Za-z0-9_]+)([ .',)]|$);<a href="/pkg/\1/#\2\3"><code>\3</code></a>\4;g
+Edit .,s;^FULL:([a-z][A-Za-z0-9_/]+)\.([A-Z][A-Za-z0-9_]+\.)?([A-Z][A-Za-z0-9_]+)([ .',)]|$);<a href="/pkg/\1/#\2\3"><code>\1.\2\3</code></a>\4;g
+Edit .,s;^DPKG:([a-z][A-Za-z0-9_/]+);<dl id="\1"><a href="/pkg/\1/">\1</a></dl>;g
+
+rsc last updated through 6729576
+-->
+
+<!--
+NOTE: In this document and others in this directory, the convention is to
+set fixed-width phrases with non-fixed-width spaces, as in
+<code>hello</code> <code>world</code>.
+Do not send CLs removing the interior tags from such phrases.
+-->
+
+<style>
+ul li { margin: 0.5em 0; }
+</style>
+
+<h2 id="introduction">Introduction to Go 1.7</h2>
+
+<p>
+The latest Go release, version 1.7, arrives six months after 1.6.
+Most of its changes are in the implementation of the toolchain, runtime, and libraries.
+There is one minor change to the language specification.
+As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
+We expect almost all Go programs to continue to compile and run as before.
+</p>
+
+<p>
+The release <a href="#ports">adds a port to IBM LinuxOne</a>;
+<a href="#compiler">updates the x86-64 compiler back end</a> to generate more efficient code;
+includes the <a href="#context">context package</a>, promoted from the
+<a href="https://golang.org/x/net/context">x/net subrepository</a>
+and now used in the standard library;
+and <a href="#testing">adds support in the testing package</a> for
+creating hierarchies of tests and benchmarks.
+The release also <a href="#cmd/go">finalizes the vendoring support</a>
+started in Go 1.5, making it a standard feature.
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<p>
+There is one tiny language change in this release.
+The section on <a href="/ref/spec#Terminating_statements">terminating statements</a>
+clarifies that to determine whether a statement list ends in a terminating statement,
+the “final non-empty statement” is considered the end,
+matching the existing behavior of the gc and gccgo compiler toolchains.
+In earlier releases the definition referred only to the “final statement,”
+leaving the effect of trailing empty statements at the least unclear.
+The <a href="/pkg/go/types/"><code>go/types</code></a>
+package has been updated to match the gc and gccgo compiler toolchains
+in this respect.
+This change has no effect on the correctness of existing programs.
+</p>
+
+<h2 id="ports">Ports</h2>
+
+<p>
+Go 1.7 adds support for macOS 10.12 Sierra.
+Binaries built with versions of Go before 1.7 will not work
+correctly on Sierra.
+</p>
+
+<p>
+Go 1.7 adds an experimental port to <a href="https://en.wikipedia.org/wiki/Linux_on_z_Systems">Linux on z Systems</a> (<code>linux/s390x</code>)
+and the beginning of a port to Plan 9 on ARM (<code>plan9/arm</code>).
+</p>
+
+<p>
+The experimental ports to Linux on 64-bit MIPS (<code>linux/mips64</code> and <code>linux/mips64le</code>)
+added in Go 1.6 now have full support for cgo and external linking.
+</p>
+
+<p>
+The experimental port to Linux on little-endian 64-bit PowerPC (<code>linux/ppc64le</code>)
+now requires the POWER8 architecture or later.
+Big-endian 64-bit PowerPC (<code>linux/ppc64</code>) only requires the
+POWER5 architecture.
+</p>
+
+<p>
+The OpenBSD port now requires OpenBSD 5.6 or later, for access to the <a href="http://man.openbsd.org/getentropy.2"><i>getentropy</i>(2)</a> system call.
+</p>
+
+<h3 id="known_issues">Known Issues</h3>
+
+<p>
+There are some instabilities on FreeBSD that are known but not understood.
+These can lead to program crashes in rare cases.
+See <a href="https://golang.org/issue/16136">issue 16136</a>,
+<a href="https://golang.org/issue/15658">issue 15658</a>,
+and <a href="https://golang.org/issue/16396">issue 16396</a>.
+Any help in solving these FreeBSD-specific issues would be appreciated.
+</p>
+
+<h2 id="tools">Tools</h2>
+
+<h3 id="cmd_asm">Assembler</h3>
+
+<p>
+For 64-bit ARM systems, the vector register names have been
+corrected to <code>V0</code> through <code>V31</code>;
+previous releases incorrectly referred to them as <code>V32</code> through <code>V63</code>.
+</p>
+
+<p>
+For 64-bit x86 systems, the following instructions have been added:
+<code>PCMPESTRI</code>,
+<code>RORXL</code>,
+<code>RORXQ</code>,
+<code>VINSERTI128</code>,
+<code>VPADDD</code>,
+<code>VPADDQ</code>,
+<code>VPALIGNR</code>,
+<code>VPBLENDD</code>,
+<code>VPERM2F128</code>,
+<code>VPERM2I128</code>,
+<code>VPOR</code>,
+<code>VPSHUFB</code>,
+<code>VPSHUFD</code>,
+<code>VPSLLD</code>,
+<code>VPSLLDQ</code>,
+<code>VPSLLQ</code>,
+<code>VPSRLD</code>,
+<code>VPSRLDQ</code>,
+and
+<code>VPSRLQ</code>.
+</p>
+
+<h3 id="compiler">Compiler Toolchain</h3>
+
+<p>
+This release includes a new code generation back end for 64-bit x86 systems,
+following a <a href="https://golang.org/s/go17ssa">proposal from 2015</a>
+that has been under development since then.
+The new back end, based on
+<a href="https://en.wikipedia.org/wiki/Static_single_assignment_form">SSA</a>,
+generates more compact, more efficient code
+and provides a better platform for optimizations
+such as bounds check elimination.
+The new back end reduces the CPU time required by
+<a href="https://golang.org/test/bench/go1/">our benchmark programs</a> by 5-35%.
+</p>
+
+<p>
+For this release, the new back end can be disabled by passing
+<code>-ssa=0</code> to the compiler.
+If you find that your program compiles or runs successfully
+only with the new back end disabled, please
+<a href="https://golang.org/issue/new">file a bug report</a>.
+</p>
+
+<p>
+The format of exported metadata written by the compiler in package archives has changed:
+the old textual format has been replaced by a more compact binary format.
+This results in somewhat smaller package archives and fixes a few
+long-standing corner case bugs.
+</p>
+
+<p>
+For this release, the new export format can be disabled by passing
+<code>-newexport=0</code> to the compiler.
+If you find that your program compiles or runs successfully
+only with the new export format disabled, please
+<a href="https://golang.org/issue/new">file a bug report</a>.
+</p>
+
+<p>
+The linker's <code>-X</code> option no longer supports the unusual two-argument form
+<code>-X</code> <code>name</code> <code>value</code>,
+as <a href="/doc/go1.6#compiler">announced</a> in the Go 1.6 release
+and in warnings printed by the linker.
+Use <code>-X</code> <code>name=value</code> instead.
+</p>
+
+<p>
+The compiler and linker have been optimized and run significantly faster in this release than in Go 1.6,
+although they are still slower than we would like and will continue to be optimized in future releases.
+</p>
+
+<p>
+Due to changes across the compiler toolchain and standard library,
+binaries built with this release should typically be smaller than binaries
+built with Go 1.6,
+sometimes by as much as 20-30%.
+</p>
+
+<p>
+On x86-64 systems, Go programs now maintain stack frame pointers
+as expected by profiling tools like Linux's perf and Intel's VTune,
+making it easier to analyze and optimize Go programs using these tools.
+The frame pointer maintenance has a small run-time overhead that varies
+but averages around 2%. We hope to reduce this cost in future releases.
+To build a toolchain that does not use frame pointers, set
+<code>GOEXPERIMENT=noframepointer</code> when running
+<code>make.bash</code>, <code>make.bat</code>, or <code>make.rc</code>.
+</p>
+
+<h3 id="cmd_cgo">Cgo</h3>
+
+<p>
+Packages using <a href="/cmd/cgo/">cgo</a> may now include
+Fortran source files (in addition to C, C++, Objective C, and SWIG),
+although the Go bindings must still use C language APIs.
+</p>
+
+<p>
+Go bindings may now use a new helper function <code>C.CBytes</code>.
+In contrast to <code>C.CString</code>, which takes a Go <code>string</code>
+and returns a <code>*C.byte</code> (a C <code>char*</code>),
+<code>C.CBytes</code> takes a Go <code>[]byte</code>
+and returns an <code>unsafe.Pointer</code> (a C <code>void*</code>).
+</p>
+
+<p>
+Packages and binaries built using <code>cgo</code> have in past releases
+produced different output on each build,
+due to the embedding of temporary directory names.
+When using this release with
+new enough versions of GCC or Clang
+(those that support the <code>-fdebug-prefix-map</code> option),
+those builds should finally be deterministic.
+</p>
+
+<h3 id="gccgo">Gccgo</h3>
+
+<p>
+Due to the alignment of Go's semiannual release schedule with GCC's annual release schedule,
+GCC release 6 contains the Go 1.6.1 version of gccgo.
+The next release, GCC 7, will likely have the Go 1.8 version of gccgo.
+</p>
+
+<h3 id="cmd_go">Go command</h3>
+
+<p>
+The <a href="/cmd/go/"><code>go</code></a> command's basic operation
+is unchanged, but there are a number of changes worth noting.
+</p>
+
+<p>
+This release removes support for the <code>GO15VENDOREXPERIMENT</code> environment variable,
+as <a href="/doc/go1.6#go_command">announced</a> in the Go 1.6 release.
+<a href="https://golang.org/s/go15vendor">Vendoring support</a>
+is now a standard feature of the <code>go</code> command and toolchain.
+</p>
+
+<p>
+The <code>Package</code> data structure made available to
+“<code>go</code> <code>list</code>” now includes a
+<code>StaleReason</code> field explaining why a particular package
+is or is not considered stale (in need of rebuilding).
+This field is available to the <code>-f</code> or <code>-json</code>
+options and is useful for understanding why a target is being rebuilt.
+</p>
+
+<p>
+The “<code>go</code> <code>get</code>” command now supports
+import paths referring to <code>git.openstack.org</code>.
+</p>
+
+<p>
+This release adds experimental, minimal support for building programs using
+<a href="/pkg/go/build#hdr-Binary_Only_Packages">binary-only packages</a>,
+packages distributed in binary form
+without the corresponding source code.
+This feature is needed in some commercial settings
+but is not intended to be fully integrated into the rest of the toolchain.
+For example, tools that assume access to complete source code
+will not work with such packages, and there are no plans to support
+such packages in the “<code>go</code> <code>get</code>” command.
+</p>
+
+<h3 id="cmd_doc">Go doc</h3>
+
+<p>
+The “<code>go</code> <code>doc</code>” command
+now groups constructors with the type they construct,
+following <a href="/cmd/godoc/"><code>godoc</code></a>.
+</p>
+
+<h3 id="cmd_vet">Go vet</h3>
+
+<p>
+The “<code>go</code> <code>vet</code>” command
+has more accurate analysis in its <code>-copylock</code> and <code>-printf</code> checks,
+and a new <code>-tests</code> check that checks the name and signature of likely test functions.
+To avoid confusion with the new <code>-tests</code> check, the old, unadvertised
+<code>-test</code> option has been removed; it was equivalent to <code>-all</code> <code>-shadow</code>.
+</p>
+
+<p id="vet_lostcancel">
+The <code>vet</code> command also has a new check,
+<code>-lostcancel</code>, which detects failure to call the
+cancelation function returned by the <code>WithCancel</code>,
+<code>WithTimeout</code>, and <code>WithDeadline</code> functions in
+Go 1.7's new <code>context</code> package (see <a
+href='#context'>below</a>).
+Failure to call the function prevents the new <code>Context</code>
+from being reclaimed until its parent is cancelled.
+(The background context is never cancelled.)
+</p>
+
+<h3 id="cmd_dist">Go tool dist</h3>
+
+<p>
+The new subcommand “<code>go</code> <code>tool</code> <code>dist</code> <code>list</code>”
+prints all supported operating system/architecture pairs.
+</p>
+
+<h3 id="cmd_trace">Go tool trace</h3>
+
+<p>
+The “<code>go</code> <code>tool</code> <code>trace</code>” command,
+<a href="/doc/go1.5#trace_command">introduced in Go 1.5</a>,
+has been refined in various ways.
+</p>
+
+<p>
+First, collecting traces is significantly more efficient than in past releases.
+In this release, the typical execution-time overhead of collecting a trace is about 25%;
+in past releases it was at least 400%.
+Second, trace files now include file and line number information,
+making them more self-contained and making the
+original executable optional when running the trace tool.
+Third, the trace tool now breaks up large traces to avoid limits
+in the browser-based viewer.
+</p>
+
+<p>
+Although the trace file format has changed in this release,
+the Go 1.7 tools can still read traces from earlier releases.
+</p>
+
+<h2 id="performance">Performance</h2>
+
+<p>
+As always, the changes are so general and varied that precise statements
+about performance are difficult to make.
+Most programs should run a bit faster,
+due to speedups in the garbage collector and
+optimizations in the core library.
+On x86-64 systems, many programs will run significantly faster,
+due to improvements in generated code brought by the
+new compiler back end.
+As noted above, in our own benchmarks,
+the code generation changes alone typically reduce program CPU time by 5-35%.
+</p>
+
+<p>
+<!-- git log &#45&#45grep '-[0-9][0-9]\.[0-9][0-9]%' go1.6.. -->
+There have been significant optimizations bringing more than 10% improvements
+to implementations in the
+<a href="/pkg/crypto/sha1/"><code>crypto/sha1</code></a>,
+<a href="/pkg/crypto/sha256/"><code>crypto/sha256</code></a>,
+<a href="/pkg/encoding/binary/"><code>encoding/binary</code></a>,
+<a href="/pkg/fmt/"><code>fmt</code></a>,
+<a href="/pkg/hash/adler32/"><code>hash/adler32</code></a>,
+<a href="/pkg/hash/crc32/"><code>hash/crc32</code></a>,
+<a href="/pkg/hash/crc64/"><code>hash/crc64</code></a>,
+<a href="/pkg/image/color/"><code>image/color</code></a>,
+<a href="/pkg/math/big/"><code>math/big</code></a>,
+<a href="/pkg/strconv/"><code>strconv</code></a>,
+<a href="/pkg/strings/"><code>strings</code></a>,
+<a href="/pkg/unicode/"><code>unicode</code></a>,
+and
+<a href="/pkg/unicode/utf16/"><code>unicode/utf16</code></a>
+packages.
+</p>
+
+<p>
+Garbage collection pauses should be significantly shorter than they
+were in Go 1.6 for programs with large numbers of idle goroutines,
+substantial stack size fluctuation, or large package-level variables.
+</p>
+
+<h2 id="library">Core library</h2>
+
+<h3 id="context">Context</h3>
+
+<p>
+Go 1.7 moves the <code>golang.org/x/net/context</code> package
+into the standard library as <a href="/pkg/context/"><code>context</code></a>.
+This allows the use of contexts for cancelation, timeouts, and passing
+request-scoped data in other standard library packages,
+including
+<a href="#net">net</a>,
+<a href="#net/http">net/http</a>,
+and
+<a href="#os/exec">os/exec</a>,
+as noted below.
+</p>
+
+<p>
+For more information about contexts, see the
+<a href="/pkg/context/">package documentation</a>
+and the Go blog post
+“<a href="https://blog.golang.org/context">Go Concurrent Patterns: Context</a>.”
+</p>
+
+<h3 id="httptrace">HTTP Tracing</h3>
+
+<p>
+Go 1.7 introduces <a href="/pkg/net/http/httptrace/"><code>net/http/httptrace</code></a>,
+a package that provides mechanisms for tracing events within HTTP requests.
+</p>
+
+<h3 id="testing">Testing</h3>
+
+<p>
+The <code>testing</code> package now supports the definition
+of tests with subtests and benchmarks with sub-benchmarks.
+This support makes it easy to write table-driven benchmarks
+and to create hierarchical tests.
+It also provides a way to share common setup and tear-down code.
+See the <a href="/pkg/testing/#hdr-Subtests_and_Sub_benchmarks">package documentation</a> for details.
+</p>
+
+<h3 id="runtime">Runtime</h3>
+
+<p>
+All panics started by the runtime now use panic values
+that implement both the
+builtin <a href="/ref/spec#Errors"><code>error</code></a>,
+and
+<a href="/pkg/runtime/#Error"><code>runtime.Error</code></a>,
+as
+<a href="/ref/spec#Run_time_panics">required by the language specification</a>.
+</p>
+
+<p>
+During panics, if a signal's name is known, it will be printed in the stack trace.
+Otherwise, the signal's number will be used, as it was before Go1.7.
+</p>
+
+<p>
+The new function
+<a href="/pkg/runtime/#KeepAlive"><code>KeepAlive</code></a>
+provides an explicit mechanism for declaring
+that an allocated object must be considered reachable
+at a particular point in a program,
+typically to delay the execution of an associated finalizer.
+</p>
+
+<p>
+The new function
+<a href="/pkg/runtime/#CallersFrames"><code>CallersFrames</code></a>
+translates a PC slice obtained from
+<a href="/pkg/runtime/#Callers"><code>Callers</code></a>
+into a sequence of frames corresponding to the call stack.
+This new API should be preferred instead of direct use of
+<a href="/pkg/runtime/#FuncForPC"><code>FuncForPC</code></a>,
+because the frame sequence can more accurately describe
+call stacks with inlined function calls.
+</p>
+
+<p>
+The new function
+<a href="/pkg/runtime/#SetCgoTraceback"><code>SetCgoTraceback</code></a>
+facilitates tighter integration between Go and C code executing
+in the same process called using cgo.
+</p>
+
+<p>
+On 32-bit systems, the runtime can now use memory allocated
+by the operating system anywhere in the address space,
+eliminating the
+“memory allocated by OS not in usable range” failure
+common in some environments.
+</p>
+
+<p>
+The runtime can now return unused memory to the operating system on
+all architectures.
+In Go 1.6 and earlier, the runtime could not
+release memory on ARM64, 64-bit PowerPC, or MIPS.
+</p>
+
+<p>
+On Windows, Go programs in Go 1.5 and earlier forced
+the global Windows timer resolution to 1ms at startup
+by calling <code>timeBeginPeriod(1)</code>.
+Changing the global timer resolution caused problems on some systems,
+and testing suggested that the call was not needed for good scheduler performance,
+so Go 1.6 removed the call.
+Go 1.7 brings the call back: under some workloads the call
+is still needed for good scheduler performance.
+</p>
+
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+As always, there are various minor changes and updates to the library,
+made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
+in mind.
+</p>
+
+<dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
+
+<dd>
+<p>
+In previous releases of Go, if
+<a href="/pkg/bufio/#Reader"><code>Reader</code></a>'s
+<a href="/pkg/bufio/#Reader.Peek"><code>Peek</code></a> method
+were asked for more bytes than fit in the underlying buffer,
+it would return an empty slice and the error <code>ErrBufferFull</code>.
+Now it returns the entire underlying buffer, still accompanied by the error <code>ErrBufferFull</code>.
+</p>
+</dd>
+</dl>
+
+<dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
+
+<dd>
+<p>
+The new functions
+<a href="/pkg/bytes/#ContainsAny"><code>ContainsAny</code></a> and
+<a href="/pkg/bytes/#ContainsRune"><code>ContainsRune</code></a>
+have been added for symmetry with
+the <a href="/pkg/strings/"><code>strings</code></a> package.
+</p>
+
+<p>
+In previous releases of Go, if
+<a href="/pkg/bytes/#Reader"><code>Reader</code></a>'s
+<a href="/pkg/bytes/#Reader.Read"><code>Read</code></a> method
+were asked for zero bytes with no data remaining, it would
+return a count of 0 and no error.
+Now it returns a count of 0 and the error
+<a href="/pkg/io/#EOF"><code>io.EOF</code></a>.
+</p>
+
+<p>
+The
+<a href="/pkg/bytes/#Reader"><code>Reader</code></a> type has a new method
+<a href="/pkg/bytes/#Reader.Reset"><code>Reset</code></a> to allow reuse of a <code>Reader</code>.
+</p>
+</dd>
+</dl>
+
+<dl id="compress_flate"><dt><a href="/pkg/compress/flate/">compress/flate</a></dt>
+
+<dd>
+<p>
+As noted above,
+there are significant performance optimizations throughout the package.
+Decompression speed is improved by about 10%,
+while compression speed for <code>DefaultCompression</code> is roughly doubled.
+</p>
+
+<p>
+In addition to those general improvements,
+the
+<code>BestSpeed</code>
+compressor has been replaced entirely and uses an
+algorithm similar to <a href="https://github.com/google/snappy">Snappy</a>,
+resulting in about a 2.5X speed increase,
+although the output can be 5-10% larger than with the previous algorithm.
+</p>
+
+<p>
+There is also a new compression level
+<code>HuffmanOnly</code>
+that applies Huffman but not Lempel-Ziv encoding.
+<a href="https://blog.klauspost.com/constant-time-gzipzip-compression/">Forgoing Lempel-Ziv encoding</a> means that
+<code>HuffmanOnly</code> runs about 3X faster than the new <code>BestSpeed</code>
+but at the cost of producing compressed outputs that are 20-40% larger than those
+generated by the new <code>BestSpeed</code>.
+</p>
+
+<p>
+It is important to note that both
+<code>BestSpeed</code> and <code>HuffmanOnly</code> produce a compressed output that is
+<a href="https://tools.ietf.org/html/rfc1951">RFC 1951</a> compliant.
+In other words, any valid DEFLATE decompressor will continue to be able to decompress these outputs.
+</p>
+
+<p>
+Lastly, there is a minor change to the decompressor's implementation of
+<a href="/pkg/io/#Reader"><code>io.Reader</code></a>. In previous versions,
+the decompressor deferred reporting
+<a href="/pkg/io/#EOF"><code>io.EOF</code></a> until exactly no more bytes could be read.
+Now, it reports
+<a href="/pkg/io/#EOF"><code>io.EOF</code></a> more eagerly when reading the last set of bytes.
+</p>
+</dd>
+</dl>
+
+<dl id="crypto_tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+
+<dd>
+<p>
+The TLS implementation sends the first few data packets on each connection
+using small record sizes, gradually increasing to the TLS maximum record size.
+This heuristic reduces the amount of data that must be received before
+the first packet can be decrypted, improving communication latency over
+low-bandwidth networks.
+Setting
+<a href="/pkg/crypto/tls/#Config"><code>Config</code></a>'s
+<code>DynamicRecordSizingDisabled</code> field to true
+forces the behavior of Go 1.6 and earlier, where packets are
+as large as possible from the start of the connection.
+</p>
+
+<p>
+The TLS client now has optional, limited support for server-initiated renegotiation,
+enabled by setting the
+<a href="/pkg/crypto/tls/#Config"><code>Config</code></a>'s
+<code>Renegotiation</code> field.
+This is needed for connecting to many Microsoft Azure servers.
+</p>
+
+<p>
+The errors returned by the package now consistently begin with a
+<code>tls:</code> prefix.
+In past releases, some errors used a <code>crypto/tls:</code> prefix,
+some used a <code>tls:</code> prefix, and some had no prefix at all.
+</p>
+
+<p>
+When generating self-signed certificates, the package no longer sets the
+“Authority Key Identifier” field by default.
+</p>
+</dd>
+</dl>
+
+<dl id="crypto_x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+
+<dd>
+<p>
+The new function
+<a href="/pkg/crypto/x509/#SystemCertPool"><code>SystemCertPool</code></a>
+provides access to the entire system certificate pool if available.
+There is also a new associated error type
+<a href="/pkg/crypto/x509/#SystemRootsError"><code>SystemRootsError</code></a>.
+</p>
+</dd>
+</dl>
+
+<dl id="debug_dwarf"><dt><a href="/pkg/debug/dwarf/">debug/dwarf</a></dt>
+
+<dd>
+<p>
+The
+<a href="/pkg/debug/dwarf/#Reader"><code>Reader</code></a> type's new
+<a href="/pkg/debug/dwarf/#Reader.SeekPC"><code>SeekPC</code></a> method and the
+<a href="/pkg/debug/dwarf/#Data"><code>Data</code></a> type's new
+<a href="/pkg/debug/dwarf/#Ranges"><code>Ranges</code></a> method
+help to find the compilation unit to pass to a
+<a href="/pkg/debug/dwarf/#LineReader"><code>LineReader</code></a>
+and to identify the specific function for a given program counter.
+</p>
+</dd>
+</dl>
+
+<dl id="debug_elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
+
+<dd>
+<p>
+The new
+<a href="/pkg/debug/elf/#R_390"><code>R_390</code></a> relocation type
+and its many predefined constants
+support the S390 port.
+</p>
+</dd>
+</dl>
+
+<dl id="encoding_asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
+
+<dd>
+<p>
+The ASN.1 decoder now rejects non-minimal integer encodings.
+This may cause the package to reject some invalid but formerly accepted ASN.1 data.
+</p>
+</dd>
+</dl>
+
+<dl id="encoding_json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
+
+<dd>
+<p>
+The
+<a href="/pkg/encoding/json/#Encoder"><code>Encoder</code></a>'s new
+<a href="/pkg/encoding/json/#Encoder.SetIndent"><code>SetIndent</code></a> method
+sets the indentation parameters for JSON encoding,
+like in the top-level
+<a href="/pkg/encoding/json/#Indent"><code>Indent</code></a> function.
+</p>
+
+<p>
+The
+<a href="/pkg/encoding/json/#Encoder"><code>Encoder</code></a>'s new
+<a href="/pkg/encoding/json/#Encoder.SetEscapeHTML"><code>SetEscapeHTML</code></a> method
+controls whether the
+<code>&#x26;</code>, <code>&#x3c;</code>, and <code>&#x3e;</code>
+characters in quoted strings should be escaped as
+<code>\u0026</code>, <code>\u003c</code>, and <code>\u003e</code>,
+respectively.
+As in previous releases, the encoder defaults to applying this escaping,
+to avoid certain problems that can arise when embedding JSON in HTML.
+</p>
+
+<p>
+In earlier versions of Go, this package only supported encoding and decoding
+maps using keys with string types.
+Go 1.7 adds support for maps using keys with integer types:
+the encoding uses a quoted decimal representation as the JSON key.
+Go 1.7 also adds support for encoding maps using non-string keys that implement
+the <code>MarshalText</code>
+(see
+<a href="/pkg/encoding/#TextMarshaler"><code>encoding.TextMarshaler</code></a>)
+method,
+as well as support for decoding maps using non-string keys that implement
+the <code>UnmarshalText</code>
+(see
+<a href="/pkg/encoding/#TextUnmarshaler"><code>encoding.TextUnmarshaler</code></a>)
+method.
+These methods are ignored for keys with string types in order to preserve
+the encoding and decoding used in earlier versions of Go.
+</p>
+
+<p>
+When encoding a slice of typed bytes,
+<a href="/pkg/encoding/json/#Marshal"><code>Marshal</code></a>
+now generates an array of elements encoded using
+that byte type's
+<code>MarshalJSON</code>
+or
+<code>MarshalText</code>
+method if present,
+only falling back to the default base64-encoded string data if neither method is available.
+Earlier versions of Go accept both the original base64-encoded string encoding
+and the array encoding (assuming the byte type also implements
+<code>UnmarshalJSON</code>
+or
+<code>UnmarshalText</code>
+as appropriate),
+so this change should be semantically backwards compatible with earlier versions of Go,
+even though it does change the chosen encoding.
+</p>
+</dd>
+</dl>
+
+<dl id="go_build"><dt><a href="/pkg/go/build/">go/build</a></dt>
+
+<dd>
+<p>
+To implement the go command's new support for binary-only packages
+and for Fortran code in cgo-based packages,
+the
+<a href="/pkg/go/build/#Package"><code>Package</code></a> type
+adds new fields <code>BinaryOnly</code>, <code>CgoFFLAGS</code>, and <code>FFiles</code>.
+</p>
+</dd>
+</dl>
+
+<dl id="go_doc"><dt><a href="/pkg/go/doc/">go/doc</a></dt>
+
+<dd>
+<p>
+To support the corresponding change in <code>go</code> <code>test</code> described above,
+<a href="/pkg/go/doc/#Example"><code>Example</code></a> struct adds a Unordered field
+indicating whether the example may generate its output lines in any order.
+</p>
+</dd>
+</dl>
+
+<dl id="io"><dt><a href="/pkg/io/">io</a></dt>
+
+<dd>
+<p>
+The package adds new constants
+<code>SeekStart</code>, <code>SeekCurrent</code>, and <code>SeekEnd</code>,
+for use with
+<a href="/pkg/io/#Seeker"><code>Seeker</code></a>
+implementations.
+These constants are preferred over <code>os.SEEK_SET</code>, <code>os.SEEK_CUR</code>, and <code>os.SEEK_END</code>,
+but the latter will be preserved for compatibility.
+</p>
+</dd>
+</dl>
+
+<dl id="math_big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+
+<dd>
+<p>
+The
+<a href="/pkg/math/big/#Float"><code>Float</code></a> type adds
+<a href="/pkg/math/big/#Float.GobEncode"><code>GobEncode</code></a> and
+<a href="/pkg/math/big/#Float.GobDecode"><code>GobDecode</code></a> methods,
+so that values of type <code>Float</code> can now be encoded and decoded using the
+<a href="/pkg/encoding/gob/"><code>encoding/gob</code></a>
+package.
+</p>
+</dd>
+</dl>
+
+<dl id="math_rand"><dt><a href="/pkg/math/rand/">math/rand</a></dt>
+
+<dd>
+<p>
+The
+<a href="/pkg/math/rand/#Read"><code>Read</code></a> function and
+<a href="/pkg/math/rand/#Rand"><code>Rand</code></a>'s
+<a href="/pkg/math/rand/#Rand.Read"><code>Read</code></a> method
+now produce a pseudo-random stream of bytes that is consistent and not
+dependent on the size of the input buffer.
+</p>
+
+<p>
+The documentation clarifies that
+Rand's <a href="/pkg/math/rand/#Rand.Seed"><code>Seed</code></a>
+and <a href="/pkg/math/rand/#Rand.Read"><code>Read</code></a> methods
+are not safe to call concurrently, though the global
+functions <a href="/pkg/math/rand/#Seed"><code>Seed</code></a>
+and <a href="/pkg/math/rand/#Read"><code>Read</code></a> are (and have
+always been) safe.
+</p>
+</dd>
+</dl>
+
+<dl id="mime_multipart"><dt><a href="/pkg/mime/multipart/">mime/multipart</a></dt>
+
+<dd>
+<p>
+The
+<a href="/pkg/mime/multipart/#Writer"><code>Writer</code></a>
+implementation now emits each multipart section's header sorted by key.
+Previously, iteration over a map caused the section header to use a
+non-deterministic order.
+</p>
+</dd>
+</dl>
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+
+<dd>
+<p>
+As part of the introduction of <a href="#context">context</a>, the
+<a href="/pkg/net/#Dialer"><code>Dialer</code></a> type has a new method
+<a href="/pkg/net/#Dialer.DialContext"><code>DialContext</code></a>, like
+<a href="/pkg/net/#Dialer.Dial"><code>Dial</code></a> but adding the
+<a href="/pkg/context/#Context"><code>context.Context</code></a>
+for the dial operation.
+The context is intended to obsolete the <code>Dialer</code>'s
+<code>Cancel</code> and <code>Deadline</code> fields,
+but the implementation continues to respect them,
+for backwards compatibility.
+</p>
+
+<p>
+The
+<a href="/pkg/net/#IP"><code>IP</code></a> type's
+<a href="/pkg/net/#IP.String"><code>String</code></a> method has changed its result for invalid <code>IP</code> addresses.
+In past releases, if an <code>IP</code> byte slice had length other than 0, 4, or 16, <code>String</code>
+returned <code>"?"</code>.
+Go 1.7 adds the hexadecimal encoding of the bytes, as in <code>"?12ab"</code>.
+</p>
+
+<p>
+The pure Go <a href="/pkg/net/#hdr-Name_Resolution">name resolution</a>
+implementation now respects <code>nsswitch.conf</code>'s
+stated preference for the priority of DNS lookups compared to
+local file (that is, <code>/etc/hosts</code>) lookups.
+</p>
+</dd>
+</dl>
+
+<dl id="net_http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+
+<dd>
+<p>
+<a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter</code></a>'s
+documentation now makes clear that beginning to write the response
+may prevent future reads on the request body.
+For maximal compatibility, implementations are encouraged to
+read the request body completely before writing any part of the response.
+</p>
+
+<p>
+As part of the introduction of <a href="#context">context</a>, the
+<a href="/pkg/net/http/#Request"><code>Request</code></a> has a new methods
+<a href="/pkg/net/http/#Request.Context"><code>Context</code></a>, to retrieve the associated context, and
+<a href="/pkg/net/http/#Request.WithContext"><code>WithContext</code></a>, to construct a copy of <code>Request</code>
+with a modified context.
+</p>
+
+<p>
+In the
+<a href="/pkg/net/http/#Server"><code>Server</code></a> implementation,
+<a href="/pkg/net/http/#Server.Serve"><code>Serve</code></a> records in the request context
+both the underlying <code>*Server</code> using the key <code>ServerContextKey</code>
+and the local address on which the request was received (a
+<a href="/pkg/net/#Addr"><code>Addr</code></a>) using the key <code>LocalAddrContextKey</code>.
+For example, the address on which a request received is
+<code>req.Context().Value(http.LocalAddrContextKey).(net.Addr)</code>.
+</p>
+
+<p>
+The server's <a href="/pkg/net/http/#Server.Serve"><code>Serve</code></a> method
+now only enables HTTP/2 support if the <code>Server.TLSConfig</code> field is <code>nil</code>
+or includes <code>"h2"</code> in its <code>TLSConfig.NextProtos</code>.
+</p>
+
+<p>
+The server implementation now
+pads response codes less than 100 to three digits
+as required by the protocol,
+so that <code>w.WriteHeader(5)</code> uses the HTTP response
+status <code>005</code>, not just <code>5</code>.
+</p>
+
+<p>
+The server implementation now correctly sends only one "Transfer-Encoding" header when "chunked"
+is set explicitly, following <a href="https://tools.ietf.org/html/rfc7230#section-3.3.1">RFC 7230</a>.
+</p>
+
+<p>
+The server implementation is now stricter about rejecting requests with invalid HTTP versions.
+Invalid requests claiming to be HTTP/0.x are now rejected (HTTP/0.9 was never fully supported),
+and plaintext HTTP/2 requests other than the "PRI * HTTP/2.0" upgrade request are now rejected as well.
+The server continues to handle encrypted HTTP/2 requests.
+</p>
+
+<p>
+In the server, a 200 status code is sent back by the timeout handler on an empty
+response body, instead of sending back 0 as the status code.
+</p>
+
+<p>
+In the client, the
+<a href="/pkg/net/http/#Transport"><code>Transport</code></a> implementation passes the request context
+to any dial operation connecting to the remote server.
+If a custom dialer is needed, the new <code>Transport</code> field
+<code>DialContext</code> is preferred over the existing <code>Dial</code> field,
+to allow the transport to supply a context.
+</p>
+
+<p>
+The
+<a href="/pkg/net/http/#Transport"><code>Transport</code></a> also adds fields
+<code>IdleConnTimeout</code>,
+<code>MaxIdleConns</code>,
+and
+<code>MaxResponseHeaderBytes</code>
+to help control client resources consumed
+by idle or chatty servers.
+</p>
+
+<p>
+A
+<a href="/pkg/net/http/#Client"><code>Client</code></a>'s configured <code>CheckRedirect</code> function can now
+return <code>ErrUseLastResponse</code> to indicate that the
+most recent redirect response should be returned as the
+result of the HTTP request.
+That response is now available to the <code>CheckRedirect</code> function
+as <code>req.Response</code>.
+</p>
+
+<p>
+Since Go 1, the default behavior of the HTTP client is
+to request server-side compression
+using the <code>Accept-Encoding</code> request header
+and then to decompress the response body transparently,
+and this behavior is adjustable using the
+<a href="/pkg/net/http/#Transport"><code>Transport</code></a>'s <code>DisableCompression</code> field.
+In Go 1.7, to aid the implementation of HTTP proxies, the
+<a href="/pkg/net/http/#Response"><code>Response</code></a>'s new
+<code>Uncompressed</code> field reports whether
+this transparent decompression took place.
+</p>
+
+<p>
+<a href="/pkg/net/http/#DetectContentType"><code>DetectContentType</code></a>
+adds support for a few new audio and video content types.
+</p>
+</dd>
+</dl>
+
+<dl id="net_http_cgi"><dt><a href="/pkg/net/http/cgi/">net/http/cgi</a></dt>
+
+<dd>
+<p>
+The
+<a href="/pkg/net/http/cgi/#Handler"><code>Handler</code></a>
+adds a new field
+<code>Stderr</code>
+that allows redirection of the child process's
+standard error away from the host process's
+standard error.
+</p>
+</dd>
+</dl>
+
+<dl id="net_http_httptest"><dt><a href="/pkg/net/http/httptest/">net/http/httptest</a></dt>
+
+<dd>
+<p>
+The new function
+<a href="/pkg/net/http/httptest/#NewRequest"><code>NewRequest</code></a>
+prepares a new
+<a href="/pkg/net/http/#Request"><code>http.Request</code></a>
+suitable for passing to an
+<a href="/pkg/net/http/#Handler"><code>http.Handler</code></a> during a test.
+</p>
+
+<p>
+The
+<a href="/pkg/net/http/httptest/#ResponseRecorder"><code>ResponseRecorder</code></a>'s new
+<a href="/pkg/net/http/httptest/#ResponseRecorder.Result"><code>Result</code></a> method
+returns the recorded
+<a href="/pkg/net/http/#Response"><code>http.Response</code></a>.
+Tests that need to check the response's headers or trailers
+should call <code>Result</code> and inspect the response fields
+instead of accessing
+<code>ResponseRecorder</code>'s <code>HeaderMap</code> directly.
+</p>
+</dd>
+</dl>
+
+<dl id="net_http_httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
+
+<dd>
+<p>
+The
+<a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a> implementation now responds with “502 Bad Gateway”
+when it cannot reach a back end; in earlier releases it responded with “500 Internal Server Error.”
+</p>
+
+<p>
+Both
+<a href="/pkg/net/http/httputil/#ClientConn"><code>ClientConn</code></a> and
+<a href="/pkg/net/http/httputil/#ServerConn"><code>ServerConn</code></a> have been documented as deprecated.
+They are low-level, old, and unused by Go's current HTTP stack
+and will no longer be updated.
+Programs should use
+<a href="/pkg/net/http/#Client"><code>http.Client</code></a>,
+<a href="/pkg/net/http/#Transport"><code>http.Transport</code></a>,
+and
+<a href="/pkg/net/http/#Server"><code>http.Server</code></a>
+instead.
+</p>
+</dd>
+</dl>
+
+<dl id="net_http_pprof"><dt><a href="/pkg/net/http/pprof/">net/http/pprof</a></dt>
+
+<dd>
+<p>
+The runtime trace HTTP handler, installed to handle the path <code>/debug/pprof/trace</code>,
+now accepts a fractional number in its <code>seconds</code> query parameter,
+allowing collection of traces for intervals smaller than one second.
+This is especially useful on busy servers.
+</p>
+</dd>
+</dl>
+
+<dl><dt><a href="/pkg/net/mail/">net/mail</a></dt>
+
+<dd>
+<p>
+The address parser now allows unescaped UTF-8 text in addresses
+following <a href="https://tools.ietf.org/html/rfc6532">RFC 6532</a>,
+but it does not apply any normalization to the result.
+For compatibility with older mail parsers,
+the address encoder, namely
+<a href="/pkg/net/mail/#Address"><code>Address</code></a>'s
+<a href="/pkg/net/mail/#Address.String"><code>String</code></a> method,
+continues to escape all UTF-8 text following <a href="https://tools.ietf.org/html/rfc5322">RFC 5322</a>.
+</p>
+
+<p>
+The <a href="/pkg/net/mail/#ParseAddress"><code>ParseAddress</code></a>
+function and
+the <a href="/pkg/net/mail/#AddressParser.Parse"><code>AddressParser.Parse</code></a>
+method are stricter.
+They used to ignore any characters following an e-mail address, but
+will now return an error for anything other than whitespace.
+</p>
+</dd>
+</dl>
+
+<dl id="net_url"><dt><a href="/pkg/net/url/">net/url</a></dt>
+
+<dd>
+<p>
+The
+<a href="/pkg/net/url/#URL"><code>URL</code></a>'s
+new <code>ForceQuery</code> field
+records whether the URL must have a query string,
+in order to distinguish URLs without query strings (like <code>/search</code>)
+from URLs with empty query strings (like <code>/search?</code>).
+</p>
+</dd>
+</dl>
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+
+<dd>
+<p>
+<a href="/pkg/os/#IsExist"><code>IsExist</code></a> now returns true for <code>syscall.ENOTEMPTY</code>,
+on systems where that error exists.
+</p>
+
+<p>
+On Windows,
+<a href="/pkg/os/#Remove"><code>Remove</code></a> now removes read-only files when possible,
+making the implementation behave as on
+non-Windows systems.
+</p>
+</dd>
+</dl>
+
+<dl id="os_exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
+
+<dd>
+<p>
+As part of the introduction of <a href="#context">context</a>,
+the new constructor
+<a href="/pkg/os/exec/#CommandContext"><code>CommandContext</code></a>
+is like
+<a href="/pkg/os/exec/#Command"><code>Command</code></a> but includes a context that can be used to cancel the command execution.
+</p>
+</dd>
+</dl>
+
+<dl id="os_user"><dt><a href="/pkg/os/user/">os/user</a></dt>
+
+<dd>
+<p>
+The
+<a href="/pkg/os/user/#Current"><code>Current</code></a>
+function is now implemented even when cgo is not available.
+</p>
+
+<p>
+The new
+<a href="/pkg/os/user/#Group"><code>Group</code></a> type,
+along with the lookup functions
+<a href="/pkg/os/user/#LookupGroup"><code>LookupGroup</code></a> and
+<a href="/pkg/os/user/#LookupGroupId"><code>LookupGroupId</code></a>
+and the new field <code>GroupIds</code> in the <code>User</code> struct,
+provides access to system-specific user group information.
+</p>
+</dd>
+</dl>
+
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+
+<dd>
+<p>
+Although
+<a href="/pkg/reflect/#Value"><code>Value</code></a>'s
+<a href="/pkg/reflect/#Value.Field"><code>Field</code></a> method has always been documented to panic
+if the given field number <code>i</code> is out of range, it has instead
+silently returned a zero
+<a href="/pkg/reflect/#Value"><code>Value</code></a>.
+Go 1.7 changes the method to behave as documented.
+</p>
+
+<p>
+The new
+<a href="/pkg/reflect/#StructOf"><code>StructOf</code></a>
+function constructs a struct type at run time.
+It completes the set of type constructors, joining
+<a href="/pkg/reflect/#ArrayOf"><code>ArrayOf</code></a>,
+<a href="/pkg/reflect/#ChanOf"><code>ChanOf</code></a>,
+<a href="/pkg/reflect/#FuncOf"><code>FuncOf</code></a>,
+<a href="/pkg/reflect/#MapOf"><code>MapOf</code></a>,
+<a href="/pkg/reflect/#PtrTo"><code>PtrTo</code></a>,
+and
+<a href="/pkg/reflect/#SliceOf"><code>SliceOf</code></a>.
+</p>
+
+<p>
+<a href="/pkg/reflect/#StructTag"><code>StructTag</code></a>'s
+new method
+<a href="/pkg/reflect/#StructTag.Lookup"><code>Lookup</code></a>
+is like
+<a href="/pkg/reflect/#StructTag.Get"><code>Get</code></a>
+but distinguishes the tag not containing the given key
+from the tag associating an empty string with the given key.
+</p>
+
+<p>
+The
+<a href="/pkg/reflect/#Type.Method"><code>Method</code></a> and
+<a href="/pkg/reflect/#Type.NumMethod"><code>NumMethod</code></a>
+methods of
+<a href="/pkg/reflect/#Type"><code>Type</code></a> and
+<a href="/pkg/reflect/#Value"><code>Value</code></a>
+no longer return or count unexported methods.
+</p>
+</dd>
+</dl>
+
+<dl id="strings"><dt><a href="/pkg/strings/">strings</a></dt>
+
+<dd>
+<p>
+In previous releases of Go, if
+<a href="/pkg/strings/#Reader"><code>Reader</code></a>'s
+<a href="/pkg/strings/#Reader.Read"><code>Read</code></a> method
+were asked for zero bytes with no data remaining, it would
+return a count of 0 and no error.
+Now it returns a count of 0 and the error
+<a href="/pkg/io/#EOF"><code>io.EOF</code></a>.
+</p>
+
+<p>
+The
+<a href="/pkg/strings/#Reader"><code>Reader</code></a> type has a new method
+<a href="/pkg/strings/#Reader.Reset"><code>Reset</code></a> to allow reuse of a <code>Reader</code>.
+</p>
+</dd>
+</dl>
+
+<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+
+<dd>
+<p>
+<a href="/pkg/time/#Duration"><code>Duration</code></a>'s
+time.Duration.String method now reports the zero duration as <code>"0s"</code>, not <code>"0"</code>.
+<a href="/pkg/time/#ParseDuration"><code>ParseDuration</code></a> continues to accept both forms.
+</p>
+
+<p>
+The method call <code>time.Local.String()</code> now returns <code>"Local"</code> on all systems;
+in earlier releases, it returned an empty string on Windows.
+</p>
+
+<p>
+The time zone database in
+<code>$GOROOT/lib/time</code> has been updated
+to IANA release 2016d.
+This fallback database is only used when the system time zone database
+cannot be found, for example on Windows.
+The Windows time zone abbreviation list has also been updated.
+</p>
+</dd>
+</dl>
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+
+<dd>
+<p>
+On Linux, the
+<a href="/pkg/syscall/#SysProcAttr"><code>SysProcAttr</code></a> struct
+(as used in
+<a href="/pkg/os/exec/#Cmd"><code>os/exec.Cmd</code></a>'s <code>SysProcAttr</code> field)
+has a new <code>Unshareflags</code> field.
+If the field is nonzero, the child process created by
+<a href="/pkg/syscall/#ForkExec"><code>ForkExec</code></a>
+(as used in <code>exec.Cmd</code>'s <code>Run</code> method)
+will call the
+<a href="http://man7.org/linux/man-pages/man2/unshare.2.html"><i>unshare</i>(2)</a>
+system call before executing the new program.
+</p>
+</dd>
+</dl>
+
+
+<dl id="unicode"><dt><a href="/pkg/unicode/">unicode</a></dt>
+
+<dd>
+<p>
+The <a href="/pkg/unicode/"><code>unicode</code></a> package and associated
+support throughout the system has been upgraded from version 8.0 to
+<a href="http://www.unicode.org/versions/Unicode9.0.0/">Unicode 9.0</a>.
+</p>
+</dd>
+</dl>

@@ -7,20 +7,20 @@
 #include "textflag.h"
 
 // Register definitions
-table = 0	// Pointer to MD5 constants table
-data = 1	// Pointer to data to hash
-a = 2		// MD5 accumulator
-b = 3		// MD5 accumulator
-c = 4		// MD5 accumulator
-d = 5		// MD5 accumulator
-c0 = 6		// MD5 constant
-c1 = 7		// MD5 constant
-c2 = 8		// MD5 constant
+#define Rtable	R0	// Pointer to MD5 constants table
+#define Rdata	R1	// Pointer to data to hash
+#define Ra	R2	// MD5 accumulator
+#define Rb	R3	// MD5 accumulator
+#define Rc	R4	// MD5 accumulator
+#define Rd	R5	// MD5 accumulator
+#define Rc0	R6	// MD5 constant
+#define Rc1	R7	// MD5 constant
+#define Rc2	R8	// MD5 constant
 // r9, r10 are forbidden
 // r11 is OK provided you check the assembler that no synthetic instructions use it
-c3 = 11		// MD5 constant
-t0 = 12		// temporary
-t1 = 14		// temporary
+#define Rc3	R11	// MD5 constant
+#define Rt0	R12	// temporary
+#define Rt1	R14	// temporary
 
 // func block(dig *digest, p []byte)
 // 0(FP) is *digest
@@ -29,198 +29,198 @@ t1 = 14		// temporary
 //12(FP) is p.cap
 //
 // Stack frame
-p_end = -4	// -4(SP) pointer to the end of data
-p_data = -8	// -8(SP) current data pointer
-buf = -8-4*16	//-72(SP) 16 words temporary buffer
+#define p_end	end-4(SP)	// pointer to the end of data
+#define p_data	data-8(SP)	// current data pointer
+#define buf	buffer-(8+4*16)(SP)	//16 words temporary buffer
 		// 3 words at 4..12(R13) for called routine parameters
 
 TEXT	·block(SB), NOSPLIT, $84-16
-	MOVW	p+4(FP), R(data)	// pointer to the data
-	MOVW	p_len+8(FP), R(t0)	// number of bytes
-	ADD	R(data), R(t0)
-	MOVW	R(t0), p_end(SP)	// pointer to end of data
+	MOVW	p+4(FP), Rdata	// pointer to the data
+	MOVW	p_len+8(FP), Rt0	// number of bytes
+	ADD	Rdata, Rt0
+	MOVW	Rt0, p_end	// pointer to end of data
 
 loop:
-	MOVW	R(data), p_data(SP)	// Save R(data)
-	AND.S	$3, R(data), R(t0)	// TST $3, R(data) not working see issue 5921
+	MOVW	Rdata, p_data	// Save Rdata
+	AND.S	$3, Rdata, Rt0	// TST $3, Rdata not working see issue 5921
 	BEQ	aligned			// aligned detected - skip copy
 
 	// Copy the unaligned source data into the aligned temporary buffer
-	// memove(to=4(R13), from=8(R13), n=12(R13)) - Corrupts all registers
-	MOVW	$buf(SP), R(table)	// to
-	MOVW	$64, R(c0)		// n
-	MOVM.IB	[R(table),R(data),R(c0)], (R13)
+	// memmove(to=4(R13), from=8(R13), n=12(R13)) - Corrupts all registers
+	MOVW	$buf, Rtable	// to
+	MOVW	$64, Rc0		// n
+	MOVM.IB	[Rtable,Rdata,Rc0], (R13)
 	BL	runtime·memmove(SB)
 
 	// Point to the local aligned copy of the data
-	MOVW	$buf(SP), R(data)
+	MOVW	$buf, Rdata
 
 aligned:
 	// Point to the table of constants
 	// A PC relative add would be cheaper than this
-	MOVW	$·table(SB), R(table)
+	MOVW	$·table(SB), Rtable
 
 	// Load up initial MD5 accumulator
-	MOVW	dig+0(FP), R(c0)
-	MOVM.IA (R(c0)), [R(a),R(b),R(c),R(d)]
+	MOVW	dig+0(FP), Rc0
+	MOVM.IA (Rc0), [Ra,Rb,Rc,Rd]
 
 // a += (((c^d)&b)^d) + X[index] + const
 // a = a<<shift | a>>(32-shift) + b
-#define ROUND1(a, b, c, d, index, shift, const) \
-	EOR	R(c), R(d), R(t0)		; \
-	AND	R(b), R(t0)			; \
-	EOR	R(d), R(t0)			; \
-	MOVW	(index<<2)(R(data)), R(t1)	; \
-	ADD	R(t1), R(t0)			; \
-	ADD	R(const), R(t0)			; \
-	ADD	R(t0), R(a)			; \
-	ADD	R(a)@>(32-shift), R(b), R(a)	;
+#define ROUND1(Ra, Rb, Rc, Rd, index, shift, Rconst) \
+	EOR	Rc, Rd, Rt0		; \
+	AND	Rb, Rt0			; \
+	EOR	Rd, Rt0			; \
+	MOVW	(index<<2)(Rdata), Rt1	; \
+	ADD	Rt1, Rt0			; \
+	ADD	Rconst, Rt0			; \
+	ADD	Rt0, Ra			; \
+	ADD	Ra@>(32-shift), Rb, Ra	;
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND1(a, b, c, d,  0,	7, c0)
-	ROUND1(d, a, b, c,  1, 12, c1)
-	ROUND1(c, d, a, b,  2, 17, c2)
-	ROUND1(b, c, d, a,  3, 22, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND1(Ra, Rb, Rc, Rd,  0,	7, Rc0)
+	ROUND1(Rd, Ra, Rb, Rc,  1, 12, Rc1)
+	ROUND1(Rc, Rd, Ra, Rb,  2, 17, Rc2)
+	ROUND1(Rb, Rc, Rd, Ra,  3, 22, Rc3)
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND1(a, b, c, d,  4,	7, c0)
-	ROUND1(d, a, b, c,  5, 12, c1)
-	ROUND1(c, d, a, b,  6, 17, c2)
-	ROUND1(b, c, d, a,  7, 22, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND1(Ra, Rb, Rc, Rd,  4,	7, Rc0)
+	ROUND1(Rd, Ra, Rb, Rc,  5, 12, Rc1)
+	ROUND1(Rc, Rd, Ra, Rb,  6, 17, Rc2)
+	ROUND1(Rb, Rc, Rd, Ra,  7, 22, Rc3)
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND1(a, b, c, d,  8,	7, c0)
-	ROUND1(d, a, b, c,  9, 12, c1)
-	ROUND1(c, d, a, b, 10, 17, c2)
-	ROUND1(b, c, d, a, 11, 22, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND1(Ra, Rb, Rc, Rd,  8,	7, Rc0)
+	ROUND1(Rd, Ra, Rb, Rc,  9, 12, Rc1)
+	ROUND1(Rc, Rd, Ra, Rb, 10, 17, Rc2)
+	ROUND1(Rb, Rc, Rd, Ra, 11, 22, Rc3)
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND1(a, b, c, d, 12,	7, c0)
-	ROUND1(d, a, b, c, 13, 12, c1)
-	ROUND1(c, d, a, b, 14, 17, c2)
-	ROUND1(b, c, d, a, 15, 22, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND1(Ra, Rb, Rc, Rd, 12,	7, Rc0)
+	ROUND1(Rd, Ra, Rb, Rc, 13, 12, Rc1)
+	ROUND1(Rc, Rd, Ra, Rb, 14, 17, Rc2)
+	ROUND1(Rb, Rc, Rd, Ra, 15, 22, Rc3)
 
 // a += (((b^c)&d)^c) + X[index] + const
 // a = a<<shift | a>>(32-shift) + b
-#define ROUND2(a, b, c, d, index, shift, const) \
-	EOR	R(b), R(c), R(t0)		; \
-	AND	R(d), R(t0)			; \
-	EOR	R(c), R(t0)			; \
-	MOVW	(index<<2)(R(data)), R(t1)	; \
-	ADD	R(t1), R(t0)			; \
-	ADD	R(const), R(t0)			; \
-	ADD	R(t0), R(a)			; \
-	ADD	R(a)@>(32-shift), R(b), R(a)	;
+#define ROUND2(Ra, Rb, Rc, Rd, index, shift, Rconst) \
+	EOR	Rb, Rc, Rt0		; \
+	AND	Rd, Rt0			; \
+	EOR	Rc, Rt0			; \
+	MOVW	(index<<2)(Rdata), Rt1	; \
+	ADD	Rt1, Rt0			; \
+	ADD	Rconst, Rt0			; \
+	ADD	Rt0, Ra			; \
+	ADD	Ra@>(32-shift), Rb, Ra	;
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND2(a, b, c, d,  1,	5, c0)
-	ROUND2(d, a, b, c,  6,	9, c1)
-	ROUND2(c, d, a, b, 11, 14, c2)
-	ROUND2(b, c, d, a,  0, 20, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND2(Ra, Rb, Rc, Rd,  1,	5, Rc0)
+	ROUND2(Rd, Ra, Rb, Rc,  6,	9, Rc1)
+	ROUND2(Rc, Rd, Ra, Rb, 11, 14, Rc2)
+	ROUND2(Rb, Rc, Rd, Ra,  0, 20, Rc3)
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND2(a, b, c, d,  5,	5, c0)
-	ROUND2(d, a, b, c, 10,	9, c1)
-	ROUND2(c, d, a, b, 15, 14, c2)
-	ROUND2(b, c, d, a,  4, 20, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND2(Ra, Rb, Rc, Rd,  5,	5, Rc0)
+	ROUND2(Rd, Ra, Rb, Rc, 10,	9, Rc1)
+	ROUND2(Rc, Rd, Ra, Rb, 15, 14, Rc2)
+	ROUND2(Rb, Rc, Rd, Ra,  4, 20, Rc3)
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND2(a, b, c, d,  9,	5, c0)
-	ROUND2(d, a, b, c, 14,	9, c1)
-	ROUND2(c, d, a, b,  3, 14, c2)
-	ROUND2(b, c, d, a,  8, 20, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND2(Ra, Rb, Rc, Rd,  9,	5, Rc0)
+	ROUND2(Rd, Ra, Rb, Rc, 14,	9, Rc1)
+	ROUND2(Rc, Rd, Ra, Rb,  3, 14, Rc2)
+	ROUND2(Rb, Rc, Rd, Ra,  8, 20, Rc3)
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND2(a, b, c, d, 13,	5, c0)
-	ROUND2(d, a, b, c,  2,	9, c1)
-	ROUND2(c, d, a, b,  7, 14, c2)
-	ROUND2(b, c, d, a, 12, 20, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND2(Ra, Rb, Rc, Rd, 13,	5, Rc0)
+	ROUND2(Rd, Ra, Rb, Rc,  2,	9, Rc1)
+	ROUND2(Rc, Rd, Ra, Rb,  7, 14, Rc2)
+	ROUND2(Rb, Rc, Rd, Ra, 12, 20, Rc3)
 
 // a += (b^c^d) + X[index] + const
 // a = a<<shift | a>>(32-shift) + b
-#define ROUND3(a, b, c, d, index, shift, const) \
-	EOR	R(b), R(c), R(t0)		; \
-	EOR	R(d), R(t0)			; \
-	MOVW	(index<<2)(R(data)), R(t1)	; \
-	ADD	R(t1), R(t0)			; \
-	ADD	R(const), R(t0)			; \
-	ADD	R(t0), R(a)			; \
-	ADD	R(a)@>(32-shift), R(b), R(a)	;
+#define ROUND3(Ra, Rb, Rc, Rd, index, shift, Rconst) \
+	EOR	Rb, Rc, Rt0		; \
+	EOR	Rd, Rt0			; \
+	MOVW	(index<<2)(Rdata), Rt1	; \
+	ADD	Rt1, Rt0			; \
+	ADD	Rconst, Rt0			; \
+	ADD	Rt0, Ra			; \
+	ADD	Ra@>(32-shift), Rb, Ra	;
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND3(a, b, c, d,  5,	4, c0)
-	ROUND3(d, a, b, c,  8, 11, c1)
-	ROUND3(c, d, a, b, 11, 16, c2)
-	ROUND3(b, c, d, a, 14, 23, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND3(Ra, Rb, Rc, Rd,  5,	4, Rc0)
+	ROUND3(Rd, Ra, Rb, Rc,  8, 11, Rc1)
+	ROUND3(Rc, Rd, Ra, Rb, 11, 16, Rc2)
+	ROUND3(Rb, Rc, Rd, Ra, 14, 23, Rc3)
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND3(a, b, c, d,  1,	4, c0)
-	ROUND3(d, a, b, c,  4, 11, c1)
-	ROUND3(c, d, a, b,  7, 16, c2)
-	ROUND3(b, c, d, a, 10, 23, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND3(Ra, Rb, Rc, Rd,  1,	4, Rc0)
+	ROUND3(Rd, Ra, Rb, Rc,  4, 11, Rc1)
+	ROUND3(Rc, Rd, Ra, Rb,  7, 16, Rc2)
+	ROUND3(Rb, Rc, Rd, Ra, 10, 23, Rc3)
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND3(a, b, c, d, 13,	4, c0)
-	ROUND3(d, a, b, c,  0, 11, c1)
-	ROUND3(c, d, a, b,  3, 16, c2)
-	ROUND3(b, c, d, a,  6, 23, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND3(Ra, Rb, Rc, Rd, 13,	4, Rc0)
+	ROUND3(Rd, Ra, Rb, Rc,  0, 11, Rc1)
+	ROUND3(Rc, Rd, Ra, Rb,  3, 16, Rc2)
+	ROUND3(Rb, Rc, Rd, Ra,  6, 23, Rc3)
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND3(a, b, c, d,  9,	4, c0)
-	ROUND3(d, a, b, c, 12, 11, c1)
-	ROUND3(c, d, a, b, 15, 16, c2)
-	ROUND3(b, c, d, a,  2, 23, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND3(Ra, Rb, Rc, Rd,  9,	4, Rc0)
+	ROUND3(Rd, Ra, Rb, Rc, 12, 11, Rc1)
+	ROUND3(Rc, Rd, Ra, Rb, 15, 16, Rc2)
+	ROUND3(Rb, Rc, Rd, Ra,  2, 23, Rc3)
 
 // a += (c^(b|^d)) + X[index] + const
 // a = a<<shift | a>>(32-shift) + b
-#define ROUND4(a, b, c, d, index, shift, const) \
-	MVN	R(d), R(t0)			; \
-	ORR	R(b), R(t0)			; \
-	EOR	R(c), R(t0)			; \
-	MOVW	(index<<2)(R(data)), R(t1)	; \
-	ADD	R(t1), R(t0)			; \
-	ADD	R(const), R(t0)			; \
-	ADD	R(t0), R(a)			; \
-	ADD	R(a)@>(32-shift), R(b), R(a)	;
+#define ROUND4(Ra, Rb, Rc, Rd, index, shift, Rconst) \
+	MVN	Rd, Rt0			; \
+	ORR	Rb, Rt0			; \
+	EOR	Rc, Rt0			; \
+	MOVW	(index<<2)(Rdata), Rt1	; \
+	ADD	Rt1, Rt0			; \
+	ADD	Rconst, Rt0			; \
+	ADD	Rt0, Ra			; \
+	ADD	Ra@>(32-shift), Rb, Ra	;
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND4(a, b, c, d,  0,	6, c0)
-	ROUND4(d, a, b, c,  7, 10, c1)
-	ROUND4(c, d, a, b, 14, 15, c2)
-	ROUND4(b, c, d, a,  5, 21, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND4(Ra, Rb, Rc, Rd,  0,	6, Rc0)
+	ROUND4(Rd, Ra, Rb, Rc,  7, 10, Rc1)
+	ROUND4(Rc, Rd, Ra, Rb, 14, 15, Rc2)
+	ROUND4(Rb, Rc, Rd, Ra,  5, 21, Rc3)
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND4(a, b, c, d, 12,	6, c0)
-	ROUND4(d, a, b, c,  3, 10, c1)
-	ROUND4(c, d, a, b, 10, 15, c2)
-	ROUND4(b, c, d, a,  1, 21, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND4(Ra, Rb, Rc, Rd, 12,	6, Rc0)
+	ROUND4(Rd, Ra, Rb, Rc,  3, 10, Rc1)
+	ROUND4(Rc, Rd, Ra, Rb, 10, 15, Rc2)
+	ROUND4(Rb, Rc, Rd, Ra,  1, 21, Rc3)
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND4(a, b, c, d,  8,	6, c0)
-	ROUND4(d, a, b, c, 15, 10, c1)
-	ROUND4(c, d, a, b,  6, 15, c2)
-	ROUND4(b, c, d, a, 13, 21, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND4(Ra, Rb, Rc, Rd,  8,	6, Rc0)
+	ROUND4(Rd, Ra, Rb, Rc, 15, 10, Rc1)
+	ROUND4(Rc, Rd, Ra, Rb,  6, 15, Rc2)
+	ROUND4(Rb, Rc, Rd, Ra, 13, 21, Rc3)
 
-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
-	ROUND4(a, b, c, d,  4,	6, c0)
-	ROUND4(d, a, b, c, 11, 10, c1)
-	ROUND4(c, d, a, b,  2, 15, c2)
-	ROUND4(b, c, d, a,  9, 21, c3)
+	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
+	ROUND4(Ra, Rb, Rc, Rd,  4,	6, Rc0)
+	ROUND4(Rd, Ra, Rb, Rc, 11, 10, Rc1)
+	ROUND4(Rc, Rd, Ra, Rb,  2, 15, Rc2)
+	ROUND4(Rb, Rc, Rd, Ra,  9, 21, Rc3)
 
-	MOVW	dig+0(FP), R(t0)
-	MOVM.IA (R(t0)), [R(c0),R(c1),R(c2),R(c3)]
+	MOVW	dig+0(FP), Rt0
+	MOVM.IA (Rt0), [Rc0,Rc1,Rc2,Rc3]
 
-	ADD	R(c0), R(a)
-	ADD	R(c1), R(b)
-	ADD	R(c2), R(c)
-	ADD	R(c3), R(d)
+	ADD	Rc0, Ra
+	ADD	Rc1, Rb
+	ADD	Rc2, Rc
+	ADD	Rc3, Rd
 
-	MOVM.IA [R(a),R(b),R(c),R(d)], (R(t0))
+	MOVM.IA [Ra,Rb,Rc,Rd], (Rt0)
 
-	MOVW	p_data(SP), R(data)
-	MOVW	p_end(SP), R(t0)
-	ADD	$64, R(data)
-	CMP	R(t0), R(data)
+	MOVW	p_data, Rdata
+	MOVW	p_end, Rt0
+	ADD	$64, Rdata
+	CMP	Rt0, Rdata
 	BLO	loop
 
 	RET

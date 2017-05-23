@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -21,9 +21,10 @@ List lists the packages named by the import paths, one per line.
 
 The default output shows the package import path:
 
-    code.google.com/p/google-api-go-client/books/v1
-    code.google.com/p/goauth2/oauth
-    code.google.com/p/sqlite
+    bytes
+    encoding/json
+    github.com/gorilla/mux
+    golang.org/x/net/html
 
 The -f flag specifies an alternate format for the list, using the
 syntax of package template.  The default output is equivalent to -f
@@ -36,10 +37,14 @@ syntax of package template.  The default output is equivalent to -f
         Name          string // package name
         Doc           string // package documentation string
         Target        string // install path
+        Shlib         string // the shared library that contains this package (only set when -linkshared)
         Goroot        bool   // is this package in the Go root?
         Standard      bool   // is this package part of the standard Go library?
         Stale         bool   // would 'go install' do anything for this package?
+        StaleReason   string // explanation for Stale==true
         Root          string // Go root or Go path dir containing this package
+        ConflictDir   string // this directory shadows Dir in $GOPATH
+        BinaryOnly    bool   // binary-only package: cannot be recompiled from sources
 
         // Source files
         GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
@@ -49,6 +54,7 @@ syntax of package template.  The default output is equivalent to -f
         CXXFiles       []string // .cc, .cxx and .cpp source files
         MFiles         []string // .m source files
         HFiles         []string // .h, .hh, .hpp and .hxx source files
+        FFiles         []string // .f, .F, .for and .f90 Fortran source files
         SFiles         []string // .s source files
         SwigFiles      []string // .swig files
         SwigCXXFiles   []string // .swigcxx files
@@ -58,6 +64,7 @@ syntax of package template.  The default output is equivalent to -f
         CgoCFLAGS    []string // cgo: flags for C compiler
         CgoCPPFLAGS  []string // cgo: flags for C preprocessor
         CgoCXXFLAGS  []string // cgo: flags for C++ compiler
+        CgoFFLAGS    []string // cgo: flags for Fortran compiler
         CgoLDFLAGS   []string // cgo: flags for linker
         CgoPkgConfig []string // cgo: pkg-config names
 
@@ -74,6 +81,14 @@ syntax of package template.  The default output is equivalent to -f
         TestImports  []string // imports from TestGoFiles
         XTestGoFiles []string // _test.go files outside package
         XTestImports []string // imports from XTestGoFiles
+    }
+
+The error information, if any, is
+
+    type PackageError struct {
+        ImportStack   []string // shortest path from package named on command line to this one
+        Pos           string   // position of error (if present, file:line:col)
+        Err           string   // the error itself
     }
 
 The template function "join" calls strings.Join.
@@ -126,6 +141,7 @@ var listJson = cmdList.Flag.Bool("json", false, "")
 var nl = []byte{'\n'}
 
 func runList(cmd *Command, args []string) {
+	buildModeInit()
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
 
@@ -173,6 +189,10 @@ func runList(cmd *Command, args []string) {
 	}
 
 	for _, pkg := range load(args) {
+		// Show vendor-expanded paths in listing
+		pkg.TestImports = pkg.vendored(pkg.TestImports)
+		pkg.XTestImports = pkg.vendored(pkg.XTestImports)
+
 		do(pkg)
 	}
 }

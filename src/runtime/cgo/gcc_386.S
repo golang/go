@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -34,11 +34,6 @@ EXT(crosscall_386):
 	popl %ebx
 	popl %ebp
 	ret
-
-.globl EXT(__stack_chk_fail_local)
-EXT(__stack_chk_fail_local):
-1:
-	jmp 1b
 
 #ifdef __ELF__
 .section .note.GNU-stack,"",@progbits

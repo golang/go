@@ -6,14 +6,15 @@
 // /usr/include/sys/syscall.h for syscall numbers.
 //
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 // This is needed by asm_amd64.s
 TEXT runtime·settls(SB),NOSPLIT,$8
 	RET
 
-// void libc·miniterrno(void *(*___errno)(void));
+// void libc_miniterrno(void *(*___errno)(void));
 //
 // Set the TLS errno pointer in M.
 //
@@ -25,7 +26,7 @@ TEXT runtime·miniterrno(SB),NOSPLIT,$0
 	get_tls(CX)
 	MOVQ	g(CX), BX
 	MOVQ	g_m(BX), BX
-	MOVQ	AX,	m_perrno(BX)
+	MOVQ	AX,	(m_mOS+mOS_perrno)(BX)
 	RET
 
 // int64 runtime·nanotime1(void);
@@ -40,7 +41,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$0
 	SUBQ	$64, SP	// 16 bytes will do, but who knows in the future?
 	MOVQ	$3, DI	// CLOCK_REALTIME from <sys/time_impl.h>
 	MOVQ	SP, SI
-	MOVQ	libc·clock_gettime(SB), AX
+	LEAQ	libc_clock_gettime(SB), AX
 	CALL	AX
 	MOVQ	(SP), AX	// tv_sec from struct timespec
 	IMULQ	$1000000000, AX	// multiply into nanoseconds
@@ -51,9 +52,9 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$0
 // pipe(3c) wrapper that returns fds in AX, DX.
 // NOT USING GO CALLING CONVENTION.
 TEXT runtime·pipe1(SB),NOSPLIT,$0
-	SUBQ	$16, SP // 8 bytes will do, but stack has to be 16-byte alligned
+	SUBQ	$16, SP // 8 bytes will do, but stack has to be 16-byte aligned
 	MOVQ	SP, DI
-	MOVQ	libc·pipe(SB), AX
+	LEAQ	libc_pipe(SB), AX
 	CALL	AX
 	MOVL	0(SP), AX
 	MOVL	4(SP), DX
@@ -79,8 +80,10 @@ TEXT runtime·asmsysvicall6(SB),NOSPLIT,$0
 
 	get_tls(CX)
 	MOVQ	g(CX), BX
+	CMPQ	BX, $0
+	JEQ	skiperrno1
 	MOVQ	g_m(BX), BX
-	MOVQ	m_perrno(BX), DX
+	MOVQ	(m_mOS+mOS_perrno)(BX), DX
 	CMPQ	DX, $0
 	JEQ	skiperrno1
 	MOVL	$0, 0(DX)
@@ -107,8 +110,10 @@ skipargs:
 
 	get_tls(CX)
 	MOVQ	g(CX), BX
+	CMPQ	BX, $0
+	JEQ	skiperrno2
 	MOVQ	g_m(BX), BX
-	MOVQ	m_perrno(BX), AX
+	MOVQ	(m_mOS+mOS_perrno)(BX), AX
 	CMPQ	AX, $0
 	JEQ	skiperrno2
 	MOVL	0(AX), AX
@@ -132,7 +137,7 @@ TEXT runtime·tstart_sysvicall(SB),NOSPLIT,$0
 	MOVQ	AX, (g_stack+stack_hi)(DX)
 	SUBQ	$(0x100000), AX		// stack size
 	MOVQ	AX, (g_stack+stack_lo)(DX)
-	ADDQ	$const_StackGuard, AX
+	ADDQ	$const__StackGuard, AX
 	MOVQ	AX, g_stackguard0(DX)
 	MOVQ	AX, g_stackguard1(DX)
 
@@ -168,7 +173,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	MOVQ	g(BX), R10
 	CMPQ	R10, $0
 	JNE	allgood
+	MOVQ	SI, 80(SP)
+	MOVQ	DX, 88(SP)
+	LEAQ	80(SP), AX
 	MOVQ	DI, 0(SP)
+	MOVQ	AX, 8(SP)
 	MOVQ	$runtime·badsignal(SB), AX
 	CALL	AX
 	JMP	exit
@@ -195,7 +204,7 @@ allgood:
 	MOVQ    R10, 176(SP)
 
 	// save m->scratch
-	LEAQ	m_scratch(BP), R11
+	LEAQ	(m_mOS+mOS_scratch)(BP), R11
 	MOVQ	0(R11), R10
 	MOVQ	R10, 112(SP)
 	MOVQ	8(R11), R10
@@ -210,7 +219,7 @@ allgood:
 	MOVQ	R10, 152(SP)
 
 	// save errno, it might be EINTR; stuff we do here might reset it.
-	MOVQ	m_perrno(BP), R10
+	MOVQ	(m_mOS+mOS_perrno)(BP), R10
 	MOVL	0(R10), R10
 	MOVQ	R10, 160(SP)
 
@@ -218,6 +227,8 @@ allgood:
 	// g = m->gsignal
 	MOVQ	m_gsignal(BP), BP
 	MOVQ	BP, g(BX)
+
+	// TODO: If current SP is not in gsignal.stack, then adjust.
 
 	// prepare call
 	MOVQ	DI, 0(SP)
@@ -243,7 +254,7 @@ allgood:
 	MOVQ    R10, libcall_r2(R11)
 
 	// restore scratch
-	LEAQ	m_scratch(BP), R11
+	LEAQ	(m_mOS+mOS_scratch)(BP), R11
 	MOVQ	112(SP), R10
 	MOVQ	R10, 0(R11)
 	MOVQ	120(SP), R10
@@ -258,7 +269,7 @@ allgood:
 	MOVQ	R10, 40(R11)
 
 	// restore errno
-	MOVQ	m_perrno(BP), R11
+	MOVQ	(m_mOS+mOS_perrno)(BP), R11
 	MOVQ	160(SP), R10
 	MOVL	R10, 0(R11)
 
@@ -320,13 +331,13 @@ noswitch:
 
 // Runs on OS stack. duration (in µs units) is in DI.
 TEXT runtime·usleep2(SB),NOSPLIT,$0
-	MOVQ	libc·usleep(SB), AX
+	LEAQ	libc_usleep(SB), AX
 	CALL	AX
 	RET
 
 // Runs on OS stack, called from runtime·osyield.
 TEXT runtime·osyield1(SB),NOSPLIT,$0
-	MOVQ	libc·sched_yield(SB), AX
+	LEAQ	libc_sched_yield(SB), AX
 	CALL	AX
 	RET
 

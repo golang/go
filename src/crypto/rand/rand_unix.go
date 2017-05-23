@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -58,17 +58,33 @@ func (r *devReader) Read(b []byte) (n int, err error) {
 		if runtime.GOOS == "plan9" {
 			r.f = f
 		} else {
-			r.f = bufio.NewReader(f)
+			r.f = bufio.NewReader(hideAgainReader{f})
 		}
 	}
 	return r.f.Read(b)
+}
+
+var isEAGAIN func(error) bool // set by eagain.go on unix systems
+
+// hideAgainReader masks EAGAIN reads from /dev/urandom.
+// See golang.org/issue/9205
+type hideAgainReader struct {
+	r io.Reader
+}
+
+func (hr hideAgainReader) Read(p []byte) (n int, err error) {
+	n, err = hr.r.Read(p)
+	if err != nil && isEAGAIN != nil && isEAGAIN(err) {
+		err = nil
+	}
+	return
 }
 
 // Alternate pseudo-random implementation for use on
 // systems without a reliable /dev/urandom.
 
 // newReader returns a new pseudorandom generator that
-// seeds itself by reading from entropy.  If entropy == nil,
+// seeds itself by reading from entropy. If entropy == nil,
 // the generator seeds itself by reading from the system's
 // random number generator, typically /dev/random.
 // The Read method on the returned reader always returns

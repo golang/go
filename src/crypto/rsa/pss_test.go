@@ -189,6 +189,15 @@ func TestPSSOpenSSL(t *testing.T) {
 	}
 }
 
+func TestPSSNilOpts(t *testing.T) {
+	hash := crypto.SHA256
+	h := hash.New()
+	h.Write([]byte("testing"))
+	hashed := h.Sum(nil)
+
+	SignPSS(rand.Reader, rsaPrivateKey, hash, hashed, nil)
+}
+
 func TestPSSSigning(t *testing.T) {
 	var saltLengthCombinations = []struct {
 		signSaltLength, verifySaltLength int

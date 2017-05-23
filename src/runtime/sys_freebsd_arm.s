@@ -6,7 +6,8 @@
 // /usr/src/sys/kern/syscalls.master for syscall numbers.
 //
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 // for EABI, as we don't support OABI
@@ -17,6 +18,8 @@
 #define SYS_write (SYS_BASE + 4)
 #define SYS_open (SYS_BASE + 5)
 #define SYS_close (SYS_BASE + 6)
+#define SYS_getpid (SYS_BASE + 20)
+#define SYS_kill (SYS_BASE + 37)
 #define SYS_sigaltstack (SYS_BASE + 53)
 #define SYS_munmap (SYS_BASE + 73)
 #define SYS_madvise (SYS_BASE + 75)
@@ -39,10 +42,10 @@
 #define SYS_mmap (SYS_BASE + 477) 
 	
 TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
-	MOVW 0(FP), R0
-	MOVW 4(FP), R1
-	MOVW 8(FP), R2
-	MOVW 12(FP), R3
+	MOVW addr+0(FP), R0
+	MOVW mode+4(FP), R1
+	MOVW val+8(FP), R2
+	MOVW uaddr1+12(FP), R3
 	ADD $20, R13 // arg 5 is passed on stack
 	MOVW $SYS__umtx_op, R7
 	SWI $0
@@ -52,8 +55,8 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·thr_new(SB),NOSPLIT,$0
-	MOVW 0(FP), R0
-	MOVW 4(FP), R1
+	MOVW param+0(FP), R0
+	MOVW size+4(FP), R1
 	MOVW $SYS_thr_new, R7
 	SWI $0
 	RET
@@ -71,7 +74,7 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
 
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT,$-8
-	MOVW 0(FP), R0	// arg 1 exit status
+	MOVW code+0(FP), R0	// arg 1 exit status
 	MOVW $SYS_exit, R7
 	SWI $0
 	MOVW.CS $0, R8 // crash on syscall failure
@@ -79,7 +82,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
 	RET
 
 TEXT runtime·exit1(SB),NOSPLIT,$-8
-	MOVW 0(FP), R0	// arg 1 exit status
+	MOVW code+0(FP), R0	// arg 1 exit status
 	MOVW $SYS_thr_exit, R7	
 	SWI $0
 	MOVW.CS $0, R8 // crash on syscall failure
@@ -87,42 +90,46 @@ TEXT runtime·exit1(SB),NOSPLIT,$-8
 	RET
 
 TEXT runtime·open(SB),NOSPLIT,$-8
-	MOVW 0(FP), R0	// arg 1 name
-	MOVW 4(FP), R1	// arg 2 mode
-	MOVW 8(FP), R2	// arg 3 perm
+	MOVW name+0(FP), R0	// arg 1 name
+	MOVW mode+4(FP), R1	// arg 2 mode
+	MOVW perm+8(FP), R2	// arg 3 perm
 	MOVW $SYS_open, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$-8
-	MOVW 0(FP), R0	// arg 1 fd
-	MOVW 4(FP), R1	// arg 2 buf
-	MOVW 8(FP), R2	// arg 3 count
+	MOVW fd+0(FP), R0	// arg 1 fd
+	MOVW p+4(FP), R1	// arg 2 buf
+	MOVW n+8(FP), R2	// arg 3 count
 	MOVW $SYS_read, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$-8
-	MOVW 0(FP), R0	// arg 1 fd
-	MOVW 4(FP), R1	// arg 2 buf
-	MOVW 8(FP), R2	// arg 3 count
+	MOVW fd+0(FP), R0	// arg 1 fd
+	MOVW p+4(FP), R1	// arg 2 buf
+	MOVW n+8(FP), R2	// arg 3 count
 	MOVW $SYS_write, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$-8
-	MOVW 0(FP), R0	// arg 1 fd
+TEXT runtime·closefd(SB),NOSPLIT,$-8
+	MOVW fd+0(FP), R0	// arg 1 fd
 	MOVW $SYS_close, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+4(FP)
 	RET
 
 TEXT runtime·getrlimit(SB),NOSPLIT,$-8
-	MOVW 0(FP), R0
-	MOVW 4(FP), R1
+	MOVW kind+0(FP), R0
+	MOVW limit+4(FP), R1
 	MOVW $SYS_getrlimit, R7
 	SWI $0
 	MOVW	R0, ret+8(FP)
@@ -140,10 +147,21 @@ TEXT runtime·raise(SB),NOSPLIT,$8
 	SWI $0
 	RET
 
+TEXT runtime·raiseproc(SB),NOSPLIT,$0
+	// getpid
+	MOVW $SYS_getpid, R7
+	SWI $0
+	// kill(self, sig)
+				// arg 1 - pid, now in R0
+	MOVW sig+0(FP), R1	// arg 2 - signal
+	MOVW $SYS_kill, R7
+	SWI $0
+	RET
+
 TEXT runtime·setitimer(SB), NOSPLIT, $-8
-	MOVW 0(FP), R0
-	MOVW 4(FP), R1
-	MOVW 8(FP), R2
+	MOVW mode+0(FP), R0
+	MOVW new+4(FP), R1
+	MOVW old+8(FP), R2
 	MOVW $SYS_setitimer, R7
 	SWI $0
 	RET
@@ -159,9 +177,9 @@ TEXT time·now(SB), NOSPLIT, $32
 	MOVW 12(R13), R1 // sec.high
 	MOVW 16(R13), R2 // nsec
 
-	MOVW R0, 0(FP)
-	MOVW R1, 4(FP)
-	MOVW R2, 8(FP)
+	MOVW R0, sec_lo+0(FP)
+	MOVW R1, sec_hi+4(FP)
+	MOVW R2, nsec+8(FP)
 	RET
 
 // int64 nanotime(void) so really
@@ -189,16 +207,16 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
 	RET
 
 TEXT runtime·sigaction(SB),NOSPLIT,$-8
-	MOVW 0(FP), R0		// arg 1 sig
-	MOVW 4(FP), R1		// arg 2 act
-	MOVW 8(FP), R2		// arg 3 oact
+	MOVW sig+0(FP), R0		// arg 1 sig
+	MOVW new+4(FP), R1		// arg 2 act
+	MOVW old+8(FP), R2		// arg 3 oact
 	MOVW $SYS_sigaction, R7
 	SWI $0
 	MOVW.CS $0, R8 // crash on syscall failure
 	MOVW.CS R8, (R8)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$24
+TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	// this might be called in external code context,
 	// where g is not set.
 	// first save R0, because runtime·load_g will clobber it
@@ -207,42 +225,21 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	CMP 	$0, R0
 	BL.NE	runtime·load_g(SB)
 
-	CMP $0, g
-	BNE 4(PC)
-	// signal number is already prepared in 4(R13)
-	MOVW $runtime·badsignal(SB), R11
-	BL (R11)
-	RET
-
-	// save g
-	MOVW g, R4
-	MOVW g, 20(R13)
-
-	// g = m->signal
-	MOVW g_m(g), R8
-	MOVW m_gsignal(R8), g
-
-	// R0 is already saved
-	MOVW R1, 8(R13) // info
-	MOVW R2, 12(R13) // context
-	MOVW R4, 16(R13) // oldg
-
-	BL runtime·sighandler(SB)
-
-	// restore g
-	MOVW 20(R13), g
+	MOVW	R1, 8(R13)
+	MOVW	R2, 12(R13)
+	BL	runtime·sigtrampgo(SB)
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$16
-	MOVW 0(FP), R0		// arg 1 addr
-	MOVW 4(FP), R1		// arg 2 len
-	MOVW 8(FP), R2		// arg 3 prot
-	MOVW 12(FP), R3		// arg 4 flags
+	MOVW addr+0(FP), R0		// arg 1 addr
+	MOVW n+4(FP), R1		// arg 2 len
+	MOVW prot+8(FP), R2		// arg 3 prot
+	MOVW flags+12(FP), R3		// arg 4 flags
 	// arg 5 (fid) and arg6 (offset_lo, offset_hi) are passed on stack
 	// note the C runtime only passes the 32-bit offset_lo to us
-	MOVW 16(FP), R4		// arg 5
+	MOVW fd+16(FP), R4		// arg 5
 	MOVW R4, 4(R13)
-	MOVW 20(FP), R5		// arg 6 lower 32-bit
+	MOVW off+20(FP), R5		// arg 6 lower 32-bit
 	// the word at 8(R13) is skipped due to 64-bit argument alignment.
 	MOVW R5, 12(R13)
 	MOVW $0, R6 		// higher 32-bit for arg 6
@@ -256,8 +253,8 @@ TEXT runtime·mmap(SB),NOSPLIT,$16
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
-	MOVW 0(FP), R0		// arg 1 addr
-	MOVW 4(FP), R1		// arg 2 len
+	MOVW addr+0(FP), R0		// arg 1 addr
+	MOVW n+4(FP), R1		// arg 2 len
 	MOVW $SYS_munmap, R7
 	SWI $0
 	MOVW.CS $0, R8 // crash on syscall failure
@@ -265,9 +262,9 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·madvise(SB),NOSPLIT,$0
-	MOVW 0(FP), R0		// arg 1 addr
-	MOVW 4(FP), R1		// arg 2 len
-	MOVW 8(FP), R2		// arg 3 flags
+	MOVW addr+0(FP), R0		// arg 1 addr
+	MOVW n+4(FP), R1		// arg 2 len
+	MOVW flags+8(FP), R2		// arg 3 flags
 	MOVW $SYS_madvise, R7
 	SWI $0
 	// ignore failure - maybe pages are locked
@@ -282,17 +279,26 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVW.CS R8, (R8)
 	RET
 
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+	MOVW	sig+4(FP), R0
+	MOVW	info+8(FP), R1
+	MOVW	ctx+12(FP), R2
+	MOVW	fn+0(FP), R11
+	MOVW	R13, R4
+	SUB	$24, R13
+	BIC	$0x7, R13 // alignment for ELF ABI
+	BL	(R11)
+	MOVW	R4, R13
+	RET
+
 TEXT runtime·usleep(SB),NOSPLIT,$16
 	MOVW usec+0(FP), R0
-	MOVW R0, R2
-	MOVW $1000000, R1
-	DIV R1, R0
+	CALL runtime·usplitR0(SB)
 	// 0(R13) is the saved LR, don't use it
 	MOVW R0, 4(R13) // tv_sec.low
 	MOVW $0, R0
 	MOVW R0, 8(R13) // tv_sec.high
-	MOD R1, R2
-	MOVW $1000, R1
+	MOVW $1000, R2
 	MUL R1, R2
 	MOVW R2, 12(R13) // tv_nsec
 
@@ -303,10 +309,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	RET
 
 TEXT runtime·sysctl(SB),NOSPLIT,$0
-	MOVW 0(FP), R0	// arg 1 - name
-	MOVW 4(FP), R1	// arg 2 - namelen
-	MOVW 8(FP), R2	// arg 3 - old
-	MOVW 12(FP), R3	// arg 4 - oldlenp
+	MOVW mib+0(FP), R0	// arg 1 - name
+	MOVW miblen+4(FP), R1	// arg 2 - namelen
+	MOVW out+8(FP), R2	// arg 3 - old
+	MOVW size+12(FP), R3	// arg 4 - oldlenp
 	// arg 5 (newp) and arg 6 (newlen) are passed on stack
 	ADD $20, R13
 	MOVW $SYS___sysctl, R7
@@ -322,9 +328,9 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVW $3, R0	// arg 1 - how (SIG_SETMASK)
-	MOVW 0(FP), R1	// arg 2 - set
-	MOVW 4(FP), R2	// arg 3 - oset
+	MOVW how+0(FP), R0	// arg 1 - how
+	MOVW new+4(FP), R1	// arg 2 - set
+	MOVW old+8(FP), R2	// arg 3 - oset
 	MOVW $SYS_sigprocmask, R7
 	SWI $0
 	MOVW.CS $0, R8 // crash on syscall failure
@@ -341,10 +347,10 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
 TEXT runtime·kevent(SB),NOSPLIT,$0
-	MOVW 0(FP), R0	// kq
-	MOVW 4(FP), R1	// changelist
-	MOVW 8(FP), R2	// nchanges
-	MOVW 12(FP), R3	// eventlist
+	MOVW kq+0(FP), R0	// kq
+	MOVW ch+4(FP), R1	// changelist
+	MOVW nch+8(FP), R2	// nchanges
+	MOVW ev+12(FP), R3	// eventlist
 	ADD $20, R13	// pass arg 5 and 6 on stack
 	MOVW $SYS_kevent, R7
 	SWI $0
@@ -355,26 +361,16 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 
 // void runtime·closeonexec(int32 fd)
 TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVW 0(FP), R0	// fd
+	MOVW fd+0(FP), R0	// fd
 	MOVW $2, R1	// F_SETFD
 	MOVW $1, R2	// FD_CLOEXEC
 	MOVW $SYS_fcntl, R7
 	SWI $0
 	RET
 
-TEXT runtime·casp(SB),NOSPLIT,$0
-	B	runtime·cas(SB)
-
-// TODO(minux): this is only valid for ARMv6+
-// bool armcas(int32 *val, int32 old, int32 new)
-// Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	}else
-//		return 0;
-TEXT runtime·cas(SB),NOSPLIT,$0
-	B runtime·armcas(SB)
+// TODO: this is only valid for ARMv7+
+TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+	B	runtime·armPublicationBarrier(SB)
 
 // TODO(minux): this only supports ARMv6K+.
 TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4

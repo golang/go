@@ -12,11 +12,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"runtime"
 	"testing"
 	"time"
 )
@@ -24,9 +24,7 @@ import (
 // This test is a CGI host (testing host.go) that runs its own binary
 // as a child process testing the other half of CGI (child.go).
 func TestHostingOurselves(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		t.Skip("skipping on nacl")
-	}
+	testenv.MustHaveExec(t)
 
 	h := &Handler{
 		Path: os.Args[0],
@@ -43,6 +41,7 @@ func TestHostingOurselves(t *testing.T) {
 		"env-QUERY_STRING":      "foo=bar&a=b",
 		"env-REMOTE_ADDR":       "1.2.3.4",
 		"env-REMOTE_HOST":       "1.2.3.4",
+		"env-REMOTE_PORT":       "1234",
 		"env-REQUEST_METHOD":    "GET",
 		"env-REQUEST_URI":       "/test.go?foo=bar&a=b",
 		"env-SCRIPT_FILENAME":   os.Args[0],
@@ -92,9 +91,7 @@ func (w *limitWriter) Write(p []byte) (n int, err error) {
 // If there's an error copying the child's output to the parent, test
 // that we kill the child.
 func TestKillChildAfterCopyError(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		t.Skip("skipping on nacl")
-	}
+	testenv.MustHaveExec(t)
 
 	defer func() { testHookStartProcess = nil }()
 	proc := make(chan *os.Process, 1)
@@ -139,9 +136,7 @@ func TestKillChildAfterCopyError(t *testing.T) {
 // Test that a child handler writing only headers works.
 // golang.org/issue/7196
 func TestChildOnlyHeaders(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		t.Skip("skipping on nacl")
-	}
+	testenv.MustHaveExec(t)
 
 	h := &Handler{
 		Path: os.Args[0],

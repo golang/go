@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -268,16 +268,21 @@ type typeReader interface {
 	Next() (*Entry, error)
 	clone() typeReader
 	offset() Offset
+	// AddressSize returns the size in bytes of addresses in the current
+	// compilation unit.
+	AddressSize() int
 }
 
 // Type reads the type at off in the DWARF ``info'' section.
 func (d *Data) Type(off Offset) (Type, error) {
-	return d.readType("info", d.Reader(), off, d.typeCache)
+	return d.readType("info", d.Reader(), off, d.typeCache, nil)
 }
 
-// readType reads a type from r at off of name using and updating a
-// type cache.
-func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Offset]Type) (Type, error) {
+// readType reads a type from r at off of name. It adds types to the
+// type cache, appends new typedef types to typedefs, and computes the
+// sizes of types. Callers should pass nil for typedefs; this is used
+// for internal recursion.
+func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Offset]Type, typedefs *[]*TypedefType) (Type, error) {
 	if t, ok := typeCache[off]; ok {
 		return t, nil
 	}
@@ -286,13 +291,29 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 	if err != nil {
 		return nil, err
 	}
+	addressSize := r.AddressSize()
 	if e == nil || e.Offset != off {
 		return nil, DecodeError{name, off, "no type at offset"}
 	}
 
+	// If this is the root of the recursion, prepare to resolve
+	// typedef sizes once the recursion is done. This must be done
+	// after the type graph is constructed because it may need to
+	// resolve cycles in a different order than readType
+	// encounters them.
+	if typedefs == nil {
+		var typedefList []*TypedefType
+		defer func() {
+			for _, t := range typedefList {
+				t.Common().ByteSize = t.Type.Size()
+			}
+		}()
+		typedefs = &typedefList
+	}
+
 	// Parse type from Entry.
 	// Must always set typeCache[off] before calling
-	// d.Type recursively, to handle circular types correctly.
+	// d.readType recursively, to handle circular types correctly.
 	var typ Type
 
 	nextDepth := 0
@@ -335,13 +356,13 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 	}
 
 	// Get Type referred to by Entry's AttrType field.
-	// Set err if error happens.  Not having a type is an error.
+	// Set err if error happens. Not having a type is an error.
 	typeOf := func(e *Entry) Type {
 		tval := e.Val(AttrType)
 		var t Type
 		switch toff := tval.(type) {
 		case Offset:
-			if t, err = d.readType(name, r.clone(), toff, typeCache); err != nil {
+			if t, err = d.readType(name, r.clone(), toff, typeCache, typedefs); err != nil {
 				return nil
 			}
 		case uint64:
@@ -528,7 +549,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 					bito = f.ByteOffset * 8
 				}
 				if bito == lastFieldBitOffset && t.Kind != "union" {
-					// Last field was zero width.  Fix array length.
+					// Last field was zero width. Fix array length.
 					// (DWARF writes out 0-length arrays as if they were 1-length arrays.)
 					zeroArray(lastFieldType)
 				}
@@ -539,7 +560,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 		if t.Kind != "union" {
 			b, ok := e.Val(AttrByteSize).(int64)
 			if ok && b*8 == lastFieldBitOffset {
-				// Final field must be zero width.  Fix array length.
+				// Final field must be zero width. Fix array length.
 				zeroArray(lastFieldType)
 			}
 		}
@@ -668,6 +689,15 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 		b, ok := e.Val(AttrByteSize).(int64)
 		if !ok {
 			b = -1
+			switch t := typ.(type) {
+			case *TypedefType:
+				// Record that we need to resolve this
+				// type's size once the type graph is
+				// constructed.
+				*typedefs = append(*typedefs, t)
+			case *PtrType:
+				b = int64(addressSize)
+			}
 		}
 		typ.Common().ByteSize = b
 	}

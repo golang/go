@@ -7,7 +7,7 @@
 /*
 Input to cgo -cdefs
 
-GOARCH=power64 cgo -cdefs defs_linux.go defs3_linux.go > defs_linux_power64.h
+GOARCH=ppc64 cgo -cdefs defs_linux.go defs3_linux.go > defs_linux_ppc64.h
 */
 
 package runtime

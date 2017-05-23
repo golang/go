@@ -19,7 +19,7 @@ func TestVersion3(t *testing.T) {
 }
 
 // Test that we get the correct results for times before the first
-// transition time.  To do this we explicitly check early dates in a
+// transition time. To do this we explicitly check early dates in a
 // couple of specific timezones.
 func TestFirstZone(t *testing.T) {
 	time.ForceZipFileForTesting(true)
@@ -59,5 +59,14 @@ func TestFirstZone(t *testing.T) {
 		if s != test.want2 {
 			t.Errorf("for %s %d got %q want %q", test.zone, test.unix, s, test.want2)
 		}
+	}
+}
+
+func TestLocationNames(t *testing.T) {
+	if time.Local.String() != "Local" {
+		t.Errorf(`invalid Local location name: got %q want "Local"`, time.Local)
+	}
+	if time.UTC.String() != "UTC" {
+		t.Errorf(`invalid UTC location name: got %q want "UTC"`, time.UTC)
 	}
 }

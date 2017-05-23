@@ -242,6 +242,7 @@ var jointests = []JoinTest{
 
 	// one parameter
 	{[]string{""}, ""},
+	{[]string{"/"}, "/"},
 	{[]string{"a"}, "a"},
 
 	// two parameters
@@ -249,10 +250,16 @@ var jointests = []JoinTest{
 	{[]string{"a", ""}, "a"},
 	{[]string{"", "b"}, "b"},
 	{[]string{"/", "a"}, "/a"},
+	{[]string{"/", "a/b"}, "/a/b"},
 	{[]string{"/", ""}, "/"},
+	{[]string{"//", "a"}, "/a"},
+	{[]string{"/a", "b"}, "/a/b"},
 	{[]string{"a/", "b"}, "a/b"},
 	{[]string{"a/", ""}, "a"},
 	{[]string{"", ""}, ""},
+
+	// three parameters
+	{[]string{"/", "a", "b"}, "/a/b"},
 }
 
 var winjointests = []JoinTest{
@@ -260,15 +267,24 @@ var winjointests = []JoinTest{
 	{[]string{`C:\Windows\`, `System32`}, `C:\Windows\System32`},
 	{[]string{`C:\Windows\`, ``}, `C:\Windows`},
 	{[]string{`C:\`, `Windows`}, `C:\Windows`},
-	{[]string{`C:`, `Windows`}, `C:\Windows`},
+	{[]string{`C:`, `a`}, `C:a`},
+	{[]string{`C:`, `a\b`}, `C:a\b`},
+	{[]string{`C:`, `a`, `b`}, `C:a\b`},
+	{[]string{`C:.`, `a`}, `C:a`},
+	{[]string{`C:a`, `b`}, `C:a\b`},
+	{[]string{`C:a`, `b`, `d`}, `C:a\b\d`},
 	{[]string{`\\host\share`, `foo`}, `\\host\share\foo`},
+	{[]string{`\\host\share\foo`}, `\\host\share\foo`},
 	{[]string{`//host/share`, `foo/bar`}, `\\host\share\foo\bar`},
-}
-
-// join takes a []string and passes it to Join.
-func join(elem []string, args ...string) string {
-	args = elem
-	return filepath.Join(args...)
+	{[]string{`\`}, `\`},
+	{[]string{`\`, ``}, `\`},
+	{[]string{`\`, `a`}, `\a`},
+	{[]string{`\\`, `a`}, `\a`},
+	{[]string{`\`, `a`, `b`}, `\a\b`},
+	{[]string{`\\`, `a`, `b`}, `\a\b`},
+	{[]string{`\`, `\\a\b`, `c`}, `\a\b\c`},
+	{[]string{`\\a`, `b`, `c`}, `\a\b\c`},
+	{[]string{`\\a\`, `b`, `c`}, `\a\b\c`},
 }
 
 func TestJoin(t *testing.T) {
@@ -276,8 +292,9 @@ func TestJoin(t *testing.T) {
 		jointests = append(jointests, winjointests...)
 	}
 	for _, test := range jointests {
-		if p := join(test.elem); p != filepath.FromSlash(test.path) {
-			t.Errorf("join(%q) = %q, want %q", test.elem, p, test.path)
+		expected := filepath.FromSlash(test.path)
+		if p := filepath.Join(test.elem...); p != expected {
+			t.Errorf("join(%q) = %q, want %q", test.elem, p, expected)
 		}
 	}
 }
@@ -387,7 +404,34 @@ func mark(path string, info os.FileInfo, err error, errors *[]error, clear bool)
 	return nil
 }
 
+func chtmpdir(t *testing.T) (restore func()) {
+	oldwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("chtmpdir: %v", err)
+	}
+	d, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Fatalf("chtmpdir: %v", err)
+	}
+	if err := os.Chdir(d); err != nil {
+		t.Fatalf("chtmpdir: %v", err)
+	}
+	return func() {
+		if err := os.Chdir(oldwd); err != nil {
+			t.Fatalf("chtmpdir: %v", err)
+		}
+		os.RemoveAll(d)
+	}
+}
+
 func TestWalk(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			restore := chtmpdir(t)
+			defer restore()
+		}
+	}
 	makeTree(t)
 	errors := make([]error, 0, 10)
 	clear := true
@@ -405,7 +449,7 @@ func TestWalk(t *testing.T) {
 	checkMarks(t, true)
 	errors = errors[0:0]
 
-	// Test permission errors.  Only possible if we're not root
+	// Test permission errors. Only possible if we're not root
 	// and only on some file systems (AFS, FAT).  To avoid errors during
 	// all.bash on those file systems, skip during go test -short.
 	if os.Getuid() > 0 && !testing.Short() {
@@ -468,6 +512,35 @@ func touch(t *testing.T, name string) {
 	}
 	if err := f.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestWalkSkipDirOnFile(t *testing.T) {
+	td, err := ioutil.TempDir("", "walktest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(td)
+
+	if err := os.MkdirAll(filepath.Join(td, "dir"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	touch(t, filepath.Join(td, "dir/foo1"))
+	touch(t, filepath.Join(td, "dir/foo2"))
+
+	sawFoo2 := false
+	filepath.Walk(td, func(path string, info os.FileInfo, err error) error {
+		if strings.HasSuffix(path, "foo2") {
+			sawFoo2 = true
+		}
+		if strings.HasSuffix(path, "foo1") {
+			return filepath.SkipDir
+		}
+		return nil
+	})
+
+	if sawFoo2 {
+		t.Errorf("SkipDir on file foo1 did not block processing of foo2")
 	}
 }
 
@@ -684,8 +757,16 @@ var EvalSymlinksTests = []EvalSymlinksTest{
 	{"test/linkabs", "/"},
 }
 
-var EvalSymlinksAbsWindowsTests = []EvalSymlinksTest{
-	{`c:\`, `c:\`},
+// findEvalSymlinksTestDirsDest searches testDirs
+// for matching path and returns correspondent dest.
+func findEvalSymlinksTestDirsDest(t *testing.T, testDirs []EvalSymlinksTest, path string) string {
+	for _, d := range testDirs {
+		if d.path == path {
+			return d.dest
+		}
+	}
+	t.Fatalf("did not find %q in testDirs slice", path)
+	return ""
 }
 
 // simpleJoin builds a file name from the directory and path.
@@ -696,8 +777,11 @@ func simpleJoin(dir, path string) string {
 
 func TestEvalSymlinks(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "android", "nacl", "plan9":
 		t.Skipf("skipping on %s", runtime.GOOS)
+	}
+	if !supportsSymlinks {
+		t.Skip("skipping because symlinks are not supported")
 	}
 
 	tmpDir, err := ioutil.TempDir("", "evalsymlink")
@@ -713,38 +797,37 @@ func TestEvalSymlinks(t *testing.T) {
 		t.Fatal("eval symlink for tmp dir:", err)
 	}
 
+	tests := EvalSymlinksTests
+	testdirs := EvalSymlinksTestDirs
+	if runtime.GOOS == "windows" {
+		if len(tmpDir) < 3 {
+			t.Fatalf("tmpDir path %q is too short", tmpDir)
+		}
+		if tmpDir[1] != ':' {
+			t.Fatalf("tmpDir path %q must have drive letter in it", tmpDir)
+		}
+		newtest := EvalSymlinksTest{"test/linkabswin", tmpDir[:3]}
+		tests = append(tests, newtest)
+		testdirs = append(testdirs, newtest)
+	}
+
 	// Create the symlink farm using relative paths.
-	for _, d := range EvalSymlinksTestDirs {
+	for _, d := range testdirs {
 		var err error
 		path := simpleJoin(tmpDir, d.path)
 		if d.dest == "" {
 			err = os.Mkdir(path, 0755)
 		} else {
-			if supportsSymlinks {
-				err = os.Symlink(d.dest, path)
-			}
+			err = os.Symlink(d.dest, path)
 		}
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	var tests []EvalSymlinksTest
-	if supportsSymlinks {
-		tests = EvalSymlinksTests
-	} else {
-		for _, d := range EvalSymlinksTests {
-			if d.path == d.dest {
-				// will test only real files and directories
-				tests = append(tests, d)
-				// test "canonical" names
-				d2 := EvalSymlinksTest{
-					path: strings.ToUpper(d.path),
-					dest: d.dest,
-				}
-				tests = append(tests, d2)
-			}
-		}
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// Evaluate the symlink farm.
@@ -757,7 +840,154 @@ func TestEvalSymlinks(t *testing.T) {
 		if p, err := filepath.EvalSymlinks(path); err != nil {
 			t.Errorf("EvalSymlinks(%q) error: %v", d.path, err)
 		} else if filepath.Clean(p) != filepath.Clean(dest) {
-			t.Errorf("Clean(%q)=%q, want %q", path, p, dest)
+			t.Errorf("EvalSymlinks(%q)=%q, want %q", path, p, dest)
+		}
+
+		// test EvalSymlinks(".")
+		func() {
+			defer func() {
+				err := os.Chdir(wd)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}()
+
+			err := os.Chdir(path)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			p, err := filepath.EvalSymlinks(".")
+			if err != nil {
+				t.Errorf(`EvalSymlinks(".") in %q directory error: %v`, d.path, err)
+				return
+			}
+			if p == "." {
+				return
+			}
+			want := filepath.Clean(findEvalSymlinksTestDirsDest(t, testdirs, d.path))
+			if p == want {
+				return
+			}
+			t.Errorf(`EvalSymlinks(".") in %q directory returns %q, want "." or %q`, d.path, p, want)
+		}()
+
+		// test EvalSymlinks(".."+path)
+		func() {
+			defer func() {
+				err := os.Chdir(wd)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}()
+
+			err := os.Chdir(simpleJoin(tmpDir, "test"))
+			if err != nil {
+				t.Error(err)
+				return
+			}
+
+			path := simpleJoin("..", d.path)
+			dest := simpleJoin("..", d.dest)
+			if filepath.IsAbs(d.dest) || os.IsPathSeparator(d.dest[0]) {
+				dest = d.dest
+			}
+
+			if p, err := filepath.EvalSymlinks(path); err != nil {
+				t.Errorf("EvalSymlinks(%q) error: %v", d.path, err)
+			} else if filepath.Clean(p) != filepath.Clean(dest) {
+				t.Errorf("EvalSymlinks(%q)=%q, want %q", path, p, dest)
+			}
+		}()
+
+		// test EvalSymlinks where parameter is relative path
+		func() {
+			defer func() {
+				err := os.Chdir(wd)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}()
+
+			err := os.Chdir(tmpDir)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			if p, err := filepath.EvalSymlinks(d.path); err != nil {
+				t.Errorf("EvalSymlinks(%q) error: %v", d.path, err)
+			} else if filepath.Clean(p) != filepath.Clean(d.dest) {
+				t.Errorf("EvalSymlinks(%q)=%q, want %q", d.path, p, d.dest)
+			}
+		}()
+	}
+}
+
+func TestIssue13582(t *testing.T) {
+	switch runtime.GOOS {
+	case "android", "nacl", "plan9":
+		t.Skipf("skipping on %s", runtime.GOOS)
+	}
+	if !supportsSymlinks {
+		t.Skip("skipping because symlinks are not supported")
+	}
+
+	tmpDir, err := ioutil.TempDir("", "issue13582")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	dir := filepath.Join(tmpDir, "dir")
+	err = os.Mkdir(dir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	linkToDir := filepath.Join(tmpDir, "link_to_dir")
+	err = os.Symlink(dir, linkToDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(linkToDir, "file")
+	err = ioutil.WriteFile(file, nil, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	link1 := filepath.Join(linkToDir, "link1")
+	err = os.Symlink(file, link1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	link2 := filepath.Join(linkToDir, "link2")
+	err = os.Symlink(link1, link2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// /tmp may itself be a symlink!
+	realTmpDir, err := filepath.EvalSymlinks(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	realDir := filepath.Join(realTmpDir, "dir")
+	realFile := filepath.Join(realDir, "file")
+
+	tests := []struct {
+		path, want string
+	}{
+		{dir, realDir},
+		{linkToDir, realDir},
+		{file, realFile},
+		{link1, realFile},
+		{link2, realFile},
+	}
+	for i, test := range tests {
+		have, err := filepath.EvalSymlinks(test.path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if have != test.want {
+			t.Errorf("test#%d: EvalSymlinks(%q) returns %q, want %q", i, test.path, have, test.want)
 		}
 	}
 }
@@ -813,7 +1043,7 @@ func TestAbs(t *testing.T) {
 		vol := filepath.VolumeName(root)
 		var extra []string
 		for _, path := range absTests {
-			if strings.Index(path, "$") != -1 {
+			if strings.Contains(path, "$") {
 				continue
 			}
 			path = vol + path
@@ -905,6 +1135,9 @@ var winreltests = []RelTests{
 	{`C:a\b\c`, `C:a/b/d`, `..\d`},
 	{`C:\`, `D:\`, `err`},
 	{`C:`, `D:`, `err`},
+	{`C:\Projects`, `c:\projects\src`, `src`},
+	{`C:\Projects`, `c:\projects`, `.`},
+	{`C:\Projects\a\..`, `c:\projects`, `.`},
 }
 
 func TestRel(t *testing.T) {
@@ -996,7 +1229,13 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
 	}
 }
 
-func TestBug3486(t *testing.T) { // http://code.google.com/p/go/issues/detail?id=3486
+func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
+	if runtime.GOOS == "darwin" {
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+		}
+	}
 	root, err := filepath.EvalSymlinks(runtime.GOROOT() + "/test")
 	if err != nil {
 		t.Fatal(err)

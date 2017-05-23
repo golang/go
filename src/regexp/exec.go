@@ -19,7 +19,7 @@ type queue struct {
 // A entry is an entry on a queue.
 // It holds both the instruction pc and the actual thread.
 // Some queue entries are just place holders so that the machine
-// knows it has considered that pc.  Such entries have t == nil.
+// knows it has considered that pc. Such entries have t == nil.
 type entry struct {
 	pc uint32
 	t  *thread
@@ -35,13 +35,15 @@ type thread struct {
 
 // A machine holds all the state during an NFA simulation for p.
 type machine struct {
-	re       *Regexp      // corresponding Regexp
-	p        *syntax.Prog // compiled program
-	op       *onePassProg // compiled onepass program, or notOnePass
-	q0, q1   queue        // two queues for runq, nextq
-	pool     []*thread    // pool of available threads
-	matched  bool         // whether a match was found
-	matchcap []int        // capture information for the match
+	re             *Regexp      // corresponding Regexp
+	p              *syntax.Prog // compiled program
+	op             *onePassProg // compiled onepass program, or notOnePass
+	maxBitStateLen int          // max length of string to search with bitstate
+	b              *bitState    // state for backtracker, allocated lazily
+	q0, q1         queue        // two queues for runq, nextq
+	pool           []*thread    // pool of available threads
+	matched        bool         // whether a match was found
+	matchcap       []int        // capture information for the match
 
 	// cached inputs, to avoid allocation
 	inputBytes  inputBytes
@@ -76,6 +78,9 @@ func progMachine(p *syntax.Prog, op *onePassProg) *machine {
 	if ncap < 2 {
 		ncap = 2
 	}
+	if op == notOnePass {
+		m.maxBitStateLen = maxBitStateLen(p)
+	}
 	m.matchcap = make([]int, ncap)
 	return m
 }
@@ -100,14 +105,6 @@ func (m *machine) alloc(i *syntax.Inst) *thread {
 	}
 	t.inst = i
 	return t
-}
-
-// free returns t to the free pool.
-func (m *machine) free(t *thread) {
-	m.inputBytes.str = nil
-	m.inputString.str = ""
-	m.inputReader.r = nil
-	m.pool = append(m.pool, t)
 }
 
 // match runs the machine over the input starting at pos.
@@ -187,7 +184,6 @@ func (m *machine) match(i input, pos int) bool {
 func (m *machine) clear(q *queue) {
 	for _, d := range q.dense {
 		if d.t != nil {
-			// m.free(d.t)
 			m.pool = append(m.pool, d.t)
 		}
 	}
@@ -208,7 +204,6 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
 			continue
 		}
 		if longest && m.matched && len(t.cap) > 0 && m.matchcap[0] < t.cap[0] {
-			// m.free(t)
 			m.pool = append(m.pool, t)
 			continue
 		}
@@ -227,7 +222,6 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
 				// First-match mode: cut off all lower-priority threads.
 				for _, d := range runq.dense[j+1:] {
 					if d.t != nil {
-						// m.free(d.t)
 						m.pool = append(m.pool, d.t)
 					}
 				}
@@ -248,7 +242,6 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
 			t = m.add(nextq, i.Out, nextPos, t.cap, nextCond, t)
 		}
 		if t != nil {
-			// m.free(t)
 			m.pool = append(m.pool, t)
 		}
 	}
@@ -422,15 +415,26 @@ var empty = make([]int, 0)
 func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap int) []int {
 	m := re.get()
 	var i input
+	var size int
 	if r != nil {
 		i = m.newInputReader(r)
 	} else if b != nil {
 		i = m.newInputBytes(b)
+		size = len(b)
 	} else {
 		i = m.newInputString(s)
+		size = len(s)
 	}
 	if m.op != notOnePass {
 		if !m.onepass(i, pos) {
+			re.put(m)
+			return nil
+		}
+	} else if size < m.maxBitStateLen && r == nil {
+		if m.b == nil {
+			m.b = newBitState(m.p)
+		}
+		if !m.backtrack(i, pos, size, ncap) {
 			re.put(m)
 			return nil
 		}

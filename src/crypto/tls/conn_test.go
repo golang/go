@@ -5,6 +5,9 @@
 package tls
 
 import (
+	"bytes"
+	"io"
+	"net"
 	"testing"
 )
 
@@ -115,4 +118,126 @@ func TestCertificateSelection(t *testing.T) {
 	if n := pointerToIndex(certificateForName("foo.bar.baz.example.com")); n != 0 {
 		t.Errorf("foo.bar.baz.example.com returned certificate %d, not 0", n)
 	}
+}
+
+// Run with multiple crypto configs to test the logic for computing TLS record overheads.
+func runDynamicRecordSizingTest(t *testing.T, config *Config) {
+	clientConn, serverConn := net.Pipe()
+
+	serverConfig := config.clone()
+	serverConfig.DynamicRecordSizingDisabled = false
+	tlsConn := Server(serverConn, serverConfig)
+
+	recordSizesChan := make(chan []int, 1)
+	go func() {
+		// This goroutine performs a TLS handshake over clientConn and
+		// then reads TLS records until EOF. It writes a slice that
+		// contains all the record sizes to recordSizesChan.
+		defer close(recordSizesChan)
+		defer clientConn.Close()
+
+		tlsConn := Client(clientConn, config)
+		if err := tlsConn.Handshake(); err != nil {
+			t.Errorf("Error from client handshake: %s", err)
+			return
+		}
+
+		var recordHeader [recordHeaderLen]byte
+		var record []byte
+		var recordSizes []int
+
+		for {
+			n, err := clientConn.Read(recordHeader[:])
+			if err == io.EOF {
+				break
+			}
+			if err != nil || n != len(recordHeader) {
+				t.Errorf("Error from client read: %s", err)
+				return
+			}
+
+			length := int(recordHeader[3])<<8 | int(recordHeader[4])
+			if len(record) < length {
+				record = make([]byte, length)
+			}
+
+			n, err = clientConn.Read(record[:length])
+			if err != nil || n != length {
+				t.Errorf("Error from client read: %s", err)
+				return
+			}
+
+			// The last record will be a close_notify alert, which
+			// we don't wish to record.
+			if recordType(recordHeader[0]) == recordTypeApplicationData {
+				recordSizes = append(recordSizes, recordHeaderLen+length)
+			}
+		}
+
+		recordSizesChan <- recordSizes
+	}()
+
+	if err := tlsConn.Handshake(); err != nil {
+		t.Fatalf("Error from server handshake: %s", err)
+	}
+
+	// The server writes these plaintexts in order.
+	plaintext := bytes.Join([][]byte{
+		bytes.Repeat([]byte("x"), recordSizeBoostThreshold),
+		bytes.Repeat([]byte("y"), maxPlaintext*2),
+		bytes.Repeat([]byte("z"), maxPlaintext),
+	}, nil)
+
+	if _, err := tlsConn.Write(plaintext); err != nil {
+		t.Fatalf("Error from server write: %s", err)
+	}
+	if err := tlsConn.Close(); err != nil {
+		t.Fatalf("Error from server close: %s", err)
+	}
+
+	recordSizes := <-recordSizesChan
+	if recordSizes == nil {
+		t.Fatalf("Client encountered an error")
+	}
+
+	// Drop the size of last record, which is likely to be truncated.
+	recordSizes = recordSizes[:len(recordSizes)-1]
+
+	// recordSizes should contain a series of records smaller than
+	// tcpMSSEstimate followed by some larger than maxPlaintext.
+	seenLargeRecord := false
+	for i, size := range recordSizes {
+		if !seenLargeRecord {
+			if size > (i+1)*tcpMSSEstimate {
+				t.Fatalf("Record #%d has size %d, which is too large too soon", i, size)
+			}
+			if size >= maxPlaintext {
+				seenLargeRecord = true
+			}
+		} else if size <= maxPlaintext {
+			t.Fatalf("Record #%d has size %d but should be full sized", i, size)
+		}
+	}
+
+	if !seenLargeRecord {
+		t.Fatalf("No large records observed")
+	}
+}
+
+func TestDynamicRecordSizingWithStreamCipher(t *testing.T) {
+	config := testConfig.clone()
+	config.CipherSuites = []uint16{TLS_RSA_WITH_RC4_128_SHA}
+	runDynamicRecordSizingTest(t, config)
+}
+
+func TestDynamicRecordSizingWithCBC(t *testing.T) {
+	config := testConfig.clone()
+	config.CipherSuites = []uint16{TLS_RSA_WITH_AES_256_CBC_SHA}
+	runDynamicRecordSizingTest(t, config)
+}
+
+func TestDynamicRecordSizingWithAEAD(t *testing.T) {
+	config := testConfig.clone()
+	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
+	runDynamicRecordSizingTest(t, config)
 }

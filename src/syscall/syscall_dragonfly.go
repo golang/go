@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// FreeBSD system calls.
+// DragonflyBSD system calls.
 // This file is compiled as ordinary Go code,
 // but it is also input to mksyscall,
 // which parses the //sys lines and generates system call stubs.
@@ -34,7 +34,7 @@ func nametomib(name string) (mib []_C_int, err error) {
 
 	// NOTE(rsc): It seems strange to set the buffer to have
 	// size CTL_MAXNAME+2 but use only CTL_MAXNAME
-	// as the size.  I don't know why the +2 is here, but the
+	// as the size. I don't know why the +2 is here, but the
 	// kernel uses +2 for its own implementation of this function.
 	// I am scared that if we don't include the +2 here, the kernel
 	// will silently write 2 words farther than we specify
@@ -57,7 +57,7 @@ func nametomib(name string) (mib []_C_int, err error) {
 }
 
 // ParseDirent parses up to max directory entries in buf,
-// appending the names to names.  It returns the number
+// appending the names to names. It returns the number
 // bytes consumed from buf, the number of entries added
 // to names, and the new names slice.
 func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
@@ -109,6 +109,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
 	}
 	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(_p0), bufsize, uintptr(flags))
+	use(unsafe.Pointer(_p0))
 	n = int(r0)
 	if e1 != 0 {
 		err = e1
@@ -127,8 +128,8 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 //sys	Chown(path string, uid int, gid int) (err error)
 //sys	Chroot(path string) (err error)
 //sys	Close(fd int) (err error)
-//sysnb	Dup(fd int) (nfd int, err error)
-//sysnb	Dup2(from int, to int) (err error)
+//sys	Dup(fd int) (nfd int, err error)
+//sys	Dup2(from int, to int) (err error)
 //sys	Exit(code int)
 //sys	Fchdir(fd int) (err error)
 //sys	Fchflags(fd int, flags int) (err error)

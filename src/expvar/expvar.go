@@ -15,7 +15,7 @@
 //	memstats  runtime.Memstats
 //
 // The package is sometimes only imported for the side effect of
-// registering its HTTP handler and the above variables.  To use it
+// registering its HTTP handler and the above variables. To use it
 // this way, link this package into your program:
 //	import _ "expvar"
 //
@@ -26,67 +26,67 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"runtime"
 	"sort"
 	"strconv"
 	"sync"
+	"sync/atomic"
 )
 
 // Var is an abstract type for all exported variables.
 type Var interface {
+	// String returns a valid JSON value for the variable.
+	// Types with String methods that do not return valid JSON
+	// (such as time.Time) must not be used as a Var.
 	String() string
 }
 
 // Int is a 64-bit integer variable that satisfies the Var interface.
 type Int struct {
-	mu sync.RWMutex
-	i  int64
+	i int64
 }
 
 func (v *Int) String() string {
-	v.mu.RLock()
-	defer v.mu.RUnlock()
-	return strconv.FormatInt(v.i, 10)
+	return strconv.FormatInt(atomic.LoadInt64(&v.i), 10)
 }
 
 func (v *Int) Add(delta int64) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.i += delta
+	atomic.AddInt64(&v.i, delta)
 }
 
 func (v *Int) Set(value int64) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.i = value
+	atomic.StoreInt64(&v.i, value)
 }
 
 // Float is a 64-bit float variable that satisfies the Var interface.
 type Float struct {
-	mu sync.RWMutex
-	f  float64
+	f uint64
 }
 
 func (v *Float) String() string {
-	v.mu.RLock()
-	defer v.mu.RUnlock()
-	return strconv.FormatFloat(v.f, 'g', -1, 64)
+	return strconv.FormatFloat(
+		math.Float64frombits(atomic.LoadUint64(&v.f)), 'g', -1, 64)
 }
 
 // Add adds delta to v.
 func (v *Float) Add(delta float64) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.f += delta
+	for {
+		cur := atomic.LoadUint64(&v.f)
+		curVal := math.Float64frombits(cur)
+		nxtVal := curVal + delta
+		nxt := math.Float64bits(nxtVal)
+		if atomic.CompareAndSwapUint64(&v.f, cur, nxt) {
+			return
+		}
+	}
 }
 
 // Set sets v to value.
 func (v *Float) Set(value float64) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.f = value
+	atomic.StoreUint64(&v.f, math.Float64bits(value))
 }
 
 // Map is a string-to-Var map variable that satisfies the Var interface.
@@ -221,8 +221,10 @@ type String struct {
 
 func (v *String) String() string {
 	v.mu.RLock()
-	defer v.mu.RUnlock()
-	return strconv.Quote(v.s)
+	s := v.s
+	v.mu.RUnlock()
+	b, _ := json.Marshal(s)
+	return string(b)
 }
 
 func (v *String) Set(value string) {
@@ -261,7 +263,8 @@ func Publish(name string, v Var) {
 	sort.Strings(varKeys)
 }
 
-// Get retrieves a named exported variable.
+// Get retrieves a named exported variable. It returns nil if the name has
+// not been registered.
 func Get(name string) Var {
 	mutex.RLock()
 	defer mutex.RUnlock()

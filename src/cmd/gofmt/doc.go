@@ -87,6 +87,13 @@ When invoked with -s gofmt will make the following source transformations where 
 		for x, _ = range v {...}
 	will be simplified to:
 		for x = range v {...}
+
+	A range of the form:
+		for _ = range v {...}
+	will be simplified to:
+		for range v {...}
+
+This may result in changes that are incompatible with earlier versions of Go.
 */
 package main
 

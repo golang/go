@@ -35,5 +35,47 @@ func ExampleRel() {
 	// On Unix:
 	// "/a/b/c": "b/c" <nil>
 	// "/b/c": "../b/c" <nil>
-	// "./b/c": "" Rel: can't make b/c relative to /a
+	// "./b/c": "" Rel: can't make ./b/c relative to /a
+}
+
+func ExampleSplit() {
+	paths := []string{
+		"/home/arnie/amelia.jpg",
+		"/mnt/photos/",
+		"rabbit.jpg",
+		"/usr/local//go",
+	}
+	fmt.Println("On Unix:")
+	for _, p := range paths {
+		dir, file := filepath.Split(p)
+		fmt.Printf("input: %q\n\tdir: %q\n\tfile: %q\n", p, dir, file)
+	}
+	// Output:
+	// On Unix:
+	// input: "/home/arnie/amelia.jpg"
+	// 	dir: "/home/arnie/"
+	// 	file: "amelia.jpg"
+	// input: "/mnt/photos/"
+	// 	dir: "/mnt/photos/"
+	// 	file: ""
+	// input: "rabbit.jpg"
+	// 	dir: ""
+	// 	file: "rabbit.jpg"
+	// input: "/usr/local//go"
+	// 	dir: "/usr/local//"
+	// 	file: "go"
+}
+
+func ExampleJoin() {
+	fmt.Println("On Unix:")
+	fmt.Println(filepath.Join("a", "b", "c"))
+	fmt.Println(filepath.Join("a", "b/c"))
+	fmt.Println(filepath.Join("a/b", "c"))
+	fmt.Println(filepath.Join("a/b", "/c"))
+	// Output:
+	// On Unix:
+	// a/b/c
+	// a/b/c
+	// a/b/c
+	// a/b/c
 }

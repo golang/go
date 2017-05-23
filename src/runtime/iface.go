@@ -5,6 +5,8 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -17,33 +19,29 @@ var (
 	hash      [hashSize]*itab
 )
 
-// fInterface is our standard non-empty interface.  We use it instead
-// of interface{f()} in function prototypes because gofmt insists on
-// putting lots of newlines in the otherwise concise interface{f()}.
-type fInterface interface {
-	f()
-}
-
-func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
-	if len(inter.mhdr) == 0 {
-		gothrow("internal error - misuse of itab")
-	}
-
-	// easy case
-	x := typ.x
-	if x == nil {
-		if canfail {
-			return nil
-		}
-		i := (*imethod)(add(unsafe.Pointer(inter), unsafe.Sizeof(interfacetype{})))
-		panic(&TypeAssertionError{"", *typ._string, *inter.typ._string, *i.name})
-	}
-
+func itabhash(inter *interfacetype, typ *_type) uint32 {
 	// compiler has provided some good hash codes for us.
 	h := inter.typ.hash
 	h += 17 * typ.hash
 	// TODO(rsc): h += 23 * x.mhash ?
-	h %= hashSize
+	return h % hashSize
+}
+
+func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+	if len(inter.mhdr) == 0 {
+		throw("internal error - misuse of itab")
+	}
+
+	// easy case
+	if typ.tflag&tflagUncommon == 0 {
+		if canfail {
+			return nil
+		}
+		name := inter.typ.nameOff(inter.mhdr[0].name)
+		panic(&TypeAssertionError{"", typ.string(), inter.typ.string(), name.name()})
+	}
+
+	h := itabhash(inter, typ)
 
 	// look twice - once without lock, once with.
 	// common case will be no lock contention.
@@ -53,20 +51,19 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		if locked != 0 {
 			lock(&ifaceLock)
 		}
-		for m = (*itab)(atomicloadp(unsafe.Pointer(&hash[h]))); m != nil; m = m.link {
+		for m = (*itab)(atomic.Loadp(unsafe.Pointer(&hash[h]))); m != nil; m = m.link {
 			if m.inter == inter && m._type == typ {
 				if m.bad != 0 {
-					m = nil
 					if !canfail {
 						// this can only happen if the conversion
 						// was already done once using the , ok form
 						// and we have a cached negative result.
 						// the cached result doesn't record which
-						// interface function was missing, so jump
-						// down to the interface check, which will
-						// do more work but give a better error.
-						goto search
+						// interface function was missing, so try
+						// adding the itab again, which will throw an error.
+						additab(m, locked != 0, false)
 					}
+					m = nil
 				}
 				if locked != 0 {
 					unlock(&ifaceLock)
@@ -76,48 +73,10 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		}
 	}
 
-	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr))*ptrSize, 0, &memstats.other_sys))
+	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*sys.PtrSize, 0, &memstats.other_sys))
 	m.inter = inter
 	m._type = typ
-
-search:
-	// both inter and typ have method sorted by name,
-	// and interface names are unique,
-	// so can iterate over both in lock step;
-	// the loop is O(ni+nt) not O(ni*nt).
-	ni := len(inter.mhdr)
-	nt := len(x.mhdr)
-	j := 0
-	for k := 0; k < ni; k++ {
-		i := (*imethod)(add(unsafe.Pointer(inter), unsafe.Sizeof(interfacetype{})+uintptr(k)*unsafe.Sizeof(imethod{})))
-		iname := i.name
-		ipkgpath := i.pkgpath
-		itype := i._type
-		for ; j < nt; j++ {
-			t := (*method)(add(unsafe.Pointer(x), unsafe.Sizeof(uncommontype{})+uintptr(j)*unsafe.Sizeof(method{})))
-			if t.mtyp == itype && t.name == iname && t.pkgpath == ipkgpath {
-				if m != nil {
-					*(*unsafe.Pointer)(add(unsafe.Pointer(m), unsafe.Sizeof(itab{})+uintptr(k)*ptrSize)) = t.ifn
-				}
-				goto nextimethod
-			}
-		}
-		// didn't find method
-		if !canfail {
-			if locked != 0 {
-				unlock(&ifaceLock)
-			}
-			panic(&TypeAssertionError{"", *typ._string, *inter.typ._string, *iname})
-		}
-		m.bad = 1
-		break
-	nextimethod:
-	}
-	if locked == 0 {
-		gothrow("invalid itab locking")
-	}
-	m.link = hash[h]
-	atomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
+	additab(m, true, canfail)
 	unlock(&ifaceLock)
 	if m.bad != 0 {
 		return nil
@@ -125,304 +84,337 @@ search:
 	return m
 }
 
-func typ2Itab(t *_type, inter *interfacetype, cache **itab) *itab {
-	tab := getitab(inter, t, false)
-	atomicstorep(unsafe.Pointer(cache), unsafe.Pointer(tab))
-	return tab
+func additab(m *itab, locked, canfail bool) {
+	inter := m.inter
+	typ := m._type
+	x := typ.uncommon()
+
+	// both inter and typ have method sorted by name,
+	// and interface names are unique,
+	// so can iterate over both in lock step;
+	// the loop is O(ni+nt) not O(ni*nt).
+	ni := len(inter.mhdr)
+	nt := int(x.mcount)
+	xmhdr := (*[1 << 16]method)(add(unsafe.Pointer(x), uintptr(x.moff)))[:nt:nt]
+	j := 0
+	for k := 0; k < ni; k++ {
+		i := &inter.mhdr[k]
+		itype := inter.typ.typeOff(i.ityp)
+		name := inter.typ.nameOff(i.name)
+		iname := name.name()
+		ipkg := name.pkgPath()
+		if ipkg == "" {
+			ipkg = inter.pkgpath.name()
+		}
+		for ; j < nt; j++ {
+			t := &xmhdr[j]
+			tname := typ.nameOff(t.name)
+			if typ.typeOff(t.mtyp) == itype && tname.name() == iname {
+				pkgPath := tname.pkgPath()
+				if pkgPath == "" {
+					pkgPath = typ.nameOff(x.pkgpath).name()
+				}
+				if tname.isExported() || pkgPath == ipkg {
+					if m != nil {
+						ifn := typ.textOff(t.ifn)
+						*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = ifn
+					}
+					goto nextimethod
+				}
+			}
+		}
+		// didn't find method
+		if !canfail {
+			if locked {
+				unlock(&ifaceLock)
+			}
+			panic(&TypeAssertionError{"", typ.string(), inter.typ.string(), iname})
+		}
+		m.bad = 1
+		break
+	nextimethod:
+	}
+	if !locked {
+		throw("invalid itab locking")
+	}
+	h := itabhash(inter, typ)
+	m.link = hash[h]
+	atomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
 }
 
-func convT2E(t *_type, elem unsafe.Pointer) (e interface{}) {
-	size := uintptr(t.size)
-	ep := (*eface)(unsafe.Pointer(&e))
+func itabsinit() {
+	lock(&ifaceLock)
+	for m := &firstmoduledata; m != nil; m = m.next {
+		for _, i := range m.itablinks {
+			additab(i, true, false)
+		}
+	}
+	unlock(&ifaceLock)
+}
+
+func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e eface) {
+	if raceenabled {
+		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E))
+	}
+	if msanenabled {
+		msanread(elem, t.size)
+	}
 	if isDirectIface(t) {
-		ep._type = t
-		memmove(unsafe.Pointer(&ep.data), elem, size)
-	} else {
-		x := newobject(t)
+		throw("direct convT2E")
+	}
+	if x == nil {
+		x = newobject(t)
 		// TODO: We allocate a zeroed object only to overwrite it with
-		// actual data.  Figure out how to avoid zeroing.  Also below in convT2I.
-		memmove(x, elem, size)
-		ep._type = t
-		ep.data = x
+		// actual data. Figure out how to avoid zeroing. Also below in convT2I.
 	}
+	typedmemmove(t, x, elem)
+	e._type = t
+	e.data = x
 	return
 }
 
-func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer) (i fInterface) {
-	tab := (*itab)(atomicloadp(unsafe.Pointer(cache)))
-	if tab == nil {
-		tab = getitab(inter, t, false)
-		atomicstorep(unsafe.Pointer(cache), unsafe.Pointer(tab))
+func convT2I(tab *itab, elem unsafe.Pointer, x unsafe.Pointer) (i iface) {
+	t := tab._type
+	if raceenabled {
+		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I))
 	}
-	size := uintptr(t.size)
-	pi := (*iface)(unsafe.Pointer(&i))
+	if msanenabled {
+		msanread(elem, t.size)
+	}
 	if isDirectIface(t) {
-		pi.tab = tab
-		memmove(unsafe.Pointer(&pi.data), elem, size)
-	} else {
-		x := newobject(t)
-		memmove(x, elem, size)
-		pi.tab = tab
-		pi.data = x
+		throw("direct convT2I")
 	}
+	if x == nil {
+		x = newobject(t)
+	}
+	typedmemmove(t, x, elem)
+	i.tab = tab
+	i.data = x
 	return
 }
 
-// TODO: give these routines a pointer to the result area instead of writing
-// extra data in the outargs section.  Then we can get rid of go:nosplit.
-//go:nosplit
-func assertI2T(t *_type, i fInterface) (r struct{}) {
-	ip := (*iface)(unsafe.Pointer(&i))
-	tab := ip.tab
+func panicdottype(have, want, iface *_type) {
+	haveString := ""
+	if have != nil {
+		haveString = have.string()
+	}
+	panic(&TypeAssertionError{iface.string(), haveString, want.string(), ""})
+}
+
+func assertI2T(t *_type, i iface, r unsafe.Pointer) {
+	tab := i.tab
 	if tab == nil {
-		panic(&TypeAssertionError{"", "", *t._string, ""})
+		panic(&TypeAssertionError{"", "", t.string(), ""})
 	}
 	if tab._type != t {
-		panic(&TypeAssertionError{*tab.inter.typ._string, *tab._type._string, *t._string, ""})
+		panic(&TypeAssertionError{tab.inter.typ.string(), tab._type.string(), t.string(), ""})
 	}
-	size := uintptr(t.size)
-	if isDirectIface(t) {
-		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ip.data), size)
-	} else {
-		memmove(unsafe.Pointer(&r), ip.data, size)
+	if r != nil {
+		if isDirectIface(t) {
+			writebarrierptr((*uintptr)(r), uintptr(i.data))
+		} else {
+			typedmemmove(t, r, i.data)
+		}
 	}
-	return
 }
 
-//go:nosplit
-func assertI2T2(t *_type, i fInterface) (r byte) {
-	ip := (*iface)(unsafe.Pointer(&i))
-	size := uintptr(t.size)
-	ok := (*bool)(add(unsafe.Pointer(&r), size))
-	tab := ip.tab
+func assertI2T2(t *_type, i iface, r unsafe.Pointer) bool {
+	tab := i.tab
 	if tab == nil || tab._type != t {
-		*ok = false
-		memclr(unsafe.Pointer(&r), size)
-		return
+		if r != nil {
+			memclr(r, t.size)
+		}
+		return false
 	}
-	*ok = true
+	if r != nil {
+		if isDirectIface(t) {
+			writebarrierptr((*uintptr)(r), uintptr(i.data))
+		} else {
+			typedmemmove(t, r, i.data)
+		}
+	}
+	return true
+}
+
+func assertE2T(t *_type, e eface, r unsafe.Pointer) {
+	if e._type == nil {
+		panic(&TypeAssertionError{"", "", t.string(), ""})
+	}
+	if e._type != t {
+		panic(&TypeAssertionError{"", e._type.string(), t.string(), ""})
+	}
+	if r != nil {
+		if isDirectIface(t) {
+			writebarrierptr((*uintptr)(r), uintptr(e.data))
+		} else {
+			typedmemmove(t, r, e.data)
+		}
+	}
+}
+
+var testingAssertE2T2GC bool
+
+// The compiler ensures that r is non-nil.
+func assertE2T2(t *_type, e eface, r unsafe.Pointer) bool {
+	if testingAssertE2T2GC {
+		GC()
+	}
+	if e._type != t {
+		memclr(r, t.size)
+		return false
+	}
 	if isDirectIface(t) {
-		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ip.data), size)
+		writebarrierptr((*uintptr)(r), uintptr(e.data))
 	} else {
-		memmove(unsafe.Pointer(&r), ip.data, size)
+		typedmemmove(t, r, e.data)
 	}
-	return
+	return true
 }
 
-func assertI2TOK(t *_type, i fInterface) bool {
-	ip := (*iface)(unsafe.Pointer(&i))
-	tab := ip.tab
-	return tab != nil && tab._type == t
-}
-
-//go:nosplit
-func assertE2T(t *_type, e interface{}) (r struct{}) {
-	ep := (*eface)(unsafe.Pointer(&e))
-	if ep._type == nil {
-		panic(&TypeAssertionError{"", "", *t._string, ""})
-	}
-	if ep._type != t {
-		panic(&TypeAssertionError{"", *ep._type._string, *t._string, ""})
-	}
-	size := uintptr(t.size)
-	if isDirectIface(t) {
-		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ep.data), size)
-	} else {
-		memmove(unsafe.Pointer(&r), ep.data, size)
-	}
-	return
-}
-
-//go:nosplit
-func assertE2T2(t *_type, e interface{}) (r byte) {
-	ep := (*eface)(unsafe.Pointer(&e))
-	size := uintptr(t.size)
-	ok := (*bool)(add(unsafe.Pointer(&r), size))
-	if ep._type != t {
-		*ok = false
-		memclr(unsafe.Pointer(&r), size)
-		return
-	}
-	*ok = true
-	if isDirectIface(t) {
-		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ep.data), size)
-	} else {
-		memmove(unsafe.Pointer(&r), ep.data, size)
-	}
-	return
-}
-
-func assertE2TOK(t *_type, e interface{}) bool {
-	ep := (*eface)(unsafe.Pointer(&e))
-	return t == ep._type
-}
-
-func convI2E(i fInterface) (r interface{}) {
-	ip := (*iface)(unsafe.Pointer(&i))
-	tab := ip.tab
+func convI2E(i iface) (r eface) {
+	tab := i.tab
 	if tab == nil {
 		return
 	}
-	rp := (*eface)(unsafe.Pointer(&r))
-	rp._type = tab._type
-	rp.data = ip.data
+	r._type = tab._type
+	r.data = i.data
 	return
 }
 
-func assertI2E(inter *interfacetype, i fInterface) (r interface{}) {
-	ip := (*iface)(unsafe.Pointer(&i))
-	tab := ip.tab
+func assertI2E(inter *interfacetype, i iface, r *eface) {
+	tab := i.tab
 	if tab == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", *inter.typ._string, ""})
+		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
 	}
-	rp := (*eface)(unsafe.Pointer(&r))
-	rp._type = tab._type
-	rp.data = ip.data
+	r._type = tab._type
+	r.data = i.data
 	return
 }
 
-func assertI2E2(inter *interfacetype, i fInterface) (r interface{}, ok bool) {
-	ip := (*iface)(unsafe.Pointer(&i))
-	tab := ip.tab
+// The compiler ensures that r is non-nil.
+func assertI2E2(inter *interfacetype, i iface, r *eface) bool {
+	tab := i.tab
 	if tab == nil {
-		return
+		return false
 	}
-	rp := (*eface)(unsafe.Pointer(&r))
-	rp._type = tab._type
-	rp.data = ip.data
-	ok = true
-	return
+	r._type = tab._type
+	r.data = i.data
+	return true
 }
 
-func convI2I(inter *interfacetype, i fInterface) (r fInterface) {
-	ip := (*iface)(unsafe.Pointer(&i))
-	tab := ip.tab
+func convI2I(inter *interfacetype, i iface) (r iface) {
+	tab := i.tab
 	if tab == nil {
 		return
 	}
-	rp := (*iface)(unsafe.Pointer(&r))
 	if tab.inter == inter {
-		rp.tab = tab
-		rp.data = ip.data
+		r.tab = tab
+		r.data = i.data
 		return
 	}
-	rp.tab = getitab(inter, tab._type, false)
-	rp.data = ip.data
+	r.tab = getitab(inter, tab._type, false)
+	r.data = i.data
 	return
 }
 
-func assertI2I(inter *interfacetype, i fInterface) (r fInterface) {
-	ip := (*iface)(unsafe.Pointer(&i))
-	tab := ip.tab
+func assertI2I(inter *interfacetype, i iface, r *iface) {
+	tab := i.tab
 	if tab == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", *inter.typ._string, ""})
+		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
 	}
-	rp := (*iface)(unsafe.Pointer(&r))
 	if tab.inter == inter {
-		rp.tab = tab
-		rp.data = ip.data
+		r.tab = tab
+		r.data = i.data
 		return
 	}
-	rp.tab = getitab(inter, tab._type, false)
-	rp.data = ip.data
-	return
+	r.tab = getitab(inter, tab._type, false)
+	r.data = i.data
 }
 
-func assertI2I2(inter *interfacetype, i fInterface) (r fInterface, ok bool) {
-	ip := (*iface)(unsafe.Pointer(&i))
-	tab := ip.tab
+func assertI2I2(inter *interfacetype, i iface, r *iface) bool {
+	tab := i.tab
 	if tab == nil {
-		return
+		if r != nil {
+			*r = iface{}
+		}
+		return false
 	}
-	rp := (*iface)(unsafe.Pointer(&r))
-	if tab.inter == inter {
-		rp.tab = tab
-		rp.data = ip.data
-		ok = true
-		return
+	if tab.inter != inter {
+		tab = getitab(inter, tab._type, true)
+		if tab == nil {
+			if r != nil {
+				*r = iface{}
+			}
+			return false
+		}
 	}
-	tab = getitab(inter, tab._type, true)
-	if tab == nil {
-		rp.data = nil
-		rp.tab = nil
-		ok = false
-		return
+	if r != nil {
+		r.tab = tab
+		r.data = i.data
 	}
-	rp.tab = tab
-	rp.data = ip.data
-	ok = true
-	return
+	return true
 }
 
-func assertE2I(inter *interfacetype, e interface{}) (r fInterface) {
-	ep := (*eface)(unsafe.Pointer(&e))
-	t := ep._type
+func assertE2I(inter *interfacetype, e eface, r *iface) {
+	t := e._type
 	if t == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", *inter.typ._string, ""})
+		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
 	}
-	rp := (*iface)(unsafe.Pointer(&r))
-	rp.tab = getitab(inter, t, false)
-	rp.data = ep.data
-	return
+	r.tab = getitab(inter, t, false)
+	r.data = e.data
 }
 
-func assertE2I2(inter *interfacetype, e interface{}) (r fInterface, ok bool) {
-	ep := (*eface)(unsafe.Pointer(&e))
-	t := ep._type
+var testingAssertE2I2GC bool
+
+func assertE2I2(inter *interfacetype, e eface, r *iface) bool {
+	if testingAssertE2I2GC {
+		GC()
+	}
+	t := e._type
 	if t == nil {
-		return
+		if r != nil {
+			*r = iface{}
+		}
+		return false
 	}
 	tab := getitab(inter, t, true)
 	if tab == nil {
-		return
+		if r != nil {
+			*r = iface{}
+		}
+		return false
 	}
-	rp := (*iface)(unsafe.Pointer(&r))
-	rp.tab = tab
-	rp.data = ep.data
-	ok = true
-	return
+	if r != nil {
+		r.tab = tab
+		r.data = e.data
+	}
+	return true
 }
 
-func reflect_ifaceE2I(inter *interfacetype, e interface{}, dst *fInterface) {
-	*dst = assertE2I(inter, e)
+//go:linkname reflect_ifaceE2I reflect.ifaceE2I
+func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
+	assertE2I(inter, e, dst)
 }
 
-func assertE2E(inter *interfacetype, e interface{}) interface{} {
-	ep := (*eface)(unsafe.Pointer(&e))
-	if ep._type == nil {
+func assertE2E(inter *interfacetype, e eface, r *eface) {
+	if e._type == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", *inter.typ._string, ""})
+		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
 	}
-	return e
+	*r = e
 }
 
-func assertE2E2(inter *interfacetype, e interface{}) (interface{}, bool) {
-	ep := (*eface)(unsafe.Pointer(&e))
-	if ep._type == nil {
-		return nil, false
+// The compiler ensures that r is non-nil.
+func assertE2E2(inter *interfacetype, e eface, r *eface) bool {
+	if e._type == nil {
+		*r = eface{}
+		return false
 	}
-	return e, true
-}
-
-func ifacethash(i fInterface) uint32 {
-	ip := (*iface)(unsafe.Pointer(&i))
-	tab := ip.tab
-	if tab == nil {
-		return 0
-	}
-	return tab._type.hash
-}
-
-func efacethash(e interface{}) uint32 {
-	ep := (*eface)(unsafe.Pointer(&e))
-	t := ep._type
-	if t == nil {
-		return 0
-	}
-	return t.hash
+	*r = e
+	return true
 }
 
 func iterate_itabs(fn func(*itab)) {
@@ -431,9 +423,4 @@ func iterate_itabs(fn func(*itab)) {
 			fn(h)
 		}
 	}
-}
-
-func ifaceE2I2(inter *interfacetype, e interface{}, r *fInterface) (ok bool) {
-	*r, ok = assertE2I2(inter, e)
-	return
 }

@@ -17,10 +17,13 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -36,7 +39,7 @@ var (
 
 const (
 	visibleLen = 40
-	testPrefix = "=== RUN Test"
+	testPrefix = "=== RUN   Test"
 )
 
 func TestRace(t *testing.T) {
@@ -63,6 +66,9 @@ func TestRace(t *testing.T) {
 		}
 	}
 
+	if totalTests == 0 {
+		t.Fatalf("failed to parse test output")
+	}
 	fmt.Printf("\nPassed %d of %d tests (%.02f%%, %d+, %d-)\n",
 		passedTests, totalTests, 100*float64(passedTests)/float64(totalTests), falsePos, falseNeg)
 	fmt.Printf("%d expected failures (%d has not fail)\n", failingPos+failingNeg, failingNeg)
@@ -152,7 +158,20 @@ func runTests() ([]byte, error) {
 		}
 		cmd.Env = append(cmd.Env, env)
 	}
-	cmd.Env = append(cmd.Env, `GORACE="suppress_equal_stacks=0 suppress_equal_addresses=0 exitcode=0"`)
+	// We set GOMAXPROCS=1 to prevent test flakiness.
+	// There are two sources of flakiness:
+	// 1. Some tests rely on particular execution order.
+	//    If the order is different, race does not happen at all.
+	// 2. Ironically, ThreadSanitizer runtime contains a logical race condition
+	//    that can lead to false negatives if racy accesses happen literally at the same time.
+	// Tests used to work reliably in the good old days of GOMAXPROCS=1.
+	// So let's set it for now. A more reliable solution is to explicitly annotate tests
+	// with required execution order by means of a special "invisible" synchronization primitive
+	// (that's what is done for C++ ThreadSanitizer tests). This is issue #14119.
+	cmd.Env = append(cmd.Env,
+		"GOMAXPROCS=1",
+		"GORACE=suppress_equal_stacks=0 suppress_equal_addresses=0 exitcode=0",
+	)
 	return cmd.CombinedOutput()
 }
 
@@ -169,4 +188,54 @@ func TestIssue8102(t *testing.T) {
 			break
 		}
 	}
+}
+
+func TestIssue9137(t *testing.T) {
+	a := []string{"a"}
+	i := 0
+	a[i], a[len(a)-1], a = a[len(a)-1], "", a[:len(a)-1]
+	if len(a) != 0 || a[:1][0] != "" {
+		t.Errorf("mangled a: %q %q", a, a[:1])
+	}
+}
+
+func BenchmarkSyncLeak(b *testing.B) {
+	const (
+		G = 1000
+		S = 1000
+		H = 10
+	)
+	var wg sync.WaitGroup
+	wg.Add(G)
+	for g := 0; g < G; g++ {
+		go func() {
+			defer wg.Done()
+			hold := make([][]uint32, H)
+			for i := 0; i < b.N; i++ {
+				a := make([]uint32, S)
+				atomic.AddUint32(&a[rand.Intn(len(a))], 1)
+				hold[rand.Intn(len(hold))] = a
+			}
+			_ = hold
+		}()
+	}
+	wg.Wait()
+}
+
+func BenchmarkStackLeak(b *testing.B) {
+	done := make(chan bool, 1)
+	for i := 0; i < b.N; i++ {
+		go func() {
+			growStack(rand.Intn(100))
+			done <- true
+		}()
+		<-done
+	}
+}
+
+func growStack(i int) {
+	if i == 0 {
+		return
+	}
+	growStack(i - 1)
 }

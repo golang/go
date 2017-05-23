@@ -14,11 +14,11 @@ import (
 )
 
 // This file tests the situation where memeq is checking
-// data very near to a page boundary.  We want to make sure
+// data very near to a page boundary. We want to make sure
 // equal does not read across the boundary and cause a page
 // fault where it shouldn't.
 
-// This test runs only on linux.  The code being tested is
+// This test runs only on linux. The code being tested is
 // not OS-specific, so it does not need to be tested on all
 // operating systems.
 

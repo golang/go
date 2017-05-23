@@ -1,10 +1,10 @@
 // run
 
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// http://code.google.com/p/go/issues/detail?id=800
+// https://golang.org/issue/800
 
 package main
 

@@ -5,457 +5,384 @@
 package net
 
 import (
-	"flag"
-	"io"
 	"os"
-	"runtime"
 	"testing"
-	"time"
 )
 
-func skipServerTest(net, unixsotype, addr string, ipv6, ipv4map, linuxOnly bool) bool {
-	switch runtime.GOOS {
-	case "linux":
-	case "nacl", "plan9", "windows":
-		// "unix" sockets are not supported on Windows and Plan 9.
-		if net == unixsotype {
-			return true
-		}
-	default:
-		if net == unixsotype && linuxOnly {
-			return true
-		}
-	}
-	switch addr {
-	case "", "0.0.0.0", "[::ffff:0.0.0.0]", "[::]":
-		if testing.Short() || !*testExternal {
-			return true
-		}
-	}
-	if ipv6 && !supportsIPv6 {
-		return true
-	}
-	if ipv4map && !supportsIPv4map {
-		return true
-	}
-	return false
-}
-
-var streamConnServerTests = []struct {
-	snet      string // server side
-	saddr     string
-	cnet      string // client side
-	caddr     string
-	ipv6      bool // test with underlying AF_INET6 socket
-	ipv4map   bool // test with IPv6 IPv4-mapping functionality
-	empty     bool // test with empty data
-	linuxOnly bool // test with abstract unix domain socket, a Linux-ism
+var tcpServerTests = []struct {
+	snet, saddr string // server endpoint
+	tnet, taddr string // target endpoint for client
 }{
-	{snet: "tcp", saddr: "", cnet: "tcp", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "0.0.0.0", cnet: "tcp", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "[::ffff:0.0.0.0]", cnet: "tcp", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "[::]", cnet: "tcp", caddr: "[::1]", ipv6: true},
+	{snet: "tcp", saddr: ":0", tnet: "tcp", taddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "0.0.0.0:0", tnet: "tcp", taddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "[::ffff:0.0.0.0]:0", tnet: "tcp", taddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "[::]:0", tnet: "tcp", taddr: "::1"},
 
-	{snet: "tcp", saddr: "", cnet: "tcp", caddr: "[::1]", ipv4map: true},
-	{snet: "tcp", saddr: "0.0.0.0", cnet: "tcp", caddr: "[::1]", ipv4map: true},
-	{snet: "tcp", saddr: "[::ffff:0.0.0.0]", cnet: "tcp", caddr: "[::1]", ipv4map: true},
-	{snet: "tcp", saddr: "[::]", cnet: "tcp", caddr: "127.0.0.1", ipv4map: true},
+	{snet: "tcp", saddr: ":0", tnet: "tcp", taddr: "::1"},
+	{snet: "tcp", saddr: "0.0.0.0:0", tnet: "tcp", taddr: "::1"},
+	{snet: "tcp", saddr: "[::ffff:0.0.0.0]:0", tnet: "tcp", taddr: "::1"},
+	{snet: "tcp", saddr: "[::]:0", tnet: "tcp", taddr: "127.0.0.1"},
 
-	{snet: "tcp", saddr: "", cnet: "tcp4", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "0.0.0.0", cnet: "tcp4", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "[::ffff:0.0.0.0]", cnet: "tcp4", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "[::]", cnet: "tcp6", caddr: "[::1]", ipv6: true},
+	{snet: "tcp", saddr: ":0", tnet: "tcp4", taddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "0.0.0.0:0", tnet: "tcp4", taddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "[::ffff:0.0.0.0]:0", tnet: "tcp4", taddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "[::]:0", tnet: "tcp6", taddr: "::1"},
 
-	{snet: "tcp", saddr: "", cnet: "tcp6", caddr: "[::1]", ipv4map: true},
-	{snet: "tcp", saddr: "0.0.0.0", cnet: "tcp6", caddr: "[::1]", ipv4map: true},
-	{snet: "tcp", saddr: "[::ffff:0.0.0.0]", cnet: "tcp6", caddr: "[::1]", ipv4map: true},
-	{snet: "tcp", saddr: "[::]", cnet: "tcp4", caddr: "127.0.0.1", ipv4map: true},
+	{snet: "tcp", saddr: ":0", tnet: "tcp6", taddr: "::1"},
+	{snet: "tcp", saddr: "0.0.0.0:0", tnet: "tcp6", taddr: "::1"},
+	{snet: "tcp", saddr: "[::ffff:0.0.0.0]:0", tnet: "tcp6", taddr: "::1"},
+	{snet: "tcp", saddr: "[::]:0", tnet: "tcp4", taddr: "127.0.0.1"},
 
-	{snet: "tcp", saddr: "127.0.0.1", cnet: "tcp", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "[::ffff:127.0.0.1]", cnet: "tcp", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "[::1]", cnet: "tcp", caddr: "[::1]", ipv6: true},
+	{snet: "tcp", saddr: "127.0.0.1:0", tnet: "tcp", taddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "[::ffff:127.0.0.1]:0", tnet: "tcp", taddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "[::1]:0", tnet: "tcp", taddr: "::1"},
 
-	{snet: "tcp4", saddr: "", cnet: "tcp4", caddr: "127.0.0.1"},
-	{snet: "tcp4", saddr: "0.0.0.0", cnet: "tcp4", caddr: "127.0.0.1"},
-	{snet: "tcp4", saddr: "[::ffff:0.0.0.0]", cnet: "tcp4", caddr: "127.0.0.1"},
+	{snet: "tcp4", saddr: ":0", tnet: "tcp4", taddr: "127.0.0.1"},
+	{snet: "tcp4", saddr: "0.0.0.0:0", tnet: "tcp4", taddr: "127.0.0.1"},
+	{snet: "tcp4", saddr: "[::ffff:0.0.0.0]:0", tnet: "tcp4", taddr: "127.0.0.1"},
 
-	{snet: "tcp4", saddr: "127.0.0.1", cnet: "tcp4", caddr: "127.0.0.1"},
+	{snet: "tcp4", saddr: "127.0.0.1:0", tnet: "tcp4", taddr: "127.0.0.1"},
 
-	{snet: "tcp6", saddr: "", cnet: "tcp6", caddr: "[::1]", ipv6: true},
-	{snet: "tcp6", saddr: "[::]", cnet: "tcp6", caddr: "[::1]", ipv6: true},
+	{snet: "tcp6", saddr: ":0", tnet: "tcp6", taddr: "::1"},
+	{snet: "tcp6", saddr: "[::]:0", tnet: "tcp6", taddr: "::1"},
 
-	{snet: "tcp6", saddr: "[::1]", cnet: "tcp6", caddr: "[::1]", ipv6: true},
-
-	{snet: "unix", saddr: testUnixAddr(), cnet: "unix", caddr: testUnixAddr()},
-	{snet: "unix", saddr: "@gotest2/net", cnet: "unix", caddr: "@gotest2/net.local", linuxOnly: true},
+	{snet: "tcp6", saddr: "[::1]:0", tnet: "tcp6", taddr: "::1"},
 }
 
-func TestStreamConnServer(t *testing.T) {
-	for _, tt := range streamConnServerTests {
-		if skipServerTest(tt.snet, "unix", tt.saddr, tt.ipv6, tt.ipv4map, tt.linuxOnly) {
+// TestTCPServer tests concurrent accept-read-write servers.
+func TestTCPServer(t *testing.T) {
+	const N = 3
+
+	for i, tt := range tcpServerTests {
+		if !testableListenArgs(tt.snet, tt.saddr, tt.taddr) {
+			t.Logf("skipping %s test", tt.snet+" "+tt.saddr+"<-"+tt.taddr)
 			continue
 		}
 
-		listening := make(chan string)
-		done := make(chan int)
-		switch tt.snet {
-		case "tcp", "tcp4", "tcp6":
-			tt.saddr += ":0"
-		case "unix":
-			os.Remove(tt.saddr)
-			os.Remove(tt.caddr)
-		}
-
-		go runStreamConnServer(t, tt.snet, tt.saddr, listening, done)
-		taddr := <-listening // wait for server to start
-
-		switch tt.cnet {
-		case "tcp", "tcp4", "tcp6":
-			_, port, err := SplitHostPort(taddr)
-			if err != nil {
-				t.Fatalf("SplitHostPort(%q) failed: %v", taddr, err)
-			}
-			taddr = tt.caddr + ":" + port
-		}
-
-		runStreamConnClient(t, tt.cnet, taddr, tt.empty)
-		<-done // make sure server stopped
-
-		switch tt.snet {
-		case "unix":
-			os.Remove(tt.saddr)
-			os.Remove(tt.caddr)
-		}
-	}
-}
-
-var seqpacketConnServerTests = []struct {
-	net       string
-	saddr     string // server address
-	caddr     string // client address
-	empty     bool   // test with empty data
-	linuxOnly bool   // test with abstract unix domain socket, a Linux-ism
-}{
-	{net: "unixpacket", saddr: testUnixAddr(), caddr: testUnixAddr()},
-	{net: "unixpacket", saddr: "@gotest4/net", caddr: "@gotest4/net.local", linuxOnly: true},
-}
-
-func TestSeqpacketConnServer(t *testing.T) {
-	switch runtime.GOOS {
-	case "darwin", "nacl", "openbsd", "plan9", "windows":
-		fallthrough
-	case "freebsd": // FreeBSD 8 doesn't support unixpacket
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	}
-
-	for _, tt := range seqpacketConnServerTests {
-		if runtime.GOOS != "linux" && tt.linuxOnly {
-			continue
-		}
-		listening := make(chan string)
-		done := make(chan int)
-		switch tt.net {
-		case "unixpacket":
-			os.Remove(tt.saddr)
-			os.Remove(tt.caddr)
-		}
-
-		go runStreamConnServer(t, tt.net, tt.saddr, listening, done)
-		taddr := <-listening // wait for server to start
-
-		runStreamConnClient(t, tt.net, taddr, tt.empty)
-		<-done // make sure server stopped
-
-		switch tt.net {
-		case "unixpacket":
-			os.Remove(tt.saddr)
-			os.Remove(tt.caddr)
-		}
-	}
-}
-
-func runStreamConnServer(t *testing.T, net, laddr string, listening chan<- string, done chan<- int) {
-	defer close(done)
-	l, err := Listen(net, laddr)
-	if err != nil {
-		t.Errorf("Listen(%q, %q) failed: %v", net, laddr, err)
-		listening <- "<nil>"
-		return
-	}
-	defer l.Close()
-	listening <- l.Addr().String()
-
-	echo := func(rw io.ReadWriter, done chan<- int) {
-		buf := make([]byte, 1024)
-		for {
-			n, err := rw.Read(buf[0:])
-			if err != nil || n == 0 || string(buf[:n]) == "END" {
-				break
-			}
-			rw.Write(buf[0:n])
-		}
-		close(done)
-	}
-
-run:
-	for {
-		c, err := l.Accept()
+		ln, err := Listen(tt.snet, tt.saddr)
 		if err != nil {
-			t.Logf("Accept failed: %v", err)
-			continue run
+			if perr := parseDialError(err); perr != nil {
+				t.Error(perr)
+			}
+			t.Fatal(err)
 		}
-		echodone := make(chan int)
-		go echo(c, echodone)
-		<-echodone // make sure echo stopped
-		c.Close()
-		break run
+
+		var lss []*localServer
+		var tpchs []chan error
+		defer func() {
+			for _, ls := range lss {
+				ls.teardown()
+			}
+		}()
+		for i := 0; i < N; i++ {
+			ls, err := (&streamListener{Listener: ln}).newLocalServer()
+			if err != nil {
+				t.Fatal(err)
+			}
+			lss = append(lss, ls)
+			tpchs = append(tpchs, make(chan error, 1))
+		}
+		for i := 0; i < N; i++ {
+			ch := tpchs[i]
+			handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
+			if err := lss[i].buildup(handler); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		var trchs []chan error
+		for i := 0; i < N; i++ {
+			_, port, err := SplitHostPort(lss[i].Listener.Addr().String())
+			if err != nil {
+				t.Fatal(err)
+			}
+			d := Dialer{Timeout: someTimeout}
+			c, err := d.Dial(tt.tnet, JoinHostPort(tt.taddr, port))
+			if err != nil {
+				if perr := parseDialError(err); perr != nil {
+					t.Error(perr)
+				}
+				t.Fatal(err)
+			}
+			defer c.Close()
+			trchs = append(trchs, make(chan error, 1))
+			go transceiver(c, []byte("TCP SERVER TEST"), trchs[i])
+		}
+
+		for _, ch := range trchs {
+			for err := range ch {
+				t.Errorf("#%d: %v", i, err)
+			}
+		}
+		for _, ch := range tpchs {
+			for err := range ch {
+				t.Errorf("#%d: %v", i, err)
+			}
+		}
 	}
 }
 
-func runStreamConnClient(t *testing.T, net, taddr string, isEmpty bool) {
-	c, err := Dial(net, taddr)
-	if err != nil {
-		t.Fatalf("Dial(%q, %q) failed: %v", net, taddr, err)
-	}
-	defer c.Close()
-	c.SetReadDeadline(time.Now().Add(1 * time.Second))
-
-	var wb []byte
-	if !isEmpty {
-		wb = []byte("StreamConnClient by Dial\n")
-	}
-	if n, err := c.Write(wb); err != nil || n != len(wb) {
-		t.Fatalf("Write failed: %v, %v; want %v, <nil>", n, err, len(wb))
-	}
-
-	rb := make([]byte, 1024)
-	if n, err := c.Read(rb[0:]); err != nil || n != len(wb) {
-		t.Fatalf("Read failed: %v, %v; want %v, <nil>", n, err, len(wb))
-	}
-
-	// Send explicit ending for unixpacket.
-	// Older Linux kernels do not stop reads on close.
-	switch net {
-	case "unixpacket":
-		c.Write([]byte("END"))
-	}
-}
-
-// Do not test empty datagrams by default.
-// It causes unexplained timeouts on some systems,
-// including Snow Leopard.  I think that the kernel
-// doesn't quite expect them.
-var testDatagram = flag.Bool("datagram", false, "whether to test udp and unixgram")
-
-var datagramPacketConnServerTests = []struct {
-	snet      string // server side
-	saddr     string
-	cnet      string // client side
-	caddr     string
-	ipv6      bool // test with underlying AF_INET6 socket
-	ipv4map   bool // test with IPv6 IPv4-mapping functionality
-	dial      bool // test with Dial or DialUnix
-	empty     bool // test with empty data
-	linuxOnly bool // test with abstract unix domain socket, a Linux-ism
+var unixAndUnixpacketServerTests = []struct {
+	network, address string
 }{
-	{snet: "udp", saddr: "", cnet: "udp", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "0.0.0.0", cnet: "udp", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "[::ffff:0.0.0.0]", cnet: "udp", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "[::]", cnet: "udp", caddr: "[::1]", ipv6: true},
+	{"unix", testUnixAddr()},
+	{"unix", "@nettest/go/unix"},
 
-	{snet: "udp", saddr: "", cnet: "udp", caddr: "[::1]", ipv4map: true},
-	{snet: "udp", saddr: "0.0.0.0", cnet: "udp", caddr: "[::1]", ipv4map: true},
-	{snet: "udp", saddr: "[::ffff:0.0.0.0]", cnet: "udp", caddr: "[::1]", ipv4map: true},
-	{snet: "udp", saddr: "[::]", cnet: "udp", caddr: "127.0.0.1", ipv4map: true},
-
-	{snet: "udp", saddr: "", cnet: "udp4", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "0.0.0.0", cnet: "udp4", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "[::ffff:0.0.0.0]", cnet: "udp4", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "[::]", cnet: "udp6", caddr: "[::1]", ipv6: true},
-
-	{snet: "udp", saddr: "", cnet: "udp6", caddr: "[::1]", ipv4map: true},
-	{snet: "udp", saddr: "0.0.0.0", cnet: "udp6", caddr: "[::1]", ipv4map: true},
-	{snet: "udp", saddr: "[::ffff:0.0.0.0]", cnet: "udp6", caddr: "[::1]", ipv4map: true},
-	{snet: "udp", saddr: "[::]", cnet: "udp4", caddr: "127.0.0.1", ipv4map: true},
-
-	{snet: "udp", saddr: "127.0.0.1", cnet: "udp", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "[::ffff:127.0.0.1]", cnet: "udp", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "[::1]", cnet: "udp", caddr: "[::1]", ipv6: true},
-
-	{snet: "udp4", saddr: "", cnet: "udp4", caddr: "127.0.0.1"},
-	{snet: "udp4", saddr: "0.0.0.0", cnet: "udp4", caddr: "127.0.0.1"},
-	{snet: "udp4", saddr: "[::ffff:0.0.0.0]", cnet: "udp4", caddr: "127.0.0.1"},
-
-	{snet: "udp4", saddr: "127.0.0.1", cnet: "udp4", caddr: "127.0.0.1"},
-
-	{snet: "udp6", saddr: "", cnet: "udp6", caddr: "[::1]", ipv6: true},
-	{snet: "udp6", saddr: "[::]", cnet: "udp6", caddr: "[::1]", ipv6: true},
-
-	{snet: "udp6", saddr: "[::1]", cnet: "udp6", caddr: "[::1]", ipv6: true},
-
-	{snet: "udp", saddr: "127.0.0.1", cnet: "udp", caddr: "127.0.0.1", dial: true},
-	{snet: "udp", saddr: "127.0.0.1", cnet: "udp", caddr: "127.0.0.1", empty: true},
-	{snet: "udp", saddr: "127.0.0.1", cnet: "udp", caddr: "127.0.0.1", dial: true, empty: true},
-
-	{snet: "udp", saddr: "[::1]", cnet: "udp", caddr: "[::1]", ipv6: true, dial: true},
-	{snet: "udp", saddr: "[::1]", cnet: "udp", caddr: "[::1]", ipv6: true, empty: true},
-	{snet: "udp", saddr: "[::1]", cnet: "udp", caddr: "[::1]", ipv6: true, dial: true, empty: true},
-
-	{snet: "unixgram", saddr: testUnixAddr(), cnet: "unixgram", caddr: testUnixAddr()},
-	{snet: "unixgram", saddr: testUnixAddr(), cnet: "unixgram", caddr: testUnixAddr(), dial: true},
-	{snet: "unixgram", saddr: testUnixAddr(), cnet: "unixgram", caddr: testUnixAddr(), empty: true},
-	{snet: "unixgram", saddr: testUnixAddr(), cnet: "unixgram", caddr: testUnixAddr(), dial: true, empty: true},
-
-	{snet: "unixgram", saddr: "@gotest6/net", cnet: "unixgram", caddr: "@gotest6/net.local", linuxOnly: true},
+	{"unixpacket", testUnixAddr()},
+	{"unixpacket", "@nettest/go/unixpacket"},
 }
 
-func TestDatagramPacketConnServer(t *testing.T) {
-	if !*testDatagram {
-		return
-	}
+// TestUnixAndUnixpacketServer tests concurrent accept-read-write
+// servers
+func TestUnixAndUnixpacketServer(t *testing.T) {
+	const N = 3
 
-	for _, tt := range datagramPacketConnServerTests {
-		if skipServerTest(tt.snet, "unixgram", tt.saddr, tt.ipv6, tt.ipv4map, tt.linuxOnly) {
+	for i, tt := range unixAndUnixpacketServerTests {
+		if !testableListenArgs(tt.network, tt.address, "") {
+			t.Logf("skipping %s test", tt.network+" "+tt.address)
 			continue
 		}
 
-		listening := make(chan string)
-		done := make(chan int)
-		switch tt.snet {
-		case "udp", "udp4", "udp6":
-			tt.saddr += ":0"
-		case "unixgram":
-			os.Remove(tt.saddr)
-			os.Remove(tt.caddr)
+		ln, err := Listen(tt.network, tt.address)
+		if err != nil {
+			if perr := parseDialError(err); perr != nil {
+				t.Error(perr)
+			}
+			t.Fatal(err)
 		}
 
-		go runDatagramPacketConnServer(t, tt.snet, tt.saddr, listening, done)
-		taddr := <-listening // wait for server to start
-
-		switch tt.cnet {
-		case "udp", "udp4", "udp6":
-			_, port, err := SplitHostPort(taddr)
-			if err != nil {
-				t.Fatalf("SplitHostPort(%q) failed: %v", taddr, err)
+		var lss []*localServer
+		var tpchs []chan error
+		defer func() {
+			for _, ls := range lss {
+				ls.teardown()
 			}
-			taddr = tt.caddr + ":" + port
-			tt.caddr += ":0"
+		}()
+		for i := 0; i < N; i++ {
+			ls, err := (&streamListener{Listener: ln}).newLocalServer()
+			if err != nil {
+				t.Fatal(err)
+			}
+			lss = append(lss, ls)
+			tpchs = append(tpchs, make(chan error, 1))
+		}
+		for i := 0; i < N; i++ {
+			ch := tpchs[i]
+			handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
+			if err := lss[i].buildup(handler); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		var trchs []chan error
+		for i := 0; i < N; i++ {
+			d := Dialer{Timeout: someTimeout}
+			c, err := d.Dial(lss[i].Listener.Addr().Network(), lss[i].Listener.Addr().String())
+			if err != nil {
+				if perr := parseDialError(err); perr != nil {
+					t.Error(perr)
+				}
+				t.Fatal(err)
+			}
+			defer os.Remove(c.LocalAddr().String())
+			defer c.Close()
+			trchs = append(trchs, make(chan error, 1))
+			go transceiver(c, []byte("UNIX AND UNIXPACKET SERVER TEST"), trchs[i])
+		}
+
+		for _, ch := range trchs {
+			for err := range ch {
+				t.Errorf("#%d: %v", i, err)
+			}
+		}
+		for _, ch := range tpchs {
+			for err := range ch {
+				t.Errorf("#%d: %v", i, err)
+			}
+		}
+	}
+}
+
+var udpServerTests = []struct {
+	snet, saddr string // server endpoint
+	tnet, taddr string // target endpoint for client
+	dial        bool   // test with Dial
+}{
+	{snet: "udp", saddr: ":0", tnet: "udp", taddr: "127.0.0.1"},
+	{snet: "udp", saddr: "0.0.0.0:0", tnet: "udp", taddr: "127.0.0.1"},
+	{snet: "udp", saddr: "[::ffff:0.0.0.0]:0", tnet: "udp", taddr: "127.0.0.1"},
+	{snet: "udp", saddr: "[::]:0", tnet: "udp", taddr: "::1"},
+
+	{snet: "udp", saddr: ":0", tnet: "udp", taddr: "::1"},
+	{snet: "udp", saddr: "0.0.0.0:0", tnet: "udp", taddr: "::1"},
+	{snet: "udp", saddr: "[::ffff:0.0.0.0]:0", tnet: "udp", taddr: "::1"},
+	{snet: "udp", saddr: "[::]:0", tnet: "udp", taddr: "127.0.0.1"},
+
+	{snet: "udp", saddr: ":0", tnet: "udp4", taddr: "127.0.0.1"},
+	{snet: "udp", saddr: "0.0.0.0:0", tnet: "udp4", taddr: "127.0.0.1"},
+	{snet: "udp", saddr: "[::ffff:0.0.0.0]:0", tnet: "udp4", taddr: "127.0.0.1"},
+	{snet: "udp", saddr: "[::]:0", tnet: "udp6", taddr: "::1"},
+
+	{snet: "udp", saddr: ":0", tnet: "udp6", taddr: "::1"},
+	{snet: "udp", saddr: "0.0.0.0:0", tnet: "udp6", taddr: "::1"},
+	{snet: "udp", saddr: "[::ffff:0.0.0.0]:0", tnet: "udp6", taddr: "::1"},
+	{snet: "udp", saddr: "[::]:0", tnet: "udp4", taddr: "127.0.0.1"},
+
+	{snet: "udp", saddr: "127.0.0.1:0", tnet: "udp", taddr: "127.0.0.1"},
+	{snet: "udp", saddr: "[::ffff:127.0.0.1]:0", tnet: "udp", taddr: "127.0.0.1"},
+	{snet: "udp", saddr: "[::1]:0", tnet: "udp", taddr: "::1"},
+
+	{snet: "udp4", saddr: ":0", tnet: "udp4", taddr: "127.0.0.1"},
+	{snet: "udp4", saddr: "0.0.0.0:0", tnet: "udp4", taddr: "127.0.0.1"},
+	{snet: "udp4", saddr: "[::ffff:0.0.0.0]:0", tnet: "udp4", taddr: "127.0.0.1"},
+
+	{snet: "udp4", saddr: "127.0.0.1:0", tnet: "udp4", taddr: "127.0.0.1"},
+
+	{snet: "udp6", saddr: ":0", tnet: "udp6", taddr: "::1"},
+	{snet: "udp6", saddr: "[::]:0", tnet: "udp6", taddr: "::1"},
+
+	{snet: "udp6", saddr: "[::1]:0", tnet: "udp6", taddr: "::1"},
+
+	{snet: "udp", saddr: "127.0.0.1:0", tnet: "udp", taddr: "127.0.0.1", dial: true},
+
+	{snet: "udp", saddr: "[::1]:0", tnet: "udp", taddr: "::1", dial: true},
+}
+
+func TestUDPServer(t *testing.T) {
+	for i, tt := range udpServerTests {
+		if !testableListenArgs(tt.snet, tt.saddr, tt.taddr) {
+			t.Logf("skipping %s test", tt.snet+" "+tt.saddr+"<-"+tt.taddr)
+			continue
+		}
+
+		c1, err := ListenPacket(tt.snet, tt.saddr)
+		if err != nil {
+			if perr := parseDialError(err); perr != nil {
+				t.Error(perr)
+			}
+			t.Fatal(err)
+		}
+
+		ls, err := (&packetListener{PacketConn: c1}).newLocalServer()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer ls.teardown()
+		tpch := make(chan error, 1)
+		handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, tpch) }
+		if err := ls.buildup(handler); err != nil {
+			t.Fatal(err)
+		}
+
+		trch := make(chan error, 1)
+		_, port, err := SplitHostPort(ls.PacketConn.LocalAddr().String())
+		if err != nil {
+			t.Fatal(err)
 		}
 		if tt.dial {
-			runDatagramConnClient(t, tt.cnet, tt.caddr, taddr, tt.empty)
-		} else {
-			runDatagramPacketConnClient(t, tt.cnet, tt.caddr, taddr, tt.empty)
-		}
-		<-done // tell server to stop
-		<-done // make sure server stopped
-
-		switch tt.snet {
-		case "unixgram":
-			os.Remove(tt.saddr)
-			os.Remove(tt.caddr)
-		}
-	}
-}
-
-func runDatagramPacketConnServer(t *testing.T, net, laddr string, listening chan<- string, done chan<- int) {
-	c, err := ListenPacket(net, laddr)
-	if err != nil {
-		t.Errorf("ListenPacket(%q, %q) failed: %v", net, laddr, err)
-		listening <- "<nil>"
-		done <- 1
-		return
-	}
-	defer c.Close()
-	listening <- c.LocalAddr().String()
-
-	buf := make([]byte, 1024)
-run:
-	for {
-		c.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
-		n, ra, err := c.ReadFrom(buf[0:])
-		if nerr, ok := err.(Error); ok && nerr.Timeout() {
-			select {
-			case done <- 1:
-				break run
-			default:
-				continue run
+			d := Dialer{Timeout: someTimeout}
+			c2, err := d.Dial(tt.tnet, JoinHostPort(tt.taddr, port))
+			if err != nil {
+				if perr := parseDialError(err); perr != nil {
+					t.Error(perr)
+				}
+				t.Fatal(err)
 			}
+			defer c2.Close()
+			go transceiver(c2, []byte("UDP SERVER TEST"), trch)
+		} else {
+			c2, err := ListenPacket(tt.tnet, JoinHostPort(tt.taddr, "0"))
+			if err != nil {
+				if perr := parseDialError(err); perr != nil {
+					t.Error(perr)
+				}
+				t.Fatal(err)
+			}
+			defer c2.Close()
+			dst, err := ResolveUDPAddr(tt.tnet, JoinHostPort(tt.taddr, port))
+			if err != nil {
+				t.Fatal(err)
+			}
+			go packetTransceiver(c2, []byte("UDP SERVER TEST"), dst, trch)
 		}
-		if err != nil {
-			break run
-		}
-		if _, err = c.WriteTo(buf[0:n], ra); err != nil {
-			t.Errorf("WriteTo(%v) failed: %v", ra, err)
-			break run
-		}
-	}
-	done <- 1
-}
 
-func runDatagramConnClient(t *testing.T, net, laddr, taddr string, isEmpty bool) {
-	var c Conn
-	var err error
-	switch net {
-	case "udp", "udp4", "udp6":
-		c, err = Dial(net, taddr)
-		if err != nil {
-			t.Fatalf("Dial(%q, %q) failed: %v", net, taddr, err)
+		for err := range trch {
+			t.Errorf("#%d: %v", i, err)
 		}
-	case "unixgram":
-		c, err = DialUnix(net, &UnixAddr{Name: laddr, Net: net}, &UnixAddr{Name: taddr, Net: net})
-		if err != nil {
-			t.Fatalf("DialUnix(%q, {%q, %q}) failed: %v", net, laddr, taddr, err)
+		for err := range tpch {
+			t.Errorf("#%d: %v", i, err)
 		}
-	}
-	defer c.Close()
-	c.SetReadDeadline(time.Now().Add(1 * time.Second))
-
-	var wb []byte
-	if !isEmpty {
-		wb = []byte("DatagramConnClient by Dial\n")
-	}
-	if n, err := c.Write(wb[0:]); err != nil || n != len(wb) {
-		t.Fatalf("Write failed: %v, %v; want %v, <nil>", n, err, len(wb))
-	}
-
-	rb := make([]byte, 1024)
-	if n, err := c.Read(rb[0:]); err != nil || n != len(wb) {
-		t.Fatalf("Read failed: %v, %v; want %v, <nil>", n, err, len(wb))
 	}
 }
 
-func runDatagramPacketConnClient(t *testing.T, net, laddr, taddr string, isEmpty bool) {
-	var ra Addr
-	var err error
-	switch net {
-	case "udp", "udp4", "udp6":
-		ra, err = ResolveUDPAddr(net, taddr)
-		if err != nil {
-			t.Fatalf("ResolveUDPAddr(%q, %q) failed: %v", net, taddr, err)
-		}
-	case "unixgram":
-		ra, err = ResolveUnixAddr(net, taddr)
-		if err != nil {
-			t.Fatalf("ResolveUxixAddr(%q, %q) failed: %v", net, taddr, err)
-		}
-	}
-	c, err := ListenPacket(net, laddr)
-	if err != nil {
-		t.Fatalf("ListenPacket(%q, %q) faild: %v", net, laddr, err)
-	}
-	defer c.Close()
-	c.SetReadDeadline(time.Now().Add(1 * time.Second))
+var unixgramServerTests = []struct {
+	saddr string // server endpoint
+	caddr string // client endpoint
+	dial  bool   // test with Dial
+}{
+	{saddr: testUnixAddr(), caddr: testUnixAddr()},
+	{saddr: testUnixAddr(), caddr: testUnixAddr(), dial: true},
 
-	var wb []byte
-	if !isEmpty {
-		wb = []byte("DatagramPacketConnClient by ListenPacket\n")
-	}
-	if n, err := c.WriteTo(wb[0:], ra); err != nil || n != len(wb) {
-		t.Fatalf("WriteTo(%v) failed: %v, %v; want %v, <nil>", ra, n, err, len(wb))
-	}
+	{saddr: "@nettest/go/unixgram/server", caddr: "@nettest/go/unixgram/client"},
+}
 
-	rb := make([]byte, 1024)
-	if n, _, err := c.ReadFrom(rb[0:]); err != nil || n != len(wb) {
-		t.Fatalf("ReadFrom failed: %v, %v; want %v, <nil>", n, err, len(wb))
+func TestUnixgramServer(t *testing.T) {
+	for i, tt := range unixgramServerTests {
+		if !testableListenArgs("unixgram", tt.saddr, "") {
+			t.Logf("skipping %s test", "unixgram "+tt.saddr+"<-"+tt.caddr)
+			continue
+		}
+
+		c1, err := ListenPacket("unixgram", tt.saddr)
+		if err != nil {
+			if perr := parseDialError(err); perr != nil {
+				t.Error(perr)
+			}
+			t.Fatal(err)
+		}
+
+		ls, err := (&packetListener{PacketConn: c1}).newLocalServer()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer ls.teardown()
+		tpch := make(chan error, 1)
+		handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, tpch) }
+		if err := ls.buildup(handler); err != nil {
+			t.Fatal(err)
+		}
+
+		trch := make(chan error, 1)
+		if tt.dial {
+			d := Dialer{Timeout: someTimeout, LocalAddr: &UnixAddr{Net: "unixgram", Name: tt.caddr}}
+			c2, err := d.Dial("unixgram", ls.PacketConn.LocalAddr().String())
+			if err != nil {
+				if perr := parseDialError(err); perr != nil {
+					t.Error(perr)
+				}
+				t.Fatal(err)
+			}
+			defer os.Remove(c2.LocalAddr().String())
+			defer c2.Close()
+			go transceiver(c2, []byte(c2.LocalAddr().String()), trch)
+		} else {
+			c2, err := ListenPacket("unixgram", tt.caddr)
+			if err != nil {
+				if perr := parseDialError(err); perr != nil {
+					t.Error(perr)
+				}
+				t.Fatal(err)
+			}
+			defer os.Remove(c2.LocalAddr().String())
+			defer c2.Close()
+			go packetTransceiver(c2, []byte("UNIXGRAM SERVER TEST"), ls.PacketConn.LocalAddr(), trch)
+		}
+
+		for err := range trch {
+			t.Errorf("#%d: %v", i, err)
+		}
+		for err := range tpch {
+			t.Errorf("#%d: %v", i, err)
+		}
 	}
 }

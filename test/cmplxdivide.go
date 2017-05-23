@@ -1,10 +1,11 @@
 // run cmplxdivide1.go
 
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // Driver for complex division table defined in cmplxdivide1.go
+// For details, see the comment at the top of in cmplxdivide.c.
 
 package main
 

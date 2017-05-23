@@ -11,7 +11,8 @@
 // The high 8 bits specify the kind of system call: 1=Mach, 2=BSD, 3=Machine-Dependent.
 //
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 // Exit the entire program (like C exit)
@@ -37,13 +38,17 @@ TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	perm+12(FP), DX		// arg 3 mode
 	MOVL	$(0x2000000+5), AX	// syscall entry
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	fd+0(FP), DI		// arg 1 fd
 	MOVL	$(0x2000000+6), AX	// syscall entry
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+8(FP)
 	RET
 
@@ -53,6 +58,8 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	n+16(FP), DX		// arg 3 count
 	MOVL	$(0x2000000+3), AX	// syscall entry
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+24(FP)
 	RET
 
@@ -62,10 +69,17 @@ TEXT runtime·write(SB),NOSPLIT,$0
 	MOVL	n+16(FP), DX		// arg 3 count
 	MOVL	$(0x2000000+4), AX	// syscall entry
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$24
+TEXT runtime·raise(SB),NOSPLIT,$0
+	// Ideally we'd send the signal to the current thread,
+	// not the whole process, but that's too hard on OS X.
+	JMP	runtime·raiseproc(SB)
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$24
 	MOVL	$(0x2000000+20), AX // getpid
 	SYSCALL
 	MOVQ	AX, DI	// arg 1 - pid
@@ -141,10 +155,16 @@ timeloop:
 
 systime:
 	// Fall back to system call (usually first call in this thread).
-	MOVQ	SP, DI	// must be non-nil, unused
+	MOVQ	SP, DI
 	MOVQ	$0, SI
+	MOVQ	$0, DX  // required as of Sierra; Issue 16570
 	MOVL	$(0x2000000+116), AX
 	SYSCALL
+	CMPQ	AX, $0
+	JNE	inreg
+	MOVQ	0(SP), AX
+	MOVL	8(SP), DX
+inreg:
 	// sec is in AX, usec in DX
 	// return nsec in AX
 	IMULQ	$1000000000, AX
@@ -186,7 +206,7 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sigaction(SB),NOSPLIT,$0
+TEXT runtime·sigaction(SB),NOSPLIT,$0-24
 	MOVL	mode+0(FP), DI		// arg 1 sig
 	MOVQ	new+8(FP), SI		// arg 2 act
 	MOVQ	old+16(FP), DX		// arg 3 oact
@@ -198,48 +218,34 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$64
-	get_tls(BX)
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+	MOVQ fn+0(FP),    AX
+	MOVL sig+8(FP),   DI
+	MOVQ info+16(FP), SI
+	MOVQ ctx+24(FP),  DX
+	MOVQ SP, BP
+	SUBQ $64, SP
+	ANDQ $~15, SP     // alignment for x86_64 ABI
+	CALL AX
+	MOVQ BP, SP
+	RET
 
-	MOVQ	R8, 32(SP)	// save ucontext
-	MOVQ	SI, 40(SP)	// save infostyle
-
-	// check that g exists
-	MOVQ	g(BX), R10
-	CMPQ	R10, $0
-	JNE	5(PC)
-	MOVL	DX, 0(SP)
-	MOVQ	$runtime·badsignal(SB), AX
-	CALL	AX
-	JMP 	ret
-
-	// save g
-	MOVQ	R10, 48(SP)
-
-	// g = m->gsignal
-	MOVQ	g_m(R10), BP
-	MOVQ	m_gsignal(BP), BP
-	MOVQ	BP, g(BX)
-
-	MOVL	DX, 0(SP)
-	MOVQ	CX, 8(SP)
-	MOVQ	R8, 16(SP)
-	MOVQ	R10, 24(SP)
-
-	CALL	DI
-
-	// restore g
-	get_tls(BX)
-	MOVQ	48(SP), R10
-	MOVQ	R10, g(BX)
-
-ret:
-	// call sigreturn
-	MOVL	$(0x2000000+184), AX	// sigreturn(ucontext, infostyle)
-	MOVQ	32(SP), DI	// saved ucontext
-	MOVQ	40(SP), SI	// saved infostyle
+TEXT runtime·sigreturn(SB),NOSPLIT,$0-12
+	MOVQ ctx+0(FP),        DI
+	MOVL infostyle+8(FP),  SI
+	MOVL $(0x2000000+184), AX
 	SYSCALL
-	INT $3	// not reached
+	INT $3 // not reached
+
+TEXT runtime·sigtramp(SB),NOSPLIT,$32
+	MOVQ DI,  0(SP) // fn
+	MOVL SI,  8(SP) // infostyle
+	MOVL DX, 12(SP) // sig
+	MOVQ CX, 16(SP) // info
+	MOVQ R8, 24(SP) // ctx
+	MOVQ $runtime·sigtrampgo(SB), AX
+	CALL AX
+	INT $3 // not reached (see issue 16453)
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVQ	addr+0(FP), DI		// arg 1 addr
@@ -263,8 +269,8 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$0
-	MOVQ	new+8(SP), DI
-	MOVQ	old+16(SP), SI
+	MOVQ	new+0(FP), DI
+	MOVQ	old+8(FP), SI
 	MOVQ	$(0x2000000+53), AX
 	SYSCALL
 	JCC	2(PC)
@@ -289,25 +295,25 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	SYSCALL
 	RET
 
-// void bsdthread_create(void *stk, M *mp, G *gp, void (*fn)(void))
+// func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
 TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
 	// Set up arguments to bsdthread_create system call.
 	// The ones in quotes pass through to the thread callback
 	// uninterpreted, so we can put whatever we want there.
-	MOVQ	fn+32(SP), DI	// "func"
-	MOVQ	mm+16(SP), SI	// "arg"
-	MOVQ	stk+8(SP), DX	// stack
-	MOVQ	gg+24(SP), R10	// "pthread"
-	MOVQ	$0x01000000, R8	// flags = PTHREAD_START_CUSTOM
-	MOVQ	$0, R9	// paranoia
+	MOVQ	fn+16(FP),   DI
+	MOVQ	arg+8(FP),  SI
+	MOVQ	stk+0(FP),   DX
+	MOVQ	$0x01000000, R8  // flags = PTHREAD_START_CUSTOM
+	MOVQ	$0,          R9  // paranoia
+	MOVQ	$0,          R10 // paranoia, "pthread"
 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
 	SYSCALL
 	JCC 4(PC)
 	NEGQ	AX
-	MOVL	AX, ret+32(FP)
+	MOVL	AX, ret+24(FP)
 	RET
 	MOVL	$0, AX
-	MOVL	AX, ret+32(FP)
+	MOVL	AX, ret+24(FP)
 	RET
 
 // The thread that bsdthread_create creates starts executing here,
@@ -345,7 +351,7 @@ TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 	CALL	runtime·exit1(SB)
 	RET
 
-// void bsdthread_register(void)
+// func bsdthread_register() int32
 // registers callbacks for threadstart (see bsdthread_create above
 // and wqthread and pthsize (not used).  returns 0 on success.
 TEXT runtime·bsdthread_register(SB),NOSPLIT,$0
@@ -367,7 +373,7 @@ TEXT runtime·bsdthread_register(SB),NOSPLIT,$0
 
 // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.
 
-// uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)
+// func mach_msg_trap(h unsafe.Pointer, op int32, send_size, rcv_size, rcv_name, timeout, notify uint32) int32
 TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
 	MOVQ	h+0(FP), DI
 	MOVL	op+8(FP), SI
@@ -404,7 +410,7 @@ TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
 // Mach provides trap versions of the semaphore ops,
 // instead of requiring the use of RPC.
 
-// uint32 mach_semaphore_wait(uint32)
+// func mach_semaphore_wait(sema uint32) int32
 TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
 	MOVL	sema+0(FP), DI
 	MOVL	$(0x1000000+36), AX	// semaphore_wait_trap
@@ -412,7 +418,7 @@ TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-// uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
+// func mach_semaphore_timedwait(sema, sec, nsec uint32) int32
 TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
 	MOVL	sema+0(FP), DI
 	MOVL	sec+4(FP), SI
@@ -422,7 +428,7 @@ TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
 	MOVL	AX, ret+16(FP)
 	RET
 
-// uint32 mach_semaphore_signal(uint32)
+// func mach_semaphore_signal(sema uint32) int32
 TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
 	MOVL	sema+0(FP), DI
 	MOVL	$(0x1000000+33), AX	// semaphore_signal_trap
@@ -430,7 +436,7 @@ TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-// uint32 mach_semaphore_signal_all(uint32)
+// func mach_semaphore_signal_all(sema uint32) int32
 TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
 	MOVL	sema+0(FP), DI
 	MOVL	$(0x1000000+34), AX	// semaphore_signal_all_trap
@@ -468,7 +474,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$0
 	MOVL	AX, ret+48(FP)
 	RET
 
-// int32 runtime·kqueue(void);
+// func kqueue() int32
 TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVQ    $0, DI
 	MOVQ    $0, SI
@@ -480,13 +486,13 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVL	AX, ret+0(FP)
 	RET
 
-// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+// func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
 TEXT runtime·kevent(SB),NOSPLIT,$0
-	MOVL    fd+0(FP), DI
-	MOVQ    ev1+8(FP), SI
-	MOVL    nev1+16(FP), DX
-	MOVQ    ev2+24(FP), R10
-	MOVL    nev2+32(FP), R8
+	MOVL    kq+0(FP), DI
+	MOVQ    ch+8(FP), SI
+	MOVL    nch+16(FP), DX
+	MOVQ    ev+24(FP), R10
+	MOVL    nev+32(FP), R8
 	MOVQ    ts+40(FP), R9
 	MOVL	$(0x2000000+363), AX
 	SYSCALL
@@ -495,7 +501,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL	AX, ret+48(FP)
 	RET
 
-// void runtime·closeonexec(int32 fd);
+// func closeonexec(fd int32)
 TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL    fd+0(FP), DI  // fd
 	MOVQ    $2, SI  // F_SETFD

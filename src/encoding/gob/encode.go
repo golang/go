@@ -10,6 +10,7 @@ import (
 	"encoding"
 	"math"
 	"reflect"
+	"sync"
 )
 
 const uint64Size = 8
@@ -36,6 +37,14 @@ type encBuffer struct {
 	scratch [64]byte
 }
 
+var encBufferPool = sync.Pool{
+	New: func() interface{} {
+		e := new(encBuffer)
+		e.data = e.scratch[0:0]
+		return e
+	},
+}
+
 func (e *encBuffer) WriteByte(c byte) {
 	e.data = append(e.data, c)
 }
@@ -58,7 +67,11 @@ func (e *encBuffer) Bytes() []byte {
 }
 
 func (e *encBuffer) Reset() {
-	e.data = e.data[0:0]
+	if len(e.data) >= tooBig {
+		e.data = e.scratch[0:0]
+	} else {
+		e.data = e.data[0:0]
+	}
 }
 
 func (enc *Encoder) newEncoderState(b *encBuffer) *encoderState {
@@ -83,7 +96,7 @@ func (enc *Encoder) freeEncoderState(e *encoderState) {
 	enc.freeList = e
 }
 
-// Unsigned integers have a two-state encoding.  If the number is less
+// Unsigned integers have a two-state encoding. If the number is less
 // than 128 (0 through 0x7F), its value is written directly.
 // Otherwise the value is written in big-endian byte order preceded
 // by the byte length, negated.
@@ -114,7 +127,7 @@ func (state *encoderState) encodeInt(i int64) {
 	} else {
 		x = uint64(i << 1)
 	}
-	state.encodeUint(uint64(x))
+	state.encodeUint(x)
 }
 
 // encOp is the signature of an encoding operator for a given type.
@@ -139,8 +152,8 @@ func (state *encoderState) update(instr *encInstr) {
 
 // Each encoder for a composite is responsible for handling any
 // indirections associated with the elements of the data structure.
-// If any pointer so reached is nil, no bytes are written.  If the
-// data item is zero, no bytes are written.  Single values - ints,
+// If any pointer so reached is nil, no bytes are written. If the
+// data item is zero, no bytes are written. Single values - ints,
 // strings etc. - are indirected before calling their encoders.
 // Otherwise, the output (for a scalar) is the field number, as an
 // encoded integer, followed by the field data in its appropriate
@@ -190,9 +203,9 @@ func encUint(i *encInstr, state *encoderState, v reflect.Value) {
 
 // floatBits returns a uint64 holding the bits of a floating-point number.
 // Floating-point numbers are transmitted as uint64s holding the bits
-// of the underlying representation.  They are sent byte-reversed, with
+// of the underlying representation. They are sent byte-reversed, with
 // the exponent end coming out first, so integer floating point numbers
-// (for example) transmit more compactly.  This routine does the
+// (for example) transmit more compactly. This routine does the
 // swizzling.
 func floatBits(f float64) uint64 {
 	u := math.Float64bits(f)
@@ -259,7 +272,7 @@ func encStructTerminator(i *encInstr, state *encoderState, v reflect.Value) {
 // Execution engine
 
 // encEngine an array of instructions indexed by field number of the encoding
-// data, typically a struct.  It is executed top to bottom, walking the struct.
+// data, typically a struct. It is executed top to bottom, walking the struct.
 type encEngine struct {
 	instr []encInstr
 }
@@ -284,7 +297,7 @@ func (enc *Encoder) encodeSingle(b *encBuffer, engine *encEngine, value reflect.
 	defer enc.freeEncoderState(state)
 	state.fieldnum = singletonField
 	// There is no surrounding struct to frame the transmission, so we must
-	// generate data even if the item is zero.  To do this, set sendZero.
+	// generate data even if the item is zero. To do this, set sendZero.
 	state.sendZero = true
 	instr := &engine.instr[singletonField]
 	if instr.indir > 0 {
@@ -373,7 +386,7 @@ func (enc *Encoder) encodeMap(b *encBuffer, mv reflect.Value, keyOp, elemOp encO
 // encodeInterface encodes the interface value iv.
 // To send an interface, we send a string identifying the concrete type, followed
 // by the type identifier (which might require defining that type right now), followed
-// by the concrete value.  A nil value gets sent as the empty string for the name,
+// by the concrete value. A nil value gets sent as the empty string for the name,
 // followed by no value.
 func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
 	// Gobs can encode nil interface values but not typed interface
@@ -404,10 +417,10 @@ func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
 	enc.sendTypeDescriptor(enc.writer(), state, ut)
 	// Send the type id.
 	enc.sendTypeId(state, ut)
-	// Encode the value into a new buffer.  Any nested type definitions
+	// Encode the value into a new buffer. Any nested type definitions
 	// should be written to b, before the encoded value.
 	enc.pushWriter(b)
-	data := new(encBuffer)
+	data := encBufferPool.Get().(*encBuffer)
 	data.Write(spaceForLength)
 	enc.encode(data, elem, ut)
 	if enc.err != nil {
@@ -415,6 +428,8 @@ func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
 	}
 	enc.popWriter()
 	enc.writeMessage(b, data)
+	data.Reset()
+	encBufferPool.Put(data)
 	if enc.err != nil {
 		error_(enc.err)
 	}

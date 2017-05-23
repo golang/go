@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"time"
 )
 
 var errNilPtr = errors.New("destination pointer is nil") // embedded in descriptive error
@@ -43,7 +44,7 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.Value, error) {
 	// Let the Stmt convert its own arguments.
 	for n, arg := range args {
 		// First, see if the value itself knows how to convert
-		// itself to a driver type.  For example, a NullString
+		// itself to a driver type. For example, a NullString
 		// struct changing into a string or nil.
 		if svi, ok := arg.(driver.Valuer); ok {
 			sv, err := svi.Value()
@@ -127,6 +128,18 @@ func convertAssign(dest, src interface{}) error {
 			*d = s
 			return nil
 		}
+	case time.Time:
+		switch d := dest.(type) {
+		case *string:
+			*d = s.Format(time.RFC3339Nano)
+			return nil
+		case *[]byte:
+			if d == nil {
+				return errNilPtr
+			}
+			*d = []byte(s.Format(time.RFC3339Nano))
+			return nil
+		}
 	case nil:
 		switch d := dest.(type) {
 		case *interface{}:
@@ -203,8 +216,18 @@ func convertAssign(dest, src interface{}) error {
 	}
 
 	dv := reflect.Indirect(dpv)
-	if dv.Kind() == sv.Kind() {
-		dv.Set(sv)
+	if sv.IsValid() && sv.Type().AssignableTo(dv.Type()) {
+		switch b := src.(type) {
+		case []byte:
+			dv.Set(reflect.ValueOf(cloneBytes(b)))
+		default:
+			dv.Set(sv)
+		}
+		return nil
+	}
+
+	if dv.Kind() == sv.Kind() && sv.Type().ConvertibleTo(dv.Type()) {
+		dv.Set(sv.Convert(dv.Type()))
 		return nil
 	}
 
@@ -221,7 +244,8 @@ func convertAssign(dest, src interface{}) error {
 		s := asString(src)
 		i64, err := strconv.ParseInt(s, 10, dv.Type().Bits())
 		if err != nil {
-			return fmt.Errorf("converting string %q to a %s: %v", s, dv.Kind(), err)
+			err = strconvErr(err)
+			return fmt.Errorf("converting driver.Value type %T (%q) to a %s: %v", src, s, dv.Kind(), err)
 		}
 		dv.SetInt(i64)
 		return nil
@@ -229,7 +253,8 @@ func convertAssign(dest, src interface{}) error {
 		s := asString(src)
 		u64, err := strconv.ParseUint(s, 10, dv.Type().Bits())
 		if err != nil {
-			return fmt.Errorf("converting string %q to a %s: %v", s, dv.Kind(), err)
+			err = strconvErr(err)
+			return fmt.Errorf("converting driver.Value type %T (%q) to a %s: %v", src, s, dv.Kind(), err)
 		}
 		dv.SetUint(u64)
 		return nil
@@ -237,13 +262,21 @@ func convertAssign(dest, src interface{}) error {
 		s := asString(src)
 		f64, err := strconv.ParseFloat(s, dv.Type().Bits())
 		if err != nil {
-			return fmt.Errorf("converting string %q to a %s: %v", s, dv.Kind(), err)
+			err = strconvErr(err)
+			return fmt.Errorf("converting driver.Value type %T (%q) to a %s: %v", src, s, dv.Kind(), err)
 		}
 		dv.SetFloat(f64)
 		return nil
 	}
 
-	return fmt.Errorf("unsupported driver -> Scan pair: %T -> %T", src, dest)
+	return fmt.Errorf("unsupported Scan, storing driver.Value type %T into type %T", src, dest)
+}
+
+func strconvErr(err error) error {
+	if ne, ok := err.(*strconv.NumError); ok {
+		return ne.Err
+	}
+	return err
 }
 
 func cloneBytes(b []byte) []byte {

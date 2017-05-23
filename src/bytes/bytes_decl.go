@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -21,4 +21,4 @@ func Equal(a, b []byte) bool // ../runtime/asm_$GOARCH.s
 // Compare returns an integer comparing two byte slices lexicographically.
 // The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
 // A nil argument is equivalent to an empty slice.
-func Compare(a, b []byte) int // ../runtime/noasm_arm.goc or ../runtime/asm_{386,amd64}.s
+func Compare(a, b []byte) int // ../runtime/noasm.go or ../runtime/asm_{386,amd64}.s

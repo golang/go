@@ -10,7 +10,7 @@ pkg p1, const ConstChase2 = 11
 pkg p1, const ConstChase2 ideal-int
 pkg p1, const ConversionConst = 5
 pkg p1, const ConversionConst MyInt
-pkg p1, const FloatConst = 3/2
+pkg p1, const FloatConst = 1.5  // 3/2
 pkg p1, const FloatConst ideal-float
 pkg p1, const StrConst = "foo"
 pkg p1, const StrConst ideal-string

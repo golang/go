@@ -1,14 +1,35 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package x509
 
-import "testing"
+import (
+	"runtime"
+	"testing"
+	"time"
+)
 
 func TestSystemRoots(t *testing.T) {
-	sysRoots := systemRootsPool()         // actual system roots
+	switch runtime.GOARCH {
+	case "arm", "arm64":
+		t.Skipf("skipping on %s/%s, no system root", runtime.GOOS, runtime.GOARCH)
+	}
+
+	t0 := time.Now()
+	sysRoots := systemRootsPool() // actual system roots
+	sysRootsDuration := time.Since(t0)
+
+	t1 := time.Now()
 	execRoots, err := execSecurityRoots() // non-cgo roots
+	execSysRootsDuration := time.Since(t1)
 
 	if err != nil {
 		t.Fatalf("failed to read system roots: %v", err)
 	}
+
+	t.Logf("    cgo sys roots: %v", sysRootsDuration)
+	t.Logf("non-cgo sys roots: %v", execSysRootsDuration)
 
 	for _, tt := range []*CertPool{sysRoots, execRoots} {
 		if tt == nil {
@@ -17,6 +38,7 @@ func TestSystemRoots(t *testing.T) {
 		// On Mavericks, there are 212 bundled certs; require only
 		// 150 here, since this is just a sanity check, and the
 		// exact number will vary over time.
+		t.Logf("got %d roots", len(tt.certs))
 		if want, have := 150, len(tt.certs); have < want {
 			t.Fatalf("want at least %d system roots, have %d", want, have)
 		}
@@ -45,6 +67,6 @@ func TestSystemRoots(t *testing.T) {
 	}
 
 	if have < want {
-		t.Errorf("insufficent overlap between cgo and non-cgo roots; want at least %d, have %d", want, have)
+		t.Errorf("insufficient overlap between cgo and non-cgo roots; want at least %d, have %d", want, have)
 	}
 }

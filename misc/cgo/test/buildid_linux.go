@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -22,7 +22,7 @@ func testBuildID(t *testing.T) {
 		if os.IsNotExist(err) {
 			t.Skip("no /proc/self/exe")
 		}
-		t.Fatalf("opening /proc/self/exe: ", err)
+		t.Fatal("opening /proc/self/exe: ", err)
 	}
 	defer f.Close()
 

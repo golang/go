@@ -571,6 +571,50 @@ func TestTLSClient(t *testing.T) {
 	}
 }
 
+func TestTLSConnState(t *testing.T) {
+	ln := newLocalListener(t)
+	defer ln.Close()
+	clientDone := make(chan bool)
+	serverDone := make(chan bool)
+	go func() {
+		defer close(serverDone)
+		c, err := ln.Accept()
+		if err != nil {
+			t.Errorf("Server accept: %v", err)
+			return
+		}
+		defer c.Close()
+		if err := serverHandle(c, t); err != nil {
+			t.Errorf("server error: %v", err)
+		}
+	}()
+	go func() {
+		defer close(clientDone)
+		c, err := Dial(ln.Addr().String())
+		if err != nil {
+			t.Errorf("Client dial: %v", err)
+			return
+		}
+		defer c.Quit()
+		cfg := &tls.Config{ServerName: "example.com"}
+		testHookStartTLS(cfg) // set the RootCAs
+		if err := c.StartTLS(cfg); err != nil {
+			t.Errorf("StartTLS: %v", err)
+			return
+		}
+		cs, ok := c.TLSConnectionState()
+		if !ok {
+			t.Errorf("TLSConnectionState returned ok == false; want true")
+			return
+		}
+		if cs.Version == 0 || !cs.HandshakeComplete {
+			t.Errorf("ConnectionState = %#v; expect non-zero Version and HandshakeComplete", cs)
+		}
+	}()
+	<-clientDone
+	<-serverDone
+}
+
 func newLocalListener(t *testing.T) net.Listener {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

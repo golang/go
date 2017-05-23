@@ -3,7 +3,7 @@
 :: license that can be found in the LICENSE file.
 
 :: race.bash tests the standard library under the race detector.
-:: http://golang.org/doc/articles/race_detector.html
+:: https://golang.org/doc/articles/race_detector.html
 
 @echo off
 
@@ -18,7 +18,7 @@ goto end
 set GOROOT=%CD%\..
 call make.bat --dist-tool >NUL
 if errorlevel 1 goto fail
-.\cmd\dist\dist env -wp >env.bat
+.\cmd\dist\dist env -w -p >env.bat
 if errorlevel 1 goto fail
 call env.bat
 del env.bat
@@ -30,23 +30,12 @@ goto fail
 :continue
 call make.bat --no-banner --no-local
 if %GOBUILDFAIL%==1 goto end
-:: golang.org/issue/5537 - we must build a race enabled cmd/cgo before trying to use it.
-echo # go install -race cmd/cgo
-go install -race cmd/cgo
 echo # go install -race std
 go install -race std
 if errorlevel 1 goto fail
 
-:: we must unset GOROOT_FINAL before tests, because runtime/debug requires
-:: correct access to source code, so if we have GOROOT_FINAL in effect,
-:: at least runtime/debug test will fail.
-set GOROOT_FINAL=
+go tool dist test -race
 
-echo # go test -race -short std
-go test -race -short std
-if errorlevel 1 goto fail
-echo # go test -race -run=nothingplease -bench=.* -benchtime=.1s -cpu=4 std
-go test -race -run=nothingplease -bench=.* -benchtime=.1s -cpu=4 std
 if errorlevel 1 goto fail
 goto succ
 

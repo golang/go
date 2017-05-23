@@ -1,12 +1,14 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package cipher_test
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/des"
 	"testing"
 )
 
@@ -33,4 +35,56 @@ func mustPanic(t *testing.T, msg string, f func()) {
 		}
 	}()
 	f()
+}
+
+func TestEmptyPlaintext(t *testing.T) {
+	var key [16]byte
+	a, err := aes.NewCipher(key[:16])
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, err := des.NewCipher(key[:8])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := 16
+	pt := make([]byte, s)
+	ct := make([]byte, s)
+	for i := 0; i < 16; i++ {
+		pt[i], ct[i] = byte(i), byte(i)
+	}
+
+	assertEqual := func(name string, got, want []byte) {
+		if !bytes.Equal(got, want) {
+			t.Fatalf("%s: got %v, want %v", name, got, want)
+		}
+	}
+
+	for _, b := range []cipher.Block{a, d} {
+		iv := make([]byte, b.BlockSize())
+		cbce := cipher.NewCBCEncrypter(b, iv)
+		cbce.CryptBlocks(ct, pt[:0])
+		assertEqual("CBC encrypt", ct, pt)
+
+		cbcd := cipher.NewCBCDecrypter(b, iv)
+		cbcd.CryptBlocks(ct, pt[:0])
+		assertEqual("CBC decrypt", ct, pt)
+
+		cfbe := cipher.NewCFBEncrypter(b, iv)
+		cfbe.XORKeyStream(ct, pt[:0])
+		assertEqual("CFB encrypt", ct, pt)
+
+		cfbd := cipher.NewCFBDecrypter(b, iv)
+		cfbd.XORKeyStream(ct, pt[:0])
+		assertEqual("CFB decrypt", ct, pt)
+
+		ctr := cipher.NewCTR(b, iv)
+		ctr.XORKeyStream(ct, pt[:0])
+		assertEqual("CTR", ct, pt)
+
+		ofb := cipher.NewOFB(b, iv)
+		ofb.XORKeyStream(ct, pt[:0])
+		assertEqual("OFB", ct, pt)
+	}
 }

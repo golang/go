@@ -9,7 +9,7 @@ import "fmt"
 // Errors in decoding and encoding are handled using panic and recover.
 // Panics caused by user error (that is, everything except run-time panics
 // such as "index out of bounds" errors) do not leave the file that caused
-// them, but are instead turned into plain error returns.  Encoding and
+// them, but are instead turned into plain error returns. Encoding and
 // decoding functions and methods that do not return an error either use
 // panic to report an error or are guaranteed error-free.
 
@@ -30,7 +30,7 @@ func error_(err error) {
 }
 
 // catchError is meant to be used as a deferred function to turn a panic(gobError) into a
-// plain error.  It overwrites the error return of the function that deferred its call.
+// plain error. It overwrites the error return of the function that deferred its call.
 func catchError(err *error) {
 	if e := recover(); e != nil {
 		ge, ok := e.(gobError)

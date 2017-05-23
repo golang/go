@@ -144,7 +144,7 @@ func (i *Inst) op() InstOp {
 }
 
 // Prefix returns a literal string that all matches for the
-// regexp must start with.  Complete is true if the prefix
+// regexp must start with. Complete is true if the prefix
 // is the entire match.
 func (p *Prog) Prefix() (prefix string, complete bool) {
 	i, _ := p.skipNop(uint32(p.Start))
@@ -164,7 +164,7 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
 }
 
 // StartCond returns the leading empty-width conditions that must
-// be true in any match.  It returns ^EmptyOp(0) if no matches are possible.
+// be true in any match. It returns ^EmptyOp(0) if no matches are possible.
 func (p *Prog) StartCond() EmptyOp {
 	var flag EmptyOp
 	pc := uint32(p.Start)
@@ -189,7 +189,7 @@ Loop:
 
 const noMatch = -1
 
-// MatchRune returns true if the instruction matches (and consumes) r.
+// MatchRune reports whether the instruction matches (and consumes) r.
 // It should only be called when i.Op == InstRune.
 func (i *Inst) MatchRune(r rune) bool {
 	return i.MatchRunePos(r) != noMatch
@@ -256,7 +256,7 @@ func wordRune(r rune) bool {
 		('0' <= r && r <= '9')
 }
 
-// MatchEmptyWidth returns true if the instruction matches
+// MatchEmptyWidth reports whether the instruction matches
 // an empty string between the runes before and after.
 // It should only be called when i.Op == InstEmptyWidth.
 func (i *Inst) MatchEmptyWidth(before rune, after rune) bool {

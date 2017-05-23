@@ -1165,7 +1165,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	return x
 }
 
-// isTypeName returns true iff x is a (qualified) TypeName.
+// isTypeName reports whether x is a (qualified) TypeName.
 func isTypeName(x ast.Expr) bool {
 	switch t := x.(type) {
 	case *ast.BadExpr:
@@ -1179,7 +1179,7 @@ func isTypeName(x ast.Expr) bool {
 	return true
 }
 
-// isLiteralType returns true iff x is a legal composite literal type.
+// isLiteralType reports whether x is a legal composite literal type.
 func isLiteralType(x ast.Expr) bool {
 	switch t := x.(type) {
 	case *ast.BadExpr:

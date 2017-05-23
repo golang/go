@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -27,13 +27,13 @@ func Expand(s string, mapping func(string) string) string {
 }
 
 // ExpandEnv replaces ${var} or $var in the string according to the values
-// of the current environment variables.  References to undefined
+// of the current environment variables. References to undefined
 // variables are replaced by the empty string.
 func ExpandEnv(s string) string {
 	return Expand(s, Getenv)
 }
 
-// isSpellSpecialVar reports whether the character identifies a special
+// isShellSpecialVar reports whether the character identifies a special
 // shell variable such as $*.
 func isShellSpecialVar(c uint8) bool {
 	switch c {
@@ -48,8 +48,8 @@ func isAlphaNum(c uint8) bool {
 	return c == '_' || '0' <= c && c <= '9' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
 }
 
-// getName returns the name that begins the string and the number of bytes
-// consumed to extract it.  If the name is enclosed in {}, it's part of a ${}
+// getShellName returns the name that begins the string and the number of bytes
+// consumed to extract it. If the name is enclosed in {}, it's part of a ${}
 // expansion and two more bytes are needed than the length of the name.
 func getShellName(s string) (string, int) {
 	switch {
@@ -79,6 +79,15 @@ func getShellName(s string) (string, int) {
 func Getenv(key string) string {
 	v, _ := syscall.Getenv(key)
 	return v
+}
+
+// LookupEnv retrieves the value of the environment variable named
+// by the key. If the variable is present in the environment the
+// value (which may be empty) is returned and the boolean is true.
+// Otherwise the returned value will be empty and the boolean will
+// be false.
+func LookupEnv(key string) (string, bool) {
+	return syscall.Getenv(key)
 }
 
 // Setenv sets the value of the environment variable named by the key.

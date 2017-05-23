@@ -15,4 +15,3 @@ type I interface {
 type J interface {
 	h T;  // ERROR "syntax|signature"
 }
-

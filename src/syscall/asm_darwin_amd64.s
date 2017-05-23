@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
-// so that go vet can check that they are correct.
-
 #include "textflag.h"
 #include "funcdata.h"
 
@@ -12,96 +9,132 @@
 // System call support for AMD64, Darwin
 //
 
-// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
-// func Syscall6(trap int64, a1, a2, a3, a4, a5, a6 int64) (r1, r2, err int64);
 // Trap # in AX, args in DI SI DX, return in AX DX
 
+// func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno);
 TEXT	·Syscall(SB),NOSPLIT,$0-56
 	CALL	runtime·entersyscall(SB)
-	MOVQ	16(SP), DI
-	MOVQ	24(SP), SI
-	MOVQ	32(SP), DX
+	MOVQ	a1+8(FP), DI
+	MOVQ	a2+16(FP), SI
+	MOVQ	a3+24(FP), DX
 	MOVQ	$0, R10
 	MOVQ	$0, R8
 	MOVQ	$0, R9
-	MOVQ	8(SP), AX	// syscall entry
+	MOVQ	trap+0(FP), AX	// syscall entry
 	ADDQ	$0x2000000, AX
 	SYSCALL
 	JCC	ok
-	MOVQ	$-1, 40(SP)	// r1
-	MOVQ	$0, 48(SP)	// r2
-	MOVQ	AX, 56(SP)  // errno
+	MOVQ	$-1, r1+32(FP)
+	MOVQ	$0, r2+40(FP)
+	MOVQ	AX, err+48(FP)
 	CALL	runtime·exitsyscall(SB)
 	RET
 ok:
-	MOVQ	AX, 40(SP)	// r1
-	MOVQ	DX, 48(SP)	// r2
-	MOVQ	$0, 56(SP)	// errno
+	MOVQ	AX, r1+32(FP)
+	MOVQ	DX, r2+40(FP)
+	MOVQ	$0, err+48(FP)
 	CALL	runtime·exitsyscall(SB)
 	RET
 
+// func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno);
 TEXT	·Syscall6(SB),NOSPLIT,$0-80
 	CALL	runtime·entersyscall(SB)
-	MOVQ	16(SP), DI
-	MOVQ	24(SP), SI
-	MOVQ	32(SP), DX
-	MOVQ	40(SP), R10
-	MOVQ	48(SP), R8
-	MOVQ	56(SP), R9
-	MOVQ	8(SP), AX	// syscall entry
+	MOVQ	a1+8(FP), DI
+	MOVQ	a2+16(FP), SI
+	MOVQ	a3+24(FP), DX
+	MOVQ	a4+32(FP), R10
+	MOVQ	a5+40(FP), R8
+	MOVQ	a6+48(FP), R9
+	MOVQ	trap+0(FP), AX	// syscall entry
 	ADDQ	$0x2000000, AX
 	SYSCALL
 	JCC	ok6
-	MOVQ	$-1, 64(SP)	// r1
-	MOVQ	$0, 72(SP)	// r2
-	MOVQ	AX, 80(SP)  // errno
+	MOVQ	$-1, r1+56(FP)
+	MOVQ	$0, r2+64(FP)
+	MOVQ	AX, err+72(FP)
 	CALL	runtime·exitsyscall(SB)
 	RET
 ok6:
-	MOVQ	AX, 64(SP)	// r1
-	MOVQ	DX, 72(SP)	// r2
-	MOVQ	$0, 80(SP)	// errno
+	MOVQ	AX, r1+56(FP)
+	MOVQ	DX, r2+64(FP)
+	MOVQ	$0, err+72(FP)
 	CALL	runtime·exitsyscall(SB)
 	RET
 
+// func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+TEXT	·Syscall9(SB),NOSPLIT,$0-104
+	CALL	runtime·entersyscall(SB)
+	MOVQ	trap+0(FP), AX	// syscall entry
+	MOVQ	a1+8(FP), DI
+	MOVQ	a2+16(FP), SI
+	MOVQ	a3+24(FP), DX
+	MOVQ	a4+32(FP), R10
+	MOVQ	a5+40(FP), R8
+	MOVQ	a6+48(FP), R9
+	MOVQ	a7+56(FP), R11
+	MOVQ	a8+64(FP), R12
+	MOVQ	a9+72(FP), R13
+	SUBQ	$32, SP
+	MOVQ	R11, 8(SP)
+	MOVQ	R12, 16(SP)
+	MOVQ	R13, 24(SP)
+	ADDQ	$0x2000000, AX
+	SYSCALL
+	JCC	ok9
+	ADDQ	$32, SP
+	MOVQ	$-1, r1+80(FP)
+	MOVQ	$0, r2+88(FP)
+	MOVQ	AX, err+96(FP)
+	CALL	runtime·exitsyscall(SB)
+	RET
+ok9:
+	ADDQ	$32, SP
+	MOVQ	AX, r1+80(FP)
+	MOVQ	DX, r2+88(FP)
+	MOVQ	$0, err+96(FP)
+	CALL	runtime·exitsyscall(SB)
+	RET
+
+// func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 TEXT ·RawSyscall(SB),NOSPLIT,$0-56
-	MOVQ	16(SP), DI
-	MOVQ	24(SP), SI
-	MOVQ	32(SP), DX
+	MOVQ	a1+8(FP), DI
+	MOVQ	a2+16(FP), SI
+	MOVQ	a3+24(FP), DX
 	MOVQ	$0, R10
 	MOVQ	$0, R8
 	MOVQ	$0, R9
-	MOVQ	8(SP), AX	// syscall entry
+	MOVQ	trap+0(FP), AX	// syscall entry
 	ADDQ	$0x2000000, AX
 	SYSCALL
 	JCC	ok1
-	MOVQ	$-1, 40(SP)	// r1
-	MOVQ	$0, 48(SP)	// r2
-	MOVQ	AX, 56(SP)  // errno
+	MOVQ	$-1, r1+32(FP)
+	MOVQ	$0, r2+40(FP)
+	MOVQ	AX, err+48(FP)
 	RET
 ok1:
-	MOVQ	AX, 40(SP)	// r1
-	MOVQ	DX, 48(SP)	// r2
-	MOVQ	$0, 56(SP)	// errno
+	MOVQ	AX, r1+32(FP)
+	MOVQ	DX, r2+40(FP)
+	MOVQ	$0, err+48(FP)
 	RET
 
+// func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
-	MOVQ	16(SP), DI
-	MOVQ	24(SP), SI
-	MOVQ	32(SP), DX
-	MOVQ	40(SP), R10
-	MOVQ	48(SP), R8
-	MOVQ	56(SP), R9
-	MOVQ	8(SP), AX	// syscall entry
+	MOVQ	a1+8(FP), DI
+	MOVQ	a2+16(FP), SI
+	MOVQ	a3+24(FP), DX
+	MOVQ	a4+32(FP), R10
+	MOVQ	a5+40(FP), R8
+	MOVQ	a6+48(FP), R9
+	MOVQ	trap+0(FP), AX	// syscall entry
 	ADDQ	$0x2000000, AX
 	SYSCALL
 	JCC	ok2
-	MOVQ	$-1, 64(SP)	// r1
-	MOVQ	$0, 72(SP)	// r2
-	MOVQ	AX, 80(SP)  // errno
+	MOVQ	$-1, r1+56(FP)
+	MOVQ	$0, r2+64(FP)
+	MOVQ	AX, err+72(FP)
 	RET
 ok2:
-	MOVQ	AX, 64(SP)	// r1
-	MOVQ	DX, 72(SP)	// r2
-	MOVQ	$0, 80(SP)	// errno
+	MOVQ	AX, r1+56(FP)
+	MOVQ	DX, r2+64(FP)
+	MOVQ	$0, err+72(FP)
 	RET

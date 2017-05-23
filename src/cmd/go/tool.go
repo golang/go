@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -47,13 +47,16 @@ const toolWindowsExtension = ".exe"
 
 func tool(toolName string) string {
 	toolPath := filepath.Join(toolDir, toolName)
-	if toolIsWindows && toolName != "pprof" {
+	if toolIsWindows {
 		toolPath += toolWindowsExtension
+	}
+	if len(buildToolExec) > 0 {
+		return toolPath
 	}
 	// Give a nice message if there is no tool with that name.
 	if _, err := os.Stat(toolPath); err != nil {
 		if isInGoToolsRepo(toolName) {
-			fmt.Fprintf(os.Stderr, "go tool: no such tool %q; to install:\n\tgo get code.google.com/p/go.tools/cmd/%s\n", toolName, toolName)
+			fmt.Fprintf(os.Stderr, "go tool: no such tool %q; to install:\n\tgo get golang.org/x/tools/cmd/%s\n", toolName, toolName)
 		} else {
 			fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
 		}
@@ -64,10 +67,6 @@ func tool(toolName string) string {
 }
 
 func isInGoToolsRepo(toolName string) bool {
-	switch toolName {
-	case "cover", "vet":
-		return true
-	}
 	return false
 }
 
@@ -91,26 +90,23 @@ func runTool(cmd *Command, args []string) {
 	if toolPath == "" {
 		return
 	}
-	if toolIsWindows && toolName == "pprof" {
-		args = append([]string{"perl", toolPath}, args[1:]...)
-		var err error
-		toolPath, err = exec.LookPath("perl")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "go tool: perl not found\n")
-			setExitStatus(3)
-			return
-		}
-	}
 	if toolN {
-		fmt.Printf("%s %s\n", toolPath, strings.Join(args[1:], " "))
+		cmd := toolPath
+		if len(args) > 1 {
+			cmd += " " + strings.Join(args[1:], " ")
+		}
+		fmt.Printf("%s\n", cmd)
 		return
 	}
+	args[0] = toolPath // in case the tool wants to re-exec itself, e.g. cmd/dist
 	toolCmd := &exec.Cmd{
 		Path:   toolPath,
 		Args:   args,
 		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
+		// Set $GOROOT, mainly for go tool dist.
+		Env: mergeEnvLists([]string{"GOROOT=" + goroot}, os.Environ()),
 	}
 	err := toolCmd.Run()
 	if err != nil {

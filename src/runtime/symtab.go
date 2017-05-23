@@ -4,7 +4,154 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
+
+// Frames may be used to get function/file/line information for a
+// slice of PC values returned by Callers.
+type Frames struct {
+	callers []uintptr
+
+	// If previous caller in iteration was a panic, then
+	// ci.callers[0] is the address of the faulting instruction
+	// instead of the return address of the call.
+	wasPanic bool
+
+	// Frames to return for subsequent calls to the Next method.
+	// Used for non-Go frames.
+	frames *[]Frame
+}
+
+// Frame is the information returned by Frames for each call frame.
+type Frame struct {
+	// Program counter for this frame; multiple frames may have
+	// the same PC value.
+	PC uintptr
+
+	// Func for this frame; may be nil for non-Go code or fully
+	// inlined functions.
+	Func *Func
+
+	// Function name, file name, and line number for this call frame.
+	// May be the empty string or zero if not known.
+	// If Func is not nil then Function == Func.Name().
+	Function string
+	File     string
+	Line     int
+
+	// Entry point for the function; may be zero if not known.
+	// If Func is not nil then Entry == Func.Entry().
+	Entry uintptr
+}
+
+// CallersFrames takes a slice of PC values returned by Callers and
+// prepares to return function/file/line information.
+// Do not change the slice until you are done with the Frames.
+func CallersFrames(callers []uintptr) *Frames {
+	return &Frames{callers: callers}
+}
+
+// Next returns frame information for the next caller.
+// If more is false, there are no more callers (the Frame value is valid).
+func (ci *Frames) Next() (frame Frame, more bool) {
+	if ci.frames != nil {
+		// We have saved up frames to return.
+		f := (*ci.frames)[0]
+		if len(*ci.frames) == 1 {
+			ci.frames = nil
+		} else {
+			*ci.frames = (*ci.frames)[1:]
+		}
+		return f, ci.frames != nil || len(ci.callers) > 0
+	}
+
+	if len(ci.callers) == 0 {
+		ci.wasPanic = false
+		return Frame{}, false
+	}
+	pc := ci.callers[0]
+	ci.callers = ci.callers[1:]
+	more = len(ci.callers) > 0
+	f := FuncForPC(pc)
+	if f == nil {
+		ci.wasPanic = false
+		if cgoSymbolizer != nil {
+			return ci.cgoNext(pc, more)
+		}
+		return Frame{}, more
+	}
+
+	entry := f.Entry()
+	xpc := pc
+	if xpc > entry && !ci.wasPanic {
+		xpc--
+	}
+	file, line := f.FileLine(xpc)
+
+	function := f.Name()
+	ci.wasPanic = entry == sigpanicPC
+
+	frame = Frame{
+		PC:       xpc,
+		Func:     f,
+		Function: function,
+		File:     file,
+		Line:     line,
+		Entry:    entry,
+	}
+
+	return frame, more
+}
+
+// cgoNext returns frame information for pc, known to be a non-Go function,
+// using the cgoSymbolizer hook.
+func (ci *Frames) cgoNext(pc uintptr, more bool) (Frame, bool) {
+	arg := cgoSymbolizerArg{pc: pc}
+	callCgoSymbolizer(&arg)
+
+	if arg.file == nil && arg.funcName == nil {
+		// No useful information from symbolizer.
+		return Frame{}, more
+	}
+
+	var frames []Frame
+	for {
+		frames = append(frames, Frame{
+			PC:       pc,
+			Func:     nil,
+			Function: gostring(arg.funcName),
+			File:     gostring(arg.file),
+			Line:     int(arg.lineno),
+			Entry:    arg.entry,
+		})
+		if arg.more == 0 {
+			break
+		}
+		callCgoSymbolizer(&arg)
+	}
+
+	// No more frames for this PC. Tell the symbolizer we are done.
+	// We don't try to maintain a single cgoSymbolizerArg for the
+	// whole use of Frames, because there would be no good way to tell
+	// the symbolizer when we are done.
+	arg.pc = 0
+	callCgoSymbolizer(&arg)
+
+	if len(frames) == 1 {
+		// Return a single frame.
+		return frames[0], more
+	}
+
+	// Return the first frame we saw and store the rest to be
+	// returned by later calls to Next.
+	rf := frames[0]
+	frames = frames[1:]
+	ci.frames = new([]Frame)
+	*ci.frames = frames
+	return rf, true
+}
 
 // NOTE: Func does not expose the actual unexported fields, because we return *Func
 // values to users, and we want to keep them from being able to overwrite the data
@@ -22,81 +169,153 @@ func (f *Func) raw() *_func {
 
 // funcdata.h
 const (
-	_PCDATA_ArgSize             = 0
-	_PCDATA_StackMapIndex       = 1
+	_PCDATA_StackMapIndex       = 0
 	_FUNCDATA_ArgsPointerMaps   = 0
 	_FUNCDATA_LocalsPointerMaps = 1
-	_FUNCDATA_DeadValueMaps     = 2
 	_ArgsSizeUnknown            = -0x80000000
 )
 
-var (
-	pclntable []byte
-	ftab      []functab
-	filetab   []uint32
+// moduledata records information about the layout of the executable
+// image. It is written by the linker. Any changes here must be
+// matched changes to the code in cmd/internal/ld/symtab.go:symtab.
+// moduledata is stored in read-only memory; none of the pointers here
+// are visible to the garbage collector.
+type moduledata struct {
+	pclntable    []byte
+	ftab         []functab
+	filetab      []uint32
+	findfunctab  uintptr
+	minpc, maxpc uintptr
 
-	pclntab, epclntab struct{} // linker symbols
-)
+	text, etext           uintptr
+	noptrdata, enoptrdata uintptr
+	data, edata           uintptr
+	bss, ebss             uintptr
+	noptrbss, enoptrbss   uintptr
+	end, gcdata, gcbss    uintptr
+	types, etypes         uintptr
+
+	typelinks []int32 // offsets from types
+	itablinks []*itab
+
+	modulename   string
+	modulehashes []modulehash
+
+	gcdatamask, gcbssmask bitvector
+
+	typemap map[typeOff]*_type // offset to *_rtype in previous module
+
+	next *moduledata
+}
+
+// For each shared library a module links against, the linker creates an entry in the
+// moduledata.modulehashes slice containing the name of the module, the abi hash seen
+// at link time and a pointer to the runtime abi hash. These are checked in
+// moduledataverify1 below.
+type modulehash struct {
+	modulename   string
+	linktimehash string
+	runtimehash  *string
+}
+
+var firstmoduledata moduledata  // linker symbol
+var lastmoduledatap *moduledata // linker symbol
 
 type functab struct {
 	entry   uintptr
 	funcoff uintptr
 }
 
-func symtabinit() {
+const minfunc = 16                 // minimum function size
+const pcbucketsize = 256 * minfunc // size of bucket in the pc->func lookup table
+
+// findfunctab is an array of these structures.
+// Each bucket represents 4096 bytes of the text segment.
+// Each subbucket represents 256 bytes of the text segment.
+// To find a function given a pc, locate the bucket and subbucket for
+// that pc. Add together the idx and subbucket value to obtain a
+// function index. Then scan the functab array starting at that
+// index to find the target function.
+// This table uses 20 bytes for every 4096 bytes of code, or ~0.5% overhead.
+type findfuncbucket struct {
+	idx        uint32
+	subbuckets [16]byte
+}
+
+func moduledataverify() {
+	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+		moduledataverify1(datap)
+	}
+}
+
+const debugPcln = false
+
+func moduledataverify1(datap *moduledata) {
 	// See golang.org/s/go12symtab for header: 0xfffffffb,
 	// two zero bytes, a byte giving the PC quantum,
 	// and a byte giving the pointer width in bytes.
-	pcln := (*[8]byte)(unsafe.Pointer(&pclntab))
-	pcln32 := (*[2]uint32)(unsafe.Pointer(&pclntab))
-	if pcln32[0] != 0xfffffffb || pcln[4] != 0 || pcln[5] != 0 || pcln[6] != _PCQuantum || pcln[7] != ptrSize {
+	pcln := *(**[8]byte)(unsafe.Pointer(&datap.pclntable))
+	pcln32 := *(**[2]uint32)(unsafe.Pointer(&datap.pclntable))
+	if pcln32[0] != 0xfffffffb || pcln[4] != 0 || pcln[5] != 0 || pcln[6] != sys.PCQuantum || pcln[7] != sys.PtrSize {
 		println("runtime: function symbol table header:", hex(pcln32[0]), hex(pcln[4]), hex(pcln[5]), hex(pcln[6]), hex(pcln[7]))
-		gothrow("invalid function symbol table\n")
+		throw("invalid function symbol table\n")
 	}
 
-	// pclntable is all bytes of pclntab symbol.
-	sp := (*sliceStruct)(unsafe.Pointer(&pclntable))
-	sp.array = unsafe.Pointer(&pclntab)
-	sp.len = int(uintptr(unsafe.Pointer(&epclntab)) - uintptr(unsafe.Pointer(&pclntab)))
-	sp.cap = sp.len
-
 	// ftab is lookup table for function by program counter.
-	nftab := int(*(*uintptr)(add(unsafe.Pointer(pcln), 8)))
-	p := add(unsafe.Pointer(pcln), 8+ptrSize)
-	sp = (*sliceStruct)(unsafe.Pointer(&ftab))
-	sp.array = p
-	sp.len = nftab + 1
-	sp.cap = sp.len
+	nftab := len(datap.ftab) - 1
+	var pcCache pcvalueCache
 	for i := 0; i < nftab; i++ {
 		// NOTE: ftab[nftab].entry is legal; it is the address beyond the final function.
-		if ftab[i].entry > ftab[i+1].entry {
-			f1 := (*_func)(unsafe.Pointer(&pclntable[ftab[i].funcoff]))
-			f2 := (*_func)(unsafe.Pointer(&pclntable[ftab[i+1].funcoff]))
+		if datap.ftab[i].entry > datap.ftab[i+1].entry {
+			f1 := (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i].funcoff]))
+			f2 := (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i+1].funcoff]))
 			f2name := "end"
 			if i+1 < nftab {
-				f2name = gofuncname(f2)
+				f2name = funcname(f2)
 			}
-			println("function symbol table not sorted by program counter:", hex(ftab[i].entry), gofuncname(f1), ">", hex(ftab[i+1].entry), f2name)
+			println("function symbol table not sorted by program counter:", hex(datap.ftab[i].entry), funcname(f1), ">", hex(datap.ftab[i+1].entry), f2name)
 			for j := 0; j <= i; j++ {
-				print("\t", hex(ftab[j].entry), " ", gofuncname((*_func)(unsafe.Pointer(&pclntable[ftab[j].funcoff]))))
+				print("\t", hex(datap.ftab[j].entry), " ", funcname((*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[j].funcoff]))), "\n")
 			}
-			gothrow("invalid runtime symbol table")
+			throw("invalid runtime symbol table")
+		}
+
+		if debugPcln || nftab-i < 5 {
+			// Check a PC near but not at the very end.
+			// The very end might be just padding that is not covered by the tables.
+			// No architecture rounds function entries to more than 16 bytes,
+			// but if one came along we'd need to subtract more here.
+			// But don't use the next PC if it corresponds to a foreign object chunk
+			// (no pcln table, f2.pcln == 0). That chunk might have an alignment
+			// more than 16 bytes.
+			f := (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i].funcoff]))
+			end := f.entry
+			if i+1 < nftab {
+				f2 := (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i+1].funcoff]))
+				if f2.pcln != 0 {
+					end = f2.entry - 16
+					if end < f.entry {
+						end = f.entry
+					}
+				}
+			}
+			pcvalue(f, f.pcfile, end, &pcCache, true)
+			pcvalue(f, f.pcln, end, &pcCache, true)
+			pcvalue(f, f.pcsp, end, &pcCache, true)
 		}
 	}
 
-	// The ftab ends with a half functab consisting only of
-	// 'entry', followed by a uint32 giving the pcln-relative
-	// offset of the file table.
-	sp = (*sliceStruct)(unsafe.Pointer(&filetab))
-	end := unsafe.Pointer(&ftab[nftab].funcoff) // just beyond ftab
-	fileoffset := *(*uint32)(end)
-	sp.array = unsafe.Pointer(&pclntable[fileoffset])
-	// length is in first element of array.
-	// set len to 1 so we can get first element.
-	sp.len = 1
-	sp.cap = 1
-	sp.len = int(filetab[0])
-	sp.cap = sp.len
+	if datap.minpc != datap.ftab[0].entry ||
+		datap.maxpc != datap.ftab[nftab].entry {
+		throw("minpc or maxpc invalid")
+	}
+
+	for _, modulehash := range datap.modulehashes {
+		if modulehash.linktimehash != *modulehash.runtimehash {
+			println("abi mismatch detected between", datap.modulename, "and", modulehash.modulename)
+			throw("abi mismatch")
+		}
+	}
 }
 
 // FuncForPC returns a *Func describing the function that contains the
@@ -107,7 +326,7 @@ func FuncForPC(pc uintptr) *Func {
 
 // Name returns the name of the function.
 func (f *Func) Name() string {
-	return gofuncname(f.raw())
+	return funcname(f.raw())
 }
 
 // Entry returns the entry address of the function.
@@ -122,44 +341,88 @@ func (f *Func) Entry() uintptr {
 func (f *Func) FileLine(pc uintptr) (file string, line int) {
 	// Pass strict=false here, because anyone can call this function,
 	// and they might just be wrong about targetpc belonging to f.
-	line = int(funcline1(f.raw(), pc, &file, false))
-	return file, line
+	file, line32 := funcline1(f.raw(), pc, false)
+	return file, int(line32)
 }
 
-func findfunc(pc uintptr) *_func {
-	if len(ftab) == 0 {
-		return nil
-	}
-
-	if pc < ftab[0].entry || pc >= ftab[len(ftab)-1].entry {
-		return nil
-	}
-
-	// binary search to find func with entry <= pc.
-	lo := 0
-	nf := len(ftab) - 1 // last entry is sentinel
-	for nf > 0 {
-		n := nf / 2
-		f := &ftab[lo+n]
-		if f.entry <= pc && pc < ftab[lo+n+1].entry {
-			return (*_func)(unsafe.Pointer(&pclntable[f.funcoff]))
-		} else if pc < f.entry {
-			nf = n
-		} else {
-			lo += n + 1
-			nf -= n + 1
+func findmoduledatap(pc uintptr) *moduledata {
+	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+		if datap.minpc <= pc && pc < datap.maxpc {
+			return datap
 		}
 	}
-
-	gothrow("findfunc: binary search failed")
 	return nil
 }
 
-func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
+func findfunc(pc uintptr) *_func {
+	datap := findmoduledatap(pc)
+	if datap == nil {
+		return nil
+	}
+	const nsub = uintptr(len(findfuncbucket{}.subbuckets))
+
+	x := pc - datap.minpc
+	b := x / pcbucketsize
+	i := x % pcbucketsize / (pcbucketsize / nsub)
+
+	ffb := (*findfuncbucket)(add(unsafe.Pointer(datap.findfunctab), b*unsafe.Sizeof(findfuncbucket{})))
+	idx := ffb.idx + uint32(ffb.subbuckets[i])
+	if pc < datap.ftab[idx].entry {
+		throw("findfunc: bad findfunctab entry")
+	}
+
+	// linear search to find func with pc >= entry.
+	for datap.ftab[idx+1].entry <= pc {
+		idx++
+	}
+	return (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[idx].funcoff]))
+}
+
+type pcvalueCache struct {
+	entries [16]pcvalueCacheEnt
+}
+
+type pcvalueCacheEnt struct {
+	// targetpc and off together are the key of this cache entry.
+	targetpc uintptr
+	off      int32
+	// val is the value of this cached pcvalue entry.
+	val int32
+}
+
+func pcvalue(f *_func, off int32, targetpc uintptr, cache *pcvalueCache, strict bool) int32 {
 	if off == 0 {
 		return -1
 	}
-	p := pclntable[off:]
+
+	// Check the cache. This speeds up walks of deep stacks, which
+	// tend to have the same recursive functions over and over.
+	//
+	// This cache is small enough that full associativity is
+	// cheaper than doing the hashing for a less associative
+	// cache.
+	if cache != nil {
+		for _, ent := range cache.entries {
+			// We check off first because we're more
+			// likely to have multiple entries with
+			// different offsets for the same targetpc
+			// than the other way around, so we'll usually
+			// fail in the first clause.
+			if ent.off == off && ent.targetpc == targetpc {
+				return ent.val
+			}
+		}
+	}
+
+	datap := findmoduledatap(f.entry) // inefficient
+	if datap == nil {
+		if strict && panicking == 0 {
+			print("runtime: no module data for ", hex(f.entry), "\n")
+			throw("no module data")
+		}
+		return -1
+	}
+	p := datap.pclntable[off:]
 	pc := f.entry
 	val := int32(-1)
 	for {
@@ -169,6 +432,19 @@ func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
 			break
 		}
 		if targetpc < pc {
+			// Replace a random entry in the cache. Random
+			// replacement prevents a performance cliff if
+			// a recursive stack's cycle is slightly
+			// larger than the cache.
+			if cache != nil {
+				ci := fastrand1() % uint32(len(cache.entries))
+				cache.entries[ci] = pcvalueCacheEnt{
+					targetpc: targetpc,
+					off:      off,
+					val:      val,
+				}
+			}
+
 			return val
 		}
 	}
@@ -179,9 +455,9 @@ func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
 		return -1
 	}
 
-	print("runtime: invalid pc-encoded table f=", gofuncname(f), " pc=", hex(pc), " targetpc=", hex(targetpc), " tab=", p, "\n")
+	print("runtime: invalid pc-encoded table f=", funcname(f), " pc=", hex(pc), " targetpc=", hex(targetpc), " tab=", p, "\n")
 
-	p = pclntable[off:]
+	p = datap.pclntable[off:]
 	pc = f.entry
 	val = -1
 	for {
@@ -193,51 +469,58 @@ func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
 		print("\tvalue=", val, " until pc=", hex(pc), "\n")
 	}
 
-	gothrow("invalid runtime symbol table")
+	throw("invalid runtime symbol table")
 	return -1
 }
 
-func funcname(f *_func) *byte {
+func cfuncname(f *_func) *byte {
 	if f == nil || f.nameoff == 0 {
 		return nil
 	}
-	return (*byte)(unsafe.Pointer(&pclntable[f.nameoff]))
-}
-
-func gofuncname(f *_func) string {
-	return gostringnocopy(funcname(f))
-}
-
-func funcline1(f *_func, targetpc uintptr, file *string, strict bool) int32 {
-	*file = "?"
-	fileno := int(pcvalue(f, f.pcfile, targetpc, strict))
-	line := pcvalue(f, f.pcln, targetpc, strict)
-	if fileno == -1 || line == -1 || fileno >= len(filetab) {
-		// print("looking for ", hex(targetpc), " in ", gofuncname(f), " got file=", fileno, " line=", lineno, "\n")
-		return 0
+	datap := findmoduledatap(f.entry) // inefficient
+	if datap == nil {
+		return nil
 	}
-	*file = gostringnocopy(&pclntable[filetab[fileno]])
-	return line
+	return &datap.pclntable[f.nameoff]
 }
 
-func funcline(f *_func, targetpc uintptr, file *string) int32 {
-	return funcline1(f, targetpc, file, true)
+func funcname(f *_func) string {
+	return gostringnocopy(cfuncname(f))
 }
 
-func funcspdelta(f *_func, targetpc uintptr) int32 {
-	x := pcvalue(f, f.pcsp, targetpc, true)
-	if x&(ptrSize-1) != 0 {
-		print("invalid spdelta ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
+func funcline1(f *_func, targetpc uintptr, strict bool) (file string, line int32) {
+	datap := findmoduledatap(f.entry) // inefficient
+	if datap == nil {
+		return "?", 0
+	}
+	fileno := int(pcvalue(f, f.pcfile, targetpc, nil, strict))
+	line = pcvalue(f, f.pcln, targetpc, nil, strict)
+	if fileno == -1 || line == -1 || fileno >= len(datap.filetab) {
+		// print("looking for ", hex(targetpc), " in ", funcname(f), " got file=", fileno, " line=", lineno, "\n")
+		return "?", 0
+	}
+	file = gostringnocopy(&datap.pclntable[datap.filetab[fileno]])
+	return
+}
+
+func funcline(f *_func, targetpc uintptr) (file string, line int32) {
+	return funcline1(f, targetpc, true)
+}
+
+func funcspdelta(f *_func, targetpc uintptr, cache *pcvalueCache) int32 {
+	x := pcvalue(f, f.pcsp, targetpc, cache, true)
+	if x&(sys.PtrSize-1) != 0 {
+		print("invalid spdelta ", funcname(f), " ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
 	}
 	return x
 }
 
-func pcdatavalue(f *_func, table int32, targetpc uintptr) int32 {
+func pcdatavalue(f *_func, table int32, targetpc uintptr, cache *pcvalueCache) int32 {
 	if table < 0 || table >= f.npcdata {
 		return -1
 	}
 	off := *(*int32)(add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(table)*4))
-	return pcvalue(f, off, targetpc, true)
+	return pcvalue(f, off, targetpc, cache, true)
 }
 
 func funcdata(f *_func, i int32) unsafe.Pointer {
@@ -245,13 +528,13 @@ func funcdata(f *_func, i int32) unsafe.Pointer {
 		return nil
 	}
 	p := add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(f.npcdata)*4)
-	if ptrSize == 8 && uintptr(p)&4 != 0 {
+	if sys.PtrSize == 8 && uintptr(p)&4 != 0 {
 		if uintptr(unsafe.Pointer(f))&4 != 0 {
 			println("runtime: misaligned func", f)
 		}
 		p = add(p, 4)
 	}
-	return *(*unsafe.Pointer)(add(p, uintptr(i)*ptrSize))
+	return *(*unsafe.Pointer)(add(p, uintptr(i)*sys.PtrSize))
 }
 
 // step advances to the next pc, value pair in the encoded table.
@@ -267,7 +550,7 @@ func step(p []byte, pc *uintptr, val *int32, first bool) (newp []byte, ok bool) 
 	}
 	vdelta := int32(uvdelta)
 	p, pcdelta := readvarint(p)
-	*pc += uintptr(pcdelta * _PCQuantum)
+	*pc += uintptr(pcdelta * sys.PCQuantum)
 	*val += vdelta
 	return p, true
 }
@@ -285,4 +568,18 @@ func readvarint(p []byte) (newp []byte, val uint32) {
 		shift += 7
 	}
 	return p, v
+}
+
+type stackmap struct {
+	n        int32   // number of bitmaps
+	nbit     int32   // number of bits in each bitmap
+	bytedata [1]byte // bitmaps, each starting on a 32-bit boundary
+}
+
+//go:nowritebarrier
+func stackmapdata(stkmap *stackmap, n int32) bitvector {
+	if n < 0 || n >= stkmap.n {
+		throw("stackmapdata: index out of range")
+	}
+	return bitvector{stkmap.nbit, (*byte)(add(unsafe.Pointer(&stkmap.bytedata), uintptr(n*((stkmap.nbit+31)/32*4))))}
 }

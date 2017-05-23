@@ -13,7 +13,6 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	. "net/http"
-	"net/http/httptest"
 	"net/url"
 	"os"
 	"reflect"
@@ -100,7 +99,7 @@ type parseContentTypeTest struct {
 
 var parseContentTypeTests = []parseContentTypeTest{
 	{false, stringMap{"Content-Type": {"text/plain"}}},
-	// Empty content type is legal - shoult be treated as
+	// Empty content type is legal - should be treated as
 	// application/octet-stream (RFC 2616, section 7.2.1)
 	{false, stringMap{}},
 	{true, stringMap{"Content-Type": {"text/plain; boundary="}}},
@@ -159,6 +158,68 @@ func TestMultipartReader(t *testing.T) {
 	}
 }
 
+// Issue 9305: ParseMultipartForm should populate PostForm too
+func TestParseMultipartFormPopulatesPostForm(t *testing.T) {
+	postData :=
+		`--xxx
+Content-Disposition: form-data; name="field1"
+
+value1
+--xxx
+Content-Disposition: form-data; name="field2"
+
+value2
+--xxx
+Content-Disposition: form-data; name="file"; filename="file"
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: binary
+
+binary data
+--xxx--
+`
+	req := &Request{
+		Method: "POST",
+		Header: Header{"Content-Type": {`multipart/form-data; boundary=xxx`}},
+		Body:   ioutil.NopCloser(strings.NewReader(postData)),
+	}
+
+	initialFormItems := map[string]string{
+		"language": "Go",
+		"name":     "gopher",
+		"skill":    "go-ing",
+		"field2":   "initial-value2",
+	}
+
+	req.Form = make(url.Values)
+	for k, v := range initialFormItems {
+		req.Form.Add(k, v)
+	}
+
+	err := req.ParseMultipartForm(10000)
+	if err != nil {
+		t.Fatalf("unexpected multipart error %v", err)
+	}
+
+	wantForm := url.Values{
+		"language": []string{"Go"},
+		"name":     []string{"gopher"},
+		"skill":    []string{"go-ing"},
+		"field1":   []string{"value1"},
+		"field2":   []string{"initial-value2", "value2"},
+	}
+	if !reflect.DeepEqual(req.Form, wantForm) {
+		t.Fatalf("req.Form = %v, want %v", req.Form, wantForm)
+	}
+
+	wantPostForm := url.Values{
+		"field1": []string{"value1"},
+		"field2": []string{"value2"},
+	}
+	if !reflect.DeepEqual(req.PostForm, wantPostForm) {
+		t.Fatalf("req.PostForm = %v, want %v", req.PostForm, wantPostForm)
+	}
+}
+
 func TestParseMultipartForm(t *testing.T) {
 	req := &Request{
 		Method: "POST",
@@ -177,8 +238,11 @@ func TestParseMultipartForm(t *testing.T) {
 	}
 }
 
-func TestRedirect(t *testing.T) {
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+func TestRedirect_h1(t *testing.T) { testRedirect(t, h1Mode) }
+func TestRedirect_h2(t *testing.T) { testRedirect(t, h2Mode) }
+func testRedirect(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		switch r.URL.Path {
 		case "/":
 			w.Header().Set("Location", "/foo/")
@@ -189,10 +253,10 @@ func TestRedirect(t *testing.T) {
 			w.WriteHeader(StatusBadRequest)
 		}
 	}))
-	defer ts.Close()
+	defer cst.close()
 
 	var end = regexp.MustCompile("/foo/$")
-	r, err := Get(ts.URL)
+	r, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,13 +390,56 @@ func TestReadRequestErrors(t *testing.T) {
 	}
 }
 
+var newRequestHostTests = []struct {
+	in, out string
+}{
+	{"http://www.example.com/", "www.example.com"},
+	{"http://www.example.com:8080/", "www.example.com:8080"},
+
+	{"http://192.168.0.1/", "192.168.0.1"},
+	{"http://192.168.0.1:8080/", "192.168.0.1:8080"},
+	{"http://192.168.0.1:/", "192.168.0.1"},
+
+	{"http://[fe80::1]/", "[fe80::1]"},
+	{"http://[fe80::1]:8080/", "[fe80::1]:8080"},
+	{"http://[fe80::1%25en0]/", "[fe80::1%en0]"},
+	{"http://[fe80::1%25en0]:8080/", "[fe80::1%en0]:8080"},
+	{"http://[fe80::1%25en0]:/", "[fe80::1%en0]"},
+}
+
 func TestNewRequestHost(t *testing.T) {
-	req, err := NewRequest("GET", "http://localhost:1234/", nil)
+	for i, tt := range newRequestHostTests {
+		req, err := NewRequest("GET", tt.in, nil)
+		if err != nil {
+			t.Errorf("#%v: %v", i, err)
+			continue
+		}
+		if req.Host != tt.out {
+			t.Errorf("got %q; want %q", req.Host, tt.out)
+		}
+	}
+}
+
+func TestRequestInvalidMethod(t *testing.T) {
+	_, err := NewRequest("bad method", "http://foo.com/", nil)
+	if err == nil {
+		t.Error("expected error from NewRequest with invalid method")
+	}
+	req, err := NewRequest("GET", "http://foo.example/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if req.Host != "localhost:1234" {
-		t.Errorf("Host = %q; want localhost:1234", req.Host)
+	req.Method = "bad method"
+	_, err = DefaultClient.Do(req)
+	if err == nil || !strings.Contains(err.Error(), "invalid method") {
+		t.Errorf("Transport error = %v; want invalid method", err)
+	}
+
+	req, err = NewRequest("", "http://foo.com/", nil)
+	if err != nil {
+		t.Errorf("NewRequest(empty method) = %v; want nil", err)
+	} else if req.Method != "GET" {
+		t.Errorf("NewRequest(empty method) has method %q; want GET", req.Method)
 	}
 }
 
@@ -401,8 +508,6 @@ type getBasicAuthTest struct {
 	username, password string
 	ok                 bool
 }
-
-type parseBasicAuthTest getBasicAuthTest
 
 type basicAuthCredentialsTest struct {
 	username, password string
@@ -493,6 +598,124 @@ func TestRequestWriteBufferedWriter(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Writes = %q\n  Want = %q", got, want)
+	}
+}
+
+func TestRequestBadHost(t *testing.T) {
+	got := []string{}
+	req, err := NewRequest("GET", "http://foo/after", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Host = "foo.com with spaces"
+	req.URL.Host = "foo.com with spaces"
+	req.Write(logWrites{t, &got})
+	want := []string{
+		"GET /after HTTP/1.1\r\n",
+		"Host: foo.com\r\n",
+		"User-Agent: " + DefaultUserAgent + "\r\n",
+		"\r\n",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Writes = %q\n  Want = %q", got, want)
+	}
+}
+
+func TestStarRequest(t *testing.T) {
+	req, err := ReadRequest(bufio.NewReader(strings.NewReader("M-SEARCH * HTTP/1.1\r\n\r\n")))
+	if err != nil {
+		return
+	}
+	var out bytes.Buffer
+	if err := req.Write(&out); err != nil {
+		t.Fatal(err)
+	}
+	back, err := ReadRequest(bufio.NewReader(&out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Ignore the Headers (the User-Agent breaks the deep equal,
+	// but we don't care about it)
+	req.Header = nil
+	back.Header = nil
+	if !reflect.DeepEqual(req, back) {
+		t.Errorf("Original request doesn't match Request read back.")
+		t.Logf("Original: %#v", req)
+		t.Logf("Original.URL: %#v", req.URL)
+		t.Logf("Wrote: %s", out.Bytes())
+		t.Logf("Read back (doesn't match Original): %#v", back)
+	}
+}
+
+type responseWriterJustWriter struct {
+	io.Writer
+}
+
+func (responseWriterJustWriter) Header() Header  { panic("should not be called") }
+func (responseWriterJustWriter) WriteHeader(int) { panic("should not be called") }
+
+// delayedEOFReader never returns (n > 0, io.EOF), instead putting
+// off the io.EOF until a subsequent Read call.
+type delayedEOFReader struct {
+	r io.Reader
+}
+
+func (dr delayedEOFReader) Read(p []byte) (n int, err error) {
+	n, err = dr.r.Read(p)
+	if n > 0 && err == io.EOF {
+		err = nil
+	}
+	return
+}
+
+func TestIssue10884_MaxBytesEOF(t *testing.T) {
+	dst := ioutil.Discard
+	_, err := io.Copy(dst, MaxBytesReader(
+		responseWriterJustWriter{dst},
+		ioutil.NopCloser(delayedEOFReader{strings.NewReader("12345")}),
+		5))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Issue 14981: MaxBytesReader's return error wasn't sticky. It
+// doesn't technically need to be, but people expected it to be.
+func TestMaxBytesReaderStickyError(t *testing.T) {
+	isSticky := func(r io.Reader) error {
+		var log bytes.Buffer
+		buf := make([]byte, 1000)
+		var firstErr error
+		for {
+			n, err := r.Read(buf)
+			fmt.Fprintf(&log, "Read(%d) = %d, %v\n", len(buf), n, err)
+			if err == nil {
+				continue
+			}
+			if firstErr == nil {
+				firstErr = err
+				continue
+			}
+			if !reflect.DeepEqual(err, firstErr) {
+				return fmt.Errorf("non-sticky error. got log:\n%s", log.Bytes())
+			}
+			t.Logf("Got log: %s", log.Bytes())
+			return nil
+		}
+	}
+	tests := [...]struct {
+		readable int
+		limit    int64
+	}{
+		0: {99, 100},
+		1: {100, 100},
+		2: {101, 100},
+	}
+	for i, tt := range tests {
+		rc := MaxBytesReader(nil, ioutil.NopCloser(bytes.NewReader(make([]byte, tt.readable))), tt.limit)
+		if err := isSticky(rc); err != nil {
+			t.Errorf("%d. error: %v", i, err)
+		}
 	}
 }
 

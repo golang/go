@@ -225,7 +225,7 @@ func heading(line string) string {
 	}
 
 	// exclude lines with illegal characters
-	if strings.IndexAny(line, ",.;:!?+*/=()[]{}_^°&§~%#@<\">\\") >= 0 {
+	if strings.ContainsAny(line, ",.;:!?+*/=()[]{}_^°&§~%#@<\">\\") {
 		return ""
 	}
 
@@ -398,7 +398,7 @@ func blocks(text string) []block {
 
 // ToText prepares comment text for presentation in textual output.
 // It wraps paragraphs of text to width or fewer Unicode code points
-// and then prefixes each line with the indent.  In preformatted sections
+// and then prefixes each line with the indent. In preformatted sections
 // (such as program text), it prefixes each non-blank line with preIndent.
 func ToText(w io.Writer, text string, indent, preIndent string, width int) {
 	l := lineWrapper{

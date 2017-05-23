@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,13 +8,20 @@
 package build
 
 import (
+	"bytes"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
+	"strings"
 	"testing"
 )
 
 // pkgDeps defines the expected dependencies between packages in
-// the Go source tree.  It is a statement of policy.
+// the Go source tree. It is a statement of policy.
 // Changes should not be made to this map without prior discussion.
 //
 // The map contains two kinds of entries:
@@ -27,17 +34,21 @@ import (
 //
 var pkgDeps = map[string][]string{
 	// L0 is the lowest level, core, nearly unavoidable packages.
-	"errors":      {},
-	"io":          {"errors", "sync"},
-	"runtime":     {"unsafe"},
-	"sync":        {"runtime", "sync/atomic", "unsafe"},
-	"sync/atomic": {"unsafe"},
-	"unsafe":      {},
+	"errors":                  {},
+	"io":                      {"errors", "sync"},
+	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys"},
+	"runtime/internal/sys":    {},
+	"runtime/internal/atomic": {"unsafe", "runtime/internal/sys"},
+	"internal/race":           {"runtime", "unsafe"},
+	"sync":                    {"internal/race", "runtime", "sync/atomic", "unsafe"},
+	"sync/atomic":             {"unsafe"},
+	"unsafe":                  {},
 
 	"L0": {
 		"errors",
 		"io",
 		"runtime",
+		"runtime/internal/atomic",
 		"sync",
 		"sync/atomic",
 		"unsafe",
@@ -121,12 +132,27 @@ var pkgDeps = map[string][]string{
 	// End of linear dependency definitions.
 
 	// Operating system access.
-	"syscall":       {"L0", "unicode/utf16"},
-	"time":          {"L0", "syscall"},
-	"os":            {"L1", "os", "syscall", "time"},
+	"syscall":                           {"L0", "internal/race", "internal/syscall/windows/sysdll", "unicode/utf16"},
+	"internal/syscall/unix":             {"L0", "syscall"},
+	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll"},
+	"internal/syscall/windows/registry": {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
+	"time": {
+		// "L0" without the "io" package:
+		"errors",
+		"runtime",
+		"runtime/internal/atomic",
+		"sync",
+		"sync/atomic",
+		"unsafe",
+		// Other time dependencies:
+		"internal/syscall/windows/registry",
+		"syscall",
+	},
+
+	"os":            {"L1", "os", "syscall", "time", "internal/syscall/windows"},
 	"path/filepath": {"L2", "os", "syscall"},
 	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
-	"os/exec":       {"L2", "os", "path/filepath", "syscall"},
+	"os/exec":       {"L2", "os", "context", "path/filepath", "syscall"},
 	"os/signal":     {"L2", "os", "syscall"},
 
 	// OS enables basic operating system functionality,
@@ -147,12 +173,14 @@ var pkgDeps = map[string][]string{
 	"regexp":         {"L2", "regexp/syntax"},
 	"regexp/syntax":  {"L2"},
 	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os", "time"},
-	"runtime/pprof":  {"L2", "fmt", "text/tabwriter"},
+	"runtime/pprof":  {"L2", "fmt", "os", "text/tabwriter"},
+	"runtime/trace":  {"L0"},
 	"text/tabwriter": {"L2"},
 
-	"testing":        {"L2", "flag", "fmt", "os", "runtime/pprof", "time"},
-	"testing/iotest": {"L2", "log"},
-	"testing/quick":  {"L2", "flag", "fmt", "reflect"},
+	"testing":          {"L2", "flag", "fmt", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
+	"testing/iotest":   {"L2", "log"},
+	"testing/quick":    {"L2", "flag", "fmt", "reflect"},
+	"internal/testenv": {"L2", "OS", "flag", "testing"},
 
 	// L4 is defined as L3+fmt+log+time, because in general once
 	// you're using L3 packages, use of fmt, log, or time is not a big deal.
@@ -180,43 +208,61 @@ var pkgDeps = map[string][]string{
 		"go/token",
 	},
 
+	"go/format":       {"L4", "GOPARSER", "internal/format"},
+	"internal/format": {"L4", "GOPARSER"},
+
+	// Go type checking.
+	"go/constant":               {"L4", "go/token", "math/big"},
+	"go/importer":               {"L4", "go/internal/gcimporter", "go/internal/gccgoimporter", "go/types"},
+	"go/internal/gcimporter":    {"L4", "OS", "go/build", "go/constant", "go/token", "go/types", "text/scanner"},
+	"go/internal/gccgoimporter": {"L4", "OS", "debug/elf", "go/constant", "go/token", "go/types", "text/scanner"},
+	"go/types":                  {"L4", "GOPARSER", "container/heap", "go/constant"},
+
 	// One of a kind.
-	"archive/tar":         {"L4", "OS", "syscall"},
-	"archive/zip":         {"L4", "OS", "compress/flate"},
-	"compress/bzip2":      {"L4"},
-	"compress/flate":      {"L4"},
-	"compress/gzip":       {"L4", "compress/flate"},
-	"compress/lzw":        {"L4"},
-	"compress/zlib":       {"L4", "compress/flate"},
-	"database/sql":        {"L4", "container/list", "database/sql/driver"},
-	"database/sql/driver": {"L4", "time"},
-	"debug/dwarf":         {"L4"},
-	"debug/elf":           {"L4", "OS", "debug/dwarf"},
-	"debug/gosym":         {"L4"},
-	"debug/macho":         {"L4", "OS", "debug/dwarf"},
-	"debug/pe":            {"L4", "OS", "debug/dwarf"},
-	"encoding":            {"L4"},
-	"encoding/ascii85":    {"L4"},
-	"encoding/asn1":       {"L4", "math/big"},
-	"encoding/csv":        {"L4"},
-	"encoding/gob":        {"L4", "OS", "encoding"},
-	"encoding/hex":        {"L4"},
-	"encoding/json":       {"L4", "encoding"},
-	"encoding/pem":        {"L4"},
-	"encoding/xml":        {"L4", "encoding"},
-	"flag":                {"L4", "OS"},
-	"go/build":            {"L4", "OS", "GOPARSER"},
-	"html":                {"L4"},
-	"image/draw":          {"L4"},
-	"image/gif":           {"L4", "compress/lzw", "image/color/palette", "image/draw"},
-	"image/jpeg":          {"L4"},
-	"image/png":           {"L4", "compress/zlib"},
-	"index/suffixarray":   {"L4", "regexp"},
-	"math/big":            {"L4"},
-	"mime":                {"L4", "OS", "syscall"},
-	"net/url":             {"L4"},
-	"text/scanner":        {"L4", "OS"},
-	"text/template/parse": {"L4"},
+	"archive/tar":              {"L4", "OS", "syscall"},
+	"archive/zip":              {"L4", "OS", "compress/flate"},
+	"container/heap":           {"sort"},
+	"compress/bzip2":           {"L4"},
+	"compress/flate":           {"L4"},
+	"compress/gzip":            {"L4", "compress/flate"},
+	"compress/lzw":             {"L4"},
+	"compress/zlib":            {"L4", "compress/flate"},
+	"context":                  {"errors", "fmt", "reflect", "sync", "time"},
+	"database/sql":             {"L4", "container/list", "database/sql/driver"},
+	"database/sql/driver":      {"L4", "time"},
+	"debug/dwarf":              {"L4"},
+	"debug/elf":                {"L4", "OS", "debug/dwarf", "compress/zlib"},
+	"debug/gosym":              {"L4"},
+	"debug/macho":              {"L4", "OS", "debug/dwarf"},
+	"debug/pe":                 {"L4", "OS", "debug/dwarf"},
+	"debug/plan9obj":           {"L4", "OS"},
+	"encoding":                 {"L4"},
+	"encoding/ascii85":         {"L4"},
+	"encoding/asn1":            {"L4", "math/big"},
+	"encoding/csv":             {"L4"},
+	"encoding/gob":             {"L4", "OS", "encoding"},
+	"encoding/hex":             {"L4"},
+	"encoding/json":            {"L4", "encoding"},
+	"encoding/pem":             {"L4"},
+	"encoding/xml":             {"L4", "encoding"},
+	"flag":                     {"L4", "OS"},
+	"go/build":                 {"L4", "OS", "GOPARSER"},
+	"html":                     {"L4"},
+	"image/draw":               {"L4", "image/internal/imageutil"},
+	"image/gif":                {"L4", "compress/lzw", "image/color/palette", "image/draw"},
+	"image/internal/imageutil": {"L4"},
+	"image/jpeg":               {"L4", "image/internal/imageutil"},
+	"image/png":                {"L4", "compress/zlib"},
+	"index/suffixarray":        {"L4", "regexp"},
+	"internal/singleflight":    {"sync"},
+	"internal/trace":           {"L4", "OS"},
+	"math/big":                 {"L4"},
+	"mime":                     {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
+	"mime/quotedprintable":     {"L4"},
+	"net/internal/socktest":    {"L4", "OS", "syscall"},
+	"net/url":                  {"L4"},
+	"text/scanner":             {"L4", "OS"},
+	"text/template/parse":      {"L4"},
 
 	"html/template": {
 		"L4", "OS", "encoding/json", "html", "text/template",
@@ -227,6 +273,8 @@ var pkgDeps = map[string][]string{
 	},
 
 	// Cgo.
+	// If you add a dependency on CGO, you must add the package to
+	// cgoPackages in cmd/dist/test.go.
 	"runtime/cgo": {"L0", "C"},
 	"CGO":         {"C", "runtime/cgo"},
 
@@ -234,13 +282,23 @@ var pkgDeps = map[string][]string{
 	// that shows up in programs that use cgo.
 	"C": {},
 
+	// Race detector/MSan uses cgo.
+	"runtime/race": {"C"},
+	"runtime/msan": {"C"},
+
 	// Plan 9 alone needs io/ioutil and os.
 	"os/user": {"L4", "CGO", "io/ioutil", "os", "syscall"},
 
 	// Basic networking.
 	// Because net must be used by any package that wants to
-	// do networking portably, it must have a small dependency set: just L1+basic os.
-	"net": {"L1", "CGO", "os", "syscall", "time"},
+	// do networking portably, it must have a small dependency set: just L0+basic os.
+	"net": {
+		"L0", "CGO",
+		"context", "math/rand", "os", "sort", "syscall", "time",
+		"internal/nettrace",
+		"internal/syscall/windows", "internal/singleflight", "internal/race",
+		"golang_org/x/net/route",
+	},
 
 	// NET enables use of basic network-related packages.
 	"NET": {
@@ -252,7 +310,7 @@ var pkgDeps = map[string][]string{
 
 	// Uses of networking.
 	"log/syslog":    {"L4", "OS", "net"},
-	"net/mail":      {"L4", "NET", "OS"},
+	"net/mail":      {"L4", "NET", "OS", "mime"},
 	"net/textproto": {"L4", "OS", "net"},
 
 	// Core crypto.
@@ -279,7 +337,7 @@ var pkgDeps = map[string][]string{
 	// Random byte, number generation.
 	// This would be part of core crypto except that it imports
 	// math/big, which imports fmt.
-	"crypto/rand": {"L4", "CRYPTO", "OS", "math/big", "syscall", "internal/syscall"},
+	"crypto/rand": {"L4", "CRYPTO", "OS", "math/big", "syscall", "internal/syscall/unix"},
 
 	// Mathematical crypto: dependencies on fmt (L4) and math/big.
 	// We could avoid some of the fmt, but math/big imports fmt anyway.
@@ -301,7 +359,7 @@ var pkgDeps = map[string][]string{
 
 	// SSL/TLS.
 	"crypto/tls": {
-		"L4", "CRYPTO-MATH", "CGO", "OS",
+		"L4", "CRYPTO-MATH", "OS",
 		"container/list", "crypto/x509", "encoding/pem", "net", "syscall",
 	},
 	"crypto/x509": {
@@ -311,25 +369,33 @@ var pkgDeps = map[string][]string{
 	"crypto/x509/pkix": {"L4", "CRYPTO-MATH"},
 
 	// Simple net+crypto-aware packages.
-	"mime/multipart": {"L4", "OS", "mime", "crypto/rand", "net/textproto"},
+	"mime/multipart": {"L4", "OS", "mime", "crypto/rand", "net/textproto", "mime/quotedprintable"},
 	"net/smtp":       {"L4", "CRYPTO", "NET", "crypto/tls"},
 
 	// HTTP, kingpin of dependencies.
 	"net/http": {
 		"L4", "NET", "OS",
-		"compress/gzip", "crypto/tls", "mime/multipart", "runtime/debug",
+		"context", "compress/gzip", "container/list", "crypto/tls",
+		"mime/multipart", "runtime/debug",
 		"net/http/internal",
+		"golang_org/x/net/http2/hpack",
+		"golang_org/x/net/lex/httplex",
+		"internal/nettrace",
+		"net/http/httptrace",
 	},
+	"net/http/internal":  {"L4"},
+	"net/http/httptrace": {"context", "internal/nettrace", "net", "reflect", "time"},
 
 	// HTTP-using packages.
-	"expvar":            {"L4", "OS", "encoding/json", "net/http"},
-	"net/http/cgi":      {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp"},
-	"net/http/fcgi":     {"L4", "NET", "OS", "net/http", "net/http/cgi"},
-	"net/http/httptest": {"L4", "NET", "OS", "crypto/tls", "flag", "net/http"},
-	"net/http/httputil": {"L4", "NET", "OS", "net/http", "net/http/internal"},
-	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof"},
-	"net/rpc":           {"L4", "NET", "encoding/gob", "html/template", "net/http"},
-	"net/rpc/jsonrpc":   {"L4", "NET", "encoding/json", "net/rpc"},
+	"expvar":             {"L4", "OS", "encoding/json", "net/http"},
+	"net/http/cgi":       {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp"},
+	"net/http/cookiejar": {"L4", "NET", "net/http"},
+	"net/http/fcgi":      {"L4", "NET", "OS", "net/http", "net/http/cgi"},
+	"net/http/httptest":  {"L4", "NET", "OS", "crypto/tls", "flag", "net/http", "net/http/internal"},
+	"net/http/httputil":  {"L4", "NET", "OS", "net/http", "net/http/internal"},
+	"net/http/pprof":     {"L4", "OS", "html/template", "net/http", "runtime/pprof", "runtime/trace"},
+	"net/rpc":            {"L4", "NET", "encoding/gob", "html/template", "net/http"},
+	"net/rpc/jsonrpc":    {"L4", "NET", "encoding/json", "net/rpc"},
 }
 
 // isMacro reports whether p is a package dependency macro
@@ -360,84 +426,109 @@ func allowed(pkg string) map[string]bool {
 	return m
 }
 
-var bools = []bool{false, true}
-var geese = []string{"android", "darwin", "dragonfly", "freebsd", "linux", "nacl", "netbsd", "openbsd", "plan9", "solaris", "windows"}
-var goarches = []string{"386", "amd64", "arm"}
+// listStdPkgs returns the same list of packages as "go list std".
+func listStdPkgs(goroot string) ([]string, error) {
+	// Based on cmd/go's matchPackages function.
+	var pkgs []string
 
-type osPkg struct {
-	goos, pkg string
-}
+	src := filepath.Join(goroot, "src") + string(filepath.Separator)
+	walkFn := func(path string, fi os.FileInfo, err error) error {
+		if err != nil || !fi.IsDir() || path == src {
+			return nil
+		}
 
-// allowedErrors are the operating systems and packages known to contain errors
-// (currently just "no Go source files")
-var allowedErrors = map[osPkg]bool{
-	osPkg{"windows", "log/syslog"}: true,
-	osPkg{"plan9", "log/syslog"}:   true,
+		base := filepath.Base(path)
+		if strings.HasPrefix(base, ".") || strings.HasPrefix(base, "_") || base == "testdata" {
+			return filepath.SkipDir
+		}
+
+		name := filepath.ToSlash(path[len(src):])
+		if name == "builtin" || name == "cmd" || strings.Contains(name, "golang_org") {
+			return filepath.SkipDir
+		}
+
+		pkgs = append(pkgs, name)
+		return nil
+	}
+	if err := filepath.Walk(src, walkFn); err != nil {
+		return nil, err
+	}
+	return pkgs, nil
 }
 
 func TestDependencies(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		// NaCl tests run in a limited file system and we do not
+	iOS := runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
+	if runtime.GOOS == "nacl" || iOS {
+		// Tests run in a limited file system and we do not
 		// provide access to every source file.
-		t.Skip("skipping on NaCl")
+		t.Skipf("skipping on %s/%s, missing full GOROOT", runtime.GOOS, runtime.GOARCH)
 	}
-	var all []string
 
-	for k := range pkgDeps {
-		all = append(all, k)
+	ctxt := Default
+	all, err := listStdPkgs(ctxt.GOROOT)
+	if err != nil {
+		t.Fatal(err)
 	}
 	sort.Strings(all)
 
-	ctxt := Default
-	test := func(mustImport bool) {
-		for _, pkg := range all {
-			if isMacro(pkg) {
-				continue
+	for _, pkg := range all {
+		imports, err := findImports(pkg)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		ok := allowed(pkg)
+		var bad []string
+		for _, imp := range imports {
+			if !ok[imp] {
+				bad = append(bad, imp)
 			}
-			if pkg == "runtime/cgo" && !ctxt.CgoEnabled {
-				continue
-			}
-			p, err := ctxt.Import(pkg, "", 0)
+		}
+		if bad != nil {
+			t.Errorf("unexpected dependency: %s imports %v", pkg, bad)
+		}
+	}
+}
+
+var buildIgnore = []byte("\n// +build ignore")
+
+func findImports(pkg string) ([]string, error) {
+	dir := filepath.Join(Default.GOROOT, "src", pkg)
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var imports []string
+	var haveImport = map[string]bool{}
+	for _, file := range files {
+		name := file.Name()
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, err := os.Open(filepath.Join(dir, name))
+		if err != nil {
+			return nil, err
+		}
+		var imp []string
+		data, err := readImports(f, false, &imp)
+		f.Close()
+		if err != nil {
+			return nil, fmt.Errorf("reading %v: %v", name, err)
+		}
+		if bytes.Contains(data, buildIgnore) {
+			continue
+		}
+		for _, quoted := range imp {
+			path, err := strconv.Unquote(quoted)
 			if err != nil {
-				if allowedErrors[osPkg{ctxt.GOOS, pkg}] {
-					continue
-				}
-				if !ctxt.CgoEnabled && pkg == "runtime/cgo" {
-					continue
-				}
-				// Some of the combinations we try might not
-				// be reasonable (like arm,plan9,cgo), so ignore
-				// errors for the auto-generated combinations.
-				if !mustImport {
-					continue
-				}
-				t.Errorf("%s/%s/cgo=%v %v", ctxt.GOOS, ctxt.GOARCH, ctxt.CgoEnabled, err)
 				continue
 			}
-			ok := allowed(pkg)
-			var bad []string
-			for _, imp := range p.Imports {
-				if !ok[imp] {
-					bad = append(bad, imp)
-				}
-			}
-			if bad != nil {
-				t.Errorf("%s/%s/cgo=%v unexpected dependency: %s imports %v", ctxt.GOOS, ctxt.GOARCH, ctxt.CgoEnabled, pkg, bad)
+			if !haveImport[path] {
+				haveImport[path] = true
+				imports = append(imports, path)
 			}
 		}
 	}
-	test(true)
-
-	if testing.Short() {
-		t.Logf("skipping other systems")
-		return
-	}
-
-	for _, ctxt.GOOS = range geese {
-		for _, ctxt.GOARCH = range goarches {
-			for _, ctxt.CgoEnabled = range bools {
-				test(false)
-			}
-		}
-	}
+	sort.Strings(imports)
+	return imports, nil
 }

@@ -1,42 +1,28 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package main
 
 import (
-	"runtime"
+	"errors"
+	"internal/testenv"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
 	"testing"
 )
 
 // Test that RepoRootForImportPath creates the correct RepoRoot for a given importPath.
 // TODO(cmang): Add tests for SVN and BZR.
 func TestRepoRootForImportPath(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test to avoid external network")
-	}
-	switch runtime.GOOS {
-	case "nacl", "android":
-		t.Skipf("no networking available on %s", runtime.GOOS)
-	}
+	testenv.MustHaveExternalNetwork(t)
+
 	tests := []struct {
 		path string
 		want *repoRoot
 	}{
-		{
-			"code.google.com/p/go",
-			&repoRoot{
-				vcs:  vcsHg,
-				repo: "https://code.google.com/p/go",
-			},
-		},
-		/*{
-		        "code.google.com/r/go",
-		        &repoRoot{
-		                vcs:  vcsHg,
-		                repo: "https://code.google.com/r/go",
-		        },
-		},*/
 		{
 			"github.com/golang/groupcache",
 			&repoRoot{
@@ -101,10 +87,67 @@ func TestRepoRootForImportPath(t *testing.T) {
 			"hub.jazz.net/git/USER/pkgname",
 			nil,
 		},
+		// OpenStack tests
+		{
+			"git.openstack.org/openstack/swift",
+			&repoRoot{
+				vcs:  vcsGit,
+				repo: "https://git.openstack.org/openstack/swift",
+			},
+		},
+		// Trailing .git is less preferred but included for
+		// compatibility purposes while the same source needs to
+		// be compilable on both old and new go
+		{
+			"git.openstack.org/openstack/swift.git",
+			&repoRoot{
+				vcs:  vcsGit,
+				repo: "https://git.openstack.org/openstack/swift",
+			},
+		},
+		{
+			"git.openstack.org/openstack/swift/go/hummingbird",
+			&repoRoot{
+				vcs:  vcsGit,
+				repo: "https://git.openstack.org/openstack/swift",
+			},
+		},
+		{
+			"git.openstack.org",
+			nil,
+		},
+		{
+			"git.openstack.org/openstack",
+			nil,
+		},
+		// Spaces are not valid in package name
+		{
+			"git.apache.org/package name/path/to/lib",
+			nil,
+		},
+		// Should have ".git" suffix
+		{
+			"git.apache.org/package-name/path/to/lib",
+			nil,
+		},
+		{
+			"git.apache.org/package-name.git",
+			&repoRoot{
+				vcs:  vcsGit,
+				repo: "https://git.apache.org/package-name.git",
+			},
+		},
+		{
+			"git.apache.org/package-name_2.x.git/path/to/lib",
+			&repoRoot{
+				vcs:  vcsGit,
+				repo: "https://git.apache.org/package-name_2.x.git",
+			},
+		},
 	}
 
 	for _, test := range tests {
-		got, err := repoRootForImportPath(test.path)
+		got, err := repoRootForImportPath(test.path, secure)
 		want := test.want
 
 		if want == nil {
@@ -119,6 +162,162 @@ func TestRepoRootForImportPath(t *testing.T) {
 		}
 		if got.vcs.name != want.vcs.name || got.repo != want.repo {
 			t.Errorf("RepoRootForImport(%q) = VCS(%s) Repo(%s), want VCS(%s) Repo(%s)", test.path, got.vcs, got.repo, want.vcs, want.repo)
+		}
+	}
+}
+
+// Test that vcsFromDir correctly inspects a given directory and returns the right VCS and root.
+func TestFromDir(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "vcstest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	for _, vcs := range vcsList {
+		dir := filepath.Join(tempDir, "example.com", vcs.name, "."+vcs.cmd)
+		err := os.MkdirAll(dir, 0755)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		want := repoRoot{
+			vcs:  vcs,
+			root: path.Join("example.com", vcs.name),
+		}
+		var got repoRoot
+		got.vcs, got.root, err = vcsFromDir(dir, tempDir)
+		if err != nil {
+			t.Errorf("FromDir(%q, %q): %v", dir, tempDir, err)
+			continue
+		}
+		if got.vcs.name != want.vcs.name || got.root != want.root {
+			t.Errorf("FromDir(%q, %q) = VCS(%s) Root(%s), want VCS(%s) Root(%s)", dir, tempDir, got.vcs, got.root, want.vcs, want.root)
+		}
+	}
+}
+
+func TestIsSecure(t *testing.T) {
+	tests := []struct {
+		vcs    *vcsCmd
+		url    string
+		secure bool
+	}{
+		{vcsGit, "http://example.com/foo.git", false},
+		{vcsGit, "https://example.com/foo.git", true},
+		{vcsBzr, "http://example.com/foo.bzr", false},
+		{vcsBzr, "https://example.com/foo.bzr", true},
+		{vcsSvn, "http://example.com/svn", false},
+		{vcsSvn, "https://example.com/svn", true},
+		{vcsHg, "http://example.com/foo.hg", false},
+		{vcsHg, "https://example.com/foo.hg", true},
+		{vcsGit, "ssh://user@example.com/foo.git", true},
+		{vcsGit, "user@server:path/to/repo.git", false},
+		{vcsGit, "user@server:", false},
+		{vcsGit, "server:repo.git", false},
+		{vcsGit, "server:path/to/repo.git", false},
+		{vcsGit, "example.com:path/to/repo.git", false},
+		{vcsGit, "path/that/contains/a:colon/repo.git", false},
+		{vcsHg, "ssh://user@example.com/path/to/repo.hg", true},
+	}
+
+	for _, test := range tests {
+		secure := test.vcs.isSecure(test.url)
+		if secure != test.secure {
+			t.Errorf("%s isSecure(%q) = %t; want %t", test.vcs, test.url, secure, test.secure)
+		}
+	}
+}
+
+func TestMatchGoImport(t *testing.T) {
+	tests := []struct {
+		imports []metaImport
+		path    string
+		mi      metaImport
+		err     error
+	}{
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/foo",
+			mi:   metaImport{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/foo/",
+			mi:   metaImport{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+				{Prefix: "example.com/user/fooa", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/foo",
+			mi:   metaImport{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+				{Prefix: "example.com/user/fooa", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/fooa",
+			mi:   metaImport{Prefix: "example.com/user/fooa", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+				{Prefix: "example.com/user/foo/bar", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/foo/bar",
+			err:  errors.New("should not be allowed to create nested repo"),
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+				{Prefix: "example.com/user/foo/bar", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/foo/bar/baz",
+			err:  errors.New("should not be allowed to create nested repo"),
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+				{Prefix: "example.com/user/foo/bar", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/foo/bar/baz/qux",
+			err:  errors.New("should not be allowed to create nested repo"),
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+				{Prefix: "example.com/user/foo/bar", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/foo/bar/baz/",
+			err:  errors.New("should not be allowed to create nested repo"),
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+				{Prefix: "example.com/user/foo/bar", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com",
+			err:  errors.New("pathologically short path"),
+		},
+	}
+
+	for _, test := range tests {
+		mi, err := matchGoImport(test.imports, test.path)
+		if mi != test.mi {
+			t.Errorf("unexpected metaImport; got %v, want %v", mi, test.mi)
+		}
+
+		got := err
+		want := test.err
+		if (got == nil) != (want == nil) {
+			t.Errorf("unexpected error; got %v, want %v", got, want)
 		}
 	}
 }

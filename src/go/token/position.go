@@ -21,10 +21,10 @@ type Position struct {
 	Filename string // filename, if any
 	Offset   int    // offset, starting at 0
 	Line     int    // line number, starting at 1
-	Column   int    // column number, starting at 1 (character count)
+	Column   int    // column number, starting at 1 (byte count)
 }
 
-// IsValid returns true if the position is valid.
+// IsValid reports whether the position is valid.
 func (pos *Position) IsValid() bool { return pos.Line > 0 }
 
 // String returns a string in one of several forms:
@@ -56,8 +56,8 @@ func (pos Position) String() string {
 // where base and size are specified when adding the file to the file set via
 // AddFile.
 //
-// To create the Pos value for a specific source offset, first add
-// the respective file to the current file set (via FileSet.AddFile)
+// To create the Pos value for a specific source offset (measured in bytes),
+// first add the respective file to the current file set using FileSet.AddFile
 // and then call File.Pos(offset) for that file. Given a Pos value p
 // for a specific file set fset, the corresponding Position value is
 // obtained by calling fset.Position(p).
@@ -77,7 +77,7 @@ type Pos int
 //
 const NoPos Pos = 0
 
-// IsValid returns true if the position is valid.
+// IsValid reports whether the position is valid.
 func (p Pos) IsValid() bool {
 	return p != NoPos
 }
@@ -157,13 +157,14 @@ func (f *File) MergeLine(line int) {
 	f.lines = f.lines[:len(f.lines)-1]
 }
 
-// SetLines sets the line offsets for a file and returns true if successful.
+// SetLines sets the line offsets for a file and reports whether it succeeded.
 // The line offsets are the offsets of the first character of each line;
 // for instance for the content "ab\nc\n" the line offsets are {0, 3}.
 // An empty file has an empty line offset table.
 // Each line offset must be larger than the offset for the previous line
 // and smaller than the file size; otherwise SetLines fails and returns
 // false.
+// Callers must not mutate the provided slice after SetLines returns.
 //
 func (f *File) SetLines(lines []int) bool {
 	// verify validity of lines table

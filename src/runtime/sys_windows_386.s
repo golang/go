@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 // void runtime·asmstdcall(void *c);
@@ -43,7 +44,7 @@ TEXT	runtime·badsignal2(SB),NOSPLIT,$24
 	// stderr
 	MOVL	$-12, 0(SP)
 	MOVL	SP, BP
-	CALL	*runtime·GetStdHandle(SB)
+	CALL	*runtime·_GetStdHandle(SB)
 	MOVL	BP, SP
 
 	MOVL	AX, 0(SP)	// handle
@@ -55,7 +56,7 @@ TEXT	runtime·badsignal2(SB),NOSPLIT,$24
 	MOVL	$0, 0(DX)
 	MOVL	DX, 12(SP)
 	MOVL	$0, 16(SP) // overlapped
-	CALL	*runtime·WriteFile(SB)
+	CALL	*runtime·_WriteFile(SB)
 	MOVL	BP, SI
 	RET
 
@@ -188,33 +189,36 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	MOVL	SP, DX
 
 	// setup dummy m, g
-	SUBL	$m_end, SP		// space for M
+	SUBL	$m__size, SP		// space for M
 	MOVL	SP, 0(SP)
-	MOVL	$m_end, 4(SP)
+	MOVL	$m__size, 4(SP)
 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
 
 	LEAL	m_tls(SP), CX
 	MOVL	CX, 0x14(FS)
 	MOVL	SP, BX
-	SUBL	$g_end, SP		// space for G
+	SUBL	$g__size, SP		// space for G
 	MOVL	SP, g(CX)
 	MOVL	SP, m_g0(BX)
 
 	MOVL	SP, 0(SP)
-	MOVL	$g_end, 4(SP)
+	MOVL	$g__size, 4(SP)
 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
-	LEAL	g_end(SP), BX
+	LEAL	g__size(SP), BX
 	MOVL	BX, g_m(SP)
-	LEAL	-8192(SP), CX
+
+	LEAL	-32768(SP), CX		// must be less than SizeOfStackReserve set by linker
 	MOVL	CX, (g_stack+stack_lo)(SP)
-	ADDL	$const_StackGuard, CX
+	ADDL	$const__StackGuard, CX
 	MOVL	CX, g_stackguard0(SP)
 	MOVL	CX, g_stackguard1(SP)
 	MOVL	DX, (g_stack+stack_hi)(SP)
 
+	PUSHL	AX			// room for return value
 	PUSHL	16(BP)			// arg for handler
 	CALL	8(BP)
 	POPL	CX
+	POPL	AX			// pass return value to Windows in AX
 
 	get_tls(CX)
 	MOVL	g(CX), CX
@@ -247,15 +251,15 @@ TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
 	SUBL	$runtime·callbackasm(SB), AX
 	MOVL	$0, DX
 	MOVL	$5, BX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
-	DIVL	BX,
+	DIVL	BX
 
 	// find correspondent runtime·cbctxts table entry
 	MOVL	runtime·cbctxts(SB), BX
 	MOVL	-4(BX)(AX*4), BX
 
 	// extract callback context
-	MOVL	cbctxt_gobody(BX), AX
-	MOVL	cbctxt_argsize(BX), DX
+	MOVL	wincallbackcontext_gobody(BX), AX
+	MOVL	wincallbackcontext_argsize(BX), DX
 
 	// preserve whatever's at the memory location that
 	// the callback will use to store the return value
@@ -265,7 +269,7 @@ TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
 	ADDL	$4, DX
 
 	// remember how to restore stack on return
-	MOVL	cbctxt_restorestack(BX), BX
+	MOVL	wincallbackcontext_restorestack(BX), BX
 	PUSHL	BX
 
 	// call target Go function
@@ -313,7 +317,7 @@ TEXT runtime·tstart(SB),NOSPLIT,$0
 	MOVL	AX, (g_stack+stack_hi)(DX)
 	SUBL	$(64*1024), AX		// stack size
 	MOVL	AX, (g_stack+stack_lo)(DX)
-	ADDL	$const_StackGuard, AX
+	ADDL	$const__StackGuard, AX
 	MOVL	AX, g_stackguard0(DX)
 	MOVL	AX, g_stackguard1(DX)
 
@@ -354,10 +358,11 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
 	MOVL	CX, 0x14(FS)
 	RET
 
-// Sleep duration is in 100ns units.
-TEXT runtime·usleep1(SB),NOSPLIT,$0
-	MOVL	usec+0(FP), BX
-	MOVL	$runtime·usleep2(SB), AX // to hide from 8l
+// onosstack calls fn on OS stack.
+// func onosstack(fn unsafe.Pointer, arg uint32)
+TEXT runtime·onosstack(SB),NOSPLIT,$0
+	MOVL	fn+0(FP), AX		// to hide from 8l
+	MOVL	arg+4(FP), BX
 
 	// Execute call on m->g0 stack, in case we are not actually
 	// calling a system call wrapper, like when running under WINE.
@@ -414,7 +419,15 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20
 	MOVL	$0, alertable-16(SP)
 	MOVL	$-1, handle-20(SP)
 	MOVL	SP, BP
-	MOVL	runtime·NtWaitForSingleObject(SB), AX
+	MOVL	runtime·_NtWaitForSingleObject(SB), AX
+	CALL	AX
+	MOVL	BP, SP
+	RET
+
+// Runs on OS stack.
+TEXT runtime·switchtothread(SB),NOSPLIT,$0
+	MOVL	SP, BP
+	MOVL	runtime·_SwitchToThread(SB), AX
 	CALL	AX
 	MOVL	BP, SP
 	RET

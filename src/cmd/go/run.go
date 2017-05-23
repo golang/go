@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -37,7 +37,8 @@ Run compiles and runs the main package comprising the named Go source files.
 A Go source file is defined to be a file ending in a literal ".go" suffix.
 
 By default, 'go run' runs the compiled binary directly: 'a.out arguments...'.
-If the -exec flag is given, 'go run' invokes the binary using xprog: 'xprog a.out arguments...'.
+If the -exec flag is given, 'go run' invokes the binary using xprog:
+	'xprog a.out arguments...'.
 If the -exec flag is not given, GOOS or GOARCH is different from the system
 default, and a program named go_$GOOS_$GOARCH_exec can be found
 on the current search path, 'go run' invokes the binary using that program,
@@ -63,7 +64,8 @@ func printStderr(args ...interface{}) (int, error) {
 }
 
 func runRun(cmd *Command, args []string) {
-	raceInit()
+	instrumentInit()
+	buildModeInit()
 	var b builder
 	b.init()
 	b.print = printStderr
@@ -87,8 +89,18 @@ func runRun(cmd *Command, args []string) {
 		fatalf("%s", p.Error)
 	}
 	p.omitDWARF = true
-	for _, err := range p.DepsErrors {
-		errorf("%s", err)
+	if len(p.DepsErrors) > 0 {
+		// Since these are errors in dependencies,
+		// the same error might show up multiple times,
+		// once in each package that depends on it.
+		// Only print each once.
+		printed := map[*PackageError]bool{}
+		for _, err := range p.DepsErrors {
+			if !printed[err] {
+				printed[err] = true
+				errorf("%s", err)
+			}
+		}
 	}
 	exitIfErrors()
 	if p.Name != "main" {
@@ -116,7 +128,7 @@ func runRun(cmd *Command, args []string) {
 }
 
 // runProgram is the action for running a binary that has already
-// been compiled.  We ignore exit status.
+// been compiled. We ignore exit status.
 func (b *builder) runProgram(a *action) error {
 	cmdline := stringList(findExecCmd(), a.deps[0].target, a.args)
 	if buildN || buildX {
@@ -136,6 +148,7 @@ func runStdin(cmdline []string) {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = origEnv
 	startSigHandlers()
 	if err := cmd.Run(); err != nil {
 		errorf("%v", err)

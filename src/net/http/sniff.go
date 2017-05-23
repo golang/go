@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -14,8 +14,8 @@ const sniffLen = 512
 
 // DetectContentType implements the algorithm described
 // at http://mimesniff.spec.whatwg.org/ to determine the
-// Content-Type of the given data.  It considers at most the
-// first 512 bytes of data.  DetectContentType always returns
+// Content-Type of the given data. It considers at most the
+// first 512 bytes of data. DetectContentType always returns
 // a valid MIME type: if it cannot determine a more specific one, it
 // returns "application/octet-stream".
 func DetectContentType(data []byte) string {
@@ -38,7 +38,11 @@ func DetectContentType(data []byte) string {
 }
 
 func isWS(b byte) bool {
-	return bytes.IndexByte([]byte("\t\n\x0C\r "), b) != -1
+	switch b {
+	case '\t', '\n', '\x0c', '\r', ' ':
+		return true
+	}
+	return false
 }
 
 type sniffSig interface {
@@ -87,21 +91,49 @@ var sniffSignatures = []sniffSig{
 		ct:   "image/webp",
 	},
 	&exactSig{[]byte("\x00\x00\x01\x00"), "image/vnd.microsoft.icon"},
-	&exactSig{[]byte("\x4F\x67\x67\x53\x00"), "application/ogg"},
 	&maskedSig{
 		mask: []byte("\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"),
 		pat:  []byte("RIFF\x00\x00\x00\x00WAVE"),
 		ct:   "audio/wave",
+	},
+	&maskedSig{
+		mask: []byte("\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"),
+		pat:  []byte("FORM\x00\x00\x00\x00AIFF"),
+		ct:   "audio/aiff",
+	},
+	&maskedSig{
+		mask: []byte("\xFF\xFF\xFF\xFF"),
+		pat:  []byte(".snd"),
+		ct:   "audio/basic",
+	},
+	&maskedSig{
+		mask: []byte("OggS\x00"),
+		pat:  []byte("\x4F\x67\x67\x53\x00"),
+		ct:   "application/ogg",
+	},
+	&maskedSig{
+		mask: []byte("\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"),
+		pat:  []byte("MThd\x00\x00\x00\x06"),
+		ct:   "audio/midi",
+	},
+	&maskedSig{
+		mask: []byte("\xFF\xFF\xFF"),
+		pat:  []byte("ID3"),
+		ct:   "audio/mpeg",
+	},
+	&maskedSig{
+		mask: []byte("\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"),
+		pat:  []byte("RIFF\x00\x00\x00\x00AVI "),
+		ct:   "video/avi",
 	},
 	&exactSig{[]byte("\x1A\x45\xDF\xA3"), "video/webm"},
 	&exactSig{[]byte("\x52\x61\x72\x20\x1A\x07\x00"), "application/x-rar-compressed"},
 	&exactSig{[]byte("\x50\x4B\x03\x04"), "application/zip"},
 	&exactSig{[]byte("\x1F\x8B\x08"), "application/x-gzip"},
 
-	// TODO(dsymonds): Re-enable this when the spec is sorted w.r.t. MP4.
-	//mp4Sig(0),
+	mp4Sig{},
 
-	textSig(0), // should be last
+	textSig{}, // should be last
 }
 
 type exactSig struct {
@@ -123,8 +155,14 @@ type maskedSig struct {
 }
 
 func (m *maskedSig) match(data []byte, firstNonWS int) string {
+	// pattern matching algorithm section 6
+	// https://mimesniff.spec.whatwg.org/#pattern-matching-algorithm
+
 	if m.skipWS {
 		data = data[firstNonWS:]
+	}
+	if len(m.pat) != len(m.mask) {
+		return ""
 	}
 	if len(data) < len(m.mask) {
 		return ""
@@ -161,18 +199,22 @@ func (h htmlSig) match(data []byte, firstNonWS int) string {
 	return "text/html; charset=utf-8"
 }
 
-type mp4Sig int
+var mp4ftype = []byte("ftyp")
+var mp4 = []byte("mp4")
+
+type mp4Sig struct{}
 
 func (mp4Sig) match(data []byte, firstNonWS int) string {
-	// c.f. section 6.1.
-	if len(data) < 8 {
+	// https://mimesniff.spec.whatwg.org/#signature-for-mp4
+	// c.f. section 6.2.1
+	if len(data) < 12 {
 		return ""
 	}
 	boxSize := int(binary.BigEndian.Uint32(data[:4]))
 	if boxSize%4 != 0 || len(data) < boxSize {
 		return ""
 	}
-	if !bytes.Equal(data[4:8], []byte("ftyp")) {
+	if !bytes.Equal(data[4:8], mp4ftype) {
 		return ""
 	}
 	for st := 8; st < boxSize; st += 4 {
@@ -180,30 +222,20 @@ func (mp4Sig) match(data []byte, firstNonWS int) string {
 			// minor version number
 			continue
 		}
-		seg := string(data[st : st+3])
-		switch seg {
-		case "mp4", "iso", "M4V", "M4P", "M4B":
+		if bytes.Equal(data[st:st+3], mp4) {
 			return "video/mp4"
-			/* The remainder are not in the spec.
-			case "M4A":
-				return "audio/mp4"
-			case "3gp":
-				return "video/3gpp"
-			case "jp2":
-				return "image/jp2" // JPEG 2000
-			*/
 		}
 	}
 	return ""
 }
 
-type textSig int
+type textSig struct{}
 
 func (textSig) match(data []byte, firstNonWS int) string {
 	// c.f. section 5, step 4.
 	for _, b := range data[firstNonWS:] {
 		switch {
-		case 0x00 <= b && b <= 0x08,
+		case b <= 0x08,
 			b == 0x0B,
 			0x0E <= b && b <= 0x1A,
 			0x1C <= b && b <= 0x1F:

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 // setldt(int entry, int address, int limit)
@@ -51,7 +52,7 @@ TEXT runtime·seek(SB),NOSPLIT,$24
 	MOVL	$-1, ret_hi+20(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	$4, AX
 	INT	$64
 	MOVL	AX, ret+4(FP)
@@ -237,7 +238,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$8-8
 	get_tls(AX)
 	MOVL	g(AX), BX
 	MOVL	g_m(BX), BX
-	MOVL	m_errstr(BX), CX
+	MOVL	(m_mOS+mOS_errstr)(BX), CX
 	MOVL	CX, 0(SP)
 	MOVL	$ERRMAX, 4(SP)
 	CALL	errstr<>(SB)

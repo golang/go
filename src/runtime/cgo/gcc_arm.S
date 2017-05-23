@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -10,6 +10,10 @@
 #else
 #define EXT(s) s
 #endif
+
+// Apple's ld64 wants 4-byte alignment for ARM code sections.
+// .align in both Apple as and GNU as treat n as aligning to 2**n bytes.
+.align	2
 
 /*
  * void crosscall_arm1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
@@ -32,10 +36,6 @@ EXT(crosscall_arm1):
 
 	pop {r4, r5, r6, r7, r8, r9, r10, r11, ip, pc}
 
-.globl EXT(__stack_chk_fail_local)
-EXT(__stack_chk_fail_local):
-1:
-	b 1b
 
 #ifdef __ELF__
 .section .note.GNU-stack,"",%progbits

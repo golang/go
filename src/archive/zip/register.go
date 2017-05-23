@@ -12,15 +12,19 @@ import (
 	"sync"
 )
 
-// A Compressor returns a compressing writer, writing to the
-// provided writer. On Close, any pending data should be flushed.
-type Compressor func(io.Writer) (io.WriteCloser, error)
+// A Compressor returns a new compressing writer, writing to w.
+// The WriteCloser's Close method must be used to flush pending data to w.
+// The Compressor itself must be safe to invoke from multiple goroutines
+// simultaneously, but each returned writer will be used only by
+// one goroutine at a time.
+type Compressor func(w io.Writer) (io.WriteCloser, error)
 
-// Decompressor is a function that wraps a Reader with a decompressing Reader.
-// The decompressed ReadCloser is returned to callers who open files from
-// within the archive.  These callers are responsible for closing this reader
-// when they're finished reading.
-type Decompressor func(io.Reader) io.ReadCloser
+// A Decompressor returns a new decompressing reader, reading from r.
+// The ReadCloser's Close method must be used to release associated resources.
+// The Decompressor itself must be safe to invoke from multiple goroutines
+// simultaneously, but each returned reader will be used only by
+// one goroutine at a time.
+type Decompressor func(r io.Reader) io.ReadCloser
 
 var flateWriterPool sync.Pool
 
@@ -60,6 +64,44 @@ func (w *pooledFlateWriter) Close() error {
 	return err
 }
 
+var flateReaderPool sync.Pool
+
+func newFlateReader(r io.Reader) io.ReadCloser {
+	fr, ok := flateReaderPool.Get().(io.ReadCloser)
+	if ok {
+		fr.(flate.Resetter).Reset(r, nil)
+	} else {
+		fr = flate.NewReader(r)
+	}
+	return &pooledFlateReader{fr: fr}
+}
+
+type pooledFlateReader struct {
+	mu sync.Mutex // guards Close and Read
+	fr io.ReadCloser
+}
+
+func (r *pooledFlateReader) Read(p []byte) (n int, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.fr == nil {
+		return 0, errors.New("Read after Close")
+	}
+	return r.fr.Read(p)
+}
+
+func (r *pooledFlateReader) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var err error
+	if r.fr != nil {
+		err = r.fr.Close()
+		flateReaderPool.Put(r.fr)
+		r.fr = nil
+	}
+	return err
+}
+
 var (
 	mu sync.RWMutex // guards compressor and decompressor maps
 
@@ -70,19 +112,20 @@ var (
 
 	decompressors = map[uint16]Decompressor{
 		Store:   ioutil.NopCloser,
-		Deflate: flate.NewReader,
+		Deflate: newFlateReader,
 	}
 )
 
 // RegisterDecompressor allows custom decompressors for a specified method ID.
-func RegisterDecompressor(method uint16, d Decompressor) {
+// The common methods Store and Deflate are built in.
+func RegisterDecompressor(method uint16, dcomp Decompressor) {
 	mu.Lock()
 	defer mu.Unlock()
 
 	if _, ok := decompressors[method]; ok {
 		panic("decompressor already registered")
 	}
-	decompressors[method] = d
+	decompressors[method] = dcomp
 }
 
 // RegisterCompressor registers custom compressors for a specified method ID.

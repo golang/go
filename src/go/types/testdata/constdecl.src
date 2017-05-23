@@ -1,0 +1,97 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package constdecl
+
+import "math"
+
+var v int
+
+// Const decls must be initialized by constants.
+const _ = v /* ERROR "not constant" */
+const _ = math /* ERROR "not constant" */ .Sin(0)
+const _ = int /* ERROR "not an expression" */
+
+func _() {
+	const _ = v /* ERROR "not constant" */
+	const _ = math /* ERROR "not constant" */ .Sin(0)
+	const _ = int /* ERROR "not an expression" */
+}
+
+// Identifier and expression arity must match.
+// The first error message is produced by the parser.
+// In a real-world scenario, the type-checker would not be run
+// in this case and the 2nd error message would not appear.
+const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
+const _ = 1, 2 /* ERROR "extra init expr 2" */
+
+const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
+const _ int = 1, 2 /* ERROR "extra init expr 2" */
+
+const (
+	_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
+	_ = 1, 2 /* ERROR "extra init expr 2" */
+
+	_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
+	_ int = 1, 2 /* ERROR "extra init expr 2" */
+)
+
+const (
+	_ = 1
+	_
+	_, _ /* ERROR "missing init expr for _" */
+	_
+)
+
+const (
+	_, _ = 1, 2
+	_, _
+	_ /* ERROR "extra init expr at" */
+	_, _
+	_, _, _ /* ERROR "missing init expr for _" */
+	_, _
+)
+
+func _() {
+	const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
+	const _ = 1, 2 /* ERROR "extra init expr 2" */
+
+	const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
+	const _ int = 1, 2 /* ERROR "extra init expr 2" */
+
+	const (
+		_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
+		_ = 1, 2 /* ERROR "extra init expr 2" */
+
+		_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
+		_ int = 1, 2 /* ERROR "extra init expr 2" */
+	)
+
+	const (
+		_ = 1
+		_
+		_, _ /* ERROR "missing init expr for _" */
+		_
+	)
+
+	const (
+		_, _ = 1, 2
+		_, _
+		_ /* ERROR "extra init expr at" */
+		_, _
+		_, _, _ /* ERROR "missing init expr for _" */
+		_, _
+	)
+}
+
+// Test case for constant with invalid initialization.
+// Caused panic because the constant value was not set up (gri - 7/8/2014).
+func _() {
+	const (
+	    x string = missing /* ERROR "undeclared name" */
+	    y = x + ""
+	)
+}
+
+// TODO(gri) move extra tests from testdata/const0.src into here

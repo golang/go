@@ -7,6 +7,13 @@
 // output is an abstract syntax tree (AST) representing the Go source. The
 // parser is invoked through one of the Parse* functions.
 //
+// The parser accepts a larger language than is syntactically permitted by
+// the Go spec, for simplicity, and for improved robustness in the presence
+// of syntax errors. For instance, in method declarations, the receiver is
+// treated like an ordinary parameter list and thus may contain multiple
+// entries where the spec permits exactly one. Consequently, the corresponding
+// field in the AST (ast.FuncDecl.Recv) field is not restricted to one entry.
+//
 package parser
 
 import (
@@ -403,23 +410,31 @@ func (p *parser) expectClosing(tok token.Token, context string) token.Pos {
 func (p *parser) expectSemi() {
 	// semicolon is optional before a closing ')' or '}'
 	if p.tok != token.RPAREN && p.tok != token.RBRACE {
-		if p.tok == token.SEMICOLON {
+		switch p.tok {
+		case token.COMMA:
+			// permit a ',' instead of a ';' but complain
+			p.errorExpected(p.pos, "';'")
+			fallthrough
+		case token.SEMICOLON:
 			p.next()
-		} else {
+		default:
 			p.errorExpected(p.pos, "';'")
 			syncStmt(p)
 		}
 	}
 }
 
-func (p *parser) atComma(context string) bool {
+func (p *parser) atComma(context string, follow token.Token) bool {
 	if p.tok == token.COMMA {
 		return true
 	}
-	if p.tok == token.SEMICOLON && p.lit == "\n" {
-		p.error(p.pos, "missing ',' before newline in "+context)
-		return true // "insert" the comma and continue
-
+	if p.tok != follow {
+		msg := "missing ','"
+		if p.tok == token.SEMICOLON && p.lit == "\n" {
+			msg += " before newline"
+		}
+		p.error(p.pos, msg+" in "+context)
+		return true // "insert" comma and continue
 	}
 	return false
 }
@@ -680,15 +695,18 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
 
 	doc := p.leadComment
 
-	// FieldDecl
-	list, typ := p.parseVarList(false)
-
-	// Tag
-	var tag *ast.BasicLit
-	if p.tok == token.STRING {
-		tag = &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
+	// 1st FieldDecl
+	// A type name used as an anonymous field looks like a field identifier.
+	var list []ast.Expr
+	for {
+		list = append(list, p.parseVarType(false))
+		if p.tok != token.COMMA {
+			break
+		}
 		p.next()
 	}
+
+	typ := p.tryVarType(false)
 
 	// analyze case
 	var idents []*ast.Ident
@@ -698,11 +716,20 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
 	} else {
 		// ["*"] TypeName (AnonymousField)
 		typ = list[0] // we always have at least one element
-		if n := len(list); n > 1 || !isTypeName(deref(typ)) {
-			pos := typ.Pos()
-			p.errorExpected(pos, "anonymous field")
-			typ = &ast.BadExpr{From: pos, To: p.safePos(list[n-1].End())}
+		if n := len(list); n > 1 {
+			p.errorExpected(p.pos, "type")
+			typ = &ast.BadExpr{From: p.pos, To: p.pos}
+		} else if !isTypeName(deref(typ)) {
+			p.errorExpected(typ.Pos(), "anonymous field")
+			typ = &ast.BadExpr{From: typ.Pos(), To: p.safePos(typ.End())}
 		}
+	}
+
+	// Tag
+	var tag *ast.BasicLit
+	if p.tok == token.STRING {
+		tag = &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
+		p.next()
 	}
 
 	p.expectSemi() // call before accessing p.linecomment
@@ -781,42 +808,27 @@ func (p *parser) parseVarType(isParam bool) ast.Expr {
 	return typ
 }
 
-// If any of the results are identifiers, they are not resolved.
-func (p *parser) parseVarList(isParam bool) (list []ast.Expr, typ ast.Expr) {
-	if p.trace {
-		defer un(trace(p, "VarList"))
-	}
-
-	// a list of identifiers looks like a list of type names
-	//
-	// parse/tryVarType accepts any type (including parenthesized
-	// ones) even though the syntax does not permit them here: we
-	// accept them all for more robust parsing and complain later
-	for typ := p.parseVarType(isParam); typ != nil; {
-		list = append(list, typ)
-		if p.tok != token.COMMA {
-			break
-		}
-		p.next()
-		typ = p.tryVarType(isParam) // maybe nil as in: func f(int,) {}
-	}
-
-	// if we had a list of identifiers, it must be followed by a type
-	typ = p.tryVarType(isParam)
-
-	return
-}
-
 func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params []*ast.Field) {
 	if p.trace {
 		defer un(trace(p, "ParameterList"))
 	}
 
-	// ParameterDecl
-	list, typ := p.parseVarList(ellipsisOk)
+	// 1st ParameterDecl
+	// A list of identifiers looks like a list of type names.
+	var list []ast.Expr
+	for {
+		list = append(list, p.parseVarType(ellipsisOk))
+		if p.tok != token.COMMA {
+			break
+		}
+		p.next()
+		if p.tok == token.RPAREN {
+			break
+		}
+	}
 
 	// analyze case
-	if typ != nil {
+	if typ := p.tryVarType(ellipsisOk); typ != nil {
 		// IdentifierList Type
 		idents := p.makeIdentList(list)
 		field := &ast.Field{Names: idents, Type: typ}
@@ -825,7 +837,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 		// parameter or result variable is the function body.
 		p.declare(field, nil, scope, ast.Var, idents...)
 		p.resolve(typ)
-		if !p.atComma("parameter list") {
+		if !p.atComma("parameter list", token.RPAREN) {
 			return
 		}
 		p.next()
@@ -838,7 +850,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 			// parameter or result variable is the function body.
 			p.declare(field, nil, scope, ast.Var, idents...)
 			p.resolve(typ)
-			if !p.atComma("parameter list") {
+			if !p.atComma("parameter list", token.RPAREN) {
 				break
 			}
 			p.next()
@@ -1248,7 +1260,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 			ellipsis = p.pos
 			p.next()
 		}
-		if !p.atComma("argument list") {
+		if !p.atComma("argument list", token.RPAREN) {
 			break
 		}
 		p.next()
@@ -1259,7 +1271,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 	return &ast.CallExpr{Fun: fun, Lparen: lparen, Args: list, Ellipsis: ellipsis, Rparen: rparen}
 }
 
-func (p *parser) parseElement(keyOk bool) ast.Expr {
+func (p *parser) parseValue(keyOk bool) ast.Expr {
 	if p.trace {
 		defer un(trace(p, "Element"))
 	}
@@ -1287,16 +1299,30 @@ func (p *parser) parseElement(keyOk bool) ast.Expr {
 	x := p.checkExpr(p.parseExpr(keyOk))
 	if keyOk {
 		if p.tok == token.COLON {
-			colon := p.pos
-			p.next()
 			// Try to resolve the key but don't collect it
 			// as unresolved identifier if it fails so that
 			// we don't get (possibly false) errors about
 			// undeclared names.
 			p.tryResolve(x, false)
-			return &ast.KeyValueExpr{Key: x, Colon: colon, Value: p.parseElement(false)}
+		} else {
+			// not a key
+			p.resolve(x)
 		}
-		p.resolve(x) // not a key
+	}
+
+	return x
+}
+
+func (p *parser) parseElement() ast.Expr {
+	if p.trace {
+		defer un(trace(p, "Element"))
+	}
+
+	x := p.parseValue(true)
+	if p.tok == token.COLON {
+		colon := p.pos
+		p.next()
+		x = &ast.KeyValueExpr{Key: x, Colon: colon, Value: p.parseValue(false)}
 	}
 
 	return x
@@ -1308,8 +1334,8 @@ func (p *parser) parseElementList() (list []ast.Expr) {
 	}
 
 	for p.tok != token.RBRACE && p.tok != token.EOF {
-		list = append(list, p.parseElement(true))
-		if !p.atComma("composite literal") {
+		list = append(list, p.parseElement())
+		if !p.atComma("composite literal", token.RBRACE) {
 			break
 		}
 		p.next()
@@ -1365,7 +1391,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	return x
 }
 
-// isTypeName returns true iff x is a (qualified) TypeName.
+// isTypeName reports whether x is a (qualified) TypeName.
 func isTypeName(x ast.Expr) bool {
 	switch t := x.(type) {
 	case *ast.BadExpr:
@@ -1379,7 +1405,7 @@ func isTypeName(x ast.Expr) bool {
 	return true
 }
 
-// isLiteralType returns true iff x is a legal composite literal type.
+// isLiteralType reports whether x is a legal composite literal type.
 func isLiteralType(x ast.Expr) bool {
 	switch t := x.(type) {
 	case *ast.BadExpr:
@@ -1455,7 +1481,8 @@ L:
 				pos := p.pos
 				p.errorExpected(pos, "selector or type assertion")
 				p.next() // make progress
-				x = &ast.BadExpr{From: pos, To: p.pos}
+				sel := &ast.Ident{NamePos: pos, Name: "_"}
+				x = &ast.SelectorExpr{X: x, Sel: sel}
 			}
 		case token.LBRACK:
 			if lhs {
@@ -1570,23 +1597,19 @@ func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
 	}
 
 	x := p.parseUnaryExpr(lhs)
-	for _, prec := p.tokPrec(); prec >= prec1; prec-- {
-		for {
-			op, oprec := p.tokPrec()
-			if oprec != prec {
-				break
-			}
-			pos := p.expect(op)
-			if lhs {
-				p.resolve(x)
-				lhs = false
-			}
-			y := p.parseBinaryExpr(false, prec+1)
-			x = &ast.BinaryExpr{X: p.checkExpr(x), OpPos: pos, Op: op, Y: p.checkExpr(y)}
+	for {
+		op, oprec := p.tokPrec()
+		if oprec < prec1 {
+			return x
 		}
+		pos := p.expect(op)
+		if lhs {
+			p.resolve(x)
+			lhs = false
+		}
+		y := p.parseBinaryExpr(false, oprec+1)
+		x = &ast.BinaryExpr{X: p.checkExpr(x), OpPos: pos, Op: op, Y: p.checkExpr(y)}
 	}
-
-	return x
 }
 
 // If lhs is set and the result is an identifier, it is not resolved.
@@ -1830,7 +1853,16 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 	var else_ ast.Stmt
 	if p.tok == token.ELSE {
 		p.next()
-		else_ = p.parseStmt()
+		switch p.tok {
+		case token.IF:
+			else_ = p.parseIfStmt()
+		case token.LBRACE:
+			else_ = p.parseBlockStmt()
+			p.expectSemi()
+		default:
+			p.errorExpected(p.pos, "if statement or block")
+			else_ = &ast.BadStmt{From: p.pos, To: p.pos}
+		}
 	} else {
 		p.expectSemi()
 	}
@@ -1883,14 +1915,23 @@ func isTypeSwitchAssert(x ast.Expr) bool {
 	return ok && a.Type == nil
 }
 
-func isTypeSwitchGuard(s ast.Stmt) bool {
+func (p *parser) isTypeSwitchGuard(s ast.Stmt) bool {
 	switch t := s.(type) {
 	case *ast.ExprStmt:
-		// x.(nil)
+		// x.(type)
 		return isTypeSwitchAssert(t.X)
 	case *ast.AssignStmt:
-		// v := x.(nil)
-		return len(t.Lhs) == 1 && t.Tok == token.DEFINE && len(t.Rhs) == 1 && isTypeSwitchAssert(t.Rhs[0])
+		// v := x.(type)
+		if len(t.Lhs) == 1 && len(t.Rhs) == 1 && isTypeSwitchAssert(t.Rhs[0]) {
+			switch t.Tok {
+			case token.ASSIGN:
+				// permit v = x.(type) but complain
+				p.error(t.TokPos, "expected ':=', found '='")
+				fallthrough
+			case token.DEFINE:
+				return true
+			}
+		}
 	}
 	return false
 }
@@ -1936,7 +1977,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 		p.exprLev = prevLev
 	}
 
-	typeSwitch := isTypeSwitchGuard(s2)
+	typeSwitch := p.isTypeSwitchGuard(s2)
 	lbrace := p.expect(token.LBRACE)
 	var list []ast.Stmt
 	for p.tok == token.CASE || p.tok == token.DEFAULT {
@@ -2123,7 +2164,7 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 	case
 		// tokens that may start an expression
 		token.IDENT, token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING, token.FUNC, token.LPAREN, // operands
-		token.LBRACK, token.STRUCT, // composite types
+		token.LBRACK, token.STRUCT, token.MAP, token.CHAN, token.INTERFACE, // composite types
 		token.ADD, token.SUB, token.MUL, token.AND, token.XOR, token.ARROW, token.NOT: // unary operators
 		s, _ = p.parseSimpleStmt(labelOk)
 		// because of the required look-ahead, labeled statements are
@@ -2152,11 +2193,14 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 	case token.FOR:
 		s = p.parseForStmt()
 	case token.SEMICOLON:
-		s = &ast.EmptyStmt{Semicolon: p.pos}
+		// Is it ever possible to have an implicit semicolon
+		// producing an empty statement in a valid program?
+		// (handle correctly anyway)
+		s = &ast.EmptyStmt{Semicolon: p.pos, Implicit: p.lit == "\n"}
 		p.next()
 	case token.RBRACE:
 		// a semicolon may be omitted before a closing "}"
-		s = &ast.EmptyStmt{Semicolon: p.pos}
+		s = &ast.EmptyStmt{Semicolon: p.pos, Implicit: true}
 	default:
 		// no statement found
 		pos := p.pos
@@ -2228,6 +2272,7 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, iota
 		defer un(trace(p, keyword.String()+"Spec"))
 	}
 
+	pos := p.pos
 	idents := p.parseIdentList()
 	typ := p.tryType()
 	var values []ast.Expr
@@ -2237,6 +2282,17 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, iota
 		values = p.parseRhsList()
 	}
 	p.expectSemi() // call before accessing p.linecomment
+
+	switch keyword {
+	case token.VAR:
+		if typ == nil && values == nil {
+			p.error(pos, "missing variable type or initialization")
+		}
+	case token.CONST:
+		if values == nil && (iota == 0 || typ != nil) {
+			p.error(pos, "missing constant value")
+		}
+	}
 
 	// Go spec: The scope of a constant or variable identifier declared inside
 	// a function begins at the end of the ConstSpec or VarSpec and ends at

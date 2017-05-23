@@ -8,6 +8,15 @@ package syscall
 
 import "unsafe"
 
+func (any *anyMessage) parseRouteMessage(b []byte) *RouteMessage {
+	p := (*RouteMessage)(unsafe.Pointer(any))
+	off := int(unsafe.Offsetof(p.Header.Rmx)) + SizeofRtMetrics
+	if freebsdConfArch == "amd64" {
+		off += SizeofRtMetrics // rt_metrics on amd64 is simply doubled
+	}
+	return &RouteMessage{Header: p.Header, Data: b[rsaAlignOf(off):any.Msglen]}
+}
+
 func (any *anyMessage) parseInterfaceMessage(b []byte) *InterfaceMessage {
 	p := (*InterfaceMessage)(unsafe.Pointer(any))
 	// FreeBSD 10 and beyond have a restructured mbuf
@@ -18,7 +27,7 @@ func (any *anyMessage) parseInterfaceMessage(b []byte) *InterfaceMessage {
 		p.Header.Data.Hwassist = uint32(m.Data.Hwassist)
 		p.Header.Data.Epoch = m.Data.Epoch
 		p.Header.Data.Lastchange = m.Data.Lastchange
-		return &InterfaceMessage{Header: p.Header, Data: b[sizeofIfMsghdr:any.Msglen]}
+		return &InterfaceMessage{Header: p.Header, Data: b[int(unsafe.Offsetof(p.Header.Data))+int(p.Header.Data.Datalen) : any.Msglen]}
 	}
-	return &InterfaceMessage{Header: p.Header, Data: b[SizeofIfMsghdr:any.Msglen]}
+	return &InterfaceMessage{Header: p.Header, Data: b[int(unsafe.Offsetof(p.Header.Data))+int(p.Header.Data.Datalen) : any.Msglen]}
 }

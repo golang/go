@@ -1,7 +1,7 @@
 // Inferno's libkern/vlrt-arm.c
 // http://code.google.com/p/inferno-os/source/browse/libkern/vlrt-arm.c
 //
-//         Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+//         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
 //         Portions Copyright 2009 The Go Authors. All rights reserved.
 //
@@ -195,7 +195,6 @@ func dodiv(n, d uint64) (q, r uint64) {
 	if GOARCH == "arm" {
 		// arm doesn't have a division instruction, so
 		// slowdodiv is the best that we can do.
-		// TODO: revisit for arm64.
 		return slowdodiv(n, d)
 	}
 

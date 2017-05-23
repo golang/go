@@ -6,29 +6,16 @@ package runtime
 
 import "unsafe"
 
-// Declarations for runtime services implemented in C or assembly.
-
-const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
-const regSize = 4 << (^uintreg(0) >> 63) // unsafe.Sizeof(uintreg(0)) but an ideal const
-
 // Should be a built-in for unsafe.Pointer?
 //go:nosplit
 func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + x)
 }
 
-// n must be a power of 2
-func roundup(p unsafe.Pointer, n uintptr) unsafe.Pointer {
-	delta := -uintptr(p) & (n - 1)
-	return unsafe.Pointer(uintptr(p) + delta)
-}
-
-// in runtime.c
+// getg returns the pointer to the current g.
+// The compiler rewrites calls to this function into instructions
+// that fetch the g directly (from TLS or from the dedicated register).
 func getg() *g
-func acquirem() *m
-func releasem(mp *m)
-func gomcache() *mcache
-func readgstatus(*g) uint32 // proc.c
 
 // mcall switches from the g to the g0 stack and invokes fn(g),
 // where g is the goroutine that made the call.
@@ -40,103 +27,55 @@ func readgstatus(*g) uint32 // proc.c
 // run other goroutines.
 //
 // mcall can only be called from g stacks (not g0, not gsignal).
-//go:noescape
+//
+// This must NOT be go:noescape: if fn is a stack-allocated closure,
+// fn puts g on a run queue, and g executes before fn returns, the
+// closure will be invalidated while it is still executing.
 func mcall(fn func(*g))
 
-// onM switches from the g to the g0 stack and invokes fn().
-// When fn returns, onM switches back to the g and returns,
-// continuing execution on the g stack.
-// If arguments must be passed to fn, they can be written to
-// g->m->ptrarg (pointers) and g->m->scalararg (non-pointers)
-// before the call and then consulted during fn.
-// Similarly, fn can pass return values back in those locations.
-// If fn is written in Go, it can be a closure, which avoids the need for
-// ptrarg and scalararg entirely.
-// After reading values out of ptrarg and scalararg it is conventional
-// to zero them to avoid (memory or information) leaks.
+// systemstack runs fn on a system stack.
+// If systemstack is called from the per-OS-thread (g0) stack, or
+// if systemstack is called from the signal handling (gsignal) stack,
+// systemstack calls fn directly and returns.
+// Otherwise, systemstack is being called from the limited stack
+// of an ordinary goroutine. In this case, systemstack switches
+// to the per-OS-thread stack, calls fn, and switches back.
+// It is common to use a func literal as the argument, in order
+// to share inputs and outputs with the code around the call
+// to system stack:
 //
-// If onM is called from a g0 stack, it invokes fn and returns,
-// without any stack switches.
-//
-// If onM is called from a gsignal stack, it crashes the program.
-// The implication is that functions used in signal handlers must
-// not use onM.
-//
-// NOTE(rsc): We could introduce a separate onMsignal that is
-// like onM but if called from a gsignal stack would just run fn on
-// that stack. The caller of onMsignal would be required to save the
-// old values of ptrarg/scalararg and restore them when the call
-// was finished, in case the signal interrupted an onM sequence
-// in progress on the g or g0 stacks. Until there is a clear need for this,
-// we just reject onM in signal handling contexts entirely.
+//	... set up y ...
+//	systemstack(func() {
+//		x = bigcall(y)
+//	})
+//	... use x ...
 //
 //go:noescape
-func onM(fn func())
+func systemstack(fn func())
 
-// onMsignal is like onM but is allowed to be used in code that
-// might run on the gsignal stack. Code running on a signal stack
-// may be interrupting an onM sequence on the main stack, so
-// if the onMsignal calling sequence writes to ptrarg/scalararg,
-// it must first save the old values and then restore them when
-// finished. As an exception to the rule, it is fine not to save and
-// restore the values if the program is trying to crash rather than
-// return from the signal handler.
-// Once all the runtime is written in Go, there will be no ptrarg/scalararg
-// and the distinction between onM and onMsignal (and perhaps mcall)
-// can go away.
-//
-// If onMsignal is called from a gsignal stack, it invokes fn directly,
-// without a stack switch. Otherwise onMsignal behaves like onM.
-//
-//go:noescape
-func onM_signalok(fn func())
-
-func badonm() {
-	gothrow("onM called from signal goroutine")
+func badsystemstack() {
+	throw("systemstack called from unexpected goroutine")
 }
-
-// C functions that run on the M stack.
-// Call using mcall.
-func gosched_m(*g)
-func park_m(*g)
-func recovery_m(*g)
-
-// More C functions that run on the M stack.
-// Call using onM.
-func mcacheRefill_m()
-func largeAlloc_m()
-func gc_m()
-func scavenge_m()
-func setFinalizer_m()
-func removeFinalizer_m()
-func markallocated_m()
-func unrollgcprog_m()
-func unrollgcproginplace_m()
-func setgcpercent_m()
-func setmaxthreads_m()
-func ready_m()
-func deferproc_m()
-func goexit_m()
-func startpanic_m()
-func dopanic_m()
-func readmemstats_m()
-func writeheapdump_m()
 
 // memclr clears n bytes starting at ptr.
 // in memclr_*.s
 //go:noescape
 func memclr(ptr unsafe.Pointer, n uintptr)
 
+//go:linkname reflect_memclr reflect.memclr
+func reflect_memclr(ptr unsafe.Pointer, n uintptr) {
+	memclr(ptr, n)
+}
+
 // memmove copies n bytes from "from" to "to".
 // in memmove_*.s
 //go:noescape
-func memmove(to unsafe.Pointer, from unsafe.Pointer, n uintptr)
+func memmove(to, from unsafe.Pointer, n uintptr)
 
-func starttheworld()
-func stoptheworld()
-func newextram()
-func lockOSThread()
-func unlockOSThread()
+//go:linkname reflect_memmove reflect.memmove
+func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
+	memmove(to, from, n)
+}
 
 // exported value for testing
 var hashLoad = loadFactor
@@ -146,7 +85,7 @@ func fastrand1() uint32
 
 // in asm_*.s
 //go:noescape
-func memeq(a, b unsafe.Pointer, size uintptr) bool
+func memequal(a, b unsafe.Pointer, size uintptr) bool
 
 // noescape hides a pointer from escape analysis.  noescape is
 // the identity function but escape analysis doesn't think the
@@ -159,16 +98,9 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 	return unsafe.Pointer(x ^ 0)
 }
 
-func entersyscall()
-func reentersyscall(pc uintptr, sp unsafe.Pointer)
-func entersyscallblock()
-func exitsyscall()
-
-func cgocallback(fn, frame unsafe.Pointer, framesize uintptr)
+func cgocallback(fn, frame unsafe.Pointer, framesize, ctxt uintptr)
 func gogo(buf *gobuf)
 func gosave(buf *gobuf)
-func read(fd int32, p unsafe.Pointer, n int32) int32
-func close(fd int32) int32
 func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 
 //go:noescape
@@ -176,50 +108,90 @@ func jmpdefer(fv *funcval, argp uintptr)
 func exit1(code int32)
 func asminit()
 func setg(gg *g)
-func exit(code int32)
 func breakpoint()
-func nanotime() int64
-func usleep(usec uint32)
 
-// careful: cputicks is not guaranteed to be monotonic!  In particular, we have
-// noticed drift between cpus on certain os/arch combinations.  See issue 8976.
-func cputicks() int64
+// reflectcall calls fn with a copy of the n argument bytes pointed at by arg.
+// After fn returns, reflectcall copies n-retoffset result bytes
+// back into arg+retoffset before returning. If copying result bytes back,
+// the caller should pass the argument frame type as argtype, so that
+// call can execute appropriate write barriers during the copy.
+// Package reflect passes a frame type. In package runtime, there is only
+// one call that copies results back, in cgocallbackg1, and it does NOT pass a
+// frame type, meaning there are no write barriers invoked. See that call
+// site for justification.
+func reflectcall(argtype *_type, fn, arg unsafe.Pointer, argsize uint32, retoffset uint32)
 
-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
-func munmap(addr unsafe.Pointer, n uintptr)
-func madvise(addr unsafe.Pointer, n uintptr, flags int32)
-func reflectcall(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
-func osyield()
 func procyield(cycles uint32)
-func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
-func readgogc() int32
-func purgecachedstats(c *mcache)
-func gostringnocopy(b *byte) string
-func goexit()
 
-//go:noescape
-func write(fd uintptr, p unsafe.Pointer, n int32) int32
+type neverCallThisFunction struct{}
 
-//go:noescape
-func cas(ptr *uint32, old, new uint32) bool
+// goexit is the return stub at the top of every goroutine call stack.
+// Each goroutine stack is constructed as if goexit called the
+// goroutine's entry point function, so that when the entry point
+// function returns, it will return to goexit, which will call goexit1
+// to perform the actual exit.
+//
+// This function must never be called directly. Call goexit1 instead.
+// gentraceback assumes that goexit terminates the stack. A direct
+// call on the stack will cause gentraceback to stop walking the stack
+// prematurely and if there are leftover stack barriers it may panic.
+func goexit(neverCallThisFunction)
 
-//go:noescape
-func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+// Not all cgocallback_gofunc frames are actually cgocallback_gofunc,
+// so not all have these arguments. Mark them uintptr so that the GC
+// does not misinterpret memory when the arguments are not present.
+// cgocallback_gofunc is not called from go, only from cgocallback,
+// so the arguments will be found via cgocallback's pointer-declared arguments.
+// See the assembly implementations for more details.
+func cgocallback_gofunc(fv uintptr, frame uintptr, framesize, ctxt uintptr)
 
-//go:noescape
-func casuintptr(ptr *uintptr, old, new uintptr) bool
-
-//go:noescape
-func atomicstoreuintptr(ptr *uintptr, new uintptr)
-
-//go:noescape
-func atomicloaduintptr(ptr *uintptr) uintptr
-
-//go:noescape
-func atomicloaduint(ptr *uint) uint
+// publicationBarrier performs a store/store barrier (a "publication"
+// or "export" barrier). Some form of synchronization is required
+// between initializing an object and making that object accessible to
+// another processor. Without synchronization, the initialization
+// writes and the "publication" write may be reordered, allowing the
+// other processor to follow the pointer and observe an uninitialized
+// object. In general, higher-level synchronization should be used,
+// such as locking or an atomic pointer write. publicationBarrier is
+// for when those aren't an option, such as in the implementation of
+// the memory manager.
+//
+// There's no corresponding barrier for the read side because the read
+// side naturally has a data dependency order. All architectures that
+// Go supports or seems likely to ever support automatically enforce
+// data dependency ordering.
+func publicationBarrier()
 
 //go:noescape
 func setcallerpc(argp unsafe.Pointer, pc uintptr)
+
+// getcallerpc returns the program counter (PC) of its caller's caller.
+// getcallersp returns the stack pointer (SP) of its caller's caller.
+// For both, the argp must be a pointer to the caller's first function argument.
+// The implementation may or may not use argp, depending on
+// the architecture.
+//
+// For example:
+//
+//	func f(arg1, arg2, arg3 int) {
+//		pc := getcallerpc(unsafe.Pointer(&arg1))
+//		sp := getcallersp(unsafe.Pointer(&arg1))
+//	}
+//
+// These two lines find the PC and SP immediately following
+// the call to f (where f will return).
+//
+// The call to getcallerpc and getcallersp must be done in the
+// frame being asked about. It would not be correct for f to pass &arg1
+// to another function g and let g call getcallerpc/getcallersp.
+// The call inside g might return information about g's caller or
+// information about f's caller or complete garbage.
+//
+// The result of getcallersp is correct at the time of the return,
+// but it may be invalidated by any subsequent call to a function
+// that might relocate the stack in order to grow or shrink it.
+// A general rule is that the result of getcallersp should be used
+// immediately and can only be passed to nosplit functions.
 
 //go:noescape
 func getcallerpc(argp unsafe.Pointer) uintptr
@@ -228,24 +200,20 @@ func getcallerpc(argp unsafe.Pointer) uintptr
 func getcallersp(argp unsafe.Pointer) uintptr
 
 //go:noescape
-func asmcgocall(fn, arg unsafe.Pointer)
+func asmcgocall(fn, arg unsafe.Pointer) int32
 
-//go:noescape
-func asmcgocall_errno(fn, arg unsafe.Pointer) int32
-
-//go:noescape
-func open(name *byte, mode, perm int32) int32
-
-//go:noescape
-func gotraceback(*bool) int32
-
+// argp used in Defer structs when there is no argp.
 const _NoArgs = ^uintptr(0)
 
-func newstack()
-func newproc()
 func morestack()
-func mstart()
 func rt0_go()
+
+// stackBarrier records that the stack has been unwound past a certain
+// point. It is installed over a return PC on the stack. It must
+// retrieve the original return PC from g.stkbuf, increment
+// g.stkbufPos to record that the barrier was hit, and jump to the
+// original return PC.
+func stackBarrier()
 
 // return0 is a stub used to return 0 from deferproc.
 // It is called at the very end of deferproc to signal
@@ -254,12 +222,11 @@ func rt0_go()
 // in asm_*.s
 func return0()
 
-// thunk to call time.now.
-func timenow() (sec int64, nsec int32)
+//go:linkname time_now time.now
+func time_now() (sec int64, nsec int32)
 
 // in asm_*.s
 // not called directly; definitions here supply type information for traceback.
-func call16(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call32(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call64(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call128(fn, arg unsafe.Pointer, n, retoffset uint32)
@@ -286,3 +253,23 @@ func call134217728(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call268435456(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call536870912(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call1073741824(fn, arg unsafe.Pointer, n, retoffset uint32)
+
+func systemstack_switch()
+
+func prefetcht0(addr uintptr)
+func prefetcht1(addr uintptr)
+func prefetcht2(addr uintptr)
+func prefetchnta(addr uintptr)
+
+func unixnanotime() int64 {
+	sec, nsec := time_now()
+	return sec*1e9 + int64(nsec)
+}
+
+// round n up to a multiple of a.  a must be a power of 2.
+func round(n, a uintptr) uintptr {
+	return (n + a - 1) &^ (a - 1)
+}
+
+// checkASM returns whether assembly runtime checks have passed.
+func checkASM() bool

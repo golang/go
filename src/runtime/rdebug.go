@@ -1,37 +1,22 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package runtime
 
+import _ "unsafe" // for go:linkname
+
+//go:linkname setMaxStack runtime/debug.setMaxStack
 func setMaxStack(in int) (out int) {
 	out = int(maxstacksize)
 	maxstacksize = uintptr(in)
 	return out
 }
 
-func setGCPercent(in int32) (out int32) {
-	mp := acquirem()
-	mp.scalararg[0] = uintptr(int(in))
-	onM(setgcpercent_m)
-	out = int32(int(mp.scalararg[0]))
-	releasem(mp)
-	return out
-}
-
+//go:linkname setPanicOnFault runtime/debug.setPanicOnFault
 func setPanicOnFault(new bool) (old bool) {
-	mp := acquirem()
-	old = mp.curg.paniconfault
-	mp.curg.paniconfault = new
-	releasem(mp)
+	_g_ := getg()
+	old = _g_.paniconfault
+	_g_.paniconfault = new
 	return old
-}
-
-func setMaxThreads(in int) (out int) {
-	mp := acquirem()
-	mp.scalararg[0] = uintptr(in)
-	onM(setmaxthreads_m)
-	out = int(mp.scalararg[0])
-	releasem(mp)
-	return out
 }

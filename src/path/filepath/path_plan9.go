@@ -6,7 +6,7 @@ package filepath
 
 import "strings"
 
-// IsAbs returns true if the path is absolute.
+// IsAbs reports whether the path is absolute.
 func IsAbs(path string) bool {
 	return strings.HasPrefix(path, "/") || strings.HasPrefix(path, "#")
 }
@@ -31,4 +31,18 @@ func splitList(path string) []string {
 
 func abs(path string) (string, error) {
 	return unixAbs(path)
+}
+
+func join(elem []string) string {
+	// If there's a bug here, fix the logic in ./path_unix.go too.
+	for i, e := range elem {
+		if e != "" {
+			return Clean(strings.Join(elem[i:], string(Separator)))
+		}
+	}
+	return ""
+}
+
+func sameWord(a, b string) bool {
+	return a == b
 }

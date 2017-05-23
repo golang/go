@@ -1,19 +1,10 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package runtime
 
 import "unsafe"
-
-func getenv(s *byte) *byte {
-	val := gogetenv(gostringnocopy(s))
-	if val == "" {
-		return nil
-	}
-	// Strings found in environment are NUL-terminated.
-	return &bytes(val)[0]
-}
 
 var tracebackbuf [128]byte
 
@@ -32,14 +23,14 @@ func gogetenv(key string) string {
 	}
 	n := seek(fd, 0, 2)
 	if n <= 0 {
-		close(fd)
+		closefd(fd)
 		return ""
 	}
 
 	p := make([]byte, n)
 
 	r := pread(fd, unsafe.Pointer(&p[0]), int32(n), 0)
-	close(fd)
+	closefd(fd)
 	if r < 0 {
 		return ""
 	}
@@ -49,8 +40,11 @@ func gogetenv(key string) string {
 	}
 
 	var s string
-	sp := (*_string)(unsafe.Pointer(&s))
-	sp.str = &p[0]
+	sp := stringStructOf(&s)
+	sp.str = unsafe.Pointer(&p[0])
 	sp.len = int(r)
 	return s
 }
+
+var _cgo_setenv unsafe.Pointer   // pointer to C function
+var _cgo_unsetenv unsafe.Pointer // pointer to C function

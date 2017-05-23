@@ -109,6 +109,85 @@ func TestStress(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 }
 
+func testCancel(t *testing.T, ignore bool) {
+	// Send SIGWINCH. By default this signal should be ignored.
+	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
+	time.Sleep(100 * time.Millisecond)
+
+	// Ask to be notified on c1 when a SIGWINCH is received.
+	c1 := make(chan os.Signal, 1)
+	Notify(c1, syscall.SIGWINCH)
+	defer Stop(c1)
+
+	// Ask to be notified on c2 when a SIGHUP is received.
+	c2 := make(chan os.Signal, 1)
+	Notify(c2, syscall.SIGHUP)
+	defer Stop(c2)
+
+	// Send this process a SIGWINCH and wait for notification on c1.
+	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
+	waitSig(t, c1, syscall.SIGWINCH)
+
+	// Send this process a SIGHUP and wait for notification on c2.
+	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
+	waitSig(t, c2, syscall.SIGHUP)
+
+	// Ignore, or reset the signal handlers for, SIGWINCH and SIGHUP.
+	if ignore {
+		Ignore(syscall.SIGWINCH, syscall.SIGHUP)
+	} else {
+		Reset(syscall.SIGWINCH, syscall.SIGHUP)
+	}
+
+	// At this point we do not expect any further signals on c1.
+	// However, it is just barely possible that the initial SIGWINCH
+	// at the start of this function was delivered after we called
+	// Notify on c1. In that case the waitSig for SIGWINCH may have
+	// picked up that initial SIGWINCH, and the second SIGWINCH may
+	// then have been delivered on the channel. This sequence of events
+	// may have caused issue 15661.
+	// So, read any possible signal from the channel now.
+	select {
+	case <-c1:
+	default:
+	}
+
+	// Send this process a SIGWINCH. It should be ignored.
+	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
+
+	// If ignoring, Send this process a SIGHUP. It should be ignored.
+	if ignore {
+		syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
+	}
+
+	select {
+	case s := <-c1:
+		t.Fatalf("unexpected signal %v", s)
+	case <-time.After(100 * time.Millisecond):
+		// nothing to read - good
+	}
+
+	select {
+	case s := <-c2:
+		t.Fatalf("unexpected signal %v", s)
+	case <-time.After(100 * time.Millisecond):
+		// nothing to read - good
+	}
+
+	// Reset the signal handlers for all signals.
+	Reset()
+}
+
+// Test that Reset cancels registration for listed signals on all channels.
+func TestReset(t *testing.T) {
+	testCancel(t, false)
+}
+
+// Test that Ignore cancels registration for listed signals on all channels.
+func TestIgnore(t *testing.T) {
+	testCancel(t, true)
+}
+
 var sendUncaughtSighup = flag.Int("send_uncaught_sighup", 0, "send uncaught SIGHUP during TestStop")
 
 // Test that Stop cancels the channel's registrations.
@@ -116,13 +195,14 @@ func TestStop(t *testing.T) {
 	sigs := []syscall.Signal{
 		syscall.SIGWINCH,
 		syscall.SIGHUP,
+		syscall.SIGUSR1,
 	}
 
 	for _, sig := range sigs {
 		// Send the signal.
 		// If it's SIGWINCH, we should not see it.
 		// If it's SIGHUP, maybe we'll die. Let the flag tell us what to do.
-		if sig != syscall.SIGHUP || *sendUncaughtSighup == 1 {
+		if sig == syscall.SIGWINCH || (sig == syscall.SIGHUP && *sendUncaughtSighup == 1) {
 			syscall.Kill(syscall.Getpid(), sig)
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -189,6 +269,12 @@ func TestNohup(t *testing.T) {
 
 	Stop(c)
 
+	// Skip the nohup test below when running in tmux on darwin, since nohup
+	// doesn't work correctly there. See issue #5135.
+	if runtime.GOOS == "darwin" && os.Getenv("TMUX") != "" {
+		t.Skip("Skipping nohup test due to running in tmux on darwin")
+	}
+
 	// Again, this time with nohup, assuming we can find it.
 	_, err := os.Stat("/usr/bin/nohup")
 	if err != nil {
@@ -205,4 +291,13 @@ func TestNohup(t *testing.T) {
 			t.Fatalf("ran test with -send_uncaught_sighup=%d under nohup and it failed: expected success.\nError: %v\nOutput:\n%s%s", i, err, out, data)
 		}
 	}
+}
+
+// Test that SIGCONT works (issue 8953).
+func TestSIGCONT(t *testing.T) {
+	c := make(chan os.Signal, 1)
+	Notify(c, syscall.SIGCONT)
+	defer Stop(c)
+	syscall.Kill(syscall.Getpid(), syscall.SIGCONT)
+	waitSig(t, c, syscall.SIGCONT)
 }

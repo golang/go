@@ -1,11 +1,72 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // Package pprof writes runtime profiling data in the format expected
 // by the pprof visualization tool.
+//
+// Profiling a Go program
+//
+// The first step to profiling a Go program is to enable profiling.
+// Support for profiling benchmarks built with the standard testing
+// package is built into go test. For example, the following command
+// runs benchmarks in the current directory and writes the CPU and
+// memory profiles to cpu.prof and mem.prof:
+//
+//     go test -cpuprofile cpu.prof -memprofile mem.prof -bench .
+//
+// To add equivalent profiling support to a standalone program, add
+// code like the following to your main function:
+//
+//    var cpuprofile = flag.String("cpuprofile", "", "write cpu profile `file`")
+//    var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
+//
+//    func main() {
+//        flag.Parse()
+//        if *cpuprofile != "" {
+//            f, err := os.Create(*cpuprofile)
+//            if err != nil {
+//                log.Fatal("could not create CPU profile: ", err)
+//            }
+//            if err := pprof.StartCPUProfile(f); err != nil {
+//                log.Fatal("could not start CPU profile: ", err)
+//            }
+//            defer pprof.StopCPUProfile()
+//        }
+//        ...
+//        if *memprofile != "" {
+//            f, err := os.Create(*memprofile)
+//            if err != nil {
+//                log.Fatal("could not create memory profile: ", err)
+//            }
+//            runtime.GC() // get up-to-date statistics
+//            if err := pprof.WriteHeapProfile(f); err != nil {
+//                log.Fatal("could not write memory profile: ", err)
+//            }
+//            f.Close()
+//        }
+//    }
+//
+// There is also a standard HTTP interface to profiling data. Adding
+// the following line will install handlers under the /debug/pprof/
+// URL to download live profiles:
+//
+//    import _ "net/http/pprof"
+//
+// See the net/http/pprof package for more details.
+//
+// Profiles can then be visualized with the pprof tool:
+//
+//    go tool pprof cpu.prof
+//
+// There are many commands available from the pprof command line.
+// Commonly used commands include "top", which prints a summary of the
+// top program hot-spots, and "web", which opens an interactive graph
+// of hot-spots and their call graphs. Use "help" for information on
+// all pprof commands.
+//
 // For more information about pprof, see
-// http://code.google.com/p/google-perftools/.
+// https://github.com/google/pprof/blob/master/doc/pprof.md.
 package pprof
 
 import (
@@ -13,6 +74,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"runtime"
 	"sort"
 	"strings"
@@ -20,8 +82,8 @@ import (
 	"text/tabwriter"
 )
 
-// BUG(rsc): Profiles are incomplete and inaccurate on NetBSD and OS X.
-// See http://golang.org/issue/6047 for details.
+// BUG(rsc): Profiles are only as good as the kernel support used to generate them.
+// See https://golang.org/issue/13841 for details about known problems.
 
 // A Profile is a collection of stack traces showing the call sequences
 // that led to instances of a particular event, such as allocation.
@@ -31,7 +93,7 @@ import (
 //
 // A Profile's methods can be called from multiple goroutines simultaneously.
 //
-// Each Profile has a unique name.  A few profiles are predefined:
+// Each Profile has a unique name. A few profiles are predefined:
 //
 //	goroutine    - stack traces of all current goroutines
 //	heap         - a sampling of all heap allocations
@@ -41,7 +103,14 @@ import (
 // These predefined profiles maintain themselves and panic on an explicit
 // Add or Remove method call.
 //
-// The CPU profile is not available as a Profile.  It has a special API,
+// The heap profile reports statistics as of the most recently completed
+// garbage collection; it elides more recent allocation to avoid skewing
+// the profile away from live data and toward garbage.
+// If there has been no garbage collection at all, the heap profile reports
+// all known allocations. This exception helps mainly in programs running
+// without garbage collection enabled, usually for debugging purposes.
+//
+// The CPU profile is not available as a Profile. It has a special API,
 // the StartCPUProfile and StopCPUProfile functions, because it streams
 // output to a writer during profiling.
 //
@@ -166,11 +235,11 @@ func (p *Profile) Count() int {
 // Add adds the current execution stack to the profile, associated with value.
 // Add stores value in an internal map, so value must be suitable for use as
 // a map key and will not be garbage collected until the corresponding
-// call to Remove.  Add panics if the profile already contains a stack for value.
+// call to Remove. Add panics if the profile already contains a stack for value.
 //
 // The skip parameter has the same meaning as runtime.Caller's skip
-// and controls where the stack trace begins.  Passing skip=0 begins the
-// trace in the function calling Add.  For example, given this
+// and controls where the stack trace begins. Passing skip=0 begins the
+// trace in the function calling Add. For example, given this
 // execution stack:
 //
 //	Add
@@ -259,7 +328,7 @@ func (x stackProfile) Less(i, j int) bool {
 }
 
 // A countProfile is a set of stack traces to be printed as counts
-// grouped by stack trace.  There are multiple implementations:
+// grouped by stack trace. There are multiple implementations:
 // all that matters is that we can find out how many traces there are
 // and obtain each trace in turn.
 type countProfile interface {
@@ -289,22 +358,25 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 		}
 		return buf.String()
 	}
-	m := map[string]int{}
+	count := map[string]int{}
+	index := map[string]int{}
+	var keys []string
 	n := p.Len()
 	for i := 0; i < n; i++ {
-		m[key(p.Stack(i))]++
+		k := key(p.Stack(i))
+		if count[k] == 0 {
+			index[k] = i
+			keys = append(keys, k)
+		}
+		count[k]++
 	}
 
-	// Print stacks, listing count on first occurrence of a unique stack.
-	for i := 0; i < n; i++ {
-		stk := p.Stack(i)
-		s := key(stk)
-		if count := m[s]; count != 0 {
-			fmt.Fprintf(w, "%d %s\n", count, s)
-			if debug > 0 {
-				printStackRecord(w, stk, false)
-			}
-			delete(m, s)
+	sort.Sort(&keysByCount{keys, count})
+
+	for _, k := range keys {
+		fmt.Fprintf(w, "%d %s\n", count[k], k)
+		if debug > 0 {
+			printStackRecord(w, p.Stack(index[k]), false)
 		}
 	}
 
@@ -314,37 +386,42 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 	return b.Flush()
 }
 
+// keysByCount sorts keys with higher counts first, breaking ties by key string order.
+type keysByCount struct {
+	keys  []string
+	count map[string]int
+}
+
+func (x *keysByCount) Len() int      { return len(x.keys) }
+func (x *keysByCount) Swap(i, j int) { x.keys[i], x.keys[j] = x.keys[j], x.keys[i] }
+func (x *keysByCount) Less(i, j int) bool {
+	ki, kj := x.keys[i], x.keys[j]
+	ci, cj := x.count[ki], x.count[kj]
+	if ci != cj {
+		return ci > cj
+	}
+	return ki < kj
+}
+
 // printStackRecord prints the function + source line information
 // for a single stack trace.
 func printStackRecord(w io.Writer, stk []uintptr, allFrames bool) {
 	show := allFrames
-	wasPanic := false
-	for i, pc := range stk {
-		f := runtime.FuncForPC(pc)
-		if f == nil {
+	frames := runtime.CallersFrames(stk)
+	for {
+		frame, more := frames.Next()
+		name := frame.Function
+		if name == "" {
 			show = true
-			fmt.Fprintf(w, "#\t%#x\n", pc)
-			wasPanic = false
-		} else {
-			tracepc := pc
-			// Back up to call instruction.
-			if i > 0 && pc > f.Entry() && !wasPanic {
-				if runtime.GOARCH == "386" || runtime.GOARCH == "amd64" {
-					tracepc--
-				} else {
-					tracepc -= 4 // arm, etc
-				}
-			}
-			file, line := f.FileLine(tracepc)
-			name := f.Name()
+			fmt.Fprintf(w, "#\t%#x\n", frame.PC)
+		} else if name != "runtime.goexit" && (show || !strings.HasPrefix(name, "runtime.")) {
 			// Hide runtime.goexit and any runtime functions at the beginning.
 			// This is useful mainly for allocation traces.
-			wasPanic = name == "runtime.panic"
-			if name == "runtime.goexit" || !show && strings.HasPrefix(name, "runtime.") {
-				continue
-			}
 			show = true
-			fmt.Fprintf(w, "#\t%#x\t%s+%#x\t%s:%d\n", pc, name, pc-f.Entry(), file, line)
+			fmt.Fprintf(w, "#\t%#x\t%s+%#x\t%s:%d\n", frame.PC, name, frame.PC-frame.Entry, frame.File, frame.Line)
+		}
+		if !more {
+			break
 		}
 	}
 	if !show {
@@ -442,35 +519,32 @@ func writeHeap(w io.Writer, debug int) error {
 
 	// Print memstats information too.
 	// Pprof will ignore, but useful for people
-	if debug > 0 {
-		s := new(runtime.MemStats)
-		runtime.ReadMemStats(s)
-		fmt.Fprintf(w, "\n# runtime.MemStats\n")
-		fmt.Fprintf(w, "# Alloc = %d\n", s.Alloc)
-		fmt.Fprintf(w, "# TotalAlloc = %d\n", s.TotalAlloc)
-		fmt.Fprintf(w, "# Sys = %d\n", s.Sys)
-		fmt.Fprintf(w, "# Lookups = %d\n", s.Lookups)
-		fmt.Fprintf(w, "# Mallocs = %d\n", s.Mallocs)
-		fmt.Fprintf(w, "# Frees = %d\n", s.Frees)
+	s := new(runtime.MemStats)
+	runtime.ReadMemStats(s)
+	fmt.Fprintf(w, "\n# runtime.MemStats\n")
+	fmt.Fprintf(w, "# Alloc = %d\n", s.Alloc)
+	fmt.Fprintf(w, "# TotalAlloc = %d\n", s.TotalAlloc)
+	fmt.Fprintf(w, "# Sys = %d\n", s.Sys)
+	fmt.Fprintf(w, "# Lookups = %d\n", s.Lookups)
+	fmt.Fprintf(w, "# Mallocs = %d\n", s.Mallocs)
+	fmt.Fprintf(w, "# Frees = %d\n", s.Frees)
 
-		fmt.Fprintf(w, "# HeapAlloc = %d\n", s.HeapAlloc)
-		fmt.Fprintf(w, "# HeapSys = %d\n", s.HeapSys)
-		fmt.Fprintf(w, "# HeapIdle = %d\n", s.HeapIdle)
-		fmt.Fprintf(w, "# HeapInuse = %d\n", s.HeapInuse)
-		fmt.Fprintf(w, "# HeapReleased = %d\n", s.HeapReleased)
-		fmt.Fprintf(w, "# HeapObjects = %d\n", s.HeapObjects)
+	fmt.Fprintf(w, "# HeapAlloc = %d\n", s.HeapAlloc)
+	fmt.Fprintf(w, "# HeapSys = %d\n", s.HeapSys)
+	fmt.Fprintf(w, "# HeapIdle = %d\n", s.HeapIdle)
+	fmt.Fprintf(w, "# HeapInuse = %d\n", s.HeapInuse)
+	fmt.Fprintf(w, "# HeapReleased = %d\n", s.HeapReleased)
+	fmt.Fprintf(w, "# HeapObjects = %d\n", s.HeapObjects)
 
-		fmt.Fprintf(w, "# Stack = %d / %d\n", s.StackInuse, s.StackSys)
-		fmt.Fprintf(w, "# MSpan = %d / %d\n", s.MSpanInuse, s.MSpanSys)
-		fmt.Fprintf(w, "# MCache = %d / %d\n", s.MCacheInuse, s.MCacheSys)
-		fmt.Fprintf(w, "# BuckHashSys = %d\n", s.BuckHashSys)
+	fmt.Fprintf(w, "# Stack = %d / %d\n", s.StackInuse, s.StackSys)
+	fmt.Fprintf(w, "# MSpan = %d / %d\n", s.MSpanInuse, s.MSpanSys)
+	fmt.Fprintf(w, "# MCache = %d / %d\n", s.MCacheInuse, s.MCacheSys)
+	fmt.Fprintf(w, "# BuckHashSys = %d\n", s.BuckHashSys)
 
-		fmt.Fprintf(w, "# NextGC = %d\n", s.NextGC)
-		fmt.Fprintf(w, "# PauseNs = %d\n", s.PauseNs)
-		fmt.Fprintf(w, "# NumGC = %d\n", s.NumGC)
-		fmt.Fprintf(w, "# EnableGC = %v\n", s.EnableGC)
-		fmt.Fprintf(w, "# DebugGC = %v\n", s.DebugGC)
-	}
+	fmt.Fprintf(w, "# NextGC = %d\n", s.NextGC)
+	fmt.Fprintf(w, "# PauseNs = %d\n", s.PauseNs)
+	fmt.Fprintf(w, "# NumGC = %d\n", s.NumGC)
+	fmt.Fprintf(w, "# DebugGC = %v\n", s.DebugGC)
 
 	if tw != nil {
 		tw.Flush()
@@ -504,7 +578,7 @@ func writeGoroutine(w io.Writer, debug int) error {
 
 func writeGoroutineStacks(w io.Writer) error {
 	// We don't know how big the buffer needs to be to collect
-	// all the goroutines.  Start with 1 MB and try a few times, doubling each time.
+	// all the goroutines. Start with 1 MB and try a few times, doubling each time.
 	// Give up and use a truncated trace if 64 MB is not enough.
 	buf := make([]byte, 1<<20)
 	for i := 0; ; i++ {
@@ -562,6 +636,14 @@ var cpu struct {
 // StartCPUProfile enables CPU profiling for the current process.
 // While profiling, the profile will be buffered and written to w.
 // StartCPUProfile returns an error if profiling is already enabled.
+//
+// On Unix-like systems, StartCPUProfile does not work by default for
+// Go code built with -buildmode=c-archive or -buildmode=c-shared.
+// StartCPUProfile relies on the SIGPROF signal, but that signal will
+// be delivered to the main program's SIGPROF signal handler (if any)
+// not to the one used by Go. To make it work, call os/signal.Notify
+// for syscall.SIGPROF, but note that doing so may break any profiling
+// being done by the main program.
 func StartCPUProfile(w io.Writer) error {
 	// The runtime routines allow a variable profiling rate,
 	// but in practice operating systems cannot trigger signals
@@ -570,7 +652,7 @@ func StartCPUProfile(w io.Writer) error {
 	// 100 Hz is a reasonable choice: it is frequent enough to
 	// produce useful data, rare enough not to bog down the
 	// system, and a nice round number to make it easy to
-	// convert sample counts to seconds.  Instead of requiring
+	// convert sample counts to seconds. Instead of requiring
 	// each client to specify the frequency, we hard code it.
 	const hz = 100
 
@@ -597,6 +679,42 @@ func profileWriter(w io.Writer) {
 		}
 		w.Write(data)
 	}
+
+	// We are emitting the legacy profiling format, which permits
+	// a memory map following the CPU samples. The memory map is
+	// simply a copy of the GNU/Linux /proc/self/maps file. The
+	// profiler uses the memory map to map PC values in shared
+	// libraries to a shared library in the filesystem, in order
+	// to report the correct function and, if the shared library
+	// has debug info, file/line. This is particularly useful for
+	// PIE (position independent executables) as on ELF systems a
+	// PIE is simply an executable shared library.
+	//
+	// Because the profiling format expects the memory map in
+	// GNU/Linux format, we only do this on GNU/Linux for now. To
+	// add support for profiling PIE on other ELF-based systems,
+	// it may be necessary to map the system-specific mapping
+	// information to the GNU/Linux format. For a reasonably
+	// portable C++ version, see the FillProcSelfMaps function in
+	// https://github.com/gperftools/gperftools/blob/master/src/base/sysinfo.cc
+	//
+	// The code that parses this mapping for the pprof tool is
+	// ParseMemoryMap in cmd/internal/pprof/legacy_profile.go, but
+	// don't change that code, as similar code exists in other
+	// (non-Go) pprof readers. Change this code so that that code works.
+	//
+	// We ignore errors reading or copying the memory map; the
+	// profile is likely usable without it, and we have no good way
+	// to report errors.
+	if runtime.GOOS == "linux" {
+		f, err := os.Open("/proc/self/maps")
+		if err == nil {
+			io.WriteString(w, "\nMAPPED_LIBRARIES:\n")
+			io.Copy(w, f)
+			f.Close()
+		}
+	}
+
 	cpu.done <- true
 }
 

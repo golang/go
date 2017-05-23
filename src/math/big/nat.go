@@ -2,32 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package big implements multi-precision arithmetic (big numbers).
-// The following numeric types are supported:
-//
-//	- Int	signed integers
-//	- Rat	rational numbers
-//
-// Methods are typically of the form:
-//
-//	func (z *Int) Op(x, y *Int) *Int	(similar for *Rat)
-//
-// and implement operations z = x Op y with the result as receiver; if it
-// is one of the operands it may be overwritten (and its memory reused).
-// To enable chaining of operations, the result is also returned. Methods
-// returning a result other than *Int or *Rat take one of the operands as
-// the receiver.
-//
+// This file implements unsigned multi-precision integers (natural
+// numbers). They are the building blocks for the implementation
+// of signed integers, rationals, and floating-point numbers.
+
 package big
 
-// This file contains operations on unsigned multi-precision integers.
-// These are the building blocks for the operations on signed integers
-// and rationals.
-
 import (
-	"errors"
-	"io"
-	"math"
 	"math/rand"
 	"sync"
 )
@@ -68,7 +49,7 @@ func (z nat) norm() nat {
 
 func (z nat) make(n int) nat {
 	if n <= cap(z) {
-		return z[0:n] // reuse z
+		return z[:n] // reuse z
 	}
 	// Choosing a good value for e has significant performance impact
 	// because it increases the chance that a value can be reused.
@@ -78,7 +59,7 @@ func (z nat) make(n int) nat {
 
 func (z nat) setWord(x Word) nat {
 	if x == 0 {
-		return z.make(0)
+		return z[:0]
 	}
 	z = z.make(1)
 	z[0] = x
@@ -122,7 +103,7 @@ func (z nat) add(x, y nat) nat {
 		return z.add(y, x)
 	case m == 0:
 		// n == 0 because m >= n; result is 0
-		return z.make(0)
+		return z[:0]
 	case n == 0:
 		// result is x
 		return z.set(x)
@@ -148,7 +129,7 @@ func (z nat) sub(x, y nat) nat {
 		panic("underflow")
 	case m == 0:
 		// n == 0 because m >= n; result is 0
-		return z.make(0)
+		return z[:0]
 	case n == 0:
 		// result is x
 		return z.set(x)
@@ -216,6 +197,47 @@ func basicMul(z, x, y nat) {
 			z[len(x)+i] = addMulVVW(z[i:i+len(x)], x, d)
 		}
 	}
+}
+
+// montgomery computes z mod m = x*y*2**(-n*_W) mod m,
+// assuming k = -1/m mod 2**_W.
+// z is used for storing the result which is returned;
+// z must not alias x, y or m.
+// See Gueron, "Efficient Software Implementations of Modular Exponentiation".
+// https://eprint.iacr.org/2011/239.pdf
+// In the terminology of that paper, this is an "Almost Montgomery Multiplication":
+// x and y are required to satisfy 0 <= z < 2**(n*_W) and then the result
+// z is guaranteed to satisfy 0 <= z < 2**(n*_W), but it may not be < m.
+func (z nat) montgomery(x, y, m nat, k Word, n int) nat {
+	// This code assumes x, y, m are all the same length, n.
+	// (required by addMulVVW and the for loop).
+	// It also assumes that x, y are already reduced mod m,
+	// or else the result will not be properly reduced.
+	if len(x) != n || len(y) != n || len(m) != n {
+		panic("math/big: mismatched montgomery number lengths")
+	}
+	z = z.make(n)
+	z.clear()
+	var c Word
+	for i := 0; i < n; i++ {
+		d := y[i]
+		c2 := addMulVVW(z, x, d)
+		t := z[0] * k
+		c3 := addMulVVW(z, m, t)
+		copy(z, z[1:])
+		cx := c + c2
+		cy := cx + c3
+		z[n-1] = cy
+		if cx < c2 || cy < c3 {
+			c = 1
+		} else {
+			c = 0
+		}
+	}
+	if c != 0 {
+		subVV(z, z, m)
+	}
+	return z
 }
 
 // Fast version of z[0:n+n>>1].add(z[0:n+n>>1], x[0:n]) w/o bounds checks.
@@ -337,7 +359,7 @@ func karatsuba(z, x, y nat) {
 	}
 }
 
-// alias returns true if x and y share the same base array.
+// alias reports whether x and y share the same base array.
 func alias(x, y nat) bool {
 	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
 }
@@ -384,7 +406,7 @@ func (z nat) mul(x, y nat) nat {
 	case m < n:
 		return z.mul(y, x)
 	case m == 0 || n == 0:
-		return z.make(0)
+		return z[:0]
 	case n == 1:
 		return z.mulAddWW(x, y[0], 0)
 	}
@@ -488,7 +510,7 @@ func (z nat) divW(x nat, y Word) (q nat, r Word) {
 		q = z.set(x) // result is x
 		return
 	case m == 0:
-		q = z.make(0) // result is 0
+		q = z[:0] // result is 0
 		return
 	}
 	// m > 0
@@ -504,7 +526,7 @@ func (z nat) div(z2, u, v nat) (q, r nat) {
 	}
 
 	if u.cmp(v) < 0 {
-		q = z.make(0)
+		q = z[:0]
 		r = z2.set(u)
 		return
 	}
@@ -519,6 +541,21 @@ func (z nat) div(z2, u, v nat) (q, r nat) {
 	q, r = z.divLarge(z2, u, v)
 	return
 }
+
+// getNat returns a nat of len n. The contents may not be zero.
+func getNat(n int) nat {
+	var z nat
+	if v := natPool.Get(); v != nil {
+		z = v.(nat)
+	}
+	return z.make(n)
+}
+
+func putNat(x nat) {
+	natPool.Put(x)
+}
+
+var natPool sync.Pool
 
 // q = (uIn-r)/v, with 0 <= r < y
 // Uses z as storage for q, and u as storage for r if possible.
@@ -538,18 +575,19 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	}
 	q = z.make(m + 1)
 
-	qhatv := make(nat, n+1)
+	qhatv := getNat(n + 1)
 	if alias(u, uIn) || alias(u, v) {
 		u = nil // u is an alias for uIn or v - cannot reuse
 	}
 	u = u.make(len(uIn) + 1)
-	u.clear()
+	u.clear() // TODO(gri) no need to clear if we allocated a new u
 
 	// D1.
-	shift := leadingZeros(v[n-1])
+	var v1 nat
+	shift := nlz(v[n-1])
 	if shift > 0 {
 		// do not modify v, it may be used by another goroutine simultaneously
-		v1 := make(nat, n)
+		v1 = getNat(n)
 		shlVU(v1, v, shift)
 		v = v1
 	}
@@ -590,6 +628,10 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 
 		q[j] = qhat
 	}
+	if v1 != nil {
+		putNat(v1)
+	}
+	putNat(qhatv)
 
 	q = q.norm()
 	shrVU(u, u, shift)
@@ -604,385 +646,6 @@ func (x nat) bitLen() int {
 		return i*_W + bitLen(x[i])
 	}
 	return 0
-}
-
-// MaxBase is the largest number base accepted for string conversions.
-const MaxBase = 'z' - 'a' + 10 + 1 // = hexValue('z') + 1
-
-func hexValue(ch rune) Word {
-	d := int(MaxBase + 1) // illegal base
-	switch {
-	case '0' <= ch && ch <= '9':
-		d = int(ch - '0')
-	case 'a' <= ch && ch <= 'z':
-		d = int(ch - 'a' + 10)
-	case 'A' <= ch && ch <= 'Z':
-		d = int(ch - 'A' + 10)
-	}
-	return Word(d)
-}
-
-// scan sets z to the natural number corresponding to the longest possible prefix
-// read from r representing an unsigned integer in a given conversion base.
-// It returns z, the actual conversion base used, and an error, if any. In the
-// error case, the value of z is undefined. The syntax follows the syntax of
-// unsigned integer literals in Go.
-//
-// The base argument must be 0 or a value from 2 through MaxBase. If the base
-// is 0, the string prefix determines the actual conversion base. A prefix of
-// ``0x'' or ``0X'' selects base 16; the ``0'' prefix selects base 8, and a
-// ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base is 10.
-//
-func (z nat) scan(r io.RuneScanner, base int) (nat, int, error) {
-	// reject illegal bases
-	if base < 0 || base == 1 || MaxBase < base {
-		return z, 0, errors.New("illegal number base")
-	}
-
-	// one char look-ahead
-	ch, _, err := r.ReadRune()
-	if err != nil {
-		return z, 0, err
-	}
-
-	// determine base if necessary
-	b := Word(base)
-	if base == 0 {
-		b = 10
-		if ch == '0' {
-			switch ch, _, err = r.ReadRune(); err {
-			case nil:
-				b = 8
-				switch ch {
-				case 'x', 'X':
-					b = 16
-				case 'b', 'B':
-					b = 2
-				}
-				if b == 2 || b == 16 {
-					if ch, _, err = r.ReadRune(); err != nil {
-						return z, 0, err
-					}
-				}
-			case io.EOF:
-				return z.make(0), 10, nil
-			default:
-				return z, 10, err
-			}
-		}
-	}
-
-	// convert string
-	// - group as many digits d as possible together into a "super-digit" dd with "super-base" bb
-	// - only when bb does not fit into a word anymore, do a full number mulAddWW using bb and dd
-	z = z.make(0)
-	bb := Word(1)
-	dd := Word(0)
-	for max := _M / b; ; {
-		d := hexValue(ch)
-		if d >= b {
-			r.UnreadRune() // ch does not belong to number anymore
-			break
-		}
-
-		if bb <= max {
-			bb *= b
-			dd = dd*b + d
-		} else {
-			// bb * b would overflow
-			z = z.mulAddWW(z, bb, dd)
-			bb = b
-			dd = d
-		}
-
-		if ch, _, err = r.ReadRune(); err != nil {
-			if err != io.EOF {
-				return z, int(b), err
-			}
-			break
-		}
-	}
-
-	switch {
-	case bb > 1:
-		// there was at least one mantissa digit
-		z = z.mulAddWW(z, bb, dd)
-	case base == 0 && b == 8:
-		// there was only the octal prefix 0 (possibly followed by digits > 7);
-		// return base 10, not 8
-		return z, 10, nil
-	case base != 0 || b != 8:
-		// there was neither a mantissa digit nor the octal prefix 0
-		return z, int(b), errors.New("syntax error scanning number")
-	}
-
-	return z.norm(), int(b), nil
-}
-
-// Character sets for string conversion.
-const (
-	lowercaseDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
-	uppercaseDigits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-)
-
-// decimalString returns a decimal representation of x.
-// It calls x.string with the charset "0123456789".
-func (x nat) decimalString() string {
-	return x.string(lowercaseDigits[0:10])
-}
-
-// string converts x to a string using digits from a charset; a digit with
-// value d is represented by charset[d]. The conversion base is determined
-// by len(charset), which must be >= 2 and <= 256.
-func (x nat) string(charset string) string {
-	b := Word(len(charset))
-
-	// special cases
-	switch {
-	case b < 2 || MaxBase > 256:
-		panic("illegal base")
-	case len(x) == 0:
-		return string(charset[0])
-	}
-
-	// allocate buffer for conversion
-	i := int(float64(x.bitLen())/math.Log2(float64(b))) + 1 // off by one at most
-	s := make([]byte, i)
-
-	// convert power of two and non power of two bases separately
-	if b == b&-b {
-		// shift is base-b digit size in bits
-		shift := trailingZeroBits(b) // shift > 0 because b >= 2
-		mask := Word(1)<<shift - 1
-		w := x[0]
-		nbits := uint(_W) // number of unprocessed bits in w
-
-		// convert less-significant words
-		for k := 1; k < len(x); k++ {
-			// convert full digits
-			for nbits >= shift {
-				i--
-				s[i] = charset[w&mask]
-				w >>= shift
-				nbits -= shift
-			}
-
-			// convert any partial leading digit and advance to next word
-			if nbits == 0 {
-				// no partial digit remaining, just advance
-				w = x[k]
-				nbits = _W
-			} else {
-				// partial digit in current (k-1) and next (k) word
-				w |= x[k] << nbits
-				i--
-				s[i] = charset[w&mask]
-
-				// advance
-				w = x[k] >> (shift - nbits)
-				nbits = _W - (shift - nbits)
-			}
-		}
-
-		// convert digits of most-significant word (omit leading zeros)
-		for nbits >= 0 && w != 0 {
-			i--
-			s[i] = charset[w&mask]
-			w >>= shift
-			nbits -= shift
-		}
-
-	} else {
-		// determine "big base"; i.e., the largest possible value bb
-		// that is a power of base b and still fits into a Word
-		// (as in 10^19 for 19 decimal digits in a 64bit Word)
-		bb := b      // big base is b**ndigits
-		ndigits := 1 // number of base b digits
-		for max := Word(_M / b); bb <= max; bb *= b {
-			ndigits++ // maximize ndigits where bb = b**ndigits, bb <= _M
-		}
-
-		// construct table of successive squares of bb*leafSize to use in subdivisions
-		// result (table != nil) <=> (len(x) > leafSize > 0)
-		table := divisors(len(x), b, ndigits, bb)
-
-		// preserve x, create local copy for use by convertWords
-		q := nat(nil).set(x)
-
-		// convert q to string s in base b
-		q.convertWords(s, charset, b, ndigits, bb, table)
-
-		// strip leading zeros
-		// (x != 0; thus s must contain at least one non-zero digit
-		// and the loop will terminate)
-		i = 0
-		for zero := charset[0]; s[i] == zero; {
-			i++
-		}
-	}
-
-	return string(s[i:])
-}
-
-// Convert words of q to base b digits in s. If q is large, it is recursively "split in half"
-// by nat/nat division using tabulated divisors. Otherwise, it is converted iteratively using
-// repeated nat/Word division.
-//
-// The iterative method processes n Words by n divW() calls, each of which visits every Word in the
-// incrementally shortened q for a total of n + (n-1) + (n-2) ... + 2 + 1, or n(n+1)/2 divW()'s.
-// Recursive conversion divides q by its approximate square root, yielding two parts, each half
-// the size of q. Using the iterative method on both halves means 2 * (n/2)(n/2 + 1)/2 divW()'s
-// plus the expensive long div(). Asymptotically, the ratio is favorable at 1/2 the divW()'s, and
-// is made better by splitting the subblocks recursively. Best is to split blocks until one more
-// split would take longer (because of the nat/nat div()) than the twice as many divW()'s of the
-// iterative approach. This threshold is represented by leafSize. Benchmarking of leafSize in the
-// range 2..64 shows that values of 8 and 16 work well, with a 4x speedup at medium lengths and
-// ~30x for 20000 digits. Use nat_test.go's BenchmarkLeafSize tests to optimize leafSize for
-// specific hardware.
-//
-func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word, table []divisor) {
-	// split larger blocks recursively
-	if table != nil {
-		// len(q) > leafSize > 0
-		var r nat
-		index := len(table) - 1
-		for len(q) > leafSize {
-			// find divisor close to sqrt(q) if possible, but in any case < q
-			maxLength := q.bitLen()     // ~= log2 q, or at of least largest possible q of this bit length
-			minLength := maxLength >> 1 // ~= log2 sqrt(q)
-			for index > 0 && table[index-1].nbits > minLength {
-				index-- // desired
-			}
-			if table[index].nbits >= maxLength && table[index].bbb.cmp(q) >= 0 {
-				index--
-				if index < 0 {
-					panic("internal inconsistency")
-				}
-			}
-
-			// split q into the two digit number (q'*bbb + r) to form independent subblocks
-			q, r = q.div(r, q, table[index].bbb)
-
-			// convert subblocks and collect results in s[:h] and s[h:]
-			h := len(s) - table[index].ndigits
-			r.convertWords(s[h:], charset, b, ndigits, bb, table[0:index])
-			s = s[:h] // == q.convertWords(s, charset, b, ndigits, bb, table[0:index+1])
-		}
-	}
-
-	// having split any large blocks now process the remaining (small) block iteratively
-	i := len(s)
-	var r Word
-	if b == 10 {
-		// hard-coding for 10 here speeds this up by 1.25x (allows for / and % by constants)
-		for len(q) > 0 {
-			// extract least significant, base bb "digit"
-			q, r = q.divW(q, bb)
-			for j := 0; j < ndigits && i > 0; j++ {
-				i--
-				// avoid % computation since r%10 == r - int(r/10)*10;
-				// this appears to be faster for BenchmarkString10000Base10
-				// and smaller strings (but a bit slower for larger ones)
-				t := r / 10
-				s[i] = charset[r-t<<3-t-t] // TODO(gri) replace w/ t*10 once compiler produces better code
-				r = t
-			}
-		}
-	} else {
-		for len(q) > 0 {
-			// extract least significant, base bb "digit"
-			q, r = q.divW(q, bb)
-			for j := 0; j < ndigits && i > 0; j++ {
-				i--
-				s[i] = charset[r%b]
-				r /= b
-			}
-		}
-	}
-
-	// prepend high-order zeroes
-	zero := charset[0]
-	for i > 0 { // while need more leading zeroes
-		i--
-		s[i] = zero
-	}
-}
-
-// Split blocks greater than leafSize Words (or set to 0 to disable recursive conversion)
-// Benchmark and configure leafSize using: go test -bench="Leaf"
-//   8 and 16 effective on 3.0 GHz Xeon "Clovertown" CPU (128 byte cache lines)
-//   8 and 16 effective on 2.66 GHz Core 2 Duo "Penryn" CPU
-var leafSize int = 8 // number of Word-size binary values treat as a monolithic block
-
-type divisor struct {
-	bbb     nat // divisor
-	nbits   int // bit length of divisor (discounting leading zeroes) ~= log2(bbb)
-	ndigits int // digit length of divisor in terms of output base digits
-}
-
-var cacheBase10 struct {
-	sync.Mutex
-	table [64]divisor // cached divisors for base 10
-}
-
-// expWW computes x**y
-func (z nat) expWW(x, y Word) nat {
-	return z.expNN(nat(nil).setWord(x), nat(nil).setWord(y), nil)
-}
-
-// construct table of powers of bb*leafSize to use in subdivisions
-func divisors(m int, b Word, ndigits int, bb Word) []divisor {
-	// only compute table when recursive conversion is enabled and x is large
-	if leafSize == 0 || m <= leafSize {
-		return nil
-	}
-
-	// determine k where (bb**leafSize)**(2**k) >= sqrt(x)
-	k := 1
-	for words := leafSize; words < m>>1 && k < len(cacheBase10.table); words <<= 1 {
-		k++
-	}
-
-	// reuse and extend existing table of divisors or create new table as appropriate
-	var table []divisor // for b == 10, table overlaps with cacheBase10.table
-	if b == 10 {
-		cacheBase10.Lock()
-		table = cacheBase10.table[0:k] // reuse old table for this conversion
-	} else {
-		table = make([]divisor, k) // create new table for this conversion
-	}
-
-	// extend table
-	if table[k-1].ndigits == 0 {
-		// add new entries as needed
-		var larger nat
-		for i := 0; i < k; i++ {
-			if table[i].ndigits == 0 {
-				if i == 0 {
-					table[0].bbb = nat(nil).expWW(bb, Word(leafSize))
-					table[0].ndigits = ndigits * leafSize
-				} else {
-					table[i].bbb = nat(nil).mul(table[i-1].bbb, table[i-1].bbb)
-					table[i].ndigits = 2 * table[i-1].ndigits
-				}
-
-				// optimization: exploit aggregated extra bits in macro blocks
-				larger = nat(nil).set(table[i].bbb)
-				for mulAddVWW(larger, larger, b, 0) == 0 {
-					table[i].bbb = table[i].bbb.set(larger)
-					table[i].ndigits++
-				}
-
-				table[i].nbits = table[i].bbb.bitLen()
-			}
-		}
-	}
-
-	if b == 10 {
-		cacheBase10.Unlock()
-	}
-
-	return table
 }
 
 const deBruijn32 = 0x077CB531
@@ -1007,7 +670,7 @@ func trailingZeroBits(x Word) uint {
 	// x & -x leaves only the right-most bit set in the word. Let k be the
 	// index of that bit. Since only a single bit is set, the value is two
 	// to the power of k. Multiplying by a power of two is equivalent to
-	// left shifting, in this case by k bits.  The de Bruijn constant is
+	// left shifting, in this case by k bits. The de Bruijn constant is
 	// such that all six bit, consecutive substrings are distinct.
 	// Therefore, if we have a left shifted version of this constant we can
 	// find by how many bits it was shifted by looking at which six bit
@@ -1041,7 +704,7 @@ func (x nat) trailingZeroBits() uint {
 func (z nat) shl(x nat, s uint) nat {
 	m := len(x)
 	if m == 0 {
-		return z.make(0)
+		return z[:0]
 	}
 	// m > 0
 
@@ -1058,7 +721,7 @@ func (z nat) shr(x nat, s uint) nat {
 	m := len(x)
 	n := m - int(s/_W)
 	if n <= 0 {
-		return z.make(0)
+		return z[:0]
 	}
 	// n > 0
 
@@ -1097,12 +760,36 @@ func (z nat) setBit(x nat, i uint, b uint) nat {
 	panic("set bit is not 0 or 1")
 }
 
-func (z nat) bit(i uint) uint {
-	j := int(i / _W)
-	if j >= len(z) {
+// bit returns the value of the i'th bit, with lsb == bit 0.
+func (x nat) bit(i uint) uint {
+	j := i / _W
+	if j >= uint(len(x)) {
 		return 0
 	}
-	return uint(z[j] >> (i % _W) & 1)
+	// 0 <= j < len(x)
+	return uint(x[j] >> (i % _W) & 1)
+}
+
+// sticky returns 1 if there's a 1 bit within the
+// i least significant bits, otherwise it returns 0.
+func (x nat) sticky(i uint) uint {
+	j := i / _W
+	if j >= uint(len(x)) {
+		if len(x) == 0 {
+			return 0
+		}
+		return 1
+	}
+	// 0 <= j < len(x)
+	for _, x := range x[:j] {
+		if x != 0 {
+			return 1
+		}
+	}
+	if x[j]<<(_W-i%_W) != 0 {
+		return 1
+	}
+	return 0
 }
 
 func (z nat) and(x, y nat) nat {
@@ -1176,7 +863,7 @@ func (z nat) xor(x, y nat) nat {
 	return z.norm()
 }
 
-// greaterThan returns true iff (x1<<_W + x2) > (y1<<_W + y2)
+// greaterThan reports whether (x1<<_W + x2) > (y1<<_W + y2)
 func greaterThan(x1, x2, y1, y2 Word) bool {
 	return x1 > y1 || x1 == y1 && x2 > y2
 }
@@ -1245,6 +932,13 @@ func (z nat) expNN(x, y, m nat) nat {
 	}
 	// y > 0
 
+	// x**1 mod m == x mod m
+	if len(y) == 1 && y[0] == 1 && len(m) != 0 {
+		_, z = z.div(z, x, m)
+		return z
+	}
+	// y > 1
+
 	if len(m) != 0 {
 		// We likely end up being as long as the modulus.
 		z = z.make(len(m))
@@ -1255,13 +949,16 @@ func (z nat) expNN(x, y, m nat) nat {
 	// 4-bit, windowed exponentiation. This involves precomputing 14 values
 	// (x^2...x^15) but then reduces the number of multiply-reduces by a
 	// third. Even for a 32-bit exponent, this reduces the number of
-	// operations.
+	// operations. Uses Montgomery method for odd moduli.
 	if len(x) > 1 && len(y) > 1 && len(m) > 0 {
+		if m[0]&1 == 1 {
+			return z.expNNMontgomery(x, y, m)
+		}
 		return z.expNNWindowed(x, y, m)
 	}
 
 	v := y[len(y)-1] // v > 0 because y is normalized and y > 0
-	shift := leadingZeros(v) + 1
+	shift := nlz(v) + 1
 	v <<= shift
 	var q nat
 
@@ -1344,7 +1041,7 @@ func (z nat) expNNWindowed(x, y, m nat) nat {
 		for j := 0; j < _W; j += n {
 			if i != len(y)-1 || j != 0 {
 				// Unrolled loop for significant performance
-				// gain.  Use go test -bench=".*" in crypto/rsa
+				// gain. Use go test -bench=".*" in crypto/rsa
 				// to check performance before making changes.
 				zz = zz.mul(z, z)
 				zz, z = z, zz
@@ -1379,9 +1076,105 @@ func (z nat) expNNWindowed(x, y, m nat) nat {
 	return z.norm()
 }
 
-// probablyPrime performs reps Miller-Rabin tests to check whether n is prime.
-// If it returns true, n is prime with probability 1 - 1/4^reps.
-// If it returns false, n is not prime.
+// expNNMontgomery calculates x**y mod m using a fixed, 4-bit window.
+// Uses Montgomery representation.
+func (z nat) expNNMontgomery(x, y, m nat) nat {
+	numWords := len(m)
+
+	// We want the lengths of x and m to be equal.
+	// It is OK if x >= m as long as len(x) == len(m).
+	if len(x) > numWords {
+		_, x = nat(nil).div(nil, x, m)
+		// Note: now len(x) <= numWords, not guaranteed ==.
+	}
+	if len(x) < numWords {
+		rr := make(nat, numWords)
+		copy(rr, x)
+		x = rr
+	}
+
+	// Ideally the precomputations would be performed outside, and reused
+	// k0 = -m**-1 mod 2**_W. Algorithm from: Dumas, J.G. "On Newton–Raphson
+	// Iteration for Multiplicative Inverses Modulo Prime Powers".
+	k0 := 2 - m[0]
+	t := m[0] - 1
+	for i := 1; i < _W; i <<= 1 {
+		t *= t
+		k0 *= (t + 1)
+	}
+	k0 = -k0
+
+	// RR = 2**(2*_W*len(m)) mod m
+	RR := nat(nil).setWord(1)
+	zz := nat(nil).shl(RR, uint(2*numWords*_W))
+	_, RR = RR.div(RR, zz, m)
+	if len(RR) < numWords {
+		zz = zz.make(numWords)
+		copy(zz, RR)
+		RR = zz
+	}
+	// one = 1, with equal length to that of m
+	one := make(nat, numWords)
+	one[0] = 1
+
+	const n = 4
+	// powers[i] contains x^i
+	var powers [1 << n]nat
+	powers[0] = powers[0].montgomery(one, RR, m, k0, numWords)
+	powers[1] = powers[1].montgomery(x, RR, m, k0, numWords)
+	for i := 2; i < 1<<n; i++ {
+		powers[i] = powers[i].montgomery(powers[i-1], powers[1], m, k0, numWords)
+	}
+
+	// initialize z = 1 (Montgomery 1)
+	z = z.make(numWords)
+	copy(z, powers[0])
+
+	zz = zz.make(numWords)
+
+	// same windowed exponent, but with Montgomery multiplications
+	for i := len(y) - 1; i >= 0; i-- {
+		yi := y[i]
+		for j := 0; j < _W; j += n {
+			if i != len(y)-1 || j != 0 {
+				zz = zz.montgomery(z, z, m, k0, numWords)
+				z = z.montgomery(zz, zz, m, k0, numWords)
+				zz = zz.montgomery(z, z, m, k0, numWords)
+				z = z.montgomery(zz, zz, m, k0, numWords)
+			}
+			zz = zz.montgomery(z, powers[yi>>(_W-n)], m, k0, numWords)
+			z, zz = zz, z
+			yi <<= n
+		}
+	}
+	// convert to regular number
+	zz = zz.montgomery(z, one, m, k0, numWords)
+
+	// One last reduction, just in case.
+	// See golang.org/issue/13907.
+	if zz.cmp(m) >= 0 {
+		// Common case is m has high bit set; in that case,
+		// since zz is the same length as m, there can be just
+		// one multiple of m to remove. Just subtract.
+		// We think that the subtract should be sufficient in general,
+		// so do that unconditionally, but double-check,
+		// in case our beliefs are wrong.
+		// The div is not expected to be reached.
+		zz = zz.sub(zz, m)
+		if zz.cmp(m) >= 0 {
+			_, zz = nat(nil).div(nil, zz, m)
+		}
+	}
+
+	return zz.norm()
+}
+
+// probablyPrime performs n Miller-Rabin tests to check whether x is prime.
+// If x is prime, it returns true.
+// If x is not prime, it returns false with probability at least 1 - ¼ⁿ.
+//
+// It is not suitable for judging primes that an adversary may have crafted
+// to fool this test.
 func (n nat) probablyPrime(reps int) bool {
 	if len(n) == 0 {
 		return false
@@ -1402,6 +1195,10 @@ func (n nat) probablyPrime(reps int) bool {
 		case 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53:
 			return true
 		}
+	}
+
+	if n[0]&1 == 0 {
+		return false // n is even
 	}
 
 	const primesProduct32 = 0xC0CFD797         // Π {p ∈ primes, 2 < p <= 29}

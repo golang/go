@@ -42,6 +42,41 @@ func TestKeyGeneration(t *testing.T) {
 	testKeyGeneration(t, elliptic.P521(), "p521")
 }
 
+func BenchmarkSignP256(b *testing.B) {
+	b.ResetTimer()
+	p256 := elliptic.P256()
+	hashed := []byte("testing")
+	priv, _ := GenerateKey(p256, rand.Reader)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = Sign(rand.Reader, priv, hashed)
+	}
+}
+
+func BenchmarkVerifyP256(b *testing.B) {
+	b.ResetTimer()
+	p256 := elliptic.P256()
+	hashed := []byte("testing")
+	priv, _ := GenerateKey(p256, rand.Reader)
+	r, s, _ := Sign(rand.Reader, priv, hashed)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Verify(&priv.PublicKey, hashed, r, s)
+	}
+}
+
+func BenchmarkKeyGeneration(b *testing.B) {
+	b.ResetTimer()
+	p256 := elliptic.P256()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		GenerateKey(p256, rand.Reader)
+	}
+}
+
 func testSignAndVerify(t *testing.T, c elliptic.Curve, tag string) {
 	priv, _ := GenerateKey(c, rand.Reader)
 
@@ -70,6 +105,78 @@ func TestSignAndVerify(t *testing.T) {
 	testSignAndVerify(t, elliptic.P256(), "p256")
 	testSignAndVerify(t, elliptic.P384(), "p384")
 	testSignAndVerify(t, elliptic.P521(), "p521")
+}
+
+func testNonceSafety(t *testing.T, c elliptic.Curve, tag string) {
+	priv, _ := GenerateKey(c, rand.Reader)
+
+	hashed := []byte("testing")
+	r0, s0, err := Sign(zeroReader, priv, hashed)
+	if err != nil {
+		t.Errorf("%s: error signing: %s", tag, err)
+		return
+	}
+
+	hashed = []byte("testing...")
+	r1, s1, err := Sign(zeroReader, priv, hashed)
+	if err != nil {
+		t.Errorf("%s: error signing: %s", tag, err)
+		return
+	}
+
+	if s0.Cmp(s1) == 0 {
+		// This should never happen.
+		t.Errorf("%s: the signatures on two different messages were the same", tag)
+	}
+
+	if r0.Cmp(r1) == 0 {
+		t.Errorf("%s: the nonce used for two different messages was the same", tag)
+	}
+}
+
+func TestNonceSafety(t *testing.T) {
+	testNonceSafety(t, elliptic.P224(), "p224")
+	if testing.Short() {
+		return
+	}
+	testNonceSafety(t, elliptic.P256(), "p256")
+	testNonceSafety(t, elliptic.P384(), "p384")
+	testNonceSafety(t, elliptic.P521(), "p521")
+}
+
+func testINDCCA(t *testing.T, c elliptic.Curve, tag string) {
+	priv, _ := GenerateKey(c, rand.Reader)
+
+	hashed := []byte("testing")
+	r0, s0, err := Sign(rand.Reader, priv, hashed)
+	if err != nil {
+		t.Errorf("%s: error signing: %s", tag, err)
+		return
+	}
+
+	r1, s1, err := Sign(rand.Reader, priv, hashed)
+	if err != nil {
+		t.Errorf("%s: error signing: %s", tag, err)
+		return
+	}
+
+	if s0.Cmp(s1) == 0 {
+		t.Errorf("%s: two signatures of the same message produced the same result", tag)
+	}
+
+	if r0.Cmp(r1) == 0 {
+		t.Errorf("%s: two signatures of the same message produced the same nonce", tag)
+	}
+}
+
+func TestINDCCA(t *testing.T) {
+	testINDCCA(t, elliptic.P224(), "p224")
+	if testing.Short() {
+		return
+	}
+	testINDCCA(t, elliptic.P256(), "p256")
+	testINDCCA(t, elliptic.P384(), "p384")
+	testINDCCA(t, elliptic.P521(), "p521")
 }
 
 func fromHex(s string) *big.Int {
@@ -188,4 +295,27 @@ func TestVectors(t *testing.T) {
 			t.Fatalf("unknown variable on line %d: %s", lineNo, line)
 		}
 	}
+}
+
+func testNegativeInputs(t *testing.T, curve elliptic.Curve, tag string) {
+	key, err := GenerateKey(curve, rand.Reader)
+	if err != nil {
+		t.Errorf("failed to generate key for %q", tag)
+	}
+
+	var hash [32]byte
+	r := new(big.Int).SetInt64(1)
+	r.Lsh(r, 550 /* larger than any supported curve */)
+	r.Neg(r)
+
+	if Verify(&key.PublicKey, hash[:], r, r) {
+		t.Errorf("bogus signature accepted for %q", tag)
+	}
+}
+
+func TestNegativeInputs(t *testing.T) {
+	testNegativeInputs(t, elliptic.P224(), "p224")
+	testNegativeInputs(t, elliptic.P256(), "p256")
+	testNegativeInputs(t, elliptic.P384(), "p384")
+	testNegativeInputs(t, elliptic.P521(), "p521")
 }

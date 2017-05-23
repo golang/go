@@ -6,6 +6,7 @@ package bytes_test
 
 import (
 	. "bytes"
+	"fmt"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -45,32 +46,6 @@ type BinOpTest struct {
 	a string
 	b string
 	i int
-}
-
-var equalTests = []struct {
-	a, b []byte
-	i    int
-}{
-	{[]byte(""), []byte(""), 0},
-	{[]byte("a"), []byte(""), 1},
-	{[]byte(""), []byte("a"), -1},
-	{[]byte("abc"), []byte("abc"), 0},
-	{[]byte("ab"), []byte("abc"), -1},
-	{[]byte("abc"), []byte("ab"), 1},
-	{[]byte("x"), []byte("ab"), 1},
-	{[]byte("ab"), []byte("x"), -1},
-	{[]byte("x"), []byte("a"), 1},
-	{[]byte("b"), []byte("x"), -1},
-	// test runtime·memeq's chunked implementation
-	{[]byte("abcdefgh"), []byte("abcdefgh"), 0},
-	{[]byte("abcdefghi"), []byte("abcdefghi"), 0},
-	{[]byte("abcdefghi"), []byte("abcdefghj"), -1},
-	// nil tests
-	{nil, nil, 0},
-	{[]byte(""), nil, 0},
-	{nil, []byte(""), 0},
-	{[]byte("a"), nil, 1},
-	{nil, []byte("a"), -1},
 }
 
 func TestEqual(t *testing.T) {
@@ -113,7 +88,7 @@ func TestEqualExhaustive(t *testing.T) {
 	}
 }
 
-// make sure Equal returns false for minimally different strings.  The data
+// make sure Equal returns false for minimally different strings. The data
 // is all zeros except for a single one in one location.
 func TestNotEqual(t *testing.T) {
 	var size = 128
@@ -265,6 +240,23 @@ func TestIndexByte(t *testing.T) {
 	}
 }
 
+func TestLastIndexByte(t *testing.T) {
+	testCases := []BinOpTest{
+		{"", "q", -1},
+		{"abcdef", "q", -1},
+		{"abcdefabcdef", "a", len("abcdef")},      // something in the middle
+		{"abcdefabcdef", "f", len("abcdefabcde")}, // last byte
+		{"zabcdefabcdef", "z", 0},                 // first byte
+		{"a☺b☻c☹d", "b", len("a☺")},               // non-ascii
+	}
+	for _, test := range testCases {
+		actual := LastIndexByte([]byte(test.a), test.b[0])
+		if actual != test.i {
+			t.Errorf("LastIndexByte(%q,%c) = %v; want %v", test.a, test.b[0], actual, test.i)
+		}
+	}
+}
+
 // test a larger buffer with different sizes and alignments
 func TestIndexByteBig(t *testing.T) {
 	var n = 1024
@@ -318,6 +310,41 @@ func TestIndexByteBig(t *testing.T) {
 	}
 }
 
+// test a small index across all page offsets
+func TestIndexByteSmall(t *testing.T) {
+	b := make([]byte, 5015) // bigger than a page
+	// Make sure we find the correct byte even when straddling a page.
+	for i := 0; i <= len(b)-15; i++ {
+		for j := 0; j < 15; j++ {
+			b[i+j] = byte(100 + j)
+		}
+		for j := 0; j < 15; j++ {
+			p := IndexByte(b[i:i+15], byte(100+j))
+			if p != j {
+				t.Errorf("IndexByte(%q, %d) = %d", b[i:i+15], 100+j, p)
+			}
+		}
+		for j := 0; j < 15; j++ {
+			b[i+j] = 0
+		}
+	}
+	// Make sure matches outside the slice never trigger.
+	for i := 0; i <= len(b)-15; i++ {
+		for j := 0; j < 15; j++ {
+			b[i+j] = 1
+		}
+		for j := 0; j < 15; j++ {
+			p := IndexByte(b[i:i+15], byte(0))
+			if p != -1 {
+				t.Errorf("IndexByte(%q, %d) = %d", b[i:i+15], 0, p)
+			}
+		}
+		for j := 0; j < 15; j++ {
+			b[i+j] = 0
+		}
+	}
+}
+
 func TestIndexRune(t *testing.T) {
 	for _, tt := range indexRuneTests {
 		a := []byte(tt.a)
@@ -331,165 +358,152 @@ func TestIndexRune(t *testing.T) {
 
 var bmbuf []byte
 
-func BenchmarkIndexByte32(b *testing.B)          { bmIndexByte(b, IndexByte, 32) }
-func BenchmarkIndexByte4K(b *testing.B)          { bmIndexByte(b, IndexByte, 4<<10) }
-func BenchmarkIndexByte4M(b *testing.B)          { bmIndexByte(b, IndexByte, 4<<20) }
-func BenchmarkIndexByte64M(b *testing.B)         { bmIndexByte(b, IndexByte, 64<<20) }
-func BenchmarkIndexBytePortable32(b *testing.B)  { bmIndexByte(b, IndexBytePortable, 32) }
-func BenchmarkIndexBytePortable4K(b *testing.B)  { bmIndexByte(b, IndexBytePortable, 4<<10) }
-func BenchmarkIndexBytePortable4M(b *testing.B)  { bmIndexByte(b, IndexBytePortable, 4<<20) }
-func BenchmarkIndexBytePortable64M(b *testing.B) { bmIndexByte(b, IndexBytePortable, 64<<20) }
-
-func bmIndexByte(b *testing.B, index func([]byte, byte) int, n int) {
-	if len(bmbuf) < n {
-		bmbuf = make([]byte, n)
+func valName(x int) string {
+	if s := x >> 20; s<<20 == x {
+		return fmt.Sprintf("%dM", s)
 	}
-	b.SetBytes(int64(n))
-	buf := bmbuf[0:n]
-	buf[n-1] = 'x'
-	for i := 0; i < b.N; i++ {
-		j := index(buf, 'x')
-		if j != n-1 {
-			b.Fatal("bad index", j)
-		}
+	if s := x >> 10; s<<10 == x {
+		return fmt.Sprintf("%dK", s)
 	}
-	buf[n-1] = '\x00'
+	return fmt.Sprint(x)
 }
 
-func BenchmarkEqual0(b *testing.B) {
-	var buf [4]byte
-	buf1 := buf[0:0]
-	buf2 := buf[1:1]
-	for i := 0; i < b.N; i++ {
-		eq := Equal(buf1, buf2)
-		if !eq {
-			b.Fatal("bad equal")
-		}
+func benchBytes(b *testing.B, sizes []int, f func(b *testing.B, n int)) {
+	for _, n := range sizes {
+		b.Run(valName(n), func(b *testing.B) {
+			if len(bmbuf) < n {
+				bmbuf = make([]byte, n)
+			}
+			b.SetBytes(int64(n))
+			f(b, n)
+		})
 	}
 }
 
-func BenchmarkEqual1(b *testing.B)           { bmEqual(b, Equal, 1) }
-func BenchmarkEqual6(b *testing.B)           { bmEqual(b, Equal, 6) }
-func BenchmarkEqual9(b *testing.B)           { bmEqual(b, Equal, 9) }
-func BenchmarkEqual15(b *testing.B)          { bmEqual(b, Equal, 15) }
-func BenchmarkEqual16(b *testing.B)          { bmEqual(b, Equal, 16) }
-func BenchmarkEqual20(b *testing.B)          { bmEqual(b, Equal, 20) }
-func BenchmarkEqual32(b *testing.B)          { bmEqual(b, Equal, 32) }
-func BenchmarkEqual4K(b *testing.B)          { bmEqual(b, Equal, 4<<10) }
-func BenchmarkEqual4M(b *testing.B)          { bmEqual(b, Equal, 4<<20) }
-func BenchmarkEqual64M(b *testing.B)         { bmEqual(b, Equal, 64<<20) }
-func BenchmarkEqualPort1(b *testing.B)       { bmEqual(b, EqualPortable, 1) }
-func BenchmarkEqualPort6(b *testing.B)       { bmEqual(b, EqualPortable, 6) }
-func BenchmarkEqualPort32(b *testing.B)      { bmEqual(b, EqualPortable, 32) }
-func BenchmarkEqualPort4K(b *testing.B)      { bmEqual(b, EqualPortable, 4<<10) }
-func BenchmarkEqualPortable4M(b *testing.B)  { bmEqual(b, EqualPortable, 4<<20) }
-func BenchmarkEqualPortable64M(b *testing.B) { bmEqual(b, EqualPortable, 64<<20) }
+var indexSizes = []int{10, 32, 4 << 10, 4 << 20, 64 << 20}
 
-func bmEqual(b *testing.B, equal func([]byte, []byte) bool, n int) {
-	if len(bmbuf) < 2*n {
-		bmbuf = make([]byte, 2*n)
-	}
-	b.SetBytes(int64(n))
-	buf1 := bmbuf[0:n]
-	buf2 := bmbuf[n : 2*n]
-	buf1[n-1] = 'x'
-	buf2[n-1] = 'x'
-	for i := 0; i < b.N; i++ {
-		eq := equal(buf1, buf2)
-		if !eq {
-			b.Fatal("bad equal")
-		}
-	}
-	buf1[n-1] = '\x00'
-	buf2[n-1] = '\x00'
+func BenchmarkIndexByte(b *testing.B) {
+	benchBytes(b, indexSizes, bmIndexByte(IndexByte))
 }
 
-func BenchmarkIndex32(b *testing.B)  { bmIndex(b, Index, 32) }
-func BenchmarkIndex4K(b *testing.B)  { bmIndex(b, Index, 4<<10) }
-func BenchmarkIndex4M(b *testing.B)  { bmIndex(b, Index, 4<<20) }
-func BenchmarkIndex64M(b *testing.B) { bmIndex(b, Index, 64<<20) }
-
-func bmIndex(b *testing.B, index func([]byte, []byte) int, n int) {
-	if len(bmbuf) < n {
-		bmbuf = make([]byte, n)
-	}
-	b.SetBytes(int64(n))
-	buf := bmbuf[0:n]
-	buf[n-1] = 'x'
-	for i := 0; i < b.N; i++ {
-		j := index(buf, buf[n-7:])
-		if j != n-7 {
-			b.Fatal("bad index", j)
-		}
-	}
-	buf[n-1] = '\x00'
+func BenchmarkIndexBytePortable(b *testing.B) {
+	benchBytes(b, indexSizes, bmIndexByte(IndexBytePortable))
 }
 
-func BenchmarkIndexEasy32(b *testing.B)  { bmIndexEasy(b, Index, 32) }
-func BenchmarkIndexEasy4K(b *testing.B)  { bmIndexEasy(b, Index, 4<<10) }
-func BenchmarkIndexEasy4M(b *testing.B)  { bmIndexEasy(b, Index, 4<<20) }
-func BenchmarkIndexEasy64M(b *testing.B) { bmIndexEasy(b, Index, 64<<20) }
-
-func bmIndexEasy(b *testing.B, index func([]byte, []byte) int, n int) {
-	if len(bmbuf) < n {
-		bmbuf = make([]byte, n)
-	}
-	b.SetBytes(int64(n))
-	buf := bmbuf[0:n]
-	buf[n-1] = 'x'
-	buf[n-7] = 'x'
-	for i := 0; i < b.N; i++ {
-		j := index(buf, buf[n-7:])
-		if j != n-7 {
-			b.Fatal("bad index", j)
+func bmIndexByte(index func([]byte, byte) int) func(b *testing.B, n int) {
+	return func(b *testing.B, n int) {
+		buf := bmbuf[0:n]
+		buf[n-1] = 'x'
+		for i := 0; i < b.N; i++ {
+			j := index(buf, 'x')
+			if j != n-1 {
+				b.Fatal("bad index", j)
+			}
 		}
+		buf[n-1] = '\x00'
 	}
-	buf[n-1] = '\x00'
-	buf[n-7] = '\x00'
 }
 
-func BenchmarkCount32(b *testing.B)  { bmCount(b, Count, 32) }
-func BenchmarkCount4K(b *testing.B)  { bmCount(b, Count, 4<<10) }
-func BenchmarkCount4M(b *testing.B)  { bmCount(b, Count, 4<<20) }
-func BenchmarkCount64M(b *testing.B) { bmCount(b, Count, 64<<20) }
-
-func bmCount(b *testing.B, count func([]byte, []byte) int, n int) {
-	if len(bmbuf) < n {
-		bmbuf = make([]byte, n)
-	}
-	b.SetBytes(int64(n))
-	buf := bmbuf[0:n]
-	buf[n-1] = 'x'
-	for i := 0; i < b.N; i++ {
-		j := count(buf, buf[n-7:])
-		if j != 1 {
-			b.Fatal("bad count", j)
+func BenchmarkEqual(b *testing.B) {
+	b.Run("0", func(b *testing.B) {
+		var buf [4]byte
+		buf1 := buf[0:0]
+		buf2 := buf[1:1]
+		for i := 0; i < b.N; i++ {
+			eq := Equal(buf1, buf2)
+			if !eq {
+				b.Fatal("bad equal")
+			}
 		}
-	}
-	buf[n-1] = '\x00'
+	})
+
+	sizes := []int{1, 6, 9, 15, 16, 20, 32, 4 << 10, 4 << 20, 64 << 20}
+	benchBytes(b, sizes, bmEqual(Equal))
 }
 
-func BenchmarkCountEasy32(b *testing.B)  { bmCountEasy(b, Count, 32) }
-func BenchmarkCountEasy4K(b *testing.B)  { bmCountEasy(b, Count, 4<<10) }
-func BenchmarkCountEasy4M(b *testing.B)  { bmCountEasy(b, Count, 4<<20) }
-func BenchmarkCountEasy64M(b *testing.B) { bmCountEasy(b, Count, 64<<20) }
+func BenchmarkEqualPort(b *testing.B) {
+	sizes := []int{1, 6, 32, 4 << 10, 4 << 20, 64 << 20}
+	benchBytes(b, sizes, bmEqual(EqualPortable))
+}
 
-func bmCountEasy(b *testing.B, count func([]byte, []byte) int, n int) {
-	if len(bmbuf) < n {
-		bmbuf = make([]byte, n)
-	}
-	b.SetBytes(int64(n))
-	buf := bmbuf[0:n]
-	buf[n-1] = 'x'
-	buf[n-7] = 'x'
-	for i := 0; i < b.N; i++ {
-		j := count(buf, buf[n-7:])
-		if j != 1 {
-			b.Fatal("bad count", j)
+func bmEqual(equal func([]byte, []byte) bool) func(b *testing.B, n int) {
+	return func(b *testing.B, n int) {
+		if len(bmbuf) < 2*n {
+			bmbuf = make([]byte, 2*n)
 		}
+		buf1 := bmbuf[0:n]
+		buf2 := bmbuf[n : 2*n]
+		buf1[n-1] = 'x'
+		buf2[n-1] = 'x'
+		for i := 0; i < b.N; i++ {
+			eq := equal(buf1, buf2)
+			if !eq {
+				b.Fatal("bad equal")
+			}
+		}
+		buf1[n-1] = '\x00'
+		buf2[n-1] = '\x00'
 	}
-	buf[n-1] = '\x00'
-	buf[n-7] = '\x00'
+}
+
+func BenchmarkIndex(b *testing.B) {
+	benchBytes(b, indexSizes, func(b *testing.B, n int) {
+		buf := bmbuf[0:n]
+		buf[n-1] = 'x'
+		for i := 0; i < b.N; i++ {
+			j := Index(buf, buf[n-7:])
+			if j != n-7 {
+				b.Fatal("bad index", j)
+			}
+		}
+		buf[n-1] = '\x00'
+	})
+}
+
+func BenchmarkIndexEasy(b *testing.B) {
+	benchBytes(b, indexSizes, func(b *testing.B, n int) {
+		buf := bmbuf[0:n]
+		buf[n-1] = 'x'
+		buf[n-7] = 'x'
+		for i := 0; i < b.N; i++ {
+			j := Index(buf, buf[n-7:])
+			if j != n-7 {
+				b.Fatal("bad index", j)
+			}
+		}
+		buf[n-1] = '\x00'
+		buf[n-7] = '\x00'
+	})
+}
+
+func BenchmarkCount(b *testing.B) {
+	benchBytes(b, indexSizes, func(b *testing.B, n int) {
+		buf := bmbuf[0:n]
+		buf[n-1] = 'x'
+		for i := 0; i < b.N; i++ {
+			j := Count(buf, buf[n-7:])
+			if j != 1 {
+				b.Fatal("bad count", j)
+			}
+		}
+		buf[n-1] = '\x00'
+	})
+}
+
+func BenchmarkCountEasy(b *testing.B) {
+	benchBytes(b, indexSizes, func(b *testing.B, n int) {
+		buf := bmbuf[0:n]
+		buf[n-1] = 'x'
+		buf[n-7] = 'x'
+		for i := 0; i < b.N; i++ {
+			j := Count(buf, buf[n-7:])
+			if j != 1 {
+				b.Fatal("bad count", j)
+			}
+		}
+		buf[n-1] = '\x00'
+		buf[n-7] = '\x00'
+	})
 }
 
 type ExplodeTest struct {
@@ -743,7 +757,7 @@ func TestMap(t *testing.T) {
 	// Run a couple of awful growth/shrinkage tests
 	a := tenRunes('a')
 
-	// 1.  Grow.  This triggers two reallocations in Map.
+	// 1.  Grow. This triggers two reallocations in Map.
 	maxRune := func(r rune) rune { return unicode.MaxRune }
 	m := Map(maxRune, []byte(a))
 	expect := tenRunes(unicode.MaxRune)
@@ -1190,6 +1204,57 @@ func TestContains(t *testing.T) {
 	}
 }
 
+var ContainsAnyTests = []struct {
+	b        []byte
+	substr   string
+	expected bool
+}{
+	{[]byte(""), "", false},
+	{[]byte(""), "a", false},
+	{[]byte(""), "abc", false},
+	{[]byte("a"), "", false},
+	{[]byte("a"), "a", true},
+	{[]byte("aaa"), "a", true},
+	{[]byte("abc"), "xyz", false},
+	{[]byte("abc"), "xcz", true},
+	{[]byte("a☺b☻c☹d"), "uvw☻xyz", true},
+	{[]byte("aRegExp*"), ".(|)*+?^$[]", true},
+	{[]byte(dots + dots + dots), " ", false},
+}
+
+func TestContainsAny(t *testing.T) {
+	for _, ct := range ContainsAnyTests {
+		if ContainsAny(ct.b, ct.substr) != ct.expected {
+			t.Errorf("ContainsAny(%s, %s) = %v, want %v",
+				ct.b, ct.substr, !ct.expected, ct.expected)
+		}
+	}
+}
+
+var ContainsRuneTests = []struct {
+	b        []byte
+	r        rune
+	expected bool
+}{
+	{[]byte(""), 'a', false},
+	{[]byte("a"), 'a', true},
+	{[]byte("aaa"), 'a', true},
+	{[]byte("abc"), 'y', false},
+	{[]byte("abc"), 'c', true},
+	{[]byte("a☺b☻c☹d"), 'x', false},
+	{[]byte("a☺b☻c☹d"), '☻', true},
+	{[]byte("aRegExp*"), '*', true},
+}
+
+func TestContainsRune(t *testing.T) {
+	for _, ct := range ContainsRuneTests {
+		if ContainsRune(ct.b, ct.r) != ct.expected {
+			t.Errorf("ContainsRune(%q, %q) = %v, want %v",
+				ct.b, ct.r, !ct.expected, ct.expected)
+		}
+	}
+}
+
 var makeFieldsInput = func() []byte {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
@@ -1236,5 +1301,27 @@ func BenchmarkTrimSpace(b *testing.B) {
 func BenchmarkRepeat(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Repeat([]byte("-"), 80)
+	}
+}
+
+func BenchmarkBytesCompare(b *testing.B) {
+	for n := 1; n <= 2048; n <<= 1 {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			var x = make([]byte, n)
+			var y = make([]byte, n)
+
+			for i := 0; i < n; i++ {
+				x[i] = 'a'
+			}
+
+			for i := 0; i < n; i++ {
+				y[i] = 'a'
+			}
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				Compare(x, y)
+			}
+		})
 	}
 }

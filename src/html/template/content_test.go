@@ -260,7 +260,7 @@ func TestStringer(t *testing.T) {
 	}
 }
 
-// https://code.google.com/p/go/issues/detail?id=5982
+// https://golang.org/issue/5982
 func TestEscapingNilNonemptyInterfaces(t *testing.T) {
 	tmpl := Must(New("x").Parse("{{.E}}"))
 

@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
-// so that go vet can check that they are correct.
-
 #include "textflag.h"
 #include "funcdata.h"
 
@@ -18,34 +15,34 @@
 
 TEXT	·Syscall(SB),NOSPLIT,$0-28
 	CALL	runtime·entersyscall(SB)
-	MOVL	4(SP), AX	// syscall entry
+	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL		8(SP), SI
-	LEAL		4(SP), DI
+	LEAL		a1+4(FP), SI
+	LEAL		trap+0(FP), DI
 	CLD
 	MOVSL
 	MOVSL
 	MOVSL
 	INT	$0x80
 	JAE	ok
-	MOVL	$-1, 20(SP)	// r1
-	MOVL	$-1, 24(SP)	// r2
-	MOVL	AX, 28(SP)		// errno
+	MOVL	$-1, r1+16(FP)
+	MOVL	$-1, r2+20(FP)
+	MOVL	AX, err+24(FP)
 	CALL	runtime·exitsyscall(SB)
 	RET
 ok:
-	MOVL	AX, 20(SP)	// r1
-	MOVL	DX, 24(SP)	// r2
-	MOVL	$0, 28(SP)	// errno
+	MOVL	AX, r1+16(FP)
+	MOVL	DX, r2+20(FP)
+	MOVL	$0, err+24(FP)
 	CALL	runtime·exitsyscall(SB)
 	RET
 
 TEXT	·Syscall6(SB),NOSPLIT,$0-40
 	CALL	runtime·entersyscall(SB)
-	MOVL	4(SP), AX	// syscall entry
+	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL		8(SP), SI
-	LEAL		4(SP), DI
+	LEAL		a1+4(FP), SI
+	LEAL		trap+0(FP), DI
 	CLD
 	MOVSL
 	MOVSL
@@ -55,24 +52,24 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-40
 	MOVSL
 	INT	$0x80
 	JAE	ok6
-	MOVL	$-1, 32(SP)	// r1
-	MOVL	$-1, 36(SP)	// r2
-	MOVL	AX, 40(SP)		// errno
+	MOVL	$-1, r1+28(FP)
+	MOVL	$-1, r2+32(FP)
+	MOVL	AX, err+36(FP)
 	CALL	runtime·exitsyscall(SB)
 	RET
 ok6:
-	MOVL	AX, 32(SP)	// r1
-	MOVL	DX, 36(SP)	// r2
-	MOVL	$0, 40(SP)	// errno
+	MOVL	AX, r1+28(FP)
+	MOVL	DX, r2+32(FP)
+	MOVL	$0, err+36(FP)
 	CALL	runtime·exitsyscall(SB)
 	RET
 
 TEXT	·Syscall9(SB),NOSPLIT,$0-52
 	CALL	runtime·entersyscall(SB)
-	MOVL	4(SP), AX	// syscall entry
+	MOVL	num+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL		8(SP), SI
-	LEAL		4(SP), DI
+	LEAL		a1+4(FP), SI
+	LEAL		num+0(FP), DI
 	CLD
 	MOVSL
 	MOVSL
@@ -85,44 +82,44 @@ TEXT	·Syscall9(SB),NOSPLIT,$0-52
 	MOVSL
 	INT	$0x80
 	JAE	ok9
-	MOVL	$-1, 44(SP)	// r1
-	MOVL	$-1, 48(SP)	// r2
-	MOVL	AX, 52(SP)		// errno
+	MOVL	$-1, r1+40(FP)
+	MOVL	$-1, r2+44(FP)
+	MOVL	AX, err+48(FP)
 	CALL	runtime·exitsyscall(SB)
 	RET
 ok9:
-	MOVL	AX, 44(SP)	// r1
-	MOVL	DX, 48(SP)	// r2
-	MOVL	$0, 52(SP)	// errno
+	MOVL	AX, r1+40(FP)
+	MOVL	DX, r2+44(FP)
+	MOVL	$0, err+48(FP)
 	CALL	runtime·exitsyscall(SB)
 	RET
 
 TEXT ·RawSyscall(SB),NOSPLIT,$0-28
-	MOVL	4(SP), AX	// syscall entry
+	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL		8(SP), SI
-	LEAL		4(SP), DI
+	LEAL		a1+4(FP), SI
+	LEAL		trap+0(FP), DI
 	CLD
 	MOVSL
 	MOVSL
 	MOVSL
 	INT	$0x80
 	JAE	ok1
-	MOVL	$-1, 20(SP)	// r1
-	MOVL	$-1, 24(SP)	// r2
-	MOVL	AX, 28(SP)		// errno
+	MOVL	$-1, r1+16(FP)
+	MOVL	$-1, r2+20(FP)
+	MOVL	AX, err+24(FP)
 	RET
 ok1:
-	MOVL	AX, 20(SP)	// r1
-	MOVL	DX, 24(SP)	// r2
-	MOVL	$0, 28(SP)	// errno
+	MOVL	AX, r1+16(FP)
+	MOVL	DX, r2+20(FP)
+	MOVL	$0, err+24(FP)
 	RET
 
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
-	MOVL	4(SP), AX	// syscall entry
+	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL		8(SP), SI
-	LEAL		4(SP), DI
+	LEAL		a1+4(FP), SI
+	LEAL		trap+0(FP), DI
 	CLD
 	MOVSL
 	MOVSL
@@ -132,12 +129,12 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
 	MOVSL
 	INT	$0x80
 	JAE	ok2
-	MOVL	$-1, 32(SP)	// r1
-	MOVL	$-1, 36(SP)	// r2
-	MOVL	AX, 40(SP)		// errno
+	MOVL	$-1, r1+28(FP)
+	MOVL	$-1, r2+32(FP)
+	MOVL	AX, err+36(FP)
 	RET
 ok2:
-	MOVL	AX, 32(SP)	// r1
-	MOVL	DX, 36(SP)	// r2
-	MOVL	$0, 40(SP)	// errno
+	MOVL	AX, r1+28(FP)
+	MOVL	DX, r2+32(FP)
+	MOVL	$0, err+36(FP)
 	RET

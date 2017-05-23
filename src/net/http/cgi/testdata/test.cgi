@@ -23,6 +23,10 @@ print "X-CGI-Pid: $$\r\n";
 print "X-Test-Header: X-Test-Value\r\n";
 print "\r\n";
 
+if ($params->{"writestderr"}) {
+    print STDERR "Hello, stderr!\n";
+}
+
 if ($params->{"bigresponse"}) {
     # 17 MB, for OS X: golang.org/issue/4958
     for (1..(17 * 1024)) {
@@ -45,7 +49,7 @@ foreach my $k (sort keys %ENV) {
 
 # NOTE: msys perl returns /c/go/src/... not C:\go\....
 my $dir = getcwd();
-if ($^O eq 'MSWin32' || $^O eq 'msys') {
+if ($^O eq 'MSWin32' || $^O eq 'msys' || $^O eq 'cygwin') {
     if ($dir =~ /^.:/) {
         $dir =~ s!/!\\!g;
     } else {

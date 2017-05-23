@@ -1,0 +1,604 @@
+# CL 134210043 archive/zip: add Writer.Flush, Brad Fitzpatrick <bradfitz@golang.org>
+pkg archive/zip, method (*Writer) Flush() error
+
+# CL 97140043 compress/flate: add Reset() to allow reusing large buffers to compress multiple buffers, James Robinson <jamesr@google.com>
+pkg compress/flate, type Resetter interface { Reset }
+pkg compress/flate, type Resetter interface, Reset(io.Reader, []uint8) error
+pkg compress/zlib, type Resetter interface { Reset }
+pkg compress/zlib, type Resetter interface, Reset(io.Reader, []uint8) error
+
+# CL 159120044 compress/gzip: allow stopping at end of first stream, Russ Cox <rsc@golang.org>
+pkg compress/gzip, method (*Reader) Multistream(bool)
+
+# CL 138800043 crypto: Add SHA3 functions in go.crypto/sha3 to the Hash enum., David Leon Gil <coruus@gmail.com>
+pkg crypto, const SHA3_224 = 10
+pkg crypto, const SHA3_224 Hash
+pkg crypto, const SHA3_256 = 11
+pkg crypto, const SHA3_256 Hash
+pkg crypto, const SHA3_384 = 12
+pkg crypto, const SHA3_384 Hash
+pkg crypto, const SHA3_512 = 13
+pkg crypto, const SHA3_512 Hash
+
+# CL 114680043 crypto: add Signer, Adam Langley <agl@golang.org>
+pkg crypto, method (Hash) HashFunc() Hash
+pkg crypto, type Signer interface { Public, Sign }
+pkg crypto, type Signer interface, Public() PublicKey
+pkg crypto, type Signer interface, Sign(io.Reader, []uint8, SignerOpts) ([]uint8, error)
+pkg crypto, type SignerOpts interface { HashFunc }
+pkg crypto, type SignerOpts interface, HashFunc() Hash
+pkg crypto/ecdsa, method (*PrivateKey) Public() crypto.PublicKey
+pkg crypto/ecdsa, method (*PrivateKey) Sign(io.Reader, []uint8, crypto.SignerOpts) ([]uint8, error)
+pkg crypto/rsa, method (*PSSOptions) HashFunc() crypto.Hash
+pkg crypto/rsa, method (*PrivateKey) Public() crypto.PublicKey
+pkg crypto/rsa, method (*PrivateKey) Sign(io.Reader, []uint8, crypto.SignerOpts) ([]uint8, error)
+pkg crypto/rsa, type PSSOptions struct, Hash crypto.Hash
+
+# CL 157090043 crypto/tls: support TLS_FALLBACK_SCSV as a server., Adam Langley <agl@golang.org>
+pkg crypto/tls, const TLS_FALLBACK_SCSV = 22016
+pkg crypto/tls, const TLS_FALLBACK_SCSV uint16
+
+# CL 107400043 crypto/tls: Added dynamic alternative to NameToCertificate map for SNI, Percy Wegmann <ox.to.a.cart@gmail.com>
+pkg crypto/tls, type ClientHelloInfo struct
+pkg crypto/tls, type ClientHelloInfo struct, CipherSuites []uint16
+pkg crypto/tls, type ClientHelloInfo struct, ServerName string
+pkg crypto/tls, type ClientHelloInfo struct, SupportedCurves []CurveID
+pkg crypto/tls, type ClientHelloInfo struct, SupportedPoints []uint8
+pkg crypto/tls, type Config struct, GetCertificate func(*ClientHelloInfo) (*Certificate, error)
+pkg crypto/tls, type ConnectionState struct, TLSUnique []uint8
+
+# CL 153420045 crypto/x509: continue to recognise MaxPathLen of zero as "no value"., Adam Langley <agl@golang.org>
+pkg crypto/x509, type Certificate struct, MaxPathLenZero bool
+
+# CL 158950043 database/sql: add Drivers, returning list of registered drivers, Russ Cox <rsc@golang.org>
+pkg database/sql, func Drivers() []string
+
+# CL 117280043 debug/dwarf: fix Reader panic on DW_TAG_unspecified_type, Derek Parker <parkerderek86@gmail.com>
+pkg debug/dwarf, method (*UnspecifiedType) Basic() *BasicType
+pkg debug/dwarf, method (*UnspecifiedType) Common() *CommonType
+pkg debug/dwarf, method (*UnspecifiedType) Size() int64
+pkg debug/dwarf, method (*UnspecifiedType) String() string
+pkg debug/dwarf, type UnspecifiedType struct
+pkg debug/dwarf, type UnspecifiedType struct, embedded BasicType
+
+# CL 132000043 debug/elf: support arm64 relocations, Michael Hudson-Doyle <michael.hudson@linaro.org>
+pkg debug/elf, const EM_AARCH64 = 183
+pkg debug/elf, const EM_AARCH64 Machine
+pkg debug/elf, const R_AARCH64_ABS16 = 259
+pkg debug/elf, const R_AARCH64_ABS16 R_AARCH64
+pkg debug/elf, const R_AARCH64_ABS32 = 258
+pkg debug/elf, const R_AARCH64_ABS32 R_AARCH64
+pkg debug/elf, const R_AARCH64_ABS64 = 257
+pkg debug/elf, const R_AARCH64_ABS64 R_AARCH64
+pkg debug/elf, const R_AARCH64_ADD_ABS_LO12_NC = 277
+pkg debug/elf, const R_AARCH64_ADD_ABS_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_ADR_GOT_PAGE = 311
+pkg debug/elf, const R_AARCH64_ADR_GOT_PAGE R_AARCH64
+pkg debug/elf, const R_AARCH64_ADR_PREL_LO21 = 274
+pkg debug/elf, const R_AARCH64_ADR_PREL_LO21 R_AARCH64
+pkg debug/elf, const R_AARCH64_ADR_PREL_PG_HI21 = 275
+pkg debug/elf, const R_AARCH64_ADR_PREL_PG_HI21 R_AARCH64
+pkg debug/elf, const R_AARCH64_ADR_PREL_PG_HI21_NC = 276
+pkg debug/elf, const R_AARCH64_ADR_PREL_PG_HI21_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_CALL26 = 283
+pkg debug/elf, const R_AARCH64_CALL26 R_AARCH64
+pkg debug/elf, const R_AARCH64_CONDBR19 = 280
+pkg debug/elf, const R_AARCH64_CONDBR19 R_AARCH64
+pkg debug/elf, const R_AARCH64_COPY = 1024
+pkg debug/elf, const R_AARCH64_COPY R_AARCH64
+pkg debug/elf, const R_AARCH64_GLOB_DAT = 1025
+pkg debug/elf, const R_AARCH64_GLOB_DAT R_AARCH64
+pkg debug/elf, const R_AARCH64_GOT_LD_PREL19 = 309
+pkg debug/elf, const R_AARCH64_GOT_LD_PREL19 R_AARCH64
+pkg debug/elf, const R_AARCH64_IRELATIVE = 1032
+pkg debug/elf, const R_AARCH64_IRELATIVE R_AARCH64
+pkg debug/elf, const R_AARCH64_JUMP26 = 282
+pkg debug/elf, const R_AARCH64_JUMP26 R_AARCH64
+pkg debug/elf, const R_AARCH64_JUMP_SLOT = 1026
+pkg debug/elf, const R_AARCH64_JUMP_SLOT R_AARCH64
+pkg debug/elf, const R_AARCH64_LD64_GOT_LO12_NC = 312
+pkg debug/elf, const R_AARCH64_LD64_GOT_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_LDST128_ABS_LO12_NC = 299
+pkg debug/elf, const R_AARCH64_LDST128_ABS_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_LDST16_ABS_LO12_NC = 284
+pkg debug/elf, const R_AARCH64_LDST16_ABS_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_LDST32_ABS_LO12_NC = 285
+pkg debug/elf, const R_AARCH64_LDST32_ABS_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_LDST64_ABS_LO12_NC = 286
+pkg debug/elf, const R_AARCH64_LDST64_ABS_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_LDST8_ABS_LO12_NC = 278
+pkg debug/elf, const R_AARCH64_LDST8_ABS_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_LD_PREL_LO19 = 273
+pkg debug/elf, const R_AARCH64_LD_PREL_LO19 R_AARCH64
+pkg debug/elf, const R_AARCH64_MOVW_SABS_G0 = 270
+pkg debug/elf, const R_AARCH64_MOVW_SABS_G0 R_AARCH64
+pkg debug/elf, const R_AARCH64_MOVW_SABS_G1 = 271
+pkg debug/elf, const R_AARCH64_MOVW_SABS_G1 R_AARCH64
+pkg debug/elf, const R_AARCH64_MOVW_SABS_G2 = 272
+pkg debug/elf, const R_AARCH64_MOVW_SABS_G2 R_AARCH64
+pkg debug/elf, const R_AARCH64_MOVW_UABS_G0 = 263
+pkg debug/elf, const R_AARCH64_MOVW_UABS_G0 R_AARCH64
+pkg debug/elf, const R_AARCH64_MOVW_UABS_G0_NC = 264
+pkg debug/elf, const R_AARCH64_MOVW_UABS_G0_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_MOVW_UABS_G1 = 265
+pkg debug/elf, const R_AARCH64_MOVW_UABS_G1 R_AARCH64
+pkg debug/elf, const R_AARCH64_MOVW_UABS_G1_NC = 266
+pkg debug/elf, const R_AARCH64_MOVW_UABS_G1_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_MOVW_UABS_G2 = 267
+pkg debug/elf, const R_AARCH64_MOVW_UABS_G2 R_AARCH64
+pkg debug/elf, const R_AARCH64_MOVW_UABS_G2_NC = 268
+pkg debug/elf, const R_AARCH64_MOVW_UABS_G2_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_MOVW_UABS_G3 = 269
+pkg debug/elf, const R_AARCH64_MOVW_UABS_G3 R_AARCH64
+pkg debug/elf, const R_AARCH64_NONE = 0
+pkg debug/elf, const R_AARCH64_NONE R_AARCH64
+pkg debug/elf, const R_AARCH64_NULL = 256
+pkg debug/elf, const R_AARCH64_NULL R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_ABS16 = 2
+pkg debug/elf, const R_AARCH64_P32_ABS16 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_ABS32 = 1
+pkg debug/elf, const R_AARCH64_P32_ABS32 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_ADD_ABS_LO12_NC = 12
+pkg debug/elf, const R_AARCH64_P32_ADD_ABS_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_ADR_GOT_PAGE = 26
+pkg debug/elf, const R_AARCH64_P32_ADR_GOT_PAGE R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_ADR_PREL_LO21 = 10
+pkg debug/elf, const R_AARCH64_P32_ADR_PREL_LO21 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_ADR_PREL_PG_HI21 = 11
+pkg debug/elf, const R_AARCH64_P32_ADR_PREL_PG_HI21 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_CALL26 = 21
+pkg debug/elf, const R_AARCH64_P32_CALL26 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_CONDBR19 = 19
+pkg debug/elf, const R_AARCH64_P32_CONDBR19 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_COPY = 180
+pkg debug/elf, const R_AARCH64_P32_COPY R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_GLOB_DAT = 181
+pkg debug/elf, const R_AARCH64_P32_GLOB_DAT R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_GOT_LD_PREL19 = 25
+pkg debug/elf, const R_AARCH64_P32_GOT_LD_PREL19 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_IRELATIVE = 188
+pkg debug/elf, const R_AARCH64_P32_IRELATIVE R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_JUMP26 = 20
+pkg debug/elf, const R_AARCH64_P32_JUMP26 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_JUMP_SLOT = 182
+pkg debug/elf, const R_AARCH64_P32_JUMP_SLOT R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_LD32_GOT_LO12_NC = 27
+pkg debug/elf, const R_AARCH64_P32_LD32_GOT_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_LDST128_ABS_LO12_NC = 17
+pkg debug/elf, const R_AARCH64_P32_LDST128_ABS_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_LDST16_ABS_LO12_NC = 14
+pkg debug/elf, const R_AARCH64_P32_LDST16_ABS_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_LDST32_ABS_LO12_NC = 15
+pkg debug/elf, const R_AARCH64_P32_LDST32_ABS_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_LDST64_ABS_LO12_NC = 16
+pkg debug/elf, const R_AARCH64_P32_LDST64_ABS_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_LDST8_ABS_LO12_NC = 13
+pkg debug/elf, const R_AARCH64_P32_LDST8_ABS_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_LD_PREL_LO19 = 9
+pkg debug/elf, const R_AARCH64_P32_LD_PREL_LO19 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_MOVW_SABS_G0 = 8
+pkg debug/elf, const R_AARCH64_P32_MOVW_SABS_G0 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_MOVW_UABS_G0 = 5
+pkg debug/elf, const R_AARCH64_P32_MOVW_UABS_G0 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_MOVW_UABS_G0_NC = 6
+pkg debug/elf, const R_AARCH64_P32_MOVW_UABS_G0_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_MOVW_UABS_G1 = 7
+pkg debug/elf, const R_AARCH64_P32_MOVW_UABS_G1 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_PREL16 = 4
+pkg debug/elf, const R_AARCH64_P32_PREL16 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_PREL32 = 3
+pkg debug/elf, const R_AARCH64_P32_PREL32 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_RELATIVE = 183
+pkg debug/elf, const R_AARCH64_P32_RELATIVE R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSDESC = 187
+pkg debug/elf, const R_AARCH64_P32_TLSDESC R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSDESC_ADD_LO12_NC = 126
+pkg debug/elf, const R_AARCH64_P32_TLSDESC_ADD_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSDESC_ADR_PAGE21 = 124
+pkg debug/elf, const R_AARCH64_P32_TLSDESC_ADR_PAGE21 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSDESC_ADR_PREL21 = 123
+pkg debug/elf, const R_AARCH64_P32_TLSDESC_ADR_PREL21 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSDESC_CALL = 127
+pkg debug/elf, const R_AARCH64_P32_TLSDESC_CALL R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSDESC_LD32_LO12_NC = 125
+pkg debug/elf, const R_AARCH64_P32_TLSDESC_LD32_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSDESC_LD_PREL19 = 122
+pkg debug/elf, const R_AARCH64_P32_TLSDESC_LD_PREL19 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSGD_ADD_LO12_NC = 82
+pkg debug/elf, const R_AARCH64_P32_TLSGD_ADD_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSGD_ADR_PAGE21 = 81
+pkg debug/elf, const R_AARCH64_P32_TLSGD_ADR_PAGE21 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSIE_ADR_GOTTPREL_PAGE21 = 103
+pkg debug/elf, const R_AARCH64_P32_TLSIE_ADR_GOTTPREL_PAGE21 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSIE_LD32_GOTTPREL_LO12_NC = 104
+pkg debug/elf, const R_AARCH64_P32_TLSIE_LD32_GOTTPREL_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSIE_LD_GOTTPREL_PREL19 = 105
+pkg debug/elf, const R_AARCH64_P32_TLSIE_LD_GOTTPREL_PREL19 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSLE_ADD_TPREL_HI12 = 109
+pkg debug/elf, const R_AARCH64_P32_TLSLE_ADD_TPREL_HI12 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSLE_ADD_TPREL_LO12 = 110
+pkg debug/elf, const R_AARCH64_P32_TLSLE_ADD_TPREL_LO12 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSLE_ADD_TPREL_LO12_NC = 111
+pkg debug/elf, const R_AARCH64_P32_TLSLE_ADD_TPREL_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSLE_MOVW_TPREL_G0 = 107
+pkg debug/elf, const R_AARCH64_P32_TLSLE_MOVW_TPREL_G0 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSLE_MOVW_TPREL_G0_NC = 108
+pkg debug/elf, const R_AARCH64_P32_TLSLE_MOVW_TPREL_G0_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLSLE_MOVW_TPREL_G1 = 106
+pkg debug/elf, const R_AARCH64_P32_TLSLE_MOVW_TPREL_G1 R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLS_DTPMOD = 184
+pkg debug/elf, const R_AARCH64_P32_TLS_DTPMOD R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLS_DTPREL = 185
+pkg debug/elf, const R_AARCH64_P32_TLS_DTPREL R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TLS_TPREL = 186
+pkg debug/elf, const R_AARCH64_P32_TLS_TPREL R_AARCH64
+pkg debug/elf, const R_AARCH64_P32_TSTBR14 = 18
+pkg debug/elf, const R_AARCH64_P32_TSTBR14 R_AARCH64
+pkg debug/elf, const R_AARCH64_PREL16 = 262
+pkg debug/elf, const R_AARCH64_PREL16 R_AARCH64
+pkg debug/elf, const R_AARCH64_PREL32 = 261
+pkg debug/elf, const R_AARCH64_PREL32 R_AARCH64
+pkg debug/elf, const R_AARCH64_PREL64 = 260
+pkg debug/elf, const R_AARCH64_PREL64 R_AARCH64
+pkg debug/elf, const R_AARCH64_RELATIVE = 1027
+pkg debug/elf, const R_AARCH64_RELATIVE R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSDESC = 1031
+pkg debug/elf, const R_AARCH64_TLSDESC R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSDESC_ADD = 568
+pkg debug/elf, const R_AARCH64_TLSDESC_ADD R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSDESC_ADD_LO12_NC = 564
+pkg debug/elf, const R_AARCH64_TLSDESC_ADD_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSDESC_ADR_PAGE21 = 562
+pkg debug/elf, const R_AARCH64_TLSDESC_ADR_PAGE21 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSDESC_ADR_PREL21 = 561
+pkg debug/elf, const R_AARCH64_TLSDESC_ADR_PREL21 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSDESC_CALL = 569
+pkg debug/elf, const R_AARCH64_TLSDESC_CALL R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSDESC_LD64_LO12_NC = 563
+pkg debug/elf, const R_AARCH64_TLSDESC_LD64_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSDESC_LDR = 567
+pkg debug/elf, const R_AARCH64_TLSDESC_LDR R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSDESC_LD_PREL19 = 560
+pkg debug/elf, const R_AARCH64_TLSDESC_LD_PREL19 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSDESC_OFF_G0_NC = 566
+pkg debug/elf, const R_AARCH64_TLSDESC_OFF_G0_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSDESC_OFF_G1 = 565
+pkg debug/elf, const R_AARCH64_TLSDESC_OFF_G1 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSGD_ADD_LO12_NC = 514
+pkg debug/elf, const R_AARCH64_TLSGD_ADD_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSGD_ADR_PAGE21 = 513
+pkg debug/elf, const R_AARCH64_TLSGD_ADR_PAGE21 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21 = 541
+pkg debug/elf, const R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC = 542
+pkg debug/elf, const R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSIE_LD_GOTTPREL_PREL19 = 543
+pkg debug/elf, const R_AARCH64_TLSIE_LD_GOTTPREL_PREL19 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSIE_MOVW_GOTTPREL_G0_NC = 540
+pkg debug/elf, const R_AARCH64_TLSIE_MOVW_GOTTPREL_G0_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSIE_MOVW_GOTTPREL_G1 = 539
+pkg debug/elf, const R_AARCH64_TLSIE_MOVW_GOTTPREL_G1 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSLE_ADD_TPREL_HI12 = 549
+pkg debug/elf, const R_AARCH64_TLSLE_ADD_TPREL_HI12 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSLE_ADD_TPREL_LO12 = 550
+pkg debug/elf, const R_AARCH64_TLSLE_ADD_TPREL_LO12 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSLE_ADD_TPREL_LO12_NC = 551
+pkg debug/elf, const R_AARCH64_TLSLE_ADD_TPREL_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSLE_MOVW_TPREL_G0 = 547
+pkg debug/elf, const R_AARCH64_TLSLE_MOVW_TPREL_G0 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSLE_MOVW_TPREL_G0_NC = 548
+pkg debug/elf, const R_AARCH64_TLSLE_MOVW_TPREL_G0_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSLE_MOVW_TPREL_G1 = 545
+pkg debug/elf, const R_AARCH64_TLSLE_MOVW_TPREL_G1 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSLE_MOVW_TPREL_G1_NC = 546
+pkg debug/elf, const R_AARCH64_TLSLE_MOVW_TPREL_G1_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSLE_MOVW_TPREL_G2 = 544
+pkg debug/elf, const R_AARCH64_TLSLE_MOVW_TPREL_G2 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLS_DTPMOD64 = 1028
+pkg debug/elf, const R_AARCH64_TLS_DTPMOD64 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLS_DTPREL64 = 1029
+pkg debug/elf, const R_AARCH64_TLS_DTPREL64 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLS_TPREL64 = 1030
+pkg debug/elf, const R_AARCH64_TLS_TPREL64 R_AARCH64
+pkg debug/elf, const R_AARCH64_TSTBR14 = 279
+pkg debug/elf, const R_AARCH64_TSTBR14 R_AARCH64
+pkg debug/elf, method (R_AARCH64) GoString() string
+pkg debug/elf, method (R_AARCH64) String() string
+pkg debug/elf, type R_AARCH64 int
+
+# CL 107530043 debug/elf: add (*File).DynamicSymbols, ErrNoSymbols, and tests for (*File).Symbols and (*File).DynamicSymbols, and formalize symbol order., Pietro Gagliardi <pietro10@mac.com>
+pkg debug/elf, method (*File) DynamicSymbols() ([]Symbol, error)
+pkg debug/elf, var ErrNoSymbols error
+
+# CL 106460044 debug/plan9obj, cmd/addr2line: on Plan 9 use a.out header, Aram Hăvărneanu <aram@mgk.ro>
+pkg debug/plan9obj, type FileHeader struct, HdrSize uint64
+pkg debug/plan9obj, type FileHeader struct, LoadAddress uint64
+
+# CL 122960043 encoding/xml: add InputOffset method to Decoder, Russ Cox <rsc@golang.org>
+pkg encoding/xml, method (*Decoder) InputOffset() int64
+
+# CL 124940043 cmd/go, go/build: implement import comment checking, Russ Cox <rsc@golang.org>
+pkg go/build, const ImportComment = 4
+pkg go/build, const ImportComment ImportMode
+pkg go/build, type Package struct, ImportComment string
+
+# CL 155050043 go/build: Return MultiplePackageError on importing a dir containing multiple packages, Jens Frederich <jfrederich@gmail.com>
+pkg go/build, method (*MultiplePackageError) Error() string
+pkg go/build, type MultiplePackageError struct
+pkg go/build, type MultiplePackageError struct, Dir string
+pkg go/build, type MultiplePackageError struct, Files []string
+pkg go/build, type MultiplePackageError struct, Packages []string
+
+# CL 135110044 go/token: implement PositionFor accessors, Robert Griesemer <gri@golang.org>
+pkg go/token, method (*File) PositionFor(Pos, bool) Position
+pkg go/token, method (*FileSet) PositionFor(Pos, bool) Position
+
+# CL 109000049 image: add RGBAAt, Gray16At, etc., ChaiShushan <chaishushan@gmail.com>
+pkg image, method (*Alpha) AlphaAt(int, int) color.Alpha
+pkg image, method (*Alpha16) Alpha16At(int, int) color.Alpha16
+pkg image, method (*Gray) GrayAt(int, int) color.Gray
+pkg image, method (*Gray16) Gray16At(int, int) color.Gray16
+pkg image, method (*NRGBA) NRGBAAt(int, int) color.NRGBA
+pkg image, method (*NRGBA64) NRGBA64At(int, int) color.NRGBA64
+pkg image, method (*RGBA) RGBAAt(int, int) color.RGBA
+pkg image, method (*RGBA64) RGBA64At(int, int) color.RGBA64
+pkg image, method (*YCbCr) YCbCrAt(int, int) color.YCbCr
+
+# CL 129190043 png: make the encoder configurable, Jeff R. Allen <jra@nella.org>
+pkg image/png, const BestCompression = -3
+pkg image/png, const BestCompression CompressionLevel
+pkg image/png, const BestSpeed = -2
+pkg image/png, const BestSpeed CompressionLevel
+pkg image/png, const DefaultCompression = 0
+pkg image/png, const DefaultCompression CompressionLevel
+pkg image/png, const NoCompression = -1
+pkg image/png, const NoCompression CompressionLevel
+pkg image/png, method (*Encoder) Encode(io.Writer, image.Image) error
+pkg image/png, type CompressionLevel int
+pkg image/png, type Encoder struct
+pkg image/png, type Encoder struct, CompressionLevel CompressionLevel
+
+# CL 101750048 math: implement Nextafter32, Robert Griesemer <gri@golang.org>
+pkg math, func Nextafter32(float32, float32) float32
+
+# CL 93550043 math/big: implement Rat.Float32, Robert Griesemer <gri@golang.org>
+pkg math/big, method (*Rat) Float32() (float32, bool)
+
+# CL 76540043 net/http: add BasicAuth method to *http.Request, Kelsey Hightower <kelsey.hightower@gmail.com>
+pkg net/http, method (*Request) BasicAuth() (string, string, bool)
+
+# CL 137940043 net/http: add Transport.DialTLS hook, Brad Fitzpatrick <bradfitz@golang.org>
+pkg net/http, type Transport struct, DialTLS func(string, string) (net.Conn, error)
+
+# CL 132750043 net/http/httputil: Pass a Logger to ReverseProxy, allowing the user to control logging., Mark Theunissen <mark.theunissen@gmail.com>
+pkg net/http/httputil, type ReverseProxy struct, ErrorLog *log.Logger
+
+# CL 148370043 os, syscall: add Unsetenv, Brad Fitzpatrick <bradfitz@golang.org>
+pkg os, func Unsetenv(string) error
+pkg syscall, func Unsetenv(string) error
+
+# CL 144020043 reflect: add Type.Comparable, Russ Cox <rsc@golang.org>
+pkg reflect, type Type interface, Comparable() bool
+
+# CL 153670043 runtime: add PauseEnd array to MemStats and GCStats, Jens Frederich <jfrederich@gmail.com>
+pkg runtime, type MemStats struct, PauseEnd [256]uint64
+pkg runtime/debug, type GCStats struct, PauseEnd []time.Time
+
+# CL 136710045 sync/atomic: add Value, Dmitriy Vyukov <dvyukov@google.com>
+pkg sync/atomic, method (*Value) Load() interface{}
+pkg sync/atomic, method (*Value) Store(interface{})
+pkg sync/atomic, type Value struct
+
+# CL 126190043 syscall: support UID/GID map files for Linux user namespaces, Mrunal Patel <mrunalp@gmail.com>
+pkg syscall (linux-386), type SysProcAttr struct, GidMappings []SysProcIDMap
+pkg syscall (linux-386), type SysProcAttr struct, UidMappings []SysProcIDMap
+pkg syscall (linux-386), type SysProcIDMap struct
+pkg syscall (linux-386), type SysProcIDMap struct, ContainerID int
+pkg syscall (linux-386), type SysProcIDMap struct, HostID int
+pkg syscall (linux-386), type SysProcIDMap struct, Size int
+pkg syscall (linux-386-cgo), type SysProcAttr struct, GidMappings []SysProcIDMap
+pkg syscall (linux-386-cgo), type SysProcAttr struct, UidMappings []SysProcIDMap
+pkg syscall (linux-386-cgo), type SysProcIDMap struct
+pkg syscall (linux-386-cgo), type SysProcIDMap struct, ContainerID int
+pkg syscall (linux-386-cgo), type SysProcIDMap struct, HostID int
+pkg syscall (linux-386-cgo), type SysProcIDMap struct, Size int
+pkg syscall (linux-amd64), type SysProcAttr struct, GidMappings []SysProcIDMap
+pkg syscall (linux-amd64), type SysProcAttr struct, UidMappings []SysProcIDMap
+pkg syscall (linux-amd64), type SysProcIDMap struct
+pkg syscall (linux-amd64), type SysProcIDMap struct, ContainerID int
+pkg syscall (linux-amd64), type SysProcIDMap struct, HostID int
+pkg syscall (linux-amd64), type SysProcIDMap struct, Size int
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, GidMappings []SysProcIDMap
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, UidMappings []SysProcIDMap
+pkg syscall (linux-amd64-cgo), type SysProcIDMap struct
+pkg syscall (linux-amd64-cgo), type SysProcIDMap struct, ContainerID int
+pkg syscall (linux-amd64-cgo), type SysProcIDMap struct, HostID int
+pkg syscall (linux-amd64-cgo), type SysProcIDMap struct, Size int
+pkg syscall (linux-arm), type SysProcAttr struct, GidMappings []SysProcIDMap
+pkg syscall (linux-arm), type SysProcAttr struct, UidMappings []SysProcIDMap
+pkg syscall (linux-arm), type SysProcIDMap struct
+pkg syscall (linux-arm), type SysProcIDMap struct, ContainerID int
+pkg syscall (linux-arm), type SysProcIDMap struct, HostID int
+pkg syscall (linux-arm), type SysProcIDMap struct, Size int
+pkg syscall (linux-arm-cgo), type SysProcAttr struct, GidMappings []SysProcIDMap
+pkg syscall (linux-arm-cgo), type SysProcAttr struct, UidMappings []SysProcIDMap
+pkg syscall (linux-arm-cgo), type SysProcIDMap struct
+pkg syscall (linux-arm-cgo), type SysProcIDMap struct, ContainerID int
+pkg syscall (linux-arm-cgo), type SysProcIDMap struct, HostID int
+pkg syscall (linux-arm-cgo), type SysProcIDMap struct, Size int
+
+# CL 122200043 net: fix CNAME resolving on Windows, Egon Elbre <egonelbre@gmail.com>
+pkg syscall (windows-386), const DNS_INFO_NO_RECORDS = 9501
+pkg syscall (windows-386), const DNS_INFO_NO_RECORDS ideal-int
+pkg syscall (windows-386), const DnsSectionAdditional = 3
+pkg syscall (windows-386), const DnsSectionAdditional ideal-int
+pkg syscall (windows-386), const DnsSectionAnswer = 1
+pkg syscall (windows-386), const DnsSectionAnswer ideal-int
+pkg syscall (windows-386), const DnsSectionAuthority = 2
+pkg syscall (windows-386), const DnsSectionAuthority ideal-int
+pkg syscall (windows-386), const DnsSectionQuestion = 0
+pkg syscall (windows-386), const DnsSectionQuestion ideal-int
+pkg syscall (windows-386), func DnsNameCompare(*uint16, *uint16) bool
+pkg syscall (windows-amd64), const DNS_INFO_NO_RECORDS = 9501
+pkg syscall (windows-amd64), const DNS_INFO_NO_RECORDS ideal-int
+pkg syscall (windows-amd64), const DnsSectionAdditional = 3
+pkg syscall (windows-amd64), const DnsSectionAdditional ideal-int
+pkg syscall (windows-amd64), const DnsSectionAnswer = 1
+pkg syscall (windows-amd64), const DnsSectionAnswer ideal-int
+pkg syscall (windows-amd64), const DnsSectionAuthority = 2
+pkg syscall (windows-amd64), const DnsSectionAuthority ideal-int
+pkg syscall (windows-amd64), const DnsSectionQuestion = 0
+pkg syscall (windows-amd64), const DnsSectionQuestion ideal-int
+pkg syscall (windows-amd64), func DnsNameCompare(*uint16, *uint16) bool
+
+# CL 86160044 os: Implement symlink support for Windows, Michael Fraenkel <michael.fraenkel@gmail.com>
+pkg syscall (windows-386), const ERROR_PRIVILEGE_NOT_HELD = 1314
+pkg syscall (windows-386), const ERROR_PRIVILEGE_NOT_HELD Errno
+pkg syscall (windows-amd64), const ERROR_PRIVILEGE_NOT_HELD = 1314
+pkg syscall (windows-amd64), const ERROR_PRIVILEGE_NOT_HELD Errno
+
+# CL 86160044 os: Implement symlink support for Windows, Michael Fraenkel <michael.fraenkel@gmail.com>
+pkg syscall (windows-386), const FILE_ATTRIBUTE_REPARSE_POINT = 1024
+pkg syscall (windows-386), const FILE_ATTRIBUTE_REPARSE_POINT ideal-int
+pkg syscall (windows-386), const FILE_FLAG_OPEN_REPARSE_POINT = 2097152
+pkg syscall (windows-386), const FILE_FLAG_OPEN_REPARSE_POINT ideal-int
+pkg syscall (windows-386), const FSCTL_GET_REPARSE_POINT = 589992
+pkg syscall (windows-386), const FSCTL_GET_REPARSE_POINT ideal-int
+pkg syscall (windows-386), const IO_REPARSE_TAG_SYMLINK = 2684354572
+pkg syscall (windows-386), const IO_REPARSE_TAG_SYMLINK ideal-int
+pkg syscall (windows-386), const MAXIMUM_REPARSE_DATA_BUFFER_SIZE = 16384
+pkg syscall (windows-386), const MAXIMUM_REPARSE_DATA_BUFFER_SIZE ideal-int
+pkg syscall (windows-386), const SYMBOLIC_LINK_FLAG_DIRECTORY = 1
+pkg syscall (windows-386), const SYMBOLIC_LINK_FLAG_DIRECTORY ideal-int
+pkg syscall (windows-386), func CreateHardLink(*uint16, *uint16, uintptr) error
+pkg syscall (windows-386), func CreateSymbolicLink(*uint16, *uint16, uint32) error
+pkg syscall (windows-386), func DeviceIoControl(Handle, uint32, *uint8, uint32, *uint8, uint32, *uint32, *Overlapped) error
+pkg syscall (windows-386), func LoadCreateSymbolicLink() error
+pkg syscall (windows-amd64), const FILE_ATTRIBUTE_REPARSE_POINT = 1024
+pkg syscall (windows-amd64), const FILE_ATTRIBUTE_REPARSE_POINT ideal-int
+pkg syscall (windows-amd64), const FILE_FLAG_OPEN_REPARSE_POINT = 2097152
+pkg syscall (windows-amd64), const FILE_FLAG_OPEN_REPARSE_POINT ideal-int
+pkg syscall (windows-amd64), const FSCTL_GET_REPARSE_POINT = 589992
+pkg syscall (windows-amd64), const FSCTL_GET_REPARSE_POINT ideal-int
+pkg syscall (windows-amd64), const IO_REPARSE_TAG_SYMLINK = 2684354572
+pkg syscall (windows-amd64), const IO_REPARSE_TAG_SYMLINK ideal-int
+pkg syscall (windows-amd64), const MAXIMUM_REPARSE_DATA_BUFFER_SIZE = 16384
+pkg syscall (windows-amd64), const MAXIMUM_REPARSE_DATA_BUFFER_SIZE ideal-int
+pkg syscall (windows-amd64), const SYMBOLIC_LINK_FLAG_DIRECTORY = 1
+pkg syscall (windows-amd64), const SYMBOLIC_LINK_FLAG_DIRECTORY ideal-int
+pkg syscall (windows-amd64), func CreateHardLink(*uint16, *uint16, uintptr) error
+pkg syscall (windows-amd64), func CreateSymbolicLink(*uint16, *uint16, uint32) error
+pkg syscall (windows-amd64), func DeviceIoControl(Handle, uint32, *uint8, uint32, *uint8, uint32, *uint32, *Overlapped) error
+pkg syscall (windows-amd64), func LoadCreateSymbolicLink() error
+
+# CL 149510043 net: disable SIO_UDP_CONNRESET behavior on windows., Ron Hashimoto <mail@h2so5.net>
+pkg syscall (windows-386), const SIO_UDP_CONNRESET = 2550136844
+pkg syscall (windows-386), const SIO_UDP_CONNRESET ideal-int
+pkg syscall (windows-amd64), const SIO_UDP_CONNRESET = 2550136844
+pkg syscall (windows-amd64), const SIO_UDP_CONNRESET ideal-int
+
+# CL 102320044 syscall: implement syscall.Getppid() on Windows, Alan Shreve <alan@inconshreveable.com>
+pkg syscall (windows-386), const TH32CS_INHERIT = 2147483648
+pkg syscall (windows-386), const TH32CS_INHERIT ideal-int
+pkg syscall (windows-386), const TH32CS_SNAPALL = 15
+pkg syscall (windows-386), const TH32CS_SNAPALL ideal-int
+pkg syscall (windows-386), const TH32CS_SNAPHEAPLIST = 1
+pkg syscall (windows-386), const TH32CS_SNAPHEAPLIST ideal-int
+pkg syscall (windows-386), const TH32CS_SNAPMODULE = 8
+pkg syscall (windows-386), const TH32CS_SNAPMODULE ideal-int
+pkg syscall (windows-386), const TH32CS_SNAPMODULE32 = 16
+pkg syscall (windows-386), const TH32CS_SNAPMODULE32 ideal-int
+pkg syscall (windows-386), const TH32CS_SNAPPROCESS = 2
+pkg syscall (windows-386), const TH32CS_SNAPPROCESS ideal-int
+pkg syscall (windows-386), const TH32CS_SNAPTHREAD = 4
+pkg syscall (windows-386), const TH32CS_SNAPTHREAD ideal-int
+pkg syscall (windows-386), func CreateToolhelp32Snapshot(uint32, uint32) (Handle, error)
+pkg syscall (windows-386), func Process32First(Handle, *ProcessEntry32) error
+pkg syscall (windows-386), func Process32Next(Handle, *ProcessEntry32) error
+pkg syscall (windows-386), type ProcessEntry32 struct
+pkg syscall (windows-386), type ProcessEntry32 struct, DefaultHeapID uintptr
+pkg syscall (windows-386), type ProcessEntry32 struct, ExeFile [260]uint16
+pkg syscall (windows-386), type ProcessEntry32 struct, Flags uint32
+pkg syscall (windows-386), type ProcessEntry32 struct, ModuleID uint32
+pkg syscall (windows-386), type ProcessEntry32 struct, ParentProcessID uint32
+pkg syscall (windows-386), type ProcessEntry32 struct, PriClassBase int32
+pkg syscall (windows-386), type ProcessEntry32 struct, ProcessID uint32
+pkg syscall (windows-386), type ProcessEntry32 struct, Size uint32
+pkg syscall (windows-386), type ProcessEntry32 struct, Threads uint32
+pkg syscall (windows-386), type ProcessEntry32 struct, Usage uint32
+pkg syscall (windows-amd64), const TH32CS_INHERIT = 2147483648
+pkg syscall (windows-amd64), const TH32CS_INHERIT ideal-int
+pkg syscall (windows-amd64), const TH32CS_SNAPALL = 15
+pkg syscall (windows-amd64), const TH32CS_SNAPALL ideal-int
+pkg syscall (windows-amd64), const TH32CS_SNAPHEAPLIST = 1
+pkg syscall (windows-amd64), const TH32CS_SNAPHEAPLIST ideal-int
+pkg syscall (windows-amd64), const TH32CS_SNAPMODULE = 8
+pkg syscall (windows-amd64), const TH32CS_SNAPMODULE ideal-int
+pkg syscall (windows-amd64), const TH32CS_SNAPMODULE32 = 16
+pkg syscall (windows-amd64), const TH32CS_SNAPMODULE32 ideal-int
+pkg syscall (windows-amd64), const TH32CS_SNAPPROCESS = 2
+pkg syscall (windows-amd64), const TH32CS_SNAPPROCESS ideal-int
+pkg syscall (windows-amd64), const TH32CS_SNAPTHREAD = 4
+pkg syscall (windows-amd64), const TH32CS_SNAPTHREAD ideal-int
+pkg syscall (windows-amd64), func CreateToolhelp32Snapshot(uint32, uint32) (Handle, error)
+pkg syscall (windows-amd64), func Process32First(Handle, *ProcessEntry32) error
+pkg syscall (windows-amd64), func Process32Next(Handle, *ProcessEntry32) error
+pkg syscall (windows-amd64), type ProcessEntry32 struct
+pkg syscall (windows-amd64), type ProcessEntry32 struct, DefaultHeapID uintptr
+pkg syscall (windows-amd64), type ProcessEntry32 struct, ExeFile [260]uint16
+pkg syscall (windows-amd64), type ProcessEntry32 struct, Flags uint32
+pkg syscall (windows-amd64), type ProcessEntry32 struct, ModuleID uint32
+pkg syscall (windows-amd64), type ProcessEntry32 struct, ParentProcessID uint32
+pkg syscall (windows-amd64), type ProcessEntry32 struct, PriClassBase int32
+pkg syscall (windows-amd64), type ProcessEntry32 struct, ProcessID uint32
+pkg syscall (windows-amd64), type ProcessEntry32 struct, Size uint32
+pkg syscall (windows-amd64), type ProcessEntry32 struct, Threads uint32
+pkg syscall (windows-amd64), type ProcessEntry32 struct, Usage uint32
+
+# CL 127740043 os: make SameFile handle paths like c:a.txt properly, Alex Brainman <alex.brainman@gmail.com>
+pkg syscall (windows-386), func FullPath(string) (string, error)
+pkg syscall (windows-amd64), func FullPath(string) (string, error)
+
+# CL 98150043 testing: add Coverage function, Russ Cox <rsc@golang.org>
+pkg testing, func Coverage() float64
+
+# CL 148770043 cmd/go, testing: add TestMain support, Russ Cox <rsc@golang.org>
+pkg testing, func MainStart(func(string, string) (bool, error), []InternalTest, []InternalBenchmark, []InternalExample) *M
+pkg testing, method (*M) Run() int
+pkg testing, type M struct
+
+# CL 108030044 text/scanner: provide facility for custom identifiers, Robert Griesemer <gri@golang.org>
+pkg text/scanner, type Scanner struct, IsIdentRune func(int32, int) bool
+
+# CL 130620043 text/template: add back pointer to Nodes for better error generation, Rob Pike <r@golang.org>
+pkg text/template/parse, type DotNode struct, embedded NodeType
+pkg text/template/parse, type NilNode struct, embedded NodeType
+pkg text/template/parse, method (*BranchNode) Copy() Node
+pkg text/template/parse, method (*IdentifierNode) SetTree(*Tree) *IdentifierNode
+pkg html/template, type Error struct, Node parse.Node
+
+# CL 127470043 unicode: strconv: regexp: Upgrade to Unicode 7.0.0., Marcel van Lohuizen <mpvl@golang.org>
+pkg unicode, const Version = "7.0.0"
+pkg unicode, var Bassa_Vah *RangeTable
+pkg unicode, var Caucasian_Albanian *RangeTable
+pkg unicode, var Duployan *RangeTable
+pkg unicode, var Elbasan *RangeTable
+pkg unicode, var Grantha *RangeTable
+pkg unicode, var Khojki *RangeTable
+pkg unicode, var Khudawadi *RangeTable
+pkg unicode, var Linear_A *RangeTable
+pkg unicode, var Mahajani *RangeTable
+pkg unicode, var Manichaean *RangeTable
+pkg unicode, var Mende_Kikakui *RangeTable
+pkg unicode, var Modi *RangeTable
+pkg unicode, var Mro *RangeTable
+pkg unicode, var Nabataean *RangeTable
+pkg unicode, var Old_North_Arabian *RangeTable
+pkg unicode, var Old_Permic *RangeTable
+pkg unicode, var Pahawh_Hmong *RangeTable
+pkg unicode, var Palmyrene *RangeTable
+pkg unicode, var Pau_Cin_Hau *RangeTable
+pkg unicode, var Psalter_Pahlavi *RangeTable
+pkg unicode, var Siddham *RangeTable
+pkg unicode, var Tirhuta *RangeTable
+pkg unicode, var Warang_Citi *RangeTable

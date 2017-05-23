@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,7 +13,7 @@
 // Both gccgo and gofmt correctly refuse this program as is and accept it
 // when the semicolons are present.
 
-// This is a test case for issue 777 ( http://code.google.com/p/go/issues/detail?id=777 ).
+// This is a test case for issue 777 ( https://golang.org/issue/777 ).
 
 package main
 

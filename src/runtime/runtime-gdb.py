@@ -28,6 +28,31 @@ goobjfile = gdb.current_objfile() or gdb.objfiles()[0]
 goobjfile.pretty_printers = []
 
 #
+#  Value wrappers
+#
+
+class SliceValue:
+	"Wrapper for slice values."
+
+	def __init__(self, val):
+		self.val = val
+
+	@property
+	def len(self):
+		return int(self.val['len'])
+
+	@property
+	def cap(self):
+		return int(self.val['cap'])
+
+	def __getitem__(self, i):
+		if i < 0 or i >= self.len:
+			raise IndexError(i)
+		ptr = self.val["array"]
+		return (ptr + i).dereference()
+
+
+#
 #  Pretty Printers
 #
 
@@ -35,7 +60,7 @@ goobjfile.pretty_printers = []
 class StringTypePrinter:
 	"Pretty print Go strings."
 
-	pattern = re.compile(r'^struct string$')
+	pattern = re.compile(r'^struct string( \*)?$')
 
 	def __init__(self, val):
 		self.val = val
@@ -63,11 +88,11 @@ class SliceTypePrinter:
 		return str(self.val.type)[6:]  # skip 'struct '
 
 	def children(self):
-		if self.val["len"] > self.val["cap"]:
+		sval = SliceValue(self.val)
+		if sval.len > sval.cap:
 			return
-		ptr = self.val["array"]
-		for idx in range(int(self.val["len"])):
-			yield ('[{0}]'.format(idx), (ptr + idx).dereference())
+		for idx, item in enumerate(sval):
+			yield ('[{0}]'.format(idx), item)
 
 
 class MapTypePrinter:
@@ -89,7 +114,7 @@ class MapTypePrinter:
 		return str(self.val.type)
 
 	def children(self):
-		B = self.val['b']
+		B = self.val['B']
 		buckets = self.val['buckets']
 		oldbuckets = self.val['oldbuckets']
 		flags = self.val['flags']
@@ -202,8 +227,6 @@ def lookup_type(name):
 	except gdb.error:
 		pass
 
-_rctp_type = gdb.lookup_type("struct runtime.rtype").pointer()
-
 
 def iface_commontype(obj):
 	if is_iface(obj):
@@ -213,7 +236,7 @@ def iface_commontype(obj):
 	else:
 		return
 
-	return go_type_ptr.cast(_rctp_type).dereference()
+	return go_type_ptr.cast(gdb.lookup_type("struct reflect.rtype").pointer()).dereference()
 
 
 def iface_dtype(obj):
@@ -355,8 +378,8 @@ class GoroutinesCmd(gdb.Command):
 	def invoke(self, _arg, _from_tty):
 		# args = gdb.string_to_argv(arg)
 		vp = gdb.lookup_type('void').pointer()
-		for ptr in linked_list(gdb.parse_and_eval("'runtime.allg'"), 'alllink'):
-			if ptr['status'] == 6:  # 'gdead'
+		for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
+			if ptr['atomicstatus'] == 6:  # 'gdead'
 				continue
 			s = ' '
 			if ptr['m']:
@@ -370,9 +393,12 @@ class GoroutinesCmd(gdb.Command):
 				#python3 / newer versions of gdb
 				pc = int(pc)
 			except gdb.error:
-				pc = int(str(pc), 16)
+				# str(pc) can return things like
+				# "0x429d6c <runtime.gopark+284>", so
+				# chop at first space.
+				pc = int(str(pc).split(None, 1)[0], 16)
 			blk = gdb.block_for_pc(pc)
-			print(s, ptr['goid'], "{0:8s}".format(sts[int(ptr['status'])]), blk.function)
+			print(s, ptr['goid'], "{0:8s}".format(sts[int(ptr['atomicstatus'])]), blk.function)
 
 
 def find_goroutine(goid):
@@ -386,8 +412,8 @@ def find_goroutine(goid):
 	@return tuple (gdb.Value, gdb.Value)
 	"""
 	vp = gdb.lookup_type('void').pointer()
-	for ptr in linked_list(gdb.parse_and_eval("'runtime.allg'"), 'alllink'):
-		if ptr['status'] == 6:  # 'gdead'
+	for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
+		if ptr['atomicstatus'] == 6:  # 'gdead'
 			continue
 		if ptr['goid'] == goid:
 			return (ptr['sched'][x].cast(vp) for x in ('pc', 'sp'))
@@ -420,17 +446,17 @@ class GoroutineCmd(gdb.Command):
 			#python3 / newer versions of gdb
 			pc = int(pc)
 		except gdb.error:
-			pc = int(str(pc), 16)
+			pc = int(str(pc).split(None, 1)[0], 16)
 		save_frame = gdb.selected_frame()
-		gdb.parse_and_eval('$save_pc = $pc')
 		gdb.parse_and_eval('$save_sp = $sp')
-		gdb.parse_and_eval('$pc = {0}'.format(str(pc)))
+		gdb.parse_and_eval('$save_pc = $pc')
 		gdb.parse_and_eval('$sp = {0}'.format(str(sp)))
+		gdb.parse_and_eval('$pc = {0}'.format(str(pc)))
 		try:
 			gdb.execute(cmd)
 		finally:
-			gdb.parse_and_eval('$pc = $save_pc')
 			gdb.parse_and_eval('$sp = $save_sp')
+			gdb.parse_and_eval('$pc = $save_pc')
 			save_frame.select()
 
 

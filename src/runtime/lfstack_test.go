@@ -24,9 +24,13 @@ func toMyNode(node *LFNode) *MyNode {
 	return (*MyNode)(unsafe.Pointer(node))
 }
 
+var global interface{}
+
 func TestLFStack(t *testing.T) {
 	stack := new(uint64)
-	// Need to keep additional referenfces to nodes, the stack is not all that type-safe.
+	global = stack // force heap allocation
+
+	// Need to keep additional references to nodes, the stack is not all that type-safe.
 	var nodes []*MyNode
 
 	// Check the stack is initially empty.
@@ -121,7 +125,7 @@ func TestLFStackStress(t *testing.T) {
 			}
 			cnt++
 			sum2 += node.data
-			node.Next = nil
+			node.Next = 0
 		}
 	}
 	if cnt != K {

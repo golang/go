@@ -694,7 +694,7 @@ type Pod struct {
 	Pea interface{} `xml:"Pea"`
 }
 
-// https://code.google.com/p/go/issues/detail?id=6836
+// https://golang.org/issue/6836
 func TestUnmarshalIntoInterface(t *testing.T) {
 	pod := new(Pod)
 	pod.Pea = new(Pea)
@@ -710,5 +710,26 @@ func TestUnmarshalIntoInterface(t *testing.T) {
 	have, want := pea.Cotelydon, "Green stuff"
 	if have != want {
 		t.Errorf("failed to unmarshal into interface, have %q want %q", have, want)
+	}
+}
+
+type X struct {
+	D string `xml:",comment"`
+}
+
+// Issue 11112. Unmarshal must reject invalid comments.
+func TestMalformedComment(t *testing.T) {
+	testData := []string{
+		"<X><!-- a---></X>",
+		"<X><!-- -- --></X>",
+		"<X><!-- a--b --></X>",
+		"<X><!------></X>",
+	}
+	for i, test := range testData {
+		data := []byte(test)
+		v := new(X)
+		if err := Unmarshal(data, v); err == nil {
+			t.Errorf("%d: unmarshal should reject invalid comments", i)
+		}
 	}
 }

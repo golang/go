@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -10,7 +10,7 @@ import "testing"
 // as expected.
 func TestRead(t *testing.T) {
 	f := Fopen("file_test.go", "r")
-	if f == nil {
+	if f.Swigcptr() == 0 {
 		t.Fatal("fopen failed")
 	}
 	if Fgetc(f) != '/' || Fgetc(f) != '/' || Fgetc(f) != ' ' || Fgetc(f) != 'C' {

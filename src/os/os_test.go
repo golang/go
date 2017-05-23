@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	. "os"
@@ -21,7 +22,6 @@ import (
 	"sync"
 	"syscall"
 	"testing"
-	"text/template"
 	"time"
 )
 
@@ -43,18 +43,33 @@ type sysDir struct {
 	files []string
 }
 
-var sysdir = func() (sd *sysDir) {
+var sysdir = func() *sysDir {
 	switch runtime.GOOS {
 	case "android":
-		sd = &sysDir{
-			"/system/etc",
+		return &sysDir{
+			"/system/lib",
 			[]string{
-				"audio_policy.conf",
-				"system_fonts.xml",
+				"libmedia.so",
+				"libpowermanager.so",
 			},
 		}
+	case "darwin":
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			wd, err := syscall.Getwd()
+			if err != nil {
+				wd = err.Error()
+			}
+			return &sysDir{
+				filepath.Join(wd, "..", ".."),
+				[]string{
+					"ResourceRules.plist",
+					"Info.plist",
+				},
+			}
+		}
 	case "windows":
-		sd = &sysDir{
+		return &sysDir{
 			Getenv("SystemRoot") + "\\system32\\drivers\\etc",
 			[]string{
 				"networks",
@@ -63,24 +78,22 @@ var sysdir = func() (sd *sysDir) {
 			},
 		}
 	case "plan9":
-		sd = &sysDir{
+		return &sysDir{
 			"/lib/ndb",
 			[]string{
 				"common",
 				"local",
 			},
 		}
-	default:
-		sd = &sysDir{
-			"/etc",
-			[]string{
-				"group",
-				"hosts",
-				"passwd",
-			},
-		}
 	}
-	return
+	return &sysDir{
+		"/etc",
+		[]string{
+			"group",
+			"hosts",
+			"passwd",
+		},
+	}
 }()
 
 func size(name string, t *testing.T) int64 {
@@ -114,15 +127,22 @@ func equal(name1, name2 string) (r bool) {
 	return
 }
 
-func newFile(testName string, t *testing.T) (f *File) {
-	// Use a local file system, not NFS.
-	// On Unix, override $TMPDIR in case the user
-	// has it set to an NFS-mounted directory.
-	dir := ""
-	if runtime.GOOS != "android" && runtime.GOOS != "windows" {
-		dir = "/tmp"
+// localTmp returns a local temporary directory not on NFS.
+func localTmp() string {
+	switch runtime.GOOS {
+	case "android", "windows":
+		return TempDir()
+	case "darwin":
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			return TempDir()
+		}
 	}
-	f, err := ioutil.TempFile(dir, "_Go_"+testName)
+	return "/tmp"
+}
+
+func newFile(testName string, t *testing.T) (f *File) {
+	f, err := ioutil.TempFile(localTmp(), "_Go_"+testName)
 	if err != nil {
 		t.Fatalf("TempFile %s: %s", testName, err)
 	}
@@ -130,14 +150,7 @@ func newFile(testName string, t *testing.T) (f *File) {
 }
 
 func newDir(testName string, t *testing.T) (name string) {
-	// Use a local file system, not NFS.
-	// On Unix, override $TMPDIR in case the user
-	// has it set to an NFS-mounted directory.
-	dir := ""
-	if runtime.GOOS != "android" && runtime.GOOS != "windows" {
-		dir = "/tmp"
-	}
-	name, err := ioutil.TempDir(dir, "_Go_"+testName)
+	name, err := ioutil.TempDir(localTmp(), "_Go_"+testName)
 	if err != nil {
 		t.Fatalf("TempDir %s: %s", testName, err)
 	}
@@ -283,6 +296,48 @@ func TestReaddir(t *testing.T) {
 	testReaddir(sysdir.name, sysdir.files, t)
 }
 
+func benchmarkReaddirname(path string, b *testing.B) {
+	var nentries int
+	for i := 0; i < b.N; i++ {
+		f, err := Open(path)
+		if err != nil {
+			b.Fatalf("open %q failed: %v", path, err)
+		}
+		ns, err := f.Readdirnames(-1)
+		f.Close()
+		if err != nil {
+			b.Fatalf("readdirnames %q failed: %v", path, err)
+		}
+		nentries = len(ns)
+	}
+	b.Logf("benchmarkReaddirname %q: %d entries", path, nentries)
+}
+
+func benchmarkReaddir(path string, b *testing.B) {
+	var nentries int
+	for i := 0; i < b.N; i++ {
+		f, err := Open(path)
+		if err != nil {
+			b.Fatalf("open %q failed: %v", path, err)
+		}
+		fs, err := f.Readdir(-1)
+		f.Close()
+		if err != nil {
+			b.Fatalf("readdir %q failed: %v", path, err)
+		}
+		nentries = len(fs)
+	}
+	b.Logf("benchmarkReaddir %q: %d entries", path, nentries)
+}
+
+func BenchmarkReaddirname(b *testing.B) {
+	benchmarkReaddirname(".", b)
+}
+
+func BenchmarkReaddir(b *testing.B) {
+	benchmarkReaddir(".", b)
+}
+
 // Read the directory one entry at a time.
 func smallReaddirnames(file *File, length int, t *testing.T) []string {
 	names := make([]string, length)
@@ -312,6 +367,15 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
 	switch runtime.GOOS {
 	case "android":
 		dir = "/system/bin"
+	case "darwin":
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			wd, err := Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+			dir = wd
+		}
 	case "plan9":
 		dir = "/bin"
 	case "windows":
@@ -474,7 +538,7 @@ func TestReaddirStatFailures(t *testing.T) {
 		return s
 	}
 
-	if got, want := names(mustReadDir("inital readdir")),
+	if got, want := names(mustReadDir("initial readdir")),
 		[]string{"good1", "good2", "x"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("initial readdir got %q; want %q", got, want)
 	}
@@ -491,11 +555,41 @@ func TestReaddirStatFailures(t *testing.T) {
 	}
 }
 
-func TestHardLink(t *testing.T) {
-	// Hardlinks are not supported under windows or Plan 9.
-	if runtime.GOOS == "plan9" {
-		return
+// Readdir on a regular file should fail.
+func TestReaddirOfFile(t *testing.T) {
+	f, err := ioutil.TempFile("", "_Go_ReaddirOfFile")
+	if err != nil {
+		t.Fatal(err)
 	}
+	defer Remove(f.Name())
+	f.Write([]byte("foo"))
+	f.Close()
+	reg, err := Open(f.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reg.Close()
+
+	names, err := reg.Readdirnames(-1)
+	if err == nil {
+		t.Error("Readdirnames succeeded; want non-nil error")
+	}
+	if len(names) > 0 {
+		t.Errorf("unexpected dir names in regular file: %q", names)
+	}
+}
+
+func TestHardLink(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9, hardlinks not supported")
+	}
+	// From Android release M (Marshmallow), hard linking files is blocked
+	// and an attempt to call link() on a file will return EACCES.
+	// - https://code.google.com/p/android-developer-preview/issues/detail?id=3150
+	if runtime.GOOS == "android" {
+		t.Skip("skipping on android, hardlinks not supported")
+	}
+	defer chtmpdir(t)()
 	from, to := "hardlinktestfrom", "hardlinktestto"
 	Remove(from) // Just in case.
 	file, err := Create(to)
@@ -510,6 +604,14 @@ func TestHardLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("link %q, %q failed: %v", to, from, err)
 	}
+
+	none := "hardlinktestnone"
+	err = Link(none, none)
+	// Check the returned error is well-formed.
+	if lerr, ok := err.(*LinkError); !ok || lerr.Error() == "" {
+		t.Errorf("link %q, %q failed to return a valid error", none, none)
+	}
+
 	defer Remove(from)
 	tostat, err := Stat(to)
 	if err != nil {
@@ -524,6 +626,31 @@ func TestHardLink(t *testing.T) {
 	}
 }
 
+// chtmpdir changes the working directory to a new temporary directory and
+// provides a cleanup function. Used when PWD is read-only.
+func chtmpdir(t *testing.T) func() {
+	if runtime.GOOS != "darwin" || (runtime.GOARCH != "arm" && runtime.GOARCH != "arm64") {
+		return func() {} // only needed on darwin/arm{,64}
+	}
+	oldwd, err := Getwd()
+	if err != nil {
+		t.Fatalf("chtmpdir: %v", err)
+	}
+	d, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Fatalf("chtmpdir: %v", err)
+	}
+	if err := Chdir(d); err != nil {
+		t.Fatalf("chtmpdir: %v", err)
+	}
+	return func() {
+		if err := Chdir(oldwd); err != nil {
+			t.Fatalf("chtmpdir: %v", err)
+		}
+		RemoveAll(d)
+	}
+}
+
 func TestSymlink(t *testing.T) {
 	switch runtime.GOOS {
 	case "android", "nacl", "plan9":
@@ -533,6 +660,7 @@ func TestSymlink(t *testing.T) {
 			t.Skipf("skipping on %s", runtime.GOOS)
 		}
 	}
+	defer chtmpdir(t)()
 	from, to := "symlinktestfrom", "symlinktestto"
 	Remove(from) // Just in case.
 	file, err := Create(to)
@@ -592,13 +720,14 @@ func TestSymlink(t *testing.T) {
 
 func TestLongSymlink(t *testing.T) {
 	switch runtime.GOOS {
-	case "plan9", "nacl":
+	case "android", "plan9", "nacl":
 		t.Skipf("skipping on %s", runtime.GOOS)
 	case "windows":
 		if !supportsSymlinks {
 			t.Skipf("skipping on %s", runtime.GOOS)
 		}
 	}
+	defer chtmpdir(t)()
 	s := "0123456789abcdef"
 	// Long, but not too long: a common limit is 255.
 	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s
@@ -619,14 +748,18 @@ func TestLongSymlink(t *testing.T) {
 }
 
 func TestRename(t *testing.T) {
+	defer chtmpdir(t)()
 	from, to := "renamefrom", "renameto"
-	Remove(to) // Just in case.
+	// Ensure we are not testing the overwrite case here.
+	Remove(from)
+	Remove(to)
+
 	file, err := Create(from)
 	if err != nil {
-		t.Fatalf("open %q failed: %v", to, err)
+		t.Fatalf("open %q failed: %v", from, err)
 	}
 	if err = file.Close(); err != nil {
-		t.Errorf("close %q failed: %v", to, err)
+		t.Errorf("close %q failed: %v", from, err)
 	}
 	err = Rename(from, to)
 	if err != nil {
@@ -636,6 +769,76 @@ func TestRename(t *testing.T) {
 	_, err = Stat(to)
 	if err != nil {
 		t.Errorf("stat %q failed: %v", to, err)
+	}
+}
+
+func TestRenameOverwriteDest(t *testing.T) {
+	defer chtmpdir(t)()
+	from, to := "renamefrom", "renameto"
+	// Just in case.
+	Remove(from)
+	Remove(to)
+
+	toData := []byte("to")
+	fromData := []byte("from")
+
+	err := ioutil.WriteFile(to, toData, 0777)
+	if err != nil {
+		t.Fatalf("write file %q failed: %v", to, err)
+	}
+
+	err = ioutil.WriteFile(from, fromData, 0777)
+	if err != nil {
+		t.Fatalf("write file %q failed: %v", from, err)
+	}
+	err = Rename(from, to)
+	if err != nil {
+		t.Fatalf("rename %q, %q failed: %v", to, from, err)
+	}
+	defer Remove(to)
+
+	_, err = Stat(from)
+	if err == nil {
+		t.Errorf("from file %q still exists", from)
+	}
+	if err != nil && !IsNotExist(err) {
+		t.Fatalf("stat from: %v", err)
+	}
+	toFi, err := Stat(to)
+	if err != nil {
+		t.Fatalf("stat %q failed: %v", to, err)
+	}
+	if toFi.Size() != int64(len(fromData)) {
+		t.Errorf(`"to" size = %d; want %d (old "from" size)`, toFi.Size(), len(fromData))
+	}
+}
+
+func TestRenameFailed(t *testing.T) {
+	defer chtmpdir(t)()
+	from, to := "renamefrom", "renameto"
+	// Ensure we are not testing the overwrite case here.
+	Remove(from)
+	Remove(to)
+
+	err := Rename(from, to)
+	switch err := err.(type) {
+	case *LinkError:
+		if err.Op != "rename" {
+			t.Errorf("rename %q, %q: err.Op: want %q, got %q", from, to, "rename", err.Op)
+		}
+		if err.Old != from {
+			t.Errorf("rename %q, %q: err.Old: want %q, got %q", from, to, from, err.Old)
+		}
+		if err.New != to {
+			t.Errorf("rename %q, %q: err.New: want %q, got %q", from, to, to, err.New)
+		}
+	case nil:
+		t.Errorf("rename %q, %q: expected error, got nil", from, to)
+
+		// cleanup whatever was placed in "renameto"
+		Remove(to)
+	default:
+		t.Errorf("rename %q, %q: expected %T, got %T %v", from, to, new(LinkError), err, err)
 	}
 }
 
@@ -666,18 +869,18 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
 }
 
 func TestStartProcess(t *testing.T) {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	}
+	testenv.MustHaveExec(t)
 
 	var dir, cmd string
 	var args []string
-	if runtime.GOOS == "windows" {
+	switch runtime.GOOS {
+	case "android":
+		t.Skip("android doesn't have /bin/pwd")
+	case "windows":
 		cmd = Getenv("COMSPEC")
 		dir = Getenv("SystemRoot")
 		args = []string{"/c", "cd"}
-	} else {
+	default:
 		cmd = "/bin/pwd"
 		dir = "/"
 		args = []string{}
@@ -849,6 +1052,19 @@ func TestChdirAndGetwd(t *testing.T) {
 		dirs = []string{"/", "/system/bin"}
 	case "plan9":
 		dirs = []string{"/", "/usr"}
+	case "darwin":
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			d1, err := ioutil.TempDir("", "d1")
+			if err != nil {
+				t.Fatalf("TempDir: %v", err)
+			}
+			d2, err := ioutil.TempDir("", "d2")
+			if err != nil {
+				t.Fatalf("TempDir: %v", err)
+			}
+			dirs = []string{d1, d2}
+		}
 	}
 	oldwd := Getenv("PWD")
 	for mode := 0; mode < 2; mode++ {
@@ -894,6 +1110,64 @@ func TestChdirAndGetwd(t *testing.T) {
 	fd.Close()
 }
 
+// Test that Chdir+Getwd is program-wide.
+func TestProgWideChdir(t *testing.T) {
+	const N = 10
+	c := make(chan bool)
+	cpwd := make(chan string)
+	for i := 0; i < N; i++ {
+		go func(i int) {
+			// Lock half the goroutines in their own operating system
+			// thread to exercise more scheduler possibilities.
+			if i%2 == 1 {
+				// On Plan 9, after calling LockOSThread, the goroutines
+				// run on different processes which don't share the working
+				// directory. This used to be an issue because Go expects
+				// the working directory to be program-wide.
+				// See issue 9428.
+				runtime.LockOSThread()
+			}
+			<-c
+			pwd, err := Getwd()
+			if err != nil {
+				t.Errorf("Getwd on goroutine %d: %v", i, err)
+				return
+			}
+			cpwd <- pwd
+		}(i)
+	}
+	oldwd, err := Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	d, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Fatalf("TempDir: %v", err)
+	}
+	defer func() {
+		if err := Chdir(oldwd); err != nil {
+			t.Fatalf("Chdir: %v", err)
+		}
+		RemoveAll(d)
+	}()
+	if err := Chdir(d); err != nil {
+		t.Fatalf("Chdir: %v", err)
+	}
+	// OS X sets TMPDIR to a symbolic link.
+	// So we resolve our working directory again before the test.
+	d, err = Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	close(c)
+	for i := 0; i < N; i++ {
+		pwd := <-cpwd
+		if pwd != d {
+			t.Errorf("Getwd returned %q; want %q", pwd, d)
+		}
+	}
+}
+
 func TestSeek(t *testing.T) {
 	f := newFile("TestSeek", t)
 	defer Remove(f.Name())
@@ -908,21 +1182,21 @@ func TestSeek(t *testing.T) {
 		out    int64
 	}
 	var tests = []test{
-		{0, 1, int64(len(data))},
-		{0, 0, 0},
-		{5, 0, 5},
-		{0, 2, int64(len(data))},
-		{0, 0, 0},
-		{-1, 2, int64(len(data)) - 1},
-		{1 << 33, 0, 1 << 33},
-		{1 << 33, 2, 1<<33 + int64(len(data))},
+		{0, io.SeekCurrent, int64(len(data))},
+		{0, io.SeekStart, 0},
+		{5, io.SeekStart, 5},
+		{0, io.SeekEnd, int64(len(data))},
+		{0, io.SeekStart, 0},
+		{-1, io.SeekEnd, int64(len(data)) - 1},
+		{1 << 33, io.SeekStart, 1 << 33},
+		{1 << 33, io.SeekEnd, 1<<33 + int64(len(data))},
 	}
 	for i, tt := range tests {
 		off, err := f.Seek(tt.in, tt.whence)
 		if off != tt.out || err != nil {
 			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 {
 				// Reiserfs rejects the big seeks.
-				// http://code.google.com/p/go/issues/detail?id=91
+				// https://golang.org/issue/91
 				break
 			}
 			t.Errorf("#%d: Seek(%v, %v) = %v, %v want %v, nil", i, tt.in, tt.whence, off, err, tt.out)
@@ -1001,15 +1275,19 @@ func TestOpenNoName(t *testing.T) {
 	}
 }
 
-func run(t *testing.T, cmd []string) string {
+func runBinHostname(t *testing.T) string {
 	// Run /bin/hostname and collect output.
 	r, w, err := Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer r.Close()
-	p, err := StartProcess("/bin/hostname", []string{"hostname"}, &ProcAttr{Files: []*File{nil, w, Stderr}})
+	const path = "/bin/hostname"
+	p, err := StartProcess(path, []string{"hostname"}, &ProcAttr{Files: []*File{nil, w, Stderr}})
 	if err != nil {
+		if _, err := Stat(path); IsNotExist(err) {
+			t.Skipf("skipping test; test requires %s but it does not exist", path)
+		}
 		t.Fatal(err)
 	}
 	w.Close()
@@ -1029,19 +1307,40 @@ func run(t *testing.T, cmd []string) string {
 		output = output[0 : n-1]
 	}
 	if output == "" {
-		t.Fatalf("%v produced no output", cmd)
+		t.Fatalf("/bin/hostname produced no output")
 	}
 
 	return output
+}
+
+func testWindowsHostname(t *testing.T) {
+	hostname, err := Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := osexec.Command("hostname")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to execute hostname command: %v %s", err, out)
+	}
+	want := strings.Trim(string(out), "\r\n")
+	if hostname != want {
+		t.Fatalf("Hostname() = %q, want %q", hostname, want)
+	}
 }
 
 func TestHostname(t *testing.T) {
 	// There is no other way to fetch hostname on windows, but via winapi.
 	// On Plan 9 it can be taken from #c/sysname as Hostname() does.
 	switch runtime.GOOS {
-	case "android", "nacl", "plan9", "windows":
-		t.Skipf("skipping on %s", runtime.GOOS)
+	case "android", "plan9":
+		t.Skipf("%s doesn't have /bin/hostname", runtime.GOOS)
+	case "windows":
+		testWindowsHostname(t)
+		return
 	}
+
+	testenv.MustHaveExec(t)
 
 	// Check internal Hostname() against the output of /bin/hostname.
 	// Allow that the internal Hostname returns a Fully Qualified Domain Name
@@ -1050,7 +1349,7 @@ func TestHostname(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	want := run(t, []string{"/bin/hostname"})
+	want := runBinHostname(t)
 	if hostname != want {
 		i := strings.Index(hostname, ".")
 		if i < 0 || hostname[0:i] != want {
@@ -1074,6 +1373,38 @@ func TestReadAt(t *testing.T) {
 	}
 	if string(b) != "world" {
 		t.Fatalf("ReadAt 7: have %q want %q", string(b), "world")
+	}
+}
+
+// Verify that ReadAt doesn't affect seek offset.
+// In the Plan 9 kernel, there used to be a bug in the implementation of
+// the pread syscall, where the channel offset was erroneously updated after
+// calling pread on a file.
+func TestReadAtOffset(t *testing.T) {
+	f := newFile("TestReadAtOffset", t)
+	defer Remove(f.Name())
+	defer f.Close()
+
+	const data = "hello, world\n"
+	io.WriteString(f, data)
+
+	f.Seek(0, 0)
+	b := make([]byte, 5)
+
+	n, err := f.ReadAt(b, 7)
+	if err != nil || n != len(b) {
+		t.Fatalf("ReadAt 7: %d, %v", n, err)
+	}
+	if string(b) != "world" {
+		t.Fatalf("ReadAt 7: have %q want %q", string(b), "world")
+	}
+
+	n, err = f.Read(b)
+	if err != nil || n != len(b) {
+		t.Fatalf("Read: %d, %v", n, err)
+	}
+	if string(b) != "hello" {
+		t.Fatalf("Read: have %q want %q", string(b), "hello")
 	}
 }
 
@@ -1117,6 +1448,7 @@ func writeFile(t *testing.T, fname string, flag int, text string) string {
 }
 
 func TestAppend(t *testing.T) {
+	defer chtmpdir(t)()
 	const f = "append.txt"
 	defer Remove(f)
 	s := writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
@@ -1180,6 +1512,7 @@ func TestNilProcessStateString(t *testing.T) {
 }
 
 func TestSameFile(t *testing.T) {
+	defer chtmpdir(t)()
 	fa, err := Create("a")
 	if err != nil {
 		t.Fatalf("Create(a): %v", err)
@@ -1282,6 +1615,42 @@ func TestStatDirModeExec(t *testing.T) {
 	}
 }
 
+func TestStatStdin(t *testing.T) {
+	switch runtime.GOOS {
+	case "android", "plan9":
+		t.Skipf("%s doesn't have /bin/sh", runtime.GOOS)
+	}
+
+	testenv.MustHaveExec(t)
+
+	if Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		st, err := Stdin.Stat()
+		if err != nil {
+			t.Fatalf("Stat failed: %v", err)
+		}
+		fmt.Println(st.Mode() & ModeNamedPipe)
+		Exit(0)
+	}
+
+	var cmd *osexec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = osexec.Command("cmd", "/c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
+	} else {
+		cmd = osexec.Command("/bin/sh", "-c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
+	}
+	cmd.Env = append(Environ(), "GO_WANT_HELPER_PROCESS=1")
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to spawn child process: %v %q", err, string(output))
+	}
+
+	// result will be like "prw-rw-rw"
+	if len(output) < 1 || output[0] != 'p' {
+		t.Fatalf("Child process reports stdin is not pipe '%v'", string(output))
+	}
+}
+
 func TestReadAtEOF(t *testing.T) {
 	f := newFile("TestReadAtEOF", t)
 	defer Remove(f.Name())
@@ -1299,44 +1668,11 @@ func TestReadAtEOF(t *testing.T) {
 }
 
 func testKillProcess(t *testing.T, processKiller func(p *Process)) {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	}
+	testenv.MustHaveExec(t)
 
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
-	defer RemoveAll(dir)
-
-	src := filepath.Join(dir, "main.go")
-	f, err := Create(src)
-	if err != nil {
-		t.Fatalf("Failed to create %v: %v", src, err)
-	}
-	st := template.Must(template.New("source").Parse(`
-package main
-import "time"
-func main() {
-	time.Sleep(time.Second)
-}
-`))
-	err = st.Execute(f, nil)
-	if err != nil {
-		f.Close()
-		t.Fatalf("Failed to execute template: %v", err)
-	}
-	f.Close()
-
-	exe := filepath.Join(dir, "main.exe")
-	output, err := osexec.Command("go", "build", "-o", exe, src).CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to build exe %v: %v %v", exe, err, string(output))
-	}
-
-	cmd := osexec.Command(exe)
-	err = cmd.Start()
+	// Re-exec the test binary itself to emulate "sleep 1".
+	cmd := osexec.Command(Args[0], "-test.run", "TestSleep")
+	err := cmd.Start()
 	if err != nil {
 		t.Fatalf("Failed to start test process: %v", err)
 	}
@@ -1350,6 +1686,15 @@ func main() {
 	}
 }
 
+// TestSleep emulates "sleep 1". It is a helper for testKillProcess, so we
+// don't have to rely on an external "sleep" command being available.
+func TestSleep(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+	time.Sleep(time.Second)
+}
+
 func TestKillStartProcess(t *testing.T) {
 	testKillProcess(t, func(p *Process) {
 		err := p.Kill()
@@ -1360,13 +1705,12 @@ func TestKillStartProcess(t *testing.T) {
 }
 
 func TestGetppid(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl":
-		t.Skip("skipping on nacl")
-	case "plan9":
+	if runtime.GOOS == "plan9" {
 		// TODO: golang.org/issue/8206
 		t.Skipf("skipping test on plan9; see issue 8206")
 	}
+
+	testenv.MustHaveExec(t)
 
 	if Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		fmt.Print(Getppid())
@@ -1414,7 +1758,7 @@ var nilFileMethodTests = []struct {
 	{"ReadAt", func(f *File) error { _, err := f.ReadAt(make([]byte, 0), 0); return err }},
 	{"Readdir", func(f *File) error { _, err := f.Readdir(1); return err }},
 	{"Readdirnames", func(f *File) error { _, err := f.Readdirnames(1); return err }},
-	{"Seek", func(f *File) error { _, err := f.Seek(0, 0); return err }},
+	{"Seek", func(f *File) error { _, err := f.Seek(0, io.SeekStart); return err }},
 	{"Stat", func(f *File) error { _, err := f.Stat(); return err }},
 	{"Sync", func(f *File) error { return f.Sync() }},
 	{"Truncate", func(f *File) error { return f.Truncate(0) }},

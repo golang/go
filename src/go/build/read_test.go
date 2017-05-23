@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -131,7 +131,7 @@ func testRead(t *testing.T, tests []readTest, read func(io.Reader) ([]byte, erro
 }
 
 func TestReadImports(t *testing.T) {
-	testRead(t, readImportsTests, func(r io.Reader) ([]byte, error) { return readImports(r, true) })
+	testRead(t, readImportsTests, func(r io.Reader) ([]byte, error) { return readImports(r, true, nil) })
 }
 
 func TestReadComments(t *testing.T) {
@@ -207,7 +207,7 @@ var readFailuresTests = []readTest{
 
 func TestReadFailures(t *testing.T) {
 	// Errors should be reported (true arg to readImports).
-	testRead(t, readFailuresTests, func(r io.Reader) ([]byte, error) { return readImports(r, true) })
+	testRead(t, readFailuresTests, func(r io.Reader) ([]byte, error) { return readImports(r, true, nil) })
 }
 
 func TestReadFailuresIgnored(t *testing.T) {
@@ -222,5 +222,5 @@ func TestReadFailuresIgnored(t *testing.T) {
 			tt.err = ""
 		}
 	}
-	testRead(t, tests, func(r io.Reader) ([]byte, error) { return readImports(r, false) })
+	testRead(t, tests, func(r io.Reader) ([]byte, error) { return readImports(r, false, nil) })
 }

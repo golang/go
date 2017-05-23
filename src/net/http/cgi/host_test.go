@@ -8,6 +8,7 @@ package cgi
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -16,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -29,15 +31,22 @@ func newRequest(httpreq string) *http.Request {
 	if err != nil {
 		panic("cgi: bogus http request in test: " + httpreq)
 	}
-	req.RemoteAddr = "1.2.3.4"
+	req.RemoteAddr = "1.2.3.4:1234"
 	return req
 }
 
-func runCgiTest(t *testing.T, h *Handler, httpreq string, expectedMap map[string]string) *httptest.ResponseRecorder {
+func runCgiTest(t *testing.T, h *Handler,
+	httpreq string,
+	expectedMap map[string]string, checks ...func(reqInfo map[string]string)) *httptest.ResponseRecorder {
 	rw := httptest.NewRecorder()
 	req := newRequest(httpreq)
 	h.ServeHTTP(rw, req)
+	runResponseChecks(t, rw, expectedMap, checks...)
+	return rw
+}
 
+func runResponseChecks(t *testing.T, rw *httptest.ResponseRecorder,
+	expectedMap map[string]string, checks ...func(reqInfo map[string]string)) {
 	// Make a map to hold the test map that the CGI returns.
 	m := make(map[string]string)
 	m["_body"] = rw.Body.String()
@@ -75,7 +84,9 @@ readlines:
 			t.Errorf("for key %q got %q; expected %q", key, got, expected)
 		}
 	}
-	return rw
+	for _, check := range checks {
+		check(m)
+	}
 }
 
 var cgiTested, cgiWorks bool
@@ -108,6 +119,7 @@ func TestCGIBasicGet(t *testing.T) {
 		"env-QUERY_STRING":      "foo=bar&a=b",
 		"env-REMOTE_ADDR":       "1.2.3.4",
 		"env-REMOTE_HOST":       "1.2.3.4",
+		"env-REMOTE_PORT":       "1234",
 		"env-REQUEST_METHOD":    "GET",
 		"env-REQUEST_URI":       "/test.cgi?foo=bar&a=b",
 		"env-SCRIPT_FILENAME":   "testdata/test.cgi",
@@ -124,6 +136,39 @@ func TestCGIBasicGet(t *testing.T) {
 	if expected, got := "X-Test-Value", replay.Header().Get("X-Test-Header"); got != expected {
 		t.Errorf("got a X-Test-Header of %q; expected %q", got, expected)
 	}
+}
+
+func TestCGIEnvIPv6(t *testing.T) {
+	check(t)
+	h := &Handler{
+		Path: "testdata/test.cgi",
+		Root: "/test.cgi",
+	}
+	expectedMap := map[string]string{
+		"test":                  "Hello CGI",
+		"param-a":               "b",
+		"param-foo":             "bar",
+		"env-GATEWAY_INTERFACE": "CGI/1.1",
+		"env-HTTP_HOST":         "example.com",
+		"env-PATH_INFO":         "",
+		"env-QUERY_STRING":      "foo=bar&a=b",
+		"env-REMOTE_ADDR":       "2000::3000",
+		"env-REMOTE_HOST":       "2000::3000",
+		"env-REMOTE_PORT":       "12345",
+		"env-REQUEST_METHOD":    "GET",
+		"env-REQUEST_URI":       "/test.cgi?foo=bar&a=b",
+		"env-SCRIPT_FILENAME":   "testdata/test.cgi",
+		"env-SCRIPT_NAME":       "/test.cgi",
+		"env-SERVER_NAME":       "example.com",
+		"env-SERVER_PORT":       "80",
+		"env-SERVER_SOFTWARE":   "go",
+	}
+
+	rw := httptest.NewRecorder()
+	req := newRequest("GET /test.cgi?foo=bar&a=b HTTP/1.0\nHost: example.com\n\n")
+	req.RemoteAddr = "[2000::3000]:12345"
+	h.ServeHTTP(rw, req)
+	runResponseChecks(t, rw, expectedMap)
 }
 
 func TestCGIBasicGetAbsPath(t *testing.T) {
@@ -195,6 +240,31 @@ func TestDupHeaders(t *testing.T) {
 		"X-Foo: val2\n"+
 		"Host: example.com\n\n",
 		expectedMap)
+}
+
+// Issue 16405: CGI+http.Transport differing uses of HTTP_PROXY.
+// Verify we don't set the HTTP_PROXY environment variable.
+// Hope nobody was depending on it. It's not a known header, though.
+func TestDropProxyHeader(t *testing.T) {
+	check(t)
+	h := &Handler{
+		Path: "testdata/test.cgi",
+	}
+	expectedMap := map[string]string{
+		"env-REQUEST_URI":     "/myscript/bar?a=b",
+		"env-SCRIPT_FILENAME": "testdata/test.cgi",
+		"env-HTTP_X_FOO":      "a",
+	}
+	runCgiTest(t, h, "GET /myscript/bar?a=b HTTP/1.0\n"+
+		"X-Foo: a\n"+
+		"Proxy: should_be_stripped\n"+
+		"Host: example.com\n\n",
+		expectedMap,
+		func(reqInfo map[string]string) {
+			if v, ok := reqInfo["env-HTTP_PROXY"]; ok {
+				t.Errorf("HTTP_PROXY = %q; should be absent", v)
+			}
+		})
 }
 
 func TestPathInfoNoRoot(t *testing.T) {
@@ -289,7 +359,7 @@ func TestInternalRedirect(t *testing.T) {
 	}
 	expectedMap := map[string]string{
 		"basepath":   "/foo",
-		"remoteaddr": "1.2.3.4",
+		"remoteaddr": "1.2.3.4:1234",
 	}
 	runCgiTest(t, h, "GET /test.cgi?loc=/foo HTTP/1.0\nHost: example.com\n\n", expectedMap)
 }
@@ -450,12 +520,53 @@ func TestEnvOverride(t *testing.T) {
 		Args: []string{cgifile},
 		Env: []string{
 			"SCRIPT_FILENAME=" + cgifile,
-			"REQUEST_URI=/foo/bar"},
+			"REQUEST_URI=/foo/bar",
+			"PATH=/wibble"},
 	}
 	expectedMap := map[string]string{
 		"cwd": cwd,
 		"env-SCRIPT_FILENAME": cgifile,
 		"env-REQUEST_URI":     "/foo/bar",
+		"env-PATH":            "/wibble",
 	}
 	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
+}
+
+func TestHandlerStderr(t *testing.T) {
+	check(t)
+	var stderr bytes.Buffer
+	h := &Handler{
+		Path:   "testdata/test.cgi",
+		Root:   "/test.cgi",
+		Stderr: &stderr,
+	}
+
+	rw := httptest.NewRecorder()
+	req := newRequest("GET /test.cgi?writestderr=1 HTTP/1.0\nHost: example.com\n\n")
+	h.ServeHTTP(rw, req)
+	if got, want := stderr.String(), "Hello, stderr!\n"; got != want {
+		t.Errorf("Stderr = %q; want %q", got, want)
+	}
+}
+
+func TestRemoveLeadingDuplicates(t *testing.T) {
+	tests := []struct {
+		env  []string
+		want []string
+	}{
+		{
+			env:  []string{"a=b", "b=c", "a=b2"},
+			want: []string{"b=c", "a=b2"},
+		},
+		{
+			env:  []string{"a=b", "b=c", "d", "e=f"},
+			want: []string{"a=b", "b=c", "d", "e=f"},
+		},
+	}
+	for _, tt := range tests {
+		got := removeLeadingDuplicates(tt.env)
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("removeLeadingDuplicates(%q) = %q; want %q", tt.env, got, tt.want)
+		}
+	}
 }

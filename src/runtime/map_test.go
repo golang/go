@@ -317,6 +317,22 @@ func TestBigItems(t *testing.T) {
 	}
 }
 
+func TestMapHugeZero(t *testing.T) {
+	type T [4000]byte
+	m := map[int]T{}
+	x := m[0]
+	if x != (T{}) {
+		t.Errorf("map value not zero")
+	}
+	y, ok := m[0]
+	if ok {
+		t.Errorf("map value should be missing")
+	}
+	if y != (T{}) {
+		t.Errorf("map value not zero")
+	}
+}
+
 type empty struct {
 }
 
@@ -515,6 +531,61 @@ func TestMapStringBytesLookup(t *testing.T) {
 	}
 }
 
+func TestMapLargeKeyNoPointer(t *testing.T) {
+	const (
+		I = 1000
+		N = 64
+	)
+	type T [N]int
+	m := make(map[T]int)
+	for i := 0; i < I; i++ {
+		var v T
+		for j := 0; j < N; j++ {
+			v[j] = i + j
+		}
+		m[v] = i
+	}
+	runtime.GC()
+	for i := 0; i < I; i++ {
+		var v T
+		for j := 0; j < N; j++ {
+			v[j] = i + j
+		}
+		if m[v] != i {
+			t.Fatalf("corrupted map: want %+v, got %+v", i, m[v])
+		}
+	}
+}
+
+func TestMapLargeValNoPointer(t *testing.T) {
+	const (
+		I = 1000
+		N = 64
+	)
+	type T [N]int
+	m := make(map[int]T)
+	for i := 0; i < I; i++ {
+		var v T
+		for j := 0; j < N; j++ {
+			v[j] = i + j
+		}
+		m[i] = v
+	}
+	runtime.GC()
+	for i := 0; i < I; i++ {
+		var v T
+		for j := 0; j < N; j++ {
+			v[j] = i + j
+		}
+		v1 := m[i]
+		for j := 0; j < N; j++ {
+			if v1[j] != v[j] {
+				t.Fatalf("corrupted map: want %+v, got %+v", v, v1)
+			}
+		}
+	}
+}
+
 func benchmarkMapPop(b *testing.B, n int) {
 	m := map[int]int{}
 	for i := 0; i < b.N; i++ {
@@ -535,3 +606,13 @@ func benchmarkMapPop(b *testing.B, n int) {
 func BenchmarkMapPop100(b *testing.B)   { benchmarkMapPop(b, 100) }
 func BenchmarkMapPop1000(b *testing.B)  { benchmarkMapPop(b, 1000) }
 func BenchmarkMapPop10000(b *testing.B) { benchmarkMapPop(b, 10000) }
+
+func TestNonEscapingMap(t *testing.T) {
+	n := testing.AllocsPerRun(1000, func() {
+		m := make(map[int]int)
+		m[0] = 0
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
+	}
+}

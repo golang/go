@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Routines that are implemented in assembly in asm_{amd64,386}.s
-// but are implemented in Go for arm.
+// Routines that are implemented in assembly in asm_{amd64,386,arm,arm64,ppc64x,s390x}.s
 
-// +build arm power64 power64le
+// +build mips64 mips64le
 
 package runtime
+
+import _ "unsafe" // for go:linkname
 
 func cmpstring(s1, s2 string) int {
 	l := len(s1)
@@ -32,10 +33,14 @@ func cmpstring(s1, s2 string) int {
 	return 0
 }
 
-func cmpbytes(s1, s2 []byte) int {
+//go:linkname bytes_Compare bytes.Compare
+func bytes_Compare(s1, s2 []byte) int {
 	l := len(s1)
 	if len(s2) < l {
 		l = len(s2)
+	}
+	if l == 0 || &s1[0] == &s2[0] {
+		goto samebytes
 	}
 	for i := 0; i < l; i++ {
 		c1, c2 := s1[i], s2[i]
@@ -46,6 +51,7 @@ func cmpbytes(s1, s2 []byte) int {
 			return +1
 		}
 	}
+samebytes:
 	if len(s1) < len(s2) {
 		return -1
 	}

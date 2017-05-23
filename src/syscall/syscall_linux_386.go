@@ -9,6 +9,11 @@ package syscall
 
 import "unsafe"
 
+const (
+	_SYS_dup      = SYS_DUP2
+	_SYS_getdents = SYS_GETDENTS64
+)
+
 func Getpagesize() int { return 4096 }
 
 func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
@@ -28,9 +33,35 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 	return
 }
 
+//sysnb	pipe(p *[2]_C_int) (err error)
+
+func Pipe(p []int) (err error) {
+	if len(p) != 2 {
+		return EINVAL
+	}
+	var pp [2]_C_int
+	err = pipe(&pp)
+	p[0] = int(pp[0])
+	p[1] = int(pp[1])
+	return
+}
+
+//sysnb pipe2(p *[2]_C_int, flags int) (err error)
+
+func Pipe2(p []int, flags int) (err error) {
+	if len(p) != 2 {
+		return EINVAL
+	}
+	var pp [2]_C_int
+	err = pipe2(&pp, flags)
+	p[0] = int(pp[0])
+	p[1] = int(pp[1])
+	return
+}
+
 // 64-bit file system and 32-bit uid calls
 // (386 default is 32-bit file system and 16-bit uid).
-//sys	Chown(path string, uid int, gid int) (err error) = SYS_CHOWN32
+//sys	Dup2(oldfd int, newfd int) (err error)
 //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
 //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
 //sys	Ftruncate(fd int, length int64) (err error) = SYS_FTRUNCATE64
@@ -38,6 +69,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sysnb	Geteuid() (euid int) = SYS_GETEUID32
 //sysnb	Getgid() (gid int) = SYS_GETGID32
 //sysnb	Getuid() (uid int) = SYS_GETUID32
+//sysnb	InotifyInit() (fd int, err error)
 //sys	Ioperm(from int, num int, on int) (err error)
 //sys	Iopl(level int) (err error)
 //sys	Lchown(path string, uid int, gid int) (err error) = SYS_LCHOWN32
@@ -150,9 +182,9 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 
 // On x86 Linux, all the socket calls go through an extra indirection,
 // I think because the 5-register system call interface can't handle
-// the 6-argument calls like sendto and recvfrom.  Instead the
+// the 6-argument calls like sendto and recvfrom. Instead the
 // arguments to the underlying system call are the number below
-// and a pointer to an array of uintptr.  We hide the pointer in the
+// and a pointer to an array of uintptr. We hide the pointer in the
 // socketcall assembly to avoid allocation on every system call.
 
 const (

@@ -23,8 +23,7 @@ func exportFilter(name string) bool {
 // body) are removed. Non-exported fields and methods of exported types are
 // stripped. The File.Comments list is not changed.
 //
-// FileExports returns true if there are exported declarations;
-// it returns false otherwise.
+// FileExports reports whether there are exported declarations.
 //
 func FileExports(src *File) bool {
 	return filterFile(src, exportFilter, true)
@@ -34,7 +33,7 @@ func FileExports(src *File) bool {
 // only exported nodes remain. The pkg.Files list is not changed, so that
 // file names and top-level package comments don't get lost.
 //
-// PackageExports returns true if there are exported declarations;
+// PackageExports reports whether there are exported declarations;
 // it returns false otherwise.
 //
 func PackageExports(pkg *Package) bool {
@@ -199,8 +198,8 @@ func filterSpecList(list []Spec, f Filter, export bool) []Spec {
 // all names (including struct field and interface method names, but
 // not from parameter lists) that don't pass through the filter f.
 //
-// FilterDecl returns true if there are any declared names left after
-// filtering; it returns false otherwise.
+// FilterDecl reports whether there are any declared names left after
+// filtering.
 //
 func FilterDecl(decl Decl, f Filter) bool {
 	return filterDecl(decl, f, false)
@@ -221,11 +220,11 @@ func filterDecl(decl Decl, f Filter, export bool) bool {
 // names from top-level declarations (including struct field and
 // interface method names, but not from parameter lists) that don't
 // pass through the filter f. If the declaration is empty afterwards,
-// the declaration is removed from the AST. The File.Comments list
-// is not changed.
+// the declaration is removed from the AST. Import declarations are
+// always removed. The File.Comments list is not changed.
 //
-// FilterFile returns true if there are any top-level declarations
-// left after filtering; it returns false otherwise.
+// FilterFile reports whether there are any top-level declarations
+// left after filtering.
 //
 func FilterFile(src *File, f Filter) bool {
 	return filterFile(src, f, false)
@@ -251,8 +250,8 @@ func filterFile(src *File, f Filter, export bool) bool {
 // changed, so that file names and top-level package comments don't get
 // lost.
 //
-// FilterPackage returns true if there are any top-level declarations
-// left after filtering; it returns false otherwise.
+// FilterPackage reports whether there are any top-level declarations
+// left after filtering.
 //
 func FilterPackage(pkg *Package, f Filter) bool {
 	return filterPackage(pkg, f, false)

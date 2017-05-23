@@ -6,43 +6,42 @@
 
 package x509
 
-import "io/ioutil"
-
-// Possible certificate files; stop after finding one.
-var certFiles = []string{
-	"/etc/ssl/certs/ca-certificates.crt",     // Debian/Ubuntu/Gentoo etc.
-	"/etc/pki/tls/certs/ca-bundle.crt",       // Fedora/RHEL
-	"/etc/ssl/ca-bundle.pem",                 // OpenSUSE
-	"/etc/ssl/cert.pem",                      // OpenBSD
-	"/usr/local/share/certs/ca-root-nss.crt", // FreeBSD/DragonFly
-	"/etc/pki/tls/cacert.pem",                // OpenELEC
-}
+import (
+	"io/ioutil"
+	"os"
+)
 
 // Possible directories with certificate files; stop after successfully
 // reading at least one file from a directory.
 var certDirectories = []string{
+	"/etc/ssl/certs",               // SLES10/SLES11, https://golang.org/issue/12139
 	"/system/etc/security/cacerts", // Android
-
 }
 
 func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	return nil, nil
 }
 
-func initSystemRoots() {
+func loadSystemRoots() (*CertPool, error) {
 	roots := NewCertPool()
+	var firstErr error
 	for _, file := range certFiles {
 		data, err := ioutil.ReadFile(file)
 		if err == nil {
 			roots.AppendCertsFromPEM(data)
-			systemRoots = roots
-			return
+			return roots, nil
+		}
+		if firstErr == nil && !os.IsNotExist(err) {
+			firstErr = err
 		}
 	}
 
 	for _, directory := range certDirectories {
 		fis, err := ioutil.ReadDir(directory)
 		if err != nil {
+			if firstErr == nil && !os.IsNotExist(err) {
+				firstErr = err
+			}
 			continue
 		}
 		rootsAdded := false
@@ -53,11 +52,9 @@ func initSystemRoots() {
 			}
 		}
 		if rootsAdded {
-			systemRoots = roots
-			return
+			return roots, nil
 		}
 	}
 
-	// All of the files failed to load. systemRoots will be nil which will
-	// trigger a specific error at verification time.
+	return nil, firstErr
 }

@@ -7,10 +7,16 @@
 <h2 id="introduction">Introduction to Go 1.4</h2>
 
 <p>
-The latest Go release, version 1.4, arrives as scheduled six months after 1.3
-and contains only one tiny language change,
-a possibly breaking change to the compiler,
-a backwards-compatible simple form of <code>for</code>-<code>range</code> loop.
+The latest Go release, version 1.4, arrives as scheduled six months after 1.3.
+</p>
+
+<p>
+It contains only one tiny language change,
+in the form of a backwards-compatible simple variant of <code>for</code>-<code>range</code> loop,
+and a possibly breaking change to the compiler involving methods on pointers-to-pointers.
+</p>
+
+<p>
 The release focuses primarily on implementation work, improving the garbage collector
 and preparing the ground for a fully concurrent collector to be rolled out in the
 next few releases.
@@ -20,7 +26,10 @@ this release therefore eliminates the notorious "hot stack split" problem.
 There are some new tools available including support in the <code>go</code> command
 for build-time source code generation.
 The release also adds support for ARM processors on Android and Native Client (NaCl)
-and AMD64 on Plan 9.
+and for AMD64 on Plan 9.
+</p>
+
+<p>
 As always, Go 1.4 keeps the <a href="/doc/go1compat.html">promise
 of compatibility</a>,
 and almost everything 
@@ -35,7 +44,7 @@ Up until Go 1.3, <code>for</code>-<code>range</code> loop had two forms
 </p>
 
 <pre>
-for k, v := range x {
+for i, v := range x {
 	...
 }
 </pre>
@@ -45,7 +54,7 @@ and
 </p>
 
 <pre>
-for k := range x {
+for i := range x {
 	...
 }
 </pre>
@@ -120,9 +129,9 @@ compile but is easy to fix by adding an explicit dereference.
 <p>
 Go 1.4 can build binaries for ARM processors running the Android operating system.
 It can also build a <code>.so</code> library that can be loaded by an Android application
-using the supporting packages in the <a href="http://code.google.com/p/go.mobile">go.mobile</a> repository.
+using the supporting packages in the <a href="https://golang.org/x/mobile">mobile</a> subrepository.
 A brief description of the plans for this experimental port are available
-<a href="/s/go14android">here</a>.
+<a href="https://golang.org/s/go14android">here</a>.
 </p>
 
 <h3 id="naclarm">NaCl on ARM</h3>
@@ -172,7 +181,7 @@ of the documentation.
 <h3 id="runtime">Changes to the runtime</h3>
 
 <p>
-Up to Go 1.4, the runtime (garbage collector, concurrency support, interface management,
+Prior to Go 1.4, the runtime (garbage collector, concurrency support, interface management,
 maps, slices, strings, ...) was mostly written in C, with some assembler support.
 In 1.4, much of the code has been translated to Go so that the garbage collector can scan
 the stacks of programs in the runtime and get accurate information about what variables
@@ -193,13 +202,12 @@ A consequence is that stacks are no longer segmented, eliminating the "hot split
 When a stack limit is reached, a new, larger stack is allocated, all active frames for
 the goroutine are copied there, and any pointers into the stack are updated.
 Performance can be noticeably better in some cases and is always more predictable.
-Details are available in <a href="/s/contigstacks">the design document</a>.
+Details are available in <a href="https://golang.org/s/contigstacks">the design document</a>.
 </p>
 
 <p>
 The use of contiguous stacks means that stacks can start smaller without triggering performance issues,
-so the default starting size for a goroutine's stack in 1.4 has been reduced to 2048 bytes from 8192 bytes.
-TODO: It may be bumped to 4096 for the release.
+so the default starting size for a goroutine's stack in 1.4 has been reduced from 8192 bytes to 2048 bytes.
 </p>
 
 <p>
@@ -320,7 +328,7 @@ from 1.5 and onward it will be enforced for any repository.
 
 <p>
 Full details of the mechanism are in
-<a href="http://golang.org/s/go14internal">the design document</a>.
+<a href="https://golang.org/s/go14internal">the design document</a>.
 </p>
 
 <h3 id="canonicalimports">Canonical import paths</h3>
@@ -382,7 +390,25 @@ The new <code>-f</code> flag overrides this check.
 
 <p>
 Further information is in
-<a href="http://golang.org/s/go14customimport">the design document</a>.
+<a href="https://golang.org/s/go14customimport">the design document</a>.
+</p>
+
+<h3 id="subrepo">Import paths for the subrepositories</h3>
+
+<p>
+The Go project subrepositories (<code>code.google.com/p/go.tools</code> and so on)
+are now available under custom import paths replacing <code>code.google.com/p/go.</code> with <code>golang.org/x/</code>,
+as in <code>golang.org/x/tools</code>.
+We will add canonical import comments to the code around June 1, 2015,
+at which point Go 1.4 and later will stop accepting the old <code>code.google.com</code> paths.
+</p>
+
+<p>
+<em>Updating</em>: All code that imports from subrepositories should change
+to use the new <code>golang.org</code> paths.
+Go 1.0 and later can resolve and import the new paths, so updating will not break
+compatibility with older releases.
+Code that has not updated will stop compiling with Go 1.4 around June 1, 2015.
 </p>
 
 <h3 id="gogenerate">The go generate subcommand</h3>
@@ -394,13 +420,13 @@ to automate the running of tools to generate source code before compilation.
 For example, it can be used to run the <a href="/cmd/yacc"><code>yacc</code></a>
 compiler-compiler on a <code>.y</code> file to produce the Go source file implementing the grammar,
 or to automate the generation of <code>String</code> methods for typed constants using the new
-<a href="http://godoc.org/code.google.com/p/go.tools/cmd/stringer">stringer</a>
-tool in the <code>go.tools</code> repository.
+<a href="http://godoc.org/golang.org/x/tools/cmd/stringer">stringer</a>
+tool in the <code>golang.org/x/tools</code> subrepository.
 </p>
 
 <p>
 For more information, see the 
-<a href="http://golang.org/s/go1.4-generate">design document</a>.
+<a href="https://golang.org/s/go1.4-generate">design document</a>.
 </p>
 
 <h3 id="filenames">Change to file name handling</h3>
@@ -480,7 +506,7 @@ rebuild the standard library and commands, to avoid overwriting the installation
 <p>
 In the main Go source repository, the source code for the packages was kept in
 the directory <code>src/pkg</code>, which made sense but differed from
-other repositories, including the Go sub-repositories such as <code>go.tools</code>.
+other repositories, including the Go subrepositories.
 In Go 1.4, the<code> pkg</code> level of the source tree is now gone, so for example
 the <a href="/pkg/fmt/"><code>fmt</code></a> package's source, once kept in
 directory <code>src/pkg/fmt</code>, now lives one level higher in <code>src/fmt</code>.
@@ -496,10 +522,7 @@ have been updated.
 <h3 id="swig">SWIG</h3>
 
 <p>
-Due to the runtime changes in this release, Go 1.4 will require SWIG 3.0.3.
-At time of writing that has not yet been released, but we expect it to be by
-Go 1.4's release date.
-TODO
+Due to runtime changes in this release, Go 1.4 requires SWIG 3.0.3.
 </p>
 
 <h3 id="misc">Miscellany</h3>
@@ -518,7 +541,7 @@ editor, even for editors we do not use.
 The Go community at large is much better suited to managing this information.
 In Go 1.4, therefore, this support has been removed from the repository.
 Instead, there is a curated, informative list of what's available on
-a <a href="https://code.google.com/p/go-wiki/wiki/IDEsAndTextEditorPlugins">wiki page</a>.
+a <a href="//golang.org/wiki/IDEsAndTextEditorPlugins">wiki page</a>.
 </p>
 
 <h2 id="performance">Performance</h2>
@@ -586,19 +609,19 @@ The <a href="/pkg/syscall/"><code>syscall</code></a> package is now frozen excep
 for changes needed to maintain the core repository.
 In particular, it will no longer be extended to support new or different system calls
 that are not used by the core.
-The reasons are described at length in <a href="http://golang.org/s/go1.4-syscall">a
+The reasons are described at length in <a href="https://golang.org/s/go1.4-syscall">a
 separate document</a>.
 </p>
 
 <p>
-A new subrepository, <a href="http://code.google.com/p/go.sys">go.sys</a>,
+A new subrepository, <a href="https://golang.org/x/sys">golang.org/x/sys</a>,
 has been created to serve as the location for new developments to support system
 calls on all kernels.
 It has a nicer structure, with three packages that each hold the implementation of
 system calls for one of
-<a href="http://godoc.org/code.google.com/p/go.sys/unix">Unix</a>,
-<a href="http://godoc.org/code.google.com/p/go.sys/windows">Windows</a> and
-<a href="http://godoc.org/code.google.com/p/go.sys/plan9">Plan 9</a>.
+<a href="http://godoc.org/golang.org/x/sys/unix">Unix</a>,
+<a href="http://godoc.org/golang.org/x/sys/windows">Windows</a> and
+<a href="http://godoc.org/golang.org/x/sys/plan9">Plan 9</a>.
 These packages will be curated more generously, accepting all reasonable changes
 that reflect kernel interfaces in those operating systems.
 See the documentation and the article mentioned above for more information.
@@ -608,7 +631,7 @@ See the documentation and the article mentioned above for more information.
 <em>Updating</em>: Existing programs are not affected as the <code>syscall</code>
 package is largely unchanged from the 1.3 release.
 Future development that requires system calls not in the <code>syscall</code> package
-should build on <code>go.sys</code> instead.
+should build on <code>golang.org/x/sys</code> instead.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
@@ -621,11 +644,28 @@ See the relevant package documentation for more information about each change.
 <ul>
 
 <li>
+The <a href="/pkg/archive/zip/"><code>archive/zip</code></a> package's
+<a href="/pkg/archive/zip/#Writer"><code>Writer</code></a> now supports a
+<a href="/pkg/archive/zip/#Writer.Flush"><code>Flush</code></a> method.
+</li>
+
+<li>
 The <a href="/pkg/compress/flate/"><code>compress/flate</code></a>,
 <a href="/pkg/compress/gzip/"><code>compress/gzip</code></a>,
 and <a href="/pkg/compress/zlib/"><code>compress/zlib</code></a>
 packages now support a <code>Reset</code> method
 for the decompressors, allowing them to reuse buffers and improve performance.
+The <a href="/pkg/compress/gzip/"><code>compress/gzip</code></a> package also has a
+<a href="/pkg/compress/gzip/#Reader.Multistream"><code>Multistream</code></a> method to control support
+for multistream files.
+</li>
+
+<li>
+The <a href="/pkg/crypto/"><code>crypto</code></a> package now has a
+<a href="/pkg/crypto/#Signer"><code>Signer</code></a> interface, implemented by the
+<code>PrivateKey</code> types in
+<a href="/pkg/crypto/ecdsa"><code>crypto/ecdsa</code></a> and
+<a href="/pkg/crypto/rsa"><code>crypto/rsa</code></a>.
 </li>
 
 <li>
@@ -637,7 +677,7 @@ now supports ALPN as defined in <a href="http://tools.ietf.org/html/rfc7301">RFC
 The <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
 now supports programmatic selection of server certificates
 through the new <a href="/pkg/crypto/tls/#Config.CertificateForName"><code>CertificateForName</code></a> function
-of the <a href="/pkg/crypo/tls/#Config"><code>Config</code></a> struct.
+of the <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> struct.
 </li>
 
 <li>
@@ -646,6 +686,16 @@ Also in the crypto/tls package, the server now supports
 to help clients detect fallback attacks.
 (The Go client does not support fallback at all, so it is not vulnerable to
 those attacks.)
+</li>
+
+<li>
+The <a href="/pkg/database/sql/"><code>database/sql</code></a> package can now list all registered
+<a href="/pkg/database/sql/#Drivers"><code>Drivers</code></a>.
+</li>
+
+<li>
+The <a href="/pkg/debug/dwarf/"><code>debug/dwarf</code></a> package now supports
+<a href="/pkg/debug/dwarf/#UnspecifiedType"><code>UnspecifiedType</code></a>s.
 </li>
 
 <li>
@@ -669,11 +719,38 @@ There is no functional change.
 </li>
 
 <li>
+The <a href="/pkg/encoding/xml/"><code>encoding/xml</code></a> package's
+<a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> can now report its input offset.
+</li>
+
+<li>
 In the <a href="/pkg/fmt/"><code>fmt</code></a> package,
 formatting of pointers to maps has changed to be consistent with that of pointers
 to structs, arrays, and so on.
 For instance, <code>&amp;map[string]int{"one":</code> <code>1}</code> now prints by default as
 <code>&amp;map[one:</code> <code>1]</code> rather than as a hexadecimal pointer value.
+</li>
+
+<li>
+The <a href="/pkg/image/"><code>image</code></a> package's
+<a href="/pkg/image/#Image"><code>Image</code></a>
+implementations like
+<a href="/pkg/image/#RGBA"><code>RGBA</code></a> and
+<a href="/pkg/image/#Gray"><code>Gray</code></a> have specialized
+<a href="/pkg/image/#RGBA.RGBAAt"><code>RGBAAt</code></a> and
+<a href="/pkg/image/#Gray.GrayAt"><code>GrayAt</code></a> methods alongside the general
+<a href="/pkg/image/#Image.At"><code>At</code></a> method.
+</li>
+
+<li>
+The <a href="/pkg/image/png/"><code>image/png</code></a> package now has an
+<a href="/pkg/image/png/#Encoder"><code>Encoder</code></a>
+type to control the compression level used for encoding.
+</li>
+
+<li>
+The <a href="/pkg/math/"><code>math</code></a> package now has a
+<a href="/pkg/math/#Nextafter32"><code>Nextafter32</code><a/> function.
 </li>
 
 <li>
@@ -704,6 +781,7 @@ The <a href="/pkg/os/"><code>os</code></a> package
 now implements symbolic links on the Windows operating system
 through the <a href="/pkg/os/#Symlink"><code>Symlink</code></a> function.
 Other operating systems already have this functionality.
+There is also a new <a href="/pkg/os/#Unsetenv"><code>Unsetenv</code></a> function.
 </li>
 
 <li>

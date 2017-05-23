@@ -5,6 +5,7 @@
 package sync
 
 import (
+	"internal/race"
 	"runtime"
 	"sync/atomic"
 	"unsafe"
@@ -39,7 +40,10 @@ import (
 // that scenario. It is more efficient to have such objects implement their own
 // free list.
 //
+// A Pool must not be copied after first use.
 type Pool struct {
+	noCopy noCopy
+
 	local     unsafe.Pointer // local fixed-size per-P pool, actual type is [P]poolLocal
 	localSize uintptr        // size of the local array
 
@@ -59,7 +63,7 @@ type poolLocal struct {
 
 // Put adds x to the pool.
 func (p *Pool) Put(x interface{}) {
-	if raceenabled {
+	if race.Enabled {
 		// Under race detector the Pool degenerates into no-op.
 		// It's conforming, simple and does not introduce excessive
 		// happens-before edges between unrelated goroutines.
@@ -91,7 +95,7 @@ func (p *Pool) Put(x interface{}) {
 // If Get would otherwise return nil and p.New is non-nil, Get returns
 // the result of calling p.New.
 func (p *Pool) Get() interface{} {
-	if raceenabled {
+	if race.Enabled {
 		if p.New != nil {
 			return p.New()
 		}
@@ -148,7 +152,7 @@ func (p *Pool) getSlow() (x interface{}) {
 func (p *Pool) pin() *poolLocal {
 	pid := runtime_procPin()
 	// In pinSlow we store to localSize and then to local, here we load in opposite order.
-	// Since we've disabled preemption, GC can not happen in between.
+	// Since we've disabled preemption, GC cannot happen in between.
 	// Thus here we must observe local at least as large localSize.
 	// We can observe a newer/larger local, it is fine (we must observe its zero-initialized-ness).
 	s := atomic.LoadUintptr(&p.localSize) // load-acquire
@@ -178,8 +182,8 @@ func (p *Pool) pinSlow() *poolLocal {
 	// If GOMAXPROCS changes between GCs, we re-allocate the array and lose the old one.
 	size := runtime.GOMAXPROCS(0)
 	local := make([]poolLocal, size)
-	atomic.StorePointer((*unsafe.Pointer)(&p.local), unsafe.Pointer(&local[0])) // store-release
-	atomic.StoreUintptr(&p.localSize, uintptr(size))                            // store-release
+	atomic.StorePointer(&p.local, unsafe.Pointer(&local[0])) // store-release
+	atomic.StoreUintptr(&p.localSize, uintptr(size))         // store-release
 	return &local[pid]
 }
 

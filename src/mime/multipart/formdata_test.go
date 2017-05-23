@@ -88,3 +88,39 @@ Content-Disposition: form-data; name="textb"
 ` + textbValue + `
 --MyBoundary--
 `
+
+func TestReadForm_NoReadAfterEOF(t *testing.T) {
+	maxMemory := int64(32) << 20
+	boundary := `---------------------------8d345eef0d38dc9`
+	body := `
+-----------------------------8d345eef0d38dc9
+Content-Disposition: form-data; name="version"
+
+171
+-----------------------------8d345eef0d38dc9--`
+
+	mr := NewReader(&failOnReadAfterErrorReader{t: t, r: strings.NewReader(body)}, boundary)
+
+	f, err := mr.ReadForm(maxMemory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("Got: %#v", f)
+}
+
+// failOnReadAfterErrorReader is an io.Reader wrapping r.
+// It fails t if any Read is called after a failing Read.
+type failOnReadAfterErrorReader struct {
+	t      *testing.T
+	r      io.Reader
+	sawErr error
+}
+
+func (r *failOnReadAfterErrorReader) Read(p []byte) (n int, err error) {
+	if r.sawErr != nil {
+		r.t.Fatalf("unexpected Read on Reader after previous read saw error %v", r.sawErr)
+	}
+	n, err = r.r.Read(p)
+	r.sawErr = err
+	return
+}

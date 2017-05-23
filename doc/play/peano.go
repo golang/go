@@ -3,9 +3,9 @@
 // (the nodes are the data).
 // http://en.wikipedia.org/wiki/Peano_axioms
 
-// This program demonstrates the power of Go's
-// segmented stacks when doing massively
-// recursive computations.
+// This program demonstrates that Go's automatic
+// stack management can handle heavily recursive
+// computations.
 
 package main
 

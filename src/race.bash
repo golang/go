@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file.
 
 # race.bash tests the standard library under the race detector.
-# http://golang.org/doc/articles/race_detector.html
+# https://golang.org/doc/articles/race_detector.html
 
 set -e
 
@@ -40,14 +40,5 @@ if [ ! -f make.bash ]; then
 	exit 1
 fi
 . ./make.bash --no-banner
-# golang.org/issue/5537 - we must build a race enabled cmd/cgo before trying to use it.
-go install -race cmd/cgo
 go install -race std
-
-# we must unset GOROOT_FINAL before tests, because runtime/debug requires
-# correct access to source code, so if we have GOROOT_FINAL in effect,
-# at least runtime/debug test will fail.
-unset GOROOT_FINAL
-
-go test -race -short std
-go test -race -run=nothingplease -bench=.* -benchtime=.1s -cpu=4 std
+go tool dist test -race

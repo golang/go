@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -37,11 +37,11 @@ type miscPlaneTag struct {
 }
 
 type percentSlashTag struct {
-	V string `json:"text/html%"` // http://golang.org/issue/2718
+	V string `json:"text/html%"` // https://golang.org/issue/2718
 }
 
 type punctuationTag struct {
-	V string `json:"!#$%&()*+-./:<=>?@[]^_{|}~"` // http://golang.org/issue/3546
+	V string `json:"!#$%&()*+-./:<=>?@[]^_{|}~"` // https://golang.org/issue/3546
 }
 
 type emptyTag struct {

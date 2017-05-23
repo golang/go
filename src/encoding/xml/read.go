@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -27,7 +27,7 @@ import (
 // discarded.
 //
 // Because Unmarshal uses the reflect package, it can only assign
-// to exported (upper case) fields.  Unmarshal uses a case-sensitive
+// to exported (upper case) fields. Unmarshal uses a case-sensitive
 // comparison to match XML element names to tag values and struct
 // field names.
 //
@@ -37,9 +37,9 @@ import (
 //
 //   * If the struct has a field of type []byte or string with tag
 //      ",innerxml", Unmarshal accumulates the raw XML nested inside the
-//      element in that field.  The rest of the rules still apply.
+//      element in that field. The rest of the rules still apply.
 //
-//   * If the struct has a field named XMLName of type xml.Name,
+//   * If the struct has a field named XMLName of type Name,
 //      Unmarshal records the element name in that field.
 //
 //   * If the XMLName field has an associated tag of the form
@@ -59,7 +59,7 @@ import (
 //
 //   * If the XML element contains comments, they are accumulated in
 //      the first struct field that has tag ",comment".  The struct
-//      field may have type []byte or string.  If there is no such
+//      field may have type []byte or string. If there is no such
 //      field, the comments are discarded.
 //
 //   * If the XML element contains a sub-element whose name matches
@@ -102,11 +102,11 @@ import (
 //
 // Unmarshal maps an XML element or attribute value to an integer or
 // floating-point field by setting the field to the result of
-// interpreting the string value in decimal.  There is no check for
+// interpreting the string value in decimal. There is no check for
 // overflow.
 //
-// Unmarshal maps an XML element to an xml.Name by recording the
-// element name.
+// Unmarshal maps an XML element to a Name by recording the element
+// name.
 //
 // Unmarshal maps an XML element to a pointer by setting the pointer
 // to a freshly allocated value and then mapping the element to that value.
@@ -115,13 +115,13 @@ func Unmarshal(data []byte, v interface{}) error {
 	return NewDecoder(bytes.NewReader(data)).Decode(v)
 }
 
-// Decode works like xml.Unmarshal, except it reads the decoder
+// Decode works like Unmarshal, except it reads the decoder
 // stream to find the start element.
 func (d *Decoder) Decode(v interface{}) error {
 	return d.DecodeElement(v, nil)
 }
 
-// DecodeElement works like xml.Unmarshal except that it takes
+// DecodeElement works like Unmarshal except that it takes
 // a pointer to the start XML element to decode into v.
 // It is useful when a client reads some raw XML tokens itself
 // but also wants to defer to Unmarshal for some elements.
@@ -431,7 +431,7 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 					}
 				}
 
-			case fCharData:
+			case fCDATA, fCharData:
 				if !saveData.IsValid() {
 					saveData = finfo.value(sv)
 				}

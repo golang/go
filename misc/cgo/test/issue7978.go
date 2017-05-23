@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -12,9 +12,23 @@ package cgotest
 
 void issue7978cb(void);
 
+#if defined(__APPLE__) && defined(__arm__)
+// on Darwin/ARM, libSystem doesn't provide implementation of the __sync_fetch_and_add
+// primitive, and although gcc supports it, it doesn't inline its definition.
+// Clang could inline its definition, so we require clang on Darwin/ARM.
+#if defined(__clang__)
+#define HAS_SYNC_FETCH_AND_ADD 1
+#else
+#define HAS_SYNC_FETCH_AND_ADD 0
+#endif
+#else
+#define HAS_SYNC_FETCH_AND_ADD 1
+#endif
+
 // use ugly atomic variable sync since that doesn't require calling back into
 // Go code or OS dependencies
 static void issue7978c(uint32_t *sync) {
+#if HAS_SYNC_FETCH_AND_ADD
 	while(__sync_fetch_and_add(sync, 0) != 0)
 		;
 	__sync_fetch_and_add(sync, 1);
@@ -24,6 +38,7 @@ static void issue7978c(uint32_t *sync) {
 	__sync_fetch_and_add(sync, 1);
 	while(__sync_fetch_and_add(sync, 0) != 6)
 		;
+#endif
 }
 */
 import "C"
@@ -82,6 +97,15 @@ func issue7978go() {
 }
 
 func test7978(t *testing.T) {
+	if runtime.Compiler == "gccgo" {
+		t.Skip("gccgo can not do stack traces of C code")
+	}
+	if C.HAS_SYNC_FETCH_AND_ADD == 0 {
+		t.Skip("clang required for __sync_fetch_and_add support on darwin/arm")
+	}
+	if runtime.GOOS == "android" || runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skip("GOTRACEBACK is not passed on to the exec wrapper")
+	}
 	if os.Getenv("GOTRACEBACK") != "2" {
 		t.Fatalf("GOTRACEBACK must be 2")
 	}
@@ -89,13 +113,13 @@ func test7978(t *testing.T) {
 	go issue7978go()
 	// test in c code, before callback
 	issue7978wait(0, 1)
-	issue7978check(t, "runtime.cgocall_errno(", "", 1)
+	issue7978check(t, "_Cfunc_issue7978c(", "", 1)
 	// test in go code, during callback
 	issue7978wait(2, 3)
 	issue7978check(t, "test.issue7978cb(", "test.issue7978go", 3)
 	// test in c code, after callback
 	issue7978wait(4, 5)
-	issue7978check(t, "runtime.cgocall_errno(", "runtime.cgocallback", 1)
+	issue7978check(t, "_Cfunc_issue7978c(", "_cgoexpwrap", 1)
 	// test in go code, after return from cgo
 	issue7978wait(6, 7)
 	issue7978check(t, "test.issue7978go(", "", 3)

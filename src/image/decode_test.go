@@ -6,6 +6,7 @@ package image_test
 
 import (
 	"bufio"
+	"fmt"
 	"image"
 	"image/color"
 	"os"
@@ -32,6 +33,10 @@ var imageTests = []imageTest{
 	// JPEG is a lossy format and hence needs a non-zero tolerance.
 	{"testdata/video-001.png", "testdata/video-001.jpeg", 8 << 8},
 	{"testdata/video-001.png", "testdata/video-001.progressive.jpeg", 8 << 8},
+	{"testdata/video-001.221212.png", "testdata/video-001.221212.jpeg", 8 << 8},
+	{"testdata/video-001.cmyk.png", "testdata/video-001.cmyk.jpeg", 8 << 8},
+	{"testdata/video-001.rgb.png", "testdata/video-001.rgb.jpeg", 8 << 8},
+	{"testdata/video-001.progressive.truncated.png", "testdata/video-001.progressive.truncated.jpeg", 8 << 8},
 	// Grayscale images.
 	{"testdata/video-005.gray.png", "testdata/video-005.gray.jpeg", 8 << 8},
 	{"testdata/video-005.gray.png", "testdata/video-005.gray.png", 0},
@@ -74,6 +79,11 @@ func withinTolerance(c0, c1 color.Color, tolerance int) bool {
 }
 
 func TestDecode(t *testing.T) {
+	rgba := func(c color.Color) string {
+		r, g, b, a := c.RGBA()
+		return fmt.Sprintf("rgba = 0x%04x, 0x%04x, 0x%04x, 0x%04x for %T%v", r, g, b, a, c, c)
+	}
+
 	golden := make(map[string]image.Image)
 loop:
 	for _, it := range imageTests {
@@ -94,13 +104,14 @@ loop:
 		}
 		b := g.Bounds()
 		if !b.Eq(m.Bounds()) {
-			t.Errorf("%s: want bounds %v got %v", it.filename, b, m.Bounds())
+			t.Errorf("%s: got bounds %v want %v", it.filename, m.Bounds(), b)
 			continue loop
 		}
 		for y := b.Min.Y; y < b.Max.Y; y++ {
 			for x := b.Min.X; x < b.Max.X; x++ {
 				if !withinTolerance(g.At(x, y), m.At(x, y), it.tolerance) {
-					t.Errorf("%s: at (%d, %d), want %v got %v", it.filename, x, y, g.At(x, y), m.At(x, y))
+					t.Errorf("%s: at (%d, %d):\ngot  %v\nwant %v",
+						it.filename, x, y, rgba(m.At(x, y)), rgba(g.At(x, y)))
 					continue loop
 				}
 			}

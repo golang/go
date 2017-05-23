@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -39,7 +39,7 @@ const (
 	OpEmptyMatch                   // matches empty string
 	OpLiteral                      // matches Runes sequence
 	OpCharClass                    // matches Runes interpreted as range pair list
-	OpAnyCharNotNL                 // matches any character
+	OpAnyCharNotNL                 // matches any character except newline
 	OpAnyChar                      // matches any character
 	OpBeginLine                    // matches empty string at beginning of line
 	OpEndLine                      // matches empty string at end of line
@@ -139,7 +139,7 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
 		if len(re.Rune) == 0 {
 			b.WriteString(`^\x00-\x{10FFFF}`)
 		} else if re.Rune[0] == 0 && re.Rune[len(re.Rune)-1] == unicode.MaxRune {
-			// Contains 0 and MaxRune.  Probably a negated class.
+			// Contains 0 and MaxRune. Probably a negated class.
 			// Print the gaps.
 			b.WriteRune('^')
 			for i := 1; i < len(re.Rune)-1; i += 2 {
@@ -166,9 +166,9 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
 	case OpAnyChar:
 		b.WriteString(`(?s:.)`)
 	case OpBeginLine:
-		b.WriteRune('^')
+		b.WriteString(`(?m:^)`)
 	case OpEndLine:
-		b.WriteRune('$')
+		b.WriteString(`(?m:$)`)
 	case OpBeginText:
 		b.WriteString(`\A`)
 	case OpEndText:
@@ -252,7 +252,7 @@ const meta = `\.+*?()|[]{}^$`
 
 func escape(b *bytes.Buffer, r rune, force bool) {
 	if unicode.IsPrint(r) {
-		if strings.IndexRune(meta, r) >= 0 || force {
+		if strings.ContainsRune(meta, r) || force {
 			b.WriteRune('\\')
 		}
 		b.WriteRune(r)

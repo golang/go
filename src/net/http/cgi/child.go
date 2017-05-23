@@ -132,9 +132,9 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 	}
 
 	// Request.RemoteAddr has its port set by Go's standard http
-	// server, so we do here too. We don't have one, though, so we
-	// use a dummy one.
-	r.RemoteAddr = net.JoinHostPort(params["REMOTE_ADDR"], "0")
+	// server, so we do here too.
+	remotePort, _ := strconv.Atoi(params["REMOTE_PORT"]) // zero if unset or invalid
+	r.RemoteAddr = net.JoinHostPort(params["REMOTE_ADDR"], strconv.Itoa(remotePort))
 
 	return r, nil
 }

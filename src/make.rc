@@ -3,6 +3,8 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+# See golang.org/s/go15bootstrap for an overview of the build process.
+
 # Environment variables that control make.rc:
 #
 # GOROOT_FINAL: The expected final Go root, baked into binaries.
@@ -17,14 +19,11 @@
 #
 # GOOS: The target operating system for installed packages and tools.
 #
-# GO_GCFLAGS: Additional 5g/6g/8g arguments to use when
+# GO_GCFLAGS: Additional go tool compile arguments to use when
 # building the packages and commands.
 #
-# GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
+# GO_LDFLAGS: Additional go tool link arguments to use when
 # building the commands.
-#
-# GO_CCFLAGS: Additional 5c/6c/8c arguments to use when
-# building.
 #
 # CGO_ENABLED: Controls cgo usage during the build. Set it to 1
 # to include all cgo related files, .c and .go file with "cgo"
@@ -36,26 +35,24 @@ if(! test -f run.rc){
 	exit wrongdir
 }
 
-# Generate libc_plan9.h.
-../include/plan9/mklibc.rc > ../include/plan9/libc_plan9.h
-
 # Clean old generated file that will cause problems in the build.
 rm -f ./runtime/runtime_defs.go
 
 # Determine the host compiler toolchain.
 eval `{grep '^(CC|LD|O)=' /$objtype/mkfile}
 
-echo '# Building C bootstrap tool.'
+echo '##### Building Go bootstrap tool.'
 echo cmd/dist
 GOROOT = `{cd .. && pwd}
-if(! ~ $#GOROOT_FINAL 1)
-	GOROOT_FINAL = $GOROOT
-DEFGOROOT='-DGOROOT_FINAL="'$GOROOT_FINAL'"'
-
-for(i in cmd/dist/*.c)
-	$CC -FTVwp+ -DPLAN9 $DEFGOROOT $i
-$LD -o cmd/dist/dist *.$O
-rm *.$O
+if(! ~ $#GOROOT_BOOTSTRAP 1)
+	GOROOT_BOOTSTRAP = $home/go1.4
+if(! test -x $GOROOT_BOOTSTRAP/bin/go){
+	echo 'ERROR: Cannot find '$GOROOT_BOOTSTRAP'/bin/go.' >[1=2]
+	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4.' >[1=2]
+	exit bootstrap
+}
+rm -f cmd/dist/dist
+GOROOT=$GOROOT_BOOTSTRAP GOOS='' GOARCH='' $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
 
 eval `{./cmd/dist/dist env -9}
 echo
@@ -69,14 +66,12 @@ if(~ $1 --dist-tool){
 	exit
 }
 
-echo '# Building compilers and Go bootstrap tool for host,' $GOHOSTOS/$GOHOSTARCH^.
 buildall = -a
 if(~ $1 --no-clean)
 	buildall = ()
 ./cmd/dist/dist bootstrap $buildall -v # builds go_bootstrap
 # Delay move of dist tool to now, because bootstrap may clear tool directory.
 mv cmd/dist/dist $GOTOOLDIR/dist
-$GOTOOLDIR/go_bootstrap clean -i std
 echo
 
 # Run only one process at a time on 9vx.
@@ -84,14 +79,14 @@ if(~ $sysname vx32)
 	pflag = (-p 1)
 
 if(! ~ $GOHOSTARCH $GOARCH || ! ~ $GOHOSTOS $GOOS){
-	echo '# Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
-	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
-		$GOTOOLDIR/go_bootstrap install -ccflags $"GO_CCFLAGS -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
+	echo '##### Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
+	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN= \
+		$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
 	echo
 }
 
-echo '# Building packages and commands for' $GOOS/$GOARCH^.
-$GOTOOLDIR/go_bootstrap install -ccflags $"GO_CCFLAGS -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
+echo '##### Building packages and commands for' $GOOS/$GOARCH^.
+$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
 echo
 
 rm -f $GOTOOLDIR/go_bootstrap

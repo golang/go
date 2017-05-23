@@ -7,8 +7,13 @@ package expvar
 import (
 	"bytes"
 	"encoding/json"
+	"math"
+	"net"
 	"net/http/httptest"
+	"runtime"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -19,6 +24,14 @@ func RemoveAll() {
 	defer mutex.Unlock()
 	vars = make(map[string]Var)
 	varKeys = nil
+}
+
+func TestNil(t *testing.T) {
+	RemoveAll()
+	val := Get("missing")
+	if val != nil {
+		t.Errorf("got %v, want nil", val)
+	}
 }
 
 func TestInt(t *testing.T) {
@@ -47,6 +60,30 @@ func TestInt(t *testing.T) {
 	}
 }
 
+func BenchmarkIntAdd(b *testing.B) {
+	var v Int
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			v.Add(1)
+		}
+	})
+}
+
+func BenchmarkIntSet(b *testing.B) {
+	var v Int
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			v.Set(1)
+		}
+	})
+}
+
+func (v *Float) val() float64 {
+	return math.Float64frombits(atomic.LoadUint64(&v.f))
+}
+
 func TestFloat(t *testing.T) {
 	RemoveAll()
 	reqs := NewFloat("requests-float")
@@ -59,8 +96,8 @@ func TestFloat(t *testing.T) {
 
 	reqs.Add(1.5)
 	reqs.Add(1.25)
-	if reqs.f != 2.75 {
-		t.Errorf("reqs.f = %v, want 2.75", reqs.f)
+	if v := reqs.val(); v != 2.75 {
+		t.Errorf("reqs.val() = %v, want 2.75", v)
 	}
 
 	if s := reqs.String(); s != "2.75" {
@@ -68,9 +105,29 @@ func TestFloat(t *testing.T) {
 	}
 
 	reqs.Add(-2)
-	if reqs.f != 0.75 {
-		t.Errorf("reqs.f = %v, want 0.75", reqs.f)
+	if v := reqs.val(); v != 0.75 {
+		t.Errorf("reqs.val() = %v, want 0.75", v)
 	}
+}
+
+func BenchmarkFloatAdd(b *testing.B) {
+	var f Float
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			f.Add(1.0)
+		}
+	})
+}
+
+func BenchmarkFloatSet(b *testing.B) {
+	var f Float
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			f.Set(1.0)
+		}
+	})
 }
 
 func TestString(t *testing.T) {
@@ -85,9 +142,25 @@ func TestString(t *testing.T) {
 		t.Errorf("name.s = %q, want \"Mike\"", name.s)
 	}
 
-	if s := name.String(); s != "\"Mike\"" {
-		t.Errorf("reqs.String() = %q, want \"\"Mike\"\"", s)
+	if s, want := name.String(), `"Mike"`; s != want {
+		t.Errorf("from %q, name.String() = %q, want %q", name.s, s, want)
 	}
+
+	// Make sure we produce safe JSON output.
+	name.Set(`<`)
+	if s, want := name.String(), "\"\\u003c\""; s != want {
+		t.Errorf("from %q, name.String() = %q, want %q", name.s, s, want)
+	}
+}
+
+func BenchmarkStringSet(b *testing.B) {
+	var s String
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			s.Set("red")
+		}
+	})
 }
 
 func TestMapCounter(t *testing.T) {
@@ -104,8 +177,8 @@ func TestMapCounter(t *testing.T) {
 	if x := colors.m["blue"].(*Int).i; x != 4 {
 		t.Errorf("colors.m[\"blue\"] = %v, want 4", x)
 	}
-	if x := colors.m[`green "midori"`].(*Float).f; x != 4.125 {
-		t.Errorf("colors.m[`green \"midori\"] = %v, want 3.14", x)
+	if x := colors.m[`green "midori"`].(*Float).val(); x != 4.125 {
+		t.Errorf("colors.m[`green \"midori\"] = %v, want 4.125", x)
 	}
 
 	// colors.String() should be '{"red":3, "blue":4}',
@@ -127,6 +200,38 @@ func TestMapCounter(t *testing.T) {
 	}
 	if x != 3 {
 		t.Errorf("red = %v, want 3", x)
+	}
+}
+
+func BenchmarkMapSet(b *testing.B) {
+	m := new(Map).Init()
+
+	v := new(Int)
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			m.Set("red", v)
+		}
+	})
+}
+
+func BenchmarkMapAddSame(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		m := new(Map).Init()
+		m.Add("red", 1)
+		m.Add("red", 1)
+		m.Add("red", 1)
+		m.Add("red", 1)
+	}
+}
+
+func BenchmarkMapAddDifferent(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		m := new(Map).Init()
+		m.Add("red", 1)
+		m.Add("blue", 1)
+		m.Add("green", 1)
+		m.Add("yellow", 1)
 	}
 }
 
@@ -164,4 +269,136 @@ func TestHandler(t *testing.T) {
 	if got := rr.Body.String(); got != want {
 		t.Errorf("HTTP handler wrote:\n%s\nWant:\n%s", got, want)
 	}
+}
+
+func BenchmarkRealworldExpvarUsage(b *testing.B) {
+	var (
+		bytesSent Int
+		bytesRead Int
+	)
+
+	// The benchmark creates GOMAXPROCS client/server pairs.
+	// Each pair creates 4 goroutines: client reader/writer and server reader/writer.
+	// The benchmark stresses concurrent reading and writing to the same connection.
+	// Such pattern is used in net/http and net/rpc.
+
+	b.StopTimer()
+
+	P := runtime.GOMAXPROCS(0)
+	N := b.N / P
+	W := 1000
+
+	// Setup P client/server connections.
+	clients := make([]net.Conn, P)
+	servers := make([]net.Conn, P)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		b.Fatalf("Listen failed: %v", err)
+	}
+	defer ln.Close()
+	done := make(chan bool)
+	go func() {
+		for p := 0; p < P; p++ {
+			s, err := ln.Accept()
+			if err != nil {
+				b.Errorf("Accept failed: %v", err)
+				return
+			}
+			servers[p] = s
+		}
+		done <- true
+	}()
+	for p := 0; p < P; p++ {
+		c, err := net.Dial("tcp", ln.Addr().String())
+		if err != nil {
+			b.Fatalf("Dial failed: %v", err)
+		}
+		clients[p] = c
+	}
+	<-done
+
+	b.StartTimer()
+
+	var wg sync.WaitGroup
+	wg.Add(4 * P)
+	for p := 0; p < P; p++ {
+		// Client writer.
+		go func(c net.Conn) {
+			defer wg.Done()
+			var buf [1]byte
+			for i := 0; i < N; i++ {
+				v := byte(i)
+				for w := 0; w < W; w++ {
+					v *= v
+				}
+				buf[0] = v
+				n, err := c.Write(buf[:])
+				if err != nil {
+					b.Errorf("Write failed: %v", err)
+					return
+				}
+
+				bytesSent.Add(int64(n))
+			}
+		}(clients[p])
+
+		// Pipe between server reader and server writer.
+		pipe := make(chan byte, 128)
+
+		// Server reader.
+		go func(s net.Conn) {
+			defer wg.Done()
+			var buf [1]byte
+			for i := 0; i < N; i++ {
+				n, err := s.Read(buf[:])
+
+				if err != nil {
+					b.Errorf("Read failed: %v", err)
+					return
+				}
+
+				bytesRead.Add(int64(n))
+				pipe <- buf[0]
+			}
+		}(servers[p])
+
+		// Server writer.
+		go func(s net.Conn) {
+			defer wg.Done()
+			var buf [1]byte
+			for i := 0; i < N; i++ {
+				v := <-pipe
+				for w := 0; w < W; w++ {
+					v *= v
+				}
+				buf[0] = v
+				n, err := s.Write(buf[:])
+				if err != nil {
+					b.Errorf("Write failed: %v", err)
+					return
+				}
+
+				bytesSent.Add(int64(n))
+			}
+			s.Close()
+		}(servers[p])
+
+		// Client reader.
+		go func(c net.Conn) {
+			defer wg.Done()
+			var buf [1]byte
+			for i := 0; i < N; i++ {
+				n, err := c.Read(buf[:])
+
+				if err != nil {
+					b.Errorf("Read failed: %v", err)
+					return
+				}
+
+				bytesRead.Add(int64(n))
+			}
+			c.Close()
+		}(clients[p])
+	}
+	wg.Wait()
 }

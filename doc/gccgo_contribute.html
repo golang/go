@@ -30,7 +30,9 @@ contribution rules</a>.
 
 <p>
 The master sources for the gccgo frontend may be found at
-<a href="//code.google.com/p/gofrontend">http://code.google.com/p/gofrontend</a>.
+<a href="http://go.googlesource.com/gofrontend">http://go.googlesource.com/gofrontend</a>.
+They are mirrored
+at <a href="http://github.com/golang/gofrontend">http://github.com/golang/gofrontend</a>.
 The master sources are not buildable by themselves, but only in
 conjunction with GCC (in the future, other compilers may be
 supported).  Changes made to the gccgo frontend are also applied to
@@ -40,7 +42,7 @@ is mirrored to the <code>gcc/go/gofrontend</code> directory in the GCC
 repository, and the <code>gofrontend</code> <code>libgo</code>
 directory is mirrored to the GCC <code>libgo</code> directory.  In
 addition, the <code>test</code> directory
-from <a href="//code.google.com/p/go">the main Go repository</a>
+from <a href="//go.googlesource.com/go">the main Go repository</a>
 is mirrored to the <code>gcc/testsuite/go.test/test</code> directory
 in the GCC repository.
 </p>
@@ -53,19 +55,17 @@ them.
 </p>
 
 <p>
-The gccgo frontend is written in C++.  It follows the GNU coding
-standards to the extent that they apply to C++.  In writing code for
-the frontend, follow the formatting of the surrounding code.  Although
-the frontend is currently tied to the rest of the GCC codebase, we
-plan to make it more independent.  Eventually all GCC-specific code
-will migrate out of the frontend proper and into GCC proper.  In the
-GCC sources this will generally mean moving code
-from <code>gcc/go/gofrontend</code> to <code>gcc/go</code>.
+The gccgo frontend is written in C++.
+It follows the GNU and GCC coding standards for C++.
+In writing code for the frontend, follow the formatting of the
+surrounding code.
+Almost all GCC-specific code is not in the frontend proper and is
+instead in the GCC sources in the <code>gcc/go</code> directory.
 </p>
 
 <p>
 The run-time library for gccgo is mostly the same as the library
-in <a href="//code.google.com/p/go">the main Go repository</a>.
+in <a href="//go.googlesource.com/go">the main Go repository</a>.
 The library code in the Go repository is periodically merged into
 the <code>libgo/go</code> directory of the <code>gofrontend</code> and
 then the GCC repositories, using the shell
@@ -105,7 +105,7 @@ or <code>gcc/testsuite/go.dg</code> directories in the GCC repository.
 <p>
 Changes to the Go frontend should follow the same process as for the
 main Go repository, only for the <code>gofrontend</code> project and
-the<code>gofrontend-dev@googlegroups.com</code> mailing list 
+the <code>gofrontend-dev@googlegroups.com</code> mailing list 
 rather than the <code>go</code> project and the
 <code>golang-dev@googlegroups.com</code> mailing list.  Those changes
 will then be merged into the GCC sources.
