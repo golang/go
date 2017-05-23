@@ -6,6 +6,7 @@ package httptest
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -176,7 +177,7 @@ func (rw *ResponseRecorder) Result() *http.Response {
 	if res.StatusCode == 0 {
 		res.StatusCode = 200
 	}
-	res.Status = http.StatusText(res.StatusCode)
+	res.Status = fmt.Sprintf("%03d %s", res.StatusCode, http.StatusText(res.StatusCode))
 	if rw.Body != nil {
 		res.Body = ioutil.NopCloser(bytes.NewReader(rw.Body.Bytes()))
 	}
