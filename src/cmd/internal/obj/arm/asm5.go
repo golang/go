@@ -228,8 +228,9 @@ var optab = []Optab{
 	{AMOVF, C_FREG, C_NONE, C_ADDR, 68, 8, 0, LTO | LPCREL, 4},
 	{AMOVF, C_ADDR, C_NONE, C_FREG, 69, 8, 0, LFROM | LPCREL, 4},
 	{AADDF, C_FREG, C_NONE, C_FREG, 54, 4, 0, 0, 0},
-	{AADDF, C_FREG, C_REG, C_FREG, 54, 4, 0, 0, 0},
-	{AMOVF, C_FREG, C_NONE, C_FREG, 54, 4, 0, 0, 0},
+	{AADDF, C_FREG, C_FREG, C_FREG, 54, 4, 0, 0, 0},
+	{AMOVF, C_FREG, C_NONE, C_FREG, 55, 4, 0, 0, 0},
+	{ANEGF, C_FREG, C_NONE, C_FREG, 55, 4, 0, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_FCR, 56, 4, 0, 0, 0},
 	{AMOVW, C_FCR, C_NONE, C_REG, 57, 4, 0, 0, 0},
 	{AMOVW, C_SHIFT, C_NONE, C_REG, 59, 4, 0, 0, 0},
@@ -284,7 +285,7 @@ var optab = []Optab{
 	{ASTREX, C_SOREG, C_REG, C_REG, 78, 4, 0, 0, 0},
 	{AMOVF, C_ZFCON, C_NONE, C_FREG, 80, 8, 0, 0, 0},
 	{AMOVF, C_SFCON, C_NONE, C_FREG, 81, 4, 0, 0, 0},
-	{ACMPF, C_FREG, C_REG, C_NONE, 82, 8, 0, 0, 0},
+	{ACMPF, C_FREG, C_FREG, C_NONE, 82, 8, 0, 0, 0},
 	{ACMPF, C_FREG, C_NONE, C_NONE, 83, 8, 0, 0, 0},
 	{AMOVFW, C_FREG, C_NONE, C_FREG, 84, 4, 0, 0, 0},
 	{AMOVWF, C_FREG, C_NONE, C_FREG, 85, 4, 0, 0, 0},
@@ -1325,7 +1326,14 @@ func (c *ctxt5) oplook(p *obj.Prog) *Optab {
 	a3--
 	a2 := C_NONE
 	if p.Reg != 0 {
-		a2 = C_REG
+		switch {
+		case REG_F0 <= p.Reg && p.Reg <= REG_F15:
+			a2 = C_FREG
+		case REG_R0 <= p.Reg && p.Reg <= REG_R15:
+			a2 = C_REG
+		default:
+			c.ctxt.Diag("invalid register in %v", p)
+		}
 	}
 
 	// If current instruction has a .S suffix (flags update),
@@ -1353,8 +1361,7 @@ func (c *ctxt5) oplook(p *obj.Prog) *Optab {
 		}
 	}
 
-	c.ctxt.Diag("illegal combination %v; %v %v %v, %d %d", p, DRconv(a1), DRconv(a2), DRconv(a3), p.From.Type, p.To.Type)
-	c.ctxt.Diag("from %d %d to %d %d\n", p.From.Type, p.From.Name, p.To.Type, p.To.Name)
+	c.ctxt.Diag("illegal combination %v; %v %v %v; from %d %d; to %d %d", p, DRconv(a1), DRconv(a2), DRconv(a3), p.From.Type, p.From.Name, p.To.Type, p.To.Name)
 	if ops == nil {
 		ops = optab
 	}
@@ -1590,14 +1597,15 @@ func buildop(ctxt *obj.Link) {
 			opset(AMULD, r0)
 			opset(ADIVF, r0)
 			opset(ADIVD, r0)
+
+		case ANEGF:
+			opset(ANEGD, r0)
 			opset(ASQRTF, r0)
 			opset(ASQRTD, r0)
 			opset(AMOVFD, r0)
 			opset(AMOVDF, r0)
 			opset(AABSF, r0)
 			opset(AABSD, r0)
-			opset(ANEGF, r0)
-			opset(ANEGD, r0)
 
 		case ACMPF:
 			opset(ACMPD, r0)
@@ -2167,12 +2175,17 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		r := int(p.Reg)
 		if r == 0 {
 			r = rt
-			if p.As == AMOVF || p.As == AMOVD || p.As == AMOVFD || p.As == AMOVDF || p.As == ASQRTF || p.As == ASQRTD || p.As == AABSF || p.As == AABSD || p.As == ANEGF || p.As == ANEGD {
-				r = 0
-			}
 		}
 
 		o1 |= (uint32(rf)&15)<<0 | (uint32(r)&15)<<16 | (uint32(rt)&15)<<12
+
+	case 55: /* negf freg, freg */
+		o1 = c.oprrr(p, p.As, int(p.Scond))
+
+		rf := int(p.From.Reg)
+		rt := int(p.To.Reg)
+
+		o1 |= (uint32(rf)&15)<<0 | (uint32(rt)&15)<<12
 
 	case 56: /* move to FP[CS]R */
 		o1 = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0xe<<24 | 1<<8 | 1<<4
