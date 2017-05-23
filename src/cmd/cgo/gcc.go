@@ -264,10 +264,6 @@ func (p *Package) guessKinds(f *File) []*Name {
 			if n.IsConst() {
 				continue
 			}
-
-			if isName(n.Define) {
-				n.C = n.Define
-			}
 		}
 
 		// If this is a struct, union, or enum type name, no need to guess the kind.
@@ -1073,7 +1069,17 @@ func (p *Package) rewriteRef(f *File) {
 	// Assign mangled names.
 	for _, n := range f.Name {
 		if n.Kind == "not-type" {
-			n.Kind = "var"
+			if n.Define == "" {
+				n.Kind = "var"
+			} else {
+				n.Kind = "macro"
+				n.FuncType = &FuncType{
+					Result: n.Type,
+					Go: &ast.FuncType{
+						Results: &ast.FieldList{List: []*ast.Field{{Type: n.Type.Go}}},
+					},
+				}
+			}
 		}
 		if n.Mangle == "" {
 			p.mangleName(n)
@@ -1127,7 +1133,8 @@ func (p *Package) rewriteRef(f *File) {
 				break
 			}
 		case "expr":
-			if r.Name.Kind == "func" {
+			switch r.Name.Kind {
+			case "func":
 				if builtinDefs[r.Name.C] != "" {
 					error_(r.Pos(), "use of builtin '%s' not in function call", fixGo(r.Name.C))
 				}
@@ -1154,24 +1161,24 @@ func (p *Package) rewriteRef(f *File) {
 					Fun:  &ast.Ident{NamePos: (*r.Expr).Pos(), Name: "_Cgo_ptr"},
 					Args: []ast.Expr{ast.NewIdent(name.Mangle)},
 				}
-			} else if r.Name.Kind == "type" {
+			case "type":
 				// Okay - might be new(T)
 				if r.Name.Type == nil {
 					error_(r.Pos(), "expression C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
 					break
 				}
 				expr = r.Name.Type.Go
-			} else if r.Name.Kind == "var" {
+			case "var":
 				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
+			case "macro":
+				expr = &ast.CallExpr{Fun: expr}
 			}
-
 		case "selector":
 			if r.Name.Kind == "var" {
 				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
 			} else {
 				error_(r.Pos(), "only C variables allowed in selector expression %s", fixGo(r.Name.Go))
 			}
-
 		case "type":
 			if r.Name.Kind != "type" {
 				error_(r.Pos(), "expression C.%s used as type", fixGo(r.Name.Go))
