@@ -24,6 +24,7 @@ func Init() {
 	gc.Thearch.SSAMarkMoves = ssaMarkMoves
 	gc.Thearch.SSAGenValue = ssaGenValue
 	gc.Thearch.SSAGenBlock = ssaGenBlock
+	gc.Thearch.ZeroAuto = zeroAuto
 
 	initvariants()
 	initproginfo()

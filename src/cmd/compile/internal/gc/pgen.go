@@ -120,7 +120,30 @@ func Gvarlive(n *Node) {
 }
 
 func removevardef(firstp *obj.Prog) {
+	// At VARKILLs, zero variable if it is ambiguously live.
+	// After the VARKILL anything this variable references
+	// might be collected. If it were to become live again later,
+	// the GC will see references to already-collected objects.
+	// See issue 20029.
 	for p := firstp; p != nil; p = p.Link {
+		if p.As != obj.AVARKILL {
+			continue
+		}
+		n := p.To.Node.(*Node)
+		if !n.Name.Needzero {
+			continue
+		}
+		if n.Class != PAUTO {
+			Fatalf("zero of variable which isn't PAUTO %v", n)
+		}
+		if n.Type.Size()%int64(Widthptr) != 0 {
+			Fatalf("zero of variable not a multiple of ptr size %v", n)
+		}
+		Thearch.ZeroAuto(n, p)
+	}
+
+	for p := firstp; p != nil; p = p.Link {
+
 		for p.Link != nil && (p.Link.As == obj.AVARDEF || p.Link.As == obj.AVARKILL || p.Link.As == obj.AVARLIVE) {
 			p.Link = p.Link.Link
 		}
