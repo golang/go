@@ -2395,6 +2395,7 @@ type Server struct {
 	listeners  map[net.Listener]struct{}
 	activeConn map[*conn]struct{}
 	doneChan   chan struct{}
+	onShutdown []func()
 }
 
 func (s *Server) getDoneChan() <-chan struct{} {
@@ -2475,6 +2476,9 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 	srv.mu.Lock()
 	lnerr := srv.closeListenersLocked()
 	srv.closeDoneChanLocked()
+	for _, f := range srv.onShutdown {
+		go f()
+	}
 	srv.mu.Unlock()
 
 	ticker := time.NewTicker(shutdownPollInterval)
@@ -2489,6 +2493,17 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 		case <-ticker.C:
 		}
 	}
+}
+
+// RegisterOnShutdown registers a function to call on Shutdown.
+// This can be used to gracefully shutdown connections that have
+// undergone NPN/ALPN protocol upgrade or that have been hijacked.
+// This function should start protocol-specific graceful shutdown,
+// but should not wait for shutdown to complete.
+func (srv *Server) RegisterOnShutdown(f func()) {
+	srv.mu.Lock()
+	srv.onShutdown = append(srv.onShutdown, f)
+	srv.mu.Unlock()
 }
 
 // closeIdleConns closes all idle connections and reports whether the
