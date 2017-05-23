@@ -28,7 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang_org/x/net/lex/httplex"
+	"golang.org/x/net/lex/httplex"
 )
 
 // Errors used by the HTTP server.

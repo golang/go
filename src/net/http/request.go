@@ -26,7 +26,7 @@ import (
 	"strings"
 	"sync"
 
-	"golang_org/x/net/idna"
+	"golang.org/x/net/idna"
 )
 
 const (

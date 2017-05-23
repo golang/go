@@ -43,9 +43,9 @@ import (
 	"sync"
 	"time"
 
-	"golang_org/x/net/http2/hpack"
-	"golang_org/x/net/idna"
-	"golang_org/x/net/lex/httplex"
+	"golang.org/x/net/http2/hpack"
+	"golang.org/x/net/idna"
+	"golang.org/x/net/lex/httplex"
 )
 
 const (
