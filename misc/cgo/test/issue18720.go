@@ -12,13 +12,39 @@ package cgotest
 struct foo { char c; };
 #define SIZE_OF(x) sizeof(x)
 #define SIZE_OF_FOO SIZE_OF(struct foo)
+#define VAR1 VAR
+#define VAR var
+int var = 5;
+
+#define ADDR &var
+
+#define CALL fn()
+int fn(void) {
+	return ++var;
+}
 */
 import "C"
 import "testing"
 
 func test18720(t *testing.T) {
-	if C.HELLO_WORLD != "hello\000world" {
-		t.Fatalf(`expected "hello\000world", but got %q`, C.HELLO_WORLD)
+	if got, want := C.HELLO_WORLD, "hello\000world"; got != want {
+		t.Errorf("C.HELLO_WORLD == %q, expected %q", got, want)
+	}
+
+	if got, want := C.VAR1, C.int(5); got != want {
+		t.Errorf("C.VAR1 == %v, expected %v", got, want)
+	}
+
+	if got, want := *C.ADDR, C.int(5); got != want {
+		t.Errorf("*C.ADDR == %v, expected %v", got, want)
+	}
+
+	if got, want := C.CALL, C.int(6); got != want {
+		t.Errorf("C.CALL == %v, expected %v", got, want)
+	}
+
+	if got, want := C.CALL, C.int(7); got != want {
+		t.Errorf("C.CALL == %v, expected %v", got, want)
 	}
 
 	// Issue 20125.
