@@ -5232,7 +5232,8 @@ func testServerShutdown(t *testing.T, h2 bool) {
 	defer afterTest(t)
 	var doShutdown func() // set later
 	var shutdownRes = make(chan error, 1)
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+	var gotOnShutdown = make(chan struct{}, 1)
+	handler := HandlerFunc(func(w ResponseWriter, r *Request) {
 		go doShutdown()
 		// Shutdown is graceful, so it should not interrupt
 		// this in-flight response. Add a tiny sleep here to
@@ -5240,7 +5241,10 @@ func testServerShutdown(t *testing.T, h2 bool) {
 		// bugs.
 		time.Sleep(20 * time.Millisecond)
 		io.WriteString(w, r.RemoteAddr)
-	}))
+	})
+	cst := newClientServerTest(t, h2, handler, func(srv *httptest.Server) {
+		srv.Config.RegisterOnShutdown(func() { gotOnShutdown <- struct{}{} })
+	})
 	defer cst.close()
 
 	doShutdown = func() {
@@ -5250,6 +5254,11 @@ func testServerShutdown(t *testing.T, h2 bool) {
 
 	if err := <-shutdownRes; err != nil {
 		t.Fatalf("Shutdown: %v", err)
+	}
+	select {
+	case <-gotOnShutdown:
+	case <-time.After(5 * time.Second):
+		t.Errorf("onShutdown callback not called, RegisterOnShutdown broken?")
 	}
 
 	res, err := cst.c.Get(cst.ts.URL)
