@@ -68,9 +68,9 @@ func MkEnv() []cfg.EnvVar {
 
 	switch cfg.Goarch {
 	case "arm":
-		env = append(env, cfg.EnvVar{Name: "GOARM", Value: os.Getenv("GOARM")})
+		env = append(env, cfg.EnvVar{Name: "GOARM", Value: cfg.GOARM})
 	case "386":
-		env = append(env, cfg.EnvVar{Name: "GO386", Value: os.Getenv("GO386")})
+		env = append(env, cfg.EnvVar{Name: "GO386", Value: cfg.GO386})
 	}
 
 	cmd := b.GccCmd(".")

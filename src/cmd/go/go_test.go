@@ -4138,3 +4138,42 @@ func TestGoTestRaceCoverModeFailures(t *testing.T) {
 	tg.grepStderr(`-covermode must be "atomic", not "set", when -race is enabled`, "-race -covermode=set was allowed")
 	tg.grepBothNot("PASS", "something passed")
 }
+
+// Issue 9737: verify that GOARM and GO386 affect the computed build ID.
+func TestBuildIDContainsArchModeEnv(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	var tg *testgoData
+	testWith := func(before, after func()) func(*testing.T) {
+		return func(t *testing.T) {
+			tg = testgo(t)
+			defer tg.cleanup()
+			tg.tempFile("src/mycmd/x.go", `package main
+func main() {}`)
+			tg.setenv("GOPATH", tg.path("."))
+
+			tg.cd(tg.path("src/mycmd"))
+			tg.setenv("GOOS", "linux")
+			before()
+			tg.run("install", "mycmd")
+			after()
+			tg.wantStale("mycmd", "build ID mismatch", "should be stale after environment variable change")
+		}
+	}
+
+	t.Run("386", testWith(func() {
+		tg.setenv("GOARCH", "386")
+		tg.setenv("GO386", "387")
+	}, func() {
+		tg.setenv("GO386", "")
+	}))
+
+	t.Run("arm", testWith(func() {
+		tg.setenv("GOARCH", "arm")
+		tg.setenv("GOARM", "5")
+	}, func() {
+		tg.setenv("GOARM", "7")
+	}))
+}

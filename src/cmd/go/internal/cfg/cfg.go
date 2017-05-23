@@ -7,10 +7,13 @@
 package cfg
 
 import (
+	"fmt"
 	"go/build"
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"cmd/internal/objabi"
 )
 
 // These are general "build flags" used by build and other commands.
@@ -69,6 +72,10 @@ var (
 	GOROOTbin = filepath.Join(GOROOT, "bin")
 	GOROOTpkg = filepath.Join(GOROOT, "pkg")
 	GOROOTsrc = filepath.Join(GOROOT, "src")
+
+	// Used in envcmd.MkEnv and build ID computations.
+	GOARM = fmt.Sprint(objabi.GOARM)
+	GO386 = objabi.GO386
 )
 
 func findGOROOT() string {

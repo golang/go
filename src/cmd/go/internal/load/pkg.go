@@ -1651,6 +1651,14 @@ func computeBuildID(p *Package) {
 			base.Fatalf("go: %s", err)
 		}
 		fmt.Fprintf(h, "zversion %q\n", string(data))
+
+		// Add environment variables that affect code generation.
+		switch cfg.BuildContext.GOARCH {
+		case "arm":
+			fmt.Fprintf(h, "GOARM=%s\n", cfg.GOARM)
+		case "386":
+			fmt.Fprintf(h, "GO386=%s\n", cfg.GO386)
+		}
 	}
 
 	// Include the build IDs of any dependencies in the hash.
