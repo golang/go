@@ -212,6 +212,11 @@ const (
 	DW_FORM_ref8      = 0x14 // reference
 	DW_FORM_ref_udata = 0x15 // reference
 	DW_FORM_indirect  = 0x16 // (see Section 7.5.3)
+	// Dwarf4
+	DW_FORM_sec_offset   = 0x17 // lineptr, loclistptr, macptr, rangelistptr
+	DW_FORM_exprloc      = 0x18 // exprloc
+	DW_FORM_flag_present = 0x19 // flag
+	DW_FORM_ref_sig8     = 0x20 // reference
 )
 
 // Table 24 (#operands, notes)

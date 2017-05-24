@@ -255,7 +255,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_language, DW_FORM_data1},
 			{DW_AT_low_pc, DW_FORM_addr},
 			{DW_AT_high_pc, DW_FORM_addr},
-			{DW_AT_stmt_list, DW_FORM_data4},
+			{DW_AT_stmt_list, DW_FORM_sec_offset},
 			{DW_AT_comp_dir, DW_FORM_string},
 			{DW_AT_producer, DW_FORM_string},
 		},
@@ -269,6 +269,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_low_pc, DW_FORM_addr},
 			{DW_AT_high_pc, DW_FORM_addr},
+			{DW_AT_frame_base, DW_FORM_block1},
 			{DW_AT_external, DW_FORM_flag},
 		},
 	},
@@ -306,13 +307,12 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
-
 	/* LEXICAL_BLOCK_RANGES */
 	{
 		DW_TAG_lexical_block,
 		DW_CHILDREN_yes,
 		[]dwAttrForm{
-			{DW_AT_ranges, DW_FORM_data4}, // replace with DW_FORM_sec_offset in DWARFv4.
+			{DW_AT_ranges, DW_FORM_sec_offset},
 		},
 	},
 
@@ -634,14 +634,15 @@ func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, da
 			ctxt.AddInt(s, 1, 0)
 		}
 
-	// In DWARF 3 the ref_addr is always 32 bits, unless emitting a large
+	// As of DWARF 3 the ref_addr is always 32 bits, unless emitting a large
 	// (> 4 GB of debug info aka "64-bit") unit, which we don't implement.
 	case DW_FORM_ref_addr: // reference to a DIE in the .info section
+		fallthrough
+	case DW_FORM_sec_offset: // offset into a DWARF section other than .info
 		if data == nil {
 			return fmt.Errorf("dwarf: null reference in %d", abbrev)
-		} else {
-			ctxt.AddSectionOffset(s, 4, data, 0)
 		}
+		ctxt.AddSectionOffset(s, 4, data, value)
 
 	case DW_FORM_ref1, // reference within the compilation unit
 		DW_FORM_ref2,      // reference
@@ -687,7 +688,8 @@ func PutFunc(ctxt Context, s, ranges Sym, name string, external bool, startPC Sy
 	Uleb128put(ctxt, s, DW_ABRV_FUNCTION)
 	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
 	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, 0, startPC)
-	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, size+ctxt.SymValue(startPC), startPC)
+	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, size, startPC)
+	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_block1, DW_CLS_BLOCK, 1, []byte{DW_OP_call_frame_cfa})
 	var ev int64
 	if external {
 		ev = 1
@@ -722,7 +724,7 @@ func putscope(ctxt Context, s, ranges Sym, startPC Sym, curscope int32, scopes [
 			putattr(ctxt, s, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].End, startPC)
 		} else {
 			Uleb128put(ctxt, s, DW_ABRV_LEXICAL_BLOCK_RANGES)
-			putattr(ctxt, s, DW_ABRV_LEXICAL_BLOCK_RANGES, DW_FORM_data4, DW_CLS_PTR, ranges.Len(), ranges)
+			putattr(ctxt, s, DW_ABRV_LEXICAL_BLOCK_RANGES, DW_FORM_sec_offset, DW_CLS_PTR, ranges.Len(), ranges)
 
 			ctxt.AddAddress(ranges, nil, -1)
 			ctxt.AddAddress(ranges, startPC, 0)
