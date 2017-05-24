@@ -648,6 +648,10 @@ func TestHuffmanFuzzCrash(t *testing.T) {
 	}
 }
 
+func pair(name, value string) HeaderField {
+	return HeaderField{Name: name, Value: value}
+}
+
 func dehex(s string) []byte {
 	s = strings.Replace(s, " ", "", -1)
 	s = strings.Replace(s, "\n", "", -1)
