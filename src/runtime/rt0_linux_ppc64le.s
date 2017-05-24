@@ -53,6 +53,9 @@ TEXT _rt0_ppc64le_linux_lib(SB),NOSPLIT,$-8
 	MOVD	R4, _rt0_ppc64le_linux_lib_argv<>(SB)
 
 	// Synchronous initialization.
+	MOVD	$runtime·reginit(SB), R12
+	MOVD	R12, CTR
+	BL	(CTR)
 	MOVD	$runtime·libpreinit(SB), R12
 	MOVD	R12, CTR
 	BL	(CTR)
