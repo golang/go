@@ -108,10 +108,6 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 	codes := huffmanCodes(make([]huffmanCode, len(lengths)))
 	for i := len(pairs) - 1; i >= 0; i-- {
 		if length > pairs[i].length {
-			// If the code length decreases we shift in order to
-			// zero any bits beyond the end of the code.
-			length >>= 32 - pairs[i].length
-			length <<= 32 - pairs[i].length
 			length = pairs[i].length
 		}
 		codes[i].code = code
