@@ -71,6 +71,11 @@ type defaultTest struct {
 	A int `asn1:"optional,default:1"`
 }
 
+type applicationTest struct {
+	A int `asn1:"application,tag:0"`
+	B int `asn1:"application,tag:1,explicit"`
+}
+
 type testSET []int
 
 var PST = time.FixedZone("PST", -8*60*60)
@@ -152,6 +157,7 @@ var marshalTests = []marshalTest{
 	{defaultTest{0}, "3003020100"},
 	{defaultTest{1}, "3000"},
 	{defaultTest{2}, "3003020102"},
+	{applicationTest{1, 2}, "30084001016103020102"},
 }
 
 func TestMarshal(t *testing.T) {
