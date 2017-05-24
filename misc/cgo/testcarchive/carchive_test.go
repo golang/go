@@ -115,8 +115,10 @@ func init() {
 func goEnv(key string) string {
 	out, err := exec.Command("go", "env", key).Output()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go env %s failed:\n%s", key, err)
-		fmt.Fprintf(os.Stderr, "%s", err.(*exec.ExitError).Stderr)
+		fmt.Fprintf(os.Stderr, "go env %s failed:\n%s\n", key, err)
+		if ee, ok := err.(*exec.ExitError); ok {
+			fmt.Fprintf(os.Stderr, "%s", ee.Stderr)
+		}
 		os.Exit(2)
 	}
 	return strings.TrimSpace(string(out))
