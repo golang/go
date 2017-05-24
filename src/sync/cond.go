@@ -17,7 +17,6 @@ import (
 // which must be held when changing the condition and
 // when calling the Wait method.
 //
-// A Cond can be created as part of other structures.
 // A Cond must not be copied after first use.
 type Cond struct {
 	noCopy noCopy

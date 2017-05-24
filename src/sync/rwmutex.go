@@ -12,8 +12,7 @@ import (
 
 // An RWMutex is a reader/writer mutual exclusion lock.
 // The lock can be held by an arbitrary number of readers or a single writer.
-// RWMutexes can be created as part of other structures;
-// the zero value for a RWMutex is an unlocked mutex.
+// The zero value for a RWMutex is an unlocked mutex.
 //
 // An RWMutex must not be copied after first use.
 //
