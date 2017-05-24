@@ -658,7 +658,13 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 //	utc:         causes time.Time to be marshaled as ASN.1, UTCTime values
 //	generalized: causes time.Time to be marshaled as ASN.1, GeneralizedTime values
 func Marshal(val interface{}) ([]byte, error) {
-	e, err := makeField(reflect.ValueOf(val), fieldParameters{})
+	return MarshalWithParams(val, "")
+}
+
+// MarshalWithParams allows field parameters to be specified for the
+// top-level element. The form of the params is the same as the field tags.
+func MarshalWithParams(val interface{}, params string) ([]byte, error) {
+	e, err := makeField(reflect.ValueOf(val), parseFieldParameters(params))
 	if err != nil {
 		return nil, err
 	}

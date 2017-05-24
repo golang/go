@@ -180,6 +180,31 @@ func TestMarshal(t *testing.T) {
 	}
 }
 
+type marshalWithParamsTest struct {
+	in     interface{}
+	params string
+	out    string // hex encoded
+}
+
+var marshalWithParamsTests = []marshalWithParamsTest{
+	{intStruct{10}, "set", "310302010a"},
+	{intStruct{10}, "application", "600302010a"},
+}
+
+func TestMarshalWithParams(t *testing.T) {
+	for i, test := range marshalWithParamsTests {
+		data, err := MarshalWithParams(test.in, test.params)
+		if err != nil {
+			t.Errorf("#%d failed: %s", i, err)
+		}
+		out, _ := hex.DecodeString(test.out)
+		if !bytes.Equal(out, data) {
+			t.Errorf("#%d got: %x want %x\n\t%q\n\t%q", i, data, out, data, out)
+
+		}
+	}
+}
+
 type marshalErrTest struct {
 	in  interface{}
 	err string
