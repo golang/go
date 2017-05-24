@@ -35,8 +35,20 @@ type DummyFrontend struct {
 func (DummyFrontend) StringData(s string) interface{} {
 	return nil
 }
-func (DummyFrontend) Auto(t Type) GCNode {
-	return nil
+
+type dummyGCNode struct {
+	typ  Type
+	name string
+}
+
+func (d *dummyGCNode) Typ() Type {
+	return d.typ
+}
+func (d *dummyGCNode) String() string {
+	return d.name
+}
+func (d DummyFrontend) Auto(t Type) GCNode {
+	return &dummyGCNode{typ: t, name: "dummy"}
 }
 func (d DummyFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {
 	return LocalSlot{s.N, d.TypeBytePtr(), s.Off}, LocalSlot{s.N, d.TypeInt(), s.Off + 8}
