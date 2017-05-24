@@ -8,6 +8,7 @@ import (
 	. "debug/dwarf"
 	"debug/elf"
 	"debug/macho"
+	"debug/pe"
 	"testing"
 )
 
@@ -56,6 +57,19 @@ func elfData(t *testing.T, name string) *Data {
 
 func machoData(t *testing.T, name string) *Data {
 	f, err := macho.Open(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+func peData(t *testing.T, name string) *Data {
+	f, err := pe.Open(name)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"strings"
 )
 
 // A LineReader reads a sequence of LineEntry structures from a DWARF
@@ -247,10 +248,10 @@ func (r *LineReader) readHeader() error {
 		if len(directory) == 0 {
 			break
 		}
-		if !path.IsAbs(directory) {
+		if !pathIsAbs(directory) {
 			// Relative paths are implicitly relative to
 			// the compilation directory.
-			directory = path.Join(r.directories[0], directory)
+			directory = pathJoin(r.directories[0], directory)
 		}
 		r.directories = append(r.directories, directory)
 	}
@@ -283,11 +284,11 @@ func (r *LineReader) readFileEntry() (bool, error) {
 	}
 	off := r.buf.off
 	dirIndex := int(r.buf.uint())
-	if !path.IsAbs(name) {
+	if !pathIsAbs(name) {
 		if dirIndex >= len(r.directories) {
 			return false, DecodeError{"line", off, "directory index too large"}
 		}
-		name = path.Join(r.directories[dirIndex], name)
+		name = pathJoin(r.directories[dirIndex], name)
 	}
 	mtime := r.buf.uint()
 	length := int(r.buf.uint())
@@ -587,4 +588,69 @@ func (r *LineReader) SeekPC(pc uint64, entry *LineEntry) error {
 		}
 		*entry = next
 	}
+}
+
+// pathIsAbs returns whether path is an absolute path (or "full path
+// name" in DWARF parlance). This is in "whatever form makes sense for
+// the host system", so this accepts both UNIX-style and DOS-style
+// absolute paths. We avoid the filepath package because we want this
+// to behave the same regardless of our host system and because we
+// don't know what system the paths came from.
+func pathIsAbs(path string) bool {
+	_, path = splitDrive(path)
+	return len(path) > 0 && (path[0] == '/' || path[0] == '\\')
+}
+
+// pathJoin joins dirname and filename. filename must be relative.
+// DWARF paths can be UNIX-style or DOS-style, so this handles both.
+func pathJoin(dirname, filename string) string {
+	if len(dirname) == 0 {
+		return filename
+	}
+	// dirname should be absolute, which means we can determine
+	// whether it's a DOS path reasonably reliably by looking for
+	// a drive letter or UNC path.
+	drive, dirname := splitDrive(dirname)
+	if drive == "" {
+		// UNIX-style path.
+		return path.Join(dirname, filename)
+	}
+	// DOS-style path.
+	drive2, filename := splitDrive(filename)
+	if drive2 != "" {
+		if strings.ToLower(drive) != strings.ToLower(drive2) {
+			// Different drives. There's not much we can
+			// do here, so just ignore the directory.
+			return drive2 + filename
+		}
+		// Drives are the same. Ignore drive on filename.
+	}
+	if !(strings.HasSuffix(dirname, "/") || strings.HasSuffix(dirname, `\`)) && dirname != "" {
+		dirname += `\`
+	}
+	return drive + dirname + filename
+}
+
+// splitDrive splits the DOS drive letter or UNC share point from
+// path, if any. path == drive + rest
+func splitDrive(path string) (drive, rest string) {
+	if len(path) >= 2 && path[1] == ':' {
+		if c := path[0]; 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
+			return path[:2], path[2:]
+		}
+	}
+	if len(path) > 3 && (path[0] == '\\' || path[0] == '/') && (path[1] == '\\' || path[1] == '/') {
+		// Normalize the path so we can search for just \ below.
+		npath := strings.Replace(path, "/", `\`, -1)
+		// Get the host part, which must be non-empty.
+		slash1 := strings.IndexByte(npath[2:], '\\') + 2
+		if slash1 > 2 {
+			// Get the mount-point part, which must be non-empty.
+			slash2 := strings.IndexByte(npath[slash1+1:], '\\') + slash1 + 1
+			if slash2 > slash1 {
+				return path[:slash2], path[slash2:]
+			}
+		}
+	}
+	return "", path
 }
