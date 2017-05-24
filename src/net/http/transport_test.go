@@ -2907,12 +2907,12 @@ func TestTransportContentEncodingCaseInsensitive(t *testing.T) {
 	for _, ce := range []string{"gzip", "GZIP"} {
 		ce := ce
 		t.Run(ce, func(t *testing.T) {
-			const encodedString = "aaaa"
+			const encodedString = "Hello Gopher"
 			ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-				conn, _, _ := w.(Hijacker).Hijack()
-				fmt.Fprintf(conn, "HTTP/1.1 200 OK\r\nContent-Encoding: %s\r\nContent-Length: 28\r\n\r\n", ce)
-				conn.Write([]byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x4a\x4c\x4c\x4c\x04\x04\x00\x00\xff\xff\x45\xe5\x98\xad\x04\x00\x00\x00"))
-				conn.Close()
+				w.Header().Set("Content-Encoding", ce)
+				gz := gzip.NewWriter(w)
+				gz.Write([]byte(encodedString))
+				gz.Close()
 			}))
 			defer ts.Close()
 
