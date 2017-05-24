@@ -560,7 +560,6 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 	if !ok {
 		return nil, StructuralError{fmt.Sprintf("unknown Go type: %v", v.Type())}
 	}
-	class := ClassUniversal
 
 	if params.timeType != 0 && tag != TagUTCTime {
 		return nil, StructuralError{"explicit time type given to non-time member"}
@@ -610,27 +609,33 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 
 	bodyLen := t.body.Len()
 
-	if params.explicit {
-		t.tag = bytesEncoder(appendTagAndLength(t.scratch[:0], tagAndLength{class, tag, bodyLen, isCompound}))
-
-		tt := new(taggedEncoder)
-
-		tt.body = t
-
-		tt.tag = bytesEncoder(appendTagAndLength(tt.scratch[:0], tagAndLength{
-			class:      ClassContextSpecific,
-			tag:        *params.tag,
-			length:     bodyLen + t.tag.Len(),
-			isCompound: true,
-		}))
-
-		return tt, nil
-	}
-
+	class := ClassUniversal
 	if params.tag != nil {
+		if params.application {
+			class = ClassApplication
+		} else {
+			class = ClassContextSpecific
+		}
+
+		if params.explicit {
+			t.tag = bytesEncoder(appendTagAndLength(t.scratch[:0], tagAndLength{ClassUniversal, tag, bodyLen, isCompound}))
+
+			tt := new(taggedEncoder)
+
+			tt.body = t
+
+			tt.tag = bytesEncoder(appendTagAndLength(tt.scratch[:0], tagAndLength{
+				class:      class,
+				tag:        *params.tag,
+				length:     bodyLen + t.tag.Len(),
+				isCompound: true,
+			}))
+
+			return tt, nil
+		}
+
 		// implicit tag.
 		tag = *params.tag
-		class = ClassContextSpecific
 	}
 
 	t.tag = bytesEncoder(appendTagAndLength(t.scratch[:0], tagAndLength{class, tag, bodyLen, isCompound}))
