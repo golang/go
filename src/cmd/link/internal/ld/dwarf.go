@@ -1348,7 +1348,7 @@ func writeinfo(ctxt *Link, syms []*Symbol, funcs []*Symbol) []*Symbol {
 		// Fields marked with (*) must be changed for 64-bit dwarf
 		// This must match COMPUNITHEADERSIZE above.
 		Adduint32(ctxt, s, 0) // unit_length (*), will be filled in later.
-		Adduint16(ctxt, s, 3) // dwarf version (appendix F)
+		Adduint16(ctxt, s, 4) // dwarf version (appendix F)
 
 		// debug_abbrev_offset (*)
 		adddwarfref(ctxt, s, abbrevsym, 4)
