@@ -899,7 +899,7 @@ func methodsym(nsym *types.Sym, t0 *types.Type, iface bool) *types.Sym {
 		spkg = s.Pkg
 	}
 	pkgprefix := ""
-	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) {
+	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) && nsym.Pkg.Prefix != `""` {
 		pkgprefix = "." + nsym.Pkg.Prefix
 	}
 	var p string
