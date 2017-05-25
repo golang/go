@@ -580,3 +580,42 @@ func TestP224Overflow(t *testing.T) {
 		t.Error("P224 failed to validate a correct point")
 	}
 }
+
+// See https://github.com/golang/go/issues/20482
+func TestUnmarshalToLargeCoordinates(t *testing.T) {
+	curve := P256()
+	p := curve.Params().P
+
+	invalidX, invalidY := make([]byte, 65), make([]byte, 65)
+	invalidX[0], invalidY[0] = 4, 4 // uncompressed encoding
+
+	// Set x to be greater than curve's parameter P – specifically, to P+5.
+	// Set y to mod_sqrt(x^3 - 3x + B)) so that (x mod P = 5 , y) is on the
+	// curve.
+	x := new(big.Int).Add(p, big.NewInt(5))
+	y, _ := new(big.Int).SetString("31468013646237722594854082025316614106172411895747863909393730389177298123724", 10)
+
+	copy(invalidX[1:], x.Bytes())
+	copy(invalidX[33:], y.Bytes())
+
+	if X, Y := Unmarshal(curve, invalidX); X != nil || Y != nil {
+		t.Errorf("Unmarshal accpets invalid X coordinate")
+	}
+
+	// This is a point on the curve with a small y value, small enough that we can add p and still be within 32 bytes.
+	x, _ = new(big.Int).SetString("31931927535157963707678568152204072984517581467226068221761862915403492091210", 10)
+	y, _ = new(big.Int).SetString("5208467867388784005506817585327037698770365050895731383201516607147", 10)
+	y.Add(y, p)
+
+	if p.Cmp(y) > 0 || y.BitLen() != 256 {
+		t.Fatal("y not within expected range")
+	}
+
+	// marshal
+	copy(invalidY[1:], x.Bytes())
+	copy(invalidY[33:], y.Bytes())
+
+	if X, Y := Unmarshal(curve, invalidY); X != nil || Y != nil {
+		t.Errorf("Unmarshal accpets invalid Y coordinate")
+	}
+}
