@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -341,6 +342,9 @@ func testCloseTimeout(t *testing.T, c1, c2 net.Conn) {
 // testConcurrentMethods tests that the methods of net.Conn can safely
 // be called concurrently.
 func testConcurrentMethods(t *testing.T, c1, c2 net.Conn) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; see https://golang.org/issue/20489")
+	}
 	go chunkedCopy(c2, c2)
 
 	// The results of the calls may be nonsensical, but this should
@@ -433,6 +437,7 @@ func resyncConn(t *testing.T, c net.Conn) {
 		}
 		if err != nil {
 			t.Errorf("unexpected Read error: %v", err)
+			break
 		}
 	}
 	if err := <-errCh; err != nil {
