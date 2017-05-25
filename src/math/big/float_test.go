@@ -1325,6 +1325,34 @@ func TestFloatAdd64(t *testing.T) {
 	}
 }
 
+func TestIssue20490(t *testing.T) {
+	var tests = []struct {
+		a, b float64
+	}{
+		{4, 1},
+		{-4, 1},
+		{4, -1},
+		{-4, -1},
+	}
+
+	for _, test := range tests {
+		a, b := NewFloat(test.a), NewFloat(test.b)
+		diff := new(Float).Sub(a, b)
+		b.Sub(a, b)
+		if b.Cmp(diff) != 0 {
+			t.Errorf("got %g - %g = %g; want %g\n", a, NewFloat(test.b), b, diff)
+		}
+
+		b = NewFloat(test.b)
+		sum := new(Float).Add(a, b)
+		b.Add(a, b)
+		if b.Cmp(sum) != 0 {
+			t.Errorf("got %g + %g = %g; want %g\n", a, NewFloat(test.b), b, sum)
+		}
+
+	}
+}
+
 // TestFloatMul tests Float.Mul/Quo by comparing the result of a "manual"
 // multiplication/division of arguments represented by Bits values with the
 // respective Float multiplication/division for a variety of precisions
