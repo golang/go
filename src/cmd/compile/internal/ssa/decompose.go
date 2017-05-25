@@ -98,6 +98,7 @@ func decomposeBuiltIn(f *Func) {
 			delete(f.NamedValues, name)
 		case t.IsFloat():
 			// floats are never decomposed, even ones bigger than RegSize
+			newNames = append(newNames, name)
 		case t.Size() > f.Config.RegSize:
 			f.Fatalf("undecomposed named type %v %v", name, t)
 		default:
