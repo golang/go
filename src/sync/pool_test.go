@@ -23,6 +23,10 @@ func TestPool(t *testing.T) {
 	if p.Get() != nil {
 		t.Fatal("expected empty")
 	}
+
+	// Make sure that the goroutine doesn't migrate to another P
+	// between Put and Get calls.
+	Runtime_procPin()
 	p.Put("a")
 	p.Put("b")
 	if g := p.Get(); g != "a" {
@@ -34,6 +38,7 @@ func TestPool(t *testing.T) {
 	if g := p.Get(); g != nil {
 		t.Fatalf("got %#v; want nil", g)
 	}
+	Runtime_procUnpin()
 
 	p.Put("c")
 	debug.SetGCPercent(100) // to allow following GC to actually run
@@ -60,10 +65,16 @@ func TestPoolNew(t *testing.T) {
 	if v := p.Get(); v != 2 {
 		t.Fatalf("got %v; want 2", v)
 	}
+
+	// Make sure that the goroutine doesn't migrate to another P
+	// between Put and Get calls.
+	Runtime_procPin()
 	p.Put(42)
 	if v := p.Get(); v != 42 {
 		t.Fatalf("got %v; want 42", v)
 	}
+	Runtime_procUnpin()
+
 	if v := p.Get(); v != 3 {
 		t.Fatalf("got %v; want 3", v)
 	}
