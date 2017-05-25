@@ -5552,48 +5552,6 @@ func TestServerValidatesMethod(t *testing.T) {
 	}
 }
 
-// Test that the special cased "/route" redirect
-// implicitly created by a registered "/route/"
-// properly sets the query string in the redirect URL.
-// See Issue 17841.
-func TestServeWithSlashRedirectKeepsQueryString(t *testing.T) {
-	setParallel(t)
-	defer afterTest(t)
-
-	writeBackQuery := func(w ResponseWriter, r *Request) {
-		fmt.Fprintf(w, "%s", r.URL.RawQuery)
-	}
-
-	mux := NewServeMux()
-	mux.HandleFunc("/testOne", writeBackQuery)
-	mux.HandleFunc("/testTwo/", writeBackQuery)
-
-	ts := httptest.NewServer(mux)
-	defer ts.Close()
-
-	tests := [...]struct {
-		path string
-		want string
-	}{
-		0: {"/testOne?this=that", "this=that"},
-		1: {"/testTwo?foo=bar", "foo=bar"},
-		2: {"/testTwo?a=1&b=2&a=3", "a=1&b=2&a=3"},
-		3: {"/testTwo?", ""},
-	}
-
-	for i, tt := range tests {
-		res, err := ts.Client().Get(ts.URL + tt.path)
-		if err != nil {
-			continue
-		}
-		slurp, _ := ioutil.ReadAll(res.Body)
-		res.Body.Close()
-		if got, want := string(slurp), tt.want; got != want {
-			t.Errorf("#%d: got = %q; want = %q", i, got, want)
-		}
-	}
-}
-
 func BenchmarkResponseStatusLine(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
