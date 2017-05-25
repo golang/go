@@ -1963,7 +1963,6 @@ func StripPrefix(prefix string, h Handler) Handler {
 // The provided code should be in the 3xx range and is usually
 // StatusMovedPermanently, StatusFound or StatusSeeOther.
 func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
-	queryAlreadySet := false
 	if u, err := url.Parse(urlStr); err == nil {
 		// If url was relative, make absolute by
 		// combining with request path.
@@ -2006,15 +2005,7 @@ func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
 				urlStr += "/"
 			}
 			urlStr += query
-			queryAlreadySet = len(query) != 0
 		}
-	}
-
-	// We should make sure not to lose the query string of
-	// the original request when doing a redirect, if not already set.
-	// See Issue 17841.
-	if !queryAlreadySet && len(r.URL.RawQuery) != 0 {
-		urlStr += "?" + r.URL.RawQuery
 	}
 
 	w.Header().Set("Location", hexEscapeNonASCII(urlStr))
