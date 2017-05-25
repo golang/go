@@ -1439,8 +1439,16 @@ func (z *Float) Add(x, y *Float) *Float {
 
 	if x.form == finite && y.form == finite {
 		// x + y (common case)
+
+		// Below we set z.neg = x.neg, and when z aliases y this will
+		// change the y operand's sign. This is fine, because if an
+		// operand aliases the receiver it'll be overwritten, but we still
+		// want the original x.neg and y.neg values when we evaluate
+		// x.neg != y.neg, so we need to save y.neg before setting z.neg.
+		yneg := y.neg
+
 		z.neg = x.neg
-		if x.neg == y.neg {
+		if x.neg == yneg {
 			// x + y == x + y
 			// (-x) + (-y) == -(x + y)
 			z.uadd(x, y)
@@ -1502,8 +1510,9 @@ func (z *Float) Sub(x, y *Float) *Float {
 
 	if x.form == finite && y.form == finite {
 		// x - y (common case)
+		yneg := y.neg
 		z.neg = x.neg
-		if x.neg != y.neg {
+		if x.neg != yneg {
 			// x - (-y) == x + y
 			// (-x) - y == -(x + y)
 			z.uadd(x, y)
