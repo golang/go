@@ -194,7 +194,7 @@ func (algo SignatureAlgorithm) isRSAPSS() bool {
 	}
 }
 
-var algoName = [...]string{
+var signatureAlgoName = [...]string{
 	MD2WithRSA:       "MD2-RSA",
 	MD5WithRSA:       "MD5-RSA",
 	SHA1WithRSA:      "SHA1-RSA",
@@ -213,8 +213,8 @@ var algoName = [...]string{
 }
 
 func (algo SignatureAlgorithm) String() string {
-	if 0 < algo && int(algo) < len(algoName) {
-		return algoName[algo]
+	if 0 < algo && int(algo) < len(signatureAlgoName) {
+		return signatureAlgoName[algo]
 	}
 	return strconv.Itoa(int(algo))
 }
@@ -227,6 +227,19 @@ const (
 	DSA
 	ECDSA
 )
+
+var publicKeyAlgoName = [...]string{
+	RSA:   "RSA",
+	DSA:   "DSA",
+	ECDSA: "ECDSA",
+}
+
+func (algo PublicKeyAlgorithm) String() string {
+	if 0 < algo && int(algo) < len(publicKeyAlgoName) {
+		return publicKeyAlgoName[algo]
+	}
+	return strconv.Itoa(int(algo))
+}
 
 // OIDs for signature algorithms
 //
