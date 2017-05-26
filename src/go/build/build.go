@@ -1282,6 +1282,12 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 		}
 
 		switch verb {
+		case "CFLAGS", "CPPFLAGS", "CXXFLAGS", "FFLAGS", "LDFLAGS":
+			// Change relative paths to absolute.
+			ctxt.makePathsAbsolute(args, di.Dir)
+		}
+
+		switch verb {
 		case "CFLAGS":
 			di.CgoCFLAGS = append(di.CgoCFLAGS, args...)
 		case "CPPFLAGS":
@@ -1320,6 +1326,37 @@ func expandSrcDir(str string, srcdir string) (string, bool) {
 	ok = ok && (srcdir == "" || safeCgoName(srcdir))
 	res := strings.Join(chunks, srcdir)
 	return res, ok && res != ""
+}
+
+// makePathsAbsolute looks for compiler options that take paths and
+// makes them absolute. We do this because through the 1.8 release we
+// ran the compiler in the package directory, so any relative -I or -L
+// options would be relative to that directory. In 1.9 we changed to
+// running the compiler in the build directory, to get consistent
+// build results (issue #19964). To keep builds working, we change any
+// relative -I or -L options to be absolute.
+//
+// Using filepath.IsAbs and filepath.Join here means the results will be
+// different on different systems, but that's OK: -I and -L options are
+// inherently system-dependent.
+func (ctxt *Context) makePathsAbsolute(args []string, srcDir string) {
+	nextPath := false
+	for i, arg := range args {
+		if nextPath {
+			if !filepath.IsAbs(arg) {
+				args[i] = filepath.Join(srcDir, arg)
+			}
+			nextPath = false
+		} else if strings.HasPrefix(arg, "-I") || strings.HasPrefix(arg, "-L") {
+			if len(arg) == 2 {
+				nextPath = true
+			} else {
+				if !filepath.IsAbs(arg[2:]) {
+					args[i] = arg[:2] + filepath.Join(srcDir, arg[2:])
+				}
+			}
+		}
+	}
 }
 
 // NOTE: $ is not safe for the shell, but it is allowed here because of linker options like -Wl,$ORIGIN.
