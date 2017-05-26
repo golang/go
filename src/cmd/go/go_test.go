@@ -4087,6 +4087,7 @@ func TestCgoFlagContainsSpace(t *testing.T) {
 		import (
 			"os"
 			"os/exec"
+			"strings"
 		)
 
 		func main() {
@@ -4105,13 +4106,13 @@ func TestCgoFlagContainsSpace(t *testing.T) {
 
 			var success bool
 			for _, arg := range os.Args {
-				switch arg {
-				case "-Ic flags":
+				switch {
+				case strings.Contains(arg, "c flags"):
 					if success {
 						panic("duplicate CFLAGS")
 					}
 					success = true
-				case "-Lld flags":
+				case strings.Contains(arg, "ld flags"):
 					if success {
 						panic("duplicate LDFLAGS")
 					}
