@@ -319,11 +319,8 @@ func (ka *ecdheKeyAgreement) processClientKeyExchange(config *Config, cert *Cert
 	if !ok {
 		panic("internal error")
 	}
-	x, y := elliptic.Unmarshal(curve, ckx.ciphertext[1:])
+	x, y := elliptic.Unmarshal(curve, ckx.ciphertext[1:]) // Unmarshal also checks whether the given point is on the curve
 	if x == nil {
-		return nil, errClientKeyExchange
-	}
-	if !curve.IsOnCurve(x, y) {
 		return nil, errClientKeyExchange
 	}
 	x, _ = curve.ScalarMult(x, y, ka.privateKey)
@@ -365,12 +362,8 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 		if !ok {
 			return errors.New("tls: server selected unsupported curve")
 		}
-
-		ka.x, ka.y = elliptic.Unmarshal(curve, publicKey)
+		ka.x, ka.y = elliptic.Unmarshal(curve, publicKey) // Unmarshal also checks whether the given point is on the curve
 		if ka.x == nil {
-			return errServerKeyExchange
-		}
-		if !curve.IsOnCurve(ka.x, ka.y) {
 			return errServerKeyExchange
 		}
 	}
