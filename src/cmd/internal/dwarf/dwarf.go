@@ -51,6 +51,7 @@ type Var struct {
 	LocationList []Location
 	Scope        int32
 	Type         Sym
+	DeclLine     uint
 }
 
 // A Scope represents a lexical scope. All variables declared within a
@@ -315,6 +316,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_CHILDREN_no,
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
+			{DW_AT_decl_line, DW_FORM_udata},
 			{DW_AT_location, DW_FORM_block1},
 			{DW_AT_type, DW_FORM_ref_addr},
 		},
@@ -337,6 +339,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_CHILDREN_no,
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
+			{DW_AT_decl_line, DW_FORM_udata},
 			{DW_AT_location, DW_FORM_block1},
 			{DW_AT_type, DW_FORM_ref_addr},
 		},
@@ -794,6 +797,7 @@ func putvar(ctxt Context, info, loc Sym, v *Var, startPC Sym, encbuf []byte) {
 
 	Uleb128put(ctxt, info, int64(v.Abbrev))
 	putattr(ctxt, info, v.Abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
+	putattr(ctxt, info, v.Abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
 	if v.Abbrev == DW_ABRV_AUTO_LOCLIST || v.Abbrev == DW_ABRV_PARAM_LOCLIST {
 		putattr(ctxt, info, v.Abbrev, DW_FORM_sec_offset, DW_CLS_PTR, int64(loc.Len()), loc)
 		addLocList(ctxt, loc, startPC, v, encbuf)

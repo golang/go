@@ -397,6 +397,7 @@ func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var) {
 			Abbrev:      abbrev,
 			StackOffset: int32(offs),
 			Type:        Ctxt.Lookup(typename),
+			DeclLine:    n.Pos.Line(),
 		})
 	}
 	return decls, vars
@@ -513,6 +514,7 @@ func createComplexVar(debugInfo *ssa.FuncDebug, n *Node, parts []varPart) *dwarf
 		Abbrev:      abbrev,
 		Type:        Ctxt.Lookup(typename),
 		StackOffset: int32(stackOffset),
+		DeclLine:    n.Pos.Line(),
 	}
 
 	if Debug_locationlist != 0 {
