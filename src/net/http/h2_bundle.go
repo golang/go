@@ -959,7 +959,7 @@ func http2configureTransport(t1 *Transport) (*http2Transport, error) {
 }
 
 // registerHTTPSProtocol calls Transport.RegisterProtocol but
-// convering panics into errors.
+// converting panics into errors.
 func http2registerHTTPSProtocol(t *Transport, rt RoundTripper) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
@@ -3555,7 +3555,7 @@ func (p *http2pipe) Read(d []byte) (n int, err error) {
 		if p.breakErr != nil {
 			return 0, p.breakErr
 		}
-		if p.b.Len() > 0 {
+		if p.b != nil && p.b.Len() > 0 {
 			return p.b.Read(d)
 		}
 		if p.err != nil {
@@ -8811,7 +8811,7 @@ type http2PriorityWriteSchedulerConfig struct {
 }
 
 // NewPriorityWriteScheduler constructs a WriteScheduler that schedules
-// frames by following HTTP/2 priorities as described in RFC 7340 Section 5.3.
+// frames by following HTTP/2 priorities as described in RFC 7540 Section 5.3.
 // If cfg is nil, default options are used.
 func http2NewPriorityWriteScheduler(cfg *http2PriorityWriteSchedulerConfig) http2WriteScheduler {
 	if cfg == nil {
