@@ -83,7 +83,7 @@ func gobuild(t *testing.T, dir string, testfile string) *objfilepkg.File {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dst, src)
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags", "-N -l", "-o", dst, src)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("build: %s\n", b)
 		t.Fatalf("build error: %v", err)
@@ -296,5 +296,62 @@ func main() {
 				t.Fatalf("field %s.%s overlaps next field", name, s.Field[i].Name)
 			}
 		}
+	}
+}
+
+func TestVarDeclCoords(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	const prog = `
+package main
+
+func main() {
+	var i int
+	i = i
+}
+`
+	dir, err := ioutil.TempDir("", "TestVarDeclCoords")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	f := gobuild(t, dir, prog)
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	rdr := d.Reader()
+	var iEntry *dwarf.Entry
+	foundMain := false
+	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
+		if err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+		if entry.Tag == dwarf.TagSubprogram && entry.Val(dwarf.AttrName).(string) == "main.main" {
+			foundMain = true
+			continue
+		}
+		if !foundMain {
+			continue
+		}
+		if entry.Tag == dwarf.TagSubprogram {
+			t.Fatalf("didn't find DW_TAG_variable for i in main.main")
+		}
+		if foundMain && entry.Tag == dwarf.TagVariable && entry.Val(dwarf.AttrName).(string) == "i" {
+			iEntry = entry
+			break
+		}
+	}
+
+	line := iEntry.Val(dwarf.AttrDeclLine)
+	if line == nil || line.(int64) != 5 {
+		t.Errorf("DW_AT_decl_line for i is %v, want 5", line)
 	}
 }
