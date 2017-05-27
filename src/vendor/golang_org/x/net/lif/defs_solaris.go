@@ -75,7 +75,7 @@ const (
 	sizeofLifIfinfoReq = C.sizeof_struct_lif_ifinfo_req
 )
 
-type sysLifnum C.struct_lifnum
+type lifnum C.struct_lifnum
 
 type lifreq C.struct_lifreq
 
