@@ -70,7 +70,7 @@ func Links(af int, name string) ([]Link, error) {
 
 func links(eps []endpoint, name string) ([]Link, error) {
 	var lls []Link
-	lifn := sysLifnum{Flags: sysLIFC_NOXMIT | sysLIFC_TEMPORARY | sysLIFC_ALLZONES | sysLIFC_UNDER_IPMP}
+	lifn := lifnum{Flags: sysLIFC_NOXMIT | sysLIFC_TEMPORARY | sysLIFC_ALLZONES | sysLIFC_UNDER_IPMP}
 	lifc := lifconf{Flags: sysLIFC_NOXMIT | sysLIFC_TEMPORARY | sysLIFC_ALLZONES | sysLIFC_UNDER_IPMP}
 	for _, ep := range eps {
 		lifn.Family = uint16(ep.af)
