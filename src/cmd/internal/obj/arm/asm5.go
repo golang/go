@@ -154,8 +154,11 @@ var optab = []Optab{
 	{AMVN, C_SCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
 	{ACMP, C_SCON, C_REG, C_NONE, 13, 8, 0, 0, 0},
 	{AADD, C_RCON2A, C_REG, C_REG, 106, 8, 0, 0, 0},
+	{AADD, C_RCON2A, C_NONE, C_REG, 106, 8, 0, 0, 0},
 	{AORR, C_RCON2A, C_REG, C_REG, 106, 8, 0, 0, 0},
+	{AORR, C_RCON2A, C_NONE, C_REG, 106, 8, 0, 0, 0},
 	{AADD, C_RCON2S, C_REG, C_REG, 107, 8, 0, 0, 0},
+	{AADD, C_RCON2S, C_NONE, C_REG, 107, 8, 0, 0, 0},
 	{AADD, C_LCON, C_REG, C_REG, 13, 8, 0, LFROM, 0},
 	{AADD, C_LCON, C_NONE, C_REG, 13, 8, 0, LFROM, 0},
 	{AAND, C_LCON, C_REG, C_REG, 13, 8, 0, LFROM, 0},
@@ -1063,7 +1066,7 @@ func immrot2a(v uint32) (uint32, uint32) {
 // such that the encoded constants y, x satisfy y-x==v, y&x==0.
 // Returns 0,0 if no such decomposition of v exists.
 func immrot2s(v uint32) (uint32, uint32) {
-	if immrot(v) == 0 {
+	if immrot(v) != 0 {
 		return v, 0
 	}
 	// suppose v in the form of {leading 00, upper effective bits, lower 8 effective bits, trailing 00}
@@ -1717,6 +1720,9 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		c.aclass(&p.From)
 		r := int(p.Reg)
 		rt := int(p.To.Reg)
+		if r == 0 {
+			r = rt
+		}
 		x, y := immrot2a(uint32(c.instoffset))
 		var as2 obj.As
 		switch p.As {
@@ -1744,6 +1750,9 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		c.aclass(&p.From)
 		r := int(p.Reg)
 		rt := int(p.To.Reg)
+		if r == 0 {
+			r = rt
+		}
 		y, x := immrot2s(uint32(c.instoffset))
 		var as2 obj.As
 		switch p.As {
