@@ -262,7 +262,7 @@ func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (del
 					// There was a blank line immediately preceding the deleted import,
 					// so there's no need to close the hole.
 					// Do nothing.
-				} else {
+				} else if line != fset.File(gen.Rparen).LineCount() {
 					// There was no blank line. Close the hole.
 					fset.File(gen.Rparen).MergeLine(line)
 				}

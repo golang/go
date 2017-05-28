@@ -1299,6 +1299,21 @@ import (
 )
 `,
 	},
+
+	// Issue 20229: MergeLine panic on weird input
+	{
+		name: "import.37",
+		pkg:  "io",
+		in: `package main
+import("_"
+"io")`,
+		out: `package main
+
+import (
+	"_"
+)
+`,
+	},
 }
 
 func TestDeleteImport(t *testing.T) {
