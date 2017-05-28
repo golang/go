@@ -5,9 +5,9 @@
 package gc
 
 const (
-	WORDBITS  = 32
-	WORDMASK  = WORDBITS - 1
-	WORDSHIFT = 5
+	wordBits  = 32
+	wordMask  = wordBits - 1
+	wordShift = 5
 )
 
 // A bvec is a bit vector.
@@ -17,7 +17,7 @@ type bvec struct {
 }
 
 func bvalloc(n int32) bvec {
-	nword := (n + WORDBITS - 1) / WORDBITS
+	nword := (n + wordBits - 1) / wordBits
 	return bvec{n, make([]uint32, nword)}
 }
 
@@ -28,7 +28,7 @@ type bulkBvec struct {
 }
 
 func bvbulkalloc(nbit int32, count int32) bulkBvec {
-	nword := (nbit + WORDBITS - 1) / WORDBITS
+	nword := (nbit + wordBits - 1) / wordBits
 	size := int64(nword) * int64(count)
 	if int64(int32(size*4)) != size*4 {
 		Fatalf("bvbulkalloc too big: nbit=%d count=%d nword=%d size=%d", nbit, count, nword, size)
@@ -66,24 +66,24 @@ func (bv bvec) Get(i int32) bool {
 	if i < 0 || i >= bv.n {
 		Fatalf("bvget: index %d is out of bounds with length %d\n", i, bv.n)
 	}
-	mask := uint32(1 << uint(i%WORDBITS))
-	return bv.b[i>>WORDSHIFT]&mask != 0
+	mask := uint32(1 << uint(i%wordBits))
+	return bv.b[i>>wordShift]&mask != 0
 }
 
 func (bv bvec) Set(i int32) {
 	if i < 0 || i >= bv.n {
 		Fatalf("bvset: index %d is out of bounds with length %d\n", i, bv.n)
 	}
-	mask := uint32(1 << uint(i%WORDBITS))
-	bv.b[i/WORDBITS] |= mask
+	mask := uint32(1 << uint(i%wordBits))
+	bv.b[i/wordBits] |= mask
 }
 
 func (bv bvec) Unset(i int32) {
 	if i < 0 || i >= bv.n {
 		Fatalf("bvunset: index %d is out of bounds with length %d\n", i, bv.n)
 	}
-	mask := uint32(1 << uint(i%WORDBITS))
-	bv.b[i/WORDBITS] &^= mask
+	mask := uint32(1 << uint(i%wordBits))
+	bv.b[i/wordBits] &^= mask
 }
 
 // bvnext returns the smallest index >= i for which bvget(bv, i) == 1.
@@ -94,11 +94,11 @@ func (bv bvec) Next(i int32) int32 {
 	}
 
 	// Jump i ahead to next word with bits.
-	if bv.b[i>>WORDSHIFT]>>uint(i&WORDMASK) == 0 {
-		i &^= WORDMASK
-		i += WORDBITS
-		for i < bv.n && bv.b[i>>WORDSHIFT] == 0 {
-			i += WORDBITS
+	if bv.b[i>>wordShift]>>uint(i&wordMask) == 0 {
+		i &^= wordMask
+		i += wordBits
+		for i < bv.n && bv.b[i>>wordShift] == 0 {
+			i += wordBits
 		}
 	}
 
@@ -107,7 +107,7 @@ func (bv bvec) Next(i int32) int32 {
 	}
 
 	// Find 1 bit.
-	w := bv.b[i>>WORDSHIFT] >> uint(i&WORDMASK)
+	w := bv.b[i>>wordShift] >> uint(i&wordMask)
 
 	for w&1 == 0 {
 		w >>= 1
@@ -118,8 +118,8 @@ func (bv bvec) Next(i int32) int32 {
 }
 
 func (bv bvec) IsEmpty() bool {
-	for i := int32(0); i < bv.n; i += WORDBITS {
-		if bv.b[i>>WORDSHIFT] != 0 {
+	for i := int32(0); i < bv.n; i += wordBits {
+		if bv.b[i>>wordShift] != 0 {
 			return false
 		}
 	}
@@ -129,7 +129,7 @@ func (bv bvec) IsEmpty() bool {
 func (bv bvec) Not() {
 	i := int32(0)
 	w := int32(0)
-	for ; i < bv.n; i, w = i+WORDBITS, w+1 {
+	for ; i < bv.n; i, w = i+wordBits, w+1 {
 		bv.b[w] = ^bv.b[w]
 	}
 }
