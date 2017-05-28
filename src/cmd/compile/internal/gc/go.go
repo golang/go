@@ -14,7 +14,7 @@ import (
 
 const (
 	BADWIDTH        = types.BADWIDTH
-	MaxStackVarSize = 10 * 1024 * 1024
+	maxStackVarSize = 10 * 1024 * 1024
 )
 
 // isRuntimePkg reports whether p is package runtime.
