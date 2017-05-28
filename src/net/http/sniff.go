@@ -107,8 +107,8 @@ var sniffSignatures = []sniffSig{
 		ct:   "audio/basic",
 	},
 	&maskedSig{
-		mask: []byte("OggS\x00"),
-		pat:  []byte("\x4F\x67\x67\x53\x00"),
+		mask: []byte("\xFF\xFF\xFF\xFF\xFF"),
+		pat:  []byte("OggS\x00"),
 		ct:   "application/ogg",
 	},
 	&maskedSig{
