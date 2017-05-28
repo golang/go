@@ -66,12 +66,12 @@ func funcOutput(profile, outputFile string) error {
 		// Now match up functions and profile blocks.
 		for _, f := range funcs {
 			c, t := f.coverage(profile)
-			fmt.Fprintf(tabber, "%s:%d:\t%s\t%.1f%%\n", fn, f.startLine, f.name, 100.0*float64(c)/float64(t))
+			fmt.Fprintf(tabber, "%s:%d:\t%s\t%.1f%%\n", fn, f.startLine, f.name, percent(c, t))
 			total += t
 			covered += c
 		}
 	}
-	fmt.Fprintf(tabber, "total:\t(statements)\t%.1f%%\n", 100.0*float64(covered)/float64(total))
+	fmt.Fprintf(tabber, "total:\t(statements)\t%.1f%%\n", percent(covered, total))
 
 	return nil
 }
@@ -147,9 +147,6 @@ func (f *FuncExtent) coverage(profile *Profile) (num, den int64) {
 			covered += int64(b.NumStmt)
 		}
 	}
-	if total == 0 {
-		total = 1 // Avoid zero denominator.
-	}
 	return covered, total
 }
 
@@ -161,4 +158,11 @@ func findFile(file string) (string, error) {
 		return "", fmt.Errorf("can't find %q: %v", file, err)
 	}
 	return filepath.Join(pkg.Dir, file), nil
+}
+
+func percent(covered, total int64) float64 {
+	if total == 0 {
+		total = 1 // Avoid zero denominator.
+	}
+	return 100.0 * float64(covered) / float64(total)
 }
