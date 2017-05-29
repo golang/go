@@ -87,6 +87,9 @@ func PrintfTests() {
 	fmt.Printf("%s", &stringerv)
 	fmt.Printf("%v", &stringerv)
 	fmt.Printf("%T", &stringerv)
+	fmt.Printf("%s", &embeddedStringerv)
+	fmt.Printf("%v", &embeddedStringerv)
+	fmt.Printf("%T", &embeddedStringerv)
 	fmt.Printf("%v", notstringerv)
 	fmt.Printf("%T", notstringerv)
 	fmt.Printf("%q", stringerarrayv)
@@ -123,6 +126,8 @@ func PrintfTests() {
 	fmt.Printf("%X", 2.3)                      // ERROR "arg 2.3 for printf verb %X of wrong type"
 	fmt.Printf("%s", stringerv)                // ERROR "arg stringerv for printf verb %s of wrong type"
 	fmt.Printf("%t", stringerv)                // ERROR "arg stringerv for printf verb %t of wrong type"
+	fmt.Printf("%s", embeddedStringerv)        // ERROR "arg embeddedStringerv for printf verb %s of wrong type"
+	fmt.Printf("%t", embeddedStringerv)        // ERROR "arg embeddedStringerv for printf verb %t of wrong type"
 	fmt.Printf("%q", notstringerv)             // ERROR "arg notstringerv for printf verb %q of wrong type"
 	fmt.Printf("%t", notstringerv)             // ERROR "arg notstringerv for printf verb %t of wrong type"
 	fmt.Printf("%t", stringerarrayv)           // ERROR "arg stringerarrayv for printf verb %t of wrong type"
@@ -345,6 +350,14 @@ func (*stringer) Warn(int, ...interface{}) string {
 func (*stringer) Warnf(int, string, ...interface{}) string {
 	return "warnf"
 }
+
+type embeddedStringer struct {
+	foo string
+	stringer
+	bar int
+}
+
+var embeddedStringerv embeddedStringer
 
 type notstringer struct {
 	f float64
