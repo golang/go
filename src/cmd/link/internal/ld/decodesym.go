@@ -14,7 +14,7 @@ import (
 
 // Decoding the type.* symbols.	 This has to be in sync with
 // ../../runtime/type.go, or more specifically, with what
-// ../gc/reflect.c stuffs in these.
+// cmd/compile/internal/gc/reflect.go stuffs in these.
 
 // tflag is documented in reflect/type.go.
 //
