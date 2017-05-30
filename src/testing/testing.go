@@ -748,11 +748,12 @@ func tRunner(t *T, fn func(t *T)) {
 	t.finished = true
 }
 
-// Run runs f as a subtest of t called name. It reports whether f succeeded.
-// Run will block until all its parallel subtests have completed.
+// Run runs f as a subtest of t called name. It reports whether f succeeded. Run
+// runs f in a separate goroutine and will block until all its parallel subtests
+// have completed.
 //
-// Run may be called simultaneously from multiple goroutines, but all such
-// calls must happen before the outer test function for t returns.
+// Run may be called simultaneously from multiple goroutines, but all such calls
+// must happen before the outer test function for t returns.
 func (t *T) Run(name string, f func(t *T)) bool {
 	atomic.StoreInt32(&t.hasSub, 1)
 	testName, ok := t.context.match.fullName(&t.common, name)
