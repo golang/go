@@ -56,7 +56,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatch
 
 	lock(&itabLock)
 	for _, i := range md.itablinks {
-		itabAddStartup(i)
+		itabAdd(i)
 	}
 	unlock(&itabLock)
 
