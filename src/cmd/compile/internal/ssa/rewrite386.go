@@ -2886,6 +2886,30 @@ func rewriteValue386_Op386MOVBLSXload_0(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
+	// match: (MOVBLSXload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
+	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+	// result: (MOVBLSX x)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[1]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != Op386MOVBstore {
+			break
+		}
+		off2 := v_1.AuxInt
+		sym2 := v_1.Aux
+		_ = v_1.Args[2]
+		ptr2 := v_1.Args[0]
+		x := v_1.Args[1]
+		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+			break
+		}
+		v.reset(Op386MOVBLSX)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVBLSXload [off1] {sym1} (LEAL [off2] {sym2} base) mem)
 	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)   && (base.Op != OpSB || !config.ctxt.Flag_shared)
 	// result: (MOVBLSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
@@ -2994,7 +3018,7 @@ func rewriteValue386_Op386MOVBload_0(v *Value) bool {
 	_ = config
 	// match: (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
-	// result: x
+	// result: (MOVBLZX x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -3012,8 +3036,7 @@ func rewriteValue386_Op386MOVBload_0(v *Value) bool {
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(Op386MOVBLZX)
 		v.AddArg(x)
 		return true
 	}
@@ -6324,6 +6347,30 @@ func rewriteValue386_Op386MOVWLSXload_0(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
+	// match: (MOVWLSXload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _))
+	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+	// result: (MOVWLSX x)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[1]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != Op386MOVWstore {
+			break
+		}
+		off2 := v_1.AuxInt
+		sym2 := v_1.Aux
+		_ = v_1.Args[2]
+		ptr2 := v_1.Args[0]
+		x := v_1.Args[1]
+		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+			break
+		}
+		v.reset(Op386MOVWLSX)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVWLSXload [off1] {sym1} (LEAL [off2] {sym2} base) mem)
 	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)   && (base.Op != OpSB || !config.ctxt.Flag_shared)
 	// result: (MOVWLSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
@@ -6460,7 +6507,7 @@ func rewriteValue386_Op386MOVWload_0(v *Value) bool {
 	_ = config
 	// match: (MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _))
 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
-	// result: x
+	// result: (MOVWLZX x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -6478,8 +6525,7 @@ func rewriteValue386_Op386MOVWload_0(v *Value) bool {
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(Op386MOVWLZX)
 		v.AddArg(x)
 		return true
 	}
