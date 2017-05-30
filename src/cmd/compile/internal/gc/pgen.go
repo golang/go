@@ -230,6 +230,8 @@ func compilenow() bool {
 	return nBackendWorkers == 1 && Debug_compilelater == 0
 }
 
+const maxStackSize = 1 << 31
+
 // compileSSA builds an SSA backend function,
 // uses it to generate a plist,
 // and flushes that plist to machine code.
@@ -238,7 +240,7 @@ func compileSSA(fn *Node, worker int) {
 	ssafn := buildssa(fn, worker)
 	pp := newProgs(fn, worker)
 	genssa(ssafn, pp)
-	if pp.Text.To.Offset < 1<<31 {
+	if pp.Text.To.Offset < maxStackSize {
 		pp.Flush()
 	} else {
 		largeStackFramesMu.Lock()
