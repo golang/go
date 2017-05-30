@@ -167,13 +167,6 @@ func itabAdd(m *itab) {
 	}
 }
 
-// Adds m to the set of initial itabs.
-// itabLock must be held.
-func itabAddStartup(m *itab) {
-	m.init() // TODO: remove after CL 44341
-	itabAdd(m)
-}
-
 // init fills in the m.fun array with all the code pointers for
 // the m.inter/m._type pair. If the type does not implement the interface,
 // it sets m.fun[0] to 0 and returns the name of an interface function that is missing.
@@ -230,7 +223,7 @@ func itabsinit() {
 	lock(&itabLock)
 	for _, md := range activeModules() {
 		for _, i := range md.itablinks {
-			itabAddStartup(i)
+			itabAdd(i)
 		}
 	}
 	unlock(&itabLock)

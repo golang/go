@@ -1463,14 +1463,13 @@ func dumptabs() {
 		// }
 		o := dsymptr(i.lsym, 0, dtypesym(i.itype).Linksym(), 0)
 		o = dsymptr(i.lsym, o, dtypesym(i.t).Linksym(), 0)
-		o = duint32(i.lsym, o, typehash(i.t))  // copy of type hash
-		o += 4                                 // skip unused field
-		o += len(imethods(i.itype)) * Widthptr // skip fun method pointers
-		// at runtime the itab will contain pointers to types, other itabs and
-		// method functions. None are allocated on heap, so we can use obj.NOPTR.
-		ggloblsym(i.lsym, int32(o), int16(obj.DUPOK|obj.NOPTR))
-		// TODO: mark readonly after we pre-add the function pointers
-
+		o = duint32(i.lsym, o, typehash(i.t)) // copy of type hash
+		o += 4                                // skip unused field
+		for _, fn := range genfun(i.t, i.itype) {
+			o = dsymptr(i.lsym, o, fn, 0) // method pointer for each method
+		}
+		// Nothing writes static itabs, so they are read only.
+		ggloblsym(i.lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
 		ilink := itablinkpkg.Lookup(i.t.ShortString() + "," + i.itype.ShortString()).Linksym()
 		dsymptr(ilink, 0, i.lsym, 0)
 		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
