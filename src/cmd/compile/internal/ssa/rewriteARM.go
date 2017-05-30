@@ -5823,8 +5823,8 @@ func rewriteValueARM_OpARMMOVBUload_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)
-	// result: x
+	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+	// result: (MOVBUreg x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -5839,11 +5839,10 @@ func rewriteValueARM_OpARMMOVBUload_0(v *Value) bool {
 		_ = v_1.Args[2]
 		ptr2 := v_1.Args[0]
 		x := v_1.Args[1]
-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)) {
+		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpARMMOVBUreg)
 		v.AddArg(x)
 		return true
 	}
@@ -5974,8 +5973,8 @@ func rewriteValueARM_OpARMMOVBload_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)
-	// result: x
+	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+	// result: (MOVBreg x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -5990,11 +5989,10 @@ func rewriteValueARM_OpARMMOVBload_0(v *Value) bool {
 		_ = v_1.Args[2]
 		ptr2 := v_1.Args[0]
 		x := v_1.Args[1]
-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)) {
+		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpARMMOVBreg)
 		v.AddArg(x)
 		return true
 	}
@@ -6634,8 +6632,8 @@ func rewriteValueARM_OpARMMOVHUload_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _))
-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)
-	// result: x
+	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+	// result: (MOVHUreg x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -6650,11 +6648,10 @@ func rewriteValueARM_OpARMMOVHUload_0(v *Value) bool {
 		_ = v_1.Args[2]
 		ptr2 := v_1.Args[0]
 		x := v_1.Args[1]
-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)) {
+		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpARMMOVHUreg)
 		v.AddArg(x)
 		return true
 	}
@@ -6810,8 +6807,8 @@ func rewriteValueARM_OpARMMOVHload_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _))
-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)
-	// result: x
+	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+	// result: (MOVHreg x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -6826,11 +6823,10 @@ func rewriteValueARM_OpARMMOVHload_0(v *Value) bool {
 		_ = v_1.Args[2]
 		ptr2 := v_1.Args[0]
 		x := v_1.Args[1]
-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)) {
+		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpARMMOVHreg)
 		v.AddArg(x)
 		return true
 	}
