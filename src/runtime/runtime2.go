@@ -626,7 +626,6 @@ type _func struct {
 type itab struct {
 	inter *interfacetype
 	_type *_type
-	_     uintptr
 	hash  uint32 // copy of _type.hash. Used for type switches.
 	_     [4]byte
 	fun   [1]uintptr // variable sized. fun[0]==0 means _type does not implement inter.
