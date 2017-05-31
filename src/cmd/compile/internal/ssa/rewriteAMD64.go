@@ -4335,6 +4335,30 @@ func rewriteValueAMD64_OpAMD64MOVBQSX_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64MOVBQSXload_0(v *Value) bool {
+	// match: (MOVBQSXload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
+	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+	// result: (MOVBQSX x)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[1]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64MOVBstore {
+			break
+		}
+		off2 := v_1.AuxInt
+		sym2 := v_1.Aux
+		_ = v_1.Args[2]
+		ptr2 := v_1.Args[0]
+		x := v_1.Args[1]
+		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+			break
+		}
+		v.reset(OpAMD64MOVBQSX)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVBQSXload [off1] {sym1} (LEAQ [off2] {sym2} base) mem)
 	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
 	// result: (MOVBQSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
@@ -4530,7 +4554,7 @@ func rewriteValueAMD64_OpAMD64MOVBQZX_0(v *Value) bool {
 func rewriteValueAMD64_OpAMD64MOVBload_0(v *Value) bool {
 	// match: (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
-	// result: x
+	// result: (MOVBQZX x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -4548,8 +4572,7 @@ func rewriteValueAMD64_OpAMD64MOVBload_0(v *Value) bool {
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpAMD64MOVBQZX)
 		v.AddArg(x)
 		return true
 	}
@@ -6387,6 +6410,30 @@ func rewriteValueAMD64_OpAMD64MOVLQSX_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64MOVLQSXload_0(v *Value) bool {
+	// match: (MOVLQSXload [off] {sym} ptr (MOVLstore [off2] {sym2} ptr2 x _))
+	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+	// result: (MOVLQSX x)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[1]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64MOVLstore {
+			break
+		}
+		off2 := v_1.AuxInt
+		sym2 := v_1.Aux
+		_ = v_1.Args[2]
+		ptr2 := v_1.Args[0]
+		x := v_1.Args[1]
+		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+			break
+		}
+		v.reset(OpAMD64MOVLQSX)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVLQSXload [off1] {sym1} (LEAQ [off2] {sym2} base) mem)
 	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
 	// result: (MOVLQSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
@@ -6636,7 +6683,7 @@ func rewriteValueAMD64_OpAMD64MOVLatomicload_0(v *Value) bool {
 func rewriteValueAMD64_OpAMD64MOVLload_0(v *Value) bool {
 	// match: (MOVLload [off] {sym} ptr (MOVLstore [off2] {sym2} ptr2 x _))
 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
-	// result: x
+	// result: (MOVLQZX x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -6654,8 +6701,7 @@ func rewriteValueAMD64_OpAMD64MOVLload_0(v *Value) bool {
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpAMD64MOVLQZX)
 		v.AddArg(x)
 		return true
 	}
@@ -10594,6 +10640,30 @@ func rewriteValueAMD64_OpAMD64MOVWQSX_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64MOVWQSXload_0(v *Value) bool {
+	// match: (MOVWQSXload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _))
+	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+	// result: (MOVWQSX x)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[1]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64MOVWstore {
+			break
+		}
+		off2 := v_1.AuxInt
+		sym2 := v_1.Aux
+		_ = v_1.Args[2]
+		ptr2 := v_1.Args[0]
+		x := v_1.Args[1]
+		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+			break
+		}
+		v.reset(OpAMD64MOVWQSX)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVWQSXload [off1] {sym1} (LEAQ [off2] {sym2} base) mem)
 	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
 	// result: (MOVWQSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
@@ -10804,7 +10874,7 @@ func rewriteValueAMD64_OpAMD64MOVWQZX_0(v *Value) bool {
 func rewriteValueAMD64_OpAMD64MOVWload_0(v *Value) bool {
 	// match: (MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _))
 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
-	// result: x
+	// result: (MOVWQZX x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -10822,8 +10892,7 @@ func rewriteValueAMD64_OpAMD64MOVWload_0(v *Value) bool {
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpAMD64MOVWQZX)
 		v.AddArg(x)
 		return true
 	}
