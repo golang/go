@@ -122,6 +122,7 @@ func Main() {
 	objabi.Flagfn0("V", "print version and exit", doversion)
 	objabi.Flagfn1("X", "add string value `definition` of the form importpath.name=value", func(s string) { addstrdata1(ctxt, s) })
 	objabi.Flagcount("v", "print link trace", &ctxt.Debugvlog)
+	objabi.Flagfn1("importcfg", "read import configuration from `file`", ctxt.readImportCfg)
 
 	objabi.Flagparse(usage)
 

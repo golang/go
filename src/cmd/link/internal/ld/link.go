@@ -230,6 +230,9 @@ type Link struct {
 	Filesyms     []*Symbol
 	Moduledata   *Symbol
 
+	PackageFile  map[string]string
+	PackageShlib map[string]string
+
 	tramps []*Symbol // trampolines
 }
 
