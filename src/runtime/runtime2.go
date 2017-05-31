@@ -628,9 +628,8 @@ type itab struct {
 	_type *_type
 	_     uintptr
 	hash  uint32 // copy of _type.hash. Used for type switches.
-	bad   bool   // type does not implement interface
-	_     [3]byte
-	fun   [1]uintptr // variable sized
+	_     [4]byte
+	fun   [1]uintptr // variable sized. fun[0]==0 means _type does not implement inter.
 }
 
 // Lock-free stack node.

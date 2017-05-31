@@ -184,8 +184,7 @@ type nonEmptyInterface struct {
 		typ  *rtype // dynamic concrete type
 		_    uintptr
 		hash uint32 // copy of typ.hash
-		bad  bool
-		_    [3]byte
+		_    [4]byte
 		fun  [100000]unsafe.Pointer // method table
 	}
 	word unsafe.Pointer

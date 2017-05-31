@@ -1459,16 +1459,14 @@ func dumptabs() {
 		//   _type  *_type
 		//   _      uintptr TODO: remove
 		//   hash   uint32
-		//   bad    bool
-		//   _      [3]byte
+		//   _      [4]byte
 		//   fun    [1]uintptr // variable sized
 		// }
 		o := dsymptr(i.lsym, 0, dtypesym(i.itype).Linksym(), 0)
 		o = dsymptr(i.lsym, o, dtypesym(i.t).Linksym(), 0)
 		o = duintptr(i.lsym, o, 0)             // unused
 		o = duint32(i.lsym, o, typehash(i.t))  // copy of type hash
-		o += 1                                 // bad is false
-		o += 3                                 // skip unused fields
+		o += 4                                 // skip unused field
 		o += len(imethods(i.itype)) * Widthptr // skip fun method pointers
 		// at runtime the itab will contain pointers to types, other itabs and
 		// method functions. None are allocated on heap, so we can use obj.NOPTR.
