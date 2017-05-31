@@ -50,10 +50,8 @@ func addlib(ctxt *Link, src string, obj string, pathname string) *Library {
 	}
 
 	// already loaded?
-	for i := 0; i < len(ctxt.Library); i++ {
-		if ctxt.Library[i].Pkg == pkg {
-			return ctxt.Library[i]
-		}
+	if l := ctxt.LibraryByPkg[pkg]; l != nil {
+		return l
 	}
 
 	var pname string
@@ -97,18 +95,17 @@ func addlib(ctxt *Link, src string, obj string, pathname string) *Library {
  *	pkg: package import path, e.g. container/vector
  */
 func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlibnamefile string) *Library {
-	for i := 0; i < len(ctxt.Library); i++ {
-		if pkg == ctxt.Library[i].Pkg {
-			return ctxt.Library[i]
-		}
+	if l := ctxt.LibraryByPkg[pkg]; l != nil {
+		return l
 	}
 
 	if ctxt.Debugvlog > 1 {
 		ctxt.Logf("%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s shlibnamefile: %s\n", Cputime(), srcref, objref, file, pkg, shlibnamefile)
 	}
 
-	ctxt.Library = append(ctxt.Library, &Library{})
-	l := ctxt.Library[len(ctxt.Library)-1]
+	l := &Library{}
+	ctxt.LibraryByPkg[pkg] = l
+	ctxt.Library = append(ctxt.Library, l)
 	l.Objref = objref
 	l.Srcref = srcref
 	l.File = file
