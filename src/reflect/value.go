@@ -180,12 +180,13 @@ type emptyInterface struct {
 type nonEmptyInterface struct {
 	// see ../runtime/iface.go:/Itab
 	itab *struct {
-		ityp   *rtype // static interface type
-		typ    *rtype // dynamic concrete type
-		link   unsafe.Pointer
-		bad    int32
-		unused int32
-		fun    [100000]unsafe.Pointer // method table
+		ityp *rtype // static interface type
+		typ  *rtype // dynamic concrete type
+		_    uintptr
+		hash uint32 // copy of typ.hash
+		bad  bool
+		_    [3]byte
+		fun  [100000]unsafe.Pointer // method table
 	}
 	word unsafe.Pointer
 }

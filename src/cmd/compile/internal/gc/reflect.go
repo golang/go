@@ -1457,22 +1457,23 @@ func dumptabs() {
 		// type itab struct {
 		//   inter  *interfacetype
 		//   _type  *_type
-		//   link   *itab
+		//   _      uintptr TODO: remove
 		//   hash   uint32
 		//   bad    bool
-		//   inhash bool
-		//   unused [2]byte
+		//   _      [3]byte
 		//   fun    [1]uintptr // variable sized
 		// }
 		o := dsymptr(i.lsym, 0, dtypesym(i.itype).Linksym(), 0)
 		o = dsymptr(i.lsym, o, dtypesym(i.t).Linksym(), 0)
-		o += Widthptr                          // skip link field
+		o = duintptr(i.lsym, o, 0)             // unused
 		o = duint32(i.lsym, o, typehash(i.t))  // copy of type hash
-		o += 4                                 // skip bad/inhash/unused fields
+		o += 1                                 // bad is false
+		o += 3                                 // skip unused fields
 		o += len(imethods(i.itype)) * Widthptr // skip fun method pointers
 		// at runtime the itab will contain pointers to types, other itabs and
 		// method functions. None are allocated on heap, so we can use obj.NOPTR.
 		ggloblsym(i.lsym, int32(o), int16(obj.DUPOK|obj.NOPTR))
+		// TODO: mark readonly after we pre-add the function pointers
 
 		ilink := itablinkpkg.Lookup(i.t.ShortString() + "," + i.itype.ShortString()).Linksym()
 		dsymptr(ilink, 0, i.lsym, 0)
