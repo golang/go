@@ -1408,7 +1408,7 @@ func itabsym(it *obj.LSym, offset int64) *obj.LSym {
 	}
 
 	// keep this arithmetic in sync with *itab layout
-	methodnum := int((offset - 3*int64(Widthptr) - 8) / int64(Widthptr))
+	methodnum := int((offset - 2*int64(Widthptr) - 8) / int64(Widthptr))
 	if methodnum >= len(syms) {
 		return nil
 	}
@@ -1457,14 +1457,12 @@ func dumptabs() {
 		// type itab struct {
 		//   inter  *interfacetype
 		//   _type  *_type
-		//   _      uintptr TODO: remove
 		//   hash   uint32
 		//   _      [4]byte
 		//   fun    [1]uintptr // variable sized
 		// }
 		o := dsymptr(i.lsym, 0, dtypesym(i.itype).Linksym(), 0)
 		o = dsymptr(i.lsym, o, dtypesym(i.t).Linksym(), 0)
-		o = duintptr(i.lsym, o, 0)             // unused
 		o = duint32(i.lsym, o, typehash(i.t))  // copy of type hash
 		o += 4                                 // skip unused field
 		o += len(imethods(i.itype)) * Widthptr // skip fun method pointers
