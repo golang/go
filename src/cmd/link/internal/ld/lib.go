@@ -333,6 +333,19 @@ func errorexit() {
 }
 
 func loadinternal(ctxt *Link, name string) *Library {
+	if *FlagLinkshared && ctxt.PackageShlib != nil {
+		if shlibname := ctxt.PackageShlib[name]; shlibname != "" {
+			return addlibpath(ctxt, "internal", "internal", "", name, shlibname)
+		}
+	}
+	if ctxt.PackageFile != nil {
+		if pname := ctxt.PackageFile[name]; pname != "" {
+			return addlibpath(ctxt, "internal", "internal", pname, name, "")
+		}
+		ctxt.Logf("loadinternal: cannot find %s\n", name)
+		return nil
+	}
+
 	for i := 0; i < len(ctxt.Libdir); i++ {
 		if *FlagLinkshared {
 			shlibname := filepath.Join(ctxt.Libdir[i], name+".shlibname")

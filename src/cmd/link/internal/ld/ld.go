@@ -33,12 +33,58 @@ package ld
 
 import (
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 )
+
+func (ctxt *Link) readImportCfg(file string) {
+	ctxt.PackageFile = make(map[string]string)
+	ctxt.PackageShlib = make(map[string]string)
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		log.Fatalf("-importcfg: %v", err)
+	}
+
+	for lineNum, line := range strings.Split(string(data), "\n") {
+		lineNum++ // 1-based
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		var verb, args string
+		if i := strings.Index(line, " "); i < 0 {
+			verb = line
+		} else {
+			verb, args = line[:i], strings.TrimSpace(line[i+1:])
+		}
+		var before, after string
+		if i := strings.Index(args, "="); i >= 0 {
+			before, after = args[:i], args[i+1:]
+		}
+		switch verb {
+		default:
+			log.Fatalf("%s:%d: unknown directive %q", file, lineNum, verb)
+		case "packagefile":
+			if before == "" || after == "" {
+				log.Fatalf(`%s:%d: invalid packagefile: syntax is "packagefile path=filename"`, file, lineNum)
+			}
+			ctxt.PackageFile[before] = after
+		case "packageshlib":
+			if before == "" || after == "" {
+				log.Fatalf(`%s:%d: invalid packageshlib: syntax is "packageshlib path=filename"`, file, lineNum)
+			}
+			ctxt.PackageShlib[before] = after
+		}
+	}
+}
 
 func addlib(ctxt *Link, src string, obj string, pathname string) *Library {
 	name := path.Clean(pathname)
@@ -56,26 +102,37 @@ func addlib(ctxt *Link, src string, obj string, pathname string) *Library {
 
 	var pname string
 	isshlib := false
-	if filepath.IsAbs(name) {
-		pname = name
+
+	if *FlagLinkshared && ctxt.PackageShlib[name] != "" {
+		pname = ctxt.PackageShlib[name]
+		isshlib = true
+	} else if ctxt.PackageFile != nil {
+		pname = ctxt.PackageFile[name]
+		if pname == "" {
+			ctxt.Logf("cannot find package %s (using -importcfg)\n", name)
+			return nil
+		}
 	} else {
-		// try dot, -L "libdir", and then goroot.
-		for _, dir := range ctxt.Libdir {
-			if *FlagLinkshared {
-				pname = dir + "/" + pkg + ".shlibname"
+		if filepath.IsAbs(name) {
+			pname = name
+		} else {
+			// try dot, -L "libdir", and then goroot.
+			for _, dir := range ctxt.Libdir {
+				if *FlagLinkshared {
+					pname = dir + "/" + pkg + ".shlibname"
+					if _, err := os.Stat(pname); err == nil {
+						isshlib = true
+						break
+					}
+				}
+				pname = dir + "/" + name
 				if _, err := os.Stat(pname); err == nil {
-					isshlib = true
 					break
 				}
 			}
-			pname = dir + "/" + name
-			if _, err := os.Stat(pname); err == nil {
-				break
-			}
 		}
+		pname = path.Clean(pname)
 	}
-
-	pname = path.Clean(pname)
 
 	if ctxt.Debugvlog > 1 {
 		ctxt.Logf("%5.2f addlib: %s %s pulls in %s isshlib %v\n", elapsed(), obj, src, pname, isshlib)
