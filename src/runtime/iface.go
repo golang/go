@@ -222,6 +222,7 @@ imethods:
 		m.fun[0] = 0
 		return iname
 	}
+	m.hash = typ.hash
 	return ""
 }
 
