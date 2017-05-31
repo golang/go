@@ -73,7 +73,7 @@ func (f *File) ReadGo(name string) {
 		}
 		for _, spec := range d.Specs {
 			s, ok := spec.(*ast.ImportSpec)
-			if !ok || string(s.Path.Value) != `"C"` {
+			if !ok || (string(s.Path.Value) != `"C"` && string(s.Path.Value) != `"c"`) {
 				continue
 			}
 			sawC = true
@@ -106,7 +106,7 @@ func (f *File) ReadGo(name string) {
 		ws := 0
 		for _, spec := range d.Specs {
 			s, ok := spec.(*ast.ImportSpec)
-			if !ok || string(s.Path.Value) != `"C"` {
+			if !ok || (string(s.Path.Value) != `"C"` && string(s.Path.Value) != `"c"`) {
 				d.Specs[ws] = spec
 				ws++
 			}
@@ -175,7 +175,7 @@ func (f *File) saveRef(x interface{}, context string) {
 		// The parser should take care of scoping in the future,
 		// so that we will be able to distinguish a "top-level C"
 		// from a local C.
-		if l, ok := sel.X.(*ast.Ident); ok && l.Name == "C" {
+		if l, ok := sel.X.(*ast.Ident); ok && (l.Name == "C" || l.Name == "c") {
 			if context == "as2" {
 				context = "expr"
 			}
@@ -194,12 +194,14 @@ func (f *File) saveRef(x interface{}, context string) {
 			if goname == "malloc" {
 				goname = "_CMalloc"
 			}
-			name := f.Name[goname]
+			key := l.Name + "." + goname
+			name := f.Name[key]
 			if name == nil {
 				name = &Name{
 					Go: goname,
+					Direct: l.Name == "c",
 				}
-				f.Name[goname] = name
+				f.Name[key] = name
 			}
 			f.Ref = append(f.Ref, &Ref{
 				Name:    name,

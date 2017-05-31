@@ -428,7 +428,11 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 	if n.AddError {
 		prefix = "errno := "
 	}
-	fmt.Fprintf(fgo2, "\t%s_cgo_runtime_cgocall_errno(%s, %s)\n", prefix, cname, arg)
+	if n.Direct { 
+		fmt.Fprintf(fgo2, "\t%s_cgo_runtime_asmcgocall_errno(%s, %s)\n", prefix, cname, arg)
+	} else {
+		fmt.Fprintf(fgo2, "\t%s_cgo_runtime_cgocall_errno(%s, %s)\n", prefix, cname, arg)
+	}
 	if n.AddError {
 		fmt.Fprintf(fgo2, "\tif errno != 0 { r2 = syscall.Errno(errno) }\n")
 	}
@@ -1175,6 +1179,11 @@ static void *cgocall_errno = runtime·cgocall_errno;
 void *·_cgo_runtime_cgocall_errno = &cgocall_errno;
 
 #pragma dataflag NOPTR
+static void *asmcgocall_errno = runtime·asmcgocall_errno;
+#pragma dataflag NOPTR
+void *·_cgo_runtime_asmcgocall_errno = &asmcgocall_errno;
+
+#pragma dataflag NOPTR
 static void *runtime_gostring = runtime·gostring;
 #pragma dataflag NOPTR
 void *·_cgo_runtime_gostring = &runtime_gostring;
@@ -1199,6 +1208,7 @@ void ·_Cerrno(void*, int32);
 
 const goProlog = `
 var _cgo_runtime_cgocall_errno func(unsafe.Pointer, uintptr) int32
+var _cgo_runtime_asmcgocall_errno func(unsafe.Pointer, uintptr) int32
 var _cgo_runtime_cmalloc func(uintptr) unsafe.Pointer
 `
 
