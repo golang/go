@@ -161,9 +161,10 @@ const testFlag2 = `
 
 	-cover
 	    Enable coverage analysis.
-
-	    BUG: If a compilation or test fails with coverage enabled,
-	    the reported line numbers may be incorrect.
+	    Note that because coverage works by annotating the source
+	    code before compilation, compilation and test failures with
+	    coverage enabled may report line numbers that don't correspond
+	    to the original sources.
 
 	-covermode set,count,atomic
 	    Set the mode for coverage analysis for the package[s]
