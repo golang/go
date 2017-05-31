@@ -70,7 +70,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	itabAdd(m)
 	unlock(&itabLock)
 finish:
-	if !m.bad {
+	if m.fun[0] != 0 {
 		return m
 	}
 	if canfail {
@@ -219,7 +219,7 @@ imethods:
 			}
 		}
 		// didn't find method
-		m.bad = true
+		m.fun[0] = 0
 		return iname
 	}
 	return ""
