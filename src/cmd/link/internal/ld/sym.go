@@ -47,7 +47,8 @@ func linknew(arch *sys.Arch) *Link {
 			},
 			Allsym: make([]*Symbol, 0, 100000),
 		},
-		Arch: arch,
+		Arch:         arch,
+		LibraryByPkg: make(map[string]*Library),
 	}
 
 	if objabi.GOARCH != arch.Name {
