@@ -54,13 +54,11 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatch
 	pluginftabverify(md)
 	moduledataverify1(md)
 
-	lock(&ifaceLock)
+	lock(&itabLock)
 	for _, i := range md.itablinks {
-		if !i.inhash {
-			additab(i, true, false)
-		}
+		itabAddStartup(i)
 	}
-	unlock(&ifaceLock)
+	unlock(&itabLock)
 
 	// Build a map of symbol names to symbols. Here in the runtime
 	// we fill out the first word of the interface, the type. We
