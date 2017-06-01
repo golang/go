@@ -328,8 +328,6 @@ var dosstub = []uint8{
 
 var rsrcsym *Symbol
 
-var strtbl []byte
-
 var PESECTHEADR int32
 
 var PEFILEHEADR int32
@@ -382,6 +380,42 @@ var dexport [1024]*Symbol
 
 var nexport int
 
+// peStringTable is a COFF string table.
+type peStringTable struct {
+	strings    []string
+	stringsLen int
+}
+
+// size resturns size of string table t.
+func (t *peStringTable) size() int {
+	// string table starts with 4-byte length at the beginning
+	return t.stringsLen + 4
+}
+
+// add adds string str to string table t.
+func (t *peStringTable) add(str string) int {
+	off := t.size()
+	t.strings = append(t.strings, str)
+	t.stringsLen += len(str) + 1 // each string will have 0 appended to it
+	return off
+}
+
+// write writes string table t into the output file.
+func (t *peStringTable) write() {
+	Lputl(uint32(t.size()))
+	for _, s := range t.strings {
+		Cwritestring(s)
+		Cput(0)
+	}
+}
+
+// peFile is used to build COFF file.
+type peFile struct {
+	stringTable peStringTable
+}
+
+var pefile peFile
+
 func addpesectionWithLongName(ctxt *Link, shortname, longname string, sectsize int, filesize int) *IMAGE_SECTION_HEADER {
 	if pensect == 16 {
 		Errorf(nil, "too many sections")
@@ -407,6 +441,7 @@ func addpesectionWithLongName(ctxt *Link, shortname, longname string, sectsize i
 func addpesection(ctxt *Link, name string, sectsize int, filesize int) *IMAGE_SECTION_HEADER {
 	return addpesectionWithLongName(ctxt, name, name, sectsize, filesize)
 }
+
 func chksectoff(ctxt *Link, h *IMAGE_SECTION_HEADER, off int64) {
 	if off != int64(h.PointerToRawData) {
 		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(off))
@@ -942,13 +977,6 @@ func (ctxt *Link) dope() {
 	initdynexport(ctxt)
 }
 
-func strtbladd(name string) int {
-	off := len(strtbl) + 4 // offset includes 4-byte length at beginning of table
-	strtbl = append(strtbl, name...)
-	strtbl = append(strtbl, 0)
-	return off
-}
-
 /*
  * For more than 8 characters section names, name contains a slash (/) that is
  * followed by an ASCII representation of a decimal number that is an offset into
@@ -961,7 +989,7 @@ func newPEDWARFSection(ctxt *Link, name string, size int64) *IMAGE_SECTION_HEADE
 		return nil
 	}
 
-	off := strtbladd(name)
+	off := pefile.stringTable.add(name)
 	s := fmt.Sprintf("/%d", off)
 	h := addpesectionWithLongName(ctxt, s, name, int(size), int(size))
 	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
@@ -978,7 +1006,7 @@ func writePESymTableRecords(ctxt *Link) int {
 		// write COFF symbol table record
 		if len(s.Name) > 8 {
 			Lputl(0)
-			Lputl(uint32(strtbladd(s.Name)))
+			Lputl(uint32(pefile.stringTable.add(s.Name)))
 		} else {
 			strnput(s.Name, 8)
 		}
@@ -1071,7 +1099,7 @@ func addpesymtable(ctxt *Link) {
 	}
 
 	// update COFF file header and section table
-	size := len(strtbl) + 4 + 18*symcnt
+	size := pefile.stringTable.size() + 18*symcnt
 	var h *IMAGE_SECTION_HEADER
 	if Linkmode != LinkExternal {
 		// We do not really need .symtab for go.o, and if we have one, ld
@@ -1084,10 +1112,7 @@ func addpesymtable(ctxt *Link) {
 	fh.NumberOfSymbols = uint32(symcnt)
 
 	// write COFF string table
-	Lputl(uint32(len(strtbl)) + 4)
-	for i := 0; i < len(strtbl); i++ {
-		Cput(strtbl[i])
-	}
+	pefile.stringTable.write()
 	if Linkmode != LinkExternal {
 		strnput("", int(h.SizeOfRawData-uint32(size)))
 	}
