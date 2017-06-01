@@ -380,7 +380,12 @@ func (ctxt *Link) domacho() {
 	}
 }
 
-func Machoadddynlib(lib string) {
+func machoadddynlib(lib string) {
+	if seenlib[lib] || Linkmode == LinkExternal {
+		return
+	}
+	seenlib[lib] = true
+
 	// Will need to store the library name rounded up
 	// and 24 bytes of header metadata. If not enough
 	// space, grab another page of initial space at the

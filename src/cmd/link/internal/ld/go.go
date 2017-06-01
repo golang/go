@@ -175,7 +175,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				havedynamic = 1
 
 				if Headtype == objabi.Hdarwin {
-					Machoadddynlib(lib)
+					machoadddynlib(lib)
 				} else {
 					dynlib = append(dynlib, lib)
 				}
