@@ -760,7 +760,7 @@ func tRunner(t *T, fn func(t *T)) {
 // have completed.
 //
 // Run may be called simultaneously from multiple goroutines, but all such calls
-// must happen before the outer test function for t returns.
+// must return before the outer test function for t returns.
 func (t *T) Run(name string, f func(t *T)) bool {
 	atomic.StoreInt32(&t.hasSub, 1)
 	testName, ok, _ := t.context.match.fullName(&t.common, name)
