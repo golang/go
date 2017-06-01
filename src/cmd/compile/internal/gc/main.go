@@ -750,21 +750,6 @@ func arsize(b *bufio.Reader, name string) int {
 	return i
 }
 
-func skiptopkgdef(b *bufio.Reader) bool {
-	// archive header
-	p, err := b.ReadString('\n')
-	if err != nil {
-		log.Fatalf("reading input: %v", err)
-	}
-	if p != "!<arch>\n" {
-		return false
-	}
-
-	// package export block should be first
-	sz := arsize(b, "__.PKGDEF")
-	return sz > 0
-}
-
 var idirs []string
 
 func addidir(dir string) {
@@ -975,14 +960,6 @@ func importfile(f *Val) *types.Pkg {
 	defer impf.Close()
 	imp := bufio.NewReader(impf)
 
-	const pkgSuffix = ".a"
-	if strings.HasSuffix(file, pkgSuffix) {
-		if !skiptopkgdef(imp) {
-			yyerror("import %s: not a package file", file)
-			errorexit()
-		}
-	}
-
 	// check object header
 	p, err := imp.ReadString('\n')
 	if err != nil {
@@ -990,6 +967,22 @@ func importfile(f *Val) *types.Pkg {
 	}
 	if len(p) > 0 {
 		p = p[:len(p)-1]
+	}
+
+	if p == "!<arch>" { // package archive
+		// package export block should be first
+		sz := arsize(imp, "__.PKGDEF")
+		if sz <= 0 {
+			yyerror("import %s: not a package file", file)
+			errorexit()
+		}
+		p, err = imp.ReadString('\n')
+		if err != nil {
+			log.Fatalf("reading input: %v", err)
+		}
+		if len(p) > 0 {
+			p = p[:len(p)-1]
+		}
 	}
 
 	if p != "empty archive" {
@@ -1030,7 +1023,7 @@ func importfile(f *Val) *types.Pkg {
 		Ctxt.AddImport(path_)
 	} else {
 		// For file "/Users/foo/go/pkg/darwin_amd64/math.a" record "math.a".
-		Ctxt.AddImport(file[len(file)-len(path_)-len(pkgSuffix):])
+		Ctxt.AddImport(file[len(file)-len(path_)-len(".a"):])
 	}
 
 	// In the importfile, if we find:
