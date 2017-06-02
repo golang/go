@@ -545,6 +545,8 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
 }
 
 func runInstall(cmd *base.Command, args []string) {
+	InstrumentInit()
+	BuildModeInit()
 	InstallPackages(args, false)
 }
 
@@ -553,8 +555,6 @@ func InstallPackages(args []string, forGet bool) {
 		base.Fatalf("cannot install, GOBIN must be an absolute path")
 	}
 
-	InstrumentInit()
-	BuildModeInit()
 	pkgs := pkgsFilter(load.PackagesForBuild(args))
 
 	for _, p := range pkgs {

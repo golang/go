@@ -3159,6 +3159,20 @@ func TestGoGetUpdate(t *testing.T) {
 	tg.run("get", "-d", "-u", "github.com/rsc/go-get-issue-9224-cmd")
 }
 
+// Issue #20512.
+func TestGoGetRace(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+	if !canRace {
+		t.Skip("skipping because race detector not supported")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("get", "-race", "github.com/rsc/go-get-issue-9224-cmd")
+}
+
 func TestGoGetDomainRoot(t *testing.T) {
 	// golang.org/issue/9357.
 	// go get foo.io (not foo.io/subdir) was not working consistently.

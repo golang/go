@@ -90,6 +90,9 @@ func init() {
 }
 
 func runGet(cmd *base.Command, args []string) {
+	work.InstrumentInit()
+	work.BuildModeInit()
+
 	if *getF && !*getU {
 		base.Fatalf("go get: cannot use -f flag without -u")
 	}
