@@ -7,6 +7,7 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"debug/pe"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -409,9 +410,62 @@ func (t *peStringTable) write() {
 	}
 }
 
+// peSection represents section from COFF section table.
+type peSection struct {
+	name      string
+	shortName string
+	index     int // one-based index into the Section Table
+	// TODO: change all these names to start with small letters
+	VirtualSize          uint32
+	VirtualAddress       uint32
+	SizeOfRawData        uint32
+	PointerToRawData     uint32
+	PointerToRelocations uint32
+	NumberOfRelocations  uint16
+	Characteristics      uint32
+}
+
+// write writes COFF section sect into the output file.
+func (sect *peSection) write() error {
+	h := pe.SectionHeader32{
+		VirtualSize:          sect.VirtualSize,
+		SizeOfRawData:        sect.SizeOfRawData,
+		PointerToRawData:     sect.PointerToRawData,
+		PointerToRelocations: sect.PointerToRelocations,
+		NumberOfRelocations:  sect.NumberOfRelocations,
+		Characteristics:      sect.Characteristics,
+	}
+	if Linkmode != LinkExternal {
+		h.VirtualAddress = sect.VirtualAddress
+	}
+	copy(h.Name[:], sect.shortName)
+	return binary.Write(&coutbuf, binary.LittleEndian, h)
+}
+
 // peFile is used to build COFF file.
 type peFile struct {
+	sections    []*peSection
 	stringTable peStringTable
+}
+
+// addSection adds section to the COFF file f.
+func (f *peFile) addSection(name string, sectsize int, filesize int) *peSection {
+	sect := &peSection{
+		name:             name,
+		shortName:        name,
+		index:            len(f.sections) + 1,
+		VirtualSize:      uint32(sectsize),
+		VirtualAddress:   uint32(nextsectoff),
+		PointerToRawData: uint32(nextfileoff),
+	}
+	nextsectoff = int(Rnd(int64(nextsectoff)+int64(sectsize), PESECTALIGN))
+	if filesize > 0 {
+		sect.SizeOfRawData = uint32(Rnd(int64(filesize), PEFILEALIGN))
+		nextfileoff += int(sect.SizeOfRawData)
+	}
+	f.sections = append(f.sections, sect)
+	pensect++
+	return sect
 }
 
 var pefile peFile
