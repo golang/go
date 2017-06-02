@@ -69,7 +69,7 @@ type printer struct {
 	// The out position differs from the pos position when the result
 	// formatting differs from the source formatting (in the amount of
 	// white space). If there's a difference and SourcePos is set in
-	// ConfigMode, //line comments are used in the output to restore
+	// ConfigMode, //line directives are used in the output to restore
 	// original source positions for a reader.
 	pos     token.Position // current position in AST (source) space
 	out     token.Position // current position in output space
@@ -203,19 +203,20 @@ func (p *printer) lineFor(pos token.Pos) int {
 	return p.cachedLine
 }
 
-// atLineBegin emits a //line comment if necessary and prints indentation.
-func (p *printer) atLineBegin(pos token.Position) {
-	// write a //line comment if necessary
-	if p.Config.Mode&SourcePos != 0 && pos.IsValid() && (p.out.Line != pos.Line || p.out.Filename != pos.Filename) {
+// writeLineDirective writes a //line directive if necessary.
+func (p *printer) writeLineDirective(pos token.Position) {
+	if pos.IsValid() && (p.out.Line != pos.Line || p.out.Filename != pos.Filename) {
 		p.output = append(p.output, tabwriter.Escape) // protect '\n' in //line from tabwriter interpretation
 		p.output = append(p.output, fmt.Sprintf("//line %s:%d\n", pos.Filename, pos.Line)...)
 		p.output = append(p.output, tabwriter.Escape)
-		// p.out must match the //line comment
+		// p.out must match the //line directive
 		p.out.Filename = pos.Filename
 		p.out.Line = pos.Line
 	}
+}
 
-	// write indentation
+// writeIndent writes indentation.
+func (p *printer) writeIndent() {
 	// use "hard" htabs - indentation columns
 	// must not be discarded by the tabwriter
 	n := p.Config.Indent + p.indent // include base indentation
@@ -230,9 +231,11 @@ func (p *printer) atLineBegin(pos token.Position) {
 }
 
 // writeByte writes ch n times to p.output and updates p.pos.
+// Only used to write formatting (white space) characters.
 func (p *printer) writeByte(ch byte, n int) {
 	if p.out.Column == 1 {
-		p.atLineBegin(p.pos)
+		// no need to write line directives before white space
+		p.writeIndent()
 	}
 
 	for i := 0; i < n; i++ {
@@ -265,13 +268,16 @@ func (p *printer) writeByte(ch byte, n int) {
 //
 func (p *printer) writeString(pos token.Position, s string, isLit bool) {
 	if p.out.Column == 1 {
-		p.atLineBegin(pos)
+		if p.Config.Mode&SourcePos != 0 {
+			p.writeLineDirective(pos)
+		}
+		p.writeIndent()
 	}
 
 	if pos.IsValid() {
 		// update p.pos (if pos is invalid, continue with existing p.pos)
 		// Note: Must do this after handling line beginnings because
-		// atLineBegin updates p.pos if there's indentation, but p.pos
+		// writeIndent updates p.pos if there's indentation, but p.pos
 		// is the position of s.
 		p.pos = pos
 	}
@@ -1237,7 +1243,7 @@ const (
 	RawFormat Mode = 1 << iota // do not use a tabwriter; if set, UseSpaces is ignored
 	TabIndent                  // use tabs for indentation independent of UseSpaces
 	UseSpaces                  // use spaces instead of tabs for alignment
-	SourcePos                  // emit //line comments to preserve original source positions
+	SourcePos                  // emit //line directives to preserve original source positions
 )
 
 // A Config node controls the output of Fprint.
