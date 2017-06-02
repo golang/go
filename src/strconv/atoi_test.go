@@ -6,6 +6,7 @@ package strconv_test
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	. "strconv"
 	"testing"
@@ -354,6 +355,37 @@ func TestParseInt(t *testing.T) {
 	}
 }
 
+func TestAtoi(t *testing.T) {
+	switch IntSize {
+	case 32:
+		for i := range parseInt32Tests {
+			test := &parseInt32Tests[i]
+			out, err := Atoi(test.in)
+			var testErr error
+			if test.err != nil {
+				testErr = &NumError{"Atoi", test.in, test.err.(*NumError).Err}
+			}
+			if int(test.out) != out || !reflect.DeepEqual(testErr, err) {
+				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
+					test.in, out, err, test.out, testErr)
+			}
+		}
+	case 64:
+		for i := range parseInt64Tests {
+			test := &parseInt64Tests[i]
+			out, err := Atoi(test.in)
+			var testErr error
+			if test.err != nil {
+				testErr = &NumError{"Atoi", test.in, test.err.(*NumError).Err}
+			}
+			if test.out != int64(out) || !reflect.DeepEqual(testErr, err) {
+				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
+					test.in, out, err, test.out, testErr)
+			}
+		}
+	}
+}
+
 func bitSizeErrStub(name string, bitSize int) error {
 	return BitSizeError(name, "0", bitSize)
 }
@@ -448,26 +480,67 @@ func TestNumError(t *testing.T) {
 	}
 }
 
+func BenchmarkParseInt(b *testing.B) {
+	b.Run("Pos", func(b *testing.B) {
+		benchmarkParseInt(b, 1)
+	})
+	b.Run("Neg", func(b *testing.B) {
+		benchmarkParseInt(b, -1)
+	})
+}
+
+type benchCase struct {
+	name string
+	num  int64
+}
+
+func benchmarkParseInt(b *testing.B, neg int) {
+	cases := []benchCase{
+		{"7bit", 1<<7 - 1},
+		{"26bit", 1<<26 - 1},
+		{"31bit", 1<<31 - 1},
+		{"56bit", 1<<56 - 1},
+		{"63bit", 1<<63 - 1},
+	}
+	for _, cs := range cases {
+		b.Run(cs.name, func(b *testing.B) {
+			s := fmt.Sprintf("%d", cs.num*int64(neg))
+			for i := 0; i < b.N; i++ {
+				out, _ := ParseInt(s, 10, 64)
+				BenchSink += int(out)
+			}
+		})
+	}
+}
+
 func BenchmarkAtoi(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		ParseInt("12345678", 10, 0)
-	}
+	b.Run("Pos", func(b *testing.B) {
+		benchmarkAtoi(b, 1)
+	})
+	b.Run("Neg", func(b *testing.B) {
+		benchmarkAtoi(b, -1)
+	})
 }
 
-func BenchmarkAtoiNeg(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		ParseInt("-12345678", 10, 0)
+func benchmarkAtoi(b *testing.B, neg int) {
+	cases := []benchCase{
+		{"7bit", 1<<7 - 1},
+		{"26bit", 1<<26 - 1},
+		{"31bit", 1<<31 - 1},
 	}
-}
-
-func BenchmarkAtoi64(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		ParseInt("12345678901234", 10, 64)
+	if IntSize == 64 {
+		cases = append(cases, []benchCase{
+			{"56bit", 1<<56 - 1},
+			{"63bit", 1<<63 - 1},
+		}...)
 	}
-}
-
-func BenchmarkAtoi64Neg(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		ParseInt("-12345678901234", 10, 64)
+	for _, cs := range cases {
+		b.Run(cs.name, func(b *testing.B) {
+			s := fmt.Sprintf("%d", cs.num*int64(neg))
+			for i := 0; i < b.N; i++ {
+				out, _ := Atoi(s)
+				BenchSink += out
+			}
+		})
 	}
 }
