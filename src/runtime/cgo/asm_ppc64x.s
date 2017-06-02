@@ -16,6 +16,8 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	// Start with standard C stack frame layout and linkage
 	MOVD	LR, R0
 	MOVD	R0, 16(R1)	// Save LR in caller's frame
+	MOVW	CR, R0		// Save CR in caller's frame
+	MOVD	R0, 8(R1)
 	MOVD	R2, 24(R1)	// Save TOC in caller's frame
 
 	BL	saveregs2<>(SB)
@@ -38,6 +40,8 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	BL	restoreregs2<>(SB)
 
 	MOVD	24(R1), R2
+	MOVD	8(R1), R0
+	MOVFL	R0, $0xff
 	MOVD	16(R1), R0
 	MOVD	R0, LR
 	RET
