@@ -363,7 +363,7 @@ func identCount(f *ast.File) int {
 	return n
 }
 
-// Verify that the SourcePos mode emits correct //line comments
+// Verify that the SourcePos mode emits correct //line directives
 // by testing that position information for matching identifiers
 // is maintained.
 func TestSourcePos(t *testing.T) {
@@ -394,7 +394,7 @@ func (t *t) foo(a, b, c int) int {
 	}
 
 	// parse pretty printed original
-	// (//line comments must be interpreted even w/o parser.ParseComments set)
+	// (//line directives must be interpreted even w/o parser.ParseComments set)
 	f2, err := parser.ParseFile(fset, "", buf.Bytes(), 0)
 	if err != nil {
 		t.Fatalf("%s\n%s", err, buf.Bytes())
@@ -431,6 +431,53 @@ func (t *t) foo(a, b, c int) int {
 
 	if t.Failed() {
 		t.Logf("\n%s", buf.Bytes())
+	}
+}
+
+// Verify that the SourcePos mode doesn't emit unnecessary //line directives
+// before empty lines.
+func TestIssue5945(t *testing.T) {
+	const orig = `
+package p   // line 2
+func f() {} // line 3
+
+var x, y, z int
+
+
+func g() { // line 8
+}
+`
+
+	const want = `//line src.go:2
+package p
+
+//line src.go:3
+func f() {}
+
+var x, y, z int
+
+//line src.go:8
+func g() {
+}
+`
+
+	// parse original
+	f1, err := parser.ParseFile(fset, "src.go", orig, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// pretty-print original
+	var buf bytes.Buffer
+	err = (&Config{Mode: UseSpaces | SourcePos, Tabwidth: 8}).Fprint(&buf, fset, f1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+
+	// compare original with desired output
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s\n", got, want)
 	}
 }
 
