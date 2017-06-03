@@ -79,7 +79,9 @@ import (
 // or if a JSON number overflows the target type, Unmarshal
 // skips that field and completes the unmarshaling as best it can.
 // If no more serious errors are encountered, Unmarshal returns
-// an UnmarshalTypeError describing the earliest such error.
+// an UnmarshalTypeError describing the earliest such error. In any
+// case, it's not guaranteed that all the remaining fields following
+// the problematic one will be unmarshaled into the target object.
 //
 // The JSON null value unmarshals into an interface, map, pointer, or slice
 // by setting that Go value to nil. Because null is often used in JSON to mean
