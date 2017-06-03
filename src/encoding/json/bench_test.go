@@ -133,6 +133,21 @@ func BenchmarkCodeDecoder(b *testing.B) {
 	b.SetBytes(int64(len(codeJSON)))
 }
 
+func BenchmarkUnicodeDecoder(b *testing.B) {
+	j := []byte(`"\uD83D\uDE01"`)
+	b.SetBytes(int64(len(j)))
+	r := bytes.NewReader(j)
+	dec := NewDecoder(r)
+	var out string
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := dec.Decode(&out); err != nil {
+			b.Fatal("Decode:", err)
+		}
+		r.Seek(0, 0)
+	}
+}
+
 func BenchmarkDecoderStream(b *testing.B) {
 	b.StopTimer()
 	var buf bytes.Buffer
