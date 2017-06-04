@@ -4,13 +4,14 @@
 
 // +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
-package signal
+package signal_test
 
 import (
 	"flag"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	. "os/signal"
 	"runtime"
 	"strconv"
 	"syscall"
