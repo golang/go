@@ -458,6 +458,7 @@ func (b *Reader) ReadString(delim byte) (string, error) {
 }
 
 // WriteTo implements io.WriterTo.
+// This may make multiple calls to the Read method of the underlying Reader.
 func (b *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	n, err = b.writeBuf(w)
 	if err != nil {
