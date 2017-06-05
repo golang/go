@@ -407,6 +407,14 @@ type peSection struct {
 	Characteristics      uint32
 }
 
+// checkOffset verifies COFF section sect offset in the file.
+func (sect *peSection) checkOffset(off int64) {
+	if off != int64(sect.PointerToRawData) {
+		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", sect.name, uint64(int64(sect.PointerToRawData)), uint64(off))
+		errorexit()
+	}
+}
+
 // write writes COFF section sect into the output file.
 func (sect *peSection) write() error {
 	h := pe.SectionHeader32{
@@ -471,13 +479,6 @@ func (f *peFile) addDWARFSection(name string, size int) *peSection {
 }
 
 var pefile peFile
-
-func chksectoff(ctxt *Link, h *peSection, off int64) {
-	if off != int64(h.PointerToRawData) {
-		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", h.name, uint64(int64(h.PointerToRawData)), uint64(off))
-		errorexit()
-	}
-}
 
 func chksectseg(ctxt *Link, h *peSection, s *Segment) {
 	if s.Vaddr-PEBASE != uint64(h.VirtualAddress) {
@@ -724,7 +725,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 
 	isect := pefile.addSection(".idata", int(n), int(n))
 	isect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
-	chksectoff(ctxt, isect, startoff)
+	isect.checkOffset(startoff)
 	strnput("", int(uint64(isect.SizeOfRawData)-n))
 	endoff := coutbuf.Offset()
 
@@ -812,7 +813,7 @@ func addexports(ctxt *Link) {
 
 	sect := pefile.addSection(".edata", size, size)
 	sect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
-	chksectoff(ctxt, sect, coutbuf.Offset())
+	sect.checkOffset(coutbuf.Offset())
 	va := int(sect.VirtualAddress)
 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = uint32(va)
 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect.VirtualSize
@@ -1114,7 +1115,7 @@ func addpesymtable(ctxt *Link) {
 		// will also include it in the exe, and that will confuse windows.
 		h = pefile.addSection(".symtab", size, size)
 		h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
-		chksectoff(ctxt, h, symtabStartPos)
+		h.checkOffset(symtabStartPos)
 	}
 	fh.PointerToSymbolTable = uint32(symtabStartPos)
 	fh.NumberOfSymbols = uint32(symcnt)
@@ -1141,7 +1142,7 @@ func addpersrc(ctxt *Link) {
 
 	h := pefile.addSection(".rsrc", int(rsrcsym.Size), int(rsrcsym.Size))
 	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA
-	chksectoff(ctxt, h, coutbuf.Offset())
+	h.checkOffset(coutbuf.Offset())
 
 	// relocation
 	var p []byte
@@ -1191,7 +1192,7 @@ func addinitarray(ctxt *Link) (c *peSection) {
 	c.SizeOfRawData = uint32(size)
 
 	Cseek(int64(c.PointerToRawData))
-	chksectoff(ctxt, c, coutbuf.Offset())
+	c.checkOffset(coutbuf.Offset())
 	init_entry := ctxt.Syms.Lookup(*flagEntrySymbol, 0)
 	addr := uint64(init_entry.Value) - init_entry.Sect.Vaddr
 
