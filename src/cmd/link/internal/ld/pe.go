@@ -340,9 +340,6 @@ var oh IMAGE_OPTIONAL_HEADER
 
 var oh64 PE64_IMAGE_OPTIONAL_HEADER
 
-// shNames stores full names of PE sections stored in sh.
-var shNames []string
-
 var dd []IMAGE_DATA_DIRECTORY
 
 type Imp struct {
@@ -450,7 +447,6 @@ func (f *peFile) addSection(name string, sectsize int, filesize int) *peSection 
 	}
 	f.sections = append(f.sections, sect)
 	pensect++
-	shNames = append(shNames, name)
 	return sect
 }
 
@@ -951,9 +947,9 @@ func peemitreloc(ctxt *Link, text, data, ctors *peSection) {
 
 dwarfLoop:
 	for _, sect := range Segdwarf.Sections {
-		for i, name := range shNames {
-			if sect.Name == name {
-				peemitsectreloc(pefile.sections[i], func() int {
+		for _, pesect := range pefile.sections {
+			if sect.Name == pesect.name {
+				peemitsectreloc(pesect, func() int {
 					return perelocsect(ctxt, sect, dwarfp, sect.Vaddr)
 				})
 				continue dwarfLoop
@@ -1090,9 +1086,9 @@ func writePESymTableRecords(ctxt *Link) int {
 	if Linkmode == LinkExternal {
 		// Include section symbols as external, because
 		// .ctors and .debug_* section relocations refer to it.
-		for idx, name := range shNames {
-			sym := ctxt.Syms.Lookup(name, 0)
-			writeOneSymbol(sym, 0, idx+1, IMAGE_SYM_TYPE_NULL, IMAGE_SYM_CLASS_STATIC)
+		for _, pesect := range pefile.sections {
+			sym := ctxt.Syms.Lookup(pesect.name, 0)
+			writeOneSymbol(sym, 0, pesect.index, IMAGE_SYM_TYPE_NULL, IMAGE_SYM_CLASS_STATIC)
 		}
 	}
 
