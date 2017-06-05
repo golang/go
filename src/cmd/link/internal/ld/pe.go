@@ -328,12 +328,6 @@ var nextsectoff int
 
 var nextfileoff int
 
-var textsect int
-
-var datasect int
-
-var bsssect int
-
 var fh IMAGE_FILE_HEADER
 
 var oh IMAGE_OPTIONAL_HEADER
@@ -456,6 +450,9 @@ func (sect *peSection) write() error {
 type peFile struct {
 	sections    []*peSection
 	stringTable peStringTable
+	textSect    *peSection
+	dataSect    *peSection
+	bssSect     *peSection
 }
 
 // addSection adds section to the COFF file f.
@@ -1066,14 +1063,14 @@ func writePESymTableRecords(ctxt *Link) int {
 			// it still belongs to the .data section, not the .bss section.
 			if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != SDATA && Linkmode == LinkExternal {
 				value = int64(uint64(s.Value) - Segdata.Vaddr - Segdata.Filelen)
-				sect = bsssect
+				sect = pefile.bssSect.index
 			} else {
 				value = int64(uint64(s.Value) - Segdata.Vaddr)
-				sect = datasect
+				sect = pefile.dataSect.index
 			}
 		} else if s.Sect != nil && s.Sect.Seg == &Segtext {
 			value = int64(uint64(s.Value) - Segtext.Vaddr)
-			sect = textsect
+			sect = pefile.textSect.index
 		} else if type_ == UndefinedSym {
 			typ = IMAGE_SYM_DTYPE_FUNCTION
 		} else {
@@ -1232,7 +1229,7 @@ func Asmbpe(ctxt *Link) {
 		t.Characteristics |= IMAGE_SCN_ALIGN_32BYTES
 	}
 	t.checkSegment(&Segtext)
-	textsect = pensect
+	pefile.textSect = t
 
 	var d *peSection
 	var c *peSection
@@ -1240,17 +1237,17 @@ func Asmbpe(ctxt *Link) {
 		d = pefile.addSection(".data", int(Segdata.Length), int(Segdata.Filelen))
 		d.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
 		d.checkSegment(&Segdata)
-		datasect = pensect
+		pefile.dataSect = d
 	} else {
 		d = pefile.addSection(".data", int(Segdata.Filelen), int(Segdata.Filelen))
 		d.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
 		d.checkSegment(&Segdata)
-		datasect = pensect
+		pefile.dataSect = d
 
 		b := pefile.addSection(".bss", int(Segdata.Length-Segdata.Filelen), 0)
 		b.Characteristics = IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
 		b.PointerToRawData = 0
-		bsssect = pensect
+		pefile.bssSect = b
 	}
 
 	if !*FlagS {
