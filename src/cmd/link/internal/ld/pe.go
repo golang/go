@@ -450,6 +450,26 @@ func (f *peFile) addSection(name string, sectsize int, filesize int) *peSection 
 	return sect
 }
 
+// addDWARFSection adds DWARF section to the COFF file f.
+// This function is similar to addSection, but DWARF section names are
+// longer than 8 characters, so they need to be stored in the string table.
+func (f *peFile) addDWARFSection(name string, size int) *peSection {
+	if size == 0 {
+		Exitf("DWARF section %q is empty", name)
+	}
+	// DWARF section names are longer than 8 characters.
+	// PE format requires such names to be stored in string table,
+	// and section names replaced with slash (/) followed by
+	// correspondent string table index.
+	// see http://www.microsoft.com/whdc/system/platform/firmware/PECOFFdwn.mspx
+	// for details
+	off := f.stringTable.add(name)
+	h := f.addSection(name, size, size)
+	h.shortName = fmt.Sprintf("/%d", off)
+	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
+	return h
+}
+
 var pefile peFile
 
 func chksectoff(ctxt *Link, h *peSection, off int64) {
@@ -983,26 +1003,6 @@ func (ctxt *Link) dope() {
 
 	initdynimport(ctxt)
 	initdynexport(ctxt)
-}
-
-/*
- * For more than 8 characters section names, name contains a slash (/) that is
- * followed by an ASCII representation of a decimal number that is an offset into
- * the string table.
- * reference: pecoff_v8.docx Page 24.
- * <http://www.microsoft.com/whdc/system/platform/firmware/PECOFFdwn.mspx>
- */
-func newPEDWARFSection(ctxt *Link, name string, size int64) *peSection {
-	if size == 0 {
-		return nil
-	}
-
-	off := pefile.stringTable.add(name)
-	h := pefile.addSection(name, int(size), int(size))
-	h.shortName = fmt.Sprintf("/%d", off)
-	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
-
-	return h
 }
 
 // writePESymTableRecords writes all COFF symbol table records.

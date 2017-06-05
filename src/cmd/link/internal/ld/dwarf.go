@@ -1668,7 +1668,7 @@ func dwarfaddpeheaders(ctxt *Link) {
 		return
 	}
 	for _, sect := range Segdwarf.Sections {
-		h := newPEDWARFSection(ctxt, sect.Name, int64(sect.Length))
+		h := pefile.addDWARFSection(sect.Name, int(sect.Length))
 		fileoff := sect.Vaddr - Segdwarf.Vaddr + Segdwarf.Fileoff
 		if uint64(h.PointerToRawData) != fileoff {
 			Exitf("%s.PointerToRawData = %#x, want %#x", sect.Name, h.PointerToRawData, fileoff)
