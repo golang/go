@@ -10,7 +10,6 @@ import (
 	"debug/pe"
 	"encoding/binary"
 	"fmt"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -488,6 +487,39 @@ func (f *peFile) addDWARFSection(name string, size int) *peSection {
 	h.shortName = fmt.Sprintf("/%d", off)
 	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
 	return h
+}
+
+// addInitArray adds .ctors COFF section to the file f.
+func (f *peFile) addInitArray(ctxt *Link) *peSection {
+	// The size below was determined by the specification for array relocations,
+	// and by observing what GCC writes here. If the initarray section grows to
+	// contain more than one constructor entry, the size will need to be 8 * constructor_count.
+	// However, the entire Go runtime is initialized from just one function, so it is unlikely
+	// that this will need to grow in the future.
+	var size int
+	switch objabi.GOARCH {
+	default:
+		Exitf("peFile.addInitArray: unsupported GOARCH=%q\n", objabi.GOARCH)
+	case "386":
+		size = 4
+	case "amd64":
+		size = 8
+	}
+	sect := f.addSection(".ctors", size, size)
+	sect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+	sect.SizeOfRawData = uint32(size)
+	Cseek(int64(sect.PointerToRawData))
+	sect.checkOffset(coutbuf.Offset())
+
+	init_entry := ctxt.Syms.Lookup(*flagEntrySymbol, 0)
+	addr := uint64(init_entry.Value) - init_entry.Sect.Vaddr
+	switch objabi.GOARCH {
+	case "386":
+		Lputl(uint32(addr))
+	case "amd64":
+		Vputl(addr)
+	}
+	return sect
 }
 
 var pefile peFile
@@ -1170,42 +1202,6 @@ func addpersrc(ctxt *Link) {
 	dd[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.VirtualSize
 }
 
-func addinitarray(ctxt *Link) (c *peSection) {
-	// The size below was determined by the specification for array relocations,
-	// and by observing what GCC writes here. If the initarray section grows to
-	// contain more than one constructor entry, the size will need to be 8 * constructor_count.
-	// However, the entire Go runtime is initialized from just one function, so it is unlikely
-	// that this will need to grow in the future.
-	var size int
-	switch objabi.GOARCH {
-	default:
-		fmt.Fprintf(os.Stderr, "link: unknown architecture for PE: %q\n", objabi.GOARCH)
-		os.Exit(2)
-	case "386":
-		size = 4
-	case "amd64":
-		size = 8
-	}
-
-	c = pefile.addSection(".ctors", size, size)
-	c.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
-	c.SizeOfRawData = uint32(size)
-
-	Cseek(int64(c.PointerToRawData))
-	c.checkOffset(coutbuf.Offset())
-	init_entry := ctxt.Syms.Lookup(*flagEntrySymbol, 0)
-	addr := uint64(init_entry.Value) - init_entry.Sect.Vaddr
-
-	switch objabi.GOARCH {
-	case "386":
-		Lputl(uint32(addr))
-	case "amd64":
-		Vputl(addr)
-	}
-
-	return c
-}
-
 func Asmbpe(ctxt *Link) {
 	switch SysArch.Family {
 	default:
@@ -1250,7 +1246,7 @@ func Asmbpe(ctxt *Link) {
 	}
 
 	if Linkmode == LinkExternal {
-		c = addinitarray(ctxt)
+		c = pefile.addInitArray(ctxt)
 	}
 
 	Cseek(int64(pefile.nextFileOffset))
