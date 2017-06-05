@@ -322,10 +322,6 @@ var PEFILEHEADR int32
 
 var pe64 int
 
-var nextsectoff int
-
-var nextfileoff int
-
 var fh IMAGE_FILE_HEADER
 
 var oh IMAGE_OPTIONAL_HEADER
@@ -446,11 +442,13 @@ func (sect *peSection) write() error {
 
 // peFile is used to build COFF file.
 type peFile struct {
-	sections    []*peSection
-	stringTable peStringTable
-	textSect    *peSection
-	dataSect    *peSection
-	bssSect     *peSection
+	sections       []*peSection
+	stringTable    peStringTable
+	textSect       *peSection
+	dataSect       *peSection
+	bssSect        *peSection
+	nextSectOffset uint32
+	nextFileOffset uint32
 }
 
 // addSection adds section to the COFF file f.
@@ -460,13 +458,13 @@ func (f *peFile) addSection(name string, sectsize int, filesize int) *peSection 
 		shortName:        name,
 		index:            len(f.sections) + 1,
 		VirtualSize:      uint32(sectsize),
-		VirtualAddress:   uint32(nextsectoff),
-		PointerToRawData: uint32(nextfileoff),
+		VirtualAddress:   f.nextSectOffset,
+		PointerToRawData: f.nextFileOffset,
 	}
-	nextsectoff = int(Rnd(int64(nextsectoff)+int64(sectsize), PESECTALIGN))
+	f.nextSectOffset = uint32(Rnd(int64(f.nextSectOffset)+int64(sectsize), PESECTALIGN))
 	if filesize > 0 {
 		sect.SizeOfRawData = uint32(Rnd(int64(filesize), PEFILEALIGN))
-		nextfileoff += int(sect.SizeOfRawData)
+		f.nextFileOffset += sect.SizeOfRawData
 	}
 	f.sections = append(f.sections, sect)
 	return sect
@@ -524,8 +522,8 @@ func Peinit(ctxt *Link) {
 	} else {
 		PESECTHEADR = 0
 	}
-	nextsectoff = int(PESECTHEADR)
-	nextfileoff = int(PEFILEHEADR)
+	pefile.nextSectOffset = uint32(PESECTHEADR)
+	pefile.nextFileOffset = uint32(PEFILEHEADR)
 
 	if Linkmode == LinkInternal {
 		// some mingw libs depend on this symbol, for example, FindPESectionByName
@@ -695,7 +693,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 	var m *Imp
 	for d := dr; d != nil; d = d.next {
 		for m = d.ms; m != nil; m = m.next {
-			m.off = uint64(nextsectoff) + uint64(coutbuf.Offset()) - uint64(startoff)
+			m.off = uint64(pefile.nextSectOffset) + uint64(coutbuf.Offset()) - uint64(startoff)
 			Wputl(0) // hint
 			strput(m.s.Extname)
 		}
@@ -1255,7 +1253,7 @@ func Asmbpe(ctxt *Link) {
 		c = addinitarray(ctxt)
 	}
 
-	Cseek(int64(nextfileoff))
+	Cseek(int64(pefile.nextFileOffset))
 	if Linkmode != LinkExternal {
 		addimports(ctxt, d)
 		addexports(ctxt)
@@ -1324,8 +1322,8 @@ func Asmbpe(ctxt *Link) {
 	oh.MajorSubsystemVersion = 4
 	oh64.MinorSubsystemVersion = 0
 	oh.MinorSubsystemVersion = 0
-	oh64.SizeOfImage = uint32(nextsectoff)
-	oh.SizeOfImage = uint32(nextsectoff)
+	oh64.SizeOfImage = pefile.nextSectOffset
+	oh.SizeOfImage = pefile.nextSectOffset
 	oh64.SizeOfHeaders = uint32(PEFILEHEADR)
 	oh.SizeOfHeaders = uint32(PEFILEHEADR)
 	if windowsgui {
