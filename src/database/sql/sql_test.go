@@ -2467,6 +2467,32 @@ func TestManyErrBadConn(t *testing.T) {
 	}
 }
 
+// TestIssue20575 ensures the Rows from query does not block
+// closing a transaction. Ensure Rows is closed while closing a trasaction.
+func TestIssue20575(t *testing.T) {
+	db := newTestDB(t, "people")
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err = tx.QueryContext(ctx, "SELECT|people|age,name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Do not close Rows from QueryContext.
+	err = tx.Rollback()
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	default:
+	case <-ctx.Done():
+		t.Fatal("timeout: failed to rollback query without closing rows:", ctx.Err())
+	}
+}
+
 // golang.org/issue/5718
 func TestErrBadConnReconnect(t *testing.T) {
 	db := newTestDB(t, "foo")
