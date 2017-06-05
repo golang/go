@@ -456,10 +456,6 @@ func (f *peFile) addSection(name string, sectsize int, filesize int) *peSection 
 
 var pefile peFile
 
-func addpesection(ctxt *Link, name string, sectsize int, filesize int) *peSection {
-	return pefile.addSection(name, sectsize, filesize)
-}
-
 func chksectoff(ctxt *Link, h *peSection, off int64) {
 	if off != int64(h.PointerToRawData) {
 		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", h.name, uint64(int64(h.PointerToRawData)), uint64(off))
@@ -710,7 +706,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 	// add pe section and pad it at the end
 	n = uint64(coutbuf.Offset()) - uint64(startoff)
 
-	isect := addpesection(ctxt, ".idata", int(n), int(n))
+	isect := pefile.addSection(".idata", int(n), int(n))
 	isect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
 	chksectoff(ctxt, isect, startoff)
 	strnput("", int(uint64(isect.SizeOfRawData)-n))
@@ -798,7 +794,7 @@ func addexports(ctxt *Link) {
 		return
 	}
 
-	sect := addpesection(ctxt, ".edata", size, size)
+	sect := pefile.addSection(".edata", size, size)
 	sect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
 	chksectoff(ctxt, sect, coutbuf.Offset())
 	va := int(sect.VirtualAddress)
@@ -1120,7 +1116,7 @@ func addpesymtable(ctxt *Link) {
 	if Linkmode != LinkExternal {
 		// We do not really need .symtab for go.o, and if we have one, ld
 		// will also include it in the exe, and that will confuse windows.
-		h = addpesection(ctxt, ".symtab", size, size)
+		h = pefile.addSection(".symtab", size, size)
 		h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
 		chksectoff(ctxt, h, symtabStartPos)
 	}
@@ -1147,7 +1143,7 @@ func addpersrc(ctxt *Link) {
 		return
 	}
 
-	h := addpesection(ctxt, ".rsrc", int(rsrcsym.Size), int(rsrcsym.Size))
+	h := pefile.addSection(".rsrc", int(rsrcsym.Size), int(rsrcsym.Size))
 	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA
 	chksectoff(ctxt, h, coutbuf.Offset())
 
@@ -1194,7 +1190,7 @@ func addinitarray(ctxt *Link) (c *peSection) {
 		size = 8
 	}
 
-	c = addpesection(ctxt, ".ctors", size, size)
+	c = pefile.addSection(".ctors", size, size)
 	c.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
 	c.SizeOfRawData = uint32(size)
 
@@ -1223,7 +1219,7 @@ func Asmbpe(ctxt *Link) {
 		fh.Machine = IMAGE_FILE_MACHINE_I386
 	}
 
-	t := addpesection(ctxt, ".text", int(Segtext.Length), int(Segtext.Length))
+	t := pefile.addSection(".text", int(Segtext.Length), int(Segtext.Length))
 	t.Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
 	if Linkmode == LinkExternal {
 		// some data symbols (e.g. masks) end up in the .text section, and they normally
@@ -1236,17 +1232,17 @@ func Asmbpe(ctxt *Link) {
 	var d *peSection
 	var c *peSection
 	if Linkmode != LinkExternal {
-		d = addpesection(ctxt, ".data", int(Segdata.Length), int(Segdata.Filelen))
+		d = pefile.addSection(".data", int(Segdata.Length), int(Segdata.Filelen))
 		d.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
 		chksectseg(ctxt, d, &Segdata)
 		datasect = pensect
 	} else {
-		d = addpesection(ctxt, ".data", int(Segdata.Filelen), int(Segdata.Filelen))
+		d = pefile.addSection(".data", int(Segdata.Filelen), int(Segdata.Filelen))
 		d.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
 		chksectseg(ctxt, d, &Segdata)
 		datasect = pensect
 
-		b := addpesection(ctxt, ".bss", int(Segdata.Length-Segdata.Filelen), 0)
+		b := pefile.addSection(".bss", int(Segdata.Length-Segdata.Filelen), 0)
 		b.Characteristics = IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
 		b.PointerToRawData = 0
 		bsssect = pensect
