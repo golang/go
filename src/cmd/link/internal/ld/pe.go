@@ -322,8 +322,6 @@ var PEFILEHEADR int32
 
 var pe64 int
 
-var pensect int
-
 var nextsectoff int
 
 var nextfileoff int
@@ -471,7 +469,6 @@ func (f *peFile) addSection(name string, sectsize int, filesize int) *peSection 
 		nextfileoff += int(sect.SizeOfRawData)
 	}
 	f.sections = append(f.sections, sect)
-	pensect++
 	return sect
 }
 
@@ -1269,7 +1266,7 @@ func Asmbpe(ctxt *Link) {
 		peemitreloc(ctxt, t, d, c)
 	}
 
-	fh.NumberOfSections = uint16(pensect)
+	fh.NumberOfSections = uint16(len(pefile.sections))
 
 	// Being able to produce identical output for identical input is
 	// much more beneficial than having build timestamp in the header.
