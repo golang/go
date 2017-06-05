@@ -427,44 +427,46 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 // processBench runs bench b for the configured CPU counts and prints the results.
 func (ctx *benchContext) processBench(b *B) {
 	for i, procs := range cpuList {
-		runtime.GOMAXPROCS(procs)
-		benchName := benchmarkName(b.name, procs)
-		fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
-		// Recompute the running time for all but the first iteration.
-		if i > 0 {
-			b = &B{
-				common: common{
-					signal: make(chan bool),
-					name:   b.name,
-					w:      b.w,
-					chatty: b.chatty,
-				},
-				benchFunc: b.benchFunc,
-				benchTime: b.benchTime,
+		for j := uint(0); j < *count; j++ {
+			runtime.GOMAXPROCS(procs)
+			benchName := benchmarkName(b.name, procs)
+			fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
+			// Recompute the running time for all but the first iteration.
+			if i > 0 || j > 0 {
+				b = &B{
+					common: common{
+						signal: make(chan bool),
+						name:   b.name,
+						w:      b.w,
+						chatty: b.chatty,
+					},
+					benchFunc: b.benchFunc,
+					benchTime: b.benchTime,
+				}
+				b.run1()
 			}
-			b.run1()
-		}
-		r := b.doBench()
-		if b.failed {
-			// The output could be very long here, but probably isn't.
-			// We print it all, regardless, because we don't want to trim the reason
-			// the benchmark failed.
-			fmt.Fprintf(b.w, "--- FAIL: %s\n%s", benchName, b.output)
-			continue
-		}
-		results := r.String()
-		if *benchmarkMemory || b.showAllocResult {
-			results += "\t" + r.MemString()
-		}
-		fmt.Fprintln(b.w, results)
-		// Unlike with tests, we ignore the -chatty flag and always print output for
-		// benchmarks since the output generation time will skew the results.
-		if len(b.output) > 0 {
-			b.trimOutput()
-			fmt.Fprintf(b.w, "--- BENCH: %s\n%s", benchName, b.output)
-		}
-		if p := runtime.GOMAXPROCS(-1); p != procs {
-			fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
+			r := b.doBench()
+			if b.failed {
+				// The output could be very long here, but probably isn't.
+				// We print it all, regardless, because we don't want to trim the reason
+				// the benchmark failed.
+				fmt.Fprintf(b.w, "--- FAIL: %s\n%s", benchName, b.output)
+				continue
+			}
+			results := r.String()
+			if *benchmarkMemory || b.showAllocResult {
+				results += "\t" + r.MemString()
+			}
+			fmt.Fprintln(b.w, results)
+			// Unlike with tests, we ignore the -chatty flag and always print output for
+			// benchmarks since the output generation time will skew the results.
+			if len(b.output) > 0 {
+				b.trimOutput()
+				fmt.Fprintf(b.w, "--- BENCH: %s\n%s", benchName, b.output)
+			}
+			if p := runtime.GOMAXPROCS(-1); p != procs {
+				fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
+			}
 		}
 	}
 }

@@ -991,27 +991,29 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 	ok = true
 	for _, procs := range cpuList {
 		runtime.GOMAXPROCS(procs)
-		ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
-		t := &T{
-			common: common{
-				signal:  make(chan bool),
-				barrier: make(chan bool),
-				w:       os.Stdout,
-				chatty:  *chatty,
-			},
-			context: ctx,
-		}
-		tRunner(t, func(t *T) {
-			for _, test := range tests {
-				t.Run(test.Name, test.F)
+		for i := uint(0); i < *count; i++ {
+			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
+			t := &T{
+				common: common{
+					signal:  make(chan bool),
+					barrier: make(chan bool),
+					w:       os.Stdout,
+					chatty:  *chatty,
+				},
+				context: ctx,
 			}
-			// Run catching the signal rather than the tRunner as a separate
-			// goroutine to avoid adding a goroutine during the sequential
-			// phase as this pollutes the stacktrace output when aborting.
-			go func() { <-t.signal }()
-		})
-		ok = ok && !t.Failed()
-		ran = ran || t.ran
+			tRunner(t, func(t *T) {
+				for _, test := range tests {
+					t.Run(test.Name, test.F)
+				}
+				// Run catching the signal rather than the tRunner as a separate
+				// goroutine to avoid adding a goroutine during the sequential
+				// phase as this pollutes the stacktrace output when aborting.
+				go func() { <-t.signal }()
+			})
+			ok = ok && !t.Failed()
+			ran = ran || t.ran
+		}
 	}
 	return ran, ok
 }
@@ -1167,13 +1169,9 @@ func parseCpuList() {
 			fmt.Fprintf(os.Stderr, "testing: invalid value %q for -test.cpu\n", val)
 			os.Exit(1)
 		}
-		for i := uint(0); i < *count; i++ {
-			cpuList = append(cpuList, cpu)
-		}
+		cpuList = append(cpuList, cpu)
 	}
 	if cpuList == nil {
-		for i := uint(0); i < *count; i++ {
-			cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
-		}
+		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
 	}
 }
