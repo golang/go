@@ -428,6 +428,13 @@ func (sect *peSection) checkSegment(seg *Segment) {
 	}
 }
 
+// pad adds zeros to the section sect. It writes as many bytes
+// as necessary to make section sect.SizeOfRawData bytes long.
+// It assumes that n bytes are already written to the file.
+func (sect *peSection) pad(n uint32) {
+	strnput("", int(sect.SizeOfRawData-n))
+}
+
 // write writes COFF section sect into the output file.
 func (sect *peSection) write() error {
 	h := pe.SectionHeader32{
@@ -727,7 +734,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 	isect := pefile.addSection(".idata", int(n), int(n))
 	isect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
 	isect.checkOffset(startoff)
-	strnput("", int(uint64(isect.SizeOfRawData)-n))
+	isect.pad(uint32(n))
 	endoff := coutbuf.Offset()
 
 	// write FirstThunks (allocated in .data section)
@@ -861,7 +868,7 @@ func addexports(ctxt *Link) {
 	for i := 0; i < nexport; i++ {
 		strnput(dexport[i].Extname, len(dexport[i].Extname)+1)
 	}
-	strnput("", int(sect.SizeOfRawData-uint32(size)))
+	sect.pad(uint32(size))
 }
 
 // perelocsect relocates symbols from first in section sect, and returns
@@ -1124,7 +1131,7 @@ func addpesymtable(ctxt *Link) {
 	// write COFF string table
 	pefile.stringTable.write()
 	if Linkmode != LinkExternal {
-		strnput("", int(h.SizeOfRawData-uint32(size)))
+		h.pad(uint32(size))
 	}
 }
 
@@ -1163,7 +1170,7 @@ func addpersrc(ctxt *Link) {
 	}
 
 	Cwrite(rsrcsym.P)
-	strnput("", int(int64(h.SizeOfRawData)-rsrcsym.Size))
+	h.pad(uint32(rsrcsym.Size))
 
 	// update data directory
 	dd[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress = h.VirtualAddress
