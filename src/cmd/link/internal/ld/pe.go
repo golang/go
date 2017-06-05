@@ -415,6 +415,19 @@ func (sect *peSection) checkOffset(off int64) {
 	}
 }
 
+// checkSegment verifies COFF section sect matches address
+// and file offset provided in segment seg.
+func (sect *peSection) checkSegment(seg *Segment) {
+	if seg.Vaddr-PEBASE != uint64(sect.VirtualAddress) {
+		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", sect.name, uint64(int64(sect.VirtualAddress)), uint64(int64(seg.Vaddr-PEBASE)))
+		errorexit()
+	}
+	if seg.Fileoff != uint64(sect.PointerToRawData) {
+		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", sect.name, uint64(int64(sect.PointerToRawData)), uint64(int64(seg.Fileoff)))
+		errorexit()
+	}
+}
+
 // write writes COFF section sect into the output file.
 func (sect *peSection) write() error {
 	h := pe.SectionHeader32{
@@ -479,18 +492,6 @@ func (f *peFile) addDWARFSection(name string, size int) *peSection {
 }
 
 var pefile peFile
-
-func chksectseg(ctxt *Link, h *peSection, s *Segment) {
-	if s.Vaddr-PEBASE != uint64(h.VirtualAddress) {
-		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", h.name, uint64(int64(h.VirtualAddress)), uint64(int64(s.Vaddr-PEBASE)))
-		errorexit()
-	}
-
-	if s.Fileoff != uint64(h.PointerToRawData) {
-		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", h.name, uint64(int64(h.PointerToRawData)), uint64(int64(s.Fileoff)))
-		errorexit()
-	}
-}
 
 func Peinit(ctxt *Link) {
 	var l int
@@ -1223,7 +1224,7 @@ func Asmbpe(ctxt *Link) {
 		// expect larger alignment requirement than the default text section alignment.
 		t.Characteristics |= IMAGE_SCN_ALIGN_32BYTES
 	}
-	chksectseg(ctxt, t, &Segtext)
+	t.checkSegment(&Segtext)
 	textsect = pensect
 
 	var d *peSection
@@ -1231,12 +1232,12 @@ func Asmbpe(ctxt *Link) {
 	if Linkmode != LinkExternal {
 		d = pefile.addSection(".data", int(Segdata.Length), int(Segdata.Filelen))
 		d.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
-		chksectseg(ctxt, d, &Segdata)
+		d.checkSegment(&Segdata)
 		datasect = pensect
 	} else {
 		d = pefile.addSection(".data", int(Segdata.Filelen), int(Segdata.Filelen))
 		d.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
-		chksectseg(ctxt, d, &Segdata)
+		d.checkSegment(&Segdata)
 		datasect = pensect
 
 		b := pefile.addSection(".bss", int(Segdata.Length-Segdata.Filelen), 0)
