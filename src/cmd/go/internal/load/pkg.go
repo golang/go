@@ -1628,6 +1628,7 @@ func computeBuildID(p *Package) {
 		p.CgoFiles,
 		p.CFiles,
 		p.CXXFiles,
+		p.FFiles,
 		p.MFiles,
 		p.HFiles,
 		p.SFiles,
