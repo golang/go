@@ -63,6 +63,7 @@ func (f *File) ParseGo(name string, src []byte) {
 
 	f.Package = ast1.Name.Name
 	f.Name = make(map[string]*Name)
+	f.NamePos = make(map[*Name]token.Pos)
 
 	// In ast1, find the import "C" line and get any extra C preamble.
 	sawC := false
@@ -212,6 +213,7 @@ func (f *File) saveRef(n *ast.Expr, context string) {
 			Go: goname,
 		}
 		f.Name[goname] = name
+		f.NamePos[name] = sel.Pos()
 	}
 	f.Ref = append(f.Ref, &Ref{
 		Name:    name,
