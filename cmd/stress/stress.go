@@ -4,14 +4,14 @@
 
 // +build !plan9
 
-// The stress utility is intended for catching of episodic failures.
+// The stress utility is intended for catching sporadic failures.
 // It runs a given process in parallel in a loop and collects any failures.
 // Usage:
 // 	$ stress ./fmt.test -test.run=TestSometing -test.cpu=10
 // You can also specify a number of parallel processes with -p flag;
 // instruct the utility to not kill hanged processes for gdb attach;
 // or specify the failure output you are looking for (if you want to
-// ignore some other episodic failures).
+// ignore some other sporadic failures).
 package main
 
 import (
@@ -33,6 +33,19 @@ var (
 	flagFailure = flag.String("failure", "", "fail only if output matches `regexp`")
 	flagIgnore  = flag.String("ignore", "", "ignore failure if output matches `regexp`")
 )
+
+func init() {
+	flag.Usage = func() {
+		os.Stderr.WriteString(`The stress utility is intended for catching sporadic failures.
+It runs a given process in parallel in a loop and collects any failures.
+Usage:
+
+	$ stress ./fmt.test -test.run=TestSometing -test.cpu=10
+
+`)
+		flag.PrintDefaults()
+	}
+}
 
 func main() {
 	flag.Parse()
