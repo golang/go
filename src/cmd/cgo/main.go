@@ -54,6 +54,7 @@ type File struct {
 	Calls    []*Call             // all calls to C.xxx in AST
 	ExpFunc  []*ExpFunc          // exported functions for this file
 	Name     map[string]*Name    // map from Go name to Name
+	NamePos  map[*Name]token.Pos // map from Name to position of the first reference
 }
 
 func nameKeys(m map[string]*Name) []string {

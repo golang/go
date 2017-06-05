@@ -438,14 +438,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 	for i, n := range names {
 		switch sniff[i] &^ notSignedIntConst {
 		default:
-			var tpos token.Pos
-			for _, ref := range f.Ref {
-				if ref.Name == n {
-					tpos = ref.Pos()
-					break
-				}
-			}
-			error_(tpos, "could not determine kind of name for C.%s", fixGo(n.Go))
+			error_(f.NamePos[n], "could not determine kind of name for C.%s", fixGo(n.Go))
 		case notStrLiteral | notType:
 			if sniff[i]&notSignedIntConst != 0 {
 				n.Kind = "uconst"
@@ -543,10 +536,6 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 
 	// Scan DWARF info for top-level TagVariable entries with AttrName __cgo__i.
 	types := make([]dwarf.Type, len(names))
-	nameToRef := make(map[*Name]*Ref)
-	for _, ref := range f.Ref {
-		nameToRef[ref.Name] = ref
-	}
 	r := d.Reader()
 	for {
 		e, err := r.Next()
@@ -597,10 +586,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 		if types[i] == nil {
 			continue
 		}
-		pos := token.NoPos
-		if ref, ok := nameToRef[n]; ok {
-			pos = ref.Pos()
-		}
+		pos := f.NamePos[n]
 		f, fok := types[i].(*dwarf.FuncType)
 		if n.Kind != "type" && fok {
 			n.Kind = "func"
