@@ -39,10 +39,11 @@
 // The Time returned by time.Now contains a monotonic clock reading.
 // If Time t has a monotonic clock reading, t.Add adds the same duration to
 // both the wall clock and monotonic clock readings to compute the result.
-// Similarly, t.In, t.Local, and t.UTC, which are defined to change only the Time's
-// Location, pass any monotonic clock reading through unmodified.
 // Because t.AddDate(y, m, d), t.Round(d), and t.Truncate(d) are wall time
 // computations, they always strip any monotonic clock reading from their results.
+// Because t.In, t.Local, and t.UTC are used for their effect on the interpretation
+// of the wall time, they also strip any monotonic clock reading from their results.
+// The canonical way to strip a monotonic clock reading is to use t = t.Round(0).
 //
 // If Times t and u both contain monotonic clock readings, the operations
 // t.After(u), t.Before(u), t.Equal(u), and t.Sub(u) are carried out
@@ -64,7 +65,7 @@
 // constructed by other means (for example, by time.Parse or time.Unix)
 // are meant to compare equal when used as map keys, the times returned
 // by time.Now must have the monotonic clock reading stripped, by setting
-// t = t.AddDate(0, 0, 0). In general, prefer t.Equal(u) to t == u, since
+// t = t.Round(0). In general, prefer t.Equal(u) to t == u, since
 // t.Equal uses the most accurate comparison available and correctly
 // handles the case when only one of its arguments has a monotonic clock
 // reading.
@@ -186,6 +187,7 @@ func (t *Time) setLoc(loc *Location) {
 	if loc == &utcLoc {
 		loc = nil
 	}
+	t.stripMono()
 	t.loc = loc
 }
 
