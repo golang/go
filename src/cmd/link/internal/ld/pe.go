@@ -65,19 +65,6 @@ type IMAGE_OPTIONAL_HEADER struct {
 	DataDirectory               [16]IMAGE_DATA_DIRECTORY
 }
 
-type IMAGE_SECTION_HEADER struct {
-	Name                 [8]uint8
-	VirtualSize          uint32
-	VirtualAddress       uint32
-	SizeOfRawData        uint32
-	PointerToRawData     uint32
-	PointerToRelocations uint32
-	PointerToLineNumbers uint32
-	NumberOfRelocations  uint16
-	NumberOfLineNumbers  uint16
-	Characteristics      uint32
-}
-
 type IMAGE_IMPORT_DESCRIPTOR struct {
 	OriginalFirstThunk uint32
 	TimeDateStamp      uint32
@@ -353,8 +340,6 @@ var oh IMAGE_OPTIONAL_HEADER
 
 var oh64 PE64_IMAGE_OPTIONAL_HEADER
 
-var sh [16]IMAGE_SECTION_HEADER
-
 // shNames stores full names of PE sections stored in sh.
 var shNames []string
 
@@ -465,52 +450,31 @@ func (f *peFile) addSection(name string, sectsize int, filesize int) *peSection 
 	}
 	f.sections = append(f.sections, sect)
 	pensect++
+	shNames = append(shNames, name)
 	return sect
 }
 
 var pefile peFile
 
-func addpesectionWithLongName(ctxt *Link, shortname, longname string, sectsize int, filesize int) *IMAGE_SECTION_HEADER {
-	if pensect == 16 {
-		Errorf(nil, "too many sections")
-		errorexit()
-	}
-
-	h := &sh[pensect]
-	pensect++
-	copy(h.Name[:], shortname)
-	shNames = append(shNames, longname)
-	h.VirtualSize = uint32(sectsize)
-	h.VirtualAddress = uint32(nextsectoff)
-	nextsectoff = int(Rnd(int64(nextsectoff)+int64(sectsize), PESECTALIGN))
-	h.PointerToRawData = uint32(nextfileoff)
-	if filesize > 0 {
-		h.SizeOfRawData = uint32(Rnd(int64(filesize), PEFILEALIGN))
-		nextfileoff += int(h.SizeOfRawData)
-	}
-
-	return h
+func addpesection(ctxt *Link, name string, sectsize int, filesize int) *peSection {
+	return pefile.addSection(name, sectsize, filesize)
 }
 
-func addpesection(ctxt *Link, name string, sectsize int, filesize int) *IMAGE_SECTION_HEADER {
-	return addpesectionWithLongName(ctxt, name, name, sectsize, filesize)
-}
-
-func chksectoff(ctxt *Link, h *IMAGE_SECTION_HEADER, off int64) {
+func chksectoff(ctxt *Link, h *peSection, off int64) {
 	if off != int64(h.PointerToRawData) {
-		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(off))
+		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", h.name, uint64(int64(h.PointerToRawData)), uint64(off))
 		errorexit()
 	}
 }
 
-func chksectseg(ctxt *Link, h *IMAGE_SECTION_HEADER, s *Segment) {
+func chksectseg(ctxt *Link, h *peSection, s *Segment) {
 	if s.Vaddr-PEBASE != uint64(h.VirtualAddress) {
-		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.VirtualAddress)), uint64(int64(s.Vaddr-PEBASE)))
+		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", h.name, uint64(int64(h.VirtualAddress)), uint64(int64(s.Vaddr-PEBASE)))
 		errorexit()
 	}
 
 	if s.Fileoff != uint64(h.PointerToRawData) {
-		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(int64(s.Fileoff)))
+		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", h.name, uint64(int64(h.PointerToRawData)), uint64(int64(s.Fileoff)))
 		errorexit()
 	}
 }
@@ -538,6 +502,7 @@ func Peinit(ctxt *Link) {
 		PEFILEALIGN = 0
 	}
 
+	var sh [16]pe.SectionHeader32
 	PEFILEHEADR = int32(Rnd(int64(len(dosstub)+binary.Size(&fh)+l+binary.Size(&sh)), PEFILEALIGN))
 	if Linkmode != LinkExternal {
 		PESECTHEADR = int32(Rnd(int64(PEFILEHEADR), PESECTALIGN))
@@ -582,12 +547,9 @@ func pewrite() {
 	} else {
 		binary.Write(&coutbuf, binary.LittleEndian, &oh)
 	}
-	if Linkmode == LinkExternal {
-		for i := range sh[:pensect] {
-			sh[i].VirtualAddress = 0
-		}
+	for _, sect := range pefile.sections {
+		sect.write()
 	}
-	binary.Write(&coutbuf, binary.LittleEndian, sh[:pensect])
 }
 
 func strput(s string) {
@@ -696,7 +658,7 @@ func peimporteddlls() []string {
 	return dlls
 }
 
-func addimports(ctxt *Link, datsect *IMAGE_SECTION_HEADER) {
+func addimports(ctxt *Link, datsect *peSection) {
 	startoff := coutbuf.Offset()
 	dynamic := ctxt.Syms.Lookup(".windynamic", 0)
 
@@ -947,7 +909,7 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol, base uint64) int {
 // The actual relocations are emitted by relocfn.
 // This updates the corresponding PE section table entry
 // with the relocation offset and count.
-func peemitsectreloc(sect *IMAGE_SECTION_HEADER, relocfn func() int) {
+func peemitsectreloc(sect *peSection, relocfn func() int) {
 	sect.PointerToRelocations = uint32(coutbuf.Offset())
 	// first entry: extended relocs
 	Lputl(0) // placeholder for number of relocation + 1
@@ -970,7 +932,7 @@ func peemitsectreloc(sect *IMAGE_SECTION_HEADER, relocfn func() int) {
 }
 
 // peemitreloc emits relocation entries for go.o in external linking.
-func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
+func peemitreloc(ctxt *Link, text, data, ctors *peSection) {
 	for coutbuf.Offset()&7 != 0 {
 		Cput(0)
 	}
@@ -995,7 +957,7 @@ dwarfLoop:
 	for _, sect := range Segdwarf.Sections {
 		for i, name := range shNames {
 			if sect.Name == name {
-				peemitsectreloc(&sh[i], func() int {
+				peemitsectreloc(pefile.sections[i], func() int {
 					return perelocsect(ctxt, sect, dwarfp, sect.Vaddr)
 				})
 				continue dwarfLoop
@@ -1038,14 +1000,14 @@ func (ctxt *Link) dope() {
  * reference: pecoff_v8.docx Page 24.
  * <http://www.microsoft.com/whdc/system/platform/firmware/PECOFFdwn.mspx>
  */
-func newPEDWARFSection(ctxt *Link, name string, size int64) *IMAGE_SECTION_HEADER {
+func newPEDWARFSection(ctxt *Link, name string, size int64) *peSection {
 	if size == 0 {
 		return nil
 	}
 
 	off := pefile.stringTable.add(name)
-	s := fmt.Sprintf("/%d", off)
-	h := addpesectionWithLongName(ctxt, s, name, int(size), int(size))
+	h := pefile.addSection(name, int(size), int(size))
+	h.shortName = fmt.Sprintf("/%d", off)
 	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
 
 	return h
@@ -1154,7 +1116,7 @@ func addpesymtable(ctxt *Link) {
 
 	// update COFF file header and section table
 	size := pefile.stringTable.size() + 18*symcnt
-	var h *IMAGE_SECTION_HEADER
+	var h *peSection
 	if Linkmode != LinkExternal {
 		// We do not really need .symtab for go.o, and if we have one, ld
 		// will also include it in the exe, and that will confuse windows.
@@ -1215,7 +1177,7 @@ func addpersrc(ctxt *Link) {
 	dd[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.VirtualSize
 }
 
-func addinitarray(ctxt *Link) (c *IMAGE_SECTION_HEADER) {
+func addinitarray(ctxt *Link) (c *peSection) {
 	// The size below was determined by the specification for array relocations,
 	// and by observing what GCC writes here. If the initarray section grows to
 	// contain more than one constructor entry, the size will need to be 8 * constructor_count.
@@ -1271,8 +1233,8 @@ func Asmbpe(ctxt *Link) {
 	chksectseg(ctxt, t, &Segtext)
 	textsect = pensect
 
-	var d *IMAGE_SECTION_HEADER
-	var c *IMAGE_SECTION_HEADER
+	var d *peSection
+	var c *peSection
 	if Linkmode != LinkExternal {
 		d = addpesection(ctxt, ".data", int(Segdata.Length), int(Segdata.Filelen))
 		d.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
