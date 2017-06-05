@@ -87,8 +87,8 @@ func TestFirstZone(t *testing.T) {
 		{
 			"Pacific/Fakaofo",
 			1325242799,
-			"Thu, 29 Dec 2011 23:59:59 -1100 (TKT)",
-			"Sat, 31 Dec 2011 00:00:00 +1300 (TKT)",
+			"Thu, 29 Dec 2011 23:59:59 -1100 (-11)",
+			"Sat, 31 Dec 2011 00:00:00 +1300 (+13)",
 		},
 	}
 
