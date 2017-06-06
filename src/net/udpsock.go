@@ -98,13 +98,7 @@ func (c *UDPConn) SyscallConn() (syscall.RawConn, error) {
 	return newRawConn(c.fd)
 }
 
-// ReadFromUDP reads a UDP packet from c, copying the payload into b.
-// It returns the number of bytes copied into b and the return address
-// that was on the packet.
-//
-// ReadFromUDP can be made to time out and return an error with
-// Timeout() == true after a fixed time limit; see SetDeadline and
-// SetReadDeadline.
+// ReadFromUDP acts like ReadFrom but returns a UDPAddr.
 func (c *UDPConn) ReadFromUDP(b []byte) (int, *UDPAddr, error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
@@ -131,11 +125,13 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 	return n, addr, err
 }
 
-// ReadMsgUDP reads a packet from c, copying the payload into b and
-// the associated out-of-band data into oob. It returns the number
-// of bytes copied into b, the number of bytes copied into oob, the
-// flags that were set on the packet and the source address of the
-// packet.
+// ReadMsgUDP reads a message from c, copying the payload into b and
+// the associated out-of-band data into oob. It returns the number of
+// bytes copied into b, the number of bytes copied into oob, the flags
+// that were set on the message and the source address of the message.
+//
+// The packages golang.org/x/net/ipv4 and golang.org/x/net/ipv6 can be
+// used to manipulate IP-level socket options in oob.
 func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {
 	if !c.ok() {
 		return 0, 0, 0, nil, syscall.EINVAL
@@ -147,13 +143,7 @@ func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, 
 	return
 }
 
-// WriteToUDP writes a UDP packet to addr via c, copying the payload
-// from b.
-//
-// WriteToUDP can be made to time out and return an error with
-// Timeout() == true after a fixed time limit; see SetDeadline and
-// SetWriteDeadline. On packet-oriented connections, write timeouts
-// are rare.
+// WriteToUDP acts like WriteTo but takes a UDPAddr.
 func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
@@ -181,11 +171,14 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
 	return n, err
 }
 
-// WriteMsgUDP writes a packet to addr via c if c isn't connected, or
-// to c's remote destination address if c is connected (in which case
-// addr must be nil).  The payload is copied from b and the associated
-// out-of-band data is copied from oob. It returns the number of
-// payload and out-of-band bytes written.
+// WriteMsgUDP writes a message to addr via c if c isn't connected, or
+// to c's remote address if c is connected (in which case addr must be
+// nil). The payload is copied from b and the associated out-of-band
+// data is copied from oob. It returns the number of payload and
+// out-of-band bytes written.
+//
+// The packages golang.org/x/net/ipv4 and golang.org/x/net/ipv6 can be
+// used to manipulate IP-level socket options in oob.
 func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {
 	if !c.ok() {
 		return 0, 0, syscall.EINVAL
