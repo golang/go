@@ -1221,7 +1221,7 @@ func cmdbanner() {
 			pathsep = ";"
 		}
 		if !strings.Contains(pathsep+os.Getenv("PATH")+pathsep, pathsep+gobin+pathsep) {
-			xprintf("*** You need to add %s to your PATH.\n", gobin)
+			xprintf("*** You need to add %s to your $PATH.\n", gobin)
 		}
 	}
 
