@@ -117,7 +117,11 @@ func dse(f *Func) {
 		}
 		// walk to previous store
 		if v.Op == OpPhi {
-			continue // At start of block.  Move on to next block.
+			// At start of block.  Move on to next block.
+			// The memory phi, if it exists, is always
+			// the first logical store in the block.
+			// (Even if it isn't the first in the current b.Values order.)
+			continue
 		}
 		for _, a := range v.Args {
 			if a.Block == b && a.Type.IsMemory() {
