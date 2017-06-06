@@ -562,7 +562,7 @@ better than our O(3 * (u+v)) as gcd(u,v) <= u.
 
 Stable sorting by SymMerge and BlockSwap rotations
 
-SymMerg complexity for same size input M = N:
+SymMerge complexity for same size input M = N:
 Calls to Less:  O(M*log(N/M+1)) = O(N*log(2)) = O(N)
 Calls to Swap:  O((M+N)*log(M)) = O(2*N*log(N)) = O(N*log(N))
 
