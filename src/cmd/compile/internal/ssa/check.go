@@ -444,6 +444,22 @@ func memCheck(f *Func) {
 			}
 		}
 	}
+
+	// Check that after scheduling, phis are always first in the block.
+	if f.scheduled {
+		for _, b := range f.Blocks {
+			seenNonPhi := false
+			for _, v := range b.Values {
+				if v.Op == OpPhi {
+					if seenNonPhi {
+						f.Fatalf("phi after non-phi @ %s: %s", b, v)
+					}
+				} else {
+					seenNonPhi = true
+				}
+			}
+		}
+	}
 }
 
 // domCheck reports whether x dominates y (including x==y).

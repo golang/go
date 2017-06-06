@@ -211,6 +211,8 @@ search:
 		}
 		if v.Op == OpPhi {
 			// A Phi implies we have reached the top of the block.
+			// The memory phi, if it exists, is always
+			// the first logical store in the block.
 			continue search
 		}
 		if v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
@@ -228,6 +230,8 @@ search:
 				const limit = 50
 				for i := 0; i < limit; i++ {
 					if m.Op == OpPhi {
+						// The memory phi, if it exists, is always
+						// the first logical store in the block.
 						break
 					}
 					if m.Block.ID != target.Block.ID {
