@@ -395,3 +395,12 @@ func TestRaceSignal(t *testing.T) {
 		t.Errorf("expected %q got %s", want, got)
 	}
 }
+
+func TestCgoNumGoroutine(t *testing.T) {
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "NumGoroutine")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}

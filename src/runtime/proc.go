@@ -1435,6 +1435,10 @@ func needm(x byte) {
 	// Initialize this thread to use the m.
 	asminit()
 	minit()
+
+	// mp.curg is now a real goroutine.
+	casgstatus(mp.curg, _Gdead, _Gsyscall)
+	atomic.Xadd(&sched.ngsys, -1)
 }
 
 var earlycgocallback = []byte("fatal error: cgo callback before cgo call\n")
@@ -1477,9 +1481,11 @@ func oneNewExtraM() {
 	gp.stktopsp = gp.sched.sp
 	gp.gcscanvalid = true
 	gp.gcscandone = true
-	// malg returns status as Gidle, change to Gsyscall before adding to allg
-	// where GC will see it.
-	casgstatus(gp, _Gidle, _Gsyscall)
+	// malg returns status as _Gidle. Change to _Gdead before
+	// adding to allg where GC can see it. We use _Gdead to hide
+	// this from tracebacks and stack scans since it isn't a
+	// "real" goroutine until needm grabs it.
+	casgstatus(gp, _Gidle, _Gdead)
 	gp.m = mp
 	mp.curg = gp
 	mp.locked = _LockInternal
@@ -1491,6 +1497,12 @@ func oneNewExtraM() {
 	}
 	// put on allg for garbage collector
 	allgadd(gp)
+
+	// gp is now on the allg list, but we don't want it to be
+	// counted by gcount. It would be more "proper" to increment
+	// sched.ngfree, but that requires locking. Incrementing ngsys
+	// has the same effect.
+	atomic.Xadd(&sched.ngsys, +1)
 
 	// Add m to the extra list.
 	mnext := lockextra(true)
@@ -1527,6 +1539,10 @@ func dropm() {
 	// After the call to setg we can only call nosplit functions
 	// with no pointer manipulation.
 	mp := getg().m
+
+	// Return mp.curg to dead state.
+	casgstatus(mp.curg, _Gsyscall, _Gdead)
+	atomic.Xadd(&sched.ngsys, +1)
 
 	// Block signals before unminit.
 	// Unminit unregisters the signal handling stack (but needs g on some systems).
