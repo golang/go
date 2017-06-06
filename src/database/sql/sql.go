@@ -1156,10 +1156,10 @@ func (db *DB) Prepare(query string) (*Stmt, error) {
 
 func (db *DB) prepare(ctx context.Context, query string, strategy connReuseStrategy) (*Stmt, error) {
 	// TODO: check if db.driver supports an optional
-	// driver.Preparer interface and call that instead, if so,
-	// otherwise we make a prepared statement that's bound
-	// to a connection, and to execute this prepared statement
-	// we either need to use this connection (if it's free), else
+	// driver.Preparer interface and call that instead.
+	// If driver.Preparer does not exist, we make a prepared statement
+	// that's bound to a connection. To execute this prepared statement,
+	// we either need to use this connection (if it's free), or we
 	// get a new connection + re-prepare + execute on that one.
 	dc, err := db.conn(ctx, strategy)
 	if err != nil {
