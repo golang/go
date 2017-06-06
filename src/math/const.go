@@ -4,8 +4,7 @@
 
 // Package math provides basic constants and mathematical functions.
 //
-// Note that the package doesn't guarantee identical results of floating point operations on
-// different architectures.
+// This package does not guarantee bit-identical results across architectures.
 package math
 
 // Mathematical constants.
