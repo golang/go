@@ -6,6 +6,7 @@
 
 #include <errno.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <sys/mman.h>
 
 #include "libcgo.h"
@@ -22,4 +23,17 @@ x_cgo_mmap(void *addr, uintptr_t length, int32_t prot, int32_t flags, int32_t fd
 		p = (void *) (uintptr_t) errno;
 	}
 	return p;
+}
+
+void
+x_cgo_munmap(void *addr, uintptr_t length) {
+	int r;
+
+	_cgo_tsan_acquire();
+	r = munmap(addr, length);
+	_cgo_tsan_release();
+	if (r < 0) {
+		/* The Go runtime is not prepared for munmap to fail.  */
+		abort();
+	}
 }
