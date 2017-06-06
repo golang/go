@@ -4158,7 +4158,7 @@ func main() {}`)
 		tg.setenv("GOARCH", "386")
 		tg.setenv("GO386", "387")
 	}, func() {
-		tg.setenv("GO386", "")
+		tg.setenv("GO386", "sse2")
 	}))
 
 	t.Run("arm", testWith(func() {
