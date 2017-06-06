@@ -104,10 +104,10 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 			case "errorcheck":
 				expectErrors = true
 				for _, arg := range fields[1:] {
-					if arg == "-0" || arg == "-+" {
+					if arg == "-0" || arg == "-+" || arg == "-std" {
 						// Marked explicitly as not expected errors (-0),
-						// or marked as compiling_runtime, which is only done
-						// to trigger runtime-only error output.
+						// or marked as compiling runtime/stdlib, which is only done
+						// to trigger runtime/stdlib-only error output.
 						// In both cases, the code should typecheck.
 						expectErrors = false
 						break

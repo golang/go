@@ -1153,6 +1153,18 @@ func (p *noder) error(err error) {
 	p.err <- err.(syntax.Error)
 }
 
+// pragmas that are allowed in the std lib, but don't have
+// a syntax.Pragma value (see lex.go) associated with them.
+var allowedStdPragmas = map[string]bool{
+	"go:cgo_export_static":  true,
+	"go:cgo_export_dynamic": true,
+	"go:cgo_import_static":  true,
+	"go:cgo_import_dynamic": true,
+	"go:cgo_ldflag":         true,
+	"go:cgo_dynamic_linker": true,
+	"go:generate":           true,
+}
+
 // pragma is called concurrently if files are parsed concurrently.
 func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
 	switch {
@@ -1180,6 +1192,9 @@ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
 		const runtimePragmas = Systemstack | Nowritebarrier | Nowritebarrierrec | Yeswritebarrierrec
 		if !compiling_runtime && prag&runtimePragmas != 0 {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in runtime", verb)})
+		}
+		if prag == 0 && !allowedStdPragmas[verb] && compiling_std {
+			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s is not allowed in the standard library", verb)})
 		}
 		return prag
 	}
