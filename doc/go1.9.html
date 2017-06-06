@@ -23,12 +23,18 @@ ul li { margin: 0.5em 0; }
 </strong></p>
 
 <p>
-  The latest Go release, version 1.9, arrives six months after <a href="go1.8">Go 1.8</a>
-  and is the tenth release in the <a href="https://golang.org/doc/devel/release.html">Go 1.x series</a>.
-  Most of its changes are in the implementation of the toolchain, runtime, and libraries.
-  There are no changes to the language specification.
-  As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
-  We expect almost all Go programs to continue to compile and run as before.
+  The latest Go release, version 1.9, arrives six months
+  after <a href="go1.8">Go 1.8</a> and is the tenth release in
+  the <a href="https://golang.org/doc/devel/release.html">Go 1.x
+  series</a>.
+  There is one <a href="#language">change to the language</a>, adding
+  support for type aliases.
+  Most of the changes are in the implementation of the toolchain,
+  runtime, and libraries.
+  As always, the release maintains the Go 1
+  <a href="/doc/go1compat.html">promise of compatibility</a>.
+  We expect almost all Go programs to continue to compile and run as
+  before.
 </p>
 
 <p>
@@ -37,6 +43,29 @@ ul li { margin: 0.5em 0; }
   <a href="#parallel-compile">parallelizes compilation of functions</a> within a package,
   better supports <a href="#test-helper">test helper functions</a>,
   and includes a new <a href="#math-bits">bit manipulation package</a>.
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<p>
+  There is one change to the language.
+  Go now supports type aliases to support gradual code repair while
+  moving a type between packages.
+  The <a href="https://golang.org/design/18130-type-alias">type alias
+  design document</a>
+  and <a href="https://talks.golang.org/2016/refactor.article">an
+  article on refactoring</a> cover the problem in detail.
+  In short, a type alias declaration has the form:
+</p>
+
+<pre>
+type T1 = T2
+</pre>
+
+<p>
+  This declaration introduces an alias name <code>T1</code>—an
+  alternate spelling—for the type denoted by <code>T2</code>; that is,
+  both <code>T1</code> and <code>T2</code> denote the same type.
 </p>
 
 <h2 id="ports">Ports</h2>
@@ -147,7 +176,7 @@ ul li { margin: 0.5em 0; }
   The
   new <a href="/pkg/testing/#T.Helper"><code>(*T).Helper</code></a>
   an <a href="/pkg/testing/#B.Helper"><code>(*B).Helper</code></a>
-  methods marks the calling function as a test helper function.  When
+  methods mark the calling function as a test helper function.  When
   printing file and line information, that function will be skipped.
   This permits writing test helper functions while still having useful
   line numbers for users.
