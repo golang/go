@@ -1091,12 +1091,10 @@ func TestLinuxSendfile(t *testing.T) {
 
 	syscalls := "sendfile,sendfile64"
 	switch runtime.GOARCH {
-	case "mips64le", "s390x":
+	case "mips64", "mips64le", "s390x":
 		// strace on the above platforms doesn't support sendfile64
 		// and will error out if we specify that with `-e trace='.
 		syscalls = "sendfile"
-	case "mips64":
-		t.Skip("TODO: update this test to be robust against various versions of strace on mips64. See golang.org/issue/18008")
 	}
 
 	// Attempt to run strace, and skip on failure - this test requires SYS_PTRACE.
