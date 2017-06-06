@@ -221,6 +221,12 @@ type Request struct {
 	// field's query parameters and the POST or PUT form data.
 	// This field is only available after ParseForm is called.
 	// The HTTP client ignores Form and uses Body instead.
+	//
+	// The way that Form is populated is dependent on the header
+	// "Content-Type". For example, the header must be set to
+	// "application/x-www-form-urlencoded" for URL encoded values.
+	// An empty Content-Type results in the form being treated as
+	// application/octet-stream
 	Form url.Values
 
 	// PostForm contains the parsed form data from POST, PATCH,
