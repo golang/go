@@ -181,7 +181,7 @@ func isZeros(p IP) bool {
 }
 
 // To4 converts the IPv4 address ip to a 4-byte representation.
-// If ip is not an IPv4 address, To4 returns nil.
+// If ip is not an IP address (it is the wrong length), To4 returns nil.
 func (ip IP) To4() IP {
 	if len(ip) == IPv4len {
 		return ip
