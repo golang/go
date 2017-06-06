@@ -2195,6 +2195,9 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, obj string, asmhdr b
 	if p.Name == "main" {
 		gcargs[1] = "main"
 	}
+	if p.Standard {
+		gcargs = append(gcargs, "-std")
+	}
 	compilingRuntime := p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal"))
 	if compilingRuntime {
 		// runtime compiles with a special gc flag to emit

@@ -198,6 +198,9 @@ var typecheckok bool
 
 var compiling_runtime bool
 
+// Compiling the standard library
+var compiling_std bool
+
 var compiling_wrappers int
 
 var use_writebarrier bool
