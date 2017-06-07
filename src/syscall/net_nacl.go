@@ -177,6 +177,11 @@ func (sa *SockaddrInet4) copy() Sockaddr {
 
 func (sa *SockaddrInet4) key() interface{} { return *sa }
 
+func isIPv4Localhost(sa Sockaddr) bool {
+	sa4, ok := sa.(*SockaddrInet4)
+	return ok && sa4.Addr == [4]byte{127, 0, 0, 1}
+}
+
 type SockaddrInet6 struct {
 	Port   int
 	ZoneId uint32
@@ -601,6 +606,14 @@ func (f *netFile) connect(sa Sockaddr) error {
 		return EISCONN
 	}
 	l, ok := net.listener[netAddr{f.proto, f.sotype, sa.key()}]
+	if !ok {
+		// If we're dialing 127.0.0.1 but found nothing, try
+		// 0.0.0.0 also. (Issue 20611)
+		if isIPv4Localhost(sa) {
+			sa = &SockaddrInet4{Port: sa.(*SockaddrInet4).Port}
+			l, ok = net.listener[netAddr{f.proto, f.sotype, sa.key()}]
+		}
+	}
 	if !ok || l.listenerClosed() {
 		net.Unlock()
 		return ECONNREFUSED
