@@ -1166,10 +1166,12 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 			b = (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
 			// Preserve b.tophash because the evacuation
 			// state is maintained there.
+			ptr := add(unsafe.Pointer(b), dataOffset)
+			n := uintptr(t.bucketsize) - dataOffset
 			if t.bucket.kind&kindNoPointers == 0 {
-				memclrHasPointers(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
+				memclrHasPointers(ptr, n)
 			} else {
-				memclrNoHeapPointers(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
+				memclrNoHeapPointers(ptr, n)
 			}
 		}
 	}
