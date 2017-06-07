@@ -94,15 +94,16 @@ func checkGitOrigin() {
 	if _, err := exec.LookPath("git"); err != nil {
 		log.Fatalf("You don't appear to have git installed. Do that.")
 	}
-	if _, err := os.Stat(".git"); err != nil {
-		log.Fatalf("You are not currently in a git checkout of https://go.googlesource.com/%s", *repo)
-	}
+	wantRemote := "https://go.googlesource.com/" + *repo
 	remotes, err := exec.Command("git", "remote", "-v").Output()
 	if err != nil {
-		log.Fatalf("Error running git remote -v: %v", cmdErr(err))
+		msg := cmdErr(err)
+		if strings.Contains(msg, "Not a git repository") {
+			log.Fatalf("Your current directory is not in a git checkout of %s", wantRemote)
+		}
+		log.Fatalf("Error running git remote -v: %v", msg)
 	}
 	matches := 0
-	wantRemote := "https://go.googlesource.com/" + *repo
 	for _, line := range strings.Split(string(remotes), "\n") {
 		line = strings.TrimSpace(line)
 		if !strings.HasPrefix(line, "origin") {
