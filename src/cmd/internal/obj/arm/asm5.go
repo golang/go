@@ -1262,11 +1262,15 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
 			if uint32(c.instoffset) <= 0xffff && objabi.GOARM == 7 {
 				return C_SCON
 			}
-			if x, y := immrot2a(uint32(c.instoffset)); x != 0 && y != 0 {
-				return C_RCON2A
-			}
-			if y, x := immrot2s(uint32(c.instoffset)); x != 0 && y != 0 {
-				return C_RCON2S
+			if c.ctxt.Headtype != objabi.Hnacl {
+				// Don't split instructions on NaCl. The validator is not
+				// happy with it. See Issue 20595.
+				if x, y := immrot2a(uint32(c.instoffset)); x != 0 && y != 0 {
+					return C_RCON2A
+				}
+				if y, x := immrot2s(uint32(c.instoffset)); x != 0 && y != 0 {
+					return C_RCON2S
+				}
 			}
 			return C_LCON
 
