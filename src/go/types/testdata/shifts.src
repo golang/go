@@ -10,7 +10,7 @@ func shifts0() {
 		s = 10
 		_ = 0<<0
 		_ = 1<<s
-		_ = 1<<- /* ERROR "invalid shift" */ 1
+		_ = 1<<- /* ERROR "overflows uint" */ 1
 		_ = 1<<1075 /* ERROR "invalid shift" */
 		_ = 2.0<<1
 
@@ -39,12 +39,18 @@ func shifts1() {
 		_ = 1<<u
 		_ = 1<<"foo" /* ERROR "cannot convert" */
 		_ = i<<0
-		_ = i<<- /* ERROR "must not be negative" */ 1
+		_ = i<<- /* ERROR "overflows uint" */ 1
 		_ = 1 /* ERROR "overflows" */ <<100
 
 		_ uint = 1 << 0
 		_ uint = 1 << u
 		_ float32 = 1 /* ERROR "must be integer" */ << u
+
+		// for issue 14822
+		_ = 1<<( /* ERROR "invalid shift count" */ 1<<63)
+		_ = 1<<( /* ERROR "overflows uint" */ 1<<64)
+		_ = u<<(1<<63) // valid
+		_ = u<<( /* ERROR "overflows uint" */ 1<<64)
 	)
 }
 
@@ -321,11 +327,11 @@ func issue5895() {
 }
 
 func issue11325() {
-	var _ = 0 >> 1.1 /* ERROR "must be unsigned integer" */ // example from issue 11325
-	_ = 0 >> 1.1 /* ERROR "must be unsigned integer" */
-	_ = 0 << 1.1 /* ERROR "must be unsigned integer" */
+	var _ = 0 >> 1.1 /* ERROR "truncated to uint" */ // example from issue 11325
+	_ = 0 >> 1.1 /* ERROR "truncated to uint" */
+	_ = 0 << 1.1 /* ERROR "truncated to uint" */
 	_ = 0 >> 1.
-	_ = 1 >> 1.1 /* ERROR "must be unsigned integer" */
+	_ = 1 >> 1.1 /* ERROR "truncated to uint" */
 	_ = 1 >> 1.
 	_ = 1. >> 1
 	_ = 1. >> 1.
