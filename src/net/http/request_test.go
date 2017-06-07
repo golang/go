@@ -799,6 +799,13 @@ func TestWithContextDeepCopiesURL(t *testing.T) {
 	if firstURL == secondURL {
 		t.Errorf("unexpected change to original request's URL")
 	}
+
+	// And also check we don't crash on nil (Issue 20601)
+	req.URL = nil
+	reqCopy = req.WithContext(context.Background())
+	if reqCopy.URL != nil {
+		t.Error("expected nil URL in cloned request")
+	}
 }
 
 // verify that NewRequest sets Request.GetBody and that it works
