@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 9, 2017",
+	"Subtitle": "Version of June 7, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -3384,7 +3384,7 @@ to the type of the other operand.
 
 <p>
 The right operand in a shift expression must have unsigned integer type
-or be an untyped constant that can be converted to unsigned integer type.
+or be an untyped constant representable by a value of type <code>uint</code>.
 If the left operand of a non-constant shift expression is an untyped constant,
 it is first converted to the type it would assume if the shift expression were
 replaced by its left operand alone.
