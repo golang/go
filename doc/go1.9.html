@@ -106,6 +106,16 @@ type T1 = T2
   environment variable <code>GO19CONCURRENTCOMPILATION</code> to <code>0</code>.
 </p>
 
+<h3 id="go-test-list">Go test</h3>
+
+<p> <!-- CL 41195 -->
+  The <a href="/cmd/go/#hdr-Description_of_testing_flags"><code>go</code> <code>test</code></a>
+  command accepts a new <code>-list</code> flag, which takes a regular
+  expression as an argument and prints to stdout the name of any
+  tests, benchmarks, or examples that match it, without running them.
+</p>
+
+
 <!-- CL 42028: https://golang.org/cl/42028: cmd/asm: fix operand order of ARM's MULA instruction -->
 <!-- CL 36031: https://golang.org/cl/36031: cmd/doc: truncate long lists of arguments -->
 <!-- CL 38438: https://golang.org/cl/38438: cmd/doc: implement "go doc struct.field" -->
@@ -558,18 +568,14 @@ type T1 = T2
 
 </dl><!-- syscall -->
 
-<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
-  <dd>
-    <p><!-- CL 41195 -->
-      TODO: <a href="https://golang.org/cl/41195">https://golang.org/cl/41195</a>: add argument to list tests, benchmarks, and examples
-    </p>
-
-</dl><!-- testing -->
 
 <dl id="testing/quick"><dt><a href="/pkg/testing/quick/">testing/quick</a></dt>
   <dd>
     <p><!-- CL 39152 -->
-      TODO: <a href="https://golang.org/cl/39152">https://golang.org/cl/39152</a>: generate all possible int64, uint64 values
+	  The package now chooses values in the full range when
+	  generating <code>int64</code> and <code>uint64</code> random
+	  numbers; in earlier releases generated values were always
+	  limited to the [-2<sup>62</sup>, 2<sup>62</sup>) range.
     </p>
 
 </dl><!-- testing/quick -->
