@@ -416,8 +416,37 @@ def find_goroutine(goid):
 		if ptr['atomicstatus'] == 6:  # 'gdead'
 			continue
 		if ptr['goid'] == goid:
-			return (ptr['sched'][x].cast(vp) for x in ('pc', 'sp'))
-	return None, None
+			break
+	else:
+		return None, None
+	# Get the goroutine's saved state.
+	pc, sp = ptr['sched']['pc'], ptr['sched']['sp']
+	# If the goroutine is stopped, sched.sp will be non-0.
+	if sp != 0:
+		return pc.cast(vp), sp.cast(vp)
+	# If the goroutine is in a syscall, use syscallpc/sp.
+	pc, sp = ptr['syscallpc'], ptr['syscallsp']
+	if sp != 0:
+		return pc.cast(vp), sp.cast(vp)
+	# Otherwise, the goroutine is running, so it doesn't have
+	# saved scheduler state. Find G's OS thread.
+	m = ptr['m']
+	if m == 0:
+		return None, None
+	for thr in gdb.selected_inferior().threads():
+		if thr.ptid[1] == m['procid']:
+			break
+        else:
+		return None, None
+	# Get scheduler state from the G's OS thread state.
+	curthr = gdb.selected_thread()
+	try:
+		thr.switch()
+		pc = gdb.parse_and_eval('$pc')
+		sp = gdb.parse_and_eval('$sp')
+	finally:
+		curthr.switch()
+	return pc.cast(vp), sp.cast(vp)
 
 
 class GoroutineCmd(gdb.Command):
