@@ -281,10 +281,7 @@ dohash:
 			b = oldb
 		}
 	}
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
@@ -385,10 +382,7 @@ dohash:
 			b = oldb
 		}
 	}
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
@@ -435,10 +429,7 @@ again:
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 
 	var inserti *uint8
 	var insertk unsafe.Pointer
@@ -523,10 +514,7 @@ again:
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 
 	var inserti *uint8
 	var insertk unsafe.Pointer
@@ -612,10 +600,7 @@ again:
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 
 	var inserti *uint8
 	var insertk unsafe.Pointer
@@ -700,10 +685,7 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
@@ -755,10 +737,7 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
@@ -811,10 +790,7 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {

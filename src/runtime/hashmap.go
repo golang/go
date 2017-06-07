@@ -170,6 +170,15 @@ type hiter struct {
 	checkBucket uintptr
 }
 
+// tophash calculates the tophash value for hash.
+func tophash(hash uintptr) uint8 {
+	top := uint8(hash >> (sys.PtrSize*8 - 8))
+	if top < minTopHash {
+		top += minTopHash
+	}
+	return top
+}
+
 func evacuated(b *bmap) bool {
 	h := b.tophash[0]
 	return h > empty && h < minTopHash
@@ -374,10 +383,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 			b = oldb
 		}
 	}
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
@@ -432,10 +438,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 			b = oldb
 		}
 	}
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
@@ -479,10 +482,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 			b = oldb
 		}
 	}
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
@@ -557,10 +557,7 @@ again:
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 
 	var inserti *uint8
 	var insertk unsafe.Pointer
@@ -667,10 +664,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
@@ -1102,10 +1096,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 						} else {
 							hash &^= newbit
 						}
-						top = uint8(hash >> (sys.PtrSize*8 - 8))
-						if top < minTopHash {
-							top += minTopHash
-						}
+						top = tophash(hash)
 					}
 					if hash&newbit != 0 {
 						useY = 1
