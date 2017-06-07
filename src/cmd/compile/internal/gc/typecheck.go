@@ -1349,7 +1349,9 @@ OpSwitch:
 		}
 		n.Left = typecheck(n.Left, Erv)
 		n.Left = defaultlit(n.Left, nil)
-		n.Left = implicitstar(n.Left)
+		if n.Op == OCAP || n.Op == OLEN {
+			n.Left = implicitstar(n.Left)
+		}
 		l := n.Left
 		t := l.Type
 		if t == nil {
