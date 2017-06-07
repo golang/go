@@ -887,3 +887,21 @@ func TestCancelAfterDial(t *testing.T) {
 		try()
 	}
 }
+
+// Issue 18806: it should always be possible to net.Dial a
+// net.Listener().Addr().String when the listen address was ":n", even
+// if the machine has halfway configured IPv6 such that it can bind on
+// "::" not connect back to that same address.
+func TestDialListenerAddr(t *testing.T) {
+	ln, err := Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	addr := ln.Addr().String()
+	c, err := Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("for addr %q, dial error: %v", addr, err)
+	}
+	c.Close()
+}

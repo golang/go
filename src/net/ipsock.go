@@ -254,6 +254,13 @@ func (r *Resolver) internetAddrList(ctx context.Context, net, addr string) (addr
 		ips = []IPAddr{{IP: ip}}
 	} else if ip, zone := parseIPv6(host, true); ip != nil {
 		ips = []IPAddr{{IP: ip, Zone: zone}}
+		// Issue 18806: if the machine has halfway configured
+		// IPv6 such that it can bind on "::" (IPv6unspecified)
+		// but not connect back to that same address, fall
+		// back to dialing 0.0.0.0.
+		if ip.Equal(IPv6unspecified) {
+			ips = append(ips, IPAddr{IP: IPv4zero})
+		}
 	} else {
 		// Try as a DNS name.
 		ips, err = r.LookupIPAddr(ctx, host)
