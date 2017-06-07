@@ -1043,11 +1043,6 @@ type maxBytesReader struct {
 	err error         // sticky error
 }
 
-func (l *maxBytesReader) tooLarge() (n int, err error) {
-	l.err = errors.New("http: request body too large")
-	return 0, l.err
-}
-
 func (l *maxBytesReader) Read(p []byte) (n int, err error) {
 	if l.err != nil {
 		return 0, l.err
