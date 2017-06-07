@@ -21,7 +21,10 @@ import (
 	"strings"
 )
 
-var repo = flag.String("repo", "go", "Which go repo you want to contribute to. Use \"go\" for the core, or e.g. \"net\" for golang.org/x/net/*")
+var (
+	repo = flag.String("repo", "go", "Which go repo you want to contribute to. Use \"go\" for the core, or e.g. \"net\" for golang.org/x/net/*")
+	dry  = flag.Bool("dry-run", false, "Fail with problems instead of trying to fix things.")
+)
 
 func main() {
 	log.SetFlags(0)
@@ -31,6 +34,7 @@ func main() {
 	checkGoroot()
 	checkWorkingDir()
 	checkGitOrigin()
+	checkGitCodeReview()
 }
 
 func checkCLA() {
@@ -106,6 +110,7 @@ func checkGitOrigin() {
 		}
 		if !strings.Contains(line, wantRemote) {
 			curRemote := strings.Fields(strings.TrimPrefix(line, "origin"))[0]
+			// TODO: if not in dryRun mode, just fix it?
 			log.Fatalf("Current directory's git was cloned from %q; origin should be %q", curRemote, wantRemote)
 		}
 		matches++
@@ -120,4 +125,29 @@ func cmdErr(err error) string {
 		return fmt.Sprintf("%s: %s", err, ee.Stderr)
 	}
 	return fmt.Sprint(err)
+}
+
+func checkGitCodeReview() {
+	if _, err := exec.LookPath("git-codereview"); err != nil {
+		if *dry {
+			log.Fatalf("You don't appear to have git-codereview tool. While this is technically optional,\n" +
+				"almost all Go contributors use it. Our documentation and this tool assume it is used.\n" +
+				"To install it, run:\n\n\t$ go get golang.org/x/review/git-codereview\n\n(Then run go-contrib-init again)")
+		}
+		err := exec.Command("go", "get", "golang.org/x/review/git-codereview").Run()
+		if err != nil {
+			log.Printf("Error running go get golang.org/x/review/git-codereview: %v", cmdErr(err))
+		}
+	}
+	if *dry {
+		// TODO: check the aliases. For now, just return.
+		return
+	}
+	for _, cmd := range []string{"change", "gofmt", "mail", "pending", "submit", "sync"} {
+		err := exec.Command("git", "config", "alias."+cmd, "codereview "+cmd).Run()
+		if err != nil {
+			log.Fatalf("Error setting alias.%s: %v", cmd, cmdErr(err))
+		}
+	}
+
 }
