@@ -11,9 +11,11 @@ package main
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -28,6 +30,7 @@ func main() {
 	checkCLA()
 	checkGoroot()
 	checkWorkingDir()
+	checkGitOrigin()
 }
 
 func checkCLA() {
@@ -80,4 +83,41 @@ func checkGoroot() {
 
 func checkWorkingDir() {
 	// TODO
+}
+
+// mostly check that they didn't clone from github
+func checkGitOrigin() {
+	if _, err := exec.LookPath("git"); err != nil {
+		log.Fatalf("You don't appear to have git installed. Do that.")
+	}
+	if _, err := os.Stat(".git"); err != nil {
+		log.Fatalf("You are not currently in a git checkout of https://go.googlesource.com/%s", *repo)
+	}
+	remotes, err := exec.Command("git", "remote", "-v").Output()
+	if err != nil {
+		log.Fatalf("Error running git remote -v: %v", cmdErr(err))
+	}
+	matches := 0
+	wantRemote := "https://go.googlesource.com/" + *repo
+	for _, line := range strings.Split(string(remotes), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "origin") {
+			continue
+		}
+		if !strings.Contains(line, wantRemote) {
+			curRemote := strings.Fields(strings.TrimPrefix(line, "origin"))[0]
+			log.Fatalf("Current directory's git was cloned from %q; origin should be %q", curRemote, wantRemote)
+		}
+		matches++
+	}
+	if matches == 0 {
+		log.Fatalf("git remote -v output didn't contain expected %q. Got:\n%s", wantRemote, remotes)
+	}
+}
+
+func cmdErr(err error) string {
+	if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+		return fmt.Sprintf("%s: %s", err, ee.Stderr)
+	}
+	return fmt.Sprint(err)
 }
