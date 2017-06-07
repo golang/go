@@ -579,21 +579,38 @@ func TestPanicRace(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := testEnv(exec.Command(exe, "PanicRace")).CombinedOutput()
-	if err == nil {
-		t.Error("program exited successfully, should have failed")
-	}
-
-	t.Logf("%s\n", got)
-
-	wants := []string{
-		"panic: crash",
-		"PanicRace",
-		"created by ",
-	}
-	for _, want := range wants {
-		if !bytes.Contains(got, []byte(want)) {
-			t.Errorf("did not find expected string %q", want)
+	// The test is intentionally racy, and in my testing does not
+	// produce the expected output about 0.05% of the time.
+	// So run the program in a loop and only fail the test if we
+	// get the wrong output ten times in a row.
+	const tries = 10
+retry:
+	for i := 0; i < tries; i++ {
+		got, err := testEnv(exec.Command(exe, "PanicRace")).CombinedOutput()
+		if err == nil {
+			t.Logf("try %d: program exited successfully, should have failed", i+1)
+			continue
 		}
+
+		if i > 0 {
+			t.Logf("try %d:\n", i+1)
+		}
+		t.Logf("%s\n", got)
+
+		wants := []string{
+			"panic: crash",
+			"PanicRace",
+			"created by ",
+		}
+		for _, want := range wants {
+			if !bytes.Contains(got, []byte(want)) {
+				t.Logf("did not find expected string %q", want)
+				continue retry
+			}
+		}
+
+		// Test generated expected output.
+		return
 	}
+	t.Errorf("test ran %d times without producing expected output", tries)
 }
