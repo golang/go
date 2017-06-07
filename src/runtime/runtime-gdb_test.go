@@ -157,6 +157,9 @@ func testGdbPython(t *testing.T, cgo bool) {
 		"-ex", "info locals",
 		"-ex", "echo END\n",
 		"-ex", "down", // back to fmt.Println (goroutine 2 below only works at bottom of stack.  TODO: fix that)
+		"-ex", "echo BEGIN goroutine 1 bt\n",
+		"-ex", "goroutine 1 bt",
+		"-ex", "echo END\n",
 		"-ex", "echo BEGIN goroutine 2 bt\n",
 		"-ex", "goroutine 2 bt",
 		"-ex", "echo END\n",
@@ -213,8 +216,13 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("info locals failed: %s", bl)
 	}
 
-	btGoroutineRe := regexp.MustCompile(`^#0\s+(0x[0-9a-f]+\s+in\s+)?runtime.+at`)
-	if bl := blocks["goroutine 2 bt"]; !btGoroutineRe.MatchString(bl) {
+	btGoroutine1Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?fmt\.Println.+at`)
+	if bl := blocks["goroutine 1 bt"]; !btGoroutine1Re.MatchString(bl) {
+		t.Fatalf("goroutine 1 bt failed: %s", bl)
+	}
+
+	btGoroutine2Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?runtime.+at`)
+	if bl := blocks["goroutine 2 bt"]; !btGoroutine2Re.MatchString(bl) {
 		t.Fatalf("goroutine 2 bt failed: %s", bl)
 	}
 }
