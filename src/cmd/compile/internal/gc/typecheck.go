@@ -1341,68 +1341,51 @@ OpSwitch:
 
 		break OpSwitch
 
-	case OCAP, OLEN, OREAL, OIMAG:
+	case OCAP, OLEN:
 		ok |= Erv
 		if !onearg(n, "%v", n.Op) {
 			n.Type = nil
 			return n
 		}
+
 		n.Left = typecheck(n.Left, Erv)
 		n.Left = defaultlit(n.Left, nil)
-		if n.Op == OCAP || n.Op == OLEN {
-			n.Left = implicitstar(n.Left)
-		}
+		n.Left = implicitstar(n.Left)
 		l := n.Left
 		t := l.Type
 		if t == nil {
 			n.Type = nil
 			return n
 		}
-		switch n.Op {
-		case OCAP:
-			if !okforcap[t.Etype] {
-				goto badcall1
-			}
 
-		case OLEN:
-			if !okforlen[t.Etype] {
-				goto badcall1
-			}
-
-		case OREAL, OIMAG:
-			if !t.IsComplex() {
-				goto badcall1
-			}
-			if Isconst(l, CTCPLX) {
-				r := n
-				if n.Op == OREAL {
-					n = nodfltconst(&l.Val().U.(*Mpcplx).Real)
-				} else {
-					n = nodfltconst(&l.Val().U.(*Mpcplx).Imag)
-				}
-				n.Orig = r
-			}
-
-			n.Type = types.Types[cplxsubtype(t.Etype)]
-			break OpSwitch
+		var ok bool
+		if n.Op == OLEN {
+			ok = okforlen[t.Etype]
+		} else {
+			ok = okforcap[t.Etype]
+		}
+		if !ok {
+			yyerror("invalid argument %L for %v", n.Left, n.Op)
+			n.Type = nil
+			return n
 		}
 
-		// might be constant
+		// result might be constant
+		var res int64 = -1 // valid if >= 0
 		switch t.Etype {
 		case TSTRING:
 			if Isconst(l, CTSTR) {
-				var r Node
-				nodconst(&r, types.Types[TINT], int64(len(l.Val().U.(string))))
-				r.Orig = n
-				n = &r
+				res = int64(len(l.Val().U.(string)))
 			}
 
 		case TARRAY:
-			if callrecv(l) { // has call or receive
-				break
+			if !callrecv(l) {
+				res = t.NumElem()
 			}
+		}
+		if res >= 0 {
 			var r Node
-			nodconst(&r, types.Types[TINT], t.NumElem())
+			nodconst(&r, types.Types[TINT], res)
 			r.Orig = n
 			n = &r
 		}
@@ -1410,10 +1393,39 @@ OpSwitch:
 		n.Type = types.Types[TINT]
 		break OpSwitch
 
-	badcall1:
-		yyerror("invalid argument %L for %v", n.Left, n.Op)
-		n.Type = nil
-		return n
+	case OREAL, OIMAG:
+		ok |= Erv
+		if !onearg(n, "%v", n.Op) {
+			n.Type = nil
+			return n
+		}
+
+		n.Left = typecheck(n.Left, Erv)
+		n.Left = defaultlit(n.Left, nil)
+		l := n.Left
+		t := l.Type
+		if t == nil {
+			n.Type = nil
+			return n
+		}
+
+		if !t.IsComplex() {
+			yyerror("invalid argument %L for %v", n.Left, n.Op)
+			n.Type = nil
+			return n
+		}
+		if Isconst(l, CTCPLX) {
+			r := n
+			if n.Op == OREAL {
+				n = nodfltconst(&l.Val().U.(*Mpcplx).Real)
+			} else {
+				n = nodfltconst(&l.Val().U.(*Mpcplx).Imag)
+			}
+			n.Orig = r
+		}
+
+		n.Type = types.Types[cplxsubtype(t.Etype)]
+		break OpSwitch
 
 	case OCOMPLEX:
 		ok |= Erv
