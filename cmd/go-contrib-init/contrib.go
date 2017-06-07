@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	repo = flag.String("repo", "go", "Which go repo you want to contribute to. Use \"go\" for the core, or e.g. \"net\" for golang.org/x/net/*")
+	repo = flag.String("repo", detectrepo(), "Which go repo you want to contribute to. Use \"go\" for the core, or e.g. \"net\" for golang.org/x/net/*")
 	dry  = flag.Bool("dry-run", false, "Fail with problems instead of trying to fix things.")
 )
 
@@ -38,6 +38,27 @@ func main() {
 	fmt.Print("All good. Happy hacking!\n" +
 		"Remember to squash your revised commits and preserve the magic Change-Id lines.\n" +
 		"Next steps: https://golang.org/doc/contribute.html#commit_changes\n")
+}
+
+func detectrepo() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "go"
+	}
+
+	for _, path := range filepath.SplitList(os.Getenv("GOPATH")) {
+		rightdir := filepath.Join(path, "src", "golang.org", "x")
+		if strings.HasPrefix(wd, rightdir) {
+			tail := wd[len(rightdir)+1:]
+			end := strings.Index(tail, string(os.PathSeparator))
+			if end > 0 {
+				repo := tail[:end]
+				return repo
+			}
+		}
+	}
+
+	return "go"
 }
 
 func checkCLA() {
@@ -89,7 +110,73 @@ func checkGoroot() {
 }
 
 func checkWorkingDir() {
-	// TODO
+	if *repo == "go" {
+		if inGoPath() {
+			log.Fatal("You can't work on Go from within your GOPATH. Please checkout Go outside of your GOPATH")
+		}
+		return
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	gopath := firstGoPath()
+	if gopath == "" {
+		log.Fatal("Your GOPATH is not set, please set it")
+	}
+
+	rightdir := filepath.Join(gopath, "src", "golang.org", "x", *repo)
+	if !strings.HasPrefix(wd, rightdir) {
+		dirExists, err := exists(rightdir)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if !dirExists {
+			log.Fatalf("The repo you want to work on is currently not on your system.\n"+
+				"Run %q to obtain this repo\n"+
+				"then go to the directory %q\n",
+				"go get -d golang.org/x/"+*repo, rightdir)
+		}
+		log.Fatalf("Your current directory is:%q\n"+
+			"Working on golang/x/%v requires you be in %q\n",
+			wd, *repo, rightdir)
+	}
+}
+
+func firstGoPath() string {
+	list := filepath.SplitList(os.Getenv("GOPATH"))
+	if len(list) < 1 {
+		return ""
+	}
+	return list[0]
+}
+
+func exists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return true, err
+}
+
+func inGoPath() bool {
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if os.Getenv("GOPATH") == "" {
+		return false
+	}
+
+	for _, path := range filepath.SplitList(os.Getenv("GOPATH")) {
+		if strings.HasPrefix(wd, path) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // mostly check that they didn't clone from github
