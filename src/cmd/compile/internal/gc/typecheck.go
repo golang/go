@@ -1365,7 +1365,7 @@ OpSwitch:
 			ok = okforcap[t.Etype]
 		}
 		if !ok {
-			yyerror("invalid argument %L for %v", n.Left, n.Op)
+			yyerror("invalid argument %L for %v", l, n.Op)
 			n.Type = nil
 			return n
 		}
@@ -1401,7 +1401,6 @@ OpSwitch:
 		}
 
 		n.Left = typecheck(n.Left, Erv)
-		n.Left = defaultlit(n.Left, nil)
 		l := n.Left
 		t := l.Type
 		if t == nil {
@@ -1409,22 +1408,57 @@ OpSwitch:
 			return n
 		}
 
-		if !t.IsComplex() {
-			yyerror("invalid argument %L for %v", n.Left, n.Op)
+		if t.Etype != TIDEAL && !t.IsComplex() {
+			yyerror("invalid argument %L for %v", l, n.Op)
 			n.Type = nil
 			return n
 		}
-		if Isconst(l, CTCPLX) {
-			r := n
-			if n.Op == OREAL {
-				n = nodfltconst(&l.Val().U.(*Mpcplx).Real)
-			} else {
-				n = nodfltconst(&l.Val().U.(*Mpcplx).Imag)
+
+		// if the argument is a constant, the result is a constant
+		// (any untyped numeric constant can be represented as a
+		// complex number)
+		if l.Op == OLITERAL {
+			var re, im *Mpflt
+			switch consttype(l) {
+			case CTINT, CTRUNE:
+				re = newMpflt()
+				re.SetInt(l.Val().U.(*Mpint))
+				// im = 0
+			case CTFLT:
+				re = l.Val().U.(*Mpflt)
+				// im = 0
+			case CTCPLX:
+				re = &l.Val().U.(*Mpcplx).Real
+				im = &l.Val().U.(*Mpcplx).Imag
+			default:
+				yyerror("invalid argument %L for %v", l, n.Op)
+				n.Type = nil
+				return n
 			}
-			n.Orig = r
+			if n.Op == OIMAG {
+				if im == nil {
+					im = newMpflt()
+				}
+				re = im
+			}
+			orig := n
+			n = nodfltconst(re)
+			n.Orig = orig
 		}
 
-		n.Type = types.Types[cplxsubtype(t.Etype)]
+		// determine result type
+		et := t.Etype
+		switch et {
+		case TIDEAL:
+			// result is ideal
+		case TCOMPLEX64:
+			et = TFLOAT32
+		case TCOMPLEX128:
+			et = TFLOAT64
+		default:
+			Fatalf("unexpected Etype: %v\n", et)
+		}
+		n.Type = types.Types[et]
 		break OpSwitch
 
 	case OCOMPLEX:
