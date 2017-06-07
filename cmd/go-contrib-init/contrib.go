@@ -35,6 +35,9 @@ func main() {
 	checkWorkingDir()
 	checkGitOrigin()
 	checkGitCodeReview()
+	fmt.Print("All good. Happy hacking!\n" +
+		"Remember to squash your revised commits and preserve the magic Change-Id lines.\n" +
+		"Next steps: https://golang.org/doc/contribute.html#commit_changes\n")
 }
 
 func checkCLA() {
@@ -139,16 +142,25 @@ func checkGitCodeReview() {
 		if err != nil {
 			log.Printf("Error running go get golang.org/x/review/git-codereview: %v", cmdErr(err))
 		}
+		log.Printf("Installed git-codereview (ran `go get golang.org/x/review/git-codereview`)")
 	}
-	if *dry {
-		// TODO: check the aliases. For now, just return.
-		return
-	}
+	missing := false
 	for _, cmd := range []string{"change", "gofmt", "mail", "pending", "submit", "sync"} {
-		err := exec.Command("git", "config", "alias."+cmd, "codereview "+cmd).Run()
-		if err != nil {
-			log.Fatalf("Error setting alias.%s: %v", cmd, cmdErr(err))
+		v, _ := exec.Command("git", "config", "alias."+cmd).Output()
+		if strings.Contains(string(v), "codereview") {
+			continue
+		}
+		if *dry {
+			log.Printf("Missing alias. Run:\n\t$ git config alias.%s \"codereview %s\"", cmd, cmd)
+			missing = true
+		} else {
+			err := exec.Command("git", "config", "alias."+cmd, "codereview "+cmd).Run()
+			if err != nil {
+				log.Fatalf("Error setting alias.%s: %v", cmd, cmdErr(err))
+			}
 		}
 	}
-
+	if missing {
+		log.Fatalf("Missing aliases. (While optional, this tool assumes you use them.)")
+	}
 }
