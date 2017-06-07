@@ -633,13 +633,13 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 	}
 
 	// spec: "The right operand in a shift expression must have unsigned
-	// integer type or be an untyped constant that can be converted to
-	// unsigned integer type."
+	// integer type or be an untyped constant representable by a value of
+	// type uint."
 	switch {
 	case isUnsigned(y.typ):
 		// nothing to do
 	case isUntyped(y.typ):
-		check.convertUntyped(y, Typ[UntypedInt])
+		check.convertUntyped(y, Typ[Uint])
 		if y.mode == invalid {
 			x.mode = invalid
 			return
