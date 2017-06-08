@@ -152,8 +152,35 @@ type T1 = T2
 
 <h3 id="gc">Garbage Collector</h3>
 
-<p>
-  TODO(austin): give update.
+<p> <!-- CL 37520 -->
+  Library functions that used to trigger stop-the-world garbage
+  collection now trigger concurrent garbage collection.
+
+  Specifically, <a href="/pkg/runtime/#GC"><code>runtime.GC</code></a>,
+  <a href="/pkg/runtime/debug/#SetGCPercent"><code>debug.SetGCPercent</code></a>,
+  and
+  <a href="/pkg/runtime/debug/#FreeOSMemory"><code>debug.FreeOSMemory</code></a>,
+  now trigger concurrent garbage collection, blocking only the calling
+  goroutine until the garbage collection is done.
+</p>
+
+<p> <!-- CL 34103, CL 39835 -->
+  The
+  <a href="/pkg/runtime/debug/#SetGCPercent"><code>debug.SetGCPercent</code></a>
+  function only triggers a garbage collection if one is immediately
+  necessary because of the new GOGC value.
+  This makes it possible to adjust GOGC on-the-fly.
+</p>
+
+<p> <!-- CL 38732 -->
+  Large object allocation performance is significantly improved in
+  applications using large (&gt;50GB) heaps containing many large
+  objects.
+</p>
+
+<p> <!-- CL 34937 -->
+  The <a href="/pkg/runtime/#ReadMemStats"><code>runtime.ReadMemStats</code></a>
+  function now takes less than 100µs even for very large heaps.
 </p>
 
 <h2 id="library">Core library</h2>
@@ -482,10 +509,6 @@ type T1 = T2
       TODO: <a href="https://golang.org/cl/29341">https://golang.org/cl/29341</a>: use cpuset_getaffinity for runtime.NumCPU() on FreeBSD
     </p>
 
-    <p><!-- CL 34937 -->
-      TODO: <a href="https://golang.org/cl/34937">https://golang.org/cl/34937</a>: make ReadMemStats STW for &lt; 25µs
-    </p>
-
     <p><!-- CL 35710 -->
       TODO: <a href="https://golang.org/cl/35710">https://golang.org/cl/35710</a>: make time correctly update on Wine
     </p>
@@ -496,10 +519,6 @@ type T1 = T2
 
     <p><!-- CL 37441 -->
       TODO: <a href="https://golang.org/cl/37441">https://golang.org/cl/37441</a>: make complex division c99 compatible
-    </p>
-
-    <p><!-- CL 37520 -->
-      TODO: <a href="https://golang.org/cl/37520">https://golang.org/cl/37520</a>: make runtime.GC() trigger a concurrent GC
     </p>
 
     <p><!-- CL 37726 -->
@@ -519,18 +538,6 @@ type T1 = T2
     </p>
 
 </dl><!-- runtime -->
-
-<dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
-  <dd>
-    <p><!-- CL 34013 -->
-      TODO: <a href="https://golang.org/cl/34013">https://golang.org/cl/34013</a>: don&#39;t run a GC when setting SetGCPercent negative
-    </p>
-
-    <p><!-- CL 39835 -->
-      TODO: <a href="https://golang.org/cl/39835">https://golang.org/cl/39835</a>: don&#39;t trigger a GC on SetGCPercent
-    </p>
-
-</dl><!-- runtime/debug -->
 
 <dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
   <dd>
