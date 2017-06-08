@@ -8,8 +8,6 @@ package net
 
 import (
 	"context"
-	"errors"
-	"reflect"
 	"sync"
 )
 
@@ -70,12 +68,10 @@ func (r *Resolver) dial(ctx context.Context, network, server string) (dnsConn, e
 	if err != nil {
 		return nil, mapErr(err)
 	}
-	dc, ok := c.(dnsConn)
-	if !ok {
-		c.Close()
-		return nil, errors.New("net: Resolver.Dial returned unsupported connection type " + reflect.TypeOf(c).String())
+	if _, ok := c.(PacketConn); ok {
+		return &dnsPacketConn{c}, nil
 	}
-	return dc, nil
+	return &dnsStreamConn{c}, nil
 }
 
 func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
