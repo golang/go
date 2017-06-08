@@ -425,11 +425,11 @@ var (
 	testKillTimeout = 10 * time.Minute
 )
 
-var testMainDeps = map[string]bool{
+var testMainDeps = []string{
 	// Dependencies for testmain.
-	"testing":                   true,
-	"testing/internal/testdeps": true,
-	"os": true,
+	"os",
+	"testing",
+	"testing/internal/testdeps",
 }
 
 func runTest(cmd *base.Command, args []string) {
@@ -490,7 +490,7 @@ func runTest(cmd *base.Command, args []string) {
 		cfg.BuildV = testV
 
 		deps := make(map[string]bool)
-		for dep := range testMainDeps {
+		for _, dep := range testMainDeps {
 			deps[dep] = true
 		}
 
@@ -887,7 +887,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 
 	// The generated main also imports testing, regexp, and os.
 	stk.Push("testmain")
-	for dep := range testMainDeps {
+	for _, dep := range testMainDeps {
 		if dep == ptest.ImportPath {
 			pmain.Internal.Imports = append(pmain.Internal.Imports, ptest)
 		} else {
