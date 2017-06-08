@@ -1361,9 +1361,7 @@ func TestServeTLS(t *testing.T) {
 	// Not parallel: uses global test hooks.
 	defer afterTest(t)
 	defer SetTestHookServerServe(nil)
-	var ok bool
-	const maxTries = 5
-	var ln net.Listener
+
 	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
 	if err != nil {
 		t.Fatal(err)
@@ -1372,38 +1370,30 @@ func TestServeTLS(t *testing.T) {
 		Certificates: []tls.Certificate{cert},
 	}
 
-Try:
-	for try := 0; try < maxTries; try++ {
-		ln = newLocalListener(t)
-		addr := ln.Addr().String()
-		t.Logf("Got %v", addr)
-		lnc := make(chan net.Listener, 1)
-		SetTestHookServerServe(func(s *Server, ln net.Listener) {
-			lnc <- ln
-		})
-		handler := HandlerFunc(func(w ResponseWriter, r *Request) {
-		})
-		s := &Server{
-			Addr:      addr,
-			TLSConfig: tlsConf,
-			Handler:   handler,
-		}
-		errc := make(chan error, 1)
-		go func() { errc <- s.ServeTLS(ln, "", "") }()
-		select {
-		case err := <-errc:
-			t.Logf("On try #%v: %v", try+1, err)
-			continue
-		case ln = <-lnc:
-			ok = true
-			t.Logf("Listening on %v", ln.Addr().String())
-			break Try
-		}
-	}
-	if !ok {
-		t.Fatalf("Failed to start up after %d tries", maxTries)
-	}
+	ln := newLocalListener(t)
 	defer ln.Close()
+	addr := ln.Addr().String()
+
+	serving := make(chan bool, 1)
+	SetTestHookServerServe(func(s *Server, ln net.Listener) {
+		serving <- true
+	})
+	handler := HandlerFunc(func(w ResponseWriter, r *Request) {})
+	s := &Server{
+		Addr:      addr,
+		TLSConfig: tlsConf,
+		Handler:   handler,
+	}
+	errc := make(chan error, 1)
+	go func() { errc <- s.ServeTLS(ln, "", "") }()
+	select {
+	case err := <-errc:
+		t.Fatalf("ServeTLS: %v", err)
+	case <-serving:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout")
+	}
+
 	c, err := tls.Dial("tcp", ln.Addr().String(), &tls.Config{
 		InsecureSkipVerify: true,
 		NextProtos:         []string{"h2", "http/1.1"},
