@@ -38,6 +38,11 @@ var timers struct {
 // nacl fake time support - time in nanoseconds since 1970
 var faketime int64
 
+// Faketime activates the builtin fake clock and sets its current time in ns
+func Faketime(ns int64) {
+	faketime = ns
+}
+
 // Package time APIs.
 // Godoc uses the comments in package time, not these.
 
