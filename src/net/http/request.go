@@ -349,18 +349,6 @@ func (r *Request) ProtoAtLeast(major, minor int) bool {
 		r.ProtoMajor == major && r.ProtoMinor >= minor
 }
 
-// protoAtLeastOutgoing is like ProtoAtLeast, but is for outgoing
-// requests (see issue 18407) where these fields aren't supposed to
-// matter.  As a minor fix for Go 1.8, at least treat (0, 0) as
-// matching HTTP/1.1 or HTTP/1.0.  Only HTTP/1.1 is used.
-// TODO(bradfitz): ideally remove this whole method. It shouldn't be used.
-func (r *Request) protoAtLeastOutgoing(major, minor int) bool {
-	if r.ProtoMajor == 0 && r.ProtoMinor == 0 && major == 1 && minor <= 1 {
-		return true
-	}
-	return r.ProtoAtLeast(major, minor)
-}
-
 // UserAgent returns the client's User-Agent, if sent in the request.
 func (r *Request) UserAgent() string {
 	return r.Header.Get("User-Agent")
