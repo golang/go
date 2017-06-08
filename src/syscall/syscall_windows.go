@@ -236,7 +236,8 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 
 // syscall interface implementation for other packages
 
-func Exit(code int) { ExitProcess(uint32(code)) }
+// Implemented in ../runtime/syscall_windows.go.
+func Exit(code int)
 
 func makeInheritSa() *SecurityAttributes {
 	var sa SecurityAttributes
