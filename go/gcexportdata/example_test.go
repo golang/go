@@ -69,14 +69,15 @@ func ExampleRead() {
 // ExampleNewImporter demonstrates usage of NewImporter to provide type
 // information for dependencies when type-checking Go source code.
 func ExampleNewImporter() {
-	const src = `package twopi
+	const src = `package myscanner
 
-import "math"
+// choosing a package that is unlikely to change across releases
+import "text/scanner"
 
-const TwoPi = 2 * math.Pi
+const eof = scanner.EOF
 `
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "twopi.go", src, 0)
+	f, err := parser.ParseFile(fset, "myscanner.go", src, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -84,32 +85,34 @@ const TwoPi = 2 * math.Pi
 	packages := make(map[string]*types.Package)
 	imp := gcexportdata.NewImporter(fset, packages)
 	conf := types.Config{Importer: imp}
-	pkg, err := conf.Check("twopi", fset, []*ast.File{f}, nil)
+	pkg, err := conf.Check("myscanner", fset, []*ast.File{f}, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// object from imported package
-	pi := packages["math"].Scope().Lookup("Pi")
+	pi := packages["text/scanner"].Scope().Lookup("EOF")
 	fmt.Printf("const %s.%s %s = %s // %s\n",
 		pi.Pkg().Path(),
 		pi.Name(),
 		pi.Type(),
 		pi.(*types.Const).Val(),
-		slashify(fset.Position(pi.Pos())))
+		slashify(fset.Position(pi.Pos())),
+	)
 
 	// object in source package
-	twopi := pkg.Scope().Lookup("TwoPi")
+	twopi := pkg.Scope().Lookup("eof")
 	fmt.Printf("const %s %s = %s // %s\n",
 		twopi.Name(),
 		twopi.Type(),
 		twopi.(*types.Const).Val(),
-		slashify(fset.Position(twopi.Pos())))
+		slashify(fset.Position(twopi.Pos())),
+	)
 
 	// Output:
 	//
-	// const math.Pi untyped float = 3.14159 // $GOROOT/src/math/const.go:13:1
-	// const TwoPi untyped float = 6.28319 // twopi.go:5:7
+	// const text/scanner.EOF untyped int = -1 // $GOROOT/src/text/scanner/scanner.go:75:1
+	// const eof untyped int = -1 // myscanner.go:6:7
 }
 
 func slashify(posn token.Position) token.Position {
