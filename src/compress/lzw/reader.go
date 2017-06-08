@@ -169,7 +169,7 @@ loop:
 			break loop
 		case code <= d.hi:
 			c, i := code, len(d.output)-1
-			if code == d.hi {
+			if code == d.hi && d.last != decoderInvalidCode {
 				// code == hi is a special case which expands to the last expansion
 				// followed by the head of the last expansion. To find the head, we walk
 				// the prefix chain until we find a literal code.
