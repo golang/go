@@ -99,13 +99,13 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 		t.TransferEncoding = rr.TransferEncoding
 		t.Header = rr.Header
 		t.Trailer = rr.Trailer
-		atLeastHTTP11 = rr.protoAtLeastOutgoing(1, 1)
 		t.Body = rr.Body
 		t.BodyCloser = rr.Body
 		t.ContentLength = rr.outgoingLength()
-		if t.ContentLength < 0 && len(t.TransferEncoding) == 0 && atLeastHTTP11 && t.shouldSendChunkedRequestBody() {
+		if t.ContentLength < 0 && len(t.TransferEncoding) == 0 && t.shouldSendChunkedRequestBody() {
 			t.TransferEncoding = []string{"chunked"}
 		}
+		atLeastHTTP11 = true // Transport requests are always 1.1 or 2.0
 	case *Response:
 		t.IsResponse = true
 		if rr.Request != nil {
