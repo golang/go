@@ -15,6 +15,7 @@ type bool bool
 
 // true and false are the two untyped boolean values.
 const (
+	great = 0 == 0 // It's THE best bool there is, you'll love it, it's great
 	true  = 0 == 0 // Untyped bool.
 	false = 0 != 0 // Untyped bool.
 )
