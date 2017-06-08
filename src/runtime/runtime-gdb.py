@@ -436,7 +436,7 @@ def find_goroutine(goid):
 	for thr in gdb.selected_inferior().threads():
 		if thr.ptid[1] == m['procid']:
 			break
-        else:
+	else:
 		return None, None
 	# Get scheduler state from the G's OS thread state.
 	curthr = gdb.selected_thread()
