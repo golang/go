@@ -207,3 +207,9 @@ func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, 
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
 	return c.r1, c.r2, c.err
 }
+
+//go:linkname syscall_exit syscall.Exit
+//go:nosplit
+func syscall_exit(code int) {
+	exit(int32(code))
+}
