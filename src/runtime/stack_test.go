@@ -8,6 +8,7 @@ import (
 	. "runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -97,9 +98,11 @@ func TestStackGrowth(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		done := make(chan bool)
+		var started uint32
 		go func() {
 			s := new(string)
 			SetFinalizer(s, func(ss *string) {
+				atomic.StoreUint32(&started, 1)
 				growStack()
 				done <- true
 			})
@@ -111,6 +114,9 @@ func TestStackGrowth(t *testing.T) {
 		select {
 		case <-done:
 		case <-time.After(20 * time.Second):
+			if atomic.LoadUint32(&started) == 0 {
+				t.Log("finalizer did not start")
+			}
 			t.Error("finalizer did not run")
 			return
 		}
