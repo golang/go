@@ -328,16 +328,34 @@ func isRuntimeDepPkg(pkg string) bool {
 	return strings.HasPrefix(pkg, "runtime/internal/") && !strings.HasSuffix(pkg, "_test")
 }
 
+// Estimate the max size needed to hold any new trampolines created for this function. This
+// is used to determine when the section can be split if it becomes too large, to ensure that
+// the trampolines are in the same section as the function that uses them.
+func maxSizeTrampolinesPPC64(s *Symbol, isTramp bool) uint64 {
+	// If Thearch.Trampoline is nil, then trampoline support is not available on this arch.
+	// A trampoline does not need any dependent trampolines.
+	if Thearch.Trampoline == nil || isTramp {
+		return 0
+	}
+
+	n := uint64(0)
+	for ri := range s.R {
+		r := &s.R[ri]
+		if r.Type.IsDirectJump() {
+			n++
+		}
+	}
+	// Trampolines in ppc64 are 4 instructions.
+	return n * 16
+}
+
 // detect too-far jumps in function s, and add trampolines if necessary
-// ARM supports trampoline insertion for internal and external linking
-// PPC64 & PPC64LE support trampoline insertion for internal linking only
+// ARM, PPC64 & PPC64LE support trampoline insertion for internal and external linking
+// On PPC64 & PPC64LE the text sections might be split but will still insert trampolines
+// where necessary.
 func trampoline(ctxt *Link, s *Symbol) {
 	if Thearch.Trampoline == nil {
 		return // no need or no support of trampolines on this arch
-	}
-
-	if Linkmode == LinkExternal && SysArch.Family == sys.PPC64 {
-		return
 	}
 
 	for ri := range s.R {
@@ -2055,14 +2073,14 @@ func (ctxt *Link) textaddress() {
 	sect.Vaddr = va
 	ntramps := 0
 	for _, sym := range ctxt.Textp {
-		sect, n, va = assignAddress(ctxt, sect, n, sym, va)
+		sect, n, va = assignAddress(ctxt, sect, n, sym, va, false)
 
 		trampoline(ctxt, sym) // resolve jumps, may add trampolines if jump too far
 
 		// lay down trampolines after each function
 		for ; ntramps < len(ctxt.tramps); ntramps++ {
 			tramp := ctxt.tramps[ntramps]
-			sect, n, va = assignAddress(ctxt, sect, n, tramp, va)
+			sect, n, va = assignAddress(ctxt, sect, n, tramp, va, true)
 		}
 	}
 
@@ -2088,7 +2106,7 @@ func (ctxt *Link) textaddress() {
 // assigns address for a text symbol, returns (possibly new) section, its number, and the address
 // Note: once we have trampoline insertion support for external linking, this function
 // will not need to create new text sections, and so no need to return sect and n.
-func assignAddress(ctxt *Link, sect *Section, n int, sym *Symbol, va uint64) (*Section, int, uint64) {
+func assignAddress(ctxt *Link, sect *Section, n int, sym *Symbol, va uint64, isTramp bool) (*Section, int, uint64) {
 	sym.Sect = sect
 	if sym.Type&SSUB != 0 {
 		return sect, n, va
@@ -2117,7 +2135,7 @@ func assignAddress(ctxt *Link, sect *Section, n int, sym *Symbol, va uint64) (*S
 
 	// Only break at outermost syms.
 
-	if SysArch.InFamily(sys.PPC64) && sym.Outer == nil && Iself && Linkmode == LinkExternal && va-sect.Vaddr+funcsize > 0x1c00000 {
+	if SysArch.InFamily(sys.PPC64) && sym.Outer == nil && Iself && Linkmode == LinkExternal && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(sym, isTramp) > 0x1c00000 {
 
 		// Set the length for the previous text section
 		sect.Length = va - sect.Vaddr
