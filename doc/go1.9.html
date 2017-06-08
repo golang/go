@@ -364,7 +364,11 @@ type T1 = T2
 <dl id="image"><dt><a href="/pkg/image/">image</a></dt>
   <dd>
     <p><!-- CL 36734 -->
-      TODO: <a href="https://golang.org/cl/36734">https://golang.org/cl/36734</a>: fix the overlap check in Rectangle.Intersect.
+	  The <a href="/pkg/image/#Rectangle.Intersect"><code>Rectangle.Intersect</code></a>
+	  method now returns a zero <code>Rectangle</code> when called on
+	  adjacent but non-overlapping rectangles, as documented. In
+	  earlier releases it would incorrectly return an empty but
+	  non-zero <code>Rectangle</code>.
     </p>
 
 </dl><!-- image -->
@@ -372,7 +376,9 @@ type T1 = T2
 <dl id="image/color"><dt><a href="/pkg/image/color/">image/color</a></dt>
   <dd>
     <p><!-- CL 36732 -->
-      TODO: <a href="https://golang.org/cl/36732">https://golang.org/cl/36732</a>: tweak the YCbCr to RGBA conversion formula again.
+	  The YCbCr to RGBA conversion formula has been tweaked to ensure
+	  that rounding adjustments span the complete [0, 0xffff] RGBA
+	  range.
     </p>
 
 </dl><!-- image/color -->
@@ -380,11 +386,18 @@ type T1 = T2
 <dl id="image/png"><dt><a href="/pkg/image/png/">image/png</a></dt>
   <dd>
     <p><!-- CL 34150 -->
-      TODO: <a href="https://golang.org/cl/34150">https://golang.org/cl/34150</a>: reduce memory allocs encoding images by reusing buffers
+	  The new <a href="/pkg/image/png/#Encoder.BufferPool"><code>Encoder.BufferPool</code></a>
+	  field allows specifying an <a href="/pkg/image/png/#EncoderBufferPool"><code>EncoderBufferPool</code></a>,
+	  that will be used by the encoder to get temporary <code>EncoderBuffer</code>
+	  buffers when encoding a PNG image.
+
+	  The use of a <code>BufferPool</code> reduces the number of
+	  memory allocations performed while encoding multiple images.
     </p>
 
     <p><!-- CL 38271 -->
-      TODO: <a href="https://golang.org/cl/38271">https://golang.org/cl/38271</a>: decode Gray8 transparent images.
+	  The package now supports the decoding of transparent 8-bit
+	  grayscale ("Gray8") images.
     </p>
 
 </dl><!-- image/png -->
