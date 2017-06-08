@@ -108,7 +108,7 @@ const TwoPi = 2 * math.Pi
 
 	// Output:
 	//
-	// const math.Pi untyped float = 3.14159 // $GOROOT/src/math/const.go:11:1
+	// const math.Pi untyped float = 3.14159 // $GOROOT/src/math/const.go:13:1
 	// const TwoPi untyped float = 6.28319 // twopi.go:5:7
 }
 
