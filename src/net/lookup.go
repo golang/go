@@ -111,9 +111,11 @@ type Resolver struct {
 	// Go's built-in DNS resolver to make TCP and UDP connections
 	// to DNS services. The provided addr will always be an IP
 	// address and not a hostname.
-	// The Conn returned must be a *TCPConn or *UDPConn as
-	// requested by the network parameter. If nil, the default
-	// dialer is used.
+	// If the Conn returned is also a PacketConn, sent and received DNS
+	// messages must adhere to section 4.2.1. "UDP usage" of RFC 1035.
+	// Otherwise, DNS messages transmitted over Conn must adhere to section
+	// 4.2.2. "TCP usage".
+	// If nil, the default dialer is used.
 	Dial func(ctx context.Context, network, addr string) (Conn, error)
 
 	// TODO(bradfitz): optional interface impl override hook
