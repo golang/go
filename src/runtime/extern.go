@@ -78,7 +78,7 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	for mark/scan are broken down in to assist time (GC performed in
 	line with allocation), background GC time, and idle GC time.
 	If the line ends with "(forced)", this GC was forced by a
-	runtime.GC() call and all phases are STW.
+	runtime.GC() call.
 
 	Setting gctrace to any value > 0 also causes the garbage collector
 	to emit a summary when memory is released back to the system.
