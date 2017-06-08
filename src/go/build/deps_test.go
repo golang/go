@@ -307,7 +307,7 @@ var pkgDeps = map[string][]string{
 		"context", "math/rand", "os", "reflect", "sort", "syscall", "time",
 		"internal/nettrace", "internal/poll",
 		"internal/syscall/windows", "internal/singleflight", "internal/race",
-		"golang_org/x/net/lif", "golang_org/x/net/route",
+		"golang.org/x/net/lif", "golang.org/x/net/route",
 	},
 
 	// NET enables use of basic network-related packages.
@@ -342,9 +342,9 @@ var pkgDeps = map[string][]string{
 		"crypto/sha1",
 		"crypto/sha256",
 		"crypto/sha512",
-		"golang_org/x/crypto/chacha20poly1305",
-		"golang_org/x/crypto/curve25519",
-		"golang_org/x/crypto/poly1305",
+		"golang.org/x/crypto/chacha20poly1305",
+		"golang.org/x/crypto/curve25519",
+		"golang.org/x/crypto/poly1305",
 	},
 
 	// Random byte, number generation.
@@ -393,12 +393,12 @@ var pkgDeps = map[string][]string{
 		"context",
 		"crypto/rand",
 		"crypto/tls",
-		"golang_org/x/net/http2/hpack",
-		"golang_org/x/net/idna",
-		"golang_org/x/net/lex/httplex",
-		"golang_org/x/net/proxy",
-		"golang_org/x/text/unicode/norm",
-		"golang_org/x/text/width",
+		"golang.org/x/net/http2/hpack",
+		"golang.org/x/net/idna",
+		"golang.org/x/net/lex/httplex",
+		"golang.org/x/net/proxy",
+		"golang.org/x/text/unicode/norm",
+		"golang.org/x/text/width",
 		"internal/nettrace",
 		"mime/multipart",
 		"net/http/httptrace",
@@ -465,7 +465,7 @@ func listStdPkgs(goroot string) ([]string, error) {
 		}
 
 		name := filepath.ToSlash(path[len(src):])
-		if name == "builtin" || name == "cmd" || strings.Contains(name, "golang_org") {
+		if name == "builtin" || name == "cmd" || strings.Contains(name, "golang.org") {
 			return filepath.SkipDir
 		}
 
