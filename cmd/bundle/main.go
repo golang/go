@@ -88,6 +88,7 @@ import (
 	"go/build"
 	"go/format"
 	"go/parser"
+	"go/printer"
 	"go/token"
 	"go/types"
 	"io/ioutil"
@@ -348,18 +349,13 @@ func bundle(src, dst, dstpkg, prefix string) ([]byte, error) {
 
 		// Pretty-print package-level declarations.
 		// but no package or import declarations.
-		//
-		// TODO(adonovan): this may cause loss of comments
-		// preceding or associated with the package or import
-		// declarations or not associated with any declaration.
-		// Check.
 		var buf bytes.Buffer
 		for _, decl := range f.Decls {
 			if decl, ok := decl.(*ast.GenDecl); ok && decl.Tok == token.IMPORT {
 				continue
 			}
 			buf.Reset()
-			format.Node(&buf, lprog.Fset, decl)
+			format.Node(&buf, lprog.Fset, &printer.CommentedNode{Node: decl, Comments: f.Comments})
 			// Remove each "@@@." in the output.
 			// TODO(adonovan): not hygienic.
 			out.Write(bytes.Replace(buf.Bytes(), []byte("@@@."), nil, -1))

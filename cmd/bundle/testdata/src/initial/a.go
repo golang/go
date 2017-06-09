@@ -12,4 +12,6 @@ type S struct {
 }
 
 // Function bar.
-func bar(s *S) { fmt.Println(s.t, s.u) }
+func bar(s *S) {
+	fmt.Println(s.t, s.u) // comment inside function
+}
