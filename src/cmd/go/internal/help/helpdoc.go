@@ -565,8 +565,10 @@ Non-test Go source files can also include a //go:binary-only-package
 comment, indicating that the package sources are included
 for documentation only and must not be used to build the
 package binary. This enables distribution of Go packages in
-their compiled form alone. See the go/build package documentation
-for more details.
+their compiled form alone. Even binary-only packages require
+accurate import blocks listing required dependencies, so that
+those dependencies can be supplied when linking the resulting
+command.
 	`,
 }
 
