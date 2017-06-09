@@ -93,15 +93,13 @@ type PackagePublic struct {
 type PackageInternal struct {
 	// Unexported fields are not part of the public API.
 	Build        *build.Package
-	Pkgdir       string     // overrides build.PkgDir
-	Imports      []*Package // this package's direct imports
-	GoFiles      []string   // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
-	SFiles       []string
+	Pkgdir       string               // overrides build.PkgDir
+	Imports      []*Package           // this package's direct imports
+	GoFiles      []string             // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
 	AllGoFiles   []string             // gofiles + IgnoredGoFiles, absolute paths
 	Target       string               // installed file for this package (may be executable)
 	Pkgfile      string               // where package will be (or is already) built or installed
 	Fake         bool                 // synthesized package
-	External     bool                 // synthesized external test package
 	ForceLibrary bool                 // this package is a library (even if named "main")
 	Cmdline      bool                 // defined by files listed on command line
 	Local        bool                 // imported via local path (./ or ../)
@@ -990,12 +988,6 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		p.Internal.GoFiles[i] = filepath.Join(p.Dir, p.Internal.GoFiles[i])
 	}
 	sort.Strings(p.Internal.GoFiles)
-
-	p.Internal.SFiles = str.StringList(p.SFiles)
-	for i := range p.Internal.SFiles {
-		p.Internal.SFiles[i] = filepath.Join(p.Dir, p.Internal.SFiles[i])
-	}
-	sort.Strings(p.Internal.SFiles)
 
 	p.Internal.AllGoFiles = str.StringList(p.IgnoredGoFiles)
 	for i := range p.Internal.AllGoFiles {

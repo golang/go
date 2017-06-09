@@ -832,9 +832,8 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 				Build: &build.Package{
 					ImportPos: p.Internal.Build.XTestImportPos,
 				},
-				Imports:  ximports,
-				Fake:     true,
-				External: true,
+				Imports: ximports,
+				Fake:    true,
 			},
 		}
 		if pxtestNeedsPtest {
