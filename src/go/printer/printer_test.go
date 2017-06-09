@@ -659,3 +659,54 @@ func _() {}
 		t.Error(err)
 	}
 }
+
+func TestCommentedNode(t *testing.T) {
+	const (
+		input = `package main
+
+func foo() {
+	// comment inside func
+}
+
+// leading comment
+type bar int // comment2
+
+`
+
+		foo = `func foo() {
+	// comment inside func
+}`
+
+		bar = `// leading comment
+type bar int	// comment2
+`
+	)
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "input.go", input, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+
+	err = Fprint(&buf, fset, &CommentedNode{Node: f.Decls[0], Comments: f.Comments})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if buf.String() != foo {
+		t.Errorf("got %q, want %q", buf.String(), foo)
+	}
+
+	buf.Reset()
+
+	err = Fprint(&buf, fset, &CommentedNode{Node: f.Decls[1], Comments: f.Comments})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if buf.String() != bar {
+		t.Errorf("got %q, want %q", buf.String(), bar)
+	}
+}
