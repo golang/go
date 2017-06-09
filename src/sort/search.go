@@ -24,7 +24,7 @@ package sort
 //
 // For instance, given a slice data sorted in ascending order,
 // the call Search(len(data), func(i int) bool { return data[i] >= 23 })
-// returns the smallest index i such that data[i] >= 23.  If the caller
+// returns the smallest index i such that data[i] >= 23. If the caller
 // wants to find whether 23 is in the slice, it must test data[i] == 23
 // separately.
 //

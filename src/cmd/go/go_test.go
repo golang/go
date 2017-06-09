@@ -133,7 +133,7 @@ func TestMain(m *testing.M) {
 	if home, ccacheDir := os.Getenv("HOME"), os.Getenv("CCACHE_DIR"); home != "" && ccacheDir == "" {
 		// On some systems the default C compiler is ccache.
 		// Setting HOME to a non-existent directory will break
-		// those systems.  Set CCACHE_DIR to cope.  Issue 17668.
+		// those systems. Set CCACHE_DIR to cope. Issue 17668.
 		os.Setenv("CCACHE_DIR", filepath.Join(home, ".ccache"))
 	}
 	os.Setenv("HOME", "/test-go-home-does-not-exist")
@@ -402,7 +402,7 @@ func (tg *testgoData) doGrepMatch(match string, b *bytes.Buffer) bool {
 
 // doGrep looks for a regular expression in a buffer and fails if it
 // is not found. The name argument is the name of the output we are
-// searching, "output" or "error".  The msg argument is logged on
+// searching, "output" or "error". The msg argument is logged on
 // failure.
 func (tg *testgoData) doGrep(match string, b *bytes.Buffer, name, msg string) {
 	if !tg.doGrepMatch(match, b) {
@@ -1783,7 +1783,7 @@ func TestDefaultGOPATHPrintedSearchList(t *testing.T) {
 	tg.grepStderr(regexp.QuoteMeta(tg.path("home/go/src/github.com/golang/example/hello"))+`.*from \$GOPATH`, "expected default GOPATH")
 }
 
-// Issue 4186.  go get cannot be used to download packages to $GOROOT.
+// Issue 4186. go get cannot be used to download packages to $GOROOT.
 // Test that without GOPATH set, go get should fail.
 func TestGoGetIntoGOROOT(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)

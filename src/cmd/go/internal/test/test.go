@@ -59,7 +59,7 @@ followed by detailed output for each failed package.
 the file pattern "*_test.go".
 Files whose names begin with "_" (including "_test.go") or "." are ignored.
 These additional files can contain test functions, benchmark functions, and
-example functions.  See 'go help testfunc' for more.
+example functions. See 'go help testfunc' for more.
 Each listed package causes the execution of a separate test binary.
 
 Test files that declare a package with the suffix "_test" will be compiled as a
@@ -68,7 +68,7 @@ separate package, and then linked and run with the main test binary.
 The go tool will ignore a directory named "testdata", making it available
 to hold ancillary data needed by the tests.
 
-By default, go test needs no arguments.  It compiles and tests the package
+By default, go test needs no arguments. It compiles and tests the package
 with source in the current directory, including tests, and runs the tests.
 
 The package is built in a temporary directory so it does not interfere with the
@@ -130,7 +130,7 @@ and flags that apply to the resulting test binary.
 
 Several of the flags control profiling and write an execution profile
 suitable for "go tool pprof"; run "go tool pprof -h" for more
-information.  The --alloc_space, --alloc_objects, and --show_bytes
+information. The --alloc_space, --alloc_objects, and --show_bytes
 options of pprof control how the information is presented.
 
 The following flags are recognized by the 'go test' command and
@@ -185,7 +185,7 @@ const testFlag2 = `
 
 	-cpu 1,2,4
 	    Specify a list of GOMAXPROCS values for which the tests or
-	    benchmarks should be executed.  The default is the current value
+	    benchmarks should be executed. The default is the current value
 	    of GOMAXPROCS.
 
 	-list regexp
@@ -238,7 +238,7 @@ profile the tests during execution:
 	    calling runtime.SetBlockProfileRate with n.
 	    See 'go doc runtime.SetBlockProfileRate'.
 	    The profiler aims to sample, on average, one blocking event every
-	    n nanoseconds the program spends blocked.  By default,
+	    n nanoseconds the program spends blocked. By default,
 	    if -test.blockprofile is set without this flag, all blocking events
 	    are recorded, equivalent to -test.blockprofilerate=1.
 
@@ -256,7 +256,7 @@ profile the tests during execution:
 
 	-memprofilerate n
 	    Enable more precise (and expensive) memory profiles by setting
-	    runtime.MemProfileRate.  See 'go doc runtime.MemProfileRate'.
+	    runtime.MemProfileRate. See 'go doc runtime.MemProfileRate'.
 	    To profile all memory allocations, use -test.memprofilerate=1
 	    and pass --alloc_space flag to the pprof tool.
 
@@ -361,8 +361,8 @@ comment is compiled but not executed. An example with no text after
 "Output:" is compiled, executed, and expected to produce no output.
 
 Godoc displays the body of ExampleXXX to demonstrate the use
-of the function, constant, or variable XXX.  An example of a method M with
-receiver type T or *T is named ExampleT_M.  There may be multiple examples
+of the function, constant, or variable XXX. An example of a method M with
+receiver type T or *T is named ExampleT_M. There may be multiple examples
 for a given function, constant, or variable, distinguished by a trailing _xxx,
 where xxx is a suffix not beginning with an upper case letter.
 

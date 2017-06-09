@@ -103,8 +103,8 @@ and test commands:
 		a suffix to use in the name of the package installation directory,
 		in order to keep output separate from default builds.
 		If using the -race flag, the install suffix is automatically set to race
-		or, if set explicitly, has _race appended to it.  Likewise for the -msan
-		flag.  Using a -buildmode option that requires non-default compile flags
+		or, if set explicitly, has _race appended to it. Likewise for the -msan
+		flag. Using a -buildmode option that requires non-default compile flags
 		has a similar effect.
 	-ldflags 'flag list'
 		arguments to pass on each go tool link invocation.
@@ -2001,7 +2001,7 @@ func (b *Builder) runOut(dir string, desc string, env []string, cmdargs ...inter
 		// until the time of the explicit close, and the race would remain.
 		//
 		// On Unix systems, this results in ETXTBSY, which formats
-		// as "text file busy".  Rather than hard-code specific error cases,
+		// as "text file busy". Rather than hard-code specific error cases,
 		// we just look for that string. If this happens, sleep a little
 		// and try again. We let this happen three times, with increasing
 		// sleep lengths: 100+200+400 ms = 0.7 seconds.
@@ -3662,7 +3662,7 @@ const i int = 1 << 32
 `
 
 // Determine the size of int on the target system for the -intgosize option
-// of swig >= 2.0.9.  Run only once.
+// of swig >= 2.0.9. Run only once.
 func (b *Builder) swigDoIntSize(obj string) (intsize string, err error) {
 	if cfg.BuildN {
 		return "$INTBITS", nil

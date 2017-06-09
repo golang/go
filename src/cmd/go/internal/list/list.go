@@ -33,7 +33,7 @@ The default output shows the package import path:
     golang.org/x/net/html
 
 The -f flag specifies an alternate format for the list, using the
-syntax of package template.  The default output is equivalent to -f
+syntax of package template. The default output is equivalent to -f
 '{{.ImportPath}}'. The struct being passed to the template is:
 
     type Package struct {
@@ -126,12 +126,12 @@ The -json flag causes the package data to be printed in JSON format
 instead of using the template format.
 
 The -e flag changes the handling of erroneous packages, those that
-cannot be found or are malformed.  By default, the list command
+cannot be found or are malformed. By default, the list command
 prints an error to standard error for each erroneous package and
 omits the packages from consideration during the usual printing.
 With the -e flag, the list command never prints errors to standard
 error and instead processes the erroneous packages with the usual
-printing.  Erroneous packages will have a non-empty ImportPath and
+printing. Erroneous packages will have a non-empty ImportPath and
 a non-nil Error field; other information may or may not be missing
 (zeroed).
 

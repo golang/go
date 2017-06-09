@@ -12,18 +12,18 @@ var HelpC = &base.Command{
 	Long: `
 There are two different ways to call between Go and C/C++ code.
 
-The first is the cgo tool, which is part of the Go distribution.  For
+The first is the cgo tool, which is part of the Go distribution. For
 information on how to use it see the cgo documentation (go doc cmd/cgo).
 
 The second is the SWIG program, which is a general tool for
-interfacing between languages.  For information on SWIG see
-http://swig.org/.  When running go build, any file with a .swig
-extension will be passed to SWIG.  Any file with a .swigcxx extension
+interfacing between languages. For information on SWIG see
+http://swig.org/. When running go build, any file with a .swig
+extension will be passed to SWIG. Any file with a .swigcxx extension
 will be passed to SWIG with the -c++ option.
 
 When either cgo or SWIG is used, go build will pass any .c, .m, .s,
 or .S files to the C compiler, and any .cc, .cpp, .cxx files to the C++
-compiler.  The CC or CXX environment variables may be set to determine
+compiler. The CC or CXX environment variables may be set to determine
 the C or C++ compiler, respectively, to use.
 	`,
 }
@@ -69,7 +69,7 @@ the Go repository.
 
 An import path is a pattern if it includes one or more "..." wildcards,
 each of which can match any string, including the empty string and
-strings containing slashes.  Such a pattern expands to all package
+strings containing slashes. Such a pattern expands to all package
 directories found in the GOPATH trees with names matching the
 patterns.
 
@@ -86,11 +86,11 @@ and the pattern cmd/... matches it.
 See golang.org/s/go15vendor for more about vendoring.
 
 An import path can also name a package to be downloaded from
-a remote repository.  Run 'go help importpath' for details.
+a remote repository. Run 'go help importpath' for details.
 
 Every package in a program must have a unique import path.
 By convention, this is arranged by starting each path with a
-unique prefix that belongs to you.  For example, paths used
+unique prefix that belongs to you. For example, paths used
 internally at Google all begin with 'google', and paths
 denoting remote repositories begin with the path to the code,
 such as 'github.com/user/repo'.
@@ -119,7 +119,7 @@ var HelpImportPath = &base.Command{
 	Long: `
 
 An import path (see 'go help packages') denotes a package stored in the local
-file system.  In general, an import path denotes either a standard package (such
+file system. In general, an import path denotes either a standard package (such
 as "unicode/utf8") or a package found in one of the work spaces (For more
 details see: 'go help gopath').
 
@@ -190,7 +190,7 @@ To declare the code location, an import path of the form
 
 specifies the given repository, with or without the .vcs suffix,
 using the named version control system, and then the path inside
-that repository.  The supported version control systems are:
+that repository. The supported version control systems are:
 
 	Bazaar      .bzr
 	Git         .git
@@ -210,7 +210,7 @@ denotes the foo/bar directory of the Git repository at
 example.org/repo or repo.git.
 
 When a version control system supports multiple protocols,
-each is tried in turn when downloading.  For example, a Git
+each is tried in turn when downloading. For example, a Git
 download tries https://, then git+ssh://.
 
 By default, downloads are restricted to known secure protocols
@@ -312,7 +312,7 @@ See https://golang.org/wiki/SettingGOPATH to set a custom GOPATH.
 
 Each directory listed in GOPATH must have a prescribed structure:
 
-The src directory holds source code.  The path below src
+The src directory holds source code. The path below src
 determines the import path or executable name.
 
 The pkg directory holds installed package objects.
@@ -326,11 +326,11 @@ has its compiled form installed to "DIR/pkg/GOOS_GOARCH/foo/bar.a".
 
 The bin directory holds compiled commands.
 Each command is named for its source directory, but only
-the final element, not the entire path.  That is, the
+the final element, not the entire path. That is, the
 command with source in DIR/src/foo/quux is installed into
-DIR/bin/quux, not DIR/bin/foo/quux.  The "foo/" prefix is stripped
+DIR/bin/quux, not DIR/bin/foo/quux. The "foo/" prefix is stripped
 so that you can add DIR/bin to your PATH to get at the
-installed commands.  If the GOBIN environment variable is
+installed commands. If the GOBIN environment variable is
 set, commands are installed to the directory it names instead
 of DIR/bin. GOBIN must be an absolute path.
 
@@ -477,7 +477,7 @@ Environment variables for use with cgo:
 	CC
 		The command to use to compile C code.
 	CGO_ENABLED
-		Whether the cgo command is supported.  Either 0 or 1.
+		Whether the cgo command is supported. Either 0 or 1.
 	CGO_CFLAGS
 		Flags that cgo will pass to the compiler when compiling
 		C code.
