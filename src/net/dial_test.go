@@ -893,6 +893,9 @@ func TestCancelAfterDial(t *testing.T) {
 // if the machine has halfway configured IPv6 such that it can bind on
 // "::" not connect back to that same address.
 func TestDialListenerAddr(t *testing.T) {
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
+	}
 	ln, err := Listen("tcp", ":0")
 	if err != nil {
 		t.Fatal(err)
