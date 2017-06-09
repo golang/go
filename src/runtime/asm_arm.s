@@ -941,6 +941,7 @@ TEXT runtime·procyield(SB),NOSPLIT,$-4
 	MOVW	cycles+0(FP), R1
 	MOVW	$0, R0
 yieldloop:
+	WORD	$0xe320f001	// YIELD (NOP pre-ARMv6K)
 	CMP	R0, R1
 	B.NE	2(PC)
 	RET
