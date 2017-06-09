@@ -343,7 +343,7 @@ const (
 
 // loadImport scans the directory named by path, which must be an import path,
 // but possibly a local import path (an absolute file system path or one beginning
-// with ./ or ../).  A local relative path is interpreted relative to srcDir.
+// with ./ or ../). A local relative path is interpreted relative to srcDir.
 // It returns a *Package describing the package found in that directory.
 func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
 	stk.Push(path)
@@ -1747,7 +1747,7 @@ func LoadPackage(arg string, stk *ImportStack) *Package {
 }
 
 // packages returns the packages named by the
-// command line arguments 'args'.  If a named package
+// command line arguments 'args'. If a named package
 // cannot be loaded at all (for example, if the directory does not exist),
 // then packages prints an error and does not include that
 // package in the results. However, if errors occur trying
@@ -1843,7 +1843,7 @@ func PackagesForBuild(args []string) []*Package {
 }
 
 // GoFilesPackage creates a package for building a collection of Go files
-// (typically named on the command line).  The target is named p.a for
+// (typically named on the command line). The target is named p.a for
 // package p or named after the first Go file for package main.
 func GoFilesPackage(gofiles []string) *Package {
 	// TODO: Remove this restriction.

@@ -324,7 +324,7 @@ func (v *vcsCmd) String() string {
 }
 
 // run runs the command line cmd in the given directory.
-// keyval is a list of key, value pairs.  run expands
+// keyval is a list of key, value pairs. run expands
 // instances of {key} in cmd into value, but only after
 // splitting cmd into individual arguments.
 // If an error occurs, run prints the command line and the
@@ -688,7 +688,7 @@ func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*re
 	// prefix was "uni.edu" and the RepoRoot was "evilroot.com",
 	// make sure we don't trust Bob and check out evilroot.com to
 	// "uni.edu" yet (possibly overwriting/preempting another
-	// non-evil student).  Instead, first verify the root and see
+	// non-evil student). Instead, first verify the root and see
 	// if it matches Bob's claim.
 	if mmi.Prefix != importPath {
 		if cfg.BuildV {

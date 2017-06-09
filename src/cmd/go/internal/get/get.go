@@ -46,7 +46,7 @@ The -t flag instructs get to also download the packages required to build
 the tests for the specified packages.
 
 The -u flag instructs get to use the network to update the named packages
-and their dependencies.  By default, get uses the network to check out
+and their dependencies. By default, get uses the network to check out
 missing packages but does not use it to look for updates to existing packages.
 
 The -v flag enables verbose progress and debug output.
@@ -121,7 +121,7 @@ func runGet(cmd *base.Command, args []string) {
 		os.Setenv("GIT_SSH_COMMAND", "ssh -o ControlMaster=no")
 	}
 
-	// Phase 1.  Download/update.
+	// Phase 1. Download/update.
 	var stk load.ImportStack
 	mode := 0
 	if *getT {
@@ -151,7 +151,7 @@ func runGet(cmd *base.Command, args []string) {
 	args = load.ImportPaths(args)
 	load.PackagesForBuild(args)
 
-	// Phase 3.  Install.
+	// Phase 3. Install.
 	if *getD {
 		// Download only.
 		// Check delayed until now so that importPaths
@@ -514,7 +514,7 @@ func downloadPackage(p *load.Package) error {
 // Version "weekly.YYYY-MM-DD" matches tags like "go.weekly.YYYY-MM-DD".
 //
 // NOTE(rsc): Eventually we will need to decide on some logic here.
-// For now, there is only "go1".  This matches the docs in go help get.
+// For now, there is only "go1". This matches the docs in go help get.
 func selectTag(goVersion string, tags []string) (match string) {
 	for _, t := range tags {
 		if t == "go1" {

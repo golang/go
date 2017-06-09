@@ -58,7 +58,7 @@ func Help(args []string) {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "Unknown help topic %#q.  Run 'go help'.\n", arg)
+	fmt.Fprintf(os.Stderr, "Unknown help topic %#q. Run 'go help'.\n", arg)
 	os.Exit(2) // failed at 'go help cmd'
 }
 

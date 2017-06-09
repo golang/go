@@ -80,7 +80,7 @@ line.
 As a last step before running the command, any invocations of any
 environment variables with alphanumeric names, such as $GOFILE or
 $HOME, are expanded throughout the command line. The syntax for
-variable expansion is $NAME on all operating systems.  Due to the
+variable expansion is $NAME on all operating systems. Due to the
 order of evaluation, variables are expanded even inside quoted
 strings. If the variable NAME is not set, $NAME expands to the
 empty string.

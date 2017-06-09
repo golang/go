@@ -14,27 +14,27 @@ as C.stdout, or functions such as C.putchar.
 
 If the import of "C" is immediately preceded by a comment, that
 comment, called the preamble, is used as a header when compiling
-the C parts of the package.  For example:
+the C parts of the package. For example:
 
 	// #include <stdio.h>
 	// #include <errno.h>
 	import "C"
 
 The preamble may contain any C code, including function and variable
-declarations and definitions.  These may then be referred to from Go
-code as though they were defined in the package "C".  All names
+declarations and definitions. These may then be referred to from Go
+code as though they were defined in the package "C". All names
 declared in the preamble may be used, even if they start with a
-lower-case letter.  Exception: static variables in the preamble may
+lower-case letter. Exception: static variables in the preamble may
 not be referenced from Go code; static functions are permitted.
 
-See $GOROOT/misc/cgo/stdio and $GOROOT/misc/cgo/gmp for examples.  See
+See $GOROOT/misc/cgo/stdio and $GOROOT/misc/cgo/gmp for examples. See
 "C? Go? Cgo!" for an introduction to using cgo:
 https://golang.org/doc/articles/c_go_cgo.html.
 
 CFLAGS, CPPFLAGS, CXXFLAGS, FFLAGS and LDFLAGS may be defined with pseudo
 #cgo directives within these comments to tweak the behavior of the C, C++
-or Fortran compiler.  Values defined in multiple directives are concatenated
-together.  The directive can include a list of build constraints limiting its
+or Fortran compiler. Values defined in multiple directives are concatenated
+together. The directive can include a list of build constraints limiting its
 effect to systems satisfying one of the constraints
 (see https://golang.org/pkg/go/build/#hdr-Build_Constraints for details about the constraint syntax).
 For example:
@@ -57,16 +57,16 @@ The default pkg-config tool may be changed by setting the PKG_CONFIG environment
 
 When building, the CGO_CFLAGS, CGO_CPPFLAGS, CGO_CXXFLAGS, CGO_FFLAGS and
 CGO_LDFLAGS environment variables are added to the flags derived from
-these directives.  Package-specific flags should be set using the
+these directives. Package-specific flags should be set using the
 directives, not the environment variables, so that builds work in
 unmodified environments.
 
 All the cgo CPPFLAGS and CFLAGS directives in a package are concatenated and
-used to compile C files in that package.  All the CPPFLAGS and CXXFLAGS
+used to compile C files in that package. All the CPPFLAGS and CXXFLAGS
 directives in a package are concatenated and used to compile C++ files in that
-package.  All the CPPFLAGS and FFLAGS directives in a package are concatenated
-and used to compile Fortran files in that package.  All the LDFLAGS directives
-in any package in the program are concatenated and used at link time.  All the
+package. All the CPPFLAGS and FFLAGS directives in a package are concatenated
+and used to compile Fortran files in that package. All the LDFLAGS directives
+in any package in the program are concatenated and used at link time. All the
 pkg-config directives are concatenated and sent to pkg-config simultaneously
 to add to each appropriate set of command-line flags.
 
@@ -84,27 +84,27 @@ Will be expanded to:
 
 When the Go tool sees that one or more Go files use the special import
 "C", it will look for other non-Go files in the directory and compile
-them as part of the Go package.  Any .c, .s, or .S files will be
-compiled with the C compiler.  Any .cc, .cpp, or .cxx files will be
-compiled with the C++ compiler.  Any .f, .F, .for or .f90 files will be
+them as part of the Go package. Any .c, .s, or .S files will be
+compiled with the C compiler. Any .cc, .cpp, or .cxx files will be
+compiled with the C++ compiler. Any .f, .F, .for or .f90 files will be
 compiled with the fortran compiler. Any .h, .hh, .hpp, or .hxx files will
 not be compiled separately, but, if these header files are changed,
-the C and C++ files will be recompiled.  The default C and C++
+the C and C++ files will be recompiled. The default C and C++
 compilers may be changed by the CC and CXX environment variables,
 respectively; those environment variables may include command line
 options.
 
 The cgo tool is enabled by default for native builds on systems where
-it is expected to work.  It is disabled by default when
-cross-compiling.  You can control this by setting the CGO_ENABLED
+it is expected to work. It is disabled by default when
+cross-compiling. You can control this by setting the CGO_ENABLED
 environment variable when running the go tool: set it to 1 to enable
-the use of cgo, and to 0 to disable it.  The go tool will set the
+the use of cgo, and to 0 to disable it. The go tool will set the
 build constraint "cgo" if cgo is enabled.
 
 When cross-compiling, you must specify a C cross-compiler for cgo to
-use.  You can do this by setting the CC_FOR_TARGET environment
+use. You can do this by setting the CC_FOR_TARGET environment
 variable when building the toolchain using make.bash, or by setting
-the CC environment variable any time you run the go tool.  The
+the CC environment variable any time you run the go tool. The
 CXX_FOR_TARGET and CXX environment variables work in a similar way for
 C++ code.
 
@@ -138,7 +138,7 @@ C's union types are represented as a Go byte array with the same length.
 Go structs cannot embed fields with C types.
 
 Go code cannot refer to zero-sized fields that occur at the end of
-non-empty C structs.  To get the address of such a field (which is the
+non-empty C structs. To get the address of such a field (which is the
 only operation you can do with a zero-sized field) you must take the
 address of the struct and add the size of the struct.
 
@@ -150,7 +150,7 @@ is different from the same C type used in another.
 Any C function (even void functions) may be called in a multiple
 assignment context to retrieve both the return value (if any) and the
 C errno variable as an error (use _ to skip the result value if the
-function returns void).  For example:
+function returns void). For example:
 
 	n, err = C.sqrt(-1)
 	_, err := C.voidFunc()
@@ -187,11 +187,11 @@ received from Go. For example:
 In C, a function argument written as a fixed size array
 actually requires a pointer to the first element of the array.
 C compilers are aware of this calling convention and adjust
-the call accordingly, but Go cannot.  In Go, you must pass
+the call accordingly, but Go cannot. In Go, you must pass
 the pointer to the first element explicitly: C.f(&C.x[0]).
 
 A few special functions convert between Go and C types
-by making copies of the data.  In pseudo-Go definitions:
+by making copies of the data. In pseudo-Go definitions:
 
 	// Go string to C string
 	// The C string is allocated in the C heap using malloc.
@@ -253,50 +253,50 @@ must be placed in preambles in other files, or in C source files.
 Passing pointers
 
 Go is a garbage collected language, and the garbage collector needs to
-know the location of every pointer to Go memory.  Because of this,
+know the location of every pointer to Go memory. Because of this,
 there are restrictions on passing pointers between Go and C.
 
 In this section the term Go pointer means a pointer to memory
 allocated by Go (such as by using the & operator or calling the
 predefined new function) and the term C pointer means a pointer to
-memory allocated by C (such as by a call to C.malloc).  Whether a
+memory allocated by C (such as by a call to C.malloc). Whether a
 pointer is a Go pointer or a C pointer is a dynamic property
 determined by how the memory was allocated; it has nothing to do with
 the type of the pointer.
 
 Go code may pass a Go pointer to C provided the Go memory to which it
-points does not contain any Go pointers.  The C code must preserve
+points does not contain any Go pointers. The C code must preserve
 this property: it must not store any Go pointers in Go memory, even
-temporarily.  When passing a pointer to a field in a struct, the Go
+temporarily. When passing a pointer to a field in a struct, the Go
 memory in question is the memory occupied by the field, not the entire
-struct.  When passing a pointer to an element in an array or slice,
+struct. When passing a pointer to an element in an array or slice,
 the Go memory in question is the entire array or the entire backing
 array of the slice.
 
 C code may not keep a copy of a Go pointer after the call returns.
 
-A Go function called by C code may not return a Go pointer.  A Go
+A Go function called by C code may not return a Go pointer. A Go
 function called by C code may take C pointers as arguments, and it may
 store non-pointer or C pointer data through those pointers, but it may
-not store a Go pointer in memory pointed to by a C pointer.  A Go
+not store a Go pointer in memory pointed to by a C pointer. A Go
 function called by C code may take a Go pointer as an argument, but it
 must preserve the property that the Go memory to which it points does
 not contain any Go pointers.
 
-Go code may not store a Go pointer in C memory.  C code may store Go
+Go code may not store a Go pointer in C memory. C code may store Go
 pointers in C memory, subject to the rule above: it must stop storing
 the Go pointer when the C function returns.
 
-These rules are checked dynamically at runtime.  The checking is
+These rules are checked dynamically at runtime. The checking is
 controlled by the cgocheck setting of the GODEBUG environment
-variable.  The default setting is GODEBUG=cgocheck=1, which implements
-reasonably cheap dynamic checks.  These checks may be disabled
-entirely using GODEBUG=cgocheck=0.  Complete checking of pointer
+variable. The default setting is GODEBUG=cgocheck=1, which implements
+reasonably cheap dynamic checks. These checks may be disabled
+entirely using GODEBUG=cgocheck=0. Complete checking of pointer
 handling, at some cost in run time, is available via GODEBUG=cgocheck=2.
 
 It is possible to defeat this enforcement by using the unsafe package,
 and of course there is nothing stopping the C code from doing anything
-it likes.  However, programs that break these rules are likely to fail
+it likes. However, programs that break these rules are likely to fail
 in unexpected and unpredictable ways.
 
 Using cgo directly
@@ -499,7 +499,7 @@ Here is a _cgo_gotypes.go containing definitions for needed C types:
 	type _Ctype_void [0]byte
 
 The _cgo_gotypes.go file also contains the definitions of the
-functions.  They all have similar bodies that invoke runtime·cgocall
+functions. They all have similar bodies that invoke runtime·cgocall
 to make a switch from the Go runtime world to the system C (GCC-based)
 world.
 
@@ -835,7 +835,7 @@ to avoid conflicts), write the go.o file to that directory, and invoke
 the host linker. The default value for the host linker is $CC, split
 into fields, or else "gcc". The specific host linker command line can
 be overridden using command line flags: cmd/link -extld=clang
--extldflags='-ggdb -O3'.  If any package in a build includes a .cc or
+-extldflags='-ggdb -O3'. If any package in a build includes a .cc or
 other file compiled by the C++ compiler, the go tool will use the
 -extld option to set the host linker to the C++ compiler.
 

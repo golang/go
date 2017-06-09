@@ -81,14 +81,14 @@ data, defined in detail in the corresponding sections that follow.
 
 	{{if pipeline}} T1 {{end}}
 		If the value of the pipeline is empty, no output is generated;
-		otherwise, T1 is executed.  The empty values are false, 0, any
+		otherwise, T1 is executed. The empty values are false, 0, any
 		nil pointer or interface value, and any array, slice, map, or
 		string of length zero.
 		Dot is unaffected.
 
 	{{if pipeline}} T1 {{else}} T0 {{end}}
 		If the value of the pipeline is empty, T0 is executed;
-		otherwise, T1 is executed.  Dot is unaffected.
+		otherwise, T1 is executed. Dot is unaffected.
 
 	{{if pipeline}} T1 {{else if pipeline}} T0 {{end}}
 		To simplify the appearance of if-else chains, the else action
@@ -242,19 +242,19 @@ where $variable is the name of the variable. An action that declares a
 variable produces no output.
 
 If a "range" action initializes a variable, the variable is set to the
-successive elements of the iteration.  Also, a "range" may declare two
+successive elements of the iteration. Also, a "range" may declare two
 variables, separated by a comma:
 
 	range $index, $element := pipeline
 
 in which case $index and $element are set to the successive values of the
-array/slice index or map key and element, respectively.  Note that if there is
+array/slice index or map key and element, respectively. Note that if there is
 only one variable, it is assigned the element; this is opposite to the
 convention in Go range clauses.
 
 A variable's scope extends to the "end" action of the control structure ("if",
 "with", or "range") in which it is declared, or to the end of the template if
-there is no such control structure.  A template invocation does not inherit
+there is no such control structure. A template invocation does not inherit
 variables from the point of its invocation.
 
 When execution begins, $ is set to the data argument passed to Execute, that is,

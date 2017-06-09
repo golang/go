@@ -337,7 +337,7 @@ func (d Weekday) String() string { return days[d] }
 // The zero Time value does not force a specific epoch for the time
 // representation. For example, to use the Unix epoch internally, we
 // could define that to distinguish a zero value from Jan 1 1970, that
-// time would be represented by sec=-1, nsec=1e9.  However, it does
+// time would be represented by sec=-1, nsec=1e9. However, it does
 // suggest a representation, namely using 1-1-1 00:00:00 UTC as the
 // epoch, and that's what we do.
 //
@@ -369,7 +369,7 @@ func (d Weekday) String() string { return days[d] }
 // everywhere.
 //
 // The calendar runs on an exact 400 year cycle: a 400-year calendar
-// printed for 1970-2469 will apply as well to 2370-2769.  Even the days
+// printed for 1970-2469 will apply as well to 2370-2769. Even the days
 // of the week match up. It simplifies the computations to choose the
 // cycle boundaries so that the exceptional years are always delayed as
 // long as possible. That means choosing a year equal to 1 mod 400, so
@@ -383,7 +383,7 @@ func (d Weekday) String() string { return days[d] }
 //
 // These three considerations—choose an epoch as early as possible, that
 // uses a year equal to 1 mod 400, and that is no more than 2⁶³ seconds
-// earlier than 1970—bring us to the year -292277022399.  We refer to
+// earlier than 1970—bring us to the year -292277022399. We refer to
 // this year as the absolute zero year, and to times measured as a uint64
 // seconds since this year as absolute times.
 //
@@ -394,9 +394,9 @@ func (d Weekday) String() string { return days[d] }
 // times.
 //
 // It is tempting to just use the year 1 as the absolute epoch, defining
-// that the routines are only valid for years >= 1.  However, the
+// that the routines are only valid for years >= 1. However, the
 // routines would then be invalid when displaying the epoch in time zones
-// west of UTC, since it is year 0.  It doesn't seem tenable to say that
+// west of UTC, since it is year 0. It doesn't seem tenable to say that
 // printing the zero time correctly isn't supported in half the time
 // zones. By comparison, it's reasonable to mishandle some times in
 // the year -292277022399.
@@ -721,8 +721,8 @@ func (d Duration) String() string {
 }
 
 // fmtFrac formats the fraction of v/10**prec (e.g., ".12345") into the
-// tail of buf, omitting trailing zeros.  it omits the decimal
-// point too when the fraction is 0.  It returns the index where the
+// tail of buf, omitting trailing zeros. it omits the decimal
+// point too when the fraction is 0. It returns the index where the
 // output bytes begin and the value v/10**prec.
 func fmtFrac(buf []byte, v uint64, prec int) (nw int, nv uint64) {
 	// Omit trailing zeros up to and including decimal point.
@@ -963,7 +963,7 @@ func absDate(abs uint64, full bool) (year int, month Month, day int, yday int) {
 
 	// Cut off years within a 4-year cycle.
 	// The last year is a leap year, so on the last day of that year,
-	// day / 365 will be 4 instead of 3.  Cut it back down to 3
+	// day / 365 will be 4 instead of 3. Cut it back down to 3
 	// by subtracting n>>2.
 	n = d / 365
 	n -= n >> 2
