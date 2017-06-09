@@ -658,6 +658,9 @@ type Builder struct {
 	flagCache   map[[2]string]bool   // a cache of supported compiler flags
 	Print       func(args ...interface{}) (int, error)
 
+	objdirSeq int // counter for NewObjdir
+	pkgSeq    int
+
 	output    sync.Mutex
 	scriptDir string // current directory in printed script
 
@@ -683,7 +686,6 @@ type Action struct {
 
 	// Generated files, directories.
 	Link   bool   // target is executable, not just package
-	Pkgdir string // the -I or -L argument to use when importing this package
 	Objdir string // directory for intermediate objects
 	Objpkg string // the intermediate package .a file created during the action
 	Target string // goal of the action: the created package or executable
@@ -744,6 +746,19 @@ func (b *Builder) Init() {
 			os.Exit(2)
 		}
 	}
+}
+
+// NewObjdir returns the name of a fresh object directory under b.WorkDir.
+// It is up to the caller to call b.Mkdir on the result at an appropriate time.
+// The result ends in a slash, so that file names in that directory
+// can be constructed with direct string addition.
+//
+// NewObjdir must be called only from a single goroutine at a time,
+// so it is safe to call during action graph construction, but it must not
+// be called during action graph execution.
+func (b *Builder) NewObjdir() string {
+	b.objdirSeq++
+	return filepath.Join(b.WorkDir, fmt.Sprintf("b%03d", b.objdirSeq)) + string(filepath.Separator)
 }
 
 // readpkglist returns the list of packages that were built into the shared library
@@ -816,10 +831,7 @@ func (b *Builder) action1(mode BuildMode, depMode BuildMode, p *load.Package, lo
 		return a
 	}
 
-	a = &Action{Package: p, Pkgdir: p.Internal.Build.PkgRoot}
-	if p.Internal.Pkgdir != "" { // overrides p.t
-		a.Pkgdir = p.Internal.Pkgdir
-	}
+	a = &Action{Package: p}
 	b.actionCache[key] = a
 
 	for _, p1 := range p.Internal.Imports {
@@ -885,13 +897,9 @@ func (b *Builder) action1(mode BuildMode, depMode BuildMode, p *load.Package, lo
 		// Imported via local path. No permanent target.
 		mode = ModeBuild
 	}
-	work := p.Internal.Pkgdir
-	if work == "" {
-		work = b.WorkDir
-	}
-	a.Objdir = filepath.Join(work, a.Package.ImportPath, "_obj") + string(filepath.Separator)
-	a.Objpkg = BuildToolchain.Pkgpath(work, a.Package)
-	a.Link = p.Name == "main"
+	a.Objdir = b.NewObjdir()
+	a.Objpkg = a.Objdir + "_pkg_.a"
+	a.Link = p.Name == "main" && !p.Internal.ForceLibrary
 
 	switch mode {
 	case ModeInstall:
@@ -915,8 +923,7 @@ func (b *Builder) action1(mode BuildMode, depMode BuildMode, p *load.Package, lo
 				Package: a.Package,
 				Deps:    []*Action{a.Deps[0]},
 				Func:    (*Builder).installHeader,
-				Pkgdir:  a.Pkgdir,
-				Objdir:  a.Objdir,
+				Objdir:  a.Deps[0].Objdir,
 				Target:  hdrTarget,
 			}
 			a.Deps = append(a.Deps, ah)
@@ -1654,68 +1661,21 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 	// with aggressive buffering, cleaning incrementally like
 	// this keeps the intermediate objects from hitting the disk.
 	if !cfg.BuildWork {
-		defer os.RemoveAll(a1.Objdir)
-		defer os.Remove(a1.Target)
+		defer func() {
+			if cfg.BuildX {
+				b.Showcmd("", "rm -r %s", a1.Objdir)
+			}
+			os.RemoveAll(a1.Objdir)
+			if _, err := os.Stat(a1.Target); err == nil {
+				if cfg.BuildX {
+					b.Showcmd("", "rm %s", a1.Target)
+				}
+				os.Remove(a1.Target)
+			}
+		}()
 	}
 
 	return b.moveOrCopyFile(a, a.Target, a1.Target, perm, false)
-}
-
-// includeArgs returns the -I or -L directory list for access
-// to the results of the list of actions.
-func (b *Builder) includeArgs(flag string, all []*Action) []string {
-	inc := []string{}
-	incMap := map[string]bool{
-		b.WorkDir:     true, // handled later
-		cfg.GOROOTpkg: true,
-		"":            true, // ignore empty strings
-	}
-
-	// Look in the temporary space for results of test-specific actions.
-	// This is the $WORK/my/package/_test directory for the
-	// package being built, so there are few of these.
-	for _, a1 := range all {
-		if a1.Package == nil {
-			continue
-		}
-		if dir := a1.Pkgdir; dir != a1.Package.Internal.Build.PkgRoot && !incMap[dir] {
-			incMap[dir] = true
-			inc = append(inc, flag, dir)
-		}
-	}
-
-	// Also look in $WORK for any non-test packages that have
-	// been built but not installed.
-	inc = append(inc, flag, b.WorkDir)
-
-	// Finally, look in the installed package directories for each action.
-	// First add the package dirs corresponding to GOPATH entries
-	// in the original GOPATH order.
-	need := map[string]*build.Package{}
-	for _, a1 := range all {
-		if a1.Package != nil && a1.Pkgdir == a1.Package.Internal.Build.PkgRoot {
-			need[a1.Package.Internal.Build.Root] = a1.Package.Internal.Build
-		}
-	}
-	for _, root := range cfg.Gopath {
-		if p := need[root]; p != nil && !incMap[p.PkgRoot] {
-			incMap[p.PkgRoot] = true
-			inc = append(inc, flag, p.PkgTargetRoot)
-		}
-	}
-
-	// Then add anything that's left.
-	for _, a1 := range all {
-		if a1.Package == nil {
-			continue
-		}
-		if dir := a1.Pkgdir; dir == a1.Package.Internal.Build.PkgRoot && !incMap[dir] {
-			incMap[dir] = true
-			inc = append(inc, flag, a1.Package.Internal.Build.PkgTargetRoot)
-		}
-	}
-
-	return inc
 }
 
 // moveOrCopyFile is like 'mv src dst' or 'cp src dst'.
@@ -1842,6 +1802,9 @@ func (b *Builder) installHeader(a *Action) error {
 	if _, err := os.Stat(src); os.IsNotExist(err) {
 		// If the file does not exist, there are no exported
 		// functions, and we do not install anything.
+		if cfg.BuildX {
+			b.Showcmd("", "# %s not created", src)
+		}
 		return nil
 	}
 
