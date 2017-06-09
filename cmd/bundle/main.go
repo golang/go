@@ -349,6 +349,17 @@ func bundle(src, dst, dstpkg, prefix string) ([]byte, error) {
 			return true
 		})
 
+		last := f.Package
+		if len(f.Imports) > 0 {
+			imp := f.Imports[len(f.Imports)-1]
+			last = imp.End()
+			if imp.Comment != nil {
+				if e := imp.Comment.End(); e > last {
+					last = e
+				}
+			}
+		}
+
 		// Pretty-print package-level declarations.
 		// but no package or import declarations.
 		var buf bytes.Buffer
@@ -356,13 +367,23 @@ func bundle(src, dst, dstpkg, prefix string) ([]byte, error) {
 			if decl, ok := decl.(*ast.GenDecl); ok && decl.Tok == token.IMPORT {
 				continue
 			}
+
+			beg, end := sourceRange(decl)
+
+			printComments(&out, f.Comments, last, beg)
+
 			buf.Reset()
 			format.Node(&buf, lprog.Fset, &printer.CommentedNode{Node: decl, Comments: f.Comments})
 			// Remove each "@@@." in the output.
 			// TODO(adonovan): not hygienic.
 			out.Write(bytes.Replace(buf.Bytes(), []byte("@@@."), nil, -1))
+
+			last = printSameLineComment(&out, f.Comments, lprog.Fset, end)
+
 			out.WriteString("\n\n")
 		}
+
+		printLastComments(&out, f.Comments, last)
 	}
 
 	// Now format the entire thing.
@@ -372,6 +393,69 @@ func bundle(src, dst, dstpkg, prefix string) ([]byte, error) {
 	}
 
 	return result, nil
+}
+
+// sourceRange returns the [beg, end) interval of source code
+// belonging to decl (incl. associated comments).
+func sourceRange(decl ast.Decl) (beg, end token.Pos) {
+	beg = decl.Pos()
+	end = decl.End()
+
+	var doc, com *ast.CommentGroup
+
+	switch d := decl.(type) {
+	case *ast.GenDecl:
+		doc = d.Doc
+		if len(d.Specs) > 0 {
+			switch spec := d.Specs[len(d.Specs)-1].(type) {
+			case *ast.ValueSpec:
+				com = spec.Comment
+			case *ast.TypeSpec:
+				com = spec.Comment
+			}
+		}
+	case *ast.FuncDecl:
+		doc = d.Doc
+	}
+
+	if doc != nil {
+		beg = doc.Pos()
+	}
+	if com != nil && com.End() > end {
+		end = com.End()
+	}
+
+	return beg, end
+}
+
+func printComments(out *bytes.Buffer, comments []*ast.CommentGroup, pos, end token.Pos) {
+	for _, cg := range comments {
+		if pos <= cg.Pos() && cg.Pos() < end {
+			for _, c := range cg.List {
+				fmt.Fprintln(out, c.Text)
+			}
+			fmt.Fprintln(out)
+		}
+	}
+}
+
+const infinity = 1 << 30
+
+func printLastComments(out *bytes.Buffer, comments []*ast.CommentGroup, pos token.Pos) {
+	printComments(out, comments, pos, infinity)
+}
+
+func printSameLineComment(out *bytes.Buffer, comments []*ast.CommentGroup, fset *token.FileSet, pos token.Pos) token.Pos {
+	tf := fset.File(pos)
+	for _, cg := range comments {
+		if pos <= cg.Pos() && tf.Line(cg.Pos()) == tf.Line(pos) {
+			for _, c := range cg.List {
+				fmt.Fprintln(out, c.Text)
+			}
+			return cg.End()
+		}
+	}
+	return pos
 }
 
 type flagFunc func(string)

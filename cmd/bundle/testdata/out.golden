@@ -23,20 +23,37 @@ func init() { prefixfoo() }
 type prefixS struct {
 	prefixt
 	u int
-}
+} /* multi-line
+comment
+*/
+
+// non-associated comment
+
+/*
+	non-associated comment2
+*/
 
 // Function bar.
 func prefixbar(s *prefixS) {
 	fmt.Println(s.prefixt, s.u) // comment inside function
 }
 
-type prefixt int
+// file-end comment
 
-const prefixc = 1
+type prefixt int // type1
+
+// const1
+const prefixc = 1 // const2
 
 func prefixfoo() {
 	fmt.Println(importdecl.F())
 }
+
+// zinit
+const (
+	prefixz1 = iota // z1
+	prefixz2        // z2
+) // zend
 
 func prefixbaz() {
 	renamedfmt.Println()
