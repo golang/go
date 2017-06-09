@@ -338,8 +338,8 @@ func errorexit() {
 
 func loadinternal(ctxt *Link, name string) *Library {
 	if *FlagLinkshared && ctxt.PackageShlib != nil {
-		if shlibname := ctxt.PackageShlib[name]; shlibname != "" {
-			return addlibpath(ctxt, "internal", "internal", "", name, shlibname)
+		if shlib := ctxt.PackageShlib[name]; shlib != "" {
+			return addlibpath(ctxt, "internal", "internal", "", name, shlib)
 		}
 	}
 	if ctxt.PackageFile != nil {
@@ -423,22 +423,23 @@ func (ctxt *Link) loadlib() {
 		loadinternal(ctxt, "runtime/msan")
 	}
 
-	var i int
-	for i = 0; i < len(ctxt.Library); i++ {
-		if ctxt.Library[i].Shlib == "" {
+	// ctxt.Library grows during the loop, so not a range loop.
+	for i := 0; i < len(ctxt.Library); i++ {
+		lib := ctxt.Library[i]
+		if lib.Shlib == "" {
 			if ctxt.Debugvlog > 1 {
-				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), ctxt.Library[i].File, ctxt.Library[i].Objref)
+				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), lib.File, lib.Objref)
 			}
-			objfile(ctxt, ctxt.Library[i])
+			objfile(ctxt, lib)
 		}
 	}
 
-	for i = 0; i < len(ctxt.Library); i++ {
-		if ctxt.Library[i].Shlib != "" {
+	for _, lib := range ctxt.Library {
+		if lib.Shlib != "" {
 			if ctxt.Debugvlog > 1 {
-				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), ctxt.Library[i].Shlib, ctxt.Library[i].Objref)
+				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), lib.Shlib, lib.Objref)
 			}
-			ldshlibsyms(ctxt, ctxt.Library[i].Shlib)
+			ldshlibsyms(ctxt, lib.Shlib)
 		}
 	}
 
@@ -461,21 +462,19 @@ func (ctxt *Link) loadlib() {
 		toc.Type = SDYNIMPORT
 	}
 
-	if Linkmode == LinkExternal && !iscgo {
+	if Linkmode == LinkExternal && !iscgo && ctxt.LibraryByPkg["runtime/cgo"] == nil {
 		// This indicates a user requested -linkmode=external.
 		// The startup code uses an import of runtime/cgo to decide
 		// whether to initialize the TLS.  So give it one. This could
 		// be handled differently but it's an unusual case.
-		loadinternal(ctxt, "runtime/cgo")
-
-		if i < len(ctxt.Library) {
-			if ctxt.Library[i].Shlib != "" {
-				ldshlibsyms(ctxt, ctxt.Library[i].Shlib)
+		if lib := loadinternal(ctxt, "runtime/cgo"); lib != nil {
+			if lib.Shlib != "" {
+				ldshlibsyms(ctxt, lib.Shlib)
 			} else {
 				if Buildmode == BuildmodeShared || *FlagLinkshared {
 					Exitf("cannot implicitly include runtime/cgo in a shared library")
 				}
-				objfile(ctxt, ctxt.Library[i])
+				objfile(ctxt, lib)
 			}
 		}
 	}
@@ -633,9 +632,9 @@ func (ctxt *Link) loadlib() {
 	// If package versioning is required, generate a hash of the
 	// the packages used in the link.
 	if Buildmode == BuildmodeShared || Buildmode == BuildmodePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
-		for i = 0; i < len(ctxt.Library); i++ {
-			if ctxt.Library[i].Shlib == "" {
-				genhash(ctxt, ctxt.Library[i])
+		for _, lib := range ctxt.Library {
+			if lib.Shlib == "" {
+				genhash(ctxt, lib)
 			}
 		}
 	}
@@ -1538,6 +1537,9 @@ func readnote(f *elf.File, name []byte, typ int32) ([]byte, error) {
 }
 
 func findshlib(ctxt *Link, shlib string) string {
+	if filepath.IsAbs(shlib) {
+		return shlib
+	}
 	for _, libdir := range ctxt.Libdir {
 		libpath := filepath.Join(libdir, shlib)
 		if _, err := os.Stat(libpath); err == nil {
@@ -1549,9 +1551,15 @@ func findshlib(ctxt *Link, shlib string) string {
 }
 
 func ldshlibsyms(ctxt *Link, shlib string) {
-	libpath := findshlib(ctxt, shlib)
-	if libpath == "" {
-		return
+	var libpath string
+	if filepath.IsAbs(shlib) {
+		libpath = shlib
+		shlib = filepath.Base(shlib)
+	} else {
+		libpath = findshlib(ctxt, shlib)
+		if libpath == "" {
+			return
+		}
 	}
 	for _, processedlib := range ctxt.Shlibs {
 		if processedlib.Path == libpath {
@@ -1580,7 +1588,22 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		Errorf(nil, "cannot read dep list from shared library %s: %v", libpath, err)
 		return
 	}
-	deps := strings.Split(string(depsbytes), "\n")
+	var deps []string
+	for _, dep := range strings.Split(string(depsbytes), "\n") {
+		if dep == "" {
+			continue
+		}
+		if !filepath.IsAbs(dep) {
+			// If the dep can be interpreted as a path relative to the shlib
+			// in which it was found, do that. Otherwise, we will leave it
+			// to be resolved by libdir lookup.
+			abs := filepath.Join(filepath.Dir(libpath), dep)
+			if _, err := os.Stat(abs); err == nil {
+				dep = abs
+			}
+		}
+		deps = append(deps, dep)
+	}
 
 	syms, err := f.DynamicSymbols()
 	if err != nil {

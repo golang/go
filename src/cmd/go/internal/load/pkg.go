@@ -99,6 +99,7 @@ type PackageInternal struct {
 	SFiles       []string
 	AllGoFiles   []string             // gofiles + IgnoredGoFiles, absolute paths
 	Target       string               // installed file for this package (may be executable)
+	Pkgfile      string               // where package will be (or is already) built or installed
 	Fake         bool                 // synthesized package
 	External     bool                 // synthesized external test package
 	ForceLibrary bool                 // this package is a library (even if named "main")
@@ -951,26 +952,8 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		importPaths = append(importPaths, "syscall")
 	}
 
-	if cfg.BuildContext.CgoEnabled && p.Name == "main" && !p.Goroot {
-		// Currently build modes c-shared, pie (on systems that do not
-		// support PIE with internal linking mode (currently all
-		// systems: issue #18968)), plugin, and -linkshared force
-		// external linking mode, as of course does
-		// -ldflags=-linkmode=external. External linking mode forces
-		// an import of runtime/cgo.
-		pieCgo := cfg.BuildBuildmode == "pie"
-		linkmodeExternal := false
-		for i, a := range cfg.BuildLdflags {
-			if a == "-linkmode=external" {
-				linkmodeExternal = true
-			}
-			if a == "-linkmode" && i+1 < len(cfg.BuildLdflags) && cfg.BuildLdflags[i+1] == "external" {
-				linkmodeExternal = true
-			}
-		}
-		if cfg.BuildBuildmode == "c-shared" || cfg.BuildBuildmode == "plugin" || pieCgo || cfg.BuildLinkshared || linkmodeExternal {
-			importPaths = append(importPaths, "runtime/cgo")
-		}
+	if p.Name == "main" && !p.Goroot && cfg.ExternalLinkingForced() {
+		importPaths = append(importPaths, "runtime/cgo")
 	}
 
 	// Everything depends on runtime, except runtime, its internal

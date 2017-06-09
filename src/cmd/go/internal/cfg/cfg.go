@@ -128,3 +128,28 @@ func isGOROOT(path string) bool {
 	}
 	return stat.IsDir()
 }
+
+// ExternalLinkingForced reports whether external linking is being
+// forced even for programs that do not use cgo.
+func ExternalLinkingForced() bool {
+	if !BuildContext.CgoEnabled {
+		return false
+	}
+	// Currently build modes c-shared, pie (on systems that do not
+	// support PIE with internal linking mode (currently all
+	// systems: issue #18968)), plugin, and -linkshared force
+	// external linking mode, as of course does
+	// -ldflags=-linkmode=external. External linking mode forces
+	// an import of runtime/cgo.
+	pieCgo := BuildBuildmode == "pie"
+	linkmodeExternal := false
+	for i, a := range BuildLdflags {
+		if a == "-linkmode=external" {
+			linkmodeExternal = true
+		}
+		if a == "-linkmode" && i+1 < len(BuildLdflags) && BuildLdflags[i+1] == "external" {
+			linkmodeExternal = true
+		}
+	}
+	return BuildBuildmode == "c-shared" || BuildBuildmode == "plugin" || pieCgo || BuildLinkshared || linkmodeExternal
+}
