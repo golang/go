@@ -1111,14 +1111,43 @@ jmp_label_3:
 
 // MOVW
 mov_label_0:
+	MOVW	R3, R4               // MOVW R3, R4               // 0340a0e1
+	MOVW	R9, R2               // MOVW R9, R2               // 0920a0e1
 	MOVW	$0xff, R9            // MOVW $255, R9             // ff90a0e3
 	MOVW	$0xff000000, R9      // MOVW $4278190080, R9      // ff94a0e3
-	MOVW	R3, R4               // 0340a0e1
 	MOVW	$0xff(R0), R1        // MOVW $255(R0), R1         // ff1080e2
 	MOVW	$-0xff(R0), R1       // MOVW $-255(R0), R1        // ff1040e2
 	MOVW	$0xffffffae, R1      // MOVW $4294967214, R1      // 5110e0e3
 	MOVW	$0xaaaaaaaa, R1      // MOVW $2863311530, R1
 	MOVW	$mov_label_0(SB), R2 // MOVW $mov_label_0(SB), R2
+	MOVW	R1, (R2)             // MOVW R1, (R2)             // 001082e5
+	MOVW.P	R1, (R2)             // MOVW.P R1, (R2)           // 001082e4
+	MOVW.W	R1, (R2)             // MOVW.W R1, (R2)           // 0010a2e5
+	MOVW	R1, 0x20(R2)         // MOVW R1, 32(R2)           // 201082e5
+	MOVW.P	R1, 0x20(R2)         // MOVW.P R1, 32(R2)         // 201082e4
+	MOVW.W	R1, 0x20(R2)         // MOVW.W R1, 32(R2)         // 2010a2e5
+	MOVW	R1, -0x20(R2)        // MOVW R1, -32(R2)          // 201002e5
+	MOVW.P	R1, -0x20(R2)        // MOVW.P R1, -32(R2)        // 201002e4
+	MOVW.W	R1, -0x20(R2)        // MOVW.W R1, -32(R2)        // 201022e5
+	MOVW	R1, mov_label_0(SB)  // MOVW R1, mov_label_0(SB)
+	MOVW	(R2), R1             // MOVW (R2), R1             // 001092e5
+	MOVW.P	(R2), R1             // MOVW.P (R2), R1           // 001092e4
+	MOVW.W	(R2), R1             // MOVW.W (R2), R1           // 0010b2e5
+	MOVW	0x20(R2), R1         // MOVW 32(R2), R1           // 201092e5
+	MOVW.P	0x20(R2), R1         // MOVW.P 32(R2), R1         // 201092e4
+	MOVW.W	0x20(R2), R1         // MOVW.W 32(R2), R1         // 2010b2e5
+	MOVW	-0x20(R2), R1        // MOVW -32(R2), R1          // 201012e5
+	MOVW.P	-0x20(R2), R1        // MOVW.P -32(R2), R1        // 201012e4
+	MOVW.W	-0x20(R2), R1        // MOVW.W -32(R2), R1        // 201032e5
+	MOVW	mov_label_0(SB), R1  // MOVW mov_label_0(SB), R1
+	MOVW	R1, 0x00ffffff(R2)   // MOVW R1, 16777215(R2)
+	MOVW	R1, foo(SB)          // MOVW R1, foo(SB)
+	MOVW	0x00ffffff(R2), R1   // MOVW 16777215(R2), R1
+	MOVW	foo(SB), R1          // MOVW foo(SB), R1
+	MOVW	CPSR, R1             // MOVW CPSR, R1             // 00100fe1
+	MOVW	R1, CPSR             // MOVW R1, CPSR             // 01f02ce1
+	MOVW	$0xff, CPSR          // MOVW $255, CPSR           // fff02ce3
+	MOVW	$0xff000000, CPSR    // MOVW $4278190080, CPSR    // fff42ce3
 
 //
 // END

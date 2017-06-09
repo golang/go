@@ -2066,7 +2066,7 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(p.To.Reg) & 15) << 12
 
 	case 36: /* mov R,PSR */
-		o1 = 2<<23 | 0x29f<<12 | 0<<4
+		o1 = 2<<23 | 0x2cf<<12 | 0<<4
 
 		if p.Scond&C_FBIT != 0 {
 			o1 ^= 0x010 << 12
@@ -2078,7 +2078,7 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 37: /* mov $con,PSR */
 		c.aclass(&p.From)
 
-		o1 = 2<<23 | 0x29f<<12 | 0<<4
+		o1 = 2<<23 | 0x2cf<<12 | 0<<4
 		if p.Scond&C_FBIT != 0 {
 			o1 ^= 0x010 << 12
 		}
