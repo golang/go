@@ -93,10 +93,9 @@ type PackagePublic struct {
 type PackageInternal struct {
 	// Unexported fields are not part of the public API.
 	Build        *build.Package
-	Pkgdir       string // overrides build.PkgDir
-	Imports      []*Package
-	Deps         []*Package
-	GoFiles      []string // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
+	Pkgdir       string     // overrides build.PkgDir
+	Imports      []*Package // this package's direct imports
+	GoFiles      []string   // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
 	SFiles       []string
 	AllGoFiles   []string             // gofiles + IgnoredGoFiles, absolute paths
 	Target       string               // installed file for this package (may be executable)
@@ -1086,7 +1085,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package 
 
 		save(path, p1)
 		imports = append(imports, p1)
-		for _, dep := range p1.Internal.Deps {
+		for _, dep := range p1.Internal.Imports {
 			save(dep.ImportPath, dep)
 		}
 		if p1.Incomplete {
@@ -1105,7 +1104,6 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package 
 		if p1 == nil {
 			panic("impossible: missing entry in package cache for " + dep + " imported by " + p.ImportPath)
 		}
-		p.Internal.Deps = append(p.Internal.Deps, p1)
 		if p1.Error != nil {
 			p.DepsErrors = append(p.DepsErrors, p1.Error)
 		}
@@ -1162,6 +1160,29 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package 
 		computeBuildID(p)
 	}
 	return p
+}
+
+// InternalDeps returns the full dependency list for p,
+// built by traversing p.Internal.Imports, their .Internal.Imports, and so on.
+// It guarantees that the returned list has only one package per ImportPath
+// and that "test" copies of a package are returned in preference to "real" ones.
+func (p *Package) InternalDeps() []*Package {
+	// Note: breadth-first search here to ensure that test-augmented copies
+	// of a package under test are found before the "real" ones
+	// (the real ones are deeper in the import graph).
+	// Since we're building the slice anyway, it doesn't cost anything.
+	all := []*Package{p}
+	have := map[string]bool{p.ImportPath: true, "unsafe": true}
+	// Note: Not a range loop because all is growing during the loop.
+	for i := 0; i < len(all); i++ {
+		for _, p1 := range all[i].Internal.Imports {
+			if !have[p1.ImportPath] {
+				have[p1.ImportPath] = true
+				all = append(all, p1)
+			}
+		}
+	}
+	return all[1:] // slice off p itself
 }
 
 // usesSwig reports whether the package needs to run SWIG.
@@ -1531,7 +1552,7 @@ func isStale(p *Package) (bool, string) {
 	}
 
 	// Package is stale if a dependency is.
-	for _, p1 := range p.Internal.Deps {
+	for _, p1 := range p.Internal.Imports {
 		if p1.Stale {
 			return true, "stale dependency"
 		}
@@ -1569,7 +1590,7 @@ func isStale(p *Package) (bool, string) {
 	}
 
 	// Package is stale if a dependency is, or if a dependency is newer.
-	for _, p1 := range p.Internal.Deps {
+	for _, p1 := range p.Internal.Imports {
 		if p1.Internal.Target != "" && olderThan(p1.Internal.Target) {
 			return true, "newer dependency"
 		}
@@ -1700,7 +1721,7 @@ func computeBuildID(p *Package) {
 	// people use the same GOPATH but switch between
 	// different Go releases. See issue 10702.
 	// This is also a better fix for issue 8290.
-	for _, p1 := range p.Internal.Deps {
+	for _, p1 := range p.Internal.Imports {
 		fmt.Fprintf(h, "dep %s %s\n", p1.ImportPath, p1.Internal.BuildID)
 	}
 
