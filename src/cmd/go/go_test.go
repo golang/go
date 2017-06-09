@@ -4141,65 +4141,22 @@ func TestCgoFlagContainsSpace(t *testing.T) {
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
-
 	tg := testgo(t)
 	defer tg.cleanup()
 
-	ccName := filepath.Base(testCC)
-
-	tg.tempFile(fmt.Sprintf("src/%s/main.go", ccName), fmt.Sprintf(`package main
-		import (
-			"os"
-			"os/exec"
-			"strings"
-		)
-
-		func main() {
-			cmd := exec.Command(%q, os.Args[1:]...)
-			cmd.Stdin = os.Stdin
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			err := cmd.Run()
-			if err != nil {
-				panic(err)
-			}
-
-			if os.Args[len(os.Args)-1] == "trivial.c" {
-				return
-			}
-
-			var success bool
-			for _, arg := range os.Args {
-				switch {
-				case strings.Contains(arg, "c flags"):
-					if success {
-						panic("duplicate CFLAGS")
-					}
-					success = true
-				case strings.Contains(arg, "ld flags"):
-					if success {
-						panic("duplicate LDFLAGS")
-					}
-					success = true
-				}
-			}
-			if !success {
-				panic("args should contains '-Ic flags' or '-Lld flags'")
-			}
-		}
-	`, testCC))
-	tg.cd(tg.path(fmt.Sprintf("src/%s", ccName)))
-	tg.run("build")
-	tg.setenv("CC", tg.path(fmt.Sprintf("src/%s/%s", ccName, ccName)))
-
-	tg.tempFile("src/cgo/main.go", `package main
+	tg.makeTempdir()
+	tg.cd(tg.path("."))
+	tg.tempFile("main.go", `package main
 		// #cgo CFLAGS: -I"c flags"
 		// #cgo LDFLAGS: -L"ld flags"
 		import "C"
 		func main() {}
 	`)
-	tg.cd(tg.path("src/cgo"))
-	tg.run("run", "main.go")
+	tg.run("run", "-x", "main.go")
+	tg.grepStderr(`"-I[^"]+c flags"`, "did not find quoted c flags")
+	tg.grepStderrNot(`"-I[^"]+c flags".*"-I[^"]+c flags"`, "found too many quoted c flags")
+	tg.grepStderr(`"-L[^"]+ld flags"`, "did not find quoted ld flags")
+	tg.grepStderrNot(`"-L[^"]+c flags".*"-L[^"]+c flags"`, "found too many quoted ld flags")
 }
 
 // Issue #20435.
