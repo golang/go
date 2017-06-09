@@ -3618,6 +3618,7 @@ func TestBinaryOnlyPackages(t *testing.T) {
 	tg.tempFile("src/p1/missing.go", `//go:binary-only-package
 
 		package p1
+		import _ "fmt"
 		func G()
 	`)
 	tg.wantNotStale("p1", "no source code", "should NOT want to rebuild p1 (first)")
