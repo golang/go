@@ -887,7 +887,11 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 
 	// The generated main also imports testing, regexp, and os.
 	stk.Push("testmain")
-	for _, dep := range testMainDeps {
+	deps := testMainDeps
+	if cfg.ExternalLinkingForced() {
+		deps = str.StringList(deps, "runtime/cgo")
+	}
+	for _, dep := range deps {
 		if dep == ptest.ImportPath {
 			pmain.Internal.Imports = append(pmain.Internal.Imports, ptest)
 		} else {
