@@ -433,7 +433,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					print(" +", hex(frame.pc-f.entry))
 				}
 				if g.m.throwing > 0 && gp == g.m.curg || level >= 2 {
-					print(" fp=", hex(frame.fp), " sp=", hex(frame.sp))
+					print(" fp=", hex(frame.fp), " sp=", hex(frame.sp), " pc=", hex(frame.pc))
 				}
 				print("\n")
 				nprint++
