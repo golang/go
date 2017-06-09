@@ -635,7 +635,7 @@ func benchmarkMapAssignInt32(b *testing.B, n int) {
 }
 
 func benchmarkMapDeleteInt32(b *testing.B, n int) {
-	a := make(map[int32]int)
+	a := make(map[int32]int, n*b.N)
 	for i := 0; i < n*b.N; i++ {
 		a[int32(i)] = i
 	}
@@ -653,7 +653,7 @@ func benchmarkMapAssignInt64(b *testing.B, n int) {
 }
 
 func benchmarkMapDeleteInt64(b *testing.B, n int) {
-	a := make(map[int64]int)
+	a := make(map[int64]int, n*b.N)
 	for i := 0; i < n*b.N; i++ {
 		a[int64(i)] = i
 	}
@@ -680,7 +680,7 @@ func benchmarkMapDeleteStr(b *testing.B, n int) {
 	for i := 0; i < n*b.N; i++ {
 		k[i] = strconv.Itoa(i)
 	}
-	a := make(map[string]int)
+	a := make(map[string]int, n*b.N)
 	for i := 0; i < n*b.N; i++ {
 		a[k[i]] = i
 	}
