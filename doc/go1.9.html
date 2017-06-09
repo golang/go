@@ -113,6 +113,10 @@ type T1 = T2
   case in gccgo and is now fixed in the gc toolchain.
 </p>
 
+<p> <!-- CL 36983 -->
+  The linker will now generate DWARF information for cgo executables on Windows.
+</p>
+
 <h3 id="go-test-list">Go test</h3>
 
 <p> <!-- CL 41195 -->
@@ -132,7 +136,6 @@ type T1 = T2
 <!-- CL 43855: https://golang.org/cl/43855: cmd/go: include GOARM and GO386 in computed build ID -->
 <!-- CL 44210: https://golang.org/cl/44210: cmd/internal/dwarf: update to DWARF4, emit frame_base -->
 <!-- CL 42990: https://golang.org/cl/42990: cmd/internal/obj/x86: add ADDSUBPS/PD -->
-<!-- CL 36983: https://golang.org/cl/36983: cmd/link: write dwarf sections -->
 <!-- CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS generation on OpenBSD -->
 <!-- CL 38343: https://golang.org/cl/38343: cmd/pprof: use proxy from environment -->
 
