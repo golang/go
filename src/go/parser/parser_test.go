@@ -531,3 +531,18 @@ func TestIncompleteSelection(t *testing.T) {
 		}
 	}
 }
+
+func TestLastLineComment(t *testing.T) {
+	const src = `package main
+type x int // comment
+`
+	fset := token.NewFileSet()
+	f, err := ParseFile(fset, "", src, ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	comment := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.TypeSpec).Comment.List[0].Text
+	if comment != "// comment" {
+		t.Errorf("got %q, want %q", comment, "// comment")
+	}
+}
