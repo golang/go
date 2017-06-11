@@ -2700,7 +2700,9 @@ func (rs *Rows) close(err error) error {
 		rs.lasterr = err
 	}
 
-	err = rs.rowsi.Close()
+	withLock(rs.dc, func() {
+		err = rs.rowsi.Close()
+	})
 	if fn := rowsCloseHook(); fn != nil {
 		fn(rs, &err)
 	}

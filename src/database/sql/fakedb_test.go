@@ -89,6 +89,10 @@ type fakeConn struct {
 
 	currTx *fakeTx
 
+	// Every operation writes to line to enable the race detector
+	// check for data races.
+	line int64
+
 	// Stats for tests:
 	mu          sync.Mutex
 	stmtsMade   int
@@ -299,6 +303,7 @@ func (c *fakeConn) Begin() (driver.Tx, error) {
 	if c.currTx != nil {
 		return nil, errors.New("already in a transaction")
 	}
+	c.line++
 	c.currTx = &fakeTx{c: c}
 	return c.currTx, nil
 }
@@ -340,6 +345,7 @@ func (c *fakeConn) Close() (err error) {
 			drv.mu.Unlock()
 		}
 	}()
+	c.line++
 	if c.currTx != nil {
 		return errors.New("can't close fakeConn; in a Transaction")
 	}
@@ -527,6 +533,7 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
 		return nil, driver.ErrBadConn
 	}
 
+	c.line++
 	var firstStmt, prev *fakeStmt
 	for _, query := range strings.Split(query, ";") {
 		parts := strings.Split(query, "|")
@@ -615,6 +622,7 @@ func (s *fakeStmt) Close() error {
 	if s.c.db == nil {
 		panic("in fakeStmt.Close, conn's db is nil (already closed)")
 	}
+	s.c.line++
 	if !s.closed {
 		s.c.incrStat(&s.c.stmtsClosed)
 		s.closed = true
@@ -649,6 +657,7 @@ func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 	if err != nil {
 		return nil, err
 	}
+	s.c.line++
 
 	if s.wait > 0 {
 		time.Sleep(s.wait)
@@ -761,6 +770,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 		return nil, err
 	}
 
+	s.c.line++
 	db := s.c.db
 	if len(args) != s.placeholders {
 		panic("error in pkg db; should only get here if size is correct")
@@ -856,6 +866,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 	}
 
 	cursor := &rowsCursor{
+		c:       s.c,
 		posRow:  -1,
 		rows:    setMRows,
 		cols:    setColumns,
@@ -880,6 +891,7 @@ func (tx *fakeTx) Commit() error {
 	if hookCommitBadConn != nil && hookCommitBadConn() {
 		return driver.ErrBadConn
 	}
+	tx.c.line++
 	return nil
 }
 
@@ -891,10 +903,12 @@ func (tx *fakeTx) Rollback() error {
 	if hookRollbackBadConn != nil && hookRollbackBadConn() {
 		return driver.ErrBadConn
 	}
+	tx.c.line++
 	return nil
 }
 
 type rowsCursor struct {
+	c       *fakeConn
 	cols    [][]string
 	colType [][]string
 	posSet  int
@@ -918,6 +932,7 @@ func (rc *rowsCursor) Close() error {
 			bs[0] = 255 // first byte corrupted
 		}
 	}
+	rc.c.line++
 	rc.closed = true
 	return nil
 }
@@ -940,6 +955,7 @@ func (rc *rowsCursor) Next(dest []driver.Value) error {
 	if rc.closed {
 		return errors.New("fakedb: cursor is closed")
 	}
+	rc.c.line++
 	rc.posRow++
 	if rc.posRow == rc.errPos {
 		return rc.err
@@ -973,10 +989,12 @@ func (rc *rowsCursor) Next(dest []driver.Value) error {
 }
 
 func (rc *rowsCursor) HasNextResultSet() bool {
+	rc.c.line++
 	return rc.posSet < len(rc.rows)-1
 }
 
 func (rc *rowsCursor) NextResultSet() error {
+	rc.c.line++
 	if rc.HasNextResultSet() {
 		rc.posSet++
 		rc.posRow = -1
