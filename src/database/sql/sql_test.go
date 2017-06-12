@@ -2995,9 +2995,8 @@ func (c *concurrentRandomTest) init(t testing.TB, db *DB) {
 		new(concurrentStmtExecTest),
 		new(concurrentTxQueryTest),
 		new(concurrentTxExecTest),
-		// golang.org/issue/20646
-		// new(concurrentTxStmtQueryTest),
-		// new(concurrentTxStmtExecTest),
+		new(concurrentTxStmtQueryTest),
+		new(concurrentTxStmtExecTest),
 	}
 	for _, ct := range c.tests {
 		ct.init(t, db)
@@ -3243,9 +3242,8 @@ func TestConcurrency(t *testing.T) {
 		{"StmtExec", new(concurrentStmtExecTest)},
 		{"TxQuery", new(concurrentTxQueryTest)},
 		{"TxExec", new(concurrentTxExecTest)},
-		// golang.org/issue/20646
-		// {"TxStmtQuery", new(concurrentTxStmtQueryTest)},
-		// {"TxStmtExec", new(concurrentTxStmtExecTest)},
+		{"TxStmtQuery", new(concurrentTxStmtQueryTest)},
+		{"TxStmtExec", new(concurrentTxStmtExecTest)},
 		{"Random", new(concurrentRandomTest)},
 	}
 	for _, item := range list {
@@ -3582,7 +3580,6 @@ func BenchmarkConcurrentTxExec(b *testing.B) {
 }
 
 func BenchmarkConcurrentTxStmtQuery(b *testing.B) {
-	b.Skip("golang.org/issue/20646")
 	b.ReportAllocs()
 	ct := new(concurrentTxStmtQueryTest)
 	for i := 0; i < b.N; i++ {
@@ -3591,7 +3588,6 @@ func BenchmarkConcurrentTxStmtQuery(b *testing.B) {
 }
 
 func BenchmarkConcurrentTxStmtExec(b *testing.B) {
-	b.Skip("golang.org/issue/20646")
 	b.ReportAllocs()
 	ct := new(concurrentTxStmtExecTest)
 	for i := 0; i < b.N; i++ {
