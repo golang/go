@@ -877,7 +877,7 @@ func TestStatementClose(t *testing.T) {
 		msg  string
 	}{
 		{&Stmt{stickyErr: want}, "stickyErr not propagated"},
-		{&Stmt{tx: &Tx{}, txds: &driverStmt{Locker: &sync.Mutex{}, si: stubDriverStmt{want}}}, "driverStmt.Close() error not propagated"},
+		{&Stmt{cg: &Tx{}, cgds: &driverStmt{Locker: &sync.Mutex{}, si: stubDriverStmt{want}}}, "driverStmt.Close() error not propagated"},
 	}
 	for _, test := range tests {
 		if err := test.stmt.Close(); err != want {
@@ -3229,6 +3229,42 @@ func TestIssue18719(t *testing.T) {
 	// canceled context.
 
 	cancel()
+}
+
+func TestIssue20647(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	stmt, err := conn.PrepareContext(ctx, "SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stmt.Close()
+
+	rows1, err := stmt.QueryContext(ctx)
+	if err != nil {
+		t.Fatal("rows1", err)
+	}
+	defer rows1.Close()
+
+	rows2, err := stmt.QueryContext(ctx)
+	if err != nil {
+		t.Fatal("rows2", err)
+	}
+	defer rows2.Close()
+
+	if rows1.dc != rows2.dc {
+		t.Fatal("stmt prepared on Conn does not use same connection")
+	}
 }
 
 func TestConcurrency(t *testing.T) {
