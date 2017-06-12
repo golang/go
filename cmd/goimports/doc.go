@@ -5,9 +5,9 @@ adding missing ones and removing unreferenced ones.
 
      $ go get golang.org/x/tools/cmd/goimports
 
-It's a drop-in replacement for your editor's gofmt-on-save hook.
-It has the same command-line interface as gofmt and formats
-your code in the same way.
+In addition to fixing imports, goimports also formats
+your code in the same style as gofmt so it can be used
+as a replacement for your editor's gofmt-on-save hook.
 
 For emacs, make sure you have the latest go-mode.el:
    https://github.com/dominikh/go-mode.el
