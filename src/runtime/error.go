@@ -126,34 +126,31 @@ func printany(i interface{}) {
 //go:linkname stringsIndexByte strings.IndexByte
 func stringsIndexByte(s string, c byte) int
 
-// called from generated code
+// panicwrap generates a panic for a call to a wrapped value method
+// with a nil pointer receiver.
+//
+// It is called from the generated wrapper code.
 func panicwrap() {
-	pc := make([]uintptr, 1)
-	n := Callers(2, pc)
-	if n == 0 {
-		throw("panicwrap: Callers failed")
-	}
-	frames := CallersFrames(pc)
-	frame, _ := frames.Next()
-	name := frame.Function
+	pc := getcallerpc()
+	name := funcname(findfunc(pc))
 	// name is something like "main.(*T).F".
 	// We want to extract pkg ("main"), typ ("T"), and meth ("F").
 	// Do it by finding the parens.
 	i := stringsIndexByte(name, '(')
 	if i < 0 {
-		throw("panicwrap: no ( in " + frame.Function)
+		throw("panicwrap: no ( in " + name)
 	}
 	pkg := name[:i-1]
 	if i+2 >= len(name) || name[i-1:i+2] != ".(*" {
-		throw("panicwrap: unexpected string after package name: " + frame.Function)
+		throw("panicwrap: unexpected string after package name: " + name)
 	}
 	name = name[i+2:]
 	i = stringsIndexByte(name, ')')
 	if i < 0 {
-		throw("panicwrap: no ) in " + frame.Function)
+		throw("panicwrap: no ) in " + name)
 	}
 	if i+2 >= len(name) || name[i:i+2] != ")." {
-		throw("panicwrap: unexpected string after type name: " + frame.Function)
+		throw("panicwrap: unexpected string after type name: " + name)
 	}
 	typ := name[:i]
 	meth := name[i+2:]
