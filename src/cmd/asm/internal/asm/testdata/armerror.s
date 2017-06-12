@@ -19,5 +19,9 @@ TEXT errors(SB),$0
 	MOVD	F0, F1, F2         // ERROR "illegal combination"
 	MOVDF	F0, F1, F2         // ERROR "illegal combination"
 	MOVFD	F0, F1, F2         // ERROR "illegal combination"
+	MOVM.IA	4(R1), [R0-R4]     // ERROR "offset must be zero"
+	MOVM.DA	4(R1), [R0-R4]     // ERROR "offset must be zero"
+	MOVM.IB	4(R1), [R0-R4]     // ERROR "offset must be zero"
+	MOVM.DB	4(R1), [R0-R4]     // ERROR "offset must be zero"
 
 	END
