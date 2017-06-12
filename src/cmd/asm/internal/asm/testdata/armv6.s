@@ -41,4 +41,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
 	CMPF.VS F7            // c07ab56e10faf16e
 	CMPD    F6            // c06bb5ee10faf1ee
 
+	MOVW	R4, F8        // 104b08ee
+	MOVW	F4, R8        // 108b14ee
+
 	END

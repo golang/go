@@ -2201,14 +2201,14 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(rf)&15)<<0 | (uint32(rt)&15)<<12
 
 	case 56: /* move to FP[CS]R */
-		o1 = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0xe<<24 | 1<<8 | 1<<4
+		o1 = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0xee1<<16 | 0xa1<<4
 
-		o1 |= ((uint32(p.To.Reg)&1)+1)<<21 | (uint32(p.From.Reg)&15)<<12
+		o1 |= (uint32(p.From.Reg) & 15) << 12
 
 	case 57: /* move from FP[CS]R */
-		o1 = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0xe<<24 | 1<<8 | 1<<4
+		o1 = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0xef1<<16 | 0xa1<<4
 
-		o1 |= ((uint32(p.From.Reg)&1)+1)<<21 | (uint32(p.To.Reg)&15)<<12 | 1<<20
+		o1 |= (uint32(p.To.Reg) & 15) << 12
 
 	case 58: /* movbu R,R */
 		o1 = c.oprrr(p, AAND, int(p.Scond))
