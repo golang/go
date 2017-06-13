@@ -495,9 +495,6 @@ func schedinit() {
 	if n, ok := atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
 		procs = n
 	}
-	if procs > _MaxGomaxprocs {
-		procs = _MaxGomaxprocs
-	}
 	if procresize(procs) != nil {
 		throw("unknown runnable goroutine during bootstrap")
 	}
@@ -3529,7 +3526,7 @@ func setcpuprofilerate(hz int32) {
 // Returns list of Ps with local work, they need to be scheduled by the caller.
 func procresize(nprocs int32) *p {
 	old := gomaxprocs
-	if old < 0 || old > _MaxGomaxprocs || nprocs <= 0 || nprocs > _MaxGomaxprocs {
+	if old < 0 || nprocs <= 0 {
 		throw("procresize: invalid arg")
 	}
 	if trace.enabled {

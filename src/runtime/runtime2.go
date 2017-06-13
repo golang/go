@@ -520,12 +520,6 @@ type p struct {
 	pad [sys.CacheLineSize]byte
 }
 
-const (
-	// The max value of GOMAXPROCS.
-	// There are no fundamental restrictions on the value.
-	_MaxGomaxprocs = 1 << 10
-)
-
 type schedt struct {
 	// accessed atomically. keep at top to ensure alignment on 32-bit systems.
 	goidgen  uint64
