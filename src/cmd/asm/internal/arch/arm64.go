@@ -56,7 +56,9 @@ func jumpArm64(word string) bool {
 func IsARM64CMP(op obj.As) bool {
 	switch op {
 	case arm64.ACMN, arm64.ACMP, arm64.ATST,
-		arm64.ACMNW, arm64.ACMPW, arm64.ATSTW:
+		arm64.ACMNW, arm64.ACMPW, arm64.ATSTW,
+		arm64.AFCMPS, arm64.AFCMPD,
+		arm64.AFCMPES, arm64.AFCMPED:
 		return true
 	}
 	return false
