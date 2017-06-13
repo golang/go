@@ -171,7 +171,7 @@ func inGoPath() bool {
 	}
 
 	for _, path := range filepath.SplitList(os.Getenv("GOPATH")) {
-		if strings.HasPrefix(wd, path) {
+		if strings.HasPrefix(wd, filepath.Join(path, "src")) {
 			return true
 		}
 	}
