@@ -589,9 +589,13 @@ func updatememstats() {
 	memstats.heap_objects = memstats.nmalloc - memstats.nfree
 }
 
+// cachestats flushes all mcache stats.
+//
+// The world must be stopped.
+//
 //go:nowritebarrier
 func cachestats() {
-	for _, p := range &allp {
+	for _, p := range allp {
 		if p == nil {
 			break
 		}

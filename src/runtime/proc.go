@@ -3231,7 +3231,7 @@ func badunlockosthread() {
 
 func gcount() int32 {
 	n := int32(allglen) - sched.ngfree - int32(atomic.Load(&sched.ngsys))
-	for _, _p_ := range &allp {
+	for _, _p_ := range allp {
 		if _p_ == nil {
 			break
 		}
@@ -3543,6 +3543,23 @@ func procresize(nprocs int32) *p {
 	}
 	sched.procresizetime = now
 
+	// Grow allp if necessary.
+	if nprocs > int32(len(allp)) {
+		// Synchronize with retake, which could be running
+		// concurrently since it doesn't run on a P.
+		lock(&allpLock)
+		if nprocs <= int32(cap(allp)) {
+			allp = allp[:nprocs]
+		} else {
+			nallp := make([]*p, nprocs)
+			// Copy everything up to allp's cap so we
+			// never lose old allocated Ps.
+			copy(nallp, allp[:cap(allp)])
+			allp = nallp
+		}
+		unlock(&allpLock)
+	}
+
 	// initialize new P's
 	for i := int32(0); i < nprocs; i++ {
 		pp := allp[i]
@@ -3629,6 +3646,13 @@ func procresize(nprocs int32) *p {
 		}
 		p.status = _Pdead
 		// can't free P itself because it can be referenced by an M in syscall
+	}
+
+	// Trim allp.
+	if int32(len(allp)) != nprocs {
+		lock(&allpLock)
+		allp = allp[:nprocs]
+		unlock(&allpLock)
 	}
 
 	_g_ := getg()
@@ -3956,7 +3980,10 @@ const forcePreemptNS = 10 * 1000 * 1000 // 10ms
 
 func retake(now int64) uint32 {
 	n := 0
-	for i := int32(0); i < gomaxprocs; i++ {
+	// Prevent allp slice changes. This lock will be completely
+	// uncontended unless we're already stopping the world.
+	lock(&allpLock)
+	for i := 0; i < len(allp); i++ {
 		_p_ := allp[i]
 		if _p_ == nil {
 			continue
@@ -3977,6 +4004,8 @@ func retake(now int64) uint32 {
 			if runqempty(_p_) && atomic.Load(&sched.nmspinning)+atomic.Load(&sched.npidle) > 0 && pd.syscallwhen+10*1000*1000 > now {
 				continue
 			}
+			// Drop allpLock so we can take sched.lock.
+			unlock(&allpLock)
 			// Need to decrement number of idle locked M's
 			// (pretending that one more is running) before the CAS.
 			// Otherwise the M from which we retake can exit the syscall,
@@ -3992,6 +4021,7 @@ func retake(now int64) uint32 {
 				handoffp(_p_)
 			}
 			incidlelocked(1)
+			lock(&allpLock)
 		} else if s == _Prunning {
 			// Preempt G if it's running for too long.
 			t := int64(_p_.schedtick)
@@ -4006,6 +4036,7 @@ func retake(now int64) uint32 {
 			preemptone(_p_)
 		}
 	}
+	unlock(&allpLock)
 	return uint32(n)
 }
 
