@@ -2804,12 +2804,12 @@ func exitsyscall0(gp *g) {
 func beforefork() {
 	gp := getg().m.curg
 
-	// Fork can hang if preempted with signals frequently enough (see issue 5517).
-	// Ensure that we stay on the same M where we disable profiling.
+	// Block signals during a fork, so that the child does not run
+	// a signal handler before exec if a signal is sent to the process
+	// group. See issue #18600.
 	gp.m.locks++
-	if gp.m.profilehz != 0 {
-		setThreadCPUProfiler(0)
-	}
+	msigsave(gp.m)
+	sigblock()
 
 	// This function is called before fork in syscall package.
 	// Code between fork and exec must not allocate memory nor even try to grow stack.
@@ -2828,13 +2828,11 @@ func syscall_runtime_BeforeFork() {
 func afterfork() {
 	gp := getg().m.curg
 
-	// See the comment in beforefork.
+	// See the comments in beforefork.
 	gp.stackguard0 = gp.stack.lo + _StackGuard
 
-	hz := sched.profilehz
-	if hz != 0 {
-		setThreadCPUProfiler(hz)
-	}
+	msigrestore(gp.m.sigmask)
+
 	gp.m.locks--
 }
 
@@ -2843,6 +2841,20 @@ func afterfork() {
 //go:nosplit
 func syscall_runtime_AfterFork() {
 	systemstack(afterfork)
+}
+
+// Called from syscall package after fork in child.
+// It resets non-sigignored signals to the default handler, and
+// restores the signal mask in preparation for the exec.
+//go:linkname syscall_runtime_AfterForkInChild syscall.runtime_AfterForkInChild
+//go:nosplit
+//go:nowritebarrierrec
+func syscall_runtime_AfterForkInChild() {
+	clearSignalHandlers()
+
+	// When we are the child we are the only thread running,
+	// so we know that nothing else has changed gp.m.sigmask.
+	msigrestore(getg().m.sigmask)
 }
 
 // Allocate a new g, with a stack big enough for stacksize bytes.

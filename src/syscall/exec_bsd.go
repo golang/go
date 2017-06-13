@@ -27,6 +27,7 @@ type SysProcAttr struct {
 // Implemented in runtime package.
 func runtime_BeforeFork()
 func runtime_AfterFork()
+func runtime_AfterForkInChild()
 
 // Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
 // If a dup or exec fails, write the errno error to pipe.
@@ -87,6 +88,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	// Fork succeeded, now in child.
+
+	runtime_AfterForkInChild()
 
 	// Enable tracing if requested.
 	if sys.Ptrace {
