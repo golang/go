@@ -2597,22 +2597,19 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.opirr(p, p.As)
 
 		d := p.From.Offset
-		if (d >> 16) != 0 {
-			c.ctxt.Diag("requires uimm16\n%v", p)
+		s := movcon(d)
+		if s < 0 || s >= 4 {
+			c.ctxt.Diag("bad constant for MOVK: %#x\n%v", uint64(d), p)
 		}
-		s := 0
-		if p.From3Type() != obj.TYPE_NONE {
-			if p.From3.Type != obj.TYPE_CONST {
-				c.ctxt.Diag("missing bit position\n%v", p)
-			}
-			s = int(p.From3.Offset / 16)
-			if (s*16&0xF) != 0 || s >= 4 || (o1&S64) == 0 && s >= 2 {
-				c.ctxt.Diag("illegal bit position\n%v", p)
-			}
+		if (o1&S64) == 0 && s >= 2 {
+			c.ctxt.Diag("illegal bit position\n%v", p)
 		}
-
+		if ((d >> uint(s*16)) >> 16) != 0 {
+			c.ctxt.Diag("requires uimm16\n%v",p)
+		}
 		rt := int(p.To.Reg)
-		o1 |= uint32(((d & 0xFFFF) << 5) | int64((uint32(s)&3)<<21) | int64(rt&31))
+
+		o1 |= uint32((((d >> uint(s*16)) & 0xFFFF) << 5) | int64((uint32(s)&3)<<21) | int64(rt&31))
 
 	case 34: /* mov $lacon,R */
 		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
