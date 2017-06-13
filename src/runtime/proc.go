@@ -997,8 +997,7 @@ func stopTheWorldWithSema() {
 	_g_.m.p.ptr().status = _Pgcstop // Pgcstop is only diagnostic.
 	sched.stopwait--
 	// try to retake all P's in Psyscall status
-	for i := 0; i < int(gomaxprocs); i++ {
-		p := allp[i]
+	for _, p := range allp {
 		s := p.status
 		if s == _Psyscall && atomic.Cas(&p.status, s, _Pgcstop) {
 			if trace.enabled {
@@ -1038,8 +1037,7 @@ func stopTheWorldWithSema() {
 	if sched.stopwait != 0 {
 		bad = "stopTheWorld: not stopped (stopwait != 0)"
 	} else {
-		for i := 0; i < int(gomaxprocs); i++ {
-			p := allp[i]
+		for _, p := range allp {
 			if p.status != _Pgcstop {
 				bad = "stopTheWorld: not stopped (status != _Pgcstop)"
 			}
@@ -1219,7 +1217,7 @@ func forEachP(fn func(*p)) {
 	sched.safePointFn = fn
 
 	// Ask all Ps to run the safe point function.
-	for _, p := range allp[:gomaxprocs] {
+	for _, p := range allp {
 		if p != _p_ {
 			atomic.Store(&p.runSafePointFn, 1)
 		}
@@ -1247,8 +1245,7 @@ func forEachP(fn func(*p)) {
 
 	// Force Ps currently in _Psyscall into _Pidle and hand them
 	// off to induce safe point function execution.
-	for i := 0; i < int(gomaxprocs); i++ {
-		p := allp[i]
+	for _, p := range allp {
 		s := p.status
 		if s == _Psyscall && p.runSafePointFn == 1 && atomic.Cas(&p.status, s, _Pidle) {
 			if trace.enabled {
@@ -1277,8 +1274,7 @@ func forEachP(fn func(*p)) {
 	if sched.safePointWait != 0 {
 		throw("forEachP: not done")
 	}
-	for i := 0; i < int(gomaxprocs); i++ {
-		p := allp[i]
+	for _, p := range allp {
 		if p.runSafePointFn != 0 {
 			throw("forEachP: P did not run fn")
 		}
@@ -2072,9 +2068,8 @@ stop:
 	}
 
 	// check all runqueues once again
-	for i := 0; i < int(gomaxprocs); i++ {
-		_p_ := allp[i]
-		if _p_ != nil && !runqempty(_p_) {
+	for _, _p_ := range allp {
+		if !runqempty(_p_) {
 			lock(&sched.lock)
 			_p_ = pidleget()
 			unlock(&sched.lock)
@@ -3229,9 +3224,6 @@ func badunlockosthread() {
 func gcount() int32 {
 	n := int32(allglen) - sched.ngfree - int32(atomic.Load(&sched.ngsys))
 	for _, _p_ := range allp {
-		if _p_ == nil {
-			break
-		}
 		n -= _p_.gfreecnt
 	}
 
@@ -3641,6 +3633,7 @@ func procresize(nprocs int32) *p {
 			raceprocdestroy(p.racectx)
 			p.racectx = 0
 		}
+		p.gcAssistTime = 0
 		p.status = _Pdead
 		// can't free P itself because it can be referenced by an M in syscall
 	}
@@ -3980,9 +3973,14 @@ func retake(now int64) uint32 {
 	// Prevent allp slice changes. This lock will be completely
 	// uncontended unless we're already stopping the world.
 	lock(&allpLock)
+	// We can't use a range loop over allp because we may
+	// temporarily drop the allpLock. Hence, we need to re-fetch
+	// allp each time around the loop.
 	for i := 0; i < len(allp); i++ {
 		_p_ := allp[i]
 		if _p_ == nil {
+			// This can happen if procresize has grown
+			// allp but not yet created new Ps.
 			continue
 		}
 		pd := &_p_.sysmontick
@@ -4044,9 +4042,8 @@ func retake(now int64) uint32 {
 // Returns true if preemption request was issued to at least one goroutine.
 func preemptall() bool {
 	res := false
-	for i := int32(0); i < gomaxprocs; i++ {
-		_p_ := allp[i]
-		if _p_ == nil || _p_.status != _Prunning {
+	for _, _p_ := range allp {
+		if _p_.status != _Prunning {
 			continue
 		}
 		if preemptone(_p_) {
@@ -4102,11 +4099,7 @@ func schedtrace(detailed bool) {
 	// We must be careful while reading data from P's, M's and G's.
 	// Even if we hold schedlock, most data can be changed concurrently.
 	// E.g. (p->m ? p->m->id : -1) can crash if p->m changes from non-nil to nil.
-	for i := int32(0); i < gomaxprocs; i++ {
-		_p_ := allp[i]
-		if _p_ == nil {
-			continue
-		}
+	for i, _p_ := range allp {
 		mp := _p_.m.ptr()
 		h := atomic.Load(&_p_.runqhead)
 		t := atomic.Load(&_p_.runqtail)
@@ -4124,7 +4117,7 @@ func schedtrace(detailed bool) {
 				print("[")
 			}
 			print(t - h)
-			if i == gomaxprocs-1 {
+			if i == len(allp)-1 {
 				print("]\n")
 			}
 		}
