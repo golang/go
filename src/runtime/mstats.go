@@ -591,8 +591,7 @@ func updatememstats() {
 
 //go:nowritebarrier
 func cachestats() {
-	for i := 0; ; i++ {
-		p := allp[i]
+	for _, p := range &allp {
 		if p == nil {
 			break
 		}

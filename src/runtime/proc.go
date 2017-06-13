@@ -3158,8 +3158,7 @@ func badunlockosthread() {
 
 func gcount() int32 {
 	n := int32(allglen) - sched.ngfree - int32(atomic.Load(&sched.ngsys))
-	for i := 0; ; i++ {
-		_p_ := allp[i]
+	for _, _p_ := range &allp {
 		if _p_ == nil {
 			break
 		}
