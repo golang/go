@@ -30,6 +30,25 @@ You must go through the following process <em>prior to contributing</em>.
 You only need to do this once per Google Account.
 </p>
 
+<h2 id="go-contrib-init">Automatically set up &amp; diagnose your development environment</h3>
+<p>
+  The <code>go-contrib-init</code> tool configures and debugs your Go
+  development environment, automatically performing many of the steps
+  on this page, or telling you what you need to do next. If you wish
+  to use it, run:
+</p>
+
+<pre>
+$ go get -u golang.org/x/tools/cmd/go-contrib-init
+$ cd /code/to/edit
+$ go-contrib-init
+</pre>
+
+<p>
+  The tool will either set things up, tell you that everything is
+  configured, or tell you what steps you need to do manually.
+</p>
+
 <h2 id="auth">Configure Git to use Gerrit</h2>
 <p>
 You'll need a web browser and a command line terminal.
