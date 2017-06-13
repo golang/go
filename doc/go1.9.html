@@ -149,13 +149,10 @@ type T1 = T2
   better generated code, and optimizations in the core library.
 </p>
 
-<p>
+<p> <!-- CL 39203 -->
   TODO: There have been significant optimizations bringing more than 10% improvements
   to implementations in the
-  <a href="/pkg/foo/"><code>foo</code></a>,
-  <a href="/pkg/bar/"><code>bar</code></a>,
-  and
-  <a href="/pkg/quux/"><code>quux</code></a>
+  <a href="/pkg/encoding/gob"><code>encoding/gob</code></a>, and ...
   packages.
 </p>
 
@@ -307,26 +304,23 @@ type T1 = T2
 <dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
   <dd>
     <p><!-- CL 38660 -->
-      TODO: <a href="https://golang.org/cl/38660">https://golang.org/cl/38660</a>: add NullBytes and NullRawValue for working with ASN.1 NULL
+	  The new
+	  <a href="/pkg/encoding/asn1/#NullBytes"><code>NullBytes</code></a>
+	  and
+	  <a href="/pkg/encoding/asn1/#NullRawValue"><code>NullRawValue</code></a>
+	  represent the <code>ASN.1 NULL</code> type.
     </p>
 
 </dl><!-- encoding/asn1 -->
 
 <dl id="encoding/base32"><dt><a href="/pkg/encoding/base32/">encoding/base32</a></dt>
   <dd>
-    <p><!-- CL 38634 -->
-      TODO: <a href="https://golang.org/cl/38634">https://golang.org/cl/38634</a>: add Encoding.WithPadding, StdPadding, NoPadding
+    <p><!-- CL 38634 --> 
+	  The new <a href="/pkg/encoding/base32/#Encoding.WithPadding">Encoding.WithPadding</a>
+	  method adds support for custom padding characters and disabling padding.
     </p>
 
 </dl><!-- encoding/base32 -->
-
-<dl id="encoding/gob"><dt><a href="/pkg/encoding/gob/">encoding/gob</a></dt>
-  <dd>
-    <p><!-- CL 39203 -->
-      TODO: <a href="https://golang.org/cl/39203">https://golang.org/cl/39203</a>: speedup decoding of maps by zeroing values
-    </p>
-
-</dl><!-- encoding/gob -->
 
 <dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
   <dd>
