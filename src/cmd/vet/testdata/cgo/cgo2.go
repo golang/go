@@ -7,3 +7,6 @@
 package testdata
 
 var _ = C.f(*p(**p))
+
+// Passing a pointer (via the slice), but C isn't cgo.
+var _ = C.f([]int{3})
