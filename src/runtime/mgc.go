@@ -466,9 +466,6 @@ func (c *gcControllerState) startCycle() {
 
 	// Clear per-P state
 	for _, p := range allp {
-		if p == nil {
-			break
-		}
 		p.gcAssistTime = 0
 	}
 
@@ -1663,9 +1660,6 @@ func gcBgMarkStartWorkers() {
 	// Background marking is performed by per-P G's. Ensure that
 	// each P has a background GC G.
 	for _, p := range allp {
-		if p == nil || p.status == _Pdead {
-			break
-		}
 		if p.gcBgMarkWorker == 0 {
 			go gcBgMarkWorker(p)
 			notetsleepg(&work.bgMarkReady, -1)
@@ -1962,8 +1956,8 @@ func gcMark(start_time int64) {
 
 	// Double-check that all gcWork caches are empty. This should
 	// be ensured by mark 2 before we enter mark termination.
-	for i := 0; i < int(gomaxprocs); i++ {
-		gcw := &allp[i].gcw
+	for _, p := range allp {
+		gcw := &p.gcw
 		if !gcw.empty() {
 			throw("P has cached GC work at end of mark termination")
 		}
