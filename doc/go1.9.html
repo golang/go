@@ -297,15 +297,33 @@ type T1 = T2
 <dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
   <dd>
     <p><!-- CL 35476 -->
-      TODO: <a href="https://golang.org/cl/35476">https://golang.org/cl/35476</a>: proper prepared statement support in transactions
+      The package will now use a cached <a href="/pkg/database/sql/#Stmt"><code>Stmt</code></a> if
+      available in <a href="/pkg/database/sql/#Tx.Stmt"><code>Tx.Stmt</code></a>.
+      This prevents statements from being re-prepared each time
+      <a href="/pkg/database/sql/#Tx.Stmt"><code>Tx.Stmt</code></a> is called.
+    </p>
+
+    <p><!-- CL 38533 -->
+      The package now allows drivers to implement their own argument checkers by implementing
+      <a href="/pkg/database/sql/driver/#NamedValueChecker"><code>driver.NamedValueChecker</code></a>.
+      This also allows drivers to support <code>OUTPUT</code> and <code>INOUT</code> parameter types.
+      <a href="/pkg/database/sql/#Out"><code>Out</code></a> should be used to return output parameters
+      when supported by the driver.
     </p>
 
     <p><!-- CL 39031 -->
-      TODO: <a href="https://golang.org/cl/39031">https://golang.org/cl/39031</a>: support scanning into user defined string types
+      <a href="/pkg/database/sql/#Rows.Scan"><code>Rows.Scan</code></a> can now scan user-defined string types.
+      Previously the package supported scanning into numeric types like <code>type Int int64</code>. It now also supports
+      scanning into string types like <code>type String string</code>.
     </p>
 
     <p><!-- CL 40694 -->
-      TODO: <a href="https://golang.org/cl/40694">https://golang.org/cl/40694</a>: allow using a single connection from the database
+      The new <a href="/pkg/database/sql/#DB.Conn"><code>DB.Conn</code></a> method returns the new
+      <a href="/pkg/database/sql/#Conn"><code>Conn</code></a> type representing an
+      exclusive connection to the database from the connection pool. All queries run on
+      a <a href="/pkg/database/sql/#Conn"><code>Conn</code></a> will use the same underlying
+      connection until <a href="/pkg/database/sql/#Conn.Close"><code>Conn.Close</code></a> is called
+      to return the connection to the connection pool.
     </p>
 
 </dl><!-- database/sql -->
