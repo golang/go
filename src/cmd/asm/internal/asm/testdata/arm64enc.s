@@ -242,9 +242,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    ORRW $16252928, ZR, R21                    // f5130d32
    MOVD $-4260607558625, R11                  // eb6b16b2
    MOVD R30, R7                               // e7031eaa
-   // MOVKW $(3905<<0), R21                   // MOVKW $3905, R21              // 35e88172
-   // MOVKW $(3905<<16), R21                  // MOVKW $255918080, R21         // 35e8a172
-   // MOVK $(3905<<32), R21                   // MOVK $16771847290880, R21     // 35e8c1f2
+   MOVKW $(3905<<0), R21                      // MOVKW $3905, R21              // 35e88172
+   MOVKW $(3905<<16), R21                     // MOVKW $255918080, R21         // 35e8a172
+   MOVK $(3905<<32), R21                      // MOVK $16771847290880, R21     // 35e8c1f2
    MOVD $0, R5                                // 050080d2
    // MRS $4567, R16                          // f03a32d5
    // MRS $32345, R6                          // 26cb3fd5
