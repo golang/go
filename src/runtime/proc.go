@@ -3837,7 +3837,7 @@ func sysmon() {
 	}
 }
 
-var pdesc [_MaxGomaxprocs]struct {
+type sysmontick struct {
 	schedtick   uint32
 	schedwhen   int64
 	syscalltick uint32
@@ -3855,7 +3855,7 @@ func retake(now int64) uint32 {
 		if _p_ == nil {
 			continue
 		}
-		pd := &pdesc[i]
+		pd := &_p_.sysmontick
 		s := _p_.status
 		if s == _Psyscall {
 			// Retake P from syscall if it's there for more than 1 sysmon tick (at least 20us).

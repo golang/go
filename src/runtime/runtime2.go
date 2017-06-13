@@ -453,9 +453,10 @@ type p struct {
 	id          int32
 	status      uint32 // one of pidle/prunning/...
 	link        puintptr
-	schedtick   uint32   // incremented on every scheduler call
-	syscalltick uint32   // incremented on every system call
-	m           muintptr // back-link to associated m (nil if idle)
+	schedtick   uint32     // incremented on every scheduler call
+	syscalltick uint32     // incremented on every system call
+	sysmontick  sysmontick // last tick observed by sysmon
+	m           muintptr   // back-link to associated m (nil if idle)
 	mcache      *mcache
 	racectx     uintptr
 
