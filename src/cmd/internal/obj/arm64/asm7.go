@@ -607,12 +607,20 @@ var optab = []Optab{
  * valid pstate field values, and value to use in instruction
  */
 var pstatefield = []struct {
-	a uint32
-	b uint32
+	reg int16
+	enc uint32
 }{
 	{REG_SPSel, 0<<16 | 4<<12 | 5<<5},
 	{REG_DAIFSet, 3<<16 | 4<<12 | 6<<5},
 	{REG_DAIFClr, 3<<16 | 4<<12 | 7<<5},
+}
+
+// the System register values, and value to use in instruction
+var systemreg = []struct {
+	reg int16
+	enc uint32
+}{
+	{REG_ELR_EL1, 8<<16 | 4<<12 | 1<<5},
 }
 
 func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
@@ -2745,21 +2753,41 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 35: /* mov SPR,R -> mrs */
 		o1 = c.oprrr(p, AMRS)
 
-		v := int32(p.From.Offset)
+		v := uint32(0)
+		for i := 0; i < len(systemreg); i++ {
+			if systemreg[i].reg == p.From.Reg {
+				v = systemreg[i].enc
+				break
+			}
+		}
+		if v == 0 {
+			c.ctxt.Diag("illegal system register:\n%v", p)
+		}
 		if (o1 & uint32(v&^(3<<19))) != 0 {
 			c.ctxt.Diag("MRS register value overlap\n%v", p)
 		}
-		o1 |= uint32(v)
+
+		o1 |= v
 		o1 |= uint32(p.To.Reg & 31)
 
 	case 36: /* mov R,SPR */
 		o1 = c.oprrr(p, AMSR)
 
-		v := int32(p.To.Offset)
+		v := uint32(0)
+		for i := 0; i < len(systemreg); i++ {
+			if systemreg[i].reg == p.To.Reg {
+				v = systemreg[i].enc
+				break
+			}
+		}
+		if v == 0 {
+			c.ctxt.Diag("illegal system register:\n%v", p)
+		}
 		if (o1 & uint32(v&^(3<<19))) != 0 {
 			c.ctxt.Diag("MSR register value overlap\n%v", p)
 		}
-		o1 |= uint32(v)
+
+		o1 |= v
 		o1 |= uint32(p.From.Reg & 31)
 
 	case 37: /* mov $con,PSTATEfield -> MSR [immediate] */
@@ -2768,10 +2796,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 = c.opirr(p, AMSR)
 		o1 |= uint32((p.From.Offset & 0xF) << 8) /* Crm */
-		v := int32(0)
+		v := uint32(0)
 		for i := 0; i < len(pstatefield); i++ {
-			if int64(pstatefield[i].a) == p.To.Offset {
-				v = int32(pstatefield[i].b)
+			if pstatefield[i].reg == p.To.Reg {
+				v = pstatefield[i].enc
 				break
 			}
 		}
@@ -2779,7 +2807,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if v == 0 {
 			c.ctxt.Diag("illegal PSTATE field for immediate move\n%v", p)
 		}
-		o1 |= uint32(v)
+		o1 |= v
 
 	case 38: /* clrex [$imm] */
 		o1 = c.opimm(p, p.As)
