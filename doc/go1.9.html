@@ -42,7 +42,8 @@ ul li { margin: 0.5em 0; }
   adds <a href="#monotonic-time">transparent monotonic time support</a>,
   <a href="#parallel-compile">parallelizes compilation of functions</a> within a package,
   better supports <a href="#test-helper">test helper functions</a>,
-  and includes a new <a href="#math-bits">bit manipulation package</a>.
+  includes a new <a href="#math-bits">bit manipulation package</a>,
+  and has a new <a href="#sync-map">concurrent map type</a>.
 </p>
 
 <h2 id="language">Changes to the language</h2>
@@ -225,6 +226,16 @@ type T1 = T2
   line numbers for users.
 </p>
 
+<h3 id="sync-map">Concurrent Map</h3>
+
+<p> <!-- CL 36617 -->
+  The new <a href="/pkg/sync/#Map"><code>Map</code></a> type
+  in the <a href="/pkg/sync/"><code>sync</code></a> package
+  is a concurrent map with amortized-constant-time loads, stores, and
+  deletes. It is safe for multiple goroutines to call a Map's methods
+  concurrently.
+</p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -245,14 +256,6 @@ type T1 = T2
 
 </dl><!-- archive/zip -->
 
-<dl id="crypto/aes"><dt><a href="/pkg/crypto/aes/">crypto/aes</a></dt>
-  <dd>
-    <p><!-- CL 38366 -->
-      TODO: <a href="https://golang.org/cl/38366">https://golang.org/cl/38366</a>: ARM assembly versions of encrypt, decrypt and expandKey
-    </p>
-
-</dl><!-- crypto/aes -->
-
 <dl id="crypto/rand"><dt><a href="/pkg/crypto/rand/">crypto/rand</a></dt>
   <dd>
     <p><!-- CL 43852 -->
@@ -269,7 +272,7 @@ type T1 = T2
   <dd>
     <p><!-- CL 36093 -->
 
-      On UNIX systems the environment
+      On Unix systems the environment
       variables <code>SSL_CERT_FILE</code>
       and <code>SSL_CERT_DIR</code> can now be used to override the
       system default locations for the SSL certificate file and SSL
@@ -361,14 +364,6 @@ type T1 = T2
     </p>
 
 </dl><!-- fmt -->
-
-<dl id="go/build"><dt><a href="/pkg/go/build/">go/build</a></dt>
-  <dd>
-    <p><!-- CL 44291 -->
-      TODO: <a href="https://golang.org/cl/44291">https://golang.org/cl/44291</a>: make -I/-L options in cgo flags absolute
-    </p>
-
-</dl><!-- go/build -->
 
 <dl id="hash/fnv"><dt><a href="/pkg/hash/fnv/">hash/fnv</a></dt>
   <dd>
@@ -528,7 +523,12 @@ type T1 = T2
 <dl id="net/http/fcgi"><dt><a href="/pkg/net/http/fcgi/">net/http/fcgi</a></dt>
   <dd>
     <p><!-- CL 40012 -->
-      TODO: <a href="https://golang.org/cl/40012">https://golang.org/cl/40012</a>: expose cgi env vars in request context
+      The new
+      <a href="/pkg/net/http/fcgi/#ProcessEnv"><code>ProcessEnv</code></a>
+      function returns FastCGI environment variables associated with an HTTP request
+      for which there are no appropriate
+      <a href="/pkg/net/http/#Request"><code>http.Request</code></a>
+      fields, such as <code>REMOTE_USER</code>.
     </p>
 
 </dl><!-- net/http/fcgi -->
@@ -536,7 +536,15 @@ type T1 = T2
 <dl id="net/http/httptest"><dt><a href="/pkg/net/http/httptest/">net/http/httptest</a></dt>
   <dd>
     <p><!-- CL 34639 -->
-      TODO: <a href="https://golang.org/cl/34639">https://golang.org/cl/34639</a>: add Client and Certificate to Server
+      The new
+      <a href="/pkg/net/http/httptest/#Server.Client"><code>Server.Client</code></a>
+      method returns an HTTP client configured for making requests to the test server.
+    </p>
+
+    <p>
+      The new
+      <a href="/pkg/net/http/httptest/#Server.Certificate"><code>Server.Certificate</code></a>
+      method returns the test server's TLS certificate, if any.
     </p>
 
 </dl><!-- net/http/httptest -->
@@ -564,19 +572,29 @@ type T1 = T2
 <dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
   <dd>
     <p><!-- CL 37586 -->
-      TODO: <a href="https://golang.org/cl/37586">https://golang.org/cl/37586</a>: remove duplicate environment variables in Cmd.Start
+      The <code>os/exec</code> package now prevents child processes from being created with
+      any duplicate environment variables.
+      If <a href="/pkg/os/exec/#Cmd.Env"><code>Cmd.Env</code></a>
+      contains duplicate environment keys, only the last
+      value in the slice for each duplicate key is used.
     </p>
 
 </dl><!-- os/exec -->
 
 <dl id="os/user"><dt><a href="/pkg/os/user/">os/user</a></dt>
   <dd>
-    <p><!-- CL 33713 -->
-      TODO: <a href="https://golang.org/cl/33713">https://golang.org/cl/33713</a>: add Go implementation of LookupGroup, LookupGroupId
+    <p><!-- CL 37664 -->
+      <a href="/pkg/os/user/#Lookup"><code>Lookup</code></a> and
+      <a href="/pkg/os/user/#LookupId"><code>LookupId</code></a> now
+      work on Unix systems when <code>CGO_ENABLED=0</code> by reading
+      the <code>/etc/passwd</code> file.
     </p>
 
-    <p><!-- CL 37664 -->
-      TODO: <a href="https://golang.org/cl/37664">https://golang.org/cl/37664</a>: add non-cgo versions of Lookup, LookupId
+    <p><!-- CL 33713 -->
+      <a href="/pkg/os/user/#LookupGroup"><code>LookupGroup</code></a> and
+      <a href="/pkg/os/user/#LookupGroupId"><code>LookupGroupId</code></a> now
+      work on Unix systems when <code>CGO_ENABLED=0</code> by reading
+      the <code>/etc/group</code> file.
     </p>
 
 </dl><!-- os/user -->
@@ -584,7 +602,9 @@ type T1 = T2
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
     <p><!-- CL 38335 -->
-      TODO: <a href="https://golang.org/cl/38335">https://golang.org/cl/38335</a>: Add MakeMapWithSize for creating maps with size hint
+      The new
+      <a href="/pkg/reflect/#MakeMapWithSize"><code>MakeMapWithSize</code></a>
+      function creates a map with a capacity hint.
     </p>
 
 </dl><!-- reflect -->
@@ -650,11 +670,7 @@ type T1 = T2
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
     <p><!-- CL 34310 -->
-      TODO: <a href="https://golang.org/cl/34310">https://golang.org/cl/34310</a>: make Mutex more fair
-    </p>
-
-    <p><!-- CL 36617 -->
-      TODO: <a href="https://golang.org/cl/36617">https://golang.org/cl/36617</a>: import Map from x/sync/syncmap
+      <a href="/pkg/sync/#Mutex"><code>Mutex</code></a> is now more fair.
     </p>
 
 </dl><!-- sync -->
@@ -664,7 +680,7 @@ type T1 = T2
     <p><!-- CL 36697 -->
       The new field
       <a href="/pkg/syscall/#Credential.NoSetGroups"><code>Credential.NoSetGroups</code></a>
-      controls whether UNIX systems make a <code>setgroups</code> system call
+      controls whether Unix systems make a <code>setgroups</code> system call
       to set supplementary groups when starting a new process.
     </p>
 
