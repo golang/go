@@ -4063,6 +4063,54 @@ func TestSliceOfGC(t *testing.T) {
 	}
 }
 
+func TestStructOfFieldName(t *testing.T) {
+	// invalid field name "1nvalid"
+	shouldPanic(func() {
+		StructOf([]StructField{
+			StructField{Name: "valid", Type: TypeOf("")},
+			StructField{Name: "1nvalid", Type: TypeOf("")},
+		})
+	})
+
+	// invalid field name "+"
+	shouldPanic(func() {
+		StructOf([]StructField{
+			StructField{Name: "val1d", Type: TypeOf("")},
+			StructField{Name: "+", Type: TypeOf("")},
+		})
+	})
+
+	// no field name
+	shouldPanic(func() {
+		StructOf([]StructField{
+			StructField{Name: "", Type: TypeOf("")},
+		})
+	})
+
+	// verify creation of a struct with valid struct fields
+	validFields := []StructField{
+		StructField{
+			Name: "φ",
+			Type: TypeOf(""),
+		},
+		StructField{
+			Name: "ValidName",
+			Type: TypeOf(""),
+		},
+		StructField{
+			Name: "Val1dNam5",
+			Type: TypeOf(""),
+		},
+	}
+
+	validStruct := StructOf(validFields)
+
+	const structStr = `struct { φ string; ValidName string; Val1dNam5 string }`
+	if got, want := validStruct.String(), structStr; got != want {
+		t.Errorf("StructOf(validFields).String()=%q, want %q", got, want)
+	}
+}
+
 func TestStructOf(t *testing.T) {
 	// check construction and use of type not in binary
 	fields := []StructField{
