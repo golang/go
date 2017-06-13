@@ -23,6 +23,7 @@ type SysProcAttr struct {
 // Implemented in runtime package.
 func runtime_BeforeFork()
 func runtime_AfterFork()
+func runtime_AfterForkInChild()
 
 func chdir(path uintptr) (err Errno)
 func chroot1(path uintptr) (err Errno)
@@ -92,6 +93,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	// Fork succeeded, now in child.
+
+	runtime_AfterForkInChild()
 
 	// Session ID
 	if sys.Setsid {

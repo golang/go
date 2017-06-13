@@ -204,6 +204,20 @@ func sigignore(sig uint32) {
 	}
 }
 
+// clearSignalHandlers clears all signal handlers that are not ignored
+// back to the default. This is called by the child after a fork, so that
+// we can enable the signal mask for the exec without worrying about
+// running a signal handler in the child.
+//go:nosplit
+//go:nowritebarrierrec
+func clearSignalHandlers() {
+	for i := uint32(0); i < _NSIG; i++ {
+		if atomic.Load(&handlingSig[i]) != 0 {
+			setsig(i, _SIG_DFL)
+		}
+	}
+}
+
 // setProcessCPUProfiler is called when the profiling timer changes.
 // It is called with prof.lock held. hz is the new timer, and is 0 if
 // profiling is being disabled. Enable or disable the signal as
@@ -310,6 +324,11 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	}
 
 	setg(g.m.gsignal)
+
+	if g.stackguard0 == stackFork {
+		signalDuringFork(sig)
+	}
+
 	c := &sigctxt{info, ctx}
 	c.fixsigcode(sig)
 	sighandler(sig, info, ctx, g)
@@ -519,6 +538,16 @@ func noSignalStack(sig uint32) {
 func sigNotOnStack(sig uint32) {
 	println("signal", sig, "received but handler not on signal stack")
 	throw("non-Go code set up signal handler without SA_ONSTACK flag")
+}
+
+// signalDuringFork is called if we receive a signal while doing a fork.
+// We do not want signals at that time, as a signal sent to the process
+// group may be delivered to the child process, causing confusion.
+// This should never be called, because we block signals across the fork;
+// this function is just a safety check. See issue 18600 for background.
+func signalDuringFork(sig uint32) {
+	println("signal", sig, "received during fork")
+	throw("signal received during fork")
 }
 
 // This runs on a foreign stack, without an m or a g. No stack split.

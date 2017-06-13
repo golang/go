@@ -657,6 +657,11 @@ func msigrestore(sigmask sigset) {
 }
 
 //go:nosplit
+//go:nowritebarrierrec
+func clearSignalHandlers() {
+}
+
+//go:nosplit
 func sigblock() {
 }
 

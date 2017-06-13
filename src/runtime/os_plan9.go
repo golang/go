@@ -173,6 +173,11 @@ func msigsave(mp *m) {
 func msigrestore(sigmask sigset) {
 }
 
+//go:nosplit
+//go:nowritebarrierrec
+func clearSignalHandlers() {
+}
+
 func sigblock() {
 }
 

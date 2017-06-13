@@ -251,3 +251,16 @@ func TestSignalIgnoreSIGTRAP(t *testing.T) {
 		t.Fatalf("want %s, got %s\n", want, output)
 	}
 }
+
+func TestSignalDuringExec(t *testing.T) {
+	switch runtime.GOOS {
+	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
+	default:
+		t.Skipf("skipping test on %s", runtime.GOOS)
+	}
+	output := runTestProg(t, "testprognet", "SignalDuringExec")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
