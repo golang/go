@@ -23,12 +23,13 @@ const (
 	_PT_LOAD    = 1 /* Loadable program segment */
 	_PT_DYNAMIC = 2 /* Dynamic linking information */
 
-	_DT_NULL   = 0 /* Marks end of dynamic section */
-	_DT_HASH   = 4 /* Dynamic symbol hash table */
-	_DT_STRTAB = 5 /* Address of string table */
-	_DT_SYMTAB = 6 /* Address of symbol table */
-	_DT_VERSYM = 0x6ffffff0
-	_DT_VERDEF = 0x6ffffffc
+	_DT_NULL     = 0          /* Marks end of dynamic section */
+	_DT_HASH     = 4          /* Dynamic symbol hash table */
+	_DT_STRTAB   = 5          /* Address of string table */
+	_DT_SYMTAB   = 6          /* Address of symbol table */
+	_DT_GNU_HASH = 0x6ffffef5 /* GNU-style dynamic symbol hash table */
+	_DT_VERSYM   = 0x6ffffff0
+	_DT_VERDEF   = 0x6ffffffc
 
 	_VER_FLG_BASE = 0x1 /* Version definition of file itself */
 
@@ -126,6 +127,7 @@ type elf64Auxv struct {
 type symbol_key struct {
 	name     string
 	sym_hash uint32
+	gnu_hash uint32
 	ptr      *uintptr
 }
 
@@ -146,6 +148,8 @@ type vdso_info struct {
 	symstrings *[1 << 32]byte
 	chain      []uint32
 	bucket     []uint32
+	symOff     uint32
+	isGNUHash  bool
 
 	/* Version table */
 	versym *[1 << 32]uint16
@@ -155,9 +159,9 @@ type vdso_info struct {
 var linux26 = version_key{"LINUX_2.6", 0x3ae75f6}
 
 var sym_keys = []symbol_key{
-	{"__vdso_time", 0xa33c485, &__vdso_time_sym},
-	{"__vdso_gettimeofday", 0x315ca59, &__vdso_gettimeofday_sym},
-	{"__vdso_clock_gettime", 0xd35ec75, &__vdso_clock_gettime_sym},
+	{"__vdso_time", 0xa33c485, 0x821e8e0d, &__vdso_time_sym},
+	{"__vdso_gettimeofday", 0x315ca59, 0xb01bca00, &__vdso_gettimeofday_sym},
+	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &__vdso_clock_gettime_sym},
 }
 
 // initialize with vsyscall fallbacks
@@ -197,8 +201,7 @@ func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elf64Ehdr) {
 
 	// Fish out the useful bits of the dynamic table.
 
-	var hash *[1 << 30]uint32
-	hash = nil
+	var hash, gnuhash *[1 << 30]uint32
 	info.symstrings = nil
 	info.symtab = nil
 	info.versym = nil
@@ -213,6 +216,8 @@ func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elf64Ehdr) {
 			info.symtab = (*[1 << 32]elf64Sym)(unsafe.Pointer(p))
 		case _DT_HASH:
 			hash = (*[1 << 30]uint32)(unsafe.Pointer(p))
+		case _DT_GNU_HASH:
+			gnuhash = (*[1 << 30]uint32)(unsafe.Pointer(p))
 		case _DT_VERSYM:
 			info.versym = (*[1 << 32]uint16)(unsafe.Pointer(p))
 		case _DT_VERDEF:
@@ -220,7 +225,7 @@ func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elf64Ehdr) {
 		}
 	}
 
-	if info.symstrings == nil || info.symtab == nil || hash == nil {
+	if info.symstrings == nil || info.symtab == nil || (hash == nil && gnuhash == nil) {
 		return // Failed
 	}
 
@@ -228,11 +233,21 @@ func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elf64Ehdr) {
 		info.versym = nil
 	}
 
-	// Parse the hash table header.
-	nbucket := hash[0]
-	nchain := hash[1]
-	info.bucket = hash[2 : 2+nbucket]
-	info.chain = hash[2+nbucket : 2+nbucket+nchain]
+	if gnuhash != nil {
+		// Parse the GNU hash table header.
+		nbucket := gnuhash[0]
+		info.symOff = gnuhash[1]
+		bloomSize := gnuhash[2]
+		info.bucket = gnuhash[4+bloomSize*2:][:nbucket]
+		info.chain = gnuhash[4+bloomSize*2+nbucket:]
+		info.isGNUHash = true
+	} else {
+		// Parse the hash table header.
+		nbucket := hash[0]
+		nchain := hash[1]
+		info.bucket = hash[2 : 2+nbucket]
+		info.chain = hash[2+nbucket : 2+nbucket+nchain]
+	}
 
 	// That's all we need.
 	info.valid = true
@@ -266,25 +281,56 @@ func vdso_parse_symbols(info *vdso_info, version int32) {
 		return
 	}
 
+	apply := func(symIndex uint32, k symbol_key) bool {
+		sym := &info.symtab[symIndex]
+		typ := _ELF64_ST_TYPE(sym.st_info)
+		bind := _ELF64_ST_BIND(sym.st_info)
+		if typ != _STT_FUNC || bind != _STB_GLOBAL && bind != _STB_WEAK || sym.st_shndx == _SHN_UNDEF {
+			return false
+		}
+		if k.name != gostringnocopy(&info.symstrings[sym.st_name]) {
+			return false
+		}
+
+		// Check symbol version.
+		if info.versym != nil && version != 0 && int32(info.versym[symIndex]&0x7fff) != version {
+			return false
+		}
+
+		*k.ptr = info.load_offset + uintptr(sym.st_value)
+		return true
+	}
+
+	if !info.isGNUHash {
+		// Old-style DT_HASH table.
+		for _, k := range sym_keys {
+			for chain := info.bucket[k.sym_hash%uint32(len(info.bucket))]; chain != 0; chain = info.chain[chain] {
+				if apply(chain, k) {
+					break
+				}
+			}
+		}
+		return
+	}
+
+	// New-style DT_GNU_HASH table.
 	for _, k := range sym_keys {
-		for chain := info.bucket[k.sym_hash%uint32(len(info.bucket))]; chain != 0; chain = info.chain[chain] {
-			sym := &info.symtab[chain]
-			typ := _ELF64_ST_TYPE(sym.st_info)
-			bind := _ELF64_ST_BIND(sym.st_info)
-			if typ != _STT_FUNC || bind != _STB_GLOBAL && bind != _STB_WEAK || sym.st_shndx == _SHN_UNDEF {
-				continue
+		symIndex := info.bucket[k.gnu_hash%uint32(len(info.bucket))]
+		if symIndex < info.symOff {
+			continue
+		}
+		for ; ; symIndex++ {
+			hash := info.chain[symIndex-info.symOff]
+			if hash|1 == k.gnu_hash|1 {
+				// Found a hash match.
+				if apply(symIndex, k) {
+					break
+				}
 			}
-			if k.name != gostringnocopy(&info.symstrings[sym.st_name]) {
-				continue
+			if hash&1 != 0 {
+				// End of chain.
+				break
 			}
-
-			// Check symbol version.
-			if info.versym != nil && version != 0 && int32(info.versym[chain]&0x7fff) != version {
-				continue
-			}
-
-			*k.ptr = info.load_offset + uintptr(sym.st_value)
-			break
 		}
 	}
 }
