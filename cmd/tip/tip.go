@@ -315,6 +315,7 @@ var timeoutClient = &http.Client{Timeout: 10 * time.Second}
 func gerritMetaMap() map[string]string {
 	res, err := timeoutClient.Get(metaURL)
 	if err != nil {
+		log.Printf("Error getting Gerrit meta map: %v", err)
 		return nil
 	}
 	defer res.Body.Close()
