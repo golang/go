@@ -465,7 +465,7 @@ func (c *gcControllerState) startCycle() {
 	}
 
 	// Clear per-P state
-	for _, p := range &allp {
+	for _, p := range allp {
 		if p == nil {
 			break
 		}
@@ -1662,7 +1662,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 func gcBgMarkStartWorkers() {
 	// Background marking is performed by per-P G's. Ensure that
 	// each P has a background GC G.
-	for _, p := range &allp {
+	for _, p := range allp {
 		if p == nil || p.status == _Pdead {
 			break
 		}

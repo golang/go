@@ -722,7 +722,8 @@ const _TracebackMaxFrames = 100
 var (
 	allglen    uintptr
 	allm       *m
-	allp       [_MaxGomaxprocs + 1]*p
+	allp       []*p  // len(allp) == gomaxprocs; may change at safe points, otherwise immutable
+	allpLock   mutex // Protects P-less reads of allp and all writes
 	gomaxprocs int32
 	ncpu       int32
 	forcegc    forcegcstate

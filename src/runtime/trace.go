@@ -277,7 +277,9 @@ func StopTrace() {
 
 	traceGoSched()
 
-	for _, p := range &allp {
+	// Loop over all allocated Ps because dead Ps may still have
+	// trace buffers.
+	for _, p := range allp[:cap(allp)] {
 		if p == nil {
 			break
 		}
@@ -320,7 +322,7 @@ func StopTrace() {
 
 	// The lock protects us from races with StartTrace/StopTrace because they do stop-the-world.
 	lock(&trace.lock)
-	for _, p := range &allp {
+	for _, p := range allp[:cap(allp)] {
 		if p == nil {
 			break
 		}
