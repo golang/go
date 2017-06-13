@@ -2882,7 +2882,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.oprrr(p, p.As)
 
 		var rf int
-		if p.From.Type == obj.TYPE_CONST {
+		if p.From.Type == obj.TYPE_FCONST {
 			o1 |= 8 /* zero */
 			rf = 0
 		} else {

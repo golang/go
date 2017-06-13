@@ -398,14 +398,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    FCCMPD HI, F11, F15, $15                   // ef856b1e
    FCCMPES HS, F28, F13, $13                  // bd253c1e
    FCCMPED LT, F20, F4, $9                    // 99b4741e
-   // FCMPS F3, F17                           // 2022231e
-   // FCMPS $(0.0), F8                        // 0821201e
-   // FCMPD F11, F27                          // 60236b1e
-   // FCMPD $(0.0), F25                       // 2823601e
-   // FCMPES F16, F30                         // d023301e
-   // FCMPES $(0.0), F29                      // b823201e
-   // FCMPED F13, F10                         // 50216d1e
-   // FCMPED $(0.0), F25                      // 3823601e
+   FCMPS F3, F17                              // 2022231e
+   FCMPS $(0.0), F8                           // 0821201e
+   FCMPD F11, F27                             // 60236b1e
+   FCMPD $(0.0), F25                          // 2823601e
+   FCMPES F16, F30                            // d023301e
+   FCMPES $(0.0), F29                         // b823201e
+   FCMPED F13, F10                            // 50216d1e
+   FCMPED $(0.0), F25                         // 3823601e
    // FCSELS EQ, F26, F27, F25                // 590f3b1e
    // FCSELD PL, F8, F22, F7                  // 075d761e
    //TODO FCVTASW F21, R15                    // af02241e
