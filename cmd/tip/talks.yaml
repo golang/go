@@ -1,18 +1,12 @@
-module: talks
+service: talks
 runtime: custom
-vm: true
+env: flex
 
-automatic_scaling:
-  min_num_instances: 1
-  max_num_instances: 5
+manual_scaling:
+  instances: 1
 
 env_variables:
   TIP_BUILDER: 'talks'
 
 health_check:
-  enable_health_check: True
-  check_interval_sec: 5
-  timeout_sec: 4
-  unhealthy_threshold: 2
-  healthy_threshold: 2
-  restart_threshold: 240
+  enable_health_check: False
