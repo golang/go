@@ -722,3 +722,27 @@ func matmult(done chan<- struct{}, A, B, C Matrix, i0, i1, j0, j1, k0, k1, thres
 func TestStealOrder(t *testing.T) {
 	runtime.RunStealOrderTest()
 }
+
+func TestLockOSThreadNesting(t *testing.T) {
+	go func() {
+		e, i := runtime.LockOSCounts()
+		if e != 0 || i != 0 {
+			t.Errorf("want locked counts 0, 0; got %d, %d", e, i)
+			return
+		}
+		runtime.LockOSThread()
+		runtime.LockOSThread()
+		runtime.UnlockOSThread()
+		e, i = runtime.LockOSCounts()
+		if e != 1 || i != 0 {
+			t.Errorf("want locked counts 1, 0; got %d, %d", e, i)
+			return
+		}
+		runtime.UnlockOSThread()
+		e, i = runtime.LockOSCounts()
+		if e != 0 || i != 0 {
+			t.Errorf("want locked counts 0, 0; got %d, %d", e, i)
+			return
+		}
+	}()
+}

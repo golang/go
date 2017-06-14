@@ -430,7 +430,8 @@ type m struct {
 	freglo        [16]uint32     // d[i] lsb and f[i]
 	freghi        [16]uint32     // d[i] msb and f[i+16]
 	fflag         uint32         // floating point compare flags
-	locked        uint32         // tracking for lockosthread
+	lockedExt     uint32         // tracking for external LockOSThread
+	lockedInt     uint32         // tracking for internal lockOSThread
 	nextwaitm     uintptr        // next m waiting for lock
 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
 	waitlock      unsafe.Pointer
@@ -575,18 +576,6 @@ type schedt struct {
 	procresizetime int64 // nanotime() of last change to gomaxprocs
 	totaltime      int64 // ∫gomaxprocs dt up to procresizetime
 }
-
-// The m.locked word holds two pieces of state counting active calls to LockOSThread/lockOSThread.
-// The low bit (LockExternal) is a boolean reporting whether any LockOSThread call is active.
-// External locks are not recursive; a second lock is silently ignored.
-// The upper bits of m.locked record the nesting depth of calls to lockOSThread
-// (counting up by LockInternal), popped by unlockOSThread (counting down by LockInternal).
-// Internal locks can be recursive. For instance, a lock for cgo can occur while the main
-// goroutine is holding the lock during the initialization phase.
-const (
-	_LockExternal = 1
-	_LockInternal = 2
-)
 
 // Values for the flags field of a sigTabT.
 const (
