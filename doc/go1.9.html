@@ -118,6 +118,12 @@ type T1 = T2
   The linker will now generate DWARF information for cgo executables on Windows.
 </p>
 
+<p> <!-- CL 44210, CL 40095 -->
+  The compiler now includes lexical scopes in the generated DWARF, allowing
+  debuggers to hide variables that are not in scope. The <code>.debug_info</code>
+  section is now DWARF version 4.
+</p>
+
 <h3 id="go-test-list">Go test</h3>
 
 <p> <!-- CL 41195 -->
@@ -135,7 +141,6 @@ type T1 = T2
 <!-- CL 38757: https://golang.org/cl/38757: cmd/go: add -json flag to go env -->
 <!-- CL 40112: https://golang.org/cl/40112: cmd/go: allow full flag processing in go vet -->
 <!-- CL 43855: https://golang.org/cl/43855: cmd/go: include GOARM and GO386 in computed build ID -->
-<!-- CL 44210: https://golang.org/cl/44210: cmd/internal/dwarf: update to DWARF4, emit frame_base -->
 <!-- CL 42990: https://golang.org/cl/42990: cmd/internal/obj/x86: add ADDSUBPS/PD -->
 <!-- CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS generation on OpenBSD -->
 <!-- CL 38343: https://golang.org/cl/38343: cmd/pprof: use proxy from environment -->
