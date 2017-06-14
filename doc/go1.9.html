@@ -377,12 +377,11 @@ type T1 = T2
 
 <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
   <dd>
-    <p><!-- CL 37880 -->
-      TODO: <a href="https://golang.org/cl/37880">https://golang.org/cl/37880</a>: panic if predefined escapers are found in pipelines during rewriting
-    </p>
-
-    <p><!-- CL 40936 -->
-      TODO: <a href="https://golang.org/cl/40936">https://golang.org/cl/40936</a>: allow safe usage of predefined escapers in pipelines
+    <p><!-- CL 37880, CL 40936 -->
+	  The package now reports an error if a predefined escaper (one of
+	  "html", "urlquery" and "js") is found in a pipeline and its
+	  rewriting by the contextual auto-escaper could potentially lead
+	  to security or correctness issues.
     </p>
 
 </dl><!-- html/template -->
@@ -717,7 +716,9 @@ type T1 = T2
 <dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
   <dd>
     <p><!-- CL 38420 -->
-      TODO: <a href="https://golang.org/cl/38420">https://golang.org/cl/38420</a>: fix handling of empty blocks
+	  The handling of empty blocks, which was broken by a Go 1.8
+	  change that made the result dependent on the order of templates,
+	  has been fixed, restoring the old Go 1.7 behavior.
     </p>
 
 </dl><!-- text/template -->
