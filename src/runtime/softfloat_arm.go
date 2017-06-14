@@ -653,3 +653,8 @@ func sfloat2(pc uint32, regs *[15]uint32) uint32 {
 	}
 	return pc
 }
+
+// Stubs to pacify vet. Not safe to call from Go.
+// Calls to these functions are inserted by the compiler.
+func _sfloat()
+func udiv()
