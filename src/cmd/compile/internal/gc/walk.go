@@ -3613,7 +3613,7 @@ func bounded(n *Node, max int64) bool {
 	return false
 }
 
-// usemethod check interface method calls for uses of reflect.Type.Method.
+// usemethod checks interface method calls for uses of reflect.Type.Method.
 func usemethod(n *Node) {
 	t := n.Left.Type
 
@@ -3648,11 +3648,12 @@ func usemethod(n *Node) {
 			return
 		}
 	}
-	if res0.Type.String() != "reflect.Method" {
-		return
-	}
 
-	Curfn.Func.SetReflectMethod(true)
+	// Note: Don't rely on res0.Type.String() since its formatting depends on multiple factors
+	//       (including global variables such as numImports - was issue #19028).
+	if s := res0.Type.Sym; s != nil && s.Name == "Method" && s.Pkg != nil && s.Pkg.Path == "reflect" {
+		Curfn.Func.SetReflectMethod(true)
+	}
 }
 
 func usefield(n *Node) {
