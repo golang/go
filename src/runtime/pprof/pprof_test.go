@@ -542,6 +542,10 @@ func blockMutex() {
 		time.Sleep(blockDelay)
 		mu.Unlock()
 	}()
+	// Note: Unlock releases mu before recording the mutex event,
+	// so it's theoretically possible for this to proceed and
+	// capture the profile before the event is recorded. As long
+	// as this is blocked before the unlock happens, it's okay.
 	mu.Lock()
 }
 
@@ -560,7 +564,6 @@ func blockCond() {
 }
 
 func TestMutexProfile(t *testing.T) {
-	testenv.SkipFlaky(t, 19139)
 	old := runtime.SetMutexProfileFraction(1)
 	defer runtime.SetMutexProfileFraction(old)
 	if old != 0 {

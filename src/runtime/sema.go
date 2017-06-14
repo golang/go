@@ -182,6 +182,9 @@ func semrelease1(addr *uint32, handoff bool) {
 	unlock(&root.lock)
 	if s != nil { // May be slow, so unlock first
 		acquiretime := s.acquiretime
+		if acquiretime != 0 {
+			mutexevent(t0-acquiretime, 3)
+		}
 		if s.ticket != 0 {
 			throw("corrupted semaphore ticket")
 		}
@@ -189,9 +192,6 @@ func semrelease1(addr *uint32, handoff bool) {
 			s.ticket = 1
 		}
 		readyWithTime(s, 5)
-		if acquiretime != 0 {
-			mutexevent(t0-acquiretime, 3)
-		}
 	}
 }
 
