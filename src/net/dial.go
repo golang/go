@@ -542,12 +542,18 @@ func dialSingle(ctx context.Context, dp *dialParam, ra Addr) (c Conn, err error)
 }
 
 // Listen announces on the local network address laddr.
+//
 // The network net must be a stream-oriented network: "tcp", "tcp4",
 // "tcp6", "unix" or "unixpacket".
-// For TCP and UDP, the syntax of laddr is "host:port", like "127.0.0.1:8080".
+//
+// For TCP, the syntax of laddr is "host:port", like "127.0.0.1:8080".
 // If host is omitted, as in ":8080", Listen listens on all available interfaces
 // instead of just the interface with the given host address.
-// See Dial for more details about address syntax.
+// Listening on network "tcp" with host "0.0.0.0" or "[::]" may listen on both
+// IPv4 and IPv6. To only use IPv4, use network "tcp4". To explicitly use both,
+// listen on ":port" without a host.
+//
+// See Dial for more details about the address syntax.
 //
 // Listening on a hostname is not recommended because this creates a socket
 // for at most one of its IP addresses.
@@ -572,12 +578,18 @@ func Listen(net, laddr string) (Listener, error) {
 }
 
 // ListenPacket announces on the local network address laddr.
+//
 // The network net must be a packet-oriented network: "udp", "udp4",
 // "udp6", "ip", "ip4", "ip6" or "unixgram".
-// For TCP and UDP, the syntax of laddr is "host:port", like "127.0.0.1:8080".
-// If host is omitted, as in ":8080", ListenPacket listens on all available interfaces
-// instead of just the interface with the given host address.
-// See Dial for the syntax of laddr.
+//
+// For UDP, the syntax of laddr is "host:port", like "127.0.0.1:8080".
+// If host is omitted, as in ":8080", ListenPacket listens on all available
+// interfaces instead of just the interface with the given host address.
+// Listening on network "udp" with host "0.0.0.0" or "[::]" may listen on both
+// IPv4 and IPv6. To only use IPv4, use network "udp4". To explicitly use both,
+// listen on ":port" without a host.
+//
+// See Dial for more details about the address syntax.
 //
 // Listening on a hostname is not recommended because this creates a socket
 // for at most one of its IP addresses.
