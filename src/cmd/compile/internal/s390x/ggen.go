@@ -143,6 +143,19 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 	return p
 }
 
+func zeroAuto(n *gc.Node, pp *obj.Prog) {
+	// Note: this code must not clobber any registers.
+	p := gc.AddAsmAfter(s390x.ACLEAR, pp)
+	pp = p
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = n.Type.Size()
+	p.To.Type = obj.TYPE_MEM
+	p.To.Name = obj.NAME_AUTO
+	p.To.Reg = s390x.REGSP
+	p.To.Offset = n.Xoffset
+	p.To.Sym = gc.Linksym(n.Sym)
+}
+
 func ginsnop() {
 	p := gc.Prog(s390x.AOR)
 	p.From.Type = obj.TYPE_REG

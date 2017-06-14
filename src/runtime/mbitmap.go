@@ -374,6 +374,7 @@ func heapBitsForAddr(addr uintptr) heapBits {
 // heapBitsForSpan returns the heapBits for the span base address base.
 func heapBitsForSpan(base uintptr) (hbits heapBits) {
 	if base < mheap_.arena_start || base >= mheap_.arena_used {
+		print("runtime: base ", hex(base), " not in range [", hex(mheap_.arena_start), ",", hex(mheap_.arena_used), ")\n")
 		throw("heapBitsForSpan: base out of range")
 	}
 	return heapBitsForAddr(base)

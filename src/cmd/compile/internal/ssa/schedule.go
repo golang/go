@@ -148,19 +148,20 @@ func schedule(f *Func) {
 		}
 	}
 
+	// TODO: make this logic permanent in types.IsMemory?
+	isMem := func(v *Value) bool {
+		return v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory()
+	}
+
 	for _, b := range f.Blocks {
 		// Find store chain for block.
 		// Store chains for different blocks overwrite each other, so
 		// the calculated store chain is good only for this block.
 		for _, v := range b.Values {
-			if v.Op != OpPhi && v.Type.IsMemory() {
-				mem := v
-				if v.Op == OpSelect1 {
-					v = v.Args[0]
-				}
+			if v.Op != OpPhi && isMem(v) {
 				for _, w := range v.Args {
-					if w.Type.IsMemory() {
-						nextMem[w.ID] = mem
+					if isMem(w) {
+						nextMem[w.ID] = v
 					}
 				}
 			}
@@ -179,15 +180,15 @@ func schedule(f *Func) {
 					uses[w.ID]++
 				}
 				// Any load must come before the following store.
-				if v.Type.IsMemory() || !w.Type.IsMemory() {
-					continue // not a load
+				if !isMem(v) && isMem(w) {
+					// v is a load.
+					s := nextMem[w.ID]
+					if s == nil || s.Block != b {
+						continue
+					}
+					additionalArgs[s.ID] = append(additionalArgs[s.ID], v)
+					uses[v.ID]++
 				}
-				s := nextMem[w.ID]
-				if s == nil || s.Block != b {
-					continue
-				}
-				additionalArgs[s.ID] = append(additionalArgs[s.ID], v)
-				uses[v.ID]++
 			}
 		}
 

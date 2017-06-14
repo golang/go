@@ -400,10 +400,12 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 			if p == 0 {
 				return nil
 			}
+			// p can be just about anywhere in the address
+			// space, including before arena_end.
 			if p == h.arena_end {
 				h.arena_end = new_end
 				h.arena_reserved = reserved
-			} else if h.arena_start <= p && p+p_size-h.arena_start-1 <= _MaxArena32 {
+			} else if h.arena_end < p && p+p_size-h.arena_start-1 <= _MaxArena32 {
 				// Keep everything page-aligned.
 				// Our pages are bigger than hardware pages.
 				h.arena_end = p + p_size
@@ -413,6 +415,16 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 				h.arena_used = used
 				h.arena_reserved = reserved
 			} else {
+				// We got a mapping, but it's not
+				// linear with our current arena, so
+				// we can't use it.
+				//
+				// TODO: Make it possible to allocate
+				// from this. We can't decrease
+				// arena_used, but we could introduce
+				// a new variable for the current
+				// allocation position.
+
 				// We haven't added this allocation to
 				// the stats, so subtract it from a
 				// fake stat (but avoid underflow).

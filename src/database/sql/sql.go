@@ -1955,12 +1955,12 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*Rows, er
 				rowsi: rowsi,
 				// releaseConn set below
 			}
-			rows.initContextClose(ctx)
 			s.db.addDep(s, rows)
 			rows.releaseConn = func(err error) {
 				releaseConn(err)
 				s.db.removeDep(s, rows)
 			}
+			rows.initContextClose(ctx)
 			return rows, nil
 		}
 

@@ -322,7 +322,7 @@ func TestQueryContext(t *testing.T) {
 	select {
 	case <-ctx.Done():
 		if err := ctx.Err(); err != context.Canceled {
-			t.Fatalf("context err = %v; want context.Canceled")
+			t.Fatalf("context err = %v; want context.Canceled", ctx.Err())
 		}
 	default:
 		t.Fatalf("context err = nil; want context.Canceled")
@@ -413,7 +413,8 @@ func TestTxContextWait(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*15)
+	defer cancel()
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
