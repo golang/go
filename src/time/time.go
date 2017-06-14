@@ -60,15 +60,15 @@
 // t.UnmarshalJSON, and t.UnmarshalText always create times with
 // no monotonic clock reading.
 //
-// Note that the Go == operator includes the monotonic clock reading in
-// its comparison. If time values returned from time.Now and time values
-// constructed by other means (for example, by time.Parse or time.Unix)
-// are meant to compare equal when used as map keys, the times returned
-// by time.Now must have the monotonic clock reading stripped, by setting
-// t = t.Round(0). In general, prefer t.Equal(u) to t == u, since
-// t.Equal uses the most accurate comparison available and correctly
-// handles the case when only one of its arguments has a monotonic clock
-// reading.
+// Note that the Go == operator compares not just the time instant but also
+// the Location and the monotonic clock reading. If time values returned
+// from time.Now and time values constructed by other means (for example,
+// by time.Parse or time.Unix) are meant to compare equal when used as map
+// keys, the times returned by time.Now must have the monotonic clock
+// reading stripped, by setting t = t.Round(0). In general, prefer
+// t.Equal(u) to t == u, since t.Equal uses the most accurate comparison
+// available and correctly handles the case when only one of its arguments
+// has a monotonic clock reading.
 //
 // For debugging, the result of t.String does include the monotonic
 // clock reading if present. If t != u because of different monotonic clock readings,
@@ -104,9 +104,14 @@ import "errors"
 // computations described in earlier paragraphs.
 //
 // Note that the Go == operator compares not just the time instant but also the
-// Location. Therefore, Time values should not be used as map or database keys
-// without first guaranteeing that the identical Location has been set for all
-// values, which can be achieved through use of the UTC or Local method.
+// Location and the monotonic clock reading. Therefore, Time values should not
+// be used as map or database keys without first guaranteeing that the
+// identical Location has been set for all values, which can be achieved
+// through use of the UTC or Local method, and that the monotonic clock reading
+// has been stripped by setting t = t.Round(0). In general, prefer t.Equal(u)
+// to t == u, since t.Equal uses the most accurate comparison available and
+// correctly handles the case when only one of its arguments has a monotonic
+// clock reading.
 //
 // In addition to the required “wall clock” reading, a Time may contain an optional
 // reading of the current process's monotonic clock, to provide additional precision
@@ -247,7 +252,8 @@ func (t Time) Before(u Time) bool {
 // Equal reports whether t and u represent the same time instant.
 // Two times can be equal even if they are in different locations.
 // For example, 6:00 +0200 CEST and 4:00 UTC are Equal.
-// Do not use == with Time values.
+// See the documentation on the Time type for the pitfalls of using == with
+// Time values; most code should use Equal instead.
 func (t Time) Equal(u Time) bool {
 	if t.wall&u.wall&hasMonotonic != 0 {
 		return t.ext == u.ext
