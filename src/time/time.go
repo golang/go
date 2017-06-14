@@ -60,15 +60,10 @@
 // t.UnmarshalJSON, and t.UnmarshalText always create times with
 // no monotonic clock reading.
 //
-// Note that the Go == operator compares not just the time instant but also
-// the Location and the monotonic clock reading. If time values returned
-// from time.Now and time values constructed by other means (for example,
-// by time.Parse or time.Unix) are meant to compare equal when used as map
-// keys, the times returned by time.Now must have the monotonic clock
-// reading stripped, by setting t = t.Round(0). In general, prefer
-// t.Equal(u) to t == u, since t.Equal uses the most accurate comparison
-// available and correctly handles the case when only one of its arguments
-// has a monotonic clock reading.
+// Note that the Go == operator compares not just the time instant but
+// also the Location and the monotonic clock reading. See the
+// documentation for the Time type for a discussion of equality
+// testing for Time values.
 //
 // For debugging, the result of t.String does include the monotonic
 // clock reading if present. If t != u because of different monotonic clock readings,
