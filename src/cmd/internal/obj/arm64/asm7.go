@@ -536,7 +536,7 @@ var optab = []Optab{
 	{AFCMPS, C_FREG, C_FREG, C_NONE, 56, 4, 0, 0, 0},
 	{AFCMPS, C_FCON, C_FREG, C_NONE, 56, 4, 0, 0, 0},
 	{AFCCMPS, C_COND, C_FREG, C_VCON, 57, 4, 0, 0, 0},
-	{AFCSELD, C_COND, C_REG, C_FREG, 18, 4, 0, 0, 0},
+	{AFCSELD, C_COND, C_FREG, C_FREG, 18, 4, 0, 0, 0},
 	{AFCVTSD, C_FREG, C_NONE, C_FREG, 29, 4, 0, 0, 0},
 	{ACLREX, C_NONE, C_NONE, C_VCON, 38, 4, 0, 0, 0},
 	{ACLREX, C_NONE, C_NONE, C_NONE, 38, 4, 0, 0, 0},
