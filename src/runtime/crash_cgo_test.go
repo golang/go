@@ -397,6 +397,10 @@ func TestRaceSignal(t *testing.T) {
 }
 
 func TestCgoNumGoroutine(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		t.Skipf("skipping numgoroutine test on %s", runtime.GOOS)
+	}
 	t.Parallel()
 	got := runTestProg(t, "testprogcgo", "NumGoroutine")
 	want := "OK\n"
