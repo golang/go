@@ -406,8 +406,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    FCMPES $(0.0), F29                         // b823201e
    FCMPED F13, F10                            // 50216d1e
    FCMPED $(0.0), F25                         // 3823601e
-   // FCSELS EQ, F26, F27, F25                // 590f3b1e
-   // FCSELD PL, F8, F22, F7                  // 075d761e
+   FCSELS EQ, F26, F27, F25                   // 590f3b1e
+   FCSELD PL, F8, F22, F7                     // 075d761e
    //TODO FCVTASW F21, R15                    // af02241e
    //TODO FCVTAS F20, ZR                      // 9f02249e
    //TODO FCVTASW F6, R11                     // cb00641e
