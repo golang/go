@@ -155,13 +155,6 @@ type T1 = T2
   better generated code, and optimizations in the core library.
 </p>
 
-<p> <!-- CL 39203 -->
-  TODO: There have been significant optimizations bringing more than 10% improvements
-  to implementations in the
-  <a href="/pkg/encoding/gob"><code>encoding/gob</code></a>, and ...
-  packages.
-</p>
-
 <h3 id="gc">Garbage Collector</h3>
 
 <p> <!-- CL 37520 -->
@@ -357,6 +350,19 @@ type T1 = T2
 
 </dl><!-- encoding/base32 -->
 
+<dl id="encoding/csv"><dt><a href="/pkg/encoding/csv/">encoding/csv</a></dt>
+  <dd>
+    <p><!-- CL 41730 -->
+      The new field
+      <a href="/pkg/encoding/csv/#Reader.ReuseRecord"><code>Reader.ReuseRecord</code></a>
+      controls whether calls to
+      <a href="/pkg/encoding/csv/#Reader.Read"><code>Read</code></a>
+      may return a slice sharing the backing array of the previous
+      call's returned slice for improved performance.
+    </p>
+
+</dl><!-- encoding/csv -->
+
 <dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
   <dd>
     <p><!-- CL 37051 -->
@@ -459,20 +465,22 @@ type T1 = T2
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
     <p><!-- CL 32572 -->
-      TODO: <a href="https://golang.org/cl/32572">https://golang.org/cl/32572</a>: add Resolver.StrictErrors
+      The new
+      <a href="/pkg/net/#Resolver.StrictErrors"><code>Resolver.StrictErrors</code></a>
+      provides control over how Go's built-in DNS resolver handles
+      temporary errors during queries composed of multiple sub-queries,
+      such as an A+AAAA address lookup.
     </p>
 
     <p><!-- CL 37260 -->
-      TODO: <a href="https://golang.org/cl/37260">https://golang.org/cl/37260</a>: allow Resolver to use a custom dialer
+      The new
+      <a href="/pkg/net/#Resolver.Dial"><code>Resolver.Dial</code></a>
+      allows a <code>Resolver</code> to use a custom dial function.
     </p>
 
     <p><!-- CL 40510 -->
       <a href="/pkg/net/#JoinHostPort"><code>JoinHostPort</code></a> now only places an address in square brackets if the host contains a colon.
       In previous releases it would also wrap addresses in square brackets if they contained a percent ('<code>%</code>') sign.
-    </p>
-
-    <p><!-- CL 40512 -->
-      TODO: <a href="https://golang.org/cl/40512">https://golang.org/cl/40512</a>: validate network in Dial{,IP} and Listen{Packet,IP} for IP networks
     </p>
 
     <p><!-- CL 37913 -->
@@ -483,6 +491,13 @@ type T1 = T2
       and
       <a href="/pkg/net/#UnixConn.SyscallConn"><code>UnixConn.SyscallConn</code></a>
       provide access to the connections' underlying file descriptors.
+    </p>
+
+    <p><!-- 45088 -->
+      It is now safe to call <a href="/pkg/net/#Dial"><code>Dial</code></a> with the address obtained from
+      <code>(*TCPListener).String()</code> after creating the listener with
+      <code><a href="/pkg/net/#Listen">Listen</a>("tcp", ":0")</code>.
+      Previously it failed on some machines with half-configured IPv6 stacks.
     </p>
 
 </dl><!-- net -->
@@ -550,23 +565,13 @@ type T1 = T2
 
 </dl><!-- net/http/httptest -->
 
-<dl id="net/rpc"><dt><a href="/pkg/net/rpc/">net/rpc</a></dt>
-  <dd>
-    <p><!-- CL 38474 -->
-      TODO: <a href="https://golang.org/cl/38474">https://golang.org/cl/38474</a>: Create empty maps and slices as return type
-    </p>
-
-</dl><!-- net/rpc -->
-
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>
     <p><!-- CL 37915 -->
-      TODO: <a href="https://golang.org/cl/37915">https://golang.org/cl/37915</a>: parse command line without shell32.dll
-    </p>
-
-    <p><!-- CL 41830 -->
-      TODO: <a href="https://golang.org/cl/41830">https://golang.org/cl/41830</a>: do not report ModeDir for symlinks on windows
-    </p>
+      On Windows,
+      <a href="/pkg/os/#Args"><code>Args</code></a>
+      is now populated without <code>shell32.dll</code>, improving process start-up time by 1-7 ms.
+      </p>
 
 </dl><!-- os -->
 
@@ -647,6 +652,16 @@ type T1 = T2
     </p>
 
 </dl><!-- runtime/pprof -->
+
+<dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
+  <dd>
+    <p><!-- CL 34013 -->
+      Calling
+      <a href="/pkg/runtime/debug/#SetGCPercent"><code>SetGCPercent</code></a>
+      with a negative value no longer runs an immediate garbage collection.
+    </p>
+
+</dl><!-- runtime/debug -->
 
 <dl id="runtime/trace"><dt><a href="/pkg/runtime/trace/">runtime/trace</a></dt>
   <dd>
@@ -737,6 +752,12 @@ type T1 = T2
 
     <p><!-- CL 35710 -->
       Retrieving the time and sleeping now work correctly under Wine.
+    </p>
+
+    <p><!-- CL 44832 -->
+      The included <code>tzdata</code> timezone database has bene
+      updated to version 2017b. As always, it is only used if the
+      system does not already have the database available.
     </p>
 
 </dl><!-- time -->
