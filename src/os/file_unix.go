@@ -294,8 +294,7 @@ func Remove(name string) error {
 	return &PathError{"remove", name, e}
 }
 
-// TempDir returns the default directory to use for temporary files.
-func TempDir() string {
+func tempDir() string {
 	dir := Getenv("TMPDIR")
 	if dir == "" {
 		if runtime.GOOS == "android" {
