@@ -466,12 +466,9 @@ type T1 = T2
       TODO: <a href="https://golang.org/cl/37260">https://golang.org/cl/37260</a>: allow Resolver to use a custom dialer
     </p>
 
-    <p><!-- CL 37402 -->
-      TODO: <a href="https://golang.org/cl/37402">https://golang.org/cl/37402</a>: implement deadline functionality on Pipe
-    </p>
-
     <p><!-- CL 40510 -->
-      TODO: <a href="https://golang.org/cl/40510">https://golang.org/cl/40510</a>: don&#39;t enclose non-literal IPv6 addresses in square brackets
+      <a href="/pkg/net/#JoinHostPort"><code>JoinHostPort</code></a> now only places an address in square brackets if the host contains a colon.
+      In previous releases it would also wrap addresses in square brackets if they contained a percent ('<code>%</code>') sign.
     </p>
 
     <p><!-- CL 40512 -->
