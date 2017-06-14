@@ -194,8 +194,8 @@ func splitHostZone(s string) (host, zone string) {
 }
 
 // JoinHostPort combines host and port into a network address of the
-// form "host:port" or "host%zone:port", if host is a literal IPv6
-// address, "[host]:port" or [host%zone]:port.
+// form "host:port". If host contains a colon, as found in literal
+// IPv6 addresses, then JoinHostPort returns "[host]:port".
 func JoinHostPort(host, port string) string {
 	// We assume that host is a literal IPv6 address if host has
 	// colons.
