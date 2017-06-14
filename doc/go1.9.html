@@ -107,6 +107,15 @@ type T1 = T2
   environment variable <code>GO19CONCURRENTCOMPILATION</code> to <code>0</code>.
 </p>
 
+<h3 id="vendor-dotdotdot">Vendor matching with ./...</h3>
+
+<p><!-- CL 38745 -->
+  By popular request, <code>./...</code> no longer matches packages
+  in <code>vendor</code> directories in tools accepting package names,
+  such as <code>go</code> <code>test</code>. To match vendor
+  directories, write <code>./vendor/...</code>.
+</p>
+
 <h3 id="compiler">Compiler Toolchain</h3>
 
 <p><!-- CL 37441 -->
@@ -124,7 +133,33 @@ type T1 = T2
   section is now DWARF version 4.
 </p>
 
-<h3 id="go-test-list">Go test</h3>
+<p> <!-- CL 43855 -->
+  The values of <code>GOARM</code> and <code>GO386</code> now affect a
+  compiled package's build ID, as used by the <code>go</code> tool's
+  dependency caching.
+</p>
+
+<h3 id="go-doc">Doc</h3>
+
+<p><!-- CL 36031 -->
+  Long lists of arguments are now truncated. This improves the readability
+  of <code>go doc</code> on some generated code.
+</p>
+
+<p><!-- CL 38438 -->
+  Viewing documentation on struct fields is now supported with
+  <code>go doc struct.field</code>.
+</p>
+
+<h3 id="go-env-json">Env</h3>
+
+<p> <!-- CL 38757 -->
+  The new <code>go</code> <code>env</code> <code>-json</code> flag
+  enables JSON output, instead of the default OS-specific output
+  format.
+</p>
+
+<h3 id="go-test-list">Test</h3>
 
 <p> <!-- CL 41195 -->
   The <a href="/cmd/go/#hdr-Description_of_testing_flags"><code>go</code> <code>test</code></a>
@@ -134,17 +169,24 @@ type T1 = T2
 </p>
 
 
-<!-- CL 42028: https://golang.org/cl/42028: cmd/asm: fix operand order of ARM's MULA instruction -->
-<!-- CL 36031: https://golang.org/cl/36031: cmd/doc: truncate long lists of arguments -->
-<!-- CL 38438: https://golang.org/cl/38438: cmd/doc: implement "go doc struct.field" -->
-<!-- CL 38745: https://golang.org/cl/38745: cmd/go: exclude vendored packages from ... matches -->
-<!-- CL 38757: https://golang.org/cl/38757: cmd/go: add -json flag to go env -->
-<!-- CL 40112: https://golang.org/cl/40112: cmd/go: allow full flag processing in go vet -->
-<!-- CL 43855: https://golang.org/cl/43855: cmd/go: include GOARM and GO386 in computed build ID -->
-<!-- CL 42990: https://golang.org/cl/42990: cmd/internal/obj/x86: add ADDSUBPS/PD -->
-<!-- CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS generation on OpenBSD -->
-<!-- CL 38343: https://golang.org/cl/38343: cmd/pprof: use proxy from environment -->
+<h3 id="go-tool-pprof-proxy">Pprof</h3>
 
+<p> <!-- CL 38343 -->
+  The <code>go</code> <code>tool</code> <code>pprof</code> command now
+  uses the HTTP proxy information defined in the environment, using
+  <a href="/pkg/net/http/#ProxyFromEnvironment"><code>http.ProxyFromEnvironment</code></a>.
+</p>
+
+<h3 id="tools-TODO">TODO</h3>
+
+<p>TODO: finish documenting misc tool changes</p>
+
+<pre>
+CL 42028: https://golang.org/cl/42028: cmd/asm: fix operand order of ARM's MULA instruction
+CL 40112: https://golang.org/cl/40112: cmd/go: allow full flag processing in go vet
+CL 42990: https://golang.org/cl/42990: cmd/internal/obj/x86: add ADDSUBPS/PD
+CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS generation on OpenBSD
+</pre>
 
 <h2 id="performance">Performance</h2>
 
