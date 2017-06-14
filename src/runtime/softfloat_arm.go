@@ -655,6 +655,10 @@ func sfloat2(pc uint32, regs *[15]uint32) uint32 {
 }
 
 // Stubs to pacify vet. Not safe to call from Go.
-// Calls to these functions are inserted by the compiler.
+// Calls to these functions are inserted by the compiler or assembler.
 func _sfloat()
 func udiv()
+func _div()
+func _divu()
+func _mod()
+func _modu()

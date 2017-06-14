@@ -480,7 +480,7 @@ func (t *test) run() {
 		action = "rundir"
 	case "cmpout":
 		action = "run" // the run case already looks for <dir>/<test>.out files
-	case "compile", "compiledir", "build", "run", "buildrun", "runoutput", "rundir":
+	case "compile", "compiledir", "build", "builddir", "run", "buildrun", "runoutput", "rundir":
 		// nothing to do
 	case "errorcheckandrundir":
 		wantError = false // should be no error if also will run
@@ -704,6 +704,63 @@ func (t *test) run() {
 		_, err := runcmd("go", "build", "-o", "a.exe", long)
 		if err != nil {
 			t.err = err
+		}
+
+	case "builddir":
+		// Build an executable from all the .go and .s files in a subdirectory.
+		useTmp = true
+		longdir := filepath.Join(cwd, t.goDirName())
+		files, dirErr := ioutil.ReadDir(longdir)
+		if dirErr != nil {
+			t.err = dirErr
+			break
+		}
+		var gos []os.FileInfo
+		var asms []os.FileInfo
+		for _, file := range files {
+			switch filepath.Ext(file.Name()) {
+			case ".go":
+				gos = append(gos, file)
+			case ".s":
+				asms = append(asms, file)
+			}
+
+		}
+		var objs []string
+		cmd := []string{"go", "tool", "compile", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
+		for _, file := range gos {
+			cmd = append(cmd, filepath.Join(longdir, file.Name()))
+		}
+		_, err := runcmd(cmd...)
+		if err != nil {
+			t.err = err
+			break
+		}
+		objs = append(objs, "go.o")
+		if len(asms) > 0 {
+			cmd = []string{"go", "tool", "asm", "-e", "-I", ".", "-o", "asm.o"}
+			for _, file := range asms {
+				cmd = append(cmd, filepath.Join(longdir, file.Name()))
+			}
+			_, err = runcmd(cmd...)
+			if err != nil {
+				t.err = err
+				break
+			}
+			objs = append(objs, "asm.o")
+		}
+		cmd = []string{"go", "tool", "pack", "c", "all.a"}
+		cmd = append(cmd, objs...)
+		_, err = runcmd(cmd...)
+		if err != nil {
+			t.err = err
+			break
+		}
+		cmd = []string{"go", "tool", "link", "all.a"}
+		_, err = runcmd(cmd...)
+		if err != nil {
+			t.err = err
+			break
 		}
 
 	case "buildrun": // build binary, then run binary, instead of go run. Useful for timeout tests where failure mode is infinite loop.
