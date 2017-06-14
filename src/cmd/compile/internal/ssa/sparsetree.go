@@ -70,6 +70,24 @@ func newSparseTree(f *Func, parentOf []*Block) SparseTree {
 	return t
 }
 
+// newSparseOrderedTree creates a SparseTree from a block-to-parent map (array indexed by Block.ID)
+// children will appear in the reverse of their order in reverseOrder
+// in particular, if reverseOrder is a dfs-reversePostOrder, then the root-to-children
+// walk of the tree will yield a pre-order.
+func newSparseOrderedTree(f *Func, parentOf, reverseOrder []*Block) SparseTree {
+	t := make(SparseTree, f.NumBlocks())
+	for _, b := range reverseOrder {
+		n := &t[b.ID]
+		if p := parentOf[b.ID]; p != nil {
+			n.parent = p
+			n.sibling = t[p.ID].child
+			t[p.ID].child = b
+		}
+	}
+	t.numberBlock(f.Entry, 1)
+	return t
+}
+
 // treestructure provides a string description of the dominator
 // tree and flow structure of block b and all blocks that it
 // dominates.
