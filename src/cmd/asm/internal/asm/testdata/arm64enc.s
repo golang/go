@@ -57,7 +57,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    CALL -1(PC)                                // ffffff97
    CALL (R15)                                 // e0013fd6
    JMP  (R29)                                 // a0031fd6
-   // BRK $35943                              // e08c31d4
+   BRK $35943                                 // e08c31d4
    CBNZW R2, -1(PC)                           // e2ffff35
    CBNZ R7, -1(PC)                            // e7ffffb5
    CBZW R15, -1(PC)                           // efffff34
@@ -81,8 +81,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    CINVW EQ, R2, R17                          // 5110825a
    CINV VS, R12, R7                           // 87718cda
    CINV VS, R30, R30                          // de739eda
-   // CLREX $4                                // 5f3403d5
-   // CLREX $0                                // 5f3003d5
+   CLREX $4                                   // 5f3403d5
+   CLREX $0                                   // 5f3003d5
    CLSW R15, R6                               // e615c05a
    CLS R15, ZR                                // ff15c0da
    CLZW R1, R14                               // 2e10c05a
@@ -128,9 +128,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    CSNEGW HS, R16, R29, R10                   // 0a269d5a
    CSNEG NE, R21, R18, R11                    // ab1692da
    //TODO DC
-   // DCPS1 $11378                            // 418ea5d4
-   // DCPS2 $10699                            // 6239a5d4
-   // DCPS3 $24415                            // e3ebabd4
+   DCPS1 $11378                               // 418ea5d4
+   DCPS2 $10699                               // 6239a5d4
+   DCPS3 $24415                               // e3ebabd4
    DMB $1                                     // bf3103d5
    DMB $0                                     // bf3003d5
    DRPS                                       // e003bfd6
@@ -145,8 +145,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    EXTR $35, R22, R12, R8                     // 888dd693
    SEVL                                       // bf2003d5
    HINT $6                                    // df2003d5
-   // HLT $65509                              // a0fc5fd4
-   // HVC $61428                              // 82fe1dd4
+   HLT $65509                                 // a0fc5fd4
+   HVC $61428                                 // 82fe1dd4
    ISB $1                                     // df3103d5
    ISB $15                                    // df3f03d5
    LDARW (R12), R29                           // 9dfddf88
@@ -304,7 +304,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    SMNEGL R26, R3, R15                        // 6ffc3a9b
    SMULH R17, R21, R21                        // b57e519b
    SMULL R0, R5, R0                           // a07c209b
-   // SMC $37977                              // 238b12d4
+   SMC $37977                                 // 238b12d4
    STLRW R16, (R22)                           // d0fe9f88
    STLR R3, (R24)                             // 03ff9fc8
    //TODO STLRB R11, (R22)                    // cbfe9f08

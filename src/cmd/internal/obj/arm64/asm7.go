@@ -271,7 +271,7 @@ var optab = []Optab{
 	{ALSL, C_VCON, C_NONE, C_REG, 8, 4, 0, 0, 0},
 	{ALSL, C_REG, C_NONE, C_REG, 9, 4, 0, 0, 0},
 	{ALSL, C_REG, C_REG, C_REG, 9, 4, 0, 0, 0},
-	{ASVC, C_NONE, C_NONE, C_VCON, 10, 4, 0, 0, 0},
+	{ASVC, C_VCON, C_NONE, C_NONE, 10, 4, 0, 0, 0},
 	{ASVC, C_NONE, C_NONE, C_NONE, 10, 4, 0, 0, 0},
 	{ADWORD, C_NONE, C_NONE, C_VCON, 11, 8, 0, 0, 0},
 	{ADWORD, C_NONE, C_NONE, C_LEXT, 11, 8, 0, 0, 0},
@@ -1914,8 +1914,8 @@ func buildop(ctxt *obj.Link) {
 			break
 
 		case ASVC:
-			oprangeset(AHLT, t)
 			oprangeset(AHVC, t)
+			oprangeset(AHLT, t)
 			oprangeset(ASMC, t)
 			oprangeset(ABRK, t)
 			oprangeset(ADCPS1, t)
@@ -2301,8 +2301,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 10: /* brk/hvc/.../svc [$con] */
 		o1 = c.opimm(p, p.As)
 
-		if p.To.Type != obj.TYPE_NONE {
-			o1 |= uint32((p.To.Offset & 0xffff) << 5)
+		if p.From.Type != obj.TYPE_NONE {
+			o1 |= uint32((p.From.Offset & 0xffff) << 5)
 		}
 
 	case 11: /* dword */
