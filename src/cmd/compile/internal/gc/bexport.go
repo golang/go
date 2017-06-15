@@ -506,6 +506,13 @@ func (p *exporter) obj(sym *types.Sym) {
 			var f *Func
 			if inlineable {
 				f = asNode(sym.Def).Func
+				// TODO(gri) re-examine reexportdeplist:
+				// Because we can trivially export types
+				// in-place, we don't need to collect types
+				// inside function bodies in the exportlist.
+				// With an adjusted reexportdeplist used only
+				// by the binary exporter, we can also avoid
+				// the global exportlist.
 				reexportdeplist(f.Inl)
 			}
 			p.funcList = append(p.funcList, f)
@@ -698,7 +705,7 @@ func (p *exporter) typ(t *types.Type) {
 			var f *Func
 			if inlineable {
 				f = mfn.Func
-				reexportdeplist(f.Inl)
+				reexportdeplist(mfn.Func.Inl)
 			}
 			p.funcList = append(p.funcList, f)
 		}
