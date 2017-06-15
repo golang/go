@@ -21,7 +21,7 @@ import (
 // introduced for SASL GSSAPI and standardized in RFC 4648.
 // The alternate "base32hex" encoding is used in DNSSEC.
 type Encoding struct {
-	encode    string
+	encode    [32]byte
 	decodeMap [256]byte
 	padChar   rune
 }
@@ -37,8 +37,12 @@ const encodeHex = "0123456789ABCDEFGHIJKLMNOPQRSTUV"
 // NewEncoding returns a new Encoding defined by the given alphabet,
 // which must be a 32-byte string.
 func NewEncoding(encoder string) *Encoding {
+	if len(encoder) != 32 {
+		panic("encoding alphabet is not 32-bytes long")
+	}
+
 	e := new(Encoding)
-	e.encode = encoder
+	copy(e.encode[:], encoder)
 	e.padChar = StdPadding
 
 	for i := 0; i < len(e.decodeMap); i++ {
@@ -129,17 +133,17 @@ func (enc *Encoding) Encode(dst, src []byte) {
 		size := len(dst)
 		if size >= 8 {
 			// Common case, unrolled for extra performance
-			dst[0] = enc.encode[b[0]]
-			dst[1] = enc.encode[b[1]]
-			dst[2] = enc.encode[b[2]]
-			dst[3] = enc.encode[b[3]]
-			dst[4] = enc.encode[b[4]]
-			dst[5] = enc.encode[b[5]]
-			dst[6] = enc.encode[b[6]]
-			dst[7] = enc.encode[b[7]]
+			dst[0] = enc.encode[b[0]&31]
+			dst[1] = enc.encode[b[1]&31]
+			dst[2] = enc.encode[b[2]&31]
+			dst[3] = enc.encode[b[3]&31]
+			dst[4] = enc.encode[b[4]&31]
+			dst[5] = enc.encode[b[5]&31]
+			dst[6] = enc.encode[b[6]&31]
+			dst[7] = enc.encode[b[7]&31]
 		} else {
 			for i := 0; i < size; i++ {
-				dst[i] = enc.encode[b[i]]
+				dst[i] = enc.encode[b[i]&31]
 			}
 		}
 
