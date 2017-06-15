@@ -7311,34 +7311,12 @@ var caseOrbit = []foldPair{
 // simple case folding to code points inside the category.
 // If there is no entry for a category name, there are no such points.
 var FoldCategory = map[string]*RangeTable{
-	"Common":    foldCommon,
-	"Greek":     foldGreek,
-	"Inherited": foldInherited,
-	"L":         foldL,
-	"Ll":        foldLl,
-	"Lt":        foldLt,
-	"Lu":        foldLu,
-	"M":         foldM,
-	"Mn":        foldMn,
-}
-
-var foldCommon = &RangeTable{
-	R16: []Range16{
-		{0x039c, 0x03bc, 32},
-	},
-}
-
-var foldGreek = &RangeTable{
-	R16: []Range16{
-		{0x00b5, 0x0345, 656},
-	},
-}
-
-var foldInherited = &RangeTable{
-	R16: []Range16{
-		{0x0399, 0x03b9, 32},
-		{0x1fbe, 0x1fbe, 1},
-	},
+	"L":  foldL,
+	"Ll": foldLl,
+	"Lt": foldLt,
+	"Lu": foldLu,
+	"M":  foldM,
+	"Mn": foldMn,
 }
 
 var foldL = &RangeTable{
@@ -7609,7 +7587,30 @@ var foldMn = &RangeTable{
 // code points outside the script that are equivalent under
 // simple case folding to code points inside the script.
 // If there is no entry for a script name, there are no such points.
-var FoldScript = map[string]*RangeTable{}
+var FoldScript = map[string]*RangeTable{
+	"Common":    foldCommon,
+	"Greek":     foldGreek,
+	"Inherited": foldInherited,
+}
+
+var foldCommon = &RangeTable{
+	R16: []Range16{
+		{0x039c, 0x03bc, 32},
+	},
+}
+
+var foldGreek = &RangeTable{
+	R16: []Range16{
+		{0x00b5, 0x0345, 656},
+	},
+}
+
+var foldInherited = &RangeTable{
+	R16: []Range16{
+		{0x0399, 0x03b9, 32},
+		{0x1fbe, 0x1fbe, 1},
+	},
+}
 
 // Range entries: 3576 16-bit, 1454 32-bit, 5030 total.
 // Range bytes: 21456 16-bit, 17448 32-bit, 38904 total.
