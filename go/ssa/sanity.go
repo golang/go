@@ -352,7 +352,6 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 			// TODO(adonovan): also check their block dominates block b.
 			if val, ok := val.(Instruction); ok {
 				if val.Block() == nil {
-					val.String()
 					s.errorf("operand %d of %s is an instruction (%s) that belongs to no block", i, instr, val)
 				} else if val.Parent() != s.fn {
 					s.errorf("operand %d of %s is an instruction (%s) from function %s", i, instr, val, val.Parent())
