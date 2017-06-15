@@ -349,3 +349,27 @@ func blockOnSystemStackInternal() {
 	lock(&deadlock)
 	lock(&deadlock)
 }
+
+type RWMutex struct {
+	rw rwmutex
+}
+
+func (rw *RWMutex) Init() {
+	rw.rw.init()
+}
+
+func (rw *RWMutex) RLock() {
+	rw.rw.rlock()
+}
+
+func (rw *RWMutex) RUnlock() {
+	rw.rw.runlock()
+}
+
+func (rw *RWMutex) Lock() {
+	rw.rw.lock()
+}
+
+func (rw *RWMutex) Unlock() {
+	rw.rw.unlock()
+}

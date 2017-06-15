@@ -1,21 +1,20 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // GOMAXPROCS=10 go test
 
-package sync_test
+// This is a copy of sync/rwmutex_test.go rewritten to test the
+// runtime rwmutex.
+
+package runtime_test
 
 import (
 	"fmt"
-	"runtime"
-	. "sync"
+	. "runtime"
 	"sync/atomic"
 	"testing"
 )
-
-// There is a modified copy of this file in runtime/rwmutex_test.go.
-// If you make any changes here, see if you should make them there.
 
 func parallelReader(m *RWMutex, clocked, cunlock, cdone chan bool) {
 	m.RLock()
@@ -26,8 +25,9 @@ func parallelReader(m *RWMutex, clocked, cunlock, cdone chan bool) {
 }
 
 func doTestParallelReaders(numReaders, gomaxprocs int) {
-	runtime.GOMAXPROCS(gomaxprocs)
+	GOMAXPROCS(gomaxprocs)
 	var m RWMutex
+	m.Init()
 	clocked := make(chan bool)
 	cunlock := make(chan bool)
 	cdone := make(chan bool)
@@ -47,8 +47,8 @@ func doTestParallelReaders(numReaders, gomaxprocs int) {
 	}
 }
 
-func TestParallelReaders(t *testing.T) {
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(-1))
+func TestParallelRWMutexReaders(t *testing.T) {
+	defer GOMAXPROCS(GOMAXPROCS(-1))
 	doTestParallelReaders(1, 4)
 	doTestParallelReaders(3, 4)
 	doTestParallelReaders(4, 2)
@@ -85,10 +85,11 @@ func writer(rwm *RWMutex, num_iterations int, activity *int32, cdone chan bool) 
 }
 
 func HammerRWMutex(gomaxprocs, numReaders, num_iterations int) {
-	runtime.GOMAXPROCS(gomaxprocs)
+	GOMAXPROCS(gomaxprocs)
 	// Number of active readers + 10000 * number of active writers.
 	var activity int32
 	var rwm RWMutex
+	rwm.Init()
 	cdone := make(chan bool)
 	go writer(&rwm, num_iterations, &activity, cdone)
 	var i int
@@ -106,7 +107,7 @@ func HammerRWMutex(gomaxprocs, numReaders, num_iterations int) {
 }
 
 func TestRWMutex(t *testing.T) {
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(-1))
+	defer GOMAXPROCS(GOMAXPROCS(-1))
 	n := 1000
 	if testing.Short() {
 		n = 5
@@ -123,41 +124,6 @@ func TestRWMutex(t *testing.T) {
 	HammerRWMutex(10, 5, n)
 }
 
-func TestRLocker(t *testing.T) {
-	var wl RWMutex
-	var rl Locker
-	wlocked := make(chan bool, 1)
-	rlocked := make(chan bool, 1)
-	rl = wl.RLocker()
-	n := 10
-	go func() {
-		for i := 0; i < n; i++ {
-			rl.Lock()
-			rl.Lock()
-			rlocked <- true
-			wl.Lock()
-			wlocked <- true
-		}
-	}()
-	for i := 0; i < n; i++ {
-		<-rlocked
-		rl.Unlock()
-		select {
-		case <-wlocked:
-			t.Fatal("RLocker() didn't read-lock it")
-		default:
-		}
-		rl.Unlock()
-		<-wlocked
-		select {
-		case <-rlocked:
-			t.Fatal("RLocker() didn't respect the write lock")
-		default:
-		}
-		wl.Unlock()
-	}
-}
-
 func BenchmarkRWMutexUncontended(b *testing.B) {
 	type PaddedRWMutex struct {
 		RWMutex
@@ -165,6 +131,7 @@ func BenchmarkRWMutexUncontended(b *testing.B) {
 	}
 	b.RunParallel(func(pb *testing.PB) {
 		var rwm PaddedRWMutex
+		rwm.RWMutex.Init()
 		for pb.Next() {
 			rwm.RLock()
 			rwm.RLock()
@@ -178,6 +145,7 @@ func BenchmarkRWMutexUncontended(b *testing.B) {
 
 func benchmarkRWMutex(b *testing.B, localWork, writeRatio int) {
 	var rwm RWMutex
+	rwm.Init()
 	b.RunParallel(func(pb *testing.PB) {
 		foo := 0
 		for pb.Next() {

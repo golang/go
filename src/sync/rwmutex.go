@@ -10,6 +10,9 @@ import (
 	"unsafe"
 )
 
+// There is a modified copy of this file in runtime/rwmutex.go.
+// If you make any changes here, see if you should make them there.
+
 // An RWMutex is a reader/writer mutual exclusion lock.
 // The lock can be held by an arbitrary number of readers or a single writer.
 // The zero value for a RWMutex is an unlocked mutex.
