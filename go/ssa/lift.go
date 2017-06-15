@@ -630,10 +630,15 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 
 	// Continue depth-first recursion over domtree, pushing a
 	// fresh copy of the renaming map for each subtree.
-	for _, v := range u.dom.children {
-		// TODO(adonovan): opt: avoid copy on final iteration; use destructive update.
-		r := make([]Value, len(renaming))
-		copy(r, renaming)
+	for i, v := range u.dom.children {
+		r := renaming
+		if i < len(u.dom.children)-1 {
+			// On all but the final iteration, we must make
+			// a copy to avoid destructive update.
+			r = make([]Value, len(renaming))
+			copy(r, renaming)
+		}
 		rename(v, r, newPhis)
 	}
+
 }
