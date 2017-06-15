@@ -420,12 +420,9 @@ func (p *importer) pos() src.XPos {
 }
 
 func (p *importer) path() string {
-	if p.debugFormat {
-		p.marker('p')
-	}
 	// if the path was seen before, i is its index (>= 0)
 	// (the empty string is at index 0)
-	i := p.rawInt64()
+	i := p.int()
 	if i >= 0 {
 		return p.pathList[i]
 	}
