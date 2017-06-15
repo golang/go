@@ -60,8 +60,8 @@ get uses the first one. For more details see: 'go help gopath'.
 When checking out or updating a package, get looks for a branch or tag
 that matches the locally installed version of Go. The most important
 rule is that if the local installation is running version "go1", get
-searches for a branch or tag named "go1". If no such version exists it
-retrieves the most recent version of the package.
+searches for a branch or tag named "go1". If no such version exists
+it retrieves the default branch of the package.
 
 When go get checks out or updates a Git repository,
 it also updates any git submodules referenced by the repository.
