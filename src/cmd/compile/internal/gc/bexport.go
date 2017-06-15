@@ -564,7 +564,12 @@ func (p *exporter) pos(n *Node) {
 
 func (p *exporter) path(s string) {
 	if i, ok := p.pathIndex[s]; ok {
-		p.index('p', i) // i >= 0
+		// Note: Using p.index(i) here requires the use of p.tag(-len(c)) below
+		//       to get matching debug markers ('t'). But in trace mode p.tag
+		//       assumes that the tag argument is a valid tag that can be looked
+		//       up in the tagString list, rather then some arbitrary slice length.
+		//       Use p.int instead.
+		p.int(i) // i >= 0
 		return
 	}
 	p.pathIndex[s] = len(p.pathIndex)
