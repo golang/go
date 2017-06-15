@@ -1201,7 +1201,7 @@ func printCasefold() {
 	scr := make(map[string]map[rune]bool)
 	for name := range scripts {
 		if x := foldExceptions(inScript(name)); len(x) > 0 {
-			cat[name] = x
+			scr[name] = x
 		}
 	}
 
