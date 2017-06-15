@@ -1137,7 +1137,15 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 }
 
 // Called to start an M.
+//
+// This must not split the stack because we may not even have stack
+// bounds set up yet.
+//
+// May run during STW (because it doesn't have a P yet), so write
+// barriers are not allowed.
+//
 //go:nosplit
+//go:nowritebarrierrec
 func mstart() {
 	_g_ := getg()
 
@@ -1176,12 +1184,7 @@ func mstart1() {
 	// Install signal handlers; after minit so that minit can
 	// prepare the thread to be able to handle the signals.
 	if _g_.m == &m0 {
-		// Create an extra M for callbacks on threads not created by Go.
-		if iscgo && !cgoHasExtraM {
-			cgoHasExtraM = true
-			newextram()
-		}
-		initsig(false)
+		mstartm0()
 	}
 
 	if fn := _g_.m.mstartfn; fn != nil {
@@ -1196,6 +1199,21 @@ func mstart1() {
 		_g_.m.nextp = 0
 	}
 	schedule()
+}
+
+// mstartm0 implements part of mstart1 that only runs on the m0.
+//
+// Write barriers are allowed here because we know the GC can't be
+// running yet, so they'll be no-ops.
+//
+//go:yeswritebarrierrec
+func mstartm0() {
+	// Create an extra M for callbacks on threads not created by Go.
+	if iscgo && !cgoHasExtraM {
+		cgoHasExtraM = true
+		newextram()
+	}
+	initsig(false)
 }
 
 // forEachP calls fn(p) for every P p when p reaches a GC safe point.
