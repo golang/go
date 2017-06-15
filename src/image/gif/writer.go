@@ -274,7 +274,7 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 
 	lzww := lzw.NewWriter(blockWriter{e: e}, lzw.LSB, litWidth)
 	if dx := b.Dx(); dx == pm.Stride {
-		_, e.err = lzww.Write(pm.Pix)
+		_, e.err = lzww.Write(pm.Pix[:dx*b.Dy()])
 		if e.err != nil {
 			lzww.Close()
 			return
