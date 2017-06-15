@@ -214,7 +214,7 @@ func lift(fn *Function) {
 	rename(fn.Blocks[0], renaming, newPhis)
 
 	// Eliminate dead φ-nodes.
-	removeDeadPhis(newPhis)
+	removeDeadPhis(fn.Blocks, newPhis)
 
 	// Prepend remaining live φ-nodes to each block.
 	for _, b := range fn.Blocks {
@@ -269,8 +269,14 @@ func lift(fn *Function) {
 
 // removeDeadPhis removes φ-nodes not transitively needed by a
 // non-Phi, non-DebugRef instruction.
-func removeDeadPhis(newPhis newPhiMap) {
-	// First pass: compute reachability from non-Phi/DebugRef instructions.
+func removeDeadPhis(blocks []*BasicBlock, newPhis newPhiMap) {
+	// First pass: find the set of "live" φ-nodes: those reachable
+	// from some non-Phi instruction.
+	//
+	// We compute reachability in reverse, starting from each φ,
+	// rather than forwards, starting from each live non-Phi
+	// instruction, because this way visits much less of the
+	// Value graph.
 	livePhis := make(map[*Phi]bool)
 	for _, npList := range newPhis {
 		for _, np := range npList {
@@ -278,6 +284,14 @@ func removeDeadPhis(newPhis newPhiMap) {
 			if !livePhis[phi] && phiHasDirectReferrer(phi) {
 				markLivePhi(livePhis, phi)
 			}
+		}
+	}
+
+	// Existing φ-nodes due to && and || operators
+	// are all considered live (see Go issue 19622).
+	for _, b := range blocks {
+		for _, phi := range b.phis() {
+			markLivePhi(livePhis, phi.(*Phi))
 		}
 	}
 
@@ -295,9 +309,7 @@ func removeDeadPhis(newPhis newPhiMap) {
 						*refs = removeInstr(*refs, np.phi)
 					}
 				}
-				// This may leave DebugRef instructions referring to
-				// Phis that aren't in the control flow graph.
-				// TODO(adonovan): we should delete them.
+				np.phi.block = nil
 			}
 		}
 		newPhis[block] = npList[:j]
@@ -318,14 +330,11 @@ func markLivePhi(livePhis map[*Phi]bool, phi *Phi) {
 }
 
 // phiHasDirectReferrer reports whether phi is directly referred to by
-// a non-Phi, non-DebugRef instruction.  Such instructions are the
+// a non-Phi instruction.  Such instructions are the
 // roots of the liveness traversal.
 func phiHasDirectReferrer(phi *Phi) bool {
 	for _, instr := range *phi.Referrers() {
-		switch instr.(type) {
-		case *Phi, *DebugRef:
-			// ignore
-		default:
+		if _, ok := instr.(*Phi); !ok {
 			return true
 		}
 	}

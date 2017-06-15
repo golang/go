@@ -89,8 +89,12 @@ func (v *Phi) String() string {
 			b.WriteString(", ")
 		}
 		// Be robust against malformed CFG.
+		if v.block == nil {
+			b.WriteString("??")
+			continue
+		}
 		block := -1
-		if v.block != nil && i < len(v.block.Preds) {
+		if i < len(v.block.Preds) {
 			block = v.block.Preds[i].Index
 		}
 		fmt.Fprintf(&b, "%d: ", block)
