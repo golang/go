@@ -609,6 +609,15 @@ CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS gener
 
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>
+    <p><!-- CL 36800 -->
+      The <code>os</code>package now uses the internal runtime poller
+      for file I/O.
+      This reduces the number of threads required for read/write
+      operations on pipes, and eliminates races when one goroutine
+      closes a file while another using it for I/O.
+    </p>
+
+  <dd>
     <p><!-- CL 37915 -->
       On Windows,
       <a href="/pkg/os/#Args"><code>Args</code></a>
