@@ -133,12 +133,13 @@ func (fd *netFD) dial(ctx context.Context, laddr, raddr sockaddr) error {
 			}
 		}
 	}
-	var rsa syscall.Sockaddr
+	var rsa syscall.Sockaddr  // remote address from the user
+	var crsa syscall.Sockaddr // remote address we actually connected to
 	if raddr != nil {
 		if rsa, err = raddr.sockaddr(fd.family); err != nil {
 			return err
 		}
-		if err := fd.connect(ctx, lsa, rsa); err != nil {
+		if crsa, err = fd.connect(ctx, lsa, rsa); err != nil {
 			return err
 		}
 		fd.isConnected = true
@@ -147,8 +148,16 @@ func (fd *netFD) dial(ctx context.Context, laddr, raddr sockaddr) error {
 			return err
 		}
 	}
+	// Record the local and remote addresses from the actual socket.
+	// Get the local address by calling Getsockname.
+	// For the remote address, use
+	// 1) the one returned by the connect method, if any; or
+	// 2) the one from Getpeername, if it succeeds; or
+	// 3) the one passed to us as the raddr parameter.
 	lsa, _ = syscall.Getsockname(fd.pfd.Sysfd)
-	if rsa, _ = syscall.Getpeername(fd.pfd.Sysfd); rsa != nil {
+	if crsa != nil {
+		fd.setAddr(fd.addrFunc()(lsa), fd.addrFunc()(crsa))
+	} else if rsa, _ = syscall.Getpeername(fd.pfd.Sysfd); rsa != nil {
 		fd.setAddr(fd.addrFunc()(lsa), fd.addrFunc()(rsa))
 	} else {
 		fd.setAddr(fd.addrFunc()(lsa), raddr)
