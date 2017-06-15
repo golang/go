@@ -154,8 +154,8 @@ func TestGlob(t *testing.T) {
 }
 
 func TestGlobError(t *testing.T) {
-	_, err := Glob("[7]")
-	if err != nil {
+	_, err := Glob("[]")
+	if err == nil {
 		t.Error("expected error for bad pattern; got none")
 	}
 }
