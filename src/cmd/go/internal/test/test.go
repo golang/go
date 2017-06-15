@@ -214,8 +214,9 @@ const testFlag2 = `
 	    the Go tree can run a sanity check but not spend time running
 	    exhaustive tests.
 
-	-timeout t
-	    If a test runs longer than t, panic.
+	-timeout d
+	    If the cumulative test time for a package runs longer than
+	    duration d, panic. Timeout is disabled if set to 0.
 	    The default is 10 minutes (10m).
 
 	-v
