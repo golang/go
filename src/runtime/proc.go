@@ -173,6 +173,9 @@ func main() {
 		if _cgo_notify_runtime_init_done == nil {
 			throw("_cgo_notify_runtime_init_done missing")
 		}
+		// Start the template thread in case we enter Go from
+		// a C-created thread and need to create a new thread.
+		startTemplateThread()
 		cgocall(_cgo_notify_runtime_init_done, nil)
 	}
 
@@ -1630,6 +1633,27 @@ func unlockextra(mp *m) {
 // around exec'ing while creating/destroying threads.  See issue #19546.
 var execLock rwmutex
 
+// newmHandoff contains a list of m structures that need new OS threads.
+// This is used by newm in situations where newm itself can't safely
+// start an OS thread.
+var newmHandoff struct {
+	lock mutex
+
+	// newm points to a list of M structures that need new OS
+	// threads. The list is linked through m.schedlink.
+	newm muintptr
+
+	// waiting indicates that wake needs to be notified when an m
+	// is put on the list.
+	waiting bool
+	wake    note
+
+	// haveTemplateThread indicates that the templateThread has
+	// been started. This is not protected by lock. Use cas to set
+	// to 1.
+	haveTemplateThread uint32
+}
+
 // Create a new m. It will start off with a call to fn, or else the scheduler.
 // fn needs to be static and not a heap allocated closure.
 // May run with m.p==nil, so write barriers are not allowed.
@@ -1638,6 +1662,33 @@ func newm(fn func(), _p_ *p) {
 	mp := allocm(_p_, fn)
 	mp.nextp.set(_p_)
 	mp.sigmask = initSigmask
+	if gp := getg(); gp != nil && gp.m != nil && (gp.m.lockedExt != 0 || gp.m.incgo) {
+		// We're on a locked M or a thread that may have been
+		// started by C. The kernel state of this thread may
+		// be strange (the user may have locked it for that
+		// purpose). We don't want to clone that into another
+		// thread. Instead, ask a known-good thread to create
+		// the thread for us.
+		//
+		// TODO: This may be unnecessary on Windows, which
+		// doesn't model thread creation off fork.
+		lock(&newmHandoff.lock)
+		if newmHandoff.haveTemplateThread == 0 {
+			throw("on a locked thread with no template thread")
+		}
+		mp.schedlink = newmHandoff.newm
+		newmHandoff.newm.set(mp)
+		if newmHandoff.waiting {
+			newmHandoff.waiting = false
+			notewakeup(&newmHandoff.wake)
+		}
+		unlock(&newmHandoff.lock)
+		return
+	}
+	newm1(mp)
+}
+
+func newm1(mp *m) {
 	if iscgo {
 		var ts cgothreadstart
 		if _cgo_thread_start == nil {
@@ -1657,6 +1708,56 @@ func newm(fn func(), _p_ *p) {
 	execLock.rlock() // Prevent process clone.
 	newosproc(mp, unsafe.Pointer(mp.g0.stack.hi))
 	execLock.runlock()
+}
+
+// startTemplateThread starts the template thread if it is not already
+// running.
+//
+// The calling thread must itself be in a known-good state.
+func startTemplateThread() {
+	if !atomic.Cas(&newmHandoff.haveTemplateThread, 0, 1) {
+		return
+	}
+	newm(templateThread, nil)
+}
+
+// tmeplateThread is a thread in a known-good state that exists solely
+// to start new threads in known-good states when the calling thread
+// may not be a a good state.
+//
+// Many programs never need this, so templateThread is started lazily
+// when we first enter a state that might lead to running on a thread
+// in an unknown state.
+//
+// templateThread runs on an M without a P, so it must not have write
+// barriers.
+//
+//go:nowritebarrierrec
+func templateThread() {
+	lock(&sched.lock)
+	sched.nmsys++
+	checkdead()
+	unlock(&sched.lock)
+
+	for {
+		lock(&newmHandoff.lock)
+		for newmHandoff.newm != 0 {
+			newm := newmHandoff.newm.ptr()
+			newmHandoff.newm = 0
+			unlock(&newmHandoff.lock)
+			for newm != nil {
+				next := newm.schedlink.ptr()
+				newm.schedlink = 0
+				newm1(newm)
+				newm = next
+			}
+			lock(&newmHandoff.lock)
+		}
+		newmHandoff.waiting = true
+		noteclear(&newmHandoff.wake)
+		unlock(&newmHandoff.lock)
+		notesleep(&newmHandoff.wake)
+	}
 }
 
 // Stops execution of the current m until new work is available.
@@ -3176,6 +3277,12 @@ func dolockOSThread() {
 // until the calling goroutine exits or has made as many calls to
 // UnlockOSThread as to LockOSThread.
 func LockOSThread() {
+	if atomic.Load(&newmHandoff.haveTemplateThread) == 0 {
+		// If we need to start a new thread from the locked
+		// thread, we need the template thread. Start it now
+		// while we're in a known-good state.
+		startTemplateThread()
+	}
 	_g_ := getg()
 	_g_.m.lockedExt++
 	if _g_.m.lockedExt == 0 {
@@ -3790,13 +3897,12 @@ func checkdead() {
 		return
 	}
 
-	// -1 for sysmon
-	run := sched.mcount - sched.nmidle - sched.nmidlelocked - 1
+	run := sched.mcount - sched.nmidle - sched.nmidlelocked - sched.nmsys
 	if run > 0 {
 		return
 	}
 	if run < 0 {
-		print("runtime: checkdead: nmidle=", sched.nmidle, " nmidlelocked=", sched.nmidlelocked, " mcount=", sched.mcount, "\n")
+		print("runtime: checkdead: nmidle=", sched.nmidle, " nmidlelocked=", sched.nmidlelocked, " mcount=", sched.mcount, " nmsys=", sched.nmsys, "\n")
 		throw("checkdead: inconsistent counts")
 	}
 
@@ -3859,6 +3965,11 @@ var forcegcperiod int64 = 2 * 60 * 1e9
 //
 //go:nowritebarrierrec
 func sysmon() {
+	lock(&sched.lock)
+	sched.nmsys++
+	checkdead()
+	unlock(&sched.lock)
+
 	// If a heap span goes unused for 5 minutes after a garbage collection,
 	// we hand it back to the operating system.
 	scavengelimit := int64(5 * 60 * 1e9)
