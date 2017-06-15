@@ -13,11 +13,13 @@ import (
 	"crypto/tls"
 	"debug/dwarf"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -82,9 +84,20 @@ func getProfile(source string, timeout time.Duration) (*profile.Profile, error) 
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("server response: %s", resp.Status)
+		defer resp.Body.Close()
+		return nil, statusCodeError(resp)
 	}
 	return profile.Parse(resp.Body)
+}
+
+func statusCodeError(resp *http.Response) error {
+	if resp.Header.Get("X-Go-Pprof") != "" && strings.Contains(resp.Header.Get("Content-Type"), "text/plain") {
+		// error is from pprof endpoint
+		if body, err := ioutil.ReadAll(resp.Body); err == nil {
+			return fmt.Errorf("server response: %s - %s", resp.Status, body)
+		}
+	}
+	return fmt.Errorf("server response: %s", resp.Status)
 }
 
 // cpuProfileHandler is the Go pprof CPU profile handler URL.
