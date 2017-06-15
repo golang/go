@@ -367,9 +367,10 @@ func export(out *bufio.Writer, trace bool) int {
 	}
 
 	// write inlineable function bodies
+	// Don't use range since funcList may grow.
 	objcount = 0
-	for i, f := range p.funcList {
-		if f != nil {
+	for i := 0; i < len(p.funcList); i++ {
+		if f := p.funcList[i]; f != nil {
 			// function has inlineable body:
 			// write index and body
 			if p.trace {
