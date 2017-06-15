@@ -471,6 +471,34 @@ func TestEncodeBadPalettes(t *testing.T) {
 	}
 }
 
+func TestEncodeCroppedSubImages(t *testing.T) {
+	// This test means to ensure that Encode honors the Bounds and Strides of
+	// images correctly when encoding.
+	whole := image.NewPaletted(image.Rect(0, 0, 100, 100), palette.Plan9)
+	subImages := []image.Rectangle{
+		image.Rect(0, 0, 50, 50),
+		image.Rect(50, 0, 100, 50),
+		image.Rect(0, 50, 50, 50),
+		image.Rect(50, 50, 100, 100),
+		image.Rect(25, 25, 75, 75),
+		image.Rect(0, 0, 100, 50),
+		image.Rect(0, 50, 100, 100),
+		image.Rect(0, 0, 50, 100),
+		image.Rect(50, 0, 100, 100),
+	}
+	for _, sr := range subImages {
+		si := whole.SubImage(sr)
+		buf := bytes.NewBuffer(nil)
+		if err := Encode(buf, si, nil); err != nil {
+			t.Errorf("Encode: sr=%v: %v", sr, err)
+			continue
+		}
+		if _, err := Decode(buf); err != nil {
+			t.Errorf("Decode: sr=%v: %v", sr, err)
+		}
+	}
+}
+
 func BenchmarkEncode(b *testing.B) {
 	b.StopTimer()
 
