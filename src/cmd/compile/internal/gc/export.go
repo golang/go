@@ -107,6 +107,7 @@ func reexportdep(n *Node) {
 		return
 	}
 
+	//print("reexportdep %+hN\n", n);
 	switch n.Op {
 	case ONAME:
 		switch n.Class() {
@@ -130,6 +131,78 @@ func reexportdep(n *Node) {
 				}
 				exportlist = append(exportlist, n)
 			}
+		}
+
+	// Local variables in the bodies need their type.
+	case ODCL:
+		t := n.Left.Type
+
+		if t != types.Types[t.Etype] && t != types.Idealbool && t != types.Idealstring {
+			if t.IsPtr() {
+				t = t.Elem()
+			}
+			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
+				if Debug['E'] != 0 {
+					fmt.Printf("reexport type %v from declaration\n", t.Sym)
+				}
+				exportlist = append(exportlist, asNode(t.Sym.Def))
+			}
+		}
+
+	case OLITERAL:
+		t := n.Type
+		if t != types.Types[n.Type.Etype] && t != types.Idealbool && t != types.Idealstring {
+			if t.IsPtr() {
+				t = t.Elem()
+			}
+			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
+				if Debug['E'] != 0 {
+					fmt.Printf("reexport literal type %v\n", t.Sym)
+				}
+				exportlist = append(exportlist, asNode(t.Sym.Def))
+			}
+		}
+		fallthrough
+
+	case OTYPE:
+		if n.Sym != nil && n.Sym.Def != nil && !exportedsym(n.Sym) {
+			if Debug['E'] != 0 {
+				fmt.Printf("reexport literal/type %v\n", n.Sym)
+			}
+			exportlist = append(exportlist, n)
+		}
+
+	// for operations that need a type when rendered, put the type on the export list.
+	case OCONV,
+		OCONVIFACE,
+		OCONVNOP,
+		ORUNESTR,
+		OARRAYBYTESTR,
+		OARRAYRUNESTR,
+		OSTRARRAYBYTE,
+		OSTRARRAYRUNE,
+		ODOTTYPE,
+		ODOTTYPE2,
+		OSTRUCTLIT,
+		OARRAYLIT,
+		OSLICELIT,
+		OPTRLIT,
+		OMAKEMAP,
+		OMAKESLICE,
+		OMAKECHAN:
+		t := n.Type
+
+		switch t.Etype {
+		case TARRAY, TCHAN, TPTR32, TPTR64, TSLICE:
+			if t.Sym == nil {
+				t = t.Elem()
+			}
+		}
+		if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
+			if Debug['E'] != 0 {
+				fmt.Printf("reexport type for expression %v\n", t.Sym)
+			}
+			exportlist = append(exportlist, asNode(t.Sym.Def))
 		}
 	}
 
