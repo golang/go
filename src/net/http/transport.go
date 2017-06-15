@@ -89,6 +89,11 @@ type Transport struct {
 	// Proxy specifies a function to return a proxy for a given
 	// Request. If the function returns a non-nil error, the
 	// request is aborted with the provided error.
+	//
+	// The proxy type is determined by the URL scheme. "http"
+	// and "socks5" are supported. If the scheme is empty,
+	// "http" is assumed.
+	//
 	// If Proxy is nil or returns a nil *URL, no proxy is used.
 	Proxy func(*Request) (*url.URL, error)
 
