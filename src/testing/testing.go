@@ -265,7 +265,7 @@ var (
 	mutexProfile         = flag.String("test.mutexprofile", "", "write a mutex contention profile to the named file after execution")
 	mutexProfileFraction = flag.Int("test.mutexprofilefraction", 1, "if >= 0, calls runtime.SetMutexProfileFraction()")
 	traceFile            = flag.String("test.trace", "", "write an execution trace to `file`")
-	timeout              = flag.Duration("test.timeout", 0, "fail test binary execution after duration `d` (0 means unlimited)")
+	timeout              = flag.Duration("test.timeout", 0, "panic test binary after duration `d` (0 means unlimited)")
 	cpuListStr           = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
 	parallel             = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
 
