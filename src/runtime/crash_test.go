@@ -43,7 +43,7 @@ type buildexe struct {
 	err error
 }
 
-func runTestProg(t *testing.T, binary, name string) string {
+func runTestProg(t *testing.T, binary, name string, env ...string) string {
 	testenv.MustHaveGoBuild(t)
 
 	exe, err := buildTestProg(t, binary)
@@ -52,6 +52,7 @@ func runTestProg(t *testing.T, binary, name string) string {
 	}
 
 	cmd := testenv.CleanCmdEnv(exec.Command(exe, name))
+	cmd.Env = append(cmd.Env, env...)
 	var b bytes.Buffer
 	cmd.Stdout = &b
 	cmd.Stderr = &b

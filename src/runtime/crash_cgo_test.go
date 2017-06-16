@@ -443,3 +443,12 @@ func TestCatchPanic(t *testing.T) {
 		}
 	}
 }
+
+func TestCgoLockOSThreadExit(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
+	t.Parallel()
+	testLockOSThreadExit(t, "testprogcgo")
+}

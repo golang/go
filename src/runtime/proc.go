@@ -2633,6 +2633,7 @@ func goexit0(gp *g) {
 		atomic.Xadd(&sched.ngsys, -1)
 	}
 	gp.m = nil
+	locked := gp.lockedm != 0
 	gp.lockedm = 0
 	_g_.m.lockedg = 0
 	gp.paniconfault = false
@@ -2655,6 +2656,15 @@ func goexit0(gp *g) {
 	}
 	_g_.m.lockedExt = 0
 	gfput(_g_.m.p.ptr(), gp)
+	if locked {
+		// The goroutine may have locked this thread because
+		// it put it in an unusual kernel state. Kill it
+		// rather than returning it to the thread pool.
+
+		// Return to mstart, which will release the P and exit
+		// the thread.
+		gogo(&_g_.m.g0.sched)
+	}
 	schedule()
 }
 
@@ -3419,8 +3429,10 @@ func dolockOSThread() {
 // LockOSThread wires the calling goroutine to its current operating system thread.
 // The calling goroutine will always execute in that thread,
 // and no other goroutine will execute in it,
-// until the calling goroutine exits or has made as many calls to
+// until the calling goroutine has made as many calls to
 // UnlockOSThread as to LockOSThread.
+// If the calling goroutine exits without unlocking the thread,
+// the thread will be terminated.
 func LockOSThread() {
 	if atomic.Load(&newmHandoff.haveTemplateThread) == 0 {
 		// If we need to start a new thread from the locked
