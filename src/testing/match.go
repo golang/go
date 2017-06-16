@@ -47,7 +47,7 @@ func newMatcher(matchString func(pat, str string) (bool, error), patterns, name 
 	}
 }
 
-func (m *matcher) fullName(c *common, subname string) (name string, ok bool) {
+func (m *matcher) fullName(c *common, subname string) (name string, ok, partial bool) {
 	name = subname
 
 	m.mu.Lock()
@@ -62,15 +62,16 @@ func (m *matcher) fullName(c *common, subname string) (name string, ok bool) {
 
 	// We check the full array of paths each time to allow for the case that
 	// a pattern contains a '/'.
-	for i, s := range strings.Split(name, "/") {
+	elem := strings.Split(name, "/")
+	for i, s := range elem {
 		if i >= len(m.filter) {
 			break
 		}
 		if ok, _ := m.matchFunc(m.filter[i], s); !ok {
-			return name, false
+			return name, false, false
 		}
 	}
-	return name, true
+	return name, true, len(elem) < len(m.filter)
 }
 
 func splitRegexp(s string) []string {

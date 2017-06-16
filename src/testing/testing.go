@@ -763,7 +763,7 @@ func tRunner(t *T, fn func(t *T)) {
 // must happen before the outer test function for t returns.
 func (t *T) Run(name string, f func(t *T)) bool {
 	atomic.StoreInt32(&t.hasSub, 1)
-	testName, ok := t.context.match.fullName(&t.common, name)
+	testName, ok, _ := t.context.match.fullName(&t.common, name)
 	if !ok {
 		return true
 	}
