@@ -185,12 +185,15 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
 
 	select {
 	case <-ctx.Done():
-		// The DNS lookup timed out for some reason. Force
+		// If the DNS lookup timed out for some reason, force
 		// future requests to start the DNS lookup again
 		// rather than waiting for the current lookup to
 		// complete. See issue 8602.
-		err := mapErr(ctx.Err())
-		lookupGroup.Forget(host)
+		ctxErr := ctx.Err()
+		if ctxErr == context.DeadlineExceeded {
+			lookupGroup.Forget(host)
+		}
+		err := mapErr(ctxErr)
 		if trace != nil && trace.DNSDone != nil {
 			trace.DNSDone(nil, false, err)
 		}
