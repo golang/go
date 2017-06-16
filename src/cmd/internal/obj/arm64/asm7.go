@@ -579,6 +579,9 @@ var optab = []Optab{
 	{ASHA1SU0, C_ARNG, C_ARNG, C_ARNG, 1, 4, 0, 0, 0},
 	{ASHA256H, C_ARNG, C_VREG, C_VREG, 1, 4, 0, 0, 0},
 	{AVADDP, C_ARNG, C_ARNG, C_ARNG, 72, 4, 0, 0, 0},
+	{AVADD, C_ARNG, C_ARNG, C_ARNG, 72, 4, 0, 0, 0},
+	{AVADD, C_VREG, C_VREG, C_VREG, 89, 4, 0, 0, 0},
+	{AVADD, C_VREG, C_NONE, C_VREG, 89, 4, 0, 0, 0},
 	{AVLD1, C_ZOREG, C_NONE, C_LIST, 81, 4, 0, 0, 0},
 	{AVLD1, C_LOREG, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
 	{AVMOV, C_ELEM, C_NONE, C_REG, 73, 4, 0, 0, 0},
@@ -2063,8 +2066,10 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AVAND, t)
 			oprangeset(AVCMEQ, t)
 			oprangeset(AVORR, t)
-			oprangeset(AVADD, t)
 			oprangeset(AVEOR, t)
+
+		case AVADD:
+			oprangeset(AVSUB, t)
 
 		case AAESD:
 			oprangeset(AAESE, t)
@@ -2083,6 +2088,9 @@ func buildop(ctxt *obj.Link) {
 		case ASHA1SU0:
 			oprangeset(ASHA256SU1, t)
 
+		case AVADDV:
+			oprangeset(AVUADDLV, t)
+
 		case ASHA1H,
 			AVMOV,
 			AVLD1,
@@ -2090,7 +2098,6 @@ func buildop(ctxt *obj.Link) {
 			AVST1,
 			AVDUP,
 			AVMOVS,
-			AVADDV,
 			AVMOVI:
 			break
 
@@ -3612,7 +3619,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= uint32(p.From.Offset)
 		o1 |= uint32(r&31) << 5
 
-	case 85: /* vaddv Vn.<T>, Vd*/
+	case 85: /* vaddv/vuaddlv Vn.<T>, Vd*/
 		af := int((p.From.Reg >> 5) & 15)
 		o1 = c.oprrr(p, p.As)
 		rf := int((p.From.Reg) & 31)
@@ -3680,6 +3687,27 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Add = p.From.Offset
 		rel.Type = objabi.R_ADDRARM64
 		o3 |= 2<<30 | 5<<27 | 2<<23 | 1<<22 | uint32(p.To.Offset&31)<<10 | (REGTMP&31)<<5 | uint32(p.To.Reg&31)
+
+	case 89: /* vadd/vsub Vm, Vn, Vd */
+		switch p.As {
+		case AVADD:
+			o1 = 5<<28 | 7<<25 | 7<<21 | 1<<15 | 1<<10
+
+		case AVSUB:
+			o1 = 7<<28 | 7<<25 | 7<<21 | 1<<15 | 1<<10
+
+		default:
+			c.ctxt.Diag("bad opcode: %v\n", p)
+			break
+		}
+
+		rf := int(p.From.Reg)
+		rt := int(p.To.Reg)
+		r := int(p.Reg)
+		if r == 0 {
+			r = rt
+		}
+		o1 |= (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
 
 	// This is supposed to be something that stops execution.
 	// It's not supposed to be reached, ever, but if it is, we'd
@@ -4245,6 +4273,9 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 
 	case AVADDV:
 		return 7<<25 | 3<<20 | 3<<15 | 7<<11
+
+	case AVUADDLV:
+		return 1<<29 | 7<<25 | 3<<20 | 7<<11
 	}
 
 	c.ctxt.Diag("%v: bad rrr %d %v", p, a, a)

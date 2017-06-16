@@ -745,6 +745,8 @@ const (
 	AVMOVS
 	AVADDV
 	AVMOVI
+	AVUADDLV
+	AVSUB
 	ALAST
 	AB  = obj.AJMP
 	ABL = obj.ACALL
