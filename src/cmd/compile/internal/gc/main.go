@@ -891,7 +891,7 @@ func importfile(f *Val) *types.Pkg {
 		return nil
 	}
 
-	if isbadimport(path_) {
+	if isbadimport(path_, false) {
 		return nil
 	}
 
@@ -935,7 +935,7 @@ func importfile(f *Val) *types.Pkg {
 		}
 		path_ = path.Join(prefix, path_)
 
-		if isbadimport(path_) {
+		if isbadimport(path_, true) {
 			return nil
 		}
 	}

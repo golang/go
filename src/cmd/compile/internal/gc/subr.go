@@ -1969,7 +1969,7 @@ var reservedimports = []string{
 	"type",
 }
 
-func isbadimport(path string) bool {
+func isbadimport(path string, allowSpace bool) bool {
 	if strings.Contains(path, "\x00") {
 		yyerror("import path contains NUL")
 		return true
@@ -1998,7 +1998,7 @@ func isbadimport(path string) bool {
 			return true
 		}
 
-		if unicode.IsSpace(r) {
+		if !allowSpace && unicode.IsSpace(r) {
 			yyerror("import path contains space character: %q", path)
 			return true
 		}
