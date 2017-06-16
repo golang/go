@@ -4194,3 +4194,61 @@ func main() {}`)
 		tg.setenv("GOARM", "7")
 	}))
 }
+
+func TestTestRegexps(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.run("test", "-cpu=1", "-run=X/Y", "-bench=X/Y", "-count=2", "-v", "testregexp")
+	var lines []string
+	for _, line := range strings.SplitAfter(tg.getStdout(), "\n") {
+		if strings.Contains(line, "=== RUN") || strings.Contains(line, "--- BENCH") || strings.Contains(line, "LOG") {
+			lines = append(lines, line)
+		}
+	}
+
+	// Important parts:
+	//	TestX is run, twice
+	//	TestX/Y is run, twice
+	//	TestXX is run, twice
+	//	TestZ is not run
+	//	BenchmarkX is run but only with N=1, once
+	//	BenchmarkXX is run but only with N=1, once
+	//	BenchmarkX/Y is run in full, twice
+	want := `=== RUN   TestX
+=== RUN   TestX/Y
+	x_test.go:6: LOG: X running
+    	x_test.go:8: LOG: Y running
+=== RUN   TestXX
+	z_test.go:10: LOG: XX running
+=== RUN   TestX
+=== RUN   TestX/Y
+	x_test.go:6: LOG: X running
+    	x_test.go:8: LOG: Y running
+=== RUN   TestXX
+	z_test.go:10: LOG: XX running
+--- BENCH: BenchmarkX/Y
+	x_test.go:15: LOG: Y running N=1
+	x_test.go:15: LOG: Y running N=100
+	x_test.go:15: LOG: Y running N=10000
+	x_test.go:15: LOG: Y running N=1000000
+	x_test.go:15: LOG: Y running N=100000000
+	x_test.go:15: LOG: Y running N=2000000000
+--- BENCH: BenchmarkX/Y
+	x_test.go:15: LOG: Y running N=1
+	x_test.go:15: LOG: Y running N=100
+	x_test.go:15: LOG: Y running N=10000
+	x_test.go:15: LOG: Y running N=1000000
+	x_test.go:15: LOG: Y running N=100000000
+	x_test.go:15: LOG: Y running N=2000000000
+--- BENCH: BenchmarkX
+	x_test.go:13: LOG: X running N=1
+--- BENCH: BenchmarkXX
+	z_test.go:18: LOG: XX running N=1
+`
+
+	have := strings.Join(lines, "")
+	if have != want {
+		t.Errorf("reduced output:<<<\n%s>>> want:<<<\n%s>>>", have, want)
+	}
+}

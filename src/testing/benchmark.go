@@ -405,7 +405,7 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 	}
 	var bs []InternalBenchmark
 	for _, Benchmark := range benchmarks {
-		if _, matched := ctx.match.fullName(nil, Benchmark.Name); matched {
+		if _, matched, _ := ctx.match.fullName(nil, Benchmark.Name); matched {
 			bs = append(bs, Benchmark)
 			benchName := benchmarkName(Benchmark.Name, maxprocs)
 			if l := len(benchName) + ctx.extLen + 1; l > ctx.maxLen {
@@ -492,9 +492,9 @@ func (b *B) Run(name string, f func(b *B)) bool {
 	benchmarkLock.Unlock()
 	defer benchmarkLock.Lock()
 
-	benchName, ok := b.name, true
+	benchName, ok, partial := b.name, true, false
 	if b.context != nil {
-		benchName, ok = b.context.match.fullName(&b.common, name)
+		benchName, ok, partial = b.context.match.fullName(&b.common, name)
 	}
 	if !ok {
 		return true
@@ -512,6 +512,11 @@ func (b *B) Run(name string, f func(b *B)) bool {
 		benchFunc:  f,
 		benchTime:  b.benchTime,
 		context:    b.context,
+	}
+	if partial {
+		// Partial name match, like -bench=X/Y matching BenchmarkX.
+		// Only process sub-benchmarks, if any.
+		atomic.StoreInt32(&sub.hasSub, 1)
 	}
 	if sub.run1() {
 		sub.run()
