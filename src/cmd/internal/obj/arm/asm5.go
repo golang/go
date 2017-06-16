@@ -2249,10 +2249,13 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		if p.From.Offset&(^0xf) != 0 {
-			c.ctxt.Diag("bad shift in LDRSB")
+			c.ctxt.Diag("bad shift: %v", p)
 		}
 		o1 = c.olhrr(int(p.From.Offset), int(p.From.Reg), int(p.To.Reg), int(p.Scond))
 		o1 ^= 1<<5 | 1<<6
+		if p.Scond&C_UBIT != 0 {
+			o1 &^= 1 << 23
+		}
 
 	case 61: /* movw/b/bu R,R<<[IR](R) -> str indexed */
 		if p.To.Reg == 0 {
