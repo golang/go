@@ -15,6 +15,10 @@ Go Assembly for ARM64 Reference Manual
     // TODO
 
 3. Alphabetical list of SIMD instructions
+    VADD: Add (scalar)
+      VADD	<Vm>, <Vn>, <Vd>
+        Add corresponding low 64-bit elements in <Vm> and <Vn>,
+        place the result into low 64-bit element of <Vd>.
 
     VADD: Add (vector).
       VADD	<Vm>.T, <Vn>.<T>, <Vd>.<T>
@@ -114,6 +118,16 @@ Go Assembly for ARM64 Reference Manual
       VST1.P	[<Vt>.<T>, <Vt2>.<T> ...], (Rn)(Rm)     // register offset variant
         <T> Is an arrangement specifier and can have the following values:
         B8, B16, H4, H8, S2, S4, D1, D2
+
+    VSUB: Sub (scalar)
+      VSUB	<Vm>, <Vn>, <Vd>
+        Subtract low 64-bit element in <Vm> from the correponding element in <Vn>,
+        place the result into low 64-bit element of <Vd>.
+
+    VUADDLV: Unsigned sum Long across Vector.
+      VUADDLV	<Vn>.<T>, Vd
+        <T> Is an arrangement specifier and can have the following values:
+        8B, 16B, H4, H8, S4
 
 4. Alphabetical list of cryptographic extension instructions
 
