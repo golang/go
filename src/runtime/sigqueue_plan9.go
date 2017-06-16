@@ -110,6 +110,26 @@ func signal_recv() string {
 	}
 }
 
+// signalWaitUntilIdle waits until the signal delivery mechanism is idle.
+// This is used to ensure that we do not drop a signal notification due
+// to a race between disabling a signal and receiving a signal.
+// This assumes that signal delivery has already been disabled for
+// the signal(s) in question, and here we are just waiting to make sure
+// that all the signals have been delivered to the user channels
+// by the os/signal package.
+//go:linkname signalWaitUntilIdle os/signal.signalWaitUntilIdle
+func signalWaitUntilIdle() {
+	for {
+		lock(&sig.lock)
+		sleeping := sig.sleeping
+		unlock(&sig.lock)
+		if sleeping {
+			return
+		}
+		Gosched()
+	}
+}
+
 // Must only be called from a single goroutine at a time.
 //go:linkname signal_enable os/signal.signal_enable
 func signal_enable(s uint32) {
