@@ -2996,6 +2996,8 @@ func http2reqBodyIsNoBody(body io.ReadCloser) bool {
 	return body == NoBody
 }
 
+func http2go18httpNoBody() io.ReadCloser { return NoBody } // for tests only
+
 func http2configureServer19(s *Server, conf *http2Server) error {
 	s.RegisterOnShutdown(conf.state.startGracefulShutdown)
 	return nil
@@ -7196,7 +7198,7 @@ func http2checkConnHeaders(req *Request) error {
 // req.ContentLength, where 0 actually means zero (not unknown) and -1
 // means unknown.
 func http2actualContentLength(req *Request) int64 {
-	if req.Body == nil {
+	if req.Body == nil || http2reqBodyIsNoBody(req.Body) {
 		return 0
 	}
 	if req.ContentLength != 0 {
@@ -7227,8 +7229,8 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 	}
 
 	body := req.Body
-	hasBody := body != nil
 	contentLen := http2actualContentLength(req)
+	hasBody := contentLen != 0
 
 	// TODO(bradfitz): this is a copy of the logic in net/http. Unify somewhere?
 	var requestedGzip bool
