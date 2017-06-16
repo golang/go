@@ -89,7 +89,8 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
 
 // Exit this OS thread (like pthread_exit, which eventually
 // calls __bsdthread_terminate).
-TEXT runtime·exit1(SB),NOSPLIT,$0
+TEXT exit1<>(SB),NOSPLIT,$0
+	// Because of exitThread below, this must not use the stack.
 	// __bsdthread_terminate takes 4 word-size arguments.
 	// Set them all to 0. (None are an exit status.)
 	MOVW	$0, R0
@@ -101,6 +102,18 @@ TEXT runtime·exit1(SB),NOSPLIT,$0
 	MOVW	$1234, R0
 	MOVW	$1003, R1
 	MOVW	R0, (R1)	// fail hard
+
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+	MOVW	wait+0(FP), R0
+	// We're done using the stack.
+	MOVW	$0, R1
+storeloop:
+	LDREX	(R0), R4          // loads R4
+	STREX	R1, (R0), R1      // stores R2
+	CMP	$0, R1
+	BNE	storeloop
+	JMP	exit1<>(SB)
 
 TEXT runtime·raise(SB),NOSPLIT,$0
 	// Ideally we'd send the signal to the current thread,
@@ -376,7 +389,7 @@ TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 	EOR     R12, R12
 	WORD    $0xeee1ca10 // fmxr	fpscr, ip
 	BL      (R2) // fn
-	BL      runtime·exit1(SB)
+	BL      exit1<>(SB)
 	RET
 
 // int32 bsdthread_register(void)

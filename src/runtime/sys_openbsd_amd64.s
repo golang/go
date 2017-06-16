@@ -88,12 +88,16 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$-8
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+	MOVQ	wait+0(FP), AX
+	// We're done using the stack.
+	MOVL	$0, (AX)
 	MOVQ	$0, DI			// arg 1 - notdead
 	MOVL	$302, AX		// sys___threxit
 	SYSCALL
 	MOVL	$0xf1, 0xf1		// crash
-	RET
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVQ	name+0(FP), DI		// arg 1 pathname

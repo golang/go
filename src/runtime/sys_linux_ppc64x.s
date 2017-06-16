@@ -54,10 +54,16 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	SYSCALL	$SYS_exit_group
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	code+0(FP), R3
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
+	MOVD	wait+0(FP), R1
+	// We're done using the stack.
+	MOVW	$0, R2
+	SYNC
+	MOVW	R2, (R1)
+	MOVW	$0, R3	// exit code
 	SYSCALL	$SYS_exit
-	RET
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT|NOFRAME,$0-20
 	MOVD	name+0(FP), R3

@@ -181,6 +181,12 @@ func newosproc(mp *m, _ unsafe.Pointer) {
 	}
 }
 
+func exitThread(wait *uint32) {
+	// We should never reach exitThread on Solaris because we let
+	// libc clean up threads.
+	throw("exitThread")
+}
+
 var urandom_dev = []byte("/dev/urandom\x00")
 
 //go:nosplit

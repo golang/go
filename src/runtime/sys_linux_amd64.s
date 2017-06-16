@@ -52,11 +52,17 @@ TEXT runtime·exit(SB),NOSPLIT,$0-4
 	SYSCALL
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$0-4
-	MOVL	code+0(FP), DI
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+	MOVQ	wait+0(FP), AX
+	// We're done using the stack.
+	MOVL	$0, (AX)
+	MOVL	$0, DI	// exit code
 	MOVL	$SYS_exit, AX
 	SYSCALL
-	RET
+	// We may not even have a stack any more.
+	INT	$3
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$0-20
 	MOVQ	name+0(FP), DI

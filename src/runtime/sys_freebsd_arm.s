@@ -82,13 +82,22 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
 	MOVW.CS R8, (R8)
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$-8
-	MOVW code+0(FP), R0	// arg 1 exit status
-	MOVW $SYS_thr_exit, R7	
-	SWI $0
-	MOVW.CS $0, R8 // crash on syscall failure
-	MOVW.CS R8, (R8)
-	RET
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+	MOVW	wait+0(FP), R0
+	// We're done using the stack.
+	MOVW	$0, R1
+storeloop:
+	LDREX	(R0), R4          // loads R4
+	STREX	R1, (R0), R1      // stores R2
+	CMP	$0, R1
+	BNE	storeloop
+	MOVW	$0, R0		// arg 1 long *state
+	MOVW	$SYS_thr_exit, R7
+	SWI	$0
+	MOVW.CS	$0, R8 // crash on syscall failure
+	MOVW.CS	R8, (R8)
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVW name+0(FP), R0	// arg 1 name

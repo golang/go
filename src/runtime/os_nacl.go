@@ -168,6 +168,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	}
 }
 
+//go:noescape
+func exitThread(wait *uint32)
+
 //go:nosplit
 func semacreate(mp *m) {
 	if mp.waitsema != 0 {

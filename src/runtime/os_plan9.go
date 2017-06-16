@@ -421,6 +421,12 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	}
 }
 
+func exitThread(wait *uint32) {
+	// We should never reach exitThread on Plan 9 because we let
+	// the OS clean up threads.
+	throw("exitThread")
+}
+
 //go:nosplit
 func semacreate(mp *m) {
 }

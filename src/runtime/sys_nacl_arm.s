@@ -15,10 +15,12 @@ TEXT runtime·exit(SB),NOSPLIT,$0
 	NACL_SYSCALL(SYS_exit)
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$0
-	MOVW	code+0(FP), R0
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$4-4
+	MOVW wait+0(FP), R0
+	// SYS_thread_exit will clear *wait when the stack is free.
 	NACL_SYSCALL(SYS_thread_exit)
-	RET
+	JMP 0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVW	name+0(FP), R0

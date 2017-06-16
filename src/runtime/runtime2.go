@@ -169,9 +169,13 @@ func efaceOf(ep *interface{}) *eface {
 // a word that is completely ignored by the GC than to have one for which
 // only a few updates are ignored.
 //
-// Gs, Ms, and Ps are always reachable via true pointers in the
-// allgs, allm, and allp lists or (during allocation before they reach those lists)
+// Gs and Ps are always reachable via true pointers in the
+// allgs and allp lists or (during allocation before they reach those lists)
 // from stack variables.
+//
+// Ms are always reachable via true pointers either from allm or
+// freem. Unlike Gs and Ps we do free Ms, so it's important that
+// nothing ever hold an muintptr across a safe point.
 
 // A guintptr holds a goroutine pointer, but typed as a uintptr
 // to bypass write barriers. It is used in the Gobuf goroutine state
@@ -221,6 +225,15 @@ func (pp puintptr) ptr() *p { return (*p)(unsafe.Pointer(pp)) }
 //go:nosplit
 func (pp *puintptr) set(p *p) { *pp = puintptr(unsafe.Pointer(p)) }
 
+// muintptr is a *m that is not tracked by the garbage collector.
+//
+// Because we do free Ms, there are some additional constrains on
+// muintptrs:
+//
+// 1. Never hold an muintptr locally across a safe point.
+//
+// 2. Any muintptr in the heap must be owned by the M itself so it can
+//    ensure it is not in use when the last true *m is released.
 type muintptr uintptr
 
 //go:nosplit
@@ -413,7 +426,8 @@ type m struct {
 	inwb          bool // m is executing a write barrier
 	newSigstack   bool // minit on C thread called sigaltstack
 	printlock     int8
-	incgo         bool // m is executing a cgo call
+	incgo         bool   // m is executing a cgo call
+	freeWait      uint32 // if == 0, safe to free g0 and delete m (atomic)
 	fastrand      [2]uint32
 	needextram    bool
 	traceback     uint8
@@ -440,6 +454,7 @@ type m struct {
 	startingtrace bool
 	syscalltick   uint32
 	thread        uintptr // thread handle
+	freelink      *m      // on sched.freem
 
 	// these are here because they are too large to be on the stack
 	// of low-level NOSPLIT functions.
@@ -528,12 +543,16 @@ type schedt struct {
 
 	lock mutex
 
+	// When increasing nmidle, nmidlelocked, nmsys, or nmfreed, be
+	// sure to call checkdead().
+
 	midle        muintptr // idle m's waiting for work
 	nmidle       int32    // number of idle m's waiting for work
 	nmidlelocked int32    // number of locked m's waiting for work
 	mnext        int64    // number of m's that have been created and next M ID
 	maxmcount    int32    // maximum number of m's allowed (or die)
 	nmsys        int32    // number of system m's not counted for deadlock
+	nmfreed      int64    // cumulative number of freed m's
 
 	ngsys uint32 // number of system goroutines; updated atomically
 
@@ -559,6 +578,10 @@ type schedt struct {
 	// Central pool of available defer structs of different sizes.
 	deferlock mutex
 	deferpool [5]*_defer
+
+	// freem is the list of m's waiting to be freed when their
+	// m.exited is set. Linked through m.freelink.
+	freem *m
 
 	gcwaiting  uint32 // gc is waiting to run
 	stopwait   int32
