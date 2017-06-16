@@ -805,6 +805,13 @@ CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS gener
       Retrieving the time and sleeping now work correctly under Wine.
     </p>
 
+    <p>
+      If a <code>Time</code> value has a monotonic clock reading, its
+      string representation (as returned by <code>String</code>) now includes a
+      final field <code>"m=±value"</code>, where <code>value</code> is the
+      monotonic clock reading formatted as a decimal number of seconds.
+    </p>
+
     <p><!-- CL 44832 -->
       The included <code>tzdata</code> timezone database has been
       updated to version 2017b. As always, it is only used if the
