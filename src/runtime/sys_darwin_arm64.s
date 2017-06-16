@@ -90,6 +90,12 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
 // Exit this OS thread (like pthread_exit, which eventually
 // calls __bsdthread_terminate).
 TEXT runtime·exit1(SB),NOSPLIT,$0
+	// __bsdthread_terminate takes 4 word-size arguments.
+	// Set them all to 0. (None are an exit status.)
+	MOVW	$0, R0
+	MOVW	$0, R1
+	MOVW	$0, R2
+	MOVW	$0, R3
 	MOVW	$SYS_bsdthread_terminate, R16
 	SVC	$0x80
 	MOVD	$1234, R0
