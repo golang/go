@@ -21,6 +21,9 @@ const (
 	_UC_SIGMASK = 0x01
 	_UC_CPU     = 0x04
 
+	// From <sys/lwp.h>
+	_LWP_DETACHED = 0x00000040
+
 	_EAGAIN = 35
 )
 
@@ -182,7 +185,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 
 	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, funcPC(netbsdMstart))
 
-	ret := lwp_create(unsafe.Pointer(&uc), 0, unsafe.Pointer(&mp.procid))
+	ret := lwp_create(unsafe.Pointer(&uc), _LWP_DETACHED, unsafe.Pointer(&mp.procid))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if ret < 0 {
 		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")

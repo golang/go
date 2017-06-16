@@ -19,14 +19,21 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$8
-	MOVL	$0, 0(SP)
-	MOVL	$0, 4(SP)		// arg 1 - notdead
+GLOBL exitStack<>(SB),RODATA,$8
+DATA exitStack<>+0x00(SB)/4, $0
+DATA exitStack<>+0x04(SB)/4, $0
+
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+	MOVL	wait+0(FP), AX
+	// We're done using the stack.
+	MOVL	$0, (AX)
+	// sys__lwp_exit takes 1 argument, which it expects on the stack.
+	MOVL	$exitStack<>(SB), SP
 	MOVL	$302, AX		// sys___threxit
 	INT	$0x80
-	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
-	RET
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVL	$5, AX
@@ -308,7 +315,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$12
 	// Call fn.
 	CALL	SI
 
-	CALL	runtime·exit1(SB)
+	// fn should never return.
 	MOVL	$0x1234, 0x1005
 	RET
 

@@ -67,12 +67,24 @@ TEXT runtime·exit(SB),NOSPLIT,$0
 	INT $3	// not reached
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$0
+TEXT exit1<>(SB),NOSPLIT,$0
 	MOVL	$SYS_exit, AX
 	MOVL	code+0(FP), BX
 	INVOKE_SYSCALL
 	INT $3	// not reached
 	RET
+
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+	MOVL	wait+0(FP), AX
+	// We're done using the stack.
+	MOVL	$0, (AX)
+	MOVL	$1, AX	// exit (just this thread)
+	MOVL	$0, BX	// exit code
+	INT	$0x80	// no stack; must not use CALL
+	// We may not even have a stack any more.
+	INT	$3
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	$SYS_open, AX
@@ -432,7 +444,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 
 nog:
 	CALL	SI	// fn()
-	CALL	runtime·exit1(SB)
+	CALL	exit1<>(SB)
 	MOVL	$0x1234, 0x1005
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8

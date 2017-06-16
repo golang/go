@@ -114,13 +114,29 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVW	$1002, R1
 	MOVW	R0, (R1)	// fail hard
 
-TEXT runtime·exit1(SB),NOSPLIT,$-4
+TEXT exit1<>(SB),NOSPLIT,$-4
 	MOVW	code+0(FP), R0
 	MOVW	$SYS_exit, R7
 	SWI	$0
 	MOVW	$1234, R0
 	MOVW	$1003, R1
 	MOVW	R0, (R1)	// fail hard
+
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$-4-4
+	MOVW	wait+0(FP), R0
+	// We're done using the stack.
+	// Alas, there's no reliable way to make this write atomic
+	// without potentially using the stack. So it goes.
+	MOVW	$0, R1
+	MOVW	R1, (R0)
+	MOVW	$0, R0	// exit code
+	MOVW	$SYS_exit, R7
+	SWI	$0
+	MOVW	$1234, R0
+	MOVW	$1004, R1
+	MOVW	R0, (R1)	// fail hard
+	JMP	0(PC)
 
 TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	MOVW	$SYS_gettid, R7
@@ -317,7 +333,7 @@ nog:
 	SUB	$16, R13 // restore the stack pointer to avoid memory corruption
 	MOVW	$0, R0
 	MOVW	R0, 4(R13)
-	BL	runtime·exit1(SB)
+	BL	exit1<>(SB)
 
 	MOVW	$1234, R0
 	MOVW	$1005, R1

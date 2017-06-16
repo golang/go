@@ -136,7 +136,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
+TEXT runtime·tstart_plan9(SB),NOSPLIT,$8
 	MOVQ	newm+0(FP), CX
 	MOVQ	m_g0(CX), DX
 
@@ -160,8 +160,10 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
 	CALL	runtime·mstart(SB)
 
-	MOVQ	$0x1234, 0x1234		// not reached
-	RET
+	// Exit the thread.
+	MOVQ	$0, 0(SP)
+	CALL	runtime·exits(SB)
+	JMP	0(PC)
 
 // This is needed by asm_amd64.s
 TEXT runtime·settls(SB),NOSPLIT,$0

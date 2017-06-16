@@ -207,7 +207,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0-8
 	RET
 
 //func tstart_plan9(newm *m)
-TEXT runtime·tstart_plan9(SB),NOSPLIT,$0-4
+TEXT runtime·tstart_plan9(SB),NOSPLIT,$4-4
 	MOVW	newm+0(FP), R1
 	MOVW	m_g0(R1), g
 
@@ -226,9 +226,11 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$0-4
 
 	BL	runtime·mstart(SB)
 
-	MOVW	$0x1234, R0
-	MOVW	R0, 0(R0)		// not reached
-	RET
+	// Exit the thread.
+	MOVW	$0, R0
+	MOVW	R0, 4(R13)
+	CALL	runtime·exits(SB)
+	JMP	0(PC)
 
 //func sigtramp(ureg, note unsafe.Pointer)
 TEXT runtime·sigtramp(SB),NOSPLIT,$0-8
