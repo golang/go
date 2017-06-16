@@ -746,3 +746,20 @@ func TestLockOSThreadNesting(t *testing.T) {
 		}
 	}()
 }
+
+func TestLockOSThreadExit(t *testing.T) {
+	testLockOSThreadExit(t, "testprog")
+}
+
+func testLockOSThreadExit(t *testing.T, prog string) {
+	output := runTestProg(t, prog, "LockOSThreadMain", "GOMAXPROCS=1")
+	want := "OK\n"
+	if output != want {
+		t.Errorf("want %s, got %s\n", want, output)
+	}
+
+	output = runTestProg(t, prog, "LockOSThreadAlt")
+	if output != want {
+		t.Errorf("want %s, got %s\n", want, output)
+	}
+}
