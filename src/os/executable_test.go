@@ -20,10 +20,6 @@ func TestExecutable(t *testing.T) {
 	testenv.MustHaveExec(t) // will also execlude nacl, which doesn't support Executable anyway
 	ep, err := os.Executable()
 	if err != nil {
-		switch goos := runtime.GOOS; goos {
-		case "openbsd": // procfs is not mounted by default
-			t.Skipf("Executable failed on %s: %v, expected", goos, err)
-		}
 		t.Fatalf("Executable failed: %v", err)
 	}
 	// we want fn to be of the form "dir/prog"
@@ -32,6 +28,13 @@ func TestExecutable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("filepath.Rel: %v", err)
 	}
+
+	if runtime.GOOS == "openbsd" {
+		// The rest of the test doesn't work on OpenBSD,
+		// which relies on argv[0].
+		t.Skipf("skipping remainder of test on %s", runtime.GOOS)
+	}
+
 	cmd := &osexec.Cmd{}
 	// make child start with a relative program path
 	cmd.Dir = dir
