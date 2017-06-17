@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux netbsd openbsd dragonfly nacl
+// +build linux netbsd dragonfly nacl
 
 package os
 
@@ -23,8 +23,6 @@ var executablePath, executablePathErr = func() (string, error) {
 		procfn = "/proc/self/exe"
 	case "netbsd":
 		procfn = "/proc/curproc/exe"
-	case "openbsd":
-		procfn = "/proc/curproc/file"
 	case "dragonfly":
 		procfn = "/proc/curproc/file"
 	}
