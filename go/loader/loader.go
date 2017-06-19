@@ -1009,14 +1009,18 @@ func (imp *importer) addFiles(info *PackageInfo, files []*ast.File, cycleCheck b
 			time.Since(imp.start), info.Pkg.Path(), len(files))
 	}
 
-	if info.Pkg == types.Unsafe && len(files) > 0 {
-		panic(`addFiles("unsafe") not permitted`)
+	// Don't call checker.Files on Unsafe, even with zero files,
+	// because it would mutate the package, which is a global.
+	if info.Pkg == types.Unsafe {
+		if len(files) > 0 {
+			panic(`"unsafe" package contains unexpected files`)
+		}
+	} else {
+		// Ignore the returned (first) error since we
+		// already collect them all in the PackageInfo.
+		info.checker.Files(files)
+		info.Files = append(info.Files, files...)
 	}
-
-	// Ignore the returned (first) error since we
-	// already collect them all in the PackageInfo.
-	info.checker.Files(files)
-	info.Files = append(info.Files, files...)
 
 	if imp.conf.AfterTypeCheck != nil {
 		imp.conf.AfterTypeCheck(info, files)
