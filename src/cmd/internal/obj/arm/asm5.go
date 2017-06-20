@@ -1343,6 +1343,27 @@ func (c *ctxt5) oplook(p *obj.Prog) *Optab {
 		}
 	}
 
+	// check illegal base register
+	switch a1 {
+	case C_SHIFT:
+		if p.From.Reg == 0 { // no base register
+			break
+		}
+		fallthrough
+	case C_SOREG, C_LOREG, C_HOREG, C_FOREG, C_ROREG, C_HFOREG, C_SROREG:
+		if p.From.Reg < REG_R0 || REG_R15 < p.From.Reg {
+			c.ctxt.Diag("illegal base register: %v", p)
+		}
+	default:
+	}
+	switch a3 {
+	case C_SOREG, C_LOREG, C_HOREG, C_FOREG, C_ROREG, C_HFOREG, C_SROREG, C_SHIFT:
+		if p.To.Reg < REG_R0 || REG_R15 < p.To.Reg {
+			c.ctxt.Diag("illegal base register: %v", p)
+		}
+	default:
+	}
+
 	// If current instruction has a .S suffix (flags update),
 	// we must use the constant pool instead of splitting it.
 	if (a1 == C_RCON2A || a1 == C_RCON2S) && p.Scond&C_SBIT != 0 {
