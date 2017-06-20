@@ -92,7 +92,7 @@ var mapLit = map[int]int{ // 28
 }                           // 33
 var intLit = lineNumber() + // 34
 	lineNumber() + // 35
-			lineNumber() // 36
+	lineNumber() // 36
 func trythis() { // 37
 	recordLines(lineNumber(), // 38
 		lineNumber(), // 39
