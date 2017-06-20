@@ -90,6 +90,15 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	return pid, 0
 }
 
+// forkAndExecInChild1 implements the body of forkAndExecInChild up to
+// the parent's post-fork path. This is a separate function so we can
+// separate the child's and parent's stack frames if we're using
+// vfork.
+//
+// This is go:noinline because the point is to keep the stack frames
+// of this and forkAndExecInChild separate.
+//
+//go:noinline
 //go:norace
 func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (r1 uintptr, err1 Errno, p [2]int, locked bool) {
 	// vfork requires that the child not touch any of the parent's
