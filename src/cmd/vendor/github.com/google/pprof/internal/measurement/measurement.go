@@ -170,16 +170,12 @@ func memoryLabel(value int64, fromUnit, toUnit string) (v float64, u string, ok 
 
 	switch fromUnit {
 	case "byte", "b":
-	case "kb", "kbyte", "kilobyte":
+	case "kilobyte", "kb":
 		value *= 1024
-	case "mb", "mbyte", "megabyte":
+	case "megabyte", "mb":
 		value *= 1024 * 1024
-	case "gb", "gbyte", "gigabyte":
+	case "gigabyte", "gb":
 		value *= 1024 * 1024 * 1024
-	case "tb", "tbyte", "terabyte":
-		value *= 1024 * 1024 * 1024 * 1024
-	case "pb", "pbyte", "petabyte":
-		value *= 1024 * 1024 * 1024 * 1024 * 1024
 	default:
 		return 0, "", false
 	}
@@ -192,12 +188,8 @@ func memoryLabel(value int64, fromUnit, toUnit string) (v float64, u string, ok 
 			toUnit = "kb"
 		case value < 1024*1024*1024:
 			toUnit = "mb"
-		case value < 1024*1024*1024*1024:
-			toUnit = "gb"
-		case value < 1024*1024*1024*1024*1024:
-			toUnit = "tb"
 		default:
-			toUnit = "pb"
+			toUnit = "gb"
 		}
 	}
 
@@ -211,10 +203,6 @@ func memoryLabel(value int64, fromUnit, toUnit string) (v float64, u string, ok 
 		output, toUnit = float64(value)/(1024*1024), "MB"
 	case "gb", "gbyte", "gigabyte":
 		output, toUnit = float64(value)/(1024*1024*1024), "GB"
-	case "tb", "tbyte", "terabyte":
-		output, toUnit = float64(value)/(1024*1024*1024*1024), "TB"
-	case "pb", "pbyte", "petabyte":
-		output, toUnit = float64(value)/(1024*1024*1024*1024*1024), "PB"
 	}
 	return output, toUnit, true
 }

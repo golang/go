@@ -240,8 +240,6 @@ type Edge struct {
 	Inline bool
 }
 
-// WeightValue returns the weight value for this edge, normalizing if a
-// divisor is available.
 func (e *Edge) WeightValue() int64 {
 	if e.WeightDiv == 0 {
 		return e.Weight
@@ -802,11 +800,7 @@ func (g *Graph) selectTopNodes(maxNodes int, visualMode bool) Nodes {
 			// If generating a visual graph, count tags as nodes. Update
 			// maxNodes to account for them.
 			for i, n := range g.Nodes {
-				tags := countTags(n)
-				if tags > maxNodelets {
-					tags = maxNodelets
-				}
-				if count += tags + 1; count >= maxNodes {
+				if count += countTags(n) + 1; count >= maxNodes {
 					maxNodes = i + 1
 					break
 				}
@@ -833,6 +827,17 @@ func countTags(n *Node) int {
 			if e.Flat != 0 {
 				count++
 			}
+		}
+	}
+	return count
+}
+
+// countEdges counts the number of edges below the specified cutoff.
+func countEdges(el EdgeMap, cutoff int64) int {
+	count := 0
+	for _, e := range el {
+		if e.Weight > cutoff {
+			count++
 		}
 	}
 	return count

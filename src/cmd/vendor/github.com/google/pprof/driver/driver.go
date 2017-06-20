@@ -29,10 +29,10 @@ import (
 // manager. Then it generates a report formatted according to the
 // options selected through the flags package.
 func PProf(o *Options) error {
-	return internaldriver.PProf(o.internalOptions())
+	return internaldriver.PProf(o.InternalOptions())
 }
 
-func (o *Options) internalOptions() *plugin.Options {
+func (o *Options) InternalOptions() *plugin.Options {
 	var obj plugin.ObjTool
 	if o.Obj != nil {
 		obj = &internalObjTool{o.Obj}
@@ -273,9 +273,9 @@ type internalSymbolizer struct {
 }
 
 func (s *internalSymbolizer) Symbolize(mode string, srcs plugin.MappingSources, prof *profile.Profile) error {
-	isrcs := MappingSources{}
+	isrcs := plugin.MappingSources{}
 	for m, s := range srcs {
 		isrcs[m] = s
 	}
-	return s.Symbolizer.Symbolize(mode, isrcs, prof)
+	return s.Symbolize(mode, isrcs, prof)
 }

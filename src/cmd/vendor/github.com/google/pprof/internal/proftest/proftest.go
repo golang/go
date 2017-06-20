@@ -22,7 +22,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"regexp"
 	"testing"
 )
 
@@ -72,11 +71,10 @@ func EncodeJSON(x interface{}) []byte {
 }
 
 // TestUI implements the plugin.UI interface, triggering test failures
-// if more than Ignore errors not matching IgnoreRx are printed.
+// if more than Ignore errors are printed.
 type TestUI struct {
-	T        *testing.T
-	Ignore   int
-	IgnoreRx string
+	T      *testing.T
+	Ignore int
 }
 
 // ReadLine returns no input, as no input is expected during testing.
@@ -91,14 +89,6 @@ func (ui *TestUI) Print(args ...interface{}) {
 // PrintErr messages may trigger an error failure. A fixed number of
 // error messages are permitted when appropriate.
 func (ui *TestUI) PrintErr(args ...interface{}) {
-	if ui.IgnoreRx != "" {
-		if matched, err := regexp.MatchString(ui.IgnoreRx, fmt.Sprint(args)); matched || err != nil {
-			if err != nil {
-				ui.T.Errorf("failed to match against regex %q: %v", ui.IgnoreRx, err)
-			}
-			return
-		}
-	}
 	if ui.Ignore > 0 {
 		ui.Ignore--
 		return
