@@ -25,6 +25,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/google/pprof/internal/graph"
@@ -125,6 +126,9 @@ func (rpt *Report) newTrimmedGraph() (g *graph.Graph, origCount, droppedNodes, d
 	visualMode := o.OutputFormat == Dot
 	cumSort := o.CumSort
 
+	// The call_tree option is only honored when generating visual representations of the callgraph.
+	callTree := o.CallTree && (o.OutputFormat == Dot || o.OutputFormat == Callgrind)
+
 	// First step: Build complete graph to identify low frequency nodes, based on their cum weight.
 	g = rpt.newGraph(nil)
 	totalValue, _ := g.Nodes.Sum()
@@ -133,7 +137,7 @@ func (rpt *Report) newTrimmedGraph() (g *graph.Graph, origCount, droppedNodes, d
 
 	// Filter out nodes with cum value below nodeCutoff.
 	if nodeCutoff > 0 {
-		if o.CallTree {
+		if callTree {
 			if nodesKept := g.DiscardLowFrequencyNodePtrs(nodeCutoff); len(g.Nodes) != len(nodesKept) {
 				droppedNodes = len(g.Nodes) - len(nodesKept)
 				g.TrimTree(nodesKept)
@@ -154,7 +158,7 @@ func (rpt *Report) newTrimmedGraph() (g *graph.Graph, origCount, droppedNodes, d
 		// Remove low frequency tags and edges as they affect selection.
 		g.TrimLowFrequencyTags(nodeCutoff)
 		g.TrimLowFrequencyEdges(edgeCutoff)
-		if o.CallTree {
+		if callTree {
 			if nodesKept := g.SelectTopNodePtrs(nodeCount, visualMode); len(g.Nodes) != len(nodesKept) {
 				g.TrimTree(nodesKept)
 				g.SortNodes(cumSort, visualMode)
@@ -528,6 +532,7 @@ type assemblyInstruction struct {
 	line            int
 	flat, cum       int64
 	flatDiv, cumDiv int64
+	startsBlock     bool
 }
 
 func (a *assemblyInstruction) flatValue() int64 {
@@ -617,25 +622,23 @@ func printTags(w io.Writer, rpt *Report) error {
 	for _, s := range p.Sample {
 		for key, vals := range s.Label {
 			for _, val := range vals {
-				if valueMap, ok := tagMap[key]; ok {
-					valueMap[val] = valueMap[val] + s.Value[0]
-					continue
+				valueMap, ok := tagMap[key]
+				if !ok {
+					valueMap = make(map[string]int64)
+					tagMap[key] = valueMap
 				}
-				valueMap := make(map[string]int64)
-				valueMap[val] = s.Value[0]
-				tagMap[key] = valueMap
+				valueMap[val] += o.SampleValue(s.Value)
 			}
 		}
 		for key, vals := range s.NumLabel {
 			for _, nval := range vals {
 				val := formatTag(nval, key)
-				if valueMap, ok := tagMap[key]; ok {
-					valueMap[val] = valueMap[val] + s.Value[0]
-					continue
+				valueMap, ok := tagMap[key]
+				if !ok {
+					valueMap = make(map[string]int64)
+					tagMap[key] = valueMap
 				}
-				valueMap := make(map[string]int64)
-				valueMap[val] = s.Value[0]
-				tagMap[key] = valueMap
+				valueMap[val] += o.SampleValue(s.Value)
 			}
 		}
 	}
@@ -644,6 +647,7 @@ func printTags(w io.Writer, rpt *Report) error {
 	for key := range tagMap {
 		tagKeys = append(tagKeys, &graph.Tag{Name: key})
 	}
+	tabw := tabwriter.NewWriter(w, 0, 0, 1, ' ', tabwriter.AlignRight)
 	for _, tagKey := range graph.SortTags(tagKeys, true) {
 		var total int64
 		key := tagKey.Name
@@ -653,18 +657,19 @@ func printTags(w io.Writer, rpt *Report) error {
 			tags = append(tags, &graph.Tag{Name: t, Flat: c})
 		}
 
-		fmt.Fprintf(w, "%s: Total %d\n", key, total)
+		f, u := measurement.Scale(total, o.SampleUnit, o.OutputUnit)
+		fmt.Fprintf(tabw, "%s:\t Total %.1f%s\n", key, f, u)
 		for _, t := range graph.SortTags(tags, true) {
+			f, u := measurement.Scale(t.FlatValue(), o.SampleUnit, o.OutputUnit)
 			if total > 0 {
-				fmt.Fprintf(w, "  %8d (%s): %s\n", t.FlatValue(),
-					percentage(t.FlatValue(), total), t.Name)
+				fmt.Fprintf(tabw, " \t%.1f%s (%s):\t %s\n", f, u, percentage(t.FlatValue(), total), t.Name)
 			} else {
-				fmt.Fprintf(w, "  %8d: %s\n", t.FlatValue(), t.Name)
+				fmt.Fprintf(tabw, " \t%.1f%s:\t %s\n", f, u, t.Name)
 			}
 		}
-		fmt.Fprintln(w)
+		fmt.Fprintln(tabw)
 	}
-	return nil
+	return tabw.Flush()
 }
 
 // printComments prints all freeform comments in the profile.
@@ -1055,9 +1060,7 @@ func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedE
 
 	var label []string
 	if len(rpt.options.ProfileLabels) > 0 {
-		for _, l := range rpt.options.ProfileLabels {
-			label = append(label, l)
-		}
+		label = append(label, rpt.options.ProfileLabels...)
 	} else if fullHeaders || !rpt.options.CompactLabels {
 		label = ProfileLabels(rpt)
 	}

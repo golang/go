@@ -230,40 +230,40 @@ var testProfile = &Profile{
 			Location: []*Location{cpuL[0]},
 			Value:    []int64{1000, 1000},
 			Label: map[string][]string{
-				"key1": []string{"tag1"},
-				"key2": []string{"tag1"},
+				"key1": {"tag1"},
+				"key2": {"tag1"},
 			},
 		},
 		{
 			Location: []*Location{cpuL[1], cpuL[0]},
 			Value:    []int64{100, 100},
 			Label: map[string][]string{
-				"key1": []string{"tag2"},
-				"key3": []string{"tag2"},
+				"key1": {"tag2"},
+				"key3": {"tag2"},
 			},
 		},
 		{
 			Location: []*Location{cpuL[2], cpuL[0]},
 			Value:    []int64{10, 10},
 			Label: map[string][]string{
-				"key1": []string{"tag3"},
-				"key2": []string{"tag2"},
+				"key1": {"tag3"},
+				"key2": {"tag2"},
 			},
 		},
 		{
 			Location: []*Location{cpuL[3], cpuL[0]},
 			Value:    []int64{10000, 10000},
 			Label: map[string][]string{
-				"key1": []string{"tag4"},
-				"key2": []string{"tag1"},
+				"key1": {"tag4"},
+				"key2": {"tag1"},
 			},
 		},
 		{
 			Location: []*Location{cpuL[4], cpuL[0]},
 			Value:    []int64{1, 1},
 			Label: map[string][]string{
-				"key1": []string{"tag4"},
-				"key2": []string{"tag1"},
+				"key1": {"tag4"},
+				"key2": {"tag1"},
 			},
 		},
 	},
@@ -273,10 +273,10 @@ var testProfile = &Profile{
 }
 
 var aggTests = map[string]aggTest{
-	"precise":         aggTest{true, true, true, true, 5},
-	"fileline":        aggTest{false, true, true, true, 4},
-	"inline_function": aggTest{false, true, false, true, 3},
-	"function":        aggTest{false, true, false, false, 2},
+	"precise":         {true, true, true, true, 5},
+	"fileline":        {false, true, true, true, 4},
+	"inline_function": {false, true, false, true, 3},
+	"function":        {false, true, false, false, 2},
 }
 
 type aggTest struct {
