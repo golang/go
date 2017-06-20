@@ -1128,6 +1128,8 @@
 	(MOVLloadidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
 (MOVLload [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVLloadidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
+(MOVLload [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVLloadidx8 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
 (MOVQload [off1] {sym1} (LEAQ1 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVQloadidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
 (MOVQload [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
@@ -1151,6 +1153,8 @@
 	(MOVLstoreidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
 (MOVLstore [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVLstoreidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
+(MOVLstore [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVLstoreidx8 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
 (MOVQstore [off1] {sym1} (LEAQ1 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVQstoreidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
 (MOVQstore [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
@@ -1200,11 +1204,13 @@
 // combine SHLQ into indexed loads and stores
 (MOVWloadidx1 [c] {sym} ptr (SHLQconst [1] idx) mem) -> (MOVWloadidx2 [c] {sym} ptr idx mem)
 (MOVLloadidx1 [c] {sym} ptr (SHLQconst [2] idx) mem) -> (MOVLloadidx4 [c] {sym} ptr idx mem)
+(MOVLloadidx1 [c] {sym} ptr (SHLQconst [3] idx) mem) -> (MOVLloadidx8 [c] {sym} ptr idx mem)
 (MOVQloadidx1 [c] {sym} ptr (SHLQconst [3] idx) mem) -> (MOVQloadidx8 [c] {sym} ptr idx mem)
 (MOVSSloadidx1 [c] {sym} ptr (SHLQconst [2] idx) mem) -> (MOVSSloadidx4 [c] {sym} ptr idx mem)
 (MOVSDloadidx1 [c] {sym} ptr (SHLQconst [3] idx) mem) -> (MOVSDloadidx8 [c] {sym} ptr idx mem)
 (MOVWstoreidx1 [c] {sym} ptr (SHLQconst [1] idx) val mem) -> (MOVWstoreidx2 [c] {sym} ptr idx val mem)
 (MOVLstoreidx1 [c] {sym} ptr (SHLQconst [2] idx) val mem) -> (MOVLstoreidx4 [c] {sym} ptr idx val mem)
+(MOVLstoreidx1 [c] {sym} ptr (SHLQconst [3] idx) val mem) -> (MOVLstoreidx8 [c] {sym} ptr idx val mem)
 (MOVQstoreidx1 [c] {sym} ptr (SHLQconst [3] idx) val mem) -> (MOVQstoreidx8 [c] {sym} ptr idx val mem)
 (MOVSSstoreidx1 [c] {sym} ptr (SHLQconst [2] idx) val mem) -> (MOVSSstoreidx4 [c] {sym} ptr idx val mem)
 (MOVSDstoreidx1 [c] {sym} ptr (SHLQconst [3] idx) val mem) -> (MOVSDstoreidx8 [c] {sym} ptr idx val mem)
@@ -1218,6 +1224,7 @@
 (MOVWloadidx2 [c] {sym} (ADDQconst [d] ptr) idx mem) && is32Bit(c+d) -> (MOVWloadidx2 [c+d] {sym} ptr idx mem)
 (MOVLloadidx1 [c] {sym} (ADDQconst [d] ptr) idx mem) && is32Bit(c+d) -> (MOVLloadidx1 [c+d] {sym} ptr idx mem)
 (MOVLloadidx4 [c] {sym} (ADDQconst [d] ptr) idx mem) && is32Bit(c+d) -> (MOVLloadidx4 [c+d] {sym} ptr idx mem)
+(MOVLloadidx8 [c] {sym} (ADDQconst [d] ptr) idx mem) && is32Bit(c+d) -> (MOVLloadidx8 [c+d] {sym} ptr idx mem)
 (MOVQloadidx1 [c] {sym} (ADDQconst [d] ptr) idx mem) && is32Bit(c+d) -> (MOVQloadidx1 [c+d] {sym} ptr idx mem)
 (MOVQloadidx8 [c] {sym} (ADDQconst [d] ptr) idx mem) && is32Bit(c+d) -> (MOVQloadidx8 [c+d] {sym} ptr idx mem)
 (MOVSSloadidx1 [c] {sym} (ADDQconst [d] ptr) idx mem) && is32Bit(c+d) -> (MOVSSloadidx1 [c+d] {sym} ptr idx mem)
@@ -1230,6 +1237,7 @@
 (MOVWstoreidx2 [c] {sym} (ADDQconst [d] ptr) idx val mem) && is32Bit(c+d) -> (MOVWstoreidx2 [c+d] {sym} ptr idx val mem)
 (MOVLstoreidx1 [c] {sym} (ADDQconst [d] ptr) idx val mem) && is32Bit(c+d) -> (MOVLstoreidx1 [c+d] {sym} ptr idx val mem)
 (MOVLstoreidx4 [c] {sym} (ADDQconst [d] ptr) idx val mem) && is32Bit(c+d) -> (MOVLstoreidx4 [c+d] {sym} ptr idx val mem)
+(MOVLstoreidx8 [c] {sym} (ADDQconst [d] ptr) idx val mem) && is32Bit(c+d) -> (MOVLstoreidx8 [c+d] {sym} ptr idx val mem)
 (MOVQstoreidx1 [c] {sym} (ADDQconst [d] ptr) idx val mem) && is32Bit(c+d) -> (MOVQstoreidx1 [c+d] {sym} ptr idx val mem)
 (MOVQstoreidx8 [c] {sym} (ADDQconst [d] ptr) idx val mem) && is32Bit(c+d) -> (MOVQstoreidx8 [c+d] {sym} ptr idx val mem)
 (MOVSSstoreidx1 [c] {sym} (ADDQconst [d] ptr) idx val mem) && is32Bit(c+d) -> (MOVSSstoreidx1 [c+d] {sym} ptr idx val mem)
@@ -1242,6 +1250,7 @@
 (MOVWloadidx2 [c] {sym} ptr (ADDQconst [d] idx) mem)  && is32Bit(c+2*d) -> (MOVWloadidx2 [c+2*d] {sym} ptr idx mem)
 (MOVLloadidx1 [c] {sym} ptr (ADDQconst [d] idx) mem)  && is32Bit(c+d)   -> (MOVLloadidx1 [c+d] {sym} ptr idx mem)
 (MOVLloadidx4 [c] {sym} ptr (ADDQconst [d] idx) mem)  && is32Bit(c+4*d) -> (MOVLloadidx4 [c+4*d] {sym} ptr idx mem)
+(MOVLloadidx8 [c] {sym} ptr (ADDQconst [d] idx) mem)  && is32Bit(c+8*d) -> (MOVLloadidx8 [c+8*d] {sym} ptr idx mem)
 (MOVQloadidx1 [c] {sym} ptr (ADDQconst [d] idx) mem)  && is32Bit(c+d)   -> (MOVQloadidx1 [c+d] {sym} ptr idx mem)
 (MOVQloadidx8 [c] {sym} ptr (ADDQconst [d] idx) mem)  && is32Bit(c+8*d) -> (MOVQloadidx8 [c+8*d] {sym} ptr idx mem)
 (MOVSSloadidx1 [c] {sym} ptr (ADDQconst [d] idx) mem) && is32Bit(c+d)   -> (MOVSSloadidx1 [c+d] {sym} ptr idx mem)
@@ -1254,6 +1263,7 @@
 (MOVWstoreidx2 [c] {sym} ptr (ADDQconst [d] idx) val mem)  && is32Bit(c+2*d) -> (MOVWstoreidx2 [c+2*d] {sym} ptr idx val mem)
 (MOVLstoreidx1 [c] {sym} ptr (ADDQconst [d] idx) val mem)  && is32Bit(c+d)   -> (MOVLstoreidx1 [c+d] {sym} ptr idx val mem)
 (MOVLstoreidx4 [c] {sym} ptr (ADDQconst [d] idx) val mem)  && is32Bit(c+4*d) -> (MOVLstoreidx4 [c+4*d] {sym} ptr idx val mem)
+(MOVLstoreidx8 [c] {sym} ptr (ADDQconst [d] idx) val mem)  && is32Bit(c+8*d) -> (MOVLstoreidx8 [c+8*d] {sym} ptr idx val mem)
 (MOVQstoreidx1 [c] {sym} ptr (ADDQconst [d] idx) val mem)  && is32Bit(c+d)   -> (MOVQstoreidx1 [c+d] {sym} ptr idx val mem)
 (MOVQstoreidx8 [c] {sym} ptr (ADDQconst [d] idx) val mem)  && is32Bit(c+8*d) -> (MOVQstoreidx8 [c+8*d] {sym} ptr idx val mem)
 (MOVSSstoreidx1 [c] {sym} ptr (ADDQconst [d] idx) val mem) && is32Bit(c+d)   -> (MOVSSstoreidx1 [c+d] {sym} ptr idx val mem)
