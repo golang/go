@@ -212,7 +212,7 @@ func parseJavaSamples(pType string, b []byte, p *Profile) ([]byte, map[uint64]*L
 			switch pType {
 			case "heap":
 				const javaHeapzSamplingRate = 524288 // 512K
-				s.NumLabel = map[string][]int64{"bytes": []int64{s.Value[1] / s.Value[0]}}
+				s.NumLabel = map[string][]int64{"bytes": {s.Value[1] / s.Value[0]}}
 				s.Value[0], s.Value[1] = scaleHeapSample(s.Value[0], s.Value[1], javaHeapzSamplingRate)
 			case "contention":
 				if period := p.Period; period != 0 {

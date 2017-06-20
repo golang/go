@@ -18,6 +18,7 @@
 package symbolizer
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -90,7 +91,26 @@ func (s *Symbolizer) Symbolize(mode string, sources plugin.MappingSources, p *pr
 
 // postURL issues a POST to a URL over HTTP.
 func postURL(source, post string) ([]byte, error) {
-	resp, err := http.Post(source, "application/octet-stream", strings.NewReader(post))
+	url, err := url.Parse(source)
+	if err != nil {
+		return nil, err
+	}
+
+	var tlsConfig *tls.Config
+	if url.Scheme == "https+insecure" {
+		tlsConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+		url.Scheme = "https"
+		source = url.String()
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+		},
+	}
+	resp, err := client.Post(source, "application/octet-stream", strings.NewReader(post))
 	if err != nil {
 		return nil, fmt.Errorf("http post %s: %v", source, err)
 	}

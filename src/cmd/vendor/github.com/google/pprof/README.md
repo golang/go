@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.org/google/pprof.svg?branch=master)](https://travis-ci.org/google/pprof)
+[![codecov](https://codecov.io/gh/google/pprof/graph/badge.svg)](https://codecov.io/gh/google/pprof)
+
 # Introduction
 
 pprof is a tool for visualization and analysis of profiling data.
@@ -24,7 +27,7 @@ them through the use of the native binutils tools (addr2line and nm).
 
 Prerequisites:
 
-- Go development kit. Known to work with Go 1.5.
+- Go development kit. Requires Go 1.7 or newer.
   Follow [these instructions](http://golang.org/doc/code.html) to install the 
   go tool and set up GOPATH.
 
@@ -34,6 +37,10 @@ Prerequisites:
 To build and install it, use the `go get` tool.
 
     go get github.com/google/pprof
+
+Remember to set GOPATH to the directory where you want pprof to be
+installed.  The binary will be in $GOPATH/bin and the sources under
+$GOPATH/src/github.com/google/pprof.
 
 # Basic usage
 

@@ -15,8 +15,15 @@
 package driver
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"net/url"
 	"os"
@@ -24,11 +31,14 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/pprof/internal/binutils"
 	"github.com/google/pprof/internal/plugin"
 	"github.com/google/pprof/internal/proftest"
+	"github.com/google/pprof/internal/symbolizer"
 	"github.com/google/pprof/profile"
 )
 
@@ -165,6 +175,8 @@ func TestFetch(t *testing.T) {
 	const path = "testdata/"
 
 	// Intercept http.Get calls from HTTPFetcher.
+	savedHTTPGet := httpGet
+	defer func() { httpGet = savedHTTPGet }()
 	httpGet = stubHTTPGet
 
 	type testcase struct {
@@ -226,4 +238,109 @@ func stubHTTPGet(source string, _ time.Duration) (*http.Response, error) {
 
 	c := &http.Client{Transport: t}
 	return c.Get("file:///" + file)
+}
+
+func TestHttpsInsecure(t *testing.T) {
+
+	if runtime.GOOS == "nacl" {
+		t.Skip("test assumes tcp available")
+	}
+
+	baseVars := pprofVariables
+	pprofVariables = baseVars.makeCopy()
+	defer func() { pprofVariables = baseVars }()
+
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{selfSignedCert(t)}}
+
+	l, err := tls.Listen("tcp", "localhost:0", tlsConfig)
+	if err != nil {
+		t.Fatalf("net.Listen: got error %v, want no error", err)
+	}
+
+	donec := make(chan error, 1)
+	go func(donec chan<- error) {
+		donec <- http.Serve(l, nil)
+	}(donec)
+	defer func() {
+		if got, want := <-donec, "use of closed"; !strings.Contains(got.Error(), want) {
+			t.Fatalf("Serve got error %v, want %q", got, want)
+		}
+	}()
+	defer l.Close()
+
+	go func() {
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			// Simulate a hotspot function.
+		}
+	}()
+
+	outputTempFile, err := ioutil.TempFile("", "profile_output")
+	if err != nil {
+		t.Fatalf("Failed to create tempfile: %v", err)
+	}
+	defer os.Remove(outputTempFile.Name())
+	defer outputTempFile.Close()
+
+	address := "https+insecure://" + l.Addr().String() + "/debug/pprof/profile"
+	s := &source{
+		Sources:   []string{address},
+		Seconds:   10,
+		Timeout:   10,
+		Symbolize: "remote",
+	}
+	o := &plugin.Options{
+		Obj: &binutils.Binutils{},
+		UI:  &proftest.TestUI{T: t, IgnoreRx: "Saved profile in"},
+	}
+	o.Sym = &symbolizer.Symbolizer{Obj: o.Obj, UI: o.UI}
+	p, err := fetchProfiles(s, o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.SampleType) == 0 {
+		t.Fatalf("grabProfile(%s) got empty profile: len(p.SampleType)==0", address)
+	}
+	if err := checkProfileHasFunction(p, "TestHttpsInsecure"); err != nil {
+		t.Fatalf("grabProfile(%s) %v", address, err)
+	}
+}
+
+func checkProfileHasFunction(p *profile.Profile, fname string) error {
+	for _, f := range p.Function {
+		if strings.Contains(f.Name, fname) {
+			return nil
+		}
+	}
+	return fmt.Errorf("got %s, want function %q", p.String(), fname)
+}
+
+func selfSignedCert(t *testing.T) tls.Certificate {
+	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate private key: %v", err)
+	}
+	b, err := x509.MarshalECPrivateKey(privKey)
+	if err != nil {
+		t.Fatalf("failed to marshal private key: %v", err)
+	}
+	bk := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: b})
+
+	tmpl := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().Add(10 * time.Minute),
+	}
+
+	b, err = x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, privKey.Public(), privKey)
+	if err != nil {
+		t.Fatalf("failed to create cert: %v", err)
+	}
+	bc := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: b})
+
+	cert, err := tls.X509KeyPair(bc, bk)
+	if err != nil {
+		t.Fatalf("failed to create TLS key pair: %v", err)
+	}
+	return cert
 }

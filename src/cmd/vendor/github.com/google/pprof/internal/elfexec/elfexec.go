@@ -131,7 +131,7 @@ func GetBuildID(binary io.ReaderAt) ([]byte, error) {
 				if buildID == nil {
 					buildID = note.Desc
 				} else {
-					return nil, fmt.Errorf("multiple build ids found, don't know which to use!")
+					return nil, fmt.Errorf("multiple build ids found, don't know which to use")
 				}
 			}
 		}
@@ -240,17 +240,22 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
 		}
 		return start, nil
 	case elf.ET_DYN:
-		if offset != 0 {
-			if loadSegment == nil || loadSegment.Vaddr == 0 {
-				return start - offset, nil
-			}
-			return 0, fmt.Errorf("Don't know how to handle mapping. Offset=%x, vaddr=%x",
-				offset, loadSegment.Vaddr)
-		}
+		// The process mapping information, start = start of virtual address range,
+		// and offset = offset in the executable file of the start address, tells us
+		// that a runtime virtual address x maps to a file offset
+		// fx = x - start + offset.
 		if loadSegment == nil {
-			return start, nil
+			return start - offset, nil
 		}
-		return start - loadSegment.Vaddr, nil
+		// The program header, if not nil, indicates the offset in the file where
+		// the executable segment is located (loadSegment.Off), and the base virtual
+		// address where the first byte of the segment is loaded
+		// (loadSegment.Vaddr). A file offset fx maps to a virtual (symbol) address
+		// sx = fx - loadSegment.Off + loadSegment.Vaddr.
+		//
+		// Thus, a runtime virtual address x maps to a symbol address
+		// sx = x - start + offset - loadSegment.Off + loadSegment.Vaddr.
+		return start - offset + loadSegment.Off - loadSegment.Vaddr, nil
 	}
 	return 0, fmt.Errorf("Don't know how to handle FileHeader.Type %v", fh.Type)
 }
