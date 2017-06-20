@@ -16,11 +16,8 @@ package driver
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"io/ioutil"
-	"net"
-	_ "net/http/pprof"
 	"os"
 	"regexp"
 	"runtime"
@@ -35,8 +32,6 @@ import (
 	"github.com/google/pprof/profile"
 )
 
-var updateFlag = flag.Bool("update", false, "Update the golden files")
-
 func TestParse(t *testing.T) {
 	// Override weblist command to collect output in buffer
 	pprofCommands["weblist"].postProcess = nil
@@ -48,12 +43,13 @@ func TestParse(t *testing.T) {
 	savePath := os.Getenv("PPROF_BINARY_PATH")
 	os.Setenv("PPROF_BINARY_PATH", "/path/to")
 	defer os.Setenv("PPROF_BINARY_PATH", savePath)
+
 	testcase := []struct {
 		flags, source string
 	}{
 		{"text,functions,flat", "cpu"},
 		{"tree,addresses,flat,nodecount=4", "cpusmall"},
-		{"text,functions,flat,nodecount=5,call_tree", "unknown"},
+		{"text,functions,flat", "unknown"},
 		{"text,alloc_objects,flat", "heap_alloc"},
 		{"text,files,flat", "heap"},
 		{"text,inuse_objects,flat", "heap"},
@@ -63,10 +59,8 @@ func TestParse(t *testing.T) {
 		{"tree,lines,cum,focus=[24]00", "heap"},
 		{"tree,relative_percentages,cum,focus=[24]00", "heap"},
 		{"callgrind", "cpu"},
-		{"callgrind,call_tree", "cpu"},
 		{"callgrind", "heap"},
 		{"dot,functions,flat", "cpu"},
-		{"dot,functions,flat,call_tree", "cpu"},
 		{"dot,lines,flat,focus=[12]00", "heap"},
 		{"dot,addresses,flat,ignore=[X3]002,focus=[X1]000", "contention"},
 		{"dot,files,cum", "contention"},
@@ -105,7 +99,6 @@ func TestParse(t *testing.T) {
 		if err != nil {
 			t.Errorf("cannot create tempfile: %v", err)
 		}
-		defer os.Remove(protoTempFile.Name())
 		defer protoTempFile.Close()
 		f.strings["output"] = protoTempFile.Name()
 
@@ -131,7 +124,6 @@ func TestParse(t *testing.T) {
 		if err != nil {
 			t.Errorf("cannot create tempfile: %v", err)
 		}
-		defer os.Remove(outputTempFile.Name())
 		defer outputTempFile.Close()
 		f.strings["output"] = outputTempFile.Name()
 		f.args = []string{protoTempFile.Name()}
@@ -188,12 +180,6 @@ func TestParse(t *testing.T) {
 				t.Fatalf("diff %s %v", solution, err)
 			}
 			t.Errorf("%s\n%s\n", solution, d)
-			if *updateFlag {
-				err := ioutil.WriteFile(solution, b, 0644)
-				if err != nil {
-					t.Errorf("failed to update the solution file %q: %v", solution, err)
-				}
-			}
 		}
 	}
 }
@@ -228,19 +214,14 @@ func addFlags(f *testFlags, flags []string) {
 	}
 }
 
-func testSourceURL(port int) string {
-	return fmt.Sprintf("http://%s/", net.JoinHostPort(testSourceAddress, strconv.Itoa(port)))
-}
-
 // solutionFilename returns the name of the solution file for the test
 func solutionFilename(source string, f *testFlags) string {
-	name := []string{"pprof", strings.TrimPrefix(source, testSourceURL(8000))}
+	name := []string{"pprof", strings.TrimPrefix(source, "http://host:8000/")}
 	name = addString(name, f, []string{"flat", "cum"})
 	name = addString(name, f, []string{"functions", "files", "lines", "addresses"})
 	name = addString(name, f, []string{"inuse_space", "inuse_objects", "alloc_space", "alloc_objects"})
 	name = addString(name, f, []string{"relative_percentages"})
 	name = addString(name, f, []string{"seconds"})
-	name = addString(name, f, []string{"call_tree"})
 	name = addString(name, f, []string{"text", "tree", "callgrind", "dot", "svg", "tags", "dot", "traces", "disasm", "peek", "weblist", "topproto", "comments"})
 	if f.strings["focus"] != "" || f.strings["tagfocus"] != "" {
 		name = append(name, "focus")
@@ -364,6 +345,9 @@ func baseFlags() testFlags {
 	}
 }
 
+type testProfile struct {
+}
+
 const testStart = 0x1000
 const testOffset = 0x5000
 
@@ -371,6 +355,7 @@ type testFetcher struct{}
 
 func (testFetcher) Fetch(s string, d, t time.Duration) (*profile.Profile, string, error) {
 	var p *profile.Profile
+	s = strings.TrimPrefix(s, "http://host:8000/")
 	switch s {
 	case "cpu", "unknown":
 		p = cpuProfile()
@@ -388,10 +373,17 @@ func (testFetcher) Fetch(s string, d, t time.Duration) (*profile.Profile, string
 		p = contentionProfile()
 	case "symbolz":
 		p = symzProfile()
+	case "http://host2/symbolz":
+		p = symzProfile()
+		p.Mapping[0].Start += testOffset
+		p.Mapping[0].Limit += testOffset
+		for i := range p.Location {
+			p.Location[i].Address += testOffset
+		}
 	default:
 		return nil, "", fmt.Errorf("unexpected source: %s", s)
 	}
-	return p, testSourceURL(8000) + s, nil
+	return p, s, nil
 }
 
 type testSymbolizer struct{}
@@ -414,19 +406,7 @@ func (testSymbolizeDemangler) Symbolize(_ string, _ plugin.MappingSources, p *pr
 func testFetchSymbols(source, post string) ([]byte, error) {
 	var buf bytes.Buffer
 
-	switch source {
-	case testSourceURL(8000) + "symbolz":
-		for _, address := range strings.Split(post, "+") {
-			a, _ := strconv.ParseInt(address, 0, 64)
-			fmt.Fprintf(&buf, "%v\t", address)
-			if a-testStart > testOffset {
-				fmt.Fprintf(&buf, "wrong_source_%v_", address)
-				continue
-			}
-			fmt.Fprintf(&buf, "%#x\n", a-testStart)
-		}
-		return buf.Bytes(), nil
-	case testSourceURL(8001) + "symbolz":
+	if source == "http://host2/symbolz" {
 		for _, address := range strings.Split(post, "+") {
 			a, _ := strconv.ParseInt(address, 0, 64)
 			fmt.Fprintf(&buf, "%v\t", address)
@@ -437,9 +417,17 @@ func testFetchSymbols(source, post string) ([]byte, error) {
 			fmt.Fprintf(&buf, "%#x\n", a-testStart-testOffset)
 		}
 		return buf.Bytes(), nil
-	default:
-		return nil, fmt.Errorf("unexpected source: %s", source)
 	}
+	for _, address := range strings.Split(post, "+") {
+		a, _ := strconv.ParseInt(address, 0, 64)
+		fmt.Fprintf(&buf, "%v\t", address)
+		if a-testStart > testOffset {
+			fmt.Fprintf(&buf, "wrong_source_%v_", address)
+			continue
+		}
+		fmt.Fprintf(&buf, "%#x\n", a-testStart)
+	}
+	return buf.Bytes(), nil
 }
 
 type testSymbolzSymbolizer struct{}
@@ -555,32 +543,32 @@ func cpuProfile() *profile.Profile {
 				Location: []*profile.Location{cpuL[0], cpuL[1], cpuL[2]},
 				Value:    []int64{1000, 1000},
 				Label: map[string][]string{
-					"key1": {"tag1"},
-					"key2": {"tag1"},
+					"key1": []string{"tag1"},
+					"key2": []string{"tag1"},
 				},
 			},
 			{
 				Location: []*profile.Location{cpuL[0], cpuL[3]},
 				Value:    []int64{100, 100},
 				Label: map[string][]string{
-					"key1": {"tag2"},
-					"key3": {"tag2"},
+					"key1": []string{"tag2"},
+					"key3": []string{"tag2"},
 				},
 			},
 			{
 				Location: []*profile.Location{cpuL[1], cpuL[4]},
 				Value:    []int64{10, 10},
 				Label: map[string][]string{
-					"key1": {"tag3"},
-					"key2": {"tag2"},
+					"key1": []string{"tag3"},
+					"key2": []string{"tag2"},
 				},
 			},
 			{
 				Location: []*profile.Location{cpuL[2]},
 				Value:    []int64{10, 10},
 				Label: map[string][]string{
-					"key1": {"tag4"},
-					"key2": {"tag1"},
+					"key1": []string{"tag4"},
+					"key2": []string{"tag1"},
 				},
 			},
 		},
@@ -757,28 +745,28 @@ func heapProfile() *profile.Profile {
 				Location: []*profile.Location{heapL[0], heapL[1], heapL[2]},
 				Value:    []int64{10, 1024000},
 				NumLabel: map[string][]int64{
-					"bytes": {102400},
+					"bytes": []int64{102400},
 				},
 			},
 			{
 				Location: []*profile.Location{heapL[0], heapL[3]},
 				Value:    []int64{20, 4096000},
 				NumLabel: map[string][]int64{
-					"bytes": {204800},
+					"bytes": []int64{204800},
 				},
 			},
 			{
 				Location: []*profile.Location{heapL[1], heapL[4]},
 				Value:    []int64{40, 65536000},
 				NumLabel: map[string][]int64{
-					"bytes": {1638400},
+					"bytes": []int64{1638400},
 				},
 			},
 			{
 				Location: []*profile.Location{heapL[2]},
 				Value:    []int64{80, 32768000},
 				NumLabel: map[string][]int64{
-					"bytes": {409600},
+					"bytes": []int64{409600},
 				},
 			},
 		},
@@ -989,36 +977,13 @@ func TestTagFilter(t *testing.T) {
 	}
 }
 
-type testSymbolzMergeFetcher struct{}
-
-func (testSymbolzMergeFetcher) Fetch(s string, d, t time.Duration) (*profile.Profile, string, error) {
-	var p *profile.Profile
-	switch s {
-	case testSourceURL(8000) + "symbolz":
-		p = symzProfile()
-	case testSourceURL(8001) + "symbolz":
-		p = symzProfile()
-		p.Mapping[0].Start += testOffset
-		p.Mapping[0].Limit += testOffset
-		for i := range p.Location {
-			p.Location[i].Address += testOffset
-		}
-	default:
-		return nil, "", fmt.Errorf("unexpected source: %s", s)
-	}
-	return p, s, nil
-}
-
 func TestSymbolzAfterMerge(t *testing.T) {
 	baseVars := pprofVariables
 	pprofVariables = baseVars.makeCopy()
 	defer func() { pprofVariables = baseVars }()
 
 	f := baseFlags()
-	f.args = []string{
-		testSourceURL(8000) + "symbolz",
-		testSourceURL(8001) + "symbolz",
-	}
+	f.args = []string{"symbolz", "http://host2/symbolz"}
 
 	o := setDefaults(nil)
 	o.Flagset = f
@@ -1032,7 +997,7 @@ func TestSymbolzAfterMerge(t *testing.T) {
 		t.Fatalf("parseFlags returned command %v, want [proto]", cmd)
 	}
 
-	o.Fetch = testSymbolzMergeFetcher{}
+	o.Fetch = testFetcher{}
 	o.Sym = testSymbolzSymbolizer{}
 	p, err := fetchProfiles(src, o)
 	if err != nil {
@@ -1063,10 +1028,10 @@ func (m *mockObjTool) Disasm(file string, start, end uint64) ([]plugin.Inst, err
 	switch start {
 	case 0x1000:
 		return []plugin.Inst{
-			{Addr: 0x1000, Text: "instruction one", File: "file1000.src", Line: 1},
-			{Addr: 0x1001, Text: "instruction two", File: "file1000.src", Line: 1},
-			{Addr: 0x1002, Text: "instruction three", File: "file1000.src", Line: 2},
-			{Addr: 0x1003, Text: "instruction four", File: "file1000.src", Line: 1},
+			{Addr: 0x1000, Text: "instruction one"},
+			{Addr: 0x1001, Text: "instruction two"},
+			{Addr: 0x1002, Text: "instruction three"},
+			{Addr: 0x1003, Text: "instruction four"},
 		}, nil
 	case 0x3000:
 		return []plugin.Inst{
@@ -1081,7 +1046,7 @@ func (m *mockObjTool) Disasm(file string, start, end uint64) ([]plugin.Inst, err
 }
 
 type mockFile struct {
-	name, buildID string
+	name, buildId string
 	base          uint64
 }
 
@@ -1097,7 +1062,7 @@ func (m *mockFile) Base() uint64 {
 
 // BuildID returns the GNU build ID of the file, or an empty string.
 func (m *mockFile) BuildID() string {
-	return m.buildID
+	return m.buildId
 }
 
 // SourceLine reports the source line information for a given

@@ -59,7 +59,7 @@ func applyFocus(prof *profile.Profile, v variables, ui plugin.UI) error {
 	if prunefrom != nil {
 		prof.PruneFrom(prunefrom)
 	}
-	return err
+	return nil
 }
 
 func compileRegexOption(name, value string, err error) (*regexp.Regexp, error) {

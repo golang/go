@@ -50,9 +50,7 @@ type DotConfig struct {
 	Total       int64                      // The total weight of the graph, used to compute percentages
 }
 
-const maxNodelets = 4 // Number of nodelets for labels (both numeric and non)
-
-// ComposeDot creates and writes a in the DOT format to the writer, using
+// Compose creates and writes a in the DOT format to the writer, using
 // the configurations given.
 func ComposeDot(w io.Writer, g *Graph, a *DotAttributes, c *DotConfig) {
 	builder := &builder{w, a, c}
@@ -206,11 +204,13 @@ func (b *builder) addNode(node *Node, nodeID int, maxFlat float64) {
 
 // addNodelets generates the DOT boxes for the node tags if they exist.
 func (b *builder) addNodelets(node *Node, nodeID int) bool {
+	const maxNodelets = 4    // Number of nodelets for alphanumeric labels
+	const maxNumNodelets = 4 // Number of nodelets for numeric labels
 	var nodelets string
 
 	// Populate two Tag slices, one for LabelTags and one for NumericTags.
 	var ts []*Tag
-	lnts := make(map[string][]*Tag)
+	lnts := make(map[string][]*Tag, 0)
 	for _, t := range node.LabelTags {
 		ts = append(ts, t)
 	}
@@ -242,12 +242,12 @@ func (b *builder) addNodelets(node *Node, nodeID int) bool {
 		nodelets += fmt.Sprintf(`N%d_%d [label = "%s" fontsize=8 shape=box3d tooltip="%s"]`+"\n", nodeID, i, t.Name, weight)
 		nodelets += fmt.Sprintf(`N%d -> N%d_%d [label=" %s" weight=100 tooltip="%s" labeltooltip="%s"]`+"\n", nodeID, nodeID, i, weight, weight, weight)
 		if nts := lnts[t.Name]; nts != nil {
-			nodelets += b.numericNodelets(nts, maxNodelets, flatTags, fmt.Sprintf(`N%d_%d`, nodeID, i))
+			nodelets += b.numericNodelets(nts, maxNumNodelets, flatTags, fmt.Sprintf(`N%d_%d`, nodeID, i))
 		}
 	}
 
 	if nts := lnts[""]; nts != nil {
-		nodelets += b.numericNodelets(nts, maxNodelets, flatTags, fmt.Sprintf(`N%d`, nodeID))
+		nodelets += b.numericNodelets(nts, maxNumNodelets, flatTags, fmt.Sprintf(`N%d`, nodeID))
 	}
 
 	fmt.Fprint(b, nodelets)

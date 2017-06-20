@@ -18,7 +18,6 @@ const weblistPageHeader = `
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
 <title>Pprof listing</title>
 <style type="text/css">
 body {

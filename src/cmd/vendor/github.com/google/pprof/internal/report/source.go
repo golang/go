@@ -167,7 +167,7 @@ func printWebSource(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
 	}
 
 	if len(fileNodes) == 0 {
-		return fmt.Errorf("No source information for %s", o.Symbol.String())
+		return fmt.Errorf("No source information for %s\n", o.Symbol.String())
 	}
 
 	sourceFiles := make(graph.Nodes, 0, len(fileNodes))
@@ -236,18 +236,11 @@ func assemblyPerSourceLine(objSyms []*objSymbol, rs graph.Nodes, src string, obj
 	srcBase := filepath.Base(src)
 	anodes := annotateAssembly(insts, rs, o.base)
 	var lineno = 0
-	var prevline = 0
 	for _, an := range anodes {
 		if filepath.Base(an.file) == srcBase {
 			lineno = an.line
 		}
 		if lineno != 0 {
-			if lineno != prevline {
-				// This instruction starts a new block
-				// of contiguous instructions on this line.
-				an.startsBlock = true
-			}
-			prevline = lineno
 			assembly[lineno] = append(assembly[lineno], an)
 		}
 	}
@@ -313,12 +306,7 @@ func printFunctionSourceLine(w io.Writer, fn *graph.Node, assembly []assemblyIns
 		valueOrDot(fn.Flat, rpt), valueOrDot(fn.Cum, rpt),
 		template.HTMLEscapeString(fn.Info.Name))
 	fmt.Fprint(w, "<span class=asm>")
-	for i, an := range assembly {
-		if an.startsBlock && i != 0 {
-			// Insert a separator between discontiguous blocks.
-			fmt.Fprintf(w, " %8s %30s\n", "", "⋮")
-		}
-
+	for _, an := range assembly {
 		var fileline string
 		class := "disasmloc"
 		if an.file != "" {
@@ -334,10 +322,10 @@ func printFunctionSourceLine(w io.Writer, fn *graph.Node, assembly []assemblyIns
 		if an.cumDiv != 0 {
 			cum = cum / an.cumDiv
 		}
-		fmt.Fprintf(w, " %8s %10s %10s %8x: %s <span class=%s>%s</span>\n", "",
+		fmt.Fprintf(w, " %8s %10s %10s %8x: %-48s <span class=%s>%s</span>\n", "",
 			valueOrDot(flat, rpt), valueOrDot(cum, rpt),
 			an.address,
-			template.HTMLEscapeString(fmt.Sprintf("%-48s", strings.Replace(an.instruction, "\t", " ", -1))),
+			template.HTMLEscapeString(an.instruction),
 			class,
 			template.HTMLEscapeString(fileline))
 	}
