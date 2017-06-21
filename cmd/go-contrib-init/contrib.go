@@ -80,7 +80,27 @@ func checkCLA() {
 		"  * Run go-contrib-init again.\n")
 }
 
+func expandUser(s string) string {
+	env := "HOME"
+	if runtime.GOOS == "windows" {
+		env = "USERPROFILE"
+	} else if runtime.GOOS == "plan9" {
+		env = "home"
+	}
+	if home := os.Getenv(env); home != "" {
+		return strings.Replace(s, "~", home, 1)
+	}
+	return s
+}
+
 func cookiesFile() string {
+	out, _ := exec.Command("git", "config", "http.cookiefile").Output()
+	if s := strings.TrimSpace(string(out)); s != "" {
+		if strings.Contains(s, "~") {
+			s = expandUser(s)
+		}
+		return s
+	}
 	if runtime.GOOS == "windows" {
 		return filepath.Join(os.Getenv("USERPROFILE"), ".gitcookies")
 	}
