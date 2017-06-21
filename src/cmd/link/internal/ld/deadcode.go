@@ -215,18 +215,29 @@ func (d *deadcodepass) init() {
 	} else {
 		// In a normal binary, start at main.main and the init
 		// functions and mark what is reachable from there.
-		names = append(names, *flagEntrySymbol)
+
 		if *FlagLinkshared && (Buildmode == BuildmodeExe || Buildmode == BuildmodePIE) {
 			names = append(names, "main.main", "main.init")
-		} else if Buildmode == BuildmodePlugin {
-			names = append(names, *flagPluginPath+".init", *flagPluginPath+".main", "go.plugin.tabs")
+		} else {
+			// The external linker refers main symbol directly.
+			if Linkmode == LinkExternal && (Buildmode == BuildmodeExe || Buildmode == BuildmodePIE) {
+				if Headtype == objabi.Hwindows && SysArch.Family == sys.I386 {
+					*flagEntrySymbol = "_main"
+				} else {
+					*flagEntrySymbol = "main"
+				}
+			}
+			names = append(names, *flagEntrySymbol)
+			if Buildmode == BuildmodePlugin {
+				names = append(names, *flagPluginPath+".init", *flagPluginPath+".main", "go.plugin.tabs")
 
-			// We don't keep the go.plugin.exports symbol,
-			// but we do keep the symbols it refers to.
-			exports := d.ctxt.Syms.ROLookup("go.plugin.exports", 0)
-			if exports != nil {
-				for _, r := range exports.R {
-					d.mark(r.Sym, nil)
+				// We don't keep the go.plugin.exports symbol,
+				// but we do keep the symbols it refers to.
+				exports := d.ctxt.Syms.ROLookup("go.plugin.exports", 0)
+				if exports != nil {
+					for _, r := range exports.R {
+						d.mark(r.Sym, nil)
+					}
 				}
 			}
 		}
@@ -240,7 +251,7 @@ func (d *deadcodepass) init() {
 	}
 }
 
-// flood flood fills symbols reachable from the markQueue symbols.
+// flood fills symbols reachable from the markQueue symbols.
 // As it goes, it collects methodref and interface method declarations.
 func (d *deadcodepass) flood() {
 	for len(d.markQueue) > 0 {
