@@ -723,26 +723,18 @@ TEXT runtime·abort(SB),NOSPLIT,$-8-0
 	B	(ZR)
 	UNDEF
 
-// memequal(p, q unsafe.Pointer, size uintptr) bool
+// memequal(a, b unsafe.Pointer, size uintptr) bool
 TEXT runtime·memequal(SB),NOSPLIT,$-8-25
-	MOVD	a+0(FP), R1
+	MOVD	size+16(FP), R1
+	// short path to handle 0-byte case
+	CBZ	R1, equal
+	MOVD	a+0(FP), R0
 	MOVD	b+8(FP), R2
-	MOVD	size+16(FP), R3
-	ADD	R1, R3, R6
+	MOVD	$ret+24(FP), R8
+	B	runtime·memeqbody<>(SB)
+equal:
 	MOVD	$1, R0
 	MOVB	R0, ret+24(FP)
-	CMP	R1, R2
-	BEQ	done
-loop:
-	CMP	R1, R6
-	BEQ	done
-	MOVBU.P	1(R1), R4
-	MOVBU.P	1(R2), R5
-	CMP	R4, R5
-	BEQ	loop
-
-	MOVB	$0, ret+24(FP)
-done:
 	RET
 
 // memequal_varlen(a, b unsafe.Pointer) bool
@@ -865,28 +857,110 @@ notfound:
 	MOVD	R0, ret+24(FP)
 	RET
 
-// TODO: share code with memequal?
+// Equal(a, b []byte) bool
 TEXT bytes·Equal(SB),NOSPLIT,$0-49
 	MOVD	a_len+8(FP), R1
 	MOVD	b_len+32(FP), R3
-	CMP	R1, R3		// unequal lengths are not equal
-	BNE	notequal
+	CMP	R1, R3
+	// unequal lengths are not equal
+	BNE	not_equal
+	// short path to handle 0-byte case
+	CBZ	R1, equal
 	MOVD	a+0(FP), R0
 	MOVD	b+24(FP), R2
-	ADD	R0, R1		// end
-loop:
-	CMP	R0, R1
-	BEQ	equal		// reaches the end
-	MOVBU.P	1(R0), R4
-	MOVBU.P	1(R2), R5
-	CMP	R4, R5
-	BEQ	loop
-notequal:
-	MOVB	ZR, ret+48(FP)
-	RET
+	MOVD	$ret+48(FP), R8
+	B	runtime·memeqbody<>(SB)
 equal:
 	MOVD	$1, R0
 	MOVB	R0, ret+48(FP)
+	RET
+not_equal:
+	MOVB	ZR, ret+48(FP)
+	RET
+
+// input:
+// R0: pointer a
+// R1: data len
+// R2: pointer b
+// R8: address to put result
+TEXT runtime·memeqbody<>(SB),NOSPLIT,$0
+	CMP	$1, R1
+	// handle 1-byte special case for better performance
+	BEQ	one
+	CMP	$16, R1
+	// handle specially if length < 16
+	BLO	tail
+	BIC	$0x3f, R1, R3
+	CBZ	R3, chunk16
+	// work with 64-byte chunks
+	ADD	R3, R0, R6	// end of chunks
+chunk64_loop:
+	VLD1.P	(R0), [V0.D2, V1.D2, V2.D2, V3.D2]
+	VLD1.P	(R2), [V4.D2, V5.D2, V6.D2, V7.D2]
+	VCMEQ	V0.D2, V4.D2, V8.D2
+	VCMEQ	V1.D2, V5.D2, V9.D2
+	VCMEQ	V2.D2, V6.D2, V10.D2
+	VCMEQ	V3.D2, V7.D2, V11.D2
+	VAND	V8.B16, V9.B16, V8.B16
+	VAND	V8.B16, V10.B16, V8.B16
+	VAND	V8.B16, V11.B16, V8.B16
+	CMP	R0, R6
+	VMOV	V8.D[0], R4
+	VMOV	V8.D[1], R5
+	CBZ	R4, not_equal
+	CBZ	R5, not_equal
+	BNE	chunk64_loop
+	AND	$0x3f, R1, R1
+	CBZ	R1, equal
+chunk16:
+	// work with 16-byte chunks
+	BIC	$0xf, R1, R3
+	CBZ	R3, tail
+	ADD	R3, R0, R6	// end of chunks
+chunk16_loop:
+	VLD1.P	(R0), [V0.D2]
+	VLD1.P	(R2), [V1.D2]
+	VCMEQ	V0.D2, V1.D2, V2.D2
+	CMP	R0, R6
+	VMOV	V2.D[0], R4
+	VMOV	V2.D[1], R5
+	CBZ	R4, not_equal
+	CBZ	R5, not_equal
+	BNE	chunk16_loop
+	AND	$0xf, R1, R1
+	CBZ	R1, equal
+tail:
+	// special compare of tail with length < 16
+	TBZ	$3, R1, lt_8
+	MOVD.P	8(R0), R4
+	MOVD.P	8(R2), R5
+	CMP	R4, R5
+	BNE	not_equal
+lt_8:
+	TBZ	$2, R1, lt_4
+	MOVWU.P	4(R0), R4
+	MOVWU.P	4(R2), R5
+	CMP	R4, R5
+	BNE	not_equal
+lt_4:
+	TBZ	$1, R1, lt_2
+	MOVHU.P	2(R0), R4
+	MOVHU.P	2(R2), R5
+	CMP	R4, R5
+	BNE	not_equal
+lt_2:
+	TBZ     $0, R1, equal
+one:
+	MOVBU	(R0), R4
+	MOVBU	(R2), R5
+	CMP	R4, R5
+	BNE	not_equal
+equal:
+	MOVD	$1, R0
+	MOVB	R0, (R8)
+	RET
+not_equal:
+	MOVB	ZR, (R8)
 	RET
 
 TEXT runtime·return0(SB), NOSPLIT, $0
