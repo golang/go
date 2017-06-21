@@ -122,13 +122,15 @@ func operandString(x *operand, qf Qualifier) string {
 	case invalid, novalue, builtin, typexpr:
 		// no type
 	default:
-		// has type
-		if isUntyped(x.typ) {
-			buf.WriteString(x.typ.(*Basic).name)
-			buf.WriteByte(' ')
-			break
+		// should have a type, but be cautious (don't crash during printing)
+		if x.typ != nil {
+			if isUntyped(x.typ) {
+				buf.WriteString(x.typ.(*Basic).name)
+				buf.WriteByte(' ')
+				break
+			}
+			hasType = true
 		}
-		hasType = true
 	}
 
 	// <mode>
