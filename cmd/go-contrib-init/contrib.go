@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"log"
 	"os"
@@ -46,7 +47,7 @@ func detectrepo() string {
 		return "go"
 	}
 
-	for _, path := range filepath.SplitList(os.Getenv("GOPATH")) {
+	for _, path := range filepath.SplitList(build.Default.GOPATH) {
 		rightdir := filepath.Join(path, "src", "golang.org", "x")
 		if strings.HasPrefix(wd, rightdir) {
 			tail := wd[len(rightdir)+1:]
@@ -145,7 +146,7 @@ func checkWorkingDir() {
 }
 
 func firstGoPath() string {
-	list := filepath.SplitList(os.Getenv("GOPATH"))
+	list := filepath.SplitList(build.Default.GOPATH)
 	if len(list) < 1 {
 		return ""
 	}
