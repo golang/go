@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/objabi"
 	"unicode/utf8"
 )
 
@@ -211,9 +212,13 @@ func walkrange(n *Node) *Node {
 		} else if v2 == nil {
 			body = []*Node{nod(OAS, v1, hv1)}
 		} else { // for i,a := range thing { body }
-			ifGuard = nod(OIF, nil, nil)
-			ifGuard.Left = nod(OLT, hv1, hn)
-			translatedLoopOp = OFORUNTIL
+			if objabi.Preemptibleloops_enabled != 0 {
+				// Doing this transformation makes a bounds check removal less trivial; see #20711
+				// TODO enhance the preemption check insertion so that this transformation is not necessary.
+				ifGuard = nod(OIF, nil, nil)
+				ifGuard.Left = nod(OLT, hv1, hn)
+				translatedLoopOp = OFORUNTIL
+			}
 
 			a := nod(OAS2, nil, nil)
 			a.List.Set2(v1, v2)
