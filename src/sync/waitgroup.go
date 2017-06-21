@@ -95,7 +95,7 @@ func (wg *WaitGroup) Add(delta int) {
 	}
 }
 
-// Done decrements the WaitGroup counter.
+// Done decrements the WaitGroup counter by one.
 func (wg *WaitGroup) Done() {
 	wg.Add(-1)
 }
