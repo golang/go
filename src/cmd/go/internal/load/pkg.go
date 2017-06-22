@@ -828,6 +828,8 @@ var cgoSyscallExclude = map[string]bool{
 	"runtime/msan": true,
 }
 
+var foldPath = make(map[string]string)
+
 // load populates p using information from bp, err, which should
 // be the result of calling build.Context.Import.
 func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package {
@@ -1109,17 +1111,16 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package 
 		return p
 	}
 
-	// In the absence of errors lower in the dependency tree,
-	// check for case-insensitive collisions of import paths.
-	if len(p.DepsErrors) == 0 {
-		dep1, dep2 := str.FoldDup(p.Deps)
-		if dep1 != "" {
-			p.Error = &PackageError{
-				ImportStack: stk.Copy(),
-				Err:         fmt.Sprintf("case-insensitive import collision: %q and %q", dep1, dep2),
-			}
-			return p
+	// Check for case-insensitive collisions of import paths.
+	fold := str.ToFold(p.ImportPath)
+	if other := foldPath[fold]; other == "" {
+		foldPath[fold] = p.ImportPath
+	} else if other != p.ImportPath {
+		p.Error = &PackageError{
+			ImportStack: stk.Copy(),
+			Err:         fmt.Sprintf("case-insensitive import collision: %q and %q", p.ImportPath, other),
 		}
+		return p
 	}
 
 	if p.BinaryOnly {

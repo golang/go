@@ -2040,8 +2040,10 @@ func TestCaseCollisions(t *testing.T) {
 		)`)
 	tg.tempFile("src/example/a/pkg/pkg.go", `package pkg`)
 	tg.tempFile("src/example/a/Pkg/pkg.go", `package pkg`)
-	tg.runFail("list", "example/a")
-	tg.grepStderr("case-insensitive import collision", "go list example/a did not report import collision")
+	tg.run("list", "-json", "example/a")
+	tg.grepStdout("case-insensitive import collision", "go list -json example/a did not report import collision")
+	tg.runFail("build", "example/a")
+	tg.grepStderr("case-insensitive import collision", "go build example/a did not report import collision")
 	tg.tempFile("src/example/b/file.go", `package b`)
 	tg.tempFile("src/example/b/FILE.go", `package b`)
 	f, err := os.Open(tg.path("src/example/b"))
@@ -2059,6 +2061,13 @@ func TestCaseCollisions(t *testing.T) {
 	}
 	tg.runFail(args...)
 	tg.grepStderr("case-insensitive file name collision", "go list example/b did not report file name collision")
+
+	tg.runFail("list", "example/a/pkg", "example/a/Pkg")
+	tg.grepStderr("case-insensitive import collision", "go list example/a/pkg example/a/Pkg did not report import collision")
+	tg.run("list", "-json", "-e", "example/a/pkg", "example/a/Pkg")
+	tg.grepStdout("case-insensitive import collision", "go list -json -e example/a/pkg example/a/Pkg did not report import collision")
+	tg.runFail("build", "example/a/pkg", "example/a/Pkg")
+	tg.grepStderr("case-insensitive import collision", "go build example/a/pkg example/a/Pkg did not report import collision")
 }
 
 // Issue 8181.
