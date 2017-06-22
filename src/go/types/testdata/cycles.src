@@ -141,3 +141,12 @@ type (
 	P3 *T13
 	T13 /* ERROR cycle */ T13
 )
+
+// test cases for issue 18643
+// (type cycle detection when non-type expressions are involved)
+type (
+	T14 [len(T14 /* ERROR cycle */ {})]int
+	T15 [][len(T15 /* ERROR cycle */ {})]int
+	T16 map[[len(T16 /* ERROR cycle */ {1:2})]int]int
+	T17 map[int][len(T17 /* ERROR cycle */ {1:2})]int
+)
