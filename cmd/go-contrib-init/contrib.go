@@ -87,16 +87,30 @@ func expandUser(s string) string {
 	} else if runtime.GOOS == "plan9" {
 		env = "home"
 	}
-	if home := os.Getenv(env); home != "" {
-		return strings.Replace(s, "~", home, 1)
+	home := os.Getenv(env)
+	if home == "" {
+		return s
 	}
-	return s
+
+	if len(s) >= 2 && s[0] == '~' && os.IsPathSeparator(s[1]) {
+		if runtime.GOOS == "windows" {
+			s = filepath.ToSlash(filepath.Join(home, s[2:]))
+		} else {
+			s = filepath.Join(home, s[2:])
+		}
+	}
+	return os.Expand(s, func(env string) string {
+		if env == "HOME" {
+			return home
+		}
+		return os.Getenv(env)
+	})
 }
 
 func cookiesFile() string {
 	out, _ := exec.Command("git", "config", "http.cookiefile").Output()
 	if s := strings.TrimSpace(string(out)); s != "" {
-		if strings.Contains(s, "~") {
+		if strings.HasPrefix(s, "~") {
 			s = expandUser(s)
 		}
 		return s
