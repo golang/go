@@ -288,7 +288,7 @@ func BuildModeInit() {
 		cfg.ExeSuffix = ".a"
 		ldBuildmode = "c-archive"
 	case "c-shared":
-		pkgsFilter = pkgsMain
+		pkgsFilter = oneMainPkg
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
