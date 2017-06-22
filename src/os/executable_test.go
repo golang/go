@@ -29,12 +29,6 @@ func TestExecutable(t *testing.T) {
 		t.Fatalf("filepath.Rel: %v", err)
 	}
 
-	if runtime.GOOS == "openbsd" {
-		// The rest of the test doesn't work on OpenBSD,
-		// which relies on argv[0].
-		t.Skipf("skipping remainder of test on %s", runtime.GOOS)
-	}
-
 	cmd := &osexec.Cmd{}
 	// make child start with a relative program path
 	cmd.Dir = dir
@@ -42,6 +36,10 @@ func TestExecutable(t *testing.T) {
 	// forge argv[0] for child, so that we can verify we could correctly
 	// get real path of the executable without influenced by argv[0].
 	cmd.Args = []string{"-", "-test.run=XXXX"}
+	if runtime.GOOS == "openbsd" {
+		// OpenBSD relies on argv[0]
+		cmd.Args[0] = fn
+	}
 	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=1", executable_EnvVar))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
