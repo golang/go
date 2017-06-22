@@ -200,7 +200,9 @@ func bundle(src, dst, dstpkg, prefix string) ([]byte, error) {
 		return nil, err
 	}
 
-	info := lprog.Package(src)
+	// Because there was a single Import call and Load succeeded,
+	// InitialPackages is guaranteed to hold the sole requested package.
+	info := lprog.InitialPackages()[0]
 	if prefix == "" {
 		pkgName := info.Files[0].Name.Name
 		prefix = pkgName + "_"
