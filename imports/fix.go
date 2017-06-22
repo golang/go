@@ -32,7 +32,7 @@ var (
 	testMu  sync.RWMutex // guards globals reset by tests; used only if inTests
 )
 
-// If set, LocalPrefix instructs Process to sort import paths with the given
+// LocalPrefix, if set, instructs Process to sort import paths with the given
 // prefix into another group after 3rd-party packages.
 var LocalPrefix string
 
