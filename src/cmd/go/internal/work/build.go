@@ -576,8 +576,6 @@ func InstallPackages(args []string, forGet bool) {
 
 	var b Builder
 	b.Init()
-	// Set the behavior for `go get` to not error on packages with test files only.
-	b.testFilesOnlyOK = forGet
 	var a *Action
 	if cfg.BuildBuildmode == "shared" {
 		if libName, err := libname(args, pkgs); err != nil {
@@ -589,6 +587,11 @@ func InstallPackages(args []string, forGet bool) {
 		a = &Action{}
 		var tools []*Action
 		for _, p := range pkgs {
+			// During 'go get', don't attempt (and fail) to install packages with only tests.
+			// TODO(rsc): It's not clear why 'go get' should be different from 'go install' here. See #20760.
+			if forGet && len(p.GoFiles)+len(p.CgoFiles) == 0 && len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
+				continue
+			}
 			// If p is a tool, delay the installation until the end of the build.
 			// This avoids installing assemblers/compilers that are being executed
 			// by other steps in the build.
@@ -659,8 +662,6 @@ type Builder struct {
 	mkdirCache  map[string]bool      // a cache of created directories
 	flagCache   map[string]bool      // a cache of supported compiler flags
 	Print       func(args ...interface{}) (int, error)
-
-	testFilesOnlyOK bool // do not error if the packages only have test files
 
 	output    sync.Mutex
 	scriptDir string // current directory in printed script
@@ -1165,8 +1166,6 @@ func (b *Builder) Do(root *Action) {
 		if err != nil {
 			if err == errPrintedOutput {
 				base.SetExitStatus(2)
-			} else if _, ok := err.(*build.NoGoError); ok && len(a.Package.TestGoFiles) > 0 && b.testFilesOnlyOK {
-				// Ignore the "no buildable Go source files" error for a package with only test files.
 			} else {
 				base.Errorf("%s", err)
 			}
@@ -1253,7 +1252,7 @@ func (b *Builder) build(a *Action) (err error) {
 	}
 
 	defer func() {
-		if _, ok := err.(*build.NoGoError); err != nil && err != errPrintedOutput && !(ok && b.testFilesOnlyOK && len(a.Package.TestGoFiles) > 0) {
+		if err != nil && err != errPrintedOutput {
 			err = fmt.Errorf("go build %s: %v", a.Package.ImportPath, err)
 		}
 	}()
@@ -1365,7 +1364,7 @@ func (b *Builder) build(a *Action) (err error) {
 	}
 
 	if len(gofiles) == 0 {
-		return &build.NoGoError{Dir: a.Package.Dir}
+		return &load.NoGoError{Package: a.Package}
 	}
 
 	// If we're doing coverage, preprocess the .go files and put them in the work directory

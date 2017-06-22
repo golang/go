@@ -114,6 +114,32 @@ type PackageInternal struct {
 	GobinSubdir  bool                 // install target would be subdir of GOBIN
 }
 
+type NoGoError struct {
+	Package *Package
+}
+
+func (e *NoGoError) Error() string {
+	// Count files beginning with _ and ., which we will pretend don't exist at all.
+	dummy := 0
+	for _, name := range e.Package.IgnoredGoFiles {
+		if strings.HasPrefix(name, "_") || strings.HasPrefix(name, ".") {
+			dummy++
+		}
+	}
+
+	if len(e.Package.IgnoredGoFiles) > dummy {
+		// Go files exist, but they were ignored due to build constraints.
+		return "build constraints exclude all Go files in " + e.Package.Dir
+	}
+	if len(e.Package.TestGoFiles)+len(e.Package.XTestGoFiles) > 0 {
+		// Test Go files exist, but we're not interested in them.
+		// The double-negative is unfortunate but we want e.Package.Dir
+		// to appear at the end of error message.
+		return "no non-test Go files in " + e.Package.Dir
+	}
+	return "no Go files in " + e.Package.Dir
+}
+
 // Vendored returns the vendor-resolved version of imports,
 // which should be p.TestImports or p.XTestImports, NOT p.Imports.
 // The imports in p.TestImports and p.XTestImports are not recursively
@@ -840,6 +866,9 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package 
 	p.Internal.LocalPrefix = dirToImportPath(p.Dir)
 
 	if err != nil {
+		if _, ok := err.(*build.NoGoError); ok {
+			err = &NoGoError{Package: p}
+		}
 		p.Incomplete = true
 		err = base.ExpandScanner(err)
 		p.Error = &PackageError{
