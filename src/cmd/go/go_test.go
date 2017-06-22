@@ -2070,6 +2070,31 @@ func TestCaseCollisions(t *testing.T) {
 	tg.grepStderr("case-insensitive import collision", "go build example/a/pkg example/a/Pkg did not report import collision")
 }
 
+// Issue 17451, 17662.
+func TestSymlinkWarning(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+
+	tg.tempDir("src/example/xx")
+	tg.tempDir("yy/zz")
+	tg.tempFile("yy/zz/zz.go", "package zz\n")
+	if err := os.Symlink(tg.path("yy"), tg.path("src/example/xx/yy")); err != nil {
+		t.Skip("symlink failed: %v", err)
+	}
+	tg.run("list", "example/xx/z...")
+	tg.grepStdoutNot(".", "list should not have matched anything")
+	tg.grepStderr("matched no packages", "list should have reported that pattern matched no packages")
+	tg.grepStderrNot("symlink", "list should not have reported symlink")
+
+	tg.run("list", "example/xx/...")
+	tg.grepStdoutNot(".", "list should not have matched anything")
+	tg.grepStderr("matched no packages", "list should have reported that pattern matched no packages")
+	tg.grepStderr("ignoring symlink", "list should have reported symlink")
+}
+
 // Issue 8181.
 func TestGoGetDashTIssue8181(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)

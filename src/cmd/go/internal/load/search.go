@@ -67,25 +67,39 @@ func MatchPackages(pattern string) []string {
 			root += "cmd" + string(filepath.Separator)
 		}
 		filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
-			if err != nil || !fi.IsDir() || path == src {
+			if err != nil || path == src {
 				return nil
 			}
 
+			want := true
 			// Avoid .foo, _foo, and testdata directory trees.
 			_, elem := filepath.Split(path)
 			if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
-				return filepath.SkipDir
+				want = false
 			}
 
 			name := filepath.ToSlash(path[len(src):])
 			if pattern == "std" && (!isStandardImportPath(name) || name == "cmd") {
 				// The name "std" is only the standard library.
 				// If the name is cmd, it's the root of the command tree.
-				return filepath.SkipDir
+				want = false
 			}
 			if !treeCanMatch(name) {
+				want = false
+			}
+
+			if !fi.IsDir() {
+				if fi.Mode()&os.ModeSymlink != 0 && want {
+					if target, err := os.Stat(path); err == nil && target.IsDir() {
+						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
+					}
+				}
+				return nil
+			}
+			if !want {
 				return filepath.SkipDir
 			}
+
 			if have[name] {
 				return nil
 			}
