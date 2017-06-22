@@ -1333,6 +1333,16 @@ func (b *Builder) build(a *Action) (err error) {
 			}
 			sfiles, gccfiles = filter(sfiles, sfiles[:0], gccfiles)
 		} else {
+			for _, sfile := range sfiles {
+				data, err := ioutil.ReadFile(filepath.Join(a.Package.Dir, sfile))
+				if err == nil {
+					if bytes.HasPrefix(data, []byte("TEXT")) || bytes.Contains(data, []byte("\nTEXT")) ||
+						bytes.HasPrefix(data, []byte("DATA")) || bytes.Contains(data, []byte("\nDATA")) ||
+						bytes.HasPrefix(data, []byte("GLOBL")) || bytes.Contains(data, []byte("\nGLOBL")) {
+						return fmt.Errorf("package using cgo has Go assembly file %s", sfile)
+					}
+				}
+			}
 			gccfiles = append(gccfiles, sfiles...)
 			sfiles = nil
 		}

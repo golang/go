@@ -2310,6 +2310,19 @@ func TestCoverageWithCgo(t *testing.T) {
 	}
 }
 
+func TestCgoAsmError(t *testing.T) {
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
+
+	tg := testgo(t)
+	tg.parallel()
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.runFail("build", "cgoasm")
+	tg.grepBoth("package using cgo has Go assembly file", "did not detect Go assembly file")
+}
+
 func TestCgoDependsOnSyscall(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test that removes $GOROOT/pkg/*_race in short mode")
