@@ -4031,76 +4031,78 @@ func TestExecutableGOROOT(t *testing.T) {
 		t.Skipf("test case does not work on %s, missing os.Executable", runtime.GOOS)
 	}
 
+	// Env with no GOROOT.
+	var env []string
+	for _, e := range os.Environ() {
+		if !strings.HasPrefix(e, "GOROOT=") {
+			env = append(env, e)
+		}
+	}
+
+	check := func(t *testing.T, exe, want string) {
+		cmd := exec.Command(exe, "env", "GOROOT")
+		cmd.Env = env
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatal(err)
+		}
+		goroot, err := filepath.EvalSymlinks(strings.TrimSpace(string(out)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, err = filepath.EvalSymlinks(want)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.EqualFold(goroot, want) {
+			t.Errorf("go env GOROOT:\nhave %s\nwant %s", goroot, want)
+		} else {
+			t.Logf("go env GOROOT: %s", goroot)
+		}
+	}
+
+	// Note: Must not call tg methods inside subtests: tg is attached to outer t.
 	tg := testgo(t)
 	defer tg.cleanup()
 
 	tg.makeTempdir()
-	tg.tempDir("newgoroot/bin")
-	newGoTool := tg.path("newgoroot/bin/go" + exeSuffix)
-	err := copyFile(tg.goTool(), newGoTool, 0775)
-	if err != nil {
-		t.Fatalf("error copying go tool %v", err)
-	}
+	tg.tempDir("new/bin")
+	newGoTool := tg.path("new/bin/go" + exeSuffix)
+	tg.must(copyFile(tg.goTool(), newGoTool, 0775))
+	newRoot := tg.path("new")
 
-	goroot := func(goTool string) string {
-		cmd := exec.Command(goTool, "env", "GOROOT")
-		cmd.Env = os.Environ()
-		for i, val := range cmd.Env {
-			if strings.HasPrefix(val, "GOROOT=") {
-				cmd.Env = append(cmd.Env[:i], cmd.Env[i+1:]...)
-				break
-			}
-		}
-		out, err := cmd.CombinedOutput()
+	t.Run("RelocatedExe", func(t *testing.T) {
+		// Should fall back to default location in binary.
+		// No way to dig out other than look at source code.
+		data, err := ioutil.ReadFile("../../runtime/internal/sys/zversion.go")
 		if err != nil {
-			t.Fatalf("copied go tool failed %v: %s", err, out)
+			t.Fatal(err)
 		}
-		root := strings.TrimSpace(string(out))
-		resolved, err := filepath.EvalSymlinks(root)
-		if err != nil {
-			t.Fatalf("EvalSymlinks(%q) failed: %v", root, err)
+		m := regexp.MustCompile("const DefaultGoroot = `([^`]+)`").FindStringSubmatch(string(data))
+		if m == nil {
+			t.Fatal("cannot find DefaultGoroot in ../../runtime/internal/sys/zversion.go")
 		}
-		return resolved
-	}
+		check(t, newGoTool, m[1])
+	})
 
-	// Filenames are case insensitive on Windows.
-	// There should probably be a path/filepath function for this.
-	equal := func(a, b string) bool { return a == b }
-	if runtime.GOOS == "windows" {
-		equal = strings.EqualFold
-	}
+	// If the binary is sitting in a bin dir next to ../pkg/tool, that counts as a GOROOT,
+	// so it should find the new tree.
+	tg.tempDir("new/pkg/tool")
+	t.Run("RelocatedTree", func(t *testing.T) {
+		check(t, newGoTool, newRoot)
+	})
 
-	// macOS uses a symlink for /tmp.
-	resolvedTestGOROOT, err := filepath.EvalSymlinks(testGOROOT)
-	if err != nil {
-		t.Fatalf("could not eval testgoroot symlinks: %v", err)
-	}
+	tg.tempDir("other/bin")
+	symGoTool := tg.path("other/bin/go" + exeSuffix)
 
-	// Missing GOROOT/pkg/tool, the go tool should fall back to
-	// its default path.
-	if got, want := goroot(newGoTool), resolvedTestGOROOT; !equal(got, want) {
-		t.Fatalf("%s env GOROOT = %q, want %q", newGoTool, got, want)
-	}
-
-	// Now the executable's path looks like a GOROOT.
-	tg.tempDir("newgoroot/pkg/tool")
-	resolvedNewGOROOT, err := filepath.EvalSymlinks(tg.path("newgoroot"))
-	if err != nil {
-		t.Fatalf("could not eval newgoroot symlinks: %v", err)
-	}
-	if got, want := goroot(newGoTool), resolvedNewGOROOT; !equal(got, want) {
-		t.Fatalf("%s env GOROOT = %q with pkg/tool, want %q", newGoTool, got, want)
-	}
-
-	testenv.MustHaveSymlink(t)
-
-	tg.tempDir("notgoroot/bin")
-	symGoTool := tg.path("notgoroot/bin/go" + exeSuffix)
-	tg.must(os.Symlink(newGoTool, symGoTool))
-
-	if got, want := goroot(symGoTool), resolvedNewGOROOT; !equal(got, want) {
-		t.Fatalf("%s env GOROOT = %q, want %q", symGoTool, got, want)
-	}
+	// Symlink into go tree should still find go tree.
+	t.Run("SymlinkedExe", func(t *testing.T) {
+		testenv.MustHaveSymlink(t)
+		if err := os.Symlink(newGoTool, symGoTool); err != nil {
+			t.Fatal(err)
+		}
+		check(t, symGoTool, newRoot)
+	})
 }
 
 func TestNeedVersion(t *testing.T) {
