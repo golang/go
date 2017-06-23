@@ -26,7 +26,7 @@ func (p *Process) blockUntilWaitable() (bool, error) {
 	// On Darwin, it requires greater than or equal to 64 bytes
 	// for darwin/{386,arm} and 104 bytes for darwin/amd64.
 	// We don't care about the values it returns.
-	var siginfo [128]byte
+	var siginfo [16]uint64
 	psig := &siginfo[0]
 	_, _, e := syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)
 	runtime.KeepAlive(p)
