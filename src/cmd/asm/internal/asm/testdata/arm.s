@@ -975,7 +975,7 @@ jmp_label_3:
 	MULL	R1, R2, (R4, R3)     // 9231c4e0
 	MULL.S	R1, R2, (R4, R3)     // 9231d4e0
 	MMUL	R1, R2, R3           // 12f153e7
-	MULBB	R1, R2, R3           // 82f163e1
+	MULBB	R1, R2, R3           // 820163e1
 	MULWB	R1, R2, R3           // a20123e1
 	MULWT	R1, R2, R3           // e20123e1
 
