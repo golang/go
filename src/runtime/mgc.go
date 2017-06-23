@@ -688,9 +688,6 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		// This P is now dedicated to marking until the end of
 		// the concurrent mark phase.
 		_p_.gcMarkWorkerMode = gcMarkWorkerDedicatedMode
-		// TODO(austin): This P isn't going to run anything
-		// else for a while, so kick everything out of its run
-		// queue.
 	} else {
 		if !decIfPositive(&c.fractionalMarkWorkersNeeded) {
 			// No more workers are need right now.
@@ -1773,6 +1770,25 @@ func gcBgMarkWorker(_p_ *p) {
 			default:
 				throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
 			case gcMarkWorkerDedicatedMode:
+				gcDrain(&_p_.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
+				if gp.preempt {
+					// We were preempted. This is
+					// a useful signal to kick
+					// everything out of the run
+					// queue so it can run
+					// somewhere else.
+					lock(&sched.lock)
+					for {
+						gp, _ := runqget(_p_)
+						if gp == nil {
+							break
+						}
+						globrunqput(gp)
+					}
+					unlock(&sched.lock)
+				}
+				// Go back to draining, this time
+				// without preemption.
 				gcDrain(&_p_.gcw, gcDrainNoBlock|gcDrainFlushBgCredit)
 			case gcMarkWorkerFractionalMode:
 				gcDrain(&_p_.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
