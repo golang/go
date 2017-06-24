@@ -6011,7 +6011,7 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 			clen = strconv.Itoa(len(p))
 		}
 		_, hasContentType := rws.snapHeader["Content-Type"]
-		if !hasContentType && http2bodyAllowedForStatus(rws.status) {
+		if !hasContentType && http2bodyAllowedForStatus(rws.status) && len(p) > 0 {
 			ctype = DetectContentType(p)
 		}
 		var date string

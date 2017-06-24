@@ -3439,9 +3439,6 @@ func TestHeaderToWire(t *testing.T) {
 			handler: func(rw ResponseWriter, r *Request) {
 			},
 			check: func(got string) error {
-				if !strings.Contains(got, "Content-Type: text/plain") {
-					return errors.New("wrong content-type; want text/plain")
-				}
 				if !strings.Contains(got, "Content-Length: 0") {
 					return errors.New("want 0 content-length")
 				}

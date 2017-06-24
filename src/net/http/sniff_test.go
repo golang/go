@@ -23,7 +23,6 @@ var sniffTests = []struct {
 	contentType string
 }{
 	// Some nonsense.
-	{"Empty", []byte{}, "text/plain; charset=utf-8"},
 	{"Binary", []byte{1, 2, 3}, "application/octet-stream"},
 
 	{"HTML document #1", []byte(`<HtMl><bOdY>blah blah blah</body></html>`), "text/html; charset=utf-8"},
