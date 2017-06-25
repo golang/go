@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -312,6 +313,8 @@ func TestAtomicStop(t *testing.T) {
 		atomicStopTestProgram()
 		t.Fatal("atomicStopTestProgram returned")
 	}
+
+	testenv.MustHaveExec(t)
 
 	const execs = 10
 	for i := 0; i < execs; i++ {
