@@ -654,7 +654,7 @@ func (p *parser) callStmt() *CallStmt {
 	if !ok {
 		p.error(fmt.Sprintf("expression in %s must be function call", s.Tok))
 		// already progressed, no need to advance
-		cx := new(CallExpr)
+		cx = new(CallExpr)
 		cx.pos = x.Pos()
 		cx.Fun = p.bad()
 	}
