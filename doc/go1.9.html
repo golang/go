@@ -27,8 +27,9 @@ ul li { margin: 0.5em 0; }
   after <a href="go1.8">Go 1.8</a> and is the tenth release in
   the <a href="https://golang.org/doc/devel/release.html">Go 1.x
   series</a>.
-  There is one <a href="#language">change to the language</a>, adding
-  support for type aliases.
+  There are two <a href="#language">changes to the language</a>,
+  adding support for type aliases, and defining when implementations
+  may fuse floating point operations.
   Most of the changes are in the implementation of the toolchain,
   runtime, and libraries.
   As always, the release maintains the Go 1
@@ -49,7 +50,9 @@ ul li { margin: 0.5em 0; }
 <h2 id="language">Changes to the language</h2>
 
 <p>
-  There is one change to the language.
+  There are two changes to the language.
+</p>
+<p>
   Go now supports type aliases to support gradual code repair while
   moving a type between packages.
   The <a href="https://golang.org/design/18130-type-alias">type alias
@@ -67,6 +70,16 @@ type T1 = T2
   This declaration introduces an alias name <code>T1</code>—an
   alternate spelling—for the type denoted by <code>T2</code>; that is,
   both <code>T1</code> and <code>T2</code> denote the same type.
+</p>
+
+<p> <!-- CL 40391 -->
+  A smaller language change is that the
+  <a href="/ref/spec#Floating_point_operators">language specification
+  now states</a> when implementations are allowed to fuse floating
+  point operations together, such as by using an architecture's "fused
+  multiply and add" (FMA) instruction to compute <code>x*y + z</code>
+  without rounding the intermediate result <code>x*y</code>.
+  To force the intermediate rounding, write <code>float64(x*y) + z</code>.
 </p>
 
 <h2 id="ports">Ports</h2>
