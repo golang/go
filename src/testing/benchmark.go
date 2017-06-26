@@ -73,11 +73,9 @@ type B struct {
 // a call to StopTimer.
 func (b *B) StartTimer() {
 	if !b.timerOn {
-		if *benchmarkMemory || b.showAllocResult {
-			runtime.ReadMemStats(&memStats)
-			b.startAllocs = memStats.Mallocs
-			b.startBytes = memStats.TotalAlloc
-		}
+		runtime.ReadMemStats(&memStats)
+		b.startAllocs = memStats.Mallocs
+		b.startBytes = memStats.TotalAlloc
 		b.start = time.Now()
 		b.timerOn = true
 	}

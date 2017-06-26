@@ -540,6 +540,16 @@ func TestBenchmarkStartsFrom1(t *T) {
 	})
 }
 
+func TestBenchmarkReadMemStatsBeforeFirstRun(t *T) {
+	var first = true
+	Benchmark(func(b *B) {
+		if first && (b.startAllocs == 0 || b.startBytes == 0) {
+			panic(fmt.Sprintf("ReadMemStats not called before first run"))
+		}
+		first = false
+	})
+}
+
 func TestParallelSub(t *T) {
 	c := make(chan int)
 	block := make(chan int)
