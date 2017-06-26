@@ -4044,7 +4044,7 @@ func TestExecutableGOROOT(t *testing.T) {
 		cmd.Env = env
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("%s env GOROOT: %v, %s", exe, err, out)
 		}
 		goroot, err := filepath.EvalSymlinks(strings.TrimSpace(string(out)))
 		if err != nil {
