@@ -99,7 +99,7 @@ func TestEnvVars(t *testing.T) {
 
 			r, err := loadSystemRoots()
 			if err != nil {
-				t.Fatal("unexpected failure: ", err)
+				t.Fatal("unexpected failure:", err)
 			}
 
 			if r == nil {
@@ -110,17 +110,17 @@ func TestEnvVars(t *testing.T) {
 				t.Fatal("nil roots")
 			}
 
+			// Verify len(r.certs) == len(tc.cns), otherwise report where the mismatch is.
 			for i, cn := range tc.cns {
-				if i > len(r.certs) {
+				if i >= len(r.certs) {
 					t.Errorf("missing cert %v @ %v", cn, i)
 				} else if r.certs[i].Subject.CommonName != cn {
 					fmt.Printf("%#v\n", r.certs[0].Subject)
-					t.Errorf("unexpected cert common name %q expected %q", r.certs[i].Subject.CommonName, cn)
+					t.Errorf("unexpected cert common name %q, want %q", r.certs[i].Subject.CommonName, cn)
 				}
 			}
-
 			if len(r.certs) > len(tc.cns) {
-				t.Errorf("expected %v certs got %v", len(tc.cns), len(r.certs))
+				t.Errorf("got %v certs, which is more than %v wanted", len(r.certs), len(tc.cns))
 			}
 		})
 	}
