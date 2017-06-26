@@ -736,3 +736,36 @@ func TestServeHTTPDeepCopy(t *testing.T) {
 		t.Errorf("got = %+v; want = %+v", got, want)
 	}
 }
+
+// Issue 18327: verify we always do a deep copy of the Request.Header map
+// before any mutations.
+func TestClonesRequestHeaders(t *testing.T) {
+	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
+	req.RemoteAddr = "1.2.3.4:56789"
+	rp := &ReverseProxy{
+		Director: func(req *http.Request) {
+			req.Header.Set("From-Director", "1")
+		},
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			if v := req.Header.Get("From-Director"); v != "1" {
+				t.Errorf("From-Directory value = %q; want 1", v)
+			}
+			return nil, io.EOF
+		}),
+	}
+	rp.ServeHTTP(httptest.NewRecorder(), req)
+
+	if req.Header.Get("From-Director") == "1" {
+		t.Error("Director header mutation modified caller's request")
+	}
+	if req.Header.Get("X-Forwarded-For") != "" {
+		t.Error("X-Forward-For header mutation modified caller's request")
+	}
+
+}
+
+type roundTripperFunc func(req *http.Request) (*http.Response, error)
+
+func (fn roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
+}
