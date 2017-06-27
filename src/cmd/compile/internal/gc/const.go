@@ -408,7 +408,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 bad:
 	if !n.Diag() {
 		if !t.Broke() {
-			yyerror("cannot convert %v to type %v", n, t)
+			yyerror("cannot convert %L to type %v", n, t)
 		}
 		n.SetDiag(true)
 	}
