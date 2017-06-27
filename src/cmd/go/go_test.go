@@ -4072,6 +4072,8 @@ func TestExecutableGOROOT(t *testing.T) {
 	newRoot := tg.path("new")
 
 	t.Run("RelocatedExe", func(t *testing.T) {
+		t.Skip("TODO: skipping known broken test; see golang.org/issue/20284")
+
 		// Should fall back to default location in binary.
 		// No way to dig out other than look at source code.
 		data, err := ioutil.ReadFile("../../runtime/internal/sys/zversion.go")
