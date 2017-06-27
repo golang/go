@@ -256,6 +256,9 @@ func ExampleTime_Truncate() {
 	for _, d := range trunc {
 		fmt.Printf("t.Truncate(%5s) = %s\n", d, t.Truncate(d).Format("15:04:05.999999999"))
 	}
+	// To round to the last midnight in the local timezone, create a new Date.
+	midnight := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.Local)
+	_ = midnight
 
 	// Output:
 	// t.Truncate(  1ns) = 12:15:30.918273645
