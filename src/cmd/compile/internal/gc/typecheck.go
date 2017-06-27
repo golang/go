@@ -1760,7 +1760,7 @@ OpSwitch:
 		var why string
 		n.Op = convertop(t, n.Type, &why)
 		if n.Op == 0 {
-			if !n.Diag() && !n.Type.Broke() {
+			if !n.Diag() && !n.Type.Broke() && !n.Left.Diag() {
 				yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
 				n.SetDiag(true)
 			}
