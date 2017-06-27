@@ -1,56 +1,41 @@
-godoc on appengine
-------------------
+godoc on Google App Engine
+==========================
 
 Prerequisites
 -------------
 
-* Go appengine SDK
-  https://developers.google.com/appengine/downloads#Google_App_Engine_SDK_for_Go
+* Google Cloud SDK
+  https://cloud.google.com/sdk/
 
-* Go sources at tip under $GOROOT
+* Go sources under $GOROOT
 
-* Godoc sources at tip inside $GOPATH
+* Godoc sources inside $GOPATH
   (go get -d golang.org/x/tools/cmd/godoc)
 
 
-Directory structure
--------------------
+Running in dev_appserver.py
+---------------------------
 
-* Let $APPDIR be the directory containing the app engine files.
-  (e.g., $APPDIR=$HOME/godoc-app)
+Use dev_appserver.py to run the server in development mode:
 
-* $APPDIR contains the following entries (this may change depending on
-  app-engine release and version of godoc):
+	dev_appserver.py app.dev.yaml
 
-	app.yaml
-	golang.org/x/tools/cmd/godoc
-	godoc.zip
-	index.split.*
+To run the server with generated zip file and search index:
 
-* The app.yaml file is set up per app engine documentation.
-  For instance:
+	./generate-index.bash
+	dev_appserver.py app.prod.yaml
 
-	application: godoc-app
-	version: 1
-	runtime: go
-	api_version: go1
+godoc should come up at http://localhost:8080
+Use the --host and --port flags to listen on a different address.
 
-	handlers:
-	- url: /.*
-	  script: _go_app
+To clean up the index files, use git:
+
+	git clean -xn # n is dry run, replace with f
 
 
-Configuring and running godoc
------------------------------
+Troubleshooting
+---------------
 
-To configure godoc, run
-
-	bash setup-godoc-app.bash
-
-to prepare an $APPDIR as described above. See the script for details on usage.
-
-To run godoc locally, using the App Engine development server, run
-
-	<path to go_appengine>/dev_appserver.py $APPDIR
-
-godoc should come up at http://localhost:8080 .
+Ensure the Cloud SDK is on your PATH and you have the app-engine-go component
+installed (gcloud components install app-engine-go) and your components are
+up-to-date (gcloud components update)

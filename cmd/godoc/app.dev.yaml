@@ -1,0 +1,13 @@
+runtime: go
+api_version: go1
+instance_class: F4_1G
+
+handlers:
+- url: /s
+  script: _go_app
+  login: admin
+- url: /dl/init
+  script: _go_app
+  login: admin
+- url: /.*
+  script: _go_app

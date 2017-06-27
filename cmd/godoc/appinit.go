@@ -13,8 +13,10 @@ import (
 	"archive/zip"
 	"log"
 	"net/http"
+	"os"
 	"path"
 	"regexp"
+	"runtime"
 
 	"golang.org/x/tools/godoc"
 	"golang.org/x/tools/godoc/dl"
@@ -22,12 +24,25 @@ import (
 	"golang.org/x/tools/godoc/short"
 	"golang.org/x/tools/godoc/static"
 	"golang.org/x/tools/godoc/vfs"
+	"golang.org/x/tools/godoc/vfs/gatefs"
 	"golang.org/x/tools/godoc/vfs/mapfs"
 	"golang.org/x/tools/godoc/vfs/zipfs"
 	"google.golang.org/appengine"
 )
 
 func init() {
+	var (
+		// .zip filename
+		zipFilename = os.Getenv("GODOC_ZIP")
+
+		// goroot directory in .zip file
+		zipGoroot = os.Getenv("GODOC_ZIP_PREFIX")
+
+		// glob pattern describing search index files
+		// (if empty, the index is built at run-time)
+		indexFilenames = os.Getenv("GODOC_INDEX_GLOB")
+	)
+
 	enforceHosts = !appengine.IsDevAppServer()
 	playEnabled = true
 
@@ -36,16 +51,20 @@ func init() {
 	log.Printf(".zip GOROOT = %s", zipGoroot)
 	log.Printf("index files = %s", indexFilenames)
 
-	goroot := path.Join("/", zipGoroot) // fsHttp paths are relative to '/'
-
-	// read .zip file and set up file systems
-	const zipfile = zipFilename
-	rc, err := zip.OpenReader(zipfile)
-	if err != nil {
-		log.Fatalf("%s: %s\n", zipfile, err)
+	if zipFilename != "" {
+		goroot := path.Join("/", zipGoroot) // fsHttp paths are relative to '/'
+		// read .zip file and set up file systems
+		rc, err := zip.OpenReader(zipFilename)
+		if err != nil {
+			log.Fatalf("%s: %s\n", zipFilename, err)
+		}
+		// rc is never closed (app running forever)
+		fs.Bind("/", zipfs.New(rc, zipFilename), goroot, vfs.BindReplace)
+	} else {
+		rootfs := gatefs.New(vfs.OS(runtime.GOROOT()), make(chan bool, 20))
+		fs.Bind("/", rootfs, "/", vfs.BindReplace)
 	}
-	// rc is never closed (app running forever)
-	fs.Bind("/", zipfs.New(rc, zipFilename), goroot, vfs.BindReplace)
+
 	fs.Bind("/lib/godoc", mapfs.New(static.Files), "/", vfs.BindReplace)
 
 	corpus := godoc.NewCorpus(fs)
