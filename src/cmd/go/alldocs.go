@@ -849,10 +849,10 @@
 // 		exactly one main package to be listed.
 //
 // 	-buildmode=c-shared
-// 		Build the listed main packages, plus all packages that they
-// 		import, into C shared libraries. The only callable symbols will
+// 		Build the listed main package, plus all packages it imports,
+// 		into a C shared library. The only callable symbols will
 // 		be those functions exported using a cgo //export comment.
-// 		Non-main packages are ignored.
+// 		Requires exactly one main package to be listed.
 //
 // 	-buildmode=default
 // 		Listed main packages are built into executables and listed
