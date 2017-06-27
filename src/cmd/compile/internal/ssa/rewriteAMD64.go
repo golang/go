@@ -39253,13 +39253,18 @@ func rewriteValueAMD64_OpInterCall_0(v *Value) bool {
 func rewriteValueAMD64_OpIsInBounds_0(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (IsInBounds idx len)
-	// cond:
+	// cond: config.PtrSize == 8
 	// result: (SETB (CMPQ idx len))
 	for {
 		_ = v.Args[1]
 		idx := v.Args[0]
 		len := v.Args[1]
+		if !(config.PtrSize == 8) {
+			break
+		}
 		v.reset(OpAMD64SETB)
 		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
 		v0.AddArg(idx)
@@ -39267,6 +39272,24 @@ func rewriteValueAMD64_OpIsInBounds_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (IsInBounds idx len)
+	// cond: config.PtrSize == 4
+	// result: (SETB (CMPL idx len))
+	for {
+		_ = v.Args[1]
+		idx := v.Args[0]
+		len := v.Args[1]
+		if !(config.PtrSize == 4) {
+			break
+		}
+		v.reset(OpAMD64SETB)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
+		v0.AddArg(idx)
+		v0.AddArg(len)
+		v.AddArg(v0)
+		return true
+	}
+	return false
 }
 func rewriteValueAMD64_OpIsNonNil_0(v *Value) bool {
 	b := v.Block
@@ -39308,13 +39331,18 @@ func rewriteValueAMD64_OpIsNonNil_0(v *Value) bool {
 func rewriteValueAMD64_OpIsSliceInBounds_0(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (IsSliceInBounds idx len)
-	// cond:
+	// cond: config.PtrSize == 8
 	// result: (SETBE (CMPQ idx len))
 	for {
 		_ = v.Args[1]
 		idx := v.Args[0]
 		len := v.Args[1]
+		if !(config.PtrSize == 8) {
+			break
+		}
 		v.reset(OpAMD64SETBE)
 		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
 		v0.AddArg(idx)
@@ -39322,6 +39350,24 @@ func rewriteValueAMD64_OpIsSliceInBounds_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (IsSliceInBounds idx len)
+	// cond: config.PtrSize == 4
+	// result: (SETBE (CMPL idx len))
+	for {
+		_ = v.Args[1]
+		idx := v.Args[0]
+		len := v.Args[1]
+		if !(config.PtrSize == 4) {
+			break
+		}
+		v.reset(OpAMD64SETBE)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
+		v0.AddArg(idx)
+		v0.AddArg(len)
+		v.AddArg(v0)
+		return true
+	}
+	return false
 }
 func rewriteValueAMD64_OpLeq16_0(v *Value) bool {
 	b := v.Block
