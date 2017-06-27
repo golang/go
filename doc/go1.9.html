@@ -786,10 +786,18 @@ CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS gener
 <dl id="testing/quick"><dt><a href="/pkg/testing/quick/">testing/quick</a></dt>
   <dd>
     <p><!-- CL 39152 -->
-	  The package now chooses values in the full range when
-	  generating <code>int64</code> and <code>uint64</code> random
-	  numbers; in earlier releases generated values were always
-	  limited to the [-2<sup>62</sup>, 2<sup>62</sup>) range.
+      The package now chooses values in the full range when
+      generating <code>int64</code> and <code>uint64</code> random
+      numbers; in earlier releases generated values were always
+      limited to the [-2<sup>62</sup>, 2<sup>62</sup>) range.
+    </p>
+
+    <p>
+      In previous releases, using a nil
+      <a href="/pkg/testing/quick/#Config.Rand"><code>Config.Rand</code></a>
+      value caused the same deterministic random number generator to be used.
+      It now uses a random number generator seeded on the current time.
+      For the old behavior, use <code>rand.New(rand.NewSource(0))</code>.
     </p>
 
 </dl><!-- testing/quick -->
