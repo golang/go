@@ -61,6 +61,8 @@ import "errors"
 // RFC822, RFC822Z, RFC1123, and RFC1123Z are useful for formatting;
 // when used with time.Parse they do not accept all the time formats
 // permitted by the RFCs.
+// The RFC3339Nano format removes trailing zeros from the seconds field
+// and thus may not sort correctly once formatted.
 const (
 	ANSIC       = "Mon Jan _2 15:04:05 2006"
 	UnixDate    = "Mon Jan _2 15:04:05 MST 2006"
