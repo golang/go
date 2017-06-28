@@ -784,6 +784,13 @@ CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS gener
       to set supplementary groups when starting a new process.
     </p>
 
+    <p><!-- CL 43512 -->
+      The new field
+      <a href="/pkg/syscall/#SysProcAttr.AmbientCaps"><code>SysProcAttr.AmbientCaps</code></a>
+      allows setting ambient capabilities on Linux 4.3+ when creating
+      a new process.
+    </p>
+
     <p><!-- CL 37439 -->
       On 64-bit x86 Linux, process creation latency has been optimized with
       use of <code>CLONE_VFORK</code> and <code>CLONE_VM</code>.
