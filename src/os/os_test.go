@@ -1990,6 +1990,10 @@ func TestLongPath(t *testing.T) {
 					if dir.Size() != filesize || filesize != wantSize {
 						t.Errorf("Size(%q) is %d, len(ReadFile()) is %d, want %d", path, dir.Size(), filesize, wantSize)
 					}
+					err = Chmod(path, dir.Mode())
+					if err != nil {
+						t.Fatalf("Chmod(%q) failed: %v", path, err)
+					}
 				}
 				if err := Truncate(sizedTempDir+"/bar.txt", 0); err != nil {
 					t.Fatalf("Truncate failed: %v", err)
