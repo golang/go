@@ -927,7 +927,7 @@ type (
 		Recv *FieldList    // receiver (methods); or nil (functions)
 		Name *Ident        // function/method name
 		Type *FuncType     // function signature: parameters, results, and position of "func" keyword
-		Body *BlockStmt    // function body; or nil (forward declaration)
+		Body *BlockStmt    // function body; or nil for external (non-Go) function
 	}
 )
 
