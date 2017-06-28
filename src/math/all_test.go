@@ -211,6 +211,18 @@ var erfc = []float64{
 	7.9630075582117758758440411e-01,
 	1.7806938696800922672994468e+00,
 }
+var erfinv = []float64{
+	4.746037673358033586786350696e-01,
+	8.559054432692110956388764172e-01,
+	-2.45427830571707336251331946e-02,
+	-4.78116683518973366268905506e-01,
+	1.479804430319470983648120853e+00,
+	2.654485787128896161882650211e-01,
+	5.027444534221520197823192493e-01,
+	2.466703532707627818954585670e-01,
+	1.632011465103005426240343116e-01,
+	-1.06672334642196900710000389e+00,
+}
 var exp = []float64{
 	1.4533071302642137507696589e+02,
 	2.2958822575694449002537581e+03,
@@ -939,6 +951,23 @@ var vferfcSC = []float64{
 var erfcSC = []float64{
 	2,
 	0,
+	NaN(),
+}
+
+var vferfinvSC = []float64{
+	1,
+	-1,
+	0,
+	Inf(-1),
+	Inf(1),
+	NaN(),
+}
+var erfinvSC = []float64{
+	Inf(+1),
+	Inf(-1),
+	0,
+	NaN(),
+	NaN(),
 	NaN(),
 }
 
@@ -2122,6 +2151,30 @@ func TestErfc(t *testing.T) {
 	}
 }
 
+func TestErfinv(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		a := vf[i] / 10
+		if f := Erfinv(a); !veryclose(erfinv[i], f) {
+			t.Errorf("Erfinv(%g) = %g, want %g", a, f, erfinv[i])
+		}
+	}
+	for i := 0; i < len(vferfinvSC); i++ {
+		if f := Erfinv(vferfinvSC[i]); !alike(erfinvSC[i], f) {
+			t.Errorf("Erfinv(%g) = %g, want %g", vferfinvSC[i], f, erfinvSC[i])
+		}
+	}
+	for x := -0.9; x <= 0.90; x += 1e-2 {
+		if f := Erf(Erfinv(x)); !close(x, f) {
+			t.Errorf("Erf(Erfinv(%g)) = %g, want %g", x, f, x)
+		}
+	}
+	for x := -0.9; x <= 0.90; x += 1e-2 {
+		if f := Erfinv(Erf(x)); !close(x, f) {
+			t.Errorf("Erfinv(Erf(%g)) = %g, want %g", x, f, x)
+		}
+	}
+}
+
 func TestExp(t *testing.T) {
 	testExp(t, Exp, "Exp")
 	testExp(t, ExpGo, "ExpGo")
@@ -2971,6 +3024,14 @@ func BenchmarkErfc(b *testing.B) {
 	x := 0.0
 	for i := 0; i < b.N; i++ {
 		x = Erfc(.5)
+	}
+	GlobalF = x
+}
+
+func BenchmarkErfinv(b *testing.B) {
+	x := 0.0
+	for i := 0; i < b.N; i++ {
+		x = Erfinv(.5)
 	}
 	GlobalF = x
 }
