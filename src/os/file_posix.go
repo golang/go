@@ -48,7 +48,7 @@ func syscallMode(i FileMode) (o uint32) {
 // If the file is a symbolic link, it changes the mode of the link's target.
 // If there is an error, it will be of type *PathError.
 func Chmod(name string, mode FileMode) error {
-	if e := syscall.Chmod(name, syscallMode(mode)); e != nil {
+	if e := syscall.Chmod(fixLongPath(name), syscallMode(mode)); e != nil {
 		return &PathError{"chmod", name, e}
 	}
 	return nil
