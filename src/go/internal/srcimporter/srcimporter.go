@@ -136,8 +136,11 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 	}
 	pkg, err = conf.Check(bp.ImportPath, p.fset, files, nil)
 	if err != nil {
-		// return (possibly nil or incomplete) package with error (see #16088)
-		return pkg, fmt.Errorf("type-checking package %q failed (%v)", bp.ImportPath, err)
+		// Type-checking stops after the first error (types.Config.Error is not set),
+		// so the returned package is very likely incomplete. Don't return it since
+		// we don't know its condition: It's very likely unsafe to use and it's also
+		// not added to p.packages which may cause further problems (issue #20837).
+		return nil, fmt.Errorf("type-checking package %q failed (%v)", bp.ImportPath, err)
 	}
 
 	p.packages[bp.ImportPath] = pkg
