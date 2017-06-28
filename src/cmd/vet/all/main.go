@@ -238,9 +238,9 @@ NextLine:
 		default:
 			if !parseFailed {
 				parseFailed = true
-				fmt.Fprintln(os.Stderr, "failed to parse vet output:")
+				fmt.Fprintf(os.Stderr, "failed to parse %s vet output:\n", p)
 			}
-			fmt.Println(os.Stderr, line)
+			fmt.Fprintln(os.Stderr, line)
 		}
 		msg = strings.TrimSpace(msg)
 
