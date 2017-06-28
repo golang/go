@@ -491,10 +491,10 @@ var prettyStrings = map[string]string{
 	"linux":   "Linux",
 	"windows": "Windows",
 
-	"386":   "32-bit",
-	"amd64": "64-bit",
-
+	"386":    "x86",
+	"amd64":  "x86-64",
 	"armv6l": "ARMv6",
+	"arm64":  "ARMv8",
 
 	"archive":   "Archive",
 	"installer": "Installer",
