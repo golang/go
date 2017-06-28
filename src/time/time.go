@@ -23,10 +23,10 @@
 // approximately 20 milliseconds, even if the wall clock is changed during
 // the operation being timed:
 //
-//	t := time.Now()
+//	start := time.Now()
 //	... operation that takes 20 milliseconds ...
-//	u := time.Now()
-//	elapsed := t.Sub(u)
+//	t := time.Now()
+//	elapsed := t.Sub(start)
 //
 // Other idioms, such as time.Since(start), time.Until(deadline), and
 // time.Now().Before(deadline), are similarly robust against wall clock
