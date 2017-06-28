@@ -1617,9 +1617,7 @@ func unlockextra(mp *m) {
 
 // execLock serializes exec and clone to avoid bugs or unspecified behaviour
 // around exec'ing while creating/destroying threads.  See issue #19546.
-//
-// TODO: look into using a rwmutex, to avoid serializing thread creation.
-var execLock mutex
+var execLock rwmutex
 
 // Create a new m. It will start off with a call to fn, or else the scheduler.
 // fn needs to be static and not a heap allocated closure.
@@ -1640,14 +1638,14 @@ func newm(fn func(), _p_ *p) {
 		if msanenabled {
 			msanwrite(unsafe.Pointer(&ts), unsafe.Sizeof(ts))
 		}
-		lock(&execLock)
+		execLock.rlock() // Prevent process clone.
 		asmcgocall(_cgo_thread_start, unsafe.Pointer(&ts))
-		unlock(&execLock)
+		execLock.runlock()
 		return
 	}
-	lock(&execLock)
+	execLock.rlock() // Prevent process clone.
 	newosproc(mp, unsafe.Pointer(mp.g0.stack.hi))
-	unlock(&execLock)
+	execLock.runlock()
 }
 
 // Stops execution of the current m until new work is available.
@@ -2870,13 +2868,14 @@ func syscall_runtime_AfterForkInChild() {
 // Called from syscall package before Exec.
 //go:linkname syscall_runtime_BeforeExec syscall.runtime_BeforeExec
 func syscall_runtime_BeforeExec() {
-	lock(&execLock)
+	// Prevent thread creation during exec.
+	execLock.lock()
 }
 
 // Called from syscall package after Exec.
 //go:linkname syscall_runtime_AfterExec syscall.runtime_AfterExec
 func syscall_runtime_AfterExec() {
-	unlock(&execLock)
+	execLock.unlock()
 }
 
 // Allocate a new g, with a stack big enough for stacksize bytes.
