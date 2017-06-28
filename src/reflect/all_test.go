@@ -4686,41 +4686,67 @@ func TestStructOfWithInterface(t *testing.T) {
 	}
 
 	for i, table := range tests {
-		rt := StructOf(
-			[]StructField{
-				{
-					Name:      table.name,
-					Anonymous: true,
-					PkgPath:   "",
-					Type:      table.typ,
-				},
-			},
-		)
-		rv := New(rt).Elem()
-		rv.Field(0).Set(table.val)
-
-		if _, ok := rv.Interface().(Iface); ok != table.impl {
-			if table.impl {
-				t.Errorf("test-%d: type=%v fails to implement Iface.\n", i, table.typ)
-			} else {
-				t.Errorf("test-%d: type=%v should NOT implement Iface\n", i, table.typ)
+		for j := 0; j < 2; j++ {
+			var fields []StructField
+			if j == 1 {
+				fields = append(fields, StructField{
+					Name:    "Dummy",
+					PkgPath: "",
+					Type:    TypeOf(int(0)),
+				})
 			}
-			continue
-		}
+			fields = append(fields, StructField{
+				Name:      table.name,
+				Anonymous: true,
+				PkgPath:   "",
+				Type:      table.typ,
+			})
 
-		if !table.impl {
-			continue
-		}
+			// We currently do not correctly implement methods
+			// for anonymous fields other than the first.
+			// Therefore, for now, we expect those methods
+			// to not exist.  See issues 15924 and 20824.
+			// When those issues are fixed, this test of panic
+			// should be removed.
+			if j == 1 && table.impl {
+				func() {
+					defer func() {
+						if err := recover(); err == nil {
+							t.Errorf("test-%d-%d did not panic", i, j)
+						}
+					}()
+					_ = StructOf(fields)
+				}()
+				continue
+			}
 
-		v := rv.Interface().(Iface).Get()
-		if v != want {
-			t.Errorf("test-%d: x.Get()=%v. want=%v\n", i, v, want)
-		}
+			rt := StructOf(fields)
+			rv := New(rt).Elem()
+			rv.Field(j).Set(table.val)
 
-		fct := rv.MethodByName("Get")
-		out := fct.Call(nil)
-		if !DeepEqual(out[0].Interface(), want) {
-			t.Errorf("test-%d: x.Get()=%v. want=%v\n", i, out[0].Interface(), want)
+			if _, ok := rv.Interface().(Iface); ok != table.impl {
+				if table.impl {
+					t.Errorf("test-%d-%d: type=%v fails to implement Iface.\n", i, j, table.typ)
+				} else {
+					t.Errorf("test-%d-%d: type=%v should NOT implement Iface\n", i, j, table.typ)
+				}
+				continue
+			}
+
+			if !table.impl {
+				continue
+			}
+
+			v := rv.Interface().(Iface).Get()
+			if v != want {
+				t.Errorf("test-%d-%d: x.Get()=%v. want=%v\n", i, j, v, want)
+			}
+
+			fct := rv.MethodByName("Get")
+			out := fct.Call(nil)
+			if !DeepEqual(out[0].Interface(), want) {
+				t.Errorf("test-%d-%d: x.Get()=%v. want=%v\n", i, j, out[0].Interface(), want)
+			}
 		}
 	}
 }
