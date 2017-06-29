@@ -110,7 +110,7 @@ func TestEnvVars(t *testing.T) {
 				t.Fatal("nil roots")
 			}
 
-			// Verify len(r.certs) == len(tc.cns), otherwise report where the mismatch is.
+			// Verify that the returned certs match, otherwise report where the mismatch is.
 			for i, cn := range tc.cns {
 				if i >= len(r.certs) {
 					t.Errorf("missing cert %v @ %v", cn, i)
