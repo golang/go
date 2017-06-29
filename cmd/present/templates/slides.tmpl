@@ -55,7 +55,7 @@
 
   {{range $i, $s := .Sections}}
   <!-- start of slide {{$s.Number}} -->
-      <article>
+      <article {{$s.HTMLAttributes}}>
       {{if $s.Elem}}
         <h3>{{$s.Title}}</h3>
         {{range $s.Elem}}{{elem $.Template .}}{{end}}

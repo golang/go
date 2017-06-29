@@ -96,12 +96,32 @@ func (p *Author) TextElem() (elems []Elem) {
 // Section represents a section of a document (such as a presentation slide)
 // comprising a title and a list of elements.
 type Section struct {
-	Number []int
-	Title  string
-	Elem   []Elem
-	Notes  []string
+	Number  []int
+	Title   string
+	Elem    []Elem
+	Notes   []string
+	Classes []string
+	Styles  []string
 }
 
+// HTMLAttributes for the section
+func (s Section) HTMLAttributes() template.HTMLAttr {
+	if len(s.Classes) == 0 && len(s.Styles) == 0 {
+		return ""
+	}
+
+	var class string
+	if len(s.Classes) > 0 {
+		class = fmt.Sprintf(`class=%q`, strings.Join(s.Classes, " "))
+	}
+	var style string
+	if len(s.Styles) > 0 {
+		style = fmt.Sprintf(`style=%q`, strings.Join(s.Styles, " "))
+	}
+	return template.HTMLAttr(strings.Join([]string{class, style}, " "))
+}
+
+// Sections contained within the section.
 func (s Section) Sections() (sections []Section) {
 	for _, e := range s.Elem {
 		if section, ok := e.(Section); ok {
@@ -366,6 +386,11 @@ func parseSections(ctx *Context, name string, lines *Lines, number []int) ([]Sec
 				}
 			case strings.HasPrefix(text, "."):
 				args := strings.Fields(text)
+				if args[0] == ".background" {
+					section.Classes = append(section.Classes, "background")
+					section.Styles = append(section.Styles, "background-image: url('"+args[1]+"')")
+					break
+				}
 				parser := parsers[args[0]]
 				if parser == nil {
 					return nil, fmt.Errorf("%s:%d: unknown command %q\n", name, lines.line, text)
