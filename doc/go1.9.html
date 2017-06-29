@@ -580,6 +580,12 @@ CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS gener
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
 
+    <p><!-- CL 37328 -->
+      The <a href="/pkg/net/http/#Cookie.String"><code>Cookie.String</code></a> method, used for
+      <code>Cookie</code> and <code>Set-Cookie</code> headers, now encloses values in double quotes
+      if the value contains either a space or a comma.
+    </p>
+
     <p>Server changes:</p>
     <ul>
       <li><!-- CL 38194 -->
