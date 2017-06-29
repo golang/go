@@ -45,7 +45,7 @@ const (
 	ModeDir        FileMode = 1 << (32 - 1 - iota) // d: is a directory
 	ModeAppend                                     // a: append-only
 	ModeExclusive                                  // l: exclusive use
-	ModeTemporary                                  // T: temporary file (not backed up)
+	ModeTemporary                                  // T: temporary file; Plan 9 only
 	ModeSymlink                                    // L: symbolic link
 	ModeDevice                                     // D: device file
 	ModeNamedPipe                                  // p: named pipe (FIFO)

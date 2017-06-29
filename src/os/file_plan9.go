@@ -196,9 +196,7 @@ func (f *File) Truncate(size int64) error {
 
 const chmodMask = uint32(syscall.DMAPPEND | syscall.DMEXCL | syscall.DMTMP | ModePerm)
 
-// Chmod changes the mode of the file to mode.
-// If there is an error, it will be of type *PathError.
-func (f *File) Chmod(mode FileMode) error {
+func (f *File) chmod(mode FileMode) error {
 	if f == nil {
 		return ErrInvalid
 	}
@@ -375,10 +373,8 @@ func rename(oldname, newname string) error {
 	return nil
 }
 
-// Chmod changes the mode of the named file to mode.
-// If the file is a symbolic link, it changes the mode of the link's target.
-// If there is an error, it will be of type *PathError.
-func Chmod(name string, mode FileMode) error {
+// See docs in file.go:Chmod.
+func chmod(name string, mode FileMode) error {
 	var d syscall.Dir
 
 	odir, e := dirstat(name)
