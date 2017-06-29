@@ -17,6 +17,7 @@ import (
 	"go/build"
 	"go/types"
 	"internal/testenv"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -225,6 +226,15 @@ NextLine:
 			// Typecheck failure: Malformed syntax or multiple packages or the like.
 			// This will yield nicer error messages elsewhere, so ignore them here.
 			continue
+		}
+
+		if strings.HasPrefix(line, "panic: ") {
+			// Panic in vet. Don't filter anything, we want the complete output.
+			parseFailed = true
+			fmt.Fprintf(os.Stderr, "panic in vet (to reproduce: go run main.go -p %s):\n", p)
+			fmt.Fprintln(os.Stderr, line)
+			io.Copy(os.Stderr, stderr)
+			break
 		}
 
 		fields := strings.SplitN(line, ":", 3)
