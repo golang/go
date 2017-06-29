@@ -361,40 +361,47 @@ func (d *decodeState) scanWhile(op int) int {
 	return newOp
 }
 
-// discardObject and discardArray are dummy data targets
-// used by the (*decodeState).value method, which
-// accepts a zero reflect.Value to discard a value.
-// The (*decodeState).object and (*decodeState).array methods,
-// however, require a valid reflect.Value destination.
-// These are the target values used when the caller of value
-// wants to skip a field.
-//
-// Because these values refer to zero-sized objects
-// and thus can't be mutated, they're safe for concurrent use
-// by different goroutines unmarshalling skipped fields.
-var (
-	discardObject = reflect.ValueOf(struct{}{})
-	discardArray  = reflect.ValueOf([0]interface{}{})
-)
-
 // value decodes a JSON value from d.data[d.off:] into the value.
-// It updates d.off to point past the decoded value. If v is
-// invalid, the JSON value is discarded.
+// it updates d.off to point past the decoded value.
 func (d *decodeState) value(v reflect.Value) {
+	if !v.IsValid() {
+		_, rest, err := nextValue(d.data[d.off:], &d.nextscan)
+		if err != nil {
+			d.error(err)
+		}
+		d.off = len(d.data) - len(rest)
+
+		// d.scan thinks we're still at the beginning of the item.
+		// Feed in an empty string - the shortest, simplest value -
+		// so that it knows we got to the end of the value.
+		if d.scan.redo {
+			// rewind.
+			d.scan.redo = false
+			d.scan.step = stateBeginValue
+		}
+		d.scan.step(&d.scan, '"')
+		d.scan.step(&d.scan, '"')
+
+		n := len(d.scan.parseState)
+		if n > 0 && d.scan.parseState[n-1] == parseObjectKey {
+			// d.scan thinks we just read an object key; finish the object
+			d.scan.step(&d.scan, ':')
+			d.scan.step(&d.scan, '"')
+			d.scan.step(&d.scan, '"')
+			d.scan.step(&d.scan, '}')
+		}
+
+		return
+	}
+
 	switch op := d.scanWhile(scanSkipSpace); op {
 	default:
 		d.error(errPhase)
 
 	case scanBeginArray:
-		if !v.IsValid() {
-			v = discardArray
-		}
 		d.array(v)
 
 	case scanBeginObject:
-		if !v.IsValid() {
-			v = discardObject
-		}
 		d.object(v)
 
 	case scanBeginLiteral:
@@ -512,7 +519,8 @@ func (d *decodeState) array(v reflect.Value) {
 		d.off--
 		d.next()
 		return
-	case reflect.Array, reflect.Slice:
+	case reflect.Array:
+	case reflect.Slice:
 		break
 	}
 
@@ -791,9 +799,7 @@ func (d *decodeState) literal(v reflect.Value) {
 	d.off--
 	d.scan.undo(op)
 
-	if v.IsValid() {
-		d.literalStore(d.data[start:d.off], v, false)
-	}
+	d.literalStore(d.data[start:d.off], v, false)
 }
 
 // convertNumber converts the number literal s to a float64 or a Number
