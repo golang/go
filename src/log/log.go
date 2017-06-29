@@ -236,6 +236,7 @@ func (l *Logger) Panicln(v ...interface{}) {
 }
 
 // Flags returns the output flags for the logger.
+// The flag bits are Ldate, Ltime, and so on.
 func (l *Logger) Flags() int {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -243,6 +244,7 @@ func (l *Logger) Flags() int {
 }
 
 // SetFlags sets the output flags for the logger.
+// The flag bits are Ldate, Ltime, and so on.
 func (l *Logger) SetFlags(flag int) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -278,11 +280,13 @@ func SetOutput(w io.Writer) {
 }
 
 // Flags returns the output flags for the standard logger.
+// The flag bits are Ldate, Ltime, and so on.
 func Flags() int {
 	return std.Flags()
 }
 
 // SetFlags sets the output flags for the standard logger.
+// The flag bits are Ldate, Ltime, and so on.
 func SetFlags(flag int) {
 	std.SetFlags(flag)
 }
