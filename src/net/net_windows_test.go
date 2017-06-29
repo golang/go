@@ -592,7 +592,7 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 		addr = strings.Replace(addr, "-", ":", -1)
 		cname := getValue("Connection Name")
 		want[cname] = addr
-		group = nil
+		group = make(map[string]string)
 	}
 	lines := bytes.Split(out, []byte{'\r', '\n'})
 	for _, line := range lines {
