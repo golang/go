@@ -579,6 +579,9 @@ func FuncForPC(pc uintptr) *Func {
 
 // Name returns the name of the function.
 func (f *Func) Name() string {
+	if f == nil {
+		return ""
+	}
 	return funcname(f.funcInfo())
 }
 

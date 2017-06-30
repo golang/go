@@ -154,3 +154,14 @@ func TestLineNumber(t *testing.T) {
 		}
 	}
 }
+
+func TestNilName(t *testing.T) {
+	defer func() {
+		if ex := recover(); ex != nil {
+			t.Fatalf("expected no nil panic, got=%v", ex)
+		}
+	}()
+	if got := (*runtime.Func)(nil).Name(); got != "" {
+		t.Errorf("Name() = %q, want %q", got, "")
+	}
+}
