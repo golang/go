@@ -657,13 +657,14 @@ func (h *mheap) reclaim(npage uintptr) {
 	lock(&h.lock)
 }
 
-// Allocate a new span of npage pages from the heap for GC'd memory
-// and record its size class in the HeapMap and HeapMapCache.
+// alloc_m is the internal implementation of mheap.alloc.
+//
+// alloc_m must run on the system stack because it locks the heap, so
+// any stack growth during alloc_m would self-deadlock.
+//
+//go:systemstack
 func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 	_g_ := getg()
-	if _g_ != _g_.m.g0 {
-		throw("_mheap_alloc not on g0 stack")
-	}
 	lock(&h.lock)
 
 	// To prevent excessive heap growth, before allocating n pages
@@ -752,6 +753,12 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 	return s
 }
 
+// alloc allocates a new span of npage pages from the GC'd heap.
+//
+// Either large must be true or spanclass must indicates the span's
+// size class and scannability.
+//
+// If needzero is true, the memory for the returned span will be zeroed.
 func (h *mheap) alloc(npage uintptr, spanclass spanClass, large bool, needzero bool) *mspan {
 	// Don't do any operations that lock the heap on the G stack.
 	// It might trigger stack growth, and the stack growth code needs
