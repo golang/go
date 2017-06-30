@@ -93,9 +93,6 @@ func NewUnstartedServer(handler http.Handler) *Server {
 	return &Server{
 		Listener: newLocalListener(),
 		Config:   &http.Server{Handler: handler},
-		client: &http.Client{
-			Transport: &http.Transport{},
-		},
 	}
 }
 
@@ -103,6 +100,9 @@ func NewUnstartedServer(handler http.Handler) *Server {
 func (s *Server) Start() {
 	if s.URL != "" {
 		panic("Server already started")
+	}
+	if s.client == nil {
+		s.client = &http.Client{Transport: &http.Transport{}}
 	}
 	s.URL = "http://" + s.Listener.Addr().String()
 	s.wrap()
@@ -117,6 +117,9 @@ func (s *Server) Start() {
 func (s *Server) StartTLS() {
 	if s.URL != "" {
 		panic("Server already started")
+	}
+	if s.client == nil {
+		s.client = &http.Client{Transport: &http.Transport{}}
 	}
 	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
 	if err != nil {
