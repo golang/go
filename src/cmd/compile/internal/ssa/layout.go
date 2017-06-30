@@ -8,6 +8,33 @@ package ssa
 // After this phase returns, the order of f.Blocks matters and is the order
 // in which those blocks will appear in the assembly output.
 func layout(f *Func) {
+	f.Blocks = layoutOrder(f)
+}
+
+// Register allocation may use a different order which has constraints
+// imposed by the linear-scan algorithm. Note that that f.pass here is
+// regalloc, so the switch is conditional on -d=ssa/regalloc/test=N
+func layoutRegallocOrder(f *Func) []*Block {
+
+	switch f.pass.test {
+	case 0: // layout order
+		return layoutOrder(f)
+	case 1: // existing block order
+		return f.Blocks
+	case 2: // reverse of postorder; legal, but usually not good.
+		po := f.postorder()
+		visitOrder := make([]*Block, len(po))
+		for i, b := range po {
+			j := len(po) - i - 1
+			visitOrder[j] = b
+		}
+		return visitOrder
+	}
+
+	return nil
+}
+
+func layoutOrder(f *Func) []*Block {
 	order := make([]*Block, 0, f.NumBlocks())
 	scheduled := make([]bool, f.NumBlocks())
 	idToBlock := make([]*Block, f.NumBlocks())
@@ -116,5 +143,5 @@ blockloop:
 			}
 		}
 	}
-	f.Blocks = order
+	return order
 }
