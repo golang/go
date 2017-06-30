@@ -857,16 +857,11 @@ func (h *mheap) isLargeSpan(npages uintptr) bool {
 	return npages >= uintptr(len(h.free))
 }
 
-// Allocate a span of exactly npage pages from the treap of large spans.
+// allocLarge allocates a span of at least npage pages from the treap of large spans.
+// Returns nil if no such span currently exists.
 func (h *mheap) allocLarge(npage uintptr) *mspan {
-	return bestFitTreap(&h.freelarge, npage)
-}
-
-// Search treap for smallest span with >= npage pages.
-// If there are multiple smallest spans, select the one
-// with the earliest starting address.
-func bestFitTreap(treap *mTreap, npage uintptr) *mspan {
-	return treap.remove(npage)
+	// Search treap for smallest span with >= npage pages.
+	return h.freelarge.remove(npage)
 }
 
 // Try to add at least npage pages of memory to the heap,
