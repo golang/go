@@ -87,11 +87,9 @@ func (b *B) StartTimer() {
 func (b *B) StopTimer() {
 	if b.timerOn {
 		b.duration += time.Now().Sub(b.start)
-		if *benchmarkMemory || b.showAllocResult {
-			runtime.ReadMemStats(&memStats)
-			b.netAllocs += memStats.Mallocs - b.startAllocs
-			b.netBytes += memStats.TotalAlloc - b.startBytes
-		}
+		runtime.ReadMemStats(&memStats)
+		b.netAllocs += memStats.Mallocs - b.startAllocs
+		b.netBytes += memStats.TotalAlloc - b.startBytes
 		b.timerOn = false
 	}
 }
@@ -100,11 +98,9 @@ func (b *B) StopTimer() {
 // It does not affect whether the timer is running.
 func (b *B) ResetTimer() {
 	if b.timerOn {
-		if *benchmarkMemory || b.showAllocResult {
-			runtime.ReadMemStats(&memStats)
-			b.startAllocs = memStats.Mallocs
-			b.startBytes = memStats.TotalAlloc
-		}
+		runtime.ReadMemStats(&memStats)
+		b.startAllocs = memStats.Mallocs
+		b.startBytes = memStats.TotalAlloc
 		b.start = time.Now()
 	}
 	b.duration = 0
@@ -298,8 +294,6 @@ func (b *B) launch() {
 }
 
 // The results of a benchmark run.
-// MemAllocs and MemBytes may be zero if memory benchmarking is not requested
-// using B.ReportAllocs or the -benchmem command line flag.
 type BenchmarkResult struct {
 	N         int           // The number of iterations.
 	T         time.Duration // The total time taken.
