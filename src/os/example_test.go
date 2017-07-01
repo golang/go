@@ -50,7 +50,7 @@ func ExampleChtimes() {
 }
 
 func ExampleFileMode() {
-	fi, err := os.Stat("some-filename")
+	fi, err := os.Lstat("some-filename")
 	if err != nil {
 		log.Fatal(err)
 	}
