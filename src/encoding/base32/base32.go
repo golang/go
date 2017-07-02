@@ -279,19 +279,28 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 		dlen := 8
 
 		for j := 0; j < 8; {
-			if len(src) == 0 {
+
+			// We have reached the end and are missing padding
+			if len(src) == 0 && enc.padChar != NoPadding {
 				return n, false, CorruptInputError(olen - len(src) - j)
 			}
+
+			// We have reached the end and are not expecing any padding
+			if len(src) == 0 && enc.padChar == NoPadding {
+				dlen, end = j, true
+				break
+			}
+
 			in := src[0]
 			src = src[1:]
-			if in == '=' && j >= 2 && len(src) < 8 {
+			if in == byte(enc.padChar) && j >= 2 && len(src) < 8 {
 				// We've reached the end and there's padding
 				if len(src)+j < 8-1 {
 					// not enough padding
 					return n, false, CorruptInputError(olen)
 				}
 				for k := 0; k < 8-1-j; k++ {
-					if len(src) > k && src[k] != '=' {
+					if len(src) > k && src[k] != byte(enc.padChar) {
 						// incorrect padding
 						return n, false, CorruptInputError(olen - len(src) + k - 1)
 					}
@@ -484,4 +493,11 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
 
 // DecodedLen returns the maximum length in bytes of the decoded data
 // corresponding to n bytes of base32-encoded data.
-func (enc *Encoding) DecodedLen(n int) int { return n / 8 * 5 }
+func (enc *Encoding) DecodedLen(n int) int {
+	if enc.padChar == NoPadding {
+		// +6 represents the missing padding
+		return (n + 6) / 8 * 5
+	}
+
+	return n / 8 * 5
+}
