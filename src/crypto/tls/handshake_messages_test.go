@@ -98,8 +98,8 @@ func TestFuzz(t *testing.T) {
 
 func randomBytes(n int, rand *rand.Rand) []byte {
 	r := make([]byte, n)
-	for i := 0; i < n; i++ {
-		r[i] = byte(rand.Int31())
+	if _, err := rand.Read(r); err != nil {
+		panic("rand.Read failed: " + err.Error())
 	}
 	return r
 }

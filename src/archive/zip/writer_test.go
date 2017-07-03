@@ -58,8 +58,8 @@ var writeTests = []WriteTest{
 
 func TestWriter(t *testing.T) {
 	largeData := make([]byte, 1<<17)
-	for i := range largeData {
-		largeData[i] = byte(rand.Int())
+	if _, err := rand.Read(largeData); err != nil {
+		t.Fatal("rand.Read failed:", err)
 	}
 	writeTests[1].Data = largeData
 	defer func() {
@@ -201,8 +201,8 @@ func TestWriterUTF8(t *testing.T) {
 
 func TestWriterOffset(t *testing.T) {
 	largeData := make([]byte, 1<<17)
-	for i := range largeData {
-		largeData[i] = byte(rand.Int())
+	if _, err := rand.Read(largeData); err != nil {
+		t.Fatal("rand.Read failed:", err)
 	}
 	writeTests[1].Data = largeData
 	defer func() {
