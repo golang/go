@@ -105,7 +105,7 @@ type Config struct {
 	// conventions, for example.
 	//
 	// It must be safe to call concurrently from multiple goroutines.
-	FindPackage func(ctxt *build.Context, fromDir, importPath string, mode build.ImportMode) (*build.Package, error)
+	FindPackage func(ctxt *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error)
 
 	// AfterTypeCheck is called immediately after a list of files
 	// has been type-checked and appended to info.Files.
