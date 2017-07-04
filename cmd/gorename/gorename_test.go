@@ -32,7 +32,13 @@ func TestGeneratedFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	env := append(os.Environ(), fmt.Sprintf("GOPATH=%s", tmp))
+	var env = []string{fmt.Sprintf("GOPATH=%s", tmp)}
+	for _, envVar := range os.Environ() {
+		if !strings.HasPrefix(envVar, "GOPATH=") {
+			env = append(env, envVar)
+		}
+	}
+
 	// Testing renaming in packages that include cgo files:
 	for iter, renameTest := range []test{
 		{
