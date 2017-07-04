@@ -804,12 +804,14 @@ func putvar(ctxt Context, info, loc Sym, v *Var, startPC Sym, encbuf []byte) {
 		putattr(ctxt, info, v.Abbrev, DW_FORM_sec_offset, DW_CLS_PTR, int64(loc.Len()), loc)
 		addLocList(ctxt, loc, startPC, v, encbuf)
 	} else {
-		loc := append(encbuf[:0], DW_OP_call_frame_cfa)
-		if v.StackOffset != 0 {
-			loc = append(loc, DW_OP_consts)
+		loc := encbuf[:0]
+		if v.StackOffset == 0 {
+			loc = append(loc, DW_OP_call_frame_cfa)
+		} else {
+			loc = append(loc, DW_OP_fbreg)
 			loc = AppendSleb128(loc, int64(v.StackOffset))
-			loc = append(loc, DW_OP_plus)
 		}
+
 		putattr(ctxt, info, v.Abbrev, DW_FORM_block1, DW_CLS_BLOCK, int64(len(loc)), loc)
 	}
 	putattr(ctxt, info, v.Abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
@@ -826,8 +828,12 @@ func addLocList(ctxt Context, listSym, startPC Sym, v *Var, encbuf []byte) {
 		for _, piece := range entry.Pieces {
 			if !piece.Missing {
 				if piece.OnStack {
-					locBuf = append(locBuf, DW_OP_fbreg)
-					locBuf = AppendSleb128(locBuf, int64(piece.StackOffset))
+					if piece.StackOffset == 0 {
+						locBuf = append(locBuf, DW_OP_call_frame_cfa)
+					} else {
+						locBuf = append(locBuf, DW_OP_fbreg)
+						locBuf = AppendSleb128(locBuf, int64(piece.StackOffset))
+					}
 				} else {
 					if piece.RegNum < 32 {
 						locBuf = append(locBuf, DW_OP_reg0+byte(piece.RegNum))
