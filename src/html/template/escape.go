@@ -19,8 +19,7 @@ import (
 // been modified. Otherwise the named templates have been rendered
 // unusable.
 func escapeTemplate(tmpl *Template, node parse.Node, name string) error {
-	e := newEscaper(tmpl)
-	c, _ := e.escapeTree(context{}, node, name, 0)
+	c, _ := tmpl.esc.escapeTree(context{}, node, name, 0)
 	var err error
 	if c.err != nil {
 		err, c.err.Name = c.err, name
@@ -36,7 +35,7 @@ func escapeTemplate(tmpl *Template, node parse.Node, name string) error {
 		}
 		return err
 	}
-	e.commit()
+	tmpl.esc.commit()
 	if t := tmpl.set[name]; t != nil {
 		t.escapeErr = escapeOK
 		t.Tree = t.text.Tree
@@ -81,7 +80,8 @@ var funcMap = template.FuncMap{
 // escaper collects type inferences about templates and changes needed to make
 // templates injection safe.
 type escaper struct {
-	tmpl *Template
+	// ns is the nameSpace that this escaper is associated with.
+	ns *nameSpace
 	// output[templateName] is the output context for a templateName that
 	// has been mangled to include its input context.
 	output map[string]context
@@ -98,10 +98,10 @@ type escaper struct {
 	textNodeEdits     map[*parse.TextNode][]byte
 }
 
-// newEscaper creates a blank escaper for the given set.
-func newEscaper(t *Template) *escaper {
-	return &escaper{
-		t,
+// makeEscaper creates a blank escaper for the given set.
+func makeEscaper(n *nameSpace) escaper {
+	return escaper{
+		n,
 		map[string]context{},
 		map[string]*template.Template{},
 		map[string]bool{},
@@ -491,13 +491,13 @@ func (e *escaper) escapeList(c context, n *parse.ListNode) context {
 // It returns the best guess at an output context, and the result of the filter
 // which is the same as whether e was updated.
 func (e *escaper) escapeListConditionally(c context, n *parse.ListNode, filter func(*escaper, context) bool) (context, bool) {
-	e1 := newEscaper(e.tmpl)
+	e1 := makeEscaper(e.ns)
 	// Make type inferences available to f.
 	for k, v := range e.output {
 		e1.output[k] = v
 	}
 	c = e1.escapeList(c, n)
-	ok := filter != nil && filter(e1, c)
+	ok := filter != nil && filter(&e1, c)
 	if ok {
 		// Copy inferences and edits from e1 back into e.
 		for k, v := range e1.output {
@@ -546,7 +546,7 @@ func (e *escaper) escapeTree(c context, node parse.Node, name string, line int) 
 	if t == nil {
 		// Two cases: The template exists but is empty, or has never been mentioned at
 		// all. Distinguish the cases in the error messages.
-		if e.tmpl.set[name] != nil {
+		if e.ns.set[name] != nil {
 			return context{
 				state: stateError,
 				err:   errorf(ErrNoSuchTemplate, node, line, "%q is an incomplete or empty template", name),
@@ -794,8 +794,11 @@ func (e *escaper) commit() {
 	for name := range e.output {
 		e.template(name).Funcs(funcMap)
 	}
+	// Any template from the name space associated with this escaper can be used
+	// to add derived templates to the underlying text/template name space.
+	tmpl := e.arbitraryTemplate()
 	for _, t := range e.derived {
-		if _, err := e.tmpl.text.AddParseTree(t.Name(), t.Tree); err != nil {
+		if _, err := tmpl.text.AddParseTree(t.Name(), t.Tree); err != nil {
 			panic("error adding derived template")
 		}
 	}
@@ -808,15 +811,32 @@ func (e *escaper) commit() {
 	for n, s := range e.textNodeEdits {
 		n.Text = s
 	}
+	// Reset state that is specific to this commit so that the same changes are
+	// not re-applied to the template on subsequent calls to commit.
+	e.called = make(map[string]bool)
+	e.actionNodeEdits = make(map[*parse.ActionNode][]string)
+	e.templateNodeEdits = make(map[*parse.TemplateNode]string)
+	e.textNodeEdits = make(map[*parse.TextNode][]byte)
 }
 
 // template returns the named template given a mangled template name.
 func (e *escaper) template(name string) *template.Template {
-	t := e.tmpl.text.Lookup(name)
+	// Any template from the name space associated with this escaper can be used
+	// to look up templates in the underlying text/template name space.
+	t := e.arbitraryTemplate().text.Lookup(name)
 	if t == nil {
 		t = e.derived[name]
 	}
 	return t
+}
+
+// arbitraryTemplate returns an arbitrary template from the name space
+// associated with e and panics if no templates are found.
+func (e *escaper) arbitraryTemplate() *Template {
+	for _, t := range e.ns.set {
+		return t
+	}
+	panic("no templates in name space")
 }
 
 // Forwarding functions so that clients need only import this package
