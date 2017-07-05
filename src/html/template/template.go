@@ -36,6 +36,7 @@ type nameSpace struct {
 	mu      sync.Mutex
 	set     map[string]*Template
 	escaped bool
+	esc     escaper
 }
 
 // Templates returns a slice of the templates associated with t, including t
@@ -250,13 +251,13 @@ func (t *Template) Clone() (*Template, error) {
 	if err != nil {
 		return nil, err
 	}
+	ns := &nameSpace{set: make(map[string]*Template)}
+	ns.esc = makeEscaper(ns)
 	ret := &Template{
 		nil,
 		textClone,
 		textClone.Tree,
-		&nameSpace{
-			set: make(map[string]*Template),
-		},
+		ns,
 	}
 	ret.set[ret.Name()] = ret
 	for _, x := range textClone.Templates() {
@@ -279,13 +280,13 @@ func (t *Template) Clone() (*Template, error) {
 
 // New allocates a new HTML template with the given name.
 func New(name string) *Template {
+	ns := &nameSpace{set: make(map[string]*Template)}
+	ns.esc = makeEscaper(ns)
 	tmpl := &Template{
 		nil,
 		template.New(name),
 		nil,
-		&nameSpace{
-			set: make(map[string]*Template),
-		},
+		ns,
 	}
 	tmpl.set[name] = tmpl
 	return tmpl
