@@ -89,7 +89,7 @@ var tests = []test{
 			`VarFive = 5`,                       // From block starting with unexported variable.
 			`type unexportedType`,               // No unexported type.
 			`unexportedTypedConstant`,           // No unexported typed constant.
-			`Field`,                             // No fields.
+			`\bField`,                           // No fields.
 			`Method`,                            // No methods.
 			`someArgument[5-8]`,                 // No truncated arguments.
 			`type T1 T2`,                        // Type alias does not display as type declaration.
@@ -395,14 +395,16 @@ var tests = []test{
 		"field",
 		[]string{p, `ExportedType.ExportedField`},
 		[]string{
+			`type ExportedType struct`,
 			`ExportedField int`,
 			`Comment before exported field.`,
 			`Comment on line with exported field.`,
+			`other fields elided`,
 		},
 		nil,
 	},
 
-	// Field  with -u.
+	// Field with -u.
 	{
 		"method with -u",
 		[]string{"-u", p, `ExportedType.unexportedField`},
@@ -411,6 +413,14 @@ var tests = []test{
 			`Comment on line with unexported field.`,
 		},
 		nil,
+	},
+
+	// Field of struct with only one field.
+	{
+		"single-field struct",
+		[]string{p, `ExportedStructOneField.OnlyField`},
+		[]string{`the only field`},
+		[]string{`other fields elided`},
 	},
 
 	// Case matching off.

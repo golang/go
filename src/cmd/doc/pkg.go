@@ -833,6 +833,7 @@ func (pkg *Package) printFieldDoc(symbol, fieldName string) bool {
 		pkg.Fatalf("symbol %s is not a type in package %s installed in %q", symbol, pkg.name, pkg.build.ImportPath)
 	}
 	found := false
+	numUnmatched := 0
 	for _, typ := range types {
 		// Type must be a struct.
 		spec := pkg.findTypeSpec(typ.Decl, typ.Name)
@@ -844,27 +845,32 @@ func (pkg *Package) printFieldDoc(symbol, fieldName string) bool {
 		for _, field := range structType.Fields.List {
 			// TODO: Anonymous fields.
 			for _, name := range field.Names {
-				if match(fieldName, name.Name) {
-					if !found {
-						pkg.Printf("struct %s {\n", typ.Name)
-					}
-					if field.Doc != nil {
-						for _, comment := range field.Doc.List {
-							doc.ToText(&pkg.buf, comment.Text, indent, indent, indentedWidth)
-						}
-					}
-					s := pkg.oneLineNode(field.Type)
-					lineComment := ""
-					if field.Comment != nil {
-						lineComment = fmt.Sprintf("  %s", field.Comment.List[0].Text)
-					}
-					pkg.Printf("%s%s %s%s\n", indent, name, s, lineComment)
-					found = true
+				if !match(fieldName, name.Name) {
+					numUnmatched++
+					continue
 				}
+				if !found {
+					pkg.Printf("type %s struct {\n", typ.Name)
+				}
+				if field.Doc != nil {
+					for _, comment := range field.Doc.List {
+						doc.ToText(&pkg.buf, comment.Text, indent, indent, indentedWidth)
+					}
+				}
+				s := pkg.oneLineNode(field.Type)
+				lineComment := ""
+				if field.Comment != nil {
+					lineComment = fmt.Sprintf("  %s", field.Comment.List[0].Text)
+				}
+				pkg.Printf("%s%s %s%s\n", indent, name, s, lineComment)
+				found = true
 			}
 		}
 	}
 	if found {
+		if numUnmatched > 0 {
+			pkg.Printf("\n    // ... other fields elided ...\n")
+		}
 		pkg.Printf("}\n")
 	}
 	return found
