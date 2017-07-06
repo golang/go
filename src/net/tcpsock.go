@@ -77,7 +77,7 @@ func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return addrs.first(isIPv4).(*TCPAddr), nil
+	return addrs.forResolve(network, address).(*TCPAddr), nil
 }
 
 // TCPConn is an implementation of the Conn interface for TCP network

@@ -89,6 +89,12 @@ func setupTestData() {
 		resolveTCPAddrTests = append(resolveTCPAddrTests, resolveTCPAddrTest{"tcp6", "localhost:3", &TCPAddr{IP: IPv6loopback, Port: 3}, nil})
 		resolveUDPAddrTests = append(resolveUDPAddrTests, resolveUDPAddrTest{"udp6", "localhost:3", &UDPAddr{IP: IPv6loopback, Port: 3}, nil})
 		resolveIPAddrTests = append(resolveIPAddrTests, resolveIPAddrTest{"ip6", "localhost", &IPAddr{IP: IPv6loopback}, nil})
+
+		// Issue 20911: don't return IPv4 addresses for
+		// Resolve*Addr calls of the IPv6 unspecified address.
+		resolveTCPAddrTests = append(resolveTCPAddrTests, resolveTCPAddrTest{"tcp", "[::]:4", &TCPAddr{IP: IPv6unspecified, Port: 4}, nil})
+		resolveUDPAddrTests = append(resolveUDPAddrTests, resolveUDPAddrTest{"udp", "[::]:4", &UDPAddr{IP: IPv6unspecified, Port: 4}, nil})
+		resolveIPAddrTests = append(resolveIPAddrTests, resolveIPAddrTest{"ip", "::", &IPAddr{IP: IPv6unspecified}, nil})
 	}
 
 	ifi := loopbackInterface()
