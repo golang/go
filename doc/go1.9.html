@@ -77,9 +77,9 @@ type T1 = T2
   <a href="/ref/spec#Floating_point_operators">language specification
   now states</a> when implementations are allowed to fuse floating
   point operations together, such as by using an architecture's "fused
-  multiply and add" (FMA) instruction to compute <code>x*y + z</code>
+  multiply and add" (FMA) instruction to compute <code>x*y</code>&nbsp;<code>+</code>&nbsp;<code>z</code>
   without rounding the intermediate result <code>x*y</code>.
-  To force the intermediate rounding, write <code>float64(x*y) + z</code>.
+  To force the intermediate rounding, write <code>float64(x*y)</code>&nbsp;<code>+</code>&nbsp;<code>z</code>.
 </p>
 
 <h2 id="ports">Ports</h2>
@@ -204,7 +204,7 @@ type T1 = T2
 
 <p><!-- CL 36031 -->
   Long lists of arguments are now truncated. This improves the readability
-  of <code>go doc</code> on some generated code.
+  of <code>go</code> <code>doc</code> on some generated code.
 </p>
 
 <p><!-- CL 38438 -->
@@ -494,8 +494,8 @@ version of gccgo.
 
     <p><!-- CL 39031 -->
       <a href="/pkg/database/sql/#Rows.Scan"><code>Rows.Scan</code></a> can now scan user-defined string types.
-      Previously the package supported scanning into numeric types like <code>type Int int64</code>. It now also supports
-      scanning into string types like <code>type String string</code>.
+      Previously the package supported scanning into numeric types like <code>type</code> <code>Int</code> <code>int64</code>. It now also supports
+      scanning into string types like <code>type</code> <code>String</code> <code>string</code>.
     </p>
 
     <p><!-- CL 40694 -->
@@ -516,7 +516,7 @@ version of gccgo.
 	  <a href="/pkg/encoding/asn1/#NullBytes"><code>NullBytes</code></a>
 	  and
 	  <a href="/pkg/encoding/asn1/#NullRawValue"><code>NullRawValue</code></a>
-	  represent the <code>ASN.1 NULL</code> type.
+	  represent the ASN.1 NULL type.
     </p>
 
 </dl><!-- encoding/asn1 -->
