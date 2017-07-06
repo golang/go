@@ -53,7 +53,9 @@ type treeBuilder struct {
 	maxDepth int
 }
 
-var parseFileGate = make(chan bool, 20) // parse up to 20 files concurrently
+// ioGate is a semaphore controlling VFS activity (ReadDir, parseFile, etc).
+// Send before an operation and receive after.
+var ioGate = make(chan bool, 20)
 
 func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth int) *Directory {
 	if name == testdataDirName {
@@ -86,7 +88,16 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		}
 	}
 
-	list, _ := b.c.fs.ReadDir(path)
+	ioGate <- true
+	list, err := b.c.fs.ReadDir(path)
+	<-ioGate
+	if err != nil {
+		// TODO: propagate more. See golang.org/issue/14252.
+		// For now:
+		if b.c.Verbose {
+			log.Printf("newDirTree reading %s: %v", path, err)
+		}
+	}
 
 	// determine number of subdirectories and if there are package files
 	var dirchs []chan *Directory
@@ -106,10 +117,10 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 			// don't just count it yet (otherwise we may end up with hasPkgFiles even
 			// though the directory doesn't contain any real package files - was bug)
 			// no "optimal" package synopsis yet; continue to collect synopses
-			parseFileGate <- true
+			ioGate <- true
 			const flags = parser.ParseComments | parser.PackageClauseOnly
 			file, err := b.c.parseFile(fset, filename, flags)
-			<-parseFileGate
+			<-ioGate
 			if err != nil {
 				if b.c.Verbose {
 					log.Printf("Error parsing %v: %v", filename, err)
