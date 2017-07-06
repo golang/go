@@ -27,8 +27,8 @@ ul li { margin: 0.5em 0; }
   after <a href="go1.8">Go 1.8</a> and is the tenth release in
   the <a href="https://golang.org/doc/devel/release.html">Go 1.x
   series</a>.
-  There are two <a href="#language">changes to the language</a>,
-  adding support for type aliases, and defining when implementations
+  There are two <a href="#language">changes to the language</a>:
+  adding support for type aliases and defining when implementations
   may fuse floating point operations.
   Most of the changes are in the implementation of the toolchain,
   runtime, and libraries.
@@ -89,12 +89,12 @@ type T1 = T2
   architectures in this release.
 </p>
 
-<h3 id="power8">ppc64x requires Power8</h3>
+<h3 id="power8">ppc64x requires POWER8</h3>
 
 <p> <!-- CL 36725, CL 36832 -->
   Both <code>GOARCH=ppc64</code> and <code>GOARCH=ppc64le</code> now
-  require at least Power8 support. In previous releases,
-  only <code>GOARCH=ppc64le</code> required Power8 and the big
+  require at least POWER8 support. In previous releases,
+  only <code>GOARCH=ppc64le</code> required POWER8 and the big
   endian <code>ppc64</code> architecture supported older
   hardware.
 <p>
@@ -143,7 +143,7 @@ type T1 = T2
   The Go compiler now supports compiling a package's functions in parallel, taking
   advantage of multiple cores. This is in addition to the <code>go</code> command's
   existing support for parallel compilation of separate packages.
-  Parallel compilation is on by default, but can be disabled by setting the
+  Parallel compilation is on by default, but it can be disabled by setting the
   environment variable <code>GO19CONCURRENTCOMPILATION</code> to <code>0</code>.
 </p>
 
@@ -183,13 +183,16 @@ type T1 = T2
 <h3 id="asm">Assembler</h3>
 
 <p> <!-- CL 42028 -->
-  The ARM <code>MULA</code> instruction is now assembled correctly
+  The four-operand ARM <code>MULA</code> instruction is now assembled correctly,
   with the addend register as the third argument and the result
   register as the fourth and final argument.
-  In previous releases, the meanings of the two arguments were
-  reversed. Code using <code>MULA</code> will need to be updated.
+  In previous releases, the two meanings were reversed.
+  The three-operand form, in which the fourth argument is implicitly
+  the same as the third, is unaffected.
+  Code using four-operand <code>MULA</code> instructions
+  will need to be updated, but we believe this form is very rarely used.
   <code>MULAWT</code> and <code>MULAWB</code> were already
-  using the correct order and are unchanged.
+  using the correct order in all forms and are unchanged.
 </p>
 
 <p> <!-- CL 42990 -->
@@ -205,8 +208,8 @@ type T1 = T2
 </p>
 
 <p><!-- CL 38438 -->
-  Viewing documentation on struct fields is now supported with
-  <code>go doc struct.field</code>.
+  Viewing documentation on struct fields is now supported.
+  For example, <code>go</code> <code>doc</code> <code>http.Client.Jar</code>.
 </p>
 
 <h3 id="go-env-json">Env</h3>
@@ -367,7 +370,7 @@ version of gccgo.
 <p> <!-- CL 36315 -->
   Go 1.9 includes a new package,
   <a href="/pkg/math/bits/"><code>math/bits</code></a>, with optimized
-  implementations for manipulating bits. On most architectures
+  implementations for manipulating bits. On most architectures,
   functions in this package are additionally recognized by the
   compiler and treated as intrinsics for additional performance.
 </p>
@@ -390,7 +393,7 @@ version of gccgo.
   The new <a href="/pkg/sync/#Map"><code>Map</code></a> type
   in the <a href="/pkg/sync/"><code>sync</code></a> package
   is a concurrent map with amortized-constant-time loads, stores, and
-  deletes. It is safe for multiple goroutines to call a Map's methods
+  deletes. It is safe for multiple goroutines to call a <code>Map</code>'s methods
   concurrently.
 </p>
 
@@ -454,7 +457,7 @@ version of gccgo.
       certificate files directory, respectively.
     </p>
 
-    <p>The FreeBSD path <code>/usr/local/etc/ssl/cert.pem</code> is
+    <p>The FreeBSD file <code>/usr/local/etc/ssl/cert.pem</code> is
       now included in the certificate search path.
     </p>
 
@@ -567,9 +570,11 @@ version of gccgo.
   <dd>
     <p><!-- CL 37880, CL 40936 -->
 	  The package now reports an error if a predefined escaper (one of
-	  "html", "urlquery" and "js") is found in a pipeline and its
-	  rewriting by the contextual auto-escaper could potentially lead
-	  to security or correctness issues.
+	  "html", "urlquery" and "js") is found in a pipeline and does not match
+	  what the auto-escaper would have decided on its own.
+	  This avoids certain security or correctness issues.
+	  Now use of one of these escapers is always either a no-op or an error.
+	  (The no-op case eases migration from <a href="/pkg/text/template/">text/template</a>.)
     </p>
 
 </dl><!-- html/template -->
@@ -765,8 +770,8 @@ version of gccgo.
       The <code>os</code> package now uses the internal runtime poller
       for file I/O.
       This reduces the number of threads required for read/write
-      operations on pipes, and eliminates races when one goroutine
-      closes a file while another using it for I/O.
+      operations on pipes, and it eliminates races when one goroutine
+      closes a file while another is using the file for I/O.
     </p>
 
   <dd>
@@ -933,9 +938,9 @@ version of gccgo.
     <p>
       In previous releases, using a nil
       <a href="/pkg/testing/quick/#Config.Rand"><code>Config.Rand</code></a>
-      value caused the same deterministic random number generator to be used.
-      It now uses a random number generator seeded on the current time.
-      For the old behavior, use <code>rand.New(rand.NewSource(0))</code>.
+      value caused a fixed deterministic random number generator to be used.
+      It now uses a random number generator seeded with the current time.
+      For the old behavior, set <code>Config.Rand</code> to <code>rand.New(rand.NewSource(0))</code>.
     </p>
 
 </dl><!-- testing/quick -->
