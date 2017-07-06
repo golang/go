@@ -99,6 +99,14 @@ type T1 = T2
   hardware.
 <p>
 
+<h3 id="openbsd">OpenBSD 6.0</h3>
+
+<p> <!-- CL 40331 -->
+  Go 1.9 now enables PT_TLS generation for cgo binaries and thus
+  requires OpenBSD 6.0 or newer. Go 1.9 no longer supports
+  OpenBSD 5.9.
+<p>
+
 <h3 id="known_issues">Known Issues</h3>
 
 <p>
@@ -162,6 +170,23 @@ type T1 = T2
   dependency caching.
 </p>
 
+<h3 id="asm">Assembler</h3>
+
+<p> <!-- CL 42028 -->
+  The ARM <code>MULA</code> instruction is now assembled correctly
+  with the addend register as the third argument and the result
+  register as the fourth and final argument.
+  In previous releases, the meanings of the two arguments were
+  reversed. Code using <code>MULA</code> will need to be updated.
+  <code>MULAWT</code> and <code>MULAWB</code> were already
+  using the correct order and are unchanged.
+</p>
+
+<p> <!-- CL 42990 -->
+  The assembler now supports <code>ADDSUBPS/PD</code>, completing the
+  two missing x86 SSE3 instructions.
+</p>
+
 <h3 id="go-doc">Doc</h3>
 
 <p><!-- CL 36031 -->
@@ -200,6 +225,19 @@ type T1 = T2
   <a href="/pkg/net/http/#ProxyFromEnvironment"><code>http.ProxyFromEnvironment</code></a>.
 </p>
 
+<h3 id="vet">Vet</h3>
+
+<!-- CL 40112 -->
+<p>
+  The <a href="/cmd/vet/"><code>vet</code> command</a>
+  has been better integrated into the
+  <a href="/cmd/go/"><code>go</code> tool</a>,
+  so <code>go</code> <code>vet</code> now supports all standard build
+  flags while <code>vet</code>'s own flags are now available
+  from <code>go</code> <code>vet</code> as well as
+  from <code>go</code> <code>tool</code> <code>vet</code>.
+</p>
+
 <h3 id="gccgo">Gccgo</h3>
 
 <p>
@@ -209,17 +247,6 @@ GCC release 7 contains the Go 1.8.3 version of gccgo.
 We expect that the next release, GCC 8, will contain the Go 1.10
 version of gccgo.
 </p>
-
-<h3 id="tools-TODO">TODO</h3>
-
-<p>TODO: finish documenting misc tool changes</p>
-
-<pre>
-CL 42028: https://golang.org/cl/42028: cmd/asm: fix operand order of ARM's MULA instruction
-CL 40112: https://golang.org/cl/40112: cmd/go: allow full flag processing in go vet
-CL 42990: https://golang.org/cl/42990: cmd/internal/obj/x86: add ADDSUBPS/PD
-CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS generation on OpenBSD
-</pre>
 
 <h2 id="performance">Performance</h2>
 
@@ -308,6 +335,23 @@ CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS gener
   deletes. It is safe for multiple goroutines to call a Map's methods
   concurrently.
 </p>
+
+<h3 id="pprof-labels">Profiler Labels</h3>
+
+<p><!-- CL 34198 -->
+  The <a href="/pkg/runtime/pprof"><code>runtime/pprof</code> package</a>
+  now supports adding labels to <code>pprof</code> profiler records.
+  Labels form a key-value map that is used to distinguish calls of the
+  same function in different contexts when looking at profiles
+  with the <a href="/cmd/pprof/"><code>pprof</code> command</a>.
+  The <code>pprof</code> package's
+  new <a href="/pkg/runtime/pprof/#Do"><code>Do</code> function</a>
+  runs code associated with some provided labels. Other new functions
+  in the package help work with labels.
+</p>
+
+</dl><!-- runtime/pprof -->
+
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
@@ -734,14 +778,6 @@ CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS gener
     </p>
 
 </dl><!-- runtime -->
-
-<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
-  <dd>
-    <p><!-- CL 34198 -->
-      TODO: <a href="https://golang.org/cl/34198">https://golang.org/cl/34198</a>: add definitions of profile label types
-    </p>
-
-</dl><!-- runtime/pprof -->
 
 <dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
   <dd>
