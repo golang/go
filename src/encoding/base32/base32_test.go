@@ -551,13 +551,13 @@ func TestEncodedDecodedLen(t *testing.T) {
 		}},
 		{"NoPadding", StdEncoding.WithPadding(NoPadding), []test{
 			{0, 0, 0},
-			{1, 2, 5},
-			{2, 4, 5},
+			{1, 2, 1},
+			{2, 4, 2},
 			{5, 8, 5},
-			{6, 10, 10},
-			{7, 12, 10},
+			{6, 10, 6},
+			{7, 12, 7},
 			{10, 16, 10},
-			{11, 18, 15},
+			{11, 18, 11},
 		}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
