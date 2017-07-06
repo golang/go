@@ -31,6 +31,11 @@ const rwmutexMaxReaders = 1 << 30
 
 // rlock locks rw for reading.
 func (rw *rwmutex) rlock() {
+	// The reader must not be allowed to lose its P or else other
+	// things blocking on the lock may consume all of the Ps and
+	// deadlock (issue #20903). Alternatively, we could drop the P
+	// while sleeping.
+	acquirem()
 	if int32(atomic.Xadd(&rw.readerCount, 1)) < 0 {
 		// A writer is pending. Park on the reader queue.
 		systemstack(func() {
@@ -70,11 +75,12 @@ func (rw *rwmutex) runlock() {
 			unlock(&rw.rLock)
 		}
 	}
+	releasem(getg().m)
 }
 
 // lock locks rw for writing.
 func (rw *rwmutex) lock() {
-	// Resolve competition with other writers.
+	// Resolve competition with other writers and stick to our P.
 	lock(&rw.wLock)
 	m := getg().m
 	// Announce that there is a pending writer.
