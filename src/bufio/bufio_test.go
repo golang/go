@@ -285,24 +285,6 @@ func TestUnreadRune(t *testing.T) {
 	}
 }
 
-func TestNoUnreadRuneAfterPeek(t *testing.T) {
-	br := NewReader(strings.NewReader("example"))
-	br.ReadRune()
-	br.Peek(1)
-	if err := br.UnreadRune(); err == nil {
-		t.Error("UnreadRune didn't fail after Peek")
-	}
-}
-
-func TestNoUnreadByteAfterPeek(t *testing.T) {
-	br := NewReader(strings.NewReader("example"))
-	br.ReadByte()
-	br.Peek(1)
-	if err := br.UnreadByte(); err == nil {
-		t.Error("UnreadByte didn't fail after Peek")
-	}
-}
-
 func TestUnreadByte(t *testing.T) {
 	segments := []string{"Hello, ", "world"}
 	r := NewReader(&StringReader{data: segments})

@@ -125,9 +125,6 @@ func (b *Reader) Peek(n int) ([]byte, error) {
 		return nil, ErrNegativeCount
 	}
 
-	b.lastByte = -1
-	b.lastRuneSize = -1
-
 	for b.w-b.r < n && b.w-b.r < len(b.buf) && b.err == nil {
 		b.fill() // b.w-b.r < len(b.buf) => buffer is not full
 	}
