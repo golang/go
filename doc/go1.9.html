@@ -257,6 +257,47 @@ We expect that the next release, GCC 8, will contain the Go 1.10
 version of gccgo.
 </p>
 
+<h2 id="runtime">Runtime</h2>
+
+<h3 id="callersframes">Call stacks with inlined frames</h3>
+
+<p>
+  Users of
+  <a href="/pkg/runtime#Callers"><code>runtime.Callers</code></a>
+  should avoid directly inspecting the resulting PC slice and instead use
+  <a href="/pkg/runtime#CallersFrames"><code>runtime.CallersFrames</code></a>
+  to get a complete view of the call stack, or
+  <a href="/pkg/runtime#Caller"><code>runtime.Caller</code></a>
+  to get information about a single caller.
+  This is because an individual element of the PC slice cannot account
+  for inlined frames or other nuances of the call stack.
+</p>
+
+<p>
+  Specifically, code that directly iterates over the PC slice and uses
+  functions such as
+  <a href="/pkg/runtime#FuncForPC"><code>runtime.FuncForPC</code></a>
+  to resolve each PC individually will miss inlined frames.
+  To get a complete view of the stack, such code should instead use
+  <code>CallersFrames</code>.
+  Likewise, code should not assume that the length returned by
+  <code>Callers</code> is any indication of the call depth.
+  It should instead count the number of frames returned by
+  <code>CallersFrames</code>.
+</p>
+
+<p>
+  Code that queries a single caller at a specific depth should use
+  <code>Caller</code> rather than passing a slice of length 1 to
+  <code>Callers</code>.
+</p>
+
+<p>
+  <a href="/pkg/runtime#CallersFrames"><code>runtime.CallersFrames</code></a>
+  has been available since Go 1.7, so code can be updated prior to
+  upgrading to Go 1.9.
+</p>
+
 <h2 id="performance">Performance</h2>
 
 <p>
