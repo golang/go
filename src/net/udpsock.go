@@ -80,7 +80,7 @@ func ResolveUDPAddr(network, address string) (*UDPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return addrs.first(isIPv4).(*UDPAddr), nil
+	return addrs.forResolve(network, address).(*UDPAddr), nil
 }
 
 // UDPConn is the implementation of the Conn and PacketConn interfaces

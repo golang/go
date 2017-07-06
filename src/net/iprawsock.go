@@ -91,7 +91,7 @@ func ResolveIPAddr(network, address string) (*IPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return addrs.first(isIPv4).(*IPAddr), nil
+	return addrs.forResolve(network, address).(*IPAddr), nil
 }
 
 // IPConn is the implementation of the Conn and PacketConn interfaces
