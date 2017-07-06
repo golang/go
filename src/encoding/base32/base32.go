@@ -341,7 +341,11 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 		case 2:
 			dst[0] = dbuf[0]<<3 | dbuf[1]>>2
 		}
-		dst = dst[5:]
+
+		if !end {
+			dst = dst[5:]
+		}
+
 		switch dlen {
 		case 2:
 			n += 1
@@ -495,8 +499,7 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
 // corresponding to n bytes of base32-encoded data.
 func (enc *Encoding) DecodedLen(n int) int {
 	if enc.padChar == NoPadding {
-		// +6 represents the missing padding
-		return (n + 6) / 8 * 5
+		return n * 5 / 8
 	}
 
 	return n / 8 * 5
