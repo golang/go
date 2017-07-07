@@ -168,7 +168,8 @@ type T1 = T2
 </p>
 
 <p> <!-- CL 44210, CL 40095 -->
-  The compiler now includes lexical scopes in the generated DWARF, allowing
+  The compiler now includes lexical scopes in the generated DWARF if the
+  <code>-N -l</code> flags are provided, allowing
   debuggers to hide variables that are not in scope. The <code>.debug_info</code>
   section is now DWARF version 4.
 </p>
