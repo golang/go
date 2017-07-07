@@ -3808,22 +3808,23 @@ func sysmon() {
 				if scavengelimit < forcegcperiod {
 					maxsleep = scavengelimit / 2
 				}
-				if osRelaxDelay > 0 {
-					// Wait before osRelaxing in
-					// case something happens soon.
-					sleep1 := int64(osRelaxDelay)
-					if sleep1 > maxsleep {
-						sleep1 = maxsleep
+				shouldRelax := true
+				if osRelaxMinNS > 0 {
+					lock(&timers.lock)
+					if timers.sleeping {
+						now := nanotime()
+						next := timers.sleepUntil
+						if next-now < osRelaxMinNS {
+							shouldRelax = false
+						}
 					}
-					if notetsleep(&sched.sysmonnote, sleep1) {
-						maxsleep = 0
-					} else {
-						maxsleep -= sleep1
-					}
+					unlock(&timers.lock)
 				}
-				if maxsleep > 0 {
+				if shouldRelax {
 					osRelax(true)
-					notetsleep(&sched.sysmonnote, maxsleep)
+				}
+				notetsleep(&sched.sysmonnote, maxsleep)
+				if shouldRelax {
 					osRelax(false)
 				}
 				lock(&sched.lock)
