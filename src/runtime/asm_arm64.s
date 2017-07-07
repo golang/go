@@ -368,16 +368,26 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
 	MOVD	arg+16(FP), R3;			\
-	MOVWU	argsize+24(FP), R4;			\
-	MOVD	RSP, R5;				\
-	ADD	$(8-1), R5;			\
-	SUB	$1, R3;				\
-	ADD	R5, R4;				\
-	CMP	R5, R4;				\
-	BEQ	4(PC);				\
-	MOVBU.W	1(R3), R6;			\
-	MOVBU.W	R6, 1(R5);			\
-	B	-4(PC);				\
+	MOVWU	argsize+24(FP), R4;		\
+	ADD	$8, RSP, R5;			\
+	BIC	$0xf, R4, R6;			\
+	CBZ	R6, 6(PC);			\
+	/* if R6=(argsize&~15) != 0 */		\
+	ADD	R6, R5, R6;			\
+	/* copy 16 bytes a time */		\
+	LDP.P	16(R3), (R7, R8);		\
+	STP.P	(R7, R8), 16(R5);		\
+	CMP	R5, R6;				\
+	BNE	-3(PC);				\
+	AND	$0xf, R4, R6;			\
+	CBZ	R6, 6(PC);			\
+	/* if R6=(argsize&15) != 0 */		\
+	ADD	R6, R5, R6;			\
+	/* copy 1 byte a time for the rest */	\
+	MOVBU.P	1(R3), R7;			\
+	MOVBU.P	R7, 1(R5);			\
+	CMP	R5, R6;				\
+	BNE	-3(PC);				\
 	/* call function */			\
 	MOVD	f+8(FP), R26;			\
 	MOVD	(R26), R0;			\
