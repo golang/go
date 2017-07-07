@@ -144,12 +144,19 @@ func processFile(filename string, in io.Reader, out io.Writer, argType argumentT
 			fmt.Fprintln(out, filename)
 		}
 		if *write {
+			if argType == fromStdin {
+				// filename is "<standard input>"
+				return errors.New("can't use -w on stdin")
+			}
 			err = ioutil.WriteFile(filename, res, 0)
 			if err != nil {
 				return err
 			}
 		}
 		if *doDiff {
+			if argType == fromStdin {
+				filename = "stdin.go" // because <standard input>.orig looks silly
+			}
 			data, err := diff(src, res, filename)
 			if err != nil {
 				return fmt.Errorf("computing diff: %s", err)

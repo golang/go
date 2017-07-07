@@ -1803,3 +1803,14 @@ func TestShouldTraverse(t *testing.T) {
 		}
 	}
 }
+
+// Issue 20941: this used to panic on Windows.
+func TestProcessStdin(t *testing.T) {
+	got, err := Process("<standard input>", []byte("package main\nfunc main() {\n\tfmt.Println(123)\n}\n"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), `"fmt"`) {
+		t.Errorf("expected fmt import; got: %s", got)
+	}
+}
