@@ -575,7 +575,7 @@ func moduledataverify1(datap *moduledata) {
 // given program counter address, or else nil.
 //
 // If pc represents multiple functions because of inlining, it returns
-// the *Func describing the outermost frame at pc.
+// the *Func describing the outermost function.
 func FuncForPC(pc uintptr) *Func {
 	return findfunc(pc)._Func()
 }
