@@ -1709,3 +1709,29 @@ func TestGob(t *testing.T) {
 		t.Errorf("json decoded to: %s\nwant: %s\n", u1, u)
 	}
 }
+
+func TestNilUser(t *testing.T) {
+	defer func() {
+		if v := recover(); v != nil {
+			t.Fatalf("unexpected panic: %v", v)
+		}
+	}()
+
+	u, err := Parse("http://foo.com/")
+
+	if err != nil {
+		t.Fatalf("parse err: %v", err)
+	}
+
+	if v := u.User.Username(); v != "" {
+		t.Fatalf("expected empty username, got %s", v)
+	}
+
+	if v, ok := u.User.Password(); v != "" || ok {
+		t.Fatalf("expected empty password, got %s (%v)", v, ok)
+	}
+
+	if v := u.User.String(); v != "" {
+		t.Fatalf("expected empty string, got %s", v)
+	}
+}
