@@ -131,11 +131,17 @@ pkg syscall (freebsd-arm-cgo), type Credential struct, NoSetGroups bool
 pkg syscall (freebsd-arm), func Pipe2([]int, int) error
 pkg syscall (freebsd-arm), type Credential struct, NoSetGroups bool
 pkg syscall (linux-386-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (linux-386-cgo), type SysProcAttr struct, AmbientCaps []uintptr
 pkg syscall (linux-386), type Credential struct, NoSetGroups bool
+pkg syscall (linux-386), type SysProcAttr struct, AmbientCaps []uintptr
 pkg syscall (linux-amd64-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, AmbientCaps []uintptr
 pkg syscall (linux-amd64), type Credential struct, NoSetGroups bool
+pkg syscall (linux-amd64), type SysProcAttr struct, AmbientCaps []uintptr
 pkg syscall (linux-arm-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (linux-arm-cgo), type SysProcAttr struct, AmbientCaps []uintptr
 pkg syscall (linux-arm), type Credential struct, NoSetGroups bool
+pkg syscall (linux-arm), type SysProcAttr struct, AmbientCaps []uintptr
 pkg syscall (netbsd-386-cgo), type Credential struct, NoSetGroups bool
 pkg syscall (netbsd-386), type Credential struct, NoSetGroups bool
 pkg syscall (netbsd-amd64-cgo), type Credential struct, NoSetGroups bool

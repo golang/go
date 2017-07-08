@@ -73,11 +73,9 @@ type B struct {
 // a call to StopTimer.
 func (b *B) StartTimer() {
 	if !b.timerOn {
-		if *benchmarkMemory || b.showAllocResult {
-			runtime.ReadMemStats(&memStats)
-			b.startAllocs = memStats.Mallocs
-			b.startBytes = memStats.TotalAlloc
-		}
+		runtime.ReadMemStats(&memStats)
+		b.startAllocs = memStats.Mallocs
+		b.startBytes = memStats.TotalAlloc
 		b.start = time.Now()
 		b.timerOn = true
 	}
@@ -89,11 +87,9 @@ func (b *B) StartTimer() {
 func (b *B) StopTimer() {
 	if b.timerOn {
 		b.duration += time.Now().Sub(b.start)
-		if *benchmarkMemory || b.showAllocResult {
-			runtime.ReadMemStats(&memStats)
-			b.netAllocs += memStats.Mallocs - b.startAllocs
-			b.netBytes += memStats.TotalAlloc - b.startBytes
-		}
+		runtime.ReadMemStats(&memStats)
+		b.netAllocs += memStats.Mallocs - b.startAllocs
+		b.netBytes += memStats.TotalAlloc - b.startBytes
 		b.timerOn = false
 	}
 }
@@ -102,11 +98,9 @@ func (b *B) StopTimer() {
 // It does not affect whether the timer is running.
 func (b *B) ResetTimer() {
 	if b.timerOn {
-		if *benchmarkMemory || b.showAllocResult {
-			runtime.ReadMemStats(&memStats)
-			b.startAllocs = memStats.Mallocs
-			b.startBytes = memStats.TotalAlloc
-		}
+		runtime.ReadMemStats(&memStats)
+		b.startAllocs = memStats.Mallocs
+		b.startBytes = memStats.TotalAlloc
 		b.start = time.Now()
 	}
 	b.duration = 0
@@ -300,8 +294,6 @@ func (b *B) launch() {
 }
 
 // The results of a benchmark run.
-// MemAllocs and MemBytes may be zero if memory benchmarking is not requested
-// using B.ReportAllocs or the -benchmem command line flag.
 type BenchmarkResult struct {
 	N         int           // The number of iterations.
 	T         time.Duration // The total time taken.
@@ -405,7 +397,7 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 	}
 	var bs []InternalBenchmark
 	for _, Benchmark := range benchmarks {
-		if _, matched := ctx.match.fullName(nil, Benchmark.Name); matched {
+		if _, matched, _ := ctx.match.fullName(nil, Benchmark.Name); matched {
 			bs = append(bs, Benchmark)
 			benchName := benchmarkName(Benchmark.Name, maxprocs)
 			if l := len(benchName) + ctx.extLen + 1; l > ctx.maxLen {
@@ -484,7 +476,7 @@ func (ctx *benchContext) processBench(b *B) {
 // least once will not be measured itself and will be called once with N=1.
 //
 // Run may be called simultaneously from multiple goroutines, but all such
-// calls must happen before the outer benchmark function for b returns.
+// calls must return before the outer benchmark function for b returns.
 func (b *B) Run(name string, f func(b *B)) bool {
 	// Since b has subbenchmarks, we will no longer run it as a benchmark itself.
 	// Release the lock and acquire it on exit to ensure locks stay paired.
@@ -492,9 +484,9 @@ func (b *B) Run(name string, f func(b *B)) bool {
 	benchmarkLock.Unlock()
 	defer benchmarkLock.Lock()
 
-	benchName, ok := b.name, true
+	benchName, ok, partial := b.name, true, false
 	if b.context != nil {
-		benchName, ok = b.context.match.fullName(&b.common, name)
+		benchName, ok, partial = b.context.match.fullName(&b.common, name)
 	}
 	if !ok {
 		return true
@@ -512,6 +504,11 @@ func (b *B) Run(name string, f func(b *B)) bool {
 		benchFunc:  f,
 		benchTime:  b.benchTime,
 		context:    b.context,
+	}
+	if partial {
+		// Partial name match, like -bench=X/Y matching BenchmarkX.
+		// Only process sub-benchmarks, if any.
+		atomic.StoreInt32(&sub.hasSub, 1)
 	}
 	if sub.run1() {
 		sub.run()

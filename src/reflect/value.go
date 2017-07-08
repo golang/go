@@ -1134,7 +1134,7 @@ func (v Value) Method(i int) Value {
 	return Value{v.typ, v.ptr, fl}
 }
 
-// NumMethod returns the number of methods in the value's method set.
+// NumMethod returns the number of exported methods in the value's method set.
 func (v Value) NumMethod() int {
 	if v.typ == nil {
 		panic(&ValueError{"reflect.Value.NumMethod", Invalid})
@@ -2082,12 +2082,13 @@ func MakeMap(typ Type) Value {
 	return MakeMapWithSize(typ, 0)
 }
 
-// MakeMapWithSize creates a new map with the specified type and initial capacity.
-func MakeMapWithSize(typ Type, cap int) Value {
+// MakeMapWithSize creates a new map with the specified type
+// and initial space for approximately n elements.
+func MakeMapWithSize(typ Type, n int) Value {
 	if typ.Kind() != Map {
 		panic("reflect.MakeMapWithSize of non-map type")
 	}
-	m := makemap(typ.(*rtype), cap)
+	m := makemap(typ.(*rtype), n)
 	return Value{typ.common(), m, flag(Map)}
 }
 

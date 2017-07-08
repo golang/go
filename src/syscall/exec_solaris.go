@@ -41,6 +41,11 @@ func setuid(uid uintptr) (err Errno)
 func setpgid(pid uintptr, pgid uintptr) (err Errno)
 func write1(fd uintptr, buf uintptr, nbyte uintptr) (n uintptr, err Errno)
 
+// syscall defines this global on our behalf to avoid a build dependency on other platforms
+func init() {
+	execveSolaris = execve
+}
+
 // Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
 // If a dup or exec fails, write the errno error to pipe.
 // (Pipe is close-on-exec so if exec succeeds, it will be closed.)

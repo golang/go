@@ -285,7 +285,7 @@ func (p *importer) pkg() *types.Pkg {
 	}
 
 	// we should never see a bad import path
-	if isbadimport(path) {
+	if isbadimport(path, true) {
 		p.formatErrorf("bad package path %q for package %s", path, name)
 	}
 

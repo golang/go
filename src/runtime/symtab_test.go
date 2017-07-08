@@ -92,7 +92,7 @@ var mapLit = map[int]int{ // 28
 }                           // 33
 var intLit = lineNumber() + // 34
 	lineNumber() + // 35
-			lineNumber() // 36
+	lineNumber() // 36
 func trythis() { // 37
 	recordLines(lineNumber(), // 38
 		lineNumber(), // 39
@@ -152,5 +152,16 @@ func TestLineNumber(t *testing.T) {
 			t.Errorf("%s on firstLine+%d want firstLine+%d (firstLine=%d, val=%d)",
 				test.name, got, test.want, firstLine, test.val)
 		}
+	}
+}
+
+func TestNilName(t *testing.T) {
+	defer func() {
+		if ex := recover(); ex != nil {
+			t.Fatalf("expected no nil panic, got=%v", ex)
+		}
+	}()
+	if got := (*runtime.Func)(nil).Name(); got != "" {
+		t.Errorf("Name() = %q, want %q", got, "")
 	}
 }

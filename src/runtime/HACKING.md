@@ -105,7 +105,7 @@ The simplest is `mutex`, which is manipulated using `lock` and
 periods. Blocking on a `mutex` directly blocks the M, without
 interacting with the Go scheduler. This means it is safe to use from
 the lowest levels of the runtime, but also prevents any associated G
-and P from being rescheduled.
+and P from being rescheduled. `rwmutex` is similar.
 
 For one-shot notifications, use `note`, which provides `notesleep` and
 `notewakeup`. Unlike traditional UNIX `sleep`/`wakeup`, `note`s are
@@ -130,7 +130,7 @@ In summary,
 <table>
 <tr><th></th><th colspan="3">Blocks</th></tr>
 <tr><th>Interface</th><th>G</th><th>M</th><th>P</th></tr>
-<tr><td>mutex</td><td>Y</td><td>Y</td><td>Y</td></tr>
+<tr><td>(rw)mutex</td><td>Y</td><td>Y</td><td>Y</td></tr>
 <tr><td>note</td><td>Y</td><td>Y</td><td>Y/N</td></tr>
 <tr><td>park</td><td>Y</td><td>N</td><td>N</td></tr>
 </table>

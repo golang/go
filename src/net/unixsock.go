@@ -42,15 +42,18 @@ func (a *UnixAddr) opAddr() Addr {
 	return a
 }
 
-// ResolveUnixAddr parses addr as a Unix domain socket address.
-// The string net gives the network name, "unix", "unixgram" or
-// "unixpacket".
-func ResolveUnixAddr(net, addr string) (*UnixAddr, error) {
-	switch net {
+// ResolveUnixAddr returns an address of Unix domain socket end point.
+//
+// The network must be a Unix network name.
+//
+// See func Dial for a description of the network and address
+// parameters.
+func ResolveUnixAddr(network, address string) (*UnixAddr, error) {
+	switch network {
 	case "unix", "unixgram", "unixpacket":
-		return &UnixAddr{Name: addr, Net: net}, nil
+		return &UnixAddr{Name: address, Net: network}, nil
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, UnknownNetworkError(network)
 	}
 }
 
@@ -93,13 +96,7 @@ func (c *UnixConn) CloseWrite() error {
 	return nil
 }
 
-// ReadFromUnix reads a packet from c, copying the payload into b. It
-// returns the number of bytes copied into b and the source address of
-// the packet.
-//
-// ReadFromUnix can be made to time out and return an error with
-// Timeout() == true after a fixed time limit; see SetDeadline and
-// SetReadDeadline.
+// ReadFromUnix acts like ReadFrom but returns a UnixAddr.
 func (c *UnixConn) ReadFromUnix(b []byte) (int, *UnixAddr, error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
@@ -126,10 +123,10 @@ func (c *UnixConn) ReadFrom(b []byte) (int, Addr, error) {
 	return n, addr, err
 }
 
-// ReadMsgUnix reads a packet from c, copying the payload into b and
+// ReadMsgUnix reads a message from c, copying the payload into b and
 // the associated out-of-band data into oob. It returns the number of
 // bytes copied into b, the number of bytes copied into oob, the flags
-// that were set on the packet, and the source address of the packet.
+// that were set on the message and the source address of the message.
 //
 // Note that if len(b) == 0 and len(oob) > 0, this function will still
 // read (and discard) 1 byte from the connection.
@@ -144,12 +141,7 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
 	return
 }
 
-// WriteToUnix writes a packet to addr via c, copying the payload from b.
-//
-// WriteToUnix can be made to time out and return an error with
-// Timeout() == true after a fixed time limit; see SetDeadline and
-// SetWriteDeadline. On packet-oriented connections, write timeouts
-// are rare.
+// WriteToUnix acts like WriteTo but takes a UnixAddr.
 func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (int, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
@@ -177,9 +169,9 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (int, error) {
 	return n, err
 }
 
-// WriteMsgUnix writes a packet to addr via c, copying the payload
-// from b and the associated out-of-band data from oob. It returns
-// the number of payload and out-of-band bytes written.
+// WriteMsgUnix writes a message to addr via c, copying the payload
+// from b and the associated out-of-band data from oob. It returns the
+// number of payload and out-of-band bytes written.
 //
 // Note that if len(b) == 0 and len(oob) > 0, this function will still
 // write 1 byte to the connection.
@@ -196,18 +188,21 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
 
 func newUnixConn(fd *netFD) *UnixConn { return &UnixConn{conn{fd}} }
 
-// DialUnix connects to the remote address raddr on the network net,
-// which must be "unix", "unixgram" or "unixpacket".  If laddr is not
-// nil, it is used as the local address for the connection.
-func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
-	switch net {
+// DialUnix acts like Dial for Unix networks.
+//
+// The network must be a Unix network name; see func Dial for details.
+//
+// If laddr is non-nil, it is used as the local address for the
+// connection.
+func DialUnix(network string, laddr, raddr *UnixAddr) (*UnixConn, error) {
+	switch network {
 	case "unix", "unixgram", "unixpacket":
 	default:
-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(net)}
+		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(network)}
 	}
-	c, err := dialUnix(context.Background(), net, laddr, raddr)
+	c, err := dialUnix(context.Background(), network, laddr, raddr)
 	if err != nil {
-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}
 	return c, nil
 }
@@ -297,40 +292,40 @@ func (l *UnixListener) File() (f *os.File, err error) {
 	return
 }
 
-// ListenUnix announces on the Unix domain socket laddr and returns a
-// Unix listener. The network net must be "unix" or "unixpacket".
-func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
-	switch net {
+// ListenUnix acts like Listen for Unix networks.
+//
+// The network must be "unix" or "unixpacket".
+func ListenUnix(network string, laddr *UnixAddr) (*UnixListener, error) {
+	switch network {
 	case "unix", "unixpacket":
 	default:
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(net)}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(network)}
 	}
 	if laddr == nil {
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: errMissingAddress}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: errMissingAddress}
 	}
-	ln, err := listenUnix(context.Background(), net, laddr)
+	ln, err := listenUnix(context.Background(), network, laddr)
 	if err != nil {
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: err}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
 	return ln, nil
 }
 
-// ListenUnixgram listens for incoming Unix datagram packets addressed
-// to the local address laddr. The network net must be "unixgram".
-// The returned connection's ReadFrom and WriteTo methods can be used
-// to receive and send packets with per-packet addressing.
-func ListenUnixgram(net string, laddr *UnixAddr) (*UnixConn, error) {
-	switch net {
+// ListenUnixgram acts like ListenPacket for Unix networks.
+//
+// The network must be "unixgram".
+func ListenUnixgram(network string, laddr *UnixAddr) (*UnixConn, error) {
+	switch network {
 	case "unixgram":
 	default:
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(net)}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(network)}
 	}
 	if laddr == nil {
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: nil, Err: errMissingAddress}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: nil, Err: errMissingAddress}
 	}
-	c, err := listenUnixgram(context.Background(), net, laddr)
+	c, err := listenUnixgram(context.Background(), network, laddr)
 	if err != nil {
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: err}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
 	return c, nil
 }

@@ -40,8 +40,15 @@ func testBlock(signal string, f func()) {
 		c <- never // f didn't block
 	}()
 	go func() {
-		time.Sleep(1e8) // 0.1s seems plenty long
-		c <- always     // f blocked always
+		if signal == never {
+			// Wait a long time to make sure that we don't miss our window by accident on a slow machine.
+			time.Sleep(10 * time.Second)
+		} else {
+			// Wait as short a time as we can without false negatives.
+			// 10ms should be long enough to catch most failures.
+			time.Sleep(10 * time.Millisecond)
+		}
+		c <- always // f blocked always
 	}()
 	if <-c != signal {
 		panic(signal + " block")

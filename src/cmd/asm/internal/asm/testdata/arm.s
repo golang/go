@@ -975,7 +975,7 @@ jmp_label_3:
 	MULL	R1, R2, (R4, R3)     // 9231c4e0
 	MULL.S	R1, R2, (R4, R3)     // 9231d4e0
 	MMUL	R1, R2, R3           // 12f153e7
-	MULBB	R1, R2, R3           // 82f163e1
+	MULBB	R1, R2, R3           // 820163e1
 	MULWB	R1, R2, R3           // a20123e1
 	MULWT	R1, R2, R3           // e20123e1
 
@@ -1144,7 +1144,6 @@ jmp_label_3:
 	MOVM.IB.W (g), [R0-R4,R6,R8,R9-R11]  // MOVM.P.W.U (g), [R0,R1,R2,R3,R4,R6,R8,R9,g,R11] // 5f0fbae9
 
 // MOVW
-mov_label_0:
 	MOVW	R3, R4                                            // 0340a0e1
 	MOVW	R9, R2                                            // 0920a0e1
 	MOVW	$0xff, R9            // MOVW $255, R9             // ff90a0e3
@@ -1153,7 +1152,6 @@ mov_label_0:
 	MOVW	$-0xff(R0), R1       // MOVW $-255(R0), R1        // ff1040e2
 	MOVW	$0xffffffae, R1      // MOVW $4294967214, R1      // 5110e0e3
 	MOVW	$0xaaaaaaaa, R1      // MOVW $2863311530, R1
-	MOVW	$mov_label_0(SB), R2
 	MOVW	R1, (R2)                                          // 001082e5
 	MOVW.P	R1, (R2)                                          // 001082e4
 	MOVW.W	R1, (R2)                                          // 0010a2e5
@@ -1163,7 +1161,6 @@ mov_label_0:
 	MOVW	R1, -0x20(R2)        // MOVW R1, -32(R2)          // 201002e5
 	MOVW.P	R1, -0x20(R2)        // MOVW.P R1, -32(R2)        // 201002e4
 	MOVW.W	R1, -0x20(R2)        // MOVW.W R1, -32(R2)        // 201022e5
-	MOVW	R1, mov_label_0(SB)
 	MOVW	(R2), R1                                          // 001092e5
 	MOVW.P	(R2), R1                                          // 001092e4
 	MOVW.W	(R2), R1                                          // 0010b2e5
@@ -1173,11 +1170,8 @@ mov_label_0:
 	MOVW	-0x20(R2), R1        // MOVW -32(R2), R1          // 201012e5
 	MOVW.P	-0x20(R2), R1        // MOVW.P -32(R2), R1        // 201012e4
 	MOVW.W	-0x20(R2), R1        // MOVW.W -32(R2), R1        // 201032e5
-	MOVW	mov_label_0(SB), R1
 	MOVW	R1, 0x00ffffff(R2)   // MOVW R1, 16777215(R2)
-	MOVW	R1, foo(SB)
 	MOVW	0x00ffffff(R2), R1   // MOVW 16777215(R2), R1
-	MOVW	foo(SB), R1
 	MOVW	CPSR, R1                                          // 00100fe1
 	MOVW	R1, CPSR                                          // 01f02ce1
 	MOVW	$0xff, CPSR          // MOVW $255, CPSR           // fff02ce3
@@ -1220,6 +1214,282 @@ mov_label_0:
 	MOVW.P	R2, R0@>28(R5)                                    // 602e85e6
 	MOVW	R0, math·Exp(SB)     // MOVW R0, math.Exp(SB)
 	MOVW	math·Exp(SB), R0     // MOVW math.Exp(SB), R0
+
+// MOVB
+	MOVB	R3, R4                                            // 0340a0e1
+	MOVB	R9, R2                                            // 0920a0e1
+	MOVBU	R0, R1                                            // ff1000e2
+	MOVBS	R5, R6                                            // 056ca0e1466ca0e1
+	MOVB	R1, (R2)                                          // 0010c2e5
+	MOVB.P	R1, (R2)                                          // 0010c2e4
+	MOVB.W	R1, (R2)                                          // 0010e2e5
+	MOVB	R1, 0x20(R2)         // MOVB R1, 32(R2)           // 2010c2e5
+	MOVB.P	R1, 0x20(R2)         // MOVB.P R1, 32(R2)         // 2010c2e4
+	MOVB.W	R1, 0x20(R2)         // MOVB.W R1, 32(R2)         // 2010e2e5
+	MOVB	R1, -0x20(R2)        // MOVB R1, -32(R2)          // 201042e5
+	MOVB.P	R1, -0x20(R2)        // MOVB.P R1, -32(R2)        // 201042e4
+	MOVB.W	R1, -0x20(R2)        // MOVB.W R1, -32(R2)        // 201062e5
+	MOVBS	R1, (R2)                                          // 0010c2e5
+	MOVBS.P	R1, (R2)                                          // 0010c2e4
+	MOVBS.W	R1, (R2)                                          // 0010e2e5
+	MOVBS	R1, 0x20(R2)         // MOVBS R1, 32(R2)          // 2010c2e5
+	MOVBS.P	R1, 0x20(R2)         // MOVBS.P R1, 32(R2)        // 2010c2e4
+	MOVBS.W	R1, 0x20(R2)         // MOVBS.W R1, 32(R2)        // 2010e2e5
+	MOVBS	R1, -0x20(R2)        // MOVBS R1, -32(R2)         // 201042e5
+	MOVBS.P	R1, -0x20(R2)        // MOVBS.P R1, -32(R2)       // 201042e4
+	MOVBS.W	R1, -0x20(R2)        // MOVBS.W R1, -32(R2)       // 201062e5
+	MOVBU	R1, (R2)                                          // 0010c2e5
+	MOVBU.P	R1, (R2)                                          // 0010c2e4
+	MOVBU.W	R1, (R2)                                          // 0010e2e5
+	MOVBU	R1, 0x20(R2)         // MOVBU R1, 32(R2)          // 2010c2e5
+	MOVBU.P	R1, 0x20(R2)         // MOVBU.P R1, 32(R2)        // 2010c2e4
+	MOVBU.W	R1, 0x20(R2)         // MOVBU.W R1, 32(R2)        // 2010e2e5
+	MOVBU	R1, -0x20(R2)        // MOVBU R1, -32(R2)         // 201042e5
+	MOVBU.P	R1, -0x20(R2)        // MOVBU.P R1, -32(R2)       // 201042e4
+	MOVBU.W	R1, -0x20(R2)        // MOVBU.W R1, -32(R2)       // 201062e5
+	MOVB	(R2), R1                                          // d010d2e1
+	MOVB.P	(R2), R1                                          // d010d2e0
+	MOVB.W	(R2), R1                                          // d010f2e1
+	MOVB	0x20(R2), R1         // MOVB 32(R2), R1           // d012d2e1
+	MOVB.P	0x20(R2), R1         // MOVB.P 32(R2), R1         // d012d2e0
+	MOVB.W	0x20(R2), R1         // MOVB.W 32(R2), R1         // d012f2e1
+	MOVB	-0x20(R2), R1        // MOVB -32(R2), R1          // d01252e1
+	MOVB.P	-0x20(R2), R1        // MOVB.P -32(R2), R1        // d01252e0
+	MOVB.W	-0x20(R2), R1        // MOVB.W -32(R2), R1        // d01272e1
+	MOVBS	(R2), R1                                          // d010d2e1
+	MOVBS.P	(R2), R1                                          // d010d2e0
+	MOVBS.W	(R2), R1                                          // d010f2e1
+	MOVBS	0x20(R2), R1         // MOVBS 32(R2), R1          // d012d2e1
+	MOVBS.P	0x20(R2), R1         // MOVBS.P 32(R2), R1        // d012d2e0
+	MOVBS.W	0x20(R2), R1         // MOVBS.W 32(R2), R1        // d012f2e1
+	MOVBS	-0x20(R2), R1        // MOVBS -32(R2), R1         // d01252e1
+	MOVBS.P	-0x20(R2), R1        // MOVBS.P -32(R2), R1       // d01252e0
+	MOVBS.W	-0x20(R2), R1        // MOVBS.W -32(R2), R1       // d01272e1
+	MOVBU	(R2), R1                                          // 0010d2e5
+	MOVBU.P	(R2), R1                                          // 0010d2e4
+	MOVBU.W	(R2), R1                                          // 0010f2e5
+	MOVBU	0x20(R2), R1         // MOVBU 32(R2), R1          // 2010d2e5
+	MOVBU.P	0x20(R2), R1         // MOVBU.P 32(R2), R1        // 2010d2e4
+	MOVBU.W	0x20(R2), R1         // MOVBU.W 32(R2), R1        // 2010f2e5
+	MOVBU	-0x20(R2), R1        // MOVBU -32(R2), R1         // 201052e5
+	MOVBU.P	-0x20(R2), R1        // MOVBU.P -32(R2), R1       // 201052e4
+	MOVBU.W	-0x20(R2), R1        // MOVBU.W -32(R2), R1       // 201072e5
+	MOVB	R1, 0x00ffffff(R2)   // MOVB R1, 16777215(R2)
+	MOVB.W	R1, 0x00ffffff(R2)   // MOVB.W R1, 16777215(R2)
+	MOVB.P	R1, 0x00ffffff(R2)   // MOVB.P R1, 16777215(R2)
+	MOVB	R1, -0x00ffffff(R2)  // MOVB R1, -16777215(R2)
+	MOVB.W	R1, -0x00ffffff(R2)  // MOVB.W R1, -16777215(R2)
+	MOVB.P	R1, -0x00ffffff(R2)  // MOVB.P R1, -16777215(R2)
+	MOVB	0x00ffffff(R2), R1   // MOVB 16777215(R2), R1
+	MOVB.P	0x00ffffff(R2), R1   // MOVB.P 16777215(R2), R1
+	MOVB.W	0x00ffffff(R2), R1   // MOVB.W 16777215(R2), R1
+	MOVB	-0x00ffffff(R2), R1  // MOVB -16777215(R2), R1
+	MOVB.P	-0x00ffffff(R2), R1  // MOVB.P -16777215(R2), R1
+	MOVB.W	-0x00ffffff(R2), R1  // MOVB.W -16777215(R2), R1
+	MOVBS	R1, 0x00ffffff(R2)   // MOVBS R1, 16777215(R2)
+	MOVBS.W	R1, 0x00ffffff(R2)   // MOVBS.W R1, 16777215(R2)
+	MOVBS.P	R1, 0x00ffffff(R2)   // MOVBS.P R1, 16777215(R2)
+	MOVBS	R1, -0x00ffffff(R2)  // MOVBS R1, -16777215(R2)
+	MOVBS.W	R1, -0x00ffffff(R2)  // MOVBS.W R1, -16777215(R2)
+	MOVBS.P	R1, -0x00ffffff(R2)  // MOVBS.P R1, -16777215(R2)
+	MOVBS	0x00ffffff(R2), R1   // MOVBS 16777215(R2), R1
+	MOVBS.P	0x00ffffff(R2), R1   // MOVBS.P 16777215(R2), R1
+	MOVBS.W	0x00ffffff(R2), R1   // MOVBS.W 16777215(R2), R1
+	MOVBS	-0x00ffffff(R2), R1  // MOVBS -16777215(R2), R1
+	MOVBS.P	-0x00ffffff(R2), R1  // MOVBS.P -16777215(R2), R1
+	MOVBS.W	-0x00ffffff(R2), R1  // MOVBS.W -16777215(R2), R1
+	MOVBU	R1, 0x00ffffff(R2)   // MOVBU R1, 16777215(R2)
+	MOVBU.W	R1, 0x00ffffff(R2)   // MOVBU.W R1, 16777215(R2)
+	MOVBU.P	R1, 0x00ffffff(R2)   // MOVBU.P R1, 16777215(R2)
+	MOVBU	R1, -0x00ffffff(R2)  // MOVBU R1, -16777215(R2)
+	MOVBU.W	R1, -0x00ffffff(R2)  // MOVBU.W R1, -16777215(R2)
+	MOVBU.P	R1, -0x00ffffff(R2)  // MOVBU.P R1, -16777215(R2)
+	MOVBU	0x00ffffff(R2), R1   // MOVBU 16777215(R2), R1
+	MOVBU.P	0x00ffffff(R2), R1   // MOVBU.P 16777215(R2), R1
+	MOVBU.W	0x00ffffff(R2), R1   // MOVBU.W 16777215(R2), R1
+	MOVBU	-0x00ffffff(R2), R1  // MOVBU -16777215(R2), R1
+	MOVBU.P	-0x00ffffff(R2), R1  // MOVBU.P -16777215(R2), R1
+	MOVBU.W	-0x00ffffff(R2), R1  // MOVBU.W -16777215(R2), R1
+	MOVB	R0, math·Exp(SB)     // MOVB R0, math.Exp(SB)
+	MOVB	math·Exp(SB), R0     // MOVB math.Exp(SB), R0
+	MOVBS	R0, math·Exp(SB)     // MOVBS R0, math.Exp(SB)
+	MOVBS	math·Exp(SB), R0     // MOVBS math.Exp(SB), R0
+	MOVBU	R0, math·Exp(SB)     // MOVBU R0, math.Exp(SB)
+	MOVBU	math·Exp(SB), R0     // MOVBU math.Exp(SB), R0
+	MOVB	R2, R0>>28(R1)                                    // 202ec1e7
+	MOVB	R2, R0<<28(R1)                                    // 002ec1e7
+	MOVB	R2, R0->28(R1)                                    // 402ec1e7
+	MOVB	R2, R0@>28(R1)                                    // 602ec1e7
+	MOVB.U	R2, R0>>28(R1)                                    // 202e41e7
+	MOVB.U	R2, R0<<28(R1)                                    // 002e41e7
+	MOVB.U	R2, R0->28(R1)                                    // 402e41e7
+	MOVB.U	R2, R0@>28(R1)                                    // 602e41e7
+	MOVB.W	R2, R0>>28(R1)                                    // 202ee1e7
+	MOVB.W	R2, R0<<28(R1)                                    // 002ee1e7
+	MOVB.W	R2, R0->28(R1)                                    // 402ee1e7
+	MOVB.W	R2, R0@>28(R1)                                    // 602ee1e7
+	MOVB.P	R2, R0>>28(R5)                                    // 202ec5e6
+	MOVB.P	R2, R0<<28(R5)                                    // 002ec5e6
+	MOVB.P	R2, R0->28(R5)                                    // 402ec5e6
+	MOVB.P	R2, R0@>28(R5)                                    // 602ec5e6
+	MOVBS	R2, R0>>28(R1)                                    // 202ec1e7
+	MOVBS	R2, R0<<28(R1)                                    // 002ec1e7
+	MOVBS	R2, R0->28(R1)                                    // 402ec1e7
+	MOVBS	R2, R0@>28(R1)                                    // 602ec1e7
+	MOVBS.U	R2, R0>>28(R1)                                    // 202e41e7
+	MOVBS.U	R2, R0<<28(R1)                                    // 002e41e7
+	MOVBS.U	R2, R0->28(R1)                                    // 402e41e7
+	MOVBS.U	R2, R0@>28(R1)                                    // 602e41e7
+	MOVBS.W	R2, R0>>28(R1)                                    // 202ee1e7
+	MOVBS.W	R2, R0<<28(R1)                                    // 002ee1e7
+	MOVBS.W	R2, R0->28(R1)                                    // 402ee1e7
+	MOVBS.W	R2, R0@>28(R1)                                    // 602ee1e7
+	MOVBS.P	R2, R0>>28(R5)                                    // 202ec5e6
+	MOVBS.P	R2, R0<<28(R5)                                    // 002ec5e6
+	MOVBS.P	R2, R0->28(R5)                                    // 402ec5e6
+	MOVBS.P	R2, R0@>28(R5)                                    // 602ec5e6
+	MOVBU	R2, R0>>28(R1)                                    // 202ec1e7
+	MOVBU	R2, R0<<28(R1)                                    // 002ec1e7
+	MOVBU	R2, R0->28(R1)                                    // 402ec1e7
+	MOVBU	R2, R0@>28(R1)                                    // 602ec1e7
+	MOVBU.U	R2, R0>>28(R1)                                    // 202e41e7
+	MOVBU.U	R2, R0<<28(R1)                                    // 002e41e7
+	MOVBU.U	R2, R0->28(R1)                                    // 402e41e7
+	MOVBU.U	R2, R0@>28(R1)                                    // 602e41e7
+	MOVBU.W	R2, R0>>28(R1)                                    // 202ee1e7
+	MOVBU.W	R2, R0<<28(R1)                                    // 002ee1e7
+	MOVBU.W	R2, R0->28(R1)                                    // 402ee1e7
+	MOVBU.W	R2, R0@>28(R1)                                    // 602ee1e7
+	MOVBU.P	R2, R0>>28(R5)                                    // 202ec5e6
+	MOVBU.P	R2, R0<<28(R5)                                    // 002ec5e6
+	MOVBU.P	R2, R0->28(R5)                                    // 402ec5e6
+	MOVBU.P	R2, R0@>28(R5)                                    // 602ec5e6
+	MOVBU	R0>>28(R1), R2                                    // 202ed1e7
+	MOVBU	R0<<28(R1), R2                                    // 002ed1e7
+	MOVBU	R0->28(R1), R2                                    // 402ed1e7
+	MOVBU	R0@>28(R1), R2                                    // 602ed1e7
+	MOVBU.U	R0>>28(R1), R2                                    // 202e51e7
+	MOVBU.U	R0<<28(R1), R2                                    // 002e51e7
+	MOVBU.U	R0->28(R1), R2                                    // 402e51e7
+	MOVBU.U	R0@>28(R1), R2                                    // 602e51e7
+	MOVBU.W	R0>>28(R1), R2                                    // 202ef1e7
+	MOVBU.W	R0<<28(R1), R2                                    // 002ef1e7
+	MOVBU.W	R0->28(R1), R2                                    // 402ef1e7
+	MOVBU.W	R0@>28(R1), R2                                    // 602ef1e7
+	MOVBU.P	R0>>28(g), R2                                     // 202edae6
+	MOVBU.P	R0<<28(g), R2                                     // 002edae6
+	MOVBU.P	R0->28(g), R2                                     // 402edae6
+	MOVBU.P	R0@>28(g), R2                                     // 602edae6
+	MOVBS	R0<<0(R1), R2                                     // d02091e1
+	MOVBS.U	R0<<0(R1), R2                                     // d02011e1
+	MOVBS.W	R0<<0(R1), R2                                     // d020b1e1
+	MOVBS.P	R0<<0(R1), R2                                     // d02091e0
+	MOVB	R0<<0(R1), R2                                     // d02091e1
+	MOVB.U	R0<<0(R1), R2                                     // d02011e1
+	MOVB.W	R0<<0(R1), R2                                     // d020b1e1
+	MOVB.P	R0<<0(R1), R2                                     // d02091e0
+
+// MOVH
+	MOVH	R3, R4                                            // 0340a0e1
+	MOVH	R9, R2                                            // 0920a0e1
+	MOVHS	R5, R6                                            // 0568a0e14668a0e1
+	MOVHU	R5, R6                                            // 0568a0e12668a0e1
+	MOVH	R4, (R3)                                          // b040c3e1
+	MOVHS.W	R4, (R3)                                          // b040e3e1
+	MOVHS.P	R4, (R3)                                          // b040c3e0
+	MOVHS	R4, (R3)                                          // b040c3e1
+	MOVHS.W	R4, (R3)                                          // b040e3e1
+	MOVHS.P	R4, (R3)                                          // b040c3e0
+	MOVHU	R4, (R3)                                          // b040c3e1
+	MOVHU.W	R4, (R3)                                          // b040e3e1
+	MOVHU.P	R4, (R3)                                          // b040c3e0
+	MOVH	R3, 0x20(R4)         // MOVH R3, 32(R4)           // b032c4e1
+	MOVH.W	R3, 0x20(R4)         // MOVH.W R3, 32(R4)         // b032e4e1
+	MOVH.P	R3, 0x20(R4)         // MOVH.P R3, 32(R4)         // b032c4e0
+	MOVHS	R3, 0x20(R4)         // MOVHS R3, 32(R4)          // b032c4e1
+	MOVHS.W	R3, 0x20(R4)         // MOVHS.W R3, 32(R4)        // b032e4e1
+	MOVHS.P	R3, 0x20(R4)         // MOVHS.P R3, 32(R4)        // b032c4e0
+	MOVHU	R3, 0x20(R4)         // MOVHU R3, 32(R4)          // b032c4e1
+	MOVHU.W	R3, 0x20(R4)         // MOVHU.W R3, 32(R4)        // b032e4e1
+	MOVHU.P	R3, 0x20(R4)         // MOVHU.P R3, 32(R4)        // b032c4e0
+	MOVH	R3, -0x20(R4)        // MOVH R3, -32(R4)          // b03244e1
+	MOVH.W	R3, -0x20(R4)        // MOVH.W R3, -32(R4)        // b03264e1
+	MOVH.P	R3, -0x20(R4)        // MOVH.P R3, -32(R4)        // b03244e0
+	MOVHS	R3, -0x20(R4)        // MOVHS R3, -32(R4)         // b03244e1
+	MOVHS.W	R3, -0x20(R4)        // MOVHS.W R3, -32(R4)       // b03264e1
+	MOVHS.P	R3, -0x20(R4)        // MOVHS.P R3, -32(R4)       // b03244e0
+	MOVHU	R3, -0x20(R4)        // MOVHU R3, -32(R4)         // b03244e1
+	MOVHU.W	R3, -0x20(R4)        // MOVHU.W R3, -32(R4)       // b03264e1
+	MOVHU.P	R3, -0x20(R4)        // MOVHU.P R3, -32(R4)       // b03244e0
+	MOVHU	(R9), R8                                          // b080d9e1
+	MOVHU.W	(R9), R8                                          // b080f9e1
+	MOVHU.P	(R9), R8                                          // b080d9e0
+	MOVH	(R9), R8                                          // f080d9e1
+	MOVH.W	(R9), R8                                          // f080f9e1
+	MOVH.P	(R9), R8                                          // f080d9e0
+	MOVHS	(R9), R8                                          // f080d9e1
+	MOVHS.W	(R9), R8                                          // f080f9e1
+	MOVHS.P	(R9), R8                                          // f080d9e0
+	MOVHU	0x22(R9), R8         // MOVHU 34(R9), R8          // b282d9e1
+	MOVHU.W	0x22(R9), R8         // MOVHU.W 34(R9), R8        // b282f9e1
+	MOVHU.P	0x22(R9), R8         // MOVHU.P 34(R9), R8        // b282d9e0
+	MOVH	0x22(R9), R8         // MOVH 34(R9), R8           // f282d9e1
+	MOVH.W	0x22(R9), R8         // MOVH.W 34(R9), R8         // f282f9e1
+	MOVH.P	0x22(R9), R8         // MOVH.P 34(R9), R8         // f282d9e0
+	MOVHS	0x22(R9), R8         // MOVHS 34(R9), R8          // f282d9e1
+	MOVHS.W	0x22(R9), R8         // MOVHS.W 34(R9), R8        // f282f9e1
+	MOVHS.P	0x22(R9), R8         // MOVHS.P 34(R9), R8        // f282d9e0
+	MOVHU	-0x24(R9), R8        // MOVHU -36(R9), R8         // b48259e1
+	MOVHU.W	-0x24(R9), R8        // MOVHU.W -36(R9), R8       // b48279e1
+	MOVHU.P	-0x24(R9), R8        // MOVHU.P -36(R9), R8       // b48259e0
+	MOVH	-0x24(R9), R8        // MOVH -36(R9), R8          // f48259e1
+	MOVH.W	-0x24(R9), R8        // MOVH.W -36(R9), R8        // f48279e1
+	MOVH.P	-0x24(R9), R8        // MOVH.P -36(R9), R8        // f48259e0
+	MOVHS	-0x24(R9), R8        // MOVHS -36(R9), R8         // f48259e1
+	MOVHS.W	-0x24(R9), R8        // MOVHS.W -36(R9), R8       // f48279e1
+	MOVHS.P	-0x24(R9), R8        // MOVHS.P -36(R9), R8       // f48259e0
+	MOVH	R1, 0x00ffffff(R2)   // MOVH R1, 16777215(R2)
+	MOVH.W	R1, 0x00ffffff(R2)   // MOVH.W R1, 16777215(R2)
+	MOVH.P	R1, 0x00ffffff(R2)   // MOVH.P R1, 16777215(R2)
+	MOVH	R1, -0x00ffffff(R2)  // MOVH R1, -16777215(R2)
+	MOVH.W	R1, -0x00ffffff(R2)  // MOVH.W R1, -16777215(R2)
+	MOVH.P	R1, -0x00ffffff(R2)  // MOVH.P R1, -16777215(R2)
+	MOVH	0x00ffffff(R2), R1   // MOVH 16777215(R2), R1
+	MOVH.P	0x00ffffff(R2), R1   // MOVH.P 16777215(R2), R1
+	MOVH.W	0x00ffffff(R2), R1   // MOVH.W 16777215(R2), R1
+	MOVH	-0x00ffffff(R2), R1  // MOVH -16777215(R2), R1
+	MOVH.P	-0x00ffffff(R2), R1  // MOVH.P -16777215(R2), R1
+	MOVH.W	-0x00ffffff(R2), R1  // MOVH.W -16777215(R2), R1
+	MOVHS	R1, 0x00ffffff(R2)   // MOVHS R1, 16777215(R2)
+	MOVHS.W	R1, 0x00ffffff(R2)   // MOVHS.W R1, 16777215(R2)
+	MOVHS.P	R1, 0x00ffffff(R2)   // MOVHS.P R1, 16777215(R2)
+	MOVHS	R1, -0x00ffffff(R2)  // MOVHS R1, -16777215(R2)
+	MOVHS.W	R1, -0x00ffffff(R2)  // MOVHS.W R1, -16777215(R2)
+	MOVHS.P	R1, -0x00ffffff(R2)  // MOVHS.P R1, -16777215(R2)
+	MOVHS	0x00ffffff(R2), R1   // MOVHS 16777215(R2), R1
+	MOVHS.P	0x00ffffff(R2), R1   // MOVHS.P 16777215(R2), R1
+	MOVHS.W	0x00ffffff(R2), R1   // MOVHS.W 16777215(R2), R1
+	MOVHS	-0x00ffffff(R2), R1  // MOVHS -16777215(R2), R1
+	MOVHS.P	-0x00ffffff(R2), R1  // MOVHS.P -16777215(R2), R1
+	MOVHS.W	-0x00ffffff(R2), R1  // MOVHS.W -16777215(R2), R1
+	MOVHU	R1, 0x00ffffff(R2)   // MOVHU R1, 16777215(R2)
+	MOVHU.W	R1, 0x00ffffff(R2)   // MOVHU.W R1, 16777215(R2)
+	MOVHU.P	R1, 0x00ffffff(R2)   // MOVHU.P R1, 16777215(R2)
+	MOVHU	R1, -0x00ffffff(R2)  // MOVHU R1, -16777215(R2)
+	MOVHU.W	R1, -0x00ffffff(R2)  // MOVHU.W R1, -16777215(R2)
+	MOVHU.P	R1, -0x00ffffff(R2)  // MOVHU.P R1, -16777215(R2)
+	MOVHU	0x00ffffff(R2), R1   // MOVHU 16777215(R2), R1
+	MOVHU.P	0x00ffffff(R2), R1   // MOVHU.P 16777215(R2), R1
+	MOVHU.W	0x00ffffff(R2), R1   // MOVHU.W 16777215(R2), R1
+	MOVHU	-0x00ffffff(R2), R1  // MOVHU -16777215(R2), R1
+	MOVHU.P	-0x00ffffff(R2), R1  // MOVHU.P -16777215(R2), R1
+	MOVHU.W	-0x00ffffff(R2), R1  // MOVHU.W -16777215(R2), R1
+	MOVH	R0, math·Exp(SB)     // MOVH R0, math.Exp(SB)
+	MOVH	math·Exp(SB), R0     // MOVH math.Exp(SB), R0
+	MOVHS	R0, math·Exp(SB)     // MOVHS R0, math.Exp(SB)
+	MOVHS	math·Exp(SB), R0     // MOVHS math.Exp(SB), R0
+	MOVHU	R0, math·Exp(SB)     // MOVHU R0, math.Exp(SB)
+	MOVHU	math·Exp(SB), R0     // MOVHU math.Exp(SB), R0
 
 //
 // END

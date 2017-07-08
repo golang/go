@@ -233,7 +233,9 @@ type WriterAt interface {
 
 // ByteReader is the interface that wraps the ReadByte method.
 //
-// ReadByte reads and returns the next byte from the input.
+// ReadByte reads and returns the next byte from the input or
+// any error encountered. If ReadByte returns an error, no input
+// byte was consumed, and the returned byte value is undefined.
 type ByteReader interface {
 	ReadByte() (byte, error)
 }

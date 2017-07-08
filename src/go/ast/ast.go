@@ -927,7 +927,7 @@ type (
 		Recv *FieldList    // receiver (methods); or nil (functions)
 		Name *Ident        // function/method name
 		Type *FuncType     // function signature: parameters, results, and position of "func" keyword
-		Body *BlockStmt    // function body; or nil (forward declaration)
+		Body *BlockStmt    // function body; or nil for external (non-Go) function
 	}
 )
 
@@ -966,6 +966,19 @@ func (*FuncDecl) declNode() {}
 // The Comments list contains all comments in the source file in order of
 // appearance, including the comments that are pointed to from other nodes
 // via Doc and Comment fields.
+//
+// For correct printing of source code containing comments (using packages
+// go/format and go/printer), special care must be taken to update comments
+// when a File's syntax tree is modified: For printing, comments are inter-
+// spersed between tokens based on their position. If syntax tree nodes are
+// removed or moved, relevant comments in their vicinity must also be removed
+// (from the File.Comments list) or moved accordingly (by updating their
+// positions). A CommentMap may be used to facilitate some of these operations.
+//
+// Whether and how a comment is associated with a node depends on the inter-
+// pretation of the syntax tree by the manipulating program: Except for Doc
+// and Comment comments directly associated with nodes, the remaining comments
+// are "free-floating" (see also issues #18593, #20744).
 //
 type File struct {
 	Doc        *CommentGroup   // associated documentation; or nil

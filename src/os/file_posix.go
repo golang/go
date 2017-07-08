@@ -44,19 +44,16 @@ func syscallMode(i FileMode) (o uint32) {
 	return
 }
 
-// Chmod changes the mode of the named file to mode.
-// If the file is a symbolic link, it changes the mode of the link's target.
-// If there is an error, it will be of type *PathError.
-func Chmod(name string, mode FileMode) error {
-	if e := syscall.Chmod(name, syscallMode(mode)); e != nil {
+// See docs in file.go:Chmod.
+func chmod(name string, mode FileMode) error {
+	if e := syscall.Chmod(fixLongPath(name), syscallMode(mode)); e != nil {
 		return &PathError{"chmod", name, e}
 	}
 	return nil
 }
 
-// Chmod changes the mode of the file to mode.
-// If there is an error, it will be of type *PathError.
-func (f *File) Chmod(mode FileMode) error {
+// See docs in file.go:(*File).Chmod.
+func (f *File) chmod(mode FileMode) error {
 	if err := f.checkValid("chmod"); err != nil {
 		return err
 	}
@@ -69,6 +66,9 @@ func (f *File) Chmod(mode FileMode) error {
 // Chown changes the numeric uid and gid of the named file.
 // If the file is a symbolic link, it changes the uid and gid of the link's target.
 // If there is an error, it will be of type *PathError.
+//
+// On Windows, it always returns the syscall.EWINDOWS error, wrapped
+// in *PathError.
 func Chown(name string, uid, gid int) error {
 	if e := syscall.Chown(name, uid, gid); e != nil {
 		return &PathError{"chown", name, e}
@@ -79,6 +79,9 @@ func Chown(name string, uid, gid int) error {
 // Lchown changes the numeric uid and gid of the named file.
 // If the file is a symbolic link, it changes the uid and gid of the link itself.
 // If there is an error, it will be of type *PathError.
+//
+// On Windows, it always returns the syscall.EWINDOWS error, wrapped
+// in *PathError.
 func Lchown(name string, uid, gid int) error {
 	if e := syscall.Lchown(name, uid, gid); e != nil {
 		return &PathError{"lchown", name, e}
@@ -88,6 +91,9 @@ func Lchown(name string, uid, gid int) error {
 
 // Chown changes the numeric uid and gid of the named file.
 // If there is an error, it will be of type *PathError.
+//
+// On Windows, it always returns the syscall.EWINDOWS error, wrapped
+// in *PathError.
 func (f *File) Chown(uid, gid int) error {
 	if err := f.checkValid("chown"); err != nil {
 		return err

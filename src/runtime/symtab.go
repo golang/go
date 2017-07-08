@@ -573,12 +573,18 @@ func moduledataverify1(datap *moduledata) {
 
 // FuncForPC returns a *Func describing the function that contains the
 // given program counter address, or else nil.
+//
+// If pc represents multiple functions because of inlining, it returns
+// the *Func describing the outermost frame at pc.
 func FuncForPC(pc uintptr) *Func {
 	return findfunc(pc)._Func()
 }
 
 // Name returns the name of the function.
 func (f *Func) Name() string {
+	if f == nil {
+		return ""
+	}
 	return funcname(f.funcInfo())
 }
 

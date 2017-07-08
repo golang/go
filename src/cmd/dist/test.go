@@ -60,7 +60,6 @@ type tester struct {
 	goroot     string
 	goarch     string
 	gohostarch string
-	goarm      string
 	goos       string
 	gohostos   string
 	cgoEnabled bool
@@ -104,7 +103,6 @@ func (t *tester) run() {
 	t.gohostos = mustEnv("GOHOSTOS")
 	t.goarch = mustEnv("GOARCH")
 	t.gohostarch = mustEnv("GOHOSTARCH")
-	t.goarm = os.Getenv("GOARM")
 	slurp, err := exec.Command("go", "env", "CGO_ENABLED").Output()
 	if err != nil {
 		log.Fatalf("Error running go env CGO_ENABLED: %v", err)
@@ -797,12 +795,6 @@ func (t *tester) supportedBuildmode(mode string) bool {
 			// causing build failures potentially
 			// obscuring other issues. This is hopefully a
 			// temporary workaround. See golang.org/issue/17937.
-			return false
-		}
-
-		if pair == "linux-arm" && t.goarm == "5" {
-			// Skip the plugin tests for now on ARMv5 because it causes a
-			// SIGILL. See https://golang.org/issue/19674
 			return false
 		}
 

@@ -2261,7 +2261,7 @@ func checksliceindex(l *Node, r *Node, tp *types.Type) bool {
 		if r.Int64() < 0 {
 			yyerror("invalid slice index %v (index must be non-negative)", r)
 			return false
-		} else if tp != nil && tp.NumElem() > 0 && r.Int64() > tp.NumElem() {
+		} else if tp != nil && tp.NumElem() >= 0 && r.Int64() > tp.NumElem() {
 			yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
 			return false
 		} else if Isconst(l, CTSTR) && r.Int64() > int64(len(l.Val().U.(string))) {
@@ -3288,10 +3288,10 @@ func checkassign(stmt *Node, n *Node) {
 
 	if n.Op == ODOT && n.Left.Op == OINDEXMAP {
 		yyerror("cannot assign to struct field %v in map", n)
-		return
+	} else {
+		yyerror("cannot assign to %v", n)
 	}
-
-	yyerror("cannot assign to %v", n)
+	n.Type = nil
 }
 
 func checkassignlist(stmt *Node, l Nodes) {

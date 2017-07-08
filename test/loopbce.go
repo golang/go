@@ -31,7 +31,7 @@ func f0c(a []int) int {
 
 func f1(a []int) int {
 	x := 0
-	for _, i := range a { // Change to "for i,e := range array/slice" hides IV report.
+	for _, i := range a { // ERROR "Induction variable with minimum 0 and increment 1"
 		x += i
 	}
 	return x

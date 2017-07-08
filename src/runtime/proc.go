@@ -1615,6 +1615,10 @@ func unlockextra(mp *m) {
 	atomic.Storeuintptr(&extram, uintptr(unsafe.Pointer(mp)))
 }
 
+// execLock serializes exec and clone to avoid bugs or unspecified behaviour
+// around exec'ing while creating/destroying threads.  See issue #19546.
+var execLock rwmutex
+
 // Create a new m. It will start off with a call to fn, or else the scheduler.
 // fn needs to be static and not a heap allocated closure.
 // May run with m.p==nil, so write barriers are not allowed.
@@ -1634,10 +1638,14 @@ func newm(fn func(), _p_ *p) {
 		if msanenabled {
 			msanwrite(unsafe.Pointer(&ts), unsafe.Sizeof(ts))
 		}
+		execLock.rlock() // Prevent process clone.
 		asmcgocall(_cgo_thread_start, unsafe.Pointer(&ts))
+		execLock.runlock()
 		return
 	}
+	execLock.rlock() // Prevent process clone.
 	newosproc(mp, unsafe.Pointer(mp.g0.stack.hi))
+	execLock.runlock()
 }
 
 // Stops execution of the current m until new work is available.
@@ -2857,6 +2865,19 @@ func syscall_runtime_AfterForkInChild() {
 	msigrestore(getg().m.sigmask)
 }
 
+// Called from syscall package before Exec.
+//go:linkname syscall_runtime_BeforeExec syscall.runtime_BeforeExec
+func syscall_runtime_BeforeExec() {
+	// Prevent thread creation during exec.
+	execLock.lock()
+}
+
+// Called from syscall package after Exec.
+//go:linkname syscall_runtime_AfterExec syscall.runtime_AfterExec
+func syscall_runtime_AfterExec() {
+	execLock.unlock()
+}
+
 // Allocate a new g, with a stack big enough for stacksize bytes.
 func malg(stacksize int32) *g {
 	newg := new(g)
@@ -3787,9 +3808,25 @@ func sysmon() {
 				if scavengelimit < forcegcperiod {
 					maxsleep = scavengelimit / 2
 				}
-				osRelax(true)
+				shouldRelax := true
+				if osRelaxMinNS > 0 {
+					lock(&timers.lock)
+					if timers.sleeping {
+						now := nanotime()
+						next := timers.sleepUntil
+						if next-now < osRelaxMinNS {
+							shouldRelax = false
+						}
+					}
+					unlock(&timers.lock)
+				}
+				if shouldRelax {
+					osRelax(true)
+				}
 				notetsleep(&sched.sysmonnote, maxsleep)
-				osRelax(false)
+				if shouldRelax {
+					osRelax(false)
+				}
 				lock(&sched.lock)
 				atomic.Store(&sched.sysmonwait, 0)
 				noteclear(&sched.sysmonnote)

@@ -61,6 +61,8 @@ import "errors"
 // RFC822, RFC822Z, RFC1123, and RFC1123Z are useful for formatting;
 // when used with time.Parse they do not accept all the time formats
 // permitted by the RFCs.
+// The RFC3339Nano format removes trailing zeros from the seconds field
+// and thus may not sort correctly once formatted.
 const (
 	ANSIC       = "Mon Jan _2 15:04:05 2006"
 	UnixDate    = "Mon Jan _2 15:04:05 MST 2006"
@@ -428,6 +430,10 @@ func formatNano(b []byte, nanosec uint, n int, trim bool) []byte {
 // If the time has a monotonic clock reading, the returned string
 // includes a final field "m=±<value>", where value is the monotonic
 // clock reading formatted as a decimal number of seconds.
+//
+// The returned string is meant for debugging; for a stable serialized
+// representation, use t.MarshalText, t.MarshalBinary, or t.Format
+// with an explicit format string.
 func (t Time) String() string {
 	s := t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
 

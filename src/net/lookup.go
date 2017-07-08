@@ -28,6 +28,9 @@ var protocols = map[string]int{
 // services contains minimal mappings between services names and port
 // numbers for platforms that don't have a complete list of port numbers
 // (some Solaris distros, nacl, etc).
+//
+// See https://www.iana.org/assignments/service-names-port-numbers
+//
 // On Unix, this map is augmented by readServices via goLookupPort.
 var services = map[string]map[string]int{
 	"udp": {
@@ -63,7 +66,12 @@ func lookupProtocolMap(name string) (int, error) {
 	return proto, nil
 }
 
-const maxServiceLength = len("mobility-header") + 10 // with room to grow
+// maxPortBufSize is the longest reasonable name of a service
+// (non-numeric port).
+// Currently the longest known IANA-unregistered name is
+// "mobility-header", so we use that length, plus some slop in case
+// something longer is added in the future.
+const maxPortBufSize = len("mobility-header") + 10
 
 func lookupPortMap(network, service string) (port int, error error) {
 	switch network {
@@ -74,7 +82,7 @@ func lookupPortMap(network, service string) (port int, error error) {
 	}
 
 	if m, ok := services[network]; ok {
-		var lowerService [maxServiceLength]byte
+		var lowerService [maxPortBufSize]byte
 		n := copy(lowerService[:], service)
 		lowerASCIIBytes(lowerService[:n])
 		if port, ok := m[string(lowerService[:n])]; ok && n == len(service) {
@@ -109,14 +117,16 @@ type Resolver struct {
 
 	// Dial optionally specifies an alternate dialer for use by
 	// Go's built-in DNS resolver to make TCP and UDP connections
-	// to DNS services. The provided addr will always be an IP
-	// address and not a hostname.
+	// to DNS services. The host in the address parameter will
+	// always be a literal IP address and not a host name, and the
+	// port in the address parameter will be a literal port number
+	// and not a service name.
 	// If the Conn returned is also a PacketConn, sent and received DNS
-	// messages must adhere to section 4.2.1. "UDP usage" of RFC 1035.
-	// Otherwise, DNS messages transmitted over Conn must adhere to section
-	// 4.2.2. "TCP usage".
+	// messages must adhere to RFC 1035 section 4.2.1, "UDP usage".
+	// Otherwise, DNS messages transmitted over Conn must adhere
+	// to RFC 7766 section 5, "Transport Protocol Selection".
 	// If nil, the default dialer is used.
-	Dial func(ctx context.Context, network, addr string) (Conn, error)
+	Dial func(ctx context.Context, network, address string) (Conn, error)
 
 	// TODO(bradfitz): optional interface impl override hook
 	// TODO(bradfitz): Timeout time.Duration?

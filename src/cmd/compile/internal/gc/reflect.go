@@ -79,8 +79,8 @@ const (
 	MAXVALSIZE = 128
 )
 
-func structfieldSize() int             { return 3 * Widthptr } // Sizeof(runtime.structfield{})
-func imethodSize() int                 { return 4 + 4 }        // Sizeof(runtime.imethod{})
+func structfieldSize() int { return 3 * Widthptr } // Sizeof(runtime.structfield{})
+func imethodSize() int     { return 4 + 4 }        // Sizeof(runtime.imethod{})
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym == nil && len(methods(t)) == 0 {
 		return 0

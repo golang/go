@@ -121,9 +121,15 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 		needsPaxHeader := paxKeyword != paxNone && len(s) > len(b) || !isASCII(s)
 		if needsPaxHeader {
 			paxHeaders[paxKeyword] = s
-			return
 		}
-		f.formatString(b, s)
+
+		// Write string in a best-effort manner to satisfy readers that expect
+		// the field to be non-empty.
+		s = toASCII(s)
+		if len(s) > len(b) {
+			s = s[:len(b)]
+		}
+		f.formatString(b, s) // Should never error
 	}
 	var formatNumeric = func(b []byte, x int64, paxKeyword string) {
 		// Try octal first.

@@ -224,8 +224,7 @@ const testFlag2 = `
 	    exhaustive tests.
 
 	-timeout d
-	    If the cumulative test time for a package runs longer than
-	    duration d, panic. Timeout is disabled if set to 0.
+	    If a test binary runs longer than duration d, panic.
 	    The default is 10 minutes (10m).
 
 	-v

@@ -114,6 +114,32 @@ type PackageInternal struct {
 	GobinSubdir  bool                 // install target would be subdir of GOBIN
 }
 
+type NoGoError struct {
+	Package *Package
+}
+
+func (e *NoGoError) Error() string {
+	// Count files beginning with _ and ., which we will pretend don't exist at all.
+	dummy := 0
+	for _, name := range e.Package.IgnoredGoFiles {
+		if strings.HasPrefix(name, "_") || strings.HasPrefix(name, ".") {
+			dummy++
+		}
+	}
+
+	if len(e.Package.IgnoredGoFiles) > dummy {
+		// Go files exist, but they were ignored due to build constraints.
+		return "build constraints exclude all Go files in " + e.Package.Dir
+	}
+	if len(e.Package.TestGoFiles)+len(e.Package.XTestGoFiles) > 0 {
+		// Test Go files exist, but we're not interested in them.
+		// The double-negative is unfortunate but we want e.Package.Dir
+		// to appear at the end of error message.
+		return "no non-test Go files in " + e.Package.Dir
+	}
+	return "no Go files in " + e.Package.Dir
+}
+
 // Vendored returns the vendor-resolved version of imports,
 // which should be p.TestImports or p.XTestImports, NOT p.Imports.
 // The imports in p.TestImports and p.XTestImports are not recursively
@@ -828,6 +854,8 @@ var cgoSyscallExclude = map[string]bool{
 	"runtime/msan": true,
 }
 
+var foldPath = make(map[string]string)
+
 // load populates p using information from bp, err, which should
 // be the result of calling build.Context.Import.
 func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package {
@@ -838,6 +866,9 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package 
 	p.Internal.LocalPrefix = dirToImportPath(p.Dir)
 
 	if err != nil {
+		if _, ok := err.(*build.NoGoError); ok {
+			err = &NoGoError{Package: p}
+		}
 		p.Incomplete = true
 		err = base.ExpandScanner(err)
 		p.Error = &PackageError{
@@ -1109,17 +1140,16 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package 
 		return p
 	}
 
-	// In the absence of errors lower in the dependency tree,
-	// check for case-insensitive collisions of import paths.
-	if len(p.DepsErrors) == 0 {
-		dep1, dep2 := str.FoldDup(p.Deps)
-		if dep1 != "" {
-			p.Error = &PackageError{
-				ImportStack: stk.Copy(),
-				Err:         fmt.Sprintf("case-insensitive import collision: %q and %q", dep1, dep2),
-			}
-			return p
+	// Check for case-insensitive collisions of import paths.
+	fold := str.ToFold(p.ImportPath)
+	if other := foldPath[fold]; other == "" {
+		foldPath[fold] = p.ImportPath
+	} else if other != p.ImportPath {
+		p.Error = &PackageError{
+			ImportStack: stk.Copy(),
+			Err:         fmt.Sprintf("case-insensitive import collision: %q and %q", p.ImportPath, other),
 		}
+		return p
 	}
 
 	if p.BinaryOnly {

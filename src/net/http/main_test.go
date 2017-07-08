@@ -37,6 +37,7 @@ func interestingGoroutines() (gs []string) {
 		}
 		stack := strings.TrimSpace(sl[1])
 		if stack == "" ||
+			strings.Contains(stack, "testing.(*M).before.func1") ||
 			strings.Contains(stack, "os/signal.signal_recv") ||
 			strings.Contains(stack, "created by net.startServer") ||
 			strings.Contains(stack, "created by testing.RunTests") ||

@@ -175,19 +175,20 @@ func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value,
 
 // A Config structure contains options for running a test.
 type Config struct {
-	// MaxCount sets the maximum number of iterations. If zero,
-	// MaxCountScale is used.
+	// MaxCount sets the maximum number of iterations.
+	// If zero, MaxCountScale is used.
 	MaxCount int
-	// MaxCountScale is a non-negative scale factor applied to the default
-	// maximum. If zero, the default is unchanged.
+	// MaxCountScale is a non-negative scale factor applied to the
+	// default maximum.
+	// If zero, the default is unchanged.
 	MaxCountScale float64
-	// If non-nil, rand is a source of random numbers. Otherwise a default
-	// pseudo-random source will be used.
+	// Rand specifies a source of random numbers.
+	// If nil, a default pseudo-random source will be used.
 	Rand *rand.Rand
-	// If non-nil, the Values function generates a slice of arbitrary
-	// reflect.Values that are congruent with the arguments to the function
-	// being tested. Otherwise, the top-level Value function is used
-	// to generate them.
+	// Values specifies a function to generate a slice of
+	// arbitrary reflect.Values that are congruent with the
+	// arguments to the function being tested.
+	// If nil, the top-level Value function is used to generate them.
 	Values func([]reflect.Value, *rand.Rand)
 }
 

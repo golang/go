@@ -381,6 +381,10 @@ func TestARM64EndToEnd(t *testing.T) {
 	testEndToEnd(t, "arm64", "arm64")
 }
 
+func TestARM64Encoder(t *testing.T) {
+	testEndToEnd(t, "arm64", "arm64enc")
+}
+
 func TestAMD64EndToEnd(t *testing.T) {
 	testEndToEnd(t, "amd64", "amd64")
 }

@@ -14,6 +14,9 @@ import (
 	"testing"
 )
 
+// There is a modified copy of this file in runtime/rwmutex_test.go.
+// If you make any changes here, see if you should make them there.
+
 func parallelReader(m *RWMutex, clocked, cunlock, cdone chan bool) {
 	m.RLock()
 	clocked <- true

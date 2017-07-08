@@ -270,6 +270,12 @@ var useLoadLibraryEx bool
 
 var timeBeginPeriodRetValue uint32
 
+// osRelaxMinNS indicates that sysmon shouldn't osRelax if the next
+// timer is less than 60 ms from now. Since osRelaxing may reduce
+// timer resolution to 15.6 ms, this keeps timer error under roughly 1
+// part in 4.
+const osRelaxMinNS = 60 * 1e6
+
 // osRelax is called by the scheduler when transitioning to and from
 // all Ps being idle.
 //

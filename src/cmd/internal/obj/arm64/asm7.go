@@ -2232,7 +2232,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 = 0
 		}
 
-	case 15: /* mul/mneg/umulh/umull r,[r,]r; madd/msub Rm,Rn,Ra,Rd */
+	case 15: /* mul/mneg/umulh/umull r,[r,]r; madd/msub Rm,Ra,Rn,Rd */
 		o1 = c.oprrr(p, p.As)
 
 		rf := int(p.From.Reg)
@@ -2900,9 +2900,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.opload(p, p.As)
 
 		o1 |= 0x1F << 16
-		o1 |= uint32(p.From.Reg) << 5
+		o1 |= uint32(p.From.Reg&31) << 5
 		if p.Reg != 0 {
-			o1 |= uint32(p.Reg) << 10
+			o1 |= uint32(p.Reg&31) << 10
 		} else {
 			o1 |= 0x1F << 10
 		}
