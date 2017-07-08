@@ -283,8 +283,15 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			// now, or else we will be caught in an infinite loop
 			// of generating synthetic relocs for our synthetic
 			// relocs.
+			//
+			// Furthermore, the rela sections contain dynamic
+			// relocations with R_ADDR relocations on
+			// Elf64_Rela.r_offset. This field should contain the
+			// symbol offset as determined by reloc(), not the
+			// final dynamically linked address as a dynamic
+			// relocation would provide.
 			switch s.Name {
-			case ".dynsym", ".rela", ".got.plt", ".dynamic":
+			case ".dynsym", ".rela", ".rela.plt", ".got.plt", ".dynamic":
 				return false
 			}
 		} else {
