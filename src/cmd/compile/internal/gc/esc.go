@@ -2100,6 +2100,7 @@ func moveToHeap(n *Node) {
 	heapaddr := temp(types.NewPtr(n.Type))
 	heapaddr.Sym = lookup("&" + n.Sym.Name)
 	heapaddr.Orig.Sym = heapaddr.Sym
+	heapaddr.Pos = n.Pos
 
 	// Unset AutoTemp to persist the &foo variable name through SSA to
 	// liveness analysis.
