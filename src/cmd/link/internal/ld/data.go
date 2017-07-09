@@ -1166,11 +1166,8 @@ func dosymtype(ctxt *Link) {
 		for _, s := range ctxt.Syms.Allsym {
 			// Create a new entry in the .init_array section that points to the
 			// library initializer function.
-			switch Buildmode {
-			case BuildmodeCArchive, BuildmodeCShared:
-				if s.Name == *flagEntrySymbol {
-					addinitarrdata(ctxt, s)
-				}
+			if s.Name == *flagEntrySymbol {
+				addinitarrdata(ctxt, s)
 			}
 		}
 	}
