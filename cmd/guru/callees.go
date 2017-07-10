@@ -18,7 +18,7 @@ import (
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
-// Callees reports the possible callees of the function call site
+// The callees function reports the possible callees of the function call site
 // identified by the specified source location.
 func callees(q *Query) error {
 	lconf := loader.Config{Build: q.Build}

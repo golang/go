@@ -16,7 +16,7 @@ import (
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
-// Callstack displays an arbitrary path from a root of the callgraph
+// The callstack function displays an arbitrary path from a root of the callgraph
 // to the function at the current position.
 //
 // The information may be misleading in a context-insensitive

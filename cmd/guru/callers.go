@@ -16,7 +16,7 @@ import (
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
-// Callers reports the possible callers of the function
+// The callers function reports the possible callers of the function
 // immediately enclosing the specified source location.
 //
 func callers(q *Query) error {

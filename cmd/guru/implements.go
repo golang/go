@@ -19,7 +19,7 @@ import (
 	"golang.org/x/tools/refactor/importgraph"
 )
 
-// Implements displays the "implements" relation as it pertains to the
+// The implements function displays the "implements" relation as it pertains to the
 // selected type.
 // If the selection is a method, 'implements' displays
 // the corresponding methods of the types that would have been reported
