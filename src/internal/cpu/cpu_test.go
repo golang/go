@@ -25,3 +25,26 @@ func TestAVX2hasAVX(t *testing.T) {
 		}
 	}
 }
+
+func TestPPC64minimalFeatures(t *testing.T) {
+	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
+		if !cpu.PPC64.IsPOWER8 {
+			t.Fatalf("IsPOWER8 expected true, got false")
+		}
+		if !cpu.PPC64.HasVMX {
+			t.Fatalf("HasVMX expected true, got false")
+		}
+		if !cpu.PPC64.HasDFP {
+			t.Fatalf("HasDFP expected true, got false")
+		}
+		if !cpu.PPC64.HasVSX {
+			t.Fatalf("HasVSX expected true, got false")
+		}
+		if !cpu.PPC64.HasISEL {
+			t.Fatalf("HasISEL expected true, got false")
+		}
+		if !cpu.PPC64.HasVCRYPTO {
+			t.Fatalf("HasVCRYPTO expected true, got false")
+		}
+	}
+}
