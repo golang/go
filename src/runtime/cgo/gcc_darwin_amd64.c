@@ -28,8 +28,8 @@ inittls(void)
 	 *
 	 * The linker and runtime hard-code this constant offset
 	 * from %gs where we expect to find g.
-	 * Known to ../../../liblink/sym.c:/8a0
-	 * and to ../sys_darwin_amd64.s:/8a0
+	 * Known to src/cmd/link/internal/ld/sym.go:/0x8a0
+	 * and to src/runtime/sys_darwin_amd64.s:/0x8a0
 	 *
 	 * As disgusting as on the 386; same justification.
 	 */
