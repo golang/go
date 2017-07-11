@@ -39,8 +39,8 @@ inittls(void)
 	 *
 	 * The linker and runtime hard-code this constant offset
 	 * from %gs where we expect to find g.
-	 * Known to ../../../liblink/sym.c:/468
-	 * and to ../sys_darwin_386.s:/468
+	 * Known to src/cmd/link/internal/ld/sym.go:/0x468
+	 * and to src/runtime/sys_darwin_386.s:/0x468
 	 *
 	 * This is truly disgusting and a bit fragile, but taking care
 	 * of it here protects the rest of the system from damage.
