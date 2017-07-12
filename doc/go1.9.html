@@ -698,6 +698,17 @@ version of gccgo.
         Frames are scheduled by following HTTP/2 priorities as described in
         <a href="https://tools.ietf.org/html/rfc7540#section-5.3">RFC 7540 Section 5.3</a>.
       </li>
+
+      <li><!-- CL 36483 -->
+        The HTTP handler returned by <a href="/pkg/net/http/#StripPrefix"><code>StripPrefix</code></a>
+        now calls its provided handler with a modified clone of the original <code>*http.Request</code>.
+        Any code storing per-request state in maps keyed by <code>*http.Request</code> should
+        use
+        <a href="/pkg/net/http/#Request.Context"><code>Request.Context</code></a>,
+        <a href="/pkg/net/http/#Request.WithContext"><code>Request.WithContext</code></a>,
+        and
+        <a href="/pkg/context/#WithValue"><code>context.WithValue</code></a> instead.
+      </li>
     </ul>
 
     <p>Client &amp; Transport changes:</p>
