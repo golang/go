@@ -9,6 +9,7 @@ package syscall_test
 import (
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"os"
@@ -349,7 +350,7 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 	// Since we are doing a chroot, we need the binary there,
 	// and it must be statically linked.
 	x := filepath.Join(d, "syscall.test")
-	cmd := exec.Command("go", "test", "-c", "-o", x, "syscall")
+	cmd := exec.Command(testenv.GoToolPath(t), "test", "-c", "-o", x, "syscall")
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if o, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Build of syscall in chroot failed, output %v, err %v", o, err)
