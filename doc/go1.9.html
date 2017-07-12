@@ -227,7 +227,14 @@ type T1 = T2
 </p>
 
 
-<h3 id="go-tool-pprof-proxy">Pprof</h3>
+<h3 id="go-tool-pprof">Pprof</h3>
+
+<p> <!-- CL 34192 -->
+  Profiles produced by the <code>runtime/pprof</code> package now
+  include symbol information, so they can be viewed
+  in <code>go</code> <code>tool</code> <code>pprof</code>
+  without binary that produced the profile.
+</p>
 
 <p> <!-- CL 38343 -->
   The <code>go</code> <code>tool</code> <code>pprof</code> command now
