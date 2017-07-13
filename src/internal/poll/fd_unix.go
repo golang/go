@@ -121,7 +121,7 @@ func (fd *FD) Read(p []byte) (int, error) {
 		n, err := syscall.Read(fd.Sysfd, p)
 		if err != nil {
 			n = 0
-			if err == syscall.EAGAIN {
+			if err == syscall.EAGAIN && fd.pd.pollable() {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
 					continue
 				}
@@ -165,7 +165,7 @@ func (fd *FD) ReadFrom(p []byte) (int, syscall.Sockaddr, error) {
 		n, sa, err := syscall.Recvfrom(fd.Sysfd, p, 0)
 		if err != nil {
 			n = 0
-			if err == syscall.EAGAIN {
+			if err == syscall.EAGAIN && fd.pd.pollable() {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
 					continue
 				}
@@ -189,7 +189,7 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, er
 		n, oobn, flags, sa, err := syscall.Recvmsg(fd.Sysfd, p, oob, 0)
 		if err != nil {
 			// TODO(dfc) should n and oobn be set to 0
-			if err == syscall.EAGAIN {
+			if err == syscall.EAGAIN && fd.pd.pollable() {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
 					continue
 				}
@@ -222,7 +222,7 @@ func (fd *FD) Write(p []byte) (int, error) {
 		if nn == len(p) {
 			return nn, err
 		}
-		if err == syscall.EAGAIN {
+		if err == syscall.EAGAIN && fd.pd.pollable() {
 			if err = fd.pd.waitWrite(fd.isFile); err == nil {
 				continue
 			}
@@ -278,7 +278,7 @@ func (fd *FD) WriteTo(p []byte, sa syscall.Sockaddr) (int, error) {
 	}
 	for {
 		err := syscall.Sendto(fd.Sysfd, p, 0, sa)
-		if err == syscall.EAGAIN {
+		if err == syscall.EAGAIN && fd.pd.pollable() {
 			if err = fd.pd.waitWrite(fd.isFile); err == nil {
 				continue
 			}
@@ -301,7 +301,7 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
 	}
 	for {
 		n, err := syscall.SendmsgN(fd.Sysfd, p, oob, sa, 0)
-		if err == syscall.EAGAIN {
+		if err == syscall.EAGAIN && fd.pd.pollable() {
 			if err = fd.pd.waitWrite(fd.isFile); err == nil {
 				continue
 			}
@@ -330,8 +330,10 @@ func (fd *FD) Accept() (int, syscall.Sockaddr, string, error) {
 		}
 		switch err {
 		case syscall.EAGAIN:
-			if err = fd.pd.waitRead(fd.isFile); err == nil {
-				continue
+			if fd.pd.pollable() {
+				if err = fd.pd.waitRead(fd.isFile); err == nil {
+					continue
+				}
 			}
 		case syscall.ECONNABORTED:
 			// This means that a socket on the listen
@@ -364,7 +366,7 @@ func (fd *FD) ReadDirent(buf []byte) (int, error) {
 		n, err := syscall.ReadDirent(fd.Sysfd, buf)
 		if err != nil {
 			n = 0
-			if err == syscall.EAGAIN {
+			if err == syscall.EAGAIN && fd.pd.pollable() {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
 					continue
 				}
