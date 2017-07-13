@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -62,13 +63,14 @@ func detectrepo() string {
 	return "go"
 }
 
+var googleSourceRx = regexp.MustCompile(`(?m)^(go|go-review)?\.googlesource.com\b`)
+
 func checkCLA() {
 	slurp, err := ioutil.ReadFile(cookiesFile())
 	if err != nil && !os.IsNotExist(err) {
 		log.Fatal(err)
 	}
-	if bytes.Contains(slurp, []byte("go.googlesource.com")) &&
-		bytes.Contains(slurp, []byte("go-review.googlesource.com")) {
+	if googleSourceRx.Match(slurp) {
 		// Probably good.
 		return
 	}
