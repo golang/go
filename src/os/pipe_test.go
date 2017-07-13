@@ -186,3 +186,37 @@ func TestClosedPipeRaceRead(t *testing.T) {
 func TestClosedPipeRaceWrite(t *testing.T) {
 	testClosedPipeRace(t, false)
 }
+
+// Issue 20915: Reading on nonblocking fd should not return "waiting
+// for unsupported file type." Currently it returns EAGAIN; it is
+// possible that in the future it will simply wait for data.
+func TestReadNonblockingFd(t *testing.T) {
+	if os.Getenv("GO_WANT_READ_NONBLOCKING_FD") == "1" {
+		fd := int(os.Stdin.Fd())
+		syscall.SetNonblock(fd, true)
+		defer syscall.SetNonblock(fd, false)
+		_, err := os.Stdin.Read(make([]byte, 1))
+		if err != nil {
+			if perr, ok := err.(*os.PathError); !ok || perr.Err != syscall.EAGAIN {
+				t.Fatalf("read on nonblocking stdin got %q, should have gotten EAGAIN", err)
+			}
+		}
+		os.Exit(0)
+	}
+
+	testenv.MustHaveExec(t)
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	defer w.Close()
+	cmd := osexec.Command(os.Args[0], "-test.run="+t.Name())
+	cmd.Env = append(os.Environ(), "GO_WANT_READ_NONBLOCKING_FD=1")
+	cmd.Stdin = r
+	output, err := cmd.CombinedOutput()
+	t.Logf("%s", output)
+	if err != nil {
+		t.Errorf("child process failed: %v", err)
+	}
+}

@@ -101,6 +101,10 @@ func (pd *pollDesc) waitCanceled(mode int) {
 	runtime_pollWaitCanceled(pd.runtimeCtx, mode)
 }
 
+func (pd *pollDesc) pollable() bool {
+	return pd.runtimeCtx != 0
+}
+
 func convertErr(res int, isFile bool) error {
 	switch res {
 	case 0:

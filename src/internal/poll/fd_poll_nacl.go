@@ -49,6 +49,8 @@ func (pd *pollDesc) waitWrite(isFile bool) error { return pd.wait('w', isFile) }
 
 func (pd *pollDesc) waitCanceled(mode int) {}
 
+func (pd *pollDesc) pollable() bool { return true }
+
 // SetDeadline sets the read and write deadlines associated with fd.
 func (fd *FD) SetDeadline(t time.Time) error {
 	return setDeadlineImpl(fd, t, 'r'+'w')
