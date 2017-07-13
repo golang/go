@@ -183,7 +183,7 @@ var pkgDeps = map[string][]string{
 	"runtime/trace":  {"L0"},
 	"text/tabwriter": {"L2"},
 
-	"testing":          {"L2", "flag", "fmt", "internal/race", "os", "os/signal", "runtime/debug", "runtime/pprof", "runtime/trace", "syscall", "time"},
+	"testing":          {"L2", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
 	"testing/iotest":   {"L2", "log"},
 	"testing/quick":    {"L2", "flag", "fmt", "reflect", "time"},
 	"internal/testenv": {"L2", "OS", "flag", "testing", "syscall"},
