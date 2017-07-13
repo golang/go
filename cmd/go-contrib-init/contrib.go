@@ -147,15 +147,19 @@ func checkGoroot() {
 }
 
 func checkWorkingDir() {
-	if *repo == "go" {
-		if inGoPath() {
-			log.Fatal("You can't work on Go from within your GOPATH. Please checkout Go outside of your GOPATH")
-		}
-		return
-	}
 	wd, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
+	}
+	if *repo == "go" {
+		if inGoPath(wd) {
+			log.Fatalf(`You can't work on Go from within your GOPATH. Please checkout Go outside of your GOPATH
+
+Current directory: %s
+GOPATH: %s
+`, wd, os.Getenv("GOPATH"))
+		}
+		return
 	}
 
 	gopath := firstGoPath()
@@ -197,12 +201,7 @@ func exists(path string) (bool, error) {
 	return true, err
 }
 
-func inGoPath() bool {
-	wd, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
-	}
-
+func inGoPath(wd string) bool {
 	if os.Getenv("GOPATH") == "" {
 		return false
 	}
