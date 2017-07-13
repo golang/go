@@ -1586,6 +1586,17 @@ var vfpowSC = [][2]float64{
 	{NaN(), 1},
 	{NaN(), Pi},
 	{NaN(), NaN()},
+
+	// Issue #7394 overflow checks
+	{2, float64(1 << 32)},
+	{2, -float64(1 << 32)},
+	{-2, float64(1<<32 + 1)},
+	{1 / 2, float64(1 << 45)},
+	{1 / 2, -float64(1 << 45)},
+	{Nextafter(1, 2), float64(1 << 63)},
+	{Nextafter(1, -2), float64(1 << 63)},
+	{Nextafter(-1, 2), float64(1 << 63)},
+	{Nextafter(-1, -2), float64(1 << 63)},
 }
 var powSC = []float64{
 	0,               // pow(-Inf, -Pi)
@@ -1647,6 +1658,17 @@ var powSC = []float64{
 	NaN(),           // pow(NaN, 1)
 	NaN(),           // pow(NaN, +Pi)
 	NaN(),           // pow(NaN, NaN)
+
+	// Issue #7394 overflow checks
+	Inf(1),  // pow(2, float64(1 << 32))
+	0,       // pow(2, -float64(1 << 32))
+	Inf(-1), // pow(-2, float64(1<<32 + 1))
+	0,       // pow(1/2, float64(1 << 45))
+	Inf(1),  // pow(1/2, -float64(1 << 45))
+	Inf(1),  // pow(Nextafter(1, 2), float64(1 << 63))
+	0,       // pow(Nextafter(1, -2), float64(1 << 63))
+	0,       // pow(Nextafter(-1, 2), float64(1 << 63))
+	Inf(1),  // pow(Nextafter(-1, -2), float64(1 << 63))
 }
 
 var vfpow10SC = []int{
