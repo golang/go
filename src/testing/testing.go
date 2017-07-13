@@ -224,16 +224,13 @@ import (
 	"internal/race"
 	"io"
 	"os"
-	"os/signal"
 	"runtime"
 	"runtime/debug"
 	"runtime/trace"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 )
 
@@ -272,10 +269,6 @@ var (
 	haveExamples bool // are there examples?
 
 	cpuList []int
-
-	inProgressMu       sync.Mutex // guards this group of fields
-	inProgressRegistry = make(map[string]int)
-	inProgressIdx      int
 )
 
 // common holds the elements common between T and B and
@@ -785,12 +778,9 @@ func (t *T) Run(name string, f func(t *T)) bool {
 		root := t.parent
 		for ; root.parent != nil; root = root.parent {
 		}
-		inProgressMu.Lock()
 		root.mu.Lock()
-		t.registerInProgress()
 		fmt.Fprintf(root.w, "=== RUN   %s\n", t.name)
 		root.mu.Unlock()
-		inProgressMu.Unlock()
 	}
 	// Instead of reducing the running count of this test before calling the
 	// tRunner and increasing it afterwards, we rely on tRunner keeping the
@@ -952,11 +942,6 @@ func (t *T) report() {
 	}
 	dstr := fmtDuration(t.duration)
 	format := "--- %s: %s (%s)\n"
-
-	inProgressMu.Lock()
-	defer inProgressMu.Unlock()
-	defer t.registerComplete()
-
 	if t.Failed() {
 		t.flushToParent(format, "FAIL", t.name, dstr)
 	} else if t.chatty {
@@ -966,39 +951,6 @@ func (t *T) report() {
 			t.flushToParent(format, "PASS", t.name, dstr)
 		}
 	}
-}
-
-func (t *T) registerInProgress() {
-	if !t.chatty {
-		return
-	}
-	inProgressRegistry[t.name] = inProgressIdx
-	inProgressIdx++
-}
-
-func (t *T) registerComplete() {
-	if !t.chatty {
-		return
-	}
-	delete(inProgressRegistry, t.name)
-}
-
-func reportTestsInProgress() {
-	if len(inProgressRegistry) == 0 {
-		return
-	}
-	idxToName := make(map[int]string)
-	var indexes []int
-	for name, idx := range inProgressRegistry {
-		idxToName[idx] = name
-		indexes = append(indexes, idx)
-	}
-	sort.Ints(indexes)
-	var namesInOrder []string
-	for _, idx := range indexes {
-		namesInOrder = append(namesInOrder, idxToName[idx])
-	}
-	fmt.Printf("\ntests in progress: %s\n", strings.Join(namesInOrder, ", "))
 }
 
 func listTests(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
@@ -1103,24 +1055,6 @@ func (m *M) before() {
 	if *coverProfile != "" && cover.Mode == "" {
 		fmt.Fprintf(os.Stderr, "testing: cannot use -test.coverprofile because test binary was not built with coverage enabled\n")
 		os.Exit(2)
-	}
-	if Verbose() {
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, os.Interrupt)
-		go func() {
-			<-sigCh
-			signal.Stop(sigCh)
-			inProgressMu.Lock()
-			reportTestsInProgress()
-			inProgressMu.Unlock()
-			proc, err := os.FindProcess(syscall.Getpid())
-			if err == nil {
-				err = proc.Signal(os.Interrupt)
-			}
-			if err != nil {
-				os.Exit(2)
-			}
-		}()
 	}
 }
 

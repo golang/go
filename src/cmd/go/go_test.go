@@ -2633,17 +2633,6 @@ func TestGoTestFlagsAfterPackage(t *testing.T) {
 	tg.run("test", "-v", "testdata/flag_test.go", "-args", "-v=7") // Two distinct -v flags.
 }
 
-func TestGoTestShowInProgressOnInterrupt(t *testing.T) {
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		t.Skipf("skipping test on %s - lack of full unix-like signal support", runtime.GOOS)
-	}
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "-v", "testdata/inprogress_interrupt_test.go")
-	testsInProgress := "tests in progress: TestParallel, TestSerial"
-	tg.grepStdout(testsInProgress, "tests which haven't completed should be listed in progress")
-}
-
 func TestGoTestXtestonlyWorks(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
