@@ -182,6 +182,12 @@ func TestUnshare(t *testing.T) {
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		if strings.Contains(err.Error(), "operation not permitted") {
+			// Issue 17206: despite all the checks above,
+			// this still reportedly fails for some users.
+			// (older kernels?). Just skip.
+			t.Skip("skipping due to permission error")
+		}
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 
