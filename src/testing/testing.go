@@ -876,6 +876,9 @@ type M struct {
 	tests      []InternalTest
 	benchmarks []InternalBenchmark
 	examples   []InternalExample
+
+	timer     *time.Timer
+	afterOnce sync.Once
 }
 
 // testDeps is an internal interface of functionality that is
@@ -918,22 +921,21 @@ func (m *M) Run() int {
 	parseCpuList()
 
 	m.before()
-	startAlarm()
+	defer m.after()
+	m.startAlarm()
 	haveExamples = len(m.examples) > 0
 	testRan, testOk := runTests(m.deps.MatchString, m.tests)
 	exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
-	stopAlarm()
+	m.stopAlarm()
 	if !testRan && !exampleRan && *matchBenchmarks == "" {
 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
 	}
 	if !testOk || !exampleOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
 		fmt.Println("FAIL")
-		m.after()
 		return 1
 	}
 
 	fmt.Println("PASS")
-	m.after()
 	return 0
 }
 
@@ -1063,6 +1065,12 @@ func (m *M) before() {
 
 // after runs after all testing.
 func (m *M) after() {
+	m.afterOnce.Do(func() {
+		m.writeProfiles()
+	})
+}
+
+func (m *M) writeProfiles() {
 	if *cpuProfile != "" {
 		m.deps.StopCPUProfile() // flushes profile to disk
 	}
@@ -1139,12 +1147,11 @@ func toOutputDir(path string) string {
 	return fmt.Sprintf("%s%c%s", *outputDir, os.PathSeparator, path)
 }
 
-var timer *time.Timer
-
 // startAlarm starts an alarm if requested.
-func startAlarm() {
+func (m *M) startAlarm() {
 	if *timeout > 0 {
-		timer = time.AfterFunc(*timeout, func() {
+		m.timer = time.AfterFunc(*timeout, func() {
+			m.after()
 			debug.SetTraceback("all")
 			panic(fmt.Sprintf("test timed out after %v", *timeout))
 		})
@@ -1152,9 +1159,9 @@ func startAlarm() {
 }
 
 // stopAlarm turns off the alarm.
-func stopAlarm() {
+func (m *M) stopAlarm() {
 	if *timeout > 0 {
-		timer.Stop()
+		m.timer.Stop()
 	}
 }
 
