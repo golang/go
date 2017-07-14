@@ -496,7 +496,7 @@ Fixes #159
 
 <p>
 The commented section of the file lists all the modified files in your client.
-It is best to keep unrelated changes in different change lists,
+It is best to keep unrelated changes in different commits,
 so if you see a file listed that should not be included, abort
 the command and move that file to a different branch.
 </p>
@@ -656,7 +656,7 @@ $ git mail
 
 <p>
 Unless explicitly told otherwise, such as in the discussion leading
-up to sending in the change list, it's better not to specify a reviewer.
+up to sending in the change, it's better not to specify a reviewer.
 All changes are automatically CC'ed to the
 <a href="https://groups.google.com/group/golang-codereviews">golang-codereviews@googlegroups.com</a>
 mailing list. If this is your first ever change, there may be a moderation
@@ -704,7 +704,7 @@ You must respond to review comments through the web interface.
 When you have revised the code and are ready for another round of review,
 stage those changes and use <code>git</code> <code>change</code> to update the
 commit.
-To send the update change list for another round of review,
+To send the updated change for another round of review,
 run <code>git</code> <code>mail</code> again.
 </p>
 
