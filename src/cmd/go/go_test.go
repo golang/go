@@ -599,6 +599,19 @@ func (tg *testgoData) mustNotExist(path string) {
 	}
 }
 
+// mustHaveContent succeeds if filePath is a path to a file,
+// and that file is readable and not empty.
+func (tg *testgoData) mustHaveContent(filePath string) {
+	tg.mustExist(filePath)
+	f, err := os.Stat(filePath)
+	if err != nil {
+		tg.t.Fatal(err)
+	}
+	if f.Size() == 0 {
+		tg.t.Fatalf("expected %s to have data, but is empty", filePath)
+	}
+}
+
 // wantExecutable fails with msg if path is not executable.
 func (tg *testgoData) wantExecutable(path, msg string) {
 	tg.t.Helper()
@@ -3907,6 +3920,24 @@ func TestBenchTimeout(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.run("test", "-bench", ".", "-timeout", "750ms", "testdata/timeoutbench_test.go")
+}
+
+// Issue 19394
+func TestWriteProfilesOnTimeout(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempDir("profiling")
+	tg.tempFile("profiling/timeouttest_test.go", `package timeouttest_test
+import "testing"
+import "time"
+func TestSleep(t *testing.T) { time.Sleep(time.Second) }`)
+	tg.cd(tg.path("profiling"))
+	tg.runFail(
+		"test",
+		"-cpuprofile", tg.path("profiling/cpu.pprof"), "-memprofile", tg.path("profiling/mem.pprof"),
+		"-timeout", "1ms")
+	tg.mustHaveContent(tg.path("profiling/cpu.pprof"))
+	tg.mustHaveContent(tg.path("profiling/mem.pprof"))
 }
 
 func TestLinkXImportPathEscape(t *testing.T) {
