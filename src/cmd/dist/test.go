@@ -434,6 +434,38 @@ func (t *tester) registerTests() {
 		})
 	}
 
+	// On the builders only, test that a moved GOROOT still works.
+	if os.Getenv("GO_BUILDER_NAME") != "" {
+		t.tests = append(t.tests, distTest{
+			name:    "moved_goroot",
+			heading: "moved GOROOT",
+			fn: func(dt *distTest) error {
+				t.runPending(dt)
+				moved := t.goroot + "-moved"
+				if err := os.Rename(t.goroot, moved); err != nil {
+					return err
+				}
+
+				// Run `go test fmt` in the moved GOROOT.
+				cmd := exec.Command(filepath.Join(moved, "bin", "go"), "test", "fmt")
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				// Don't set GOROOT in the environment.
+				for _, e := range os.Environ() {
+					if !strings.HasPrefix(e, "GOROOT=") {
+						cmd.Env = append(cmd.Env, e)
+					}
+				}
+				err := cmd.Run()
+
+				if rerr := os.Rename(moved, t.goroot); rerr != nil {
+					log.Fatalf("failed to restore GOROOT: %v", rerr)
+				}
+				return err
+			},
+		})
+	}
+
 	// Test that internal linking of standard packages does not
 	// require libgcc. This ensures that we can install a Go
 	// release on a system that does not have a C compiler

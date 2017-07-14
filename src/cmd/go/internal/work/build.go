@@ -643,16 +643,6 @@ func InstallPackages(args []string, forGet bool) {
 	}
 }
 
-func init() {
-	cfg.Goarch = cfg.BuildContext.GOARCH
-	cfg.Goos = cfg.BuildContext.GOOS
-
-	if cfg.Goos == "windows" {
-		cfg.ExeSuffix = ".exe"
-	}
-	cfg.Gopath = filepath.SplitList(cfg.BuildContext.GOPATH)
-}
-
 // A Builder holds global state about a build.
 // It does not hold per-package state, because we
 // build packages in parallel, and the builder is shared.
