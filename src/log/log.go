@@ -157,7 +157,7 @@ func (l *Logger) Output(calldepth int, s string) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.flag&(Lshortfile|Llongfile) != 0 {
-		// release lock while getting caller info - it's expensive.
+		// Release lock while getting caller info - it's expensive.
 		l.mu.Unlock()
 		var ok bool
 		_, file, line, ok = runtime.Caller(calldepth)
