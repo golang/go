@@ -49,9 +49,9 @@ func detectrepo() string {
 	}
 
 	for _, path := range filepath.SplitList(build.Default.GOPATH) {
-		rightdir := filepath.Join(path, "src", "golang.org", "x")
+		rightdir := filepath.Join(path, "src", "golang.org", "x") + string(os.PathSeparator)
 		if strings.HasPrefix(wd, rightdir) {
-			tail := wd[len(rightdir)+1:]
+			tail := wd[len(rightdir):]
 			end := strings.Index(tail, string(os.PathSeparator))
 			if end > 0 {
 				repo := tail[:end]
