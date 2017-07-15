@@ -119,6 +119,15 @@ func ExampleIndexAny() {
 	// -1
 }
 
+func ExampleIndexByte() {
+	fmt.Println(strings.IndexByte("golang", 'g'))
+	fmt.Println(strings.IndexByte("gophers", 'h'))
+	fmt.Println(strings.IndexByte("golang", 'x'))
+	// Output:
+	// 0
+	// 3
+	// -1
+}
 func ExampleIndexRune() {
 	fmt.Println(strings.IndexRune("chicken", 'k'))
 	fmt.Println(strings.IndexRune("chicken", 'd'))
