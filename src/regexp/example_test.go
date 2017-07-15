@@ -39,11 +39,11 @@ func ExampleMatchString() {
 }
 
 func ExampleRegexp_FindString() {
-	re := regexp.MustCompile("fo.?")
-	fmt.Printf("%q\n", re.FindString("seafood"))
+	re := regexp.MustCompile("foo.?")
+	fmt.Printf("%q\n", re.FindString("seafood fool"))
 	fmt.Printf("%q\n", re.FindString("meat"))
 	// Output:
-	// "foo"
+	// "food"
 	// ""
 }
 
