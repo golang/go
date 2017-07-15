@@ -47,6 +47,16 @@ func ExampleContainsAny() {
 	// false
 }
 
+func ExampleContainsRune() {
+	// Finds whether a string contains a particular Unicode code point.
+	// The code point for the lowercase letter "a", for example, is 97.
+	fmt.Println(strings.ContainsRune("aardvark", 97))
+	fmt.Println(strings.ContainsRune("timeout", 97))
+	// Output:
+	// true
+	// false
+}
+
 func ExampleCount() {
 	fmt.Println(strings.Count("cheese", "e"))
 	fmt.Println(strings.Count("five", "")) // before & after each rune
