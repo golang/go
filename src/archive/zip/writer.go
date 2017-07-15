@@ -14,6 +14,11 @@ import (
 	"unicode/utf8"
 )
 
+var (
+	errLongName  = errors.New("zip: FileHeader.Name too long")
+	errLongExtra = errors.New("zip: FileHeader.Extra too long")
+)
+
 // Writer implements a zip file writer.
 type Writer struct {
 	cw          *countWriter
@@ -273,6 +278,14 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 }
 
 func writeHeader(w io.Writer, h *FileHeader) error {
+	const maxUint16 = 1<<16 - 1
+	if len(h.Name) > maxUint16 {
+		return errLongName
+	}
+	if len(h.Extra) > maxUint16 {
+		return errLongExtra
+	}
+
 	var buf [fileHeaderLen]byte
 	b := writeBuf(buf[:])
 	b.uint32(uint32(fileHeaderSignature))
