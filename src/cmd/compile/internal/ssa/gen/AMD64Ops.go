@@ -550,8 +550,8 @@ func init() {
 		{name: "FlagEQ"},     // equal
 		{name: "FlagLT_ULT"}, // signed < and unsigned <
 		{name: "FlagLT_UGT"}, // signed < and unsigned >
-		{name: "FlagGT_UGT"}, // signed > and unsigned <
-		{name: "FlagGT_ULT"}, // signed > and unsigned >
+		{name: "FlagGT_UGT"}, // signed > and unsigned >
+		{name: "FlagGT_ULT"}, // signed > and unsigned <
 
 		// Atomic loads.  These are just normal loads but return <value,memory> tuples
 		// so they can be properly ordered with other loads.
