@@ -109,6 +109,17 @@ func ExampleRegexp_FindAllStringSubmatchIndex() {
 	// []
 }
 
+func ExampleRegexp_MatchString() {
+	re := regexp.MustCompile("(gopher){2}")
+	fmt.Println(re.MatchString("gopher"))
+	fmt.Println(re.MatchString("gophergopher"))
+	fmt.Println(re.MatchString("gophergophergopher"))
+	// Output:
+	// false
+	// true
+	// true
+}
+
 func ExampleRegexp_ReplaceAllLiteralString() {
 	re := regexp.MustCompile("a(x*)b")
 	fmt.Println(re.ReplaceAllLiteralString("-ab-axxb-", "T"))
