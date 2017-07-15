@@ -179,7 +179,6 @@ func NewTransformer(fset *token.FileSet, tmplPkg *types.Package, tmplFile *ast.F
 			// Dot imports are currently forbidden.  We
 			// make the simplifying assumption that all
 			// imports are regular, without local renames.
-			// TODO(adonovan): document
 			return nil, fmt.Errorf("dot-import (of %s) in template", imp.Path.Value)
 		}
 	}
