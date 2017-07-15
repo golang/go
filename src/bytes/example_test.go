@@ -30,6 +30,15 @@ func ExampleBuffer_reader() {
 	// Output: Gophers rule!
 }
 
+func ExampleBuffer_Grow() {
+	var b bytes.Buffer
+	b.Grow(64)
+	bb := b.Bytes()
+	b.Write([]byte("64 bytes or fewer"))
+	fmt.Printf("%q", bb[:b.Len()])
+	// Output: "64 bytes or fewer"
+}
+
 func ExampleCompare() {
 	// Interpret Compare's result by comparing it to zero.
 	var a, b []byte
