@@ -179,6 +179,107 @@ func TestMarshalRSAPrivateKey(t *testing.T) {
 	}
 }
 
+func TestMarshalRSAPublicKey(t *testing.T) {
+	pub := &rsa.PublicKey{
+		N: fromBase10("16346378922382193400538269749936049106320265317511766357599732575277382844051791096569333808598921852351577762718529818072849191122419410612033592401403764925096136759934497687765453905884149505175426053037420486697072448609022753683683718057795566811401938833367954642951433473337066311978821180526439641496973296037000052546108507805269279414789035461158073156772151892452251106173507240488993608650881929629163465099476849643165682709047462010581308719577053905787496296934240246311806555924593059995202856826239801816771116902778517096212527979497399966526283516447337775509777558018145573127308919204297111496233"),
+		E: 3,
+	}
+	derBytes := MarshalPKCS1PublicKey(pub)
+	pub2, err := ParsePKCS1PublicKey(derBytes)
+	if err != nil {
+		t.Errorf("error parsing serialized key: %s", err)
+	}
+	if pub.N.Cmp(pub2.N) != 0 || pub.E != pub2.E {
+		t.Errorf("got:%+v want:%+v", pub, pub2)
+	}
+
+	publicKeys := []struct {
+		derBytes          []byte
+		expectedErrSubstr string
+	}{
+		{
+			derBytes: []byte{
+				0x30, 6, // SEQUENCE, 6 bytes
+				0x02, 1, // INTEGER, 1 byte
+				17,
+				0x02, 1, // INTEGER, 1 byte
+				3, // 3
+			},
+		}, {
+			derBytes: []byte{
+				0x30, 6, // SEQUENCE
+				0x02, 1, // INTEGER, 1 byte
+				0xff,    // -1
+				0x02, 1, // INTEGER, 1 byte
+				3,
+			},
+			expectedErrSubstr: "zero or negative",
+		}, {
+			derBytes: []byte{
+				0x30, 6, // SEQUENCE
+				0x02, 1, // INTEGER, 1 byte
+				17,
+				0x02, 1, // INTEGER, 1 byte
+				0xff, // -1
+			},
+			expectedErrSubstr: "zero or negative",
+		}, {
+			derBytes: []byte{
+				0x30, 6, // SEQUENCE
+				0x02, 1, // INTEGER, 1 byte
+				17,
+				0x02, 1, // INTEGER, 1 byte
+				3,
+				1,
+			},
+			expectedErrSubstr: "trailing data",
+		}, {
+			derBytes: []byte{
+				0x30, 9, // SEQUENCE
+				0x02, 1, // INTEGER, 1 byte
+				17,
+				0x02, 4, // INTEGER, 4 bytes
+				0x7f, 0xff, 0xff, 0xff,
+			},
+		}, {
+			derBytes: []byte{
+				0x30, 10, // SEQUENCE
+				0x02, 1, // INTEGER, 1 byte
+				17,
+				0x02, 5, // INTEGER, 5 bytes
+				0x00, 0x80, 0x00, 0x00, 0x00,
+			},
+			// On 64-bit systems, encoding/asn1 will accept the
+			// public exponent, but ParsePKCS1PublicKey will return
+			// an error. On 32-bit systems, encoding/asn1 will
+			// return the error. The common substring of both error
+			// is the word “large”.
+			expectedErrSubstr: "large",
+		},
+	}
+
+	for i, test := range publicKeys {
+		shouldFail := len(test.expectedErrSubstr) > 0
+		pub, err := ParsePKCS1PublicKey(test.derBytes)
+		if shouldFail {
+			if err == nil {
+				t.Errorf("#%d: unexpected success, got %#v", i, pub)
+			} else if !strings.Contains(err.Error(), test.expectedErrSubstr) {
+				t.Errorf("#%d: expected error containing %q, got %s", i, test.expectedErrSubstr, err)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("#%d: unexpected failure: %s", i, err)
+				continue
+			}
+			reserialized := MarshalPKCS1PublicKey(pub)
+			if !bytes.Equal(reserialized, test.derBytes) {
+				t.Errorf("#%d: failed to reserialize: got %x, expected %x", i, reserialized, test.derBytes)
+			}
+		}
+	}
+}
+
 type matchHostnamesTest struct {
 	pattern, host string
 	ok            bool
