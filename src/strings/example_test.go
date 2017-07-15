@@ -234,6 +234,14 @@ func ExampleTrim() {
 	// Output: ["Achtung! Achtung"]
 }
 
+func ExampleTrimFunc() {
+	f := func(c rune) bool {
+		return !unicode.IsLetter(c) && !unicode.IsNumber(c)
+	}
+	fmt.Printf("[%q]", strings.TrimFunc("  Achtung1! Achtung2,...", f))
+	// Output: ["Achtung1! Achtung2"]
+}
+
 func ExampleMap() {
 	rot13 := func(r rune) rune {
 		switch {
