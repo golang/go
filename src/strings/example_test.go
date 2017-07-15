@@ -137,6 +137,16 @@ func ExampleLastIndex() {
 	// -1
 }
 
+func ExampleLastIndexAny() {
+	fmt.Println(strings.LastIndexAny("go gopher", "go"))
+	fmt.Println(strings.LastIndexAny("go gopher", "rodent"))
+	fmt.Println(strings.LastIndexAny("go gopher", "fail"))
+	// Output:
+	// 4
+	// 8
+	// -1
+}
+
 func ExampleJoin() {
 	s := []string{"foo", "bar", "baz"}
 	fmt.Println(strings.Join(s, ", "))
