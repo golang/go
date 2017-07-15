@@ -50,3 +50,21 @@ func ExampleRead() {
 	fmt.Print(pi)
 	// Output: 3.141592653589793
 }
+
+func ExampleByteOrder_put() {
+	b := make([]byte, 4)
+	binary.LittleEndian.PutUint16(b[0:], 0x03e8)
+	binary.LittleEndian.PutUint16(b[2:], 0x07d0)
+	fmt.Printf("% x\n", b)
+	// Output:
+	// e8 03 d0 07
+}
+
+func ExampleByteOrder_get() {
+	b := []byte{0xe8, 0x03, 0xd0, 0x07}
+	x1 := binary.LittleEndian.Uint16(b[0:])
+	x2 := binary.LittleEndian.Uint16(b[2:])
+	fmt.Printf("%#04x %#04x\n", x1, x2)
+	// Output:
+	// 0x03e8 0x07d0
+}
