@@ -123,14 +123,14 @@ func ExampleDecoder_Token() {
 // This example uses a Decoder to decode a streaming array of JSON objects.
 func ExampleDecoder_Decode_stream() {
 	const jsonStream = `
-		[
-			{"Name": "Ed", "Text": "Knock knock."},
-			{"Name": "Sam", "Text": "Who's there?"},
-			{"Name": "Ed", "Text": "Go fmt."},
-			{"Name": "Sam", "Text": "Go fmt who?"},
-			{"Name": "Ed", "Text": "Go fmt yourself!"}
-		]
-	`
+	[
+		{"Name": "Ed", "Text": "Knock knock."},
+		{"Name": "Sam", "Text": "Who's there?"},
+		{"Name": "Ed", "Text": "Go fmt."},
+		{"Name": "Sam", "Text": "Go fmt who?"},
+		{"Name": "Ed", "Text": "Go fmt yourself!"}
+	]
+`
 	type Message struct {
 		Name, Text string
 	}
