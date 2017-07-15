@@ -23,6 +23,16 @@ func ExampleFieldsFunc() {
 	// Output: Fields are: ["foo1" "bar2" "baz3"]
 }
 
+func ExampleCompare() {
+	fmt.Println(strings.Compare("a", "b"))
+	fmt.Println(strings.Compare("a", "a"))
+	fmt.Println(strings.Compare("b", "a"))
+	// Output:
+	// -1
+	// 0
+	// 1
+}
+
 func ExampleContains() {
 	fmt.Println(strings.Contains("seafood", "foo"))
 	fmt.Println(strings.Contains("seafood", "bar"))
