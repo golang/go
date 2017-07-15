@@ -119,3 +119,36 @@ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
 	b, _ := asn1.Marshal(priv)
 	return b
 }
+
+// ParsePKCS1PublicKey parses a PKCS#1 public key in ASN.1 DER form.
+func ParsePKCS1PublicKey(der []byte) (*rsa.PublicKey, error) {
+	var pub pkcs1PublicKey
+	rest, err := asn1.Unmarshal(der, &pub)
+	if err != nil {
+		return nil, err
+	}
+	if len(rest) > 0 {
+		return nil, asn1.SyntaxError{Msg: "trailing data"}
+	}
+
+	if pub.N.Sign() <= 0 || pub.E <= 0 {
+		return nil, errors.New("x509: public key contains zero or negative value")
+	}
+	if pub.E > 1<<31-1 {
+		return nil, errors.New("x509: public key contains large public exponent")
+	}
+
+	return &rsa.PublicKey{
+		E: pub.E,
+		N: pub.N,
+	}, nil
+}
+
+// MarshalPKCS1PublicKey converts an RSA public key to PKCS#1, ASN.1 DER form.
+func MarshalPKCS1PublicKey(key *rsa.PublicKey) []byte {
+	derBytes, _ := asn1.Marshal(pkcs1PublicKey{
+		N: key.N,
+		E: key.E,
+	})
+	return derBytes
+}
