@@ -14,8 +14,6 @@ import (
 	"unicode/utf8"
 )
 
-// TODO(adg): support zip file comments
-
 // Writer implements a zip file writer.
 type Writer struct {
 	cw          *countWriter
