@@ -435,7 +435,11 @@ func (t *tester) registerTests() {
 	}
 
 	// On the builders only, test that a moved GOROOT still works.
-	if os.Getenv("GO_BUILDER_NAME") != "" {
+	// Fails on iOS because CC_FOR_TARGET refers to clangwrap.sh
+	// in the unmoved GOROOT.
+	// Fails on Android with an exec format error.
+	// Fails on plan9 with "cannot find GOROOT" (issue #21016).
+	if os.Getenv("GO_BUILDER_NAME") != "" && t.goos != "android" && !t.iOS() && t.goos != "plan9" {
 		t.tests = append(t.tests, distTest{
 			name:    "moved_goroot",
 			heading: "moved GOROOT",
