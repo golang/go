@@ -57,6 +57,13 @@ func ExampleCmd_Output() {
 	fmt.Printf("The date is %s\n", out)
 }
 
+func ExampleCmd_Run() {
+	cmd := exec.Command("sleep", "1")
+	log.Printf("Running command and waiting for it to finish...")
+	err := cmd.Run()
+	log.Printf("Command finished with error: %v", err)
+}
+
 func ExampleCmd_Start() {
 	cmd := exec.Command("sleep", "5")
 	err := cmd.Start()
