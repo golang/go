@@ -229,19 +229,6 @@ func ExampleToTitle() {
 	// ХЛЕБ
 }
 
-func ExampleTrim() {
-	fmt.Printf("[%q]", strings.Trim(" !!! Achtung! Achtung! !!! ", "! "))
-	// Output: ["Achtung! Achtung"]
-}
-
-func ExampleTrimFunc() {
-	f := func(c rune) bool {
-		return !unicode.IsLetter(c) && !unicode.IsNumber(c)
-	}
-	fmt.Printf("[%q]", strings.TrimFunc("  Achtung1! Achtung2,...", f))
-	// Output: ["Achtung1! Achtung2"]
-}
-
 func ExampleMap() {
 	rot13 := func(r rune) rune {
 		switch {
@@ -254,11 +241,6 @@ func ExampleMap() {
 	}
 	fmt.Println(strings.Map(rot13, "'Twas brillig and the slithy gopher..."))
 	// Output: 'Gjnf oevyyvt naq gur fyvgul tbcure...
-}
-
-func ExampleTrimSpace() {
-	fmt.Println(strings.TrimSpace(" \t\n a lone gopher \n\t\r\n"))
-	// Output: a lone gopher
 }
 
 func ExampleNewReplacer() {
@@ -277,18 +259,59 @@ func ExampleToLower() {
 	// Output: gopher
 }
 
-func ExampleTrimSuffix() {
-	var s = "Hello, goodbye, etc!"
-	s = strings.TrimSuffix(s, "goodbye, etc!")
-	s = strings.TrimSuffix(s, "planet")
-	fmt.Print(s, "world!")
-	// Output: Hello, world!
+func ExampleTrim() {
+	fmt.Print(strings.Trim("¡¡¡Hello, Gophers!!!", "!¡"))
+	// Output: Hello, Gophers
+}
+
+func ExampleTrimSpace() {
+	fmt.Println(strings.TrimSpace(" \t\n Hello, Gophers \n\t\r\n"))
+	// Output: Hello, Gophers
 }
 
 func ExampleTrimPrefix() {
-	var s = "Goodbye,, world!"
-	s = strings.TrimPrefix(s, "Goodbye,")
-	s = strings.TrimPrefix(s, "Howdy,")
-	fmt.Print("Hello" + s)
-	// Output: Hello, world!
+	var s = "¡¡¡Hello, Gophers!!!"
+	s = strings.TrimPrefix(s, "¡¡¡Hello, ")
+	s = strings.TrimPrefix(s, "¡¡¡Howdy, ")
+	fmt.Print(s)
+	// Output: Gophers!!!
+}
+
+func ExampleTrimSuffix() {
+	var s = "¡¡¡Hello, Gophers!!!"
+	s = strings.TrimSuffix(s, ", Gophers!!!")
+	s = strings.TrimSuffix(s, ", Marmots!!!")
+	fmt.Print(s)
+	// Output: ¡¡¡Hello
+}
+
+func ExampleTrimFunc() {
+	fmt.Print(strings.TrimFunc("¡¡¡Hello, Gophers!!!", func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}))
+	// Output: Hello, Gophers
+}
+
+func ExampleTrimLeft() {
+	fmt.Print(strings.TrimLeft("¡¡¡Hello, Gophers!!!", "!¡"))
+	// Output: Hello, Gophers!!!
+}
+
+func ExampleTrimLeftFunc() {
+	fmt.Print(strings.TrimLeftFunc("¡¡¡Hello, Gophers!!!", func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}))
+	// Output: Hello, Gophers!!!
+}
+
+func ExampleTrimRight() {
+	fmt.Print(strings.TrimRight("¡¡¡Hello, Gophers!!!", "!¡"))
+	// Output: ¡¡¡Hello, Gophers
+}
+
+func ExampleTrimRightFunc() {
+	fmt.Print(strings.TrimRightFunc("¡¡¡Hello, Gophers!!!", func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}))
+	// Output: ¡¡¡Hello, Gophers
 }
