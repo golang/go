@@ -95,8 +95,6 @@ type PackageInternal struct {
 	Build        *build.Package
 	Pkgdir       string               // overrides build.PkgDir
 	Imports      []*Package           // this package's direct imports
-	GoFiles      []string             // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
-	AllGoFiles   []string             // gofiles + IgnoredGoFiles, absolute paths
 	Target       string               // installed file for this package (may be executable)
 	Pkgfile      string               // where package will be (or is already) built or installed
 	ForceLibrary bool                 // this package is a library (even if named "main")
@@ -980,21 +978,6 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		importPaths = append(importPaths, "runtime/internal/sys")
 	}
 
-	// Build list of full paths to all Go files in the package,
-	// for use by commands like go fmt.
-	p.Internal.GoFiles = str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles)
-	for i := range p.Internal.GoFiles {
-		p.Internal.GoFiles[i] = filepath.Join(p.Dir, p.Internal.GoFiles[i])
-	}
-	sort.Strings(p.Internal.GoFiles)
-
-	p.Internal.AllGoFiles = str.StringList(p.IgnoredGoFiles)
-	for i := range p.Internal.AllGoFiles {
-		p.Internal.AllGoFiles[i] = filepath.Join(p.Dir, p.Internal.AllGoFiles[i])
-	}
-	p.Internal.AllGoFiles = append(p.Internal.AllGoFiles, p.Internal.GoFiles...)
-	sort.Strings(p.Internal.AllGoFiles)
-
 	// Check for case-insensitive collision of input files.
 	// To avoid problems on case-insensitive files, we reject any package
 	// where two different input files have equal names under a case-insensitive
@@ -1139,6 +1122,36 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 	} else {
 		computeBuildID(p)
 	}
+}
+
+// mkAbs rewrites list, which must be paths relative to p.Dir,
+// into a sorted list of absolute paths. It edits list in place but for
+// convenience also returns list back to its caller.
+func (p *Package) mkAbs(list []string) []string {
+	for i, f := range list {
+		list[i] = filepath.Join(p.Dir, f)
+	}
+	sort.Strings(list)
+	return list
+}
+
+// InternalGoFiles returns the list of Go files being built for the package,
+// using absolute paths.
+func (p *Package) InternalGoFiles() []string {
+	return p.mkAbs(str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles))
+}
+
+// InternalGoFiles returns the list of all Go files possibly relevant for the package,
+// using absolute paths. "Possibly relevant" means that files are not excluded
+// due to build tags, but files with names beginning with . or _ are still excluded.
+func (p *Package) InternalAllGoFiles() []string {
+	var extra []string
+	for _, f := range p.IgnoredGoFiles {
+		if f != "" && f[0] != '.' || f[0] != '_' {
+			extra = append(extra, f)
+		}
+	}
+	return p.mkAbs(str.StringList(extra, p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles))
 }
 
 // InternalDeps returns the full dependency list for p,
