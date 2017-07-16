@@ -301,7 +301,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 	// due to wildcard expansion.
 	for _, p := range pkgs {
 		if *getFix {
-			files := base.FilterDotUnderscoreFiles(base.RelPaths(p.Internal.AllGoFiles))
+			files := base.RelPaths(p.InternalAllGoFiles())
 			base.Run(cfg.BuildToolexec, str.StringList(base.Tool("fix"), files))
 
 			// The imports might have changed, so reload again.
