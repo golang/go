@@ -2573,12 +2573,23 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg string, allaction
 	} else {
 		compiler = envList("CC", cfg.DefaultCC)
 	}
-	ldflags = setextld(ldflags, compiler)
 	ldflags = append(ldflags, "-buildmode="+ldBuildmode)
 	if root.Package.Internal.BuildID != "" {
 		ldflags = append(ldflags, "-buildid="+root.Package.Internal.BuildID)
 	}
 	ldflags = append(ldflags, cfg.BuildLdflags...)
+	if root.Package.Goroot {
+		// Cannot force -linkmode=external inside GOROOT.
+		// cmd/cgo cannot be linkmode=external,
+		// because that implies having runtime/cgo available,
+		// and runtime/cgo is built using cmd/cgo.
+		// It's possible the restriction can be limited to just cmd/cgo,
+		// but the whole-GOROOT prohibition matches the similar
+		// logic in ../load/pkg.go that decides whether to add an
+		// implicit runtime/cgo dependency.
+		ldflags = removeLinkmodeExternal(ldflags)
+	}
+	ldflags = setextld(ldflags, compiler)
 
 	// On OS X when using external linking to build a shared library,
 	// the argument passed here to -o ends up recorded in the final
@@ -2593,6 +2604,27 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg string, allaction
 	}
 
 	return b.run(dir, root.Package.ImportPath, nil, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags, mainpkg)
+}
+
+// removeLinkmodeExternal removes any attempt to set linkmode=external
+// from ldflags, modifies ldflags in place, and returns ldflags.
+func removeLinkmodeExternal(ldflags []string) []string {
+	out := ldflags[:0]
+	for i := 0; i < len(ldflags); i++ {
+		flag := ldflags[i]
+		if strings.HasPrefix(flag, "--") {
+			flag = flag[1:]
+		}
+		if flag == "-linkmode" && i+1 < len(ldflags) && ldflags[i+1] == "external" {
+			i++
+			continue
+		}
+		if flag == "-linkmode=external" {
+			continue
+		}
+		out = append(out, flag)
+	}
+	return out
 }
 
 func (gcToolchain) ldShared(b *Builder, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
