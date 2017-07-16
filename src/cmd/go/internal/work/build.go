@@ -687,7 +687,6 @@ type Action struct {
 	// Generated files, directories.
 	Link   bool   // target is executable, not just package
 	Objdir string // directory for intermediate objects
-	Objpkg string // the intermediate package .a file created during the action
 	Target string // goal of the action: the created package or executable
 
 	// Execution state.
@@ -898,7 +897,6 @@ func (b *Builder) action1(mode BuildMode, depMode BuildMode, p *load.Package, lo
 		mode = ModeBuild
 	}
 	a.Objdir = b.NewObjdir()
-	a.Objpkg = a.Objdir + "_pkg_.a"
 	a.Link = p.Name == "main" && !p.Internal.ForceLibrary
 
 	switch mode {
@@ -931,7 +929,7 @@ func (b *Builder) action1(mode BuildMode, depMode BuildMode, p *load.Package, lo
 
 	case ModeBuild:
 		a.Func = (*Builder).build
-		a.Target = a.Objpkg
+		a.Target = a.Objdir + "_pkg_.a"
 		a.Package.Internal.Pkgfile = a.Target
 		if a.Link {
 			// An executable file. (This is the name of a temporary file.)
@@ -1416,7 +1414,8 @@ func (b *Builder) build(a *Action) (err error) {
 	}
 
 	// Compile Go.
-	ofile, out, err := BuildToolchain.gc(b, a.Package, a.Objpkg, objdir, icfg.Bytes(), len(sfiles) > 0, gofiles)
+	objpkg := objdir + "_pkg_.a"
+	ofile, out, err := BuildToolchain.gc(b, a.Package, objpkg, objdir, icfg.Bytes(), len(sfiles) > 0, gofiles)
 	if len(out) > 0 {
 		b.showOutput(a.Package.Dir, a.Package.ImportPath, b.processOutput(out))
 		if err != nil {
@@ -1426,7 +1425,7 @@ func (b *Builder) build(a *Action) (err error) {
 	if err != nil {
 		return err
 	}
-	if ofile != a.Objpkg {
+	if ofile != objpkg {
 		objects = append(objects, ofile)
 	}
 
@@ -1491,7 +1490,7 @@ func (b *Builder) build(a *Action) (err error) {
 	// If the Go compiler wrote an archive and the package is entirely
 	// Go sources, there is no pack to execute at all.
 	if len(objects) > 0 {
-		if err := BuildToolchain.pack(b, a.Package, objdir, a.Objpkg, objects); err != nil {
+		if err := BuildToolchain.pack(b, a.Package, objdir, objpkg, objects); err != nil {
 			return err
 		}
 	}
@@ -1507,7 +1506,7 @@ func (b *Builder) build(a *Action) (err error) {
 		// linker needs the whole dependency tree.
 		all := ActionList(a)
 		all = all[:len(all)-1] // drop a
-		if err := BuildToolchain.ld(b, a, a.Target, importcfg, all, a.Objpkg, objects); err != nil {
+		if err := BuildToolchain.ld(b, a, a.Target, importcfg, all, objpkg, objects); err != nil {
 			return err
 		}
 	}
