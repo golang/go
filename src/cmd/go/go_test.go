@@ -2588,16 +2588,17 @@ func TestBuildDashIInstallsDependencies(t *testing.T) {
 	tg.setenv("GOPATH", tg.path("."))
 
 	checkbar := func(desc string) {
-		tg.sleep()
-		tg.must(os.Chtimes(tg.path("src/x/y/foo/foo.go"), time.Now(), time.Now()))
-		tg.sleep()
 		tg.run("build", "-v", "-i", "x/y/bar")
 		tg.grepBoth("x/y/foo", "first build -i "+desc+" did not build x/y/foo")
 		tg.run("build", "-v", "-i", "x/y/bar")
 		tg.grepBothNot("x/y/foo", "second build -i "+desc+" built x/y/foo")
 	}
 	checkbar("pkg")
+
 	tg.creatingTemp("bar" + exeSuffix)
+	tg.sleep()
+	tg.tempFile("src/x/y/foo/foo.go", `package foo
+		func F() { F() }`)
 	tg.tempFile("src/x/y/bar/bar.go", `package main
 		import "x/y/foo"
 		func main() { foo.F() }`)
