@@ -568,6 +568,28 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// test we can roundtrip magnet url
+	// fix issue https://golang.org/issue/20054
+	{
+		"magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a&dn",
+		&URL{
+			Scheme:   "magnet",
+			Host:     "",
+			Path:     "",
+			RawQuery: "xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a&dn",
+		},
+		"magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a&dn",
+	},
+	{
+		"mailto:?subject=hi",
+		&URL{
+			Scheme:   "mailto",
+			Host:     "",
+			Path:     "",
+			RawQuery: "subject=hi",
+		},
+		"mailto:?subject=hi",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer

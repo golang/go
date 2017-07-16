@@ -726,7 +726,9 @@ func (u *URL) String() string {
 		buf.WriteString(u.Opaque)
 	} else {
 		if u.Scheme != "" || u.Host != "" || u.User != nil {
-			buf.WriteString("//")
+			if u.Host != "" || u.Path != "" || u.User != nil {
+				buf.WriteString("//")
+			}
 			if ui := u.User; ui != nil {
 				buf.WriteString(ui.String())
 				buf.WriteByte('@')
