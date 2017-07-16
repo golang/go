@@ -99,7 +99,6 @@ type PackageInternal struct {
 	AllGoFiles   []string             // gofiles + IgnoredGoFiles, absolute paths
 	Target       string               // installed file for this package (may be executable)
 	Pkgfile      string               // where package will be (or is already) built or installed
-	Fake         bool                 // synthesized package
 	ForceLibrary bool                 // this package is a library (even if named "main")
 	Cmdline      bool                 // defined by files listed on command line
 	Local        bool                 // imported via local path (./ or ../)

@@ -566,7 +566,6 @@ func runTest(cmd *base.Command, args []string) {
 			}
 			p.Stale = true // rebuild
 			p.StaleReason = "rebuild for coverage"
-			p.Internal.Fake = true // do not warn about rebuild
 			p.Internal.CoverMode = testCoverMode
 			var coverFiles []string
 			coverFiles = append(coverFiles, p.GoFiles...)
@@ -625,50 +624,6 @@ func runTest(cmd *base.Command, args []string) {
 				run.Deps = append(run.Deps, prints[i-1])
 			}
 		}
-	}
-
-	// If we are building any out-of-date packages other
-	// than those under test, warn.
-	okBuild := map[*load.Package]bool{}
-	for _, p := range pkgs {
-		okBuild[p] = true
-	}
-	warned := false
-	for _, a := range work.ActionList(root) {
-		if a.Package == nil || okBuild[a.Package] {
-			continue
-		}
-		okBuild[a.Package] = true // warn at most once
-
-		// Don't warn about packages being rebuilt because of
-		// things like coverage analysis.
-		for _, p1 := range a.Package.Internal.Imports {
-			if p1.Internal.Fake {
-				a.Package.Internal.Fake = true
-			}
-		}
-
-		if a.Func != nil && !okBuild[a.Package] && !a.Package.Internal.Fake && !a.Package.Internal.Local {
-			if !warned {
-				fmt.Fprintf(os.Stderr, "warning: building out-of-date packages:\n")
-				warned = true
-			}
-			fmt.Fprintf(os.Stderr, "\t%s\n", a.Package.ImportPath)
-		}
-	}
-	if warned {
-		args := strings.Join(pkgArgs, " ")
-		if args != "" {
-			args = " " + args
-		}
-		extraOpts := ""
-		if cfg.BuildRace {
-			extraOpts = "-race "
-		}
-		if cfg.BuildMSan {
-			extraOpts = "-msan "
-		}
-		fmt.Fprintf(os.Stderr, "installing these packages with 'go test %s-i%s' will speed future tests.\n\n", extraOpts, args)
 	}
 
 	b.Do(root)
@@ -789,7 +744,6 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		ptest.Internal.Target = ""
 		ptest.Imports = str.StringList(p.Imports, p.TestImports)
 		ptest.Internal.Imports = append(append([]*load.Package{}, p.Internal.Imports...), imports...)
-		ptest.Internal.Fake = true
 		ptest.Internal.ForceLibrary = true
 		ptest.Stale = true
 		ptest.StaleReason = "rebuild for test"
@@ -833,7 +787,6 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 					ImportPos: p.Internal.Build.XTestImportPos,
 				},
 				Imports: ximports,
-				Fake:    true,
 			},
 		}
 		if pxtestNeedsPtest {
@@ -858,7 +811,6 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		},
 		Internal: load.PackageInternal{
 			Build:     &build.Package{Name: "main"},
-			Fake:      true,
 			OmitDebug: !testC && !testNeedBinary,
 		},
 	}
@@ -1078,7 +1030,6 @@ func recompileForTest(pmain, preal, ptest *load.Package) {
 			copy(p1.Internal.Imports, p.Internal.Imports)
 			p = p1
 			p.Internal.Target = ""
-			p.Internal.Fake = true
 			p.Stale = true
 			p.StaleReason = "depends on package being tested"
 		}
