@@ -985,7 +985,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		default:
 			// Declare a result struct.
 			fmt.Fprintf(fgcch, "\n/* Return type for %s */\n", exp.ExpName)
-			fmt.Fprintf(fgcch, "struct %s_result {\n", exp.ExpName)
+			fmt.Fprintf(fgcch, "struct %s_return {\n", exp.ExpName)
 			forFieldList(fntype.Results,
 				func(i int, aname string, atype ast.Expr) {
 					t := p.cgoType(atype)
@@ -996,7 +996,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 					fmt.Fprint(fgcch, "\n")
 				})
 			fmt.Fprintf(fgcch, "};\n")
-			fmt.Fprintf(cdeclBuf, "struct %s_result", exp.ExpName)
+			fmt.Fprintf(cdeclBuf, "struct %s_return", exp.ExpName)
 		}
 
 		cRet := cdeclBuf.String()
@@ -1022,7 +1022,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 			fmt.Fprintf(fgcch, "\n%s", exp.Doc)
 		}
 
-		fmt.Fprintf(fgcch, "extern %s %s %s;\n", cRet, exp.ExpName, cParams)
+		fmt.Fprintf(fgcch, "extern %s %s%s;\n", cRet, exp.ExpName, cParams)
 
 		// We need to use a name that will be exported by the
 		// Go code; otherwise gccgo will make it static and we
