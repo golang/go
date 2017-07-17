@@ -221,10 +221,10 @@ var (
 )
 
 func initAtof() {
-	atofOnce.Do(initAtof1)
+	atofOnce.Do(initAtofOnce)
 }
 
-func initAtof1() {
+func initAtofOnce() {
 	// The atof routines return NumErrors wrapping
 	// the error and the string. Convert the table above.
 	for i := range atoftests {
