@@ -263,7 +263,7 @@ func checkGitCodeReview() {
 		}
 		err := exec.Command("go", "get", "golang.org/x/review/git-codereview").Run()
 		if err != nil {
-			log.Printf("Error running go get golang.org/x/review/git-codereview: %v", cmdErr(err))
+			log.Fatalf("Error running go get golang.org/x/review/git-codereview: %v", cmdErr(err))
 		}
 		log.Printf("Installed git-codereview (ran `go get golang.org/x/review/git-codereview`)")
 	}
