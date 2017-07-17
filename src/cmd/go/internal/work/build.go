@@ -310,6 +310,8 @@ func runBuild(cmd *base.Command, args []string) {
 		depMode = ModeInstall
 	}
 
+	pkgs = pkgsFilter(load.Packages(args))
+
 	if cfg.BuildO != "" {
 		if len(pkgs) > 1 {
 			base.Fatalf("go build: cannot use -o with multiple packages")
@@ -324,8 +326,6 @@ func runBuild(cmd *base.Command, args []string) {
 		b.Do(a)
 		return
 	}
-
-	pkgs = pkgsFilter(load.Packages(args))
 
 	a := &Action{Mode: "go build"}
 	for _, p := range pkgs {
