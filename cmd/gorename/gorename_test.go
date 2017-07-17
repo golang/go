@@ -1,3 +1,7 @@
+// Copyright 2017 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package main_test
 
 import (
@@ -12,6 +16,8 @@ import (
 	"testing"
 )
 
+var haveCGO bool
+
 type test struct {
 	offset, from, to string // specify the arguments
 	fileSpecified    bool   // true if the offset or from args specify a specific file
@@ -23,6 +29,10 @@ type test struct {
 
 // Test that renaming that would modify cgo files will produce an error and not modify the file.
 func TestGeneratedFiles(t *testing.T) {
+	if !haveCGO {
+		t.Skipf("skipping test: no cgo")
+	}
+
 	tmp, bin, cleanup := buildGorename(t)
 	defer cleanup()
 
