@@ -46,7 +46,6 @@ func Getgoextlinkenabled() string {
 }
 
 func init() {
-	framepointer_enabled = 1 // default
 	for _, f := range strings.Split(goexperiment, ",") {
 		if f != "" {
 			addexp(f)
@@ -80,7 +79,7 @@ func addexp(s string) {
 }
 
 var (
-	framepointer_enabled     int
+	framepointer_enabled     int = 1
 	Fieldtrack_enabled       int
 	Preemptibleloops_enabled int
 	Clobberdead_enabled      int
@@ -98,6 +97,12 @@ var exper = []struct {
 	{"framepointer", &framepointer_enabled},
 	{"preemptibleloops", &Preemptibleloops_enabled},
 	{"clobberdead", &Clobberdead_enabled},
+}
+
+var defaultExpstring = Expstring()
+
+func DefaultExpstring() string {
+	return defaultExpstring
 }
 
 func Expstring() string {

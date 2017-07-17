@@ -198,6 +198,10 @@ func main() {
 		goarch = runtime.GOARCH
 	}
 
+	// Frame pointer is on by default now.
+	// golang.org/issue/18317.
+	return
+
 	version, err := exec.Command("go", "tool", "compile", "-V").Output()
 	if err != nil {
 		bug()
