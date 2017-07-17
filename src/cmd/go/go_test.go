@@ -177,6 +177,7 @@ type testgoData struct {
 
 // testgo sets up for a test that runs testgo.
 func testgo(t *testing.T) *testgoData {
+	t.Helper()
 	testenv.MustHaveGoBuild(t)
 
 	if skipExternal {
@@ -188,6 +189,7 @@ func testgo(t *testing.T) *testgoData {
 
 // must gives a fatal error if err is not nil.
 func (tg *testgoData) must(err error) {
+	tg.t.Helper()
 	if err != nil {
 		tg.t.Fatal(err)
 	}
@@ -195,6 +197,7 @@ func (tg *testgoData) must(err error) {
 
 // check gives a test non-fatal error if err is not nil.
 func (tg *testgoData) check(err error) {
+	tg.t.Helper()
 	if err != nil {
 		tg.t.Error(err)
 	}
@@ -202,6 +205,7 @@ func (tg *testgoData) check(err error) {
 
 // parallel runs the test in parallel by calling t.Parallel.
 func (tg *testgoData) parallel() {
+	tg.t.Helper()
 	if tg.ran {
 		tg.t.Fatal("internal testsuite error: call to parallel after run")
 	}
@@ -222,6 +226,7 @@ func (tg *testgoData) parallel() {
 
 // pwd returns the current directory.
 func (tg *testgoData) pwd() string {
+	tg.t.Helper()
 	wd, err := os.Getwd()
 	if err != nil {
 		tg.t.Fatalf("could not get working directory: %v", err)
@@ -233,6 +238,7 @@ func (tg *testgoData) pwd() string {
 // using this means that the test must not be run in parallel with any
 // other tests.
 func (tg *testgoData) cd(dir string) {
+	tg.t.Helper()
 	if tg.inParallel {
 		tg.t.Fatal("internal testsuite error: changing directory when running in parallel")
 	}
@@ -256,6 +262,7 @@ func (tg *testgoData) sleep() {
 // setenv sets an environment variable to use when running the test go
 // command.
 func (tg *testgoData) setenv(name, val string) {
+	tg.t.Helper()
 	if tg.inParallel && (name == "GOROOT" || name == "GOPATH" || name == "GOBIN") && (strings.HasPrefix(val, "testdata") || strings.HasPrefix(val, "./testdata")) {
 		tg.t.Fatalf("internal testsuite error: call to setenv with testdata (%s=%s) after parallel", name, val)
 	}
@@ -286,6 +293,7 @@ func (tg *testgoData) goTool() string {
 // doRun runs the test go command, recording stdout and stderr and
 // returning exit status.
 func (tg *testgoData) doRun(args []string) error {
+	tg.t.Helper()
 	if !canRun {
 		panic("testgoData.doRun called but canRun false")
 	}
@@ -331,6 +339,7 @@ func (tg *testgoData) doRun(args []string) error {
 
 // run runs the test go command, and expects it to succeed.
 func (tg *testgoData) run(args ...string) {
+	tg.t.Helper()
 	if status := tg.doRun(args); status != nil {
 		tg.t.Logf("go %v failed unexpectedly: %v", args, status)
 		tg.t.FailNow()
@@ -339,6 +348,7 @@ func (tg *testgoData) run(args ...string) {
 
 // runFail runs the test go command, and expects it to fail.
 func (tg *testgoData) runFail(args ...string) {
+	tg.t.Helper()
 	if status := tg.doRun(args); status == nil {
 		tg.t.Fatal("testgo succeeded unexpectedly")
 	} else {
@@ -348,6 +358,7 @@ func (tg *testgoData) runFail(args ...string) {
 
 // runGit runs a git command, and expects it to succeed.
 func (tg *testgoData) runGit(dir string, args ...string) {
+	tg.t.Helper()
 	cmd := exec.Command("git", args...)
 	tg.stdout.Reset()
 	tg.stderr.Reset()
@@ -372,6 +383,7 @@ func (tg *testgoData) runGit(dir string, args ...string) {
 
 // getStdout returns standard output of the testgo run as a string.
 func (tg *testgoData) getStdout() string {
+	tg.t.Helper()
 	if !tg.ran {
 		tg.t.Fatal("internal testsuite error: stdout called before run")
 	}
@@ -380,6 +392,7 @@ func (tg *testgoData) getStdout() string {
 
 // getStderr returns standard error of the testgo run as a string.
 func (tg *testgoData) getStderr() string {
+	tg.t.Helper()
 	if !tg.ran {
 		tg.t.Fatal("internal testsuite error: stdout called before run")
 	}
@@ -390,6 +403,7 @@ func (tg *testgoData) getStderr() string {
 // whether it is found. The regular expression is matched against
 // each line separately, as with the grep command.
 func (tg *testgoData) doGrepMatch(match string, b *bytes.Buffer) bool {
+	tg.t.Helper()
 	if !tg.ran {
 		tg.t.Fatal("internal testsuite error: grep called before run")
 	}
@@ -407,6 +421,7 @@ func (tg *testgoData) doGrepMatch(match string, b *bytes.Buffer) bool {
 // searching, "output" or "error". The msg argument is logged on
 // failure.
 func (tg *testgoData) doGrep(match string, b *bytes.Buffer, name, msg string) {
+	tg.t.Helper()
 	if !tg.doGrepMatch(match, b) {
 		tg.t.Log(msg)
 		tg.t.Logf("pattern %v not found in standard %s", match, name)
@@ -417,18 +432,21 @@ func (tg *testgoData) doGrep(match string, b *bytes.Buffer, name, msg string) {
 // grepStdout looks for a regular expression in the test run's
 // standard output and fails, logging msg, if it is not found.
 func (tg *testgoData) grepStdout(match, msg string) {
+	tg.t.Helper()
 	tg.doGrep(match, &tg.stdout, "output", msg)
 }
 
 // grepStderr looks for a regular expression in the test run's
 // standard error and fails, logging msg, if it is not found.
 func (tg *testgoData) grepStderr(match, msg string) {
+	tg.t.Helper()
 	tg.doGrep(match, &tg.stderr, "error", msg)
 }
 
 // grepBoth looks for a regular expression in the test run's standard
 // output or stand error and fails, logging msg, if it is not found.
 func (tg *testgoData) grepBoth(match, msg string) {
+	tg.t.Helper()
 	if !tg.doGrepMatch(match, &tg.stdout) && !tg.doGrepMatch(match, &tg.stderr) {
 		tg.t.Log(msg)
 		tg.t.Logf("pattern %v not found in standard output or standard error", match)
@@ -439,6 +457,7 @@ func (tg *testgoData) grepBoth(match, msg string) {
 // doGrepNot looks for a regular expression in a buffer and fails if
 // it is found. The name and msg arguments are as for doGrep.
 func (tg *testgoData) doGrepNot(match string, b *bytes.Buffer, name, msg string) {
+	tg.t.Helper()
 	if tg.doGrepMatch(match, b) {
 		tg.t.Log(msg)
 		tg.t.Logf("pattern %v found unexpectedly in standard %s", match, name)
@@ -449,12 +468,14 @@ func (tg *testgoData) doGrepNot(match string, b *bytes.Buffer, name, msg string)
 // grepStdoutNot looks for a regular expression in the test run's
 // standard output and fails, logging msg, if it is found.
 func (tg *testgoData) grepStdoutNot(match, msg string) {
+	tg.t.Helper()
 	tg.doGrepNot(match, &tg.stdout, "output", msg)
 }
 
 // grepStderrNot looks for a regular expression in the test run's
 // standard error and fails, logging msg, if it is found.
 func (tg *testgoData) grepStderrNot(match, msg string) {
+	tg.t.Helper()
 	tg.doGrepNot(match, &tg.stderr, "error", msg)
 }
 
@@ -462,6 +483,7 @@ func (tg *testgoData) grepStderrNot(match, msg string) {
 // standard output or stand error and fails, logging msg, if it is
 // found.
 func (tg *testgoData) grepBothNot(match, msg string) {
+	tg.t.Helper()
 	if tg.doGrepMatch(match, &tg.stdout) || tg.doGrepMatch(match, &tg.stderr) {
 		tg.t.Log(msg)
 		tg.t.Fatalf("pattern %v found unexpectedly in standard output or standard error", match)
@@ -470,6 +492,7 @@ func (tg *testgoData) grepBothNot(match, msg string) {
 
 // doGrepCount counts the number of times a regexp is seen in a buffer.
 func (tg *testgoData) doGrepCount(match string, b *bytes.Buffer) int {
+	tg.t.Helper()
 	if !tg.ran {
 		tg.t.Fatal("internal testsuite error: doGrepCount called before run")
 	}
@@ -486,6 +509,7 @@ func (tg *testgoData) doGrepCount(match string, b *bytes.Buffer) int {
 // grepCountBoth returns the number of times a regexp is seen in both
 // standard output and standard error.
 func (tg *testgoData) grepCountBoth(match string) int {
+	tg.t.Helper()
 	return tg.doGrepCount(match, &tg.stdout) + tg.doGrepCount(match, &tg.stderr)
 }
 
@@ -494,6 +518,7 @@ func (tg *testgoData) grepCountBoth(match string) int {
 // removed. When the test completes, the file or directory will be
 // removed if it exists.
 func (tg *testgoData) creatingTemp(path string) {
+	tg.t.Helper()
 	if filepath.IsAbs(path) && !strings.HasPrefix(path, tg.tempdir) {
 		tg.t.Fatalf("internal testsuite error: creatingTemp(%q) with absolute path not in temporary directory", path)
 	}
@@ -510,6 +535,7 @@ func (tg *testgoData) creatingTemp(path string) {
 // makeTempdir makes a temporary directory for a run of testgo. If
 // the temporary directory was already created, this does nothing.
 func (tg *testgoData) makeTempdir() {
+	tg.t.Helper()
 	if tg.tempdir == "" {
 		var err error
 		tg.tempdir, err = ioutil.TempDir("", "gotest")
@@ -519,6 +545,7 @@ func (tg *testgoData) makeTempdir() {
 
 // tempFile adds a temporary file for a run of testgo.
 func (tg *testgoData) tempFile(path, contents string) {
+	tg.t.Helper()
 	tg.makeTempdir()
 	tg.must(os.MkdirAll(filepath.Join(tg.tempdir, filepath.Dir(path)), 0755))
 	bytes := []byte(contents)
@@ -533,6 +560,7 @@ func (tg *testgoData) tempFile(path, contents string) {
 
 // tempDir adds a temporary directory for a run of testgo.
 func (tg *testgoData) tempDir(path string) {
+	tg.t.Helper()
 	tg.makeTempdir()
 	if err := os.MkdirAll(filepath.Join(tg.tempdir, path), 0755); err != nil && !os.IsExist(err) {
 		tg.t.Fatal(err)
@@ -542,6 +570,7 @@ func (tg *testgoData) tempDir(path string) {
 // path returns the absolute pathname to file with the temporary
 // directory.
 func (tg *testgoData) path(name string) string {
+	tg.t.Helper()
 	if tg.tempdir == "" {
 		tg.t.Fatalf("internal testsuite error: path(%q) with no tempdir", name)
 	}
@@ -553,6 +582,7 @@ func (tg *testgoData) path(name string) string {
 
 // mustExist fails if path does not exist.
 func (tg *testgoData) mustExist(path string) {
+	tg.t.Helper()
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			tg.t.Fatalf("%s does not exist but should", path)
@@ -563,6 +593,7 @@ func (tg *testgoData) mustExist(path string) {
 
 // mustNotExist fails if path exists.
 func (tg *testgoData) mustNotExist(path string) {
+	tg.t.Helper()
 	if _, err := os.Stat(path); err == nil || !os.IsNotExist(err) {
 		tg.t.Fatalf("%s exists but should not (%v)", path, err)
 	}
@@ -570,6 +601,7 @@ func (tg *testgoData) mustNotExist(path string) {
 
 // wantExecutable fails with msg if path is not executable.
 func (tg *testgoData) wantExecutable(path, msg string) {
+	tg.t.Helper()
 	if st, err := os.Stat(path); err != nil {
 		if !os.IsNotExist(err) {
 			tg.t.Log(err)
@@ -584,6 +616,7 @@ func (tg *testgoData) wantExecutable(path, msg string) {
 
 // wantArchive fails if path is not an archive.
 func (tg *testgoData) wantArchive(path string) {
+	tg.t.Helper()
 	f, err := os.Open(path)
 	if err != nil {
 		tg.t.Fatal(err)
@@ -598,6 +631,7 @@ func (tg *testgoData) wantArchive(path string) {
 
 // isStale reports whether pkg is stale, and why
 func (tg *testgoData) isStale(pkg string) (bool, string) {
+	tg.t.Helper()
 	tg.run("list", "-f", "{{.Stale}}:{{.StaleReason}}", pkg)
 	v := strings.TrimSpace(tg.getStdout())
 	f := strings.SplitN(v, ":", 2)
@@ -615,6 +649,7 @@ func (tg *testgoData) isStale(pkg string) (bool, string) {
 
 // wantStale fails with msg if pkg is not stale.
 func (tg *testgoData) wantStale(pkg, reason, msg string) {
+	tg.t.Helper()
 	stale, why := tg.isStale(pkg)
 	if !stale {
 		tg.t.Fatal(msg)
@@ -626,6 +661,7 @@ func (tg *testgoData) wantStale(pkg, reason, msg string) {
 
 // wantNotStale fails with msg if pkg is stale.
 func (tg *testgoData) wantNotStale(pkg, reason, msg string) {
+	tg.t.Helper()
 	stale, why := tg.isStale(pkg)
 	if stale {
 		tg.t.Fatal(msg)
@@ -637,6 +673,7 @@ func (tg *testgoData) wantNotStale(pkg, reason, msg string) {
 
 // cleanup cleans up a test that runs testgo.
 func (tg *testgoData) cleanup() {
+	tg.t.Helper()
 	if tg.wd != "" {
 		if err := os.Chdir(tg.wd); err != nil {
 			// We are unlikely to be able to continue.
@@ -655,6 +692,7 @@ func (tg *testgoData) cleanup() {
 // failSSH puts an ssh executable in the PATH that always fails.
 // This is to stub out uses of ssh by go get.
 func (tg *testgoData) failSSH() {
+	tg.t.Helper()
 	wd, err := os.Getwd()
 	if err != nil {
 		tg.t.Fatal(err)
@@ -990,6 +1028,7 @@ func TestGoInstallDetectsRemovedFilesInPackageMain(t *testing.T) {
 }
 
 func testLocalRun(tg *testgoData, exepath, local, match string) {
+	tg.t.Helper()
 	out, err := exec.Command(exepath).Output()
 	if err != nil {
 		tg.t.Fatalf("error running %v: %v", exepath, err)
@@ -1001,6 +1040,7 @@ func testLocalRun(tg *testgoData, exepath, local, match string) {
 }
 
 func testLocalEasy(tg *testgoData, local string) {
+	tg.t.Helper()
 	exepath := "./easy" + exeSuffix
 	tg.creatingTemp(exepath)
 	tg.run("build", "-o", exepath, filepath.Join("testdata", local, "easy.go"))
@@ -1008,6 +1048,7 @@ func testLocalEasy(tg *testgoData, local string) {
 }
 
 func testLocalEasySub(tg *testgoData, local string) {
+	tg.t.Helper()
 	exepath := "./easysub" + exeSuffix
 	tg.creatingTemp(exepath)
 	tg.run("build", "-o", exepath, filepath.Join("testdata", local, "easysub", "main.go"))
@@ -1015,6 +1056,7 @@ func testLocalEasySub(tg *testgoData, local string) {
 }
 
 func testLocalHard(tg *testgoData, local string) {
+	tg.t.Helper()
 	exepath := "./hard" + exeSuffix
 	tg.creatingTemp(exepath)
 	tg.run("build", "-o", exepath, filepath.Join("testdata", local, "hard.go"))
@@ -1022,6 +1064,7 @@ func testLocalHard(tg *testgoData, local string) {
 }
 
 func testLocalInstall(tg *testgoData, local string) {
+	tg.t.Helper()
 	tg.runFail("install", filepath.Join("testdata", local, "easy.go"))
 }
 
@@ -1052,6 +1095,7 @@ func TestLocalImportsGoInstallShouldFail(t *testing.T) {
 const badDirName = `#$%:, &()*;<=>?\^{}`
 
 func copyBad(tg *testgoData) {
+	tg.t.Helper()
 	if runtime.GOOS == "windows" {
 		tg.t.Skipf("skipping test because %q is an invalid directory name", badDirName)
 	}
@@ -2178,6 +2222,7 @@ func TestSourceFileNameOrderPreserved(t *testing.T) {
 // Check that coverage analysis works at all.
 // Don't worry about the exact numbers but require not 0.0%.
 func checkCoverage(tg *testgoData, data string) {
+	tg.t.Helper()
 	if regexp.MustCompile(`[^0-9]0\.0%`).MatchString(data) {
 		tg.t.Error("some coverage results are 0.0%")
 	}
