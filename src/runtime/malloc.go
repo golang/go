@@ -847,6 +847,9 @@ func reflect_unsafe_New(typ *_type) unsafe.Pointer {
 
 // newarray allocates an array of n elements of type typ.
 func newarray(typ *_type, n int) unsafe.Pointer {
+	if n == 1 {
+		return mallocgc(typ.size, typ, true)
+	}
 	if n < 0 || uintptr(n) > maxSliceCap(typ.size) {
 		panic(plainError("runtime: allocation size out of range"))
 	}
