@@ -622,7 +622,9 @@ func semacreate(mp *m) {
 //go:nosplit
 func newosproc(mp *m, stk unsafe.Pointer) {
 	const _STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000
-	thandle := stdcall6(_CreateThread, 0, 0x20000,
+	// stackSize must match SizeOfStackReserve in cmd/link/internal/ld/pe.go.
+	const stackSize = 0x00200000*_64bit + 0x00020000*(1-_64bit)
+	thandle := stdcall6(_CreateThread, 0, stackSize,
 		funcPC(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
 		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
 
