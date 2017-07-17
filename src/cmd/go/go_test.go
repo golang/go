@@ -2045,6 +2045,16 @@ func TestGoTestMutexprofileDashOControlsBinaryLocation(t *testing.T) {
 	tg.wantExecutable("myerrors.test"+exeSuffix, "go test -mutexprofile -o myerrors.test did not create myerrors.test")
 }
 
+func TestGoBuildNonMain(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	// TODO: tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.runFail("build", "-buildmode=exe", "-o", "not_main"+exeSuffix, "not_main")
+	tg.grepStderr("-buildmode=exe requires exactly one main package", "go build with -o and -buildmode=exe should on a non-main package should throw an error")
+	tg.mustNotExist("not_main" + exeSuffix)
+}
+
 func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
