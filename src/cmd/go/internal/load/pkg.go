@@ -93,7 +93,6 @@ type PackagePublic struct {
 type PackageInternal struct {
 	// Unexported fields are not part of the public API.
 	Build        *build.Package
-	Pkgdir       string               // overrides build.PkgDir
 	Imports      []*Package           // this package's direct imports
 	Target       string               // installed file for this package (may be executable)
 	Pkgfile      string               // where package will be (or is already) built or installed
