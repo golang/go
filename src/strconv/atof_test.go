@@ -10,6 +10,7 @@ import (
 	"reflect"
 	. "strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -213,12 +214,17 @@ type atofSimpleTest struct {
 }
 
 var (
+	atofOnce               sync.Once
 	atofRandomTests        []atofSimpleTest
 	benchmarksRandomBits   [1024]string
 	benchmarksRandomNormal [1024]string
 )
 
-func init() {
+func initAtof() {
+	atofOnce.Do(initAtof1)
+}
+
+func initAtof1() {
 	// The atof routines return NumErrors wrapping
 	// the error and the string. Convert the table above.
 	for i := range atoftests {
@@ -261,6 +267,7 @@ func init() {
 }
 
 func testAtof(t *testing.T, opt bool) {
+	initAtof()
 	oldopt := SetOptimize(opt)
 	for i := 0; i < len(atoftests); i++ {
 		test := &atoftests[i]
@@ -306,6 +313,7 @@ func TestAtof(t *testing.T) { testAtof(t, true) }
 func TestAtofSlow(t *testing.T) { testAtof(t, false) }
 
 func TestAtofRandom(t *testing.T) {
+	initAtof()
 	for _, test := range atofRandomTests {
 		x, _ := ParseFloat(test.s, 64)
 		switch {
