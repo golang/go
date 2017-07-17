@@ -91,7 +91,7 @@ func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
 }
 
 // exported value for testing
-var hashLoad = loadFactor
+var hashLoad = float32(loadFactorNum) / float32(loadFactorDen)
 
 //go:nosplit
 func fastrand() uint32 {
