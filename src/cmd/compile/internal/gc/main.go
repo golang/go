@@ -104,7 +104,7 @@ func hidePanic() {
 
 func doversion() {
 	p := objabi.Expstring()
-	if p == "X:none" {
+	if p == objabi.DefaultExpstring() {
 		p = ""
 	}
 	sep := ""
