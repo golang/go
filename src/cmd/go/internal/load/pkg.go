@@ -940,16 +940,16 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package 
 		}
 	}
 
-	ImportPaths := p.Imports
+	importPaths := p.Imports
 	// Packages that use cgo import runtime/cgo implicitly.
 	// Packages that use cgo also import syscall implicitly,
 	// to wrap errno.
 	// Exclude certain packages to avoid circular dependencies.
 	if len(p.CgoFiles) > 0 && (!p.Standard || !cgoExclude[p.ImportPath]) {
-		ImportPaths = append(ImportPaths, "runtime/cgo")
+		importPaths = append(importPaths, "runtime/cgo")
 	}
 	if len(p.CgoFiles) > 0 && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
-		ImportPaths = append(ImportPaths, "syscall")
+		importPaths = append(importPaths, "syscall")
 	}
 
 	if cfg.BuildContext.CgoEnabled && p.Name == "main" && !p.Goroot {
@@ -969,26 +969,26 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package 
 			}
 		}
 		if cfg.BuildBuildmode == "c-shared" || cfg.BuildBuildmode == "plugin" || pieCgo || cfg.BuildLinkshared || linkmodeExternal {
-			ImportPaths = append(ImportPaths, "runtime/cgo")
+			importPaths = append(importPaths, "runtime/cgo")
 		}
 	}
 
 	// Everything depends on runtime, except runtime, its internal
 	// subpackages, and unsafe.
 	if !p.Standard || (p.ImportPath != "runtime" && !strings.HasPrefix(p.ImportPath, "runtime/internal/") && p.ImportPath != "unsafe") {
-		ImportPaths = append(ImportPaths, "runtime")
+		importPaths = append(importPaths, "runtime")
 		// When race detection enabled everything depends on runtime/race.
 		// Exclude certain packages to avoid circular dependencies.
 		if cfg.BuildRace && (!p.Standard || !raceExclude[p.ImportPath]) {
-			ImportPaths = append(ImportPaths, "runtime/race")
+			importPaths = append(importPaths, "runtime/race")
 		}
 		// MSan uses runtime/msan.
 		if cfg.BuildMSan && (!p.Standard || !raceExclude[p.ImportPath]) {
-			ImportPaths = append(ImportPaths, "runtime/msan")
+			importPaths = append(importPaths, "runtime/msan")
 		}
 		// On ARM with GOARM=5, everything depends on math for the link.
 		if p.Name == "main" && cfg.Goarch == "arm" {
-			ImportPaths = append(ImportPaths, "math")
+			importPaths = append(importPaths, "math")
 		}
 	}
 
@@ -997,7 +997,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package 
 	// This can be an issue particularly for runtime/internal/atomic;
 	// see issue 13655.
 	if p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal/")) && p.ImportPath != "runtime/internal/sys" {
-		ImportPaths = append(ImportPaths, "runtime/internal/sys")
+		importPaths = append(importPaths, "runtime/internal/sys")
 	}
 
 	// Build list of full paths to all Go files in the package,
@@ -1062,7 +1062,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package 
 		}
 	}
 
-	for i, path := range ImportPaths {
+	for i, path := range importPaths {
 		if path == "C" {
 			continue
 		}
@@ -1079,7 +1079,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package 
 		}
 
 		path = p1.ImportPath
-		ImportPaths[i] = path
+		importPaths[i] = path
 		if i < len(p.Imports) {
 			p.Imports[i] = path
 		}
