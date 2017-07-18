@@ -394,8 +394,11 @@ func sigpanic() {
 //go:nosplit
 //go:nowritebarrierrec
 func dieFromSignal(sig uint32) {
-	setsig(sig, _SIG_DFL)
 	unblocksig(sig)
+	// First, try any signal handler installed before the runtime
+	// initialized.
+	fn := atomic.Loaduintptr(&fwdSig[sig])
+	setsig(sig, fn)
 	raise(sig)
 
 	// That should have killed us. On some systems, though, raise
@@ -403,6 +406,14 @@ func dieFromSignal(sig uint32) {
 	// the current thread, which means that the signal may not yet
 	// have been delivered. Give other threads a chance to run and
 	// pick up the signal.
+	osyield()
+	osyield()
+	osyield()
+
+	// If that didn't work, try _SIG_DFL.
+	setsig(sig, _SIG_DFL)
+	raise(sig)
+
 	osyield()
 	osyield()
 	osyield()
