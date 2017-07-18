@@ -3157,18 +3157,18 @@ func gccgoCleanPkgpath(p *load.Package) string {
 }
 
 // gcc runs the gcc C compiler to create an object from a single C file.
-func (b *Builder) gcc(p *load.Package, out string, flags []string, cfile string) error {
-	return b.ccompile(p, out, flags, cfile, b.GccCmd(p.Dir))
+func (b *Builder) gcc(p *load.Package, workdir, out string, flags []string, cfile string) error {
+	return b.ccompile(p, out, flags, cfile, b.GccCmd(p.Dir, workdir))
 }
 
 // gxx runs the g++ C++ compiler to create an object from a single C++ file.
-func (b *Builder) gxx(p *load.Package, out string, flags []string, cxxfile string) error {
-	return b.ccompile(p, out, flags, cxxfile, b.GxxCmd(p.Dir))
+func (b *Builder) gxx(p *load.Package, workdir, out string, flags []string, cxxfile string) error {
+	return b.ccompile(p, out, flags, cxxfile, b.GxxCmd(p.Dir, workdir))
 }
 
 // gfortran runs the gfortran Fortran compiler to create an object from a single Fortran file.
-func (b *Builder) gfortran(p *load.Package, out string, flags []string, ffile string) error {
-	return b.ccompile(p, out, flags, ffile, b.gfortranCmd(p.Dir))
+func (b *Builder) gfortran(p *load.Package, workdir, out string, flags []string, ffile string) error {
+	return b.ccompile(p, out, flags, ffile, b.gfortranCmd(p.Dir, workdir))
 }
 
 // ccompile runs the given C or C++ compiler and creates an object from a single source file.
@@ -3211,41 +3211,41 @@ func (b *Builder) ccompile(p *load.Package, outfile string, flags []string, file
 }
 
 // gccld runs the gcc linker to create an executable from a set of object files.
-func (b *Builder) gccld(p *load.Package, out string, flags []string, objs []string) error {
+func (b *Builder) gccld(p *load.Package, objdir, out string, flags []string, objs []string) error {
 	var cmd []string
 	if len(p.CXXFiles) > 0 || len(p.SwigCXXFiles) > 0 {
-		cmd = b.GxxCmd(p.Dir)
+		cmd = b.GxxCmd(p.Dir, objdir)
 	} else {
-		cmd = b.GccCmd(p.Dir)
+		cmd = b.GccCmd(p.Dir, objdir)
 	}
 	return b.run(p.Dir, p.ImportPath, nil, cmd, "-o", out, objs, flags)
 }
 
 // gccCmd returns a gcc command line prefix
 // defaultCC is defined in zdefaultcc.go, written by cmd/dist.
-func (b *Builder) GccCmd(objdir string) []string {
-	return b.compilerCmd("CC", cfg.DefaultCC, objdir)
+func (b *Builder) GccCmd(incdir, workdir string) []string {
+	return b.compilerCmd("CC", cfg.DefaultCC, incdir, workdir)
 }
 
 // gxxCmd returns a g++ command line prefix
 // defaultCXX is defined in zdefaultcc.go, written by cmd/dist.
-func (b *Builder) GxxCmd(objdir string) []string {
-	return b.compilerCmd("CXX", cfg.DefaultCXX, objdir)
+func (b *Builder) GxxCmd(incdir, workdir string) []string {
+	return b.compilerCmd("CXX", cfg.DefaultCXX, incdir, workdir)
 }
 
 // gfortranCmd returns a gfortran command line prefix.
-func (b *Builder) gfortranCmd(objdir string) []string {
-	return b.compilerCmd("FC", "gfortran", objdir)
+func (b *Builder) gfortranCmd(incdir, workdir string) []string {
+	return b.compilerCmd("FC", "gfortran", incdir, workdir)
 }
 
 // compilerCmd returns a command line prefix for the given environment
 // variable and using the default command when the variable is empty.
-func (b *Builder) compilerCmd(envvar, defcmd, objdir string) []string {
+func (b *Builder) compilerCmd(envvar, defcmd, incdir, workdir string) []string {
 	// NOTE: env.go's mkEnv knows that the first three
-	// strings returned are "gcc", "-I", objdir (and cuts them off).
+	// strings returned are "gcc", "-I", incdir (and cuts them off).
 
 	compiler := envList(envvar, defcmd)
-	a := []string{compiler[0], "-I", objdir}
+	a := []string{compiler[0], "-I", incdir}
 	a = append(a, compiler[1:]...)
 
 	// Definitely want -fPIC but on Windows gcc complains
@@ -3279,7 +3279,11 @@ func (b *Builder) compilerCmd(envvar, defcmd, objdir string) []string {
 
 	// Tell gcc not to include the work directory in object files.
 	if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
-		a = append(a, "-fdebug-prefix-map="+b.WorkDir+"=/tmp/go-build")
+		if workdir == "" {
+			workdir = b.WorkDir
+		}
+		workdir = strings.TrimSuffix(workdir, string(filepath.Separator))
+		a = append(a, "-fdebug-prefix-map="+workdir+"=/tmp/go-build")
 	}
 
 	// Tell gcc not to include flags in object files, which defeats the
@@ -3508,7 +3512,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	cflags := str.StringList(cgoCPPFLAGS, cgoCFLAGS)
 	for _, cfile := range cfiles {
 		ofile := nextOfile()
-		if err := b.gcc(p, ofile, cflags, objdir+cfile); err != nil {
+		if err := b.gcc(p, a.Objdir, ofile, cflags, objdir+cfile); err != nil {
 			return nil, nil, err
 		}
 		outObj = append(outObj, ofile)
@@ -3516,7 +3520,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 
 	for _, file := range gccfiles {
 		ofile := nextOfile()
-		if err := b.gcc(p, ofile, cflags, file); err != nil {
+		if err := b.gcc(p, a.Objdir, ofile, cflags, file); err != nil {
 			return nil, nil, err
 		}
 		outObj = append(outObj, ofile)
@@ -3525,7 +3529,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	cxxflags := str.StringList(cgoCPPFLAGS, cgoCXXFLAGS)
 	for _, file := range gxxfiles {
 		ofile := nextOfile()
-		if err := b.gxx(p, ofile, cxxflags, file); err != nil {
+		if err := b.gxx(p, a.Objdir, ofile, cxxflags, file); err != nil {
 			return nil, nil, err
 		}
 		outObj = append(outObj, ofile)
@@ -3533,7 +3537,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 
 	for _, file := range mfiles {
 		ofile := nextOfile()
-		if err := b.gcc(p, ofile, cflags, file); err != nil {
+		if err := b.gcc(p, a.Objdir, ofile, cflags, file); err != nil {
 			return nil, nil, err
 		}
 		outObj = append(outObj, ofile)
@@ -3542,7 +3546,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	fflags := str.StringList(cgoCPPFLAGS, cgoFFLAGS)
 	for _, file := range ffiles {
 		ofile := nextOfile()
-		if err := b.gfortran(p, ofile, fflags, file); err != nil {
+		if err := b.gfortran(p, a.Objdir, ofile, fflags, file); err != nil {
 			return nil, nil, err
 		}
 		outObj = append(outObj, ofile)
@@ -3577,7 +3581,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 func (b *Builder) dynimport(p *load.Package, objdir, importGo, cgoExe string, cflags, cgoLDFLAGS, outObj []string) error {
 	cfile := objdir + "_cgo_main.c"
 	ofile := objdir + "_cgo_main.o"
-	if err := b.gcc(p, ofile, cflags, cfile); err != nil {
+	if err := b.gcc(p, objdir, ofile, cflags, cfile); err != nil {
 		return err
 	}
 
@@ -3589,7 +3593,7 @@ func (b *Builder) dynimport(p *load.Package, objdir, importGo, cgoExe string, cf
 	if (cfg.Goarch == "arm" && cfg.Goos == "linux") || cfg.Goos == "android" {
 		ldflags = append(ldflags, "-pie")
 	}
-	if err := b.gccld(p, dynobj, ldflags, linkobj); err != nil {
+	if err := b.gccld(p, objdir, dynobj, ldflags, linkobj); err != nil {
 		return err
 	}
 
