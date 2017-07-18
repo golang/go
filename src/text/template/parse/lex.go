@@ -118,7 +118,6 @@ type lexer struct {
 	pos        Pos       // current position in the input
 	start      Pos       // start position of this item
 	width      Pos       // width of last rune read from input
-	lastPos    Pos       // position of most recent item returned by nextItem
 	items      chan item // channel of scanned items
 	parenDepth int       // nesting depth of ( ) exprs
 	line       int       // 1+number of newlines seen
@@ -198,9 +197,7 @@ func (l *lexer) errorf(format string, args ...interface{}) stateFn {
 // nextItem returns the next item from the input.
 // Called by the parser, not in the lexing goroutine.
 func (l *lexer) nextItem() item {
-	item := <-l.items
-	l.lastPos = item.pos
-	return item
+	return <-l.items
 }
 
 // drain drains the output so the lexing goroutine will exit.
