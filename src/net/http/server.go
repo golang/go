@@ -1958,7 +1958,7 @@ func StripPrefix(prefix string, h Handler) Handler {
 	})
 }
 
-// Redirect replies to the request with a redirect to url,
+// Redirect replies to the request with a redirect to urlStr,
 // which may be a path relative to the request path.
 //
 // The provided code should be in the 3xx range and is usually
