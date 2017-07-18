@@ -1255,13 +1255,20 @@ func (l *Link) hostlink() {
 		if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
 			Errorf(nil, "WriteFile trivial.c failed: %v", err)
 		}
-		cmd := exec.Command(argv[0], "-c", "-no-pie", "trivial.c")
-		cmd.Dir = *flagTmpdir
-		cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
-		out, err := cmd.CombinedOutput()
-		supported := err == nil && !bytes.Contains(out, []byte("unrecognized"))
-		if supported {
-			argv = append(argv, "-no-pie")
+
+		// GCC uses -no-pie, clang uses -nopie.
+		for _, nopie := range []string{"-no-pie", "-nopie"} {
+			cmd := exec.Command(argv[0], "-c", nopie, "trivial.c")
+			cmd.Dir = *flagTmpdir
+			cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
+			out, _ := cmd.CombinedOutput()
+			// GCC says "unrecognized command line option ‘-no-pie’"
+			// clang says "unknown argument: '-no-pie'"
+			supported := !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
+			if supported {
+				argv = append(argv, nopie)
+				break
+			}
 		}
 	}
 
