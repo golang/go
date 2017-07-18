@@ -857,14 +857,10 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 		oh64.SizeOfStackCommit = 0x00200000 - 0x2000 // account for 2 guard pages
 	}
 
-	// 32-bit is trickier since there much less address space to
-	// work with. Here we use large stacks only in cgo binaries as
-	// a compromise.
+	oh.SizeOfStackReserve = 0x00100000
 	if !iscgo {
-		oh.SizeOfStackReserve = 0x00020000
 		oh.SizeOfStackCommit = 0x00001000
 	} else {
-		oh.SizeOfStackReserve = 0x00100000
 		oh.SizeOfStackCommit = 0x00100000 - 0x2000 // account for 2 guard pages
 	}
 
