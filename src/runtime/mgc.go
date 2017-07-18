@@ -1248,13 +1248,13 @@ func gcStart(mode gcMode, trigger gcTrigger) {
 
 	gcResetMarkState()
 
-	now := nanotime()
 	work.stwprocs, work.maxprocs = gcprocs(), gomaxprocs
-	work.tSweepTerm = now
 	work.heap0 = atomic.Load64(&memstats.heap_live)
 	work.pauseNS = 0
 	work.mode = mode
 
+	now := nanotime()
+	work.tSweepTerm = now
 	work.pauseStart = now
 	systemstack(stopTheWorldWithSema)
 	// Finish sweep before we start concurrent scan.
