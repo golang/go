@@ -3492,10 +3492,22 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	}
 	outGo = append(outGo, gofiles...)
 
+	// Use sequential object file names to keep them distinct
+	// and short enough to fit in the .a header file name slots.
+	// We no longer collect them all into _all.o, and we'd like
+	// tools to see both the .o suffix and unique names, so
+	// we need to make them short enough not to be truncated
+	// in the final archive.
+	oseq := 0
+	nextOfile := func() string {
+		oseq++
+		return objdir + fmt.Sprintf("_x%03d.o", oseq)
+	}
+
 	// gcc
 	cflags := str.StringList(cgoCPPFLAGS, cgoCFLAGS)
 	for _, cfile := range cfiles {
-		ofile := objdir + cfile[:len(cfile)-1] + "o"
+		ofile := nextOfile()
 		if err := b.gcc(p, ofile, cflags, objdir+cfile); err != nil {
 			return nil, nil, err
 		}
@@ -3503,8 +3515,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	}
 
 	for _, file := range gccfiles {
-		base := filepath.Base(file)
-		ofile := objdir + cgoRe.ReplaceAllString(base[:len(base)-1], "_") + "o"
+		ofile := nextOfile()
 		if err := b.gcc(p, ofile, cflags, file); err != nil {
 			return nil, nil, err
 		}
@@ -3513,8 +3524,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 
 	cxxflags := str.StringList(cgoCPPFLAGS, cgoCXXFLAGS)
 	for _, file := range gxxfiles {
-		// Append .o to the file, just in case the pkg has file.c and file.cpp
-		ofile := objdir + cgoRe.ReplaceAllString(filepath.Base(file), "_") + ".o"
+		ofile := nextOfile()
 		if err := b.gxx(p, ofile, cxxflags, file); err != nil {
 			return nil, nil, err
 		}
@@ -3522,8 +3532,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	}
 
 	for _, file := range mfiles {
-		// Append .o to the file, just in case the pkg has file.c and file.m
-		ofile := objdir + cgoRe.ReplaceAllString(filepath.Base(file), "_") + ".o"
+		ofile := nextOfile()
 		if err := b.gcc(p, ofile, cflags, file); err != nil {
 			return nil, nil, err
 		}
@@ -3532,8 +3541,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 
 	fflags := str.StringList(cgoCPPFLAGS, cgoFFLAGS)
 	for _, file := range ffiles {
-		// Append .o to the file, just in case the pkg has file.c and file.f
-		ofile := objdir + cgoRe.ReplaceAllString(filepath.Base(file), "_") + ".o"
+		ofile := nextOfile()
 		if err := b.gfortran(p, ofile, fflags, file); err != nil {
 			return nil, nil, err
 		}
