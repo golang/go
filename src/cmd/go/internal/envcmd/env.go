@@ -73,10 +73,10 @@ func MkEnv() []cfg.EnvVar {
 		env = append(env, cfg.EnvVar{Name: "GO386", Value: cfg.GO386})
 	}
 
-	cmd := b.GccCmd(".")
+	cmd := b.GccCmd(".", "")
 	env = append(env, cfg.EnvVar{Name: "CC", Value: cmd[0]})
 	env = append(env, cfg.EnvVar{Name: "GOGCCFLAGS", Value: strings.Join(cmd[3:], " ")})
-	cmd = b.GxxCmd(".")
+	cmd = b.GxxCmd(".", "")
 	env = append(env, cfg.EnvVar{Name: "CXX", Value: cmd[0]})
 
 	if cfg.BuildContext.CgoEnabled {
