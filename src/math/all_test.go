@@ -953,6 +953,7 @@ var vfexpSC = []float64{
 	// Issue 18912
 	1.48852223e+09,
 	1.4885222e+09,
+	1,
 }
 var expSC = []float64{
 	0,
@@ -963,6 +964,7 @@ var expSC = []float64{
 	Inf(1),
 	Inf(1),
 	Inf(1),
+	2.718281828459045,
 }
 
 var vfexp2SC = []float64{
