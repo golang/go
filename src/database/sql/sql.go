@@ -1813,7 +1813,7 @@ func (tx *Tx) Rollback() error {
 	return tx.rollback(false)
 }
 
-// Prepare creates a prepared statement for use within a transaction.
+// PrepareContext creates a prepared statement for use within a transaction.
 //
 // The returned statement operates within the transaction and will be closed
 // when the transaction has been committed or rolled back.
