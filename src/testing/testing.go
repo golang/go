@@ -675,9 +675,30 @@ func (t *T) Parallel() {
 	t.parent.sub = append(t.parent.sub, t)
 	t.raceErrors += race.Errors()
 
+	if t.chatty {
+		// Print directly to root's io.Writer so there is no delay.
+		root := t.parent
+		for ; root.parent != nil; root = root.parent {
+		}
+		root.mu.Lock()
+		fmt.Fprintf(root.w, "=== PAUSE %s\n", t.name)
+		root.mu.Unlock()
+	}
+
 	t.signal <- true   // Release calling test.
 	<-t.parent.barrier // Wait for the parent test to complete.
 	t.context.waitParallel()
+
+	if t.chatty {
+		// Print directly to root's io.Writer so there is no delay.
+		root := t.parent
+		for ; root.parent != nil; root = root.parent {
+		}
+		root.mu.Lock()
+		fmt.Fprintf(root.w, "=== CONT  %s\n", t.name)
+		root.mu.Unlock()
+	}
+
 	t.start = time.Now()
 	t.raceErrors += -race.Errors()
 }
