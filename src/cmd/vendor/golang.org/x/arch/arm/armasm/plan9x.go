@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 	"strings"
 )
 
@@ -37,7 +38,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 	op := inst.Op.String()
 
 	switch inst.Op &^ 15 {
-	case LDR_EQ, LDRB_EQ, LDRH_EQ:
+	case LDR_EQ, LDRB_EQ, LDRH_EQ, LDRSB_EQ, LDRSH_EQ, VLDR_EQ:
 		// Check for RET
 		reg, _ := inst.Args[0].(Reg)
 		mem, _ := inst.Args[1].(Mem)
@@ -48,22 +49,22 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		// Check for PC-relative load.
 		if mem.Base == PC && mem.Sign == 0 && mem.Mode == AddrOffset && text != nil {
 			addr := uint32(pc) + 8 + uint32(mem.Offset)
-			buf := make([]byte, 4)
+			buf := make([]byte, 8)
 			switch inst.Op &^ 15 {
-			case LDRB_EQ:
+			case LDRB_EQ, LDRSB_EQ:
 				if _, err := text.ReadAt(buf[:1], int64(addr)); err != nil {
 					break
 				}
 				args[1] = fmt.Sprintf("$%#x", buf[0])
 
-			case LDRH_EQ:
+			case LDRH_EQ, LDRSH_EQ:
 				if _, err := text.ReadAt(buf[:2], int64(addr)); err != nil {
 					break
 				}
 				args[1] = fmt.Sprintf("$%#x", binary.LittleEndian.Uint16(buf))
 
 			case LDR_EQ:
-				if _, err := text.ReadAt(buf, int64(addr)); err != nil {
+				if _, err := text.ReadAt(buf[:4], int64(addr)); err != nil {
 					break
 				}
 				x := binary.LittleEndian.Uint32(buf)
@@ -72,6 +73,22 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 				} else {
 					args[1] = fmt.Sprintf("$%#x", x)
 				}
+
+			case VLDR_EQ:
+				switch {
+				case strings.HasPrefix(args[0], "D"): // VLDR.F64
+					if _, err := text.ReadAt(buf, int64(addr)); err != nil {
+						break
+					}
+					args[1] = fmt.Sprintf("$%f", math.Float64frombits(binary.LittleEndian.Uint64(buf)))
+				case strings.HasPrefix(args[0], "S"): // VLDR.F32
+					if _, err := text.ReadAt(buf[:4], int64(addr)); err != nil {
+						break
+					}
+					args[1] = fmt.Sprintf("$%f", math.Float32frombits(binary.LittleEndian.Uint32(buf)))
+				default:
+					panic(fmt.Sprintf("wrong FP register: %v", inst))
+				}
 			}
 		}
 	}
@@ -79,7 +96,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 	// Move addressing mode into opcode suffix.
 	suffix := ""
 	switch inst.Op &^ 15 {
-	case LDR_EQ, LDRB_EQ, LDRH_EQ, STR_EQ, STRB_EQ, STRH_EQ:
+	case LDR_EQ, LDRB_EQ, LDRSB_EQ, LDRH_EQ, LDRSH_EQ, STR_EQ, STRB_EQ, STRH_EQ, VLDR_EQ, VSTR_EQ:
 		mem, _ := inst.Args[1].(Mem)
 		switch mem.Mode {
 		case AddrOffset, AddrLDM:
@@ -98,7 +115,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		if mem.Sign != 0 {
 			sign := ""
 			if mem.Sign < 0 {
-				sign = ""
+				suffix += ".U"
 			}
 			shift := ""
 			if mem.Count != 0 {
@@ -113,6 +130,11 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 	for i, j := 0, len(args)-1; i < j; i, j = i+1, j-1 {
 		args[i], args[j] = args[j], args[i]
 	}
+	// For MLA-like instructions, the addend is the third operand.
+	switch inst.Op &^ 15 {
+	case SMLAWT_EQ, SMLAWB_EQ, MLA_EQ, MLA_S_EQ, MLS_EQ, SMMLA_EQ, SMMLS_EQ, SMLABB_EQ, SMLATB_EQ, SMLABT_EQ, SMLATT_EQ, SMLAD_EQ, SMLAD_X_EQ, SMLSD_EQ, SMLSD_X_EQ:
+		args = []string{args[1], args[2], args[0], args[3]}
+	}
 
 	switch inst.Op &^ 15 {
 	case MOV_EQ:
@@ -121,9 +143,26 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 	case LDR_EQ:
 		op = "MOVW" + op[3:] + suffix
 	case LDRB_EQ:
-		op = "MOVB" + op[4:] + suffix
+		op = "MOVBU" + op[4:] + suffix
+	case LDRSB_EQ:
+		op = "MOVBS" + op[5:] + suffix
 	case LDRH_EQ:
-		op = "MOVH" + op[4:] + suffix
+		op = "MOVHU" + op[4:] + suffix
+	case LDRSH_EQ:
+		op = "MOVHS" + op[5:] + suffix
+	case VLDR_EQ:
+		switch {
+		case strings.HasPrefix(args[1], "D"): // VLDR.F64
+			op = "MOVD" + op[4:] + suffix
+			args[1] = "F" + args[1][1:] // Dx -> Fx
+		case strings.HasPrefix(args[1], "S"): // VLDR.F32
+			op = "MOVF" + op[4:] + suffix
+			if inst.Args[0].(Reg)&1 == 0 { // Sx -> Fy, y = x/2, if x is even
+				args[1] = fmt.Sprintf("F%d", (inst.Args[0].(Reg)-S0)/2)
+			}
+		default:
+			panic(fmt.Sprintf("wrong FP register: %v", inst))
+		}
 
 	case STR_EQ:
 		op = "MOVW" + op[3:] + suffix
@@ -133,6 +172,20 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		args[0], args[1] = args[1], args[0]
 	case STRH_EQ:
 		op = "MOVH" + op[4:] + suffix
+		args[0], args[1] = args[1], args[0]
+	case VSTR_EQ:
+		switch {
+		case strings.HasPrefix(args[1], "D"): // VSTR.F64
+			op = "MOVD" + op[4:] + suffix
+			args[1] = "F" + args[1][1:] // Dx -> Fx
+		case strings.HasPrefix(args[1], "S"): // VSTR.F32
+			op = "MOVF" + op[4:] + suffix
+			if inst.Args[0].(Reg)&1 == 0 { // Sx -> Fy, y = x/2, if x is even
+				args[1] = fmt.Sprintf("F%d", (inst.Args[0].(Reg)-S0)/2)
+			}
+		default:
+			panic(fmt.Sprintf("wrong FP register: %v", inst))
+		}
 		args[0], args[1] = args[1], args[0]
 	}
 
@@ -154,7 +207,7 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 	case Endian:
 
 	case Imm:
-		return fmt.Sprintf("$%d", int(a))
+		return fmt.Sprintf("$%d", uint32(a))
 
 	case Mem:
 
@@ -185,6 +238,8 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 				} else {
 					fmt.Fprintf(&buf, "R%d-R%d", start, end)
 				}
+				start = -2
+				end = -2
 			}
 		}
 		for i := 0; i < 16; i++ {
@@ -195,6 +250,8 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 				}
 				start = i
 				end = i
+			} else {
+				flush()
 			}
 		}
 		flush()
