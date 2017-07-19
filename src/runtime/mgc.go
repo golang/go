@@ -500,47 +500,73 @@ func (c *gcControllerState) startCycle() {
 // is when assists are enabled and the necessary statistics are
 // available).
 func (c *gcControllerState) revise() {
-	// Compute the expected scan work remaining.
+	gcpercent := gcpercent
+	if gcpercent < 0 {
+		// If GC is disabled but we're running a forced GC,
+		// act like GOGC is huge for the below calculations.
+		gcpercent = 100000
+	}
+	live := atomic.Load64(&memstats.heap_live)
+
+	var heapGoal, scanWorkExpected int64
+	if live <= memstats.next_gc {
+		// We're under the soft goal. Pace GC to complete at
+		// next_gc assuming the heap is in steady-state.
+		heapGoal = int64(memstats.next_gc)
+
+		// Compute the expected scan work remaining.
+		//
+		// This is estimated based on the expected
+		// steady-state scannable heap. For example, with
+		// GOGC=100, only half of the scannable heap is
+		// expected to be live, so that's what we target.
+		//
+		// (This is a float calculation to avoid overflowing on
+		// 100*heap_scan.)
+		scanWorkExpected = int64(float64(memstats.heap_scan) * 100 / float64(100+gcpercent))
+	} else {
+		// We're past the soft goal. Pace GC so that in the
+		// worst case it will complete by the hard goal.
+		const maxOvershoot = 1.1
+		heapGoal = int64(float64(memstats.next_gc) * maxOvershoot)
+
+		// Compute the upper bound on the scan work remaining.
+		scanWorkExpected = int64(memstats.heap_scan)
+	}
+
+	// Compute the remaining scan work estimate.
 	//
 	// Note that we currently count allocations during GC as both
 	// scannable heap (heap_scan) and scan work completed
-	// (scanWork), so this difference won't be changed by
-	// allocations during GC.
-	//
-	// This particular estimate is a strict upper bound on the
-	// possible remaining scan work for the current heap.
-	// You might consider dividing this by 2 (or by
-	// (100+GOGC)/100) to counter this over-estimation, but
-	// benchmarks show that this has almost no effect on mean
-	// mutator utilization, heap size, or assist time and it
-	// introduces the danger of under-estimating and letting the
-	// mutator outpace the garbage collector.
-	scanWorkExpected := int64(memstats.heap_scan) - c.scanWork
-	if scanWorkExpected < 1000 {
+	// (scanWork), so allocation will change this difference will
+	// slowly in the soft regime and not at all in the hard
+	// regime.
+	scanWorkRemaining := scanWorkExpected - c.scanWork
+	if scanWorkRemaining < 1000 {
 		// We set a somewhat arbitrary lower bound on
 		// remaining scan work since if we aim a little high,
 		// we can miss by a little.
 		//
 		// We *do* need to enforce that this is at least 1,
 		// since marking is racy and double-scanning objects
-		// may legitimately make the expected scan work
-		// negative.
-		scanWorkExpected = 1000
+		// may legitimately make the remaining scan work
+		// negative, even in the hard goal regime.
+		scanWorkRemaining = 1000
 	}
 
 	// Compute the heap distance remaining.
-	heapDistance := int64(memstats.next_gc) - int64(atomic.Load64(&memstats.heap_live))
-	if heapDistance <= 0 {
+	heapRemaining := heapGoal - int64(live)
+	if heapRemaining <= 0 {
 		// This shouldn't happen, but if it does, avoid
 		// dividing by zero or setting the assist negative.
-		heapDistance = 1
+		heapRemaining = 1
 	}
 
 	// Compute the mutator assist ratio so by the time the mutator
 	// allocates the remaining heap bytes up to next_gc, it will
 	// have done (or stolen) the remaining amount of scan work.
-	c.assistWorkPerByte = float64(scanWorkExpected) / float64(heapDistance)
-	c.assistBytesPerWork = float64(heapDistance) / float64(scanWorkExpected)
+	c.assistWorkPerByte = float64(scanWorkRemaining) / float64(heapRemaining)
+	c.assistBytesPerWork = float64(heapRemaining) / float64(scanWorkRemaining)
 }
 
 // endCycle computes the trigger ratio for the next cycle.
