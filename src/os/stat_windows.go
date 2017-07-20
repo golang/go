@@ -16,9 +16,7 @@ func (file *File) Stat() (FileInfo, error) {
 	if file == nil {
 		return nil, ErrInvalid
 	}
-	if file == nil {
-		return nil, syscall.EINVAL
-	}
+
 	if file.isdir() {
 		// I don't know any better way to do that for directory
 		return Stat(file.dirinfo.path)
