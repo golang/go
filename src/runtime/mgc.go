@@ -879,13 +879,19 @@ func gcSetTriggerRatio(triggerRatio float64) {
 
 // gcGoalUtilization is the goal CPU utilization for
 // marking as a fraction of GOMAXPROCS.
-const gcGoalUtilization = 0.25
+const gcGoalUtilization = 0.30
 
 // gcBackgroundUtilization is the fixed CPU utilization for background
 // marking. It must be <= gcGoalUtilization. The difference between
 // gcGoalUtilization and gcBackgroundUtilization will be made up by
 // mark assists. The scheduler will aim to use within 50% of this
 // goal.
+//
+// Setting this to < gcGoalUtilization avoids saturating the trigger
+// feedback controller when there are no assists, which allows it to
+// better control CPU and heap growth. However, the larger the gap,
+// the more mutator assists are expected to happen, which impact
+// mutator latency.
 const gcBackgroundUtilization = 0.25
 
 // gcCreditSlack is the amount of scan work credit that can can
