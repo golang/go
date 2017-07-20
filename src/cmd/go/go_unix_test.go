@@ -19,9 +19,13 @@ func TestGoBuildUmask(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.tempFile("x.go", `package main; func main() {}`)
-	tg.creatingTemp("x")
-	tg.run("build", tg.path("x.go"))
-	fi, err := os.Stat("x")
+	// Make sure artifact will be output to /tmp/... in case the user
+	// has POSIX acl's on their go source tree.
+	// See issue 17909.
+	exe := tg.path("x")
+	tg.creatingTemp(exe)
+	tg.run("build", "-o", exe, tg.path("x.go"))
+	fi, err := os.Stat(exe)
 	if err != nil {
 		t.Fatal(err)
 	}
