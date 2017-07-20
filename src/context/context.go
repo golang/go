@@ -393,7 +393,7 @@ func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {
 	dur := time.Until(d)
 	if dur <= 0 {
 		c.cancel(true, DeadlineExceeded) // deadline has already passed
-		return c, func() { c.cancel(true, Canceled) }
+		return c, func() { c.cancel(false, Canceled) }
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
