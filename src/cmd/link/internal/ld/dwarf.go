@@ -767,20 +767,14 @@ func synthesizechantypes(ctxt *Link, die *dwarf.DWDie) {
 			continue
 		}
 		elemgotype := getattr(die, dwarf.DW_AT_type).Data.(*Symbol)
-		elemsize := decodetypeSize(ctxt.Arch, elemgotype)
 		elemname := elemgotype.Name[5:]
 		elemtype := walksymtypedef(ctxt, defgotype(ctxt, elemgotype))
 
 		// sudog<T>
 		dwss := mkinternaltype(ctxt, dwarf.DW_ABRV_STRUCTTYPE, "sudog", elemname, "", func(dws *dwarf.DWDie) {
 			copychildren(ctxt, dws, sudog)
-			substitutetype(dws, "elem", elemtype)
-			if elemsize > 8 {
-				elemsize -= 8
-			} else {
-				elemsize = 0
-			}
-			newattr(dws, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(sudogsize)+elemsize, nil)
+			substitutetype(dws, "elem", defptrto(ctxt, elemtype))
+			newattr(dws, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(sudogsize), nil)
 		})
 
 		// waitq<T>

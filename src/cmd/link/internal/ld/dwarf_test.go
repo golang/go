@@ -239,3 +239,58 @@ func main() {
 		}
 	}
 }
+
+func TestFieldOverlap(t *testing.T) {
+	// This test grew out of issue 21094, where specific sudog<T> DWARF types
+	// had elem fields set to values instead of pointers.
+	const prog = `
+package main
+
+var c chan string
+
+func main() {
+	c <- "foo"
+}
+`
+	dir, err := ioutil.TempDir("", "TestFieldOverlap")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	f := gobuild(t, dir, prog)
+	defer f.Close()
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	rdr := d.Reader()
+	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
+		if err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+		if entry.Tag != dwarf.TagStructType {
+			continue
+		}
+		typ, err := d.Type(entry.Offset)
+		if err != nil {
+			t.Fatalf("can't read type: %v", err)
+		}
+		s := typ.(*dwarf.StructType)
+		for i := 0; i < len(s.Field); i++ {
+			end := s.Field[i].ByteOffset + s.Field[i].Type.Size()
+			var limit int64
+			if i == len(s.Field)-1 {
+				limit = s.Size()
+			} else {
+				limit = s.Field[i+1].ByteOffset
+			}
+			if end > limit {
+				name := entry.Val(dwarf.AttrName).(string)
+				t.Fatalf("field %s.%s overlaps next field", name, s.Field[i].Name)
+			}
+		}
+	}
+}
