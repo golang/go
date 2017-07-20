@@ -30,7 +30,7 @@ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32 {
 
 	var ret int32
 
-	if _cgo_sigaction == nil {
+	if _cgo_sigaction == nil || inForkedChild {
 		ret = sysSigaction(sig, new, old, size)
 	} else {
 		// We need to call _cgo_sigaction, which means we need a big enough stack

@@ -2851,18 +2851,35 @@ func syscall_runtime_AfterFork() {
 	systemstack(afterfork)
 }
 
+// inForkedChild is true while manipulating signals in the child process.
+// This is used to avoid calling libc functions in case we are using vfork.
+var inForkedChild bool
+
 // Called from syscall package after fork in child.
 // It resets non-sigignored signals to the default handler, and
 // restores the signal mask in preparation for the exec.
+//
+// Because this might be called during a vfork, and therefore may be
+// temporarily sharing address space with the parent process, this must
+// not change any global variables or calling into C code that may do so.
+//
 //go:linkname syscall_runtime_AfterForkInChild syscall.runtime_AfterForkInChild
 //go:nosplit
 //go:nowritebarrierrec
 func syscall_runtime_AfterForkInChild() {
+	// It's OK to change the global variable inForkedChild here
+	// because we are going to change it back. There is no race here,
+	// because if we are sharing address space with the parent process,
+	// then the parent process can not be running concurrently.
+	inForkedChild = true
+
 	clearSignalHandlers()
 
 	// When we are the child we are the only thread running,
 	// so we know that nothing else has changed gp.m.sigmask.
 	msigrestore(getg().m.sigmask)
+
+	inForkedChild = false
 }
 
 // Called from syscall package before Exec.
