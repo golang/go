@@ -478,12 +478,12 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 		case trace.EvGCStart:
 			ctx.emitSlice(ev, "GC")
 		case trace.EvGCDone:
-		case trace.EvGCScanStart:
+		case trace.EvGCSTWStart:
 			if ctx.gtrace {
 				continue
 			}
-			ctx.emitSlice(ev, "MARK TERMINATION")
-		case trace.EvGCScanDone:
+			ctx.emitSlice(ev, fmt.Sprintf("STW (%s)", ev.SArgs[0]))
+		case trace.EvGCSTWDone:
 		case trace.EvGCMarkAssistStart:
 			// Mark assists can continue past preemptions, so truncate to the
 			// whichever comes first. We'll synthesize another slice if
