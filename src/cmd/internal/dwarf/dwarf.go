@@ -25,11 +25,11 @@ type Sym interface {
 
 // A Var represents a local variable or a function parameter.
 type Var struct {
-	Name   string
-	Abbrev int // Either DW_ABRV_AUTO or DW_ABRV_PARAM
-	Offset int32
-	Scope  int32
-	Type   Sym
+	Name        string
+	Abbrev      int // Either DW_ABRV_AUTO or DW_ABRV_PARAM
+	StackOffset int32
+	Scope       int32
+	Type        Sym
 }
 
 // A Scope represents a lexical scope. All variables declared within a
@@ -749,9 +749,9 @@ func putvar(ctxt Context, s Sym, v *Var, encbuf []byte) {
 	Uleb128put(ctxt, s, int64(v.Abbrev))
 	putattr(ctxt, s, v.Abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
 	loc := append(encbuf[:0], DW_OP_call_frame_cfa)
-	if v.Offset != 0 {
+	if v.StackOffset != 0 {
 		loc = append(loc, DW_OP_consts)
-		loc = AppendSleb128(loc, int64(v.Offset))
+		loc = AppendSleb128(loc, int64(v.StackOffset))
 		loc = append(loc, DW_OP_plus)
 	}
 	putattr(ctxt, s, v.Abbrev, DW_FORM_block1, DW_CLS_BLOCK, int64(len(loc)), loc)
@@ -759,9 +759,9 @@ func putvar(ctxt Context, s Sym, v *Var, encbuf []byte) {
 }
 
 // VarsByOffset attaches the methods of sort.Interface to []*Var,
-// sorting in increasing Offset.
+// sorting in increasing StackOffset.
 type VarsByOffset []*Var
 
 func (s VarsByOffset) Len() int           { return len(s) }
-func (s VarsByOffset) Less(i, j int) bool { return s[i].Offset < s[j].Offset }
+func (s VarsByOffset) Less(i, j int) bool { return s[i].StackOffset < s[j].StackOffset }
 func (s VarsByOffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
