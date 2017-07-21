@@ -12,10 +12,9 @@ import (
 // Map is a concurrent map with amortized-constant-time loads, stores, and deletes.
 // It is safe for multiple goroutines to call a Map's methods concurrently.
 //
-// Map is designed to reduce cache contention in the Go standard library.
-// It is optimized for use in concurrent loops with keys that are stable
-// over time, and either few steady-state stores, or stores localized to
-// one goroutine per key.
+// It is optimized for use in concurrent loops with keys that are
+// stable over time, and either few steady-state stores, or stores
+// localized to one goroutine per key.
 //
 // For use cases that do not share these attributes, it will likely have
 // comparable or worse performance and worse type safety than an ordinary
