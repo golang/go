@@ -1093,7 +1093,22 @@ func typeFields(t reflect.Type) []field {
 			// Scan f.typ for fields to include.
 			for i := 0; i < f.typ.NumField(); i++ {
 				sf := f.typ.Field(i)
-				if sf.PkgPath != "" && (!sf.Anonymous || sf.Type.Kind() != reflect.Struct) { // unexported
+				if sf.Anonymous {
+					t := sf.Type
+					if t.Kind() == reflect.Ptr {
+						t = t.Elem()
+					}
+					// If embedded, StructField.PkgPath is not a reliable
+					// indicator of whether the field is exported.
+					// See https://golang.org/issue/21122
+					if !isExported(t.Name()) && t.Kind() != reflect.Struct {
+						// Ignore embedded fields of unexported non-struct types.
+						// Do not ignore embedded fields of unexported struct types
+						// since they may have exported fields.
+						continue
+					}
+				} else if sf.PkgPath != "" {
+					// Ignore unexported non-embedded fields.
 					continue
 				}
 				tag := sf.Tag.Get("json")
@@ -1209,6 +1224,12 @@ func typeFields(t reflect.Type) []field {
 	sort.Sort(byIndex(fields))
 
 	return fields
+}
+
+// isExported reports whether the identifier is exported.
+func isExported(id string) bool {
+	r, _ := utf8.DecodeRuneInString(id)
+	return unicode.IsUpper(r)
 }
 
 // dominantField looks through the fields, all of which are known to
