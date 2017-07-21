@@ -26,6 +26,12 @@ func (r *Register) Name() string {
 	return r.name
 }
 
+// ObjNum returns the register number from cmd/internal/obj/$ARCH that
+// corresponds to this register.
+func (r *Register) ObjNum() int16 {
+	return r.objNum
+}
+
 // A LocalSlot is a location in the stack frame, which identifies and stores
 // part or all of a PPARAM, PPARAMOUT, or PAUTO ONAME node.
 // It can represent a whole variable, part of a larger stack slot, or part of a

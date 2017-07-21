@@ -7,6 +7,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -369,6 +370,7 @@ type Func struct {
 	Closgen    int
 	Outerfunc  *Node // outer function (for closure)
 	FieldTrack map[*types.Sym]struct{}
+	DebugInfo  *ssa.FuncDebug
 	Ntype      *Node // signature
 	Top        int   // top context (Ecall, Eproc, etc)
 	Closure    *Node // OCLOSURE <-> ODCLFUNC

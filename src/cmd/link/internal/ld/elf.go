@@ -1808,7 +1808,7 @@ func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 				continue
 			}
 			if r.Xsym == nil {
-				Errorf(sym, "missing xsym in relocation")
+				Errorf(sym, "missing xsym in relocation %#v %#v", r.Sym.Name, sym)
 				continue
 			}
 			if r.Xsym.ElfsymForReloc() == 0 {
@@ -2596,11 +2596,8 @@ elfobj:
 			elfshreloc(sect)
 		}
 		for _, s := range dwarfp {
-			if len(s.R) > 0 || s.Type == SDWARFINFO {
+			if len(s.R) > 0 || s.Type == SDWARFINFO || s.Type == SDWARFLOC {
 				elfshreloc(s.Sect)
-			}
-			if s.Type == SDWARFINFO {
-				break
 			}
 		}
 		// add a .note.GNU-stack section to mark the stack as non-executable

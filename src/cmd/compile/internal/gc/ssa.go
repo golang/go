@@ -4384,6 +4384,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 	s.pp = pp
 	var progToValue map[*obj.Prog]*ssa.Value
 	var progToBlock map[*obj.Prog]*ssa.Block
+	var valueToProg []*obj.Prog
 	var logProgs = e.log
 	if logProgs {
 		progToValue = make(map[*obj.Prog]*ssa.Value, f.NumValues())
@@ -4398,6 +4399,11 @@ func genssa(f *ssa.Func, pp *Progs) {
 
 	s.ScratchFpMem = e.scratchFpMem
 
+	logLocationLists := Debug_locationlist != 0
+	if Ctxt.Flag_locationlists {
+		e.curfn.Func.DebugInfo = ssa.BuildFuncDebug(f, logLocationLists)
+		valueToProg = make([]*obj.Prog, f.NumValues())
+	}
 	// Emit basic blocks
 	for i, b := range f.Blocks {
 		s.bstart[b.ID] = s.pp.next
@@ -4438,12 +4444,16 @@ func genssa(f *ssa.Func, pp *Progs) {
 				}
 			case ssa.OpPhi:
 				CheckLoweredPhi(v)
-
+			case ssa.OpRegKill:
+				// nothing to do
 			default:
 				// let the backend handle it
 				thearch.SSAGenValue(&s, v)
 			}
 
+			if Ctxt.Flag_locationlists {
+				valueToProg[v.ID] = x
+			}
 			if logProgs {
 				for ; x != s.pp.next; x = x.Link {
 					progToValue[x] = v
@@ -4465,6 +4475,22 @@ func genssa(f *ssa.Func, pp *Progs) {
 		if logProgs {
 			for ; x != s.pp.next; x = x.Link {
 				progToBlock[x] = b
+			}
+		}
+	}
+
+	if Ctxt.Flag_locationlists {
+		for _, locList := range e.curfn.Func.DebugInfo.Variables {
+			for _, loc := range locList.Locations {
+				loc.StartProg = valueToProg[loc.Start.ID]
+				if loc.End == nil {
+					Fatalf("empty loc %v compiling %v", loc, f.Name)
+				}
+				loc.EndProg = valueToProg[loc.End.ID]
+				if !logLocationLists {
+					loc.Start = nil
+					loc.End = nil
+				}
 			}
 		}
 	}

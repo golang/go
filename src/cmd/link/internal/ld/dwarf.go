@@ -1579,8 +1579,33 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 	syms = writearanges(ctxt, syms)
 	syms = writegdbscript(ctxt, syms)
 	syms = append(syms, infosyms...)
+	syms = collectlocs(ctxt, syms, funcs)
 	syms = writeranges(ctxt, syms)
 	dwarfp = syms
+}
+
+func collectlocs(ctxt *Link, syms []*Symbol, funcs []*Symbol) []*Symbol {
+	empty := true
+	for _, fn := range funcs {
+		for _, reloc := range fn.R {
+			if reloc.Type == objabi.R_DWARFREF && strings.HasPrefix(reloc.Sym.Name, dwarf.LocPrefix) {
+				reloc.Sym.Attr |= AttrReachable | AttrNotInSymbolTable
+				syms = append(syms, reloc.Sym)
+				empty = false
+				// One location list entry per function, but many relocations to it. Don't duplicate.
+				break
+			}
+		}
+	}
+	// Don't emit .debug_loc if it's empty -- it makes the ARM linker mad.
+	if !empty {
+		locsym := ctxt.Syms.Lookup(".debug_loc", 0)
+		locsym.R = locsym.R[:0]
+		locsym.Type = SDWARFLOC
+		locsym.Attr |= AttrReachable
+		syms = append(syms, locsym)
+	}
+	return syms
 }
 
 /*
@@ -1595,6 +1620,7 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *Symbol) {
 	Addstring(shstrtab, ".debug_aranges")
 	Addstring(shstrtab, ".debug_frame")
 	Addstring(shstrtab, ".debug_info")
+	Addstring(shstrtab, ".debug_loc")
 	Addstring(shstrtab, ".debug_line")
 	Addstring(shstrtab, ".debug_pubnames")
 	Addstring(shstrtab, ".debug_pubtypes")
@@ -1602,6 +1628,7 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *Symbol) {
 	Addstring(shstrtab, ".debug_ranges")
 	if Linkmode == LinkExternal {
 		Addstring(shstrtab, elfRelType+".debug_info")
+		Addstring(shstrtab, elfRelType+".debug_loc")
 		Addstring(shstrtab, elfRelType+".debug_aranges")
 		Addstring(shstrtab, elfRelType+".debug_line")
 		Addstring(shstrtab, elfRelType+".debug_frame")
@@ -1628,6 +1655,10 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
 	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
 	sym = ctxt.Syms.Lookup(".debug_frame", 0)
 	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+	sym = ctxt.Syms.Lookup(".debug_loc", 0)
+	if sym.Sect != nil {
+		putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+	}
 	sym = ctxt.Syms.Lookup(".debug_ranges", 0)
 	if sym.Sect != nil {
 		putelfsectionsym(sym, sym.Sect.Elfsect.shnum)

@@ -57,4 +57,5 @@ const (
 	// Debugging data
 	SDWARFINFO
 	SDWARFRANGE
+	SDWARFLOC
 )
