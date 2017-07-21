@@ -4382,14 +4382,14 @@ func genssa(f *ssa.Func, pp *Progs) {
 	// Remember where each block starts.
 	s.bstart = make([]*obj.Prog, f.NumBlocks())
 	s.pp = pp
-	var valueProgs map[*obj.Prog]*ssa.Value
-	var blockProgs map[*obj.Prog]*ssa.Block
+	var progToValue map[*obj.Prog]*ssa.Value
+	var progToBlock map[*obj.Prog]*ssa.Block
 	var logProgs = e.log
 	if logProgs {
-		valueProgs = make(map[*obj.Prog]*ssa.Value, f.NumValues())
-		blockProgs = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
+		progToValue = make(map[*obj.Prog]*ssa.Value, f.NumValues())
+		progToBlock = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
 		f.Logf("genssa %s\n", f.Name)
-		blockProgs[s.pp.next] = f.Blocks[0]
+		progToBlock[s.pp.next] = f.Blocks[0]
 	}
 
 	if thearch.Use387 {
@@ -4446,7 +4446,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 
 			if logProgs {
 				for ; x != s.pp.next; x = x.Link {
-					valueProgs[x] = v
+					progToValue[x] = v
 				}
 			}
 		}
@@ -4464,7 +4464,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		thearch.SSAGenBlock(&s, b, next)
 		if logProgs {
 			for ; x != s.pp.next; x = x.Link {
-				blockProgs[x] = b
+				progToBlock[x] = b
 			}
 		}
 	}
@@ -4477,9 +4477,9 @@ func genssa(f *ssa.Func, pp *Progs) {
 	if logProgs {
 		for p := pp.Text; p != nil; p = p.Link {
 			var s string
-			if v, ok := valueProgs[p]; ok {
+			if v, ok := progToValue[p]; ok {
 				s = v.String()
-			} else if b, ok := blockProgs[p]; ok {
+			} else if b, ok := progToBlock[p]; ok {
 				s = b.String()
 			} else {
 				s = "   " // most value and branch strings are 2-3 characters long
@@ -4497,9 +4497,9 @@ func genssa(f *ssa.Func, pp *Progs) {
 			buf.WriteString("<dl class=\"ssa-gen\">")
 			for p := pp.Text; p != nil; p = p.Link {
 				buf.WriteString("<dt class=\"ssa-prog-src\">")
-				if v, ok := valueProgs[p]; ok {
+				if v, ok := progToValue[p]; ok {
 					buf.WriteString(v.HTML())
-				} else if b, ok := blockProgs[p]; ok {
+				} else if b, ok := progToBlock[p]; ok {
 					buf.WriteString(b.HTML())
 				}
 				buf.WriteString("</dt>")
