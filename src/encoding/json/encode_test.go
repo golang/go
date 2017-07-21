@@ -253,76 +253,167 @@ func TestMarshalerEscaping(t *testing.T) {
 	}
 }
 
-type IntType int
+func TestAnonymousFields(t *testing.T) {
+	tests := []struct {
+		label     string             // Test name
+		makeInput func() interface{} // Function to create input value
+		want      string             // Expected JSON output
+	}{{
+		// Both S1 and S2 have a field named X. From the perspective of S,
+		// it is ambiguous which one X refers to.
+		// This should not serialize either field.
+		label: "AmbiguousField",
+		makeInput: func() interface{} {
+			type (
+				S1 struct{ x, X int }
+				S2 struct{ x, X int }
+				S  struct {
+					S1
+					S2
+				}
+			)
+			return S{S1{1, 2}, S2{3, 4}}
+		},
+		want: `{}`,
+	}, {
+		label: "DominantField",
+		// Both S1 and S2 have a field named X, but since S has an X field as
+		// well, it takes precedence over S1.X and S2.X.
+		makeInput: func() interface{} {
+			type (
+				S1 struct{ x, X int }
+				S2 struct{ x, X int }
+				S  struct {
+					S1
+					S2
+					x, X int
+				}
+			)
+			return S{S1{1, 2}, S2{3, 4}, 5, 6}
+		},
+		want: `{"X":6}`,
+	}, {
+		// Unexported embedded field of non-struct type should not be serialized.
+		label: "UnexportedEmbeddedInt",
+		makeInput: func() interface{} {
+			type (
+				myInt int
+				S     struct{ myInt }
+			)
+			return S{5}
+		},
+		want: `{}`,
+	}, {
+		// Exported embedded field of non-struct type should be serialized.
+		label: "ExportedEmbeddedInt",
+		makeInput: func() interface{} {
+			type (
+				MyInt int
+				S     struct{ MyInt }
+			)
+			return S{5}
+		},
+		want: `{"MyInt":5}`,
+	}, {
+		// Unexported embedded field of pointer to non-struct type
+		// should not be serialized.
+		label: "UnexportedEmbeddedIntPointer",
+		makeInput: func() interface{} {
+			type (
+				myInt int
+				S     struct{ *myInt }
+			)
+			s := S{new(myInt)}
+			*s.myInt = 5
+			return s
+		},
+		want: `{}`,
+	}, {
+		// Exported embedded field of pointer to non-struct type
+		// should be serialized.
+		label: "ExportedEmbeddedIntPointer",
+		makeInput: func() interface{} {
+			type (
+				MyInt int
+				S     struct{ *MyInt }
+			)
+			s := S{new(MyInt)}
+			*s.MyInt = 5
+			return s
+		},
+		want: `{"MyInt":5}`,
+	}, {
+		// Exported fields of embedded structs should have their
+		// exported fields be serialized regardless of whether the struct types
+		// themselves are exported.
+		label: "EmbeddedStruct",
+		makeInput: func() interface{} {
+			type (
+				s1 struct{ x, X int }
+				S2 struct{ y, Y int }
+				S  struct {
+					s1
+					S2
+				}
+			)
+			return S{s1{1, 2}, S2{3, 4}}
+		},
+		want: `{"X":2,"Y":4}`,
+	}, {
+		// Exported fields of pointers to embedded structs should have their
+		// exported fields be serialized regardless of whether the struct types
+		// themselves are exported.
+		label: "EmbeddedStructPointer",
+		makeInput: func() interface{} {
+			type (
+				s1 struct{ x, X int }
+				S2 struct{ y, Y int }
+				S  struct {
+					*s1
+					*S2
+				}
+			)
+			return S{&s1{1, 2}, &S2{3, 4}}
+		},
+		want: `{"X":2,"Y":4}`,
+	}, {
+		// Exported fields on embedded unexported structs at multiple levels
+		// of nesting should still be serialized.
+		label: "NestedStructAndInts",
+		makeInput: func() interface{} {
+			type (
+				MyInt1 int
+				MyInt2 int
+				myInt  int
+				s2     struct {
+					MyInt2
+					myInt
+				}
+				s1 struct {
+					MyInt1
+					myInt
+					s2
+				}
+				S struct {
+					s1
+					myInt
+				}
+			)
+			return S{s1{1, 2, s2{3, 4}}, 6}
+		},
+		want: `{"MyInt1":1,"MyInt2":3}`,
+	}}
 
-type MyStruct struct {
-	IntType
-}
-
-func TestAnonymousNonstruct(t *testing.T) {
-	var i IntType = 11
-	a := MyStruct{i}
-	const want = `{"IntType":11}`
-
-	b, err := Marshal(a)
-	if err != nil {
-		t.Fatalf("Marshal: %v", err)
-	}
-	if got := string(b); got != want {
-		t.Errorf("got %q, want %q", got, want)
-	}
-}
-
-type unexportedIntType int
-
-type MyStructWithUnexportedIntType struct {
-	unexportedIntType
-}
-
-func TestAnonymousNonstructWithUnexportedType(t *testing.T) {
-	a := MyStructWithUnexportedIntType{11}
-	const want = `{}`
-
-	b, err := Marshal(a)
-	if err != nil {
-		t.Fatalf("Marshal: %v", err)
-	}
-	if got := string(b); got != want {
-		t.Errorf("got %q, want %q", got, want)
-	}
-}
-
-type MyStructContainingUnexportedStruct struct {
-	unexportedStructType1
-	unexportedIntType
-}
-
-type unexportedStructType1 struct {
-	ExportedIntType1
-	unexportedIntType
-	unexportedStructType2
-}
-
-type unexportedStructType2 struct {
-	ExportedIntType2
-	unexportedIntType
-}
-
-type ExportedIntType1 int
-type ExportedIntType2 int
-
-func TestUnexportedAnonymousStructWithExportedType(t *testing.T) {
-	s2 := unexportedStructType2{3, 4}
-	s1 := unexportedStructType1{1, 2, s2}
-	a := MyStructContainingUnexportedStruct{s1, 6}
-	const want = `{"ExportedIntType1":1,"ExportedIntType2":3}`
-
-	b, err := Marshal(a)
-	if err != nil {
-		t.Fatalf("Marshal: %v", err)
-	}
-	if got := string(b); got != want {
-		t.Errorf("got %q, want %q", got, want)
+	for _, tt := range tests {
+		t.Run(tt.label, func(t *testing.T) {
+			b, err := Marshal(tt.makeInput())
+			if err != nil {
+				t.Fatalf("Marshal() = %v, want nil error", err)
+			}
+			if string(b) != tt.want {
+				t.Fatalf("Marshal() = %q, want %q", b, tt.want)
+			}
+		})
 	}
 }
 
