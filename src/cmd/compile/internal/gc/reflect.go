@@ -582,7 +582,11 @@ func dname(name, tag string, pkg *types.Pkg, exported bool) *obj.LSym {
 				sname += "-noname-unexported." + tag
 			}
 		} else {
-			sname += name + "." + tag
+			if exported {
+				sname += name + "." + tag
+			} else {
+				sname += name + "-" + tag
+			}
 		}
 	} else {
 		sname = fmt.Sprintf(`%s"".%d`, sname, dnameCount)
