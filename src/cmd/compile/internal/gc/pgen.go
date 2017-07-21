@@ -358,10 +358,10 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
 
 		typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
 		dwarfVars = append(dwarfVars, &dwarf.Var{
-			Name:   n.Sym.Name,
-			Abbrev: abbrev,
-			Offset: int32(offs),
-			Type:   Ctxt.Lookup(typename),
+			Name:        n.Sym.Name,
+			Abbrev:      abbrev,
+			StackOffset: int32(offs),
+			Type:        Ctxt.Lookup(typename),
 		})
 
 		var scope ScopeID
