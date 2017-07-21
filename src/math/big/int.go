@@ -447,7 +447,7 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 
 // GCD sets z to the greatest common divisor of a and b, which both must
 // be > 0, and returns z.
-// If x and y are not nil, GCD sets x and y such that z = a*x + b*y.
+// If x or y are not nil, GCD sets their value such that z = a*x + b*y.
 // If either a or b is <= 0, GCD sets z = x = y = 0.
 func (z *Int) GCD(x, y, a, b *Int) *Int {
 	if a.Sign() <= 0 || b.Sign() <= 0 {
@@ -468,10 +468,7 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 	B := new(Int).Set(b)
 
 	X := new(Int)
-	Y := new(Int).SetInt64(1)
-
 	lastX := new(Int).SetInt64(1)
-	lastY := new(Int)
 
 	q := new(Int)
 	temp := new(Int)
@@ -484,15 +481,8 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 
 		temp.Set(X)
 		X.Mul(X, q)
-		X.neg = !X.neg
-		X.Add(X, lastX)
+		X.Sub(lastX, X)
 		lastX.Set(temp)
-
-		temp.Set(Y)
-		Y.Mul(Y, q)
-		Y.neg = !Y.neg
-		Y.Add(Y, lastY)
-		lastY.Set(temp)
 	}
 
 	if x != nil {
@@ -500,7 +490,10 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 	}
 
 	if y != nil {
-		*y = *lastY
+		// y = (z - a*x)/b
+		y.Mul(a, lastX)
+		y.Sub(A, y)
+		y.Div(y, b)
 	}
 
 	*z = *A
