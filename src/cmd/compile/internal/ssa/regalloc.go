@@ -488,7 +488,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 		c = s.curBlock.NewValue1(pos, OpCopy, v.Type, s.regs[r2].c)
 	} else if v.rematerializeable() {
 		// Rematerialize instead of loading from the spill location.
-		c = v.copyIntoNoXPos(s.curBlock)
+		c = v.copyIntoWithXPos(s.curBlock, pos)
 	} else {
 		// Load v from its spill location.
 		spill := s.makeSpill(v, s.curBlock)
@@ -2000,7 +2000,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 			// register to accomplish this.
 			r := e.findRegFor(v.Type)
 			e.erase(r)
-			x = v.copyIntoNoXPos(e.p)
+			x = v.copyIntoWithXPos(e.p, pos)
 			e.set(r, vid, x, false, pos)
 			// Make sure we spill with the size of the slot, not the
 			// size of x (which might be wider due to our dropping

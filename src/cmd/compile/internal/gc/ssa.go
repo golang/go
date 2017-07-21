@@ -205,6 +205,12 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 		s.popLine()
 	}
 
+	for _, b := range s.f.Blocks {
+		if b.Pos != src.NoXPos {
+			updateUnsetPredPos(b)
+		}
+	}
+
 	s.insertPhis()
 
 	// Don't carry reference this around longer than necessary
@@ -213,6 +219,30 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
 	return s.f
+}
+
+func updateUnsetPredPos(b *ssa.Block) {
+	for _, e := range b.Preds {
+		p := e.Block()
+		if p.Pos == src.NoXPos && p.Kind == ssa.BlockPlain {
+			pos := b.Pos
+			// TODO: This ought to be produce a better result, but it causes
+			// line 46 ("scanner := bufio.NewScanner(reader)")
+			// to drop out of gdb-dbg and dlv-dbg debug-next traces for hist.go.
+			for _, v := range b.Values {
+				if v.Op == ssa.OpVarDef || v.Op == ssa.OpVarKill || v.Op == ssa.OpVarLive || v.Op == ssa.OpCopy && v.Type == types.TypeMem {
+					continue
+				}
+				if v.Pos != src.NoXPos {
+					pos = v.Pos
+					break
+				}
+			}
+			p.Pos = pos
+			updateUnsetPredPos(p) // We do not expect long chains of these, thus recursion is okay.
+		}
+	}
+	return
 }
 
 type state struct {
@@ -263,6 +293,8 @@ type state struct {
 
 	// line number stack. The current line number is top of stack
 	line []src.XPos
+	// the last line number processed; it may have been popped
+	lastPos src.XPos
 
 	// list of panic calls by function name and line number.
 	// Used to deduplicate panic calls.
@@ -344,7 +376,14 @@ func (s *state) endBlock() *ssa.Block {
 	s.defvars[b.ID] = s.vars
 	s.curBlock = nil
 	s.vars = nil
-	b.Pos = s.peekPos()
+	if len(b.Values) == 0 && b.Kind == ssa.BlockPlain {
+		// Empty plain blocks get the line of their successor (handled after all blocks created),
+		// except for increment blocks in For statements (handled in ssa conversion of OFOR),
+		// and for blocks ending in GOTO/BREAK/CONTINUE.
+		b.Pos = src.NoXPos
+	} else {
+		b.Pos = s.lastPos
+	}
 	return b
 }
 
@@ -357,7 +396,10 @@ func (s *state) pushLine(line src.XPos) {
 		if Debug['K'] != 0 {
 			Warn("buildssa: unknown position (line 0)")
 		}
+	} else {
+		s.lastPos = line
 	}
+
 	s.line = append(s.line, line)
 }
 
@@ -515,8 +557,11 @@ func (s *state) stmtList(l Nodes) {
 
 // stmt converts the statement n to SSA and adds it to s.
 func (s *state) stmt(n *Node) {
-	s.pushLine(n.Pos)
-	defer s.popLine()
+	if !(n.Op == OVARKILL || n.Op == OVARLIVE) {
+		// OVARKILL and OVARLIVE are invisible to the programmer, so we don't use their line numbers to avoid confusion in debugging.
+		s.pushLine(n.Pos)
+		defer s.popLine()
+	}
 
 	// If s.curBlock is nil, and n isn't a label (which might have an associated goto somewhere),
 	// then this code is dead. Stop here.
@@ -629,6 +674,7 @@ func (s *state) stmt(n *Node) {
 		}
 
 		b := s.endBlock()
+		b.Pos = s.lastPos // Do this even if b is an empty block.
 		b.AddEdgeTo(lab.target)
 
 	case OAS:
@@ -805,6 +851,7 @@ func (s *state) stmt(n *Node) {
 		}
 
 		b := s.endBlock()
+		b.Pos = s.lastPos // Do this even if b is an empty block.
 		b.AddEdgeTo(to)
 
 	case OFOR, OFORUNTIL:
@@ -870,6 +917,11 @@ func (s *state) stmt(n *Node) {
 		}
 		if b := s.endBlock(); b != nil {
 			b.AddEdgeTo(bCond)
+			// It can happen that bIncr ends in a block containing only VARKILL,
+			// and that muddles the debugging experience.
+			if n.Op != OFORUNTIL && b.Pos == src.NoXPos {
+				b.Pos = bCond.Pos
+			}
 		}
 
 		if n.Op == OFORUNTIL {
@@ -4642,6 +4694,7 @@ type FloatingEQNEJump struct {
 func (s *SSAGenState) oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump) {
 	p := s.Prog(jumps.Jump)
 	p.To.Type = obj.TYPE_BRANCH
+	p.Pos = b.Pos
 	to := jumps.Index
 	s.Branches = append(s.Branches, Branch{p, b.Succs[to].Block()})
 }
@@ -4658,6 +4711,7 @@ func (s *SSAGenState) FPJump(b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) 
 		s.oneFPJump(b, &jumps[1][0])
 		s.oneFPJump(b, &jumps[1][1])
 		q := s.Prog(obj.AJMP)
+		q.Pos = b.Pos
 		q.To.Type = obj.TYPE_BRANCH
 		s.Branches = append(s.Branches, Branch{q, b.Succs[1].Block()})
 	}

@@ -240,7 +240,13 @@ func (v *Value) copyInto(b *Block) *Value {
 // The copied value receives no source code position to avoid confusing changes
 // in debugger information (the intended user is the register allocator).
 func (v *Value) copyIntoNoXPos(b *Block) *Value {
-	c := b.NewValue0(src.NoXPos, v.Op, v.Type) // Lose the position, this causes line number churn otherwise.
+	return v.copyIntoWithXPos(b, src.NoXPos)
+}
+
+// copyIntoWithXPos makes a new value identical to v and adds it to the end of b.
+// The supplied position is used as the position of the new value.
+func (v *Value) copyIntoWithXPos(b *Block, pos src.XPos) *Value {
+	c := b.NewValue0(pos, v.Op, v.Type)
 	c.Aux = v.Aux
 	c.AuxInt = v.AuxInt
 	c.AddArgs(v.Args...)
