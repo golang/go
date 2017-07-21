@@ -85,7 +85,43 @@ func ExampleDuration_Truncate() {
 	// t.Truncate(  1m0s) = 1h15m0s
 	// t.Truncate( 10m0s) = 1h10m0s
 	// t.Truncate(1h0m0s) = 1h0m0s
+}
 
+func ExampleParseDuration() {
+	hours, _ := time.ParseDuration("10h")
+	complex, _ := time.ParseDuration("1h10m10s")
+
+	fmt.Println(hours)
+	fmt.Println(complex)
+	fmt.Printf("there are %.0f seconds in %v\n", complex.Seconds(), complex)
+	// Output:
+	// 10h0m0s
+	// 1h10m10s
+	// there are 4210 seconds in 1h10m10s
+}
+
+func ExampleDuration_Hours() {
+	h, _ := time.ParseDuration("4h30m")
+	fmt.Printf("I've got %.1f hours of work left.", h.Hours())
+	// Output: I've got 4.5 hours of work left.
+}
+
+func ExampleDuration_Minutes() {
+	m, _ := time.ParseDuration("1h30m")
+	fmt.Printf("The movie is %.0f minutes long.", m.Minutes())
+	// Output: The movie is 90 minutes long.
+}
+
+func ExampleDuration_Nanoseconds() {
+	ns, _ := time.ParseDuration("1000ns")
+	fmt.Printf("one microsecond has %d nanoseconds.", ns.Nanoseconds())
+	// Output: one microsecond has 1000 nanoseconds.
+}
+
+func ExampleDuration_Seconds() {
+	m, _ := time.ParseDuration("1m30s")
+	fmt.Printf("take off in t-%.0f seconds.", m.Seconds())
+	// Output: take off in t-90 seconds.
 }
 
 var c chan int
