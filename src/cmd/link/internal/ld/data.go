@@ -1862,6 +1862,8 @@ func (ctxt *Link) dodata() {
 			sect = addsection(&Segdwarf, ".debug_info", 04)
 		case SDWARFRANGE:
 			sect = addsection(&Segdwarf, ".debug_ranges", 04)
+		case SDWARFLOC:
+			sect = addsection(&Segdwarf, ".debug_loc", 04)
 		default:
 			Errorf(dwarfp[i], "unknown DWARF section %v", curType)
 		}
