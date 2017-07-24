@@ -14,6 +14,7 @@ Notable divergences:
 	* The full range of spacing (the CFWS syntax element) is not supported,
 	  such as breaking addresses across lines.
 	* No unicode normalization is performed.
+	* Address with some RFC 5322 3.2.3 specials without quotes are parsed.
 */
 package mail
 
@@ -190,7 +191,7 @@ func (a *Address) String() string {
 	// Add quotes if needed
 	quoteLocal := false
 	for i, r := range local {
-		if isAtext(r, false) {
+		if isAtext(r, false, false) {
 			continue
 		}
 		if r == '.' {
@@ -482,20 +483,20 @@ Loop:
 
 // consumeAtom parses an RFC 5322 atom at the start of p.
 // If dot is true, consumeAtom parses an RFC 5322 dot-atom instead.
-// If permissive is true, consumeAtom will not fail on
-// leading/trailing/double dots in the atom (see golang.org/issue/4938).
+// If permissive is true, consumeAtom will not fail on:
+// - leading/trailing/double dots in the atom (see golang.org/issue/4938)
+// - special characters (RFC 5322 3.2.3) except '<', '>' and '"' (see golang.org/issue/21018)
 func (p *addrParser) consumeAtom(dot bool, permissive bool) (atom string, err error) {
 	i := 0
 
 Loop:
 	for {
 		r, size := utf8.DecodeRuneInString(p.s[i:])
-
 		switch {
 		case size == 1 && r == utf8.RuneError:
 			return "", fmt.Errorf("mail: invalid utf-8 in address: %q", p.s)
 
-		case size == 0 || !isAtext(r, dot):
+		case size == 0 || !isAtext(r, dot, permissive):
 			break Loop
 
 		default:
@@ -580,12 +581,18 @@ func (e charsetError) Error() string {
 
 // isAtext reports whether r is an RFC 5322 atext character.
 // If dot is true, period is included.
-func isAtext(r rune, dot bool) bool {
+// If permissive is true, RFC 5322 3.2.3 specials is included,
+// except '<', '>' and '"'.
+func isAtext(r rune, dot, permissive bool) bool {
 	switch r {
 	case '.':
 		return dot
 
-	case '(', ')', '<', '>', '[', ']', ':', ';', '@', '\\', ',', '"': // RFC 5322 3.2.3. specials
+	// RFC 5322 3.2.3. specials
+	case '(', ')', '[', ']', ':', ';', '@', '\\', ',':
+		return permissive
+
+	case '<', '>', '"':
 		return false
 	}
 	return isVchar(r)
