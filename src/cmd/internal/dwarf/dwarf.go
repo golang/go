@@ -213,7 +213,9 @@ const (
 	DW_ABRV_FUNCTION
 	DW_ABRV_VARIABLE
 	DW_ABRV_AUTO
+	DW_ABRV_AUTO_LOCLIST
 	DW_ABRV_PARAM
+	DW_ABRV_PARAM_LOCLIST
 	DW_ABRV_LEXICAL_BLOCK_RANGES
 	DW_ABRV_LEXICAL_BLOCK_SIMPLE
 	DW_ABRV_STRUCTFIELD
@@ -297,6 +299,17 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		},
 	},
 
+	/* AUTO_LOCLIST */
+	{
+		DW_TAG_variable,
+		DW_CHILDREN_no,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_location, DW_FORM_sec_offset},
+			{DW_AT_type, DW_FORM_ref_addr},
+		},
+	},
+
 	/* PARAM */
 	{
 		DW_TAG_formal_parameter,
@@ -307,6 +320,18 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
+
+	/* PARAM_LOCLIST */
+	{
+		DW_TAG_formal_parameter,
+		DW_CHILDREN_no,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_location, DW_FORM_sec_offset},
+			{DW_AT_type, DW_FORM_ref_addr},
+		},
+	},
+
 	/* LEXICAL_BLOCK_RANGES */
 	{
 		DW_TAG_lexical_block,
