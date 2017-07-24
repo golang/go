@@ -7,6 +7,7 @@ package trace_test
 import (
 	"bytes"
 	"flag"
+	"internal/race"
 	"internal/trace"
 	"io"
 	"io/ioutil"
@@ -14,6 +15,7 @@ import (
 	"os"
 	"runtime"
 	. "runtime/trace"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -22,6 +24,61 @@ import (
 var (
 	saveTraces = flag.Bool("savetraces", false, "save traces collected by tests")
 )
+
+// TestEventBatch tests Flush calls that happen during Start
+// don't produce corrupted traces.
+func TestEventBatch(t *testing.T) {
+	if race.Enabled {
+		t.Skip("skipping in race mode")
+	}
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	// During Start, bunch of records are written to reflect the current
+	// snapshot of the program, including state of each goroutines.
+	// And some string constants are written to the trace to aid trace
+	// parsing. This test checks Flush of the buffer occurred during
+	// this process doesn't cause corrupted traces.
+	// When a Flush is called during Start is complicated
+	// so we test with a range of number of goroutines hoping that one
+	// of them triggers Flush.
+	// This range was chosen to fill up a ~64KB buffer with traceEvGoCreate
+	// and traceEvGoWaiting events (12~13bytes per goroutine).
+	for g := 4950; g < 5050; g++ {
+		n := g
+		t.Run("G="+strconv.Itoa(n), func(t *testing.T) {
+			var wg sync.WaitGroup
+			wg.Add(n)
+
+			in := make(chan bool, 1000)
+			for i := 0; i < n; i++ {
+				go func() {
+					<-in
+					wg.Done()
+				}()
+			}
+			buf := new(bytes.Buffer)
+			if err := Start(buf); err != nil {
+				t.Fatalf("failed to start tracing: %v", err)
+			}
+
+			for i := 0; i < n; i++ {
+				in <- true
+			}
+			wg.Wait()
+			Stop()
+
+			_, err := trace.Parse(buf, "")
+			if err == trace.ErrTimeOrder {
+				t.Skipf("skipping trace: %v", err)
+			}
+
+			if err != nil {
+				t.Fatalf("failed to parse trace: %v", err)
+			}
+		})
+	}
+}
 
 func TestTraceStartStop(t *testing.T) {
 	buf := new(bytes.Buffer)
