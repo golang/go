@@ -24,6 +24,7 @@ editing, navigation, testing, and debugging experience.
 an extension for Visual Studio Code to provide support for the Go programming language</li>
 <li><a href="https://www.jetbrains.com/go">Gogland</a>: Gogland is distributed either as a standalone IDE
 or as a plugin for the IntelliJ Platform IDEs</li>
+<li><a href="https://atom.io/packages/go-plus">Go-Plus</a>: Go-Plus is an Atom package that provides enhanced Go support<li>
 </ul>
 
 <p>
@@ -44,6 +45,7 @@ The following feature matrix lists and compares the most significant features.
     <th><img title="Vim Go" src="/doc/editors/vimgo.png"><br>Vim Go</th>
     <th><img title="Visual Studio Code" src="/doc/editors/vscodego.png"><br>Visual Studio Code Go</th>
     <th><img title="Gogland" src="/doc/editors/gogland.png"><br>Gogland</th>
+    <th><img title="Go-Plus" src="/doc/editors/go-plus.png"><br>Go-Plus</th>
   </tr>
   <tr>
     <td class="feature-row" colspan="4">Editing features</td>
@@ -53,9 +55,11 @@ The following feature matrix lists and compares the most significant features.
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
   </tr>
   <tr>
     <td>Autocompletion of identifers (variable, method, and function names)</td>
+    <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
@@ -65,9 +69,11 @@ The following feature matrix lists and compares the most significant features.
     <td class="no">No</td>
     <td class="no">No</td>
     <td class="yes">Yes</td>
+    <td class="no">No</td>
   </tr>
   <tr>
     <td>Rename identifiers</td>
+    <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
@@ -77,15 +83,18 @@ The following feature matrix lists and compares the most significant features.
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes<sup>1</sup></td>
+    <td class="yes">Yes</td>
   </tr>
   <tr>
     <td>Auto insert import paths and remove unused on save</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes<sup>2</sup></td>
+    <td class="yes">Yes</td>
   </tr>
   <tr>
     <td>Auto generate JSON, XML tags for struct fields</td>
+    <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
@@ -98,15 +107,18 @@ The following feature matrix lists and compares the most significant features.
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
   </tr>
   <tr>
     <td>Switch between <code>*.go</code> and <code>*_test.go</code> file</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
+    <td class="yes">No</td>
   </tr>
   <tr>
     <td>Jump to definition and referees</td>
+    <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
@@ -116,9 +128,11 @@ The following feature matrix lists and compares the most significant features.
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
   </tr>
   <tr>
     <td>Search for callers and callees</td>
+    <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
@@ -131,17 +145,21 @@ The following feature matrix lists and compares the most significant features.
     <td class="no">No</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
+    <td class="yes">Yes<sup>3</sup></td>
+
   </tr>
   <tr>
     <td>Run a single test case, all tests from file, or all tests from a package</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
+    <td class="no">No</td>
   </tr>
   <tr>
     <td>Auto generate tests for packages, files and identifiers</td>
     <td class="no">No</td>
     <td class="yes">Yes</td>
+    <td class="no">No</td>
     <td class="no">No</td>
   </tr>
   <tr>
@@ -149,9 +167,11 @@ The following feature matrix lists and compares the most significant features.
     <td class="no">No</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
+    <td class="yes">Yes<sup>3</sup></td>
   </tr>
   <tr>
     <td>Display test coverage</td>
+    <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
     <td class="yes">Yes</td>
@@ -161,6 +181,7 @@ The following feature matrix lists and compares the most significant features.
     <td><a href="https://github.com/fatih/vim-go">Install<a/></td>
     <td><a href="https://marketplace.visualstudio.com/items?itemName=lukehoban.Go">Install<a/></td>
     <td><a href="https://www.jetbrains.com/go">Install<a/></td>
+    <td><a href="https://atom.io/packages/go-plus">Install</a></td>
   </tr>
 </table>
 
@@ -168,6 +189,8 @@ The following feature matrix lists and compares the most significant features.
 <sup>1</sup>: Possible when enabled via Settings &gt; Go &gt; On Save, <code>go</code> <code>vet</code> and <code>golint</code> are available via plugins. Also runs tests on save if configured.
 <br>
 <sup>2</sup>: Additionally, user input can disambiguate when two or more options are available.
+<br>
+<sup>3</sup>: Available if the <a href="https://atom.io/packages/go-debug">go-debug</a> package is installed.
 </p>
 
 </div>
@@ -206,5 +229,3 @@ The following feature matrix lists and compares the most significant features.
   font-weight: bold;
 }
 </style>
-
-<!--TODO(jbd): Add the Atom comparison-->
