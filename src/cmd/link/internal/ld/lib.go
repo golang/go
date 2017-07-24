@@ -1252,19 +1252,19 @@ func (l *Link) hostlink() {
 	// toolchain if it is supported.
 	if Buildmode == BuildmodeExe {
 		src := filepath.Join(*flagTmpdir, "trivial.c")
-		if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
+		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
 			Errorf(nil, "WriteFile trivial.c failed: %v", err)
 		}
 
 		// GCC uses -no-pie, clang uses -nopie.
 		for _, nopie := range []string{"-no-pie", "-nopie"} {
-			cmd := exec.Command(argv[0], "-c", nopie, "trivial.c")
+			cmd := exec.Command(argv[0], nopie, "trivial.c")
 			cmd.Dir = *flagTmpdir
 			cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
-			out, _ := cmd.CombinedOutput()
+			out, err := cmd.CombinedOutput()
 			// GCC says "unrecognized command line option ‘-no-pie’"
 			// clang says "unknown argument: '-no-pie'"
-			supported := !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
+			supported := err == nil && !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
 			if supported {
 				argv = append(argv, nopie)
 				break
