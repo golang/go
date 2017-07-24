@@ -15,6 +15,7 @@ the behavior you are seeing is confirmed as a bug or issue, it can easily be re-
 Sensitive security-related issues should be reported to [security@golang.org](mailto:security@golang.org).
 See the [security policy](https://golang.org/security) for details.
 
+The recommended way to file an issue is by running `go bug`.
 Otherwise, when filing an issue, make sure to answer these five questions:
 
 1. What version of Go are you using (`go version`)?
