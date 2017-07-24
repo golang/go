@@ -1,6 +1,10 @@
 Please answer these questions before submitting your issue. Thanks!
 
+
 ### What version of Go are you using (`go version`)?
+
+
+### Does this issue reproduce with the latest release?
 
 
 ### What operating system and processor architecture are you using (`go env`)?
@@ -17,5 +21,4 @@ A link on play.golang.org is best.
 
 
 ### What did you see instead?
-
 
