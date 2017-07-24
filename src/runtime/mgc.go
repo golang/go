@@ -1308,8 +1308,9 @@ func gcStart(mode gcMode, trigger gcTrigger) {
 		gcController.markStartTime = now
 
 		// Concurrent mark.
-		systemstack(startTheWorldWithSema)
-		now = nanotime()
+		systemstack(func() {
+			now = startTheWorldWithSema()
+		})
 		work.pauseNS += now - work.pauseStart
 		work.tMark = now
 	} else {
@@ -1573,7 +1574,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	// so events don't leak into the wrong cycle.
 	mProf_NextCycle()
 
-	systemstack(startTheWorldWithSema)
+	systemstack(func() { startTheWorldWithSema() })
 
 	// Flush the heap profile so we can start a new cycle next GC.
 	// This is relatively expensive, so we don't do it with the
