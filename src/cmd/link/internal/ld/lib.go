@@ -724,8 +724,17 @@ func genhash(ctxt *Link, lib *Library) {
 	}
 	defer f.Close()
 
+	var magbuf [len(ARMAG)]byte
+	if _, err := io.ReadFull(f, magbuf[:]); err != nil {
+		Exitf("file %s too short", lib.File)
+	}
+
+	if string(magbuf[:]) != ARMAG {
+		Exitf("%s is not an archive file", lib.File)
+	}
+
 	var arhdr ArHdr
-	l := nextar(f, int64(len(ARMAG)), &arhdr)
+	l := nextar(f, f.Offset(), &arhdr)
 	if l <= 0 {
 		Errorf(nil, "%s: short read on archive file symbol header", lib.File)
 		return
