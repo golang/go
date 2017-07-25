@@ -289,7 +289,6 @@ var shortDayNames = []string{
 }
 
 var shortMonthNames = []string{
-	"---",
 	"Jan",
 	"Feb",
 	"Mar",
@@ -305,7 +304,6 @@ var shortMonthNames = []string{
 }
 
 var longMonthNames = []string{
-	"---",
 	"January",
 	"February",
 	"March",
@@ -841,8 +839,10 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			year, err = atoi(p)
 		case stdMonth:
 			month, value, err = lookup(shortMonthNames, value)
+			month++
 		case stdLongMonth:
 			month, value, err = lookup(longMonthNames, value)
+			month++
 		case stdNumMonth, stdZeroMonth:
 			month, value, err = getnum(value, std == stdZeroMonth)
 			if month <= 0 || 12 < month {
