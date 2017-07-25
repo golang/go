@@ -911,7 +911,7 @@ func resolvePath(base, ref string) string {
 		// Add final slash to the joined path.
 		dst = append(dst, "")
 	}
-	return "/" + strings.TrimLeft(strings.Join(dst, "/"), "/")
+	return "/" + strings.TrimPrefix(strings.Join(dst, "/"), "/")
 }
 
 // IsAbs reports whether the URL is absolute.

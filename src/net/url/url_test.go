@@ -1032,6 +1032,10 @@ var resolveReferenceTests = []struct {
 	{"http://foo.com/bar?a=b", "/baz?", "http://foo.com/baz?"},
 	{"http://foo.com/bar?a=b", "/baz?c=d", "http://foo.com/baz?c=d"},
 
+	// Multiple slashes
+	{"http://foo.com/bar", "http://foo.com//baz", "http://foo.com//baz"},
+	{"http://foo.com/bar", "http://foo.com///baz/quux", "http://foo.com///baz/quux"},
+
 	// Scheme-relative
 	{"https://foo.com/bar?a=b", "//bar.com/quux", "https://bar.com/quux"},
 
