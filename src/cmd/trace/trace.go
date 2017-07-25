@@ -42,12 +42,30 @@ func httpTrace(w http.ResponseWriter, r *http.Request) {
 // See https://github.com/catapult-project/catapult/blob/master/tracing/docs/embedding-trace-viewer.md
 // This is almost verbatim copy of:
 // https://github.com/catapult-project/catapult/blob/master/tracing/bin/index.html
-// on revision 623a005a3ffa9de13c4b92bc72290e7bcd1ca591.
+// on revision 5f9e4c3eaa555bdef18218a89f38c768303b7b6e.
 var templTrace = `
 <html>
 <head>
 <link href="/trace_viewer_html" rel="import">
+<style type="text/css">
+  html, body {
+    box-sizing: border-box;
+    overflow: hidden;
+    margin: 0px;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+  }
+  #trace-viewer {
+    width: 100%;
+    height: 100%;
+  }
+  #trace-viewer:focus {
+    outline: none;
+  }
+</style>
 <script>
+'use strict';
 (function() {
   var viewer;
   var url;
