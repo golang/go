@@ -193,6 +193,8 @@ const (
 
 var procAuxv = []byte("/proc/self/auxv\x00")
 
+func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
+
 func sysargs(argc int32, argv **byte) {
 	n := argc + 1
 
