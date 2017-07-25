@@ -102,7 +102,9 @@ var templTrace = `
 
   function onResult(result) {
     model = new tr.Model();
-    var i = new tr.importer.Import(model);
+    var opts = new tr.importer.ImportOptions();
+    opts.shiftWorldToZero = false;
+    var i = new tr.importer.Import(model, opts);
     var p = i.importTracesWithProgressDialog([result]);
     p.then(onModelLoaded, onImportFail);
   }
