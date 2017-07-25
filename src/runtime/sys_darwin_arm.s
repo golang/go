@@ -19,7 +19,6 @@
 #define	SYS_mmap           197
 #define	SYS_munmap         73
 #define	SYS_madvise        75
-#define	SYS_mincore        78
 #define	SYS_gettimeofday   116
 #define	SYS_kill           37
 #define	SYS_getpid         20
@@ -148,15 +147,6 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 	MOVW	old+8(FP), R2
 	MOVW	$SYS_setitimer, R12
 	SWI	$0x80
-	RET
-
-TEXT runtime·mincore(SB),NOSPLIT,$0
-	MOVW	addr+0(FP), R0
-	MOVW	n+4(FP), R1
-	MOVW	dst+8(FP), R2
-	MOVW	$SYS_mincore, R12
-	SWI	$0x80
-	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·walltime(SB), 7, $32

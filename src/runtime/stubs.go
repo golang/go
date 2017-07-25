@@ -131,7 +131,6 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 func cgocallback(fn, frame unsafe.Pointer, framesize, ctxt uintptr)
 func gogo(buf *gobuf)
 func gosave(buf *gobuf)
-func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 
 //go:noescape
 func jmpdefer(fv *funcval, argp uintptr)
