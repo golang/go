@@ -374,7 +374,7 @@ func testReadUniformity(t *testing.T, n int, seed int64) {
 	// Expect a uniform distribution of byte values, which lie in [0, 255].
 	var (
 		mean       = 255.0 / 2
-		stddev     = math.Sqrt(255.0 * 255.0 / 12.0)
+		stddev     = 256.0 / math.Sqrt(12.0)
 		errorScale = stddev / math.Sqrt(float64(n))
 	)
 
