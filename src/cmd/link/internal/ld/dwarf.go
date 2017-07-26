@@ -286,10 +286,7 @@ func reversetree(list **dwarf.DWDie) {
 }
 
 func newmemberoffsetattr(die *dwarf.DWDie, offs int32) {
-	var block [20]byte
-	b := append(block[:0], dwarf.DW_OP_plus_uconst)
-	b = dwarf.AppendUleb128(b, uint64(offs))
-	newattr(die, dwarf.DW_AT_data_member_location, dwarf.DW_CLS_BLOCK, int64(len(b)), b)
+	newattr(die, dwarf.DW_AT_data_member_location, dwarf.DW_CLS_CONSTANT, int64(offs), nil)
 }
 
 // GDB doesn't like FORM_addr for AT_location, so emit a

@@ -383,7 +383,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_CHILDREN_no,
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
-			{DW_AT_data_member_location, DW_FORM_block1},
+			{DW_AT_data_member_location, DW_FORM_udata},
 			{DW_AT_type, DW_FORM_ref_addr},
 			{DW_AT_go_embedded_field, DW_FORM_flag},
 		},
