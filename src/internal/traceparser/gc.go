@@ -7,6 +7,7 @@ package traceparser
 import (
 	"container/heap"
 	"math"
+	"sort"
 	"strings"
 	"time"
 )
@@ -239,13 +240,135 @@ func (h *bandUtilHeap) Pop() interface{} {
 	return x
 }
 
+// UtilWindow is a specific window at Time.
+type UtilWindow struct {
+	Time int64
+	// MutatorUtil is the mean mutator utilization in this window.
+	MutatorUtil float64
+}
+
+type utilHeap []UtilWindow
+
+func (h utilHeap) Len() int {
+	return len(h)
+}
+
+func (h utilHeap) Less(i, j int) bool {
+	if h[i].MutatorUtil != h[j].MutatorUtil {
+		return h[i].MutatorUtil > h[j].MutatorUtil
+	}
+	return h[i].Time > h[j].Time
+}
+
+func (h utilHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
+func (h *utilHeap) Push(x interface{}) {
+	*h = append(*h, x.(UtilWindow))
+}
+
+func (h *utilHeap) Pop() interface{} {
+	x := (*h)[len(*h)-1]
+	*h = (*h)[:len(*h)-1]
+	return x
+}
+
+// An accumulator collects different MMU-related statistics depending
+// on what's desired.
+type accumulator struct {
+	mmu float64
+
+	// bound is the mutator utilization bound where adding any
+	// mutator utilization above this bound cannot affect the
+	// accumulated statistics.
+	bound float64
+
+	// Worst N window tracking
+	nWorst int
+	wHeap  utilHeap
+}
+
+// addMU records mutator utilization mu over the given window starting
+// at time.
+//
+// It returns true if further calls to addMU would be pointless.
+func (acc *accumulator) addMU(time int64, mu float64, window time.Duration) bool {
+	if mu < acc.mmu {
+		acc.mmu = mu
+	}
+	acc.bound = acc.mmu
+
+	if acc.nWorst == 0 {
+		// If the minimum has reached zero, it can't go any
+		// lower, so we can stop early.
+		return mu == 0
+	}
+
+	// Consider adding this window to the n worst.
+	if len(acc.wHeap) < acc.nWorst || mu < acc.wHeap[0].MutatorUtil {
+		// This window is lower than the K'th worst window.
+		//
+		// Check if there's any overlapping window
+		// already in the heap and keep whichever is
+		// worse.
+		for i, ui := range acc.wHeap {
+			if time+int64(window) > ui.Time && ui.Time+int64(window) > time {
+				if ui.MutatorUtil <= mu {
+					// Keep the first window.
+					goto keep
+				} else {
+					// Replace it with this window.
+					heap.Remove(&acc.wHeap, i)
+					break
+				}
+			}
+		}
+
+		heap.Push(&acc.wHeap, UtilWindow{time, mu})
+		if len(acc.wHeap) > acc.nWorst {
+			heap.Pop(&acc.wHeap)
+		}
+	keep:
+	}
+	if len(acc.wHeap) < acc.nWorst {
+		// We don't have N windows yet, so keep accumulating.
+		acc.bound = 1.0
+	} else {
+		// Anything above the least worst window has no effect.
+		acc.bound = math.Max(acc.bound, acc.wHeap[0].MutatorUtil)
+	}
+
+	// If we've found enough 0 utilizations, we can stop immediately.
+	return len(acc.wHeap) == acc.nWorst && acc.wHeap[0].MutatorUtil == 0
+}
+
 // MMU returns the minimum mutator utilization for the given time
 // window. This is the minimum utilization for all windows of this
 // duration across the execution. The returned value is in the range
 // [0, 1].
 func (c *MMUCurve) MMU(window time.Duration) (mmu float64) {
+	acc := accumulator{mmu: 1.0, bound: 1.0}
+	c.mmu(window, &acc)
+	return acc.mmu
+}
+
+// Examples returns n specific examples of the lowest mutator
+// utilization for the given window size. The returned windows will be
+// disjoint (otherwise there would be a huge number of
+// mostly-overlapping windows at the single lowest point). There are
+// no guarantees on which set of disjoint windows this returns.
+func (c *MMUCurve) Examples(window time.Duration, n int) (worst []UtilWindow) {
+	acc := accumulator{mmu: 1.0, bound: 1.0, nWorst: n}
+	c.mmu(window, &acc)
+	sort.Sort(sort.Reverse(acc.wHeap))
+	return ([]UtilWindow)(acc.wHeap)
+}
+
+func (c *MMUCurve) mmu(window time.Duration, acc *accumulator) {
 	if window <= 0 {
-		return 0
+		acc.mmu = 0
+		return
 	}
 	util := c.util
 	if max := time.Duration(util[len(util)-1].Time - util[0].Time); window > max {
@@ -257,14 +380,13 @@ func (c *MMUCurve) MMU(window time.Duration) (mmu float64) {
 	// Process bands from lowest utilization bound to highest.
 	heap.Init(&bandU)
 
-	// Refine each band into a precise window and MMU until the
-	// precise MMU is less than the lowest band bound.
-	mmu = 1.0
-	for len(bandU) > 0 && bandU[0].utilBound < mmu {
-		mmu = c.bandMMU(bandU[0].i, window, mmu)
+	// Refine each band into a precise window and MMU until
+	// refining the next lowest band can no longer affect the MMU
+	// or windows.
+	for len(bandU) > 0 && bandU[0].utilBound < acc.bound {
+		c.bandMMU(bandU[0].i, window, acc)
 		heap.Pop(&bandU)
 	}
-	return mmu
 }
 
 func (c *MMUCurve) mkBandUtil(window time.Duration) []bandUtil {
@@ -331,9 +453,8 @@ func (c *MMUCurve) mkBandUtil(window time.Duration) []bandUtil {
 
 // bandMMU computes the precise minimum mutator utilization for
 // windows with a left edge in band bandIdx.
-func (c *MMUCurve) bandMMU(bandIdx int, window time.Duration, curMMU float64) (mmu float64) {
+func (c *MMUCurve) bandMMU(bandIdx int, window time.Duration, acc *accumulator) {
 	util := c.util
-	mmu = curMMU
 
 	// We think of the mutator utilization over time as the
 	// box-filtered utilization function, which we call the
@@ -359,20 +480,15 @@ func (c *MMUCurve) bandMMU(bandIdx int, window time.Duration, curMMU float64) (m
 	for {
 		// Advance edges to time and time+window.
 		mu := (right.advance(time+int64(window)) - left.advance(time)).mean(window)
-		if mu < mmu {
-			mmu = mu
-			if mmu == 0 {
-				// The minimum can't go any lower than
-				// zero, so stop early.
-				break
-			}
+		if acc.addMU(time, mu, window) {
+			break
 		}
 
 		// The maximum slope of the windowed mutator
 		// utilization function is 1/window, so we can always
 		// advance the time by at least (mu - mmu) * window
 		// without dropping below mmu.
-		minTime := time + int64((mu-mmu)*float64(window))
+		minTime := time + int64((mu-acc.bound)*float64(window))
 
 		// Advance the window to the next time where either
 		// the left or right edge of the window encounters a
@@ -389,7 +505,6 @@ func (c *MMUCurve) bandMMU(bandIdx int, window time.Duration, curMMU float64) (m
 			break
 		}
 	}
-	return mmu
 }
 
 // An integrator tracks a position in a utilization function and
