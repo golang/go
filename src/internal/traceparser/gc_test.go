@@ -42,18 +42,34 @@ func TestMMU(t *testing.T) {
 	for _, test := range []struct {
 		window time.Duration
 		want   float64
+		worst  []float64
 	}{
-		{0, 0},
-		{time.Millisecond, 0},
-		{time.Second, 0},
-		{2 * time.Second, 0.5},
-		{3 * time.Second, 1 / 3.0},
-		{4 * time.Second, 0.5},
-		{5 * time.Second, 3 / 5.0},
-		{6 * time.Second, 3 / 5.0},
+		{0, 0, []float64{}},
+		{time.Millisecond, 0, []float64{0, 0}},
+		{time.Second, 0, []float64{0, 0}},
+		{2 * time.Second, 0.5, []float64{0.5, 0.5}},
+		{3 * time.Second, 1 / 3.0, []float64{1 / 3.0}},
+		{4 * time.Second, 0.5, []float64{0.5}},
+		{5 * time.Second, 3 / 5.0, []float64{3 / 5.0}},
+		{6 * time.Second, 3 / 5.0, []float64{3 / 5.0}},
 	} {
 		if got := mmuCurve.MMU(test.window); !aeq(test.want, got) {
 			t.Errorf("for %s window, want mu = %f, got %f", test.window, test.want, got)
+		}
+		worst := mmuCurve.Examples(test.window, 2)
+		// Which exact windows are returned is unspecified
+		// (and depends on the exact banding), so we just
+		// check that we got the right number with the right
+		// utilizations.
+		if len(worst) != len(test.worst) {
+			t.Errorf("for %s window, want worst %v, got %v", test.window, test.worst, worst)
+		} else {
+			for i := range worst {
+				if worst[i].MutatorUtil != test.worst[i] {
+					t.Errorf("for %s window, want worst %v, got %v", test.window, test.worst, worst)
+					break
+				}
+			}
 		}
 	}
 }
