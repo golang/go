@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strings"
 	"text/tabwriter"
 )
 
@@ -104,4 +105,35 @@ func ExamplePerm() {
 	// Unordered output: 1
 	// 2
 	// 0
+}
+
+func ExampleShuffle() {
+	words := strings.Fields("ink runs from the corners of my mouth")
+	rand.Shuffle(len(words), func(i, j int) {
+		words[i], words[j] = words[j], words[i]
+	})
+	fmt.Println(words)
+
+	// Output:
+	// [mouth my the of runs corners from ink]
+}
+
+func ExampleShuffle_slicesInUnison() {
+	numbers := []byte("12345")
+	letters := []byte("ABCDE")
+	// Shuffle numbers, swapping corresponding entries in letters at the same time.
+	rand.Shuffle(len(numbers), func(i, j int) {
+		numbers[i], numbers[j] = numbers[j], numbers[i]
+		letters[i], letters[j] = letters[j], letters[i]
+	})
+	for i := range numbers {
+		fmt.Printf("%c: %c\n", letters[i], numbers[i])
+	}
+
+	// Output:
+	// C: 3
+	// D: 4
+	// A: 1
+	// E: 5
+	// B: 2
 }
