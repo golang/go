@@ -33,6 +33,17 @@ type dnsConfig struct {
 	soffset    uint32        // used by serverOffset
 }
 
+// Check if dns is open
+func checkDNS(dns []string) error {
+	udp, err := Dial("udp", dns[0])
+	if err != nil {
+		return err
+	}
+	udp.Close()
+
+	return nil
+}
+
 // See resolv.conf(5) on a Linux machine.
 func dnsReadConfig(filename string) *dnsConfig {
 	conf := &dnsConfig{
@@ -42,7 +53,11 @@ func dnsReadConfig(filename string) *dnsConfig {
 	}
 	file, err := open(filename)
 	if err != nil {
-		conf.servers = defaultNS
+		if checkDNS(defaultNS) != nil {
+			conf.servers = defaultNS
+		} else {
+			conf.servers = []string{"8.8.8.8:53", "8.8.4.4:53"}
+		}
 		conf.search = dnsDefaultSearch()
 		conf.err = err
 		return conf
