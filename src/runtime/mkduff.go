@@ -151,12 +151,13 @@ func copyARM(w io.Writer) {
 
 func zeroARM64(w io.Writer) {
 	// ZR: always zero
-	// R16 (aka REGRT1): ptr to memory to be zeroed - 8
+	// R16 (aka REGRT1): ptr to memory to be zeroed
 	// On return, R16 points to the last zeroed dword.
 	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $-8-0")
-	for i := 0; i < 128; i++ {
-		fmt.Fprintln(w, "\tMOVD.W\tZR, 8(R16)")
+	for i := 0; i < 63; i++ {
+		fmt.Fprintln(w, "\tSTP.P\t(ZR, ZR), 16(R16)")
 	}
+	fmt.Fprintln(w, "\tSTP\t(ZR, ZR), (R16)")
 	fmt.Fprintln(w, "\tRET")
 }
 
