@@ -281,9 +281,21 @@ func ExampleMap() {
 	// Output: 'Gjnf oevyyvt naq gur fyvgul tbcure...
 }
 
+func ExampleTrimLeft() {
+	fmt.Print(string(bytes.TrimLeft([]byte("+ 005400"), "+0 ")))
+	// Output:
+	// 5400
+}
+
 func ExampleTrimSpace() {
 	fmt.Printf("%s", bytes.TrimSpace([]byte(" \t\n a lone gopher \n\t\r\n")))
 	// Output: a lone gopher
+}
+
+func ExampleTrimRight() {
+	fmt.Print(string(bytes.TrimRight([]byte("453gopher8257"), "0123456789")))
+	// Output:
+	// 453gopher
 }
 
 func ExampleToUpper() {
