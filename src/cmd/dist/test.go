@@ -447,6 +447,17 @@ func (t *tester) registerTests() {
 				t.runPending(dt)
 				moved := t.goroot + "-moved"
 				if err := os.Rename(t.goroot, moved); err != nil {
+					if t.goos == "windows" {
+						// Fails on Windows (with "Access is denied") if a process
+						// or binary is in this directory. For instance, using all.bat
+						// when run from c:\workdir\go\src fails here
+						// if GO_BUILDER_NAME is set. Our builders invoke tests
+						// a different way which happens to work when sharding
+						// tests, but we should be tolerant of the non-sharded
+						// all.bat case.
+						log.Printf("skipping test on Windows")
+						return nil
+					}
 					return err
 				}
 
