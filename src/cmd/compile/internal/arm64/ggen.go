@@ -31,13 +31,18 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 			p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGSP, 8+off+i)
 		}
 	} else if cnt <= int64(128*gc.Widthptr) && !darwin { // darwin ld64 cannot handle BR26 reloc with non-zero addend
+		if cnt%(2*int64(gc.Widthptr)) != 0 {
+			p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGSP, 8+off)
+			off += int64(gc.Widthptr)
+			cnt -= int64(gc.Widthptr)
+		}
 		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGSP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
-		p = pp.Appendpp(p, arm64.AADD, obj.TYPE_CONST, 0, 8+off-8, obj.TYPE_REG, arm64.REGRT1, 0)
+		p = pp.Appendpp(p, arm64.AADD, obj.TYPE_CONST, 0, 8+off, obj.TYPE_REG, arm64.REGRT1, 0)
 		p.Reg = arm64.REGRT1
 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = gc.Duffzero
-		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+		p.To.Offset = 4 * (64 - cnt/(2*int64(gc.Widthptr)))
 	} else {
 		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, 8+off-8, obj.TYPE_REG, arm64.REGTMP, 0)
 		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGSP, 0, obj.TYPE_REG, arm64.REGRT1, 0)

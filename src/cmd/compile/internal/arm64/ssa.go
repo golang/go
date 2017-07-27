@@ -324,6 +324,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
+	case ssa.OpARM64STP:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REGREG
+		p.From.Reg = v.Args[1].Reg()
+		p.From.Offset = int64(v.Args[2].Reg())
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		gc.AddAux(&p.To, v)
 	case ssa.OpARM64MOVBstorezero,
 		ssa.OpARM64MOVHstorezero,
 		ssa.OpARM64MOVWstorezero,
@@ -331,6 +339,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = arm64.REGZERO
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		gc.AddAux(&p.To, v)
+	case ssa.OpARM64MOVQstorezero:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REGREG
+		p.From.Reg = arm64.REGZERO
+		p.From.Offset = int64(arm64.REGZERO)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
@@ -559,30 +575,25 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpARM64DUFFZERO:
-		// runtime.duffzero expects start address - 8 in R16
-		p := s.Prog(arm64.ASUB)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 8
-		p.Reg = v.Args[0].Reg()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = arm64.REG_R16
-		p = s.Prog(obj.ADUFFZERO)
+		// runtime.duffzero expects start address in R16
+		p := s.Prog(obj.ADUFFZERO)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = gc.Duffzero
 		p.To.Offset = v.AuxInt
 	case ssa.OpARM64LoweredZero:
-		// MOVD.P	ZR, 8(R16)
+		// STP.P	(ZR,ZR), 16(R16)
 		// CMP	Rarg1, R16
 		// BLE	-2(PC)
-		// arg1 is the address of the last element to zero
-		p := s.Prog(arm64.AMOVD)
+		// arg1 is the address of the last 16-byte unit to zero
+		p := s.Prog(arm64.ASTP)
 		p.Scond = arm64.C_XPOST
-		p.From.Type = obj.TYPE_REG
+		p.From.Type = obj.TYPE_REGREG
 		p.From.Reg = arm64.REGZERO
+		p.From.Offset = int64(arm64.REGZERO)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = arm64.REG_R16
-		p.To.Offset = 8
+		p.To.Offset = 16
 		p2 := s.Prog(arm64.ACMP)
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = v.Args[1].Reg()
