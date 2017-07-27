@@ -91,6 +91,16 @@ func ExampleJoin() {
 	// a
 }
 
+func ExampleMatch() {
+	fmt.Println(path.Match("abc", "abc"))
+	fmt.Println(path.Match("a*", "abc"))
+	fmt.Println(path.Match("a*/b", "a/c/b"))
+	// Output:
+	// true <nil>
+	// true <nil>
+	// false <nil>
+}
+
 func ExampleSplit() {
 	fmt.Println(path.Split("static/myfile.css"))
 	fmt.Println(path.Split("myfile.css"))
