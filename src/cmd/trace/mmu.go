@@ -25,24 +25,54 @@ func init() {
 	http.HandleFunc("/mmuDetails", httpMMUDetails)
 }
 
-var mmuCache struct {
+var utilFlagNames = map[string]trace.UtilFlags{
+	"perProc":    trace.UtilPerProc,
+	"stw":        trace.UtilSTW,
+	"background": trace.UtilBackground,
+	"assist":     trace.UtilAssist,
+	"sweep":      trace.UtilSweep,
+}
+
+type mmuCacheEntry struct {
 	init     sync.Once
 	util     [][]trace.MutatorUtil
 	mmuCurve *trace.MMUCurve
 	err      error
 }
 
-func getMMUCurve() ([][]trace.MutatorUtil, *trace.MMUCurve, error) {
-	mmuCache.init.Do(func() {
+var mmuCache struct {
+	m    map[trace.UtilFlags]*mmuCacheEntry
+	lock sync.Mutex
+}
+
+func init() {
+	mmuCache.m = make(map[trace.UtilFlags]*mmuCacheEntry)
+}
+
+func getMMUCurve(r *http.Request) ([][]trace.MutatorUtil, *trace.MMUCurve, error) {
+	var flags trace.UtilFlags
+	for _, flagStr := range strings.Split(r.FormValue("flags"), "|") {
+		flags |= utilFlagNames[flagStr]
+	}
+
+	mmuCache.lock.Lock()
+	c := mmuCache.m[flags]
+	if c == nil {
+		c = new(mmuCacheEntry)
+		mmuCache.m[flags] = c
+	}
+	mmuCache.lock.Unlock()
+
+	c.init.Do(func() {
 		tr, err := parseTrace()
 		if err != nil {
-			mmuCache.err = err
+			c.err = err
 		} else {
-			mmuCache.util = tr.MutatorUtilization(trace.UtilSTW | trace.UtilBackground | trace.UtilAssist)
-			mmuCache.mmuCurve = trace.NewMMUCurve(mmuCache.util)
+			c.util = tr.MutatorUtilization(flags)
+			c.mmuCurve = trace.NewMMUCurve(c.util)
 		}
 	})
-	return mmuCache.util, mmuCache.mmuCurve, mmuCache.err
+	return c.util, c.mmuCurve, c.err
 }
 
 // httpMMU serves the MMU plot page.
@@ -52,7 +82,7 @@ func httpMMU(w http.ResponseWriter, r *http.Request) {
 
 // httpMMUPlot serves the JSON data for the MMU plot.
 func httpMMUPlot(w http.ResponseWriter, r *http.Request) {
-	mu, mmuCurve, err := getMMUCurve()
+	mu, mmuCurve, err := getMMUCurve(r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to parse events: %v", err), http.StatusInternalServerError)
 		return
@@ -107,7 +137,8 @@ var templMMU = `<!doctype html>
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <script type="text/javascript">
       google.charts.load('current', {'packages':['corechart']});
-      google.charts.setOnLoadCallback(refreshChart);
+      var chartsReady = false;
+      google.charts.setOnLoadCallback(function() { chartsReady = true; refreshChart(); });
 
       var chart;
       var curve;
@@ -119,13 +150,31 @@ var templMMU = `<!doctype html>
           else { return ns / 1e9 + 's'; }
       }
 
+      function mmuFlags() {
+        var flags = "";
+        $("#options input").each(function(i, elt) {
+          if (elt.checked)
+            flags += "|" + elt.id;
+        });
+        return flags.substr(1);
+      }
+
       function refreshChart() {
-        $.getJSON('/mmuPlot')
+        if (!chartsReady) return;
+        var container = $('#mmu_chart');
+        container.css('opacity', '.5');
+        refreshChart.count++;
+        var seq = refreshChart.count;
+        $.getJSON('/mmuPlot?flags=' + mmuFlags())
          .fail(function(xhr, status, error) {
            alert('failed to load plot: ' + status);
          })
-         .done(drawChart);
+         .done(function(result) {
+           if (refreshChart.count === seq)
+             drawChart(result);
+         });
       }
+      refreshChart.count = 0;
 
       function drawChart(plotData) {
         curve = plotData.curve;
@@ -162,11 +211,13 @@ var templMMU = `<!doctype html>
 
         var container = $('#mmu_chart');
         container.empty();
+        container.css('opacity', '');
         chart = new google.visualization.LineChart(container[0]);
         chart = new google.visualization.LineChart(document.getElementById('mmu_chart'));
         chart.draw(data, options);
 
         google.visualization.events.addListener(chart, 'select', selectHandler);
+        $('#details').empty();
       }
 
       function selectHandler() {
@@ -177,7 +228,7 @@ var templMMU = `<!doctype html>
         var details = $('#details');
         details.empty();
         var windowNS = curve[items[0].row][0];
-        var url = '/mmuDetails?window=' + windowNS;
+        var url = '/mmuDetails?window=' + windowNS + '&flags=' + mmuFlags();
         $.getJSON(url)
          .fail(function(xhr, status, error) {
             details.text(status + ': ' + url + ' could not be loaded');
@@ -191,10 +242,64 @@ var templMMU = `<!doctype html>
             }
          });
       }
+
+      $.when($.ready).then(function() {
+        $("#options input").click(refreshChart);
+      });
     </script>
+    <style>
+      .help {
+        display: inline-block;
+        position: relative;
+        width: 1em;
+        height: 1em;
+        border-radius: 50%;
+        color: #fff;
+        background: #555;
+        text-align: center;
+        cursor: help;
+      }
+      .help > span {
+        display: none;
+      }
+      .help:hover > span {
+        display: block;
+        position: absolute;
+        left: 1.1em;
+        top: 1.1em;
+        background: #555;
+        text-align: left;
+        width: 20em;
+        padding: 0.5em;
+        border-radius: 0.5em;
+        z-index: 5;
+      }
+    </style>
   </head>
   <body>
-    <div id="mmu_chart" style="width: 900px; height: 500px">Loading plot...</div>
+    <div style="position: relative">
+      <div id="mmu_chart" style="width: 900px; height: 500px; display: inline-block; vertical-align: top">Loading plot...</div>
+      <div id="options" style="display: inline-block; vertical-align: top">
+        <p>
+          <b>View</b><br/>
+          <input type="radio" name="view" id="system" checked><label for="system">System</label>
+          <span class="help">?<span>Consider whole system utilization. For example, if one of four procs is available to the mutator, mutator utilization will be 0.25. This is the standard definition of an MMU.</span></span><br/>
+          <input type="radio" name="view" id="perProc"><label for="perProc">Per-goroutine</label>
+          <span class="help">?<span>Consider per-goroutine utilization. When even one goroutine is interrupted by GC, mutator utilization is 0.</span></span><br/>
+        </p>
+        <p>
+          <b>Include</b><br/>
+          <input type="checkbox" id="stw" checked><label for="stw">STW</label>
+          <span class="help">?<span>Stop-the-world stops all goroutines simultaneously.</span></span><br/>
+          <input type="checkbox" id="background" checked><label for="background">Background workers</label>
+          <span class="help">?<span>Background workers are GC-specific goroutines. 25% of the CPU is dedicated to background workers during GC.</span></span><br/>
+          <input type="checkbox" id="assist" checked><label for="assist">Mark assist</label>
+          <span class="help">?<span>Mark assists are performed by allocation to prevent the mutator from outpacing GC.</span></span><br/>
+          <input type="checkbox" id="sweep"><label for="sweep">Sweep</label>
+          <span class="help">?<span>Sweep reclaims unused memory between GCs. (Enabling this may be very slow.).</span></span><br/>
+        </p>
+      </div>
+    </div>
     <div id="details">Select a point for details.</div>
   </body>
 </html>
@@ -202,7 +307,7 @@ var templMMU = `<!doctype html>
 
 // httpMMUDetails serves details of an MMU graph at a particular window.
 func httpMMUDetails(w http.ResponseWriter, r *http.Request) {
-	_, mmuCurve, err := getMMUCurve()
+	_, mmuCurve, err := getMMUCurve(r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to parse events: %v", err), http.StatusInternalServerError)
 		return
