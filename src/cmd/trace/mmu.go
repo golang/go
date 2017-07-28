@@ -13,6 +13,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +22,7 @@ import (
 func init() {
 	http.HandleFunc("/mmu", httpMMU)
 	http.HandleFunc("/mmuPlot", httpMMUPlot)
+	http.HandleFunc("/mmuDetails", httpMMUDetails)
 }
 
 var mmuCache struct {
@@ -98,6 +100,9 @@ var templMMU = `<!doctype html>
       google.charts.load('current', {'packages':['corechart']});
       google.charts.setOnLoadCallback(refreshChart);
 
+      var chart;
+      var curve;
+
       function niceDuration(ns) {
           if (ns < 1e3) { return ns + 'ns'; }
           else if (ns < 1e6) { return ns / 1e3 + 'µs'; }
@@ -114,7 +119,7 @@ var templMMU = `<!doctype html>
       }
 
       function drawChart(plotData) {
-        var curve = plotData.curve;
+        curve = plotData.curve;
         var data = new google.visualization.DataTable();
         data.addColumn('number', 'Window duration');
         data.addColumn('number', 'Minimum mutator utilization');
@@ -148,13 +153,85 @@ var templMMU = `<!doctype html>
 
         var container = $('#mmu_chart');
         container.empty();
-        var chart = new google.visualization.LineChart(container[0]);
+        chart = new google.visualization.LineChart(container[0]);
+        chart = new google.visualization.LineChart(document.getElementById('mmu_chart'));
         chart.draw(data, options);
+
+        google.visualization.events.addListener(chart, 'select', selectHandler);
+      }
+
+      function selectHandler() {
+        var items = chart.getSelection();
+        if (items.length === 0) {
+          return;
+        }
+        var details = $('#details');
+        details.empty();
+        var windowNS = curve[items[0].row][0];
+        var url = '/mmuDetails?window=' + windowNS;
+        $.getJSON(url)
+         .fail(function(xhr, status, error) {
+            details.text(status + ': ' + url + ' could not be loaded');
+         })
+         .done(function(worst) {
+            details.text('Lowest mutator utilization in ' + niceDuration(windowNS) + ' windows:');
+            for (var i = 0; i < worst.length; i++) {
+              details.append($('<br/>'));
+              var text = worst[i].MutatorUtil.toFixed(3) + ' at time ' + niceDuration(worst[i].Time);
+              details.append($('<a/>').text(text).attr('href', worst[i].URL));
+            }
+         });
       }
     </script>
   </head>
   <body>
     <div id="mmu_chart" style="width: 900px; height: 500px">Loading plot...</div>
+    <div id="details">Select a point for details.</div>
   </body>
 </html>
 `
+
+// httpMMUDetails serves details of an MMU graph at a particular window.
+func httpMMUDetails(w http.ResponseWriter, r *http.Request) {
+	_, mmuCurve, err := getMMUCurve()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to parse events: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	windowStr := r.FormValue("window")
+	window, err := strconv.ParseUint(windowStr, 10, 64)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to parse window parameter %q: %v", windowStr, err), http.StatusBadRequest)
+		return
+	}
+	worst := mmuCurve.Examples(time.Duration(window), 10)
+
+	// Construct a link for each window.
+	var links []linkedUtilWindow
+	for _, ui := range worst {
+		links = append(links, newLinkedUtilWindow(ui, time.Duration(window)))
+	}
+
+	err = json.NewEncoder(w).Encode(links)
+	if err != nil {
+		log.Printf("failed to serialize trace: %v", err)
+		return
+	}
+}
+
+type linkedUtilWindow struct {
+	trace.UtilWindow
+	URL string
+}
+
+func newLinkedUtilWindow(ui trace.UtilWindow, window time.Duration) linkedUtilWindow {
+	// Find the range containing this window.
+	var r Range
+	for _, r = range ranges {
+		if r.EndTime > ui.Time {
+			break
+		}
+	}
+	return linkedUtilWindow{ui, fmt.Sprintf("%s#%v:%v", r.URL(), float64(ui.Time)/1e6, float64(ui.Time+int64(window))/1e6)}
+}

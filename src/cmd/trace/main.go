@@ -189,7 +189,7 @@ var templMain = template.Must(template.New("").Parse(`
 <body>
 {{if $}}
 	{{range $e := $}}
-		<a href="/trace?start={{$e.Start}}&end={{$e.End}}">View trace ({{$e.Name}})</a><br>
+		<a href="{{$e.URL}}">View trace ({{$e.Name}})</a><br>
 	{{end}}
 	<br>
 {{else}}
