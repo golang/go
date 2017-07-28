@@ -38,7 +38,7 @@ func getMMUCurve() ([]trace.MutatorUtil, *trace.MMUCurve, error) {
 		if err != nil {
 			mmuCache.err = err
 		} else {
-			mmuCache.util = tr.MutatorUtilization()
+			mmuCache.util = tr.MutatorUtilization(trace.UtilSTW | trace.UtilBackground | trace.UtilAssist)
 			mmuCache.mmuCurve = trace.NewMMUCurve(mmuCache.util)
 		}
 	})

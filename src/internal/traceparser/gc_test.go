@@ -84,7 +84,7 @@ func TestMMUTrace(t *testing.T) {
 	if err := p.Parse(0, 1<<62, nil); err != nil {
 		t.Fatalf("failed to parse trace: %s", err)
 	}
-	mu := p.MutatorUtilization()
+	mu := p.MutatorUtilization(UtilSTW | UtilBackground | UtilAssist)
 	mmuCurve := NewMMUCurve(mu)
 
 	// Test the optimized implementation against the "obviously
@@ -106,7 +106,7 @@ func BenchmarkMMU(b *testing.B) {
 	if err := p.Parse(0, 1<<62, nil); err != nil {
 		b.Fatalf("failed to parse trace: %s", err)
 	}
-	mu := p.MutatorUtilization()
+	mu := p.MutatorUtilization(UtilSTW | UtilBackground | UtilAssist | UtilSweep)
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
