@@ -22,11 +22,27 @@ type MutatorUtil struct {
 	Util float64
 }
 
+// UtilFlags controls the behavior of MutatorUtilization.
+type UtilFlags int
+
+const (
+	// UtilSTW means utilization should account for STW events.
+	UtilSTW UtilFlags = 1 << iota
+	// UtilBackground means utilization should account for
+	// background mark workers.
+	UtilBackground
+	// UtilAssist means utilization should account for mark
+	// assists.
+	UtilAssist
+	// UtilSweep means utilization should account for sweeping.
+	UtilSweep
+)
+
 // MutatorUtilization returns the mutator utilization function for the
 // given trace. This function will always end with 0 utilization. The
 // bounds of the function are implicit in the first and last event;
 // outside of these bounds the function is undefined.
-func (p *Parsed) MutatorUtilization() []MutatorUtil {
+func (p *Parsed) MutatorUtilization(flags UtilFlags) []MutatorUtil {
 	events := p.Events
 	if len(events) == 0 {
 		return nil
@@ -42,17 +58,33 @@ func (p *Parsed) MutatorUtilization() []MutatorUtil {
 		case EvGomaxprocs:
 			gomaxprocs = int(ev.Args[0])
 		case EvGCSTWStart:
-			stw++
+			if flags&UtilSTW != 0 {
+				stw++
+			}
 		case EvGCSTWDone:
-			stw--
+			if flags&UtilSTW != 0 {
+				stw--
+			}
 		case EvGCMarkAssistStart:
-			gcPs++
-			assists[ev.G] = true
+			if flags&UtilAssist != 0 {
+				gcPs++
+				assists[ev.G] = true
+			}
 		case EvGCMarkAssistDone:
-			gcPs--
-			delete(assists, ev.G)
+			if flags&UtilAssist != 0 {
+				gcPs--
+				delete(assists, ev.G)
+			}
+		case EvGCSweepStart:
+			if flags&UtilSweep != 0 {
+				gcPs++
+			}
+		case EvGCSweepDone:
+			if flags&UtilSweep != 0 {
+				gcPs--
+			}
 		case EvGoStartLabel:
-			if strings.HasPrefix(ev.SArgs[0], "GC ") && ev.SArgs[0] != "GC (idle)" {
+			if flags&UtilBackground != 0 && strings.HasPrefix(ev.SArgs[0], "GC ") && ev.SArgs[0] != "GC (idle)" {
 				// Background mark worker.
 				bgMark[ev.G] = true
 				gcPs++
