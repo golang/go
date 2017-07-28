@@ -871,11 +871,15 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 		return Method{}, false
 	}
 	utmethods := ut.methods()
+	var eidx int
 	for i := 0; i < int(ut.mcount); i++ {
 		p := utmethods[i]
 		pname := t.nameOff(p.name)
-		if pname.isExported() && pname.name() == name {
-			return t.Method(i), true
+		if pname.isExported() {
+			if pname.name() == name {
+				return t.Method(eidx), true
+			}
+			eidx++
 		}
 	}
 	return Method{}, false

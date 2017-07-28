@@ -5521,6 +5521,25 @@ func TestKeepFuncLive(t *testing.T) {
 	MakeFunc(typ, f).Call([]Value{ValueOf(10)})
 }
 
+type UnExportedFirst int
+
+func (i UnExportedFirst) ΦExported()  {}
+func (i UnExportedFirst) unexported() {}
+
+// Issue 21177
+func TestMethodByNameUnExportedFirst(t *testing.T) {
+	defer func() {
+		if recover() != nil {
+			t.Errorf("should not panic")
+		}
+	}()
+	typ := TypeOf(UnExportedFirst(0))
+	m, _ := typ.MethodByName("ΦExported")
+	if m.Name != "ΦExported" {
+		t.Errorf("got %s, expected ΦExported", m.Name)
+	}
+}
+
 // Issue 18635 (method version).
 type KeepMethodLive struct{}
 
