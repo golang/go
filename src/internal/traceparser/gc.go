@@ -36,27 +36,64 @@ const (
 	UtilAssist
 	// UtilSweep means utilization should account for sweeping.
 	UtilSweep
+
+	// UtilPerProc means each P should be given a separate
+	// utilization function. Otherwise, there is a single function
+	// and each P is given a fraction of the utilization.
+	UtilPerProc
 )
 
-// MutatorUtilization returns the mutator utilization function for the
-// given trace. This function will always end with 0 utilization. The
-// bounds of the function are implicit in the first and last event;
-// outside of these bounds the function is undefined.
-func (p *Parsed) MutatorUtilization(flags UtilFlags) []MutatorUtil {
+// MutatorUtilization returns a set of mutator utilization functions
+// for the given trace. Each function will always end with 0
+// utilization. The bounds of each function are implicit in the first
+// and last event; outside of these bounds each function is undefined.
+//
+// If the UtilPerProc flag is not given, this always returns a single
+// utilization function. Otherwise, it returns one function per P.
+func (p *Parsed) MutatorUtilization(flags UtilFlags) [][]MutatorUtil {
 	events := p.Events
 	if len(events) == 0 {
 		return nil
 	}
 
-	gomaxprocs, gcPs, stw := 1, 0, 0
-	out := []MutatorUtil{{events[0].Ts, 1}}
+	type perP struct {
+		// gc > 0 indicates that GC is active on this P.
+		gc int
+		// series the logical series number for this P. This
+		// is necessary because Ps may be removed and then
+		// re-added, and then the new P needs a new series.
+		series int
+	}
+	ps := []perP{}
+	stw := 0
+
+	out := [][]MutatorUtil{}
 	assists := map[uint64]bool{}
 	block := map[uint64]*Event{}
 	bgMark := map[uint64]bool{}
+
 	for _, ev := range events {
 		switch ev.Type {
 		case EvGomaxprocs:
-			gomaxprocs = int(ev.Args[0])
+			gomaxprocs := int(ev.Args[0])
+			if len(ps) > gomaxprocs {
+				if flags&UtilPerProc != 0 {
+					// End each P's series.
+					for _, p := range ps[gomaxprocs:] {
+						out[p.series] = addUtil(out[p.series], MutatorUtil{ev.Ts, 0})
+					}
+				}
+				ps = ps[:gomaxprocs]
+			}
+			for len(ps) < gomaxprocs {
+				// Start new P's series.
+				series := 0
+				if flags&UtilPerProc != 0 || len(out) == 0 {
+					series = len(out)
+					out = append(out, []MutatorUtil{{ev.Ts, 1}})
+				}
+				ps = append(ps, perP{series: series})
+			}
 		case EvGCSTWStart:
 			if flags&UtilSTW != 0 {
 				stw++
@@ -67,33 +104,41 @@ func (p *Parsed) MutatorUtilization(flags UtilFlags) []MutatorUtil {
 			}
 		case EvGCMarkAssistStart:
 			if flags&UtilAssist != 0 {
-				gcPs++
+				ps[ev.P].gc++
 				assists[ev.G] = true
 			}
 		case EvGCMarkAssistDone:
 			if flags&UtilAssist != 0 {
-				gcPs--
+				ps[ev.P].gc--
 				delete(assists, ev.G)
 			}
 		case EvGCSweepStart:
 			if flags&UtilSweep != 0 {
-				gcPs++
+				ps[ev.P].gc++
 			}
 		case EvGCSweepDone:
 			if flags&UtilSweep != 0 {
-				gcPs--
+				ps[ev.P].gc--
 			}
 		case EvGoStartLabel:
 			if flags&UtilBackground != 0 && strings.HasPrefix(ev.SArgs[0], "GC ") && ev.SArgs[0] != "GC (idle)" {
 				// Background mark worker.
-				bgMark[ev.G] = true
-				gcPs++
+				//
+				// If we're in per-proc mode, we don't
+				// count dedicated workers because
+				// they kick all of the goroutines off
+				// that P, so don't directly
+				// contribute to goroutine latency.
+				if !(flags&UtilPerProc != 0 && ev.SArgs[0] == "GC (dedicated)") {
+					bgMark[ev.G] = true
+					ps[ev.P].gc++
+				}
 			}
 			fallthrough
 		case EvGoStart:
 			if assists[ev.G] {
 				// Unblocked during assist.
-				gcPs++
+				ps[ev.P].gc++
 			}
 			block[ev.G] = ev.Link
 		default:
@@ -103,47 +148,75 @@ func (p *Parsed) MutatorUtilization(flags UtilFlags) []MutatorUtil {
 
 			if assists[ev.G] {
 				// Blocked during assist.
-				gcPs--
+				ps[ev.P].gc--
 			}
 			if bgMark[ev.G] {
 				// Background mark worker done.
-				gcPs--
+				ps[ev.P].gc--
 				delete(bgMark, ev.G)
 			}
 			delete(block, ev.G)
 		}
 
-		ps := gcPs
-		if stw > 0 {
-			ps = gomaxprocs
-		}
-		mu := MutatorUtil{ev.Ts, 1 - float64(ps)/float64(gomaxprocs)}
-		if mu.Util == out[len(out)-1].Util {
-			// No change.
-			continue
-		}
-		if mu.Time == out[len(out)-1].Time {
-			// Take the lowest utilization at a time stamp.
-			if mu.Util < out[len(out)-1].Util {
-				out[len(out)-1] = mu
+		if flags&UtilPerProc == 0 {
+			// Compute the current average utilization.
+			if len(ps) == 0 {
+				continue
 			}
+			gcPs := 0
+			if stw > 0 {
+				gcPs = len(ps)
+			} else {
+				for i := range ps {
+					if ps[i].gc > 0 {
+						gcPs++
+					}
+				}
+			}
+			mu := MutatorUtil{ev.Ts, 1 - float64(gcPs)/float64(len(ps))}
+
+			// Record the utilization change. (Since
+			// len(ps) == len(out), we know len(out) > 0.)
+			out[0] = addUtil(out[0], mu)
 		} else {
-			out = append(out, mu)
+			// Check for per-P utilization changes.
+			for i := range ps {
+				p := &ps[i]
+				util := 1.0
+				if stw > 0 || p.gc > 0 {
+					util = 0.0
+				}
+				out[p.series] = addUtil(out[p.series], MutatorUtil{ev.Ts, util})
+			}
 		}
 	}
 
-	// Add final 0 utilization event. This is important to mark
-	// the end of the trace. The exact value shouldn't matter
-	// since no window should extend beyond this, but using 0 is
-	// symmetric with the start of the trace.
-	endTime := events[len(events)-1].Ts
-	if out[len(out)-1].Time == endTime {
-		out[len(out)-1].Util = 0
-	} else {
-		out = append(out, MutatorUtil{endTime, 0})
+	// Add final 0 utilization event to any remaining series. This
+	// is important to mark the end of the trace. The exact value
+	// shouldn't matter since no window should extend beyond this,
+	// but using 0 is symmetric with the start of the trace.
+	mu := MutatorUtil{events[len(events)-1].Ts, 0}
+	for i := range ps {
+		out[ps[i].series] = addUtil(out[ps[i].series], mu)
 	}
-
 	return out
+}
+
+func addUtil(util []MutatorUtil, mu MutatorUtil) []MutatorUtil {
+	if len(util) > 0 {
+		if mu.Util == util[len(util)-1].Util {
+			// No change.
+			return util
+		}
+		if mu.Time == util[len(util)-1].Time {
+			// Take the lowest utilization at a time stamp.
+			if mu.Util < util[len(util)-1].Util {
+				util[len(util)-1] = mu
+			}
+			return util
+		}
+	}
+	return append(util, mu)
 }
 
 // totalUtil is total utilization, measured in nanoseconds. This is a
@@ -163,6 +236,10 @@ func (u totalUtil) mean(dur time.Duration) float64 {
 // An MMUCurve is the minimum mutator utilization curve across
 // multiple window sizes.
 type MMUCurve struct {
+	series []mmuSeries
+}
+
+type mmuSeries struct {
 	util []MutatorUtil
 	// sums[j] is the cumulative sum of util[:j].
 	sums []totalUtil
@@ -188,7 +265,15 @@ type mmuBand struct {
 
 // NewMMUCurve returns an MMU curve for the given mutator utilization
 // function.
-func NewMMUCurve(util []MutatorUtil) *MMUCurve {
+func NewMMUCurve(utils [][]MutatorUtil) *MMUCurve {
+	series := make([]mmuSeries, len(utils))
+	for i, util := range utils {
+		series[i] = newMMUSeries(util)
+	}
+	return &MMUCurve{series}
+}
+
+func newMMUSeries(util []MutatorUtil) mmuSeries {
 	// Compute cumulative sum.
 	sums := make([]totalUtil, len(util))
 	var prev MutatorUtil
@@ -218,10 +303,10 @@ func NewMMUCurve(util []MutatorUtil) *MMUCurve {
 	// Compute the bands. There are numBands+1 bands in order to
 	// record the final cumulative sum.
 	bands := make([]mmuBand, numBands+1)
-	c := MMUCurve{util, sums, bands, bandDur}
-	leftSum := integrator{&c, 0}
+	s := mmuSeries{util, sums, bands, bandDur}
+	leftSum := integrator{&s, 0}
 	for i := range bands {
-		startTime, endTime := c.bandTime(i)
+		startTime, endTime := s.bandTime(i)
 		cumUtil := leftSum.advance(startTime)
 		predIdx := leftSum.pos
 		minUtil := 1.0
@@ -231,16 +316,18 @@ func NewMMUCurve(util []MutatorUtil) *MMUCurve {
 		bands[i] = mmuBand{minUtil, cumUtil, leftSum}
 	}
 
-	return &c
+	return s
 }
 
-func (c *MMUCurve) bandTime(i int) (start, end int64) {
-	start = int64(i)*c.bandDur + c.util[0].Time
-	end = start + c.bandDur
+func (s *mmuSeries) bandTime(i int) (start, end int64) {
+	start = int64(i)*s.bandDur + s.util[0].Time
+	end = start + s.bandDur
 	return
 }
 
 type bandUtil struct {
+	// Utilization series index
+	series int
 	// Band index
 	i int
 	// Lower bound of mutator utilization for all windows
@@ -402,12 +489,22 @@ func (c *MMUCurve) mmu(window time.Duration, acc *accumulator) {
 		acc.mmu = 0
 		return
 	}
-	util := c.util
-	if max := time.Duration(util[len(util)-1].Time - util[0].Time); window > max {
-		window = max
-	}
 
-	bandU := bandUtilHeap(c.mkBandUtil(window))
+	var bandU bandUtilHeap
+	windows := make([]time.Duration, len(c.series))
+	for i, s := range c.series {
+		windows[i] = window
+		if max := time.Duration(s.util[len(s.util)-1].Time - s.util[0].Time); window > max {
+			windows[i] = max
+		}
+
+		bandU1 := bandUtilHeap(s.mkBandUtil(i, windows[i]))
+		if bandU == nil {
+			bandU = bandU1
+		} else {
+			bandU = append(bandU, bandU1...)
+		}
+	}
 
 	// Process bands from lowest utilization bound to highest.
 	heap.Init(&bandU)
@@ -416,12 +513,13 @@ func (c *MMUCurve) mmu(window time.Duration, acc *accumulator) {
 	// refining the next lowest band can no longer affect the MMU
 	// or windows.
 	for len(bandU) > 0 && bandU[0].utilBound < acc.bound {
-		c.bandMMU(bandU[0].i, window, acc)
+		i := bandU[0].series
+		c.series[i].bandMMU(bandU[0].i, windows[i], acc)
 		heap.Pop(&bandU)
 	}
 }
 
-func (c *MMUCurve) mkBandUtil(window time.Duration) []bandUtil {
+func (c *mmuSeries) mkBandUtil(series int, window time.Duration) []bandUtil {
 	// For each band, compute the worst-possible total mutator
 	// utilization for all windows that start in that band.
 
@@ -477,7 +575,7 @@ func (c *MMUCurve) mkBandUtil(window time.Duration) []bandUtil {
 			util += c.bands[i+minBands-1].cumUtil - c.bands[i+1].cumUtil
 		}
 
-		bandU[i] = bandUtil{i, util.mean(window)}
+		bandU[i] = bandUtil{series, i, util.mean(window)}
 	}
 
 	return bandU
@@ -485,7 +583,7 @@ func (c *MMUCurve) mkBandUtil(window time.Duration) []bandUtil {
 
 // bandMMU computes the precise minimum mutator utilization for
 // windows with a left edge in band bandIdx.
-func (c *MMUCurve) bandMMU(bandIdx int, window time.Duration, acc *accumulator) {
+func (c *mmuSeries) bandMMU(bandIdx int, window time.Duration, acc *accumulator) {
 	util := c.util
 
 	// We think of the mutator utilization over time as the
@@ -542,7 +640,7 @@ func (c *MMUCurve) bandMMU(bandIdx int, window time.Duration, acc *accumulator) 
 // An integrator tracks a position in a utilization function and
 // integrates it.
 type integrator struct {
-	u *MMUCurve
+	u *mmuSeries
 	// pos is the index in u.util of the current time's non-strict
 	// predecessor.
 	pos int

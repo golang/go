@@ -29,14 +29,14 @@ func TestMMU(t *testing.T) {
 	// 0.5      *   *   *   *
 	// 0.0      *****   *****
 	//      0   1   2   3   4   5
-	util := []MutatorUtil{
+	util := [][]MutatorUtil{{
 		{0e9, 1},
 		{1e9, 0},
 		{2e9, 1},
 		{3e9, 0},
 		{4e9, 1},
 		{5e9, 0},
-	}
+	}}
 	mmuCurve := NewMMUCurve(util)
 
 	for _, test := range []struct {
@@ -90,7 +90,7 @@ func TestMMUTrace(t *testing.T) {
 	// Test the optimized implementation against the "obviously
 	// correct" implementation.
 	for window := time.Nanosecond; window < 10*time.Second; window *= 10 {
-		want := mmuSlow(mu, window)
+		want := mmuSlow(mu[0], window)
 		got := mmuCurve.MMU(window)
 		if !aeq(want, got) {
 			t.Errorf("want %f, got %f mutator utilization in window %s", want, got, window)

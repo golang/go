@@ -27,12 +27,12 @@ func init() {
 
 var mmuCache struct {
 	init     sync.Once
-	util     []trace.MutatorUtil
+	util     [][]trace.MutatorUtil
 	mmuCurve *trace.MMUCurve
 	err      error
 }
 
-func getMMUCurve() ([]trace.MutatorUtil, *trace.MMUCurve, error) {
+func getMMUCurve() ([][]trace.MutatorUtil, *trace.MMUCurve, error) {
 	mmuCache.init.Do(func() {
 		tr, err := parseTrace()
 		if err != nil {
@@ -69,7 +69,16 @@ func httpMMUPlot(w http.ResponseWriter, r *http.Request) {
 	// Cover six orders of magnitude.
 	xMax := xMin * 1e6
 	// But no more than the length of the trace.
-	if maxMax := time.Duration(mu[len(mu)-1].Time - mu[0].Time); xMax > maxMax {
+	minEvent, maxEvent := mu[0][0].Time, mu[0][len(mu[0])-1].Time
+	for _, mu1 := range mu[1:] {
+		if mu1[0].Time < minEvent {
+			minEvent = mu1[0].Time
+		}
+		if mu1[len(mu1)-1].Time > maxEvent {
+			maxEvent = mu1[len(mu1)-1].Time
+		}
+	}
+	if maxMax := time.Duration(maxEvent - minEvent); xMax > maxMax {
 		xMax = maxMax
 	}
 	// Compute MMU curve.
