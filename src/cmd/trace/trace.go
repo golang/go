@@ -112,6 +112,17 @@ var templTrace = `
   function onModelLoaded() {
     viewer.model = model;
     viewer.viewTitle = "trace";
+
+    if (!model || model.bounds.isEmpty)
+      return;
+    var sel = window.location.hash.substr(1);
+    if (sel === '')
+      return;
+    var parts = sel.split(':');
+    var range = new (tr.b.Range || tr.b.math.Range)();
+    range.addValue(parseFloat(parts[0]));
+    range.addValue(parseFloat(parts[1]));
+    viewer.trackView.viewport.interestRange.set(range);
   }
 
   function onImportFail(err) {
