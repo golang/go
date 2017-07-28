@@ -416,7 +416,10 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 			var reserved bool
 			p := uintptr(sysReserve(unsafe.Pointer(h.arena_end), p_size, &reserved))
 			if p == 0 {
-				return nil
+				// TODO: Try smaller reservation
+				// growths in case we're in a crowded
+				// 32-bit address space.
+				goto reservationFailed
 			}
 			// p can be just about anywhere in the address
 			// space, including before arena_end.
@@ -476,6 +479,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 		return unsafe.Pointer(p)
 	}
 
+reservationFailed:
 	// If using 64-bit, our reservation is all we have.
 	if sys.PtrSize != 4 {
 		return nil
