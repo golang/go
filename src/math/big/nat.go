@@ -249,7 +249,7 @@ func karatsubaSub(z, x nat, n int) {
 // Operands that are shorter than karatsubaThreshold are multiplied using
 // "grade school" multiplication; for longer operands the Karatsuba algorithm
 // is used.
-var karatsubaThreshold int = 40 // computed by calibrate.go
+var karatsubaThreshold = 40 // computed by calibrate_test.go
 
 // karatsuba multiplies x and y and leaves the result in z.
 // Both x and y must have the same length n and n must be a
@@ -471,6 +471,61 @@ func (z nat) mul(x, y nat) nat {
 	}
 
 	return z.norm()
+}
+
+// basicSqr sets z = x*x and is asymptotically faster than basicMul
+// by about a factor of 2, but slower for small arguments due to overhead.
+// Requirements: len(x) > 0, len(z) >= 2*len(x)
+// The (non-normalized) result is placed in z[0 : 2 * len(x)].
+func basicSqr(z, x nat) {
+	n := len(x)
+	t := make(nat, 2*n)            // temporary variable to hold the products
+	z[1], z[0] = mulWW(x[0], x[0]) // the initial square
+	for i := 1; i < n; i++ {
+		d := x[i]
+		// z collects the squares x[i] * x[i]
+		z[2*i+1], z[2*i] = mulWW(d, d)
+		// t collects the products x[i] * x[j] where j < i
+		t[2*i] = addMulVVW(t[i:2*i], x[0:i], d)
+	}
+	t[2*n-1] = shlVU(t[1:2*n-1], t[1:2*n-1], 1) // double the j < i products
+	addVV(z, z, t)                              // combine the result
+}
+
+// Operands that are shorter than basicSqrThreshold are squared using
+// "grade school" multiplication; for operands longer than karatsubaSqrThreshold
+// the Karatsuba algorithm is used.
+var basicSqrThreshold = 20      // computed by calibrate_test.go
+var karatsubaSqrThreshold = 400 // computed by calibrate_test.go
+
+// z = x*x
+func (z nat) sqr(x nat) nat {
+	n := len(x)
+	switch {
+	case n == 0:
+		return z[:0]
+	case n == 1:
+		d := x[0]
+		z = z.make(2)
+		z[1], z[0] = mulWW(d, d)
+		return z.norm()
+	}
+
+	if alias(z, x) {
+		z = nil // z is an alias for x - cannot reuse
+	}
+	z = z.make(2 * n)
+
+	if n < basicSqrThreshold {
+		basicMul(z, x, x)
+		return z.norm()
+	}
+	if n < karatsubaSqrThreshold {
+		basicSqr(z, x)
+		return z.norm()
+	}
+
+	return z.mul(x, x)
 }
 
 // mulRange computes the product of all the unsigned integers in the

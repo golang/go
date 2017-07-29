@@ -153,6 +153,11 @@ func (z *Int) Mul(x, y *Int) *Int {
 	// x * (-y) == -(x * y)
 	// (-x) * y == -(x * y)
 	// (-x) * (-y) == x * y
+	if x == y {
+		z.abs = z.abs.sqr(x.abs)
+		z.neg = false
+		return z
+	}
 	z.abs = z.abs.mul(x.abs, y.abs)
 	z.neg = len(z.abs) > 0 && x.neg != y.neg // 0 has no sign
 	return z
