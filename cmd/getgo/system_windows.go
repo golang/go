@@ -7,6 +7,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"syscall"
@@ -29,6 +30,10 @@ func isWindowsXP() bool {
 	}
 	major := byte(v)
 	return major < 6
+}
+
+func whichGo(ctx context.Context) (string, error) {
+	return findGo(ctx, "where")
 }
 
 // currentShell reports the current shell.

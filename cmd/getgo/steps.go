@@ -29,10 +29,22 @@ func welcome(ctx context.Context) error {
 	return nil
 }
 
-func chooseVersion(ctx context.Context) error {
-	// TODO: check if go is currently installed
+func checkOthers(ctx context.Context) error {
 	// TODO: if go is currently installed install new version over that
+	path, err := whichGo(ctx)
+	if err != nil {
+		fmt.Printf("Cannot check if Go is already installed:\n%v\n", err)
+	}
+	if path == "" {
+		return nil
+	}
+	if path != installPath {
+		fmt.Printf("Go is already installed at %v; remove it from your PATH.\n", path)
+	}
+	return nil
+}
 
+func chooseVersion(ctx context.Context) error {
 	if *goVersion != "" {
 		return nil
 	}

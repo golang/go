@@ -7,6 +7,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,6 +28,10 @@ var installPath = func() string {
 
 	return filepath.Join(home, ".go")
 }()
+
+func whichGo(ctx context.Context) (string, error) {
+	return findGo(ctx, "which")
+}
 
 func isWindowsXP() bool {
 	return false

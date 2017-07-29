@@ -6,8 +6,10 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os/exec"
 	"runtime"
+	"strings"
 )
 
 // arch contains either amd64 or 386.
@@ -27,3 +29,8 @@ var arch = func() string {
 	}
 	return "386"
 }()
+
+func findGo(ctx context.Context, cmd string) (string, error) {
+	out, err := exec.CommandContext(ctx, cmd, "go").CombinedOutput()
+	return strings.TrimSpace(string(out)), err
+}

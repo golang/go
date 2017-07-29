@@ -50,6 +50,7 @@ func main() {
 
 	if !*setupOnly {
 		runStep(welcome)
+		runStep(checkOthers)
 		runStep(chooseVersion)
 		runStep(downloadGo)
 	}
