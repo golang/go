@@ -7,6 +7,7 @@ package big
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -1542,5 +1543,26 @@ func BenchmarkSqrt(b *testing.B) {
 	t := new(Int)
 	for i := 0; i < b.N; i++ {
 		t.Sqrt(n)
+	}
+}
+
+func benchmarkIntSqr(b *testing.B, nwords int) {
+	x := new(Int)
+	x.abs = rndNat(nwords)
+	t := new(Int)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		t.Mul(x, x)
+	}
+}
+
+func BenchmarkIntSqr(b *testing.B) {
+	for _, n := range sqrBenchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+			benchmarkIntSqr(b, n)
+		})
 	}
 }
