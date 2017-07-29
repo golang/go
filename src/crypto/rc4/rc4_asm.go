@@ -14,5 +14,7 @@ func (c *Cipher) XORKeyStream(dst, src []byte) {
 	if len(src) == 0 {
 		return
 	}
+	// Assert len(dst) >= len(src)
+	_ = dst[len(src)-1]
 	xorKeyStream(&dst[0], &src[0], len(src), &c.s, &c.i, &c.j)
 }
