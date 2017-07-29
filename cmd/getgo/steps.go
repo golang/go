@@ -43,7 +43,7 @@ func chooseVersion(ctx context.Context) error {
 		return err
 	}
 
-	answer, err := prompt(ctx, fmt.Sprintf("The latest go version is %s, install that? Y/n", *goVersion), "Y")
+	answer, err := prompt(ctx, fmt.Sprintf("The latest Go version is %s, install that? Y/n", *goVersion), "Y")
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func chooseVersion(ctx context.Context) error {
 }
 
 func downloadGo(ctx context.Context) error {
-	answer, err := prompt(ctx, fmt.Sprintf("Download go version %s to %s? Y/n", *goVersion, installPath), "Y")
+	answer, err := prompt(ctx, fmt.Sprintf("Download Go version %s to %s? Y/n", *goVersion, installPath), "Y")
 	if err != nil {
 		return err
 	}
