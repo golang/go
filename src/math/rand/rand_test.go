@@ -74,6 +74,7 @@ func getStatsResults(samples []float64) *statsResults {
 }
 
 func checkSampleDistribution(t *testing.T, samples []float64, expected *statsResults) {
+	t.Helper()
 	actual := getStatsResults(samples)
 	err := actual.checkSimilarDistribution(expected)
 	if err != nil {
@@ -82,6 +83,7 @@ func checkSampleDistribution(t *testing.T, samples []float64, expected *statsRes
 }
 
 func checkSampleSliceDistributions(t *testing.T, samples []float64, nslices int, expected *statsResults) {
+	t.Helper()
 	chunk := len(samples) / nslices
 	for i := 0; i < nslices; i++ {
 		low := i * chunk
