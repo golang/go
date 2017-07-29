@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	interactive = flag.Bool("i", false, "Prompt for inputs.")
+	interactive = flag.Bool("i", false, "Interactive mode, prompt for inputs.")
 	verbose     = flag.Bool("v", false, "Verbose.")
 	setupOnly   = flag.Bool("skip-dl", false, "Don't download - only set up environment variables")
 	goVersion   = flag.String("version", "", `Version of Go to install (e.g. "1.8.3"). If empty, uses the latest version.`)
