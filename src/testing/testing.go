@@ -970,7 +970,7 @@ func listTests(matchString func(pat, str string) (bool, error), tests []Internal
 		}
 	}
 	for _, example := range examples {
-		if ok, _ := matchString(*matchList, example.Name); ok && example.Output != "" {
+		if ok, _ := matchString(*matchList, example.Name); ok {
 			fmt.Println(example.Name)
 		}
 	}
