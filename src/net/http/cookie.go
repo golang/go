@@ -208,7 +208,6 @@ func readCookies(h Header, filter string) []*Cookie {
 			continue
 		}
 		// Per-line attributes
-		parsedPairs := 0
 		for i := 0; i < len(parts); i++ {
 			parts[i] = strings.TrimSpace(parts[i])
 			if len(parts[i]) == 0 {
@@ -229,7 +228,6 @@ func readCookies(h Header, filter string) []*Cookie {
 				continue
 			}
 			cookies = append(cookies, &Cookie{Name: name, Value: val})
-			parsedPairs++
 		}
 	}
 	return cookies
