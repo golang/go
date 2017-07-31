@@ -427,8 +427,8 @@ const (
 	OpAMD64MOVSSstoreidx4
 	OpAMD64MOVSDstoreidx1
 	OpAMD64MOVSDstoreidx8
-	OpAMD64ADDSDmem
 	OpAMD64ADDSSmem
+	OpAMD64ADDSDmem
 	OpAMD64SUBSSmem
 	OpAMD64SUBSDmem
 	OpAMD64MULSSmem
@@ -4683,13 +4683,13 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ADDSDmem",
+		name:           "ADDSSmem",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
 		faultOnNilArg1: true,
 		symEffect:      SymRead,
-		asm:            x86.AADDSD,
+		asm:            x86.AADDSS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
@@ -4701,13 +4701,13 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ADDSSmem",
+		name:           "ADDSDmem",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
 		faultOnNilArg1: true,
 		symEffect:      SymRead,
-		asm:            x86.AADDSS,
+		asm:            x86.AADDSD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
