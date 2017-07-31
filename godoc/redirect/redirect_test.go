@@ -58,8 +58,8 @@ func TestRedirects(t *testing.T) {
 		"/design/123-foo":      {302, "https://github.com/golang/proposal/blob/master/design/123-foo.md"},
 		"/design/text/123-foo": {302, "https://github.com/golang/proposal/blob/master/design/text/123-foo.md"},
 
-		"/cl/1":          {302, "https://go-review.googlesource.com/r/1"},
-		"/cl/1/":         {302, "https://go-review.googlesource.com/r/1"},
+		"/cl/1":          {302, "https://go-review.googlesource.com/1"},
+		"/cl/1/":         {302, "https://go-review.googlesource.com/1"},
 		"/cl/267120043":  {302, "https://codereview.appspot.com/267120043"},
 		"/cl/267120043/": {302, "https://codereview.appspot.com/267120043"},
 	}

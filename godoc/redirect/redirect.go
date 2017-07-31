@@ -196,7 +196,7 @@ func clHandler(w http.ResponseWriter, r *http.Request) {
 	if n, err := strconv.Atoi(id); err == nil && n > 150000 {
 		target = "https://codereview.appspot.com/" + id
 	} else {
-		target = "https://go-review.googlesource.com/r/" + id
+		target = "https://go-review.googlesource.com/" + id
 	}
 	http.Redirect(w, r, target, http.StatusFound)
 }
