@@ -32,7 +32,6 @@ import (
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/memcache"
-	"google.golang.org/appengine/user"
 )
 
 const (
@@ -183,7 +182,6 @@ var featuredFiles = []Feature{
 type listTemplateData struct {
 	Featured                  []Feature
 	Stable, Unstable, Archive []Release
-	LoginURL                  string
 }
 
 var (
@@ -216,11 +214,6 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 		d.Stable, d.Unstable, d.Archive = filesToReleases(fs)
 		if len(d.Stable) > 0 {
 			d.Featured = filesToFeatured(d.Stable[0].Files)
-		}
-
-		d.LoginURL, _ = user.LoginURL(c, "/dl")
-		if user.Current(c) != nil {
-			d.LoginURL, _ = user.LogoutURL(c, "/dl")
 		}
 
 		item := &memcache.Item{Key: cacheKey, Object: &d, Expiration: cacheDuration}

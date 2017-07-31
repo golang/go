@@ -106,7 +106,7 @@ please follow the <a href="/doc/install">installation instructions</a>.
 </p>
 
 <p>
-If you are building from source, 
+If you are building from source,
 follow the <a href="/doc/install/source">source installation instructions</a>.
 </p>
 
@@ -145,13 +145,6 @@ information about Go releases.
   </div>
 </div>
 {{end}}
-
-
-<!-- Disabled for now; there's no admin functionality yet.
-<p>
-<small><a href="{{.LoginURL}}">&pi;</a></small>
-</p>
--->
 
 <div id="footer">
         <p>
