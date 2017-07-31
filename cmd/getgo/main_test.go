@@ -31,6 +31,11 @@ func init() {
 // TestMain creates a getgo command for testing purposes and
 // deletes it after the tests have been run.
 func TestMain(m *testing.M) {
+	if os.Getenv("GOGET_INTEGRATION") == "" {
+		fmt.Fprintln(os.Stderr, "main_test: Skipping integration tests with GOGET_INTEGRATION unset")
+		return
+	}
+
 	args := []string{"build", "-tags", testbin, "-o", testbin + exeSuffix}
 	out, err := exec.Command("go", args...).CombinedOutput()
 	if err != nil {

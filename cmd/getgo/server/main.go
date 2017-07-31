@@ -4,15 +4,13 @@
 
 // Command server serves get.golang.org, redirecting users to the appropriate
 // getgo installer based on the request path.
-package main
+package server
 
 import (
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
-
-	"google.golang.org/appengine"
 )
 
 const (
@@ -30,9 +28,8 @@ var stringMatch = map[string]string{
 	"Darwin": macInstaller,
 }
 
-func main() {
+func init() {
 	http.HandleFunc("/", handler)
-	appengine.Main()
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
