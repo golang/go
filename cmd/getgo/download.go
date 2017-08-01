@@ -33,7 +33,13 @@ func downloadGoVersion(version, ops, arch, dest string) error {
 
 	verbosef("Downloading %s", uri)
 
-	resp, err := http.Get(uri)
+	req, err := http.NewRequest("GET", uri, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Add("User-Agent", fmt.Sprintf("golang.org-getgo/%s", version))
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("Downloading Go from %s failed: %v", uri, err)
 	}
