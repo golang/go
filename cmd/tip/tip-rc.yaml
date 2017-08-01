@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ReplicationController
 metadata:
-  name: tipgodoc-v1
+  name: tipgodoc
 spec:
   replicas: 1
   selector:
@@ -17,9 +17,9 @@ spec:
         emptyDir: {}
       containers:
       - name: gitmirror
-        image: gcr.io/symbolic-datum-552/tip:v1
+        image: gcr.io/symbolic-datum-552/tip:v2
         imagePullPolicy: Always
-        command: ["/go/bin/tip", "--autocert=tip.golang.org"]
+        command: ["/go/bin/tip", "--autocert=tip.golang.org", "--autocert-bucket=golang-tip-autocert"]
         env:
         - name: TMPDIR
           value: /build

@@ -8,6 +8,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -25,6 +26,8 @@ import (
 	"sync"
 	"time"
 
+	"cloud.google.com/go/storage"
+	"golang.org/x/build/autocertcache"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -37,7 +40,8 @@ const (
 var startTime = time.Now()
 
 var (
-	autoCertDomain = flag.String("autocert", "", "if non-empty, listen on port 443 and serve a LetsEncrypt cert for this hostname")
+	autoCertDomain      = flag.String("autocert", "", "if non-empty, listen on port 443 and serve a LetsEncrypt cert for this hostname")
+	autoCertCacheBucket = flag.String("autocert-bucket", "", "if non-empty, the Google Cloud Storage bucket in which to store the LetsEncrypt cache")
 )
 
 func main() {
@@ -67,9 +71,18 @@ func main() {
 	}()
 	if *autoCertDomain != "" {
 		log.Printf("Listening on port 443 with LetsEncrypt support on domain %q", *autoCertDomain)
+		var cache autocert.Cache
+		if b := *autoCertCacheBucket; b != "" {
+			sc, err := storage.NewClient(context.Background())
+			if err != nil {
+				log.Fatalf("storage.NewClient: %v", err)
+			}
+			cache = autocertcache.NewGoogleCloudStorageCache(sc, b)
+		}
 		m := autocert.Manager{
 			Prompt:     autocert.AcceptTOS,
 			HostPolicy: autocert.HostWhitelist(*autoCertDomain),
+			Cache:      cache,
 		}
 		s := &http.Server{
 			Addr:      ":https",
