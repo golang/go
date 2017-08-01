@@ -8,8 +8,6 @@ package main
 
 import (
 	"bufio"
-	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -25,10 +23,6 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-
-	"cloud.google.com/go/storage"
-	"golang.org/x/build/autocertcache"
-	"golang.org/x/crypto/acme/autocert"
 )
 
 const (
@@ -43,6 +37,10 @@ var (
 	autoCertDomain      = flag.String("autocert", "", "if non-empty, listen on port 443 and serve a LetsEncrypt cert for this hostname")
 	autoCertCacheBucket = flag.String("autocert-bucket", "", "if non-empty, the Google Cloud Storage bucket in which to store the LetsEncrypt cache")
 )
+
+// runHTTPS, if non-nil, specifies the function to serve HTTPS.
+// It is set non-nil in cert.go with the "autocert" build tag.
+var runHTTPS func(http.Handler) error
 
 func main() {
 	flag.Parse()
@@ -64,34 +62,20 @@ func main() {
 
 	log.Printf("Starting up tip server for builder %q", os.Getenv(k))
 
-	errc := make(chan error)
+	errc := make(chan error, 1)
 
 	go func() {
 		errc <- http.ListenAndServe(":8080", mux)
 	}()
 	if *autoCertDomain != "" {
+		if runHTTPS == nil {
+			errc <- errors.New("can't use --autocert without building binary with the autocert build tag")
+		} else {
+			go func() {
+				errc <- runHTTPS(mux)
+			}()
+		}
 		log.Printf("Listening on port 443 with LetsEncrypt support on domain %q", *autoCertDomain)
-		var cache autocert.Cache
-		if b := *autoCertCacheBucket; b != "" {
-			sc, err := storage.NewClient(context.Background())
-			if err != nil {
-				log.Fatalf("storage.NewClient: %v", err)
-			}
-			cache = autocertcache.NewGoogleCloudStorageCache(sc, b)
-		}
-		m := autocert.Manager{
-			Prompt:     autocert.AcceptTOS,
-			HostPolicy: autocert.HostWhitelist(*autoCertDomain),
-			Cache:      cache,
-		}
-		s := &http.Server{
-			Addr:      ":https",
-			Handler:   mux,
-			TLSConfig: &tls.Config{GetCertificate: m.GetCertificate},
-		}
-		go func() {
-			errc <- s.ListenAndServeTLS("", "")
-		}()
 	}
 	if err := <-errc; err != nil {
 		p.stop()

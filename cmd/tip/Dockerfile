@@ -126,7 +126,7 @@ RUN go install cloud.google.com/go/compute/metadata \
 
 # golang sets GOPATH=/go
 ADD . /go/src/tip
-RUN go install tip
+RUN go install --tags=autocert tip
 ENTRYPOINT ["/go/bin/tip"]
 # App Engine expects us to listen on port 8080
 EXPOSE 8080
