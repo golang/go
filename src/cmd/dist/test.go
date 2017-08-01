@@ -620,7 +620,7 @@ func (t *tester) registerTests() {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
 		}
 		if t.goos == "linux" && t.goarch == "amd64" {
-			t.registerTest("testsanitizers", "../misc/cgo/testsanitizers", "./test.bash")
+			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
 		}
 		if t.hasBash() && t.goos != "android" && !t.iOS() && t.gohostos != "windows" {
 			t.registerTest("cgo_errors", "../misc/cgo/errors", "./test.bash")
