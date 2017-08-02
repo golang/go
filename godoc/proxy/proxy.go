@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -147,8 +148,8 @@ func cacheKey(body string) string {
 }
 
 func share(w http.ResponseWriter, r *http.Request) {
-	if !allowShare(r) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+	if googleCN(r) {
+		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return
 	}
 	target, _ := url.Parse(playgroundURL)
@@ -157,13 +158,19 @@ func share(w http.ResponseWriter, r *http.Request) {
 	p.ServeHTTP(w, r)
 }
 
-func allowShare(r *http.Request) bool {
+func googleCN(r *http.Request) bool {
+	if r.FormValue("googlecn") != "" {
+		return true
+	}
 	if appengine.IsDevAppServer() {
+		return false
+	}
+	if strings.HasSuffix(r.Host, ".cn") {
 		return true
 	}
 	switch r.Header.Get("X-AppEngine-Country") {
 	case "", "ZZ", "CN":
-		return false
+		return true
 	}
-	return true
+	return false
 }

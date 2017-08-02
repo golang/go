@@ -10,7 +10,7 @@ binary. It can be tedious to recompile assets every time, but you can pass a
 flag to load CSS/JS/templates from disk every time a page loads:
 
 ```
-godoc --templates=$GOPATH/src/golang.org/x/tools/godoc/static --http=:6060
+godoc -templates=$GOPATH/src/golang.org/x/tools/godoc/static -http=:6060
 ```
 
 ## Recompiling static assets
