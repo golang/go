@@ -10,8 +10,28 @@ import (
 	"strings"
 )
 
-// urlFilter returns its input unless it contains an unsafe protocol in which
+// urlFilter returns its input unless it contains an unsafe scheme in which
 // case it defangs the entire URL.
+//
+// Schemes that cause unintended side effects that are irreversible without user
+// interaction are considered unsafe. For example, clicking on a "javascript:"
+// link can immediately trigger JavaScript code execution.
+//
+// This filter conservatively assumes that all schemes other than the following
+// are unsafe:
+//    * http:   Navigates to a new website, and may open a new window or tab.
+//              These side effects can be reversed by navigating back to the
+//              previous website, or closing the window or tab. No irreversible
+//              changes will take place without further user interaction with
+//              the new website.
+//    * https:  Same as http.
+//    * mailto: Opens an email program and starts a new draft. This side effect
+//              is not irreversible until the user explicitly clicks send; it
+//              can be undone by closing the email program.
+//
+// To allow URLs containing other schemes to bypass this filter, developers must
+// explicitly indicate that such a URL is expected and safe by encapsulating it
+// in a template.URL value.
 func urlFilter(args ...interface{}) string {
 	s, t := stringify(args...)
 	if t == contentTypeURL {
