@@ -1223,8 +1223,9 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 			// Slice: pointer, len, cap.
 			return &Type{Size: p.PtrSize * 3, Align: p.PtrSize, C: c("GoSlice")}
 		}
+		// Non-slice array types are not supported.
 	case *ast.StructType:
-		// TODO
+		// Not supported.
 	case *ast.FuncType:
 		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("void*")}
 	case *ast.InterfaceType:
