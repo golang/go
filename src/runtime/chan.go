@@ -222,7 +222,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	mysg.elem = ep
 	mysg.waitlink = nil
 	mysg.g = gp
-	mysg.selectdone = nil
+	mysg.isSelect = false
 	mysg.c = c
 	gp.waiting = mysg
 	gp.param = nil
@@ -507,7 +507,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	mysg.waitlink = nil
 	gp.waiting = mysg
 	mysg.g = gp
-	mysg.selectdone = nil
+	mysg.isSelect = false
 	mysg.c = c
 	gp.param = nil
 	c.recvq.enqueue(mysg)
@@ -711,10 +711,16 @@ func (q *waitq) dequeue() *sudog {
 			sgp.next = nil // mark as removed (see dequeueSudog)
 		}
 
-		// if sgp participates in a select and is already signaled, ignore it
-		if sgp.selectdone != nil {
-			// claim the right to signal
-			if *sgp.selectdone != 0 || !atomic.Cas(sgp.selectdone, 0, 1) {
+		// if a goroutine was put on this queue because of a
+		// select, there is a small window between the goroutine
+		// being woken up by a different case and it grabbing the
+		// channel locks. Once it has the lock
+		// it removes itself from the queue, so we won't see it after that.
+		// We use a flag in the G struct to tell us when someone
+		// else has won the race to signal this goroutine but the goroutine
+		// hasn't removed itself from the queue yet.
+		if sgp.isSelect {
+			if !atomic.Cas(&sgp.g.selectDone, 0, 1) {
 				continue
 			}
 		}

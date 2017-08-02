@@ -751,7 +751,6 @@ func adjustsudogs(gp *g, adjinfo *adjustinfo) {
 	// might be in the stack.
 	for s := gp.waiting; s != nil; s = s.waitlink {
 		adjustpointer(adjinfo, unsafe.Pointer(&s.elem))
-		adjustpointer(adjinfo, unsafe.Pointer(&s.selectdone))
 	}
 }
 
@@ -765,10 +764,6 @@ func findsghi(gp *g, stk stack) uintptr {
 	var sghi uintptr
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
 		p := uintptr(sg.elem) + uintptr(sg.c.elemsize)
-		if stk.lo <= p && p < stk.hi && p > sghi {
-			sghi = p
-		}
-		p = uintptr(unsafe.Pointer(sg.selectdone)) + unsafe.Sizeof(sg.selectdone)
 		if stk.lo <= p && p < stk.hi && p > sghi {
 			sghi = p
 		}

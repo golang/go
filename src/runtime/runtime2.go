@@ -272,11 +272,14 @@ type sudog struct {
 	// channel this sudog is blocking on. shrinkstack depends on
 	// this for sudogs involved in channel ops.
 
-	g          *g
-	selectdone *uint32 // CAS to 1 to win select race (may point to stack)
-	next       *sudog
-	prev       *sudog
-	elem       unsafe.Pointer // data element (may point to stack)
+	g *g
+
+	// isSelect indicates g is participating in a select, so
+	// g.selectDone must be CAS'd to win the wake-up race.
+	isSelect bool
+	next     *sudog
+	prev     *sudog
+	elem     unsafe.Pointer // data element (may point to stack)
 
 	// The following fields are never accessed concurrently.
 	// For channels, waitlink is only accessed by g.
@@ -367,6 +370,7 @@ type g struct {
 	cgoCtxt        []uintptr      // cgo traceback context
 	labels         unsafe.Pointer // profiler labels
 	timer          *timer         // cached timer for time.Sleep
+	selectDone     uint32         // are we participating in a select and did someone win the race?
 
 	// Per-G GC state
 
