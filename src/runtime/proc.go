@@ -3433,6 +3433,9 @@ func dolockOSThread() {
 // UnlockOSThread as to LockOSThread.
 // If the calling goroutine exits without unlocking the thread,
 // the thread will be terminated.
+//
+// A goroutine should call LockOSThread before calling OS services or
+// non-Go library functions that depend on per-thread state.
 func LockOSThread() {
 	if atomic.Load(&newmHandoff.haveTemplateThread) == 0 {
 		// If we need to start a new thread from the locked
@@ -3475,6 +3478,13 @@ func dounlockOSThread() {
 // calling goroutine to zero, it unwires the calling goroutine from
 // its fixed operating system thread.
 // If there are no active LockOSThread calls, this is a no-op.
+//
+// Before calling UnlockOSThread, the caller must ensure that the OS
+// thread is suitable for running other goroutines. If the caller made
+// any permanent changes to the state of the thread that would affect
+// other goroutines, it should not call this function and thus leave
+// the goroutine locked to the OS thread until the goroutine (and
+// hence the thread) exits.
 func UnlockOSThread() {
 	_g_ := getg()
 	if _g_.m.lockedExt == 0 {
