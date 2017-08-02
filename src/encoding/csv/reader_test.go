@@ -284,6 +284,13 @@ x,,,
 		Line:   2,
 		Column: 2,
 	},
+	{ // issue 21201
+		Name:  "CRLFInQuotedField",
+		Input: "\"Hello\r\nHi\"",
+		Output: [][]string{
+			{"Hello\r\nHi"},
+		},
+	},
 }
 
 func TestRead(t *testing.T) {

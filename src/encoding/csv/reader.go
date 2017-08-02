@@ -233,6 +233,13 @@ func (r *Reader) readRune() (rune, error) {
 	return r1, err
 }
 
+// readRawRune works the same way as readRune, but does not fold \r\n to \n.
+func (r *Reader) readRawRune() (rune, error) {
+	r1, _, err := r.r.ReadRune()
+	r.column++
+	return r1, err
+}
+
 // skip reads runes up to and including the rune delim or until error.
 func (r *Reader) skip(delim rune) error {
 	for {
@@ -351,7 +358,9 @@ func (r *Reader) parseField() (haveField bool, delim rune, err error) {
 		// quoted field
 	Quoted:
 		for {
-			r1, err = r.readRune()
+			// use readRawRune instead of readRune to preserve \r\n
+			// in quotes fields.
+			r1, err = r.readRawRune()
 			if err != nil {
 				if err == io.EOF {
 					if r.LazyQuotes {
