@@ -332,8 +332,8 @@ func releaseSudog(s *sudog) {
 	if s.elem != nil {
 		throw("runtime: sudog with non-nil elem")
 	}
-	if s.selectdone != nil {
-		throw("runtime: sudog with non-nil selectdone")
+	if s.isSelect {
+		throw("runtime: sudog with non-false isSelect")
 	}
 	if s.next != nil {
 		throw("runtime: sudog with non-nil next")
