@@ -270,6 +270,20 @@ x,,,
 			{"c", "d"},
 		},
 	},
+	{ // issue 19019
+		Name:   "RecordLine1",
+		Input:  "a,\"b\nc\"d,e",
+		Error:  `extraneous " in field`,
+		Line:   1,
+		Column: 1,
+	},
+	{
+		Name:   "RecordLine2",
+		Input:  "a,b\n\"d\n\n,e",
+		Error:  `extraneous " in field`,
+		Line:   2,
+		Column: 2,
+	},
 }
 
 func TestRead(t *testing.T) {
