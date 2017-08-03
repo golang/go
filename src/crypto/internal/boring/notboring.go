@@ -7,6 +7,7 @@
 package boring
 
 import (
+	"crypto"
 	"crypto/cipher"
 	"hash"
 	"math/big"
@@ -57,5 +58,46 @@ func SignMarshalECDSA(priv *PrivateKeyECDSA, hash []byte) ([]byte, error) {
 	panic("boringcrypto: not available")
 }
 func VerifyECDSA(pub *PublicKeyECDSA, hash []byte, r, s *big.Int) bool {
+	panic("boringcrypto: not available")
+}
+
+type PublicKeyRSA struct{ _ int }
+type PrivateKeyRSA struct{ _ int }
+
+func DecryptRSAOAEP(h hash.Hash, priv *PrivateKeyRSA, ciphertext, label []byte) ([]byte, error) {
+	panic("boringcrypto: not available")
+}
+func DecryptRSAPKCS1(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
+	panic("boringcrypto: not available")
+}
+func DecryptRSANoPadding(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
+	panic("boringcrypto: not available")
+}
+func EncryptRSAOAEP(h hash.Hash, pub *PublicKeyRSA, msg, label []byte) ([]byte, error) {
+	panic("boringcrypto: not available")
+}
+func EncryptRSAPKCS1(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
+	panic("boringcrypto: not available")
+}
+func EncryptRSANoPadding(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
+	panic("boringcrypto: not available")
+}
+func GenerateKeyRSA(bits int) (N, E, D, P, Q, Dp, Dq, Qinv *big.Int, err error) {
+	panic("boringcrypto: not available")
+}
+func NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv *big.Int) (*PrivateKeyRSA, error) {
+	panic("boringcrypto: not available")
+}
+func NewPublicKeyRSA(N, E *big.Int) (*PublicKeyRSA, error) { panic("boringcrypto: not available") }
+func SignRSAPKCS1v15(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte) ([]byte, error) {
+	panic("boringcrypto: not available")
+}
+func SignRSAPSS(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte, saltLen int) ([]byte, error) {
+	panic("boringcrypto: not available")
+}
+func VerifyRSAPKCS1v15(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte) error {
+	panic("boringcrypto: not available")
+}
+func VerifyRSAPSS(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte, saltLen int) error {
 	panic("boringcrypto: not available")
 }

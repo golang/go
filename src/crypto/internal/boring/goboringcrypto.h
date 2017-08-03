@@ -177,7 +177,9 @@ size_t _goboringcrypto_ECDSA_size(const GO_EC_KEY*);
 int _goboringcrypto_ECDSA_verify(int, const uint8_t*, size_t, const uint8_t*, size_t, const GO_EC_KEY*);
 
 // #include <openssl/rsa.h>
-/*unchecked (opaque)*/ typedef struct GO_RSA { char data[1]; } GO_RSA;
+
+// Note: order of struct fields here is unchecked.
+typedef struct GO_RSA { void *meth; GO_BIGNUM *n, *e, *d, *p, *q, *dmp1, *dmq1, *iqmp; char data[120]; } GO_RSA;
 /*unchecked (opaque)*/ typedef struct GO_BN_GENCB { char data[1]; } GO_BN_GENCB;
 GO_RSA* _goboringcrypto_RSA_new(void);
 void _goboringcrypto_RSA_free(GO_RSA*);
