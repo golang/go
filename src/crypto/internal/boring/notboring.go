@@ -29,3 +29,5 @@ func NewSHA224() hash.Hash { panic("boringcrypto: not available") }
 func NewSHA256() hash.Hash { panic("boringcrypto: not available") }
 func NewSHA384() hash.Hash { panic("boringcrypto: not available") }
 func NewSHA512() hash.Hash { panic("boringcrypto: not available") }
+
+func NewHMAC(h func() hash.Hash, key []byte) hash.Hash { panic("boringcrypto: not available") }
