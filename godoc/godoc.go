@@ -461,16 +461,13 @@ func pkgLinkFunc(path string) string {
 	return "pkg/" + path
 }
 
-// srcToPkgLinkFunc builds an <a> tag linking to
-// the package documentation of relpath.
+// srcToPkgLinkFunc builds an <a> tag linking to the package
+// documentation of relpath.
 func srcToPkgLinkFunc(relpath string) string {
 	relpath = pkgLinkFunc(relpath)
-	if relpath == "pkg/" {
+	relpath = pathpkg.Dir(relpath)
+	if relpath == "pkg" {
 		return `<a href="/pkg">Index</a>`
-	}
-	if i := strings.LastIndex(relpath, "/"); i != -1 {
-		// Remove filename after last slash.
-		relpath = relpath[:i]
 	}
 	return fmt.Sprintf(`<a href="/%s">%s</a>`, relpath, relpath[len("pkg/"):])
 }

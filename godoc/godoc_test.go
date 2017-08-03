@@ -313,6 +313,8 @@ func TestSrcToPkgLinkFunc(t *testing.T) {
 	}{
 		{"src/", `<a href="/pkg">Index</a>`},
 		{"src/fmt/", `<a href="/pkg/fmt">fmt</a>`},
+		{"pkg/", `<a href="/pkg">Index</a>`},
+		{"pkg/LICENSE", `<a href="/pkg">Index</a>`},
 	} {
 		if got := srcToPkgLinkFunc(tc.path); got != tc.want {
 			t.Errorf("srcToPkgLinkFunc(%v) = %v; want %v", tc.path, got, tc.want)
