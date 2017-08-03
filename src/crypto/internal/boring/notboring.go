@@ -6,6 +6,8 @@
 
 package boring
 
+import "hash"
+
 const available = false
 
 // Unreachable marks code that should be unreachable
@@ -18,8 +20,12 @@ func UnreachableExceptTests() {}
 
 type randReader int
 
-func (randReader) Read(b []byte) (int, error) {
-	panic("boringcrypto: not available")
-}
+func (randReader) Read(b []byte) (int, error) { panic("boringcrypto: not available") }
 
 const RandReader = randReader(0)
+
+func NewSHA1() hash.Hash   { panic("boringcrypto: not available") }
+func NewSHA224() hash.Hash { panic("boringcrypto: not available") }
+func NewSHA256() hash.Hash { panic("boringcrypto: not available") }
+func NewSHA384() hash.Hash { panic("boringcrypto: not available") }
+func NewSHA512() hash.Hash { panic("boringcrypto: not available") }
