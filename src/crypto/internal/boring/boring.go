@@ -37,3 +37,7 @@ func UnreachableExceptTests() {
 		panic("boringcrypto: invalid code execution")
 	}
 }
+
+type fail string
+
+func (e fail) Error() string { return "boringcrypto: " + string(e) + " failed" }
