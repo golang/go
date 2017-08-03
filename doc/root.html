@@ -77,15 +77,14 @@ Linux, Mac OS X, Windows, and more.
     <iframe width="415" height="241" src="//www.youtube.com/embed/ytEkHepK08c" frameborder="0" allowfullscreen></iframe>
   </div>
 </div>
-{{end}}
 
- <div {{if not $.GoogleCN}}class="right"{{end}}>
+<div class="right">
 	<div id="blog">
 		<div class="rootHeading">Featured articles</div>
 		<div class="read"><a href="//blog.golang.org/">Read more</a></div>
 	</div>
- </div>
-
+</div>
+{{end}}
 
 <div style="clear: both;"></div>
 
@@ -93,7 +92,25 @@ Linux, Mac OS X, Windows, and more.
 (function() {
 	'use strict';
 
-  function readableTime(t) {
+	window.initFuncs.push(function() {
+		// Set up playground if enabled.
+		if (window.playground) {
+			window.playground({
+				"codeEl":        "#learn .code",
+				"outputEl":      "#learn .output",
+				"runEl":         "#learn .run",
+				"shareEl":       "#learn .share",
+				"shareRedirect": "//play.golang.org/p/",
+				"toysEl":        "#learn .toys select"
+			});
+		} else {
+			$('#learn').hide()
+		}
+	});
+
+	{{if not $.GoogleCN}}
+
+	function readableTime(t) {
 		var m = ["January", "February", "March", "April", "May", "June", "July",
 			"August", "September", "October", "November", "December"];
 		var p = t.substring(0, t.indexOf("T")).split("-");
@@ -123,29 +140,11 @@ Linux, Mac OS X, Windows, and more.
 	}
 
 	window.initFuncs.push(function() {
-		// Set up playground if enabled.
-		if (window.playground) {
-			window.playground({
-				"codeEl":        "#learn .code",
-				"outputEl":      "#learn .output",
-				"runEl":         "#learn .run",
-				"shareEl":       "#learn .share",
-				"shareRedirect": "//play.golang.org/p/",
-				"toysEl":        "#learn .toys select"
-			});
-		} else {
-			$('#learn').hide()
-		}
-
 		// Load blog feed.
 		$('<script/>').attr('text', 'text/javascript')
 			.attr('src', '//blog.golang.org/.json?jsonp=feedLoaded')
 			.appendTo('body');
-	});
 
-	{{if not $.GoogleCN}}
-
-	window.initFuncs.push(function() {
 		// Set the video at random.
 		var videos = [
 			{h: 241, s: "//www.youtube.com/embed/ytEkHepK08c"}, // Tour of Go
