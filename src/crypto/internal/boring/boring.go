@@ -53,3 +53,20 @@ func bnToBig(bn *C.GO_BIGNUM) *big.Int {
 	n := C._goboringcrypto_BN_bn2bin(bn, base(raw))
 	return new(big.Int).SetBytes(raw[:n])
 }
+
+func bigToBn(bnp **C.GO_BIGNUM, b *big.Int) bool {
+	if *bnp != nil {
+		C._goboringcrypto_BN_free(*bnp)
+		*bnp = nil
+	}
+	if b == nil {
+		return true
+	}
+	raw := b.Bytes()
+	bn := C._goboringcrypto_BN_bin2bn(base(raw), C.size_t(len(raw)), nil)
+	if bn == nil {
+		return false
+	}
+	*bnp = bn
+	return true
+}

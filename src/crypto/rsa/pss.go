@@ -11,6 +11,7 @@ package rsa
 import (
 	"bytes"
 	"crypto"
+	"crypto/internal/boring"
 	"errors"
 	"hash"
 	"io"
@@ -259,6 +260,14 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte, 
 		hash = opts.Hash
 	}
 
+	if boring.Enabled {
+		bkey, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, err
+		}
+		return boring.SignRSAPSS(bkey, hash, hashed, saltLength)
+	}
+
 	salt := make([]byte, saltLength)
 	if _, err := io.ReadFull(rand, salt); err != nil {
 		return nil, err
@@ -277,6 +286,16 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte, opts
 
 // verifyPSS verifies a PSS signature with the given salt length.
 func verifyPSS(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte, saltLen int) error {
+	if boring.Enabled {
+		bkey, err := boringPublicKey(pub)
+		if err != nil {
+			return err
+		}
+		if err := boring.VerifyRSAPSS(bkey, hash, hashed, sig, saltLen); err != nil {
+			return ErrVerification
+		}
+		return nil
+	}
 	nBits := pub.N.BitLen()
 	if len(sig) != (nBits+7)/8 {
 		return ErrVerification
