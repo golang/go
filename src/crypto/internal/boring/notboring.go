@@ -15,3 +15,11 @@ func Unreachable() {}
 // UnreachableExceptTests marks code that should be unreachable
 // when BoringCrypto is in use. It is a no-op without BoringCrypto.
 func UnreachableExceptTests() {}
+
+type randReader int
+
+func (randReader) Read(b []byte) (int, error) {
+	panic("boringcrypto: not available")
+}
+
+const RandReader = randReader(0)
