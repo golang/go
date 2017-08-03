@@ -214,6 +214,12 @@ This function will block until the program is terminated.
 </p>
 
 <p>
+<code>ListenAndServe</code> always returns an error, since it only returns when an
+unexpected error occurs.
+In order to log that error we wrap the function call with <code>log.Fatal</code>.
+</p>
+
+<p>
 The function <code>handler</code> is of the type <code>http.HandlerFunc</code>.
 It takes an <code>http.ResponseWriter</code> and an <code>http.Request</code> as
 its arguments.
