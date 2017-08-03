@@ -473,6 +473,15 @@ version of gccgo.
       populated.
     </p>
 
+    <p><!-- CL 36696 -->
+
+    If any SAN extension, including with no DSN names, is present
+    in the certificate, then the Common Name from
+    <a href="#pkg/crypto/x509/#Certificate.Subject"><code>Subject</code>code></a> is ignored.
+    In previous releases, the code tested only whether DNS-name SANs were
+    present in a certificate.
+    </p>
+
 </dl><!-- crypto/x509 -->
 
 <dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
