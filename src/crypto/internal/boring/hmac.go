@@ -10,6 +10,7 @@ package boring
 // #include "goboringcrypto.h"
 import "C"
 import (
+	"crypto"
 	"hash"
 	"runtime"
 	"unsafe"
@@ -28,6 +29,28 @@ func hashToMD(h hash.Hash) *C.GO_EVP_MD {
 	case *sha384Hash:
 		return C._goboringcrypto_EVP_sha384()
 	case *sha512Hash:
+		return C._goboringcrypto_EVP_sha512()
+	}
+	return nil
+}
+
+// cryptoHashToMD converts a crypto.Hash
+// to a BoringCrypto *C.GO_EVP_MD.
+func cryptoHashToMD(ch crypto.Hash) *C.GO_EVP_MD {
+	switch ch {
+	case crypto.MD5:
+		return C._goboringcrypto_EVP_md5()
+	case crypto.MD5SHA1:
+		return C._goboringcrypto_EVP_md5_sha1()
+	case crypto.SHA1:
+		return C._goboringcrypto_EVP_sha1()
+	case crypto.SHA224:
+		return C._goboringcrypto_EVP_sha224()
+	case crypto.SHA256:
+		return C._goboringcrypto_EVP_sha256()
+	case crypto.SHA384:
+		return C._goboringcrypto_EVP_sha384()
+	case crypto.SHA512:
 		return C._goboringcrypto_EVP_sha512()
 	}
 	return nil
