@@ -9,6 +9,7 @@ package boring
 import (
 	"crypto/cipher"
 	"hash"
+	"math/big"
 )
 
 const available = false
@@ -36,3 +37,25 @@ func NewSHA512() hash.Hash { panic("boringcrypto: not available") }
 func NewHMAC(h func() hash.Hash, key []byte) hash.Hash { panic("boringcrypto: not available") }
 
 func NewAESCipher(key []byte) (cipher.Block, error) { panic("boringcrypto: not available") }
+
+type PublicKeyECDSA struct{ _ int }
+type PrivateKeyECDSA struct{ _ int }
+
+func GenerateKeyECDSA(curve string) (X, Y, D *big.Int, err error) {
+	panic("boringcrypto: not available")
+}
+func NewPrivateKeyECDSA(curve string, X, Y, D *big.Int) (*PrivateKeyECDSA, error) {
+	panic("boringcrypto: not available")
+}
+func NewPublicKeyECDSA(curve string, X, Y *big.Int) (*PublicKeyECDSA, error) {
+	panic("boringcrypto: not available")
+}
+func SignECDSA(priv *PrivateKeyECDSA, hash []byte) (r, s *big.Int, err error) {
+	panic("boringcrypto: not available")
+}
+func SignMarshalECDSA(priv *PrivateKeyECDSA, hash []byte) ([]byte, error) {
+	panic("boringcrypto: not available")
+}
+func VerifyECDSA(pub *PublicKeyECDSA, hash []byte, r, s *big.Int) bool {
+	panic("boringcrypto: not available")
+}
