@@ -136,7 +136,11 @@ func macSHA1(version uint16, key []byte) macFunction {
 		copy(mac.key, key)
 		return mac
 	}
-	return tls10MAC{hmac.New(newConstantTimeHash(sha1.New), key)}
+	h := sha1.New
+	if !boring.Enabled {
+		h = newConstantTimeHash(h)
+	}
+	return tls10MAC{hmac.New(h, key)}
 }
 
 // macSHA256 returns a SHA-256 based MAC. These are only supported in TLS 1.2
