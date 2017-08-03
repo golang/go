@@ -49,6 +49,9 @@ func (d *digest) Reset() {
 
 // New returns a new hash.Hash computing the SHA1 checksum.
 func New() hash.Hash {
+	if boringEnabled {
+		return boringNewSHA1()
+	}
 	d := new(digest)
 	d.Reset()
 	return d
@@ -59,6 +62,7 @@ func (d *digest) Size() int { return Size }
 func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
+	boringUnreachable()
 	nn = len(p)
 	d.len += uint64(nn)
 	if d.nx > 0 {
@@ -82,6 +86,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 }
 
 func (d0 *digest) Sum(in []byte) []byte {
+	boringUnreachable()
 	// Make a copy of d0 so that caller can keep writing and summing.
 	d := *d0
 	hash := d.checkSum()
@@ -191,6 +196,13 @@ func (d *digest) constSum() [Size]byte {
 
 // Sum returns the SHA1 checksum of the data.
 func Sum(data []byte) [Size]byte {
+	if boringEnabled {
+		h := New()
+		h.Write(data)
+		var ret [Size]byte
+		h.Sum(ret[:0])
+		return ret
+	}
 	var d digest
 	d.Reset()
 	d.Write(data)
