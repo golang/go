@@ -8,7 +8,7 @@ package html
 const longestEntityWithoutSemicolon = 6
 
 // entity is a map from HTML entity names to their values. The semicolon matters:
-// http://www.whatwg.org/specs/web-apps/current-work/multipage/named-character-references.html
+// https://html.spec.whatwg.org/multipage/named-characters.html
 // lists both "amp" and "amp;" as two separate entries.
 //
 // Note that the HTML5 list is larger than the HTML4 list at
