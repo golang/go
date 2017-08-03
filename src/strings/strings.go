@@ -363,7 +363,6 @@ func Fields(s string) []string {
 	// a non-ASCII rune needs to be decoded and checked
 	// if it corresponds to a space.
 	a := make([]string, 0, n)
-	fieldStart := 0
 	i := 0
 	// Skip spaces in the front of the input.
 	for i < len(s) {
@@ -380,7 +379,7 @@ func Fields(s string) []string {
 			i += w
 		}
 	}
-	fieldStart = i
+	fieldStart := i
 	for i < len(s) {
 		if c := s[i]; c < utf8.RuneSelf {
 			if asciiSpace[c] == 0 {
