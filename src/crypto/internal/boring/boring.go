@@ -9,6 +9,7 @@ package boring
 
 // #include "goboringcrypto.h"
 import "C"
+import "math/big"
 
 const available = true
 
@@ -41,3 +42,14 @@ func UnreachableExceptTests() {
 type fail string
 
 func (e fail) Error() string { return "boringcrypto: " + string(e) + " failed" }
+
+func bigToBN(x *big.Int) *C.GO_BIGNUM {
+	raw := x.Bytes()
+	return C._goboringcrypto_BN_bin2bn(base(raw), C.size_t(len(raw)), nil)
+}
+
+func bnToBig(bn *C.GO_BIGNUM) *big.Int {
+	raw := make([]byte, C._goboringcrypto_BN_num_bytes(bn))
+	n := C._goboringcrypto_BN_bn2bin(bn, base(raw))
+	return new(big.Int).SetBytes(raw[:n])
+}
