@@ -6,7 +6,10 @@
 
 package boring
 
-import "hash"
+import (
+	"crypto/cipher"
+	"hash"
+)
 
 const available = false
 
@@ -31,3 +34,5 @@ func NewSHA384() hash.Hash { panic("boringcrypto: not available") }
 func NewSHA512() hash.Hash { panic("boringcrypto: not available") }
 
 func NewHMAC(h func() hash.Hash, key []byte) hash.Hash { panic("boringcrypto: not available") }
+
+func NewAESCipher(key []byte) (cipher.Block, error) { panic("boringcrypto: not available") }
