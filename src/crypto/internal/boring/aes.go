@@ -36,7 +36,10 @@ type extraModes interface {
 	NewCBCEncrypter(iv []byte) cipher.BlockMode
 	NewCBCDecrypter(iv []byte) cipher.BlockMode
 	NewCTR(iv []byte) cipher.Stream
-	NewGCM(size int) (cipher.AEAD, error)
+	NewGCM(nonceSize int) (cipher.AEAD, error)
+
+	// Invented for BoringCrypto.
+	NewGCMTLS() (cipher.AEAD, error)
 }
 
 var _ extraModes = (*aesCipher)(nil)
@@ -172,6 +175,14 @@ type noGCM struct {
 }
 
 func (c *aesCipher) NewGCM(nonceSize int) (cipher.AEAD, error) {
+	return c.newGCM(nonceSize, false)
+}
+
+func (c *aesCipher) NewGCMTLS() (cipher.AEAD, error) {
+	return c.newGCM(gcmStandardNonceSize, true)
+}
+
+func (c *aesCipher) newGCM(nonceSize int, tls bool) (cipher.AEAD, error) {
 	if nonceSize != gcmStandardNonceSize {
 		// Fall back to standard library for GCM with non-standard nonce size.
 		return cipher.NewGCMWithNonceSize(&noGCM{c}, nonceSize)
@@ -180,9 +191,17 @@ func (c *aesCipher) NewGCM(nonceSize int) (cipher.AEAD, error) {
 	var aead *C.GO_EVP_AEAD
 	switch len(c.key) * 8 {
 	case 128:
-		aead = C._goboringcrypto_EVP_aead_aes_128_gcm()
+		if tls {
+			aead = C._goboringcrypto_EVP_aead_aes_128_gcm_tls12()
+		} else {
+			aead = C._goboringcrypto_EVP_aead_aes_128_gcm()
+		}
 	case 256:
-		aead = C._goboringcrypto_EVP_aead_aes_256_gcm()
+		if tls {
+			aead = C._goboringcrypto_EVP_aead_aes_256_gcm_tls12()
+		} else {
+			aead = C._goboringcrypto_EVP_aead_aes_256_gcm()
+		}
 	default:
 		// Fall back to standard library for GCM with non-standard key size.
 		return cipher.NewGCMWithNonceSize(&noGCM{c}, nonceSize)
