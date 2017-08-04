@@ -773,6 +773,16 @@ version of gccgo.
 
 </dl><!-- net/http/httptest -->
 
+<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
+  <dd>
+    <p><!-- CL 43712 -->
+      The <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
+      now proxies all HTTP/2 response trailers, even those not declared in the initial response
+      header. Such undeclared trailers are used by the gRPC protocol.
+    </p>
+
+</dl><!-- net/http/httputil -->
+
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>
     <p><!-- CL 36800 -->
