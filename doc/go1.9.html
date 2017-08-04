@@ -156,6 +156,21 @@ type T1 = T2
   directories, write <code>./vendor/...</code>.
 </p>
 
+<h3 id="goroot">Moved GOROOT</h3>
+
+<p><!-- CL 42533 -->
+  The <a href="/cmd/go/">go tool</a> will now use the path from which it
+  was invoked to attempt to locate the root of the Go install tree.
+  This means that if the entire Go installation is moved to a new
+  location, the go tool should continue to work as usual.
+  This may be overriden by setting <code>GOROOT</code> in the environment,
+  which should only be done in unusual circumstances.
+  Note that this does not affect the result of
+  the <a href="/pkg/runtime/#GOROOT">runtime.GOROOT</a> function, which
+  will continue to report the original installation location;
+  this may be fixed in later releases.
+</p>
+
 <h3 id="compiler">Compiler Toolchain</h3>
 
 <p><!-- CL 37441 -->
