@@ -275,11 +275,30 @@ func TestRandomMutations(t *testing.T) {
 	}
 }
 
+func TestLowerBound(t *testing.T) {
+	// Use random sets of sizes from 0 to about 4000.
+	prng := rand.New(rand.NewSource(0))
+	for i := uint(0); i < 12; i++ {
+		x := randomPset(prng, 1<<i)
+		for j := 0; j < 10000; j++ {
+			found := intsets.MaxInt
+			for e := range x.hash {
+				if e >= j && e < found {
+					found = e
+				}
+			}
+			if res := x.bits.LowerBound(j); res != found {
+				t.Errorf("%s: LowerBound(%d)=%d, expected %d", &x.bits, j, res, found)
+			}
+		}
+	}
+}
+
 // TestSetOperations exercises classic set operations: ∩ , ∪, \.
 func TestSetOperations(t *testing.T) {
 	prng := rand.New(rand.NewSource(0))
 
-	// Use random sets of sizes from 0 to about 1000.
+	// Use random sets of sizes from 0 to about 4000.
 	// For each operator, we test variations such as
 	// Z.op(X, Y), Z.op(X, Z) and Z.op(Z, Y) to exercise
 	// the degenerate cases of each method implementation.

@@ -170,6 +170,26 @@ func (b *block) min(take bool) int {
 	panic("BUG: empty block")
 }
 
+// lowerBound returns the smallest element of the block that is greater than or
+// equal to the element corresponding to the ith bit. If there is no such
+// element, the second return value is false.
+func (b *block) lowerBound(i uint) (int, bool) {
+	w := i / bitsPerWord
+	bit := i % bitsPerWord
+
+	if val := b.bits[w] >> bit; val != 0 {
+		return b.offset + int(i) + ntz(val), true
+	}
+
+	for w++; w < wordsPerBlock; w++ {
+		if val := b.bits[w]; val != 0 {
+			return b.offset + int(w*bitsPerWord) + ntz(val), true
+		}
+	}
+
+	return 0, false
+}
+
 // forEach calls f for each element of block b.
 // f must not mutate b's enclosing Sparse.
 func (b *block) forEach(f func(int)) {
@@ -280,8 +300,26 @@ func (s *Sparse) Min() int {
 	return s.root.min(false)
 }
 
+// LowerBound returns the smallest element >= x, or MaxInt if there is no such
+// element.
+func (s *Sparse) LowerBound(x int) int {
+	offset, i := offsetAndBitIndex(x)
+	for b := s.first(); b != &none; b = s.next(b) {
+		if b.offset > offset {
+			return b.min(false)
+		}
+		if b.offset == offset {
+			if y, ok := b.lowerBound(i); ok {
+				return y
+			}
+		}
+	}
+	return MaxInt
+}
+
 // block returns the block that would contain offset,
 // or nil if s contains no such block.
+// Precondition: offset is a multiple of bitsPerBlock.
 func (s *Sparse) block(offset int) *block {
 	for b := s.first(); b != &none && b.offset <= offset; b = s.next(b) {
 		if b.offset == offset {
