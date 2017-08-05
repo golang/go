@@ -776,7 +776,7 @@ func findImportGoPath(pkgName string, symbols map[string]bool, filename string) 
 	sort.Sort(byImportPathShortLength(candidates))
 	if Debug {
 		for i, pkg := range candidates {
-			log.Printf("%s candidate %d/%d: %v", pkgName, i+1, len(candidates), pkg.importPathShort)
+			log.Printf("%s candidate %d/%d: %v in %v", pkgName, i+1, len(candidates), pkg.importPathShort, pkg.dir)
 		}
 	}
 
