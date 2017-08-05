@@ -71,7 +71,7 @@ func ExampleOnesCount32() {
 
 func ExampleOnesCount64() {
 	fmt.Printf("%b\n", 14)
-	fmt.Println(bits.OnesCount(14))
+	fmt.Println(bits.OnesCount64(14))
 	// Output:
 	// 1110
 	// 3
