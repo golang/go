@@ -55,6 +55,29 @@ type Driver interface {
 	Open(name string) (Conn, error)
 }
 
+// Connector is an optional interface that drivers can implement.
+// It allows drivers to provide more flexible methods to open
+// database connections without requiring the use of a DSN string.
+type Connector interface {
+	// Connect returns a connection to the database.
+	// Connect may return a cached connection (one previously
+	// closed), but doing so is unnecessary; the sql package
+	// maintains a pool of idle connections for efficient re-use.
+	//
+	// The provided context.Context is for dialing purposes only
+	// (see net.DialContext) and should not be stored or used for
+	// other purposes.
+	//
+	// The returned connection is only used by one goroutine at a
+	// time.
+	Connect(context.Context) (Conn, error)
+
+	// Driver returns the underlying Driver of the Connector,
+	// mainly to maintain compatibility with the Driver method
+	// on sql.DB.
+	Driver() Driver
+}
+
 // ErrSkip may be returned by some optional interfaces' methods to
 // indicate at runtime that the fast path is unavailable and the sql
 // package should continue as if the optional interface was not
