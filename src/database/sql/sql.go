@@ -317,8 +317,7 @@ var ErrNoRows = errors.New("sql: no rows in result set")
 // connection is returned to DB's idle connection pool. The pool size
 // can be controlled with SetMaxIdleConns.
 type DB struct {
-	driver driver.Driver
-	dsn    string
+	connector driver.Connector
 	// numClosed is an atomic counter which represents a total number of
 	// closed connections. Stmt.openStmt checks it before cleaning closed
 	// connections in Stmt.css.
@@ -575,6 +574,48 @@ func (db *DB) removeDepLocked(x finalCloser, dep interface{}) func() error {
 // to block until the connectionOpener can satisfy the backlog of requests.
 var connectionRequestQueueSize = 1000000
 
+type dsnConnector struct {
+	dsn    string
+	driver driver.Driver
+}
+
+func (t dsnConnector) Connect(_ context.Context) (driver.Conn, error) {
+	return t.driver.Open(t.dsn)
+}
+
+func (t dsnConnector) Driver() driver.Driver {
+	return t.driver
+}
+
+// OpenDB opens a database using a Connector, allowing drivers to
+// bypass a string based data source name.
+//
+// Most users will open a database via a driver-specific connection
+// helper function that returns a *DB. No database drivers are included
+// in the Go standard library. See https://golang.org/s/sqldrivers for
+// a list of third-party drivers.
+//
+// OpenDB may just validate its arguments without creating a connection
+// to the database. To verify that the data source name is valid, call
+// Ping.
+//
+// The returned DB is safe for concurrent use by multiple goroutines
+// and maintains its own pool of idle connections. Thus, the OpenDB
+// function should be called just once. It is rarely necessary to
+// close a DB.
+func OpenDB(c driver.Connector) *DB {
+	db := &DB{
+		connector:    c,
+		openerCh:     make(chan struct{}, connectionRequestQueueSize),
+		lastPut:      make(map[*driverConn]string),
+		connRequests: make(map[uint64]chan connRequest),
+	}
+
+	go db.connectionOpener()
+
+	return db
+}
+
 // Open opens a database specified by its database driver name and a
 // driver-specific data source name, usually consisting of at least a
 // database name and connection information.
@@ -599,15 +640,8 @@ func Open(driverName, dataSourceName string) (*DB, error) {
 	if !ok {
 		return nil, fmt.Errorf("sql: unknown driver %q (forgotten import?)", driverName)
 	}
-	db := &DB{
-		driver:       driveri,
-		dsn:          dataSourceName,
-		openerCh:     make(chan struct{}, connectionRequestQueueSize),
-		lastPut:      make(map[*driverConn]string),
-		connRequests: make(map[uint64]chan connRequest),
-	}
-	go db.connectionOpener()
-	return db, nil
+
+	return OpenDB(dsnConnector{dsn: dataSourceName, driver: driveri}), nil
 }
 
 func (db *DB) pingDC(ctx context.Context, dc *driverConn, release func(error)) error {
@@ -878,7 +912,7 @@ func (db *DB) openNewConnection() {
 	// maybeOpenNewConnctions has already executed db.numOpen++ before it sent
 	// on db.openerCh. This function must execute db.numOpen-- if the
 	// connection fails or is closed before returning.
-	ci, err := db.driver.Open(db.dsn)
+	ci, err := db.connector.Connect(context.Background())
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	if db.closed {
@@ -996,7 +1030,7 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 
 	db.numOpen++ // optimistically
 	db.mu.Unlock()
-	ci, err := db.driver.Open(db.dsn)
+	ci, err := db.connector.Connect(ctx)
 	if err != nil {
 		db.mu.Lock()
 		db.numOpen-- // correct for earlier optimism
@@ -1454,7 +1488,7 @@ func (db *DB) beginDC(ctx context.Context, dc *driverConn, release func(error), 
 
 // Driver returns the database's underlying driver.
 func (db *DB) Driver() driver.Driver {
-	return db.driver
+	return db.connector.Driver()
 }
 
 // ErrConnDone is returned by any operation that is performed on a connection
