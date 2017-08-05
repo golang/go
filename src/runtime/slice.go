@@ -131,7 +131,7 @@ func growslice(et *_type, old slice, cap int) slice {
 		newcap = int(capmem / et.size)
 	}
 
-	if cap < old.cap || uintptr(newcap) > maxSliceCap(et.size) {
+	if cap < old.cap || capmem > _MaxMem {
 		panic(errorString("growslice: cap out of range"))
 	}
 
