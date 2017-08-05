@@ -344,7 +344,7 @@ var ptrTests = []ptrTest{
 		fail:    false,
 	},
 	{
-		// Issue #21306.
+		// Test preemption while entering a cgo call. Issue #21306.
 		name:    "preempt-during-call",
 		c:       `void f() {}`,
 		imports: []string{"runtime", "sync"},
