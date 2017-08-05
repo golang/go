@@ -625,23 +625,6 @@ TEXT runtime·abort(SB),NOSPLIT,$-8-0
 	MOVW	(R0), R0
 	UNDEF
 
-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
-// redirects to memhash(p, h, size) using the size
-// stored in the closure.
-TEXT runtime·memhash_varlen(SB),NOSPLIT,$40-24
-	GO_ARGS
-	NO_LOCAL_POINTERS
-	MOVV	p+0(FP), R1
-	MOVV	h+8(FP), R2
-	MOVV	8(REGCTXT), R3
-	MOVV	R1, 8(R29)
-	MOVV	R2, 16(R29)
-	MOVV	R3, 24(R29)
-	JAL	runtime·memhash(SB)
-	MOVV	32(R29), R1
-	MOVV	R1, ret+16(FP)
-	RET
-
 // AES hashing not implemented for mips64
 TEXT runtime·aeshash(SB),NOSPLIT,$-8-0
 	MOVW	(R0), R1

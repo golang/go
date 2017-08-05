@@ -227,6 +227,22 @@ func getcallersp(argp unsafe.Pointer) uintptr {
 	return uintptr(argp) - sys.MinFrameSize
 }
 
+// getg returns the pointer to the current closure.
+// getclosureptr can only be used in an assignment statement
+// at the entry of a function. Moreover, go:nosplit directive
+// must be specified at the declaration of caller function,
+// so that the function prolog does not clobber the closure register.
+// for example:
+//
+//	//go:nosplit
+//	func f(arg1, arg2, arg3 int) {
+//		dx := getclosureptr()
+//	}
+//
+// The compiler rewrites calls to this function into instructions that fetch the
+// pointer from a well-known register (DX on x86 architecture, etc.) directly.
+func getclosureptr() uintptr
+
 //go:noescape
 func asmcgocall(fn, arg unsafe.Pointer) int32
 
