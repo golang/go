@@ -471,7 +471,7 @@ func TestIntersects(t *testing.T) {
 		z.IntersectionWith(y)
 
 		if got, want := x.Intersects(y), !z.IsEmpty(); got != want {
-			t.Errorf("Intersects: got %v, want %v", got, want)
+			t.Errorf("Intersects(%s, %s): got %v, want %v (%s)", x, y, got, want, &z)
 		}
 
 		// make it false
@@ -563,7 +563,7 @@ func TestFailFastOnShallowCopy(t *testing.T) {
 	y := x // shallow copy (breaks representation invariants)
 	defer func() {
 		got := fmt.Sprint(recover())
-		want := "A Sparse has been copied without (*Sparse).Copy()"
+		want := "interface conversion: interface {} is nil, not intsets.to_copy_a_sparse_you_must_call_its_Copy_method"
 		if got != want {
 			t.Errorf("shallow copy: recover() = %q, want %q", got, want)
 		}
@@ -579,7 +579,60 @@ func TestFailFastOnShallowCopy(t *testing.T) {
 // - Gather set distributions from pointer analysis.
 // - Measure memory usage.
 
-func BenchmarkSparseBitVector(b *testing.B) {
+func benchmarkInsertProbeSparse(b *testing.B, size, spread int) {
+	prng := rand.New(rand.NewSource(0))
+	// Generate our insertions and probes beforehand (we don't want to benchmark
+	// the prng).
+	insert := make([]int, size)
+	probe := make([]int, size*2)
+	for i := range insert {
+		insert[i] = prng.Int() % spread
+	}
+	for i := range probe {
+		probe[i] = prng.Int() % spread
+	}
+
+	b.ResetTimer()
+	var x intsets.Sparse
+	for tries := 0; tries < b.N; tries++ {
+		x.Clear()
+		for _, n := range insert {
+			x.Insert(n)
+		}
+		hits := 0
+		for _, n := range probe {
+			if x.Has(n) {
+				hits++
+			}
+		}
+		// Use the variable so it doesn't get optimized away.
+		if hits > len(probe) {
+			b.Fatalf("%d hits, only %d probes", hits, len(probe))
+		}
+	}
+}
+
+func BenchmarkInsertProbeSparse_2_10(b *testing.B) {
+	benchmarkInsertProbeSparse(b, 2, 10)
+}
+
+func BenchmarkInsertProbeSparse_10_10(b *testing.B) {
+	benchmarkInsertProbeSparse(b, 10, 10)
+}
+
+func BenchmarkInsertProbeSparse_10_1000(b *testing.B) {
+	benchmarkInsertProbeSparse(b, 10, 1000)
+}
+
+func BenchmarkInsertProbeSparse_100_100(b *testing.B) {
+	benchmarkInsertProbeSparse(b, 100, 100)
+}
+
+func BenchmarkInsertProbeSparse_100_10000(b *testing.B) {
+	benchmarkInsertProbeSparse(b, 100, 1000)
+}
+
+func BenchmarkUnionDifferenceSparse(b *testing.B) {
 	prng := rand.New(rand.NewSource(0))
 	for tries := 0; tries < b.N; tries++ {
 		var x, y, z intsets.Sparse
@@ -596,7 +649,7 @@ func BenchmarkSparseBitVector(b *testing.B) {
 	}
 }
 
-func BenchmarkHashTable(b *testing.B) {
+func BenchmarkUnionDifferenceHashTable(b *testing.B) {
 	prng := rand.New(rand.NewSource(0))
 	for tries := 0; tries < b.N; tries++ {
 		x, y, z := make(map[int]bool), make(map[int]bool), make(map[int]bool)
