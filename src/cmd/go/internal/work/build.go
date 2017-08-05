@@ -327,6 +327,8 @@ func BuildModeInit() {
 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
 				"android/amd64", "android/arm", "android/arm64", "android/386":
 				codegenArg = "-shared"
+			case "darwin/amd64":
+				codegenArg = "-shared"
 			default:
 				base.Fatalf("-buildmode=pie not supported on %s\n", platform)
 			}

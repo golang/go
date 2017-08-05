@@ -1095,7 +1095,7 @@ func (l *Link) hostlink() {
 		argv = append(argv, "-Wl,-headerpad,1144")
 		if l.DynlinkingGo() {
 			argv = append(argv, "-Wl,-flat_namespace")
-		} else if !SysArch.InFamily(sys.ARM64) {
+		} else if !SysArch.InFamily(sys.ARM64) && Buildmode != BuildmodePIE {
 			argv = append(argv, "-Wl,-no_pie")
 		}
 	case objabi.Hopenbsd:
@@ -1114,10 +1114,13 @@ func (l *Link) hostlink() {
 			argv = append(argv, "-Wl,-pagezero_size,4000000")
 		}
 	case BuildmodePIE:
-		if UseRelro() {
-			argv = append(argv, "-Wl,-z,relro")
+		// ELF.
+		if Headtype != objabi.Hdarwin {
+			if UseRelro() {
+				argv = append(argv, "-Wl,-z,relro")
+			}
+			argv = append(argv, "-pie")
 		}
-		argv = append(argv, "-pie")
 	case BuildmodeCShared:
 		if Headtype == objabi.Hdarwin {
 			argv = append(argv, "-dynamiclib")

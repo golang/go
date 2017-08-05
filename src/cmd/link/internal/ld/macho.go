@@ -401,8 +401,8 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *Section, segname string) {
 
 	var msect *MachoSect
 	if sect.Rwx&1 == 0 && segname != "__DWARF" && (SysArch.Family == sys.ARM64 ||
-		(SysArch.Family == sys.AMD64 && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive || Buildmode == BuildmodePlugin)) ||
-		(SysArch.Family == sys.ARM && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive || Buildmode == BuildmodePlugin))) {
+		(SysArch.Family == sys.AMD64 && Buildmode != BuildmodeExe) ||
+		(SysArch.Family == sys.ARM && Buildmode != BuildmodeExe)) {
 		// Darwin external linker on arm64 and on amd64 and arm in c-shared/c-archive buildmode
 		// complains about absolute relocs in __TEXT, so if the section is not
 		// executable, put it in __DATA segment.

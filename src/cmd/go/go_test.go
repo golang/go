@@ -6,6 +6,8 @@ package main_test
 
 import (
 	"bytes"
+	"debug/elf"
+	"debug/macho"
 	"fmt"
 	"go/format"
 	"internal/race"
@@ -4330,4 +4332,60 @@ func TestListTests(t *testing.T) {
 	t.Run("Bench", testWith("Benchmark", "BenchmarkSimple"))
 	t.Run("Example1", testWith("Example", "ExampleSimple"))
 	t.Run("Example2", testWith("Example", "ExampleWithEmptyOutput"))
+}
+
+func TestBuildmodePIE(t *testing.T) {
+	if runtime.Compiler == "gccgo" {
+		t.Skipf("skipping test because buildmode=pie is not supported on gccgo")
+	}
+
+	platform := fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
+	switch platform {
+	case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
+		"android/amd64", "android/arm", "android/arm64", "android/386":
+	case "darwin/amd64":
+	default:
+		t.Skipf("skipping test because buildmode=pie is not supported on %s", platform)
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.tempFile("main.go", `package main; func main() { print("hello") }`)
+	src := tg.path("main.go")
+	obj := tg.path("main")
+	tg.run("build", "-buildmode=pie", "-o", obj, src)
+
+	switch runtime.GOOS {
+	case "linux", "android":
+		f, err := elf.Open(obj)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if f.Type != elf.ET_DYN {
+			t.Errorf("PIE type must be ET_DYN, but %s", f.Type)
+		}
+	case "darwin":
+		f, err := macho.Open(obj)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if f.Flags&macho.FlagDyldLink == 0 {
+			t.Error("PIE must have DyldLink flag, but not")
+		}
+		if f.Flags&macho.FlagPIE == 0 {
+			t.Error("PIE must have PIE flag, but not")
+		}
+	default:
+		panic("unreachable")
+	}
+
+	out, err := exec.Command(obj).CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(out) != "hello" {
+		t.Errorf("got %q; want %q", out, "hello")
+	}
 }
