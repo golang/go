@@ -591,23 +591,6 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	MOVQ	AX, ret+0(FP)
 	RET
 
-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
-// redirects to memhash(p, h, size) using the size
-// stored in the closure.
-TEXT runtime·memhash_varlen(SB),NOSPLIT,$24-12
-	GO_ARGS
-	NO_LOCAL_POINTERS
-	MOVL	p+0(FP), AX
-	MOVL	h+4(FP), BX
-	MOVL	4(DX), CX
-	MOVL	AX, 0(SP)
-	MOVL	BX, 4(SP)
-	MOVL	CX, 8(SP)
-	CALL	runtime·memhash(SB)
-	MOVL	16(SP), AX
-	MOVL	AX, ret+8(FP)
-	RET
-
 // hash function using AES hardware instructions
 // For now, our one amd64p32 system (NaCl) does not
 // support using AES instructions, so have not bothered to

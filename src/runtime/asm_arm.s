@@ -719,23 +719,6 @@ TEXT runtime·aeshashstr(SB),NOSPLIT,$-4-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
 
-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
-// redirects to memhash(p, h, size) using the size
-// stored in the closure.
-TEXT runtime·memhash_varlen(SB),NOSPLIT,$16-12
-	GO_ARGS
-	NO_LOCAL_POINTERS
-	MOVW	p+0(FP), R0
-	MOVW	h+4(FP), R1
-	MOVW	4(R7), R2
-	MOVW	R0, 4(R13)
-	MOVW	R1, 8(R13)
-	MOVW	R2, 12(R13)
-	BL	runtime·memhash(SB)
-	MOVW	16(R13), R0
-	MOVW	R0, ret+8(FP)
-	RET
-
 // memequal(p, q unsafe.Pointer, size uintptr) bool
 TEXT runtime·memequal(SB),NOSPLIT,$-4-13
 	MOVW	a+0(FP), R1

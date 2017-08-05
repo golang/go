@@ -2577,6 +2577,11 @@ func init() {
 			return nil
 		},
 		all...)
+	add("runtime", "getclosureptr",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue0(ssa.OpGetClosurePtr, s.f.Config.Types.Uintptr)
+		},
+		all...)
 
 	/******** runtime/internal/sys ********/
 	addF("runtime/internal/sys", "Ctz32",
