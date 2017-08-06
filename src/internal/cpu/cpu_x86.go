@@ -15,9 +15,9 @@ func cpuid(eaxArg, ecxArg uint32) (eax, ebx, ecx, edx uint32)
 func xgetbv() (eax, edx uint32)
 
 func init() {
-	maxId, _, _, _ := cpuid(0, 0)
+	maxID, _, _, _ := cpuid(0, 0)
 
-	if maxId < 1 {
+	if maxID < 1 {
 		return
 	}
 
@@ -43,7 +43,7 @@ func init() {
 
 	X86.HasAVX = isSet(28, ecx1) && osSupportsAVX
 
-	if maxId < 7 {
+	if maxID < 7 {
 		return
 	}
 
