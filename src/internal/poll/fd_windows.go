@@ -295,6 +295,9 @@ type FD struct {
 	isDir bool
 }
 
+// logInitFD is set by tests to enable file descriptor initialization logging.
+var logInitFD func(net string, fd *FD, err error)
+
 // Init initializes the FD. The Sysfd field should already be set.
 // This can be called multiple times on a single FD.
 // The net argument is a network name from the net package (e.g., "tcp"),
@@ -319,6 +322,7 @@ func (fd *FD) Init(net string) (string, error) {
 		return "", errors.New("internal error: unknown network type " + net)
 	}
 
+	var err error
 	if !fd.isFile && !fd.isConsole && !fd.isDir {
 		// Only call init for a network socket.
 		// This means that we don't add files to the runtime poller.
@@ -331,9 +335,13 @@ func (fd *FD) Init(net string) (string, error) {
 		// somehow call ExecIO, then ExecIO, and therefore the
 		// calling method, will return an error, because
 		// fd.pd.runtimeCtx will be 0.
-		if err := fd.pd.init(fd); err != nil {
-			return "", err
-		}
+		err = fd.pd.init(fd)
+	}
+	if logInitFD != nil {
+		logInitFD(net, fd, err)
+	}
+	if err != nil {
+		return "", err
 	}
 	if hasLoadSetFileCompletionNotificationModes {
 		// We do not use events, so we can skip them always.
