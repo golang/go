@@ -898,6 +898,17 @@ var linuxAMD64Tests = []*asmTest{
 		}`,
 		[]string{"\tCMPL\t[A-Z]"},
 	},
+	{
+		// make sure assembly output has matching offset and base register.
+		`
+		func f72(a, b int) int {
+			var x [16]byte // use some frame
+			_ = x
+			return b
+		}
+		`,
+		[]string{"b\\+40\\(SP\\)"},
+	},
 }
 
 var linux386Tests = []*asmTest{
@@ -1302,6 +1313,17 @@ var linuxARMTests = []*asmTest{
 		`,
 		[]string{"\tCLZ\t"},
 	},
+	{
+		// make sure assembly output has matching offset and base register.
+		`
+		func f13(a, b int) int {
+			var x [16]byte // use some frame
+			_ = x
+			return b
+		}
+		`,
+		[]string{"b\\+4\\(FP\\)"},
+	},
 }
 
 var linuxARM64Tests = []*asmTest{
@@ -1473,7 +1495,7 @@ var linuxARM64Tests = []*asmTest{
 			return
 		}
 		`,
-		[]string{"\tMOVD\t\"\"\\.a\\+[0-9]+\\(RSP\\), R[0-9]+", "\tMOVD\tR[0-9]+, \"\"\\.b\\+[0-9]+\\(RSP\\)"},
+		[]string{"\tMOVD\t\"\"\\.a\\+[0-9]+\\(FP\\), R[0-9]+", "\tMOVD\tR[0-9]+, \"\"\\.b\\+[0-9]+\\(FP\\)"},
 	},
 }
 

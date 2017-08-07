@@ -36,3 +36,43 @@ func ExampleLeadingZeros64() {
 	// 64
 	// 63
 }
+
+func ExampleOnesCount() {
+	fmt.Printf("%b\n", 14)
+	fmt.Println(bits.OnesCount(14))
+	// Output:
+	// 1110
+	// 3
+}
+
+func ExampleOnesCount8() {
+	fmt.Printf("%b\n", 14)
+	fmt.Println(bits.OnesCount8(14))
+	// Output:
+	// 1110
+	// 3
+}
+
+func ExampleOnesCount16() {
+	fmt.Printf("%b\n", 14)
+	fmt.Println(bits.OnesCount16(14))
+	// Output:
+	// 1110
+	// 3
+}
+
+func ExampleOnesCount32() {
+	fmt.Printf("%b\n", 14)
+	fmt.Println(bits.OnesCount32(14))
+	// Output:
+	// 1110
+	// 3
+}
+
+func ExampleOnesCount64() {
+	fmt.Printf("%b\n", 14)
+	fmt.Println(bits.OnesCount64(14))
+	// Output:
+	// 1110
+	// 3
+}
