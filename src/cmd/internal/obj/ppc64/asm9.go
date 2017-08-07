@@ -421,6 +421,9 @@ var optab = []Optab{
 	/* Vector permute */
 	{AVPERM, C_VREG, C_VREG, C_VREG, C_VREG, 83, 4, 0}, /* vector permute, va-form */
 
+	/* Vector bit permute */
+	{AVBPERMQ, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector bit permute, vx-form */
+
 	/* Vector select */
 	{AVSEL, C_VREG, C_VREG, C_VREG, C_VREG, 83, 4, 0}, /* vector select, va-form */
 
@@ -1377,6 +1380,9 @@ func buildop(ctxt *obj.Link) {
 
 		case AVPERM: /* vperm */
 			opset(AVPERM, r0)
+
+		case AVBPERMQ: /* vbpermq, vbpermd */
+			opset(AVBPERMD, r0)
 
 		case AVSEL: /* vsel */
 			opset(AVSEL, r0)
@@ -4164,6 +4170,11 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVX(4, 900, 0, 0) /* vsraw - v2.03 */
 	case AVSRAD:
 		return OPVX(4, 964, 0, 0) /* vsrad - v2.07 */
+
+	case AVBPERMQ:
+		return OPVC(4, 1356, 0, 0) /* vbpermq - v2.07 */
+	case AVBPERMD:
+		return OPVC(4, 1484, 0, 0) /* vbpermd - v3.00 */
 
 	case AVCLZB:
 		return OPVX(4, 1794, 0, 0) /* vclzb - v2.07 */
