@@ -129,16 +129,17 @@ func TestAddressParsingError(t *testing.T) {
 		text        string
 		wantErrText string
 	}{
-		0: {"=?iso-8859-2?Q?Bogl=E1rka_Tak=E1cs?= <unknown@gmail.com>", "charset not supported"},
-		1: {"a@gmail.com b@gmail.com", "expected single address"},
-		2: {string([]byte{0xed, 0xa0, 0x80}) + " <micro@example.net>", "invalid utf-8 in address"},
-		3: {"\"" + string([]byte{0xed, 0xa0, 0x80}) + "\" <half-surrogate@example.com>", "invalid utf-8 in quoted-string"},
-		4: {"\"\\" + string([]byte{0x80}) + "\" <escaped-invalid-unicode@example.net>", "invalid utf-8 in quoted-string"},
-		5: {"\"\x00\" <null@example.net>", "bad character in quoted-string"},
-		6: {"\"\\\x00\" <escaped-null@example.net>", "bad character in quoted-string"},
-		7: {"John Doe", "no angle-addr"},
-		8: {`<jdoe#machine.example>`, "missing @ in addr-spec"},
-		9: {`John <middle> Doe <jdoe@machine.example>`, "missing @ in addr-spec"},
+		0:  {"=?iso-8859-2?Q?Bogl=E1rka_Tak=E1cs?= <unknown@gmail.com>", "charset not supported"},
+		1:  {"a@gmail.com b@gmail.com", "expected single address"},
+		2:  {string([]byte{0xed, 0xa0, 0x80}) + " <micro@example.net>", "invalid utf-8 in address"},
+		3:  {"\"" + string([]byte{0xed, 0xa0, 0x80}) + "\" <half-surrogate@example.com>", "invalid utf-8 in quoted-string"},
+		4:  {"\"\\" + string([]byte{0x80}) + "\" <escaped-invalid-unicode@example.net>", "invalid utf-8 in quoted-string"},
+		5:  {"\"\x00\" <null@example.net>", "bad character in quoted-string"},
+		6:  {"\"\\\x00\" <escaped-null@example.net>", "bad character in quoted-string"},
+		7:  {"John Doe", "no angle-addr"},
+		8:  {`<jdoe#machine.example>`, "missing @ in addr-spec"},
+		9:  {`John <middle> Doe <jdoe@machine.example>`, "missing @ in addr-spec"},
+		10: {"cfws@example.com (", "misformatted parenthetical comment"},
 	}
 
 	for i, tc := range mustErrTestCases {
@@ -371,6 +372,29 @@ func TestAddressParsing(t *testing.T) {
 				{
 					Name:    "",
 					Address: "emptystring@example.com",
+				},
+			},
+		},
+		// CFWS
+		{
+			`cfws@example.com (CFWS (cfws))  (another comment)`,
+			[]*Address{
+				{
+					Name:    "",
+					Address: "cfws@example.com",
+				},
+			},
+		},
+		{
+			`cfws@example.com ()  (another comment), cfws2@example.com (another)`,
+			[]*Address{
+				{
+					Name:    "",
+					Address: "cfws@example.com",
+				},
+				{
+					Name:    "",
+					Address: "cfws2@example.com",
 				},
 			},
 		},
