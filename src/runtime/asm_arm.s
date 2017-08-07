@@ -813,31 +813,6 @@ samebytes:
 	MOVW	R0, (R7)
 	RET
 
-// eqstring tests whether two strings are equal.
-// The compiler guarantees that strings passed
-// to eqstring have equal length.
-// See runtime_test.go:eqstring_generic for
-// equivalent Go code.
-TEXT runtime·eqstring(SB),NOSPLIT,$-4-17
-	MOVW	s1_base+0(FP), R2
-	MOVW	s2_base+8(FP), R3
-	MOVW	$1, R8
-	MOVB	R8, ret+16(FP)
-	CMP	R2, R3
-	RET.EQ
-	MOVW	s1_len+4(FP), R0
-	ADD	R2, R0, R6
-loop:
-	CMP	R2, R6
-	RET.EQ
-	MOVBU.P	1(R2), R4
-	MOVBU.P	1(R3), R5
-	CMP	R4, R5
-	BEQ	loop
-	MOVW	$0, R8
-	MOVB	R8, ret+16(FP)
-	RET
-
 // TODO: share code with memequal?
 TEXT bytes·Equal(SB),NOSPLIT,$0-25
 	MOVW	a_len+4(FP), R1

@@ -1369,18 +1369,27 @@ opswitch:
 			n.Left = cheapexpr(n.Left, init)
 			n.Right = cheapexpr(n.Right, init)
 
-			r = mkcall("eqstring", types.Types[TBOOL], init, conv(n.Left, types.Types[TSTRING]), conv(n.Right, types.Types[TSTRING]))
+			lstr := conv(n.Left, types.Types[TSTRING])
+			rstr := conv(n.Right, types.Types[TSTRING])
+			lptr := nod(OSPTR, lstr, nil)
+			rptr := nod(OSPTR, rstr, nil)
+			llen := conv(nod(OLEN, lstr, nil), types.Types[TUINTPTR])
+			rlen := conv(nod(OLEN, rstr, nil), types.Types[TUINTPTR])
 
-			// quick check of len before full compare for == or !=
-			// eqstring assumes that the lengths are equal
+			fn := syslook("memequal")
+			fn = substArgTypes(fn, types.Types[TUINT8], types.Types[TUINT8])
+			r = mkcall1(fn, types.Types[TBOOL], init, lptr, rptr, llen)
+
+			// quick check of len before full compare for == or !=.
+			// memequal then tests equality up to length len.
 			// TODO(marvin): Fix Node.EType type union.
 			if Op(n.Etype) == OEQ {
-				// len(left) == len(right) && eqstring(left, right)
-				r = nod(OANDAND, nod(OEQ, nod(OLEN, n.Left, nil), nod(OLEN, n.Right, nil)), r)
+				// len(left) == len(right) && memequal(left, right, len)
+				r = nod(OANDAND, nod(OEQ, llen, rlen), r)
 			} else {
-				// len(left) != len(right) || !eqstring(left, right)
+				// len(left) != len(right) || !memequal(left, right, len)
 				r = nod(ONOT, r, nil)
-				r = nod(OOROR, nod(ONE, nod(OLEN, n.Left, nil), nod(OLEN, n.Right, nil)), r)
+				r = nod(OOROR, nod(ONE, llen, rlen), r)
 			}
 
 			r = typecheck(r, Erv)

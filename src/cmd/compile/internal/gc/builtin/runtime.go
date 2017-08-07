@@ -48,7 +48,6 @@ func concatstring5(*[32]byte, string, string, string, string, string) string
 func concatstrings(*[32]byte, []string) string
 
 func cmpstring(string, string) int
-func eqstring(string, string) bool
 func intstring(*[4]byte, int64) string
 func slicebytetostring(*[32]byte, []byte) string
 func slicebytetostringtmp([]byte) string

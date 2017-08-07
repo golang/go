@@ -196,9 +196,9 @@ func eqstring_generic(s1, s2 string) bool {
 }
 
 func TestEqString(t *testing.T) {
-	// This isn't really an exhaustive test of eqstring, it's
+	// This isn't really an exhaustive test of == on strings, it's
 	// just a convenient way of documenting (via eqstring_generic)
-	// what eqstring does.
+	// what == does.
 	s := []string{
 		"",
 		"a",
@@ -213,7 +213,7 @@ func TestEqString(t *testing.T) {
 			x := s1 == s2
 			y := eqstring_generic(s1, s2)
 			if x != y {
-				t.Errorf(`eqstring("%s","%s") = %t, want %t`, s1, s2, x, y)
+				t.Errorf(`("%s" == "%s") = %t, want %t`, s1, s2, x, y)
 			}
 		}
 	}
