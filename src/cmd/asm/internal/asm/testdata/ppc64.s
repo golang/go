@@ -932,6 +932,12 @@ label1:
 //	<mnemonic> VRT,VRA,VRB,VRC
 	VPERM V3, V2, V1, V0
 
+//	Vector bit permute, VX-form
+//	<MNEMONIC> VRA,VRB,VRT produces
+//	<mnemonic> VRT,VRA,VRB
+	VBPERMQ	V3,V1,V2
+	VBPERMD	V3,V1,V2
+
 //	Vector select, VA-form
 //	<MNEMONIC> VRA,VRB,VRC,VRT produces
 //	<mnemonic> VRT,VRA,VRB,VRC
