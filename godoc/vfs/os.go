@@ -7,11 +7,9 @@ package vfs
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	pathpkg "path"
 	"path/filepath"
-	"strings"
 )
 
 // OS returns an implementation of FileSystem reading from the
@@ -59,35 +57,9 @@ func (root osFS) Lstat(path string) (os.FileInfo, error) {
 }
 
 func (root osFS) Stat(path string) (os.FileInfo, error) {
-	return stat(root.resolve(path))
+	return os.Stat(root.resolve(path))
 }
 
-var readdir = ioutil.ReadDir // for testing
-var stat = os.Stat           // for testing
-
 func (root osFS) ReadDir(path string) ([]os.FileInfo, error) {
-	fis, err := readdir(root.resolve(path))
-	if err != nil {
-		return fis, err
-	}
-	ret := fis[:0]
-
-	// reread the files with os.Stat since they might be symbolic links
-	for _, fi := range fis {
-		if fi.Mode()&os.ModeSymlink != 0 {
-			baseName := fi.Name()
-			fi, err = root.Stat(pathpkg.Join(path, baseName))
-			if err != nil {
-				if os.IsNotExist(err) && strings.HasPrefix(baseName, ".") {
-					// Ignore editor spam files without log spam.
-					continue
-				}
-				log.Printf("ignoring symlink: %v", err)
-				continue
-			}
-		}
-		ret = append(ret, fi)
-	}
-
-	return ret, nil // is sorted
+	return ioutil.ReadDir(root.resolve(path)) // is sorted
 }
