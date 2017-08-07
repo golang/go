@@ -154,6 +154,10 @@ func (s *ioSrv) ProcessRemoteIO() {
 // is available. Alternatively, it passes the request onto
 // runtime netpoll and waits for completion or cancels request.
 func (s *ioSrv) ExecIO(o *operation, submit func(o *operation) error) (int, error) {
+	if o.fd.pd.runtimeCtx == 0 {
+		return 0, errors.New("internal error: polling on unsupported descriptor type")
+	}
+
 	if !canCancelIO {
 		onceStartServer.Do(startServer)
 	}
@@ -315,8 +319,21 @@ func (fd *FD) Init(net string) (string, error) {
 		return "", errors.New("internal error: unknown network type " + net)
 	}
 
-	if err := fd.pd.init(fd); err != nil {
-		return "", err
+	if !fd.isFile && !fd.isConsole && !fd.isDir {
+		// Only call init for a network socket.
+		// This means that we don't add files to the runtime poller.
+		// Adding files to the runtime poller can confuse matters
+		// if the user is doing their own overlapped I/O.
+		// See issue #21172.
+		//
+		// In general the code below avoids calling the ExecIO
+		// method for non-network sockets. If some method does
+		// somehow call ExecIO, then ExecIO, and therefore the
+		// calling method, will return an error, because
+		// fd.pd.runtimeCtx will be 0.
+		if err := fd.pd.init(fd); err != nil {
+			return "", err
+		}
 	}
 	if hasLoadSetFileCompletionNotificationModes {
 		// We do not use events, so we can skip them always.

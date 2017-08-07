@@ -343,6 +343,14 @@ var ptrTests = []ptrTest{
 		body:    `var b C.char; p := &b; C.f((*C.u)(unsafe.Pointer(&p)))`,
 		fail:    false,
 	},
+	{
+		// Issue #21306.
+		name:    "preempt-during-call",
+		c:       `void f() {}`,
+		imports: []string{"runtime", "sync"},
+		body:    `var wg sync.WaitGroup; wg.Add(100); for i := 0; i < 100; i++ { go func(i int) { for j := 0; j < 100; j++ { C.f(); runtime.GOMAXPROCS(i) }; wg.Done() }(i) }; wg.Wait()`,
+		fail:    false,
+	},
 }
 
 func main() {

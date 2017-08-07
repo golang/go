@@ -156,6 +156,21 @@ type T1 = T2
   directories, write <code>./vendor/...</code>.
 </p>
 
+<h3 id="goroot">Moved GOROOT</h3>
+
+<p><!-- CL 42533 -->
+  The <a href="/cmd/go/">go tool</a> will now use the path from which it
+  was invoked to attempt to locate the root of the Go install tree.
+  This means that if the entire Go installation is moved to a new
+  location, the go tool should continue to work as usual.
+  This may be overriden by setting <code>GOROOT</code> in the environment,
+  which should only be done in unusual circumstances.
+  Note that this does not affect the result of
+  the <a href="/pkg/runtime/#GOROOT">runtime.GOROOT</a> function, which
+  will continue to report the original installation location;
+  this may be fixed in later releases.
+</p>
+
 <h3 id="compiler">Compiler Toolchain</h3>
 
 <p><!-- CL 37441 -->
@@ -473,6 +488,15 @@ version of gccgo.
       populated.
     </p>
 
+    <p><!-- CL 36696 -->
+
+    If any SAN extension, including with no DSN names, is present
+    in the certificate, then the Common Name from
+    <a href="/pkg/crypto/x509/#Certificate.Subject"><code>Subject</code></a> is ignored.
+    In previous releases, the code tested only whether DNS-name SANs were
+    present in a certificate.
+    </p>
+
 </dl><!-- crypto/x509 -->
 
 <dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
@@ -728,7 +752,7 @@ version of gccgo.
       <li><!-- CL 35488 -->
         The <a href="/pkg/net/http/#Transport"><code>Transport</code></a>
         now supports making requests via SOCKS5 proxy when the URL returned by
-        <a href="/net/http/#Transport.Proxy"><code>Transport.Proxy</code></a>
+        <a href="/pkg/net/http/#Transport.Proxy"><code>Transport.Proxy</code></a>
         has the scheme <code>socks5</code>.
       </li>
     </ul>
@@ -763,6 +787,16 @@ version of gccgo.
     </p>
 
 </dl><!-- net/http/httptest -->
+
+<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
+  <dd>
+    <p><!-- CL 43712 -->
+      The <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
+      now proxies all HTTP/2 response trailers, even those not declared in the initial response
+      header. Such undeclared trailers are used by the gRPC protocol.
+    </p>
+
+</dl><!-- net/http/httputil -->
 
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>

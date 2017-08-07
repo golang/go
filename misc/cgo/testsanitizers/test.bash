@@ -156,15 +156,18 @@ if test "$tsan" = "yes"; then
     if ! $CC -fsanitize=thread ${TMPDIR}/testsanitizers$$.c -o ${TMPDIR}/testsanitizers$$ &> ${TMPDIR}/testsanitizers$$.err; then
 	ok=no
     fi
-     if grep "unrecognized" ${TMPDIR}/testsanitizers$$.err >& /dev/null; then
+    if grep "unrecognized" ${TMPDIR}/testsanitizers$$.err >& /dev/null; then
 	echo "skipping tsan tests: -fsanitize=thread not supported"
 	tsan=no
-     elif test "$ok" != "yes"; then
-	 cat ${TMPDIR}/testsanitizers$$.err
-	 echo "skipping tsan tests: -fsanitizer=thread build failed"
-	 tsan=no
-     fi
-     rm -f ${TMPDIR}/testsanitizers$$*
+    elif test "$ok" != "yes"; then
+	cat ${TMPDIR}/testsanitizers$$.err
+	echo "skipping tsan tests: -fsanitizer=thread build failed"
+	tsan=no
+    elif ! ${TMPDIR}/testsanitizers$$ 2>&1; then
+	echo "skipping tsan tests: running tsan program failed"
+	tsan=no
+    fi
+    rm -f ${TMPDIR}/testsanitizers$$*
 fi
 
 # Run a TSAN test.
@@ -196,8 +199,10 @@ if test "$tsan" = "yes"; then
     # These tests are only reliable using clang or GCC version 7 or later.
     # Otherwise runtime/cgo/libcgo.h can't tell whether TSAN is in use.
     ok=false
+    clang=false
     if ${CC} --version | grep clang >/dev/null 2>&1; then
 	ok=true
+	clang=true
     else
 	ver=$($CC -dumpversion)
 	major=$(echo $ver | sed -e 's/\([0-9]*\).*/\1/')
@@ -213,9 +218,13 @@ if test "$tsan" = "yes"; then
 	testtsan tsan5.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
 	testtsan tsan6.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
 	testtsan tsan7.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
-	testtsan tsan10.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
-	testtsan tsan11.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
-	testtsan tsan12.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+
+	# The remaining tests reportedly hang when built with GCC; issue #21196.
+	if test "$clang" = "true"; then
+	    testtsan tsan10.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+	    testtsan tsan11.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+	    testtsan tsan12.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+	fi
 
 	testtsanshared
     fi

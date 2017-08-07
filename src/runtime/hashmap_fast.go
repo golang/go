@@ -495,7 +495,7 @@ again:
 	}
 
 	// store new key/value at insert position
-	*((*uint32)(insertk)) = key
+	typedmemmove(t.key, insertk, unsafe.Pointer(&key))
 	*inserti = top
 	h.count++
 
@@ -583,7 +583,7 @@ again:
 	}
 
 	// store new key/value at insert position
-	*((*uint64)(insertk)) = key
+	typedmemmove(t.key, insertk, unsafe.Pointer(&key))
 	*inserti = top
 	h.count++
 
@@ -723,7 +723,7 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
 			if key != *k {
 				continue
 			}
-			*k = 0
+			typedmemclr(t.key, unsafe.Pointer(k))
 			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*4 + i*uintptr(t.valuesize))
 			typedmemclr(t.elem, v)
 			b.tophash[i] = empty
@@ -778,7 +778,7 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
 			if key != *k {
 				continue
 			}
-			*k = 0
+			typedmemclr(t.key, unsafe.Pointer(k))
 			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*8 + i*uintptr(t.valuesize))
 			typedmemclr(t.elem, v)
 			b.tophash[i] = empty

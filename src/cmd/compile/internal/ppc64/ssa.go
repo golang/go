@@ -638,6 +638,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpPPC64MOVDaddr:
 		p := s.Prog(ppc64.AMOVD)
 		p.From.Type = obj.TYPE_ADDR
+		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
@@ -660,7 +661,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		case nil:
 			// No sym, just MOVD $off(SP), R
 			wantreg = "SP"
-			p.From.Reg = ppc64.REGSP
 			p.From.Offset = v.AuxInt
 		}
 		if reg := v.Args[0].RegName(); reg != wantreg {

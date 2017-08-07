@@ -349,8 +349,9 @@ func doPackage(directory string, names []string, basePkg *Package) *Package {
 	pkg.files = files
 	// Type check the package.
 	err := pkg.check(fs, astFiles)
-	if err != nil && *verbose {
-		warnf("%s", err)
+	if err != nil {
+		// Note that we only report this error when *verbose.
+		Println(err)
 	}
 
 	// Check.
