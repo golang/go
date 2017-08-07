@@ -1057,24 +1057,6 @@ equal:
 	MOVD    $1, R9
 	RET
 
-// eqstring tests whether two strings are equal.
-// The compiler guarantees that strings passed
-// to eqstring have equal length.
-// See runtime_test.go:eqstring_generic for
-// equivalent Go code.
-TEXT runtime·eqstring(SB),NOSPLIT,$0-33
-	MOVD    s1_base+0(FP), R3
-	MOVD    s2_base+16(FP), R4
-	MOVD    $1, R5
-	MOVB    R5, ret+32(FP)
-	CMP     R3, R4
-	BNE     2(PC)
-	RET
-	MOVD    s1_len+8(FP), R5
-	BL      runtime·memeqbody(SB)
-	MOVB    R9, ret+32(FP)
-	RET
-
 TEXT bytes·Equal(SB),NOSPLIT,$0-49
 	MOVD	a_len+8(FP), R4
 	MOVD	b_len+32(FP), R5

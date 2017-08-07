@@ -300,7 +300,6 @@ func round(n, a uintptr) uintptr {
 func checkASM() bool
 
 func memequal_varlen(a, b unsafe.Pointer) bool
-func eqstring(s1, s2 string) bool
 
 // bool2int returns 0 if x is false or 1 if x is true.
 func bool2int(x bool) int {

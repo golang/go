@@ -704,18 +704,6 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT|NOFRAME,$0-17
 	LA	ret+16(FP), R7
 	BR	runtime·memeqbody(SB)
 
-// eqstring tests whether two strings are equal.
-// The compiler guarantees that strings passed
-// to eqstring have equal length.
-// See runtime_test.go:eqstring_generic for
-// equivalent Go code.
-TEXT runtime·eqstring(SB),NOSPLIT|NOFRAME,$0-33
-	MOVD	s1_base+0(FP), R3
-	MOVD	s1_len+8(FP), R6
-	MOVD	s2_base+16(FP), R5
-	LA	ret+32(FP), R7
-	BR	runtime·memeqbody(SB)
-
 TEXT bytes·Equal(SB),NOSPLIT|NOFRAME,$0-49
 	MOVD	a_len+8(FP), R2
 	MOVD	b_len+32(FP), R6

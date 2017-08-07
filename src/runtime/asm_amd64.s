@@ -1326,23 +1326,6 @@ eq:
 	MOVB	$1, ret+16(FP)
 	RET
 
-// eqstring tests whether two strings are equal.
-// The compiler guarantees that strings passed
-// to eqstring have equal length.
-// See runtime_test.go:eqstring_generic for
-// equivalent Go code.
-TEXT runtime·eqstring(SB),NOSPLIT,$0-33
-	MOVQ	s1_base+0(FP), SI
-	MOVQ	s2_base+16(FP), DI
-	CMPQ	SI, DI
-	JEQ	eq
-	MOVQ	s1_len+8(FP), BX
-	LEAQ	ret+32(FP), AX
-	JMP	runtime·memeqbody(SB)
-eq:
-	MOVB	$1, ret+32(FP)
-	RET
-
 // a in SI
 // b in DI
 // count in BX
