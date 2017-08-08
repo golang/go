@@ -1106,8 +1106,8 @@ jmp_label_3:
 	MVN.S	R9>>R8, R7       // 3978f0e1
 	MVN.S	R9->R8, R7       // 5978f0e1
 	MVN.S	R9@>R8, R7       // 7978f0e1
-	MVN	$0xffffffae, R5  // MVN $4294967214, R5   // 51b0e0e30b50e0e1
-	MVN.S	$0xffffffae, R5  // MVN.S $4294967214, R5 // 51b0e0e30b50f0e1
+	MVN	$0xffffffbe, R5  // MVN $4294967230, R5   // 4150a0e3
+	MVN.S	$0xffffffbf, R5  // MVN.S $4294967231, R5 // 4050b0e3
 
 // MOVM
 	MOVM.IA   [R0,R2,R4,R6], (R1)        // MOVM.U [R0,R2,R4,R6], (R1)                      // 550081e8
@@ -1490,6 +1490,30 @@ jmp_label_3:
 	MOVHS	math·Exp(SB), R0     // MOVHS math.Exp(SB), R0
 	MOVHU	R0, math·Exp(SB)     // MOVHU R0, math.Exp(SB)
 	MOVHU	math·Exp(SB), R0     // MOVHU math.Exp(SB), R0
+	MOVHS	R0<<0(R1), R2                                     // f02091e1
+	MOVHS.U	R0<<0(R1), R2                                     // f02011e1
+	MOVHS.W	R0<<0(R1), R2                                     // f020b1e1
+	MOVHS.P	R0<<0(R1), R2                                     // f02091e0
+	MOVH	R0<<0(R1), R2                                     // f02091e1
+	MOVH.U	R0<<0(R1), R2                                     // f02011e1
+	MOVH.W	R0<<0(R1), R2                                     // f020b1e1
+	MOVH.P	R0<<0(R1), R2                                     // f02091e0
+	MOVHU	R0<<0(R1), R2                                     // b02091e1
+	MOVHU.U	R0<<0(R1), R2                                     // b02011e1
+	MOVHU.W	R0<<0(R1), R2                                     // b020b1e1
+	MOVHU.P	R0<<0(R1), R2                                     // b02091e0
+	MOVHS	R2, R5<<0(R1)                                     // b52081e1
+	MOVHS.U	R2, R5<<0(R1)                                     // b52001e1
+	MOVHS.W	R2, R5<<0(R1)                                     // b520a1e1
+	MOVHS.P	R2, R5<<0(R1)                                     // b52081e0
+	MOVH	R2, R5<<0(R1)                                     // b52081e1
+	MOVH.U	R2, R5<<0(R1)                                     // b52001e1
+	MOVH.W	R2, R5<<0(R1)                                     // b520a1e1
+	MOVH.P	R2, R5<<0(R1)                                     // b52081e0
+	MOVHU	R2, R5<<0(R1)                                     // b52081e1
+	MOVHU.U	R2, R5<<0(R1)                                     // b52001e1
+	MOVHU.W	R2, R5<<0(R1)                                     // b520a1e1
+	MOVHU.P	R2, R5<<0(R1)                                     // b52081e0
 
 //
 // END
