@@ -166,6 +166,26 @@ func ExampleLastIndexAny() {
 	// -1
 }
 
+func ExampleLastIndexByte() {
+	fmt.Println(strings.LastIndexByte("Hello, world", 'l'))
+	fmt.Println(strings.LastIndexByte("Hello, world", 'o'))
+	fmt.Println(strings.LastIndexByte("Hello, world", 'x'))
+	// Output:
+	// 10
+	// 8
+	// -1
+}
+
+func ExampleLastIndexFunc() {
+	fmt.Println(strings.LastIndexFunc("go 123", unicode.IsNumber))
+	fmt.Println(strings.LastIndexFunc("123 go", unicode.IsNumber))
+	fmt.Println(strings.LastIndexFunc("go", unicode.IsNumber))
+	// Output:
+	// 5
+	// 2
+	// -1
+}
+
 func ExampleJoin() {
 	s := []string{"foo", "bar", "baz"}
 	fmt.Println(strings.Join(s, ", "))
