@@ -788,7 +788,7 @@ func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
 
 	sizeofAlg := 2 * Widthptr
 	if algarray == nil {
-		algarray = Sysfunc("algarray")
+		algarray = sysfunc("algarray")
 	}
 	dowidth(t)
 	alg := algtype(t)
@@ -1586,8 +1586,8 @@ func dalgsym(t *types.Type) *obj.LSym {
 		s.SetAlgGen(true)
 
 		if memhashvarlen == nil {
-			memhashvarlen = Sysfunc("memhash_varlen")
-			memequalvarlen = Sysfunc("memequal_varlen")
+			memhashvarlen = sysfunc("memhash_varlen")
+			memequalvarlen = sysfunc("memequal_varlen")
 		}
 
 		// make hash closure
