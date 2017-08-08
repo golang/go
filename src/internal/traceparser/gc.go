@@ -5,6 +5,8 @@
 package traceparser
 
 import (
+	"container/heap"
+	"math"
 	"strings"
 	"time"
 )
@@ -131,6 +133,24 @@ type MMUCurve struct {
 	util []MutatorUtil
 	// sums[j] is the cumulative sum of util[:j].
 	sums []totalUtil
+	// bands summarizes util in non-overlapping bands of duration
+	// bandDur.
+	bands []mmuBand
+	// bandDur is the duration of each band.
+	bandDur int64
+}
+
+type mmuBand struct {
+	// minUtil is the minimum instantaneous mutator utilization in
+	// this band.
+	minUtil float64
+	// cumUtil is the cumulative total mutator utilization between
+	// time 0 and the left edge of this band.
+	cumUtil totalUtil
+
+	// integrator is the integrator for the left edge of this
+	// band.
+	integrator integrator
 }
 
 // NewMMUCurve returns an MMU curve for the given mutator utilization
@@ -146,7 +166,77 @@ func NewMMUCurve(util []MutatorUtil) *MMUCurve {
 		prev = u
 	}
 
-	return &MMUCurve{util, sums}
+	// Divide the utilization curve up into equal size
+	// non-overlapping "bands" and compute a summary for each of
+	// these bands.
+	//
+	// Compute the duration of each band.
+	numBands := 1000
+	if numBands > len(util) {
+		// There's no point in having lots of bands if there
+		// aren't many events.
+		numBands = len(util)
+	}
+	dur := util[len(util)-1].Time - util[0].Time
+	bandDur := (dur + int64(numBands) - 1) / int64(numBands)
+	if bandDur < 1 {
+		bandDur = 1
+	}
+	// Compute the bands. There are numBands+1 bands in order to
+	// record the final cumulative sum.
+	bands := make([]mmuBand, numBands+1)
+	c := MMUCurve{util, sums, bands, bandDur}
+	leftSum := integrator{&c, 0}
+	for i := range bands {
+		startTime, endTime := c.bandTime(i)
+		cumUtil := leftSum.advance(startTime)
+		predIdx := leftSum.pos
+		minUtil := 1.0
+		for i := predIdx; i < len(util) && util[i].Time < endTime; i++ {
+			minUtil = math.Min(minUtil, util[i].Util)
+		}
+		bands[i] = mmuBand{minUtil, cumUtil, leftSum}
+	}
+
+	return &c
+}
+
+func (c *MMUCurve) bandTime(i int) (start, end int64) {
+	start = int64(i)*c.bandDur + c.util[0].Time
+	end = start + c.bandDur
+	return
+}
+
+type bandUtil struct {
+	// Band index
+	i int
+	// Lower bound of mutator utilization for all windows
+	// with a left edge in this band.
+	utilBound float64
+}
+
+type bandUtilHeap []bandUtil
+
+func (h bandUtilHeap) Len() int {
+	return len(h)
+}
+
+func (h bandUtilHeap) Less(i, j int) bool {
+	return h[i].utilBound < h[j].utilBound
+}
+
+func (h bandUtilHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
+func (h *bandUtilHeap) Push(x interface{}) {
+	*h = append(*h, x.(bandUtil))
+}
+
+func (h *bandUtilHeap) Pop() interface{} {
+	x := (*h)[len(*h)-1]
+	*h = (*h)[:len(*h)-1]
+	return x
 }
 
 // MMU returns the minimum mutator utilization for the given time
@@ -162,7 +252,88 @@ func (c *MMUCurve) MMU(window time.Duration) (mmu float64) {
 		window = max
 	}
 
+	bandU := bandUtilHeap(c.mkBandUtil(window))
+
+	// Process bands from lowest utilization bound to highest.
+	heap.Init(&bandU)
+
+	// Refine each band into a precise window and MMU until the
+	// precise MMU is less than the lowest band bound.
 	mmu = 1.0
+	for len(bandU) > 0 && bandU[0].utilBound < mmu {
+		mmu = c.bandMMU(bandU[0].i, window, mmu)
+		heap.Pop(&bandU)
+	}
+	return mmu
+}
+
+func (c *MMUCurve) mkBandUtil(window time.Duration) []bandUtil {
+	// For each band, compute the worst-possible total mutator
+	// utilization for all windows that start in that band.
+
+	// minBands is the minimum number of bands a window can span
+	// and maxBands is the maximum number of bands a window can
+	// span in any alignment.
+	minBands := int((int64(window) + c.bandDur - 1) / c.bandDur)
+	maxBands := int((int64(window) + 2*(c.bandDur-1)) / c.bandDur)
+	if window > 1 && maxBands < 2 {
+		panic("maxBands < 2")
+	}
+	tailDur := int64(window) % c.bandDur
+	nUtil := len(c.bands) - maxBands + 1
+	if nUtil < 0 {
+		nUtil = 0
+	}
+	bandU := make([]bandUtil, nUtil)
+	for i := range bandU {
+		// To compute the worst-case MU, we assume the minimum
+		// for any bands that are only partially overlapped by
+		// some window and the mean for any bands that are
+		// completely covered by all windows.
+		var util totalUtil
+
+		// Find the lowest and second lowest of the partial
+		// bands.
+		l := c.bands[i].minUtil
+		r1 := c.bands[i+minBands-1].minUtil
+		r2 := c.bands[i+maxBands-1].minUtil
+		minBand := math.Min(l, math.Min(r1, r2))
+		// Assume the worst window maximally overlaps the
+		// worst minimum and then the rest overlaps the second
+		// worst minimum.
+		if minBands == 1 {
+			util += totalUtilOf(minBand, int64(window))
+		} else {
+			util += totalUtilOf(minBand, c.bandDur)
+			midBand := 0.0
+			switch {
+			case minBand == l:
+				midBand = math.Min(r1, r2)
+			case minBand == r1:
+				midBand = math.Min(l, r2)
+			case minBand == r2:
+				midBand = math.Min(l, r1)
+			}
+			util += totalUtilOf(midBand, tailDur)
+		}
+
+		// Add the total mean MU of bands that are completely
+		// overlapped by all windows.
+		if minBands > 2 {
+			util += c.bands[i+minBands-1].cumUtil - c.bands[i+1].cumUtil
+		}
+
+		bandU[i] = bandUtil{i, util.mean(window)}
+	}
+
+	return bandU
+}
+
+// bandMMU computes the precise minimum mutator utilization for
+// windows with a left edge in band bandIdx.
+func (c *MMUCurve) bandMMU(bandIdx int, window time.Duration, curMMU float64) (mmu float64) {
+	util := c.util
+	mmu = curMMU
 
 	// We think of the mutator utilization over time as the
 	// box-filtered utilization function, which we call the
@@ -179,9 +350,12 @@ func (c *MMUCurve) MMU(window time.Duration) (mmu float64) {
 	// We compute the mutator utilization function incrementally
 	// by tracking the integral from t=0 to the left edge of the
 	// window and to the right edge of the window.
-	left := integrator{c, 0}
+	left := c.bands[bandIdx].integrator
 	right := left
-	time := util[0].Time
+	time, endTime := c.bandTime(bandIdx)
+	if utilEnd := util[len(util)-1].Time - int64(window); utilEnd < endTime {
+		endTime = utilEnd
+	}
 	for {
 		// Advance edges to time and time+window.
 		mu := (right.advance(time+int64(window)) - left.advance(time)).mean(window)
@@ -211,7 +385,7 @@ func (c *MMUCurve) MMU(window time.Duration) (mmu float64) {
 		if time < minTime {
 			time = minTime
 		}
-		if time > util[len(util)-1].Time-int64(window) {
+		if time >= endTime {
 			break
 		}
 	}
