@@ -98,12 +98,10 @@ type File interface {
 	Stat() (os.FileInfo, error)
 }
 
-func dirList(w ResponseWriter, f File) {
+func dirList(w ResponseWriter, r *Request, f File) {
 	dirs, err := f.Readdir(-1)
 	if err != nil {
-		// TODO: log err.Error() to the Server.ErrorLog, once it's possible
-		// for a handler to get at its Server via the ResponseWriter. See
-		// Issue 12438.
+		logf(r, "http: error reading directory: %v", err)
 		Error(w, "Error reading directory", StatusInternalServerError)
 		return
 	}
@@ -615,7 +613,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 			return
 		}
 		w.Header().Set("Last-Modified", d.ModTime().UTC().Format(TimeFormat))
-		dirList(w, f)
+		dirList(w, r, f)
 		return
 	}
 
