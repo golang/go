@@ -92,6 +92,10 @@ func initssaconfig() {
 	typedmemmove = Sysfunc("typedmemmove")
 	typedmemclr = Sysfunc("typedmemclr")
 	Udiv = Sysfunc("udiv")
+
+	// GO386=387 runtime functions
+	ControlWord64trunc = Sysfunc("controlWord64trunc")
+	ControlWord32 = Sysfunc("controlWord32")
 }
 
 // buildssa builds an SSA function for fn.
