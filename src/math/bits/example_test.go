@@ -9,70 +9,98 @@ import (
 	"math/bits"
 )
 
-func ExampleLeadingZeros16() {
-	fmt.Println(bits.LeadingZeros16(0))
-	fmt.Println(bits.LeadingZeros16(1))
-	fmt.Println(bits.LeadingZeros16(256))
-	fmt.Println(bits.LeadingZeros16(65535))
+func ExampleLeadingZeros8() {
+	fmt.Printf("LeadingZeros8(%08b) = %d\n", 1, bits.LeadingZeros8(1))
 	// Output:
-	// 16
-	// 15
-	// 7
-	// 0
+	// LeadingZeros8(00000001) = 7
+}
+
+func ExampleLeadingZeros16() {
+	fmt.Printf("LeadingZeros16(%016b) = %d\n", 1, bits.LeadingZeros16(1))
+	// Output:
+	// LeadingZeros16(0000000000000001) = 15
 }
 
 func ExampleLeadingZeros32() {
-	fmt.Println(bits.LeadingZeros32(0))
-	fmt.Println(bits.LeadingZeros32(1))
+	fmt.Printf("LeadingZeros32(%032b) = %d\n", 1, bits.LeadingZeros32(1))
 	// Output:
-	// 32
-	// 31
+	// LeadingZeros32(00000000000000000000000000000001) = 31
 }
 
 func ExampleLeadingZeros64() {
-	fmt.Println(bits.LeadingZeros64(0))
-	fmt.Println(bits.LeadingZeros64(1))
+	fmt.Printf("LeadingZeros64(%064b) = %d\n", 1, bits.LeadingZeros64(1))
 	// Output:
-	// 64
-	// 63
-}
-
-func ExampleOnesCount() {
-	fmt.Printf("%b\n", 14)
-	fmt.Println(bits.OnesCount(14))
-	// Output:
-	// 1110
-	// 3
+	// LeadingZeros64(0000000000000000000000000000000000000000000000000000000000000001) = 63
 }
 
 func ExampleOnesCount8() {
-	fmt.Printf("%b\n", 14)
-	fmt.Println(bits.OnesCount8(14))
+	fmt.Printf("OnesCount8(%08b) = %d\n", 14, bits.OnesCount8(14))
 	// Output:
-	// 1110
-	// 3
+	// OnesCount8(00001110) = 3
 }
 
 func ExampleOnesCount16() {
-	fmt.Printf("%b\n", 14)
-	fmt.Println(bits.OnesCount16(14))
+	fmt.Printf("OnesCount16(%016b) = %d\n", 14, bits.OnesCount16(14))
 	// Output:
-	// 1110
-	// 3
+	// OnesCount16(0000000000001110) = 3
 }
 
 func ExampleOnesCount32() {
-	fmt.Printf("%b\n", 14)
-	fmt.Println(bits.OnesCount32(14))
+	fmt.Printf("OnesCount32(%032b) = %d\n", 14, bits.OnesCount32(14))
 	// Output:
-	// 1110
-	// 3
+	// OnesCount32(00000000000000000000000000001110) = 3
 }
 
 func ExampleOnesCount64() {
-	fmt.Printf("%b\n", 14)
-	fmt.Println(bits.OnesCount64(14))
+	fmt.Printf("OnesCount64(%064b) = %d\n", 14, bits.OnesCount64(14))
 	// Output:
-	// 1110
-	// 3
+	// OnesCount64(0000000000000000000000000000000000000000000000000000000000001110) = 3
+}
+
+func ExampleTrailingZeros8() {
+	fmt.Printf("TrailingZeros8(%08b) = %d\n", 8, bits.TrailingZeros8(8))
+	// Output:
+	// TrailingZeros8(00001000) = 3
+}
+
+func ExampleTrailingZeros16() {
+	fmt.Printf("TrailingZeros16(%016b) = %d\n", 8, bits.TrailingZeros16(8))
+	// Output:
+	// TrailingZeros16(0000000000001000) = 3
+}
+
+func ExampleTrailingZeros32() {
+	fmt.Printf("TrailingZeros32(%032b) = %d\n", 8, bits.TrailingZeros32(8))
+	// Output:
+	// TrailingZeros32(00000000000000000000000000001000) = 3
+}
+
+func ExampleTrailingZeros64() {
+	fmt.Printf("TrailingZeros64(%064b) = %d\n", 8, bits.TrailingZeros64(8))
+	// Output:
+	// TrailingZeros64(0000000000000000000000000000000000000000000000000000000000001000) = 3
+}
+
+func ExampleLen8() {
+	fmt.Printf("Len8(%08b) = %d\n", 8, bits.Len8(8))
+	// Output:
+	// Len8(00001000) = 4
+}
+
+func ExampleLen16() {
+	fmt.Printf("Len16(%016b) = %d\n", 8, bits.Len16(8))
+	// Output:
+	// Len16(0000000000001000) = 4
+}
+
+func ExampleLen32() {
+	fmt.Printf("Len32(%032b) = %d\n", 8, bits.Len32(8))
+	// Output:
+	// Len32(00000000000000000000000000001000) = 4
+}
+
+func ExampleLen64() {
+	fmt.Printf("Len64(%064b) = %d\n", 8, bits.Len64(8))
+	// Output:
+	// Len64(0000000000000000000000000000000000000000000000000000000000001000) = 4
 }
