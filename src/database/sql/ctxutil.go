@@ -107,10 +107,6 @@ func ctxDriverBegin(ctx context.Context, opts *TxOptions, ci driver.Conn) (drive
 		return ciCtx.BeginTx(ctx, dopts)
 	}
 
-	if ctx.Done() == context.Background().Done() {
-		return ci.Begin()
-	}
-
 	if opts != nil {
 		// Check the transaction level. If the transaction level is non-default
 		// then return an error here as the BeginTx driver value is not supported.
@@ -123,6 +119,10 @@ func ctxDriverBegin(ctx context.Context, opts *TxOptions, ci driver.Conn) (drive
 		if opts.ReadOnly {
 			return nil, errors.New("sql: driver does not support read-only transactions")
 		}
+	}
+
+	if ctx.Done() == context.Background().Done() {
+		return ci.Begin()
 	}
 
 	txi, err := ci.Begin()
