@@ -104,3 +104,35 @@ func ExampleLen64() {
 	// Output:
 	// Len64(0000000000000000000000000000000000000000000000000000000000001000) = 4
 }
+
+func ExampleReverse16() {
+	fmt.Printf("%016b\n", 19)
+	fmt.Printf("%016b\n", bits.Reverse16(19))
+	// Output:
+	// 0000000000010011
+	// 1100100000000000
+}
+
+func ExampleReverse32() {
+	fmt.Printf("%032b\n", 19)
+	fmt.Printf("%032b\n", bits.Reverse32(19))
+	// Output:
+	// 00000000000000000000000000010011
+	// 11001000000000000000000000000000
+}
+
+func ExampleReverse64() {
+	fmt.Printf("%064b\n", 19)
+	fmt.Printf("%064b\n", bits.Reverse64(19))
+	// Output:
+	// 0000000000000000000000000000000000000000000000000000000000010011
+	// 1100100000000000000000000000000000000000000000000000000000000000
+}
+
+func ExampleReverse8() {
+	fmt.Printf("%008b\n", 19)
+	fmt.Printf("%008b\n", bits.Reverse8(19))
+	// Output:
+	// 00010011
+	// 11001000
+}
