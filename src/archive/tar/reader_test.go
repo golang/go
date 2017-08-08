@@ -346,6 +346,15 @@ func TestReader(t *testing.T) {
 	}, {
 		file: "testdata/issue12435.tar",
 		err:  ErrHeader,
+	}, {
+		// Ensure that we can read back the original Header as written with
+		// a buggy pre-Go1.8 tar.Writer.
+		file: "testdata/invalid-go17.tar",
+		headers: []*Header{{
+			Name:    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/foo",
+			Uid:     010000000,
+			ModTime: time.Unix(0, 0),
+		}},
 	}}
 
 	for i, v := range vectors {
