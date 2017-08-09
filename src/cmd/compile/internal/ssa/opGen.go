@@ -4849,11 +4849,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "ADDQconst",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		asm:          x86.AADDQ,
+		name:              "ADDQconst",
+		auxType:           auxInt64,
+		argLen:            1,
+		rematerializeable: true,
+		clobberFlags:      true,
+		asm:               x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -4864,11 +4865,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "ADDLconst",
-		auxType:      auxInt32,
-		argLen:       1,
-		clobberFlags: true,
-		asm:          x86.AADDL,
+		name:              "ADDLconst",
+		auxType:           auxInt32,
+		argLen:            1,
+		rematerializeable: true,
+		clobberFlags:      true,
+		asm:               x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
