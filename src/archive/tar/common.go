@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strconv"
 	"time"
 )
 
@@ -65,6 +66,106 @@ type Header struct {
 // FileInfo returns an os.FileInfo for the Header.
 func (h *Header) FileInfo() os.FileInfo {
 	return headerFileInfo{h}
+}
+
+// allowedFormats determines which formats can be used. The value returned
+// is the logical OR of multiple possible formats. If the value is
+// formatUnknown, then the input Header cannot be encoded.
+//
+// As a by-product of checking the fields, this function returns paxHdrs, which
+// contain all fields that could not be directly encoded.
+func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
+	format = formatUSTAR | formatPAX | formatGNU
+	paxHdrs = make(map[string]string)
+
+	verifyString := func(s string, size int, gnuLong bool, paxKey string) {
+		// NUL-terminator is optional for path and linkpath.
+		// Technically, it is required for uname and gname,
+		// but neither GNU nor BSD tar checks for it.
+		tooLong := len(s) > size
+		if !isASCII(s) || (tooLong && !gnuLong) {
+			// TODO(dsnet): GNU supports UTF-8 (without NUL) for strings.
+			format &^= formatGNU // No GNU
+		}
+		if !isASCII(s) || tooLong {
+			// TODO(dsnet): If the path is splittable, it is possible to still
+			// use the USTAR format.
+			format &^= formatUSTAR // No USTAR
+			if paxKey == paxNone {
+				format &^= formatPAX // No PAX
+			} else {
+				paxHdrs[paxKey] = s
+			}
+		}
+	}
+	verifyNumeric := func(n int64, size int, paxKey string) {
+		if !fitsInBase256(size, n) {
+			format &^= formatGNU // No GNU
+		}
+		if !fitsInOctal(size, n) {
+			format &^= formatUSTAR // No USTAR
+			if paxKey == paxNone {
+				format &^= formatPAX // No PAX
+			} else {
+				paxHdrs[paxKey] = strconv.FormatInt(n, 10)
+			}
+		}
+	}
+	verifyTime := func(ts time.Time, size int, ustarField bool, paxKey string) {
+		if ts.IsZero() {
+			return // Always okay
+		}
+		needsNano := ts.Nanosecond() != 0
+		if !fitsInBase256(size, ts.Unix()) || needsNano {
+			format &^= formatGNU // No GNU
+		}
+		if !fitsInOctal(size, ts.Unix()) || needsNano || !ustarField {
+			format &^= formatUSTAR // No USTAR
+			if paxKey == paxNone {
+				format &^= formatPAX // No PAX
+			} else {
+				// TODO(dsnet): Support PAX time here.
+				// paxHdrs[paxKey] = formatPAXTime(ts)
+			}
+		}
+	}
+
+	// TODO(dsnet): Add GNU long name support.
+	const supportGNULong = false
+
+	var blk block
+	var v7 = blk.V7()
+	var ustar = blk.USTAR()
+	verifyString(h.Name, len(v7.Name()), supportGNULong, paxPath)
+	verifyString(h.Linkname, len(v7.LinkName()), supportGNULong, paxLinkpath)
+	verifyString(h.Uname, len(ustar.UserName()), false, paxUname)
+	verifyString(h.Gname, len(ustar.GroupName()), false, paxGname)
+	verifyNumeric(h.Mode, len(v7.Mode()), paxNone)
+	verifyNumeric(int64(h.Uid), len(v7.UID()), paxUid)
+	verifyNumeric(int64(h.Gid), len(v7.GID()), paxGid)
+	verifyNumeric(h.Size, len(v7.Size()), paxSize)
+	verifyNumeric(h.Devmajor, len(ustar.DevMajor()), paxNone)
+	verifyNumeric(h.Devminor, len(ustar.DevMinor()), paxNone)
+	verifyTime(h.ModTime, len(v7.ModTime()), true, paxMtime)
+	// TODO(dsnet): Support atime and ctime fields.
+	// verifyTime(h.AccessTime, len(gnu.AccessTime()), false, paxAtime)
+	// verifyTime(h.ChangeTime, len(gnu.ChangeTime()), false, paxCtime)
+
+	if !isHeaderOnlyType(h.Typeflag) && h.Size < 0 {
+		return formatUnknown, nil
+	}
+	if len(h.Xattrs) > 0 {
+		for k, v := range h.Xattrs {
+			paxHdrs[paxXattr+k] = v
+		}
+		format &= formatPAX // PAX only
+	}
+	for k, v := range paxHdrs {
+		if !validPAXRecord(k, v) {
+			return formatUnknown, nil // Invalid PAX key
+		}
+	}
+	return format, paxHdrs
 }
 
 // headerFileInfo implements os.FileInfo.
