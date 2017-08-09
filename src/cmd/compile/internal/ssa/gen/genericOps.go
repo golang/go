@@ -321,8 +321,11 @@ var genericOps = []opData{
 	{name: "Invalid"},            // unused value
 
 	// Memory operations
-	{name: "Load", argLength: 2},                             // Load from arg0.  arg1=memory
-	{name: "Store", argLength: 3, typ: "Mem", aux: "Typ"},    // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	{name: "Load", argLength: 2},                          // Load from arg0.  arg1=memory
+	{name: "Store", argLength: 3, typ: "Mem", aux: "Typ"}, // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	// The source and destination of Move may overlap in some cases. See e.g.
+	// memmove inlining in generic.rules. When inlineablememmovesize (in ../rewrite.go)
+	// returns true, we must do all loads before all stores, when lowering Move.
 	{name: "Move", argLength: 3, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size, aux=type.  Returns memory.
 	{name: "Zero", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
 
