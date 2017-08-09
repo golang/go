@@ -2724,6 +2724,21 @@ func init() {
 			return s.newValue1(ssa.OpSqrt, types.Types[TFLOAT64], args[0])
 		},
 		sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
+	addF("math", "Trunc",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpTrunc, types.Types[TFLOAT64], args[0])
+		},
+		sys.PPC64)
+	addF("math", "Ceil",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpCeil, types.Types[TFLOAT64], args[0])
+		},
+		sys.PPC64)
+	addF("math", "Floor",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpFloor, types.Types[TFLOAT64], args[0])
+		},
+		sys.PPC64)
 
 	/******** math/bits ********/
 	addF("math/bits", "TrailingZeros64",
