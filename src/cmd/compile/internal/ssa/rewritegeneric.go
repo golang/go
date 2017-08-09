@@ -409,6 +409,8 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpSlicemask_0(v)
 	case OpSqrt:
 		return rewriteValuegeneric_OpSqrt_0(v)
+	case OpStaticCall:
+		return rewriteValuegeneric_OpStaticCall_0(v)
 	case OpStore:
 		return rewriteValuegeneric_OpStore_0(v) || rewriteValuegeneric_OpStore_10(v)
 	case OpStringLen:
@@ -23728,6 +23730,93 @@ func rewriteValuegeneric_OpSqrt_0(v *Value) bool {
 		c := v_0.AuxInt
 		v.reset(OpConst64F)
 		v.AuxInt = f2i(math.Sqrt(i2f(c)))
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpStaticCall_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	// match: (StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem))))
+	// cond: isSameSym(sym,"runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmoveSize(sz,config)
+	// result: (Move {t.(*types.Type).Elem()} [sz] dst src mem)
+	for {
+		sym := v.Aux
+		s1 := v.Args[0]
+		if s1.Op != OpStore {
+			break
+		}
+		_ = s1.Args[2]
+		s1_1 := s1.Args[1]
+		if s1_1.Op != OpConst64 {
+			break
+		}
+		sz := s1_1.AuxInt
+		s2 := s1.Args[2]
+		if s2.Op != OpStore {
+			break
+		}
+		_ = s2.Args[2]
+		src := s2.Args[1]
+		s3 := s2.Args[2]
+		if s3.Op != OpStore {
+			break
+		}
+		t := s3.Aux
+		_ = s3.Args[2]
+		dst := s3.Args[1]
+		mem := s3.Args[2]
+		if !(isSameSym(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmoveSize(sz, config)) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = sz
+		v.Aux = t.(*types.Type).Elem()
+		v.AddArg(dst)
+		v.AddArg(src)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (StaticCall {sym} s1:(Store _ (Const32 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem))))
+	// cond: isSameSym(sym,"runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmoveSize(sz,config)
+	// result: (Move {t.(*types.Type).Elem()} [sz] dst src mem)
+	for {
+		sym := v.Aux
+		s1 := v.Args[0]
+		if s1.Op != OpStore {
+			break
+		}
+		_ = s1.Args[2]
+		s1_1 := s1.Args[1]
+		if s1_1.Op != OpConst32 {
+			break
+		}
+		sz := s1_1.AuxInt
+		s2 := s1.Args[2]
+		if s2.Op != OpStore {
+			break
+		}
+		_ = s2.Args[2]
+		src := s2.Args[1]
+		s3 := s2.Args[2]
+		if s3.Op != OpStore {
+			break
+		}
+		t := s3.Aux
+		_ = s3.Args[2]
+		dst := s3.Args[1]
+		mem := s3.Args[2]
+		if !(isSameSym(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmoveSize(sz, config)) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = sz
+		v.Aux = t.(*types.Type).Elem()
+		v.AddArg(dst)
+		v.AddArg(src)
+		v.AddArg(mem)
 		return true
 	}
 	return false

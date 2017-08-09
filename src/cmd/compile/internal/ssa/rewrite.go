@@ -668,3 +668,18 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 	}
 	return false
 }
+
+// inlineablememmovesize reports whether the given arch performs OpMove of the given size
+// faster than memmove and in a safe way when src and dst overlap.
+// This is used as a check for replacing memmove with OpMove.
+func isInlinableMemmoveSize(sz int64, c *Config) bool {
+	switch c.arch {
+	case "amd64", "amd64p32":
+		return sz <= 16
+	case "386", "ppc64", "s390x", "ppc64le":
+		return sz <= 8
+	case "arm", "mips", "mips64", "mipsle", "mips64le":
+		return sz <= 4
+	}
+	return false
+}
