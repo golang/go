@@ -516,3 +516,37 @@ func TestWalkDirectorySymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 	testWalkMklink(t, "D")
 }
+
+func TestNTNamespaceSymlink(t *testing.T) {
+	output, _ := exec.Command("cmd", "/c", "mklink", "/?").Output()
+	if !strings.Contains(string(output), " /J ") {
+		t.Skip("skipping test because mklink command does not support junctions")
+	}
+
+	tmpdir, err := ioutil.TempDir("", "TestNTNamespaceSymlink")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	vol := filepath.VolumeName(tmpdir)
+	output, err = exec.Command("cmd", "/c", "mountvol", vol, "/L").CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run mountvol %v /L: %v %q", vol, err, output)
+	}
+	target := strings.Trim(string(output), " \n\r")
+
+	link := filepath.Join(tmpdir, "link")
+	output, err = exec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run mklink %v %v: %v %q", link, target, err, output)
+	}
+
+	got, err := filepath.EvalSymlinks(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := vol + `\`; got != want {
+		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, link, got, want)
+	}
+}
