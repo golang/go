@@ -445,7 +445,7 @@ func checkIfModifiedSince(r *Request, modtime time.Time) condResult {
 }
 
 func checkIfRange(w ResponseWriter, r *Request, modtime time.Time) condResult {
-	if r.Method != "GET" {
+	if r.Method != "GET" && r.Method != "HEAD" {
 		return condNone
 	}
 	ir := r.Header.get("If-Range")
