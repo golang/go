@@ -56,6 +56,12 @@ type mheap struct {
 	// Internal pages map to an arbitrary span.
 	// For pages that have never been allocated, spans entries are nil.
 	//
+	// Modifications are protected by mheap.lock. Reads can be
+	// performed without locking, but ONLY from indexes that are
+	// known to contain in-use or stack spans. This means there
+	// must not be a safe-point between establishing that an
+	// address is live and looking it up in the spans array.
+	//
 	// This is backed by a reserved region of the address space so
 	// it can grow without moving. The memory up to len(spans) is
 	// mapped. cap(spans) indicates the total reserved memory.
