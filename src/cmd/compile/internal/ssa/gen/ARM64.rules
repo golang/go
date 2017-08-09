@@ -521,6 +521,12 @@
 (EQ (CMPWconst [0] x) yes no) -> (ZW x yes no)
 (NE (CMPWconst [0] x) yes no) -> (NZW x yes no)
 
+// Absorb bit-tests into block
+(Z  (ANDconst [c] x) yes no) && oneBit(c) -> (TBZ  {ntz(c)} x yes no)
+(NZ (ANDconst [c] x) yes no) && oneBit(c) -> (TBNZ {ntz(c)} x yes no)
+(ZW  (ANDconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBZ  {ntz(int64(uint32(c)))} x yes no)
+(NZW (ANDconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBNZ {ntz(int64(uint32(c)))} x yes no)
+
 // fold offset into address
 (ADDconst [off1] (MOVDaddr [off2] {sym} ptr)) -> (MOVDaddr [off1+off2] {sym} ptr)
 

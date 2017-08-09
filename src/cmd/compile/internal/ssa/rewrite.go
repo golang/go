@@ -305,6 +305,10 @@ func ntz(x int64) int64 {
 	return 64 - nlz(^x&(x-1))
 }
 
+func oneBit(x int64) bool {
+	return nlz(x)+ntz(x) == 63
+}
+
 // nlo returns the number of leading ones.
 func nlo(x int64) int64 {
 	return nlz(^x)

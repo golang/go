@@ -70,6 +70,8 @@ const (
 	BlockARM64NZ
 	BlockARM64ZW
 	BlockARM64NZW
+	BlockARM64TBZ
+	BlockARM64TBNZ
 
 	BlockMIPSEQ
 	BlockMIPSNE
@@ -162,20 +164,22 @@ var blockString = [...]string{
 	BlockARMUGT: "UGT",
 	BlockARMUGE: "UGE",
 
-	BlockARM64EQ:  "EQ",
-	BlockARM64NE:  "NE",
-	BlockARM64LT:  "LT",
-	BlockARM64LE:  "LE",
-	BlockARM64GT:  "GT",
-	BlockARM64GE:  "GE",
-	BlockARM64ULT: "ULT",
-	BlockARM64ULE: "ULE",
-	BlockARM64UGT: "UGT",
-	BlockARM64UGE: "UGE",
-	BlockARM64Z:   "Z",
-	BlockARM64NZ:  "NZ",
-	BlockARM64ZW:  "ZW",
-	BlockARM64NZW: "NZW",
+	BlockARM64EQ:   "EQ",
+	BlockARM64NE:   "NE",
+	BlockARM64LT:   "LT",
+	BlockARM64LE:   "LE",
+	BlockARM64GT:   "GT",
+	BlockARM64GE:   "GE",
+	BlockARM64ULT:  "ULT",
+	BlockARM64ULE:  "ULE",
+	BlockARM64UGT:  "UGT",
+	BlockARM64UGE:  "UGE",
+	BlockARM64Z:    "Z",
+	BlockARM64NZ:   "NZ",
+	BlockARM64ZW:   "ZW",
+	BlockARM64NZW:  "NZW",
+	BlockARM64TBZ:  "TBZ",
+	BlockARM64TBNZ: "TBNZ",
 
 	BlockMIPSEQ:  "EQ",
 	BlockMIPSNE:  "NE",

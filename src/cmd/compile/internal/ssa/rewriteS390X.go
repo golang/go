@@ -36620,6 +36620,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v.Args[0]
 			b.Kind = BlockS390XEQ
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (EQ (FlagEQ) yes no)
@@ -36632,6 +36633,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			return true
 		}
 		// match: (EQ (FlagLT) yes no)
@@ -36644,6 +36646,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			b.swapSuccessors()
 			return true
 		}
@@ -36657,6 +36660,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			b.swapSuccessors()
 			return true
 		}
@@ -36672,6 +36676,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v.Args[0]
 			b.Kind = BlockS390XLE
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (GE (FlagEQ) yes no)
@@ -36684,6 +36689,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			return true
 		}
 		// match: (GE (FlagLT) yes no)
@@ -36696,6 +36702,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			b.swapSuccessors()
 			return true
 		}
@@ -36709,6 +36716,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			return true
 		}
 	case BlockS390XGT:
@@ -36723,6 +36731,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v.Args[0]
 			b.Kind = BlockS390XLT
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (GT (FlagEQ) yes no)
@@ -36735,6 +36744,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			b.swapSuccessors()
 			return true
 		}
@@ -36748,6 +36758,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			b.swapSuccessors()
 			return true
 		}
@@ -36761,6 +36772,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			return true
 		}
 	case BlockIf:
@@ -36790,6 +36802,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v.Args[2]
 			b.Kind = BlockS390XLT
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (If (MOVDLE (MOVDconst [0]) (MOVDconst [1]) cmp) yes no)
@@ -36818,6 +36831,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v.Args[2]
 			b.Kind = BlockS390XLE
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (If (MOVDGT (MOVDconst [0]) (MOVDconst [1]) cmp) yes no)
@@ -36846,6 +36860,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v.Args[2]
 			b.Kind = BlockS390XGT
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (If (MOVDGE (MOVDconst [0]) (MOVDconst [1]) cmp) yes no)
@@ -36874,6 +36889,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v.Args[2]
 			b.Kind = BlockS390XGE
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (If (MOVDEQ (MOVDconst [0]) (MOVDconst [1]) cmp) yes no)
@@ -36902,6 +36918,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v.Args[2]
 			b.Kind = BlockS390XEQ
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (If (MOVDNE (MOVDconst [0]) (MOVDconst [1]) cmp) yes no)
@@ -36930,6 +36947,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v.Args[2]
 			b.Kind = BlockS390XNE
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (If (MOVDGTnoinv (MOVDconst [0]) (MOVDconst [1]) cmp) yes no)
@@ -36958,6 +36976,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v.Args[2]
 			b.Kind = BlockS390XGTF
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (If (MOVDGEnoinv (MOVDconst [0]) (MOVDconst [1]) cmp) yes no)
@@ -36986,6 +37005,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v.Args[2]
 			b.Kind = BlockS390XGEF
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (If cond yes no)
@@ -37002,6 +37022,7 @@ func rewriteBlockS390X(b *Block) bool {
 			v1.AddArg(cond)
 			v0.AddArg(v1)
 			b.SetControl(v0)
+			b.Aux = nil
 			return true
 		}
 	case BlockS390XLE:
@@ -37016,6 +37037,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v.Args[0]
 			b.Kind = BlockS390XGE
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (LE (FlagEQ) yes no)
@@ -37028,6 +37050,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			return true
 		}
 		// match: (LE (FlagLT) yes no)
@@ -37040,6 +37063,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			return true
 		}
 		// match: (LE (FlagGT) yes no)
@@ -37052,6 +37076,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			b.swapSuccessors()
 			return true
 		}
@@ -37067,6 +37092,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v.Args[0]
 			b.Kind = BlockS390XGT
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (LT (FlagEQ) yes no)
@@ -37079,6 +37105,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			b.swapSuccessors()
 			return true
 		}
@@ -37092,6 +37119,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			return true
 		}
 		// match: (LT (FlagGT) yes no)
@@ -37104,6 +37132,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			b.swapSuccessors()
 			return true
 		}
@@ -37141,6 +37170,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v_0.Args[2]
 			b.Kind = BlockS390XLT
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPWconst [0] (MOVDLE (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no)
@@ -37176,6 +37206,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v_0.Args[2]
 			b.Kind = BlockS390XLE
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPWconst [0] (MOVDGT (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no)
@@ -37211,6 +37242,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v_0.Args[2]
 			b.Kind = BlockS390XGT
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPWconst [0] (MOVDGE (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no)
@@ -37246,6 +37278,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v_0.Args[2]
 			b.Kind = BlockS390XGE
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPWconst [0] (MOVDEQ (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no)
@@ -37281,6 +37314,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v_0.Args[2]
 			b.Kind = BlockS390XEQ
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPWconst [0] (MOVDNE (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no)
@@ -37316,6 +37350,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v_0.Args[2]
 			b.Kind = BlockS390XNE
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPWconst [0] (MOVDGTnoinv (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no)
@@ -37351,6 +37386,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v_0.Args[2]
 			b.Kind = BlockS390XGTF
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPWconst [0] (MOVDGEnoinv (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no)
@@ -37386,6 +37422,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v_0.Args[2]
 			b.Kind = BlockS390XGEF
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (NE (InvertFlags cmp) yes no)
@@ -37399,6 +37436,7 @@ func rewriteBlockS390X(b *Block) bool {
 			cmp := v.Args[0]
 			b.Kind = BlockS390XNE
 			b.SetControl(cmp)
+			b.Aux = nil
 			return true
 		}
 		// match: (NE (FlagEQ) yes no)
@@ -37411,6 +37449,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			b.swapSuccessors()
 			return true
 		}
@@ -37424,6 +37463,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			return true
 		}
 		// match: (NE (FlagGT) yes no)
@@ -37436,6 +37476,7 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
+			b.Aux = nil
 			return true
 		}
 	}
