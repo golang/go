@@ -124,8 +124,14 @@ func (p *parser) parseNumeric(b []byte) int64 {
 	return p.parseOctal(b)
 }
 
-// Write x into b, as binary (GNUtar/star extension).
+// formatNumeric encodes x into b using base-8 (octal) encoding if possible.
+// Otherwise it will attempt to use base-256 (binary) encoding.
 func (f *formatter) formatNumeric(b []byte, x int64) {
+	if fitsInOctal(len(b), x) {
+		f.formatOctal(b, x)
+		return
+	}
+
 	if fitsInBase256(len(b), x) {
 		for i := len(b) - 1; i >= 0; i-- {
 			b[i] = byte(x)
@@ -164,6 +170,13 @@ func (f *formatter) formatOctal(b []byte, x int64) {
 		s = strings.Repeat("0", n) + s
 	}
 	f.formatString(b, s)
+}
+
+// fitsInOctal reports whether the integer x fits in a field n-bytes long
+// using octal encoding with the appropriate NUL terminator.
+func fitsInOctal(n int, x int64) bool {
+	octBits := uint(n-1) * 3
+	return x >= 0 && (n >= 22 || x < 1<<octBits)
 }
 
 // parsePAXTime takes a string of the form %d.%d as described in the PAX
