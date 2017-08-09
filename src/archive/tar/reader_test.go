@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
+	"path"
 	"reflect"
 	"strings"
 	"testing"
@@ -431,38 +432,57 @@ func TestReader(t *testing.T) {
 }
 
 func TestPartialRead(t *testing.T) {
-	f, err := os.Open("testdata/gnu.tar")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
+	type testCase struct {
+		cnt    int    // Number of bytes to read
+		output string // Expected value of string read
 	}
-	defer f.Close()
+	vectors := []struct {
+		file  string
+		cases []testCase
+	}{{
+		file: "testdata/gnu.tar",
+		cases: []testCase{
+			{4, "Kilt"},
+			{6, "Google"},
+		},
+	}, {
+		file: "testdata/sparse-formats.tar",
+		cases: []testCase{
+			{2, "\x00G"},
+			{4, "\x00G\x00o"},
+			{6, "\x00G\x00o\x00G"},
+			{8, "\x00G\x00o\x00G\x00o"},
+			{4, "end\n"},
+		},
+	}}
 
-	tr := NewReader(f)
+	for _, v := range vectors {
+		t.Run(path.Base(v.file), func(t *testing.T) {
+			f, err := os.Open(v.file)
+			if err != nil {
+				t.Fatalf("Open() error: %v", err)
+			}
+			defer f.Close()
 
-	// Read the first four bytes; Next() should skip the last byte.
-	hdr, err := tr.Next()
-	if err != nil || hdr == nil {
-		t.Fatalf("Didn't get first file: %v", err)
-	}
-	buf := make([]byte, 4)
-	if _, err := io.ReadFull(tr, buf); err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if expected := []byte("Kilt"); !bytes.Equal(buf, expected) {
-		t.Errorf("Contents = %v, want %v", buf, expected)
-	}
+			tr := NewReader(f)
+			for i, tc := range v.cases {
+				hdr, err := tr.Next()
+				if err != nil || hdr == nil {
+					t.Fatalf("entry %d, Next(): got %v, want %v", i, err, nil)
+				}
+				buf := make([]byte, tc.cnt)
+				if _, err := io.ReadFull(tr, buf); err != nil {
+					t.Fatalf("entry %d, ReadFull(): got %v, want %v", i, err, nil)
+				}
+				if string(buf) != tc.output {
+					t.Fatalf("entry %d, ReadFull(): got %q, want %q", i, string(buf), tc.output)
+				}
+			}
 
-	// Second file
-	hdr, err = tr.Next()
-	if err != nil || hdr == nil {
-		t.Fatalf("Didn't get second file: %v", err)
-	}
-	buf = make([]byte, 6)
-	if _, err := io.ReadFull(tr, buf); err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if expected := []byte("Google"); !bytes.Equal(buf, expected) {
-		t.Errorf("Contents = %v, want %v", buf, expected)
+			if _, err := tr.Next(); err != io.EOF {
+				t.Fatalf("Next(): got %v, want EOF", err)
+			}
+		})
 	}
 }
 
