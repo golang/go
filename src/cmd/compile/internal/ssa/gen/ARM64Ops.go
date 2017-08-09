@@ -512,10 +512,12 @@ func init() {
 		{name: "ULE"},
 		{name: "UGT"},
 		{name: "UGE"},
-		{name: "Z"},   // Control == 0 (take a register instead of flags)
-		{name: "NZ"},  // Control != 0
-		{name: "ZW"},  // Control == 0, 32-bit
-		{name: "NZW"}, // Control != 0, 32-bit
+		{name: "Z"},    // Control == 0 (take a register instead of flags)
+		{name: "NZ"},   // Control != 0
+		{name: "ZW"},   // Control == 0, 32-bit
+		{name: "NZW"},  // Control != 0, 32-bit
+		{name: "TBZ"},  // Control & (1 << Aux.(int64)) == 0
+		{name: "TBNZ"}, // Control & (1 << Aux.(int64)) != 0
 	}
 
 	archs = append(archs, arch{
