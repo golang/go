@@ -4487,3 +4487,14 @@ func TestExecBuildX(t *testing.T) {
 		t.Fatalf("got %q; want %q", out, "hello")
 	}
 }
+
+func TestParallelNumber(t *testing.T) {
+	for _, n := range [...]string{"-1", "0"} {
+		t.Run(n, func(t *testing.T) {
+			tg := testgo(t)
+			defer tg.cleanup()
+			tg.runFail("test", "-parallel", n, "testdata/standalone_parallel_sub_test.go")
+			tg.grepBoth("-parallel can only be given", "go test -parallel with N<1 did not error")
+		})
+	}
+}

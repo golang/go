@@ -913,6 +913,12 @@ func (m *M) Run() int {
 		flag.Parse()
 	}
 
+	if *parallel < 1 {
+		fmt.Fprintln(os.Stderr, "testing: -parallel can only be given a positive integer")
+		flag.Usage()
+		return 2
+	}
+
 	if len(*matchList) != 0 {
 		listTests(m.deps.MatchString, m.tests, m.benchmarks, m.examples)
 		return 0
