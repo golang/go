@@ -1322,6 +1322,9 @@ const (
 	OpPPC64FNEG
 	OpPPC64FSQRT
 	OpPPC64FSQRTS
+	OpPPC64FFLOOR
+	OpPPC64FCEIL
+	OpPPC64FTRUNC
 	OpPPC64ORconst
 	OpPPC64XORconst
 	OpPPC64ANDconst
@@ -1800,6 +1803,9 @@ const (
 	OpPopCount32
 	OpPopCount64
 	OpSqrt
+	OpFloor
+	OpCeil
+	OpTrunc
 	OpPhi
 	OpCopy
 	OpConvert
@@ -16956,6 +16962,45 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "FFLOOR",
+		argLen: 1,
+		asm:    ppc64.AFRIM,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+		},
+	},
+	{
+		name:   "FCEIL",
+		argLen: 1,
+		asm:    ppc64.AFRIP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+		},
+	},
+	{
+		name:   "FTRUNC",
+		argLen: 1,
+		asm:    ppc64.AFRIZ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+		},
+	},
+	{
 		name:    "ORconst",
 		auxType: auxInt64,
 		argLen:  1,
@@ -21973,6 +22018,21 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Sqrt",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Floor",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Ceil",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Trunc",
 		argLen:  1,
 		generic: true,
 	},
