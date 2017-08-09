@@ -519,7 +519,7 @@ func funcstart(n *Node) {
 // finish the body.
 // called in auto-declaration context.
 // returns in extern-declaration context.
-func funcbody(n *Node) {
+func funcbody() {
 	// change the declaration context from auto to extern
 	if dclcontext != PAUTO {
 		Fatalf("funcbody: unexpected dclcontext %d", dclcontext)

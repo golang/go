@@ -1765,7 +1765,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 		dumplist("genwrapper body", fn.Nbody)
 	}
 
-	funcbody(fn)
+	funcbody()
 	Curfn = fn
 	types.Popdcl()
 	if debug_dclstack != 0 {

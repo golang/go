@@ -1096,11 +1096,9 @@ OpSwitch:
 	case OSEND:
 		ok |= Etop
 		n.Left = typecheck(n.Left, Erv)
-		l := n.Left
 		n.Right = typecheck(n.Right, Erv)
 		n.Left = defaultlit(n.Left, nil)
-		l = n.Left
-		t := l.Type
+		t := n.Left.Type
 		if t == nil {
 			n.Type = nil
 			return n
@@ -1123,7 +1121,7 @@ OpSwitch:
 			n.Type = nil
 			return n
 		}
-		n.Right = assignconv(r, l.Type.Elem(), "send")
+		n.Right = assignconv(r, t.Elem(), "send")
 
 		// TODO: more aggressive
 		n.Etype = 0

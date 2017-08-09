@@ -200,7 +200,7 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
 				body = []*Node{nod(OEMPTY, nil, nil)}
 			}
 			f.Func.Inl.Set(body)
-			funcbody(f)
+			funcbody()
 		} else {
 			// function already imported - read body but discard declarations
 			dclcontext = PDISCARD // throw away any declarations
