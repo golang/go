@@ -2429,3 +2429,10 @@
 (MOVWQZX x:(MOVWQZX _)) -> x
 (MOVWQZX x:(MOVBQZX _)) -> x
 (MOVBQZX x:(MOVBQZX _)) -> x
+
+(MOVQstore [off] {sym} ptr a:(ADDQconst [c] l:(MOVQload [off] {sym} ptr2 mem)) mem)
+	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c,off) ->
+	(ADDQconstmem {sym} [makeValAndOff(c,off)] ptr mem)
+(MOVLstore [off] {sym} ptr a:(ADDLconst [c] l:(MOVLload [off] {sym} ptr2 mem)) mem)
+	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c,off) ->
+	(ADDLconstmem {sym} [makeValAndOff(c,off)] ptr mem)
