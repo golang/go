@@ -70,7 +70,7 @@ func zeroAMD64(w io.Writer) {
 		fmt.Fprintln(w, "\tMOVUPS\tX0,16(DI)")
 		fmt.Fprintln(w, "\tMOVUPS\tX0,32(DI)")
 		fmt.Fprintln(w, "\tMOVUPS\tX0,48(DI)")
-		fmt.Fprintln(w, "\tADDQ\t$64,DI")
+		fmt.Fprintln(w, "\tLEAQ\t64(DI),DI") // We use lea instead of add, to avoid clobbering flags
 		fmt.Fprintln(w)
 	}
 	fmt.Fprintln(w, "\tRET")

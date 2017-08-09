@@ -117,7 +117,7 @@ func opregreg(s *gc.SSAGenState, op obj.As, dest, src int16) *obj.Prog {
 	return p
 }
 
-// DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
+// DUFFZERO consists of repeated blocks of 4 MOVUPSs + LEAQ,
 // See runtime/mkduff.go.
 func duffStart(size int64) int64 {
 	x, _ := duff(size)
@@ -140,7 +140,7 @@ func duff(size int64) (int64, int64) {
 	off := dzBlockSize * (dzBlocks - blocks)
 	var adj int64
 	if steps != 0 {
-		off -= dzAddSize
+		off -= dzLeaqSize
 		off -= dzMovSize * steps
 		adj -= dzClearStep * (dzBlockLen - steps)
 	}
@@ -673,9 +673,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		adj := duffAdj(v.AuxInt)
 		var p *obj.Prog
 		if adj != 0 {
-			p = s.Prog(x86.AADDQ)
-			p.From.Type = obj.TYPE_CONST
+			p = s.Prog(x86.ALEAQ)
+			p.From.Type = obj.TYPE_MEM
 			p.From.Offset = adj
+			p.From.Reg = x86.REG_DI
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = x86.REG_DI
 		}

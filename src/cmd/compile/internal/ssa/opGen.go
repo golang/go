@@ -7654,7 +7654,6 @@ var opcodeTable = [...]opInfo{
 		name:           "DUFFZERO",
 		auxType:        auxInt64,
 		argLen:         3,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
