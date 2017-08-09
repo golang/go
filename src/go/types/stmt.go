@@ -236,15 +236,13 @@ L:
 		}
 		// look for duplicate values
 		if val := goVal(v.val); val != nil {
-			if list := seen[val]; list != nil {
-				// look for duplicate types for a given value
-				// (quadratic algorithm, but these lists tend to be very short)
-				for _, vt := range list {
-					if Identical(v.typ, vt.typ) {
-						check.errorf(v.pos(), "duplicate case %s in expression switch", &v)
-						check.error(vt.pos, "\tprevious case") // secondary error, \t indented
-						continue L
-					}
+			// look for duplicate types for a given value
+			// (quadratic algorithm, but these lists tend to be very short)
+			for _, vt := range seen[val] {
+				if Identical(v.typ, vt.typ) {
+					check.errorf(v.pos(), "duplicate case %s in expression switch", &v)
+					check.error(vt.pos, "\tprevious case") // secondary error, \t indented
+					continue L
 				}
 			}
 			seen[val] = append(seen[val], valueType{v.pos(), v.typ})
