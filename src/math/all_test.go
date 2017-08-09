@@ -8,6 +8,7 @@ import (
 	"fmt"
 	. "math"
 	"testing"
+	"unsafe"
 )
 
 var vf = []float64{
@@ -1368,6 +1369,8 @@ var vfldexpSC = []fi{
 	{Inf(-1), 0},
 	{Inf(-1), -1024},
 	{NaN(), -1024},
+	{10, int(1) << (uint64(unsafe.Sizeof(0)-1) * 8)},
+	{10, -(int(1) << (uint64(unsafe.Sizeof(0)-1) * 8))},
 }
 var ldexpSC = []float64{
 	0,
@@ -1381,6 +1384,8 @@ var ldexpSC = []float64{
 	Inf(-1),
 	Inf(-1),
 	NaN(),
+	Inf(1),
+	0,
 }
 
 var vflgammaSC = []float64{
