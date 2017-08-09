@@ -132,22 +132,17 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 		f.formatString(b, s) // Should never error
 	}
 	var formatNumeric = func(b []byte, x int64, paxKeyword string) {
-		// Try octal first.
-		s := strconv.FormatInt(x, 8)
-		if len(s) < len(b) {
-			f.formatOctal(b, x)
-			return
+		if !fitsInOctal(len(b), x) {
+			if paxKeyword != paxNone && tw.preferPax {
+				// Use PAX format.
+				f.formatOctal(b, 0)
+				paxHeaders[paxKeyword] = strconv.FormatInt(x, 10)
+				return
+			} else {
+				// Use GNU format.
+				tw.usedBinary = true
+			}
 		}
-
-		// If it is too long for octal, and PAX is preferred, use a PAX header.
-		if paxKeyword != paxNone && tw.preferPax {
-			f.formatOctal(b, 0)
-			s := strconv.FormatInt(x, 10)
-			paxHeaders[paxKeyword] = s
-			return
-		}
-
-		tw.usedBinary = true
 		f.formatNumeric(b, x)
 	}
 
