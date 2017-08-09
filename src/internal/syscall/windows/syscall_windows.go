@@ -165,3 +165,19 @@ type SHARE_INFO_2 struct {
 
 //sys  NetShareAdd(serverName *uint16, level uint32, buf *byte, parmErr *uint16) (neterr error) = netapi32.NetShareAdd
 //sys  NetShareDel(serverName *uint16, netName *uint16, reserved uint32) (neterr error) = netapi32.NetShareDel
+
+const (
+	FILE_NAME_NORMALIZED = 0x0
+	FILE_NAME_OPENED     = 0x8
+
+	VOLUME_NAME_DOS  = 0x0
+	VOLUME_NAME_GUID = 0x1
+	VOLUME_NAME_NONE = 0x4
+	VOLUME_NAME_NT   = 0x2
+)
+
+//sys	GetFinalPathNameByHandle(file syscall.Handle, filePath *uint16, filePathSize uint32, flags uint32) (n uint32, err error) = kernel32.GetFinalPathNameByHandleW
+
+func LoadGetFinalPathNameByHandle() error {
+	return procGetFinalPathNameByHandleW.Find()
+}
