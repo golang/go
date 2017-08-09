@@ -762,7 +762,7 @@ opswitch:
 		}
 		init.Append(r)
 
-		ll := ascompatet(n.Op, n.List, r.Type)
+		ll := ascompatet(n.List, r.Type)
 		n = liststmt(ll)
 
 	// x, y = <-c
@@ -1699,7 +1699,7 @@ func reduceSlice(n *Node) *Node {
 	return n
 }
 
-func ascompatee1(op Op, l *Node, r *Node, init *Nodes) *Node {
+func ascompatee1(l *Node, r *Node, init *Nodes) *Node {
 	// convas will turn map assigns into function calls,
 	// making it impossible for reorder3 to work.
 	n := nod(OAS, l, r)
@@ -1734,7 +1734,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 		if op == ORETURN && samesafeexpr(nl[i], nr[i]) {
 			continue
 		}
-		nn = append(nn, ascompatee1(op, nl[i], nr[i], init))
+		nn = append(nn, ascompatee1(nl[i], nr[i], init))
 	}
 
 	// cannot happen: caller checked that lists had same length
@@ -1767,7 +1767,7 @@ func fncall(l *Node, rt *types.Type) bool {
 // check assign type list to
 // a expression list. called in
 //	expr-list = func()
-func ascompatet(op Op, nl Nodes, nr *types.Type) []*Node {
+func ascompatet(nl Nodes, nr *types.Type) []*Node {
 	if nl.Len() != nr.NumFields() {
 		Fatalf("ascompatet: assignment count mismatch: %d = %d", nl.Len(), nr.NumFields())
 	}
@@ -3853,7 +3853,7 @@ func walkprintfunc(n *Node, init *Nodes) *Node {
 
 	fn.Nbody.Set1(a)
 
-	funcbody(fn)
+	funcbody()
 
 	fn = typecheck(fn, Etop)
 	typecheckslice(fn.Nbody.Slice(), Etop)

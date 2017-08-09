@@ -292,7 +292,7 @@ func genhash(sym *types.Sym, t *types.Type) {
 		dumplist("genhash body", fn.Nbody)
 	}
 
-	funcbody(fn)
+	funcbody()
 	Curfn = fn
 	fn.Func.SetDupok(true)
 	fn = typecheck(fn, Etop)
@@ -476,7 +476,7 @@ func geneq(sym *types.Sym, t *types.Type) {
 		dumplist("geneq body", fn.Nbody)
 	}
 
-	funcbody(fn)
+	funcbody()
 	Curfn = fn
 	fn.Func.SetDupok(true)
 	fn = typecheck(fn, Etop)

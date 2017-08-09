@@ -78,15 +78,15 @@ type noder struct {
 	scope      ScopeID
 }
 
-func (p *noder) funchdr(n *Node, pos src.Pos) ScopeID {
+func (p *noder) funchdr(n *Node) ScopeID {
 	old := p.scope
 	p.scope = 0
 	funchdr(n)
 	return old
 }
 
-func (p *noder) funcbody(n *Node, pos src.Pos, old ScopeID) {
-	funcbody(n)
+func (p *noder) funcbody(old ScopeID) {
+	funcbody()
 	p.scope = old
 }
 
@@ -382,9 +382,8 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		declare(f.Func.Nname, PFUNC)
 	}
 
-	oldScope := p.funchdr(f, fun.Pos())
+	oldScope := p.funchdr(f)
 
-	endPos := fun.Pos()
 	if fun.Body != nil {
 		if f.Noescape() {
 			yyerrorl(f.Pos, "can only use //go:noescape with external func implementations")
@@ -396,7 +395,6 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		}
 		f.Nbody.Set(body)
 
-		endPos = fun.Body.Rbrace
 		lineno = Ctxt.PosTable.XPos(fun.Body.Rbrace)
 		f.Func.Endlineno = lineno
 	} else {
@@ -405,7 +403,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		}
 	}
 
-	p.funcbody(f, endPos, oldScope)
+	p.funcbody(oldScope)
 	return f
 }
 

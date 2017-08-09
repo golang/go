@@ -198,7 +198,7 @@ func fninit(n []*Node) {
 	exportsym(fn.Func.Nname)
 
 	fn.Nbody.Set(r)
-	funcbody(fn)
+	funcbody()
 
 	Curfn = fn
 	fn = typecheck(fn, Etop)
