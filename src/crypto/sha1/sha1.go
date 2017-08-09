@@ -104,9 +104,7 @@ func (d *digest) checkSum() [Size]byte {
 
 	// Length in bits.
 	len <<= 3
-	for i := uint(0); i < 8; i++ {
-		tmp[i] = byte(len >> (56 - 8*i))
-	}
+	putUint64(tmp[:], len)
 	d.Write(tmp[0:8])
 
 	if d.nx != 0 {
@@ -114,12 +112,12 @@ func (d *digest) checkSum() [Size]byte {
 	}
 
 	var digest [Size]byte
-	for i, s := range d.h {
-		digest[i*4] = byte(s >> 24)
-		digest[i*4+1] = byte(s >> 16)
-		digest[i*4+2] = byte(s >> 8)
-		digest[i*4+3] = byte(s)
-	}
+
+	putUint32(digest[0:], d.h[0])
+	putUint32(digest[4:], d.h[1])
+	putUint32(digest[8:], d.h[2])
+	putUint32(digest[12:], d.h[3])
+	putUint32(digest[16:], d.h[4])
 
 	return digest
 }
@@ -198,4 +196,24 @@ func Sum(data []byte) [Size]byte {
 	d.Reset()
 	d.Write(data)
 	return d.checkSum()
+}
+
+func putUint64(x []byte, s uint64) {
+	_ = x[7]
+	x[0] = byte(s >> 56)
+	x[1] = byte(s >> 48)
+	x[2] = byte(s >> 40)
+	x[3] = byte(s >> 32)
+	x[4] = byte(s >> 24)
+	x[5] = byte(s >> 16)
+	x[6] = byte(s >> 8)
+	x[7] = byte(s)
+}
+
+func putUint32(x []byte, s uint32) {
+	_ = x[3]
+	x[0] = byte(s >> 24)
+	x[1] = byte(s >> 16)
+	x[2] = byte(s >> 8)
+	x[3] = byte(s)
 }
