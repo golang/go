@@ -154,6 +154,22 @@ func TestRepoRootForImportPath(t *testing.T) {
 				repo: "https://git.apache.org/package-name_2.x.git",
 			},
 		},
+		{
+			"chiselapp.com/user/kyle/repository/fossilgg",
+			&repoRoot{
+				vcs:  vcsFossil,
+				repo: "https://chiselapp.com/user/kyle/repository/fossilgg",
+			},
+		},
+		{
+			// must have a user/$name/repository/$repo path
+			"chiselapp.com/kyle/repository/fossilgg",
+			nil,
+		},
+		{
+			"chiselapp.com/user/kyle/fossilgg",
+			nil,
+		},
 	}
 
 	for _, test := range tests {
@@ -241,6 +257,8 @@ func TestIsSecure(t *testing.T) {
 		{vcsGit, "example.com:path/to/repo.git", false},
 		{vcsGit, "path/that/contains/a:colon/repo.git", false},
 		{vcsHg, "ssh://user@example.com/path/to/repo.hg", true},
+		{vcsFossil, "http://example.com/foo", false},
+		{vcsFossil, "https://example.com/foo", true},
 	}
 
 	for _, test := range tests {
