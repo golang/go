@@ -386,37 +386,42 @@
 	(MOVLstoreconst [makeValAndOff(0,3)] destptr
 		(MOVLstoreconst [0] destptr mem))
 
-// Strip off any fractional word zeroing.
-(Zero [s] destptr mem) && s%8 != 0 && s > 8 ->
-	(Zero [s-s%8] (OffPtr <destptr.Type> destptr [s%8])
+(Zero [s] destptr mem) && s > 8 && s < 16 ->
+	(MOVQstoreconst [makeValAndOff(0,s-8)] destptr
 		(MOVQstoreconst [0] destptr mem))
 
-// Zero small numbers of words directly.
-(Zero [16] destptr mem) ->
-	(MOVQstoreconst [makeValAndOff(0,8)] destptr
+// Adjust zeros to be a multiple of 16 bytes.
+(Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 > 8 ->
+	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
+		(MOVOstore destptr (MOVOconst [0]) mem))
+
+(Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 <= 8 ->
+	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
 		(MOVQstoreconst [0] destptr mem))
-(Zero [24] destptr mem) ->
-	(MOVQstoreconst [makeValAndOff(0,16)] destptr
-		(MOVQstoreconst [makeValAndOff(0,8)] destptr
-			(MOVQstoreconst [0] destptr mem)))
+
+(Zero [16] destptr mem) ->
+	(MOVOstore destptr (MOVOconst [0]) mem)
 (Zero [32] destptr mem) ->
-	(MOVQstoreconst [makeValAndOff(0,24)] destptr
-		(MOVQstoreconst [makeValAndOff(0,16)] destptr
-			(MOVQstoreconst [makeValAndOff(0,8)] destptr
-				(MOVQstoreconst [0] destptr mem))))
+	(MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0])
+		(MOVOstore destptr (MOVOconst [0]) mem))
+(Zero [48] destptr mem) ->
+	(MOVOstore (OffPtr <destptr.Type> destptr [32]) (MOVOconst [0])
+		(MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0])
+			(MOVOstore destptr (MOVOconst [0]) mem)))
+(Zero [64] destptr mem) ->
+	(MOVOstore (OffPtr <destptr.Type> destptr [48]) (MOVOconst [0])
+		(MOVOstore (OffPtr <destptr.Type> destptr [32]) (MOVOconst [0])
+			(MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0])
+				(MOVOstore destptr (MOVOconst [0]) mem))))
 
 // Medium zeroing uses a duff device.
 (Zero [s] destptr mem)
-	&& s <= 1024 && s%8 == 0 && s%16 != 0
-	&& !config.noDuffDevice ->
-	(Zero [s-8] (OffPtr <destptr.Type> [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
-(Zero [s] destptr mem)
-	&& s <= 1024 && s%16 == 0 && !config.noDuffDevice ->
+	&& s > 64 && s <= 1024 && s%16 == 0 && !config.noDuffDevice ->
 	(DUFFZERO [s] destptr (MOVOconst [0]) mem)
 
 // Large zeroing uses REP STOSQ.
 (Zero [s] destptr mem)
-	&& (s > 1024 || (config.noDuffDevice && s > 32))
+	&& (s > 1024 || (config.noDuffDevice && s > 64))
 	&& s%8 == 0 ->
 	(REPSTOSQ destptr (MOVQconst [s/8]) (MOVQconst [0]) mem)
 

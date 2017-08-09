@@ -458,7 +458,6 @@ func init() {
 				inputs:   []regMask{buildReg("DI"), buildReg("X0")},
 				clobbers: buildReg("DI"),
 			},
-			clobberFlags:   true,
 			faultOnNilArg0: true,
 		},
 		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128", aux: "Int128", rematerializeable: true},
