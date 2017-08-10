@@ -995,10 +995,11 @@ func tooManyOverflowBuckets(noverflow uint16, B uint8) bool {
 	// If the threshold is too high, maps that grow and shrink can hold on to lots of unused memory.
 	// "too many" means (approximately) as many overflow buckets as regular buckets.
 	// See incrnoverflow for more details.
-	if B < 16 {
-		return noverflow >= uint16(1)<<B
+	if B > 15 {
+		B = 15
 	}
-	return noverflow >= 1<<15
+	// The compiler doesn't see here that B < 16; mask B to generate shorter shift code.
+	return noverflow >= uint16(1)<<(B&15)
 }
 
 // growing reports whether h is growing. The growth may be to the same size or bigger.
