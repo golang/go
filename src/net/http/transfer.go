@@ -663,9 +663,8 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 			return -1, err
 		}
 		return n, nil
-	} else {
-		header.Del("Content-Length")
 	}
+	header.Del("Content-Length")
 
 	if isRequest {
 		// RFC 2616 neither explicitly permits nor forbids an
