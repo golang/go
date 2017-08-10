@@ -497,14 +497,12 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
 func isExportedField(ft *types.Field) (bool, *types.Pkg) {
 	if ft.Sym != nil && ft.Embedded == 0 {
 		return exportname(ft.Sym.Name), ft.Sym.Pkg
-	} else {
-		if ft.Type.Sym != nil &&
-			(ft.Type.Sym.Pkg == builtinpkg || !exportname(ft.Type.Sym.Name)) {
-			return false, ft.Type.Sym.Pkg
-		} else {
-			return true, nil
-		}
 	}
+	if ft.Type.Sym != nil &&
+		(ft.Type.Sym.Pkg == builtinpkg || !exportname(ft.Type.Sym.Name)) {
+		return false, ft.Type.Sym.Pkg
+	}
+	return true, nil
 }
 
 // dnameField dumps a reflect.name for a struct field.

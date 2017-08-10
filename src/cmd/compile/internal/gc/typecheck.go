@@ -2636,54 +2636,52 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
 	n = nil
 	if nl.Len() == 1 {
 		n = nl.First()
-		if n.Type != nil {
-			if n.Type.IsFuncArgStruct() {
-				if !hasddd(tstruct) {
-					n1 := tstruct.NumFields()
-					n2 := n.Type.NumFields()
-					if n2 > n1 {
-						goto toomany
-					}
-					if n2 < n1 {
-						goto notenough
-					}
-				}
-
-				lfs := tstruct.FieldSlice()
-				rfs := n.Type.FieldSlice()
-				var why string
-				for i, tl := range lfs {
-					if tl.Isddd() {
-						for _, tn := range rfs[i:] {
-							if assignop(tn.Type, tl.Type.Elem(), &why) == 0 {
-								if call != nil {
-									yyerror("cannot use %v as type %v in argument to %v%s", tn.Type, tl.Type.Elem(), call, why)
-								} else {
-									yyerror("cannot use %v as type %v in %s%s", tn.Type, tl.Type.Elem(), desc(), why)
-								}
-							}
-						}
-						goto out
-					}
-
-					if i >= len(rfs) {
-						goto notenough
-					}
-					tn := rfs[i]
-					if assignop(tn.Type, tl.Type, &why) == 0 {
-						if call != nil {
-							yyerror("cannot use %v as type %v in argument to %v%s", tn.Type, tl.Type, call, why)
-						} else {
-							yyerror("cannot use %v as type %v in %s%s", tn.Type, tl.Type, desc(), why)
-						}
-					}
-				}
-
-				if len(rfs) > len(lfs) {
+		if n.Type != nil && n.Type.IsFuncArgStruct() {
+			if !hasddd(tstruct) {
+				n1 := tstruct.NumFields()
+				n2 := n.Type.NumFields()
+				if n2 > n1 {
 					goto toomany
 				}
-				goto out
+				if n2 < n1 {
+					goto notenough
+				}
 			}
+
+			lfs := tstruct.FieldSlice()
+			rfs := n.Type.FieldSlice()
+			var why string
+			for i, tl := range lfs {
+				if tl.Isddd() {
+					for _, tn := range rfs[i:] {
+						if assignop(tn.Type, tl.Type.Elem(), &why) == 0 {
+							if call != nil {
+								yyerror("cannot use %v as type %v in argument to %v%s", tn.Type, tl.Type.Elem(), call, why)
+							} else {
+								yyerror("cannot use %v as type %v in %s%s", tn.Type, tl.Type.Elem(), desc(), why)
+							}
+						}
+					}
+					goto out
+				}
+
+				if i >= len(rfs) {
+					goto notenough
+				}
+				tn := rfs[i]
+				if assignop(tn.Type, tl.Type, &why) == 0 {
+					if call != nil {
+						yyerror("cannot use %v as type %v in argument to %v%s", tn.Type, tl.Type, call, why)
+					} else {
+						yyerror("cannot use %v as type %v in %s%s", tn.Type, tl.Type, desc(), why)
+					}
+				}
+			}
+
+			if len(rfs) > len(lfs) {
+				goto toomany
+			}
+			goto out
 		}
 	}
 
