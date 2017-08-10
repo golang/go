@@ -1824,3 +1824,18 @@ func issue11387(x int) func() int {
 	copy(slice2, slice1)
 	return slice2[0]
 }
+
+func issue12397(x, y int) { // ERROR "moved to heap: y$"
+	// x does not escape below, because all relevant code is dead.
+	if false {
+		gxx = &x
+	} else {
+		gxx = &y // ERROR "&y escapes to heap$"
+	}
+
+	if true {
+		gxx = &y // ERROR "&y escapes to heap$"
+	} else {
+		gxx = &x
+	}
+}
