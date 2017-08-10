@@ -391,7 +391,13 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 			// exactly one (named or anonymous) result associated
 			// with the first type in result signature (there may
 			// be more than one result)
-			if n, imp := baseTypeName(res.Type); !imp && r.isVisible(n) {
+			factoryType := res.Type
+			if t, ok := factoryType.(*ast.ArrayType); ok && t.Len == nil {
+				// We consider functions that return slices of type T (or
+				// pointers to T) as factory functions of T.
+				factoryType = t.Elt
+			}
+			if n, imp := baseTypeName(factoryType); !imp && r.isVisible(n) {
 				if typ := r.lookupType(n); typ != nil {
 					// associate function with typ
 					typ.funcs.set(fun)
