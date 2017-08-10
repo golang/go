@@ -27,13 +27,13 @@ func toASCII(s string) string {
 	if isASCII(s) {
 		return s
 	}
-	var buf bytes.Buffer
+	b := make([]byte, 0, len(s))
 	for _, c := range s {
 		if c < 0x80 && c != 0x00 {
-			buf.WriteByte(byte(c))
+			b = append(b, byte(c))
 		}
 	}
-	return buf.String()
+	return string(b)
 }
 
 type parser struct {
@@ -47,11 +47,10 @@ type formatter struct {
 // parseString parses bytes as a NUL-terminated C-style string.
 // If a NUL byte is not found then the whole slice is returned as a string.
 func (*parser) parseString(b []byte) string {
-	n := 0
-	for n < len(b) && b[n] != 0 {
-		n++
+	if i := bytes.IndexByte(b, 0); i >= 0 {
+		return string(b[:i])
 	}
-	return string(b[0:n])
+	return string(b)
 }
 
 // Write s into b, terminating it with a NUL if there is room.
@@ -75,7 +74,7 @@ func (f *formatter) formatString(b []byte, s string) {
 // that the first byte can only be either 0x80 or 0xff. Thus, the first byte is
 // equivalent to the sign bit in two's complement form.
 func fitsInBase256(n int, x int64) bool {
-	var binBits = uint(n-1) * 8
+	binBits := uint(n-1) * 8
 	return n >= 9 || (x >= -1<<binBits && x < 1<<binBits)
 }
 
