@@ -661,24 +661,26 @@ func (s *state) stmt(n *Node) {
 				}
 				rhs = nil
 			case OAPPEND:
-				// If we're writing the result of an append back to the same slice,
-				// handle it specially to avoid write barriers on the fast (non-growth) path.
+				// Check whether we're writing the result of an append back to the same slice.
+				// If so, we handle it specially to avoid write barriers on the fast
+				// (non-growth) path.
+				if !samesafeexpr(n.Left, rhs.List.First()) {
+					break
+				}
 				// If the slice can be SSA'd, it'll be on the stack,
 				// so there will be no write barriers,
 				// so there's no need to attempt to prevent them.
-				if samesafeexpr(n.Left, rhs.List.First()) {
-					if !s.canSSA(n.Left) {
-						if Debug_append > 0 {
-							Warnl(n.Pos, "append: len-only update")
-						}
-						s.append(rhs, true)
-						return
-					} else {
-						if Debug_append > 0 { // replicating old diagnostic message
-							Warnl(n.Pos, "append: len-only update (in local slice)")
-						}
+				if s.canSSA(n.Left) {
+					if Debug_append > 0 { // replicating old diagnostic message
+						Warnl(n.Pos, "append: len-only update (in local slice)")
 					}
+					break
 				}
+				if Debug_append > 0 {
+					Warnl(n.Pos, "append: len-only update")
+				}
+				s.append(rhs, true)
+				return
 			}
 		}
 

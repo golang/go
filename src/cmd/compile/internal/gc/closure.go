@@ -463,9 +463,8 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 			Warnl(func_.Pos, "closure converted to global")
 		}
 		return func_.Func.Closure.Func.Nname
-	} else {
-		closuredebugruntimecheck(func_)
 	}
+	closuredebugruntimecheck(func_)
 
 	// Create closure in the form of a composite literal.
 	// supposing the closure captures an int i and a string s
