@@ -1321,6 +1321,7 @@ func TestUnexportedFields(t *testing.T) {
 var singletons = []interface{}{
 	true,
 	7,
+	uint(10),
 	3.2,
 	"hello",
 	[3]int{11, 22, 33},
