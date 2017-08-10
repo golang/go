@@ -476,7 +476,7 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 		return z
 	}
 	if x == nil && y == nil {
-		return z.binaryGCD(a, b)
+		return z.lehmerGCD(a, b)
 	}
 
 	A := new(Int).Set(a)
@@ -515,64 +515,122 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 	return z
 }
 
-// binaryGCD sets z to the greatest common divisor of a and b, which both must
-// be > 0, and returns z.
-// See Knuth, The Art of Computer Programming, Vol. 2, Section 4.5.2, Algorithm B.
-func (z *Int) binaryGCD(a, b *Int) *Int {
-	u := z
-	v := new(Int)
+// lehmerGCD sets z to the greatest common divisor of a and b,
+// which both must be > 0, and returns z.
+// See Knuth, The Art of Computer Programming, Vol. 2, Section 4.5.2, Algorithm L.
+// This implementation uses the improved condition by Collins requiring only one
+// quotient and avoiding the possibility of single Word overflow.
+// See Jebelean, "Improving the multiprecision Euclidean algorithm",
+// Design and Implementation of Symbolic Computation Systems, pp 45-58.
+func (z *Int) lehmerGCD(a, b *Int) *Int {
 
-	// use one Euclidean iteration to ensure that u and v are approx. the same size
-	switch {
-	case len(a.abs) > len(b.abs):
-		// must set v before u since u may be alias for a or b (was issue #11284)
-		v.Rem(a, b)
-		u.Set(b)
-	case len(a.abs) < len(b.abs):
-		v.Rem(b, a)
-		u.Set(a)
-	default:
-		v.Set(b)
-		u.Set(a)
+	// ensure a >= b
+	if a.abs.cmp(b.abs) < 0 {
+		a, b = b, a
 	}
-	// a, b must not be used anymore (may be aliases with u)
 
-	// v might be 0 now
-	if len(v.abs) == 0 {
-		return u
-	}
-	// u > 0 && v > 0
+	// don't destroy incoming values of a and b
+	B := new(Int).Set(b) // must be set first in case b is an alias of z
+	A := z.Set(a)
 
-	// determine largest k such that u = u' << k, v = v' << k
-	k := u.abs.trailingZeroBits()
-	if vk := v.abs.trailingZeroBits(); vk < k {
-		k = vk
-	}
-	u.Rsh(u, k)
-	v.Rsh(v, k)
-
-	// determine t (we know that u > 0)
+	// temp variables for multiprecision update
 	t := new(Int)
-	if u.abs[0]&1 != 0 {
-		// u is odd
-		t.Neg(v)
-	} else {
-		t.Set(u)
-	}
+	r := new(Int)
+	s := new(Int)
+	w := new(Int)
 
-	for len(t.abs) > 0 {
-		// reduce t
-		t.Rsh(t, t.abs.trailingZeroBits())
-		if t.neg {
-			v, t = t, v
-			v.neg = len(v.abs) > 0 && !v.neg // 0 has no sign
-		} else {
-			u, t = t, u
+	// loop invariant A >= B
+	for len(B.abs) > 1 {
+
+		// initialize the digits
+		var a1, a2, u0, u1, u2, v0, v1, v2 Word
+
+		m := len(B.abs) // m >= 2
+		n := len(A.abs) // n >= m >= 2
+
+		// extract the top Word of bits from A and B
+		h := nlz(A.abs[n-1])
+		a1 = (A.abs[n-1] << h) | (A.abs[n-2] >> (_W - h))
+		// B may have implicit zero words in the high bits if the lengths differ
+		switch {
+		case n == m:
+			a2 = (B.abs[n-1] << h) | (B.abs[n-2] >> (_W - h))
+		case n == m+1:
+			a2 = (B.abs[n-2] >> (_W - h))
+		default:
+			a2 = 0
 		}
-		t.Sub(u, v)
+
+		// Since we are calculating with full words to avoid overflow,
+		// we use 'even' to track the sign of the cosequences.
+		// For even iterations: u0, v1 >= 0 && u1, v0 <= 0
+		// For odd  iterations: u0, v1 <= 0 && u1, v0 >= 0
+		// The first iteration starts with k=1 (odd).
+		even := false
+		// variables to track the cosequences
+		u0, u1, u2 = 0, 1, 0
+		v0, v1, v2 = 0, 0, 1
+
+		// calculate the quotient and cosequences using Collins' stopping condition
+		for a2 >= v2 && a1-a2 >= v1+v2 {
+			q := a1 / a2
+			a1, a2 = a2, a1-q*a2
+			u0, u1, u2 = u1, u2, u1+q*u2
+			v0, v1, v2 = v1, v2, v1+q*v2
+			even = !even
+		}
+
+		// multiprecision step
+		if v0 != 0 {
+			// simulate the effect of the single precision steps using the cosequences
+			// A = u0*A + v0*B
+			// B = u1*A + v1*B
+
+			t.abs = t.abs.setWord(u0)
+			s.abs = s.abs.setWord(v0)
+			t.neg = !even
+			s.neg = even
+
+			t.Mul(A, t)
+			s.Mul(B, s)
+
+			r.abs = r.abs.setWord(u1)
+			w.abs = w.abs.setWord(v1)
+			r.neg = even
+			w.neg = !even
+
+			r.Mul(A, r)
+			w.Mul(B, w)
+
+			A.Add(t, s)
+			B.Add(r, w)
+
+		} else {
+			// single-digit calculations failed to simluate any quotients
+			// do a standard Euclidean step
+			t.Rem(A, B)
+			A, B, t = B, t, A
+		}
 	}
 
-	return z.Lsh(u, k)
+	if len(B.abs) > 0 {
+		// standard Euclidean algorithm base case for B a single Word
+		if len(A.abs) > 1 {
+			// A is longer than a single Word
+			t.Rem(A, B)
+			A, B, t = B, t, A
+		}
+		if len(B.abs) > 0 {
+			// A and B are both a single Word
+			a1, a2 := A.abs[0], B.abs[0]
+			for a2 != 0 {
+				a1, a2 = a2, a1%a2
+			}
+			A.abs[0] = a1
+		}
+	}
+	*z = *A
+	return z
 }
 
 // Rand sets z to a pseudo-random number in [0, n) and returns z.

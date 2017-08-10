@@ -675,6 +675,37 @@ func checkGcd(aBytes, bBytes []byte) bool {
 	return x.Cmp(d) == 0
 }
 
+// euclidGCD is a reference implementation of Euclid's GCD
+// algorithm for testing against optimized algorithms.
+// Requirements: a, b > 0
+func euclidGCD(a, b *Int) *Int {
+
+	A := new(Int).Set(a)
+	B := new(Int).Set(b)
+	t := new(Int)
+
+	for len(B.abs) > 0 {
+		// A, B = B, A % B
+		t.Rem(A, B)
+		A, B, t = B, t, A
+	}
+	return A
+}
+
+func checkLehmerGcd(aBytes, bBytes []byte) bool {
+	a := new(Int).SetBytes(aBytes)
+	b := new(Int).SetBytes(bBytes)
+
+	if a.Sign() <= 0 || b.Sign() <= 0 {
+		return true // can only test positive arguments
+	}
+
+	d := new(Int).lehmerGCD(a, b)
+	d0 := euclidGCD(a, b)
+
+	return d.Cmp(d0) == 0
+}
+
 var gcdTests = []struct {
 	d, x, y, a, b string
 }{
@@ -708,38 +739,28 @@ func testGcd(t *testing.T, d, x, y, a, b *Int) {
 
 	D := new(Int).GCD(X, Y, a, b)
 	if D.Cmp(d) != 0 {
-		t.Errorf("GCD(%s, %s): got d = %s, want %s", a, b, D, d)
+		t.Errorf("GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, D, d)
 	}
 	if x != nil && X.Cmp(x) != 0 {
-		t.Errorf("GCD(%s, %s): got x = %s, want %s", a, b, X, x)
+		t.Errorf("GCD(%s, %s, %s, %s): got x = %s, want %s", x, y, a, b, X, x)
 	}
 	if y != nil && Y.Cmp(y) != 0 {
-		t.Errorf("GCD(%s, %s): got y = %s, want %s", a, b, Y, y)
-	}
-
-	// binaryGCD requires a > 0 && b > 0
-	if a.Sign() <= 0 || b.Sign() <= 0 {
-		return
-	}
-
-	D.binaryGCD(a, b)
-	if D.Cmp(d) != 0 {
-		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, D, d)
+		t.Errorf("GCD(%s, %s, %s, %s): got y = %s, want %s", x, y, a, b, Y, y)
 	}
 
 	// check results in presence of aliasing (issue #11284)
 	a2 := new(Int).Set(a)
 	b2 := new(Int).Set(b)
-	a2.binaryGCD(a2, b2) // result is same as 1st argument
+	a2.GCD(X, Y, a2, b2) // result is same as 1st argument
 	if a2.Cmp(d) != 0 {
-		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, a2, d)
+		t.Errorf("aliased z = a GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, a2, d)
 	}
 
 	a2 = new(Int).Set(a)
 	b2 = new(Int).Set(b)
-	b2.binaryGCD(a2, b2) // result is same as 2nd argument
+	b2.GCD(X, Y, a2, b2) // result is same as 2nd argument
 	if b2.Cmp(d) != 0 {
-		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, b2, d)
+		t.Errorf("aliased z = b GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, b2, d)
 	}
 }
 
@@ -758,6 +779,10 @@ func TestGcd(t *testing.T) {
 	}
 
 	if err := quick.Check(checkGcd, nil); err != nil {
+		t.Error(err)
+	}
+
+	if err := quick.Check(checkLehmerGcd, nil); err != nil {
 		t.Error(err)
 	}
 }
