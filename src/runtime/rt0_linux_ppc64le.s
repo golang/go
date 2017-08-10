@@ -2,6 +2,7 @@
 #include "textflag.h"
 
 TEXT _rt0_ppc64le_linux(SB),NOSPLIT,$0
+	XOR R0, R0	  // Make sure R0 is zero before _main
 	BR _main<>(SB)
 
 TEXT _rt0_ppc64le_linux_lib(SB),NOSPLIT,$-8
