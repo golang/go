@@ -461,11 +461,7 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
 	return
 }
 
-// Mark KeepAlive as noinline so that the current compiler will ensure
-// that the argument is alive at the point of the function call.
-// If it were inlined, it would disappear, and there would be nothing
-// keeping the argument alive. Perhaps a future compiler will recognize
-// runtime.KeepAlive specially and do something more efficient.
+// Mark KeepAlive as noinline so that it is easily detectable as an intrinsic.
 //go:noinline
 
 // KeepAlive marks its argument as currently reachable.
@@ -487,4 +483,11 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
 // Without the KeepAlive call, the finalizer could run at the start of
 // syscall.Read, closing the file descriptor before syscall.Read makes
 // the actual system call.
-func KeepAlive(interface{}) {}
+func KeepAlive(x interface{}) {
+	// Introduce a use of x that the compiler can't eliminate.
+	// This makes sure x is alive on entry. We need x to be alive
+	// on entry for "defer runtime.KeepAlive(x)"; see issue 21402.
+	if cgoAlwaysFalse {
+		println(x)
+	}
+}
