@@ -168,7 +168,7 @@ func (v varsByScopeAndOffset) Less(i, j int) bool {
 	if v.scopes[i] != v.scopes[j] {
 		return v.scopes[i] < v.scopes[j]
 	}
-	return v.vars[i].Offset < v.vars[j].Offset
+	return v.vars[i].StackOffset < v.vars[j].StackOffset
 }
 
 func (v varsByScopeAndOffset) Swap(i, j int) {

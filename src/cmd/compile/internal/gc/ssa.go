@@ -4401,14 +4401,15 @@ func genssa(f *ssa.Func, pp *Progs) {
 	// Remember where each block starts.
 	s.bstart = make([]*obj.Prog, f.NumBlocks())
 	s.pp = pp
-	var valueProgs map[*obj.Prog]*ssa.Value
-	var blockProgs map[*obj.Prog]*ssa.Block
+	var progToValue map[*obj.Prog]*ssa.Value
+	var progToBlock map[*obj.Prog]*ssa.Block
+	var valueToProg []*obj.Prog
 	var logProgs = e.log
 	if logProgs {
-		valueProgs = make(map[*obj.Prog]*ssa.Value, f.NumValues())
-		blockProgs = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
+		progToValue = make(map[*obj.Prog]*ssa.Value, f.NumValues())
+		progToBlock = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
 		f.Logf("genssa %s\n", f.Name)
-		blockProgs[s.pp.next] = f.Blocks[0]
+		progToBlock[s.pp.next] = f.Blocks[0]
 	}
 
 	if thearch.Use387 {
@@ -4417,6 +4418,11 @@ func genssa(f *ssa.Func, pp *Progs) {
 
 	s.ScratchFpMem = e.scratchFpMem
 
+	logLocationLists := Debug_locationlist != 0
+	if Ctxt.Flag_locationlists {
+		e.curfn.Func.DebugInfo = ssa.BuildFuncDebug(f, logLocationLists)
+		valueToProg = make([]*obj.Prog, f.NumValues())
+	}
 	// Emit basic blocks
 	for i, b := range f.Blocks {
 		s.bstart[b.ID] = s.pp.next
@@ -4457,15 +4463,19 @@ func genssa(f *ssa.Func, pp *Progs) {
 				}
 			case ssa.OpPhi:
 				CheckLoweredPhi(v)
-
+			case ssa.OpRegKill:
+				// nothing to do
 			default:
 				// let the backend handle it
 				thearch.SSAGenValue(&s, v)
 			}
 
+			if Ctxt.Flag_locationlists {
+				valueToProg[v.ID] = x
+			}
 			if logProgs {
 				for ; x != s.pp.next; x = x.Link {
-					valueProgs[x] = v
+					progToValue[x] = v
 				}
 			}
 		}
@@ -4483,7 +4493,23 @@ func genssa(f *ssa.Func, pp *Progs) {
 		thearch.SSAGenBlock(&s, b, next)
 		if logProgs {
 			for ; x != s.pp.next; x = x.Link {
-				blockProgs[x] = b
+				progToBlock[x] = b
+			}
+		}
+	}
+
+	if Ctxt.Flag_locationlists {
+		for _, locList := range e.curfn.Func.DebugInfo.Variables {
+			for _, loc := range locList.Locations {
+				loc.StartProg = valueToProg[loc.Start.ID]
+				if loc.End == nil {
+					Fatalf("empty loc %v compiling %v", loc, f.Name)
+				}
+				loc.EndProg = valueToProg[loc.End.ID]
+				if !logLocationLists {
+					loc.Start = nil
+					loc.End = nil
+				}
 			}
 		}
 	}
@@ -4496,9 +4522,9 @@ func genssa(f *ssa.Func, pp *Progs) {
 	if logProgs {
 		for p := pp.Text; p != nil; p = p.Link {
 			var s string
-			if v, ok := valueProgs[p]; ok {
+			if v, ok := progToValue[p]; ok {
 				s = v.String()
-			} else if b, ok := blockProgs[p]; ok {
+			} else if b, ok := progToBlock[p]; ok {
 				s = b.String()
 			} else {
 				s = "   " // most value and branch strings are 2-3 characters long
@@ -4516,9 +4542,9 @@ func genssa(f *ssa.Func, pp *Progs) {
 			buf.WriteString("<dl class=\"ssa-gen\">")
 			for p := pp.Text; p != nil; p = p.Link {
 				buf.WriteString("<dt class=\"ssa-prog-src\">")
-				if v, ok := valueProgs[p]; ok {
+				if v, ok := progToValue[p]; ok {
 					buf.WriteString(v.HTML())
-				} else if b, ok := blockProgs[p]; ok {
+				} else if b, ok := progToBlock[p]; ok {
 					buf.WriteString(b.HTML())
 				}
 				buf.WriteString("</dt>")
@@ -4895,9 +4921,9 @@ func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	lenType := types.Types[TINT]
 	if n.Class() == PAUTO && !n.Addrtaken() {
 		// Split this string up into two separate variables.
-		p := e.namedAuto(n.Sym.Name+".ptr", ptrType, n.Pos)
-		l := e.namedAuto(n.Sym.Name+".len", lenType, n.Pos)
-		return ssa.LocalSlot{N: p, Type: ptrType, Off: 0}, ssa.LocalSlot{N: l, Type: lenType, Off: 0}
+		p := e.splitSlot(&name, ".ptr", 0, ptrType)
+		l := e.splitSlot(&name, ".len", ptrType.Size(), lenType)
+		return p, l
 	}
 	// Return the two parts of the larger variable.
 	return ssa.LocalSlot{N: n, Type: ptrType, Off: name.Off}, ssa.LocalSlot{N: n, Type: lenType, Off: name.Off + int64(Widthptr)}
@@ -4912,9 +4938,9 @@ func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
 		if n.Type.IsEmptyInterface() {
 			f = ".type"
 		}
-		c := e.namedAuto(n.Sym.Name+f, t, n.Pos)
-		d := e.namedAuto(n.Sym.Name+".data", t, n.Pos)
-		return ssa.LocalSlot{N: c, Type: t, Off: 0}, ssa.LocalSlot{N: d, Type: t, Off: 0}
+		c := e.splitSlot(&name, f, 0, t)
+		d := e.splitSlot(&name, ".data", t.Size(), t)
+		return c, d
 	}
 	// Return the two parts of the larger variable.
 	return ssa.LocalSlot{N: n, Type: t, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + int64(Widthptr)}
@@ -4926,10 +4952,10 @@ func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ss
 	lenType := types.Types[TINT]
 	if n.Class() == PAUTO && !n.Addrtaken() {
 		// Split this slice up into three separate variables.
-		p := e.namedAuto(n.Sym.Name+".ptr", ptrType, n.Pos)
-		l := e.namedAuto(n.Sym.Name+".len", lenType, n.Pos)
-		c := e.namedAuto(n.Sym.Name+".cap", lenType, n.Pos)
-		return ssa.LocalSlot{N: p, Type: ptrType, Off: 0}, ssa.LocalSlot{N: l, Type: lenType, Off: 0}, ssa.LocalSlot{N: c, Type: lenType, Off: 0}
+		p := e.splitSlot(&name, ".ptr", 0, ptrType)
+		l := e.splitSlot(&name, ".len", ptrType.Size(), lenType)
+		c := e.splitSlot(&name, ".cap", ptrType.Size()+lenType.Size(), lenType)
+		return p, l, c
 	}
 	// Return the three parts of the larger variable.
 	return ssa.LocalSlot{N: n, Type: ptrType, Off: name.Off},
@@ -4948,9 +4974,9 @@ func (e *ssafn) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) 
 	}
 	if n.Class() == PAUTO && !n.Addrtaken() {
 		// Split this complex up into two separate variables.
-		c := e.namedAuto(n.Sym.Name+".real", t, n.Pos)
-		d := e.namedAuto(n.Sym.Name+".imag", t, n.Pos)
-		return ssa.LocalSlot{N: c, Type: t, Off: 0}, ssa.LocalSlot{N: d, Type: t, Off: 0}
+		r := e.splitSlot(&name, ".real", 0, t)
+		i := e.splitSlot(&name, ".imag", t.Size(), t)
+		return r, i
 	}
 	// Return the two parts of the larger variable.
 	return ssa.LocalSlot{N: n, Type: t, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + s}
@@ -4966,9 +4992,10 @@ func (e *ssafn) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	}
 	if n.Class() == PAUTO && !n.Addrtaken() {
 		// Split this int64 up into two separate variables.
-		h := e.namedAuto(n.Sym.Name+".hi", t, n.Pos)
-		l := e.namedAuto(n.Sym.Name+".lo", types.Types[TUINT32], n.Pos)
-		return ssa.LocalSlot{N: h, Type: t, Off: 0}, ssa.LocalSlot{N: l, Type: types.Types[TUINT32], Off: 0}
+		if thearch.LinkArch.ByteOrder == binary.BigEndian {
+			return e.splitSlot(&name, ".hi", 0, t), e.splitSlot(&name, ".lo", t.Size(), types.Types[TUINT32])
+		}
+		return e.splitSlot(&name, ".hi", t.Size(), t), e.splitSlot(&name, ".lo", 0, types.Types[TUINT32])
 	}
 	// Return the two parts of the larger variable.
 	if thearch.LinkArch.ByteOrder == binary.BigEndian {
@@ -4981,12 +5008,15 @@ func (e *ssafn) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
 	n := name.N.(*Node)
 	st := name.Type
 	ft := st.FieldType(i)
+	var offset int64
+	for f := 0; f < i; f++ {
+		offset += st.FieldType(f).Size()
+	}
 	if n.Class() == PAUTO && !n.Addrtaken() {
 		// Note: the _ field may appear several times.  But
 		// have no fear, identically-named but distinct Autos are
 		// ok, albeit maybe confusing for a debugger.
-		x := e.namedAuto(n.Sym.Name+"."+st.FieldName(i), ft, n.Pos)
-		return ssa.LocalSlot{N: x, Type: ft, Off: 0}
+		return e.splitSlot(&name, "."+st.FieldName(i), offset, ft)
 	}
 	return ssa.LocalSlot{N: n, Type: ft, Off: name.Off + st.FieldOff(i)}
 }
@@ -4999,8 +5029,7 @@ func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
 	}
 	et := at.ElemType()
 	if n.Class() == PAUTO && !n.Addrtaken() {
-		x := e.namedAuto(n.Sym.Name+"[0]", et, n.Pos)
-		return ssa.LocalSlot{N: x, Type: et, Off: 0}
+		return e.splitSlot(&name, "[0]", 0, et)
 	}
 	return ssa.LocalSlot{N: n, Type: et, Off: name.Off}
 }
@@ -5009,16 +5038,14 @@ func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
 	return itabsym(it, offset)
 }
 
-// namedAuto returns a new AUTO variable with the given name and type.
-// These are exposed to the debugger.
-func (e *ssafn) namedAuto(name string, typ *types.Type, pos src.XPos) ssa.GCNode {
-	t := typ
-	s := &types.Sym{Name: name, Pkg: localpkg}
+// splitSlot returns a slot representing the data of parent starting at offset.
+func (e *ssafn) splitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
+	s := &types.Sym{Name: parent.N.(*Node).Sym.Name + suffix, Pkg: localpkg}
 
 	n := new(Node)
 	n.Name = new(Name)
 	n.Op = ONAME
-	n.Pos = pos
+	n.Pos = parent.N.(*Node).Pos
 	n.Orig = n
 
 	s.Def = asTypesNode(n)
@@ -5031,7 +5058,7 @@ func (e *ssafn) namedAuto(name string, typ *types.Type, pos src.XPos) ssa.GCNode
 	n.Name.Curfn = e.curfn
 	e.curfn.Func.Dcl = append(e.curfn.Func.Dcl, n)
 	dowidth(t)
-	return n
+	return ssa.LocalSlot{N: n, Type: t, Off: 0, SplitOf: parent, SplitOffset: offset}
 }
 
 func (e *ssafn) CanSSA(t *types.Type) bool {

@@ -592,15 +592,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 			}
 
 		case objabi.R_DWARFREF:
-			var sectName string
-			var vaddr int64
-			switch {
-			case r.Sym.Sect != nil:
-				sectName = r.Sym.Sect.Name
-				vaddr = int64(r.Sym.Sect.Vaddr)
-			case r.Sym.Type == SDWARFRANGE:
-				sectName = ".debug_ranges"
-			default:
+			if r.Sym.Sect == nil {
 				Errorf(s, "missing DWARF section for relocation target %s", r.Sym.Name)
 			}
 
@@ -615,8 +607,8 @@ func relocsym(ctxt *Link, s *Symbol) {
 					r.Type = objabi.R_ADDR
 				}
 
-				r.Xsym = ctxt.Syms.ROLookup(sectName, 0)
-				r.Xadd = r.Add + Symaddr(r.Sym) - vaddr
+				r.Xsym = ctxt.Syms.ROLookup(r.Sym.Sect.Name, 0)
+				r.Xadd = r.Add + Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr)
 
 				o = r.Xadd
 				rs = r.Xsym
@@ -625,7 +617,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 				}
 				break
 			}
-			o = Symaddr(r.Sym) + r.Add - vaddr
+			o = Symaddr(r.Sym) + r.Add - int64(r.Sym.Sect.Vaddr)
 
 		case objabi.R_WEAKADDROFF:
 			if !r.Sym.Attr.Reachable() {
@@ -1843,9 +1835,9 @@ func (ctxt *Link) dodata() {
 
 	dwarfgeneratedebugsyms(ctxt)
 
-	var s *Symbol
 	var i int
-	for i, s = range dwarfp {
+	for ; i < len(dwarfp); i++ {
+		s := dwarfp[i]
 		if s.Type != SDWARFSECT {
 			break
 		}
@@ -1862,13 +1854,26 @@ func (ctxt *Link) dodata() {
 	}
 	checkdatsize(ctxt, datsize, SDWARFSECT)
 
-	if i < len(dwarfp) {
-		sect = addsection(&Segdwarf, ".debug_info", 04)
+	for i < len(dwarfp) {
+		curType := dwarfp[i].Type
+		var sect *Section
+		switch curType {
+		case SDWARFINFO:
+			sect = addsection(&Segdwarf, ".debug_info", 04)
+		case SDWARFRANGE:
+			sect = addsection(&Segdwarf, ".debug_ranges", 04)
+		case SDWARFLOC:
+			sect = addsection(&Segdwarf, ".debug_loc", 04)
+		default:
+			Errorf(dwarfp[i], "unknown DWARF section %v", curType)
+		}
+
 		sect.Align = 1
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
-		for _, s := range dwarfp[i:] {
-			if s.Type != SDWARFINFO {
+		for ; i < len(dwarfp); i++ {
+			s := dwarfp[i]
+			if s.Type != curType {
 				break
 			}
 			s.Sect = sect
@@ -1878,7 +1883,7 @@ func (ctxt *Link) dodata() {
 			datsize += s.Size
 		}
 		sect.Length = uint64(datsize) - sect.Vaddr
-		checkdatsize(ctxt, datsize, SDWARFINFO)
+		checkdatsize(ctxt, datsize, curType)
 	}
 
 	/* number the sections */

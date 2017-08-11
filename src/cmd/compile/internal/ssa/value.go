@@ -10,6 +10,7 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"math"
+	"strings"
 )
 
 // A Value represents a value in the SSA representation of the program.
@@ -98,7 +99,7 @@ func (v *Value) AuxValAndOff() ValAndOff {
 	return ValAndOff(v.AuxInt)
 }
 
-// long form print.  v# = opcode <type> [aux] args [: reg]
+// long form print.  v# = opcode <type> [aux] args [: reg] (names)
 func (v *Value) LongString() string {
 	s := fmt.Sprintf("v%d = %s", v.ID, v.Op)
 	s += " <" + v.Type.String() + ">"
@@ -109,6 +110,18 @@ func (v *Value) LongString() string {
 	r := v.Block.Func.RegAlloc
 	if int(v.ID) < len(r) && r[v.ID] != nil {
 		s += " : " + r[v.ID].Name()
+	}
+	var names []string
+	for name, values := range v.Block.Func.NamedValues {
+		for _, value := range values {
+			if value == v {
+				names = append(names, name.Name())
+				break // drop duplicates.
+			}
+		}
+	}
+	if len(names) != 0 {
+		s += " (" + strings.Join(names, ", ") + ")"
 	}
 	return s
 }
