@@ -1210,6 +1210,7 @@ func relSize(ctxt *Link, pn string, elftype uint32) uint8 {
 		return 4
 
 	case AMD64 | R_X86_64_64<<24,
+		AMD64 | R_X86_64_PC64<<24,
 		PPC64 | R_PPC64_ADDR64<<24,
 		S390X | R_390_GLOB_DAT<<24,
 		S390X | R_390_RELATIVE<<24,
