@@ -40,6 +40,8 @@ type Writer struct {
 	preferPax  bool  // use PAX header instead of binary numeric header
 	hdrBuff    block // buffer to use in writeHeader when writing a regular header
 	paxHdrBuff block // buffer to use in writeHeader when writing a PAX header
+
+	blk block // Buffer to use as temporary local storage
 }
 
 // NewWriter creates a new Writer writing to w.
@@ -82,18 +84,79 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
 	hdrCpy.ModTime = hdrCpy.ModTime.Truncate(time.Second)
 
 	switch allowedFormats, _ := hdrCpy.allowedFormats(); {
-	case allowedFormats&formatUSTAR > 0:
-		// TODO(dsnet): Implement and call specialized writeUSTARHeader.
-		return tw.writeHeader(&hdrCpy, true)
-	case allowedFormats&formatPAX > 0:
+	case allowedFormats&formatUSTAR != 0:
+		return tw.writeUSTARHeader(&hdrCpy)
+	case allowedFormats&formatPAX != 0:
 		// TODO(dsnet): Implement and call specialized writePAXHeader.
 		return tw.writeHeader(&hdrCpy, true)
-	case allowedFormats&formatGNU > 0:
+	case allowedFormats&formatGNU != 0:
 		// TODO(dsnet): Implement and call specialized writeGNUHeader.
 		return tw.writeHeader(&hdrCpy, true)
 	default:
 		return ErrHeader
 	}
+}
+
+func (tw *Writer) writeUSTARHeader(hdr *Header) error {
+	// TODO(dsnet): Support USTAR prefix/suffix path splitting.
+	// See https://golang.org/issue/12594
+
+	// Pack the main header.
+	var f formatter
+	blk := tw.templateV7Plus(hdr, &f)
+	blk.SetFormat(formatUSTAR)
+	if f.err != nil {
+		return f.err // Should never happen since header is validated
+	}
+	return tw.writeRawHeader(blk, hdr.Size)
+}
+
+// templateV7Plus fills out the V7 fields of a block using values from hdr.
+// It also fills out fields (uname, gname, devmajor, devminor) that are
+// shared in the USTAR, PAX, and GNU formats.
+//
+// The block returned is only valid until the next call to templateV7Plus.
+func (tw *Writer) templateV7Plus(hdr *Header, f *formatter) *block {
+	tw.blk.Reset()
+
+	modTime := hdr.ModTime
+	if modTime.IsZero() {
+		modTime = time.Unix(0, 0)
+	}
+
+	v7 := tw.blk.V7()
+	v7.TypeFlag()[0] = hdr.Typeflag
+	f.formatString(v7.Name(), hdr.Name)
+	f.formatString(v7.LinkName(), hdr.Linkname)
+	f.formatOctal(v7.Mode(), hdr.Mode)
+	f.formatOctal(v7.UID(), int64(hdr.Uid))
+	f.formatOctal(v7.GID(), int64(hdr.Gid))
+	f.formatOctal(v7.Size(), hdr.Size)
+	f.formatOctal(v7.ModTime(), modTime.Unix())
+
+	ustar := tw.blk.USTAR()
+	f.formatString(ustar.UserName(), hdr.Uname)
+	f.formatString(ustar.GroupName(), hdr.Gname)
+	f.formatOctal(ustar.DevMajor(), hdr.Devmajor)
+	f.formatOctal(ustar.DevMinor(), hdr.Devminor)
+
+	return &tw.blk
+}
+
+// writeRawHeader writes the value of blk, regardless of its value.
+// It sets up the Writer such that it can accept a file of the given size.
+func (tw *Writer) writeRawHeader(blk *block, size int64) error {
+	if err := tw.Flush(); err != nil {
+		return err
+	}
+	if _, err := tw.w.Write(blk[:]); err != nil {
+		return err
+	}
+	// TODO(dsnet): Set Size implicitly to zero for header-only entries.
+	// See https://golang.org/issue/15565
+	tw.nb = size
+	tw.pad = -size & (blockSize - 1) // blockSize is a power of two
+	return nil
 }
 
 // WriteHeader writes hdr and prepares to accept the file's contents.
