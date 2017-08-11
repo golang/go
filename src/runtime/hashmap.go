@@ -820,11 +820,14 @@ next:
 	}
 	for ; i < bucketCnt; i++ {
 		offi := (i + it.offset) & (bucketCnt - 1)
-		k := add(unsafe.Pointer(b), dataOffset+uintptr(offi)*uintptr(t.keysize))
-		v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+uintptr(offi)*uintptr(t.valuesize))
 		if b.tophash[offi] == empty || b.tophash[offi] == evacuatedEmpty {
 			continue
 		}
+		k := add(unsafe.Pointer(b), dataOffset+uintptr(offi)*uintptr(t.keysize))
+		if t.indirectkey {
+			k = *((*unsafe.Pointer)(k))
+		}
+		v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+uintptr(offi)*uintptr(t.valuesize))
 		if checkBucket != noCheck && !h.sameSizeGrow() {
 			// Special case: iterator was started during a grow to a larger size
 			// and the grow is not done yet. We're working on a bucket whose
@@ -833,14 +836,10 @@ next:
 			// through the oldbucket, skipping any keys that will go
 			// to the other new bucket (each oldbucket expands to two
 			// buckets during a grow).
-			k2 := k
-			if t.indirectkey {
-				k2 = *((*unsafe.Pointer)(k2))
-			}
-			if t.reflexivekey || alg.equal(k2, k2) {
+			if t.reflexivekey || alg.equal(k, k) {
 				// If the item in the oldbucket is not destined for
 				// the current new bucket in the iteration, skip it.
-				hash := alg.hash(k2, uintptr(h.hash0))
+				hash := alg.hash(k, uintptr(h.hash0))
 				if hash&(uintptr(1)<<it.B-1) != checkBucket {
 					continue
 				}
@@ -859,9 +858,6 @@ next:
 		}
 		if b.tophash[offi] != evacuatedX && b.tophash[offi] != evacuatedY {
 			// this is the golden data, we can return it.
-			if t.indirectkey {
-				k = *((*unsafe.Pointer)(k))
-			}
 			it.key = k
 			if t.indirectvalue {
 				v = *((*unsafe.Pointer)(v))
@@ -870,17 +866,13 @@ next:
 		} else {
 			// The hash table has grown since the iterator was started.
 			// The golden data for this key is now somewhere else.
-			k2 := k
-			if t.indirectkey {
-				k2 = *((*unsafe.Pointer)(k2))
-			}
-			if t.reflexivekey || alg.equal(k2, k2) {
+			if t.reflexivekey || alg.equal(k, k) {
 				// Check the current hash table for the data.
 				// This code handles the case where the key
 				// has been deleted, updated, or deleted and reinserted.
 				// NOTE: we need to regrab the key as it has potentially been
 				// updated to an equal() but not identical key (e.g. +0.0 vs -0.0).
-				rk, rv := mapaccessK(t, h, k2)
+				rk, rv := mapaccessK(t, h, k)
 				if rk == nil {
 					continue // key has been deleted
 				}
@@ -891,7 +883,7 @@ next:
 				// updated, so we can just return it. That's lucky for
 				// us because when key!=key we can't look it up
 				// successfully in the current table.
-				it.key = k2
+				it.key = k
 				if t.indirectvalue {
 					v = *((*unsafe.Pointer)(v))
 				}
