@@ -510,6 +510,7 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) 
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error) = libsocket.recvfrom
 //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error) = libsocket.__xnet_recvmsg
 //sys	getexecname() (path unsafe.Pointer, err error) = libc.getexecname
+//sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
 
 func Getexecname() (path string, err error) {
 	ptr, err := getexecname()

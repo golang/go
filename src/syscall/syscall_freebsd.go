@@ -222,6 +222,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
 //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
 //sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
+//sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
 
 /*
  * Unimplemented
