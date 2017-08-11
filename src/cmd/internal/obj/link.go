@@ -330,7 +330,8 @@ type FuncInfo struct {
 	Autom  []*Auto
 	Pcln   Pcln
 
-	dwarfSym       *LSym
+	dwarfInfoSym   *LSym
+	dwarfLocSym    *LSym
 	dwarfRangesSym *LSym
 
 	GCArgs   LSym
@@ -476,25 +477,26 @@ type Pcdata struct {
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 type Link struct {
-	Headtype      objabi.HeadType
-	Arch          *LinkArch
-	Debugasm      bool
-	Debugvlog     bool
-	Debugpcln     string
-	Flag_shared   bool
-	Flag_dynlink  bool
-	Flag_optimize bool
-	Bso           *bufio.Writer
-	Pathname      string
-	hashmu        sync.Mutex       // protects hash
-	hash          map[string]*LSym // name -> sym mapping
-	statichash    map[string]*LSym // name -> sym mapping for static syms
-	PosTable      src.PosTable
-	InlTree       InlTree // global inlining tree used by gc/inl.go
-	Imports       []string
-	DiagFunc      func(string, ...interface{})
-	DebugInfo     func(fn *LSym, curfn interface{}) []dwarf.Scope // if non-nil, curfn is a *gc.Node
-	Errors        int
+	Headtype           objabi.HeadType
+	Arch               *LinkArch
+	Debugasm           bool
+	Debugvlog          bool
+	Debugpcln          string
+	Flag_shared        bool
+	Flag_dynlink       bool
+	Flag_optimize      bool
+	Flag_locationlists bool
+	Bso                *bufio.Writer
+	Pathname           string
+	hashmu             sync.Mutex       // protects hash
+	hash               map[string]*LSym // name -> sym mapping
+	statichash         map[string]*LSym // name -> sym mapping for static syms
+	PosTable           src.PosTable
+	InlTree            InlTree // global inlining tree used by gc/inl.go
+	Imports            []string
+	DiagFunc           func(string, ...interface{})
+	DebugInfo          func(fn *LSym, curfn interface{}) []dwarf.Scope // if non-nil, curfn is a *gc.Node
+	Errors             int
 
 	Framepointer_enabled bool
 
@@ -533,9 +535,10 @@ func (ctxt *Link) FixedFrameSize() int64 {
 // LinkArch is the definition of a single architecture.
 type LinkArch struct {
 	*sys.Arch
-	Init       func(*Link)
-	Preprocess func(*Link, *LSym, ProgAlloc)
-	Assemble   func(*Link, *LSym, ProgAlloc)
-	Progedit   func(*Link, *Prog, ProgAlloc)
-	UnaryDst   map[As]bool // Instruction takes one operand, a destination.
+	Init           func(*Link)
+	Preprocess     func(*Link, *LSym, ProgAlloc)
+	Assemble       func(*Link, *LSym, ProgAlloc)
+	Progedit       func(*Link, *Prog, ProgAlloc)
+	UnaryDst       map[As]bool // Instruction takes one operand, a destination.
+	DWARFRegisters map[int16]int16
 }
