@@ -53,8 +53,7 @@ func bad(args ...int) {
 	_ = new(int...)	// ERROR "[.][.][.]"
 	n := 10
 	_ = make([]byte, n...)	// ERROR "[.][.][.]"
-	// TODO(rsc): enable after gofmt bug is fixed
-	//	_ = make([]byte, 10 ...)	// error "[.][.][.]"
+	_ = make([]byte, 10 ...)	// ERROR "[.][.][.]"
 	var x int
 	_ = unsafe.Pointer(&x...)	// ERROR "[.][.][.]"
 	_ = unsafe.Sizeof(x...)	// ERROR "[.][.][.]"
