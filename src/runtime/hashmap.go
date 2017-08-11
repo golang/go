@@ -860,8 +860,12 @@ next:
 				}
 			}
 		}
-		if b.tophash[offi] != evacuatedX && b.tophash[offi] != evacuatedY {
-			// this is the golden data, we can return it.
+		if (b.tophash[offi] != evacuatedX && b.tophash[offi] != evacuatedY) ||
+			!(t.reflexivekey || alg.equal(k, k)) {
+			// This is the golden data, we can return it.
+			// OR
+			// key!=key, so the entry can't be deleted or updated, so we can just return it.
+			// That's lucky for us because when key!=key we can't look it up successfully.
 			it.key = k
 			if t.indirectvalue {
 				v = *((*unsafe.Pointer)(v))
@@ -870,29 +874,17 @@ next:
 		} else {
 			// The hash table has grown since the iterator was started.
 			// The golden data for this key is now somewhere else.
-			if t.reflexivekey || alg.equal(k, k) {
-				// Check the current hash table for the data.
-				// This code handles the case where the key
-				// has been deleted, updated, or deleted and reinserted.
-				// NOTE: we need to regrab the key as it has potentially been
-				// updated to an equal() but not identical key (e.g. +0.0 vs -0.0).
-				rk, rv := mapaccessK(t, h, k)
-				if rk == nil {
-					continue // key has been deleted
-				}
-				it.key = rk
-				it.value = rv
-			} else {
-				// if key!=key then the entry can't be deleted or
-				// updated, so we can just return it. That's lucky for
-				// us because when key!=key we can't look it up
-				// successfully in the current table.
-				it.key = k
-				if t.indirectvalue {
-					v = *((*unsafe.Pointer)(v))
-				}
-				it.value = v
+			// Check the current hash table for the data.
+			// This code handles the case where the key
+			// has been deleted, updated, or deleted and reinserted.
+			// NOTE: we need to regrab the key as it has potentially been
+			// updated to an equal() but not identical key (e.g. +0.0 vs -0.0).
+			rk, rv := mapaccessK(t, h, k)
+			if rk == nil {
+				continue // key has been deleted
 			}
+			it.key = rk
+			it.value = rv
 		}
 		it.bucket = bucket
 		if it.bptr != b { // avoid unnecessary write barrier; see issue 14921
