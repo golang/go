@@ -223,6 +223,12 @@ type BpfHdr C.struct_bpf_hdr
 
 type BpfTimeval C.struct_bpf_timeval
 
+// Misc
+
+const (
+	_AT_FDCWD = C.AT_FDCWD
+)
+
 // Terminal handling
 
 type Termios C.struct_termios

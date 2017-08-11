@@ -430,6 +430,10 @@ type BpfTimeval struct {
 	Usec uint32
 }
 
+const (
+	_AT_FDCWD = -0x64
+)
+
 type Termios struct {
 	Iflag  uint32
 	Oflag  uint32
