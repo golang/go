@@ -134,6 +134,11 @@ func (b *block) ComputeChecksum() (unsigned, signed int64) {
 	return unsigned, signed
 }
 
+// Reset clears the block with all zeros.
+func (b *block) Reset() {
+	*b = block{}
+}
+
 type headerV7 [blockSize]byte
 
 func (h *headerV7) Name() []byte     { return h[000:][:100] }
