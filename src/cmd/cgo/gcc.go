@@ -543,10 +543,6 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 
 	// Scan DWARF info for top-level TagVariable entries with AttrName __cgo__i.
 	types := make([]dwarf.Type, len(names))
-	nameToIndex := make(map[*Name]int)
-	for i, n := range names {
-		nameToIndex[n] = i
-	}
 	nameToRef := make(map[*Name]*Ref)
 	for _, ref := range f.Ref {
 		nameToRef[ref.Name] = ref
