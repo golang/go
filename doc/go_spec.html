@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of June 28, 2017",
+	"Subtitle": "Version of August 14, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -1946,7 +1946,7 @@ func (m *Mutex) Unlock()  { /* Unlock implementation */ }
 // NewMutex has the same composition as Mutex but its method set is empty.
 type NewMutex Mutex
 
-// The method set of the <a href="#Pointer_types">base type</a> of PtrMutex remains unchanged,
+// The method set of PtrMutex's underlying type *Mutex remains unchanged,
 // but the method set of PtrMutex is empty.
 type PtrMutex *Mutex
 
