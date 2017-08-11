@@ -484,6 +484,7 @@ func (p *importer) typ() *types.Type {
 
 		t = pkgtype(p.imp, tsym)
 		p.typList = append(p.typList, t)
+		dup := !t.IsKind(types.TFORW) // type already imported
 
 		// read underlying type
 		t0 := p.typ()
@@ -514,10 +515,19 @@ func (p *importer) typ() *types.Type {
 			result := p.paramList()
 			nointerface := p.bool()
 
+			mt := functypefield(recv[0], params, result)
+			addmethod(sym, mt, false, nointerface)
+
+			if dup {
+				// An earlier import already declared this type and its methods.
+				// Discard the duplicate method declaration.
+				p.funcList = append(p.funcList, nil)
+				continue
+			}
+
 			n := newfuncname(methodname(sym, recv[0].Type))
-			n.Type = functypefield(recv[0], params, result)
+			n.Type = mt
 			checkwidth(n.Type)
-			addmethod(sym, n.Type, false, nointerface)
 			p.funcList = append(p.funcList, n)
 			importlist = append(importlist, n)
 
