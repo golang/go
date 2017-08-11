@@ -118,6 +118,17 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		r.Add += 4
 		return true
 
+	case 256 + ld.R_X86_64_PC64:
+		if targ.Type == ld.SDYNIMPORT {
+			ld.Errorf(s, "unexpected R_X86_64_PC64 relocation for dynamic symbol %s", targ.Name)
+		}
+		if targ.Type == 0 || targ.Type == ld.SXREF {
+			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+		}
+		r.Type = objabi.R_PCREL
+		r.Add += 8
+		return true
+
 	case 256 + ld.R_X86_64_PLT32:
 		r.Type = objabi.R_PCREL
 		r.Add += 4
