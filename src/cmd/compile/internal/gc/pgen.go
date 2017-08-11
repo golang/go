@@ -13,6 +13,7 @@ import (
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
+	"math"
 	"math/rand"
 	"sort"
 	"sync"
@@ -303,29 +304,77 @@ func compileFunctions() {
 
 func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
 	fn := curfn.(*Node)
+	debugInfo := fn.Func.DebugInfo
+	fn.Func.DebugInfo = nil
 	if expect := fn.Func.Nname.Sym.Linksym(); fnsym != expect {
 		Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
 	}
 
-	var dwarfVars []*dwarf.Var
-	var varScopes []ScopeID
-
+	var automDecls []*Node
+	// Populate Automs for fn.
 	for _, n := range fn.Func.Dcl {
 		if n.Op != ONAME { // might be OTYPE or OLITERAL
 			continue
 		}
-
 		var name obj.AddrName
-		var abbrev int
-		offs := n.Xoffset
-
 		switch n.Class() {
 		case PAUTO:
 			if !n.Name.Used() {
 				Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
 			}
 			name = obj.NAME_AUTO
+		case PPARAM, PPARAMOUT:
+			name = obj.NAME_PARAM
+		default:
+			continue
+		}
+		automDecls = append(automDecls, n)
+		gotype := ngotype(n).Linksym()
+		fnsym.Func.Autom = append(fnsym.Func.Autom, &obj.Auto{
+			Asym:    Ctxt.Lookup(n.Sym.Name),
+			Aoffset: int32(n.Xoffset),
+			Name:    name,
+			Gotype:  gotype,
+		})
+	}
 
+	var dwarfVars []*dwarf.Var
+	var decls []*Node
+	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize {
+		decls, dwarfVars = createComplexVars(fn, debugInfo)
+	} else {
+		decls, dwarfVars = createSimpleVars(automDecls)
+	}
+
+	var varScopes []ScopeID
+	for _, decl := range decls {
+		var scope ScopeID
+		if !decl.Name.Captured() && !decl.Name.Byval() {
+			// n.Pos of captured variables is their first
+			// use in the closure but they should always
+			// be assigned to scope 0 instead.
+			// TODO(mdempsky): Verify this.
+			scope = findScope(fn.Func.Marks, decl.Pos)
+		}
+		varScopes = append(varScopes, scope)
+	}
+	return assembleScopes(fnsym, fn, dwarfVars, varScopes)
+}
+
+// createSimpleVars creates a DWARF entry for every variable declared in the
+// function, claiming that they are permanently on the stack.
+func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var) {
+	var vars []*dwarf.Var
+	var decls []*Node
+	for _, n := range automDecls {
+		if n.IsAutoTmp() {
+			continue
+		}
+		var abbrev int
+		offs := n.Xoffset
+
+		switch n.Class() {
+		case PAUTO:
 			abbrev = dwarf.DW_ABRV_AUTO
 			if Ctxt.FixedFrameSize() == 0 {
 				offs -= int64(Widthptr)
@@ -335,48 +384,288 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
 			}
 
 		case PPARAM, PPARAMOUT:
-			name = obj.NAME_PARAM
-
 			abbrev = dwarf.DW_ABRV_PARAM
 			offs += Ctxt.FixedFrameSize()
-
 		default:
-			continue
+			Fatalf("createSimpleVars unexpected type %v for node %v", n.Class(), n)
 		}
 
-		gotype := ngotype(n).Linksym()
-		fnsym.Func.Autom = append(fnsym.Func.Autom, &obj.Auto{
-			Asym:    Ctxt.Lookup(n.Sym.Name),
-			Aoffset: int32(n.Xoffset),
-			Name:    name,
-			Gotype:  gotype,
+		typename := dwarf.InfoPrefix + typesymname(n.Type)
+		decls = append(decls, n)
+		vars = append(vars, &dwarf.Var{
+			Name:        n.Sym.Name,
+			Abbrev:      abbrev,
+			StackOffset: int32(offs),
+			Type:        Ctxt.Lookup(typename),
 		})
+	}
+	return decls, vars
+}
 
-		if n.IsAutoTmp() {
-			continue
+type varPart struct {
+	varOffset int64
+	slot      ssa.SlotID
+	locs      ssa.VarLocList
+}
+
+func createComplexVars(fn *Node, debugInfo *ssa.FuncDebug) ([]*Node, []*dwarf.Var) {
+	for _, locList := range debugInfo.Variables {
+		for _, loc := range locList.Locations {
+			if loc.StartProg != nil {
+				loc.StartPC = loc.StartProg.Pc
+			}
+			if loc.EndProg != nil {
+				loc.EndPC = loc.EndProg.Pc
+			}
+			if Debug_locationlist == 0 {
+				loc.EndProg = nil
+				loc.StartProg = nil
+			}
 		}
-
-		typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
-		dwarfVars = append(dwarfVars, &dwarf.Var{
-			Name:   n.Sym.Name,
-			Abbrev: abbrev,
-			Offset: int32(offs),
-			Type:   Ctxt.Lookup(typename),
-		})
-
-		var scope ScopeID
-		if !n.Name.Captured() && !n.Name.Byval() {
-			// n.Pos of captured variables is their first
-			// use in the closure but they should always
-			// be assigned to scope 0 instead.
-			// TODO(mdempsky): Verify this.
-			scope = findScope(fn.Func.Marks, n.Pos)
-		}
-
-		varScopes = append(varScopes, scope)
 	}
 
-	return assembleScopes(fnsym, fn, dwarfVars, varScopes)
+	// Group SSA variables by the user variable they were decomposed from.
+	varParts := map[*Node][]varPart{}
+	for slotID, locList := range debugInfo.Variables {
+		if len(locList.Locations) == 0 {
+			continue
+		}
+		slot := debugInfo.Slots[slotID]
+		for slot.SplitOf != nil {
+			slot = slot.SplitOf
+		}
+		n := slot.N.(*Node)
+		varParts[n] = append(varParts[n], varPart{varOffset(slot), ssa.SlotID(slotID), locList})
+	}
+
+	// Produce a DWARF variable entry for each user variable.
+	// Don't iterate over the map -- that's nondeterministic, and
+	// createComplexVar has side effects. Instead, go by slot.
+	var decls []*Node
+	var vars []*dwarf.Var
+	for _, slot := range debugInfo.Slots {
+		for slot.SplitOf != nil {
+			slot = slot.SplitOf
+		}
+		n := slot.N.(*Node)
+		parts := varParts[n]
+		if parts == nil {
+			continue
+		}
+
+		// Get the order the parts need to be in to represent the memory
+		// of the decomposed user variable.
+		sort.Sort(partsByVarOffset(parts))
+
+		if dvar := createComplexVar(debugInfo, n, parts); dvar != nil {
+			decls = append(decls, n)
+			vars = append(vars, dvar)
+		}
+	}
+	return decls, vars
+}
+
+// varOffset returns the offset of slot within the user variable it was
+// decomposed from. This has nothing to do with its stack offset.
+func varOffset(slot *ssa.LocalSlot) int64 {
+	offset := slot.Off
+	for ; slot.SplitOf != nil; slot = slot.SplitOf {
+		offset += slot.SplitOffset
+	}
+	return offset
+}
+
+type partsByVarOffset []varPart
+
+func (a partsByVarOffset) Len() int           { return len(a) }
+func (a partsByVarOffset) Less(i, j int) bool { return a[i].varOffset < a[j].varOffset }
+func (a partsByVarOffset) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
+// createComplexVar builds a DWARF variable entry and location list representing n.
+func createComplexVar(debugInfo *ssa.FuncDebug, n *Node, parts []varPart) *dwarf.Var {
+	slots := debugInfo.Slots
+	var offs int64 // base stack offset for this kind of variable
+	var abbrev int
+	switch n.Class() {
+	case PAUTO:
+		abbrev = dwarf.DW_ABRV_AUTO_LOCLIST
+		if Ctxt.FixedFrameSize() == 0 {
+			offs -= int64(Widthptr)
+		}
+		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+			offs -= int64(Widthptr)
+		}
+
+	case PPARAM, PPARAMOUT:
+		abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+		offs += Ctxt.FixedFrameSize()
+	default:
+		return nil
+	}
+
+	gotype := ngotype(n).Linksym()
+	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
+	// The stack offset is used as a sorting key, so for decomposed
+	// variables just give it the lowest one. It's not used otherwise.
+	stackOffset := debugInfo.Slots[parts[0].slot].N.(*Node).Xoffset + offs
+	dvar := &dwarf.Var{
+		Name:        n.Sym.Name,
+		Abbrev:      abbrev,
+		Type:        Ctxt.Lookup(typename),
+		StackOffset: int32(stackOffset),
+	}
+
+	if Debug_locationlist != 0 {
+		Ctxt.Logf("Building location list for %+v. Parts:\n", n)
+		for _, part := range parts {
+			Ctxt.Logf("\t%v => %v\n", debugInfo.Slots[part.slot], part.locs)
+		}
+	}
+
+	// Given a variable that's been decomposed into multiple parts,
+	// its location list may need a new entry after the beginning or
+	// end of every location entry for each of its parts. For example:
+	//
+	// [variable]    [pc range]
+	// string.ptr    |----|-----|    |----|
+	// string.len    |------------|  |--|
+	// ... needs a location list like:
+	// string        |----|-----|-|  |--|-|
+	//
+	// Note that location entries may or may not line up with each other,
+	// and some of the result will only have one or the other part.
+	//
+	// To build the resulting list:
+	// - keep a "current" pointer for each part
+	// - find the next transition point
+	// - advance the current pointer for each part up to that transition point
+	// - build the piece for the range between that transition point and the next
+	// - repeat
+
+	curLoc := make([]int, len(slots))
+
+	// findBoundaryAfter finds the next beginning or end of a piece after currentPC.
+	findBoundaryAfter := func(currentPC int64) int64 {
+		min := int64(math.MaxInt64)
+		for slot, part := range parts {
+			// For each part, find the first PC greater than current. Doesn't
+			// matter if it's a start or an end, since we're looking for any boundary.
+			// If it's the new winner, save it.
+		onePart:
+			for i := curLoc[slot]; i < len(part.locs.Locations); i++ {
+				for _, pc := range [2]int64{part.locs.Locations[i].StartPC, part.locs.Locations[i].EndPC} {
+					if pc > currentPC {
+						if pc < min {
+							min = pc
+						}
+						break onePart
+					}
+				}
+			}
+		}
+		return min
+	}
+	var start int64
+	end := findBoundaryAfter(0)
+	for {
+		// Advance to the next chunk.
+		start = end
+		end = findBoundaryAfter(start)
+		if end == math.MaxInt64 {
+			break
+		}
+
+		dloc := dwarf.Location{StartPC: start, EndPC: end}
+		if Debug_locationlist != 0 {
+			Ctxt.Logf("Processing range %x -> %x\n", start, end)
+		}
+
+		// Advance curLoc to the last location that starts before/at start.
+		// After this loop, if there's a location that covers [start, end), it will be current.
+		// Otherwise the current piece will be too early.
+		for _, part := range parts {
+			choice := -1
+			for i := curLoc[part.slot]; i < len(part.locs.Locations); i++ {
+				if part.locs.Locations[i].StartPC > start {
+					break //overshot
+				}
+				choice = i // best yet
+			}
+			if choice != -1 {
+				curLoc[part.slot] = choice
+			}
+			if Debug_locationlist != 0 {
+				Ctxt.Logf("\t %v => %v", slots[part.slot], curLoc[part.slot])
+			}
+		}
+		if Debug_locationlist != 0 {
+			Ctxt.Logf("\n")
+		}
+		// Assemble the location list entry for this chunk.
+		present := 0
+		for _, part := range parts {
+			dpiece := dwarf.Piece{
+				Length: slots[part.slot].Type.Size(),
+			}
+			locIdx := curLoc[part.slot]
+			if locIdx >= len(part.locs.Locations) ||
+				start >= part.locs.Locations[locIdx].EndPC ||
+				end <= part.locs.Locations[locIdx].StartPC {
+				if Debug_locationlist != 0 {
+					Ctxt.Logf("\t%v: missing", slots[part.slot])
+				}
+				dpiece.Missing = true
+				dloc.Pieces = append(dloc.Pieces, dpiece)
+				continue
+			}
+			present++
+			loc := part.locs.Locations[locIdx]
+			if Debug_locationlist != 0 {
+				Ctxt.Logf("\t%v: %v", slots[part.slot], loc)
+			}
+			if loc.OnStack {
+				dpiece.OnStack = true
+				dpiece.StackOffset = int32(offs + slots[part.slot].Off + slots[part.slot].N.(*Node).Xoffset)
+			} else {
+				for reg := 0; reg < len(debugInfo.Registers); reg++ {
+					if loc.Registers&(1<<uint8(reg)) != 0 {
+						dpiece.RegNum = Ctxt.Arch.DWARFRegisters[debugInfo.Registers[reg].ObjNum()]
+					}
+				}
+			}
+			dloc.Pieces = append(dloc.Pieces, dpiece)
+		}
+		if present == 0 {
+			if Debug_locationlist != 0 {
+				Ctxt.Logf(" -> totally missing\n")
+			}
+			continue
+		}
+		// Extend the previous entry if possible.
+		if len(dvar.LocationList) > 0 {
+			prev := &dvar.LocationList[len(dvar.LocationList)-1]
+			if prev.EndPC == dloc.StartPC && len(prev.Pieces) == len(dloc.Pieces) {
+				equal := true
+				for i := range prev.Pieces {
+					if prev.Pieces[i] != dloc.Pieces[i] {
+						equal = false
+					}
+				}
+				if equal {
+					prev.EndPC = end
+					if Debug_locationlist != 0 {
+						Ctxt.Logf("-> merged with previous, now %#v\n", prev)
+					}
+					continue
+				}
+			}
+		}
+		dvar.LocationList = append(dvar.LocationList, dloc)
+		if Debug_locationlist != 0 {
+			Ctxt.Logf("-> added: %#v\n", dloc)
+		}
+	}
+	return dvar
 }
 
 // fieldtrack adds R_USEFIELD relocations to fnsym to record any

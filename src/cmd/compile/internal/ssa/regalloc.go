@@ -242,6 +242,9 @@ type regAllocState struct {
 	// current state of each (preregalloc) Value
 	values []valState
 
+	// names associated with each Value
+	valueNames [][]LocalSlot
+
 	// ID of SP, SB values
 	sp, sb ID
 
@@ -300,6 +303,13 @@ type startReg struct {
 
 // freeReg frees up register r. Any current user of r is kicked out.
 func (s *regAllocState) freeReg(r register) {
+	s.freeOrResetReg(r, false)
+}
+
+// freeOrResetReg frees up register r. Any current user of r is kicked out.
+// resetting indicates that the operation is only for bookkeeping,
+// e.g. when clearing out state upon entry to a new block.
+func (s *regAllocState) freeOrResetReg(r register, resetting bool) {
 	v := s.regs[r].v
 	if v == nil {
 		s.f.Fatalf("tried to free an already free register %d\n", r)
@@ -308,6 +318,16 @@ func (s *regAllocState) freeReg(r register) {
 	// Mark r as unused.
 	if s.f.pass.debug > regDebug {
 		fmt.Printf("freeReg %s (dump %s/%s)\n", s.registers[r].Name(), v, s.regs[r].c)
+	}
+	if !resetting && s.f.Config.ctxt.Flag_locationlists && len(s.valueNames[v.ID]) != 0 {
+		kill := s.curBlock.NewValue0(src.NoXPos, OpRegKill, types.TypeVoid)
+		for int(kill.ID) >= len(s.orig) {
+			s.orig = append(s.orig, nil)
+		}
+		for _, name := range s.valueNames[v.ID] {
+			s.f.NamedValues[name] = append(s.f.NamedValues[name], kill)
+		}
+		s.f.setHome(kill, &s.registers[r])
 	}
 	s.regs[r] = regState{}
 	s.values[v.ID].regs &^= regMask(1) << r
@@ -599,6 +619,17 @@ func (s *regAllocState) init(f *Func) {
 	s.values = make([]valState, f.NumValues())
 	s.orig = make([]*Value, f.NumValues())
 	s.copies = make(map[*Value]bool)
+	if s.f.Config.ctxt.Flag_locationlists {
+		s.valueNames = make([][]LocalSlot, f.NumValues())
+		for slot, values := range f.NamedValues {
+			if isSynthetic(&slot) {
+				continue
+			}
+			for _, value := range values {
+				s.valueNames[value.ID] = append(s.valueNames[value.ID], slot)
+			}
+		}
+	}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && !v.Type.IsTuple() {
@@ -692,7 +723,9 @@ func (s *regAllocState) liveAfterCurrentInstruction(v *Value) bool {
 
 // Sets the state of the registers to that encoded in regs.
 func (s *regAllocState) setState(regs []endReg) {
-	s.freeRegs(s.used)
+	for s.used != 0 {
+		s.freeOrResetReg(pickReg(s.used), true)
+	}
 	for _, x := range regs {
 		s.assignReg(x.r, x.v, x.c)
 	}
@@ -735,6 +768,9 @@ func (s *regAllocState) regalloc(f *Func) {
 	}
 
 	for _, b := range f.Blocks {
+		if s.f.pass.debug > regDebug {
+			fmt.Printf("Begin processing block %v\n", b)
+		}
 		s.curBlock = b
 
 		// Initialize regValLiveSet and uses fields for this block.
@@ -830,9 +866,6 @@ func (s *regAllocState) regalloc(f *Func) {
 			// This is the complicated case. We have more than one predecessor,
 			// which means we may have Phi ops.
 
-			// Copy phi ops into new schedule.
-			b.Values = append(b.Values, phis...)
-
 			// Start with the final register state of the primary predecessor
 			idx := s.primary[b.ID]
 			if idx < 0 {
@@ -909,6 +942,9 @@ func (s *regAllocState) regalloc(f *Func) {
 					s.freeReg(r)
 				}
 			}
+
+			// Copy phi ops into new schedule.
+			b.Values = append(b.Values, phis...)
 
 			// Third pass - pick registers for phis whose inputs
 			// were not in a register.
@@ -1005,7 +1041,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			pidx := e.i
 			for _, v := range succ.Values {
 				if v.Op != OpPhi {
-					break
+					continue
 				}
 				if !s.values[v.ID].needReg {
 					continue
@@ -1565,6 +1601,9 @@ func (s *regAllocState) placeSpills() {
 	for _, b := range f.Blocks {
 		var m regMask
 		for _, v := range b.Values {
+			if v.Op == OpRegKill {
+				continue
+			}
 			if v.Op != OpPhi {
 				break
 			}
@@ -1675,7 +1714,7 @@ func (s *regAllocState) placeSpills() {
 	for _, b := range f.Blocks {
 		nphi := 0
 		for _, v := range b.Values {
-			if v.Op != OpPhi {
+			if v.Op != OpRegKill && v.Op != OpPhi {
 				break
 			}
 			nphi++
@@ -1800,6 +1839,9 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 	}
 	// Phis need their args to end up in a specific location.
 	for _, v := range e.b.Values {
+		if v.Op == OpRegKill {
+			continue
+		}
 		if v.Op != OpPhi {
 			break
 		}
@@ -1878,6 +1920,7 @@ func (e *edgeState) process() {
 		if e.s.f.pass.debug > regDebug {
 			fmt.Printf("breaking cycle with v%d in %s:%s\n", vid, loc.Name(), c)
 		}
+		e.erase(r)
 		if _, isReg := loc.(*Register); isReg {
 			c = e.p.NewValue1(d.pos, OpCopy, c.Type, c)
 		} else {
@@ -1943,6 +1986,18 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 		}
 	}
 	_, dstReg := loc.(*Register)
+
+	// Pre-clobber destination. This avoids the
+	// following situation:
+	//   - v is currently held in R0 and stacktmp0.
+	//   - We want to copy stacktmp1 to stacktmp0.
+	//   - We choose R0 as the temporary register.
+	// During the copy, both R0 and stacktmp0 are
+	// clobbered, losing both copies of v. Oops!
+	// Erasing the destination early means R0 will not
+	// be chosen as the temp register, as it will then
+	// be the last copy of v.
+	e.erase(loc)
 	var x *Value
 	if c == nil {
 		if !e.s.values[vid].rematerializeable {
@@ -1953,8 +2008,8 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 		} else {
 			// Rematerialize into stack slot. Need a free
 			// register to accomplish this.
-			e.erase(loc) // see pre-clobber comment below
 			r := e.findRegFor(v.Type)
+			e.erase(r)
 			x = v.copyIntoNoXPos(e.p)
 			e.set(r, vid, x, false, pos)
 			// Make sure we spill with the size of the slot, not the
@@ -1976,20 +2031,8 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 				x = e.p.NewValue1(pos, OpLoadReg, c.Type, c)
 			} else {
 				// mem->mem. Use temp register.
-
-				// Pre-clobber destination. This avoids the
-				// following situation:
-				//   - v is currently held in R0 and stacktmp0.
-				//   - We want to copy stacktmp1 to stacktmp0.
-				//   - We choose R0 as the temporary register.
-				// During the copy, both R0 and stacktmp0 are
-				// clobbered, losing both copies of v. Oops!
-				// Erasing the destination early means R0 will not
-				// be chosen as the temp register, as it will then
-				// be the last copy of v.
-				e.erase(loc)
-
 				r := e.findRegFor(c.Type)
+				e.erase(r)
 				t := e.p.NewValue1(pos, OpLoadReg, c.Type, c)
 				e.set(r, vid, t, false, pos)
 				x = e.p.NewValue1(pos, OpStoreReg, loc.(LocalSlot).Type, t)
@@ -2008,7 +2051,6 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 // set changes the contents of location loc to hold the given value and its cached representative.
 func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, pos src.XPos) {
 	e.s.f.setHome(c, loc)
-	e.erase(loc)
 	e.contents[loc] = contentRecord{vid, c, final, pos}
 	a := e.cache[vid]
 	if len(a) == 0 {
@@ -2059,6 +2101,16 @@ func (e *edgeState) erase(loc Location) {
 				fmt.Printf("v%d no longer available in %s:%s\n", vid, loc.Name(), c)
 			}
 			a[i], a = a[len(a)-1], a[:len(a)-1]
+			if e.s.f.Config.ctxt.Flag_locationlists {
+				if _, isReg := loc.(*Register); isReg && int(c.ID) < len(e.s.valueNames) && len(e.s.valueNames[c.ID]) != 0 {
+					kill := e.p.NewValue0(src.NoXPos, OpRegKill, types.TypeVoid)
+					e.s.f.setHome(kill, loc)
+					for _, name := range e.s.valueNames[c.ID] {
+						e.s.f.NamedValues[name] = append(e.s.f.NamedValues[name], kill)
+					}
+				}
+			}
+
 			break
 		}
 	}
@@ -2118,8 +2170,8 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
 					// Allocate a temp location to spill a register to.
 					// The type of the slot is immaterial - it will not be live across
 					// any safepoint. Just use a type big enough to hold any register.
-					t := LocalSlot{e.s.f.fe.Auto(c.Pos, types.Int64), types.Int64, 0}
-					// TODO: reuse these slots.
+					t := LocalSlot{N: e.s.f.fe.Auto(c.Pos, types.Int64), Type: types.Int64}
+					// TODO: reuse these slots. They'll need to be erased first.
 					e.set(t, vid, x, false, c.Pos)
 					if e.s.f.pass.debug > regDebug {
 						fmt.Printf("  SPILL %s->%s %s\n", r.Name(), t.Name(), x.LongString())

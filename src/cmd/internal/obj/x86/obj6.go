@@ -1231,28 +1231,31 @@ var unaryDst = map[obj.As]bool{
 }
 
 var Linkamd64 = obj.LinkArch{
-	Arch:       sys.ArchAMD64,
-	Init:       instinit,
-	Preprocess: preprocess,
-	Assemble:   span6,
-	Progedit:   progedit,
-	UnaryDst:   unaryDst,
+	Arch:           sys.ArchAMD64,
+	Init:           instinit,
+	Preprocess:     preprocess,
+	Assemble:       span6,
+	Progedit:       progedit,
+	UnaryDst:       unaryDst,
+	DWARFRegisters: AMD64DWARFRegisters,
 }
 
 var Linkamd64p32 = obj.LinkArch{
-	Arch:       sys.ArchAMD64P32,
-	Init:       instinit,
-	Preprocess: preprocess,
-	Assemble:   span6,
-	Progedit:   progedit,
-	UnaryDst:   unaryDst,
+	Arch:           sys.ArchAMD64P32,
+	Init:           instinit,
+	Preprocess:     preprocess,
+	Assemble:       span6,
+	Progedit:       progedit,
+	UnaryDst:       unaryDst,
+	DWARFRegisters: AMD64DWARFRegisters,
 }
 
 var Link386 = obj.LinkArch{
-	Arch:       sys.Arch386,
-	Init:       instinit,
-	Preprocess: preprocess,
-	Assemble:   span6,
-	Progedit:   progedit,
-	UnaryDst:   unaryDst,
+	Arch:           sys.Arch386,
+	Init:           instinit,
+	Preprocess:     preprocess,
+	Assemble:       span6,
+	Progedit:       progedit,
+	UnaryDst:       unaryDst,
+	DWARFRegisters: AMD64DWARFRegisters,
 }

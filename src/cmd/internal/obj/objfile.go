@@ -465,15 +465,18 @@ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 }
 
 // dwarfSym returns the DWARF symbols for TEXT symbol.
-func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfRangesSym *LSym) {
+func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym *LSym) {
 	if s.Type != objabi.STEXT {
 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
-	if s.Func.dwarfSym == nil {
-		s.Func.dwarfSym = ctxt.LookupDerived(s, dwarf.InfoPrefix+s.Name)
+	if s.Func.dwarfInfoSym == nil {
+		s.Func.dwarfInfoSym = ctxt.LookupDerived(s, dwarf.InfoPrefix+s.Name)
+		if ctxt.Flag_locationlists {
+			s.Func.dwarfLocSym = ctxt.LookupDerived(s, dwarf.LocPrefix+s.Name)
+		}
 		s.Func.dwarfRangesSym = ctxt.LookupDerived(s, dwarf.RangePrefix+s.Name)
 	}
-	return s.Func.dwarfSym, s.Func.dwarfRangesSym
+	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym
 }
 
 func (s *LSym) Len() int64 {
@@ -483,15 +486,15 @@ func (s *LSym) Len() int64 {
 // populateDWARF fills in the DWARF Debugging Information Entries for TEXT symbol s.
 // The DWARFs symbol must already have been initialized in InitTextSym.
 func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym) {
-	dsym, drsym := ctxt.dwarfSym(s)
-	if dsym.Size != 0 {
+	info, loc, ranges := ctxt.dwarfSym(s)
+	if info.Size != 0 {
 		ctxt.Diag("makeFuncDebugEntry double process %v", s)
 	}
 	var scopes []dwarf.Scope
 	if ctxt.DebugInfo != nil {
 		scopes = ctxt.DebugInfo(s, curfn)
 	}
-	err := dwarf.PutFunc(dwCtxt{ctxt}, dsym, drsym, s.Name, !s.Static(), s, s.Size, scopes)
+	err := dwarf.PutFunc(dwCtxt{ctxt}, info, loc, ranges, s.Name, !s.Static(), s, s.Size, scopes)
 	if err != nil {
 		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
 	}
