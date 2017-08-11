@@ -15,6 +15,9 @@ import (
 // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
 const InfoPrefix = "go.info."
 
+// RangePrefix is the prefix for all the symbols containing DWARF location lists.
+const LocPrefix = "go.loc."
+
 // RangePrefix is the prefix for all the symbols containing DWARF range lists.
 const RangePrefix = "go.range."
 
@@ -23,13 +26,31 @@ type Sym interface {
 	Len() int64
 }
 
+// A Location represents a variable's location at a particular PC range.
+// It becomes a location list entry in the DWARF.
+type Location struct {
+	StartPC, EndPC int64
+	Pieces         []Piece
+}
+
+// A Piece represents the location of a particular part of a variable.
+// It becomes part of a location list entry (a DW_OP_piece) in the DWARF.
+type Piece struct {
+	Length      int64
+	StackOffset int32
+	RegNum      int16
+	Missing     bool
+	OnStack     bool // if true, RegNum is unset.
+}
+
 // A Var represents a local variable or a function parameter.
 type Var struct {
-	Name   string
-	Abbrev int // Either DW_ABRV_AUTO or DW_ABRV_PARAM
-	Offset int32
-	Scope  int32
-	Type   Sym
+	Name         string
+	Abbrev       int // Either DW_ABRV_AUTO or DW_ABRV_PARAM
+	StackOffset  int32
+	LocationList []Location
+	Scope        int32
+	Type         Sym
 }
 
 // A Scope represents a lexical scope. All variables declared within a
@@ -205,7 +226,7 @@ const (
 )
 
 // Index into the abbrevs table below.
-// Keep in sync with ispubname() and ispubtype() below.
+// Keep in sync with ispubname() and ispubtype() in ld/dwarf.go.
 // ispubtype considers >= NULLTYPE public
 const (
 	DW_ABRV_NULL = iota
@@ -213,7 +234,9 @@ const (
 	DW_ABRV_FUNCTION
 	DW_ABRV_VARIABLE
 	DW_ABRV_AUTO
+	DW_ABRV_AUTO_LOCLIST
 	DW_ABRV_PARAM
+	DW_ABRV_PARAM_LOCLIST
 	DW_ABRV_LEXICAL_BLOCK_RANGES
 	DW_ABRV_LEXICAL_BLOCK_SIMPLE
 	DW_ABRV_STRUCTFIELD
@@ -297,6 +320,17 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		},
 	},
 
+	/* AUTO_LOCLIST */
+	{
+		DW_TAG_variable,
+		DW_CHILDREN_no,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_location, DW_FORM_sec_offset},
+			{DW_AT_type, DW_FORM_ref_addr},
+		},
+	},
+
 	/* PARAM */
 	{
 		DW_TAG_formal_parameter,
@@ -307,6 +341,18 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
+
+	/* PARAM_LOCLIST */
+	{
+		DW_TAG_formal_parameter,
+		DW_CHILDREN_no,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_location, DW_FORM_sec_offset},
+			{DW_AT_type, DW_FORM_ref_addr},
+		},
+	},
+
 	/* LEXICAL_BLOCK_RANGES */
 	{
 		DW_TAG_lexical_block,
@@ -684,31 +730,30 @@ func HasChildren(die *DWDie) bool {
 
 // PutFunc writes a DIE for a function to s.
 // It also writes child DIEs for each variable in vars.
-func PutFunc(ctxt Context, s, ranges Sym, name string, external bool, startPC Sym, size int64, scopes []Scope) error {
-	Uleb128put(ctxt, s, DW_ABRV_FUNCTION)
-	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
-	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, 0, startPC)
-	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, size, startPC)
-	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_block1, DW_CLS_BLOCK, 1, []byte{DW_OP_call_frame_cfa})
+func PutFunc(ctxt Context, info, loc, ranges Sym, name string, external bool, startPC Sym, size int64, scopes []Scope) error {
+	Uleb128put(ctxt, info, DW_ABRV_FUNCTION)
+	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
+	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, 0, startPC)
+	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, size, startPC)
+	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_block1, DW_CLS_BLOCK, 1, []byte{DW_OP_call_frame_cfa})
 	var ev int64
 	if external {
 		ev = 1
 	}
-	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_flag, DW_CLS_FLAG, ev, 0)
+	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_flag, DW_CLS_FLAG, ev, 0)
 	if len(scopes) > 0 {
 		var encbuf [20]byte
-		if putscope(ctxt, s, ranges, startPC, 0, scopes, encbuf[:0]) < int32(len(scopes)) {
+		if putscope(ctxt, info, loc, ranges, startPC, 0, scopes, encbuf[:0]) < int32(len(scopes)) {
 			return errors.New("multiple toplevel scopes")
 		}
 	}
-
-	Uleb128put(ctxt, s, 0)
+	Uleb128put(ctxt, info, 0)
 	return nil
 }
 
-func putscope(ctxt Context, s, ranges Sym, startPC Sym, curscope int32, scopes []Scope, encbuf []byte) int32 {
+func putscope(ctxt Context, info, loc, ranges, startPC Sym, curscope int32, scopes []Scope, encbuf []byte) int32 {
 	for _, v := range scopes[curscope].Vars {
-		putvar(ctxt, s, v, encbuf)
+		putvar(ctxt, info, loc, v, startPC, encbuf)
 	}
 	this := curscope
 	curscope++
@@ -719,12 +764,12 @@ func putscope(ctxt Context, s, ranges Sym, startPC Sym, curscope int32, scopes [
 		}
 
 		if len(scope.Ranges) == 1 {
-			Uleb128put(ctxt, s, DW_ABRV_LEXICAL_BLOCK_SIMPLE)
-			putattr(ctxt, s, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].Start, startPC)
-			putattr(ctxt, s, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].End, startPC)
+			Uleb128put(ctxt, info, DW_ABRV_LEXICAL_BLOCK_SIMPLE)
+			putattr(ctxt, info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].Start, startPC)
+			putattr(ctxt, info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].End, startPC)
 		} else {
-			Uleb128put(ctxt, s, DW_ABRV_LEXICAL_BLOCK_RANGES)
-			putattr(ctxt, s, DW_ABRV_LEXICAL_BLOCK_RANGES, DW_FORM_sec_offset, DW_CLS_PTR, ranges.Len(), ranges)
+			Uleb128put(ctxt, info, DW_ABRV_LEXICAL_BLOCK_RANGES)
+			putattr(ctxt, info, DW_ABRV_LEXICAL_BLOCK_RANGES, DW_FORM_sec_offset, DW_CLS_PTR, ranges.Len(), ranges)
 
 			ctxt.AddAddress(ranges, nil, -1)
 			ctxt.AddAddress(ranges, startPC, 0)
@@ -736,32 +781,72 @@ func putscope(ctxt Context, s, ranges Sym, startPC Sym, curscope int32, scopes [
 			ctxt.AddAddress(ranges, nil, 0)
 		}
 
-		curscope = putscope(ctxt, s, ranges, startPC, curscope, scopes, encbuf)
+		curscope = putscope(ctxt, info, loc, ranges, startPC, curscope, scopes, encbuf)
 
-		Uleb128put(ctxt, s, 0)
+		Uleb128put(ctxt, info, 0)
 	}
 	return curscope
 }
 
-func putvar(ctxt Context, s Sym, v *Var, encbuf []byte) {
+func putvar(ctxt Context, info, loc Sym, v *Var, startPC Sym, encbuf []byte) {
 	n := v.Name
 
-	Uleb128put(ctxt, s, int64(v.Abbrev))
-	putattr(ctxt, s, v.Abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
-	loc := append(encbuf[:0], DW_OP_call_frame_cfa)
-	if v.Offset != 0 {
-		loc = append(loc, DW_OP_consts)
-		loc = AppendSleb128(loc, int64(v.Offset))
-		loc = append(loc, DW_OP_plus)
+	Uleb128put(ctxt, info, int64(v.Abbrev))
+	putattr(ctxt, info, v.Abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
+	if v.Abbrev == DW_ABRV_AUTO_LOCLIST || v.Abbrev == DW_ABRV_PARAM_LOCLIST {
+		putattr(ctxt, info, v.Abbrev, DW_FORM_sec_offset, DW_CLS_PTR, int64(loc.Len()), loc)
+		addLocList(ctxt, loc, startPC, v, encbuf)
+	} else {
+		loc := append(encbuf[:0], DW_OP_call_frame_cfa)
+		if v.StackOffset != 0 {
+			loc = append(loc, DW_OP_consts)
+			loc = AppendSleb128(loc, int64(v.StackOffset))
+			loc = append(loc, DW_OP_plus)
+		}
+		putattr(ctxt, info, v.Abbrev, DW_FORM_block1, DW_CLS_BLOCK, int64(len(loc)), loc)
 	}
-	putattr(ctxt, s, v.Abbrev, DW_FORM_block1, DW_CLS_BLOCK, int64(len(loc)), loc)
-	putattr(ctxt, s, v.Abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
+	putattr(ctxt, info, v.Abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
+}
+
+func addLocList(ctxt Context, listSym, startPC Sym, v *Var, encbuf []byte) {
+	// Base address entry: max ptr followed by the base address.
+	ctxt.AddInt(listSym, ctxt.PtrSize(), ^0)
+	ctxt.AddAddress(listSym, startPC, 0)
+	for _, entry := range v.LocationList {
+		ctxt.AddInt(listSym, ctxt.PtrSize(), entry.StartPC)
+		ctxt.AddInt(listSym, ctxt.PtrSize(), entry.EndPC)
+		locBuf := encbuf[:0]
+		for _, piece := range entry.Pieces {
+			if !piece.Missing {
+				if piece.OnStack {
+					locBuf = append(locBuf, DW_OP_fbreg)
+					locBuf = AppendSleb128(locBuf, int64(piece.StackOffset))
+				} else {
+					if piece.RegNum < 32 {
+						locBuf = append(locBuf, DW_OP_reg0+byte(piece.RegNum))
+					} else {
+						locBuf = append(locBuf, DW_OP_regx)
+						locBuf = AppendUleb128(locBuf, uint64(piece.RegNum))
+					}
+				}
+			}
+			if len(entry.Pieces) > 1 {
+				locBuf = append(locBuf, DW_OP_piece)
+				locBuf = AppendUleb128(locBuf, uint64(piece.Length))
+			}
+		}
+		ctxt.AddInt(listSym, 2, int64(len(locBuf)))
+		ctxt.AddBytes(listSym, locBuf)
+	}
+	// End list
+	ctxt.AddInt(listSym, ctxt.PtrSize(), 0)
+	ctxt.AddInt(listSym, ctxt.PtrSize(), 0)
 }
 
 // VarsByOffset attaches the methods of sort.Interface to []*Var,
-// sorting in increasing Offset.
+// sorting in increasing StackOffset.
 type VarsByOffset []*Var
 
 func (s VarsByOffset) Len() int           { return len(s) }
-func (s VarsByOffset) Less(i, j int) bool { return s[i].Offset < s[j].Offset }
+func (s VarsByOffset) Less(i, j int) bool { return s[i].StackOffset < s[j].StackOffset }
 func (s VarsByOffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

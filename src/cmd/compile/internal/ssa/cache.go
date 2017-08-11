@@ -14,6 +14,11 @@ type Cache struct {
 	blocks [200]Block
 	locs   [2000]Location
 
+	// Storage for DWARF variable locations. Lazily allocated
+	// since location lists are off by default.
+	varLocs   []VarLoc
+	curVarLoc int
+
 	// Reusable stackAllocState.
 	// See stackalloc.go's {new,put}StackAllocState.
 	stackAllocState *stackAllocState
@@ -38,4 +43,21 @@ func (c *Cache) Reset() {
 	for i := range xl {
 		xl[i] = nil
 	}
+	xvl := c.varLocs[:c.curVarLoc]
+	for i := range xvl {
+		xvl[i] = VarLoc{}
+	}
+	c.curVarLoc = 0
+}
+
+func (c *Cache) NewVarLoc() *VarLoc {
+	if c.varLocs == nil {
+		c.varLocs = make([]VarLoc, 4000)
+	}
+	if c.curVarLoc == len(c.varLocs) {
+		return &VarLoc{}
+	}
+	vl := &c.varLocs[c.curVarLoc]
+	c.curVarLoc++
+	return vl
 }
