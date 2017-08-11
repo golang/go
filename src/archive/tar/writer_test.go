@@ -19,28 +19,33 @@ import (
 	"time"
 )
 
-// Render a pseudo-diff between two blocks of bytes.
-func bytediff(a []byte, b []byte) (s string) {
-	var ax = strings.Split(hex.Dump(a), "\n")
-	var bx = strings.Split(hex.Dump(b), "\n")
-	for i := 0; i < len(ax) || i < len(bx); i++ {
-		var sa, sb = "", ""
-		if i < len(ax) {
-			sa = ax[i]
+func bytediff(a, b []byte) string {
+	const (
+		uniqueA  = "-  "
+		uniqueB  = "+  "
+		identity = "   "
+	)
+	var ss []string
+	sa := strings.Split(strings.TrimSpace(hex.Dump(a)), "\n")
+	sb := strings.Split(strings.TrimSpace(hex.Dump(b)), "\n")
+	for len(sa) > 0 && len(sb) > 0 {
+		if sa[0] == sb[0] {
+			ss = append(ss, identity+sa[0])
+		} else {
+			ss = append(ss, uniqueA+sa[0])
+			ss = append(ss, uniqueB+sb[0])
 		}
-		if i < len(bx) {
-			sb = bx[i]
-		}
-		if sa != sb {
-			if len(sa) > 0 {
-				s += "+" + sa + "\n"
-			}
-			if len(sb) > 0 {
-				s += "-" + sb + "\n"
-			}
-		}
+		sa, sb = sa[1:], sb[1:]
 	}
-	return s
+	for len(sa) > 0 {
+		ss = append(ss, uniqueA+sa[0])
+		sa = sa[1:]
+	}
+	for len(sb) > 0 {
+		ss = append(ss, uniqueB+sb[0])
+		sb = sb[1:]
+	}
+	return strings.Join(ss, "\n")
 }
 
 func TestWriter(t *testing.T) {
@@ -250,7 +255,7 @@ func TestWriter(t *testing.T) {
 				}
 				got := buf.Bytes()
 				if !bytes.Equal(want, got) {
-					t.Fatalf("incorrect result: (-=want, +=got)\n%v", bytediff(want, got))
+					t.Fatalf("incorrect result: (-got +want)\n%v", bytediff(got, want))
 				}
 			}
 		})
