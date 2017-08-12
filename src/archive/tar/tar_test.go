@@ -7,6 +7,7 @@ package tar
 import (
 	"bytes"
 	"internal/testenv"
+	"io"
 	"io/ioutil"
 	"math"
 	"os"
@@ -493,4 +494,97 @@ func TestHeaderAllowedFormats(t *testing.T) {
 			t.Errorf("test %d, allowedFormats(...):\ngot  %v\nwant %s", i, paxHdrs, v.paxHdrs)
 		}
 	}
+}
+
+func Benchmark(b *testing.B) {
+	type file struct {
+		hdr  *Header
+		body []byte
+	}
+
+	vectors := []struct {
+		label string
+		files []file
+	}{{
+		"USTAR",
+		[]file{{
+			&Header{Name: "bar", Mode: 0640, Size: int64(3)},
+			[]byte("foo"),
+		}, {
+			&Header{Name: "world", Mode: 0640, Size: int64(5)},
+			[]byte("hello"),
+		}},
+	}, {
+		"GNU",
+		[]file{{
+			&Header{Name: "bar", Mode: 0640, Size: int64(3), Devmajor: -1},
+			[]byte("foo"),
+		}, {
+			&Header{Name: "world", Mode: 0640, Size: int64(5), Devmajor: -1},
+			[]byte("hello"),
+		}},
+	}, {
+		"PAX",
+		[]file{{
+			&Header{Name: "bar", Mode: 0640, Size: int64(3), Xattrs: map[string]string{"foo": "bar"}},
+			[]byte("foo"),
+		}, {
+			&Header{Name: "world", Mode: 0640, Size: int64(5), Xattrs: map[string]string{"foo": "bar"}},
+			[]byte("hello"),
+		}},
+	}}
+
+	b.Run("Writer", func(b *testing.B) {
+		for _, v := range vectors {
+			b.Run(v.label, func(b *testing.B) {
+				b.ReportAllocs()
+				for i := 0; i < b.N; i++ {
+					// Writing to ioutil.Discard because we want to
+					// test purely the writer code and not bring in disk performance into this.
+					tw := NewWriter(ioutil.Discard)
+					for _, file := range v.files {
+						if err := tw.WriteHeader(file.hdr); err != nil {
+							b.Errorf("unexpected WriteHeader error: %v", err)
+						}
+						if _, err := tw.Write(file.body); err != nil {
+							b.Errorf("unexpected Write error: %v", err)
+						}
+					}
+					if err := tw.Close(); err != nil {
+						b.Errorf("unexpected Close error: %v", err)
+					}
+				}
+			})
+		}
+	})
+
+	b.Run("Reader", func(b *testing.B) {
+		for _, v := range vectors {
+			var buf bytes.Buffer
+			var r bytes.Reader
+
+			// Write the archive to a byte buffer.
+			tw := NewWriter(&buf)
+			for _, file := range v.files {
+				tw.WriteHeader(file.hdr)
+				tw.Write(file.body)
+			}
+			tw.Close()
+			b.Run(v.label, func(b *testing.B) {
+				b.ReportAllocs()
+				// Read from the byte buffer.
+				for i := 0; i < b.N; i++ {
+					r.Reset(buf.Bytes())
+					tr := NewReader(&r)
+					if _, err := tr.Next(); err != nil {
+						b.Errorf("unexpected Next error: %v", err)
+					}
+					if _, err := io.Copy(ioutil.Discard, tr); err != nil {
+						b.Errorf("unexpected Copy error : %v", err)
+					}
+				}
+			})
+		}
+	})
+
 }
