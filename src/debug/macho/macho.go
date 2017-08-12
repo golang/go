@@ -90,6 +90,13 @@ var cmdStrings = []intName{
 func (i LoadCmd) String() string   { return stringName(uint32(i), cmdStrings, false) }
 func (i LoadCmd) GoString() string { return stringName(uint32(i), cmdStrings, true) }
 
+const (
+	FlagNoUndefs uint32 = 0x1
+	FlagDyldLink uint32 = 0x4
+	FlagTwoLevel uint32 = 0x80
+	FlagPIE      uint32 = 0x200000
+)
+
 // A Segment64 is a 64-bit Mach-O segment load command.
 type Segment64 struct {
 	Cmd     LoadCmd
