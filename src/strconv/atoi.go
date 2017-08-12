@@ -115,7 +115,7 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 
 		if n >= cutoff {
 			// n*base overflows
-			n = maxUint64
+			n = maxVal
 			err = ErrRange
 			goto Error
 		}
@@ -124,7 +124,7 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 		n1 := n + uint64(v)
 		if n1 < n || n1 > maxVal {
 			// n+v overflows
-			n = maxUint64
+			n = maxVal
 			err = ErrRange
 			goto Error
 		}

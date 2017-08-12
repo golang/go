@@ -235,6 +235,17 @@ func init() {
 	}
 }
 
+func TestParseUint32(t *testing.T) {
+	for i := range atoui32tests {
+		test := &atoui32tests[i]
+		out, err := ParseUint(test.in, 10, 32)
+		if uint64(test.out) != out || !reflect.DeepEqual(test.err, err) {
+			t.Errorf("Atoui32(%q) = %v, %v want %v, %v",
+				test.in, out, err, test.out, test.err)
+		}
+	}
+}
+
 func TestParseUint64(t *testing.T) {
 	for i := range atoui64tests {
 		test := &atoui64tests[i]
@@ -252,6 +263,17 @@ func TestParseUint64Base(t *testing.T) {
 		out, err := ParseUint(test.in, 0, 64)
 		if test.out != out || !reflect.DeepEqual(test.err, err) {
 			t.Errorf("ParseUint(%q) = %v, %v want %v, %v",
+				test.in, out, err, test.out, test.err)
+		}
+	}
+}
+
+func TestParseInt32(t *testing.T) {
+	for i := range atoi32tests {
+		test := &atoi32tests[i]
+		out, err := ParseInt(test.in, 10, 32)
+		if int64(test.out) != out || !reflect.DeepEqual(test.err, err) {
+			t.Errorf("Atoi32(%q) = %v, %v want %v, %v",
 				test.in, out, err, test.out, test.err)
 		}
 	}
