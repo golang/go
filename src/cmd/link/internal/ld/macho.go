@@ -263,7 +263,11 @@ func machowrite() int {
 	}
 	Thearch.Lput(uint32(len(load)) + uint32(nseg) + uint32(ndebug))
 	Thearch.Lput(uint32(loadsize))
-	Thearch.Lput(MH_NOUNDEFS) /* flags - no undefines */
+	if nkind[SymKindUndef] == 0 {
+		Thearch.Lput(MH_NOUNDEFS) /* flags - no undefines */
+	} else {
+		Thearch.Lput(0) /* flags */
+	}
 	if macho64 {
 		Thearch.Lput(0) /* reserved */
 	}
