@@ -307,7 +307,7 @@ func TestParseUint(t *testing.T) {
 		for i := range atoui32tests {
 			test := &atoui32tests[i]
 			out, err := ParseUint(test.in, 10, 0)
-			if test.out != uint32(out) || !reflect.DeepEqual(test.err, err) {
+			if uint64(test.out) != out || !reflect.DeepEqual(test.err, err) {
 				t.Errorf("Atoui(%q) = %v, %v want %v, %v",
 					test.in, out, err, test.out, test.err)
 			}
@@ -316,7 +316,7 @@ func TestParseUint(t *testing.T) {
 		for i := range atoui64tests {
 			test := &atoui64tests[i]
 			out, err := ParseUint(test.in, 10, 0)
-			if test.out != uint64(out) || !reflect.DeepEqual(test.err, err) {
+			if test.out != out || !reflect.DeepEqual(test.err, err) {
 				t.Errorf("Atoui(%q) = %v, %v want %v, %v",
 					test.in, out, err, test.out, test.err)
 			}
@@ -330,7 +330,7 @@ func TestParseInt(t *testing.T) {
 		for i := range atoi32tests {
 			test := &atoi32tests[i]
 			out, err := ParseInt(test.in, 10, 0)
-			if test.out != int32(out) || !reflect.DeepEqual(test.err, err) {
+			if int64(test.out) != out || !reflect.DeepEqual(test.err, err) {
 				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
 					test.in, out, err, test.out, test.err)
 			}
@@ -339,7 +339,7 @@ func TestParseInt(t *testing.T) {
 		for i := range atoi64tests {
 			test := &atoi64tests[i]
 			out, err := ParseInt(test.in, 10, 0)
-			if test.out != int64(out) || !reflect.DeepEqual(test.err, err) {
+			if test.out != out || !reflect.DeepEqual(test.err, err) {
 				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
 					test.in, out, err, test.out, test.err)
 			}
