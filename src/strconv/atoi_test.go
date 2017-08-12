@@ -354,6 +354,87 @@ func TestParseInt(t *testing.T) {
 	}
 }
 
+func bitSizeErrStub(name string, bitSize int) error {
+	return BitSizeError(name, "0", bitSize)
+}
+
+func baseErrStub(name string, base int) error {
+	return BaseError(name, "0", base)
+}
+
+func noErrStub(name string, arg int) error {
+	return nil
+}
+
+type parseErrorTest struct {
+	arg     int
+	errStub func(name string, arg int) error
+}
+
+var parseBitSizeTests = []parseErrorTest{
+	{-1, bitSizeErrStub},
+	{0, noErrStub},
+	{64, noErrStub},
+	{65, bitSizeErrStub},
+}
+
+var parseBaseTests = []parseErrorTest{
+	{-1, baseErrStub},
+	{0, noErrStub},
+	{1, baseErrStub},
+	{2, noErrStub},
+	{36, noErrStub},
+	{37, baseErrStub},
+}
+
+func TestParseIntBitSize(t *testing.T) {
+	for i := range parseBitSizeTests {
+		test := &parseBitSizeTests[i]
+		testErr := test.errStub("ParseInt", test.arg)
+		_, err := ParseInt("0", 0, test.arg)
+		if !reflect.DeepEqual(testErr, err) {
+			t.Errorf("ParseInt(\"0\", 0, %v) = 0, %v want 0, %v",
+				test.arg, err, testErr)
+		}
+	}
+}
+
+func TestParseUintBitSize(t *testing.T) {
+	for i := range parseBitSizeTests {
+		test := &parseBitSizeTests[i]
+		testErr := test.errStub("ParseUint", test.arg)
+		_, err := ParseUint("0", 0, test.arg)
+		if !reflect.DeepEqual(testErr, err) {
+			t.Errorf("ParseUint(\"0\", 0, %v) = 0, %v want 0, %v",
+				test.arg, err, testErr)
+		}
+	}
+}
+
+func TestParseIntBase(t *testing.T) {
+	for i := range parseBaseTests {
+		test := &parseBaseTests[i]
+		testErr := test.errStub("ParseInt", test.arg)
+		_, err := ParseInt("0", test.arg, 0)
+		if !reflect.DeepEqual(testErr, err) {
+			t.Errorf("ParseInt(\"0\", %v, 0) = 0, %v want 0, %v",
+				test.arg, err, testErr)
+		}
+	}
+}
+
+func TestParseUintBase(t *testing.T) {
+	for i := range parseBaseTests {
+		test := &parseBaseTests[i]
+		testErr := test.errStub("ParseUint", test.arg)
+		_, err := ParseUint("0", test.arg, 0)
+		if !reflect.DeepEqual(testErr, err) {
+			t.Errorf("ParseUint(\"0\", %v, 0) = 0, %v want 0, %v",
+				test.arg, err, testErr)
+		}
+	}
+}
+
 func TestNumError(t *testing.T) {
 	for _, test := range numErrorTests {
 		err := &NumError{

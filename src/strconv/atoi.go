@@ -35,6 +35,10 @@ func baseError(fn, str string, base int) *NumError {
 	return &NumError{fn, str, errors.New("invalid base " + Itoa(base))}
 }
 
+func bitSizeError(fn, str string, bitSize int) *NumError {
+	return &NumError{fn, str, errors.New("invalid bit size " + Itoa(bitSize))}
+}
+
 const intSize = 32 << (^uint(0) >> 63)
 
 // IntSize is the size in bits of an int or uint value.
@@ -45,10 +49,6 @@ const maxUint64 = (1<<64 - 1)
 // ParseUint is like ParseInt but for unsigned numbers.
 func ParseUint(s string, base int, bitSize int) (uint64, error) {
 	const fnParseUint = "ParseUint"
-
-	if bitSize == 0 {
-		bitSize = int(IntSize)
-	}
 
 	if len(s) == 0 {
 		return 0, syntaxError(fnParseUint, s)
@@ -77,6 +77,12 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 
 	default:
 		return 0, baseError(fnParseUint, s0, base)
+	}
+
+	if bitSize == 0 {
+		bitSize = int(IntSize)
+	} else if bitSize < 0 || bitSize > 64 {
+		return 0, bitSizeError(fnParseUint, s0, bitSize)
 	}
 
 	// Cutoff is the smallest number such that cutoff*base > maxUint64.
@@ -128,14 +134,17 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 	return n, nil
 }
 
-// ParseInt interprets a string s in the given base (2 to 36) and
-// returns the corresponding value i. If base == 0, the base is
-// implied by the string's prefix: base 16 for "0x", base 8 for
-// "0", and base 10 otherwise.
+// ParseInt interprets a string s in the given base (0, 2 to 36) and
+// bit size (0 to 64) and returns the corresponding value i.
+//
+// If base == 0, the base is implied by the string's prefix:
+// base 16 for "0x", base 8 for "0", and base 10 otherwise.
+// For bases 1, below 0 or above 36 an error is returned.
 //
 // The bitSize argument specifies the integer type
 // that the result must fit into. Bit sizes 0, 8, 16, 32, and 64
 // correspond to int, int8, int16, int32, and int64.
+// For a bitSize below 0 or above 64 an error is returned.
 //
 // The errors that ParseInt returns have concrete type *NumError
 // and include err.Num = s. If s is empty or contains invalid
@@ -146,10 +155,6 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 // appropriate bitSize and sign.
 func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 	const fnParseInt = "ParseInt"
-
-	if bitSize == 0 {
-		bitSize = int(IntSize)
-	}
 
 	// Empty string bad.
 	if len(s) == 0 {
@@ -174,6 +179,11 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 		err.(*NumError).Num = s0
 		return 0, err
 	}
+
+	if bitSize == 0 {
+		bitSize = int(IntSize)
+	}
+
 	cutoff := uint64(1 << uint(bitSize-1))
 	if !neg && un >= cutoff {
 		return int64(cutoff - 1), rangeError(fnParseInt, s0)
