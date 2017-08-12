@@ -158,7 +158,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 	// UNSIGNED relocation at all.
 	if rs.Type == ld.SHOSTOBJ || r.Type == objabi.R_CALLARM64 || r.Type == objabi.R_ADDRARM64 || r.Type == objabi.R_ADDR {
 		if rs.Dynid < 0 {
-			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
+			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, r.Type, rs.Name, rs.Type, rs.Type)
 			return -1
 		}
 
@@ -167,7 +167,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 	} else {
 		v = uint32(rs.Sect.Extnum)
 		if v == 0 {
-			ld.Errorf(s, "reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
+			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, r.Type, rs.Name, rs.Sect.Name, rs.Type, rs.Type)
 			return -1
 		}
 	}
