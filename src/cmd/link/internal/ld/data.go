@@ -432,7 +432,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 		// shared libraries, and Solaris needs it always
 		if Headtype != objabi.Hsolaris && r.Sym != nil && r.Sym.Type == SDYNIMPORT && !ctxt.DynlinkingGo() {
 			if !(SysArch.Family == sys.PPC64 && Linkmode == LinkExternal && r.Sym.Name == ".TOC.") {
-				Errorf(s, "unhandled relocation for %s (type %d rtype %d)", r.Sym.Name, r.Sym.Type, r.Type)
+				Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", r.Sym.Name, r.Sym.Type, r.Sym.Type, r.Type, r.Type)
 			}
 		}
 		if r.Sym != nil && r.Sym.Type != STLSBSS && r.Type != objabi.R_WEAKADDROFF && !r.Sym.Attr.Reachable() {
@@ -828,7 +828,7 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
 				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
 			}
 			if !Thearch.Adddynrel(ctxt, s, r) {
-				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d stype=%d)", r.Sym.Name, r.Type, r.Sym.Type)
+				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, r.Type, r.Sym.Type, r.Sym.Type)
 			}
 		}
 	}
