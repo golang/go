@@ -53,16 +53,15 @@ func (*parser) parseString(b []byte) string {
 	return string(b)
 }
 
-// Write s into b, terminating it with a NUL if there is room.
+// formatString copies s into b, NUL-terminating if possible.
 func (f *formatter) formatString(b []byte, s string) {
 	if len(s) > len(b) {
 		f.err = ErrFieldTooLong
-		return
 	}
-	ascii := toASCII(s)
-	copy(b, ascii)
-	if len(ascii) < len(b) {
-		b[len(ascii)] = 0
+	s = toASCII(s) // TODO(dsnet): Remove this for UTF-8 support in GNU format
+	copy(b, s)
+	if len(s) < len(b) {
+		b[len(s)] = 0
 	}
 }
 
@@ -162,6 +161,11 @@ func (p *parser) parseOctal(b []byte) int64 {
 }
 
 func (f *formatter) formatOctal(b []byte, x int64) {
+	if !fitsInOctal(len(b), x) {
+		x = 0 // Last resort, just write zero
+		f.err = ErrFieldTooLong
+	}
+
 	s := strconv.FormatInt(x, 8)
 	// Add leading zeros, but leave room for a NUL.
 	if n := len(b) - len(s) - 1; n > 0 {

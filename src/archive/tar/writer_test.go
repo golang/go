@@ -116,6 +116,7 @@ func TestWriter(t *testing.T) {
 				Typeflag: '0',
 				Uname:    "dsymonds",
 				Gname:    "eng",
+				Devminor: -1, // Force use of GNU format
 			},
 			// fake contents
 			contents: strings.Repeat("\x00", 4<<10),

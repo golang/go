@@ -83,12 +83,11 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
 	hdrCpy := *hdr
 	hdrCpy.ModTime = hdrCpy.ModTime.Truncate(time.Second)
 
-	switch allowedFormats, _ := hdrCpy.allowedFormats(); {
+	switch allowedFormats, paxHdrs := hdrCpy.allowedFormats(); {
 	case allowedFormats&formatUSTAR != 0:
 		return tw.writeUSTARHeader(&hdrCpy)
 	case allowedFormats&formatPAX != 0:
-		// TODO(dsnet): Implement and call specialized writePAXHeader.
-		return tw.writeHeader(&hdrCpy, true)
+		return tw.writePAXHeader(&hdrCpy, paxHdrs)
 	case allowedFormats&formatGNU != 0:
 		// TODO(dsnet): Implement and call specialized writeGNUHeader.
 		return tw.writeHeader(&hdrCpy, true)
@@ -107,6 +106,45 @@ func (tw *Writer) writeUSTARHeader(hdr *Header) error {
 	blk.SetFormat(formatUSTAR)
 	if f.err != nil {
 		return f.err // Should never happen since header is validated
+	}
+	return tw.writeRawHeader(blk, hdr.Size)
+}
+
+func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
+	// Write PAX records to the output.
+	if len(paxHdrs) > 0 {
+		// Sort keys for deterministic ordering.
+		var keys []string
+		for k := range paxHdrs {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		// Write each record to a buffer.
+		var buf bytes.Buffer
+		for _, k := range keys {
+			rec, err := formatPAXRecord(k, paxHdrs[k])
+			if err != nil {
+				return err
+			}
+			buf.WriteString(rec)
+		}
+
+		// Write the extended header file.
+		dir, file := path.Split(hdr.Name)
+		name := path.Join(dir, "PaxHeaders.0", file)
+		data := buf.String()
+		if err := tw.writeRawFile(name, data, TypeXHeader, formatPAX); err != nil {
+			return err
+		}
+	}
+
+	// Pack the main header.
+	var f formatter
+	blk := tw.templateV7Plus(hdr, &f)
+	blk.SetFormat(formatPAX)
+	if f.err != nil && len(paxHdrs) == 0 {
+		return f.err // Should never happen, otherwise PAX headers would be used
 	}
 	return tw.writeRawHeader(blk, hdr.Size)
 }
@@ -141,6 +179,40 @@ func (tw *Writer) templateV7Plus(hdr *Header, f *formatter) *block {
 	f.formatOctal(ustar.DevMinor(), hdr.Devminor)
 
 	return &tw.blk
+}
+
+// writeRawFile writes a minimal file with the given name and flag type.
+// It uses format to encode the header format and will write data as the body.
+// It uses default values for all of the other fields (as BSD and GNU tar does).
+func (tw *Writer) writeRawFile(name, data string, flag byte, format int) error {
+	tw.blk.Reset()
+
+	// Best effort for the filename.
+	name = toASCII(name)
+	if len(name) > nameSize {
+		name = name[:nameSize]
+	}
+
+	var f formatter
+	v7 := tw.blk.V7()
+	v7.TypeFlag()[0] = flag
+	f.formatString(v7.Name(), name)
+	f.formatOctal(v7.Mode(), 0)
+	f.formatOctal(v7.UID(), 0)
+	f.formatOctal(v7.GID(), 0)
+	f.formatOctal(v7.Size(), int64(len(data))) // Must be < 8GiB
+	f.formatOctal(v7.ModTime(), 0)
+	tw.blk.SetFormat(format)
+	if f.err != nil {
+		return f.err // Only occurs if size condition is violated
+	}
+
+	// Write the header and data.
+	if err := tw.writeRawHeader(&tw.blk, int64(len(data))); err != nil {
+		return err
+	}
+	_, err := io.WriteString(tw, data)
+	return err
 }
 
 // writeRawHeader writes the value of blk, regardless of its value.
@@ -185,7 +257,7 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 	// We need to select which scratch buffer to use carefully,
 	// since this method is called recursively to write PAX headers.
 	// If allowPax is true, this is the non-recursive call, and we will use hdrBuff.
-	// If allowPax is false, we are being called by writePAXHeader, and hdrBuff is
+	// If allowPax is false, we are being called by writePAXHeaderLegacy, and hdrBuff is
 	// already being used by the non-recursive call, so we must use paxHdrBuff.
 	header := &tw.hdrBuff
 	if !allowPax {
@@ -318,7 +390,7 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 		if !allowPax {
 			return errInvalidHeader
 		}
-		if err := tw.writePAXHeader(hdr, paxHeaders); err != nil {
+		if err := tw.writePAXHeaderLegacy(hdr, paxHeaders); err != nil {
 			return err
 		}
 	}
@@ -350,9 +422,9 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
 	return name[:i], name[i+1:], true
 }
 
-// writePaxHeader writes an extended pax header to the
+// writePAXHeaderLegacy writes an extended pax header to the
 // archive.
-func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) error {
+func (tw *Writer) writePAXHeaderLegacy(hdr *Header, paxHeaders map[string]string) error {
 	// Prepare extended header
 	ext := new(Header)
 	ext.Typeflag = TypeXHeader
