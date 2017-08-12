@@ -265,9 +265,57 @@ func SplitAfter(s, sep []byte) [][]byte {
 	return genSplit(s, sep, len(sep), -1)
 }
 
+var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
+
 // Fields splits the slice s around each instance of one or more consecutive white space
-// characters, returning a slice of subslices of s or an empty list if s contains only white space.
+// characters, as defined by unicode.IsSpace, returning a slice of subslices of s or an
+// empty slice if s contains only white space.
 func Fields(s []byte) [][]byte {
+	// First count the fields.
+	// This is an exact count if s is ASCII, otherwise it is an approximation.
+	n := 0
+	wasSpace := 1
+	// setBits is used to track which bits are set in the bytes of s.
+	setBits := uint8(0)
+	for i := 0; i < len(s); i++ {
+		r := s[i]
+		setBits |= r
+		isSpace := int(asciiSpace[r])
+		n += wasSpace & ^isSpace
+		wasSpace = isSpace
+	}
+
+	if setBits < utf8.RuneSelf { // ASCII fast path
+		a := make([][]byte, n)
+		na := 0
+		fieldStart := 0
+		i := 0
+		// Skip spaces in the front of the input.
+		for i < len(s) && asciiSpace[s[i]] != 0 {
+			i++
+		}
+		fieldStart = i
+		for i < len(s) {
+			if asciiSpace[s[i]] == 0 {
+				i++
+				continue
+			}
+			a[na] = s[fieldStart:i]
+			na++
+			i++
+			// Skip spaces in between fields.
+			for i < len(s) && asciiSpace[s[i]] != 0 {
+				i++
+			}
+			fieldStart = i
+		}
+		if fieldStart < len(s) { // Last field might end at EOF.
+			a[na] = s[fieldStart:]
+		}
+		return a
+	}
+
+	// Some runes in the input slice are not ASCII.
 	return FieldsFunc(s, unicode.IsSpace)
 }
 
@@ -278,39 +326,49 @@ func Fields(s []byte) [][]byte {
 // FieldsFunc makes no guarantees about the order in which it calls f(c).
 // If f does not return consistent results for a given c, FieldsFunc may crash.
 func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
-	n := 0
-	inField := false
+	// A span is used to record a slice of s of the form s[start:end].
+	// The start index is inclusive and the end index is exclusive.
+	type span struct {
+		start int
+		end   int
+	}
+	spans := make([]span, 0, 32)
+
+	// Find the field start and end indices.
+	wasField := false
+	fromIndex := 0
 	for i := 0; i < len(s); {
-		r, size := utf8.DecodeRune(s[i:])
-		wasInField := inField
-		inField = !f(r)
-		if inField && !wasInField {
-			n++
+		size := 1
+		r := rune(s[i])
+		if r >= utf8.RuneSelf {
+			r, size = utf8.DecodeRune(s[i:])
+		}
+		if f(r) {
+			if wasField {
+				spans = append(spans, span{start: fromIndex, end: i})
+				wasField = false
+			}
+		} else {
+			if !wasField {
+				fromIndex = i
+				wasField = true
+			}
 		}
 		i += size
 	}
 
-	a := make([][]byte, n)
-	na := 0
-	fieldStart := -1
-	for i := 0; i <= len(s) && na < n; {
-		r, size := utf8.DecodeRune(s[i:])
-		if fieldStart < 0 && size > 0 && !f(r) {
-			fieldStart = i
-			i += size
-			continue
-		}
-		if fieldStart >= 0 && (size == 0 || f(r)) {
-			a[na] = s[fieldStart:i]
-			na++
-			fieldStart = -1
-		}
-		if size == 0 {
-			break
-		}
-		i += size
+	// Last field might end at EOF.
+	if wasField {
+		spans = append(spans, span{fromIndex, len(s)})
 	}
-	return a[0:na]
+
+	// Create subslices from recorded field indices.
+	a := make([][]byte, len(spans))
+	for i, span := range spans {
+		a[i] = s[span.start:span.end]
+	}
+
+	return a
 }
 
 // Join concatenates the elements of s to create a new byte slice. The separator
