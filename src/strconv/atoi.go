@@ -16,7 +16,7 @@ var ErrSyntax = errors.New("invalid syntax")
 type NumError struct {
 	Func string // the failing function (ParseBool, ParseInt, ParseUint, ParseFloat)
 	Num  string // the input
-	Err  error  // the reason the conversion failed (ErrRange, ErrSyntax)
+	Err  error  // the reason the conversion failed (e.g. ErrRange, ErrSyntax, etc.)
 }
 
 func (e *NumError) Error() string {
@@ -31,6 +31,10 @@ func rangeError(fn, str string) *NumError {
 	return &NumError{fn, str, ErrRange}
 }
 
+func baseError(fn, str string, base int) *NumError {
+	return &NumError{fn, str, errors.New("invalid base " + Itoa(base))}
+}
+
 const intSize = 32 << (^uint(0) >> 63)
 
 // IntSize is the size in bits of an int or uint value.
@@ -40,8 +44,9 @@ const maxUint64 = (1<<64 - 1)
 
 // ParseUint is like ParseInt but for unsigned numbers.
 func ParseUint(s string, base int, bitSize int) (uint64, error) {
+	const fnParseUint = "ParseUint"
+
 	var n uint64
-	var err error
 	var cutoff, maxVal uint64
 
 	if bitSize == 0 {
@@ -50,9 +55,8 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 
 	i := 0
 	switch {
-	case len(s) < 1:
-		err = ErrSyntax
-		goto Error
+	case len(s) == 0:
+		return 0, syntaxError(fnParseUint, s)
 
 	case 2 <= base && base <= 36:
 		// valid base; nothing to do
@@ -62,8 +66,7 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 		switch {
 		case s[0] == '0' && len(s) > 1 && (s[1] == 'x' || s[1] == 'X'):
 			if len(s) < 3 {
-				err = ErrSyntax
-				goto Error
+				return 0, syntaxError(fnParseUint, s)
 			}
 			base = 16
 			i = 2
@@ -75,8 +78,7 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 		}
 
 	default:
-		err = errors.New("invalid base " + Itoa(base))
-		goto Error
+		return 0, baseError(fnParseUint, s, base)
 	}
 
 	// Cutoff is the smallest number such that cutoff*base > maxUint64.
@@ -103,38 +105,27 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 		case 'A' <= d && d <= 'Z':
 			v = d - 'A' + 10
 		default:
-			n = 0
-			err = ErrSyntax
-			goto Error
+			return 0, syntaxError(fnParseUint, s)
 		}
 		if v >= byte(base) {
-			n = 0
-			err = ErrSyntax
-			goto Error
+			return 0, syntaxError(fnParseUint, s)
 		}
 
 		if n >= cutoff {
 			// n*base overflows
-			n = maxVal
-			err = ErrRange
-			goto Error
+			return maxVal, rangeError(fnParseUint, s)
 		}
 		n *= uint64(base)
 
 		n1 := n + uint64(v)
 		if n1 < n || n1 > maxVal {
 			// n+v overflows
-			n = maxVal
-			err = ErrRange
-			goto Error
+			return maxVal, rangeError(fnParseUint, s)
 		}
 		n = n1
 	}
 
 	return n, nil
-
-Error:
-	return n, &NumError{"ParseUint", s, err}
 }
 
 // ParseInt interprets a string s in the given base (2 to 36) and
