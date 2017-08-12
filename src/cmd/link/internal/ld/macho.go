@@ -90,6 +90,56 @@ const (
 	MACHO_FAKE_GOTPCREL           = 100
 )
 
+const (
+	MH_MAGIC    = 0xfeedface
+	MH_MAGIC_64 = 0xfeedfacf
+
+	MH_OBJECT  = 0x1
+	MH_EXECUTE = 0x2
+
+	MH_NOUNDEFS = 0x1
+)
+
+const (
+	LC_SEGMENT              = 0x1
+	LC_SYMTAB               = 0x2
+	LC_UNIXTHREAD           = 0x5
+	LC_DYSYMTAB             = 0xb
+	LC_LOAD_DYLIB           = 0xc
+	LC_ID_DYLIB             = 0xd
+	LC_LOAD_DYLINKER        = 0xe
+	LC_PREBOUND_DYLIB       = 0x10
+	LC_LOAD_WEAK_DYLIB      = 0x18
+	LC_SEGMENT_64           = 0x19
+	LC_UUID                 = 0x1b
+	LC_RPATH                = 0x8000001c
+	LC_CODE_SIGNATURE       = 0x1d
+	LC_SEGMENT_SPLIT_INFO   = 0x1e
+	LC_REEXPORT_DYLIB       = 0x8000001f
+	LC_ENCRYPTION_INFO      = 0x21
+	LC_DYLD_INFO            = 0x22
+	LC_DYLD_INFO_ONLY       = 0x80000022
+	LC_VERSION_MIN_MACOSX   = 0x24
+	LC_VERSION_MIN_IPHONEOS = 0x25
+	LC_FUNCTION_STARTS      = 0x26
+	LC_MAIN                 = 0x80000028
+	LC_DATA_IN_CODE         = 0x29
+	LC_SOURCE_VERSION       = 0x2A
+	LC_DYLIB_CODE_SIGN_DRS  = 0x2B
+	LC_ENCRYPTION_INFO_64   = 0x2C
+)
+
+const (
+	S_REGULAR                  = 0x0
+	S_ZEROFILL                 = 0x1
+	S_NON_LAZY_SYMBOL_POINTERS = 0x6
+	S_SYMBOL_STUBS             = 0x8
+	S_MOD_INIT_FUNC_POINTERS   = 0x9
+	S_ATTR_PURE_INSTRUCTIONS   = 0x80000000
+	S_ATTR_DEBUG               = 0x02000000
+	S_ATTR_SOME_INSTRUCTIONS   = 0x00000400
+)
+
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -200,20 +250,20 @@ func machowrite() int {
 	}
 
 	if macho64 {
-		Thearch.Lput(0xfeedfacf)
+		Thearch.Lput(MH_MAGIC_64)
 	} else {
-		Thearch.Lput(0xfeedface)
+		Thearch.Lput(MH_MAGIC)
 	}
 	Thearch.Lput(machohdr.cpu)
 	Thearch.Lput(machohdr.subcpu)
 	if Linkmode == LinkExternal {
-		Thearch.Lput(1) /* file type - mach object */
+		Thearch.Lput(MH_OBJECT) /* file type - mach object */
 	} else {
-		Thearch.Lput(2) /* file type - mach executable */
+		Thearch.Lput(MH_EXECUTE) /* file type - mach executable */
 	}
 	Thearch.Lput(uint32(len(load)) + uint32(nseg) + uint32(ndebug))
 	Thearch.Lput(uint32(loadsize))
-	Thearch.Lput(1) /* flags - no undefines */
+	Thearch.Lput(MH_NOUNDEFS) /* flags - no undefines */
 	if macho64 {
 		Thearch.Lput(0) /* reserved */
 	}
@@ -224,7 +274,7 @@ func machowrite() int {
 	for i := 0; i < nseg; i++ {
 		s = &seg[i]
 		if macho64 {
-			Thearch.Lput(25) /* segment 64 */
+			Thearch.Lput(LC_SEGMENT_64)
 			Thearch.Lput(72 + 80*s.nsect)
 			strnput(s.name, 16)
 			Thearch.Vput(s.vaddr)
@@ -236,7 +286,7 @@ func machowrite() int {
 			Thearch.Lput(s.nsect)
 			Thearch.Lput(s.flag)
 		} else {
-			Thearch.Lput(1) /* segment 32 */
+			Thearch.Lput(LC_SEGMENT)
 			Thearch.Lput(56 + 68*s.nsect)
 			strnput(s.name, 16)
 			Thearch.Lput(uint32(s.vaddr))
@@ -379,36 +429,34 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *Section, segname string) {
 		}
 		msect.off = uint32(sect.Seg.Fileoff + sect.Vaddr - sect.Seg.Vaddr)
 	} else {
-		// zero fill
 		msect.off = 0
-
-		msect.flag |= 1
+		msect.flag |= S_ZEROFILL
 	}
 
 	if sect.Rwx&1 != 0 {
-		msect.flag |= 0x400 /* has instructions */
+		msect.flag |= S_ATTR_SOME_INSTRUCTIONS
 	}
 
 	if sect.Name == ".plt" {
 		msect.name = "__symbol_stub1"
-		msect.flag = 0x80000408 /* only instructions, code, symbol stubs */
-		msect.res1 = 0          //nkind[SymKindLocal];
+		msect.flag = S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS | S_SYMBOL_STUBS
+		msect.res1 = 0 //nkind[SymKindLocal];
 		msect.res2 = 6
 	}
 
 	if sect.Name == ".got" {
 		msect.name = "__nl_symbol_ptr"
-		msect.flag = 6                                                     /* section with nonlazy symbol pointers */
+		msect.flag = S_NON_LAZY_SYMBOL_POINTERS
 		msect.res1 = uint32(ctxt.Syms.Lookup(".linkedit.plt", 0).Size / 4) /* offset into indirect symbol table */
 	}
 
 	if sect.Name == ".init_array" {
 		msect.name = "__mod_init_func"
-		msect.flag = 9 // S_MOD_INIT_FUNC_POINTERS
+		msect.flag = S_MOD_INIT_FUNC_POINTERS
 	}
 
 	if segname == "__DWARF" {
-		msect.flag |= 0x02000000
+		msect.flag |= S_ATTR_DEBUG
 	}
 }
 
@@ -511,27 +559,27 @@ func Asmbmacho(ctxt *Link) {
 			Exitf("unknown macho architecture: %v", SysArch.Family)
 
 		case sys.ARM:
-			ml := newMachoLoad(5, 17+2)              /* unix thread */
+			ml := newMachoLoad(LC_UNIXTHREAD, 17+2)
 			ml.data[0] = 1                           /* thread type */
 			ml.data[1] = 17                          /* word count */
 			ml.data[2+15] = uint32(Entryvalue(ctxt)) /* start pc */
 
 		case sys.AMD64:
-			ml := newMachoLoad(5, 42+2)              /* unix thread */
+			ml := newMachoLoad(LC_UNIXTHREAD, 42+2)
 			ml.data[0] = 4                           /* thread type */
 			ml.data[1] = 42                          /* word count */
 			ml.data[2+32] = uint32(Entryvalue(ctxt)) /* start pc */
 			ml.data[2+32+1] = uint32(Entryvalue(ctxt) >> 32)
 
 		case sys.ARM64:
-			ml := newMachoLoad(5, 68+2)              /* unix thread */
+			ml := newMachoLoad(LC_UNIXTHREAD, 68+2)
 			ml.data[0] = 6                           /* thread type */
 			ml.data[1] = 68                          /* word count */
 			ml.data[2+64] = uint32(Entryvalue(ctxt)) /* start pc */
 			ml.data[2+64+1] = uint32(Entryvalue(ctxt) >> 32)
 
 		case sys.I386:
-			ml := newMachoLoad(5, 16+2)              /* unix thread */
+			ml := newMachoLoad(LC_UNIXTHREAD, 16+2)
 			ml.data[0] = 1                           /* thread type */
 			ml.data[1] = 16                          /* word count */
 			ml.data[2+10] = uint32(Entryvalue(ctxt)) /* start pc */
@@ -555,7 +603,7 @@ func Asmbmacho(ctxt *Link) {
 			ms.prot2 = 3
 		}
 
-		ml := newMachoLoad(2, 4)                                   /* LC_SYMTAB */
+		ml := newMachoLoad(LC_SYMTAB, 4)
 		ml.data[0] = uint32(linkoff)                               /* symoff */
 		ml.data[1] = uint32(nsortsym)                              /* nsyms */
 		ml.data[2] = uint32(linkoff + s1.Size + s2.Size + s3.Size) /* stroff */
@@ -564,16 +612,16 @@ func Asmbmacho(ctxt *Link) {
 		machodysymtab(ctxt)
 
 		if Linkmode != LinkExternal {
-			ml := newMachoLoad(14, 6) /* LC_LOAD_DYLINKER */
-			ml.data[0] = 12           /* offset to string */
+			ml := newMachoLoad(LC_LOAD_DYLINKER, 6)
+			ml.data[0] = 12 /* offset to string */
 			stringtouint32(ml.data[1:], "/usr/lib/dyld")
 
 			for i := 0; i < len(dylib); i++ {
-				ml = newMachoLoad(12, 4+(uint32(len(dylib[i]))+1+7)/8*2) /* LC_LOAD_DYLIB */
-				ml.data[0] = 24                                          /* offset of string from beginning of load */
-				ml.data[1] = 0                                           /* time stamp */
-				ml.data[2] = 0                                           /* version */
-				ml.data[3] = 0                                           /* compatibility version */
+				ml = newMachoLoad(LC_LOAD_DYLIB, 4+(uint32(len(dylib[i]))+1+7)/8*2)
+				ml.data[0] = 24 /* offset of string from beginning of load */
+				ml.data[1] = 0  /* time stamp */
+				ml.data[2] = 0  /* version */
+				ml.data[3] = 0  /* compatibility version */
 				stringtouint32(ml.data[4:], dylib[i])
 			}
 		}
@@ -588,8 +636,6 @@ func Asmbmacho(ctxt *Link) {
 		// and we can assume OS X.
 		//
 		// See golang.org/issues/12941.
-		const LC_VERSION_MIN_MACOSX = 0x24
-
 		ml := newMachoLoad(LC_VERSION_MIN_MACOSX, 2)
 		ml.data[0] = 10<<16 | 7<<8 | 0<<0 // OS X version 10.7.0
 		ml.data[1] = 10<<16 | 7<<8 | 0<<0 // SDK 10.7.0
@@ -759,7 +805,7 @@ func machosymtab(ctxt *Link) {
 }
 
 func machodysymtab(ctxt *Link) {
-	ml := newMachoLoad(11, 18) /* LC_DYSYMTAB */
+	ml := newMachoLoad(LC_DYSYMTAB, 18)
 
 	n := 0
 	ml.data[0] = uint32(n)                   /* ilocalsym */
