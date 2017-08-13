@@ -55,11 +55,19 @@ type waitq struct {
 }
 
 //go:linkname reflect_makechan reflect.makechan
-func reflect_makechan(t *chantype, size int64) *hchan {
+func reflect_makechan(t *chantype, size int) *hchan {
 	return makechan(t, size)
 }
 
-func makechan(t *chantype, size int64) *hchan {
+func makechan64(t *chantype, size int64) *hchan {
+	if int64(int(size)) != size {
+		panic(plainError("makechan: size out of range"))
+	}
+
+	return makechan(t, int(size))
+}
+
+func makechan(t *chantype, size int) *hchan {
 	elem := t.elem
 
 	// compiler checks this but be safe.
@@ -69,7 +77,7 @@ func makechan(t *chantype, size int64) *hchan {
 	if hchanSize%maxAlign != 0 || elem.align > maxAlign {
 		throw("makechan: bad alignment")
 	}
-	if size < 0 || int64(uintptr(size)) != size || (elem.size > 0 && uintptr(size) > (_MaxMem-hchanSize)/elem.size) {
+	if size < 0 || (elem.size > 0 && uintptr(size) > (_MaxMem-hchanSize)/elem.size) {
 		panic(plainError("makechan: size out of range"))
 	}
 

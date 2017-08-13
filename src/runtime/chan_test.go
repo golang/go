@@ -669,6 +669,59 @@ done:
 	<-ready2
 }
 
+type (
+	struct0  struct{}
+	struct32 struct{ a, b, c, d int64 }
+	struct40 struct{ a, b, c, d, e int64 }
+)
+
+func BenchmarkMakeChan(b *testing.B) {
+	b.Run("Byte", func(b *testing.B) {
+		var x chan byte
+		for i := 0; i < b.N; i++ {
+			x = make(chan byte, 8)
+		}
+		close(x)
+	})
+	b.Run("Int", func(b *testing.B) {
+		var x chan int
+		for i := 0; i < b.N; i++ {
+			x = make(chan int, 8)
+		}
+		close(x)
+	})
+	b.Run("Ptr", func(b *testing.B) {
+		var x chan *byte
+		for i := 0; i < b.N; i++ {
+			x = make(chan *byte, 8)
+		}
+		close(x)
+	})
+	b.Run("Struct", func(b *testing.B) {
+		b.Run("0", func(b *testing.B) {
+			var x chan struct0
+			for i := 0; i < b.N; i++ {
+				x = make(chan struct0, 8)
+			}
+			close(x)
+		})
+		b.Run("32", func(b *testing.B) {
+			var x chan struct32
+			for i := 0; i < b.N; i++ {
+				x = make(chan struct32, 8)
+			}
+			close(x)
+		})
+		b.Run("40", func(b *testing.B) {
+			var x chan struct40
+			for i := 0; i < b.N; i++ {
+				x = make(chan struct40, 8)
+			}
+			close(x)
+		})
+	})
+}
+
 func BenchmarkChanNonblocking(b *testing.B) {
 	myc := make(chan int)
 	b.RunParallel(func(pb *testing.PB) {
