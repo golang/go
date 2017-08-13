@@ -77,14 +77,15 @@ func TestDecodeString(t *testing.T) {
 
 type errTest struct {
 	in  string
-	err string
+	err error
 }
 
 var errTests = []errTest{
-	{"0", "encoding/hex: odd length hex string"},
-	{"0g", "encoding/hex: invalid byte: U+0067 'g'"},
-	{"00gg", "encoding/hex: invalid byte: U+0067 'g'"},
-	{"0\x01", "encoding/hex: invalid byte: U+0001"},
+	{"0", ErrLength},
+	{"zd4aa", ErrLength},
+	{"0g", InvalidByteError('g')},
+	{"00gg", InvalidByteError('g')},
+	{"0\x01", InvalidByteError('\x01')},
 }
 
 func TestInvalidErr(t *testing.T) {
@@ -92,8 +93,8 @@ func TestInvalidErr(t *testing.T) {
 		dst := make([]byte, DecodedLen(len(test.in)))
 		_, err := Decode(dst, []byte(test.in))
 		if err == nil {
-			t.Errorf("#%d: expected error; got none", i)
-		} else if err.Error() != test.err {
+			t.Errorf("#%d: expected %v; got none", i, test.err)
+		} else if err != test.err {
 			t.Errorf("#%d: got: %v want: %v", i, err, test.err)
 		}
 	}
@@ -103,8 +104,8 @@ func TestInvalidStringErr(t *testing.T) {
 	for i, test := range errTests {
 		_, err := DecodeString(test.in)
 		if err == nil {
-			t.Errorf("#%d: expected error; got none", i)
-		} else if err.Error() != test.err {
+			t.Errorf("#%d: expected %v; got none", i, test.err)
+		} else if err != test.err {
 			t.Errorf("#%d: got: %v want: %v", i, err, test.err)
 		}
 	}
