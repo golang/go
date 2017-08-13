@@ -534,6 +534,131 @@ func warnRule(cond bool, v *Value, s string) bool {
 	return true
 }
 
+// for a pseudo-op like (LessThan x), extract x
+func flagArg(v *Value) *Value {
+	if len(v.Args) != 1 || !v.Args[0].Type.IsFlags() {
+		return nil
+	}
+	return v.Args[0]
+}
+
+// arm64Negate finds the complement to an ARM64 condition code,
+// for example Equal -> NotEqual or LessThan -> GreaterEqual
+//
+// TODO: add floating-point conditions
+func arm64Negate(op Op) Op {
+	switch op {
+	case OpARM64LessThan:
+		return OpARM64GreaterEqual
+	case OpARM64LessThanU:
+		return OpARM64GreaterEqualU
+	case OpARM64GreaterThan:
+		return OpARM64LessEqual
+	case OpARM64GreaterThanU:
+		return OpARM64LessEqualU
+	case OpARM64LessEqual:
+		return OpARM64GreaterThan
+	case OpARM64LessEqualU:
+		return OpARM64GreaterThanU
+	case OpARM64GreaterEqual:
+		return OpARM64LessThan
+	case OpARM64GreaterEqualU:
+		return OpARM64LessThanU
+	case OpARM64Equal:
+		return OpARM64NotEqual
+	case OpARM64NotEqual:
+		return OpARM64Equal
+	default:
+		panic("unreachable")
+	}
+}
+
+// arm64Invert evaluates (InvertFlags op), which
+// is the same as altering the condition codes such
+// that the same result would be produced if the arguments
+// to the flag-generating instruction were reversed, e.g.
+// (InvertFlags (CMP x y)) -> (CMP y x)
+//
+// TODO: add floating-point conditions
+func arm64Invert(op Op) Op {
+	switch op {
+	case OpARM64LessThan:
+		return OpARM64GreaterThan
+	case OpARM64LessThanU:
+		return OpARM64GreaterThanU
+	case OpARM64GreaterThan:
+		return OpARM64LessThan
+	case OpARM64GreaterThanU:
+		return OpARM64LessThanU
+	case OpARM64LessEqual:
+		return OpARM64GreaterEqual
+	case OpARM64LessEqualU:
+		return OpARM64GreaterEqualU
+	case OpARM64GreaterEqual:
+		return OpARM64LessEqual
+	case OpARM64GreaterEqualU:
+		return OpARM64LessEqualU
+	case OpARM64Equal, OpARM64NotEqual:
+		return op
+	default:
+		panic("unreachable")
+	}
+}
+
+// evaluate an ARM64 op against a flags value
+// that is potentially constant; return 1 for true,
+// -1 for false, and 0 for not constant.
+func ccARM64Eval(cc interface{}, flags *Value) int {
+	op := cc.(Op)
+	fop := flags.Op
+	switch fop {
+	case OpARM64InvertFlags:
+		return -ccARM64Eval(op, flags.Args[0])
+	case OpARM64FlagEQ:
+		switch op {
+		case OpARM64Equal, OpARM64GreaterEqual, OpARM64LessEqual,
+			OpARM64GreaterEqualU, OpARM64LessEqualU:
+			return 1
+		default:
+			return -1
+		}
+	case OpARM64FlagLT_ULT:
+		switch op {
+		case OpARM64LessThan, OpARM64LessThanU,
+			OpARM64LessEqual, OpARM64LessEqualU:
+			return 1
+		default:
+			return -1
+		}
+	case OpARM64FlagLT_UGT:
+		switch op {
+		case OpARM64LessThan, OpARM64GreaterThanU,
+			OpARM64LessEqual, OpARM64GreaterEqualU:
+			return 1
+		default:
+			return -1
+		}
+	case OpARM64FlagGT_ULT:
+		switch op {
+		case OpARM64GreaterThan, OpARM64LessThanU,
+			OpARM64GreaterEqual, OpARM64LessEqualU:
+			return 1
+		default:
+			return -1
+		}
+	case OpARM64FlagGT_UGT:
+		switch op {
+		case OpARM64GreaterThan, OpARM64GreaterThanU,
+			OpARM64GreaterEqual, OpARM64GreaterEqualU:
+			return 1
+		default:
+			return -1
+		}
+	default:
+		return 0
+	}
+}
+
 // logRule logs the use of the rule s. This will only be enabled if
 // rewrite rules were generated with the -log option, see gen/rulegen.go.
 func logRule(s string) {

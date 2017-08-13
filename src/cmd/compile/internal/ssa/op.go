@@ -72,6 +72,7 @@ const (
 	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
 	auxTyp                  // aux is a type
 	auxTypSize              // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
+	auxCCop                 // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
 
 	auxSymInt32 // aux is a symbol, auxInt is a 32-bit integer
 )

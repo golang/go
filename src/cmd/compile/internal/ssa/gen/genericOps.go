@@ -217,6 +217,11 @@ var genericOps = []opData{
 	{name: "Geq32F", argLength: 2, typ: "Bool"},
 	{name: "Geq64F", argLength: 2, typ: "Bool"},
 
+	// the type of a CondSelect is the same as the type of its first
+	// two arguments, which should be register-width scalars; the third
+	// argument should be a boolean
+	{name: "CondSelect", argLength: 3}, // arg2 ? arg0 : arg1
+
 	// boolean ops
 	{name: "AndB", argLength: 2, commutative: true, typ: "Bool"}, // arg0 && arg1 (not shortcircuited)
 	{name: "OrB", argLength: 2, commutative: true, typ: "Bool"},  // arg0 || arg1 (not shortcircuited)

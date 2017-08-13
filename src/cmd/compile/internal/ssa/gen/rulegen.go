@@ -727,7 +727,7 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch string, ty
 	}
 	if aux != "" {
 		switch op.aux {
-		case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32", "Typ", "TypSize":
+		case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32", "Typ", "TypSize", "CCop":
 		default:
 			log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
 		}
