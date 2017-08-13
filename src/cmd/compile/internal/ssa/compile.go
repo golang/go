@@ -348,6 +348,7 @@ var passes = [...]pass{
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
 	{name: "generic deadcode", fn: deadcode},
 	{name: "check bce", fn: checkbce},
+	{name: "branchelim", fn: branchelim},
 	{name: "fuse", fn: fuse},
 	{name: "dse", fn: dse},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops

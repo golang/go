@@ -27,6 +27,9 @@ func ReachableBlocks(f *Func) []bool {
 		}
 		for _, e := range s {
 			c := e.b
+			if int(c.ID) >= len(reachable) {
+				f.Fatalf("block %s >= f.NumBlocks()=%d?", c, len(reachable))
+			}
 			if !reachable[c.ID] {
 				reachable[c.ID] = true
 				p = append(p, c) // push

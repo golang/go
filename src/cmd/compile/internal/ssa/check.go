@@ -160,6 +160,11 @@ func checkFunc(f *Func) {
 				}
 				canHaveAuxInt = true
 				canHaveAux = true
+			case auxCCop:
+				if _, ok := v.Aux.(Op); !ok {
+					f.Fatalf("bad type %T for CCop in %v", v.Aux, v)
+				}
+				canHaveAux = true
 			default:
 				f.Fatalf("unknown aux type for %s", v.Op)
 			}

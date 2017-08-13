@@ -1097,8 +1097,8 @@ const (
 	OpARM64FRINTMD
 	OpARM64FRINTPD
 	OpARM64FRINTZD
-	OpARM64CSELULT
-	OpARM64CSELULT0
+	OpARM64CSEL
+	OpARM64CSEL0
 	OpARM64CALLstatic
 	OpARM64CALLclosure
 	OpARM64CALLinter
@@ -1888,6 +1888,7 @@ const (
 	OpGeq64U
 	OpGeq32F
 	OpGeq64F
+	OpCondSelect
 	OpAndB
 	OpOrB
 	OpEqB
@@ -14028,9 +14029,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CSELULT",
-		argLen: 3,
-		asm:    arm64.ACSEL,
+		name:    "CSEL",
+		auxType: auxCCop,
+		argLen:  3,
+		asm:     arm64.ACSEL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
@@ -14042,9 +14044,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CSELULT0",
-		argLen: 2,
-		asm:    arm64.ACSEL,
+		name:    "CSEL0",
+		auxType: auxCCop,
+		argLen:  2,
+		asm:     arm64.ACSEL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -23463,6 +23466,11 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "Geq64F",
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "CondSelect",
+		argLen:  3,
 		generic: true,
 	},
 	{

@@ -568,7 +568,7 @@ Outer:
 		if !ok {
 			// First entry for this hash.
 			nn = append(nn, c.node)
-			seen[c.hash] = nn[len(nn)-1 : len(nn) : len(nn)]
+			seen[c.hash] = nn[len(nn)-1 : len(nn):len(nn)]
 			continue
 		}
 		for _, n := range prev {
