@@ -1417,7 +1417,21 @@ opswitch:
 		n = mkcall1(fn, nil, init, n.Left)
 
 	case OMAKECHAN:
-		n = mkcall1(chanfn("makechan", 1, n.Type), n.Type, init, typename(n.Type), conv(n.Left, types.Types[TINT64]))
+		// When size fits into int, use makechan instead of
+		// makechan64, which is faster and shorter on 32 bit platforms.
+		size := n.Left
+		fnname := "makechan64"
+		argtype := types.Types[TINT64]
+
+		// Type checking guarantees that TIDEAL size is positive and fits in an int.
+		// The case of size overflow when converting TUINT or TUINTPTR to TINT
+		// will be handled by the negative range checks in makechan during runtime.
+		if size.Type.IsKind(TIDEAL) || maxintval[size.Type.Etype].Cmp(maxintval[TUINT]) <= 0 {
+			fnname = "makechan"
+			argtype = types.Types[TINT]
+		}
+
+		n = mkcall1(chanfn(fnname, 1, n.Type), n.Type, init, typename(n.Type), conv(size, argtype))
 
 	case OMAKEMAP:
 		t := n.Type

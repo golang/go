@@ -116,7 +116,8 @@ func mapdelete_faststr(mapType *byte, hmap map[any]any, key any)
 func mapiternext(hiter *any)
 
 // *byte is really *runtime.Type
-func makechan(chanType *byte, hint int64) (hchan chan any)
+func makechan64(chanType *byte, size int64) (hchan chan any)
+func makechan(chanType *byte, size int) (hchan chan any)
 func chanrecv1(hchan <-chan any, elem *any)
 func chanrecv2(hchan <-chan any, elem *any) bool
 func chansend1(hchan chan<- any, elem *any)
