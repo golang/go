@@ -89,8 +89,7 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
 	case allowedFormats&formatPAX != 0:
 		return tw.writePAXHeader(&hdrCpy, paxHdrs)
 	case allowedFormats&formatGNU != 0:
-		// TODO(dsnet): Implement and call specialized writeGNUHeader.
-		return tw.writeHeader(&hdrCpy, true)
+		return tw.writeGNUHeader(&hdrCpy)
 	default:
 		return ErrHeader
 	}
@@ -102,7 +101,7 @@ func (tw *Writer) writeUSTARHeader(hdr *Header) error {
 
 	// Pack the main header.
 	var f formatter
-	blk := tw.templateV7Plus(hdr, &f)
+	blk := tw.templateV7Plus(hdr, f.formatString, f.formatOctal)
 	blk.SetFormat(formatUSTAR)
 	if f.err != nil {
 		return f.err // Should never happen since header is validated
@@ -141,7 +140,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 
 	// Pack the main header.
 	var f formatter
-	blk := tw.templateV7Plus(hdr, &f)
+	blk := tw.templateV7Plus(hdr, f.formatString, f.formatOctal)
 	blk.SetFormat(formatPAX)
 	if f.err != nil && len(paxHdrs) == 0 {
 		return f.err // Should never happen, otherwise PAX headers would be used
@@ -149,12 +148,36 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 	return tw.writeRawHeader(blk, hdr.Size)
 }
 
+func (tw *Writer) writeGNUHeader(hdr *Header) error {
+	// TODO(dsnet): Support writing sparse files.
+	// See https://golang.org/issue/13548
+
+	// TODO(dsnet): Support long filenames (with UTF-8) support.
+
+	// Pack the main header.
+	var f formatter
+	blk := tw.templateV7Plus(hdr, f.formatString, f.formatNumeric)
+	// TODO(dsnet): Support atime and ctime fields.
+	// See https://golang.org/issue/17876
+	blk.SetFormat(formatGNU)
+	if f.err != nil {
+		return f.err // Should never happen since header is validated
+	}
+	return tw.writeRawHeader(blk, hdr.Size)
+}
+
+type (
+	stringFormatter func([]byte, string)
+	numberFormatter func([]byte, int64)
+)
+
 // templateV7Plus fills out the V7 fields of a block using values from hdr.
 // It also fills out fields (uname, gname, devmajor, devminor) that are
-// shared in the USTAR, PAX, and GNU formats.
+// shared in the USTAR, PAX, and GNU formats using the provided formatters.
 //
-// The block returned is only valid until the next call to templateV7Plus.
-func (tw *Writer) templateV7Plus(hdr *Header, f *formatter) *block {
+// The block returned is only valid until the next call to
+// templateV7Plus or writeRawFile.
+func (tw *Writer) templateV7Plus(hdr *Header, fmtStr stringFormatter, fmtNum numberFormatter) *block {
 	tw.blk.Reset()
 
 	modTime := hdr.ModTime
@@ -164,19 +187,19 @@ func (tw *Writer) templateV7Plus(hdr *Header, f *formatter) *block {
 
 	v7 := tw.blk.V7()
 	v7.TypeFlag()[0] = hdr.Typeflag
-	f.formatString(v7.Name(), hdr.Name)
-	f.formatString(v7.LinkName(), hdr.Linkname)
-	f.formatOctal(v7.Mode(), hdr.Mode)
-	f.formatOctal(v7.UID(), int64(hdr.Uid))
-	f.formatOctal(v7.GID(), int64(hdr.Gid))
-	f.formatOctal(v7.Size(), hdr.Size)
-	f.formatOctal(v7.ModTime(), modTime.Unix())
+	fmtStr(v7.Name(), hdr.Name)
+	fmtStr(v7.LinkName(), hdr.Linkname)
+	fmtNum(v7.Mode(), hdr.Mode)
+	fmtNum(v7.UID(), int64(hdr.Uid))
+	fmtNum(v7.GID(), int64(hdr.Gid))
+	fmtNum(v7.Size(), hdr.Size)
+	fmtNum(v7.ModTime(), modTime.Unix())
 
 	ustar := tw.blk.USTAR()
-	f.formatString(ustar.UserName(), hdr.Uname)
-	f.formatString(ustar.GroupName(), hdr.Gname)
-	f.formatOctal(ustar.DevMajor(), hdr.Devmajor)
-	f.formatOctal(ustar.DevMinor(), hdr.Devminor)
+	fmtStr(ustar.UserName(), hdr.Uname)
+	fmtStr(ustar.GroupName(), hdr.Gname)
+	fmtNum(ustar.DevMajor(), hdr.Devmajor)
+	fmtNum(ustar.DevMinor(), hdr.Devminor)
 
 	return &tw.blk
 }
