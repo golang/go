@@ -1071,7 +1071,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		offset, _, ok := local.lookupName(zoneName, t.unixSec())
+		offset, ok := local.lookupName(zoneName, t.unixSec())
 		if ok {
 			t.addSec(-int64(offset))
 			t.setLoc(local)
