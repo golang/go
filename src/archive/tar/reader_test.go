@@ -384,6 +384,17 @@ func TestReader(t *testing.T) {
 			Uid:     010000000,
 			ModTime: time.Unix(0, 0),
 		}},
+	}, {
+		// USTAR archive with a regular entry with non-zero device numbers.
+		file: "testdata/ustar-file-devs.tar",
+		headers: []*Header{{
+			Name:     "file",
+			Mode:     0644,
+			Typeflag: '0',
+			ModTime:  time.Unix(0, 0),
+			Devmajor: 1,
+			Devminor: 1,
+		}},
 	}}
 
 	for _, v := range vectors {
