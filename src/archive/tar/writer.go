@@ -94,7 +94,7 @@ func (tw *Writer) writeUSTARHeader(hdr *Header) error {
 	if f.err != nil {
 		return f.err // Should never happen since header is validated
 	}
-	return tw.writeRawHeader(blk, hdr.Size)
+	return tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag)
 }
 
 func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
@@ -133,7 +133,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 	if f.err != nil && len(paxHdrs) == 0 {
 		return f.err // Should never happen, otherwise PAX headers would be used
 	}
-	return tw.writeRawHeader(blk, hdr.Size)
+	return tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag)
 }
 
 func (tw *Writer) writeGNUHeader(hdr *Header) error {
@@ -151,7 +151,7 @@ func (tw *Writer) writeGNUHeader(hdr *Header) error {
 	if f.err != nil {
 		return f.err // Should never happen since header is validated
 	}
-	return tw.writeRawHeader(blk, hdr.Size)
+	return tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag)
 }
 
 type (
@@ -219,7 +219,7 @@ func (tw *Writer) writeRawFile(name, data string, flag byte, format int) error {
 	}
 
 	// Write the header and data.
-	if err := tw.writeRawHeader(&tw.blk, int64(len(data))); err != nil {
+	if err := tw.writeRawHeader(&tw.blk, int64(len(data)), flag); err != nil {
 		return err
 	}
 	_, err := io.WriteString(tw, data)
@@ -228,15 +228,17 @@ func (tw *Writer) writeRawFile(name, data string, flag byte, format int) error {
 
 // writeRawHeader writes the value of blk, regardless of its value.
 // It sets up the Writer such that it can accept a file of the given size.
-func (tw *Writer) writeRawHeader(blk *block, size int64) error {
+// If the flag is a special header-only flag, then the size is treated as zero.
+func (tw *Writer) writeRawHeader(blk *block, size int64, flag byte) error {
 	if err := tw.Flush(); err != nil {
 		return err
 	}
 	if _, err := tw.w.Write(blk[:]); err != nil {
 		return err
 	}
-	// TODO(dsnet): Set Size implicitly to zero for header-only entries.
-	// See https://golang.org/issue/15565
+	if isHeaderOnlyType(flag) {
+		size = 0
+	}
 	tw.nb = size
 	tw.pad = -size & (blockSize - 1) // blockSize is a power of two
 	return nil

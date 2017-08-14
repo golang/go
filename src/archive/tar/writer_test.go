@@ -553,6 +553,25 @@ func TestValidTypeflagWithPAXHeader(t *testing.T) {
 	}
 }
 
+func TestWriteHeaderOnly(t *testing.T) {
+	tw := NewWriter(new(bytes.Buffer))
+	hdr := &Header{Name: "dir/", Typeflag: TypeDir}
+	if err := tw.WriteHeader(hdr); err != nil {
+		t.Fatalf("WriteHeader() = %v, want nil", err)
+	}
+	if _, err := tw.Write([]byte{0x00}); err != ErrWriteTooLong {
+		t.Fatalf("Write() = %v, want %v", err, ErrWriteTooLong)
+	}
+}
+
+func TestWriteNegativeSize(t *testing.T) {
+	tw := NewWriter(new(bytes.Buffer))
+	hdr := &Header{Name: "small.txt", Size: -1}
+	if err := tw.WriteHeader(hdr); err != ErrHeader {
+		t.Fatalf("WriteHeader() = nil, want %v", ErrHeader)
+	}
+}
+
 func TestWriteAfterClose(t *testing.T) {
 	var buffer bytes.Buffer
 	tw := NewWriter(&buffer)
