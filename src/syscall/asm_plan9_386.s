@@ -38,7 +38,7 @@ TEXT	·Syscall(SB),NOSPLIT,$0-32
 	JMP	copyresult3
 	
 ok3:
-	LEAL	runtime·emptystring(SB), SI	
+	LEAL	·emptystring(SB), SI
 	
 copyresult3:
 	LEAL	err+24(FP), DI
@@ -76,7 +76,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-44
 	JMP	copyresult4
 	
 ok4:
-	LEAL	runtime·emptystring(SB), SI
+	LEAL	·emptystring(SB), SI
 	
 copyresult4:
 	LEAL	err+36(FP), DI
@@ -143,7 +143,7 @@ TEXT ·seek(SB),NOSPLIT,$0-36
 	JMP	copyresult6
 	
 ok6:
-	LEAL	runtime·emptystring(SB), SI
+	LEAL	·emptystring(SB), SI
 	
 copyresult6:
 	LEAL	err+28(FP), DI

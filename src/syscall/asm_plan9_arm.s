@@ -10,7 +10,7 @@
 // System call support for plan9 on arm
 
 TEXT	sysresult<>(SB),NOSPLIT,$12
-	MOVW	$runtime·emptystring+0(SB), R2
+	MOVW	$·emptystring+0(SB), R2
 	CMP		$-1, R0
 	B.NE	ok
 	MOVW	R1, save-4(SP)

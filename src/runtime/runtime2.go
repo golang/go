@@ -716,15 +716,14 @@ const (
 const _TracebackMaxFrames = 100
 
 var (
-	emptystring string
-	allglen     uintptr
-	allm        *m
-	allp        [_MaxGomaxprocs + 1]*p
-	gomaxprocs  int32
-	ncpu        int32
-	forcegc     forcegcstate
-	sched       schedt
-	newprocs    int32
+	allglen    uintptr
+	allm       *m
+	allp       [_MaxGomaxprocs + 1]*p
+	gomaxprocs int32
+	ncpu       int32
+	forcegc    forcegcstate
+	sched      schedt
+	newprocs   int32
 
 	// Information about what cpu features are available.
 	// Set on startup in asm_{386,amd64,amd64p32}.s.
