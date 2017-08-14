@@ -439,6 +439,12 @@ func TestHeaderAllowedFormats(t *testing.T) {
 		paxHdrs: map[string]string{paxXattr + "用戶名": "\x00hello"},
 		formats: formatPAX,
 	}, {
+		header:  &Header{Xattrs: map[string]string{"foo=bar": "baz"}},
+		formats: formatUnknown,
+	}, {
+		header:  &Header{Xattrs: map[string]string{"foo": ""}},
+		formats: formatUnknown,
+	}, {
 		header:  &Header{ModTime: time.Unix(0, 0)},
 		formats: formatUSTAR | formatPAX | formatGNU,
 	}, {

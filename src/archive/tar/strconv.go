@@ -240,9 +240,6 @@ func formatPAXTime(ts time.Time) (s string) {
 // parsePAXRecord parses the input PAX record string into a key-value pair.
 // If parsing is successful, it will slice off the currently read record and
 // return the remainder as r.
-//
-// A PAX record is of the following form:
-//	"%d %s=%s\n" % (size, key, value)
 func parsePAXRecord(s string) (k, v, r string, err error) {
 	// The size field ends at the first space.
 	sp := strings.IndexByte(s, ' ')
@@ -295,12 +292,19 @@ func formatPAXRecord(k, v string) (string, error) {
 	return record, nil
 }
 
-// validPAXRecord reports whether the key-value pair is valid.
+// validPAXRecord reports whether the key-value pair is valid where each
+// record is formatted as:
+//	"%d %s=%s\n" % (size, key, value)
+//
 // Keys and values should be UTF-8, but the number of bad writers out there
 // forces us to be a more liberal.
 // Thus, we only reject all keys with NUL, and only reject NULs in values
 // for the PAX version of the USTAR string fields.
+// The key must not contain an '=' character.
 func validPAXRecord(k, v string) bool {
+	if k == "" || strings.IndexByte(k, '=') >= 0 {
+		return false
+	}
 	switch k {
 	case paxPath, paxLinkpath, paxUname, paxGname:
 		return strings.IndexByte(v, 0) < 0
