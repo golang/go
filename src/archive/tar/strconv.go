@@ -6,6 +6,7 @@ package tar
 
 import (
 	"bytes"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -218,7 +219,23 @@ func parsePAXTime(s string) (time.Time, error) {
 	return time.Unix(secs, int64(nsecs)), nil
 }
 
-// TODO(dsnet): Implement formatPAXTime.
+// formatPAXTime converts ts into a time of the form %d.%d as described in the
+// PAX specification. This function is capable of negative timestamps.
+func formatPAXTime(ts time.Time) (s string) {
+	secs, nsecs := ts.Unix(), ts.Nanosecond()
+	if nsecs == 0 {
+		return strconv.FormatInt(secs, 10)
+	}
+
+	// If seconds is negative, then perform correction.
+	sign := ""
+	if secs < 0 {
+		sign = "-"             // Remember sign
+		secs = -(secs + 1)     // Add a second to secs
+		nsecs = -(nsecs - 1E9) // Take that second away from nsecs
+	}
+	return strings.TrimRight(fmt.Sprintf("%s%d.%09d", sign, secs, nsecs), "0")
+}
 
 // parsePAXRecord parses the input PAX record string into a key-value pair.
 // If parsing is successful, it will slice off the currently read record and

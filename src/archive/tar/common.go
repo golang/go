@@ -124,8 +124,7 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
 			if paxKey == paxNone {
 				format &^= formatPAX // No PAX
 			} else {
-				// TODO(dsnet): Support PAX time here.
-				// paxHdrs[paxKey] = formatPAXTime(ts)
+				paxHdrs[paxKey] = formatPAXTime(ts)
 			}
 		}
 	}
