@@ -450,6 +450,34 @@ func TestHeaderAllowedFormats(t *testing.T) {
 	}, {
 		header:  &Header{ModTime: time.Unix(077777777777, 0)},
 		formats: formatUSTAR | formatPAX | formatGNU,
+	}, {
+		header:  &Header{ModTime: time.Unix(077777777777+1, 0)},
+		paxHdrs: map[string]string{paxMtime: "8589934592"},
+		formats: formatPAX | formatGNU,
+	}, {
+		header:  &Header{ModTime: time.Unix(math.MaxInt64, 0)},
+		paxHdrs: map[string]string{paxMtime: "9223372036854775807"},
+		formats: formatPAX | formatGNU,
+	}, {
+		header:  &Header{ModTime: time.Unix(-1, 0)},
+		paxHdrs: map[string]string{paxMtime: "-1"},
+		formats: formatPAX | formatGNU,
+	}, {
+		header:  &Header{ModTime: time.Unix(-1, 500)},
+		paxHdrs: map[string]string{paxMtime: "-0.9999995"},
+		formats: formatPAX,
+	}, {
+		header:  &Header{AccessTime: time.Unix(0, 0)},
+		paxHdrs: map[string]string{paxAtime: "0"},
+		formats: formatPAX | formatGNU,
+	}, {
+		header:  &Header{AccessTime: time.Unix(-123, 0)},
+		paxHdrs: map[string]string{paxAtime: "-123"},
+		formats: formatPAX | formatGNU,
+	}, {
+		header:  &Header{ChangeTime: time.Unix(123, 456)},
+		paxHdrs: map[string]string{paxCtime: "123.000000456"},
+		formats: formatPAX,
 	}}
 
 	for i, v := range vectors {

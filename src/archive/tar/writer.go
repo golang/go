@@ -141,8 +141,12 @@ func (tw *Writer) writeGNUHeader(hdr *Header) error {
 	// Pack the main header.
 	var f formatter
 	blk := tw.templateV7Plus(hdr, f.formatString, f.formatNumeric)
-	// TODO(dsnet): Support atime and ctime fields.
-	// See https://golang.org/issue/17876
+	if !hdr.AccessTime.IsZero() {
+		f.formatNumeric(blk.GNU().AccessTime(), hdr.AccessTime.Unix())
+	}
+	if !hdr.ChangeTime.IsZero() {
+		f.formatNumeric(blk.GNU().ChangeTime(), hdr.ChangeTime.Unix())
+	}
 	blk.SetFormat(formatGNU)
 	if f.err != nil {
 		return f.err // Should never happen since header is validated
