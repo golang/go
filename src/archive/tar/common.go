@@ -85,14 +85,13 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
 	format = formatUSTAR | formatPAX | formatGNU
 	paxHdrs = make(map[string]string)
 
-	verifyString := func(s string, size int, gnuLong bool, paxKey string) {
-
+	verifyString := func(s string, size int, paxKey string) {
 		// NUL-terminator is optional for path and linkpath.
 		// Technically, it is required for uname and gname,
 		// but neither GNU nor BSD tar checks for it.
 		tooLong := len(s) > size
-		if !isASCII(s) || (tooLong && !gnuLong) {
-			// TODO(dsnet): GNU supports UTF-8 (without NUL) for strings.
+		allowLongGNU := paxKey == paxPath || paxKey == paxLinkpath
+		if hasNUL(s) || (tooLong && !allowLongGNU) {
 			format &^= formatGNU // No GNU
 		}
 		if !isASCII(s) || tooLong {
@@ -120,15 +119,16 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
 			}
 		}
 	}
-	verifyTime := func(ts time.Time, size int, ustarField bool, paxKey string) {
+	verifyTime := func(ts time.Time, size int, paxKey string) {
 		if ts.IsZero() {
 			return // Always okay
 		}
 		needsNano := ts.Nanosecond() != 0
+		hasFieldUSTAR := paxKey == paxMtime
 		if !fitsInBase256(size, ts.Unix()) || needsNano {
 			format &^= formatGNU // No GNU
 		}
-		if !fitsInOctal(size, ts.Unix()) || needsNano || !ustarField {
+		if !fitsInOctal(size, ts.Unix()) || needsNano || !hasFieldUSTAR {
 			format &^= formatUSTAR // No USTAR
 			if paxKey == paxNone {
 				format &^= formatPAX // No PAX
@@ -138,26 +138,23 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
 		}
 	}
 
-	// TODO(dsnet): Add GNU long name support.
-	const supportGNULong = false
-
 	var blk block
 	v7 := blk.V7()
 	ustar := blk.USTAR()
 	gnu := blk.GNU()
-	verifyString(h.Name, len(v7.Name()), supportGNULong, paxPath)
-	verifyString(h.Linkname, len(v7.LinkName()), supportGNULong, paxLinkpath)
-	verifyString(h.Uname, len(ustar.UserName()), false, paxUname)
-	verifyString(h.Gname, len(ustar.GroupName()), false, paxGname)
+	verifyString(h.Name, len(v7.Name()), paxPath)
+	verifyString(h.Linkname, len(v7.LinkName()), paxLinkpath)
+	verifyString(h.Uname, len(ustar.UserName()), paxUname)
+	verifyString(h.Gname, len(ustar.GroupName()), paxGname)
 	verifyNumeric(h.Mode, len(v7.Mode()), paxNone)
 	verifyNumeric(int64(h.Uid), len(v7.UID()), paxUid)
 	verifyNumeric(int64(h.Gid), len(v7.GID()), paxGid)
 	verifyNumeric(h.Size, len(v7.Size()), paxSize)
 	verifyNumeric(h.Devmajor, len(ustar.DevMajor()), paxNone)
 	verifyNumeric(h.Devminor, len(ustar.DevMinor()), paxNone)
-	verifyTime(h.ModTime, len(v7.ModTime()), true, paxMtime)
-	verifyTime(h.AccessTime, len(gnu.AccessTime()), false, paxAtime)
-	verifyTime(h.ChangeTime, len(gnu.ChangeTime()), false, paxCtime)
+	verifyTime(h.ModTime, len(v7.ModTime()), paxMtime)
+	verifyTime(h.AccessTime, len(gnu.AccessTime()), paxAtime)
+	verifyTime(h.ChangeTime, len(gnu.ChangeTime()), paxCtime)
 
 	if !isHeaderOnlyType(h.Typeflag) && h.Size < 0 {
 		return formatUnknown, nil

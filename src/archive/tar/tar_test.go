@@ -386,7 +386,7 @@ func TestHeaderAllowedFormats(t *testing.T) {
 		formats: formatUnknown,
 	}, {
 		header:  &Header{Name: "用戶名", Devmajor: -1 << 56},
-		formats: formatUnknown,
+		formats: formatGNU,
 	}, {
 		header:  &Header{Size: math.MaxInt64},
 		paxHdrs: map[string]string{paxSize: "9223372036854775807"},
@@ -409,9 +409,13 @@ func TestHeaderAllowedFormats(t *testing.T) {
 		header:  &Header{Name: strings.Repeat("a", nameSize)},
 		formats: formatUSTAR | formatPAX | formatGNU,
 	}, {
+		header:  &Header{Name: strings.Repeat("a", nameSize+1)},
+		paxHdrs: map[string]string{paxPath: strings.Repeat("a", nameSize+1)},
+		formats: formatPAX | formatGNU,
+	}, {
 		header:  &Header{Linkname: "用戶名"},
 		paxHdrs: map[string]string{paxLinkpath: "用戶名"},
-		formats: formatPAX,
+		formats: formatPAX | formatGNU,
 	}, {
 		header:  &Header{Linkname: strings.Repeat("用戶名\x00", nameSize)},
 		paxHdrs: map[string]string{paxLinkpath: strings.Repeat("用戶名\x00", nameSize)},

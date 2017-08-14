@@ -219,6 +219,35 @@ func TestWriter(t *testing.T) {
 			},
 		}},
 		err: ErrHeader,
+	}, {
+		file: "testdata/gnu-utf8.tar",
+		entries: []*entry{{
+			header: &Header{
+				Name: "☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹",
+				Mode: 0644,
+				Uid:  1000, Gid: 1000,
+				ModTime:  time.Unix(0, 0),
+				Typeflag: '0',
+				Uname:    "☺",
+				Gname:    "⚹",
+				Devminor: -1, // Force use of GNU format
+			},
+		}},
+	}, {
+		file: "testdata/gnu-not-utf8.tar",
+		entries: []*entry{{
+			header: &Header{
+				Name:     "hi\x80\x81\x82\x83bye",
+				Mode:     0644,
+				Uid:      1000,
+				Gid:      1000,
+				ModTime:  time.Unix(0, 0),
+				Typeflag: '0',
+				Uname:    "rawr",
+				Gname:    "dsnet",
+				Devminor: -1, // Force use of GNU format
+			},
+		}},
 	}}
 
 	for _, v := range vectors {

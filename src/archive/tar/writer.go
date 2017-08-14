@@ -121,12 +121,10 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 	}
 
 	// Pack the main header.
-	var f formatter
-	blk := tw.templateV7Plus(hdr, f.formatString, f.formatOctal)
+	var f formatter // Ignore errors since they are expected
+	fmtStr := func(b []byte, s string) { f.formatString(b, toASCII(s)) }
+	blk := tw.templateV7Plus(hdr, fmtStr, f.formatOctal)
 	blk.SetFormat(formatPAX)
-	if f.err != nil && len(paxHdrs) == 0 {
-		return f.err // Should never happen, otherwise PAX headers would be used
-	}
 	return tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag)
 }
 
@@ -134,10 +132,23 @@ func (tw *Writer) writeGNUHeader(hdr *Header) error {
 	// TODO(dsnet): Support writing sparse files.
 	// See https://golang.org/issue/13548
 
-	// TODO(dsnet): Support long filenames (with UTF-8) support.
+	// Use long-link files if Name or Linkname exceeds the field size.
+	const longName = "././@LongLink"
+	if len(hdr.Name) > nameSize {
+		data := hdr.Name + "\x00"
+		if err := tw.writeRawFile(longName, data, TypeGNULongName, formatGNU); err != nil {
+			return err
+		}
+	}
+	if len(hdr.Linkname) > nameSize {
+		data := hdr.Linkname + "\x00"
+		if err := tw.writeRawFile(longName, data, TypeGNULongLink, formatGNU); err != nil {
+			return err
+		}
+	}
 
 	// Pack the main header.
-	var f formatter
+	var f formatter // Ignore errors since they are expected
 	blk := tw.templateV7Plus(hdr, f.formatString, f.formatNumeric)
 	if !hdr.AccessTime.IsZero() {
 		f.formatNumeric(blk.GNU().AccessTime(), hdr.AccessTime.Unix())
@@ -146,9 +157,6 @@ func (tw *Writer) writeGNUHeader(hdr *Header) error {
 		f.formatNumeric(blk.GNU().ChangeTime(), hdr.ChangeTime.Unix())
 	}
 	blk.SetFormat(formatGNU)
-	if f.err != nil {
-		return f.err // Should never happen since header is validated
-	}
 	return tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag)
 }
 
