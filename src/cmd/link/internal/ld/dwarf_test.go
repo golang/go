@@ -192,3 +192,46 @@ func findMembers(rdr *dwarf.Reader) (map[string]bool, error) {
 	}
 	return memberEmbedded, nil
 }
+
+func TestSizes(t *testing.T) {
+	// DWARF sizes should never be -1.
+	// See issue #21097
+	const prog = `
+package main
+var x func()
+var y [4]func()
+func main() {
+	x = nil
+	y[0] = nil
+}
+`
+	dir, err := ioutil.TempDir("", "TestSizes")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+	f := gobuild(t, dir, prog)
+	defer f.Close()
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+	rdr := d.Reader()
+	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
+		if err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+		switch entry.Tag {
+		case dwarf.TagArrayType, dwarf.TagPointerType, dwarf.TagStructType, dwarf.TagBaseType, dwarf.TagSubroutineType, dwarf.TagTypedef:
+		default:
+			continue
+		}
+		typ, err := d.Type(entry.Offset)
+		if err != nil {
+			t.Fatalf("can't read type: %v", err)
+		}
+		if typ.Size() < 0 {
+			t.Errorf("subzero size %s %s %T", typ, entry.Tag, typ)
+		}
+	}
+}
