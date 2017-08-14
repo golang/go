@@ -12,6 +12,11 @@ import (
 	"time"
 )
 
+// hasNUL reports whether the NUL character exists within s.
+func hasNUL(s string) bool {
+	return strings.IndexByte(s, 0) >= 0
+}
+
 // isASCII reports whether the input is an ASCII C-style string.
 func isASCII(s string) bool {
 	for _, c := range s {
@@ -59,7 +64,6 @@ func (f *formatter) formatString(b []byte, s string) {
 	if len(s) > len(b) {
 		f.err = ErrFieldTooLong
 	}
-	s = toASCII(s) // TODO(dsnet): Remove this for UTF-8 support in GNU format
 	copy(b, s)
 	if len(s) < len(b) {
 		b[len(s)] = 0
@@ -307,8 +311,8 @@ func validPAXRecord(k, v string) bool {
 	}
 	switch k {
 	case paxPath, paxLinkpath, paxUname, paxGname:
-		return strings.IndexByte(v, 0) < 0
+		return !hasNUL(v)
 	default:
-		return strings.IndexByte(k, 0) < 0
+		return !hasNUL(k)
 	}
 }
