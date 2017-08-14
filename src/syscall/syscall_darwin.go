@@ -186,7 +186,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 	return
 }
 
-func utimensat(dirfd int, path string, times *[2]Timespec) error {
+func utimensat(dirfd int, path string, times *[2]Timespec, flag int) error {
 	// Darwin doesn't support SYS_UTIMENSAT
 	return ENOSYS
 }

@@ -1088,13 +1088,13 @@ func getexecname() (path unsafe.Pointer, err error) {
 	return
 }
 
-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
+func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
 	var _p0 *byte
 	_p0, err = BytePtrFromString(path)
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_utimensat)), 3, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_utimensat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
