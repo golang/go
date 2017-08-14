@@ -4389,3 +4389,52 @@ func TestBuildmodePIE(t *testing.T) {
 		t.Errorf("got %q; want %q", out, "hello")
 	}
 }
+
+func TestExecBuildX(t *testing.T) {
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
+
+	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
+		t.Skipf("skipping because unix shell is not supported on %s", runtime.GOOS)
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.tempFile("main.go", `package main; import "C"; func main() { print("hello") }`)
+	src := tg.path("main.go")
+	obj := tg.path("main")
+	tg.run("build", "-x", "-o", obj, src)
+	sh := tg.path("test.sh")
+	err := ioutil.WriteFile(sh, []byte(tg.getStderr()), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := exec.Command(obj).CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(out) != "hello" {
+		t.Fatalf("got %q; want %q", out, "hello")
+	}
+
+	err = os.Remove(obj)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, err = exec.Command("/bin/sh", sh).CombinedOutput()
+	if err != nil {
+		t.Fatalf("/bin/sh %s: %v\n%s", sh, err, out)
+	}
+
+	out, err = exec.Command(obj).CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(out) != "hello" {
+		t.Fatalf("got %q; want %q", out, "hello")
+	}
+}

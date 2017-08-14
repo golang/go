@@ -1963,9 +1963,15 @@ func (b *Builder) runOut(dir string, desc string, env []string, cmdargs ...inter
 	cmdline := str.StringList(cmdargs...)
 	if cfg.BuildN || cfg.BuildX {
 		var envcmdline string
-		for i := range env {
-			envcmdline += env[i]
-			envcmdline += " "
+		for _, e := range env {
+			if j := strings.IndexByte(e, '='); j != -1 {
+				if strings.ContainsRune(e[j+1:], '\'') {
+					envcmdline += fmt.Sprintf("%s=%q", e[:j], e[j+1:])
+				} else {
+					envcmdline += fmt.Sprintf("%s='%s'", e[:j], e[j+1:])
+				}
+				envcmdline += " "
+			}
 		}
 		envcmdline += joinUnambiguously(cmdline)
 		b.Showcmd(dir, "%s", envcmdline)
@@ -2416,7 +2422,7 @@ func (gcToolchain) pack(b *Builder, p *load.Package, objDir, afile string, ofile
 	}
 
 	if cfg.BuildN || cfg.BuildX {
-		cmdline := str.StringList("pack", "r", absAfile, absOfiles)
+		cmdline := str.StringList(base.Tool("pack"), "r", absAfile, absOfiles)
 		b.Showcmd(p.Dir, "%s # internal", joinUnambiguously(cmdline))
 	}
 	if cfg.BuildN {
@@ -3220,6 +3226,9 @@ func (b *Builder) gccSupportsFlag(flag string) bool {
 		return b
 	}
 	if b.flagCache == nil {
+		if cfg.BuildN || cfg.BuildX {
+			b.Showcmd(b.WorkDir, "touch trivial.c")
+		}
 		src := filepath.Join(b.WorkDir, "trivial.c")
 		if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
 			return false
