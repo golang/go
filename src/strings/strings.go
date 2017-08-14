@@ -310,8 +310,8 @@ func SplitAfter(s, sep string) []string {
 var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
 // Fields splits the string s around each instance of one or more consecutive white space
-// characters, as defined by unicode.IsSpace, returning an array of substrings of s or an
-// empty list if s contains only white space.
+// characters, as defined by unicode.IsSpace, returning a slice of substrings of s or an
+// empty slice if s contains only white space.
 func Fields(s string) []string {
 	// First count the fields.
 	// This is an exact count if s is ASCII, otherwise it is an approximation.
