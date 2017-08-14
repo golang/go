@@ -467,6 +467,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_CHILDREN_yes,
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
+			{DW_AT_byte_size, DW_FORM_udata},
 			// {DW_AT_type,	DW_FORM_ref_addr},
 			{DW_AT_go_kind, DW_FORM_data1},
 		},
