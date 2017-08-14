@@ -217,3 +217,12 @@ func TestRelocTypeString(t *testing.T) {
 		t.Errorf("got %v, want %v", X86_64_RELOC_BRANCH.GoString(), "macho.X86_64_RELOC_BRANCH")
 	}
 }
+
+func TestTypeString(t *testing.T) {
+	if TypeExec.String() != "Exec" {
+		t.Errorf("got %v, want %v", TypeExec.String(), "Exec")
+	}
+	if TypeExec.GoString() != "macho.Exec" {
+		t.Errorf("got %v, want %v", TypeExec.GoString(), "macho.Exec")
+	}
+}

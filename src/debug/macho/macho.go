@@ -41,6 +41,16 @@ const (
 	TypeBundle Type = 8
 )
 
+var typeStrings = []intName{
+	{uint32(TypeObj), "Obj"},
+	{uint32(TypeExec), "Exec"},
+	{uint32(TypeDylib), "Dylib"},
+	{uint32(TypeBundle), "Bundle"},
+}
+
+func (t Type) String() string   { return stringName(uint32(t), typeStrings, false) }
+func (t Type) GoString() string { return stringName(uint32(t), typeStrings, true) }
+
 // A Cpu is a Mach-O cpu type.
 type Cpu uint32
 
