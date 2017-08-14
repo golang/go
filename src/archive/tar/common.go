@@ -133,8 +133,9 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
 	const supportGNULong = false
 
 	var blk block
-	var v7 = blk.V7()
-	var ustar = blk.USTAR()
+	v7 := blk.V7()
+	ustar := blk.USTAR()
+	gnu := blk.GNU()
 	verifyString(h.Name, len(v7.Name()), supportGNULong, paxPath)
 	verifyString(h.Linkname, len(v7.LinkName()), supportGNULong, paxLinkpath)
 	verifyString(h.Uname, len(ustar.UserName()), false, paxUname)
@@ -146,9 +147,8 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
 	verifyNumeric(h.Devmajor, len(ustar.DevMajor()), paxNone)
 	verifyNumeric(h.Devminor, len(ustar.DevMinor()), paxNone)
 	verifyTime(h.ModTime, len(v7.ModTime()), true, paxMtime)
-	// TODO(dsnet): Support atime and ctime fields.
-	// verifyTime(h.AccessTime, len(gnu.AccessTime()), false, paxAtime)
-	// verifyTime(h.ChangeTime, len(gnu.ChangeTime()), false, paxCtime)
+	verifyTime(h.AccessTime, len(gnu.AccessTime()), false, paxAtime)
+	verifyTime(h.ChangeTime, len(gnu.ChangeTime()), false, paxCtime)
 
 	if !isHeaderOnlyType(h.Typeflag) && h.Size < 0 {
 		return formatUnknown, nil
