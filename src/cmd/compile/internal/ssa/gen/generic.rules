@@ -322,6 +322,12 @@
 (Mul32 (Const32 <t> [c]) (Add32 <t> (Const32 <t> [d]) x)) ->
   (Add32 (Const32 <t> [int64(int32(c*d))]) (Mul32 <t> (Const32 <t> [c]) x))
 
+// Rewrite x*y + x*z  to  x*(y+z)
+(Add64 <t> (Mul64 x y) (Mul64 x z)) -> (Mul64 x (Add64 <t> y z))
+(Add32 <t> (Mul32 x y) (Mul32 x z)) -> (Mul32 x (Add32 <t> y z))
+(Add16 <t> (Mul16 x y) (Mul16 x z)) -> (Mul16 x (Add16 <t> y z))
+(Add8  <t> (Mul8  x y) (Mul8  x z)) -> (Mul8  x (Add8  <t> y z))
+
 // rewrite shifts of 8/16/32 bit consts into 64 bit consts to reduce
 // the number of the other rewrite rules for const shifts
 (Lsh64x32  <t> x (Const32 [c])) -> (Lsh64x64  x (Const64 <t> [int64(uint32(c))]))
