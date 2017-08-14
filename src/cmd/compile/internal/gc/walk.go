@@ -1501,7 +1501,7 @@ opswitch:
 			fnname := "makeslice64"
 			argtype := types.Types[TINT64]
 
-			// typechecking guarantees that TIDEAL len/cap are positive and fit in an int.
+			// Type checking guarantees that TIDEAL len/cap are positive and fit in an int.
 			// The case of len or cap overflow when converting TUINT or TUINTPTR to TINT
 			// will be handled by the negative range checks in makeslice during runtime.
 			if (len.Type.IsKind(TIDEAL) || maxintval[len.Type.Etype].Cmp(maxintval[TUINT]) <= 0) &&
