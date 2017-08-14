@@ -1484,9 +1484,24 @@ opswitch:
 			h = nodnil()
 		}
 
-		fn := syslook("makemap")
+		// When hint fits into int, use makemap instead of
+		// makemap64, which is faster and shorter on 32 bit platforms.
+		hint := n.Left
+		fnname := "makemap64"
+		argtype := types.Types[TINT64]
+
+		// Type checking guarantees that TIDEAL hint is positive and fits in an int.
+		// See checkmake call in TMAP case of OMAKE case in OpSwitch in typecheck1 function.
+		// The case of hint overflow when converting TUINT or TUINTPTR to TINT
+		// will be handled by the negative range checks in makemap during runtime.
+		if hint.Type.IsKind(TIDEAL) || maxintval[hint.Type.Etype].Cmp(maxintval[TUINT]) <= 0 {
+			fnname = "makemap"
+			argtype = types.Types[TINT]
+		}
+
+		fn := syslook(fnname)
 		fn = substArgTypes(fn, hmapType, t.Key(), t.Val())
-		n = mkcall1(fn, n.Type, init, typename(n.Type), conv(n.Left, types.Types[TINT64]), h)
+		n = mkcall1(fn, n.Type, init, typename(n.Type), conv(hint, argtype), h)
 
 	case OMAKESLICE:
 		l := n.Left

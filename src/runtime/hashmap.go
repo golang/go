@@ -255,18 +255,25 @@ func (h *hmap) createOverflow() {
 	}
 }
 
+func makemap64(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
+	if int64(int(hint)) != hint {
+		hint = 0
+	}
+	return makemap(t, int(hint), h)
+}
+
 // makemap implements a Go map creation make(map[k]v, hint)
 // If the compiler has determined that the map or the first bucket
 // can be created on the stack, h and/or bucket may be non-nil.
 // If h != nil, the map can be created directly in h.
 // If h.buckets != nil, bucket pointed to can be used as the first bucket.
-func makemap(t *maptype, hint int64, h *hmap) *hmap {
+func makemap(t *maptype, hint int, h *hmap) *hmap {
 	if sz := unsafe.Sizeof(hmap{}); sz > 48 || sz != t.hmap.size {
 		println("runtime: sizeof(hmap) =", sz, ", t.hmap.size =", t.hmap.size)
 		throw("bad hmap size")
 	}
 
-	if hint < 0 || hint > int64(maxSliceCap(t.bucket.size)) {
+	if hint < 0 || hint > int(maxSliceCap(t.bucket.size)) {
 		hint = 0
 	}
 
@@ -589,7 +596,7 @@ again:
 
 	// If we hit the max load factor or we have too many overflow buckets,
 	// and we're not already in the middle of growing, start growing.
-	if !h.growing() && (overLoadFactor(int64(h.count), h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+	if !h.growing() && (overLoadFactor(h.count, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
 		hashGrow(t, h)
 		goto again // Growing the table invalidates everything, so try again
 	}
@@ -920,7 +927,7 @@ func hashGrow(t *maptype, h *hmap) {
 	// Otherwise, there are too many overflow buckets,
 	// so keep the same number of buckets and "grow" laterally.
 	bigger := uint8(1)
-	if !overLoadFactor(int64(h.count), h.B) {
+	if !overLoadFactor(h.count, h.B) {
 		bigger = 0
 		h.flags |= sameSizeGrow
 	}
@@ -959,7 +966,7 @@ func hashGrow(t *maptype, h *hmap) {
 }
 
 // overLoadFactor reports whether count items placed in 1<<B buckets is over loadFactor.
-func overLoadFactor(count int64, B uint8) bool {
+func overLoadFactor(count int, B uint8) bool {
 	return count >= bucketCnt && uint64(count) >= loadFactorNum*((uint64(1)<<B)/loadFactorDen)
 }
 
@@ -1168,7 +1175,7 @@ func ismapkey(t *_type) bool {
 
 //go:linkname reflect_makemap reflect.makemap
 func reflect_makemap(t *maptype, cap int) *hmap {
-	return makemap(t, int64(cap), nil)
+	return makemap(t, cap, nil)
 }
 
 //go:linkname reflect_mapaccess reflect.mapaccess
