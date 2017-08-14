@@ -67,17 +67,13 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
 		return err
 	}
 
-	// TODO(dsnet): Add PAX timestamps with nanosecond support.
-	hdrCpy := *hdr
-	hdrCpy.ModTime = hdrCpy.ModTime.Truncate(time.Second)
-
-	switch allowedFormats, paxHdrs := hdrCpy.allowedFormats(); {
+	switch allowedFormats, paxHdrs := hdr.allowedFormats(); {
 	case allowedFormats&formatUSTAR != 0:
-		return tw.writeUSTARHeader(&hdrCpy)
+		return tw.writeUSTARHeader(hdr)
 	case allowedFormats&formatPAX != 0:
-		return tw.writePAXHeader(&hdrCpy, paxHdrs)
+		return tw.writePAXHeader(hdr, paxHdrs)
 	case allowedFormats&formatGNU != 0:
-		return tw.writeGNUHeader(&hdrCpy)
+		return tw.writeGNUHeader(hdr)
 	default:
 		return ErrHeader
 	}
