@@ -468,10 +468,8 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 		ustar := tr.blk.USTAR()
 		hdr.Uname = p.parseString(ustar.UserName())
 		hdr.Gname = p.parseString(ustar.GroupName())
-		if hdr.Typeflag == TypeChar || hdr.Typeflag == TypeBlock {
-			hdr.Devmajor = p.parseNumeric(ustar.DevMajor())
-			hdr.Devminor = p.parseNumeric(ustar.DevMinor())
-		}
+		hdr.Devmajor = p.parseNumeric(ustar.DevMajor())
+		hdr.Devminor = p.parseNumeric(ustar.DevMinor())
 
 		var prefix string
 		switch format {
