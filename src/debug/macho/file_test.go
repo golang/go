@@ -208,3 +208,12 @@ func TestOpenFatFailure(t *testing.T) {
 		t.Errorf("OpenFat %s: got %v, want nil", filename, ff)
 	}
 }
+
+func TestRelocTypeString(t *testing.T) {
+	if X86_64_RELOC_BRANCH.String() != "X86_64_RELOC_BRANCH" {
+		t.Errorf("got %v, want %v", X86_64_RELOC_BRANCH.String(), "X86_64_RELOC_BRANCH")
+	}
+	if X86_64_RELOC_BRANCH.GoString() != "macho.X86_64_RELOC_BRANCH" {
+		t.Errorf("got %v, want %v", X86_64_RELOC_BRANCH.GoString(), "macho.X86_64_RELOC_BRANCH")
+	}
+}
