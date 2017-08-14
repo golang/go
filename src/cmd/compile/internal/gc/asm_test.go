@@ -741,6 +741,29 @@ var linuxAMD64Tests = []*asmTest{
 		}`,
 		[]string{"\tPOPCNTQ\t", "support_popcnt"},
 	},
+	// multiplication merging tests
+	{
+		`
+		func mul1(n int) int {
+			return 15*n + 31*n
+		}`,
+		[]string{"\tIMULQ\t[$]46"}, // 46*n
+	},
+	{
+		`
+		func mul2(n int) int {
+			return 5*n + 7*(n+1) + 11*(n+2)
+		}`,
+		[]string{"\tIMULQ\t[$]23", "\tADDQ\t[$]29"}, // 23*n + 29
+	},
+	{
+		`
+		func mul3(a, n int) int {
+			return a*n + 19*n
+		}`,
+		[]string{"\tADDQ\t[$]19", "\tIMULQ"}, // (a+19)*n
+	},
+
 	// see issue 19595.
 	// We want to merge load+op in f58, but not in f59.
 	{
@@ -927,6 +950,21 @@ var linux386Tests = []*asmTest{
 		}
 		`,
 		[]string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
+	},
+	// multiplication merging tests
+	{
+		`
+		func mul1(n int) int {
+			return 9*n + 14*n
+		}`,
+		[]string{"\tIMULL\t[$]23"}, // 23*n
+	},
+	{
+		`
+		func mul2(a, n int) int {
+			return 19*a + a*n
+		}`,
+		[]string{"\tADDL\t[$]19", "\tIMULL"}, // (n+19)*a
 	},
 }
 
