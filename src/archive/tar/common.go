@@ -160,7 +160,9 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
 		format &= formatPAX // PAX only
 	}
 	for k, v := range paxHdrs {
-		if !validPAXRecord(k, v) {
+		// Forbid empty values (which represent deletion) since usage of
+		// them are non-sensible without global PAX record support.
+		if !validPAXRecord(k, v) || v == "" {
 			return formatUnknown, nil // Invalid PAX key
 		}
 	}
