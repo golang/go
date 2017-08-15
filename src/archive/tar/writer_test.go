@@ -576,40 +576,104 @@ func TestValidTypeflagWithPAXHeader(t *testing.T) {
 	}
 }
 
-func TestWriteHeaderOnly(t *testing.T) {
-	tw := NewWriter(new(bytes.Buffer))
-	hdr := &Header{Name: "dir/", Typeflag: TypeDir}
-	if err := tw.WriteHeader(hdr); err != nil {
-		t.Fatalf("WriteHeader() = %v, want nil", err)
+// failOnceWriter fails exactly once and then always reports success.
+type failOnceWriter bool
+
+func (w *failOnceWriter) Write(b []byte) (int, error) {
+	if !*w {
+		return 0, io.ErrShortWrite
 	}
-	if _, err := tw.Write([]byte{0x00}); err != ErrWriteTooLong {
-		t.Fatalf("Write() = %v, want %v", err, ErrWriteTooLong)
-	}
+	*w = true
+	return len(b), nil
 }
 
-func TestWriteNegativeSize(t *testing.T) {
-	tw := NewWriter(new(bytes.Buffer))
-	hdr := &Header{Name: "small.txt", Size: -1}
-	if err := tw.WriteHeader(hdr); err != ErrHeader {
-		t.Fatalf("WriteHeader() = nil, want %v", ErrHeader)
-	}
-}
+func TestWriterErrors(t *testing.T) {
+	t.Run("HeaderOnly", func(t *testing.T) {
+		tw := NewWriter(new(bytes.Buffer))
+		hdr := &Header{Name: "dir/", Typeflag: TypeDir}
+		if err := tw.WriteHeader(hdr); err != nil {
+			t.Fatalf("WriteHeader() = %v, want nil", err)
+		}
+		if _, err := tw.Write([]byte{0x00}); err != ErrWriteTooLong {
+			t.Fatalf("Write() = %v, want %v", err, ErrWriteTooLong)
+		}
+	})
 
-func TestWriteAfterClose(t *testing.T) {
-	var buffer bytes.Buffer
-	tw := NewWriter(&buffer)
+	t.Run("NegativeSize", func(t *testing.T) {
+		tw := NewWriter(new(bytes.Buffer))
+		hdr := &Header{Name: "small.txt", Size: -1}
+		if err := tw.WriteHeader(hdr); err != ErrHeader {
+			t.Fatalf("WriteHeader() = nil, want %v", ErrHeader)
+		}
+	})
 
-	hdr := &Header{
-		Name: "small.txt",
-		Size: 5,
-	}
-	if err := tw.WriteHeader(hdr); err != nil {
-		t.Fatalf("Failed to write header: %s", err)
-	}
-	tw.Close()
-	if _, err := tw.Write([]byte("Kilts")); err != ErrWriteAfterClose {
-		t.Fatalf("Write: got %v; want ErrWriteAfterClose", err)
-	}
+	t.Run("BeforeHeader", func(t *testing.T) {
+		tw := NewWriter(new(bytes.Buffer))
+		if _, err := tw.Write([]byte("Kilts")); err != ErrWriteTooLong {
+			t.Fatalf("Write() = %v, want %v", err, ErrWriteTooLong)
+		}
+	})
+
+	t.Run("AfterClose", func(t *testing.T) {
+		tw := NewWriter(new(bytes.Buffer))
+		hdr := &Header{Name: "small.txt"}
+		if err := tw.WriteHeader(hdr); err != nil {
+			t.Fatalf("WriteHeader() = %v, want nil", err)
+		}
+		if err := tw.Close(); err != nil {
+			t.Fatalf("Close() = %v, want nil", err)
+		}
+		if _, err := tw.Write([]byte("Kilts")); err != ErrWriteAfterClose {
+			t.Fatalf("Write() = %v, want %v", err, ErrWriteAfterClose)
+		}
+		if err := tw.Flush(); err != ErrWriteAfterClose {
+			t.Fatalf("Flush() = %v, want %v", err, ErrWriteAfterClose)
+		}
+		if err := tw.Close(); err != nil {
+			t.Fatalf("Close() = %v, want nil", err)
+		}
+	})
+
+	t.Run("PrematureFlush", func(t *testing.T) {
+		tw := NewWriter(new(bytes.Buffer))
+		hdr := &Header{Name: "small.txt", Size: 5}
+		if err := tw.WriteHeader(hdr); err != nil {
+			t.Fatalf("WriteHeader() = %v, want nil", err)
+		}
+		if err := tw.Flush(); err == nil {
+			t.Fatalf("Flush() = %v, want non-nil error", err)
+		}
+	})
+
+	t.Run("PrematureClose", func(t *testing.T) {
+		tw := NewWriter(new(bytes.Buffer))
+		hdr := &Header{Name: "small.txt", Size: 5}
+		if err := tw.WriteHeader(hdr); err != nil {
+			t.Fatalf("WriteHeader() = %v, want nil", err)
+		}
+		if err := tw.Close(); err == nil {
+			t.Fatalf("Close() = %v, want non-nil error", err)
+		}
+	})
+
+	t.Run("Persistence", func(t *testing.T) {
+		tw := NewWriter(new(failOnceWriter))
+		if err := tw.WriteHeader(&Header{}); err != io.ErrShortWrite {
+			t.Fatalf("WriteHeader() = %v, want %v", err, io.ErrShortWrite)
+		}
+		if err := tw.WriteHeader(&Header{Name: "small.txt"}); err == nil {
+			t.Errorf("WriteHeader() = got %v, want non-nil error", err)
+		}
+		if _, err := tw.Write(nil); err == nil {
+			t.Errorf("Write() = %v, want non-nil error", err)
+		}
+		if err := tw.Flush(); err == nil {
+			t.Errorf("Flush() = %v, want non-nil error", err)
+		}
+		if err := tw.Close(); err == nil {
+			t.Errorf("Close() = %v, want non-nil error", err)
+		}
+	})
 }
 
 func TestSplitUSTARPath(t *testing.T) {
