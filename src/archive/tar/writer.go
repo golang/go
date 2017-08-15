@@ -9,20 +9,12 @@ package tar
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"path"
 	"sort"
 	"strings"
 	"time"
-)
-
-var (
-	ErrWriteTooLong    = errors.New("archive/tar: write too long")
-	ErrFieldTooLong    = errors.New("archive/tar: header field too long")
-	ErrWriteAfterClose = errors.New("archive/tar: write after close")
-	errInvalidHeader   = errors.New("archive/tar: header field too long or contains invalid values")
 )
 
 // A Writer provides sequential writing of a tar archive in POSIX.1 format.
@@ -49,7 +41,7 @@ func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
 // will implicitly flush out the file's padding.
 func (tw *Writer) Flush() error {
 	if tw.nb > 0 {
-		tw.err = fmt.Errorf("archive/tar: missed writing %d bytes", tw.nb)
+		tw.err = fmt.Errorf("tar: missed writing %d bytes", tw.nb)
 		return tw.err
 	}
 	if _, tw.err = tw.w.Write(zeroBlock[:tw.pad]); tw.err != nil {

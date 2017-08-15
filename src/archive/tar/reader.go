@@ -9,17 +9,12 @@ package tar
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"io/ioutil"
 	"math"
 	"strconv"
 	"strings"
 	"time"
-)
-
-var (
-	ErrHeader = errors.New("archive/tar: invalid tar header")
 )
 
 // A Reader provides sequential access to the contents of a tar archive.
