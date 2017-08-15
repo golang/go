@@ -742,7 +742,7 @@ func tointerface(l []*Node) *types.Type {
 	return t
 }
 
-func tointerface0(t *types.Type, l []*Node) *types.Type {
+func tointerface0(t *types.Type, l []*Node) {
 	if t == nil || !t.IsInterface() {
 		Fatalf("interface expected")
 	}
@@ -756,8 +756,6 @@ func tointerface0(t *types.Type, l []*Node) *types.Type {
 		fields = append(fields, f)
 	}
 	t.SetInterface(fields)
-
-	return t
 }
 
 func fakeRecv() *Node {

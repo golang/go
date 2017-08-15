@@ -3671,7 +3671,7 @@ ret:
 	ntypecheckdeftype--
 }
 
-func typecheckdef(n *Node) *Node {
+func typecheckdef(n *Node) {
 	lno := lineno
 	setlineno(n)
 
@@ -3687,11 +3687,11 @@ func typecheckdef(n *Node) *Node {
 			yyerror("undefined: %v", n.Sym)
 		}
 
-		return n
+		return
 	}
 
 	if n.Walkdef() == 1 {
-		return n
+		return
 	}
 
 	typecheckdefstack = append(typecheckdefstack, n)
@@ -3857,7 +3857,7 @@ ret:
 
 	lineno = lno
 	n.SetWalkdef(1)
-	return n
+	return
 }
 
 func checkmake(t *types.Type, arg string, n *Node) bool {

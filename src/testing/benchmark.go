@@ -238,7 +238,7 @@ var labelsOnce sync.Once
 
 // run executes the benchmark in a separate goroutine, including all of its
 // subbenchmarks. b must not have subbenchmarks.
-func (b *B) run() BenchmarkResult {
+func (b *B) run() {
 	labelsOnce.Do(func() {
 		fmt.Fprintf(b.w, "goos: %s\n", runtime.GOOS)
 		fmt.Fprintf(b.w, "goarch: %s\n", runtime.GOARCH)
@@ -253,7 +253,6 @@ func (b *B) run() BenchmarkResult {
 		// Running func Benchmark.
 		b.doBench()
 	}
-	return b.result
 }
 
 func (b *B) doBench() BenchmarkResult {
