@@ -258,11 +258,11 @@ func (p *Parser) parseScale(s string) int8 {
 }
 
 // operand parses a general operand and stores the result in *a.
-func (p *Parser) operand(a *obj.Addr) bool {
+func (p *Parser) operand(a *obj.Addr) {
 	//fmt.Printf("Operand: %v\n", p.input)
 	if len(p.input) == 0 {
 		p.errorf("empty operand: cannot happen")
-		return false
+		return
 	}
 	// General address (with a few exceptions) looks like
 	//	$sym±offset(SB)(reg)(index*scale)
@@ -290,7 +290,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 		p.symbolReference(a, name, prefix)
 		// fmt.Printf("SYM %s\n", obj.Dconv(&emptyProg, 0, a))
 		if p.peek() == scanner.EOF {
-			return true
+			return
 		}
 	}
 
@@ -301,7 +301,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 		}
 		p.registerList(a)
 		p.expectOperandEnd()
-		return true
+		return
 	}
 
 	// Register: R1
@@ -335,7 +335,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 		}
 		// fmt.Printf("REG %s\n", obj.Dconv(&emptyProg, 0, a))
 		p.expectOperandEnd()
-		return true
+		return
 	}
 
 	// Constant.
@@ -348,7 +348,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 		tok := p.next()
 		if tok.ScanToken == scanner.EOF {
 			p.errorf("missing right parenthesis")
-			return false
+			return
 		}
 		rname := tok.String()
 		p.back()
@@ -367,12 +367,12 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			a.Val = p.floatExpr()
 			// fmt.Printf("FCONST %s\n", obj.Dconv(&emptyProg, 0, a))
 			p.expectOperandEnd()
-			return true
+			return
 		}
 		if p.have(scanner.String) {
 			if prefix != '$' {
 				p.errorf("string constant must be an immediate")
-				return false
+				return
 			}
 			str, err := strconv.Unquote(p.get(scanner.String).String())
 			if err != nil {
@@ -382,7 +382,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			a.Val = str
 			// fmt.Printf("SCONST %s\n", obj.Dconv(&emptyProg, 0, a))
 			p.expectOperandEnd()
-			return true
+			return
 		}
 		a.Offset = int64(p.expr())
 		if p.peek() != '(' {
@@ -396,7 +396,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			}
 			// fmt.Printf("CONST %d %s\n", a.Offset, obj.Dconv(&emptyProg, 0, a))
 			p.expectOperandEnd()
-			return true
+			return
 		}
 		// fmt.Printf("offset %d \n", a.Offset)
 	}
@@ -406,7 +406,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 	// fmt.Printf("DONE %s\n", p.arch.Dconv(&emptyProg, 0, a))
 
 	p.expectOperandEnd()
-	return true
+	return
 }
 
 // atStartOfRegister reports whether the parser is at the start of a register definition.
