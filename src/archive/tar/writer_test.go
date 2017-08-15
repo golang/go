@@ -151,15 +151,9 @@ func TestWriter(t *testing.T) {
 			contents: strings.Repeat("\x00", 4<<10),
 		}},
 	}, {
-		// TODO(dsnet): The Writer output should match the following file.
-		// To fix an issue (see https://golang.org/issue/12594), we disabled
-		// prefix support, which alters the generated output.
-		/*
-			// This file was produced using gnu tar 1.17
-			// gnutar  -b 4 --format=ustar (longname/)*15 + file.txt
-			file: "testdata/ustar.tar"
-		*/
-		file: "testdata/ustar.issue12594.tar", // This is a valid tar file, but not expected
+		// This file was produced using GNU tar v1.17.
+		//	gnutar -b 4 --format=ustar (longname/)*15 + file.txt
+		file: "testdata/ustar.tar",
 		entries: []*entry{{
 			header: &Header{
 				Name:     strings.Repeat("longname/", 15) + "file.txt",
