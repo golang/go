@@ -194,6 +194,10 @@ func findMembers(rdr *dwarf.Reader) (map[string]bool, error) {
 }
 
 func TestSizes(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
 	// DWARF sizes should never be -1.
 	// See issue #21097
 	const prog = `
