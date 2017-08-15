@@ -148,3 +148,17 @@ func TestReimport(t *testing.T) {
 		t.Errorf("got %v; want reimport error", err)
 	}
 }
+
+func TestIssue20855(t *testing.T) {
+	if !testenv.HasSrc() {
+		t.Skip("no source code available")
+	}
+
+	pkg, err := importer.ImportFrom("go/internal/srcimporter/testdata/issue20855", ".", 0)
+	if err == nil || !strings.Contains(err.Error(), "missing function body") {
+		t.Fatalf("got unexpected or no error: %v", err)
+	}
+	if pkg == nil {
+		t.Error("got no package despite no hard errors")
+	}
+}
