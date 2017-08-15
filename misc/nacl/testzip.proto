@@ -64,6 +64,10 @@ go	src=..
 								armasm
 									testdata
 										+
+							arm64
+								arm64asm
+									testdata
+										+
 							x86
 								x86asm
 									testdata
