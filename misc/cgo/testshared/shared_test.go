@@ -10,6 +10,7 @@ import (
 	"debug/elf"
 	"encoding/binary"
 	"errors"
+	"flag"
 	"fmt"
 	"go/build"
 	"io"
@@ -161,6 +162,8 @@ func testMain(m *testing.M) (int, error) {
 }
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+
 	// Some of the tests install binaries into a custom GOPATH.
 	// That won't work if GOBIN is set.
 	os.Unsetenv("GOBIN")
