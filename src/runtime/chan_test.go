@@ -669,11 +669,7 @@ done:
 	<-ready2
 }
 
-type (
-	struct0  struct{}
-	struct32 struct{ a, b, c, d int64 }
-	struct40 struct{ a, b, c, d, e int64 }
-)
+type struct0 struct{}
 
 func BenchmarkMakeChan(b *testing.B) {
 	b.Run("Byte", func(b *testing.B) {
