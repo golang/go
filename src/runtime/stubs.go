@@ -227,7 +227,7 @@ func getcallersp(argp unsafe.Pointer) uintptr {
 	return uintptr(argp) - sys.MinFrameSize
 }
 
-// getg returns the pointer to the current closure.
+// getclosureptr returns the pointer to the current closure.
 // getclosureptr can only be used in an assignment statement
 // at the entry of a function. Moreover, go:nosplit directive
 // must be specified at the declaration of caller function,
