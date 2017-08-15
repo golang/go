@@ -433,7 +433,7 @@ type BpfHdr struct {
 }
 
 const (
-	_AT_FDCWD = -0x64
+	_AT_FDCWD = 0xfffafdcd
 )
 
 type Termios struct {
