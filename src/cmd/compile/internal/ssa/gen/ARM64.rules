@@ -1033,6 +1033,10 @@
 (GreaterEqual (InvertFlags x)) -> (LessEqual x)
 (GreaterEqualU (InvertFlags x)) -> (LessEqualU x)
 
+// Boolean-generating instructions always
+// zero upper bit of the register; no need to zero-extend
+(MOVBUreg x) && x.Type.IsBoolean() -> (MOVDreg x)
+
 // absorb flag constants into conditional instructions
 (CSELULT _ y (FlagEQ)) -> y
 (CSELULT x _ (FlagLT_ULT)) -> x
