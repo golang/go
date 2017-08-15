@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -67,6 +68,23 @@ func TestReader(t *testing.T) {
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
+			SparseHoles: []SparseEntry{
+				{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}, {12, 1}, {14, 1},
+				{16, 1}, {18, 1}, {20, 1}, {22, 1}, {24, 1}, {26, 1}, {28, 1},
+				{30, 1}, {32, 1}, {34, 1}, {36, 1}, {38, 1}, {40, 1}, {42, 1},
+				{44, 1}, {46, 1}, {48, 1}, {50, 1}, {52, 1}, {54, 1}, {56, 1},
+				{58, 1}, {60, 1}, {62, 1}, {64, 1}, {66, 1}, {68, 1}, {70, 1},
+				{72, 1}, {74, 1}, {76, 1}, {78, 1}, {80, 1}, {82, 1}, {84, 1},
+				{86, 1}, {88, 1}, {90, 1}, {92, 1}, {94, 1}, {96, 1}, {98, 1},
+				{100, 1}, {102, 1}, {104, 1}, {106, 1}, {108, 1}, {110, 1},
+				{112, 1}, {114, 1}, {116, 1}, {118, 1}, {120, 1}, {122, 1},
+				{124, 1}, {126, 1}, {128, 1}, {130, 1}, {132, 1}, {134, 1},
+				{136, 1}, {138, 1}, {140, 1}, {142, 1}, {144, 1}, {146, 1},
+				{148, 1}, {150, 1}, {152, 1}, {154, 1}, {156, 1}, {158, 1},
+				{160, 1}, {162, 1}, {164, 1}, {166, 1}, {168, 1}, {170, 1},
+				{172, 1}, {174, 1}, {176, 1}, {178, 1}, {180, 1}, {182, 1},
+				{184, 1}, {186, 1}, {188, 1}, {190, 10},
+			},
 		}, {
 			Name:     "sparse-posix-0.0",
 			Mode:     420,
@@ -80,6 +98,23 @@ func TestReader(t *testing.T) {
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
+			SparseHoles: []SparseEntry{
+				{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}, {12, 1}, {14, 1},
+				{16, 1}, {18, 1}, {20, 1}, {22, 1}, {24, 1}, {26, 1}, {28, 1},
+				{30, 1}, {32, 1}, {34, 1}, {36, 1}, {38, 1}, {40, 1}, {42, 1},
+				{44, 1}, {46, 1}, {48, 1}, {50, 1}, {52, 1}, {54, 1}, {56, 1},
+				{58, 1}, {60, 1}, {62, 1}, {64, 1}, {66, 1}, {68, 1}, {70, 1},
+				{72, 1}, {74, 1}, {76, 1}, {78, 1}, {80, 1}, {82, 1}, {84, 1},
+				{86, 1}, {88, 1}, {90, 1}, {92, 1}, {94, 1}, {96, 1}, {98, 1},
+				{100, 1}, {102, 1}, {104, 1}, {106, 1}, {108, 1}, {110, 1},
+				{112, 1}, {114, 1}, {116, 1}, {118, 1}, {120, 1}, {122, 1},
+				{124, 1}, {126, 1}, {128, 1}, {130, 1}, {132, 1}, {134, 1},
+				{136, 1}, {138, 1}, {140, 1}, {142, 1}, {144, 1}, {146, 1},
+				{148, 1}, {150, 1}, {152, 1}, {154, 1}, {156, 1}, {158, 1},
+				{160, 1}, {162, 1}, {164, 1}, {166, 1}, {168, 1}, {170, 1},
+				{172, 1}, {174, 1}, {176, 1}, {178, 1}, {180, 1}, {182, 1},
+				{184, 1}, {186, 1}, {188, 1}, {190, 10},
+			},
 		}, {
 			Name:     "sparse-posix-0.1",
 			Mode:     420,
@@ -93,6 +128,23 @@ func TestReader(t *testing.T) {
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
+			SparseHoles: []SparseEntry{
+				{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}, {12, 1}, {14, 1},
+				{16, 1}, {18, 1}, {20, 1}, {22, 1}, {24, 1}, {26, 1}, {28, 1},
+				{30, 1}, {32, 1}, {34, 1}, {36, 1}, {38, 1}, {40, 1}, {42, 1},
+				{44, 1}, {46, 1}, {48, 1}, {50, 1}, {52, 1}, {54, 1}, {56, 1},
+				{58, 1}, {60, 1}, {62, 1}, {64, 1}, {66, 1}, {68, 1}, {70, 1},
+				{72, 1}, {74, 1}, {76, 1}, {78, 1}, {80, 1}, {82, 1}, {84, 1},
+				{86, 1}, {88, 1}, {90, 1}, {92, 1}, {94, 1}, {96, 1}, {98, 1},
+				{100, 1}, {102, 1}, {104, 1}, {106, 1}, {108, 1}, {110, 1},
+				{112, 1}, {114, 1}, {116, 1}, {118, 1}, {120, 1}, {122, 1},
+				{124, 1}, {126, 1}, {128, 1}, {130, 1}, {132, 1}, {134, 1},
+				{136, 1}, {138, 1}, {140, 1}, {142, 1}, {144, 1}, {146, 1},
+				{148, 1}, {150, 1}, {152, 1}, {154, 1}, {156, 1}, {158, 1},
+				{160, 1}, {162, 1}, {164, 1}, {166, 1}, {168, 1}, {170, 1},
+				{172, 1}, {174, 1}, {176, 1}, {178, 1}, {180, 1}, {182, 1},
+				{184, 1}, {186, 1}, {188, 1}, {190, 10},
+			},
 		}, {
 			Name:     "sparse-posix-1.0",
 			Mode:     420,
@@ -106,6 +158,23 @@ func TestReader(t *testing.T) {
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
+			SparseHoles: []SparseEntry{
+				{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}, {12, 1}, {14, 1},
+				{16, 1}, {18, 1}, {20, 1}, {22, 1}, {24, 1}, {26, 1}, {28, 1},
+				{30, 1}, {32, 1}, {34, 1}, {36, 1}, {38, 1}, {40, 1}, {42, 1},
+				{44, 1}, {46, 1}, {48, 1}, {50, 1}, {52, 1}, {54, 1}, {56, 1},
+				{58, 1}, {60, 1}, {62, 1}, {64, 1}, {66, 1}, {68, 1}, {70, 1},
+				{72, 1}, {74, 1}, {76, 1}, {78, 1}, {80, 1}, {82, 1}, {84, 1},
+				{86, 1}, {88, 1}, {90, 1}, {92, 1}, {94, 1}, {96, 1}, {98, 1},
+				{100, 1}, {102, 1}, {104, 1}, {106, 1}, {108, 1}, {110, 1},
+				{112, 1}, {114, 1}, {116, 1}, {118, 1}, {120, 1}, {122, 1},
+				{124, 1}, {126, 1}, {128, 1}, {130, 1}, {132, 1}, {134, 1},
+				{136, 1}, {138, 1}, {140, 1}, {142, 1}, {144, 1}, {146, 1},
+				{148, 1}, {150, 1}, {152, 1}, {154, 1}, {156, 1}, {158, 1},
+				{160, 1}, {162, 1}, {164, 1}, {166, 1}, {168, 1}, {170, 1},
+				{172, 1}, {174, 1}, {176, 1}, {178, 1}, {180, 1}, {182, 1},
+				{184, 1}, {186, 1}, {188, 1}, {190, 10},
+			},
 		}, {
 			Name:     "end",
 			Mode:     420,
@@ -314,17 +383,18 @@ func TestReader(t *testing.T) {
 			AccessTime: time.Unix(1441974501, 0),
 			ChangeTime: time.Unix(1441973436, 0),
 		}, {
-			Name:       "test2/sparse",
-			Mode:       33188,
-			Uid:        1000,
-			Gid:        1000,
-			Size:       536870912,
-			ModTime:    time.Unix(1441973427, 0),
-			Typeflag:   'S',
-			Uname:      "rawr",
-			Gname:      "dsnet",
-			AccessTime: time.Unix(1441991948, 0),
-			ChangeTime: time.Unix(1441973436, 0),
+			Name:        "test2/sparse",
+			Mode:        33188,
+			Uid:         1000,
+			Gid:         1000,
+			Size:        536870912,
+			ModTime:     time.Unix(1441973427, 0),
+			Typeflag:    'S',
+			Uname:       "rawr",
+			Gname:       "dsnet",
+			AccessTime:  time.Unix(1441991948, 0),
+			ChangeTime:  time.Unix(1441973436, 0),
+			SparseHoles: []SparseEntry{{0, 536870912}},
 		}},
 	}, {
 		// Matches the behavior of GNU and BSD tar utilities.
@@ -552,375 +622,6 @@ func TestPartialRead(t *testing.T) {
 				t.Fatalf("Next(): got %v, want EOF", err)
 			}
 		})
-	}
-}
-
-func TestSparseFileReader(t *testing.T) {
-	vectors := []struct {
-		realSize   int64         // Real size of the output file
-		sparseMap  []sparseEntry // Input sparse map
-		sparseData string        // Input compact data
-		expected   string        // Expected output data
-		err        error         // Expected error outcome
-	}{{
-		realSize: 8,
-		sparseMap: []sparseEntry{
-			{offset: 0, numBytes: 2},
-			{offset: 5, numBytes: 3},
-		},
-		sparseData: "abcde",
-		expected:   "ab\x00\x00\x00cde",
-	}, {
-		realSize: 10,
-		sparseMap: []sparseEntry{
-			{offset: 0, numBytes: 2},
-			{offset: 5, numBytes: 3},
-		},
-		sparseData: "abcde",
-		expected:   "ab\x00\x00\x00cde\x00\x00",
-	}, {
-		realSize: 8,
-		sparseMap: []sparseEntry{
-			{offset: 1, numBytes: 3},
-			{offset: 6, numBytes: 2},
-		},
-		sparseData: "abcde",
-		expected:   "\x00abc\x00\x00de",
-	}, {
-		realSize: 8,
-		sparseMap: []sparseEntry{
-			{offset: 1, numBytes: 3},
-			{offset: 6, numBytes: 0},
-			{offset: 6, numBytes: 0},
-			{offset: 6, numBytes: 2},
-		},
-		sparseData: "abcde",
-		expected:   "\x00abc\x00\x00de",
-	}, {
-		realSize: 10,
-		sparseMap: []sparseEntry{
-			{offset: 1, numBytes: 3},
-			{offset: 6, numBytes: 2},
-		},
-		sparseData: "abcde",
-		expected:   "\x00abc\x00\x00de\x00\x00",
-	}, {
-		realSize: 10,
-		sparseMap: []sparseEntry{
-			{offset: 1, numBytes: 3},
-			{offset: 6, numBytes: 2},
-			{offset: 8, numBytes: 0},
-			{offset: 8, numBytes: 0},
-			{offset: 8, numBytes: 0},
-			{offset: 8, numBytes: 0},
-		},
-		sparseData: "abcde",
-		expected:   "\x00abc\x00\x00de\x00\x00",
-	}, {
-		realSize:   2,
-		sparseMap:  []sparseEntry{},
-		sparseData: "",
-		expected:   "\x00\x00",
-	}, {
-		realSize:  -2,
-		sparseMap: []sparseEntry{},
-		err:       ErrHeader,
-	}, {
-		realSize: -10,
-		sparseMap: []sparseEntry{
-			{offset: 1, numBytes: 3},
-			{offset: 6, numBytes: 2},
-		},
-		sparseData: "abcde",
-		err:        ErrHeader,
-	}, {
-		realSize: 10,
-		sparseMap: []sparseEntry{
-			{offset: 1, numBytes: 3},
-			{offset: 6, numBytes: 5},
-		},
-		sparseData: "abcde",
-		err:        ErrHeader,
-	}, {
-		realSize: 35,
-		sparseMap: []sparseEntry{
-			{offset: 1, numBytes: 3},
-			{offset: 6, numBytes: 5},
-		},
-		sparseData: "abcde",
-		err:        io.ErrUnexpectedEOF,
-	}, {
-		realSize: 35,
-		sparseMap: []sparseEntry{
-			{offset: 1, numBytes: 3},
-			{offset: 6, numBytes: -5},
-		},
-		sparseData: "abcde",
-		err:        ErrHeader,
-	}, {
-		realSize: 35,
-		sparseMap: []sparseEntry{
-			{offset: math.MaxInt64, numBytes: 3},
-			{offset: 6, numBytes: -5},
-		},
-		sparseData: "abcde",
-		err:        ErrHeader,
-	}, {
-		realSize: 10,
-		sparseMap: []sparseEntry{
-			{offset: 1, numBytes: 3},
-			{offset: 2, numBytes: 2},
-		},
-		sparseData: "abcde",
-		err:        ErrHeader,
-	}}
-
-	for i, v := range vectors {
-		r := bytes.NewReader([]byte(v.sparseData))
-		rfr := &regFileReader{r: r, nb: int64(len(v.sparseData))}
-
-		var (
-			sfr *sparseFileReader
-			err error
-			buf []byte
-		)
-
-		sfr, err = newSparseFileReader(rfr, v.sparseMap, v.realSize)
-		if err != nil {
-			goto fail
-		}
-		if sfr.numBytes() != int64(len(v.sparseData)) {
-			t.Errorf("test %d, numBytes() before reading: got %d, want %d", i, sfr.numBytes(), len(v.sparseData))
-		}
-		buf, err = ioutil.ReadAll(sfr)
-		if err != nil {
-			goto fail
-		}
-		if string(buf) != v.expected {
-			t.Errorf("test %d, ReadAll(): got %q, want %q", i, string(buf), v.expected)
-		}
-		if sfr.numBytes() != 0 {
-			t.Errorf("test %d, numBytes() after reading: got %d, want %d", i, sfr.numBytes(), 0)
-		}
-
-	fail:
-		if err != v.err {
-			t.Errorf("test %d, unexpected error: got %v, want %v", i, err, v.err)
-		}
-	}
-}
-
-func TestReadOldGNUSparseMap(t *testing.T) {
-	const (
-		t00 = "00000000000\x0000000000000\x00"
-		t11 = "00000000001\x0000000000001\x00"
-		t12 = "00000000001\x0000000000002\x00"
-		t21 = "00000000002\x0000000000001\x00"
-	)
-
-	mkBlk := func(size, sp0, sp1, sp2, sp3, ext string, format int) *block {
-		var blk block
-		copy(blk.GNU().RealSize(), size)
-		copy(blk.GNU().Sparse().Entry(0), sp0)
-		copy(blk.GNU().Sparse().Entry(1), sp1)
-		copy(blk.GNU().Sparse().Entry(2), sp2)
-		copy(blk.GNU().Sparse().Entry(3), sp3)
-		copy(blk.GNU().Sparse().IsExtended(), ext)
-		if format != formatUnknown {
-			blk.SetFormat(format)
-		}
-		return &blk
-	}
-
-	vectors := []struct {
-		data   string        // Input data
-		rawHdr *block        // Input raw header
-		want   []sparseEntry // Expected sparse entries to be outputted
-		err    error         // Expected error to be returned
-	}{
-		{"", mkBlk("", "", "", "", "", "", formatUnknown), nil, ErrHeader},
-		{"", mkBlk("1234", "fewa", "", "", "", "", formatGNU), nil, ErrHeader},
-		{"", mkBlk("0031", "", "", "", "", "", formatGNU), nil, nil},
-		{"", mkBlk("1234", t00, t11, "", "", "", formatGNU),
-			[]sparseEntry{{0, 0}, {1, 1}}, nil},
-		{"", mkBlk("1234", t11, t12, t21, t11, "", formatGNU),
-			[]sparseEntry{{1, 1}, {1, 2}, {2, 1}, {1, 1}}, nil},
-		{"", mkBlk("1234", t11, t12, t21, t11, "\x80", formatGNU),
-			[]sparseEntry{}, io.ErrUnexpectedEOF},
-		{t11 + t11,
-			mkBlk("1234", t11, t12, t21, t11, "\x80", formatGNU),
-			[]sparseEntry{}, io.ErrUnexpectedEOF},
-		{t11 + t21 + strings.Repeat("\x00", 512),
-			mkBlk("1234", t11, t12, t21, t11, "\x80", formatGNU),
-			[]sparseEntry{{1, 1}, {1, 2}, {2, 1}, {1, 1}, {1, 1}, {2, 1}}, nil},
-	}
-
-	for i, v := range vectors {
-		tr := Reader{r: strings.NewReader(v.data)}
-		hdr := new(Header)
-		got, err := tr.readOldGNUSparseMap(hdr, v.rawHdr)
-		if !reflect.DeepEqual(got, v.want) && !(len(got) == 0 && len(v.want) == 0) {
-			t.Errorf("test %d, readOldGNUSparseMap(...): got %v, want %v", i, got, v.want)
-		}
-		if err != v.err {
-			t.Errorf("test %d, unexpected error: got %v, want %v", i, err, v.err)
-		}
-	}
-}
-
-func TestReadGNUSparseMap0x1(t *testing.T) {
-	const (
-		maxUint = ^uint(0)
-		maxInt  = int(maxUint >> 1)
-	)
-	var (
-		big1 = fmt.Sprintf("%d", int64(maxInt))
-		big2 = fmt.Sprintf("%d", (int64(maxInt)/2)+1)
-		big3 = fmt.Sprintf("%d", (int64(maxInt) / 3))
-	)
-
-	vectors := []struct {
-		extHdrs   map[string]string // Input data
-		sparseMap []sparseEntry     // Expected sparse entries to be outputted
-		err       error             // Expected errors that may be raised
-	}{{
-		extHdrs: map[string]string{paxGNUSparseNumBlocks: "-4"},
-		err:     ErrHeader,
-	}, {
-		extHdrs: map[string]string{paxGNUSparseNumBlocks: "fee "},
-		err:     ErrHeader,
-	}, {
-		extHdrs: map[string]string{
-			paxGNUSparseNumBlocks: big1,
-			paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
-		},
-		err: ErrHeader,
-	}, {
-		extHdrs: map[string]string{
-			paxGNUSparseNumBlocks: big2,
-			paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
-		},
-		err: ErrHeader,
-	}, {
-		extHdrs: map[string]string{
-			paxGNUSparseNumBlocks: big3,
-			paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
-		},
-		err: ErrHeader,
-	}, {
-		extHdrs: map[string]string{
-			paxGNUSparseNumBlocks: "4",
-			paxGNUSparseMap:       "0.5,5,10,5,20,5,30,5",
-		},
-		err: ErrHeader,
-	}, {
-		extHdrs: map[string]string{
-			paxGNUSparseNumBlocks: "4",
-			paxGNUSparseMap:       "0,5.5,10,5,20,5,30,5",
-		},
-		err: ErrHeader,
-	}, {
-		extHdrs: map[string]string{
-			paxGNUSparseNumBlocks: "4",
-			paxGNUSparseMap:       "0,fewafewa.5,fewafw,5,20,5,30,5",
-		},
-		err: ErrHeader,
-	}, {
-		extHdrs: map[string]string{
-			paxGNUSparseNumBlocks: "4",
-			paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
-		},
-		sparseMap: []sparseEntry{{0, 5}, {10, 5}, {20, 5}, {30, 5}},
-	}}
-
-	for i, v := range vectors {
-		sp, err := readGNUSparseMap0x1(v.extHdrs)
-		if !reflect.DeepEqual(sp, v.sparseMap) && !(len(sp) == 0 && len(v.sparseMap) == 0) {
-			t.Errorf("test %d, readGNUSparseMap0x1(...): got %v, want %v", i, sp, v.sparseMap)
-		}
-		if err != v.err {
-			t.Errorf("test %d, unexpected error: got %v, want %v", i, err, v.err)
-		}
-	}
-}
-
-func TestReadGNUSparseMap1x0(t *testing.T) {
-	sp := []sparseEntry{{1, 2}, {3, 4}}
-	for i := 0; i < 98; i++ {
-		sp = append(sp, sparseEntry{54321, 12345})
-	}
-
-	vectors := []struct {
-		input     string        // Input data
-		sparseMap []sparseEntry // Expected sparse entries to be outputted
-		cnt       int           // Expected number of bytes read
-		err       error         // Expected errors that may be raised
-	}{{
-		input: "",
-		cnt:   0,
-		err:   io.ErrUnexpectedEOF,
-	}, {
-		input: "ab",
-		cnt:   2,
-		err:   io.ErrUnexpectedEOF,
-	}, {
-		input: strings.Repeat("\x00", 512),
-		cnt:   512,
-		err:   io.ErrUnexpectedEOF,
-	}, {
-		input: strings.Repeat("\x00", 511) + "\n",
-		cnt:   512,
-		err:   ErrHeader,
-	}, {
-		input: strings.Repeat("\n", 512),
-		cnt:   512,
-		err:   ErrHeader,
-	}, {
-		input:     "0\n" + strings.Repeat("\x00", 510) + strings.Repeat("a", 512),
-		sparseMap: []sparseEntry{},
-		cnt:       512,
-	}, {
-		input:     strings.Repeat("0", 512) + "0\n" + strings.Repeat("\x00", 510),
-		sparseMap: []sparseEntry{},
-		cnt:       1024,
-	}, {
-		input:     strings.Repeat("0", 1024) + "1\n2\n3\n" + strings.Repeat("\x00", 506),
-		sparseMap: []sparseEntry{{2, 3}},
-		cnt:       1536,
-	}, {
-		input: strings.Repeat("0", 1024) + "1\n2\n\n" + strings.Repeat("\x00", 509),
-		cnt:   1536,
-		err:   ErrHeader,
-	}, {
-		input: strings.Repeat("0", 1024) + "1\n2\n" + strings.Repeat("\x00", 508),
-		cnt:   1536,
-		err:   io.ErrUnexpectedEOF,
-	}, {
-		input: "-1\n2\n\n" + strings.Repeat("\x00", 506),
-		cnt:   512,
-		err:   ErrHeader,
-	}, {
-		input: "1\nk\n2\n" + strings.Repeat("\x00", 506),
-		cnt:   512,
-		err:   ErrHeader,
-	}, {
-		input:     "100\n1\n2\n3\n4\n" + strings.Repeat("54321\n0000000000000012345\n", 98) + strings.Repeat("\x00", 512),
-		cnt:       2560,
-		sparseMap: sp,
-	}}
-
-	for i, v := range vectors {
-		r := strings.NewReader(v.input)
-		sp, err := readGNUSparseMap1x0(r)
-		if !reflect.DeepEqual(sp, v.sparseMap) && !(len(sp) == 0 && len(v.sparseMap) == 0) {
-			t.Errorf("test %d, readGNUSparseMap1x0(...): got %v, want %v", i, sp, v.sparseMap)
-		}
-		if numBytes := len(v.input) - r.Len(); numBytes != v.cnt {
-			t.Errorf("test %d, bytes read: got %v, want %v", i, numBytes, v.cnt)
-		}
-		if err != v.err {
-			t.Errorf("test %d, unexpected error: got %v, want %v", i, err, v.err)
-		}
 	}
 }
 
@@ -1189,6 +890,542 @@ func TestParsePAX(t *testing.T) {
 		}
 		if ok := err == nil; ok != v.ok {
 			t.Errorf("test %d, parsePAX(...): got %v, want %v", i, ok, v.ok)
+		}
+	}
+}
+
+func TestReadOldGNUSparseMap(t *testing.T) {
+	populateSparseMap := func(sa sparseArray, sps []string) []string {
+		for i := 0; len(sps) > 0 && i < sa.MaxEntries(); i++ {
+			copy(sa.Entry(i), sps[0])
+			sps = sps[1:]
+		}
+		if len(sps) > 0 {
+			copy(sa.IsExtended(), "\x80")
+		}
+		return sps
+	}
+
+	makeInput := func(format int, size string, sps ...string) (out []byte) {
+		// Write the initial GNU header.
+		var blk block
+		gnu := blk.GNU()
+		sparse := gnu.Sparse()
+		copy(gnu.RealSize(), size)
+		sps = populateSparseMap(sparse, sps)
+		if format != formatUnknown {
+			blk.SetFormat(format)
+		}
+		out = append(out, blk[:]...)
+
+		// Write extended sparse blocks.
+		for len(sps) > 0 {
+			var blk block
+			sps = populateSparseMap(blk.Sparse(), sps)
+			out = append(out, blk[:]...)
+		}
+		return out
+	}
+
+	makeSparseStrings := func(sp []SparseEntry) (out []string) {
+		var f formatter
+		for _, s := range sp {
+			var b [24]byte
+			f.formatNumeric(b[:12], s.Offset)
+			f.formatNumeric(b[12:], s.Length)
+			out = append(out, string(b[:]))
+		}
+		return out
+	}
+
+	vectors := []struct {
+		input    []byte
+		wantMap  sparseDatas
+		wantSize int64
+		wantErr  error
+	}{{
+		input:   makeInput(formatUnknown, ""),
+		wantErr: ErrHeader,
+	}, {
+		input:    makeInput(formatGNU, "1234", "fewa"),
+		wantSize: 01234,
+		wantErr:  ErrHeader,
+	}, {
+		input:    makeInput(formatGNU, "0031"),
+		wantSize: 031,
+	}, {
+		input:   makeInput(formatGNU, "80"),
+		wantErr: ErrHeader,
+	}, {
+		input: makeInput(formatGNU, "1234",
+			makeSparseStrings(sparseDatas{{0, 0}, {1, 1}})...),
+		wantMap:  sparseDatas{{0, 0}, {1, 1}},
+		wantSize: 01234,
+	}, {
+		input: makeInput(formatGNU, "1234",
+			append(makeSparseStrings(sparseDatas{{0, 0}, {1, 1}}), []string{"", "blah"}...)...),
+		wantMap:  sparseDatas{{0, 0}, {1, 1}},
+		wantSize: 01234,
+	}, {
+		input: makeInput(formatGNU, "3333",
+			makeSparseStrings(sparseDatas{{0, 1}, {2, 1}, {4, 1}, {6, 1}})...),
+		wantMap:  sparseDatas{{0, 1}, {2, 1}, {4, 1}, {6, 1}},
+		wantSize: 03333,
+	}, {
+		input: makeInput(formatGNU, "",
+			append(append(
+				makeSparseStrings(sparseDatas{{0, 1}, {2, 1}}),
+				[]string{"", ""}...),
+				makeSparseStrings(sparseDatas{{4, 1}, {6, 1}})...)...),
+		wantMap: sparseDatas{{0, 1}, {2, 1}, {4, 1}, {6, 1}},
+	}, {
+		input: makeInput(formatGNU, "",
+			makeSparseStrings(sparseDatas{{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}})...)[:blockSize],
+		wantErr: io.ErrUnexpectedEOF,
+	}, {
+		input: makeInput(formatGNU, "",
+			makeSparseStrings(sparseDatas{{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}})...)[:3*blockSize/2],
+		wantErr: io.ErrUnexpectedEOF,
+	}, {
+		input: makeInput(formatGNU, "",
+			makeSparseStrings(sparseDatas{{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}})...),
+		wantMap: sparseDatas{{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}},
+	}, {
+		input: makeInput(formatGNU, "",
+			makeSparseStrings(sparseDatas{{10 << 30, 512}, {20 << 30, 512}})...),
+		wantMap: sparseDatas{{10 << 30, 512}, {20 << 30, 512}},
+	}}
+
+	for i, v := range vectors {
+		var blk block
+		var hdr Header
+		v.input = v.input[copy(blk[:], v.input):]
+		tr := Reader{r: bytes.NewReader(v.input)}
+		got, err := tr.readOldGNUSparseMap(&hdr, &blk)
+		if !equalSparseEntries(got, v.wantMap) {
+			t.Errorf("test %d, readOldGNUSparseMap(): got %v, want %v", i, got, v.wantMap)
+		}
+		if err != v.wantErr {
+			t.Errorf("test %d, readOldGNUSparseMap() = %v, want %v", i, err, v.wantErr)
+		}
+		if hdr.Size != v.wantSize {
+			t.Errorf("test %d, Header.Size = %d, want %d", i, hdr.Size, v.wantSize)
+		}
+	}
+}
+
+func TestReadGNUSparsePAXHeaders(t *testing.T) {
+	padInput := func(s string) string {
+		return s + string(zeroBlock[:blockPadding(int64(len(s)))])
+	}
+
+	vectors := []struct {
+		inputData string
+		inputHdrs map[string]string
+		wantMap   sparseDatas
+		wantSize  int64
+		wantName  string
+		wantErr   error
+	}{{
+		inputHdrs: nil,
+		wantErr:   nil,
+	}, {
+		inputHdrs: map[string]string{
+			paxGNUSparseNumBlocks: strconv.FormatInt(math.MaxInt64, 10),
+			paxGNUSparseMap:       "0,1,2,3",
+		},
+		wantErr: ErrHeader,
+	}, {
+		inputHdrs: map[string]string{
+			paxGNUSparseNumBlocks: "4\x00",
+			paxGNUSparseMap:       "0,1,2,3",
+		},
+		wantErr: ErrHeader,
+	}, {
+		inputHdrs: map[string]string{
+			paxGNUSparseNumBlocks: "4",
+			paxGNUSparseMap:       "0,1,2,3",
+		},
+		wantErr: ErrHeader,
+	}, {
+		inputHdrs: map[string]string{
+			paxGNUSparseNumBlocks: "2",
+			paxGNUSparseMap:       "0,1,2,3",
+		},
+		wantMap: sparseDatas{{0, 1}, {2, 3}},
+	}, {
+		inputHdrs: map[string]string{
+			paxGNUSparseNumBlocks: "2",
+			paxGNUSparseMap:       "0, 1,2,3",
+		},
+		wantErr: ErrHeader,
+	}, {
+		inputHdrs: map[string]string{
+			paxGNUSparseNumBlocks: "2",
+			paxGNUSparseMap:       "0,1,02,3",
+			paxGNUSparseRealSize:  "4321",
+		},
+		wantMap:  sparseDatas{{0, 1}, {2, 3}},
+		wantSize: 4321,
+	}, {
+		inputHdrs: map[string]string{
+			paxGNUSparseNumBlocks: "2",
+			paxGNUSparseMap:       "0,one1,2,3",
+		},
+		wantErr: ErrHeader,
+	}, {
+		inputHdrs: map[string]string{
+			paxGNUSparseMajor:     "0",
+			paxGNUSparseMinor:     "0",
+			paxGNUSparseNumBlocks: "2",
+			paxGNUSparseMap:       "0,1,2,3",
+			paxGNUSparseSize:      "1234",
+			paxGNUSparseRealSize:  "4321",
+			paxGNUSparseName:      "realname",
+		},
+		wantMap:  sparseDatas{{0, 1}, {2, 3}},
+		wantSize: 1234,
+		wantName: "realname",
+	}, {
+		inputHdrs: map[string]string{
+			paxGNUSparseMajor:     "0",
+			paxGNUSparseMinor:     "0",
+			paxGNUSparseNumBlocks: "1",
+			paxGNUSparseMap:       "10737418240,512",
+			paxGNUSparseSize:      "10737418240",
+			paxGNUSparseName:      "realname",
+		},
+		wantMap:  sparseDatas{{10737418240, 512}},
+		wantSize: 10737418240,
+		wantName: "realname",
+	}, {
+		inputHdrs: map[string]string{
+			paxGNUSparseMajor:     "0",
+			paxGNUSparseMinor:     "0",
+			paxGNUSparseNumBlocks: "0",
+			paxGNUSparseMap:       "",
+		},
+		wantMap: sparseDatas{},
+	}, {
+		inputHdrs: map[string]string{
+			paxGNUSparseMajor:     "0",
+			paxGNUSparseMinor:     "1",
+			paxGNUSparseNumBlocks: "4",
+			paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
+		},
+		wantMap: sparseDatas{{0, 5}, {10, 5}, {20, 5}, {30, 5}},
+	}, {
+		inputHdrs: map[string]string{
+			paxGNUSparseMajor:     "1",
+			paxGNUSparseMinor:     "0",
+			paxGNUSparseNumBlocks: "4",
+			paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
+		},
+		wantErr: io.ErrUnexpectedEOF,
+	}, {
+		inputData: padInput("0\n"),
+		inputHdrs: map[string]string{paxGNUSparseMajor: "1", paxGNUSparseMinor: "0"},
+		wantMap:   sparseDatas{},
+	}, {
+		inputData: padInput("0\n")[:blockSize-1] + "#",
+		inputHdrs: map[string]string{paxGNUSparseMajor: "1", paxGNUSparseMinor: "0"},
+		wantMap:   sparseDatas{},
+	}, {
+		inputData: padInput("0"),
+		inputHdrs: map[string]string{paxGNUSparseMajor: "1", paxGNUSparseMinor: "0"},
+		wantErr:   io.ErrUnexpectedEOF,
+	}, {
+		inputData: padInput("ab\n"),
+		inputHdrs: map[string]string{paxGNUSparseMajor: "1", paxGNUSparseMinor: "0"},
+		wantErr:   ErrHeader,
+	}, {
+		inputData: padInput("1\n2\n3\n"),
+		inputHdrs: map[string]string{paxGNUSparseMajor: "1", paxGNUSparseMinor: "0"},
+		wantMap:   sparseDatas{{2, 3}},
+	}, {
+		inputData: padInput("1\n2\n"),
+		inputHdrs: map[string]string{paxGNUSparseMajor: "1", paxGNUSparseMinor: "0"},
+		wantErr:   io.ErrUnexpectedEOF,
+	}, {
+		inputData: padInput("1\n2\n\n"),
+		inputHdrs: map[string]string{paxGNUSparseMajor: "1", paxGNUSparseMinor: "0"},
+		wantErr:   ErrHeader,
+	}, {
+		inputData: string(zeroBlock[:]) + padInput("0\n"),
+		inputHdrs: map[string]string{paxGNUSparseMajor: "1", paxGNUSparseMinor: "0"},
+		wantErr:   ErrHeader,
+	}, {
+		inputData: strings.Repeat("0", blockSize) + padInput("1\n5\n1\n"),
+		inputHdrs: map[string]string{paxGNUSparseMajor: "1", paxGNUSparseMinor: "0"},
+		wantMap:   sparseDatas{{5, 1}},
+	}, {
+		inputData: padInput(fmt.Sprintf("%d\n", int64(math.MaxInt64))),
+		inputHdrs: map[string]string{paxGNUSparseMajor: "1", paxGNUSparseMinor: "0"},
+		wantErr:   ErrHeader,
+	}, {
+		inputData: padInput(strings.Repeat("0", 300) + "1\n" + strings.Repeat("0", 1000) + "5\n" + strings.Repeat("0", 800) + "2\n"),
+		inputHdrs: map[string]string{paxGNUSparseMajor: "1", paxGNUSparseMinor: "0"},
+		wantMap:   sparseDatas{{5, 2}},
+	}, {
+		inputData: padInput("2\n10737418240\n512\n21474836480\n512\n"),
+		inputHdrs: map[string]string{paxGNUSparseMajor: "1", paxGNUSparseMinor: "0"},
+		wantMap:   sparseDatas{{10737418240, 512}, {21474836480, 512}},
+	}, {
+		inputData: padInput("100\n" + func() string {
+			var ss []string
+			for i := 0; i < 100; i++ {
+				ss = append(ss, fmt.Sprintf("%d\n%d\n", int64(i)<<30, 512))
+			}
+			return strings.Join(ss, "")
+		}()),
+		inputHdrs: map[string]string{paxGNUSparseMajor: "1", paxGNUSparseMinor: "0"},
+		wantMap: func() (spd sparseDatas) {
+			for i := 0; i < 100; i++ {
+				spd = append(spd, SparseEntry{int64(i) << 30, 512})
+			}
+			return spd
+		}(),
+	}}
+
+	for i, v := range vectors {
+		var hdr Header
+		r := strings.NewReader(v.inputData + "#") // Add canary byte
+		tr := Reader{curr: &regFileReader{r, int64(r.Len())}}
+		got, err := tr.readGNUSparsePAXHeaders(&hdr, v.inputHdrs)
+		if !equalSparseEntries(got, v.wantMap) {
+			t.Errorf("test %d, readGNUSparsePAXHeaders(): got %v, want %v", i, got, v.wantMap)
+		}
+		if err != v.wantErr {
+			t.Errorf("test %d, readGNUSparsePAXHeaders() = %v, want %v", i, err, v.wantErr)
+		}
+		if hdr.Size != v.wantSize {
+			t.Errorf("test %d, Header.Size = %d, want %d", i, hdr.Size, v.wantSize)
+		}
+		if hdr.Name != v.wantName {
+			t.Errorf("test %d, Header.Name = %s, want %s", i, hdr.Name, v.wantName)
+		}
+		if v.wantErr == nil && r.Len() == 0 {
+			t.Errorf("test %d, canary byte unexpectedly consumed", i)
+		}
+	}
+}
+
+func TestFileReader(t *testing.T) {
+	type (
+		testRead struct { // ReadN(cnt) == (wantStr, wantErr)
+			cnt     int
+			wantStr string
+			wantErr error
+		}
+		testDiscard struct { // Discard(cnt) == (wantCnt, wantErr)
+			cnt     int64
+			wantCnt int64
+			wantErr error
+		}
+		testRemaining struct { // Remaining() == wantCnt
+			wantCnt int64
+		}
+		testFnc interface{} // testRead | testDiscard | testRemaining
+	)
+
+	makeReg := func(s string, n int) fileReader {
+		return &regFileReader{strings.NewReader(s), int64(n)}
+	}
+	makeSparse := func(fr fileReader, spd sparseDatas, size int64) fileReader {
+		if !validateSparseEntries(spd, size) {
+			t.Fatalf("invalid sparse map: %v", spd)
+		}
+		sph := invertSparseEntries(append([]SparseEntry{}, spd...), size)
+		return &sparseFileReader{fr, sph, 0}
+	}
+
+	vectors := []struct {
+		fr    fileReader
+		tests []testFnc
+	}{{
+		fr: makeReg("", 0),
+		tests: []testFnc{
+			testRemaining{0},
+			testRead{0, "", io.EOF},
+			testRead{1, "", io.EOF},
+			testDiscard{0, 0, nil},
+			testDiscard{1, 0, io.EOF},
+			testRemaining{0},
+		},
+	}, {
+		fr: makeReg("", 1),
+		tests: []testFnc{
+			testRemaining{1},
+			testRead{0, "", io.ErrUnexpectedEOF},
+			testRead{5, "", io.ErrUnexpectedEOF},
+			testDiscard{0, 0, nil},
+			testDiscard{1, 0, io.ErrUnexpectedEOF},
+			testRemaining{1},
+		},
+	}, {
+		fr: makeReg("hello", 5),
+		tests: []testFnc{
+			testRemaining{5},
+			testRead{5, "hello", io.EOF},
+			testRemaining{0},
+		},
+	}, {
+		fr: makeReg("hello, world", 50),
+		tests: []testFnc{
+			testRemaining{50},
+			testDiscard{7, 7, nil},
+			testRemaining{43},
+			testRead{5, "world", nil},
+			testRemaining{38},
+			testDiscard{1, 0, io.ErrUnexpectedEOF},
+			testRead{1, "", io.ErrUnexpectedEOF},
+			testRemaining{38},
+		},
+	}, {
+		fr: makeReg("hello, world", 5),
+		tests: []testFnc{
+			testRemaining{5},
+			testRead{0, "", nil},
+			testRead{4, "hell", nil},
+			testRemaining{1},
+			testDiscard{5, 1, io.EOF},
+			testRemaining{0},
+			testDiscard{5, 0, io.EOF},
+			testRead{0, "", io.EOF},
+		},
+	}, {
+		fr: makeSparse(makeReg("abcde", 5), sparseDatas{{0, 2}, {5, 3}}, 8),
+		tests: []testFnc{
+			testRemaining{8},
+			testRead{3, "ab\x00", nil},
+			testRead{10, "\x00\x00cde", io.EOF},
+			testRemaining{0},
+		},
+	}, {
+		fr: makeSparse(makeReg("abcde", 5), sparseDatas{{0, 2}, {5, 3}}, 8),
+		tests: []testFnc{
+			testRemaining{8},
+			testDiscard{100, 8, io.EOF},
+			testRemaining{0},
+		},
+	}, {
+		fr: makeSparse(makeReg("abcde", 5), sparseDatas{{0, 2}, {5, 3}}, 10),
+		tests: []testFnc{
+			testRemaining{10},
+			testRead{100, "ab\x00\x00\x00cde\x00\x00", io.EOF},
+			testRemaining{0},
+		},
+	}, {
+		fr: makeSparse(makeReg("abc", 5), sparseDatas{{0, 2}, {5, 3}}, 10),
+		tests: []testFnc{
+			testRemaining{10},
+			testRead{100, "ab\x00\x00\x00c", io.ErrUnexpectedEOF},
+			testRemaining{4},
+		},
+	}, {
+		fr: makeSparse(makeReg("abcde", 5), sparseDatas{{1, 3}, {6, 2}}, 8),
+		tests: []testFnc{
+			testRemaining{8},
+			testRead{8, "\x00abc\x00\x00de", io.EOF},
+			testRemaining{0},
+		},
+	}, {
+		fr: makeSparse(makeReg("abcde", 5), sparseDatas{{1, 3}, {6, 0}, {6, 0}, {6, 2}}, 8),
+		tests: []testFnc{
+			testRemaining{8},
+			testRead{8, "\x00abc\x00\x00de", io.EOF},
+			testRemaining{0},
+		},
+	}, {
+		fr: makeSparse(makeReg("abcde", 5), sparseDatas{{1, 3}, {6, 2}}, 10),
+		tests: []testFnc{
+			testRead{100, "\x00abc\x00\x00de\x00\x00", io.EOF},
+		},
+	}, {
+		fr: makeSparse(makeReg("abcde", 5), sparseDatas{{1, 3}, {6, 2}, {8, 0}, {8, 0}, {8, 0}, {8, 0}}, 10),
+		tests: []testFnc{
+			testRead{100, "\x00abc\x00\x00de\x00\x00", io.EOF},
+		},
+	}, {
+		fr: makeSparse(makeReg("", 0), sparseDatas{}, 2),
+		tests: []testFnc{
+			testRead{100, "\x00\x00", io.EOF},
+		},
+	}, {
+		fr: makeSparse(makeReg("", 8), sparseDatas{{1, 3}, {6, 5}}, 15),
+		tests: []testFnc{
+			testRead{100, "\x00", io.ErrUnexpectedEOF},
+		},
+	}, {
+		fr: makeSparse(makeReg("ab", 2), sparseDatas{{1, 3}, {6, 5}}, 15),
+		tests: []testFnc{
+			testRead{100, "\x00ab", errMissData},
+		},
+	}, {
+		fr: makeSparse(makeReg("ab", 8), sparseDatas{{1, 3}, {6, 5}}, 15),
+		tests: []testFnc{
+			testRead{100, "\x00ab", io.ErrUnexpectedEOF},
+		},
+	}, {
+		fr: makeSparse(makeReg("abc", 3), sparseDatas{{1, 3}, {6, 5}}, 15),
+		tests: []testFnc{
+			testRead{100, "\x00abc\x00\x00", errMissData},
+		},
+	}, {
+		fr: makeSparse(makeReg("abc", 8), sparseDatas{{1, 3}, {6, 5}}, 15),
+		tests: []testFnc{
+			testRead{100, "\x00abc\x00\x00", io.ErrUnexpectedEOF},
+		},
+	}, {
+		fr: makeSparse(makeReg("abcde", 5), sparseDatas{{1, 3}, {6, 5}}, 15),
+		tests: []testFnc{
+			testRead{100, "\x00abc\x00\x00de", errMissData},
+		},
+	}, {
+		fr: makeSparse(makeReg("abcde", 8), sparseDatas{{1, 3}, {6, 5}}, 15),
+		tests: []testFnc{
+			testRead{100, "\x00abc\x00\x00de", io.ErrUnexpectedEOF},
+		},
+	}, {
+		fr: makeSparse(makeReg("abcdefghEXTRA", 13), sparseDatas{{1, 3}, {6, 5}}, 15),
+		tests: []testFnc{
+			testRemaining{15},
+			testRead{100, "\x00abc\x00\x00defgh\x00\x00\x00\x00", errUnrefData},
+			testDiscard{100, 0, errUnrefData},
+			testRemaining{0},
+		},
+	}, {
+		fr: makeSparse(makeReg("abcdefghEXTRA", 13), sparseDatas{{1, 3}, {6, 5}}, 15),
+		tests: []testFnc{
+			testRemaining{15},
+			testDiscard{100, 15, errUnrefData},
+			testRead{100, "", errUnrefData},
+			testRemaining{0},
+		},
+	}}
+
+	for i, v := range vectors {
+		for j, tf := range v.tests {
+			switch tf := tf.(type) {
+			case testRead:
+				b := make([]byte, tf.cnt)
+				n, err := v.fr.Read(b)
+				if got := string(b[:n]); got != tf.wantStr || err != tf.wantErr {
+					t.Errorf("test %d.%d, Read(%d):\ngot  (%q, %v)\nwant (%q, %v)", i, j, tf.cnt, got, err, tf.wantStr, tf.wantErr)
+				}
+			case testDiscard:
+				got, err := v.fr.Discard(tf.cnt)
+				if got != tf.wantCnt || err != tf.wantErr {
+					t.Errorf("test %d.%d, Discard(%d) = (%d, %v), want (%d, %v)", i, j, tf.cnt, got, err, tf.wantCnt, tf.wantErr)
+				}
+			case testRemaining:
+				got := v.fr.Remaining()
+				if got != tf.wantCnt {
+					t.Errorf("test %d.%d, Remaining() = %d, want %d", i, j, got, tf.wantCnt)
+				}
+			default:
+				t.Fatalf("test %d.%d, unknown test operation: %T", i, j, tf)
+			}
 		}
 	}
 }

@@ -19,6 +19,116 @@ import (
 	"time"
 )
 
+func equalSparseEntries(x, y []SparseEntry) bool {
+	return (len(x) == 0 && len(y) == 0) || reflect.DeepEqual(x, y)
+}
+
+func TestSparseEntries(t *testing.T) {
+	vectors := []struct {
+		in   []SparseEntry
+		size int64
+
+		wantValid    bool          // Result of validateSparseEntries
+		wantAligned  []SparseEntry // Result of alignSparseEntries
+		wantInverted []SparseEntry // Result of invertSparseEntries
+	}{{
+		in: []SparseEntry{}, size: 0,
+		wantValid:    true,
+		wantInverted: []SparseEntry{{0, 0}},
+	}, {
+		in: []SparseEntry{}, size: 5000,
+		wantValid:    true,
+		wantInverted: []SparseEntry{{0, 5000}},
+	}, {
+		in: []SparseEntry{{0, 5000}}, size: 5000,
+		wantValid:    true,
+		wantAligned:  []SparseEntry{{0, 5000}},
+		wantInverted: []SparseEntry{{5000, 0}},
+	}, {
+		in: []SparseEntry{{1000, 4000}}, size: 5000,
+		wantValid:    true,
+		wantAligned:  []SparseEntry{{1024, 3976}},
+		wantInverted: []SparseEntry{{0, 1000}, {5000, 0}},
+	}, {
+		in: []SparseEntry{{0, 3000}}, size: 5000,
+		wantValid:    true,
+		wantAligned:  []SparseEntry{{0, 2560}},
+		wantInverted: []SparseEntry{{3000, 2000}},
+	}, {
+		in: []SparseEntry{{3000, 2000}}, size: 5000,
+		wantValid:    true,
+		wantAligned:  []SparseEntry{{3072, 1928}},
+		wantInverted: []SparseEntry{{0, 3000}, {5000, 0}},
+	}, {
+		in: []SparseEntry{{2000, 2000}}, size: 5000,
+		wantValid:    true,
+		wantAligned:  []SparseEntry{{2048, 1536}},
+		wantInverted: []SparseEntry{{0, 2000}, {4000, 1000}},
+	}, {
+		in: []SparseEntry{{0, 2000}, {8000, 2000}}, size: 10000,
+		wantValid:    true,
+		wantAligned:  []SparseEntry{{0, 1536}, {8192, 1808}},
+		wantInverted: []SparseEntry{{2000, 6000}, {10000, 0}},
+	}, {
+		in: []SparseEntry{{0, 2000}, {2000, 2000}, {4000, 0}, {4000, 3000}, {7000, 1000}, {8000, 0}, {8000, 2000}}, size: 10000,
+		wantValid:    true,
+		wantAligned:  []SparseEntry{{0, 1536}, {2048, 1536}, {4096, 2560}, {7168, 512}, {8192, 1808}},
+		wantInverted: []SparseEntry{{10000, 0}},
+	}, {
+		in: []SparseEntry{{0, 0}, {1000, 0}, {2000, 0}, {3000, 0}, {4000, 0}, {5000, 0}}, size: 5000,
+		wantValid:    true,
+		wantInverted: []SparseEntry{{0, 5000}},
+	}, {
+		in: []SparseEntry{{1, 0}}, size: 0,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{-1, 0}}, size: 100,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{0, -1}}, size: 100,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{0, 0}}, size: -100,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{math.MaxInt64, 3}, {6, -5}}, size: 35,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{1, 3}, {6, -5}}, size: 35,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{math.MaxInt64, math.MaxInt64}}, size: math.MaxInt64,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{3, 3}}, size: 5,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{2, 0}, {1, 0}, {0, 0}}, size: 3,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{1, 3}, {2, 2}}, size: 10,
+		wantValid: false,
+	}}
+
+	for i, v := range vectors {
+		gotValid := validateSparseEntries(v.in, v.size)
+		if gotValid != v.wantValid {
+			t.Errorf("test %d, validateSparseEntries() = %v, want %v", i, gotValid, v.wantValid)
+		}
+		if !v.wantValid {
+			continue
+		}
+		gotAligned := alignSparseEntries(append([]SparseEntry{}, v.in...), v.size)
+		if !equalSparseEntries(gotAligned, v.wantAligned) {
+			t.Errorf("test %d, alignSparseEntries():\ngot  %v\nwant %v", i, gotAligned, v.wantAligned)
+		}
+		gotInverted := invertSparseEntries(append([]SparseEntry{}, v.in...), v.size)
+		if !equalSparseEntries(gotInverted, v.wantInverted) {
+			t.Errorf("test %d, inverseSparseEntries():\ngot  %v\nwant %v", i, gotInverted, v.wantInverted)
+		}
+	}
+}
+
 func TestFileInfoHeader(t *testing.T) {
 	fi, err := os.Stat("testdata/small.txt")
 	if err != nil {

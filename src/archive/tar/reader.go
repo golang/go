@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
-	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -23,9 +22,9 @@ import (
 // and then it can be treated as an io.Reader to access the file's data.
 type Reader struct {
 	r    io.Reader
-	pad  int64          // amount of padding (ignored) after current file entry
-	curr numBytesReader // reader for current file entry
-	blk  block          // buffer to use as temporary local storage
+	pad  int64      // Amount of padding (ignored) after current file entry
+	curr fileReader // Reader for current file entry
+	blk  block      // Buffer to use as temporary local storage
 
 	// err is a persistent error.
 	// It is only the responsibility of every exported method of Reader to
@@ -33,66 +32,17 @@ type Reader struct {
 	err error
 }
 
-// A numBytesReader is an io.Reader with a numBytes method, returning the number
-// of bytes remaining in the underlying encoded data.
-type numBytesReader interface {
+type fileReader interface {
 	io.Reader
-	numBytes() int64
-}
+	fileState
 
-// A regFileReader is a numBytesReader for reading file data from a tar archive.
-type regFileReader struct {
-	r  io.Reader // underlying reader
-	nb int64     // number of unread bytes for current file entry
+	Discard(n int64) (int64, error)
 }
-
-// A sparseFileReader is a numBytesReader for reading sparse file data from a
-// tar archive.
-type sparseFileReader struct {
-	rfr   numBytesReader // Reads the sparse-encoded file data
-	sp    []sparseEntry  // The sparse map for the file
-	pos   int64          // Keeps track of file position
-	total int64          // Total size of the file
-}
-
-// A sparseEntry holds a single entry in a sparse file's sparse map.
-//
-// Sparse files are represented using a series of sparseEntrys.
-// Despite the name, a sparseEntry represents an actual data fragment that
-// references data found in the underlying archive stream. All regions not
-// covered by a sparseEntry are logically filled with zeros.
-//
-// For example, if the underlying raw file contains the 10-byte data:
-//	var compactData = "abcdefgh"
-//
-// And the sparse map has the following entries:
-//	var sp = []sparseEntry{
-//		{offset: 2,  numBytes: 5} // Data fragment for [2..7]
-//		{offset: 18, numBytes: 3} // Data fragment for [18..21]
-//	}
-//
-// Then the content of the resulting sparse file with a "real" size of 25 is:
-//	var sparseData = "\x00"*2 + "abcde" + "\x00"*11 + "fgh" + "\x00"*4
-type sparseEntry struct {
-	offset   int64 // Starting position of the fragment
-	numBytes int64 // Length of the fragment
-}
-
-// Keywords for GNU sparse files in a PAX extended header
-const (
-	paxGNUSparseNumBlocks = "GNU.sparse.numblocks"
-	paxGNUSparseOffset    = "GNU.sparse.offset"
-	paxGNUSparseNumBytes  = "GNU.sparse.numbytes"
-	paxGNUSparseMap       = "GNU.sparse.map"
-	paxGNUSparseName      = "GNU.sparse.name"
-	paxGNUSparseMajor     = "GNU.sparse.major"
-	paxGNUSparseMinor     = "GNU.sparse.minor"
-	paxGNUSparseSize      = "GNU.sparse.size"
-	paxGNUSparseRealSize  = "GNU.sparse.realsize"
-)
 
 // NewReader creates a new Reader reading from r.
-func NewReader(r io.Reader) *Reader { return &Reader{r: r} }
+func NewReader(r io.Reader) *Reader {
+	return &Reader{r: r, curr: &regFileReader{r, 0}}
+}
 
 // Next advances to the next entry in the tar archive.
 //
@@ -116,9 +66,15 @@ func (tr *Reader) next() (*Header, error) {
 	// one or more "header files" until it finds a "normal file".
 loop:
 	for {
-		if err := tr.skipUnread(); err != nil {
+		// Discard the remainder of the file and any padding.
+		if _, err := tr.curr.Discard(tr.curr.Remaining()); err != nil {
 			return nil, err
 		}
+		if _, err := tryReadFull(tr.r, tr.blk[:tr.pad]); err != nil {
+			return nil, err
+		}
+		tr.pad = 0
+
 		hdr, rawHdr, err := tr.readHeader()
 		if err != nil {
 			return nil, err
@@ -192,7 +148,7 @@ func (tr *Reader) handleRegularFile(hdr *Header) error {
 		return ErrHeader
 	}
 
-	tr.pad = -nb & (blockSize - 1) // blockSize is a power of two
+	tr.pad = blockPadding(nb)
 	tr.curr = &regFileReader{r: tr.r, nb: nb}
 	return nil
 }
@@ -200,87 +156,70 @@ func (tr *Reader) handleRegularFile(hdr *Header) error {
 // handleSparseFile checks if the current file is a sparse format of any type
 // and sets the curr reader appropriately.
 func (tr *Reader) handleSparseFile(hdr *Header, rawHdr *block, extHdrs map[string]string) error {
-	var sp []sparseEntry
+	var spd sparseDatas
 	var err error
 	if hdr.Typeflag == TypeGNUSparse {
-		sp, err = tr.readOldGNUSparseMap(hdr, rawHdr)
-		if err != nil {
-			return err
-		}
+		spd, err = tr.readOldGNUSparseMap(hdr, rawHdr)
 	} else {
-		sp, err = tr.checkForGNUSparsePAXHeaders(hdr, extHdrs)
-		if err != nil {
-			return err
-		}
+		spd, err = tr.readGNUSparsePAXHeaders(hdr, extHdrs)
 	}
 
 	// If sp is non-nil, then this is a sparse file.
-	// Note that it is possible for len(sp) to be zero.
-	if sp != nil {
-		tr.curr, err = newSparseFileReader(tr.curr, sp, hdr.Size)
+	// Note that it is possible for len(sp) == 0.
+	if err == nil && spd != nil {
+		if isHeaderOnlyType(hdr.Typeflag) || !validateSparseEntries(spd, hdr.Size) {
+			return ErrHeader
+		}
+		sph := invertSparseEntries(spd, hdr.Size)
+		tr.curr = &sparseFileReader{tr.curr, sph, 0}
+		hdr.SparseHoles = append([]SparseEntry{}, sph...)
 	}
 	return err
 }
 
-// checkForGNUSparsePAXHeaders checks the PAX headers for GNU sparse headers. If they are found, then
-// this function reads the sparse map and returns it. Unknown sparse formats are ignored, causing the file to
-// be treated as a regular file.
-func (tr *Reader) checkForGNUSparsePAXHeaders(hdr *Header, headers map[string]string) ([]sparseEntry, error) {
-	var sparseFormat string
+// readGNUSparsePAXHeaders checks the PAX headers for GNU sparse headers.
+// If they are found, then this function reads the sparse map and returns it.
+// This assumes that 0.0 headers have already been converted to 0.1 headers
+// by the the PAX header parsing logic.
+func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header, extHdrs map[string]string) (sparseDatas, error) {
+	// Identify the version of GNU headers.
+	var is1x0 bool
+	major, minor := extHdrs[paxGNUSparseMajor], extHdrs[paxGNUSparseMinor]
+	switch {
+	case major == "0" && (minor == "0" || minor == "1"):
+		is1x0 = false
+	case major == "1" && minor == "0":
+		is1x0 = true
+	case major != "" || minor != "":
+		return nil, nil // Unknown GNU sparse PAX version
+	case extHdrs[paxGNUSparseMap] != "":
+		is1x0 = false // 0.0 and 0.1 did not have explicit version records, so guess
+	default:
+		return nil, nil // Not a PAX format GNU sparse file.
+	}
 
-	// Check for sparse format indicators
-	major, majorOk := headers[paxGNUSparseMajor]
-	minor, minorOk := headers[paxGNUSparseMinor]
-	sparseName, sparseNameOk := headers[paxGNUSparseName]
-	_, sparseMapOk := headers[paxGNUSparseMap]
-	sparseSize, sparseSizeOk := headers[paxGNUSparseSize]
-	sparseRealSize, sparseRealSizeOk := headers[paxGNUSparseRealSize]
+	// Update hdr from GNU sparse PAX headers.
+	if name := extHdrs[paxGNUSparseName]; name != "" {
+		hdr.Name = name
+	}
+	size := extHdrs[paxGNUSparseSize]
+	if size == "" {
+		size = extHdrs[paxGNUSparseRealSize]
+	}
+	if size != "" {
+		n, err := strconv.ParseInt(size, 10, 64)
+		if err != nil {
+			return nil, ErrHeader
+		}
+		hdr.Size = n
+	}
 
-	// Identify which, if any, sparse format applies from which PAX headers are set
-	if majorOk && minorOk {
-		sparseFormat = major + "." + minor
-	} else if sparseNameOk && sparseMapOk {
-		sparseFormat = "0.1"
-	} else if sparseSizeOk {
-		sparseFormat = "0.0"
+	// Read the sparse map according to the appropriate format.
+	if is1x0 {
+		return readGNUSparseMap1x0(tr.curr)
 	} else {
-		// Not a PAX format GNU sparse file.
-		return nil, nil
+		return readGNUSparseMap0x1(extHdrs)
 	}
-
-	// Check for unknown sparse format
-	if sparseFormat != "0.0" && sparseFormat != "0.1" && sparseFormat != "1.0" {
-		return nil, nil
-	}
-
-	// Update hdr from GNU sparse PAX headers
-	if sparseNameOk {
-		hdr.Name = sparseName
-	}
-	if sparseSizeOk {
-		realSize, err := strconv.ParseInt(sparseSize, 10, 64)
-		if err != nil {
-			return nil, ErrHeader
-		}
-		hdr.Size = realSize
-	} else if sparseRealSizeOk {
-		realSize, err := strconv.ParseInt(sparseRealSize, 10, 64)
-		if err != nil {
-			return nil, ErrHeader
-		}
-		hdr.Size = realSize
-	}
-
-	// Set up the sparse map, according to the particular sparse format in use
-	var sp []sparseEntry
-	var err error
-	switch sparseFormat {
-	case "0.0", "0.1":
-		sp, err = readGNUSparseMap0x1(headers)
-	case "1.0":
-		sp, err = readGNUSparseMap1x0(tr.curr)
-	}
-	return sp, err
 }
 
 // mergePAX merges well known headers according to PAX standard.
@@ -374,45 +313,6 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 		extHdrs[paxGNUSparseMap] = strings.Join(sparseMap, ",")
 	}
 	return extHdrs, nil
-}
-
-// skipUnread skips any unread bytes in the existing file entry, as well as any
-// alignment padding. It returns io.ErrUnexpectedEOF if any io.EOF is
-// encountered in the data portion; it is okay to hit io.EOF in the padding.
-//
-// Note that this function still works properly even when sparse files are being
-// used since numBytes returns the bytes remaining in the underlying io.Reader.
-func (tr *Reader) skipUnread() error {
-	dataSkip := tr.numBytes()      // Number of data bytes to skip
-	totalSkip := dataSkip + tr.pad // Total number of bytes to skip
-	tr.curr, tr.pad = nil, 0
-
-	// If possible, Seek to the last byte before the end of the data section.
-	// Do this because Seek is often lazy about reporting errors; this will mask
-	// the fact that the tar stream may be truncated. We can rely on the
-	// io.CopyN done shortly afterwards to trigger any IO errors.
-	var seekSkipped int64 // Number of bytes skipped via Seek
-	if sr, ok := tr.r.(io.Seeker); ok && dataSkip > 1 {
-		// Not all io.Seeker can actually Seek. For example, os.Stdin implements
-		// io.Seeker, but calling Seek always returns an error and performs
-		// no action. Thus, we try an innocent seek to the current position
-		// to see if Seek is really supported.
-		pos1, err := sr.Seek(0, io.SeekCurrent)
-		if err == nil {
-			// Seek seems supported, so perform the real Seek.
-			pos2, err := sr.Seek(dataSkip-1, io.SeekCurrent)
-			if err != nil {
-				return err
-			}
-			seekSkipped = pos2 - pos1
-		}
-	}
-
-	copySkipped, err := io.CopyN(ioutil.Discard, tr.r, totalSkip-seekSkipped)
-	if err == io.EOF && seekSkipped+copySkipped < dataSkip {
-		err = io.ErrUnexpectedEOF
-	}
-	return err
 }
 
 // readHeader reads the next block header and assumes that the underlying reader
@@ -530,7 +430,7 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 // The Header.Size does not reflect the size of any extended headers used.
 // Thus, this function will read from the raw io.Reader to fetch extra headers.
 // This method mutates blk in the process.
-func (tr *Reader) readOldGNUSparseMap(hdr *Header, blk *block) ([]sparseEntry, error) {
+func (tr *Reader) readOldGNUSparseMap(hdr *Header, blk *block) (sparseDatas, error) {
 	// Make sure that the input format is GNU.
 	// Unfortunately, the STAR format also has a sparse header format that uses
 	// the same type flag but has a completely different layout.
@@ -543,8 +443,8 @@ func (tr *Reader) readOldGNUSparseMap(hdr *Header, blk *block) ([]sparseEntry, e
 	if p.err != nil {
 		return nil, p.err
 	}
-	var s sparseArray = blk.GNU().Sparse()
-	var sp = make([]sparseEntry, 0, s.MaxEntries())
+	s := blk.GNU().Sparse()
+	spd := make(sparseDatas, 0, s.MaxEntries())
 	for {
 		for i := 0; i < s.MaxEntries(); i++ {
 			// This termination condition is identical to GNU and BSD tar.
@@ -552,25 +452,22 @@ func (tr *Reader) readOldGNUSparseMap(hdr *Header, blk *block) ([]sparseEntry, e
 				break // Don't return, need to process extended headers (even if empty)
 			}
 			offset := p.parseNumeric(s.Entry(i).Offset())
-			numBytes := p.parseNumeric(s.Entry(i).NumBytes())
+			length := p.parseNumeric(s.Entry(i).Length())
 			if p.err != nil {
 				return nil, p.err
 			}
-			sp = append(sp, sparseEntry{offset: offset, numBytes: numBytes})
+			spd = append(spd, SparseEntry{Offset: offset, Length: length})
 		}
 
 		if s.IsExtended()[0] > 0 {
 			// There are more entries. Read an extension header and parse its entries.
-			if _, err := io.ReadFull(tr.r, blk[:]); err != nil {
-				if err == io.EOF {
-					err = io.ErrUnexpectedEOF
-				}
+			if _, err := mustReadFull(tr.r, blk[:]); err != nil {
 				return nil, err
 			}
 			s = blk.Sparse()
 			continue
 		}
-		return sp, nil // Done
+		return spd, nil // Done
 	}
 }
 
@@ -578,28 +475,27 @@ func (tr *Reader) readOldGNUSparseMap(hdr *Header, blk *block) ([]sparseEntry, e
 // version 1.0. The format of the sparse map consists of a series of
 // newline-terminated numeric fields. The first field is the number of entries
 // and is always present. Following this are the entries, consisting of two
-// fields (offset, numBytes). This function must stop reading at the end
+// fields (offset, length). This function must stop reading at the end
 // boundary of the block containing the last newline.
 //
 // Note that the GNU manual says that numeric values should be encoded in octal
 // format. However, the GNU tar utility itself outputs these values in decimal.
 // As such, this library treats values as being encoded in decimal.
-func readGNUSparseMap1x0(r io.Reader) ([]sparseEntry, error) {
-	var cntNewline int64
-	var buf bytes.Buffer
-	var blk = make([]byte, blockSize)
+func readGNUSparseMap1x0(r io.Reader) (sparseDatas, error) {
+	var (
+		cntNewline int64
+		buf        bytes.Buffer
+		blk        block
+	)
 
-	// feedTokens copies data in numBlock chunks from r into buf until there are
+	// feedTokens copies data in blocks from r into buf until there are
 	// at least cnt newlines in buf. It will not read more blocks than needed.
-	var feedTokens = func(cnt int64) error {
-		for cntNewline < cnt {
-			if _, err := io.ReadFull(r, blk); err != nil {
-				if err == io.EOF {
-					err = io.ErrUnexpectedEOF
-				}
+	feedTokens := func(n int64) error {
+		for cntNewline < n {
+			if _, err := mustReadFull(r, blk[:]); err != nil {
 				return err
 			}
-			buf.Write(blk)
+			buf.Write(blk[:])
 			for _, c := range blk {
 				if c == '\n' {
 					cntNewline++
@@ -611,10 +507,10 @@ func readGNUSparseMap1x0(r io.Reader) ([]sparseEntry, error) {
 
 	// nextToken gets the next token delimited by a newline. This assumes that
 	// at least one newline exists in the buffer.
-	var nextToken = func() string {
+	nextToken := func() string {
 		cntNewline--
 		tok, _ := buf.ReadString('\n')
-		return tok[:len(tok)-1] // Cut off newline
+		return strings.TrimRight(tok, "\n")
 	}
 
 	// Parse for the number of entries.
@@ -633,24 +529,21 @@ func readGNUSparseMap1x0(r io.Reader) ([]sparseEntry, error) {
 	if err := feedTokens(2 * numEntries); err != nil {
 		return nil, err
 	}
-	sp := make([]sparseEntry, 0, numEntries)
+	spd := make(sparseDatas, 0, numEntries)
 	for i := int64(0); i < numEntries; i++ {
-		offset, err := strconv.ParseInt(nextToken(), 10, 64)
-		if err != nil {
+		offset, err1 := strconv.ParseInt(nextToken(), 10, 64)
+		length, err2 := strconv.ParseInt(nextToken(), 10, 64)
+		if err1 != nil || err2 != nil {
 			return nil, ErrHeader
 		}
-		numBytes, err := strconv.ParseInt(nextToken(), 10, 64)
-		if err != nil {
-			return nil, ErrHeader
-		}
-		sp = append(sp, sparseEntry{offset: offset, numBytes: numBytes})
+		spd = append(spd, SparseEntry{Offset: offset, Length: length})
 	}
-	return sp, nil
+	return spd, nil
 }
 
 // readGNUSparseMap0x1 reads the sparse map as stored in GNU's PAX sparse format
 // version 0.1. The sparse map is stored in the PAX headers.
-func readGNUSparseMap0x1(extHdrs map[string]string) ([]sparseEntry, error) {
+func readGNUSparseMap0x1(extHdrs map[string]string) (sparseDatas, error) {
 	// Get number of entries.
 	// Use integer overflow resistant math to check this.
 	numEntriesStr := extHdrs[paxGNUSparseNumBlocks]
@@ -661,52 +554,42 @@ func readGNUSparseMap0x1(extHdrs map[string]string) ([]sparseEntry, error) {
 
 	// There should be two numbers in sparseMap for each entry.
 	sparseMap := strings.Split(extHdrs[paxGNUSparseMap], ",")
+	if len(sparseMap) == 1 && sparseMap[0] == "" {
+		sparseMap = sparseMap[:0]
+	}
 	if int64(len(sparseMap)) != 2*numEntries {
 		return nil, ErrHeader
 	}
 
 	// Loop through the entries in the sparse map.
 	// numEntries is trusted now.
-	sp := make([]sparseEntry, 0, numEntries)
-	for i := int64(0); i < numEntries; i++ {
-		offset, err := strconv.ParseInt(sparseMap[2*i], 10, 64)
-		if err != nil {
+	spd := make(sparseDatas, 0, numEntries)
+	for len(sparseMap) >= 2 {
+		offset, err1 := strconv.ParseInt(sparseMap[0], 10, 64)
+		length, err2 := strconv.ParseInt(sparseMap[1], 10, 64)
+		if err1 != nil || err2 != nil {
 			return nil, ErrHeader
 		}
-		numBytes, err := strconv.ParseInt(sparseMap[2*i+1], 10, 64)
-		if err != nil {
-			return nil, ErrHeader
-		}
-		sp = append(sp, sparseEntry{offset: offset, numBytes: numBytes})
+		spd = append(spd, SparseEntry{Offset: offset, Length: length})
+		sparseMap = sparseMap[2:]
 	}
-	return sp, nil
-}
-
-// numBytes returns the number of bytes left to read in the current file's entry
-// in the tar archive, or 0 if there is no current file.
-func (tr *Reader) numBytes() int64 {
-	if tr.curr == nil {
-		// No current file, so no bytes
-		return 0
-	}
-	return tr.curr.numBytes()
+	return spd, nil
 }
 
 // Read reads from the current entry in the tar archive.
 // It returns 0, io.EOF when it reaches the end of that entry,
 // until Next is called to advance to the next entry.
 //
+// If the current file is sparse, then the regions marked as a sparse hole
+// will read back NUL-bytes.
+//
 // Calling Read on special types like TypeLink, TypeSymLink, TypeChar,
-// TypeBlock, TypeDir, and TypeFifo returns 0, io.EOF regardless of what
+// TypeBlock, TypeDir, and TypeFifo returns (0, io.EOF) regardless of what
 // the Header.Size claims.
 func (tr *Reader) Read(b []byte) (int, error) {
 	if tr.err != nil {
 		return 0, tr.err
 	}
-	if tr.curr == nil {
-		return 0, io.EOF
-	}
-
 	n, err := tr.curr.Read(b)
 	if err != nil && err != io.EOF {
 		tr.err = err
@@ -714,116 +597,210 @@ func (tr *Reader) Read(b []byte) (int, error) {
 	return n, err
 }
 
-func (rfr *regFileReader) Read(b []byte) (n int, err error) {
-	if rfr.nb == 0 {
-		// file consumed
-		return 0, io.EOF
-	}
-	if int64(len(b)) > rfr.nb {
-		b = b[0:rfr.nb]
-	}
-	n, err = rfr.r.Read(b)
-	rfr.nb -= int64(n)
+// TODO(dsnet): Export the Reader.Discard method to assist in quickly
+// skipping over sections of a file. This is especially useful:
+// * when skipping through an underlying io.Reader that is also an io.Seeker.
+// * when skipping over large holes in a sparse file.
 
-	if err == io.EOF && rfr.nb > 0 {
-		err = io.ErrUnexpectedEOF
+// discard skips the next n bytes in the current file,
+// returning the number of bytes discarded.
+// If fewer than n bytes are discarded, it returns an non-nil error,
+// which may be io.EOF if there are no more remaining bytes in the current file.
+func (tr *Reader) discard(n int64) (int64, error) {
+	if tr.err != nil {
+		return 0, tr.err
 	}
-	return
-}
-
-// numBytes returns the number of bytes left to read in the file's data in the tar archive.
-func (rfr *regFileReader) numBytes() int64 {
-	return rfr.nb
-}
-
-// newSparseFileReader creates a new sparseFileReader, but validates all of the
-// sparse entries before doing so.
-func newSparseFileReader(rfr numBytesReader, sp []sparseEntry, total int64) (*sparseFileReader, error) {
-	if total < 0 {
-		return nil, ErrHeader // Total size cannot be negative
-	}
-
-	// Validate all sparse entries. These are the same checks as performed by
-	// the BSD tar utility.
-	for i, s := range sp {
-		switch {
-		case s.offset < 0 || s.numBytes < 0:
-			return nil, ErrHeader // Negative values are never okay
-		case s.offset > math.MaxInt64-s.numBytes:
-			return nil, ErrHeader // Integer overflow with large length
-		case s.offset+s.numBytes > total:
-			return nil, ErrHeader // Region extends beyond the "real" size
-		case i > 0 && sp[i-1].offset+sp[i-1].numBytes > s.offset:
-			return nil, ErrHeader // Regions can't overlap and must be in order
-		}
-	}
-	return &sparseFileReader{rfr: rfr, sp: sp, total: total}, nil
-}
-
-// readHole reads a sparse hole ending at endOffset.
-func (sfr *sparseFileReader) readHole(b []byte, endOffset int64) int {
-	n64 := endOffset - sfr.pos
-	if n64 > int64(len(b)) {
-		n64 = int64(len(b))
-	}
-	n := int(n64)
-	for i := 0; i < n; i++ {
-		b[i] = 0
-	}
-	sfr.pos += n64
-	return n
-}
-
-// Read reads the sparse file data in expanded form.
-func (sfr *sparseFileReader) Read(b []byte) (n int, err error) {
-	// Skip past all empty fragments.
-	for len(sfr.sp) > 0 && sfr.sp[0].numBytes == 0 {
-		sfr.sp = sfr.sp[1:]
-	}
-
-	// If there are no more fragments, then it is possible that there
-	// is one last sparse hole.
-	if len(sfr.sp) == 0 {
-		// This behavior matches the BSD tar utility.
-		// However, GNU tar stops returning data even if sfr.total is unmet.
-		if sfr.pos < sfr.total {
-			return sfr.readHole(b, sfr.total), nil
-		}
-		return 0, io.EOF
-	}
-
-	// In front of a data fragment, so read a hole.
-	if sfr.pos < sfr.sp[0].offset {
-		return sfr.readHole(b, sfr.sp[0].offset), nil
-	}
-
-	// In a data fragment, so read from it.
-	// This math is overflow free since we verify that offset and numBytes can
-	// be safely added when creating the sparseFileReader.
-	endPos := sfr.sp[0].offset + sfr.sp[0].numBytes // End offset of fragment
-	bytesLeft := endPos - sfr.pos                   // Bytes left in fragment
-	if int64(len(b)) > bytesLeft {
-		b = b[:bytesLeft]
-	}
-
-	n, err = sfr.rfr.Read(b)
-	sfr.pos += int64(n)
-	if err == io.EOF {
-		if sfr.pos < endPos {
-			err = io.ErrUnexpectedEOF // There was supposed to be more data
-		} else if sfr.pos < sfr.total {
-			err = nil // There is still an implicit sparse hole at the end
-		}
-	}
-
-	if sfr.pos == endPos {
-		sfr.sp = sfr.sp[1:] // We are done with this fragment, so pop it
+	n, err := tr.curr.Discard(n)
+	if err != nil && err != io.EOF {
+		tr.err = err
 	}
 	return n, err
 }
 
-// numBytes returns the number of bytes left to read in the sparse file's
-// sparse-encoded data in the tar archive.
-func (sfr *sparseFileReader) numBytes() int64 {
-	return sfr.rfr.numBytes()
+// regFileReader is a fileReader for reading data from a regular file entry.
+type regFileReader struct {
+	r  io.Reader // Underlying Reader
+	nb int64     // Number of remaining bytes to read
+}
+
+func (fr *regFileReader) Read(b []byte) (int, error) {
+	if int64(len(b)) > fr.nb {
+		b = b[:fr.nb]
+	}
+	n, err := fr.r.Read(b)
+	fr.nb -= int64(n)
+	switch {
+	case err == io.EOF && fr.nb > 0:
+		return n, io.ErrUnexpectedEOF
+	case err == nil && fr.nb == 0:
+		return n, io.EOF
+	default:
+		return n, err
+	}
+}
+
+func (fr *regFileReader) Discard(n int64) (int64, error) {
+	overread := n > fr.Remaining()
+	if overread {
+		n = fr.Remaining()
+	}
+
+	// If possible, Seek to the last byte before the end of the data section.
+	// Do this because Seek is often lazy about reporting errors; this will mask
+	// the fact that the stream may be truncated. We can rely on the
+	// io.CopyN done shortly afterwards to trigger any IO errors.
+	var seekSkipped int64 // Number of bytes skipped via Seek
+	if sr, ok := fr.r.(io.Seeker); ok && n > 1 {
+		// Not all io.Seeker can actually Seek. For example, os.Stdin implements
+		// io.Seeker, but calling Seek always returns an error and performs
+		// no action. Thus, we try an innocent seek to the current position
+		// to see if Seek is really supported.
+		pos1, err := sr.Seek(0, io.SeekCurrent)
+		if pos1 >= 0 && err == nil {
+			// Seek seems supported, so perform the real Seek.
+			pos2, err := sr.Seek(n-1, io.SeekCurrent)
+			if pos2 < 0 || err != nil {
+				return 0, err
+			}
+			seekSkipped = pos2 - pos1
+		}
+	}
+
+	copySkipped, err := io.CopyN(ioutil.Discard, fr.r, n-seekSkipped)
+	discarded := seekSkipped + copySkipped
+	fr.nb -= discarded
+	switch {
+	case err == io.EOF && discarded < n:
+		return discarded, io.ErrUnexpectedEOF
+	case err == nil && overread:
+		return discarded, io.EOF
+	default:
+		return discarded, err
+	}
+}
+
+func (rf regFileReader) Remaining() int64 {
+	return rf.nb
+}
+
+// sparseFileReader is a fileReader for reading data from a sparse file entry.
+type sparseFileReader struct {
+	fr  fileReader  // Underlying fileReader
+	sp  sparseHoles // Normalized list of sparse holes
+	pos int64       // Current position in sparse file
+}
+
+func (sr *sparseFileReader) Read(b []byte) (n int, err error) {
+	finished := int64(len(b)) >= sr.Remaining()
+	if finished {
+		b = b[:sr.Remaining()]
+	}
+
+	b0 := b
+	endPos := sr.pos + int64(len(b))
+	for endPos > sr.pos && err == nil {
+		var nf int // Bytes read in fragment
+		holeStart, holeEnd := sr.sp[0].Offset, sr.sp[0].endOffset()
+		if sr.pos < holeStart { // In a data fragment
+			bf := b[:min(int64(len(b)), holeStart-sr.pos)]
+			nf, err = tryReadFull(sr.fr, bf)
+		} else { // In a hole fragment
+			bf := b[:min(int64(len(b)), holeEnd-sr.pos)]
+			nf, err = tryReadFull(zeroReader{}, bf)
+		}
+		b = b[nf:]
+		sr.pos += int64(nf)
+		if sr.pos >= holeEnd && len(sr.sp) > 1 {
+			sr.sp = sr.sp[1:] // Ensure last fragment always remains
+		}
+	}
+
+	n = len(b0) - len(b)
+	switch {
+	case err == io.EOF:
+		return n, errMissData // Less data in dense file than sparse file
+	case err != nil:
+		return n, err
+	case sr.Remaining() == 0 && sr.fr.Remaining() > 0:
+		return n, errUnrefData // More data in dense file than sparse file
+	case finished:
+		return n, io.EOF
+	default:
+		return n, nil
+	}
+}
+
+func (sr *sparseFileReader) Discard(n int64) (int64, error) {
+	overread := n > sr.Remaining()
+	if overread {
+		n = sr.Remaining()
+	}
+
+	var realDiscard int64 // Number of real data bytes to discard
+	endPos := sr.pos + n
+	for endPos > sr.pos {
+		var nf int64 // Size of fragment
+		holeStart, holeEnd := sr.sp[0].Offset, sr.sp[0].endOffset()
+		if sr.pos < holeStart { // In a data fragment
+			nf = min(endPos-sr.pos, holeStart-sr.pos)
+			realDiscard += nf
+		} else { // In a hole fragment
+			nf = min(endPos-sr.pos, holeEnd-sr.pos)
+		}
+		sr.pos += nf
+		if sr.pos >= holeEnd && len(sr.sp) > 1 {
+			sr.sp = sr.sp[1:] // Ensure last fragment always remains
+		}
+	}
+
+	_, err := sr.fr.Discard(realDiscard)
+	switch {
+	case err == io.EOF:
+		return n, errMissData // Less data in dense file than sparse file
+	case err != nil:
+		return n, err
+	case sr.Remaining() == 0 && sr.fr.Remaining() > 0:
+		return n, errUnrefData // More data in dense file than sparse file
+	case overread:
+		return n, io.EOF
+	default:
+		return n, nil
+	}
+}
+
+func (sr sparseFileReader) Remaining() int64 {
+	return sr.sp[len(sr.sp)-1].endOffset() - sr.pos
+}
+
+type zeroReader struct{}
+
+func (zeroReader) Read(b []byte) (int, error) {
+	for i := range b {
+		b[i] = 0
+	}
+	return len(b), nil
+}
+
+// mustReadFull is like io.ReadFull except it returns
+// io.ErrUnexpectedEOF when io.EOF is hit before len(b) bytes are read.
+func mustReadFull(r io.Reader, b []byte) (int, error) {
+	n, err := tryReadFull(r, b)
+	if err == io.EOF {
+		err = io.ErrUnexpectedEOF
+	}
+	return n, err
+}
+
+// tryReadFull is like io.ReadFull except it returns
+// io.EOF when it is hit before len(b) bytes are read.
+func tryReadFull(r io.Reader, b []byte) (n int, err error) {
+	for len(b) > n && err == nil {
+		var nn int
+		nn, err = r.Read(b[n:])
+		n += nn
+	}
+	if len(b) == n && err == io.EOF {
+		err = nil
+	}
+	return n, err
 }

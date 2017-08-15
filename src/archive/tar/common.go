@@ -15,6 +15,7 @@ package tar
 import (
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"strconv"
@@ -30,6 +31,8 @@ var (
 	ErrWriteTooLong    = errors.New("tar: write too long")
 	ErrFieldTooLong    = errors.New("tar: header field too long")
 	ErrWriteAfterClose = errors.New("tar: write after close")
+	errMissData        = errors.New("tar: sparse file references non-existent data")
+	errUnrefData       = errors.New("tar: sparse file contains unreferenced data")
 )
 
 // Header type flags.
@@ -68,6 +71,131 @@ type Header struct {
 	AccessTime time.Time // access time
 	ChangeTime time.Time // status change time
 	Xattrs     map[string]string
+
+	// SparseHoles represents a sequence of holes in a sparse file.
+	//
+	// The regions must be sorted in ascending order, not overlap with
+	// each other, and not extend past the specified Size.
+	// The file is sparse if either len(SparseHoles) > 0 or
+	// the Typeflag is set to TypeGNUSparse.
+	SparseHoles []SparseEntry
+}
+
+// SparseEntry represents a Length-sized fragment at Offset in the file.
+type SparseEntry struct{ Offset, Length int64 }
+
+func (s SparseEntry) endOffset() int64 { return s.Offset + s.Length }
+
+// A sparse file can be represented as either a sparseDatas or a sparseHoles.
+// As long as the total size is known, they are equivalent and one can be
+// converted to the other form and back. The various tar formats with sparse
+// file support represent sparse files in the sparseDatas form. That is, they
+// specify the fragments in the file that has data, and treat everything else as
+// having zero bytes. As such, the encoding and decoding logic in this package
+// deals with sparseDatas.
+//
+// However, the external API uses sparseHoles instead of sparseDatas because the
+// zero value of sparseHoles logically represents a normal file (i.e., there are
+// no holes in it). On the other hand, the zero value of sparseDatas implies
+// that the file has no data in it, which is rather odd.
+//
+// As an example, if the underlying raw file contains the 10-byte data:
+//	var compactFile = "abcdefgh"
+//
+// And the sparse map has the following entries:
+//	var spd sparseDatas = []sparseEntry{
+//		{Offset: 2,  Length: 5},  // Data fragment for 2..6
+//		{Offset: 18, Length: 3},  // Data fragment for 18..20
+//	}
+//	var sph sparseHoles = []SparseEntry{
+//		{Offset: 0,  Length: 2},  // Hole fragment for 0..1
+//		{Offset: 7,  Length: 11}, // Hole fragment for 7..17
+//		{Offset: 21, Length: 4},  // Hole fragment for 21..24
+//	}
+//
+// Then the content of the resulting sparse file with a Header.Size of 25 is:
+//	var sparseFile = "\x00"*2 + "abcde" + "\x00"*11 + "fgh" + "\x00"*4
+type (
+	sparseDatas []SparseEntry
+	sparseHoles []SparseEntry
+)
+
+// validateSparseEntries reports whether sp is a valid sparse map.
+// It does not matter whether sp represents data fragments or hole fragments.
+func validateSparseEntries(sp []SparseEntry, size int64) bool {
+	// Validate all sparse entries. These are the same checks as performed by
+	// the BSD tar utility.
+	if size < 0 {
+		return false
+	}
+	var pre SparseEntry
+	for _, cur := range sp {
+		switch {
+		case cur.Offset < 0 || cur.Length < 0:
+			return false // Negative values are never okay
+		case cur.Offset > math.MaxInt64-cur.Length:
+			return false // Integer overflow with large length
+		case cur.endOffset() > size:
+			return false // Region extends beyond the actual size
+		case pre.endOffset() > cur.Offset:
+			return false // Regions cannot overlap and must be in order
+		}
+		pre = cur
+	}
+	return true
+}
+
+// alignSparseEntries mutates src and returns dst where each fragment's
+// starting offset is aligned up to the nearest block edge, and each
+// ending offset is aligned down to the nearest block edge.
+//
+// Even though the Go tar Reader and the BSD tar utility can handle entries
+// with arbitrary offsets and lengths, the GNU tar utility can only handle
+// offsets and lengths that are multiples of blockSize.
+func alignSparseEntries(src []SparseEntry, size int64) []SparseEntry {
+	dst := src[:0]
+	for _, s := range src {
+		pos, end := s.Offset, s.endOffset()
+		pos += blockPadding(+pos) // Round-up to nearest blockSize
+		if end != size {
+			end -= blockPadding(-end) // Round-down to nearest blockSize
+		}
+		if pos < end {
+			dst = append(dst, SparseEntry{Offset: pos, Length: end - pos})
+		}
+	}
+	return dst
+}
+
+// invertSparseEntries converts a sparse map from one form to the other.
+// If the input is sparseHoles, then it will output sparseDatas and vice-versa.
+// The input must have been already validated.
+//
+// This function mutates src and returns a normalized map where:
+//	* adjacent fragments are coalesced together
+//	* only the last fragment may be empty
+//	* the endOffset of the last fragment is the total size
+func invertSparseEntries(src []SparseEntry, size int64) []SparseEntry {
+	dst := src[:0]
+	var pre SparseEntry
+	for _, cur := range src {
+		if cur.Length == 0 {
+			continue // Skip empty fragments
+		}
+		pre.Length = cur.Offset - pre.Offset
+		if pre.Length > 0 {
+			dst = append(dst, pre) // Only add non-empty fragments
+		}
+		pre.Offset = cur.endOffset()
+	}
+	pre.Length = size - pre.Offset // Possibly the only empty fragment
+	return append(dst, pre)
+}
+
+type fileState interface {
+	// Remaining reports the number of remaining bytes in the current file.
+	// This count includes any sparse holes that may exist.
+	Remaining() int64
 }
 
 // FileInfo returns an os.FileInfo for the Header.
@@ -300,6 +428,17 @@ const (
 	paxUname    = "uname"
 	paxXattr    = "SCHILY.xattr."
 	paxNone     = ""
+
+	// Keywords for GNU sparse files in a PAX extended header.
+	paxGNUSparseNumBlocks = "GNU.sparse.numblocks"
+	paxGNUSparseOffset    = "GNU.sparse.offset"
+	paxGNUSparseNumBytes  = "GNU.sparse.numbytes"
+	paxGNUSparseMap       = "GNU.sparse.map"
+	paxGNUSparseName      = "GNU.sparse.name"
+	paxGNUSparseMajor     = "GNU.sparse.major"
+	paxGNUSparseMinor     = "GNU.sparse.minor"
+	paxGNUSparseSize      = "GNU.sparse.size"
+	paxGNUSparseRealSize  = "GNU.sparse.realsize"
 )
 
 // FileInfoHeader creates a partially-populated Header from fi.
@@ -373,6 +512,9 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 			h.Size = 0
 			h.Linkname = sys.Linkname
 		}
+		if sys.SparseHoles != nil {
+			h.SparseHoles = append([]SparseEntry{}, sys.SparseHoles...)
+		}
 	}
 	if sysStat != nil {
 		return h, sysStat(fi, h)
@@ -389,4 +531,11 @@ func isHeaderOnlyType(flag byte) bool {
 	default:
 		return false
 	}
+}
+
+func min(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
 }
