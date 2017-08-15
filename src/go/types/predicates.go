@@ -110,12 +110,14 @@ func hasNil(typ Type) bool {
 	return false
 }
 
-// Identical reports whether x and y are identical.
+// Identical reports whether x and y are identical types.
+// Receivers of Signature types are ignored.
 func Identical(x, y Type) bool {
 	return identical(x, y, true, nil)
 }
 
-// IdenticalIgnoreTags reports whether x and y are identical if tags are ignored.
+// IdenticalIgnoreTags reports whether x and y are identical types if tags are ignored.
+// Receivers of Signature types are ignored.
 func IdenticalIgnoreTags(x, y Type) bool {
 	return identical(x, y, false, nil)
 }
