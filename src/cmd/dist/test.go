@@ -840,7 +840,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		// linux-arm64 is missing because it causes the external linker
 		// to crash, see https://golang.org/issue/17138
 		switch pair {
-		case "linux-386", "linux-amd64", "linux-arm", "linux-s390x":
+		case "linux-386", "linux-amd64", "linux-arm", "linux-s390x", "linux-ppc64le":
 			return true
 		case "darwin-amd64":
 			return true

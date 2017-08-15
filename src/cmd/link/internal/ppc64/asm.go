@@ -131,7 +131,7 @@ func genplt(ctxt *ld.Link) {
 
 func genaddmoduledata(ctxt *ld.Link) {
 	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == ld.STEXT {
+	if addmoduledata.Type == ld.STEXT && ld.Buildmode != ld.BuildmodePlugin {
 		return
 	}
 	addmoduledata.Attr |= ld.AttrReachable
@@ -147,6 +147,7 @@ func genaddmoduledata(ctxt *ld.Link) {
 	rel.Off = int32(initfunc.Size)
 	rel.Siz = 8
 	rel.Sym = ctxt.Syms.Lookup(".TOC.", 0)
+	rel.Sym.Attr |= ld.AttrReachable
 	rel.Type = objabi.R_ADDRPOWER_PCREL
 	o(0x3c4c0000)
 	// addi r2, r2, .TOC.-func@l
@@ -159,7 +160,13 @@ func genaddmoduledata(ctxt *ld.Link) {
 	rel = ld.Addrel(initfunc)
 	rel.Off = int32(initfunc.Size)
 	rel.Siz = 8
-	rel.Sym = ctxt.Syms.Lookup("local.moduledata", 0)
+	if !ctxt.CanUsePlugins() {
+		rel.Sym = ctxt.Syms.Lookup("local.moduledata", 0)
+	} else {
+		rel.Sym = ctxt.Syms.Lookup("runtime.firstmoduledata", 0)
+	}
+	rel.Sym.Attr |= ld.AttrReachable
+	rel.Sym.Attr |= ld.AttrLocal
 	rel.Type = objabi.R_ADDRPOWER_GOT
 	o(0x3c620000)
 	// ld r3, local.moduledata@got@l(r3)
@@ -182,6 +189,9 @@ func genaddmoduledata(ctxt *ld.Link) {
 	// blr
 	o(0x4e800020)
 
+	if ld.Buildmode == ld.BuildmodePlugin {
+		ctxt.Textp = append(ctxt.Textp, addmoduledata)
+	}
 	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
 	ctxt.Textp = append(ctxt.Textp, initfunc)
 	initarray_entry.Attr |= ld.AttrReachable
