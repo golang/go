@@ -250,7 +250,7 @@ func (tw *Writer) writeRawHeader(blk *block, size int64, flag byte) error {
 		size = 0
 	}
 	tw.nb = size
-	tw.pad = -size & (blockSize - 1) // blockSize is a power of two
+	tw.pad = blockPadding(size)
 	return nil
 }
 

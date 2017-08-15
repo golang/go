@@ -50,6 +50,12 @@ const (
 	prefixSize = 155 // Max length of the prefix field in USTAR format
 )
 
+// blockPadding computes the number of bytes needed to pad offset up to the
+// nearest block edge where 0 <= n < blockSize.
+func blockPadding(offset int64) (n int64) {
+	return -offset & (blockSize - 1)
+}
+
 var zeroBlock block
 
 type block [blockSize]byte
@@ -192,11 +198,11 @@ func (h *headerUSTAR) Prefix() []byte    { return h[345:][:155] }
 
 type sparseArray []byte
 
-func (s sparseArray) Entry(i int) sparseNode { return (sparseNode)(s[i*24:]) }
+func (s sparseArray) Entry(i int) sparseElem { return (sparseElem)(s[i*24:]) }
 func (s sparseArray) IsExtended() []byte     { return s[24*s.MaxEntries():][:1] }
 func (s sparseArray) MaxEntries() int        { return len(s) / 24 }
 
-type sparseNode []byte
+type sparseElem []byte
 
-func (s sparseNode) Offset() []byte   { return s[00:][:12] }
-func (s sparseNode) NumBytes() []byte { return s[12:][:12] }
+func (s sparseElem) Offset() []byte { return s[00:][:12] }
+func (s sparseElem) Length() []byte { return s[12:][:12] }
