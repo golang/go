@@ -25,6 +25,13 @@ import (
 // architectures. If a large value is encountered when decoding, the result
 // stored in Header will be the truncated version.
 
+var (
+	ErrHeader          = errors.New("tar: invalid tar header")
+	ErrWriteTooLong    = errors.New("tar: write too long")
+	ErrFieldTooLong    = errors.New("tar: header field too long")
+	ErrWriteAfterClose = errors.New("tar: write after close")
+)
+
 // Header type flags.
 const (
 	TypeReg           = '0'    // regular file
@@ -331,9 +338,9 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	case fm&os.ModeNamedPipe != 0:
 		h.Typeflag = TypeFifo
 	case fm&os.ModeSocket != 0:
-		return nil, fmt.Errorf("archive/tar: sockets not supported")
+		return nil, fmt.Errorf("tar: sockets not supported")
 	default:
-		return nil, fmt.Errorf("archive/tar: unknown file mode %v", fm)
+		return nil, fmt.Errorf("tar: unknown file mode %v", fm)
 	}
 	if fm&os.ModeSetuid != 0 {
 		h.Mode |= c_ISUID
