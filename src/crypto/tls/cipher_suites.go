@@ -220,12 +220,22 @@ func (f *xorNonceAEAD) Open(out, nonce, plaintext, additionalData []byte) ([]byt
 	return result, err
 }
 
+type gcmtls interface {
+	NewGCMTLS() (cipher.AEAD, error)
+}
+
 func aeadAESGCM(key, fixedNonce []byte) cipher.AEAD {
 	aes, err := aes.NewCipher(key)
 	if err != nil {
 		panic(err)
 	}
-	aead, err := cipher.NewGCM(aes)
+	var aead cipher.AEAD
+	if aesTLS, ok := aes.(gcmtls); ok {
+		aead, err = aesTLS.NewGCMTLS()
+	} else {
+		boring.Unreachable()
+		aead, err = cipher.NewGCM(aes)
+	}
 	if err != nil {
 		panic(err)
 	}
