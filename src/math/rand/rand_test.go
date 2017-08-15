@@ -53,7 +53,7 @@ func (this *statsResults) checkSimilarDistribution(expected *statsResults) error
 		fmt.Println(s)
 		return errors.New(s)
 	}
-	if !nearEqual(this.stddev, expected.stddev, 0, expected.maxError) {
+	if !nearEqual(this.stddev, expected.stddev, expected.closeEnough, expected.maxError) {
 		s := fmt.Sprintf("stddev %v != %v (allowed error %v, %v)", this.stddev, expected.stddev, expected.closeEnough, expected.maxError)
 		fmt.Println(s)
 		return errors.New(s)
