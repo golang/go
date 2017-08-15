@@ -5,6 +5,11 @@
 
 set -e
 
+output="$1"
+if test -z "$output"; then
+    output=deps.go
+fi
+
 # We need to test enough GOOS/GOARCH combinations to pick up all the
 # package dependencies.
 gooslist="windows linux darwin solaris"
@@ -42,6 +47,6 @@ deps_of $all >tmp.all.deps
 		echo '},'
 	done
 	echo '}'
-) |gofmt >deps.go
+) |gofmt >$output
 
 rm -f tmp.all.deps
