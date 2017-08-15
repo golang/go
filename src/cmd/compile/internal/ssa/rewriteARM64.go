@@ -3790,6 +3790,18 @@ func rewriteValueARM64_OpARM64MOVBUreg_0(v *Value) bool {
 		v.AuxInt = int64(uint8(c))
 		return true
 	}
+	// match: (MOVBUreg x)
+	// cond: x.Type.IsBoolean()
+	// result: (MOVDreg x)
+	for {
+		x := v.Args[0]
+		if !(x.Type.IsBoolean()) {
+			break
+		}
+		v.reset(OpARM64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64MOVBload_0(v *Value) bool {
