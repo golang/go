@@ -28,7 +28,8 @@ type Writer struct {
 	pad    int64 // amount of padding to write after current file entry
 	closed bool
 
-	blk block // Buffer to use as temporary local storage
+	hdr Header // Shallow copy of Header that is safe for mutations
+	blk block  // Buffer to use as temporary local storage
 }
 
 // NewWriter creates a new Writer writing to w.
@@ -59,25 +60,30 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
 		return err
 	}
 
-	switch allowedFormats, paxHdrs := hdr.allowedFormats(); {
+	tw.hdr = *hdr // Shallow copy of Header
+	switch allowedFormats, paxHdrs := tw.hdr.allowedFormats(); {
 	case allowedFormats&formatUSTAR != 0:
-		return tw.writeUSTARHeader(hdr)
+		return tw.writeUSTARHeader(&tw.hdr)
 	case allowedFormats&formatPAX != 0:
-		return tw.writePAXHeader(hdr, paxHdrs)
+		return tw.writePAXHeader(&tw.hdr, paxHdrs)
 	case allowedFormats&formatGNU != 0:
-		return tw.writeGNUHeader(hdr)
+		return tw.writeGNUHeader(&tw.hdr)
 	default:
 		return ErrHeader
 	}
 }
 
 func (tw *Writer) writeUSTARHeader(hdr *Header) error {
-	// TODO(dsnet): Support USTAR prefix/suffix path splitting.
-	// See https://golang.org/issue/12594
+	// Check if we can use USTAR prefix/suffix splitting.
+	var namePrefix string
+	if prefix, suffix, ok := splitUSTARPath(hdr.Name); ok {
+		namePrefix, hdr.Name = prefix, suffix
+	}
 
 	// Pack the main header.
 	var f formatter
 	blk := tw.templateV7Plus(hdr, f.formatString, f.formatOctal)
+	f.formatString(blk.USTAR().Prefix(), namePrefix)
 	blk.SetFormat(formatUSTAR)
 	if f.err != nil {
 		return f.err // Should never happen since header is validated

@@ -86,6 +86,7 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
 	paxHdrs = make(map[string]string)
 
 	verifyString := func(s string, size int, gnuLong bool, paxKey string) {
+
 		// NUL-terminator is optional for path and linkpath.
 		// Technically, it is required for uname and gname,
 		// but neither GNU nor BSD tar checks for it.
@@ -95,9 +96,10 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
 			format &^= formatGNU // No GNU
 		}
 		if !isASCII(s) || tooLong {
-			// TODO(dsnet): If the path is splittable, it is possible to still
-			// use the USTAR format.
-			format &^= formatUSTAR // No USTAR
+			canSplitUSTAR := paxKey == paxPath
+			if _, _, ok := splitUSTARPath(s); !canSplitUSTAR || !ok {
+				format &^= formatUSTAR // No USTAR
+			}
 			if paxKey == paxNone {
 				format &^= formatPAX // No PAX
 			} else {
