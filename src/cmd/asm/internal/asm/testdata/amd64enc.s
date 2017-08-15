@@ -3467,14 +3467,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	PCMPEQW (R11), X11                      // 66450f751b
 	PCMPEQW X2, X11                         // 66440f75da
 	PCMPEQW X11, X11                        // 66450f75db
-	//TODO: PCMPESTRI $7, (BX), X2          // 660f3a611307
-	//TODO: PCMPESTRI $7, (R11), X2         // 66410f3a611307
-	//TODO: PCMPESTRI $7, X2, X2            // 660f3a61d207
-	//TODO: PCMPESTRI $7, X11, X2           // 66410f3a61d307
-	//TODO: PCMPESTRI $7, (BX), X11         // 66440f3a611b07
-	//TODO: PCMPESTRI $7, (R11), X11        // 66450f3a611b07
-	//TODO: PCMPESTRI $7, X2, X11           // 66440f3a61da07
-	//TODO: PCMPESTRI $7, X11, X11          // 66450f3a61db07
+	PCMPESTRI $7, (BX), X2                  // 660f3a611307
+	PCMPESTRI $7, (R11), X2                 // 66410f3a611307
+	PCMPESTRI $7, X2, X2                    // 660f3a61d207
+	PCMPESTRI $7, X11, X2                   // 66410f3a61d307
+	PCMPESTRI $7, (BX), X11                 // 66440f3a611b07
+	PCMPESTRI $7, (R11), X11                // 66450f3a611b07
+	PCMPESTRI $7, X2, X11                   // 66440f3a61da07
+	PCMPESTRI $7, X11, X11                  // 66450f3a61db07
 	//TODO: PCMPESTRM $7, (BX), X2          // 660f3a601307
 	//TODO: PCMPESTRM $7, (R11), X2         // 66410f3a601307
 	//TODO: PCMPESTRM $7, X2, X2            // 660f3a60d207
@@ -3671,14 +3671,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PHADDW (R11), X11               // 66450f38011b
 	//TODO: PHADDW X2, X11                  // 66440f3801da
 	//TODO: PHADDW X11, X11                 // 66450f3801db
-	//TODO: PHMINPOSUW (BX), X2             // 660f384113
-	//TODO: PHMINPOSUW (R11), X2            // 66410f384113
-	//TODO: PHMINPOSUW X2, X2               // 660f3841d2
-	//TODO: PHMINPOSUW X11, X2              // 66410f3841d3
-	//TODO: PHMINPOSUW (BX), X11            // 66440f38411b
-	//TODO: PHMINPOSUW (R11), X11           // 66450f38411b
-	//TODO: PHMINPOSUW X2, X11              // 66440f3841da
-	//TODO: PHMINPOSUW X11, X11             // 66450f3841db
+	PHMINPOSUW (BX), X2                     // 660f384113
+	PHMINPOSUW (R11), X2                    // 66410f384113
+	PHMINPOSUW X2, X2                       // 660f3841d2
+	PHMINPOSUW X11, X2                      // 66410f3841d3
+	PHMINPOSUW (BX), X11                    // 66440f38411b
+	PHMINPOSUW (R11), X11                   // 66450f38411b
+	PHMINPOSUW X2, X11                      // 66440f3841da
+	PHMINPOSUW X11, X11                     // 66450f3841db
 	//TODO: PHSUBD (BX), M2                 // 0f380613
 	//TODO: PHSUBD (R11), M2                // 410f380613
 	//TODO: PHSUBD M2, M2                   // 0f3806d2
