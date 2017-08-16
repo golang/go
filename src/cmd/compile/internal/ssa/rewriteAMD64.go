@@ -9009,6 +9009,8 @@ func rewriteValueAMD64_OpAMD64MOVQstore_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64MOVQstoreconst_0(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (MOVQstoreconst [sc] {s} (ADDQconst [off] ptr) mem)
 	// cond: ValAndOff(sc).canAdd(off)
 	// result: (MOVQstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
@@ -9134,6 +9136,40 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst_0(v *Value) bool {
 		v.Aux = sym
 		v.AddArg(ptr)
 		v.AddArg(idx)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVQstoreconst [c] {s} p x:(MOVQstoreconst [c2] {s} p mem))
+	// cond: x.Uses == 1   && ValAndOff(c2).Off() + 8 == ValAndOff(c).Off()   && ValAndOff(c).Val() == 0   && ValAndOff(c2).Val() == 0   && clobber(x)
+	// result: (MOVOstore [ValAndOff(c2).Off()] {s} p (MOVOconst [0]) mem)
+	for {
+		c := v.AuxInt
+		s := v.Aux
+		_ = v.Args[1]
+		p := v.Args[0]
+		x := v.Args[1]
+		if x.Op != OpAMD64MOVQstoreconst {
+			break
+		}
+		c2 := x.AuxInt
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[1]
+		if p != x.Args[0] {
+			break
+		}
+		mem := x.Args[1]
+		if !(x.Uses == 1 && ValAndOff(c2).Off()+8 == ValAndOff(c).Off() && ValAndOff(c).Val() == 0 && ValAndOff(c2).Val() == 0 && clobber(x)) {
+			break
+		}
+		v.reset(OpAMD64MOVOstore)
+		v.AuxInt = ValAndOff(c2).Off()
+		v.Aux = s
+		v.AddArg(p)
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
+		v0.AuxInt = 0
+		v.AddArg(v0)
 		v.AddArg(mem)
 		return true
 	}
