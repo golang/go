@@ -335,15 +335,10 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 	if h == nil {
 		h = (*hmap)(newobject(t.hmap))
 	}
-	h.count = 0
 	h.B = B
 	h.extra = extra
-	h.flags = 0
 	h.hash0 = fastrand()
 	h.buckets = buckets
-	h.oldbuckets = nil
-	h.nevacuate = 0
-	h.noverflow = 0
 
 	return h
 }
