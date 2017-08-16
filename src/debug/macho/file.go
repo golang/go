@@ -143,6 +143,15 @@ type Dysymtab struct {
 	IndirectSyms []uint32 // indices into Symtab.Syms
 }
 
+// A Symbol is a Mach-O 32-bit or 64-bit symbol table entry.
+type Symbol struct {
+	Name  string
+	Type  uint8
+	Sect  uint8
+	Desc  uint16
+	Value uint64
+}
+
 /*
  * Mach-O reader
  */
