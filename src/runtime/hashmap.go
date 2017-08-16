@@ -259,8 +259,8 @@ func (h *hmap) createOverflow() {
 // If the compiler has determined that the map or the first bucket
 // can be created on the stack, h and/or bucket may be non-nil.
 // If h != nil, the map can be created directly in h.
-// If bucket != nil, bucket can be used as the first bucket.
-func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
+// If h.buckets != nil, bucket pointed to can be used as the first bucket.
+func makemap(t *maptype, hint int64, h *hmap) *hmap {
 	if sz := unsafe.Sizeof(hmap{}); sz > 48 || sz != t.hmap.size {
 		println("runtime: sizeof(hmap) =", sz, ", t.hmap.size =", t.hmap.size)
 		throw("bad hmap size")
@@ -312,33 +312,30 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 		throw("bad evacuatedN")
 	}
 
-	// find size parameter which will hold the requested # of elements
-	B := uint8(0)
-	for ; overLoadFactor(hint, B); B++ {
-	}
-
-	// allocate initial hash table
-	// if B == 0, the buckets field is allocated lazily later (in mapassign)
-	// If hint is large zeroing this memory could take a while.
-	buckets := bucket
-	var extra *mapextra
-	if B != 0 {
-		var nextOverflow *bmap
-		buckets, nextOverflow = makeBucketArray(t, B)
-		if nextOverflow != nil {
-			extra = new(mapextra)
-			extra.nextOverflow = nextOverflow
-		}
-	}
-
 	// initialize Hmap
 	if h == nil {
 		h = (*hmap)(newobject(t.hmap))
 	}
-	h.B = B
-	h.extra = extra
 	h.hash0 = fastrand()
-	h.buckets = buckets
+
+	// find size parameter which will hold the requested # of elements
+	B := uint8(0)
+	for overLoadFactor(hint, B) {
+		B++
+	}
+	h.B = B
+
+	// allocate initial hash table
+	// if B == 0, the buckets field is allocated lazily later (in mapassign)
+	// If hint is large zeroing this memory could take a while.
+	if h.B != 0 {
+		var nextOverflow *bmap
+		h.buckets, nextOverflow = makeBucketArray(t, h.B)
+		if nextOverflow != nil {
+			h.extra = new(mapextra)
+			h.extra.nextOverflow = nextOverflow
+		}
+	}
 
 	return h
 }
@@ -1171,7 +1168,7 @@ func ismapkey(t *_type) bool {
 
 //go:linkname reflect_makemap reflect.makemap
 func reflect_makemap(t *maptype, cap int) *hmap {
-	return makemap(t, int64(cap), nil, nil)
+	return makemap(t, int64(cap), nil)
 }
 
 //go:linkname reflect_mapaccess reflect.mapaccess
