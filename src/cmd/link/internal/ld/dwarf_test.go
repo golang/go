@@ -241,6 +241,10 @@ func main() {
 }
 
 func TestFieldOverlap(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
 	// This test grew out of issue 21094, where specific sudog<T> DWARF types
 	// had elem fields set to values instead of pointers.
 	const prog = `
