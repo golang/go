@@ -421,7 +421,6 @@ func (ctxt *Link) loadlib() {
 
 	var i int
 	for i = 0; i < len(ctxt.Library); i++ {
-		iscgo = iscgo || ctxt.Library[i].Pkg == "runtime/cgo"
 		if ctxt.Library[i].Shlib == "" {
 			if ctxt.Debugvlog > 1 {
 				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), ctxt.Library[i].File, ctxt.Library[i].Objref)
@@ -438,6 +437,8 @@ func (ctxt *Link) loadlib() {
 			ldshlibsyms(ctxt, ctxt.Library[i].Shlib)
 		}
 	}
+
+	iscgo = ctxt.Syms.ROLookup("x_cgo_init", 0) != nil
 
 	// We now have enough information to determine the link mode.
 	determineLinkMode(ctxt)
