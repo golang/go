@@ -124,5 +124,12 @@ TEXT errors(SB),$0
 	MOVFW	CPSR, R2           // ERROR "illegal combination"
 	MOVDW	R1, CPSR           // ERROR "illegal combination"
 	MOVFW	R1, CPSR           // ERROR "illegal combination"
+	BFX	$12, $41, R2, R3   // ERROR "wrong width or LSB"
+	BFX	$12, $-2, R2       // ERROR "wrong width or LSB"
+	BFXU	$40, $4, R2, R3    // ERROR "wrong width or LSB"
+	BFXU	$-40, $4, R2       // ERROR "wrong width or LSB"
+	BFX	$-2, $4, R2, R3    // ERROR "wrong width or LSB"
+	BFXU	$4, R2, R5, R2     // ERROR "missing or wrong LSB"
+	BFXU	$4, R2, R5         // ERROR "missing or wrong LSB"
 
 	END

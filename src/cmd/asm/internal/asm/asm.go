@@ -564,6 +564,13 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				prog.To = a[2]
 				break
 			}
+			if arch.IsARMBFX(op) {
+				// a[0] and a[1] must be constants, a[2] must be a register
+				prog.From = a[0]
+				prog.From3 = newAddr(a[1])
+				prog.To = a[2]
+				break
+			}
 			// Otherwise the 2nd operand (a[1]) must be a register.
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
@@ -635,18 +642,28 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			return
 		}
 	case 4:
-		if p.arch.Family == sys.ARM && arch.IsARMMULA(op) {
-			// All must be registers.
-			p.getRegister(prog, op, &a[0])
-			r1 := p.getRegister(prog, op, &a[1])
-			r2 := p.getRegister(prog, op, &a[2])
-			p.getRegister(prog, op, &a[3])
-			prog.From = a[0]
-			prog.To = a[3]
-			prog.To.Type = obj.TYPE_REGREG2
-			prog.To.Offset = int64(r2)
-			prog.Reg = r1
-			break
+		if p.arch.Family == sys.ARM {
+			if arch.IsARMBFX(op) {
+				// a[0] and a[1] must be constants, a[2] and a[3] must be registers
+				prog.From = a[0]
+				prog.From3 = newAddr(a[1])
+				prog.Reg = p.getRegister(prog, op, &a[2])
+				prog.To = a[3]
+				break
+			}
+			if arch.IsARMMULA(op) {
+				// All must be registers.
+				p.getRegister(prog, op, &a[0])
+				r1 := p.getRegister(prog, op, &a[1])
+				r2 := p.getRegister(prog, op, &a[2])
+				p.getRegister(prog, op, &a[3])
+				prog.From = a[0]
+				prog.To = a[3]
+				prog.To.Type = obj.TYPE_REGREG2
+				prog.To.Offset = int64(r2)
+				prog.Reg = r1
+				break
+			}
 		}
 		if p.arch.Family == sys.AMD64 {
 			// 4 operand instruction have form  ymm1, ymm2, ymm3/m256, imm8
