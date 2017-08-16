@@ -1435,32 +1435,49 @@ opswitch:
 
 	case OMAKEMAP:
 		t := n.Type
+		hmapType := hmap(t)
 
-		a := nodnil() // hmap buffer
-		r := nodnil() // bucket buffer
+		// var h *hmap
+		var h *Node
 		if n.Esc == EscNone {
-			// Allocate hmap buffer on stack.
-			var_ := temp(hmap(t))
+			// Allocate hmap and one bucket on stack.
 
-			a = nod(OAS, var_, nil) // zero temp
-			a = typecheck(a, Etop)
-			init.Append(a)
-			a = nod(OADDR, var_, nil)
+			// var hv hmap
+			hv := temp(hmapType)
+			zero := nod(OAS, hv, nil)
+			zero = typecheck(zero, Etop)
+			init.Append(zero)
+			// h = &hv
+			h = nod(OADDR, hv, nil)
 
-			// Allocate one bucket on stack.
+			// Allocate one bucket pointed to by hmap.buckets on stack.
 			// Maximum key/value size is 128 bytes, larger objects
 			// are stored with an indirection. So max bucket size is 2048+eps.
-			var_ = temp(mapbucket(t))
 
-			r = nod(OAS, var_, nil) // zero temp
-			r = typecheck(r, Etop)
-			init.Append(r)
-			r = nod(OADDR, var_, nil)
+			// var bv bmap
+			bv := temp(mapbucket(t))
+
+			zero = nod(OAS, bv, nil)
+			zero = typecheck(zero, Etop)
+			init.Append(zero)
+
+			// b = &bv
+			b := nod(OADDR, bv, nil)
+
+			// h.buckets = b
+			bsym := hmapType.Field(5).Sym // hmap.buckets see reflect.go:hmap
+			na := nod(OAS, nodSym(ODOT, h, bsym), b)
+			na = typecheck(na, Etop)
+			init.Append(na)
+
+		} else {
+			// h = nil
+			h = nodnil()
 		}
 
 		fn := syslook("makemap")
-		fn = substArgTypes(fn, hmap(t), mapbucket(t), t.Key(), t.Val())
-		n = mkcall1(fn, n.Type, init, typename(n.Type), conv(n.Left, types.Types[TINT64]), a, r)
+		fn = substArgTypes(fn, hmapType, t.Key(), t.Val())
+		n = mkcall1(fn, n.Type, init, typename(n.Type), conv(n.Left, types.Types[TINT64]), h)
 
 	case OMAKESLICE:
 		l := n.Left
