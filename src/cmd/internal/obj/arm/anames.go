@@ -107,6 +107,8 @@ var Anames = []string{
 	"REV16",
 	"REVSH",
 	"RBIT",
+	"BFX",
+	"BFXU",
 	"MULWT",
 	"MULWB",
 	"MULBB",

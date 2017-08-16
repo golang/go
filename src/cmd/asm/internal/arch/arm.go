@@ -122,6 +122,15 @@ func IsARMMRC(op obj.As) bool {
 	return false
 }
 
+// IsARMBFX reports whether the op is arm.BFX or arm.BFXU
+func IsARMBFX(op obj.As) bool {
+	switch op {
+	case arm.ABFX, arm.ABFXU:
+		return true
+	}
+	return false
+}
+
 // IsARMFloatCmp reports whether the op is a floating comparison instruction.
 func IsARMFloatCmp(op obj.As) bool {
 	switch op {

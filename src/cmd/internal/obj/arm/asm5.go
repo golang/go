@@ -180,6 +180,8 @@ var optab = []Optab{
 	{ADIVHW, C_REG, C_REG, C_REG, 105, 4, 0, 0, 0},
 	{ADIVHW, C_REG, C_NONE, C_REG, 105, 4, 0, 0, 0},
 	{AMULL, C_REG, C_REG, C_REGREG, 17, 4, 0, 0, 0},
+	{ABFX, C_LCON, C_REG, C_REG, 18, 4, 0, 0, 0},  // width in From, LSB in From3
+	{ABFX, C_LCON, C_NONE, C_REG, 18, 4, 0, 0, 0}, // width in From, LSB in From3
 	{AMOVW, C_REG, C_NONE, C_SAUTO, 20, 4, REGSP, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_SOREG, 20, 4, 0, 0, 0},
 	{AMOVB, C_REG, C_NONE, C_SAUTO, 20, 4, REGSP, 0, 0},
@@ -1691,6 +1693,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AMMULA, r0)
 			opset(AMMULS, r0)
 
+		case ABFX:
+			opset(ABFXU, r0)
+
 		case ACLZ:
 			opset(AREV, r0)
 			opset(AREV16, r0)
@@ -2037,6 +2042,24 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt2 := int(p.To.Offset)
 		r := int(p.Reg)
 		o1 |= (uint32(rf)&15)<<8 | (uint32(r)&15)<<0 | (uint32(rt)&15)<<16 | (uint32(rt2)&15)<<12
+
+	case 18: /* BFX/BFXU */
+		o1 = c.oprrr(p, p.As, int(p.Scond))
+		rt := int(p.To.Reg)
+		r := int(p.Reg)
+		if r == 0 {
+			r = rt
+		}
+		if p.From3 == nil || p.From3.Type != obj.TYPE_CONST {
+			c.ctxt.Diag("%v: missing or wrong LSB", p)
+			break
+		}
+		lsb := p.From3.Offset
+		width := p.From.Offset
+		if lsb < 0 || lsb > 31 || width <= 0 || (lsb+width) > 31 {
+			c.ctxt.Diag("%v: wrong width or LSB", p)
+		}
+		o1 |= (uint32(r)&15)<<0 | (uint32(rt)&15)<<12 | uint32(lsb)<<7 | uint32(width-1)<<16
 
 	case 20: /* mov/movb/movbu R,O(R) */
 		c.aclass(&p.To)
@@ -2910,6 +2933,12 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
 
 	case -ACMP: // cmp imm
 		return o | 0x3<<24 | 0x5<<20
+
+	case ABFX:
+		return o | 0x3d<<21 | 0x5<<4
+
+	case ABFXU:
+		return o | 0x3f<<21 | 0x5<<4
 
 		// CLZ doesn't support .nil
 	case ACLZ:
