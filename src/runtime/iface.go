@@ -49,7 +49,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	// First, look in the existing table to see if we can find the itab we need.
 	// This is by far the most common case, so do it without locks.
 	// Use atomic to ensure we see any previous writes done by the thread
-	// that updates the itabTable field (with atomic.Storep in addItab).
+	// that updates the itabTable field (with atomic.Storep in itabAdd).
 	t := (*itabTableType)(atomic.Loadp(unsafe.Pointer(&itabTable)))
 	if m = t.find(inter, typ); m != nil {
 		goto finish
@@ -85,7 +85,7 @@ finish:
 	panic(&TypeAssertionError{concreteString: typ.string(), assertedString: inter.typ.string(), missingMethod: m.init()})
 }
 
-// itabFind finds the given interface/type pair in t.
+// find finds the given interface/type pair in t.
 // Returns nil if the given interface/type pair isn't present.
 func (t *itabTableType) find(inter *interfacetype, typ *_type) *itab {
 	// Implemented using quadratic probing.
@@ -115,31 +115,34 @@ func (t *itabTableType) find(inter *interfacetype, typ *_type) *itab {
 func itabAdd(m *itab) {
 	t := itabTable
 	if t.count >= 3*(t.size/4) { // 75% load factor
-		// Grow hash table. Use an atomic write: see comment in getitab.
+		// Grow hash table.
 		// t2 = new(itabTableType) + some additional entries
 		// We lie and tell malloc we want pointer-free memory because
 		// all the pointed-to values are not in the heap.
 		t2 := (*itabTableType)(mallocgc((2+2*t.size)*sys.PtrSize, nil, true))
 		t2.size = t.size * 2
-		atomicstorep(unsafe.Pointer(&itabTable), unsafe.Pointer(t2))
 
 		// Copy over entries.
 		// Note: while copying, other threads may look for an itab and
 		// fail to find it. That's ok, they will then try to get the itab lock
 		// and as a consequence wait until this copying is complete.
-		for i := uintptr(0); i < t.size; i++ {
-			if m2 := *(**itab)(add(unsafe.Pointer(&t.entries), i*sys.PtrSize)); m2 != nil {
-				itabAdd(m2)
-			}
-		}
-		if itabTable.count != t.count {
+		iterate_itabs(t2.add)
+		if t2.count != t.count {
 			throw("mismatched count during itab table copy")
 		}
+		// Publish new hash table. Use an atomic write: see comment in getitab.
+		atomicstorep(unsafe.Pointer(&itabTable), unsafe.Pointer(t2))
 		// Adopt the new table as our own.
 		t = itabTable
 		// Note: the old table can be GC'ed here.
 	}
-	// See comment in itabFind about the probe sequence.
+	t.add(m)
+}
+
+// add adds the given itab to itab table t.
+// itabLock must be held.
+func (t *itabTableType) add(m *itab) {
+	// See comment in find about the probe sequence.
 	// Insert new itab in the first empty spot in the probe sequence.
 	mask := t.size - 1
 	h := itabHashFunc(m.inter, m._type) & mask
@@ -602,7 +605,8 @@ func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
 }
 
 func iterate_itabs(fn func(*itab)) {
-	// Note: only runs during stop the world, so no locks/atomics needed.
+	// Note: only runs during stop the world or with itabLock held,
+	// so no other locks/atomics needed.
 	t := itabTable
 	for i := uintptr(0); i < t.size; i++ {
 		m := *(**itab)(add(unsafe.Pointer(&t.entries), i*sys.PtrSize))
