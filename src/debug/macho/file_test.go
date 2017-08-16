@@ -12,7 +12,7 @@ import (
 type fileTest struct {
 	file     string
 	hdr      FileHeader
-	segments []*SegmentHeader
+	loads    []interface{}
 	sections []*SectionHeader
 }
 
@@ -20,19 +20,19 @@ var fileTests = []fileTest{
 	{
 		"testdata/gcc-386-darwin-exec",
 		FileHeader{0xfeedface, Cpu386, 0x3, 0x2, 0xc, 0x3c0, 0x85},
-		[]*SegmentHeader{
-			{LoadCmdSegment, 0x38, "__PAGEZERO", 0x0, 0x1000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
-			{LoadCmdSegment, 0xc0, "__TEXT", 0x1000, 0x1000, 0x0, 0x1000, 0x7, 0x5, 0x2, 0x0},
-			{LoadCmdSegment, 0xc0, "__DATA", 0x2000, 0x1000, 0x1000, 0x1000, 0x7, 0x3, 0x2, 0x0},
-			{LoadCmdSegment, 0x7c, "__IMPORT", 0x3000, 0x1000, 0x2000, 0x1000, 0x7, 0x7, 0x1, 0x0},
-			{LoadCmdSegment, 0x38, "__LINKEDIT", 0x4000, 0x1000, 0x3000, 0x12c, 0x7, 0x1, 0x0, 0x0},
-			nil,
-			nil,
-			nil,
-			nil,
-			nil,
-			nil,
-			nil,
+		[]interface{}{
+			&SegmentHeader{LoadCmdSegment, 0x38, "__PAGEZERO", 0x0, 0x1000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+			&SegmentHeader{LoadCmdSegment, 0xc0, "__TEXT", 0x1000, 0x1000, 0x0, 0x1000, 0x7, 0x5, 0x2, 0x0},
+			&SegmentHeader{LoadCmdSegment, 0xc0, "__DATA", 0x2000, 0x1000, 0x1000, 0x1000, 0x7, 0x3, 0x2, 0x0},
+			&SegmentHeader{LoadCmdSegment, 0x7c, "__IMPORT", 0x3000, 0x1000, 0x2000, 0x1000, 0x7, 0x7, 0x1, 0x0},
+			&SegmentHeader{LoadCmdSegment, 0x38, "__LINKEDIT", 0x4000, 0x1000, 0x3000, 0x12c, 0x7, 0x1, 0x0, 0x0},
+			nil, // LC_SYMTAB
+			nil, // LC_DYSYMTAB
+			nil, // LC_LOAD_DYLINKER
+			nil, // LC_UUID
+			nil, // LC_UNIXTHREAD
+			&Dylib{nil, "/usr/lib/libgcc_s.1.dylib", 0x2, 0x10000, 0x10000},
+			&Dylib{nil, "/usr/lib/libSystem.B.dylib", 0x2, 0x6f0104, 0x10000},
 		},
 		[]*SectionHeader{
 			{"__text", "__TEXT", 0x1f68, 0x88, 0xf68, 0x2, 0x0, 0x0, 0x80000400},
@@ -45,18 +45,18 @@ var fileTests = []fileTest{
 	{
 		"testdata/gcc-amd64-darwin-exec",
 		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0x2, 0xb, 0x568, 0x85},
-		[]*SegmentHeader{
-			{LoadCmdSegment64, 0x48, "__PAGEZERO", 0x0, 0x100000000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
-			{LoadCmdSegment64, 0x1d8, "__TEXT", 0x100000000, 0x1000, 0x0, 0x1000, 0x7, 0x5, 0x5, 0x0},
-			{LoadCmdSegment64, 0x138, "__DATA", 0x100001000, 0x1000, 0x1000, 0x1000, 0x7, 0x3, 0x3, 0x0},
-			{LoadCmdSegment64, 0x48, "__LINKEDIT", 0x100002000, 0x1000, 0x2000, 0x140, 0x7, 0x1, 0x0, 0x0},
-			nil,
-			nil,
-			nil,
-			nil,
-			nil,
-			nil,
-			nil,
+		[]interface{}{
+			&SegmentHeader{LoadCmdSegment64, 0x48, "__PAGEZERO", 0x0, 0x100000000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+			&SegmentHeader{LoadCmdSegment64, 0x1d8, "__TEXT", 0x100000000, 0x1000, 0x0, 0x1000, 0x7, 0x5, 0x5, 0x0},
+			&SegmentHeader{LoadCmdSegment64, 0x138, "__DATA", 0x100001000, 0x1000, 0x1000, 0x1000, 0x7, 0x3, 0x3, 0x0},
+			&SegmentHeader{LoadCmdSegment64, 0x48, "__LINKEDIT", 0x100002000, 0x1000, 0x2000, 0x140, 0x7, 0x1, 0x0, 0x0},
+			nil, // LC_SYMTAB
+			nil, // LC_DYSYMTAB
+			nil, // LC_LOAD_DYLINKER
+			nil, // LC_UUID
+			nil, // LC_UNIXTHREAD
+			&Dylib{nil, "/usr/lib/libgcc_s.1.dylib", 0x2, 0x10000, 0x10000},
+			&Dylib{nil, "/usr/lib/libSystem.B.dylib", 0x2, 0x6f0104, 0x10000},
 		},
 		[]*SectionHeader{
 			{"__text", "__TEXT", 0x100000f14, 0x6d, 0xf14, 0x2, 0x0, 0x0, 0x80000400},
@@ -72,11 +72,11 @@ var fileTests = []fileTest{
 	{
 		"testdata/gcc-amd64-darwin-exec-debug",
 		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0xa, 0x4, 0x5a0, 0},
-		[]*SegmentHeader{
-			nil,
-			{LoadCmdSegment64, 0x1d8, "__TEXT", 0x100000000, 0x1000, 0x0, 0x0, 0x7, 0x5, 0x5, 0x0},
-			{LoadCmdSegment64, 0x138, "__DATA", 0x100001000, 0x1000, 0x0, 0x0, 0x7, 0x3, 0x3, 0x0},
-			{LoadCmdSegment64, 0x278, "__DWARF", 0x100002000, 0x1000, 0x1000, 0x1bc, 0x7, 0x3, 0x7, 0x0},
+		[]interface{}{
+			nil, // LC_UUID
+			&SegmentHeader{LoadCmdSegment64, 0x1d8, "__TEXT", 0x100000000, 0x1000, 0x0, 0x0, 0x7, 0x5, 0x5, 0x0},
+			&SegmentHeader{LoadCmdSegment64, 0x138, "__DATA", 0x100001000, 0x1000, 0x0, 0x0, 0x7, 0x3, 0x3, 0x0},
+			&SegmentHeader{LoadCmdSegment64, 0x278, "__DWARF", 0x100002000, 0x1000, 0x1000, 0x1bc, 0x7, 0x3, 0x7, 0x0},
 		},
 		[]*SectionHeader{
 			{"__text", "__TEXT", 0x100000f14, 0x0, 0x0, 0x2, 0x0, 0x0, 0x80000400},
@@ -112,28 +112,32 @@ func TestOpen(t *testing.T) {
 			continue
 		}
 		for i, l := range f.Loads {
-			if i >= len(tt.segments) {
+			if i >= len(tt.loads) {
 				break
 			}
-			sh := tt.segments[i]
-			s, ok := l.(*Segment)
-			if sh == nil {
-				if ok {
-					t.Errorf("open %s, section %d: skipping %#v\n", tt.file, i, &s.SegmentHeader)
+
+			want := tt.loads[i]
+			if want == nil {
+				continue
+			}
+
+			switch l := l.(type) {
+			case *Segment:
+				have := &l.SegmentHeader
+				if !reflect.DeepEqual(have, want) {
+					t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
 				}
-				continue
-			}
-			if !ok {
-				t.Errorf("open %s, section %d: not *Segment\n", tt.file, i)
-				continue
-			}
-			have := &s.SegmentHeader
-			want := sh
-			if !reflect.DeepEqual(have, want) {
-				t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
+			case *Dylib:
+				have := l
+				have.LoadBytes = nil
+				if !reflect.DeepEqual(have, want) {
+					t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
+				}
+			default:
+				t.Errorf("open %s, section %d: unknown load command\n\thave %#v\n\twant %#v\n", tt.file, i, l, want)
 			}
 		}
-		tn := len(tt.segments)
+		tn := len(tt.loads)
 		fn := len(f.Loads)
 		if tn != fn {
 			t.Errorf("open %s: len(Loads) = %d, want %d", tt.file, fn, tn)
