@@ -362,7 +362,7 @@ var linuxAMD64Tests = []*asmTest{
 			*t = T1{}
 		}
 		`,
-		[]string{"\tMOVQ\t\\$0, \\(.*\\)", "\tMOVQ\t\\$0, 8\\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)"},
+		[]string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)"},
 	},
 	// SSA-able composite literal initialization. Issue 18872.
 	{
@@ -387,7 +387,7 @@ var linuxAMD64Tests = []*asmTest{
 			*t = T2{}
 		}
 		`,
-		[]string{"\tMOVQ\t\\$0, \\(.*\\)", "\tMOVQ\t\\$0, 8\\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.writebarrierptr\\(SB\\)"},
+		[]string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.writebarrierptr\\(SB\\)"},
 	},
 	// Rotate tests
 	{
