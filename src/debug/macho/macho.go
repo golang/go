@@ -84,8 +84,8 @@ const (
 	LoadCmdThread     LoadCmd = 0x4
 	LoadCmdUnixThread LoadCmd = 0x5 // thread+stack
 	LoadCmdDysymtab   LoadCmd = 0xb
-	LoadCmdDylib      LoadCmd = 0xc
-	LoadCmdDylinker   LoadCmd = 0xf
+	LoadCmdDylib      LoadCmd = 0xc // load dylib command
+	LoadCmdDylinker   LoadCmd = 0xf // id dylinker command (not load dylinker command)
 	LoadCmdSegment64  LoadCmd = 0x19
 )
 
