@@ -1812,13 +1812,13 @@ func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 				continue
 			}
 			if r.Xsym.ElfsymForReloc() == 0 {
-				Errorf(sym, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type, r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
+				Errorf(sym, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type, RelocName(r.Type), r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
 			}
 			if !r.Xsym.Attr.Reachable() {
-				Errorf(sym, "unreachable reloc %v target %v", r.Type, r.Xsym.Name)
+				Errorf(sym, "unreachable reloc %d (%s) target %v", r.Type, RelocName(r.Type), r.Xsym.Name)
 			}
 			if Thearch.Elfreloc1(ctxt, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) < 0 {
-				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, r.Type, r.Siz, r.Sym.Name)
+				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, RelocName(r.Type), r.Siz, r.Sym.Name)
 			}
 		}
 	}

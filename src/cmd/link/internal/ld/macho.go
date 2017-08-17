@@ -930,10 +930,10 @@ func machorelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 				continue
 			}
 			if !r.Xsym.Attr.Reachable() {
-				Errorf(sym, "unreachable reloc %v target %v", r.Type, r.Xsym.Name)
+				Errorf(sym, "unreachable reloc %d (%s) target %v", r.Type, RelocName(r.Type), r.Xsym.Name)
 			}
 			if Thearch.Machoreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) < 0 {
-				Errorf(sym, "unsupported obj reloc %v/%d to %s", r.Type, r.Siz, r.Sym.Name)
+				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, RelocName(r.Type), r.Siz, r.Sym.Name)
 			}
 		}
 	}
