@@ -134,47 +134,46 @@ type getter func(x *operand, i int)
 // the incoming getter with that i.
 //
 func unpack(get getter, n int, allowCommaOk bool) (getter, int, bool) {
-	if n == 1 {
-		// possibly result of an n-valued function call or comma,ok value
-		var x0 operand
-		get(&x0, 0)
-		if x0.mode == invalid {
-			return nil, 0, false
-		}
+	if n != 1 {
+		// zero or multiple values
+		return get, n, false
+	}
+	// possibly result of an n-valued function call or comma,ok value
+	var x0 operand
+	get(&x0, 0)
+	if x0.mode == invalid {
+		return nil, 0, false
+	}
 
-		if t, ok := x0.typ.(*Tuple); ok {
-			// result of an n-valued function call
+	if t, ok := x0.typ.(*Tuple); ok {
+		// result of an n-valued function call
+		return func(x *operand, i int) {
+			x.mode = value
+			x.expr = x0.expr
+			x.typ = t.At(i).typ
+		}, t.Len(), false
+	}
+
+	if x0.mode == mapindex || x0.mode == commaok {
+		// comma-ok value
+		if allowCommaOk {
+			a := [2]Type{x0.typ, Typ[UntypedBool]}
 			return func(x *operand, i int) {
 				x.mode = value
 				x.expr = x0.expr
-				x.typ = t.At(i).typ
-			}, t.Len(), false
+				x.typ = a[i]
+			}, 2, true
 		}
-
-		if x0.mode == mapindex || x0.mode == commaok {
-			// comma-ok value
-			if allowCommaOk {
-				a := [2]Type{x0.typ, Typ[UntypedBool]}
-				return func(x *operand, i int) {
-					x.mode = value
-					x.expr = x0.expr
-					x.typ = a[i]
-				}, 2, true
-			}
-			x0.mode = value
-		}
-
-		// single value
-		return func(x *operand, i int) {
-			if i != 0 {
-				unreachable()
-			}
-			*x = x0
-		}, 1, false
+		x0.mode = value
 	}
 
-	// zero or multiple values
-	return get, n, false
+	// single value
+	return func(x *operand, i int) {
+		if i != 0 {
+			unreachable()
+		}
+		*x = x0
+	}, 1, false
 }
 
 // arguments checks argument passing for the call with the given signature.

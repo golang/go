@@ -1129,34 +1129,35 @@ func scavengelist(list *mSpanList, now, limit uint64) uintptr {
 
 	var sumreleased uintptr
 	for s := list.first; s != nil; s = s.next {
-		if (now-uint64(s.unusedsince)) > limit && s.npreleased != s.npages {
-			start := s.base()
-			end := start + s.npages<<_PageShift
-			if physPageSize > _PageSize {
-				// We can only release pages in
-				// physPageSize blocks, so round start
-				// and end in. (Otherwise, madvise
-				// will round them *out* and release
-				// more memory than we want.)
-				start = (start + physPageSize - 1) &^ (physPageSize - 1)
-				end &^= physPageSize - 1
-				if end <= start {
-					// start and end don't span a
-					// whole physical page.
-					continue
-				}
-			}
-			len := end - start
-
-			released := len - (s.npreleased << _PageShift)
-			if physPageSize > _PageSize && released == 0 {
+		if (now-uint64(s.unusedsince)) <= limit || s.npreleased == s.npages {
+			continue
+		}
+		start := s.base()
+		end := start + s.npages<<_PageShift
+		if physPageSize > _PageSize {
+			// We can only release pages in
+			// physPageSize blocks, so round start
+			// and end in. (Otherwise, madvise
+			// will round them *out* and release
+			// more memory than we want.)
+			start = (start + physPageSize - 1) &^ (physPageSize - 1)
+			end &^= physPageSize - 1
+			if end <= start {
+				// start and end don't span a
+				// whole physical page.
 				continue
 			}
-			memstats.heap_released += uint64(released)
-			sumreleased += released
-			s.npreleased = len >> _PageShift
-			sysUnused(unsafe.Pointer(start), len)
 		}
+		len := end - start
+
+		released := len - (s.npreleased << _PageShift)
+		if physPageSize > _PageSize && released == 0 {
+			continue
+		}
+		memstats.heap_released += uint64(released)
+		sumreleased += released
+		s.npreleased = len >> _PageShift
+		sysUnused(unsafe.Pointer(start), len)
 	}
 	return sumreleased
 }
