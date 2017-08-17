@@ -100,6 +100,64 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 	}
 }
 
+func TestWindowsEvalSymlinks(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
+	tmpDir, err := ioutil.TempDir("", "TestWindowsEvalSymlinks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// /tmp may itself be a symlink! Avoid the confusion, although
+	// it means trusting the thing we're testing.
+	tmpDir, err = filepath.EvalSymlinks(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(tmpDir) < 3 {
+		t.Fatalf("tmpDir path %q is too short", tmpDir)
+	}
+	if tmpDir[1] != ':' {
+		t.Fatalf("tmpDir path %q must have drive letter in it", tmpDir)
+	}
+	test := EvalSymlinksTest{"test/linkabswin", tmpDir[:3]}
+
+	// Create the symlink farm using relative paths.
+	testdirs := append(EvalSymlinksTestDirs, test)
+	for _, d := range testdirs {
+		var err error
+		path := simpleJoin(tmpDir, d.path)
+		if d.dest == "" {
+			err = os.Mkdir(path, 0755)
+		} else {
+			err = os.Symlink(d.dest, path)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	path := simpleJoin(tmpDir, test.path)
+
+	testEvalSymlinks(t, path, test.dest)
+
+	testEvalSymlinksAfterChdir(t, path, ".", test.dest)
+
+	testEvalSymlinksAfterChdir(t,
+		path,
+		filepath.VolumeName(tmpDir)+".",
+		test.dest)
+
+	testEvalSymlinksAfterChdir(t,
+		simpleJoin(tmpDir, "test"),
+		simpleJoin("..", test.path),
+		test.dest)
+
+	testEvalSymlinksAfterChdir(t, tmpDir, test.path, test.dest)
+}
+
 // TestEvalSymlinksCanonicalNames verify that EvalSymlinks
 // returns "canonical" path names on windows.
 func TestEvalSymlinksCanonicalNames(t *testing.T) {
