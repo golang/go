@@ -115,9 +115,9 @@ func (v *VarLoc) String() string {
 			continue
 		}
 		if registers != nil {
-			regnames = append(regnames, registers[reg].Name())
+			regnames = append(regnames, registers[reg].String())
 		} else {
-			regnames = append(regnames, fmt.Sprintf("reg%v", reg))
+			regnames = append(regnames, fmt.Sprintf("reg%d", reg))
 		}
 	}
 	loc += strings.Join(regnames, ",")
@@ -193,7 +193,7 @@ func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
 	if state.loggingEnabled {
 		var names []string
 		for i, name := range f.Names {
-			names = append(names, fmt.Sprintf("%v = %v", i, name))
+			names = append(names, fmt.Sprintf("%d = %s", i, name))
 		}
 		state.logf("Name table: %v\n", strings.Join(names, ", "))
 	}
@@ -333,7 +333,7 @@ func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
 // isSynthetic reports whether if slot represents a compiler-inserted variable,
 // e.g. an autotmp or an anonymous return value that needed a stack slot.
 func isSynthetic(slot *LocalSlot) bool {
-	c := slot.Name()[0]
+	c := slot.String()[0]
 	return c == '.' || c == '~'
 }
 
@@ -470,11 +470,11 @@ func (state *debugState) processValue(locs *FuncDebug, v *Value, vSlots []SlotID
 		for _, slot := range vSlots {
 			last := locs.lastLoc(slot)
 			if last == nil {
-				state.unexpected(v, "regkill of already dead %v, %+v\n", vReg, state.slots[slot])
+				state.unexpected(v, "regkill of already dead %s, %+v\n", vReg, state.slots[slot])
 				continue
 			}
 			if state.loggingEnabled {
-				state.logf("at %v: %v regkilled out of %v\n", v.ID, state.slots[slot], vReg.Name())
+				state.logf("at %v: %v regkilled out of %s\n", v.ID, state.slots[slot], vReg)
 			}
 			if last.End != nil {
 				state.unexpected(v, "regkill of dead slot, died at %v\n", last.End)
@@ -509,7 +509,7 @@ func (state *debugState) processValue(locs *FuncDebug, v *Value, vSlots []SlotID
 			}
 			last := locs.lastLoc(slot)
 			if last == nil {
-				state.unexpected(v, "spill of unnamed register %v\n", vReg)
+				state.unexpected(v, "spill of unnamed register %s\n", vReg)
 				break
 			}
 			last.End = v
@@ -536,7 +536,7 @@ func (state *debugState) processValue(locs *FuncDebug, v *Value, vSlots []SlotID
 
 		for _, slot := range vSlots {
 			if state.loggingEnabled {
-				state.logf("at %v: %v now in %v\n", v.ID, state.slots[slot], vReg.Name())
+				state.logf("at %v: %v now in %s\n", v.ID, state.slots[slot], vReg)
 			}
 			last := locs.lastLoc(slot)
 			if last != nil && last.End == nil {
