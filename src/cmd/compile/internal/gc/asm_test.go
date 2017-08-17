@@ -831,6 +831,20 @@ var linuxAMD64Tests = []*asmTest{
 		}`,
 		pos: []string{"\tADDQ\t[$]19", "\tIMULQ"}, // (a+19)*n
 	},
+	{
+		`
+		func mul4(n int) int {
+			return 23*n - 9*n
+		}`,
+		[]string{"\tIMULQ\t[$]14"}, // 14*n
+	},
+	{
+		`
+		func mul5(a, n int) int {
+			return a*n - 19*n
+		}`,
+		[]string{"\tADDQ\t[$]-19", "\tIMULQ"}, // (a-19)*n
+	},
 
 	// see issue 19595.
 	// We want to merge load+op in f58, but not in f59.
@@ -1149,6 +1163,20 @@ var linux386Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"TEXT\t.*, [$]0-4"},
+	},
+	{
+		`
+		func mul3(n int) int {
+			return 23*n - 9*n
+		}`,
+		[]string{"\tIMULL\t[$]14"}, // 14*n
+	},
+	{
+		`
+		func mul4(a, n int) int {
+			return n*a - a*19
+		}`,
+		[]string{"\tADDL\t[$]-19", "\tIMULL"}, // (n-19)*a
 	},
 }
 
