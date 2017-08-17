@@ -18,6 +18,49 @@ import (
 	"testing"
 )
 
+// This file contains code generation tests.
+//
+// Each test is defined in a variable of type asmTest. Tests are
+// architecture-specific, and they are grouped in arrays of tests, one
+// for each architecture.
+//
+// Each asmTest consists in a function to be compiled and an array of
+// regexps that will be matched to the generated assembly. For
+// example, the following amd64 test
+//
+//   {
+// 	  `
+// 	  func f0(x int) int {
+// 		  return x * 64
+// 	  }
+// 	  `,
+// 	  []string{"\tSHLQ\t[$]6,"},
+//   }
+//
+// verifies that the code the compiler generates for a multiplication
+// by 64 contains a 'SHLQ' instruction.
+//
+// Since all the tests for a given architecture are dumped in the same
+// file, the function names must be unique. As a workaround for this
+// restriction, the test harness supports the use of a '$' placeholder
+// for function names. The func f0 above can be also written as
+//
+//   {
+// 	  `
+// 	  func $(x int) int {
+// 		  return x * 64
+// 	  }
+// 	  `,
+// 	  []string{"\tSHLQ\t[$]6,"},
+//   }
+//
+// Each '$'-function will be given a unique name of form f<N>_<arch>,
+// where <N> is the test index in the test array, and <arch> is the
+// test's architecture.
+//
+// It is allowed to mix named and unnamed functions in the same test
+// array; the named function will retain their original names.
+
 // TestAssembly checks to make sure the assembly generated for
 // functions contains certain expected instructions.
 func TestAssembly(t *testing.T) {
@@ -41,8 +84,13 @@ func TestAssembly(t *testing.T) {
 
 				asm := ats.compileToAsm(tt, dir)
 
-				for _, at := range ats.tests {
-					funcName := nameRegexp.FindString(at.function)[len("func "):]
+				for i, at := range ats.tests {
+					var funcName string
+					if strings.Contains(at.function, "func $") {
+						funcName = fmt.Sprintf("f%d_%s", i, ats.arch)
+					} else {
+						funcName = nameRegexp.FindString(at.function)[len("func "):]
+					}
 					fa := funcAsm(tt, asm, funcName)
 					if fa != "" {
 						at.verifyAsm(tt, fa)
@@ -74,8 +122,7 @@ func funcAsm(t *testing.T, asm string, funcName string) string {
 }
 
 type asmTest struct {
-	// function to compile, must be named fX,
-	// where X is this test's index in asmTests.tests.
+	// function to compile
 	function string
 	// regexps that must match the generated assembly
 	regexps []string
@@ -103,8 +150,9 @@ func (ats *asmTests) generateCode() []byte {
 		fmt.Fprintf(&buf, "import %q\n", s)
 	}
 
-	for _, t := range ats.tests {
-		fmt.Fprintln(&buf, t.function)
+	for i, t := range ats.tests {
+		function := strings.Replace(t.function, "func $", fmt.Sprintf("func f%d_%s", i, ats.arch), 1)
+		fmt.Fprintln(&buf, function)
 	}
 
 	return buf.Bytes()
@@ -358,7 +406,7 @@ var linuxAMD64Tests = []*asmTest{
 		type T1 struct {
 			a, b, c int
 		}
-		func f18(t *T1) {
+		func $(t *T1) {
 			*t = T1{}
 		}
 		`,
@@ -951,17 +999,18 @@ var linux386Tests = []*asmTest{
 		`,
 		[]string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
 	},
+
 	// multiplication merging tests
 	{
 		`
-		func mul1(n int) int {
+		func $(n int) int {
 			return 9*n + 14*n
 		}`,
 		[]string{"\tIMULL\t[$]23"}, // 23*n
 	},
 	{
 		`
-		func mul2(a, n int) int {
+		func $(a, n int) int {
 			return 19*a + a*n
 		}`,
 		[]string{"\tADDL\t[$]19", "\tIMULL"}, // (n+19)*a
