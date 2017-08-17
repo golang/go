@@ -96,6 +96,52 @@ var fileTests = []fileTest{
 			{"__debug_str", "__DWARF", 0x10000215c, 0x60, 0x115c, 0x0, 0x0, 0x0, 0x0},
 		},
 	},
+	{
+		"testdata/clang-386-darwin-exec-with-rpath",
+		FileHeader{0xfeedface, Cpu386, 0x3, 0x2, 0x10, 0x42c, 0x1200085},
+		[]interface{}{
+			nil, // LC_SEGMENT
+			nil, // LC_SEGMENT
+			nil, // LC_SEGMENT
+			nil, // LC_SEGMENT
+			nil, // LC_DYLD_INFO_ONLY
+			nil, // LC_SYMTAB
+			nil, // LC_DYSYMTAB
+			nil, // LC_LOAD_DYLINKER
+			nil, // LC_UUID
+			nil, // LC_VERSION_MIN_MACOSX
+			nil, // LC_SOURCE_VERSION
+			nil, // LC_MAIN
+			nil, // LC_LOAD_DYLIB
+			&Rpath{nil, "/my/rpath"},
+			nil, // LC_FUNCTION_STARTS
+			nil, // LC_DATA_IN_CODE
+		},
+		nil,
+	},
+	{
+		"testdata/clang-amd64-darwin-exec-with-rpath",
+		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0x2, 0x10, 0x4c8, 0x200085},
+		[]interface{}{
+			nil, // LC_SEGMENT
+			nil, // LC_SEGMENT
+			nil, // LC_SEGMENT
+			nil, // LC_SEGMENT
+			nil, // LC_DYLD_INFO_ONLY
+			nil, // LC_SYMTAB
+			nil, // LC_DYSYMTAB
+			nil, // LC_LOAD_DYLINKER
+			nil, // LC_UUID
+			nil, // LC_VERSION_MIN_MACOSX
+			nil, // LC_SOURCE_VERSION
+			nil, // LC_MAIN
+			nil, // LC_LOAD_DYLIB
+			&Rpath{nil, "/my/rpath"},
+			nil, // LC_FUNCTION_STARTS
+			nil, // LC_DATA_IN_CODE
+		},
+		nil,
+	},
 }
 
 func TestOpen(t *testing.T) {
@@ -133,6 +179,12 @@ func TestOpen(t *testing.T) {
 				if !reflect.DeepEqual(have, want) {
 					t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
 				}
+			case *Rpath:
+				have := l
+				have.LoadBytes = nil
+				if !reflect.DeepEqual(have, want) {
+					t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
+				}
 			default:
 				t.Errorf("open %s, section %d: unknown load command\n\thave %#v\n\twant %#v\n", tt.file, i, l, want)
 			}
@@ -143,22 +195,23 @@ func TestOpen(t *testing.T) {
 			t.Errorf("open %s: len(Loads) = %d, want %d", tt.file, fn, tn)
 		}
 
-		for i, sh := range f.Sections {
-			if i >= len(tt.sections) {
-				break
+		if tt.sections != nil {
+			for i, sh := range f.Sections {
+				if i >= len(tt.sections) {
+					break
+				}
+				have := &sh.SectionHeader
+				want := tt.sections[i]
+				if !reflect.DeepEqual(have, want) {
+					t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
+				}
 			}
-			have := &sh.SectionHeader
-			want := tt.sections[i]
-			if !reflect.DeepEqual(have, want) {
-				t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
+			tn = len(tt.sections)
+			fn = len(f.Sections)
+			if tn != fn {
+				t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn)
 			}
 		}
-		tn = len(tt.sections)
-		fn = len(f.Sections)
-		if tn != fn {
-			t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn)
-		}
-
 	}
 }
 

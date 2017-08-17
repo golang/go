@@ -87,6 +87,7 @@ const (
 	LoadCmdDylib      LoadCmd = 0xc // load dylib command
 	LoadCmdDylinker   LoadCmd = 0xf // id dylinker command (not load dylinker command)
 	LoadCmdSegment64  LoadCmd = 0x19
+	LoadCmdRpath      LoadCmd = 0x8000001c
 )
 
 var cmdStrings = []intName{
@@ -95,6 +96,7 @@ var cmdStrings = []intName{
 	{uint32(LoadCmdUnixThread), "LoadCmdUnixThread"},
 	{uint32(LoadCmdDylib), "LoadCmdDylib"},
 	{uint32(LoadCmdSegment64), "LoadCmdSegment64"},
+	{uint32(LoadCmdRpath), "LoadCmdRpath"},
 }
 
 func (i LoadCmd) String() string   { return stringName(uint32(i), cmdStrings, false) }
@@ -173,6 +175,13 @@ type (
 		Time           uint32
 		CurrentVersion uint32
 		CompatVersion  uint32
+	}
+
+	// A RpathCmd is a Mach-O rpath command.
+	RpathCmd struct {
+		Cmd  LoadCmd
+		Len  uint32
+		Path uint32
 	}
 
 	// A Thread is a Mach-O thread state command.
