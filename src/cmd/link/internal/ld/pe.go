@@ -882,10 +882,10 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol, base uint64) int {
 			}
 
 			if r.Xsym.Dynid < 0 {
-				Errorf(sym, "reloc %d (%s) to non-coff symbol %s (outer=%s) %d (%s)", r.Type, r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
+				Errorf(sym, "reloc %d (%s) to non-coff symbol %s (outer=%s) %d (%s)", r.Type, RelocName(r.Type), r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
 			}
 			if !Thearch.PEreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
-				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, r.Type, r.Siz, r.Sym.Name)
+				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, RelocName(r.Type), r.Siz, r.Sym.Name)
 			}
 
 			relocs++

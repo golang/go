@@ -432,7 +432,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 		// shared libraries, and Solaris needs it always
 		if Headtype != objabi.Hsolaris && r.Sym != nil && r.Sym.Type == SDYNIMPORT && !ctxt.DynlinkingGo() {
 			if !(SysArch.Family == sys.PPC64 && Linkmode == LinkExternal && r.Sym.Name == ".TOC.") {
-				Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", r.Sym.Name, r.Sym.Type, r.Sym.Type, r.Type, r.Type)
+				Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", r.Sym.Name, r.Sym.Type, r.Sym.Type, r.Type, RelocName(r.Type))
 			}
 		}
 		if r.Sym != nil && r.Sym.Type != STLSBSS && r.Type != objabi.R_WEAKADDROFF && !r.Sym.Attr.Reachable() {
@@ -465,7 +465,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 				o = int64(ctxt.Arch.ByteOrder.Uint64(s.P[off:]))
 			}
 			if Thearch.Archreloc(ctxt, r, s, &o) < 0 {
-				Errorf(s, "unknown reloc to %v: %v", r.Sym.Name, r.Type)
+				Errorf(s, "unknown reloc to %v: %d (%s)", r.Sym.Name, r.Type, RelocName(r.Type))
 			}
 
 		case objabi.R_TLS_LE:
@@ -714,7 +714,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 			if r.Sym != nil {
 				nam = r.Sym.Name
 			}
-			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x [type %d/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, Symaddr(r.Sym), r.Add, r.Type, r.Variant, o)
+			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x [type %d (%s)/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, Symaddr(r.Sym), r.Add, r.Type, RelocName(r.Type), r.Variant, o)
 		}
 		switch siz {
 		default:
@@ -828,7 +828,7 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
 				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
 			}
 			if !Thearch.Adddynrel(ctxt, s, r) {
-				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, r.Type, r.Sym.Type, r.Sym.Type)
+				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, RelocName(r.Type), r.Sym.Type, r.Sym.Type)
 			}
 		}
 	}
