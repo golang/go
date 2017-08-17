@@ -1138,29 +1138,32 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 		}
 	}
 
-	// Advance evacuation mark
 	if oldbucket == h.nevacuate {
+		advanceEvacuationMark(h, t, newbit)
+	}
+}
+
+func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
+	h.nevacuate++
+	// Experiments suggest that 1024 is overkill by at least an order of magnitude.
+	// Put it in there as a safeguard anyway, to ensure O(1) behavior.
+	stop := h.nevacuate + 1024
+	if stop > newbit {
+		stop = newbit
+	}
+	for h.nevacuate != stop && bucketEvacuated(t, h, h.nevacuate) {
 		h.nevacuate++
-		// Experiments suggest that 1024 is overkill by at least an order of magnitude.
-		// Put it in there as a safeguard anyway, to ensure O(1) behavior.
-		stop := h.nevacuate + 1024
-		if stop > newbit {
-			stop = newbit
+	}
+	if h.nevacuate == newbit { // newbit == # of oldbuckets
+		// Growing is all done. Free old main bucket array.
+		h.oldbuckets = nil
+		// Can discard old overflow buckets as well.
+		// If they are still referenced by an iterator,
+		// then the iterator holds a pointers to the slice.
+		if h.extra != nil {
+			h.extra.overflow[1] = nil
 		}
-		for h.nevacuate != stop && bucketEvacuated(t, h, h.nevacuate) {
-			h.nevacuate++
-		}
-		if h.nevacuate == newbit { // newbit == # of oldbuckets
-			// Growing is all done. Free old main bucket array.
-			h.oldbuckets = nil
-			// Can discard old overflow buckets as well.
-			// If they are still referenced by an iterator,
-			// then the iterator holds a pointers to the slice.
-			if h.extra != nil {
-				h.extra.overflow[1] = nil
-			}
-			h.flags &^= sameSizeGrow
-		}
+		h.flags &^= sameSizeGrow
 	}
 }
 
