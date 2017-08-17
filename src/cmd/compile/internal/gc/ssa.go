@@ -4773,7 +4773,7 @@ func CheckLoweredPhi(v *ssa.Value) {
 	loc := f.RegAlloc[v.ID]
 	for _, a := range v.Args {
 		if aloc := f.RegAlloc[a.ID]; aloc != loc { // TODO: .Equal() instead?
-			v.Fatalf("phi arg at different location than phi: %v @ %v, but arg %v @ %v\n%s\n", v, loc, a, aloc, v.Block.Func)
+			v.Fatalf("phi arg at different location than phi: %v @ %s, but arg %v @ %s\n%s\n", v, loc, a, aloc, v.Block.Func)
 		}
 	}
 }
