@@ -12,7 +12,7 @@ import (
 func TestObjdumpARM64Testdata(t *testing.T) { testObjdumpARM64(t, testdataCases(t)) }
 func TestObjdumpARM64Manual(t *testing.T)   { testObjdumpARM64(t, hexCases(t, objdumpManualTests)) }
 func TestObjdumpARM64Cond(t *testing.T)     { testObjdumpARM64(t, condCases(t)) }
-func TestObjdumpARM64(t *testing.T)       { testObjdumpARM64(t, JSONCases(t)) }
+func TestObjdumpARM64(t *testing.T)         { testObjdumpARM64(t, JSONCases(t)) }
 
 // objdumpManualTests holds test cases that will be run by TestObjdumpARMManual.
 // If you are debugging a few cases that turned up in a longer run, it can be useful
@@ -92,6 +92,12 @@ func allowedMismatchObjdump(text string, inst *Inst, dec ExtInst) bool {
 	if strings.Contains(text, "unknown instruction") && hasPrefix(dec.text, "fmla", "fmul", "fmulx", "fcvtzs", "fcvtzu", "fmls", "fmov", "scvtf", "ucvtf") {
 		return true
 	}
+	// Some old objdump recognizes ldur*/stur*/prfum as ldr*/str*/prfm
+	for k, v := range oldObjdumpMismatch {
+		if strings.HasPrefix(dec.text, k) && strings.Replace(dec.text, k, v, 1) == text {
+			return true
+		}
+	}
 	// GNU objdump misses spaces between operands for some instructions (e.g., "ld1 {v10.2s, v11.2s}, [x23],#16")
 	if strings.Replace(text, " ", "", -1) == strings.Replace(dec.text, " ", "", -1) {
 		return true
@@ -122,3 +128,18 @@ var Ncover = strings.Fields(`
 	ins
 	dup
 `)
+
+// Some old objdump wrongly decodes following instructions and allow their mismatches to avoid false alarm
+var oldObjdumpMismatch = map[string]string{
+	//oldObjValue	correctValue
+	"ldr":   "ldur",
+	"ldrb":  "ldurb",
+	"ldrh":  "ldurh",
+	"ldrsb": "ldursb",
+	"ldrsh": "ldursh",
+	"ldrsw": "ldursw",
+	"str":   "stur",
+	"strb":  "sturb",
+	"strh":  "sturh",
+	"prfm":  "prfum",
+}
