@@ -244,36 +244,37 @@ func freedefer(d *_defer) {
 		freedeferfn()
 	}
 	sc := deferclass(uintptr(d.siz))
-	if sc < uintptr(len(p{}.deferpool)) {
-		pp := getg().m.p.ptr()
-		if len(pp.deferpool[sc]) == cap(pp.deferpool[sc]) {
-			// Transfer half of local cache to the central cache.
-			//
-			// Take this slow path on the system stack so
-			// we don't grow freedefer's stack.
-			systemstack(func() {
-				var first, last *_defer
-				for len(pp.deferpool[sc]) > cap(pp.deferpool[sc])/2 {
-					n := len(pp.deferpool[sc])
-					d := pp.deferpool[sc][n-1]
-					pp.deferpool[sc][n-1] = nil
-					pp.deferpool[sc] = pp.deferpool[sc][:n-1]
-					if first == nil {
-						first = d
-					} else {
-						last.link = d
-					}
-					last = d
-				}
-				lock(&sched.deferlock)
-				last.link = sched.deferpool[sc]
-				sched.deferpool[sc] = first
-				unlock(&sched.deferlock)
-			})
-		}
-		*d = _defer{}
-		pp.deferpool[sc] = append(pp.deferpool[sc], d)
+	if sc >= uintptr(len(p{}.deferpool)) {
+		return
 	}
+	pp := getg().m.p.ptr()
+	if len(pp.deferpool[sc]) == cap(pp.deferpool[sc]) {
+		// Transfer half of local cache to the central cache.
+		//
+		// Take this slow path on the system stack so
+		// we don't grow freedefer's stack.
+		systemstack(func() {
+			var first, last *_defer
+			for len(pp.deferpool[sc]) > cap(pp.deferpool[sc])/2 {
+				n := len(pp.deferpool[sc])
+				d := pp.deferpool[sc][n-1]
+				pp.deferpool[sc][n-1] = nil
+				pp.deferpool[sc] = pp.deferpool[sc][:n-1]
+				if first == nil {
+					first = d
+				} else {
+					last.link = d
+				}
+				last = d
+			}
+			lock(&sched.deferlock)
+			last.link = sched.deferpool[sc]
+			sched.deferpool[sc] = first
+			unlock(&sched.deferlock)
+		})
+	}
+	*d = _defer{}
+	pp.deferpool[sc] = append(pp.deferpool[sc], d)
 }
 
 // Separate function so that it can split stack.

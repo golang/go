@@ -285,38 +285,39 @@ func Fields(s []byte) [][]byte {
 		wasSpace = isSpace
 	}
 
-	if setBits < utf8.RuneSelf { // ASCII fast path
-		a := make([][]byte, n)
-		na := 0
-		fieldStart := 0
-		i := 0
-		// Skip spaces in the front of the input.
+	if setBits >= utf8.RuneSelf {
+		// Some runes in the input slice are not ASCII.
+		return FieldsFunc(s, unicode.IsSpace)
+	}
+
+	// ASCII fast path
+	a := make([][]byte, n)
+	na := 0
+	fieldStart := 0
+	i := 0
+	// Skip spaces in the front of the input.
+	for i < len(s) && asciiSpace[s[i]] != 0 {
+		i++
+	}
+	fieldStart = i
+	for i < len(s) {
+		if asciiSpace[s[i]] == 0 {
+			i++
+			continue
+		}
+		a[na] = s[fieldStart:i]
+		na++
+		i++
+		// Skip spaces in between fields.
 		for i < len(s) && asciiSpace[s[i]] != 0 {
 			i++
 		}
 		fieldStart = i
-		for i < len(s) {
-			if asciiSpace[s[i]] == 0 {
-				i++
-				continue
-			}
-			a[na] = s[fieldStart:i]
-			na++
-			i++
-			// Skip spaces in between fields.
-			for i < len(s) && asciiSpace[s[i]] != 0 {
-				i++
-			}
-			fieldStart = i
-		}
-		if fieldStart < len(s) { // Last field might end at EOF.
-			a[na] = s[fieldStart:]
-		}
-		return a
 	}
-
-	// Some runes in the input slice are not ASCII.
-	return FieldsFunc(s, unicode.IsSpace)
+	if fieldStart < len(s) { // Last field might end at EOF.
+		a[na] = s[fieldStart:]
+	}
+	return a
 }
 
 // FieldsFunc interprets s as a sequence of UTF-8-encoded Unicode code points.

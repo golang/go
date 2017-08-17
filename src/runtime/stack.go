@@ -578,29 +578,30 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 		if stackDebug >= 4 {
 			print("        ", add(scanp, i*sys.PtrSize), ":", ptrnames[ptrbit(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*sys.PtrSize))), " # ", i, " ", bv.bytedata[i/8], "\n")
 		}
-		if ptrbit(&bv, i) == 1 {
-			pp := (*uintptr)(add(scanp, i*sys.PtrSize))
-		retry:
-			p := *pp
-			if f.valid() && 0 < p && p < minLegalPointer && debug.invalidptr != 0 {
-				// Looks like a junk value in a pointer slot.
-				// Live analysis wrong?
-				getg().m.traceback = 2
-				print("runtime: bad pointer in frame ", funcname(f), " at ", pp, ": ", hex(p), "\n")
-				throw("invalid pointer found on stack")
+		if ptrbit(&bv, i) != 1 {
+			continue
+		}
+		pp := (*uintptr)(add(scanp, i*sys.PtrSize))
+	retry:
+		p := *pp
+		if f.valid() && 0 < p && p < minLegalPointer && debug.invalidptr != 0 {
+			// Looks like a junk value in a pointer slot.
+			// Live analysis wrong?
+			getg().m.traceback = 2
+			print("runtime: bad pointer in frame ", funcname(f), " at ", pp, ": ", hex(p), "\n")
+			throw("invalid pointer found on stack")
+		}
+		if minp <= p && p < maxp {
+			if stackDebug >= 3 {
+				print("adjust ptr ", hex(p), " ", funcname(f), "\n")
 			}
-			if minp <= p && p < maxp {
-				if stackDebug >= 3 {
-					print("adjust ptr ", hex(p), " ", funcname(f), "\n")
+			if useCAS {
+				ppu := (*unsafe.Pointer)(unsafe.Pointer(pp))
+				if !atomic.Casp1(ppu, unsafe.Pointer(p), unsafe.Pointer(p+delta)) {
+					goto retry
 				}
-				if useCAS {
-					ppu := (*unsafe.Pointer)(unsafe.Pointer(pp))
-					if !atomic.Casp1(ppu, unsafe.Pointer(p), unsafe.Pointer(p+delta)) {
-						goto retry
-					}
-				} else {
-					*pp = p + delta
-				}
+			} else {
+				*pp = p + delta
 			}
 		}
 	}
