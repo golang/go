@@ -88,6 +88,14 @@ func httpMMUPlot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var quantiles []float64
+	for _, flagStr := range strings.Split(r.FormValue("flags"), "|") {
+		if flagStr == "mut" {
+			quantiles = []float64{0, 1 - .999, 1 - .99, 1 - .95}
+			break
+		}
+	}
+
 	// Find a nice starting point for the plot.
 	xMin := time.Second
 	for xMin > 1 {
@@ -114,15 +122,21 @@ func httpMMUPlot(w http.ResponseWriter, r *http.Request) {
 	// Compute MMU curve.
 	logMin, logMax := math.Log(float64(xMin)), math.Log(float64(xMax))
 	const samples = 100
-	plot := make([][2]float64, samples)
+	plot := make([][]float64, samples)
 	for i := 0; i < samples; i++ {
 		window := time.Duration(math.Exp(float64(i)/(samples-1)*(logMax-logMin) + logMin))
-		y := mmuCurve.MMU(window)
-		plot[i] = [2]float64{float64(window), y}
+		if quantiles == nil {
+			plot[i] = make([]float64, 2)
+			plot[i][1] = mmuCurve.MMU(window)
+		} else {
+			plot[i] = make([]float64, 1+len(quantiles))
+			copy(plot[i][1:], mmuCurve.MUD(window, quantiles))
+		}
+		plot[i][0] = float64(window)
 	}
 
 	// Create JSON response.
-	err = json.NewEncoder(w).Encode(map[string]interface{}{"xMin": int64(xMin), "xMax": int64(xMax), "curve": plot})
+	err = json.NewEncoder(w).Encode(map[string]interface{}{"xMin": int64(xMin), "xMax": int64(xMax), "quantiles": quantiles, "curve": plot})
 	if err != nil {
 		log.Printf("failed to serialize response: %v", err)
 		return
@@ -148,6 +162,10 @@ var templMMU = `<!doctype html>
           else if (ns < 1e6) { return ns / 1e3 + 'µs'; }
           else if (ns < 1e9) { return ns / 1e6 + 'ms'; }
           else { return ns / 1e9 + 's'; }
+      }
+
+      function niceQuantile(q) {
+        return 'p' + q*100;
       }
 
       function mmuFlags() {
@@ -181,6 +199,11 @@ var templMMU = `<!doctype html>
         var data = new google.visualization.DataTable();
         data.addColumn('number', 'Window duration');
         data.addColumn('number', 'Minimum mutator utilization');
+        if (plotData.quantiles) {
+          for (var i = 1; i < plotData.quantiles.length; i++) {
+            data.addColumn('number', niceQuantile(1 - plotData.quantiles[i]) + ' MU');
+          }
+        }
         data.addRows(curve);
         for (var i = 0; i < curve.length; i++) {
           data.setFormattedValue(i, 0, niceDuration(curve[i][0]));
@@ -201,12 +224,17 @@ var templMMU = `<!doctype html>
             maxValue: 1.0,
           },
           legend: { position: 'none' },
+          focusTarget: 'category',
           width: 900,
           height: 500,
           chartArea: { width: '80%', height: '80%' },
         };
         for (var v = plotData.xMin; v <= plotData.xMax; v *= 10) {
           options.hAxis.ticks.push({v:v, f:niceDuration(v)});
+        }
+        if (plotData.quantiles) {
+          options.vAxis.title = 'Mutator utilization';
+          options.legend.position = 'in';
         }
 
         var container = $('#mmu_chart');
@@ -297,6 +325,11 @@ var templMMU = `<!doctype html>
           <span class="help">?<span>Mark assists are performed by allocation to prevent the mutator from outpacing GC.</span></span><br/>
           <input type="checkbox" id="sweep"><label for="sweep">Sweep</label>
           <span class="help">?<span>Sweep reclaims unused memory between GCs. (Enabling this may be very slow.).</span></span><br/>
+        </p>
+        <p>
+          <b>Display</b><br/>
+          <input type="checkbox" id="mut"><label for="mut">Show percentiles</label>
+          <span class="help">?<span>Display percentile mutator utilization in addition to minimum. E.g., p99 MU drops the worst 1% of windows.</span></span><br/>
         </p>
       </div>
     </div>
