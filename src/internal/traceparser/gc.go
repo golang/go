@@ -273,6 +273,10 @@ func NewMMUCurve(utils [][]MutatorUtil) *MMUCurve {
 	return &MMUCurve{series}
 }
 
+// bandsPerSeries is the number of bands to divide each series into.
+// This is only changed by tests.
+var bandsPerSeries = 1000
+
 func newMMUSeries(util []MutatorUtil) mmuSeries {
 	// Compute cumulative sum.
 	sums := make([]totalUtil, len(util))
@@ -289,7 +293,7 @@ func newMMUSeries(util []MutatorUtil) mmuSeries {
 	// these bands.
 	//
 	// Compute the duration of each band.
-	numBands := 1000
+	numBands := bandsPerSeries
 	if numBands > len(util) {
 		// There's no point in having lots of bands if there
 		// aren't many events.
@@ -393,8 +397,8 @@ func (h *utilHeap) Pop() interface{} {
 	return x
 }
 
-// An accumulator collects different MMU-related statistics depending
-// on what's desired.
+// An accumulator takes a windowed mutator utilization function and
+// tracks various statistics for that function.
 type accumulator struct {
 	mmu float64
 
@@ -406,10 +410,30 @@ type accumulator struct {
 	// Worst N window tracking
 	nWorst int
 	wHeap  utilHeap
+
+	// Mutator utilization distribution tracking
+	mud *mud
+	// preciseMass is the distribution mass that must be precise
+	// before accumulation is stopped.
+	preciseMass float64
+	// lastTime and lastMU are the previous point added to the
+	// windowed mutator utilization function.
+	lastTime int64
+	lastMU   float64
 }
 
-// addMU records mutator utilization mu over the given window starting
-// at time.
+// resetTime declares a discontinuity in the windowed mutator
+// utilization function by resetting the current time.
+func (acc *accumulator) resetTime() {
+	// This only matters for distribution collection, since that's
+	// the only thing that depends on the progression of the
+	// windowed mutator utilization function.
+	acc.lastTime = math.MaxInt64
+}
+
+// addMU adds a point to the windowed mutator utilization function at
+// (time, mu). This must be called for monotonically increasing values
+// of time.
 //
 // It returns true if further calls to addMU would be pointless.
 func (acc *accumulator) addMU(time int64, mu float64, window time.Duration) bool {
@@ -458,6 +482,25 @@ func (acc *accumulator) addMU(time int64, mu float64, window time.Duration) bool
 		acc.bound = math.Max(acc.bound, acc.wHeap[0].MutatorUtil)
 	}
 
+	if acc.mud != nil {
+		if acc.lastTime != math.MaxInt64 {
+			// Update distribution.
+			acc.mud.add(acc.lastMU, mu, float64(time-acc.lastTime))
+		}
+		acc.lastTime, acc.lastMU = time, mu
+		if _, mudBound, ok := acc.mud.approxInvCumulativeSum(); ok {
+			acc.bound = math.Max(acc.bound, mudBound)
+		} else {
+			// We haven't accumulated enough total precise
+			// mass yet to even reach our goal, so keep
+			// accumulating.
+			acc.bound = 1
+		}
+		// It's not worth checking percentiles every time, so
+		// just keep accumulating this band.
+		return false
+	}
+
 	// If we've found enough 0 utilizations, we can stop immediately.
 	return len(acc.wHeap) == acc.nWorst && acc.wHeap[0].MutatorUtil == 0
 }
@@ -482,6 +525,85 @@ func (c *MMUCurve) Examples(window time.Duration, n int) (worst []UtilWindow) {
 	c.mmu(window, &acc)
 	sort.Sort(sort.Reverse(acc.wHeap))
 	return ([]UtilWindow)(acc.wHeap)
+}
+
+// MUD returns mutator utilization distribution quantiles for the
+// given window size.
+//
+// The mutator utilization distribution is the distribution of mean
+// mutator utilization across all windows of the given window size in
+// the trace.
+//
+// The minimum mutator utilization is the minimum (0th percentile) of
+// this distribution. (However, if only the minimum is desired, it's
+// more efficient to use the MMU method.)
+func (c *MMUCurve) MUD(window time.Duration, quantiles []float64) []float64 {
+	if len(quantiles) == 0 {
+		return []float64{}
+	}
+
+	// Each unrefined band contributes a known total mass to the
+	// distribution (bandDur except at the end), but in an unknown
+	// way. However, we know that all the mass it contributes must
+	// be at or above its worst-case mean mutator utilization.
+	//
+	// Hence, we refine bands until the highest desired
+	// distribution quantile is less than the next worst-case mean
+	// mutator utilization. At this point, all further
+	// contributions to the distribution must be beyond the
+	// desired quantile and hence cannot affect it.
+	//
+	// First, find the highest desired distribution quantile.
+	maxQ := quantiles[0]
+	for _, q := range quantiles {
+		if q > maxQ {
+			maxQ = q
+		}
+	}
+	// The distribution's mass is in units of time (it's not
+	// normalized because this would make it more annoying to
+	// account for future contributions of unrefined bands). The
+	// total final mass will be the duration of the trace itself
+	// minus the window size. Using this, we can compute the mass
+	// corresponding to quantile maxQ.
+	var duration int64
+	for _, s := range c.series {
+		duration1 := s.util[len(s.util)-1].Time - s.util[0].Time
+		if duration1 >= int64(window) {
+			duration += duration1 - int64(window)
+		}
+	}
+	qMass := float64(duration) * maxQ
+
+	// Accumulate the MUD until we have precise information for
+	// everything to the left of qMass.
+	acc := accumulator{mmu: 1.0, bound: 1.0, preciseMass: qMass, mud: new(mud)}
+	acc.mud.setTrackMass(qMass)
+	c.mmu(window, &acc)
+
+	// Evaluate the quantiles on the accumulated MUD.
+	out := make([]float64, len(quantiles))
+	for i := range out {
+		mu, _ := acc.mud.invCumulativeSum(float64(duration) * quantiles[i])
+		if math.IsNaN(mu) {
+			// There are a few legitimate ways this can
+			// happen:
+			//
+			// 1. If the window is the full trace
+			// duration, then the windowed MU function is
+			// only defined at a single point, so the MU
+			// distribution is not well-defined.
+			//
+			// 2. If there are no events, then the MU
+			// distribution has no mass.
+			//
+			// Either way, all of the quantiles will have
+			// converged toward the MMU at this point.
+			mu = acc.mmu
+		}
+		out[i] = mu
+	}
+	return out
 }
 
 func (c *MMUCurve) mmu(window time.Duration, acc *accumulator) {
@@ -607,10 +729,14 @@ func (c *mmuSeries) bandMMU(bandIdx int, window time.Duration, acc *accumulator)
 	if utilEnd := util[len(util)-1].Time - int64(window); utilEnd < endTime {
 		endTime = utilEnd
 	}
+	acc.resetTime()
 	for {
 		// Advance edges to time and time+window.
 		mu := (right.advance(time+int64(window)) - left.advance(time)).mean(window)
 		if acc.addMU(time, mu, window) {
+			break
+		}
+		if time == endTime {
 			break
 		}
 
@@ -632,7 +758,10 @@ func (c *mmuSeries) bandMMU(bandIdx int, window time.Duration, acc *accumulator)
 			time = minTime
 		}
 		if time >= endTime {
-			break
+			// For MMUs we could stop here, but for MUDs
+			// it's important that we span the entire
+			// band.
+			time = endTime
 		}
 	}
 }
