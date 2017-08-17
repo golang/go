@@ -1140,7 +1140,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 
 	// Advance evacuation mark
 	if oldbucket == h.nevacuate {
-		h.nevacuate = oldbucket + 1
+		h.nevacuate++
 		// Experiments suggest that 1024 is overkill by at least an order of magnitude.
 		// Put it in there as a safeguard anyway, to ensure O(1) behavior.
 		stop := h.nevacuate + 1024
