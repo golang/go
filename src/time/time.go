@@ -1383,7 +1383,7 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 }
 
 // Truncate returns the result of rounding t down to a multiple of d (since the zero time).
-// If d <= 0, Truncate returns t unchanged.
+// If d <= 0, Truncate returns t stripped of any monotonic clock reading but otherwise unchanged.
 //
 // Truncate operates on the time as an absolute duration since the
 // zero time; it does not operate on the presentation form of the
@@ -1400,7 +1400,7 @@ func (t Time) Truncate(d Duration) Time {
 
 // Round returns the result of rounding t to the nearest multiple of d (since the zero time).
 // The rounding behavior for halfway values is to round up.
-// If d <= 0, Round returns t unchanged.
+// If d <= 0, Round returns t stripped of any monotonic clock reading but otherwise unchanged.
 //
 // Round operates on the time as an absolute duration since the
 // zero time; it does not operate on the presentation form of the
