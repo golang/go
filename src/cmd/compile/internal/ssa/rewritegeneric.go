@@ -23796,6 +23796,126 @@ func rewriteValuegeneric_OpSub16_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (Sub16 <t> (Mul16 x y) (Mul16 x z))
+	// cond:
+	// result: (Mul16 x (Sub16 <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		if x != v_1.Args[0] {
+			break
+		}
+		z := v_1.Args[1]
+		v.reset(OpMul16)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub16, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Sub16 <t> (Mul16 y x) (Mul16 x z))
+	// cond:
+	// result: (Mul16 x (Sub16 <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		x := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		if x != v_1.Args[0] {
+			break
+		}
+		z := v_1.Args[1]
+		v.reset(OpMul16)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub16, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Sub16 <t> (Mul16 x y) (Mul16 z x))
+	// cond:
+	// result: (Mul16 x (Sub16 <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		z := v_1.Args[0]
+		if x != v_1.Args[1] {
+			break
+		}
+		v.reset(OpMul16)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub16, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Sub16 <t> (Mul16 y x) (Mul16 z x))
+	// cond:
+	// result: (Mul16 x (Sub16 <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		x := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		z := v_1.Args[0]
+		if x != v_1.Args[1] {
+			break
+		}
+		v.reset(OpMul16)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub16, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Sub16 x x)
 	// cond:
 	// result: (Const16 [0])
@@ -23869,6 +23989,11 @@ func rewriteValuegeneric_OpSub16_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpSub16_10(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (Sub16 (Add16 y x) y)
 	// cond:
 	// result: x
@@ -23977,11 +24102,6 @@ func rewriteValuegeneric_OpSub16_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpSub16_10(v *Value) bool {
-	b := v.Block
-	_ = b
 	// match: (Sub16 (Const16 <t> [c]) (Sub16 (Const16 <t> [d]) x))
 	// cond:
 	// result: (Add16 (Const16 <t> [int64(int16(c-d))]) x)
@@ -24060,6 +24180,126 @@ func rewriteValuegeneric_OpSub32_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (Sub32 <t> (Mul32 x y) (Mul32 x z))
+	// cond:
+	// result: (Mul32 x (Sub32 <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		if x != v_1.Args[0] {
+			break
+		}
+		z := v_1.Args[1]
+		v.reset(OpMul32)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub32, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Sub32 <t> (Mul32 y x) (Mul32 x z))
+	// cond:
+	// result: (Mul32 x (Sub32 <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		x := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		if x != v_1.Args[0] {
+			break
+		}
+		z := v_1.Args[1]
+		v.reset(OpMul32)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub32, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Sub32 <t> (Mul32 x y) (Mul32 z x))
+	// cond:
+	// result: (Mul32 x (Sub32 <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		z := v_1.Args[0]
+		if x != v_1.Args[1] {
+			break
+		}
+		v.reset(OpMul32)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub32, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Sub32 <t> (Mul32 y x) (Mul32 z x))
+	// cond:
+	// result: (Mul32 x (Sub32 <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		x := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		z := v_1.Args[0]
+		if x != v_1.Args[1] {
+			break
+		}
+		v.reset(OpMul32)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub32, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Sub32 x x)
 	// cond:
 	// result: (Const32 [0])
@@ -24133,6 +24373,11 @@ func rewriteValuegeneric_OpSub32_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpSub32_10(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (Sub32 (Add32 y x) y)
 	// cond:
 	// result: x
@@ -24241,11 +24486,6 @@ func rewriteValuegeneric_OpSub32_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpSub32_10(v *Value) bool {
-	b := v.Block
-	_ = b
 	// match: (Sub32 (Const32 <t> [c]) (Sub32 (Const32 <t> [d]) x))
 	// cond:
 	// result: (Add32 (Const32 <t> [int64(int32(c-d))]) x)
@@ -24364,6 +24604,126 @@ func rewriteValuegeneric_OpSub64_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (Sub64 <t> (Mul64 x y) (Mul64 x z))
+	// cond:
+	// result: (Mul64 x (Sub64 <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		if x != v_1.Args[0] {
+			break
+		}
+		z := v_1.Args[1]
+		v.reset(OpMul64)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub64, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Sub64 <t> (Mul64 y x) (Mul64 x z))
+	// cond:
+	// result: (Mul64 x (Sub64 <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		x := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		if x != v_1.Args[0] {
+			break
+		}
+		z := v_1.Args[1]
+		v.reset(OpMul64)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub64, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Sub64 <t> (Mul64 x y) (Mul64 z x))
+	// cond:
+	// result: (Mul64 x (Sub64 <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		z := v_1.Args[0]
+		if x != v_1.Args[1] {
+			break
+		}
+		v.reset(OpMul64)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub64, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Sub64 <t> (Mul64 y x) (Mul64 z x))
+	// cond:
+	// result: (Mul64 x (Sub64 <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		x := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		z := v_1.Args[0]
+		if x != v_1.Args[1] {
+			break
+		}
+		v.reset(OpMul64)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub64, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Sub64 x x)
 	// cond:
 	// result: (Const64 [0])
@@ -24437,6 +24797,11 @@ func rewriteValuegeneric_OpSub64_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpSub64_10(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (Sub64 (Add64 y x) y)
 	// cond:
 	// result: x
@@ -24545,11 +24910,6 @@ func rewriteValuegeneric_OpSub64_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpSub64_10(v *Value) bool {
-	b := v.Block
-	_ = b
 	// match: (Sub64 (Const64 <t> [c]) (Sub64 (Const64 <t> [d]) x))
 	// cond:
 	// result: (Add64 (Const64 <t> [c-d]) x)
@@ -24668,6 +25028,126 @@ func rewriteValuegeneric_OpSub8_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (Sub8 <t> (Mul8 x y) (Mul8 x z))
+	// cond:
+	// result: (Mul8  x (Sub8  <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul8 {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul8 {
+			break
+		}
+		_ = v_1.Args[1]
+		if x != v_1.Args[0] {
+			break
+		}
+		z := v_1.Args[1]
+		v.reset(OpMul8)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub8, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Sub8 <t> (Mul8 y x) (Mul8 x z))
+	// cond:
+	// result: (Mul8  x (Sub8  <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul8 {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		x := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul8 {
+			break
+		}
+		_ = v_1.Args[1]
+		if x != v_1.Args[0] {
+			break
+		}
+		z := v_1.Args[1]
+		v.reset(OpMul8)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub8, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Sub8 <t> (Mul8 x y) (Mul8 z x))
+	// cond:
+	// result: (Mul8  x (Sub8  <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul8 {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul8 {
+			break
+		}
+		_ = v_1.Args[1]
+		z := v_1.Args[0]
+		if x != v_1.Args[1] {
+			break
+		}
+		v.reset(OpMul8)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub8, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Sub8 <t> (Mul8 y x) (Mul8 z x))
+	// cond:
+	// result: (Mul8  x (Sub8  <t> y z))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul8 {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		x := v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul8 {
+			break
+		}
+		_ = v_1.Args[1]
+		z := v_1.Args[0]
+		if x != v_1.Args[1] {
+			break
+		}
+		v.reset(OpMul8)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpSub8, t)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Sub8 x x)
 	// cond:
 	// result: (Const8  [0])
@@ -24741,6 +25221,11 @@ func rewriteValuegeneric_OpSub8_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpSub8_10(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (Sub8 (Add8 y x) y)
 	// cond:
 	// result: x
@@ -24849,11 +25334,6 @@ func rewriteValuegeneric_OpSub8_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpSub8_10(v *Value) bool {
-	b := v.Block
-	_ = b
 	// match: (Sub8 (Const8 <t> [c]) (Sub8 (Const8 <t> [d]) x))
 	// cond:
 	// result: (Add8  (Const8  <t> [int64(int8(c-d))]) x)
