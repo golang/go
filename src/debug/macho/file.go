@@ -143,6 +143,12 @@ type Dysymtab struct {
 	IndirectSyms []uint32 // indices into Symtab.Syms
 }
 
+// A Rpath represents a Mach-O rpath command.
+type Rpath struct {
+	LoadBytes
+	Path string
+}
+
 // A Symbol is a Mach-O 32-bit or 64-bit symbol table entry.
 type Symbol struct {
 	Name  string
@@ -257,6 +263,19 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		switch cmd {
 		default:
 			f.Loads[i] = LoadBytes(cmddat)
+
+		case LoadCmdRpath:
+			var hdr RpathCmd
+			b := bytes.NewReader(cmddat)
+			if err := binary.Read(b, bo, &hdr); err != nil {
+				return nil, err
+			}
+			l := new(Rpath)
+			if hdr.Path >= uint32(len(cmddat)) {
+				return nil, &FormatError{offset, "invalid path in rpath command", hdr.Path}
+			}
+			l.Path = cstring(cmddat[hdr.Path:])
+			f.Loads[i] = l
 
 		case LoadCmdDylib:
 			var hdr DylibCmd
