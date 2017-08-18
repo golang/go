@@ -449,9 +449,6 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 		if setGStateErr != nil {
 			return ctx.data, setGStateErr
 		}
-		if ctx.gstates[gRunnable] < 0 || ctx.gstates[gRunning] < 0 || ctx.threadStats.insyscall < 0 {
-			return ctx.data, fmt.Errorf("invalid state after processing %v: runnable=%d running=%d insyscall=%d", ev, ctx.gstates[gRunnable], ctx.gstates[gRunning], ctx.threadStats.insyscall)
-		}
 
 		// Ignore events that are from uninteresting goroutines
 		// or outside of the interesting timeframe.
