@@ -1021,20 +1021,20 @@ func bucketEvacuated(t *maptype, h *hmap, bucket uintptr) bool {
 	return evacuated(b)
 }
 
+// evacDst is an evacuation destination.
+type evacDst struct {
+	b *bmap          // current destination bucket
+	i int            // key/val index into b
+	k unsafe.Pointer // pointer to current key storage
+	v unsafe.Pointer // pointer to current value storage
+}
+
 func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 	b := (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
 	newbit := h.noldbuckets()
 	if !evacuated(b) {
 		// TODO: reuse overflow buckets instead of using new ones, if there
 		// is no iterator using the old buckets.  (If !oldIterator.)
-
-		// evacDst is an evacuation destination.
-		type evacDst struct {
-			b *bmap          // current destination bucket
-			i int            // key/val index into b
-			k unsafe.Pointer // pointer to current key storage
-			v unsafe.Pointer // pointer to current value storage
-		}
 
 		// xy contains the x and y (low and high) evacuation destinations.
 		var xy [2]evacDst
