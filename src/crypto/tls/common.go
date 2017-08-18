@@ -471,8 +471,8 @@ type Config struct {
 	// connections using that key are compromised.
 	SessionTicketKey [32]byte
 
-	// SessionCache is a cache of ClientSessionState entries for TLS session
-	// resumption.
+	// ClientSessionCache is a cache of ClientSessionState entries for TLS
+	// session resumption.
 	ClientSessionCache ClientSessionCache
 
 	// MinVersion contains the minimum SSL/TLS version that is acceptable.
