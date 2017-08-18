@@ -139,7 +139,7 @@ func adbPush(t *testing.T, filename string) {
 	if GOOS != "android" {
 		return
 	}
-	args := append(cmdToRun("adb"), "push", filename, fmt.Sprintf("%s/%s", androiddir, filename))
+	args := append("adb", "push", filename, fmt.Sprintf("%s/%s", androiddir, filename))
 	cmd := exec.Command(args[0], args[1:]...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("adb command failed: %v\n%s\n", err, out)
@@ -150,7 +150,7 @@ func adbRun(t *testing.T, adbargs ...string) string {
 	if GOOS != "android" {
 		t.Fatalf("trying to run adb command when operating system is not android.")
 	}
-	args := append(cmdToRun("adb"), "shell")
+	args := append("adb", "shell")
 	args = append(args, adbargs...)
 	cmd := exec.Command(args[0], args[1:]...)
 	out, err := cmd.CombinedOutput()
