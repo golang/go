@@ -348,15 +348,25 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
 
 	var varScopes []ScopeID
 	for _, decl := range decls {
-		var scope ScopeID
-		if !decl.Name.Captured() && !decl.Name.Byval() {
-			// n.Pos of captured variables is their first
-			// use in the closure but they should always
-			// be assigned to scope 0 instead.
-			// TODO(mdempsky): Verify this.
-			scope = findScope(fn.Func.Marks, decl.Pos)
+		pos := decl.Pos
+		if decl.Name.Defn != nil && (decl.Name.Captured() || decl.Name.Byval()) {
+			// It's not clear which position is correct for captured variables here:
+			// * decl.Pos is the wrong position for captured variables, in the inner
+			//   function, but it is the right position in the outer function.
+			// * decl.Name.Defn is nil for captured variables that were arguments
+			//   on the outer function, however the decl.Pos for those seems to be
+			//   correct.
+			// * decl.Name.Defn is the "wrong" thing for variables declared in the
+			//   header of a type switch, it's their position in the header, rather
+			//   than the position of the case statement. In principle this is the
+			//   right thing, but here we prefer the latter because it makes each
+			//   instance of the header variable local to the lexical block of its
+			//   case statement.
+			// This code is probably wrong for type switch variables that are also
+			// captured.
+			pos = decl.Name.Defn.Pos
 		}
-		varScopes = append(varScopes, scope)
+		varScopes = append(varScopes, findScope(fn.Func.Marks, pos))
 	}
 	return assembleScopes(fnsym, fn, dwarfVars, varScopes)
 }
