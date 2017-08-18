@@ -836,24 +836,28 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 	return checkSignature(algo, signed, signature, c.PublicKey)
 }
 
+func signaturePublicKeyAlgoMismatchError(expectedPubKeyAlgo PublicKeyAlgorithm, pubKey interface{}) error {
+	return fmt.Errorf("x509: signature algorithm specifies an %s public key, but have public key of type %T", expectedPubKeyAlgo.String(), pubKey)
+}
+
 // CheckSignature verifies that signature is a valid signature over signed from
 // a crypto.PublicKey.
 func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey) (err error) {
 	var hashType crypto.Hash
+	var pubKeyAlgo PublicKeyAlgorithm
 
-	switch algo {
-	case SHA1WithRSA, DSAWithSHA1, ECDSAWithSHA1:
-		hashType = crypto.SHA1
-	case SHA256WithRSA, SHA256WithRSAPSS, DSAWithSHA256, ECDSAWithSHA256:
-		hashType = crypto.SHA256
-	case SHA384WithRSA, SHA384WithRSAPSS, ECDSAWithSHA384:
-		hashType = crypto.SHA384
-	case SHA512WithRSA, SHA512WithRSAPSS, ECDSAWithSHA512:
-		hashType = crypto.SHA512
-	case MD2WithRSA, MD5WithRSA:
-		return InsecureAlgorithmError(algo)
-	default:
+	for _, details := range signatureAlgorithmDetails {
+		if details.algo == algo {
+			hashType = details.hash
+			pubKeyAlgo = details.pubKeyAlgo
+		}
+	}
+
+	switch hashType {
+	case crypto.Hash(0):
 		return ErrUnsupportedAlgorithm
+	case crypto.MD5:
+		return InsecureAlgorithmError(algo)
 	}
 
 	if !hashType.Available() {
@@ -866,12 +870,18 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 
 	switch pub := publicKey.(type) {
 	case *rsa.PublicKey:
+		if pubKeyAlgo != RSA {
+			return signaturePublicKeyAlgoMismatchError(pubKeyAlgo, pub)
+		}
 		if algo.isRSAPSS() {
 			return rsa.VerifyPSS(pub, hashType, digest, signature, &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash})
 		} else {
 			return rsa.VerifyPKCS1v15(pub, hashType, digest, signature)
 		}
 	case *dsa.PublicKey:
+		if pubKeyAlgo != DSA {
+			return signaturePublicKeyAlgoMismatchError(pubKeyAlgo, pub)
+		}
 		dsaSig := new(dsaSignature)
 		if rest, err := asn1.Unmarshal(signature, dsaSig); err != nil {
 			return err
@@ -886,6 +896,9 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		}
 		return
 	case *ecdsa.PublicKey:
+		if pubKeyAlgo != ECDSA {
+			return signaturePublicKeyAlgoMismatchError(pubKeyAlgo, pub)
+		}
 		ecdsaSig := new(ecdsaSignature)
 		if rest, err := asn1.Unmarshal(signature, ecdsaSig); err != nil {
 			return err
