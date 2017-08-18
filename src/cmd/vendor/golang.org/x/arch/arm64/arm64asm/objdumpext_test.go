@@ -27,27 +27,19 @@ func testObjdumpARM64(t *testing.T, generate func(func([]byte))) {
 }
 
 func testObjdumpArch(t *testing.T, generate func(func([]byte)), arch Mode) {
-	if _, err := os.Stat(objdumpPath); err != nil {
-		t.Skip(err)
-	}
-	// Check objdump can disassemble elf64-aarch64.
-	if test := objdumpinfo(); test == false {
-		t.Skip("Skip the test if installed objdump doesn't support aarch64 elf format")
-	}
+	checkObjdumpAarch64(t)
 	testExtDis(t, "gnu", arch, objdump, generate, allowedMismatchObjdump)
 	testExtDis(t, "plan9", arch, objdump, generate, allowedMismatchObjdump)
 }
 
-func objdumpinfo() bool {
-	var i = []byte("aarch64")
+func checkObjdumpAarch64(t *testing.T) {
 	out, err := exec.Command(objdumpPath, "-i").Output()
 	if err != nil {
-		log.Fatal(err)
+		t.Skip("cannot run objdump: %v\n%s", err, out)
 	}
-	if bytes.Contains(out, i) {
-		return true
+	if !strings.Contains(string(out), "aarch64") {
+		t.Skip("objdump does not have aarch64 support")
 	}
-	return false
 }
 
 func objdump(ext *ExtDis) error {
