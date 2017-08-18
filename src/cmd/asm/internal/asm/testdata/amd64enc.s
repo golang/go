@@ -3315,14 +3315,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PALIGNR $7, (R11), M3           // 410f3a0f1b07
 	//TODO: PALIGNR $7, M2, M3              // 0f3a0fda07
 	//TODO: PALIGNR $7, M3, M3              // 0f3a0fdb07
-	//TODO: PALIGNR $7, (BX), X2            // 660f3a0f1307
-	//TODO: PALIGNR $7, (R11), X2           // 66410f3a0f1307
-	//TODO: PALIGNR $7, X2, X2              // 660f3a0fd207
-	//TODO: PALIGNR $7, X11, X2             // 66410f3a0fd307
-	//TODO: PALIGNR $7, (BX), X11           // 66440f3a0f1b07
-	//TODO: PALIGNR $7, (R11), X11          // 66450f3a0f1b07
-	//TODO: PALIGNR $7, X2, X11             // 66440f3a0fda07
-	//TODO: PALIGNR $7, X11, X11            // 66450f3a0fdb07
+	PALIGNR $7, (BX), X2                    // 660f3a0f1307
+	PALIGNR $7, (R11), X2                   // 66410f3a0f1307
+	PALIGNR $7, X2, X2                      // 660f3a0fd207
+	PALIGNR $7, X11, X2                     // 66410f3a0fd307
+	PALIGNR $7, (BX), X11                   // 66440f3a0f1b07
+	PALIGNR $7, (R11), X11                  // 66450f3a0f1b07
+	PALIGNR $7, X2, X11                     // 66440f3a0fda07
+	PALIGNR $7, X11, X11                    // 66450f3a0fdb07
 	PAND (BX), M2                           // 0fdb13
 	PAND (R11), M2                          // 410fdb13
 	PAND M2, M2                             // 0fdbd2
