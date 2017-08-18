@@ -503,7 +503,7 @@ func JSONCases(t *testing.T) func(func([]byte)) {
 	return func(try func([]byte)) {
 		data, err := ioutil.ReadFile("inst.json")
 		if err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		}
 		var insts []InstJson
 		var instsN []InstJson
@@ -513,7 +513,7 @@ func JSONCases(t *testing.T) func(func([]byte)) {
 			N = 16
 		}
 		if err := json.Unmarshal(data, &insts); err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		}
 		// Append instructions to get more test cases.
 		for i := 0; i < N; {
