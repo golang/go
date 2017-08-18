@@ -151,7 +151,8 @@ func adbRun(t *testing.T, adbargs ...string) string {
 		t.Fatalf("trying to run adb command when operating system is not android.")
 	}
 	args := []string{"adb", "shell"}
-	args = append(args, adbargs...)
+	shellcmd := fmt.Sprintf("cd %s; %s", androiddir, strings.Join(adbargs, " "))
+	args = append(args, shellcmd)
 	cmd := exec.Command(args[0], args[1:]...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
