@@ -971,6 +971,23 @@ var erfinvSC = []float64{
 	NaN(),
 }
 
+var vferfcinvSC = []float64{
+	0,
+	2,
+	1,
+	Inf(1),
+	Inf(-1),
+	NaN(),
+}
+var erfcinvSC = []float64{
+	Inf(+1),
+	Inf(-1),
+	0,
+	NaN(),
+	NaN(),
+	NaN(),
+}
+
 var vfexpSC = []float64{
 	Inf(-1),
 	-2000,
@@ -2175,6 +2192,30 @@ func TestErfinv(t *testing.T) {
 	}
 }
 
+func TestErfcinv(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		a := 1.0 - (vf[i] / 10)
+		if f := Erfcinv(a); !veryclose(erfinv[i], f) {
+			t.Errorf("Erfcinv(%g) = %g, want %g", a, f, erfinv[i])
+		}
+	}
+	for i := 0; i < len(vferfcinvSC); i++ {
+		if f := Erfcinv(vferfcinvSC[i]); !alike(erfcinvSC[i], f) {
+			t.Errorf("Erfcinv(%g) = %g, want %g", vferfcinvSC[i], f, erfcinvSC[i])
+		}
+	}
+	for x := 0.1; x <= 1.9; x += 1e-2 {
+		if f := Erfc(Erfcinv(x)); !close(x, f) {
+			t.Errorf("Erfc(Erfcinv(%g)) = %g, want %g", x, f, x)
+		}
+	}
+	for x := 0.1; x <= 1.9; x += 1e-2 {
+		if f := Erfcinv(Erfc(x)); !close(x, f) {
+			t.Errorf("Erfcinv(Erfc(%g)) = %g, want %g", x, f, x)
+		}
+	}
+}
+
 func TestExp(t *testing.T) {
 	testExp(t, Exp, "Exp")
 	testExp(t, ExpGo, "ExpGo")
@@ -3032,6 +3073,14 @@ func BenchmarkErfinv(b *testing.B) {
 	x := 0.0
 	for i := 0; i < b.N; i++ {
 		x = Erfinv(.5)
+	}
+	GlobalF = x
+}
+
+func BenchmarkErfcinv(b *testing.B) {
+	x := 0.0
+	for i := 0; i < b.N; i++ {
+		x = Erfcinv(.5)
 	}
 	GlobalF = x
 }
