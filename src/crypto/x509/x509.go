@@ -1056,7 +1056,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 		namedCurveOID := new(asn1.ObjectIdentifier)
 		rest, err := asn1.Unmarshal(paramsData, namedCurveOID)
 		if err != nil {
-			return nil, err
+			return nil, errors.New("x509: failed to parse ECDSA parameters as named curve")
 		}
 		if len(rest) != 0 {
 			return nil, errors.New("x509: trailing data after ECDSA parameters")
