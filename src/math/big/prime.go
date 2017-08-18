@@ -108,7 +108,7 @@ NextRandom:
 			continue
 		}
 		for j := uint(1); j < k; j++ {
-			y = y.mul(y, y)
+			y = y.sqr(y)
 			quotient, y = quotient.div(y, y, n)
 			if y.cmp(nm1) == 0 {
 				continue NextRandom
@@ -194,7 +194,7 @@ func (n nat) probablyPrimeLucas() bool {
 			// If n is a non-square we expect to find a d in just a few attempts on average.
 			// After 40 attempts, take a moment to check if n is indeed a square.
 			t1 = t1.sqrt(n)
-			t1 = t1.mul(t1, t1)
+			t1 = t1.sqr(t1)
 			if t1.cmp(n) == 0 {
 				return false
 			}
@@ -259,7 +259,7 @@ func (n nat) probablyPrimeLucas() bool {
 			t1 = t1.sub(t1, natP)
 			t2, vk = t2.div(vk, t1, n)
 			// V(k'+1) = V(2k+2) = V(k+1)² - 2.
-			t1 = t1.mul(vk1, vk1)
+			t1 = t1.sqr(vk1)
 			t1 = t1.add(t1, nm2)
 			t2, vk1 = t2.div(vk1, t1, n)
 		} else {
@@ -270,7 +270,7 @@ func (n nat) probablyPrimeLucas() bool {
 			t1 = t1.sub(t1, natP)
 			t2, vk1 = t2.div(vk1, t1, n)
 			// V(k') = V(2k) = V(k)² - 2
-			t1 = t1.mul(vk, vk)
+			t1 = t1.sqr(vk)
 			t1 = t1.add(t1, nm2)
 			t2, vk = t2.div(vk, t1, n)
 		}
@@ -312,7 +312,7 @@ func (n nat) probablyPrimeLucas() bool {
 		}
 		// k' = 2k
 		// V(k') = V(2k) = V(k)² - 2
-		t1 = t1.mul(vk, vk)
+		t1 = t1.sqr(vk)
 		t1 = t1.sub(t1, natTwo)
 		t2, vk = t2.div(vk, t1, n)
 	}

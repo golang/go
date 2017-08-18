@@ -991,7 +991,7 @@ func (z nat) expNN(x, y, m nat) nat {
 	// otherwise the arguments would alias.
 	var zz, r nat
 	for j := 0; j < w; j++ {
-		zz = zz.mul(z, z)
+		zz = zz.sqr(z)
 		zz, z = z, zz
 
 		if v&mask != 0 {
@@ -1011,7 +1011,7 @@ func (z nat) expNN(x, y, m nat) nat {
 		v = y[i]
 
 		for j := 0; j < _W; j++ {
-			zz = zz.mul(z, z)
+			zz = zz.sqr(z)
 			zz, z = z, zz
 
 			if v&mask != 0 {
@@ -1044,7 +1044,7 @@ func (z nat) expNNWindowed(x, y, m nat) nat {
 	powers[1] = x
 	for i := 2; i < 1<<n; i += 2 {
 		p2, p, p1 := &powers[i/2], &powers[i], &powers[i+1]
-		*p = p.mul(*p2, *p2)
+		*p = p.sqr(*p2)
 		zz, r = zz.div(r, *p, m)
 		*p, r = r, *p
 		*p1 = p1.mul(*p, x)
@@ -1061,22 +1061,22 @@ func (z nat) expNNWindowed(x, y, m nat) nat {
 				// Unrolled loop for significant performance
 				// gain. Use go test -bench=".*" in crypto/rsa
 				// to check performance before making changes.
-				zz = zz.mul(z, z)
+				zz = zz.sqr(z)
 				zz, z = z, zz
 				zz, r = zz.div(r, z, m)
 				z, r = r, z
 
-				zz = zz.mul(z, z)
+				zz = zz.sqr(z)
 				zz, z = z, zz
 				zz, r = zz.div(r, z, m)
 				z, r = r, z
 
-				zz = zz.mul(z, z)
+				zz = zz.sqr(z)
 				zz, z = z, zz
 				zz, r = zz.div(r, z, m)
 				z, r = r, z
 
-				zz = zz.mul(z, z)
+				zz = zz.sqr(z)
 				zz, z = z, zz
 				zz, r = zz.div(r, z, m)
 				z, r = r, z
