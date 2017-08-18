@@ -288,6 +288,27 @@ func TestCertificateParse(t *testing.T) {
 	}
 }
 
+func TestMismatchedSignatureAlgorithm(t *testing.T) {
+	der, _ := pem.Decode([]byte(rsaPSSSelfSignedPEM))
+	if der == nil {
+		t.Fatal("Failed to find PEM block")
+	}
+
+	cert, err := ParseCertificate(der.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = cert.CheckSignature(ECDSAWithSHA256, nil, nil); err == nil {
+		t.Fatal("CheckSignature unexpectedly return no error")
+	}
+
+	const expectedSubstring = " but have public key of type "
+	if !strings.Contains(err.Error(), expectedSubstring) {
+		t.Errorf("Expected error containing %q, but got %q", expectedSubstring, err)
+	}
+}
+
 var certBytes = "308203223082028ba00302010202106edf0d9499fd4533dd1297fc42a93be1300d06092a864886" +
 	"f70d0101050500304c310b3009060355040613025a4131253023060355040a131c546861777465" +
 	"20436f6e73756c74696e67202850747929204c74642e311630140603550403130d546861777465" +
