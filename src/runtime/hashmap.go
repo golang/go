@@ -1086,15 +1086,12 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 						// We recompute a new random tophash for the next level so
 						// these keys will get evenly distributed across all buckets
 						// after multiple grows.
-						if top&1 != 0 {
-							hash |= newbit
-						} else {
-							hash &^= newbit
-						}
+						useY = top & 1
 						top = tophash(hash)
-					}
-					if hash&newbit != 0 {
-						useY = 1
+					} else {
+						if hash&newbit != 0 {
+							useY = 1
+						}
 					}
 				}
 
