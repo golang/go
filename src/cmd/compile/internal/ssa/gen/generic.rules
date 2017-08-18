@@ -962,6 +962,7 @@
 (Div16u n (Const16 [c])) && isPowerOfTwo(c&0xffff)     -> (Rsh16Ux64 n (Const64 <typ.UInt64> [log2(c&0xffff)]))
 (Div32u n (Const32 [c])) && isPowerOfTwo(c&0xffffffff) -> (Rsh32Ux64 n (Const64 <typ.UInt64> [log2(c&0xffffffff)]))
 (Div64u n (Const64 [c])) && isPowerOfTwo(c)            -> (Rsh64Ux64 n (Const64 <typ.UInt64> [log2(c)]))
+(Div64u n (Const64 [-1<<63]))                          -> (Rsh64Ux64 n (Const64 <typ.UInt64> [63]))
 
 // Unsigned divide, not a power of 2.  Strength reduce to a multiply.
 // For 8-bit divides, we just do a direct 9-bit by 8-bit multiply.
@@ -1194,6 +1195,7 @@
 (Mod16u <t> n (Const16 [c])) && isPowerOfTwo(c&0xffff)     -> (And16 n (Const16 <t> [(c&0xffff)-1]))
 (Mod32u <t> n (Const32 [c])) && isPowerOfTwo(c&0xffffffff) -> (And32 n (Const32 <t> [(c&0xffffffff)-1]))
 (Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c)            -> (And64 n (Const64 <t> [c-1]))
+(Mod64u <t> n (Const64 [-1<<63]))                          -> (And64 n (Const64 <t> [1<<63-1]))
 
 // Signed mod by negative constant.
 (Mod8  <t> n (Const8  [c])) && c < 0 && c != -1<<7  -> (Mod8  <t> n (Const8  <t> [-c]))
