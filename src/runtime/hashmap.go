@@ -1119,12 +1119,12 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 					typedmemmove(t.elem, dst.v, v)
 				}
 				dst.i++
-				// If we're at the end of the bucket, don't update k/v,
-				// to avoid pointers pointing past the end of the bucket.
-				if dst.i < bucketCnt {
-					dst.k = add(dst.k, uintptr(t.keysize))
-					dst.v = add(dst.v, uintptr(t.valuesize))
-				}
+				// These updates might push these pointers past the end of the
+				// key or value arrays.  That's ok, as we have the overflow pointer
+				// at the end of the bucket to protect against pointing past the
+				// end of the bucket.
+				dst.k = add(dst.k, uintptr(t.keysize))
+				dst.v = add(dst.v, uintptr(t.valuesize))
 			}
 		}
 		// Unlink the overflow buckets & clear key/value to help GC.
