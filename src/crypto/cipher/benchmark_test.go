@@ -10,6 +10,21 @@ import (
 	"testing"
 )
 
+func benchmarkAESGCMSign(b *testing.B, buf []byte) {
+	b.SetBytes(int64(len(buf)))
+
+	var key [16]byte
+	var nonce [12]byte
+	aes, _ := aes.NewCipher(key[:])
+	aesgcm, _ := cipher.NewGCM(aes)
+	var out []byte
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		out = aesgcm.Seal(out[:0], nonce[:], nil, buf)
+	}
+}
+
 func benchmarkAESGCMSeal(b *testing.B, buf []byte) {
 	b.SetBytes(int64(len(buf)))
 
@@ -52,6 +67,10 @@ func BenchmarkAESGCMSeal1K(b *testing.B) {
 
 func BenchmarkAESGCMOpen1K(b *testing.B) {
 	benchmarkAESGCMOpen(b, make([]byte, 1024))
+}
+
+func BenchmarkAESGCMSign8K(b *testing.B) {
+	benchmarkAESGCMSign(b, make([]byte, 8*1024))
 }
 
 func BenchmarkAESGCMSeal8K(b *testing.B) {
