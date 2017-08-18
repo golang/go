@@ -27,7 +27,7 @@ import (
 	"errors"
 	"io"
 	"math/big"
-	"sync/atomic"
+	"unsafe"
 )
 
 // A invertible implements fast inverse mod Curve.Params().N
@@ -50,7 +50,7 @@ type PublicKey struct {
 	elliptic.Curve
 	X, Y *big.Int
 
-	boring atomic.Value
+	boring unsafe.Pointer
 }
 
 // PrivateKey represents a ECDSA private key.
@@ -58,7 +58,7 @@ type PrivateKey struct {
 	PublicKey
 	D *big.Int
 
-	boring atomic.Value
+	boring unsafe.Pointer
 }
 
 type ecdsaSignature struct {

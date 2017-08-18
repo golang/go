@@ -5,9 +5,10 @@
 package ecdsa
 
 import (
-	"crypto/elliptic"
 	"crypto/internal/boring"
 	"math/big"
+	"sync/atomic"
+	"unsafe"
 )
 
 // Cached conversions from Go PublicKey/PrivateKey to BoringCrypto.
@@ -29,81 +30,71 @@ import (
 
 type boringPub struct {
 	key  *boring.PublicKeyECDSA
-	orig publicKey
-}
-
-// copy of PublicKey without the atomic.Value field, to placate vet.
-type publicKey struct {
-	elliptic.Curve
-	X, Y *big.Int
+	orig PublicKey
 }
 
 func boringPublicKey(pub *PublicKey) (*boring.PublicKeyECDSA, error) {
-	b, _ := pub.boring.Load().(boringPub)
-	if publicKeyEqual(&b.orig, pub) {
+	b := (*boringPub)(atomic.LoadPointer(&pub.boring))
+	if b != nil && publicKeyEqual(&b.orig, pub) {
 		return b.key, nil
 	}
 
+	b = new(boringPub)
 	b.orig = copyPublicKey(pub)
 	key, err := boring.NewPublicKeyECDSA(b.orig.Curve.Params().Name, b.orig.X, b.orig.Y)
 	if err != nil {
 		return nil, err
 	}
 	b.key = key
-	pub.boring.Store(b)
+	atomic.StorePointer(&pub.boring, unsafe.Pointer(b))
 	return key, nil
 }
 
 type boringPriv struct {
 	key  *boring.PrivateKeyECDSA
-	orig privateKey
-}
-
-// copy of PrivateKey without the atomic.Value field, to placate vet.
-type privateKey struct {
-	publicKey
-	D *big.Int
+	orig PrivateKey
 }
 
 func boringPrivateKey(priv *PrivateKey) (*boring.PrivateKeyECDSA, error) {
-	b, _ := priv.boring.Load().(boringPriv)
-	if privateKeyEqual(&b.orig, priv) {
+	b := (*boringPriv)(atomic.LoadPointer(&priv.boring))
+	if b != nil && privateKeyEqual(&b.orig, priv) {
 		return b.key, nil
 	}
 
+	b = new(boringPriv)
 	b.orig = copyPrivateKey(priv)
 	key, err := boring.NewPrivateKeyECDSA(b.orig.Curve.Params().Name, b.orig.X, b.orig.Y, b.orig.D)
 	if err != nil {
 		return nil, err
 	}
 	b.key = key
-	priv.boring.Store(b)
+	atomic.StorePointer(&priv.boring, unsafe.Pointer(b))
 	return key, nil
 }
 
-func publicKeyEqual(k1 *publicKey, k2 *PublicKey) bool {
+func publicKeyEqual(k1, k2 *PublicKey) bool {
 	return k1.X != nil &&
 		k1.Curve.Params() == k2.Curve.Params() &&
 		k1.X.Cmp(k2.X) == 0 &&
 		k1.Y.Cmp(k2.Y) == 0
 }
 
-func privateKeyEqual(k1 *privateKey, k2 *PrivateKey) bool {
-	return publicKeyEqual(&k1.publicKey, &k2.PublicKey) &&
+func privateKeyEqual(k1, k2 *PrivateKey) bool {
+	return publicKeyEqual(&k1.PublicKey, &k2.PublicKey) &&
 		k1.D.Cmp(k2.D) == 0
 }
 
-func copyPublicKey(k *PublicKey) publicKey {
-	return publicKey{
+func copyPublicKey(k *PublicKey) PublicKey {
+	return PublicKey{
 		Curve: k.Curve,
 		X:     new(big.Int).Set(k.X),
 		Y:     new(big.Int).Set(k.Y),
 	}
 }
 
-func copyPrivateKey(k *PrivateKey) privateKey {
-	return privateKey{
-		publicKey: copyPublicKey(&k.PublicKey),
+func copyPrivateKey(k *PrivateKey) PrivateKey {
+	return PrivateKey{
+		PublicKey: copyPublicKey(&k.PublicKey),
 		D:         new(big.Int).Set(k.D),
 	}
 }
