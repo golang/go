@@ -114,3 +114,14 @@ func Erfinv(x float64) float64 {
 	}
 	return ans
 }
+
+// Erfcinv returns the inverse of Erfc(x).
+//
+// Special cases are:
+//	Erfcinv(0) = +Inf
+//	Erfcinv(2) = -Inf
+//	Erfcinv(x) = NaN if x < 0 or x > 2
+//	Erfcinv(NaN) = NaN
+func Erfcinv(x float64) float64 {
+	return Erfinv(1 - x)
+}
