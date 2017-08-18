@@ -3083,14 +3083,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PABSB (R11), M3                 // 410f381c1b
 	//TODO: PABSB M2, M3                    // 0f381cda
 	//TODO: PABSB M3, M3                    // 0f381cdb
-	//TODO: PABSB (BX), X2                  // 660f381c13
-	//TODO: PABSB (R11), X2                 // 66410f381c13
-	//TODO: PABSB X2, X2                    // 660f381cd2
-	//TODO: PABSB X11, X2                   // 66410f381cd3
-	//TODO: PABSB (BX), X11                 // 66440f381c1b
-	//TODO: PABSB (R11), X11                // 66450f381c1b
-	//TODO: PABSB X2, X11                   // 66440f381cda
-	//TODO: PABSB X11, X11                  // 66450f381cdb
+	PABSB (BX), X2                          // 660f381c13
+	PABSB (R11), X2                         // 66410f381c13
+	PABSB X2, X2                            // 660f381cd2
+	PABSB X11, X2                           // 66410f381cd3
+	PABSB (BX), X11                         // 66440f381c1b
+	PABSB (R11), X11                        // 66450f381c1b
+	PABSB X2, X11                           // 66440f381cda
+	PABSB X11, X11                          // 66450f381cdb
 	//TODO: PABSD (BX), M2                  // 0f381e13
 	//TODO: PABSD (R11), M2                 // 410f381e13
 	//TODO: PABSD M2, M2                    // 0f381ed2
@@ -3099,14 +3099,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PABSD (R11), M3                 // 410f381e1b
 	//TODO: PABSD M2, M3                    // 0f381eda
 	//TODO: PABSD M3, M3                    // 0f381edb
-	//TODO: PABSD (BX), X2                  // 660f381e13
-	//TODO: PABSD (R11), X2                 // 66410f381e13
-	//TODO: PABSD X2, X2                    // 660f381ed2
-	//TODO: PABSD X11, X2                   // 66410f381ed3
-	//TODO: PABSD (BX), X11                 // 66440f381e1b
-	//TODO: PABSD (R11), X11                // 66450f381e1b
-	//TODO: PABSD X2, X11                   // 66440f381eda
-	//TODO: PABSD X11, X11                  // 66450f381edb
+	PABSD (BX), X2                          // 660f381e13
+	PABSD (R11), X2                         // 66410f381e13
+	PABSD X2, X2                            // 660f381ed2
+	PABSD X11, X2                           // 66410f381ed3
+	PABSD (BX), X11                         // 66440f381e1b
+	PABSD (R11), X11                        // 66450f381e1b
+	PABSD X2, X11                           // 66440f381eda
+	PABSD X11, X11                          // 66450f381edb
 	//TODO: PABSW (BX), M2                  // 0f381d13
 	//TODO: PABSW (R11), M2                 // 410f381d13
 	//TODO: PABSW M2, M2                    // 0f381dd2
@@ -3115,14 +3115,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PABSW (R11), M3                 // 410f381d1b
 	//TODO: PABSW M2, M3                    // 0f381dda
 	//TODO: PABSW M3, M3                    // 0f381ddb
-	//TODO: PABSW (BX), X2                  // 660f381d13
-	//TODO: PABSW (R11), X2                 // 66410f381d13
-	//TODO: PABSW X2, X2                    // 660f381dd2
-	//TODO: PABSW X11, X2                   // 66410f381dd3
-	//TODO: PABSW (BX), X11                 // 66440f381d1b
-	//TODO: PABSW (R11), X11                // 66450f381d1b
-	//TODO: PABSW X2, X11                   // 66440f381dda
-	//TODO: PABSW X11, X11                  // 66450f381ddb
+	PABSW (BX), X2                          // 660f381d13
+	PABSW (R11), X2                         // 66410f381d13
+	PABSW X2, X2                            // 660f381dd2
+	PABSW X11, X2                           // 66410f381dd3
+	PABSW (BX), X11                         // 66440f381d1b
+	PABSW (R11), X11                        // 66450f381d1b
+	PABSW X2, X11                           // 66440f381dda
+	PABSW X11, X11                          // 66450f381ddb
 	PACKSSLW (BX), M2                       // 0f6b13
 	PACKSSLW (R11), M2                      // 410f6b13
 	PACKSSLW M2, M2                         // 0f6bd2
@@ -3775,14 +3775,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PMADDUBSW (R11), M3             // 410f38041b
 	//TODO: PMADDUBSW M2, M3                // 0f3804da
 	//TODO: PMADDUBSW M3, M3                // 0f3804db
-	//TODO: PMADDUBSW (BX), X2              // 660f380413
-	//TODO: PMADDUBSW (R11), X2             // 66410f380413
-	//TODO: PMADDUBSW X2, X2                // 660f3804d2
-	//TODO: PMADDUBSW X11, X2               // 66410f3804d3
-	//TODO: PMADDUBSW (BX), X11             // 66440f38041b
-	//TODO: PMADDUBSW (R11), X11            // 66450f38041b
-	//TODO: PMADDUBSW X2, X11               // 66440f3804da
-	//TODO: PMADDUBSW X11, X11              // 66450f3804db
+	PMADDUBSW (BX), X2                      // 660f380413
+	PMADDUBSW (R11), X2                     // 66410f380413
+	PMADDUBSW X2, X2                        // 660f3804d2
+	PMADDUBSW X11, X2                       // 66410f3804d3
+	PMADDUBSW (BX), X11                     // 66440f38041b
+	PMADDUBSW (R11), X11                    // 66450f38041b
+	PMADDUBSW X2, X11                       // 66440f3804da
+	PMADDUBSW X11, X11                      // 66450f3804db
 	PMADDWL (BX), M2                        // 0ff513
 	PMADDWL (R11), M2                       // 410ff513
 	PMADDWL M2, M2                          // 0ff5d2
@@ -4047,14 +4047,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PMULHRSW (R11), M3              // 410f380b1b
 	//TODO: PMULHRSW M2, M3                 // 0f380bda
 	//TODO: PMULHRSW M3, M3                 // 0f380bdb
-	//TODO: PMULHRSW (BX), X2               // 660f380b13
-	//TODO: PMULHRSW (R11), X2              // 66410f380b13
-	//TODO: PMULHRSW X2, X2                 // 660f380bd2
-	//TODO: PMULHRSW X11, X2                // 66410f380bd3
-	//TODO: PMULHRSW (BX), X11              // 66440f380b1b
-	//TODO: PMULHRSW (R11), X11             // 66450f380b1b
-	//TODO: PMULHRSW X2, X11                // 66440f380bda
-	//TODO: PMULHRSW X11, X11               // 66450f380bdb
+	PMULHRSW (BX), X2                       // 660f380b13
+	PMULHRSW (R11), X2                      // 66410f380b13
+	PMULHRSW X2, X2                         // 660f380bd2
+	PMULHRSW X11, X2                        // 66410f380bd3
+	PMULHRSW (BX), X11                      // 66440f380b1b
+	PMULHRSW (R11), X11                     // 66450f380b1b
+	PMULHRSW X2, X11                        // 66440f380bda
+	PMULHRSW X11, X11                       // 66450f380bdb
 	PMULHUW (BX), M2                        // 0fe413
 	PMULHUW (R11), M2                       // 410fe413
 	PMULHUW M2, M2                          // 0fe4d2
@@ -4283,14 +4283,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PSIGNB (R11), M3                // 410f38081b
 	//TODO: PSIGNB M2, M3                   // 0f3808da
 	//TODO: PSIGNB M3, M3                   // 0f3808db
-	//TODO: PSIGNB (BX), X2                 // 660f380813
-	//TODO: PSIGNB (R11), X2                // 66410f380813
-	//TODO: PSIGNB X2, X2                   // 660f3808d2
-	//TODO: PSIGNB X11, X2                  // 66410f3808d3
-	//TODO: PSIGNB (BX), X11                // 66440f38081b
-	//TODO: PSIGNB (R11), X11               // 66450f38081b
-	//TODO: PSIGNB X2, X11                  // 66440f3808da
-	//TODO: PSIGNB X11, X11                 // 66450f3808db
+	PSIGNB (BX), X2                         // 660f380813
+	PSIGNB (R11), X2                        // 66410f380813
+	PSIGNB X2, X2                           // 660f3808d2
+	PSIGNB X11, X2                          // 66410f3808d3
+	PSIGNB (BX), X11                        // 66440f38081b
+	PSIGNB (R11), X11                       // 66450f38081b
+	PSIGNB X2, X11                          // 66440f3808da
+	PSIGNB X11, X11                         // 66450f3808db
 	//TODO: PSIGND (BX), M2                 // 0f380a13
 	//TODO: PSIGND (R11), M2                // 410f380a13
 	//TODO: PSIGND M2, M2                   // 0f380ad2
@@ -4299,14 +4299,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PSIGND (R11), M3                // 410f380a1b
 	//TODO: PSIGND M2, M3                   // 0f380ada
 	//TODO: PSIGND M3, M3                   // 0f380adb
-	//TODO: PSIGND (BX), X2                 // 660f380a13
-	//TODO: PSIGND (R11), X2                // 66410f380a13
-	//TODO: PSIGND X2, X2                   // 660f380ad2
-	//TODO: PSIGND X11, X2                  // 66410f380ad3
-	//TODO: PSIGND (BX), X11                // 66440f380a1b
-	//TODO: PSIGND (R11), X11               // 66450f380a1b
-	//TODO: PSIGND X2, X11                  // 66440f380ada
-	//TODO: PSIGND X11, X11                 // 66450f380adb
+	PSIGND (BX), X2                         // 660f380a13
+	PSIGND (R11), X2                        // 66410f380a13
+	PSIGND X2, X2                           // 660f380ad2
+	PSIGND X11, X2                          // 66410f380ad3
+	PSIGND (BX), X11                        // 66440f380a1b
+	PSIGND (R11), X11                       // 66450f380a1b
+	PSIGND X2, X11                          // 66440f380ada
+	PSIGND X11, X11                         // 66450f380adb
 	//TODO: PSIGNW (BX), M2                 // 0f380913
 	//TODO: PSIGNW (R11), M2                // 410f380913
 	//TODO: PSIGNW M2, M2                   // 0f3809d2
@@ -4315,14 +4315,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PSIGNW (R11), M3                // 410f38091b
 	//TODO: PSIGNW M2, M3                   // 0f3809da
 	//TODO: PSIGNW M3, M3                   // 0f3809db
-	//TODO: PSIGNW (BX), X2                 // 660f380913
-	//TODO: PSIGNW (R11), X2                // 66410f380913
-	//TODO: PSIGNW X2, X2                   // 660f3809d2
-	//TODO: PSIGNW X11, X2                  // 66410f3809d3
-	//TODO: PSIGNW (BX), X11                // 66440f38091b
-	//TODO: PSIGNW (R11), X11               // 66450f38091b
-	//TODO: PSIGNW X2, X11                  // 66440f3809da
-	//TODO: PSIGNW X11, X11                 // 66450f3809db
+	PSIGNW (BX), X2                         // 660f380913
+	PSIGNW (R11), X2                        // 66410f380913
+	PSIGNW X2, X2                           // 660f3809d2
+	PSIGNW X11, X2                          // 66410f3809d3
+	PSIGNW (BX), X11                        // 66440f38091b
+	PSIGNW (R11), X11                       // 66450f38091b
+	PSIGNW X2, X11                          // 66440f3809da
+	PSIGNW X11, X11                         // 66450f3809db
 	PSLLL (BX), M2                          // 0ff213
 	PSLLL (R11), M2                         // 410ff213
 	PSLLL M2, M2                            // 0ff2d2
