@@ -8220,6 +8220,26 @@ func rewriteValuegeneric_OpDiv64u_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (Div64u n (Const64 [-1<<63]))
+	// cond:
+	// result: (Rsh64Ux64 n (Const64 <typ.UInt64> [63]))
+	for {
+		_ = v.Args[1]
+		n := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		if v_1.AuxInt != -1<<63 {
+			break
+		}
+		v.reset(OpRsh64Ux64)
+		v.AddArg(n)
+		v0 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v0.AuxInt = 63
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Div64u x (Const64 [c]))
 	// cond: umagicOK(64, c) && config.RegSize == 8 && umagic(64,c).m&1 == 0
 	// result: (Rsh64Ux64 <typ.UInt64>     (Hmul64u <typ.UInt64>       (Const64 <typ.UInt64> [int64(1<<63+umagic(64,c).m/2)])       x)     (Const64 <typ.UInt64> [umagic(64,c).s-1]))
@@ -13335,6 +13355,27 @@ func rewriteValuegeneric_OpMod64u_0(v *Value) bool {
 		v.AddArg(n)
 		v0 := b.NewValue0(v.Pos, OpConst64, t)
 		v0.AuxInt = c - 1
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Mod64u <t> n (Const64 [-1<<63]))
+	// cond:
+	// result: (And64 n (Const64 <t> [1<<63-1]))
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		n := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		if v_1.AuxInt != -1<<63 {
+			break
+		}
+		v.reset(OpAnd64)
+		v.AddArg(n)
+		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0.AuxInt = 1<<63 - 1
 		v.AddArg(v0)
 		return true
 	}
