@@ -3647,14 +3647,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PHADDSW (R11), M3               // 410f38031b
 	//TODO: PHADDSW M2, M3                  // 0f3803da
 	//TODO: PHADDSW M3, M3                  // 0f3803db
-	//TODO: PHADDSW (BX), X2                // 660f380313
-	//TODO: PHADDSW (R11), X2               // 66410f380313
-	//TODO: PHADDSW X2, X2                  // 660f3803d2
-	//TODO: PHADDSW X11, X2                 // 66410f3803d3
-	//TODO: PHADDSW (BX), X11               // 66440f38031b
-	//TODO: PHADDSW (R11), X11              // 66450f38031b
-	//TODO: PHADDSW X2, X11                 // 66440f3803da
-	//TODO: PHADDSW X11, X11                // 66450f3803db
+	PHADDSW (BX), X2                        // 660f380313
+	PHADDSW (R11), X2                       // 66410f380313
+	PHADDSW X2, X2                          // 660f3803d2
+	PHADDSW X11, X2                         // 66410f3803d3
+	PHADDSW (BX), X11                       // 66440f38031b
+	PHADDSW (R11), X11                      // 66450f38031b
+	PHADDSW X2, X11                         // 66440f3803da
+	PHADDSW X11, X11                        // 66450f3803db
 	//TODO: PHADDW (BX), M2                 // 0f380113
 	//TODO: PHADDW (R11), M2                // 410f380113
 	//TODO: PHADDW M2, M2                   // 0f3801d2
@@ -3663,14 +3663,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PHADDW (R11), M3                // 410f38011b
 	//TODO: PHADDW M2, M3                   // 0f3801da
 	//TODO: PHADDW M3, M3                   // 0f3801db
-	//TODO: PHADDW (BX), X2                 // 660f380113
-	//TODO: PHADDW (R11), X2                // 66410f380113
-	//TODO: PHADDW X2, X2                   // 660f3801d2
-	//TODO: PHADDW X11, X2                  // 66410f3801d3
-	//TODO: PHADDW (BX), X11                // 66440f38011b
-	//TODO: PHADDW (R11), X11               // 66450f38011b
-	//TODO: PHADDW X2, X11                  // 66440f3801da
-	//TODO: PHADDW X11, X11                 // 66450f3801db
+	PHADDW (BX), X2                         // 660f380113
+	PHADDW (R11), X2                        // 66410f380113
+	PHADDW X2, X2                           // 660f3801d2
+	PHADDW X11, X2                          // 66410f3801d3
+	PHADDW (BX), X11                        // 66440f38011b
+	PHADDW (R11), X11                       // 66450f38011b
+	PHADDW X2, X11                          // 66440f3801da
+	PHADDW X11, X11                         // 66450f3801db
 	PHMINPOSUW (BX), X2                     // 660f384113
 	PHMINPOSUW (R11), X2                    // 66410f384113
 	PHMINPOSUW X2, X2                       // 660f3841d2
@@ -3687,14 +3687,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PHSUBD (R11), M3                // 410f38061b
 	//TODO: PHSUBD M2, M3                   // 0f3806da
 	//TODO: PHSUBD M3, M3                   // 0f3806db
-	//TODO: PHSUBD (BX), X2                 // 660f380613
-	//TODO: PHSUBD (R11), X2                // 66410f380613
-	//TODO: PHSUBD X2, X2                   // 660f3806d2
-	//TODO: PHSUBD X11, X2                  // 66410f3806d3
-	//TODO: PHSUBD (BX), X11                // 66440f38061b
-	//TODO: PHSUBD (R11), X11               // 66450f38061b
-	//TODO: PHSUBD X2, X11                  // 66440f3806da
-	//TODO: PHSUBD X11, X11                 // 66450f3806db
+	PHSUBD (BX), X2                         // 660f380613
+	PHSUBD (R11), X2                        // 66410f380613
+	PHSUBD X2, X2                           // 660f3806d2
+	PHSUBD X11, X2                          // 66410f3806d3
+	PHSUBD (BX), X11                        // 66440f38061b
+	PHSUBD (R11), X11                       // 66450f38061b
+	PHSUBD X2, X11                          // 66440f3806da
+	PHSUBD X11, X11                         // 66450f3806db
 	//TODO: PHSUBSW (BX), M2                // 0f380713
 	//TODO: PHSUBSW (R11), M2               // 410f380713
 	//TODO: PHSUBSW M2, M2                  // 0f3807d2
@@ -3703,14 +3703,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PHSUBSW (R11), M3               // 410f38071b
 	//TODO: PHSUBSW M2, M3                  // 0f3807da
 	//TODO: PHSUBSW M3, M3                  // 0f3807db
-	//TODO: PHSUBSW (BX), X2                // 660f380713
-	//TODO: PHSUBSW (R11), X2               // 66410f380713
-	//TODO: PHSUBSW X2, X2                  // 660f3807d2
-	//TODO: PHSUBSW X11, X2                 // 66410f3807d3
-	//TODO: PHSUBSW (BX), X11               // 66440f38071b
-	//TODO: PHSUBSW (R11), X11              // 66450f38071b
-	//TODO: PHSUBSW X2, X11                 // 66440f3807da
-	//TODO: PHSUBSW X11, X11                // 66450f3807db
+	PHSUBSW (BX), X2                        // 660f380713
+	PHSUBSW (R11), X2                       // 66410f380713
+	PHSUBSW X2, X2                          // 660f3807d2
+	PHSUBSW X11, X2                         // 66410f3807d3
+	PHSUBSW (BX), X11                       // 66440f38071b
+	PHSUBSW (R11), X11                      // 66450f38071b
+	PHSUBSW X2, X11                         // 66440f3807da
+	PHSUBSW X11, X11                        // 66450f3807db
 	//TODO: PHSUBW (BX), M2                 // 0f380513
 	//TODO: PHSUBW (R11), M2                // 410f380513
 	//TODO: PHSUBW M2, M2                   // 0f3805d2
@@ -3719,14 +3719,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PHSUBW (R11), M3                // 410f38051b
 	//TODO: PHSUBW M2, M3                   // 0f3805da
 	//TODO: PHSUBW M3, M3                   // 0f3805db
-	//TODO: PHSUBW (BX), X2                 // 660f380513
-	//TODO: PHSUBW (R11), X2                // 66410f380513
-	//TODO: PHSUBW X2, X2                   // 660f3805d2
-	//TODO: PHSUBW X11, X2                  // 66410f3805d3
-	//TODO: PHSUBW (BX), X11                // 66440f38051b
-	//TODO: PHSUBW (R11), X11               // 66450f38051b
-	//TODO: PHSUBW X2, X11                  // 66440f3805da
-	//TODO: PHSUBW X11, X11                 // 66450f3805db
+	PHSUBW (BX), X2                         // 660f380513
+	PHSUBW (R11), X2                        // 66410f380513
+	PHSUBW X2, X2                           // 660f3805d2
+	PHSUBW X11, X2                          // 66410f3805d3
+	PHSUBW (BX), X11                        // 66440f38051b
+	PHSUBW (R11), X11                       // 66450f38051b
+	PHSUBW X2, X11                          // 66440f3805da
+	PHSUBW X11, X11                         // 66450f3805db
 	PINSRB $7, (BX), X2                     // 660f3a201307
 	PINSRB $7, (R11), X2                    // 66410f3a201307
 	PINSRB $7, DX, X2                       // 660f3a20d207
