@@ -771,8 +771,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: CLAC                            // 0f01ca
 	CLC                                     // f8
 	CLD                                     // fc
-	//TODO: CLFLUSH (BX)                    // 0fae3b
-	//TODO: CLFLUSH (R11)                   // 410fae3b
+	CLFLUSH (BX)                            // 0fae3b
+	CLFLUSH (R11)                           // 410fae3b
 	//TODO: CLFLUSHOPT (BX)                 // 660fae3b
 	//TODO: CLFLUSHOPT (R11)                // 66410fae3b
 	CLI                                     // fa

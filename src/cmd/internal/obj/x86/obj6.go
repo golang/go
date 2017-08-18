@@ -1183,6 +1183,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 var unaryDst = map[obj.As]bool{
 	ABSWAPL:    true,
 	ABSWAPQ:    true,
+	ACLFLUSH:   true,
 	ACMPXCHG8B: true,
 	ADECB:      true,
 	ADECL:      true,

@@ -551,6 +551,10 @@ var ypopl = []ytab{
 	{Ynone, Ynone, Ym, Zo_m, 2},
 }
 
+var yclflush = []ytab{
+	{Ynone, Ynone, Ym, Zo_m, 2},
+}
+
 var ybswap = []ytab{
 	{Ynone, Ynone, Yrl, Z_rp, 2},
 }
@@ -994,6 +998,7 @@ var optab =
 	{ACDQ, ynone, Px, [23]uint8{0x99}},
 	{ACLC, ynone, Px, [23]uint8{0xf8}},
 	{ACLD, ynone, Px, [23]uint8{0xfc}},
+	{ACLFLUSH, yclflush, Pm, [23]uint8{0xae, 07}},
 	{ACLI, ynone, Px, [23]uint8{0xfa}},
 	{ACLTS, ynone, Pm, [23]uint8{0x06}},
 	{ACMC, ynone, Px, [23]uint8{0xf5}},
