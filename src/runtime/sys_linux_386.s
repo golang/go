@@ -100,7 +100,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$8
 	MOVL	AX, 0(SP)
 	MOVL	$1000, AX	// usec to nsec
 	MULL	DX
-	MOVL	DX, 4(SP)
+	MOVL	AX, 4(SP)
 
 	// pselect6(0, 0, 0, 0, &ts, 0)
 	MOVL	$308, AX
