@@ -259,4 +259,25 @@ Goroutine [0-9] \(running\) created at:
   runtime\.newextram\(\)
       .*/runtime/proc.go:[0-9]+ \+0x[0-9,a-f]+
 ==================`},
+	{"second_test_passes", "test", "", "atexit_sleep_ms=0", `
+package main_test
+import "testing"
+func TestFail(t *testing.T) {
+	done := make(chan bool)
+	x := 0
+	go func() {
+		x = 42
+		done <- true
+	}()
+	x = 43
+	<-done
+}
+
+func TestPass(t *testing.T) {
+}
+`, `
+==================
+--- FAIL: TestFail \(0...s\)
+.*testing.go:.*: race detected during execution of test
+FAIL`},
 }
