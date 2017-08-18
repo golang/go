@@ -38,6 +38,7 @@ var Anames = []string{
 	"BYTE",
 	"CLC",
 	"CLD",
+	"CLFLUSH",
 	"CLI",
 	"CLTS",
 	"CMC",

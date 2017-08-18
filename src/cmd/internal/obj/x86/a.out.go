@@ -76,6 +76,7 @@ const (
 	ABYTE
 	ACLC
 	ACLD
+	ACLFLUSH
 	ACLI
 	ACLTS
 	ACMC
