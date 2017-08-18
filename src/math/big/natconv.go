@@ -469,7 +469,7 @@ func divisors(m int, b Word, ndigits int, bb Word) []divisor {
 					table[0].bbb = nat(nil).expWW(bb, Word(leafSize))
 					table[0].ndigits = ndigits * leafSize
 				} else {
-					table[i].bbb = nat(nil).mul(table[i-1].bbb, table[i-1].bbb)
+					table[i].bbb = nat(nil).sqr(table[i-1].bbb)
 					table[i].ndigits = 2 * table[i-1].ndigits
 				}
 
