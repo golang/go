@@ -786,6 +786,10 @@ var ylddqu = []ytab{
 	{Ym, Ynone, Yxr, Zm_r, 1},
 }
 
+var ypalignr = []ytab{
+	{Yu8, Yxm, Yxr, Zibm_r, 2},
+}
+
 // VEX instructions that come in two forms:
 //	VTHING xmm2/m128, xmmV, xmm1
 //	VTHING ymm2/m256, ymmV, ymm1
@@ -1274,6 +1278,7 @@ var optab =
 	{APADDUSB, ymm, Py1, [23]uint8{0xdc, Pe, 0xdc}},
 	{APADDUSW, ymm, Py1, [23]uint8{0xdd, Pe, 0xdd}},
 	{APADDW, ymm, Py1, [23]uint8{0xfd, Pe, 0xfd}},
+	{APALIGNR, ypalignr, Pq, [23]uint8{0x3a, 0x0f}},
 	{APAND, ymm, Py1, [23]uint8{0xdb, Pe, 0xdb}},
 	{APANDN, ymm, Py1, [23]uint8{0xdf, Pe, 0xdf}},
 	{APAUSE, ynone, Px, [23]uint8{0xf3, 0x90}},

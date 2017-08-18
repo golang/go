@@ -570,6 +570,7 @@ var Anames = []string{
 	"PADDUSB",
 	"PADDUSW",
 	"PADDW",
+	"PALIGNR",
 	"PAND",
 	"PANDN",
 	"PAVGB",
