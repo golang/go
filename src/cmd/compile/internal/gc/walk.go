@@ -2779,9 +2779,12 @@ func vmkcall(fn *Node, t *types.Type, init *Nodes, va []*Node) *Node {
 	}
 
 	n := fn.Type.Params().NumFields()
+	if n != len(va) {
+		Fatalf("vmkcall %v needs %v args got %v", fn, n, len(va))
+	}
 
 	r := nod(OCALL, fn, nil)
-	r.List.Set(va[:n])
+	r.List.Set(va)
 	if fn.Type.Results().NumFields() > 0 {
 		r = typecheck(r, Erv|Efnstruct)
 	} else {
@@ -3036,16 +3039,20 @@ func appendslice(n *Node, init *Nodes) *Node {
 		nptr1.SetSliceBounds(nod(OLEN, l1, nil), nil, nil)
 		nptr1.Etype = 1
 		nptr2 := l2
-		var fn *Node
-		if l2.Type.IsString() {
-			fn = syslook("slicestringcopy")
-		} else {
-			fn = syslook("slicecopy")
-		}
-		fn = substArgTypes(fn, l1.Type, l2.Type)
+
 		var ln Nodes
 		ln.Set(l)
-		nt := mkcall1(fn, types.Types[TINT], &ln, nptr1, nptr2, nodintconst(s.Type.Elem().Width))
+		var nt *Node
+		if l2.Type.IsString() {
+			fn := syslook("slicestringcopy")
+			fn = substArgTypes(fn, l1.Type, l2.Type)
+			nt = mkcall1(fn, types.Types[TINT], &ln, nptr1, nptr2)
+		} else {
+			fn := syslook("slicecopy")
+			fn = substArgTypes(fn, l1.Type, l2.Type)
+			nt = mkcall1(fn, types.Types[TINT], &ln, nptr1, nptr2, nodintconst(s.Type.Elem().Width))
+		}
+
 		l = append(ln.Slice(), nt)
 	} else {
 		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
@@ -3186,12 +3193,13 @@ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
 	}
 
 	if runtimecall {
-		var fn *Node
 		if n.Right.Type.IsString() {
-			fn = syslook("slicestringcopy")
-		} else {
-			fn = syslook("slicecopy")
+			fn := syslook("slicestringcopy")
+			fn = substArgTypes(fn, n.Left.Type, n.Right.Type)
+			return mkcall1(fn, n.Type, init, n.Left, n.Right)
 		}
+
+		fn := syslook("slicecopy")
 		fn = substArgTypes(fn, n.Left.Type, n.Right.Type)
 		return mkcall1(fn, n.Type, init, n.Left, n.Right, nodintconst(n.Left.Type.Elem().Width))
 	}
