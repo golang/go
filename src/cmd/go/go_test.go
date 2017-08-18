@@ -1703,6 +1703,20 @@ func TestGoListDedupsPackages(t *testing.T) {
 	}
 }
 
+func TestGoListDeps(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempDir("src/p1/p2/p3/p4")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.tempFile("src/p1/p.go", "package p1\nimport _ \"p1/p2\"\n")
+	tg.tempFile("src/p1/p2/p.go", "package p2\nimport _ \"p1/p2/p3\"\n")
+	tg.tempFile("src/p1/p2/p3/p.go", "package p3\nimport _ \"p1/p2/p3/p4\"\n")
+	tg.tempFile("src/p1/p2/p3/p4/p.go", "package p4\n")
+	tg.run("list", "-f", "{{.Deps}}", "p1")
+	tg.grepStdout("p1/p2/p3/p4", "Deps(p1) does not mention p4")
+}
+
 // Issue 4096. Validate the output of unsuccessful go install foo/quxx.
 func TestUnsuccessfulGoInstallShouldMentionMissingPackage(t *testing.T) {
 	tg := testgo(t)
