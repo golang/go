@@ -878,7 +878,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpAMD64LoweredNilCheck:
 		// Issue a load which will fault if the input is nil.
 		// TODO: We currently use the 2-byte instruction TESTB AX, (reg).
-		// Should we use the 3-byte TESTB $0, (reg) instead?  It is larger
+		// Should we use the 3-byte TESTB $0, (reg) instead? It is larger
 		// but it doesn't have false dependency on AX.
 		// Or maybe allocate an output register and use MOVL (reg),reg2 ?
 		// That trades clobbering flags for clobbering a register.

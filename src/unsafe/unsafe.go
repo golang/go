@@ -176,7 +176,7 @@ type Pointer *ArbitraryType
 // Sizeof takes an expression x of any type and returns the size in bytes
 // of a hypothetical variable v as if v was declared via var v = x.
 // The size does not include any memory possibly referenced by x.
-// For instance, if x is a slice,  Sizeof returns the size of the slice
+// For instance, if x is a slice, Sizeof returns the size of the slice
 // descriptor, not the size of the memory referenced by the slice.
 func Sizeof(x ArbitraryType) uintptr
 

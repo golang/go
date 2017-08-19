@@ -247,7 +247,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 
 		return n
 
-		// target is invalid type for a constant?  leave alone.
+		// target is invalid type for a constant? leave alone.
 	case OLITERAL:
 		if !okforconst[t.Etype] && n.Type.Etype != TNIL {
 			return defaultlitreuse(n, nil, reuse)

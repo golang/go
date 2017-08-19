@@ -381,7 +381,7 @@ func Unquote(s string) (string, error) {
 		return "", ErrSyntax
 	}
 
-	// Is it trivial?  Avoid allocation.
+	// Is it trivial? Avoid allocation.
 	if !contains(s, '\\') && !contains(s, quote) {
 		switch quote {
 		case '"':

@@ -769,7 +769,7 @@ func isDriveLetter(b byte) bool {
 	return 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z'
 }
 
-// is this path a local name?  begins with ./ or ../ or /
+// is this path a local name? begins with ./ or ../ or /
 func islocalname(name string) bool {
 	return strings.HasPrefix(name, "/") ||
 		runtime.GOOS == "windows" && len(name) >= 3 && isDriveLetter(name[0]) && name[1] == ':' && name[2] == '/' ||

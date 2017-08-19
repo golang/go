@@ -680,7 +680,7 @@ func startpanic_m() {
 		exit(4)
 		fallthrough
 	default:
-		// Can't even print!  Just exit.
+		// Can't even print! Just exit.
 		exit(5)
 	}
 }

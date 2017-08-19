@@ -81,7 +81,7 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 }
 
 func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
-	// Should never be called.  We implement Liner below, callers
+	// Should never be called. We implement Liner below, callers
 	// should use that instead.
 	return 0, nil, nil, fmt.Errorf("pcln not available in go object file")
 }
@@ -90,7 +90,7 @@ func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error)
 // Returns "",0,nil if unknown.
 // This function implements the Liner interface in preference to pcln() above.
 func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
-	// TODO: this is really inefficient.  Binary search?  Memoize last result?
+	// TODO: this is really inefficient. Binary search? Memoize last result?
 	var arch *sys.Arch
 	for _, a := range sys.Archs {
 		if a.Name == f.goobj.Arch {

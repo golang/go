@@ -3373,7 +3373,7 @@ func (s *state) canSSA(n *Node) bool {
 		return false
 	case PPARAMOUT:
 		if s.hasdefer {
-			// TODO: handle this case?  Named return values must be
+			// TODO: handle this case? Named return values must be
 			// in memory so that the deferred function can see them.
 			// Maybe do: if !strings.HasPrefix(n.String(), "~") { return false }
 			// Or maybe not, see issue 18860.  Even unnamed return values

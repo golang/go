@@ -30,7 +30,7 @@ const (
 	magic64 = 0xdeddeadbeefbeef
 )
 
-// Do the 64-bit functions panic?  If so, don't bother testing.
+// Do the 64-bit functions panic? If so, don't bother testing.
 var test64err = func() (err interface{}) {
 	defer func() {
 		err = recover()

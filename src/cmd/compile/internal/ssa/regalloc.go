@@ -884,7 +884,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			// Decide on registers for phi ops. Use the registers determined
 			// by the primary predecessor if we can.
 			// TODO: pick best of (already processed) predecessors?
-			// Majority vote?  Deepest nesting level?
+			// Majority vote? Deepest nesting level?
 			phiRegs = phiRegs[:0]
 			var phiUsed regMask
 			for _, v := range phis {
