@@ -827,24 +827,8 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
 					// Compute hash to make our evacuation decision (whether we need
 					// to send this key/value to bucket x or bucket y).
 					hash := t.key.alg.hash(k2, uintptr(h.hash0))
-					if h.flags&iterator != 0 && !t.reflexivekey && !t.key.alg.equal(k2, k2) {
-						// If key != key (NaNs), then the hash could be (and probably
-						// will be) entirely different from the old hash. Moreover,
-						// it isn't reproducible. Reproducibility is required in the
-						// presence of iterators, as our evacuation decision must
-						// match whatever decision the iterator made.
-						// Fortunately, we have the freedom to send these keys either
-						// way. Also, tophash is meaningless for these kinds of keys.
-						// We let the low bit of tophash drive the evacuation decision.
-						// We recompute a new random tophash for the next level so
-						// these keys will get evenly distributed across all buckets
-						// after multiple grows.
-						useY = top & 1
-						top = tophash(hash)
-					} else {
-						if hash&newbit != 0 {
-							useY = 1
-						}
+					if hash&newbit != 0 {
+						useY = 1
 					}
 				}
 
@@ -948,24 +932,8 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
 					// Compute hash to make our evacuation decision (whether we need
 					// to send this key/value to bucket x or bucket y).
 					hash := t.key.alg.hash(k2, uintptr(h.hash0))
-					if h.flags&iterator != 0 && !t.reflexivekey && !t.key.alg.equal(k2, k2) {
-						// If key != key (NaNs), then the hash could be (and probably
-						// will be) entirely different from the old hash. Moreover,
-						// it isn't reproducible. Reproducibility is required in the
-						// presence of iterators, as our evacuation decision must
-						// match whatever decision the iterator made.
-						// Fortunately, we have the freedom to send these keys either
-						// way. Also, tophash is meaningless for these kinds of keys.
-						// We let the low bit of tophash drive the evacuation decision.
-						// We recompute a new random tophash for the next level so
-						// these keys will get evenly distributed across all buckets
-						// after multiple grows.
-						useY = top & 1
-						top = tophash(hash)
-					} else {
-						if hash&newbit != 0 {
-							useY = 1
-						}
+					if hash&newbit != 0 {
+						useY = 1
 					}
 				}
 
@@ -1069,24 +1037,8 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
 					// Compute hash to make our evacuation decision (whether we need
 					// to send this key/value to bucket x or bucket y).
 					hash := t.key.alg.hash(k2, uintptr(h.hash0))
-					if h.flags&iterator != 0 && !t.reflexivekey && !t.key.alg.equal(k2, k2) {
-						// If key != key (NaNs), then the hash could be (and probably
-						// will be) entirely different from the old hash. Moreover,
-						// it isn't reproducible. Reproducibility is required in the
-						// presence of iterators, as our evacuation decision must
-						// match whatever decision the iterator made.
-						// Fortunately, we have the freedom to send these keys either
-						// way. Also, tophash is meaningless for these kinds of keys.
-						// We let the low bit of tophash drive the evacuation decision.
-						// We recompute a new random tophash for the next level so
-						// these keys will get evenly distributed across all buckets
-						// after multiple grows.
-						useY = top & 1
-						top = tophash(hash)
-					} else {
-						if hash&newbit != 0 {
-							useY = 1
-						}
+					if hash&newbit != 0 {
+						useY = 1
 					}
 				}
 
