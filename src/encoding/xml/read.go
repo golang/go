@@ -160,7 +160,7 @@ func (e UnmarshalError) Error() string { return string(e) }
 // UnmarshalXML must consume exactly one XML element.
 // One common implementation strategy is to unmarshal into
 // a separate value with a layout matching the expected XML
-// using d.DecodeElement,  and then to copy the data from
+// using d.DecodeElement, and then to copy the data from
 // that value into the receiver.
 // Another common strategy is to use d.Token to process the
 // XML object one token at a time.

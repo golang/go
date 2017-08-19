@@ -1235,7 +1235,7 @@ func gcStart(mode gcMode, trigger gcTrigger) {
 		}
 	}
 
-	// Ok, we're doing it!  Stop everybody else
+	// Ok, we're doing it! Stop everybody else
 	semacquire(&worldsema)
 
 	if trace.enabled {

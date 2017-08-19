@@ -666,7 +666,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			}
 		}
 		if p.arch.Family == sys.AMD64 {
-			// 4 operand instruction have form  ymm1, ymm2, ymm3/m256, imm8
+			// 4 operand instruction have form ymm1, ymm2, ymm3/m256, imm8
 			// So From3 is always just a register, so we store imm8 in Offset field,
 			// to avoid increasing size of Prog.
 			prog.From = a[1]

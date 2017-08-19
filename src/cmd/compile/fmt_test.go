@@ -419,7 +419,7 @@ func stringVal(tv types.TypeAndValue) (string, bool) {
 // formatIter iterates through the string s in increasing
 // index order and calls f for each format specifier '%..v'.
 // The arguments for f describe the specifier's index range.
-// If a format specifier contains a  "*", f is called with
+// If a format specifier contains a "*", f is called with
 // the index range for "*" alone, before being called for
 // the entire specifier. The result of f is the index of
 // the rune at which iteration continues.

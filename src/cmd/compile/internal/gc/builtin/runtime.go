@@ -77,7 +77,7 @@ func convT2Istring(tab *byte, elem *any) (ret any)
 func convT2Islice(tab *byte, elem *any) (ret any)
 func convT2Inoptr(tab *byte, elem *any) (ret any)
 
-// interface type assertions  x.(T)
+// interface type assertions x.(T)
 func assertE2I(typ *byte, iface any) (ret any)
 func assertE2I2(typ *byte, iface any) (ret any, b bool)
 func assertI2I(typ *byte, iface any) (ret any)
