@@ -405,13 +405,8 @@ func sigpanic() {
 //go:nowritebarrierrec
 func dieFromSignal(sig uint32) {
 	unblocksig(sig)
-	// First, try any signal handler installed before the runtime
-	// initialized.
-	fn := atomic.Loaduintptr(&fwdSig[sig])
-	// On Darwin, sigtramp is called even for non-Go signal handlers.
 	// Mark the signal as unhandled to ensure it is forwarded.
 	atomic.Store(&handlingSig[sig], 0)
-	setsig(sig, fn)
 	raise(sig)
 
 	// That should have killed us. On some systems, though, raise
@@ -601,17 +596,23 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 		return false
 	}
 	fwdFn := atomic.Loaduintptr(&fwdSig[sig])
+	flags := sigtable[sig].flags
 
-	if !signalsOK {
-		// The only way we can get here is if we are in a
-		// library or archive, we installed a signal handler
-		// at program startup, but the Go runtime has not yet
-		// been initialized.
-		if fwdFn == _SIG_DFL {
-			dieFromSignal(sig)
-		} else {
-			sigfwd(fwdFn, sig, info, ctx)
+	// If we aren't handling the signal, forward it.
+	if atomic.Load(&handlingSig[sig]) == 0 || !signalsOK {
+		// If the signal is ignored, doing nothing is the same as forwarding.
+		if fwdFn == _SIG_IGN || (fwdFn == _SIG_DFL && flags&_SigIgn != 0) {
+			return true
 		}
+		// We are not handling the signal and there is no other handler to forward to.
+		// Crash with the default behavior.
+		if fwdFn == _SIG_DFL {
+			setsig(sig, _SIG_DFL)
+			dieFromSignal(sig)
+			return false
+		}
+
+		sigfwd(fwdFn, sig, info, ctx)
 		return true
 	}
 
@@ -619,18 +620,6 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	if fwdFn == _SIG_DFL {
 		return false
 	}
-
-	// If we aren't handling the signal, forward it.
-	// Really if we aren't handling the signal, we shouldn't get here,
-	// but on Darwin setsigstack can lead us here because it sets
-	// the sa_tramp field. The sa_tramp field is not returned by
-	// sigaction, so the fix for that is non-obvious.
-	if atomic.Load(&handlingSig[sig]) == 0 {
-		sigfwd(fwdFn, sig, info, ctx)
-		return true
-	}
-
-	flags := sigtable[sig].flags
 
 	c := &sigctxt{info, ctx}
 	// Only forward synchronous signals and SIGPIPE.
