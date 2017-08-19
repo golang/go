@@ -1124,17 +1124,13 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 			}
 		}
 		// Unlink the overflow buckets & clear key/value to help GC.
-		if h.flags&oldIterator == 0 {
-			b = (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
+		if h.flags&oldIterator == 0 && t.bucket.kind&kindNoPointers == 0 {
+			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
 			// Preserve b.tophash because the evacuation
 			// state is maintained there.
-			ptr := add(unsafe.Pointer(b), dataOffset)
+			ptr := add(b, dataOffset)
 			n := uintptr(t.bucketsize) - dataOffset
-			if t.bucket.kind&kindNoPointers == 0 {
-				memclrHasPointers(ptr, n)
-			} else {
-				memclrNoHeapPointers(ptr, n)
-			}
+			memclrHasPointers(ptr, n)
 		}
 	}
 
