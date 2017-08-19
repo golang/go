@@ -838,7 +838,14 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
 					dst.v = add(dst.k, bucketCnt*4)
 				}
 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
-				typedmemmove(t.key, dst.k, k)            // copy value
+
+				// Copy key.
+				if sys.PtrSize == 4 && t.key.kind&kindNoPointers == 0 && writeBarrier.enabled {
+					writebarrierptr((*uintptr)(dst.k), *(*uintptr)(k))
+				} else {
+					*(*uint32)(dst.k) = *(*uint32)(k)
+				}
+
 				if t.indirectvalue {
 					*(*unsafe.Pointer)(dst.v) = *(*unsafe.Pointer)(v)
 				} else {
@@ -935,7 +942,20 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
 					dst.v = add(dst.k, bucketCnt*8)
 				}
 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
-				typedmemmove(t.key, dst.k, k)            // copy value
+
+				// Copy key.
+				if t.key.kind&kindNoPointers == 0 && writeBarrier.enabled {
+					if sys.PtrSize == 8 {
+						writebarrierptr((*uintptr)(dst.k), *(*uintptr)(k))
+					} else {
+						// There are three ways to squeeze at least one 32 bit pointer into 64 bits.
+						// Give up and call typedmemmove.
+						typedmemmove(t.key, dst.k, k)
+					}
+				} else {
+					*(*uint64)(dst.k) = *(*uint64)(k)
+				}
+
 				if t.indirectvalue {
 					*(*unsafe.Pointer)(dst.v) = *(*unsafe.Pointer)(v)
 				} else {
@@ -1032,7 +1052,10 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
 					dst.v = add(dst.k, bucketCnt*2*sys.PtrSize)
 				}
 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
-				typedmemmove(t.key, dst.k, k)            // copy value
+
+				// Copy key.
+				*(*string)(dst.k) = *(*string)(k)
+
 				if t.indirectvalue {
 					*(*unsafe.Pointer)(dst.v) = *(*unsafe.Pointer)(v)
 				} else {
