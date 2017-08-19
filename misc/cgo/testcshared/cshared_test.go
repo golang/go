@@ -27,7 +27,7 @@ var gopathEnv []string
 var exeSuffix string
 
 var GOOS, GOARCH, GOROOT string
-var installdir, androiddir, ldlibrarypath string
+var installdir, androiddir string
 var libSuffix, libgoname string
 
 func init() {
@@ -91,10 +91,13 @@ func init() {
 		cc = append(cc, s[start:])
 	}
 
-	if GOOS == "darwin" {
+	switch GOOS {
+	case "darwin":
 		// For Darwin/ARM.
 		// TODO(crawshaw): can we do better?
 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
+	case "android":
+		cc = append(cc, "-pie", "-fuse-ld=gold")
 	}
 	libgodir := GOOS + "_" + GOARCH
 	switch GOOS {
@@ -114,7 +117,6 @@ func init() {
 		os.Exit(2)
 	}
 	gopathEnv = append(os.Environ(), "GOPATH="+dir)
-	ldlibrarypath = "LD_LIBRARY_PATH=" + dir
 
 	if GOOS == "windows" {
 		exeSuffix = ".exe"
@@ -146,11 +148,18 @@ func adbPush(t *testing.T, filename string) {
 	}
 }
 
-func adbRun(t *testing.T, adbargs ...string) string {
+func adbRun(t *testing.T, env []string, adbargs ...string) string {
 	if GOOS != "android" {
 		t.Fatalf("trying to run adb command when operating system is not android.")
 	}
 	args := []string{"adb", "shell"}
+	// Propagate LD_LIBRARY_PATH to the adb shell invocation.
+	for _, e := range env {
+		if strings.Index(e, "LD_LIBRARY_PATH=") != -1 {
+			adbargs = append([]string{e}, adbargs...)
+			break
+		}
+	}
 	shellcmd := fmt.Sprintf("cd %s; %s", androiddir, strings.Join(adbargs, " "))
 	args = append(args, shellcmd)
 	cmd := exec.Command(args[0], args[1:]...)
@@ -163,10 +172,6 @@ func adbRun(t *testing.T, adbargs ...string) string {
 }
 
 func runwithenv(t *testing.T, env []string, args ...string) string {
-	if GOOS == "android" {
-		return adbRun(t, args...)
-	}
-
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = env
 	out, err := cmd.CombinedOutput()
@@ -180,10 +185,6 @@ func runwithenv(t *testing.T, env []string, args ...string) string {
 }
 
 func run(t *testing.T, args ...string) string {
-	if GOOS == "android" {
-		return adbRun(t, args...)
-	}
-
 	cmd := exec.Command(args[0], args[1:]...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -195,8 +196,16 @@ func run(t *testing.T, args ...string) string {
 	return string(out)
 }
 
+func runExe(t *testing.T, env []string, args ...string) string {
+	if GOOS == "android" {
+		return adbRun(t, env, args...)
+	}
+
+	return runwithenv(t, env, args...)
+}
+
 func runwithldlibrarypath(t *testing.T, args ...string) string {
-	return runwithenv(t, append(gopathEnv, ldlibrarypath), args...)
+	return runExe(t, append(gopathEnv, "LD_LIBRARY_PATH=."), args...)
 }
 
 func rungocmd(t *testing.T, args ...string) string {
@@ -238,14 +247,14 @@ func setupAndroid(t *testing.T) {
 	if GOOS != "android" {
 		return
 	}
-	adbRun(t, "mkdir", "-p", androiddir)
+	adbRun(t, nil, "mkdir", "-p", androiddir)
 }
 
 func cleanupAndroid(t *testing.T) {
 	if GOOS != "android" {
 		return
 	}
-	adbRun(t, "rm", "-rf", androiddir)
+	adbRun(t, nil, "rm", "-rf", androiddir)
 }
 
 // test0: exported symbols in shared lib are accessible.
@@ -292,7 +301,7 @@ func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
 	defer os.Remove(libgoname)
 	defer os.Remove(cmd)
 
-	out := run(t, append(bin, "./"+libgoname)...)
+	out := runExe(t, nil, append(bin, "./"+libgoname)...)
 	if strings.TrimSpace(out) != "PASS" {
 		t.Error(out)
 	}
@@ -363,7 +372,7 @@ func TestMainExportedOnAndroid(t *testing.T) {
 	defer os.Remove(libgoname)
 	defer os.Remove(cmd)
 
-	out := run(t, append(bin, "./"+libgoname)...)
+	out := runExe(t, nil, append(bin, "./"+libgoname)...)
 	if strings.TrimSpace(out) != "PASS" {
 		t.Error(out)
 	}
@@ -398,7 +407,7 @@ func TestSignalHandlers(t *testing.T) {
 	defer os.Remove(cmd)
 	defer os.Remove("libgo4.h")
 
-	out := run(t, append(bin, "./"+libname)...)
+	out := runExe(t, nil, append(bin, "./"+libname)...)
 
 	if strings.TrimSpace(out) != "PASS" {
 		t.Error(run(t, append(bin, libname, "verbose")...))
@@ -434,7 +443,7 @@ func TestSignalHandlersWithNotify(t *testing.T) {
 	defer os.Remove(cmd)
 	defer os.Remove("libgo5.h")
 
-	out := run(t, append(bin, "./"+libname)...)
+	out := runExe(t, nil, append(bin, "./"+libname)...)
 
 	if strings.TrimSpace(out) != "PASS" {
 		t.Error(run(t, append(bin, libname, "verbose")...))
