@@ -430,12 +430,16 @@ func TestCatchPanic(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := testEnv(exec.Command(exe, "CgoCatchPanic"))
-	// Make sure a panic results in a crash.
-	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
-	// Tell testprogcgo to install an early signal handler for SIGABRT
-	cmd.Env = append(cmd.Env, "CGOCATCHPANIC_INSTALL_HANDLER=1")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Errorf("testprogcgo CgoCatchPanic failed: %v\n%s", err, out)
+	for _, early := range []bool{true, false} {
+		cmd := testEnv(exec.Command(exe, "CgoCatchPanic"))
+		// Make sure a panic results in a crash.
+		cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
+		if early {
+			// Tell testprogcgo to install an early signal handler for SIGABRT
+			cmd.Env = append(cmd.Env, "CGOCATCHPANIC_EARLY_HANDLER=1")
+		}
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Errorf("testprogcgo CgoCatchPanic failed: %v\n%s", err, out)
+		}
 	}
 }

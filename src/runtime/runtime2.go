@@ -604,6 +604,7 @@ const (
 	_SigGoExit               // cause all runtime procs to exit (only used on Plan 9).
 	_SigSetStack             // add SA_ONSTACK to libc handler
 	_SigUnblock              // unblocked in minit
+	_SigIgn                  // _SIG_DFL action is to ignore the signal
 )
 
 // Layout of in-memory per-function information prepared by linker
