@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"unicode"
 )
@@ -30,7 +31,7 @@ var GOOS, GOARCH, GOROOT string
 var installdir, androiddir string
 var libSuffix, libgoname string
 
-func init() {
+func TestMain(m *testing.M) {
 	GOOS = goEnv("GOOS")
 	GOARCH = goEnv("GOARCH")
 	GOROOT = goEnv("GOROOT")
@@ -121,6 +122,15 @@ func init() {
 	if GOOS == "windows" {
 		exeSuffix = ".exe"
 	}
+
+	st := m.Run()
+
+	os.Remove(libgoname)
+	os.RemoveAll("pkg")
+	cleanupHeaders()
+	cleanupAndroid()
+
+	os.Exit(st)
 }
 
 func goEnv(key string) string {
@@ -212,30 +222,50 @@ func rungocmd(t *testing.T, args ...string) string {
 	return runwithenv(t, gopathEnv, args...)
 }
 
-func createHeaders(t *testing.T) {
-	rungocmd(t,
-		"go", "install",
-		"-buildmode=c-shared", "-installsuffix",
-		"testcshared", "libgo",
-	)
+func createHeaders() error {
+	args := []string{"go", "install", "-buildmode=c-shared",
+		"-installsuffix", "testcshared", "libgo"}
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Env = gopathEnv
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("command failed: %v\n%v\n%s\n", args, err, out)
+	}
 
-	rungocmd(t,
-		"go", "build",
-		"-buildmode=c-shared", "-installsuffix",
-		"testcshared", "-o", libgoname,
-		filepath.Join("src", "libgo", "libgo.go"),
-	)
-	adbPush(t, libgoname)
+	args = []string{"go", "build", "-buildmode=c-shared",
+		"-installsuffix", "testcshared",
+		"-o", libgoname,
+		filepath.Join("src", "libgo", "libgo.go")}
+	cmd = exec.Command(args[0], args[1:]...)
+	cmd.Env = gopathEnv
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("command failed: %v\n%v\n%s\n", args, err, out)
+	}
 
-	if GOOS == "linux" || GOOS == "android" {
-		f, err := elf.Open(libgoname)
+	if GOOS == "android" {
+		args = []string{"adb", "push", libgoname, fmt.Sprintf("%s/%s", androiddir, libgoname)}
+		cmd = exec.Command(args[0], args[1:]...)
+		out, err = cmd.CombinedOutput()
 		if err != nil {
-			t.Fatal("elf.Open failed: ", err)
+			return fmt.Errorf("adb command failed: %v\n%s\n", err, out)
 		}
-		defer f.Close()
-		if hasDynTag(t, f, elf.DT_TEXTREL) {
-			t.Fatalf("%s has DT_TEXTREL flag", libgoname)
-		}
+	}
+
+	return nil
+}
+
+var (
+	headersOnce sync.Once
+	headersErr  error
+)
+
+func createHeadersOnce(t *testing.T) {
+	headersOnce.Do(func() {
+		headersErr = createHeaders()
+	})
+	if headersErr != nil {
+		t.Fatal(headersErr)
 	}
 }
 
@@ -243,18 +273,36 @@ func cleanupHeaders() {
 	os.Remove("libgo.h")
 }
 
+var (
+	androidOnce sync.Once
+	androidErr  error
+)
+
 func setupAndroid(t *testing.T) {
 	if GOOS != "android" {
 		return
 	}
-	adbRun(t, nil, "mkdir", "-p", androiddir)
+	androidOnce.Do(func() {
+		cmd := exec.Command("adb", "shell", "mkdir", "-p", androiddir)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			androidErr = fmt.Errorf("setupAndroid failed: %v\n%s\n", err, out)
+		}
+	})
+	if androidErr != nil {
+		t.Fatal(androidErr)
+	}
 }
 
-func cleanupAndroid(t *testing.T) {
+func cleanupAndroid() {
 	if GOOS != "android" {
 		return
 	}
-	adbRun(t, nil, "rm", "-rf", androiddir)
+	cmd := exec.Command("adb", "shell", "rm", "-rf", androiddir)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatalf("cleanupAndroid failed: %v\n%s\n", err, out)
+	}
 }
 
 // test0: exported symbols in shared lib are accessible.
@@ -263,14 +311,11 @@ func TestExportedSymbols(t *testing.T) {
 	bin := cmdToRun(cmd)
 
 	setupAndroid(t)
-	defer cleanupAndroid(t)
-	createHeaders(t)
-	defer cleanupHeaders()
+	createHeadersOnce(t)
 
 	run(t, append(cc, "-I", installdir, "-o", cmd, "main0.c", libgoname)...)
 	adbPush(t, cmd)
 
-	defer os.Remove(libgoname)
 	defer os.Remove("testp")
 
 	out := runwithldlibrarypath(t, bin...)
@@ -285,14 +330,11 @@ func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
 	bin := cmdToRun(cmd)
 
 	setupAndroid(t)
-	defer cleanupAndroid(t)
-	createHeaders(t)
-	defer cleanupHeaders()
+	createHeadersOnce(t)
 
 	run(t, append(cc, "-o", cmd, "main1.c", "-ldl")...)
 	adbPush(t, cmd)
 
-	defer os.Remove(libgoname)
 	defer os.Remove(cmd)
 
 	out := runExe(t, nil, append(bin, "./"+libgoname)...)
@@ -308,7 +350,6 @@ func TestUnexportedSymbols(t *testing.T) {
 	bin := cmdToRun(cmd)
 
 	setupAndroid(t)
-	defer cleanupAndroid(t)
 
 	rungocmd(t,
 		"go", "build",
@@ -350,14 +391,11 @@ func TestMainExportedOnAndroid(t *testing.T) {
 	bin := cmdToRun(cmd)
 
 	setupAndroid(t)
-	defer cleanupAndroid(t)
-	createHeaders(t)
-	defer cleanupHeaders()
+	createHeadersOnce(t)
 
 	run(t, append(cc, "-o", cmd, "main3.c", "-ldl")...)
 	adbPush(t, cmd)
 
-	defer os.Remove(libgoname)
 	defer os.Remove(cmd)
 
 	out := runExe(t, nil, append(bin, "./"+libgoname)...)
@@ -373,7 +411,6 @@ func TestSignalHandlers(t *testing.T) {
 	bin := cmdToRun(cmd)
 
 	setupAndroid(t)
-	defer cleanupAndroid(t)
 
 	rungocmd(t,
 		"go", "build",
@@ -406,7 +443,6 @@ func TestSignalHandlersWithNotify(t *testing.T) {
 	bin := cmdToRun(cmd)
 
 	setupAndroid(t)
-	defer cleanupAndroid(t)
 
 	rungocmd(t,
 		"go", "build",
@@ -441,47 +477,34 @@ func TestPIE(t *testing.T) {
 		return
 	}
 
-	defer func() {
-		os.RemoveAll("pkg")
-	}()
-
-	createHeaders(t)
-	defer cleanupHeaders()
+	createHeadersOnce(t)
 
 	f, err := elf.Open(libgoname)
 	if err != nil {
-		t.Fatal("elf.Open failed: ", err)
+		t.Fatalf("elf.Open failed: %v", err)
 	}
 	defer f.Close()
-	if hasDynTag(t, f, elf.DT_TEXTREL) {
-		t.Errorf("%s has DT_TEXTREL flag", libgoname)
-	}
-}
 
-func hasDynTag(t *testing.T, f *elf.File, tag elf.DynTag) bool {
 	ds := f.SectionByType(elf.SHT_DYNAMIC)
 	if ds == nil {
-		t.Error("no SHT_DYNAMIC section")
-		return false
+		t.Fatalf("no SHT_DYNAMIC section")
 	}
 	d, err := ds.Data()
 	if err != nil {
-		t.Errorf("can't read SHT_DYNAMIC contents: %v", err)
-		return false
+		t.Fatalf("can't read SHT_DYNAMIC contents: %v", err)
 	}
 	for len(d) > 0 {
-		var t elf.DynTag
+		var tag elf.DynTag
 		switch f.Class {
 		case elf.ELFCLASS32:
-			t = elf.DynTag(f.ByteOrder.Uint32(d[:4]))
+			tag = elf.DynTag(f.ByteOrder.Uint32(d[:4]))
 			d = d[8:]
 		case elf.ELFCLASS64:
-			t = elf.DynTag(f.ByteOrder.Uint64(d[:8]))
+			tag = elf.DynTag(f.ByteOrder.Uint64(d[:8]))
 			d = d[16:]
 		}
-		if t == tag {
-			return true
+		if tag == elf.DT_TEXTREL {
+			t.Fatalf("%s has DT_TEXTREL flag", libgoname)
 		}
 	}
-	return false
 }
