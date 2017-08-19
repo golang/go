@@ -953,11 +953,12 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package 
 
 	if cfg.BuildContext.CgoEnabled && p.Name == "main" && !p.Goroot {
 		// Currently build modes c-shared, pie (on systems that do not
-		// support PIE with internal linking mode), plugin, and
-		// -linkshared force external linking mode, as of course does
+		// support PIE with internal linking mode (currently all
+		// systems: issue #18968)), plugin, and -linkshared force
+		// external linking mode, as of course does
 		// -ldflags=-linkmode=external. External linking mode forces
 		// an import of runtime/cgo.
-		pieCgo := cfg.BuildBuildmode == "pie" && (cfg.BuildContext.GOOS != "linux" || cfg.BuildContext.GOARCH != "amd64")
+		pieCgo := cfg.BuildBuildmode == "pie"
 		linkmodeExternal := false
 		for i, a := range cfg.BuildLdflags {
 			if a == "-linkmode=external" {
