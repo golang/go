@@ -49,83 +49,97 @@ func bytediff(a, b []byte) string {
 }
 
 func TestWriter(t *testing.T) {
-	type entry struct {
-		header   *Header
-		contents string
-	}
+	type (
+		testHeader struct { // WriteHeader(&hdr) == wantErr
+			hdr     Header
+			wantErr error
+		}
+		testWrite struct { // Write([]byte(str)) == (wantCnt, wantErr)
+			str     string
+			wantCnt int
+			wantErr error
+		}
+		testFill struct { // fillZeros(cnt) == (wantCnt, wantErr)
+			cnt     int64
+			wantCnt int64
+			wantErr error
+		}
+		testClose struct { // Close() == wantErr
+			wantErr error
+		}
+		testFnc interface{} // testHeader | testWrite | testFill | testClose
+	)
 
 	vectors := []struct {
-		file    string // filename of expected output
-		entries []*entry
-		err     error // expected error on WriteHeader
+		file  string // Optional filename of expected output
+		tests []testFnc
 	}{{
 		// The writer test file was produced with this command:
 		// tar (GNU tar) 1.26
 		//   ln -s small.txt link.txt
 		//   tar -b 1 --format=ustar -c -f writer.tar small.txt small2.txt link.txt
 		file: "testdata/writer.tar",
-		entries: []*entry{{
-			header: &Header{
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag: TypeReg,
 				Name:     "small.txt",
-				Mode:     0640,
-				Uid:      73025,
-				Gid:      5000,
 				Size:     5,
-				ModTime:  time.Unix(1246508266, 0),
-				Typeflag: '0',
-				Uname:    "dsymonds",
-				Gname:    "eng",
-			},
-			contents: "Kilts",
-		}, {
-			header: &Header{
-				Name:     "small2.txt",
 				Mode:     0640,
 				Uid:      73025,
 				Gid:      5000,
-				Size:     11,
-				ModTime:  time.Unix(1245217492, 0),
-				Typeflag: '0',
 				Uname:    "dsymonds",
 				Gname:    "eng",
-			},
-			contents: "Google.com\n",
-		}, {
-			header: &Header{
+				ModTime:  time.Unix(1246508266, 0),
+			}, nil},
+			testWrite{"Kilts", 5, nil},
+
+			testHeader{Header{
+				Typeflag: TypeReg,
+				Name:     "small2.txt",
+				Size:     11,
+				Mode:     0640,
+				Uid:      73025,
+				Uname:    "dsymonds",
+				Gname:    "eng",
+				Gid:      5000,
+				ModTime:  time.Unix(1245217492, 0),
+			}, nil},
+			testWrite{"Google.com\n", 11, nil},
+
+			testHeader{Header{
+				Typeflag: TypeSymlink,
 				Name:     "link.txt",
+				Linkname: "small.txt",
 				Mode:     0777,
 				Uid:      1000,
 				Gid:      1000,
-				Size:     0,
-				ModTime:  time.Unix(1314603082, 0),
-				Typeflag: '2',
-				Linkname: "small.txt",
 				Uname:    "strings",
 				Gname:    "strings",
-			},
-			// no contents
-		}},
+				ModTime:  time.Unix(1314603082, 0),
+			}, nil},
+			testWrite{"", 0, nil},
+
+			testClose{nil},
+		},
 	}, {
 		// The truncated test file was produced using these commands:
 		//   dd if=/dev/zero bs=1048576 count=16384 > /tmp/16gig.txt
 		//   tar -b 1 -c -f- /tmp/16gig.txt | dd bs=512 count=8 > writer-big.tar
 		file: "testdata/writer-big.tar",
-		entries: []*entry{{
-			header: &Header{
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag: TypeReg,
 				Name:     "tmp/16gig.txt",
+				Size:     16 << 30,
 				Mode:     0640,
 				Uid:      73025,
 				Gid:      5000,
-				Size:     16 << 30,
-				ModTime:  time.Unix(1254699560, 0),
-				Typeflag: '0',
 				Uname:    "dsymonds",
 				Gname:    "eng",
+				ModTime:  time.Unix(1254699560, 0),
 				Devminor: -1, // Force use of GNU format
-			},
-			// fake contents
-			contents: strings.Repeat("\x00", 4<<10),
-		}},
+			}, nil},
+		},
 	}, {
 		// This truncated file was produced using this library.
 		// It was verified to work with GNU tar 1.27.1 and BSD tar 3.1.2.
@@ -135,140 +149,264 @@ func TestWriter(t *testing.T) {
 		//
 		// This file is in PAX format.
 		file: "testdata/writer-big-long.tar",
-		entries: []*entry{{
-			header: &Header{
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag: TypeReg,
 				Name:     strings.Repeat("longname/", 15) + "16gig.txt",
+				Size:     16 << 30,
 				Mode:     0644,
 				Uid:      1000,
 				Gid:      1000,
-				Size:     16 << 30,
-				ModTime:  time.Unix(1399583047, 0),
-				Typeflag: '0',
 				Uname:    "guillaume",
 				Gname:    "guillaume",
-			},
-			// fake contents
-			contents: strings.Repeat("\x00", 4<<10),
-		}},
+				ModTime:  time.Unix(1399583047, 0),
+			}, nil},
+		},
 	}, {
 		// This file was produced using GNU tar v1.17.
 		//	gnutar -b 4 --format=ustar (longname/)*15 + file.txt
 		file: "testdata/ustar.tar",
-		entries: []*entry{{
-			header: &Header{
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag: TypeReg,
 				Name:     strings.Repeat("longname/", 15) + "file.txt",
+				Size:     6,
 				Mode:     0644,
-				Uid:      0765,
-				Gid:      024,
-				Size:     06,
-				ModTime:  time.Unix(1360135598, 0),
-				Typeflag: '0',
+				Uid:      501,
+				Gid:      20,
 				Uname:    "shane",
 				Gname:    "staff",
-			},
-			contents: "hello\n",
-		}},
+				ModTime:  time.Unix(1360135598, 0),
+			}, nil},
+			testWrite{"hello\n", 6, nil},
+			testClose{nil},
+		},
 	}, {
-		// This file was produced using gnu tar 1.26
-		// echo "Slartibartfast" > file.txt
-		// ln file.txt hard.txt
-		// tar -b 1 --format=ustar -c -f hardlink.tar file.txt hard.txt
+		// This file was produced using GNU tar v1.26:
+		//	echo "Slartibartfast" > file.txt
+		//	ln file.txt hard.txt
+		//	tar -b 1 --format=ustar -c -f hardlink.tar file.txt hard.txt
 		file: "testdata/hardlink.tar",
-		entries: []*entry{{
-			header: &Header{
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag: TypeReg,
 				Name:     "file.txt",
-				Mode:     0644,
-				Uid:      1000,
-				Gid:      100,
 				Size:     15,
-				ModTime:  time.Unix(1425484303, 0),
-				Typeflag: '0',
-				Uname:    "vbatts",
-				Gname:    "users",
-			},
-			contents: "Slartibartfast\n",
-		}, {
-			header: &Header{
-				Name:     "hard.txt",
 				Mode:     0644,
 				Uid:      1000,
 				Gid:      100,
-				Size:     0,
-				ModTime:  time.Unix(1425484303, 0),
-				Typeflag: '1',
-				Linkname: "file.txt",
 				Uname:    "vbatts",
 				Gname:    "users",
-			},
-			// no contents
-		}},
+				ModTime:  time.Unix(1425484303, 0),
+			}, nil},
+			testWrite{"Slartibartfast\n", 15, nil},
+
+			testHeader{Header{
+				Typeflag: TypeLink,
+				Name:     "hard.txt",
+				Linkname: "file.txt",
+				Mode:     0644,
+				Uid:      1000,
+				Gid:      100,
+				Uname:    "vbatts",
+				Gname:    "users",
+				ModTime:  time.Unix(1425484303, 0),
+			}, nil},
+			testWrite{"", 0, nil},
+
+			testClose{nil},
+		},
 	}, {
-		entries: []*entry{{
-			header: &Header{
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag: TypeReg,
 				Name:     "bad-null.txt",
-				Typeflag: '0',
 				Xattrs:   map[string]string{"null\x00null\x00": "fizzbuzz"},
-			},
-		}},
-		err: ErrHeader,
+			}, ErrHeader},
+		},
 	}, {
-		entries: []*entry{{
-			header: &Header{
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag: TypeReg,
 				Name:     "null\x00.txt",
-				Typeflag: '0',
-			},
-		}},
-		err: ErrHeader,
+			}, ErrHeader},
+		},
 	}, {
 		file: "testdata/gnu-utf8.tar",
-		entries: []*entry{{
-			header: &Header{
-				Name: "☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹",
-				Mode: 0644,
-				Uid:  1000, Gid: 1000,
-				ModTime:  time.Unix(0, 0),
-				Typeflag: '0',
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag: TypeReg,
+				Name:     "☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹",
+				Mode:     0644,
+				Uid:      1000, Gid: 1000,
 				Uname:    "☺",
 				Gname:    "⚹",
+				ModTime:  time.Unix(0, 0),
 				Devminor: -1, // Force use of GNU format
-			},
-		}},
+			}, nil},
+			testClose{nil},
+		},
 	}, {
 		file: "testdata/gnu-not-utf8.tar",
-		entries: []*entry{{
-			header: &Header{
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag: TypeReg,
 				Name:     "hi\x80\x81\x82\x83bye",
 				Mode:     0644,
 				Uid:      1000,
 				Gid:      1000,
-				ModTime:  time.Unix(0, 0),
-				Typeflag: '0',
 				Uname:    "rawr",
 				Gname:    "dsnet",
+				ModTime:  time.Unix(0, 0),
 				Devminor: -1, // Force use of GNU format
-			},
-		}},
+			}, nil},
+			testClose{nil},
+		},
+	}, {
+		file: "testdata/gnu-nil-sparse-data.tar",
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag:    TypeGNUSparse,
+				Name:        "sparse.db",
+				Size:        1000,
+				SparseHoles: []SparseEntry{{Offset: 1000, Length: 0}},
+			}, nil},
+			testWrite{strings.Repeat("0123456789", 100), 1000, nil},
+			testClose{},
+		},
+	}, {
+		file: "testdata/gnu-nil-sparse-hole.tar",
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag:    TypeGNUSparse,
+				Name:        "sparse.db",
+				Size:        1000,
+				SparseHoles: []SparseEntry{{Offset: 0, Length: 1000}},
+			}, nil},
+			testWrite{strings.Repeat("\x00", 1000), 1000, nil},
+			testClose{},
+		},
+	}, {
+		file: "testdata/pax-nil-sparse-data.tar",
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag:    TypeReg,
+				Name:        "sparse.db",
+				Size:        1000,
+				SparseHoles: []SparseEntry{{Offset: 1000, Length: 0}},
+			}, nil},
+			testWrite{strings.Repeat("0123456789", 100), 1000, nil},
+			testClose{},
+		},
+	}, {
+		file: "testdata/pax-nil-sparse-hole.tar",
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag:    TypeReg,
+				Name:        "sparse.db",
+				Size:        1000,
+				SparseHoles: []SparseEntry{{Offset: 0, Length: 1000}},
+			}, nil},
+			testWrite{strings.Repeat("\x00", 1000), 1000, nil},
+			testClose{},
+		},
+	}, {
+		file: "testdata/gnu-sparse-big.tar",
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag: TypeGNUSparse,
+				Name:     "gnu-sparse",
+				Size:     6e10,
+				SparseHoles: []SparseEntry{
+					{Offset: 0e10, Length: 1e10 - 100},
+					{Offset: 1e10, Length: 1e10 - 100},
+					{Offset: 2e10, Length: 1e10 - 100},
+					{Offset: 3e10, Length: 1e10 - 100},
+					{Offset: 4e10, Length: 1e10 - 100},
+					{Offset: 5e10, Length: 1e10 - 100},
+				},
+			}, nil},
+			testFill{1e10 - 100, 1e10 - 100, nil},
+			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+			testFill{1e10 - 100, 1e10 - 100, nil},
+			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+			testFill{1e10 - 100, 1e10 - 100, nil},
+			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+			testFill{1e10 - 100, 1e10 - 100, nil},
+			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+			testFill{1e10 - 100, 1e10 - 100, nil},
+			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+			testFill{1e10 - 100, 1e10 - 100, nil},
+			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+			testFill{1e10 - 100, 0, ErrWriteTooLong},
+			testWrite{strings.Repeat("0123456789", 10), 0, ErrWriteTooLong},
+			testClose{nil},
+		},
+	}, {
+		file: "testdata/pax-sparse-big.tar",
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag: TypeReg,
+				Name:     "pax-sparse",
+				Size:     6e10,
+				SparseHoles: []SparseEntry{
+					{Offset: 0e10, Length: 1e10 - 100},
+					{Offset: 1e10, Length: 1e10 - 100},
+					{Offset: 2e10, Length: 1e10 - 100},
+					{Offset: 3e10, Length: 1e10 - 100},
+					{Offset: 4e10, Length: 1e10 - 100},
+					{Offset: 5e10, Length: 1e10 - 100},
+				},
+			}, nil},
+			testFill{1e10 - 100, 1e10 - 100, nil},
+			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+			testFill{1e10 - 100, 1e10 - 100, nil},
+			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+			testFill{1e10 - 100, 1e10 - 100, nil},
+			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+			testFill{1e10 - 100, 1e10 - 100, nil},
+			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+			testFill{1e10 - 100, 1e10 - 100, nil},
+			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+			testFill{1e10 - 100, 1e10 - 100, nil},
+			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+			testFill{1e10 - 100, 0, ErrWriteTooLong},
+			testWrite{strings.Repeat("0123456789", 10), 0, ErrWriteTooLong},
+			testClose{nil},
+		},
 	}}
 
 	for _, v := range vectors {
 		t.Run(path.Base(v.file), func(t *testing.T) {
+			const maxSize = 10 << 10 // 10KiB
 			buf := new(bytes.Buffer)
-			tw := NewWriter(iotest.TruncateWriter(buf, 4<<10)) // only catch the first 4 KB
-			canFail := false
-			for i, entry := range v.entries {
-				canFail = canFail || entry.header.Size > 1<<10 || v.err != nil
+			tw := NewWriter(iotest.TruncateWriter(buf, maxSize))
 
-				err := tw.WriteHeader(entry.header)
-				if err != v.err {
-					t.Fatalf("entry %d: WriteHeader() = %v, want %v", i, err, v.err)
+			for i, tf := range v.tests {
+				switch tf := tf.(type) {
+				case testHeader:
+					err := tw.WriteHeader(&tf.hdr)
+					if err != tf.wantErr {
+						t.Fatalf("test %d, WriteHeader() = %v, want %v", i, err, tf.wantErr)
+					}
+				case testWrite:
+					got, err := tw.Write([]byte(tf.str))
+					if got != tf.wantCnt || err != tf.wantErr {
+						t.Fatalf("test %d, Write() = (%d, %v), want (%d, %v)", i, got, err, tf.wantCnt, tf.wantErr)
+					}
+				case testFill:
+					got, err := tw.fillZeros(tf.cnt)
+					if got != tf.wantCnt || err != tf.wantErr {
+						t.Fatalf("test %d, fillZeros() = (%d, %v), want (%d, %v)", i, got, err, tf.wantCnt, tf.wantErr)
+					}
+				case testClose:
+					err := tw.Close()
+					if err != tf.wantErr {
+						t.Fatalf("test %d, Close() = %v, want %v", i, err, tf.wantErr)
+					}
+				default:
+					t.Fatalf("test %d, unknown test operation: %T", i, tf)
 				}
-				if _, err := io.WriteString(tw, entry.contents); err != nil {
-					t.Fatalf("entry %d: WriteString() = %v, want nil", i, err)
-				}
-			}
-			// Only interested in Close failures for the small tests.
-			if err := tw.Close(); err != nil && !canFail {
-				t.Fatalf("Close() = %v, want nil", err)
 			}
 
 			if v.file != "" {
@@ -755,6 +893,289 @@ func TestIssue12594(t *testing.T) {
 		}
 		if hdr.Name != name {
 			t.Errorf("test %d, hdr.Name = %s, want %s", i, hdr.Name, name)
+		}
+	}
+}
+
+func TestFileWriter(t *testing.T) {
+	type (
+		testWrite struct { // Write(str) == (wantCnt, wantErr)
+			str     string
+			wantCnt int
+			wantErr error
+		}
+		testFill struct { // FillZeros(cnt) == (wantCnt, wantErr)
+			cnt     int64
+			wantCnt int64
+			wantErr error
+		}
+		testRemaining struct { // Remaining() == wantCnt
+			wantCnt int64
+		}
+		testFnc interface{} // testWrite | testFill | testRemaining
+	)
+
+	type (
+		makeReg struct {
+			size    int64
+			wantStr string
+		}
+		makeSparse struct {
+			makeReg makeReg
+			sph     sparseHoles
+			size    int64
+		}
+		fileMaker interface{} // makeReg | makeSparse
+	)
+
+	vectors := []struct {
+		maker fileMaker
+		tests []testFnc
+	}{{
+		maker: makeReg{0, ""},
+		tests: []testFnc{
+			testRemaining{0},
+			testWrite{"", 0, nil},
+			testWrite{"a", 0, ErrWriteTooLong},
+			testFill{0, 0, nil},
+			testFill{1, 0, ErrWriteTooLong},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeReg{1, "a"},
+		tests: []testFnc{
+			testRemaining{1},
+			testWrite{"", 0, nil},
+			testWrite{"a", 1, nil},
+			testWrite{"bcde", 0, ErrWriteTooLong},
+			testWrite{"", 0, nil},
+			testFill{0, 0, nil},
+			testFill{1, 0, ErrWriteTooLong},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeReg{5, "hello"},
+		tests: []testFnc{
+			testRemaining{5},
+			testWrite{"hello", 5, nil},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeReg{5, "\x00\x00\x00\x00\x00"},
+		tests: []testFnc{
+			testRemaining{5},
+			testFill{5, 5, nil},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeReg{5, "\x00\x00\x00\x00\x00"},
+		tests: []testFnc{
+			testRemaining{5},
+			testFill{10, 5, ErrWriteTooLong},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeReg{5, "abc\x00\x00"},
+		tests: []testFnc{
+			testRemaining{5},
+			testWrite{"abc", 3, nil},
+			testRemaining{2},
+			testFill{2, 2, nil},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeReg{5, "\x00\x00abc"},
+		tests: []testFnc{
+			testRemaining{5},
+			testFill{2, 2, nil},
+			testRemaining{3},
+			testWrite{"abc", 3, nil},
+			testFill{1, 0, ErrWriteTooLong},
+			testWrite{"z", 0, ErrWriteTooLong},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
+		tests: []testFnc{
+			testRemaining{8},
+			testWrite{"ab\x00\x00\x00cde", 8, nil},
+			testWrite{"a", 0, ErrWriteTooLong},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
+		tests: []testFnc{
+			testWrite{"ab\x00\x00\x00cdez", 8, ErrWriteTooLong},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
+		tests: []testFnc{
+			testWrite{"ab\x00", 3, nil},
+			testRemaining{5},
+			testWrite{"\x00\x00cde", 5, nil},
+			testWrite{"a", 0, ErrWriteTooLong},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
+		tests: []testFnc{
+			testWrite{"ab", 2, nil},
+			testRemaining{6},
+			testFill{3, 3, nil},
+			testRemaining{3},
+			testWrite{"cde", 3, nil},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeSparse{makeReg{5, "\x00\x00\x00\x00\x00"}, sparseHoles{{2, 3}}, 8},
+		tests: []testFnc{
+			testFill{8, 8, nil},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeSparse{makeReg{5, "\x00\x00\x00\x00\x00"}, sparseHoles{{2, 3}}, 8},
+		tests: []testFnc{
+			testFill{9, 8, ErrWriteTooLong},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeSparse{makeReg{4, "\x00\x00\x00\x00"}, sparseHoles{{2, 3}}, 8},
+		tests: []testFnc{
+			testFill{9, 8, errMissData},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeSparse{makeReg{6, "\x00\x00\x00\x00\x00"}, sparseHoles{{2, 3}}, 8},
+		tests: []testFnc{
+			testFill{9, 8, errUnrefData},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeSparse{makeReg{4, "abcd"}, sparseHoles{{2, 3}}, 8},
+		tests: []testFnc{
+			testWrite{"ab", 2, nil},
+			testRemaining{6},
+			testFill{3, 3, nil},
+			testRemaining{3},
+			testWrite{"cde", 2, errMissData},
+			testRemaining{1},
+		},
+	}, {
+		maker: makeSparse{makeReg{6, "abcde"}, sparseHoles{{2, 3}}, 8},
+		tests: []testFnc{
+			testWrite{"ab", 2, nil},
+			testRemaining{6},
+			testFill{3, 3, nil},
+			testRemaining{3},
+			testWrite{"cde", 3, errUnrefData},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeSparse{makeReg{3, "abc"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+		tests: []testFnc{
+			testRemaining{7},
+			testWrite{"\x00\x00abc\x00\x00", 7, nil},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeSparse{makeReg{3, ""}, sparseHoles{{0, 2}, {5, 2}}, 7},
+		tests: []testFnc{
+			testWrite{"abcdefg", 0, errWriteHole},
+		},
+	}, {
+		maker: makeSparse{makeReg{3, "abc"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+		tests: []testFnc{
+			testWrite{"\x00\x00abcde", 5, errWriteHole},
+		},
+	}, {
+		maker: makeSparse{makeReg{3, "abc"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+		tests: []testFnc{
+			testWrite{"\x00\x00abc\x00\x00z", 7, ErrWriteTooLong},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeSparse{makeReg{3, "\x00\x00\x00"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+		tests: []testFnc{
+			testFill{7, 7, nil},
+			testFill{1, 0, ErrWriteTooLong},
+		},
+	}, {
+		maker: makeSparse{makeReg{3, "\x00\x00\x00"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+		tests: []testFnc{
+			testFill{4, 4, nil},
+			testFill{8, 3, ErrWriteTooLong},
+		},
+	}, {
+		maker: makeSparse{makeReg{3, "abc"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+		tests: []testFnc{
+			testFill{2, 2, nil},
+			testRemaining{5},
+			testWrite{"abc", 3, nil},
+			testRemaining{2},
+			testFill{2, 2, nil},
+			testRemaining{0},
+		},
+	}, {
+		maker: makeSparse{makeReg{2, "ab"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+		tests: []testFnc{
+			testFill{2, 2, nil},
+			testWrite{"abc", 2, errMissData},
+			testFill{2, 2, errMissData},
+		},
+	}, {
+		maker: makeSparse{makeReg{4, "abc"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+		tests: []testFnc{
+			testFill{2, 2, nil},
+			testWrite{"abc", 3, nil},
+			testFill{2, 2, errUnrefData},
+		},
+	}}
+
+	for i, v := range vectors {
+		var wantStr string
+		bb := new(bytes.Buffer)
+		var fw fileWriter
+		switch maker := v.maker.(type) {
+		case makeReg:
+			fw = &regFileWriter{bb, maker.size}
+			wantStr = maker.wantStr
+		case makeSparse:
+			if !validateSparseEntries(maker.sph, maker.size) {
+				t.Fatalf("invalid sparse map: %v", maker.sph)
+			}
+			spd := invertSparseEntries(maker.sph, maker.size)
+			fw = &regFileWriter{bb, maker.makeReg.size}
+			fw = &sparseFileWriter{fw, spd, 0}
+			wantStr = maker.makeReg.wantStr
+		default:
+			t.Fatalf("test %d, unknown make operation: %T", i, maker)
+		}
+
+		for j, tf := range v.tests {
+			switch tf := tf.(type) {
+			case testWrite:
+				got, err := fw.Write([]byte(tf.str))
+				if got != tf.wantCnt || err != tf.wantErr {
+					t.Errorf("test %d.%d, Write(%s):\ngot  (%d, %v)\nwant (%d, %v)", i, j, tf.str, got, err, tf.wantCnt, tf.wantErr)
+				}
+			case testFill:
+				got, err := fw.FillZeros(tf.cnt)
+				if got != tf.wantCnt || err != tf.wantErr {
+					t.Errorf("test %d.%d, FillZeros(%d) = (%d, %v), want (%d, %v)", i, j, tf.cnt, got, err, tf.wantCnt, tf.wantErr)
+				}
+			case testRemaining:
+				got := fw.Remaining()
+				if got != tf.wantCnt {
+					t.Errorf("test %d.%d, Remaining() = %d, want %d", i, j, got, tf.wantCnt)
+				}
+			default:
+				t.Fatalf("test %d.%d, unknown test operation: %T", i, j, tf)
+			}
+		}
+
+		if got := bb.String(); got != wantStr {
+			t.Fatalf("test %d, String() = %q, want %q", i, got, wantStr)
 		}
 	}
 }

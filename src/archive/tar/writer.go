@@ -10,6 +10,7 @@ import (
 	"io"
 	"path"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,11 +20,11 @@ import (
 // Call WriteHeader to begin a new file, and then call Write to supply that file's data,
 // writing at most hdr.Size bytes in total.
 type Writer struct {
-	w   io.Writer
-	nb  int64  // number of unwritten bytes for current file entry
-	pad int64  // amount of padding to write after current file entry
-	hdr Header // Shallow copy of Header that is safe for mutations
-	blk block  // Buffer to use as temporary local storage
+	w    io.Writer
+	pad  int64      // Amount of padding to write after current file entry
+	curr fileWriter // Writer for current file entry
+	hdr  Header     // Shallow copy of Header that is safe for mutations
+	blk  block      // Buffer to use as temporary local storage
 
 	// err is a persistent error.
 	// It is only the responsibility of every exported method of Writer to
@@ -32,7 +33,16 @@ type Writer struct {
 }
 
 // NewWriter creates a new Writer writing to w.
-func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
+func NewWriter(w io.Writer) *Writer {
+	return &Writer{w: w, curr: &regFileWriter{w, 0}}
+}
+
+type fileWriter interface {
+	io.Writer
+	fileState
+
+	FillZeros(n int64) (int64, error)
+}
 
 // Flush finishes writing the current file's block padding.
 // The current file must be fully written before Flush can be called.
@@ -43,8 +53,8 @@ func (tw *Writer) Flush() error {
 	if tw.err != nil {
 		return tw.err
 	}
-	if tw.nb > 0 {
-		return fmt.Errorf("archive/tar: missed writing %d bytes", tw.nb)
+	if nb := tw.curr.Remaining(); nb > 0 {
+		return fmt.Errorf("archive/tar: missed writing %d bytes", nb)
 	}
 	if _, tw.err = tw.w.Write(zeroBlock[:tw.pad]); tw.err != nil {
 		return tw.err
@@ -96,6 +106,39 @@ func (tw *Writer) writeUSTARHeader(hdr *Header) error {
 }
 
 func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
+	realName, realSize := hdr.Name, hdr.Size
+
+	// Handle sparse files.
+	var spd sparseDatas
+	var spb []byte
+	if len(hdr.SparseHoles) > 0 {
+		sph := append([]SparseEntry{}, hdr.SparseHoles...) // Copy sparse map
+		sph = alignSparseEntries(sph, hdr.Size)
+		spd = invertSparseEntries(sph, hdr.Size)
+
+		// Format the sparse map.
+		hdr.Size = 0 // Replace with encoded size
+		spb = append(strconv.AppendInt(spb, int64(len(spd)), 10), '\n')
+		for _, s := range spd {
+			hdr.Size += s.Length
+			spb = append(strconv.AppendInt(spb, s.Offset, 10), '\n')
+			spb = append(strconv.AppendInt(spb, s.Length, 10), '\n')
+		}
+		pad := blockPadding(int64(len(spb)))
+		spb = append(spb, zeroBlock[:pad]...)
+		hdr.Size += int64(len(spb)) // Accounts for encoded sparse map
+
+		// Add and modify appropriate PAX records.
+		dir, file := path.Split(realName)
+		hdr.Name = path.Join(dir, "GNUSparseFile.0", file)
+		paxHdrs[paxGNUSparseMajor] = "1"
+		paxHdrs[paxGNUSparseMinor] = "0"
+		paxHdrs[paxGNUSparseName] = realName
+		paxHdrs[paxGNUSparseRealSize] = strconv.FormatInt(realSize, 10)
+		paxHdrs[paxSize] = strconv.FormatInt(hdr.Size, 10)
+		delete(paxHdrs, paxPath) // Recorded by paxGNUSparseName
+	}
+
 	// Write PAX records to the output.
 	if len(paxHdrs) > 0 {
 		// Sort keys for deterministic ordering.
@@ -116,7 +159,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 		}
 
 		// Write the extended header file.
-		dir, file := path.Split(hdr.Name)
+		dir, file := path.Split(realName)
 		name := path.Join(dir, "PaxHeaders.0", file)
 		data := buf.String()
 		if err := tw.writeRawFile(name, data, TypeXHeader, formatPAX); err != nil {
@@ -129,13 +172,22 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 	fmtStr := func(b []byte, s string) { f.formatString(b, toASCII(s)) }
 	blk := tw.templateV7Plus(hdr, fmtStr, f.formatOctal)
 	blk.SetFormat(formatPAX)
-	return tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag)
+	if err := tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag); err != nil {
+		return err
+	}
+
+	// Write the sparse map and setup the sparse writer if necessary.
+	if len(spd) > 0 {
+		// Use tw.curr since the sparse map is accounted for in hdr.Size.
+		if _, err := tw.curr.Write(spb); err != nil {
+			return err
+		}
+		tw.curr = &sparseFileWriter{tw.curr, spd, 0}
+	}
+	return nil
 }
 
 func (tw *Writer) writeGNUHeader(hdr *Header) error {
-	// TODO(dsnet): Support writing sparse files.
-	// See https://golang.org/issue/13548
-
 	// Use long-link files if Name or Linkname exceeds the field size.
 	const longName = "././@LongLink"
 	if len(hdr.Name) > nameSize {
@@ -153,6 +205,8 @@ func (tw *Writer) writeGNUHeader(hdr *Header) error {
 
 	// Pack the main header.
 	var f formatter // Ignore errors since they are expected
+	var spd sparseDatas
+	var spb []byte
 	blk := tw.templateV7Plus(hdr, f.formatString, f.formatNumeric)
 	if !hdr.AccessTime.IsZero() {
 		f.formatNumeric(blk.GNU().AccessTime(), hdr.AccessTime.Unix())
@@ -160,8 +214,54 @@ func (tw *Writer) writeGNUHeader(hdr *Header) error {
 	if !hdr.ChangeTime.IsZero() {
 		f.formatNumeric(blk.GNU().ChangeTime(), hdr.ChangeTime.Unix())
 	}
+	if hdr.Typeflag == TypeGNUSparse {
+		sph := append([]SparseEntry{}, hdr.SparseHoles...) // Copy sparse map
+		sph = alignSparseEntries(sph, hdr.Size)
+		spd = invertSparseEntries(sph, hdr.Size)
+
+		// Format the sparse map.
+		formatSPD := func(sp sparseDatas, sa sparseArray) sparseDatas {
+			for i := 0; len(sp) > 0 && i < sa.MaxEntries(); i++ {
+				f.formatNumeric(sa.Entry(i).Offset(), sp[0].Offset)
+				f.formatNumeric(sa.Entry(i).Length(), sp[0].Length)
+				sp = sp[1:]
+			}
+			if len(sp) > 0 {
+				sa.IsExtended()[0] = 1
+			}
+			return sp
+		}
+		sp2 := formatSPD(spd, blk.GNU().Sparse())
+		for len(sp2) > 0 {
+			var spHdr block
+			sp2 = formatSPD(sp2, spHdr.Sparse())
+			spb = append(spb, spHdr[:]...)
+		}
+
+		// Update size fields in the header block.
+		realSize := hdr.Size
+		hdr.Size = 0 // Encoded size; does not account for encoded sparse map
+		for _, s := range spd {
+			hdr.Size += s.Length
+		}
+		copy(blk.V7().Size(), zeroBlock[:]) // Reset field
+		f.formatNumeric(blk.V7().Size(), hdr.Size)
+		f.formatNumeric(blk.GNU().RealSize(), realSize)
+	}
 	blk.SetFormat(formatGNU)
-	return tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag)
+	if err := tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag); err != nil {
+		return err
+	}
+
+	// Write the extended sparse map and setup the sparse writer if necessary.
+	if len(spd) > 0 {
+		// Use tw.w since the sparse map is not accounted for in hdr.Size.
+		if _, err := tw.w.Write(spb); err != nil {
+			return err
+		}
+		tw.curr = &sparseFileWriter{tw.curr, spd, 0}
+	}
+	return nil
 }
 
 type (
@@ -249,7 +349,7 @@ func (tw *Writer) writeRawHeader(blk *block, size int64, flag byte) error {
 	if isHeaderOnlyType(flag) {
 		size = 0
 	}
-	tw.nb = size
+	tw.curr = &regFileWriter{tw.w, size}
 	tw.pad = blockPadding(size)
 	return nil
 }
@@ -279,6 +379,9 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
 // Write returns the error ErrWriteTooLong if more than
 // Header.Size bytes are written after WriteHeader.
 //
+// If the current file is sparse, then the regions marked as a sparse hole
+// must be written as NUL-bytes.
+//
 // Calling Write on special types like TypeLink, TypeSymLink, TypeChar,
 // TypeBlock, TypeDir, and TypeFifo returns (0, ErrWriteTooLong) regardless
 // of what the Header.Size claims.
@@ -286,17 +389,29 @@ func (tw *Writer) Write(b []byte) (int, error) {
 	if tw.err != nil {
 		return 0, tw.err
 	}
+	n, err := tw.curr.Write(b)
+	if err != nil && err != ErrWriteTooLong {
+		tw.err = err
+	}
+	return n, err
+}
 
-	overwrite := int64(len(b)) > tw.nb
-	if overwrite {
-		b = b[:tw.nb]
+// TODO(dsnet): Export the Writer.FillZeros method to assist in quickly zeroing
+// out sections of a file. This is especially useful for efficiently
+// skipping over large holes in a sparse file.
+
+// fillZeros writes n bytes of zeros to the current file,
+// returning the number of bytes written.
+// If fewer than n bytes are discarded, it returns an non-nil error,
+// which may be ErrWriteTooLong if the current file is complete.
+func (tw *Writer) fillZeros(n int64) (int64, error) {
+	if tw.err != nil {
+		return 0, tw.err
 	}
-	n, err := tw.w.Write(b)
-	tw.nb -= int64(n)
-	if err == nil && overwrite {
-		return n, ErrWriteTooLong // Non-fatal error
+	n, err := tw.curr.FillZeros(n)
+	if err != nil && err != ErrWriteTooLong {
+		tw.err = err
 	}
-	tw.err = err
 	return n, err
 }
 
@@ -319,4 +434,136 @@ func (tw *Writer) Close() error {
 	// Ensure all future actions are invalid.
 	tw.err = ErrWriteAfterClose
 	return err // Report IO errors
+}
+
+// regFileWriter is a fileWriter for writing data to a regular file entry.
+type regFileWriter struct {
+	w  io.Writer // Underlying Writer
+	nb int64     // Number of remaining bytes to write
+}
+
+func (fw *regFileWriter) Write(b []byte) (int, error) {
+	overwrite := int64(len(b)) > fw.nb
+	if overwrite {
+		b = b[:fw.nb]
+	}
+	n, err := fw.w.Write(b)
+	fw.nb -= int64(n)
+	switch {
+	case err != nil:
+		return n, err
+	case overwrite:
+		return n, ErrWriteTooLong
+	default:
+		return n, nil
+	}
+}
+
+func (fw *regFileWriter) FillZeros(n int64) (int64, error) {
+	return io.CopyN(fw, zeroReader{}, n)
+}
+
+func (fw regFileWriter) Remaining() int64 {
+	return fw.nb
+}
+
+// sparseFileWriter is a fileWriter for writing data to a sparse file entry.
+type sparseFileWriter struct {
+	fw  fileWriter  // Underlying fileWriter
+	sp  sparseDatas // Normalized list of data fragments
+	pos int64       // Current position in sparse file
+}
+
+func (sw *sparseFileWriter) Write(b []byte) (n int, err error) {
+	overwrite := int64(len(b)) > sw.Remaining()
+	if overwrite {
+		b = b[:sw.Remaining()]
+	}
+
+	b0 := b
+	endPos := sw.pos + int64(len(b))
+	for endPos > sw.pos && err == nil {
+		var nf int // Bytes written in fragment
+		dataStart, dataEnd := sw.sp[0].Offset, sw.sp[0].endOffset()
+		if sw.pos < dataStart { // In a hole fragment
+			bf := b[:min(int64(len(b)), dataStart-sw.pos)]
+			nf, err = zeroWriter{}.Write(bf)
+		} else { // In a data fragment
+			bf := b[:min(int64(len(b)), dataEnd-sw.pos)]
+			nf, err = sw.fw.Write(bf)
+		}
+		b = b[nf:]
+		sw.pos += int64(nf)
+		if sw.pos >= dataEnd && len(sw.sp) > 1 {
+			sw.sp = sw.sp[1:] // Ensure last fragment always remains
+		}
+	}
+
+	n = len(b0) - len(b)
+	switch {
+	case err == ErrWriteTooLong:
+		return n, errMissData // Not possible; implies bug in validation logic
+	case err != nil:
+		return n, err
+	case sw.Remaining() == 0 && sw.fw.Remaining() > 0:
+		return n, errUnrefData // Not possible; implies bug in validation logic
+	case overwrite:
+		return n, ErrWriteTooLong
+	default:
+		return n, nil
+	}
+}
+
+func (sw *sparseFileWriter) FillZeros(n int64) (int64, error) {
+	overwrite := n > sw.Remaining()
+	if overwrite {
+		n = sw.Remaining()
+	}
+
+	var realFill int64 // Number of real data bytes to fill
+	endPos := sw.pos + n
+	for endPos > sw.pos {
+		var nf int64 // Size of fragment
+		dataStart, dataEnd := sw.sp[0].Offset, sw.sp[0].endOffset()
+		if sw.pos < dataStart { // In a hole fragment
+			nf = min(endPos-sw.pos, dataStart-sw.pos)
+		} else { // In a data fragment
+			nf = min(endPos-sw.pos, dataEnd-sw.pos)
+			realFill += nf
+		}
+		sw.pos += nf
+		if sw.pos >= dataEnd && len(sw.sp) > 1 {
+			sw.sp = sw.sp[1:] // Ensure last fragment always remains
+		}
+	}
+
+	_, err := sw.fw.FillZeros(realFill)
+	switch {
+	case err == ErrWriteTooLong:
+		return n, errMissData // Not possible; implies bug in validation logic
+	case err != nil:
+		return n, err
+	case sw.Remaining() == 0 && sw.fw.Remaining() > 0:
+		return n, errUnrefData // Not possible; implies bug in validation logic
+	case overwrite:
+		return n, ErrWriteTooLong
+	default:
+		return n, nil
+	}
+}
+
+func (sw sparseFileWriter) Remaining() int64 {
+	return sw.sp[len(sw.sp)-1].endOffset() - sw.pos
+}
+
+// zeroWriter may only be written with NULs, otherwise it returns errWriteHole.
+type zeroWriter struct{}
+
+func (zeroWriter) Write(b []byte) (int, error) {
+	for i, c := range b {
+		if c != 0 {
+			return i, errWriteHole
+		}
+	}
+	return len(b), nil
 }

@@ -33,6 +33,7 @@ var (
 	ErrWriteAfterClose = errors.New("tar: write after close")
 	errMissData        = errors.New("tar: sparse file references non-existent data")
 	errUnrefData       = errors.New("tar: sparse file contains unreferenced data")
+	errWriteHole       = errors.New("tar: write non-NUL byte in sparse hole")
 )
 
 // Header type flags.
@@ -74,10 +75,13 @@ type Header struct {
 
 	// SparseHoles represents a sequence of holes in a sparse file.
 	//
-	// The regions must be sorted in ascending order, not overlap with
-	// each other, and not extend past the specified Size.
-	// The file is sparse if either len(SparseHoles) > 0 or
-	// the Typeflag is set to TypeGNUSparse.
+	// A file is sparse if len(SparseHoles) > 0 or Typeflag is TypeGNUSparse.
+	// A sparse file consists of fragments of data, intermixed with holes
+	// (described by this field). A hole is semantically a block of NUL-bytes,
+	// but does not actually exist within the TAR file.
+	// The logical size of the file stored in the Size field, while
+	// the holes must be sorted in ascending order,
+	// not overlap with each other, and not extend past the specified Size.
 	SparseHoles []SparseEntry
 }
 
@@ -299,6 +303,20 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
 		if !validPAXRecord(k, v) || v == "" {
 			return formatUnknown, nil // Invalid PAX key
 		}
+	}
+	if len(h.SparseHoles) > 0 || h.Typeflag == TypeGNUSparse {
+		if isHeaderOnlyType(h.Typeflag) {
+			return formatUnknown, nil // Cannot have sparse data on header-only file
+		}
+		if !validateSparseEntries(h.SparseHoles, h.Size) {
+			return formatUnknown, nil
+		}
+		if h.Typeflag == TypeGNUSparse {
+			format &= formatGNU // GNU only
+		} else {
+			format &^= formatGNU // No GNU
+		}
+		format &^= formatUSTAR // No USTAR
 	}
 	return format, paxHdrs
 }
