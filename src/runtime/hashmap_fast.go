@@ -818,15 +818,11 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
 				if top < minTopHash {
 					throw("bad map state")
 				}
-				k2 := k
-				if t.indirectkey {
-					k2 = *((*unsafe.Pointer)(k2))
-				}
 				var useY uint8
 				if !h.sameSizeGrow() {
 					// Compute hash to make our evacuation decision (whether we need
 					// to send this key/value to bucket x or bucket y).
-					hash := t.key.alg.hash(k2, uintptr(h.hash0))
+					hash := t.key.alg.hash(k, uintptr(h.hash0))
 					if hash&newbit != 0 {
 						useY = 1
 					}
@@ -842,11 +838,7 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
 					dst.v = add(dst.k, bucketCnt*4)
 				}
 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
-				if t.indirectkey {
-					*(*unsafe.Pointer)(dst.k) = k2 // copy pointer
-				} else {
-					typedmemmove(t.key, dst.k, k) // copy value
-				}
+				typedmemmove(t.key, dst.k, k)            // copy value
 				if t.indirectvalue {
 					*(*unsafe.Pointer)(dst.v) = *(*unsafe.Pointer)(v)
 				} else {
@@ -923,15 +915,11 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
 				if top < minTopHash {
 					throw("bad map state")
 				}
-				k2 := k
-				if t.indirectkey {
-					k2 = *((*unsafe.Pointer)(k2))
-				}
 				var useY uint8
 				if !h.sameSizeGrow() {
 					// Compute hash to make our evacuation decision (whether we need
 					// to send this key/value to bucket x or bucket y).
-					hash := t.key.alg.hash(k2, uintptr(h.hash0))
+					hash := t.key.alg.hash(k, uintptr(h.hash0))
 					if hash&newbit != 0 {
 						useY = 1
 					}
@@ -947,11 +935,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
 					dst.v = add(dst.k, bucketCnt*8)
 				}
 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
-				if t.indirectkey {
-					*(*unsafe.Pointer)(dst.k) = k2 // copy pointer
-				} else {
-					typedmemmove(t.key, dst.k, k) // copy value
-				}
+				typedmemmove(t.key, dst.k, k)            // copy value
 				if t.indirectvalue {
 					*(*unsafe.Pointer)(dst.v) = *(*unsafe.Pointer)(v)
 				} else {
@@ -1028,15 +1012,11 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
 				if top < minTopHash {
 					throw("bad map state")
 				}
-				k2 := k
-				if t.indirectkey {
-					k2 = *((*unsafe.Pointer)(k2))
-				}
 				var useY uint8
 				if !h.sameSizeGrow() {
 					// Compute hash to make our evacuation decision (whether we need
 					// to send this key/value to bucket x or bucket y).
-					hash := t.key.alg.hash(k2, uintptr(h.hash0))
+					hash := t.key.alg.hash(k, uintptr(h.hash0))
 					if hash&newbit != 0 {
 						useY = 1
 					}
@@ -1052,11 +1032,7 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
 					dst.v = add(dst.k, bucketCnt*2*sys.PtrSize)
 				}
 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
-				if t.indirectkey {
-					*(*unsafe.Pointer)(dst.k) = k2 // copy pointer
-				} else {
-					typedmemmove(t.key, dst.k, k) // copy value
-				}
+				typedmemmove(t.key, dst.k, k)            // copy value
 				if t.indirectvalue {
 					*(*unsafe.Pointer)(dst.v) = *(*unsafe.Pointer)(v)
 				} else {
