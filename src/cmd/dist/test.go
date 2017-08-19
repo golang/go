@@ -353,27 +353,6 @@ func (t *tester) registerTests() {
 		return
 	}
 
-	// This test needs its stdout/stderr to be terminals, so we don't run it from cmd/go's tests.
-	// See issue 18153.
-	if t.goos == "linux" {
-		t.tests = append(t.tests, distTest{
-			name:    "cmd_go_test_terminal",
-			heading: "cmd/go terminal test",
-			fn: func(dt *distTest) error {
-				t.runPending(dt)
-				if !stdOutErrAreTerminals() {
-					fmt.Println("skipping terminal test; stdout/stderr not terminals")
-					return nil
-				}
-				cmd := exec.Command("go", "test")
-				cmd.Dir = filepath.Join(os.Getenv("GOROOT"), "src/cmd/go/testdata/testterminal18153")
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				return cmd.Run()
-			},
-		})
-	}
-
 	// Fast path to avoid the ~1 second of `go list std cmd` when
 	// the caller lists specific tests to run. (as the continuous
 	// build coordinator does).
@@ -430,6 +409,27 @@ func (t *tester) registerTests() {
 				// creation of first goroutines and first garbage collections in the parallel setting.
 				cmd.Env = append(os.Environ(), "GOMAXPROCS=2")
 				return nil
+			},
+		})
+	}
+
+	// This test needs its stdout/stderr to be terminals, so we don't run it from cmd/go's tests.
+	// See issue 18153.
+	if t.goos == "linux" {
+		t.tests = append(t.tests, distTest{
+			name:    "cmd_go_test_terminal",
+			heading: "cmd/go terminal test",
+			fn: func(dt *distTest) error {
+				t.runPending(dt)
+				if !stdOutErrAreTerminals() {
+					fmt.Println("skipping terminal test; stdout/stderr not terminals")
+					return nil
+				}
+				cmd := exec.Command("go", "test")
+				cmd.Dir = filepath.Join(os.Getenv("GOROOT"), "src/cmd/go/testdata/testterminal18153")
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				return cmd.Run()
 			},
 		})
 	}
@@ -535,6 +535,14 @@ func (t *tester) registerTests() {
 		},
 	})
 
+	if t.raceDetectorSupported() {
+		t.tests = append(t.tests, distTest{
+			name:    "race",
+			heading: "Testing race detector",
+			fn:      t.raceTest,
+		})
+	}
+
 	if t.cgoEnabled && !t.iOS() {
 		// Disabled on iOS. golang.org/issue/15919
 		t.tests = append(t.tests, distTest{
@@ -573,14 +581,6 @@ func (t *tester) registerTests() {
 			name:    "cgo_test",
 			heading: "../misc/cgo/test",
 			fn:      t.cgoTest,
-		})
-	}
-
-	if t.raceDetectorSupported() {
-		t.tests = append(t.tests, distTest{
-			name:    "race",
-			heading: "Testing race detector",
-			fn:      t.raceTest,
 		})
 	}
 
