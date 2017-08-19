@@ -216,25 +216,11 @@ func (b *Builder) buildID(file string) string {
 
 // fileHash returns the content hash of the named file.
 func (b *Builder) fileHash(file string) string {
-	b.id.Lock()
-	id := b.fileHashCache[file]
-	b.id.Unlock()
-
-	if id != "" {
-		return id
-	}
-
-	sum, err := cache.HashFile(file)
+	sum, err := cache.FileHash(file)
 	if err != nil {
 		return ""
 	}
-	id = hashToString(sum)
-
-	b.id.Lock()
-	b.fileHashCache[file] = id
-	b.id.Unlock()
-
-	return id
+	return hashToString(sum)
 }
 
 // useCache tries to satisfy the action a, which has action ID actionHash,

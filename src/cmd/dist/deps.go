@@ -85,11 +85,20 @@ var builddeps = map[string][]string{
 	},
 
 	"cmd/go/internal/cache": {
-		"crypto/sha256", // cmd/go/internal/cache
-		"fmt",           // cmd/go/internal/cache
-		"hash",          // cmd/go/internal/cache
-		"io",            // cmd/go/internal/cache
-		"os",            // cmd/go/internal/cache
+		"bytes",                // cmd/go/internal/cache
+		"cmd/go/internal/base", // cmd/go/internal/cache
+		"crypto/sha256",        // cmd/go/internal/cache
+		"encoding/hex",         // cmd/go/internal/cache
+		"errors",               // cmd/go/internal/cache
+		"fmt",                  // cmd/go/internal/cache
+		"hash",                 // cmd/go/internal/cache
+		"io",                   // cmd/go/internal/cache
+		"io/ioutil",            // cmd/go/internal/cache
+		"os",                   // cmd/go/internal/cache
+		"path/filepath",        // cmd/go/internal/cache
+		"runtime",              // cmd/go/internal/cache
+		"strconv",              // cmd/go/internal/cache
+		"sync",                 // cmd/go/internal/cache
 	},
 
 	"cmd/go/internal/cfg": {
@@ -481,6 +490,13 @@ var builddeps = map[string][]string{
 		"io",      // encoding/binary
 		"math",    // encoding/binary
 		"reflect", // encoding/binary
+	},
+
+	"encoding/hex": {
+		"bytes",  // encoding/hex
+		"errors", // encoding/hex
+		"fmt",    // encoding/hex
+		"io",     // encoding/hex
 	},
 
 	"encoding/json": {
