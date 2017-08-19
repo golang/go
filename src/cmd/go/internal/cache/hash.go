@@ -10,6 +10,7 @@ import (
 	"hash"
 	"io"
 	"os"
+	"sync"
 )
 
 var debugHash = os.Getenv("GOCMDDEBUGHASH") == "1"
@@ -52,8 +53,24 @@ func (h *Hash) Sum() [HashSize]byte {
 	return out
 }
 
+var hashFileCache struct {
+	sync.Mutex
+	m map[string][HashSize]byte
+}
+
 // HashFile returns the hash of the named file.
-func HashFile(file string) ([HashSize]byte, error) {
+// It caches repeated lookups for a given file,
+// and the cache entry for a file can be initialized
+// using SetFileHash.
+func FileHash(file string) ([HashSize]byte, error) {
+	hashFileCache.Lock()
+	out, ok := hashFileCache.m[file]
+	hashFileCache.Unlock()
+
+	if ok {
+		return out, nil
+	}
+
 	h := sha256.New()
 	f, err := os.Open(file)
 	if err != nil {
@@ -62,12 +79,29 @@ func HashFile(file string) ([HashSize]byte, error) {
 		}
 		return [HashSize]byte{}, err
 	}
-	io.Copy(h, f)
+	_, err = io.Copy(h, f)
 	f.Close()
-	var out [HashSize]byte
+	if err != nil {
+		if debugHash {
+			fmt.Fprintf(os.Stderr, "HASH %s: %v\n", file, err)
+		}
+		return [HashSize]byte{}, err
+	}
 	h.Sum(out[:0])
 	if debugHash {
 		fmt.Fprintf(os.Stderr, "HASH %s: %x\n", file, out)
 	}
+
+	SetFileHash(file, out)
 	return out, nil
+}
+
+// SetFileHash sets the hash returned by FileHash for file.
+func SetFileHash(file string, sum [HashSize]byte) {
+	hashFileCache.Lock()
+	if hashFileCache.m == nil {
+		hashFileCache.m = make(map[string][HashSize]byte)
+	}
+	hashFileCache.m[file] = sum
+	hashFileCache.Unlock()
 }

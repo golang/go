@@ -47,10 +47,9 @@ type Builder struct {
 	readySema chan bool
 	ready     actionQueue
 
-	id            sync.Mutex
-	toolIDCache   map[string]string // tool name -> tool ID
-	buildIDCache  map[string]string // file name -> build ID
-	fileHashCache map[string]string // file name -> content hash
+	id           sync.Mutex
+	toolIDCache  map[string]string // tool name -> tool ID
+	buildIDCache map[string]string // file name -> build ID
 }
 
 // NOTE: Much of Action would not need to be exported if not for test.
@@ -195,7 +194,6 @@ func (b *Builder) Init() {
 	b.mkdirCache = make(map[string]bool)
 	b.toolIDCache = make(map[string]string)
 	b.buildIDCache = make(map[string]string)
-	b.fileHashCache = make(map[string]string)
 
 	if cfg.BuildN {
 		b.WorkDir = "$WORK"
