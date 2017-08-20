@@ -170,6 +170,19 @@ type hiter struct {
 	checkBucket uintptr
 }
 
+// bucketShift returns 1<<b, optimized for code generation.
+func bucketShift(b uint8) uintptr {
+	if sys.GoarchAmd64|sys.GoarchAmd64p32|sys.Goarch386 != 0 {
+		b &= sys.PtrSize*8 - 1 // help x86 archs remove shift overflow checks
+	}
+	return uintptr(1) << b
+}
+
+// bucketMask returns 1<<b - 1, optimized for code generation.
+func bucketMask(b uint8) uintptr {
+	return bucketShift(b) - 1
+}
+
 // tophash calculates the tophash value for hash.
 func tophash(hash uintptr) uint8 {
 	top := uint8(hash >> (sys.PtrSize*8 - 8))
@@ -374,7 +387,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	}
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
-	m := uintptr(1)<<h.B - 1
+	m := bucketMask(h.B)
 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
 		if !h.sameSizeGrow() {
@@ -429,7 +442,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 	}
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
-	m := uintptr(1)<<h.B - 1
+	m := bucketMask(h.B)
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
 		if !h.sameSizeGrow() {
@@ -473,7 +486,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 	}
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
-	m := uintptr(1)<<h.B - 1
+	m := bucketMask(h.B)
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
 		if !h.sameSizeGrow() {
@@ -555,7 +568,7 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	}
 
 again:
-	bucket := hash & (uintptr(1)<<h.B - 1)
+	bucket := hash & bucketMask(h.B)
 	if h.growing() {
 		growWork(t, h, bucket)
 	}
@@ -662,7 +675,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	// in which case we have not actually done a write (delete).
 	h.flags |= hashWriting
 
-	bucket := hash & (uintptr(1)<<h.B - 1)
+	bucket := hash & bucketMask(h.B)
 	if h.growing() {
 		growWork(t, h, bucket)
 	}
@@ -758,7 +771,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	if h.B > 31-bucketCntBits {
 		r += uintptr(fastrand()) << 31
 	}
-	it.startBucket = r & (uintptr(1)<<h.B - 1)
+	it.startBucket = r & bucketMask(h.B)
 	it.offset = uint8(r >> h.B & (bucketCnt - 1))
 
 	// iterator state
@@ -817,7 +830,7 @@ next:
 			checkBucket = noCheck
 		}
 		bucket++
-		if bucket == uintptr(1)<<it.B {
+		if bucket == bucketShift(it.B) {
 			bucket = 0
 			it.wrapped = true
 		}
@@ -845,7 +858,7 @@ next:
 				// If the item in the oldbucket is not destined for
 				// the current new bucket in the iteration, skip it.
 				hash := alg.hash(k, uintptr(h.hash0))
-				if hash&(uintptr(1)<<it.B-1) != checkBucket {
+				if hash&bucketMask(it.B) != checkBucket {
 					continue
 				}
 			} else {
@@ -901,7 +914,7 @@ next:
 }
 
 func makeBucketArray(t *maptype, b uint8) (buckets unsafe.Pointer, nextOverflow *bmap) {
-	base := uintptr(1 << b)
+	base := bucketShift(b)
 	nbuckets := base
 	// For small b, overflow buckets are unlikely.
 	// Avoid the overhead of the calculation.
@@ -909,7 +922,7 @@ func makeBucketArray(t *maptype, b uint8) (buckets unsafe.Pointer, nextOverflow 
 		// Add on the estimated number of overflow buckets
 		// required to insert the median number of elements
 		// used with this value of b.
-		nbuckets += 1 << (b - 4)
+		nbuckets += bucketShift(b - 4)
 		sz := t.bucket.size * nbuckets
 		up := roundupsize(sz)
 		if up != sz {
@@ -975,7 +988,7 @@ func hashGrow(t *maptype, h *hmap) {
 
 // overLoadFactor reports whether count items placed in 1<<B buckets is over loadFactor.
 func overLoadFactor(count int, B uint8) bool {
-	return count >= bucketCnt && uint64(count) >= loadFactorNum*((uint64(1)<<B)/loadFactorDen)
+	return count >= bucketCnt && uintptr(count) >= loadFactorNum*(bucketShift(B)/loadFactorDen)
 }
 
 // tooManyOverflowBuckets reports whether noverflow buckets is too many for a map with 1<<B buckets.
@@ -1009,7 +1022,7 @@ func (h *hmap) noldbuckets() uintptr {
 	if !h.sameSizeGrow() {
 		oldB--
 	}
-	return uintptr(1) << oldB
+	return bucketShift(oldB)
 }
 
 // oldbucketmask provides a mask that can be applied to calculate n % noldbuckets().
