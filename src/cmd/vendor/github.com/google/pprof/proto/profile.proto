@@ -109,6 +109,15 @@ message Label {
   // At most one of the following must be present
   int64 str = 2;   // Index into string table
   int64 num = 3;
+
+  // Should only be present when num is present.
+  // Specifies the units of num.
+  // Use arbitrary string (for example, "requests") as a custom count unit.
+  // If no unit is specified, consumer may apply heuristic to deduce the unit.
+  // Consumers may also  interpret units like "bytes" and "kilobytes" as memory
+  // units and units like "seconds" and "nanoseconds" as time units,
+  // and apply appropriate unit conversions to these.
+  int64 num_unit = 4;  // Index into string table
 }
 
 message Mapping {

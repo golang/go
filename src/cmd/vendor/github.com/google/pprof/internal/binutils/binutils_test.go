@@ -15,7 +15,13 @@
 package binutils
 
 import (
+	"bytes"
 	"fmt"
+	"math"
+	"path/filepath"
+	"reflect"
+	"regexp"
+	"runtime"
 	"testing"
 
 	"github.com/google/pprof/internal/plugin"
@@ -37,7 +43,7 @@ func functionName(level int) (name string) {
 func TestAddr2Liner(t *testing.T) {
 	const offset = 0x500
 
-	a := addr2Liner{&mockAddr2liner{}, offset, nil}
+	a := addr2Liner{rw: &mockAddr2liner{}, base: offset}
 	for i := 1; i < 8; i++ {
 		addr := i*0x1000 + offset
 		s, err := a.addrInfo(uint64(addr))
@@ -112,24 +118,23 @@ func (a *mockAddr2liner) close() {
 }
 
 func TestAddr2LinerLookup(t *testing.T) {
-	oddSizedMap := addr2LinerNM{
-		m: []symbolInfo{
-			{0x1000, "0x1000"},
-			{0x2000, "0x2000"},
-			{0x3000, "0x3000"},
-		},
-	}
-	evenSizedMap := addr2LinerNM{
-		m: []symbolInfo{
-			{0x1000, "0x1000"},
-			{0x2000, "0x2000"},
-			{0x3000, "0x3000"},
-			{0x4000, "0x4000"},
-		},
-	}
-	for _, a := range []*addr2LinerNM{
-		&oddSizedMap, &evenSizedMap,
-	} {
+	const oddSizedData = `
+00001000 T 0x1000
+00002000 T 0x2000
+00003000 T 0x3000
+`
+	const evenSizedData = `
+0000000000001000 T 0x1000
+0000000000002000 T 0x2000
+0000000000003000 T 0x3000
+0000000000004000 T 0x4000
+`
+	for _, d := range []string{oddSizedData, evenSizedData} {
+		a, err := parseAddr2LinerNM(0, bytes.NewBufferString(d))
+		if err != nil {
+			t.Errorf("nm parse error: %v", err)
+			continue
+		}
 		for address, want := range map[uint64]string{
 			0x1000: "0x1000",
 			0x1001: "0x1000",
@@ -141,6 +146,11 @@ func TestAddr2LinerLookup(t *testing.T) {
 				t.Errorf("%x: got %v, want %s", address, got, want)
 			}
 		}
+		for _, unknown := range []uint64{0x0fff, 0x4001} {
+			if got, _ := a.addrInfo(unknown); got != nil {
+				t.Errorf("%x: got %v, want nil", unknown, got)
+			}
+		}
 	}
 }
 
@@ -149,4 +159,117 @@ func checkAddress(got []plugin.Frame, address uint64, want string) bool {
 		return false
 	}
 	return got[0].Func == want
+}
+
+func TestSetTools(t *testing.T) {
+	// Test that multiple calls work.
+	bu := &Binutils{}
+	bu.SetTools("")
+	bu.SetTools("")
+}
+
+func TestSetFastSymbolization(t *testing.T) {
+	// Test that multiple calls work.
+	bu := &Binutils{}
+	bu.SetFastSymbolization(true)
+	bu.SetFastSymbolization(false)
+}
+
+func skipUnlessLinuxAmd64(t *testing.T) {
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		t.Skip("Disasm only tested on x86-64 linux")
+	}
+}
+
+func TestDisasm(t *testing.T) {
+	skipUnlessLinuxAmd64(t)
+	bu := &Binutils{}
+	insts, err := bu.Disasm(filepath.Join("testdata", "hello"), 0, math.MaxUint64)
+	if err != nil {
+		t.Fatalf("Disasm: unexpected error %v", err)
+	}
+	mainCount := 0
+	for _, x := range insts {
+		if x.Function == "main" {
+			mainCount++
+		}
+	}
+	if mainCount == 0 {
+		t.Error("Disasm: found no main instructions")
+	}
+}
+
+func TestObjFile(t *testing.T) {
+	skipUnlessLinuxAmd64(t)
+	bu := &Binutils{}
+	f, err := bu.Open(filepath.Join("testdata", "hello"), 0, math.MaxUint64, 0)
+	if err != nil {
+		t.Fatalf("Open: unexpected error %v", err)
+	}
+	defer f.Close()
+	syms, err := f.Symbols(regexp.MustCompile("main"), 0)
+	if err != nil {
+		t.Fatalf("Symbols: unexpected error %v", err)
+	}
+
+	find := func(name string) *plugin.Sym {
+		for _, s := range syms {
+			for _, n := range s.Name {
+				if n == name {
+					return s
+				}
+			}
+		}
+		return nil
+	}
+	m := find("main")
+	if m == nil {
+		t.Fatalf("Symbols: did not find main")
+	}
+	frames, err := f.SourceLine(m.Start)
+	if err != nil {
+		t.Fatalf("SourceLine: unexpected error %v", err)
+	}
+	expect := []plugin.Frame{
+		{Func: "main", File: "/tmp/hello.c", Line: 3},
+	}
+	if !reflect.DeepEqual(frames, expect) {
+		t.Fatalf("SourceLine for main: expect %v; got %v\n", expect, frames)
+	}
+}
+
+func TestLLVMSymbolizer(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("testtdata/llvm-symbolizer has only been tested on linux")
+	}
+
+	cmd := filepath.Join("testdata", "fake-llvm-symbolizer")
+	symbolizer, err := newLLVMSymbolizer(cmd, "foo", 0)
+	if err != nil {
+		t.Fatalf("newLLVMSymbolizer: unexpected error %v", err)
+	}
+	defer symbolizer.rw.close()
+
+	for _, c := range []struct {
+		addr   uint64
+		frames []plugin.Frame
+	}{
+		{0x10, []plugin.Frame{
+			{Func: "Inlined_0x10", File: "foo.h", Line: 0},
+			{Func: "Func_0x10", File: "foo.c", Line: 2},
+		}},
+		{0x20, []plugin.Frame{
+			{Func: "Inlined_0x20", File: "foo.h", Line: 0},
+			{Func: "Func_0x20", File: "foo.c", Line: 2},
+		}},
+	} {
+		frames, err := symbolizer.addrInfo(c.addr)
+		if err != nil {
+			t.Errorf("LLVM: unexpected error %v", err)
+			continue
+		}
+		if !reflect.DeepEqual(frames, c.frames) {
+			t.Errorf("LLVM: expect %v; got %v\n", c.frames, frames)
+		}
+	}
 }

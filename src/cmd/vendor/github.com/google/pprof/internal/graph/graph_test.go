@@ -171,7 +171,7 @@ func createExpectedEdges(parent expectedNode, children ...expectedNode) {
 	}
 }
 
-// createTestCase1 creates a test case that initally looks like:
+// createTestCase1 creates a test case that initially looks like:
 //     0
 //     |(5)
 //     1
@@ -255,7 +255,7 @@ func createTestCase2() trimTreeTestcase {
 	}
 }
 
-// createTestCase3 creates an initally empty graph and expects an empty graph
+// createTestCase3 creates an initially empty graph and expects an empty graph
 // after trimming.
 func createTestCase3() trimTreeTestcase {
 	graph := &Graph{make(Nodes, 0)}

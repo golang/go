@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"testing"
 )
 
@@ -71,10 +72,14 @@ func EncodeJSON(x interface{}) []byte {
 }
 
 // TestUI implements the plugin.UI interface, triggering test failures
-// if more than Ignore errors are printed.
+// if more than Ignore errors not matching AllowRx are printed.
+// Also tracks the number of times the error matches AllowRx in
+// NumAllowRxMatches.
 type TestUI struct {
-	T      *testing.T
-	Ignore int
+	T                 *testing.T
+	Ignore            int
+	AllowRx           string
+	NumAllowRxMatches int
 }
 
 // ReadLine returns no input, as no input is expected during testing.
@@ -89,11 +94,24 @@ func (ui *TestUI) Print(args ...interface{}) {
 // PrintErr messages may trigger an error failure. A fixed number of
 // error messages are permitted when appropriate.
 func (ui *TestUI) PrintErr(args ...interface{}) {
+	if ui.AllowRx != "" {
+		if matched, err := regexp.MatchString(ui.AllowRx, fmt.Sprint(args...)); matched || err != nil {
+			if err != nil {
+				ui.T.Errorf("failed to match against regex %q: %v", ui.AllowRx, err)
+			}
+			ui.NumAllowRxMatches++
+			return
+		}
+	}
 	if ui.Ignore > 0 {
 		ui.Ignore--
 		return
 	}
-	ui.T.Error(args)
+	// Stringify arguments with fmt.Sprint() to match what default UI
+	// implementation does. Without this Error() calls fmt.Sprintln() which
+	// _always_ adds spaces between arguments, unlike fmt.Sprint() which only
+	// adds them between arguments if neither is string.
+	ui.T.Error(fmt.Sprint(args...))
 }
 
 // IsTerminal indicates if the UI is an interactive terminal.
