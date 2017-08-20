@@ -369,7 +369,7 @@ func TestIntendedInlining(t *testing.T) {
 	t.Parallel()
 
 	// want is the list of function names that should be inlined.
-	want := []string{"tophash", "add", "(*bmap).keys"}
+	want := []string{"tophash", "add", "(*bmap).keys", "bucketShift", "bucketMask"}
 
 	m := make(map[string]bool, len(want))
 	for _, s := range want {
