@@ -49,6 +49,7 @@ var (
 	appID    string
 	teamID   string
 	bundleID string
+	deviceID string
 )
 
 // lock is a file lock to serialize iOS runs. It is global to avoid the
@@ -76,6 +77,9 @@ func main() {
 	// e.g. Z8B3JBXXXX, available at
 	// https://developer.apple.com/membercenter/index.action#accountSummary as Team ID.
 	teamID = getenv("GOIOS_TEAM_ID")
+
+	// Device IDs as listed with ios-deploy -c.
+	deviceID = os.Getenv("GOIOS_DEVICE_ID")
 
 	parts := strings.SplitN(appID, ".", 2)
 	// For compatibility with the old builders, use a fallback bundle ID
@@ -294,7 +298,7 @@ func newSession(appdir string, args []string, opts options) (*lldbSession, error
 	if err != nil {
 		return nil, err
 	}
-	s.cmd = exec.Command(
+	cmdArgs := []string{
 		// lldb tries to be clever with terminals.
 		// So we wrap it in script(1) and be clever
 		// right back at it.
@@ -307,9 +311,13 @@ func newSession(appdir string, args []string, opts options) (*lldbSession, error
 		"-u",
 		"-r",
 		"-n",
-		`--args=`+strings.Join(args, " ")+``,
+		`--args=` + strings.Join(args, " ") + ``,
 		"--bundle", appdir,
-	)
+	}
+	if deviceID != "" {
+		cmdArgs = append(cmdArgs, "--id", deviceID)
+	}
+	s.cmd = exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	if debug {
 		log.Println(strings.Join(s.cmd.Args, " "))
 	}
