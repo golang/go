@@ -172,6 +172,13 @@ func (p *pp) Write(b []byte) (ret int, err error) {
 	return len(b), nil
 }
 
+// Implement WriteString so that we can call io.WriteString
+// on a pp (through state), for efficiency.
+func (p *pp) WriteString(s string) (ret int, err error) {
+	p.buf.WriteString(s)
+	return len(s), nil
+}
+
 // These routines end in 'f' and take a format string.
 
 // Fprintf formats according to a format specifier and writes to w.

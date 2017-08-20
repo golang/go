@@ -131,6 +131,19 @@ func (byteFormatter) Format(f State, _ rune) {
 
 var byteFormatterSlice = []byteFormatter{'h', 'e', 'l', 'l', 'o'}
 
+// Copy of io.stringWriter interface used by writeStringFormatter for type assertion.
+type stringWriter interface {
+	WriteString(s string) (n int, err error)
+}
+
+type writeStringFormatter string
+
+func (sf writeStringFormatter) Format(f State, c rune) {
+	if sw, ok := f.(stringWriter); ok {
+		sw.WriteString("***" + string(sf) + "***")
+	}
+}
+
 var fmtTests = []struct {
 	fmt string
 	val interface{}
@@ -976,6 +989,11 @@ var fmtTests = []struct {
 	{"%X", byteFormatterSlice, "68656C6C6F"},
 	// This next case seems wrong, but the docs say the Formatter wins here.
 	{"%#v", byteFormatterSlice, "[]fmt_test.byteFormatter{X, X, X, X, X}"},
+
+	// pp.WriteString
+	{"%s", writeStringFormatter(""), "******"},
+	{"%s", writeStringFormatter("xyz"), "***xyz***"},
+	{"%s", writeStringFormatter("⌘/⌘"), "***⌘/⌘***"},
 
 	// reflect.Value handled specially in Go 1.5, making it possible to
 	// see inside non-exported fields (which cannot be accessed with Interface()).
