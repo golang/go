@@ -81,6 +81,7 @@ const (
 
 func structfieldSize() int { return 3 * Widthptr } // Sizeof(runtime.structfield{})
 func imethodSize() int     { return 4 + 4 }        // Sizeof(runtime.imethod{})
+
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym == nil && len(methods(t)) == 0 {
 		return 0
@@ -178,82 +179,106 @@ func mapbucket(t *types.Type) *types.Type {
 	return bucket
 }
 
-// Builds a type representing a Hmap structure for the given map type.
-// Make sure this stays in sync with ../../../../runtime/hashmap.go!
+// hmap builds a type representing a Hmap structure for the given map type.
+// Make sure this stays in sync with ../../../../runtime/hashmap.go.
 func hmap(t *types.Type) *types.Type {
 	if t.MapType().Hmap != nil {
 		return t.MapType().Hmap
 	}
 
-	bucket := mapbucket(t)
+	bmap := mapbucket(t)
+
+	// build a struct:
+	// type hmap struct {
+	//    count      int
+	//    flags      uint8
+	//    B          uint8
+	//    noverflow  uint16
+	//    hash0      uint32
+	//    buckets    *bmap
+	//    oldbuckets *bmap
+	//    nevacuate  uintptr
+	//    extra      unsafe.Pointer // *mapextra
+	// }
+	// must match ../../../../runtime/hashmap.go:hmap.
 	fields := []*types.Field{
 		makefield("count", types.Types[TINT]),
 		makefield("flags", types.Types[TUINT8]),
 		makefield("B", types.Types[TUINT8]),
 		makefield("noverflow", types.Types[TUINT16]),
 		makefield("hash0", types.Types[TUINT32]),
-		makefield("buckets", types.NewPtr(bucket)),
-		makefield("oldbuckets", types.NewPtr(bucket)),
+		makefield("buckets", types.NewPtr(bmap)), // Used in walk.go for makemap.
+		makefield("oldbuckets", types.NewPtr(bmap)),
 		makefield("nevacuate", types.Types[TUINTPTR]),
-		makefield("overflow", types.Types[TUNSAFEPTR]),
+		makefield("extra", types.Types[TUNSAFEPTR]),
 	}
 
-	h := types.New(TSTRUCT)
-	h.SetNoalg(true)
-	h.SetLocal(t.Local())
-	h.SetFields(fields)
-	dowidth(h)
-	t.MapType().Hmap = h
-	h.StructType().Map = t
-	return h
+	hmap := types.New(TSTRUCT)
+	hmap.SetNoalg(true)
+	hmap.SetLocal(t.Local())
+	hmap.SetFields(fields)
+	dowidth(hmap)
+	t.MapType().Hmap = hmap
+	hmap.StructType().Map = t
+	return hmap
 }
 
+// hiter builds a type representing an Hiter structure for the given map type.
+// Make sure this stays in sync with ../../../../runtime/hashmap.go.
 func hiter(t *types.Type) *types.Type {
 	if t.MapType().Hiter != nil {
 		return t.MapType().Hiter
 	}
 
+	hmap := hmap(t)
+	bmap := mapbucket(t)
+
 	// build a struct:
-	// hiter {
-	//    key *Key
-	//    val *Value
-	//    t *MapType
-	//    h *Hmap
-	//    buckets *Bucket
-	//    bptr *Bucket
-	//    overflow0 unsafe.Pointer
-	//    overflow1 unsafe.Pointer
+	// type hiter struct {
+	//    key         *Key
+	//    val         *Value
+	//    t           unsafe.Pointer // *MapType
+	//    h           *hmap
+	//    buckets     *bmap
+	//    bptr        *bmap
+	//    overflow    [2]unsafe.Pointer // [2]*[]*bmap
 	//    startBucket uintptr
-	//    stuff uintptr
-	//    bucket uintptr
+	//    offset      uint8
+	//    wrapped     bool
+	//    B           uint8
+	//    i           uint8
+	//    bucket      uintptr
 	//    checkBucket uintptr
 	// }
 	// must match ../../../../runtime/hashmap.go:hiter.
-	var field [12]*types.Field
-	field[0] = makefield("key", types.NewPtr(t.Key()))
-	field[1] = makefield("val", types.NewPtr(t.Val()))
-	field[2] = makefield("t", types.NewPtr(types.Types[TUINT8]))
-	field[3] = makefield("h", types.NewPtr(hmap(t)))
-	field[4] = makefield("buckets", types.NewPtr(mapbucket(t)))
-	field[5] = makefield("bptr", types.NewPtr(mapbucket(t)))
-	field[6] = makefield("overflow0", types.Types[TUNSAFEPTR])
-	field[7] = makefield("overflow1", types.Types[TUNSAFEPTR])
-	field[8] = makefield("startBucket", types.Types[TUINTPTR])
-	field[9] = makefield("stuff", types.Types[TUINTPTR]) // offset+wrapped+B+I
-	field[10] = makefield("bucket", types.Types[TUINTPTR])
-	field[11] = makefield("checkBucket", types.Types[TUINTPTR])
+	fields := []*types.Field{
+		makefield("key", types.NewPtr(t.Key())), // Used in range.go for TMAP.
+		makefield("val", types.NewPtr(t.Val())), // Used in range.go for TMAP.
+		makefield("t", types.Types[TUNSAFEPTR]),
+		makefield("h", types.NewPtr(hmap)),
+		makefield("buckets", types.NewPtr(bmap)),
+		makefield("bptr", types.NewPtr(bmap)),
+		makefield("overflow", types.NewArray(types.Types[TUNSAFEPTR], 2)),
+		makefield("startBucket", types.Types[TUINTPTR]),
+		makefield("offset", types.Types[TUINT8]),
+		makefield("wrapped", types.Types[TBOOL]),
+		makefield("B", types.Types[TUINT8]),
+		makefield("i", types.Types[TUINT8]),
+		makefield("bucket", types.Types[TUINTPTR]),
+		makefield("checkBucket", types.Types[TUINTPTR]),
+	}
 
 	// build iterator struct holding the above fields
-	i := types.New(TSTRUCT)
-	i.SetNoalg(true)
-	i.SetFields(field[:])
-	dowidth(i)
-	if i.Width != int64(12*Widthptr) {
-		Fatalf("hash_iter size not correct %d %d", i.Width, 12*Widthptr)
+	hiter := types.New(TSTRUCT)
+	hiter.SetNoalg(true)
+	hiter.SetFields(fields)
+	dowidth(hiter)
+	if hiter.Width != int64(12*Widthptr) {
+		Fatalf("hash_iter size not correct %d %d", hiter.Width, 12*Widthptr)
 	}
-	t.MapType().Hiter = i
-	i.StructType().Map = t
-	return i
+	t.MapType().Hiter = hiter
+	hiter.StructType().Map = t
+	return hiter
 }
 
 // f is method type, with receiver.
