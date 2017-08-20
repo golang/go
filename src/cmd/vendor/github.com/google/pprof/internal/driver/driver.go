@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/google/pprof/internal/plugin"
 	"github.com/google/pprof/internal/report"
@@ -52,24 +53,30 @@ func PProf(eo *plugin.Options) error {
 		return generateReport(p, cmd, pprofVariables, o)
 	}
 
+	if src.HTTPHostport != "" {
+		return serveWebInterface(src.HTTPHostport, p, o)
+	}
 	return interactive(p, o)
 }
 
-func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.Options) error {
+func generateRawReport(p *profile.Profile, cmd []string, vars variables, o *plugin.Options) (*command, *report.Report, error) {
 	p = p.Copy() // Prevent modification to the incoming profile.
+
+	// Identify units of numeric tags in profile.
+	numLabelUnits := identifyNumLabelUnits(p, o.UI)
 
 	vars = applyCommandOverrides(cmd, vars)
 
 	// Delay focus after configuring report to get percentages on all samples.
 	relative := vars["relative_percentages"].boolValue()
 	if relative {
-		if err := applyFocus(p, vars, o.UI); err != nil {
-			return err
+		if err := applyFocus(p, numLabelUnits, vars, o.UI); err != nil {
+			return nil, nil, err
 		}
 	}
-	ropt, err := reportOptions(p, vars)
+	ropt, err := reportOptions(p, numLabelUnits, vars)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	c := pprofCommands[cmd[0]]
 	if c == nil {
@@ -79,18 +86,27 @@ func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.
 	if len(cmd) == 2 {
 		s, err := regexp.Compile(cmd[1])
 		if err != nil {
-			return fmt.Errorf("parsing argument regexp %s: %v", cmd[1], err)
+			return nil, nil, fmt.Errorf("parsing argument regexp %s: %v", cmd[1], err)
 		}
 		ropt.Symbol = s
 	}
 
 	rpt := report.New(p, ropt)
 	if !relative {
-		if err := applyFocus(p, vars, o.UI); err != nil {
-			return err
+		if err := applyFocus(p, numLabelUnits, vars, o.UI); err != nil {
+			return nil, nil, err
 		}
 	}
 	if err := aggregate(p, vars); err != nil {
+		return nil, nil, err
+	}
+
+	return c, rpt, nil
+}
+
+func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.Options) error {
+	c, rpt, err := generateRawReport(p, cmd, vars, o)
+	if err != nil {
 		return err
 	}
 
@@ -160,20 +176,20 @@ func applyCommandOverrides(cmd []string, v variables) variables {
 			v.set("nodecount", "80")
 		}
 	}
-	if trim == false {
+	if !trim {
 		v.set("nodecount", "0")
 		v.set("nodefraction", "0")
 		v.set("edgefraction", "0")
 	}
-	if focus == false {
+	if !focus {
 		v.set("focus", "")
 		v.set("ignore", "")
 	}
-	if tagfocus == false {
+	if !tagfocus {
 		v.set("tagfocus", "")
 		v.set("tagignore", "")
 	}
-	if hide == false {
+	if !hide {
 		v.set("hide", "")
 		v.set("show", "")
 	}
@@ -196,25 +212,20 @@ func aggregate(prof *profile.Profile, v variables) error {
 	case v["functions"].boolValue():
 		inlines = true
 		function = true
-		filename = true
 	case v["noinlines"].boolValue():
 		function = true
-		filename = true
 	case v["addressnoinlines"].boolValue():
 		function = true
 		filename = true
 		linenumber = true
 		address = true
-	case v["functionnameonly"].boolValue():
-		inlines = true
-		function = true
 	default:
 		return fmt.Errorf("unexpected granularity")
 	}
 	return prof.Aggregate(inlines, function, filename, linenumber, address)
 }
 
-func reportOptions(p *profile.Profile, vars variables) (*report.Options, error) {
+func reportOptions(p *profile.Profile, numLabelUnits map[string]string, vars variables) (*report.Options, error) {
 	si, mean := vars["sample_index"].value, vars["mean"].boolValue()
 	value, meanDiv, sample, err := sampleFormat(p, si, mean)
 	if err != nil {
@@ -230,6 +241,14 @@ func reportOptions(p *profile.Profile, vars variables) (*report.Options, error) 
 		return nil, fmt.Errorf("zero divisor specified")
 	}
 
+	var filters []string
+	for _, k := range []string{"focus", "ignore", "hide", "show", "tagfocus", "tagignore", "tagshow", "taghide"} {
+		v := vars[k].value
+		if v != "" {
+			filters = append(filters, k+"="+v)
+		}
+	}
+
 	ropt := &report.Options{
 		CumSort:             vars["cum"].boolValue(),
 		CallTree:            vars["call_tree"].boolValue(),
@@ -242,6 +261,9 @@ func reportOptions(p *profile.Profile, vars variables) (*report.Options, error) 
 		NodeCount:    vars["nodecount"].intValue(),
 		NodeFraction: vars["nodefraction"].floatValue(),
 		EdgeFraction: vars["edgefraction"].floatValue(),
+
+		ActiveFilters: filters,
+		NumLabelUnits: numLabelUnits,
 
 		SampleValue:       value,
 		SampleMeanDivisor: meanDiv,
@@ -258,6 +280,19 @@ func reportOptions(p *profile.Profile, vars variables) (*report.Options, error) 
 	}
 
 	return ropt, nil
+}
+
+// identifyNumLabelUnits returns a map of numeric label keys to the units
+// associated with those keys.
+func identifyNumLabelUnits(p *profile.Profile, ui plugin.UI) map[string]string {
+	numLabelUnits, ignoredUnits := p.NumLabelUnits()
+
+	// Print errors for tags with multiple units associated with
+	// a single key.
+	for k, units := range ignoredUnits {
+		ui.PrintErr(fmt.Sprintf("For tag %s used unit %s, also encountered unit(s) %s", k, numLabelUnits[k], strings.Join(units, ", ")))
+	}
+	return numLabelUnits
 }
 
 type sampleValueFunc func([]int64) int64

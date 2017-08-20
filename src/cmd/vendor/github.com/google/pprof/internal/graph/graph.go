@@ -240,6 +240,8 @@ type Edge struct {
 	Inline bool
 }
 
+// WeightValue returns the weight value for this edge, normalizing if a
+// divisor is available.
 func (e *Edge) WeightValue() int64 {
 	if e.WeightDiv == 0 {
 		return e.Weight
@@ -327,7 +329,7 @@ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
 				// Add cum weight to all nodes in stack, avoiding double counting.
 				if _, ok := seenNode[n]; !ok {
 					seenNode[n] = true
-					n.addSample(dw, w, labels, sample.NumLabel, o.FormatTag, false)
+					n.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, false)
 				}
 				// Update edge weights for all edges in stack, avoiding double counting.
 				if _, ok := seenEdge[nodePair{n, parent}]; !ok && parent != nil && n != parent {
@@ -340,7 +342,7 @@ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
 		}
 		if parent != nil && !residual {
 			// Add flat weight to leaf node.
-			parent.addSample(dw, w, labels, sample.NumLabel, o.FormatTag, true)
+			parent.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, true)
 		}
 	}
 
@@ -399,7 +401,7 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 				if n == nil {
 					continue
 				}
-				n.addSample(dw, w, labels, sample.NumLabel, o.FormatTag, false)
+				n.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, false)
 				if parent != nil {
 					parent.AddToEdgeDiv(n, dw, w, false, lidx != len(lines)-1)
 				}
@@ -407,7 +409,7 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 			}
 		}
 		if parent != nil {
-			parent.addSample(dw, w, labels, sample.NumLabel, o.FormatTag, true)
+			parent.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, true)
 		}
 	}
 
@@ -600,7 +602,7 @@ func (ns Nodes) Sum() (flat int64, cum int64) {
 	return
 }
 
-func (n *Node) addSample(dw, w int64, labels string, numLabel map[string][]int64, format func(int64, string) string, flat bool) {
+func (n *Node) addSample(dw, w int64, labels string, numLabel map[string][]int64, numUnit map[string][]string, format func(int64, string) string, flat bool) {
 	// Update sample value
 	if flat {
 		n.FlatDiv += dw
@@ -631,9 +633,15 @@ func (n *Node) addSample(dw, w int64, labels string, numLabel map[string][]int64
 	if format == nil {
 		format = defaultLabelFormat
 	}
-	for key, nvals := range numLabel {
-		for _, v := range nvals {
-			t := numericTags.findOrAddTag(format(v, key), key, v)
+	for k, nvals := range numLabel {
+		units := numUnit[k]
+		for i, v := range nvals {
+			var t *Tag
+			if len(units) > 0 {
+				t = numericTags.findOrAddTag(format(v, units[i]), units[i], v)
+			} else {
+				t = numericTags.findOrAddTag(format(v, k), k, v)
+			}
 			if flat {
 				t.FlatDiv += dw
 				t.Flat += w
@@ -800,7 +808,11 @@ func (g *Graph) selectTopNodes(maxNodes int, visualMode bool) Nodes {
 			// If generating a visual graph, count tags as nodes. Update
 			// maxNodes to account for them.
 			for i, n := range g.Nodes {
-				if count += countTags(n) + 1; count >= maxNodes {
+				tags := countTags(n)
+				if tags > maxNodelets {
+					tags = maxNodelets
+				}
+				if count += tags + 1; count >= maxNodes {
 					maxNodes = i + 1
 					break
 				}
@@ -827,17 +839,6 @@ func countTags(n *Node) int {
 			if e.Flat != 0 {
 				count++
 			}
-		}
-	}
-	return count
-}
-
-// countEdges counts the number of edges below the specified cutoff.
-func countEdges(el EdgeMap, cutoff int64) int {
-	count := 0
-	for _, e := range el {
-		if e.Weight > cutoff {
-			count++
 		}
 	}
 	return count

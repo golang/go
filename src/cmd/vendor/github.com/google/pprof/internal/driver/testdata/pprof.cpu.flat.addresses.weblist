@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <title>Pprof listing</title>
 <style type="text/css">
 body {
@@ -14,17 +15,11 @@ h1 {
 .legend {
   font-size: 1.25em;
 }
-.line {
-color: #aaaaaa;
+.line, .nop, .unimportant {
+  color: #aaaaaa;
 }
-.nop {
-color: #aaaaaa;
-}
-.unimportant {
-color: #cccccc;
-}
-.disasmloc {
-color: #000000;
+.inlinesrc {
+  color: #000066;
 }
 .deadsrc {
 cursor: pointer;
@@ -69,39 +64,41 @@ Type: cpu<br>
 Duration: 10s, Total samples = 1.12s (11.20%)<br>Total: 1.12s</div><h1>line1000</h1>testdata/file1000.src
 <pre onClick="pprof_toggle_asm(event)">
   Total:       1.10s      1.10s (flat, cum) 98.21%
-<span class=line>      1</span> <span class=deadsrc>       1.10s      1.10s line1 </span><span class=asm>               1.10s      1.10s     1000: instruction one                                  <span class=disasmloc>file1000.src:1</span>
-                   .          .     1001: instruction two                                  <span class=disasmloc></span>
-                   .          .     1002: instruction three                                <span class=disasmloc></span>
-                   .          .     1003: instruction four                                 <span class=disasmloc></span>
+<span class=line>      1</span> <span class=deadsrc>       1.10s      1.10s           line1 </span><span class=asm>               1.10s      1.10s     1000:     instruction one                                                              <span class=unimportant>file1000.src:1</span>
+                   .          .     1001:     instruction two                                                              <span class=unimportant>file1000.src:1</span>
+                                     ⋮
+                   .          .     1003:     instruction four                                                             <span class=unimportant>file1000.src:1</span>
 </span>
-<span class=line>      2</span> <span class=nop>           .          . line2 </span>
-<span class=line>      3</span> <span class=nop>           .          . line3 </span>
-<span class=line>      4</span> <span class=nop>           .          . line4 </span>
-<span class=line>      5</span> <span class=nop>           .          . line5 </span>
-<span class=line>      6</span> <span class=nop>           .          . line6 </span>
+<span class=line>      2</span> <span class=deadsrc>           .          .           line2 </span><span class=asm>                   .          .     1002:     instruction three                                                            <span class=unimportant>file1000.src:2</span>
+</span>
+<span class=line>      3</span> <span class=nop>           .          .           line3 </span>
+<span class=line>      4</span> <span class=nop>           .          .           line4 </span>
+<span class=line>      5</span> <span class=nop>           .          .           line5 </span>
+<span class=line>      6</span> <span class=nop>           .          .           line6 </span>
+<span class=line>      7</span> <span class=nop>           .          .           line7 </span>
 </pre>
 <h1>line3000</h1>testdata/file3000.src
 <pre onClick="pprof_toggle_asm(event)">
   Total:        10ms      1.12s (flat, cum)   100%
-<span class=line>      1</span> <span class=nop>           .          . line1 </span>
-<span class=line>      2</span> <span class=nop>           .          . line2 </span>
-<span class=line>      3</span> <span class=nop>           .          . line3 </span>
-<span class=line>      4</span> <span class=nop>           .          . line4 </span>
-<span class=line>      5</span> <span class=nop>           .          . line5 </span>
-<span class=line>      6</span> <span class=deadsrc>        10ms      1.01s line6 </span><span class=asm>                10ms      1.01s     3000: instruction one                                  <span class=disasmloc>file3000.src:6</span>
+<span class=line>      1</span> <span class=nop>           .          .           line1 </span>
+<span class=line>      2</span> <span class=nop>           .          .           line2 </span>
+<span class=line>      3</span> <span class=nop>           .          .           line3 </span>
+<span class=line>      4</span> <span class=nop>           .          .           line4 </span>
+<span class=line>      5</span> <span class=nop>           .          .           line5 </span>
+<span class=line>      6</span> <span class=deadsrc>        10ms      1.01s           line6 </span><span class=asm>                10ms      1.01s     3000:     instruction one                                                              <span class=unimportant>file3000.src:6</span>
 </span>
-<span class=line>      7</span> <span class=nop>           .          . line7 </span>
-<span class=line>      8</span> <span class=nop>           .          . line8 </span>
-<span class=line>      9</span> <span class=deadsrc>           .      110ms line9 </span><span class=asm>                   .      100ms     3001: instruction two                                  <span class=disasmloc>file3000.src:9</span>
-                   .       10ms     3002: instruction three                                <span class=disasmloc>file3000.src:9</span>
-                   .          .     3003: instruction four                                 <span class=disasmloc></span>
-                   .          .     3004: instruction five                                 <span class=disasmloc></span>
+<span class=line>      7</span> <span class=nop>           .          .           line7 </span>
+<span class=line>      8</span> <span class=nop>           .          .           line8 </span>
+<span class=line>      9</span> <span class=deadsrc>           .      110ms           line9 </span><span class=asm>                   .      100ms     3001:     instruction two                                                              <span class=unimportant>file3000.src:9</span>
+                   .       10ms     3002:     instruction three                                                            <span class=unimportant>file3000.src:9</span>
+                   .          .     3003:     instruction four                                                             <span class=unimportant></span>
+                   .          .     3004:     instruction five                                                             <span class=unimportant></span>
 </span>
-<span class=line>     10</span> <span class=nop>           .          . line0 </span>
-<span class=line>     11</span> <span class=nop>           .          . line1 </span>
-<span class=line>     12</span> <span class=nop>           .          . line2 </span>
-<span class=line>     13</span> <span class=nop>           .          . line3 </span>
-<span class=line>     14</span> <span class=nop>           .          . line4 </span>
+<span class=line>     10</span> <span class=nop>           .          .           line0 </span>
+<span class=line>     11</span> <span class=nop>           .          .           line1 </span>
+<span class=line>     12</span> <span class=nop>           .          .           line2 </span>
+<span class=line>     13</span> <span class=nop>           .          .           line3 </span>
+<span class=line>     14</span> <span class=nop>           .          .           line4 </span>
 </pre>
 
 </body>

@@ -17,6 +17,7 @@ package symbolizer
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -101,9 +102,11 @@ func TestSymbolization(t *testing.T) {
 	defer func() {
 		symbolzSymbolize = sSym
 		localSymbolize = lSym
+		demangleFunction = Demangle
 	}()
 	symbolzSymbolize = symbolzMock
 	localSymbolize = localMock
+	demangleFunction = demangleMock
 
 	type testcase struct {
 		mode        string
@@ -117,19 +120,35 @@ func TestSymbolization(t *testing.T) {
 	for i, tc := range []testcase{
 		{
 			"local",
-			"local=local",
+			"local=[]",
 		},
 		{
 			"fastlocal",
-			"local=fastlocal",
+			"local=[fast]",
 		},
 		{
 			"remote",
-			"symbolz",
+			"symbolz=[]",
 		},
 		{
 			"",
-			"local=:symbolz",
+			"local=[]:symbolz=[]",
+		},
+		{
+			"demangle=none",
+			"demangle=[none]:force:local=[force]:symbolz=[force]",
+		},
+		{
+			"remote:demangle=full",
+			"demangle=[full]:force:symbolz=[force]",
+		},
+		{
+			"local:demangle=templates",
+			"demangle=[templates]:force:local=[force]",
+		},
+		{
+			"force:remote",
+			"force:symbolz=[force]",
 		},
 	} {
 		prof := testProfile.Copy()
@@ -137,21 +156,42 @@ func TestSymbolization(t *testing.T) {
 			t.Errorf("symbolize #%d: %v", i, err)
 			continue
 		}
+		sort.Strings(prof.Comments)
 		if got, want := strings.Join(prof.Comments, ":"), tc.wantComment; got != want {
-			t.Errorf("got %s, want %s", got, want)
+			t.Errorf("%q: got %s, want %s", tc.mode, got, want)
 			continue
 		}
 	}
 }
 
-func symbolzMock(sources plugin.MappingSources, syms func(string, string) ([]byte, error), p *profile.Profile, ui plugin.UI) error {
-	p.Comments = append(p.Comments, "symbolz")
+func symbolzMock(p *profile.Profile, force bool, sources plugin.MappingSources, syms func(string, string) ([]byte, error), ui plugin.UI) error {
+	var args []string
+	if force {
+		args = append(args, "force")
+	}
+	p.Comments = append(p.Comments, "symbolz=["+strings.Join(args, ",")+"]")
 	return nil
 }
 
-func localMock(mode string, p *profile.Profile, obj plugin.ObjTool, ui plugin.UI) error {
-	p.Comments = append(p.Comments, "local="+mode)
+func localMock(p *profile.Profile, fast, force bool, obj plugin.ObjTool, ui plugin.UI) error {
+	var args []string
+	if fast {
+		args = append(args, "fast")
+	}
+	if force {
+		args = append(args, "force")
+	}
+	p.Comments = append(p.Comments, "local=["+strings.Join(args, ",")+"]")
 	return nil
+}
+
+func demangleMock(p *profile.Profile, force bool, mode string) {
+	if force {
+		p.Comments = append(p.Comments, "force")
+	}
+	if mode != "" {
+		p.Comments = append(p.Comments, "demangle=["+mode+"]")
+	}
 }
 
 func TestLocalSymbolization(t *testing.T) {
@@ -165,7 +205,7 @@ func TestLocalSymbolization(t *testing.T) {
 	}
 
 	b := mockObjTool{}
-	if err := localSymbolize("", prof, b, &proftest.TestUI{T: t}); err != nil {
+	if err := localSymbolize(prof, false, false, b, &proftest.TestUI{T: t}); err != nil {
 		t.Fatalf("localSymbolize(): %v", err)
 	}
 
@@ -207,11 +247,11 @@ func checkSymbolizedLocation(a uint64, got []profile.Line) error {
 }
 
 var mockAddresses = map[uint64][]plugin.Frame{
-	1000: []plugin.Frame{frame("fun11", "file11.src", 10)},
-	2000: []plugin.Frame{frame("fun21", "file21.src", 20), frame("fun22", "file22.src", 20)},
-	3000: []plugin.Frame{frame("fun31", "file31.src", 30), frame("fun32", "file32.src", 30), frame("fun33", "file33.src", 30)},
-	4000: []plugin.Frame{frame("fun41", "file41.src", 40), frame("fun42", "file42.src", 40), frame("fun43", "file43.src", 40), frame("fun44", "file44.src", 40)},
-	5000: []plugin.Frame{frame("fun51", "file51.src", 50), frame("fun52", "file52.src", 50), frame("fun53", "file53.src", 50), frame("fun54", "file54.src", 50), frame("fun55", "file55.src", 50)},
+	1000: {frame("fun11", "file11.src", 10)},
+	2000: {frame("fun21", "file21.src", 20), frame("fun22", "file22.src", 20)},
+	3000: {frame("fun31", "file31.src", 30), frame("fun32", "file32.src", 30), frame("fun33", "file33.src", 30)},
+	4000: {frame("fun41", "file41.src", 40), frame("fun42", "file42.src", 40), frame("fun43", "file43.src", 40), frame("fun44", "file44.src", 40)},
+	5000: {frame("fun51", "file51.src", 50), frame("fun52", "file52.src", 50), frame("fun53", "file53.src", 50), frame("fun54", "file54.src", 50), frame("fun55", "file55.src", 50)},
 }
 
 func frame(fname, file string, line int) plugin.Frame {

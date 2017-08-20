@@ -26,6 +26,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -46,6 +47,10 @@ type Profile struct {
 	DurationNanos int64
 	PeriodType    *ValueType
 	Period        int64
+
+	// The following fields are modified during encoding and copying,
+	// so are protected by a Mutex.
+	encodeMu sync.Mutex
 
 	commentX           []int64
 	dropFramesX        int64
@@ -69,6 +74,7 @@ type Sample struct {
 	Value    []int64
 	Label    map[string][]string
 	NumLabel map[string][]int64
+	NumUnit  map[string][]string
 
 	locationIDX []uint64
 	labelX      []label
@@ -80,6 +86,8 @@ type label struct {
 	// Exactly one of the two following values must be set
 	strX int64
 	numX int64 // Integer value for this label
+	// can be set if numX has value
+	unitX int64
 }
 
 // Mapping corresponds to Profile.Mapping
@@ -296,21 +304,25 @@ func (p *Profile) updateLocationMapping(from, to *Mapping) {
 	}
 }
 
-// Write writes the profile as a gzip-compressed marshaled protobuf.
-func (p *Profile) Write(w io.Writer) error {
+func serialize(p *Profile) []byte {
+	p.encodeMu.Lock()
 	p.preEncode()
 	b := marshal(p)
+	p.encodeMu.Unlock()
+	return b
+}
+
+// Write writes the profile as a gzip-compressed marshaled protobuf.
+func (p *Profile) Write(w io.Writer) error {
 	zw := gzip.NewWriter(w)
 	defer zw.Close()
-	_, err := zw.Write(b)
+	_, err := zw.Write(serialize(p))
 	return err
 }
 
 // WriteUncompressed writes the profile as a marshaled protobuf.
 func (p *Profile) WriteUncompressed(w io.Writer) error {
-	p.preEncode()
-	b := marshal(p)
-	_, err := w.Write(b)
+	_, err := w.Write(serialize(p))
 	return err
 }
 
@@ -325,8 +337,11 @@ func (p *Profile) CheckValid() error {
 		return fmt.Errorf("missing sample type information")
 	}
 	for _, s := range p.Sample {
+		if s == nil {
+			return fmt.Errorf("profile has nil sample")
+		}
 		if len(s.Value) != sampleLen {
-			return fmt.Errorf("mismatch: sample has: %d values vs. %d types", len(s.Value), len(p.SampleType))
+			return fmt.Errorf("mismatch: sample has %d values vs. %d types", len(s.Value), len(p.SampleType))
 		}
 		for _, l := range s.Location {
 			if l == nil {
@@ -339,6 +354,9 @@ func (p *Profile) CheckValid() error {
 	// Check that there are no duplicate ids
 	mappings := make(map[uint64]*Mapping, len(p.Mapping))
 	for _, m := range p.Mapping {
+		if m == nil {
+			return fmt.Errorf("profile has nil mapping")
+		}
 		if m.ID == 0 {
 			return fmt.Errorf("found mapping with reserved ID=0")
 		}
@@ -349,6 +367,9 @@ func (p *Profile) CheckValid() error {
 	}
 	functions := make(map[uint64]*Function, len(p.Function))
 	for _, f := range p.Function {
+		if f == nil {
+			return fmt.Errorf("profile has nil function")
+		}
 		if f.ID == 0 {
 			return fmt.Errorf("found function with reserved ID=0")
 		}
@@ -359,6 +380,9 @@ func (p *Profile) CheckValid() error {
 	}
 	locations := make(map[uint64]*Location, len(p.Location))
 	for _, l := range p.Location {
+		if l == nil {
+			return fmt.Errorf("profile has nil location")
+		}
 		if l.ID == 0 {
 			return fmt.Errorf("found location with reserved id=0")
 		}
@@ -426,6 +450,70 @@ func (p *Profile) Aggregate(inlineFrame, function, filename, linenumber, address
 	return p.CheckValid()
 }
 
+// NumLabelUnits returns a map of numeric label keys to the units
+// associated with those keys and a map of those keys to any units
+// that were encountered but not used.
+// Unit for a given key is the first encountered unit for that key. If multiple
+// units are encountered for values paired with a particular key, then the first
+// unit encountered is used and all other units are returned in sorted order
+// in map of ignored units.
+// If no units are encountered for a particular key, the unit is then inferred
+// based on the key.
+func (p *Profile) NumLabelUnits() (map[string]string, map[string][]string) {
+	numLabelUnits := map[string]string{}
+	ignoredUnits := map[string]map[string]bool{}
+	encounteredKeys := map[string]bool{}
+
+	// Determine units based on numeric tags for each sample.
+	for _, s := range p.Sample {
+		for k := range s.NumLabel {
+			encounteredKeys[k] = true
+			for _, unit := range s.NumUnit[k] {
+				if unit == "" {
+					continue
+				}
+				if wantUnit, ok := numLabelUnits[k]; !ok {
+					numLabelUnits[k] = unit
+				} else if wantUnit != unit {
+					if v, ok := ignoredUnits[k]; ok {
+						v[unit] = true
+					} else {
+						ignoredUnits[k] = map[string]bool{unit: true}
+					}
+				}
+			}
+		}
+	}
+	// Infer units for keys without any units associated with
+	// numeric tag values.
+	for key := range encounteredKeys {
+		unit := numLabelUnits[key]
+		if unit == "" {
+			switch key {
+			case "alignment", "request":
+				numLabelUnits[key] = "bytes"
+			default:
+				numLabelUnits[key] = key
+			}
+		}
+	}
+
+	// Copy ignored units into more readable format
+	unitsIgnored := make(map[string][]string, len(ignoredUnits))
+	for key, values := range ignoredUnits {
+		units := make([]string, len(values))
+		i := 0
+		for unit := range values {
+			units[i] = unit
+			i++
+		}
+		sort.Strings(units)
+		unitsIgnored[key] = units
+	}
+
+	return numLabelUnits, unitsIgnored
+}
+
 // String dumps a text representation of a profile. Intended mainly
 // for debugging purposes.
 func (p *Profile) String() string {
@@ -455,85 +543,130 @@ func (p *Profile) String() string {
 	}
 	ss = append(ss, strings.TrimSpace(sh1))
 	for _, s := range p.Sample {
-		var sv string
-		for _, v := range s.Value {
-			sv = fmt.Sprintf("%s %10d", sv, v)
-		}
-		sv = sv + ": "
-		for _, l := range s.Location {
-			sv = sv + fmt.Sprintf("%d ", l.ID)
-		}
-		ss = append(ss, sv)
-		const labelHeader = "                "
-		if len(s.Label) > 0 {
-			ls := []string{}
-			for k, v := range s.Label {
-				ls = append(ls, fmt.Sprintf("%s:%v", k, v))
-			}
-			sort.Strings(ls)
-			ss = append(ss, labelHeader+strings.Join(ls, " "))
-		}
-		if len(s.NumLabel) > 0 {
-			ls := []string{}
-			for k, v := range s.NumLabel {
-				ls = append(ls, fmt.Sprintf("%s:%v", k, v))
-			}
-			sort.Strings(ls)
-			ss = append(ss, labelHeader+strings.Join(ls, " "))
-		}
+		ss = append(ss, s.string())
 	}
 
 	ss = append(ss, "Locations")
 	for _, l := range p.Location {
-		locStr := fmt.Sprintf("%6d: %#x ", l.ID, l.Address)
-		if m := l.Mapping; m != nil {
-			locStr = locStr + fmt.Sprintf("M=%d ", m.ID)
-		}
-		if len(l.Line) == 0 {
-			ss = append(ss, locStr)
-		}
-		for li := range l.Line {
-			lnStr := "??"
-			if fn := l.Line[li].Function; fn != nil {
-				lnStr = fmt.Sprintf("%s %s:%d s=%d",
-					fn.Name,
-					fn.Filename,
-					l.Line[li].Line,
-					fn.StartLine)
-				if fn.Name != fn.SystemName {
-					lnStr = lnStr + "(" + fn.SystemName + ")"
-				}
-			}
-			ss = append(ss, locStr+lnStr)
-			// Do not print location details past the first line
-			locStr = "             "
-		}
+		ss = append(ss, l.string())
 	}
 
 	ss = append(ss, "Mappings")
 	for _, m := range p.Mapping {
-		bits := ""
-		if m.HasFunctions {
-			bits = bits + "[FN]"
-		}
-		if m.HasFilenames {
-			bits = bits + "[FL]"
-		}
-		if m.HasLineNumbers {
-			bits = bits + "[LN]"
-		}
-		if m.HasInlineFrames {
-			bits = bits + "[IN]"
-		}
-		ss = append(ss, fmt.Sprintf("%d: %#x/%#x/%#x %s %s %s",
-			m.ID,
-			m.Start, m.Limit, m.Offset,
-			m.File,
-			m.BuildID,
-			bits))
+		ss = append(ss, m.string())
 	}
 
 	return strings.Join(ss, "\n") + "\n"
+}
+
+// string dumps a text representation of a mapping. Intended mainly
+// for debugging purposes.
+func (m *Mapping) string() string {
+	bits := ""
+	if m.HasFunctions {
+		bits = bits + "[FN]"
+	}
+	if m.HasFilenames {
+		bits = bits + "[FL]"
+	}
+	if m.HasLineNumbers {
+		bits = bits + "[LN]"
+	}
+	if m.HasInlineFrames {
+		bits = bits + "[IN]"
+	}
+	return fmt.Sprintf("%d: %#x/%#x/%#x %s %s %s",
+		m.ID,
+		m.Start, m.Limit, m.Offset,
+		m.File,
+		m.BuildID,
+		bits)
+}
+
+// string dumps a text representation of a location. Intended mainly
+// for debugging purposes.
+func (l *Location) string() string {
+	ss := []string{}
+	locStr := fmt.Sprintf("%6d: %#x ", l.ID, l.Address)
+	if m := l.Mapping; m != nil {
+		locStr = locStr + fmt.Sprintf("M=%d ", m.ID)
+	}
+	if len(l.Line) == 0 {
+		ss = append(ss, locStr)
+	}
+	for li := range l.Line {
+		lnStr := "??"
+		if fn := l.Line[li].Function; fn != nil {
+			lnStr = fmt.Sprintf("%s %s:%d s=%d",
+				fn.Name,
+				fn.Filename,
+				l.Line[li].Line,
+				fn.StartLine)
+			if fn.Name != fn.SystemName {
+				lnStr = lnStr + "(" + fn.SystemName + ")"
+			}
+		}
+		ss = append(ss, locStr+lnStr)
+		// Do not print location details past the first line
+		locStr = "             "
+	}
+	return strings.Join(ss, "\n")
+}
+
+// string dumps a text representation of a sample. Intended mainly
+// for debugging purposes.
+func (s *Sample) string() string {
+	ss := []string{}
+	var sv string
+	for _, v := range s.Value {
+		sv = fmt.Sprintf("%s %10d", sv, v)
+	}
+	sv = sv + ": "
+	for _, l := range s.Location {
+		sv = sv + fmt.Sprintf("%d ", l.ID)
+	}
+	ss = append(ss, sv)
+	const labelHeader = "                "
+	if len(s.Label) > 0 {
+		ss = append(ss, labelHeader+labelsToString(s.Label))
+	}
+	if len(s.NumLabel) > 0 {
+		ss = append(ss, labelHeader+numLabelsToString(s.NumLabel, s.NumUnit))
+	}
+	return strings.Join(ss, "\n")
+}
+
+// labelsToString returns a string representation of a
+// map representing labels.
+func labelsToString(labels map[string][]string) string {
+	ls := []string{}
+	for k, v := range labels {
+		ls = append(ls, fmt.Sprintf("%s:%v", k, v))
+	}
+	sort.Strings(ls)
+	return strings.Join(ls, " ")
+}
+
+// numLablesToString returns a string representation of a map
+// representing numeric labels.
+func numLabelsToString(numLabels map[string][]int64, numUnits map[string][]string) string {
+	ls := []string{}
+	for k, v := range numLabels {
+		units := numUnits[k]
+		var labelString string
+		if len(units) == len(v) {
+			values := make([]string, len(v))
+			for i, vv := range v {
+				values[i] = fmt.Sprintf("%d %s", vv, units[i])
+			}
+			labelString = fmt.Sprintf("%s:%v", k, values)
+		} else {
+			labelString = fmt.Sprintf("%s:%v", k, v)
+		}
+		ls = append(ls, labelString)
+	}
+	sort.Strings(ls)
+	return strings.Join(ls, " ")
 }
 
 // Scale multiplies all sample values in a profile by a constant.
@@ -596,19 +729,17 @@ func (p *Profile) HasFileLines() bool {
 }
 
 // Unsymbolizable returns true if a mapping points to a binary for which
-// locations can't be symbolized in principle, at least now.
+// locations can't be symbolized in principle, at least now. Examples are
+// "[vdso]", [vsyscall]" and some others, see the code.
 func (m *Mapping) Unsymbolizable() bool {
 	name := filepath.Base(m.File)
-	return name == "[vdso]" || strings.HasPrefix(name, "linux-vdso") || name == "[heap]" || strings.HasPrefix(m.File, "/dev/dri/")
+	return strings.HasPrefix(name, "[") || strings.HasPrefix(name, "linux-vdso") || strings.HasPrefix(m.File, "/dev/dri/")
 }
 
 // Copy makes a fully independent copy of a profile.
 func (p *Profile) Copy() *Profile {
-	p.preEncode()
-	b := marshal(p)
-
 	pp := &Profile{}
-	if err := unmarshal(b, pp); err != nil {
+	if err := unmarshal(serialize(p), pp); err != nil {
 		panic(err)
 	}
 	if err := pp.postDecode(); err != nil {
