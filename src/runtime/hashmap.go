@@ -666,7 +666,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	if h.growing() {
 		growWork(t, h, bucket)
 	}
-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
 	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {

@@ -646,7 +646,7 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
 	if h.growing() {
 		growWork(t, h, bucket)
 	}
-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
 	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
@@ -698,7 +698,7 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
 	if h.growing() {
 		growWork(t, h, bucket)
 	}
-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
 	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
@@ -751,7 +751,7 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
 	if h.growing() {
 		growWork(t, h, bucket)
 	}
-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
 	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
