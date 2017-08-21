@@ -86,6 +86,7 @@ const (
 	Ynone
 	Yi0 // $0
 	Yi1 // $1
+	Yu2 // $x, x fits in uint2
 	Yi8 // $x, x fits in int8
 	Yu8 // $x, x fits in uint8
 	Yu7 // $x, x in 0..127 (fits in both int8 and uint8)
@@ -894,6 +895,10 @@ var ymmxmm0f38 = []ytab{
 	{Zlitm_r, 5, argList{Yxm, Yxr}},
 }
 
+var yextractps = []ytab{
+	{Yu2, Yxr, Yml, Zibr_m, 2},
+}
+
 /*
  * You are doasm, holding in your hand a *obj.Prog with p.As set to, say,
  * ACRC32, and p.From and p.To as operands (obj.Addr).  The linker scans optab
@@ -1117,6 +1122,7 @@ var optab =
 	{ADPPD, yxshuf, Pq, [23]uint8{0x3a, 0x41, 0}},
 	{ADPPS, yxshuf, Pq, [23]uint8{0x3a, 0x40, 0}},
 	{AEMMS, ynone, Pm, [23]uint8{0x77}},
+	{AEXTRACTPS, yextractps, Pq, [23]uint8{0x3a, 0x17, 0}},
 	{AENTER, nil, 0, [23]uint8{}}, /* botch */
 	{AFXRSTOR, ysvrs_mo, Pm, [23]uint8{0xae, 01, 0xae, 01}},
 	{AFXSAVE, ysvrs_om, Pm, [23]uint8{0xae, 00, 0xae, 00}},
@@ -2049,25 +2055,33 @@ func instinit(ctxt *obj.Link) {
 		ycover[i*Ymax+i] = 1
 	}
 
+	ycover[Yi0*Ymax+Yu2] = 1
+	ycover[Yi1*Ymax+Yu2] = 1
+
 	ycover[Yi0*Ymax+Yi8] = 1
 	ycover[Yi1*Ymax+Yi8] = 1
+	ycover[Yu2*Ymax+Yi8] = 1
 	ycover[Yu7*Ymax+Yi8] = 1
 
 	ycover[Yi0*Ymax+Yu7] = 1
 	ycover[Yi1*Ymax+Yu7] = 1
+	ycover[Yu2*Ymax+Yu7] = 1
 
 	ycover[Yi0*Ymax+Yu8] = 1
 	ycover[Yi1*Ymax+Yu8] = 1
+	ycover[Yu2*Ymax+Yu8] = 1
 	ycover[Yu7*Ymax+Yu8] = 1
 
 	ycover[Yi0*Ymax+Ys32] = 1
 	ycover[Yi1*Ymax+Ys32] = 1
+	ycover[Yu2*Ymax+Ys32] = 1
 	ycover[Yu7*Ymax+Ys32] = 1
 	ycover[Yu8*Ymax+Ys32] = 1
 	ycover[Yi8*Ymax+Ys32] = 1
 
 	ycover[Yi0*Ymax+Yi32] = 1
 	ycover[Yi1*Ymax+Yi32] = 1
+	ycover[Yu2*Ymax+Yi32] = 1
 	ycover[Yu7*Ymax+Yi32] = 1
 	ycover[Yu8*Ymax+Yi32] = 1
 	ycover[Yi8*Ymax+Yi32] = 1
@@ -2076,6 +2090,7 @@ func instinit(ctxt *obj.Link) {
 	ycover[Yi0*Ymax+Yi64] = 1
 	ycover[Yi1*Ymax+Yi64] = 1
 	ycover[Yu7*Ymax+Yi64] = 1
+	ycover[Yu2*Ymax+Yi64] = 1
 	ycover[Yu8*Ymax+Yi64] = 1
 	ycover[Yi8*Ymax+Yi64] = 1
 	ycover[Ys32*Ymax+Yi64] = 1
@@ -2405,6 +2420,9 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		}
 		if v == 1 {
 			return Yi1
+		}
+		if v >= 0 && v <= 3 {
+			return Yu2
 		}
 		if v >= 0 && v <= 127 {
 			return Yu7
