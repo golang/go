@@ -1640,14 +1640,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	DPPS $7, X11, X11                       // 66450f3a40db07
 	EMMS                                    // 0f77
 	//TODO: ENTERQ $0x12, $0xf123           // c823f112
-	//TODO: EXTRACTPS $7, X2, (BX)          // 660f3a171307
-	//TODO: EXTRACTPS $7, X11, (BX)         // 66440f3a171b07
-	//TODO: EXTRACTPS $7, X2, (R11)         // 66410f3a171307
-	//TODO: EXTRACTPS $7, X11, (R11)        // 66450f3a171b07
-	//TODO: EXTRACTPS $7, X2, DX            // 660f3a17d207
-	//TODO: EXTRACTPS $7, X11, DX           // 66440f3a17da07
-	//TODO: EXTRACTPS $7, X2, R11           // 66410f3a17d307
-	//TODO: EXTRACTPS $7, X11, R11          // 66450f3a17db07
+	EXTRACTPS $0, X2, (BX)                  // 660f3a171300
+	EXTRACTPS $1, X11, (BX)                 // 66440f3a171b01
+	EXTRACTPS $2, X2, (R11)                 // 66410f3a171302
+	EXTRACTPS $3, X11, (R11)                // 66450f3a171b03
+	EXTRACTPS $3, X2, DX                    // 660f3a17d203
+	EXTRACTPS $2, X11, DX                   // 66440f3a17da02
+	EXTRACTPS $1, X2, R11                   // 66410f3a17d301
+	EXTRACTPS $0, X11, R11                  // 66450f3a17db00
 	F2XM1                                   // d9f0
 	FABS                                    // d9e1
 	FADDD F2, F0                            // d8c2

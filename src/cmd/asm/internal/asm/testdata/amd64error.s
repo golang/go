@@ -5,4 +5,6 @@
 TEXT errors(SB),$0
 	MOVL	foo<>(SB)(AX), AX	// ERROR "invalid instruction"
 	MOVL	(AX)(SP*1), AX		// ERROR "invalid instruction"
+	EXTRACTPS $4, X2, (BX)          // ERROR "invalid instruction"
+	EXTRACTPS $-1, X2, (BX)         // ERROR "invalid instruction"
 	RET
