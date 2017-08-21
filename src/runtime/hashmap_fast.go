@@ -40,15 +40,10 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 		}
 	}
 	for {
-		for i := uintptr(0); i < bucketCnt; i++ {
-			k := *((*uint32)(add(unsafe.Pointer(b), dataOffset+i*4)))
-			if k != key {
-				continue
+		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 4) {
+			if *(*uint32)(k) == key && b.tophash[i] != empty {
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
 			}
-			if b.tophash[i] == empty {
-				continue
-			}
-			return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
 		}
 		b = b.overflow(t)
 		if b == nil {
@@ -88,15 +83,10 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 		}
 	}
 	for {
-		for i := uintptr(0); i < bucketCnt; i++ {
-			k := *((*uint32)(add(unsafe.Pointer(b), dataOffset+i*4)))
-			if k != key {
-				continue
+		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 4) {
+			if *(*uint32)(k) == key && b.tophash[i] != empty {
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize)), true
 			}
-			if b.tophash[i] == empty {
-				continue
-			}
-			return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize)), true
 		}
 		b = b.overflow(t)
 		if b == nil {
@@ -136,15 +126,10 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 		}
 	}
 	for {
-		for i := uintptr(0); i < bucketCnt; i++ {
-			k := *((*uint64)(add(unsafe.Pointer(b), dataOffset+i*8)))
-			if k != key {
-				continue
+		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 8) {
+			if *(*uint64)(k) == key && b.tophash[i] != empty {
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
 			}
-			if b.tophash[i] == empty {
-				continue
-			}
-			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
 		}
 		b = b.overflow(t)
 		if b == nil {
@@ -184,15 +169,10 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 		}
 	}
 	for {
-		for i := uintptr(0); i < bucketCnt; i++ {
-			k := *((*uint64)(add(unsafe.Pointer(b), dataOffset+i*8)))
-			if k != key {
-				continue
+		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 8) {
+			if *(*uint64)(k) == key && b.tophash[i] != empty {
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize)), true
 			}
-			if b.tophash[i] == empty {
-				continue
-			}
-			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize)), true
 		}
 		b = b.overflow(t)
 		if b == nil {
@@ -218,12 +198,9 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 		b := (*bmap)(h.buckets)
 		if key.len < 32 {
 			// short key, doing lots of comparisons is ok
-			for i := uintptr(0); i < bucketCnt; i++ {
-				if b.tophash[i] == empty {
-					continue
-				}
-				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
-				if k.len != key.len {
+			for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
+				k := (*stringStruct)(kptr)
+				if k.len != key.len || b.tophash[i] == empty {
 					continue
 				}
 				if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
@@ -234,12 +211,9 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 		}
 		// long key, try not to do more comparisons than necessary
 		keymaybe := uintptr(bucketCnt)
-		for i := uintptr(0); i < bucketCnt; i++ {
-			if b.tophash[i] == empty {
-				continue
-			}
-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
-			if k.len != key.len {
+		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
+			k := (*stringStruct)(kptr)
+			if k.len != key.len || b.tophash[i] == empty {
 				continue
 			}
 			if k.str == key.str {
@@ -283,12 +257,9 @@ dohash:
 	}
 	top := tophash(hash)
 	for {
-		for i := uintptr(0); i < bucketCnt; i++ {
-			if b.tophash[i] != top {
-				continue
-			}
-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
-			if k.len != key.len {
+		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
+			k := (*stringStruct)(kptr)
+			if k.len != key.len || b.tophash[i] != top {
 				continue
 			}
 			if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
@@ -319,12 +290,9 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 		b := (*bmap)(h.buckets)
 		if key.len < 32 {
 			// short key, doing lots of comparisons is ok
-			for i := uintptr(0); i < bucketCnt; i++ {
-				if b.tophash[i] == empty {
-					continue
-				}
-				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
-				if k.len != key.len {
+			for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
+				k := (*stringStruct)(kptr)
+				if k.len != key.len || b.tophash[i] == empty {
 					continue
 				}
 				if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
@@ -335,12 +303,9 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 		}
 		// long key, try not to do more comparisons than necessary
 		keymaybe := uintptr(bucketCnt)
-		for i := uintptr(0); i < bucketCnt; i++ {
-			if b.tophash[i] == empty {
-				continue
-			}
-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
-			if k.len != key.len {
+		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
+			k := (*stringStruct)(kptr)
+			if k.len != key.len || b.tophash[i] == empty {
 				continue
 			}
 			if k.str == key.str {
@@ -384,12 +349,9 @@ dohash:
 	}
 	top := tophash(hash)
 	for {
-		for i := uintptr(0); i < bucketCnt; i++ {
-			if b.tophash[i] != top {
-				continue
-			}
-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
-			if k.len != key.len {
+		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
+			k := (*stringStruct)(kptr)
+			if k.len != key.len || b.tophash[i] != top {
 				continue
 			}
 			if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
