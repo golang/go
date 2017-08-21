@@ -652,9 +652,15 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
 			if key != *(*uint32)(k) || b.tophash[i] == empty {
 				continue
 			}
-			typedmemclr(t.key, unsafe.Pointer(k))
-			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*4 + i*uintptr(t.valuesize))
-			typedmemclr(t.elem, v)
+			// Only clear key if there are pointers in it.
+			if t.key.kind&kindNoPointers == 0 {
+				memclrHasPointers(k, t.key.size)
+			}
+			// Only clear value if there are pointers in it.
+			if t.elem.kind&kindNoPointers == 0 {
+				v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*4 + i*uintptr(t.valuesize))
+				memclrHasPointers(v, t.elem.size)
+			}
 			b.tophash[i] = empty
 			h.count--
 			goto done
@@ -699,9 +705,15 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
 			if key != *(*uint64)(k) || b.tophash[i] == empty {
 				continue
 			}
-			typedmemclr(t.key, unsafe.Pointer(k))
-			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*8 + i*uintptr(t.valuesize))
-			typedmemclr(t.elem, v)
+			// Only clear key if there are pointers in it.
+			if t.key.kind&kindNoPointers == 0 {
+				memclrHasPointers(k, t.key.size)
+			}
+			// Only clear value if there are pointers in it.
+			if t.elem.kind&kindNoPointers == 0 {
+				v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*8 + i*uintptr(t.valuesize))
+				memclrHasPointers(v, t.elem.size)
+			}
 			b.tophash[i] = empty
 			h.count--
 			goto done
@@ -752,9 +764,12 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
 			if k.str != key.str && !memequal(k.str, key.str, uintptr(key.len)) {
 				continue
 			}
-			typedmemclr(t.key, unsafe.Pointer(k))
-			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*2*sys.PtrSize + i*uintptr(t.valuesize))
-			typedmemclr(t.elem, v)
+			*(*string)(kptr) = ""
+			// Only clear value if there are pointers in it.
+			if t.elem.kind&kindNoPointers == 0 {
+				v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*2*sys.PtrSize + i*uintptr(t.valuesize))
+				memclrHasPointers(v, t.elem.size)
+			}
 			b.tophash[i] = empty
 			h.count--
 			goto done
