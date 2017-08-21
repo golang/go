@@ -723,6 +723,19 @@ func (tg *testgoData) failSSH() {
 	tg.setenv("PATH", fmt.Sprintf("%v%c%v", fail, filepath.ListSeparator, os.Getenv("PATH")))
 }
 
+func TestBuildComplex(t *testing.T) {
+	// Simple smoke test for build configuration.
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.run("build", "-o", os.DevNull, "complex")
+
+	if _, err := exec.LookPath("gccgo"); err == nil {
+		tg.run("build", "-o", os.DevNull, "-compiler=gccgo", "complex")
+	}
+}
+
 func TestFileLineInErrorMessages(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()

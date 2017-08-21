@@ -1397,18 +1397,19 @@ func (b *Builder) build(a *Action) (err error) {
 		if p1.ImportPath == "unsafe" {
 			continue
 		}
+		if p1.Internal.Pkgfile == "" {
+			// This happens for gccgo-internal packages like runtime.
+			continue
+		}
 		// TODO(rsc): runtime/internal/sys appears twice sometimes,
 		// because of the blind append in ../load/pkg.go that
 		// claims to fix issue 13655. That's probably not the right fix.
 		// Look into that.
 		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, p1.Internal.Pkgfile)
 	}
-	if err := b.writeFile(objdir+"importcfg", icfg.Bytes()); err != nil {
-		return err
-	}
 
 	// Compile Go.
-	ofile, out, err := BuildToolchain.gc(b, a.Package, a.Objpkg, objdir, objdir+"importcfg", len(sfiles) > 0, gofiles)
+	ofile, out, err := BuildToolchain.gc(b, a.Package, a.Objpkg, objdir, icfg.Bytes(), len(sfiles) > 0, gofiles)
 	if len(out) > 0 {
 		b.showOutput(a.Package.Dir, a.Package.ImportPath, b.processOutput(out))
 		if err != nil {
@@ -2174,7 +2175,7 @@ func mkAbs(dir, f string) string {
 type toolchain interface {
 	// gc runs the compiler in a specific directory on a set of files
 	// and returns the name of the generated output file.
-	gc(b *Builder, p *load.Package, archive, objdir, importcfg string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error)
+	gc(b *Builder, p *load.Package, archive, objdir string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, out []byte, err error)
 	// cc runs the toolchain's C compiler in a directory on a C file
 	// to produce an output file.
 	cc(b *Builder, p *load.Package, objdir, ofile, cfile string) error
@@ -2213,7 +2214,7 @@ func (noToolchain) linker() string {
 	return ""
 }
 
-func (noToolchain) gc(b *Builder, p *load.Package, archive, objdir, importcfg string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error) {
+func (noToolchain) gc(b *Builder, p *load.Package, archive, objdir string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, out []byte, err error) {
 	return "", nil, noCompiler()
 }
 
@@ -2253,7 +2254,7 @@ func (gcToolchain) linker() string {
 	return base.Tool("link")
 }
 
-func (gcToolchain) gc(b *Builder, p *load.Package, archive, objdir, importcfg string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+func (gcToolchain) gc(b *Builder, p *load.Package, archive, objdir string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
 	if archive != "" {
 		ofile = archive
 	} else {
@@ -2303,14 +2304,6 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, objdir, importcfg st
 		gcargs = append(gcargs, "-dwarf=false")
 	}
 
-	for _, path := range p.Imports {
-		if i := strings.LastIndex(path, "/vendor/"); i >= 0 {
-			gcargs = append(gcargs, "-importmap", path[i+len("/vendor/"):]+"="+path)
-		} else if strings.HasPrefix(path, "vendor/") {
-			gcargs = append(gcargs, "-importmap", path[len("vendor/"):]+"="+path)
-		}
-	}
-
 	gcflags := buildGcflags
 	if compilingRuntime {
 		// Remove -N, if present.
@@ -2327,8 +2320,11 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, objdir, importcfg st
 		}
 	}
 	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", b.WorkDir, gcflags, gcargs, "-D", p.Internal.LocalPrefix}
-	if importcfg != "" {
-		args = append(args, "-importcfg", importcfg)
+	if importcfg != nil {
+		if err := b.writeFile(objdir+"importcfg", importcfg); err != nil {
+			return "", nil, err
+		}
+		args = append(args, "-importcfg", objdir+"importcfg")
 	}
 	if ofile == archive {
 		args = append(args, "-pack")
@@ -2703,7 +2699,7 @@ func checkGccgoBin() {
 	os.Exit(2)
 }
 
-func (tools gccgoToolchain) gc(b *Builder, p *load.Package, archive, objdir, importcfg string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+func (tools gccgoToolchain) gc(b *Builder, p *load.Package, archive, objdir string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
 	out := "_go_.o"
 	ofile = objdir + out
 	gcargs := []string{"-g"}
@@ -2716,8 +2712,19 @@ func (tools gccgoToolchain) gc(b *Builder, p *load.Package, archive, objdir, imp
 	}
 
 	args := str.StringList(tools.compiler(), "-c", gcargs, "-o", ofile)
-	if importcfg != "" {
-		args = append(args, "-importcfg", importcfg)
+	if importcfg != nil {
+		if b.gccSupportsFlag(args[:1], "-fgo-importcfg=/dev/null") {
+			if err := b.writeFile(objdir+"importcfg", importcfg); err != nil {
+				return "", nil, err
+			}
+			args = append(args, "-fgo-importcfg="+objdir+"importcfg")
+		} else {
+			root := objdir + "_importcfgroot_"
+			if err := buildImportcfgSymlinks(b, root, importcfg); err != nil {
+				return "", nil, err
+			}
+			args = append(args, "-I", root)
+		}
 	}
 	args = append(args, buildGccgoflags...)
 	for _, f := range gofiles {
@@ -2726,6 +2733,67 @@ func (tools gccgoToolchain) gc(b *Builder, p *load.Package, archive, objdir, imp
 
 	output, err = b.runOut(p.Dir, p.ImportPath, nil, args)
 	return ofile, output, err
+}
+
+// buildImportcfgSymlinks builds in root a tree of symlinks
+// implementing the directives from importcfg.
+// This serves as a temporary transition mechanism until
+// we can depend on gccgo reading an importcfg directly.
+// (The Go 1.9 and later gc compilers already do.)
+func buildImportcfgSymlinks(b *Builder, root string, importcfg []byte) error {
+	for lineNum, line := range strings.Split(string(importcfg), "\n") {
+		lineNum++ // 1-based
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		var verb, args string
+		if i := strings.Index(line, " "); i < 0 {
+			verb = line
+		} else {
+			verb, args = line[:i], strings.TrimSpace(line[i+1:])
+		}
+		var before, after string
+		if i := strings.Index(args, "="); i >= 0 {
+			before, after = args[:i], args[i+1:]
+		}
+		switch verb {
+		default:
+			base.Fatalf("importcfg:%d: unknown directive %q", lineNum, verb)
+		case "packagefile":
+			if before == "" || after == "" {
+				return fmt.Errorf(`importcfg:%d: invalid packagefile: syntax is "packagefile path=filename": %s`, lineNum, line)
+			}
+			archive := gccgoArchive(root, before)
+			if err := b.Mkdir(filepath.Dir(archive)); err != nil {
+				return err
+			}
+			if err := os.Symlink(after, archive); err != nil {
+				return err
+			}
+		case "importmap":
+			if before == "" || after == "" {
+				return fmt.Errorf(`importcfg:%d: invalid importmap: syntax is "importmap old=new": %s`, lineNum, line)
+			}
+			beforeA := gccgoArchive(root, before)
+			afterA := gccgoArchive(root, after)
+			if err := b.Mkdir(filepath.Dir(beforeA)); err != nil {
+				return err
+			}
+			if err := b.Mkdir(filepath.Dir(afterA)); err != nil {
+				return err
+			}
+			if err := os.Symlink(afterA, beforeA); err != nil {
+				return err
+			}
+		case "packageshlib":
+			return fmt.Errorf("gccgo -importcfg does not support shared libraries")
+		}
+	}
+	return nil
 }
 
 func (tools gccgoToolchain) asm(b *Builder, p *load.Package, objdir string, sfiles []string) ([]string, error) {
@@ -2749,7 +2817,11 @@ func (tools gccgoToolchain) asm(b *Builder, p *load.Package, objdir string, sfil
 }
 
 func (gccgoToolchain) Pkgpath(basedir string, p *load.Package) string {
-	end := filepath.FromSlash(p.ImportPath + ".a")
+	return gccgoArchive(basedir, p.ImportPath)
+}
+
+func gccgoArchive(basedir, imp string) string {
+	end := filepath.FromSlash(imp + ".a")
 	afile := filepath.Join(basedir, end)
 	// add "lib" to the final element
 	return filepath.Join(filepath.Dir(afile), "lib"+filepath.Base(afile))
@@ -3653,7 +3725,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
 
 	p := load.GoFilesPackage(srcs)
 
-	if _, _, e := BuildToolchain.gc(b, p, "", objdir, "", false, srcs); e != nil {
+	if _, _, e := BuildToolchain.gc(b, p, "", objdir, nil, false, srcs); e != nil {
 		return "32", nil
 	}
 	return "64", nil
