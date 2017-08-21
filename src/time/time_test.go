@@ -1203,8 +1203,8 @@ var defaultLocTests = []struct {
 }
 
 func TestDefaultLoc(t *testing.T) {
-	//This test verifyes that all Time's methods behaves identical if loc is set
-	//as nil or UTC
+	// Verify that all of Time's methods behave identically if loc is set to
+	// nil or UTC.
 	for _, tt := range defaultLocTests {
 		t1 := Time{}
 		t2 := Time{}.UTC()
