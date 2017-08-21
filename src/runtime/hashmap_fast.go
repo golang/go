@@ -647,14 +647,9 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
-	top := tophash(hash)
 	for {
-		for i := uintptr(0); i < bucketCnt; i++ {
-			if b.tophash[i] != top {
-				continue
-			}
-			k := (*uint32)(add(unsafe.Pointer(b), dataOffset+i*4))
-			if key != *k {
+		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 4) {
+			if key != *(*uint32)(k) || b.tophash[i] == empty {
 				continue
 			}
 			typedmemclr(t.key, unsafe.Pointer(k))
@@ -699,14 +694,9 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
-	top := tophash(hash)
 	for {
-		for i := uintptr(0); i < bucketCnt; i++ {
-			if b.tophash[i] != top {
-				continue
-			}
-			k := (*uint64)(add(unsafe.Pointer(b), dataOffset+i*8))
-			if key != *k {
+		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 8) {
+			if key != *(*uint64)(k) || b.tophash[i] == empty {
 				continue
 			}
 			typedmemclr(t.key, unsafe.Pointer(k))
@@ -754,12 +744,9 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
 	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
 	top := tophash(hash)
 	for {
-		for i := uintptr(0); i < bucketCnt; i++ {
-			if b.tophash[i] != top {
-				continue
-			}
-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
-			if k.len != key.len {
+		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
+			k := (*stringStruct)(kptr)
+			if k.len != key.len || b.tophash[i] != top {
 				continue
 			}
 			if k.str != key.str && !memequal(k.str, key.str, uintptr(key.len)) {
