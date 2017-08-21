@@ -688,12 +688,16 @@ func benchmarkMapAssignInt32(b *testing.B, n int) {
 }
 
 func benchmarkMapDeleteInt32(b *testing.B, n int) {
-	a := make(map[int32]int, n*b.N)
-	for i := 0; i < n*b.N; i++ {
-		a[int32(i)] = i
-	}
+	a := make(map[int32]int, n)
 	b.ResetTimer()
-	for i := 0; i < n*b.N; i = i + n {
+	for i := 0; i < b.N; i++ {
+		if len(a) == 0 {
+			b.StopTimer()
+			for j := i; j < i+n; j++ {
+				a[int32(j)] = j
+			}
+			b.StartTimer()
+		}
 		delete(a, int32(i))
 	}
 }
@@ -706,12 +710,16 @@ func benchmarkMapAssignInt64(b *testing.B, n int) {
 }
 
 func benchmarkMapDeleteInt64(b *testing.B, n int) {
-	a := make(map[int64]int, n*b.N)
-	for i := 0; i < n*b.N; i++ {
-		a[int64(i)] = i
-	}
+	a := make(map[int64]int, n)
 	b.ResetTimer()
-	for i := 0; i < n*b.N; i = i + n {
+	for i := 0; i < b.N; i++ {
+		if len(a) == 0 {
+			b.StopTimer()
+			for j := i; j < i+n; j++ {
+				a[int64(j)] = j
+			}
+			b.StartTimer()
+		}
 		delete(a, int64(i))
 	}
 }
@@ -729,17 +737,23 @@ func benchmarkMapAssignStr(b *testing.B, n int) {
 }
 
 func benchmarkMapDeleteStr(b *testing.B, n int) {
-	k := make([]string, n*b.N)
-	for i := 0; i < n*b.N; i++ {
-		k[i] = strconv.Itoa(i)
+	i2s := make([]string, n)
+	for i := 0; i < n; i++ {
+		i2s[i] = strconv.Itoa(i)
 	}
-	a := make(map[string]int, n*b.N)
-	for i := 0; i < n*b.N; i++ {
-		a[k[i]] = i
-	}
+	a := make(map[string]int, n)
 	b.ResetTimer()
-	for i := 0; i < n*b.N; i = i + n {
-		delete(a, k[i])
+	k := 0
+	for i := 0; i < b.N; i++ {
+		if len(a) == 0 {
+			b.StopTimer()
+			for j := 0; j < n; j++ {
+				a[i2s[j]] = j
+			}
+			k = i
+			b.StartTimer()
+		}
+		delete(a, i2s[i-k])
 	}
 }
 
@@ -758,7 +772,7 @@ func BenchmarkMapAssign(b *testing.B) {
 }
 
 func BenchmarkMapDelete(b *testing.B) {
-	b.Run("Int32", runWith(benchmarkMapDeleteInt32, 1, 2, 4))
-	b.Run("Int64", runWith(benchmarkMapDeleteInt64, 1, 2, 4))
-	b.Run("Str", runWith(benchmarkMapDeleteStr, 1, 2, 4))
+	b.Run("Int32", runWith(benchmarkMapDeleteInt32, 100, 1000, 10000))
+	b.Run("Int64", runWith(benchmarkMapDeleteInt64, 100, 1000, 10000))
+	b.Run("Str", runWith(benchmarkMapDeleteStr, 100, 1000, 10000))
 }
