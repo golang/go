@@ -281,10 +281,9 @@ func (l *lexer) atRightDelim() (delim, trimSpaces bool) {
 		return true, false
 	}
 	// The right delim might have the marker before.
-	if strings.HasPrefix(l.input[l.pos:], rightTrimMarker) {
-		if strings.HasPrefix(l.input[l.pos+trimMarkerLen:], l.rightDelim) {
-			return true, true
-		}
+	if strings.HasPrefix(l.input[l.pos:], rightTrimMarker) &&
+		strings.HasPrefix(l.input[l.pos+trimMarkerLen:], l.rightDelim) {
+		return true, true
 	}
 	return false, false
 }

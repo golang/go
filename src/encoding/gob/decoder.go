@@ -99,10 +99,8 @@ func (dec *Decoder) readMessage(nbytes int) {
 	// Read the data
 	dec.buf.Size(nbytes)
 	_, dec.err = io.ReadFull(dec.r, dec.buf.Bytes())
-	if dec.err != nil {
-		if dec.err == io.EOF {
-			dec.err = io.ErrUnexpectedEOF
-		}
+	if dec.err == io.EOF {
+		dec.err = io.ErrUnexpectedEOF
 	}
 }
 

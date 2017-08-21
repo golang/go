@@ -530,10 +530,8 @@ func checkPreconditions(w ResponseWriter, r *Request, modtime time.Time) (done b
 	}
 
 	rangeHeader = r.Header.get("Range")
-	if rangeHeader != "" {
-		if checkIfRange(w, r, modtime) == condFalse {
-			rangeHeader = ""
-		}
+	if rangeHeader != "" && checkIfRange(w, r, modtime) == condFalse {
+		rangeHeader = ""
 	}
 	return false, rangeHeader
 }

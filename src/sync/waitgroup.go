@@ -63,13 +63,11 @@ func (wg *WaitGroup) Add(delta int) {
 	state := atomic.AddUint64(statep, uint64(delta)<<32)
 	v := int32(state >> 32)
 	w := uint32(state)
-	if race.Enabled {
-		if delta > 0 && v == int32(delta) {
-			// The first increment must be synchronized with Wait.
-			// Need to model this as a read, because there can be
-			// several concurrent wg.counter transitions from 0.
-			race.Read(unsafe.Pointer(&wg.sema))
-		}
+	if race.Enabled && delta > 0 && v == int32(delta) {
+		// The first increment must be synchronized with Wait.
+		// Need to model this as a read, because there can be
+		// several concurrent wg.counter transitions from 0.
+		race.Read(unsafe.Pointer(&wg.sema))
 	}
 	if v < 0 {
 		panic("sync: negative WaitGroup counter")
