@@ -577,11 +577,7 @@ or <a href="#Conversions">conversion</a>, or implicitly when used in a
 <a href="#Assignments">assignment</a> or as an
 operand in an <a href="#Expressions">expression</a>.
 It is an error if the constant value
-cannot be represented as a value of the respective type.
-For instance, <code>3.0</code> can be given any integer or any
-floating-point type, while <code>2147483648.0</code> (equal to <code>1&lt;&lt;31</code>)
-can be given the types <code>float32</code>, <code>float64</code>, or <code>uint32</code> but
-not <code>int32</code> or <code>string</code>.
+cannot be <a href="#Representability">represented</a> as a value of the respective type.
 </p>
 
 <p>
@@ -861,7 +857,8 @@ ElementType = Type .
 
 <p>
 The length is part of the array's type; it must evaluate to a
-non-negative <a href="#Constants">constant</a> representable by a value
+non-negative <a href="#Constants">constant</a>
+<a href="#Representability">representable</a> by a value
 of type <code>int</code>.
 The length of array <code>a</code> can be discovered
 using the built-in function <a href="#Length_and_capacity"><code>len</code></a>.
@@ -1514,7 +1511,7 @@ are different because <code>B0</code> is different from <code>[]string</code>.
 
 <p>
 A value <code>x</code> is <i>assignable</i> to a <a href="#Variables">variable</a> of type <code>T</code>
-("<code>x</code> is assignable to <code>T</code>") in any of these cases:
+("<code>x</code> is assignable to <code>T</code>") if one of the following conditions applies:
 </p>
 
 <ul>
@@ -1540,10 +1537,66 @@ and at least one of <code>V</code> or <code>T</code> is not a defined type.
 is a pointer, function, slice, map, channel, or interface type.
 </li>
 <li>
-<code>x</code> is an untyped <a href="#Constants">constant</a> representable
+<code>x</code> is an untyped <a href="#Constants">constant</a>
+<a href="#Representability">representable</a>
 by a value of type <code>T</code>.
 </li>
 </ul>
+
+
+<h3 id="Representability">Representability</h3>
+
+<p>
+A <a href="#Constants">constant</a> <code>x</code> is <i>representable</i>
+by a value of type <code>T</code> if one of the following conditions applies:
+</p>
+
+<ul>
+<li>
+<code>x</code> is in the set of values <a href="#Types">determined</a> by <code>T</code>.
+</li>
+
+<li>
+<code>T</code> is a floating-point type and <code>x</code> can be rounded to <code>T</code>'s
+precision without overflow. Rounding uses IEEE 754 round-to-even rules but with an IEEE
+negative zero further simplified to an unsigned zero. Note that constant values never result
+in an IEEE negative zero, NaN, or infinity.
+</li>
+
+<li>
+<code>T</code> is a complex type, and <code>x</code>'s
+<a href="#Complex_numbers">components</a> <code>real(x)</code> and <code>imag(x)</code>
+are representable by values of <code>T</code>'s component type (<code>float32</code> or
+<code>float64</code>).
+</li>
+</ul>
+
+<pre>
+x                   T           x is representable by a value of T because
+
+'a'                 byte        97 is in the set of byte values
+97                  rune        rune is an alias for int32, and 97 is in the set of 32-bit integers
+"foo"               string      "foo" is in the set of string values
+1024                int16       1024 is in the set of 16-bit integers
+42.0                byte        42 is in the set of unsigned 8-bit integers
+1e10                uint64      10000000000 is in the set of unsigned 64-bit integers
+2.718281828459045   float32     2.718281828459045 rounds to 2.7182817 which is in the set of float32 values
+-1e-1000            float64     -1e-1000 rounds to IEEE -0.0 which is further simplified to 0.0
+0i                  int         0 is an integer value
+(42 + 0i)           float32     42.0 (with zero imaginary part) is in the set of float32 values
+</pre>
+
+<pre>
+x                   T           x is not representable by a value of T because
+
+0                   bool        0 is not in the set of boolean values
+'a'                 string      'a' is a rune, it is not in the set of string values
+1024                byte        1024 is not in the set of unsigned 8-bit integers
+-1                  uint16      -1 is not in the set of unsigned 16-bit integers
+1.1                 int         1.1 is not an integer value
+42i                 float32     (0 + 42i) is not in the set of float32 values
+1e1000              float64     1e1000 overflows to IEEE +Inf after rounding
+</pre>
 
 
 <h2 id="Blocks">Blocks</h2>
@@ -2348,7 +2401,8 @@ For array and slice literals the following rules apply:
 	    its position in the array.
 	</li>
 	<li>An element with a key uses the key as its index. The
-	    key must be a non-negative constant representable by
+	    key must be a non-negative constant
+	    <a href="#Representability">representable</a> by
 	    a value of type <code>int</code>; and if it is typed
 	    it must be of integer type.
 	</li>
@@ -2925,7 +2979,8 @@ If <code>a</code> is not a map:
 	    it is <i>in range</i> if <code>0 &lt;= x &lt; len(a)</code>,
 	    otherwise it is <i>out of range</i></li>
 	<li>a <a href="#Constants">constant</a> index must be non-negative
-	    and representable by a value of type <code>int</code>
+	    and <a href="#Representability">representable</a> by a value
+	    of type <code>int</code></li>
 </ul>
 
 <p>
@@ -3075,7 +3130,8 @@ For arrays or strings, the indices are <i>in range</i> if
 <code>0</code> &lt;= <code>low</code> &lt;= <code>high</code> &lt;= <code>len(a)</code>,
 otherwise they are <i>out of range</i>.
 For slices, the upper index bound is the slice capacity <code>cap(a)</code> rather than the length.
-A <a href="#Constants">constant</a> index must be non-negative and representable by a value of type
+A <a href="#Constants">constant</a> index must be non-negative and
+<a href="#Representability">representable</a> by a value of type
 <code>int</code>; for arrays or constant strings, constant indices must also be in range.
 If both indices are constant, they must satisfy <code>low &lt;= high</code>.
 If the indices are out of range at run time, a <a href="#Run_time_panics">run-time panic</a> occurs.
@@ -3135,7 +3191,8 @@ If the sliced operand is an array, it must be <a href="#Address_operators">addre
 <p>
 The indices are <i>in range</i> if <code>0 &lt;= low &lt;= high &lt;= max &lt;= cap(a)</code>,
 otherwise they are <i>out of range</i>.
-A <a href="#Constants">constant</a> index must be non-negative and representable by a value of type
+A <a href="#Constants">constant</a> index must be non-negative and
+<a href="#Representability">representable</a> by a value of type
 <code>int</code>; for arrays, constant indices must also be in range.
 If multiple indices are constant, the constants that are present must be in range relative to each
 other.
@@ -3384,7 +3441,8 @@ to the type of the other operand.
 
 <p>
 The right operand in a shift expression must have unsigned integer type
-or be an untyped constant representable by a value of type <code>uint</code>.
+or be an untyped constant <a href="#Representability">representable</a> by a
+value of type <code>uint</code>.
 If the left operand of a non-constant shift expression is an untyped constant,
 it is first converted to the type it would assume if the shift expression were
 replaced by its left operand alone.
@@ -3877,29 +3935,13 @@ func() int(x)    // x is converted to func() int (unambiguous)
 
 <p>
 A <a href="#Constants">constant</a> value <code>x</code> can be converted to
-type <code>T</code> in any of these cases:
+type <code>T</code> if <code>x</code> is <a href="#Representability">representable</a>
+by a value of <code>T</code>.
+As a special case, an integer constant <code>x</code> can be converted to a
+<a href="#String_types">string type</a> using the
+<a href="#Conversions_to_and_from_a_string_type">same rule</a>
+as for non-constant <code>x</code>.
 </p>
-
-<ul>
-	<li>
-	<code>x</code> is representable by a value of type <code>T</code>.
-	</li>
-	<li>
-	<code>x</code> is a floating-point constant,
-	<code>T</code> is a floating-point type,
-	and <code>x</code> is representable by a value
-	of type <code>T</code> after rounding using
-	IEEE 754 round-to-even rules, but with an IEEE <code>-0.0</code>
-	further rounded to an unsigned <code>0.0</code>.
-	The constant <code>T(x)</code> is the rounded value.
-	</li>
-	<li>
-	<code>x</code> is an integer constant and <code>T</code> is a
-	<a href="#String_types">string type</a>.
-	The <a href="#Conversions_to_and_from_a_string_type">same rule</a>
-	as for non-constant <code>x</code> applies in this case.
-	</li>
-</ul>
 
 <p>
 Converting a constant yields a typed constant as result.
@@ -4187,7 +4229,8 @@ The divisor of a constant division or remainder operation must not be zero:
 </pre>
 
 <p>
-The values of <i>typed</i> constants must always be accurately representable as values
+The values of <i>typed</i> constants must always be accurately
+<a href="#Representability">representable</a> by values
 of the constant type. The following constant expressions are illegal:
 </p>
 
@@ -5683,7 +5726,7 @@ make(T, n)       channel    buffered channel of type T, buffer size n
 <p>
 The size arguments <code>n</code> and <code>m</code> must be of integer type or untyped.
 A <a href="#Constants">constant</a> size argument must be non-negative and
-representable by a value of type <code>int</code>.
+<a href="#Representability">representable</a> by a value of type <code>int</code>.
 If both <code>n</code> and <code>m</code> are provided and are constant, then
 <code>n</code> must be no larger than <code>m</code>.
 If <code>n</code> is negative or larger than <code>m</code> at run time,
