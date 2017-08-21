@@ -3568,13 +3568,11 @@ func procresize(nprocs int32) *p {
 	// free unused P's
 	for i := nprocs; i < old; i++ {
 		p := allp[i]
-		if trace.enabled {
-			if p == getg().m.p.ptr() {
-				// moving to p[0], pretend that we were descheduled
-				// and then scheduled again to keep the trace sane.
-				traceGoSched()
-				traceProcStop(p)
-			}
+		if trace.enabled && p == getg().m.p.ptr() {
+			// moving to p[0], pretend that we were descheduled
+			// and then scheduled again to keep the trace sane.
+			traceGoSched()
+			traceProcStop(p)
 		}
 		// move all runnable goroutines to the global queue
 		for p.runqhead != p.runqtail {

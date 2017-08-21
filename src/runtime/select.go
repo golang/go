@@ -457,10 +457,8 @@ loop:
 		print("wait-return: sel=", sel, " c=", c, " cas=", cas, " kind=", cas.kind, "\n")
 	}
 
-	if cas.kind == caseRecv {
-		if cas.receivedp != nil {
-			*cas.receivedp = true
-		}
+	if cas.kind == caseRecv && cas.receivedp != nil {
+		*cas.receivedp = true
 	}
 
 	if raceenabled {
