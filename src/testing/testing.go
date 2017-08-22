@@ -252,7 +252,7 @@ var (
 	chatty               = flag.Bool("test.v", false, "verbose: print additional output")
 	count                = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
 	coverProfile         = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
-	matchList            = flag.String("test.list", "", "list tests, examples, and benchmarch maching `regexp` then exit")
+	matchList            = flag.String("test.list", "", "list tests, examples, and benchmarks matching `regexp` then exit")
 	match                = flag.String("test.run", "", "run only tests and examples matching `regexp`")
 	memProfile           = flag.String("test.memprofile", "", "write a memory profile to `file`")
 	memProfileRate       = flag.Int("test.memprofilerate", 0, "set memory profiling `rate` (see runtime.MemProfileRate)")

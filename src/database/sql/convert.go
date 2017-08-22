@@ -204,7 +204,7 @@ func driverArgs(ci driver.Conn, ds *driverStmt, args []interface{}) ([]driver.Na
 		}
 	}
 
-	// Check the length of arguments after convertion to allow for omitted
+	// Check the length of arguments after conversion to allow for omitted
 	// arguments.
 	if want != -1 && len(nvargs) != want {
 		return nil, fmt.Errorf("sql: expected %d arguments, got %d", want, len(nvargs))

@@ -32,7 +32,7 @@ func TestCalibrate(t *testing.T) {
 	if *calibrate {
 		computeKaratsubaThresholds()
 
-		// compute basicSqrThreshold where overhead becomes neglible
+		// compute basicSqrThreshold where overhead becomes negligible
 		minSqr := computeSqrThreshold(10, 30, 1, 3)
 		// compute karatsubaSqrThreshold where karatsuba is faster
 		maxSqr := computeSqrThreshold(300, 500, 10, 3)

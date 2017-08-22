@@ -746,7 +746,7 @@ func genhash(ctxt *Link, lib *Library) {
 	// To compute the hash of a package, we hash the first line of
 	// __.PKGDEF (which contains the toolchain version and any
 	// GOEXPERIMENT flags) and the export data (which is between
-	// the first two occurences of "\n$$").
+	// the first two occurrences of "\n$$").
 
 	pkgDefBytes := make([]byte, atolwhex(arhdr.size))
 	_, err = io.ReadFull(f, pkgDefBytes)

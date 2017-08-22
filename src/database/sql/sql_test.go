@@ -3390,7 +3390,7 @@ func (c *nvcConn) CheckNamedValue(nv *driver.NamedValue) error {
 	case Out:
 		switch ov := v.Dest.(type) {
 		default:
-			return errors.New("unkown NameValueCheck OUTPUT type")
+			return errors.New("unknown NameValueCheck OUTPUT type")
 		case *string:
 			*ov = "from-server"
 			nv.Value = "OUT:*string"
