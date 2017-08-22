@@ -119,7 +119,15 @@ rm -f ./runtime/runtime_defs.go
 echo '##### Building Go bootstrap tool.'
 echo cmd/dist
 export GOROOT="$(cd .. && pwd)"
-GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
+export GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
+for go_exe in $(type -ap go); do
+	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
+		goroot=$(GOROOT='' $go_exe env GOROOT)
+		if [ "$goroot" != "$GOROOT" ]; then
+			GOROOT_BOOTSTRAP=$goroot
+		fi
+	fi
+done
 if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
 	echo "ERROR: Cannot find $GOROOT_BOOTSTRAP/bin/go." >&2
 	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2

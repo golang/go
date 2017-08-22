@@ -46,8 +46,23 @@ echo cmd/dist
 GOROOT = `{cd .. && pwd}
 if(! ~ $#GOROOT_BOOTSTRAP 1)
 	GOROOT_BOOTSTRAP = $home/go1.4
+for(p in $path){
+	if(! test -x $GOROOT_BOOTSTRAP/bin/go){
+		if(go_exe = `{path=$p whatis go}){
+			goroot = `{GOROOT='' $go_exe env GOROOT}
+			if(! ~ $goroot $GOROOT){
+				GOROOT_BOOTSTRAP = $goroot
+			}
+		}
+	}
+}
 if(! test -x $GOROOT_BOOTSTRAP/bin/go){
 	echo 'ERROR: Cannot find '$GOROOT_BOOTSTRAP'/bin/go.' >[1=2]
+	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4.' >[1=2]
+	exit bootstrap
+}
+if(~ $GOROOT_BOOTSTRAP $GOROOT){
+	echo 'ERROR: $GOROOT_BOOTSTRAP must not be set to $GOROOT' >[1=2]
 	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4.' >[1=2]
 	exit bootstrap
 }
