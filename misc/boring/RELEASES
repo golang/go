@@ -1,0 +1,4 @@
+# This file lists published Go+BoringCrypto releases.
+# Each line describes a single release: <version> <git commit> <URL> <sha256sum>
+go1.9rc2b2 91753387bdf7 https://go-boringcrypto.storage.googleapis.com/go1.9rc2b2.linux-amd64.tar.gz 59355a45e6970e8013060851ddb3f079afe8db52e90db520a0826a13f1b5ae5b
+go1.8.3b3 f6ff81bac156 https://go-boringcrypto.storage.googleapis.com/go1.8.3b3.linux-amd64.tar.gz 6287ad971cd268bb2684fb8b1275dea928ad527823062bc057e73036c419e7af

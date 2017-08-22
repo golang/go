@@ -1,0 +1,57 @@
+#!/bin/bash
+# Copyright 2017 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+# build.docker builds and publishes a Docker image for
+# a given Go+BoringCrypto release.
+
+set -e
+
+# With no arguments, use the most recent release in the RELEASES file.
+case "$#" in
+0)
+	version=$(tail -1 RELEASES | awk '{print $1}');;
+1)
+	version="$1";;
+*)
+	echo 'usage: build.docker [version]' >&2
+	exit 2
+esac
+
+url="$(grep "^$version " RELEASES | awk '{print $3}')"
+sha256="$(grep "^$version " RELEASES | awk '{print $4}')"
+if [ "$sha256" = "" ]; then
+	echo "cannot find $version in RELEASES file" >&2
+	exit 2
+fi
+
+# Build a temporary directory with a Dockerfile.
+dir=$(mktemp -d)
+trap "rm -rf $dir" EXIT
+
+if echo "$url" | grep '!' >/dev/null; then
+	# ! is sed delimiter below. Should never happen.
+	echo "URL contains an exclamation mark!" >&2
+	exit 2
+fi
+
+sed "s!UUU!$url!; s/SSS/$sha256/" dockerfile.in >$dir/Dockerfile
+cp go-wrapper $dir/go-wrapper
+
+dversion=$(echo "$version" | sed 's/^go//')
+docker build -t goboring/golang:$dversion $dir
+docker run goboring/golang:$dversion go version
+docker run goboring/golang:$dversion go tool nm /usr/local/go/bin/go >$dir/nm
+if ! grep crypto/sha1.boringNewSHA1 $dir/nm >/dev/null; then
+	echo 'built docker image but did NOT find sha1.boringNewSHA1 in go command!' >&2
+	exit 2
+fi
+if egrep 'crypto/sha1\.\(\*digest\)' $dir/nm >/dev/null; then
+	echo 'built docker image but DID find sha1.(*digest) in go command unexpectedly!' >&2
+	exit 2
+fi
+docker push goboring/golang:$dversion
+
+echo
+echo published as goboring/golang:$dversion
