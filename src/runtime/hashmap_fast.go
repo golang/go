@@ -846,11 +846,7 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
 					*(*uint32)(dst.k) = *(*uint32)(k)
 				}
 
-				if t.indirectvalue {
-					*(*unsafe.Pointer)(dst.v) = *(*unsafe.Pointer)(v)
-				} else {
-					typedmemmove(t.elem, dst.v, v)
-				}
+				typedmemmove(t.elem, dst.v, v)
 				dst.i++
 				// These updates might push these pointers past the end of the
 				// key or value arrays.  That's ok, as we have the overflow pointer
@@ -956,11 +952,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
 					*(*uint64)(dst.k) = *(*uint64)(k)
 				}
 
-				if t.indirectvalue {
-					*(*unsafe.Pointer)(dst.v) = *(*unsafe.Pointer)(v)
-				} else {
-					typedmemmove(t.elem, dst.v, v)
-				}
+				typedmemmove(t.elem, dst.v, v)
 				dst.i++
 				// These updates might push these pointers past the end of the
 				// key or value arrays.  That's ok, as we have the overflow pointer
@@ -1056,11 +1048,7 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
 				// Copy key.
 				*(*string)(dst.k) = *(*string)(k)
 
-				if t.indirectvalue {
-					*(*unsafe.Pointer)(dst.v) = *(*unsafe.Pointer)(v)
-				} else {
-					typedmemmove(t.elem, dst.v, v)
-				}
+				typedmemmove(t.elem, dst.v, v)
 				dst.i++
 				// These updates might push these pointers past the end of the
 				// key or value arrays.  That's ok, as we have the overflow pointer
