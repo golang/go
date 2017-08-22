@@ -129,7 +129,7 @@ const (
 	// consulted to avoid bugs where a symbol is put on a list twice.
 	AttrOnList
 	// AttrLocal marks symbols that are only visible within the module
-	// (exectuable or shared library) being linked. Only relevant when
+	// (executable or shared library) being linked. Only relevant when
 	// dynamically linking Go code.
 	AttrLocal
 	// AttrReflectMethod marks certain methods from the reflect package that

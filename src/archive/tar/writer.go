@@ -37,7 +37,7 @@ func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
 // Flush finishes writing the current file's block padding.
 // The current file must be fully written before Flush can be called.
 //
-// Deprecated: This is unecessary as the next call to WriteHeader or Close
+// Deprecated: This is unnecessary as the next call to WriteHeader or Close
 // will implicitly flush out the file's padding.
 func (tw *Writer) Flush() error {
 	if tw.err != nil {

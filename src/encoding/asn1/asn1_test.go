@@ -1015,7 +1015,7 @@ func TestNull(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(NullBytes, marshaled) {
-		t.Errorf("Expected Marshal of NullRawValue to yeild %x, got %x", NullBytes, marshaled)
+		t.Errorf("Expected Marshal of NullRawValue to yield %x, got %x", NullBytes, marshaled)
 	}
 
 	unmarshaled := RawValue{}

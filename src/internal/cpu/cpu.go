@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package cpu implements processor feature detection
-// used by the Go standard libary.
+// used by the Go standard library.
 package cpu
 
 var X86 x86

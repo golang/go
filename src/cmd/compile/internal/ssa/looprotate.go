@@ -62,7 +62,7 @@ func loopRotate(f *Func) {
 				break
 			}
 			nextb := f.Blocks[nextIdx]
-			if nextb == p { // original loop precedessor is next
+			if nextb == p { // original loop predecessor is next
 				break
 			}
 			if loopnest.b2l[nextb.ID] != loop { // about to leave loop
