@@ -7,6 +7,7 @@ package gc
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -20,12 +21,16 @@ import (
 func parseFiles(filenames []string) uint {
 	var lines uint
 	var noders []*noder
+	// Limit the number of simultaneously open files.
+	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
 
 	for _, filename := range filenames {
 		p := &noder{err: make(chan syntax.Error)}
 		noders = append(noders, p)
 
 		go func(filename string) {
+			sem <- struct{}{}
+			defer func() { <-sem }()
 			defer close(p.err)
 			base := src.NewFileBase(filename, absFilename(filename))
 
