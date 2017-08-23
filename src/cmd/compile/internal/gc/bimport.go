@@ -932,10 +932,10 @@ func (p *importer) node() *Node {
 			// again. Re-introduce explicit uintptr(c) conversion.
 			// (issue 16317).
 			if typ.IsUnsafePtr() {
-				n = nod(OCONV, n, nil)
+				n = nodl(pos, OCONV, n, nil)
 				n.Type = types.Types[TUINTPTR]
 			}
-			n = nod(OCONV, n, nil)
+			n = nodl(pos, OCONV, n, nil)
 			n.Type = typ
 		}
 		return n
