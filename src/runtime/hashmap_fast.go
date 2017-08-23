@@ -39,17 +39,14 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 			}
 		}
 	}
-	for {
+	for ; b != nil; b = b.overflow(t) {
 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 4) {
 			if *(*uint32)(k) == key && b.tophash[i] != empty {
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
 			}
 		}
-		b = b.overflow(t)
-		if b == nil {
-			return unsafe.Pointer(&zeroVal[0])
-		}
 	}
+	return unsafe.Pointer(&zeroVal[0])
 }
 
 func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
@@ -82,17 +79,14 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 			}
 		}
 	}
-	for {
+	for ; b != nil; b = b.overflow(t) {
 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 4) {
 			if *(*uint32)(k) == key && b.tophash[i] != empty {
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize)), true
 			}
 		}
-		b = b.overflow(t)
-		if b == nil {
-			return unsafe.Pointer(&zeroVal[0]), false
-		}
 	}
+	return unsafe.Pointer(&zeroVal[0]), false
 }
 
 func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
@@ -125,17 +119,14 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 			}
 		}
 	}
-	for {
+	for ; b != nil; b = b.overflow(t) {
 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 8) {
 			if *(*uint64)(k) == key && b.tophash[i] != empty {
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
 			}
 		}
-		b = b.overflow(t)
-		if b == nil {
-			return unsafe.Pointer(&zeroVal[0])
-		}
 	}
+	return unsafe.Pointer(&zeroVal[0])
 }
 
 func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
@@ -168,17 +159,14 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 			}
 		}
 	}
-	for {
+	for ; b != nil; b = b.overflow(t) {
 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 8) {
 			if *(*uint64)(k) == key && b.tophash[i] != empty {
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize)), true
 			}
 		}
-		b = b.overflow(t)
-		if b == nil {
-			return unsafe.Pointer(&zeroVal[0]), false
-		}
 	}
+	return unsafe.Pointer(&zeroVal[0]), false
 }
 
 func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
@@ -256,7 +244,7 @@ dohash:
 		}
 	}
 	top := tophash(hash)
-	for {
+	for ; b != nil; b = b.overflow(t) {
 		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
 			k := (*stringStruct)(kptr)
 			if k.len != key.len || b.tophash[i] != top {
@@ -266,11 +254,8 @@ dohash:
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
 			}
 		}
-		b = b.overflow(t)
-		if b == nil {
-			return unsafe.Pointer(&zeroVal[0])
-		}
 	}
+	return unsafe.Pointer(&zeroVal[0])
 }
 
 func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
@@ -348,7 +333,7 @@ dohash:
 		}
 	}
 	top := tophash(hash)
-	for {
+	for ; b != nil; b = b.overflow(t) {
 		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
 			k := (*stringStruct)(kptr)
 			if k.len != key.len || b.tophash[i] != top {
@@ -358,11 +343,8 @@ dohash:
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize)), true
 			}
 		}
-		b = b.overflow(t)
-		if b == nil {
-			return unsafe.Pointer(&zeroVal[0]), false
-		}
 	}
+	return unsafe.Pointer(&zeroVal[0]), false
 }
 
 func mapassign_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
@@ -647,7 +629,8 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
-	for {
+search:
+	for ; b != nil; b = b.overflow(t) {
 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 4) {
 			if key != *(*uint32)(k) || b.tophash[i] == empty {
 				continue
@@ -663,15 +646,10 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
 			}
 			b.tophash[i] = empty
 			h.count--
-			goto done
-		}
-		b = b.overflow(t)
-		if b == nil {
-			goto done
+			break search
 		}
 	}
 
-done:
 	if h.flags&hashWriting == 0 {
 		throw("concurrent map writes")
 	}
@@ -700,7 +678,8 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
-	for {
+search:
+	for ; b != nil; b = b.overflow(t) {
 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 8) {
 			if key != *(*uint64)(k) || b.tophash[i] == empty {
 				continue
@@ -716,15 +695,10 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
 			}
 			b.tophash[i] = empty
 			h.count--
-			goto done
-		}
-		b = b.overflow(t)
-		if b == nil {
-			goto done
+			break search
 		}
 	}
 
-done:
 	if h.flags&hashWriting == 0 {
 		throw("concurrent map writes")
 	}
@@ -755,7 +729,8 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
 	}
 	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
 	top := tophash(hash)
-	for {
+search:
+	for ; b != nil; b = b.overflow(t) {
 		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
 			k := (*stringStruct)(kptr)
 			if k.len != key.len || b.tophash[i] != top {
@@ -772,15 +747,10 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
 			}
 			b.tophash[i] = empty
 			h.count--
-			goto done
-		}
-		b = b.overflow(t)
-		if b == nil {
-			goto done
+			break search
 		}
 	}
 
-done:
 	if h.flags&hashWriting == 0 {
 		throw("concurrent map writes")
 	}
