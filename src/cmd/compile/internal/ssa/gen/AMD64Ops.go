@@ -538,8 +538,8 @@ func init() {
 		// (particularly stack maps).  It takes a memory arg so it
 		// gets correctly ordered with respect to GC safepoints.
 		// arg0=ptr/int arg1=mem, output=int/ptr
-		{name: "MOVQconvert", argLength: 2, reg: gp11, asm: "MOVQ"},
-		{name: "MOVLconvert", argLength: 2, reg: gp11, asm: "MOVL"}, // amd64p32 equivalent
+		{name: "MOVQconvert", argLength: 2, reg: gp11, asm: "MOVQ", resultInArg0: true},
+		{name: "MOVLconvert", argLength: 2, reg: gp11, asm: "MOVL", resultInArg0: true}, // amd64p32 equivalent
 
 		// Constant flag values. For any comparison, there are 5 possible
 		// outcomes: the three from the signed total order (<,==,>) and the
