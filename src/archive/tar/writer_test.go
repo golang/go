@@ -137,7 +137,7 @@ func TestWriter(t *testing.T) {
 				Uname:    "dsymonds",
 				Gname:    "eng",
 				ModTime:  time.Unix(1254699560, 0),
-				Devminor: -1, // Force use of GNU format
+				Format:   FormatGNU,
 			}, nil},
 		},
 	}, {
@@ -239,10 +239,10 @@ func TestWriter(t *testing.T) {
 				Name:     "☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹",
 				Mode:     0644,
 				Uid:      1000, Gid: 1000,
-				Uname:    "☺",
-				Gname:    "⚹",
-				ModTime:  time.Unix(0, 0),
-				Devminor: -1, // Force use of GNU format
+				Uname:   "☺",
+				Gname:   "⚹",
+				ModTime: time.Unix(0, 0),
+				Format:  FormatGNU,
 			}, nil},
 			testClose{nil},
 		},
@@ -258,7 +258,7 @@ func TestWriter(t *testing.T) {
 				Uname:    "rawr",
 				Gname:    "dsnet",
 				ModTime:  time.Unix(0, 0),
-				Devminor: -1, // Force use of GNU format
+				Format:   FormatGNU,
 			}, nil},
 			testClose{nil},
 		},
@@ -882,7 +882,7 @@ func TestIssue12594(t *testing.T) {
 		if i := strings.IndexByte(prefix, 0); i >= 0 {
 			prefix = prefix[:i] // Truncate at the NUL terminator
 		}
-		if blk.GetFormat() == formatGNU && len(prefix) > 0 && strings.HasPrefix(name, prefix) {
+		if blk.GetFormat() == FormatGNU && len(prefix) > 0 && strings.HasPrefix(name, prefix) {
 			t.Errorf("test %d, found prefix in GNU format: %s", i, prefix)
 		}
 

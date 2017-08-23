@@ -230,6 +230,7 @@ func TestRoundTrip(t *testing.T) {
 		// and would otherwise break the round-trip check
 		// below.
 		ModTime: time.Now().AddDate(0, 0, 0).Round(1 * time.Second),
+		Format:  FormatPAX,
 	}
 	if err := tw.WriteHeader(hdr); err != nil {
 		t.Fatalf("tw.WriteHeader: %v", err)
@@ -443,164 +444,164 @@ func TestHeaderRoundTrip(t *testing.T) {
 }
 
 func TestHeaderAllowedFormats(t *testing.T) {
-	prettyFormat := func(f int) string {
-		if f == formatUnknown {
-			return "(formatUnknown)"
-		}
-		var fs []string
-		if f&formatUSTAR > 0 {
-			fs = append(fs, "formatUSTAR")
-		}
-		if f&formatPAX > 0 {
-			fs = append(fs, "formatPAX")
-		}
-		if f&formatGNU > 0 {
-			fs = append(fs, "formatGNU")
-		}
-		return "(" + strings.Join(fs, " | ") + ")"
-	}
-
 	vectors := []struct {
 		header  *Header           // Input header
 		paxHdrs map[string]string // Expected PAX headers that may be needed
-		formats int               // Expected formats that can encode the header
+		formats Format            // Expected formats that can encode the header
 	}{{
 		header:  &Header{},
-		formats: formatUSTAR | formatPAX | formatGNU,
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{Size: 077777777777},
-		formats: formatUSTAR | formatPAX | formatGNU,
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
+	}, {
+		header:  &Header{Size: 077777777777, Format: FormatUSTAR},
+		formats: FormatUSTAR,
+	}, {
+		header:  &Header{Size: 077777777777, Format: FormatPAX},
+		formats: FormatUSTAR | FormatPAX,
+	}, {
+		header:  &Header{Size: 077777777777, Format: FormatGNU},
+		formats: FormatGNU,
 	}, {
 		header:  &Header{Size: 077777777777 + 1},
 		paxHdrs: map[string]string{paxSize: "8589934592"},
-		formats: formatPAX | formatGNU,
+		formats: FormatPAX | FormatGNU,
+	}, {
+		header:  &Header{Size: 077777777777 + 1, Format: FormatPAX},
+		paxHdrs: map[string]string{paxSize: "8589934592"},
+		formats: FormatPAX,
+	}, {
+		header:  &Header{Size: 077777777777 + 1, Format: FormatGNU},
+		paxHdrs: map[string]string{paxSize: "8589934592"},
+		formats: FormatGNU,
 	}, {
 		header:  &Header{Mode: 07777777},
-		formats: formatUSTAR | formatPAX | formatGNU,
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{Mode: 07777777 + 1},
-		formats: formatGNU,
+		formats: FormatGNU,
 	}, {
 		header:  &Header{Devmajor: -123},
-		formats: formatGNU,
+		formats: FormatGNU,
 	}, {
 		header:  &Header{Devmajor: 1<<56 - 1},
-		formats: formatGNU,
+		formats: FormatGNU,
 	}, {
 		header:  &Header{Devmajor: 1 << 56},
-		formats: formatUnknown,
+		formats: FormatUnknown,
 	}, {
 		header:  &Header{Devmajor: -1 << 56},
-		formats: formatGNU,
+		formats: FormatGNU,
 	}, {
 		header:  &Header{Devmajor: -1<<56 - 1},
-		formats: formatUnknown,
+		formats: FormatUnknown,
 	}, {
 		header:  &Header{Name: "用戶名", Devmajor: -1 << 56},
-		formats: formatGNU,
+		formats: FormatGNU,
 	}, {
 		header:  &Header{Size: math.MaxInt64},
 		paxHdrs: map[string]string{paxSize: "9223372036854775807"},
-		formats: formatPAX | formatGNU,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{Size: math.MinInt64},
 		paxHdrs: map[string]string{paxSize: "-9223372036854775808"},
-		formats: formatUnknown,
+		formats: FormatUnknown,
 	}, {
 		header:  &Header{Uname: "0123456789abcdef0123456789abcdef"},
-		formats: formatUSTAR | formatPAX | formatGNU,
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{Uname: "0123456789abcdef0123456789abcdefx"},
 		paxHdrs: map[string]string{paxUname: "0123456789abcdef0123456789abcdefx"},
-		formats: formatPAX,
+		formats: FormatPAX,
 	}, {
 		header:  &Header{Name: "foobar"},
-		formats: formatUSTAR | formatPAX | formatGNU,
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{Name: strings.Repeat("a", nameSize)},
-		formats: formatUSTAR | formatPAX | formatGNU,
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{Name: strings.Repeat("a", nameSize+1)},
 		paxHdrs: map[string]string{paxPath: strings.Repeat("a", nameSize+1)},
-		formats: formatPAX | formatGNU,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{Linkname: "用戶名"},
 		paxHdrs: map[string]string{paxLinkpath: "用戶名"},
-		formats: formatPAX | formatGNU,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{Linkname: strings.Repeat("用戶名\x00", nameSize)},
 		paxHdrs: map[string]string{paxLinkpath: strings.Repeat("用戶名\x00", nameSize)},
-		formats: formatUnknown,
+		formats: FormatUnknown,
 	}, {
 		header:  &Header{Linkname: "\x00hello"},
 		paxHdrs: map[string]string{paxLinkpath: "\x00hello"},
-		formats: formatUnknown,
+		formats: FormatUnknown,
 	}, {
 		header:  &Header{Uid: 07777777},
-		formats: formatUSTAR | formatPAX | formatGNU,
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{Uid: 07777777 + 1},
 		paxHdrs: map[string]string{paxUid: "2097152"},
-		formats: formatPAX | formatGNU,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{Xattrs: nil},
-		formats: formatUSTAR | formatPAX | formatGNU,
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{Xattrs: map[string]string{"foo": "bar"}},
 		paxHdrs: map[string]string{paxXattr + "foo": "bar"},
-		formats: formatPAX,
+		formats: FormatPAX,
 	}, {
 		header:  &Header{Xattrs: map[string]string{"用戶名": "\x00hello"}},
 		paxHdrs: map[string]string{paxXattr + "用戶名": "\x00hello"},
-		formats: formatPAX,
+		formats: FormatPAX,
 	}, {
 		header:  &Header{Xattrs: map[string]string{"foo=bar": "baz"}},
-		formats: formatUnknown,
+		formats: FormatUnknown,
 	}, {
 		header:  &Header{Xattrs: map[string]string{"foo": ""}},
-		formats: formatUnknown,
+		formats: FormatUnknown,
 	}, {
 		header:  &Header{ModTime: time.Unix(0, 0)},
-		formats: formatUSTAR | formatPAX | formatGNU,
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{ModTime: time.Unix(077777777777, 0)},
-		formats: formatUSTAR | formatPAX | formatGNU,
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{ModTime: time.Unix(077777777777+1, 0)},
 		paxHdrs: map[string]string{paxMtime: "8589934592"},
-		formats: formatPAX | formatGNU,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{ModTime: time.Unix(math.MaxInt64, 0)},
 		paxHdrs: map[string]string{paxMtime: "9223372036854775807"},
-		formats: formatPAX | formatGNU,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{ModTime: time.Unix(-1, 0)},
 		paxHdrs: map[string]string{paxMtime: "-1"},
-		formats: formatPAX | formatGNU,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{ModTime: time.Unix(-1, 500)},
 		paxHdrs: map[string]string{paxMtime: "-0.9999995"},
-		formats: formatPAX,
+		formats: FormatPAX,
 	}, {
 		header:  &Header{AccessTime: time.Unix(0, 0)},
 		paxHdrs: map[string]string{paxAtime: "0"},
-		formats: formatPAX | formatGNU,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{AccessTime: time.Unix(-123, 0)},
 		paxHdrs: map[string]string{paxAtime: "-123"},
-		formats: formatPAX | formatGNU,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{ChangeTime: time.Unix(123, 456)},
 		paxHdrs: map[string]string{paxCtime: "123.000000456"},
-		formats: formatPAX,
+		formats: FormatPAX,
 	}}
 
 	for i, v := range vectors {
 		formats, paxHdrs := v.header.allowedFormats()
 		if formats != v.formats {
-			t.Errorf("test %d, allowedFormats(...): got %v, want %v", i, prettyFormat(formats), prettyFormat(v.formats))
+			t.Errorf("test %d, allowedFormats(...): got %v, want %v", i, formats, v.formats)
 		}
-		if formats&formatPAX > 0 && !reflect.DeepEqual(paxHdrs, v.paxHdrs) && !(len(paxHdrs) == 0 && len(v.paxHdrs) == 0) {
+		if formats&FormatPAX > 0 && !reflect.DeepEqual(paxHdrs, v.paxHdrs) && !(len(paxHdrs) == 0 && len(v.paxHdrs) == 0) {
 			t.Errorf("test %d, allowedFormats(...):\ngot  %v\nwant %s", i, paxHdrs, v.paxHdrs)
 		}
 	}

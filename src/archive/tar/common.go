@@ -5,11 +5,6 @@
 // Package tar implements access to tar archives.
 // It aims to cover most of the variations, including those produced
 // by GNU and BSD tars.
-//
-// References:
-//   http://www.freebsd.org/cgi/man.cgi?query=tar&sektion=5
-//   http://www.gnu.org/software/tar/manual/html_node/Standard.html
-//   http://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html
 package tar
 
 import (
@@ -76,13 +71,26 @@ type Header struct {
 	// SparseHoles represents a sequence of holes in a sparse file.
 	//
 	// A file is sparse if len(SparseHoles) > 0 or Typeflag is TypeGNUSparse.
+	// If TypeGNUSparse is set, then the format is GNU, otherwise
+	// the PAX format with GNU-specific record is used.
+	//
 	// A sparse file consists of fragments of data, intermixed with holes
 	// (described by this field). A hole is semantically a block of NUL-bytes,
-	// but does not actually exist within the TAR file.
+	// but does not actually exist within the tar file.
 	// The logical size of the file stored in the Size field, while
 	// the holes must be sorted in ascending order,
 	// not overlap with each other, and not extend past the specified Size.
 	SparseHoles []SparseEntry
+
+	// Format specifies the format of the tar header.
+	//
+	// This is set by Reader.Next as a best-effort guess at the format.
+	// Since the Reader liberally reads some non-compliant files,
+	// it is possible for this to be FormatUnknown.
+	//
+	// When writing, if this is not FormatUnknown, then Writer.WriteHeader
+	// uses this as the format to encode the header.
+	Format Format
 }
 
 // SparseEntry represents a Length-sized fragment at Offset in the file.
@@ -209,12 +217,12 @@ func (h *Header) FileInfo() os.FileInfo {
 
 // allowedFormats determines which formats can be used. The value returned
 // is the logical OR of multiple possible formats. If the value is
-// formatUnknown, then the input Header cannot be encoded.
+// FormatUnknown, then the input Header cannot be encoded.
 //
 // As a by-product of checking the fields, this function returns paxHdrs, which
 // contain all fields that could not be directly encoded.
-func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
-	format = formatUSTAR | formatPAX | formatGNU
+func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string) {
+	format = FormatUSTAR | FormatPAX | FormatGNU
 	paxHdrs = make(map[string]string)
 
 	verifyString := func(s string, size int, paxKey string) {
@@ -224,15 +232,15 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
 		tooLong := len(s) > size
 		allowLongGNU := paxKey == paxPath || paxKey == paxLinkpath
 		if hasNUL(s) || (tooLong && !allowLongGNU) {
-			format &^= formatGNU // No GNU
+			format.mustNotBe(FormatGNU)
 		}
 		if !isASCII(s) || tooLong {
 			canSplitUSTAR := paxKey == paxPath
 			if _, _, ok := splitUSTARPath(s); !canSplitUSTAR || !ok {
-				format &^= formatUSTAR // No USTAR
+				format.mustNotBe(FormatUSTAR)
 			}
 			if paxKey == paxNone {
-				format &^= formatPAX // No PAX
+				format.mustNotBe(FormatPAX)
 			} else {
 				paxHdrs[paxKey] = s
 			}
@@ -240,12 +248,12 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
 	}
 	verifyNumeric := func(n int64, size int, paxKey string) {
 		if !fitsInBase256(size, n) {
-			format &^= formatGNU // No GNU
+			format.mustNotBe(FormatGNU)
 		}
 		if !fitsInOctal(size, n) {
-			format &^= formatUSTAR // No USTAR
+			format.mustNotBe(FormatUSTAR)
 			if paxKey == paxNone {
-				format &^= formatPAX // No PAX
+				format.mustNotBe(FormatPAX)
 			} else {
 				paxHdrs[paxKey] = strconv.FormatInt(n, 10)
 			}
@@ -258,12 +266,12 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
 		needsNano := ts.Nanosecond() != 0
 		hasFieldUSTAR := paxKey == paxMtime
 		if !fitsInBase256(size, ts.Unix()) || needsNano {
-			format &^= formatGNU // No GNU
+			format.mustNotBe(FormatGNU)
 		}
 		if !fitsInOctal(size, ts.Unix()) || needsNano || !hasFieldUSTAR {
-			format &^= formatUSTAR // No USTAR
+			format.mustNotBe(FormatUSTAR)
 			if paxKey == paxNone {
-				format &^= formatPAX // No PAX
+				format.mustNotBe(FormatPAX)
 			} else {
 				paxHdrs[paxKey] = formatPAXTime(ts)
 			}
@@ -289,34 +297,40 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
 	verifyTime(h.ChangeTime, len(gnu.ChangeTime()), paxCtime)
 
 	if !isHeaderOnlyType(h.Typeflag) && h.Size < 0 {
-		return formatUnknown, nil
+		return FormatUnknown, nil
 	}
 	if len(h.Xattrs) > 0 {
 		for k, v := range h.Xattrs {
 			paxHdrs[paxXattr+k] = v
 		}
-		format &= formatPAX // PAX only
+		format.mayOnlyBe(FormatPAX)
 	}
 	for k, v := range paxHdrs {
 		// Forbid empty values (which represent deletion) since usage of
 		// them are non-sensible without global PAX record support.
 		if !validPAXRecord(k, v) || v == "" {
-			return formatUnknown, nil // Invalid PAX key
+			return FormatUnknown, nil // Invalid PAX key
 		}
 	}
 	if len(h.SparseHoles) > 0 || h.Typeflag == TypeGNUSparse {
 		if isHeaderOnlyType(h.Typeflag) {
-			return formatUnknown, nil // Cannot have sparse data on header-only file
+			return FormatUnknown, nil // Cannot have sparse data on header-only file
 		}
 		if !validateSparseEntries(h.SparseHoles, h.Size) {
-			return formatUnknown, nil
+			return FormatUnknown, nil
 		}
 		if h.Typeflag == TypeGNUSparse {
-			format &= formatGNU // GNU only
+			format.mayOnlyBe(FormatGNU)
 		} else {
-			format &^= formatGNU // No GNU
+			format.mustNotBe(FormatGNU)
 		}
-		format &^= formatUSTAR // No USTAR
+		format.mustNotBe(FormatUSTAR)
+	}
+	if wantFormat := h.Format; wantFormat != FormatUnknown {
+		if wantFormat.has(FormatPAX) {
+			wantFormat.mayBe(FormatUSTAR) // PAX implies USTAR allowed too
+		}
+		format.mayOnlyBe(wantFormat) // Set union of formats allowed and format wanted
 	}
 	return format, paxHdrs
 }
