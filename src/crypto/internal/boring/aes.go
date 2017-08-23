@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build linux,amd64
+// +build !android
 // +build !cmd_go_bootstrap
 
 package boring
