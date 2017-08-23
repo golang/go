@@ -83,7 +83,7 @@ not being used from outside intra_region_diff.py.
 type Feed struct {
 	XMLName Name      `xml:"http://www.w3.org/2005/Atom feed"`
 	Title   string    `xml:"title"`
-	Id      string    `xml:"id"`
+	ID      string    `xml:"id"`
 	Link    []Link    `xml:"link"`
 	Updated time.Time `xml:"updated,attr"`
 	Author  Person    `xml:"author"`
@@ -92,7 +92,7 @@ type Feed struct {
 
 type Entry struct {
 	Title   string    `xml:"title"`
-	Id      string    `xml:"id"`
+	ID      string    `xml:"id"`
 	Link    []Link    `xml:"link"`
 	Updated time.Time `xml:"updated"`
 	Author  Person    `xml:"author"`
@@ -123,7 +123,7 @@ var atomFeed = Feed{
 		{Rel: "alternate", Href: "http://codereview.appspot.com/"},
 		{Rel: "self", Href: "http://codereview.appspot.com/rss/mine/rsc"},
 	},
-	Id:      "http://codereview.appspot.com/",
+	ID:      "http://codereview.appspot.com/",
 	Updated: ParseTime("2009-10-04T01:35:58+00:00"),
 	Author: Person{
 		Name:     "rietveld<>",
@@ -140,7 +140,7 @@ var atomFeed = Feed{
 				Name:     "email-address-removed",
 				InnerXML: "<name>email-address-removed</name>",
 			},
-			Id: "urn:md5:134d9179c41f806be79b3a5f7877d19a",
+			ID: "urn:md5:134d9179c41f806be79b3a5f7877d19a",
 			Summary: Text{
 				Type: "html",
 				Body: `
@@ -187,7 +187,7 @@ the top of feeds.py marked NOTE(rsc).
 				Name:     "email-address-removed",
 				InnerXML: "<name>email-address-removed</name>",
 			},
-			Id: "urn:md5:0a2a4f19bb815101f0ba2904aed7c35a",
+			ID: "urn:md5:0a2a4f19bb815101f0ba2904aed7c35a",
 			Summary: Text{
 				Type: "html",
 				Body: `
