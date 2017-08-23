@@ -1868,6 +1868,11 @@ func (ctxt *Link) dodata() {
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
 		for _, s := range dwarfp[i:] {
+			// Syms can (incorrectly) appear twice on the list. Ignore repeats.
+			// See golang.org/issue/21566.
+			if s.Type == SRODATA {
+				continue
+			}
 			if s.Type != SDWARFINFO {
 				break
 			}
