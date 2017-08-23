@@ -100,7 +100,7 @@ func main() {
 	//
 	// The lock file is never deleted, to avoid concurrent locks on distinct
 	// files with the same path.
-	lockName := filepath.Join(os.TempDir(), "go_darwin_arm_exec.lock")
+	lockName := filepath.Join(os.TempDir(), "go_darwin_arm_exec-"+deviceID+".lock")
 	lock, err = os.OpenFile(lockName, os.O_CREATE|os.O_RDONLY, 0666)
 	if err != nil {
 		log.Fatal(err)
