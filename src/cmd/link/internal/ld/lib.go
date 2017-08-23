@@ -856,6 +856,7 @@ var hostobj []Hostobj
 // These packages can use internal linking mode.
 // Others trigger external mode.
 var internalpkg = []string{
+	"crypto/internal/boring",
 	"crypto/x509",
 	"net",
 	"os/user",
