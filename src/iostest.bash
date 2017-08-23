@@ -32,11 +32,15 @@ if [ "$1" = "-restart" ]; then
 	# Reboot to make sure previous runs do not interfere with the current run.
 	# It is reasonably easy for a bad program leave an iOS device in an
 	# almost unusable state.
-	idevicediagnostics restart
+	IDEVARGS=
+	if [ -n "$GOIOS_DEVICE_ID" ]; then
+		IDEVARGS="-u $GOIOS_DEVICE_ID"
+	fi
+	idevicediagnostics $IDEVARGS restart
 	# Initial sleep to make sure we are restarting before we start polling.
 	sleep 30
 	# Poll until the device has restarted.
-	until idevicediagnostics diagnostics; do
+	until idevicediagnostics $IDEVARGS diagnostics; do
 		# TODO(crawshaw): replace with a test app using go_darwin_arm_exec.
 		echo "waiting for idevice to come online"
 		sleep 10
