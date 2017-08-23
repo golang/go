@@ -255,7 +255,7 @@ func (h *hmap) createOverflow() {
 	}
 }
 
-func makemap64(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
+func makemap64(t *maptype, hint int64, h *hmap) *hmap {
 	if int64(int(hint)) != hint {
 		hint = 0
 	}
