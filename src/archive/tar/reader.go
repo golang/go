@@ -64,6 +64,7 @@ func (tr *Reader) next() (*Header, error) {
 	// data that describes the next file. These meta data "files" should not
 	// normally be visible to the outside. As such, this loop iterates through
 	// one or more "header files" until it finds a "normal file".
+	format := FormatUSTAR | FormatPAX | FormatGNU
 loop:
 	for {
 		// Discard the remainder of the file and any padding.
@@ -82,16 +83,19 @@ loop:
 		if err := tr.handleRegularFile(hdr); err != nil {
 			return nil, err
 		}
+		format.mayOnlyBe(hdr.Format)
 
 		// Check for PAX/GNU special headers and files.
 		switch hdr.Typeflag {
 		case TypeXHeader:
+			format.mayOnlyBe(FormatPAX)
 			extHdrs, err = parsePAX(tr)
 			if err != nil {
 				return nil, err
 			}
 			continue loop // This is a meta header affecting the next header
 		case TypeGNULongName, TypeGNULongLink:
+			format.mayOnlyBe(FormatGNU)
 			realname, err := ioutil.ReadAll(tr)
 			if err != nil {
 				return nil, err
@@ -131,6 +135,12 @@ loop:
 			if err := tr.handleSparseFile(hdr, rawHdr, extHdrs); err != nil {
 				return nil, err
 			}
+
+			// Set the final guess at the format.
+			if format.has(FormatUSTAR) && format.has(FormatPAX) {
+				format.mayOnlyBe(FormatUSTAR)
+			}
+			hdr.Format = format
 			return hdr, nil // This is a file, so stop
 		}
 	}
@@ -197,6 +207,7 @@ func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header, extHdrs map[string]string
 	default:
 		return nil, nil // Not a PAX format GNU sparse file.
 	}
+	hdr.Format.mayOnlyBe(FormatPAX)
 
 	// Update hdr from GNU sparse PAX headers.
 	if name := extHdrs[paxGNUSparseName]; name != "" {
@@ -340,7 +351,7 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 
 	// Verify the header matches a known format.
 	format := tr.blk.GetFormat()
-	if format == formatUnknown {
+	if format == FormatUnknown {
 		return nil, nil, ErrHeader
 	}
 
@@ -349,14 +360,14 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 
 	// Unpack the V7 header.
 	v7 := tr.blk.V7()
+	hdr.Typeflag = v7.TypeFlag()[0]
 	hdr.Name = p.parseString(v7.Name())
+	hdr.Linkname = p.parseString(v7.LinkName())
+	hdr.Size = p.parseNumeric(v7.Size())
 	hdr.Mode = p.parseNumeric(v7.Mode())
 	hdr.Uid = int(p.parseNumeric(v7.UID()))
 	hdr.Gid = int(p.parseNumeric(v7.GID()))
-	hdr.Size = p.parseNumeric(v7.Size())
 	hdr.ModTime = time.Unix(p.parseNumeric(v7.ModTime()), 0)
-	hdr.Typeflag = v7.TypeFlag()[0]
-	hdr.Linkname = p.parseString(v7.LinkName())
 
 	// Unpack format specific fields.
 	if format > formatV7 {
@@ -367,16 +378,30 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 		hdr.Devminor = p.parseNumeric(ustar.DevMinor())
 
 		var prefix string
-		switch format {
-		case formatUSTAR:
+		switch {
+		case format.has(FormatUSTAR | FormatPAX):
+			hdr.Format = format
 			ustar := tr.blk.USTAR()
 			prefix = p.parseString(ustar.Prefix())
-		case formatSTAR:
+
+			// For Format detection, check if block is properly formatted since
+			// the parser is more liberal than what USTAR actually permits.
+			notASCII := func(r rune) bool { return r >= 0x80 }
+			if bytes.IndexFunc(tr.blk[:], notASCII) >= 0 {
+				hdr.Format = FormatUnknown // Non-ASCII characters in block.
+			}
+			nul := func(b []byte) bool { return int(b[len(b)-1]) == 0 }
+			if !(nul(v7.Size()) && nul(v7.Mode()) && nul(v7.UID()) && nul(v7.GID()) &&
+				nul(v7.ModTime()) && nul(ustar.DevMajor()) && nul(ustar.DevMinor())) {
+				hdr.Format = FormatUnknown // Numeric fields must end in NUL
+			}
+		case format.has(formatSTAR):
 			star := tr.blk.STAR()
 			prefix = p.parseString(star.Prefix())
 			hdr.AccessTime = time.Unix(p.parseNumeric(star.AccessTime()), 0)
 			hdr.ChangeTime = time.Unix(p.parseNumeric(star.ChangeTime()), 0)
-		case formatGNU:
+		case format.has(FormatGNU):
+			hdr.Format = format
 			var p2 parser
 			gnu := tr.blk.GNU()
 			if b := gnu.AccessTime(); b[0] != 0 {
@@ -413,6 +438,7 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 				if s := p.parseString(ustar.Prefix()); isASCII(s) {
 					prefix = s
 				}
+				hdr.Format = FormatUnknown // Buggy file is not GNU
 			}
 		}
 		if len(prefix) > 0 {
@@ -434,9 +460,10 @@ func (tr *Reader) readOldGNUSparseMap(hdr *Header, blk *block) (sparseDatas, err
 	// Make sure that the input format is GNU.
 	// Unfortunately, the STAR format also has a sparse header format that uses
 	// the same type flag but has a completely different layout.
-	if blk.GetFormat() != formatGNU {
+	if blk.GetFormat() != FormatGNU {
 		return nil, ErrHeader
 	}
+	hdr.Format.mayOnlyBe(FormatGNU)
 
 	var p parser
 	hdr.Size = p.parseNumeric(blk.GNU().RealSize())

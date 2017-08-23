@@ -73,13 +73,13 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
 
 	tw.hdr = *hdr // Shallow copy of Header
 	switch allowedFormats, paxHdrs := tw.hdr.allowedFormats(); {
-	case allowedFormats&formatUSTAR != 0:
+	case allowedFormats.has(FormatUSTAR):
 		tw.err = tw.writeUSTARHeader(&tw.hdr)
 		return tw.err
-	case allowedFormats&formatPAX != 0:
+	case allowedFormats.has(FormatPAX):
 		tw.err = tw.writePAXHeader(&tw.hdr, paxHdrs)
 		return tw.err
-	case allowedFormats&formatGNU != 0:
+	case allowedFormats.has(FormatGNU):
 		tw.err = tw.writeGNUHeader(&tw.hdr)
 		return tw.err
 	default:
@@ -98,7 +98,7 @@ func (tw *Writer) writeUSTARHeader(hdr *Header) error {
 	var f formatter
 	blk := tw.templateV7Plus(hdr, f.formatString, f.formatOctal)
 	f.formatString(blk.USTAR().Prefix(), namePrefix)
-	blk.SetFormat(formatUSTAR)
+	blk.SetFormat(FormatUSTAR)
 	if f.err != nil {
 		return f.err // Should never happen since header is validated
 	}
@@ -162,7 +162,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 		dir, file := path.Split(realName)
 		name := path.Join(dir, "PaxHeaders.0", file)
 		data := buf.String()
-		if err := tw.writeRawFile(name, data, TypeXHeader, formatPAX); err != nil {
+		if err := tw.writeRawFile(name, data, TypeXHeader, FormatPAX); err != nil {
 			return err
 		}
 	}
@@ -171,7 +171,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 	var f formatter // Ignore errors since they are expected
 	fmtStr := func(b []byte, s string) { f.formatString(b, toASCII(s)) }
 	blk := tw.templateV7Plus(hdr, fmtStr, f.formatOctal)
-	blk.SetFormat(formatPAX)
+	blk.SetFormat(FormatPAX)
 	if err := tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag); err != nil {
 		return err
 	}
@@ -192,13 +192,13 @@ func (tw *Writer) writeGNUHeader(hdr *Header) error {
 	const longName = "././@LongLink"
 	if len(hdr.Name) > nameSize {
 		data := hdr.Name + "\x00"
-		if err := tw.writeRawFile(longName, data, TypeGNULongName, formatGNU); err != nil {
+		if err := tw.writeRawFile(longName, data, TypeGNULongName, FormatGNU); err != nil {
 			return err
 		}
 	}
 	if len(hdr.Linkname) > nameSize {
 		data := hdr.Linkname + "\x00"
-		if err := tw.writeRawFile(longName, data, TypeGNULongLink, formatGNU); err != nil {
+		if err := tw.writeRawFile(longName, data, TypeGNULongLink, FormatGNU); err != nil {
 			return err
 		}
 	}
@@ -248,7 +248,7 @@ func (tw *Writer) writeGNUHeader(hdr *Header) error {
 		f.formatNumeric(blk.V7().Size(), hdr.Size)
 		f.formatNumeric(blk.GNU().RealSize(), realSize)
 	}
-	blk.SetFormat(formatGNU)
+	blk.SetFormat(FormatGNU)
 	if err := tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag); err != nil {
 		return err
 	}
@@ -305,7 +305,7 @@ func (tw *Writer) templateV7Plus(hdr *Header, fmtStr stringFormatter, fmtNum num
 // writeRawFile writes a minimal file with the given name and flag type.
 // It uses format to encode the header format and will write data as the body.
 // It uses default values for all of the other fields (as BSD and GNU tar does).
-func (tw *Writer) writeRawFile(name, data string, flag byte, format int) error {
+func (tw *Writer) writeRawFile(name, data string, flag byte, format Format) error {
 	tw.blk.Reset()
 
 	// Best effort for the filename.
