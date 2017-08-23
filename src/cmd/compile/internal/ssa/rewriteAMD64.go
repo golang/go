@@ -6957,6 +6957,19 @@ func rewriteValueAMD64_OpAMD64MOVLQZX_0(v *Value) bool {
 		v0.AddArg(mem)
 		return true
 	}
+	// match: (MOVLQZX x)
+	// cond: zeroUpper32Bits(x,3)
+	// result: x
+	for {
+		x := v.Args[0]
+		if !(zeroUpper32Bits(x, 3)) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVLQZX x:(MOVLloadidx1 [off] {sym} ptr idx mem))
 	// cond: x.Uses == 1 && clobber(x)
 	// result: @x.Block (MOVLloadidx1 <v.Type> [off] {sym} ptr idx mem)
