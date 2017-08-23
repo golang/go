@@ -658,7 +658,7 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
 			}
 			// Only clear value if there are pointers in it.
 			if t.elem.kind&kindNoPointers == 0 {
-				v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*4 + i*uintptr(t.valuesize))
+				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
 				memclrHasPointers(v, t.elem.size)
 			}
 			b.tophash[i] = empty
@@ -711,7 +711,7 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
 			}
 			// Only clear value if there are pointers in it.
 			if t.elem.kind&kindNoPointers == 0 {
-				v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*8 + i*uintptr(t.valuesize))
+				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
 				memclrHasPointers(v, t.elem.size)
 			}
 			b.tophash[i] = empty
@@ -767,7 +767,7 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
 			*(*string)(kptr) = ""
 			// Only clear value if there are pointers in it.
 			if t.elem.kind&kindNoPointers == 0 {
-				v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*2*sys.PtrSize + i*uintptr(t.valuesize))
+				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
 				memclrHasPointers(v, t.elem.size)
 			}
 			b.tophash[i] = empty
