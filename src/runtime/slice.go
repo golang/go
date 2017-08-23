@@ -105,8 +105,15 @@ func growslice(et *_type, old slice, cap int) slice {
 		if old.len < 1024 {
 			newcap = doublecap
 		} else {
-			for newcap < cap {
+			// Check 0 < newcap to detect overflow
+			// and prevent an infinite loop.
+			for 0 < newcap && newcap < cap {
 				newcap += newcap / 4
+			}
+			// Set newcap to the requested cap when
+			// the newcap calculation overflowed.
+			if newcap <= 0 {
+				newcap = cap
 			}
 		}
 	}
