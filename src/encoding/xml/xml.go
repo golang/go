@@ -60,6 +60,7 @@ type StartElement struct {
 	Attr []Attr
 }
 
+// Copy creates a new copy of StartElement.
 func (e StartElement) Copy() StartElement {
 	attrs := make([]Attr, len(e.Attr))
 	copy(attrs, e.Attr)
@@ -88,12 +89,14 @@ func makeCopy(b []byte) []byte {
 	return b1
 }
 
+// Copy creates a new copy of CharData.
 func (c CharData) Copy() CharData { return CharData(makeCopy(c)) }
 
 // A Comment represents an XML comment of the form <!--comment-->.
 // The bytes do not include the <!-- and --> comment markers.
 type Comment []byte
 
+// Copy creates a new copy of Comment.
 func (c Comment) Copy() Comment { return Comment(makeCopy(c)) }
 
 // A ProcInst represents an XML processing instruction of the form <?target inst?>
@@ -102,6 +105,7 @@ type ProcInst struct {
 	Inst   []byte
 }
 
+// Copy creates a new copy of ProcInst.
 func (p ProcInst) Copy() ProcInst {
 	p.Inst = makeCopy(p.Inst)
 	return p
@@ -111,6 +115,7 @@ func (p ProcInst) Copy() ProcInst {
 // The bytes do not include the <! and > markers.
 type Directive []byte
 
+// Copy creates a new copy of Directive.
 func (d Directive) Copy() Directive { return Directive(makeCopy(d)) }
 
 // CopyToken returns a copy of a Token.
@@ -266,12 +271,12 @@ func (d *Decoder) Token() (Token, error) {
 		// to the other attribute names, so process
 		// the translations first.
 		for _, a := range t1.Attr {
-			if a.Name.Space == "xmlns" {
+			if a.Name.Space == xmlnsPrefix {
 				v, ok := d.ns[a.Name.Local]
 				d.pushNs(a.Name.Local, v, ok)
 				d.ns[a.Name.Local] = a.Value
 			}
-			if a.Name.Space == "" && a.Name.Local == "xmlns" {
+			if a.Name.Space == "" && a.Name.Local == xmlnsPrefix {
 				// Default space for untagged names
 				v, ok := d.ns[""]
 				d.pushNs("", v, ok)
@@ -296,20 +301,23 @@ func (d *Decoder) Token() (Token, error) {
 	return t, err
 }
 
-const xmlURL = "http://www.w3.org/XML/1998/namespace"
+const (
+	xmlURL      = "http://www.w3.org/XML/1998/namespace"
+	xmlnsPrefix = "xmlns"
+)
 
 // Apply name space translation to name n.
 // The default name space (for Space=="")
 // applies only to element names, not to attribute names.
 func (d *Decoder) translate(n *Name, isElementName bool) {
 	switch {
-	case n.Space == "xmlns":
+	case n.Space == xmlnsPrefix:
 		return
 	case n.Space == "" && !isElementName:
 		return
-	case n.Space == "xml":
+	case n.Space == xmlNamespacePrefix:
 		n.Space = xmlURL
-	case n.Space == "" && n.Local == "xmlns":
+	case n.Space == "" && n.Local == xmlnsPrefix:
 		return
 	}
 	if v, ok := d.ns[n.Space]; ok {
@@ -786,10 +794,9 @@ func (d *Decoder) rawToken() (Token, error) {
 			if d.Strict {
 				d.err = d.syntaxError("attribute name without = in element")
 				return nil, d.err
-			} else {
-				d.ungetc(b)
-				a.Value = a.Name.Local
 			}
+			d.ungetc(b)
+			a.Value = a.Name.Local
 		} else {
 			d.space()
 			data := d.attrval()
@@ -1027,7 +1034,6 @@ Input:
 					if d.err != nil {
 						return nil
 					}
-					ok = false
 				}
 				if b, ok = d.mustgetc(); !ok {
 					return nil
@@ -1837,15 +1843,15 @@ var htmlAutoClose = []string{
 }
 
 var (
-	esc_quot = []byte("&#34;") // shorter than "&quot;"
-	esc_apos = []byte("&#39;") // shorter than "&apos;"
-	esc_amp  = []byte("&amp;")
-	esc_lt   = []byte("&lt;")
-	esc_gt   = []byte("&gt;")
-	esc_tab  = []byte("&#x9;")
-	esc_nl   = []byte("&#xA;")
-	esc_cr   = []byte("&#xD;")
-	esc_fffd = []byte("\uFFFD") // Unicode replacement character
+	escQuot = []byte("&#34;") // shorter than "&quot;"
+	escApos = []byte("&#39;") // shorter than "&apos;"
+	escAmp  = []byte("&amp;")
+	escLT   = []byte("&lt;")
+	escGT   = []byte("&gt;")
+	escTab  = []byte("&#x9;")
+	escNL   = []byte("&#xA;")
+	escCR   = []byte("&#xD;")
+	escFFFD = []byte("\uFFFD") // Unicode replacement character
 )
 
 // EscapeText writes to w the properly escaped XML equivalent
@@ -1865,27 +1871,27 @@ func escapeText(w io.Writer, s []byte, escapeNewline bool) error {
 		i += width
 		switch r {
 		case '"':
-			esc = esc_quot
+			esc = escQuot
 		case '\'':
-			esc = esc_apos
+			esc = escApos
 		case '&':
-			esc = esc_amp
+			esc = escAmp
 		case '<':
-			esc = esc_lt
+			esc = escLT
 		case '>':
-			esc = esc_gt
+			esc = escGT
 		case '\t':
-			esc = esc_tab
+			esc = escTab
 		case '\n':
 			if !escapeNewline {
 				continue
 			}
-			esc = esc_nl
+			esc = escNL
 		case '\r':
-			esc = esc_cr
+			esc = escCR
 		default:
 			if !isInCharacterRange(r) || (r == 0xFFFD && width == 1) {
-				esc = esc_fffd
+				esc = escFFFD
 				break
 			}
 			continue
@@ -1914,24 +1920,24 @@ func (p *printer) EscapeString(s string) {
 		i += width
 		switch r {
 		case '"':
-			esc = esc_quot
+			esc = escQuot
 		case '\'':
-			esc = esc_apos
+			esc = escApos
 		case '&':
-			esc = esc_amp
+			esc = escAmp
 		case '<':
-			esc = esc_lt
+			esc = escLT
 		case '>':
-			esc = esc_gt
+			esc = escGT
 		case '\t':
-			esc = esc_tab
+			esc = escTab
 		case '\n':
-			esc = esc_nl
+			esc = escNL
 		case '\r':
-			esc = esc_cr
+			esc = escCR
 		default:
 			if !isInCharacterRange(r) || (r == 0xFFFD && width == 1) {
-				esc = esc_fffd
+				esc = escFFFD
 				break
 			}
 			continue
