@@ -400,7 +400,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		}
 	}
 	top := tophash(hash)
-	for {
+	for ; b != nil; b = b.overflow(t) {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
 				continue
@@ -417,11 +417,8 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 				return v
 			}
 		}
-		b = b.overflow(t)
-		if b == nil {
-			return unsafe.Pointer(&zeroVal[0])
-		}
 	}
+	return unsafe.Pointer(&zeroVal[0])
 }
 
 func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) {
@@ -455,7 +452,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 		}
 	}
 	top := tophash(hash)
-	for {
+	for ; b != nil; b = b.overflow(t) {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
 				continue
@@ -472,11 +469,8 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 				return v, true
 			}
 		}
-		b = b.overflow(t)
-		if b == nil {
-			return unsafe.Pointer(&zeroVal[0]), false
-		}
 	}
+	return unsafe.Pointer(&zeroVal[0]), false
 }
 
 // returns both key and value. Used by map iterator
@@ -499,7 +493,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 		}
 	}
 	top := tophash(hash)
-	for {
+	for ; b != nil; b = b.overflow(t) {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
 				continue
@@ -516,11 +510,8 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 				return k, v
 			}
 		}
-		b = b.overflow(t)
-		if b == nil {
-			return nil, nil
-		}
 	}
+	return nil, nil
 }
 
 func mapaccess1_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) unsafe.Pointer {
@@ -681,7 +672,8 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	}
 	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
 	top := tophash(hash)
-	for {
+search:
+	for ; b != nil; b = b.overflow(t) {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
 				continue
@@ -711,15 +703,10 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 			}
 			b.tophash[i] = empty
 			h.count--
-			goto done
-		}
-		b = b.overflow(t)
-		if b == nil {
-			goto done
+			break search
 		}
 	}
 
-done:
 	if h.flags&hashWriting == 0 {
 		throw("concurrent map writes")
 	}
