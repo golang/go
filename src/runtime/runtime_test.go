@@ -362,7 +362,7 @@ func TestVersion(t *testing.T) {
 // This allows refactoring for code clarity and re-use without fear that
 // changes to the compiler will cause silent performance regressions.
 func TestIntendedInlining(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() && testenv.Builder() == "" {
 		t.Skip("skipping in short mode")
 	}
 	testenv.MustHaveGoRun(t)
@@ -376,7 +376,7 @@ func TestIntendedInlining(t *testing.T) {
 		m[s] = true
 	}
 
-	cmd := testEnv(exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-m", "runtime"))
+	cmd := testEnv(exec.Command(testenv.GoToolPath(t), "build", "-a", "-gcflags=-m", "runtime"))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Logf("%s", out)
