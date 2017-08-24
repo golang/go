@@ -604,7 +604,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Sym = gc.Duffcopy
 		p.To.Offset = v.AuxInt
 
-	case ssa.OpCopy, ssa.Op386MOVLconvert: // TODO: use MOVLreg for reg->reg copies instead of OpCopy?
+	case ssa.Op386MOVLconvert:
+		if v.Args[0].Reg() != v.Reg() {
+			v.Fatalf("MOVLconvert should be a no-op")
+		}
+	case ssa.OpCopy: // TODO: use MOVLreg for reg->reg copies instead of OpCopy?
 		if v.Type.IsMemory() {
 			return
 		}
