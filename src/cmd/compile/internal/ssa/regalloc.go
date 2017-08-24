@@ -1569,7 +1569,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				if s.f.pass.debug > regDebug {
 					fmt.Printf("delete copied value %s\n", c.LongString())
 				}
-				c.Args[0].Uses--
+				c.RemoveArg(0)
 				f.freeValue(c)
 				delete(s.copies, c)
 				progress = true

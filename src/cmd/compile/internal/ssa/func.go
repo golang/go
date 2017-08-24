@@ -175,13 +175,16 @@ func (f *Func) LogStat(key string, args ...interface{}) {
 	f.Warnl(f.Entry.Pos, "\t%s\t%s%s\t%s", n, key, value, f.Name)
 }
 
-// freeValue frees a value. It must no longer be referenced.
+// freeValue frees a value. It must no longer be referenced or have any args.
 func (f *Func) freeValue(v *Value) {
 	if v.Block == nil {
 		f.Fatalf("trying to free an already freed value")
 	}
 	if v.Uses != 0 {
 		f.Fatalf("value %s still has %d uses", v, v.Uses)
+	}
+	if len(v.Args) != 0 {
+		f.Fatalf("value %s still has %d args", v, len(v.Args))
 	}
 	// Clear everything but ID (which we reuse).
 	id := v.ID
