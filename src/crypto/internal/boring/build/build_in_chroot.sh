@@ -183,6 +183,8 @@ __umodti3:
 	xorl %ecx, %ecx
 	movl %ecx, 0(%ecx)
 	jmp 1b
+
+.section .note.GNU-stack,"",@progbits
 EOF
 clang-4.0 -c -o umod.o umod.s
 
