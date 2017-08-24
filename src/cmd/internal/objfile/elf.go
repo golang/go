@@ -99,6 +99,8 @@ func (f *elfFile) goarch() string {
 		return "amd64"
 	case elf.EM_ARM:
 		return "arm"
+	case elf.EM_AARCH64:
+		return "arm64"
 	case elf.EM_PPC64:
 		if f.elf.ByteOrder == binary.LittleEndian {
 			return "ppc64le"
