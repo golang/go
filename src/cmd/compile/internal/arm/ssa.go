@@ -516,7 +516,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
-	case ssa.OpARMMOVWloadidx:
+	case ssa.OpARMMOVWloadidx, ssa.OpARMMOVBUloadidx, ssa.OpARMMOVBloadidx, ssa.OpARMMOVHUloadidx, ssa.OpARMMOVHloadidx:
 		// this is just shift 0 bits
 		fallthrough
 	case ssa.OpARMMOVWloadshiftLL:
@@ -528,7 +528,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARMMOVWloadshiftRA:
 		p := genshift(s, v.Op.Asm(), 0, v.Args[1].Reg(), v.Reg(), arm.SHIFT_AR, v.AuxInt)
 		p.From.Reg = v.Args[0].Reg()
-	case ssa.OpARMMOVWstoreidx:
+	case ssa.OpARMMOVWstoreidx, ssa.OpARMMOVBstoreidx, ssa.OpARMMOVHstoreidx:
 		// this is just shift 0 bits
 		fallthrough
 	case ssa.OpARMMOVWstoreshiftLL:
