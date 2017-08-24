@@ -222,14 +222,14 @@ func TestWriter(t *testing.T) {
 				Typeflag: TypeReg,
 				Name:     "bad-null.txt",
 				Xattrs:   map[string]string{"null\x00null\x00": "fizzbuzz"},
-			}, ErrHeader},
+			}, headerError{}},
 		},
 	}, {
 		tests: []testFnc{
 			testHeader{Header{
 				Typeflag: TypeReg,
 				Name:     "null\x00.txt",
-			}, ErrHeader},
+			}, headerError{}},
 		},
 	}, {
 		file: "testdata/gnu-utf8.tar",
@@ -376,6 +376,14 @@ func TestWriter(t *testing.T) {
 		},
 	}}
 
+	equalError := func(x, y error) bool {
+		_, ok1 := x.(headerError)
+		_, ok2 := y.(headerError)
+		if ok1 || ok2 {
+			return ok1 && ok2
+		}
+		return x == y
+	}
 	for _, v := range vectors {
 		t.Run(path.Base(v.file), func(t *testing.T) {
 			const maxSize = 10 << 10 // 10KiB
@@ -386,22 +394,22 @@ func TestWriter(t *testing.T) {
 				switch tf := tf.(type) {
 				case testHeader:
 					err := tw.WriteHeader(&tf.hdr)
-					if err != tf.wantErr {
+					if !equalError(err, tf.wantErr) {
 						t.Fatalf("test %d, WriteHeader() = %v, want %v", i, err, tf.wantErr)
 					}
 				case testWrite:
 					got, err := tw.Write([]byte(tf.str))
-					if got != tf.wantCnt || err != tf.wantErr {
+					if got != tf.wantCnt || !equalError(err, tf.wantErr) {
 						t.Fatalf("test %d, Write() = (%d, %v), want (%d, %v)", i, got, err, tf.wantCnt, tf.wantErr)
 					}
 				case testFill:
 					got, err := tw.fillZeros(tf.cnt)
-					if got != tf.wantCnt || err != tf.wantErr {
+					if got != tf.wantCnt || !equalError(err, tf.wantErr) {
 						t.Fatalf("test %d, fillZeros() = (%d, %v), want (%d, %v)", i, got, err, tf.wantCnt, tf.wantErr)
 					}
 				case testClose:
 					err := tw.Close()
-					if err != tf.wantErr {
+					if !equalError(err, tf.wantErr) {
 						t.Fatalf("test %d, Close() = %v, want %v", i, err, tf.wantErr)
 					}
 				default:
@@ -740,8 +748,8 @@ func TestWriterErrors(t *testing.T) {
 	t.Run("NegativeSize", func(t *testing.T) {
 		tw := NewWriter(new(bytes.Buffer))
 		hdr := &Header{Name: "small.txt", Size: -1}
-		if err := tw.WriteHeader(hdr); err != ErrHeader {
-			t.Fatalf("WriteHeader() = nil, want %v", ErrHeader)
+		if err := tw.WriteHeader(hdr); err == nil {
+			t.Fatalf("WriteHeader() = nil, want non-nil error")
 		}
 	})
 

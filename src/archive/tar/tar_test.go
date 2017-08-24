@@ -551,6 +551,10 @@ func TestHeaderAllowedFormats(t *testing.T) {
 		paxHdrs: map[string]string{paxXattr + "foo": "bar"},
 		formats: FormatPAX,
 	}, {
+		header:  &Header{Xattrs: map[string]string{"foo": "bar"}, Format: FormatGNU},
+		paxHdrs: map[string]string{paxXattr + "foo": "bar"},
+		formats: FormatUnknown,
+	}, {
 		header:  &Header{Xattrs: map[string]string{"用戶名": "\x00hello"}},
 		paxHdrs: map[string]string{paxXattr + "用戶名": "\x00hello"},
 		formats: FormatPAX,
@@ -575,6 +579,10 @@ func TestHeaderAllowedFormats(t *testing.T) {
 		paxHdrs: map[string]string{paxMtime: "9223372036854775807"},
 		formats: FormatPAX | FormatGNU,
 	}, {
+		header:  &Header{ModTime: time.Unix(math.MaxInt64, 0), Format: FormatUSTAR},
+		paxHdrs: map[string]string{paxMtime: "9223372036854775807"},
+		formats: FormatUnknown,
+	}, {
 		header:  &Header{ModTime: time.Unix(-1, 0)},
 		paxHdrs: map[string]string{paxMtime: "-1"},
 		formats: FormatPAX | FormatGNU,
@@ -582,6 +590,10 @@ func TestHeaderAllowedFormats(t *testing.T) {
 		header:  &Header{ModTime: time.Unix(-1, 500)},
 		paxHdrs: map[string]string{paxMtime: "-0.9999995"},
 		formats: FormatPAX,
+	}, {
+		header:  &Header{ModTime: time.Unix(-1, 500), Format: FormatGNU},
+		paxHdrs: map[string]string{paxMtime: "-0.9999995"},
+		formats: FormatUnknown,
 	}, {
 		header:  &Header{AccessTime: time.Unix(0, 0)},
 		paxHdrs: map[string]string{paxAtime: "0"},
@@ -594,15 +606,40 @@ func TestHeaderAllowedFormats(t *testing.T) {
 		header:  &Header{ChangeTime: time.Unix(123, 456)},
 		paxHdrs: map[string]string{paxCtime: "123.000000456"},
 		formats: FormatPAX,
+	}, {
+		header:  &Header{ChangeTime: time.Unix(123, 456), Format: FormatGNU},
+		paxHdrs: map[string]string{paxCtime: "123.000000456"},
+		formats: FormatUnknown,
+	}, {
+		header:  &Header{Name: "sparse.db", Size: 1000, SparseHoles: []SparseEntry{{0, 500}}},
+		formats: FormatPAX,
+	}, {
+		header:  &Header{Name: "sparse.db", Size: 1000, Typeflag: TypeGNUSparse, SparseHoles: []SparseEntry{{0, 500}}},
+		formats: FormatGNU,
+	}, {
+		header:  &Header{Name: "sparse.db", Size: 1000, SparseHoles: []SparseEntry{{0, 500}}, Format: FormatGNU},
+		formats: FormatUnknown,
+	}, {
+		header:  &Header{Name: "sparse.db", Size: 1000, Typeflag: TypeGNUSparse, SparseHoles: []SparseEntry{{0, 500}}, Format: FormatPAX},
+		formats: FormatUnknown,
+	}, {
+		header:  &Header{Name: "sparse.db", Size: 1000, SparseHoles: []SparseEntry{{0, 500}}, Format: FormatUSTAR},
+		formats: FormatUnknown,
 	}}
 
 	for i, v := range vectors {
-		formats, paxHdrs := v.header.allowedFormats()
+		formats, paxHdrs, err := v.header.allowedFormats()
 		if formats != v.formats {
-			t.Errorf("test %d, allowedFormats(...): got %v, want %v", i, formats, v.formats)
+			t.Errorf("test %d, allowedFormats(): got %v, want %v", i, formats, v.formats)
 		}
 		if formats&FormatPAX > 0 && !reflect.DeepEqual(paxHdrs, v.paxHdrs) && !(len(paxHdrs) == 0 && len(v.paxHdrs) == 0) {
-			t.Errorf("test %d, allowedFormats(...):\ngot  %v\nwant %s", i, paxHdrs, v.paxHdrs)
+			t.Errorf("test %d, allowedFormats():\ngot  %v\nwant %s", i, paxHdrs, v.paxHdrs)
+		}
+		if (formats != FormatUnknown) && (err != nil) {
+			t.Errorf("test %d, unexpected error: %v", i, err)
+		}
+		if (formats == FormatUnknown) && (err == nil) {
+			t.Errorf("test %d, got nil-error, want non-nil error", i)
 		}
 	}
 }
