@@ -57,7 +57,7 @@ mkdir $chroot/godriver
 cp ../goboringcrypto.h $chroot/godriver
 
 sudo http_proxy=$http_proxy chroot $chroot /root_setup_in_chroot.sh
-sudo chroot --userspec=$USER:$USER $chroot /build_in_chroot.sh
+sudo chroot --userspec=$(id -u):$(id -g) $chroot /build_in_chroot.sh
 cp $chroot/godriver/goboringcrypto_linux_amd64.syso ..
 sha256sum ../goboringcrypto_linux_amd64.syso
 echo DONE
