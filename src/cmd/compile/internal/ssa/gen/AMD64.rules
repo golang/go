@@ -2456,3 +2456,47 @@
 (MOVLstore [off] {sym} ptr a:(ADDLconst [c] l:(MOVLload [off] {sym} ptr2 mem)) mem)
 	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c,off) ->
 	(ADDLconstmem {sym} [makeValAndOff(c,off)] ptr mem)
+
+// float <-> int register moves, with no conversion.
+// These come up when compiling math.{Float{32,64}bits,Float{32,64}frombits}.
+(MOVQload  [off] {sym} ptr (MOVSDstore [off] {sym} ptr val _)) -> (MOVQf2i val)
+(MOVLload  [off] {sym} ptr (MOVSSstore [off] {sym} ptr val _)) -> (MOVLf2i val)
+(MOVSDload [off] {sym} ptr (MOVQstore  [off] {sym} ptr val _)) -> (MOVQi2f val)
+(MOVSSload [off] {sym} ptr (MOVLstore  [off] {sym} ptr val _)) -> (MOVLi2f val)
+
+// Other load-like ops.
+(ADDQmem x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> (ADDQ x (MOVQf2i y))
+(ADDLmem x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> (ADDL x (MOVLf2i y))
+(SUBQmem x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> (SUBQ x (MOVQf2i y))
+(SUBLmem x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> (SUBL x (MOVLf2i y))
+(ANDQmem x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> (ANDQ x (MOVQf2i y))
+(ANDLmem x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> (ANDL x (MOVLf2i y))
+( ORQmem x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> ( ORQ x (MOVQf2i y))
+( ORLmem x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> ( ORL x (MOVLf2i y))
+(XORQmem x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> (XORQ x (MOVQf2i y))
+(XORLmem x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> (XORL x (MOVLf2i y))
+
+(ADDQconstmem [valOff] {sym} ptr (MOVSDstore [ValAndOff(valOff).Off()] {sym} ptr x _)) ->
+  (ADDQconst [ValAndOff(valOff).Val()] (MOVQf2i x))
+(ADDLconstmem [valOff] {sym} ptr (MOVSSstore [ValAndOff(valOff).Off()] {sym} ptr x _)) ->
+  (ADDLconst [ValAndOff(valOff).Val()] (MOVLf2i x))
+
+(ADDSDmem x [off] {sym} ptr (MOVQstore [off] {sym} ptr y _)) -> (ADDSD x (MOVQi2f y))
+(ADDSSmem x [off] {sym} ptr (MOVLstore [off] {sym} ptr y _)) -> (ADDSS x (MOVLi2f y))
+(SUBSDmem x [off] {sym} ptr (MOVQstore [off] {sym} ptr y _)) -> (SUBSD x (MOVQi2f y))
+(SUBSSmem x [off] {sym} ptr (MOVLstore [off] {sym} ptr y _)) -> (SUBSS x (MOVLi2f y))
+(MULSDmem x [off] {sym} ptr (MOVQstore [off] {sym} ptr y _)) -> (MULSD x (MOVQi2f y))
+(MULSSmem x [off] {sym} ptr (MOVLstore [off] {sym} ptr y _)) -> (MULSS x (MOVLi2f y))
+
+// Redirect stores to use the other register set.
+(MOVQstore  [off] {sym} ptr (MOVQf2i val) mem) -> (MOVSDstore [off] {sym} ptr val mem)
+(MOVLstore  [off] {sym} ptr (MOVLf2i val) mem) -> (MOVSSstore [off] {sym} ptr val mem)
+(MOVSDstore [off] {sym} ptr (MOVQi2f val) mem) -> (MOVQstore  [off] {sym} ptr val mem)
+(MOVSSstore [off] {sym} ptr (MOVLi2f val) mem) -> (MOVLstore  [off] {sym} ptr val mem)
+
+// Load args directly into the register class where it will be used.
+// We do this by just modifying the type of the Arg.
+(MOVQf2i <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
+(MOVLf2i <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
+(MOVQi2f <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
+(MOVLi2f <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
