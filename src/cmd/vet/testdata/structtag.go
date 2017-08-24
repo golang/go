@@ -83,15 +83,14 @@ type DuplicateJSONFields struct {
 
 type UnexpectedSpacetest struct {
 	A int `json:"a,omitempty"`
-	B int `json:"b, omitempty"`  // ERROR "suspicious space found in struct tag value"
-	C int `json:"c,omitempty\t"` // ERROR "suspicious space found in struct tag value"
-	D int `json:"d ,omitempty"`
-	E int `json:"e,omitempty, string"` // ERROR "suspicious space found in struct tag value"
-	F int `xml:" f"`                   // ERROR "suspicious space found in struct tag value"
-	G int `xml:"g "`                   // ERROR "suspicious space found in struct tag value"
-	H int `xml:"h ,omitempty"`         // ERROR "suspicious space found in struct tag value"
-	I int `xml:" i"`                   // ERROR "suspicious space found in struct tag value"
-	J int `xml:"j "`                   // ERROR "suspicious space found in struct tag value"
-	K int `xml:"k ,omitempty"`         // ERROR "suspicious space found in struct tag value"
-	L int `foo:" doesn't care "`
+	B int `json:"b, omitempty"` // ERROR "suspicious space found in struct tag value"
+	C int `json:"d ,omitempty"`
+	D int `json:"e,omitempty, string"` // ERROR "suspicious space found in struct tag value"
+	E int `xml:" f"`                   // ERROR "suspicious space found in struct tag value"
+	F int `xml:"g "`                   // ERROR "suspicious space found in struct tag value"
+	G int `xml:"h ,omitempty"`         // ERROR "suspicious space found in struct tag value"
+	H int `xml:" i"`                   // ERROR "suspicious space found in struct tag value"
+	I int `xml:"j "`                   // ERROR "suspicious space found in struct tag value"
+	J int `xml:"k ,omitempty"`         // ERROR "suspicious space found in struct tag value"
+	K int `foo:" doesn't care "`
 }
