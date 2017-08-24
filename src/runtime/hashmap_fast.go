@@ -419,8 +419,12 @@ again:
 		val = add(insertk, bucketCnt*4)
 	}
 
-	// store new key/value at insert position
-	typedmemmove(t.key, insertk, unsafe.Pointer(&key))
+	// store new key at insert position
+	if sys.PtrSize == 4 && t.key.kind&kindNoPointers == 0 && writeBarrier.enabled {
+		writebarrierptr((*uintptr)(insertk), uintptr(key))
+	} else {
+		*(*uint32)(insertk) = key
+	}
 	*inserti = top
 	h.count++
 
@@ -504,8 +508,19 @@ again:
 		val = add(insertk, bucketCnt*8)
 	}
 
-	// store new key/value at insert position
-	typedmemmove(t.key, insertk, unsafe.Pointer(&key))
+	// store new key at insert position
+	if t.key.kind&kindNoPointers == 0 && writeBarrier.enabled {
+		if sys.PtrSize == 8 {
+			writebarrierptr((*uintptr)(insertk), uintptr(key))
+		} else {
+			// There are three ways to squeeze at least one 32 bit pointer into 64 bits.
+			// Give up and call typedmemmove.
+			typedmemmove(t.key, insertk, unsafe.Pointer(&key))
+		}
+	} else {
+		*(*uint64)(insertk) = key
+	}
+
 	*inserti = top
 	h.count++
 
@@ -594,7 +609,7 @@ again:
 		val = add(insertk, bucketCnt*2*sys.PtrSize)
 	}
 
-	// store new key/value at insert position
+	// store new key at insert position
 	*((*stringStruct)(insertk)) = *key
 	*inserti = top
 	h.count++
