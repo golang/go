@@ -33,6 +33,7 @@ type Config struct {
 	ctxt            *obj.Link     // Generic arch information
 	optimize        bool          // Do optimization
 	noDuffDevice    bool          // Don't use Duff's device
+	useSSE          bool          // Use SSE for non-float operations
 	nacl            bool          // GOOS=nacl
 	use387          bool          // GO386=387
 	NeedsFpScratch  bool          // No direct move between GP and FP register sets
@@ -264,11 +265,13 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 	c.ctxt = ctxt
 	c.optimize = optimize
 	c.nacl = objabi.GOOS == "nacl"
+	c.useSSE = true
 
-	// Don't use Duff's device on Plan 9 AMD64, because floating
-	// point operations are not allowed in note handler.
+	// Don't use Duff's device nor SSE on Plan 9 AMD64, because
+	// floating point operations are not allowed in note handler.
 	if objabi.GOOS == "plan9" && arch == "amd64" {
 		c.noDuffDevice = true
+		c.useSSE = false
 	}
 
 	if c.nacl {
