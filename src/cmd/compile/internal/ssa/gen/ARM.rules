@@ -499,6 +499,10 @@
 (MOVWloadshiftLL ptr idx [c] (MOVWstoreshiftLL ptr2 idx [d] x _)) && c==d && isSamePtr(ptr, ptr2) -> x
 (MOVWloadshiftRL ptr idx [c] (MOVWstoreshiftRL ptr2 idx [d] x _)) && c==d && isSamePtr(ptr, ptr2) -> x
 (MOVWloadshiftRA ptr idx [c] (MOVWstoreshiftRA ptr2 idx [d] x _)) && c==d && isSamePtr(ptr, ptr2) -> x
+(MOVBUloadidx ptr idx (MOVBstoreidx ptr2 idx x _)) && isSamePtr(ptr, ptr2) -> (MOVBUreg x)
+(MOVBloadidx ptr idx (MOVBstoreidx ptr2 idx x _)) && isSamePtr(ptr, ptr2) -> (MOVBreg x)
+(MOVHUloadidx ptr idx (MOVHstoreidx ptr2 idx x _)) && isSamePtr(ptr, ptr2) -> (MOVHUreg x)
+(MOVHloadidx ptr idx (MOVHstoreidx ptr2 idx x _)) && isSamePtr(ptr, ptr2) -> (MOVHreg x)
 
 // fold constant into arithmatic ops
 (ADD x (MOVWconst [c])) -> (ADDconst [c] x)
@@ -1152,13 +1156,31 @@
 (MOVWstore [0] {sym} (ADDshiftLL ptr idx [c]) val mem) && sym == nil && !config.nacl -> (MOVWstoreshiftLL ptr idx [c] val mem)
 (MOVWstore [0] {sym} (ADDshiftRL ptr idx [c]) val mem) && sym == nil && !config.nacl -> (MOVWstoreshiftRL ptr idx [c] val mem)
 (MOVWstore [0] {sym} (ADDshiftRA ptr idx [c]) val mem) && sym == nil && !config.nacl -> (MOVWstoreshiftRA ptr idx [c] val mem)
+(MOVBUload [0] {sym} (ADD ptr idx) mem) && sym == nil && !config.nacl -> (MOVBUloadidx ptr idx mem)
+(MOVBload [0] {sym} (ADD ptr idx) mem) && sym == nil && !config.nacl -> (MOVBloadidx ptr idx mem)
+(MOVBstore [0] {sym} (ADD ptr idx) val mem) && sym == nil && !config.nacl -> (MOVBstoreidx ptr idx val mem)
+(MOVHUload [0] {sym} (ADD ptr idx) mem) && sym == nil && !config.nacl -> (MOVHUloadidx ptr idx mem)
+(MOVHload [0] {sym} (ADD ptr idx) mem) && sym == nil && !config.nacl -> (MOVHloadidx ptr idx mem)
+(MOVHstore [0] {sym} (ADD ptr idx) val mem) && sym == nil && !config.nacl -> (MOVHstoreidx ptr idx val mem)
 
 // constant folding in indexed loads and stores
 (MOVWloadidx ptr (MOVWconst [c]) mem) -> (MOVWload [c] ptr mem)
 (MOVWloadidx (MOVWconst [c]) ptr mem) -> (MOVWload [c] ptr mem)
+(MOVBloadidx ptr (MOVWconst [c]) mem) -> (MOVBload [c] ptr mem)
+(MOVBloadidx (MOVWconst [c]) ptr mem) -> (MOVBload [c] ptr mem)
+(MOVBUloadidx ptr (MOVWconst [c]) mem) -> (MOVBUload [c] ptr mem)
+(MOVBUloadidx (MOVWconst [c]) ptr mem) -> (MOVBUload [c] ptr mem)
+(MOVHUloadidx ptr (MOVWconst [c]) mem) -> (MOVHUload [c] ptr mem)
+(MOVHUloadidx (MOVWconst [c]) ptr mem) -> (MOVHUload [c] ptr mem)
+(MOVHloadidx ptr (MOVWconst [c]) mem) -> (MOVHload [c] ptr mem)
+(MOVHloadidx (MOVWconst [c]) ptr mem) -> (MOVHload [c] ptr mem)
 
 (MOVWstoreidx ptr (MOVWconst [c]) val mem) -> (MOVWstore [c] ptr val mem)
 (MOVWstoreidx (MOVWconst [c]) ptr val mem) -> (MOVWstore [c] ptr val mem)
+(MOVBstoreidx ptr (MOVWconst [c]) val mem) -> (MOVBstore [c] ptr val mem)
+(MOVBstoreidx (MOVWconst [c]) ptr val mem) -> (MOVBstore [c] ptr val mem)
+(MOVHstoreidx ptr (MOVWconst [c]) val mem) -> (MOVHstore [c] ptr val mem)
+(MOVHstoreidx (MOVWconst [c]) ptr val mem) -> (MOVHstore [c] ptr val mem)
 
 (MOVWloadidx ptr (SLLconst idx [c]) mem) -> (MOVWloadshiftLL ptr idx [c] mem)
 (MOVWloadidx (SLLconst idx [c]) ptr mem) -> (MOVWloadshiftLL ptr idx [c] mem)
