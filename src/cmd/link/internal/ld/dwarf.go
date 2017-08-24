@@ -1059,6 +1059,9 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 	var pcfile Pciter
 	var pcline Pciter
 	for _, s := range ctxt.Textp {
+		if s.FuncInfo == nil {
+			continue
+		}
 
 		epc = s.Value + s.Size
 		epcs = s
@@ -1077,10 +1080,6 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 			}
 		}
 		funcs = append(funcs, dsym)
-
-		if s.FuncInfo == nil {
-			continue
-		}
 
 		finddebugruntimepath(s)
 
