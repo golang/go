@@ -22,6 +22,7 @@ import (
 	"text/tabwriter"
 
 	"golang.org/x/arch/arm/armasm"
+	"golang.org/x/arch/arm64/arm64asm"
 	"golang.org/x/arch/ppc64/ppc64asm"
 	"golang.org/x/arch/x86/x86asm"
 )
@@ -348,6 +349,17 @@ func disasm_arm(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder) (
 	return text, size
 }
 
+func disasm_arm64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.ByteOrder) (string, int) {
+	inst, err := arm64asm.Decode(code)
+	var text string
+	if err != nil || inst.Op == 0 {
+		text = "?"
+	} else {
+		text = arm64asm.GoSyntax(inst, pc, lookup, textReader{code, pc})
+	}
+	return text, 4
+}
+
 func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.ByteOrder) (string, int) {
 	inst, err := ppc64asm.Decode(code, byteOrder)
 	var text string
@@ -365,6 +377,7 @@ var disasms = map[string]disasmFunc{
 	"386":     disasm_386,
 	"amd64":   disasm_amd64,
 	"arm":     disasm_arm,
+	"arm64":   disasm_arm64,
 	"ppc64":   disasm_ppc64,
 	"ppc64le": disasm_ppc64,
 }
@@ -373,6 +386,7 @@ var byteOrders = map[string]binary.ByteOrder{
 	"386":     binary.LittleEndian,
 	"amd64":   binary.LittleEndian,
 	"arm":     binary.LittleEndian,
+	"arm64":   binary.LittleEndian,
 	"ppc64":   binary.BigEndian,
 	"ppc64le": binary.LittleEndian,
 	"s390x":   binary.BigEndian,
