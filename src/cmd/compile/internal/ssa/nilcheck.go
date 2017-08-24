@@ -126,7 +126,7 @@ func nilcheckelim(f *Func) {
 							f.Warnl(v.Pos, "removed nil check")
 						}
 						v.reset(OpUnknown)
-						// TODO: f.freeValue(v)
+						f.freeValue(v)
 						i--
 						continue
 					}
