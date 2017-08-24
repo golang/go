@@ -13,7 +13,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"unicode"
 )
 
 func init() {
@@ -195,7 +194,7 @@ func validateStructTag(tag string) error {
 			value = value[comma+1:]
 		}
 
-		if strings.IndexFunc(value, unicode.IsSpace) >= 0 {
+		if strings.IndexByte(value, ' ') >= 0 {
 			return errTagValueSpace
 		}
 	}
