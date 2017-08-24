@@ -760,33 +760,6 @@ func tointerface0(t *types.Type, l []*Node) *types.Type {
 	return t
 }
 
-func embedded(s *types.Sym, pkg *types.Pkg) *Node {
-	const (
-		CenterDot = 0xB7
-	)
-	// Names sometimes have disambiguation junk
-	// appended after a center dot. Discard it when
-	// making the name for the embedded struct field.
-	name := s.Name
-
-	if i := strings.Index(s.Name, string(CenterDot)); i >= 0 {
-		name = s.Name[:i]
-	}
-
-	var n *Node
-	if exportname(name) {
-		n = newname(lookup(name))
-	} else if s.Pkg == builtinpkg {
-		// The name of embedded builtins belongs to pkg.
-		n = newname(pkg.Lookup(name))
-	} else {
-		n = newname(s.Pkg.Lookup(name))
-	}
-	n = nod(ODCLFIELD, n, oldname(s))
-	n.SetEmbedded(true)
-	return n
-}
-
 func fakeRecv() *Node {
 	return anonfield(types.FakeRecvType())
 }

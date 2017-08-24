@@ -689,7 +689,11 @@ func (p *noder) embedded(typ syntax.Expr) *Node {
 		}
 		typ = op.X
 	}
-	n := embedded(p.packname(typ), localpkg)
+
+	sym := p.packname(typ)
+	n := nod(ODCLFIELD, newname(lookup(sym.Name)), oldname(sym))
+	n.SetEmbedded(true)
+
 	if isStar {
 		n.Right = p.nod(op, OIND, n.Right, nil)
 	}
