@@ -232,6 +232,22 @@ func TestWriter(t *testing.T) {
 			}, headerError{}},
 		},
 	}, {
+		file: "testdata/pax-records.tar",
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag: TypeReg,
+				Name:     "file",
+				Uname:    strings.Repeat("long", 10),
+				PAXRecords: map[string]string{
+					"path":           "FILE", // Should be ignored
+					"GNU.sparse.map": "0,0",  // Should be ignored
+					"comment":        "Hello, 世界",
+					"GOLANG.pkg":     "tar",
+				},
+			}, nil},
+			testClose{nil},
+		},
+	}, {
 		file: "testdata/gnu-utf8.tar",
 		tests: []testFnc{
 			testHeader{Header{

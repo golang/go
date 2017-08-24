@@ -413,7 +413,7 @@ func TestFormatPAXRecord(t *testing.T) {
 		{"xhello", "\x00world", "17 xhello=\x00world\n", true},
 		{"path", "null\x00", "", false},
 		{"null\x00", "value", "", false},
-		{paxXattr + "key", "null\x00", "26 SCHILY.xattr.key=null\x00\n", true},
+		{paxSchilyXattr + "key", "null\x00", "26 SCHILY.xattr.key=null\x00\n", true},
 	}
 
 	for _, v := range vectors {
