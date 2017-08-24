@@ -1874,6 +1874,7 @@ func addgonote(ctxt *Link, sectionName string, tag uint32, desc []byte) {
 		s.P = append(s.P, 0)
 	}
 	s.Size = int64(len(s.P))
+	s.Align = 4
 }
 
 func (ctxt *Link) doelf() {
