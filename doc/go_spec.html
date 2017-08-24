@@ -6158,7 +6158,7 @@ of <code>make</code>,
 and no explicit initialization is provided, the variable or value is
 given a default value.  Each element of such a variable or value is
 set to the <i>zero value</i> for its type: <code>false</code> for booleans,
-<code>0</code> for integers, <code>0.0</code> for floats, <code>""</code>
+<code>0</code> for numeric types, <code>""</code>
 for strings, and <code>nil</code> for pointers, functions, interfaces, slices, channels, and maps.
 This initialization is done recursively, so for instance each element of an
 array of structs will have its fields zeroed if no value is specified.
