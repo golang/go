@@ -221,16 +221,12 @@ func TestRoundTrip(t *testing.T) {
 	var b bytes.Buffer
 	tw := NewWriter(&b)
 	hdr := &Header{
-		Name: "file.txt",
-		Uid:  1 << 21, // too big for 8 octal digits
-		Size: int64(len(data)),
-		// AddDate to strip monotonic clock reading,
-		// and Round to discard sub-second precision,
-		// both of which are not included in the tar header
-		// and would otherwise break the round-trip check
-		// below.
-		ModTime: time.Now().AddDate(0, 0, 0).Round(1 * time.Second),
-		Format:  FormatPAX,
+		Name:       "file.txt",
+		Uid:        1 << 21, // Too big for 8 octal digits
+		Size:       int64(len(data)),
+		ModTime:    time.Now().Round(time.Second),
+		PAXRecords: map[string]string{"uid": "2097152"},
+		Format:     FormatPAX,
 	}
 	if err := tw.WriteHeader(hdr); err != nil {
 		t.Fatalf("tw.WriteHeader: %v", err)
@@ -548,15 +544,15 @@ func TestHeaderAllowedFormats(t *testing.T) {
 		formats: FormatUSTAR | FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{Xattrs: map[string]string{"foo": "bar"}},
-		paxHdrs: map[string]string{paxXattr + "foo": "bar"},
+		paxHdrs: map[string]string{paxSchilyXattr + "foo": "bar"},
 		formats: FormatPAX,
 	}, {
 		header:  &Header{Xattrs: map[string]string{"foo": "bar"}, Format: FormatGNU},
-		paxHdrs: map[string]string{paxXattr + "foo": "bar"},
+		paxHdrs: map[string]string{paxSchilyXattr + "foo": "bar"},
 		formats: FormatUnknown,
 	}, {
 		header:  &Header{Xattrs: map[string]string{"用戶名": "\x00hello"}},
-		paxHdrs: map[string]string{paxXattr + "用戶名": "\x00hello"},
+		paxHdrs: map[string]string{paxSchilyXattr + "用戶名": "\x00hello"},
 		formats: FormatPAX,
 	}, {
 		header:  &Header{Xattrs: map[string]string{"foo=bar": "baz"}},

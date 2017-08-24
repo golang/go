@@ -66,8 +66,53 @@ const (
 	TypeGNUSparse     = 'S'    // sparse file
 )
 
+// Keywords for PAX extended header records.
+const (
+	paxNone     = "" // Indicates that no PAX key is suitable
+	paxPath     = "path"
+	paxLinkpath = "linkpath"
+	paxSize     = "size"
+	paxUid      = "uid"
+	paxGid      = "gid"
+	paxUname    = "uname"
+	paxGname    = "gname"
+	paxMtime    = "mtime"
+	paxAtime    = "atime"
+	paxCtime    = "ctime"   // Removed from later revision of PAX spec, but was valid
+	paxCharset  = "charset" // Currently unused
+	paxComment  = "comment" // Currently unused
+
+	paxSchilyXattr = "SCHILY.xattr."
+
+	// Keywords for GNU sparse files in a PAX extended header.
+	paxGNUSparse          = "GNU.sparse."
+	paxGNUSparseNumBlocks = "GNU.sparse.numblocks"
+	paxGNUSparseOffset    = "GNU.sparse.offset"
+	paxGNUSparseNumBytes  = "GNU.sparse.numbytes"
+	paxGNUSparseMap       = "GNU.sparse.map"
+	paxGNUSparseName      = "GNU.sparse.name"
+	paxGNUSparseMajor     = "GNU.sparse.major"
+	paxGNUSparseMinor     = "GNU.sparse.minor"
+	paxGNUSparseSize      = "GNU.sparse.size"
+	paxGNUSparseRealSize  = "GNU.sparse.realsize"
+)
+
+// basicKeys is a set of the PAX keys for which we have built-in support.
+// This does not contain "charset" or "comment", which are both PAX-specific,
+// so adding them as first-class features of Header is unlikely.
+// Users can use the PAXRecords field to set it themselves.
+var basicKeys = map[string]bool{
+	paxPath: true, paxLinkpath: true, paxSize: true, paxUid: true, paxGid: true,
+	paxUname: true, paxGname: true, paxMtime: true, paxAtime: true, paxCtime: true,
+}
+
 // A Header represents a single header in a tar archive.
 // Some fields may not be populated.
+//
+// For forward compatibility, users that retrieve a Header from Reader.Next,
+// mutate it in some ways, and then pass it back to Writer.WriteHeader
+// should do so by creating a new Header and copying the fields
+// that they are interested in preserving.
 type Header struct {
 	Name       string    // name of header file entry
 	Mode       int64     // permission and mode bits
@@ -83,7 +128,6 @@ type Header struct {
 	Devminor   int64     // minor number of character or block device
 	AccessTime time.Time // access time
 	ChangeTime time.Time // status change time
-	Xattrs     map[string]string
 
 	// SparseHoles represents a sequence of holes in a sparse file.
 	//
@@ -98,6 +142,31 @@ type Header struct {
 	// the holes must be sorted in ascending order,
 	// not overlap with each other, and not extend past the specified Size.
 	SparseHoles []SparseEntry
+
+	// Xattrs stores extended attributes as PAX records under the
+	// "SCHILY.xattr." namespace.
+	//
+	// The following are semantically equivalent:
+	//  h.Xattrs[key] = value
+	//  h.PAXRecords["SCHILY.xattr."+key] = value
+	//
+	// When Writer.WriteHeader is called, the contents of Xattrs will take
+	// precedence over those in PAXRecords.
+	//
+	// Deprecated: Use PAXRecords instead.
+	Xattrs map[string]string
+
+	// PAXRecords is a map of PAX extended header records.
+	//
+	// User-defined records should have keys of the following form:
+	//	VENDOR.keyword
+	// Where VENDOR is some namespace in all uppercase, and keyword may
+	// not contain the '=' character (e.g., "GOLANG.pkg.version").
+	// The key and value should be non-empty UTF-8 strings.
+	//
+	// When Writer.WriteHeader is called, PAX records derived from the
+	// the other fields in Header take precedence over PAXRecords.
+	PAXRecords map[string]string
 
 	// Format specifies the format of the tar header.
 	//
@@ -334,9 +403,20 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
 	// Check PAX records.
 	if len(h.Xattrs) > 0 {
 		for k, v := range h.Xattrs {
-			paxHdrs[paxXattr+k] = v
+			paxHdrs[paxSchilyXattr+k] = v
 		}
 		whyOnlyPAX = "only PAX supports Xattrs"
+		format.mayOnlyBe(FormatPAX)
+	}
+	if len(h.PAXRecords) > 0 {
+		for k, v := range h.PAXRecords {
+			_, exists := paxHdrs[k]
+			ignore := exists || basicKeys[k] || strings.HasPrefix(k, paxGNUSparse)
+			if !ignore {
+				paxHdrs[k] = v
+			}
+		}
+		whyOnlyPAX = "only PAX supports PAXRecords"
 		format.mayOnlyBe(FormatPAX)
 	}
 	for k, v := range paxHdrs {
@@ -497,35 +577,6 @@ const (
 	c_ISSOCK = 0140000 // Socket
 )
 
-// Keywords for the PAX Extended Header
-const (
-	paxAtime    = "atime"
-	paxCharset  = "charset"
-	paxComment  = "comment"
-	paxCtime    = "ctime" // please note that ctime is not a valid pax header.
-	paxGid      = "gid"
-	paxGname    = "gname"
-	paxLinkpath = "linkpath"
-	paxMtime    = "mtime"
-	paxPath     = "path"
-	paxSize     = "size"
-	paxUid      = "uid"
-	paxUname    = "uname"
-	paxXattr    = "SCHILY.xattr."
-	paxNone     = ""
-
-	// Keywords for GNU sparse files in a PAX extended header.
-	paxGNUSparseNumBlocks = "GNU.sparse.numblocks"
-	paxGNUSparseOffset    = "GNU.sparse.offset"
-	paxGNUSparseNumBytes  = "GNU.sparse.numbytes"
-	paxGNUSparseMap       = "GNU.sparse.map"
-	paxGNUSparseName      = "GNU.sparse.name"
-	paxGNUSparseMajor     = "GNU.sparse.major"
-	paxGNUSparseMinor     = "GNU.sparse.minor"
-	paxGNUSparseSize      = "GNU.sparse.size"
-	paxGNUSparseRealSize  = "GNU.sparse.realsize"
-)
-
 // FileInfoHeader creates a partially-populated Header from fi.
 // If fi describes a symlink, FileInfoHeader records link as the link target.
 // If fi describes a directory, a slash is appended to the name.
@@ -599,6 +650,12 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 		}
 		if sys.SparseHoles != nil {
 			h.SparseHoles = append([]SparseEntry{}, sys.SparseHoles...)
+		}
+		if sys.PAXRecords != nil {
+			h.PAXRecords = make(map[string]string)
+			for k, v := range sys.PAXRecords {
+				h.PAXRecords[k] = v
+			}
 		}
 	}
 	if sysStat != nil {

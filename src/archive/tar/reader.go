@@ -4,9 +4,6 @@
 
 package tar
 
-// TODO(dsymonds):
-//   - pax extensions
-
 import (
 	"bytes"
 	"io"
@@ -57,7 +54,8 @@ func (tr *Reader) Next() (*Header, error) {
 }
 
 func (tr *Reader) next() (*Header, error) {
-	var extHdrs map[string]string
+	var paxHdrs map[string]string
+	var gnuLongName, gnuLongLink string
 
 	// Externally, Next iterates through the tar archive as if it is a series of
 	// files. Internally, the tar format often uses fake "files" to add meta
@@ -89,7 +87,7 @@ loop:
 		switch hdr.Typeflag {
 		case TypeXHeader:
 			format.mayOnlyBe(FormatPAX)
-			extHdrs, err = parsePAX(tr)
+			paxHdrs, err = parsePAX(tr)
 			if err != nil {
 				return nil, err
 			}
@@ -101,27 +99,26 @@ loop:
 				return nil, err
 			}
 
-			// Convert GNU extensions to use PAX headers.
-			if extHdrs == nil {
-				extHdrs = make(map[string]string)
-			}
 			var p parser
 			switch hdr.Typeflag {
 			case TypeGNULongName:
-				extHdrs[paxPath] = p.parseString(realname)
+				gnuLongName = p.parseString(realname)
 			case TypeGNULongLink:
-				extHdrs[paxLinkpath] = p.parseString(realname)
-			}
-			if p.err != nil {
-				return nil, p.err
+				gnuLongLink = p.parseString(realname)
 			}
 			continue loop // This is a meta header affecting the next header
 		default:
 			// The old GNU sparse format is handled here since it is technically
 			// just a regular file with additional attributes.
 
-			if err := mergePAX(hdr, extHdrs); err != nil {
+			if err := mergePAX(hdr, paxHdrs); err != nil {
 				return nil, err
+			}
+			if gnuLongName != "" {
+				hdr.Name = gnuLongName
+			}
+			if gnuLongLink != "" {
+				hdr.Linkname = gnuLongLink
 			}
 
 			// The extended headers may have updated the size.
@@ -132,7 +129,7 @@ loop:
 
 			// Sparse formats rely on being able to read from the logical data
 			// section; there must be a preceding call to handleRegularFile.
-			if err := tr.handleSparseFile(hdr, rawHdr, extHdrs); err != nil {
+			if err := tr.handleSparseFile(hdr, rawHdr); err != nil {
 				return nil, err
 			}
 
@@ -165,13 +162,13 @@ func (tr *Reader) handleRegularFile(hdr *Header) error {
 
 // handleSparseFile checks if the current file is a sparse format of any type
 // and sets the curr reader appropriately.
-func (tr *Reader) handleSparseFile(hdr *Header, rawHdr *block, extHdrs map[string]string) error {
+func (tr *Reader) handleSparseFile(hdr *Header, rawHdr *block) error {
 	var spd sparseDatas
 	var err error
 	if hdr.Typeflag == TypeGNUSparse {
 		spd, err = tr.readOldGNUSparseMap(hdr, rawHdr)
 	} else {
-		spd, err = tr.readGNUSparsePAXHeaders(hdr, extHdrs)
+		spd, err = tr.readGNUSparsePAXHeaders(hdr)
 	}
 
 	// If sp is non-nil, then this is a sparse file.
@@ -191,10 +188,10 @@ func (tr *Reader) handleSparseFile(hdr *Header, rawHdr *block, extHdrs map[strin
 // If they are found, then this function reads the sparse map and returns it.
 // This assumes that 0.0 headers have already been converted to 0.1 headers
 // by the the PAX header parsing logic.
-func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header, extHdrs map[string]string) (sparseDatas, error) {
+func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header) (sparseDatas, error) {
 	// Identify the version of GNU headers.
 	var is1x0 bool
-	major, minor := extHdrs[paxGNUSparseMajor], extHdrs[paxGNUSparseMinor]
+	major, minor := hdr.PAXRecords[paxGNUSparseMajor], hdr.PAXRecords[paxGNUSparseMinor]
 	switch {
 	case major == "0" && (minor == "0" || minor == "1"):
 		is1x0 = false
@@ -202,7 +199,7 @@ func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header, extHdrs map[string]string
 		is1x0 = true
 	case major != "" || minor != "":
 		return nil, nil // Unknown GNU sparse PAX version
-	case extHdrs[paxGNUSparseMap] != "":
+	case hdr.PAXRecords[paxGNUSparseMap] != "":
 		is1x0 = false // 0.0 and 0.1 did not have explicit version records, so guess
 	default:
 		return nil, nil // Not a PAX format GNU sparse file.
@@ -210,12 +207,12 @@ func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header, extHdrs map[string]string
 	hdr.Format.mayOnlyBe(FormatPAX)
 
 	// Update hdr from GNU sparse PAX headers.
-	if name := extHdrs[paxGNUSparseName]; name != "" {
+	if name := hdr.PAXRecords[paxGNUSparseName]; name != "" {
 		hdr.Name = name
 	}
-	size := extHdrs[paxGNUSparseSize]
+	size := hdr.PAXRecords[paxGNUSparseSize]
 	if size == "" {
-		size = extHdrs[paxGNUSparseRealSize]
+		size = hdr.PAXRecords[paxGNUSparseRealSize]
 	}
 	if size != "" {
 		n, err := strconv.ParseInt(size, 10, 64)
@@ -229,7 +226,7 @@ func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header, extHdrs map[string]string
 	if is1x0 {
 		return readGNUSparseMap1x0(tr.curr)
 	} else {
-		return readGNUSparseMap0x1(extHdrs)
+		return readGNUSparseMap0x1(hdr.PAXRecords)
 	}
 }
 
@@ -265,17 +262,18 @@ func mergePAX(hdr *Header, headers map[string]string) (err error) {
 		case paxSize:
 			hdr.Size, err = strconv.ParseInt(v, 10, 64)
 		default:
-			if strings.HasPrefix(k, paxXattr) {
+			if strings.HasPrefix(k, paxSchilyXattr) {
 				if hdr.Xattrs == nil {
 					hdr.Xattrs = make(map[string]string)
 				}
-				hdr.Xattrs[k[len(paxXattr):]] = v
+				hdr.Xattrs[k[len(paxSchilyXattr):]] = v
 			}
 		}
 		if err != nil {
 			return ErrHeader
 		}
 	}
+	hdr.PAXRecords = headers
 	return nil
 }
 
@@ -293,7 +291,7 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 	// headers since 0.0 headers were not PAX compliant.
 	var sparseMap []string
 
-	extHdrs := make(map[string]string)
+	paxHdrs := make(map[string]string)
 	for len(sbuf) > 0 {
 		key, value, residual, err := parsePAXRecord(sbuf)
 		if err != nil {
@@ -314,16 +312,16 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 			// According to PAX specification, a value is stored only if it is
 			// non-empty. Otherwise, the key is deleted.
 			if len(value) > 0 {
-				extHdrs[key] = value
+				paxHdrs[key] = value
 			} else {
-				delete(extHdrs, key)
+				delete(paxHdrs, key)
 			}
 		}
 	}
 	if len(sparseMap) > 0 {
-		extHdrs[paxGNUSparseMap] = strings.Join(sparseMap, ",")
+		paxHdrs[paxGNUSparseMap] = strings.Join(sparseMap, ",")
 	}
-	return extHdrs, nil
+	return paxHdrs, nil
 }
 
 // readHeader reads the next block header and assumes that the underlying reader
@@ -570,17 +568,17 @@ func readGNUSparseMap1x0(r io.Reader) (sparseDatas, error) {
 
 // readGNUSparseMap0x1 reads the sparse map as stored in GNU's PAX sparse format
 // version 0.1. The sparse map is stored in the PAX headers.
-func readGNUSparseMap0x1(extHdrs map[string]string) (sparseDatas, error) {
+func readGNUSparseMap0x1(paxHdrs map[string]string) (sparseDatas, error) {
 	// Get number of entries.
 	// Use integer overflow resistant math to check this.
-	numEntriesStr := extHdrs[paxGNUSparseNumBlocks]
+	numEntriesStr := paxHdrs[paxGNUSparseNumBlocks]
 	numEntries, err := strconv.ParseInt(numEntriesStr, 10, 0) // Intentionally parse as native int
 	if err != nil || numEntries < 0 || int(2*numEntries) < int(numEntries) {
 		return nil, ErrHeader
 	}
 
 	// There should be two numbers in sparseMap for each entry.
-	sparseMap := strings.Split(extHdrs[paxGNUSparseMap], ",")
+	sparseMap := strings.Split(paxHdrs[paxGNUSparseMap], ",")
 	if len(sparseMap) == 1 && sparseMap[0] == "" {
 		sparseMap = sparseMap[:0]
 	}
