@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -30,6 +31,22 @@ var (
 	errUnrefData       = errors.New("tar: sparse file contains unreferenced data")
 	errWriteHole       = errors.New("tar: write non-NUL byte in sparse hole")
 )
+
+type headerError []string
+
+func (he headerError) Error() string {
+	const prefix = "tar: cannot encode header"
+	var ss []string
+	for _, s := range he {
+		if s != "" {
+			ss = append(ss, s)
+		}
+	}
+	if len(ss) == 0 {
+		return prefix
+	}
+	return fmt.Sprintf("%s: %v", prefix, strings.Join(ss, "; and "))
+}
 
 // Header type flags.
 const (
@@ -215,62 +232,73 @@ func (h *Header) FileInfo() os.FileInfo {
 	return headerFileInfo{h}
 }
 
-// allowedFormats determines which formats can be used. The value returned
-// is the logical OR of multiple possible formats. If the value is
-// FormatUnknown, then the input Header cannot be encoded.
+// allowedFormats determines which formats can be used.
+// The value returned is the logical OR of multiple possible formats.
+// If the value is FormatUnknown, then the input Header cannot be encoded
+// and an error is returned explaining why.
 //
 // As a by-product of checking the fields, this function returns paxHdrs, which
 // contain all fields that could not be directly encoded.
-func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string) {
+func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err error) {
 	format = FormatUSTAR | FormatPAX | FormatGNU
 	paxHdrs = make(map[string]string)
 
-	verifyString := func(s string, size int, paxKey string) {
+	var whyNoUSTAR, whyNoPAX, whyNoGNU string
+	verifyString := func(s string, size int, name, paxKey string) {
 		// NUL-terminator is optional for path and linkpath.
 		// Technically, it is required for uname and gname,
 		// but neither GNU nor BSD tar checks for it.
 		tooLong := len(s) > size
 		allowLongGNU := paxKey == paxPath || paxKey == paxLinkpath
 		if hasNUL(s) || (tooLong && !allowLongGNU) {
+			whyNoGNU = fmt.Sprintf("GNU cannot encode %s=%q", name, s)
 			format.mustNotBe(FormatGNU)
 		}
 		if !isASCII(s) || tooLong {
 			canSplitUSTAR := paxKey == paxPath
 			if _, _, ok := splitUSTARPath(s); !canSplitUSTAR || !ok {
+				whyNoUSTAR = fmt.Sprintf("USTAR cannot encode %s=%q", name, s)
 				format.mustNotBe(FormatUSTAR)
 			}
 			if paxKey == paxNone {
+				whyNoPAX = fmt.Sprintf("PAX cannot encode %s=%q", name, s)
 				format.mustNotBe(FormatPAX)
 			} else {
 				paxHdrs[paxKey] = s
 			}
 		}
 	}
-	verifyNumeric := func(n int64, size int, paxKey string) {
+	verifyNumeric := func(n int64, size int, name, paxKey string) {
 		if !fitsInBase256(size, n) {
+			whyNoGNU = fmt.Sprintf("GNU cannot encode %s=%d", name, n)
 			format.mustNotBe(FormatGNU)
 		}
 		if !fitsInOctal(size, n) {
+			whyNoUSTAR = fmt.Sprintf("USTAR cannot encode %s=%d", name, n)
 			format.mustNotBe(FormatUSTAR)
 			if paxKey == paxNone {
+				whyNoPAX = fmt.Sprintf("PAX cannot encode %s=%d", name, n)
 				format.mustNotBe(FormatPAX)
 			} else {
 				paxHdrs[paxKey] = strconv.FormatInt(n, 10)
 			}
 		}
 	}
-	verifyTime := func(ts time.Time, size int, paxKey string) {
+	verifyTime := func(ts time.Time, size int, name, paxKey string) {
 		if ts.IsZero() {
 			return // Always okay
 		}
 		needsNano := ts.Nanosecond() != 0
 		hasFieldUSTAR := paxKey == paxMtime
 		if !fitsInBase256(size, ts.Unix()) || needsNano {
+			whyNoGNU = fmt.Sprintf("GNU cannot encode %s=%v", name, ts)
 			format.mustNotBe(FormatGNU)
 		}
 		if !fitsInOctal(size, ts.Unix()) || needsNano || !hasFieldUSTAR {
+			whyNoUSTAR = fmt.Sprintf("USTAR cannot encode %s=%v", name, ts)
 			format.mustNotBe(FormatUSTAR)
 			if paxKey == paxNone {
+				whyNoPAX = fmt.Sprintf("PAX cannot encode %s=%v", name, ts)
 				format.mustNotBe(FormatPAX)
 			} else {
 				paxHdrs[paxKey] = formatPAXTime(ts)
@@ -278,61 +306,86 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string) {
 		}
 	}
 
+	// Check basic fields.
 	var blk block
 	v7 := blk.V7()
 	ustar := blk.USTAR()
 	gnu := blk.GNU()
-	verifyString(h.Name, len(v7.Name()), paxPath)
-	verifyString(h.Linkname, len(v7.LinkName()), paxLinkpath)
-	verifyString(h.Uname, len(ustar.UserName()), paxUname)
-	verifyString(h.Gname, len(ustar.GroupName()), paxGname)
-	verifyNumeric(h.Mode, len(v7.Mode()), paxNone)
-	verifyNumeric(int64(h.Uid), len(v7.UID()), paxUid)
-	verifyNumeric(int64(h.Gid), len(v7.GID()), paxGid)
-	verifyNumeric(h.Size, len(v7.Size()), paxSize)
-	verifyNumeric(h.Devmajor, len(ustar.DevMajor()), paxNone)
-	verifyNumeric(h.Devminor, len(ustar.DevMinor()), paxNone)
-	verifyTime(h.ModTime, len(v7.ModTime()), paxMtime)
-	verifyTime(h.AccessTime, len(gnu.AccessTime()), paxAtime)
-	verifyTime(h.ChangeTime, len(gnu.ChangeTime()), paxCtime)
+	verifyString(h.Name, len(v7.Name()), "Name", paxPath)
+	verifyString(h.Linkname, len(v7.LinkName()), "Linkname", paxLinkpath)
+	verifyString(h.Uname, len(ustar.UserName()), "Uname", paxUname)
+	verifyString(h.Gname, len(ustar.GroupName()), "Gname", paxGname)
+	verifyNumeric(h.Mode, len(v7.Mode()), "Mode", paxNone)
+	verifyNumeric(int64(h.Uid), len(v7.UID()), "Uid", paxUid)
+	verifyNumeric(int64(h.Gid), len(v7.GID()), "Gid", paxGid)
+	verifyNumeric(h.Size, len(v7.Size()), "Size", paxSize)
+	verifyNumeric(h.Devmajor, len(ustar.DevMajor()), "Devmajor", paxNone)
+	verifyNumeric(h.Devminor, len(ustar.DevMinor()), "Devminor", paxNone)
+	verifyTime(h.ModTime, len(v7.ModTime()), "ModTime", paxMtime)
+	verifyTime(h.AccessTime, len(gnu.AccessTime()), "AccessTime", paxAtime)
+	verifyTime(h.ChangeTime, len(gnu.ChangeTime()), "ChangeTime", paxCtime)
 
+	// Check for header-only types.
+	var whyOnlyPAX, whyOnlyGNU string
 	if !isHeaderOnlyType(h.Typeflag) && h.Size < 0 {
-		return FormatUnknown, nil
+		return FormatUnknown, nil, headerError{"negative size on header-only type"}
 	}
+
+	// Check PAX records.
 	if len(h.Xattrs) > 0 {
 		for k, v := range h.Xattrs {
 			paxHdrs[paxXattr+k] = v
 		}
+		whyOnlyPAX = "only PAX supports Xattrs"
 		format.mayOnlyBe(FormatPAX)
 	}
 	for k, v := range paxHdrs {
 		// Forbid empty values (which represent deletion) since usage of
 		// them are non-sensible without global PAX record support.
 		if !validPAXRecord(k, v) || v == "" {
-			return FormatUnknown, nil // Invalid PAX key
+			return FormatUnknown, nil, headerError{fmt.Sprintf("invalid PAX record: %q", k+" = "+v)}
 		}
 	}
+
+	// Check sparse files.
 	if len(h.SparseHoles) > 0 || h.Typeflag == TypeGNUSparse {
 		if isHeaderOnlyType(h.Typeflag) {
-			return FormatUnknown, nil // Cannot have sparse data on header-only file
+			return FormatUnknown, nil, headerError{"header-only type cannot be sparse"}
 		}
 		if !validateSparseEntries(h.SparseHoles, h.Size) {
-			return FormatUnknown, nil
+			return FormatUnknown, nil, headerError{"invalid sparse holes"}
 		}
 		if h.Typeflag == TypeGNUSparse {
+			whyOnlyGNU = "only GNU supports TypeGNUSparse"
 			format.mayOnlyBe(FormatGNU)
 		} else {
+			whyNoGNU = "GNU supports sparse files only with TypeGNUSparse"
 			format.mustNotBe(FormatGNU)
 		}
+		whyNoUSTAR = "USTAR does not support sparse files"
 		format.mustNotBe(FormatUSTAR)
 	}
+
+	// Check desired format.
 	if wantFormat := h.Format; wantFormat != FormatUnknown {
 		if wantFormat.has(FormatPAX) {
 			wantFormat.mayBe(FormatUSTAR) // PAX implies USTAR allowed too
 		}
 		format.mayOnlyBe(wantFormat) // Set union of formats allowed and format wanted
 	}
-	return format, paxHdrs
+	if format == FormatUnknown {
+		switch h.Format {
+		case FormatUSTAR:
+			err = headerError{"Format specifies USTAR", whyNoUSTAR, whyOnlyPAX, whyOnlyGNU}
+		case FormatPAX:
+			err = headerError{"Format specifies PAX", whyNoPAX, whyOnlyGNU}
+		case FormatGNU:
+			err = headerError{"Format specifies GNU", whyNoGNU, whyOnlyPAX}
+		default:
+			err = headerError{whyNoUSTAR, whyNoPAX, whyNoGNU, whyOnlyPAX, whyOnlyGNU}
+		}
+	}
+	return format, paxHdrs, err
 }
 
 // headerFileInfo implements os.FileInfo.

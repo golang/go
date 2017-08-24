@@ -72,7 +72,8 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
 	}
 
 	tw.hdr = *hdr // Shallow copy of Header
-	switch allowedFormats, paxHdrs := tw.hdr.allowedFormats(); {
+	allowedFormats, paxHdrs, err := tw.hdr.allowedFormats()
+	switch {
 	case allowedFormats.has(FormatUSTAR):
 		tw.err = tw.writeUSTARHeader(&tw.hdr)
 		return tw.err
@@ -83,7 +84,7 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
 		tw.err = tw.writeGNUHeader(&tw.hdr)
 		return tw.err
 	default:
-		return ErrHeader // Non-fatal error
+		return err // Non-fatal error
 	}
 }
 
