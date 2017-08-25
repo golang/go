@@ -453,6 +453,8 @@ func createComplexVars(fn *Node, debugInfo *ssa.FuncDebug) ([]*Node, []*dwarf.Va
 		if parts == nil {
 			continue
 		}
+		// Don't work on this variable again, no matter how many slots it has.
+		delete(varParts, n)
 
 		// Get the order the parts need to be in to represent the memory
 		// of the decomposed user variable.
