@@ -13,10 +13,9 @@ import (
 	"time"
 )
 
-// A Reader provides sequential access to the contents of a tar archive.
-// A tar archive consists of a sequence of files.
-// The Next method advances to the next file in the archive (including the first),
-// and then it can be treated as an io.Reader to access the file's data.
+// Reader provides sequential access to the contents of a tar archive.
+// Reader.Next advances to the next file in the archive (including the first),
+// and then Reader can be treated as an io.Reader to access the file's data.
 type Reader struct {
 	r    io.Reader
 	pad  int64      // Amount of padding (ignored) after current file entry
@@ -42,6 +41,8 @@ func NewReader(r io.Reader) *Reader {
 }
 
 // Next advances to the next entry in the tar archive.
+// The Header.Size determines how many bytes can be read for the next file.
+// Any remaining data in the current file is automatically discarded.
 //
 // io.EOF is returned at the end of the input.
 func (tr *Reader) Next() (*Header, error) {
@@ -604,11 +605,11 @@ func readGNUSparseMap0x1(paxHdrs map[string]string) (sparseDatas, error) {
 }
 
 // Read reads from the current entry in the tar archive.
-// It returns 0, io.EOF when it reaches the end of that entry,
+// It returns (0, io.EOF) when it reaches the end of that entry,
 // until Next is called to advance to the next entry.
 //
 // If the current file is sparse, then the regions marked as a sparse hole
-// will read back NUL-bytes.
+// are read back as NUL-bytes.
 //
 // Calling Read on special types like TypeLink, TypeSymLink, TypeChar,
 // TypeBlock, TypeDir, and TypeFifo returns (0, io.EOF) regardless of what

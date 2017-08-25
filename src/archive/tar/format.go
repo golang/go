@@ -34,7 +34,8 @@ const (
 	//
 	// PAX extends USTAR by writing a special file with Typeflag TypeXHeader
 	// preceding the original header. This file contains a set of key-value
-	// records, which are used to overcome USTAR's shortcomings.
+	// records, which are used to overcome USTAR's shortcomings, in addition to
+	// providing the ability to have sub-second resolution for timestamps.
 	//
 	// Some newer formats add their own extensions to PAX by defining their
 	// own keys and assigning certain semantic meaning to the associated values.

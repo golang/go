@@ -15,10 +15,9 @@ import (
 	"time"
 )
 
-// A Writer provides sequential writing of a tar archive in POSIX.1 format.
-// A tar archive consists of a sequence of files.
-// Call WriteHeader to begin a new file, and then call Write to supply that file's data,
-// writing at most hdr.Size bytes in total.
+// Writer provides sequential writing of a tar archive.
+// Write.WriteHeader begins a new file with the provided Header,
+// and then Writer can be treated as an io.Writer to supply that file's data.
 type Writer struct {
 	w    io.Writer
 	pad  int64      // Amount of padding to write after current file entry
@@ -54,7 +53,7 @@ func (tw *Writer) Flush() error {
 		return tw.err
 	}
 	if nb := tw.curr.Remaining(); nb > 0 {
-		return fmt.Errorf("archive/tar: missed writing %d bytes", nb)
+		return fmt.Errorf("tar: missed writing %d bytes", nb)
 	}
 	if _, tw.err = tw.w.Write(zeroBlock[:tw.pad]); tw.err != nil {
 		return tw.err
@@ -64,8 +63,9 @@ func (tw *Writer) Flush() error {
 }
 
 // WriteHeader writes hdr and prepares to accept the file's contents.
-// WriteHeader calls Flush if it is not the first header.
-// Calling after a Close will return ErrWriteAfterClose.
+// The Header.Size determines how many bytes can be written for the next file.
+// If the current file is not fully written, then this returns an error.
+// This implicitly flushes any padding necessary before writing the header.
 func (tw *Writer) WriteHeader(hdr *Header) error {
 	if err := tw.Flush(); err != nil {
 		return err
@@ -385,7 +385,7 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
 	return name[:i], name[i+1:], true
 }
 
-// Write writes to the current entry in the tar archive.
+// Write writes to the current file in the tar archive.
 // Write returns the error ErrWriteTooLong if more than
 // Header.Size bytes are written after WriteHeader.
 //
@@ -425,8 +425,9 @@ func (tw *Writer) fillZeros(n int64) (int64, error) {
 	return n, err
 }
 
-// Close closes the tar archive, flushing any unwritten
-// data to the underlying writer.
+// Close closes the tar archive by flushing the padding, and writing the footer.
+// If the current file (from a prior call to WriteHeader) is not fully written,
+// then this returns an error.
 func (tw *Writer) Close() error {
 	if tw.err == ErrWriteAfterClose {
 		return nil
