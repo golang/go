@@ -62,7 +62,7 @@ After that come slides/sections, each after a blank line:
 	.iframe http://foo
 	.link http://foo label
 	.html file.html
-	.caption _Gopher_ by [[http://www.reneefrench.com][Renée French]]
+	.caption _Gopher_ by [[https://www.instagram.com/reneefrench/][Renée French]]
 
 	Again, more text
 
