@@ -3,8 +3,11 @@
 // license that can be found in the LICENSE file.
 
 // Package tar implements access to tar archives.
-// It aims to cover most of the variations, including those produced
-// by GNU and BSD tars.
+//
+// Tape archives (tar) are a file format for storing a sequence of files that
+// can be read and written in a streaming manner.
+// This package aims to cover most variations of the format,
+// including those produced by GNU and BSD tar tools.
 package tar
 
 import (
@@ -49,22 +52,43 @@ func (he headerError) Error() string {
 	return fmt.Sprintf("%s: %v", prefix, strings.Join(ss, "; and "))
 }
 
-// Header type flags.
+// Type flags for Header.Typeflag.
 const (
-	TypeReg           = '0'    // regular file
-	TypeRegA          = '\x00' // regular file
-	TypeLink          = '1'    // hard link
-	TypeSymlink       = '2'    // symbolic link
-	TypeChar          = '3'    // character device node
-	TypeBlock         = '4'    // block device node
-	TypeDir           = '5'    // directory
-	TypeFifo          = '6'    // fifo node
-	TypeCont          = '7'    // reserved
-	TypeXHeader       = 'x'    // extended header
-	TypeXGlobalHeader = 'g'    // global extended header
-	TypeGNULongName   = 'L'    // Next file has a long name
-	TypeGNULongLink   = 'K'    // Next file symlinks to a file w/ a long name
-	TypeGNUSparse     = 'S'    // sparse file
+	// Type '0' indicates a regular file.
+	TypeReg  = '0'
+	TypeRegA = '\x00' // For legacy support (use TypeReg instead)
+
+	// Type '1' to '6' are header-only flags and may not have a data body.
+	TypeLink    = '1' // Hard link
+	TypeSymlink = '2' // Symbolic link
+	TypeChar    = '3' // Character device node
+	TypeBlock   = '4' // Block device node
+	TypeDir     = '5' // Directory
+	TypeFifo    = '6' // FIFO node
+
+	// Type '7' is reserved.
+	TypeCont = '7'
+
+	// Type 'x' is used by the PAX format to store key-value records that
+	// are only relevant to the next file.
+	// This package transparently handles these types.
+	TypeXHeader = 'x'
+
+	// Type 'g' is used by the PAX format to store key-value records that
+	// are relevant to all subsequent files.
+	// This package only supports parsing and composing such headers,
+	// but does not currently support persisting the global state across files.
+	TypeXGlobalHeader = 'g'
+
+	// Type 'S' indicates a sparse file in the GNU format.
+	// Header.SparseHoles should be populated when using this type.
+	TypeGNUSparse = 'S'
+
+	// Types 'L' and 'K' are used by the GNU format for a meta file
+	// used to store the path or link name for the next entry.
+	// This package transparently handles these types.
+	TypeGNULongName = 'L'
+	TypeGNULongLink = 'K'
 )
 
 // Keywords for PAX extended header records.
@@ -115,20 +139,24 @@ var basicKeys = map[string]bool{
 // should do so by creating a new Header and copying the fields
 // that they are interested in preserving.
 type Header struct {
-	Name       string    // name of header file entry
-	Mode       int64     // permission and mode bits
-	Uid        int       // user id of owner
-	Gid        int       // group id of owner
-	Size       int64     // length in bytes
-	ModTime    time.Time // modified time
-	Typeflag   byte      // type of header entry
-	Linkname   string    // target name of link
-	Uname      string    // user name of owner
-	Gname      string    // group name of owner
-	Devmajor   int64     // major number of character or block device
-	Devminor   int64     // minor number of character or block device
-	AccessTime time.Time // access time
-	ChangeTime time.Time // status change time
+	Typeflag byte // Type of header entry (should be TypeReg for most files)
+
+	Name     string // Name of file entry
+	Linkname string // Target name of link (valid for TypeLink or TypeSymlink)
+
+	Size  int64  // Logical file size in bytes
+	Mode  int64  // Permission and mode bits
+	Uid   int    // User ID of owner
+	Gid   int    // Group ID of owner
+	Uname string // User name of owner
+	Gname string // Group name of owner
+
+	ModTime    time.Time // Modification time
+	AccessTime time.Time // Access time (requires either PAX or GNU support)
+	ChangeTime time.Time // Change time (requires either PAX or GNU support)
+
+	Devmajor int64 // Major device number (valid for TypeChar or TypeBlock)
+	Devminor int64 // Minor device number (valid for TypeChar or TypeBlock)
 
 	// SparseHoles represents a sequence of holes in a sparse file.
 	//
@@ -175,8 +203,9 @@ type Header struct {
 	// Since the Reader liberally reads some non-compliant files,
 	// it is possible for this to be FormatUnknown.
 	//
-	// When writing, if this is not FormatUnknown, then Writer.WriteHeader
-	// uses this as the format to encode the header.
+	// When Writer.WriteHeader is called, if this is FormatUnknown,
+	// then it tries to encode the header in the order of USTAR, PAX, then GNU.
+	// Otherwise, it tries to use the specified format.
 	Format Format
 }
 
@@ -295,11 +324,6 @@ type fileState interface {
 	// Remaining reports the number of remaining bytes in the current file.
 	// This count includes any sparse holes that may exist.
 	Remaining() int64
-}
-
-// FileInfo returns an os.FileInfo for the Header.
-func (h *Header) FileInfo() os.FileInfo {
-	return headerFileInfo{h}
 }
 
 // allowedFormats determines which formats can be used.
@@ -489,6 +513,11 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
 	return format, paxHdrs, err
 }
 
+// FileInfo returns an os.FileInfo for the Header.
+func (h *Header) FileInfo() os.FileInfo {
+	return headerFileInfo{h}
+}
+
 // headerFileInfo implements os.FileInfo.
 type headerFileInfo struct {
 	h *Header
@@ -514,63 +543,43 @@ func (fi headerFileInfo) Mode() (mode os.FileMode) {
 
 	// Set setuid, setgid and sticky bits.
 	if fi.h.Mode&c_ISUID != 0 {
-		// setuid
 		mode |= os.ModeSetuid
 	}
 	if fi.h.Mode&c_ISGID != 0 {
-		// setgid
 		mode |= os.ModeSetgid
 	}
 	if fi.h.Mode&c_ISVTX != 0 {
-		// sticky
 		mode |= os.ModeSticky
 	}
 
-	// Set file mode bits.
-	// clear perm, setuid, setgid and sticky bits.
-	m := os.FileMode(fi.h.Mode) &^ 07777
-	if m == c_ISDIR {
-		// directory
+	// Set file mode bits; clear perm, setuid, setgid, and sticky bits.
+	switch m := os.FileMode(fi.h.Mode) &^ 07777; m {
+	case c_ISDIR:
 		mode |= os.ModeDir
-	}
-	if m == c_ISFIFO {
-		// named pipe (FIFO)
+	case c_ISFIFO:
 		mode |= os.ModeNamedPipe
-	}
-	if m == c_ISLNK {
-		// symbolic link
+	case c_ISLNK:
 		mode |= os.ModeSymlink
-	}
-	if m == c_ISBLK {
-		// device file
+	case c_ISBLK:
 		mode |= os.ModeDevice
-	}
-	if m == c_ISCHR {
-		// Unix character device
+	case c_ISCHR:
 		mode |= os.ModeDevice
 		mode |= os.ModeCharDevice
-	}
-	if m == c_ISSOCK {
-		// Unix domain socket
+	case c_ISSOCK:
 		mode |= os.ModeSocket
 	}
 
 	switch fi.h.Typeflag {
 	case TypeSymlink:
-		// symbolic link
 		mode |= os.ModeSymlink
 	case TypeChar:
-		// character device node
 		mode |= os.ModeDevice
 		mode |= os.ModeCharDevice
 	case TypeBlock:
-		// block device node
 		mode |= os.ModeDevice
 	case TypeDir:
-		// directory
 		mode |= os.ModeDir
 	case TypeFifo:
-		// fifo node
 		mode |= os.ModeNamedPipe
 	}
 
@@ -601,9 +610,12 @@ const (
 // FileInfoHeader creates a partially-populated Header from fi.
 // If fi describes a symlink, FileInfoHeader records link as the link target.
 // If fi describes a directory, a slash is appended to the name.
-// Because os.FileInfo's Name method returns only the base name of
-// the file it describes, it may be necessary to modify the Name field
-// of the returned header to provide the full path name of the file.
+//
+// Since os.FileInfo's Name method only returns the base name of
+// the file it describes, it may be necessary to modify Header.Name
+// to provide the full path name of the file.
+//
+// This function does not populate Header.SparseHoles.
 func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	if fi == nil {
 		return nil, errors.New("tar: FileInfo is nil")
