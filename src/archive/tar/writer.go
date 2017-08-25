@@ -141,7 +141,8 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 	}
 
 	// Write PAX records to the output.
-	if len(paxHdrs) > 0 {
+	isGlobal := hdr.Typeflag == TypeXGlobalHeader
+	if len(paxHdrs) > 0 || isGlobal {
 		// Sort keys for deterministic ordering.
 		var keys []string
 		for k := range paxHdrs {
@@ -160,11 +161,19 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 		}
 
 		// Write the extended header file.
-		dir, file := path.Split(realName)
-		name := path.Join(dir, "PaxHeaders.0", file)
+		var name string
+		var flag byte
+		if isGlobal {
+			name = "GlobalHead.0.0"
+			flag = TypeXGlobalHeader
+		} else {
+			dir, file := path.Split(realName)
+			name = path.Join(dir, "PaxHeaders.0", file)
+			flag = TypeXHeader
+		}
 		data := buf.String()
-		if err := tw.writeRawFile(name, data, TypeXHeader, FormatPAX); err != nil {
-			return err
+		if err := tw.writeRawFile(name, data, flag, FormatPAX); err != nil || isGlobal {
+			return err // Global headers return here
 		}
 	}
 

@@ -85,11 +85,20 @@ loop:
 
 		// Check for PAX/GNU special headers and files.
 		switch hdr.Typeflag {
-		case TypeXHeader:
+		case TypeXHeader, TypeXGlobalHeader:
 			format.mayOnlyBe(FormatPAX)
 			paxHdrs, err = parsePAX(tr)
 			if err != nil {
 				return nil, err
+			}
+			if hdr.Typeflag == TypeXGlobalHeader {
+				mergePAX(hdr, paxHdrs)
+				return &Header{
+					Typeflag:   hdr.Typeflag,
+					Xattrs:     hdr.Xattrs,
+					PAXRecords: hdr.PAXRecords,
+					Format:     format,
+				}, nil
 			}
 			continue loop // This is a meta header affecting the next header
 		case TypeGNULongName, TypeGNULongLink:
@@ -230,14 +239,13 @@ func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header) (sparseDatas, error) {
 	}
 }
 
-// mergePAX merges well known headers according to PAX standard.
-// In general headers with the same name as those found
-// in the header struct overwrite those found in the header
-// struct with higher precision or longer values. Esp. useful
-// for name and linkname fields.
-func mergePAX(hdr *Header, headers map[string]string) (err error) {
-	var id64 int64
-	for k, v := range headers {
+// mergePAX merges paxHdrs into hdr for all relevant fields of Header.
+func mergePAX(hdr *Header, paxHdrs map[string]string) (err error) {
+	for k, v := range paxHdrs {
+		if v == "" {
+			continue // Keep the original USTAR value
+		}
+		var id64 int64
 		switch k {
 		case paxPath:
 			hdr.Name = v
@@ -273,7 +281,7 @@ func mergePAX(hdr *Header, headers map[string]string) (err error) {
 			return ErrHeader
 		}
 	}
-	hdr.PAXRecords = headers
+	hdr.PAXRecords = paxHdrs
 	return nil
 }
 
@@ -309,13 +317,7 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 			}
 			sparseMap = append(sparseMap, value)
 		default:
-			// According to PAX specification, a value is stored only if it is
-			// non-empty. Otherwise, the key is deleted.
-			if len(value) > 0 {
-				paxHdrs[key] = value
-			} else {
-				delete(paxHdrs, key)
-			}
+			paxHdrs[key] = value
 		}
 	}
 	if len(sparseMap) > 0 {

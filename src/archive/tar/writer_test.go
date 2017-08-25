@@ -248,6 +248,66 @@ func TestWriter(t *testing.T) {
 			testClose{nil},
 		},
 	}, {
+		// Craft a theoretically valid PAX archive with global headers.
+		// The GNU and BSD tar tools do not parse these the same way.
+		//
+		// BSD tar v3.1.2 parses and ignores all global headers;
+		// the behavior is verified by researching the source code.
+		//
+		//	$ bsdtar -tvf pax-global-records.tar
+		//	----------  0 0      0           0 Dec 31  1969 file1
+		//	----------  0 0      0           0 Dec 31  1969 file2
+		//	----------  0 0      0           0 Dec 31  1969 file3
+		//	----------  0 0      0           0 May 13  2014 file4
+		//
+		// GNU tar v1.27.1 applies global headers to subsequent records,
+		// but does not do the following properly:
+		//	* It does not treat an empty record as deletion.
+		//	* It does not use subsequent global headers to update previous ones.
+		//
+		//	$ gnutar -tvf pax-global-records.tar
+		//	---------- 0/0               0 2017-07-13 19:40 global1
+		//	---------- 0/0               0 2017-07-13 19:40 file2
+		//	gnutar: Substituting `.' for empty member name
+		//	---------- 0/0               0 1969-12-31 16:00
+		//	gnutar: Substituting `.' for empty member name
+		//	---------- 0/0               0 2014-05-13 09:53
+		//
+		// According to the PAX specification, this should have been the result:
+		//	---------- 0/0               0 2017-07-13 19:40 global1
+		//	---------- 0/0               0 2017-07-13 19:40 file2
+		//	---------- 0/0               0 2017-07-13 19:40 file3
+		//	---------- 0/0               0 2014-05-13 09:53 file4
+		file: "testdata/pax-global-records.tar",
+		tests: []testFnc{
+			testHeader{Header{
+				Typeflag:   TypeXGlobalHeader,
+				PAXRecords: map[string]string{"path": "global1", "mtime": "1500000000.0"},
+			}, nil},
+			testHeader{Header{
+				Typeflag: TypeReg, Name: "file1",
+			}, nil},
+			testHeader{Header{
+				Typeflag:   TypeReg,
+				Name:       "file2",
+				PAXRecords: map[string]string{"path": "file2"},
+			}, nil},
+			testHeader{Header{
+				Typeflag:   TypeXGlobalHeader,
+				PAXRecords: map[string]string{"path": ""}, // Should delete "path", but keep "mtime"
+			}, nil},
+			testHeader{Header{
+				Typeflag: TypeReg, Name: "file3",
+			}, nil},
+			testHeader{Header{
+				Typeflag:   TypeReg,
+				Name:       "file4",
+				ModTime:    time.Unix(1400000000, 0),
+				PAXRecords: map[string]string{"mtime": "1400000000"},
+			}, nil},
+			testClose{nil},
+		},
+	}, {
 		file: "testdata/gnu-utf8.tar",
 		tests: []testFnc{
 			testHeader{Header{

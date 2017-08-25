@@ -559,7 +559,8 @@ func TestHeaderAllowedFormats(t *testing.T) {
 		formats: FormatUnknown,
 	}, {
 		header:  &Header{Xattrs: map[string]string{"foo": ""}},
-		formats: FormatUnknown,
+		paxHdrs: map[string]string{paxSchilyXattr + "foo": ""},
+		formats: FormatPAX,
 	}, {
 		header:  &Header{ModTime: time.Unix(0, 0)},
 		formats: FormatUSTAR | FormatPAX | FormatGNU,
