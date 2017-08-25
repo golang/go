@@ -349,6 +349,39 @@ func TestReader(t *testing.T) {
 			Format: FormatPAX,
 		}},
 	}, {
+		file: "testdata/pax-global-records.tar",
+		headers: []*Header{{
+			Typeflag:   TypeXGlobalHeader,
+			PAXRecords: map[string]string{"path": "global1", "mtime": "1500000000.0"},
+			Format:     FormatPAX,
+		}, {
+			Typeflag: TypeReg,
+			Name:     "file1",
+			ModTime:  time.Unix(0, 0),
+			Format:   FormatUSTAR,
+		}, {
+			Typeflag:   TypeReg,
+			Name:       "file2",
+			PAXRecords: map[string]string{"path": "file2"},
+			ModTime:    time.Unix(0, 0),
+			Format:     FormatPAX,
+		}, {
+			Typeflag:   TypeXGlobalHeader,
+			PAXRecords: map[string]string{"path": ""},
+			Format:     FormatPAX,
+		}, {
+			Typeflag: TypeReg,
+			Name:     "file3",
+			ModTime:  time.Unix(0, 0),
+			Format:   FormatUSTAR,
+		}, {
+			Typeflag:   TypeReg,
+			Name:       "file4",
+			ModTime:    time.Unix(1400000000, 0),
+			PAXRecords: map[string]string{"mtime": "1400000000"},
+			Format:     FormatPAX,
+		}},
+	}, {
 		file: "testdata/nil-uid.tar", // golang.org/issue/5290
 		headers: []*Header{{
 			Name:     "P1050238.JPG.log",
@@ -965,12 +998,18 @@ func TestMergePAX(t *testing.T) {
 			Name:    "a/b/c",
 			Uid:     1000,
 			ModTime: time.Unix(1350244992, 23960108),
+			PAXRecords: map[string]string{
+				"path":  "a/b/c",
+				"uid":   "1000",
+				"mtime": "1350244992.023960108",
+			},
 		},
 		ok: true,
 	}, {
 		in: map[string]string{
 			"gid": "gtgergergersagersgers",
 		},
+		ok: false,
 	}, {
 		in: map[string]string{
 			"missing":          "missing",
@@ -978,6 +1017,10 @@ func TestMergePAX(t *testing.T) {
 		},
 		want: &Header{
 			Xattrs: map[string]string{"key": "value"},
+			PAXRecords: map[string]string{
+				"missing":          "missing",
+				"SCHILY.xattr.key": "value",
+			},
 		},
 		ok: true,
 	}}
@@ -985,8 +1028,6 @@ func TestMergePAX(t *testing.T) {
 	for i, v := range vectors {
 		got := new(Header)
 		err := mergePAX(got, v.in)
-		// TODO(dsnet): Test more combinations with global record support.
-		got.PAXRecords = nil
 		if v.ok && !reflect.DeepEqual(*got, *v.want) {
 			t.Errorf("test %d, mergePAX(...):\ngot  %+v\nwant %+v", i, *got, *v.want)
 		}
@@ -1012,7 +1053,7 @@ func TestParsePAX(t *testing.T) {
 		{"13 key1=haha\n13 key2=nana\n13 key3=kaka\n",
 			map[string]string{"key1": "haha", "key2": "nana", "key3": "kaka"}, true},
 		{"13 key1=val1\n13 key2=val2\n8 key1=\n",
-			map[string]string{"key2": "val2"}, true},
+			map[string]string{"key1": "", "key2": "val2"}, true},
 		{"22 GNU.sparse.size=10\n26 GNU.sparse.numblocks=2\n" +
 			"23 GNU.sparse.offset=1\n25 GNU.sparse.numbytes=2\n" +
 			"23 GNU.sparse.offset=3\n25 GNU.sparse.numbytes=4\n",
@@ -1029,10 +1070,10 @@ func TestParsePAX(t *testing.T) {
 		r := strings.NewReader(v.in)
 		got, err := parsePAX(r)
 		if !reflect.DeepEqual(got, v.want) && !(len(got) == 0 && len(v.want) == 0) {
-			t.Errorf("test %d, parsePAX(...):\ngot  %v\nwant %v", i, got, v.want)
+			t.Errorf("test %d, parsePAX():\ngot  %v\nwant %v", i, got, v.want)
 		}
 		if ok := err == nil; ok != v.ok {
-			t.Errorf("test %d, parsePAX(...): got %v, want %v", i, ok, v.ok)
+			t.Errorf("test %d, parsePAX(): got %v, want %v", i, ok, v.ok)
 		}
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -336,6 +337,9 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
 				paxHdrs[paxKey] = s
 			}
 		}
+		if v, ok := h.PAXRecords[paxKey]; ok && v == s {
+			paxHdrs[paxKey] = v
+		}
 	}
 	verifyNumeric := func(n int64, size int, name, paxKey string) {
 		if !fitsInBase256(size, n) {
@@ -351,6 +355,9 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
 			} else {
 				paxHdrs[paxKey] = strconv.FormatInt(n, 10)
 			}
+		}
+		if v, ok := h.PAXRecords[paxKey]; ok && v == strconv.FormatInt(n, 10) {
+			paxHdrs[paxKey] = v
 		}
 	}
 	verifyTime := func(ts time.Time, size int, name, paxKey string) {
@@ -372,6 +379,9 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
 			} else {
 				paxHdrs[paxKey] = formatPAXTime(ts)
 			}
+		}
+		if v, ok := h.PAXRecords[paxKey]; ok && v == formatPAXTime(ts) {
+			paxHdrs[paxKey] = v
 		}
 	}
 
@@ -396,6 +406,16 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
 
 	// Check for header-only types.
 	var whyOnlyPAX, whyOnlyGNU string
+	switch h.Typeflag {
+	case TypeXHeader, TypeGNULongName, TypeGNULongLink:
+		return FormatUnknown, nil, headerError{"cannot manually encode TypeXHeader, TypeGNULongName, or TypeGNULongLink headers"}
+	case TypeXGlobalHeader:
+		if !reflect.DeepEqual(h, &Header{Typeflag: h.Typeflag, Xattrs: h.Xattrs, PAXRecords: h.PAXRecords, Format: h.Format}) {
+			return FormatUnknown, nil, headerError{"only PAXRecords may be set for TypeXGlobalHeader"}
+		}
+		whyOnlyPAX = "only PAX supports TypeXGlobalHeader"
+		format.mayOnlyBe(FormatPAX)
+	}
 	if !isHeaderOnlyType(h.Typeflag) && h.Size < 0 {
 		return FormatUnknown, nil, headerError{"negative size on header-only type"}
 	}
@@ -410,19 +430,20 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
 	}
 	if len(h.PAXRecords) > 0 {
 		for k, v := range h.PAXRecords {
-			_, exists := paxHdrs[k]
-			ignore := exists || basicKeys[k] || strings.HasPrefix(k, paxGNUSparse)
-			if !ignore {
-				paxHdrs[k] = v
+			switch _, exists := paxHdrs[k]; {
+			case exists:
+				continue // Do not overwrite existing records
+			case h.Typeflag == TypeXGlobalHeader:
+				paxHdrs[k] = v // Copy all records
+			case !basicKeys[k] && !strings.HasPrefix(k, paxGNUSparse):
+				paxHdrs[k] = v // Ignore local records that may conflict
 			}
 		}
 		whyOnlyPAX = "only PAX supports PAXRecords"
 		format.mayOnlyBe(FormatPAX)
 	}
 	for k, v := range paxHdrs {
-		// Forbid empty values (which represent deletion) since usage of
-		// them are non-sensible without global PAX record support.
-		if !validPAXRecord(k, v) || v == "" {
+		if !validPAXRecord(k, v) {
 			return FormatUnknown, nil, headerError{fmt.Sprintf("invalid PAX record: %q", k+" = "+v)}
 		}
 	}
