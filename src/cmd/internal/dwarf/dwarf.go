@@ -328,6 +328,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_CHILDREN_no,
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
+			{DW_AT_decl_line, DW_FORM_udata},
 			{DW_AT_location, DW_FORM_sec_offset},
 			{DW_AT_type, DW_FORM_ref_addr},
 		},
@@ -351,6 +352,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_CHILDREN_no,
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
+			{DW_AT_decl_line, DW_FORM_udata},
 			{DW_AT_location, DW_FORM_sec_offset},
 			{DW_AT_type, DW_FORM_ref_addr},
 		},
