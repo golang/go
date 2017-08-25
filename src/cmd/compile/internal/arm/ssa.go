@@ -402,7 +402,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REGREG
 		p.To.Reg = v.Reg0()           // high 32-bit
 		p.To.Offset = int64(v.Reg1()) // low 32-bit
-	case ssa.OpARMMULA:
+	case ssa.OpARMMULA, ssa.OpARMMULS:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()

@@ -694,6 +694,7 @@ const (
 	OpARMRSCconst
 	OpARMMULLU
 	OpARMMULA
+	OpARMMULS
 	OpARMADDF
 	OpARMADDD
 	OpARMSUBF
@@ -8445,6 +8446,21 @@ var opcodeTable = [...]opInfo{
 		name:   "MULA",
 		argLen: 3,
 		asm:    arm.AMULA,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{2, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+			outputs: []outputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:   "MULS",
+		argLen: 3,
+		asm:    arm.AMULS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
