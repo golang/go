@@ -1258,27 +1258,64 @@ small_string:
 
 TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
 	MOVD	s1_base+0(FP), R5
-	MOVD	s1_len+8(FP), R3
 	MOVD	s2_base+16(FP), R6
+	MOVD	s1_len+8(FP), R3
+	CMP	R5,R6,CR7
 	MOVD	s2_len+24(FP), R4
 	MOVD	$ret+32(FP), R7
+	CMP	R3,R4,CR6
+	BEQ	CR7,equal
+
+notequal:
 #ifdef	GOARCH_ppc64le
 	BR	cmpbodyLE<>(SB)
 #else
 	BR      cmpbodyBE<>(SB)
 #endif
 
+equal:
+	BEQ	CR6,done
+	MOVD	$1, R8
+	BGT	CR6,greater
+	NEG	R8
+
+greater:
+	MOVD	R8, (R7)
+	RET
+
+done:
+	MOVD	$0, (R7)
+	RET
+
 TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
 	MOVD	s1+0(FP), R5
-	MOVD	s1+8(FP), R3
 	MOVD	s2+24(FP), R6
+	MOVD	s1+8(FP), R3
+	CMP	R5,R6,CR7
 	MOVD	s2+32(FP), R4
 	MOVD	$ret+48(FP), R7
+	CMP	R3,R4,CR6
+	BEQ	CR7,equal
+
 #ifdef	GOARCH_ppc64le
 	BR	cmpbodyLE<>(SB)
 #else
 	BR      cmpbodyBE<>(SB)
 #endif
+
+equal:
+	BEQ	CR6,done
+	MOVD	$1, R8
+	BGT	CR6,greater
+	NEG	R8
+
+greater:
+	MOVD	R8, (R7)
+	RET
+
+done:
+	MOVD	$0, (R7)
+	RET
 
 TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVW	$0, R3
