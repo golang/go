@@ -594,6 +594,7 @@ const (
 	_LockInternal = 2
 )
 
+// Values for the flags field of a sigTabT.
 const (
 	_SigNotify   = 1 << iota // let signal.Notify have signal, even if from kernel
 	_SigKill                 // if signal.Notify doesn't take it, exit quietly

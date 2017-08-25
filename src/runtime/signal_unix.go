@@ -11,6 +11,16 @@ import (
 	"unsafe"
 )
 
+// sigTabT is the type of an entry in the global sigtable array.
+// sigtable is inherently system dependent, and appears in OS-specific files,
+// but sigTabT is the same for all Unixy systems.
+// The sigtable array is indexed by a system signal number to get the flags
+// and printable name of each signal.
+type sigTabT struct {
+	flags int32
+	name  string
+}
+
 //go:linkname os_sigpipe os.sigpipe
 func os_sigpipe() {
 	systemstack(sigpipe)

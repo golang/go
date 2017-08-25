@@ -7,11 +7,6 @@
 
 package runtime
 
-type sigTabT struct {
-	flags int32
-	name  string
-}
-
 var sigtable = [...]sigTabT{
 	/*  0 */ {0, "SIGNONE: no trap"},
 	/*  1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},
