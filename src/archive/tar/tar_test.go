@@ -584,29 +584,75 @@ func TestHeaderAllowedFormats(t *testing.T) {
 		paxHdrs: map[string]string{paxMtime: "-1"},
 		formats: FormatPAX | FormatGNU,
 	}, {
+		header:  &Header{ModTime: time.Unix(1, 500)},
+		paxHdrs: map[string]string{paxMtime: "1.0000005"},
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
+	}, {
+		header:  &Header{ModTime: time.Unix(1, 0)},
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
+	}, {
+		header:  &Header{ModTime: time.Unix(1, 0), Format: FormatPAX},
+		formats: FormatUSTAR | FormatPAX,
+	}, {
+		header:  &Header{ModTime: time.Unix(1, 500), Format: FormatUSTAR},
+		paxHdrs: map[string]string{paxMtime: "1.0000005"},
+		formats: FormatUSTAR,
+	}, {
+		header:  &Header{ModTime: time.Unix(1, 500), Format: FormatPAX},
+		paxHdrs: map[string]string{paxMtime: "1.0000005"},
+		formats: FormatPAX,
+	}, {
+		header:  &Header{ModTime: time.Unix(1, 500), Format: FormatGNU},
+		paxHdrs: map[string]string{paxMtime: "1.0000005"},
+		formats: FormatGNU,
+	}, {
 		header:  &Header{ModTime: time.Unix(-1, 500)},
 		paxHdrs: map[string]string{paxMtime: "-0.9999995"},
-		formats: FormatPAX,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{ModTime: time.Unix(-1, 500), Format: FormatGNU},
 		paxHdrs: map[string]string{paxMtime: "-0.9999995"},
-		formats: FormatUnknown,
+		formats: FormatGNU,
 	}, {
 		header:  &Header{AccessTime: time.Unix(0, 0)},
 		paxHdrs: map[string]string{paxAtime: "0"},
-		formats: FormatPAX | FormatGNU,
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
+	}, {
+		header:  &Header{AccessTime: time.Unix(0, 0), Format: FormatUSTAR},
+		paxHdrs: map[string]string{paxAtime: "0"},
+		formats: FormatUnknown,
+	}, {
+		header:  &Header{AccessTime: time.Unix(0, 0), Format: FormatPAX},
+		paxHdrs: map[string]string{paxAtime: "0"},
+		formats: FormatPAX,
+	}, {
+		header:  &Header{AccessTime: time.Unix(0, 0), Format: FormatGNU},
+		paxHdrs: map[string]string{paxAtime: "0"},
+		formats: FormatGNU,
 	}, {
 		header:  &Header{AccessTime: time.Unix(-123, 0)},
 		paxHdrs: map[string]string{paxAtime: "-123"},
-		formats: FormatPAX | FormatGNU,
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
+	}, {
+		header:  &Header{AccessTime: time.Unix(-123, 0), Format: FormatPAX},
+		paxHdrs: map[string]string{paxAtime: "-123"},
+		formats: FormatPAX,
 	}, {
 		header:  &Header{ChangeTime: time.Unix(123, 456)},
 		paxHdrs: map[string]string{paxCtime: "123.000000456"},
-		formats: FormatPAX,
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
+	}, {
+		header:  &Header{ChangeTime: time.Unix(123, 456), Format: FormatUSTAR},
+		paxHdrs: map[string]string{paxCtime: "123.000000456"},
+		formats: FormatUnknown,
 	}, {
 		header:  &Header{ChangeTime: time.Unix(123, 456), Format: FormatGNU},
 		paxHdrs: map[string]string{paxCtime: "123.000000456"},
-		formats: FormatUnknown,
+		formats: FormatGNU,
+	}, {
+		header:  &Header{ChangeTime: time.Unix(123, 456), Format: FormatPAX},
+		paxHdrs: map[string]string{paxCtime: "123.000000456"},
+		formats: FormatPAX,
 	}, {
 		header:  &Header{Name: "sparse.db", Size: 1000, SparseHoles: []SparseEntry{{0, 500}}},
 		formats: FormatPAX,
