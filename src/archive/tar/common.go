@@ -56,7 +56,7 @@ func (he headerError) Error() string {
 const (
 	// Type '0' indicates a regular file.
 	TypeReg  = '0'
-	TypeRegA = '\x00' // For legacy support (use TypeReg instead)
+	TypeRegA = '\x00' // For legacy support; use TypeReg instead
 
 	// Type '1' to '6' are header-only flags and may not have a data body.
 	TypeLink    = '1' // Hard link
@@ -85,7 +85,7 @@ const (
 	TypeGNUSparse = 'S'
 
 	// Types 'L' and 'K' are used by the GNU format for a meta file
-	// used to store the path or link name for the next entry.
+	// used to store the path or link name for the next file.
 	// This package transparently handles these types.
 	TypeGNULongName = 'L'
 	TypeGNULongLink = 'K'
@@ -166,13 +166,12 @@ type Header struct {
 	//
 	// A file is sparse if len(SparseHoles) > 0 or Typeflag is TypeGNUSparse.
 	// If TypeGNUSparse is set, then the format is GNU, otherwise
-	// the PAX format with GNU-specific record is used.
+	// the format is PAX (by using GNU-specific PAX records).
 	//
 	// A sparse file consists of fragments of data, intermixed with holes
 	// (described by this field). A hole is semantically a block of NUL-bytes,
 	// but does not actually exist within the tar file.
-	// The logical size of the file stored in the Size field, while
-	// the holes must be sorted in ascending order,
+	// The holes must be sorted in ascending order,
 	// not overlap with each other, and not extend past the specified Size.
 	SparseHoles []SparseEntry
 
