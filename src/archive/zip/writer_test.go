@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -84,6 +85,48 @@ func TestWriter(t *testing.T) {
 	}
 	for i, wt := range writeTests {
 		testReadFile(t, r.File[i], &wt)
+	}
+}
+
+// TestWriterComment is test for EOCD comment read/write.
+func TestWriterComment(t *testing.T) {
+	var tests = []struct {
+		comment string
+		ok      bool
+	}{
+		{"hi, hello", true},
+		{"hi, こんにちわ", true},
+		{strings.Repeat("a", uint16max), true},
+		{strings.Repeat("a", uint16max+1), false},
+	}
+
+	for _, test := range tests {
+		// write a zip file
+		buf := new(bytes.Buffer)
+		w := NewWriter(buf)
+		w.Comment = test.comment
+
+		if err := w.Close(); test.ok == (err != nil) {
+			t.Fatal(err)
+		}
+
+		if w.closed != test.ok {
+			t.Fatalf("Writer.closed: got %v, want %v", w.closed, test.ok)
+		}
+
+		// skip read test in failure cases
+		if !test.ok {
+			continue
+		}
+
+		// read it back
+		r, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if r.Comment != test.comment {
+			t.Fatalf("Reader.Comment: got %v, want %v", r.Comment, test.comment)
+		}
 	}
 }
 
