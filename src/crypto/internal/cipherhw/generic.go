@@ -6,8 +6,6 @@
 
 package cipherhw
 
-import "crypto/internal/boring"
-
 func AESGCMSupport() bool {
-	return boring.Enabled
+	return false
 }
