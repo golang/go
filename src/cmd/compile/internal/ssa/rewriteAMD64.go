@@ -41824,6 +41824,8 @@ func rewriteValueAMD64_OpMod8u_0(v *Value) bool {
 func rewriteValueAMD64_OpMove_0(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
 	typ := &b.Func.Config.Types
 	_ = typ
 	// match: (Move [0] _ _ mem)
@@ -41921,7 +41923,7 @@ func rewriteValueAMD64_OpMove_0(v *Value) bool {
 		return true
 	}
 	// match: (Move [16] dst src mem)
-	// cond:
+	// cond: config.useSSE
 	// result: (MOVOstore dst (MOVOload src mem) mem)
 	for {
 		if v.AuxInt != 16 {
@@ -41931,6 +41933,9 @@ func rewriteValueAMD64_OpMove_0(v *Value) bool {
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
+		if !(config.useSSE) {
+			break
+		}
 		v.reset(OpAMD64MOVOstore)
 		v.AddArg(dst)
 		v0 := b.NewValue0(v.Pos, OpAMD64MOVOload, types.TypeInt128)
@@ -41938,6 +41943,38 @@ func rewriteValueAMD64_OpMove_0(v *Value) bool {
 		v0.AddArg(mem)
 		v.AddArg(v0)
 		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [16] dst src mem)
+	// cond: !config.useSSE
+	// result: (MOVQstore [8] dst (MOVQload [8] src mem) 		(MOVQstore dst (MOVQload src mem) mem))
+	for {
+		if v.AuxInt != 16 {
+			break
+		}
+		_ = v.Args[2]
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(!config.useSSE) {
+			break
+		}
+		v.reset(OpAMD64MOVQstore)
+		v.AuxInt = 8
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
+		v0.AuxInt = 8
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpAMD64MOVQstore, types.TypeMem)
+		v1.AddArg(dst)
+		v2 := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
 		return true
 	}
 	// match: (Move [3] dst src mem)
@@ -42027,6 +42064,15 @@ func rewriteValueAMD64_OpMove_0(v *Value) bool {
 		v.AddArg(v1)
 		return true
 	}
+	return false
+}
+func rewriteValueAMD64_OpMove_10(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
 	// match: (Move [7] dst src mem)
 	// cond:
 	// result: (MOVLstore [3] dst (MOVLload [3] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
@@ -42056,15 +42102,6 @@ func rewriteValueAMD64_OpMove_0(v *Value) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpMove_10(v *Value) bool {
-	b := v.Block
-	_ = b
-	config := b.Func.Config
-	_ = config
-	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Move [s] dst src mem)
 	// cond: s > 8 && s < 16
 	// result: (MOVQstore [s-8] dst (MOVQload [s-8] src mem) 		(MOVQstore dst (MOVQload src mem) mem))
@@ -42128,7 +42165,7 @@ func rewriteValueAMD64_OpMove_10(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 16 && s%16 != 0 && s%16 > 8
+	// cond: s > 16 && s%16 != 0 && s%16 > 8 && config.useSSE
 	// result: (Move [s-s%16] 		(OffPtr <dst.Type> dst [s%16]) 		(OffPtr <src.Type> src [s%16]) 		(MOVOstore dst (MOVOload src mem) mem))
 	for {
 		s := v.AuxInt
@@ -42136,7 +42173,7 @@ func rewriteValueAMD64_OpMove_10(v *Value) bool {
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(s > 16 && s%16 != 0 && s%16 > 8) {
+		if !(s > 16 && s%16 != 0 && s%16 > 8 && config.useSSE) {
 			break
 		}
 		v.reset(OpMove)
@@ -42156,6 +42193,47 @@ func rewriteValueAMD64_OpMove_10(v *Value) bool {
 		v3.AddArg(mem)
 		v2.AddArg(v3)
 		v2.AddArg(mem)
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: s > 16 && s%16 != 0 && s%16 > 8 && !config.useSSE
+	// result: (Move [s-s%16] 		(OffPtr <dst.Type> dst [s%16]) 		(OffPtr <src.Type> src [s%16]) 		(MOVQstore [8] dst (MOVQload [8] src mem) 			(MOVQstore dst (MOVQload src mem) mem)))
+	for {
+		s := v.AuxInt
+		_ = v.Args[2]
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(s > 16 && s%16 != 0 && s%16 > 8 && !config.useSSE) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = s - s%16
+		v0 := b.NewValue0(v.Pos, OpOffPtr, dst.Type)
+		v0.AuxInt = s % 16
+		v0.AddArg(dst)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, src.Type)
+		v1.AuxInt = s % 16
+		v1.AddArg(src)
+		v.AddArg(v1)
+		v2 := b.NewValue0(v.Pos, OpAMD64MOVQstore, types.TypeMem)
+		v2.AuxInt = 8
+		v2.AddArg(dst)
+		v3 := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
+		v3.AuxInt = 8
+		v3.AddArg(src)
+		v3.AddArg(mem)
+		v2.AddArg(v3)
+		v4 := b.NewValue0(v.Pos, OpAMD64MOVQstore, types.TypeMem)
+		v4.AddArg(dst)
+		v5 := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
+		v5.AddArg(src)
+		v5.AddArg(mem)
+		v4.AddArg(v5)
+		v4.AddArg(mem)
+		v2.AddArg(v4)
 		v.AddArg(v2)
 		return true
 	}
