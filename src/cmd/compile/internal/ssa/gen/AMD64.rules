@@ -319,7 +319,10 @@
 (Move [2] dst src mem) -> (MOVWstore dst (MOVWload src mem) mem)
 (Move [4] dst src mem) -> (MOVLstore dst (MOVLload src mem) mem)
 (Move [8] dst src mem) -> (MOVQstore dst (MOVQload src mem) mem)
-(Move [16] dst src mem) -> (MOVOstore dst (MOVOload src mem) mem)
+(Move [16] dst src mem) && config.useSSE -> (MOVOstore dst (MOVOload src mem) mem)
+(Move [16] dst src mem) && !config.useSSE ->
+	(MOVQstore [8] dst (MOVQload [8] src mem)
+		(MOVQstore dst (MOVQload src mem) mem))
 (Move [3] dst src mem) ->
 	(MOVBstore [2] dst (MOVBload [2] src mem)
 		(MOVWstore dst (MOVWload src mem) mem))
@@ -344,11 +347,18 @@
 		(OffPtr <src.Type> src [s%16])
 		(MOVQstore dst (MOVQload src mem) mem))
 (Move [s] dst src mem)
-	&& s > 16 && s%16 != 0 && s%16 > 8 ->
+	&& s > 16 && s%16 != 0 && s%16 > 8 && config.useSSE ->
 	(Move [s-s%16]
 		(OffPtr <dst.Type> dst [s%16])
 		(OffPtr <src.Type> src [s%16])
 		(MOVOstore dst (MOVOload src mem) mem))
+(Move [s] dst src mem)
+	&& s > 16 && s%16 != 0 && s%16 > 8 && !config.useSSE ->
+	(Move [s-s%16]
+		(OffPtr <dst.Type> dst [s%16])
+		(OffPtr <src.Type> src [s%16])
+		(MOVQstore [8] dst (MOVQload [8] src mem)
+			(MOVQstore dst (MOVQload src mem) mem)))
 
 // Medium copying uses a duff device.
 (Move [s] dst src mem)
