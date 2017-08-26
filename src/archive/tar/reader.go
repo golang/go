@@ -604,11 +604,11 @@ func readGNUSparseMap0x1(paxHdrs map[string]string) (sparseDatas, error) {
 	return spd, nil
 }
 
-// Read reads from the current entry in the tar archive.
-// It returns (0, io.EOF) when it reaches the end of that entry,
-// until Next is called to advance to the next entry.
+// Read reads from the current file in the tar archive.
+// It returns (0, io.EOF) when it reaches the end of that file,
+// until Next is called to advance to the next file.
 //
-// If the current file is sparse, then the regions marked as a sparse hole
+// If the current file is sparse, then the regions marked as a hole
 // are read back as NUL-bytes.
 //
 // Calling Read on special types like TypeLink, TypeSymLink, TypeChar,

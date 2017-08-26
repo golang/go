@@ -389,7 +389,7 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
 // Write returns the error ErrWriteTooLong if more than
 // Header.Size bytes are written after WriteHeader.
 //
-// If the current file is sparse, then the regions marked as a sparse hole
+// If the current file is sparse, then the regions marked as a hole
 // must be written as NUL-bytes.
 //
 // Calling Write on special types like TypeLink, TypeSymLink, TypeChar,
