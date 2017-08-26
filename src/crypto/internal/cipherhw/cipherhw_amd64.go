@@ -6,11 +6,19 @@
 
 package cipherhw
 
+import "crypto/internal/boring"
+
 // defined in asm_amd64.s
 func hasAESNI() bool
 
 // AESGCMSupport returns true if the Go standard library supports AES-GCM in
 // hardware.
 func AESGCMSupport() bool {
+	// If BoringCrypto is enabled, we report having
+	// AES-GCM support, so that crypto/tls will
+	// prioritize AES-GCM usage.
+	if boring.Enabled {
+		return true
+	}
 	return hasAESNI()
 }
