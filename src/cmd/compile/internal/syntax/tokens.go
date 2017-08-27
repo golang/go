@@ -25,7 +25,7 @@ const (
 	_Arrow
 	_Star
 
-	// delimitors
+	// delimiters
 	_Lparen
 	_Lbrack
 	_Lbrace
@@ -97,7 +97,7 @@ var tokstrings = [...]string{
 	_Arrow:    "<-",
 	_Star:     "*",
 
-	// delimitors
+	// delimiters
 	_Lparen:    "(",
 	_Lbrack:    "[",
 	_Lbrace:    "{",

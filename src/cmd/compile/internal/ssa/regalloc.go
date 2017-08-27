@@ -317,7 +317,7 @@ func (s *regAllocState) freeOrResetReg(r register, resetting bool) {
 
 	// Mark r as unused.
 	if s.f.pass.debug > regDebug {
-		fmt.Printf("freeReg %s (dump %s/%s)\n", s.registers[r].Name(), v, s.regs[r].c)
+		fmt.Printf("freeReg %s (dump %s/%s)\n", &s.registers[r], v, s.regs[r].c)
 	}
 	if !resetting && s.f.Config.ctxt.Flag_locationlists && len(s.valueNames[v.ID]) != 0 {
 		kill := s.curBlock.NewValue0(src.NoXPos, OpRegKill, types.TypeVoid)
@@ -357,7 +357,7 @@ func (s *regAllocState) setOrig(c *Value, v *Value) {
 // r must be unused.
 func (s *regAllocState) assignReg(r register, v *Value, c *Value) {
 	if s.f.pass.debug > regDebug {
-		fmt.Printf("assignReg %s %s/%s\n", s.registers[r].Name(), v, c)
+		fmt.Printf("assignReg %s %s/%s\n", &s.registers[r], v, c)
 	}
 	if s.regs[r].v != nil {
 		s.f.Fatalf("tried to assign register %d to %s/%s but it is already used by %s", r, v, c, s.regs[r].v)
@@ -422,7 +422,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 		c := s.curBlock.NewValue1(v2.Pos, OpCopy, v2.Type, s.regs[r].c)
 		s.copies[c] = false
 		if s.f.pass.debug > regDebug {
-			fmt.Printf("copy %s to %s : %s\n", v2, c, s.registers[r2].Name())
+			fmt.Printf("copy %s to %s : %s\n", v2, c, &s.registers[r2])
 		}
 		s.setOrig(c, v2)
 		s.assignReg(r2, v2, c)
@@ -531,7 +531,7 @@ func (s *regAllocState) init(f *Func) {
 	s.SBReg = noRegister
 	s.GReg = noRegister
 	for r := register(0); r < s.numRegs; r++ {
-		switch s.registers[r].Name() {
+		switch s.registers[r].String() {
 		case "SP":
 			s.SPReg = r
 		case "SB":
@@ -877,7 +877,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			if s.f.pass.debug > regDebug {
 				fmt.Printf("starting merge block %s with end state of %s:\n", b, p)
 				for _, x := range s.endRegs[p.ID] {
-					fmt.Printf("  %s: orig:%s cache:%s\n", s.registers[x.r].Name(), x.v, x.c)
+					fmt.Printf("  %s: orig:%s cache:%s\n", &s.registers[x.r], x.v, x.c)
 				}
 			}
 
@@ -933,7 +933,7 @@ func (s *regAllocState) regalloc(f *Func) {
 						c := p.NewValue1(a.Pos, OpCopy, a.Type, s.regs[r].c)
 						s.copies[c] = false
 						if s.f.pass.debug > regDebug {
-							fmt.Printf("copy %s to %s : %s\n", a, c, s.registers[r2].Name())
+							fmt.Printf("copy %s to %s : %s\n", a, c, &s.registers[r2])
 						}
 						s.setOrig(c, a)
 						s.assignReg(r2, a, c)
@@ -1012,7 +1012,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			if s.f.pass.debug > regDebug {
 				fmt.Printf("after phis\n")
 				for _, x := range s.startRegs[b.ID] {
-					fmt.Printf("  %s: v%d\n", s.registers[x.r].Name(), x.v.ID)
+					fmt.Printf("  %s: v%d\n", &s.registers[x.r], x.v.ID)
 				}
 			}
 		}
@@ -1177,7 +1177,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				fmt.Printf("  out:")
 				for _, r := range dinfo[idx].out {
 					if r != noRegister {
-						fmt.Printf(" %s", s.registers[r].Name())
+						fmt.Printf(" %s", &s.registers[r])
 					}
 				}
 				fmt.Println()
@@ -1185,7 +1185,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					fmt.Printf("  in%d:", i)
 					for _, r := range dinfo[idx].in[i] {
 						if r != noRegister {
-							fmt.Printf(" %s", s.registers[r].Name())
+							fmt.Printf(" %s", &s.registers[r])
 						}
 					}
 					fmt.Println()
@@ -1857,11 +1857,11 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 		for _, vid := range e.cachedVals {
 			a := e.cache[vid]
 			for _, c := range a {
-				fmt.Printf("src %s: v%d cache=%s\n", e.s.f.getHome(c.ID).Name(), vid, c)
+				fmt.Printf("src %s: v%d cache=%s\n", e.s.f.getHome(c.ID), vid, c)
 			}
 		}
 		for _, d := range e.destinations {
-			fmt.Printf("dst %s: v%d\n", d.loc.Name(), d.vid)
+			fmt.Printf("dst %s: v%d\n", d.loc, d.vid)
 		}
 	}
 }
@@ -1918,7 +1918,7 @@ func (e *edgeState) process() {
 		c := e.contents[loc].c
 		r := e.findRegFor(c.Type)
 		if e.s.f.pass.debug > regDebug {
-			fmt.Printf("breaking cycle with v%d in %s:%s\n", vid, loc.Name(), c)
+			fmt.Printf("breaking cycle with v%d in %s:%s\n", vid, loc, c)
 		}
 		e.erase(r)
 		if _, isReg := loc.(*Register); isReg {
@@ -1964,13 +1964,13 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 	var c *Value
 	var src Location
 	if e.s.f.pass.debug > regDebug {
-		fmt.Printf("moving v%d to %s\n", vid, loc.Name())
+		fmt.Printf("moving v%d to %s\n", vid, loc)
 		fmt.Printf("sources of v%d:", vid)
 	}
 	for _, w := range e.cache[vid] {
 		h := e.s.f.getHome(w.ID)
 		if e.s.f.pass.debug > regDebug {
-			fmt.Printf(" %s:%s", h.Name(), w)
+			fmt.Printf(" %s:%s", h, w)
 		}
 		_, isreg := h.(*Register)
 		if src == nil || isreg {
@@ -1980,7 +1980,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 	}
 	if e.s.f.pass.debug > regDebug {
 		if src != nil {
-			fmt.Printf(" [use %s]\n", src.Name())
+			fmt.Printf(" [use %s]\n", src)
 		} else {
 			fmt.Printf(" [no source]\n")
 		}
@@ -2074,7 +2074,7 @@ func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, pos src.XPos
 	}
 	if e.s.f.pass.debug > regDebug {
 		fmt.Printf("%s\n", c.LongString())
-		fmt.Printf("v%d now available in %s:%s\n", vid, loc.Name(), c)
+		fmt.Printf("v%d now available in %s:%s\n", vid, loc, c)
 	}
 }
 
@@ -2098,7 +2098,7 @@ func (e *edgeState) erase(loc Location) {
 	for i, c := range a {
 		if e.s.f.getHome(c.ID) == loc {
 			if e.s.f.pass.debug > regDebug {
-				fmt.Printf("v%d no longer available in %s:%s\n", vid, loc.Name(), c)
+				fmt.Printf("v%d no longer available in %s:%s\n", vid, loc, c)
 			}
 			a[i], a = a[len(a)-1], a[:len(a)-1]
 			if e.s.f.Config.ctxt.Flag_locationlists {
@@ -2174,7 +2174,7 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
 					// TODO: reuse these slots. They'll need to be erased first.
 					e.set(t, vid, x, false, c.Pos)
 					if e.s.f.pass.debug > regDebug {
-						fmt.Printf("  SPILL %s->%s %s\n", r.Name(), t.Name(), x.LongString())
+						fmt.Printf("  SPILL %s->%s %s\n", r, t, x.LongString())
 					}
 				}
 				// r will now be overwritten by the caller. At some point
@@ -2189,7 +2189,7 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
 	for _, vid := range e.cachedVals {
 		a := e.cache[vid]
 		for _, c := range a {
-			fmt.Printf("v%d: %s %s\n", vid, c, e.s.f.getHome(c.ID).Name())
+			fmt.Printf("v%d: %s %s\n", vid, c, e.s.f.getHome(c.ID))
 		}
 	}
 	e.s.f.Fatalf("can't find empty register on edge %s->%s", e.p, e.b)
@@ -2412,7 +2412,7 @@ func (s *regAllocState) computeLive() {
 						if !first {
 							fmt.Printf(",")
 						}
-						fmt.Print(s.registers[r].Name())
+						fmt.Print(&s.registers[r])
 						first = false
 					}
 					fmt.Printf("]")

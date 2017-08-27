@@ -421,7 +421,6 @@ func (ctxt *Link) loadlib() {
 
 	var i int
 	for i = 0; i < len(ctxt.Library); i++ {
-		iscgo = iscgo || ctxt.Library[i].Pkg == "runtime/cgo"
 		if ctxt.Library[i].Shlib == "" {
 			if ctxt.Debugvlog > 1 {
 				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), ctxt.Library[i].File, ctxt.Library[i].Objref)
@@ -438,6 +437,8 @@ func (ctxt *Link) loadlib() {
 			ldshlibsyms(ctxt, ctxt.Library[i].Shlib)
 		}
 	}
+
+	iscgo = ctxt.Syms.ROLookup("x_cgo_init", 0) != nil
 
 	// We now have enough information to determine the link mode.
 	determineLinkMode(ctxt)
@@ -724,8 +725,17 @@ func genhash(ctxt *Link, lib *Library) {
 	}
 	defer f.Close()
 
+	var magbuf [len(ARMAG)]byte
+	if _, err := io.ReadFull(f, magbuf[:]); err != nil {
+		Exitf("file %s too short", lib.File)
+	}
+
+	if string(magbuf[:]) != ARMAG {
+		Exitf("%s is not an archive file", lib.File)
+	}
+
 	var arhdr ArHdr
-	l := nextar(f, int64(len(ARMAG)), &arhdr)
+	l := nextar(f, f.Offset(), &arhdr)
 	if l <= 0 {
 		Errorf(nil, "%s: short read on archive file symbol header", lib.File)
 		return
@@ -1086,7 +1096,7 @@ func (l *Link) hostlink() {
 		argv = append(argv, "-Wl,-headerpad,1144")
 		if l.DynlinkingGo() {
 			argv = append(argv, "-Wl,-flat_namespace")
-		} else if !SysArch.InFamily(sys.ARM64) {
+		} else if !SysArch.InFamily(sys.ARM64) && Buildmode != BuildmodePIE {
 			argv = append(argv, "-Wl,-no_pie")
 		}
 	case objabi.Hopenbsd:
@@ -1105,10 +1115,13 @@ func (l *Link) hostlink() {
 			argv = append(argv, "-Wl,-pagezero_size,4000000")
 		}
 	case BuildmodePIE:
-		if UseRelro() {
-			argv = append(argv, "-Wl,-z,relro")
+		// ELF.
+		if Headtype != objabi.Hdarwin {
+			if UseRelro() {
+				argv = append(argv, "-Wl,-z,relro")
+			}
+			argv = append(argv, "-pie")
 		}
-		argv = append(argv, "-pie")
 	case BuildmodeCShared:
 		if Headtype == objabi.Hdarwin {
 			argv = append(argv, "-dynamiclib")

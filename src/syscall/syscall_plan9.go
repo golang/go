@@ -31,6 +31,8 @@ func (e ErrorString) Timeout() bool {
 	return e == EBUSY || e == ETIMEDOUT
 }
 
+var emptystring string
+
 // A Note is a string describing a process note.
 // It implements the os.Signal interface.
 type Note string

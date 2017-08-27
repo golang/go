@@ -255,7 +255,10 @@ var genericOps = []opData{
 	{name: "PopCount32", argLength: 1}, // Count bits in arg[0]
 	{name: "PopCount64", argLength: 1}, // Count bits in arg[0]
 
-	{name: "Sqrt", argLength: 1}, // sqrt(arg0), float64 only
+	{name: "Sqrt", argLength: 1},  // sqrt(arg0), float64 only
+	{name: "Floor", argLength: 1}, // floor(arg0), float64 only
+	{name: "Ceil", argLength: 1},  // ceil(arg0), float64 only
+	{name: "Trunc", argLength: 1}, // trunc(arg0), float64 only
 
 	// Data movement, max argument length for Phi is indefinite so just pick
 	// a really large number

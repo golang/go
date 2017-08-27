@@ -1195,24 +1195,25 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binary
 			p = p[len(p):]
 		}
 		line = bytes.TrimSpace(line)
-		if bytes.HasPrefix(line, slashslash) {
-			if bytes.Equal(line, binaryOnlyComment) {
-				sawBinaryOnly = true
-			}
-			line = bytes.TrimSpace(line[len(slashslash):])
-			if len(line) > 0 && line[0] == '+' {
-				// Looks like a comment +line.
-				f := strings.Fields(string(line))
-				if f[0] == "+build" {
-					ok := false
-					for _, tok := range f[1:] {
-						if ctxt.match(tok, allTags) {
-							ok = true
-						}
+		if !bytes.HasPrefix(line, slashslash) {
+			continue
+		}
+		if bytes.Equal(line, binaryOnlyComment) {
+			sawBinaryOnly = true
+		}
+		line = bytes.TrimSpace(line[len(slashslash):])
+		if len(line) > 0 && line[0] == '+' {
+			// Looks like a comment +line.
+			f := strings.Fields(string(line))
+			if f[0] == "+build" {
+				ok := false
+				for _, tok := range f[1:] {
+					if ctxt.match(tok, allTags) {
+						ok = true
 					}
-					if !ok {
-						allok = false
-					}
+				}
+				if !ok {
+					allok = false
 				}
 			}
 		}

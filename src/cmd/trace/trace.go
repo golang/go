@@ -42,12 +42,30 @@ func httpTrace(w http.ResponseWriter, r *http.Request) {
 // See https://github.com/catapult-project/catapult/blob/master/tracing/docs/embedding-trace-viewer.md
 // This is almost verbatim copy of:
 // https://github.com/catapult-project/catapult/blob/master/tracing/bin/index.html
-// on revision 623a005a3ffa9de13c4b92bc72290e7bcd1ca591.
+// on revision 5f9e4c3eaa555bdef18218a89f38c768303b7b6e.
 var templTrace = `
 <html>
 <head>
 <link href="/trace_viewer_html" rel="import">
+<style type="text/css">
+  html, body {
+    box-sizing: border-box;
+    overflow: hidden;
+    margin: 0px;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+  }
+  #trace-viewer {
+    width: 100%;
+    height: 100%;
+  }
+  #trace-viewer:focus {
+    outline: none;
+  }
+</style>
 <script>
+'use strict';
 (function() {
   var viewer;
   var url;
@@ -84,7 +102,9 @@ var templTrace = `
 
   function onResult(result) {
     model = new tr.Model();
-    var i = new tr.importer.Import(model);
+    var opts = new tr.importer.ImportOptions();
+    opts.shiftWorldToZero = false;
+    var i = new tr.importer.Import(model, opts);
     var p = i.importTracesWithProgressDialog([result]);
     p.then(onModelLoaded, onImportFail);
   }
@@ -428,9 +448,6 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 		}
 		if setGStateErr != nil {
 			return ctx.data, setGStateErr
-		}
-		if ctx.gstates[gRunnable] < 0 || ctx.gstates[gRunning] < 0 || ctx.threadStats.insyscall < 0 {
-			return ctx.data, fmt.Errorf("invalid state after processing %v: runnable=%d running=%d insyscall=%d", ev, ctx.gstates[gRunnable], ctx.gstates[gRunning], ctx.threadStats.insyscall)
 		}
 
 		// Ignore events that are from uninteresting goroutines

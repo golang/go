@@ -512,7 +512,8 @@ func (c *common) Failed() bool {
 	return failed || c.raceErrors+race.Errors() > 0
 }
 
-// FailNow marks the function as having failed and stops its execution.
+// FailNow marks the function as having failed and stops its execution
+// by calling runtime.Goexit.
 // Execution will continue at the next test or benchmark.
 // FailNow must be called from the goroutine running the
 // test or benchmark function, not from other goroutines
@@ -600,7 +601,8 @@ func (c *common) Skipf(format string, args ...interface{}) {
 	c.SkipNow()
 }
 
-// SkipNow marks the test as having been skipped and stops its execution.
+// SkipNow marks the test as having been skipped and stops its execution
+// by calling runtime.Goexit.
 // If a test fails (see Error, Errorf, Fail) and is then skipped,
 // it is still considered to have failed.
 // Execution will continue at the next test or benchmark. See also FailNow.
@@ -695,8 +697,7 @@ func tRunner(t *T, fn func(t *T)) {
 	// a call to runtime.Goexit, record the duration and send
 	// a signal saying that the test is done.
 	defer func() {
-		t.raceErrors += race.Errors()
-		if t.raceErrors > 0 {
+		if t.raceErrors+race.Errors() > 0 {
 			t.Errorf("race detected during execution of test")
 		}
 
@@ -970,7 +971,7 @@ func listTests(matchString func(pat, str string) (bool, error), tests []Internal
 		}
 	}
 	for _, example := range examples {
-		if ok, _ := matchString(*matchList, example.Name); ok && example.Output != "" {
+		if ok, _ := matchString(*matchList, example.Name); ok {
 			fmt.Println(example.Name)
 		}
 	}

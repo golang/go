@@ -70,28 +70,32 @@ func initssaconfig() {
 	ssaCaches = make([]ssa.Cache, nBackendWorkers)
 
 	// Set up some runtime functions we'll need to call.
-	Newproc = Sysfunc("newproc")
-	Deferproc = Sysfunc("deferproc")
-	Deferreturn = Sysfunc("deferreturn")
-	Duffcopy = Sysfunc("duffcopy")
-	Duffzero = Sysfunc("duffzero")
-	panicindex = Sysfunc("panicindex")
-	panicslice = Sysfunc("panicslice")
-	panicdivide = Sysfunc("panicdivide")
-	growslice = Sysfunc("growslice")
-	panicdottypeE = Sysfunc("panicdottypeE")
-	panicdottypeI = Sysfunc("panicdottypeI")
-	panicnildottype = Sysfunc("panicnildottype")
-	assertE2I = Sysfunc("assertE2I")
-	assertE2I2 = Sysfunc("assertE2I2")
-	assertI2I = Sysfunc("assertI2I")
-	assertI2I2 = Sysfunc("assertI2I2")
-	goschedguarded = Sysfunc("goschedguarded")
-	writeBarrier = Sysfunc("writeBarrier")
-	writebarrierptr = Sysfunc("writebarrierptr")
-	typedmemmove = Sysfunc("typedmemmove")
-	typedmemclr = Sysfunc("typedmemclr")
-	Udiv = Sysfunc("udiv")
+	Newproc = sysfunc("newproc")
+	Deferproc = sysfunc("deferproc")
+	Deferreturn = sysfunc("deferreturn")
+	Duffcopy = sysfunc("duffcopy")
+	Duffzero = sysfunc("duffzero")
+	panicindex = sysfunc("panicindex")
+	panicslice = sysfunc("panicslice")
+	panicdivide = sysfunc("panicdivide")
+	growslice = sysfunc("growslice")
+	panicdottypeE = sysfunc("panicdottypeE")
+	panicdottypeI = sysfunc("panicdottypeI")
+	panicnildottype = sysfunc("panicnildottype")
+	assertE2I = sysfunc("assertE2I")
+	assertE2I2 = sysfunc("assertE2I2")
+	assertI2I = sysfunc("assertI2I")
+	assertI2I2 = sysfunc("assertI2I2")
+	goschedguarded = sysfunc("goschedguarded")
+	writeBarrier = sysfunc("writeBarrier")
+	writebarrierptr = sysfunc("writebarrierptr")
+	typedmemmove = sysfunc("typedmemmove")
+	typedmemclr = sysfunc("typedmemclr")
+	Udiv = sysfunc("udiv")
+
+	// GO386=387 runtime functions
+	ControlWord64trunc = sysfunc("controlWord64trunc")
+	ControlWord32 = sysfunc("controlWord32")
 }
 
 // buildssa builds an SSA function for fn.
@@ -657,24 +661,26 @@ func (s *state) stmt(n *Node) {
 				}
 				rhs = nil
 			case OAPPEND:
-				// If we're writing the result of an append back to the same slice,
-				// handle it specially to avoid write barriers on the fast (non-growth) path.
+				// Check whether we're writing the result of an append back to the same slice.
+				// If so, we handle it specially to avoid write barriers on the fast
+				// (non-growth) path.
+				if !samesafeexpr(n.Left, rhs.List.First()) {
+					break
+				}
 				// If the slice can be SSA'd, it'll be on the stack,
 				// so there will be no write barriers,
 				// so there's no need to attempt to prevent them.
-				if samesafeexpr(n.Left, rhs.List.First()) {
-					if !s.canSSA(n.Left) {
-						if Debug_append > 0 {
-							Warnl(n.Pos, "append: len-only update")
-						}
-						s.append(rhs, true)
-						return
-					} else {
-						if Debug_append > 0 { // replicating old diagnostic message
-							Warnl(n.Pos, "append: len-only update (in local slice)")
-						}
+				if s.canSSA(n.Left) {
+					if Debug_append > 0 { // replicating old diagnostic message
+						Warnl(n.Pos, "append: len-only update (in local slice)")
 					}
+					break
 				}
+				if Debug_append > 0 {
+					Warnl(n.Pos, "append: len-only update")
+				}
+				s.append(rhs, true)
+				return
 			}
 		}
 
@@ -2573,6 +2579,11 @@ func init() {
 			return nil
 		},
 		all...)
+	add("runtime", "getclosureptr",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue0(ssa.OpGetClosurePtr, s.f.Config.Types.Uintptr)
+		},
+		all...)
 
 	/******** runtime/internal/sys ********/
 	addF("runtime/internal/sys", "Ctz32",
@@ -2720,6 +2731,21 @@ func init() {
 			return s.newValue1(ssa.OpSqrt, types.Types[TFLOAT64], args[0])
 		},
 		sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
+	addF("math", "Trunc",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpTrunc, types.Types[TFLOAT64], args[0])
+		},
+		sys.PPC64)
+	addF("math", "Ceil",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpCeil, types.Types[TFLOAT64], args[0])
+		},
+		sys.PPC64)
+	addF("math", "Floor",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpFloor, types.Types[TFLOAT64], args[0])
+		},
+		sys.PPC64)
 
 	/******** math/bits ********/
 	addF("math/bits", "TrailingZeros64",
@@ -3098,7 +3124,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		if k != callNormal {
 			s.nilCheck(itab)
 		}
-		itabidx := fn.Xoffset + 3*int64(Widthptr) + 8 // offset of fun field in runtime.itab
+		itabidx := fn.Xoffset + 2*int64(Widthptr) + 8 // offset of fun field in runtime.itab
 		itab = s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.UintptrPtr, itabidx, itab)
 		if k == callNormal {
 			codeptr = s.newValue2(ssa.OpLoad, types.Types[TUINTPTR], itab, s.mem())
@@ -4747,7 +4773,7 @@ func CheckLoweredPhi(v *ssa.Value) {
 	loc := f.RegAlloc[v.ID]
 	for _, a := range v.Args {
 		if aloc := f.RegAlloc[a.ID]; aloc != loc { // TODO: .Equal() instead?
-			v.Fatalf("phi arg at different location than phi: %v @ %v, but arg %v @ %v\n%s\n", v, loc, a, aloc, v.Block.Func)
+			v.Fatalf("phi arg at different location than phi: %v @ %s, but arg %v @ %s\n%s\n", v, loc, a, aloc, v.Block.Func)
 		}
 	}
 }

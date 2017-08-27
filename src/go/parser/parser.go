@@ -1707,8 +1707,8 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
 		}
 		// The label declaration typically starts at x[0].Pos(), but the label
 		// declaration may be erroneous due to a token after that position (and
-		// before the ':'). If SpuriousErrors is not set, the (only) error re-
-		// ported for the line is the illegal label error instead of the token
+		// before the ':'). If SpuriousErrors is not set, the (only) error
+		// reported for the line is the illegal label error instead of the token
 		// before the ':' that caused the problem. Thus, use the (latest) colon
 		// position for error reporting.
 		p.error(colon, "illegal label declaration")

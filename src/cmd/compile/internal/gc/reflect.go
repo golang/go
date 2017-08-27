@@ -497,14 +497,12 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
 func isExportedField(ft *types.Field) (bool, *types.Pkg) {
 	if ft.Sym != nil && ft.Embedded == 0 {
 		return exportname(ft.Sym.Name), ft.Sym.Pkg
-	} else {
-		if ft.Type.Sym != nil &&
-			(ft.Type.Sym.Pkg == builtinpkg || !exportname(ft.Type.Sym.Name)) {
-			return false, ft.Type.Sym.Pkg
-		} else {
-			return true, nil
-		}
 	}
+	if ft.Type.Sym != nil &&
+		(ft.Type.Sym.Pkg == builtinpkg || !exportname(ft.Type.Sym.Name)) {
+		return false, ft.Type.Sym.Pkg
+	}
+	return true, nil
 }
 
 // dnameField dumps a reflect.name for a struct field.
@@ -788,7 +786,7 @@ func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
 
 	sizeofAlg := 2 * Widthptr
 	if algarray == nil {
-		algarray = Sysfunc("algarray")
+		algarray = sysfunc("algarray")
 	}
 	dowidth(t)
 	alg := algtype(t)
@@ -1408,7 +1406,7 @@ func itabsym(it *obj.LSym, offset int64) *obj.LSym {
 	}
 
 	// keep this arithmetic in sync with *itab layout
-	methodnum := int((offset - 3*int64(Widthptr) - 8) / int64(Widthptr))
+	methodnum := int((offset - 2*int64(Widthptr) - 8) / int64(Widthptr))
 	if methodnum >= len(syms) {
 		return nil
 	}
@@ -1457,23 +1455,19 @@ func dumptabs() {
 		// type itab struct {
 		//   inter  *interfacetype
 		//   _type  *_type
-		//   link   *itab
 		//   hash   uint32
-		//   bad    bool
-		//   inhash bool
-		//   unused [2]byte
+		//   _      [4]byte
 		//   fun    [1]uintptr // variable sized
 		// }
 		o := dsymptr(i.lsym, 0, dtypesym(i.itype).Linksym(), 0)
 		o = dsymptr(i.lsym, o, dtypesym(i.t).Linksym(), 0)
-		o += Widthptr                          // skip link field
-		o = duint32(i.lsym, o, typehash(i.t))  // copy of type hash
-		o += 4                                 // skip bad/inhash/unused fields
-		o += len(imethods(i.itype)) * Widthptr // skip fun method pointers
-		// at runtime the itab will contain pointers to types, other itabs and
-		// method functions. None are allocated on heap, so we can use obj.NOPTR.
-		ggloblsym(i.lsym, int32(o), int16(obj.DUPOK|obj.NOPTR))
-
+		o = duint32(i.lsym, o, typehash(i.t)) // copy of type hash
+		o += 4                                // skip unused field
+		for _, fn := range genfun(i.t, i.itype) {
+			o = dsymptr(i.lsym, o, fn, 0) // method pointer for each method
+		}
+		// Nothing writes static itabs, so they are read only.
+		ggloblsym(i.lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
 		ilink := itablinkpkg.Lookup(i.t.ShortString() + "," + i.itype.ShortString()).Linksym()
 		dsymptr(ilink, 0, i.lsym, 0)
 		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
@@ -1586,8 +1580,8 @@ func dalgsym(t *types.Type) *obj.LSym {
 		s.SetAlgGen(true)
 
 		if memhashvarlen == nil {
-			memhashvarlen = Sysfunc("memhash_varlen")
-			memequalvarlen = Sysfunc("memequal_varlen")
+			memhashvarlen = sysfunc("memhash_varlen")
+			memequalvarlen = sysfunc("memequal_varlen")
 		}
 
 		// make hash closure

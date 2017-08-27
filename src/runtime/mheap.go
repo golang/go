@@ -56,6 +56,12 @@ type mheap struct {
 	// Internal pages map to an arbitrary span.
 	// For pages that have never been allocated, spans entries are nil.
 	//
+	// Modifications are protected by mheap.lock. Reads can be
+	// performed without locking, but ONLY from indexes that are
+	// known to contain in-use or stack spans. This means there
+	// must not be a safe-point between establishing that an
+	// address is live and looking it up in the spans array.
+	//
 	// This is backed by a reserved region of the address space so
 	// it can grow without moving. The memory up to len(spans) is
 	// mapped. cap(spans) indicates the total reserved memory.
@@ -503,6 +509,11 @@ func (h *mheap) init(spansStart, spansBytes uintptr) {
 	sp.array = unsafe.Pointer(spansStart)
 	sp.len = 0
 	sp.cap = int(spansBytes / sys.PtrSize)
+
+	// Map metadata structures. But don't map race detector memory
+	// since we're not actually growing the arena here (and TSAN
+	// gets mad if you map 0 bytes).
+	h.setArenaUsed(h.arena_used, false)
 }
 
 // setArenaUsed extends the usable arena to address arena_used and
@@ -1118,34 +1129,35 @@ func scavengelist(list *mSpanList, now, limit uint64) uintptr {
 
 	var sumreleased uintptr
 	for s := list.first; s != nil; s = s.next {
-		if (now-uint64(s.unusedsince)) > limit && s.npreleased != s.npages {
-			start := s.base()
-			end := start + s.npages<<_PageShift
-			if physPageSize > _PageSize {
-				// We can only release pages in
-				// physPageSize blocks, so round start
-				// and end in. (Otherwise, madvise
-				// will round them *out* and release
-				// more memory than we want.)
-				start = (start + physPageSize - 1) &^ (physPageSize - 1)
-				end &^= physPageSize - 1
-				if end <= start {
-					// start and end don't span a
-					// whole physical page.
-					continue
-				}
-			}
-			len := end - start
-
-			released := len - (s.npreleased << _PageShift)
-			if physPageSize > _PageSize && released == 0 {
+		if (now-uint64(s.unusedsince)) <= limit || s.npreleased == s.npages {
+			continue
+		}
+		start := s.base()
+		end := start + s.npages<<_PageShift
+		if physPageSize > _PageSize {
+			// We can only release pages in
+			// physPageSize blocks, so round start
+			// and end in. (Otherwise, madvise
+			// will round them *out* and release
+			// more memory than we want.)
+			start = (start + physPageSize - 1) &^ (physPageSize - 1)
+			end &^= physPageSize - 1
+			if end <= start {
+				// start and end don't span a
+				// whole physical page.
 				continue
 			}
-			memstats.heap_released += uint64(released)
-			sumreleased += released
-			s.npreleased = len >> _PageShift
-			sysUnused(unsafe.Pointer(start), len)
 		}
+		len := end - start
+
+		released := len - (s.npreleased << _PageShift)
+		if physPageSize > _PageSize && released == 0 {
+			continue
+		}
+		memstats.heap_released += uint64(released)
+		sumreleased += released
+		s.npreleased = len >> _PageShift
+		sysUnused(unsafe.Pointer(start), len)
 	}
 	return sumreleased
 }

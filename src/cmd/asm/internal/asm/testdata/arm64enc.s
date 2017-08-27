@@ -345,10 +345,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    //TODO STTRH 9(R10), R18                   // 52990078
    //TODO STXP (R20), R18, R5, ZR             // 854a3f88
    //TODO STXP (R22), R9, R17, R0             // d12620c8
-   // STXRW R2, (R19), R18                    // 627e1288
-   // STXR R15, (R21), R13                    // af7e0dc8
-   // STXRB R7, (R9), R24                     // 277d1808
-   // STXRH R12, (R3), R8                     // 6c7c0848
+   STXRW R2, (R19), R18                       // 627e1288
+   STXR R15, (R21), R13                       // af7e0dc8
+   STXRB R7, (R9), R24                        // 277d1808
+   STXRH R12, (R3), R8                        // 6c7c0848
    //TODO SUBW R20.UXTW<<7, R23, R18          // f25e344b
    //TODO SUB R5.SXTW<<2, R1, R26             // 3ac825cb
    SUB $(1923<<12), R4, R27                   // SUB $7876608, R4, R27         // 9b0c5ed1

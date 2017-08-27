@@ -191,6 +191,7 @@ func (t *Tuple) Len() int {
 func (t *Tuple) At(i int) *Var { return t.vars[i] }
 
 // A Signature represents a (non-builtin) function or method type.
+// The receiver is ignored when comparing signatures for identity.
 type Signature struct {
 	// We need to keep the scope in Signature (rather than passing it around
 	// and store it in the Func Object) because when type-checking a function
@@ -221,7 +222,7 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 }
 
 // Recv returns the receiver of signature s (if a method), or nil if a
-// function.
+// function. It is ignored when comparing signatures for identity.
 //
 // For an abstract method, Recv returns the enclosing interface either
 // as a *Named or an *Interface. Due to embedding, an interface may

@@ -139,10 +139,24 @@ func prepareArg(value reflect.Value, argType reflect.Type) (reflect.Value, error
 		}
 		value = reflect.Zero(argType)
 	}
-	if !value.Type().AssignableTo(argType) {
-		return reflect.Value{}, fmt.Errorf("value has type %s; should be %s", value.Type(), argType)
+	if value.Type().AssignableTo(argType) {
+		return value, nil
 	}
-	return value, nil
+	if intLike(value.Kind()) && intLike(argType.Kind()) && value.Type().ConvertibleTo(argType) {
+		value = value.Convert(argType)
+		return value, nil
+	}
+	return reflect.Value{}, fmt.Errorf("value has type %s; should be %s", value.Type(), argType)
+}
+
+func intLike(typ reflect.Kind) bool {
+	switch typ {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return true
+	}
+	return false
 }
 
 // Indexing.

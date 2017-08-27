@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"os/exec"
@@ -20,11 +21,12 @@ import (
 	"runtime/pprof/internal/profile"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
-func cpuHogger(f func(), dur time.Duration) {
+func cpuHogger(f func() int, dur time.Duration) {
 	// We only need to get one 100 Hz clock tick, so we've got
 	// a large safety buffer.
 	// But do at least 500 iterations (which should take about 100ms),
@@ -44,7 +46,7 @@ var (
 // The actual CPU hogging function.
 // Must not call other functions nor access heap/globals in the loop,
 // otherwise under race detector the samples will be in the race runtime.
-func cpuHog1() {
+func cpuHog1() int {
 	foo := salt1
 	for i := 0; i < 1e5; i++ {
 		if foo > 0 {
@@ -53,10 +55,10 @@ func cpuHog1() {
 			foo *= foo + 1
 		}
 	}
-	salt1 = foo
+	return foo
 }
 
-func cpuHog2() {
+func cpuHog2() int {
 	foo := salt2
 	for i := 0; i < 1e5; i++ {
 		if foo > 0 {
@@ -65,7 +67,7 @@ func cpuHog2() {
 			foo *= foo + 2
 		}
 	}
-	salt2 = foo
+	return foo
 }
 
 func TestCPUProfile(t *testing.T) {
@@ -93,8 +95,9 @@ func TestCPUProfileInlining(t *testing.T) {
 	})
 }
 
-func inlinedCaller() {
+func inlinedCaller() int {
 	inlinedCallee()
+	return 0
 }
 
 func inlinedCallee() {
@@ -712,4 +715,55 @@ func TestCPUProfileLabel(t *testing.T) {
 			cpuHogger(cpuHog1, dur)
 		})
 	})
+}
+
+func TestLabelRace(t *testing.T) {
+	// Test the race detector annotations for synchronization
+	// between settings labels and consuming them from the
+	// profile.
+	testCPUProfile(t, []string{"runtime/pprof.cpuHogger;key=value"}, func(dur time.Duration) {
+		start := time.Now()
+		var wg sync.WaitGroup
+		for time.Since(start) < dur {
+			for i := 0; i < 10; i++ {
+				wg.Add(1)
+				go func() {
+					Do(context.Background(), Labels("key", "value"), func(context.Context) {
+						cpuHogger(cpuHog1, time.Millisecond)
+					})
+					wg.Done()
+				}()
+			}
+			wg.Wait()
+		}
+	})
+}
+
+// Check that there is no deadlock when the program receives SIGPROF while in
+// 64bit atomics' critical section. Used to happen on mips{,le}. See #20146.
+func TestAtomicLoadStore64(t *testing.T) {
+	f, err := ioutil.TempFile("", "profatomic")
+	if err != nil {
+		t.Fatalf("TempFile: %v", err)
+	}
+	defer os.Remove(f.Name())
+	defer f.Close()
+
+	if err := StartCPUProfile(f); err != nil {
+		t.Fatal(err)
+	}
+	defer StopCPUProfile()
+
+	var flag uint64
+	done := make(chan bool, 1)
+
+	go func() {
+		for atomic.LoadUint64(&flag) == 0 {
+			runtime.Gosched()
+		}
+		done <- true
+	}()
+	time.Sleep(50 * time.Millisecond)
+	atomic.StoreUint64(&flag, 1)
+	<-done
 }

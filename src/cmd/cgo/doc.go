@@ -241,7 +241,10 @@ They will be available in the C code as:
 found in the _cgo_export.h generated header, after any preambles
 copied from the cgo input files. Functions with multiple
 return values are mapped to functions returning a struct.
+
 Not all Go types can be mapped to C types in a useful way.
+Go struct types are not supported; use a C struct type.
+Go array types are not supported; use a C pointer.
 
 Using //export in a file places a restriction on the preamble:
 since it is copied into two different C output files, it must not

@@ -4,8 +4,6 @@
 
 // Package plugin implements loading and symbol resolution of Go plugins.
 //
-// Currently plugins only work on Linux.
-//
 // A plugin is a Go main package with exported functions and variables that
 // has been built with:
 //
@@ -14,6 +12,9 @@
 // When a plugin is first opened, the init functions of all packages not
 // already part of the program are called. The main function is not run.
 // A plugin is only initialized once, and cannot be closed.
+//
+// The plugin support is currently incomplete, only supports Linux,
+// and has known bugs. Please report any issues.
 package plugin
 
 // Plugin is a loaded Go plugin.

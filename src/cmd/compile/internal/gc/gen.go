@@ -11,7 +11,7 @@ import (
 	"strconv"
 )
 
-func Sysfunc(name string) *obj.LSym {
+func sysfunc(name string) *obj.LSym {
 	return Runtimepkg.Lookup(name).Linksym()
 }
 

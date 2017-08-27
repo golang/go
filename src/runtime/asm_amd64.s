@@ -854,23 +854,6 @@ done:
 	MOVQ	AX, ret+0(FP)
 	RET
 
-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
-// redirects to memhash(p, h, size) using the size
-// stored in the closure.
-TEXT runtime·memhash_varlen(SB),NOSPLIT,$32-24
-	GO_ARGS
-	NO_LOCAL_POINTERS
-	MOVQ	p+0(FP), AX
-	MOVQ	h+8(FP), BX
-	MOVQ	8(DX), CX
-	MOVQ	AX, 0(SP)
-	MOVQ	BX, 8(SP)
-	MOVQ	CX, 16(SP)
-	CALL	runtime·memhash(SB)
-	MOVQ	24(SP), AX
-	MOVQ	AX, ret+16(FP)
-	RET
-
 // hash function using AES hardware instructions
 TEXT runtime·aeshash(SB),NOSPLIT,$0-32
 	MOVQ	p+0(FP), AX	// ptr to data
@@ -2338,26 +2321,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$0-0
 	CALL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
 	BYTE	$0x90	// NOP
-
-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
-	MOVQ	addr+0(FP), AX
-	PREFETCHT0	(AX)
-	RET
-
-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
-	MOVQ	addr+0(FP), AX
-	PREFETCHT1	(AX)
-	RET
-
-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
-	MOVQ	addr+0(FP), AX
-	PREFETCHT2	(AX)
-	RET
-
-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
-	MOVQ	addr+0(FP), AX
-	PREFETCHNTA	(AX)
-	RET
 
 // This is called from .init_array and follows the platform, not Go, ABI.
 TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0

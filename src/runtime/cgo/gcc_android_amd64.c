@@ -41,7 +41,7 @@ inittls(void)
 	 */
 	ntofree = 0;
 	for(;;) {
-		if(pthread_key_create(&k, nil) < 0) {
+		if(pthread_key_create(&k, nil) != 0) {
 			fprintf(stderr, "runtime/cgo: pthread_key_create failed\n");
 			abort();
 		}
@@ -82,7 +82,10 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
-	pthread_setspecific(k1, (void*)ts.g);
+	if (pthread_setspecific(k1, (void*)ts.g) != 0) {
+		fprintf(stderr, "runtime/cgo: pthread_setspecific failed\n");
+		abort();
+	}
 
 	crosscall_amd64(ts.fn);
 	return nil;

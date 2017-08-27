@@ -362,7 +362,7 @@ var linuxAMD64Tests = []*asmTest{
 			*t = T1{}
 		}
 		`,
-		[]string{"\tMOVQ\t\\$0, \\(.*\\)", "\tMOVQ\t\\$0, 8\\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)"},
+		[]string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)"},
 	},
 	// SSA-able composite literal initialization. Issue 18872.
 	{
@@ -387,7 +387,7 @@ var linuxAMD64Tests = []*asmTest{
 			*t = T2{}
 		}
 		`,
-		[]string{"\tMOVQ\t\\$0, \\(.*\\)", "\tMOVQ\t\\$0, 8\\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.writebarrierptr\\(SB\\)"},
+		[]string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.writebarrierptr\\(SB\\)"},
 	},
 	// Rotate tests
 	{
@@ -741,6 +741,29 @@ var linuxAMD64Tests = []*asmTest{
 		}`,
 		[]string{"\tPOPCNTQ\t", "support_popcnt"},
 	},
+	// multiplication merging tests
+	{
+		`
+		func mul1(n int) int {
+			return 15*n + 31*n
+		}`,
+		[]string{"\tIMULQ\t[$]46"}, // 46*n
+	},
+	{
+		`
+		func mul2(n int) int {
+			return 5*n + 7*(n+1) + 11*(n+2)
+		}`,
+		[]string{"\tIMULQ\t[$]23", "\tADDQ\t[$]29"}, // 23*n + 29
+	},
+	{
+		`
+		func mul3(a, n int) int {
+			return a*n + 19*n
+		}`,
+		[]string{"\tADDQ\t[$]19", "\tIMULQ"}, // (a+19)*n
+	},
+
 	// see issue 19595.
 	// We want to merge load+op in f58, but not in f59.
 	{
@@ -898,6 +921,17 @@ var linuxAMD64Tests = []*asmTest{
 		}`,
 		[]string{"\tCMPL\t[A-Z]"},
 	},
+	{
+		// make sure assembly output has matching offset and base register.
+		`
+		func f72(a, b int) int {
+			var x [16]byte // use some frame
+			_ = x
+			return b
+		}
+		`,
+		[]string{"b\\+40\\(SP\\)"},
+	},
 }
 
 var linux386Tests = []*asmTest{
@@ -916,6 +950,21 @@ var linux386Tests = []*asmTest{
 		}
 		`,
 		[]string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
+	},
+	// multiplication merging tests
+	{
+		`
+		func mul1(n int) int {
+			return 9*n + 14*n
+		}`,
+		[]string{"\tIMULL\t[$]23"}, // 23*n
+	},
+	{
+		`
+		func mul2(a, n int) int {
+			return 19*a + a*n
+		}`,
+		[]string{"\tADDL\t[$]19", "\tIMULL"}, // (n+19)*a
 	},
 }
 
@@ -1302,6 +1351,17 @@ var linuxARMTests = []*asmTest{
 		`,
 		[]string{"\tCLZ\t"},
 	},
+	{
+		// make sure assembly output has matching offset and base register.
+		`
+		func f13(a, b int) int {
+			var x [16]byte // use some frame
+			_ = x
+			return b
+		}
+		`,
+		[]string{"b\\+4\\(FP\\)"},
+	},
 }
 
 var linuxARM64Tests = []*asmTest{
@@ -1473,7 +1533,7 @@ var linuxARM64Tests = []*asmTest{
 			return
 		}
 		`,
-		[]string{"\tMOVD\t\"\"\\.a\\+[0-9]+\\(RSP\\), R[0-9]+", "\tMOVD\tR[0-9]+, \"\"\\.b\\+[0-9]+\\(RSP\\)"},
+		[]string{"\tMOVD\t\"\"\\.a\\+[0-9]+\\(FP\\), R[0-9]+", "\tMOVD\tR[0-9]+, \"\"\\.b\\+[0-9]+\\(FP\\)"},
 	},
 }
 

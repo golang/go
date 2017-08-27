@@ -7,7 +7,9 @@ package tar
 import (
 	"bytes"
 	"internal/testenv"
+	"io"
 	"io/ioutil"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,6 +18,116 @@ import (
 	"testing"
 	"time"
 )
+
+func equalSparseEntries(x, y []SparseEntry) bool {
+	return (len(x) == 0 && len(y) == 0) || reflect.DeepEqual(x, y)
+}
+
+func TestSparseEntries(t *testing.T) {
+	vectors := []struct {
+		in   []SparseEntry
+		size int64
+
+		wantValid    bool          // Result of validateSparseEntries
+		wantAligned  []SparseEntry // Result of alignSparseEntries
+		wantInverted []SparseEntry // Result of invertSparseEntries
+	}{{
+		in: []SparseEntry{}, size: 0,
+		wantValid:    true,
+		wantInverted: []SparseEntry{{0, 0}},
+	}, {
+		in: []SparseEntry{}, size: 5000,
+		wantValid:    true,
+		wantInverted: []SparseEntry{{0, 5000}},
+	}, {
+		in: []SparseEntry{{0, 5000}}, size: 5000,
+		wantValid:    true,
+		wantAligned:  []SparseEntry{{0, 5000}},
+		wantInverted: []SparseEntry{{5000, 0}},
+	}, {
+		in: []SparseEntry{{1000, 4000}}, size: 5000,
+		wantValid:    true,
+		wantAligned:  []SparseEntry{{1024, 3976}},
+		wantInverted: []SparseEntry{{0, 1000}, {5000, 0}},
+	}, {
+		in: []SparseEntry{{0, 3000}}, size: 5000,
+		wantValid:    true,
+		wantAligned:  []SparseEntry{{0, 2560}},
+		wantInverted: []SparseEntry{{3000, 2000}},
+	}, {
+		in: []SparseEntry{{3000, 2000}}, size: 5000,
+		wantValid:    true,
+		wantAligned:  []SparseEntry{{3072, 1928}},
+		wantInverted: []SparseEntry{{0, 3000}, {5000, 0}},
+	}, {
+		in: []SparseEntry{{2000, 2000}}, size: 5000,
+		wantValid:    true,
+		wantAligned:  []SparseEntry{{2048, 1536}},
+		wantInverted: []SparseEntry{{0, 2000}, {4000, 1000}},
+	}, {
+		in: []SparseEntry{{0, 2000}, {8000, 2000}}, size: 10000,
+		wantValid:    true,
+		wantAligned:  []SparseEntry{{0, 1536}, {8192, 1808}},
+		wantInverted: []SparseEntry{{2000, 6000}, {10000, 0}},
+	}, {
+		in: []SparseEntry{{0, 2000}, {2000, 2000}, {4000, 0}, {4000, 3000}, {7000, 1000}, {8000, 0}, {8000, 2000}}, size: 10000,
+		wantValid:    true,
+		wantAligned:  []SparseEntry{{0, 1536}, {2048, 1536}, {4096, 2560}, {7168, 512}, {8192, 1808}},
+		wantInverted: []SparseEntry{{10000, 0}},
+	}, {
+		in: []SparseEntry{{0, 0}, {1000, 0}, {2000, 0}, {3000, 0}, {4000, 0}, {5000, 0}}, size: 5000,
+		wantValid:    true,
+		wantInverted: []SparseEntry{{0, 5000}},
+	}, {
+		in: []SparseEntry{{1, 0}}, size: 0,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{-1, 0}}, size: 100,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{0, -1}}, size: 100,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{0, 0}}, size: -100,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{math.MaxInt64, 3}, {6, -5}}, size: 35,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{1, 3}, {6, -5}}, size: 35,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{math.MaxInt64, math.MaxInt64}}, size: math.MaxInt64,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{3, 3}}, size: 5,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{2, 0}, {1, 0}, {0, 0}}, size: 3,
+		wantValid: false,
+	}, {
+		in: []SparseEntry{{1, 3}, {2, 2}}, size: 10,
+		wantValid: false,
+	}}
+
+	for i, v := range vectors {
+		gotValid := validateSparseEntries(v.in, v.size)
+		if gotValid != v.wantValid {
+			t.Errorf("test %d, validateSparseEntries() = %v, want %v", i, gotValid, v.wantValid)
+		}
+		if !v.wantValid {
+			continue
+		}
+		gotAligned := alignSparseEntries(append([]SparseEntry{}, v.in...), v.size)
+		if !equalSparseEntries(gotAligned, v.wantAligned) {
+			t.Errorf("test %d, alignSparseEntries():\ngot  %v\nwant %v", i, gotAligned, v.wantAligned)
+		}
+		gotInverted := invertSparseEntries(append([]SparseEntry{}, v.in...), v.size)
+		if !equalSparseEntries(gotInverted, v.wantInverted) {
+			t.Errorf("test %d, inverseSparseEntries():\ngot  %v\nwant %v", i, gotInverted, v.wantInverted)
+		}
+	}
+}
 
 func TestFileInfoHeader(t *testing.T) {
 	fi, err := os.Stat("testdata/small.txt")
@@ -328,4 +440,261 @@ func TestHeaderRoundTrip(t *testing.T) {
 			t.Errorf("i=%d: Sys didn't return original *Header", i)
 		}
 	}
+}
+
+func TestHeaderAllowedFormats(t *testing.T) {
+	prettyFormat := func(f int) string {
+		if f == formatUnknown {
+			return "(formatUnknown)"
+		}
+		var fs []string
+		if f&formatUSTAR > 0 {
+			fs = append(fs, "formatUSTAR")
+		}
+		if f&formatPAX > 0 {
+			fs = append(fs, "formatPAX")
+		}
+		if f&formatGNU > 0 {
+			fs = append(fs, "formatGNU")
+		}
+		return "(" + strings.Join(fs, " | ") + ")"
+	}
+
+	vectors := []struct {
+		header  *Header           // Input header
+		paxHdrs map[string]string // Expected PAX headers that may be needed
+		formats int               // Expected formats that can encode the header
+	}{{
+		header:  &Header{},
+		formats: formatUSTAR | formatPAX | formatGNU,
+	}, {
+		header:  &Header{Size: 077777777777},
+		formats: formatUSTAR | formatPAX | formatGNU,
+	}, {
+		header:  &Header{Size: 077777777777 + 1},
+		paxHdrs: map[string]string{paxSize: "8589934592"},
+		formats: formatPAX | formatGNU,
+	}, {
+		header:  &Header{Mode: 07777777},
+		formats: formatUSTAR | formatPAX | formatGNU,
+	}, {
+		header:  &Header{Mode: 07777777 + 1},
+		formats: formatGNU,
+	}, {
+		header:  &Header{Devmajor: -123},
+		formats: formatGNU,
+	}, {
+		header:  &Header{Devmajor: 1<<56 - 1},
+		formats: formatGNU,
+	}, {
+		header:  &Header{Devmajor: 1 << 56},
+		formats: formatUnknown,
+	}, {
+		header:  &Header{Devmajor: -1 << 56},
+		formats: formatGNU,
+	}, {
+		header:  &Header{Devmajor: -1<<56 - 1},
+		formats: formatUnknown,
+	}, {
+		header:  &Header{Name: "用戶名", Devmajor: -1 << 56},
+		formats: formatGNU,
+	}, {
+		header:  &Header{Size: math.MaxInt64},
+		paxHdrs: map[string]string{paxSize: "9223372036854775807"},
+		formats: formatPAX | formatGNU,
+	}, {
+		header:  &Header{Size: math.MinInt64},
+		paxHdrs: map[string]string{paxSize: "-9223372036854775808"},
+		formats: formatUnknown,
+	}, {
+		header:  &Header{Uname: "0123456789abcdef0123456789abcdef"},
+		formats: formatUSTAR | formatPAX | formatGNU,
+	}, {
+		header:  &Header{Uname: "0123456789abcdef0123456789abcdefx"},
+		paxHdrs: map[string]string{paxUname: "0123456789abcdef0123456789abcdefx"},
+		formats: formatPAX,
+	}, {
+		header:  &Header{Name: "foobar"},
+		formats: formatUSTAR | formatPAX | formatGNU,
+	}, {
+		header:  &Header{Name: strings.Repeat("a", nameSize)},
+		formats: formatUSTAR | formatPAX | formatGNU,
+	}, {
+		header:  &Header{Name: strings.Repeat("a", nameSize+1)},
+		paxHdrs: map[string]string{paxPath: strings.Repeat("a", nameSize+1)},
+		formats: formatPAX | formatGNU,
+	}, {
+		header:  &Header{Linkname: "用戶名"},
+		paxHdrs: map[string]string{paxLinkpath: "用戶名"},
+		formats: formatPAX | formatGNU,
+	}, {
+		header:  &Header{Linkname: strings.Repeat("用戶名\x00", nameSize)},
+		paxHdrs: map[string]string{paxLinkpath: strings.Repeat("用戶名\x00", nameSize)},
+		formats: formatUnknown,
+	}, {
+		header:  &Header{Linkname: "\x00hello"},
+		paxHdrs: map[string]string{paxLinkpath: "\x00hello"},
+		formats: formatUnknown,
+	}, {
+		header:  &Header{Uid: 07777777},
+		formats: formatUSTAR | formatPAX | formatGNU,
+	}, {
+		header:  &Header{Uid: 07777777 + 1},
+		paxHdrs: map[string]string{paxUid: "2097152"},
+		formats: formatPAX | formatGNU,
+	}, {
+		header:  &Header{Xattrs: nil},
+		formats: formatUSTAR | formatPAX | formatGNU,
+	}, {
+		header:  &Header{Xattrs: map[string]string{"foo": "bar"}},
+		paxHdrs: map[string]string{paxXattr + "foo": "bar"},
+		formats: formatPAX,
+	}, {
+		header:  &Header{Xattrs: map[string]string{"用戶名": "\x00hello"}},
+		paxHdrs: map[string]string{paxXattr + "用戶名": "\x00hello"},
+		formats: formatPAX,
+	}, {
+		header:  &Header{Xattrs: map[string]string{"foo=bar": "baz"}},
+		formats: formatUnknown,
+	}, {
+		header:  &Header{Xattrs: map[string]string{"foo": ""}},
+		formats: formatUnknown,
+	}, {
+		header:  &Header{ModTime: time.Unix(0, 0)},
+		formats: formatUSTAR | formatPAX | formatGNU,
+	}, {
+		header:  &Header{ModTime: time.Unix(077777777777, 0)},
+		formats: formatUSTAR | formatPAX | formatGNU,
+	}, {
+		header:  &Header{ModTime: time.Unix(077777777777+1, 0)},
+		paxHdrs: map[string]string{paxMtime: "8589934592"},
+		formats: formatPAX | formatGNU,
+	}, {
+		header:  &Header{ModTime: time.Unix(math.MaxInt64, 0)},
+		paxHdrs: map[string]string{paxMtime: "9223372036854775807"},
+		formats: formatPAX | formatGNU,
+	}, {
+		header:  &Header{ModTime: time.Unix(-1, 0)},
+		paxHdrs: map[string]string{paxMtime: "-1"},
+		formats: formatPAX | formatGNU,
+	}, {
+		header:  &Header{ModTime: time.Unix(-1, 500)},
+		paxHdrs: map[string]string{paxMtime: "-0.9999995"},
+		formats: formatPAX,
+	}, {
+		header:  &Header{AccessTime: time.Unix(0, 0)},
+		paxHdrs: map[string]string{paxAtime: "0"},
+		formats: formatPAX | formatGNU,
+	}, {
+		header:  &Header{AccessTime: time.Unix(-123, 0)},
+		paxHdrs: map[string]string{paxAtime: "-123"},
+		formats: formatPAX | formatGNU,
+	}, {
+		header:  &Header{ChangeTime: time.Unix(123, 456)},
+		paxHdrs: map[string]string{paxCtime: "123.000000456"},
+		formats: formatPAX,
+	}}
+
+	for i, v := range vectors {
+		formats, paxHdrs := v.header.allowedFormats()
+		if formats != v.formats {
+			t.Errorf("test %d, allowedFormats(...): got %v, want %v", i, prettyFormat(formats), prettyFormat(v.formats))
+		}
+		if formats&formatPAX > 0 && !reflect.DeepEqual(paxHdrs, v.paxHdrs) && !(len(paxHdrs) == 0 && len(v.paxHdrs) == 0) {
+			t.Errorf("test %d, allowedFormats(...):\ngot  %v\nwant %s", i, paxHdrs, v.paxHdrs)
+		}
+	}
+}
+
+func Benchmark(b *testing.B) {
+	type file struct {
+		hdr  *Header
+		body []byte
+	}
+
+	vectors := []struct {
+		label string
+		files []file
+	}{{
+		"USTAR",
+		[]file{{
+			&Header{Name: "bar", Mode: 0640, Size: int64(3)},
+			[]byte("foo"),
+		}, {
+			&Header{Name: "world", Mode: 0640, Size: int64(5)},
+			[]byte("hello"),
+		}},
+	}, {
+		"GNU",
+		[]file{{
+			&Header{Name: "bar", Mode: 0640, Size: int64(3), Devmajor: -1},
+			[]byte("foo"),
+		}, {
+			&Header{Name: "world", Mode: 0640, Size: int64(5), Devmajor: -1},
+			[]byte("hello"),
+		}},
+	}, {
+		"PAX",
+		[]file{{
+			&Header{Name: "bar", Mode: 0640, Size: int64(3), Xattrs: map[string]string{"foo": "bar"}},
+			[]byte("foo"),
+		}, {
+			&Header{Name: "world", Mode: 0640, Size: int64(5), Xattrs: map[string]string{"foo": "bar"}},
+			[]byte("hello"),
+		}},
+	}}
+
+	b.Run("Writer", func(b *testing.B) {
+		for _, v := range vectors {
+			b.Run(v.label, func(b *testing.B) {
+				b.ReportAllocs()
+				for i := 0; i < b.N; i++ {
+					// Writing to ioutil.Discard because we want to
+					// test purely the writer code and not bring in disk performance into this.
+					tw := NewWriter(ioutil.Discard)
+					for _, file := range v.files {
+						if err := tw.WriteHeader(file.hdr); err != nil {
+							b.Errorf("unexpected WriteHeader error: %v", err)
+						}
+						if _, err := tw.Write(file.body); err != nil {
+							b.Errorf("unexpected Write error: %v", err)
+						}
+					}
+					if err := tw.Close(); err != nil {
+						b.Errorf("unexpected Close error: %v", err)
+					}
+				}
+			})
+		}
+	})
+
+	b.Run("Reader", func(b *testing.B) {
+		for _, v := range vectors {
+			var buf bytes.Buffer
+			var r bytes.Reader
+
+			// Write the archive to a byte buffer.
+			tw := NewWriter(&buf)
+			for _, file := range v.files {
+				tw.WriteHeader(file.hdr)
+				tw.Write(file.body)
+			}
+			tw.Close()
+			b.Run(v.label, func(b *testing.B) {
+				b.ReportAllocs()
+				// Read from the byte buffer.
+				for i := 0; i < b.N; i++ {
+					r.Reset(buf.Bytes())
+					tr := NewReader(&r)
+					if _, err := tr.Next(); err != nil {
+						b.Errorf("unexpected Next error: %v", err)
+					}
+					if _, err := io.Copy(ioutil.Discard, tr); err != nil {
+						b.Errorf("unexpected Copy error : %v", err)
+					}
+				}
+			})
+		}
+	})
+
 }

@@ -82,6 +82,10 @@ func hostArchive(ctxt *Link, name string) {
 		Exitf("file %s too short", name)
 	}
 
+	if string(magbuf[:]) != ARMAG {
+		Exitf("%s is not an archive file", name)
+	}
+
 	var arhdr ArHdr
 	l := nextar(f, f.Offset(), &arhdr)
 	if l <= 0 {

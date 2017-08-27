@@ -332,8 +332,8 @@ func releaseSudog(s *sudog) {
 	if s.elem != nil {
 		throw("runtime: sudog with non-nil elem")
 	}
-	if s.selectdone != nil {
-		throw("runtime: sudog with non-nil selectdone")
+	if s.isSelect {
+		throw("runtime: sudog with non-false isSelect")
 	}
 	if s.next != nil {
 		throw("runtime: sudog with non-nil next")
@@ -941,7 +941,7 @@ func stopTheWorld(reason string) {
 
 // startTheWorld undoes the effects of stopTheWorld.
 func startTheWorld() {
-	systemstack(startTheWorldWithSema)
+	systemstack(func() { startTheWorldWithSema() })
 	// worldsema must be held over startTheWorldWithSema to ensure
 	// gomaxprocs cannot change while worldsema is held.
 	semrelease(&worldsema)
@@ -1057,7 +1057,7 @@ func mhelpgc() {
 	_g_.m.helpgc = -1
 }
 
-func startTheWorldWithSema() {
+func startTheWorldWithSema() int64 {
 	_g_ := getg()
 
 	_g_.m.locks++        // disable preemption because it can be holding p in a local var
@@ -1097,6 +1097,9 @@ func startTheWorldWithSema() {
 		}
 	}
 
+	// Capture start-the-world time before doing clean-up tasks.
+	startTime := nanotime()
+
 	// Wakeup an additional proc in case we have excessive runnable goroutines
 	// in local queues or in the global queue. If we don't, the proc will park itself.
 	// If we have lots of excessive work, resetspinning will unpark additional procs as necessary.
@@ -1118,6 +1121,8 @@ func startTheWorldWithSema() {
 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
 		_g_.stackguard0 = stackPreempt
 	}
+
+	return startTime
 }
 
 // Called to start an M.
@@ -3232,10 +3237,14 @@ var prof struct {
 	hz         int32
 }
 
-func _System()           { _System() }
-func _ExternalCode()     { _ExternalCode() }
-func _LostExternalCode() { _LostExternalCode() }
-func _GC()               { _GC() }
+func _System()                    { _System() }
+func _ExternalCode()              { _ExternalCode() }
+func _LostExternalCode()          { _LostExternalCode() }
+func _GC()                        { _GC() }
+func _LostSIGPROFDuringAtomic64() { _LostSIGPROFDuringAtomic64() }
+
+// Counts SIGPROFs received while in atomic64 critical section, on mips{,le}
+var lostAtomic64Count uint64
 
 // Called if we receive a SIGPROF signal.
 // Called by the signal handler, may run during STW.
@@ -3243,6 +3252,21 @@ func _GC()               { _GC() }
 func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	if prof.hz == 0 {
 		return
+	}
+
+	// On mips{,le}, 64bit atomics are emulated with spinlocks, in
+	// runtime/internal/atomic. If SIGPROF arrives while the program is inside
+	// the critical section, it creates a deadlock (when writing the sample).
+	// As a workaround, create a counter of SIGPROFs while in critical section
+	// to store the count, and pass it to sigprof.add() later when SIGPROF is
+	// received from somewhere else (with _LostSIGPROFDuringAtomic64 as pc).
+	if GOARCH == "mips" || GOARCH == "mipsle" {
+		if f := findfunc(pc); f.valid() {
+			if hasprefix(funcname(f), "runtime/internal/atomic") {
+				lostAtomic64Count++
+				return
+			}
+		}
 	}
 
 	// Profiling runs concurrently with GC, so it must not allocate.
@@ -3371,6 +3395,10 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	}
 
 	if prof.hz != 0 {
+		if (GOARCH == "mips" || GOARCH == "mipsle") && lostAtomic64Count > 0 {
+			cpuprof.addLostAtomic64(lostAtomic64Count)
+			lostAtomic64Count = 0
+		}
 		cpuprof.add(gp, stk[:n])
 	}
 	getg().m.mallocing--

@@ -81,16 +81,16 @@ func pathToPrefix(s string) string {
 }
 
 func open(name string) (*Plugin, error) {
-	cPath := (*C.char)(C.malloc(C.PATH_MAX + 1))
-	defer C.free(unsafe.Pointer(cPath))
-
-	cRelName := C.CString(name)
-	defer C.free(unsafe.Pointer(cRelName))
-	if C.realpath(cRelName, cPath) == nil {
+	cPath := make([]byte, C.PATH_MAX+1)
+	cRelName := make([]byte, len(name)+1)
+	copy(cRelName, name)
+	if C.realpath(
+		(*C.char)(unsafe.Pointer(&cRelName[0])),
+		(*C.char)(unsafe.Pointer(&cPath[0]))) == nil {
 		return nil, errors.New("plugin.Open(" + name + "): realpath failed")
 	}
 
-	filepath := C.GoString(cPath)
+	filepath := C.GoString((*C.char)(unsafe.Pointer(&cPath[0])))
 
 	pluginsMu.Lock()
 	if p := plugins[filepath]; p != nil {
@@ -99,7 +99,7 @@ func open(name string) (*Plugin, error) {
 		return p, nil
 	}
 	var cErr *C.char
-	h := C.pluginOpen(cPath, &cErr)
+	h := C.pluginOpen((*C.char)(unsafe.Pointer(&cPath[0])), &cErr)
 	if h == 0 {
 		pluginsMu.Unlock()
 		return nil, errors.New("plugin.Open: " + C.GoString(cErr))
@@ -127,9 +127,11 @@ func open(name string) (*Plugin, error) {
 	plugins[filepath] = p
 	pluginsMu.Unlock()
 
-	initStr := C.CString(pluginpath + ".init")
-	initFuncPC := C.pluginLookup(h, initStr, &cErr)
-	C.free(unsafe.Pointer(initStr))
+	initStr := make([]byte, len(pluginpath)+6)
+	copy(initStr, pluginpath)
+	copy(initStr[len(pluginpath):], ".init")
+
+	initFuncPC := C.pluginLookup(h, (*C.char)(unsafe.Pointer(&initStr[0])), &cErr)
 	if initFuncPC != nil {
 		initFuncP := &initFuncPC
 		initFunc := *(*func())(unsafe.Pointer(&initFuncP))
@@ -144,9 +146,12 @@ func open(name string) (*Plugin, error) {
 			delete(syms, symName)
 			symName = symName[1:]
 		}
-		cname := C.CString(pathToPrefix(pluginpath) + "." + symName)
-		p := C.pluginLookup(h, cname, &cErr)
-		C.free(unsafe.Pointer(cname))
+
+		fullName := pathToPrefix(pluginpath) + "." + symName
+		cname := make([]byte, len(fullName)+1)
+		copy(cname, fullName)
+
+		p := C.pluginLookup(h, (*C.char)(unsafe.Pointer(&cname[0])), &cErr)
 		if p == nil {
 			return nil, errors.New("plugin.Open: could not find symbol " + symName + ": " + C.GoString(cErr))
 		}

@@ -45,8 +45,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 			if k != key {
 				continue
 			}
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-			if x == empty {
+			if b.tophash[i] == empty {
 				continue
 			}
 			return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
@@ -94,8 +93,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 			if k != key {
 				continue
 			}
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-			if x == empty {
+			if b.tophash[i] == empty {
 				continue
 			}
 			return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize)), true
@@ -143,8 +141,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 			if k != key {
 				continue
 			}
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-			if x == empty {
+			if b.tophash[i] == empty {
 				continue
 			}
 			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
@@ -192,8 +189,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 			if k != key {
 				continue
 			}
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-			if x == empty {
+			if b.tophash[i] == empty {
 				continue
 			}
 			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize)), true
@@ -223,8 +219,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 		if key.len < 32 {
 			// short key, doing lots of comparisons is ok
 			for i := uintptr(0); i < bucketCnt; i++ {
-				x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-				if x == empty {
+				if b.tophash[i] == empty {
 					continue
 				}
 				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
@@ -240,8 +235,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 		// long key, try not to do more comparisons than necessary
 		keymaybe := uintptr(bucketCnt)
 		for i := uintptr(0); i < bucketCnt; i++ {
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-			if x == empty {
+			if b.tophash[i] == empty {
 				continue
 			}
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
@@ -287,14 +281,10 @@ dohash:
 			b = oldb
 		}
 	}
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-			if x != top {
+			if b.tophash[i] != top {
 				continue
 			}
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
@@ -330,8 +320,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 		if key.len < 32 {
 			// short key, doing lots of comparisons is ok
 			for i := uintptr(0); i < bucketCnt; i++ {
-				x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-				if x == empty {
+				if b.tophash[i] == empty {
 					continue
 				}
 				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
@@ -347,8 +336,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 		// long key, try not to do more comparisons than necessary
 		keymaybe := uintptr(bucketCnt)
 		for i := uintptr(0); i < bucketCnt; i++ {
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-			if x == empty {
+			if b.tophash[i] == empty {
 				continue
 			}
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
@@ -394,14 +382,10 @@ dohash:
 			b = oldb
 		}
 	}
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-			if x != top {
+			if b.tophash[i] != top {
 				continue
 			}
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
@@ -436,7 +420,7 @@ func mapassign_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 	h.flags |= hashWriting
 
 	if h.buckets == nil {
-		h.buckets = newarray(t.bucket, 1)
+		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
 	}
 
 again:
@@ -445,10 +429,7 @@ again:
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 
 	var inserti *uint8
 	var insertk unsafe.Pointer
@@ -495,7 +476,7 @@ again:
 	}
 
 	// store new key/value at insert position
-	*((*uint32)(insertk)) = key
+	typedmemmove(t.key, insertk, unsafe.Pointer(&key))
 	*inserti = top
 	h.count++
 
@@ -524,7 +505,7 @@ func mapassign_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 	h.flags |= hashWriting
 
 	if h.buckets == nil {
-		h.buckets = newarray(t.bucket, 1)
+		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
 	}
 
 again:
@@ -533,10 +514,7 @@ again:
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 
 	var inserti *uint8
 	var insertk unsafe.Pointer
@@ -583,7 +561,7 @@ again:
 	}
 
 	// store new key/value at insert position
-	*((*uint64)(insertk)) = key
+	typedmemmove(t.key, insertk, unsafe.Pointer(&key))
 	*inserti = top
 	h.count++
 
@@ -613,7 +591,7 @@ func mapassign_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 	h.flags |= hashWriting
 
 	if h.buckets == nil {
-		h.buckets = newarray(t.bucket, 1)
+		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
 	}
 
 again:
@@ -622,10 +600,7 @@ again:
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 
 	var inserti *uint8
 	var insertk unsafe.Pointer
@@ -635,8 +610,8 @@ again:
 			if b.tophash[i] != top {
 				if b.tophash[i] == empty && inserti == nil {
 					inserti = &b.tophash[i]
-					insertk = add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
-					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+					insertk = add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize)
+					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
 				}
 				continue
 			}
@@ -710,10 +685,7 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
@@ -723,7 +695,7 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
 			if key != *k {
 				continue
 			}
-			*k = 0
+			typedmemclr(t.key, unsafe.Pointer(k))
 			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*4 + i*uintptr(t.valuesize))
 			typedmemclr(t.elem, v)
 			b.tophash[i] = empty
@@ -765,10 +737,7 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
@@ -778,7 +747,7 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
 			if key != *k {
 				continue
 			}
-			*k = 0
+			typedmemclr(t.key, unsafe.Pointer(k))
 			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*8 + i*uintptr(t.valuesize))
 			typedmemclr(t.elem, v)
 			b.tophash[i] = empty
@@ -821,10 +790,7 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {

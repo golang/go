@@ -74,6 +74,9 @@
 (Round64F x) -> (LoweredRound64F x)
 
 (Sqrt x) -> (FSQRT x)
+(Floor x) -> (FFLOOR x)
+(Ceil x) -> (FCEIL x)
+(Trunc x) -> (FTRUNC x)
 
 // Lowering constants
 (Const8   [val]) -> (MOVDconst [val])

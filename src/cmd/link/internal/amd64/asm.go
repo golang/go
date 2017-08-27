@@ -102,7 +102,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	switch r.Type {
 	default:
 		if r.Type >= 256 {
-			ld.Errorf(s, "unexpected relocation type %d", r.Type)
+			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(r.Type))
 			return false
 		}
 
@@ -116,6 +116,17 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		}
 		r.Type = objabi.R_PCREL
 		r.Add += 4
+		return true
+
+	case 256 + ld.R_X86_64_PC64:
+		if targ.Type == ld.SDYNIMPORT {
+			ld.Errorf(s, "unexpected R_X86_64_PC64 relocation for dynamic symbol %s", targ.Name)
+		}
+		if targ.Type == 0 || targ.Type == ld.SXREF {
+			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+		}
+		r.Type = objabi.R_PCREL
+		r.Add += 8
 		return true
 
 	case 256 + ld.R_X86_64_PLT32:
@@ -434,7 +445,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 
 	if rs.Type == ld.SHOSTOBJ || r.Type == objabi.R_PCREL || r.Type == objabi.R_GOTPCREL {
 		if rs.Dynid < 0 {
-			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
+			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Type, rs.Type)
 			return -1
 		}
 
@@ -443,7 +454,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 	} else {
 		v = uint32(rs.Sect.Extnum)
 		if v == 0 {
-			ld.Errorf(s, "reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
+			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
 			return -1
 		}
 	}
@@ -496,7 +507,7 @@ func pereloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	rs := r.Xsym
 
 	if rs.Dynid < 0 {
-		ld.Errorf(s, "reloc %d to non-coff symbol %s type=%d", r.Type, rs.Name, rs.Type)
+		ld.Errorf(s, "reloc %d (%s) to non-coff symbol %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Type, rs.Type)
 		return false
 	}
 

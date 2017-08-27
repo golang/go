@@ -19,7 +19,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 	n.Func.Depth = funcdepth
 	n.Func.Outerfunc = Curfn
 
-	old := p.funchdr(n, expr.Pos())
+	old := p.funchdr(n)
 
 	// steal ntype's argument names and
 	// leave a fresh copy in their place.
@@ -60,7 +60,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 
 	n.Nbody.Set(body)
 	n.Func.Endlineno = lineno
-	p.funcbody(n, expr.Body.Rbrace, old)
+	p.funcbody(old)
 
 	// closure-specific variables are hanging off the
 	// ordinary ones in the symbol table; see oldname.
@@ -463,9 +463,8 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 			Warnl(func_.Pos, "closure converted to global")
 		}
 		return func_.Func.Closure.Func.Nname
-	} else {
-		closuredebugruntimecheck(func_)
 	}
+	closuredebugruntimecheck(func_)
 
 	// Create closure in the form of a composite literal.
 	// supposing the closure captures an int i and a string s

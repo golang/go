@@ -448,6 +448,10 @@ func nodbool(b bool) *Node {
 	return c
 }
 
+func nodstr(s string) *Node {
+	return nodlit(Val{s})
+}
+
 // treecopy recursively copies n, with the exception of
 // ONAME, OLITERAL, OTYPE, and non-iota ONONAME leaves.
 // Copies of iota ONONAME nodes are assigned the current
@@ -1765,7 +1769,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 		dumplist("genwrapper body", fn.Nbody)
 	}
 
-	funcbody(fn)
+	funcbody()
 	Curfn = fn
 	types.Popdcl()
 	if debug_dclstack != 0 {

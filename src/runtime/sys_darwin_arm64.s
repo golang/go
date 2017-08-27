@@ -19,7 +19,6 @@
 #define	SYS_mmap           197
 #define	SYS_munmap         73
 #define	SYS_madvise        75
-#define	SYS_mincore        78
 #define	SYS_gettimeofday   116
 #define	SYS_kill           37
 #define	SYS_getpid         20

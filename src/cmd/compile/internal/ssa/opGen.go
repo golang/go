@@ -70,6 +70,8 @@ const (
 	BlockARM64NZ
 	BlockARM64ZW
 	BlockARM64NZW
+	BlockARM64TBZ
+	BlockARM64TBNZ
 
 	BlockMIPSEQ
 	BlockMIPSNE
@@ -162,20 +164,22 @@ var blockString = [...]string{
 	BlockARMUGT: "UGT",
 	BlockARMUGE: "UGE",
 
-	BlockARM64EQ:  "EQ",
-	BlockARM64NE:  "NE",
-	BlockARM64LT:  "LT",
-	BlockARM64LE:  "LE",
-	BlockARM64GT:  "GT",
-	BlockARM64GE:  "GE",
-	BlockARM64ULT: "ULT",
-	BlockARM64ULE: "ULE",
-	BlockARM64UGT: "UGT",
-	BlockARM64UGE: "UGE",
-	BlockARM64Z:   "Z",
-	BlockARM64NZ:  "NZ",
-	BlockARM64ZW:  "ZW",
-	BlockARM64NZW: "NZW",
+	BlockARM64EQ:   "EQ",
+	BlockARM64NE:   "NE",
+	BlockARM64LT:   "LT",
+	BlockARM64LE:   "LE",
+	BlockARM64GT:   "GT",
+	BlockARM64GE:   "GE",
+	BlockARM64ULT:  "ULT",
+	BlockARM64ULE:  "ULE",
+	BlockARM64UGT:  "UGT",
+	BlockARM64UGE:  "UGE",
+	BlockARM64Z:    "Z",
+	BlockARM64NZ:   "NZ",
+	BlockARM64ZW:   "ZW",
+	BlockARM64NZW:  "NZW",
+	BlockARM64TBZ:  "TBZ",
+	BlockARM64TBNZ: "TBNZ",
 
 	BlockMIPSEQ:  "EQ",
 	BlockMIPSNE:  "NE",
@@ -427,8 +431,8 @@ const (
 	OpAMD64MOVSSstoreidx4
 	OpAMD64MOVSDstoreidx1
 	OpAMD64MOVSDstoreidx8
-	OpAMD64ADDSDmem
 	OpAMD64ADDSSmem
+	OpAMD64ADDSDmem
 	OpAMD64SUBSSmem
 	OpAMD64SUBSDmem
 	OpAMD64MULSSmem
@@ -437,6 +441,8 @@ const (
 	OpAMD64ADDL
 	OpAMD64ADDQconst
 	OpAMD64ADDLconst
+	OpAMD64ADDQconstmem
+	OpAMD64ADDLconstmem
 	OpAMD64SUBQ
 	OpAMD64SUBL
 	OpAMD64SUBQconst
@@ -1322,6 +1328,9 @@ const (
 	OpPPC64FNEG
 	OpPPC64FSQRT
 	OpPPC64FSQRTS
+	OpPPC64FFLOOR
+	OpPPC64FCEIL
+	OpPPC64FTRUNC
 	OpPPC64ORconst
 	OpPPC64XORconst
 	OpPPC64ANDconst
@@ -1800,6 +1809,9 @@ const (
 	OpPopCount32
 	OpPopCount64
 	OpSqrt
+	OpFloor
+	OpCeil
+	OpTrunc
 	OpPhi
 	OpCopy
 	OpConvert
@@ -4684,13 +4696,13 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ADDSDmem",
+		name:           "ADDSSmem",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
 		faultOnNilArg1: true,
 		symEffect:      SymRead,
-		asm:            x86.AADDSD,
+		asm:            x86.AADDSS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
@@ -4702,13 +4714,13 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ADDSSmem",
+		name:           "ADDSDmem",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
 		faultOnNilArg1: true,
 		symEffect:      SymRead,
-		asm:            x86.AADDSS,
+		asm:            x86.AADDSD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
@@ -4850,6 +4862,34 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:           "ADDQconstmem",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymWrite,
+		asm:            x86.AADDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:           "ADDLconstmem",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymWrite,
+		asm:            x86.AADDL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
 		},
 	},
@@ -7644,7 +7684,6 @@ var opcodeTable = [...]opInfo{
 		name:           "DUFFZERO",
 		auxType:        auxInt64,
 		argLen:         3,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16957,6 +16996,45 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "FFLOOR",
+		argLen: 1,
+		asm:    ppc64.AFRIM,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+		},
+	},
+	{
+		name:   "FCEIL",
+		argLen: 1,
+		asm:    ppc64.AFRIP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+		},
+	},
+	{
+		name:   "FTRUNC",
+		argLen: 1,
+		asm:    ppc64.AFRIZ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+		},
+	},
+	{
 		name:    "ORconst",
 		auxType: auxInt64,
 		argLen:  1,
@@ -21974,6 +22052,21 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Sqrt",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Floor",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Ceil",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Trunc",
 		argLen:  1,
 		generic: true,
 	},

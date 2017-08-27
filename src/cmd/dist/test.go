@@ -447,6 +447,17 @@ func (t *tester) registerTests() {
 				t.runPending(dt)
 				moved := t.goroot + "-moved"
 				if err := os.Rename(t.goroot, moved); err != nil {
+					if t.goos == "windows" {
+						// Fails on Windows (with "Access is denied") if a process
+						// or binary is in this directory. For instance, using all.bat
+						// when run from c:\workdir\go\src fails here
+						// if GO_BUILDER_NAME is set. Our builders invoke tests
+						// a different way which happens to work when sharding
+						// tests, but we should be tolerant of the non-sharded
+						// all.bat case.
+						log.Printf("skipping test on Windows")
+						return nil
+					}
 					return err
 				}
 
@@ -597,7 +608,7 @@ func (t *tester) registerTests() {
 			t.registerHostTest("testcarchive", "../misc/cgo/testcarchive", "misc/cgo/testcarchive", "carchive_test.go")
 		}
 		if t.supportedBuildmode("c-shared") {
-			t.registerTest("testcshared", "../misc/cgo/testcshared", "./test.bash")
+			t.registerHostTest("testcshared", "../misc/cgo/testcshared", "misc/cgo/testcshared", "cshared_test.go")
 		}
 		if t.supportedBuildmode("shared") {
 			t.registerTest("testshared", "../misc/cgo/testshared", "go", "test")
@@ -609,7 +620,7 @@ func (t *tester) registerTests() {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
 		}
 		if t.goos == "linux" && t.goarch == "amd64" {
-			t.registerTest("testsanitizers", "../misc/cgo/testsanitizers", "./test.bash")
+			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
 		}
 		if t.hasBash() && t.goos != "android" && !t.iOS() && t.gohostos != "windows" {
 			t.registerTest("cgo_errors", "../misc/cgo/errors", "./test.bash")
@@ -813,7 +824,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		return false
 	case "c-shared":
 		switch pair {
-		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64",
+		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le",
 			"darwin-amd64", "darwin-386",
 			"android-arm", "android-arm64", "android-386":
 			return true

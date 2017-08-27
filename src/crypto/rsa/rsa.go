@@ -424,8 +424,7 @@ var ErrVerification = errors.New("crypto/rsa: verification error")
 func modInverse(a, n *big.Int) (ia *big.Int, ok bool) {
 	g := new(big.Int)
 	x := new(big.Int)
-	y := new(big.Int)
-	g.GCD(x, y, a, n)
+	g.GCD(x, nil, a, n)
 	if g.Cmp(bigOne) != 0 {
 		// In this case, a and n aren't coprime and we cannot calculate
 		// the inverse. This happens because the values of n are nearly

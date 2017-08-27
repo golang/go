@@ -280,17 +280,20 @@ func genRules(arch arch) {
 
 			fmt.Fprintf(w, "for {\n")
 
-			s := split(match[1 : len(match)-1]) // remove parens, then split
+			_, _, _, aux, s := extract(match) // remove parens, then split
 
 			// check match of control value
-			if s[1] != "nil" {
+			if s[0] != "nil" {
 				fmt.Fprintf(w, "v := b.Control\n")
-				if strings.Contains(s[1], "(") {
-					genMatch0(w, arch, s[1], "v", map[string]struct{}{}, false, rule.loc)
+				if strings.Contains(s[0], "(") {
+					genMatch0(w, arch, s[0], "v", map[string]struct{}{}, false, rule.loc)
 				} else {
 					fmt.Fprintf(w, "_ = v\n") // in case we don't use v
-					fmt.Fprintf(w, "%s := b.Control\n", s[1])
+					fmt.Fprintf(w, "%s := b.Control\n", s[0])
 				}
+			}
+			if aux != "" {
+				fmt.Fprintf(w, "%s := b.Aux\n", aux)
 			}
 
 			if cond != "" {
@@ -298,11 +301,11 @@ func genRules(arch arch) {
 			}
 
 			// Rule matches. Generate result.
-			t := split(result[1 : len(result)-1]) // remove parens, then split
-			newsuccs := t[2:]
+			outop, _, _, aux, t := extract(result) // remove parens, then split
+			newsuccs := t[1:]
 
 			// Check if newsuccs is the same set as succs.
-			succs := s[2:]
+			succs := s[1:]
 			m := map[string]bool{}
 			for _, succ := range succs {
 				if m[succ] {
@@ -320,11 +323,16 @@ func genRules(arch arch) {
 				log.Fatalf("unmatched successors %v in %s", m, rule)
 			}
 
-			fmt.Fprintf(w, "b.Kind = %s\n", blockName(t[0], arch))
-			if t[1] == "nil" {
+			fmt.Fprintf(w, "b.Kind = %s\n", blockName(outop, arch))
+			if t[0] == "nil" {
 				fmt.Fprintf(w, "b.SetControl(nil)\n")
 			} else {
-				fmt.Fprintf(w, "b.SetControl(%s)\n", genResult0(w, arch, t[1], new(int), false, false, rule.loc))
+				fmt.Fprintf(w, "b.SetControl(%s)\n", genResult0(w, arch, t[0], new(int), false, false, rule.loc))
+			}
+			if aux != "" {
+				fmt.Fprintf(w, "b.Aux = %s\n", aux)
+			} else {
+				fmt.Fprintln(w, "b.Aux = nil")
 			}
 
 			succChanged := false
@@ -622,11 +630,7 @@ func isBlock(name string, arch arch) bool {
 	return false
 }
 
-// parseValue parses a parenthesized value from a rule.
-// The value can be from the match or the result side.
-// It returns the op and unparsed strings for typ, auxint, and aux restrictions and for all args.
-// oparch is the architecture that op is located in, or "" for generic.
-func parseValue(val string, arch arch, loc string) (op opData, oparch string, typ string, auxint string, aux string, args []string) {
+func extract(val string) (op string, typ string, auxint string, aux string, args []string) {
 	val = val[1 : len(val)-1] // remove ()
 
 	// Split val up into regions.
@@ -634,6 +638,7 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch string, ty
 	s := split(val)
 
 	// Extract restrictions and args.
+	op = s[0]
 	for _, a := range s[1:] {
 		switch a[0] {
 		case '<':
@@ -646,8 +651,18 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch string, ty
 			args = append(args, a)
 		}
 	}
+	return
+}
+
+// parseValue parses a parenthesized value from a rule.
+// The value can be from the match or the result side.
+// It returns the op and unparsed strings for typ, auxint, and aux restrictions and for all args.
+// oparch is the architecture that op is located in, or "" for generic.
+func parseValue(val string, arch arch, loc string) (op opData, oparch string, typ string, auxint string, aux string, args []string) {
 
 	// Resolve the op.
+	var s string
+	s, typ, auxint, aux, args = extract(val)
 
 	// match reports whether x is a good op to select.
 	// If strict is true, rule generation might succeed.
@@ -656,14 +671,14 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch string, ty
 	// Doing strict=true then strict=false allows
 	// precise op matching while retaining good error messages.
 	match := func(x opData, strict bool, archname string) bool {
-		if x.name != s[0] {
+		if x.name != s {
 			return false
 		}
 		if x.argLength != -1 && int(x.argLength) != len(args) {
 			if strict {
 				return false
 			} else {
-				log.Printf("%s: op %s (%s) should have %d args, has %d", loc, s[0], archname, x.argLength, len(args))
+				log.Printf("%s: op %s (%s) should have %d args, has %d", loc, s, archname, x.argLength, len(args))
 			}
 		}
 		return true

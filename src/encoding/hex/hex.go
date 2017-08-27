@@ -94,12 +94,13 @@ func EncodeToString(src []byte) string {
 // DecodeString returns the bytes represented by the hexadecimal string s.
 func DecodeString(s string) ([]byte, error) {
 	src := []byte(s)
-	dst := make([]byte, DecodedLen(len(src)))
-	_, err := Decode(dst, src)
+	// We can use the source slice itself as the destination
+	// because the decode loop increments by one and then the 'seen' byte is not used anymore.
+	len, err := Decode(src, src)
 	if err != nil {
 		return nil, err
 	}
-	return dst, nil
+	return src[:len], nil
 }
 
 // Dump returns a string that contains a hex dump of the given data. The format

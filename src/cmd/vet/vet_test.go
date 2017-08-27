@@ -205,3 +205,15 @@ func TestTags(t *testing.T) {
 		})
 	}
 }
+
+// Issue #21188.
+func TestVetVerbose(t *testing.T) {
+	t.Parallel()
+	Build(t)
+	cmd := exec.Command("./"+binary, "-v", "-all", "testdata/cgo/cgo3.go")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("%s", out)
+		t.Error(err)
+	}
+}

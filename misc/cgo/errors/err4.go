@@ -2,6 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package cpu
+package main
 
-const CacheLineSize = 128
+/*
+long double x = 0;
+*/
+import "C"
+
+func main() {
+	_ = C.x // ERROR HERE
+	_ = C.x
+}

@@ -762,7 +762,7 @@ opswitch:
 		}
 		init.Append(r)
 
-		ll := ascompatet(n.Op, n.List, r.Type)
+		ll := ascompatet(n.List, r.Type)
 		n = liststmt(ll)
 
 	// x, y = <-c
@@ -1417,7 +1417,21 @@ opswitch:
 		n = mkcall1(fn, nil, init, n.Left)
 
 	case OMAKECHAN:
-		n = mkcall1(chanfn("makechan", 1, n.Type), n.Type, init, typename(n.Type), conv(n.Left, types.Types[TINT64]))
+		// When size fits into int, use makechan instead of
+		// makechan64, which is faster and shorter on 32 bit platforms.
+		size := n.Left
+		fnname := "makechan64"
+		argtype := types.Types[TINT64]
+
+		// Type checking guarantees that TIDEAL size is positive and fits in an int.
+		// The case of size overflow when converting TUINT or TUINTPTR to TINT
+		// will be handled by the negative range checks in makechan during runtime.
+		if size.Type.IsKind(TIDEAL) || maxintval[size.Type.Etype].Cmp(maxintval[TUINT]) <= 0 {
+			fnname = "makechan"
+			argtype = types.Types[TINT]
+		}
+
+		n = mkcall1(chanfn(fnname, 1, n.Type), n.Type, init, typename(n.Type), conv(size, argtype))
 
 	case OMAKEMAP:
 		t := n.Type
@@ -1487,7 +1501,7 @@ opswitch:
 			fnname := "makeslice64"
 			argtype := types.Types[TINT64]
 
-			// typechecking guarantees that TIDEAL len/cap are positive and fit in an int.
+			// Type checking guarantees that TIDEAL len/cap are positive and fit in an int.
 			// The case of len or cap overflow when converting TUINT or TUINTPTR to TINT
 			// will be handled by the negative range checks in makeslice during runtime.
 			if (len.Type.IsKind(TIDEAL) || maxintval[len.Type.Etype].Cmp(maxintval[TUINT]) <= 0) &&
@@ -1699,7 +1713,7 @@ func reduceSlice(n *Node) *Node {
 	return n
 }
 
-func ascompatee1(op Op, l *Node, r *Node, init *Nodes) *Node {
+func ascompatee1(l *Node, r *Node, init *Nodes) *Node {
 	// convas will turn map assigns into function calls,
 	// making it impossible for reorder3 to work.
 	n := nod(OAS, l, r)
@@ -1734,7 +1748,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 		if op == ORETURN && samesafeexpr(nl[i], nr[i]) {
 			continue
 		}
-		nn = append(nn, ascompatee1(op, nl[i], nr[i], init))
+		nn = append(nn, ascompatee1(nl[i], nr[i], init))
 	}
 
 	// cannot happen: caller checked that lists had same length
@@ -1767,7 +1781,7 @@ func fncall(l *Node, rt *types.Type) bool {
 // check assign type list to
 // a expression list. called in
 //	expr-list = func()
-func ascompatet(op Op, nl Nodes, nr *types.Type) []*Node {
+func ascompatet(nl Nodes, nr *types.Type) []*Node {
 	if nl.Len() != nr.NumFields() {
 		Fatalf("ascompatet: assignment count mismatch: %d = %d", nl.Len(), nr.NumFields())
 	}
@@ -2005,29 +2019,44 @@ ret:
 
 // generate code for print
 func walkprint(nn *Node, init *Nodes) *Node {
-	var r *Node
-	var n *Node
-	var on *Node
-	var t *types.Type
-	var et types.EType
-
-	op := nn.Op
-	all := nn.List
-	var calls []*Node
-	notfirst := false
-
 	// Hoist all the argument evaluation up before the lock.
-	walkexprlistcheap(all.Slice(), init)
+	walkexprlistcheap(nn.List.Slice(), init)
 
-	calls = append(calls, mkcall("printlock", nil, init))
-	for i1, n1 := range all.Slice() {
-		if notfirst {
-			calls = append(calls, mkcall("printsp", nil, init))
+	// For println, add " " between elements and "\n" at the end.
+	if nn.Op == OPRINTN {
+		s := nn.List.Slice()
+		t := make([]*Node, 0, len(s)*2)
+		for i, n := range s {
+			x := " "
+			if len(s)-1 == i {
+				x = "\n"
+			}
+			t = append(t, n, nodstr(x))
 		}
+		nn.List.Set(t)
+	}
 
-		notfirst = op == OPRINTN
+	// Collapse runs of constant strings.
+	s := nn.List.Slice()
+	t := make([]*Node, 0, len(s))
+	for i := 0; i < len(s); {
+		var strs []string
+		for i < len(s) && Isconst(s[i], CTSTR) {
+			strs = append(strs, s[i].Val().U.(string))
+			i++
+		}
+		if len(strs) > 0 {
+			t = append(t, nodstr(strings.Join(strs, "")))
+		}
+		if i < len(s) {
+			t = append(t, s[i])
+			i++
+		}
+	}
+	nn.List.Set(t)
 
-		n = n1
+	calls := []*Node{mkcall("printlock", nil, init)}
+	for i, n := range nn.List.Slice() {
 		if n.Op == OLITERAL {
 			switch n.Val().Ctype() {
 			case CTRUNE:
@@ -2045,63 +2074,68 @@ func walkprint(nn *Node, init *Nodes) *Node {
 			n = defaultlit(n, types.Types[TINT64])
 		}
 		n = defaultlit(n, nil)
-		all.SetIndex(i1, n)
+		nn.List.SetIndex(i, n)
 		if n.Type == nil || n.Type.Etype == TFORW {
 			continue
 		}
 
-		t = n.Type
-		et = n.Type.Etype
-		if n.Type.IsInterface() {
+		var on *Node
+		switch n.Type.Etype {
+		case TINTER:
 			if n.Type.IsEmptyInterface() {
 				on = syslook("printeface")
 			} else {
 				on = syslook("printiface")
 			}
 			on = substArgTypes(on, n.Type) // any-1
-		} else if n.Type.IsPtr() || et == TCHAN || et == TMAP || et == TFUNC || et == TUNSAFEPTR {
+		case TPTR32, TPTR64, TCHAN, TMAP, TFUNC, TUNSAFEPTR:
 			on = syslook("printpointer")
 			on = substArgTypes(on, n.Type) // any-1
-		} else if n.Type.IsSlice() {
+		case TSLICE:
 			on = syslook("printslice")
 			on = substArgTypes(on, n.Type) // any-1
-		} else if isInt[et] {
-			if et == TUINT64 {
-				if isRuntimePkg(t.Sym.Pkg) && t.Sym.Name == "hex" {
-					on = syslook("printhex")
-				} else {
-					on = syslook("printuint")
-				}
+		case TUINT64:
+			if isRuntimePkg(n.Type.Sym.Pkg) && n.Type.Sym.Name == "hex" {
+				on = syslook("printhex")
 			} else {
-				on = syslook("printint")
+				on = syslook("printuint")
 			}
-		} else if isFloat[et] {
+		case TINT, TUINT, TUINTPTR, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64:
+			on = syslook("printint")
+		case TFLOAT32, TFLOAT64:
 			on = syslook("printfloat")
-		} else if isComplex[et] {
+		case TCOMPLEX64, TCOMPLEX128:
 			on = syslook("printcomplex")
-		} else if et == TBOOL {
+		case TBOOL:
 			on = syslook("printbool")
-		} else if et == TSTRING {
-			on = syslook("printstring")
-		} else {
+		case TSTRING:
+			cs := ""
+			if Isconst(n, CTSTR) {
+				cs = n.Val().U.(string)
+			}
+			switch cs {
+			case " ":
+				on = syslook("printsp")
+			case "\n":
+				on = syslook("printnl")
+			default:
+				on = syslook("printstring")
+			}
+		default:
 			badtype(OPRINT, n.Type, nil)
 			continue
 		}
 
-		t = on.Type.Params().Field(0).Type
-
-		if !eqtype(t, n.Type) {
-			n = nod(OCONV, n, nil)
-			n.Type = t
+		r := nod(OCALL, on, nil)
+		if params := on.Type.Params().FieldSlice(); len(params) > 0 {
+			t := params[0].Type
+			if !eqtype(t, n.Type) {
+				n = nod(OCONV, n, nil)
+				n.Type = t
+			}
+			r.List.Append(n)
 		}
-
-		r = nod(OCALL, on, nil)
-		r.List.Append(n)
 		calls = append(calls, r)
-	}
-
-	if op == OPRINTN {
-		calls = append(calls, mkcall("printnl", nil, nil))
 	}
 
 	calls = append(calls, mkcall("printunlock", nil, init))
@@ -2109,7 +2143,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 	typecheckslice(calls, Etop)
 	walkexprlist(calls, init)
 
-	r = nod(OEMPTY, nil, nil)
+	r := nod(OEMPTY, nil, nil)
 	r = typecheck(r, Etop)
 	r = walkexpr(r, init)
 	r.Ninit.Set(calls)
@@ -3853,7 +3887,7 @@ func walkprintfunc(n *Node, init *Nodes) *Node {
 
 	fn.Nbody.Set1(a)
 
-	funcbody(fn)
+	funcbody()
 
 	fn = typecheck(fn, Etop)
 	typecheckslice(fn.Nbody.Slice(), Etop)

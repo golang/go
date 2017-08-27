@@ -130,8 +130,19 @@ func (enc *Encoding) Encode(dst, src []byte) {
 		}
 
 		// Encode 5-bit blocks using the base32 alphabet
-		for i := 0; i < 8; i++ {
-			if len(dst) > i {
+		size := len(dst)
+		if size >= 8 {
+			// Common case, unrolled for extra performance
+			dst[0] = enc.encode[b[0]]
+			dst[1] = enc.encode[b[1]]
+			dst[2] = enc.encode[b[2]]
+			dst[3] = enc.encode[b[3]]
+			dst[4] = enc.encode[b[4]]
+			dst[5] = enc.encode[b[5]]
+			dst[6] = enc.encode[b[6]]
+			dst[7] = enc.encode[b[7]]
+		} else {
+			for i := 0; i < size; i++ {
 				dst[i] = enc.encode[b[i]]
 			}
 		}

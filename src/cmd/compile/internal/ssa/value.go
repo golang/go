@@ -109,13 +109,13 @@ func (v *Value) LongString() string {
 	}
 	r := v.Block.Func.RegAlloc
 	if int(v.ID) < len(r) && r[v.ID] != nil {
-		s += " : " + r[v.ID].Name()
+		s += " : " + r[v.ID].String()
 	}
 	var names []string
 	for name, values := range v.Block.Func.NamedValues {
 		for _, value := range values {
 			if value == v {
-				names = append(names, name.Name())
+				names = append(names, name.String())
 				break // drop duplicates.
 			}
 		}

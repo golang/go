@@ -227,13 +227,13 @@ func (o Op) format(s fmt.State, verb rune, mode fmtMode) {
 
 func (o Op) oconv(s fmt.State, flag FmtFlag, mode fmtMode) {
 	if flag&FmtSharp != 0 || mode != FDbg {
-		if o >= 0 && int(o) < len(goopnames) && goopnames[o] != "" {
+		if int(o) < len(goopnames) && goopnames[o] != "" {
 			fmt.Fprint(s, goopnames[o])
 			return
 		}
 	}
 
-	if o >= 0 && int(o) < len(opnames) && opnames[o] != "" {
+	if int(o) < len(opnames) && opnames[o] != "" {
 		fmt.Fprint(s, opnames[o])
 		return
 	}

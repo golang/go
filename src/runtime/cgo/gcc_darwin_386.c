@@ -39,8 +39,8 @@ inittls(void)
 	 *
 	 * The linker and runtime hard-code this constant offset
 	 * from %gs where we expect to find g.
-	 * Known to ../../../liblink/sym.c:/468
-	 * and to ../sys_darwin_386.s:/468
+	 * Known to src/cmd/link/internal/ld/sym.go:/0x468
+	 * and to src/runtime/sys_darwin_386.s:/0x468
 	 *
 	 * This is truly disgusting and a bit fragile, but taking care
 	 * of it here protects the rest of the system from damage.
@@ -64,7 +64,7 @@ inittls(void)
 	 */
 	ntofree = 0;
 	for(;;) {
-		if(pthread_key_create(&k, nil) < 0) {
+		if(pthread_key_create(&k, nil) != 0) {
 			fprintf(stderr, "runtime/cgo: pthread_key_create failed\n");
 			abort();
 		}
@@ -142,7 +142,10 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
-	pthread_setspecific(k1, (void*)ts.g);
+	if (pthread_setspecific(k1, (void*)ts.g) != 0) {
+		fprintf(stderr, "runtime/cgo: pthread_setspecific failed\n");
+		abort();
+	}
 
 	crosscall_386(ts.fn);
 	return nil;

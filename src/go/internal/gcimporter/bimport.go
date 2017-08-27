@@ -123,7 +123,7 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 	// read package data
 	pkg = p.pkg()
 
-	// read objects of phase 1 only (see cmd/compiler/internal/gc/bexport.go)
+	// read objects of phase 1 only (see cmd/compile/internal/gc/bexport.go)
 	objcount := 0
 	for {
 		tag := p.tagOrIndex()

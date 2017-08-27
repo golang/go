@@ -30,3 +30,28 @@ type x86 struct {
 	HasSSE42     bool
 	_            [CacheLineSize]byte
 }
+
+var PPC64 ppc64
+
+// For ppc64x, it is safe to check only for ISA level starting on ISA v3.00,
+// since there are no optional categories. There are some exceptions that also
+// require kernel support to work (darn, scv), so there are capability bits for
+// those as well. The minimum processor requirement is POWER8 (ISA 2.07), so we
+// maintain some of the old capability checks for optional categories for
+// safety.
+// The struct is padded to avoid false sharing.
+type ppc64 struct {
+	_          [CacheLineSize]byte
+	HasVMX     bool // Vector unit (Altivec)
+	HasDFP     bool // Decimal Floating Point unit
+	HasVSX     bool // Vector-scalar unit
+	HasHTM     bool // Hardware Transactional Memory
+	HasISEL    bool // Integer select
+	HasVCRYPTO bool // Vector cryptography
+	HasHTMNOSC bool // HTM: kernel-aborted transaction in syscalls
+	HasDARN    bool // Hardware random number generator (requires kernel enablement)
+	HasSCV     bool // Syscall vectored (requires kernel enablement)
+	IsPOWER8   bool // ISA v2.07 (POWER8)
+	IsPOWER9   bool // ISA v3.00 (POWER9)
+	_          [CacheLineSize]byte
+}

@@ -782,7 +782,7 @@
 // The -n flag causes tool to print the command that would be
 // executed but not execute it.
 //
-// For more about each tool command, see 'go tool command -h'.
+// For more about each tool command, see 'go doc cmd/<command>'.
 //
 //
 // Print Go version
@@ -917,8 +917,10 @@
 // comment, indicating that the package sources are included
 // for documentation only and must not be used to build the
 // package binary. This enables distribution of Go packages in
-// their compiled form alone. See the go/build package documentation
-// for more details.
+// their compiled form alone. Even binary-only packages require
+// accurate import blocks listing required dependencies, so that
+// those dependencies can be supplied when linking the resulting
+// command.
 //
 //
 // GOPATH environment variable

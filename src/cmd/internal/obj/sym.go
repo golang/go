@@ -34,7 +34,6 @@ package obj
 import (
 	"cmd/internal/objabi"
 	"fmt"
-	"log"
 	"math"
 )
 
@@ -46,9 +45,6 @@ func Linknew(arch *LinkArch) *Link {
 	ctxt.Pathname = objabi.WorkingDir()
 
 	ctxt.Headtype.Set(objabi.GOOS)
-	if ctxt.Headtype < 0 {
-		log.Fatalf("unknown goos %s", objabi.GOOS)
-	}
 
 	ctxt.Flag_optimize = true
 	ctxt.Framepointer_enabled = objabi.Framepointer_enabled(objabi.GOOS, arch.Name)

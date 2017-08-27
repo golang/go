@@ -627,23 +627,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$4-8
 TEXT runtime·abort(SB),NOSPLIT,$0-0
 	UNDEF
 
-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
-// redirects to memhash(p, h, size) using the size
-// stored in the closure.
-TEXT runtime·memhash_varlen(SB),NOSPLIT,$16-12
-	GO_ARGS
-	NO_LOCAL_POINTERS
-	MOVW	p+0(FP), R1
-	MOVW	h+4(FP), R2
-	MOVW	4(REGCTXT), R3
-	MOVW	R1, 4(R29)
-	MOVW	R2, 8(R29)
-	MOVW	R3, 12(R29)
-	JAL	runtime·memhash(SB)
-	MOVW	16(R29), R1
-	MOVW	R1, ret+8(FP)
-	RET
-
 // Not implemented.
 TEXT runtime·aeshash(SB),NOSPLIT,$0
 	UNDEF
@@ -902,18 +885,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$-4-0
 	JAL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
 	NOR	R0, R0	// NOP
-
-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
-	RET
-
-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-4
-	RET
-
-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
-	RET
-
-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
-	RET
 
 TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVW	$1, R1

@@ -273,6 +273,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpMIPSMOVWaddr:
 		p := s.Prog(mips.AMOVW)
 		p.From.Type = obj.TYPE_ADDR
+		p.From.Reg = v.Args[0].Reg()
 		var wantreg string
 		// MOVW $sym+off(base), R
 		// the assembler expands it as the following:
@@ -291,7 +292,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		case nil:
 			// No sym, just MOVW $off(SP), R
 			wantreg = "SP"
-			p.From.Reg = mips.REGSP
 			p.From.Offset = v.AuxInt
 		}
 		if reg := v.Args[0].RegName(); reg != wantreg {

@@ -8,7 +8,6 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -395,8 +394,14 @@ func sigpanic() {
 //go:nosplit
 //go:nowritebarrierrec
 func dieFromSignal(sig uint32) {
-	setsig(sig, _SIG_DFL)
 	unblocksig(sig)
+	// First, try any signal handler installed before the runtime
+	// initialized.
+	fn := atomic.Loaduintptr(&fwdSig[sig])
+	// On Darwin, sigtramp is called even for non-Go signal handlers.
+	// Mark the signal as unhandled to ensure it is forwarded.
+	atomic.Store(&handlingSig[sig], 0)
+	setsig(sig, fn)
 	raise(sig)
 
 	// That should have killed us. On some systems, though, raise
@@ -404,6 +409,14 @@ func dieFromSignal(sig uint32) {
 	// the current thread, which means that the signal may not yet
 	// have been delivered. Give other threads a chance to run and
 	// pick up the signal.
+	osyield()
+	osyield()
+	osyield()
+
+	// If that didn't work, try _SIG_DFL.
+	setsig(sig, _SIG_DFL)
+	raise(sig)
+
 	osyield()
 	osyield()
 	osyield()
@@ -474,7 +487,7 @@ func crash() {
 		// this means the OS X core file will be >128 GB and even on a zippy
 		// workstation can take OS X well over an hour to write (uninterruptible).
 		// Save users from making that mistake.
-		if sys.PtrSize == 8 {
+		if GOARCH == "amd64" {
 			return
 		}
 	}

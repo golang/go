@@ -4,26 +4,14 @@
 
 package tar
 
-// TODO(dsymonds):
-// - catch more errors (no first header, etc.)
-
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"path"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
-)
-
-var (
-	ErrWriteTooLong    = errors.New("archive/tar: write too long")
-	ErrFieldTooLong    = errors.New("archive/tar: header field too long")
-	ErrWriteAfterClose = errors.New("archive/tar: write after close")
-	errInvalidHeader   = errors.New("archive/tar: header field too long or contains invalid values")
 )
 
 // A Writer provides sequential writing of a tar archive in POSIX.1 format.
@@ -31,228 +19,239 @@ var (
 // Call WriteHeader to begin a new file, and then call Write to supply that file's data,
 // writing at most hdr.Size bytes in total.
 type Writer struct {
-	w          io.Writer
-	err        error
-	nb         int64 // number of unwritten bytes for current file entry
-	pad        int64 // amount of padding to write after current file entry
-	closed     bool
-	usedBinary bool  // whether the binary numeric field extension was used
-	preferPax  bool  // use PAX header instead of binary numeric header
-	hdrBuff    block // buffer to use in writeHeader when writing a regular header
-	paxHdrBuff block // buffer to use in writeHeader when writing a PAX header
+	w   io.Writer
+	nb  int64  // number of unwritten bytes for current file entry
+	pad int64  // amount of padding to write after current file entry
+	hdr Header // Shallow copy of Header that is safe for mutations
+	blk block  // Buffer to use as temporary local storage
+
+	// err is a persistent error.
+	// It is only the responsibility of every exported method of Writer to
+	// ensure that this error is sticky.
+	err error
 }
 
 // NewWriter creates a new Writer writing to w.
 func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
 
-// Flush finishes writing the current file (optional).
+// Flush finishes writing the current file's block padding.
+// The current file must be fully written before Flush can be called.
+//
+// Deprecated: This is unecessary as the next call to WriteHeader or Close
+// will implicitly flush out the file's padding.
 func (tw *Writer) Flush() error {
-	if tw.nb > 0 {
-		tw.err = fmt.Errorf("archive/tar: missed writing %d bytes", tw.nb)
+	if tw.err != nil {
 		return tw.err
 	}
-
-	n := tw.nb + tw.pad
-	for n > 0 && tw.err == nil {
-		nr := n
-		if nr > blockSize {
-			nr = blockSize
-		}
-		var nw int
-		nw, tw.err = tw.w.Write(zeroBlock[0:nr])
-		n -= int64(nw)
+	if tw.nb > 0 {
+		return fmt.Errorf("archive/tar: missed writing %d bytes", tw.nb)
 	}
-	tw.nb = 0
+	if _, tw.err = tw.w.Write(zeroBlock[:tw.pad]); tw.err != nil {
+		return tw.err
+	}
 	tw.pad = 0
-	return tw.err
+	return nil
 }
-
-var (
-	minTime = time.Unix(0, 0)
-	// There is room for 11 octal digits (33 bits) of mtime.
-	maxTime = minTime.Add((1<<33 - 1) * time.Second)
-)
 
 // WriteHeader writes hdr and prepares to accept the file's contents.
 // WriteHeader calls Flush if it is not the first header.
 // Calling after a Close will return ErrWriteAfterClose.
 func (tw *Writer) WriteHeader(hdr *Header) error {
-	return tw.writeHeader(hdr, true)
+	if err := tw.Flush(); err != nil {
+		return err
+	}
+
+	tw.hdr = *hdr // Shallow copy of Header
+	switch allowedFormats, paxHdrs := tw.hdr.allowedFormats(); {
+	case allowedFormats&formatUSTAR != 0:
+		tw.err = tw.writeUSTARHeader(&tw.hdr)
+		return tw.err
+	case allowedFormats&formatPAX != 0:
+		tw.err = tw.writePAXHeader(&tw.hdr, paxHdrs)
+		return tw.err
+	case allowedFormats&formatGNU != 0:
+		tw.err = tw.writeGNUHeader(&tw.hdr)
+		return tw.err
+	default:
+		return ErrHeader // Non-fatal error
+	}
 }
 
-// WriteHeader writes hdr and prepares to accept the file's contents.
-// WriteHeader calls Flush if it is not the first header.
-// Calling after a Close will return ErrWriteAfterClose.
-// As this method is called internally by writePax header to allow it to
-// suppress writing the pax header.
-func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
-	if tw.closed {
-		return ErrWriteAfterClose
-	}
-	if tw.err == nil {
-		tw.Flush()
-	}
-	if tw.err != nil {
-		return tw.err
+func (tw *Writer) writeUSTARHeader(hdr *Header) error {
+	// Check if we can use USTAR prefix/suffix splitting.
+	var namePrefix string
+	if prefix, suffix, ok := splitUSTARPath(hdr.Name); ok {
+		namePrefix, hdr.Name = prefix, suffix
 	}
 
-	// a map to hold pax header records, if any are needed
-	paxHeaders := make(map[string]string)
-
-	// TODO(dsnet): we might want to use PAX headers for
-	// subsecond time resolution, but for now let's just capture
-	// too long fields or non ascii characters
-
-	// We need to select which scratch buffer to use carefully,
-	// since this method is called recursively to write PAX headers.
-	// If allowPax is true, this is the non-recursive call, and we will use hdrBuff.
-	// If allowPax is false, we are being called by writePAXHeader, and hdrBuff is
-	// already being used by the non-recursive call, so we must use paxHdrBuff.
-	header := &tw.hdrBuff
-	if !allowPax {
-		header = &tw.paxHdrBuff
-	}
-	copy(header[:], zeroBlock[:])
-
-	// Wrappers around formatter that automatically sets paxHeaders if the
-	// argument extends beyond the capacity of the input byte slice.
+	// Pack the main header.
 	var f formatter
-	var formatString = func(b []byte, s string, paxKeyword string) {
-		needsPaxHeader := paxKeyword != paxNone && len(s) > len(b) || !isASCII(s)
-		if needsPaxHeader {
-			paxHeaders[paxKeyword] = s
-		}
-
-		// Write string in a best-effort manner to satisfy readers that expect
-		// the field to be non-empty.
-		s = toASCII(s)
-		if len(s) > len(b) {
-			s = s[:len(b)]
-		}
-		f.formatString(b, s) // Should never error
-	}
-	var formatNumeric = func(b []byte, x int64, paxKeyword string) {
-		// Try octal first.
-		s := strconv.FormatInt(x, 8)
-		if len(s) < len(b) {
-			f.formatOctal(b, x)
-			return
-		}
-
-		// If it is too long for octal, and PAX is preferred, use a PAX header.
-		if paxKeyword != paxNone && tw.preferPax {
-			f.formatOctal(b, 0)
-			s := strconv.FormatInt(x, 10)
-			paxHeaders[paxKeyword] = s
-			return
-		}
-
-		tw.usedBinary = true
-		f.formatNumeric(b, x)
-	}
-
-	// Handle out of range ModTime carefully.
-	var modTime int64
-	if !hdr.ModTime.Before(minTime) && !hdr.ModTime.After(maxTime) {
-		modTime = hdr.ModTime.Unix()
-	}
-
-	v7 := header.V7()
-	formatString(v7.Name(), hdr.Name, paxPath)
-	// TODO(dsnet): The GNU format permits the mode field to be encoded in
-	// base-256 format. Thus, we can use formatNumeric instead of formatOctal.
-	f.formatOctal(v7.Mode(), hdr.Mode)
-	formatNumeric(v7.UID(), int64(hdr.Uid), paxUid)
-	formatNumeric(v7.GID(), int64(hdr.Gid), paxGid)
-	formatNumeric(v7.Size(), hdr.Size, paxSize)
-	// TODO(dsnet): Consider using PAX for finer time granularity.
-	formatNumeric(v7.ModTime(), modTime, paxNone)
-	v7.TypeFlag()[0] = hdr.Typeflag
-	formatString(v7.LinkName(), hdr.Linkname, paxLinkpath)
-
-	ustar := header.USTAR()
-	formatString(ustar.UserName(), hdr.Uname, paxUname)
-	formatString(ustar.GroupName(), hdr.Gname, paxGname)
-	formatNumeric(ustar.DevMajor(), hdr.Devmajor, paxNone)
-	formatNumeric(ustar.DevMinor(), hdr.Devminor, paxNone)
-
-	// TODO(dsnet): The logic surrounding the prefix field is broken when trying
-	// to encode the header as GNU format. The challenge with the current logic
-	// is that we are unsure what format we are using at any given moment until
-	// we have processed *all* of the fields. The problem is that by the time
-	// all fields have been processed, some work has already been done to handle
-	// each field under the assumption that it is for one given format or
-	// another. In some situations, this causes the Writer to be confused and
-	// encode a prefix field when the format being used is GNU. Thus, producing
-	// an invalid tar file.
-	//
-	// As a short-term fix, we disable the logic to use the prefix field, which
-	// will force the badly generated GNU files to become encoded as being
-	// the PAX format.
-	//
-	// As an alternative fix, we could hard-code preferPax to be true. However,
-	// this is problematic for the following reasons:
-	//	* The preferPax functionality is not tested at all.
-	//	* This can result in headers that try to use both the GNU and PAX
-	//	features at the same time, which is also wrong.
-	//
-	// The proper fix for this is to use a two-pass method:
-	//	* The first pass simply determines what set of formats can possibly
-	//	encode the given header.
-	//	* The second pass actually encodes the header as that given format
-	//	without worrying about violating the format.
-	//
-	// See the following:
-	//	https://golang.org/issue/12594
-	//	https://golang.org/issue/17630
-	//	https://golang.org/issue/9683
-	const usePrefix = false
-
-	// try to use a ustar header when only the name is too long
-	_, paxPathUsed := paxHeaders[paxPath]
-	if usePrefix && !tw.preferPax && len(paxHeaders) == 1 && paxPathUsed {
-		prefix, suffix, ok := splitUSTARPath(hdr.Name)
-		if ok {
-			// Since we can encode in USTAR format, disable PAX header.
-			delete(paxHeaders, paxPath)
-
-			// Update the path fields
-			formatString(v7.Name(), suffix, paxNone)
-			formatString(ustar.Prefix(), prefix, paxNone)
-		}
-	}
-
-	if tw.usedBinary {
-		header.SetFormat(formatGNU)
-	} else {
-		header.SetFormat(formatUSTAR)
-	}
-
-	// Check if there were any formatting errors.
+	blk := tw.templateV7Plus(hdr, f.formatString, f.formatOctal)
+	f.formatString(blk.USTAR().Prefix(), namePrefix)
+	blk.SetFormat(formatUSTAR)
 	if f.err != nil {
-		tw.err = f.err
-		return tw.err
+		return f.err // Should never happen since header is validated
 	}
+	return tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag)
+}
 
-	if allowPax {
-		for k, v := range hdr.Xattrs {
-			paxHeaders[paxXattr+k] = v
+func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
+	// Write PAX records to the output.
+	if len(paxHdrs) > 0 {
+		// Sort keys for deterministic ordering.
+		var keys []string
+		for k := range paxHdrs {
+			keys = append(keys, k)
 		}
-	}
+		sort.Strings(keys)
 
-	if len(paxHeaders) > 0 {
-		if !allowPax {
-			return errInvalidHeader
+		// Write each record to a buffer.
+		var buf bytes.Buffer
+		for _, k := range keys {
+			rec, err := formatPAXRecord(k, paxHdrs[k])
+			if err != nil {
+				return err
+			}
+			buf.WriteString(rec)
 		}
-		if err := tw.writePAXHeader(hdr, paxHeaders); err != nil {
+
+		// Write the extended header file.
+		dir, file := path.Split(hdr.Name)
+		name := path.Join(dir, "PaxHeaders.0", file)
+		data := buf.String()
+		if err := tw.writeRawFile(name, data, TypeXHeader, formatPAX); err != nil {
 			return err
 		}
 	}
-	tw.nb = hdr.Size
-	tw.pad = (blockSize - (tw.nb % blockSize)) % blockSize
 
-	_, tw.err = tw.w.Write(header[:])
-	return tw.err
+	// Pack the main header.
+	var f formatter // Ignore errors since they are expected
+	fmtStr := func(b []byte, s string) { f.formatString(b, toASCII(s)) }
+	blk := tw.templateV7Plus(hdr, fmtStr, f.formatOctal)
+	blk.SetFormat(formatPAX)
+	return tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag)
+}
+
+func (tw *Writer) writeGNUHeader(hdr *Header) error {
+	// TODO(dsnet): Support writing sparse files.
+	// See https://golang.org/issue/13548
+
+	// Use long-link files if Name or Linkname exceeds the field size.
+	const longName = "././@LongLink"
+	if len(hdr.Name) > nameSize {
+		data := hdr.Name + "\x00"
+		if err := tw.writeRawFile(longName, data, TypeGNULongName, formatGNU); err != nil {
+			return err
+		}
+	}
+	if len(hdr.Linkname) > nameSize {
+		data := hdr.Linkname + "\x00"
+		if err := tw.writeRawFile(longName, data, TypeGNULongLink, formatGNU); err != nil {
+			return err
+		}
+	}
+
+	// Pack the main header.
+	var f formatter // Ignore errors since they are expected
+	blk := tw.templateV7Plus(hdr, f.formatString, f.formatNumeric)
+	if !hdr.AccessTime.IsZero() {
+		f.formatNumeric(blk.GNU().AccessTime(), hdr.AccessTime.Unix())
+	}
+	if !hdr.ChangeTime.IsZero() {
+		f.formatNumeric(blk.GNU().ChangeTime(), hdr.ChangeTime.Unix())
+	}
+	blk.SetFormat(formatGNU)
+	return tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag)
+}
+
+type (
+	stringFormatter func([]byte, string)
+	numberFormatter func([]byte, int64)
+)
+
+// templateV7Plus fills out the V7 fields of a block using values from hdr.
+// It also fills out fields (uname, gname, devmajor, devminor) that are
+// shared in the USTAR, PAX, and GNU formats using the provided formatters.
+//
+// The block returned is only valid until the next call to
+// templateV7Plus or writeRawFile.
+func (tw *Writer) templateV7Plus(hdr *Header, fmtStr stringFormatter, fmtNum numberFormatter) *block {
+	tw.blk.Reset()
+
+	modTime := hdr.ModTime
+	if modTime.IsZero() {
+		modTime = time.Unix(0, 0)
+	}
+
+	v7 := tw.blk.V7()
+	v7.TypeFlag()[0] = hdr.Typeflag
+	fmtStr(v7.Name(), hdr.Name)
+	fmtStr(v7.LinkName(), hdr.Linkname)
+	fmtNum(v7.Mode(), hdr.Mode)
+	fmtNum(v7.UID(), int64(hdr.Uid))
+	fmtNum(v7.GID(), int64(hdr.Gid))
+	fmtNum(v7.Size(), hdr.Size)
+	fmtNum(v7.ModTime(), modTime.Unix())
+
+	ustar := tw.blk.USTAR()
+	fmtStr(ustar.UserName(), hdr.Uname)
+	fmtStr(ustar.GroupName(), hdr.Gname)
+	fmtNum(ustar.DevMajor(), hdr.Devmajor)
+	fmtNum(ustar.DevMinor(), hdr.Devminor)
+
+	return &tw.blk
+}
+
+// writeRawFile writes a minimal file with the given name and flag type.
+// It uses format to encode the header format and will write data as the body.
+// It uses default values for all of the other fields (as BSD and GNU tar does).
+func (tw *Writer) writeRawFile(name, data string, flag byte, format int) error {
+	tw.blk.Reset()
+
+	// Best effort for the filename.
+	name = toASCII(name)
+	if len(name) > nameSize {
+		name = name[:nameSize]
+	}
+
+	var f formatter
+	v7 := tw.blk.V7()
+	v7.TypeFlag()[0] = flag
+	f.formatString(v7.Name(), name)
+	f.formatOctal(v7.Mode(), 0)
+	f.formatOctal(v7.UID(), 0)
+	f.formatOctal(v7.GID(), 0)
+	f.formatOctal(v7.Size(), int64(len(data))) // Must be < 8GiB
+	f.formatOctal(v7.ModTime(), 0)
+	tw.blk.SetFormat(format)
+	if f.err != nil {
+		return f.err // Only occurs if size condition is violated
+	}
+
+	// Write the header and data.
+	if err := tw.writeRawHeader(&tw.blk, int64(len(data)), flag); err != nil {
+		return err
+	}
+	_, err := io.WriteString(tw, data)
+	return err
+}
+
+// writeRawHeader writes the value of blk, regardless of its value.
+// It sets up the Writer such that it can accept a file of the given size.
+// If the flag is a special header-only flag, then the size is treated as zero.
+func (tw *Writer) writeRawHeader(blk *block, size int64, flag byte) error {
+	if err := tw.Flush(); err != nil {
+		return err
+	}
+	if _, err := tw.w.Write(blk[:]); err != nil {
+		return err
+	}
+	if isHeaderOnlyType(flag) {
+		size = 0
+	}
+	tw.nb = size
+	tw.pad = blockPadding(size)
+	return nil
 }
 
 // splitUSTARPath splits a path according to USTAR prefix and suffix rules.
@@ -276,95 +275,48 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
 	return name[:i], name[i+1:], true
 }
 
-// writePaxHeader writes an extended pax header to the
-// archive.
-func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) error {
-	// Prepare extended header
-	ext := new(Header)
-	ext.Typeflag = TypeXHeader
-	// Setting ModTime is required for reader parsing to
-	// succeed, and seems harmless enough.
-	ext.ModTime = hdr.ModTime
-	// The spec asks that we namespace our pseudo files
-	// with the current pid. However, this results in differing outputs
-	// for identical inputs. As such, the constant 0 is now used instead.
-	// golang.org/issue/12358
-	dir, file := path.Split(hdr.Name)
-	fullName := path.Join(dir, "PaxHeaders.0", file)
-
-	ascii := toASCII(fullName)
-	if len(ascii) > nameSize {
-		ascii = ascii[:nameSize]
-	}
-	ext.Name = ascii
-	// Construct the body
-	var buf bytes.Buffer
-
-	// Keys are sorted before writing to body to allow deterministic output.
-	keys := make([]string, 0, len(paxHeaders))
-	for k := range paxHeaders {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for _, k := range keys {
-		fmt.Fprint(&buf, formatPAXRecord(k, paxHeaders[k]))
-	}
-
-	ext.Size = int64(len(buf.Bytes()))
-	if err := tw.writeHeader(ext, false); err != nil {
-		return err
-	}
-	if _, err := tw.Write(buf.Bytes()); err != nil {
-		return err
-	}
-	if err := tw.Flush(); err != nil {
-		return err
-	}
-	return nil
-}
-
 // Write writes to the current entry in the tar archive.
 // Write returns the error ErrWriteTooLong if more than
-// hdr.Size bytes are written after WriteHeader.
-func (tw *Writer) Write(b []byte) (n int, err error) {
-	if tw.closed {
-		err = ErrWriteAfterClose
-		return
+// Header.Size bytes are written after WriteHeader.
+//
+// Calling Write on special types like TypeLink, TypeSymLink, TypeChar,
+// TypeBlock, TypeDir, and TypeFifo returns (0, ErrWriteTooLong) regardless
+// of what the Header.Size claims.
+func (tw *Writer) Write(b []byte) (int, error) {
+	if tw.err != nil {
+		return 0, tw.err
 	}
-	overwrite := false
-	if int64(len(b)) > tw.nb {
-		b = b[0:tw.nb]
-		overwrite = true
+
+	overwrite := int64(len(b)) > tw.nb
+	if overwrite {
+		b = b[:tw.nb]
 	}
-	n, err = tw.w.Write(b)
+	n, err := tw.w.Write(b)
 	tw.nb -= int64(n)
 	if err == nil && overwrite {
-		err = ErrWriteTooLong
-		return
+		return n, ErrWriteTooLong // Non-fatal error
 	}
 	tw.err = err
-	return
+	return n, err
 }
 
 // Close closes the tar archive, flushing any unwritten
 // data to the underlying writer.
 func (tw *Writer) Close() error {
-	if tw.err != nil || tw.closed {
-		return tw.err
+	if tw.err == ErrWriteAfterClose {
+		return nil
 	}
-	tw.Flush()
-	tw.closed = true
 	if tw.err != nil {
 		return tw.err
 	}
 
-	// trailer: two zero blocks
-	for i := 0; i < 2; i++ {
-		_, tw.err = tw.w.Write(zeroBlock[:])
-		if tw.err != nil {
-			break
-		}
+	// Trailer: two zero blocks.
+	err := tw.Flush()
+	for i := 0; i < 2 && err == nil; i++ {
+		_, err = tw.w.Write(zeroBlock[:])
 	}
-	return tw.err
+
+	// Ensure all future actions are invalid.
+	tw.err = ErrWriteAfterClose
+	return err // Report IO errors
 }

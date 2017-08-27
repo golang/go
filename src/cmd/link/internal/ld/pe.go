@@ -7,6 +7,7 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"debug/pe"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -62,19 +63,6 @@ type IMAGE_OPTIONAL_HEADER struct {
 	LoaderFlags                 uint32
 	NumberOfRvaAndSizes         uint32
 	DataDirectory               [16]IMAGE_DATA_DIRECTORY
-}
-
-type IMAGE_SECTION_HEADER struct {
-	Name                 [8]uint8
-	VirtualSize          uint32
-	VirtualAddress       uint32
-	SizeOfRawData        uint32
-	PointerToRawData     uint32
-	PointerToRelocations uint32
-	PointerToLineNumbers uint32
-	NumberOfRelocations  uint16
-	NumberOfLineNumbers  uint16
-	Characteristics      uint32
 }
 
 type IMAGE_IMPORT_DESCRIPTOR struct {
@@ -328,8 +316,6 @@ var dosstub = []uint8{
 
 var rsrcsym *Symbol
 
-var strtbl []byte
-
 var PESECTHEADR int32
 
 var PEFILEHEADR int32
@@ -354,11 +340,6 @@ var oh IMAGE_OPTIONAL_HEADER
 
 var oh64 PE64_IMAGE_OPTIONAL_HEADER
 
-var sh [16]IMAGE_SECTION_HEADER
-
-// shNames stores full names of PE sections stored in sh.
-var shNames []string
-
 var dd []IMAGE_DATA_DIRECTORY
 
 type Imp struct {
@@ -382,46 +363,110 @@ var dexport [1024]*Symbol
 
 var nexport int
 
-func addpesectionWithLongName(ctxt *Link, shortname, longname string, sectsize int, filesize int) *IMAGE_SECTION_HEADER {
-	if pensect == 16 {
-		Errorf(nil, "too many sections")
-		errorexit()
-	}
+// peStringTable is a COFF string table.
+type peStringTable struct {
+	strings    []string
+	stringsLen int
+}
 
-	h := &sh[pensect]
-	pensect++
-	copy(h.Name[:], shortname)
-	shNames = append(shNames, longname)
-	h.VirtualSize = uint32(sectsize)
-	h.VirtualAddress = uint32(nextsectoff)
+// size resturns size of string table t.
+func (t *peStringTable) size() int {
+	// string table starts with 4-byte length at the beginning
+	return t.stringsLen + 4
+}
+
+// add adds string str to string table t.
+func (t *peStringTable) add(str string) int {
+	off := t.size()
+	t.strings = append(t.strings, str)
+	t.stringsLen += len(str) + 1 // each string will have 0 appended to it
+	return off
+}
+
+// write writes string table t into the output file.
+func (t *peStringTable) write() {
+	Lputl(uint32(t.size()))
+	for _, s := range t.strings {
+		Cwritestring(s)
+		Cput(0)
+	}
+}
+
+// peSection represents section from COFF section table.
+type peSection struct {
+	name      string
+	shortName string
+	index     int // one-based index into the Section Table
+	// TODO: change all these names to start with small letters
+	VirtualSize          uint32
+	VirtualAddress       uint32
+	SizeOfRawData        uint32
+	PointerToRawData     uint32
+	PointerToRelocations uint32
+	NumberOfRelocations  uint16
+	Characteristics      uint32
+}
+
+// write writes COFF section sect into the output file.
+func (sect *peSection) write() error {
+	h := pe.SectionHeader32{
+		VirtualSize:          sect.VirtualSize,
+		SizeOfRawData:        sect.SizeOfRawData,
+		PointerToRawData:     sect.PointerToRawData,
+		PointerToRelocations: sect.PointerToRelocations,
+		NumberOfRelocations:  sect.NumberOfRelocations,
+		Characteristics:      sect.Characteristics,
+	}
+	if Linkmode != LinkExternal {
+		h.VirtualAddress = sect.VirtualAddress
+	}
+	copy(h.Name[:], sect.shortName)
+	return binary.Write(&coutbuf, binary.LittleEndian, h)
+}
+
+// peFile is used to build COFF file.
+type peFile struct {
+	sections    []*peSection
+	stringTable peStringTable
+}
+
+// addSection adds section to the COFF file f.
+func (f *peFile) addSection(name string, sectsize int, filesize int) *peSection {
+	sect := &peSection{
+		name:             name,
+		shortName:        name,
+		index:            len(f.sections) + 1,
+		VirtualSize:      uint32(sectsize),
+		VirtualAddress:   uint32(nextsectoff),
+		PointerToRawData: uint32(nextfileoff),
+	}
 	nextsectoff = int(Rnd(int64(nextsectoff)+int64(sectsize), PESECTALIGN))
-	h.PointerToRawData = uint32(nextfileoff)
 	if filesize > 0 {
-		h.SizeOfRawData = uint32(Rnd(int64(filesize), PEFILEALIGN))
-		nextfileoff += int(h.SizeOfRawData)
+		sect.SizeOfRawData = uint32(Rnd(int64(filesize), PEFILEALIGN))
+		nextfileoff += int(sect.SizeOfRawData)
 	}
-
-	return h
+	f.sections = append(f.sections, sect)
+	pensect++
+	return sect
 }
 
-func addpesection(ctxt *Link, name string, sectsize int, filesize int) *IMAGE_SECTION_HEADER {
-	return addpesectionWithLongName(ctxt, name, name, sectsize, filesize)
-}
-func chksectoff(ctxt *Link, h *IMAGE_SECTION_HEADER, off int64) {
+var pefile peFile
+
+func chksectoff(ctxt *Link, h *peSection, off int64) {
 	if off != int64(h.PointerToRawData) {
-		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(off))
+		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", h.name, uint64(int64(h.PointerToRawData)), uint64(off))
 		errorexit()
 	}
 }
 
-func chksectseg(ctxt *Link, h *IMAGE_SECTION_HEADER, s *Segment) {
+func chksectseg(ctxt *Link, h *peSection, s *Segment) {
 	if s.Vaddr-PEBASE != uint64(h.VirtualAddress) {
-		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.VirtualAddress)), uint64(int64(s.Vaddr-PEBASE)))
+		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", h.name, uint64(int64(h.VirtualAddress)), uint64(int64(s.Vaddr-PEBASE)))
 		errorexit()
 	}
 
 	if s.Fileoff != uint64(h.PointerToRawData) {
-		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(int64(s.Fileoff)))
+		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", h.name, uint64(int64(h.PointerToRawData)), uint64(int64(s.Fileoff)))
 		errorexit()
 	}
 }
@@ -449,6 +494,7 @@ func Peinit(ctxt *Link) {
 		PEFILEALIGN = 0
 	}
 
+	var sh [16]pe.SectionHeader32
 	PEFILEHEADR = int32(Rnd(int64(len(dosstub)+binary.Size(&fh)+l+binary.Size(&sh)), PEFILEALIGN))
 	if Linkmode != LinkExternal {
 		PESECTHEADR = int32(Rnd(int64(PEFILEHEADR), PESECTALIGN))
@@ -493,12 +539,9 @@ func pewrite() {
 	} else {
 		binary.Write(&coutbuf, binary.LittleEndian, &oh)
 	}
-	if Linkmode == LinkExternal {
-		for i := range sh[:pensect] {
-			sh[i].VirtualAddress = 0
-		}
+	for _, sect := range pefile.sections {
+		sect.write()
 	}
-	binary.Write(&coutbuf, binary.LittleEndian, sh[:pensect])
 }
 
 func strput(s string) {
@@ -607,7 +650,7 @@ func peimporteddlls() []string {
 	return dlls
 }
 
-func addimports(ctxt *Link, datsect *IMAGE_SECTION_HEADER) {
+func addimports(ctxt *Link, datsect *peSection) {
 	startoff := coutbuf.Offset()
 	dynamic := ctxt.Syms.Lookup(".windynamic", 0)
 
@@ -659,7 +702,7 @@ func addimports(ctxt *Link, datsect *IMAGE_SECTION_HEADER) {
 	// add pe section and pad it at the end
 	n = uint64(coutbuf.Offset()) - uint64(startoff)
 
-	isect := addpesection(ctxt, ".idata", int(n), int(n))
+	isect := pefile.addSection(".idata", int(n), int(n))
 	isect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
 	chksectoff(ctxt, isect, startoff)
 	strnput("", int(uint64(isect.SizeOfRawData)-n))
@@ -747,7 +790,7 @@ func addexports(ctxt *Link) {
 		return
 	}
 
-	sect := addpesection(ctxt, ".edata", size, size)
+	sect := pefile.addSection(".edata", size, size)
 	sect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
 	chksectoff(ctxt, sect, coutbuf.Offset())
 	va := int(sect.VirtualAddress)
@@ -839,10 +882,10 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol, base uint64) int {
 			}
 
 			if r.Xsym.Dynid < 0 {
-				Errorf(sym, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
+				Errorf(sym, "reloc %d (%s) to non-coff symbol %s (outer=%s) %d (%s)", r.Type, RelocName(r.Type), r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
 			}
 			if !Thearch.PEreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
-				Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
+				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, RelocName(r.Type), r.Siz, r.Sym.Name)
 			}
 
 			relocs++
@@ -858,7 +901,7 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol, base uint64) int {
 // The actual relocations are emitted by relocfn.
 // This updates the corresponding PE section table entry
 // with the relocation offset and count.
-func peemitsectreloc(sect *IMAGE_SECTION_HEADER, relocfn func() int) {
+func peemitsectreloc(sect *peSection, relocfn func() int) {
 	sect.PointerToRelocations = uint32(coutbuf.Offset())
 	// first entry: extended relocs
 	Lputl(0) // placeholder for number of relocation + 1
@@ -881,7 +924,7 @@ func peemitsectreloc(sect *IMAGE_SECTION_HEADER, relocfn func() int) {
 }
 
 // peemitreloc emits relocation entries for go.o in external linking.
-func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
+func peemitreloc(ctxt *Link, text, data, ctors *peSection) {
 	for coutbuf.Offset()&7 != 0 {
 		Cput(0)
 	}
@@ -904,9 +947,9 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
 
 dwarfLoop:
 	for _, sect := range Segdwarf.Sections {
-		for i, name := range shNames {
-			if sect.Name == name {
-				peemitsectreloc(&sh[i], func() int {
+		for _, pesect := range pefile.sections {
+			if sect.Name == pesect.name {
+				peemitsectreloc(pesect, func() int {
 					return perelocsect(ctxt, sect, dwarfp, sect.Vaddr)
 				})
 				continue dwarfLoop
@@ -942,13 +985,6 @@ func (ctxt *Link) dope() {
 	initdynexport(ctxt)
 }
 
-func strtbladd(name string) int {
-	off := len(strtbl) + 4 // offset includes 4-byte length at beginning of table
-	strtbl = append(strtbl, name...)
-	strtbl = append(strtbl, 0)
-	return off
-}
-
 /*
  * For more than 8 characters section names, name contains a slash (/) that is
  * followed by an ASCII representation of a decimal number that is an offset into
@@ -956,14 +992,14 @@ func strtbladd(name string) int {
  * reference: pecoff_v8.docx Page 24.
  * <http://www.microsoft.com/whdc/system/platform/firmware/PECOFFdwn.mspx>
  */
-func newPEDWARFSection(ctxt *Link, name string, size int64) *IMAGE_SECTION_HEADER {
+func newPEDWARFSection(ctxt *Link, name string, size int64) *peSection {
 	if size == 0 {
 		return nil
 	}
 
-	off := strtbladd(name)
-	s := fmt.Sprintf("/%d", off)
-	h := addpesectionWithLongName(ctxt, s, name, int(size), int(size))
+	off := pefile.stringTable.add(name)
+	h := pefile.addSection(name, int(size), int(size))
+	h.shortName = fmt.Sprintf("/%d", off)
 	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
 
 	return h
@@ -978,7 +1014,7 @@ func writePESymTableRecords(ctxt *Link) int {
 		// write COFF symbol table record
 		if len(s.Name) > 8 {
 			Lputl(0)
-			Lputl(uint32(strtbladd(s.Name)))
+			Lputl(uint32(pefile.stringTable.add(s.Name)))
 		} else {
 			strnput(s.Name, 8)
 		}
@@ -1050,9 +1086,9 @@ func writePESymTableRecords(ctxt *Link) int {
 	if Linkmode == LinkExternal {
 		// Include section symbols as external, because
 		// .ctors and .debug_* section relocations refer to it.
-		for idx, name := range shNames {
-			sym := ctxt.Syms.Lookup(name, 0)
-			writeOneSymbol(sym, 0, idx+1, IMAGE_SYM_TYPE_NULL, IMAGE_SYM_CLASS_STATIC)
+		for _, pesect := range pefile.sections {
+			sym := ctxt.Syms.Lookup(pesect.name, 0)
+			writeOneSymbol(sym, 0, pesect.index, IMAGE_SYM_TYPE_NULL, IMAGE_SYM_CLASS_STATIC)
 		}
 	}
 
@@ -1071,12 +1107,12 @@ func addpesymtable(ctxt *Link) {
 	}
 
 	// update COFF file header and section table
-	size := len(strtbl) + 4 + 18*symcnt
-	var h *IMAGE_SECTION_HEADER
+	size := pefile.stringTable.size() + 18*symcnt
+	var h *peSection
 	if Linkmode != LinkExternal {
 		// We do not really need .symtab for go.o, and if we have one, ld
 		// will also include it in the exe, and that will confuse windows.
-		h = addpesection(ctxt, ".symtab", size, size)
+		h = pefile.addSection(".symtab", size, size)
 		h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
 		chksectoff(ctxt, h, symtabStartPos)
 	}
@@ -1084,10 +1120,7 @@ func addpesymtable(ctxt *Link) {
 	fh.NumberOfSymbols = uint32(symcnt)
 
 	// write COFF string table
-	Lputl(uint32(len(strtbl)) + 4)
-	for i := 0; i < len(strtbl); i++ {
-		Cput(strtbl[i])
-	}
+	pefile.stringTable.write()
 	if Linkmode != LinkExternal {
 		strnput("", int(h.SizeOfRawData-uint32(size)))
 	}
@@ -1106,7 +1139,7 @@ func addpersrc(ctxt *Link) {
 		return
 	}
 
-	h := addpesection(ctxt, ".rsrc", int(rsrcsym.Size), int(rsrcsym.Size))
+	h := pefile.addSection(".rsrc", int(rsrcsym.Size), int(rsrcsym.Size))
 	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA
 	chksectoff(ctxt, h, coutbuf.Offset())
 
@@ -1136,7 +1169,7 @@ func addpersrc(ctxt *Link) {
 	dd[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.VirtualSize
 }
 
-func addinitarray(ctxt *Link) (c *IMAGE_SECTION_HEADER) {
+func addinitarray(ctxt *Link) (c *peSection) {
 	// The size below was determined by the specification for array relocations,
 	// and by observing what GCC writes here. If the initarray section grows to
 	// contain more than one constructor entry, the size will need to be 8 * constructor_count.
@@ -1153,7 +1186,7 @@ func addinitarray(ctxt *Link) (c *IMAGE_SECTION_HEADER) {
 		size = 8
 	}
 
-	c = addpesection(ctxt, ".ctors", size, size)
+	c = pefile.addSection(".ctors", size, size)
 	c.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
 	c.SizeOfRawData = uint32(size)
 
@@ -1182,7 +1215,7 @@ func Asmbpe(ctxt *Link) {
 		fh.Machine = IMAGE_FILE_MACHINE_I386
 	}
 
-	t := addpesection(ctxt, ".text", int(Segtext.Length), int(Segtext.Length))
+	t := pefile.addSection(".text", int(Segtext.Length), int(Segtext.Length))
 	t.Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
 	if Linkmode == LinkExternal {
 		// some data symbols (e.g. masks) end up in the .text section, and they normally
@@ -1192,20 +1225,20 @@ func Asmbpe(ctxt *Link) {
 	chksectseg(ctxt, t, &Segtext)
 	textsect = pensect
 
-	var d *IMAGE_SECTION_HEADER
-	var c *IMAGE_SECTION_HEADER
+	var d *peSection
+	var c *peSection
 	if Linkmode != LinkExternal {
-		d = addpesection(ctxt, ".data", int(Segdata.Length), int(Segdata.Filelen))
+		d = pefile.addSection(".data", int(Segdata.Length), int(Segdata.Filelen))
 		d.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
 		chksectseg(ctxt, d, &Segdata)
 		datasect = pensect
 	} else {
-		d = addpesection(ctxt, ".data", int(Segdata.Filelen), int(Segdata.Filelen))
+		d = pefile.addSection(".data", int(Segdata.Filelen), int(Segdata.Filelen))
 		d.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
 		chksectseg(ctxt, d, &Segdata)
 		datasect = pensect
 
-		b := addpesection(ctxt, ".bss", int(Segdata.Length-Segdata.Filelen), 0)
+		b := pefile.addSection(".bss", int(Segdata.Length-Segdata.Filelen), 0)
 		b.Characteristics = IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
 		b.PointerToRawData = 0
 		bsssect = pensect

@@ -732,7 +732,7 @@ func skip(value, prefix string) (string, error) {
 }
 
 // Parse parses a formatted string and returns the time value it represents.
-// The layout  defines the format by showing how the reference time,
+// The layout defines the format by showing how the reference time,
 // defined to be
 //	Mon Jan 2 15:04:05 -0700 MST 2006
 // would be interpreted if it were the value; it serves as an example of
@@ -1071,7 +1071,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		offset, _, ok := local.lookupName(zoneName, t.unixSec())
+		offset, ok := local.lookupName(zoneName, t.unixSec())
 		if ok {
 			t.addSec(-int64(offset))
 			t.setLoc(local)

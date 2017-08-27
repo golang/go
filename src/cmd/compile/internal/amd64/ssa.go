@@ -117,7 +117,7 @@ func opregreg(s *gc.SSAGenState, op obj.As, dest, src int16) *obj.Prog {
 	return p
 }
 
-// DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
+// DUFFZERO consists of repeated blocks of 4 MOVUPSs + LEAQ,
 // See runtime/mkduff.go.
 func duffStart(size int64) int64 {
 	x, _ := duff(size)
@@ -140,7 +140,7 @@ func duff(size int64) (int64, int64) {
 	off := dzBlockSize * (dzBlocks - blocks)
 	var adj int64
 	if steps != 0 {
-		off -= dzAddSize
+		off -= dzLeaqSize
 		off -= dzMovSize * steps
 		adj -= dzClearStep * (dzBlockLen - steps)
 	}
@@ -614,6 +614,29 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Scale = 1
 		p.To.Index = i
 		gc.AddAux(&p.To, v)
+	case ssa.OpAMD64ADDQconstmem, ssa.OpAMD64ADDLconstmem:
+		sc := v.AuxValAndOff()
+		off := sc.Off()
+		val := sc.Val()
+		if val == 1 {
+			var asm obj.As
+			if v.Op == ssa.OpAMD64ADDQconstmem {
+				asm = x86.AINCQ
+			} else {
+				asm = x86.AINCL
+			}
+			p := s.Prog(asm)
+			p.To.Type = obj.TYPE_MEM
+			p.To.Reg = v.Args[0].Reg()
+			gc.AddAux2(&p.To, v, off)
+		} else {
+			p := s.Prog(v.Op.Asm())
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = val
+			p.To.Type = obj.TYPE_MEM
+			p.To.Reg = v.Args[0].Reg()
+			gc.AddAux2(&p.To, v, off)
+		}
 	case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
@@ -673,9 +696,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		adj := duffAdj(v.AuxInt)
 		var p *obj.Prog
 		if adj != 0 {
-			p = s.Prog(x86.AADDQ)
-			p.From.Type = obj.TYPE_CONST
+			p = s.Prog(x86.ALEAQ)
+			p.From.Type = obj.TYPE_MEM
 			p.From.Offset = adj
+			p.From.Reg = x86.REG_DI
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = x86.REG_DI
 		}

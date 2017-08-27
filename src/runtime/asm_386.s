@@ -885,23 +885,6 @@ TEXT runtime·ldt0setup(SB),NOSPLIT,$16-0
 TEXT runtime·emptyfunc(SB),0,$0-0
 	RET
 
-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
-// redirects to memhash(p, h, size) using the size
-// stored in the closure.
-TEXT runtime·memhash_varlen(SB),NOSPLIT,$16-12
-	GO_ARGS
-	NO_LOCAL_POINTERS
-	MOVL	p+0(FP), AX
-	MOVL	h+4(FP), BX
-	MOVL	4(DX), CX
-	MOVL	AX, 0(SP)
-	MOVL	BX, 4(SP)
-	MOVL	CX, 8(SP)
-	CALL	runtime·memhash(SB)
-	MOVL	12(SP), AX
-	MOVL	AX, ret+8(FP)
-	RET
-
 // hash function using AES hardware instructions
 TEXT runtime·aeshash(SB),NOSPLIT,$0-16
 	MOVL	p+0(FP), AX	// ptr to data
@@ -1636,19 +1619,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$0-0
 	CALL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
 	BYTE	$0x90	// NOP
-
-// Prefetching doesn't seem to help.
-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
-	RET
-
-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-4
-	RET
-
-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
-	RET
-
-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
-	RET
 
 // Add a module's moduledata to the linked list of moduledata objects. This
 // is called from .init_array by a function generated in the linker and so

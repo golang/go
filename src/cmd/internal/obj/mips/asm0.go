@@ -556,6 +556,11 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			return C_LEXT
 
 		case obj.NAME_AUTO:
+			if a.Reg == REGSP {
+				// unset base register for better printing, since
+				// a.Offset is still relative to pseudo-SP.
+				a.Reg = obj.REG_NONE
+			}
 			c.instoffset = int64(c.autosize) + a.Offset
 			if c.instoffset >= -BIG && c.instoffset < BIG {
 				return C_SAUTO
@@ -563,6 +568,11 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			return C_LAUTO
 
 		case obj.NAME_PARAM:
+			if a.Reg == REGSP {
+				// unset base register for better printing, since
+				// a.Offset is still relative to pseudo-FP.
+				a.Reg = obj.REG_NONE
+			}
 			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
 			if c.instoffset >= -BIG && c.instoffset < BIG {
 				return C_SAUTO
@@ -616,6 +626,11 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			return C_LECON
 
 		case obj.NAME_AUTO:
+			if a.Reg == REGSP {
+				// unset base register for better printing, since
+				// a.Offset is still relative to pseudo-SP.
+				a.Reg = obj.REG_NONE
+			}
 			c.instoffset = int64(c.autosize) + a.Offset
 			if c.instoffset >= -BIG && c.instoffset < BIG {
 				return C_SACON
@@ -623,6 +638,11 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			return C_LACON
 
 		case obj.NAME_PARAM:
+			if a.Reg == REGSP {
+				// unset base register for better printing, since
+				// a.Offset is still relative to pseudo-FP.
+				a.Reg = obj.REG_NONE
+			}
 			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
 			if c.instoffset >= -BIG && c.instoffset < BIG {
 				return C_SACON

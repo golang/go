@@ -473,6 +473,18 @@ func TestGrow(t *testing.T) {
 	}
 }
 
+func TestGrowOverflow(t *testing.T) {
+	defer func() {
+		if err := recover(); err != ErrTooLarge {
+			t.Errorf("after too-large Grow, recover() = %v; want %v", err, ErrTooLarge)
+		}
+	}()
+
+	buf := NewBuffer(make([]byte, 1))
+	const maxInt = int(^uint(0) >> 1)
+	buf.Grow(maxInt)
+}
+
 // Was a bug: used to give EOF reading empty slice at EOF.
 func TestReadEmptyAtEOF(t *testing.T) {
 	b := new(Buffer)

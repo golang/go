@@ -519,7 +519,7 @@ func funcstart(n *Node) {
 // finish the body.
 // called in auto-declaration context.
 // returns in extern-declaration context.
-func funcbody(n *Node) {
+func funcbody() {
 	// change the declaration context from auto to extern
 	if dclcontext != PAUTO {
 		Fatalf("funcbody: unexpected dclcontext %d", dclcontext)
@@ -1096,9 +1096,9 @@ func makefuncsym(s *types.Sym) {
 	if s.IsBlank() {
 		return
 	}
-	if compiling_runtime && s.Name == "getg" {
-		// runtime.getg() is not a real function and so does
-		// not get a funcsym.
+	if compiling_runtime && (s.Name == "getg" || s.Name == "getclosureptr") {
+		// runtime.getg() and getclosureptr are not real functions and so do not
+		// get funcsyms.
 		return
 	}
 	if _, existed := s.Pkg.LookupOK(funcsymname(s)); !existed {

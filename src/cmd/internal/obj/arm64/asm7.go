@@ -1149,10 +1149,20 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 			return C_GOTADDR
 
 		case obj.NAME_AUTO:
+			if a.Reg == REGSP {
+				// unset base register for better printing, since
+				// a.Offset is still relative to pseudo-SP.
+				a.Reg = obj.REG_NONE
+			}
 			c.instoffset = int64(c.autosize) + a.Offset
 			return autoclass(c.instoffset)
 
 		case obj.NAME_PARAM:
+			if a.Reg == REGSP {
+				// unset base register for better printing, since
+				// a.Offset is still relative to pseudo-FP.
+				a.Reg = obj.REG_NONE
+			}
 			c.instoffset = int64(c.autosize) + a.Offset + 8
 			return autoclass(c.instoffset)
 
@@ -1228,10 +1238,20 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 			return C_VCONADDR
 
 		case obj.NAME_AUTO:
+			if a.Reg == REGSP {
+				// unset base register for better printing, since
+				// a.Offset is still relative to pseudo-SP.
+				a.Reg = obj.REG_NONE
+			}
 			c.instoffset = int64(c.autosize) + a.Offset
 			goto aconsize
 
 		case obj.NAME_PARAM:
+			if a.Reg == REGSP {
+				// unset base register for better printing, since
+				// a.Offset is still relative to pseudo-FP.
+				a.Reg = obj.REG_NONE
+			}
 			c.instoffset = int64(c.autosize) + a.Offset + 8
 			goto aconsize
 		}

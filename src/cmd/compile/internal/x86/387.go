@@ -120,7 +120,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) {
 			p = s.Prog(x86.AFLDCW)
 			p.From.Type = obj.TYPE_MEM
 			p.From.Name = obj.NAME_EXTERN
-			p.From.Sym = gc.Sysfunc("controlWord32")
+			p.From.Sym = gc.ControlWord32
 		}
 
 		var op obj.As
@@ -210,7 +210,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) {
 		p = s.Prog(x86.AFLDCW)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Name = obj.NAME_EXTERN
-		p.From.Sym = gc.Sysfunc("controlWord64trunc")
+		p.From.Sym = gc.ControlWord64trunc
 
 		// Now do the conversion.
 		p = s.Prog(x86.AFMOVLP)

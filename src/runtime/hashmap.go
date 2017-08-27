@@ -64,8 +64,10 @@ const (
 	bucketCntBits = 3
 	bucketCnt     = 1 << bucketCntBits
 
-	// Maximum average load of a bucket that triggers growth.
-	loadFactor = 6.5
+	// Maximum average load of a bucket that triggers growth is 6.5.
+	// Represent as loadFactorNum/loadFactDen, to allow integer math.
+	loadFactorNum = 13
+	loadFactorDen = 2
 
 	// Maximum key or value size to keep inline (instead of mallocing per element).
 	// Must fit in a uint8.
@@ -166,6 +168,15 @@ type hiter struct {
 	i           uint8
 	bucket      uintptr
 	checkBucket uintptr
+}
+
+// tophash calculates the tophash value for hash.
+func tophash(hash uintptr) uint8 {
+	top := uint8(hash >> (sys.PtrSize*8 - 8))
+	if top < minTopHash {
+		top += minTopHash
+	}
+	return top
 }
 
 func evacuated(b *bmap) bool {
@@ -296,6 +307,10 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 	if dataOffset%uintptr(t.elem.align) != 0 {
 		throw("need padding in bucket (value)")
 	}
+	if evacuatedX+1 != evacuatedY {
+		// evacuate relies on this relationship
+		throw("bad evacuatedN")
+	}
 
 	// find size parameter which will hold the requested # of elements
 	B := uint8(0)
@@ -320,15 +335,10 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 	if h == nil {
 		h = (*hmap)(newobject(t.hmap))
 	}
-	h.count = 0
 	h.B = B
 	h.extra = extra
-	h.flags = 0
 	h.hash0 = fastrand()
 	h.buckets = buckets
-	h.oldbuckets = nil
-	h.nevacuate = 0
-	h.noverflow = 0
 
 	return h
 }
@@ -368,10 +378,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 			b = oldb
 		}
 	}
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
@@ -426,10 +433,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 			b = oldb
 		}
 	}
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
@@ -473,10 +477,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 			b = oldb
 		}
 	}
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
@@ -542,7 +543,7 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	h.flags |= hashWriting
 
 	if h.buckets == nil {
-		h.buckets = newarray(t.bucket, 1)
+		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
 	}
 
 again:
@@ -551,10 +552,7 @@ again:
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 
 	var inserti *uint8
 	var insertk unsafe.Pointer
@@ -661,10 +659,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
@@ -818,90 +813,75 @@ next:
 	}
 	for ; i < bucketCnt; i++ {
 		offi := (i + it.offset) & (bucketCnt - 1)
-		k := add(unsafe.Pointer(b), dataOffset+uintptr(offi)*uintptr(t.keysize))
-		v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+uintptr(offi)*uintptr(t.valuesize))
-		if b.tophash[offi] != empty && b.tophash[offi] != evacuatedEmpty {
-			if checkBucket != noCheck && !h.sameSizeGrow() {
-				// Special case: iterator was started during a grow to a larger size
-				// and the grow is not done yet. We're working on a bucket whose
-				// oldbucket has not been evacuated yet. Or at least, it wasn't
-				// evacuated when we started the bucket. So we're iterating
-				// through the oldbucket, skipping any keys that will go
-				// to the other new bucket (each oldbucket expands to two
-				// buckets during a grow).
-				k2 := k
-				if t.indirectkey {
-					k2 = *((*unsafe.Pointer)(k2))
-				}
-				if t.reflexivekey || alg.equal(k2, k2) {
-					// If the item in the oldbucket is not destined for
-					// the current new bucket in the iteration, skip it.
-					hash := alg.hash(k2, uintptr(h.hash0))
-					if hash&(uintptr(1)<<it.B-1) != checkBucket {
-						continue
-					}
-				} else {
-					// Hash isn't repeatable if k != k (NaNs).  We need a
-					// repeatable and randomish choice of which direction
-					// to send NaNs during evacuation. We'll use the low
-					// bit of tophash to decide which way NaNs go.
-					// NOTE: this case is why we need two evacuate tophash
-					// values, evacuatedX and evacuatedY, that differ in
-					// their low bit.
-					if checkBucket>>(it.B-1) != uintptr(b.tophash[offi]&1) {
-						continue
-					}
-				}
-			}
-			if b.tophash[offi] != evacuatedX && b.tophash[offi] != evacuatedY {
-				// this is the golden data, we can return it.
-				if t.indirectkey {
-					k = *((*unsafe.Pointer)(k))
-				}
-				it.key = k
-				if t.indirectvalue {
-					v = *((*unsafe.Pointer)(v))
-				}
-				it.value = v
-			} else {
-				// The hash table has grown since the iterator was started.
-				// The golden data for this key is now somewhere else.
-				k2 := k
-				if t.indirectkey {
-					k2 = *((*unsafe.Pointer)(k2))
-				}
-				if t.reflexivekey || alg.equal(k2, k2) {
-					// Check the current hash table for the data.
-					// This code handles the case where the key
-					// has been deleted, updated, or deleted and reinserted.
-					// NOTE: we need to regrab the key as it has potentially been
-					// updated to an equal() but not identical key (e.g. +0.0 vs -0.0).
-					rk, rv := mapaccessK(t, h, k2)
-					if rk == nil {
-						continue // key has been deleted
-					}
-					it.key = rk
-					it.value = rv
-				} else {
-					// if key!=key then the entry can't be deleted or
-					// updated, so we can just return it. That's lucky for
-					// us because when key!=key we can't look it up
-					// successfully in the current table.
-					it.key = k2
-					if t.indirectvalue {
-						v = *((*unsafe.Pointer)(v))
-					}
-					it.value = v
-				}
-			}
-			it.bucket = bucket
-			if it.bptr != b { // avoid unnecessary write barrier; see issue 14921
-				it.bptr = b
-			}
-			it.i = i + 1
-			it.checkBucket = checkBucket
-			return
+		if b.tophash[offi] == empty || b.tophash[offi] == evacuatedEmpty {
+			continue
 		}
+		k := add(unsafe.Pointer(b), dataOffset+uintptr(offi)*uintptr(t.keysize))
+		if t.indirectkey {
+			k = *((*unsafe.Pointer)(k))
+		}
+		v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+uintptr(offi)*uintptr(t.valuesize))
+		if checkBucket != noCheck && !h.sameSizeGrow() {
+			// Special case: iterator was started during a grow to a larger size
+			// and the grow is not done yet. We're working on a bucket whose
+			// oldbucket has not been evacuated yet. Or at least, it wasn't
+			// evacuated when we started the bucket. So we're iterating
+			// through the oldbucket, skipping any keys that will go
+			// to the other new bucket (each oldbucket expands to two
+			// buckets during a grow).
+			if t.reflexivekey || alg.equal(k, k) {
+				// If the item in the oldbucket is not destined for
+				// the current new bucket in the iteration, skip it.
+				hash := alg.hash(k, uintptr(h.hash0))
+				if hash&(uintptr(1)<<it.B-1) != checkBucket {
+					continue
+				}
+			} else {
+				// Hash isn't repeatable if k != k (NaNs).  We need a
+				// repeatable and randomish choice of which direction
+				// to send NaNs during evacuation. We'll use the low
+				// bit of tophash to decide which way NaNs go.
+				// NOTE: this case is why we need two evacuate tophash
+				// values, evacuatedX and evacuatedY, that differ in
+				// their low bit.
+				if checkBucket>>(it.B-1) != uintptr(b.tophash[offi]&1) {
+					continue
+				}
+			}
+		}
+		if (b.tophash[offi] != evacuatedX && b.tophash[offi] != evacuatedY) ||
+			!(t.reflexivekey || alg.equal(k, k)) {
+			// This is the golden data, we can return it.
+			// OR
+			// key!=key, so the entry can't be deleted or updated, so we can just return it.
+			// That's lucky for us because when key!=key we can't look it up successfully.
+			it.key = k
+			if t.indirectvalue {
+				v = *((*unsafe.Pointer)(v))
+			}
+			it.value = v
+		} else {
+			// The hash table has grown since the iterator was started.
+			// The golden data for this key is now somewhere else.
+			// Check the current hash table for the data.
+			// This code handles the case where the key
+			// has been deleted, updated, or deleted and reinserted.
+			// NOTE: we need to regrab the key as it has potentially been
+			// updated to an equal() but not identical key (e.g. +0.0 vs -0.0).
+			rk, rv := mapaccessK(t, h, k)
+			if rk == nil {
+				continue // key has been deleted
+			}
+			it.key = rk
+			it.value = rv
+		}
+		it.bucket = bucket
+		if it.bptr != b { // avoid unnecessary write barrier; see issue 14921
+			it.bptr = b
+		}
+		it.i = i + 1
+		it.checkBucket = checkBucket
+		return
 	}
 	b = b.overflow(t)
 	i = 0
@@ -983,8 +963,7 @@ func hashGrow(t *maptype, h *hmap) {
 
 // overLoadFactor reports whether count items placed in 1<<B buckets is over loadFactor.
 func overLoadFactor(count int64, B uint8) bool {
-	// TODO: rewrite to use integer math and comparison?
-	return count >= bucketCnt && float32(count) >= loadFactor*float32((uint64(1)<<B))
+	return count >= bucketCnt && uint64(count) >= loadFactorNum*((uint64(1)<<B)/loadFactorDen)
 }
 
 // tooManyOverflowBuckets reports whether noverflow buckets is too many for a map with 1<<B buckets.
@@ -995,10 +974,11 @@ func tooManyOverflowBuckets(noverflow uint16, B uint8) bool {
 	// If the threshold is too high, maps that grow and shrink can hold on to lots of unused memory.
 	// "too many" means (approximately) as many overflow buckets as regular buckets.
 	// See incrnoverflow for more details.
-	if B < 16 {
-		return noverflow >= uint16(1)<<B
+	if B > 15 {
+		B = 15
 	}
-	return noverflow >= 1<<15
+	// The compiler doesn't see here that B < 16; mask B to generate shorter shift code.
+	return noverflow >= uint16(1)<<(B&15)
 }
 
 // growing reports whether h is growing. The growth may be to the same size or bigger.
@@ -1041,32 +1021,37 @@ func bucketEvacuated(t *maptype, h *hmap, bucket uintptr) bool {
 	return evacuated(b)
 }
 
+// evacDst is an evacuation destination.
+type evacDst struct {
+	b *bmap          // current destination bucket
+	i int            // key/val index into b
+	k unsafe.Pointer // pointer to current key storage
+	v unsafe.Pointer // pointer to current value storage
+}
+
 func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 	b := (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
 	newbit := h.noldbuckets()
-	alg := t.key.alg
 	if !evacuated(b) {
 		// TODO: reuse overflow buckets instead of using new ones, if there
 		// is no iterator using the old buckets.  (If !oldIterator.)
 
-		var (
-			x, y   *bmap          // current low/high buckets in new map
-			xi, yi int            // key/val indices into x and y
-			xk, yk unsafe.Pointer // pointers to current x and y key storage
-			xv, yv unsafe.Pointer // pointers to current x and y value storage
-		)
-		x = (*bmap)(add(h.buckets, oldbucket*uintptr(t.bucketsize)))
-		xi = 0
-		xk = add(unsafe.Pointer(x), dataOffset)
-		xv = add(xk, bucketCnt*uintptr(t.keysize))
+		// xy contains the x and y (low and high) evacuation destinations.
+		var xy [2]evacDst
+		x := &xy[0]
+		x.b = (*bmap)(add(h.buckets, oldbucket*uintptr(t.bucketsize)))
+		x.k = add(unsafe.Pointer(x.b), dataOffset)
+		x.v = add(x.k, bucketCnt*uintptr(t.keysize))
+
 		if !h.sameSizeGrow() {
 			// Only calculate y pointers if we're growing bigger.
 			// Otherwise GC can see bad pointers.
-			y = (*bmap)(add(h.buckets, (oldbucket+newbit)*uintptr(t.bucketsize)))
-			yi = 0
-			yk = add(unsafe.Pointer(y), dataOffset)
-			yv = add(yk, bucketCnt*uintptr(t.keysize))
+			y := &xy[1]
+			y.b = (*bmap)(add(h.buckets, (oldbucket+newbit)*uintptr(t.bucketsize)))
+			y.k = add(unsafe.Pointer(y.b), dataOffset)
+			y.v = add(y.k, bucketCnt*uintptr(t.keysize))
 		}
+
 		for ; b != nil; b = b.overflow(t) {
 			k := add(unsafe.Pointer(b), dataOffset)
 			v := add(k, bucketCnt*uintptr(t.keysize))
@@ -1083,84 +1068,59 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 				if t.indirectkey {
 					k2 = *((*unsafe.Pointer)(k2))
 				}
-				useX := true
+				var useY uint8
 				if !h.sameSizeGrow() {
 					// Compute hash to make our evacuation decision (whether we need
 					// to send this key/value to bucket x or bucket y).
-					hash := alg.hash(k2, uintptr(h.hash0))
-					if h.flags&iterator != 0 {
-						if !t.reflexivekey && !alg.equal(k2, k2) {
-							// If key != key (NaNs), then the hash could be (and probably
-							// will be) entirely different from the old hash. Moreover,
-							// it isn't reproducible. Reproducibility is required in the
-							// presence of iterators, as our evacuation decision must
-							// match whatever decision the iterator made.
-							// Fortunately, we have the freedom to send these keys either
-							// way. Also, tophash is meaningless for these kinds of keys.
-							// We let the low bit of tophash drive the evacuation decision.
-							// We recompute a new random tophash for the next level so
-							// these keys will get evenly distributed across all buckets
-							// after multiple grows.
-							if top&1 != 0 {
-								hash |= newbit
-							} else {
-								hash &^= newbit
-							}
-							top = uint8(hash >> (sys.PtrSize*8 - 8))
-							if top < minTopHash {
-								top += minTopHash
-							}
+					hash := t.key.alg.hash(k2, uintptr(h.hash0))
+					if h.flags&iterator != 0 && !t.reflexivekey && !t.key.alg.equal(k2, k2) {
+						// If key != key (NaNs), then the hash could be (and probably
+						// will be) entirely different from the old hash. Moreover,
+						// it isn't reproducible. Reproducibility is required in the
+						// presence of iterators, as our evacuation decision must
+						// match whatever decision the iterator made.
+						// Fortunately, we have the freedom to send these keys either
+						// way. Also, tophash is meaningless for these kinds of keys.
+						// We let the low bit of tophash drive the evacuation decision.
+						// We recompute a new random tophash for the next level so
+						// these keys will get evenly distributed across all buckets
+						// after multiple grows.
+						useY = top & 1
+						top = tophash(hash)
+					} else {
+						if hash&newbit != 0 {
+							useY = 1
 						}
 					}
-					useX = hash&newbit == 0
 				}
-				if useX {
-					b.tophash[i] = evacuatedX
-					if xi == bucketCnt {
-						newx := h.newoverflow(t, x)
-						x = newx
-						xi = 0
-						xk = add(unsafe.Pointer(x), dataOffset)
-						xv = add(xk, bucketCnt*uintptr(t.keysize))
-					}
-					x.tophash[xi] = top
-					if t.indirectkey {
-						*(*unsafe.Pointer)(xk) = k2 // copy pointer
-					} else {
-						typedmemmove(t.key, xk, k) // copy value
-					}
-					if t.indirectvalue {
-						*(*unsafe.Pointer)(xv) = *(*unsafe.Pointer)(v)
-					} else {
-						typedmemmove(t.elem, xv, v)
-					}
-					xi++
-					xk = add(xk, uintptr(t.keysize))
-					xv = add(xv, uintptr(t.valuesize))
+
+				b.tophash[i] = evacuatedX + useY // evacuatedX + 1 == evacuatedY, enforced in makemap
+				dst := &xy[useY]                 // evacuation destination
+
+				if dst.i == bucketCnt {
+					dst.b = h.newoverflow(t, dst.b)
+					dst.i = 0
+					dst.k = add(unsafe.Pointer(dst.b), dataOffset)
+					dst.v = add(dst.k, bucketCnt*uintptr(t.keysize))
+				}
+				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
+				if t.indirectkey {
+					*(*unsafe.Pointer)(dst.k) = k2 // copy pointer
 				} else {
-					b.tophash[i] = evacuatedY
-					if yi == bucketCnt {
-						newy := h.newoverflow(t, y)
-						y = newy
-						yi = 0
-						yk = add(unsafe.Pointer(y), dataOffset)
-						yv = add(yk, bucketCnt*uintptr(t.keysize))
-					}
-					y.tophash[yi] = top
-					if t.indirectkey {
-						*(*unsafe.Pointer)(yk) = k2
-					} else {
-						typedmemmove(t.key, yk, k)
-					}
-					if t.indirectvalue {
-						*(*unsafe.Pointer)(yv) = *(*unsafe.Pointer)(v)
-					} else {
-						typedmemmove(t.elem, yv, v)
-					}
-					yi++
-					yk = add(yk, uintptr(t.keysize))
-					yv = add(yv, uintptr(t.valuesize))
+					typedmemmove(t.key, dst.k, k) // copy value
 				}
+				if t.indirectvalue {
+					*(*unsafe.Pointer)(dst.v) = *(*unsafe.Pointer)(v)
+				} else {
+					typedmemmove(t.elem, dst.v, v)
+				}
+				dst.i++
+				// These updates might push these pointers past the end of the
+				// key or value arrays.  That's ok, as we have the overflow pointer
+				// at the end of the bucket to protect against pointing past the
+				// end of the bucket.
+				dst.k = add(dst.k, uintptr(t.keysize))
+				dst.v = add(dst.v, uintptr(t.valuesize))
 			}
 		}
 		// Unlink the overflow buckets & clear key/value to help GC.
@@ -1168,37 +1128,42 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 			b = (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
 			// Preserve b.tophash because the evacuation
 			// state is maintained there.
+			ptr := add(unsafe.Pointer(b), dataOffset)
+			n := uintptr(t.bucketsize) - dataOffset
 			if t.bucket.kind&kindNoPointers == 0 {
-				memclrHasPointers(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
+				memclrHasPointers(ptr, n)
 			} else {
-				memclrNoHeapPointers(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
+				memclrNoHeapPointers(ptr, n)
 			}
 		}
 	}
 
-	// Advance evacuation mark
 	if oldbucket == h.nevacuate {
-		h.nevacuate = oldbucket + 1
-		// Experiments suggest that 1024 is overkill by at least an order of magnitude.
-		// Put it in there as a safeguard anyway, to ensure O(1) behavior.
-		stop := h.nevacuate + 1024
-		if stop > newbit {
-			stop = newbit
+		advanceEvacuationMark(h, t, newbit)
+	}
+}
+
+func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
+	h.nevacuate++
+	// Experiments suggest that 1024 is overkill by at least an order of magnitude.
+	// Put it in there as a safeguard anyway, to ensure O(1) behavior.
+	stop := h.nevacuate + 1024
+	if stop > newbit {
+		stop = newbit
+	}
+	for h.nevacuate != stop && bucketEvacuated(t, h, h.nevacuate) {
+		h.nevacuate++
+	}
+	if h.nevacuate == newbit { // newbit == # of oldbuckets
+		// Growing is all done. Free old main bucket array.
+		h.oldbuckets = nil
+		// Can discard old overflow buckets as well.
+		// If they are still referenced by an iterator,
+		// then the iterator holds a pointers to the slice.
+		if h.extra != nil {
+			h.extra.overflow[1] = nil
 		}
-		for h.nevacuate != stop && bucketEvacuated(t, h, h.nevacuate) {
-			h.nevacuate++
-		}
-		if h.nevacuate == newbit { // newbit == # of oldbuckets
-			// Growing is all done. Free old main bucket array.
-			h.oldbuckets = nil
-			// Can discard old overflow buckets as well.
-			// If they are still referenced by an iterator,
-			// then the iterator holds a pointers to the slice.
-			if h.extra != nil {
-				h.extra.overflow[1] = nil
-			}
-			h.flags &^= sameSizeGrow
-		}
+		h.flags &^= sameSizeGrow
 	}
 }
 

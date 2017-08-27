@@ -91,7 +91,7 @@ func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
 }
 
 // exported value for testing
-var hashLoad = loadFactor
+var hashLoad = float32(loadFactorNum) / float32(loadFactorDen)
 
 //go:nosplit
 func fastrand() uint32 {
@@ -131,7 +131,6 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 func cgocallback(fn, frame unsafe.Pointer, framesize, ctxt uintptr)
 func gogo(buf *gobuf)
 func gosave(buf *gobuf)
-func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 
 //go:noescape
 func jmpdefer(fv *funcval, argp uintptr)
@@ -228,6 +227,22 @@ func getcallersp(argp unsafe.Pointer) uintptr {
 	return uintptr(argp) - sys.MinFrameSize
 }
 
+// getclosureptr returns the pointer to the current closure.
+// getclosureptr can only be used in an assignment statement
+// at the entry of a function. Moreover, go:nosplit directive
+// must be specified at the declaration of caller function,
+// so that the function prolog does not clobber the closure register.
+// for example:
+//
+//	//go:nosplit
+//	func f(arg1, arg2, arg3 int) {
+//		dx := getclosureptr()
+//	}
+//
+// The compiler rewrites calls to this function into instructions that fetch the
+// pointer from a well-known register (DX on x86 architecture, etc.) directly.
+func getclosureptr() uintptr
+
 //go:noescape
 func asmcgocall(fn, arg unsafe.Pointer) int32
 
@@ -275,11 +290,6 @@ func call536870912(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
 func call1073741824(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
 
 func systemstack_switch()
-
-func prefetcht0(addr uintptr)
-func prefetcht1(addr uintptr)
-func prefetcht2(addr uintptr)
-func prefetchnta(addr uintptr)
 
 // round n up to a multiple of a.  a must be a power of 2.
 func round(n, a uintptr) uintptr {

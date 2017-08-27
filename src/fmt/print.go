@@ -1067,8 +1067,11 @@ formatLoop:
 			break
 		}
 
-		verb, w := utf8.DecodeRuneInString(format[i:])
-		i += w
+		verb, size := rune(format[i]), 1
+		if verb >= utf8.RuneSelf {
+			verb, size = utf8.DecodeRuneInString(format[i:])
+		}
+		i += size
 
 		switch {
 		case verb == '%': // Percent does not absorb operands and ignores f.wid and f.prec.

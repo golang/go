@@ -678,23 +678,6 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	MOVD	R3, ret+0(FP)
 	RET
 
-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
-// redirects to memhash(p, h, size) using the size
-// stored in the closure.
-TEXT runtime·memhash_varlen(SB),NOSPLIT,$40-24
-	GO_ARGS
-	NO_LOCAL_POINTERS
-	MOVD	p+0(FP), R3
-	MOVD	h+8(FP), R4
-	MOVD	8(R12), R5
-	MOVD	R3, 8(R15)
-	MOVD	R4, 16(R15)
-	MOVD	R5, 24(R15)
-	BL	runtime·memhash(SB)
-	MOVD	32(R15), R3
-	MOVD	R3, ret+16(FP)
-	RET
-
 // AES hashing not implemented for s390x
 TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R15
@@ -948,18 +931,6 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
 	BL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
 	BYTE $0x07; BYTE $0x00; // 2-byte nop
-
-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
-	RET
-
-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
-	RET
-
-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
-	RET
-
-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
-	RET
 
 TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
 	RET

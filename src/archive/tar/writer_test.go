@@ -6,10 +6,11 @@ package tar
 
 import (
 	"bytes"
-	"fmt"
+	"encoding/hex"
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"reflect"
 	"sort"
 	"strings"
@@ -18,42 +19,33 @@ import (
 	"time"
 )
 
-// Render byte array in a two-character hexadecimal string, spaced for easy visual inspection.
-func bytestr(offset int, b []byte) string {
-	const rowLen = 32
-	s := fmt.Sprintf("%04x ", offset)
-	for _, ch := range b {
-		switch {
-		case '0' <= ch && ch <= '9', 'A' <= ch && ch <= 'Z', 'a' <= ch && ch <= 'z':
-			s += fmt.Sprintf("  %c", ch)
-		default:
-			s += fmt.Sprintf(" %02x", ch)
+func bytediff(a, b []byte) string {
+	const (
+		uniqueA  = "-  "
+		uniqueB  = "+  "
+		identity = "   "
+	)
+	var ss []string
+	sa := strings.Split(strings.TrimSpace(hex.Dump(a)), "\n")
+	sb := strings.Split(strings.TrimSpace(hex.Dump(b)), "\n")
+	for len(sa) > 0 && len(sb) > 0 {
+		if sa[0] == sb[0] {
+			ss = append(ss, identity+sa[0])
+		} else {
+			ss = append(ss, uniqueA+sa[0])
+			ss = append(ss, uniqueB+sb[0])
 		}
+		sa, sb = sa[1:], sb[1:]
 	}
-	return s
-}
-
-// Render a pseudo-diff between two blocks of bytes.
-func bytediff(a []byte, b []byte) string {
-	const rowLen = 32
-	s := fmt.Sprintf("(%d bytes vs. %d bytes)\n", len(a), len(b))
-	for offset := 0; len(a)+len(b) > 0; offset += rowLen {
-		na, nb := rowLen, rowLen
-		if na > len(a) {
-			na = len(a)
-		}
-		if nb > len(b) {
-			nb = len(b)
-		}
-		sa := bytestr(offset, a[0:na])
-		sb := bytestr(offset, b[0:nb])
-		if sa != sb {
-			s += fmt.Sprintf("-%v\n+%v\n", sa, sb)
-		}
-		a = a[na:]
-		b = b[nb:]
+	for len(sa) > 0 {
+		ss = append(ss, uniqueA+sa[0])
+		sa = sa[1:]
 	}
-	return s
+	for len(sb) > 0 {
+		ss = append(ss, uniqueB+sb[0])
+		sb = sb[1:]
+	}
+	return strings.Join(ss, "\n")
 }
 
 func TestWriter(t *testing.T) {
@@ -65,6 +57,7 @@ func TestWriter(t *testing.T) {
 	vectors := []struct {
 		file    string // filename of expected output
 		entries []*entry
+		err     error // expected error on WriteHeader
 	}{{
 		// The writer test file was produced with this command:
 		// tar (GNU tar) 1.26
@@ -128,6 +121,7 @@ func TestWriter(t *testing.T) {
 				Typeflag: '0',
 				Uname:    "dsymonds",
 				Gname:    "eng",
+				Devminor: -1, // Force use of GNU format
 			},
 			// fake contents
 			contents: strings.Repeat("\x00", 4<<10),
@@ -157,15 +151,9 @@ func TestWriter(t *testing.T) {
 			contents: strings.Repeat("\x00", 4<<10),
 		}},
 	}, {
-		// TODO(dsnet): The Writer output should match the following file.
-		// To fix an issue (see https://golang.org/issue/12594), we disabled
-		// prefix support, which alters the generated output.
-		/*
-			// This file was produced using gnu tar 1.17
-			// gnutar  -b 4 --format=ustar (longname/)*15 + file.txt
-			file: "testdata/ustar.tar"
-		*/
-		file: "testdata/ustar.issue12594.tar", // This is a valid tar file, but not expected
+		// This file was produced using GNU tar v1.17.
+		//	gnutar -b 4 --format=ustar (longname/)*15 + file.txt
+		file: "testdata/ustar.tar",
 		entries: []*entry{{
 			header: &Header{
 				Name:     strings.Repeat("longname/", 15) + "file.txt",
@@ -214,44 +202,86 @@ func TestWriter(t *testing.T) {
 			},
 			// no contents
 		}},
+	}, {
+		entries: []*entry{{
+			header: &Header{
+				Name:     "bad-null.txt",
+				Typeflag: '0',
+				Xattrs:   map[string]string{"null\x00null\x00": "fizzbuzz"},
+			},
+		}},
+		err: ErrHeader,
+	}, {
+		entries: []*entry{{
+			header: &Header{
+				Name:     "null\x00.txt",
+				Typeflag: '0',
+			},
+		}},
+		err: ErrHeader,
+	}, {
+		file: "testdata/gnu-utf8.tar",
+		entries: []*entry{{
+			header: &Header{
+				Name: "☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹",
+				Mode: 0644,
+				Uid:  1000, Gid: 1000,
+				ModTime:  time.Unix(0, 0),
+				Typeflag: '0',
+				Uname:    "☺",
+				Gname:    "⚹",
+				Devminor: -1, // Force use of GNU format
+			},
+		}},
+	}, {
+		file: "testdata/gnu-not-utf8.tar",
+		entries: []*entry{{
+			header: &Header{
+				Name:     "hi\x80\x81\x82\x83bye",
+				Mode:     0644,
+				Uid:      1000,
+				Gid:      1000,
+				ModTime:  time.Unix(0, 0),
+				Typeflag: '0',
+				Uname:    "rawr",
+				Gname:    "dsnet",
+				Devminor: -1, // Force use of GNU format
+			},
+		}},
 	}}
 
-testLoop:
-	for i, v := range vectors {
-		expected, err := ioutil.ReadFile(v.file)
-		if err != nil {
-			t.Errorf("test %d: Unexpected error: %v", i, err)
-			continue
-		}
+	for _, v := range vectors {
+		t.Run(path.Base(v.file), func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			tw := NewWriter(iotest.TruncateWriter(buf, 4<<10)) // only catch the first 4 KB
+			canFail := false
+			for i, entry := range v.entries {
+				canFail = canFail || entry.header.Size > 1<<10 || v.err != nil
 
-		buf := new(bytes.Buffer)
-		tw := NewWriter(iotest.TruncateWriter(buf, 4<<10)) // only catch the first 4 KB
-		big := false
-		for j, entry := range v.entries {
-			big = big || entry.header.Size > 1<<10
-			if err := tw.WriteHeader(entry.header); err != nil {
-				t.Errorf("test %d, entry %d: Failed writing header: %v", i, j, err)
-				continue testLoop
+				err := tw.WriteHeader(entry.header)
+				if err != v.err {
+					t.Fatalf("entry %d: WriteHeader() = %v, want %v", i, err, v.err)
+				}
+				if _, err := io.WriteString(tw, entry.contents); err != nil {
+					t.Fatalf("entry %d: WriteString() = %v, want nil", i, err)
+				}
 			}
-			if _, err := io.WriteString(tw, entry.contents); err != nil {
-				t.Errorf("test %d, entry %d: Failed writing contents: %v", i, j, err)
-				continue testLoop
+			// Only interested in Close failures for the small tests.
+			if err := tw.Close(); err != nil && !canFail {
+				t.Fatalf("Close() = %v, want nil", err)
 			}
-		}
-		// Only interested in Close failures for the small tests.
-		if err := tw.Close(); err != nil && !big {
-			t.Errorf("test %d: Failed closing archive: %v", i, err)
-			continue testLoop
-		}
 
-		actual := buf.Bytes()
-		if !bytes.Equal(expected, actual) {
-			t.Errorf("test %d: Incorrect result: (-=expected, +=actual)\n%v",
-				i, bytediff(expected, actual))
-		}
-		if testing.Short() { // The second test is expensive.
-			break
-		}
+			if v.file != "" {
+				want, err := ioutil.ReadFile(v.file)
+				if err != nil {
+					t.Fatalf("ReadFile() = %v, want nil", err)
+				}
+				got := buf.Bytes()
+				if !bytes.Equal(want, got) {
+					t.Fatalf("incorrect result: (-got +want)\n%v", bytediff(got, want))
+				}
+			}
+		})
 	}
 }
 
@@ -546,21 +576,104 @@ func TestValidTypeflagWithPAXHeader(t *testing.T) {
 	}
 }
 
-func TestWriteAfterClose(t *testing.T) {
-	var buffer bytes.Buffer
-	tw := NewWriter(&buffer)
+// failOnceWriter fails exactly once and then always reports success.
+type failOnceWriter bool
 
-	hdr := &Header{
-		Name: "small.txt",
-		Size: 5,
+func (w *failOnceWriter) Write(b []byte) (int, error) {
+	if !*w {
+		return 0, io.ErrShortWrite
 	}
-	if err := tw.WriteHeader(hdr); err != nil {
-		t.Fatalf("Failed to write header: %s", err)
-	}
-	tw.Close()
-	if _, err := tw.Write([]byte("Kilts")); err != ErrWriteAfterClose {
-		t.Fatalf("Write: got %v; want ErrWriteAfterClose", err)
-	}
+	*w = true
+	return len(b), nil
+}
+
+func TestWriterErrors(t *testing.T) {
+	t.Run("HeaderOnly", func(t *testing.T) {
+		tw := NewWriter(new(bytes.Buffer))
+		hdr := &Header{Name: "dir/", Typeflag: TypeDir}
+		if err := tw.WriteHeader(hdr); err != nil {
+			t.Fatalf("WriteHeader() = %v, want nil", err)
+		}
+		if _, err := tw.Write([]byte{0x00}); err != ErrWriteTooLong {
+			t.Fatalf("Write() = %v, want %v", err, ErrWriteTooLong)
+		}
+	})
+
+	t.Run("NegativeSize", func(t *testing.T) {
+		tw := NewWriter(new(bytes.Buffer))
+		hdr := &Header{Name: "small.txt", Size: -1}
+		if err := tw.WriteHeader(hdr); err != ErrHeader {
+			t.Fatalf("WriteHeader() = nil, want %v", ErrHeader)
+		}
+	})
+
+	t.Run("BeforeHeader", func(t *testing.T) {
+		tw := NewWriter(new(bytes.Buffer))
+		if _, err := tw.Write([]byte("Kilts")); err != ErrWriteTooLong {
+			t.Fatalf("Write() = %v, want %v", err, ErrWriteTooLong)
+		}
+	})
+
+	t.Run("AfterClose", func(t *testing.T) {
+		tw := NewWriter(new(bytes.Buffer))
+		hdr := &Header{Name: "small.txt"}
+		if err := tw.WriteHeader(hdr); err != nil {
+			t.Fatalf("WriteHeader() = %v, want nil", err)
+		}
+		if err := tw.Close(); err != nil {
+			t.Fatalf("Close() = %v, want nil", err)
+		}
+		if _, err := tw.Write([]byte("Kilts")); err != ErrWriteAfterClose {
+			t.Fatalf("Write() = %v, want %v", err, ErrWriteAfterClose)
+		}
+		if err := tw.Flush(); err != ErrWriteAfterClose {
+			t.Fatalf("Flush() = %v, want %v", err, ErrWriteAfterClose)
+		}
+		if err := tw.Close(); err != nil {
+			t.Fatalf("Close() = %v, want nil", err)
+		}
+	})
+
+	t.Run("PrematureFlush", func(t *testing.T) {
+		tw := NewWriter(new(bytes.Buffer))
+		hdr := &Header{Name: "small.txt", Size: 5}
+		if err := tw.WriteHeader(hdr); err != nil {
+			t.Fatalf("WriteHeader() = %v, want nil", err)
+		}
+		if err := tw.Flush(); err == nil {
+			t.Fatalf("Flush() = %v, want non-nil error", err)
+		}
+	})
+
+	t.Run("PrematureClose", func(t *testing.T) {
+		tw := NewWriter(new(bytes.Buffer))
+		hdr := &Header{Name: "small.txt", Size: 5}
+		if err := tw.WriteHeader(hdr); err != nil {
+			t.Fatalf("WriteHeader() = %v, want nil", err)
+		}
+		if err := tw.Close(); err == nil {
+			t.Fatalf("Close() = %v, want non-nil error", err)
+		}
+	})
+
+	t.Run("Persistence", func(t *testing.T) {
+		tw := NewWriter(new(failOnceWriter))
+		if err := tw.WriteHeader(&Header{}); err != io.ErrShortWrite {
+			t.Fatalf("WriteHeader() = %v, want %v", err, io.ErrShortWrite)
+		}
+		if err := tw.WriteHeader(&Header{Name: "small.txt"}); err == nil {
+			t.Errorf("WriteHeader() = got %v, want non-nil error", err)
+		}
+		if _, err := tw.Write(nil); err == nil {
+			t.Errorf("Write() = %v, want non-nil error", err)
+		}
+		if err := tw.Flush(); err == nil {
+			t.Errorf("Flush() = %v, want non-nil error", err)
+		}
+		if err := tw.Close(); err == nil {
+			t.Errorf("Close() = %v, want non-nil error", err)
+		}
+	})
 }
 
 func TestSplitUSTARPath(t *testing.T) {

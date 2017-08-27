@@ -1204,7 +1204,7 @@ func foo126() {
 		// loopdepth 1
 		var i int // ERROR "moved to heap: i$"
 		func() {  // ERROR "foo126 func literal does not escape$"
-			px = &i // ERROR "&i escapes to heap$"  "leaking closure reference i"
+			px = &i // ERROR "&i escapes to heap$" "leaking closure reference i"
 		}()
 	}
 	_ = px

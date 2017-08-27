@@ -208,6 +208,17 @@
 // (Mod64u x y) is always between 0 (inclusive) and y (exclusive).
 (IsInBounds (Mod32u _ y) y) -> (ConstBool [1])
 (IsInBounds (Mod64u _ y) y) -> (ConstBool [1])
+// Right shifting a unsigned number limits its value.
+(IsInBounds (ZeroExt8to64  (Rsh8Ux64  _ (Const64 [c]))) (Const64 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d -> (ConstBool [1])
+(IsInBounds (ZeroExt8to32  (Rsh8Ux64  _ (Const64 [c]))) (Const32 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d -> (ConstBool [1])
+(IsInBounds (ZeroExt8to16  (Rsh8Ux64  _ (Const64 [c]))) (Const16 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d -> (ConstBool [1])
+(IsInBounds                (Rsh8Ux64  _ (Const64 [c]))  (Const64 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d -> (ConstBool [1])
+(IsInBounds (ZeroExt16to64 (Rsh16Ux64 _ (Const64 [c]))) (Const64 [d])) && 0 < c && c < 16 && 1<<uint(16-c)-1 < d -> (ConstBool [1])
+(IsInBounds (ZeroExt16to32 (Rsh16Ux64 _ (Const64 [c]))) (Const64 [d])) && 0 < c && c < 16 && 1<<uint(16-c)-1 < d -> (ConstBool [1])
+(IsInBounds                (Rsh16Ux64 _ (Const64 [c]))  (Const64 [d])) && 0 < c && c < 16 && 1<<uint(16-c)-1 < d -> (ConstBool [1])
+(IsInBounds (ZeroExt32to64 (Rsh32Ux64 _ (Const64 [c]))) (Const64 [d])) && 0 < c && c < 32 && 1<<uint(32-c)-1 < d -> (ConstBool [1])
+(IsInBounds                (Rsh32Ux64 _ (Const64 [c]))  (Const64 [d])) && 0 < c && c < 32 && 1<<uint(32-c)-1 < d -> (ConstBool [1])
+(IsInBounds                (Rsh64Ux64 _ (Const64 [c]))  (Const64 [d])) && 0 < c && c < 64 && 1<<uint(64-c)-1 < d -> (ConstBool [1])
 
 (IsSliceInBounds x x) -> (ConstBool [1])
 (IsSliceInBounds (And32 (Const32 [c]) _) (Const32 [d])) && 0 <= c && c <= d -> (ConstBool [1])
@@ -310,6 +321,12 @@
   (Add64 (Const64 <t> [c*d]) (Mul64 <t> (Const64 <t> [c]) x))
 (Mul32 (Const32 <t> [c]) (Add32 <t> (Const32 <t> [d]) x)) ->
   (Add32 (Const32 <t> [int64(int32(c*d))]) (Mul32 <t> (Const32 <t> [c]) x))
+
+// Rewrite x*y + x*z  to  x*(y+z)
+(Add64 <t> (Mul64 x y) (Mul64 x z)) -> (Mul64 x (Add64 <t> y z))
+(Add32 <t> (Mul32 x y) (Mul32 x z)) -> (Mul32 x (Add32 <t> y z))
+(Add16 <t> (Mul16 x y) (Mul16 x z)) -> (Mul16 x (Add16 <t> y z))
+(Add8  <t> (Mul8  x y) (Mul8  x z)) -> (Mul8  x (Add8  <t> y z))
 
 // rewrite shifts of 8/16/32 bit consts into 64 bit consts to reduce
 // the number of the other rewrite rules for const shifts
@@ -945,6 +962,7 @@
 (Div16u n (Const16 [c])) && isPowerOfTwo(c&0xffff)     -> (Rsh16Ux64 n (Const64 <typ.UInt64> [log2(c&0xffff)]))
 (Div32u n (Const32 [c])) && isPowerOfTwo(c&0xffffffff) -> (Rsh32Ux64 n (Const64 <typ.UInt64> [log2(c&0xffffffff)]))
 (Div64u n (Const64 [c])) && isPowerOfTwo(c)            -> (Rsh64Ux64 n (Const64 <typ.UInt64> [log2(c)]))
+(Div64u n (Const64 [-1<<63]))                          -> (Rsh64Ux64 n (Const64 <typ.UInt64> [63]))
 
 // Unsigned divide, not a power of 2.  Strength reduce to a multiply.
 // For 8-bit divides, we just do a direct 9-bit by 8-bit multiply.
@@ -1177,6 +1195,7 @@
 (Mod16u <t> n (Const16 [c])) && isPowerOfTwo(c&0xffff)     -> (And16 n (Const16 <t> [(c&0xffff)-1]))
 (Mod32u <t> n (Const32 [c])) && isPowerOfTwo(c&0xffffffff) -> (And32 n (Const32 <t> [(c&0xffffffff)-1]))
 (Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c)            -> (And64 n (Const64 <t> [c-1]))
+(Mod64u <t> n (Const64 [-1<<63]))                          -> (And64 n (Const64 <t> [1<<63-1]))
 
 // Signed mod by negative constant.
 (Mod8  <t> n (Const8  [c])) && c < 0 && c != -1<<7  -> (Mod8  <t> n (Const8  <t> [-c]))

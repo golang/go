@@ -757,7 +757,7 @@ func (s *typeSwitch) walk(sw *Node) {
 	if cond.Right.Type.IsEmptyInterface() {
 		h.Xoffset = int64(2 * Widthptr) // offset of hash in runtime._type
 	} else {
-		h.Xoffset = int64(3 * Widthptr) // offset of hash in runtime.itab
+		h.Xoffset = int64(2 * Widthptr) // offset of hash in runtime.itab
 	}
 	h.SetBounded(true) // guaranteed not to fault
 	a = nod(OAS, s.hashname, h)

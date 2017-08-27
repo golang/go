@@ -78,7 +78,7 @@ func (p stringFuncPrinter) startDepCycle() {
 func (p stringFuncPrinter) endDepCycle() {}
 
 func (p stringFuncPrinter) named(n LocalSlot, vals []*Value) {
-	fmt.Fprintf(p.w, "name %s: %v\n", n.Name(), vals)
+	fmt.Fprintf(p.w, "name %s: %v\n", n, vals)
 }
 
 func fprintFunc(p funcPrinter, f *Func) {

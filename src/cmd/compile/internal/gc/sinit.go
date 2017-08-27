@@ -480,9 +480,8 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 			n := *l
 			gdata(&n, r.Func.Closure.Func.Nname, Widthptr)
 			return true
-		} else {
-			closuredebugruntimecheck(r)
 		}
+		closuredebugruntimecheck(r)
 
 	case OCONVIFACE:
 		// This logic is mirrored in isStaticCompositeLiteral.

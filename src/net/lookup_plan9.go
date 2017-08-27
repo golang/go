@@ -198,7 +198,7 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port 
 func (*Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
 	lines, err := queryDNS(ctx, name, "cname")
 	if err != nil {
-		if stringsHasSuffix(err.Error(), "dns failure") {
+		if stringsHasSuffix(err.Error(), "dns failure") || stringsHasSuffix(err.Error(), "resource does not exist; negrcode 0") {
 			cname = name + "."
 			err = nil
 		}

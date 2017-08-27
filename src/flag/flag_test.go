@@ -432,3 +432,17 @@ func TestIntFlagOverflow(t *testing.T) {
 		t.Error("unexpected success setting Uint")
 	}
 }
+
+// Issue 20998: Usage should respect CommandLine.output.
+func TestUsageOutput(t *testing.T) {
+	ResetForTesting(DefaultUsage)
+	var buf bytes.Buffer
+	CommandLine.SetOutput(&buf)
+	defer func(old []string) { os.Args = old }(os.Args)
+	os.Args = []string{"app", "-i=1", "-unknown"}
+	Parse()
+	const want = "flag provided but not defined: -i\nUsage of app:\n"
+	if got := buf.String(); got != want {
+		t.Errorf("output = %q; want %q", got, want)
+	}
+}

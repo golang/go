@@ -409,6 +409,11 @@ var modulesSlice unsafe.Pointer // see activeModules
 //
 // A module is active once its gcdatamask and gcbssmask have been
 // assembled and it is usable by the GC.
+//
+// This is nosplit/nowritebarrier because it is called by the
+// cgo pointer checking code.
+//go:nosplit
+//go:nowritebarrier
 func activeModules() []*moduledata {
 	p := (*[]*moduledata)(atomic.Loadp(unsafe.Pointer(&modulesSlice)))
 	if p == nil {

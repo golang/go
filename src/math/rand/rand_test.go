@@ -74,6 +74,7 @@ func getStatsResults(samples []float64) *statsResults {
 }
 
 func checkSampleDistribution(t *testing.T, samples []float64, expected *statsResults) {
+	t.Helper()
 	actual := getStatsResults(samples)
 	err := actual.checkSimilarDistribution(expected)
 	if err != nil {
@@ -82,6 +83,7 @@ func checkSampleDistribution(t *testing.T, samples []float64, expected *statsRes
 }
 
 func checkSampleSliceDistributions(t *testing.T, samples []float64, nslices int, expected *statsResults) {
+	t.Helper()
 	chunk := len(samples) / nslices
 	for i := 0; i < nslices; i++ {
 		low := i * chunk
@@ -374,7 +376,7 @@ func testReadUniformity(t *testing.T, n int, seed int64) {
 	// Expect a uniform distribution of byte values, which lie in [0, 255].
 	var (
 		mean       = 255.0 / 2
-		stddev     = math.Sqrt(255.0 * 255.0 / 12.0)
+		stddev     = 256.0 / math.Sqrt(12.0)
 		errorScale = stddev / math.Sqrt(float64(n))
 	)
 

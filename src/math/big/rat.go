@@ -490,6 +490,13 @@ func (z *Rat) Sub(x, y *Rat) *Rat {
 
 // Mul sets z to the product x*y and returns z.
 func (z *Rat) Mul(x, y *Rat) *Rat {
+	if x == y {
+		// a squared Rat is positive and can't be reduced
+		z.a.neg = false
+		z.a.abs = z.a.abs.sqr(x.a.abs)
+		z.b.abs = z.b.abs.sqr(x.b.abs)
+		return z
+	}
 	z.a.Mul(&x.a, &y.a)
 	z.b.abs = mulDenom(z.b.abs, x.b.abs, y.b.abs)
 	return z.norm()

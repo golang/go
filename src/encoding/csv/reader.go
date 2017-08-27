@@ -115,9 +115,10 @@ type Reader struct {
 	// By default, each call to Read returns newly allocated memory owned by the caller.
 	ReuseRecord bool
 
-	line   int
-	column int
-	r      *bufio.Reader
+	line       int
+	recordLine int // line where the current record started
+	column     int
+	r          *bufio.Reader
 	// lineBuffer holds the unescaped fields read by readField, one after another.
 	// The fields can be accessed by using the indexes in fieldIndexes.
 	// Example: for the row `a,"b","c""d",e` lineBuffer will contain `abc"de` and
@@ -142,7 +143,7 @@ func NewReader(r io.Reader) *Reader {
 // error creates a new ParseError based on err.
 func (r *Reader) error(err error) error {
 	return &ParseError{
-		Line:   r.line,
+		Line:   r.recordLine,
 		Column: r.column,
 		Err:    err,
 	}
@@ -232,6 +233,13 @@ func (r *Reader) readRune() (rune, error) {
 	return r1, err
 }
 
+// readRawRune works the same way as readRune, but does not fold \r\n to \n.
+func (r *Reader) readRawRune() (rune, error) {
+	r1, _, err := r.r.ReadRune()
+	r.column++
+	return r1, err
+}
+
 // skip reads runes up to and including the rune delim or until error.
 func (r *Reader) skip(delim rune) error {
 	for {
@@ -251,7 +259,9 @@ func (r *Reader) parseRecord(dst []string) (fields []string, err error) {
 	// Each record starts on a new line. We increment our line
 	// number (lines start at 1, not 0) and set column to -1
 	// so as we increment in readRune it points to the character we read.
+	// We track the line where the record starts in recordLine for use in errors.
 	r.line++
+	r.recordLine = r.line
 	r.column = -1
 
 	// Peek at the first rune. If it is an error we are done.
@@ -348,7 +358,9 @@ func (r *Reader) parseField() (haveField bool, delim rune, err error) {
 		// quoted field
 	Quoted:
 		for {
-			r1, err = r.readRune()
+			// use readRawRune instead of readRune to preserve \r\n
+			// in quotes fields.
+			r1, err = r.readRawRune()
 			if err != nil {
 				if err == io.EOF {
 					if r.LazyQuotes {

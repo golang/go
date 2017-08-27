@@ -153,7 +153,7 @@ func (s *stackAllocState) stackalloc() {
 		}
 		loc := LocalSlot{N: v.Aux.(GCNode), Type: v.Type, Off: v.AuxInt}
 		if f.pass.debug > stackDebug {
-			fmt.Printf("stackalloc %s to %s\n", v, loc.Name())
+			fmt.Printf("stackalloc %s to %s\n", v, loc)
 		}
 		f.setHome(v, loc)
 	}
@@ -216,7 +216,7 @@ func (s *stackAllocState) stackalloc() {
 					}
 				}
 				if f.pass.debug > stackDebug {
-					fmt.Printf("stackalloc %s to %s\n", v, name.Name())
+					fmt.Printf("stackalloc %s to %s\n", v, name)
 				}
 				s.nNamedSlot++
 				f.setHome(v, name)
@@ -253,7 +253,7 @@ func (s *stackAllocState) stackalloc() {
 			// Use the stack variable at that index for v.
 			loc := locs[i]
 			if f.pass.debug > stackDebug {
-				fmt.Printf("stackalloc %s to %s\n", v, loc.Name())
+				fmt.Printf("stackalloc %s to %s\n", v, loc)
 			}
 			f.setHome(v, loc)
 			slots[v.ID] = i
