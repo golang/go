@@ -47,18 +47,15 @@ type typeAlg struct {
 func memhash0(p unsafe.Pointer, h uintptr) uintptr {
 	return h
 }
+
 func memhash8(p unsafe.Pointer, h uintptr) uintptr {
 	return memhash(p, h, 1)
 }
+
 func memhash16(p unsafe.Pointer, h uintptr) uintptr {
 	return memhash(p, h, 2)
 }
-func memhash32(p unsafe.Pointer, h uintptr) uintptr {
-	return memhash(p, h, 4)
-}
-func memhash64(p unsafe.Pointer, h uintptr) uintptr {
-	return memhash(p, h, 8)
-}
+
 func memhash128(p unsafe.Pointer, h uintptr) uintptr {
 	return memhash(p, h, 16)
 }

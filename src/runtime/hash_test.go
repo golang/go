@@ -14,6 +14,40 @@ import (
 	"unsafe"
 )
 
+func TestMemHash32Equality(t *testing.T) {
+	if *UseAeshash {
+		t.Skip("skipping since AES hash implementation is used")
+	}
+	var b [4]byte
+	r := rand.New(rand.NewSource(1234))
+	seed := uintptr(r.Uint64())
+	for i := 0; i < 100; i++ {
+		randBytes(r, b[:])
+		got := MemHash32(unsafe.Pointer(&b), seed)
+		want := MemHash(unsafe.Pointer(&b), seed, 4)
+		if got != want {
+			t.Errorf("MemHash32(%x, %v) = %v; want %v", b, seed, got, want)
+		}
+	}
+}
+
+func TestMemHash64Equality(t *testing.T) {
+	if *UseAeshash {
+		t.Skip("skipping since AES hash implementation is used")
+	}
+	var b [8]byte
+	r := rand.New(rand.NewSource(1234))
+	seed := uintptr(r.Uint64())
+	for i := 0; i < 100; i++ {
+		randBytes(r, b[:])
+		got := MemHash64(unsafe.Pointer(&b), seed)
+		want := MemHash(unsafe.Pointer(&b), seed, 8)
+		if got != want {
+			t.Errorf("MemHash64(%x, %v) = %v; want %v", b, seed, got, want)
+		}
+	}
+}
+
 // Smhasher is a torture test for hash functions.
 // https://code.google.com/p/smhasher/
 // This code is a port of some of the Smhasher tests to Go.
