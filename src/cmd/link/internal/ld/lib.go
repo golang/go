@@ -98,14 +98,14 @@ type Arch struct {
 	Solarisdynld     string
 	Adddynrel        func(*Link, *Symbol, *Reloc) bool
 	Archinit         func(*Link)
-	Archreloc        func(*Link, *Reloc, *Symbol, *int64) int
+	Archreloc        func(*Link, *Reloc, *Symbol, *int64) bool
 	Archrelocvariant func(*Link, *Reloc, *Symbol, int64) int64
 	Trampoline       func(*Link, *Reloc, *Symbol)
 	Asmb             func(*Link)
-	Elfreloc1        func(*Link, *Reloc, int64) int
+	Elfreloc1        func(*Link, *Reloc, int64) bool
 	Elfsetupplt      func(*Link)
 	Gentext          func(*Link)
-	Machoreloc1      func(*Symbol, *Reloc, int64) int
+	Machoreloc1      func(*Symbol, *Reloc, int64) bool
 	PEreloc1         func(*Symbol, *Reloc, int64) bool
 	Wput             func(uint16)
 	Lput             func(uint32)

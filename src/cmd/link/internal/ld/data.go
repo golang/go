@@ -392,7 +392,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
 		r = &s.R[ri]
 
-		r.Done = 1
+		r.Done = true
 		off = r.Off
 		siz = int32(r.Siz)
 		if off < 0 || off+siz > int32(len(s.P)) {
@@ -464,15 +464,14 @@ func relocsym(ctxt *Link, s *Symbol) {
 			case 8:
 				o = int64(ctxt.Arch.ByteOrder.Uint64(s.P[off:]))
 			}
-			if Thearch.Archreloc(ctxt, r, s, &o) < 0 {
+			if !Thearch.Archreloc(ctxt, r, s, &o) {
 				Errorf(s, "unknown reloc to %v: %d (%s)", r.Sym.Name, r.Type, RelocName(r.Type))
 			}
-
 		case objabi.R_TLS_LE:
 			isAndroidX86 := objabi.GOOS == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
 
 			if Linkmode == LinkExternal && Iself && !isAndroidX86 {
-				r.Done = 0
+				r.Done = false
 				if r.Sym == nil {
 					r.Sym = ctxt.Tlsg
 				}
@@ -501,12 +500,11 @@ func relocsym(ctxt *Link, s *Symbol) {
 			} else {
 				log.Fatalf("unexpected R_TLS_LE relocation for %v", Headtype)
 			}
-
 		case objabi.R_TLS_IE:
 			isAndroidX86 := objabi.GOOS == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
 
 			if Linkmode == LinkExternal && Iself && !isAndroidX86 {
-				r.Done = 0
+				r.Done = false
 				if r.Sym == nil {
 					r.Sym = ctxt.Tlsg
 				}
@@ -532,10 +530,9 @@ func relocsym(ctxt *Link, s *Symbol) {
 			} else {
 				log.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", s.Name)
 			}
-
 		case objabi.R_ADDR:
 			if Linkmode == LinkExternal && r.Sym.Type != SCONST {
-				r.Done = 0
+				r.Done = false
 
 				// set up addend for eventual relocation via outer symbol.
 				rs = r.Sym
@@ -590,14 +587,13 @@ func relocsym(ctxt *Link, s *Symbol) {
 				Errorf(s, "non-pc-relative relocation address for %s is too big: %#x (%#x + %#x)", r.Sym.Name, uint64(o), Symaddr(r.Sym), r.Add)
 				errorexit()
 			}
-
 		case objabi.R_DWARFREF:
 			if r.Sym.Sect == nil {
 				Errorf(s, "missing DWARF section for relocation target %s", r.Sym.Name)
 			}
 
 			if Linkmode == LinkExternal {
-				r.Done = 0
+				r.Done = false
 				// PE code emits IMAGE_REL_I386_SECREL and IMAGE_REL_AMD64_SECREL
 				// for R_DWARFREF relocations, while R_ADDR is replaced with
 				// IMAGE_REL_I386_DIR32, IMAGE_REL_AMD64_ADDR64 and IMAGE_REL_AMD64_ADDR32.
@@ -618,7 +614,6 @@ func relocsym(ctxt *Link, s *Symbol) {
 				break
 			}
 			o = Symaddr(r.Sym) + r.Add - int64(r.Sym.Sect.Vaddr)
-
 		case objabi.R_WEAKADDROFF:
 			if !r.Sym.Attr.Reachable() {
 				continue
@@ -637,7 +632,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
 		case objabi.R_GOTPCREL:
 			if ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin && r.Sym != nil && r.Sym.Type != SCONST {
-				r.Done = 0
+				r.Done = false
 				r.Xadd = r.Add
 				r.Xadd -= int64(r.Siz) // relative to address after the relocated chunk
 				r.Xsym = r.Sym
@@ -649,7 +644,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 			fallthrough
 		case objabi.R_CALL, objabi.R_PCREL:
 			if Linkmode == LinkExternal && r.Sym != nil && r.Sym.Type != SCONST && (r.Sym.Sect != s.Sect || r.Type == objabi.R_GOTPCREL) {
-				r.Done = 0
+				r.Done = false
 
 				// set up addend for eventual relocation via outer symbol.
 				rs = r.Sym
@@ -700,7 +695,6 @@ func relocsym(ctxt *Link, s *Symbol) {
 			}
 
 			o += r.Add - (s.Value + int64(r.Off) + int64(r.Siz))
-
 		case objabi.R_SIZE:
 			o = r.Sym.Size + r.Add
 		}
@@ -724,14 +718,12 @@ func relocsym(ctxt *Link, s *Symbol) {
 			// TODO(rsc): Remove.
 		case 1:
 			s.P[off] = byte(int8(o))
-
 		case 2:
 			if o != int64(int16(o)) {
 				Errorf(s, "relocation address for %s is too big: %#x", r.Sym.Name, o)
 			}
 			i16 = int16(o)
 			ctxt.Arch.ByteOrder.PutUint16(s.P[off:], uint16(i16))
-
 		case 4:
 			if r.Type == objabi.R_PCREL || r.Type == objabi.R_CALL {
 				if o != int64(int32(o)) {
@@ -745,7 +737,6 @@ func relocsym(ctxt *Link, s *Symbol) {
 
 			fl = int32(o)
 			ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(fl))
-
 		case 8:
 			ctxt.Arch.ByteOrder.PutUint64(s.P[off:], uint64(o))
 		}

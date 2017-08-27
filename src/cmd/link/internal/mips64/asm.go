@@ -45,7 +45,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
 	// mips64 ELF relocation (endian neutral)
 	//		offset	uint64
 	//		sym		uint32
@@ -64,8 +64,7 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 	ld.Cput(0)
 	switch r.Type {
 	default:
-		return -1
-
+		return false
 	case objabi.R_ADDR:
 		switch r.Siz {
 		case 4:
@@ -73,44 +72,39 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 		case 8:
 			ld.Cput(ld.R_MIPS_64)
 		default:
-			return -1
+			return false
 		}
-
 	case objabi.R_ADDRMIPS:
 		ld.Cput(ld.R_MIPS_LO16)
-
 	case objabi.R_ADDRMIPSU:
 		ld.Cput(ld.R_MIPS_HI16)
-
 	case objabi.R_ADDRMIPSTLS:
 		ld.Cput(ld.R_MIPS_TLS_TPREL_LO16)
-
 	case objabi.R_CALLMIPS,
 		objabi.R_JMPMIPS:
 		ld.Cput(ld.R_MIPS_26)
 	}
 	ld.Thearch.Vput(uint64(r.Xadd))
 
-	return 0
+	return true
 }
 
 func elfsetupplt(ctxt *ld.Link) {
 	return
 }
 
-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
-	return -1
+func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+	return false
 }
 
-func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 	if ld.Linkmode == ld.LinkExternal {
 		switch r.Type {
 		default:
-			return -1
-
+			return false
 		case objabi.R_ADDRMIPS,
 			objabi.R_ADDRMIPSU:
-			r.Done = 0
+			r.Done = false
 
 			// set up addend for eventual relocation via outer symbol.
 			rs := r.Sym
@@ -125,27 +119,24 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			}
 			r.Xsym = rs
 
-			return 0
-
+			return true
 		case objabi.R_ADDRMIPSTLS,
 			objabi.R_CALLMIPS,
 			objabi.R_JMPMIPS:
-			r.Done = 0
+			r.Done = false
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
-			return 0
+			return true
 		}
 	}
 
 	switch r.Type {
 	case objabi.R_CONST:
 		*val = r.Add
-		return 0
-
+		return true
 	case objabi.R_GOTOFF:
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
-		return 0
-
+		return true
 	case objabi.R_ADDRMIPS,
 		objabi.R_ADDRMIPSU:
 		t := ld.Symaddr(r.Sym) + r.Add
@@ -155,8 +146,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		} else {
 			*val = int64(o1&0xffff0000 | uint32((t+1<<15)>>16)&0xffff)
 		}
-		return 0
-
+		return true
 	case objabi.R_ADDRMIPSTLS:
 		// thread pointer is at 0x7000 offset from the start of TLS data area
 		t := ld.Symaddr(r.Sym) + r.Add - 0x7000
@@ -165,18 +155,17 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		}
 		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
 		*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
-		return 0
-
+		return true
 	case objabi.R_CALLMIPS,
 		objabi.R_JMPMIPS:
 		// Low 26 bits = (S + A) >> 2
 		t := ld.Symaddr(r.Sym) + r.Add
 		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
 		*val = int64(o1&0xfc000000 | uint32(t>>2)&^0xfc000000)
-		return 0
+		return true
 	}
 
-	return -1
+	return false
 }
 
 func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {

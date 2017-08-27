@@ -91,14 +91,13 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
 	ld.Thearch.Vput(uint64(sectoff))
 
 	elfsym := r.Xsym.ElfsymForReloc()
 	switch r.Type {
 	default:
-		return -1
-
+		return false
 	case objabi.R_ADDR:
 		switch r.Siz {
 		case 4:
@@ -106,41 +105,36 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 		case 8:
 			ld.Thearch.Vput(ld.R_AARCH64_ABS64 | uint64(elfsym)<<32)
 		default:
-			return -1
+			return false
 		}
-
 	case objabi.R_ADDRARM64:
 		// two relocations: R_AARCH64_ADR_PREL_PG_HI21 and R_AARCH64_ADD_ABS_LO12_NC
 		ld.Thearch.Vput(ld.R_AARCH64_ADR_PREL_PG_HI21 | uint64(elfsym)<<32)
 		ld.Thearch.Vput(uint64(r.Xadd))
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_AARCH64_ADD_ABS_LO12_NC | uint64(elfsym)<<32)
-
 	case objabi.R_ARM64_TLS_LE:
 		ld.Thearch.Vput(ld.R_AARCH64_TLSLE_MOVW_TPREL_G0 | uint64(elfsym)<<32)
-
 	case objabi.R_ARM64_TLS_IE:
 		ld.Thearch.Vput(ld.R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21 | uint64(elfsym)<<32)
 		ld.Thearch.Vput(uint64(r.Xadd))
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC | uint64(elfsym)<<32)
-
 	case objabi.R_ARM64_GOTPCREL:
 		ld.Thearch.Vput(ld.R_AARCH64_ADR_GOT_PAGE | uint64(elfsym)<<32)
 		ld.Thearch.Vput(uint64(r.Xadd))
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_AARCH64_LD64_GOT_LO12_NC | uint64(elfsym)<<32)
-
 	case objabi.R_CALLARM64:
 		if r.Siz != 4 {
-			return -1
+			return false
 		}
 		ld.Thearch.Vput(ld.R_AARCH64_CALL26 | uint64(elfsym)<<32)
 
 	}
 	ld.Thearch.Vput(uint64(r.Xadd))
 
-	return 0
+	return true
 }
 
 func elfsetupplt(ctxt *ld.Link) {
@@ -148,7 +142,7 @@ func elfsetupplt(ctxt *ld.Link) {
 	return
 }
 
-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	var v uint32
 
 	rs := r.Xsym
@@ -159,7 +153,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 	if rs.Type == ld.SHOSTOBJ || r.Type == objabi.R_CALLARM64 || r.Type == objabi.R_ADDRARM64 || r.Type == objabi.R_ADDR {
 		if rs.Dynid < 0 {
 			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Type, rs.Type)
-			return -1
+			return false
 		}
 
 		v = uint32(rs.Dynid)
@@ -168,17 +162,15 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 		v = uint32(rs.Sect.Extnum)
 		if v == 0 {
 			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
-			return -1
+			return false
 		}
 	}
 
 	switch r.Type {
 	default:
-		return -1
-
+		return false
 	case objabi.R_ADDR:
 		v |= ld.MACHO_ARM64_RELOC_UNSIGNED << 28
-
 	case objabi.R_CALLARM64:
 		if r.Xadd != 0 {
 			ld.Errorf(s, "ld64 doesn't allow BR26 reloc with non-zero addend: %s+%d", rs.Name, r.Xadd)
@@ -186,7 +178,6 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 
 		v |= 1 << 24 // pc-relative bit
 		v |= ld.MACHO_ARM64_RELOC_BRANCH26 << 28
-
 	case objabi.R_ADDRARM64:
 		r.Siz = 4
 		// Two relocation entries: MACHO_ARM64_RELOC_PAGEOFF12 MACHO_ARM64_RELOC_PAGE21
@@ -207,32 +198,27 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 
 	switch r.Siz {
 	default:
-		return -1
-
+		return false
 	case 1:
 		v |= 0 << 25
-
 	case 2:
 		v |= 1 << 25
-
 	case 4:
 		v |= 2 << 25
-
 	case 8:
 		v |= 3 << 25
 	}
 
 	ld.Thearch.Lput(uint32(sectoff))
 	ld.Thearch.Lput(v)
-	return 0
+	return true
 }
 
-func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 	if ld.Linkmode == ld.LinkExternal {
 		switch r.Type {
 		default:
-			return -1
-
+			return false
 		case objabi.R_ARM64_GOTPCREL:
 			var o1, o2 uint32
 			if ctxt.Arch.ByteOrder == binary.BigEndian {
@@ -263,9 +249,8 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 				*val = int64(o2)<<32 | int64(o1)
 			}
 			fallthrough
-
 		case objabi.R_ADDRARM64:
-			r.Done = 0
+			r.Done = false
 
 			// set up addend for eventual relocation via outer symbol.
 			rs := r.Sym
@@ -312,27 +297,24 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 				}
 			}
 
-			return 0
-
+			return true
 		case objabi.R_CALLARM64,
 			objabi.R_ARM64_TLS_LE,
 			objabi.R_ARM64_TLS_IE:
-			r.Done = 0
+			r.Done = false
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
-			return 0
+			return true
 		}
 	}
 
 	switch r.Type {
 	case objabi.R_CONST:
 		*val = r.Add
-		return 0
-
+		return true
 	case objabi.R_GOTOFF:
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
-		return 0
-
+		return true
 	case objabi.R_ADDRARM64:
 		t := ld.Symaddr(r.Sym) + r.Add - ((s.Value + int64(r.Off)) &^ 0xfff)
 		if t >= 1<<32 || t < -1<<32 {
@@ -358,10 +340,9 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		} else {
 			*val = int64(o1)<<32 | int64(o0)
 		}
-		return 0
-
+		return true
 	case objabi.R_ARM64_TLS_LE:
-		r.Done = 0
+		r.Done = false
 		if ld.Headtype != objabi.Hlinux {
 			ld.Errorf(s, "TLS reloc on unsupported OS %v", ld.Headtype)
 		}
@@ -372,18 +353,17 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			ld.Errorf(s, "TLS offset out of range %d", v)
 		}
 		*val |= v << 5
-		return 0
-
+		return true
 	case objabi.R_CALLARM64:
 		t := (ld.Symaddr(r.Sym) + r.Add) - (s.Value + int64(r.Off))
 		if t >= 1<<27 || t < -1<<27 {
 			ld.Errorf(s, "program too large, call relocation distance = %d", t)
 		}
 		*val |= (t >> 2) & 0x03ffffff
-		return 0
+		return true
 	}
 
-	return -1
+	return false
 }
 
 func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {

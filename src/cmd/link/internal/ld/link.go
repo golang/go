@@ -185,7 +185,7 @@ func (a *Attribute) Set(flag Attribute, value bool) {
 type Reloc struct {
 	Off     int32            // offset to rewrite
 	Siz     uint8            // number of bytes to rewrite, 1, 2, or 4
-	Done    uint8            // set to 1 when relocation is complete
+	Done    bool             // set to true when relocation is complete
 	Variant RelocVariant     // variation on Type
 	Type    objabi.RelocType // the relocation type
 	Add     int64            // addend
