@@ -1096,7 +1096,8 @@ func (l *Link) hostlink() {
 		argv = append(argv, "-Wl,-headerpad,1144")
 		if l.DynlinkingGo() {
 			argv = append(argv, "-Wl,-flat_namespace")
-		} else if !SysArch.InFamily(sys.ARM64) && Buildmode != BuildmodePIE {
+		}
+		if Buildmode == BuildmodeExe && !SysArch.InFamily(sys.ARM64) {
 			argv = append(argv, "-Wl,-no_pie")
 		}
 	case objabi.Hopenbsd:
