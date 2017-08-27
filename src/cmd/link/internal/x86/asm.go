@@ -345,21 +345,19 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
 	ld.Thearch.Lput(uint32(sectoff))
 
 	elfsym := r.Xsym.ElfsymForReloc()
 	switch r.Type {
 	default:
-		return -1
-
+		return false
 	case objabi.R_ADDR:
 		if r.Siz == 4 {
 			ld.Thearch.Lput(ld.R_386_32 | uint32(elfsym)<<8)
 		} else {
-			return -1
+			return false
 		}
-
 	case objabi.R_GOTPCREL:
 		if r.Siz == 4 {
 			ld.Thearch.Lput(ld.R_386_GOTPC)
@@ -368,9 +366,8 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 				ld.Thearch.Lput(ld.R_386_GOT32 | uint32(elfsym)<<8)
 			}
 		} else {
-			return -1
+			return false
 		}
-
 	case objabi.R_CALL:
 		if r.Siz == 4 {
 			if r.Xsym.Type == ld.SDYNIMPORT {
@@ -379,37 +376,34 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 				ld.Thearch.Lput(ld.R_386_PC32 | uint32(elfsym)<<8)
 			}
 		} else {
-			return -1
+			return false
 		}
-
 	case objabi.R_PCREL:
 		if r.Siz == 4 {
 			ld.Thearch.Lput(ld.R_386_PC32 | uint32(elfsym)<<8)
 		} else {
-			return -1
+			return false
 		}
-
 	case objabi.R_TLS_LE:
 		if r.Siz == 4 {
 			ld.Thearch.Lput(ld.R_386_TLS_LE | uint32(elfsym)<<8)
 		} else {
-			return -1
+			return false
 		}
-
 	case objabi.R_TLS_IE:
 		if r.Siz == 4 {
 			ld.Thearch.Lput(ld.R_386_GOTPC)
 			ld.Thearch.Lput(uint32(sectoff))
 			ld.Thearch.Lput(ld.R_386_TLS_GOTIE | uint32(elfsym)<<8)
 		} else {
-			return -1
+			return false
 		}
 	}
 
-	return 0
+	return true
 }
 
-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	var v uint32
 
 	rs := r.Xsym
@@ -417,7 +411,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 	if rs.Type == ld.SHOSTOBJ {
 		if rs.Dynid < 0 {
 			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Type, rs.Type)
-			return -1
+			return false
 		}
 
 		v = uint32(rs.Dynid)
@@ -426,17 +420,15 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 		v = uint32(rs.Sect.Extnum)
 		if v == 0 {
 			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
-			return -1
+			return false
 		}
 	}
 
 	switch r.Type {
 	default:
-		return -1
-
+		return false
 	case objabi.R_ADDR:
 		v |= ld.MACHO_GENERIC_RELOC_VANILLA << 28
-
 	case objabi.R_CALL,
 		objabi.R_PCREL:
 		v |= 1 << 24 // pc-relative bit
@@ -445,24 +437,20 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 
 	switch r.Siz {
 	default:
-		return -1
-
+		return false
 	case 1:
 		v |= 0 << 25
-
 	case 2:
 		v |= 1 << 25
-
 	case 4:
 		v |= 2 << 25
-
 	case 8:
 		v |= 3 << 25
 	}
 
 	ld.Thearch.Lput(uint32(sectoff))
 	ld.Thearch.Lput(v)
-	return 0
+	return true
 }
 
 func pereloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
@@ -498,21 +486,20 @@ func pereloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	return true
 }
 
-func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 	if ld.Linkmode == ld.LinkExternal {
-		return -1
+		return false
 	}
 	switch r.Type {
 	case objabi.R_CONST:
 		*val = r.Add
-		return 0
-
+		return true
 	case objabi.R_GOTOFF:
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
-		return 0
+		return true
 	}
 
-	return -1
+	return false
 }
 
 func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {

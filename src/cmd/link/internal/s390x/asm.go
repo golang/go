@@ -232,18 +232,17 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
 	ld.Thearch.Vput(uint64(sectoff))
 
 	elfsym := r.Xsym.ElfsymForReloc()
 	switch r.Type {
 	default:
-		return -1
-
+		return false
 	case objabi.R_TLS_LE:
 		switch r.Siz {
 		default:
-			return -1
+			return false
 		case 4:
 			// WARNING - silently ignored by linker in ELF64
 			ld.Thearch.Vput(ld.R_390_TLS_LE32 | uint64(elfsym)<<32)
@@ -251,32 +250,28 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 			// WARNING - silently ignored by linker in ELF32
 			ld.Thearch.Vput(ld.R_390_TLS_LE64 | uint64(elfsym)<<32)
 		}
-
 	case objabi.R_TLS_IE:
 		switch r.Siz {
 		default:
-			return -1
+			return false
 		case 4:
 			ld.Thearch.Vput(ld.R_390_TLS_IEENT | uint64(elfsym)<<32)
 		}
-
 	case objabi.R_ADDR:
 		switch r.Siz {
 		default:
-			return -1
+			return false
 		case 4:
 			ld.Thearch.Vput(ld.R_390_32 | uint64(elfsym)<<32)
 		case 8:
 			ld.Thearch.Vput(ld.R_390_64 | uint64(elfsym)<<32)
 		}
-
 	case objabi.R_GOTPCREL:
 		if r.Siz == 4 {
 			ld.Thearch.Vput(ld.R_390_GOTENT | uint64(elfsym)<<32)
 		} else {
-			return -1
+			return false
 		}
-
 	case objabi.R_PCREL, objabi.R_PCRELDBL, objabi.R_CALL:
 		elfrel := ld.R_390_NONE
 		isdbl := r.Variant&ld.RV_TYPE_MASK == ld.RV_390_DBL
@@ -322,13 +317,13 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 			}
 		}
 		if elfrel == ld.R_390_NONE {
-			return -1 // unsupported size/dbl combination
+			return false // unsupported size/dbl combination
 		}
 		ld.Thearch.Vput(uint64(elfrel) | uint64(elfsym)<<32)
 	}
 
 	ld.Thearch.Vput(uint64(r.Xadd))
-	return 0
+	return true
 }
 
 func elfsetupplt(ctxt *ld.Link) {
@@ -381,26 +376,25 @@ func elfsetupplt(ctxt *ld.Link) {
 	}
 }
 
-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
-	return -1
+func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+	return false
 }
 
-func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 	if ld.Linkmode == ld.LinkExternal {
-		return -1
+		return false
 	}
 
 	switch r.Type {
 	case objabi.R_CONST:
 		*val = r.Add
-		return 0
-
+		return true
 	case objabi.R_GOTOFF:
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
-		return 0
+		return true
 	}
 
-	return -1
+	return false
 }
 
 func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {

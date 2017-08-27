@@ -249,28 +249,25 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
 	ld.Thearch.Lput(uint32(sectoff))
 
 	elfsym := r.Xsym.ElfsymForReloc()
 	switch r.Type {
 	default:
-		return -1
-
+		return false
 	case objabi.R_ADDR:
 		if r.Siz == 4 {
 			ld.Thearch.Lput(ld.R_ARM_ABS32 | uint32(elfsym)<<8)
 		} else {
-			return -1
+			return false
 		}
-
 	case objabi.R_PCREL:
 		if r.Siz == 4 {
 			ld.Thearch.Lput(ld.R_ARM_REL32 | uint32(elfsym)<<8)
 		} else {
-			return -1
+			return false
 		}
-
 	case objabi.R_CALLARM:
 		if r.Siz == 4 {
 			if r.Add&0xff000000 == 0xeb000000 { // BL
@@ -279,24 +276,21 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 				ld.Thearch.Lput(ld.R_ARM_JUMP24 | uint32(elfsym)<<8)
 			}
 		} else {
-			return -1
+			return false
 		}
-
 	case objabi.R_TLS_LE:
 		ld.Thearch.Lput(ld.R_ARM_TLS_LE32 | uint32(elfsym)<<8)
-
 	case objabi.R_TLS_IE:
 		ld.Thearch.Lput(ld.R_ARM_TLS_IE32 | uint32(elfsym)<<8)
-
 	case objabi.R_GOTPCREL:
 		if r.Siz == 4 {
 			ld.Thearch.Lput(ld.R_ARM_GOT_PREL | uint32(elfsym)<<8)
 		} else {
-			return -1
+			return false
 		}
 	}
 
-	return 0
+	return true
 }
 
 func elfsetupplt(ctxt *ld.Link) {
@@ -326,7 +320,7 @@ func elfsetupplt(ctxt *ld.Link) {
 	}
 }
 
-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	var v uint32
 
 	rs := r.Xsym
@@ -334,10 +328,10 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 	if r.Type == objabi.R_PCREL {
 		if rs.Type == ld.SHOSTOBJ {
 			ld.Errorf(s, "pc-relative relocation of external symbol is not supported")
-			return -1
+			return false
 		}
 		if r.Siz != 4 {
-			return -1
+			return false
 		}
 
 		// emit a pair of "scattered" relocations that
@@ -358,13 +352,13 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 		ld.Thearch.Lput(uint32(ld.Symaddr(rs)))
 		ld.Thearch.Lput(o2)
 		ld.Thearch.Lput(uint32(s.Value + int64(r.Off)))
-		return 0
+		return true
 	}
 
 	if rs.Type == ld.SHOSTOBJ || r.Type == objabi.R_CALLARM {
 		if rs.Dynid < 0 {
 			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Type, rs.Type)
-			return -1
+			return false
 		}
 
 		v = uint32(rs.Dynid)
@@ -373,13 +367,13 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 		v = uint32(rs.Sect.Extnum)
 		if v == 0 {
 			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
-			return -1
+			return false
 		}
 	}
 
 	switch r.Type {
 	default:
-		return -1
+		return false
 
 	case objabi.R_ADDR:
 		v |= ld.MACHO_GENERIC_RELOC_VANILLA << 28
@@ -391,8 +385,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 
 	switch r.Siz {
 	default:
-		return -1
-
+		return false
 	case 1:
 		v |= 0 << 25
 
@@ -408,7 +401,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 
 	ld.Thearch.Lput(uint32(sectoff))
 	ld.Thearch.Lput(v)
-	return 0
+	return true
 }
 
 // sign extend a 24-bit integer
@@ -478,7 +471,7 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
 			// modify reloc to point to tramp, which will be resolved later
 			r.Sym = tramp
 			r.Add = r.Add&0xff000000 | 0xfffffe // clear the offset embedded in the instruction
-			r.Done = 0
+			r.Done = false
 		}
 	default:
 		ld.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type, ld.RelocName(r.Type))
@@ -568,11 +561,11 @@ func gentrampdyn(tramp, target *ld.Symbol, offset int64) {
 	}
 }
 
-func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 	if ld.Linkmode == ld.LinkExternal {
 		switch r.Type {
 		case objabi.R_CALLARM:
-			r.Done = 0
+			r.Done = false
 
 			// set up addend for eventual relocation via outer symbol.
 			rs := r.Sym
@@ -603,20 +596,19 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			}
 
 			*val = int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&uint32(r.Xadd/4))))
-			return 0
+			return true
 		}
 
-		return -1
+		return false
 	}
 
 	switch r.Type {
 	case objabi.R_CONST:
 		*val = r.Add
-		return 0
-
+		return true
 	case objabi.R_GOTOFF:
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
-		return 0
+		return true
 
 	// The following three arch specific relocations are only for generation of
 	// Linux/ARM ELF's PLT entry (3 assembler instruction)
@@ -625,18 +617,15 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			ld.Errorf(s, ".got.plt should be placed after .plt section.")
 		}
 		*val = 0xe28fc600 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ctxt.Syms.Lookup(".plt", 0))+int64(r.Off))+r.Add)) >> 20))
-		return 0
-
+		return true
 	case objabi.R_PLT1: // add ip, ip, #0xYY000
 		*val = 0xe28cca00 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ctxt.Syms.Lookup(".plt", 0))+int64(r.Off))+r.Add+4)) >> 12))
 
-		return 0
-
+		return true
 	case objabi.R_PLT2: // ldr pc, [ip, #0xZZZ]!
 		*val = 0xe5bcf000 + (0xfff & int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ctxt.Syms.Lookup(".plt", 0))+int64(r.Off))+r.Add+8)))
 
-		return 0
-
+		return true
 	case objabi.R_CALLARM: // bl XXXXXX or b YYYYYY
 		// r.Add is the instruction
 		// low 24-bit encodes the target address
@@ -646,10 +635,10 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		}
 		*val = int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&t)))
 
-		return 0
+		return true
 	}
 
-	return -1
+	return false
 }
 
 func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {

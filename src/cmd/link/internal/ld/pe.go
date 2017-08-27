@@ -926,7 +926,7 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol, base uint64) int {
 		}
 		for ri := 0; ri < len(sym.R); ri++ {
 			r := &sym.R[ri]
-			if r.Done != 0 {
+			if r.Done {
 				continue
 			}
 			if r.Xsym == nil {
