@@ -2487,7 +2487,8 @@ var shutdownPollInterval = 500 * time.Millisecond
 // Shutdown does not attempt to close nor wait for hijacked
 // connections such as WebSockets. The caller of Shutdown should
 // separately notify such long-lived connections of shutdown and wait
-// for them to close, if desired.
+// for them to close, if desired. See RegisterOnShutdown for a way to
+// register shutdown notification functions.
 func (srv *Server) Shutdown(ctx context.Context) error {
 	atomic.AddInt32(&srv.inShutdown, 1)
 	defer atomic.AddInt32(&srv.inShutdown, -1)
