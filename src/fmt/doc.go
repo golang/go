@@ -47,6 +47,8 @@
 		%X	base 16, upper-case, two characters per byte
 	Pointer:
 		%p	base 16 notation, with leading 0x
+		The %b, %d, %o, %x and %X verbs also work with pointers,
+		formatting the value exactly as if it were an integer.
 
 	The default format for %v is:
 		bool:                    %t
