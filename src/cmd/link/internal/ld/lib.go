@@ -242,7 +242,7 @@ func (w *outBuf) Offset() int64 {
 
 var coutbuf outBuf
 
-const pkgname = "__.PKGDEF"
+const pkgdef = "__.PKGDEF"
 
 var (
 	// Set if we see an object compiled by the host compiler that is not
@@ -811,7 +811,7 @@ func objfile(ctxt *Link, lib *Library) {
 		goto out
 	}
 
-	if !strings.HasPrefix(arhdr.name, pkgname) {
+	if !strings.HasPrefix(arhdr.name, pkgdef) {
 		Errorf(nil, "%s: cannot find package header", lib.File)
 		goto out
 	}

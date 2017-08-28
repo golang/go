@@ -86,19 +86,18 @@ func (ctxt *Link) readImportCfg(file string) {
 	}
 }
 
-func addlib(ctxt *Link, src string, obj string, pathname string) *Library {
-	name := path.Clean(pathname)
-
+func pkgname(lib string) string {
+	name := path.Clean(lib)
 	// runtime.a -> runtime, runtime.6 -> runtime
 	pkg := name
 	if len(pkg) >= 2 && pkg[len(pkg)-2] == '.' {
 		pkg = pkg[:len(pkg)-2]
 	}
+	return pkg
+}
 
-	// already loaded?
-	if l := ctxt.LibraryByPkg[pkg]; l != nil {
-		return l
-	}
+func findlib(ctxt *Link, lib string) (string, bool) {
+	name := path.Clean(lib)
 
 	var pname string
 	isshlib := false
@@ -110,12 +109,13 @@ func addlib(ctxt *Link, src string, obj string, pathname string) *Library {
 		pname = ctxt.PackageFile[name]
 		if pname == "" {
 			ctxt.Logf("cannot find package %s (using -importcfg)\n", name)
-			return nil
+			return "", false
 		}
 	} else {
 		if filepath.IsAbs(name) {
 			pname = name
 		} else {
+			pkg := pkgname(lib)
 			// try dot, -L "libdir", and then goroot.
 			for _, dir := range ctxt.Libdir {
 				if *FlagLinkshared {
@@ -133,6 +133,19 @@ func addlib(ctxt *Link, src string, obj string, pathname string) *Library {
 		}
 		pname = path.Clean(pname)
 	}
+
+	return pname, isshlib
+}
+
+func addlib(ctxt *Link, src string, obj string, lib string) *Library {
+	pkg := pkgname(lib)
+
+	// already loaded?
+	if l := ctxt.LibraryByPkg[pkg]; l != nil {
+		return l
+	}
+
+	pname, isshlib := findlib(ctxt, lib)
 
 	if ctxt.Debugvlog > 1 {
 		ctxt.Logf("%5.2f addlib: %s %s pulls in %s isshlib %v\n", elapsed(), obj, src, pname, isshlib)
