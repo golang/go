@@ -194,10 +194,32 @@ type (
 )
 
 const (
-	FlagNoUndefs uint32 = 0x1
-	FlagDyldLink uint32 = 0x4
-	FlagTwoLevel uint32 = 0x80
-	FlagPIE      uint32 = 0x200000
+	FlagNoUndefs              uint32 = 0x1
+	FlagIncrLink              uint32 = 0x2
+	FlagDyldLink              uint32 = 0x4
+	FlagBindAtLoad            uint32 = 0x8
+	FlagPrebound              uint32 = 0x10
+	FlagSplitSegs             uint32 = 0x20
+	FlagLazyInit              uint32 = 0x40
+	FlagTwoLevel              uint32 = 0x80
+	FlagForceFlat             uint32 = 0x100
+	FlagNoMultiDefs           uint32 = 0x200
+	FlagNoFixPrebinding       uint32 = 0x400
+	FlagPrebindable           uint32 = 0x800
+	FlagAllModsBound          uint32 = 0x1000
+	FlagSubsectionsViaSymbols uint32 = 0x2000
+	FlagCanonical             uint32 = 0x4000
+	FlagWeakDefines           uint32 = 0x8000
+	FlagBindsToWeak           uint32 = 0x10000
+	FlagAllowStackExecution   uint32 = 0x20000
+	FlagRootSafe              uint32 = 0x40000
+	FlagSetuidSafe            uint32 = 0x80000
+	FlagNoReexportedDylibs    uint32 = 0x100000
+	FlagPIE                   uint32 = 0x200000
+	FlagDeadStrippableDylib   uint32 = 0x400000
+	FlagHasTLVDescriptors     uint32 = 0x800000
+	FlagNoHeapExecution       uint32 = 0x1000000
+	FlagAppExtensionSafe      uint32 = 0x2000000
 )
 
 // A Section32 is a 32-bit Mach-O section header.
