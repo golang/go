@@ -740,6 +740,11 @@ version of gccgo.
         and
         <a href="/pkg/context/#WithValue"><code>context.WithValue</code></a> instead.
       </li>
+
+      <li><!-- CL 35490 -->
+        <a href="/pkg/net/http/#LocalAddrContextKey"><code>LocalAddrContextKey</code></a> now contains
+        the connection's actual network address instead of the interface address used by the listener.
+      </li>
     </ul>
 
     <p>Client &amp; Transport changes:</p>
