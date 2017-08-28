@@ -188,8 +188,6 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				remote, q = remote[:i], remote[i+1:]
 			}
 			s = ctxt.Syms.Lookup(local, 0)
-			if local != f[1] {
-			}
 			if s.Type == 0 || s.Type == SXREF || s.Type == SHOSTOBJ {
 				s.Dynimplib = lib
 				s.Extname = remote
@@ -256,8 +254,6 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				s.Attr |= AttrCgoExportStatic
 			} else {
 				s.Attr |= AttrCgoExportDynamic
-			}
-			if local != f[1] {
 			}
 			continue
 		}
