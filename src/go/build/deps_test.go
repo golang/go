@@ -226,7 +226,7 @@ var pkgDeps = map[string][]string{
 	"go/types":                  {"L4", "GOPARSER", "container/heap", "go/constant"},
 
 	// One of a kind.
-	"archive/tar":              {"L4", "OS", "syscall"},
+	"archive/tar":              {"L4", "OS", "syscall", "os/user"},
 	"archive/zip":              {"L4", "OS", "compress/flate"},
 	"container/heap":           {"sort"},
 	"compress/bzip2":           {"L4"},
