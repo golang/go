@@ -439,6 +439,32 @@ func (sect *peSection) write() error {
 	return binary.Write(&coutbuf, binary.LittleEndian, h)
 }
 
+// emitRelocations emits the relocation entries for the sect.
+// The actual relocations are emitted by relocfn.
+// This updates the corresponding PE section table entry
+// with the relocation offset and count.
+func (sect *peSection) emitRelocations(relocfn func() int) {
+	sect.PointerToRelocations = uint32(coutbuf.Offset())
+	// first entry: extended relocs
+	Lputl(0) // placeholder for number of relocation + 1
+	Lputl(0)
+	Wputl(0)
+
+	n := relocfn() + 1
+
+	cpos := coutbuf.Offset()
+	Cseek(int64(sect.PointerToRelocations))
+	Lputl(uint32(n))
+	Cseek(cpos)
+	if n > 0x10000 {
+		n = 0x10000
+		sect.Characteristics |= IMAGE_SCN_LNK_NRELOC_OVFL
+	} else {
+		sect.PointerToRelocations += 10 // skip the extend reloc entry
+	}
+	sect.NumberOfRelocations = uint16(n - 1)
+}
+
 // peFile is used to build COFF file.
 type peFile struct {
 	sections       []*peSection
@@ -950,39 +976,13 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol, base uint64) int {
 	return relocs
 }
 
-// peemitsectreloc emits the relocation entries for sect.
-// The actual relocations are emitted by relocfn.
-// This updates the corresponding PE section table entry
-// with the relocation offset and count.
-func peemitsectreloc(sect *peSection, relocfn func() int) {
-	sect.PointerToRelocations = uint32(coutbuf.Offset())
-	// first entry: extended relocs
-	Lputl(0) // placeholder for number of relocation + 1
-	Lputl(0)
-	Wputl(0)
-
-	n := relocfn() + 1
-
-	cpos := coutbuf.Offset()
-	Cseek(int64(sect.PointerToRelocations))
-	Lputl(uint32(n))
-	Cseek(cpos)
-	if n > 0x10000 {
-		n = 0x10000
-		sect.Characteristics |= IMAGE_SCN_LNK_NRELOC_OVFL
-	} else {
-		sect.PointerToRelocations += 10 // skip the extend reloc entry
-	}
-	sect.NumberOfRelocations = uint16(n - 1)
-}
-
 // peemitreloc emits relocation entries for go.o in external linking.
 func peemitreloc(ctxt *Link, text, data, ctors *peSection) {
 	for coutbuf.Offset()&7 != 0 {
 		Cput(0)
 	}
 
-	peemitsectreloc(text, func() int {
+	text.emitRelocations(func() int {
 		n := perelocsect(ctxt, Segtext.Sections[0], ctxt.Textp, Segtext.Vaddr)
 		for _, sect := range Segtext.Sections[1:] {
 			n += perelocsect(ctxt, sect, datap, Segtext.Vaddr)
@@ -990,7 +990,7 @@ func peemitreloc(ctxt *Link, text, data, ctors *peSection) {
 		return n
 	})
 
-	peemitsectreloc(data, func() int {
+	data.emitRelocations(func() int {
 		var n int
 		for _, sect := range Segdata.Sections {
 			n += perelocsect(ctxt, sect, datap, Segdata.Vaddr)
@@ -1002,16 +1002,16 @@ dwarfLoop:
 	for _, sect := range Segdwarf.Sections {
 		for _, pesect := range pefile.sections {
 			if sect.Name == pesect.name {
-				peemitsectreloc(pesect, func() int {
+				pesect.emitRelocations(func() int {
 					return perelocsect(ctxt, sect, dwarfp, sect.Vaddr)
 				})
 				continue dwarfLoop
 			}
 		}
-		Errorf(nil, "peemitsectreloc: could not find %q section", sect.Name)
+		Errorf(nil, "peemitreloc: could not find %q section", sect.Name)
 	}
 
-	peemitsectreloc(ctors, func() int {
+	ctors.emitRelocations(func() int {
 		dottext := ctxt.Syms.Lookup(".text", 0)
 		Lputl(0)
 		Lputl(uint32(dottext.Dynid))
