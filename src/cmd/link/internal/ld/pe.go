@@ -15,11 +15,6 @@ import (
 	"strings"
 )
 
-type IMAGE_DATA_DIRECTORY struct {
-	VirtualAddress uint32
-	Size           uint32
-}
-
 type IMAGE_OPTIONAL_HEADER struct {
 	Magic                       uint16
 	MajorLinkerVersion          uint8
@@ -51,7 +46,7 @@ type IMAGE_OPTIONAL_HEADER struct {
 	SizeOfHeapCommit            uint32
 	LoaderFlags                 uint32
 	NumberOfRvaAndSizes         uint32
-	DataDirectory               [16]IMAGE_DATA_DIRECTORY
+	DataDirectory               [16]pe.DataDirectory
 }
 
 type IMAGE_IMPORT_DESCRIPTOR struct {
@@ -160,7 +155,7 @@ type PE64_IMAGE_OPTIONAL_HEADER struct {
 	SizeOfHeapCommit            uint64
 	LoaderFlags                 uint32
 	NumberOfRvaAndSizes         uint32
-	DataDirectory               [16]IMAGE_DATA_DIRECTORY
+	DataDirectory               [16]pe.DataDirectory
 }
 
 // Copyright 2009 The Go Authors. All rights reserved.
@@ -315,8 +310,6 @@ var oh IMAGE_OPTIONAL_HEADER
 
 var oh64 PE64_IMAGE_OPTIONAL_HEADER
 
-var dd []IMAGE_DATA_DIRECTORY
-
 type Imp struct {
 	s       *Symbol
 	off     uint64
@@ -465,6 +458,7 @@ type peFile struct {
 	nextFileOffset uint32
 	symtabOffset   int64 // offset to the start of symbol table
 	symbolCount    int   // number of symbol table records written
+	dataDirectory  [16]pe.DataDirectory
 }
 
 // addSection adds section to the COFF file f.
@@ -819,13 +813,11 @@ func Peinit(ctxt *Link) {
 		pe64 = 1
 
 		l = binary.Size(&oh64)
-		dd = oh64.DataDirectory[:]
 
 	// 32-bit architectures
 	default:
 		l = binary.Size(&oh)
 
-		dd = oh.DataDirectory[:]
 	}
 
 	if Linkmode == LinkExternal {
@@ -875,8 +867,10 @@ func pewrite() {
 	pefile.writeFileHeader()
 
 	if pe64 != 0 {
+		oh64.DataDirectory = pefile.dataDirectory
 		binary.Write(&coutbuf, binary.LittleEndian, &oh64)
 	} else {
+		oh.DataDirectory = pefile.dataDirectory
 		binary.Write(&coutbuf, binary.LittleEndian, &oh)
 	}
 	for _, sect := range pefile.sections {
@@ -1086,10 +1080,10 @@ func addimports(ctxt *Link, datsect *peSection) {
 	Lputl(0)
 
 	// update data directory
-	dd[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress = isect.VirtualAddress
-	dd[IMAGE_DIRECTORY_ENTRY_IMPORT].Size = isect.VirtualSize
-	dd[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = uint32(dynamic.Value - PEBASE)
-	dd[IMAGE_DIRECTORY_ENTRY_IAT].Size = uint32(dynamic.Size)
+	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress = isect.VirtualAddress
+	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].Size = isect.VirtualSize
+	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = uint32(dynamic.Value - PEBASE)
+	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].Size = uint32(dynamic.Size)
 
 	Cseek(endoff)
 }
@@ -1134,8 +1128,8 @@ func addexports(ctxt *Link) {
 	sect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
 	sect.checkOffset(coutbuf.Offset())
 	va := int(sect.VirtualAddress)
-	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = uint32(va)
-	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect.VirtualSize
+	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = uint32(va)
+	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect.VirtualSize
 
 	vaName := va + binary.Size(&e) + nexport*4
 	vaAddr := va + binary.Size(&e)
@@ -1231,9 +1225,9 @@ func addpersrc(ctxt *Link) {
 	h.pad(uint32(rsrcsym.Size))
 
 	// update data directory
-	dd[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress = h.VirtualAddress
+	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress = h.VirtualAddress
 
-	dd[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.VirtualSize
+	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.VirtualSize
 }
 
 func Asmbpe(ctxt *Link) {
