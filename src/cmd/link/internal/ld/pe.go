@@ -548,6 +548,57 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
 	return sect
 }
 
+// emitRelocations emits relocation entries for go.o in external linking.
+func (f *peFile) emitRelocations(ctxt *Link, text, data, ctors *peSection) {
+	for coutbuf.Offset()&7 != 0 {
+		Cput(0)
+	}
+
+	text.emitRelocations(func() int {
+		n := perelocsect(ctxt, Segtext.Sections[0], ctxt.Textp, Segtext.Vaddr)
+		for _, sect := range Segtext.Sections[1:] {
+			n += perelocsect(ctxt, sect, datap, Segtext.Vaddr)
+		}
+		return n
+	})
+
+	data.emitRelocations(func() int {
+		var n int
+		for _, sect := range Segdata.Sections {
+			n += perelocsect(ctxt, sect, datap, Segdata.Vaddr)
+		}
+		return n
+	})
+
+dwarfLoop:
+	for _, sect := range Segdwarf.Sections {
+		for _, pesect := range f.sections {
+			if sect.Name == pesect.name {
+				pesect.emitRelocations(func() int {
+					return perelocsect(ctxt, sect, dwarfp, sect.Vaddr)
+				})
+				continue dwarfLoop
+			}
+		}
+		Errorf(nil, "emitRelocations: could not find %q section", sect.Name)
+	}
+
+	ctors.emitRelocations(func() int {
+		dottext := ctxt.Syms.Lookup(".text", 0)
+		Lputl(0)
+		Lputl(uint32(dottext.Dynid))
+		switch objabi.GOARCH {
+		default:
+			Errorf(dottext, "unknown architecture for PE: %q\n", objabi.GOARCH)
+		case "386":
+			Wputl(IMAGE_REL_I386_DIR32)
+		case "amd64":
+			Wputl(IMAGE_REL_AMD64_ADDR64)
+		}
+		return 1
+	})
+}
+
 var pefile peFile
 
 func Peinit(ctxt *Link) {
@@ -976,57 +1027,6 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol, base uint64) int {
 	return relocs
 }
 
-// peemitreloc emits relocation entries for go.o in external linking.
-func peemitreloc(ctxt *Link, text, data, ctors *peSection) {
-	for coutbuf.Offset()&7 != 0 {
-		Cput(0)
-	}
-
-	text.emitRelocations(func() int {
-		n := perelocsect(ctxt, Segtext.Sections[0], ctxt.Textp, Segtext.Vaddr)
-		for _, sect := range Segtext.Sections[1:] {
-			n += perelocsect(ctxt, sect, datap, Segtext.Vaddr)
-		}
-		return n
-	})
-
-	data.emitRelocations(func() int {
-		var n int
-		for _, sect := range Segdata.Sections {
-			n += perelocsect(ctxt, sect, datap, Segdata.Vaddr)
-		}
-		return n
-	})
-
-dwarfLoop:
-	for _, sect := range Segdwarf.Sections {
-		for _, pesect := range pefile.sections {
-			if sect.Name == pesect.name {
-				pesect.emitRelocations(func() int {
-					return perelocsect(ctxt, sect, dwarfp, sect.Vaddr)
-				})
-				continue dwarfLoop
-			}
-		}
-		Errorf(nil, "peemitreloc: could not find %q section", sect.Name)
-	}
-
-	ctors.emitRelocations(func() int {
-		dottext := ctxt.Syms.Lookup(".text", 0)
-		Lputl(0)
-		Lputl(uint32(dottext.Dynid))
-		switch objabi.GOARCH {
-		default:
-			Errorf(dottext, "unknown architecture for PE: %q\n", objabi.GOARCH)
-		case "386":
-			Wputl(IMAGE_REL_I386_DIR32)
-		case "amd64":
-			Wputl(IMAGE_REL_AMD64_ADDR64)
-		}
-		return 1
-	})
-}
-
 func (ctxt *Link) dope() {
 	/* relocation table */
 	rel := ctxt.Syms.Lookup(".rel", 0)
@@ -1257,7 +1257,7 @@ func Asmbpe(ctxt *Link) {
 	addpesymtable(ctxt)
 	addpersrc(ctxt)
 	if Linkmode == LinkExternal {
-		peemitreloc(ctxt, t, d, c)
+		pefile.emitRelocations(ctxt, t, d, c)
 	}
 
 	fh.NumberOfSections = uint16(len(pefile.sections))
