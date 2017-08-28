@@ -608,15 +608,34 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 	}
 	processGroup()
 
+	dups := make(map[string][]string)
+	for name, addr := range want {
+		if _, ok := dups[addr]; !ok {
+			dups[addr] = make([]string, 0)
+		}
+		dups[addr] = append(dups[addr], name)
+	}
+
+nextWant:
 	for name, wantAddr := range want {
-		haveAddr, ok := have[name]
-		if !ok {
-			t.Errorf("getmac lists %q, but it could not be found among Go interfaces %v", name, have)
+		if haveAddr, ok := have[name]; ok {
+			if haveAddr != wantAddr {
+				t.Errorf("unexpected MAC address for %q - %v, want %v", name, haveAddr, wantAddr)
+			}
 			continue
 		}
-		if haveAddr != wantAddr {
-			t.Errorf("unexpected MAC address for %q - %v, want %v", name, haveAddr, wantAddr)
-			continue
+		// We could not find the interface in getmac output by name.
+		// But sometimes getmac lists many interface names
+		// for the same MAC address. If that is the case here,
+		// and we can match at least one of those names,
+		// let's ignore the other names.
+		if dupNames, ok := dups[wantAddr]; ok && len(dupNames) > 1 {
+			for _, dupName := range dupNames {
+				if haveAddr, ok := have[dupName]; ok && haveAddr == wantAddr {
+					continue nextWant
+				}
+			}
 		}
+		t.Errorf("getmac lists %q, but it could not be found among Go interfaces %v", name, have)
 	}
 }
