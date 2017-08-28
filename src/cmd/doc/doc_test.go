@@ -541,6 +541,36 @@ func TestMultiplePackages(t *testing.T) {
 	}
 }
 
+// Test the code to look up packages when given two args. First test case is
+//	go doc binary BigEndian
+// This needs to find encoding/binary.BigEndian, which means
+// finding the package encoding/binary given only "binary".
+// Second case is
+//	go doc rand Float64
+// which again needs to find math/rand and not give up after crypto/rand,
+// which has no such function.
+func TestTwoArgLookup(t *testing.T) {
+	if testing.Short() {
+		t.Skip("scanning file system takes too long")
+	}
+	maybeSkip(t)
+	var b bytes.Buffer // We don't care about the output.
+	{
+		var flagSet flag.FlagSet
+		err := do(&b, &flagSet, []string{"binary", "BigEndian"})
+		if err != nil {
+			t.Errorf("unexpected error %q from binary BigEndian", err)
+		}
+	}
+	{
+		var flagSet flag.FlagSet
+		err := do(&b, &flagSet, []string{"rand", "Float64"})
+		if err != nil {
+			t.Errorf("unexpected error %q from rand Float64", err)
+		}
+	}
+}
+
 type trimTest struct {
 	path   string
 	prefix string
