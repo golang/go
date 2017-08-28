@@ -27,9 +27,9 @@ type ZipTest struct {
 }
 
 type ZipTestFile struct {
-	Name  string
-	Mode  os.FileMode
-	Mtime string // optional, modified time in format "mm-dd-yy hh:mm:ss"
+	Name    string
+	Mode    os.FileMode
+	ModTime time.Time // optional, modified time in format "mm-dd-yy hh:mm:ss"
 
 	// Information describing expected zip file content.
 	// First, reading the entire content should produce the error ContentErr.
@@ -47,16 +47,6 @@ type ZipTestFile struct {
 	Size       uint64
 }
 
-// Caution: The Mtime values found for the test files should correspond to
-//          the values listed with unzip -l <zipfile>. However, the values
-//          listed by unzip appear to be off by some hours. When creating
-//          fresh test files and testing them, this issue is not present.
-//          The test files were created in Sydney, so there might be a time
-//          zone issue. The time zone information does have to be encoded
-//          somewhere, because otherwise unzip -l could not provide a different
-//          time from what the archive/zip package provides, but there appears
-//          to be no documentation about this.
-
 var tests = []ZipTest{
 	{
 		Name:    "test.zip",
@@ -65,14 +55,14 @@ var tests = []ZipTest{
 			{
 				Name:    "test.txt",
 				Content: []byte("This is a test text file.\n"),
-				Mtime:   "09-05-10 12:12:02",
+				ModTime: time.Date(2010, 9, 5, 12, 12, 1, 0, timeZone(+10*time.Hour)),
 				Mode:    0644,
 			},
 			{
-				Name:  "gophercolor16x16.png",
-				File:  "gophercolor16x16.png",
-				Mtime: "09-05-10 15:52:58",
-				Mode:  0644,
+				Name:    "gophercolor16x16.png",
+				File:    "gophercolor16x16.png",
+				ModTime: time.Date(2010, 9, 5, 15, 52, 58, 0, timeZone(+10*time.Hour)),
+				Mode:    0644,
 			},
 		},
 	},
@@ -83,14 +73,14 @@ var tests = []ZipTest{
 			{
 				Name:    "test.txt",
 				Content: []byte("This is a test text file.\n"),
-				Mtime:   "09-05-10 12:12:02",
+				ModTime: time.Date(2010, 9, 5, 12, 12, 1, 0, timeZone(+10*time.Hour)),
 				Mode:    0644,
 			},
 			{
-				Name:  "gophercolor16x16.png",
-				File:  "gophercolor16x16.png",
-				Mtime: "09-05-10 15:52:58",
-				Mode:  0644,
+				Name:    "gophercolor16x16.png",
+				File:    "gophercolor16x16.png",
+				ModTime: time.Date(2010, 9, 5, 15, 52, 58, 0, timeZone(+10*time.Hour)),
+				Mode:    0644,
 			},
 		},
 	},
@@ -101,7 +91,7 @@ var tests = []ZipTest{
 			{
 				Name:    "r/r.zip",
 				Content: rZipBytes(),
-				Mtime:   "03-04-10 00:24:16",
+				ModTime: time.Date(2010, 3, 4, 0, 24, 16, 0, time.UTC),
 				Mode:    0666,
 			},
 		},
@@ -112,6 +102,7 @@ var tests = []ZipTest{
 			{
 				Name:    "symlink",
 				Content: []byte("../target"),
+				ModTime: time.Date(2012, 2, 3, 19, 56, 48, 0, timeZone(-2*time.Hour)),
 				Mode:    0777 | os.ModeSymlink,
 			},
 		},
@@ -129,7 +120,7 @@ var tests = []ZipTest{
 			{
 				Name:    "filename",
 				Content: []byte("This is a test textfile.\n"),
-				Mtime:   "02-02-11 13:06:20",
+				ModTime: time.Date(2011, 2, 2, 13, 6, 20, 0, time.UTC),
 				Mode:    0666,
 			},
 		},
@@ -137,12 +128,62 @@ var tests = []ZipTest{
 	{
 		// created in windows XP file manager.
 		Name: "winxp.zip",
-		File: crossPlatform,
+		File: []ZipTestFile{
+			{
+				Name:    "hello",
+				Content: []byte("world \r\n"),
+				ModTime: time.Date(2011, 12, 8, 10, 4, 24, 0, time.UTC),
+				Mode:    0666,
+			},
+			{
+				Name:    "dir/bar",
+				Content: []byte("foo \r\n"),
+				ModTime: time.Date(2011, 12, 8, 10, 4, 50, 0, time.UTC),
+				Mode:    0666,
+			},
+			{
+				Name:    "dir/empty/",
+				Content: []byte{},
+				ModTime: time.Date(2011, 12, 8, 10, 8, 6, 0, time.UTC),
+				Mode:    os.ModeDir | 0777,
+			},
+			{
+				Name:    "readonly",
+				Content: []byte("important \r\n"),
+				ModTime: time.Date(2011, 12, 8, 10, 6, 8, 0, time.UTC),
+				Mode:    0444,
+			},
+		},
 	},
 	{
 		// created by Zip 3.0 under Linux
 		Name: "unix.zip",
-		File: crossPlatform,
+		File: []ZipTestFile{
+			{
+				Name:    "hello",
+				Content: []byte("world \r\n"),
+				ModTime: time.Date(2011, 12, 8, 10, 4, 24, 0, timeZone(0)),
+				Mode:    0666,
+			},
+			{
+				Name:    "dir/bar",
+				Content: []byte("foo \r\n"),
+				ModTime: time.Date(2011, 12, 8, 10, 4, 50, 0, timeZone(0)),
+				Mode:    0666,
+			},
+			{
+				Name:    "dir/empty/",
+				Content: []byte{},
+				ModTime: time.Date(2011, 12, 8, 10, 8, 6, 0, timeZone(0)),
+				Mode:    os.ModeDir | 0777,
+			},
+			{
+				Name:    "readonly",
+				Content: []byte("important \r\n"),
+				ModTime: time.Date(2011, 12, 8, 10, 6, 8, 0, timeZone(0)),
+				Mode:    0444,
+			},
+		},
 	},
 	{
 		// created by Go, before we wrote the "optional" data
@@ -152,13 +193,13 @@ var tests = []ZipTest{
 			{
 				Name:    "foo.txt",
 				Content: []byte("foo\n"),
-				Mtime:   "03-08-12 16:59:10",
+				ModTime: time.Date(2012, 3, 8, 16, 59, 10, 0, timeZone(-8*time.Hour)),
 				Mode:    0644,
 			},
 			{
 				Name:    "bar.txt",
 				Content: []byte("bar\n"),
-				Mtime:   "03-08-12 16:59:12",
+				ModTime: time.Date(2012, 3, 8, 16, 59, 12, 0, timeZone(-8*time.Hour)),
 				Mode:    0644,
 			},
 		},
@@ -171,11 +212,13 @@ var tests = []ZipTest{
 			{
 				Name:    "foo.txt",
 				Content: []byte("foo\n"),
+				ModTime: time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
 				Mode:    0666,
 			},
 			{
 				Name:    "bar.txt",
 				Content: []byte("bar\n"),
+				ModTime: time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
 				Mode:    0666,
 			},
 		},
@@ -187,12 +230,14 @@ var tests = []ZipTest{
 			{
 				Name:       "foo.txt",
 				Content:    []byte("foo\n"),
+				ModTime:    time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
 				Mode:       0666,
 				ContentErr: ErrChecksum,
 			},
 			{
 				Name:    "bar.txt",
 				Content: []byte("bar\n"),
+				ModTime: time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
 				Mode:    0666,
 			},
 		},
@@ -205,13 +250,13 @@ var tests = []ZipTest{
 			{
 				Name:    "foo.txt",
 				Content: []byte("foo\n"),
-				Mtime:   "03-08-12 16:59:10",
+				ModTime: time.Date(2012, 3, 8, 16, 59, 10, 0, timeZone(-8*time.Hour)),
 				Mode:    0644,
 			},
 			{
 				Name:    "bar.txt",
 				Content: []byte("bar\n"),
-				Mtime:   "03-08-12 16:59:12",
+				ModTime: time.Date(2012, 3, 8, 16, 59, 12, 0, timeZone(-8*time.Hour)),
 				Mode:    0644,
 			},
 		},
@@ -225,14 +270,14 @@ var tests = []ZipTest{
 			{
 				Name:       "foo.txt",
 				Content:    []byte("foo\n"),
-				Mtime:      "03-08-12 16:59:10",
+				ModTime:    time.Date(2012, 3, 8, 16, 59, 10, 0, timeZone(-8*time.Hour)),
 				Mode:       0644,
 				ContentErr: ErrChecksum,
 			},
 			{
 				Name:    "bar.txt",
 				Content: []byte("bar\n"),
-				Mtime:   "03-08-12 16:59:12",
+				ModTime: time.Date(2012, 3, 8, 16, 59, 12, 0, timeZone(-8*time.Hour)),
 				Mode:    0644,
 			},
 		},
@@ -243,7 +288,7 @@ var tests = []ZipTest{
 			{
 				Name:    "README",
 				Content: []byte("This small file is in ZIP64 format.\n"),
-				Mtime:   "08-10-12 14:33:32",
+				ModTime: time.Date(2012, 8, 10, 14, 33, 32, 0, time.UTC),
 				Mode:    0644,
 			},
 		},
@@ -255,7 +300,7 @@ var tests = []ZipTest{
 			{
 				Name:    "README",
 				Content: []byte("This small file is in ZIP64 format.\n"),
-				Mtime:   "08-10-12 14:33:32",
+				ModTime: time.Date(2012, 8, 10, 14, 33, 32, 0, timeZone(-4*time.Hour)),
 				Mode:    0644,
 			},
 		},
@@ -269,32 +314,94 @@ var tests = []ZipTest{
 				Name:    "big.file",
 				Content: nil,
 				Size:    1<<32 - 1,
+				ModTime: time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
 				Mode:    0666,
 			},
 		},
 	},
-}
-
-var crossPlatform = []ZipTestFile{
 	{
-		Name:    "hello",
-		Content: []byte("world \r\n"),
-		Mode:    0666,
+		Name: "time-7zip.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "test.txt",
+				Content: []byte{},
+				Size:    1<<32 - 1,
+				ModTime: time.Date(2017, 10, 31, 21, 11, 57, 244817900, timeZone(-7*time.Hour)),
+				Mode:    0666,
+			},
+		},
 	},
 	{
-		Name:    "dir/bar",
-		Content: []byte("foo \r\n"),
-		Mode:    0666,
+		Name: "time-infozip.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "test.txt",
+				Content: []byte{},
+				Size:    1<<32 - 1,
+				ModTime: time.Date(2017, 10, 31, 21, 11, 57, 0, timeZone(-7*time.Hour)),
+				Mode:    0644,
+			},
+		},
 	},
 	{
-		Name:    "dir/empty/",
-		Content: []byte{},
-		Mode:    os.ModeDir | 0777,
+		Name: "time-osx.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "test.txt",
+				Content: []byte{},
+				Size:    1<<32 - 1,
+				ModTime: time.Date(2017, 10, 31, 21, 17, 27, 0, timeZone(-7*time.Hour)),
+				Mode:    0644,
+			},
+		},
 	},
 	{
-		Name:    "readonly",
-		Content: []byte("important \r\n"),
-		Mode:    0444,
+		Name: "time-win7.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "test.txt",
+				Content: []byte{},
+				Size:    1<<32 - 1,
+				ModTime: time.Date(2017, 10, 31, 21, 11, 58, 0, time.UTC),
+				Mode:    0666,
+			},
+		},
+	},
+	{
+		Name: "time-winrar.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "test.txt",
+				Content: []byte{},
+				Size:    1<<32 - 1,
+				ModTime: time.Date(2017, 10, 31, 21, 11, 57, 244817900, timeZone(-7*time.Hour)),
+				Mode:    0666,
+			},
+		},
+	},
+	{
+		Name: "time-winzip.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "test.txt",
+				Content: []byte{},
+				Size:    1<<32 - 1,
+				ModTime: time.Date(2017, 10, 31, 21, 11, 57, 244000000, timeZone(-7*time.Hour)),
+				Mode:    0666,
+			},
+		},
+	},
+	{
+		Name: "time-go.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "test.txt",
+				Content: []byte{},
+				Size:    1<<32 - 1,
+				ModTime: time.Date(2017, 10, 31, 21, 11, 57, 0, timeZone(-7*time.Hour)),
+				Mode:    0666,
+			},
+		},
 	},
 }
 
@@ -363,20 +470,18 @@ func readTestZip(t *testing.T, zt ZipTest) {
 	}
 }
 
+func equalTimeAndZone(t1, t2 time.Time) bool {
+	name1, offset1 := t1.Zone()
+	name2, offset2 := t2.Zone()
+	return t1.Equal(t2) && name1 == name2 && offset1 == offset2
+}
+
 func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 	if f.Name != ft.Name {
 		t.Errorf("%s: name=%q, want %q", zt.Name, f.Name, ft.Name)
 	}
-
-	if ft.Mtime != "" {
-		mtime, err := time.Parse("01-02-06 15:04:05", ft.Mtime)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		if ft := f.ModTime(); !ft.Equal(mtime) {
-			t.Errorf("%s: %s: mtime=%s, want %s", zt.Name, f.Name, ft, mtime)
-		}
+	if !equalTimeAndZone(f.Modified, ft.ModTime) {
+		t.Errorf("%s: %s: mtime=%s, want %s", zt.Name, f.Name, f.Modified, ft.ModTime)
 	}
 
 	testFileMode(t, zt.Name, f, ft.Mode)

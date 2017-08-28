@@ -6,12 +6,14 @@ package zip
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TODO(adg): a more sophisticated test suite
@@ -196,6 +198,30 @@ func TestWriterUTF8(t *testing.T) {
 		if got != test.expect {
 			t.Fatalf("Flags: got %v, want %v", got, test.expect)
 		}
+	}
+}
+
+func TestWriterTime(t *testing.T) {
+	var buf bytes.Buffer
+	h := &FileHeader{
+		Name:     "test.txt",
+		Modified: time.Date(2017, 10, 31, 21, 11, 57, 0, timeZone(-7*time.Hour)),
+	}
+	w := NewWriter(&buf)
+	if _, err := w.CreateHeader(h); err != nil {
+		t.Fatalf("unexpected CreateHeader error: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("unexpected Close error: %v", err)
+	}
+
+	want, err := ioutil.ReadFile("testdata/time-go.zip")
+	if err != nil {
+		t.Fatalf("unexpected ReadFile error: %v", err)
+	}
+	if got := buf.Bytes(); !bytes.Equal(got, want) {
+		fmt.Printf("%x\n%x\n", got, want)
+		t.Error("contents of time-go.zip differ")
 	}
 }
 

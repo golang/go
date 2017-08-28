@@ -645,7 +645,7 @@ func TestHeaderTooShort(t *testing.T) {
 	h := FileHeader{
 		Name:   "foo.txt",
 		Method: Deflate,
-		Extra:  []byte{zip64ExtraId}, // missing size and second half of tag, but Extra is best-effort parsing
+		Extra:  []byte{zip64ExtraID}, // missing size and second half of tag, but Extra is best-effort parsing
 	}
 	testValidHeader(&h, t)
 }
@@ -692,7 +692,7 @@ func TestHeaderIgnoredSize(t *testing.T) {
 	h := FileHeader{
 		Name:   "foo.txt",
 		Method: Deflate,
-		Extra:  []byte{zip64ExtraId & 0xFF, zip64ExtraId >> 8, 24, 0, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}, // bad size but shouldn't be consulted
+		Extra:  []byte{zip64ExtraID & 0xFF, zip64ExtraID >> 8, 24, 0, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}, // bad size but shouldn't be consulted
 	}
 	testValidHeader(&h, t)
 }
