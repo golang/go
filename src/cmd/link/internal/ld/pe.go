@@ -669,6 +669,33 @@ func (f *peFile) writeSymbol(s *Symbol, value int64, sectidx int, typ uint16, cl
 	f.symbolCount++
 }
 
+// mapToPESection searches peFile f for s symbol's location.
+// It returns PE section index, and offset within that section.
+func (f *peFile) mapToPESection(s *Symbol) (pesectidx int, offset int64, err error) {
+	if s.Sect == nil {
+		return 0, 0, fmt.Errorf("could not map %s symbol with no section", s.Name)
+	}
+	if s.Sect.Seg == &Segtext {
+		return f.textSect.index, int64(uint64(s.Value) - Segtext.Vaddr), nil
+	}
+	if s.Sect.Seg != &Segdata {
+		return 0, 0, fmt.Errorf("could not map %s symbol with non .text or .data section", s.Name)
+	}
+	v := uint64(s.Value) - Segdata.Vaddr
+	if Linkmode != LinkExternal {
+		return f.dataSect.index, int64(v), nil
+	}
+	if s.Type == SDATA {
+		return f.dataSect.index, int64(v), nil
+	}
+	// Note: although address of runtime.edata (type SDATA) is at the start of .bss section
+	// it still belongs to the .data section, not the .bss section.
+	if v < Segdata.Filelen {
+		return f.dataSect.index, int64(v), nil
+	}
+	return f.bssSect.index, int64(v - Segdata.Filelen), nil
+}
+
 var pefile peFile
 
 func Peinit(ctxt *Link) {
@@ -1077,25 +1104,13 @@ func writePESymTableRecords(ctxt *Link) {
 		}
 
 		typ := uint16(IMAGE_SYM_TYPE_NULL)
-		var sect int
-		var value int64
-		if s.Sect != nil && s.Sect.Seg == &Segdata {
-			// Note: although address of runtime.edata (type SDATA) is at the start of .bss section
-			// it still belongs to the .data section, not the .bss section.
-			if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != SDATA && Linkmode == LinkExternal {
-				value = int64(uint64(s.Value) - Segdata.Vaddr - Segdata.Filelen)
-				sect = pefile.bssSect.index
+		sect, value, err := pefile.mapToPESection(s)
+		if err != nil {
+			if type_ == UndefinedSym {
+				typ = IMAGE_SYM_DTYPE_FUNCTION
 			} else {
-				value = int64(uint64(s.Value) - Segdata.Vaddr)
-				sect = pefile.dataSect.index
+				Errorf(s, "addpesym: %v", err)
 			}
-		} else if s.Sect != nil && s.Sect.Seg == &Segtext {
-			value = int64(uint64(s.Value) - Segtext.Vaddr)
-			sect = pefile.textSect.index
-		} else if type_ == UndefinedSym {
-			typ = IMAGE_SYM_DTYPE_FUNCTION
-		} else {
-			Errorf(s, "addpesym %#x", addr)
 		}
 		if typ != IMAGE_SYM_TYPE_NULL {
 		} else if Linkmode != LinkExternal {
