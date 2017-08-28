@@ -15,40 +15,6 @@ import (
 	"strings"
 )
 
-type IMAGE_OPTIONAL_HEADER struct {
-	Magic                       uint16
-	MajorLinkerVersion          uint8
-	MinorLinkerVersion          uint8
-	SizeOfCode                  uint32
-	SizeOfInitializedData       uint32
-	SizeOfUninitializedData     uint32
-	AddressOfEntryPoint         uint32
-	BaseOfCode                  uint32
-	BaseOfData                  uint32
-	ImageBase                   uint32
-	SectionAlignment            uint32
-	FileAlignment               uint32
-	MajorOperatingSystemVersion uint16
-	MinorOperatingSystemVersion uint16
-	MajorImageVersion           uint16
-	MinorImageVersion           uint16
-	MajorSubsystemVersion       uint16
-	MinorSubsystemVersion       uint16
-	Win32VersionValue           uint32
-	SizeOfImage                 uint32
-	SizeOfHeaders               uint32
-	CheckSum                    uint32
-	Subsystem                   uint16
-	DllCharacteristics          uint16
-	SizeOfStackReserve          uint32
-	SizeOfStackCommit           uint32
-	SizeOfHeapReserve           uint32
-	SizeOfHeapCommit            uint32
-	LoaderFlags                 uint32
-	NumberOfRvaAndSizes         uint32
-	DataDirectory               [16]pe.DataDirectory
-}
-
 type IMAGE_IMPORT_DESCRIPTOR struct {
 	OriginalFirstThunk uint32
 	TimeDateStamp      uint32
@@ -123,40 +89,6 @@ const (
 	IMAGE_SUBSYSTEM_WINDOWS_GUI          = 2
 	IMAGE_SUBSYSTEM_WINDOWS_CUI          = 3
 )
-
-// X64
-type PE64_IMAGE_OPTIONAL_HEADER struct {
-	Magic                       uint16
-	MajorLinkerVersion          uint8
-	MinorLinkerVersion          uint8
-	SizeOfCode                  uint32
-	SizeOfInitializedData       uint32
-	SizeOfUninitializedData     uint32
-	AddressOfEntryPoint         uint32
-	BaseOfCode                  uint32
-	ImageBase                   uint64
-	SectionAlignment            uint32
-	FileAlignment               uint32
-	MajorOperatingSystemVersion uint16
-	MinorOperatingSystemVersion uint16
-	MajorImageVersion           uint16
-	MinorImageVersion           uint16
-	MajorSubsystemVersion       uint16
-	MinorSubsystemVersion       uint16
-	Win32VersionValue           uint32
-	SizeOfImage                 uint32
-	SizeOfHeaders               uint32
-	CheckSum                    uint32
-	Subsystem                   uint16
-	DllCharacteristics          uint16
-	SizeOfStackReserve          uint64
-	SizeOfStackCommit           uint64
-	SizeOfHeapReserve           uint64
-	SizeOfHeapCommit            uint64
-	LoaderFlags                 uint32
-	NumberOfRvaAndSizes         uint32
-	DataDirectory               [16]pe.DataDirectory
-}
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -305,10 +237,6 @@ var PESECTHEADR int32
 var PEFILEHEADR int32
 
 var pe64 int
-
-var oh IMAGE_OPTIONAL_HEADER
-
-var oh64 PE64_IMAGE_OPTIONAL_HEADER
 
 type Imp struct {
 	s       *Symbol
@@ -789,9 +717,11 @@ func (f *peFile) writeFileHeader() {
 		fh.Characteristics = IMAGE_FILE_RELOCS_STRIPPED | IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_DEBUG_STRIPPED
 	}
 	if pe64 != 0 {
+		var oh64 pe.OptionalHeader64
 		fh.SizeOfOptionalHeader = uint16(binary.Size(&oh64))
 		fh.Characteristics |= IMAGE_FILE_LARGE_ADDRESS_AWARE
 	} else {
+		var oh pe.OptionalHeader32
 		fh.SizeOfOptionalHeader = uint16(binary.Size(&oh))
 		fh.Characteristics |= IMAGE_FILE_32BIT_MACHINE
 	}
@@ -800,6 +730,122 @@ func (f *peFile) writeFileHeader() {
 	fh.NumberOfSymbols = uint32(f.symbolCount)
 
 	binary.Write(&coutbuf, binary.LittleEndian, &fh)
+}
+
+// writeOptionalHeader writes COFF optional header for peFile f.
+func (f *peFile) writeOptionalHeader(ctxt *Link) {
+	var oh pe.OptionalHeader32
+	var oh64 pe.OptionalHeader64
+
+	if pe64 != 0 {
+		oh64.Magic = 0x20b // PE32+
+	} else {
+		oh.Magic = 0x10b // PE32
+		oh.BaseOfData = f.dataSect.VirtualAddress
+	}
+
+	// Fill out both oh64 and oh. We only use one. Oh well.
+	oh64.MajorLinkerVersion = 3
+	oh.MajorLinkerVersion = 3
+	oh64.MinorLinkerVersion = 0
+	oh.MinorLinkerVersion = 0
+	oh64.SizeOfCode = f.textSect.SizeOfRawData
+	oh.SizeOfCode = f.textSect.SizeOfRawData
+	oh64.SizeOfInitializedData = f.dataSect.SizeOfRawData
+	oh.SizeOfInitializedData = f.dataSect.SizeOfRawData
+	oh64.SizeOfUninitializedData = 0
+	oh.SizeOfUninitializedData = 0
+	if Linkmode != LinkExternal {
+		oh64.AddressOfEntryPoint = uint32(Entryvalue(ctxt) - PEBASE)
+		oh.AddressOfEntryPoint = uint32(Entryvalue(ctxt) - PEBASE)
+	}
+	oh64.BaseOfCode = f.textSect.VirtualAddress
+	oh.BaseOfCode = f.textSect.VirtualAddress
+	oh64.ImageBase = PEBASE
+	oh.ImageBase = PEBASE
+	oh64.SectionAlignment = uint32(PESECTALIGN)
+	oh.SectionAlignment = uint32(PESECTALIGN)
+	oh64.FileAlignment = uint32(PEFILEALIGN)
+	oh.FileAlignment = uint32(PEFILEALIGN)
+	oh64.MajorOperatingSystemVersion = 4
+	oh.MajorOperatingSystemVersion = 4
+	oh64.MinorOperatingSystemVersion = 0
+	oh.MinorOperatingSystemVersion = 0
+	oh64.MajorImageVersion = 1
+	oh.MajorImageVersion = 1
+	oh64.MinorImageVersion = 0
+	oh.MinorImageVersion = 0
+	oh64.MajorSubsystemVersion = 4
+	oh.MajorSubsystemVersion = 4
+	oh64.MinorSubsystemVersion = 0
+	oh.MinorSubsystemVersion = 0
+	oh64.SizeOfImage = f.nextSectOffset
+	oh.SizeOfImage = f.nextSectOffset
+	oh64.SizeOfHeaders = uint32(PEFILEHEADR)
+	oh.SizeOfHeaders = uint32(PEFILEHEADR)
+	if windowsgui {
+		oh64.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_GUI
+		oh.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_GUI
+	} else {
+		oh64.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_CUI
+		oh.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_CUI
+	}
+
+	// Disable stack growth as we don't want Windows to
+	// fiddle with the thread stack limits, which we set
+	// ourselves to circumvent the stack checks in the
+	// Windows exception dispatcher.
+	// Commit size must be strictly less than reserve
+	// size otherwise reserve will be rounded up to a
+	// larger size, as verified with VMMap.
+
+	// On 64-bit, we always reserve 2MB stacks. "Pure" Go code is
+	// okay with much smaller stacks, but the syscall package
+	// makes it easy to call into arbitrary C code without cgo,
+	// and system calls even in "pure" Go code are actually C
+	// calls that may need more stack than we think.
+	//
+	// The default stack reserve size affects only the main
+	// thread, ctrlhandler thread, and profileloop thread. For
+	// these, it must be greater than the stack size assumed by
+	// externalthreadhandler.
+	//
+	// For other threads we specify stack size in runtime explicitly.
+	// For these, the reserve must match STACKSIZE in
+	// runtime/cgo/gcc_windows_{386,amd64}.c and the correspondent
+	// CreateThread parameter in runtime.newosproc.
+	oh64.SizeOfStackReserve = 0x00200000
+	oh64.SizeOfStackCommit = 0x00200000 - 0x2000 // account for 2 guard pages
+
+	// 32-bit is trickier since there much less address space to
+	// work with. Here we use large stacks only in cgo binaries as
+	// a compromise.
+	if !iscgo {
+		oh.SizeOfStackReserve = 0x00020000
+		oh.SizeOfStackCommit = 0x00001000
+	} else {
+		oh.SizeOfStackReserve = 0x00100000
+		oh.SizeOfStackCommit = 0x00100000 - 0x2000
+	}
+
+	oh64.SizeOfHeapReserve = 0x00100000
+	oh.SizeOfHeapReserve = 0x00100000
+	oh64.SizeOfHeapCommit = 0x00001000
+	oh.SizeOfHeapCommit = 0x00001000
+	oh64.NumberOfRvaAndSizes = 16
+	oh.NumberOfRvaAndSizes = 16
+
+	if pe64 != 0 {
+		oh64.DataDirectory = f.dataDirectory
+	} else {
+		oh.DataDirectory = f.dataDirectory
+	}
+
+	if pe64 != 0 {
+		binary.Write(&coutbuf, binary.LittleEndian, &oh64)
+	} else {
+		binary.Write(&coutbuf, binary.LittleEndian, &oh)
+	}
 }
 
 var pefile peFile
@@ -811,11 +857,12 @@ func Peinit(ctxt *Link) {
 	// 64-bit architectures
 	case sys.AMD64:
 		pe64 = 1
-
+		var oh64 pe.OptionalHeader64
 		l = binary.Size(&oh64)
 
 	// 32-bit architectures
 	default:
+		var oh pe.OptionalHeader32
 		l = binary.Size(&oh)
 
 	}
@@ -857,7 +904,7 @@ func Peinit(ctxt *Link) {
 	}
 }
 
-func pewrite() {
+func pewrite(ctxt *Link) {
 	Cseek(0)
 	if Linkmode != LinkExternal {
 		Cwrite(dosstub)
@@ -866,13 +913,8 @@ func pewrite() {
 
 	pefile.writeFileHeader()
 
-	if pe64 != 0 {
-		oh64.DataDirectory = pefile.dataDirectory
-		binary.Write(&coutbuf, binary.LittleEndian, &oh64)
-	} else {
-		oh.DataDirectory = pefile.dataDirectory
-		binary.Write(&coutbuf, binary.LittleEndian, &oh)
-	}
+	pefile.writeOptionalHeader(ctxt)
+
 	for _, sect := range pefile.sections {
 		sect.write()
 	}
@@ -1284,104 +1326,5 @@ func Asmbpe(ctxt *Link) {
 		pefile.emitRelocations(ctxt)
 	}
 
-	if pe64 != 0 {
-		oh64.Magic = 0x20b // PE32+
-	} else {
-		oh.Magic = 0x10b // PE32
-		oh.BaseOfData = d.VirtualAddress
-	}
-
-	// Fill out both oh64 and oh. We only use one. Oh well.
-	oh64.MajorLinkerVersion = 3
-
-	oh.MajorLinkerVersion = 3
-	oh64.MinorLinkerVersion = 0
-	oh.MinorLinkerVersion = 0
-	oh64.SizeOfCode = t.SizeOfRawData
-	oh.SizeOfCode = t.SizeOfRawData
-	oh64.SizeOfInitializedData = d.SizeOfRawData
-	oh.SizeOfInitializedData = d.SizeOfRawData
-	oh64.SizeOfUninitializedData = 0
-	oh.SizeOfUninitializedData = 0
-	if Linkmode != LinkExternal {
-		oh64.AddressOfEntryPoint = uint32(Entryvalue(ctxt) - PEBASE)
-		oh.AddressOfEntryPoint = uint32(Entryvalue(ctxt) - PEBASE)
-	}
-	oh64.BaseOfCode = t.VirtualAddress
-	oh.BaseOfCode = t.VirtualAddress
-	oh64.ImageBase = PEBASE
-	oh.ImageBase = PEBASE
-	oh64.SectionAlignment = uint32(PESECTALIGN)
-	oh.SectionAlignment = uint32(PESECTALIGN)
-	oh64.FileAlignment = uint32(PEFILEALIGN)
-	oh.FileAlignment = uint32(PEFILEALIGN)
-	oh64.MajorOperatingSystemVersion = 4
-	oh.MajorOperatingSystemVersion = 4
-	oh64.MinorOperatingSystemVersion = 0
-	oh.MinorOperatingSystemVersion = 0
-	oh64.MajorImageVersion = 1
-	oh.MajorImageVersion = 1
-	oh64.MinorImageVersion = 0
-	oh.MinorImageVersion = 0
-	oh64.MajorSubsystemVersion = 4
-	oh.MajorSubsystemVersion = 4
-	oh64.MinorSubsystemVersion = 0
-	oh.MinorSubsystemVersion = 0
-	oh64.SizeOfImage = pefile.nextSectOffset
-	oh.SizeOfImage = pefile.nextSectOffset
-	oh64.SizeOfHeaders = uint32(PEFILEHEADR)
-	oh.SizeOfHeaders = uint32(PEFILEHEADR)
-	if windowsgui {
-		oh64.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_GUI
-		oh.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_GUI
-	} else {
-		oh64.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_CUI
-		oh.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_CUI
-	}
-
-	// Disable stack growth as we don't want Windows to
-	// fiddle with the thread stack limits, which we set
-	// ourselves to circumvent the stack checks in the
-	// Windows exception dispatcher.
-	// Commit size must be strictly less than reserve
-	// size otherwise reserve will be rounded up to a
-	// larger size, as verified with VMMap.
-
-	// On 64-bit, we always reserve 2MB stacks. "Pure" Go code is
-	// okay with much smaller stacks, but the syscall package
-	// makes it easy to call into arbitrary C code without cgo,
-	// and system calls even in "pure" Go code are actually C
-	// calls that may need more stack than we think.
-	//
-	// The default stack reserve size affects only the main
-	// thread, ctrlhandler thread, and profileloop thread. For
-	// these, it must be greater than the stack size assumed by
-	// externalthreadhandler.
-	//
-	// For other threads we specify stack size in runtime explicitly.
-	// For these, the reserve must match STACKSIZE in
-	// runtime/cgo/gcc_windows_{386,amd64}.c and the correspondent
-	// CreateThread parameter in runtime.newosproc.
-	oh64.SizeOfStackReserve = 0x00200000
-	oh64.SizeOfStackCommit = 0x00200000 - 0x2000 // account for 2 guard pages
-
-	// 32-bit is trickier since there much less address space to
-	// work with. Here we use large stacks only in cgo binaries as
-	// a compromise.
-	if !iscgo {
-		oh.SizeOfStackReserve = 0x00020000
-		oh.SizeOfStackCommit = 0x00001000
-	} else {
-		oh.SizeOfStackReserve = 0x00100000
-		oh.SizeOfStackCommit = 0x00100000 - 0x2000
-	}
-
-	oh64.SizeOfHeapReserve = 0x00100000
-	oh.SizeOfHeapReserve = 0x00100000
-	oh64.SizeOfHeapCommit = 0x00001000
-	oh.SizeOfHeapCommit = 0x00001000
-	oh64.NumberOfRvaAndSizes = 16
-	oh.NumberOfRvaAndSizes = 16
-
-	pewrite()
+	pewrite(ctxt)
 }
