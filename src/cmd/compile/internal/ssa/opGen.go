@@ -4850,7 +4850,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "ADDQconst",
-		auxType:           auxInt64,
+		auxType:           auxInt32,
 		argLen:            1,
 		rematerializeable: true,
 		clobberFlags:      true,
@@ -4942,7 +4942,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SUBQconst",
-		auxType:      auxInt64,
+		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -5008,7 +5008,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "MULQconst",
-		auxType:      auxInt64,
+		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -5288,7 +5288,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "ANDQconst",
-		auxType:      auxInt64,
+		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -5354,7 +5354,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "ORQconst",
-		auxType:      auxInt64,
+		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -5420,7 +5420,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "XORQconst",
-		auxType:      auxInt64,
+		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -5496,7 +5496,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "CMPQconst",
-		auxType: auxInt64,
+		auxType: auxInt32,
 		argLen:  1,
 		asm:     x86.ACMPQ,
 		reg: regInfo{
@@ -5654,7 +5654,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "TESTQconst",
-		auxType: auxInt64,
+		auxType: auxInt32,
 		argLen:  1,
 		asm:     x86.ATESTQ,
 		reg: regInfo{
