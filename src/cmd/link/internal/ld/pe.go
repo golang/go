@@ -472,6 +472,7 @@ type peFile struct {
 	textSect       *peSection
 	dataSect       *peSection
 	bssSect        *peSection
+	ctorsSect      *peSection
 	nextSectOffset uint32
 	nextFileOffset uint32
 }
@@ -549,12 +550,12 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
 }
 
 // emitRelocations emits relocation entries for go.o in external linking.
-func (f *peFile) emitRelocations(ctxt *Link, text, data, ctors *peSection) {
+func (f *peFile) emitRelocations(ctxt *Link) {
 	for coutbuf.Offset()&7 != 0 {
 		Cput(0)
 	}
 
-	text.emitRelocations(func() int {
+	f.textSect.emitRelocations(func() int {
 		n := perelocsect(ctxt, Segtext.Sections[0], ctxt.Textp, Segtext.Vaddr)
 		for _, sect := range Segtext.Sections[1:] {
 			n += perelocsect(ctxt, sect, datap, Segtext.Vaddr)
@@ -562,7 +563,7 @@ func (f *peFile) emitRelocations(ctxt *Link, text, data, ctors *peSection) {
 		return n
 	})
 
-	data.emitRelocations(func() int {
+	f.dataSect.emitRelocations(func() int {
 		var n int
 		for _, sect := range Segdata.Sections {
 			n += perelocsect(ctxt, sect, datap, Segdata.Vaddr)
@@ -583,7 +584,7 @@ dwarfLoop:
 		Errorf(nil, "emitRelocations: could not find %q section", sect.Name)
 	}
 
-	ctors.emitRelocations(func() int {
+	f.ctorsSect.emitRelocations(func() int {
 		dottext := ctxt.Syms.Lookup(".text", 0)
 		Lputl(0)
 		Lputl(uint32(dottext.Dynid))
@@ -1223,7 +1224,6 @@ func Asmbpe(ctxt *Link) {
 	pefile.textSect = t
 
 	var d *peSection
-	var c *peSection
 	if Linkmode != LinkExternal {
 		d = pefile.addSection(".data", int(Segdata.Length), int(Segdata.Filelen))
 		d.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
@@ -1246,7 +1246,7 @@ func Asmbpe(ctxt *Link) {
 	}
 
 	if Linkmode == LinkExternal {
-		c = pefile.addInitArray(ctxt)
+		pefile.ctorsSect = pefile.addInitArray(ctxt)
 	}
 
 	Cseek(int64(pefile.nextFileOffset))
@@ -1257,7 +1257,7 @@ func Asmbpe(ctxt *Link) {
 	addpesymtable(ctxt)
 	addpersrc(ctxt)
 	if Linkmode == LinkExternal {
-		pefile.emitRelocations(ctxt, t, d, c)
+		pefile.emitRelocations(ctxt)
 	}
 
 	fh.NumberOfSections = uint16(len(pefile.sections))
