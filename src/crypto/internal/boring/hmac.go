@@ -100,7 +100,7 @@ func (h *boringHMAC) Reset() {
 	}
 	C._goboringcrypto_HMAC_CTX_init(&h.ctx)
 
-	if C._goboringcrypto_HMAC_Init(&h.ctx, unsafe.Pointer(&h.key[0]), C.int(len(h.key)), h.md) == 0 {
+	if C._goboringcrypto_HMAC_Init(&h.ctx, unsafe.Pointer(base(h.key)), C.int(len(h.key)), h.md) == 0 {
 		panic("boringcrypto: HMAC_Init failed")
 	}
 	if int(C._goboringcrypto_HMAC_size(&h.ctx)) != h.size {
