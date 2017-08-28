@@ -518,6 +518,31 @@ var hmacTests = []hmacTest{
 		sha512.Size,
 		sha512.BlockSize,
 	},
+	// HMAC without key is dumb but should probably not fail.
+	{
+		sha1.New,
+		[]byte{},
+		[]byte("message"),
+		"d5d1ed05121417247616cfc8378f360a39da7cfa",
+		sha1.Size,
+		sha1.BlockSize,
+	},
+	{
+		sha256.New,
+		[]byte{},
+		[]byte("message"),
+		"eb08c1f56d5ddee07f7bdf80468083da06b64cf4fac64fe3a90883df5feacae4",
+		sha256.Size,
+		sha256.BlockSize,
+	},
+	{
+		sha512.New,
+		[]byte{},
+		[]byte("message"),
+		"08fce52f6395d59c2a3fb8abb281d74ad6f112b9a9c787bcea290d94dadbc82b2ca3e5e12bf2277c7fedbb0154d5493e41bb7459f63c8e39554ea3651b812492",
+		sha512.Size,
+		sha512.BlockSize,
+	},
 }
 
 func TestHMAC(t *testing.T) {
