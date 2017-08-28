@@ -754,6 +754,35 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 	genasmsym(ctxt, put)
 }
 
+// writeSymbolTableAndStringTable writes out symbol and string tables for peFile f.
+func (f *peFile) writeSymbolTableAndStringTable(ctxt *Link) {
+	symtabStartPos := coutbuf.Offset()
+
+	// write COFF symbol table
+	if !*FlagS || Linkmode == LinkExternal {
+		f.writeSymbols(ctxt)
+	}
+
+	// update COFF file header and section table
+	size := f.stringTable.size() + 18*f.symbolCount
+	var h *peSection
+	if Linkmode != LinkExternal {
+		// We do not really need .symtab for go.o, and if we have one, ld
+		// will also include it in the exe, and that will confuse windows.
+		h = f.addSection(".symtab", size, size)
+		h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
+		h.checkOffset(symtabStartPos)
+	}
+	fh.PointerToSymbolTable = uint32(symtabStartPos)
+	fh.NumberOfSymbols = uint32(f.symbolCount)
+
+	// write COFF string table
+	f.stringTable.write()
+	if Linkmode != LinkExternal {
+		h.pad(uint32(size))
+	}
+}
+
 var pefile peFile
 
 func Peinit(ctxt *Link) {
@@ -1138,34 +1167,6 @@ func (ctxt *Link) dope() {
 	initdynexport(ctxt)
 }
 
-func addpesymtable(ctxt *Link) {
-	symtabStartPos := coutbuf.Offset()
-
-	// write COFF symbol table
-	if !*FlagS || Linkmode == LinkExternal {
-		pefile.writeSymbols(ctxt)
-	}
-
-	// update COFF file header and section table
-	size := pefile.stringTable.size() + 18*pefile.symbolCount
-	var h *peSection
-	if Linkmode != LinkExternal {
-		// We do not really need .symtab for go.o, and if we have one, ld
-		// will also include it in the exe, and that will confuse windows.
-		h = pefile.addSection(".symtab", size, size)
-		h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
-		h.checkOffset(symtabStartPos)
-	}
-	fh.PointerToSymbolTable = uint32(symtabStartPos)
-	fh.NumberOfSymbols = uint32(pefile.symbolCount)
-
-	// write COFF string table
-	pefile.stringTable.write()
-	if Linkmode != LinkExternal {
-		h.pad(uint32(size))
-	}
-}
-
 func setpersrc(ctxt *Link, sym *Symbol) {
 	if rsrcsym != nil {
 		Errorf(sym, "too many .rsrc sections")
@@ -1260,7 +1261,7 @@ func Asmbpe(ctxt *Link) {
 		addimports(ctxt, d)
 		addexports(ctxt)
 	}
-	addpesymtable(ctxt)
+	pefile.writeSymbolTableAndStringTable(ctxt)
 	addpersrc(ctxt)
 	if Linkmode == LinkExternal {
 		pefile.emitRelocations(ctxt)
