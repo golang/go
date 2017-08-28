@@ -25,18 +25,18 @@ import (
 // for each architecture.
 //
 // Each asmTest consists of a function to compile, an array of
-// positiveRegexps that will be matched to the generated assembly and
-// an array of negativeRegexps that must not match generated assembly.
+// positive regexps that must match the generated assembly and
+// an array of negative regexps that must not match generated assembly.
 // For example, the following amd64 test
 //
 //   {
-// 	  `
+// 	  fn: `
 // 	  func f0(x int) int {
 // 		  return x * 64
 // 	  }
 // 	  `,
-// 	  []string{"\tSHLQ\t[$]6,"},
-//	  []string{"MULQ"}
+// 	  pos: []string{"\tSHLQ\t[$]6,"},
+//	  neg: []string{"MULQ"}
 //   }
 //
 // verifies that the code the compiler generates for a multiplication
@@ -48,13 +48,13 @@ import (
 // for function names. The func f0 above can be also written as
 //
 //   {
-// 	  `
+// 	  fn: `
 // 	  func $(x int) int {
 // 		  return x * 64
 // 	  }
 // 	  `,
-// 	  []string{"\tSHLQ\t[$]6,"},
-//	  []string{"MULQ"}
+// 	  pos: []string{"\tSHLQ\t[$]6,"},
+//	  neg: []string{"MULQ"}
 //   }
 //
 // Each '$'-function will be given a unique name of form f<N>_<arch>,
@@ -62,7 +62,7 @@ import (
 // test's architecture.
 //
 // It is allowed to mix named and unnamed functions in the same test
-// array; the named function will retain their original names.
+// array; the named functions will retain their original names.
 
 // TestAssembly checks to make sure the assembly generated for
 // functions contains certain expected instructions.
@@ -89,10 +89,10 @@ func TestAssembly(t *testing.T) {
 
 				for i, at := range ats.tests {
 					var funcName string
-					if strings.Contains(at.function, "func $") {
+					if strings.Contains(at.fn, "func $") {
 						funcName = fmt.Sprintf("f%d_%s", i, ats.arch)
 					} else {
-						funcName = nameRegexp.FindString(at.function)[len("func "):]
+						funcName = nameRegexp.FindString(at.fn)[len("func "):]
 					}
 					fa := funcAsm(tt, asm, funcName)
 					if fa != "" {
@@ -126,21 +126,22 @@ func funcAsm(t *testing.T, asm string, funcName string) string {
 
 type asmTest struct {
 	// function to compile
-	function string
-	// positiveRegexps that must match the generated assembly
-	positiveRegexps []string
-	negativeRegexps []string
+	fn string
+	// regular expressions that must match the generated assembly
+	pos []string
+	// regular expressions that must not match the generated assembly
+	neg []string
 }
 
 func (at asmTest) verifyAsm(t *testing.T, fa string) {
-	for _, r := range at.positiveRegexps {
+	for _, r := range at.pos {
 		if b, err := regexp.MatchString(r, fa); !b || err != nil {
-			t.Errorf("expected:%s\ngo:%s\nasm:%s\n", r, at.function, fa)
+			t.Errorf("expected:%s\ngo:%s\nasm:%s\n", r, at.fn, fa)
 		}
 	}
-	for _, r := range at.negativeRegexps {
+	for _, r := range at.neg {
 		if b, err := regexp.MatchString(r, fa); b || err != nil {
-			t.Errorf("not expected:%s\ngo:%s\nasm:%s\n", r, at.function, fa)
+			t.Errorf("not expected:%s\ngo:%s\nasm:%s\n", r, at.fn, fa)
 		}
 	}
 }
@@ -160,7 +161,7 @@ func (ats *asmTests) generateCode() []byte {
 	}
 
 	for i, t := range ats.tests {
-		function := strings.Replace(t.function, "func $", fmt.Sprintf("func f%d_%s", i, ats.arch), 1)
+		function := strings.Replace(t.fn, "func $", fmt.Sprintf("func f%d_%s", i, ats.arch), 1)
 		fmt.Fprintln(&buf, function)
 	}
 
@@ -270,171 +271,153 @@ var allAsmTests = []*asmTests{
 
 var linuxAMD64Tests = []*asmTest{
 	{
-		`
+		fn: `
 		func f0(x int) int {
 			return x * 64
 		}
 		`,
-		[]string{"\tSHLQ\t\\$6,"},
-		[]string{},
+		pos: []string{"\tSHLQ\t\\$6,"},
 	},
 	{
-		`
+		fn: `
 		func f1(x int) int {
 			return x * 96
 		}
 		`,
-		[]string{"\tSHLQ\t\\$5,", "\tLEAQ\t\\(.*\\)\\(.*\\*2\\),"},
-		[]string{},
+		pos: []string{"\tSHLQ\t\\$5,", "\tLEAQ\t\\(.*\\)\\(.*\\*2\\),"},
 	},
 	// Load-combining tests.
 	{
-		`
+		fn: `
 		func f2(b []byte) uint64 {
 			return binary.LittleEndian.Uint64(b)
 		}
 		`,
-		[]string{"\tMOVQ\t\\(.*\\),"},
-		[]string{},
+		pos: []string{"\tMOVQ\t\\(.*\\),"},
 	},
 	{
-		`
+		fn: `
 		func f3(b []byte, i int) uint64 {
 			return binary.LittleEndian.Uint64(b[i:])
 		}
 		`,
-		[]string{"\tMOVQ\t\\(.*\\)\\(.*\\*1\\),"},
-		[]string{},
+		pos: []string{"\tMOVQ\t\\(.*\\)\\(.*\\*1\\),"},
 	},
 	{
-		`
+		fn: `
 		func f4(b []byte) uint32 {
 			return binary.LittleEndian.Uint32(b)
 		}
 		`,
-		[]string{"\tMOVL\t\\(.*\\),"},
-		[]string{},
+		pos: []string{"\tMOVL\t\\(.*\\),"},
 	},
 	{
-		`
+		fn: `
 		func f5(b []byte, i int) uint32 {
 			return binary.LittleEndian.Uint32(b[i:])
 		}
 		`,
-		[]string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
-		[]string{},
+		pos: []string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
 	},
 	{
-		`
+		fn: `
 		func f6(b []byte) uint64 {
 			return binary.BigEndian.Uint64(b)
 		}
 		`,
-		[]string{"\tBSWAPQ\t"},
-		[]string{},
+		pos: []string{"\tBSWAPQ\t"},
 	},
 	{
-		`
+		fn: `
 		func f7(b []byte, i int) uint64 {
 			return binary.BigEndian.Uint64(b[i:])
 		}
 		`,
-		[]string{"\tBSWAPQ\t"},
-		[]string{},
+		pos: []string{"\tBSWAPQ\t"},
 	},
 	{
-		`
+		fn: `
 		func f8(b []byte, v uint64) {
 			binary.BigEndian.PutUint64(b, v)
 		}
 		`,
-		[]string{"\tBSWAPQ\t"},
-		[]string{},
+		pos: []string{"\tBSWAPQ\t"},
 	},
 	{
-		`
+		fn: `
 		func f9(b []byte, i int, v uint64) {
 			binary.BigEndian.PutUint64(b[i:], v)
 		}
 		`,
-		[]string{"\tBSWAPQ\t"},
-		[]string{},
+		pos: []string{"\tBSWAPQ\t"},
 	},
 	{
-		`
+		fn: `
 		func f10(b []byte) uint32 {
 			return binary.BigEndian.Uint32(b)
 		}
 		`,
-		[]string{"\tBSWAPL\t"},
-		[]string{},
+		pos: []string{"\tBSWAPL\t"},
 	},
 	{
-		`
+		fn: `
 		func f11(b []byte, i int) uint32 {
 			return binary.BigEndian.Uint32(b[i:])
 		}
 		`,
-		[]string{"\tBSWAPL\t"},
-		[]string{},
+		pos: []string{"\tBSWAPL\t"},
 	},
 	{
-		`
+		fn: `
 		func f12(b []byte, v uint32) {
 			binary.BigEndian.PutUint32(b, v)
 		}
 		`,
-		[]string{"\tBSWAPL\t"},
-		[]string{},
+		pos: []string{"\tBSWAPL\t"},
 	},
 	{
-		`
+		fn: `
 		func f13(b []byte, i int, v uint32) {
 			binary.BigEndian.PutUint32(b[i:], v)
 		}
 		`,
-		[]string{"\tBSWAPL\t"},
-		[]string{},
+		pos: []string{"\tBSWAPL\t"},
 	},
 	{
-		`
+		fn: `
 		func f14(b []byte) uint16 {
 			return binary.BigEndian.Uint16(b)
 		}
 		`,
-		[]string{"\tROLW\t\\$8,"},
-		[]string{},
+		pos: []string{"\tROLW\t\\$8,"},
 	},
 	{
-		`
+		fn: `
 		func f15(b []byte, i int) uint16 {
 			return binary.BigEndian.Uint16(b[i:])
 		}
 		`,
-		[]string{"\tROLW\t\\$8,"},
-		[]string{},
+		pos: []string{"\tROLW\t\\$8,"},
 	},
 	{
-		`
+		fn: `
 		func f16(b []byte, v uint16) {
 			binary.BigEndian.PutUint16(b, v)
 		}
 		`,
-		[]string{"\tROLW\t\\$8,"},
-		[]string{},
+		pos: []string{"\tROLW\t\\$8,"},
 	},
 	{
-		`
+		fn: `
 		func f17(b []byte, i int, v uint16) {
 			binary.BigEndian.PutUint16(b[i:], v)
 		}
 		`,
-		[]string{"\tROLW\t\\$8,"},
-		[]string{},
+		pos: []string{"\tROLW\t\\$8,"},
 	},
 	// Structure zeroing.  See issue #18370.
 	{
-		`
+		fn: `
 		type T1 struct {
 			a, b, c int
 		}
@@ -442,12 +425,11 @@ var linuxAMD64Tests = []*asmTest{
 			*t = T1{}
 		}
 		`,
-		[]string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)"},
-		[]string{},
+		pos: []string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)"},
 	},
 	// SSA-able composite literal initialization. Issue 18872.
 	{
-		`
+		fn: `
 		type T18872 struct {
 			a, b, c, d int
 		}
@@ -456,12 +438,11 @@ var linuxAMD64Tests = []*asmTest{
 			*p = T18872{1, 2, 3, 4}
 		}
 		`,
-		[]string{"\tMOVQ\t[$]1", "\tMOVQ\t[$]2", "\tMOVQ\t[$]3", "\tMOVQ\t[$]4"},
-		[]string{},
+		pos: []string{"\tMOVQ\t[$]1", "\tMOVQ\t[$]2", "\tMOVQ\t[$]3", "\tMOVQ\t[$]4"},
 	},
 	// Also test struct containing pointers (this was special because of write barriers).
 	{
-		`
+		fn: `
 		type T2 struct {
 			a, b, c *int
 		}
@@ -469,121 +450,108 @@ var linuxAMD64Tests = []*asmTest{
 			*t = T2{}
 		}
 		`,
-		[]string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.writebarrierptr\\(SB\\)"},
-		[]string{},
+		pos: []string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.writebarrierptr\\(SB\\)"},
 	},
 	// Rotate tests
 	{
-		`
+		fn: `
 		func f20(x uint64) uint64 {
 			return x<<7 | x>>57
 		}
 		`,
-		[]string{"\tROLQ\t[$]7,"},
-		[]string{},
+		pos: []string{"\tROLQ\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f21(x uint64) uint64 {
 			return x<<7 + x>>57
 		}
 		`,
-		[]string{"\tROLQ\t[$]7,"},
-		[]string{},
+		pos: []string{"\tROLQ\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f22(x uint64) uint64 {
 			return x<<7 ^ x>>57
 		}
 		`,
-		[]string{"\tROLQ\t[$]7,"},
-		[]string{},
+		pos: []string{"\tROLQ\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f23(x uint32) uint32 {
 			return x<<7 + x>>25
 		}
 		`,
-		[]string{"\tROLL\t[$]7,"},
-		[]string{},
+		pos: []string{"\tROLL\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f24(x uint32) uint32 {
 			return x<<7 | x>>25
 		}
 		`,
-		[]string{"\tROLL\t[$]7,"},
-		[]string{},
+		pos: []string{"\tROLL\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f25(x uint32) uint32 {
 			return x<<7 ^ x>>25
 		}
 		`,
-		[]string{"\tROLL\t[$]7,"},
-		[]string{},
+		pos: []string{"\tROLL\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f26(x uint16) uint16 {
 			return x<<7 + x>>9
 		}
 		`,
-		[]string{"\tROLW\t[$]7,"},
-		[]string{},
+		pos: []string{"\tROLW\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f27(x uint16) uint16 {
 			return x<<7 | x>>9
 		}
 		`,
-		[]string{"\tROLW\t[$]7,"},
-		[]string{},
+		pos: []string{"\tROLW\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f28(x uint16) uint16 {
 			return x<<7 ^ x>>9
 		}
 		`,
-		[]string{"\tROLW\t[$]7,"},
-		[]string{},
+		pos: []string{"\tROLW\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f29(x uint8) uint8 {
 			return x<<7 + x>>1
 		}
 		`,
-		[]string{"\tROLB\t[$]7,"},
-		[]string{},
+		pos: []string{"\tROLB\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f30(x uint8) uint8 {
 			return x<<7 | x>>1
 		}
 		`,
-		[]string{"\tROLB\t[$]7,"},
-		[]string{},
+		pos: []string{"\tROLB\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f31(x uint8) uint8 {
 			return x<<7 ^ x>>1
 		}
 		`,
-		[]string{"\tROLB\t[$]7,"},
-		[]string{},
+		pos: []string{"\tROLB\t[$]7,"},
 	},
 	// Rotate after inlining (see issue 18254).
 	{
-		`
+		fn: `
 		func f32(x uint32) uint32 {
 			return g(x, 7)
 		}
@@ -591,51 +559,46 @@ var linuxAMD64Tests = []*asmTest{
 			return x<<k | x>>(32-k)
 		}
 		`,
-		[]string{"\tROLL\t[$]7,"},
-		[]string{},
+		pos: []string{"\tROLL\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f33(m map[int]int) int {
 			return m[5]
 		}
 		`,
-		[]string{"\tMOVQ\t[$]5,"},
-		[]string{},
+		pos: []string{"\tMOVQ\t[$]5,"},
 	},
 	// Direct use of constants in fast map access calls. Issue 19015.
 	{
-		`
+		fn: `
 		func f34(m map[int]int) bool {
 			_, ok := m[5]
 			return ok
 		}
 		`,
-		[]string{"\tMOVQ\t[$]5,"},
-		[]string{},
+		pos: []string{"\tMOVQ\t[$]5,"},
 	},
 	{
-		`
+		fn: `
 		func f35(m map[string]int) int {
 			return m["abc"]
 		}
 		`,
-		[]string{"\"abc\""},
-		[]string{},
+		pos: []string{"\"abc\""},
 	},
 	{
-		`
+		fn: `
 		func f36(m map[string]int) bool {
 			_, ok := m["abc"]
 			return ok
 		}
 		`,
-		[]string{"\"abc\""},
-		[]string{},
+		pos: []string{"\"abc\""},
 	},
 	// Bit test ops on amd64, issue 18943.
 	{
-		`
+		fn: `
 		func f37(a, b uint64) int {
 			if a&(1<<(b&63)) != 0 {
 				return 1
@@ -643,20 +606,18 @@ var linuxAMD64Tests = []*asmTest{
 			return -1
 		}
 		`,
-		[]string{"\tBTQ\t"},
-		[]string{},
+		pos: []string{"\tBTQ\t"},
 	},
 	{
-		`
+		fn: `
 		func f38(a, b uint64) bool {
 			return a&(1<<(b&63)) != 0
 		}
 		`,
-		[]string{"\tBTQ\t"},
-		[]string{},
+		pos: []string{"\tBTQ\t"},
 	},
 	{
-		`
+		fn: `
 		func f39(a uint64) int {
 			if a&(1<<60) != 0 {
 				return 1
@@ -664,1470 +625,1311 @@ var linuxAMD64Tests = []*asmTest{
 			return -1
 		}
 		`,
-		[]string{"\tBTQ\t\\$60"},
-		[]string{},
+		pos: []string{"\tBTQ\t\\$60"},
 	},
 	{
-		`
+		fn: `
 		func f40(a uint64) bool {
 			return a&(1<<60) != 0
 		}
 		`,
-		[]string{"\tBTQ\t\\$60"},
-		[]string{},
+		pos: []string{"\tBTQ\t\\$60"},
 	},
 	// Intrinsic tests for math/bits
 	{
-		`
+		fn: `
 		func f41(a uint64) int {
 			return bits.TrailingZeros64(a)
 		}
 		`,
-		[]string{"\tBSFQ\t", "\tMOVL\t\\$64,", "\tCMOVQEQ\t"},
-		[]string{},
+		pos: []string{"\tBSFQ\t", "\tMOVL\t\\$64,", "\tCMOVQEQ\t"},
 	},
 	{
-		`
+		fn: `
 		func f42(a uint32) int {
 			return bits.TrailingZeros32(a)
 		}
 		`,
-		[]string{"\tBSFQ\t", "\tORQ\t[^$]", "\tMOVQ\t\\$4294967296,"},
-		[]string{},
+		pos: []string{"\tBSFQ\t", "\tORQ\t[^$]", "\tMOVQ\t\\$4294967296,"},
 	},
 	{
-		`
+		fn: `
 		func f43(a uint16) int {
 			return bits.TrailingZeros16(a)
 		}
 		`,
-		[]string{"\tBSFQ\t", "\tORQ\t\\$65536,"},
-		[]string{},
+		pos: []string{"\tBSFQ\t", "\tORQ\t\\$65536,"},
 	},
 	{
-		`
+		fn: `
 		func f44(a uint8) int {
 			return bits.TrailingZeros8(a)
 		}
 		`,
-		[]string{"\tBSFQ\t", "\tORQ\t\\$256,"},
-		[]string{},
+		pos: []string{"\tBSFQ\t", "\tORQ\t\\$256,"},
 	},
 	{
-		`
+		fn: `
 		func f45(a uint64) uint64 {
 			return bits.ReverseBytes64(a)
 		}
 		`,
-		[]string{"\tBSWAPQ\t"},
-		[]string{},
+		pos: []string{"\tBSWAPQ\t"},
 	},
 	{
-		`
+		fn: `
 		func f46(a uint32) uint32 {
 			return bits.ReverseBytes32(a)
 		}
 		`,
-		[]string{"\tBSWAPL\t"},
-		[]string{},
+		pos: []string{"\tBSWAPL\t"},
 	},
 	{
-		`
+		fn: `
 		func f47(a uint16) uint16 {
 			return bits.ReverseBytes16(a)
 		}
 		`,
-		[]string{"\tROLW\t\\$8,"},
-		[]string{},
+		pos: []string{"\tROLW\t\\$8,"},
 	},
 	{
-		`
+		fn: `
 		func f48(a uint64) int {
 			return bits.Len64(a)
 		}
 		`,
-		[]string{"\tBSRQ\t"},
-		[]string{},
+		pos: []string{"\tBSRQ\t"},
 	},
 	{
-		`
+		fn: `
 		func f49(a uint32) int {
 			return bits.Len32(a)
 		}
 		`,
-		[]string{"\tBSRQ\t"},
-		[]string{},
+		pos: []string{"\tBSRQ\t"},
 	},
 	{
-		`
+		fn: `
 		func f50(a uint16) int {
 			return bits.Len16(a)
 		}
 		`,
-		[]string{"\tBSRQ\t"},
-		[]string{},
+		pos: []string{"\tBSRQ\t"},
 	},
 	/* see ssa.go
 	{
-		`
+		fn:`
 		func f51(a uint8) int {
 			return bits.Len8(a)
 		}
 		`,
-		[]string{"\tBSRQ\t"},
-		[]string{},
+		pos:[]string{"\tBSRQ\t"},
 	},
 	*/
 	{
-		`
+		fn: `
 		func f52(a uint) int {
 			return bits.Len(a)
 		}
 		`,
-		[]string{"\tBSRQ\t"},
-		[]string{},
+		pos: []string{"\tBSRQ\t"},
 	},
 	{
-		`
+		fn: `
 		func f53(a uint64) int {
 			return bits.LeadingZeros64(a)
 		}
 		`,
-		[]string{"\tBSRQ\t"},
-		[]string{},
+		pos: []string{"\tBSRQ\t"},
 	},
 	{
-		`
+		fn: `
 		func f54(a uint32) int {
 			return bits.LeadingZeros32(a)
 		}
 		`,
-		[]string{"\tBSRQ\t"},
-		[]string{},
+		pos: []string{"\tBSRQ\t"},
 	},
 	{
-		`
+		fn: `
 		func f55(a uint16) int {
 			return bits.LeadingZeros16(a)
 		}
 		`,
-		[]string{"\tBSRQ\t"},
-		[]string{},
+		pos: []string{"\tBSRQ\t"},
 	},
 	/* see ssa.go
 	{
-		`
+		fn:`
 		func f56(a uint8) int {
 			return bits.LeadingZeros8(a)
 		}
 		`,
-		[]string{"\tBSRQ\t"},
-		[]string{},
+		pos:[]string{"\tBSRQ\t"},
 	},
 	*/
 	{
-		`
+		fn: `
 		func f57(a uint) int {
 			return bits.LeadingZeros(a)
 		}
 		`,
-		[]string{"\tBSRQ\t"},
-		[]string{},
+		pos: []string{"\tBSRQ\t"},
 	},
 	{
-		`
+		fn: `
 		func pop1(x uint64) int {
 			return bits.OnesCount64(x)
 		}`,
-		[]string{"\tPOPCNTQ\t", "support_popcnt"},
-		[]string{},
+		pos: []string{"\tPOPCNTQ\t", "support_popcnt"},
 	},
 	{
-		`
+		fn: `
 		func pop2(x uint32) int {
 			return bits.OnesCount32(x)
 		}`,
-		[]string{"\tPOPCNTL\t", "support_popcnt"},
-		[]string{},
+		pos: []string{"\tPOPCNTL\t", "support_popcnt"},
 	},
 	{
-		`
+		fn: `
 		func pop3(x uint16) int {
 			return bits.OnesCount16(x)
 		}`,
-		[]string{"\tPOPCNTL\t", "support_popcnt"},
-		[]string{},
+		pos: []string{"\tPOPCNTL\t", "support_popcnt"},
 	},
 	{
-		`
+		fn: `
 		func pop4(x uint) int {
 			return bits.OnesCount(x)
 		}`,
-		[]string{"\tPOPCNTQ\t", "support_popcnt"},
-		[]string{},
+		pos: []string{"\tPOPCNTQ\t", "support_popcnt"},
 	},
 	// multiplication merging tests
 	{
-		`
+		fn: `
 		func mul1(n int) int {
 			return 15*n + 31*n
 		}`,
-		[]string{"\tIMULQ\t[$]46"}, // 46*n
-		[]string{},
+		pos: []string{"\tIMULQ\t[$]46"}, // 46*n
 	},
 	{
-		`
+		fn: `
 		func mul2(n int) int {
 			return 5*n + 7*(n+1) + 11*(n+2)
 		}`,
-		[]string{"\tIMULQ\t[$]23", "\tADDQ\t[$]29"}, // 23*n + 29
-		[]string{},
+		pos: []string{"\tIMULQ\t[$]23", "\tADDQ\t[$]29"}, // 23*n + 29
 	},
 	{
-		`
+		fn: `
 		func mul3(a, n int) int {
 			return a*n + 19*n
 		}`,
-		[]string{"\tADDQ\t[$]19", "\tIMULQ"}, // (a+19)*n
-		[]string{},
+		pos: []string{"\tADDQ\t[$]19", "\tIMULQ"}, // (a+19)*n
 	},
 
 	// see issue 19595.
 	// We want to merge load+op in f58, but not in f59.
 	{
-		`
+		fn: `
 		func f58(p, q *int) {
 			x := *p
 			*q += x
 		}`,
-		[]string{"\tADDQ\t\\("},
-		[]string{},
+		pos: []string{"\tADDQ\t\\("},
 	},
 	{
-		`
+		fn: `
 		func f59(p, q *int) {
 			x := *p
 			for i := 0; i < 10; i++ {
 				*q += x
 			}
 		}`,
-		[]string{"\tADDQ\t[A-Z]"},
-		[]string{},
+		pos: []string{"\tADDQ\t[A-Z]"},
 	},
 	// Floating-point strength reduction
 	{
-		`
+		fn: `
 		func f60(f float64) float64 {
 			return f * 2.0
 		}`,
-		[]string{"\tADDSD\t"},
-		[]string{},
+		pos: []string{"\tADDSD\t"},
 	},
 	{
-		`
+		fn: `
 		func f62(f float64) float64 {
 			return f / 16.0
 		}`,
-		[]string{"\tMULSD\t"},
-		[]string{},
+		pos: []string{"\tMULSD\t"},
 	},
 	{
-		`
+		fn: `
 		func f63(f float64) float64 {
 			return f / 0.125
 		}`,
-		[]string{"\tMULSD\t"},
-		[]string{},
+		pos: []string{"\tMULSD\t"},
 	},
 	{
-		`
+		fn: `
 		func f64(f float64) float64 {
 			return f / 0.5
 		}`,
-		[]string{"\tADDSD\t"},
-		[]string{},
+		pos: []string{"\tADDSD\t"},
 	},
 	// Check that compare to constant string uses 2/4/8 byte compares
 	{
-		`
+		fn: `
 		func f65(a string) bool {
 		    return a == "xx"
 		}`,
-		[]string{"\tCMPW\t[A-Z]"},
-		[]string{},
+		pos: []string{"\tCMPW\t[A-Z]"},
 	},
 	{
-		`
+		fn: `
 		func f66(a string) bool {
 		    return a == "xxxx"
 		}`,
-		[]string{"\tCMPL\t[A-Z]"},
-		[]string{},
+		pos: []string{"\tCMPL\t[A-Z]"},
 	},
 	{
-		`
+		fn: `
 		func f67(a string) bool {
 		    return a == "xxxxxxxx"
 		}`,
-		[]string{"\tCMPQ\t[A-Z]"},
-		[]string{},
+		pos: []string{"\tCMPQ\t[A-Z]"},
 	},
 	// Non-constant rotate
 	{
-		`func rot64l(x uint64, y int) uint64 {
+		fn: `func rot64l(x uint64, y int) uint64 {
 			z := uint(y & 63)
 			return x << z | x >> (64-z)
 		}`,
-		[]string{"\tROLQ\t"},
-		[]string{},
+		pos: []string{"\tROLQ\t"},
 	},
 	{
-		`func rot64r(x uint64, y int) uint64 {
+		fn: `func rot64r(x uint64, y int) uint64 {
 			z := uint(y & 63)
 			return x >> z | x << (64-z)
 		}`,
-		[]string{"\tRORQ\t"},
-		[]string{},
+		pos: []string{"\tRORQ\t"},
 	},
 	{
-		`func rot32l(x uint32, y int) uint32 {
+		fn: `func rot32l(x uint32, y int) uint32 {
 			z := uint(y & 31)
 			return x << z | x >> (32-z)
 		}`,
-		[]string{"\tROLL\t"},
-		[]string{},
+		pos: []string{"\tROLL\t"},
 	},
 	{
-		`func rot32r(x uint32, y int) uint32 {
+		fn: `func rot32r(x uint32, y int) uint32 {
 			z := uint(y & 31)
 			return x >> z | x << (32-z)
 		}`,
-		[]string{"\tRORL\t"},
-		[]string{},
+		pos: []string{"\tRORL\t"},
 	},
 	{
-		`func rot16l(x uint16, y int) uint16 {
+		fn: `func rot16l(x uint16, y int) uint16 {
 			z := uint(y & 15)
 			return x << z | x >> (16-z)
 		}`,
-		[]string{"\tROLW\t"},
-		[]string{},
+		pos: []string{"\tROLW\t"},
 	},
 	{
-		`func rot16r(x uint16, y int) uint16 {
+		fn: `func rot16r(x uint16, y int) uint16 {
 			z := uint(y & 15)
 			return x >> z | x << (16-z)
 		}`,
-		[]string{"\tRORW\t"},
-		[]string{},
+		pos: []string{"\tRORW\t"},
 	},
 	{
-		`func rot8l(x uint8, y int) uint8 {
+		fn: `func rot8l(x uint8, y int) uint8 {
 			z := uint(y & 7)
 			return x << z | x >> (8-z)
 		}`,
-		[]string{"\tROLB\t"},
-		[]string{},
+		pos: []string{"\tROLB\t"},
 	},
 	{
-		`func rot8r(x uint8, y int) uint8 {
+		fn: `func rot8r(x uint8, y int) uint8 {
 			z := uint(y & 7)
 			return x >> z | x << (8-z)
 		}`,
-		[]string{"\tRORB\t"},
-		[]string{},
+		pos: []string{"\tRORB\t"},
 	},
 	// Check that array compare uses 2/4/8 byte compares
 	{
-		`
+		fn: `
 		func f68(a,b [2]byte) bool {
 		    return a == b
 		}`,
-		[]string{"\tCMPW\t[A-Z]"},
-		[]string{},
+		pos: []string{"\tCMPW\t[A-Z]"},
 	},
 	{
-		`
+		fn: `
 		func f69(a,b [3]uint16) bool {
 		    return a == b
 		}`,
-		[]string{"\tCMPL\t[A-Z]"},
-		[]string{},
+		pos: []string{"\tCMPL\t[A-Z]"},
 	},
 	{
-		`
+		fn: `
 		func f70(a,b [15]byte) bool {
 		    return a == b
 		}`,
-		[]string{"\tCMPQ\t[A-Z]"},
-		[]string{},
+		pos: []string{"\tCMPQ\t[A-Z]"},
 	},
 	{
-		`
+		fn: `
 		func f71(a,b unsafe.Pointer) bool { // This was a TODO in mapaccess1_faststr
 		    return *((*[4]byte)(a)) != *((*[4]byte)(b))
 		}`,
-		[]string{"\tCMPL\t[A-Z]"},
-		[]string{},
+		pos: []string{"\tCMPL\t[A-Z]"},
 	},
 	{
 		// make sure assembly output has matching offset and base register.
-		`
+		fn: `
 		func f72(a, b int) int {
 			//go:noinline
 			func() {_, _ = a, b} () // use some frame
 			return b
 		}
 		`,
-		[]string{"b\\+40\\(SP\\)"},
-		[]string{},
+		pos: []string{"b\\+40\\(SP\\)"},
 	},
 	{
 		// check load combining
-		`
+		fn: `
 		func f73(a, b byte) (byte,byte) {
 		    return f73(f73(a,b))
 		}
 		`,
-		[]string{"\tMOVW\t"},
-		[]string{},
+		pos: []string{"\tMOVW\t"},
 	},
 	{
-		`
+		fn: `
 		func f74(a, b uint16) (uint16,uint16) {
 		    return f74(f74(a,b))
 		}
 		`,
-		[]string{"\tMOVL\t"},
-		[]string{},
+		pos: []string{"\tMOVL\t"},
 	},
 	{
-		`
+		fn: `
 		func f75(a, b uint32) (uint32,uint32) {
 		    return f75(f75(a,b))
 		}
 		`,
-		[]string{"\tMOVQ\t"},
-		[]string{},
+		pos: []string{"\tMOVQ\t"},
 	},
 	{
-		`
+		fn: `
 		func f76(a, b uint64) (uint64,uint64) {
 		    return f76(f76(a,b))
 		}
 		`,
-		[]string{"\tMOVUPS\t"},
-		[]string{},
+		pos: []string{"\tMOVUPS\t"},
 	},
 	// Make sure we don't put pointers in SSE registers across safe points.
 	{
-		`
+		fn: `
 		func $(p, q *[2]*int)  {
 		    a, b := p[0], p[1]
 		    runtime.GC()
 		    q[0], q[1] = a, b
 		}
 		`,
-		[]string{},
-		[]string{"MOVUPS"},
+		neg: []string{"MOVUPS"},
 	},
 	{
 		// check that stack store is optimized away
-		`
+		fn: `
 		func $() int {
 			var x int
 			return *(&x)
 		}
 		`,
-		[]string{"TEXT\t.*, [$]0-8"},
-		[]string{},
+		pos: []string{"TEXT\t.*, [$]0-8"},
 	},
 	// math.Abs using integer registers
 	{
-		`
+		fn: `
 		func $(x float64) float64 {
 			return math.Abs(x)
 		}
 		`,
-		[]string{"\tSHLQ\t[$]1,", "\tSHRQ\t[$]1,"},
-		[]string{},
+		pos: []string{"\tSHLQ\t[$]1,", "\tSHRQ\t[$]1,"},
 	},
 	// math.Copysign using integer registers
 	{
-		`
+		fn: `
 		func $(x, y float64) float64 {
 			return math.Copysign(x, y)
 		}
 		`,
-		[]string{"\tSHLQ\t[$]1,", "\tSHRQ\t[$]1,", "\tSHRQ\t[$]63,", "\tSHLQ\t[$]63,", "\tORQ\t"},
-		[]string{},
+		pos: []string{"\tSHLQ\t[$]1,", "\tSHRQ\t[$]1,", "\tSHRQ\t[$]63,", "\tSHLQ\t[$]63,", "\tORQ\t"},
 	},
 	// int <-> fp moves
 	{
-		`
+		fn: `
 		func $(x float64) uint64 {
 			return math.Float64bits(x+1) + 1
 		}
 		`,
-		[]string{"\tMOVQ\tX.*, [^X].*"},
-		[]string{},
+		pos: []string{"\tMOVQ\tX.*, [^X].*"},
 	},
 	{
-		`
+		fn: `
 		func $(x float32) uint32 {
 			return math.Float32bits(x+1) + 1
 		}
 		`,
-		[]string{"\tMOVL\tX.*, [^X].*"},
-		[]string{},
+		pos: []string{"\tMOVL\tX.*, [^X].*"},
 	},
 	{
-		`
+		fn: `
 		func $(x uint64) float64 {
 			return math.Float64frombits(x+1) + 1
 		}
 		`,
-		[]string{"\tMOVQ\t[^X].*, X.*"},
-		[]string{},
+		pos: []string{"\tMOVQ\t[^X].*, X.*"},
 	},
 	{
-		`
+		fn: `
 		func $(x uint32) float32 {
 			return math.Float32frombits(x+1) + 1
 		}
 		`,
-		[]string{"\tMOVL\t[^X].*, X.*"},
-		[]string{},
+		pos: []string{"\tMOVL\t[^X].*, X.*"},
 	},
 }
 
 var linux386Tests = []*asmTest{
 	{
-		`
+		fn: `
 		func f0(b []byte) uint32 {
 			return binary.LittleEndian.Uint32(b)
 		}
 		`,
-		[]string{"\tMOVL\t\\(.*\\),"},
-		[]string{},
+		pos: []string{"\tMOVL\t\\(.*\\),"},
 	},
 	{
-		`
+		fn: `
 		func f1(b []byte, i int) uint32 {
 			return binary.LittleEndian.Uint32(b[i:])
 		}
 		`,
-		[]string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
-		[]string{},
+		pos: []string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
 	},
 
 	// multiplication merging tests
 	{
-		`
+		fn: `
 		func $(n int) int {
 			return 9*n + 14*n
 		}`,
-		[]string{"\tIMULL\t[$]23"}, // 23*n
-		[]string{},
+		pos: []string{"\tIMULL\t[$]23"}, // 23*n
 	},
 	{
-		`
+		fn: `
 		func $(a, n int) int {
 			return 19*a + a*n
 		}`,
-		[]string{"\tADDL\t[$]19", "\tIMULL"}, // (n+19)*a
-		[]string{},
+		pos: []string{"\tADDL\t[$]19", "\tIMULL"}, // (n+19)*a
 	},
 	{
 		// check that stack store is optimized away
-		`
+		fn: `
 		func $() int {
 			var x int
 			return *(&x)
 		}
 		`,
-		[]string{"TEXT\t.*, [$]0-4"},
-		[]string{},
+		pos: []string{"TEXT\t.*, [$]0-4"},
 	},
 }
 
 var linuxS390XTests = []*asmTest{
 	{
-		`
+		fn: `
 		func f0(b []byte) uint32 {
 			return binary.LittleEndian.Uint32(b)
 		}
 		`,
-		[]string{"\tMOVWBR\t\\(.*\\),"},
-		[]string{},
+		pos: []string{"\tMOVWBR\t\\(.*\\),"},
 	},
 	{
-		`
+		fn: `
 		func f1(b []byte, i int) uint32 {
 			return binary.LittleEndian.Uint32(b[i:])
 		}
 		`,
-		[]string{"\tMOVWBR\t\\(.*\\)\\(.*\\*1\\),"},
-		[]string{},
+		pos: []string{"\tMOVWBR\t\\(.*\\)\\(.*\\*1\\),"},
 	},
 	{
-		`
+		fn: `
 		func f2(b []byte) uint64 {
 			return binary.LittleEndian.Uint64(b)
 		}
 		`,
-		[]string{"\tMOVDBR\t\\(.*\\),"},
-		[]string{},
+		pos: []string{"\tMOVDBR\t\\(.*\\),"},
 	},
 	{
-		`
+		fn: `
 		func f3(b []byte, i int) uint64 {
 			return binary.LittleEndian.Uint64(b[i:])
 		}
 		`,
-		[]string{"\tMOVDBR\t\\(.*\\)\\(.*\\*1\\),"},
-		[]string{},
+		pos: []string{"\tMOVDBR\t\\(.*\\)\\(.*\\*1\\),"},
 	},
 	{
-		`
+		fn: `
 		func f4(b []byte) uint32 {
 			return binary.BigEndian.Uint32(b)
 		}
 		`,
-		[]string{"\tMOVWZ\t\\(.*\\),"},
-		[]string{},
+		pos: []string{"\tMOVWZ\t\\(.*\\),"},
 	},
 	{
-		`
+		fn: `
 		func f5(b []byte, i int) uint32 {
 			return binary.BigEndian.Uint32(b[i:])
 		}
 		`,
-		[]string{"\tMOVWZ\t\\(.*\\)\\(.*\\*1\\),"},
-		[]string{},
+		pos: []string{"\tMOVWZ\t\\(.*\\)\\(.*\\*1\\),"},
 	},
 	{
-		`
+		fn: `
 		func f6(b []byte) uint64 {
 			return binary.BigEndian.Uint64(b)
 		}
 		`,
-		[]string{"\tMOVD\t\\(.*\\),"},
-		[]string{},
+		pos: []string{"\tMOVD\t\\(.*\\),"},
 	},
 	{
-		`
+		fn: `
 		func f7(b []byte, i int) uint64 {
 			return binary.BigEndian.Uint64(b[i:])
 		}
 		`,
-		[]string{"\tMOVD\t\\(.*\\)\\(.*\\*1\\),"},
-		[]string{},
+		pos: []string{"\tMOVD\t\\(.*\\)\\(.*\\*1\\),"},
 	},
 	{
-		`
+		fn: `
 		func f8(x uint64) uint64 {
 			return x<<7 + x>>57
 		}
 		`,
-		[]string{"\tRLLG\t[$]7,"},
-		[]string{},
+		pos: []string{"\tRLLG\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f9(x uint64) uint64 {
 			return x<<7 | x>>57
 		}
 		`,
-		[]string{"\tRLLG\t[$]7,"},
-		[]string{},
+		pos: []string{"\tRLLG\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f10(x uint64) uint64 {
 			return x<<7 ^ x>>57
 		}
 		`,
-		[]string{"\tRLLG\t[$]7,"},
-		[]string{},
+		pos: []string{"\tRLLG\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f11(x uint32) uint32 {
 			return x<<7 + x>>25
 		}
 		`,
-		[]string{"\tRLL\t[$]7,"},
-		[]string{},
+		pos: []string{"\tRLL\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f12(x uint32) uint32 {
 			return x<<7 | x>>25
 		}
 		`,
-		[]string{"\tRLL\t[$]7,"},
-		[]string{},
+		pos: []string{"\tRLL\t[$]7,"},
 	},
 	{
-		`
+		fn: `
 		func f13(x uint32) uint32 {
 			return x<<7 ^ x>>25
 		}
 		`,
-		[]string{"\tRLL\t[$]7,"},
-		[]string{},
+		pos: []string{"\tRLL\t[$]7,"},
 	},
 	// Fused multiply-add/sub instructions.
 	{
-		`
+		fn: `
 		func f14(x, y, z float64) float64 {
 			return x * y + z
 		}
 		`,
-		[]string{"\tFMADD\t"},
-		[]string{},
+		pos: []string{"\tFMADD\t"},
 	},
 	{
-		`
+		fn: `
 		func f15(x, y, z float64) float64 {
 			return x * y - z
 		}
 		`,
-		[]string{"\tFMSUB\t"},
-		[]string{},
+		pos: []string{"\tFMSUB\t"},
 	},
 	{
-		`
+		fn: `
 		func f16(x, y, z float32) float32 {
 			return x * y + z
 		}
 		`,
-		[]string{"\tFMADDS\t"},
-		[]string{},
+		pos: []string{"\tFMADDS\t"},
 	},
 	{
-		`
+		fn: `
 		func f17(x, y, z float32) float32 {
 			return x * y - z
 		}
 		`,
-		[]string{"\tFMSUBS\t"},
-		[]string{},
+		pos: []string{"\tFMSUBS\t"},
 	},
 	// Intrinsic tests for math/bits
 	{
-		`
+		fn: `
 		func f18(a uint64) int {
 			return bits.TrailingZeros64(a)
 		}
 		`,
-		[]string{"\tFLOGR\t"},
-		[]string{},
+		pos: []string{"\tFLOGR\t"},
 	},
 	{
-		`
+		fn: `
 		func f19(a uint32) int {
 			return bits.TrailingZeros32(a)
 		}
 		`,
-		[]string{"\tFLOGR\t", "\tMOVWZ\t"},
-		[]string{},
+		pos: []string{"\tFLOGR\t", "\tMOVWZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f20(a uint16) int {
 			return bits.TrailingZeros16(a)
 		}
 		`,
-		[]string{"\tFLOGR\t", "\tOR\t\\$65536,"},
-		[]string{},
+		pos: []string{"\tFLOGR\t", "\tOR\t\\$65536,"},
 	},
 	{
-		`
+		fn: `
 		func f21(a uint8) int {
 			return bits.TrailingZeros8(a)
 		}
 		`,
-		[]string{"\tFLOGR\t", "\tOR\t\\$256,"},
-		[]string{},
+		pos: []string{"\tFLOGR\t", "\tOR\t\\$256,"},
 	},
 	// Intrinsic tests for math/bits
 	{
-		`
+		fn: `
 		func f22(a uint64) uint64 {
 			return bits.ReverseBytes64(a)
 		}
 		`,
-		[]string{"\tMOVDBR\t"},
-		[]string{},
+		pos: []string{"\tMOVDBR\t"},
 	},
 	{
-		`
+		fn: `
 		func f23(a uint32) uint32 {
 			return bits.ReverseBytes32(a)
 		}
 		`,
-		[]string{"\tMOVWBR\t"},
-		[]string{},
+		pos: []string{"\tMOVWBR\t"},
 	},
 	{
-		`
+		fn: `
 		func f24(a uint64) int {
 			return bits.Len64(a)
 		}
 		`,
-		[]string{"\tFLOGR\t"},
-		[]string{},
+		pos: []string{"\tFLOGR\t"},
 	},
 	{
-		`
+		fn: `
 		func f25(a uint32) int {
 			return bits.Len32(a)
 		}
 		`,
-		[]string{"\tFLOGR\t"},
-		[]string{},
+		pos: []string{"\tFLOGR\t"},
 	},
 	{
-		`
+		fn: `
 		func f26(a uint16) int {
 			return bits.Len16(a)
 		}
 		`,
-		[]string{"\tFLOGR\t"},
-		[]string{},
+		pos: []string{"\tFLOGR\t"},
 	},
 	{
-		`
+		fn: `
 		func f27(a uint8) int {
 			return bits.Len8(a)
 		}
 		`,
-		[]string{"\tFLOGR\t"},
-		[]string{},
+		pos: []string{"\tFLOGR\t"},
 	},
 	{
-		`
+		fn: `
 		func f28(a uint) int {
 			return bits.Len(a)
 		}
 		`,
-		[]string{"\tFLOGR\t"},
-		[]string{},
+		pos: []string{"\tFLOGR\t"},
 	},
 	{
-		`
+		fn: `
 		func f29(a uint64) int {
 			return bits.LeadingZeros64(a)
 		}
 		`,
-		[]string{"\tFLOGR\t"},
-		[]string{},
+		pos: []string{"\tFLOGR\t"},
 	},
 	{
-		`
+		fn: `
 		func f30(a uint32) int {
 			return bits.LeadingZeros32(a)
 		}
 		`,
-		[]string{"\tFLOGR\t"},
-		[]string{},
+		pos: []string{"\tFLOGR\t"},
 	},
 	{
-		`
+		fn: `
 		func f31(a uint16) int {
 			return bits.LeadingZeros16(a)
 		}
 		`,
-		[]string{"\tFLOGR\t"},
-		[]string{},
+		pos: []string{"\tFLOGR\t"},
 	},
 	{
-		`
+		fn: `
 		func f32(a uint8) int {
 			return bits.LeadingZeros8(a)
 		}
 		`,
-		[]string{"\tFLOGR\t"},
-		[]string{},
+		pos: []string{"\tFLOGR\t"},
 	},
 	{
-		`
+		fn: `
 		func f33(a uint) int {
 			return bits.LeadingZeros(a)
 		}
 		`,
-		[]string{"\tFLOGR\t"},
-		[]string{},
+		pos: []string{"\tFLOGR\t"},
 	},
 	{
 		// check that stack store is optimized away
-		`
+		fn: `
 		func $() int {
 			var x int
 			return *(&x)
 		}
 		`,
-		[]string{"TEXT\t.*, [$]0-8"},
-		[]string{},
+		pos: []string{"TEXT\t.*, [$]0-8"},
 	},
 }
 
 var linuxARMTests = []*asmTest{
 	{
-		`
+		fn: `
 		func f0(x uint32) uint32 {
 			return x<<7 + x>>25
 		}
 		`,
-		[]string{"\tMOVW\tR[0-9]+@>25,"},
-		[]string{},
+		pos: []string{"\tMOVW\tR[0-9]+@>25,"},
 	},
 	{
-		`
+		fn: `
 		func f1(x uint32) uint32 {
 			return x<<7 | x>>25
 		}
 		`,
-		[]string{"\tMOVW\tR[0-9]+@>25,"},
-		[]string{},
+		pos: []string{"\tMOVW\tR[0-9]+@>25,"},
 	},
 	{
-		`
+		fn: `
 		func f2(x uint32) uint32 {
 			return x<<7 ^ x>>25
 		}
 		`,
-		[]string{"\tMOVW\tR[0-9]+@>25,"},
-		[]string{},
+		pos: []string{"\tMOVW\tR[0-9]+@>25,"},
 	},
 	{
-		`
+		fn: `
 		func f3(a uint64) int {
 			return bits.Len64(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f4(a uint32) int {
 			return bits.Len32(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f5(a uint16) int {
 			return bits.Len16(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f6(a uint8) int {
 			return bits.Len8(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f7(a uint) int {
 			return bits.Len(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f8(a uint64) int {
 			return bits.LeadingZeros64(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f9(a uint32) int {
 			return bits.LeadingZeros32(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f10(a uint16) int {
 			return bits.LeadingZeros16(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f11(a uint8) int {
 			return bits.LeadingZeros8(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f12(a uint) int {
 			return bits.LeadingZeros(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
 		// make sure assembly output has matching offset and base register.
-		`
+		fn: `
 		func f13(a, b int) int {
 			//go:noinline
 			func() {_, _ = a, b} () // use some frame
 			return b
 		}
 		`,
-		[]string{"b\\+4\\(FP\\)"},
-		[]string{},
+		pos: []string{"b\\+4\\(FP\\)"},
 	},
 	{
 		// check that stack store is optimized away
-		`
+		fn: `
 		func $() int {
 			var x int
 			return *(&x)
 		}
 		`,
-		[]string{"TEXT\t.*, [$]-4-4"},
-		[]string{},
+		pos: []string{"TEXT\t.*, [$]-4-4"},
 	},
 }
 
 var linuxARM64Tests = []*asmTest{
 	{
-		`
+		fn: `
 		func f0(x uint64) uint64 {
 			return x<<7 + x>>57
 		}
 		`,
-		[]string{"\tROR\t[$]57,"},
-		[]string{},
+		pos: []string{"\tROR\t[$]57,"},
 	},
 	{
-		`
+		fn: `
 		func f1(x uint64) uint64 {
 			return x<<7 | x>>57
 		}
 		`,
-		[]string{"\tROR\t[$]57,"},
-		[]string{},
+		pos: []string{"\tROR\t[$]57,"},
 	},
 	{
-		`
+		fn: `
 		func f2(x uint64) uint64 {
 			return x<<7 ^ x>>57
 		}
 		`,
-		[]string{"\tROR\t[$]57,"},
-		[]string{},
+		pos: []string{"\tROR\t[$]57,"},
 	},
 	{
-		`
+		fn: `
 		func f3(x uint32) uint32 {
 			return x<<7 + x>>25
 		}
 		`,
-		[]string{"\tRORW\t[$]25,"},
-		[]string{},
+		pos: []string{"\tRORW\t[$]25,"},
 	},
 	{
-		`
+		fn: `
 		func f4(x uint32) uint32 {
 			return x<<7 | x>>25
 		}
 		`,
-		[]string{"\tRORW\t[$]25,"},
-		[]string{},
+		pos: []string{"\tRORW\t[$]25,"},
 	},
 	{
-		`
+		fn: `
 		func f5(x uint32) uint32 {
 			return x<<7 ^ x>>25
 		}
 		`,
-		[]string{"\tRORW\t[$]25,"},
-		[]string{},
+		pos: []string{"\tRORW\t[$]25,"},
 	},
 	{
-		`
+		fn: `
 		func f22(a uint64) uint64 {
 			return bits.ReverseBytes64(a)
 		}
 		`,
-		[]string{"\tREV\t"},
-		[]string{},
+		pos: []string{"\tREV\t"},
 	},
 	{
-		`
+		fn: `
 		func f23(a uint32) uint32 {
 			return bits.ReverseBytes32(a)
 		}
 		`,
-		[]string{"\tREVW\t"},
-		[]string{},
+		pos: []string{"\tREVW\t"},
 	},
 	{
-		`
+		fn: `
 		func f24(a uint64) int {
 			return bits.Len64(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f25(a uint32) int {
 			return bits.Len32(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f26(a uint16) int {
 			return bits.Len16(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f27(a uint8) int {
 			return bits.Len8(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f28(a uint) int {
 			return bits.Len(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f29(a uint64) int {
 			return bits.LeadingZeros64(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f30(a uint32) int {
 			return bits.LeadingZeros32(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f31(a uint16) int {
 			return bits.LeadingZeros16(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f32(a uint8) int {
 			return bits.LeadingZeros8(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f33(a uint) int {
 			return bits.LeadingZeros(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f34(a uint64) uint64 {
 			return a & ((1<<63)-1)
 		}
 		`,
-		[]string{"\tAND\t"},
-		[]string{},
+		pos: []string{"\tAND\t"},
 	},
 	{
-		`
+		fn: `
 		func f35(a uint64) uint64 {
 			return a & (1<<63)
 		}
 		`,
-		[]string{"\tAND\t"},
-		[]string{},
+		pos: []string{"\tAND\t"},
 	},
 	{
 		// make sure offsets are folded into load and store.
-		`
+		fn: `
 		func f36(_, a [20]byte) (b [20]byte) {
 			b = a
 			return
 		}
 		`,
-		[]string{"\tMOVD\t\"\"\\.a\\+[0-9]+\\(FP\\), R[0-9]+", "\tMOVD\tR[0-9]+, \"\"\\.b\\+[0-9]+\\(FP\\)"},
-		[]string{},
+		pos: []string{"\tMOVD\t\"\"\\.a\\+[0-9]+\\(FP\\), R[0-9]+", "\tMOVD\tR[0-9]+, \"\"\\.b\\+[0-9]+\\(FP\\)"},
 	},
 	{
 		// check that stack store is optimized away
-		`
+		fn: `
 		func $() int {
 			var x int
 			return *(&x)
 		}
 		`,
-		[]string{"TEXT\t.*, [$]-8-8"},
-		[]string{},
+		pos: []string{"TEXT\t.*, [$]-8-8"},
 	},
 }
 
 var linuxMIPSTests = []*asmTest{
 	{
-		`
+		fn: `
 		func f0(a uint64) int {
 			return bits.Len64(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f1(a uint32) int {
 			return bits.Len32(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f2(a uint16) int {
 			return bits.Len16(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f3(a uint8) int {
 			return bits.Len8(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f4(a uint) int {
 			return bits.Len(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f5(a uint64) int {
 			return bits.LeadingZeros64(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f6(a uint32) int {
 			return bits.LeadingZeros32(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f7(a uint16) int {
 			return bits.LeadingZeros16(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f8(a uint8) int {
 			return bits.LeadingZeros8(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
-		`
+		fn: `
 		func f9(a uint) int {
 			return bits.LeadingZeros(a)
 		}
 		`,
-		[]string{"\tCLZ\t"},
-		[]string{},
+		pos: []string{"\tCLZ\t"},
 	},
 	{
 		// check that stack store is optimized away
-		`
+		fn: `
 		func $() int {
 			var x int
 			return *(&x)
 		}
 		`,
-		[]string{"TEXT\t.*, [$]-4-4"},
-		[]string{},
+		pos: []string{"TEXT\t.*, [$]-4-4"},
 	},
 }
 
 var linuxPPC64LETests = []*asmTest{
 	// Fused multiply-add/sub instructions.
 	{
-		`
+		fn: `
 		func f0(x, y, z float64) float64 {
 			return x * y + z
 		}
 		`,
-		[]string{"\tFMADD\t"},
-		[]string{},
+		pos: []string{"\tFMADD\t"},
 	},
 	{
-		`
+		fn: `
 		func f1(x, y, z float64) float64 {
 			return x * y - z
 		}
 		`,
-		[]string{"\tFMSUB\t"},
-		[]string{},
+		pos: []string{"\tFMSUB\t"},
 	},
 	{
-		`
+		fn: `
 		func f2(x, y, z float32) float32 {
 			return x * y + z
 		}
 		`,
-		[]string{"\tFMADDS\t"},
-		[]string{},
+		pos: []string{"\tFMADDS\t"},
 	},
 	{
-		`
+		fn: `
 		func f3(x, y, z float32) float32 {
 			return x * y - z
 		}
 		`,
-		[]string{"\tFMSUBS\t"},
-		[]string{},
+		pos: []string{"\tFMSUBS\t"},
 	},
 	{
-		`
+		fn: `
 		func f4(x uint32) uint32 {
 			return x<<7 | x>>25
 		}
 		`,
-		[]string{"\tROTLW\t"},
-		[]string{},
+		pos: []string{"\tROTLW\t"},
 	},
 	{
-		`
+		fn: `
 		func f5(x uint32) uint32 {
 			return x<<7 + x>>25
 		}
 		`,
-		[]string{"\tROTLW\t"},
-		[]string{},
+		pos: []string{"\tROTLW\t"},
 	},
 	{
-		`
+		fn: `
 		func f6(x uint32) uint32 {
 			return x<<7 ^ x>>25
 		}
 		`,
-		[]string{"\tROTLW\t"},
-		[]string{},
+		pos: []string{"\tROTLW\t"},
 	},
 	{
-		`
+		fn: `
 		func f7(x uint64) uint64 {
 			return x<<7 | x>>57
 		}
 		`,
-		[]string{"\tROTL\t"},
-		[]string{},
+		pos: []string{"\tROTL\t"},
 	},
 	{
-		`
+		fn: `
 		func f8(x uint64) uint64 {
 			return x<<7 + x>>57
 		}
 		`,
-		[]string{"\tROTL\t"},
-		[]string{},
+		pos: []string{"\tROTL\t"},
 	},
 	{
-		`
+		fn: `
 		func f9(x uint64) uint64 {
 			return x<<7 ^ x>>57
 		}
 		`,
-		[]string{"\tROTL\t"},
-		[]string{},
+		pos: []string{"\tROTL\t"},
 	},
 	{
 		// check that stack store is optimized away
-		`
+		fn: `
 		func $() int {
 			var x int
 			return *(&x)
 		}
 		`,
-		[]string{"TEXT\t.*, [$]0-8"},
-		[]string{},
+		pos: []string{"TEXT\t.*, [$]0-8"},
 	},
 }
 
@@ -2137,25 +1939,23 @@ var plan9AMD64Tests = []*asmTest{
 	// operations are not allowed in the note handler.
 	// Array zeroing.
 	{
-		`
+		fn: `
 		func $() [16]byte {
 			var a [16]byte
 			return a
 		}
 		`,
-		[]string{"\tMOVQ\t\\$0, \"\""},
-		[]string{},
+		pos: []string{"\tMOVQ\t\\$0, \"\""},
 	},
 	// Array copy.
 	{
-		`
+		fn: `
 		func $(a [16]byte) (b [16]byte) {
 			b = a
 			return
 		}
 		`,
-		[]string{"\tMOVQ\t\"\"\\.a\\+[0-9]+\\(SP\\), (AX|CX)", "\tMOVQ\t(AX|CX), \"\"\\.b\\+[0-9]+\\(SP\\)"},
-		[]string{},
+		pos: []string{"\tMOVQ\t\"\"\\.a\\+[0-9]+\\(SP\\), (AX|CX)", "\tMOVQ\t(AX|CX), \"\"\\.b\\+[0-9]+\\(SP\\)"},
 	},
 }
 
