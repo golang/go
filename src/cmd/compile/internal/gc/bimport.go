@@ -326,29 +326,29 @@ func idealType(typ *types.Type) *types.Type {
 func (p *importer) obj(tag int) {
 	switch tag {
 	case constTag:
-		p.pos()
+		pos := p.pos()
 		sym := p.qualifiedName()
 		typ := p.typ()
 		val := p.value(typ)
-		importconst(p.imp, sym, idealType(typ), nodlit(val))
+		importconst(p.imp, sym, idealType(typ), npos(pos, nodlit(val)))
 
 	case aliasTag:
-		p.pos()
+		pos := p.pos()
 		sym := p.qualifiedName()
 		typ := p.typ()
-		importalias(p.imp, sym, typ)
+		importalias(pos, p.imp, sym, typ)
 
 	case typeTag:
 		p.typ()
 
 	case varTag:
-		p.pos()
+		pos := p.pos()
 		sym := p.qualifiedName()
 		typ := p.typ()
-		importvar(p.imp, sym, typ)
+		importvar(pos, p.imp, sym, typ)
 
 	case funcTag:
-		p.pos()
+		pos := p.pos()
 		sym := p.qualifiedName()
 		params := p.paramList()
 		result := p.paramList()
@@ -364,7 +364,7 @@ func (p *importer) obj(tag int) {
 			break
 		}
 
-		n := newfuncname(sym)
+		n := newfuncnamel(pos, sym)
 		n.Type = sig
 		declare(n, PFUNC)
 		p.funcList = append(p.funcList, n)
@@ -479,10 +479,10 @@ func (p *importer) typ() *types.Type {
 	var t *types.Type
 	switch i {
 	case namedTag:
-		p.pos()
+		pos := p.pos()
 		tsym := p.qualifiedName()
 
-		t = pkgtype(p.imp, tsym)
+		t = pkgtype(pos, p.imp, tsym)
 		p.typList = append(p.typList, t)
 		dup := !t.IsKind(types.TFORW) // type already imported
 
@@ -502,7 +502,7 @@ func (p *importer) typ() *types.Type {
 
 		// read associated methods
 		for i := p.int(); i > 0; i-- {
-			p.pos()
+			mpos := p.pos()
 			sym := p.fieldSym()
 
 			// during import unexported method names should be in the type's package
@@ -525,7 +525,7 @@ func (p *importer) typ() *types.Type {
 				continue
 			}
 
-			n := newfuncname(methodname(sym, recv[0].Type))
+			n := newfuncnamel(mpos, methodname(sym, recv[0].Type))
 			n.Type = mt
 			checkwidth(n.Type)
 			p.funcList = append(p.funcList, n)
@@ -626,7 +626,7 @@ func (p *importer) fieldList() (fields []*types.Field) {
 }
 
 func (p *importer) field() *types.Field {
-	p.pos()
+	pos := p.pos()
 	sym, alias := p.fieldName()
 	typ := p.typ()
 	note := p.string()
@@ -646,7 +646,7 @@ func (p *importer) field() *types.Field {
 	}
 
 	f.Sym = sym
-	f.Nname = asTypesNode(newname(sym))
+	f.Nname = asTypesNode(newnamel(pos, sym))
 	f.Type = typ
 	f.Note = note
 
@@ -670,14 +670,14 @@ func (p *importer) methodList() (methods []*types.Field) {
 }
 
 func (p *importer) method() *types.Field {
-	p.pos()
+	pos := p.pos()
 	sym := p.methodName()
 	params := p.paramList()
 	result := p.paramList()
 
 	f := types.NewField()
 	f.Sym = sym
-	f.Nname = asTypesNode(newname(sym))
+	f.Nname = asTypesNode(newnamel(pos, sym))
 	f.Type = functypefield(fakeRecvField(), params, result)
 	return f
 }

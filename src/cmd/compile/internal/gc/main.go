@@ -874,7 +874,7 @@ func loadsys() {
 			n.Type = typ
 			declare(n, PFUNC)
 		case varTag:
-			importvar(Runtimepkg, sym, typ)
+			importvar(lineno, Runtimepkg, sym, typ)
 		default:
 			Fatalf("unhandled declaration tag %v", d.tag)
 		}

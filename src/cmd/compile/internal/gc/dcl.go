@@ -212,7 +212,13 @@ func newnoname(s *types.Sym) *Node {
 // newfuncname generates a new name node for a function or method.
 // TODO(rsc): Use an ODCLFUNC node instead. See comment in CL 7360.
 func newfuncname(s *types.Sym) *Node {
-	n := newname(s)
+	return newfuncnamel(lineno, s)
+}
+
+// newfuncnamel generates a new name node for a function or method.
+// TODO(rsc): Use an ODCLFUNC node instead. See comment in CL 7360.
+func newfuncnamel(pos src.XPos, s *types.Sym) *Node {
+	n := newnamel(pos, s)
 	n.Func = new(Func)
 	n.Func.SetIsHiddenClosure(Curfn != nil)
 	return n
@@ -227,11 +233,15 @@ func dclname(s *types.Sym) *Node {
 }
 
 func typenod(t *types.Type) *Node {
+	return typenodl(lineno, t)
+}
+
+func typenodl(pos src.XPos, t *types.Type) *Node {
 	// if we copied another type with *t = *u
 	// then t->nod might be out of date, so
 	// check t->nod->type too
 	if asNode(t.Nod) == nil || asNode(t.Nod).Type != t {
-		t.Nod = asTypesNode(nod(OTYPE, nil, nil))
+		t.Nod = asTypesNode(nodl(pos, OTYPE, nil, nil))
 		asNode(t.Nod).Type = t
 		asNode(t.Nod).Sym = t.Sym
 	}
