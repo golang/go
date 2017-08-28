@@ -696,6 +696,64 @@ func (f *peFile) mapToPESection(s *Symbol) (pesectidx int, offset int64, err err
 	return f.bssSect.index, int64(v - Segdata.Filelen), nil
 }
 
+// writeSymbols writes all COFF symbol table records.
+func (f *peFile) writeSymbols(ctxt *Link) {
+
+	put := func(ctxt *Link, s *Symbol, name string, type_ SymbolType, addr int64, gotype *Symbol) {
+		if s == nil {
+			return
+		}
+		if s.Sect == nil && type_ != UndefinedSym {
+			return
+		}
+		switch type_ {
+		default:
+			return
+		case DataSym, BSSSym, TextSym, UndefinedSym:
+		}
+
+		// Only windows/386 requires underscore prefix on external symbols.
+		if SysArch.Family == sys.I386 &&
+			Linkmode == LinkExternal &&
+			(s.Type == SHOSTOBJ || s.Attr.CgoExport()) {
+			s.Name = "_" + s.Name
+		}
+
+		var typ uint16
+		if Linkmode == LinkExternal {
+			typ = IMAGE_SYM_TYPE_NULL
+		} else {
+			// TODO: fix IMAGE_SYM_DTYPE_ARRAY value and use following expression, instead of 0x0308
+			typ = IMAGE_SYM_DTYPE_ARRAY<<8 + IMAGE_SYM_TYPE_STRUCT
+			typ = 0x0308 // "array of structs"
+		}
+		sect, value, err := f.mapToPESection(s)
+		if err != nil {
+			if type_ == UndefinedSym {
+				typ = IMAGE_SYM_DTYPE_FUNCTION
+			} else {
+				Errorf(s, "addpesym: %v", err)
+			}
+		}
+		class := IMAGE_SYM_CLASS_EXTERNAL
+		if s.Version != 0 || (s.Type&SHIDDEN != 0) || s.Attr.Local() {
+			class = IMAGE_SYM_CLASS_STATIC
+		}
+		f.writeSymbol(s, value, sect, typ, uint8(class))
+	}
+
+	if Linkmode == LinkExternal {
+		// Include section symbols as external, because
+		// .ctors and .debug_* section relocations refer to it.
+		for _, pesect := range f.sections {
+			sym := ctxt.Syms.Lookup(pesect.name, 0)
+			f.writeSymbol(sym, 0, pesect.index, IMAGE_SYM_TYPE_NULL, IMAGE_SYM_CLASS_STATIC)
+		}
+	}
+
+	genasmsym(ctxt, put)
+}
+
 var pefile peFile
 
 func Peinit(ctxt *Link) {
@@ -1080,70 +1138,12 @@ func (ctxt *Link) dope() {
 	initdynexport(ctxt)
 }
 
-// writePESymTableRecords writes all COFF symbol table records.
-func writePESymTableRecords(ctxt *Link) {
-
-	put := func(ctxt *Link, s *Symbol, name string, type_ SymbolType, addr int64, gotype *Symbol) {
-		if s == nil {
-			return
-		}
-		if s.Sect == nil && type_ != UndefinedSym {
-			return
-		}
-		switch type_ {
-		default:
-			return
-		case DataSym, BSSSym, TextSym, UndefinedSym:
-		}
-
-		// Only windows/386 requires underscore prefix on external symbols.
-		if SysArch.Family == sys.I386 &&
-			Linkmode == LinkExternal &&
-			(s.Type == SHOSTOBJ || s.Attr.CgoExport()) {
-			s.Name = "_" + s.Name
-		}
-
-		var typ uint16
-		if Linkmode == LinkExternal {
-			typ = IMAGE_SYM_TYPE_NULL
-		} else {
-			// TODO: fix IMAGE_SYM_DTYPE_ARRAY value and use following expression, instead of 0x0308
-			typ = IMAGE_SYM_DTYPE_ARRAY<<8 + IMAGE_SYM_TYPE_STRUCT
-			typ = 0x0308 // "array of structs"
-		}
-		sect, value, err := pefile.mapToPESection(s)
-		if err != nil {
-			if type_ == UndefinedSym {
-				typ = IMAGE_SYM_DTYPE_FUNCTION
-			} else {
-				Errorf(s, "addpesym: %v", err)
-			}
-		}
-		class := IMAGE_SYM_CLASS_EXTERNAL
-		if s.Version != 0 || (s.Type&SHIDDEN != 0) || s.Attr.Local() {
-			class = IMAGE_SYM_CLASS_STATIC
-		}
-		pefile.writeSymbol(s, value, sect, typ, uint8(class))
-	}
-
-	if Linkmode == LinkExternal {
-		// Include section symbols as external, because
-		// .ctors and .debug_* section relocations refer to it.
-		for _, pesect := range pefile.sections {
-			sym := ctxt.Syms.Lookup(pesect.name, 0)
-			pefile.writeSymbol(sym, 0, pesect.index, IMAGE_SYM_TYPE_NULL, IMAGE_SYM_CLASS_STATIC)
-		}
-	}
-
-	genasmsym(ctxt, put)
-}
-
 func addpesymtable(ctxt *Link) {
 	symtabStartPos := coutbuf.Offset()
 
 	// write COFF symbol table
 	if !*FlagS || Linkmode == LinkExternal {
-		writePESymTableRecords(ctxt)
+		pefile.writeSymbols(ctxt)
 	}
 
 	// update COFF file header and section table
