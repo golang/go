@@ -2700,7 +2700,7 @@ elfobj:
 	}
 }
 
-func Elfadddynsym(ctxt *Link, s *Symbol) {
+func elfadddynsym(ctxt *Link, s *Symbol) {
 	if elf64 {
 		s.Dynid = int32(Nelfsym)
 		Nelfsym++

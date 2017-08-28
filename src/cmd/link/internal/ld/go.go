@@ -321,7 +321,7 @@ func Adddynsym(ctxt *Link, s *Symbol) {
 	}
 
 	if Iself {
-		Elfadddynsym(ctxt, s)
+		elfadddynsym(ctxt, s)
 	} else if Headtype == objabi.Hdarwin {
 		Errorf(s, "adddynsym: missed symbol (Extname=%s)", s.Extname)
 	} else if Headtype == objabi.Hwindows {
