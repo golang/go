@@ -332,7 +332,7 @@ func ImportPathsNoDotExpansion(args []string) []string {
 	return out
 }
 
-// isMetaPackage checks if name is a reserved package name that expands to multiple packages.
+// IsMetaPackage checks if name is a reserved package name that expands to multiple packages.
 func IsMetaPackage(name string) bool {
 	return name == "std" || name == "cmd" || name == "all"
 }
