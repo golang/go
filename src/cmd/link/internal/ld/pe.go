@@ -15,16 +15,6 @@ import (
 	"strings"
 )
 
-type IMAGE_FILE_HEADER struct {
-	Machine              uint16
-	NumberOfSections     uint16
-	TimeDateStamp        uint32
-	PointerToSymbolTable uint32
-	NumberOfSymbols      uint32
-	SizeOfOptionalHeader uint16
-	Characteristics      uint16
-}
-
 type IMAGE_DATA_DIRECTORY struct {
 	VirtualAddress uint32
 	Size           uint32
@@ -321,8 +311,6 @@ var PEFILEHEADR int32
 
 var pe64 int
 
-var fh IMAGE_FILE_HEADER
-
 var oh IMAGE_OPTIONAL_HEADER
 
 var oh64 PE64_IMAGE_OPTIONAL_HEADER
@@ -475,7 +463,8 @@ type peFile struct {
 	ctorsSect      *peSection
 	nextSectOffset uint32
 	nextFileOffset uint32
-	symbolCount    int // number of symbol table records written
+	symtabOffset   int64 // offset to the start of symbol table
+	symbolCount    int   // number of symbol table records written
 }
 
 // addSection adds section to the COFF file f.
@@ -756,7 +745,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 
 // writeSymbolTableAndStringTable writes out symbol and string tables for peFile f.
 func (f *peFile) writeSymbolTableAndStringTable(ctxt *Link) {
-	symtabStartPos := coutbuf.Offset()
+	f.symtabOffset = coutbuf.Offset()
 
 	// write COFF symbol table
 	if !*FlagS || Linkmode == LinkExternal {
@@ -771,16 +760,52 @@ func (f *peFile) writeSymbolTableAndStringTable(ctxt *Link) {
 		// will also include it in the exe, and that will confuse windows.
 		h = f.addSection(".symtab", size, size)
 		h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
-		h.checkOffset(symtabStartPos)
+		h.checkOffset(f.symtabOffset)
 	}
-	fh.PointerToSymbolTable = uint32(symtabStartPos)
-	fh.NumberOfSymbols = uint32(f.symbolCount)
 
 	// write COFF string table
 	f.stringTable.write()
 	if Linkmode != LinkExternal {
 		h.pad(uint32(size))
 	}
+}
+
+// writeFileHeader writes COFF file header for peFile f.
+func (f *peFile) writeFileHeader() {
+	var fh pe.FileHeader
+
+	switch SysArch.Family {
+	default:
+		Exitf("unknown PE architecture: %v", SysArch.Family)
+	case sys.AMD64:
+		fh.Machine = IMAGE_FILE_MACHINE_AMD64
+	case sys.I386:
+		fh.Machine = IMAGE_FILE_MACHINE_I386
+	}
+
+	fh.NumberOfSections = uint16(len(f.sections))
+
+	// Being able to produce identical output for identical input is
+	// much more beneficial than having build timestamp in the header.
+	fh.TimeDateStamp = 0
+
+	if Linkmode == LinkExternal {
+		fh.Characteristics = IMAGE_FILE_LINE_NUMS_STRIPPED
+	} else {
+		fh.Characteristics = IMAGE_FILE_RELOCS_STRIPPED | IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_DEBUG_STRIPPED
+	}
+	if pe64 != 0 {
+		fh.SizeOfOptionalHeader = uint16(binary.Size(&oh64))
+		fh.Characteristics |= IMAGE_FILE_LARGE_ADDRESS_AWARE
+	} else {
+		fh.SizeOfOptionalHeader = uint16(binary.Size(&oh))
+		fh.Characteristics |= IMAGE_FILE_32BIT_MACHINE
+	}
+
+	fh.PointerToSymbolTable = uint32(f.symtabOffset)
+	fh.NumberOfSymbols = uint32(f.symbolCount)
+
+	binary.Write(&coutbuf, binary.LittleEndian, &fh)
 }
 
 var pefile peFile
@@ -809,6 +834,7 @@ func Peinit(ctxt *Link) {
 	}
 
 	var sh [16]pe.SectionHeader32
+	var fh pe.FileHeader
 	PEFILEHEADR = int32(Rnd(int64(len(dosstub)+binary.Size(&fh)+l+binary.Size(&sh)), PEFILEALIGN))
 	if Linkmode != LinkExternal {
 		PESECTHEADR = int32(Rnd(int64(PEFILEHEADR), PESECTALIGN))
@@ -846,7 +872,7 @@ func pewrite() {
 		strnput("PE", 4)
 	}
 
-	binary.Write(&coutbuf, binary.LittleEndian, &fh)
+	pefile.writeFileHeader()
 
 	if pe64 != 0 {
 		binary.Write(&coutbuf, binary.LittleEndian, &oh64)
@@ -1214,10 +1240,7 @@ func Asmbpe(ctxt *Link) {
 	switch SysArch.Family {
 	default:
 		Exitf("unknown PE architecture: %v", SysArch.Family)
-	case sys.AMD64:
-		fh.Machine = IMAGE_FILE_MACHINE_AMD64
-	case sys.I386:
-		fh.Machine = IMAGE_FILE_MACHINE_I386
+	case sys.AMD64, sys.I386:
 	}
 
 	t := pefile.addSection(".text", int(Segtext.Length), int(Segtext.Length))
@@ -1267,24 +1290,9 @@ func Asmbpe(ctxt *Link) {
 		pefile.emitRelocations(ctxt)
 	}
 
-	fh.NumberOfSections = uint16(len(pefile.sections))
-
-	// Being able to produce identical output for identical input is
-	// much more beneficial than having build timestamp in the header.
-	fh.TimeDateStamp = 0
-
-	if Linkmode == LinkExternal {
-		fh.Characteristics = IMAGE_FILE_LINE_NUMS_STRIPPED
-	} else {
-		fh.Characteristics = IMAGE_FILE_RELOCS_STRIPPED | IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_DEBUG_STRIPPED
-	}
 	if pe64 != 0 {
-		fh.SizeOfOptionalHeader = uint16(binary.Size(&oh64))
-		fh.Characteristics |= IMAGE_FILE_LARGE_ADDRESS_AWARE
 		oh64.Magic = 0x20b // PE32+
 	} else {
-		fh.SizeOfOptionalHeader = uint16(binary.Size(&oh))
-		fh.Characteristics |= IMAGE_FILE_32BIT_MACHINE
 		oh.Magic = 0x10b // PE32
 		oh.BaseOfData = d.VirtualAddress
 	}
