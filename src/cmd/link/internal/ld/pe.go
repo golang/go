@@ -1103,7 +1103,14 @@ func writePESymTableRecords(ctxt *Link) {
 			s.Name = "_" + s.Name
 		}
 
-		typ := uint16(IMAGE_SYM_TYPE_NULL)
+		var typ uint16
+		if Linkmode == LinkExternal {
+			typ = IMAGE_SYM_TYPE_NULL
+		} else {
+			// TODO: fix IMAGE_SYM_DTYPE_ARRAY value and use following expression, instead of 0x0308
+			typ = IMAGE_SYM_DTYPE_ARRAY<<8 + IMAGE_SYM_TYPE_STRUCT
+			typ = 0x0308 // "array of structs"
+		}
 		sect, value, err := pefile.mapToPESection(s)
 		if err != nil {
 			if type_ == UndefinedSym {
@@ -1111,12 +1118,6 @@ func writePESymTableRecords(ctxt *Link) {
 			} else {
 				Errorf(s, "addpesym: %v", err)
 			}
-		}
-		if typ != IMAGE_SYM_TYPE_NULL {
-		} else if Linkmode != LinkExternal {
-			// TODO: fix IMAGE_SYM_DTYPE_ARRAY value and use following expression, instead of 0x0308
-			typ = IMAGE_SYM_DTYPE_ARRAY<<8 + IMAGE_SYM_TYPE_STRUCT
-			typ = 0x0308 // "array of structs"
 		}
 		class := IMAGE_SYM_CLASS_EXTERNAL
 		if s.Version != 0 || (s.Type&SHIDDEN != 0) || s.Attr.Local() {
