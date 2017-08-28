@@ -296,15 +296,15 @@ func (p *Package) guessKinds(f *File) []*Name {
 	// For each name, we generate these lines, where xxx is the index in toSniff plus one.
 	//
 	//	#line xxx "not-declared"
-	//	void __cgo_f_xxx_1(void) { __typeof__(name) *__cgo_undefined__; }
+	//	void __cgo_f_xxx_1(void) { __typeof__(name) *__cgo_undefined__1; }
 	//	#line xxx "not-type"
-	//	void __cgo_f_xxx_2(void) { name *__cgo_undefined__; }
+	//	void __cgo_f_xxx_2(void) { name *__cgo_undefined__2; }
 	//	#line xxx "not-int-const"
-	//	void __cgo_f_xxx_3(void) { enum { __cgo_undefined__ = (name)*1 }; }
+	//	void __cgo_f_xxx_3(void) { enum { __cgo_undefined__3 = (name)*1 }; }
 	//	#line xxx "not-num-const"
-	//	void __cgo_f_xxx_4(void) { static const double x = (name); }
+	//	void __cgo_f_xxx_4(void) { static const double __cgo_undefined__4 = (name); }
 	//	#line xxx "not-str-lit"
-	//	void __cgo_f_xxx_5(void) { static const char x[] = (name); }
+	//	void __cgo_f_xxx_5(void) { static const char __cgo_undefined__5[] = (name); }
 	//	#line xxx "not-signed-int-const"
 	//	#if 0 < -(name)
 	//	#line xxx "not-signed-int-const"
@@ -327,15 +327,15 @@ func (p *Package) guessKinds(f *File) []*Name {
 
 	for i, n := range names {
 		fmt.Fprintf(&b, "#line %d \"not-declared\"\n"+
-			"void __cgo_f_%d_1(void) { __typeof__(%s) *__cgo_undefined__; }\n"+
+			"void __cgo_f_%d_1(void) { __typeof__(%s) *__cgo_undefined__1; }\n"+
 			"#line %d \"not-type\"\n"+
-			"void __cgo_f_%d_2(void) { %s *__cgo_undefined__; }\n"+
+			"void __cgo_f_%d_2(void) { %s *__cgo_undefined__2; }\n"+
 			"#line %d \"not-int-const\"\n"+
-			"void __cgo_f_%d_3(void) { enum { __cgo_undefined__ = (%s)*1 }; }\n"+
+			"void __cgo_f_%d_3(void) { enum { __cgo_undefined__3 = (%s)*1 }; }\n"+
 			"#line %d \"not-num-const\"\n"+
-			"void __cgo_f_%d_4(void) { static const double x = (%s); }\n"+
+			"void __cgo_f_%d_4(void) { static const double __cgo_undefined__4 = (%s); }\n"+
 			"#line %d \"not-str-lit\"\n"+
-			"void __cgo_f_%d_5(void) { static const char s[] = (%s); }\n"+
+			"void __cgo_f_%d_5(void) { static const char __cgo_undefined__5[] = (%s); }\n"+
 			"#line %d \"not-signed-int-const\"\n"+
 			"#if 0 < (%s)\n"+
 			"#line %d \"not-signed-int-const\"\n"+
