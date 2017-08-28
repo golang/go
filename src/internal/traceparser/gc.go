@@ -194,6 +194,12 @@ func (c *MMUCurve) MMU(window time.Duration) (mmu float64) {
 			}
 		}
 
+		// The maximum slope of the windowed mutator
+		// utilization function is 1/window, so we can always
+		// advance the time by at least (mu - mmu) * window
+		// without dropping below mmu.
+		minTime := time + int64((mu-mmu)*float64(window))
+
 		// Advance the window to the next time where either
 		// the left or right edge of the window encounters a
 		// change in the utilization curve.
@@ -201,6 +207,9 @@ func (c *MMUCurve) MMU(window time.Duration) (mmu float64) {
 			time = t1
 		} else {
 			time = t2
+		}
+		if time < minTime {
+			time = minTime
 		}
 		if time > util[len(util)-1].Time-int64(window) {
 			break
@@ -225,8 +234,28 @@ func (in *integrator) advance(time int64) totalUtil {
 	util, pos := in.u.util, in.pos
 	// Advance pos until pos+1 is time's strict successor (making
 	// pos time's non-strict predecessor).
-	for pos+1 < len(util) && util[pos+1].Time <= time {
-		pos++
+	//
+	// Very often, this will be nearby, so we optimize that case,
+	// but it may be arbitrarily far away, so we handled that
+	// efficiently, too.
+	const maxSeq = 8
+	if pos+maxSeq < len(util) && util[pos+maxSeq].Time > time {
+		// Nearby. Use a linear scan.
+		for pos+1 < len(util) && util[pos+1].Time <= time {
+			pos++
+		}
+	} else {
+		// Far. Binary search for time's strict successor.
+		l, r := pos, len(util)
+		for l < r {
+			h := int(uint(l+r) >> 1)
+			if util[h].Time <= time {
+				l = h + 1
+			} else {
+				r = h
+			}
+		}
+		pos = l - 1 // Non-strict predecessor.
 	}
 	in.pos = pos
 	var partial totalUtil
