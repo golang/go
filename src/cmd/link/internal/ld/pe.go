@@ -475,6 +475,7 @@ type peFile struct {
 	ctorsSect      *peSection
 	nextSectOffset uint32
 	nextFileOffset uint32
+	symbolCount    int // number of symbol table records written
 }
 
 // addSection adds section to the COFF file f.
@@ -646,6 +647,26 @@ dwarfLoop:
 		}
 		return 1
 	})
+}
+
+// writeSymbol appends symbol s to file f symbol table.
+// It also sets s.Dynid to written symbol number.
+func (f *peFile) writeSymbol(s *Symbol, value int64, sectidx int, typ uint16, class uint8) {
+	if len(s.Name) > 8 {
+		Lputl(0)
+		Lputl(uint32(f.stringTable.add(s.Name)))
+	} else {
+		strnput(s.Name, 8)
+	}
+	Lputl(uint32(value))
+	Wputl(uint16(sectidx))
+	Wputl(typ)
+	Cput(class)
+	Cput(0) // no aux entries
+
+	s.Dynid = int32(f.symbolCount)
+
+	f.symbolCount++
 }
 
 var pefile peFile
@@ -1033,28 +1054,7 @@ func (ctxt *Link) dope() {
 }
 
 // writePESymTableRecords writes all COFF symbol table records.
-// It returns number of records written.
-func writePESymTableRecords(ctxt *Link) int {
-	var symcnt int
-
-	writeOneSymbol := func(s *Symbol, addr int64, sectidx int, typ uint16, class uint8) {
-		// write COFF symbol table record
-		if len(s.Name) > 8 {
-			Lputl(0)
-			Lputl(uint32(pefile.stringTable.add(s.Name)))
-		} else {
-			strnput(s.Name, 8)
-		}
-		Lputl(uint32(addr))
-		Wputl(uint16(sectidx))
-		Wputl(typ)
-		Cput(class)
-		Cput(0) // no aux entries
-
-		s.Dynid = int32(symcnt)
-
-		symcnt++
-	}
+func writePESymTableRecords(ctxt *Link) {
 
 	put := func(ctxt *Link, s *Symbol, name string, type_ SymbolType, addr int64, gotype *Symbol) {
 		if s == nil {
@@ -1107,7 +1107,7 @@ func writePESymTableRecords(ctxt *Link) int {
 		if s.Version != 0 || (s.Type&SHIDDEN != 0) || s.Attr.Local() {
 			class = IMAGE_SYM_CLASS_STATIC
 		}
-		writeOneSymbol(s, value, sect, typ, uint8(class))
+		pefile.writeSymbol(s, value, sect, typ, uint8(class))
 	}
 
 	if Linkmode == LinkExternal {
@@ -1115,26 +1115,23 @@ func writePESymTableRecords(ctxt *Link) int {
 		// .ctors and .debug_* section relocations refer to it.
 		for _, pesect := range pefile.sections {
 			sym := ctxt.Syms.Lookup(pesect.name, 0)
-			writeOneSymbol(sym, 0, pesect.index, IMAGE_SYM_TYPE_NULL, IMAGE_SYM_CLASS_STATIC)
+			pefile.writeSymbol(sym, 0, pesect.index, IMAGE_SYM_TYPE_NULL, IMAGE_SYM_CLASS_STATIC)
 		}
 	}
 
 	genasmsym(ctxt, put)
-
-	return symcnt
 }
 
 func addpesymtable(ctxt *Link) {
 	symtabStartPos := coutbuf.Offset()
 
 	// write COFF symbol table
-	var symcnt int
 	if !*FlagS || Linkmode == LinkExternal {
-		symcnt = writePESymTableRecords(ctxt)
+		writePESymTableRecords(ctxt)
 	}
 
 	// update COFF file header and section table
-	size := pefile.stringTable.size() + 18*symcnt
+	size := pefile.stringTable.size() + 18*pefile.symbolCount
 	var h *peSection
 	if Linkmode != LinkExternal {
 		// We do not really need .symtab for go.o, and if we have one, ld
@@ -1144,7 +1141,7 @@ func addpesymtable(ctxt *Link) {
 		h.checkOffset(symtabStartPos)
 	}
 	fh.PointerToSymbolTable = uint32(symtabStartPos)
-	fh.NumberOfSymbols = uint32(symcnt)
+	fh.NumberOfSymbols = uint32(pefile.symbolCount)
 
 	// write COFF string table
 	pefile.stringTable.write()
