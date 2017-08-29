@@ -139,79 +139,248 @@ func TestParseMediaType(t *testing.T) {
 
 		// Tests from http://greenbytes.de/tech/tc2231/
 		// Note: Backslash escape handling is a bit loose, like MSIE.
-		// TODO(bradfitz): add the rest of the tests from that site.
+
+		// #attonly
+		{`attachment`,
+			"attachment",
+			m()},
+		// #attonlyucase
+		{`ATTACHMENT`,
+			"attachment",
+			m()},
+		// #attwithasciifilename
+		{`attachment; filename="foo.html"`,
+			"attachment",
+			m("filename", "foo.html")},
+		// #attwithasciifilename25
+		{`attachment; filename="0000000000111111111122222"`,
+			"attachment",
+			m("filename", "0000000000111111111122222")},
+		// #attwithasciifilename35
+		{`attachment; filename="00000000001111111111222222222233333"`,
+			"attachment",
+			m("filename", "00000000001111111111222222222233333")},
+		// #attwithasciifnescapedchar
 		{`attachment; filename="f\oo.html"`,
 			"attachment",
 			m("filename", "f\\oo.html")},
+		// #attwithasciifnescapedquote
 		{`attachment; filename="\"quoting\" tested.html"`,
 			"attachment",
 			m("filename", `"quoting" tested.html`)},
+		// #attwithquotedsemicolon
 		{`attachment; filename="Here's a semicolon;.html"`,
 			"attachment",
 			m("filename", "Here's a semicolon;.html")},
+		// #attwithfilenameandextparam
+		{`attachment; foo="bar"; filename="foo.html"`,
+			"attachment",
+			m("foo", "bar", "filename", "foo.html")},
+		// #attwithfilenameandextparamescaped
 		{`attachment; foo="\"\\";filename="foo.html"`,
 			"attachment",
 			m("foo", "\"\\", "filename", "foo.html")},
+		// #attwithasciifilenameucase
+		{`attachment; FILENAME="foo.html"`,
+			"attachment",
+			m("filename", "foo.html")},
+		// #attwithasciifilenamenq
 		{`attachment; filename=foo.html`,
 			"attachment",
 			m("filename", "foo.html")},
+		// #attwithasciifilenamenqs
 		{`attachment; filename=foo.html ;`,
 			"attachment",
 			m("filename", "foo.html")},
+		// #attwithfntokensq
 		{`attachment; filename='foo.html'`,
 			"attachment",
 			m("filename", "'foo.html'")},
+		// #attwithisofnplain
+		{`attachment; filename="foo-ä.html"`,
+			"attachment",
+			m("filename", "foo-ä.html")},
+		// #attwithutf8fnplain
+		{`attachment; filename="foo-Ã¤.html"`,
+			"attachment",
+			m("filename", "foo-Ã¤.html")},
+		// #attwithfnrawpctenca
 		{`attachment; filename="foo-%41.html"`,
 			"attachment",
 			m("filename", "foo-%41.html")},
+		// #attwithfnusingpct
+		{`attachment; filename="50%.html"`,
+			"attachment",
+			m("filename", "50%.html")},
+		// #attwithfnrawpctencaq
 		{`attachment; filename="foo-%\41.html"`,
 			"attachment",
 			m("filename", "foo-%\\41.html")},
+		// #attwithnamepct
+		{`attachment; name="foo-%41.html"`,
+			"attachment",
+			m("name", "foo-%41.html")},
+		// #attwithfilenamepctandiso
+		{`attachment; name="ä-%41.html"`,
+			"attachment",
+			m("name", "ä-%41.html")},
+		// #attwithfnrawpctenclong
+		{`attachment; filename="foo-%c3%a4-%e2%82%ac.html"`,
+			"attachment",
+			m("filename", "foo-%c3%a4-%e2%82%ac.html")},
+		// #attwithasciifilenamews1
+		{`attachment; filename ="foo.html"`,
+			"attachment",
+			m("filename", "foo.html")},
+		// #attmissingdisposition
 		{`filename=foo.html`,
 			"", m()},
+		// #attmissingdisposition2
 		{`x=y; filename=foo.html`,
 			"", m()},
+		// #attmissingdisposition3
 		{`"foo; filename=bar;baz"; filename=qux`,
 			"", m()},
+		// #attmissingdisposition4
+		{`filename=foo.html, filename=bar.html`,
+			"", m()},
+		// #emptydisposition
+		{`; filename=foo.html`,
+			"", m()},
+		// #doublecolon
+		{`: inline; attachment; filename=foo.html`,
+			"", m()},
+		// #attandinline
 		{`inline; attachment; filename=foo.html`,
 			"", m()},
+		// #attandinline2
+		{`attachment; inline; filename=foo.html`,
+			"", m()},
+		// #attbrokenquotedfn
 		{`attachment; filename="foo.html".txt`,
 			"", m()},
+		// #attbrokenquotedfn2
 		{`attachment; filename="bar`,
 			"", m()},
+		// #attbrokenquotedfn3
+		{`attachment; filename=foo"bar;baz"qux`,
+			"", m()},
+		// #attmultinstances
+		{`attachment; filename=foo.html, attachment; filename=bar.html`,
+			"", m()},
+		// #attmissingdelim
+		{`attachment; foo=foo filename=bar`,
+			"", m()},
+		// #attmissingdelim2
+		{`attachment; filename=bar foo=foo`,
+			"", m()},
+		// #attmissingdelim3
+		{`attachment filename=bar`,
+			"", m()},
+		// #attreversed
+		{`filename=foo.html; attachment`,
+			"", m()},
+		// #attconfusedparam
+		{`attachment; xfilename=foo.html`,
+			"attachment",
+			m("xfilename", "foo.html")},
+		// #attcdate
 		{`attachment; creation-date="Wed, 12 Feb 1997 16:29:51 -0500"`,
 			"attachment",
 			m("creation-date", "Wed, 12 Feb 1997 16:29:51 -0500")},
+		// #attmdate
+		{`attachment; modification-date="Wed, 12 Feb 1997 16:29:51 -0500"`,
+			"attachment",
+			m("modification-date", "Wed, 12 Feb 1997 16:29:51 -0500")},
+		// #dispext
 		{`foobar`, "foobar", m()},
+		// #dispextbadfn
+		{`attachment; example="filename=example.txt"`,
+			"attachment",
+			m("example", "filename=example.txt")},
+		// #attwithfn2231utf8
+		{`attachment; filename*=UTF-8''foo-%c3%a4-%e2%82%ac.html`,
+			"attachment",
+			m("filename", "foo-ä-€.html")},
+		// #attwithfn2231noc
+		{`attachment; filename*=''foo-%c3%a4-%e2%82%ac.html`,
+			"attachment",
+			m()},
+		// #attwithfn2231utf8comp
+		{`attachment; filename*=UTF-8''foo-a%cc%88.html`,
+			"attachment",
+			m("filename", "foo-ä.html")},
+		// #attwithfn2231ws2
+		{`attachment; filename*= UTF-8''foo-%c3%a4.html`,
+			"attachment",
+			m("filename", "foo-ä.html")},
+		// #attwithfn2231ws3
 		{`attachment; filename* =UTF-8''foo-%c3%a4.html`,
 			"attachment",
 			m("filename", "foo-ä.html")},
+		// #attwithfn2231quot
+		{`attachment; filename*="UTF-8''foo-%c3%a4.html"`,
+			"attachment",
+			m("filename", "foo-ä.html")},
+		// #attwithfn2231quot2
+		{`attachment; filename*="foo%20bar.html"`,
+			"attachment",
+			m()},
+		// #attwithfn2231singleqmissing
+		{`attachment; filename*=UTF-8'foo-%c3%a4.html`,
+			"attachment",
+			m()},
+		// #attwithfn2231nbadpct1
+		{`attachment; filename*=UTF-8''foo%`,
+			"attachment",
+			m()},
+		// #attwithfn2231nbadpct2
+		{`attachment; filename*=UTF-8''f%oo.html`,
+			"attachment",
+			m()},
+		// #attwithfn2231dpct
 		{`attachment; filename*=UTF-8''A-%2541.html`,
 			"attachment",
 			m("filename", "A-%41.html")},
+		// #attfncont
 		{`attachment; filename*0="foo."; filename*1="html"`,
 			"attachment",
 			m("filename", "foo.html")},
+		// #attfncontenc
 		{`attachment; filename*0*=UTF-8''foo-%c3%a4; filename*1=".html"`,
 			"attachment",
 			m("filename", "foo-ä.html")},
+		// #attfncontlz
 		{`attachment; filename*0="foo"; filename*01="bar"`,
 			"attachment",
 			m("filename", "foo")},
+		// #attfncontnc
 		{`attachment; filename*0="foo"; filename*2="bar"`,
 			"attachment",
 			m("filename", "foo")},
-		{`attachment; filename*1="foo"; filename*2="bar"`,
+		// #attfnconts1
+		{`attachment; filename*1="foo."; filename*2="html"`,
 			"attachment", m()},
+		// #attfncontord
 		{`attachment; filename*1="bar"; filename*0="foo"`,
 			"attachment",
 			m("filename", "foobar")},
+		// #attfnboth
 		{`attachment; filename="foo-ae.html"; filename*=UTF-8''foo-%c3%a4.html`,
 			"attachment",
 			m("filename", "foo-ä.html")},
+		// #attfnboth2
 		{`attachment; filename*=UTF-8''foo-%c3%a4.html; filename="foo-ae.html"`,
 			"attachment",
 			m("filename", "foo-ä.html")},
+		// #attfnboth3
+		{`attachment; filename*0*=ISO-8859-15''euro-sign%3d%a4; filename*=ISO-8859-1''currency-sign%3d%a4`,
+			"attachment",
+			m()},
+		// #attnewandfn
+		{`attachment; foobar=x; filename="foo.html"`,
+			"attachment",
+			m("foobar", "x", "filename", "foo.html")},
 
 		// Browsers also just send UTF-8 directly without RFC 2231,
 		// at least when the source page is served with UTF-8.
@@ -265,6 +434,16 @@ var badMediaTypeTests = []badMediaTypeTest{
 		"application/pdf", "mime: invalid media parameter"},
 	{"bogus/<script>alert</script>", "", "mime: expected token after slash"},
 	{"bogus/bogus<script>alert</script>", "", "mime: unexpected content after media subtype"},
+	// Tests from http://greenbytes.de/tech/tc2231/
+	{`"attachment"`, "attachment", "mime: no media type"},
+	{"attachment; filename=foo,bar.html", "attachment", "mime: invalid media parameter"},
+	{"attachment; ;filename=foo", "attachment", "mime: invalid media parameter"},
+	{"attachment; filename=foo bar.html", "attachment", "mime: invalid media parameter"},
+	{`attachment; filename="foo.html"; filename="bar.html"`, "attachment", "mime: duplicate parameter name"},
+	{"attachment; filename=foo[1](2).html", "attachment", "mime: invalid media parameter"},
+	{"attachment; filename=foo-ä.html", "attachment", "mime: invalid media parameter"},
+	{"attachment; filename=foo-Ã¤.html", "attachment", "mime: invalid media parameter"},
+	{`attachment; filename *=UTF-8''foo-%c3%a4.html`, "attachment", "mime: invalid media parameter"},
 }
 
 func TestParseMediaTypeBogus(t *testing.T) {
