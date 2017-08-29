@@ -121,11 +121,13 @@ func mapbucket(t *types.Type) *types.Type {
 
 	arr = types.NewArray(keytype, BUCKETSIZE)
 	arr.SetNoalg(true)
-	field = append(field, makefield("keys", arr))
+	keys := makefield("keys", arr)
+	field = append(field, keys)
 
 	arr = types.NewArray(valtype, BUCKETSIZE)
 	arr.SetNoalg(true)
-	field = append(field, makefield("values", arr))
+	values := makefield("values", arr)
+	field = append(field, values)
 
 	// Make sure the overflow pointer is the last memory in the struct,
 	// because the runtime assumes it can use size-ptrSize as the
@@ -158,8 +160,8 @@ func mapbucket(t *types.Type) *types.Type {
 	if !types.Haspointers(t.Val()) && !types.Haspointers(t.Key()) && t.Val().Width <= MAXVALSIZE && t.Key().Width <= MAXKEYSIZE {
 		otyp = types.Types[TUINTPTR]
 	}
-	ovf := makefield("overflow", otyp)
-	field = append(field, ovf)
+	overflow := makefield("overflow", otyp)
+	field = append(field, overflow)
 
 	// link up fields
 	bucket.SetNoalg(true)
@@ -167,10 +169,51 @@ func mapbucket(t *types.Type) *types.Type {
 	bucket.SetFields(field[:])
 	dowidth(bucket)
 
+	// Check invariants that map code depends on.
+	if BUCKETSIZE < 8 {
+		Fatalf("bucket size too small for proper alignment")
+	}
+	if keytype.Align > BUCKETSIZE {
+		Fatalf("key align too big for %v", t)
+	}
+	if valtype.Align > BUCKETSIZE {
+		Fatalf("value align too big for %v", t)
+	}
+	if keytype.Width > MAXKEYSIZE {
+		Fatalf("key size to large for %v", t)
+	}
+	if valtype.Width > MAXVALSIZE {
+		Fatalf("value size to large for %v", t)
+	}
+	if t.Key().Width > MAXKEYSIZE && !keytype.IsPtr() {
+		Fatalf("key indirect incorrect for %v", t)
+	}
+	if t.Val().Width > MAXVALSIZE && !valtype.IsPtr() {
+		Fatalf("value indirect incorrect for %v", t)
+	}
+	if keytype.Width%int64(keytype.Align) != 0 {
+		Fatalf("key size not a multiple of key align for %v", t)
+	}
+	if valtype.Width%int64(valtype.Align) != 0 {
+		Fatalf("value size not a multiple of value align for %v", t)
+	}
+	if bucket.Align%keytype.Align != 0 {
+		Fatalf("bucket align not multiple of key align %v", t)
+	}
+	if bucket.Align%valtype.Align != 0 {
+		Fatalf("bucket align not multiple of value align %v", t)
+	}
+	if keys.Offset%int64(keytype.Align) != 0 {
+		Fatalf("bad alignment of keys in mapbucket for %v", t)
+	}
+	if values.Offset%int64(valtype.Align) != 0 {
+		Fatalf("bad alignment of values in mapbucket for %v", t)
+	}
+
 	// Double-check that overflow field is final memory in struct,
 	// with no padding at end. See comment above.
-	if ovf.Offset != bucket.Width-int64(Widthptr) {
-		Fatalf("bad math in mapbucket for %v", t)
+	if overflow.Offset != bucket.Width-int64(Widthptr) {
+		Fatalf("bad offset of overflow in mapbucket for %v", t)
 	}
 
 	t.MapType().Bucket = bucket
@@ -218,6 +261,13 @@ func hmap(t *types.Type) *types.Type {
 	hmap.SetLocal(t.Local())
 	hmap.SetFields(fields)
 	dowidth(hmap)
+
+	// The size of hmap should be 48 bytes on 64 bit
+	// and 28 bytes on 32 bit platforms.
+	if size := int64(8 + 5*Widthptr); hmap.Width != size {
+		Fatalf("hmap size not correct: got %d, want %d", hmap.Width, size)
+	}
+
 	t.MapType().Hmap = hmap
 	hmap.StructType().Map = t
 	return hmap
