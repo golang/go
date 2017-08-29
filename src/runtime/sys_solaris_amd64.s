@@ -183,9 +183,6 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	JMP	exit
 
 allgood:
-	// save g
-	MOVQ	R10, 80(SP)
-
 	// Save m->libcall and m->scratch. We need to do this because we
 	// might get interrupted by a signal in runtime·asmcgocall.
 
@@ -223,19 +220,11 @@ allgood:
 	MOVL	0(R10), R10
 	MOVQ	R10, 160(SP)
 
-	MOVQ	g(BX), R10
-	// g = m->gsignal
-	MOVQ	m_gsignal(BP), BP
-	MOVQ	BP, g(BX)
-
-	// TODO: If current SP is not in gsignal.stack, then adjust.
-
 	// prepare call
 	MOVQ	DI, 0(SP)
 	MOVQ	SI, 8(SP)
 	MOVQ	DX, 16(SP)
-	MOVQ	R10, 24(SP)
-	CALL	runtime·sighandler(SB)
+	CALL	runtime·sigtrampgo(SB)
 
 	get_tls(BX)
 	MOVQ	g(BX), BP
@@ -272,10 +261,6 @@ allgood:
 	MOVQ	(m_mOS+mOS_perrno)(BP), R11
 	MOVQ	160(SP), R10
 	MOVL	R10, 0(R11)
-
-	// restore g
-	MOVQ	80(SP), R10
-	MOVQ	R10, g(BX)
 
 exit:
 	// restore registers
