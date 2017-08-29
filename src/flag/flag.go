@@ -269,7 +269,9 @@ const (
 type FlagSet struct {
 	// Usage is the function called when an error occurs while parsing flags.
 	// The field is a function (not a method) that may be changed to point to
-	// a custom error handler.
+	// a custom error handler. What happens after Usage is called depends
+	// on the ErrorHandling setting; for the command line, this defaults
+	// to ExitOnError, which exits the program after calling Usage.
 	Usage func()
 
 	name          string
@@ -521,6 +523,9 @@ func (f *FlagSet) defaultUsage() {
 // The function is a variable that may be changed to point to a custom function.
 // By default it prints a simple header and calls PrintDefaults; for details about the
 // format of the output and how to control it, see the documentation for PrintDefaults.
+// Custom usage functions may choose to exit the program; by default exiting
+// happens anyway as the command line's error handling strategy is set to
+// ExitOnError.
 var Usage = func() {
 	fmt.Fprintf(CommandLine.out(), "Usage of %s:\n", os.Args[0])
 	PrintDefaults()
