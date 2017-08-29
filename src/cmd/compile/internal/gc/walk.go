@@ -1464,7 +1464,7 @@ opswitch:
 			// are stored with an indirection. So max bucket size is 2048+eps.
 
 			// var bv bmap
-			bv := temp(mapbucket(t))
+			bv := temp(bmap(t))
 
 			zero = nod(OAS, bv, nil)
 			zero = typecheck(zero, Etop)
