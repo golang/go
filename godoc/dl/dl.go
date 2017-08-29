@@ -35,9 +35,9 @@ import (
 )
 
 const (
-	gcsBaseURL    = "https://storage.googleapis.com/golang/"
-	cacheKey      = "download_list_3" // increment if listTemplateData changes
-	cacheDuration = time.Hour
+	edgeCacheBaseURL = "https://redirector.gvt1.com/edgedl/go/"
+	cacheKey         = "download_list_3" // increment if listTemplateData changes
+	cacheDuration    = time.Hour
 )
 
 func RegisterHandlers(mux *http.ServeMux) {
@@ -133,7 +133,7 @@ func (f File) Highlight() bool {
 }
 
 func (f File) URL() string {
-	return gcsBaseURL + f.Filename
+	return edgeCacheBaseURL + f.Filename
 }
 
 type Release struct {
