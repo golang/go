@@ -37,6 +37,7 @@ func initssaconfig() {
 		Float32:    types.Types[TFLOAT32],
 		Float64:    types.Types[TFLOAT64],
 		Int:        types.Types[TINT],
+		UInt:       types.Types[TUINT],
 		Uintptr:    types.Types[TUINTPTR],
 		String:     types.Types[TSTRING],
 		BytePtr:    types.NewPtr(types.Types[TUINT8]),
