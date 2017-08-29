@@ -59,6 +59,7 @@ type Types struct {
 	Int        *types.Type
 	Float32    *types.Type
 	Float64    *types.Type
+	UInt       *types.Type
 	Uintptr    *types.Type
 	String     *types.Type
 	BytePtr    *types.Type // TODO: use unsafe.Pointer instead?
