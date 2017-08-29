@@ -1658,19 +1658,3 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
 		putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
 	}
 }
-
-/*
- * Windows PE
- */
-func dwarfaddpeheaders(ctxt *Link) {
-	if *FlagW { // disable dwarf
-		return
-	}
-	for _, sect := range Segdwarf.Sections {
-		h := pefile.addDWARFSection(sect.Name, int(sect.Length))
-		fileoff := sect.Vaddr - Segdwarf.Vaddr + Segdwarf.Fileoff
-		if uint64(h.PointerToRawData) != fileoff {
-			Exitf("%s.PointerToRawData = %#x, want %#x", sect.Name, h.PointerToRawData, fileoff)
-		}
-	}
-}
