@@ -1199,6 +1199,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 		if resp.StatusCode != 200 {
 			f := strings.SplitN(resp.Status, " ", 2)
 			conn.Close()
+			if len(f) < 2 {
+				return nil, errors.New("unknown status code")
+			}
 			return nil, errors.New(f[1])
 		}
 	}
