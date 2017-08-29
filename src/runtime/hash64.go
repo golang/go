@@ -95,7 +95,7 @@ func memhash32(p unsafe.Pointer, seed uintptr) uintptr {
 
 func memhash64(p unsafe.Pointer, seed uintptr) uintptr {
 	h := uint64(seed + 8*hashkey[0])
-	h ^= readUnaligned64(p)
+	h ^= uint64(readUnaligned32(p)) | uint64(readUnaligned32(add(p, 4)))<<32
 	h = rotl_31(h*m1) * m2
 	h ^= h >> 29
 	h *= m3
