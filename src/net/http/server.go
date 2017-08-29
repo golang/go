@@ -729,6 +729,9 @@ func (cr *connReader) Read(p []byte) (n int, err error) {
 	cr.lock()
 	if cr.inRead {
 		cr.unlock()
+		if cr.conn.hijacked() {
+			panic("invalid Body.Read call. After hijacked, the original Request must not be used")
+		}
 		panic("invalid concurrent Body.Read call")
 	}
 	if cr.hitReadLimit() {
