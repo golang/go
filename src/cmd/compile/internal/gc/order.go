@@ -533,8 +533,9 @@ func orderstmt(n *Node, order *Order) {
 		// out map read from map write when l is
 		// a map index expression.
 		t := marktemp(order)
-
 		n.Left = orderexpr(n.Left, order, nil)
+		n.Right = orderexpr(n.Right, order, nil)
+
 		n.Left = ordersafeexpr(n.Left, order)
 		tmp1 := treecopy(n.Left, src.NoXPos)
 		if tmp1.Op == OINDEXMAP {
