@@ -428,6 +428,23 @@ func (f *peFile) addDWARFSection(name string, size int) *peSection {
 	return h
 }
 
+// addDWARF adds DWARF information to the COFF file f.
+func (f *peFile) addDWARF() {
+	if *FlagS { // disable symbol table
+		return
+	}
+	if *FlagW { // disable dwarf
+		return
+	}
+	for _, sect := range Segdwarf.Sections {
+		h := f.addDWARFSection(sect.Name, int(sect.Length))
+		fileoff := sect.Vaddr - Segdwarf.Vaddr + Segdwarf.Fileoff
+		if uint64(h.PointerToRawData) != fileoff {
+			Exitf("%s.PointerToRawData = %#x, want %#x", sect.Name, h.PointerToRawData, fileoff)
+		}
+	}
+}
+
 // addInitArray adds .ctors COFF section to the file f.
 func (f *peFile) addInitArray(ctxt *Link) *peSection {
 	// The size below was determined by the specification for array relocations,
@@ -1307,9 +1324,7 @@ func Asmbpe(ctxt *Link) {
 		pefile.bssSect = b
 	}
 
-	if !*FlagS {
-		dwarfaddpeheaders(ctxt)
-	}
+	pefile.addDWARF()
 
 	if Linkmode == LinkExternal {
 		pefile.ctorsSect = pefile.addInitArray(ctxt)
