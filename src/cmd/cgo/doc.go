@@ -406,21 +406,24 @@ about simple #defines for constants and the like. These are recorded
 for later use.
 
 Next, cgo needs to identify the kinds for each identifier. For the
-identifiers C.foo and C.bar, cgo generates this C program:
+identifiers C.foo, cgo generates this C program:
 
 	<preamble>
 	#line 1 "not-declared"
-	void __cgo_f_xxx_1(void) { __typeof__(foo) *__cgo_undefined__; }
+	void __cgo_f_1_1(void) { __typeof__(foo) *__cgo_undefined__1; }
 	#line 1 "not-type"
-	void __cgo_f_xxx_2(void) { foo *__cgo_undefined__; }
-	#line 1 "not-const"
-	void __cgo_f_xxx_3(void) { enum { __cgo_undefined__ = (foo)*1 }; }
-	#line 2 "not-declared"
-	void __cgo_f_xxx_1(void) { __typeof__(bar) *__cgo_undefined__; }
-	#line 2 "not-type"
-	void __cgo_f_xxx_2(void) { bar *__cgo_undefined__; }
-	#line 2 "not-const"
-	void __cgo_f_xxx_3(void) { enum { __cgo_undefined__ = (bar)*1 }; }
+	void __cgo_f_1_2(void) { foo *__cgo_undefined__2; }
+	#line 1 "not-int-const"
+	void __cgo_f_1_3(void) { enum { __cgo_undefined__3 = (foo)*1 }; }
+	#line 1 "not-num-const"
+	void __cgo_f_1_4(void) { static const double __cgo_undefined__4 = (foo); }
+	#line 1 "not-str-lit"
+	void __cgo_f_1_5(void) { static const char __cgo_undefined__5[] = (foo); }
+	#line 1 "not-signed-int-const"
+	#if 0 < -(foo)
+	#line 1 "not-signed-int-const"
+	#error found unsigned int
+	#endif
 
 This program will not compile, but cgo can use the presence or absence
 of an error message on a given line to deduce the information it
@@ -430,45 +433,72 @@ errors that might stop parsing early.
 
 An error on not-declared:1 indicates that foo is undeclared.
 An error on not-type:1 indicates that foo is not a type (if declared at all, it is an identifier).
-An error on not-const:1 indicates that foo is not an integer constant.
+An error on not-int-const:1 indicates that foo is not an integer constant.
+An error on not-num-const:1 indicates that foo is not a number constant.
+An error on not-str-lit:1 indicates that foo is not a string literal.
+An error on not-signed-int-const:1 indicates that foo is not a signed integer constant.
 
-The line number specifies the name involved. In the example, 1 is foo and 2 is bar.
+The line number specifies the name involved. In the example, 1 is foo.
 
 Next, cgo must learn the details of each type, variable, function, or
 constant. It can do this by reading object files. If cgo has decided
-that t1 is a type, v2 and v3 are variables or functions, and c4, c5,
-and c6 are constants, it generates:
+that t1 is a type, v2 and v3 are variables or functions, and i4, i5
+are integer constants, u6 is an unsigned integer constant, and f7 and f8
+are float constants, and s9 and s10 are string constants, it generates:
 
 	<preamble>
 	__typeof__(t1) *__cgo__1;
 	__typeof__(v2) *__cgo__2;
 	__typeof__(v3) *__cgo__3;
-	__typeof__(c4) *__cgo__4;
-	enum { __cgo_enum__4 = c4 };
-	__typeof__(c5) *__cgo__5;
-	enum { __cgo_enum__5 = c5 };
-	__typeof__(c6) *__cgo__6;
-	enum { __cgo_enum__6 = c6 };
+	__typeof__(i4) *__cgo__4;
+	enum { __cgo_enum__4 = i4 };
+	__typeof__(i5) *__cgo__5;
+	enum { __cgo_enum__5 = i5 };
+	__typeof__(u6) *__cgo__6;
+	enum { __cgo_enum__6 = u6 };
+	__typeof__(f7) *__cgo__7;
+	__typeof__(f8) *__cgo__8;
+	__typeof__(s9) *__cgo__9;
+	__typeof__(s10) *__cgo__10;
 
-	long long __cgo_debug_data[] = {
+	long long __cgodebug_ints[] = {
 		0, // t1
 		0, // v2
 		0, // v3
-		c4,
-		c5,
-		c6,
+		i4,
+		i5,
+		u6,
+		0, // f7
+		0, // f8
+		0, // s9
+		0, // s10
 		1
 	};
+
+	double __cgodebug_floats[] = {
+		0, // t1
+		0, // v2
+		0, // v3
+		0, // i4
+		0, // i5
+		0, // u6
+		f7,
+		f8,
+		0, // s9
+		0, // s10
+		1
+	};
+
+	const char __cgodebug_str__9[] = s9;
+	const unsigned long long __cgodebug_strlen__9 = sizeof(s9)-1;
+	const char __cgodebug_str__10[] = s10;
+	const unsigned long long __cgodebug_strlen__10 = sizeof(s10)-1;
 
 and again invokes the system C compiler, to produce an object file
 containing debug information. Cgo parses the DWARF debug information
 for __cgo__N to learn the type of each identifier. (The types also
-distinguish functions from global variables.) If using a standard gcc,
-cgo can parse the DWARF debug information for the __cgo_enum__N to
-learn the identifier's value. The LLVM-based gcc on OS X emits
-incomplete DWARF information for enums; in that case cgo reads the
-constant values from the __cgo_debug_data from the object file's data
-segment.
+distinguish functions from global variables.) Cgo reads the constant
+values from the __cgodebug_* from the object file's data segment.
 
 At this point cgo knows the meaning of each C.xxx well enough to start
 the translation process.
@@ -553,9 +583,12 @@ _cgo_main.c:
 
 	int main() { return 0; }
 	void crosscall2(void(*fn)(void*, int, uintptr_t), void *a, int c, uintptr_t ctxt) { }
-	uintptr_t _cgo_wait_runtime_init_done() { }
+	uintptr_t _cgo_wait_runtime_init_done() { return 0; }
+	void _cgo_release_context(uintptr_t ctxt) { }
+	char* _cgo_topofstack(void) { return (char*)0; }
 	void _cgo_allocate(void *a, int c) { }
 	void _cgo_panic(void *a, int c) { }
+	void _cgo_reginit(void) { }
 
 The extra functions here are stubs to satisfy the references in the C
 code generated for gcc. The build process links this stub, along with
