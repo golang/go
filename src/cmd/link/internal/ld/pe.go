@@ -290,23 +290,22 @@ func (t *peStringTable) write() {
 
 // peSection represents section from COFF section table.
 type peSection struct {
-	name      string
-	shortName string
-	index     int // one-based index into the Section Table
-	// TODO: change all these names to start with small letters
-	VirtualSize          uint32
-	VirtualAddress       uint32
-	SizeOfRawData        uint32
-	PointerToRawData     uint32
-	PointerToRelocations uint32
-	NumberOfRelocations  uint16
-	Characteristics      uint32
+	name                 string
+	shortName            string
+	index                int // one-based index into the Section Table
+	virtualSize          uint32
+	virtualAddress       uint32
+	sizeOfRawData        uint32
+	pointerToRawData     uint32
+	pointerToRelocations uint32
+	numberOfRelocations  uint16
+	characteristics      uint32
 }
 
 // checkOffset verifies COFF section sect offset in the file.
 func (sect *peSection) checkOffset(off int64) {
-	if off != int64(sect.PointerToRawData) {
-		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", sect.name, uint64(int64(sect.PointerToRawData)), uint64(off))
+	if off != int64(sect.pointerToRawData) {
+		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", sect.name, uint64(int64(sect.pointerToRawData)), uint64(off))
 		errorexit()
 	}
 }
@@ -314,12 +313,12 @@ func (sect *peSection) checkOffset(off int64) {
 // checkSegment verifies COFF section sect matches address
 // and file offset provided in segment seg.
 func (sect *peSection) checkSegment(seg *Segment) {
-	if seg.Vaddr-PEBASE != uint64(sect.VirtualAddress) {
-		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", sect.name, uint64(int64(sect.VirtualAddress)), uint64(int64(seg.Vaddr-PEBASE)))
+	if seg.Vaddr-PEBASE != uint64(sect.virtualAddress) {
+		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", sect.name, uint64(int64(sect.virtualAddress)), uint64(int64(seg.Vaddr-PEBASE)))
 		errorexit()
 	}
-	if seg.Fileoff != uint64(sect.PointerToRawData) {
-		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", sect.name, uint64(int64(sect.PointerToRawData)), uint64(int64(seg.Fileoff)))
+	if seg.Fileoff != uint64(sect.pointerToRawData) {
+		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", sect.name, uint64(int64(sect.pointerToRawData)), uint64(int64(seg.Fileoff)))
 		errorexit()
 	}
 }
@@ -328,21 +327,21 @@ func (sect *peSection) checkSegment(seg *Segment) {
 // as necessary to make section sect.SizeOfRawData bytes long.
 // It assumes that n bytes are already written to the file.
 func (sect *peSection) pad(n uint32) {
-	strnput("", int(sect.SizeOfRawData-n))
+	strnput("", int(sect.sizeOfRawData-n))
 }
 
 // write writes COFF section sect into the output file.
 func (sect *peSection) write() error {
 	h := pe.SectionHeader32{
-		VirtualSize:          sect.VirtualSize,
-		SizeOfRawData:        sect.SizeOfRawData,
-		PointerToRawData:     sect.PointerToRawData,
-		PointerToRelocations: sect.PointerToRelocations,
-		NumberOfRelocations:  sect.NumberOfRelocations,
-		Characteristics:      sect.Characteristics,
+		VirtualSize:          sect.virtualSize,
+		SizeOfRawData:        sect.sizeOfRawData,
+		PointerToRawData:     sect.pointerToRawData,
+		PointerToRelocations: sect.pointerToRelocations,
+		NumberOfRelocations:  sect.numberOfRelocations,
+		Characteristics:      sect.characteristics,
 	}
 	if Linkmode != LinkExternal {
-		h.VirtualAddress = sect.VirtualAddress
+		h.VirtualAddress = sect.virtualAddress
 	}
 	copy(h.Name[:], sect.shortName)
 	return binary.Write(&coutbuf, binary.LittleEndian, h)
@@ -353,7 +352,7 @@ func (sect *peSection) write() error {
 // This updates the corresponding PE section table entry
 // with the relocation offset and count.
 func (sect *peSection) emitRelocations(relocfn func() int) {
-	sect.PointerToRelocations = uint32(coutbuf.Offset())
+	sect.pointerToRelocations = uint32(coutbuf.Offset())
 	// first entry: extended relocs
 	Lputl(0) // placeholder for number of relocation + 1
 	Lputl(0)
@@ -362,16 +361,16 @@ func (sect *peSection) emitRelocations(relocfn func() int) {
 	n := relocfn() + 1
 
 	cpos := coutbuf.Offset()
-	Cseek(int64(sect.PointerToRelocations))
+	Cseek(int64(sect.pointerToRelocations))
 	Lputl(uint32(n))
 	Cseek(cpos)
 	if n > 0x10000 {
 		n = 0x10000
-		sect.Characteristics |= IMAGE_SCN_LNK_NRELOC_OVFL
+		sect.characteristics |= IMAGE_SCN_LNK_NRELOC_OVFL
 	} else {
-		sect.PointerToRelocations += 10 // skip the extend reloc entry
+		sect.pointerToRelocations += 10 // skip the extend reloc entry
 	}
-	sect.NumberOfRelocations = uint16(n - 1)
+	sect.numberOfRelocations = uint16(n - 1)
 }
 
 // peFile is used to build COFF file.
@@ -395,14 +394,14 @@ func (f *peFile) addSection(name string, sectsize int, filesize int) *peSection 
 		name:             name,
 		shortName:        name,
 		index:            len(f.sections) + 1,
-		VirtualSize:      uint32(sectsize),
-		VirtualAddress:   f.nextSectOffset,
-		PointerToRawData: f.nextFileOffset,
+		virtualSize:      uint32(sectsize),
+		virtualAddress:   f.nextSectOffset,
+		pointerToRawData: f.nextFileOffset,
 	}
 	f.nextSectOffset = uint32(Rnd(int64(f.nextSectOffset)+int64(sectsize), PESECTALIGN))
 	if filesize > 0 {
-		sect.SizeOfRawData = uint32(Rnd(int64(filesize), PEFILEALIGN))
-		f.nextFileOffset += sect.SizeOfRawData
+		sect.sizeOfRawData = uint32(Rnd(int64(filesize), PEFILEALIGN))
+		f.nextFileOffset += sect.sizeOfRawData
 	}
 	f.sections = append(f.sections, sect)
 	return sect
@@ -424,7 +423,7 @@ func (f *peFile) addDWARFSection(name string, size int) *peSection {
 	off := f.stringTable.add(name)
 	h := f.addSection(name, size, size)
 	h.shortName = fmt.Sprintf("/%d", off)
-	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
+	h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
 	return h
 }
 
@@ -439,8 +438,8 @@ func (f *peFile) addDWARF() {
 	for _, sect := range Segdwarf.Sections {
 		h := f.addDWARFSection(sect.Name, int(sect.Length))
 		fileoff := sect.Vaddr - Segdwarf.Vaddr + Segdwarf.Fileoff
-		if uint64(h.PointerToRawData) != fileoff {
-			Exitf("%s.PointerToRawData = %#x, want %#x", sect.Name, h.PointerToRawData, fileoff)
+		if uint64(h.pointerToRawData) != fileoff {
+			Exitf("%s.PointerToRawData = %#x, want %#x", sect.Name, h.pointerToRawData, fileoff)
 		}
 	}
 }
@@ -462,9 +461,9 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
 		size = 8
 	}
 	sect := f.addSection(".ctors", size, size)
-	sect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
-	sect.SizeOfRawData = uint32(size)
-	Cseek(int64(sect.PointerToRawData))
+	sect.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+	sect.sizeOfRawData = uint32(size)
+	Cseek(int64(sect.pointerToRawData))
 	sect.checkOffset(coutbuf.Offset())
 
 	init_entry := ctxt.Syms.Lookup(*flagEntrySymbol, 0)
@@ -698,7 +697,7 @@ func (f *peFile) writeSymbolTableAndStringTable(ctxt *Link) {
 		// We do not really need .symtab for go.o, and if we have one, ld
 		// will also include it in the exe, and that will confuse windows.
 		h = f.addSection(".symtab", size, size)
-		h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
+		h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
 		h.checkOffset(f.symtabOffset)
 	}
 
@@ -758,7 +757,7 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 		oh64.Magic = 0x20b // PE32+
 	} else {
 		oh.Magic = 0x10b // PE32
-		oh.BaseOfData = f.dataSect.VirtualAddress
+		oh.BaseOfData = f.dataSect.virtualAddress
 	}
 
 	// Fill out both oh64 and oh. We only use one. Oh well.
@@ -766,18 +765,18 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	oh.MajorLinkerVersion = 3
 	oh64.MinorLinkerVersion = 0
 	oh.MinorLinkerVersion = 0
-	oh64.SizeOfCode = f.textSect.SizeOfRawData
-	oh.SizeOfCode = f.textSect.SizeOfRawData
-	oh64.SizeOfInitializedData = f.dataSect.SizeOfRawData
-	oh.SizeOfInitializedData = f.dataSect.SizeOfRawData
+	oh64.SizeOfCode = f.textSect.sizeOfRawData
+	oh.SizeOfCode = f.textSect.sizeOfRawData
+	oh64.SizeOfInitializedData = f.dataSect.sizeOfRawData
+	oh.SizeOfInitializedData = f.dataSect.sizeOfRawData
 	oh64.SizeOfUninitializedData = 0
 	oh.SizeOfUninitializedData = 0
 	if Linkmode != LinkExternal {
 		oh64.AddressOfEntryPoint = uint32(Entryvalue(ctxt) - PEBASE)
 		oh.AddressOfEntryPoint = uint32(Entryvalue(ctxt) - PEBASE)
 	}
-	oh64.BaseOfCode = f.textSect.VirtualAddress
-	oh.BaseOfCode = f.textSect.VirtualAddress
+	oh64.BaseOfCode = f.textSect.virtualAddress
+	oh.BaseOfCode = f.textSect.virtualAddress
 	oh64.ImageBase = PEBASE
 	oh.ImageBase = PEBASE
 	oh64.SectionAlignment = uint32(PESECTALIGN)
@@ -1096,15 +1095,15 @@ func addimports(ctxt *Link, datsect *peSection) {
 	n = uint64(coutbuf.Offset()) - uint64(startoff)
 
 	isect := pefile.addSection(".idata", int(n), int(n))
-	isect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
+	isect.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
 	isect.checkOffset(startoff)
 	isect.pad(uint32(n))
 	endoff := coutbuf.Offset()
 
 	// write FirstThunks (allocated in .data section)
-	ftbase := uint64(dynamic.Value) - uint64(datsect.VirtualAddress) - PEBASE
+	ftbase := uint64(dynamic.Value) - uint64(datsect.virtualAddress) - PEBASE
 
-	Cseek(int64(uint64(datsect.PointerToRawData) + ftbase))
+	Cseek(int64(uint64(datsect.pointerToRawData) + ftbase))
 	for d := dr; d != nil; d = d.next {
 		for m = d.ms; m != nil; m = m.next {
 			if pe64 != 0 {
@@ -1125,11 +1124,11 @@ func addimports(ctxt *Link, datsect *peSection) {
 	Cseek(startoff)
 
 	for d := dr; d != nil; d = d.next {
-		Lputl(uint32(uint64(isect.VirtualAddress) + oftbase + d.thunkoff))
+		Lputl(uint32(uint64(isect.virtualAddress) + oftbase + d.thunkoff))
 		Lputl(0)
 		Lputl(0)
-		Lputl(uint32(uint64(isect.VirtualAddress) + d.nameoff))
-		Lputl(uint32(uint64(datsect.VirtualAddress) + ftbase + d.thunkoff))
+		Lputl(uint32(uint64(isect.virtualAddress) + d.nameoff))
+		Lputl(uint32(uint64(datsect.virtualAddress) + ftbase + d.thunkoff))
 	}
 
 	Lputl(0) //end
@@ -1139,8 +1138,8 @@ func addimports(ctxt *Link, datsect *peSection) {
 	Lputl(0)
 
 	// update data directory
-	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress = isect.VirtualAddress
-	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].Size = isect.VirtualSize
+	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress = isect.virtualAddress
+	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].Size = isect.virtualSize
 	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = uint32(dynamic.Value - PEBASE)
 	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].Size = uint32(dynamic.Size)
 
@@ -1184,11 +1183,11 @@ func addexports(ctxt *Link) {
 	}
 
 	sect := pefile.addSection(".edata", size, size)
-	sect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+	sect.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
 	sect.checkOffset(coutbuf.Offset())
-	va := int(sect.VirtualAddress)
+	va := int(sect.virtualAddress)
 	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = uint32(va)
-	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect.VirtualSize
+	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect.virtualSize
 
 	vaName := va + binary.Size(&e) + nexport*4
 	vaAddr := va + binary.Size(&e)
@@ -1260,7 +1259,7 @@ func addpersrc(ctxt *Link) {
 	}
 
 	h := pefile.addSection(".rsrc", int(rsrcsym.Size), int(rsrcsym.Size))
-	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA
+	h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA
 	h.checkOffset(coutbuf.Offset())
 
 	// relocation
@@ -1270,7 +1269,7 @@ func addpersrc(ctxt *Link) {
 	for ri := 0; ri < len(rsrcsym.R); ri++ {
 		r = &rsrcsym.R[ri]
 		p = rsrcsym.P[r.Off:]
-		val = uint32(int64(h.VirtualAddress) + r.Add)
+		val = uint32(int64(h.virtualAddress) + r.Add)
 
 		// 32-bit little-endian
 		p[0] = byte(val)
@@ -1284,9 +1283,9 @@ func addpersrc(ctxt *Link) {
 	h.pad(uint32(rsrcsym.Size))
 
 	// update data directory
-	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress = h.VirtualAddress
+	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress = h.virtualAddress
 
-	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.VirtualSize
+	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.virtualSize
 }
 
 func Asmbpe(ctxt *Link) {
@@ -1297,11 +1296,11 @@ func Asmbpe(ctxt *Link) {
 	}
 
 	t := pefile.addSection(".text", int(Segtext.Length), int(Segtext.Length))
-	t.Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
+	t.characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
 	if Linkmode == LinkExternal {
 		// some data symbols (e.g. masks) end up in the .text section, and they normally
 		// expect larger alignment requirement than the default text section alignment.
-		t.Characteristics |= IMAGE_SCN_ALIGN_32BYTES
+		t.characteristics |= IMAGE_SCN_ALIGN_32BYTES
 	}
 	t.checkSegment(&Segtext)
 	pefile.textSect = t
@@ -1309,18 +1308,18 @@ func Asmbpe(ctxt *Link) {
 	var d *peSection
 	if Linkmode != LinkExternal {
 		d = pefile.addSection(".data", int(Segdata.Length), int(Segdata.Filelen))
-		d.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
+		d.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
 		d.checkSegment(&Segdata)
 		pefile.dataSect = d
 	} else {
 		d = pefile.addSection(".data", int(Segdata.Filelen), int(Segdata.Filelen))
-		d.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
+		d.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
 		d.checkSegment(&Segdata)
 		pefile.dataSect = d
 
 		b := pefile.addSection(".bss", int(Segdata.Length-Segdata.Filelen), 0)
-		b.Characteristics = IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
-		b.PointerToRawData = 0
+		b.characteristics = IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
+		b.pointerToRawData = 0
 		pefile.bssSect = b
 	}
 
