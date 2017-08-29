@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of August 25, 2017",
+	"Subtitle": "Version of August 30, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -3147,8 +3147,8 @@ and the result of the slice operation is a slice with the same element type as t
 
 <p>
 If the sliced operand of a valid slice expression is a <code>nil</code> slice, the result
-is a <code>nil</code> slice. Otherwise, the result shares its underlying array with the
-operand.
+is a <code>nil</code> slice. Otherwise, if the result is a slice, it shares its underlying
+array with the operand.
 </p>
 
 <h4>Full slice expressions</h4>
