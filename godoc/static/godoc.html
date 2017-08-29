@@ -32,7 +32,9 @@
 <a href="/pkg/">Packages</a>
 <a href="/project/">The Project</a>
 <a href="/help/">Help</a>
+{{if not .GoogleCN}}
 <a href="/blog/">Blog</a>
+{{end}}
 {{if .Playground}}
 <a id="playgroundButton" href="http://play.golang.org/" title="Show Go Playground">Play</a>
 {{end}}
