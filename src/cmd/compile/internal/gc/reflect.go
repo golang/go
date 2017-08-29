@@ -146,7 +146,7 @@ func mapbucket(t *types.Type) *types.Type {
 	// so if the struct needs 64-bit padding (because a key or value does)
 	// then it would end with an extra 32-bit padding field.
 	// Preempt that by emitting the padding here.
-	if int(t.Val().Align) > Widthptr || int(t.Key().Align) > Widthptr {
+	if int(valtype.Align) > Widthptr || int(keytype.Align) > Widthptr {
 		field = append(field, makefield("pad", types.Types[TUINTPTR]))
 	}
 
