@@ -1929,7 +1929,6 @@ const (
 	BSSSym                  = 'B'
 	UndefinedSym            = 'U'
 	TLSSym                  = 't'
-	FileSym                 = 'f'
 	FrameSym                = 'm'
 	ParamSym                = 'p'
 	AutoSym                 = 'a'
@@ -2013,9 +2012,6 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 				Errorf(s, "should not be bss (size=%d type=%v special=%v)", len(s.P), s.Type, s.Attr.Special())
 			}
 			put(ctxt, s, s.Name, BSSSym, Symaddr(s), s.Gotype)
-
-		case SFILE:
-			put(ctxt, nil, s.Name, FileSym, s.Value, nil)
 
 		case SHOSTOBJ:
 			if Headtype == objabi.Hwindows || Iself {
