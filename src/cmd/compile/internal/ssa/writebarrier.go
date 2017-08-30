@@ -52,7 +52,7 @@ func writebarrier(f *Func) {
 	for _, b := range f.Blocks { // range loop is safe since the blocks we added contain no stores to expand
 		// first, identify all the stores that need to insert a write barrier.
 		// mark them with WB ops temporarily. record presence of WB ops.
-		hasStore := false
+		nWBops := 0 // count of temporarily created WB ops remaining to be rewritten in the current block
 		for _, v := range b.Values {
 			switch v.Op {
 			case OpStore, OpMove, OpZero:
@@ -65,11 +65,11 @@ func writebarrier(f *Func) {
 					case OpZero:
 						v.Op = OpZeroWB
 					}
-					hasStore = true
+					nWBops++
 				}
 			}
 		}
-		if !hasStore {
+		if nWBops == 0 {
 			continue
 		}
 
@@ -188,13 +188,16 @@ func writebarrier(f *Func) {
 			case OpStoreWB:
 				fn = writebarrierptr
 				val = w.Args[1]
+				nWBops--
 			case OpMoveWB:
 				fn = typedmemmove
 				val = w.Args[1]
 				typ = w.Aux.(*types.Type).Symbol()
+				nWBops--
 			case OpZeroWB:
 				fn = typedmemclr
 				typ = w.Aux.(*types.Type).Symbol()
+				nWBops--
 			case OpVarDef, OpVarLive, OpVarKill:
 			}
 
@@ -261,13 +264,8 @@ func writebarrier(f *Func) {
 		}
 
 		// if we have more stores in this block, do this block again
-		// check from end to beginning, to avoid quadratic behavior; issue 13554
-		// TODO: track the final value to avoid any looping here at all
-		for i := len(b.Values) - 1; i >= 0; i-- {
-			switch b.Values[i].Op {
-			case OpStoreWB, OpMoveWB, OpZeroWB:
-				goto again
-			}
+		if nWBops > 0 {
+			goto again
 		}
 	}
 }
