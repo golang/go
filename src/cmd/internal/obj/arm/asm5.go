@@ -1651,6 +1651,16 @@ func buildop(ctxt *obj.Link) {
 			opset(ASUBD, r0)
 			opset(AMULF, r0)
 			opset(AMULD, r0)
+			opset(ANMULF, r0)
+			opset(ANMULD, r0)
+			opset(AMULAF, r0)
+			opset(AMULAD, r0)
+			opset(AMULSF, r0)
+			opset(AMULSD, r0)
+			opset(ANMULAF, r0)
+			opset(ANMULAD, r0)
+			opset(ANMULSF, r0)
+			opset(ANMULSD, r0)
 			opset(ADIVF, r0)
 			opset(ADIVD, r0)
 
@@ -2259,7 +2269,12 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int(p.To.Reg)
 		r := int(p.Reg)
 		if r == 0 {
-			r = rt
+			switch p.As {
+			case AMULAD, AMULAF, AMULSF, AMULSD, ANMULAF, ANMULAD, ANMULSF, ANMULSD:
+				c.ctxt.Diag("illegal combination: %v", p)
+			default:
+				r = rt
+			}
 		}
 
 		o1 |= (uint32(rf)&15)<<0 | (uint32(r)&15)<<16 | (uint32(rt)&15)<<12
@@ -2870,6 +2885,26 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
 		return o | 0xe<<24 | 0x2<<20 | 0xb<<8 | 0<<4
 	case AMULF:
 		return o | 0xe<<24 | 0x2<<20 | 0xa<<8 | 0<<4
+	case ANMULD:
+		return o | 0xe<<24 | 0x2<<20 | 0xb<<8 | 0x4<<4
+	case ANMULF:
+		return o | 0xe<<24 | 0x2<<20 | 0xa<<8 | 0x4<<4
+	case AMULAD:
+		return o | 0xe<<24 | 0xb<<8
+	case AMULAF:
+		return o | 0xe<<24 | 0xa<<8
+	case AMULSD:
+		return o | 0xe<<24 | 0xb<<8 | 0x4<<4
+	case AMULSF:
+		return o | 0xe<<24 | 0xa<<8 | 0x4<<4
+	case ANMULAD:
+		return o | 0xe<<24 | 0x1<<20 | 0xb<<8
+	case ANMULAF:
+		return o | 0xe<<24 | 0x1<<20 | 0xa<<8
+	case ANMULSD:
+		return o | 0xe<<24 | 0x1<<20 | 0xb<<8 | 0x4<<4
+	case ANMULSF:
+		return o | 0xe<<24 | 0x1<<20 | 0xa<<8 | 0x4<<4
 	case ADIVD:
 		return o | 0xe<<24 | 0x8<<20 | 0xb<<8 | 0<<4
 	case ADIVF:

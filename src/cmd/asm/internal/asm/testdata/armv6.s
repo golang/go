@@ -18,6 +18,18 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
 	MULD.EQ	F3, F4, F5    // 035b240e
 	MULF.NE	F0, F2        // 002a221e
 	MULD	F3, F5        // 035b25ee
+	NMULF	F0, F1, F2    // 402a21ee
+	NMULF	F3, F7        // 437a27ee
+	NMULD	F0, F1, F2    // 402b21ee
+	NMULD	F3, F7        // 437b27ee
+	MULAF	F5, F6, F7    // 057a06ee
+	MULAD	F5, F6, F7    // 057b06ee
+	MULSF	F5, F6, F7    // 457a06ee
+	MULSD	F5, F6, F7    // 457b06ee
+	NMULAF	F5, F6, F7    // 057a16ee
+	NMULAD	F5, F6, F7    // 057b16ee
+	NMULSF	F5, F6, F7    // 457a16ee
+	NMULSD	F5, F6, F7    // 457b16ee
 	DIVF	F0, F1, F2    // 002a81ee
 	DIVD.EQ	F3, F4, F5    // 035b840e
 	DIVF.NE	F0, F2        // 002a821e
