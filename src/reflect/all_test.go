@@ -321,6 +321,89 @@ func TestSetValue(t *testing.T) {
 	}
 }
 
+func TestCanSetField(t *testing.T) {
+	type embed struct{ x, X int }
+	type Embed struct{ x, X int }
+	type S1 struct {
+		embed
+		x, X int
+	}
+	type S2 struct {
+		*embed
+		x, X int
+	}
+	type S3 struct {
+		Embed
+		x, X int
+	}
+	type S4 struct {
+		*Embed
+		x, X int
+	}
+
+	type testCase struct {
+		index  []int
+		canSet bool
+	}
+	tests := []struct {
+		val   Value
+		cases []testCase
+	}{{
+		val: ValueOf(&S1{}),
+		cases: []testCase{
+			{[]int{0}, false},
+			{[]int{0, 0}, false},
+			{[]int{0, 1}, true},
+			{[]int{1}, false},
+			{[]int{2}, true},
+		},
+	}, {
+		val: ValueOf(&S2{embed: &embed{}}),
+		cases: []testCase{
+			{[]int{0}, false},
+			{[]int{0, 0}, false},
+			{[]int{0, 1}, true},
+			{[]int{1}, false},
+			{[]int{2}, true},
+		},
+	}, {
+		val: ValueOf(&S3{}),
+		cases: []testCase{
+			{[]int{0}, true},
+			{[]int{0, 0}, false},
+			{[]int{0, 1}, true},
+			{[]int{1}, false},
+			{[]int{2}, true},
+		},
+	}, {
+		val: ValueOf(&S4{Embed: &Embed{}}),
+		cases: []testCase{
+			{[]int{0}, true},
+			{[]int{0, 0}, false},
+			{[]int{0, 1}, true},
+			{[]int{1}, false},
+			{[]int{2}, true},
+		},
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.val.Type().Name(), func(t *testing.T) {
+			for _, tc := range tt.cases {
+				f := tt.val
+				for _, i := range tc.index {
+					if f.Kind() == Ptr {
+						f = f.Elem()
+					}
+					f = f.Field(i)
+				}
+				if got := f.CanSet(); got != tc.canSet {
+					t.Errorf("CanSet() = %v, want %v", got, tc.canSet)
+				}
+			}
+		})
+	}
+}
+
 var _i = 7
 
 var valueToStringTests = []pair{
@@ -2357,10 +2440,13 @@ func TestImportPath(t *testing.T) {
 }
 
 func TestFieldPkgPath(t *testing.T) {
+	type x int
 	typ := TypeOf(struct {
 		Exported   string
 		unexported string
 		OtherPkgFields
+		int // issue 21702
+		*x  // issue 21122
 	}{})
 
 	type pkgpathTest struct {
@@ -2387,6 +2473,8 @@ func TestFieldPkgPath(t *testing.T) {
 		{[]int{2}, "", true},              // OtherPkgFields
 		{[]int{2, 0}, "", false},          // OtherExported
 		{[]int{2, 1}, "reflect", false},   // otherUnexported
+		{[]int{3}, "reflect_test", true},  // int
+		{[]int{4}, "reflect_test", true},  // *x
 	})
 
 	type localOtherPkgFields OtherPkgFields

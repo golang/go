@@ -568,30 +568,12 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
 	return dsymptrOff(s, ot, pkg.Pathsym, 0)
 }
 
-// isExportedField reports whether a struct field is exported.
-// It also returns the package to use for PkgPath for an unexported field.
-func isExportedField(ft *types.Field) (bool, *types.Pkg) {
-	if ft.Sym != nil && ft.Embedded == 0 {
-		return exportname(ft.Sym.Name), ft.Sym.Pkg
-	}
-	if ft.Type.Sym != nil &&
-		(ft.Type.Sym.Pkg == builtinpkg || !exportname(ft.Type.Sym.Name)) {
-		return false, ft.Type.Sym.Pkg
-	}
-	return true, nil
-}
-
 // dnameField dumps a reflect.name for a struct field.
 func dnameField(lsym *obj.LSym, ot int, spkg *types.Pkg, ft *types.Field) int {
-	var name string
-	if ft.Sym != nil {
-		name = ft.Sym.Name
+	if !exportname(ft.Sym.Name) && ft.Sym.Pkg != spkg {
+		Fatalf("package mismatch for %v", ft.Sym)
 	}
-	isExported, fpkg := isExportedField(ft)
-	if isExported || fpkg == spkg {
-		fpkg = nil
-	}
-	nsym := dname(name, ft.Note, fpkg, isExported)
+	nsym := dname(ft.Sym.Name, ft.Note, nil, exportname(ft.Sym.Name))
 	return dsymptr(lsym, ot, nsym, 0)
 }
 
@@ -1356,21 +1338,21 @@ ok:
 			n++
 		}
 
-		ot = dcommontype(lsym, ot, t)
-		pkg := localpkg
-		if t.Sym != nil {
-			pkg = t.Sym.Pkg
-		} else {
-			// Unnamed type. Grab the package from the first field, if any.
-			for _, f := range t.Fields().Slice() {
-				if f.Embedded != 0 {
-					continue
-				}
-				pkg = f.Sym.Pkg
+		// All non-exported struct field names within a struct
+		// type must originate from a single package. By
+		// identifying and recording that package within the
+		// struct type descriptor, we can omit that
+		// information from the field descriptors.
+		var spkg *types.Pkg
+		for _, f := range t.Fields().Slice() {
+			if !exportname(f.Sym.Name) {
+				spkg = f.Sym.Pkg
 				break
 			}
 		}
-		ot = dgopkgpath(lsym, ot, pkg)
+
+		ot = dcommontype(lsym, ot, t)
+		ot = dgopkgpath(lsym, ot, spkg)
 		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
 		ot = duintptr(lsym, ot, uint64(n))
 		ot = duintptr(lsym, ot, uint64(n))
@@ -1380,7 +1362,7 @@ ok:
 
 		for _, f := range t.Fields().Slice() {
 			// ../../../../runtime/type.go:/structField
-			ot = dnameField(lsym, ot, pkg, f)
+			ot = dnameField(lsym, ot, spkg, f)
 			ot = dsymptr(lsym, ot, dtypesym(f.Type).Linksym(), 0)
 			offsetAnon := uint64(f.Offset) << 1
 			if offsetAnon>>1 != uint64(f.Offset) {
