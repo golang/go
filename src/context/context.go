@@ -136,7 +136,7 @@ type Context interface {
 	// 	// userKey is the key for user.User values in Contexts. It is
 	// 	// unexported; clients use user.NewContext and user.FromContext
 	// 	// instead of using this key directly.
-	// 	var userKey key = 0
+	// 	var userKey key
 	//
 	// 	// NewContext returns a new Context that carries value u.
 	// 	func NewContext(ctx context.Context, u *User) context.Context {
