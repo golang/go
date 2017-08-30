@@ -258,6 +258,11 @@ var allAsmTests = []*asmTests{
 		tests:   linuxMIPSTests,
 	},
 	{
+		arch:  "mips64",
+		os:    "linux",
+		tests: linuxMIPS64Tests,
+	},
+	{
 		arch:  "ppc64le",
 		os:    "linux",
 		tests: linuxPPC64LETests,
@@ -1744,6 +1749,17 @@ var linuxARM64Tests = []*asmTest{
 		`,
 		pos: []string{"TEXT\t.*, [$]-8-8"},
 	},
+	{
+		// check that we don't emit comparisons for constant shift
+		fn: `
+//go:nosplit
+		func $(x int) int {
+			return x << 17
+		}
+		`,
+		pos: []string{"LSL\t\\$17"},
+		neg: []string{"CMP"},
+	},
 }
 
 var linuxMIPSTests = []*asmTest{
@@ -1836,6 +1852,19 @@ var linuxMIPSTests = []*asmTest{
 		}
 		`,
 		pos: []string{"TEXT\t.*, [$]-4-4"},
+	},
+}
+
+var linuxMIPS64Tests = []*asmTest{
+	{
+		// check that we don't emit comparisons for constant shift
+		fn: `
+		func $(x int) int {
+			return x << 17
+		}
+		`,
+		pos: []string{"SLLV\t\\$17"},
+		neg: []string{"SGT"},
 	},
 }
 
