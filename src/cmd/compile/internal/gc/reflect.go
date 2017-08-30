@@ -1275,9 +1275,25 @@ ok:
 	// ../../../../runtime/type.go:/structType
 	// for security, only the exported fields.
 	case TSTRUCT:
+
+		// omitFieldForAwfulBoringCryptoKludge reports whether
+		// the field t should be omitted from the reflect data.
+		// In the crypto/... packages we omit an unexported field
+		// named "boring", to keep from breaking client code that
+		// expects rsa.PublicKey etc to have only public fields.
+		// As the name suggests, this is an awful kludge, but it is
+		// limited to the dev.boringcrypto branch and avoids
+		// much more invasive effects elsewhere.
+		omitFieldForAwfulBoringCryptoKludge := func(t *types.Field) bool {
+			return strings.HasPrefix(myimportpath, "crypto/") && t.Sym != nil && t.Sym.Name == "boring"
+		}
+
 		n := 0
 
 		for _, t1 := range t.Fields().Slice() {
+			if omitFieldForAwfulBoringCryptoKludge(t1) {
+				continue
+			}
 			dtypesym(t1.Type)
 			n++
 		}
@@ -1305,6 +1321,9 @@ ok:
 		ot = dextratype(lsym, ot, t, dataAdd)
 
 		for _, f := range t.Fields().Slice() {
+			if omitFieldForAwfulBoringCryptoKludge(f) {
+				continue
+			}
 			// ../../../../runtime/type.go:/structField
 			ot = dnameField(lsym, ot, pkg, f)
 			ot = dsymptr(lsym, ot, dtypesym(f.Type).Linksym(), 0)
