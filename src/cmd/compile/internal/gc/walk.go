@@ -1445,11 +1445,12 @@ opswitch:
 	case OMAKEMAP:
 		t := n.Type
 		hmapType := hmap(t)
+		hint := n.Left
 
 		// var h *hmap
 		var h *Node
 		if n.Esc == EscNone {
-			// Allocate hmap and one bucket on stack.
+			// Allocate hmap on stack.
 
 			// var hv hmap
 			hv := temp(hmapType)
@@ -1459,26 +1460,29 @@ opswitch:
 			// h = &hv
 			h = nod(OADDR, hv, nil)
 
-			// Allocate one bucket pointed to by hmap.buckets on stack.
-			// Maximum key/value size is 128 bytes, larger objects
+			// Allocate one bucket pointed to by hmap.buckets on stack if hint
+			// is not larger than BUCKETSIZE. In case hint is larger than
+			// BUCKETSIZE runtime.makemap will allocate the buckets on the heap.
+			// Maximum key and value size is 128 bytes, larger objects
 			// are stored with an indirection. So max bucket size is 2048+eps.
+			if !Isconst(hint, CTINT) ||
+				!(hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) > 0) {
+				// var bv bmap
+				bv := temp(bmap(t))
 
-			// var bv bmap
-			bv := temp(bmap(t))
+				zero = nod(OAS, bv, nil)
+				zero = typecheck(zero, Etop)
+				init.Append(zero)
 
-			zero = nod(OAS, bv, nil)
-			zero = typecheck(zero, Etop)
-			init.Append(zero)
+				// b = &bv
+				b := nod(OADDR, bv, nil)
 
-			// b = &bv
-			b := nod(OADDR, bv, nil)
-
-			// h.buckets = b
-			bsym := hmapType.Field(5).Sym // hmap.buckets see reflect.go:hmap
-			na := nod(OAS, nodSym(ODOT, h, bsym), b)
-			na = typecheck(na, Etop)
-			init.Append(na)
-
+				// h.buckets = b
+				bsym := hmapType.Field(5).Sym // hmap.buckets see reflect.go:hmap
+				na := nod(OAS, nodSym(ODOT, h, bsym), b)
+				na = typecheck(na, Etop)
+				init.Append(na)
+			}
 		} else {
 			// h = nil
 			h = nodnil()
@@ -1486,7 +1490,6 @@ opswitch:
 
 		// When hint fits into int, use makemap instead of
 		// makemap64, which is faster and shorter on 32 bit platforms.
-		hint := n.Left
 		fnname := "makemap64"
 		argtype := types.Types[TINT64]
 
