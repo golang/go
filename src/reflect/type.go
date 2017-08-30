@@ -1216,10 +1216,7 @@ func (t *structType) Field(i int) (f StructField) {
 	f.Name = p.name.name()
 	f.Anonymous = p.anon()
 	if !p.name.isExported() {
-		f.PkgPath = p.name.pkgPath()
-		if f.PkgPath == "" {
-			f.PkgPath = t.pkgPath.name()
-		}
+		f.PkgPath = t.pkgPath.name()
 	}
 	if tag := p.name.tag(); tag != "" {
 		f.Tag = StructTag(tag)
@@ -1677,6 +1674,9 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 		if len(t.fields) != len(v.fields) {
 			return false
 		}
+		if t.pkgPath.name() != v.pkgPath.name() {
+			return false
+		}
 		for i := range t.fields {
 			tf := &t.fields[i]
 			vf := &v.fields[i]
@@ -1691,19 +1691,6 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 			}
 			if tf.offsetAnon != vf.offsetAnon {
 				return false
-			}
-			if !tf.name.isExported() {
-				tp := tf.name.pkgPath()
-				if tp == "" {
-					tp = t.pkgPath.name()
-				}
-				vp := vf.name.pkgPath()
-				if vp == "" {
-					vp = v.pkgPath.name()
-				}
-				if tp != vp {
-					return false
-				}
 			}
 		}
 		return true
