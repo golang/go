@@ -6,9 +6,9 @@
 // constants used by the runtime.
 package sys
 
-// The next line makes 'go generate' write the zgen_*.go files with
+// The next line makes 'go generate' write the zgo*.go files with
 // per-OS and per-arch information, including constants
-// named goos_$GOOS and goarch_$GOARCH for every
+// named Goos$GOOS and Goarch$GOARCH for every
 // known GOOS and GOARCH. The constant is 1 on the
 // current system, 0 otherwise; multiplying by them is
 // useful for defining GOOS- or GOARCH-specific constants.
