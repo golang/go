@@ -441,9 +441,34 @@ function handleBodyKeyDown(event) {
   }
 };
 
+function scaleSmallViewports() {
+  var el = document.querySelector('.slides');
+  var transform = '';
+  var sWidthPx = 1250;
+  var sHeightPx = 750;
+  var sAspectRatio = sWidthPx / sHeightPx;
+  var wAspectRatio = window.innerWidth / window.innerHeight;
+
+  if (wAspectRatio <= sAspectRatio && window.innerWidth < sWidthPx) {
+    transform = 'scale(' + window.innerWidth / sWidthPx + ')';
+  } else if (window.innerHeight < sHeightPx) {
+    transform = 'scale(' + window.innerHeight / sHeightPx + ')';
+  }
+  el.style.transform = transform;
+}
+
 function addEventListeners() {
   document.addEventListener('keydown', handleBodyKeyDown, false);
-};
+  var resizeTimeout;
+  window.addEventListener('resize', function() {
+    // throttle resize events
+    window.clearTimeout(resizeTimeout);
+    resizeTimeout = window.setTimeout(function() {
+      resizeTimeout = null;
+      scaleSmallViewports();
+    }, 50);
+  });
+}
 
 /* Initialization */
 
@@ -466,13 +491,15 @@ function addGeneralStyle() {
 
   var el = document.createElement('meta');
   el.name = 'viewport';
-  el.content = 'width=1100,height=750';
+  el.content = 'width=device-width,height=device-height,initial-scale=1';
   document.querySelector('head').appendChild(el);
 
   var el = document.createElement('meta');
   el.name = 'apple-mobile-web-app-capable';
   el.content = 'yes';
   document.querySelector('head').appendChild(el);
+
+  scaleSmallViewports();
 };
 
 function handleDomLoaded() {

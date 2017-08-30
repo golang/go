@@ -11,10 +11,9 @@
     display: block !important;
 
     height: 100%;
-    min-height: 740px;
+    height: 100vh;
 
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: hidden;
 
     background: rgb(215, 215, 215);
     background: -o-radial-gradient(rgb(240, 240, 240), rgb(190, 190, 190));
