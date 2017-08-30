@@ -278,11 +278,14 @@ func compareTool() {
 
 	case tool == "compile" || strings.HasSuffix(tool, "g"): // compiler
 		useDashN := true
-		for _, s := range cmd {
+		dashcIndex := -1
+		for i, s := range cmd {
 			if s == "-+" {
 				// Compiling runtime. Don't use -N.
 				useDashN = false
-				break
+			}
+			if strings.HasPrefix(s, "-c=") {
+				dashcIndex = i
 			}
 		}
 		cmdN := injectflags(cmd, nil, useDashN)
@@ -293,8 +296,14 @@ func compareTool() {
 			} else {
 				log.Printf("compiler output differs")
 			}
+			if dashcIndex >= 0 {
+				cmd[dashcIndex] = "-c=1"
+			}
 			cmd = injectflags(cmd, []string{"-v", "-m=2"}, useDashN)
 			break
+		}
+		if dashcIndex >= 0 {
+			cmd[dashcIndex] = "-c=1"
 		}
 		cmd = injectflags(cmd, []string{"-v", "-m=2"}, false)
 		log.Printf("compiler output differs, only with optimizers enabled")
