@@ -19,7 +19,7 @@ var (
 	Debug_export int // if set, print debugging information about export data
 )
 
-func exportf(format string, args ...interface{}) {
+func exportf(bout *bio.Writer, format string, args ...interface{}) {
 	fmt.Fprintf(bout, format, args...)
 	if Debug_export != 0 {
 		fmt.Printf(format, args...)
@@ -222,14 +222,14 @@ func (x methodbyname) Len() int           { return len(x) }
 func (x methodbyname) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x methodbyname) Less(i, j int) bool { return x[i].Sym.Name < x[j].Sym.Name }
 
-func dumpexport() {
+func dumpexport(bout *bio.Writer) {
 	if buildid != "" {
-		exportf("build id %q\n", buildid)
+		exportf(bout, "build id %q\n", buildid)
 	}
 
 	size := 0 // size of export section without enclosing markers
 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
-	exportf("\n$$B\n") // indicate binary export format
+	exportf(bout, "\n$$B\n") // indicate binary export format
 	if debugFormat {
 		// save a copy of the export data
 		var copy bytes.Buffer
@@ -253,7 +253,7 @@ func dumpexport() {
 	} else {
 		size = export(bout.Writer, Debug_export != 0)
 	}
-	exportf("\n$$\n")
+	exportf(bout, "\n$$\n")
 
 	if Debug_export != 0 {
 		fmt.Printf("export data size = %d bytes\n", size)

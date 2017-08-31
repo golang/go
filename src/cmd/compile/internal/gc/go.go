@@ -7,7 +7,6 @@ package gc
 import (
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
-	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"sync"
@@ -84,8 +83,6 @@ var pragcgobuf string
 var outfile string
 var linkobj string
 var dolinkobj bool
-
-var bout *bio.Writer
 
 // nerrors is the number of compiler errors reported
 // since the last call to saveerrors.
