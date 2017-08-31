@@ -942,24 +942,6 @@ func clean() {
  * command implementations
  */
 
-func usage() {
-	xprintf("usage: go tool dist [command]\n" +
-		"Commands are:\n" +
-		"\n" +
-		"banner         print installation banner\n" +
-		"bootstrap      rebuild everything\n" +
-		"clean          deletes all built files\n" +
-		"env [-p]       print environment (-p: include $PATH)\n" +
-		"install [dir]  install individual directory\n" +
-		"list [-json]   list all supported platforms\n" +
-		"test [-h]      run Go test(s)\n" +
-		"version        print Go version\n" +
-		"\n" +
-		"All commands take -v flags to emit extra information.\n",
-	)
-	xexit(2)
-}
-
 // The env command prints the default environment.
 func cmdenv() {
 	path := flag.Bool("p", false, "emit updated PATH")
