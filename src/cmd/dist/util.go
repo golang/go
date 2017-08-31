@@ -51,18 +51,6 @@ func uniq(list []string) []string {
 	return keep
 }
 
-// splitlines returns a slice with the result of splitting
-// the input p after each \n.
-func splitlines(p string) []string {
-	return strings.SplitAfter(p, "\n")
-}
-
-// splitfields replaces the vector v with the result of splitting
-// the input p into non-empty fields containing no spaces.
-func splitfields(p string) []string {
-	return strings.Fields(p)
-}
-
 const (
 	CheckExit = 1 << iota
 	ShowOutput
@@ -231,11 +219,6 @@ func mtime(p string) time.Time {
 	return fi.ModTime()
 }
 
-// isabs reports whether p is an absolute path.
-func isabs(p string) bool {
-	return filepath.IsAbs(p)
-}
-
 // readfile returns the content of the named file.
 func readfile(file string) string {
 	data, err := ioutil.ReadFile(file)
@@ -400,8 +383,6 @@ func main() {
 		println("ARMv6K supported.")
 		os.Exit(0)
 	}
-
-	slash = string(filepath.Separator)
 
 	gohostos = runtime.GOOS
 	switch gohostos {

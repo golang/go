@@ -36,7 +36,6 @@ var (
 	tooldir                string
 	oldgoos                string
 	oldgoarch              string
-	slash                  string
 	exe                    string
 	defaultcc              string
 	defaultcflags          string
@@ -93,23 +92,20 @@ func find(p string, l []string) int {
 
 // xinit handles initialization of the various global state, like goroot and goarch.
 func xinit() {
-	goroot = os.Getenv("GOROOT")
-	if slash == "/" && len(goroot) > 1 || slash == `\` && len(goroot) > 3 {
-		// if not "/" or "c:\", then strip trailing path separator
-		goroot = strings.TrimSuffix(goroot, slash)
-	}
-	if goroot == "" {
+	b := os.Getenv("GOROOT")
+	if b == "" {
 		fatal("$GOROOT must be set")
 	}
+	goroot = filepath.Clean(b)
 
 	goroot_final = os.Getenv("GOROOT_FINAL")
 	if goroot_final == "" {
 		goroot_final = goroot
 	}
 
-	b := os.Getenv("GOBIN")
+	b = os.Getenv("GOBIN")
 	if b == "" {
-		b = goroot + slash + "bin"
+		b = pathf("%s/bin", goroot)
 	}
 	gobin = b
 
@@ -253,7 +249,7 @@ func chomp(s string) string {
 func branchtag(branch string) (tag string, precise bool) {
 	b := run(goroot, CheckExit, "git", "log", "--decorate=full", "--format=format:%d", "master.."+branch)
 	tag = branch
-	for row, line := range splitlines(b) {
+	for row, line := range strings.Split(b, "\n") {
 		// Each line is either blank, or looks like
 		//	  (tag: refs/tags/go1.4rc2, refs/remotes/origin/release-branch.go1.4, refs/heads/release-branch.go1.4)
 		// We need to find an element starting with refs/tags/.
@@ -441,7 +437,7 @@ func setup() {
 
 	// If $GOBIN is set and has a Go compiler, it must be cleaned.
 	for _, char := range "56789" {
-		if isfile(pathf("%s%s%c%s", gobin, slash, char, "g")) {
+		if isfile(pathf("%s/%c%s", gobin, char, "g")) {
 			for _, old := range oldtool {
 				xremove(pathf("%s/%s", gobin, old))
 			}
@@ -595,7 +591,7 @@ func install(dir string) {
 
 	// Convert to absolute paths.
 	for i, p := range files {
-		if !isabs(p) {
+		if !filepath.IsAbs(p) {
 			files[i] = pathf("%s/%s", path, p)
 		}
 	}
@@ -815,7 +811,7 @@ func shouldbuild(file, dir string) bool {
 	}
 
 	// Check file contents for // +build lines.
-	for _, p := range splitlines(readfile(file)) {
+	for _, p := range strings.Split(readfile(file), "\n") {
 		p = strings.TrimSpace(p)
 		if p == "" {
 			continue
@@ -837,7 +833,7 @@ func shouldbuild(file, dir string) bool {
 		if !strings.Contains(p, "+build") {
 			continue
 		}
-		fields := splitfields(p[2:])
+		fields := strings.Fields(p[2:])
 		if len(fields) < 1 || fields[0] != "+build" {
 			continue
 		}
