@@ -43,8 +43,9 @@ var (
 	defaultcxxtarget       string
 	defaultcctarget        string
 	defaultpkgconfigtarget string
-	rebuildall             bool
-	defaultclang           bool
+
+	rebuildall   bool
+	defaultclang bool
 
 	vflag int // verbosity
 )
@@ -98,10 +99,11 @@ func xinit() {
 	}
 	goroot = filepath.Clean(b)
 
-	goroot_final = os.Getenv("GOROOT_FINAL")
-	if goroot_final == "" {
-		goroot_final = goroot
+	b = os.Getenv("GOROOT_FINAL")
+	if b == "" {
+		b = goroot
 	}
+	goroot_final = b
 
 	b = os.Getenv("GOBIN")
 	if b == "" {
@@ -134,8 +136,7 @@ func xinit() {
 	}
 	go386 = b
 
-	p := pathf("%s/src/all.bash", goroot)
-	if !isfile(p) {
+	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
 		fatal("$GOROOT is not set correctly or not exported\n"+
 			"\tGOROOT=%s\n"+
 			"\t%s does not exist", goroot, p)
@@ -145,7 +146,6 @@ func xinit() {
 	if b != "" {
 		gohostarch = b
 	}
-
 	if find(gohostarch, okgoarch) < 0 {
 		fatal("unknown $GOHOSTARCH %s", gohostarch)
 	}
@@ -253,20 +253,19 @@ func branchtag(branch string) (tag string, precise bool) {
 		// Each line is either blank, or looks like
 		//	  (tag: refs/tags/go1.4rc2, refs/remotes/origin/release-branch.go1.4, refs/heads/release-branch.go1.4)
 		// We need to find an element starting with refs/tags/.
-		i := strings.Index(line, " refs/tags/")
+		const s = " refs/tags/"
+		i := strings.Index(line, s)
 		if i < 0 {
 			continue
 		}
-		i += len(" refs/tags/")
-		// The tag name ends at a comma or paren (prefer the first).
-		j := strings.Index(line[i:], ",")
-		if j < 0 {
-			j = strings.Index(line[i:], ")")
-		}
+		// Trim off known prefix.
+		line = line[i+len(s):]
+		// The tag name ends at a comma or paren.
+		j := strings.IndexAny(line, ",)")
 		if j < 0 {
 			continue // malformed line; ignore it
 		}
-		tag = line[i : i+j]
+		tag = line[:j]
 		if row == 0 {
 			precise = true // tag denotes HEAD
 		}
@@ -339,8 +338,7 @@ func isGitRepo() bool {
 	if !filepath.IsAbs(gitDir) {
 		gitDir = filepath.Join(goroot, gitDir)
 	}
-	fi, err := os.Stat(gitDir)
-	return err == nil && fi.IsDir()
+	return isdir(gitDir)
 }
 
 /*

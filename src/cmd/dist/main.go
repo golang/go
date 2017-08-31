@@ -14,36 +14,33 @@ import (
 )
 
 func usage() {
-	xprintf("usage: go tool dist [command]\n" +
-		"Commands are:\n" +
-		"\n" +
-		"banner         print installation banner\n" +
-		"bootstrap      rebuild everything\n" +
-		"clean          deletes all built files\n" +
-		"env [-p]       print environment (-p: include $PATH)\n" +
-		"install [dir]  install individual directory\n" +
-		"list [-json]   list all supported platforms\n" +
-		"test [-h]      run Go test(s)\n" +
-		"version        print Go version\n" +
-		"\n" +
-		"All commands take -v flags to emit extra information.\n",
-	)
+	xprintf(`usage: go tool dist [command]
+Commands are:
+
+banner         print installation banner
+bootstrap      rebuild everything
+clean          deletes all built files
+env [-p]       print environment (-p: include $PATH)
+install [dir]  install individual directory
+list [-json]   list all supported platforms
+test [-h]      run Go test(s)
+version        print Go version
+
+All commands take -v flags to emit extra information.
+`)
 	xexit(2)
 }
 
-// cmdtab records the available commands.
-var cmdtab = []struct {
-	name string
-	f    func()
-}{
-	{"banner", cmdbanner},
-	{"bootstrap", cmdbootstrap},
-	{"clean", cmdclean},
-	{"env", cmdenv},
-	{"install", cmdinstall},
-	{"list", cmdlist},
-	{"test", cmdtest},
-	{"version", cmdversion},
+// commands records the available commands.
+var commands = map[string]func(){
+	"banner":    cmdbanner,
+	"bootstrap": cmdbootstrap,
+	"clean":     cmdclean,
+	"env":       cmdenv,
+	"install":   cmdinstall,
+	"list":      cmdlist,
+	"test":      cmdtest,
+	"version":   cmdversion,
 }
 
 // main takes care of OS-specific startup and dispatches to xmain.
@@ -172,17 +169,15 @@ func xmain() {
 	}
 	cmd := os.Args[1]
 	os.Args = os.Args[1:] // for flag parsing during cmd
-	for _, ct := range cmdtab {
-		if ct.name == cmd {
-			flag.Usage = func() {
-				fmt.Fprintf(os.Stderr, "usage: go tool dist %s [options]\n", cmd)
-				flag.PrintDefaults()
-				os.Exit(2)
-			}
-			ct.f()
-			return
-		}
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "usage: go tool dist %s [options]\n", cmd)
+		flag.PrintDefaults()
+		os.Exit(2)
 	}
-	xprintf("unknown command %s\n", cmd)
-	usage()
+	if f, ok := commands[cmd]; ok {
+		f()
+	} else {
+		xprintf("unknown command %s\n", cmd)
+		usage()
+	}
 }
