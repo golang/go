@@ -678,25 +678,17 @@ search:
 	h.flags &^= hashWriting
 }
 
+// mapiterinit initializes the hiter struct used for ranging over maps.
+// The hiter struct pointed to by 'it' is allocated on the stack
+// by the compilers order pass or on the heap by reflect_mapiterinit.
+// Both need to have zeroed hiter since the struct contains pointers.
 func mapiterinit(t *maptype, h *hmap, it *hiter) {
-	// Clear pointer fields so garbage collector does not complain.
-	it.key = nil
-	it.value = nil
-	it.t = nil
-	it.h = nil
-	it.buckets = nil
-	it.bptr = nil
-	it.overflow[0] = nil
-	it.overflow[1] = nil
-
 	if raceenabled && h != nil {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapiterinit))
 	}
 
 	if h == nil || h.count == 0 {
-		it.key = nil
-		it.value = nil
 		return
 	}
 
@@ -728,11 +720,9 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 
 	// iterator state
 	it.bucket = it.startBucket
-	it.wrapped = false
-	it.bptr = nil
 
 	// Remember we have an iterator.
-	// Can run concurrently with another hash_iter_init().
+	// Can run concurrently with another mapiterinit().
 	if old := h.flags; old&(iterator|oldIterator) != iterator|oldIterator {
 		atomic.Or8(&h.flags, iterator|oldIterator)
 	}
