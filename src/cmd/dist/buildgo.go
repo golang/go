@@ -22,7 +22,7 @@ import (
 //	const defaultCXX = <defaultcxx>
 //	const defaultPkgConfig = <defaultpkgconfig>
 //
-// It is invoked to write cmd/go/zdefaultcc.go
+// It is invoked to write cmd/go/internal/cfg/zdefaultcc.go
 // but we also write cmd/cgo/zdefaultcc.go
 func mkzdefaultcc(dir, file string) {
 	outGo := fmt.Sprintf(
@@ -101,7 +101,7 @@ func mkzcgo(dir, file string) {
 	for _, plat := range list {
 		fmt.Fprintf(&buf, "\t%q: true,\n", plat)
 	}
-	fmt.Fprintf(&buf, "}")
+	fmt.Fprintf(&buf, "}\n")
 
 	writefile(buf.String(), file, writeSkipSame)
 }
