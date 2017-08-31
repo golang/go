@@ -128,8 +128,7 @@ func bootstrapBuildTools() {
 			}
 			srcFile := pathf("%s/%s", src, name)
 			dstFile := pathf("%s/%s", dst, name)
-			text := readfile(srcFile)
-			text = bootstrapRewriteFile(text, srcFile)
+			text := bootstrapRewriteFile(srcFile)
 			writefile(text, dstFile, 0)
 		}
 	}
@@ -221,7 +220,7 @@ func isUnneededSSARewriteFile(srcFile string) (archCaps string, unneeded bool) {
 	return archCaps, true
 }
 
-func bootstrapRewriteFile(text, srcFile string) string {
+func bootstrapRewriteFile(srcFile string) string {
 	// During bootstrap, generate dummy rewrite files for
 	// irrelevant architectures. We only need to build a bootstrap
 	// binary that works for the current runtime.GOARCH.
@@ -236,11 +235,11 @@ func rewriteBlock%s(b *Block) bool { panic("unused during bootstrap") }
 `, archCaps, archCaps)
 	}
 
-	return bootstrapFixImports(text, srcFile)
+	return bootstrapFixImports(srcFile)
 }
 
-func bootstrapFixImports(text, srcFile string) string {
-	lines := strings.SplitAfter(text, "\n")
+func bootstrapFixImports(srcFile string) string {
+	lines := strings.SplitAfter(readfile(srcFile), "\n")
 	inBlock := false
 	for i, line := range lines {
 		if strings.HasPrefix(line, "import (") {
