@@ -419,11 +419,6 @@ identifiers C.foo, cgo generates this C program:
 	void __cgo_f_1_4(void) { static const double __cgo_undefined__4 = (foo); }
 	#line 1 "not-str-lit"
 	void __cgo_f_1_5(void) { static const char __cgo_undefined__5[] = (foo); }
-	#line 1 "not-signed-int-const"
-	#if 0 < -(foo)
-	#line 1 "not-signed-int-const"
-	#error found unsigned int
-	#endif
 
 This program will not compile, but cgo can use the presence or absence
 of an error message on a given line to deduce the information it
