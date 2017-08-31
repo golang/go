@@ -62,7 +62,7 @@ var outputLock sync.Mutex
 // run runs the command line cmd in dir.
 // If mode has ShowOutput set and Background unset, run passes cmd's output to
 // stdout/stderr directly. Otherwise, run returns cmd's output as a string.
-// If mode has CheckExit set and the command fails, run calls fatal.
+// If mode has CheckExit set and the command fails, run calls fatalf.
 // If mode has Background set, this command is being run as a
 // Background job. Only bgrun should use the Background mode,
 // not other callers.
@@ -97,11 +97,11 @@ func run(dir string, mode int, cmd ...string) string {
 		}
 		outputLock.Unlock()
 		if mode&Background != 0 {
-			// Prevent fatal from waiting on our own goroutine's
+			// Prevent fatalf from waiting on our own goroutine's
 			// bghelper to exit:
 			bghelpers.Done()
 		}
-		fatal("FAILED: %v: %v", strings.Join(cmd, " "), err)
+		fatalf("FAILED: %v: %v", strings.Join(cmd, " "), err)
 	}
 	if mode&ShowOutput != 0 {
 		outputLock.Lock()
@@ -179,7 +179,7 @@ func bgwait(wg *sync.WaitGroup) {
 func xgetwd() string {
 	wd, err := os.Getwd()
 	if err != nil {
-		fatal("%s", err)
+		fatalf("%s", err)
 	}
 	return wd
 }
@@ -189,11 +189,11 @@ func xgetwd() string {
 func xrealwd(path string) string {
 	old := xgetwd()
 	if err := os.Chdir(path); err != nil {
-		fatal("chdir %s: %v", path, err)
+		fatalf("chdir %s: %v", path, err)
 	}
 	real := xgetwd()
 	if err := os.Chdir(old); err != nil {
-		fatal("chdir %s: %v", old, err)
+		fatalf("chdir %s: %v", old, err)
 	}
 	return real
 }
@@ -223,7 +223,7 @@ func mtime(p string) time.Time {
 func readfile(file string) string {
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 	return string(data)
 }
@@ -233,12 +233,12 @@ const (
 	writeSkipSame
 )
 
-// writefile writes b to the named file, creating it if needed.
+// writefile writes text to the named file, creating it if needed.
 // if exec is non-zero, marks the file as executable.
 // If the file already exists and has the expected content,
 // it is not rewritten, to avoid changing the time stamp.
-func writefile(b, file string, flag int) {
-	new := []byte(b)
+func writefile(text, file string, flag int) {
+	new := []byte(text)
 	if flag&writeSkipSame != 0 {
 		old, err := ioutil.ReadFile(file)
 		if err == nil && bytes.Equal(old, new) {
@@ -251,7 +251,7 @@ func writefile(b, file string, flag int) {
 	}
 	err := ioutil.WriteFile(file, new, mode)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 }
 
@@ -259,7 +259,7 @@ func writefile(b, file string, flag int) {
 func xmkdir(p string) {
 	err := os.Mkdir(p, 0777)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 }
 
@@ -267,7 +267,7 @@ func xmkdir(p string) {
 func xmkdirall(p string) {
 	err := os.MkdirAll(p, 0777)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 }
 
@@ -292,12 +292,12 @@ func xremoveall(p string) {
 func xreaddir(dir string) []string {
 	f, err := os.Open(dir)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 	defer f.Close()
 	names, err := f.Readdirnames(-1)
 	if err != nil {
-		fatal("reading %s: %v", dir, err)
+		fatalf("reading %s: %v", dir, err)
 	}
 	return names
 }
@@ -307,12 +307,12 @@ func xreaddir(dir string) []string {
 func xreaddirfiles(dir string) []string {
 	f, err := os.Open(dir)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 	defer f.Close()
 	infos, err := f.Readdir(-1)
 	if err != nil {
-		fatal("reading %s: %v", dir, err)
+		fatalf("reading %s: %v", dir, err)
 	}
 	var names []string
 	for _, fi := range infos {
@@ -328,13 +328,13 @@ func xreaddirfiles(dir string) []string {
 func xworkdir() string {
 	name, err := ioutil.TempDir("", "go-tool-dist-")
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 	return name
 }
 
-// fatal prints an error message to standard error and exits.
-func fatal(format string, args ...interface{}) {
+// fatalf prints an error message to standard error and exits.
+func fatalf(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "go tool dist: %s\n", fmt.Sprintf(format, args...))
 
 	dieOnce.Do(func() { close(dying) })
@@ -432,17 +432,17 @@ func elfIsLittleEndian(fn string) bool {
 	// debug/elf package.
 	file, err := os.Open(fn)
 	if err != nil {
-		fatal("failed to open file to determine endianness: %v", err)
+		fatalf("failed to open file to determine endianness: %v", err)
 	}
 	defer file.Close()
 	var hdr [16]byte
 	if _, err := io.ReadFull(file, hdr[:]); err != nil {
-		fatal("failed to read ELF header to determine endianness: %v", err)
+		fatalf("failed to read ELF header to determine endianness: %v", err)
 	}
 	// hdr[5] is EI_DATA byte, 1 is ELFDATA2LSB and 2 is ELFDATA2MSB
 	switch hdr[5] {
 	default:
-		fatal("unknown ELF endianness of %s: EI_DATA = %d", fn, hdr[5])
+		fatalf("unknown ELF endianness of %s: EI_DATA = %d", fn, hdr[5])
 	case 1:
 		return true
 	case 2:
