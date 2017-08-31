@@ -50,24 +50,24 @@ func bytediff(a, b []byte) string {
 
 func TestWriter(t *testing.T) {
 	type (
-		testHeader struct { // WriteHeader(&hdr) == wantErr
+		testHeader struct { // WriteHeader(hdr) == wantErr
 			hdr     Header
 			wantErr error
 		}
-		testWrite struct { // Write([]byte(str)) == (wantCnt, wantErr)
+		testWrite struct { // Write(str) == (wantCnt, wantErr)
 			str     string
 			wantCnt int
 			wantErr error
 		}
-		testFill struct { // fillZeros(cnt) == (wantCnt, wantErr)
-			cnt     int64
+		testReadFrom struct { // ReadFrom(testFile{ops}) == (wantCnt, wantErr)
+			ops     fileOps
 			wantCnt int64
 			wantErr error
 		}
 		testClose struct { // Close() == wantErr
 			wantErr error
 		}
-		testFnc interface{} // testHeader | testWrite | testFill | testClose
+		testFnc interface{} // testHeader | testWrite | testReadFrom | testClose
 	)
 
 	vectors := []struct {
@@ -402,20 +402,20 @@ func TestWriter(t *testing.T) {
 					{Offset: 5e10, Length: 1e10 - 100},
 				},
 			}, nil},
-			testFill{1e10 - 100, 1e10 - 100, nil},
-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
-			testFill{1e10 - 100, 1e10 - 100, nil},
-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
-			testFill{1e10 - 100, 1e10 - 100, nil},
-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
-			testFill{1e10 - 100, 1e10 - 100, nil},
-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
-			testFill{1e10 - 100, 1e10 - 100, nil},
-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
-			testFill{1e10 - 100, 1e10 - 100, nil},
-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
-			testFill{1e10 - 100, 0, ErrWriteTooLong},
-			testWrite{strings.Repeat("0123456789", 10), 0, ErrWriteTooLong},
+			testReadFrom{fileOps{
+				int64(1e10 - blockSize),
+				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+				int64(1e10 - blockSize),
+				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+				int64(1e10 - blockSize),
+				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+				int64(1e10 - blockSize),
+				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+				int64(1e10 - blockSize),
+				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+				int64(1e10 - blockSize),
+				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+			}, 6e10, nil},
 			testClose{nil},
 		},
 	}, {
@@ -434,20 +434,20 @@ func TestWriter(t *testing.T) {
 					{Offset: 5e10, Length: 1e10 - 100},
 				},
 			}, nil},
-			testFill{1e10 - 100, 1e10 - 100, nil},
-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
-			testFill{1e10 - 100, 1e10 - 100, nil},
-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
-			testFill{1e10 - 100, 1e10 - 100, nil},
-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
-			testFill{1e10 - 100, 1e10 - 100, nil},
-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
-			testFill{1e10 - 100, 1e10 - 100, nil},
-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
-			testFill{1e10 - 100, 1e10 - 100, nil},
-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
-			testFill{1e10 - 100, 0, ErrWriteTooLong},
-			testWrite{strings.Repeat("0123456789", 10), 0, ErrWriteTooLong},
+			testReadFrom{fileOps{
+				int64(1e10 - blockSize),
+				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+				int64(1e10 - blockSize),
+				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+				int64(1e10 - blockSize),
+				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+				int64(1e10 - blockSize),
+				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+				int64(1e10 - blockSize),
+				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+				int64(1e10 - blockSize),
+				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+			}, 6e10, nil},
 			testClose{nil},
 		},
 	}}
@@ -478,10 +478,16 @@ func TestWriter(t *testing.T) {
 					if got != tf.wantCnt || !equalError(err, tf.wantErr) {
 						t.Fatalf("test %d, Write() = (%d, %v), want (%d, %v)", i, got, err, tf.wantCnt, tf.wantErr)
 					}
-				case testFill:
-					got, err := tw.fillZeros(tf.cnt)
-					if got != tf.wantCnt || !equalError(err, tf.wantErr) {
-						t.Fatalf("test %d, fillZeros() = (%d, %v), want (%d, %v)", i, got, err, tf.wantCnt, tf.wantErr)
+				case testReadFrom:
+					f := &testFile{ops: tf.ops}
+					got, err := tw.ReadFrom(f)
+					if _, ok := err.(testError); ok {
+						t.Errorf("test %d, ReadFrom(): %v", i, err)
+					} else if got != tf.wantCnt || !equalError(err, tf.wantErr) {
+						t.Errorf("test %d, ReadFrom() = (%d, %v), want (%d, %v)", i, got, err, tf.wantCnt, tf.wantErr)
+					}
+					if len(f.ops) > 0 {
+						t.Errorf("test %d, expected %d more operations", i, len(f.ops))
 					}
 				case testClose:
 					err := tw.Close()
@@ -988,15 +994,16 @@ func TestFileWriter(t *testing.T) {
 			wantCnt int
 			wantErr error
 		}
-		testFill struct { // FillZeros(cnt) == (wantCnt, wantErr)
-			cnt     int64
+		testReadFrom struct { // ReadFrom(testFile{ops}) == (wantCnt, wantErr)
+			ops     fileOps
 			wantCnt int64
 			wantErr error
 		}
-		testRemaining struct { // Remaining() == wantCnt
-			wantCnt int64
+		testRemaining struct { // LogicalRemaining() == wantLCnt, PhysicalRemaining() == wantPCnt
+			wantLCnt int64
+			wantPCnt int64
 		}
-		testFnc interface{} // testWrite | testFill | testRemaining
+		testFnc interface{} // testWrite | testReadFrom | testRemaining
 	)
 
 	type (
@@ -1018,149 +1025,160 @@ func TestFileWriter(t *testing.T) {
 	}{{
 		maker: makeReg{0, ""},
 		tests: []testFnc{
-			testRemaining{0},
+			testRemaining{0, 0},
 			testWrite{"", 0, nil},
 			testWrite{"a", 0, ErrWriteTooLong},
-			testFill{0, 0, nil},
-			testFill{1, 0, ErrWriteTooLong},
-			testRemaining{0},
+			testReadFrom{fileOps{""}, 0, nil},
+			testReadFrom{fileOps{"a"}, 0, ErrWriteTooLong},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeReg{1, "a"},
 		tests: []testFnc{
-			testRemaining{1},
+			testRemaining{1, 1},
 			testWrite{"", 0, nil},
 			testWrite{"a", 1, nil},
 			testWrite{"bcde", 0, ErrWriteTooLong},
 			testWrite{"", 0, nil},
-			testFill{0, 0, nil},
-			testFill{1, 0, ErrWriteTooLong},
-			testRemaining{0},
+			testReadFrom{fileOps{""}, 0, nil},
+			testReadFrom{fileOps{"a"}, 0, ErrWriteTooLong},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeReg{5, "hello"},
 		tests: []testFnc{
-			testRemaining{5},
+			testRemaining{5, 5},
 			testWrite{"hello", 5, nil},
-			testRemaining{0},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeReg{5, "\x00\x00\x00\x00\x00"},
 		tests: []testFnc{
-			testRemaining{5},
-			testFill{5, 5, nil},
-			testRemaining{0},
+			testRemaining{5, 5},
+			testReadFrom{fileOps{"\x00\x00\x00\x00\x00"}, 5, nil},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeReg{5, "\x00\x00\x00\x00\x00"},
 		tests: []testFnc{
-			testRemaining{5},
-			testFill{10, 5, ErrWriteTooLong},
-			testRemaining{0},
+			testRemaining{5, 5},
+			testReadFrom{fileOps{"\x00\x00\x00\x00\x00extra"}, 5, ErrWriteTooLong},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeReg{5, "abc\x00\x00"},
 		tests: []testFnc{
-			testRemaining{5},
+			testRemaining{5, 5},
 			testWrite{"abc", 3, nil},
-			testRemaining{2},
-			testFill{2, 2, nil},
-			testRemaining{0},
+			testRemaining{2, 2},
+			testReadFrom{fileOps{"\x00\x00"}, 2, nil},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeReg{5, "\x00\x00abc"},
 		tests: []testFnc{
-			testRemaining{5},
-			testFill{2, 2, nil},
-			testRemaining{3},
+			testRemaining{5, 5},
+			testWrite{"\x00\x00", 2, nil},
+			testRemaining{3, 3},
 			testWrite{"abc", 3, nil},
-			testFill{1, 0, ErrWriteTooLong},
+			testReadFrom{fileOps{"z"}, 0, ErrWriteTooLong},
 			testWrite{"z", 0, ErrWriteTooLong},
-			testRemaining{0},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
 		tests: []testFnc{
-			testRemaining{8},
+			testRemaining{8, 5},
 			testWrite{"ab\x00\x00\x00cde", 8, nil},
 			testWrite{"a", 0, ErrWriteTooLong},
-			testRemaining{0},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
 		tests: []testFnc{
 			testWrite{"ab\x00\x00\x00cdez", 8, ErrWriteTooLong},
-			testRemaining{0},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
 		tests: []testFnc{
 			testWrite{"ab\x00", 3, nil},
-			testRemaining{5},
+			testRemaining{5, 3},
 			testWrite{"\x00\x00cde", 5, nil},
 			testWrite{"a", 0, ErrWriteTooLong},
-			testRemaining{0},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
 		tests: []testFnc{
 			testWrite{"ab", 2, nil},
-			testRemaining{6},
-			testFill{3, 3, nil},
-			testRemaining{3},
-			testWrite{"cde", 3, nil},
-			testRemaining{0},
+			testRemaining{6, 3},
+			testReadFrom{fileOps{int64(3), "cde"}, 6, nil},
+			testRemaining{0, 0},
 		},
 	}, {
-		maker: makeSparse{makeReg{5, "\x00\x00\x00\x00\x00"}, sparseHoles{{2, 3}}, 8},
+		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
 		tests: []testFnc{
-			testFill{8, 8, nil},
-			testRemaining{0},
+			testReadFrom{fileOps{"ab", int64(3), "cde"}, 8, nil},
+			testRemaining{0, 0},
 		},
 	}, {
-		maker: makeSparse{makeReg{5, "\x00\x00\x00\x00\x00"}, sparseHoles{{2, 3}}, 8},
+		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
 		tests: []testFnc{
-			testFill{9, 8, ErrWriteTooLong},
-			testRemaining{0},
+			testReadFrom{fileOps{"ab", int64(3), "cdeX"}, 8, ErrWriteTooLong},
+			testRemaining{0, 0},
 		},
 	}, {
-		maker: makeSparse{makeReg{4, "\x00\x00\x00\x00"}, sparseHoles{{2, 3}}, 8},
+		maker: makeSparse{makeReg{4, "abcd"}, sparseHoles{{2, 3}}, 8},
 		tests: []testFnc{
-			testFill{9, 8, errMissData},
-			testRemaining{0},
+			testReadFrom{fileOps{"ab", int64(3), "cd"}, 7, io.ErrUnexpectedEOF},
+			testRemaining{1, 0},
 		},
 	}, {
-		maker: makeSparse{makeReg{6, "\x00\x00\x00\x00\x00"}, sparseHoles{{2, 3}}, 8},
+		maker: makeSparse{makeReg{4, "abcd"}, sparseHoles{{2, 3}}, 8},
 		tests: []testFnc{
-			testFill{9, 8, errUnrefData},
-			testRemaining{0},
+			testReadFrom{fileOps{"ab", int64(3), "cde"}, 7, errMissData},
+			testRemaining{1, 0},
+		},
+	}, {
+		maker: makeSparse{makeReg{6, "abcde"}, sparseHoles{{2, 3}}, 8},
+		tests: []testFnc{
+			testReadFrom{fileOps{"ab", int64(3), "cde"}, 8, errUnrefData},
+			testRemaining{0, 1},
 		},
 	}, {
 		maker: makeSparse{makeReg{4, "abcd"}, sparseHoles{{2, 3}}, 8},
 		tests: []testFnc{
 			testWrite{"ab", 2, nil},
-			testRemaining{6},
-			testFill{3, 3, nil},
-			testRemaining{3},
+			testRemaining{6, 2},
+			testWrite{"\x00\x00\x00", 3, nil},
+			testRemaining{3, 2},
 			testWrite{"cde", 2, errMissData},
-			testRemaining{1},
+			testRemaining{1, 0},
 		},
 	}, {
 		maker: makeSparse{makeReg{6, "abcde"}, sparseHoles{{2, 3}}, 8},
 		tests: []testFnc{
 			testWrite{"ab", 2, nil},
-			testRemaining{6},
-			testFill{3, 3, nil},
-			testRemaining{3},
+			testRemaining{6, 4},
+			testWrite{"\x00\x00\x00", 3, nil},
+			testRemaining{3, 4},
 			testWrite{"cde", 3, errUnrefData},
-			testRemaining{0},
+			testRemaining{0, 1},
 		},
 	}, {
 		maker: makeSparse{makeReg{3, "abc"}, sparseHoles{{0, 2}, {5, 2}}, 7},
 		tests: []testFnc{
-			testRemaining{7},
+			testRemaining{7, 3},
 			testWrite{"\x00\x00abc\x00\x00", 7, nil},
-			testRemaining{0},
+			testRemaining{0, 0},
+		},
+	}, {
+		maker: makeSparse{makeReg{3, "abc"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+		tests: []testFnc{
+			testRemaining{7, 3},
+			testReadFrom{fileOps{int64(2), "abc", int64(1), "\x00"}, 7, nil},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeSparse{makeReg{3, ""}, sparseHoles{{0, 2}, {5, 2}}, 7},
@@ -1176,43 +1194,31 @@ func TestFileWriter(t *testing.T) {
 		maker: makeSparse{makeReg{3, "abc"}, sparseHoles{{0, 2}, {5, 2}}, 7},
 		tests: []testFnc{
 			testWrite{"\x00\x00abc\x00\x00z", 7, ErrWriteTooLong},
-			testRemaining{0},
-		},
-	}, {
-		maker: makeSparse{makeReg{3, "\x00\x00\x00"}, sparseHoles{{0, 2}, {5, 2}}, 7},
-		tests: []testFnc{
-			testFill{7, 7, nil},
-			testFill{1, 0, ErrWriteTooLong},
-		},
-	}, {
-		maker: makeSparse{makeReg{3, "\x00\x00\x00"}, sparseHoles{{0, 2}, {5, 2}}, 7},
-		tests: []testFnc{
-			testFill{4, 4, nil},
-			testFill{8, 3, ErrWriteTooLong},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeSparse{makeReg{3, "abc"}, sparseHoles{{0, 2}, {5, 2}}, 7},
 		tests: []testFnc{
-			testFill{2, 2, nil},
-			testRemaining{5},
+			testWrite{"\x00\x00", 2, nil},
+			testRemaining{5, 3},
 			testWrite{"abc", 3, nil},
-			testRemaining{2},
-			testFill{2, 2, nil},
-			testRemaining{0},
+			testRemaining{2, 0},
+			testWrite{"\x00\x00", 2, nil},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeSparse{makeReg{2, "ab"}, sparseHoles{{0, 2}, {5, 2}}, 7},
 		tests: []testFnc{
-			testFill{2, 2, nil},
+			testWrite{"\x00\x00", 2, nil},
 			testWrite{"abc", 2, errMissData},
-			testFill{2, 2, errMissData},
+			testWrite{"\x00\x00", 0, errMissData},
 		},
 	}, {
 		maker: makeSparse{makeReg{4, "abc"}, sparseHoles{{0, 2}, {5, 2}}, 7},
 		tests: []testFnc{
-			testFill{2, 2, nil},
+			testWrite{"\x00\x00", 2, nil},
 			testWrite{"abc", 3, nil},
-			testFill{2, 2, errUnrefData},
+			testWrite{"\x00\x00", 2, errUnrefData},
 		},
 	}}
 
@@ -1243,15 +1249,23 @@ func TestFileWriter(t *testing.T) {
 				if got != tf.wantCnt || err != tf.wantErr {
 					t.Errorf("test %d.%d, Write(%s):\ngot  (%d, %v)\nwant (%d, %v)", i, j, tf.str, got, err, tf.wantCnt, tf.wantErr)
 				}
-			case testFill:
-				got, err := fw.FillZeros(tf.cnt)
-				if got != tf.wantCnt || err != tf.wantErr {
-					t.Errorf("test %d.%d, FillZeros(%d) = (%d, %v), want (%d, %v)", i, j, tf.cnt, got, err, tf.wantCnt, tf.wantErr)
+			case testReadFrom:
+				f := &testFile{ops: tf.ops}
+				got, err := fw.ReadFrom(f)
+				if _, ok := err.(testError); ok {
+					t.Errorf("test %d.%d, ReadFrom(): %v", i, j, err)
+				} else if got != tf.wantCnt || err != tf.wantErr {
+					t.Errorf("test %d.%d, ReadFrom() = (%d, %v), want (%d, %v)", i, j, got, err, tf.wantCnt, tf.wantErr)
+				}
+				if len(f.ops) > 0 {
+					t.Errorf("test %d.%d, expected %d more operations", i, j, len(f.ops))
 				}
 			case testRemaining:
-				got := fw.Remaining()
-				if got != tf.wantCnt {
-					t.Errorf("test %d.%d, Remaining() = %d, want %d", i, j, got, tf.wantCnt)
+				if got := fw.LogicalRemaining(); got != tf.wantLCnt {
+					t.Errorf("test %d.%d, LogicalRemaining() = %d, want %d", i, j, got, tf.wantLCnt)
+				}
+				if got := fw.PhysicalRemaining(); got != tf.wantPCnt {
+					t.Errorf("test %d.%d, PhysicalRemaining() = %d, want %d", i, j, got, tf.wantPCnt)
 				}
 			default:
 				t.Fatalf("test %d.%d, unknown test operation: %T", i, j, tf)
