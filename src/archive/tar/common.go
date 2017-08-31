@@ -323,10 +323,13 @@ func invertSparseEntries(src []SparseEntry, size int64) []SparseEntry {
 	return append(dst, pre)
 }
 
+// fileState tracks the number of logical (includes sparse holes) and physical
+// (actual in tar archive) bytes remaining for the current file.
+//
+// Invariant: LogicalRemaining >= PhysicalRemaining
 type fileState interface {
-	// Remaining reports the number of remaining bytes in the current file.
-	// This count includes any sparse holes that may exist.
-	Remaining() int64
+	LogicalRemaining() int64
+	PhysicalRemaining() int64
 }
 
 // allowedFormats determines which formats can be used.

@@ -32,7 +32,7 @@ type fileReader interface {
 	io.Reader
 	fileState
 
-	Discard(n int64) (int64, error)
+	WriteTo(io.Writer) (int64, error)
 }
 
 // NewReader creates a new Reader reading from r.
@@ -67,7 +67,7 @@ func (tr *Reader) next() (*Header, error) {
 loop:
 	for {
 		// Discard the remainder of the file and any padding.
-		if _, err := tr.curr.Discard(tr.curr.Remaining()); err != nil {
+		if err := discard(tr.r, tr.curr.PhysicalRemaining()); err != nil {
 			return nil, err
 		}
 		if _, err := tryReadFull(tr.r, tr.blk[:tr.pad]); err != nil {
@@ -625,21 +625,19 @@ func (tr *Reader) Read(b []byte) (int, error) {
 	return n, err
 }
 
-// TODO(dsnet): Export the Reader.Discard method to assist in quickly
-// skipping over sections of a file. This is especially useful:
-// * when skipping through an underlying io.Reader that is also an io.Seeker.
-// * when skipping over large holes in a sparse file.
-
-// discard skips the next n bytes in the current file,
-// returning the number of bytes discarded.
-// If fewer than n bytes are discarded, it returns an non-nil error,
-// which may be io.EOF if there are no more remaining bytes in the current file.
-func (tr *Reader) discard(n int64) (int64, error) {
+// WriteTo writes the content of the current file to w.
+// The bytes written matches the number of remaining bytes in the current file.
+//
+// If the current file is sparse and w is an io.WriteSeeker,
+// then WriteTo uses Seek to skip past holes defined in Header.SparseHoles,
+// assuming that skipped regions are filled with NULs.
+// This always writes the last byte to ensure w is the right size.
+func (tr *Reader) WriteTo(w io.Writer) (int64, error) {
 	if tr.err != nil {
 		return 0, tr.err
 	}
-	n, err := tr.curr.Discard(n)
-	if err != nil && err != io.EOF {
+	n, err := tr.curr.WriteTo(w)
+	if err != nil {
 		tr.err = err
 	}
 	return n, err
@@ -667,47 +665,14 @@ func (fr *regFileReader) Read(b []byte) (int, error) {
 	}
 }
 
-func (fr *regFileReader) Discard(n int64) (int64, error) {
-	overread := n > fr.Remaining()
-	if overread {
-		n = fr.Remaining()
-	}
-
-	// If possible, Seek to the last byte before the end of the data section.
-	// Do this because Seek is often lazy about reporting errors; this will mask
-	// the fact that the stream may be truncated. We can rely on the
-	// io.CopyN done shortly afterwards to trigger any IO errors.
-	var seekSkipped int64 // Number of bytes skipped via Seek
-	if sr, ok := fr.r.(io.Seeker); ok && n > 1 {
-		// Not all io.Seeker can actually Seek. For example, os.Stdin implements
-		// io.Seeker, but calling Seek always returns an error and performs
-		// no action. Thus, we try an innocent seek to the current position
-		// to see if Seek is really supported.
-		pos1, err := sr.Seek(0, io.SeekCurrent)
-		if pos1 >= 0 && err == nil {
-			// Seek seems supported, so perform the real Seek.
-			pos2, err := sr.Seek(n-1, io.SeekCurrent)
-			if pos2 < 0 || err != nil {
-				return 0, err
-			}
-			seekSkipped = pos2 - pos1
-		}
-	}
-
-	copySkipped, err := io.CopyN(ioutil.Discard, fr.r, n-seekSkipped)
-	discarded := seekSkipped + copySkipped
-	fr.nb -= discarded
-	switch {
-	case err == io.EOF && discarded < n:
-		return discarded, io.ErrUnexpectedEOF
-	case err == nil && overread:
-		return discarded, io.EOF
-	default:
-		return discarded, err
-	}
+func (fr *regFileReader) WriteTo(w io.Writer) (int64, error) {
+	return io.Copy(w, struct{ io.Reader }{fr})
 }
 
-func (rf regFileReader) Remaining() int64 {
+func (rf regFileReader) LogicalRemaining() int64 {
+	return rf.nb
+}
+func (rf regFileReader) PhysicalRemaining() int64 {
 	return rf.nb
 }
 
@@ -719,9 +684,9 @@ type sparseFileReader struct {
 }
 
 func (sr *sparseFileReader) Read(b []byte) (n int, err error) {
-	finished := int64(len(b)) >= sr.Remaining()
+	finished := int64(len(b)) >= sr.LogicalRemaining()
 	if finished {
-		b = b[:sr.Remaining()]
+		b = b[:sr.LogicalRemaining()]
 	}
 
 	b0 := b
@@ -749,7 +714,7 @@ func (sr *sparseFileReader) Read(b []byte) (n int, err error) {
 		return n, errMissData // Less data in dense file than sparse file
 	case err != nil:
 		return n, err
-	case sr.Remaining() == 0 && sr.fr.Remaining() > 0:
+	case sr.LogicalRemaining() == 0 && sr.PhysicalRemaining() > 0:
 		return n, errUnrefData // More data in dense file than sparse file
 	case finished:
 		return n, io.EOF
@@ -758,22 +723,32 @@ func (sr *sparseFileReader) Read(b []byte) (n int, err error) {
 	}
 }
 
-func (sr *sparseFileReader) Discard(n int64) (int64, error) {
-	overread := n > sr.Remaining()
-	if overread {
-		n = sr.Remaining()
+func (sr *sparseFileReader) WriteTo(w io.Writer) (n int64, err error) {
+	ws, ok := w.(io.WriteSeeker)
+	if ok {
+		if _, err := ws.Seek(0, io.SeekCurrent); err != nil {
+			ok = false // Not all io.Seeker can really seek
+		}
+	}
+	if !ok {
+		return io.Copy(w, struct{ io.Reader }{sr})
 	}
 
-	var realDiscard int64 // Number of real data bytes to discard
-	endPos := sr.pos + n
-	for endPos > sr.pos {
+	var writeLastByte bool
+	pos0 := sr.pos
+	for sr.LogicalRemaining() > 0 && !writeLastByte && err == nil {
 		var nf int64 // Size of fragment
 		holeStart, holeEnd := sr.sp[0].Offset, sr.sp[0].endOffset()
 		if sr.pos < holeStart { // In a data fragment
-			nf = min(endPos-sr.pos, holeStart-sr.pos)
-			realDiscard += nf
+			nf = holeStart - sr.pos
+			nf, err = io.CopyN(ws, sr.fr, nf)
 		} else { // In a hole fragment
-			nf = min(endPos-sr.pos, holeEnd-sr.pos)
+			nf = holeEnd - sr.pos
+			if sr.PhysicalRemaining() == 0 {
+				writeLastByte = true
+				nf--
+			}
+			_, err = ws.Seek(nf, io.SeekCurrent)
 		}
 		sr.pos += nf
 		if sr.pos >= holeEnd && len(sr.sp) > 1 {
@@ -781,23 +756,31 @@ func (sr *sparseFileReader) Discard(n int64) (int64, error) {
 		}
 	}
 
-	_, err := sr.fr.Discard(realDiscard)
+	// If the last fragment is a hole, then seek to 1-byte before EOF, and
+	// write a single byte to ensure the file is the right size.
+	if writeLastByte && err == nil {
+		_, err = ws.Write([]byte{0})
+		sr.pos++
+	}
+
+	n = sr.pos - pos0
 	switch {
 	case err == io.EOF:
 		return n, errMissData // Less data in dense file than sparse file
 	case err != nil:
 		return n, err
-	case sr.Remaining() == 0 && sr.fr.Remaining() > 0:
+	case sr.LogicalRemaining() == 0 && sr.PhysicalRemaining() > 0:
 		return n, errUnrefData // More data in dense file than sparse file
-	case overread:
-		return n, io.EOF
 	default:
 		return n, nil
 	}
 }
 
-func (sr sparseFileReader) Remaining() int64 {
+func (sr sparseFileReader) LogicalRemaining() int64 {
 	return sr.sp[len(sr.sp)-1].endOffset() - sr.pos
+}
+func (sr sparseFileReader) PhysicalRemaining() int64 {
+	return sr.fr.PhysicalRemaining()
 }
 
 type zeroReader struct{}
@@ -831,4 +814,34 @@ func tryReadFull(r io.Reader, b []byte) (n int, err error) {
 		err = nil
 	}
 	return n, err
+}
+
+// discard skips n bytes in r, reporting an error if unable to do so.
+func discard(r io.Reader, n int64) error {
+	// If possible, Seek to the last byte before the end of the data section.
+	// Do this because Seek is often lazy about reporting errors; this will mask
+	// the fact that the stream may be truncated. We can rely on the
+	// io.CopyN done shortly afterwards to trigger any IO errors.
+	var seekSkipped int64 // Number of bytes skipped via Seek
+	if sr, ok := r.(io.Seeker); ok && n > 1 {
+		// Not all io.Seeker can actually Seek. For example, os.Stdin implements
+		// io.Seeker, but calling Seek always returns an error and performs
+		// no action. Thus, we try an innocent seek to the current position
+		// to see if Seek is really supported.
+		pos1, err := sr.Seek(0, io.SeekCurrent)
+		if pos1 >= 0 && err == nil {
+			// Seek seems supported, so perform the real Seek.
+			pos2, err := sr.Seek(n-1, io.SeekCurrent)
+			if pos2 < 0 || err != nil {
+				return err
+			}
+			seekSkipped = pos2 - pos1
+		}
+	}
+
+	copySkipped, err := io.CopyN(ioutil.Discard, r, n-seekSkipped)
+	if err == io.EOF && seekSkipped+copySkipped < n {
+		err = io.ErrUnexpectedEOF
+	}
+	return err
 }

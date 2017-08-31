@@ -923,17 +923,17 @@ func TestReadTruncation(t *testing.T) {
 				}
 				cnt++
 				if s2 == "manual" {
-					if _, err = io.Copy(ioutil.Discard, tr); err != nil {
+					if _, err = tr.WriteTo(ioutil.Discard); err != nil {
 						break
 					}
 				}
 			}
 			if err != v.err {
-				t.Errorf("test %d, NewReader(%s(...)) with %s discard: got %v, want %v",
+				t.Errorf("test %d, NewReader(%s) with %s discard: got %v, want %v",
 					i, s1, s2, err, v.err)
 			}
 			if cnt != v.cnt {
-				t.Errorf("test %d, NewReader(%s(...)) with %s discard: got %d headers, want %d headers",
+				t.Errorf("test %d, NewReader(%s) with %s discard: got %d headers, want %d headers",
 					i, s1, s2, cnt, v.cnt)
 			}
 		}
@@ -1402,15 +1402,16 @@ func TestFileReader(t *testing.T) {
 			wantStr string
 			wantErr error
 		}
-		testDiscard struct { // Discard(cnt) == (wantCnt, wantErr)
-			cnt     int64
+		testWriteTo struct { // WriteTo(testFile{ops}) == (wantCnt, wantErr)
+			ops     fileOps
 			wantCnt int64
 			wantErr error
 		}
-		testRemaining struct { // Remaining() == wantCnt
-			wantCnt int64
+		testRemaining struct { // LogicalRemaining() == wantLCnt, PhysicalRemaining() == wantPCnt
+			wantLCnt int64
+			wantPCnt int64
 		}
-		testFnc interface{} // testRead | testDiscard | testRemaining
+		testFnc interface{} // testRead | testWriteTo | testRemaining
 	)
 
 	type (
@@ -1432,101 +1433,111 @@ func TestFileReader(t *testing.T) {
 	}{{
 		maker: makeReg{"", 0},
 		tests: []testFnc{
-			testRemaining{0},
+			testRemaining{0, 0},
 			testRead{0, "", io.EOF},
 			testRead{1, "", io.EOF},
-			testDiscard{0, 0, nil},
-			testDiscard{1, 0, io.EOF},
-			testRemaining{0},
+			testWriteTo{nil, 0, nil},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeReg{"", 1},
 		tests: []testFnc{
-			testRemaining{1},
+			testRemaining{1, 1},
 			testRead{0, "", io.ErrUnexpectedEOF},
 			testRead{5, "", io.ErrUnexpectedEOF},
-			testDiscard{0, 0, nil},
-			testDiscard{1, 0, io.ErrUnexpectedEOF},
-			testRemaining{1},
+			testWriteTo{nil, 0, io.ErrUnexpectedEOF},
+			testRemaining{1, 1},
 		},
 	}, {
 		maker: makeReg{"hello", 5},
 		tests: []testFnc{
-			testRemaining{5},
+			testRemaining{5, 5},
 			testRead{5, "hello", io.EOF},
-			testRemaining{0},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeReg{"hello, world", 50},
 		tests: []testFnc{
-			testRemaining{50},
-			testDiscard{7, 7, nil},
-			testRemaining{43},
+			testRemaining{50, 50},
+			testRead{7, "hello, ", nil},
+			testRemaining{43, 43},
 			testRead{5, "world", nil},
-			testRemaining{38},
-			testDiscard{1, 0, io.ErrUnexpectedEOF},
+			testRemaining{38, 38},
+			testWriteTo{nil, 0, io.ErrUnexpectedEOF},
 			testRead{1, "", io.ErrUnexpectedEOF},
-			testRemaining{38},
+			testRemaining{38, 38},
 		},
 	}, {
 		maker: makeReg{"hello, world", 5},
 		tests: []testFnc{
-			testRemaining{5},
+			testRemaining{5, 5},
 			testRead{0, "", nil},
 			testRead{4, "hell", nil},
-			testRemaining{1},
-			testDiscard{5, 1, io.EOF},
-			testRemaining{0},
-			testDiscard{5, 0, io.EOF},
+			testRemaining{1, 1},
+			testWriteTo{fileOps{"o"}, 1, nil},
+			testRemaining{0, 0},
+			testWriteTo{nil, 0, nil},
 			testRead{0, "", io.EOF},
 		},
 	}, {
 		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{0, 2}, {5, 3}}, 8},
 		tests: []testFnc{
-			testRemaining{8},
+			testRemaining{8, 5},
 			testRead{3, "ab\x00", nil},
 			testRead{10, "\x00\x00cde", io.EOF},
-			testRemaining{0},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{0, 2}, {5, 3}}, 8},
 		tests: []testFnc{
-			testRemaining{8},
-			testDiscard{100, 8, io.EOF},
-			testRemaining{0},
+			testRemaining{8, 5},
+			testWriteTo{fileOps{"ab", int64(3), "cde"}, 8, nil},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{0, 2}, {5, 3}}, 10},
 		tests: []testFnc{
-			testRemaining{10},
+			testRemaining{10, 5},
 			testRead{100, "ab\x00\x00\x00cde\x00\x00", io.EOF},
-			testRemaining{0},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeSparse{makeReg{"abc", 5}, sparseDatas{{0, 2}, {5, 3}}, 10},
 		tests: []testFnc{
-			testRemaining{10},
+			testRemaining{10, 5},
 			testRead{100, "ab\x00\x00\x00c", io.ErrUnexpectedEOF},
-			testRemaining{4},
+			testRemaining{4, 2},
 		},
 	}, {
 		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{1, 3}, {6, 2}}, 8},
 		tests: []testFnc{
-			testRemaining{8},
+			testRemaining{8, 5},
 			testRead{8, "\x00abc\x00\x00de", io.EOF},
-			testRemaining{0},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{1, 3}, {6, 0}, {6, 0}, {6, 2}}, 8},
 		tests: []testFnc{
-			testRemaining{8},
+			testRemaining{8, 5},
 			testRead{8, "\x00abc\x00\x00de", io.EOF},
-			testRemaining{0},
+			testRemaining{0, 0},
+		},
+	}, {
+		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{1, 3}, {6, 0}, {6, 0}, {6, 2}}, 8},
+		tests: []testFnc{
+			testRemaining{8, 5},
+			testWriteTo{fileOps{int64(1), "abc", int64(2), "de"}, 8, nil},
+			testRemaining{0, 0},
 		},
 	}, {
 		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{1, 3}, {6, 2}}, 10},
 		tests: []testFnc{
 			testRead{100, "\x00abc\x00\x00de\x00\x00", io.EOF},
+		},
+	}, {
+		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{1, 3}, {6, 2}}, 10},
+		tests: []testFnc{
+			testWriteTo{fileOps{int64(1), "abc", int64(2), "de", int64(1), "\x00"}, 10, nil},
 		},
 	}, {
 		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{1, 3}, {6, 2}, {8, 0}, {8, 0}, {8, 0}, {8, 0}}, 10},
@@ -1569,6 +1580,11 @@ func TestFileReader(t *testing.T) {
 			testRead{100, "\x00abc\x00\x00de", errMissData},
 		},
 	}, {
+		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{1, 3}, {6, 5}}, 15},
+		tests: []testFnc{
+			testWriteTo{fileOps{int64(1), "abc", int64(2), "de"}, 8, errMissData},
+		},
+	}, {
 		maker: makeSparse{makeReg{"abcde", 8}, sparseDatas{{1, 3}, {6, 5}}, 15},
 		tests: []testFnc{
 			testRead{100, "\x00abc\x00\x00de", io.ErrUnexpectedEOF},
@@ -1576,18 +1592,18 @@ func TestFileReader(t *testing.T) {
 	}, {
 		maker: makeSparse{makeReg{"abcdefghEXTRA", 13}, sparseDatas{{1, 3}, {6, 5}}, 15},
 		tests: []testFnc{
-			testRemaining{15},
+			testRemaining{15, 13},
 			testRead{100, "\x00abc\x00\x00defgh\x00\x00\x00\x00", errUnrefData},
-			testDiscard{100, 0, errUnrefData},
-			testRemaining{0},
+			testWriteTo{nil, 0, errUnrefData},
+			testRemaining{0, 5},
 		},
 	}, {
 		maker: makeSparse{makeReg{"abcdefghEXTRA", 13}, sparseDatas{{1, 3}, {6, 5}}, 15},
 		tests: []testFnc{
-			testRemaining{15},
-			testDiscard{100, 15, errUnrefData},
+			testRemaining{15, 13},
+			testWriteTo{fileOps{int64(1), "abc", int64(2), "defgh", int64(4)}, 15, errUnrefData},
 			testRead{100, "", errUnrefData},
-			testRemaining{0},
+			testRemaining{0, 5},
 		},
 	}}
 
@@ -1617,15 +1633,23 @@ func TestFileReader(t *testing.T) {
 				if got := string(b[:n]); got != tf.wantStr || err != tf.wantErr {
 					t.Errorf("test %d.%d, Read(%d):\ngot  (%q, %v)\nwant (%q, %v)", i, j, tf.cnt, got, err, tf.wantStr, tf.wantErr)
 				}
-			case testDiscard:
-				got, err := fr.Discard(tf.cnt)
-				if got != tf.wantCnt || err != tf.wantErr {
-					t.Errorf("test %d.%d, Discard(%d) = (%d, %v), want (%d, %v)", i, j, tf.cnt, got, err, tf.wantCnt, tf.wantErr)
+			case testWriteTo:
+				f := &testFile{ops: tf.ops}
+				got, err := fr.WriteTo(f)
+				if _, ok := err.(testError); ok {
+					t.Errorf("test %d.%d, WriteTo(): %v", i, j, err)
+				} else if got != tf.wantCnt || err != tf.wantErr {
+					t.Errorf("test %d.%d, WriteTo() = (%d, %v), want (%d, %v)", i, j, got, err, tf.wantCnt, tf.wantErr)
+				}
+				if len(f.ops) > 0 {
+					t.Errorf("test %d.%d, expected %d more operations", i, j, len(f.ops))
 				}
 			case testRemaining:
-				got := fr.Remaining()
-				if got != tf.wantCnt {
-					t.Errorf("test %d.%d, Remaining() = %d, want %d", i, j, got, tf.wantCnt)
+				if got := fr.LogicalRemaining(); got != tf.wantLCnt {
+					t.Errorf("test %d.%d, LogicalRemaining() = %d, want %d", i, j, got, tf.wantLCnt)
+				}
+				if got := fr.PhysicalRemaining(); got != tf.wantPCnt {
+					t.Errorf("test %d.%d, PhysicalRemaining() = %d, want %d", i, j, got, tf.wantPCnt)
 				}
 			default:
 				t.Fatalf("test %d.%d, unknown test operation: %T", i, j, tf)
