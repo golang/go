@@ -303,7 +303,6 @@ func (check *Checker) collectObjects() {
 									// via Config.Packages - may be dot-imported in
 									// another package!)
 									check.declare(fileScope, nil, obj, token.NoPos)
-									check.recordImplicit(s, obj)
 								}
 							}
 							// add position to set of dot-import positions for this file
