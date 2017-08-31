@@ -426,8 +426,15 @@ func readPkgdef(file string) (data []byte, err error) {
 	// Read from file, collecting header for __.PKGDEF.
 	// The header is from the beginning of the file until a line
 	// containing just "!". The first line must begin with "go object ".
+	//
+	// Note: It's possible for "\n!\n" to appear within the binary
+	// package export data format. To avoid truncating the package
+	// definition prematurely (issue 21703), we keep keep track of
+	// how many "$$" delimiters we've seen.
+
 	rbuf := bufio.NewReader(f)
 	var wbuf bytes.Buffer
+	markers := 0
 	for {
 		line, err := rbuf.ReadBytes('\n')
 		if err != nil {
@@ -436,8 +443,11 @@ func readPkgdef(file string) (data []byte, err error) {
 		if wbuf.Len() == 0 && !bytes.HasPrefix(line, []byte("go object ")) {
 			return nil, errors.New("not a Go object file")
 		}
-		if bytes.Equal(line, []byte("!\n")) {
+		if markers%2 == 0 && bytes.Equal(line, []byte("!\n")) {
 			break
+		}
+		if bytes.HasPrefix(line, []byte("$$")) {
+			markers++
 		}
 		wbuf.Write(line)
 	}
