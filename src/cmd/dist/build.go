@@ -95,7 +95,7 @@ func find(p string, l []string) int {
 func xinit() {
 	b := os.Getenv("GOROOT")
 	if b == "" {
-		fatal("$GOROOT must be set")
+		fatalf("$GOROOT must be set")
 	}
 	goroot = filepath.Clean(b)
 
@@ -117,7 +117,7 @@ func xinit() {
 	}
 	goos = b
 	if find(goos, okgoos) < 0 {
-		fatal("unknown $GOOS %s", goos)
+		fatalf("unknown $GOOS %s", goos)
 	}
 
 	b = os.Getenv("GOARM")
@@ -137,7 +137,7 @@ func xinit() {
 	go386 = b
 
 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
-		fatal("$GOROOT is not set correctly or not exported\n"+
+		fatalf("$GOROOT is not set correctly or not exported\n"+
 			"\tGOROOT=%s\n"+
 			"\t%s does not exist", goroot, p)
 	}
@@ -147,7 +147,7 @@ func xinit() {
 		gohostarch = b
 	}
 	if find(gohostarch, okgoarch) < 0 {
-		fatal("unknown $GOHOSTARCH %s", gohostarch)
+		fatalf("unknown $GOHOSTARCH %s", gohostarch)
 	}
 
 	b = os.Getenv("GOARCH")
@@ -156,13 +156,13 @@ func xinit() {
 	}
 	goarch = b
 	if find(goarch, okgoarch) < 0 {
-		fatal("unknown $GOARCH %s", goarch)
+		fatalf("unknown $GOARCH %s", goarch)
 	}
 
 	b = os.Getenv("GO_EXTLINK_ENABLED")
 	if b != "" {
 		if b != "0" && b != "1" {
-			fatal("unknown $GO_EXTLINK_ENABLED %s", b)
+			fatalf("unknown $GO_EXTLINK_ENABLED %s", b)
 		}
 		goextlinkenabled = b
 	}
@@ -247,9 +247,9 @@ func chomp(s string) string {
 }
 
 func branchtag(branch string) (tag string, precise bool) {
-	b := run(goroot, CheckExit, "git", "log", "--decorate=full", "--format=format:%d", "master.."+branch)
+	log := run(goroot, CheckExit, "git", "log", "--decorate=full", "--format=format:%d", "master.."+branch)
 	tag = branch
-	for row, line := range strings.Split(b, "\n") {
+	for row, line := range strings.Split(log, "\n") {
 		// Each line is either blank, or looks like
 		//	  (tag: refs/tags/go1.4rc2, refs/remotes/origin/release-branch.go1.4, refs/heads/release-branch.go1.4)
 		// We need to find an element starting with refs/tags/.
@@ -301,7 +301,7 @@ func findgoversion() string {
 
 	// Show a nicer error message if this isn't a Git repo.
 	if !isGitRepo() {
-		fatal("FAILED: not a Git repo; must put a VERSION file in $GOROOT")
+		fatalf("FAILED: not a Git repo; must put a VERSION file in $GOROOT")
 	}
 
 	// Otherwise, use Git.
@@ -448,7 +448,7 @@ func setup() {
 	if strings.HasPrefix(goversion, "release.") || (strings.HasPrefix(goversion, "go") && !strings.Contains(goversion, "beta")) {
 		for _, dir := range unreleased {
 			if p := pathf("%s/%s", goroot, dir); isdir(p) {
-				fatal("%s should not exist in release build", p)
+				fatalf("%s should not exist in release build", p)
 			}
 		}
 	}
@@ -666,7 +666,7 @@ func install(dir string) {
 		}
 		// Did not rebuild p.
 		if find(p, missing) >= 0 {
-			fatal("missing file %s", p)
+			fatalf("missing file %s", p)
 		}
 	built:
 	}
@@ -987,7 +987,7 @@ func cmdbootstrap() {
 	xflagparse(0)
 
 	if isdir(pathf("%s/src/pkg", goroot)) {
-		fatal("\n\n"+
+		fatalf("\n\n"+
 			"The Go package sources have moved to $GOROOT/src.\n"+
 			"*** %s still exists. ***\n"+
 			"It probably contains stale files that may confuse the build.\n"+
@@ -1127,7 +1127,7 @@ func checkCC() {
 		if len(output) > 0 {
 			outputHdr = "\nCommand output:\n\n"
 		}
-		fatal("cannot invoke C compiler %q: %v\n\n"+
+		fatalf("cannot invoke C compiler %q: %v\n\n"+
 			"Go needs a system C compiler for use with cgo.\n"+
 			"To set a C compiler, set CC=the-compiler.\n"+
 			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc, err, outputHdr, output)
@@ -1143,7 +1143,7 @@ func defaulttarg() string {
 	src := pathf("%s/src/", goroot)
 	real_src := xrealwd(src)
 	if !strings.HasPrefix(pwd, real_src) {
-		fatal("current directory %s is not under %s", pwd, real_src)
+		fatalf("current directory %s is not under %s", pwd, real_src)
 	}
 	pwd = pwd[len(real_src):]
 	// guard against xrealwd returning the directory without the trailing /
@@ -1247,9 +1247,9 @@ func cmdlist() {
 	}
 	out, err := json.MarshalIndent(results, "", "\t")
 	if err != nil {
-		fatal("json marshal error: %v", err)
+		fatalf("json marshal error: %v", err)
 	}
 	if _, err := os.Stdout.Write(out); err != nil {
-		fatal("write failed: %v", err)
+		fatalf("write failed: %v", err)
 	}
 }

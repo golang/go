@@ -76,7 +76,7 @@ func main() {
 	case "plan9":
 		gohostarch = os.Getenv("objtype")
 		if gohostarch == "" {
-			fatal("$objtype is unset")
+			fatalf("$objtype is unset")
 		}
 	case "windows":
 		exe = ".exe"
@@ -117,7 +117,7 @@ func main() {
 				gohostarch = "arm"
 			}
 		default:
-			fatal("unknown architecture: %s", out)
+			fatalf("unknown architecture: %s", out)
 		}
 	}
 
