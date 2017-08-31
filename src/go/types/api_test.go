@@ -257,6 +257,63 @@ func TestTypesInfo(t *testing.T) {
 	}
 }
 
+func TestImplicitsInfo(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	var tests = []struct {
+		src  string
+		want string
+	}{
+		{`package p2; import . "fmt"; var _ = Println`, ""},           // no Implicits entry
+		{`package p0; import local "fmt"; var _ = local.Println`, ""}, // no Implicits entry
+		{`package p1; import "fmt"; var _ = fmt.Println`, "importSpec: package fmt"},
+
+		{`package p3; func f(x interface{}) { switch x.(type) { case int: } }`, ""}, // no Implicits entry
+		{`package p4; func f(x interface{}) { switch t := x.(type) { case int: _ = t } }`, "caseClause: var t int"},
+		{`package p5; func f(x interface{}) { switch t := x.(type) { case int, uint: _ = t } }`, "caseClause: var t interface{}"},
+		{`package p6; func f(x interface{}) { switch t := x.(type) { default: _ = t } }`, "caseClause: var t interface{}"},
+
+		{`package p7; func f(x int) {}`, ""}, // no Implicits entry
+		{`package p8; func f(int) {}`, "field: var  int"},
+		{`package p9; func f() (complex64) { return 0 }`, "field: var  complex64"},
+		{`package p10; type T struct{}; func (*T) f() {}`, "field: var  *p10.T"},
+	}
+
+	for _, test := range tests {
+		info := Info{
+			Implicits: make(map[ast.Node]Object),
+		}
+		name := mustTypecheck(t, "ImplicitsInfo", test.src, &info)
+
+		// the test cases expect at most one Implicits entry
+		if len(info.Implicits) > 1 {
+			t.Errorf("package %s: %d Implicits entries found", name, len(info.Implicits))
+			continue
+		}
+
+		// extract Implicits entry, if any
+		var got string
+		for n, obj := range info.Implicits {
+			switch x := n.(type) {
+			case *ast.ImportSpec:
+				got = "importSpec"
+			case *ast.CaseClause:
+				got = "caseClause"
+			case *ast.Field:
+				got = "field"
+			default:
+				t.Fatalf("package %s: unexpected %T", name, x)
+			}
+			got += ": " + obj.String()
+		}
+
+		// verify entry
+		if got != test.want {
+			t.Errorf("package %s: got %q; want %q", name, got, test.want)
+		}
+	}
+}
+
 func predString(tv TypeAndValue) string {
 	var buf bytes.Buffer
 	pred := func(b bool, s string) {
