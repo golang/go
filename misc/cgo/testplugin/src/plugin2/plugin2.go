@@ -13,6 +13,7 @@ import "C"
 
 import (
 	"common"
+	"reflect"
 	"strings"
 )
 
@@ -20,6 +21,21 @@ func init() {
 	_ = strings.NewReplacer() // trigger stack unwind, Issue #18190.
 	C.strerror(C.EIO)         // uses cgo_topofstack
 	common.X = 2
+}
+
+type sameNameReusedInPlugins struct {
+	X string
+}
+
+type sameNameHolder struct {
+	F *sameNameReusedInPlugins
+}
+
+func UnexportedNameReuse() {
+	h := sameNameHolder{}
+	v := reflect.ValueOf(&h).Elem().Field(0)
+	newval := reflect.New(v.Type().Elem())
+	v.Set(newval)
 }
 
 func main() {
