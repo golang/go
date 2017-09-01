@@ -710,9 +710,13 @@ func (p *noder) embedded(typ syntax.Expr) *Node {
 }
 
 func (p *noder) stmts(stmts []syntax.Stmt) []*Node {
+	return p.stmtsFall(stmts, false)
+}
+
+func (p *noder) stmtsFall(stmts []syntax.Stmt, fallOK bool) []*Node {
 	var nodes []*Node
-	for _, stmt := range stmts {
-		s := p.stmt(stmt)
+	for i, stmt := range stmts {
+		s := p.stmtFall(stmt, fallOK && i+1 == len(stmts))
 		if s == nil {
 		} else if s.Op == OBLOCK && s.Ninit.Len() == 0 {
 			nodes = append(nodes, s.List.Slice()...)
@@ -724,12 +728,16 @@ func (p *noder) stmts(stmts []syntax.Stmt) []*Node {
 }
 
 func (p *noder) stmt(stmt syntax.Stmt) *Node {
+	return p.stmtFall(stmt, false)
+}
+
+func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
 	p.lineno(stmt)
 	switch stmt := stmt.(type) {
 	case *syntax.EmptyStmt:
 		return nil
 	case *syntax.LabeledStmt:
-		return p.labeledStmt(stmt)
+		return p.labeledStmt(stmt, fallOK)
 	case *syntax.BlockStmt:
 		l := p.blockStmt(stmt)
 		if len(l) == 0 {
@@ -780,7 +788,10 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 		case syntax.Continue:
 			op = OCONTINUE
 		case syntax.Fallthrough:
-			op = OXFALL
+			if !fallOK {
+				yyerror("fallthrough statement out of place")
+			}
+			op = OFALL
 		case syntax.Goto:
 			op = OGOTO
 		default:
@@ -789,9 +800,6 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 		n := p.nod(stmt, op, nil, nil)
 		if stmt.Label != nil {
 			n.Left = p.newname(stmt.Label)
-		}
-		if op == OXFALL {
-			n.Xoffset = int64(types.Block)
 		}
 		return n
 	case *syntax.CallStmt:
@@ -912,7 +920,7 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) *Node {
 	}
 
 	tswitch := n.Left
-	if tswitch != nil && (tswitch.Op != OTYPESW || tswitch.Left == nil) {
+	if tswitch != nil && tswitch.Op != OTYPESW {
 		tswitch = nil
 	}
 	n.List.Set(p.caseClauses(stmt.Body, tswitch, stmt.Rbrace))
@@ -934,15 +942,35 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node, rbrace 
 		if clause.Cases != nil {
 			n.List.Set(p.exprList(clause.Cases))
 		}
-		if tswitch != nil {
+		if tswitch != nil && tswitch.Left != nil {
 			nn := newname(tswitch.Left.Sym)
 			declare(nn, dclcontext)
 			n.Rlist.Set1(nn)
 			// keep track of the instances for reporting unused
 			nn.Name.Defn = tswitch
 		}
-		n.Xoffset = int64(types.Block)
-		n.Nbody.Set(p.stmts(clause.Body))
+
+		// Trim trailing empty statements. We omit them from
+		// the Node AST anyway, and it's easier to identify
+		// out-of-place fallthrough statements without them.
+		body := clause.Body
+		for len(body) > 0 {
+			if _, ok := body[len(body)-1].(*syntax.EmptyStmt); !ok {
+				break
+			}
+			body = body[:len(body)-1]
+		}
+
+		n.Nbody.Set(p.stmtsFall(body, true))
+		if l := n.Nbody.Len(); l > 0 && n.Nbody.Index(l-1).Op == OFALL {
+			if tswitch != nil {
+				yyerror("cannot fallthrough in type switch")
+			}
+			if i+1 == len(clauses) {
+				yyerror("cannot fallthrough final case in switch")
+			}
+		}
+
 		nodes = append(nodes, n)
 	}
 	if len(clauses) > 0 {
@@ -980,12 +1008,12 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace src.Pos) []*Nod
 	return nodes
 }
 
-func (p *noder) labeledStmt(label *syntax.LabeledStmt) *Node {
+func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) *Node {
 	lhs := p.nod(label, OLABEL, p.newname(label.Label), nil)
 
 	var ls *Node
 	if label.Stmt != nil { // TODO(mdempsky): Should always be present.
-		ls = p.stmt(label.Stmt)
+		ls = p.stmtFall(label.Stmt, fallOK)
 	}
 
 	lhs.Name.Defn = ls

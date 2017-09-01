@@ -348,10 +348,6 @@ func walkstmt(n *Node) *Node {
 
 	case ORANGE:
 		n = walkrange(n)
-
-	case OXFALL:
-		yyerror("fallthrough statement out of place")
-		n.Op = OFALL
 	}
 
 	if n.Op == ONAME {

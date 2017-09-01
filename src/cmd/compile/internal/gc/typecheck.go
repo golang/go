@@ -2012,7 +2012,7 @@ func typecheck1(n *Node, top int) *Node {
 		ODCL,
 		OEMPTY,
 		OGOTO,
-		OXFALL,
+		OFALL,
 		OVARKILL,
 		OVARLIVE:
 		ok |= Etop
@@ -3898,7 +3898,7 @@ func (n *Node) isterminating() bool {
 	case OBLOCK:
 		return n.List.isterminating()
 
-	case OGOTO, ORETURN, ORETJMP, OPANIC, OXFALL:
+	case OGOTO, ORETURN, ORETJMP, OPANIC, OFALL:
 		return true
 
 	case OFOR, OFORUNTIL:

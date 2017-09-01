@@ -332,7 +332,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		OCLOSE,
 		ONEW,
 		OXCASE,
-		OXFALL,
 		OCASE,
 		OPANIC,
 		ORECOVER,
