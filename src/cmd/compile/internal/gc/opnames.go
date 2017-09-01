@@ -122,7 +122,6 @@ var opnames = []string{
 	ODEFER:           "DEFER",
 	OEMPTY:           "EMPTY",
 	OFALL:            "FALL",
-	OXFALL:           "XFALL",
 	OFOR:             "FOR",
 	OFORUNTIL:        "FORUNTIL",
 	OGOTO:            "GOTO",

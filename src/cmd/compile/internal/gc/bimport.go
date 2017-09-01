@@ -1176,7 +1176,6 @@ func (p *importer) node() *Node {
 	case OXCASE:
 		types.Markdcl()
 		n := nodl(p.pos(), OXCASE, nil, nil)
-		n.Xoffset = int64(types.Block)
 		n.List.Set(p.exprList())
 		// TODO(gri) eventually we must declare variables for type switch
 		// statements (type switch statements are not yet exported)
@@ -1187,9 +1186,8 @@ func (p *importer) node() *Node {
 	// case OFALL:
 	// 	unreachable - mapped to OXFALL case below by exporter
 
-	case OXFALL:
-		n := nodl(p.pos(), OXFALL, nil, nil)
-		n.Xoffset = int64(types.Block)
+	case OFALL:
+		n := nodl(p.pos(), OFALL, nil, nil)
 		return n
 
 	case OBREAK, OCONTINUE:

@@ -204,7 +204,6 @@ var goopnames = []string{
 	OSUB:      "-",
 	OSWITCH:   "switch",
 	OXOR:      "^",
-	OXFALL:    "fallthrough",
 }
 
 func (o Op) String() string {
@@ -1080,11 +1079,7 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 		}
 		mode.Fprintf(s, ": %v", n.Nbody)
 
-	case OBREAK,
-		OCONTINUE,
-		OGOTO,
-		OFALL,
-		OXFALL:
+	case OBREAK, OCONTINUE, OGOTO, OFALL:
 		if n.Left != nil {
 			mode.Fprintf(s, "%#v %v", n.Op, n.Left)
 		} else {
@@ -1219,7 +1214,6 @@ var opprec = []int{
 	OSELECT:     -1,
 	OSWITCH:     -1,
 	OXCASE:      -1,
-	OXFALL:      -1,
 
 	OEND: 0,
 }

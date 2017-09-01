@@ -620,7 +620,6 @@ func orderstmt(n *Node, order *Order) {
 		ODCLCONST,
 		ODCLTYPE,
 		OFALL,
-		OXFALL,
 		OGOTO,
 		OLABEL,
 		ORETJMP:

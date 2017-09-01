@@ -380,7 +380,7 @@ func casebody(sw *Node, typeswvar *Node) {
 	var def *Node    // defaults
 	br := nod(OBREAK, nil, nil)
 
-	for i, n := range sw.List.Slice() {
+	for _, n := range sw.List.Slice() {
 		setlineno(n)
 		if n.Op != OXCASE {
 			Fatalf("casebody %v", n.Op)
@@ -474,21 +474,7 @@ func casebody(sw *Node, typeswvar *Node) {
 			fallIndex--
 		}
 		last := stat[fallIndex]
-
-		// botch - shouldn't fall through declaration
-		if last.Xoffset == n.Xoffset && last.Op == OXFALL {
-			if typeswvar != nil {
-				setlineno(last)
-				yyerror("cannot fallthrough in type switch")
-			}
-
-			if i+1 >= sw.List.Len() {
-				setlineno(last)
-				yyerror("cannot fallthrough final case in switch")
-			}
-
-			last.Op = OFALL
-		} else {
+		if last.Op != OFALL {
 			stat = append(stat, br)
 		}
 	}

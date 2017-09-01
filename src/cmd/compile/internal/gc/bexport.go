@@ -1486,8 +1486,8 @@ func (p *exporter) stmt(n *Node) {
 		p.stmtList(n.List)
 		p.stmtList(n.Nbody)
 
-	case OFALL, OXFALL:
-		p.op(OXFALL)
+	case OFALL:
+		p.op(OFALL)
 		p.pos(n)
 
 	case OBREAK, OCONTINUE:
