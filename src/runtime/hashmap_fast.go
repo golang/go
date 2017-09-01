@@ -406,7 +406,7 @@ again:
 
 	// If we hit the max load factor or we have too many overflow buckets,
 	// and we're not already in the middle of growing, start growing.
-	if !h.growing() && (overLoadFactor(h.count, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+	if !h.growing() && (overLoadFactor(h.count+1, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
 		hashGrow(t, h)
 		goto again // Growing the table invalidates everything, so try again
 	}
@@ -495,7 +495,7 @@ again:
 
 	// If we hit the max load factor or we have too many overflow buckets,
 	// and we're not already in the middle of growing, start growing.
-	if !h.growing() && (overLoadFactor(h.count, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+	if !h.growing() && (overLoadFactor(h.count+1, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
 		hashGrow(t, h)
 		goto again // Growing the table invalidates everything, so try again
 	}
@@ -596,7 +596,7 @@ again:
 
 	// If we hit the max load factor or we have too many overflow buckets,
 	// and we're not already in the middle of growing, start growing.
-	if !h.growing() && (overLoadFactor(h.count, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+	if !h.growing() && (overLoadFactor(h.count+1, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
 		hashGrow(t, h)
 		goto again // Growing the table invalidates everything, so try again
 	}

@@ -573,7 +573,7 @@ again:
 
 	// If we hit the max load factor or we have too many overflow buckets,
 	// and we're not already in the middle of growing, start growing.
-	if !h.growing() && (overLoadFactor(h.count, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+	if !h.growing() && (overLoadFactor(h.count+1, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
 		hashGrow(t, h)
 		goto again // Growing the table invalidates everything, so try again
 	}
@@ -904,7 +904,7 @@ func hashGrow(t *maptype, h *hmap) {
 	// Otherwise, there are too many overflow buckets,
 	// so keep the same number of buckets and "grow" laterally.
 	bigger := uint8(1)
-	if !overLoadFactor(h.count, h.B) {
+	if !overLoadFactor(h.count+1, h.B) {
 		bigger = 0
 		h.flags |= sameSizeGrow
 	}
@@ -944,7 +944,7 @@ func hashGrow(t *maptype, h *hmap) {
 
 // overLoadFactor reports whether count items placed in 1<<B buckets is over loadFactor.
 func overLoadFactor(count int, B uint8) bool {
-	return count >= bucketCnt && uintptr(count) >= loadFactorNum*(bucketShift(B)/loadFactorDen)
+	return count > bucketCnt && uintptr(count) > loadFactorNum*(bucketShift(B)/loadFactorDen)
 }
 
 // tooManyOverflowBuckets reports whether noverflow buckets is too many for a map with 1<<B buckets.

@@ -376,3 +376,8 @@ func (rw *RWMutex) Lock() {
 func (rw *RWMutex) Unlock() {
 	rw.rw.unlock()
 }
+
+func MapBuckets(m map[int]int) int {
+	h := *(**hmap)(unsafe.Pointer(&m))
+	return 1 << h.B
+}
