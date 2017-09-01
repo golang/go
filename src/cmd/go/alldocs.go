@@ -808,7 +808,9 @@
 // The -n flag prints commands that would be executed.
 // The -x flag prints commands as they are executed.
 //
-// For more about build flags, see 'go help build'.
+// The build flags supported by go vet are those that control package resolution
+// and execution, such as -n, -x, -v, -tags, and -toolexec.
+// For more about these flags, see 'go help build'.
 //
 // See also: go fmt, go fix.
 //
