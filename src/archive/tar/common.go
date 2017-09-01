@@ -13,6 +13,7 @@ package tar
 import (
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path"
@@ -525,6 +526,66 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
 	return format, paxHdrs, err
 }
 
+var sysSparseDetect func(f *os.File) (sparseHoles, error)
+var sysSparsePunch func(f *os.File, sph sparseHoles) error
+
+// DetectSparseHoles searches for holes within f to populate SparseHoles
+// on supported operating systems and filesystems.
+// The file offset is cleared to zero.
+//
+// When packing a sparse file, DetectSparseHoles should be called prior to
+// serializing the header to the archive with Writer.WriteHeader.
+func (h *Header) DetectSparseHoles(f *os.File) (err error) {
+	defer func() {
+		if _, serr := f.Seek(0, io.SeekStart); err == nil {
+			err = serr
+		}
+	}()
+
+	h.SparseHoles = nil
+	if sysSparseDetect != nil {
+		sph, err := sysSparseDetect(f)
+		h.SparseHoles = sph
+		return err
+	}
+	return nil
+}
+
+// PunchSparseHoles destroys the contents of f, and prepares a sparse file
+// (on supported operating systems and filesystems)
+// with holes punched according to SparseHoles.
+// The file offset is cleared to zero.
+//
+// When extracting a sparse file, PunchSparseHoles should be called prior to
+// populating the content of a file with Reader.WriteTo.
+func (h *Header) PunchSparseHoles(f *os.File) (err error) {
+	defer func() {
+		if _, serr := f.Seek(0, io.SeekStart); err == nil {
+			err = serr
+		}
+	}()
+
+	if err := f.Truncate(0); err != nil {
+		return err
+	}
+
+	var size int64
+	if len(h.SparseHoles) > 0 {
+		size = h.SparseHoles[len(h.SparseHoles)-1].endOffset()
+	}
+	if !validateSparseEntries(h.SparseHoles, size) {
+		return errors.New("tar: invalid sparse holes")
+	}
+
+	if size == 0 {
+		return nil // For non-sparse files, do nothing (other than Truncate)
+	}
+	if sysSparsePunch != nil {
+		return sysSparsePunch(f, h.SparseHoles)
+	}
+	return f.Truncate(size)
+}
+
 // FileInfo returns an os.FileInfo for the Header.
 func (h *Header) FileInfo() os.FileInfo {
 	return headerFileInfo{h}
@@ -627,7 +688,8 @@ const (
 // the file it describes, it may be necessary to modify Header.Name
 // to provide the full path name of the file.
 //
-// This function does not populate Header.SparseHoles.
+// This function does not populate Header.SparseHoles;
+// for sparse file support, additionally call Header.DetectSparseHoles.
 func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	if fi == nil {
 		return nil, errors.New("tar: FileInfo is nil")
