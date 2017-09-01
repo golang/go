@@ -230,14 +230,6 @@ var dosstub = []uint8{
 	0x00,
 }
 
-var rsrcsym *Symbol
-
-var PESECTHEADR int32
-
-var PEFILEHEADR int32
-
-var pe64 int
-
 type Imp struct {
 	s       *Symbol
 	off     uint64
@@ -253,11 +245,15 @@ type Dll struct {
 	next     *Dll
 }
 
-var dr *Dll
-
-var dexport [1024]*Symbol
-
-var nexport int
+var (
+	rsrcsym     *Symbol
+	PESECTHEADR int32
+	PEFILEHEADR int32
+	pe64        int
+	dr          *Dll
+	dexport     [1024]*Symbol
+	nexport     int
+)
 
 // peStringTable is a COFF string table.
 type peStringTable struct {
