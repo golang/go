@@ -563,7 +563,6 @@ const (
 	OCONTINUE // continue
 	ODEFER    // defer Left (Left must be call)
 	OEMPTY    // no-op (empty statement)
-	_         // placeholder to appease toolstash
 	OFALL     // fallthrough
 	OFOR      // for Ninit; Left; Right { Nbody }
 	OFORUNTIL // for Ninit; Left; Right { Nbody } ; test applied after executing body, not before
