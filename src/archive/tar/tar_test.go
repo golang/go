@@ -16,6 +16,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -767,6 +768,25 @@ func TestHeaderAllowedFormats(t *testing.T) {
 }
 
 func TestSparseFiles(t *testing.T) {
+	// Only perform the tests for hole-detection on the builders,
+	// where we have greater control over the filesystem.
+	sparseSupport := testenv.Builder() != ""
+	if runtime.GOOS == "linux" && runtime.GOARCH == "arm" {
+		// The "linux-arm" builder uses aufs for its root FS,
+		// which only supports hole-punching, but not hole-detection.
+		sparseSupport = false
+	}
+	if runtime.GOOS == "darwin" {
+		// The "darwin-*" builders use hfs+ for its root FS,
+		// which does not support sparse files.
+		sparseSupport = false
+	}
+	if runtime.GOOS == "openbsd" {
+		// The "openbsd-*" builders use ffs for its root FS,
+		// which does not support sparse files.
+		sparseSupport = false
+	}
+
 	vectors := []struct {
 		label     string
 		sparseMap sparseHoles
@@ -779,11 +799,11 @@ func TestSparseFiles(t *testing.T) {
 		{"DataMiddle", sparseHoles{{0, 5e5 - 1e3}, {5e5, 5e5}}},
 		{"HoleMiddle", sparseHoles{{1e3, 1e6 - 2e3}, {1e6, 0}}},
 		{"Multiple", func() (sph []SparseEntry) {
-			for i := 0; i < 20; i++ {
-				sph = append(sph, SparseEntry{1e6 * int64(i), 1e6 - 1e3})
+			const chunkSize = 1e6
+			for i := 0; i < 100; i++ {
+				sph = append(sph, SparseEntry{chunkSize * int64(i), chunkSize - 1e3})
 			}
-			sph = append(sph, SparseEntry{20e6, 0})
-			return
+			return append(sph, SparseEntry{int64(len(sph) * chunkSize), 0})
 		}()},
 	}
 
@@ -808,13 +828,16 @@ func TestSparseFiles(t *testing.T) {
 				Size:        sph[len(sph)-1].endOffset(),
 				SparseHoles: sph,
 			}
-			// TODO: Explicitly punch holes in the sparse file.
-			if err := src.Truncate(hdr.Size); err != nil {
-				t.Fatalf("unexpected Truncate error: %v", err)
+			junk := bytes.Repeat([]byte{'Z'}, int(hdr.Size+1e3))
+			if _, err := src.Write(junk); err != nil {
+				t.Fatalf("unexpected Write error: %v", err)
+			}
+			if err := hdr.PunchSparseHoles(src); err != nil {
+				t.Fatalf("unexpected PunchSparseHoles error: %v", err)
 			}
 			var pos int64
 			for _, s := range sph {
-				b := bytes.Repeat([]byte{'Y'}, int(s.Offset-pos))
+				b := bytes.Repeat([]byte{'X'}, int(s.Offset-pos))
 				if _, err := src.WriteAt(b, pos); err != nil {
 					t.Fatalf("unexpected WriteAt error: %v", err)
 				}
@@ -837,9 +860,8 @@ func TestSparseFiles(t *testing.T) {
 			if _, err := tr.Next(); err != nil {
 				t.Fatalf("unexpected Next error: %v", err)
 			}
-			// TODO: Explicitly punch holes in the sparse file.
-			if err := dst.Truncate(hdr.Size); err != nil {
-				t.Fatalf("unexpected Truncate error: %v", err)
+			if err := hdr.PunchSparseHoles(dst); err != nil {
+				t.Fatalf("unexpected PunchSparseHoles error: %v", err)
 			}
 			if _, err := tr.WriteTo(dst); err != nil {
 				t.Fatalf("unexpected Copy error: %v", err)
@@ -860,7 +882,28 @@ func TestSparseFiles(t *testing.T) {
 				t.Fatal("sparse files mismatch")
 			}
 
-			// TODO: Actually check that the file is sparse.
+			// Detect and compare the sparse holes.
+			if err := hdr.DetectSparseHoles(dst); err != nil {
+				t.Fatalf("unexpected DetectSparseHoles error: %v", err)
+			}
+			if sparseSupport && sysSparseDetect != nil {
+				if len(sph) > 0 && sph[len(sph)-1].Length == 0 {
+					sph = sph[:len(sph)-1]
+				}
+				if len(hdr.SparseHoles) != len(sph) {
+					t.Fatalf("len(SparseHoles) = %d, want %d", len(hdr.SparseHoles), len(sph))
+				}
+				for j, got := range hdr.SparseHoles {
+					// Each FS has their own block size, so these may not match.
+					want := sph[j]
+					if got.Offset < want.Offset {
+						t.Errorf("index %d, StartOffset = %d, want <%d", j, got.Offset, want.Offset)
+					}
+					if got.endOffset() > want.endOffset() {
+						t.Errorf("index %d, EndOffset = %d, want >%d", j, got.endOffset(), want.endOffset())
+					}
+				}
+			}
 		})
 	}
 }
