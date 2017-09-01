@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unicode"
@@ -1544,6 +1545,30 @@ func TestCallWithStruct(t *testing.T) {
 	if len(r) != 1 || r[0].Type() != TypeOf(1) || r[0].Int() != 42 {
 		t.Errorf("takesNonEmpty returned %#v", r)
 	}
+}
+
+func TestCallReturnsEmpty(t *testing.T) {
+	// Issue 21717: past-the-end pointer write in Call with
+	// nonzero-sized frame and zero-sized return value.
+	runtime.GC()
+	var finalized uint32
+	f := func() (emptyStruct, *int) {
+		i := new(int)
+		runtime.SetFinalizer(i, func(*int) { atomic.StoreUint32(&finalized, 1) })
+		return emptyStruct{}, i
+	}
+	v := ValueOf(f).Call(nil)[0] // out[0] should not alias out[1]'s memory, so the finalizer should run.
+	timeout := time.After(5 * time.Second)
+	for atomic.LoadUint32(&finalized) == 0 {
+		select {
+		case <-timeout:
+			t.Fatal("finalizer did not run")
+		default:
+		}
+		runtime.Gosched()
+		runtime.GC()
+	}
+	runtime.KeepAlive(v)
 }
 
 func BenchmarkCall(b *testing.B) {
