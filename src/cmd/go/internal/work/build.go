@@ -2198,10 +2198,15 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, objdir string, asmhd
 		ofile = objdir + out
 	}
 
-	gcargs := []string{"-p", p.ImportPath}
-	if p.Name == "main" {
-		gcargs[1] = "main"
+	pkgpath := p.ImportPath
+	if cfg.BuildBuildmode == "plugin" {
+		if pkgpath == "command-line-arguments" {
+			pkgpath = "plugin/unnamed-" + p.Internal.BuildID
+		}
+	} else if p.Name == "main" {
+		pkgpath = "main"
 	}
+	gcargs := []string{"-p", pkgpath}
 	if p.Standard {
 		gcargs = append(gcargs, "-std")
 	}
