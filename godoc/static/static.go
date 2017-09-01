@@ -445,7 +445,7 @@ var Files = map[string]string{
 				<div class="buttons">
 					<a class="run" title="Run this code [shift-enter]">Run</a>
 					<a class="fmt" title="Format this code">Format</a>
-					{{if $.Share}}
+					{{if not $.GoogleCN}}
 					<a class="share" title="Share this code">Share</a>
 					{{end}}
 				</div>
@@ -496,7 +496,9 @@ var Files = map[string]string{
 <a href="/pkg/">Packages</a>
 <a href="/project/">The Project</a>
 <a href="/help/">Help</a>
+{{if not .GoogleCN}}
 <a href="/blog/">Blog</a>
+{{end}}
 {{if .Playground}}
 <a id="playgroundButton" href="http://play.golang.org/" title="Show Go Playground">Play</a>
 {{end}}
@@ -519,7 +521,7 @@ func main() {
 	<div class="buttons">
 		<a class="run" title="Run this code [shift-enter]">Run</a>
 		<a class="fmt" title="Format this code">Format</a>
-		{{if $.Share}}
+		{{if not $.GoogleCN}}
 		<a class="share" title="Share this code">Share</a>
 		{{end}}
 	</div>
@@ -559,7 +561,7 @@ Except as <a href="https://developers.google.com/site-policies#restrictions">not
 the content of this page is licensed under the
 Creative Commons Attribution 3.0 License,
 and code is licensed under a <a href="/LICENSE">BSD license</a>.<br>
-<a href="/doc/tos.html">Terms of Service</a> | 
+<a href="/doc/tos.html">Terms of Service</a> |
 <a href="http://www.google.com/intl/en/policies/privacy/">Privacy Policy</a>
 </div>
 
@@ -3007,7 +3009,7 @@ h1 {
 	line-height: 1;
 }
 h1 .text-muted {
-  color:#777;
+	color:#777;
 }
 h2 {
 	font-size: 20px;
