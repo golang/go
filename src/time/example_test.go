@@ -355,6 +355,26 @@ func ExampleParseInLocation() {
 	// 2012-07-09 00:00:00 +0200 CEST
 }
 
+func ExampleTime_Unix() {
+	// Create a date.
+	const nsecs = 0
+	orig := time.Date(2009, time.January, 1, 1, 9, 30, nsecs, time.UTC)
+	fmt.Printf("orig = %v\n", orig)
+
+	// Get the Unix timestamp of the date.
+	unix := orig.Unix()
+	fmt.Printf("orig.Unix() = %v\n", unix)
+
+	// Convert the Unix date back to a time.Time.
+	parsed := time.Unix(unix, nsecs).UTC()
+	fmt.Printf("parsed = %v\n", parsed)
+
+	// Output:
+	// orig = 2009-01-01 01:09:30 +0000 UTC
+	// orig.Unix() = 1230772170
+	// parsed = 2009-01-01 01:09:30 +0000 UTC
+}
+
 func ExampleTime_Round() {
 	t := time.Date(0, 0, 0, 12, 15, 30, 918273645, time.UTC)
 	round := []time.Duration{
