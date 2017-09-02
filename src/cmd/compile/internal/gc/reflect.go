@@ -171,6 +171,9 @@ func bmap(t *types.Type) *types.Type {
 	dowidth(bucket)
 
 	// Check invariants that map code depends on.
+	if !IsComparable(t.Key()) {
+		Fatalf("unsupported map key type for %v", t)
+	}
 	if BUCKETSIZE < 8 {
 		Fatalf("bucket size too small for proper alignment")
 	}
