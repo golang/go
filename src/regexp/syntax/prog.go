@@ -247,15 +247,6 @@ func (i *Inst) MatchRunePos(r rune) int {
 	return noMatch
 }
 
-// As per re2's Prog::IsWordChar. Determines whether rune is an ASCII word char.
-// Since we act on runes, it would be easy to support Unicode here.
-func wordRune(r rune) bool {
-	return r == '_' ||
-		('A' <= r && r <= 'Z') ||
-		('a' <= r && r <= 'z') ||
-		('0' <= r && r <= '9')
-}
-
 // MatchEmptyWidth reports whether the instruction matches
 // an empty string between the runes before and after.
 // It should only be called when i.Op == InstEmptyWidth.
@@ -270,9 +261,9 @@ func (i *Inst) MatchEmptyWidth(before rune, after rune) bool {
 	case EmptyEndText:
 		return after == -1
 	case EmptyWordBoundary:
-		return wordRune(before) != wordRune(after)
+		return IsWordChar(before) != IsWordChar(after)
 	case EmptyNoWordBoundary:
-		return wordRune(before) == wordRune(after)
+		return IsWordChar(before) == IsWordChar(after)
 	}
 	panic("unknown empty width arg")
 }
