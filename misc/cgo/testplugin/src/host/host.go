@@ -136,12 +136,29 @@ func main() {
 		log.Fatalf("after loading plugin2, common.X=%d, want %d", got, want)
 	}
 
+	_, err = plugin.Open("plugin2-dup.so")
+	if err == nil {
+		log.Fatal(`plugin.Open("plugin2-dup.so"): duplicate open should have failed`)
+	}
+	if s := err.Error(); !strings.Contains(s, "already loaded") {
+		log.Fatal(`plugin.Open("plugin2.so"): error does not mention "already loaded"`)
+	}
+
 	_, err = plugin.Open("plugin-mismatch.so")
 	if err == nil {
 		log.Fatal(`plugin.Open("plugin-mismatch.so"): should have failed`)
 	}
 	if s := err.Error(); !strings.Contains(s, "different version") {
 		log.Fatalf(`plugin.Open("plugin-mismatch.so"): error does not mention "different version": %v`, s)
+	}
+
+	_, err = plugin.Open("plugin2-dup.so")
+	if err == nil {
+		log.Fatal(`plugin.Open("plugin2-dup.so"): duplicate open after bad plugin should have failed`)
+	}
+	_, err = plugin.Open("plugin2.so")
+	if err != nil {
+		log.Fatalf(`plugin.Open("plugin2.so"): second open with same name failed: %v`, err)
 	}
 
 	// Test that unexported types with the same names in

@@ -338,8 +338,8 @@ const (
 // moduledata records information about the layout of the executable
 // image. It is written by the linker. Any changes here must be
 // matched changes to the code in cmd/internal/ld/symtab.go:symtab.
-// moduledata is stored in read-only memory; none of the pointers here
-// are visible to the garbage collector.
+// moduledata is stored in statically allocated non-pointer memory;
+// none of the pointers here are visible to the garbage collector.
 type moduledata struct {
 	pclntable    []byte
 	ftab         []functab
@@ -370,6 +370,8 @@ type moduledata struct {
 	gcdatamask, gcbssmask bitvector
 
 	typemap map[typeOff]*_type // offset to *_rtype in previous module
+
+	bad bool // module failed to load and should be ignored
 
 	next *moduledata
 }
@@ -443,6 +445,9 @@ func activeModules() []*moduledata {
 func modulesinit() {
 	modules := new([]*moduledata)
 	for md := &firstmoduledata; md != nil; md = md.next {
+		if md.bad {
+			continue
+		}
 		*modules = append(*modules, md)
 		if md.gcdatamask == (bitvector{}) {
 			md.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(md.gcdata)), md.edata-md.data)
