@@ -296,10 +296,6 @@ func makemap(t *maptype, hint int, h *hmap) *hmap {
 		hint = 0
 	}
 
-	if !ismapkey(t.key) {
-		throw("runtime.makemap: unsupported map key type")
-	}
-
 	if evacuatedX+1 != evacuatedY {
 		// evacuate relies on this relationship
 		throw("bad evacuatedN")
@@ -1156,6 +1152,9 @@ func reflect_makemap(t *maptype, cap int) *hmap {
 	if sz := unsafe.Sizeof(hmap{}); sz != t.hmap.size {
 		println("runtime: sizeof(hmap) =", sz, ", t.hmap.size =", t.hmap.size)
 		throw("bad hmap size")
+	}
+	if !ismapkey(t.key) {
+		throw("runtime.reflect_makemap: unsupported map key type")
 	}
 	if t.key.size > maxKeySize && (!t.indirectkey || t.keysize != uint8(sys.PtrSize)) ||
 		t.key.size <= maxKeySize && (t.indirectkey || t.keysize != uint8(t.key.size)) {
