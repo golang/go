@@ -461,6 +461,68 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
 	}
 }
 
+// Test that the special cased "/route" redirect
+// implicitly created by a registered "/route/"
+// properly sets the query string in the redirect URL.
+// See Issue 17841.
+func TestServeWithSlashRedirectKeepsQueryString(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	writeBackQuery := func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "%s", r.URL.RawQuery)
+	}
+
+	mux := NewServeMux()
+	mux.HandleFunc("/testOne", writeBackQuery)
+	mux.HandleFunc("/testTwo/", writeBackQuery)
+	mux.HandleFunc("/testThree", writeBackQuery)
+	mux.HandleFunc("/testThree/", func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "%s:bar", r.URL.RawQuery)
+	})
+
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	tests := [...]struct {
+		path     string
+		method   string
+		want     string
+		statusOk bool
+	}{
+		0: {"/testOne?this=that", "GET", "this=that", true},
+		1: {"/testTwo?foo=bar", "GET", "foo=bar", true},
+		2: {"/testTwo?a=1&b=2&a=3", "GET", "a=1&b=2&a=3", true},
+		3: {"/testTwo?", "GET", "", true},
+		4: {"/testThree?foo", "GET", "foo", true},
+		5: {"/testThree/?foo", "GET", "foo:bar", true},
+		6: {"/testThree?foo", "CONNECT", "foo", true},
+		7: {"/testThree/?foo", "CONNECT", "foo:bar", true},
+
+		// canonicalization or not
+		8: {"/testOne/foo/..?foo", "GET", "foo", true},
+		9: {"/testOne/foo/..?foo", "CONNECT", "404 page not found\n", false},
+	}
+
+	for i, tt := range tests {
+		req, _ := NewRequest(tt.method, ts.URL+tt.path, nil)
+		res, err := ts.Client().Do(req)
+		if err != nil {
+			continue
+		}
+		slurp, _ := ioutil.ReadAll(res.Body)
+		res.Body.Close()
+		if !tt.statusOk {
+			if got, want := res.StatusCode, 404; got != want {
+				t.Errorf("#%d: Status = %d; want = %d", i, got, want)
+			}
+		}
+		if got, want := string(slurp), tt.want; got != want {
+			t.Errorf("#%d: Body = %q; want = %q", i, got, want)
+		}
+	}
+}
+
 func BenchmarkServeMux(b *testing.B) {
 
 	type test struct {
