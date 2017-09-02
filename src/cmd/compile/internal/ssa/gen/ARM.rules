@@ -850,6 +850,7 @@
 (SRAconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(d)>>uint64(c))])
 (MUL (MOVWconst [c]) (MOVWconst [d])) -> (MOVWconst [int64(int32(c*d))])
 (MULA (MOVWconst [c]) (MOVWconst [d]) a) -> (ADDconst [int64(int32(c*d))] a)
+(MULS (MOVWconst [c]) (MOVWconst [d]) a) -> (SUBconst [int64(int32(c*d))] a)
 (Select0 (CALLudiv (MOVWconst [c]) (MOVWconst [d]))) -> (MOVWconst [int64(uint32(c)/uint32(d))])
 (Select1 (CALLudiv (MOVWconst [c]) (MOVWconst [d]))) -> (MOVWconst [int64(uint32(c)%uint32(d))])
 (ANDconst [c] (MOVWconst [d])) -> (MOVWconst [c&d])
@@ -1239,6 +1240,13 @@
 (ADD (MUL x y) a) -> (MULA x y a)
 (SUB a (MUL x y)) && objabi.GOARM == 7 -> (MULS x y a)
 (RSB (MUL x y) a) && objabi.GOARM == 7 -> (MULS x y a)
+
+(NEGF (MULF x y)) && objabi.GOARM >= 6 -> (NMULF x y)
+(NEGD (MULD x y)) && objabi.GOARM >= 6 -> (NMULD x y)
+(MULF (NEGF x) y) && objabi.GOARM >= 6 -> (NMULF x y)
+(MULD (NEGD x) y) && objabi.GOARM >= 6 -> (NMULD x y)
+(NMULF (NEGF x) y) -> (MULF x y)
+(NMULD (NEGD x) y) -> (MULD x y)
 
 (AND x (MVN y)) -> (BIC x y)
 
