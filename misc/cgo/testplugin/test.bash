@@ -27,8 +27,8 @@ GOPATH=$(pwd) go build -buildmode=plugin plugin1
 GOPATH=$(pwd) go build -buildmode=plugin plugin2
 GOPATH=$(pwd)/altpath go build -buildmode=plugin plugin-mismatch
 GOPATH=$(pwd) go build -buildmode=plugin -o=sub/plugin1.so sub/plugin1
-GOPATH=$(pwd) go build -buildmode=plugin unnamed1.go
-GOPATH=$(pwd) go build -buildmode=plugin unnamed2.go
+GOPATH=$(pwd) go build -buildmode=plugin -o=unnamed1.so unnamed1/main.go
+GOPATH=$(pwd) go build -buildmode=plugin -o=unnamed2.so unnamed2/main.go
 GOPATH=$(pwd) go build host
 
 LD_LIBRARY_PATH=$(pwd) ./host

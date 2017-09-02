@@ -1671,15 +1671,8 @@ func isStale(p *Package) (bool, string) {
 	return false, ""
 }
 
-// computeBuildID computes the build ID for p, leaving it in p.Internal.BuildID.
-// Build ID is a hash of the information we want to detect changes in.
-// See the long comment in isStale for details.
-func computeBuildID(p *Package) {
-	h := sha1.New()
-
-	// Include the list of files compiled as part of the package.
-	// This lets us detect removed files. See issue 3895.
-	inputFiles := str.StringList(
+func pkgInputFiles(p *Package) []string {
+	return str.StringList(
 		p.GoFiles,
 		p.CgoFiles,
 		p.CFiles,
@@ -1692,6 +1685,40 @@ func computeBuildID(p *Package) {
 		p.SwigFiles,
 		p.SwigCXXFiles,
 	)
+}
+
+// PluginPath computes the package path for a plugin main package.
+//
+// This is typically the import path of the main package p, unless the
+// plugin is being built directly from source files. In that case we
+// combine the package build ID with the contents of the main package
+// source files. This allows us to identify two different plugins
+// built from two source files with the same name.
+func PluginPath(p *Package) string {
+	if p.ImportPath != "command-line-arguments" {
+		return p.ImportPath
+	}
+	h := sha1.New()
+	fmt.Fprintf(h, "build ID: %s\n", p.Internal.BuildID)
+	for _, file := range str.StringList(p.GoFiles, p.CgoFiles, p.SFiles) {
+		data, err := ioutil.ReadFile(filepath.Join(p.Dir, file))
+		if err != nil {
+			base.Fatalf("go: %s", err)
+		}
+		h.Write(data)
+	}
+	return fmt.Sprintf("plugin/unnamed-%x", h.Sum(nil))
+}
+
+// computeBuildID computes the build ID for p, leaving it in p.Internal.BuildID.
+// Build ID is a hash of the information we want to detect changes in.
+// See the long comment in isStale for details.
+func computeBuildID(p *Package) {
+	h := sha1.New()
+
+	// Include the list of files compiled as part of the package.
+	// This lets us detect removed files. See issue 3895.
+	inputFiles := pkgInputFiles(p)
 	for _, file := range inputFiles {
 		fmt.Fprintf(h, "file %s\n", file)
 	}

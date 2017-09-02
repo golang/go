@@ -2200,9 +2200,7 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, objdir string, asmhd
 
 	pkgpath := p.ImportPath
 	if cfg.BuildBuildmode == "plugin" {
-		if pkgpath == "command-line-arguments" {
-			pkgpath = "plugin/unnamed-" + p.Internal.BuildID
-		}
+		pkgpath = load.PluginPath(p)
 	} else if p.Name == "main" {
 		pkgpath = "main"
 	}
@@ -2536,11 +2534,7 @@ func (gcToolchain) ld(b *Builder, root *Action, out string, allactions []*Action
 		ldflags = append(ldflags, "-s", "-w")
 	}
 	if cfg.BuildBuildmode == "plugin" {
-		pluginpath := root.Package.ImportPath
-		if pluginpath == "command-line-arguments" {
-			pluginpath = "plugin/unnamed-" + root.Package.Internal.BuildID
-		}
-		ldflags = append(ldflags, "-pluginpath", pluginpath)
+		ldflags = append(ldflags, "-pluginpath", load.PluginPath(root.Package))
 	}
 
 	// If the user has not specified the -extld option, then specify the
