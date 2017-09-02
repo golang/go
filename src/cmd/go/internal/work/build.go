@@ -3236,9 +3236,11 @@ func (b *Builder) gccSupportsFlag(flag string) bool {
 		if cfg.BuildN || cfg.BuildX {
 			b.Showcmd(b.WorkDir, "touch trivial.c")
 		}
-		src := filepath.Join(b.WorkDir, "trivial.c")
-		if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
-			return false
+		if !cfg.BuildN {
+			src := filepath.Join(b.WorkDir, "trivial.c")
+			if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
+				return false
+			}
 		}
 		b.flagCache = make(map[string]bool)
 	}
