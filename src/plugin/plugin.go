@@ -20,6 +20,7 @@ package plugin
 // Plugin is a loaded Go plugin.
 type Plugin struct {
 	pluginpath string
+	err        string        // set if plugin failed to load
 	loaded     chan struct{} // closed when loaded
 	syms       map[string]interface{}
 }
