@@ -762,8 +762,9 @@ func orderstmt(n *Node, order *Order) {
 			r := n.Right
 			n.Right = ordercopyexpr(r, r.Type, order, 0)
 
-			// n->alloc is the temp for the iterator.
-			prealloc[n] = ordertemp(types.Types[TUINT8], order, true)
+			// prealloc[n] is the temp for the iterator.
+			// hiter contains pointers and needs to be zeroed.
+			prealloc[n] = ordertemp(hiter(n.Type), order, true)
 		}
 		for i := range n.List.Slice() {
 			n.List.SetIndex(i, orderexprinplace(n.List.Index(i), order))
