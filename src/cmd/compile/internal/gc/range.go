@@ -249,9 +249,8 @@ func walkrange(n *Node) *Node {
 		// we only use a once, so no copy needed.
 		ha := a
 
-		th := hiter(t)
 		hit := prealloc[n]
-		hit.Type = th
+		th := hit.Type
 		n.Left = nil
 		keysym := th.Field(0).Sym // depends on layout of iterator struct.  See reflect.go:hiter
 		valsym := th.Field(1).Sym // ditto
