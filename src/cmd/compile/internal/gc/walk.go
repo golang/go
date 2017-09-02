@@ -1467,28 +1467,63 @@ opswitch:
 				na = typecheck(na, Etop)
 				init.Append(na)
 			}
+		}
+
+		if Isconst(hint, CTINT) && hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
+			// Handling make(map[any]any) and
+			// make(map[any]any, hint) where hint <= BUCKETSIZE
+			// special allows for faster map initialization and
+			// improves binary size by using calls with fewer arguments.
+			// For hint <= BUCKETSIZE overLoadFactor(hint, 0) is false
+			// and no buckets will be allocated by makemap. Therefore,
+			// no buckets need to be allocated in this code path.
+			if n.Esc == EscNone {
+				// Only need to initialize h.hash0 since
+				// hmap h has been allocated on the stack already.
+				// h.hash0 = fastrand()
+				rand := mkcall("fastrand", types.Types[TUINT32], init)
+				hashsym := hmapType.Field(4).Sym // hmap.hash0 see reflect.go:hmap
+				a := nod(OAS, nodSym(ODOT, h, hashsym), rand)
+				a = typecheck(a, Etop)
+				a = walkexpr(a, init)
+				init.Append(a)
+				n = nod(OCONVNOP, h, nil)
+				n.Type = t
+				n = typecheck(n, Erv)
+			} else {
+				// Call runtime.makehmap to allocate an
+				// hmap on the heap and initialize hmap's hash0 field.
+				fn := syslook("makemap_small")
+				fn = substArgTypes(fn, t.Key(), t.Val())
+				n = mkcall1(fn, n.Type, init)
+			}
 		} else {
-			// h = nil
-			h = nodnil()
+			if n.Esc != EscNone {
+				h = nodnil()
+			}
+			// Map initialization with a variable or large hint is
+			// more complicated. We therefore generate a call to
+			// runtime.makemap to intialize hmap and allocate the
+			// map buckets.
+
+			// When hint fits into int, use makemap instead of
+			// makemap64, which is faster and shorter on 32 bit platforms.
+			fnname := "makemap64"
+			argtype := types.Types[TINT64]
+
+			// Type checking guarantees that TIDEAL hint is positive and fits in an int.
+			// See checkmake call in TMAP case of OMAKE case in OpSwitch in typecheck1 function.
+			// The case of hint overflow when converting TUINT or TUINTPTR to TINT
+			// will be handled by the negative range checks in makemap during runtime.
+			if hint.Type.IsKind(TIDEAL) || maxintval[hint.Type.Etype].Cmp(maxintval[TUINT]) <= 0 {
+				fnname = "makemap"
+				argtype = types.Types[TINT]
+			}
+
+			fn := syslook(fnname)
+			fn = substArgTypes(fn, hmapType, t.Key(), t.Val())
+			n = mkcall1(fn, n.Type, init, typename(n.Type), conv(hint, argtype), h)
 		}
-
-		// When hint fits into int, use makemap instead of
-		// makemap64, which is faster and shorter on 32 bit platforms.
-		fnname := "makemap64"
-		argtype := types.Types[TINT64]
-
-		// Type checking guarantees that TIDEAL hint is positive and fits in an int.
-		// See checkmake call in TMAP case of OMAKE case in OpSwitch in typecheck1 function.
-		// The case of hint overflow when converting TUINT or TUINTPTR to TINT
-		// will be handled by the negative range checks in makemap during runtime.
-		if hint.Type.IsKind(TIDEAL) || maxintval[hint.Type.Etype].Cmp(maxintval[TUINT]) <= 0 {
-			fnname = "makemap"
-			argtype = types.Types[TINT]
-		}
-
-		fn := syslook(fnname)
-		fn = substArgTypes(fn, hmapType, t.Key(), t.Val())
-		n = mkcall1(fn, n.Type, init, typename(n.Type), conv(hint, argtype), h)
 
 	case OMAKESLICE:
 		l := n.Left

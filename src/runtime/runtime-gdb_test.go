@@ -76,7 +76,7 @@ import "fmt"
 import "runtime"
 var gslice []string
 func main() {
-	mapvar := make(map[string]string,5)
+	mapvar := make(map[string]string, 13)
 	mapvar["abc"] = "def"
 	mapvar["ghi"] = "jkl"
 	strvar := "abc"
@@ -198,8 +198,10 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("info goroutines failed: %s", bl)
 	}
 
-	printMapvarRe := regexp.MustCompile(`\Q = map[string]string = {["abc"] = "def", ["ghi"] = "jkl"}\E$`)
-	if bl := blocks["print mapvar"]; !printMapvarRe.MatchString(bl) {
+	printMapvarRe1 := regexp.MustCompile(`\Q = map[string]string = {["abc"] = "def", ["ghi"] = "jkl"}\E$`)
+	printMapvarRe2 := regexp.MustCompile(`\Q = map[string]string = {["ghi"] = "jkl", ["abc"] = "def"}\E$`)
+	if bl := blocks["print mapvar"]; !printMapvarRe1.MatchString(bl) &&
+		!printMapvarRe2.MatchString(bl) {
 		t.Fatalf("print mapvar failed: %s", bl)
 	}
 

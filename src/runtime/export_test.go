@@ -377,9 +377,14 @@ func (rw *RWMutex) Unlock() {
 	rw.rw.unlock()
 }
 
-func MapBuckets(m map[int]int) int {
+func MapBucketsCount(m map[int]int) int {
 	h := *(**hmap)(unsafe.Pointer(&m))
 	return 1 << h.B
+}
+
+func MapBucketsPointerIsNil(m map[int]int) bool {
+	h := *(**hmap)(unsafe.Pointer(&m))
+	return h.buckets == nil
 }
 
 func LockOSCounts() (external, internal uint32) {

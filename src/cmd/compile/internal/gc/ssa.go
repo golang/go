@@ -1574,6 +1574,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return v
 		}
 
+		// map <--> *hmap
+		if to.Etype == TMAP && from.IsPtr() &&
+			to.MapType().Hmap == from.Elem() {
+			return v
+		}
+
 		dowidth(from)
 		dowidth(to)
 		if from.Width != to.Width {
