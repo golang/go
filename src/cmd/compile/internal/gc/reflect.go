@@ -252,8 +252,8 @@ func hmap(t *types.Type) *types.Type {
 		makefield("flags", types.Types[TUINT8]),
 		makefield("B", types.Types[TUINT8]),
 		makefield("noverflow", types.Types[TUINT16]),
-		makefield("hash0", types.Types[TUINT32]),
-		makefield("buckets", types.NewPtr(bmap)), // Used in walk.go for makemap.
+		makefield("hash0", types.Types[TUINT32]), // Used in walk.go for OMAKEMAP.
+		makefield("buckets", types.NewPtr(bmap)), // Used in walk.go for OMAKEMAP.
 		makefield("oldbuckets", types.NewPtr(bmap)),
 		makefield("nevacuate", types.Types[TUINTPTR]),
 		makefield("extra", types.Types[TUNSAFEPTR]),

@@ -644,7 +644,7 @@ func useT40(*T40)
 
 func newT40() *T40 {
 	ret := T40{}
-	ret.m = make(map[int]int) // ERROR "live at call to makemap: &ret$"
+	ret.m = make(map[int]int, 42) // ERROR "live at call to makemap: &ret$"
 	return &ret
 }
 
@@ -656,7 +656,7 @@ func bad40() {
 
 func good40() {
 	ret := T40{}
-	ret.m = make(map[int]int) // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
+	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+ ret$"
 	t := &ret
 	printnl() // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
 	useT40(t) // ERROR "live at call to useT40: .autotmp_[0-9]+ ret$"
