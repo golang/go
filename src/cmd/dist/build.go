@@ -253,7 +253,7 @@ func chomp(s string) string {
 func branchtag(branch string) (tag string, precise bool) {
 	b := run(goroot, CheckExit, "git", "log", "--decorate=full", "--format=format:%d", "master.."+branch)
 	tag = branch
-	for _, line := range splitlines(b) {
+	for row, line := range splitlines(b) {
 		// Each line is either blank, or looks like
 		//	  (tag: refs/tags/go1.4rc2, refs/remotes/origin/release-branch.go1.4, refs/heads/release-branch.go1.4)
 		// We need to find an element starting with refs/tags/.
@@ -271,7 +271,7 @@ func branchtag(branch string) (tag string, precise bool) {
 			continue // malformed line; ignore it
 		}
 		tag = line[i : i+j]
-		if i == 0 {
+		if row == 0 {
 			precise = true // tag denotes HEAD
 		}
 		break
