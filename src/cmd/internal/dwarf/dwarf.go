@@ -21,6 +21,10 @@ const LocPrefix = "go.loc."
 // RangePrefix is the prefix for all the symbols containing DWARF range lists.
 const RangePrefix = "go.range."
 
+// InfoConstPrefix is the prefix for all symbols containing DWARF info
+// entries that contain constants.
+const ConstInfoPrefix = "go.constinfo."
+
 // Sym represents a symbol.
 type Sym interface {
 	Len() int64
@@ -234,6 +238,7 @@ const (
 	DW_ABRV_COMPUNIT
 	DW_ABRV_FUNCTION
 	DW_ABRV_VARIABLE
+	DW_ABRV_INT_CONSTANT
 	DW_ABRV_AUTO
 	DW_ABRV_AUTO_LOCLIST
 	DW_ABRV_PARAM
@@ -307,6 +312,17 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_location, DW_FORM_block1},
 			{DW_AT_type, DW_FORM_ref_addr},
 			{DW_AT_external, DW_FORM_flag},
+		},
+	},
+
+	/* INT CONSTANT */
+	{
+		DW_TAG_constant,
+		DW_CHILDREN_no,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_const_value, DW_FORM_sdata},
 		},
 	},
 
@@ -732,6 +748,14 @@ Outer:
 // HasChildren returns true if 'die' uses an abbrev that supports children.
 func HasChildren(die *DWDie) bool {
 	return abbrevs[die.Abbrev].children != 0
+}
+
+// PutIntConst writes a DIE for an integer constant
+func PutIntConst(ctxt Context, info, typ Sym, name string, val int64) {
+	Uleb128put(ctxt, info, DW_ABRV_INT_CONSTANT)
+	putattr(ctxt, info, DW_ABRV_INT_CONSTANT, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
+	putattr(ctxt, info, DW_ABRV_INT_CONSTANT, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, typ)
+	putattr(ctxt, info, DW_ABRV_INT_CONSTANT, DW_FORM_sdata, DW_CLS_CONSTANT, val, nil)
 }
 
 // PutFunc writes a DIE for a function to s.

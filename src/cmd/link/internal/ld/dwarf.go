@@ -972,6 +972,21 @@ func getCompilationDir() string {
 	return "/"
 }
 
+func importInfoSymbol(ctxt *Link, dsym *Symbol) {
+	dsym.Attr |= AttrNotInSymbolTable | AttrReachable
+	dsym.Type = SDWARFINFO
+	for _, r := range dsym.R {
+		if r.Type == objabi.R_DWARFREF && r.Sym.Size == 0 {
+			if Buildmode == BuildmodeShared {
+				// These type symbols may not be present in BuildmodeShared. Skip.
+				continue
+			}
+			n := nameFromDIESym(r.Sym)
+			defgotype(ctxt, ctxt.Syms.Lookup("type."+n, 0))
+		}
+	}
+}
+
 func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
 	ls := ctxt.Syms.Lookup(".debug_line", 0)
@@ -1064,18 +1079,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 		epcs = s
 
 		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
-		dsym.Attr |= AttrNotInSymbolTable | AttrReachable
-		dsym.Type = SDWARFINFO
-		for _, r := range dsym.R {
-			if r.Type == objabi.R_DWARFREF && r.Sym.Size == 0 {
-				if Buildmode == BuildmodeShared {
-					// These type symbols may not be present in BuildmodeShared. Skip.
-					continue
-				}
-				n := nameFromDIESym(r.Sym)
-				defgotype(ctxt, ctxt.Syms.Lookup("type."+n, 0))
-			}
-		}
+		importInfoSymbol(ctxt, dsym)
 		funcs = append(funcs, dsym)
 
 		finddebugruntimepath(s)
@@ -1296,7 +1300,7 @@ const (
 	COMPUNITHEADERSIZE = 4 + 2 + 4 + 1
 )
 
-func writeinfo(ctxt *Link, syms []*Symbol, funcs []*Symbol, abbrevsym *Symbol) []*Symbol {
+func writeinfo(ctxt *Link, syms []*Symbol, funcs, consts []*Symbol, abbrevsym *Symbol) []*Symbol {
 	infosec := ctxt.Syms.Lookup(".debug_info", 0)
 	infosec.R = infosec.R[:0]
 	infosec.Type = SDWARFINFO
@@ -1329,6 +1333,10 @@ func writeinfo(ctxt *Link, syms []*Symbol, funcs []*Symbol, abbrevsym *Symbol) [
 		if funcs != nil {
 			cu = append(cu, funcs...)
 			funcs = nil
+		}
+		if consts != nil {
+			cu = append(cu, consts...)
+			consts = nil
 		}
 		cu = putdies(ctxt, dwarfctxt, cu, compunit.Child)
 		var cusize int64
@@ -1544,6 +1552,14 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 
 	genasmsym(ctxt, defdwsymb)
 
+	var consts []*Symbol
+	for _, lib := range ctxt.Library {
+		if s := ctxt.Syms.Lookup(dwarf.ConstInfoPrefix+lib.Pkg, 0); s != nil {
+			importInfoSymbol(ctxt, s)
+			consts = append(consts, s)
+		}
+	}
+
 	abbrev := writeabbrev(ctxt)
 	syms := []*Symbol{abbrev}
 	syms, funcs := writelines(ctxt, syms)
@@ -1563,7 +1579,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 
 	// Need to reorder symbols so SDWARFINFO is after all SDWARFSECT
 	// (but we need to generate dies before writepub)
-	infosyms := writeinfo(ctxt, nil, funcs, abbrev)
+	infosyms := writeinfo(ctxt, nil, funcs, consts, abbrev)
 
 	syms = writepub(ctxt, ".debug_pubnames", ispubname, syms)
 	syms = writepub(ctxt, ".debug_pubtypes", ispubtype, syms)
