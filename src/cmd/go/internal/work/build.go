@@ -652,7 +652,7 @@ type Builder struct {
 	WorkDir     string               // the temporary work directory (ends in filepath.Separator)
 	actionCache map[cacheKey]*Action // a cache of already-constructed actions
 	mkdirCache  map[string]bool      // a cache of created directories
-	flagCache   map[string]bool      // a cache of supported compiler flags
+	flagCache   map[[2]string]bool   // a cache of supported compiler flags
 	Print       func(args ...interface{}) (int, error)
 
 	output    sync.Mutex
@@ -2958,7 +2958,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out string, allaction
 		// libffi.
 		ldflags = append(ldflags, "-Wl,-r", "-nostdlib", "-Wl,--whole-archive", "-lgolibbegin", "-Wl,--no-whole-archive")
 
-		if nopie := b.gccNoPie(); nopie != "" {
+		if nopie := b.gccNoPie([]string{tools.linker()}); nopie != "" {
 			ldflags = append(ldflags, nopie)
 		}
 
@@ -3134,23 +3134,23 @@ func (b *Builder) gccld(p *load.Package, out string, flags []string, objs []stri
 // gccCmd returns a gcc command line prefix
 // defaultCC is defined in zdefaultcc.go, written by cmd/dist.
 func (b *Builder) GccCmd(objdir string) []string {
-	return b.ccompilerCmd("CC", cfg.DefaultCC, objdir)
+	return b.compilerCmd("CC", cfg.DefaultCC, objdir)
 }
 
 // gxxCmd returns a g++ command line prefix
 // defaultCXX is defined in zdefaultcc.go, written by cmd/dist.
 func (b *Builder) GxxCmd(objdir string) []string {
-	return b.ccompilerCmd("CXX", cfg.DefaultCXX, objdir)
+	return b.compilerCmd("CXX", cfg.DefaultCXX, objdir)
 }
 
 // gfortranCmd returns a gfortran command line prefix.
 func (b *Builder) gfortranCmd(objdir string) []string {
-	return b.ccompilerCmd("FC", "gfortran", objdir)
+	return b.compilerCmd("FC", "gfortran", objdir)
 }
 
-// ccompilerCmd returns a command line prefix for the given environment
+// compilerCmd returns a command line prefix for the given environment
 // variable and using the default command when the variable is empty.
-func (b *Builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
+func (b *Builder) compilerCmd(envvar, defcmd, objdir string) []string {
 	// NOTE: env.go's mkEnv knows that the first three
 	// strings returned are "gcc", "-I", objdir (and cuts them off).
 
@@ -3176,11 +3176,11 @@ func (b *Builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
 	}
 
 	// disable ASCII art in clang errors, if possible
-	if b.gccSupportsFlag("-fno-caret-diagnostics") {
+	if b.gccSupportsFlag(compiler, "-fno-caret-diagnostics") {
 		a = append(a, "-fno-caret-diagnostics")
 	}
 	// clang is too smart about command-line arguments
-	if b.gccSupportsFlag("-Qunused-arguments") {
+	if b.gccSupportsFlag(compiler, "-Qunused-arguments") {
 		a = append(a, "-Qunused-arguments")
 	}
 
@@ -3188,13 +3188,13 @@ func (b *Builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
 	a = append(a, "-fmessage-length=0")
 
 	// Tell gcc not to include the work directory in object files.
-	if b.gccSupportsFlag("-fdebug-prefix-map=a=b") {
+	if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
 		a = append(a, "-fdebug-prefix-map="+b.WorkDir+"=/tmp/go-build")
 	}
 
 	// Tell gcc not to include flags in object files, which defeats the
 	// point of -fdebug-prefix-map above.
-	if b.gccSupportsFlag("-gno-record-gcc-switches") {
+	if b.gccSupportsFlag(compiler, "-gno-record-gcc-switches") {
 		a = append(a, "-gno-record-gcc-switches")
 	}
 
@@ -3212,21 +3212,23 @@ func (b *Builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
 // with PIE (position independent executables) enabled by default,
 // -no-pie must be passed when doing a partial link with -Wl,-r.
 // But -no-pie is not supported by all compilers, and clang spells it -nopie.
-func (b *Builder) gccNoPie() string {
-	if b.gccSupportsFlag("-no-pie") {
+func (b *Builder) gccNoPie(linker []string) string {
+	if b.gccSupportsFlag(linker, "-no-pie") {
 		return "-no-pie"
 	}
-	if b.gccSupportsFlag("-nopie") {
+	if b.gccSupportsFlag(linker, "-nopie") {
 		return "-nopie"
 	}
 	return ""
 }
 
 // gccSupportsFlag checks to see if the compiler supports a flag.
-func (b *Builder) gccSupportsFlag(flag string) bool {
+func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
+	key := [2]string{compiler[0], flag}
+
 	b.exec.Lock()
 	defer b.exec.Unlock()
-	if b, ok := b.flagCache[flag]; ok {
+	if b, ok := b.flagCache[key]; ok {
 		return b
 	}
 	if b.flagCache == nil {
@@ -3239,9 +3241,9 @@ func (b *Builder) gccSupportsFlag(flag string) bool {
 				return false
 			}
 		}
-		b.flagCache = make(map[string]bool)
+		b.flagCache = make(map[[2]string]bool)
 	}
-	cmdArgs := append(envList("CC", cfg.DefaultCC), flag, "-c", "trivial.c")
+	cmdArgs := append(compiler, flag, "-c", "trivial.c")
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd(b.WorkDir, "%s", joinUnambiguously(cmdArgs))
 		if cfg.BuildN {
@@ -3253,7 +3255,7 @@ func (b *Builder) gccSupportsFlag(flag string) bool {
 	cmd.Env = base.MergeEnvLists([]string{"LC_ALL=C"}, base.EnvForDir(cmd.Dir, os.Environ()))
 	out, err := cmd.CombinedOutput()
 	supported := err == nil && !bytes.Contains(out, []byte("unrecognized"))
-	b.flagCache[flag] = supported
+	b.flagCache[key] = supported
 	return supported
 }
 
@@ -3555,7 +3557,13 @@ func (b *Builder) collect(p *load.Package, objdir, ofile string, cgoLDFLAGS, out
 
 	ldflags = append(ldflags, "-Wl,-r", "-nostdlib")
 
-	if flag := b.gccNoPie(); flag != "" {
+	var linker []string
+	if len(p.CXXFiles) > 0 || len(p.SwigCXXFiles) > 0 {
+		linker = envList("CXX", cfg.DefaultCXX)
+	} else {
+		linker = envList("CC", cfg.DefaultCC)
+	}
+	if flag := b.gccNoPie(linker); flag != "" {
 		ldflags = append(ldflags, flag)
 	}
 
