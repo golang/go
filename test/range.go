@@ -23,12 +23,57 @@ func seq(lo, hi int) chan int {
 	return c
 }
 
+const alphabet = "abcdefghijklmnopqrstuvwxyz"
+
+func testblankvars() {
+	n := 0
+	for range alphabet {
+		n++
+	}
+	if n != 26 {
+		println("for range: wrong count", n, "want 26")
+		panic("fail")
+	}
+	n = 0
+	for _ = range alphabet {
+		n++
+	}
+	if n != 26 {
+		println("for _ = range: wrong count", n, "want 26")
+		panic("fail")
+	}
+	n = 0
+	for _, _ = range alphabet {
+		n++
+	}
+	if n != 26 {
+		println("for _, _ = range: wrong count", n, "want 26")
+		panic("fail")
+	}
+	s := 0
+	for i, _ := range alphabet {
+		s += i
+	}
+	if s != 325 {
+		println("for i, _ := range: wrong sum", s, "want 325")
+		panic("fail")
+	}
+	r := rune(0)
+	for _, v := range alphabet {
+		r += v
+	}
+	if r != 2847 {
+		println("for _, v := range: wrong sum", r, "want 2847")
+		panic("fail")
+	}
+}
+
 func testchan() {
 	s := ""
 	for i := range seq('a', 'z') {
 		s += string(i)
 	}
-	if s != "abcdefghijklmnopqrstuvwxyz" {
+	if s != alphabet {
 		println("Wanted lowercase alphabet; got", s)
 		panic("fail")
 	}
@@ -38,6 +83,7 @@ func testchan() {
 	}
 	if n != 26 {
 		println("testchan wrong count", n, "want 26")
+		panic("fail")
 	}
 }
 
@@ -426,6 +472,7 @@ func testcalls() {
 }
 
 func main() {
+	testblankvars()
 	testchan()
 	testarray()
 	testarray1()

@@ -155,26 +155,35 @@ func walkrange(n *Node) *Node {
 	lno := setlineno(a)
 	n.Right = nil
 
-	var v1 *Node
-	if n.List.Len() != 0 {
+	var v1, v2 *Node
+	l := n.List.Len()
+	if l > 0 {
 		v1 = n.List.First()
 	}
-	var v2 *Node
-	if n.List.Len() > 1 && !isblank(n.List.Second()) {
+
+	if l > 1 {
 		v2 = n.List.Second()
+	}
+
+	if isblank(v2) {
+		v2 = nil
+	}
+
+	if isblank(v1) && v2 == nil {
+		v1 = nil
 	}
 
 	if v1 == nil && v2 != nil {
 		Fatalf("walkrange: v2 != nil while v1 == nil")
 	}
 
-	var ifGuard *Node
-
-	translatedLoopOp := OFOR
-
 	// n.List has no meaning anymore, clear it
 	// to avoid erroneous processing by racewalk.
 	n.List.Set(nil)
+
+	var ifGuard *Node
+
+	translatedLoopOp := OFOR
 
 	var body []*Node
 	var init []*Node
