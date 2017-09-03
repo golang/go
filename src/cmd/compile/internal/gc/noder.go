@@ -401,7 +401,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		f.Func.Endlineno = lineno
 	} else {
 		if pure_go || strings.HasPrefix(f.funcname(), "init.") {
-			yyerrorl(f.Pos, "missing function body for %q", f.funcname())
+			yyerrorl(f.Pos, "missing function body")
 		}
 	}
 
