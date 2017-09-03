@@ -685,7 +685,7 @@ func install(dir string) {
 	// For package runtime, this writes go_asm.h, which
 	// the assembly files will need.
 	pkg := dir
-	if strings.HasPrefix(dir, "cmd/") {
+	if strings.HasPrefix(dir, "cmd/") && strings.Count(dir, "/") == 1 {
 		pkg = "main"
 	}
 	b := pathf("%s/_go_.a", workdir)
