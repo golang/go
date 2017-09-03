@@ -2536,6 +2536,9 @@ func (gcToolchain) ld(b *Builder, root *Action, out string, allactions []*Action
 	if cfg.BuildBuildmode == "plugin" {
 		ldflags = append(ldflags, "-pluginpath", load.PluginPath(root.Package))
 	}
+	if cfg.GOROOT != runtime.GOROOT() {
+		ldflags = append(ldflags, "-X=runtime/internal/sys.DefaultGoroot="+cfg.GOROOT)
+	}
 
 	// If the user has not specified the -extld option, then specify the
 	// appropriate linker. In case of C++ code, use the compiler named

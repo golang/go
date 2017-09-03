@@ -17,7 +17,8 @@ import (
 // mkzversion writes zversion.go:
 //
 //	package sys
-//	const DefaultGoroot = <goroot>
+//	var DefaultGoroot = <goroot>
+//
 //	const TheVersion = <version>
 //	const Goexperiment = <goexperiment>
 //	const StackGuardMultiplier = <multiplier value>
@@ -28,7 +29,7 @@ func mkzversion(dir, file string) {
 			"\n"+
 			"package sys\n"+
 			"\n"+
-			"const DefaultGoroot = `%s`\n"+
+			"var DefaultGoroot = `%s`\n\n"+
 			"const TheVersion = `%s`\n"+
 			"const Goexperiment = `%s`\n"+
 			"const StackGuardMultiplier = %d\n\n", goroot_final, findgoversion(), os.Getenv("GOEXPERIMENT"), stackGuardMultiplier())
