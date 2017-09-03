@@ -4163,7 +4163,7 @@ func TestExecutableGOROOT(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		m := regexp.MustCompile("const DefaultGoroot = `([^`]+)`").FindStringSubmatch(string(data))
+		m := regexp.MustCompile("var DefaultGoroot = `([^`]+)`").FindStringSubmatch(string(data))
 		if m == nil {
 			t.Fatal("cannot find DefaultGoroot in ../../runtime/internal/sys/zversion.go")
 		}
@@ -4187,6 +4187,43 @@ func TestExecutableGOROOT(t *testing.T) {
 			t.Fatal(err)
 		}
 		check(t, symGoTool, newRoot)
+	})
+
+	tg.must(os.RemoveAll(tg.path("new/pkg")))
+
+	// Binaries built in the new tree should report the
+	// new tree when they call runtime.GOROOT().
+	// This is implemented by having the go tool pass a -X option
+	// to the linker setting runtime/internal/sys.DefaultGoroot.
+	t.Run("RuntimeGoroot", func(t *testing.T) {
+		// Build a working GOROOT the easy way, with symlinks.
+		testenv.MustHaveSymlink(t)
+		if err := os.Symlink(filepath.Join(testGOROOT, "src"), tg.path("new/src")); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(filepath.Join(testGOROOT, "pkg"), tg.path("new/pkg")); err != nil {
+			t.Fatal(err)
+		}
+
+		cmd := exec.Command(newGoTool, "run", "testdata/print_goroot.go")
+		cmd.Env = env
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("%s run testdata/print_goroot.go: %v, %s", newGoTool, err, out)
+		}
+		goroot, err := filepath.EvalSymlinks(strings.TrimSpace(string(out)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, err := filepath.EvalSymlinks(tg.path("new"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.EqualFold(goroot, want) {
+			t.Errorf("go run testdata/print_goroot.go:\nhave %s\nwant %s", goroot, want)
+		} else {
+			t.Logf("go run testdata/print_goroot.go: %s", goroot)
+		}
 	})
 }
 
