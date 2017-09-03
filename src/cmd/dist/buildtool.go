@@ -190,7 +190,7 @@ func bootstrapBuildTools() {
 	xprintf("\n")
 }
 
-var ssaRewriteFileSubstring = filepath.ToSlash("src/cmd/compile/internal/ssa/rewrite")
+var ssaRewriteFileSubstring = filepath.FromSlash("src/cmd/compile/internal/ssa/rewrite")
 
 // isUnneededSSARewriteFile reports whether srcFile is a
 // src/cmd/compile/internal/ssa/rewriteARCHNAME.go file for an
