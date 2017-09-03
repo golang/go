@@ -279,6 +279,10 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		ORETJMP:
 		v.reason = "unhandled op " + n.Op.String()
 		return true
+
+	case ODCLCONST, OEMPTY, OFALL, OLABEL:
+		// These nodes don't produce code; omit from inlining budget.
+		return false
 	}
 
 	v.budget--
