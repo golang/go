@@ -843,16 +843,8 @@ func shouldCopyHeaderOnRedirect(headerKey string, initial, dest *url.URL) bool {
 		// directly, we don't know their scope, so we assume
 		// it's for *.domain.com.
 
-		// TODO(bradfitz): once issue 16142 is fixed, make
-		// this code use those URL accessors, and consider
-		// "http://foo.com" and "http://foo.com:80" as
-		// equivalent?
-
-		// TODO(bradfitz): better hostname canonicalization,
-		// at least once we figure out IDNA/Punycode (issue
-		// 13835).
-		ihost := strings.ToLower(initial.Host)
-		dhost := strings.ToLower(dest.Host)
+		ihost := canonicalAddr(initial)
+		dhost := canonicalAddr(dest)
 		return isDomainOrSubdomain(dhost, ihost)
 	}
 	// All other headers are copied:
