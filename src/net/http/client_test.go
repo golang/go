@@ -1599,8 +1599,12 @@ func TestShouldCopyHeaderOnRedirect(t *testing.T) {
 		{"www-authenticate", "http://foo.com/", "http://foo.com/", true},
 		{"www-authenticate", "http://foo.com/", "http://sub.foo.com/", true},
 		{"www-authenticate", "http://foo.com/", "http://notfoo.com/", false},
-		// TODO(bradfitz): make this test work, once issue 16142 is fixed:
-		// {"www-authenticate", "http://foo.com:80/", "http://foo.com/", true},
+		{"www-authenticate", "http://foo.com/", "https://foo.com/", false},
+		{"www-authenticate", "http://foo.com:80/", "http://foo.com/", true},
+		{"www-authenticate", "http://foo.com:80/", "http://sub.foo.com/", true},
+		{"www-authenticate", "http://foo.com:443/", "https://foo.com/", true},
+		{"www-authenticate", "http://foo.com:443/", "https://sub.foo.com/", true},
+		{"www-authenticate", "http://foo.com:1234/", "http://foo.com/", false},
 	}
 	for i, tt := range tests {
 		u0, err := url.Parse(tt.initialURL)
