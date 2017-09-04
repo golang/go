@@ -40,11 +40,21 @@ GOPATH=$(pwd) go build -buildmode=plugin iface_b
 GOPATH=$(pwd) go build iface
 LD_LIBRARY_PATH=$(pwd) ./iface
 
+function _timeout() (
+	set -e
+	$2 &
+	p=$!
+	(sleep $1; kill $p 2>/dev/null) &
+	p2=$!
+	wait $p 2>/dev/null
+	kill -0 $p2 2>/dev/null
+)
+
 # Test for issue 18676 - make sure we don't add the same itab twice.
 # The buggy code hangs forever, so use a timeout to check for that.
 GOPATH=$(pwd) go build -buildmode=plugin -o plugin.so src/issue18676/plugin.go
 GOPATH=$(pwd) go build -o issue18676 src/issue18676/main.go
-timeout 10s ./issue18676
+_timeout 10 ./issue18676
 
 # Test for issue 19534 - that we can load a plugin built in a path with non-alpha
 # characters
