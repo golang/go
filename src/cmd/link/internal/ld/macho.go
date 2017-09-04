@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"sort"
 	"strings"
@@ -746,7 +747,10 @@ func machoShouldExport(ctxt *Link, s *Symbol) bool {
 	if !ctxt.DynlinkingGo() || s.Attr.Local() {
 		return false
 	}
-	if Buildmode == BuildmodePlugin && strings.HasPrefix(s.Extname, *flagPluginPath) {
+	if Buildmode == BuildmodePlugin && strings.HasPrefix(s.Extname, objabi.PathToPrefix(*flagPluginPath)) {
+		return true
+	}
+	if strings.HasPrefix(s.Name, "go.itab.") {
 		return true
 	}
 	if strings.HasPrefix(s.Name, "type.") && !strings.HasPrefix(s.Name, "type..") {

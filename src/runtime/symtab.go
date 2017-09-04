@@ -526,7 +526,6 @@ func moduledataverify1(datap *moduledata) {
 
 	// ftab is lookup table for function by program counter.
 	nftab := len(datap.ftab) - 1
-	var pcCache pcvalueCache
 	for i := 0; i < nftab; i++ {
 		// NOTE: ftab[nftab].entry is legal; it is the address beyond the final function.
 		if datap.ftab[i].entry > datap.ftab[i+1].entry {
@@ -541,30 +540,6 @@ func moduledataverify1(datap *moduledata) {
 				print("\t", hex(datap.ftab[j].entry), " ", funcname(funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[j].funcoff])), datap}), "\n")
 			}
 			throw("invalid runtime symbol table")
-		}
-
-		if debugPcln || nftab-i < 5 {
-			// Check a PC near but not at the very end.
-			// The very end might be just padding that is not covered by the tables.
-			// No architecture rounds function entries to more than 16 bytes,
-			// but if one came along we'd need to subtract more here.
-			// But don't use the next PC if it corresponds to a foreign object chunk
-			// (no pcln table, f2.pcln == 0). That chunk might have an alignment
-			// more than 16 bytes.
-			f := funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i].funcoff])), datap}
-			end := f.entry
-			if i+1 < nftab {
-				f2 := funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i+1].funcoff])), datap}
-				if f2.pcln != 0 {
-					end = f2.entry - 16
-					if end < f.entry {
-						end = f.entry
-					}
-				}
-			}
-			pcvalue(f, f.pcfile, end, &pcCache, true)
-			pcvalue(f, f.pcln, end, &pcCache, true)
-			pcvalue(f, f.pcsp, end, &pcCache, true)
 		}
 	}
 
