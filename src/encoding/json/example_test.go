@@ -273,3 +273,22 @@ func ExampleIndent() {
 	// =	}
 	// =]
 }
+
+func ExampleMarshalIndent() {
+	data := map[string]int{
+		"a": 1,
+		"b": 2,
+	}
+
+	json, err := json.MarshalIndent(data, "<prefix>", "<indent>")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(json))
+	// Output:
+	// {
+	// <prefix><indent>"a": 1,
+	// <prefix><indent>"b": 2
+	// <prefix>}
+}
