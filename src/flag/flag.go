@@ -839,7 +839,7 @@ func (f *FlagSet) parseOne() (bool, error) {
 		return false, nil
 	}
 	s := f.args[0]
-	if len(s) == 0 || s[0] != '-' || len(s) == 1 {
+	if len(s) < 2 || s[0] != '-' {
 		return false, nil
 	}
 	numMinuses := 1
