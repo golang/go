@@ -819,6 +819,10 @@ var yvex_xy3 = []ytab{
 	{Yym, Yyr, Yyr, Zvex_rm_v_r, 2},
 }
 
+var yvex_x3 = []ytab{
+	{Yxm, Yxr, Yxr, Zvex_rm_v_r, 2},
+}
+
 var yvex_ri3 = []ytab{
 	{Yi8, Ymb, Yrl, Zvex_i_rm_r, 2},
 }
@@ -1722,6 +1726,12 @@ var optab =
 	{AVPOR, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xeb, VEX_256_66_0F_WIG, 0xeb}},
 	{AVPADDQ, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xd4, VEX_256_66_0F_WIG, 0xd4}},
 	{AVPADDD, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xfe, VEX_256_66_0F_WIG, 0xfe}},
+	{AVADDSD, yvex_x3, Pvex, [23]uint8{VEX_128_F2_0F_WIG, 0x58}},
+	{AVSUBSD, yvex_x3, Pvex, [23]uint8{VEX_128_F2_0F_WIG, 0x5c}},
+	{AVFMADD213SD, yvex_x3, Pvex, [23]uint8{VEX_LIG_66_0F38_W1, 0xa9}},
+	{AVFMADD231SD, yvex_x3, Pvex, [23]uint8{VEX_LIG_66_0F38_W1, 0xb9}},
+	{AVFNMADD213SD, yvex_x3, Pvex, [23]uint8{VEX_LIG_66_0F38_W1, 0xad}},
+	{AVFNMADD231SD, yvex_x3, Pvex, [23]uint8{VEX_LIG_66_0F38_W1, 0xbd}},
 	{AVPSLLD, yvex_shift, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0x72, 0xf0, VEX_256_66_0F_WIG, 0x72, 0xf0, VEX_128_66_0F_WIG, 0xf2, VEX_256_66_0F_WIG, 0xf2}},
 	{AVPSLLQ, yvex_shift, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0x73, 0xf0, VEX_256_66_0F_WIG, 0x73, 0xf0, VEX_128_66_0F_WIG, 0xf3, VEX_256_66_0F_WIG, 0xf3}},
 	{AVPSRLD, yvex_shift, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0x72, 0xd0, VEX_256_66_0F_WIG, 0x72, 0xd0, VEX_128_66_0F_WIG, 0xd2, VEX_256_66_0F_WIG, 0xd2}},
