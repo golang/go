@@ -601,8 +601,6 @@ func isInlineable(n *Node) bool {
 	return false
 }
 
-var errorInterface *types.Type // lazily initialized
-
 func (p *exporter) typ(t *types.Type) {
 	if t == nil {
 		Fatalf("exporter: nil type")
@@ -654,19 +652,7 @@ func (p *exporter) typ(t *types.Type) {
 		p.qualifiedName(tsym)
 
 		// write underlying type
-		orig := t.Orig
-		if orig == types.Errortype {
-			// The error type is the only predeclared type which has
-			// a composite underlying type. When we encode that type,
-			// make sure to encode the underlying interface rather than
-			// the named type again. See also the comment in universe.go
-			// regarding the errortype and issue #15920.
-			if errorInterface == nil {
-				errorInterface = makeErrorInterface()
-			}
-			orig = errorInterface
-		}
-		p.typ(orig)
+		p.typ(t.Orig)
 
 		// interfaces don't have associated methods
 		if t.Orig.IsInterface() {
