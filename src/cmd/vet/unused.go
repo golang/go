@@ -82,7 +82,7 @@ func checkUnusedResult(f *File, n ast.Node) {
 		}
 	} else if !ok {
 		// package-qualified function (e.g. fmt.Errorf)
-		obj, _ := f.pkg.uses[selector.Sel]
+		obj := f.pkg.uses[selector.Sel]
 		if obj, ok := obj.(*types.Func); ok {
 			qname := obj.Pkg().Path() + "." + obj.Name()
 			if unusedFuncs[qname] {

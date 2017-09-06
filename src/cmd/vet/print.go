@@ -237,23 +237,24 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string) {
 	maxArgNum := firstArg
 	for i, w := 0, 0; i < len(format); i += w {
 		w = 1
-		if format[i] == '%' {
-			state := f.parsePrintfVerb(call, name, format[i:], firstArg, argNum)
-			if state == nil {
-				return
-			}
-			w = len(state.format)
-			if !f.okPrintfArg(call, state) { // One error per format is enough.
-				return
-			}
-			if len(state.argNums) > 0 {
-				// Continue with the next sequential argument.
-				argNum = state.argNums[len(state.argNums)-1] + 1
-			}
-			for _, n := range state.argNums {
-				if n >= maxArgNum {
-					maxArgNum = n + 1
-				}
+		if format[i] != '%' {
+			continue
+		}
+		state := f.parsePrintfVerb(call, name, format[i:], firstArg, argNum)
+		if state == nil {
+			return
+		}
+		w = len(state.format)
+		if !f.okPrintfArg(call, state) { // One error per format is enough.
+			return
+		}
+		if len(state.argNums) > 0 {
+			// Continue with the next sequential argument.
+			argNum = state.argNums[len(state.argNums)-1] + 1
+		}
+		for _, n := range state.argNums {
+			if n >= maxArgNum {
+				maxArgNum = n + 1
 			}
 		}
 	}
@@ -498,7 +499,7 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 	nargs := len(state.argNums)
 	for i := 0; i < nargs-trueArgs; i++ {
 		argNum := state.argNums[i]
-		if !f.argCanBeChecked(call, i, true, state) {
+		if !f.argCanBeChecked(call, i, state) {
 			return
 		}
 		arg := call.Args[argNum]
@@ -511,7 +512,7 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 		return true
 	}
 	argNum := state.argNums[len(state.argNums)-1]
-	if !f.argCanBeChecked(call, len(state.argNums)-1, false, state) {
+	if !f.argCanBeChecked(call, len(state.argNums)-1, state) {
 		return false
 	}
 	arg := call.Args[argNum]
@@ -577,7 +578,7 @@ func (f *File) isFunctionValue(e ast.Expr) bool {
 // argCanBeChecked reports whether the specified argument is statically present;
 // it may be beyond the list of arguments or in a terminal slice... argument, which
 // means we can't see it.
-func (f *File) argCanBeChecked(call *ast.CallExpr, formatArg int, isStar bool, state *formatState) bool {
+func (f *File) argCanBeChecked(call *ast.CallExpr, formatArg int, state *formatState) bool {
 	argNum := state.argNums[formatArg]
 	if argNum < 0 {
 		// Shouldn't happen, so catch it with prejudice.
