@@ -213,13 +213,11 @@
 #define XFER_SIZE 2*64*4
 #define INP_END_SIZE 8
 #define INP_SIZE 8
-#define TMP_SIZE 4
 
 #define _XFER 0
 #define _INP_END _XFER + XFER_SIZE
 #define _INP _INP_END + INP_END_SIZE
-#define _TMP _INP + INP_SIZE
-#define STACK_SIZE _TMP + TMP_SIZE
+#define STACK_SIZE _INP + INP_SIZE
 
 #define ROUND_AND_SCHED_N_0(disp, a, b, c, d, e, f, g, h, XDWORD0, XDWORD1, XDWORD2, XDWORD3) \
 	;                                     \ // #############################  RND N + 0 ############################//
@@ -341,10 +339,7 @@
 	VPXOR   XTMP2, XTMP4, XTMP4;         \ // XTMP4 = s1 {xBxA}
 	XORL    g, y2;                       \ // y2 = CH = ((f^g)&e)^g			// CH
 	;                                    \
-	MOVL    f, _TMP(SP);                 \
-	MOVQ    $shuff_00BA<>(SB), f;        \ // f is used to keep SHUF_00BA
-	VPSHUFB (f), XTMP4, XTMP4;           \ // XTMP4 = s1 {00BA}
-	MOVL    _TMP(SP), f;                 \ // f is restored
+	VPSHUFB shuff_00BA<>(SB), XTMP4, XTMP4;\ // XTMP4 = s1 {00BA}
 	;                                    \
 	XORL    T1, y1;                      \ // y1 = (a>>22) ^ (a>>13)		// S0
 	RORXL   $2, a, T1;                   \ // T1 = (a >> 2)				// S0
@@ -398,10 +393,7 @@
 	;                                    \
 	RORXL   $2, a, T1;                   \ // T1 = (a >> 2)				// S0
 	;                                    \
-	MOVL    f, _TMP(SP);                 \ // Save f
-	MOVQ    $shuff_DC00<>(SB), f;        \ // SHUF_00DC
-	VPSHUFB (f), XTMP5, XTMP5;           \ // XTMP5 = s1 {DC00}
-	MOVL    _TMP(SP), f;                 \ // Restore f
+	VPSHUFB shuff_DC00<>(SB), XTMP5, XTMP5;\ // XTMP5 = s1 {DC00}
 	;                                    \
 	VPADDD  XTMP0, XTMP5, XDWORD0;       \ // XDWORD0 = {W[3], W[2], W[1], W[0]}
 	XORL    T1, y1;                      \ // y1 = (a>>22) ^ (a>>13) ^ (a>>2)	// S0
@@ -704,8 +696,7 @@ avx2_loop0: // at each iteration works with one block (512 bit)
 	VMOVDQU (2*32)(INP), XTMP2
 	VMOVDQU (3*32)(INP), XTMP3
 
-	MOVQ    $flip_mask<>(SB), BP // BYTE_FLIP_MASK
-	VMOVDQU (BP), BYTE_FLIP_MASK
+	VMOVDQU flip_mask<>(SB), BYTE_FLIP_MASK
 
 	// Apply Byte Flip Mask: LE -> BE
 	VPSHUFB BYTE_FLIP_MASK, XTMP0, XTMP0
@@ -843,8 +834,7 @@ avx2_do_last_block:
 	VMOVDQU 32(INP), XWORD2
 	VMOVDQU 48(INP), XWORD3
 
-	MOVQ    $flip_mask<>(SB), BP
-	VMOVDQU (BP), X_BYTE_FLIP_MASK
+	VMOVDQU flip_mask<>(SB), BYTE_FLIP_MASK
 
 	VPSHUFB X_BYTE_FLIP_MASK, XWORD0, XWORD0
 	VPSHUFB X_BYTE_FLIP_MASK, XWORD1, XWORD1
