@@ -164,6 +164,7 @@ func (l *lexer) emit(t itemType) {
 
 // ignore skips over the pending input before this point.
 func (l *lexer) ignore() {
+	l.line += strings.Count(l.input[l.start:l.pos], "\n")
 	l.start = l.pos
 }
 
