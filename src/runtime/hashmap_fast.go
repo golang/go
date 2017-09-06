@@ -373,15 +373,14 @@ again:
 		growWork_fast32(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := tophash(hash)
 
 	var inserti *uint8
 	var insertk unsafe.Pointer
 	var val unsafe.Pointer
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
-			if b.tophash[i] != top {
-				if b.tophash[i] == empty && inserti == nil {
+			if b.tophash[i] == empty {
+				if inserti == nil {
 					inserti = &b.tophash[i]
 					insertk = add(unsafe.Pointer(b), dataOffset+i*4)
 					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
@@ -425,7 +424,8 @@ again:
 	} else {
 		*(*uint32)(insertk) = key
 	}
-	*inserti = top
+
+	*inserti = tophash(hash)
 	h.count++
 
 done:
@@ -462,15 +462,14 @@ again:
 		growWork_fast64(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := tophash(hash)
 
 	var inserti *uint8
 	var insertk unsafe.Pointer
 	var val unsafe.Pointer
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
-			if b.tophash[i] != top {
-				if b.tophash[i] == empty && inserti == nil {
+			if b.tophash[i] == empty {
+				if inserti == nil {
 					inserti = &b.tophash[i]
 					insertk = add(unsafe.Pointer(b), dataOffset+i*8)
 					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
@@ -521,7 +520,7 @@ again:
 		*(*uint64)(insertk) = key
 	}
 
-	*inserti = top
+	*inserti = tophash(hash)
 	h.count++
 
 done:
