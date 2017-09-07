@@ -1285,7 +1285,14 @@ ok:
 		// limited to the dev.boringcrypto branch and avoids
 		// much more invasive effects elsewhere.
 		omitFieldForAwfulBoringCryptoKludge := func(t *types.Field) bool {
-			return strings.HasPrefix(myimportpath, "crypto/") && t.Sym != nil && t.Sym.Name == "boring"
+			if t.Sym == nil || t.Sym.Name != "boring" || t.Sym.Pkg == nil {
+				return false
+			}
+			path := t.Sym.Pkg.Path
+			if t.Sym.Pkg == localpkg {
+				path = myimportpath
+			}
+			return strings.HasPrefix(path, "crypto/")
 		}
 
 		n := 0
