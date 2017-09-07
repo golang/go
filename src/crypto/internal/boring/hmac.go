@@ -84,6 +84,7 @@ func NewHMAC(h func() hash.Hash, key []byte) hash.Hash {
 type boringHMAC struct {
 	md          *C.GO_EVP_MD
 	ctx         C.GO_HMAC_CTX
+	ctx2        C.GO_HMAC_CTX
 	size        int
 	blockSize   int
 	key         []byte
@@ -114,12 +115,8 @@ func (h *boringHMAC) finalize() {
 	C._goboringcrypto_HMAC_CTX_cleanup(&h.ctx)
 }
 
-var badSum = make([]byte, 1)
-
 func (h *boringHMAC) Write(p []byte) (int, error) {
-	if h.sum != nil {
-		h.sum = badSum
-	} else if len(p) > 0 {
+	if len(p) > 0 {
 		C._goboringcrypto_HMAC_Update(&h.ctx, (*C.uint8_t)(unsafe.Pointer(&p[0])), C.size_t(len(p)))
 	}
 	return len(p), nil
@@ -137,25 +134,16 @@ func (h *boringHMAC) Sum(in []byte) []byte {
 	if h.sum == nil {
 		size := h.Size()
 		h.sum = make([]byte, size)
-		C._goboringcrypto_HMAC_Final(&h.ctx, (*C.uint8_t)(unsafe.Pointer(&h.sum[0])), nil)
-
-		// Clean up and disable finalizer since most of the time
-		// there is no Reset coming. If we do get a Reset, we will
-		// re-enable the finalizer. We have a saved copy of the key.
-		C._goboringcrypto_HMAC_CTX_cleanup(&h.ctx)
-		h.needCleanup = false
-		runtime.SetFinalizer(h, nil)
-	} else if &h.sum[0] == &badSum[0] {
-		// crypto/tls's tls10.MAC method calls Write after Sum,
-		// in an attempt to do more-like-constant-time checksums
-		// during TLS 1.0 SHA1-based MACs. We can't support that,
-		// so we ignore the Write in that case above, but we also
-		// poison h.sum so that future Sum calls panic, to avoid
-		// returning the pre-Write checksum.
-		// We expect no code actually does Sum, Write, Sum.
-		// Under FIPS restrictions, crypto/tls would not use
-		// any SHA1-based MACs anyway.
-		panic("boringcrypto: hmac used with Sum, Write, Sum")
 	}
+	// Make copy of context because Go hash.Hash mandates
+	// that Sum has no effect on the underlying stream.
+	// In particular it is OK to Sum, then Write more, then Sum again,
+	// and the second Sum acts as if the first didn't happen.
+	C._goboringcrypto_HMAC_CTX_init(&h.ctx2)
+	if C._goboringcrypto_HMAC_CTX_copy_ex(&h.ctx2, &h.ctx) == 0 {
+		panic("boringcrypto: HMAC_CTX_copy_ex failed")
+	}
+	C._goboringcrypto_HMAC_Final(&h.ctx2, (*C.uint8_t)(unsafe.Pointer(&h.sum[0])), nil)
+	C._goboringcrypto_HMAC_CTX_cleanup(&h.ctx2)
 	return append(in, h.sum...)
 }
