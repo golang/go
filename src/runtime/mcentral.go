@@ -51,13 +51,6 @@ func (c *mcentral) cacheSpan() *mspan {
 retry:
 	var s *mspan
 	for s = c.nonempty.first; s != nil; s = s.next {
-		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
-			c.nonempty.remove(s)
-			c.empty.insertBack(s)
-			unlock(&c.lock)
-			s.sweep(true)
-			goto havespan
-		}
 		if s.sweepgen == sg-1 {
 			// the span is being swept by background sweeper, skip
 			continue
@@ -66,6 +59,10 @@ retry:
 		c.nonempty.remove(s)
 		c.empty.insertBack(s)
 		unlock(&c.lock)
+		
+		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
+			s.sweep(true)
+		}
 		goto havespan
 	}
 
