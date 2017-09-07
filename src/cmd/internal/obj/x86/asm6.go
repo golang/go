@@ -392,13 +392,13 @@ var ycmpl = []ytab{
 
 var yshb = []ytab{
 	{Yi1, Ynone, Ymb, Zo_m, 2},
-	{Yi32, Ynone, Ymb, Zibo_m, 2},
+	{Yu8, Ynone, Ymb, Zibo_m, 2},
 	{Ycx, Ynone, Ymb, Zo_m, 2},
 }
 
 var yshl = []ytab{
 	{Yi1, Ynone, Yml, Zo_m, 2},
-	{Yi32, Ynone, Yml, Zibo_m, 2},
+	{Yu8, Ynone, Yml, Zibo_m, 2},
 	{Ycl, Ynone, Yml, Zo_m, 2},
 	{Ycx, Ynone, Yml, Zo_m, 2},
 }
