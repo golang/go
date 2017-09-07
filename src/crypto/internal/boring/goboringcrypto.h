@@ -90,6 +90,7 @@ int _goboringcrypto_HMAC_Init(GO_HMAC_CTX*, const void*, int, const GO_EVP_MD*);
 int _goboringcrypto_HMAC_Update(GO_HMAC_CTX*, const uint8_t*, size_t);
 int _goboringcrypto_HMAC_Final(GO_HMAC_CTX*, uint8_t*, unsigned int*);
 size_t _goboringcrypto_HMAC_size(const GO_HMAC_CTX*);
+int _goboringcrypto_HMAC_CTX_copy_ex(GO_HMAC_CTX *dest, const GO_HMAC_CTX *src);
 
 // #include <openssl/aes.h>
 typedef struct GO_AES_KEY { char data[244]; } GO_AES_KEY;
