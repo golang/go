@@ -374,16 +374,16 @@ again:
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
 
-	var inserti *uint8
+	var insertb *bmap
+	var inserti uintptr
 	var insertk unsafe.Pointer
-	var val unsafe.Pointer
+
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] == empty {
-				if inserti == nil {
-					inserti = &b.tophash[i]
-					insertk = add(unsafe.Pointer(b), dataOffset+i*4)
-					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
+				if insertb == nil {
+					inserti = i
+					insertb = b
 				}
 				continue
 			}
@@ -391,7 +391,8 @@ again:
 			if k != key {
 				continue
 			}
-			val = add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
+			inserti = i
+			insertb = b
 			goto done
 		}
 		ovf := b.overflow(t)
@@ -410,14 +411,14 @@ again:
 		goto again // Growing the table invalidates everything, so try again
 	}
 
-	if inserti == nil {
+	if insertb == nil {
 		// all current buckets are full, allocate a new one.
-		newb := h.newoverflow(t, b)
-		inserti = &newb.tophash[0]
-		insertk = add(unsafe.Pointer(newb), dataOffset)
-		val = add(insertk, bucketCnt*4)
+		insertb = h.newoverflow(t, b)
+		inserti = 0 // not necessary, but avoids needlessly spilling inserti
 	}
+	insertb.tophash[inserti&(bucketCnt-1)] = tophash(hash) // mask inserti to avoid bounds checks
 
+	insertk = add(unsafe.Pointer(insertb), dataOffset+inserti*4)
 	// store new key at insert position
 	if sys.PtrSize == 4 && t.key.kind&kindNoPointers == 0 && writeBarrier.enabled {
 		writebarrierptr((*uintptr)(insertk), uintptr(key))
@@ -425,10 +426,10 @@ again:
 		*(*uint32)(insertk) = key
 	}
 
-	*inserti = tophash(hash)
 	h.count++
 
 done:
+	val := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*4+inserti*uintptr(t.valuesize))
 	if h.flags&hashWriting == 0 {
 		throw("concurrent map writes")
 	}
@@ -463,16 +464,16 @@ again:
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
 
-	var inserti *uint8
+	var insertb *bmap
+	var inserti uintptr
 	var insertk unsafe.Pointer
-	var val unsafe.Pointer
+
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] == empty {
-				if inserti == nil {
-					inserti = &b.tophash[i]
-					insertk = add(unsafe.Pointer(b), dataOffset+i*8)
-					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
+				if insertb == nil {
+					insertb = b
+					inserti = i
 				}
 				continue
 			}
@@ -480,7 +481,8 @@ again:
 			if k != key {
 				continue
 			}
-			val = add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
+			insertb = b
+			inserti = i
 			goto done
 		}
 		ovf := b.overflow(t)
@@ -499,14 +501,14 @@ again:
 		goto again // Growing the table invalidates everything, so try again
 	}
 
-	if inserti == nil {
+	if insertb == nil {
 		// all current buckets are full, allocate a new one.
-		newb := h.newoverflow(t, b)
-		inserti = &newb.tophash[0]
-		insertk = add(unsafe.Pointer(newb), dataOffset)
-		val = add(insertk, bucketCnt*8)
+		insertb = h.newoverflow(t, b)
+		inserti = 0 // not necessary, but avoids needlessly spilling inserti
 	}
+	insertb.tophash[inserti&(bucketCnt-1)] = tophash(hash) // mask inserti to avoid bounds checks
 
+	insertk = add(unsafe.Pointer(insertb), dataOffset+inserti*8)
 	// store new key at insert position
 	if t.key.kind&kindNoPointers == 0 && writeBarrier.enabled {
 		if sys.PtrSize == 8 {
@@ -520,10 +522,10 @@ again:
 		*(*uint64)(insertk) = key
 	}
 
-	*inserti = tophash(hash)
 	h.count++
 
 done:
+	val := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*8+inserti*uintptr(t.valuesize))
 	if h.flags&hashWriting == 0 {
 		throw("concurrent map writes")
 	}
@@ -531,7 +533,7 @@ done:
 	return val
 }
 
-func mapassign_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+func mapassign_faststr(t *maptype, h *hmap, s string) unsafe.Pointer {
 	if h == nil {
 		panic(plainError("assignment to entry in nil map"))
 	}
@@ -542,8 +544,8 @@ func mapassign_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 	if h.flags&hashWriting != 0 {
 		throw("concurrent map writes")
 	}
-	key := stringStructOf(&ky)
-	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
+	key := stringStructOf(&s)
+	hash := t.key.alg.hash(noescape(unsafe.Pointer(&s)), uintptr(h.hash0))
 
 	// Set hashWriting after calling alg.hash for consistency with mapassign.
 	h.flags |= hashWriting
@@ -560,16 +562,16 @@ again:
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
 	top := tophash(hash)
 
-	var inserti *uint8
+	var insertb *bmap
+	var inserti uintptr
 	var insertk unsafe.Pointer
-	var val unsafe.Pointer
+
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
-				if b.tophash[i] == empty && inserti == nil {
-					inserti = &b.tophash[i]
-					insertk = add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize)
-					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
+				if b.tophash[i] == empty && insertb == nil {
+					insertb = b
+					inserti = i
 				}
 				continue
 			}
@@ -581,7 +583,8 @@ again:
 				continue
 			}
 			// already have a mapping for key. Update it.
-			val = add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
+			inserti = i
+			insertb = b
 			goto done
 		}
 		ovf := b.overflow(t)
@@ -600,20 +603,20 @@ again:
 		goto again // Growing the table invalidates everything, so try again
 	}
 
-	if inserti == nil {
+	if insertb == nil {
 		// all current buckets are full, allocate a new one.
-		newb := h.newoverflow(t, b)
-		inserti = &newb.tophash[0]
-		insertk = add(unsafe.Pointer(newb), dataOffset)
-		val = add(insertk, bucketCnt*2*sys.PtrSize)
+		insertb = h.newoverflow(t, b)
+		inserti = 0 // not necessary, but avoids needlessly spilling inserti
 	}
+	insertb.tophash[inserti&(bucketCnt-1)] = top // mask inserti to avoid bounds checks
 
+	insertk = add(unsafe.Pointer(insertb), dataOffset+inserti*2*sys.PtrSize)
 	// store new key at insert position
 	*((*stringStruct)(insertk)) = *key
-	*inserti = top
 	h.count++
 
 done:
+	val := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*2*sys.PtrSize+inserti*uintptr(t.valuesize))
 	if h.flags&hashWriting == 0 {
 		throw("concurrent map writes")
 	}
