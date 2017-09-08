@@ -161,6 +161,28 @@ func BenchmarkStringSet(b *testing.B) {
 	})
 }
 
+func TestMapInit(t *testing.T) {
+	RemoveAll()
+	colors := NewMap("bike-shed-colors")
+	colors.Add("red", 1)
+	colors.Add("blue", 1)
+	colors.Add("chartreuse", 1)
+
+	n := 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 3 {
+		t.Errorf("after three Add calls with distinct keys, Do should invoke f 3 times; got %v", n)
+	}
+
+	colors.Init()
+
+	n = 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 0 {
+		t.Errorf("after Init, Do should invoke f 0 times; got %v", n)
+	}
+}
+
 func TestMapCounter(t *testing.T) {
 	RemoveAll()
 	colors := NewMap("bike-shed-colors")
