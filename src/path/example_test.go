@@ -47,11 +47,15 @@ func ExampleClean() {
 func ExampleDir() {
 	fmt.Println(path.Dir("/a/b/c"))
 	fmt.Println(path.Dir("a/b/c"))
+	fmt.Println(path.Dir("/a/"))
+	fmt.Println(path.Dir("a/"))
 	fmt.Println(path.Dir("/"))
 	fmt.Println(path.Dir(""))
 	// Output:
 	// /a/b
 	// a/b
+	// /a
+	// a
 	// /
 	// .
 }
