@@ -148,7 +148,8 @@ which contains the Go 1.4 source code plus accumulated fixes
 to keep the tools running on newer operating systems.
 (Go 1.4 was the last distribution in which the tool chain was written in C.)
 After unpacking the Go 1.4 source, <code>cd</code> to
-the <code>src</code> subdirectory and run <code>make.bash</code> (or,
+the <code>src</code> subdirectory, set <code>CGO_ENABLED=0</code> in
+the environment, and run <code>make.bash</code> (or,
 on Windows, <code>make.bat</code>).
 </p>
 
