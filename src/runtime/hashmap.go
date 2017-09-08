@@ -296,11 +296,6 @@ func makemap(t *maptype, hint int, h *hmap) *hmap {
 		hint = 0
 	}
 
-	if evacuatedX+1 != evacuatedY {
-		// evacuate relies on this relationship
-		throw("bad evacuatedN")
-	}
-
 	// initialize Hmap
 	if h == nil {
 		h = (*hmap)(newobject(t.hmap))
@@ -1061,7 +1056,11 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 					}
 				}
 
-				b.tophash[i] = evacuatedX + useY // evacuatedX + 1 == evacuatedY, enforced in makemap
+				if evacuatedX+1 != evacuatedY {
+					throw("bad evacuatedN")
+				}
+
+				b.tophash[i] = evacuatedX + useY // evacuatedX + 1 == evacuatedY
 				dst := &xy[useY]                 // evacuation destination
 
 				if dst.i == bucketCnt {
