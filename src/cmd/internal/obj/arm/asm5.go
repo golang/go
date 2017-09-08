@@ -3240,7 +3240,7 @@ func (c *ctxt5) omvl(p *obj.Prog, a *obj.Addr, dr int) uint32 {
 
 func (c *ctxt5) chipzero5(e float64) int {
 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
-	if objabi.GOARM < 7 || e != 0 {
+	if objabi.GOARM < 7 || math.Float64bits(e) != 0 {
 		return -1
 	}
 	return 0

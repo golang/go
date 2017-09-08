@@ -714,6 +714,12 @@
 // Load of store of same address, with compatibly typed value and same size
 (Load <t1> p1 (Store {t2} p2 x _)) && isSamePtr(p1,p2) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.(*types.Type).Size() -> x
 
+// Pass constants through math.Float{32,64}bits and math.Float{32,64}frombits
+(Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && isSamePtr(p1,p2) && t2.(*types.Type).Size() == 8 && is64BitFloat(t1) -> (Const64F [x])
+(Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && isSamePtr(p1,p2) && t2.(*types.Type).Size() == 4 && is32BitFloat(t1) -> (Const32F [f2i(float64(math.Float32frombits(uint32(x))))])
+(Load <t1> p1 (Store {t2} p2 (Const64F [x]) _)) && isSamePtr(p1,p2) && t2.(*types.Type).Size() == 8 && is64BitInt(t1)   -> (Const64  [x])
+(Load <t1> p1 (Store {t2} p2 (Const32F [x]) _)) && isSamePtr(p1,p2) && t2.(*types.Type).Size() == 4 && is32BitInt(t1)   -> (Const32  [int64(int32(math.Float32bits(float32(i2f(x)))))])
+
 // Eliminate stores of values that have just been loaded from the same location.
 // We also handle the common case where there are some intermediate stores to non-overlapping struct fields.
 (Store {t1} p1 (Load <t2> p2 mem) mem) &&

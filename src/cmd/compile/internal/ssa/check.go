@@ -4,6 +4,10 @@
 
 package ssa
 
+import (
+	"math"
+)
+
 // checkFunc checks invariants of f.
 func checkFunc(f *Func) {
 	blockMark := make([]bool, f.NumBlocks())
@@ -471,7 +475,8 @@ func domCheck(f *Func, sdom SparseTree, x, y *Block) bool {
 	return sdom.isAncestorEq(x, y)
 }
 
-// isExactFloat32 reoprts whether v has an AuxInt that can be exactly represented as a float32.
+// isExactFloat32 reports whether v has an AuxInt that can be exactly represented as a float32.
 func isExactFloat32(v *Value) bool {
-	return v.AuxFloat() == float64(float32(v.AuxFloat()))
+	x := v.AuxFloat()
+	return math.Float64bits(x) == math.Float64bits(float64(float32(x)))
 }
