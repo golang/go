@@ -1493,7 +1493,7 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 
 type releaseConn func(error)
 
-// Conn represents a single database session rather a pool of database
+// Conn represents a single database session rather than a pool of database
 // sessions. Prefer running queries from DB unless there is a specific
 // need for a continuous single database session.
 //
