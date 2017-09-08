@@ -3068,10 +3068,12 @@ func BenchmarkCeil(b *testing.B) {
 	GlobalF = x
 }
 
+var copysignNeg = -1.0
+
 func BenchmarkCopysign(b *testing.B) {
 	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Copysign(.5, -1)
+		x = Copysign(.5, copysignNeg)
 	}
 	GlobalF = x
 }
@@ -3164,10 +3166,12 @@ func BenchmarkExp2Go(b *testing.B) {
 	GlobalF = x
 }
 
+var absPos = .5
+
 func BenchmarkAbs(b *testing.B) {
 	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Abs(.5)
+		x = Abs(absPos)
 	}
 	GlobalF = x
 
@@ -3417,10 +3421,12 @@ func BenchmarkRemainder(b *testing.B) {
 	GlobalF = x
 }
 
+var signbitPos = 2.5
+
 func BenchmarkSignbit(b *testing.B) {
 	x := false
 	for i := 0; i < b.N; i++ {
-		x = Signbit(2.5)
+		x = Signbit(signbitPos)
 	}
 	GlobalB = x
 }
