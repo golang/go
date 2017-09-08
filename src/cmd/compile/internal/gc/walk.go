@@ -2071,12 +2071,12 @@ func walkprint(nn *Node, init *Nodes) *Node {
 		s := nn.List.Slice()
 		t := make([]*Node, 0, len(s)*2)
 		for i, n := range s {
-			x := " "
-			if len(s)-1 == i {
-				x = "\n"
+			t = append(t, n)
+			if i != len(s)-1 {
+				t = append(t, nodstr(" "))
 			}
-			t = append(t, n, nodstr(x))
 		}
+		t = append(t, nodstr("\n"))
 		nn.List.Set(t)
 	}
 
