@@ -102,6 +102,7 @@ func PrintfTests() {
 	fmt.Printf("%s", interface{}(nil)) // Nothing useful we can say.
 
 	fmt.Printf("%g", 1+2i)
+	fmt.Printf("%#e %#E %#f %#F %#g %#G", 1.2, 1.2, 1.2, 1.2, 1.2, 1.2) // OK since Go 1.9
 	// Some bad format/argTypes
 	fmt.Printf("%b", "hi")                     // ERROR "arg .hi. for printf verb %b of wrong type"
 	fmt.Printf("%t", c)                        // ERROR "arg c for printf verb %t of wrong type"
