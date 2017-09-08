@@ -142,8 +142,8 @@ func (r *Rand) Int31n(n int32) int32 {
 // int31n can thus only be used internally, by newly introduced APIs.
 //
 // For implementation details, see:
-// http://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction
-// http://lemire.me/blog/2016/06/30/fast-random-shuffling
+// https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction
+// https://lemire.me/blog/2016/06/30/fast-random-shuffling
 func (r *Rand) int31n(n int32) int32 {
 	v := r.Uint32()
 	prod := uint64(v) * uint64(n)
