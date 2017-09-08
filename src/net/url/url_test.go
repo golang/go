@@ -1075,6 +1075,7 @@ var resolveReferenceTests = []struct {
 
 	// Fragment
 	{"http://foo.com/bar", ".#frag", "http://foo.com/#frag"},
+	{"http://example.org/", "#!$&%27()*+,;=", "http://example.org/#!$&%27()*+,;="},
 
 	// Paths with escaping (issue 16947).
 	{"http://foo.com/foo%2fbar/", "../baz", "http://foo.com/baz"},
