@@ -236,7 +236,7 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "s390x",
 		os:      "linux",
-		imports: []string{"encoding/binary", "math/bits"},
+		imports: []string{"encoding/binary", "math", "math/bits"},
 		tests:   linuxS390XTests,
 	},
 	{
@@ -263,9 +263,10 @@ var allAsmTests = []*asmTests{
 		tests: linuxMIPS64Tests,
 	},
 	{
-		arch:  "ppc64le",
-		os:    "linux",
-		tests: linuxPPC64LETests,
+		arch:    "ppc64le",
+		os:      "linux",
+		imports: []string{"math"},
+		tests:   linuxPPC64LETests,
 	},
 	{
 		arch:  "amd64",
@@ -1466,6 +1467,31 @@ var linuxS390XTests = []*asmTest{
 		`,
 		pos: []string{"TEXT\t.*, [$]0-8"},
 	},
+	// Constant propagation through raw bits conversions.
+	{
+		// uint32 constant converted to float32 constant
+		fn: `
+		func $(x float32) float32 {
+			if x > math.Float32frombits(0x3f800000) {
+				return -x
+			}
+			return x
+		}
+		`,
+		pos: []string{"\tFMOVS\t[$]f32.3f800000\\(SB\\)"},
+	},
+	{
+		// float32 constant converted to uint32 constant
+		fn: `
+		func $(x uint32) uint32 {
+			if x > math.Float32bits(1) {
+				return -x
+			}
+			return x
+		}
+		`,
+		neg: []string{"\tFMOVS\t"},
+	},
 }
 
 var linuxARMTests = []*asmTest{
@@ -1987,6 +2013,31 @@ var linuxPPC64LETests = []*asmTest{
 		}
 		`,
 		pos: []string{"TEXT\t.*, [$]0-8"},
+	},
+	// Constant propagation through raw bits conversions.
+	{
+		// uint32 constant converted to float32 constant
+		fn: `
+		func $(x float32) float32 {
+			if x > math.Float32frombits(0x3f800000) {
+				return -x
+			}
+			return x
+		}
+		`,
+		pos: []string{"\tFMOVS\t[$]f32.3f800000\\(SB\\)"},
+	},
+	{
+		// float32 constant converted to uint32 constant
+		fn: `
+		func $(x uint32) uint32 {
+			if x > math.Float32bits(1) {
+				return -x
+			}
+			return x
+		}
+		`,
+		neg: []string{"\tFMOVS\t"},
 	},
 }
 

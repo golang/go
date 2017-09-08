@@ -172,7 +172,7 @@ func rewriteValuegeneric(v *Value) bool {
 	case OpLess8U:
 		return rewriteValuegeneric_OpLess8U_0(v)
 	case OpLoad:
-		return rewriteValuegeneric_OpLoad_0(v)
+		return rewriteValuegeneric_OpLoad_0(v) || rewriteValuegeneric_OpLoad_10(v)
 	case OpLsh16x16:
 		return rewriteValuegeneric_OpLsh16x16_0(v)
 	case OpLsh16x32:
@@ -11663,6 +11663,110 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (Load <t1> p1 (Store {t2} p2 (Const64 [x]) _))
+	// cond: isSamePtr(p1,p2) && t2.(*types.Type).Size() == 8 && is64BitFloat(t1)
+	// result: (Const64F [x])
+	for {
+		t1 := v.Type
+		_ = v.Args[1]
+		p1 := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpStore {
+			break
+		}
+		t2 := v_1.Aux
+		_ = v_1.Args[2]
+		p2 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst64 {
+			break
+		}
+		x := v_1_1.AuxInt
+		if !(isSamePtr(p1, p2) && t2.(*types.Type).Size() == 8 && is64BitFloat(t1)) {
+			break
+		}
+		v.reset(OpConst64F)
+		v.AuxInt = x
+		return true
+	}
+	// match: (Load <t1> p1 (Store {t2} p2 (Const32 [x]) _))
+	// cond: isSamePtr(p1,p2) && t2.(*types.Type).Size() == 4 && is32BitFloat(t1)
+	// result: (Const32F [f2i(float64(math.Float32frombits(uint32(x))))])
+	for {
+		t1 := v.Type
+		_ = v.Args[1]
+		p1 := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpStore {
+			break
+		}
+		t2 := v_1.Aux
+		_ = v_1.Args[2]
+		p2 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32 {
+			break
+		}
+		x := v_1_1.AuxInt
+		if !(isSamePtr(p1, p2) && t2.(*types.Type).Size() == 4 && is32BitFloat(t1)) {
+			break
+		}
+		v.reset(OpConst32F)
+		v.AuxInt = f2i(float64(math.Float32frombits(uint32(x))))
+		return true
+	}
+	// match: (Load <t1> p1 (Store {t2} p2 (Const64F [x]) _))
+	// cond: isSamePtr(p1,p2) && t2.(*types.Type).Size() == 8 && is64BitInt(t1)
+	// result: (Const64  [x])
+	for {
+		t1 := v.Type
+		_ = v.Args[1]
+		p1 := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpStore {
+			break
+		}
+		t2 := v_1.Aux
+		_ = v_1.Args[2]
+		p2 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst64F {
+			break
+		}
+		x := v_1_1.AuxInt
+		if !(isSamePtr(p1, p2) && t2.(*types.Type).Size() == 8 && is64BitInt(t1)) {
+			break
+		}
+		v.reset(OpConst64)
+		v.AuxInt = x
+		return true
+	}
+	// match: (Load <t1> p1 (Store {t2} p2 (Const32F [x]) _))
+	// cond: isSamePtr(p1,p2) && t2.(*types.Type).Size() == 4 && is32BitInt(t1)
+	// result: (Const32  [int64(int32(math.Float32bits(float32(i2f(x)))))])
+	for {
+		t1 := v.Type
+		_ = v.Args[1]
+		p1 := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpStore {
+			break
+		}
+		t2 := v_1.Aux
+		_ = v_1.Args[2]
+		p2 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32F {
+			break
+		}
+		x := v_1_1.AuxInt
+		if !(isSamePtr(p1, p2) && t2.(*types.Type).Size() == 4 && is32BitInt(t1)) {
+			break
+		}
+		v.reset(OpConst32)
+		v.AuxInt = int64(int32(math.Float32bits(float32(i2f(x)))))
+		return true
+	}
 	// match: (Load <t> _ _)
 	// cond: t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t)
 	// result: (StructMake0)
@@ -11801,6 +11905,13 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
 		v.AddArg(v6)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpLoad_10(v *Value) bool {
+	b := v.Block
+	_ = b
+	fe := b.Func.fe
+	_ = fe
 	// match: (Load <t> _ _)
 	// cond: t.IsArray() && t.NumElem() == 0
 	// result: (ArrayMake0)
