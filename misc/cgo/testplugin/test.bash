@@ -23,21 +23,21 @@ trap cleanup EXIT
 rm -rf pkg sub
 mkdir sub
 
-GOPATH=$(pwd) go build -buildmode=plugin plugin1
-GOPATH=$(pwd) go build -buildmode=plugin plugin2
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin plugin1
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin plugin2
 cp plugin2.so plugin2-dup.so
-GOPATH=$(pwd)/altpath go build -buildmode=plugin plugin-mismatch
-GOPATH=$(pwd) go build -buildmode=plugin -o=sub/plugin1.so sub/plugin1
-GOPATH=$(pwd) go build -buildmode=plugin -o=unnamed1.so unnamed1/main.go
-GOPATH=$(pwd) go build -buildmode=plugin -o=unnamed2.so unnamed2/main.go
-GOPATH=$(pwd) go build host
+GOPATH=$(pwd)/altpath go build -gcflags "$GO_GCFLAGS" -buildmode=plugin plugin-mismatch
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o=sub/plugin1.so sub/plugin1
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o=unnamed1.so unnamed1/main.go
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o=unnamed2.so unnamed2/main.go
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" host
 
 LD_LIBRARY_PATH=$(pwd) ./host
 
 # Test that types and itabs get properly uniqified.
-GOPATH=$(pwd) go build -buildmode=plugin iface_a
-GOPATH=$(pwd) go build -buildmode=plugin iface_b
-GOPATH=$(pwd) go build iface
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin iface_a
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin iface_b
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" iface
 LD_LIBRARY_PATH=$(pwd) ./iface
 
 function _timeout() (
@@ -52,12 +52,12 @@ function _timeout() (
 
 # Test for issue 18676 - make sure we don't add the same itab twice.
 # The buggy code hangs forever, so use a timeout to check for that.
-GOPATH=$(pwd) go build -buildmode=plugin -o plugin.so src/issue18676/plugin.go
-GOPATH=$(pwd) go build -o issue18676 src/issue18676/main.go
-_timeout 10 ./issue18676
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o plugin.so src/issue18676/plugin.go
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue18676 src/issue18676/main.go
+_timeout 10s ./issue18676
 
 # Test for issue 19534 - that we can load a plugin built in a path with non-alpha
 # characters
-GOPATH=$(pwd) go build -buildmode=plugin -ldflags='-pluginpath=issue.19534' -o plugin.so src/issue19534/plugin.go
-GOPATH=$(pwd) go build -o issue19534 src/issue19534/main.go
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -ldflags='-pluginpath=issue.19534' -o plugin.so src/issue19534/plugin.go
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue19534 src/issue19534/main.go
 ./issue19534

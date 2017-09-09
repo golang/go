@@ -837,14 +837,6 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		}
 		return false
 	case "plugin":
-		if os.Getenv("GO_BUILDER_NAME") == "linux-amd64-noopt" {
-			// Skip the plugin tests on noopt. They're
-			// causing build failures potentially
-			// obscuring other issues. This is hopefully a
-			// temporary workaround. See golang.org/issue/17937.
-			return false
-		}
-
 		// linux-arm64 is missing because it causes the external linker
 		// to crash, see https://golang.org/issue/17138
 		switch pair {
