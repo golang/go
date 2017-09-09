@@ -759,49 +759,52 @@ func (ctxt *Link) reloc() {
 	}
 }
 
-func dynrelocsym(ctxt *Link, s *Symbol) {
-	if Headtype == objabi.Hwindows && Linkmode != LinkExternal {
-		rel := ctxt.Syms.Lookup(".rel", 0)
-		if s == rel {
-			return
+func windynrelocsym(ctxt *Link, s *Symbol) {
+	rel := ctxt.Syms.Lookup(".rel", 0)
+	if s == rel {
+		return
+	}
+	for ri := 0; ri < len(s.R); ri++ {
+		r := &s.R[ri]
+		targ := r.Sym
+		if targ == nil {
+			continue
 		}
-		for ri := 0; ri < len(s.R); ri++ {
-			r := &s.R[ri]
-			targ := r.Sym
-			if targ == nil {
+		if !targ.Attr.Reachable() {
+			if r.Type == objabi.R_WEAKADDROFF {
 				continue
 			}
-			if !targ.Attr.Reachable() {
-				if r.Type == objabi.R_WEAKADDROFF {
-					continue
-				}
-				Errorf(s, "dynamic relocation to unreachable symbol %s", targ.Name)
-			}
-			if r.Sym.Plt == -2 && r.Sym.Got != -2 { // make dynimport JMP table for PE object files.
-				targ.Plt = int32(rel.Size)
-				r.Sym = rel
-				r.Add = int64(targ.Plt)
-
-				// jmp *addr
-				if SysArch.Family == sys.I386 {
-					Adduint8(ctxt, rel, 0xff)
-					Adduint8(ctxt, rel, 0x25)
-					Addaddr(ctxt, rel, targ)
-					Adduint8(ctxt, rel, 0x90)
-					Adduint8(ctxt, rel, 0x90)
-				} else {
-					Adduint8(ctxt, rel, 0xff)
-					Adduint8(ctxt, rel, 0x24)
-					Adduint8(ctxt, rel, 0x25)
-					addaddrplus4(ctxt, rel, targ, 0)
-					Adduint8(ctxt, rel, 0x90)
-				}
-			} else if r.Sym.Plt >= 0 {
-				r.Sym = rel
-				r.Add = int64(targ.Plt)
-			}
+			Errorf(s, "dynamic relocation to unreachable symbol %s", targ.Name)
 		}
+		if r.Sym.Plt == -2 && r.Sym.Got != -2 { // make dynimport JMP table for PE object files.
+			targ.Plt = int32(rel.Size)
+			r.Sym = rel
+			r.Add = int64(targ.Plt)
 
+			// jmp *addr
+			if SysArch.Family == sys.I386 {
+				Adduint8(ctxt, rel, 0xff)
+				Adduint8(ctxt, rel, 0x25)
+				Addaddr(ctxt, rel, targ)
+				Adduint8(ctxt, rel, 0x90)
+				Adduint8(ctxt, rel, 0x90)
+			} else {
+				Adduint8(ctxt, rel, 0xff)
+				Adduint8(ctxt, rel, 0x24)
+				Adduint8(ctxt, rel, 0x25)
+				addaddrplus4(ctxt, rel, targ, 0)
+				Adduint8(ctxt, rel, 0x90)
+			}
+		} else if r.Sym.Plt >= 0 {
+			r.Sym = rel
+			r.Add = int64(targ.Plt)
+		}
+	}
+}
+
+func dynrelocsym(ctxt *Link, s *Symbol) {
+	if Headtype == objabi.Hwindows && Linkmode != LinkExternal {
+		windynrelocsym(ctxt, s)
 		return
 	}
 
