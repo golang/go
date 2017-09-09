@@ -32,7 +32,10 @@ func hasVectorFacility() bool
 var hasVX = hasVectorFacility()
 
 func initP256Arch() {
-	if hasVX {
+	// Assembly implementation is temporarily disabled until issue
+	// #20215 is fixed.
+	// if hasVX {
+	if false {
 		p256 = p256CurveFast{p256Params}
 		initTable()
 		return
