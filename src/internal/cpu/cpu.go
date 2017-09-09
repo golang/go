@@ -20,6 +20,7 @@ type x86 struct {
 	HasBMI1      bool
 	HasBMI2      bool
 	HasERMS      bool
+	HasFMA       bool
 	HasOSXSAVE   bool
 	HasPCLMULQDQ bool
 	HasPOPCNT    bool

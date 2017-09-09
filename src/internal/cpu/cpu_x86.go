@@ -27,6 +27,7 @@ func init() {
 	X86.HasSSE3 = isSet(0, ecx1)
 	X86.HasPCLMULQDQ = isSet(1, ecx1)
 	X86.HasSSSE3 = isSet(9, ecx1)
+	X86.HasFMA = isSet(12, ecx1)
 	X86.HasSSE41 = isSet(19, ecx1)
 	X86.HasSSE42 = isSet(20, ecx1)
 	X86.HasPOPCNT = isSet(23, ecx1)
