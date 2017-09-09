@@ -531,15 +531,17 @@ func mcommoninit(mp *m) {
 		callers(1, mp.createstack[:])
 	}
 
-	mp.fastrand = 0x49f6428a + uint32(mp.id) + uint32(cputicks())
-	if mp.fastrand == 0 {
-		mp.fastrand = 0x49f6428a
-	}
-
 	lock(&sched.lock)
 	mp.id = sched.mcount
 	sched.mcount++
 	checkmcount()
+
+	mp.fastrand[0] = 1597334677 * uint32(mp.id)
+	mp.fastrand[1] = uint32(cputicks())
+	if mp.fastrand[0]|mp.fastrand[1] == 0 {
+		mp.fastrand[1] = 1
+	}
+
 	mpreinit(mp)
 	if mp.gsignal != nil {
 		mp.gsignal.stackguard1 = mp.gsignal.stack.lo + _StackGuard

@@ -96,11 +96,16 @@ var hashLoad = float32(loadFactorNum) / float32(loadFactorDen)
 //go:nosplit
 func fastrand() uint32 {
 	mp := getg().m
-	fr := mp.fastrand
-	mx := uint32(int32(fr)>>31) & 0xa8888eef
-	fr = fr<<1 ^ mx
-	mp.fastrand = fr
-	return fr
+	// Implement xorshift64+: 2 32-bit xorshift sequences added together.
+	// Shift triplet [17,7,16] was calculated as indicated in Marsaglia's
+	// Xorshift paper: https://www.jstatsoft.org/article/view/v008i14/xorshift.pdf
+	// This generator passes the SmallCrush suite, part of TestU01 framework:
+	// http://simul.iro.umontreal.ca/testu01/tu01.html
+	s1, s0 := mp.fastrand[0], mp.fastrand[1]
+	s1 ^= s1 << 17
+	s1 = s1 ^ s0 ^ s1>>7 ^ s0>>16
+	mp.fastrand[0], mp.fastrand[1] = s0, s1
+	return s0 + s1
 }
 
 //go:nosplit
