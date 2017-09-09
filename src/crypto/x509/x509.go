@@ -1210,6 +1210,14 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 					return nil, errors.New("x509: trailing data after X.509 NameConstraints")
 				}
 
+				if len(constraints.Permitted) == 0 && len(constraints.Excluded) == 0 {
+					// https://tools.ietf.org/html/rfc5280#section-4.2.1.10:
+					//   “either the permittedSubtrees field
+					//   or the excludedSubtrees MUST be
+					//   present”
+					return nil, errors.New("x509: empty name constraints extension")
+				}
+
 				getDNSNames := func(subtrees []generalSubtree, isCritical bool) (dnsNames []string, err error) {
 					for _, subtree := range subtrees {
 						if len(subtree.Name) == 0 {
