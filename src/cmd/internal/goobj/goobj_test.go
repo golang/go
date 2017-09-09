@@ -27,8 +27,12 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	if runtime.GOOS == "linux" && runtime.GOARCH == "arm" {
-		return // skip tests due to #19811
+	if runtime.GOARCH == "arm" {
+		switch runtime.GOOS {
+		case "darwin", "android", "nacl":
+		default:
+			return // skip tests due to #19811
+		}
 	}
 
 	if err := buildGoobj(); err != nil {
