@@ -126,12 +126,13 @@ type mapextra struct {
 	// If both key and value do not contain pointers and are inline, then we mark bucket
 	// type as containing no pointers. This avoids scanning such maps.
 	// However, bmap.overflow is a pointer. In order to keep overflow buckets
-	// alive, we store pointers to all overflow buckets in hmap.overflow.
-	// Overflow is used only if key and value do not contain pointers.
-	// overflow[0] contains overflow buckets for hmap.buckets.
-	// overflow[1] contains overflow buckets for hmap.oldbuckets.
+	// alive, we store pointers to all overflow buckets in hmap.overflow and h.map.oldoverflow.
+	// overflow and oldoverflow are only used if key and value do not contain pointers.
+	// overflow contains overflow buckets for hmap.buckets.
+	// oldoverflow contains overflow buckets for hmap.oldbuckets.
 	// The indirection allows to store a pointer to the slice in hiter.
-	overflow [2]*[]*bmap
+	overflow    *[]*bmap
+	oldoverflow *[]*bmap
 
 	// nextOverflow holds a pointer to a free overflow bucket.
 	nextOverflow *bmap
@@ -160,7 +161,8 @@ type hiter struct {
 	h           *hmap
 	buckets     unsafe.Pointer // bucket ptr at hash_iter initialization time
 	bptr        *bmap          // current bucket
-	overflow    [2]*[]*bmap    // keeps overflow buckets alive
+	overflow    *[]*bmap       // keeps overflow buckets of hmap.buckets alive
+	oldoverflow *[]*bmap       // keeps overflow buckets of hmap.oldbuckets alive
 	startBucket uintptr        // bucket iteration started at
 	offset      uint8          // intra-bucket offset to start from during iteration (should be big enough to hold bucketCnt-1)
 	wrapped     bool           // already wrapped around from end of bucket array to beginning
@@ -257,7 +259,7 @@ func (h *hmap) newoverflow(t *maptype, b *bmap) *bmap {
 	h.incrnoverflow()
 	if t.bucket.kind&kindNoPointers != 0 {
 		h.createOverflow()
-		*h.extra.overflow[0] = append(*h.extra.overflow[0], ovf)
+		*h.extra.overflow = append(*h.extra.overflow, ovf)
 	}
 	b.setoverflow(t, ovf)
 	return ovf
@@ -267,8 +269,8 @@ func (h *hmap) createOverflow() {
 	if h.extra == nil {
 		h.extra = new(mapextra)
 	}
-	if h.extra.overflow[0] == nil {
-		h.extra.overflow[0] = new([]*bmap)
+	if h.extra.overflow == nil {
+		h.extra.overflow = new([]*bmap)
 	}
 }
 
@@ -703,6 +705,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 		// while we are iterating.
 		h.createOverflow()
 		it.overflow = h.extra.overflow
+		it.oldoverflow = h.extra.oldoverflow
 	}
 
 	// decide where to start
@@ -904,13 +907,13 @@ func hashGrow(t *maptype, h *hmap) {
 	h.nevacuate = 0
 	h.noverflow = 0
 
-	if h.extra != nil && h.extra.overflow[0] != nil {
+	if h.extra != nil && h.extra.overflow != nil {
 		// Promote current overflow buckets to the old generation.
-		if h.extra.overflow[1] != nil {
-			throw("overflow is not nil")
+		if h.extra.oldoverflow != nil {
+			throw("oldoverflow is not nil")
 		}
-		h.extra.overflow[1] = h.extra.overflow[0]
-		h.extra.overflow[0] = nil
+		h.extra.oldoverflow = h.extra.overflow
+		h.extra.overflow = nil
 	}
 	if nextOverflow != nil {
 		if h.extra == nil {
@@ -1123,7 +1126,7 @@ func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
 		// If they are still referenced by an iterator,
 		// then the iterator holds a pointers to the slice.
 		if h.extra != nil {
-			h.extra.overflow[1] = nil
+			h.extra.oldoverflow = nil
 		}
 		h.flags &^= sameSizeGrow
 	}
