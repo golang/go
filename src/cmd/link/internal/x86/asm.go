@@ -335,11 +335,6 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			r.Type = 256 // ignore during relocsym
 			return true
 		}
-
-		if ld.Headtype == objabi.Hwindows && s.Size == int64(ld.SysArch.PtrSize) {
-			// nothing to do, the relocation will be laid out in pereloc1
-			return true
-		}
 	}
 
 	return false

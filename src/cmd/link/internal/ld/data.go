@@ -803,8 +803,10 @@ func windynrelocsym(ctxt *Link, s *Symbol) {
 }
 
 func dynrelocsym(ctxt *Link, s *Symbol) {
-	if Headtype == objabi.Hwindows && Linkmode != LinkExternal {
-		windynrelocsym(ctxt, s)
+	if Headtype == objabi.Hwindows {
+		if Linkmode == LinkInternal {
+			windynrelocsym(ctxt, s)
+		}
 		return
 	}
 
