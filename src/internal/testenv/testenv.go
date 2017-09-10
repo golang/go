@@ -153,6 +153,11 @@ func MustHaveExternalNetwork(t *testing.T) {
 
 var haveCGO bool
 
+// HasCGO reports whether the current system can use cgo.
+func HasCGO() bool {
+	return haveCGO
+}
+
 // MustHaveCGO calls t.Skip if cgo is not available.
 func MustHaveCGO(t *testing.T) {
 	if !haveCGO {
