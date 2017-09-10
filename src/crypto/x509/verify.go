@@ -9,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
+	"reflect"
 	"runtime"
 	"strings"
 	"time"
@@ -25,8 +27,8 @@ const (
 	// given in the VerifyOptions.
 	Expired
 	// CANotAuthorizedForThisName results when an intermediate or root
-	// certificate has a name constraint which doesn't include the name
-	// being checked.
+	// certificate has a name constraint which doesn't permit a DNS or
+	// other name (including IP address) in the leaf certificate.
 	CANotAuthorizedForThisName
 	// TooManyIntermediates results when a path length constraint is
 	// violated.
@@ -37,6 +39,20 @@ const (
 	// NameMismatch results when the subject name of a parent certificate
 	// does not match the issuer name in the child.
 	NameMismatch
+	// NameConstraintsWithoutSANs results when a leaf certificate doesn't
+	// contain a Subject Alternative Name extension, but a CA certificate
+	// contains name constraints.
+	NameConstraintsWithoutSANs
+	// UnconstrainedName results when a CA certificate contains permitted
+	// name constraints, but leaf certificate contains a name of an
+	// unsupported or unconstrained type.
+	UnconstrainedName
+	// TooManyConstraints results when the number of comparision operations
+	// needed to check a certificate exceeds the limit set by
+	// VerifyOptions.MaxConstraintComparisions. This limit exists to
+	// prevent pathological certificates can consuming excessive amounts of
+	// CPU time to verify.
+	TooManyConstraints
 )
 
 // CertificateInvalidError results when an odd error occurs. Users of this
@@ -44,6 +60,7 @@ const (
 type CertificateInvalidError struct {
 	Cert   *Certificate
 	Reason InvalidReason
+	Detail string
 }
 
 func (e CertificateInvalidError) Error() string {
@@ -53,13 +70,17 @@ func (e CertificateInvalidError) Error() string {
 	case Expired:
 		return "x509: certificate has expired or is not yet valid"
 	case CANotAuthorizedForThisName:
-		return "x509: a root or intermediate certificate is not authorized to sign in this domain"
+		return "x509: a root or intermediate certificate is not authorized to sign for this name: " + e.Detail
 	case TooManyIntermediates:
 		return "x509: too many intermediates for path length constraint"
 	case IncompatibleUsage:
 		return "x509: certificate specifies an incompatible key usage"
 	case NameMismatch:
 		return "x509: issuer name does not match subject from issuing certificate"
+	case NameConstraintsWithoutSANs:
+		return "x509: issuer has name constraints but leaf doesn't have a SAN extension"
+	case UnconstrainedName:
+		return "x509: issuer has name constraints but leaf contains unknown or unconstrained name: " + e.Detail
 	}
 	return "x509: unknown error"
 }
@@ -156,6 +177,12 @@ type VerifyOptions struct {
 	// constraint down the chain which mirrors Windows CryptoAPI behavior,
 	// but not the spec. To accept any key usage, include ExtKeyUsageAny.
 	KeyUsages []ExtKeyUsage
+	// MaxConstraintComparisions is the maximum number of comparisons to
+	// perform when checking a given certificate's name constraints. If
+	// zero, a sensible default is used. This limit prevents pathalogical
+	// certificates from consuming excessive amounts of CPU time when
+	// validating.
+	MaxConstraintComparisions int
 }
 
 const (
@@ -164,32 +191,354 @@ const (
 	rootCertificate
 )
 
-func matchNameConstraint(domain, constraint string) bool {
+// rfc2821Mailbox represents a “mailbox” (which is an email address to most
+// people) by breaking it into the “local” (i.e. before the '@') and “domain”
+// parts.
+type rfc2821Mailbox struct {
+	local, domain string
+}
+
+// parseRFC2821Mailbox parses an email address into local and domain parts,
+// based on the ABNF for a “Mailbox” from RFC 2821. According to
+// https://tools.ietf.org/html/rfc5280#section-4.2.1.6 that's correct for an
+// rfc822Name from a certificate: “The format of an rfc822Name is a "Mailbox"
+// as defined in https://tools.ietf.org/html/rfc2821#section-4.1.2”.
+func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
+	if len(in) == 0 {
+		return mailbox, false
+	}
+
+	localPartBytes := make([]byte, 0, len(in)/2)
+
+	if in[0] == '"' {
+		// Quoted-string = DQUOTE *qcontent DQUOTE
+		// non-whitespace-control = %d1-8 / %d11 / %d12 / %d14-31 / %d127
+		// qcontent = qtext / quoted-pair
+		// qtext = non-whitespace-control /
+		//         %d33 / %d35-91 / %d93-126
+		// quoted-pair = ("\" text) / obs-qp
+		// text = %d1-9 / %d11 / %d12 / %d14-127 / obs-text
+		//
+		// (Names beginning with “obs-” are the obsolete syntax from
+		// https://tools.ietf.org/html/rfc2822#section-4. Since it has
+		// been 16 years, we no longer accept that.)
+		in = in[1:]
+	QuotedString:
+		for {
+			if len(in) == 0 {
+				return mailbox, false
+			}
+			c := in[0]
+			in = in[1:]
+
+			switch {
+			case c == '"':
+				break QuotedString
+
+			case c == '\\':
+				// quoted-pair
+				if len(in) == 0 {
+					return mailbox, false
+				}
+				if in[0] == 11 ||
+					in[0] == 12 ||
+					(1 <= in[0] && in[0] <= 9) ||
+					(14 <= in[0] && in[0] <= 127) {
+					localPartBytes = append(localPartBytes, in[0])
+					in = in[1:]
+				} else {
+					return mailbox, false
+				}
+
+			case c == 11 ||
+				c == 12 ||
+				// Space (char 32) is not allowed based on the
+				// BNF, but RFC 3696 gives an example that
+				// assumes that it is. Several “verified”
+				// errata continue to argue about this point.
+				// We choose to accept it.
+				c == 32 ||
+				c == 33 ||
+				c == 127 ||
+				(1 <= c && c <= 8) ||
+				(14 <= c && c <= 31) ||
+				(35 <= c && c <= 91) ||
+				(93 <= c && c <= 126):
+				// qtext
+				localPartBytes = append(localPartBytes, c)
+
+			default:
+				return mailbox, false
+			}
+		}
+	} else {
+		// Atom ("." Atom)*
+	NextChar:
+		for len(in) > 0 {
+			// atext from https://tools.ietf.org/html/rfc2822#section-3.2.4
+			c := in[0]
+
+			switch {
+			case c == '\\':
+				// Examples given in RFC 3696 suggest that
+				// escaped characters can appear outside of a
+				// quoted string. Several “verified” errata
+				// continue to argue the point. We choose to
+				// accept it.
+				in = in[1:]
+				if len(in) == 0 {
+					return mailbox, false
+				}
+				fallthrough
+
+			case ('0' <= c && c <= '9') ||
+				('a' <= c && c <= 'z') ||
+				('A' <= c && c <= 'Z') ||
+				c == '!' || c == '#' || c == '$' || c == '%' ||
+				c == '&' || c == '\'' || c == '*' || c == '+' ||
+				c == '-' || c == '/' || c == '=' || c == '?' ||
+				c == '^' || c == '_' || c == '`' || c == '{' ||
+				c == '|' || c == '}' || c == '~' || c == '.':
+				localPartBytes = append(localPartBytes, in[0])
+				in = in[1:]
+
+			default:
+				break NextChar
+			}
+		}
+
+		if len(localPartBytes) == 0 {
+			return mailbox, false
+		}
+
+		// https://tools.ietf.org/html/rfc3696#section-3
+		// “period (".") may also appear, but may not be used to start
+		// or end the local part, nor may two or more consecutive
+		// periods appear.”
+		twoDots := []byte{'.', '.'}
+		if localPartBytes[0] == '.' ||
+			localPartBytes[len(localPartBytes)-1] == '.' ||
+			bytes.Contains(localPartBytes, twoDots) {
+			return mailbox, false
+		}
+	}
+
+	if len(in) == 0 || in[0] != '@' {
+		return mailbox, false
+	}
+	in = in[1:]
+
+	// The RFC species a format for domains, but that's known to be
+	// violated in practice so we accept that anything after an '@' is the
+	// domain part.
+	if _, ok := domainToReverseLabels(in); !ok {
+		return mailbox, false
+	}
+
+	mailbox.local = string(localPartBytes)
+	mailbox.domain = in
+	return mailbox, true
+}
+
+// domainToReverseLabels converts a textual domain name like foo.example.com to
+// the list of labels in reverse order, e.g. ["com", "example", "foo"].
+func domainToReverseLabels(domain string) (reverseLabels []string, ok bool) {
+	for len(domain) > 0 {
+		if i := strings.LastIndexByte(domain, '.'); i == -1 {
+			reverseLabels = append(reverseLabels, domain)
+			domain = ""
+		} else {
+			reverseLabels = append(reverseLabels, domain[i+1:len(domain)])
+			domain = domain[:i]
+		}
+	}
+
+	if len(reverseLabels) > 0 && len(reverseLabels[0]) == 0 {
+		// An empty label at the end indicates an absolute value.
+		return nil, false
+	}
+
+	for _, label := range reverseLabels {
+		if len(label) == 0 {
+			// Empty labels are otherwise invalid.
+			return nil, false
+		}
+
+		for _, c := range label {
+			if c < 33 || c > 126 {
+				// Invalid character.
+				return nil, false
+			}
+		}
+	}
+
+	return reverseLabels, true
+}
+
+func matchEmailConstraint(mailbox rfc2821Mailbox, constraint string) (bool, error) {
+	// If the constraint contains an @, then it specifies an exact mailbox
+	// name.
+	if strings.Contains(constraint, "@") {
+		constraintMailbox, ok := parseRFC2821Mailbox(constraint)
+		if !ok {
+			return false, fmt.Errorf("x509: internal error: cannot parse constraint %q", constraint)
+		}
+		return mailbox.local == constraintMailbox.local && strings.EqualFold(mailbox.domain, constraintMailbox.domain), nil
+	}
+
+	// Otherwise the constraint is like a DNS constraint of the domain part
+	// of the mailbox.
+	return matchDomainConstraint(mailbox.domain, constraint)
+}
+
+func matchURIConstraint(uri *url.URL, constraint string) (bool, error) {
+	// https://tools.ietf.org/html/rfc5280#section-4.2.1.10
+	// “a uniformResourceIdentifier that does not include an authority
+	// component with a host name specified as a fully qualified domain
+	// name (e.g., if the URI either does not include an authority
+	// component or includes an authority component in which the host name
+	// is specified as an IP address), then the application MUST reject the
+	// certificate.”
+
+	host := uri.Host
+	if len(host) == 0 {
+		return false, fmt.Errorf("URI with empty host (%q) cannot be matched against constraints", uri.String())
+	}
+
+	if strings.Contains(host, ":") && !strings.HasSuffix(host, "]") {
+		var err error
+		host, _, err = net.SplitHostPort(uri.Host)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") ||
+		net.ParseIP(host) != nil {
+		return false, fmt.Errorf("URI with IP (%q) cannot be matched against constraints", uri.String())
+	}
+
+	return matchDomainConstraint(host, constraint)
+}
+
+func matchIPConstraint(ip net.IP, constraint *net.IPNet) (bool, error) {
+	if len(ip) != len(constraint.IP) {
+		return false, nil
+	}
+
+	for i := range ip {
+		if mask := constraint.Mask[i]; ip[i]&mask != constraint.IP[i]&mask {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func matchDomainConstraint(domain, constraint string) (bool, error) {
 	// The meaning of zero length constraints is not specified, but this
 	// code follows NSS and accepts them as matching everything.
 	if len(constraint) == 0 {
-		return true
+		return true, nil
 	}
 
-	if len(domain) < len(constraint) {
-		return false
+	domainLabels, ok := domainToReverseLabels(domain)
+	if !ok {
+		return false, fmt.Errorf("x509: internal error: cannot parse domain %q", domain)
 	}
 
-	prefixLen := len(domain) - len(constraint)
-	if !strings.EqualFold(domain[prefixLen:], constraint) {
-		return false
+	// RFC 5280 says that a leading period in a domain name means that at
+	// least one label must be prepended, but only for URI and email
+	// constraints, not DNS constraints. The code also supports that
+	// behaviour for DNS constraints.
+
+	mustHaveSubdomains := false
+	if constraint[0] == '.' {
+		mustHaveSubdomains = true
+		constraint = constraint[1:]
 	}
 
-	if prefixLen == 0 {
-		return true
+	constraintLabels, ok := domainToReverseLabels(constraint)
+	if !ok {
+		return false, fmt.Errorf("x509: internal error: cannot parse domain %q", constraint)
 	}
 
-	isSubdomain := domain[prefixLen-1] == '.'
-	constraintHasLeadingDot := constraint[0] == '.'
-	return isSubdomain != constraintHasLeadingDot
+	if len(domainLabels) < len(constraintLabels) ||
+		(mustHaveSubdomains && len(domainLabels) == len(constraintLabels)) {
+		return false, nil
+	}
+
+	for i, constraintLabel := range constraintLabels {
+		if !strings.EqualFold(constraintLabel, domainLabels[i]) {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
-// isValid performs validity checks on the c.
+// checkNameConstraints checks that c permits a child certificate to claim the
+// given name, of type nameType. The argument parsedName contains the parsed
+// form of name, suitable for passing to the match function. The total number
+// of comparisons is tracked in the given count and should not exceed the given
+// limit.
+func (c *Certificate) checkNameConstraints(count *int,
+	maxConstraintComparisons int,
+	nameType string,
+	name string,
+	parsedName interface{},
+	match func(parsedName, constraint interface{}) (match bool, err error),
+	permitted, excluded interface{}) error {
+
+	excludedValue := reflect.ValueOf(excluded)
+
+	*count += excludedValue.Len()
+	if *count > maxConstraintComparisons {
+		return CertificateInvalidError{c, TooManyConstraints, ""}
+	}
+
+	for i := 0; i < excludedValue.Len(); i++ {
+		constraint := excludedValue.Index(i).Interface()
+		match, err := match(parsedName, constraint)
+		if err != nil {
+			return CertificateInvalidError{c, CANotAuthorizedForThisName, err.Error()}
+		}
+
+		if match {
+			return CertificateInvalidError{c, CANotAuthorizedForThisName, fmt.Sprintf("%s %q is excluded by constraint %q", nameType, name, constraint)}
+		}
+	}
+
+	permittedValue := reflect.ValueOf(permitted)
+
+	*count += permittedValue.Len()
+	if *count > maxConstraintComparisons {
+		return CertificateInvalidError{c, TooManyConstraints, ""}
+	}
+
+	ok := true
+	for i := 0; i < permittedValue.Len(); i++ {
+		constraint := permittedValue.Index(i).Interface()
+
+		var err error
+		if ok, err = match(parsedName, constraint); err != nil {
+			return CertificateInvalidError{c, CANotAuthorizedForThisName, err.Error()}
+		}
+
+		if ok {
+			break
+		}
+	}
+
+	if !ok {
+		return CertificateInvalidError{c, CANotAuthorizedForThisName, fmt.Sprintf("%s %q is not permitted by any constraint", nameType, name)}
+	}
+
+	return nil
+}
+
+// isValid performs validity checks on c given that it is a candidate to append
+// to the chain in currentChain.
 func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *VerifyOptions) error {
 	if len(c.UnhandledCriticalExtensions) > 0 {
 		return UnhandledCriticalExtension{}
@@ -198,7 +547,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 	if len(currentChain) > 0 {
 		child := currentChain[len(currentChain)-1]
 		if !bytes.Equal(child.RawIssuer, c.RawSubject) {
-			return CertificateInvalidError{c, NameMismatch}
+			return CertificateInvalidError{c, NameMismatch, ""}
 		}
 	}
 
@@ -207,26 +556,92 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		now = time.Now()
 	}
 	if now.Before(c.NotBefore) || now.After(c.NotAfter) {
-		return CertificateInvalidError{c, Expired}
+		return CertificateInvalidError{c, Expired, ""}
 	}
 
-	if len(c.PermittedDNSDomains) > 0 {
-		ok := false
-		for _, constraint := range c.PermittedDNSDomains {
-			ok = matchNameConstraint(opts.DNSName, constraint)
-			if ok {
-				break
-			}
+	if (certType == intermediateCertificate || certType == rootCertificate) && c.hasNameConstraints() {
+		maxConstraintComparisons := opts.MaxConstraintComparisions
+		if maxConstraintComparisons == 0 {
+			maxConstraintComparisons = 250000
 		}
+		count := 0
 
+		if len(currentChain) == 0 {
+			return errors.New("x509: internal error: empty chain when appending CA cert")
+		}
+		leaf := currentChain[0]
+
+		sanExtension, ok := leaf.getSANExtension()
 		if !ok {
-			return CertificateInvalidError{c, CANotAuthorizedForThisName}
+			// This is the deprecated, legacy case of depending on
+			// the CN as a hostname. Chains modern enough to be
+			// using name constraints should not be depending on
+			// CNs.
+			return CertificateInvalidError{c, NameConstraintsWithoutSANs, ""}
 		}
-	}
 
-	for _, constraint := range c.ExcludedDNSDomains {
-		if matchNameConstraint(opts.DNSName, constraint) {
-			return CertificateInvalidError{c, CANotAuthorizedForThisName}
+		err := forEachSAN(sanExtension, func(tag int, data []byte) error {
+			switch tag {
+			case nameTypeEmail:
+				name := string(data)
+				mailbox, ok := parseRFC2821Mailbox(name)
+				if !ok {
+					// This certificate should not have parsed.
+					return errors.New("x509: internal error: rfc822Name SAN failed to parse")
+				}
+
+				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "email address", name, mailbox,
+					func(parsedName, constraint interface{}) (bool, error) {
+						return matchEmailConstraint(parsedName.(rfc2821Mailbox), constraint.(string))
+					}, c.PermittedEmailAddresses, c.ExcludedEmailAddresses); err != nil {
+					return err
+				}
+
+			case nameTypeDNS:
+				name := string(data)
+				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "DNS name", name, name,
+					func(parsedName, constraint interface{}) (bool, error) {
+						return matchDomainConstraint(parsedName.(string), constraint.(string))
+					}, c.PermittedDNSDomains, c.ExcludedDNSDomains); err != nil {
+					return err
+				}
+
+			case nameTypeURI:
+				name := string(data)
+				uri, err := url.Parse(name)
+				if err != nil {
+					return fmt.Errorf("x509: internal error: URI SAN %q failed to parse", name)
+				}
+
+				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "URI", name, uri,
+					func(parsedName, constraint interface{}) (bool, error) {
+						return matchURIConstraint(parsedName.(*url.URL), constraint.(string))
+					}, c.PermittedURIDomains, c.ExcludedURIDomains); err != nil {
+					return err
+				}
+
+			case nameTypeIP:
+				ip := net.IP(data)
+				if l := len(ip); l != net.IPv4len && l != net.IPv6len {
+					return fmt.Errorf("x509: internal error: IP SAN %x failed to parse", data)
+				}
+
+				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "IP address", ip.String(), ip,
+					func(parsedName, constraint interface{}) (bool, error) {
+						return matchIPConstraint(parsedName.(net.IP), constraint.(*net.IPNet))
+					}, c.PermittedIPRanges, c.ExcludedIPRanges); err != nil {
+					return err
+				}
+
+			default:
+				// Unknown SAN types are ignored.
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			return err
 		}
 	}
 
@@ -248,13 +663,13 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 	// encryption key could only be used for Diffie-Hellman key agreement.
 
 	if certType == intermediateCertificate && (!c.BasicConstraintsValid || !c.IsCA) {
-		return CertificateInvalidError{c, NotAuthorizedToSign}
+		return CertificateInvalidError{c, NotAuthorizedToSign, ""}
 	}
 
 	if c.BasicConstraintsValid && c.MaxPathLen >= 0 {
 		numIntermediates := len(currentChain) - 1
 		if numIntermediates > c.MaxPathLen {
-			return CertificateInvalidError{c, TooManyIntermediates}
+			return CertificateInvalidError{c, TooManyIntermediates, ""}
 		}
 	}
 
@@ -337,7 +752,7 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 	}
 
 	if len(chains) == 0 {
-		err = CertificateInvalidError{c, IncompatibleUsage}
+		err = CertificateInvalidError{c, IncompatibleUsage, ""}
 	}
 
 	return
