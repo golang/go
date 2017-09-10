@@ -110,7 +110,13 @@ func (p *Package) writeDefs() {
 		// Which is not useful. Moreover we never override source info,
 		// so subsequent source code uses the same source info.
 		// Moreover, empty file name makes compile emit no source debug info at all.
-		noSourceConf.Fprint(fgo2, fset, def.Go)
+		var buf bytes.Buffer
+		noSourceConf.Fprint(&buf, fset, def.Go)
+		if bytes.HasPrefix(buf.Bytes(), []byte("_Ctype_")) {
+			// This typedef is of the form `typedef a b` and should be an alias.
+			fmt.Fprintf(fgo2, "= ")
+		}
+		fmt.Fprintf(fgo2, "%s", buf.Bytes())
 		fmt.Fprintf(fgo2, "\n\n")
 	}
 	if *gccgo {
