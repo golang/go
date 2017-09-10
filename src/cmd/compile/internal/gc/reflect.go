@@ -295,7 +295,8 @@ func hiter(t *types.Type) *types.Type {
 	//    h           *hmap
 	//    buckets     *bmap
 	//    bptr        *bmap
-	//    overflow    [2]unsafe.Pointer // [2]*[]*bmap
+	//    overflow    unsafe.Pointer // *[]*bmap
+	//    oldoverflow unsafe.Pointer // *[]*bmap
 	//    startBucket uintptr
 	//    offset      uint8
 	//    wrapped     bool
@@ -312,7 +313,8 @@ func hiter(t *types.Type) *types.Type {
 		makefield("h", types.NewPtr(hmap)),
 		makefield("buckets", types.NewPtr(bmap)),
 		makefield("bptr", types.NewPtr(bmap)),
-		makefield("overflow", types.NewArray(types.Types[TUNSAFEPTR], 2)),
+		makefield("overflow", types.Types[TUNSAFEPTR]),
+		makefield("oldoverflow", types.Types[TUNSAFEPTR]),
 		makefield("startBucket", types.Types[TUINTPTR]),
 		makefield("offset", types.Types[TUINT8]),
 		makefield("wrapped", types.Types[TBOOL]),
