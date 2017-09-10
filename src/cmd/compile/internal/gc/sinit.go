@@ -931,6 +931,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 func maplit(n *Node, m *Node, init *Nodes) {
 	// make the map var
 	a := nod(OMAKE, nil, nil)
+	a.Esc = n.Esc
 	a.List.Set2(typenod(n.Type), nodintconst(int64(n.List.Len())))
 	litas(m, a, init)
 
