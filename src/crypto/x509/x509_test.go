@@ -22,6 +22,7 @@ import (
 	"internal/testenv"
 	"math/big"
 	"net"
+	"net/url"
 	"os/exec"
 	"reflect"
 	"runtime"
@@ -352,6 +353,22 @@ var certBytes = "308203223082028ba00302010202106edf0d9499fd4533dd1297fc42a93be13
 	"9048084225c53e8acb7feb6f04d16dc574a2f7a27c7b603c77cd0ece48027f012fb69b37e02a2a" +
 	"36dcd585d6ace53f546f961e05af"
 
+func parseCIDR(s string) *net.IPNet {
+	_, net, err := net.ParseCIDR(s)
+	if err != nil {
+		panic(err)
+	}
+	return net
+}
+
+func parseURI(s string) *url.URL {
+	uri, err := url.Parse(s)
+	if err != nil {
+		panic(err)
+	}
+	return uri
+}
+
 func TestCreateSelfSignedCertificate(t *testing.T) {
 	random := rand.Reader
 
@@ -423,10 +440,17 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			DNSNames:       []string{"test.example.com"},
 			EmailAddresses: []string{"gopher@golang.org"},
 			IPAddresses:    []net.IP{net.IPv4(127, 0, 0, 1).To4(), net.ParseIP("2001:4860:0:2001::68")},
+			URIs:           []*url.URL{parseURI("https://foo.com/wibble#foo")},
 
-			PolicyIdentifiers:   []asn1.ObjectIdentifier{[]int{1, 2, 3}},
-			PermittedDNSDomains: []string{".example.com", "example.com"},
-			ExcludedDNSDomains:  []string{"bar.example.com"},
+			PolicyIdentifiers:       []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+			PermittedDNSDomains:     []string{".example.com", "example.com"},
+			ExcludedDNSDomains:      []string{"bar.example.com"},
+			PermittedIPRanges:       []*net.IPNet{parseCIDR("192.168.1.1/16"), parseCIDR("1.2.3.4/8")},
+			ExcludedIPRanges:        []*net.IPNet{parseCIDR("2001:db8::/48")},
+			PermittedEmailAddresses: []string{"foo@example.com"},
+			ExcludedEmailAddresses:  []string{".example.com", "example.com"},
+			PermittedURIDomains:     []string{".bar.com", "bar.com"},
+			ExcludedURIDomains:      []string{".bar2.com", "bar2.com"},
 
 			CRLDistributionPoints: []string{"http://crl1.example.com/ca1.crl", "http://crl2.example.com/ca1.crl"},
 
@@ -466,6 +490,30 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 
 		if len(cert.ExcludedDNSDomains) != 1 || cert.ExcludedDNSDomains[0] != "bar.example.com" {
 			t.Errorf("%s: failed to parse name constraint exclusions: %#v", test.name, cert.ExcludedDNSDomains)
+		}
+
+		if len(cert.PermittedIPRanges) != 2 || cert.PermittedIPRanges[0].String() != "192.168.0.0/16" || cert.PermittedIPRanges[1].String() != "1.0.0.0/8" {
+			t.Errorf("%s: failed to parse IP constraints: %#v", test.name, cert.PermittedIPRanges)
+		}
+
+		if len(cert.ExcludedIPRanges) != 1 || cert.ExcludedIPRanges[0].String() != "2001:db8::/48" {
+			t.Errorf("%s: failed to parse IP constraint exclusions: %#v", test.name, cert.ExcludedIPRanges)
+		}
+
+		if len(cert.PermittedEmailAddresses) != 1 || cert.PermittedEmailAddresses[0] != "foo@example.com" {
+			t.Errorf("%s: failed to parse permitted email addreses: %#v", test.name, cert.PermittedEmailAddresses)
+		}
+
+		if len(cert.ExcludedEmailAddresses) != 2 || cert.ExcludedEmailAddresses[0] != ".example.com" || cert.ExcludedEmailAddresses[1] != "example.com" {
+			t.Errorf("%s: failed to parse excluded email addreses: %#v", test.name, cert.ExcludedEmailAddresses)
+		}
+
+		if len(cert.PermittedURIDomains) != 2 || cert.PermittedURIDomains[0] != ".bar.com" || cert.PermittedURIDomains[1] != "bar.com" {
+			t.Errorf("%s: failed to parse permitted URIs: %#v", test.name, cert.PermittedURIDomains)
+		}
+
+		if len(cert.ExcludedURIDomains) != 2 || cert.ExcludedURIDomains[0] != ".bar2.com" || cert.ExcludedURIDomains[1] != "bar2.com" {
+			t.Errorf("%s: failed to parse excluded URIs: %#v", test.name, cert.ExcludedURIDomains)
 		}
 
 		if cert.Subject.CommonName != commonName {
@@ -517,6 +565,10 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 
 		if !reflect.DeepEqual(cert.EmailAddresses, template.EmailAddresses) {
 			t.Errorf("%s: SAN emails differ from template. Got %v, want %v", test.name, cert.EmailAddresses, template.EmailAddresses)
+		}
+
+		if len(cert.URIs) != 1 || cert.URIs[0].String() != "https://foo.com/wibble#foo" {
+			t.Errorf("%s: URIs differ from template. Got %v, want %v", test.name, cert.URIs, template.URIs)
 		}
 
 		if !reflect.DeepEqual(cert.IPAddresses, template.IPAddresses) {
@@ -1012,7 +1064,7 @@ func marshalAndParseCSR(t *testing.T, template *CertificateRequest) *Certificate
 }
 
 func TestCertificateRequestOverrides(t *testing.T) {
-	sanContents, err := marshalSANs([]string{"foo.example.com"}, nil, nil)
+	sanContents, err := marshalSANs([]string{"foo.example.com"}, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1069,7 +1121,7 @@ func TestCertificateRequestOverrides(t *testing.T) {
 		t.Errorf("bad attributes: %#v\n", csr.Attributes)
 	}
 
-	sanContents2, err := marshalSANs([]string{"foo2.example.com"}, nil, nil)
+	sanContents2, err := marshalSANs([]string{"foo2.example.com"}, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1565,5 +1617,71 @@ func TestRDNSequenceString(t *testing.T) {
 		if got := test.seq.String(); got != test.want {
 			t.Errorf("#%d: String() = \n%s\n, want \n%s", i, got, test.want)
 		}
+	}
+}
+
+const criticalNameConstraintWithUnknownTypePEM = `
+-----BEGIN CERTIFICATE-----
+MIIC/TCCAeWgAwIBAgICEjQwDQYJKoZIhvcNAQELBQAwKDEmMCQGA1UEAxMdRW1w
+dHkgbmFtZSBjb25zdHJhaW50cyBpc3N1ZXIwHhcNMTMwMjAxMDAwMDAwWhcNMjAw
+NTMwMTA0ODM4WjAhMR8wHQYDVQQDExZFbXB0eSBuYW1lIGNvbnN0cmFpbnRzMIIB
+IjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwriElUIt3LCqmJObs+yDoWPD
+F5IqgWk6moIobYjPfextZiYU6I3EfvAwoNxPDkN2WowcocUZMJbEeEq5ebBksFnx
+f12gBxlIViIYwZAzu7aFvhDMyPKQI3C8CG0ZSC9ABZ1E3umdA3CEueNOmP/TChNq
+Cl23+BG1Qb/PJkpAO+GfpWSVhTcV53Mf/cKvFHcjGNrxzdSoq9fyW7a6gfcGEQY0
+LVkmwFWUfJ0wT8kaeLr0E0tozkIfo01KNWNzv6NcYP80QOBRDlApWu9ODmEVJHPD
+blx4jzTQ3JLa+4DvBNOjVUOp+mgRmjiW0rLdrxwOxIqIOwNjweMCp/hgxX/hTQID
+AQABozgwNjA0BgNVHR4BAf8EKjAooCQwIokgIACrzQAAAAAAAAAAAAAAAP////8A
+AAAAAAAAAAAAAAChADANBgkqhkiG9w0BAQsFAAOCAQEAWG+/zUMHQhP8uNCtgSHy
+im/vh7wminwAvWgMKxlkLBFns6nZeQqsOV1lABY7U0Zuoqa1Z5nb6L+iJa4ElREJ
+Oi/erLc9uLwBdDCAR0hUTKD7a6i4ooS39DTle87cUnj0MW1CUa6Hv5SsvpYW+1Xl
+eYJk/axQOOTcy4Es53dvnZsjXH0EA/QHnn7UV+JmlE3rtVxcYp6MLYPmRhTioROA
+/drghicRkiu9hxdPyxkYS16M5g3Zj30jdm+k/6C6PeNtN9YmOOganCOSyFYfGhqO
+ANYzpmuV+oIedAsPpIbfIzN8njYUs1zio+1IoI4o8ddM9sCbtPU8o+WoY6IsCKXV
+/g==
+-----END CERTIFICATE-----`
+
+func TestCriticalNameConstraintWithUnknownType(t *testing.T) {
+	block, _ := pem.Decode([]byte(criticalNameConstraintWithUnknownTypePEM))
+	cert, err := ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("unexpected parsing failure: %s", err)
+	}
+
+	if l := len(cert.UnhandledCriticalExtensions); l != 1 {
+		t.Fatalf("expected one unhandled critical extension, but found %d", l)
+	}
+}
+
+const badIPMaskPEM = `
+-----BEGIN CERTIFICATE-----
+MIICzzCCAbegAwIBAgICEjQwDQYJKoZIhvcNAQELBQAwHTEbMBkGA1UEAxMSQmFk
+IElQIG1hc2sgaXNzdWVyMB4XDTEzMDIwMTAwMDAwMFoXDTIwMDUzMDEwNDgzOFow
+FjEUMBIGA1UEAxMLQmFkIElQIG1hc2swggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
+ggEKAoIBAQDCuISVQi3csKqYk5uz7IOhY8MXkiqBaTqagihtiM997G1mJhTojcR+
+8DCg3E8OQ3ZajByhxRkwlsR4Srl5sGSwWfF/XaAHGUhWIhjBkDO7toW+EMzI8pAj
+cLwIbRlIL0AFnUTe6Z0DcIS5406Y/9MKE2oKXbf4EbVBv88mSkA74Z+lZJWFNxXn
+cx/9wq8UdyMY2vHN1Kir1/JbtrqB9wYRBjQtWSbAVZR8nTBPyRp4uvQTS2jOQh+j
+TUo1Y3O/o1xg/zRA4FEOUCla704OYRUkc8NuXHiPNNDcktr7gO8E06NVQ6n6aBGa
+OJbSst2vHA7Eiog7A2PB4wKn+GDFf+FNAgMBAAGjIDAeMBwGA1UdHgEB/wQSMBCg
+DDAKhwgBAgME//8BAKEAMA0GCSqGSIb3DQEBCwUAA4IBAQBYb7/NQwdCE/y40K2B
+IfKKb++HvCaKfAC9aAwrGWQsEWezqdl5Cqw5XWUAFjtTRm6iprVnmdvov6IlrgSV
+EQk6L96stz24vAF0MIBHSFRMoPtrqLiihLf0NOV7ztxSePQxbUJRroe/lKy+lhb7
+VeV5gmT9rFA45NzLgSznd2+dmyNcfQQD9AeeftRX4maUTeu1XFxinowtg+ZGFOKh
+E4D92uCGJxGSK72HF0/LGRhLXozmDdmPfSN2b6T/oLo942031iY46BqcI5LIVh8a
+Go4A1jOma5X6gh50Cw+kht8jM3yeNhSzXOKj7Uigjijx10z2wJu09Tyj5ahjoiwI
+pdX+
+-----END CERTIFICATE-----`
+
+func TestBadIPMask(t *testing.T) {
+	block, _ := pem.Decode([]byte(badIPMaskPEM))
+	_, err := ParseCertificate(block.Bytes)
+	if err == nil {
+		t.Fatalf("unexpected success")
+	}
+
+	const expected = "contained invalid mask"
+	if !strings.Contains(err.Error(), expected) {
+		t.Fatalf("expected %q in error but got: %s", expected, err)
 	}
 }
