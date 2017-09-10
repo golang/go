@@ -239,16 +239,11 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			// nothing to do, the relocation will be laid out in reloc
 			return true
 		}
-		if ld.Headtype == objabi.Hwindows {
-			// nothing to do, the relocation will be laid out in pereloc1
-			return true
-		} else {
-			// for both ELF and Mach-O
-			addpltsym(ctxt, targ)
-			r.Sym = ctxt.Syms.Lookup(".plt", 0)
-			r.Add = int64(targ.Plt)
-			return true
-		}
+		// for both ELF and Mach-O
+		addpltsym(ctxt, targ)
+		r.Sym = ctxt.Syms.Lookup(".plt", 0)
+		r.Add = int64(targ.Plt)
+		return true
 
 	case objabi.R_ADDR:
 		if s.Type == ld.STEXT && ld.Iself {
@@ -357,11 +352,6 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			ld.Adduint64(ctxt, got, 0)
 			ld.Adduint32(ctxt, ctxt.Syms.Lookup(".linkedit.got", 0), uint32(targ.Dynid))
 			r.Type = 256 // ignore during relocsym
-			return true
-		}
-
-		if ld.Headtype == objabi.Hwindows {
-			// nothing to do, the relocation will be laid out in pereloc1
 			return true
 		}
 	}
