@@ -6,7 +6,6 @@
 //
 // TODO(rsc): Decide where this package should live. (golang.org/issue/6932)
 // TODO(rsc): Decide the appropriate integer types for various fields.
-// TODO(rsc): Write tests. (File format still up in the air a little.)
 package goobj
 
 import (
@@ -16,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -127,12 +127,13 @@ type InlinedCall struct {
 
 // A Package is a parsed Go object file or archive defining a Go package.
 type Package struct {
-	ImportPath string   // import path denoting this package
-	Imports    []string // packages imported by this package
-	SymRefs    []SymID  // list of symbol names and versions referred to by this pack
-	Syms       []*Sym   // symbols defined by this package
-	MaxVersion int      // maximum Version in any SymID in Syms
-	Arch       string   // architecture
+	ImportPath string        // import path denoting this package
+	Imports    []string      // packages imported by this package
+	SymRefs    []SymID       // list of symbol names and versions referred to by this pack
+	Syms       []*Sym        // symbols defined by this package
+	MaxVersion int           // maximum Version in any SymID in Syms
+	Arch       string        // architecture
+	Native     []io.ReaderAt // native object data (e.g. ELF)
 }
 
 var (
@@ -150,7 +151,7 @@ var (
 type objReader struct {
 	p          *Package
 	b          *bufio.Reader
-	f          io.ReadSeeker
+	f          *os.File
 	err        error
 	offset     int64
 	dataOffset int64
@@ -160,7 +161,7 @@ type objReader struct {
 }
 
 // init initializes r to read package p from f.
-func (r *objReader) init(f io.ReadSeeker, p *Package) {
+func (r *objReader) init(f *os.File, p *Package) {
 	r.f = f
 	r.p = p
 	r.offset, _ = f.Seek(0, io.SeekCurrent)
@@ -183,6 +184,24 @@ func (r *objReader) error(err error) error {
 	}
 	// panic("corrupt") // useful for debugging
 	return r.err
+}
+
+// peek returns the next n bytes without advancing the reader.
+func (r *objReader) peek(n int) ([]byte, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	if r.offset >= r.limit {
+		r.error(io.ErrUnexpectedEOF)
+		return nil, r.err
+	}
+	b, err := r.b.Peek(n)
+	if err != nil {
+		if err != bufio.ErrBufferFull {
+			r.error(err)
+		}
+	}
+	return b, err
 }
 
 // readByte reads and returns a byte from the input file.
@@ -322,9 +341,9 @@ func (r *objReader) skip(n int64) {
 	}
 }
 
-// Parse parses an object file or archive from r,
+// Parse parses an object file or archive from f,
 // assuming that its import path is pkgpath.
-func Parse(r io.ReadSeeker, pkgpath string) (*Package, error) {
+func Parse(f *os.File, pkgpath string) (*Package, error) {
 	if pkgpath == "" {
 		pkgpath = `""`
 	}
@@ -332,7 +351,7 @@ func Parse(r io.ReadSeeker, pkgpath string) (*Package, error) {
 	p.ImportPath = pkgpath
 
 	var rd objReader
-	rd.init(r, p)
+	rd.init(f, p)
 	err := rd.readFull(rd.tmp[:8])
 	if err != nil {
 		if err == io.EOF {
@@ -365,9 +384,6 @@ func trimSpace(b []byte) string {
 }
 
 // parseArchive parses a Unix archive of Go object files.
-// TODO(rsc): Need to skip non-Go object files.
-// TODO(rsc): Maybe record table of contents in r.p so that
-// linker can avoid having code to parse archives too.
 func (r *objReader) parseArchive() error {
 	for r.offset < r.limit {
 		if err := r.readFull(r.tmp[:60]); err != nil {
@@ -413,9 +429,19 @@ func (r *objReader) parseArchive() error {
 		default:
 			oldLimit := r.limit
 			r.limit = r.offset + size
-			if err := r.parseObject(nil); err != nil {
-				return fmt.Errorf("parsing archive member %q: %v", name, err)
+
+			p, err := r.peek(8)
+			if err != nil {
+				return err
 			}
+			if bytes.Equal(p, goobjHeader) {
+				if err := r.parseObject(nil); err != nil {
+					return fmt.Errorf("parsing archive member %q: %v", name, err)
+				}
+			} else {
+				r.p.Native = append(r.p.Native, io.NewSectionReader(r.f, r.offset, size))
+			}
+
 			r.skip(r.limit - r.offset)
 			r.limit = oldLimit
 		}
