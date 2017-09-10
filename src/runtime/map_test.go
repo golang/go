@@ -650,6 +650,13 @@ var testNonEscapingMapVariable int = 8
 
 func TestNonEscapingMap(t *testing.T) {
 	n := testing.AllocsPerRun(1000, func() {
+		m := map[int]int{}
+		m[0] = 0
+	})
+	if n != 0 {
+		t.Fatalf("mapliteral: want 0 allocs, got %v", n)
+	}
+	n = testing.AllocsPerRun(1000, func() {
 		m := make(map[int]int)
 		m[0] = 0
 	})
