@@ -15,30 +15,95 @@ type SlotID int32
 // function. Variables are identified by their LocalSlot, which may be the
 // result of decomposing a larger variable.
 type FuncDebug struct {
-	Slots     []*LocalSlot
-	Variables []VarLocList
+	// Slots are all the slots in the function, indexed by their SlotID as
+	// used in various functions and parallel to BlockDebug.Variables.
+	Slots []*LocalSlot
+	// The blocks in the function, in program text order.
+	Blocks []*BlockDebug
+	// The registers of the current architecture, indexed by Register.num.
 	Registers []Register
 }
 
-// append adds a location to the location list for slot.
-func (f *FuncDebug) append(slot SlotID, loc *VarLoc) {
-	f.Variables[slot].append(loc)
-}
-
-// lastLoc returns the last VarLoc for slot, or nil if it has none.
-func (f *FuncDebug) lastLoc(slot SlotID) *VarLoc {
-	return f.Variables[slot].last()
-}
-
-func (f *FuncDebug) String() string {
+func (f *FuncDebug) BlockString(b *BlockDebug) string {
 	var vars []string
-	for slot, list := range f.Variables {
+
+	for slot, list := range b.Variables {
 		if len(list.Locations) == 0 {
 			continue
 		}
 		vars = append(vars, fmt.Sprintf("%v = %v", f.Slots[slot], list))
 	}
 	return fmt.Sprintf("{%v}", strings.Join(vars, ", "))
+}
+
+func (f *FuncDebug) SlotLocsString(id SlotID) string {
+	var locs []string
+	for _, block := range f.Blocks {
+		for _, loc := range block.Variables[id].Locations {
+			locs = append(locs, block.LocString(loc))
+		}
+	}
+	return strings.Join(locs, " ")
+}
+
+type BlockDebug struct {
+	// The SSA block that this tracks. For debug logging only.
+	Block *Block
+	// The variables in this block, indexed by their SlotID.
+	Variables []VarLocList
+}
+
+func (b *BlockDebug) LocString(loc *VarLoc) string {
+	registers := b.Block.Func.Config.registers
+
+	var storage []string
+	if loc.OnStack {
+		storage = append(storage, "stack")
+	}
+
+	for reg := 0; reg < 64; reg++ {
+		if loc.Registers&(1<<uint8(reg)) == 0 {
+			continue
+		}
+		if registers != nil {
+			storage = append(storage, registers[reg].String())
+		} else {
+			storage = append(storage, fmt.Sprintf("reg%d", reg))
+		}
+	}
+	if len(storage) == 0 {
+		storage = append(storage, "!!!no storage!!!")
+	}
+	pos := func(v *Value, p *obj.Prog, pc int64) string {
+		if v == nil {
+			return "?"
+		}
+		vStr := fmt.Sprintf("v%d", v.ID)
+		if v == BlockStart {
+			vStr = fmt.Sprintf("b%dStart", b.Block.ID)
+		}
+		if v == BlockEnd {
+			vStr = fmt.Sprintf("b%dEnd", b.Block.ID)
+		}
+		if p == nil {
+			return vStr
+		}
+		return fmt.Sprintf("%s/%x", vStr, pc)
+	}
+	start := pos(loc.Start, loc.StartProg, loc.StartPC)
+	end := pos(loc.End, loc.EndProg, loc.EndPC)
+	return fmt.Sprintf("%v-%v@%s", start, end, strings.Join(storage, ","))
+
+}
+
+// append adds a location to the location list for slot.
+func (b *BlockDebug) append(slot SlotID, loc *VarLoc) {
+	b.Variables[slot].append(loc)
+}
+
+// lastLoc returns the last VarLoc for slot, or nil if it has none.
+func (b *BlockDebug) lastLoc(slot SlotID) *VarLoc {
+	return b.Variables[slot].last()
 }
 
 // A VarLocList contains the locations for a variable, in program text order.
@@ -70,13 +135,24 @@ type VarLoc struct {
 	// Inclusive -- the first SSA value that the range covers. The value
 	// doesn't necessarily have anything to do with the variable; it just
 	// identifies a point in the program text.
+	// The special sentinel value BlockStart indicates that the range begins
+	// at the beginning of the containing block, even if the block doesn't
+	// actually have a Value to use to indicate that.
 	Start *Value
 	// Exclusive -- the first SSA value after start that the range doesn't
 	// cover. A location with start == end is empty.
+	// The special sentinel value BlockEnd indicates that the variable survives
+	// to the end of the of the containing block, after all its Values and any
+	// control flow instructions added later.
 	End *Value
+
 	// The prog/PCs corresponding to Start and End above. These are for the
 	// convenience of later passes, since code generation isn't done when
 	// BuildFuncDebug runs.
+	// Control flow instructions don't correspond to a Value, so EndProg
+	// may point to a Prog in the next block if SurvivedBlock is true. For
+	// the last block, where there's no later Prog, it will be nil to indicate
+	// the end of the function.
 	StartProg, EndProg *obj.Prog
 	StartPC, EndPC     int64
 
@@ -86,56 +162,22 @@ type VarLoc struct {
 	// Indicates whether the variable is on the stack. The stack position is
 	// stored in the associated gc.Node.
 	OnStack bool
+}
 
-	// Used only during generation. Indicates whether this location lasts
-	// past the block's end. Without this, there would be no way to distinguish
-	// between a range that ended on the last Value of a block and one that
-	// didn't end at all.
-	survivedBlock bool
+var BlockStart = &Value{
+	ID:  -10000,
+	Op:  OpInvalid,
+	Aux: "BlockStart",
+}
+
+var BlockEnd = &Value{
+	ID:  -20000,
+	Op:  OpInvalid,
+	Aux: "BlockEnd",
 }
 
 // RegisterSet is a bitmap of registers, indexed by Register.num.
 type RegisterSet uint64
-
-func (v *VarLoc) String() string {
-	var registers []Register
-	if v.Start != nil {
-		registers = v.Start.Block.Func.Config.registers
-	}
-	loc := ""
-	if !v.OnStack && v.Registers == 0 {
-		loc = "!!!no location!!!"
-	}
-	if v.OnStack {
-		loc += "stack,"
-	}
-	var regnames []string
-	for reg := 0; reg < 64; reg++ {
-		if v.Registers&(1<<uint8(reg)) == 0 {
-			continue
-		}
-		if registers != nil {
-			regnames = append(regnames, registers[reg].String())
-		} else {
-			regnames = append(regnames, fmt.Sprintf("reg%d", reg))
-		}
-	}
-	loc += strings.Join(regnames, ",")
-	pos := func(v *Value, p *obj.Prog, pc int64) string {
-		if v == nil {
-			return "?"
-		}
-		if p == nil {
-			return fmt.Sprintf("v%v", v.ID)
-		}
-		return fmt.Sprintf("v%v/%x", v.ID, pc)
-	}
-	surv := ""
-	if v.survivedBlock {
-		surv = "+"
-	}
-	return fmt.Sprintf("%v-%v%s@%s", pos(v.Start, v.StartProg, v.StartPC), pos(v.End, v.EndProg, v.EndPC), surv, loc)
-}
 
 // unexpected is used to indicate an inconsistency or bug in the debug info
 // generation process. These are not fixable by users. At time of writing,
@@ -158,6 +200,14 @@ type debugState struct {
 
 	// working storage for BuildFuncDebug, reused between blocks.
 	registerContents [][]SlotID
+}
+
+func (s *debugState) BlockString(b *BlockDebug) string {
+	f := &FuncDebug{
+		Slots:     s.slots,
+		Registers: s.f.Config.registers,
+	}
+	return f.BlockString(b)
 }
 
 // BuildFuncDebug returns debug information for f.
@@ -204,7 +254,7 @@ func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
 	// TODO: use a reverse post-order traversal instead of the work queue.
 
 	// Location list entries for each block.
-	blockLocs := make([]*FuncDebug, f.NumBlocks())
+	blockLocs := make([]*BlockDebug, f.NumBlocks())
 
 	// Work queue of blocks to visit. Some of them may already be processed.
 	work := []*Block{f.Entry}
@@ -230,7 +280,7 @@ func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
 		// state of its predecessors.
 		locs := state.mergePredecessors(b, blockLocs)
 		if state.loggingEnabled {
-			state.logf("Processing %v, initial locs %v, regs %v\n", b, locs, state.registerContents)
+			state.logf("Processing %v, initial locs %v, regs %v\n", b, state.BlockString(locs), state.registerContents)
 		}
 		// Update locs/registers with the effects of each Value.
 		for _, v := range b.Values {
@@ -269,62 +319,33 @@ func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
 
 		}
 
-		// The block is done; end the locations for all its slots.
+		// The block is done; mark any live locations as ending with the block.
 		for _, locList := range locs.Variables {
 			last := locList.last()
 			if last == nil || last.End != nil {
 				continue
 			}
-			if len(b.Values) != 0 {
-				last.End = b.Values[len(b.Values)-1]
-			} else {
-				// This happens when a value survives into an empty block from its predecessor.
-				// Just carry it forward for liveness's sake.
-				last.End = last.Start
-			}
-			last.survivedBlock = true
+			last.End = BlockEnd
 		}
 		if state.loggingEnabled {
-			f.Logf("Block done: locs %v, regs %v. work = %+v\n", locs, state.registerContents, work)
+			f.Logf("Block done: locs %v, regs %v. work = %+v\n", state.BlockString(locs), state.registerContents, work)
 		}
 		blockLocs[b.ID] = locs
 	}
 
-	// Build the complete debug info by concatenating each of the blocks'
-	// locations together.
 	info := &FuncDebug{
-		Variables: make([]VarLocList, len(state.slots)),
 		Slots:     state.slots,
 		Registers: f.Config.registers,
 	}
+	// Consumers want the information in textual order, not by block ID.
 	for _, b := range f.Blocks {
-		// Ignore empty blocks; there will be some records for liveness
-		// but they're all useless.
-		if len(b.Values) == 0 {
-			continue
-		}
-		if blockLocs[b.ID] == nil {
-			state.unexpected(b.Values[0], "Never processed block %v\n", b)
-			continue
-		}
-		for slot, blockLocList := range blockLocs[b.ID].Variables {
-			for _, loc := range blockLocList.Locations {
-				if !loc.OnStack && loc.Registers == 0 {
-					state.unexpected(loc.Start, "Location for %v with no storage: %+v\n", state.slots[slot], loc)
-					continue // don't confuse downstream with our bugs
-				}
-				if loc.Start == nil || loc.End == nil {
-					state.unexpected(b.Values[0], "Location for %v missing start or end: %v\n", state.slots[slot], loc)
-					continue
-				}
-				info.append(SlotID(slot), loc)
-			}
-		}
+		info.Blocks = append(info.Blocks, blockLocs[b.ID])
 	}
+
 	if state.loggingEnabled {
 		f.Logf("Final result:\n")
-		for slot, locList := range info.Variables {
-			f.Logf("\t%v => %v\n", state.slots[slot], locList)
+		for slot := range info.Slots {
+			f.Logf("\t%v => %v\n", info.Slots[slot], info.SlotLocsString(SlotID(slot)))
 		}
 	}
 	return info
@@ -338,7 +359,7 @@ func isSynthetic(slot *LocalSlot) bool {
 }
 
 // predecessorsDone reports whether block is ready to be processed.
-func (state *debugState) predecessorsDone(b *Block, blockLocs []*FuncDebug) bool {
+func (state *debugState) predecessorsDone(b *Block, blockLocs []*BlockDebug) bool {
 	f := b.Func
 	for _, edge := range b.Preds {
 		// Ignore back branches, e.g. the continuation of a for loop.
@@ -364,7 +385,7 @@ func (state *debugState) predecessorsDone(b *Block, blockLocs []*FuncDebug) bool
 // mergePredecessors takes the end state of each of b's predecessors and
 // intersects them to form the starting state for b.
 // The registers slice (the second return value) will be reused for each call to mergePredecessors.
-func (state *debugState) mergePredecessors(b *Block, blockLocs []*FuncDebug) *FuncDebug {
+func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) *BlockDebug {
 	live := make([]VarLocList, len(state.slots))
 
 	// Filter out back branches.
@@ -379,29 +400,23 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*FuncDebug) *Fu
 		p := preds[0]
 		for slot, locList := range blockLocs[p.ID].Variables {
 			last := locList.last()
-			if last == nil || !last.survivedBlock {
+			if last == nil || last.End != BlockEnd {
 				continue
 			}
-			// If this block is empty, carry forward the end value for liveness.
-			// It'll be ignored later.
-			start := last.End
-			if len(b.Values) != 0 {
-				start = b.Values[0]
-			}
 			loc := state.cache.NewVarLoc()
-			loc.Start = start
+			loc.Start = BlockStart
 			loc.OnStack = last.OnStack
 			loc.Registers = last.Registers
 			live[slot].append(loc)
 		}
 	}
 	if state.loggingEnabled && len(b.Preds) > 1 {
-		state.logf("Starting merge with state from %v: %v\n", b.Preds[0].b, blockLocs[b.Preds[0].b.ID])
+		state.logf("Starting merge with state from %v: %v\n", b.Preds[0].b, state.BlockString(blockLocs[b.Preds[0].b.ID]))
 	}
 	for i := 1; i < len(preds); i++ {
 		p := preds[i]
 		if state.loggingEnabled {
-			state.logf("Merging in state from %v: %v &= %v\n", p, live, blockLocs[p.ID])
+			state.logf("Merging in state from %v: %v &= %v\n", p, live, state.BlockString(blockLocs[p.ID]))
 		}
 
 		for slot, liveVar := range live {
@@ -410,9 +425,9 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*FuncDebug) *Fu
 				continue
 			}
 
-			predLoc := blockLocs[p.ID].lastLoc(SlotID(slot))
+			predLoc := blockLocs[p.ID].Variables[SlotID(slot)].last()
 			// Clear out slots missing/dead in p.
-			if predLoc == nil || !predLoc.survivedBlock {
+			if predLoc == nil || predLoc.End != BlockEnd {
 				live[slot].Locations = nil
 				continue
 			}
@@ -424,7 +439,10 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*FuncDebug) *Fu
 	}
 
 	// Create final result.
-	locs := &FuncDebug{Variables: live, Slots: state.slots}
+	locs := &BlockDebug{Variables: live}
+	if state.loggingEnabled {
+		locs.Block = b
+	}
 	for reg := range state.registerContents {
 		state.registerContents[reg] = state.registerContents[reg][:0]
 	}
@@ -444,7 +462,7 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*FuncDebug) *Fu
 
 // processValue updates locs and state.registerContents to reflect v, a value with
 // the names in vSlots and homed in vReg.
-func (state *debugState) processValue(locs *FuncDebug, v *Value, vSlots []SlotID, vReg *Register) {
+func (state *debugState) processValue(locs *BlockDebug, v *Value, vSlots []SlotID, vReg *Register) {
 	switch {
 	case v.Op == OpRegKill:
 		if state.loggingEnabled {
@@ -493,6 +511,10 @@ func (state *debugState) processValue(locs *FuncDebug, v *Value, vSlots []SlotID
 		}
 	case v.Op == OpArg:
 		for _, slot := range vSlots {
+			if last := locs.lastLoc(slot); last != nil {
+				state.unexpected(v, "Arg op on already-live slot %v", state.slots[slot])
+				last.End = v
+			}
 			if state.loggingEnabled {
 				state.logf("at %v: %v now on stack from arg\n", v.ID, state.slots[slot])
 			}
@@ -555,5 +577,4 @@ func (state *debugState) processValue(locs *FuncDebug, v *Value, vSlots []SlotID
 	default:
 		state.unexpected(v, "named value with no reg\n")
 	}
-
 }

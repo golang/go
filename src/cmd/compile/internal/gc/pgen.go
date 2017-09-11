@@ -338,7 +338,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
 	var dwarfVars []*dwarf.Var
 	var decls []*Node
 	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize {
-		decls, dwarfVars = createComplexVars(fn, debugInfo)
+		decls, dwarfVars = createComplexVars(fnsym, debugInfo)
 	} else {
 		decls, dwarfVars = createSimpleVars(automDecls)
 	}
@@ -413,37 +413,36 @@ func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var) {
 type varPart struct {
 	varOffset int64
 	slot      ssa.SlotID
-	locs      ssa.VarLocList
 }
 
-func createComplexVars(fn *Node, debugInfo *ssa.FuncDebug) ([]*Node, []*dwarf.Var) {
-	for _, locList := range debugInfo.Variables {
-		for _, loc := range locList.Locations {
-			if loc.StartProg != nil {
-				loc.StartPC = loc.StartProg.Pc
-			}
-			if loc.EndProg != nil {
-				loc.EndPC = loc.EndProg.Pc
-			}
-			if Debug_locationlist == 0 {
-				loc.EndProg = nil
-				loc.StartProg = nil
+func createComplexVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug) ([]*Node, []*dwarf.Var) {
+	for _, blockDebug := range debugInfo.Blocks {
+		for _, locList := range blockDebug.Variables {
+			for _, loc := range locList.Locations {
+				if loc.StartProg != nil {
+					loc.StartPC = loc.StartProg.Pc
+				}
+				if loc.EndProg != nil {
+					loc.EndPC = loc.EndProg.Pc
+				} else {
+					loc.EndPC = fnsym.Size
+				}
+				if Debug_locationlist == 0 {
+					loc.EndProg = nil
+					loc.StartProg = nil
+				}
 			}
 		}
 	}
 
 	// Group SSA variables by the user variable they were decomposed from.
 	varParts := map[*Node][]varPart{}
-	for slotID, locList := range debugInfo.Variables {
-		if len(locList.Locations) == 0 {
-			continue
-		}
-		slot := debugInfo.Slots[slotID]
+	for slotID, slot := range debugInfo.Slots {
 		for slot.SplitOf != nil {
 			slot = slot.SplitOf
 		}
 		n := slot.N.(*Node)
-		varParts[n] = append(varParts[n], varPart{varOffset(slot), ssa.SlotID(slotID), locList})
+		varParts[n] = append(varParts[n], varPart{varOffset(slot), ssa.SlotID(slotID)})
 	}
 
 	// Produce a DWARF variable entry for each user variable.
@@ -529,7 +528,7 @@ func createComplexVar(debugInfo *ssa.FuncDebug, n *Node, parts []varPart) *dwarf
 	if Debug_locationlist != 0 {
 		Ctxt.Logf("Building location list for %+v. Parts:\n", n)
 		for _, part := range parts {
-			Ctxt.Logf("\t%v => %v\n", debugInfo.Slots[part.slot], part.locs)
+			Ctxt.Logf("\t%v => %v\n", debugInfo.Slots[part.slot], debugInfo.SlotLocsString(part.slot))
 		}
 	}
 
@@ -553,18 +552,52 @@ func createComplexVar(debugInfo *ssa.FuncDebug, n *Node, parts []varPart) *dwarf
 	// - build the piece for the range between that transition point and the next
 	// - repeat
 
-	curLoc := make([]int, len(slots))
+	type locID struct {
+		block int
+		loc   int
+	}
+	findLoc := func(part varPart, id locID) *ssa.VarLoc {
+		if id.block >= len(debugInfo.Blocks) {
+			return nil
+		}
+		return debugInfo.Blocks[id.block].Variables[part.slot].Locations[id.loc]
+	}
+	nextLoc := func(part varPart, id locID) (locID, *ssa.VarLoc) {
+		// Check if there's another loc in this block
+		id.loc++
+		if b := debugInfo.Blocks[id.block]; b != nil && id.loc < len(b.Variables[part.slot].Locations) {
+			return id, findLoc(part, id)
+		}
+		// Find the next block that has a loc for this part.
+		id.loc = 0
+		id.block++
+		for ; id.block < len(debugInfo.Blocks); id.block++ {
+			if b := debugInfo.Blocks[id.block]; b != nil && len(b.Variables[part.slot].Locations) != 0 {
+				return id, findLoc(part, id)
+			}
+		}
+		return id, nil
+	}
+	curLoc := make([]locID, len(slots))
+	// Position each pointer at the first entry for its slot.
+	for _, part := range parts {
+		if b := debugInfo.Blocks[0]; b != nil && len(b.Variables[part.slot].Locations) != 0 {
+			// Block 0 has an entry; no need to advance.
+			continue
+		}
+		curLoc[part.slot], _ = nextLoc(part, curLoc[part.slot])
+	}
 
 	// findBoundaryAfter finds the next beginning or end of a piece after currentPC.
 	findBoundaryAfter := func(currentPC int64) int64 {
 		min := int64(math.MaxInt64)
-		for slot, part := range parts {
+		for _, part := range parts {
 			// For each part, find the first PC greater than current. Doesn't
 			// matter if it's a start or an end, since we're looking for any boundary.
 			// If it's the new winner, save it.
 		onePart:
-			for i := curLoc[slot]; i < len(part.locs.Locations); i++ {
-				for _, pc := range [2]int64{part.locs.Locations[i].StartPC, part.locs.Locations[i].EndPC} {
+			for i, loc := curLoc[part.slot], findLoc(part, curLoc[part.slot]); loc != nil; i, loc = nextLoc(part, i) {
+				for _, pc := range [2]int64{loc.StartPC, loc.EndPC} {
 					if pc > currentPC {
 						if pc < min {
 							min = pc
@@ -595,14 +628,14 @@ func createComplexVar(debugInfo *ssa.FuncDebug, n *Node, parts []varPart) *dwarf
 		// After this loop, if there's a location that covers [start, end), it will be current.
 		// Otherwise the current piece will be too early.
 		for _, part := range parts {
-			choice := -1
-			for i := curLoc[part.slot]; i < len(part.locs.Locations); i++ {
-				if part.locs.Locations[i].StartPC > start {
+			choice := locID{-1, -1}
+			for i, loc := curLoc[part.slot], findLoc(part, curLoc[part.slot]); loc != nil; i, loc = nextLoc(part, i) {
+				if loc.StartPC > start {
 					break //overshot
 				}
 				choice = i // best yet
 			}
-			if choice != -1 {
+			if choice.block != -1 {
 				curLoc[part.slot] = choice
 			}
 			if Debug_locationlist != 0 {
@@ -618,10 +651,8 @@ func createComplexVar(debugInfo *ssa.FuncDebug, n *Node, parts []varPart) *dwarf
 			dpiece := dwarf.Piece{
 				Length: slots[part.slot].Type.Size(),
 			}
-			locIdx := curLoc[part.slot]
-			if locIdx >= len(part.locs.Locations) ||
-				start >= part.locs.Locations[locIdx].EndPC ||
-				end <= part.locs.Locations[locIdx].StartPC {
+			loc := findLoc(part, curLoc[part.slot])
+			if loc == nil || start >= loc.EndPC || end <= loc.StartPC {
 				if Debug_locationlist != 0 {
 					Ctxt.Logf("\t%v: missing", slots[part.slot])
 				}
@@ -630,9 +661,8 @@ func createComplexVar(debugInfo *ssa.FuncDebug, n *Node, parts []varPart) *dwarf
 				continue
 			}
 			present++
-			loc := part.locs.Locations[locIdx]
 			if Debug_locationlist != 0 {
-				Ctxt.Logf("\t%v: %v", slots[part.slot], loc)
+				Ctxt.Logf("\t%v: %v", slots[part.slot], debugInfo.Blocks[curLoc[part.slot].block].LocString(loc))
 			}
 			if loc.OnStack {
 				dpiece.OnStack = true
