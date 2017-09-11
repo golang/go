@@ -3,8 +3,6 @@
 runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
 
 // reflect trampolines intentionally omit arg size. Same for morestack.
-reflect/asm_386.s: [386] makeFuncStub: use of 4(SP) points beyond argument frame
-reflect/asm_386.s: [386] methodValueCall: use of 4(SP) points beyond argument frame
 runtime/asm_386.s: [386] morestack: use of 4(SP) points beyond argument frame
 runtime/asm_386.s: [386] morestack: use of 8(SP) points beyond argument frame
 runtime/asm_386.s: [386] morestack: use of 4(SP) points beyond argument frame
