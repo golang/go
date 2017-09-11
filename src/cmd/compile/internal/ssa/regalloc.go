@@ -562,12 +562,6 @@ func (s *regAllocState) init(f *Func) {
 	if s.f.Config.ctxt.Framepointer_enabled && s.f.Config.FPReg >= 0 {
 		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
 	}
-	if s.f.Config.ctxt.Flag_shared {
-		switch s.f.Config.arch {
-		case "ppc64le": // R2 already reserved.
-			s.allocatable &^= 1 << 12 // R12
-		}
-	}
 	if s.f.Config.LinkReg != -1 {
 		if isLeaf(f) {
 			// Leaf functions don't save/restore the link register.
@@ -587,7 +581,7 @@ func (s *regAllocState) init(f *Func) {
 		case "arm":
 			s.allocatable &^= 1 << 9 // R9
 		case "ppc64le": // R2 already reserved.
-			s.allocatable &^= 1 << 12 // R12
+			// nothing to do
 		case "arm64":
 			// nothing to do?
 		case "386":
