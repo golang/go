@@ -169,6 +169,9 @@ func genOp() {
 				if v.reg.clobbers != 0 {
 					log.Fatalf("%s is rematerializeable and clobbers registers", v.name)
 				}
+				if v.clobberFlags {
+					log.Fatalf("%s is rematerializeable and clobbers flags", v.name)
+				}
 				fmt.Fprintln(w, "rematerializeable: true,")
 			}
 			if v.commutative {
