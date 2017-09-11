@@ -122,9 +122,11 @@ func (c *ctxtz) rewriteToUseGot(p *obj.Prog) {
 	// We only care about global data: NAME_EXTERN means a global
 	// symbol in the Go sense, and p.Sym.Local is true for a few
 	// internally defined symbols.
+	// Rewrites must not clobber flags and therefore cannot use the
+	// ADD instruction.
 	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
 		// MOVD $sym, Rx becomes MOVD sym@GOT, Rx
-		// MOVD $sym+<off>, Rx becomes MOVD sym@GOT, Rx; ADD <off>, Rx
+		// MOVD $sym+<off>, Rx becomes MOVD sym@GOT, Rx; MOVD $<off>(Rx or REGTMP2), Rx
 		if p.To.Type != obj.TYPE_REG || p.As != AMOVD {
 			c.ctxt.Diag("do not know how to handle LEA-type insn to non-register in %v with -dynlink", p)
 		}
@@ -132,11 +134,19 @@ func (c *ctxtz) rewriteToUseGot(p *obj.Prog) {
 		p.From.Name = obj.NAME_GOTREF
 		q := p
 		if p.From.Offset != 0 {
-			q = obj.Appendp(p, c.newprog)
-			q.As = AADD
-			q.From.Type = obj.TYPE_CONST
+			target := p.To.Reg
+			if target == REG_R0 {
+				// Cannot use R0 as input to address calculation.
+				// REGTMP might be used by the assembler.
+				p.To.Reg = REGTMP2
+			}
+			q = obj.Appendp(q, c.newprog)
+			q.As = AMOVD
+			q.From.Type = obj.TYPE_ADDR
 			q.From.Offset = p.From.Offset
-			q.To = p.To
+			q.From.Reg = p.To.Reg
+			q.To.Type = obj.TYPE_REG
+			q.To.Reg = target
 			p.From.Offset = 0
 		}
 	}
