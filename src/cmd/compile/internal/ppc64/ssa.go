@@ -1088,17 +1088,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = ppc64.REG_CTR
 
-		if gc.Ctxt.Flag_shared && p.From.Reg != ppc64.REG_R12 {
-			// Make sure function pointer is in R12 as well when
-			// compiling Go into PIC.
-			// TODO(mwhudson): it would obviously be better to
-			// change the register allocation to put the value in
-			// R12 already, but I don't know how to do that.
-			// TODO: We have the technology now to implement TODO above.
-			q := s.Prog(ppc64.AMOVD)
-			q.From = p.From
-			q.To.Type = obj.TYPE_REG
-			q.To.Reg = ppc64.REG_R12
+		if v.Args[0].Reg() != ppc64.REG_R12 {
+			v.Fatalf("Function address for %v should be in R12 %d but is in %d", v.LongString(), ppc64.REG_R12, p.From.Reg)
 		}
 
 		pp := s.Call(v)
