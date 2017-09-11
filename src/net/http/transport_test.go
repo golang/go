@@ -124,6 +124,34 @@ func (tcs *testConnSet) check(t *testing.T) {
 	}
 }
 
+func TestReuseRequest(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Write([]byte("{}"))
+	}))
+	defer ts.Close()
+
+	c := ts.Client()
+	req, _ := NewRequest("GET", ts.URL, nil)
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err = c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Two subsequent requests and verify their response is the same.
 // The response from the server is our own IP:port
 func TestTransportKeepAlives(t *testing.T) {
