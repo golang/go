@@ -940,7 +940,7 @@ var vcsPaths = []*vcsPath{
 	// chiselapp.com for fossil
 	{
 		prefix: "chiselapp.com",
-		re:     `^(?P<root>chiselapp\.com/user/[A-Za-z0-9]+/repository/[A-za-z0-9_.\-]+)$`,
+		re:     `^(?P<root>chiselapp\.com/user/[A-Za-z0-9]+/repository/[A-Za-z0-9_.\-]+)$`,
 		vcs:    "fossil",
 		repo:   "https://{root}",
 	},
