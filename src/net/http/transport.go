@@ -1616,6 +1616,7 @@ func (pc *persistConn) readLoop() {
 			body: resp.Body,
 			earlyCloseFn: func() error {
 				waitForBodyRead <- false
+				<-eofc // will be closed by deferred call at the end of the function
 				return nil
 
 			},
