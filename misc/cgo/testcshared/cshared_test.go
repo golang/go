@@ -285,7 +285,7 @@ func TestExportedSymbols(t *testing.T) {
 
 	defer os.Remove(cmd)
 
-	out := run(t, append(gopathEnv, "LD_LIBRARY_PATH=."), cmdToRun(cmd))
+	out := runExe(t, append(gopathEnv, "LD_LIBRARY_PATH=."), cmdToRun(cmd))
 	if strings.TrimSpace(out) != "PASS" {
 		t.Error(out)
 	}
@@ -337,7 +337,7 @@ func TestUnexportedSymbols(t *testing.T) {
 	defer os.Remove(libname)
 	defer os.Remove(cmd)
 
-	out := run(t, append(gopathEnv, "LD_LIBRARY_PATH=."), cmdToRun(cmd))
+	out := runExe(t, append(gopathEnv, "LD_LIBRARY_PATH=."), cmdToRun(cmd))
 
 	if strings.TrimSpace(out) != "PASS" {
 		t.Error(out)
