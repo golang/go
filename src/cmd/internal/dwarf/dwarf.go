@@ -821,6 +821,18 @@ func putscope(ctxt Context, info, loc, ranges, startPC Sym, curscope int32, scop
 func putvar(ctxt Context, info, loc Sym, v *Var, startPC Sym, encbuf []byte) {
 	n := v.Name
 
+	// If the variable was entirely optimized out, don't emit a location list;
+	// convert to an inline abbreviation and emit an empty location.
+	missing := false
+	switch {
+	case v.Abbrev == DW_ABRV_AUTO_LOCLIST && len(v.LocationList) == 0:
+		missing = true
+		v.Abbrev = DW_ABRV_AUTO
+	case v.Abbrev == DW_ABRV_PARAM_LOCLIST && len(v.LocationList) == 0:
+		missing = true
+		v.Abbrev = DW_ABRV_PARAM
+	}
+
 	Uleb128put(ctxt, info, int64(v.Abbrev))
 	putattr(ctxt, info, v.Abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
 	putattr(ctxt, info, v.Abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
@@ -829,13 +841,15 @@ func putvar(ctxt Context, info, loc Sym, v *Var, startPC Sym, encbuf []byte) {
 		addLocList(ctxt, loc, startPC, v, encbuf)
 	} else {
 		loc := encbuf[:0]
-		if v.StackOffset == 0 {
+		switch {
+		case missing:
+			break // no location
+		case v.StackOffset == 0:
 			loc = append(loc, DW_OP_call_frame_cfa)
-		} else {
+		default:
 			loc = append(loc, DW_OP_fbreg)
 			loc = AppendSleb128(loc, int64(v.StackOffset))
 		}
-
 		putattr(ctxt, info, v.Abbrev, DW_FORM_block1, DW_CLS_BLOCK, int64(len(loc)), loc)
 	}
 	putattr(ctxt, info, v.Abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)

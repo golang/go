@@ -4492,16 +4492,35 @@ func genssa(f *ssa.Func, pp *Progs) {
 	}
 
 	if Ctxt.Flag_locationlists {
-		for _, locList := range e.curfn.Func.DebugInfo.Variables {
-			for _, loc := range locList.Locations {
-				loc.StartProg = valueToProg[loc.Start.ID]
-				if loc.End == nil {
-					Fatalf("empty loc %v compiling %v", loc, f.Name)
-				}
-				loc.EndProg = valueToProg[loc.End.ID]
-				if !logLocationLists {
-					loc.Start = nil
-					loc.End = nil
+		for i := range f.Blocks {
+			blockDebug := e.curfn.Func.DebugInfo.Blocks[i]
+			for _, locList := range blockDebug.Variables {
+				for _, loc := range locList.Locations {
+					if loc.Start == ssa.BlockStart {
+						loc.StartProg = s.bstart[f.Blocks[i].ID]
+					} else {
+						loc.StartProg = valueToProg[loc.Start.ID]
+					}
+					if loc.End == nil {
+						Fatalf("empty loc %v compiling %v", loc, f.Name)
+					}
+
+					if loc.End == ssa.BlockEnd {
+						// If this variable was live at the end of the block, it should be
+						// live over the control flow instructions. Extend it up to the
+						// beginning of the next block.
+						// If this is the last block, then there's no Prog to use for it, and
+						// EndProg is unset.
+						if i < len(f.Blocks)-1 {
+							loc.EndProg = s.bstart[f.Blocks[i+1].ID]
+						}
+					} else {
+						loc.EndProg = valueToProg[loc.End.ID]
+					}
+					if !logLocationLists {
+						loc.Start = nil
+						loc.End = nil
+					}
 				}
 			}
 		}
