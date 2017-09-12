@@ -947,11 +947,7 @@ func (p *importer) node() *Node {
 	// 	unreachable - should have been resolved by typechecking
 
 	case OTYPE:
-		pos := p.pos()
-		if p.bool() {
-			return npos(pos, mkname(p.sym()))
-		}
-		return npos(pos, typenod(p.typ()))
+		return npos(p.pos(), typenod(p.typ()))
 
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
 	//      unreachable - should have been resolved by typechecking
