@@ -157,7 +157,7 @@ func caninl(fn *Node) {
 		return
 	}
 	if visitor.budget < 0 {
-		reason = "function too complex"
+		reason = fmt.Sprintf("function too complex: cost %d exceeds budget %d", maxBudget-visitor.budget, maxBudget)
 		return
 	}
 
@@ -297,8 +297,8 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		v.budget -= 2
 	}
 
-	if v.budget < 0 {
-		v.reason = "function too complex"
+	// When debugging, don't stop early, to get full cost of inlining this function
+	if v.budget < 0 && Debug['m'] < 2 {
 		return true
 	}
 
