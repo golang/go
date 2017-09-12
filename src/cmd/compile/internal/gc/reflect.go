@@ -1165,19 +1165,17 @@ func dtypesym(t *types.Type) *types.Sym {
 		dupok = obj.DUPOK
 	}
 
-	if myimportpath == "runtime" && (tbase == types.Types[tbase.Etype] || tbase == types.Bytetype || tbase == types.Runetype || tbase == types.Errortype) { // int, float, etc
-		goto ok
+	if myimportpath != "runtime" || (tbase != types.Types[tbase.Etype] && tbase != types.Bytetype && tbase != types.Runetype && tbase != types.Errortype) { // int, float, etc
+		// named types from other files are defined only by those files
+		if tbase.Sym != nil && !tbase.Local() {
+			return s
+		}
+		// TODO(mdempsky): Investigate whether this can happen.
+		if isforw[tbase.Etype] {
+			return s
+		}
 	}
 
-	// named types from other files are defined only by those files
-	if tbase.Sym != nil && !tbase.Local() {
-		return s
-	}
-	if isforw[tbase.Etype] {
-		return s
-	}
-
-ok:
 	ot := 0
 	lsym := s.Linksym()
 	switch t.Etype {

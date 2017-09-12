@@ -621,6 +621,7 @@ func typecheck1(n *Node, top int) *Node {
 			// the only conversion that isn't a no-op is concrete == interface.
 			// in that case, check comparability of the concrete type.
 			// The conversion allocates, so only do it if the concrete type is huge.
+			converted := false
 			if r.Type.Etype != TBLANK {
 				aop = assignop(l.Type, r.Type, nil)
 				if aop != 0 {
@@ -639,11 +640,11 @@ func typecheck1(n *Node, top int) *Node {
 					}
 
 					t = r.Type
-					goto converted
+					converted = true
 				}
 			}
 
-			if l.Type.Etype != TBLANK {
+			if !converted && l.Type.Etype != TBLANK {
 				aop = assignop(r.Type, l.Type, nil)
 				if aop != 0 {
 					if l.Type.IsInterface() && !r.Type.IsInterface() && !IsComparable(r.Type) {
@@ -664,7 +665,6 @@ func typecheck1(n *Node, top int) *Node {
 				}
 			}
 
-		converted:
 			et = t.Etype
 		}
 

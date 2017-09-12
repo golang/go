@@ -1847,11 +1847,12 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 	// and then do one loop.
 
 	if t.IsInterface() {
+	Outer:
 		for _, im := range iface.Fields().Slice() {
 			for _, tm := range t.Fields().Slice() {
 				if tm.Sym == im.Sym {
 					if eqtype(tm.Type, im.Type) {
-						goto found
+						continue Outer
 					}
 					*m = im
 					*samename = tm
@@ -1864,7 +1865,6 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 			*samename = nil
 			*ptr = 0
 			return false
-		found:
 		}
 
 		return true
