@@ -13,6 +13,6 @@ import (
 
 func a() {
 	fmt.Println("Hello, world!")
-	C.function_that_does_not_exist() // line 16
-	C.pi                             // line 17
+	C.function_that_does_not_exist() // ERROR HERE
+	C.pi                             // ERROR HERE
 }

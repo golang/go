@@ -4,20 +4,18 @@
 
 // Tests that cgo detects invalid pointer passing at runtime.
 
-package main
+package errorstest
 
 import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"sync"
+	"testing"
 )
 
 // ptrTest is the tests without the boilerplate.
@@ -353,219 +351,145 @@ var ptrTests = []ptrTest{
 	},
 }
 
-func main() {
-	os.Exit(doTests())
+func TestPointerChecks(t *testing.T) {
+	for _, pt := range ptrTests {
+		pt := pt
+		t.Run(pt.name, func(t *testing.T) {
+			testOne(t, pt)
+		})
+	}
 }
 
-func doTests() int {
-	gopath, err := ioutil.TempDir("", "cgoerrors")
+func testOne(t *testing.T, pt ptrTest) {
+	t.Parallel()
+
+	gopath, err := ioutil.TempDir("", filepath.Base(t.Name()))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 2
+		t.Fatal(err)
 	}
 	defer os.RemoveAll(gopath)
 
-	if err := os.MkdirAll(filepath.Join(gopath, "src"), 0777); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 2
+	src := filepath.Join(gopath, "src")
+	if err := os.Mkdir(src, 0777); err != nil {
+		t.Fatal(err)
 	}
 
-	workers := runtime.NumCPU() + 1
-
-	var wg sync.WaitGroup
-	c := make(chan int)
-	errs := make(chan int)
-	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go func() {
-			worker(gopath, c, errs)
-			wg.Done()
-		}()
-	}
-
-	for i := range ptrTests {
-		c <- i
-	}
-	close(c)
-
-	go func() {
-		wg.Wait()
-		close(errs)
-	}()
-
-	tot := 0
-	for e := range errs {
-		tot += e
-	}
-	return tot
-}
-
-func worker(gopath string, c, errs chan int) {
-	e := 0
-	for i := range c {
-		if !doOne(gopath, i) {
-			e++
-		}
-	}
-	if e > 0 {
-		errs <- e
-	}
-}
-
-func doOne(gopath string, i int) bool {
-	t := &ptrTests[i]
-
-	dir := filepath.Join(gopath, "src", fmt.Sprintf("dir%d", i))
-	if err := os.Mkdir(dir, 0777); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return false
-	}
-
-	name := filepath.Join(dir, fmt.Sprintf("t%d.go", i))
+	name := filepath.Join(src, fmt.Sprintf("%s.go", filepath.Base(t.Name())))
 	f, err := os.Create(name)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return false
+		t.Fatal(err)
 	}
 
 	b := bufio.NewWriter(f)
 	fmt.Fprintln(b, `package main`)
 	fmt.Fprintln(b)
 	fmt.Fprintln(b, `/*`)
-	fmt.Fprintln(b, t.c)
+	fmt.Fprintln(b, pt.c)
 	fmt.Fprintln(b, `*/`)
 	fmt.Fprintln(b, `import "C"`)
 	fmt.Fprintln(b)
-	for _, imp := range t.imports {
+	for _, imp := range pt.imports {
 		fmt.Fprintln(b, `import "`+imp+`"`)
 	}
-	if len(t.imports) > 0 {
+	if len(pt.imports) > 0 {
 		fmt.Fprintln(b)
 	}
-	if len(t.support) > 0 {
-		fmt.Fprintln(b, t.support)
+	if len(pt.support) > 0 {
+		fmt.Fprintln(b, pt.support)
 		fmt.Fprintln(b)
 	}
 	fmt.Fprintln(b, `func main() {`)
-	fmt.Fprintln(b, t.body)
+	fmt.Fprintln(b, pt.body)
 	fmt.Fprintln(b, `}`)
 
 	if err := b.Flush(); err != nil {
-		fmt.Fprintf(os.Stderr, "flushing %s: %v\n", name, err)
-		return false
+		t.Fatalf("flushing %s: %v", name, err)
 	}
 	if err := f.Close(); err != nil {
-		fmt.Fprintf(os.Stderr, "closing %s: %v\n", name, err)
-		return false
+		t.Fatalf("closing %s: %v", name, err)
 	}
 
-	for _, e := range t.extra {
-		if err := ioutil.WriteFile(filepath.Join(dir, e.name), []byte(e.contents), 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "writing %s: %v\n", e.name, err)
-			return false
+	for _, e := range pt.extra {
+		if err := ioutil.WriteFile(filepath.Join(src, e.name), []byte(e.contents), 0644); err != nil {
+			t.Fatalf("writing %s: %v", e.name, err)
 		}
 	}
 
-	ok := true
+	args := func(cmd *exec.Cmd) string {
+		return strings.Join(cmd.Args, " ")
+	}
 
 	cmd := exec.Command("go", "build")
-	cmd.Dir = dir
+	cmd.Dir = src
 	cmd.Env = addEnv("GOPATH", gopath)
 	buf, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "test %s failed to build: %v\n%s", t.name, err, buf)
-		return false
+		t.Logf("%#q:\n%s", args(cmd), buf)
+		t.Fatalf("failed to build: %v", err)
 	}
 
-	exe := filepath.Join(dir, filepath.Base(dir))
+	exe := filepath.Join(src, filepath.Base(src))
 	cmd = exec.Command(exe)
-	cmd.Dir = dir
+	cmd.Dir = src
 
-	if t.expensive {
+	if pt.expensive {
 		cmd.Env = cgocheckEnv("1")
 		buf, err := cmd.CombinedOutput()
 		if err != nil {
-			var errbuf bytes.Buffer
-			if t.fail {
-				fmt.Fprintf(&errbuf, "test %s marked expensive but failed when not expensive: %v\n", t.name, err)
+			t.Logf("%#q:\n%s", args(cmd), buf)
+			if pt.fail {
+				t.Fatalf("test marked expensive, but failed when not expensive: %v", err)
 			} else {
-				fmt.Fprintf(&errbuf, "test %s failed unexpectedly with GODEBUG=cgocheck=1: %v\n", t.name, err)
+				t.Errorf("failed unexpectedly with GODEBUG=cgocheck=1: %v", err)
 			}
-			reportTestOutput(&errbuf, t.name, buf)
-			os.Stderr.Write(errbuf.Bytes())
-			ok = false
 		}
 
 		cmd = exec.Command(exe)
-		cmd.Dir = dir
+		cmd.Dir = src
 	}
 
-	if t.expensive {
+	if pt.expensive {
 		cmd.Env = cgocheckEnv("2")
 	}
 
 	buf, err = cmd.CombinedOutput()
-
-	if t.fail {
+	if pt.fail {
 		if err == nil {
-			var errbuf bytes.Buffer
-			fmt.Fprintf(&errbuf, "test %s did not fail as expected\n", t.name)
-			reportTestOutput(&errbuf, t.name, buf)
-			os.Stderr.Write(errbuf.Bytes())
-			ok = false
+			t.Logf("%#q:\n%s", args(cmd), buf)
+			t.Fatalf("did not fail as expected")
 		} else if !bytes.Contains(buf, []byte("Go pointer")) {
-			var errbuf bytes.Buffer
-			fmt.Fprintf(&errbuf, "test %s output does not contain expected error (failed with %v)\n", t.name, err)
-			reportTestOutput(&errbuf, t.name, buf)
-			os.Stderr.Write(errbuf.Bytes())
-			ok = false
+			t.Logf("%#q:\n%s", args(cmd), buf)
+			t.Fatalf("did not print expected error (failed with %v)", err)
 		}
 	} else {
 		if err != nil {
-			var errbuf bytes.Buffer
-			fmt.Fprintf(&errbuf, "test %s failed unexpectedly: %v\n", t.name, err)
-			reportTestOutput(&errbuf, t.name, buf)
-			os.Stderr.Write(errbuf.Bytes())
-			ok = false
+			t.Logf("%#q:\n%s", args(cmd), buf)
+			t.Fatalf("failed unexpectedly: %v", err)
 		}
 
-		if !t.expensive && ok {
+		if !pt.expensive {
 			// Make sure it passes with the expensive checks.
 			cmd := exec.Command(exe)
-			cmd.Dir = dir
+			cmd.Dir = src
 			cmd.Env = cgocheckEnv("2")
 			buf, err := cmd.CombinedOutput()
 			if err != nil {
-				var errbuf bytes.Buffer
-				fmt.Fprintf(&errbuf, "test %s failed unexpectedly with expensive checks: %v\n", t.name, err)
-				reportTestOutput(&errbuf, t.name, buf)
-				os.Stderr.Write(errbuf.Bytes())
-				ok = false
+				t.Logf("%#q:\n%s", args(cmd), buf)
+				t.Fatalf("failed unexpectedly with expensive checks: %v", err)
 			}
 		}
 	}
 
-	if t.fail && ok {
+	if pt.fail {
 		cmd = exec.Command(exe)
-		cmd.Dir = dir
+		cmd.Dir = src
 		cmd.Env = cgocheckEnv("0")
 		buf, err := cmd.CombinedOutput()
 		if err != nil {
-			var errbuf bytes.Buffer
-			fmt.Fprintf(&errbuf, "test %s failed unexpectedly with GODEBUG=cgocheck=0: %v\n", t.name, err)
-			reportTestOutput(&errbuf, t.name, buf)
-			os.Stderr.Write(errbuf.Bytes())
-			ok = false
+			t.Logf("%#q:\n%s", args(cmd), buf)
+			t.Fatalf("failed unexpectedly with GODEBUG=cgocheck=0: %v", err)
 		}
 	}
-
-	return ok
-}
-
-func reportTestOutput(w io.Writer, name string, buf []byte) {
-	fmt.Fprintf(w, "=== test %s output ===\n", name)
-	fmt.Fprintf(w, "%s", buf)
-	fmt.Fprintf(w, "=== end of test %s output ===\n", name)
 }
 
 func cgocheckEnv(val string) []string {
