@@ -1227,11 +1227,7 @@ func (p *exporter) expr(n *Node) {
 	case OTYPE:
 		p.op(OTYPE)
 		p.pos(n)
-		if p.bool(n.Type == nil) {
-			p.sym(n)
-		} else {
-			p.typ(n.Type)
-		}
+		p.typ(n.Type)
 
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
 	// 	should have been resolved by typechecking - handled by default case
