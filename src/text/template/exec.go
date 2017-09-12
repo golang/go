@@ -927,29 +927,6 @@ func printableValue(v reflect.Value) (interface{}, bool) {
 	return v.Interface(), true
 }
 
-// Types to help sort the keys in a map for reproducible output.
-
-type rvs []reflect.Value
-
-func (x rvs) Len() int      { return len(x) }
-func (x rvs) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-
-type rvInts struct{ rvs }
-
-func (x rvInts) Less(i, j int) bool { return x.rvs[i].Int() < x.rvs[j].Int() }
-
-type rvUints struct{ rvs }
-
-func (x rvUints) Less(i, j int) bool { return x.rvs[i].Uint() < x.rvs[j].Uint() }
-
-type rvFloats struct{ rvs }
-
-func (x rvFloats) Less(i, j int) bool { return x.rvs[i].Float() < x.rvs[j].Float() }
-
-type rvStrings struct{ rvs }
-
-func (x rvStrings) Less(i, j int) bool { return x.rvs[i].String() < x.rvs[j].String() }
-
 // sortKeys sorts (if it can) the slice of reflect.Values, which is a slice of map keys.
 func sortKeys(v []reflect.Value) []reflect.Value {
 	if len(v) <= 1 {
@@ -957,13 +934,21 @@ func sortKeys(v []reflect.Value) []reflect.Value {
 	}
 	switch v[0].Kind() {
 	case reflect.Float32, reflect.Float64:
-		sort.Sort(rvFloats{v})
+		sort.Slice(v, func(i, j int) bool {
+			return v[i].Float() < v[j].Float()
+		})
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		sort.Sort(rvInts{v})
+		sort.Slice(v, func(i, j int) bool {
+			return v[i].Int() < v[j].Int()
+		})
 	case reflect.String:
-		sort.Sort(rvStrings{v})
+		sort.Slice(v, func(i, j int) bool {
+			return v[i].String() < v[j].String()
+		})
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		sort.Sort(rvUints{v})
+		sort.Slice(v, func(i, j int) bool {
+			return v[i].Uint() < v[j].Uint()
+		})
 	}
 	return v
 }

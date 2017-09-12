@@ -319,7 +319,15 @@ func (p *Profile) WriteTo(w io.Writer, debug int) error {
 	p.mu.Unlock()
 
 	// Map order is non-deterministic; make output deterministic.
-	sort.Sort(stackProfile(all))
+	sort.Slice(all, func(i, j int) bool {
+		t, u := all[i], all[j]
+		for k := 0; k < len(t) && k < len(u); k++ {
+			if t[k] != u[k] {
+				return t[k] < u[k]
+			}
+		}
+		return len(t) < len(u)
+	})
 
 	return printCountProfile(w, debug, p.name, stackProfile(all))
 }
@@ -328,16 +336,6 @@ type stackProfile [][]uintptr
 
 func (x stackProfile) Len() int              { return len(x) }
 func (x stackProfile) Stack(i int) []uintptr { return x[i] }
-func (x stackProfile) Swap(i, j int)         { x[i], x[j] = x[j], x[i] }
-func (x stackProfile) Less(i, j int) bool {
-	t, u := x[i], x[j]
-	for k := 0; k < len(t) && k < len(u); k++ {
-		if t[k] != u[k] {
-			return t[k] < u[k]
-		}
-	}
-	return len(t) < len(u)
-}
 
 // A countProfile is a set of stack traces to be printed as counts
 // grouped by stack trace. There are multiple implementations:
