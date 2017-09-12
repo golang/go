@@ -160,6 +160,7 @@ func (p *cpuProfile) addExtra() {
 			funcPC(_ExternalCode) + sys.PCQuantum,
 		}
 		cpuprof.log.write(nil, 0, hdr[:], lostStk[:])
+		p.lostExtra = 0
 	}
 }
 
