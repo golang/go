@@ -10,5 +10,5 @@ import "C"
 
 func main() {
 	var x C.ushort
-	x = int(0) // ERROR HERE
+	x = int(0) // ERROR HERE: C\.ushort
 }
