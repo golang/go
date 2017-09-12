@@ -57,18 +57,24 @@
 (Div64F x y) -> (FDIV x y)
 
 // Lowering float <-> int
-(Cvt32to32F x) -> (FRSP (FCFID (Xi2f64 (SignExt32to64 x))))
-(Cvt32to64F x) -> (FCFID (Xi2f64 (SignExt32to64 x)))
-(Cvt64to32F x) -> (FRSP (FCFID (Xi2f64 x)))
-(Cvt64to64F x) -> (FCFID (Xi2f64 x))
+(Cvt32to32F x) -> (FCFIDS (MTVSRD (SignExt32to64 x)))
+(Cvt32to64F x) -> (FCFID (MTVSRD (SignExt32to64 x)))
+(Cvt64to32F x) -> (FCFIDS (MTVSRD x))
+(Cvt64to64F x) -> (FCFID (MTVSRD x))
 
-(Cvt32Fto32 x) -> (Xf2i64 (FCTIWZ x))
-(Cvt32Fto64 x) -> (Xf2i64 (FCTIDZ x))
-(Cvt64Fto32 x) -> (Xf2i64 (FCTIWZ x))
-(Cvt64Fto64 x) -> (Xf2i64 (FCTIDZ x))
+(Cvt32Fto32 x) -> (MFVSRD (FCTIWZ x))
+(Cvt32Fto64 x) -> (MFVSRD (FCTIDZ x))
+(Cvt64Fto32 x) -> (MFVSRD (FCTIWZ x))
+(Cvt64Fto64 x) -> (MFVSRD (FCTIDZ x))
 
 (Cvt32Fto64F x) -> x // Note x will have the wrong type for patterns dependent on Float32/Float64
 (Cvt64Fto32F x) -> (FRSP x)
+
+(MOVDload [off] {sym} ptr (FMOVDstore [off] {sym} ptr x _)) -> (MFVSRD x)
+(FMOVDload [off] {sym} ptr (MOVDstore [off] {sym} ptr x _)) -> (MTVSRD x)
+
+(FMOVDstore [off] {sym} ptr (MTVSRD x) mem) -> (MOVDstore [off] {sym} ptr x mem)
+(MOVDstore [off] {sym} ptr (MFVSRD x) mem) -> (FMOVDstore [off] {sym} ptr x mem)
 
 (Round32F x) -> (LoweredRound32F x)
 (Round64F x) -> (LoweredRound64F x)

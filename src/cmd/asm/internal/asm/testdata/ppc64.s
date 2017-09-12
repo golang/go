@@ -550,6 +550,14 @@ label1:
 //	ftsqrt	BF, FRB
 	FTSQRT	F2,$7
 
+//	FCFID	
+//	FCFIDS
+
+	FCFID	F2,F3
+	FCFIDCC	F3,F3
+	FCFIDS	F2,F3
+	FCFIDSCC F2,F3
+
 //
 // CMP
 //
