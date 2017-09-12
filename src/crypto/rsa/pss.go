@@ -198,6 +198,22 @@ func signPSSWithSalt(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed,
 	if err != nil {
 		return
 	}
+
+	if boring.Enabled {
+		boringFakeRandomBlind(rand, priv)
+		bkey, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, err
+		}
+		// Note: BoringCrypto takes care of the "AndCheck" part of "decryptAndCheck".
+		// (It's not just decrypt.)
+		s, err := boring.DecryptRSANoPadding(bkey, em)
+		if err != nil {
+			return nil, err
+		}
+		return s, nil
+	}
+
 	m := new(big.Int).SetBytes(em)
 	c, err := decryptAndCheck(rand, priv, m)
 	if err != nil {
@@ -260,7 +276,7 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte, 
 		hash = opts.Hash
 	}
 
-	if boring.Enabled {
+	if boring.Enabled && rand == boring.RandReader {
 		bkey, err := boringPrivateKey(priv)
 		if err != nil {
 			return nil, err
