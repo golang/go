@@ -142,7 +142,7 @@ func (tb *timersBucket) addtimerLocked(t *timer) {
 	}
 	t.i = len(tb.t)
 	tb.t = append(tb.t, t)
-	tb.siftupTimer(t.i)
+	siftupTimer(tb.t, t.i)
 	if t.i == 0 {
 		// siftup moved to top: new earliest deadline.
 		if tb.sleeping {
@@ -182,8 +182,8 @@ func deltimer(t *timer) bool {
 	tb.t[last] = nil
 	tb.t = tb.t[:last]
 	if i != last {
-		tb.siftupTimer(i)
-		tb.siftdownTimer(i)
+		siftupTimer(tb.t, i)
+		siftdownTimer(tb.t, i)
 	}
 	unlock(&tb.lock)
 	return true
@@ -212,7 +212,7 @@ func timerproc(tb *timersBucket) {
 			if t.period > 0 {
 				// leave in heap but adjust next time to fire
 				t.when += t.period * (1 + -delta/t.period)
-				tb.siftdownTimer(0)
+				siftdownTimer(tb.t, 0)
 			} else {
 				// remove from heap
 				last := len(tb.t) - 1
@@ -223,7 +223,7 @@ func timerproc(tb *timersBucket) {
 				tb.t[last] = nil
 				tb.t = tb.t[:last]
 				if last > 0 {
-					tb.siftdownTimer(0)
+					siftdownTimer(tb.t, 0)
 				}
 				t.i = -1 // mark as removed
 			}
@@ -317,8 +317,7 @@ func timeSleepUntil() int64 {
 
 // Heap maintenance algorithms.
 
-func (tb *timersBucket) siftupTimer(i int) {
-	t := tb.t
+func siftupTimer(t []*timer, i int) {
 	when := t[i].when
 	tmp := t[i]
 	for i > 0 {
@@ -328,14 +327,15 @@ func (tb *timersBucket) siftupTimer(i int) {
 		}
 		t[i] = t[p]
 		t[i].i = i
-		t[p] = tmp
-		t[p].i = p
 		i = p
+	}
+	if tmp != t[i] {
+		t[i] = tmp
+		t[i].i = i
 	}
 }
 
-func (tb *timersBucket) siftdownTimer(i int) {
-	t := tb.t
+func siftdownTimer(t []*timer, i int) {
 	n := len(t)
 	when := t[i].when
 	tmp := t[i]
@@ -366,9 +366,11 @@ func (tb *timersBucket) siftdownTimer(i int) {
 		}
 		t[i] = t[c]
 		t[i].i = i
-		t[c] = tmp
-		t[c].i = c
 		i = c
+	}
+	if tmp != t[i] {
+		t[i] = tmp
+		t[i].i = i
 	}
 }
 
