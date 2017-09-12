@@ -190,7 +190,10 @@ func NewMethodSet(T Type) *MethodSet {
 			list = append(list, m)
 		}
 	}
-	sort.Sort(byUniqueName(list))
+	// sort by unique name
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].obj.Id() < list[j].obj.Id()
+	})
 	return &MethodSet{list}
 }
 
@@ -257,10 +260,3 @@ func ptrRecv(f *Func) bool {
 	_, isPtr := deref(f.typ.(*Signature).recv.typ)
 	return isPtr
 }
-
-// byUniqueName function lists can be sorted by their unique names.
-type byUniqueName []*Selection
-
-func (a byUniqueName) Len() int           { return len(a) }
-func (a byUniqueName) Less(i, j int) bool { return a[i].obj.Id() < a[j].obj.Id() }
-func (a byUniqueName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
