@@ -201,7 +201,22 @@ func (priv *PrivateKey) Validate() error {
 // GenerateKey generates an RSA keypair of the given bit size using the
 // random source random (for example, crypto/rand.Reader).
 func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
-	if boring.Enabled && (bits == 2048 || bits == 3072) {
+	return GenerateMultiPrimeKey(random, 2, bits)
+}
+
+// GenerateMultiPrimeKey generates a multi-prime RSA keypair of the given bit
+// size and the given random source, as suggested in [1]. Although the public
+// keys are compatible (actually, indistinguishable) from the 2-prime case,
+// the private keys are not. Thus it may not be possible to export multi-prime
+// private keys in certain formats or to subsequently import them into other
+// code.
+//
+// Table 1 in [2] suggests maximum numbers of primes for a given size.
+//
+// [1] US patent 4405829 (1972, expired)
+// [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
+func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
+	if boring.Enabled && random == boring.RandReader && nprimes == 2 && (bits == 2048 || bits == 3072) {
 		N, E, D, P, Q, Dp, Dq, Qinv, err := boring.GenerateKeyRSA(bits)
 		if err != nil {
 			return nil, err
@@ -226,21 +241,6 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 		return key, nil
 	}
 
-	return GenerateMultiPrimeKey(random, 2, bits)
-}
-
-// GenerateMultiPrimeKey generates a multi-prime RSA keypair of the given bit
-// size and the given random source, as suggested in [1]. Although the public
-// keys are compatible (actually, indistinguishable) from the 2-prime case,
-// the private keys are not. Thus it may not be possible to export multi-prime
-// private keys in certain formats or to subsequently import them into other
-// code.
-//
-// Table 1 in [2] suggests maximum numbers of primes for a given size.
-//
-// [1] US patent 4405829 (1972, expired)
-// [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
-func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
 	priv := new(PrivateKey)
 	priv.E = 65537
 
@@ -651,6 +651,7 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 	}
 
 	if boring.Enabled {
+		boringFakeRandomBlind(random, priv)
 		bkey, err := boringPrivateKey(priv)
 		if err != nil {
 			return nil, err
