@@ -1132,12 +1132,6 @@ func printLatinProperties() {
 	printf("}\n\n")
 }
 
-type runeSlice []rune
-
-func (p runeSlice) Len() int           { return len(p) }
-func (p runeSlice) Less(i, j int) bool { return p[i] < p[j] }
-func (p runeSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-
 func printCasefold() {
 	// Build list of case-folding groups attached to each canonical folded char (typically lower case).
 	var caseOrbit = make([][]rune, MaxChar+1)
@@ -1184,7 +1178,9 @@ func printCasefold() {
 		if orb == nil {
 			continue
 		}
-		sort.Sort(runeSlice(orb))
+		sort.Slice(orb, func(i, j int) bool {
+			return orb[i] < orb[j]
+		})
 		c := orb[len(orb)-1]
 		for _, d := range orb {
 			chars[c].caseOrbit = d
