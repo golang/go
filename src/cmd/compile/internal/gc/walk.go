@@ -1999,8 +1999,6 @@ func mkdotargslice(typ *types.Type, args []*Node, init *Nodes, ddd *Node) *Node 
 //	return expr-list
 //	func(expr-list)
 func ascompatte(call *Node, isddd bool, lhs *types.Type, rhs []*Node, fp int, init *Nodes) []*Node {
-	var nn []*Node
-
 	// f(g()) where g has multiple return values
 	if len(rhs) == 1 && rhs[0].Type.IsFuncArgStruct() {
 		// optimization - can do block copy
@@ -2008,8 +2006,9 @@ func ascompatte(call *Node, isddd bool, lhs *types.Type, rhs []*Node, fp int, in
 			nl := nodarg(lhs, fp)
 			nr := nod(OCONVNOP, rhs[0], nil)
 			nr.Type = nl.Type
-			nn = []*Node{convas(nod(OAS, nl, nr), init)}
-			goto ret
+			n := convas(nod(OAS, nl, nr), init)
+			n.SetTypecheck(1)
+			return []*Node{n}
 		}
 
 		// conversions involved.
@@ -2033,6 +2032,7 @@ func ascompatte(call *Node, isddd bool, lhs *types.Type, rhs []*Node, fp int, in
 	// If there's a ... parameter (which is only valid as the final
 	// parameter) and this is not a ... call expression,
 	// then assign the remaining arguments as a slice.
+	var nn []*Node
 	for i, nl := range lhs.FieldSlice() {
 		var nr *Node
 		if nl.Isddd() && !isddd {
@@ -2043,13 +2043,10 @@ func ascompatte(call *Node, isddd bool, lhs *types.Type, rhs []*Node, fp int, in
 
 		a := nod(OAS, nodarg(nl, fp), nr)
 		a = convas(a, init)
+		a.SetTypecheck(1)
 		nn = append(nn, a)
 	}
 
-ret:
-	for _, n := range nn {
-		n.SetTypecheck(1)
-	}
 	return nn
 }
 
