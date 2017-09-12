@@ -152,29 +152,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Reg = y
 		}
 
-	case ssa.OpPPC64Xf2i64:
-		{
-			x := v.Args[0].Reg()
-			y := v.Reg()
-
-			p := s.Prog(ppc64.AMFVSRD)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = y
-		}
-	case ssa.OpPPC64Xi2f64:
-		{
-			x := v.Args[0].Reg()
-			y := v.Reg()
-
-			p := s.Prog(ppc64.AMTVSRD)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = y
-		}
-
 	case ssa.OpPPC64LoweredAtomicAnd8,
 		ssa.OpPPC64LoweredAtomicOr8:
 		// SYNC
@@ -597,7 +574,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = ppc64.REGTMP // Ignored; this is for the carry effect.
 
-	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB:
+	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FCFIDS, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB, ssa.OpPPC64MFVSRD, ssa.OpPPC64MTVSRD:
 		r := v.Reg()
 		p := s.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG

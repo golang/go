@@ -1307,10 +1307,10 @@ func rewriteValuePPC64_OpCvt32Fto32_0(v *Value) bool {
 	_ = typ
 	// match: (Cvt32Fto32 x)
 	// cond:
-	// result: (Xf2i64 (FCTIWZ x))
+	// result: (MFVSRD (FCTIWZ x))
 	for {
 		x := v.Args[0]
-		v.reset(OpPPC64Xf2i64)
+		v.reset(OpPPC64MFVSRD)
 		v0 := b.NewValue0(v.Pos, OpPPC64FCTIWZ, typ.Float64)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -1324,10 +1324,10 @@ func rewriteValuePPC64_OpCvt32Fto64_0(v *Value) bool {
 	_ = typ
 	// match: (Cvt32Fto64 x)
 	// cond:
-	// result: (Xf2i64 (FCTIDZ x))
+	// result: (MFVSRD (FCTIDZ x))
 	for {
 		x := v.Args[0]
-		v.reset(OpPPC64Xf2i64)
+		v.reset(OpPPC64MFVSRD)
 		v0 := b.NewValue0(v.Pos, OpPPC64FCTIDZ, typ.Float64)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -1353,15 +1353,13 @@ func rewriteValuePPC64_OpCvt32to32F_0(v *Value) bool {
 	_ = typ
 	// match: (Cvt32to32F x)
 	// cond:
-	// result: (FRSP (FCFID (Xi2f64 (SignExt32to64 x))))
+	// result: (FCFIDS (MTVSRD (SignExt32to64 x)))
 	for {
 		x := v.Args[0]
-		v.reset(OpPPC64FRSP)
-		v0 := b.NewValue0(v.Pos, OpPPC64FCFID, typ.Float64)
-		v1 := b.NewValue0(v.Pos, OpPPC64Xi2f64, typ.Float64)
-		v2 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
-		v2.AddArg(x)
-		v1.AddArg(v2)
+		v.reset(OpPPC64FCFIDS)
+		v0 := b.NewValue0(v.Pos, OpPPC64MTVSRD, typ.Float64)
+		v1 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
+		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true
@@ -1374,11 +1372,11 @@ func rewriteValuePPC64_OpCvt32to64F_0(v *Value) bool {
 	_ = typ
 	// match: (Cvt32to64F x)
 	// cond:
-	// result: (FCFID (Xi2f64 (SignExt32to64 x)))
+	// result: (FCFID (MTVSRD (SignExt32to64 x)))
 	for {
 		x := v.Args[0]
 		v.reset(OpPPC64FCFID)
-		v0 := b.NewValue0(v.Pos, OpPPC64Xi2f64, typ.Float64)
+		v0 := b.NewValue0(v.Pos, OpPPC64MTVSRD, typ.Float64)
 		v1 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
 		v1.AddArg(x)
 		v0.AddArg(v1)
@@ -1393,10 +1391,10 @@ func rewriteValuePPC64_OpCvt64Fto32_0(v *Value) bool {
 	_ = typ
 	// match: (Cvt64Fto32 x)
 	// cond:
-	// result: (Xf2i64 (FCTIWZ x))
+	// result: (MFVSRD (FCTIWZ x))
 	for {
 		x := v.Args[0]
-		v.reset(OpPPC64Xf2i64)
+		v.reset(OpPPC64MFVSRD)
 		v0 := b.NewValue0(v.Pos, OpPPC64FCTIWZ, typ.Float64)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -1421,10 +1419,10 @@ func rewriteValuePPC64_OpCvt64Fto64_0(v *Value) bool {
 	_ = typ
 	// match: (Cvt64Fto64 x)
 	// cond:
-	// result: (Xf2i64 (FCTIDZ x))
+	// result: (MFVSRD (FCTIDZ x))
 	for {
 		x := v.Args[0]
-		v.reset(OpPPC64Xf2i64)
+		v.reset(OpPPC64MFVSRD)
 		v0 := b.NewValue0(v.Pos, OpPPC64FCTIDZ, typ.Float64)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -1438,14 +1436,12 @@ func rewriteValuePPC64_OpCvt64to32F_0(v *Value) bool {
 	_ = typ
 	// match: (Cvt64to32F x)
 	// cond:
-	// result: (FRSP (FCFID (Xi2f64 x)))
+	// result: (FCFIDS (MTVSRD x))
 	for {
 		x := v.Args[0]
-		v.reset(OpPPC64FRSP)
-		v0 := b.NewValue0(v.Pos, OpPPC64FCFID, typ.Float64)
-		v1 := b.NewValue0(v.Pos, OpPPC64Xi2f64, typ.Float64)
-		v1.AddArg(x)
-		v0.AddArg(v1)
+		v.reset(OpPPC64FCFIDS)
+		v0 := b.NewValue0(v.Pos, OpPPC64MTVSRD, typ.Float64)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -1457,11 +1453,11 @@ func rewriteValuePPC64_OpCvt64to64F_0(v *Value) bool {
 	_ = typ
 	// match: (Cvt64to64F x)
 	// cond:
-	// result: (FCFID (Xi2f64 x))
+	// result: (FCFID (MTVSRD x))
 	for {
 		x := v.Args[0]
 		v.reset(OpPPC64FCFID)
-		v0 := b.NewValue0(v.Pos, OpPPC64Xi2f64, typ.Float64)
+		v0 := b.NewValue0(v.Pos, OpPPC64MTVSRD, typ.Float64)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -6242,6 +6238,33 @@ func rewriteValuePPC64_OpPPC64FADDS_0(v *Value) bool {
 	return false
 }
 func rewriteValuePPC64_OpPPC64FMOVDload_0(v *Value) bool {
+	// match: (FMOVDload [off] {sym} ptr (MOVDstore [off] {sym} ptr x _))
+	// cond:
+	// result: (MTVSRD x)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[1]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64MOVDstore {
+			break
+		}
+		if v_1.AuxInt != off {
+			break
+		}
+		if v_1.Aux != sym {
+			break
+		}
+		_ = v_1.Args[2]
+		if ptr != v_1.Args[0] {
+			break
+		}
+		x := v_1.Args[1]
+		v.reset(OpPPC64MTVSRD)
+		v.AddArg(x)
+		return true
+	}
 	// match: (FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	// cond: canMergeSym(sym1,sym2)
 	// result: (FMOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
@@ -6294,6 +6317,28 @@ func rewriteValuePPC64_OpPPC64FMOVDload_0(v *Value) bool {
 	return false
 }
 func rewriteValuePPC64_OpPPC64FMOVDstore_0(v *Value) bool {
+	// match: (FMOVDstore [off] {sym} ptr (MTVSRD x) mem)
+	// cond:
+	// result: (MOVDstore [off] {sym} ptr x mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64MTVSRD {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpPPC64MOVDstore)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
 	// match: (FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem)
 	// cond: is16Bit(off1+off2)
 	// result: (FMOVDstore [off1+off2] {sym} ptr val mem)
@@ -7070,6 +7115,33 @@ func rewriteValuePPC64_OpPPC64MOVBstorezero_0(v *Value) bool {
 	return false
 }
 func rewriteValuePPC64_OpPPC64MOVDload_0(v *Value) bool {
+	// match: (MOVDload [off] {sym} ptr (FMOVDstore [off] {sym} ptr x _))
+	// cond:
+	// result: (MFVSRD x)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[1]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64FMOVDstore {
+			break
+		}
+		if v_1.AuxInt != off {
+			break
+		}
+		if v_1.Aux != sym {
+			break
+		}
+		_ = v_1.Args[2]
+		if ptr != v_1.Args[0] {
+			break
+		}
+		x := v_1.Args[1]
+		v.reset(OpPPC64MFVSRD)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	// cond: canMergeSym(sym1,sym2)
 	// result: (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
@@ -7122,6 +7194,28 @@ func rewriteValuePPC64_OpPPC64MOVDload_0(v *Value) bool {
 	return false
 }
 func rewriteValuePPC64_OpPPC64MOVDstore_0(v *Value) bool {
+	// match: (MOVDstore [off] {sym} ptr (MFVSRD x) mem)
+	// cond:
+	// result: (FMOVDstore [off] {sym} ptr x mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64MFVSRD {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpPPC64FMOVDstore)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
 	// match: (MOVDstore [off1] {sym} (ADDconst [off2] x) val mem)
 	// cond: is16Bit(off1+off2)
 	// result: (MOVDstore [off1+off2] {sym} x val mem)
