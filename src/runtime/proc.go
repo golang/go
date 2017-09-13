@@ -2221,6 +2221,12 @@ func schedule() {
 		execute(_g_.m.lockedg.ptr(), false) // Never returns.
 	}
 
+	// We should not schedule away from a g that is executing a cgo call,
+	// since the cgo call is using the m's g0 stack.
+	if _g_.m.incgo {
+		throw("schedule: in cgo")
+	}
+
 top:
 	if sched.gcwaiting != 0 {
 		gcstopm()

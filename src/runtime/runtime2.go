@@ -675,7 +675,8 @@ func extendRandom(r []byte, n int) {
 	}
 }
 
-// deferred subroutine calls
+// A _defer holds an entry on the list of deferred calls.
+// If you add a field here, add code to clear it in freedefer.
 type _defer struct {
 	siz     int32
 	started bool
