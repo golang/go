@@ -795,7 +795,7 @@ func goroutineheader(gp *g) {
 	if waitfor >= 1 {
 		print(", ", waitfor, " minutes")
 	}
-	if gp.lockedm != nil {
+	if gp.lockedm != 0 {
 		print(", locked to thread")
 	}
 	print("]:\n")
