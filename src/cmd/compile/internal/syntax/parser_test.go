@@ -131,7 +131,7 @@ func verifyPrint(filename string, ast1 *File) {
 		panic(err)
 	}
 
-	ast2, err := ParseBytes(src.NewFileBase(filename, filename), buf1.Bytes(), nil, nil, 0)
+	ast2, err := ParseBytes(src.NewFileBase(filename, filename), buf1.Bytes(), nil, nil, nil, 0)
 	if err != nil {
 		panic(err)
 	}
@@ -155,7 +155,7 @@ func verifyPrint(filename string, ast1 *File) {
 }
 
 func TestIssue17697(t *testing.T) {
-	_, err := ParseBytes(nil, nil, nil, nil, 0) // return with parser error, don't panic
+	_, err := ParseBytes(nil, nil, nil, nil, nil, 0) // return with parser error, don't panic
 	if err == nil {
 		t.Errorf("no error reported")
 	}
@@ -199,8 +199,16 @@ func TestLineDirectives(t *testing.T) {
 		// test effect of //line directive on (relative) position information
 		{"//line foo:123\n   foo", "syntax error: package statement must be first", "foo", 123 - linebase, 3},
 		{"//line foo:123\n//line bar:345\nfoo", "syntax error: package statement must be first", "bar", 345 - linebase, 0},
+
+		{"//line " + runtime.GOROOT() + "/src/a/a.go:123\n   foo", "syntax error: package statement must be first", "$GOROOT/src/a/a.go", 123 - linebase, 3},
 	} {
-		_, err := ParseBytes(nil, []byte(test.src), nil, nil, 0)
+		fileh := func(name string) string {
+			if strings.HasPrefix(name, runtime.GOROOT()) {
+				return "$GOROOT" + name[len(runtime.GOROOT()):]
+			}
+			return name
+		}
+		_, err := ParseBytes(nil, []byte(test.src), nil, nil, fileh, 0)
 		if err == nil {
 			t.Errorf("%s: no error reported", test.src)
 			continue

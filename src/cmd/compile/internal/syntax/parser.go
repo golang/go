@@ -16,9 +16,10 @@ const debug = false
 const trace = false
 
 type parser struct {
-	base *src.PosBase
-	errh ErrorHandler
-	mode Mode
+	base  *src.PosBase
+	errh  ErrorHandler
+	fileh FilenameHandler
+	mode  Mode
 	scanner
 
 	first  error  // first error encountered
@@ -29,9 +30,10 @@ type parser struct {
 	indent []byte // tracing support
 }
 
-func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) {
+func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh PragmaHandler, fileh FilenameHandler, mode Mode) {
 	p.base = base
 	p.errh = errh
+	p.fileh = fileh
 	p.mode = mode
 	p.scanner.init(
 		r,
@@ -76,7 +78,11 @@ func (p *parser) updateBase(line, col uint, text string) {
 		p.error_at(p.pos_at(line, col+uint(i+1)), "invalid line number: "+nstr)
 		return
 	}
-	p.base = src.NewLinePragmaBase(src.MakePos(p.base.Pos().Base(), line, col), text[:i], uint(n))
+	absFile := text[:i]
+	if p.fileh != nil {
+		absFile = p.fileh(absFile)
+	}
+	p.base = src.NewLinePragmaBase(src.MakePos(p.base.Pos().Base(), line, col), absFile, uint(n))
 }
 
 func (p *parser) got(tok token) bool {

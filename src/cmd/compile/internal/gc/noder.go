@@ -41,7 +41,7 @@ func parseFiles(filenames []string) uint {
 			}
 			defer f.Close()
 
-			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, syntax.CheckBranches) // errors are tracked via p.error
+			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, fileh, syntax.CheckBranches) // errors are tracked via p.error
 		}(filename)
 	}
 
@@ -69,6 +69,10 @@ func yyerrorpos(pos src.Pos, format string, args ...interface{}) {
 }
 
 var pathPrefix string
+
+func fileh(name string) string {
+	return objabi.AbsFile("", name, pathPrefix)
+}
 
 func absFilename(name string) string {
 	return objabi.AbsFile(Ctxt.Pathname, name, pathPrefix)
