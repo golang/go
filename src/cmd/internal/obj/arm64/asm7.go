@@ -2331,7 +2331,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		var r int
 		var ra int
 		if p.From3Type() == obj.TYPE_REG {
-			r = int(p.From3.Reg)
+			r = int(p.GetFrom3().Reg)
 			ra = int(p.Reg)
 			if ra == 0 {
 				ra = REGZERO
@@ -2393,7 +2393,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 				cond ^= 1
 			} else {
-				rf = int(p.From3.Reg) /* CSEL */
+				rf = int(p.GetFrom3().Reg) /* CSEL */
 			}
 		} else {
 			/* CSET */
@@ -2418,12 +2418,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			cond -= COND_EQ
 		}
 		var rf int
-		if p.From3.Type == obj.TYPE_REG {
+		if p.GetFrom3().Type == obj.TYPE_REG {
 			o1 = c.oprrr(p, p.As)
-			rf = int(p.From3.Reg) /* Rm */
+			rf = int(p.GetFrom3().Reg) /* Rm */
 		} else {
 			o1 = c.opirr(p, p.As)
-			rf = int(p.From3.Offset & 0x1F)
+			rf = int(p.GetFrom3().Offset & 0x1F)
 		}
 
 		o1 |= (uint32(rf&31) << 16) | (uint32(cond&15) << 12) | (uint32(p.Reg&31) << 5) | uint32(nzcv)
@@ -2767,12 +2767,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.op0(p, p.As)
 
 	case 42: /* bfm R,r,s,R */
-		o1 = c.opbfm(p, p.As, int(p.From.Offset), int(p.From3.Offset), int(p.Reg), int(p.To.Reg))
+		o1 = c.opbfm(p, p.As, int(p.From.Offset), int(p.GetFrom3().Offset), int(p.Reg), int(p.To.Reg))
 
 	case 43: /* bfm aliases */
 		r := int(p.From.Offset)
 
-		s := int(p.From3.Offset)
+		s := int(p.GetFrom3().Offset)
 		rf := int(p.Reg)
 		rt := int(p.To.Reg)
 		if rf == 0 {
@@ -2821,7 +2821,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 44: /* extr $b, Rn, Rm, Rd */
-		o1 = c.opextr(p, p.As, int32(p.From.Offset), int(p.From3.Reg), int(p.Reg), int(p.To.Reg))
+		o1 = c.opextr(p, p.As, int32(p.From.Offset), int(p.GetFrom3().Reg), int(p.Reg), int(p.To.Reg))
 
 	case 45: /* sxt/uxt[bhw] R,R; movT R,R -> sxtT R,R */
 		rf := int(p.From.Reg)
@@ -2977,11 +2977,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("implausible condition\n%v", p)
 		}
 		rf := int(p.Reg)
-		if p.From3 == nil || p.From3.Reg < REG_F0 || p.From3.Reg > REG_F31 {
+		if p.GetFrom3() == nil || p.GetFrom3().Reg < REG_F0 || p.GetFrom3().Reg > REG_F31 {
 			c.ctxt.Diag("illegal FCCMP\n%v", p)
 			break
 		}
-		rt := int(p.From3.Reg)
+		rt := int(p.GetFrom3().Reg)
 		o1 |= uint32(rf&31)<<16 | uint32(cond&15)<<12 | uint32(rt&31)<<5 | uint32(nzcv)
 
 	case 58: /* ldar/ldxr/ldaxr */

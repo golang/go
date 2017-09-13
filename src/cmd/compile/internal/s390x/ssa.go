@@ -534,10 +534,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(s390x.AMVC)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = vo.Val()
-		p.From3 = new(obj.Addr)
-		p.From3.Type = obj.TYPE_MEM
-		p.From3.Reg = v.Args[1].Reg()
-		p.From3.Offset = vo.Off()
+		p.SetFrom3(obj.Addr{
+			Type:   obj.TYPE_MEM,
+			Reg:    v.Args[1].Reg(),
+			Offset: vo.Off(),
+		})
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		p.To.Offset = vo.Off()
@@ -570,9 +571,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		mvc := s.Prog(s390x.AMVC)
 		mvc.From.Type = obj.TYPE_CONST
 		mvc.From.Offset = 256
-		mvc.From3 = new(obj.Addr)
-		mvc.From3.Type = obj.TYPE_MEM
-		mvc.From3.Reg = v.Args[1].Reg()
+		mvc.SetFrom3(obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()})
 		mvc.To.Type = obj.TYPE_MEM
 		mvc.To.Reg = v.Args[0].Reg()
 
@@ -599,9 +598,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			mvc := s.Prog(s390x.AMVC)
 			mvc.From.Type = obj.TYPE_CONST
 			mvc.From.Offset = v.AuxInt
-			mvc.From3 = new(obj.Addr)
-			mvc.From3.Type = obj.TYPE_MEM
-			mvc.From3.Reg = v.Args[1].Reg()
+			mvc.SetFrom3(obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()})
 			mvc.To.Type = obj.TYPE_MEM
 			mvc.To.Reg = v.Args[0].Reg()
 		}

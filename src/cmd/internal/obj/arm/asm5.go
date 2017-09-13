@@ -2068,11 +2068,11 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if r == 0 {
 			r = rt
 		}
-		if p.From3 == nil || p.From3.Type != obj.TYPE_CONST {
+		if p.GetFrom3() == nil || p.GetFrom3().Type != obj.TYPE_CONST {
 			c.ctxt.Diag("%v: missing or wrong LSB", p)
 			break
 		}
-		lsb := p.From3.Offset
+		lsb := p.GetFrom3().Offset
 		width := p.From.Offset
 		if lsb < 0 || lsb > 31 || width <= 0 || (lsb+width) > 31 {
 			c.ctxt.Diag("%v: wrong width or LSB", p)
@@ -3310,8 +3310,8 @@ func (c *ctxt5) chipfloat5(e float64) int {
 func nocache(p *obj.Prog) {
 	p.Optab = 0
 	p.From.Class = 0
-	if p.From3 != nil {
-		p.From3.Class = 0
+	if p.GetFrom3() != nil {
+		p.GetFrom3().Class = 0
 	}
 	p.To.Class = 0
 }

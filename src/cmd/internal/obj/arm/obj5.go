@@ -186,7 +186,7 @@ func (c *ctxt5) rewriteToUseGot(p *obj.Prog) {
 			p.From.Offset = 0
 		}
 	}
-	if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
+	if p.GetFrom3() != nil && p.GetFrom3().Name == obj.NAME_EXTERN {
 		c.ctxt.Diag("don't know how to handle %v with -dynlink", p)
 	}
 	var source *obj.Addr

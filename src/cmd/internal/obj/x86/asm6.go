@@ -72,14 +72,6 @@ type Optab struct {
 	op     [23]uint8
 }
 
-type ytab struct {
-	from    uint8
-	from3   uint8
-	to      uint8
-	zcase   uint8
-	zoffset uint8
-}
-
 type Movtab struct {
 	as   obj.As
 	ft   uint8
@@ -323,414 +315,418 @@ var reg [MAXREG]int
 var regrex [MAXREG + 1]int
 
 var ynone = []ytab{
-	{Ynone, Ynone, Ynone, Zlit, 1},
+	{Zlit, 1, argList{}},
 }
 
 var ytext = []ytab{
-	{Ymb, Ynone, Ytextsize, Zpseudo, 0},
-	{Ymb, Yi32, Ytextsize, Zpseudo, 1},
+	{Zpseudo, 0, argList{Ymb, Ytextsize}},
+	{Zpseudo, 1, argList{Ymb, Yi32, Ytextsize}},
 }
 
 var ynop = []ytab{
-	{Ynone, Ynone, Ynone, Zpseudo, 0},
-	{Ynone, Ynone, Yiauto, Zpseudo, 0},
-	{Ynone, Ynone, Yml, Zpseudo, 0},
-	{Ynone, Ynone, Yrf, Zpseudo, 0},
-	{Ynone, Ynone, Yxr, Zpseudo, 0},
-	{Yiauto, Ynone, Ynone, Zpseudo, 0},
-	{Yml, Ynone, Ynone, Zpseudo, 0},
-	{Yrf, Ynone, Ynone, Zpseudo, 0},
-	{Yxr, Ynone, Ynone, Zpseudo, 1},
+	{Zpseudo, 0, argList{}},
+	{Zpseudo, 0, argList{Yiauto}},
+	{Zpseudo, 0, argList{Yml}},
+	{Zpseudo, 0, argList{Yrf}},
+	{Zpseudo, 0, argList{Yxr}},
+	{Zpseudo, 0, argList{Yiauto}},
+	{Zpseudo, 0, argList{Yml}},
+	{Zpseudo, 0, argList{Yrf}},
+	{Zpseudo, 1, argList{Yxr}},
 }
 
 var yfuncdata = []ytab{
-	{Yi32, Ynone, Ym, Zpseudo, 0},
+	{Zpseudo, 0, argList{Yi32, Ym}},
 }
 
 var ypcdata = []ytab{
-	{Yi32, Ynone, Yi32, Zpseudo, 0},
+	{Zpseudo, 0, argList{Yi32, Yi32}},
 }
 
 var yxorb = []ytab{
-	{Yi32, Ynone, Yal, Zib_, 1},
-	{Yi32, Ynone, Ymb, Zibo_m, 2},
-	{Yrb, Ynone, Ymb, Zr_m, 1},
-	{Ymb, Ynone, Yrb, Zm_r, 1},
+	{Zib_, 1, argList{Yi32, Yal}},
+	{Zibo_m, 2, argList{Yi32, Ymb}},
+	{Zr_m, 1, argList{Yrb, Ymb}},
+	{Zm_r, 1, argList{Ymb, Yrb}},
 }
 
 var yaddl = []ytab{
-	{Yi8, Ynone, Yml, Zibo_m, 2},
-	{Yi32, Ynone, Yax, Zil_, 1},
-	{Yi32, Ynone, Yml, Zilo_m, 2},
-	{Yrl, Ynone, Yml, Zr_m, 1},
-	{Yml, Ynone, Yrl, Zm_r, 1},
+	{Zibo_m, 2, argList{Yi8, Yml}},
+	{Zil_, 1, argList{Yi32, Yax}},
+	{Zilo_m, 2, argList{Yi32, Yml}},
+	{Zr_m, 1, argList{Yrl, Yml}},
+	{Zm_r, 1, argList{Yml, Yrl}},
 }
 
 var yincl = []ytab{
-	{Ynone, Ynone, Yrl, Z_rp, 1},
-	{Ynone, Ynone, Yml, Zo_m, 2},
+	{Z_rp, 1, argList{Yrl}},
+	{Zo_m, 2, argList{Yml}},
 }
 
 var yincq = []ytab{
-	{Ynone, Ynone, Yml, Zo_m, 2},
+	{Zo_m, 2, argList{Yml}},
 }
 
 var ycmpb = []ytab{
-	{Yal, Ynone, Yi32, Z_ib, 1},
-	{Ymb, Ynone, Yi32, Zm_ibo, 2},
-	{Ymb, Ynone, Yrb, Zm_r, 1},
-	{Yrb, Ynone, Ymb, Zr_m, 1},
+	{Z_ib, 1, argList{Yal, Yi32}},
+	{Zm_ibo, 2, argList{Ymb, Yi32}},
+	{Zm_r, 1, argList{Ymb, Yrb}},
+	{Zr_m, 1, argList{Yrb, Ymb}},
 }
 
 var ycmpl = []ytab{
-	{Yml, Ynone, Yi8, Zm_ibo, 2},
-	{Yax, Ynone, Yi32, Z_il, 1},
-	{Yml, Ynone, Yi32, Zm_ilo, 2},
-	{Yml, Ynone, Yrl, Zm_r, 1},
-	{Yrl, Ynone, Yml, Zr_m, 1},
+	{Zm_ibo, 2, argList{Yml, Yi8}},
+	{Z_il, 1, argList{Yax, Yi32}},
+	{Zm_ilo, 2, argList{Yml, Yi32}},
+	{Zm_r, 1, argList{Yml, Yrl}},
+	{Zr_m, 1, argList{Yrl, Yml}},
 }
 
 var yshb = []ytab{
-	{Yi1, Ynone, Ymb, Zo_m, 2},
-	{Yu8, Ynone, Ymb, Zibo_m, 2},
-	{Ycx, Ynone, Ymb, Zo_m, 2},
+	{Zo_m, 2, argList{Yi1, Ymb}},
+	{Zibo_m, 2, argList{Yu8, Ymb}},
+	{Zo_m, 2, argList{Ycx, Ymb}},
 }
 
 var yshl = []ytab{
-	{Yi1, Ynone, Yml, Zo_m, 2},
-	{Yu8, Ynone, Yml, Zibo_m, 2},
-	{Ycl, Ynone, Yml, Zo_m, 2},
-	{Ycx, Ynone, Yml, Zo_m, 2},
+	{Zo_m, 2, argList{Yi1, Yml}},
+	{Zibo_m, 2, argList{Yu8, Yml}},
+	{Zo_m, 2, argList{Ycl, Yml}},
+	{Zo_m, 2, argList{Ycx, Yml}},
 }
 
 var ytestl = []ytab{
-	{Yi32, Ynone, Yax, Zil_, 1},
-	{Yi32, Ynone, Yml, Zilo_m, 2},
-	{Yrl, Ynone, Yml, Zr_m, 1},
-	{Yml, Ynone, Yrl, Zm_r, 1},
+	{Zil_, 1, argList{Yi32, Yax}},
+	{Zilo_m, 2, argList{Yi32, Yml}},
+	{Zr_m, 1, argList{Yrl, Yml}},
+	{Zm_r, 1, argList{Yml, Yrl}},
 }
 
 var ymovb = []ytab{
-	{Yrb, Ynone, Ymb, Zr_m, 1},
-	{Ymb, Ynone, Yrb, Zm_r, 1},
-	{Yi32, Ynone, Yrb, Zib_rp, 1},
-	{Yi32, Ynone, Ymb, Zibo_m, 2},
+	{Zr_m, 1, argList{Yrb, Ymb}},
+	{Zm_r, 1, argList{Ymb, Yrb}},
+	{Zib_rp, 1, argList{Yi32, Yrb}},
+	{Zibo_m, 2, argList{Yi32, Ymb}},
 }
 
 var ybtl = []ytab{
-	{Yi8, Ynone, Yml, Zibo_m, 2},
-	{Yrl, Ynone, Yml, Zr_m, 1},
+	{Zibo_m, 2, argList{Yi8, Yml}},
+	{Zr_m, 1, argList{Yrl, Yml}},
 }
 
 var ymovw = []ytab{
-	{Yrl, Ynone, Yml, Zr_m, 1},
-	{Yml, Ynone, Yrl, Zm_r, 1},
-	{Yi0, Ynone, Yrl, Zclr, 1},
-	{Yi32, Ynone, Yrl, Zil_rp, 1},
-	{Yi32, Ynone, Yml, Zilo_m, 2},
-	{Yiauto, Ynone, Yrl, Zaut_r, 2},
+	{Zr_m, 1, argList{Yrl, Yml}},
+	{Zm_r, 1, argList{Yml, Yrl}},
+	{Zclr, 1, argList{Yi0, Yrl}},
+	{Zil_rp, 1, argList{Yi32, Yrl}},
+	{Zilo_m, 2, argList{Yi32, Yml}},
+	{Zaut_r, 2, argList{Yiauto, Yrl}},
 }
 
 var ymovl = []ytab{
-	{Yrl, Ynone, Yml, Zr_m, 1},
-	{Yml, Ynone, Yrl, Zm_r, 1},
-	{Yi0, Ynone, Yrl, Zclr, 1},
-	{Yi32, Ynone, Yrl, Zil_rp, 1},
-	{Yi32, Ynone, Yml, Zilo_m, 2},
-	{Yml, Ynone, Ymr, Zm_r_xm, 1}, // MMX MOVD
-	{Ymr, Ynone, Yml, Zr_m_xm, 1}, // MMX MOVD
-	{Yml, Ynone, Yxr, Zm_r_xm, 2}, // XMM MOVD (32 bit)
-	{Yxr, Ynone, Yml, Zr_m_xm, 2}, // XMM MOVD (32 bit)
-	{Yiauto, Ynone, Yrl, Zaut_r, 2},
+	{Zr_m, 1, argList{Yrl, Yml}},
+	{Zm_r, 1, argList{Yml, Yrl}},
+	{Zclr, 1, argList{Yi0, Yrl}},
+	{Zil_rp, 1, argList{Yi32, Yrl}},
+	{Zilo_m, 2, argList{Yi32, Yml}},
+	{Zm_r_xm, 1, argList{Yml, Ymr}}, // MMX MOVD
+	{Zr_m_xm, 1, argList{Ymr, Yml}}, // MMX MOVD
+	{Zm_r_xm, 2, argList{Yml, Yxr}}, // XMM MOVD (32 bit)
+	{Zr_m_xm, 2, argList{Yxr, Yml}}, // XMM MOVD (32 bit)
+	{Zaut_r, 2, argList{Yiauto, Yrl}},
 }
 
 var yret = []ytab{
-	{Ynone, Ynone, Ynone, Zo_iw, 1},
-	{Yi32, Ynone, Ynone, Zo_iw, 1},
+	{Zo_iw, 1, argList{}},
+	{Zo_iw, 1, argList{Yi32}},
 }
 
 var ymovq = []ytab{
 	// valid in 32-bit mode
-	{Ym, Ynone, Ymr, Zm_r_xm_nr, 1},  // 0x6f MMX MOVQ (shorter encoding)
-	{Ymr, Ynone, Ym, Zr_m_xm_nr, 1},  // 0x7f MMX MOVQ
-	{Yxr, Ynone, Ymr, Zm_r_xm_nr, 2}, // Pf2, 0xd6 MOVDQ2Q
-	{Yxm, Ynone, Yxr, Zm_r_xm_nr, 2}, // Pf3, 0x7e MOVQ xmm1/m64 -> xmm2
-	{Yxr, Ynone, Yxm, Zr_m_xm_nr, 2}, // Pe, 0xd6 MOVQ xmm1 -> xmm2/m64
+	{Zm_r_xm_nr, 1, argList{Ym, Ymr}},  // 0x6f MMX MOVQ (shorter encoding)
+	{Zr_m_xm_nr, 1, argList{Ymr, Ym}},  // 0x7f MMX MOVQ
+	{Zm_r_xm_nr, 2, argList{Yxr, Ymr}}, // Pf2, 0xd6 MOVDQ2Q
+	{Zm_r_xm_nr, 2, argList{Yxm, Yxr}}, // Pf3, 0x7e MOVQ xmm1/m64 -> xmm2
+	{Zr_m_xm_nr, 2, argList{Yxr, Yxm}}, // Pe, 0xd6 MOVQ xmm1 -> xmm2/m64
 
 	// valid only in 64-bit mode, usually with 64-bit prefix
-	{Yrl, Ynone, Yml, Zr_m, 1},      // 0x89
-	{Yml, Ynone, Yrl, Zm_r, 1},      // 0x8b
-	{Yi0, Ynone, Yrl, Zclr, 1},      // 0x31
-	{Ys32, Ynone, Yrl, Zilo_m, 2},   // 32 bit signed 0xc7,(0)
-	{Yi64, Ynone, Yrl, Ziq_rp, 1},   // 0xb8 -- 32/64 bit immediate
-	{Yi32, Ynone, Yml, Zilo_m, 2},   // 0xc7,(0)
-	{Ymm, Ynone, Ymr, Zm_r_xm, 1},   // 0x6e MMX MOVD
-	{Ymr, Ynone, Ymm, Zr_m_xm, 1},   // 0x7e MMX MOVD
-	{Yml, Ynone, Yxr, Zm_r_xm, 2},   // Pe, 0x6e MOVD xmm load
-	{Yxr, Ynone, Yml, Zr_m_xm, 2},   // Pe, 0x7e MOVD xmm store
-	{Yiauto, Ynone, Yrl, Zaut_r, 1}, // 0 built-in LEAQ
+	{Zr_m, 1, argList{Yrl, Yml}},      // 0x89
+	{Zm_r, 1, argList{Yml, Yrl}},      // 0x8b
+	{Zclr, 1, argList{Yi0, Yrl}},      // 0x31
+	{Zilo_m, 2, argList{Ys32, Yrl}},   // 32 bit signed 0xc7,(0)
+	{Ziq_rp, 1, argList{Yi64, Yrl}},   // 0xb8 -- 32/64 bit immediate
+	{Zilo_m, 2, argList{Yi32, Yml}},   // 0xc7,(0)
+	{Zm_r_xm, 1, argList{Ymm, Ymr}},   // 0x6e MMX MOVD
+	{Zr_m_xm, 1, argList{Ymr, Ymm}},   // 0x7e MMX MOVD
+	{Zm_r_xm, 2, argList{Yml, Yxr}},   // Pe, 0x6e MOVD xmm load
+	{Zr_m_xm, 2, argList{Yxr, Yml}},   // Pe, 0x7e MOVD xmm store
+	{Zaut_r, 1, argList{Yiauto, Yrl}}, // 0 built-in LEAQ
 }
 
 var ym_rl = []ytab{
-	{Ym, Ynone, Yrl, Zm_r, 1},
+	{Zm_r, 1, argList{Ym, Yrl}},
 }
 
 var yrl_m = []ytab{
-	{Yrl, Ynone, Ym, Zr_m, 1},
+	{Zr_m, 1, argList{Yrl, Ym}},
 }
 
 var ymb_rl = []ytab{
-	{Ymb, Ynone, Yrl, Zmb_r, 1},
+	{Zmb_r, 1, argList{Ymb, Yrl}},
 }
 
 var yml_rl = []ytab{
-	{Yml, Ynone, Yrl, Zm_r, 1},
+	{Zm_r, 1, argList{Yml, Yrl}},
 }
 
 var yrl_ml = []ytab{
-	{Yrl, Ynone, Yml, Zr_m, 1},
+	{Zr_m, 1, argList{Yrl, Yml}},
 }
 
 var yml_mb = []ytab{
-	{Yrb, Ynone, Ymb, Zr_m, 1},
-	{Ymb, Ynone, Yrb, Zm_r, 1},
+	{Zr_m, 1, argList{Yrb, Ymb}},
+	{Zm_r, 1, argList{Ymb, Yrb}},
 }
 
 var yrb_mb = []ytab{
-	{Yrb, Ynone, Ymb, Zr_m, 1},
+	{Zr_m, 1, argList{Yrb, Ymb}},
 }
 
 var yxchg = []ytab{
-	{Yax, Ynone, Yrl, Z_rp, 1},
-	{Yrl, Ynone, Yax, Zrp_, 1},
-	{Yrl, Ynone, Yml, Zr_m, 1},
-	{Yml, Ynone, Yrl, Zm_r, 1},
+	{Z_rp, 1, argList{Yax, Yrl}},
+	{Zrp_, 1, argList{Yrl, Yax}},
+	{Zr_m, 1, argList{Yrl, Yml}},
+	{Zm_r, 1, argList{Yml, Yrl}},
 }
 
 var ydivl = []ytab{
-	{Yml, Ynone, Ynone, Zm_o, 2},
+	{Zm_o, 2, argList{Yml}},
 }
 
 var ydivb = []ytab{
-	{Ymb, Ynone, Ynone, Zm_o, 2},
+	{Zm_o, 2, argList{Ymb}},
 }
 
 var yimul = []ytab{
-	{Yml, Ynone, Ynone, Zm_o, 2},
-	{Yi8, Ynone, Yrl, Zib_rr, 1},
-	{Yi32, Ynone, Yrl, Zil_rr, 1},
-	{Yml, Ynone, Yrl, Zm_r, 2},
+	{Zm_o, 2, argList{Yml}},
+	{Zib_rr, 1, argList{Yi8, Yrl}},
+	{Zil_rr, 1, argList{Yi32, Yrl}},
+	{Zm_r, 2, argList{Yml, Yrl}},
 }
 
 var yimul3 = []ytab{
-	{Yi8, Yml, Yrl, Zibm_r, 2},
+	{Zibm_r, 2, argList{Yi8, Yml, Yrl}},
 }
 
 var ybyte = []ytab{
-	{Yi64, Ynone, Ynone, Zbyte, 1},
+	{Zbyte, 1, argList{Yi64}},
 }
 
 var yin = []ytab{
-	{Yi32, Ynone, Ynone, Zib_, 1},
-	{Ynone, Ynone, Ynone, Zlit, 1},
+	{Zib_, 1, argList{Yi32}},
+	{Zlit, 1, argList{}},
 }
 
 var yint = []ytab{
-	{Yi32, Ynone, Ynone, Zib_, 1},
+	{Zib_, 1, argList{Yi32}},
 }
 
 var ypushl = []ytab{
-	{Yrl, Ynone, Ynone, Zrp_, 1},
-	{Ym, Ynone, Ynone, Zm_o, 2},
-	{Yi8, Ynone, Ynone, Zib_, 1},
-	{Yi32, Ynone, Ynone, Zil_, 1},
+	{Zrp_, 1, argList{Yrl}},
+	{Zm_o, 2, argList{Ym}},
+	{Zib_, 1, argList{Yi8}},
+	{Zil_, 1, argList{Yi32}},
 }
 
 var ypopl = []ytab{
-	{Ynone, Ynone, Yrl, Z_rp, 1},
-	{Ynone, Ynone, Ym, Zo_m, 2},
+	{Z_rp, 1, argList{Yrl}},
+	{Zo_m, 2, argList{Ym}},
 }
 
 var yclflush = []ytab{
-	{Ynone, Ynone, Ym, Zo_m, 2},
+	{Zo_m, 2, argList{Ym}},
 }
 
 var ybswap = []ytab{
-	{Ynone, Ynone, Yrl, Z_rp, 2},
+	{Z_rp, 2, argList{Yrl}},
 }
 
 var yscond = []ytab{
-	{Ynone, Ynone, Ymb, Zo_m, 2},
+	{Zo_m, 2, argList{Ymb}},
 }
 
 var yjcond = []ytab{
-	{Ynone, Ynone, Ybr, Zbr, 0},
-	{Yi0, Ynone, Ybr, Zbr, 0},
-	{Yi1, Ynone, Ybr, Zbr, 1},
+	{Zbr, 0, argList{Ybr}},
+	{Zbr, 0, argList{Yi0, Ybr}},
+	{Zbr, 1, argList{Yi1, Ybr}},
 }
 
 var yloop = []ytab{
-	{Ynone, Ynone, Ybr, Zloop, 1},
+	{Zloop, 1, argList{Ybr}},
 }
 
 var ycall = []ytab{
-	{Ynone, Ynone, Yml, Zcallindreg, 0},
-	{Yrx, Ynone, Yrx, Zcallindreg, 2},
-	{Ynone, Ynone, Yindir, Zcallind, 2},
-	{Ynone, Ynone, Ybr, Zcall, 0},
-	{Ynone, Ynone, Yi32, Zcallcon, 1},
+	{Zcallindreg, 0, argList{Yml}},
+	{Zcallindreg, 2, argList{Yrx, Yrx}},
+	{Zcallind, 2, argList{Yindir}},
+	{Zcall, 0, argList{Ybr}},
+	{Zcallcon, 1, argList{Yi32}},
 }
 
 var yduff = []ytab{
-	{Ynone, Ynone, Yi32, Zcallduff, 1},
+	{Zcallduff, 1, argList{Yi32}},
 }
 
 var yjmp = []ytab{
-	{Ynone, Ynone, Yml, Zo_m64, 2},
-	{Ynone, Ynone, Ybr, Zjmp, 0},
-	{Ynone, Ynone, Yi32, Zjmpcon, 1},
+	{Zo_m64, 2, argList{Yml}},
+	{Zjmp, 0, argList{Ybr}},
+	{Zjmpcon, 1, argList{Yi32}},
 }
 
 var yfmvd = []ytab{
-	{Ym, Ynone, Yf0, Zm_o, 2},
-	{Yf0, Ynone, Ym, Zo_m, 2},
-	{Yrf, Ynone, Yf0, Zm_o, 2},
-	{Yf0, Ynone, Yrf, Zo_m, 2},
+	{Zm_o, 2, argList{Ym, Yf0}},
+	{Zo_m, 2, argList{Yf0, Ym}},
+	{Zm_o, 2, argList{Yrf, Yf0}},
+	{Zo_m, 2, argList{Yf0, Yrf}},
 }
 
 var yfmvdp = []ytab{
-	{Yf0, Ynone, Ym, Zo_m, 2},
-	{Yf0, Ynone, Yrf, Zo_m, 2},
+	{Zo_m, 2, argList{Yf0, Ym}},
+	{Zo_m, 2, argList{Yf0, Yrf}},
 }
 
 var yfmvf = []ytab{
-	{Ym, Ynone, Yf0, Zm_o, 2},
-	{Yf0, Ynone, Ym, Zo_m, 2},
+	{Zm_o, 2, argList{Ym, Yf0}},
+	{Zo_m, 2, argList{Yf0, Ym}},
 }
 
 var yfmvx = []ytab{
-	{Ym, Ynone, Yf0, Zm_o, 2},
+	{Zm_o, 2, argList{Ym, Yf0}},
 }
 
 var yfmvp = []ytab{
-	{Yf0, Ynone, Ym, Zo_m, 2},
+	{Zo_m, 2, argList{Yf0, Ym}},
 }
 
 var yfcmv = []ytab{
-	{Yrf, Ynone, Yf0, Zm_o, 2},
+	{Zm_o, 2, argList{Yrf, Yf0}},
 }
 
 var yfadd = []ytab{
-	{Ym, Ynone, Yf0, Zm_o, 2},
-	{Yrf, Ynone, Yf0, Zm_o, 2},
-	{Yf0, Ynone, Yrf, Zo_m, 2},
+	{Zm_o, 2, argList{Ym, Yf0}},
+	{Zm_o, 2, argList{Yrf, Yf0}},
+	{Zo_m, 2, argList{Yf0, Yrf}},
 }
 
 var yfxch = []ytab{
-	{Yf0, Ynone, Yrf, Zo_m, 2},
-	{Yrf, Ynone, Yf0, Zm_o, 2},
+	{Zo_m, 2, argList{Yf0, Yrf}},
+	{Zm_o, 2, argList{Yrf, Yf0}},
 }
 
 var ycompp = []ytab{
-	{Yf0, Ynone, Yrf, Zo_m, 2}, /* botch is really f0,f1 */
+	{Zo_m, 2, argList{Yf0, Yrf}}, /* botch is really f0,f1 */
 }
 
 var ystsw = []ytab{
-	{Ynone, Ynone, Ym, Zo_m, 2},
-	{Ynone, Ynone, Yax, Zlit, 1},
+	{Zo_m, 2, argList{Ym}},
+	{Zlit, 1, argList{Yax}},
 }
 
-var ysvrs = []ytab{
-	{Ynone, Ynone, Ym, Zo_m, 2},
-	{Ym, Ynone, Ynone, Zm_o, 2},
+var ysvrs_mo = []ytab{
+	{Zm_o, 2, argList{Ym}},
+}
+
+// unaryDst version of "ysvrs_mo".
+var ysvrs_om = []ytab{
+	{Zo_m, 2, argList{Ym}},
 }
 
 var ymm = []ytab{
-	{Ymm, Ynone, Ymr, Zm_r_xm, 1},
-	{Yxm, Ynone, Yxr, Zm_r_xm, 2},
+	{Zm_r_xm, 1, argList{Ymm, Ymr}},
+	{Zm_r_xm, 2, argList{Yxm, Yxr}},
 }
 
 var yxm = []ytab{
-	{Yxm, Ynone, Yxr, Zm_r_xm, 1},
+	{Zm_r_xm, 1, argList{Yxm, Yxr}},
 }
 
 var yxm_q4 = []ytab{
-	{Yxm, Ynone, Yxr, Zm_r, 1},
+	{Zm_r, 1, argList{Yxm, Yxr}},
 }
 
 var yxcvm1 = []ytab{
-	{Yxm, Ynone, Yxr, Zm_r_xm, 2},
-	{Yxm, Ynone, Ymr, Zm_r_xm, 2},
+	{Zm_r_xm, 2, argList{Yxm, Yxr}},
+	{Zm_r_xm, 2, argList{Yxm, Ymr}},
 }
 
 var yxcvm2 = []ytab{
-	{Yxm, Ynone, Yxr, Zm_r_xm, 2},
-	{Ymm, Ynone, Yxr, Zm_r_xm, 2},
+	{Zm_r_xm, 2, argList{Yxm, Yxr}},
+	{Zm_r_xm, 2, argList{Ymm, Yxr}},
 }
 
 var yxr = []ytab{
-	{Yxr, Ynone, Yxr, Zm_r_xm, 1},
+	{Zm_r_xm, 1, argList{Yxr, Yxr}},
 }
 
 var yxr_ml = []ytab{
-	{Yxr, Ynone, Yml, Zr_m_xm, 1},
+	{Zr_m_xm, 1, argList{Yxr, Yml}},
 }
 
 var ymr = []ytab{
-	{Ymr, Ynone, Ymr, Zm_r, 1},
+	{Zm_r, 1, argList{Ymr, Ymr}},
 }
 
 var ymr_ml = []ytab{
-	{Ymr, Ynone, Yml, Zr_m_xm, 1},
+	{Zr_m_xm, 1, argList{Ymr, Yml}},
 }
 
 var yxcmpi = []ytab{
-	{Yxm, Yxr, Yi8, Zm_r_i_xm, 2},
+	{Zm_r_i_xm, 2, argList{Yxm, Yxr, Yi8}},
 }
 
 var yxmov = []ytab{
-	{Yxm, Ynone, Yxr, Zm_r_xm, 1},
-	{Yxr, Ynone, Yxm, Zr_m_xm, 1},
+	{Zm_r_xm, 1, argList{Yxm, Yxr}},
+	{Zr_m_xm, 1, argList{Yxr, Yxm}},
 }
 
 var yxcvfl = []ytab{
-	{Yxm, Ynone, Yrl, Zm_r_xm, 1},
+	{Zm_r_xm, 1, argList{Yxm, Yrl}},
 }
 
 var yxcvlf = []ytab{
-	{Yml, Ynone, Yxr, Zm_r_xm, 1},
+	{Zm_r_xm, 1, argList{Yml, Yxr}},
 }
 
 var yxcvfq = []ytab{
-	{Yxm, Ynone, Yrl, Zm_r_xm, 2},
+	{Zm_r_xm, 2, argList{Yxm, Yrl}},
 }
 
 var yxcvqf = []ytab{
-	{Yml, Ynone, Yxr, Zm_r_xm, 2},
+	{Zm_r_xm, 2, argList{Yml, Yxr}},
 }
 
 var yps = []ytab{
-	{Ymm, Ynone, Ymr, Zm_r_xm, 1},
-	{Yi8, Ynone, Ymr, Zibo_m_xm, 2},
-	{Yxm, Ynone, Yxr, Zm_r_xm, 2},
-	{Yi8, Ynone, Yxr, Zibo_m_xm, 3},
+	{Zm_r_xm, 1, argList{Ymm, Ymr}},
+	{Zibo_m_xm, 2, argList{Yi8, Ymr}},
+	{Zm_r_xm, 2, argList{Yxm, Yxr}},
+	{Zibo_m_xm, 3, argList{Yi8, Yxr}},
 }
 
 var yxrrl = []ytab{
-	{Yxr, Ynone, Yrl, Zm_r, 1},
+	{Zm_r, 1, argList{Yxr, Yrl}},
 }
 
 var ymrxr = []ytab{
-	{Ymr, Ynone, Yxr, Zm_r, 1},
-	{Yxm, Ynone, Yxr, Zm_r_xm, 1},
+	{Zm_r, 1, argList{Ymr, Yxr}},
+	{Zm_r_xm, 1, argList{Yxm, Yxr}},
 }
 
 var ymshuf = []ytab{
-	{Yi8, Ymm, Ymr, Zibm_r, 2},
+	{Zibm_r, 2, argList{Yi8, Ymm, Ymr}},
 }
 
 var ymshufb = []ytab{
-	{Yxm, Ynone, Yxr, Zm2_r, 2},
+	{Zm2_r, 2, argList{Yxm, Yxr}},
 }
 
 // It should never have more than 1 entry,
@@ -739,60 +735,60 @@ var ymshufb = []ytab{
 // ROUNDPD and ROUNDPS and recently added BLENDPD,
 // to name a few.
 var yxshuf = []ytab{
-	{Yu8, Yxm, Yxr, Zibm_r, 2},
+	{Zibm_r, 2, argList{Yu8, Yxm, Yxr}},
 }
 
 var yextrw = []ytab{
-	{Yu8, Yxr, Yrl, Zibm_r, 2},
+	{Zibm_r, 2, argList{Yu8, Yxr, Yrl}},
 }
 
 var yextr = []ytab{
-	{Yu8, Yxr, Ymm, Zibr_m, 3},
+	{Zibr_m, 3, argList{Yu8, Yxr, Ymm}},
 }
 
 var yinsrw = []ytab{
-	{Yu8, Yml, Yxr, Zibm_r, 2},
+	{Zibm_r, 2, argList{Yu8, Yml, Yxr}},
 }
 
 var yinsr = []ytab{
-	{Yu8, Ymm, Yxr, Zibm_r, 3},
+	{Zibm_r, 3, argList{Yu8, Ymm, Yxr}},
 }
 
 var ypsdq = []ytab{
-	{Yi8, Ynone, Yxr, Zibo_m, 2},
+	{Zibo_m, 2, argList{Yi8, Yxr}},
 }
 
 var ymskb = []ytab{
-	{Yxr, Ynone, Yrl, Zm_r_xm, 2},
-	{Ymr, Ynone, Yrl, Zm_r_xm, 1},
+	{Zm_r_xm, 2, argList{Yxr, Yrl}},
+	{Zm_r_xm, 1, argList{Ymr, Yrl}},
 }
 
 var ycrc32l = []ytab{
-	{Yml, Ynone, Yrl, Zlitm_r, 0},
+	{Zlitm_r, 0, argList{Yml, Yrl}},
 }
 
 var yprefetch = []ytab{
-	{Ym, Ynone, Ynone, Zm_o, 2},
+	{Zm_o, 2, argList{Ym}},
 }
 
 var yaes = []ytab{
-	{Yxm, Ynone, Yxr, Zlitm_r, 2},
+	{Zlitm_r, 2, argList{Yxm, Yxr}},
 }
 
 var yxbegin = []ytab{
-	{Ynone, Ynone, Ybr, Zjmp, 1},
+	{Zjmp, 1, argList{Ybr}},
 }
 
 var yxabort = []ytab{
-	{Yu8, Ynone, Ynone, Zib_, 1},
+	{Zib_, 1, argList{Yu8}},
 }
 
 var ylddqu = []ytab{
-	{Ym, Ynone, Yxr, Zm_r, 1},
+	{Zm_r, 1, argList{Ym, Yxr}},
 }
 
 var ypalignr = []ytab{
-	{Yu8, Yxm, Yxr, Zibm_r, 2},
+	{Zibm_r, 2, argList{Yu8, Yxm, Yxr}},
 }
 
 // VEX instructions that come in two forms:
@@ -815,87 +811,87 @@ var ypalignr = []ytab{
 //	{AVPXOR, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xEF, VEX_256_66_0F_WIG, 0xEF}}
 //
 var yvex_xy3 = []ytab{
-	{Yxm, Yxr, Yxr, Zvex_rm_v_r, 2},
-	{Yym, Yyr, Yyr, Zvex_rm_v_r, 2},
+	{Zvex_rm_v_r, 2, argList{Yxm, Yxr, Yxr}},
+	{Zvex_rm_v_r, 2, argList{Yym, Yyr, Yyr}},
 }
 
 var yvex_x3 = []ytab{
-	{Yxm, Yxr, Yxr, Zvex_rm_v_r, 2},
+	{Zvex_rm_v_r, 2, argList{Yxm, Yxr, Yxr}},
 }
 
 var yvex_ri3 = []ytab{
-	{Yi8, Ymb, Yrl, Zvex_i_rm_r, 2},
+	{Zvex_i_rm_r, 2, argList{Yi8, Ymb, Yrl}},
 }
 
 var yvex_xyi3 = []ytab{
-	{Yu8, Yxm, Yxr, Zvex_i_rm_r, 2},
-	{Yu8, Yym, Yyr, Zvex_i_rm_r, 2},
-	{Yi8, Yxm, Yxr, Zvex_i_rm_r, 2},
-	{Yi8, Yym, Yyr, Zvex_i_rm_r, 2},
+	{Zvex_i_rm_r, 2, argList{Yu8, Yxm, Yxr}},
+	{Zvex_i_rm_r, 2, argList{Yu8, Yym, Yyr}},
+	{Zvex_i_rm_r, 2, argList{Yi8, Yxm, Yxr}},
+	{Zvex_i_rm_r, 2, argList{Yi8, Yym, Yyr}},
 }
 
-var yvex_yyi4 = []ytab{ //TODO don't hide 4 op, some version have xmm version
-	{Yym, Yyr, Yyr, Zvex_i_rm_v_r, 2},
+var yvex_yyi4 = []ytab{
+	{Zvex_i_rm_v_r, 2, argList{Yu8, Yym, Yyr, Yyr}},
 }
 
 var yvex_xyi4 = []ytab{
-	{Yxm, Yyr, Yyr, Zvex_i_rm_v_r, 2},
+	{Zvex_i_rm_v_r, 2, argList{Yu8, Yxm, Yyr, Yyr}},
 }
 
 var yvex_shift = []ytab{
-	{Yi8, Yxr, Yxr, Zvex_i_r_v, 3},
-	{Yi8, Yyr, Yyr, Zvex_i_r_v, 3},
-	{Yxm, Yxr, Yxr, Zvex_rm_v_r, 2},
-	{Yxm, Yyr, Yyr, Zvex_rm_v_r, 2},
+	{Zvex_i_r_v, 3, argList{Yi8, Yxr, Yxr}},
+	{Zvex_i_r_v, 3, argList{Yi8, Yyr, Yyr}},
+	{Zvex_rm_v_r, 2, argList{Yxm, Yxr, Yxr}},
+	{Zvex_rm_v_r, 2, argList{Yxm, Yyr, Yyr}},
 }
 
 var yvex_shift_dq = []ytab{
-	{Yi8, Yxr, Yxr, Zvex_i_r_v, 3},
-	{Yi8, Yyr, Yyr, Zvex_i_r_v, 3},
+	{Zvex_i_r_v, 3, argList{Yi8, Yxr, Yxr}},
+	{Zvex_i_r_v, 3, argList{Yi8, Yyr, Yyr}},
 }
 
 var yvex_r3 = []ytab{
-	{Yml, Yrl, Yrl, Zvex_rm_v_r, 2},
+	{Zvex_rm_v_r, 2, argList{Yml, Yrl, Yrl}},
 }
 
 var yvex_vmr3 = []ytab{
-	{Yrl, Yml, Yrl, Zvex_v_rm_r, 2},
+	{Zvex_v_rm_r, 2, argList{Yrl, Yml, Yrl}},
 }
 
 var yvex_xy2 = []ytab{
-	{Yxm, Ynone, Yxr, Zvex_rm_v_r, 2},
-	{Yym, Ynone, Yyr, Zvex_rm_v_r, 2},
+	{Zvex_rm_v_r, 2, argList{Yxm, Yxr}},
+	{Zvex_rm_v_r, 2, argList{Yym, Yyr}},
 }
 
 var yvex_xyr2 = []ytab{
-	{Yxr, Ynone, Yrl, Zvex_rm_v_r, 2},
-	{Yyr, Ynone, Yrl, Zvex_rm_v_r, 2},
+	{Zvex_rm_v_r, 2, argList{Yxr, Yrl}},
+	{Zvex_rm_v_r, 2, argList{Yyr, Yrl}},
 }
 
 var yvex_vmovdqa = []ytab{
-	{Yxm, Ynone, Yxr, Zvex_rm_v_r, 2},
-	{Yxr, Ynone, Yxm, Zvex_r_v_rm, 2},
-	{Yym, Ynone, Yyr, Zvex_rm_v_r, 2},
-	{Yyr, Ynone, Yym, Zvex_r_v_rm, 2},
+	{Zvex_rm_v_r, 2, argList{Yxm, Yxr}},
+	{Zvex_r_v_rm, 2, argList{Yxr, Yxm}},
+	{Zvex_rm_v_r, 2, argList{Yym, Yyr}},
+	{Zvex_r_v_rm, 2, argList{Yyr, Yym}},
 }
 
 var yvex_vmovntdq = []ytab{
-	{Yxr, Ynone, Ym, Zvex_r_v_rm, 2},
-	{Yyr, Ynone, Ym, Zvex_r_v_rm, 2},
+	{Zvex_r_v_rm, 2, argList{Yxr, Ym}},
+	{Zvex_r_v_rm, 2, argList{Yyr, Ym}},
 }
 
 var yvex_vpbroadcast = []ytab{
-	{Yxm, Ynone, Yxr, Zvex_rm_v_r, 2},
-	{Yxm, Ynone, Yyr, Zvex_rm_v_r, 2},
+	{Zvex_rm_v_r, 2, argList{Yxm, Yxr}},
+	{Zvex_rm_v_r, 2, argList{Yxm, Yyr}},
 }
 
 var yvex_vpbroadcast_sd = []ytab{
-	{Yxm, Ynone, Yyr, Zvex_rm_v_r, 2},
+	{Zvex_rm_v_r, 2, argList{Yxm, Yyr}},
 }
 
 var ymmxmm0f38 = []ytab{
-	{Ymm, Ynone, Ymr, Zlitm_r, 3},
-	{Yxm, Ynone, Yxr, Zlitm_r, 5},
+	{Zlitm_r, 3, argList{Ymm, Ymr}},
+	{Zlitm_r, 5, argList{Yxm, Yxr}},
 }
 
 /*
@@ -1120,10 +1116,10 @@ var optab =
 	{ADPPS, yxshuf, Pq, [23]uint8{0x3a, 0x40, 0}},
 	{AEMMS, ynone, Pm, [23]uint8{0x77}},
 	{AENTER, nil, 0, [23]uint8{}}, /* botch */
-	{AFXRSTOR, ysvrs, Pm, [23]uint8{0xae, 01, 0xae, 01}},
-	{AFXSAVE, ysvrs, Pm, [23]uint8{0xae, 00, 0xae, 00}},
-	{AFXRSTOR64, ysvrs, Pw, [23]uint8{0x0f, 0xae, 01, 0x0f, 0xae, 01}},
-	{AFXSAVE64, ysvrs, Pw, [23]uint8{0x0f, 0xae, 00, 0x0f, 0xae, 00}},
+	{AFXRSTOR, ysvrs_mo, Pm, [23]uint8{0xae, 01, 0xae, 01}},
+	{AFXSAVE, ysvrs_om, Pm, [23]uint8{0xae, 00, 0xae, 00}},
+	{AFXRSTOR64, ysvrs_mo, Pw, [23]uint8{0x0f, 0xae, 01, 0x0f, 0xae, 01}},
+	{AFXSAVE64, ysvrs_om, Pw, [23]uint8{0x0f, 0xae, 00, 0x0f, 0xae, 00}},
 	{AHLT, ynone, Px, [23]uint8{0xf4}},
 	{AIDIVB, ydivb, Pb, [23]uint8{0xf6, 07}},
 	{AIDIVL, ydivl, Px, [23]uint8{0xf7, 07}},
@@ -1178,7 +1174,7 @@ var optab =
 	{ALARL, yml_rl, Pm, [23]uint8{0x02}},
 	{ALARW, yml_rl, Pq, [23]uint8{0x02}},
 	{ALDDQU, ylddqu, Pf2, [23]uint8{0xf0}},
-	{ALDMXCSR, ysvrs, Pm, [23]uint8{0xae, 02, 0xae, 02}},
+	{ALDMXCSR, ysvrs_mo, Pm, [23]uint8{0xae, 02, 0xae, 02}},
 	{ALEAL, ym_rl, Px, [23]uint8{0x8d}},
 	{ALEAQ, ym_rl, Pw, [23]uint8{0x8d}},
 	{ALEAVEL, ynone, P32, [23]uint8{0xc9}},
@@ -1493,7 +1489,7 @@ var optab =
 	{ASTC, ynone, Px, [23]uint8{0xf9}},
 	{ASTD, ynone, Px, [23]uint8{0xfd}},
 	{ASTI, ynone, Px, [23]uint8{0xfb}},
-	{ASTMXCSR, ysvrs, Pm, [23]uint8{0xae, 03, 0xae, 03}},
+	{ASTMXCSR, ysvrs_om, Pm, [23]uint8{0xae, 03, 0xae, 03}},
 	{ASTOSB, ynone, Pb, [23]uint8{0xaa}},
 	{ASTOSL, ynone, Px, [23]uint8{0xab}},
 	{ASTOSQ, ynone, Pw, [23]uint8{0xab}},
@@ -1604,12 +1600,12 @@ var optab =
 	{AFDIVRD, yfadd, Px, [23]uint8{0xdc, 07, 0xd8, 07, 0xdc, 06}},
 	{AFXCHD, yfxch, Px, [23]uint8{0xd9, 01, 0xd9, 01}},
 	{AFFREE, nil, 0, [23]uint8{}},
-	{AFLDCW, ysvrs, Px, [23]uint8{0xd9, 05, 0xd9, 05}},
-	{AFLDENV, ysvrs, Px, [23]uint8{0xd9, 04, 0xd9, 04}},
-	{AFRSTOR, ysvrs, Px, [23]uint8{0xdd, 04, 0xdd, 04}},
-	{AFSAVE, ysvrs, Px, [23]uint8{0xdd, 06, 0xdd, 06}},
-	{AFSTCW, ysvrs, Px, [23]uint8{0xd9, 07, 0xd9, 07}},
-	{AFSTENV, ysvrs, Px, [23]uint8{0xd9, 06, 0xd9, 06}},
+	{AFLDCW, ysvrs_mo, Px, [23]uint8{0xd9, 05, 0xd9, 05}},
+	{AFLDENV, ysvrs_mo, Px, [23]uint8{0xd9, 04, 0xd9, 04}},
+	{AFRSTOR, ysvrs_mo, Px, [23]uint8{0xdd, 04, 0xdd, 04}},
+	{AFSAVE, ysvrs_om, Px, [23]uint8{0xdd, 06, 0xdd, 06}},
+	{AFSTCW, ysvrs_om, Px, [23]uint8{0xd9, 07, 0xd9, 07}},
+	{AFSTENV, ysvrs_om, Px, [23]uint8{0xd9, 06, 0xd9, 06}},
 	{AFSTSW, ystsw, Px, [23]uint8{0xdd, 07, 0xdf, 0xe0}},
 	{AF2XM1, ynone, Px, [23]uint8{0xd9, 0xf0}},
 	{AFABS, ynone, Px, [23]uint8{0xd9, 0xe1}},
@@ -3403,9 +3399,10 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 	// Similarly SHRQ CX, AX:DX is really SHRQ CX(DX*0), AX.
 	// Change encoding generated by assemblers and compilers and remove.
 	if (p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_REG) && p.From.Index != REG_NONE && p.From.Scale == 0 {
-		p.From3 = new(obj.Addr)
-		p.From3.Type = obj.TYPE_REG
-		p.From3.Reg = p.From.Index
+		p.SetFrom3(obj.Addr{
+			Type: obj.TYPE_REG,
+			Reg:  p.From.Index,
+		})
 		p.From.Index = 0
 	}
 
@@ -3414,8 +3411,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 	switch p.As {
 	case AIMUL3Q, APEXTRW, APINSRW, APINSRD, APINSRQ, APSHUFHW, APSHUFL, APSHUFW, ASHUFPD, ASHUFPS, AAESKEYGENASSIST, APSHUFD, APCLMULQDQ:
 		if p.From3Type() == obj.TYPE_NONE {
-			p.From3 = new(obj.Addr)
-			*p.From3 = p.From
+			p.SetFrom3(p.From)
 			p.From = obj.Addr{}
 			p.From.Type = obj.TYPE_CONST
 			p.From.Offset = p.To.Offset
@@ -3423,12 +3419,11 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 		}
 	case ACMPSD, ACMPSS, ACMPPS, ACMPPD:
 		if p.From3Type() == obj.TYPE_NONE {
-			p.From3 = new(obj.Addr)
-			*p.From3 = p.To
+			p.SetFrom3(p.To)
 			p.To = obj.Addr{}
 			p.To.Type = obj.TYPE_CONST
-			p.To.Offset = p.From3.Offset
-			p.From3.Offset = 0
+			p.To.Offset = p.GetFrom3().Offset
+			p.GetFrom3().Offset = 0
 		}
 	}
 
@@ -3440,10 +3435,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 	}
 
 	ft := int(p.Ft) * Ymax
-	f3t := Ynone * Ymax
-	if p.From3 != nil {
-		f3t = oclass(ctxt, p, p.From3) * Ymax
-	}
+	var f3t int
 	tt := int(p.Tt) * Ymax
 
 	xo := obj.Bool2int(o.op[0] == 0x0f)
@@ -3455,9 +3447,22 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 	var r *obj.Reloc
 	var rel obj.Reloc
 	var v int64
-	for i := range o.ytab {
-		yt := &o.ytab[i]
-		if ycover[ft+int(yt.from)] != 0 && ycover[f3t+int(yt.from3)] != 0 && ycover[tt+int(yt.to)] != 0 {
+
+	args := make([]int, 0, 6)
+	if ft != Ynone*Ymax {
+		args = append(args, ft)
+	}
+	for i := range p.RestArgs {
+		args = append(args, oclass(ctxt, p, &p.RestArgs[i])*Ymax)
+	}
+	if tt != Ynone*Ymax {
+		args = append(args, tt)
+	}
+
+	for _, yt := range o.ytab {
+		if !yt.match(args) {
+			z += int(yt.zoffset) + xo
+		} else {
 			switch o.prefix {
 			case Px1: /* first option valid only in 32-bit mode */
 				if ctxt.Arch.Family == sys.AMD64 && z == 0 {
@@ -3604,7 +3609,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 
 			case Zm_r_i_xm:
 				asmbuf.mediaop(ctxt, o, op, int(yt.zoffset), z)
-				asmbuf.asmand(ctxt, cursym, p, &p.From, p.From3)
+				asmbuf.asmand(ctxt, cursym, p, &p.From, p.GetFrom3())
 				asmbuf.Put1(byte(p.To.Offset))
 
 			case Zibm_r, Zibr_m:
@@ -3618,9 +3623,9 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					asmbuf.Put1(byte(op))
 				}
 				if yt.zcase == Zibr_m {
-					asmbuf.asmand(ctxt, cursym, p, &p.To, p.From3)
+					asmbuf.asmand(ctxt, cursym, p, &p.To, p.GetFrom3())
 				} else {
-					asmbuf.asmand(ctxt, cursym, p, p.From3, &p.To)
+					asmbuf.asmand(ctxt, cursym, p, p.GetFrom3(), &p.To)
 				}
 				asmbuf.Put1(byte(p.From.Offset))
 
@@ -3642,36 +3647,37 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				asmbuf.asmand(ctxt, cursym, p, &p.To, &p.From)
 
 			case Zvex_rm_v_r:
-				asmbuf.asmvex(ctxt, &p.From, p.From3, &p.To, o.op[z], o.op[z+1])
+				asmbuf.asmvex(ctxt, &p.From, p.GetFrom3(), &p.To, o.op[z], o.op[z+1])
 				asmbuf.asmand(ctxt, cursym, p, &p.From, &p.To)
 
 			case Zvex_i_r_v:
-				asmbuf.asmvex(ctxt, p.From3, &p.To, nil, o.op[z], o.op[z+1])
+				asmbuf.asmvex(ctxt, p.GetFrom3(), &p.To, nil, o.op[z], o.op[z+1])
 				regnum := byte(0x7)
-				if p.From3.Reg >= REG_X0 && p.From3.Reg <= REG_X15 {
-					regnum &= byte(p.From3.Reg - REG_X0)
+				if p.GetFrom3().Reg >= REG_X0 && p.GetFrom3().Reg <= REG_X15 {
+					regnum &= byte(p.GetFrom3().Reg - REG_X0)
 				} else {
-					regnum &= byte(p.From3.Reg - REG_Y0)
+					regnum &= byte(p.GetFrom3().Reg - REG_Y0)
 				}
 				asmbuf.Put1(byte(o.op[z+2]) | regnum)
 				asmbuf.Put1(byte(p.From.Offset))
 
 			case Zvex_i_rm_v_r:
-				asmbuf.asmvex(ctxt, &p.From, p.From3, &p.To, o.op[z], o.op[z+1])
-				asmbuf.asmand(ctxt, cursym, p, &p.From, &p.To)
-				asmbuf.Put1(byte(p.From3.Offset))
+				imm, from, from3, to := unpackOps4(p)
+				asmbuf.asmvex(ctxt, from, from3, to, o.op[z], o.op[z+1])
+				asmbuf.asmand(ctxt, cursym, p, from, to)
+				asmbuf.Put1(byte(imm.Offset))
 
 			case Zvex_i_rm_r:
-				asmbuf.asmvex(ctxt, p.From3, nil, &p.To, o.op[z], o.op[z+1])
-				asmbuf.asmand(ctxt, cursym, p, p.From3, &p.To)
+				asmbuf.asmvex(ctxt, p.GetFrom3(), nil, &p.To, o.op[z], o.op[z+1])
+				asmbuf.asmand(ctxt, cursym, p, p.GetFrom3(), &p.To)
 				asmbuf.Put1(byte(p.From.Offset))
 
 			case Zvex_v_rm_r:
-				asmbuf.asmvex(ctxt, p.From3, &p.From, &p.To, o.op[z], o.op[z+1])
-				asmbuf.asmand(ctxt, cursym, p, p.From3, &p.To)
+				asmbuf.asmvex(ctxt, p.GetFrom3(), &p.From, &p.To, o.op[z], o.op[z+1])
+				asmbuf.asmand(ctxt, cursym, p, p.GetFrom3(), &p.To)
 
 			case Zvex_r_v_rm:
-				asmbuf.asmvex(ctxt, &p.To, p.From3, &p.From, o.op[z], o.op[z+1])
+				asmbuf.asmvex(ctxt, &p.To, p.GetFrom3(), &p.From, o.op[z], o.op[z+1])
 				asmbuf.asmand(ctxt, cursym, p, &p.To, &p.From)
 
 			case Zr_m_xm:
@@ -4026,7 +4032,10 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 
 			return
 		}
-		z += int(yt.zoffset) + xo
+	}
+	f3t = Ynone * Ymax
+	if p.GetFrom3() != nil {
+		f3t = oclass(ctxt, p, p.GetFrom3()) * Ymax
 	}
 	for mo := ymovtab; mo[0].as != 0; mo = mo[1:] {
 		var pp obj.Prog
@@ -4105,7 +4114,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 
 					case obj.TYPE_CONST:
 						asmbuf.Put2(0x0f, t[0])
-						asmbuf.asmandsz(ctxt, cursym, p, &p.To, reg[p.From3.Reg], regrex[p.From3.Reg], 0)
+						asmbuf.asmandsz(ctxt, cursym, p, &p.To, reg[p.GetFrom3().Reg], regrex[p.GetFrom3().Reg], 0)
 						asmbuf.Put1(byte(p.From.Offset))
 
 					case obj.TYPE_REG:
@@ -4115,7 +4124,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 
 						case REG_CL, REG_CX:
 							asmbuf.Put2(0x0f, t[1])
-							asmbuf.asmandsz(ctxt, cursym, p, &p.To, reg[p.From3.Reg], regrex[p.From3.Reg], 0)
+							asmbuf.asmandsz(ctxt, cursym, p, &p.To, reg[p.GetFrom3().Reg], regrex[p.GetFrom3().Reg], 0)
 						}
 					}
 
@@ -4665,4 +4674,9 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 			asmbuf.Put(naclbpfix)
 		}
 	}
+}
+
+// Extract 4 operands from p.
+func unpackOps4(p *obj.Prog) (*obj.Addr, *obj.Addr, *obj.Addr, *obj.Addr) {
+	return &p.From, &p.RestArgs[0], &p.RestArgs[1], &p.To
 }

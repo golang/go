@@ -384,7 +384,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 				prog.Reg = p.getRegister(prog, op, &a[1])
 			} else {
 				// Compare register with immediate and jump.
-				prog.From3 = newAddr(a[1])
+				prog.SetFrom3(a[1])
 			}
 			break
 		}
@@ -567,7 +567,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			if arch.IsARMBFX(op) {
 				// a[0] and a[1] must be constants, a[2] must be a register
 				prog.From = a[0]
-				prog.From3 = newAddr(a[1])
+				prog.SetFrom3(a[1])
 				prog.To = a[2]
 				break
 			}
@@ -576,13 +576,8 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.To = a[2]
 		case sys.AMD64:
-			// Catch missing operand here, because we store immediate as part of From3, and can't distinguish
-			// missing operand from legal value 0 in obj/x86/asm6.
-			if arch.IsAMD4OP(op) {
-				p.errorf("4 operands required, but only 3 are provided for %s instruction", op)
-			}
 			prog.From = a[0]
-			prog.From3 = newAddr(a[1])
+			prog.SetFrom3(a[1])
 			prog.To = a[2]
 		case sys.ARM64:
 			// ARM64 instructions with one input and two outputs.
@@ -601,7 +596,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.To = a[2]
 		case sys.I386:
 			prog.From = a[0]
-			prog.From3 = newAddr(a[1])
+			prog.SetFrom3(a[1])
 			prog.To = a[2]
 		case sys.PPC64:
 			if arch.IsPPC64CMP(op) {
@@ -623,7 +618,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				prog.To = a[2]
 			case obj.TYPE_CONST:
 				prog.From = a[0]
-				prog.From3 = newAddr(a[1])
+				prog.SetFrom3(a[1])
 				prog.To = a[2]
 			default:
 				p.errorf("invalid addressing modes for %s instruction", op)
@@ -634,7 +629,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			if a[1].Type == obj.TYPE_REG {
 				prog.Reg = p.getRegister(prog, op, &a[1])
 			} else {
-				prog.From3 = newAddr(a[1])
+				prog.SetFrom3(a[1])
 			}
 			prog.To = a[2]
 		default:
@@ -646,7 +641,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			if arch.IsARMBFX(op) {
 				// a[0] and a[1] must be constants, a[2] and a[3] must be registers
 				prog.From = a[0]
-				prog.From3 = newAddr(a[1])
+				prog.SetFrom3(a[1])
 				prog.Reg = p.getRegister(prog, op, &a[2])
 				prog.To = a[3]
 				break
@@ -666,26 +661,15 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			}
 		}
 		if p.arch.Family == sys.AMD64 {
-			// 4 operand instruction have form ymm1, ymm2, ymm3/m256, imm8
-			// So From3 is always just a register, so we store imm8 in Offset field,
-			// to avoid increasing size of Prog.
-			prog.From = a[1]
-			prog.From3 = newAddr(a[2])
-			if a[0].Type != obj.TYPE_CONST {
-				p.errorf("first operand must be an immediate in %s instruction", op)
-			}
-			if prog.From3.Type != obj.TYPE_REG {
-				p.errorf("third operand must be a register in %s instruction", op)
-			}
-			prog.From3.Offset = int64(p.getImmediate(prog, op, &a[0]))
+			prog.From = a[0]
+			prog.RestArgs = []obj.Addr{a[1], a[2]}
 			prog.To = a[3]
-			prog.RegTo2 = -1
 			break
 		}
 		if p.arch.Family == sys.ARM64 {
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.From3 = newAddr(a[2])
+			prog.SetFrom3(a[2])
 			prog.To = a[3]
 			break
 		}
@@ -693,12 +677,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			if arch.IsPPC64RLD(op) {
 				prog.From = a[0]
 				prog.Reg = p.getRegister(prog, op, &a[1])
-				prog.From3 = newAddr(a[2])
+				prog.SetFrom3(a[2])
 				prog.To = a[3]
 				break
 			} else if arch.IsPPC64ISEL(op) {
 				// ISEL BC,RB,RA,RT becomes isel rt,ra,rb,bc
-				prog.From3 = newAddr(a[2])                // ra
+				prog.SetFrom3(a[2])                       // ra
 				prog.From = a[0]                          // bc
 				prog.Reg = p.getRegister(prog, op, &a[1]) // rb
 				prog.To = a[3]                            // rt
@@ -712,13 +696,13 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			if a[1].Type == obj.TYPE_REG {
 				prog.From = a[0]
 				prog.Reg = p.getRegister(prog, op, &a[1])
-				prog.From3 = newAddr(a[2])
+				prog.SetFrom3(a[2])
 				prog.To = a[3]
 				break
 			} else if a[1].Type == obj.TYPE_CONST {
 				prog.From = a[0]
 				prog.Reg = p.getRegister(prog, op, &a[2])
-				prog.From3 = newAddr(a[1])
+				prog.SetFrom3(a[1])
 				prog.To = a[3]
 				break
 			} else {
@@ -733,7 +717,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			}
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.From3 = newAddr(a[2])
+			prog.SetFrom3(a[2])
 			prog.To = a[3]
 			break
 		}
@@ -752,10 +736,10 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			} else {
 				mask = (^uint32(0) >> uint(mask2+1)) & (^uint32(0) << uint(31-(mask1-1)))
 			}
-			prog.From3 = &obj.Addr{
+			prog.SetFrom3(obj.Addr{
 				Type:   obj.TYPE_CONST,
 				Offset: int64(mask),
-			}
+			})
 			prog.To = a[4]
 			break
 		}

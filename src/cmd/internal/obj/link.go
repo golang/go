@@ -209,14 +209,19 @@ const (
 //
 // The general instruction form is:
 //
-//	As.Scond From, Reg, From3, To, RegTo2
+//	(1) As.Scond From [, ...RestArgs], To
+//	(2) As.Scond From, Reg [, ...RestArgs], To, RegTo2
 //
 // where As is an opcode and the others are arguments:
-// From, Reg, From3 are sources, and To, RegTo2 are destinations.
+// From, Reg are sources, and To, RegTo2 are destinations.
+// RestArgs can hold additional sources and destinations.
 // Usually, not all arguments are present.
 // For example, MOVL R1, R2 encodes using only As=MOVL, From=R1, To=R2.
 // The Scond field holds additional condition bits for systems (like arm)
 // that have generalized conditional execution.
+// (2) form is present for compatibility with older code,
+// to avoid too much changes in a single swing.
+// (1) scheme is enough to express any kind of operand combination.
 //
 // Jump instructions use the Pcond field to point to the target instruction,
 // which must be in the same linked list as the jump instruction.
@@ -232,35 +237,62 @@ const (
 // The other fields not yet mentioned are for use by the back ends and should
 // be left zeroed by creators of Prog lists.
 type Prog struct {
-	Ctxt   *Link    // linker context
-	Link   *Prog    // next Prog in linked list
-	From   Addr     // first source operand
-	From3  *Addr    // third source operand (second is Reg below)
-	To     Addr     // destination operand (second is RegTo2 below)
-	Pcond  *Prog    // target of conditional jump
-	Forwd  *Prog    // for x86 back end
-	Rel    *Prog    // for x86, arm back ends
-	Pc     int64    // for back ends or assembler: virtual or actual program counter, depending on phase
-	Pos    src.XPos // source position of this instruction
-	Spadj  int32    // effect of instruction on stack pointer (increment or decrement amount)
-	As     As       // assembler opcode
-	Reg    int16    // 2nd source operand
-	RegTo2 int16    // 2nd destination operand
-	Mark   uint16   // bitmask of arch-specific items
-	Optab  uint16   // arch-specific opcode index
-	Scond  uint8    // condition bits for conditional instruction (e.g., on ARM)
-	Back   uint8    // for x86 back end: backwards branch state
-	Ft     uint8    // for x86 back end: type index of Prog.From
-	Tt     uint8    // for x86 back end: type index of Prog.To
-	Isize  uint8    // for x86 back end: size of the instruction in bytes
+	Ctxt     *Link    // linker context
+	Link     *Prog    // next Prog in linked list
+	From     Addr     // first source operand
+	RestArgs []Addr   // can pack any operands that not fit into {Prog.From, Prog.To}
+	To       Addr     // destination operand (second is RegTo2 below)
+	Pcond    *Prog    // target of conditional jump
+	Forwd    *Prog    // for x86 back end
+	Rel      *Prog    // for x86, arm back ends
+	Pc       int64    // for back ends or assembler: virtual or actual program counter, depending on phase
+	Pos      src.XPos // source position of this instruction
+	Spadj    int32    // effect of instruction on stack pointer (increment or decrement amount)
+	As       As       // assembler opcode
+	Reg      int16    // 2nd source operand
+	RegTo2   int16    // 2nd destination operand
+	Mark     uint16   // bitmask of arch-specific items
+	Optab    uint16   // arch-specific opcode index
+	Scond    uint8    // condition bits for conditional instruction (e.g., on ARM)
+	Back     uint8    // for x86 back end: backwards branch state
+	Ft       uint8    // for x86 back end: type index of Prog.From
+	Tt       uint8    // for x86 back end: type index of Prog.To
+	Isize    uint8    // for x86 back end: size of the instruction in bytes
 }
 
-// From3Type returns From3.Type, or TYPE_NONE when From3 is nil.
+// From3Type returns p.GetFrom3().Type, or TYPE_NONE when
+// p.GetFrom3() returns nil.
+//
+// Deprecated: for the same reasons as Prog.GetFrom3.
 func (p *Prog) From3Type() AddrType {
-	if p.From3 == nil {
+	if p.RestArgs == nil {
 		return TYPE_NONE
 	}
-	return p.From3.Type
+	return p.RestArgs[0].Type
+}
+
+// GetFrom3 returns second source operand (the first is Prog.From).
+// In combination with Prog.From and Prog.To it makes common 3 operand
+// case easier to use.
+//
+// Should be used only when RestArgs is set with SetFrom3.
+//
+// Deprecated: better use RestArgs directly or define backend-specific getters.
+// Introduced to simplify transition to []Addr.
+// Usage of this is discouraged due to fragility and lack of guarantees.
+func (p *Prog) GetFrom3() *Addr {
+	if p.RestArgs == nil {
+		return nil
+	}
+	return &p.RestArgs[0]
+}
+
+// SetFrom3 assigns []Addr{a} to p.RestArgs.
+// In pair with Prog.GetFrom3 it can help in emulation of Prog.From3.
+//
+// Deprecated: for the same reasons as Prog.GetFrom3.
+func (p *Prog) SetFrom3(a Addr) {
+	p.RestArgs = []Addr{a}
 }
 
 // An As denotes an assembler opcode.
