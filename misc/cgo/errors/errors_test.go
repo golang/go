@@ -114,6 +114,7 @@ func TestReportsTypeErrors(t *testing.T) {
 		"issue11097b.go",
 		"issue13129.go",
 		"issue13423.go",
+		"issue13467.go",
 		"issue13635.go",
 		"issue13830.go",
 		"issue16116.go",
