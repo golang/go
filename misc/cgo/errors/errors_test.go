@@ -31,19 +31,20 @@ func check(t *testing.T, file string) {
 		}
 		var errors []*regexp.Regexp
 		for i, line := range bytes.Split(contents, []byte("\n")) {
-			if !bytes.Contains(line, []byte("ERROR HERE")) {
+			if bytes.HasSuffix(line, []byte("ERROR HERE")) {
+				re := regexp.MustCompile(regexp.QuoteMeta(fmt.Sprintf("%s:%d:", file, i+1)))
+				errors = append(errors, re)
 				continue
 			}
-			var re *regexp.Regexp
-			frags := bytes.SplitAfterN(line, []byte("ERROR HERE: "), 1)
+
+			frags := bytes.SplitAfterN(line, []byte("ERROR HERE: "), 2)
 			if len(frags) == 1 {
-				re = regexp.MustCompile(regexp.QuoteMeta(fmt.Sprintf("%s:%d:", file, i+1)))
-			} else {
-				re, err = regexp.Compile(string(frags[1]))
-				if err != nil {
-					t.Errorf("Invalid regexp after `ERROR HERE: `: %q", frags[1])
-					continue
-				}
+				continue
+			}
+			re, err := regexp.Compile(string(frags[1]))
+			if err != nil {
+				t.Errorf("Invalid regexp after `ERROR HERE: `: %#q", frags[1])
+				continue
 			}
 			errors = append(errors, re)
 		}
@@ -55,7 +56,14 @@ func check(t *testing.T, file string) {
 }
 
 func expect(t *testing.T, file string, errors []*regexp.Regexp) {
-	cmd := exec.Command("go", "build", "-gcflags=-C", path(file))
+	dir, err := ioutil.TempDir("", filepath.Base(t.Name()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	dst := filepath.Join(dir, strings.TrimSuffix(file, ".go"))
+	cmd := exec.Command("go", "build", "-o="+dst, "-gcflags=-C", path(file))
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Errorf("expected cgo to fail but it succeeded")
@@ -66,12 +74,13 @@ func expect(t *testing.T, file string, errors []*regexp.Regexp) {
 		found := false
 		for _, line := range lines {
 			if re.Match(line) {
+				t.Logf("found match for %#q: %q", re, line)
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Errorf("expected error output to contain %q", re)
+			t.Errorf("expected error output to contain %#q", re)
 		}
 	}
 
