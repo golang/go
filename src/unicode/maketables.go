@@ -41,10 +41,17 @@ func main() {
 	flushOutput()
 }
 
+func defaultVersion() string {
+	if v := os.Getenv("UNICODE_VERSION"); v != "" {
+		return v
+	}
+	return unicode.Version
+}
+
 var dataURL = flag.String("data", "", "full URL for UnicodeData.txt; defaults to --url/UnicodeData.txt")
 var casefoldingURL = flag.String("casefolding", "", "full URL for CaseFolding.txt; defaults to --url/CaseFolding.txt")
 var url = flag.String("url",
-	"http://www.unicode.org/Public/9.0.0/ucd/",
+	"http://www.unicode.org/Public/"+defaultVersion()+"/ucd/",
 	"URL of Unicode database directory")
 var tablelist = flag.String("tables",
 	"all",
