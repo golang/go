@@ -357,7 +357,7 @@ type g struct {
 	sysexitticks   int64    // cputicks when syscall has returned (for tracing)
 	traceseq       uint64   // trace event sequencer
 	tracelastp     puintptr // last P emitted an event for this goroutine
-	lockedm        *m
+	lockedm        muintptr
 	sig            uint32
 	writebuf       []byte
 	sigcode0       uintptr
@@ -423,7 +423,7 @@ type m struct {
 	alllink       *m // on allm
 	schedlink     muintptr
 	mcache        *mcache
-	lockedg       *g
+	lockedg       guintptr
 	createstack   [32]uintptr // stack that created this thread.
 	freglo        [16]uint32  // d[i] lsb and f[i]
 	freghi        [16]uint32  // d[i] msb and f[i+16]
