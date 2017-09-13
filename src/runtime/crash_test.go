@@ -32,25 +32,6 @@ func TestMain(m *testing.M) {
 	os.Exit(status)
 }
 
-func testEnv(cmd *exec.Cmd) *exec.Cmd {
-	if cmd.Env != nil {
-		panic("environment already set")
-	}
-	for _, env := range os.Environ() {
-		// Exclude GODEBUG from the environment to prevent its output
-		// from breaking tests that are trying to parse other command output.
-		if strings.HasPrefix(env, "GODEBUG=") {
-			continue
-		}
-		// Exclude GOTRACEBACK for the same reason.
-		if strings.HasPrefix(env, "GOTRACEBACK=") {
-			continue
-		}
-		cmd.Env = append(cmd.Env, env)
-	}
-	return cmd
-}
-
 var testprog struct {
 	sync.Mutex
 	dir    string
@@ -70,7 +51,7 @@ func runTestProg(t *testing.T, binary, name string) string {
 		t.Fatal(err)
 	}
 
-	cmd := testEnv(exec.Command(exe, name))
+	cmd := testenv.CleanCmdEnv(exec.Command(exe, name))
 	var b bytes.Buffer
 	cmd.Stdout = &b
 	cmd.Stderr = &b
@@ -139,7 +120,7 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 	exe := filepath.Join(testprog.dir, name+".exe")
 	cmd := exec.Command(testenv.GoToolPath(t), append([]string{"build", "-o", exe}, flags...)...)
 	cmd.Dir = "testdata/" + binary
-	out, err := testEnv(cmd).CombinedOutput()
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
 		target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
 		testprog.target[name] = target
@@ -158,14 +139,14 @@ var (
 func checkStaleRuntime(t *testing.T) {
 	staleRuntimeOnce.Do(func() {
 		// 'go run' uses the installed copy of runtime.a, which may be out of date.
-		out, err := testEnv(exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.Stale}}", "runtime")).CombinedOutput()
+		out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.Stale}}", "runtime")).CombinedOutput()
 		if err != nil {
 			staleRuntimeErr = fmt.Errorf("failed to execute 'go list': %v\n%v", err, string(out))
 			return
 		}
 		if string(out) != "false\n" {
 			t.Logf("go list -f {{.Stale}} runtime:\n%s", out)
-			out, err := testEnv(exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.StaleReason}}", "runtime")).CombinedOutput()
+			out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.StaleReason}}", "runtime")).CombinedOutput()
 			if err != nil {
 				t.Logf("go list -f {{.StaleReason}} failed: %v", err)
 			}
@@ -468,7 +449,7 @@ func TestMemPprof(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := testEnv(exec.Command(exe, "MemProf")).CombinedOutput()
+	got, err := testenv.CleanCmdEnv(exec.Command(exe, "MemProf")).CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -476,7 +457,7 @@ func TestMemPprof(t *testing.T) {
 	defer os.Remove(fn)
 
 	for try := 0; try < 2; try++ {
-		cmd := testEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-alloc_space", "-top"))
+		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-alloc_space", "-top"))
 		// Check that pprof works both with and without explicit executable on command line.
 		if try == 0 {
 			cmd.Args = append(cmd.Args, exe, fn)
@@ -586,7 +567,7 @@ func TestPanicRace(t *testing.T) {
 	const tries = 10
 retry:
 	for i := 0; i < tries; i++ {
-		got, err := testEnv(exec.Command(exe, "PanicRace")).CombinedOutput()
+		got, err := testenv.CleanCmdEnv(exec.Command(exe, "PanicRace")).CombinedOutput()
 		if err == nil {
 			t.Logf("try %d: program exited successfully, should have failed", i+1)
 			continue

@@ -209,3 +209,25 @@ func SkipFlakyNet(t *testing.T) {
 		t.Skip("skipping test on builder known to have frequent network failures")
 	}
 }
+
+// CleanCmdEnv will fill cmd.Env with the environment, excluding certain
+// variables that could modify the behavior of the Go tools such as
+// GODEBUG and GOTRACEBACK.
+func CleanCmdEnv(cmd *exec.Cmd) *exec.Cmd {
+	if cmd.Env != nil {
+		panic("environment already set")
+	}
+	for _, env := range os.Environ() {
+		// Exclude GODEBUG from the environment to prevent its output
+		// from breaking tests that are trying to parse other command output.
+		if strings.HasPrefix(env, "GODEBUG=") {
+			continue
+		}
+		// Exclude GOTRACEBACK for the same reason.
+		if strings.HasPrefix(env, "GOTRACEBACK=") {
+			continue
+		}
+		cmd.Env = append(cmd.Env, env)
+	}
+	return cmd
+}
