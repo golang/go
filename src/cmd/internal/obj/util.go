@@ -83,11 +83,7 @@ func (p *Prog) String() string {
 
 	fmt.Fprintf(&buf, "%.5d (%v)\t%v%s", p.Pc, p.Line(), p.As, sc)
 	sep := "\t"
-	quadOpAmd64 := p.RegTo2 == -1
-	if quadOpAmd64 {
-		fmt.Fprintf(&buf, "%s$%d", sep, p.From3.Offset)
-		sep = ", "
-	}
+
 	if p.From.Type != TYPE_NONE {
 		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.From))
 		sep = ", "
@@ -97,14 +93,11 @@ func (p *Prog) String() string {
 		fmt.Fprintf(&buf, "%s%v", sep, Rconv(int(p.Reg)))
 		sep = ", "
 	}
-	if p.From3Type() != TYPE_NONE {
-		if quadOpAmd64 {
-			fmt.Fprintf(&buf, "%s%v", sep, Rconv(int(p.From3.Reg)))
-		} else {
-			fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, p.From3))
-		}
+	for i := range p.RestArgs {
+		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.RestArgs[i]))
 		sep = ", "
 	}
+
 	if p.As == ATEXT {
 		// If there are attributes, print them. Otherwise, skip the comma.
 		// In short, print one of these two:
@@ -119,7 +112,7 @@ func (p *Prog) String() string {
 	if p.To.Type != TYPE_NONE {
 		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.To))
 	}
-	if p.RegTo2 != REG_NONE && !quadOpAmd64 {
+	if p.RegTo2 != REG_NONE {
 		fmt.Fprintf(&buf, "%s%v", sep, Rconv(int(p.RegTo2)))
 	}
 	return buf.String()

@@ -201,8 +201,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	}
 
 	if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
-		if p.From3 != nil {
-			nacladdr(ctxt, p, p.From3)
+		if p.GetFrom3() != nil {
+			nacladdr(ctxt, p, p.GetFrom3())
 		}
 		nacladdr(ctxt, p, &p.From)
 		nacladdr(ctxt, p, &p.To)
@@ -398,7 +398,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			q.From.Reg = reg
 		}
 	}
-	if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
+	if p.GetFrom3() != nil && p.GetFrom3().Name == obj.NAME_EXTERN {
 		ctxt.Diag("don't know how to handle %v with -dynlink", p)
 	}
 	var source *obj.Addr
@@ -436,7 +436,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p2.As = p.As
 		p2.Scond = p.Scond
 		p2.From = p.From
-		p2.From3 = p.From3
+		if p.RestArgs != nil {
+			p2.RestArgs = append(p2.RestArgs, p.RestArgs...)
+		}
 		p2.Reg = p.Reg
 		p2.To = p.To
 		// p.To.Type was set to TYPE_BRANCH above, but that makes checkaddr
@@ -522,7 +524,7 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		}
 	}
 
-	if !isName(&p.From) && !isName(&p.To) && (p.From3 == nil || !isName(p.From3)) {
+	if !isName(&p.From) && !isName(&p.To) && (p.GetFrom3() == nil || !isName(p.GetFrom3())) {
 		return
 	}
 	var dst int16 = REG_CX
@@ -543,7 +545,7 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	r.As = p.As
 	r.Scond = p.Scond
 	r.From = p.From
-	r.From3 = p.From3
+	r.RestArgs = p.RestArgs
 	r.Reg = p.Reg
 	r.To = p.To
 	if isName(&p.From) {
@@ -552,8 +554,8 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	if isName(&p.To) {
 		r.To.Reg = dst
 	}
-	if p.From3 != nil && isName(p.From3) {
-		r.From3.Reg = dst
+	if p.GetFrom3() != nil && isName(p.GetFrom3()) {
+		r.GetFrom3().Reg = dst
 	}
 	obj.Nopout(p)
 }
@@ -857,12 +859,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		case obj.NAME_PARAM:
 			p.From.Offset += int64(deltasp) + int64(pcsize)
 		}
-		if p.From3 != nil {
-			switch p.From3.Name {
+		if p.GetFrom3() != nil {
+			switch p.GetFrom3().Name {
 			case obj.NAME_AUTO:
-				p.From3.Offset += int64(deltasp) - int64(bpsize)
+				p.GetFrom3().Offset += int64(deltasp) - int64(bpsize)
 			case obj.NAME_PARAM:
-				p.From3.Offset += int64(deltasp) + int64(pcsize)
+				p.GetFrom3().Offset += int64(deltasp) + int64(pcsize)
 			}
 		}
 		switch p.To.Name {

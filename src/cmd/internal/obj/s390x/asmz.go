@@ -654,11 +654,11 @@ func (c *ctxtz) oplook(p *obj.Prog) *Optab {
 
 	a1--
 	a3 := C_NONE + 1
-	if p.From3 != nil {
-		a3 = int(p.From3.Class)
+	if p.GetFrom3() != nil {
+		a3 = int(p.GetFrom3().Class)
 		if a3 == 0 {
-			a3 = c.aclass(p.From3) + 1
-			p.From3.Class = int8(a3)
+			a3 = c.aclass(p.GetFrom3()) + 1
+			p.GetFrom3().Class = int8(a3)
 		}
 	}
 
@@ -3534,11 +3534,11 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		if l < 1 || l > 256 {
 			c.ctxt.Diag("number of bytes (%v) not in range [1,256]", l)
 		}
-		if p.From3.Index != 0 || p.To.Index != 0 {
+		if p.GetFrom3().Index != 0 || p.To.Index != 0 {
 			c.ctxt.Diag("cannot use index reg")
 		}
 		b1 := p.To.Reg
-		b2 := p.From3.Reg
+		b2 := p.GetFrom3().Reg
 		if b1 == 0 {
 			b1 = o.param
 		}
@@ -3546,7 +3546,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			b2 = o.param
 		}
 		d1 := c.regoff(&p.To)
-		d2 := c.regoff(p.From3)
+		d2 := c.regoff(p.GetFrom3())
 		if d1 < 0 || d1 >= DISP12 {
 			if b2 == REGTMP {
 				c.ctxt.Diag("REGTMP conflict")
@@ -3688,10 +3688,10 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 		mask := c.branchMask(p)
 		if int32(int16(v)) != v {
-			zRIL(_a, opcode2, uint32(p.From.Reg), uint32(c.regoff(p.From3)), asm)
+			zRIL(_a, opcode2, uint32(p.From.Reg), uint32(c.regoff(p.GetFrom3())), asm)
 			zRIL(_c, op_BRCL, mask, uint32(v-sizeRIL/2), asm)
 		} else {
-			zRIE(_c, opcode, uint32(p.From.Reg), mask, uint32(v), 0, 0, 0, uint32(c.regoff(p.From3)), asm)
+			zRIE(_c, opcode, uint32(p.From.Reg), mask, uint32(v), 0, 0, 0, uint32(c.regoff(p.GetFrom3())), asm)
 		}
 
 	case 93: // GOT lookup
@@ -3893,9 +3893,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 	case 101: // VRX LOAD
 		op, m3, _ := vop(p.As)
 		src := &p.From
-		if p.From3 != nil {
+		if p.GetFrom3() != nil {
 			m3 = uint32(c.vregoff(&p.From))
-			src = p.From3
+			src = p.GetFrom3()
 		}
 		b2 := src.Reg
 		if b2 == 0 {
@@ -3917,12 +3917,12 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 	case 103: // VRV GATHER
 		op, _, _ := vop(p.As)
 		m3 := uint32(c.vregoff(&p.From))
-		b2 := p.From3.Reg
+		b2 := p.GetFrom3().Reg
 		if b2 == 0 {
 			b2 = o.param
 		}
-		d2 := uint32(c.vregoff(p.From3))
-		zVRV(op, uint32(p.To.Reg), uint32(p.From3.Index), uint32(b2), d2, m3, asm)
+		d2 := uint32(c.vregoff(p.GetFrom3()))
+		zVRV(op, uint32(p.To.Reg), uint32(p.GetFrom3().Index), uint32(b2), d2, m3, asm)
 
 	case 104: // VRS SHIFT/ROTATE and LOAD GR FROM VR ELEMENT
 		op, m4, _ := vop(p.As)
@@ -3962,8 +3962,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 
 	case 108: // VRS LOAD WITH LENGTH
 		op, _, _ := vop(p.As)
-		offset := uint32(c.vregoff(p.From3))
-		reg := p.From3.Reg
+		offset := uint32(c.vregoff(p.GetFrom3()))
+		reg := p.GetFrom3().Reg
 		if reg == 0 {
 			reg = o.param
 		}
@@ -3972,9 +3972,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 	case 109: // VRI-a
 		op, m3, _ := vop(p.As)
 		i2 := uint32(c.vregoff(&p.From))
-		if p.From3 != nil {
+		if p.GetFrom3() != nil {
 			m3 = uint32(c.vregoff(&p.From))
-			i2 = uint32(c.vregoff(p.From3))
+			i2 = uint32(c.vregoff(p.GetFrom3()))
 		}
 		switch p.As {
 		case AVZERO:
@@ -3987,7 +3987,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 	case 110:
 		op, m4, _ := vop(p.As)
 		i2 := uint32(c.vregoff(&p.From))
-		i3 := uint32(c.vregoff(p.From3))
+		i3 := uint32(c.vregoff(p.GetFrom3()))
 		zVRIb(op, uint32(p.To.Reg), i2, i3, m4, asm)
 
 	case 111:
@@ -3998,7 +3998,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 	case 112:
 		op, m5, _ := vop(p.As)
 		i4 := uint32(c.vregoff(&p.From))
-		zVRId(op, uint32(p.To.Reg), uint32(p.Reg), uint32(p.From3.Reg), i4, m5, asm)
+		zVRId(op, uint32(p.To.Reg), uint32(p.Reg), uint32(p.GetFrom3().Reg), i4, m5, asm)
 
 	case 113:
 		op, m4, _ := vop(p.As)
@@ -4044,7 +4044,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		v1 := uint32(p.To.Reg)
 		v2 := uint32(p.From.Reg)
 		v3 := uint32(p.Reg)
-		v4 := uint32(p.From3.Reg)
+		v4 := uint32(p.GetFrom3().Reg)
 		zVRRd(op, v1, v2, v3, m6, m5, v4, asm)
 
 	case 121: // VRR-e
@@ -4053,7 +4053,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		v1 := uint32(p.To.Reg)
 		v2 := uint32(p.From.Reg)
 		v3 := uint32(p.Reg)
-		v4 := uint32(p.From3.Reg)
+		v4 := uint32(p.GetFrom3().Reg)
 		zVRRe(op, v1, v2, v3, m6, m5, v4, asm)
 
 	case 122: // VRR-f LOAD VRS FROM GRS DISJOINT
@@ -4063,7 +4063,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 	case 123: // VPDI $m4, V2, V3, V1
 		op, _, _ := vop(p.As)
 		m4 := c.regoff(&p.From)
-		zVRRc(op, uint32(p.To.Reg), uint32(p.Reg), uint32(p.From3.Reg), 0, 0, uint32(m4), asm)
+		zVRRc(op, uint32(p.To.Reg), uint32(p.Reg), uint32(p.GetFrom3().Reg), 0, 0, uint32(m4), asm)
 	}
 }
 

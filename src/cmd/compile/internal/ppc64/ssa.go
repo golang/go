@@ -124,7 +124,7 @@ func ssaGenISEL(s *gc.SSAGenState, v *ssa.Value, cr int64, r1, r2 int16) {
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = r
 	p.Reg = r1
-	p.From3 = &obj.Addr{Type: obj.TYPE_REG, Reg: r2}
+	p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r2})
 	p.From.Type = obj.TYPE_CONST
 	p.From.Offset = cr
 }
@@ -551,9 +551,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r1
 		p.Reg = r3
-		p.From3 = new(obj.Addr)
-		p.From3.Type = obj.TYPE_REG
-		p.From3.Reg = r2
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r2})
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
