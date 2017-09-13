@@ -2205,22 +2205,24 @@ func TestPipeThreads(t *testing.T) {
 
 	defer debug.SetMaxThreads(debug.SetMaxThreads(threads / 2))
 
-	var wg sync.WaitGroup
-	wg.Add(threads)
-	c := make(chan bool, threads)
+	creading := make(chan bool, threads)
+	cdone := make(chan bool, threads)
 	for i := 0; i < threads; i++ {
 		go func(i int) {
-			defer wg.Done()
 			var b [1]byte
-			c <- true
+			creading <- true
 			if _, err := r[i].Read(b[:]); err != nil {
 				t.Error(err)
 			}
+			if err := r[i].Close(); err != nil {
+				t.Error(err)
+			}
+			cdone <- true
 		}(i)
 	}
 
 	for i := 0; i < threads; i++ {
-		<-c
+		<-creading
 	}
 
 	// If we are still alive, it means that the 100 goroutines did
@@ -2233,14 +2235,7 @@ func TestPipeThreads(t *testing.T) {
 		if err := w[i].Close(); err != nil {
 			t.Error(err)
 		}
-	}
-
-	wg.Wait()
-
-	for i := 0; i < threads; i++ {
-		if err := r[i].Close(); err != nil {
-			t.Error(err)
-		}
+		<-cdone
 	}
 }
 
