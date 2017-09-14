@@ -30,12 +30,17 @@ func Unreachable() {
 // provided by runtime to avoid os import
 func runtime_arg0() string
 
+func hasSuffix(s, t string) bool {
+	return len(s) > len(t) && s[len(s)-len(t):] == t
+}
+
 // UnreachableExceptTests marks code that should be unreachable
 // when BoringCrypto is in use. It panics.
 func UnreachableExceptTests() {
-	arg0 := runtime_arg0()
-	if len(arg0) < 5 || arg0[len(arg0)-5:] != ".test" {
-		println("ARG0", arg0)
+	name := runtime_arg0()
+	// If BoringCrypto ran on Windows we'd need to allow _test.exe and .test.exe as well.
+	if !hasSuffix(name, "_test") && !hasSuffix(name, ".test") {
+		println("boringcrypto: unexpected code execution in", name)
 		panic("boringcrypto: invalid code execution")
 	}
 }
