@@ -1448,6 +1448,7 @@ const (
 	OpS390XFMADD
 	OpS390XFMSUBS
 	OpS390XFMSUB
+	OpS390XFIDBR
 	OpS390XFMOVSload
 	OpS390XFMOVDload
 	OpS390XFMOVSconst
@@ -1836,6 +1837,7 @@ const (
 	OpFloor
 	OpCeil
 	OpTrunc
+	OpRound
 	OpPhi
 	OpCopy
 	OpConvert
@@ -18603,6 +18605,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "FIDBR",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     s390x.AFIDBR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
 		name:           "FMOVSload",
 		auxType:        auxSymOff,
 		argLen:         2,
@@ -22434,6 +22450,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Trunc",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Round",
 		argLen:  1,
 		generic: true,
 	},

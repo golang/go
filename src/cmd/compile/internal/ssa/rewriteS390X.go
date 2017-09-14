@@ -73,6 +73,8 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpBswap32_0(v)
 	case OpBswap64:
 		return rewriteValueS390X_OpBswap64_0(v)
+	case OpCeil:
+		return rewriteValueS390X_OpCeil_0(v)
 	case OpClosureCall:
 		return rewriteValueS390X_OpClosureCall_0(v)
 	case OpCom16:
@@ -161,6 +163,8 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpEqB_0(v)
 	case OpEqPtr:
 		return rewriteValueS390X_OpEqPtr_0(v)
+	case OpFloor:
+		return rewriteValueS390X_OpFloor_0(v)
 	case OpGeq16:
 		return rewriteValueS390X_OpGeq16_0(v)
 	case OpGeq16U:
@@ -371,6 +375,8 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpOr8_0(v)
 	case OpOrB:
 		return rewriteValueS390X_OpOrB_0(v)
+	case OpRound:
+		return rewriteValueS390X_OpRound_0(v)
 	case OpRound32F:
 		return rewriteValueS390X_OpRound32F_0(v)
 	case OpRound64F:
@@ -685,6 +691,8 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpSub8_0(v)
 	case OpSubPtr:
 		return rewriteValueS390X_OpSubPtr_0(v)
+	case OpTrunc:
+		return rewriteValueS390X_OpTrunc_0(v)
 	case OpTrunc16to8:
 		return rewriteValueS390X_OpTrunc16to8_0(v)
 	case OpTrunc32to16:
@@ -1168,6 +1176,18 @@ func rewriteValueS390X_OpBswap64_0(v *Value) bool {
 	for {
 		x := v.Args[0]
 		v.reset(OpS390XMOVDBR)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueS390X_OpCeil_0(v *Value) bool {
+	// match: (Ceil x)
+	// cond:
+	// result: (FIDBR [6] x)
+	for {
+		x := v.Args[0]
+		v.reset(OpS390XFIDBR)
+		v.AuxInt = 6
 		v.AddArg(x)
 		return true
 	}
@@ -1908,6 +1928,18 @@ func rewriteValueS390X_OpEqPtr_0(v *Value) bool {
 		v2.AddArg(x)
 		v2.AddArg(y)
 		v.AddArg(v2)
+		return true
+	}
+}
+func rewriteValueS390X_OpFloor_0(v *Value) bool {
+	// match: (Floor x)
+	// cond:
+	// result: (FIDBR [7] x)
+	for {
+		x := v.Args[0]
+		v.reset(OpS390XFIDBR)
+		v.AuxInt = 7
+		v.AddArg(x)
 		return true
 	}
 }
@@ -4910,6 +4942,18 @@ func rewriteValueS390X_OpOrB_0(v *Value) bool {
 		v.reset(OpS390XORW)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueS390X_OpRound_0(v *Value) bool {
+	// match: (Round x)
+	// cond:
+	// result: (FIDBR [1] x)
+	for {
+		x := v.Args[0]
+		v.reset(OpS390XFIDBR)
+		v.AuxInt = 1
+		v.AddArg(x)
 		return true
 	}
 }
@@ -36197,6 +36241,18 @@ func rewriteValueS390X_OpSubPtr_0(v *Value) bool {
 		v.reset(OpS390XSUB)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueS390X_OpTrunc_0(v *Value) bool {
+	// match: (Trunc x)
+	// cond:
+	// result: (FIDBR [5] x)
+	for {
+		x := v.Args[0]
+		v.reset(OpS390XFIDBR)
+		v.AuxInt = 5
+		v.AddArg(x)
 		return true
 	}
 }
