@@ -5,10 +5,13 @@
 package gc
 
 import (
-	"bytes"
+	"bufio"
 	"internal/testenv"
+	"io"
 	"os/exec"
+	"regexp"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -51,37 +54,57 @@ func TestIntendedInlining(t *testing.T) {
 		want["runtime"] = append(want["runtime"], "nextFreeFast")
 	}
 
-	m := make(map[string]bool)
+	notInlinedReason := make(map[string]string)
 	pkgs := make([]string, 0, len(want))
 	for pname, fnames := range want {
 		pkgs = append(pkgs, pname)
 		for _, fname := range fnames {
-			m[pname+"."+fname] = true
+			notInlinedReason[pname+"."+fname] = "unknown reason"
 		}
 	}
 
-	args := append([]string{"build", "-a", "-gcflags=-m"}, pkgs...)
+	args := append([]string{"build", "-a", "-gcflags=-m -m"}, pkgs...)
 	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), args...))
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Logf("%s", out)
-		t.Fatal(err)
-	}
-	lines := bytes.Split(out, []byte{'\n'})
+	pr, pw := io.Pipe()
+	cmd.Stdout = pw
+	cmd.Stderr = pw
+	cmdErr := make(chan error, 1)
+	go func() {
+		cmdErr <- cmd.Run()
+		pw.Close()
+	}()
+	scanner := bufio.NewScanner(pr)
 	curPkg := ""
-	for _, l := range lines {
-		if bytes.HasPrefix(l, []byte("# ")) {
-			curPkg = string(l[2:])
-		}
-		f := bytes.Split(l, []byte(": can inline "))
-		if len(f) < 2 {
+	canInline := regexp.MustCompile(`: can inline ([^ ]*)`)
+	cannotInline := regexp.MustCompile(`: cannot inline ([^ ]*): (.*)`)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "# ") {
+			curPkg = line[2:]
 			continue
 		}
-		fn := bytes.TrimSpace(f[1])
-		delete(m, curPkg+"."+string(fn))
+		if m := canInline.FindStringSubmatch(line); m != nil {
+			fname := m[1]
+			delete(notInlinedReason, curPkg+"."+fname)
+			continue
+		}
+		if m := cannotInline.FindStringSubmatch(line); m != nil {
+			fname, reason := m[1], m[2]
+			fullName := curPkg + "." + fname
+			if _, ok := notInlinedReason[fullName]; ok {
+				// cmd/compile gave us a reason why
+				notInlinedReason[fullName] = reason
+			}
+			continue
+		}
 	}
-
-	for s := range m {
-		t.Errorf("function %s not inlined", s)
+	if err := <-cmdErr; err != nil {
+		t.Fatal(err)
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatal(err)
+	}
+	for fullName, reason := range notInlinedReason {
+		t.Errorf("%s was not inlined: %s", fullName, reason)
 	}
 }
