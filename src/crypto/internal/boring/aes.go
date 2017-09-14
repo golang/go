@@ -59,6 +59,9 @@ func NewAESCipher(key []byte) (cipher.Block, error) {
 func (c *aesCipher) BlockSize() int { return aesBlockSize }
 
 func (c *aesCipher) Encrypt(dst, src []byte) {
+	if inexactOverlap(dst, src) {
+		panic("crypto/cipher: invalid buffer overlap")
+	}
 	if len(src) < aesBlockSize {
 		panic("crypto/aes: input not full block")
 	}
@@ -72,6 +75,9 @@ func (c *aesCipher) Encrypt(dst, src []byte) {
 }
 
 func (c *aesCipher) Decrypt(dst, src []byte) {
+	if inexactOverlap(dst, src) {
+		panic("crypto/cipher: invalid buffer overlap")
+	}
 	if len(src) < aesBlockSize {
 		panic("crypto/aes: input not full block")
 	}
@@ -93,6 +99,9 @@ type aesCBC struct {
 func (x *aesCBC) BlockSize() int { return aesBlockSize }
 
 func (x *aesCBC) CryptBlocks(dst, src []byte) {
+	if inexactOverlap(dst, src) {
+		panic("crypto/cipher: invalid buffer overlap")
+	}
 	if len(src)%aesBlockSize != 0 {
 		panic("crypto/cipher: input not full blocks")
 	}
@@ -135,6 +144,9 @@ type aesCTR struct {
 }
 
 func (x *aesCTR) XORKeyStream(dst, src []byte) {
+	if inexactOverlap(dst, src) {
+		panic("crypto/cipher: invalid buffer overlap")
+	}
 	if len(dst) < len(src) {
 		panic("crypto/cipher: output smaller than input")
 	}
@@ -262,6 +274,11 @@ func (g *aesGCM) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 	}
 	dst = dst[:n+len(plaintext)+gcmTagSize]
 
+	// Check delayed until now to make sure len(dst) is accurate.
+	if inexactOverlap(dst[n:], plaintext) {
+		panic("cipher: invalid buffer overlap")
+	}
+
 	var outLen C.size_t
 	ok := C._goboringcrypto_EVP_AEAD_CTX_seal(
 		&g.ctx,
@@ -298,6 +315,11 @@ func (g *aesGCM) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, er
 	}
 	dst = dst[:n+len(ciphertext)-gcmTagSize]
 
+	// Check delayed until now to make sure len(dst) is accurate.
+	if inexactOverlap(dst[n:], ciphertext) {
+		panic("cipher: invalid buffer overlap")
+	}
+
 	var outLen C.size_t
 	ok := C._goboringcrypto_EVP_AEAD_CTX_open(
 		&g.ctx,
@@ -312,4 +334,17 @@ func (g *aesGCM) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, er
 		panic("boringcrypto: internal confusion about GCM tag size")
 	}
 	return dst[:n+int(outLen)], nil
+}
+
+func anyOverlap(x, y []byte) bool {
+	return len(x) > 0 && len(y) > 0 &&
+		uintptr(unsafe.Pointer(&x[0])) <= uintptr(unsafe.Pointer(&y[len(y)-1])) &&
+		uintptr(unsafe.Pointer(&y[0])) <= uintptr(unsafe.Pointer(&x[len(x)-1]))
+}
+
+func inexactOverlap(x, y []byte) bool {
+	if len(x) == 0 || len(y) == 0 || &x[0] == &y[0] {
+		return false
+	}
+	return anyOverlap(x, y)
 }
