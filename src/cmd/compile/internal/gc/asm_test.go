@@ -1457,6 +1457,39 @@ var linuxS390XTests = []*asmTest{
 		`,
 		pos: []string{"\tFLOGR\t"},
 	},
+	// Intrinsic tests for math.
+	{
+		fn: `
+		func ceil(x float64) float64 {
+			return math.Ceil(x)
+		}
+		`,
+		pos: []string{"\tFIDBR\t[$]6"},
+	},
+	{
+		fn: `
+		func floor(x float64) float64 {
+			return math.Floor(x)
+		}
+		`,
+		pos: []string{"\tFIDBR\t[$]7"},
+	},
+	{
+		fn: `
+		func round(x float64) float64 {
+			return math.Round(x)
+		}
+		`,
+		pos: []string{"\tFIDBR\t[$]1"},
+	},
+	{
+		fn: `
+		func trunc(x float64) float64 {
+			return math.Trunc(x)
+		}
+		`,
+		pos: []string{"\tFIDBR\t[$]5"},
+	},
 	{
 		// check that stack store is optimized away
 		fn: `

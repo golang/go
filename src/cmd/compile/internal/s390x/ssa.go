@@ -207,6 +207,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.Reg = r2
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
+	case ssa.OpS390XFIDBR:
+		switch v.AuxInt {
+		case 0, 1, 3, 4, 5, 6, 7:
+			opregregimm(s, v.Op.Asm(), v.Reg(), v.Args[0].Reg(), v.AuxInt)
+		default:
+			v.Fatalf("invalid FIDBR mask: %v", v.AuxInt)
+		}
 	case ssa.OpS390XDIVD, ssa.OpS390XDIVW,
 		ssa.OpS390XDIVDU, ssa.OpS390XDIVWU,
 		ssa.OpS390XMODD, ssa.OpS390XMODW,

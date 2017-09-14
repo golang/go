@@ -206,6 +206,17 @@ func init() {
 		{name: "FMSUBS", argLength: 3, reg: fp31, asm: "FMSUBS", resultInArg0: true},                                             // fp32 arg1 * arg2 - arg0
 		{name: "FMSUB", argLength: 3, reg: fp31, asm: "FMSUB", resultInArg0: true},                                               // fp64 arg1 * arg2 - arg0
 
+		// Round to integer, float64 only.
+		//
+		// aux | rounding mode
+		// ----+-----------------------------------
+		//   1 | round to nearest, ties away from 0
+		//   4 | round to nearest, ties to even
+		//   5 | round toward 0
+		//   6 | round toward +∞
+		//   7 | round toward -∞
+		{name: "FIDBR", argLength: 1, reg: fp11, asm: "FIDBR", aux: "Int8"},
+
 		{name: "FMOVSload", argLength: 2, reg: fpload, asm: "FMOVS", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"}, // fp32 load
 		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "FMOVD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"}, // fp64 load
 		{name: "FMOVSconst", reg: fp01, asm: "FMOVS", aux: "Float32", rematerializeable: true},                               // fp32 constant

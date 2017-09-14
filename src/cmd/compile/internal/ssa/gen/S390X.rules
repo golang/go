@@ -107,7 +107,12 @@
 (Bswap64 x) -> (MOVDBR x)
 (Bswap32 x) -> (MOVWBR x)
 
-(Sqrt x) -> (FSQRT x)
+// math package intrinsics
+(Sqrt  x) -> (FSQRT x)
+(Floor x) -> (FIDBR [7] x)
+(Ceil  x) -> (FIDBR [6] x)
+(Trunc x) -> (FIDBR [5] x)
+(Round x) -> (FIDBR [1] x)
 
 // Atomic loads.
 (AtomicLoad32 ptr mem) -> (MOVWZatomicload ptr mem)
