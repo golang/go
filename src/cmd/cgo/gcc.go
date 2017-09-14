@@ -748,7 +748,7 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 
 			// If this call expects two results, we have to
 			// adjust the results of the function we generated.
-			if ref.Context == "call2" {
+			if ref.Context == ctxCall2 {
 				if ftype.Results == nil {
 					// An explicit void argument
 					// looks odd but it seems to
@@ -940,8 +940,8 @@ func (p *Package) checkAddrArgs(f *File, args []ast.Expr, x ast.Expr) []ast.Expr
 // effect is a function call.
 func (p *Package) hasSideEffects(f *File, x ast.Expr) bool {
 	found := false
-	f.walk(x, "expr",
-		func(f *File, x interface{}, context string) {
+	f.walk(x, ctxExpr,
+		func(f *File, x interface{}, context astContext) {
 			switch x.(type) {
 			case *ast.CallExpr:
 				found = true
@@ -1080,10 +1080,10 @@ func (p *Package) rewriteRef(f *File) {
 		}
 		var expr ast.Expr = ast.NewIdent(r.Name.Mangle) // default
 		switch r.Context {
-		case "call", "call2":
+		case ctxCall, ctxCall2:
 			if r.Name.Kind != "func" {
 				if r.Name.Kind == "type" {
-					r.Context = "type"
+					r.Context = ctxType
 					if r.Name.Type == nil {
 						error_(r.Pos(), "invalid conversion to C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
 						break
@@ -1095,7 +1095,7 @@ func (p *Package) rewriteRef(f *File) {
 				break
 			}
 			functions[r.Name.Go] = true
-			if r.Context == "call2" {
+			if r.Context == ctxCall2 {
 				if r.Name.Go == "_CMalloc" {
 					error_(r.Pos(), "no two-result form for C.malloc")
 					break
@@ -1113,7 +1113,7 @@ func (p *Package) rewriteRef(f *File) {
 				r.Name = n
 				break
 			}
-		case "expr":
+		case ctxExpr:
 			switch r.Name.Kind {
 			case "func":
 				if builtinDefs[r.Name.C] != "" {
@@ -1154,13 +1154,13 @@ func (p *Package) rewriteRef(f *File) {
 			case "macro":
 				expr = &ast.CallExpr{Fun: expr}
 			}
-		case "selector":
+		case ctxSelector:
 			if r.Name.Kind == "var" {
 				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
 			} else {
 				error_(r.Pos(), "only C variables allowed in selector expression %s", fixGo(r.Name.Go))
 			}
-		case "type":
+		case ctxType:
 			if r.Name.Kind != "type" {
 				error_(r.Pos(), "expression C.%s used as type", fixGo(r.Name.Go))
 			} else if r.Name.Type == nil {
