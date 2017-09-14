@@ -181,6 +181,31 @@ func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// MarshalWithOpts is like Marshal but applies custom Marshalling, including data masking and indentation to format the output.
+// The Opts interface specifies methods to control:
+// - Output prefix and indentation options
+// - Omitting empty values (e.g. empty strings)
+// - Custom data masking to have fine-grained control over which specific fields are omitted during serialization.
+// Each JSON element in the output will begin on a new line beginning with prefix
+// followed by one or more copies of indent according to the indentation nesting.
+func MarshalWithOpts(v interface{}, opts Opts) ([]byte, error) {
+  e := &encodeState{}
+  err := e.marshal(v, encOpts{escapeHTML: true, optx: opts})
+  if err != nil {
+    return nil, err
+  }
+  if opts.Indent() != "" {
+    var buf bytes.Buffer
+    err = Indent(&buf, e.Bytes(), opts.Prefix(), opts.Indent())
+    if err != nil {
+      return nil, err
+    }
+    return buf.Bytes(), nil
+  } else {
+    return e.Bytes(), nil
+  }
+}
+
 // HTMLEscape appends to dst the JSON-encoded src with <, >, &, U+2028 and U+2029
 // characters inside string literals changed to \u003c, \u003e, \u0026, \u2028, \u2029
 // so that the JSON will be safe to embed inside HTML <script> tags.
@@ -260,6 +285,13 @@ type MarshalerError struct {
 	Err  error
 }
 
+type Opts interface {
+  OmitEmpty() bool                     // Exclude fields that have empty values.
+  Omit(s reflect.Value, f string) bool // Return true if field 'f' of struct value 's' should be omitted.
+  Prefix() string  // Each JSON element in the output will begin on a new line beginning with this prefix
+  Indent() string  // The indentation string.
+}
+
 func (e *MarshalerError) Error() string {
 	return "json: error calling MarshalJSON for type " + e.Type.String() + ": " + e.Err.Error()
 }
@@ -330,6 +362,8 @@ type encOpts struct {
 	quoted bool
 	// escapeHTML causes '<', '>', and '&' to be escaped in JSON strings.
 	escapeHTML bool
+  // Omit empty
+  optx Opts
 }
 
 type encoderFunc func(e *encodeState, v reflect.Value, opts encOpts)
@@ -620,12 +654,17 @@ type structEncoder struct {
 	fieldEncs []encoderFunc
 }
 
+func (se *structEncoder) omitField(v reflect.Value, fv reflect.Value, f field, opts encOpts) bool {
+  return ((f.omitEmpty || (opts.optx != nil && opts.optx.OmitEmpty())) && isEmptyValue(fv)) ||
+    (opts.optx != nil && opts.optx.Omit(v, f.name))
+}
+
 func (se *structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	e.WriteByte('{')
 	first := true
 	for i, f := range se.fields {
 		fv := fieldByIndex(v, f.index)
-		if !fv.IsValid() || f.omitEmpty && isEmptyValue(fv) {
+    if !fv.IsValid() || se.omitField(v, fv, f, opts) {
 			continue
 		}
 		if first {
