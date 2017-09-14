@@ -346,7 +346,7 @@ func Float32() float32 { return globalRand.Float32() }
 func Perm(n int) []int { return globalRand.Perm(n) }
 
 // Shuffle pseudo-randomizes the order of elements using the default Source.
-// n is the number of elements. Shuffle panics if n <= 0.
+// n is the number of elements. Shuffle panics if n < 0.
 // swap swaps the elements with indexes i and j.
 func Shuffle(n int, swap func(i, j int)) { globalRand.Shuffle(n, swap) }
 
