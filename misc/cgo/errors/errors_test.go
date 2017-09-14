@@ -63,7 +63,7 @@ func expect(t *testing.T, file string, errors []*regexp.Regexp) {
 	defer os.RemoveAll(dir)
 
 	dst := filepath.Join(dir, strings.TrimSuffix(file, ".go"))
-	cmd := exec.Command("go", "build", "-o="+dst, "-gcflags=-C", path(file))
+	cmd := exec.Command("go", "build", "-o="+dst, path(file))
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Errorf("expected cgo to fail but it succeeded")
