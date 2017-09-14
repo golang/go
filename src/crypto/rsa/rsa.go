@@ -233,9 +233,10 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
 			D:      D,
 			Primes: []*big.Int{P, Q},
 			Precomputed: PrecomputedValues{
-				Dp:   Dp,
-				Dq:   Dq,
-				Qinv: Qinv,
+				Dp:        Dp,
+				Dq:        Dq,
+				Qinv:      Qinv,
+				CRTValues: make([]CRTValue, 0), // non-nil, to match Precompute
 			},
 		}
 		return key, nil
