@@ -3850,7 +3850,11 @@ func InstrumentInit() {
 		os.Exit(2)
 	}
 	if !cfg.BuildContext.CgoEnabled {
-		fmt.Fprintf(os.Stderr, "go %s: -race requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0])
+		instrFlag := "-race"
+		if cfg.BuildMSan {
+			instrFlag = "-msan"
+		}
+		fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], instrFlag)
 		os.Exit(2)
 	}
 	if cfg.BuildRace {

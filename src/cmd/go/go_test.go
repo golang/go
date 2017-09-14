@@ -29,6 +29,7 @@ var (
 	canRun  = true  // whether we can run go or ./testgo
 	canRace = false // whether we can run the race detector
 	canCgo  = false // whether we can use cgo
+	canMSan = false // whether we can run the memory sanitizer
 
 	exeSuffix string // ".exe" on Windows
 
@@ -120,6 +121,10 @@ func TestMain(m *testing.M) {
 			}
 		}
 
+		// As of Sept 2017, MSan is only supported on linux/amd64.
+		// https://github.com/google/sanitizers/wiki/MemorySanitizer#getting-memorysanitizer
+		canMSan = canCgo && runtime.GOOS == "linux" && runtime.GOARCH == "amd64"
+
 		switch runtime.GOOS {
 		case "linux", "darwin", "freebsd", "windows":
 			// The race detector doesn't work on Alpine Linux:
@@ -127,7 +132,6 @@ func TestMain(m *testing.M) {
 			canRace = canCgo && runtime.GOARCH == "amd64" && !isAlpineLinux()
 		}
 	}
-
 	// Don't let these environment variables confuse the test.
 	os.Unsetenv("GOBIN")
 	os.Unsetenv("GOPATH")
@@ -1446,6 +1450,28 @@ func TestInstallFailsWithNoBuildableFiles(t *testing.T) {
 	tg.setenv("CGO_ENABLED", "0")
 	tg.runFail("install", "cgotest")
 	tg.grepStderr("build constraints exclude all Go files", "go install cgotest did not report 'build constraints exclude all Go files'")
+}
+
+// Issue 21895
+func TestMSanAndRaceRequireCgo(t *testing.T) {
+	if !canMSan && !canRace {
+		t.Skip("skipping because both msan and the race detector are not supported")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("triv.go", `package main; func main() {}`)
+	tg.setenv("CGO_ENABLED", "0")
+	if canRace {
+		tg.runFail("install", "-race", "triv.go")
+		tg.grepStderr("-race requires cgo", "did not correctly report that -race requires cgo")
+		tg.grepStderrNot("-msan", "reported that -msan instead of -race requires cgo")
+	}
+	if canMSan {
+		tg.runFail("install", "-msan", "triv.go")
+		tg.grepStderr("-msan requires cgo", "did not correctly report that -msan requires cgo")
+		tg.grepStderrNot("-race", "reported that -race instead of -msan requires cgo")
+	}
 }
 
 func TestRelativeGOBINFail(t *testing.T) {
