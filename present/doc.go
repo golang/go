@@ -85,10 +85,6 @@ There must be no spaces between markers. Within marked text,
 a single marker character becomes a space and a doubled single
 marker quotes the marker character.
 
-at the beginning of a line or
-else be preceded by a space or punctuation; similarly a closing
-marker must be at the end of the lineo
-
 	_italic_
 	*bold*
 	`program`
