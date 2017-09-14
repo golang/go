@@ -3614,8 +3614,8 @@ func TestBinaryOnlyPackages(t *testing.T) {
 	tg.grepStdout("false", "did not see BinaryOnly=false for p4")
 }
 
-// Issue 16050.
-func TestAlwaysLinkSysoFiles(t *testing.T) {
+// Issue 16050 and 21884.
+func TestLinkSysoFiles(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -3634,6 +3634,10 @@ func TestAlwaysLinkSysoFiles(t *testing.T) {
 	tg.setenv("CGO_ENABLED", "0")
 	tg.run("list", "-f", "{{.SysoFiles}}", "syso")
 	tg.grepStdout("a.syso", "missing syso file with CGO_ENABLED=0")
+
+	tg.setenv("CGO_ENABLED", "1")
+	tg.run("list", "-msan", "-f", "{{.SysoFiles}}", "syso")
+	tg.grepStdoutNot("a.syso", "unexpected syso file with -msan")
 }
 
 // Issue 16120.
