@@ -5,6 +5,7 @@
 // +build linux,amd64
 // +build !android
 // +build !cmd_go_bootstrap
+// +build !msan
 
 package boring
 
