@@ -33,6 +33,10 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpARMADCshiftRLreg_0(v)
 	case OpARMADD:
 		return rewriteValueARM_OpARMADD_0(v) || rewriteValueARM_OpARMADD_10(v)
+	case OpARMADDD:
+		return rewriteValueARM_OpARMADDD_0(v)
+	case OpARMADDF:
+		return rewriteValueARM_OpARMADDF_0(v)
 	case OpARMADDS:
 		return rewriteValueARM_OpARMADDS_0(v) || rewriteValueARM_OpARMADDS_10(v)
 	case OpARMADDSshiftLL:
@@ -321,6 +325,10 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpARMSRLconst_0(v)
 	case OpARMSUB:
 		return rewriteValueARM_OpARMSUB_0(v) || rewriteValueARM_OpARMSUB_10(v)
+	case OpARMSUBD:
+		return rewriteValueARM_OpARMSUBD_0(v)
+	case OpARMSUBF:
+		return rewriteValueARM_OpARMSUBF_0(v)
 	case OpARMSUBS:
 		return rewriteValueARM_OpARMSUBS_0(v) || rewriteValueARM_OpARMSUBS_10(v)
 	case OpARMSUBSshiftLL:
@@ -2035,6 +2043,188 @@ func rewriteValueARM_OpARMADD_10(v *Value) bool {
 		v.AddArg(x)
 		v.AddArg(y)
 		v.AddArg(a)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMADDD_0(v *Value) bool {
+	// match: (ADDD a (MULD x y))
+	// cond: a.Uses == 1 && objabi.GOARM >= 6
+	// result: (MULAD a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMULD {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		if !(a.Uses == 1 && objabi.GOARM >= 6) {
+			break
+		}
+		v.reset(OpARMMULAD)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (ADDD (MULD x y) a)
+	// cond: a.Uses == 1 && objabi.GOARM >= 6
+	// result: (MULAD a x y)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMULD {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		a := v.Args[1]
+		if !(a.Uses == 1 && objabi.GOARM >= 6) {
+			break
+		}
+		v.reset(OpARMMULAD)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (ADDD a (NMULD x y))
+	// cond: a.Uses == 1 && objabi.GOARM >= 6
+	// result: (MULSD a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMNMULD {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		if !(a.Uses == 1 && objabi.GOARM >= 6) {
+			break
+		}
+		v.reset(OpARMMULSD)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (ADDD (NMULD x y) a)
+	// cond: a.Uses == 1 && objabi.GOARM >= 6
+	// result: (MULSD a x y)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMNMULD {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		a := v.Args[1]
+		if !(a.Uses == 1 && objabi.GOARM >= 6) {
+			break
+		}
+		v.reset(OpARMMULSD)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMADDF_0(v *Value) bool {
+	// match: (ADDF a (MULF x y))
+	// cond: a.Uses == 1 && objabi.GOARM >= 6
+	// result: (MULAF a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMULF {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		if !(a.Uses == 1 && objabi.GOARM >= 6) {
+			break
+		}
+		v.reset(OpARMMULAF)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (ADDF (MULF x y) a)
+	// cond: a.Uses == 1 && objabi.GOARM >= 6
+	// result: (MULAF a x y)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMULF {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		a := v.Args[1]
+		if !(a.Uses == 1 && objabi.GOARM >= 6) {
+			break
+		}
+		v.reset(OpARMMULAF)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (ADDF a (NMULF x y))
+	// cond: a.Uses == 1 && objabi.GOARM >= 6
+	// result: (MULSF a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMNMULF {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		if !(a.Uses == 1 && objabi.GOARM >= 6) {
+			break
+		}
+		v.reset(OpARMMULSF)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (ADDF (NMULF x y) a)
+	// cond: a.Uses == 1 && objabi.GOARM >= 6
+	// result: (MULSF a x y)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMNMULF {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		a := v.Args[1]
+		if !(a.Uses == 1 && objabi.GOARM >= 6) {
+			break
+		}
+		v.reset(OpARMMULSF)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 	return false
@@ -13623,6 +13813,100 @@ func rewriteValueARM_OpARMSUB_10(v *Value) bool {
 		v.AddArg(x)
 		v.AddArg(y)
 		v.AddArg(a)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBD_0(v *Value) bool {
+	// match: (SUBD a (MULD x y))
+	// cond: a.Uses == 1 && objabi.GOARM >= 6
+	// result: (MULSD a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMULD {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		if !(a.Uses == 1 && objabi.GOARM >= 6) {
+			break
+		}
+		v.reset(OpARMMULSD)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SUBD a (NMULD x y))
+	// cond: a.Uses == 1 && objabi.GOARM >= 6
+	// result: (MULAD a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMNMULD {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		if !(a.Uses == 1 && objabi.GOARM >= 6) {
+			break
+		}
+		v.reset(OpARMMULAD)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBF_0(v *Value) bool {
+	// match: (SUBF a (MULF x y))
+	// cond: a.Uses == 1 && objabi.GOARM >= 6
+	// result: (MULSF a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMULF {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		if !(a.Uses == 1 && objabi.GOARM >= 6) {
+			break
+		}
+		v.reset(OpARMMULSF)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SUBF a (NMULF x y))
+	// cond: a.Uses == 1 && objabi.GOARM >= 6
+	// result: (MULAF a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMNMULF {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		if !(a.Uses == 1 && objabi.GOARM >= 6) {
+			break
+		}
+		v.reset(OpARMMULAF)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 	return false

@@ -1248,6 +1248,16 @@
 (NMULF (NEGF x) y) -> (MULF x y)
 (NMULD (NEGD x) y) -> (MULD x y)
 
+// the result will overwrite the addend, since they are in the same register
+(ADDF a (MULF x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULAF a x y)
+(ADDF a (NMULF x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULSF a x y)
+(ADDD a (MULD x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULAD a x y)
+(ADDD a (NMULD x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULSD a x y)
+(SUBF a (MULF x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULSF a x y)
+(SUBF a (NMULF x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULAF a x y)
+(SUBD a (MULD x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULSD a x y)
+(SUBD a (NMULD x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULAD a x y)
+
 (AND x (MVN y)) -> (BIC x y)
 
 // simplification with *shift ops
