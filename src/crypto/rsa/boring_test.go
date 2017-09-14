@@ -158,6 +158,11 @@ func TestBoringRandGenerateKey(t *testing.T) {
 		t.Fatalf("GenerateKey: wrong N\nhave %x\nwant %x", k.N, n)
 	}
 	r.checkOffset(35200)
+
+	// Non-Boring GenerateKey always sets CRTValues to a non-nil (possibly empty) slice.
+	if k.Precomputed.CRTValues == nil {
+		t.Fatalf("GenerateKey: Precomputed.CRTValues = nil")
+	}
 }
 
 func TestBoringRandGenerateMultiPrimeKey(t *testing.T) {
