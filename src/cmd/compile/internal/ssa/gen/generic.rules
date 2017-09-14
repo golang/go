@@ -38,14 +38,22 @@
 // For now, the generated successors must be a permutation of the matched successors.
 
 // constant folding
-(Trunc16to8  (Const16 [c]))  -> (Const8   [int64(int8(c))])
-(Trunc32to8  (Const32 [c]))  -> (Const8   [int64(int8(c))])
-(Trunc32to16 (Const32 [c]))  -> (Const16  [int64(int16(c))])
-(Trunc64to8  (Const64 [c]))  -> (Const8   [int64(int8(c))])
-(Trunc64to16 (Const64 [c]))  -> (Const16  [int64(int16(c))])
-(Trunc64to32 (Const64 [c]))  -> (Const32  [int64(int32(c))])
+(Trunc16to8  (Const16  [c])) -> (Const8   [int64(int8(c))])
+(Trunc32to8  (Const32  [c])) -> (Const8   [int64(int8(c))])
+(Trunc32to16 (Const32  [c])) -> (Const16  [int64(int16(c))])
+(Trunc64to8  (Const64  [c])) -> (Const8   [int64(int8(c))])
+(Trunc64to16 (Const64  [c])) -> (Const16  [int64(int16(c))])
+(Trunc64to32 (Const64  [c])) -> (Const32  [int64(int32(c))])
 (Cvt64Fto32F (Const64F [c])) -> (Const32F [f2i(float64(i2f32(c)))])
 (Cvt32Fto64F (Const32F [c])) -> (Const64F [c]) // c is already a 64 bit float
+(Cvt32to32F  (Const32  [c])) -> (Const32F [f2i(float64(float32(int32(c))))])
+(Cvt32to64F  (Const32  [c])) -> (Const64F [f2i(float64(int32(c)))])
+(Cvt64to32F  (Const64  [c])) -> (Const32F [f2i(float64(float32(c)))])
+(Cvt64to64F  (Const64  [c])) -> (Const64F [f2i(float64(c))])
+(Cvt32Fto32  (Const32F [c])) -> (Const32  [int64(int32(i2f(c)))])
+(Cvt32Fto64  (Const32F [c])) -> (Const64  [int64(i2f(c))])
+(Cvt64Fto32  (Const64F [c])) -> (Const32  [int64(int32(i2f(c)))])
+(Cvt64Fto64  (Const64F [c])) -> (Const32  [int64(i2f(c))])
 (Round32F x:(Const32F)) -> x
 (Round64F x:(Const64F)) -> x
 
@@ -560,6 +568,25 @@
 (Leq32U (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(uint32(c) <= uint32(d))])
 (Leq16U (Const16 [c]) (Const16 [d])) -> (ConstBool [b2i(uint16(c) <= uint16(d))])
 (Leq8U  (Const8  [c]) (Const8  [d])) -> (ConstBool [b2i(uint8(c)  <= uint8(d))])
+
+// constant floating point comparisons
+(Eq64F (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(i2f(c) == i2f(d))])
+(Eq32F (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(i2f(c) == i2f(d))])
+
+(Neq64F (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(i2f(c) != i2f(d))])
+(Neq32F (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(i2f(c) != i2f(d))])
+
+(Greater64F (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(i2f(c) > i2f(d))])
+(Greater32F (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(i2f(c) > i2f(d))])
+
+(Geq64F (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(i2f(c) >= i2f(d))])
+(Geq32F (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(i2f(c) >= i2f(d))])
+
+(Less64F (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(i2f(c) < i2f(d))])
+(Less32F (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(i2f(c) < i2f(d))])
+
+(Leq64F (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(i2f(c) <= i2f(d))])
+(Leq32F (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(i2f(c) <= i2f(d))])
 
 // simplifications
 (Or64 x x) -> x

@@ -4,7 +4,10 @@
 
 package gc
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 // For GO386=387, make sure fucomi* opcodes are not used
 // for comparison operations.
@@ -28,6 +31,105 @@ func TestFloatCompare(t *testing.T) {
 	}
 	if !compare2(3, 5) {
 		t.Errorf("compare2 returned false")
+	}
+
+	// test folded float64 comparisons
+	d1, d3, d5, d9 := float64(1), float64(3), float64(5), float64(9)
+	if d3 == d5 {
+		t.Errorf("d3 == d5 returned true")
+	}
+	if d3 != d3 {
+		t.Errorf("d3 != d3 returned true")
+	}
+	if d3 > d5 {
+		t.Errorf("d3 > d5 returned true")
+	}
+	if d3 >= d9 {
+		t.Errorf("d3 >= d9 returned true")
+	}
+	if d5 < d1 {
+		t.Errorf("d5 < d1 returned true")
+	}
+	if d9 <= d1 {
+		t.Errorf("d9 <= d1 returned true")
+	}
+	if math.NaN() == math.NaN() {
+		t.Errorf("math.NaN() == math.NaN() returned true")
+	}
+	if math.NaN() >= math.NaN() {
+		t.Errorf("math.NaN() >= math.NaN() returned true")
+	}
+	if math.NaN() <= math.NaN() {
+		t.Errorf("math.NaN() <= math.NaN() returned true")
+	}
+	if math.Copysign(math.NaN(), -1) < math.NaN() {
+		t.Errorf("math.Copysign(math.NaN(), -1) < math.NaN() returned true")
+	}
+	if math.Inf(1) != math.Inf(1) {
+		t.Errorf("math.Inf(1) != math.Inf(1) returned true")
+	}
+	if math.Inf(-1) != math.Inf(-1) {
+		t.Errorf("math.Inf(-1) != math.Inf(-1) returned true")
+	}
+	if math.Copysign(0, -1) != 0 {
+		t.Errorf("math.Copysign(0, -1) != 0 returned true")
+	}
+	if math.Copysign(0, -1) < 0 {
+		t.Errorf("math.Copysign(0, -1) < 0 returned true")
+	}
+	if 0 > math.Copysign(0, -1) {
+		t.Errorf("0 > math.Copysign(0, -1) returned true")
+	}
+
+	// test folded float32 comparisons
+	s1, s3, s5, s9 := float32(1), float32(3), float32(5), float32(9)
+	if s3 == s5 {
+		t.Errorf("s3 == s5 returned true")
+	}
+	if s3 != s3 {
+		t.Errorf("s3 != s3 returned true")
+	}
+	if s3 > s5 {
+		t.Errorf("s3 > s5 returned true")
+	}
+	if s3 >= s9 {
+		t.Errorf("s3 >= s9 returned true")
+	}
+	if s5 < s1 {
+		t.Errorf("s5 < s1 returned true")
+	}
+	if s9 <= s1 {
+		t.Errorf("s9 <= s1 returned true")
+	}
+	sPosNaN, sNegNaN := float32(math.NaN()), float32(math.Copysign(math.NaN(), -1))
+	if sPosNaN == sPosNaN {
+		t.Errorf("sPosNaN == sPosNaN returned true")
+	}
+	if sPosNaN >= sPosNaN {
+		t.Errorf("sPosNaN >= sPosNaN returned true")
+	}
+	if sPosNaN <= sPosNaN {
+		t.Errorf("sPosNaN <= sPosNaN returned true")
+	}
+	if sNegNaN < sPosNaN {
+		t.Errorf("sNegNaN < sPosNaN returned true")
+	}
+	sPosInf, sNegInf := float32(math.Inf(1)), float32(math.Inf(-1))
+	if sPosInf != sPosInf {
+		t.Errorf("sPosInf != sPosInf returned true")
+	}
+	if sNegInf != sNegInf {
+		t.Errorf("sNegInf != sNegInf returned true")
+	}
+	sNegZero := float32(math.Copysign(0, -1))
+	if sNegZero != 0 {
+		t.Errorf("sNegZero != 0 returned true")
+	}
+	if sNegZero < 0 {
+		t.Errorf("sNegZero < 0 returned true")
+	}
+	if 0 > sNegZero {
+		t.Errorf("0 > sNegZero returned true")
 	}
 }
 
