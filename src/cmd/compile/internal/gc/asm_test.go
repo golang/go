@@ -1492,6 +1492,29 @@ var linuxS390XTests = []*asmTest{
 		`,
 		neg: []string{"\tFMOVS\t"},
 	},
+	// Constant propagation through float comparisons.
+	{
+		fn: `
+		func $() bool {
+			return 0.5 == float64(uint32(1)) ||
+				1.5 > float64(uint64(1<<63)) ||
+				math.NaN() == math.NaN()
+		}
+		`,
+		pos: []string{"\tMOV(B|BZ|D)\t[$]0,"},
+		neg: []string{"\tFCMPU\t", "\tMOV(B|BZ|D)\t[$]1,"},
+	},
+	{
+		fn: `
+		func $() bool {
+			return float32(0.5) <= float32(int64(1)) &&
+				float32(1.5) >= float32(int32(-1<<31)) &&
+				float32(math.NaN()) != float32(math.NaN())
+		}
+		`,
+		pos: []string{"\tMOV(B|BZ|D)\t[$]1,"},
+		neg: []string{"\tCEBR\t", "\tMOV(B|BZ|D)\t[$]0,"},
+	},
 }
 
 var linuxARMTests = []*asmTest{
