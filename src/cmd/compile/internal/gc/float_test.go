@@ -197,6 +197,16 @@ func cvt12(a float32) uint {
 	return uint(a)
 }
 
+//go:noinline
+func f2i64p(v float64) *int64 {
+	return ip64(int64(v / 0.1))
+}
+
+//go:noinline
+func ip64(v int64) *int64 {
+	return &v
+}
+
 func TestFloatConvert(t *testing.T) {
 	if got := cvt1(3.5); got != 3 {
 		t.Errorf("cvt1 got %d, wanted 3", got)
@@ -233,6 +243,9 @@ func TestFloatConvert(t *testing.T) {
 	}
 	if got := cvt12(3.5); got != 3 {
 		t.Errorf("cvt12 got %d, wanted 3", got)
+	}
+	if got := *f2i64p(10); got != 100 {
+		t.Errorf("f2i64p got %d, wanted 100", got)
 	}
 }
 
