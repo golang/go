@@ -2127,13 +2127,13 @@ func walkprint(nn *Node, init *Nodes) *Node {
 		case TSLICE:
 			on = syslook("printslice")
 			on = substArgTypes(on, n.Type) // any-1
-		case TUINT64:
+		case TUINT, TUINT8, TUINT16, TUINT32, TUINT64, TUINTPTR:
 			if isRuntimePkg(n.Type.Sym.Pkg) && n.Type.Sym.Name == "hex" {
 				on = syslook("printhex")
 			} else {
 				on = syslook("printuint")
 			}
-		case TINT, TUINT, TUINTPTR, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64:
+		case TINT, TINT8, TINT16, TINT32, TINT64:
 			on = syslook("printint")
 		case TFLOAT32, TFLOAT64:
 			on = syslook("printfloat")
