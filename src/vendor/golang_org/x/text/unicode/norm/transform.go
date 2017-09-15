@@ -42,7 +42,7 @@ func (f Form) Transform(dst, src []byte, atEOF bool) (nDst, nSrc int, err error)
 }
 
 func flushTransform(rb *reorderBuffer) bool {
-	// Write out (must fully fit in dst, or else it is a ErrShortDst).
+	// Write out (must fully fit in dst, or else it is an ErrShortDst).
 	if len(rb.out) < rb.nrune*utf8.UTFMax {
 		return false
 	}

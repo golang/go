@@ -324,7 +324,6 @@ func (f *formInfo) quickSpan(src input, i, end int, atEOF bool) (n int, ok bool)
 		// have an overflow for runes that are starters (e.g. with U+FF9E).
 		switch ss.next(info) {
 		case ssStarter:
-			ss.first(info)
 			lastSegStart = i
 		case ssOverflow:
 			return lastSegStart, false
@@ -441,6 +440,8 @@ func (f Form) nextBoundary(src input, nsrc int, atEOF bool) int {
 			}
 			return -1
 		}
+		// TODO: Using streamSafe to determine the boundary isn't the same as
+		// using BoundaryBefore. Determine which should be used.
 		if s := ss.next(info); s != ssSuccess {
 			return i
 		}
@@ -505,15 +506,14 @@ func decomposeSegment(rb *reorderBuffer, sp int, atEOF bool) int {
 	if info.size == 0 {
 		return 0
 	}
-	if rb.nrune > 0 {
-		if s := rb.ss.next(info); s == ssStarter {
-			goto end
-		} else if s == ssOverflow {
-			rb.insertCGJ()
+	if s := rb.ss.next(info); s == ssStarter {
+		// TODO: this could be removed if we don't support merging.
+		if rb.nrune > 0 {
 			goto end
 		}
-	} else {
-		rb.ss.first(info)
+	} else if s == ssOverflow {
+		rb.insertCGJ()
+		goto end
 	}
 	if err := rb.insertFlush(rb.src, sp, info); err != iSuccess {
 		return int(err)
