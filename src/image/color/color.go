@@ -200,7 +200,7 @@ func nrgbaModel(c Color) Color {
 	if a == 0 {
 		return NRGBA{0, 0, 0, 0}
 	}
-	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
+	// Since Color.RGBA returns an alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
 	r = (r * 0xffff) / a
 	g = (g * 0xffff) / a
 	b = (b * 0xffff) / a
@@ -218,7 +218,7 @@ func nrgba64Model(c Color) Color {
 	if a == 0 {
 		return NRGBA64{0, 0, 0, 0}
 	}
-	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
+	// Since Color.RGBA returns an alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
 	r = (r * 0xffff) / a
 	g = (g * 0xffff) / a
 	b = (b * 0xffff) / a

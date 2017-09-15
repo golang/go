@@ -94,7 +94,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 
 	// The count of files inside a zip is truncated to fit in a uint16.
 	// Gloss over this by reading headers until we encounter
-	// a bad one, and then only report a ErrFormat or UnexpectedEOF if
+	// a bad one, and then only report an ErrFormat or UnexpectedEOF if
 	// the file count modulo 65536 is incorrect.
 	for {
 		f := &File{zip: z, zipr: r, zipsize: size}

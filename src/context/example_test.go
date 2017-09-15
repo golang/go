@@ -52,7 +52,7 @@ func ExampleWithCancel() {
 	// 5
 }
 
-// This example passes a context with a arbitrary deadline to tell a blocking
+// This example passes a context with an arbitrary deadline to tell a blocking
 // function that it should abandon its work as soon as it gets to it.
 func ExampleWithDeadline() {
 	d := time.Now().Add(50 * time.Millisecond)

@@ -37,7 +37,7 @@ type PrivateKey struct {
 // this error must be handled.
 var ErrInvalidPublicKey = errors.New("crypto/dsa: invalid public key")
 
-// ParameterSizes is a enumeration of the acceptable bit lengths of the primes
+// ParameterSizes is an enumeration of the acceptable bit lengths of the primes
 // in a set of DSA parameters. See FIPS 186-3, section 4.2.
 type ParameterSizes int
 
