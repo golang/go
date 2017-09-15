@@ -32,8 +32,10 @@ func TestFloatCompare(t *testing.T) {
 	if !compare2(3, 5) {
 		t.Errorf("compare2 returned false")
 	}
+}
 
-	// test folded float64 comparisons
+func TestFloatCompareFolded(t *testing.T) {
+	// float64 comparisons
 	d1, d3, d5, d9 := float64(1), float64(3), float64(5), float64(9)
 	if d3 == d5 {
 		t.Errorf("d3 == d5 returned true")
@@ -81,7 +83,7 @@ func TestFloatCompare(t *testing.T) {
 		t.Errorf("0 > math.Copysign(0, -1) returned true")
 	}
 
-	// test folded float32 comparisons
+	// float32 comparisons
 	s1, s3, s5, s9 := float32(1), float32(3), float32(5), float32(9)
 	if s3 == s5 {
 		t.Errorf("s3 == s5 returned true")
@@ -246,6 +248,117 @@ func TestFloatConvert(t *testing.T) {
 	}
 	if got := *f2i64p(10); got != 100 {
 		t.Errorf("f2i64p got %d, wanted 100", got)
+	}
+}
+
+func TestFloatConvertFolded(t *testing.T) {
+	// Assign constants to variables so that they are (hopefully) constant folded
+	// by the SSA backend rather than the frontend.
+	u64, u32, u16, u8 := uint64(1<<63), uint32(1<<31), uint16(1<<15), uint8(1<<7)
+	i64, i32, i16, i8 := int64(-1<<63), int32(-1<<31), int16(-1<<15), int8(-1<<7)
+	du64, du32, du16, du8 := float64(1<<63), float64(1<<31), float64(1<<15), float64(1<<7)
+	di64, di32, di16, di8 := float64(-1<<63), float64(-1<<31), float64(-1<<15), float64(-1<<7)
+	su64, su32, su16, su8 := float32(1<<63), float32(1<<31), float32(1<<15), float32(1<<7)
+	si64, si32, si16, si8 := float32(-1<<63), float32(-1<<31), float32(-1<<15), float32(-1<<7)
+
+	// integer to float
+	if float64(u64) != du64 {
+		t.Errorf("float64(u64) != du64")
+	}
+	if float64(u32) != du32 {
+		t.Errorf("float64(u32) != du32")
+	}
+	if float64(u16) != du16 {
+		t.Errorf("float64(u16) != du16")
+	}
+	if float64(u8) != du8 {
+		t.Errorf("float64(u8) != du8")
+	}
+	if float64(i64) != di64 {
+		t.Errorf("float64(i64) != di64")
+	}
+	if float64(i32) != di32 {
+		t.Errorf("float64(i32) != di32")
+	}
+	if float64(i16) != di16 {
+		t.Errorf("float64(i16) != di16")
+	}
+	if float64(i8) != di8 {
+		t.Errorf("float64(i8) != di8")
+	}
+	if float32(u64) != su64 {
+		t.Errorf("float32(u64) != su64")
+	}
+	if float32(u32) != su32 {
+		t.Errorf("float32(u32) != su32")
+	}
+	if float32(u16) != su16 {
+		t.Errorf("float32(u16) != su16")
+	}
+	if float32(u8) != su8 {
+		t.Errorf("float32(u8) != su8")
+	}
+	if float32(i64) != si64 {
+		t.Errorf("float32(i64) != si64")
+	}
+	if float32(i32) != si32 {
+		t.Errorf("float32(i32) != si32")
+	}
+	if float32(i16) != si16 {
+		t.Errorf("float32(i16) != si16")
+	}
+	if float32(i8) != si8 {
+		t.Errorf("float32(i8) != si8")
+	}
+
+	// float to integer
+	if uint64(du64) != u64 {
+		t.Errorf("uint64(du64) != u64")
+	}
+	if uint32(du32) != u32 {
+		t.Errorf("uint32(du32) != u32")
+	}
+	if uint16(du16) != u16 {
+		t.Errorf("uint16(du16) != u16")
+	}
+	if uint8(du8) != u8 {
+		t.Errorf("uint8(du8) != u8")
+	}
+	if int64(di64) != i64 {
+		t.Errorf("int64(di64) != i64")
+	}
+	if int32(di32) != i32 {
+		t.Errorf("int32(di32) != i32")
+	}
+	if int16(di16) != i16 {
+		t.Errorf("int16(di16) != i16")
+	}
+	if int8(di8) != i8 {
+		t.Errorf("int8(di8) != i8")
+	}
+	if uint64(su64) != u64 {
+		t.Errorf("uint64(su64) != u64")
+	}
+	if uint32(su32) != u32 {
+		t.Errorf("uint32(su32) != u32")
+	}
+	if uint16(su16) != u16 {
+		t.Errorf("uint16(su16) != u16")
+	}
+	if uint8(su8) != u8 {
+		t.Errorf("uint8(su8) != u8")
+	}
+	if int64(si64) != i64 {
+		t.Errorf("int64(si64) != i64")
+	}
+	if int32(si32) != i32 {
+		t.Errorf("int32(si32) != i32")
+	}
+	if int16(si16) != i16 {
+		t.Errorf("int16(si16) != i16")
+	}
+	if int8(si8) != i8 {
+		t.Errorf("int8(si8) != i8")
 	}
 }
 
