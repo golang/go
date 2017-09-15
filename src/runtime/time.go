@@ -163,6 +163,15 @@ func (tb *timersBucket) addtimerLocked(t *timer) {
 // Delete timer t from the heap.
 // Do not need to update the timerproc: if it wakes up early, no big deal.
 func deltimer(t *timer) bool {
+	if t.tb == nil {
+		// t.tb can be nil if the user created a timer
+		// directly, without invoking startTimer e.g
+		//    time.Ticker{C: c}
+		// In this case, return early without any deletion.
+		// See Issue 21874.
+		return false
+	}
+
 	tb := t.tb
 
 	lock(&tb.lock)
