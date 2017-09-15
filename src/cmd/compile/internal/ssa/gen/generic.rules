@@ -53,7 +53,7 @@
 (Cvt32Fto32  (Const32F [c])) -> (Const32  [int64(int32(i2f(c)))])
 (Cvt32Fto64  (Const32F [c])) -> (Const64  [int64(i2f(c))])
 (Cvt64Fto32  (Const64F [c])) -> (Const32  [int64(int32(i2f(c)))])
-(Cvt64Fto64  (Const64F [c])) -> (Const32  [int64(i2f(c))])
+(Cvt64Fto64  (Const64F [c])) -> (Const64  [int64(i2f(c))])
 (Round32F x:(Const32F)) -> x
 (Round64F x:(Const64F)) -> x
 

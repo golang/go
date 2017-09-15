@@ -7194,14 +7194,14 @@ func rewriteValuegeneric_OpCvt64Fto32F_0(v *Value) bool {
 func rewriteValuegeneric_OpCvt64Fto64_0(v *Value) bool {
 	// match: (Cvt64Fto64 (Const64F [c]))
 	// cond:
-	// result: (Const32  [int64(i2f(c))])
+	// result: (Const64  [int64(i2f(c))])
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpConst64F {
 			break
 		}
 		c := v_0.AuxInt
-		v.reset(OpConst32)
+		v.reset(OpConst64)
 		v.AuxInt = int64(i2f(c))
 		return true
 	}
