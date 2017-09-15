@@ -35,6 +35,13 @@ func TestTicker(t *testing.T) {
 	}
 }
 
+// Issue 21874
+func TestTickerStopWithDirectInitialization(t *testing.T) {
+	c := make(chan Time)
+	tk := &Ticker{C: c}
+	tk.Stop()
+}
+
 // Test that a bug tearing down a ticker has been fixed. This routine should not deadlock.
 func TestTeardown(t *testing.T) {
 	Delta := 100 * Millisecond
