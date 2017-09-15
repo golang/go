@@ -389,6 +389,12 @@ func checkMarks(t *testing.T, report bool) {
 // If clear is true, any incoming error is cleared before return. The errors
 // are always accumulated, though.
 func mark(info os.FileInfo, err error, errors *[]error, clear bool) error {
+	name := info.Name()
+	walkTree(tree, tree.name, func(path string, n *Node) {
+		if n.name == name {
+			n.mark++
+		}
+	})
 	if err != nil {
 		*errors = append(*errors, err)
 		if clear {
@@ -396,12 +402,6 @@ func mark(info os.FileInfo, err error, errors *[]error, clear bool) error {
 		}
 		return err
 	}
-	name := info.Name()
-	walkTree(tree, tree.name, func(path string, n *Node) {
-		if n.name == name {
-			n.mark++
-		}
-	})
 	return nil
 }
 
