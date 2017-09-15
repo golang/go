@@ -1,1 +1,7 @@
 pkg math/big, const MaxBase = 62
+pkg unicode, const Version = "10.0.0"
+pkg unicode, var Masaram_Gondi *RangeTable
+pkg unicode, var Nushu *RangeTable
+pkg unicode, var Soyombo *RangeTable
+pkg unicode, var Zanabazar_Square *RangeTable
+pkg unicode, var Regional_Indicator *RangeTable
