@@ -233,13 +233,10 @@ func putplan9sym(ctxt *Link, x *Symbol, s string, typ SymbolType, addr int64, go
 		Lputb(uint32(addr))
 		Cput(uint8(t + 0x80)) /* 0x80 is variable length */
 
-		var i int
-		for i = 0; i < len(s); i++ {
-			Cput(s[i])
-		}
+		Cwritestring(s)
 		Cput(0)
 
-		Symsize += int32(l) + 1 + int32(i) + 1
+		Symsize += int32(l) + 1 + int32(len(s)) + 1
 
 	default:
 		return
