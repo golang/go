@@ -17,7 +17,7 @@ type edgeMem struct {
 	m *Value // phi for memory at dest of e
 }
 
-// a rewriteTarget is a a value-argindex pair indicating
+// a rewriteTarget is a value-argindex pair indicating
 // where a rewrite is applied.  Note that this is for values,
 // not for block controls, because block controls are not targets
 // for the rewrites performed in inserting rescheduling checks.

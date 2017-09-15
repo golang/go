@@ -49,7 +49,7 @@ type PublicKey struct {
 	X, Y *big.Int
 }
 
-// PrivateKey represents a ECDSA private key.
+// PrivateKey represents an ECDSA private key.
 type PrivateKey struct {
 	PublicKey
 	D *big.Int

@@ -1767,7 +1767,7 @@ func ascompatee1(l *Node, r *Node, init *Nodes) *Node {
 
 func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 	// check assign expression list to
-	// a expression list. called in
+	// an expression list. called in
 	//	expr-list = expr-list
 
 	// ensure order of evaluation for function calls
@@ -1819,7 +1819,7 @@ func fncall(l *Node, rt *types.Type) bool {
 }
 
 // check assign type list to
-// a expression list. called in
+// an expression list. called in
 //	expr-list = func()
 func ascompatet(nl Nodes, nr *types.Type) []*Node {
 	if nl.Len() != nr.NumFields() {

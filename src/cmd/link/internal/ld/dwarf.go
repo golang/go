@@ -123,7 +123,7 @@ func getattr(die *dwarf.DWDie, attr uint16) *dwarf.DWAttr {
 	return nil
 }
 
-// Every DIE has at least a AT_name attribute (but it will only be
+// Every DIE has at least an AT_name attribute (but it will only be
 // written out if it is listed in the abbrev).
 func newdie(ctxt *Link, parent *dwarf.DWDie, abbrev int, name string, version int) *dwarf.DWDie {
 	die := new(dwarf.DWDie)

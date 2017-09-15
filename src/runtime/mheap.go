@@ -863,7 +863,7 @@ HaveSpan:
 // Large spans have a minimum size of 1MByte. The maximum number of large spans to support
 // 1TBytes is 1 million, experimentation using random sizes indicates that the depth of
 // the tree is less that 2x that of a perfectly balanced tree. For 1TByte can be referenced
-// by a perfectly balanced tree with a a depth of 20. Twice that is an acceptable 40.
+// by a perfectly balanced tree with a depth of 20. Twice that is an acceptable 40.
 func (h *mheap) isLargeSpan(npages uintptr) bool {
 	return npages >= uintptr(len(h.free))
 }

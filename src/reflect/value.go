@@ -176,7 +176,7 @@ type emptyInterface struct {
 	word unsafe.Pointer
 }
 
-// nonEmptyInterface is the header for a interface value with methods.
+// nonEmptyInterface is the header for an interface value with methods.
 type nonEmptyInterface struct {
 	// see ../runtime/iface.go:/Itab
 	itab *struct {

@@ -106,7 +106,7 @@ func (n *Name) IsConst() bool {
 	return strings.HasSuffix(n.Kind, "const")
 }
 
-// A ExpFunc is an exported function, callable from C.
+// An ExpFunc is an exported function, callable from C.
 // Such functions are identified in the Go input file
 // by doc comments containing the line //export ExpName
 type ExpFunc struct {

@@ -18,7 +18,7 @@ var (
 	byteFFEncoder encoder = byteEncoder(0xff)
 )
 
-// encoder represents a ASN.1 element that is waiting to be marshaled.
+// encoder represents an ASN.1 element that is waiting to be marshaled.
 type encoder interface {
 	// Len returns the number of bytes needed to marshal this element.
 	Len() int

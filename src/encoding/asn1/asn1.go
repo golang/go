@@ -374,7 +374,7 @@ func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
 
 // PrintableString
 
-// parsePrintableString parses a ASN.1 PrintableString from the given byte
+// parsePrintableString parses an ASN.1 PrintableString from the given byte
 // array and returns it.
 func parsePrintableString(bytes []byte) (ret string, err error) {
 	for _, b := range bytes {
@@ -406,7 +406,7 @@ func isPrintable(b byte) bool {
 
 // IA5String
 
-// parseIA5String parses a ASN.1 IA5String (ASCII string) from the given
+// parseIA5String parses an ASN.1 IA5String (ASCII string) from the given
 // byte slice and returns it.
 func parseIA5String(bytes []byte) (ret string, err error) {
 	for _, b := range bytes {
@@ -421,7 +421,7 @@ func parseIA5String(bytes []byte) (ret string, err error) {
 
 // T61String
 
-// parseT61String parses a ASN.1 T61String (8-bit clean string) from the given
+// parseT61String parses an ASN.1 T61String (8-bit clean string) from the given
 // byte slice and returns it.
 func parseT61String(bytes []byte) (ret string, err error) {
 	return string(bytes), nil
@@ -429,7 +429,7 @@ func parseT61String(bytes []byte) (ret string, err error) {
 
 // UTF8String
 
-// parseUTF8String parses a ASN.1 UTF8String (raw UTF-8) from the given byte
+// parseUTF8String parses an ASN.1 UTF8String (raw UTF-8) from the given byte
 // array and returns it.
 func parseUTF8String(bytes []byte) (ret string, err error) {
 	if !utf8.Valid(bytes) {
@@ -992,7 +992,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //
 // The following tags on struct fields have special meaning to Unmarshal:
 //
-//	application specifies that a APPLICATION tag is used
+//	application specifies that an APPLICATION tag is used
 //	default:x   sets the default value for optional integer fields (only used if optional is also present)
 //	explicit    specifies that an additional, explicit tag wraps the implicit one
 //	optional    marks the field as ASN.1 OPTIONAL

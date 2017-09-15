@@ -172,7 +172,7 @@ func curveForCurveID(id CurveID) (elliptic.Curve, bool) {
 }
 
 // ecdheRSAKeyAgreement implements a TLS key agreement where the server
-// generates a ephemeral EC public/private key pair and signs it. The
+// generates an ephemeral EC public/private key pair and signs it. The
 // pre-master secret is then calculated using ECDH. The signature may
 // either be ECDSA or RSA.
 type ecdheKeyAgreement struct {

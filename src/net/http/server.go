@@ -1213,7 +1213,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		}
 	}
 
-	// Check for a explicit (and valid) Content-Length header.
+	// Check for an explicit (and valid) Content-Length header.
 	hasCL := w.contentLength != -1
 
 	if w.wants10KeepAlive && (isHEAD || hasCL || !bodyAllowedForStatus(w.status)) {

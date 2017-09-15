@@ -340,7 +340,7 @@ func unwindm(restore *bool) {
 	// Call endcgo to do the accounting that cgocall will not have a
 	// chance to do during an unwind.
 	//
-	// In the case where a a Go call originates from C, ncgo is 0
+	// In the case where a Go call originates from C, ncgo is 0
 	// and there is no matching cgocall to end.
 	if mp.ncgo > 0 {
 		endcgo(mp)

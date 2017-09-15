@@ -641,7 +641,7 @@ func (f *extFloat) ShortestDecimal(d *decimalSlice, lower, upper *extFloat) bool
 // adjustLastDigit modifies d = x-currentDiff*ε, to get closest to
 // d = x-targetDiff*ε, without becoming smaller than x-maxDiff*ε.
 // It assumes that a decimal digit is worth ulpDecimal*ε, and that
-// all data is known with a error estimate of ulpBinary*ε.
+// all data is known with an error estimate of ulpBinary*ε.
 func adjustLastDigit(d *decimalSlice, currentDiff, targetDiff, maxDiff, ulpDecimal, ulpBinary uint64) bool {
 	if ulpDecimal < 2*ulpBinary {
 		// Approximation is too wide.

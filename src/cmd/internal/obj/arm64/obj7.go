@@ -632,7 +632,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				//	B    end
 				//
 				// The NOP is needed to give the jumps somewhere to land.
-				// It is a liblink NOP, not a ARM64 NOP: it encodes to 0 instruction bytes.
+				// It is a liblink NOP, not an ARM64 NOP: it encodes to 0 instruction bytes.
 				q = q1
 
 				// MOV g_panic(g), R1
