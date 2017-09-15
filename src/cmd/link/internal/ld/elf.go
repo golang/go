@@ -1120,9 +1120,7 @@ func getElfEhdr() *ElfEhdr {
 }
 
 func elf64writehdr() uint32 {
-	for i := 0; i < EI_NIDENT; i++ {
-		Cput(ehdr.ident[i])
-	}
+	Cwrite(ehdr.ident[:])
 	Thearch.Wput(ehdr.type_)
 	Thearch.Wput(ehdr.machine)
 	Thearch.Lput(ehdr.version)
@@ -1140,9 +1138,7 @@ func elf64writehdr() uint32 {
 }
 
 func elf32writehdr() uint32 {
-	for i := 0; i < EI_NIDENT; i++ {
-		Cput(ehdr.ident[i])
-	}
+	Cwrite(ehdr.ident[:])
 	Thearch.Wput(ehdr.type_)
 	Thearch.Wput(ehdr.machine)
 	Thearch.Lput(ehdr.version)

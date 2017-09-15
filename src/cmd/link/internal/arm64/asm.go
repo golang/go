@@ -465,10 +465,7 @@ func asmb(ctxt *ld.Link) {
 			sym := ctxt.Syms.Lookup("pclntab", 0)
 			if sym != nil {
 				ld.Lcsize = int32(len(sym.P))
-				for i := 0; int32(i) < ld.Lcsize; i++ {
-					ld.Cput(sym.P[i])
-				}
-
+				ld.Cwrite(sym.P)
 				ld.Cflush()
 			}
 
