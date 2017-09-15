@@ -11,22 +11,8 @@ import (
 	"strconv"
 )
 
-func Flagfn2(string, string, func(string, string)) { panic("flag") }
-
 func Flagcount(name, usage string, val *int) {
 	flag.Var((*count)(val), name, usage)
-}
-
-func Flagint32(name, usage string, val *int32) {
-	flag.Var((*int32Value)(val), name, usage)
-}
-
-func Flagint64(name, usage string, val *int64) {
-	flag.Int64Var(val, name, *val, usage)
-}
-
-func Flagstr(name, usage string, val *string) {
-	flag.StringVar(val, name, *val, usage)
 }
 
 func Flagfn0(name, usage string, f func()) {
@@ -77,18 +63,6 @@ func (c *count) Set(s string) error {
 func (c *count) IsBoolFlag() bool {
 	return true
 }
-
-type int32Value int32
-
-func (i *int32Value) Set(s string) error {
-	v, err := strconv.ParseInt(s, 0, 64)
-	*i = int32Value(v)
-	return err
-}
-
-func (i *int32Value) Get() interface{} { return int32(*i) }
-
-func (i *int32Value) String() string { return fmt.Sprint(*i) }
 
 type fn0 func()
 
