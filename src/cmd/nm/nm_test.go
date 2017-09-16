@@ -161,7 +161,7 @@ func TestGoExec(t *testing.T) {
 	testGoExec(t, false, false)
 }
 
-func testGoLib(t *testing.T) {
+func testGoLib(t *testing.T, iscgo bool) {
 	tmpdir, err := ioutil.TempDir("", "TestGoLib")
 	if err != nil {
 		t.Fatal(err)
@@ -180,7 +180,7 @@ func testGoLib(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = template.Must(template.New("mylib").Parse(testlib)).Execute(file, nil)
+	err = template.Must(template.New("mylib").Parse(testlib)).Execute(file, iscgo)
 	if e := file.Close(); err == nil {
 		err = e
 	}
@@ -212,23 +212,46 @@ func testGoLib(t *testing.T) {
 	type symType struct {
 		Type  string
 		Name  string
+		CSym  bool
 		Found bool
 	}
 	var syms = []symType{
-		{"B", "%22%22.Testdata", false},
-		{"T", "%22%22.Testfunc", false},
+		{"B", "%22%22.Testdata", false, false},
+		{"T", "%22%22.Testfunc", false, false},
+	}
+	if iscgo {
+		syms = append(syms, symType{"B", "%22%22.TestCgodata", false, false})
+		syms = append(syms, symType{"T", "%22%22.TestCgofunc", false, false})
+		if runtime.GOOS == "darwin" || (runtime.GOOS == "windows" && runtime.GOARCH == "386") {
+			syms = append(syms, symType{"D", "_cgodata", true, false})
+			syms = append(syms, symType{"T", "_cgofunc", true, false})
+		} else {
+			syms = append(syms, symType{"D", "cgodata", true, false})
+			syms = append(syms, symType{"T", "cgofunc", true, false})
+		}
 	}
 	scanner := bufio.NewScanner(bytes.NewBuffer(out))
 	for scanner.Scan() {
 		f := strings.Fields(scanner.Text())
-		if len(f) < 3 {
-			continue
+		var typ, name string
+		var csym bool
+		if iscgo {
+			if len(f) < 4 {
+				continue
+			}
+			csym = !strings.Contains(f[0], "_go_.o")
+			typ = f[2]
+			name = f[3]
+		} else {
+			if len(f) < 3 {
+				continue
+			}
+			typ = f[1]
+			name = f[2]
 		}
-		typ := f[1]
-		name := f[2]
 		for i := range syms {
 			sym := &syms[i]
-			if sym.Type == typ && sym.Name == name {
+			if sym.Type == typ && sym.Name == name && sym.CSym == csym {
 				if sym.Found {
 					t.Fatalf("duplicate symbol %s %s", sym.Type, sym.Name)
 				}
@@ -248,7 +271,7 @@ func testGoLib(t *testing.T) {
 }
 
 func TestGoLib(t *testing.T) {
-	testGoLib(t)
+	testGoLib(t, false)
 }
 
 const testexec = `
@@ -273,6 +296,18 @@ func testfunc() {
 
 const testlib = `
 package mylib
+
+{{if .}}
+// int cgodata = 5;
+// void cgofunc(void) {}
+import "C"
+
+var TestCgodata = C.cgodata
+
+func TestCgofunc() {
+	C.cgofunc()
+}
+{{end}}
 
 var Testdata uint32
 

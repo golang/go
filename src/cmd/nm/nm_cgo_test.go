@@ -34,3 +34,14 @@ func TestInternalLinkerCgoExec(t *testing.T) {
 func TestExternalLinkerCgoExec(t *testing.T) {
 	testGoExec(t, true, true)
 }
+
+func TestCgoLib(t *testing.T) {
+	if runtime.GOARCH == "arm" {
+		switch runtime.GOOS {
+		case "darwin", "android", "nacl":
+		default:
+			t.Skip("skip test due to #19811")
+		}
+	}
+	testGoLib(t, true)
+}

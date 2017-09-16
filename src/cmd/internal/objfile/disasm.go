@@ -40,23 +40,23 @@ type Disasm struct {
 }
 
 // Disasm returns a disassembler for the file f.
-func (f *File) Disasm() (*Disasm, error) {
-	syms, err := f.Symbols()
+func (e *Entry) Disasm() (*Disasm, error) {
+	syms, err := e.Symbols()
 	if err != nil {
 		return nil, err
 	}
 
-	pcln, err := f.PCLineTable()
+	pcln, err := e.PCLineTable()
 	if err != nil {
 		return nil, err
 	}
 
-	textStart, textBytes, err := f.Text()
+	textStart, textBytes, err := e.Text()
 	if err != nil {
 		return nil, err
 	}
 
-	goarch := f.GOARCH()
+	goarch := e.GOARCH()
 	disasm := disasms[goarch]
 	byteOrder := byteOrders[goarch]
 	if disasm == nil || byteOrder == nil {
