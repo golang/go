@@ -104,7 +104,7 @@ const (
 	blEXIT    = 3
 )
 
-var bllikelies [4]string = [4]string{"default", "call", "ret", "exit"}
+var bllikelies = [4]string{"default", "call", "ret", "exit"}
 
 func describePredictionAgrees(b *Block, prediction BranchPrediction) string {
 	s := ""

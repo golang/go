@@ -1429,9 +1429,9 @@ func FakeRecvType() *Type {
 }
 
 var (
-	TypeInvalid *Type = newSSA("invalid")
-	TypeMem     *Type = newSSA("mem")
-	TypeFlags   *Type = newSSA("flags")
-	TypeVoid    *Type = newSSA("void")
-	TypeInt128  *Type = newSSA("int128")
+	TypeInvalid = newSSA("invalid")
+	TypeMem     = newSSA("mem")
+	TypeFlags   = newSSA("flags")
+	TypeVoid    = newSSA("void")
+	TypeInt128  = newSSA("int128")
 )

@@ -612,7 +612,7 @@ func typecheck1(n *Node, top int) *Node {
 		if et == TIDEAL {
 			et = TINT
 		}
-		var aop Op = OXXX
+		aop := OXXX
 		if iscmp[n.Op] && t.Etype != TIDEAL && !eqtype(l.Type, r.Type) {
 			// comparison is okay as long as one side is
 			// assignable to the other.  convert so they have
