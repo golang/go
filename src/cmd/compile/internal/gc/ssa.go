@@ -3775,7 +3775,7 @@ type u642fcvtTab struct {
 	one                           func(*state, *types.Type, int64) *ssa.Value
 }
 
-var u64_f64 u642fcvtTab = u642fcvtTab{
+var u64_f64 = u642fcvtTab{
 	geq:   ssa.OpGeq64,
 	cvt2F: ssa.OpCvt64to64F,
 	and:   ssa.OpAnd64,
@@ -3785,7 +3785,7 @@ var u64_f64 u642fcvtTab = u642fcvtTab{
 	one:   (*state).constInt64,
 }
 
-var u64_f32 u642fcvtTab = u642fcvtTab{
+var u64_f32 = u642fcvtTab{
 	geq:   ssa.OpGeq64,
 	cvt2F: ssa.OpCvt64to32F,
 	and:   ssa.OpAnd64,
@@ -3866,12 +3866,12 @@ type u322fcvtTab struct {
 	cvtI2F, cvtF2F ssa.Op
 }
 
-var u32_f64 u322fcvtTab = u322fcvtTab{
+var u32_f64 = u322fcvtTab{
 	cvtI2F: ssa.OpCvt32to64F,
 	cvtF2F: ssa.OpCopy,
 }
 
-var u32_f32 u322fcvtTab = u322fcvtTab{
+var u32_f32 = u322fcvtTab{
 	cvtI2F: ssa.OpCvt32to32F,
 	cvtF2F: ssa.OpCvt64Fto32F,
 }
@@ -3980,7 +3980,7 @@ type f2uCvtTab struct {
 	cutoff               uint64
 }
 
-var f32_u64 f2uCvtTab = f2uCvtTab{
+var f32_u64 = f2uCvtTab{
 	ltf:        ssa.OpLess32F,
 	cvt2U:      ssa.OpCvt32Fto64,
 	subf:       ssa.OpSub32F,
@@ -3990,7 +3990,7 @@ var f32_u64 f2uCvtTab = f2uCvtTab{
 	cutoff:     9223372036854775808,
 }
 
-var f64_u64 f2uCvtTab = f2uCvtTab{
+var f64_u64 = f2uCvtTab{
 	ltf:        ssa.OpLess64F,
 	cvt2U:      ssa.OpCvt64Fto64,
 	subf:       ssa.OpSub64F,
@@ -4000,7 +4000,7 @@ var f64_u64 f2uCvtTab = f2uCvtTab{
 	cutoff:     9223372036854775808,
 }
 
-var f32_u32 f2uCvtTab = f2uCvtTab{
+var f32_u32 = f2uCvtTab{
 	ltf:        ssa.OpLess32F,
 	cvt2U:      ssa.OpCvt32Fto32,
 	subf:       ssa.OpSub32F,
@@ -4010,7 +4010,7 @@ var f32_u32 f2uCvtTab = f2uCvtTab{
 	cutoff:     2147483648,
 }
 
-var f64_u32 f2uCvtTab = f2uCvtTab{
+var f64_u32 = f2uCvtTab{
 	ltf:        ssa.OpLess64F,
 	cvt2U:      ssa.OpCvt64Fto32,
 	subf:       ssa.OpSub64F,

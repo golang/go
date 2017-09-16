@@ -2869,10 +2869,10 @@ func mkmapnames(base string) mapnames {
 	return mapnames{base, base + "_fast32", base + "_fast64", base + "_faststr"}
 }
 
-var mapaccess1 mapnames = mkmapnames("mapaccess1")
-var mapaccess2 mapnames = mkmapnames("mapaccess2")
-var mapassign mapnames = mkmapnames("mapassign")
-var mapdelete mapnames = mkmapnames("mapdelete")
+var mapaccess1 = mkmapnames("mapaccess1")
+var mapaccess2 = mkmapnames("mapaccess2")
+var mapassign = mkmapnames("mapassign")
+var mapdelete = mkmapnames("mapdelete")
 
 func mapfast(t *types.Type) int {
 	// Check ../../runtime/hashmap.go:maxValueSize before changing.
