@@ -11,14 +11,14 @@ import (
 	"debug/elf"
 	"encoding/binary"
 	"fmt"
-	"os"
+	"io"
 )
 
 type elfFile struct {
 	elf *elf.File
 }
 
-func openElf(r *os.File) (rawFile, error) {
+func openElf(r io.ReaderAt) (rawFile, error) {
 	f, err := elf.NewFile(r)
 	if err != nil {
 		return nil, err

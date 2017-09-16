@@ -127,13 +127,18 @@ type InlinedCall struct {
 
 // A Package is a parsed Go object file or archive defining a Go package.
 type Package struct {
-	ImportPath string        // import path denoting this package
-	Imports    []string      // packages imported by this package
-	SymRefs    []SymID       // list of symbol names and versions referred to by this pack
-	Syms       []*Sym        // symbols defined by this package
-	MaxVersion int           // maximum Version in any SymID in Syms
-	Arch       string        // architecture
-	Native     []io.ReaderAt // native object data (e.g. ELF)
+	ImportPath string          // import path denoting this package
+	Imports    []string        // packages imported by this package
+	SymRefs    []SymID         // list of symbol names and versions referred to by this pack
+	Syms       []*Sym          // symbols defined by this package
+	MaxVersion int             // maximum Version in any SymID in Syms
+	Arch       string          // architecture
+	Native     []*NativeReader // native object data (e.g. ELF)
+}
+
+type NativeReader struct {
+	Name string
+	io.ReaderAt
 }
 
 var (
@@ -439,7 +444,10 @@ func (r *objReader) parseArchive() error {
 					return fmt.Errorf("parsing archive member %q: %v", name, err)
 				}
 			} else {
-				r.p.Native = append(r.p.Native, io.NewSectionReader(r.f, r.offset, size))
+				r.p.Native = append(r.p.Native, &NativeReader{
+					Name:     name,
+					ReaderAt: io.NewSectionReader(r.f, r.offset, size),
+				})
 			}
 
 			r.skip(r.limit - r.offset)

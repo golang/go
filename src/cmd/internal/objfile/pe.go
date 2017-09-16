@@ -10,7 +10,7 @@ import (
 	"debug/dwarf"
 	"debug/pe"
 	"fmt"
-	"os"
+	"io"
 	"sort"
 )
 
@@ -18,16 +18,10 @@ type peFile struct {
 	pe *pe.File
 }
 
-func openPE(r *os.File) (rawFile, error) {
+func openPE(r io.ReaderAt) (rawFile, error) {
 	f, err := pe.NewFile(r)
 	if err != nil {
 		return nil, err
-	}
-	switch f.OptionalHeader.(type) {
-	case *pe.OptionalHeader32, *pe.OptionalHeader64:
-		// ok
-	default:
-		return nil, fmt.Errorf("unrecognized PE format")
 	}
 	return &peFile{f}, nil
 }
