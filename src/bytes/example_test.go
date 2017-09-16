@@ -412,3 +412,13 @@ func ExampleToLower() {
 	fmt.Printf("%s", bytes.ToLower([]byte("Gopher")))
 	// Output: gopher
 }
+
+func ExampleReader_Len() {
+	fmt.Println(bytes.NewReader([]byte("")).Len())
+	fmt.Println(bytes.NewReader([]byte("Hi!")).Len())
+	fmt.Println(bytes.NewReader([]byte("Hello Gopher!")).Len())
+	// Output:
+	// 0
+	// 3
+	// 13
+}
