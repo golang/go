@@ -4,6 +4,9 @@
 
 #include "textflag.h"
 
+TEXT ·Dim(SB),NOSPLIT,$0
+	BR ·dim(SB)
+
 TEXT ·Exp2(SB),NOSPLIT,$0
 	BR ·exp2(SB)
 

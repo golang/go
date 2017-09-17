@@ -13,7 +13,18 @@ package math
 func Dim(x, y float64) float64
 
 func dim(x, y float64) float64 {
-	return max(x-y, 0)
+	// The special cases result in NaN after the subtraction:
+	//      +Inf - +Inf = NaN
+	//      -Inf - -Inf = NaN
+	//       NaN - y    = NaN
+	//         x - NaN  = NaN
+	v := x - y
+	if v <= 0 {
+		// v is negative or 0
+		return 0
+	}
+	// v is positive or NaN
+	return v
 }
 
 // Max returns the larger of x or y.
