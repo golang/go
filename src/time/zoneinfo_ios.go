@@ -9,43 +9,23 @@ package time
 
 import "syscall"
 
-var zoneFile string
+var zoneSources = []string{
+	getZipParent() + "/zoneinfo.zip",
+}
 
-func init() {
+func getZipParent() string {
 	wd, err := syscall.Getwd()
 	if err != nil {
-		return
+		return "/XXXNOEXIST"
 	}
 
 	// The working directory at initialization is the root of the
 	// app bundle: "/private/.../bundlename.app". That's where we
 	// keep zoneinfo.zip.
-	zoneFile = wd + "/zoneinfo.zip"
-}
-
-func forceZipFileForTesting(zipOnly bool) {
-	// On iOS we only have the zip file.
-}
-
-func initTestingZone() {
-	z, err := loadZoneFile(zoneFile, "America/Los_Angeles")
-	if err != nil {
-		panic("cannot load America/Los_Angeles for testing: " + err.Error())
-	}
-	z.name = "Local"
-	localLoc = *z
+	return wd
 }
 
 func initLocal() {
 	// TODO(crawshaw): [NSTimeZone localTimeZone]
 	localLoc = *UTC
-}
-
-func loadLocation(name string) (*Location, error) {
-	z, err := loadZoneFile(zoneFile, name)
-	if err != nil {
-		return nil, err
-	}
-	z.name = name
-	return z, nil
 }
