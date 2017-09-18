@@ -131,7 +131,7 @@ func (b *Buffer) grow(n int) int {
 		// slice. We only need m+n <= c to slide, but
 		// we instead let capacity get twice as large so we
 		// don't spend all our time copying.
-		copy(b.buf[:], b.buf[b.off:])
+		copy(b.buf, b.buf[b.off:])
 	} else if c > maxInt-c-n {
 		panic(ErrTooLarge)
 	} else {
