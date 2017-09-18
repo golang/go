@@ -133,20 +133,21 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	scratchUsed := false
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			switch a := v.Aux.(type) {
-			case *ssa.ArgSymbol:
-				n := a.Node.(*Node)
-				// Don't modify nodfp; it is a global.
-				if n != nodfp {
+			if n, ok := v.Aux.(*Node); ok {
+				switch n.Class() {
+				case PPARAM, PPARAMOUT:
+					// Don't modify nodfp; it is a global.
+					if n != nodfp {
+						n.Name.SetUsed(true)
+					}
+				case PAUTO:
 					n.Name.SetUsed(true)
 				}
-			case *ssa.AutoSymbol:
-				a.Node.(*Node).Name.SetUsed(true)
 			}
-
 			if !scratchUsed {
 				scratchUsed = v.Op.UsesScratch()
 			}
+
 		}
 	}
 

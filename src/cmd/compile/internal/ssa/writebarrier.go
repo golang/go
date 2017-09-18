@@ -94,7 +94,7 @@ func writebarrier(f *Func) {
 			if sp == nil {
 				sp = f.Entry.NewValue0(initpos, OpSP, f.Config.Types.Uintptr)
 			}
-			wbsym := &ExternSymbol{Sym: f.fe.Syslook("writeBarrier")}
+			wbsym := f.fe.Syslook("writeBarrier")
 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
 			writebarrierptr = f.fe.Syslook("writebarrierptr")
 			typedmemmove = f.fe.Syslook("typedmemmove")
@@ -182,7 +182,7 @@ func writebarrier(f *Func) {
 			pos := w.Pos
 
 			var fn *obj.LSym
-			var typ *ExternSymbol
+			var typ *obj.LSym
 			var val *Value
 			switch w.Op {
 			case OpStoreWB:
@@ -191,10 +191,10 @@ func writebarrier(f *Func) {
 			case OpMoveWB:
 				fn = typedmemmove
 				val = w.Args[1]
-				typ = &ExternSymbol{Sym: w.Aux.(*types.Type).Symbol()}
+				typ = w.Aux.(*types.Type).Symbol()
 			case OpZeroWB:
 				fn = typedmemclr
-				typ = &ExternSymbol{Sym: w.Aux.(*types.Type).Symbol()}
+				typ = w.Aux.(*types.Type).Symbol()
 			case OpVarDef, OpVarLive, OpVarKill:
 			}
 
@@ -274,7 +274,7 @@ func writebarrier(f *Func) {
 
 // wbcall emits write barrier runtime call in b, returns memory.
 // if valIsVolatile, it moves val into temp space before making the call.
-func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ *ExternSymbol, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
+func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
 	config := b.Func.Config
 
 	var tmp GCNode
@@ -284,9 +284,8 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ *ExternSymbol, ptr, val, m
 		// value we're trying to move.
 		t := val.Type.ElemType()
 		tmp = b.Func.fe.Auto(val.Pos, t)
-		aux := &AutoSymbol{Node: tmp}
 		mem = b.NewValue1A(pos, OpVarDef, types.TypeMem, tmp, mem)
-		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), aux, sp)
+		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), tmp, sp)
 		siz := t.Size()
 		mem = b.NewValue3I(pos, OpMove, types.TypeMem, siz, tmpaddr, val, mem)
 		mem.Aux = t

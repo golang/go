@@ -276,18 +276,6 @@ search:
 	return true
 }
 
-// isArg returns whether s is an arg symbol
-func isArg(s interface{}) bool {
-	_, ok := s.(*ArgSymbol)
-	return ok
-}
-
-// isAuto returns whether s is an auto symbol
-func isAuto(s interface{}) bool {
-	_, ok := s.(*AutoSymbol)
-	return ok
-}
-
 // isSameSym returns whether sym is the same as the given named symbol
 func isSameSym(sym interface{}, name string) bool {
 	s, ok := sym.(fmt.Stringer)
@@ -412,11 +400,11 @@ func uaddOvf(a, b int64) bool {
 // 'sym' is the symbol for the itab
 func devirt(v *Value, sym interface{}, offset int64) *obj.LSym {
 	f := v.Block.Func
-	ext, ok := sym.(*ExternSymbol)
+	n, ok := sym.(*obj.LSym)
 	if !ok {
 		return nil
 	}
-	lsym := f.fe.DerefItab(ext.Sym, offset)
+	lsym := f.fe.DerefItab(n, offset)
 	if f.pass.debug > 0 {
 		if lsym != nil {
 			f.Warnl(v.Pos, "de-virtualizing call")
