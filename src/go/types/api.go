@@ -24,7 +24,7 @@
 //
 // For a tutorial, see https://golang.org/s/types-tutorial.
 //
-package types // import "go/types"
+package types
 
 import (
 	"bytes"
