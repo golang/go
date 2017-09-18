@@ -289,12 +289,13 @@ var genericOps = []opData{
 
 	// Constant-like things
 	{name: "InitMem"},                               // memory input to the function.
-	{name: "Arg", aux: "SymOff", symEffect: "None"}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
+	{name: "Arg", aux: "SymOff", symEffect: "Read"}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
 
-	// The address of a variable.  arg0 is the base pointer (SB or SP, depending
-	// on whether it is a global or stack variable).  The Aux field identifies the
-	// variable. It will be either an *ExternSymbol (with arg0=SB), *ArgSymbol (arg0=SP),
-	// or *AutoSymbol (arg0=SP).
+	// The address of a variable.  arg0 is the base pointer.
+	// If the variable is a global, the base pointer will be SB and
+	// the Aux field will be a *obj.LSym.
+	// If the variable is a local, the base pointer will be SP and
+	// the Aux field will be a *gc.Node.
 	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
 
 	{name: "SP"},                 // stack pointer
@@ -418,7 +419,7 @@ var genericOps = []opData{
 
 	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
 	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
-	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "None"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
 	{name: "KeepAlive", argLength: 2, typ: "Mem"},                             // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
 	{name: "RegKill"},                                                         // regalloc has determined that the value in this register is dead
 

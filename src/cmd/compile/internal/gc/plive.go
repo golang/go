@@ -291,14 +291,7 @@ func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
 		return n, ssa.SymWrite
 
 	case ssa.OpVarLive:
-		switch a := v.Aux.(type) {
-		case *ssa.ArgSymbol:
-			return a.Node.(*Node), ssa.SymRead
-		case *ssa.AutoSymbol:
-			return a.Node.(*Node), ssa.SymRead
-		default:
-			Fatalf("unknown VarLive aux type: %s", v.LongString())
-		}
+		return v.Aux.(*Node), ssa.SymRead
 	case ssa.OpVarDef, ssa.OpVarKill:
 		return v.Aux.(*Node), ssa.SymWrite
 	case ssa.OpKeepAlive:
@@ -313,12 +306,10 @@ func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
 
 	var n *Node
 	switch a := v.Aux.(type) {
-	case nil, *ssa.ExternSymbol:
+	case nil, *obj.LSym:
 		// ok, but no node
-	case *ssa.ArgSymbol:
-		n = a.Node.(*Node)
-	case *ssa.AutoSymbol:
-		n = a.Node.(*Node)
+	case *Node:
+		n = a
 	default:
 		Fatalf("weird aux: %s", v.LongString())
 	}
@@ -931,13 +922,7 @@ func clobberWalk(b *ssa.Block, v *Node, offset int64, t *types.Type) {
 // clobberPtr generates a clobber of the pointer at offset offset in v.
 // The clobber instruction is added at the end of b.
 func clobberPtr(b *ssa.Block, v *Node, offset int64) {
-	var aux interface{}
-	if v.Class() == PAUTO {
-		aux = &ssa.AutoSymbol{Node: v}
-	} else {
-		aux = &ssa.ArgSymbol{Node: v}
-	}
-	b.NewValue0IA(src.NoXPos, ssa.OpClobber, types.TypeVoid, offset, aux)
+	b.NewValue0IA(src.NoXPos, ssa.OpClobber, types.TypeVoid, offset, v)
 }
 
 func (lv *Liveness) avarinitanyall(b *ssa.Block, any, all bvec) {

@@ -75,6 +75,10 @@ func (d *DummyAuto) String() string {
 	return d.s
 }
 
+func (d *DummyAuto) StorageClass() StorageClass {
+	return ClassAuto
+}
+
 func (DummyFrontend) StringData(s string) interface{} {
 	return nil
 }

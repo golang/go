@@ -163,15 +163,12 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	s.startBlock(s.f.Entry)
 	s.vars[&memVar] = s.startmem
 
-	s.varsyms = map[*Node]interface{}{}
-
 	// Generate addresses of local declarations
 	s.decladdrs = map[*Node]*ssa.Value{}
 	for _, n := range fn.Func.Dcl {
 		switch n.Class() {
 		case PPARAM, PPARAMOUT:
-			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Node: n})
-			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type), aux, s.sp)
+			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type), n, s.sp)
 			if n.Class() == PPARAMOUT && s.canSSA(n) {
 				// Save ssa-able PPARAMOUT variables so we can
 				// store them back to the stack at the end of
@@ -258,9 +255,6 @@ type state struct {
 
 	// addresses of PPARAM and PPARAMOUT variables.
 	decladdrs map[*Node]*ssa.Value
-
-	// symbols for PEXTERN, PAUTO and PPARAMOUT variables so they can be reused.
-	varsyms map[*Node]interface{}
 
 	// starting values. Memory, stack pointer, and globals pointer
 	startmem *ssa.Value
@@ -937,16 +931,12 @@ func (s *state) stmt(n *Node) {
 		if !n.Left.Addrtaken() {
 			s.Fatalf("VARLIVE variable %v must have Addrtaken set", n.Left)
 		}
-		var aux interface{}
 		switch n.Left.Class() {
-		case PAUTO:
-			aux = s.lookupSymbol(n.Left, &ssa.AutoSymbol{Node: n.Left})
-		case PPARAM, PPARAMOUT:
-			aux = s.lookupSymbol(n.Left, &ssa.ArgSymbol{Node: n.Left})
+		case PAUTO, PPARAM, PPARAMOUT:
 		default:
 			s.Fatalf("VARLIVE variable %v must be Auto or Arg", n.Left)
 		}
-		s.vars[&memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, aux, s.mem())
+		s.vars[&memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, n.Left, s.mem())
 
 	case OCHECKNIL:
 		p := s.expr(n.Left)
@@ -1420,14 +1410,13 @@ func (s *state) expr(n *Node) *ssa.Value {
 		len := s.newValue1(ssa.OpStringLen, types.Types[TINT], str)
 		return s.newValue3(ssa.OpSliceMake, n.Type, ptr, len, len)
 	case OCFUNC:
-		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: n.Left.Sym.Linksym()})
+		aux := n.Left.Sym.Linksym()
 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
 	case ONAME:
 		if n.Class() == PFUNC {
 			// "value" of a function is the address of the function's closure
 			sym := funcsym(n.Sym).Linksym()
-			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: sym})
-			return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type), aux, s.sb)
+			return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type), sym, s.sb)
 		}
 		if s.canSSA(n) {
 			return s.variable(n, n.Type)
@@ -2203,7 +2192,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 	r := s.rtcall(growslice, true, []*types.Type{pt, types.Types[TINT], types.Types[TINT]}, taddr, p, l, c, nl)
 
 	if inplace {
-		if sn.Op == ONAME {
+		if sn.Op == ONAME && sn.Class() != PEXTERN {
 			// Tell liveness we're about to build a new slice
 			s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, sn, s.mem())
 		}
@@ -2410,7 +2399,7 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 	}
 	// Left is not ssa-able. Compute its address.
 	addr := s.addr(left, false)
-	if left.Op == ONAME && skip == 0 {
+	if left.Op == ONAME && left.Class() != PEXTERN && skip == 0 {
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, left, s.mem())
 	}
 	if isReflectHeaderDataField(left) {
@@ -2879,7 +2868,7 @@ func init() {
 		sys.ARM64)
 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: syslook("support_popcnt").Sym.Linksym()})
+			aux := syslook("support_popcnt").Sym.Linksym()
 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), aux, s.sb)
 			v := s.newValue2(ssa.OpLoad, types.Types[TBOOL], addr, s.mem())
 			b := s.endBlock()
@@ -3231,24 +3220,6 @@ func etypesign(e types.EType) int8 {
 	return 0
 }
 
-// lookupSymbol is used to retrieve the symbol (Extern, Arg or Auto) used for a particular node.
-// This improves the effectiveness of cse by using the same Aux values for the
-// same symbols.
-func (s *state) lookupSymbol(n *Node, sym interface{}) interface{} {
-	switch sym.(type) {
-	default:
-		s.Fatalf("sym %v is of unknown type %T", sym, sym)
-	case *ssa.ExternSymbol, *ssa.ArgSymbol, *ssa.AutoSymbol:
-		// these are the only valid types
-	}
-
-	if lsym, ok := s.varsyms[n]; ok {
-		return lsym
-	}
-	s.varsyms[n] = sym
-	return sym
-}
-
 // addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
 // The value that the returned Value represents is guaranteed to be non-nil.
 // If bounded is true then this address does not require a nil check for its operand
@@ -3260,8 +3231,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 		switch n.Class() {
 		case PEXTERN:
 			// global variable
-			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: n.Sym.Linksym()})
-			v := s.entryNewValue1A(ssa.OpAddr, t, aux, s.sb)
+			v := s.entryNewValue1A(ssa.OpAddr, t, n.Sym.Linksym(), s.sb)
 			// TODO: Make OpAddr use AuxInt as well as Aux.
 			if n.Xoffset != 0 {
 				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, n.Xoffset, v)
@@ -3275,19 +3245,16 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			}
 			if n == nodfp {
 				// Special arg that points to the frame pointer (Used by ORECOVER).
-				aux := s.lookupSymbol(n, &ssa.ArgSymbol{Node: n})
-				return s.entryNewValue1A(ssa.OpAddr, t, aux, s.sp)
+				return s.entryNewValue1A(ssa.OpAddr, t, n, s.sp)
 			}
 			s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
 			return nil
 		case PAUTO:
-			aux := s.lookupSymbol(n, &ssa.AutoSymbol{Node: n})
-			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
+			return s.newValue1A(ssa.OpAddr, t, n, s.sp)
 		case PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
 			// ensure that we reuse symbols for out parameters so
 			// that cse works on their addresses
-			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Node: n})
-			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
+			return s.newValue1A(ssa.OpAddr, t, n, s.sp)
 		default:
 			s.Fatalf("variable address class %v not implemented", classnames[n.Class()])
 			return nil
@@ -4672,10 +4639,11 @@ func AuxOffset(v *ssa.Value) (offset int64) {
 	if v.Aux == nil {
 		return 0
 	}
-	switch sym := v.Aux.(type) {
-
-	case *ssa.AutoSymbol:
-		n := sym.Node.(*Node)
+	n, ok := v.Aux.(*Node)
+	if !ok {
+		v.Fatalf("bad aux type in %s\n", v.LongString())
+	}
+	if n.Class() == PAUTO {
 		return n.Xoffset
 	}
 	return 0
@@ -4697,17 +4665,17 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 		return
 	}
 	// Add symbol's offset from its base register.
-	switch sym := v.Aux.(type) {
-	case *ssa.ExternSymbol:
+	switch n := v.Aux.(type) {
+	case *obj.LSym:
 		a.Name = obj.NAME_EXTERN
-		a.Sym = sym.Sym
-	case *ssa.ArgSymbol:
-		n := sym.Node.(*Node)
-		a.Name = obj.NAME_PARAM
-		a.Sym = n.Orig.Sym.Linksym()
-		a.Offset += n.Xoffset
-	case *ssa.AutoSymbol:
-		n := sym.Node.(*Node)
+		a.Sym = n
+	case *Node:
+		if n.Class() == PPARAM || n.Class() == PPARAMOUT {
+			a.Name = obj.NAME_PARAM
+			a.Sym = n.Orig.Sym.Linksym()
+			a.Offset += n.Xoffset
+			break
+		}
 		a.Name = obj.NAME_AUTO
 		a.Sym = n.Sym.Linksym()
 		a.Offset += n.Xoffset
@@ -4922,9 +4890,8 @@ func (e *ssafn) StringData(s string) interface{} {
 		e.strings = make(map[string]interface{})
 	}
 	data := stringsym(s)
-	aux := &ssa.ExternSymbol{Sym: data}
-	e.strings[s] = aux
-	return aux
+	e.strings[s] = data
+	return data
 }
 
 func (e *ssafn) Auto(pos src.XPos, t *types.Type) ssa.GCNode {
@@ -5140,4 +5107,17 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
 
 func (n *Node) Typ() *types.Type {
 	return n.Type
+}
+func (n *Node) StorageClass() ssa.StorageClass {
+	switch n.Class() {
+	case PPARAM:
+		return ssa.ClassParam
+	case PPARAMOUT:
+		return ssa.ClassParamOut
+	case PAUTO:
+		return ssa.ClassAuto
+	default:
+		Fatalf("untranslateable storage class for %v: %s", n, n.Class())
+		return 0
+	}
 }

@@ -133,12 +133,21 @@ type Frontend interface {
 	UseWriteBarrier() bool
 }
 
-// interface used to hold *gc.Node. We'd use *gc.Node directly but
-// that would lead to an import cycle.
+// interface used to hold a *gc.Node (a stack variable).
+// We'd use *gc.Node directly but that would lead to an import cycle.
 type GCNode interface {
 	Typ() *types.Type
 	String() string
+	StorageClass() StorageClass
 }
+
+type StorageClass uint8
+
+const (
+	ClassAuto     StorageClass = iota // local stack variable
+	ClassParam                        // argument
+	ClassParamOut                     // return value
+)
 
 // NewConfig returns a new configuration object for the given architecture.
 func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config {

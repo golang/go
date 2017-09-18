@@ -6,7 +6,6 @@ package ssa
 
 import (
 	"cmd/compile/internal/types"
-	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"math"
@@ -262,38 +261,6 @@ func (v *Value) Fatalf(msg string, args ...interface{}) {
 // isGenericIntConst returns whether v is a generic integer constant.
 func (v *Value) isGenericIntConst() bool {
 	return v != nil && (v.Op == OpConst64 || v.Op == OpConst32 || v.Op == OpConst16 || v.Op == OpConst8)
-}
-
-// ExternSymbol is an aux value that encodes a variable's
-// constant offset from the static base pointer.
-type ExternSymbol struct {
-	Sym *obj.LSym
-	// Note: the offset for an external symbol is not
-	// calculated until link time.
-}
-
-// ArgSymbol is an aux value that encodes an argument or result
-// variable's constant offset from FP (FP = SP + framesize).
-type ArgSymbol struct {
-	Node GCNode // A *gc.Node referring to the argument/result variable.
-}
-
-// AutoSymbol is an aux value that encodes a local variable's
-// constant offset from SP.
-type AutoSymbol struct {
-	Node GCNode // A *gc.Node referring to a local (auto) variable.
-}
-
-func (s *ExternSymbol) String() string {
-	return s.Sym.String()
-}
-
-func (s *ArgSymbol) String() string {
-	return s.Node.String()
-}
-
-func (s *AutoSymbol) String() string {
-	return s.Node.String()
 }
 
 // Reg returns the register assigned to v, in cmd/internal/obj/$ARCH numbering.

@@ -22524,7 +22524,7 @@ var opcodeTable = [...]opInfo{
 		name:      "Arg",
 		auxType:   auxSymOff,
 		argLen:    0,
-		symEffect: SymNone,
+		symEffect: SymRead,
 		generic:   true,
 	},
 	{
@@ -22950,7 +22950,7 @@ var opcodeTable = [...]opInfo{
 		name:      "VarLive",
 		auxType:   auxSym,
 		argLen:    1,
-		symEffect: SymNone,
+		symEffect: SymRead,
 		generic:   true,
 	},
 	{

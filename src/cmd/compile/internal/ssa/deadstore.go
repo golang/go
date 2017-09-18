@@ -132,7 +132,8 @@ func dse(f *Func) {
 	}
 }
 
-// elimUnreadAutos deletes stores to autos that are never read from.
+// elimUnreadAutos deletes stores (and associated bookkeeping ops VarDef and VarKill)
+// to autos that are never read from.
 func elimUnreadAutos(f *Func) {
 	// Loop over all ops that affect autos taking note of which
 	// autos we need and also stores that we might be able to
@@ -141,19 +142,21 @@ func elimUnreadAutos(f *Func) {
 	var stores []*Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			var sym *AutoSymbol
-			sym, ok := v.Aux.(*AutoSymbol)
+			n, ok := v.Aux.(GCNode)
 			if !ok {
+				continue
+			}
+			if n.StorageClass() != ClassAuto {
 				continue
 			}
 
 			effect := v.Op.SymEffect()
 			switch effect {
-			case SymWrite:
+			case SymNone, SymWrite:
 				// If we haven't seen the auto yet
 				// then this might be a store we can
 				// eliminate.
-				if !seen[sym.Node] {
+				if !seen[n] {
 					stores = append(stores, v)
 				}
 			default:
@@ -163,7 +166,7 @@ func elimUnreadAutos(f *Func) {
 				// because dead loads haven't been
 				// eliminated yet.
 				if v.Uses > 0 {
-					seen[sym.Node] = true
+					seen[n] = true
 				}
 			}
 		}
@@ -171,8 +174,8 @@ func elimUnreadAutos(f *Func) {
 
 	// Eliminate stores to unread autos.
 	for _, store := range stores {
-		sym, _ := store.Aux.(*AutoSymbol)
-		if seen[sym.Node] {
+		n, _ := store.Aux.(GCNode)
+		if seen[n] {
 			continue
 		}
 
