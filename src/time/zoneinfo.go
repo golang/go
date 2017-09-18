@@ -292,13 +292,14 @@ func LoadLocation(name string) (*Location, error) {
 		env, _ := syscall.Getenv("ZONEINFO")
 		zoneinfo = &env
 	})
-	if zoneinfo != nil && *zoneinfo != "" {
-		if z, err := loadZoneFile(*zoneinfo, name); err == nil {
-			z.name = name
-			return z, nil
+	if *zoneinfo != "" {
+		if zoneData, err := loadTzinfoFromDirOrZip(*zoneinfo, name); err == nil {
+			if z, err := newLocationFromTzinfo(name, zoneData); err == nil {
+				return z, nil
+			}
 		}
 	}
-	return loadLocation(name)
+	return loadLocation(name, zoneSources)
 }
 
 // containsDotDot reports whether s contains "..".

@@ -9,6 +9,25 @@ func init() {
 	ForceUSPacificForTesting()
 }
 
+func initTestingZone() {
+	z, err := loadLocation("America/Los_Angeles", zoneSources[len(zoneSources)-1:])
+	if err != nil {
+		panic("cannot load America/Los_Angeles for testing: " + err.Error())
+	}
+	z.name = "Local"
+	localLoc = *z
+}
+
+var origZoneSources = zoneSources
+
+func forceZipFileForTesting(zipOnly bool) {
+	zoneSources = make([]string, len(origZoneSources))
+	copy(zoneSources, origZoneSources)
+	if zipOnly {
+		zoneSources = zoneSources[len(zoneSources)-1:]
+	}
+}
+
 var Interrupt = interrupt
 var DaysIn = daysIn
 
