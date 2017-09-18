@@ -14,6 +14,16 @@ func (f *bitset8) set(mask uint8, b bool) {
 	}
 }
 
+type bitset16 uint16
+
+func (f *bitset16) set(mask uint16, b bool) {
+	if b {
+		*(*uint16)(f) |= mask
+	} else {
+		*(*uint16)(f) &^= mask
+	}
+}
+
 type bitset32 uint32
 
 func (f *bitset32) set(mask uint32, b bool) {
