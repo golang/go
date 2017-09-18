@@ -280,7 +280,7 @@ func uint64IsZero(x uint64) int {
 	x &= x >> 4
 	x &= x >> 2
 	x &= x >> 1
-	return int(x&1)
+	return int(x & 1)
 }
 
 // scalarIsZero returns 1 if scalar represents the zero value, and zero
