@@ -1137,7 +1137,7 @@ func checknowritebarrierrec() {
 		// the recursive case, we have to update this at most
 		// len(list) times and can stop when we an iteration
 		// that doesn't change anything.
-		for _ = range list {
+		for range list {
 			c.stable = false
 			for _, n := range list {
 				if n.Func.Pragma&Yeswritebarrierrec != 0 {
