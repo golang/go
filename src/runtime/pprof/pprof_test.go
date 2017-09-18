@@ -397,46 +397,103 @@ func TestBlockProfile(t *testing.T) {
 	type TestCase struct {
 		name string
 		f    func()
+		stk  []string
 		re   string
 	}
 	tests := [...]TestCase{
-		{"chan recv", blockChanRecv, `
+		{
+			name: "chan recv",
+			f:    blockChanRecv,
+			stk: []string{
+				"runtime.chanrecv1",
+				"runtime/pprof.blockChanRecv",
+				"runtime/pprof.TestBlockProfile",
+			},
+			re: `
 [0-9]+ [0-9]+ @( 0x[[:xdigit:]]+)+
 #	0x[0-9a-f]+	runtime\.chanrecv1\+0x[0-9a-f]+	.*/src/runtime/chan.go:[0-9]+
 #	0x[0-9a-f]+	runtime/pprof\.blockChanRecv\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 #	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 `},
-		{"chan send", blockChanSend, `
+		{
+			name: "chan send",
+			f:    blockChanSend,
+			stk: []string{
+				"runtime.chansend1",
+				"runtime/pprof.blockChanSend",
+				"runtime/pprof.TestBlockProfile",
+			},
+			re: `
 [0-9]+ [0-9]+ @( 0x[[:xdigit:]]+)+
 #	0x[0-9a-f]+	runtime\.chansend1\+0x[0-9a-f]+	.*/src/runtime/chan.go:[0-9]+
 #	0x[0-9a-f]+	runtime/pprof\.blockChanSend\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 #	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 `},
-		{"chan close", blockChanClose, `
+		{
+			name: "chan close",
+			f:    blockChanClose,
+			stk: []string{
+				"runtime.chanrecv1",
+				"runtime/pprof.blockChanClose",
+				"runtime/pprof.TestBlockProfile",
+			},
+			re: `
 [0-9]+ [0-9]+ @( 0x[[:xdigit:]]+)+
 #	0x[0-9a-f]+	runtime\.chanrecv1\+0x[0-9a-f]+	.*/src/runtime/chan.go:[0-9]+
 #	0x[0-9a-f]+	runtime/pprof\.blockChanClose\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 #	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 `},
-		{"select recv async", blockSelectRecvAsync, `
+		{
+			name: "select recv async",
+			f:    blockSelectRecvAsync,
+			stk: []string{
+				"runtime.selectgo",
+				"runtime/pprof.blockSelectRecvAsync",
+				"runtime/pprof.TestBlockProfile",
+			},
+			re: `
 [0-9]+ [0-9]+ @( 0x[[:xdigit:]]+)+
 #	0x[0-9a-f]+	runtime\.selectgo\+0x[0-9a-f]+	.*/src/runtime/select.go:[0-9]+
 #	0x[0-9a-f]+	runtime/pprof\.blockSelectRecvAsync\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 #	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 `},
-		{"select send sync", blockSelectSendSync, `
+		{
+			name: "select send sync",
+			f:    blockSelectSendSync,
+			stk: []string{
+				"runtime.selectgo",
+				"runtime/pprof.blockSelectSendSync",
+				"runtime/pprof.TestBlockProfile",
+			},
+			re: `
 [0-9]+ [0-9]+ @( 0x[[:xdigit:]]+)+
 #	0x[0-9a-f]+	runtime\.selectgo\+0x[0-9a-f]+	.*/src/runtime/select.go:[0-9]+
 #	0x[0-9a-f]+	runtime/pprof\.blockSelectSendSync\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 #	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 `},
-		{"mutex", blockMutex, `
+		{
+			name: "mutex",
+			f:    blockMutex,
+			stk: []string{
+				"sync.(*Mutex).Lock",
+				"runtime/pprof.blockMutex",
+				"runtime/pprof.TestBlockProfile",
+			},
+			re: `
 [0-9]+ [0-9]+ @( 0x[[:xdigit:]]+)+
 #	0x[0-9a-f]+	sync\.\(\*Mutex\)\.Lock\+0x[0-9a-f]+	.*/src/sync/mutex\.go:[0-9]+
 #	0x[0-9a-f]+	runtime/pprof\.blockMutex\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 #	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 `},
-		{"cond", blockCond, `
+		{
+			name: "cond",
+			f:    blockCond,
+			stk: []string{
+				"sync.(*Cond).Wait",
+				"runtime/pprof.blockCond",
+				"runtime/pprof.TestBlockProfile",
+			},
+			re: `
 [0-9]+ [0-9]+ @( 0x[[:xdigit:]]+)+
 #	0x[0-9a-f]+	sync\.\(\*Cond\)\.Wait\+0x[0-9a-f]+	.*/src/sync/cond\.go:[0-9]+
 #	0x[0-9a-f]+	runtime/pprof\.blockCond\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
@@ -444,28 +501,84 @@ func TestBlockProfile(t *testing.T) {
 `},
 	}
 
+	// Generate block profile
 	runtime.SetBlockProfileRate(1)
 	defer runtime.SetBlockProfileRate(0)
 	for _, test := range tests {
 		test.f()
 	}
-	var w bytes.Buffer
-	Lookup("block").WriteTo(&w, 1)
-	prof := w.String()
 
-	if !strings.HasPrefix(prof, "--- contention:\ncycles/second=") {
-		t.Fatalf("Bad profile header:\n%v", prof)
+	t.Run("debug=1", func(t *testing.T) {
+		var w bytes.Buffer
+		Lookup("block").WriteTo(&w, 1)
+		prof := w.String()
+
+		if !strings.HasPrefix(prof, "--- contention:\ncycles/second=") {
+			t.Fatalf("Bad profile header:\n%v", prof)
+		}
+
+		if strings.HasSuffix(prof, "#\t0x0\n\n") {
+			t.Errorf("Useless 0 suffix:\n%v", prof)
+		}
+
+		for _, test := range tests {
+			if !regexp.MustCompile(strings.Replace(test.re, "\t", "\t+", -1)).MatchString(prof) {
+				t.Errorf("Bad %v entry, expect:\n%v\ngot:\n%v", test.name, test.re, prof)
+			}
+		}
+	})
+
+	t.Run("proto", func(t *testing.T) {
+		// proto format
+		var w bytes.Buffer
+		Lookup("block").WriteTo(&w, 0)
+		p, err := profile.Parse(&w)
+		if err != nil {
+			t.Fatalf("failed to parse profile: %v", err)
+		}
+		t.Logf("parsed proto: %s", p)
+		if err := p.CheckValid(); err != nil {
+			t.Fatalf("invalid profile: %v", err)
+		}
+
+		stks := stacks(p)
+		for _, test := range tests {
+			if !containsStack(stks, test.stk) {
+				t.Errorf("No matching stack entry for %v, want %+v", test.name, test.stk)
+			}
+		}
+	})
+
+}
+
+func stacks(p *profile.Profile) (res [][]string) {
+	for _, s := range p.Sample {
+		var stk []string
+		for _, l := range s.Location {
+			for _, line := range l.Line {
+				stk = append(stk, line.Function.Name)
+			}
+		}
+		res = append(res, stk)
 	}
+	return res
+}
 
-	if strings.HasSuffix(prof, "#\t0x0\n\n") {
-		t.Errorf("Useless 0 suffix:\n%v", prof)
-	}
-
-	for _, test := range tests {
-		if !regexp.MustCompile(strings.Replace(test.re, "\t", "\t+", -1)).MatchString(prof) {
-			t.Fatalf("Bad %v entry, expect:\n%v\ngot:\n%v", test.name, test.re, prof)
+func containsStack(got [][]string, want []string) bool {
+	for _, stk := range got {
+		if len(stk) < len(want) {
+			continue
+		}
+		for i, f := range want {
+			if f != stk[i] {
+				break
+			}
+			if i == len(want)-1 {
+				return true
+			}
 		}
 	}
+	return false
 }
 
 const blockDelay = 10 * time.Millisecond
@@ -557,6 +670,8 @@ func blockCond() {
 }
 
 func TestMutexProfile(t *testing.T) {
+	// Generate mutex profile
+
 	old := runtime.SetMutexProfileFraction(1)
 	defer runtime.SetMutexProfileFraction(old)
 	if old != 0 {
@@ -565,31 +680,57 @@ func TestMutexProfile(t *testing.T) {
 
 	blockMutex()
 
-	var w bytes.Buffer
-	Lookup("mutex").WriteTo(&w, 1)
-	prof := w.String()
+	t.Run("debug=1", func(t *testing.T) {
+		var w bytes.Buffer
+		Lookup("mutex").WriteTo(&w, 1)
+		prof := w.String()
+		t.Logf("received profile: %v", prof)
 
-	if !strings.HasPrefix(prof, "--- mutex:\ncycles/second=") {
-		t.Errorf("Bad profile header:\n%v", prof)
-	}
-	prof = strings.Trim(prof, "\n")
-	lines := strings.Split(prof, "\n")
-	if len(lines) != 6 {
-		t.Errorf("expected 6 lines, got %d %q\n%s", len(lines), prof, prof)
-	}
-	if len(lines) < 6 {
-		return
-	}
-	// checking that the line is like "35258904 1 @ 0x48288d 0x47cd28 0x458931"
-	r2 := `^\d+ 1 @(?: 0x[[:xdigit:]]+)+`
-	//r2 := "^[0-9]+ 1 @ 0x[0-9a-f x]+$"
-	if ok, err := regexp.MatchString(r2, lines[3]); err != nil || !ok {
-		t.Errorf("%q didn't match %q", lines[3], r2)
-	}
-	r3 := "^#.*runtime/pprof.blockMutex.*$"
-	if ok, err := regexp.MatchString(r3, lines[5]); err != nil || !ok {
-		t.Errorf("%q didn't match %q", lines[5], r3)
-	}
+		if !strings.HasPrefix(prof, "--- mutex:\ncycles/second=") {
+			t.Errorf("Bad profile header:\n%v", prof)
+		}
+		prof = strings.Trim(prof, "\n")
+		lines := strings.Split(prof, "\n")
+		if len(lines) != 6 {
+			t.Errorf("expected 6 lines, got %d %q\n%s", len(lines), prof, prof)
+		}
+		if len(lines) < 6 {
+			return
+		}
+		// checking that the line is like "35258904 1 @ 0x48288d 0x47cd28 0x458931"
+		r2 := `^\d+ 1 @(?: 0x[[:xdigit:]]+)+`
+		//r2 := "^[0-9]+ 1 @ 0x[0-9a-f x]+$"
+		if ok, err := regexp.MatchString(r2, lines[3]); err != nil || !ok {
+			t.Errorf("%q didn't match %q", lines[3], r2)
+		}
+		r3 := "^#.*runtime/pprof.blockMutex.*$"
+		if ok, err := regexp.MatchString(r3, lines[5]); err != nil || !ok {
+			t.Errorf("%q didn't match %q", lines[5], r3)
+		}
+		t.Logf(prof)
+	})
+	t.Run("proto", func(t *testing.T) {
+		// proto format
+		var w bytes.Buffer
+		Lookup("mutex").WriteTo(&w, 0)
+		p, err := profile.Parse(&w)
+		if err != nil {
+			t.Fatalf("failed to parse profile: %v", err)
+		}
+		t.Logf("parsed proto: %s", p)
+		if err := p.CheckValid(); err != nil {
+			t.Fatalf("invalid profile: %v", err)
+		}
+
+		stks := stacks(p)
+		for _, want := range [][]string{
+			{"sync.(*Mutex).Unlock", "runtime/pprof.blockMutex.func1"},
+		} {
+			if !containsStack(stks, want) {
+				t.Errorf("No matching stack entry for %+v", want)
+			}
+		}
+	})
 }
 
 func func1(c chan int) { <-c }
