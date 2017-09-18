@@ -31,6 +31,8 @@ import (
 	"io"
 	"math"
 	"math/big"
+
+	"crypto/internal/randutil"
 )
 
 var bigZero = big.NewInt(0)
@@ -218,6 +220,8 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 // [1] US patent 4405829 (1972, expired)
 // [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
 func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
+	randutil.MaybeReadByte(random)
+
 	priv := new(PrivateKey)
 	priv.E = 65537
 
@@ -467,6 +471,8 @@ func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err er
 
 	var ir *big.Int
 	if random != nil {
+		randutil.MaybeReadByte(random)
+
 		// Blinding enabled. Blinding involves multiplying c by r^e.
 		// Then the decryption operation performs (m^e * r^e)^d mod n
 		// which equals mr mod n. The factor of r can then be removed

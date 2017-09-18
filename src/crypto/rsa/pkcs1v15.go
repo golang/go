@@ -10,6 +10,8 @@ import (
 	"errors"
 	"io"
 	"math/big"
+
+	"crypto/internal/randutil"
 )
 
 // This file implements encryption and decryption using PKCS#1 v1.5 padding.
@@ -35,6 +37,8 @@ type PKCS1v15DecryptOptions struct {
 // WARNING: use of this function to encrypt plaintexts other than
 // session keys is dangerous. Use RSA OAEP in new protocols.
 func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) ([]byte, error) {
+	randutil.MaybeReadByte(rand)
+
 	if err := checkPub(pub); err != nil {
 		return nil, err
 	}
