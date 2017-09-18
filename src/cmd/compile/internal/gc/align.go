@@ -176,6 +176,7 @@ func dowidth(t *types.Type) {
 		}
 
 		t.Width = 0
+		t.Align = 1
 		return
 	}
 
