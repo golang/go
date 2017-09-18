@@ -149,6 +149,12 @@ func caninl(fn *Node) {
 		return
 	}
 
+	n := fn.Func.Nname
+	if n.Func.InlinabilityChecked() {
+		return
+	}
+	defer n.Func.SetInlinabilityChecked(true)
+
 	const maxBudget = 80
 	visitor := hairyVisitor{budget: maxBudget}
 	if visitor.visitList(fn.Nbody) {
@@ -162,8 +168,6 @@ func caninl(fn *Node) {
 
 	savefn := Curfn
 	Curfn = fn
-
-	n := fn.Func.Nname
 
 	n.Func.Inl.Set(fn.Nbody.Slice())
 	fn.Nbody.Set(inlcopylist(n.Func.Inl.Slice()))
@@ -522,6 +526,37 @@ func inlnode(n *Node) *Node {
 			n = mkinlcall(n, n.Left, n.Isddd())
 		} else if n.isMethodCalledAsFunction() && asNode(n.Left.Sym.Def) != nil {
 			n = mkinlcall(n, asNode(n.Left.Sym.Def), n.Isddd())
+		} else if n.Left.Op == OCLOSURE {
+			if f := inlinableClosure(n.Left); f != nil {
+				n = mkinlcall(n, f, n.Isddd())
+			}
+		} else if n.Left.Op == ONAME && n.Left.Name != nil && n.Left.Name.Defn != nil {
+			if d := n.Left.Name.Defn; d.Op == OAS && d.Right.Op == OCLOSURE {
+				if f := inlinableClosure(d.Right); f != nil {
+					// NB: this check is necessary to prevent indirect re-assignment of the variable
+					// having the address taken after the invocation or only used for reads is actually fine
+					// but we have no easy way to distinguish the safe cases
+					if d.Left.Addrtaken() {
+						if Debug['m'] > 1 {
+							fmt.Printf("%v: cannot inline escaping closure variable %v\n", n.Line(), n.Left)
+						}
+						break
+					}
+
+					// ensure the variable is never re-assigned
+					if unsafe, a := reassigned(n.Left); unsafe {
+						if Debug['m'] > 1 {
+							if a != nil {
+								fmt.Printf("%v: cannot inline re-assigned closure variable at %v: %v\n", n.Line(), a.Line(), a)
+							} else {
+								fmt.Printf("%v: cannot inline global closure variable %v\n", n.Line(), n.Left)
+							}
+						}
+						break
+					}
+					n = mkinlcall(n, f, n.Isddd())
+				}
+			}
 		}
 
 	case OCALLMETH:
@@ -543,6 +578,95 @@ func inlnode(n *Node) *Node {
 
 	lineno = lno
 	return n
+}
+
+func inlinableClosure(n *Node) *Node {
+	c := n.Func.Closure
+	caninl(c)
+	f := c.Func.Nname
+	if f != nil && f.Func.Inl.Len() != 0 {
+		if n.Func.Cvars.Len() != 0 {
+			// FIXME: support closure with captured variables
+			// they currently result in invariant violation in the SSA phase
+			if Debug['m'] > 1 {
+				fmt.Printf("%v: cannot inline closure w/ captured vars %v\n", n.Line(), n.Left)
+			}
+			return nil
+		}
+		return f
+	}
+	return nil
+}
+
+// reassigned takes an ONAME node, walks the function in which it is defined, and returns a boolean
+// indicating whether the name has any assignments other than its declaration.
+// The second return value is the first such assignment encountered in the walk, if any. It is mostly
+// useful for -m output documenting the reason for inhibited optimizations.
+// NB: global variables are always considered to be re-assigned.
+// TODO: handle initial declaration not including an assignment and followed by a single assignment?
+func reassigned(n *Node) (bool, *Node) {
+	if n.Op != ONAME {
+		Fatalf("reassigned %v", n)
+	}
+	// no way to reliably check for no-reassignment of globals, assume it can be
+	if n.Name.Curfn == nil {
+		return true, nil
+	}
+	v := reassignVisitor{name: n}
+	a := v.visitList(n.Name.Curfn.Nbody)
+	return a != nil, a
+}
+
+type reassignVisitor struct {
+	name *Node
+}
+
+func (v *reassignVisitor) visit(n *Node) *Node {
+	if n == nil {
+		return nil
+	}
+	switch n.Op {
+	case OAS:
+		if n.Left == v.name && n != v.name.Name.Defn {
+			return n
+		}
+		return nil
+	case OAS2, OAS2FUNC:
+		for _, p := range n.List.Slice() {
+			if p == v.name && n != v.name.Name.Defn {
+				return n
+			}
+		}
+		return nil
+	}
+	if a := v.visit(n.Left); a != nil {
+		return a
+	}
+	if a := v.visit(n.Right); a != nil {
+		return a
+	}
+	if a := v.visitList(n.List); a != nil {
+		return a
+	}
+	if a := v.visitList(n.Rlist); a != nil {
+		return a
+	}
+	if a := v.visitList(n.Ninit); a != nil {
+		return a
+	}
+	if a := v.visitList(n.Nbody); a != nil {
+		return a
+	}
+	return nil
+}
+
+func (v *reassignVisitor) visitList(l Nodes) *Node {
+	for _, n := range l.Slice() {
+		if a := v.visit(n); a != nil {
+			return a
+		}
+	}
+	return nil
 }
 
 // The result of mkinlcall MUST be assigned back to n, e.g.
