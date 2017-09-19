@@ -265,6 +265,9 @@ func TestParseCGOArchive(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			if mf.Symtab == nil {
+				continue
+			}
 			for _, s := range mf.Symtab.Syms {
 				switch s.Name {
 				case c1:

@@ -3460,12 +3460,6 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 		}
 		outGo = append(outGo, importGo)
 
-		ofile := objdir + "_all.o"
-		if err := b.collect(p, objdir, ofile, cgoLDFLAGS, outObj); err != nil {
-			return nil, nil, err
-		}
-		outObj = []string{ofile}
-
 	case "gccgo":
 		defunC := objdir + "_cgo_defun.c"
 		defunObj := objdir + "_cgo_defun.o"
@@ -3509,71 +3503,6 @@ func (b *Builder) dynimport(p *load.Package, objdir, importGo, cgoExe string, cf
 		cgoflags = []string{"-dynlinker"} // record path to dynamic linker
 	}
 	return b.run(p.Dir, p.ImportPath, nil, cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
-}
-
-// collect partially links the object files outObj into a single
-// relocatable object file named ofile.
-func (b *Builder) collect(p *load.Package, objdir, ofile string, cgoLDFLAGS, outObj []string) error {
-	// When linking relocatable objects, various flags need to be
-	// filtered out as they are inapplicable and can cause some linkers
-	// to fail.
-	var ldflags []string
-	for i := 0; i < len(cgoLDFLAGS); i++ {
-		f := cgoLDFLAGS[i]
-		switch {
-		// skip "-lc" or "-l somelib"
-		case strings.HasPrefix(f, "-l"):
-			if f == "-l" {
-				i++
-			}
-		// skip "-framework X" on Darwin
-		case cfg.Goos == "darwin" && f == "-framework":
-			i++
-		// skip "*.{dylib,so,dll,o,a}"
-		case strings.HasSuffix(f, ".dylib"),
-			strings.HasSuffix(f, ".so"),
-			strings.HasSuffix(f, ".dll"),
-			strings.HasSuffix(f, ".o"),
-			strings.HasSuffix(f, ".a"):
-		// Remove any -fsanitize=foo flags.
-		// Otherwise the compiler driver thinks that we are doing final link
-		// and links sanitizer runtime into the object file. But we are not doing
-		// the final link, we will link the resulting object file again. And
-		// so the program ends up with two copies of sanitizer runtime.
-		// See issue 8788 for details.
-		case strings.HasPrefix(f, "-fsanitize="):
-			continue
-		// runpath flags not applicable unless building a shared
-		// object or executable; see issue 12115 for details. This
-		// is necessary as Go currently does not offer a way to
-		// specify the set of LDFLAGS that only apply to shared
-		// objects.
-		case strings.HasPrefix(f, "-Wl,-rpath"):
-			if f == "-Wl,-rpath" || f == "-Wl,-rpath-link" {
-				// Skip following argument to -rpath* too.
-				i++
-			}
-		default:
-			ldflags = append(ldflags, f)
-		}
-	}
-
-	ldflags = append(ldflags, "-Wl,-r", "-nostdlib")
-
-	var linker []string
-	if len(p.CXXFiles) > 0 || len(p.SwigCXXFiles) > 0 {
-		linker = envList("CXX", cfg.DefaultCXX)
-	} else {
-		linker = envList("CC", cfg.DefaultCC)
-	}
-	if flag := b.gccNoPie(linker); flag != "" {
-		ldflags = append(ldflags, flag)
-	}
-
-	// We are creating an object file, so we don't want a build ID.
-	ldflags = b.disableBuildID(ldflags)
-
-	return b.gccld(p, ofile, ldflags, outObj)
 }
 
 // Run SWIG on all SWIG input files.
