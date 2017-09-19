@@ -832,7 +832,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			rp.Off = int32(rel.addr)
 
 			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).
-			if SysArch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == 1 {
+			if SysArch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_SIGNED {
 				// Calculate the addend as the offset into the section.
 				//
 				// The rip-relative offset stored in the object file is encoded
@@ -853,6 +853,13 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 				rp.Add = int64(uint64(int64(int32(e.Uint32(s.P[rp.Off:])))+int64(rp.Off)+4) - secaddr)
 			} else {
 				rp.Add = int64(int32(e.Uint32(s.P[rp.Off:])))
+			}
+
+			// An unsigned internal relocation has a value offset
+			// by the section address.
+			if SysArch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_UNSIGNED {
+				secaddr = c.seg.sect[rel.symnum-1].addr
+				rp.Add -= int64(secaddr)
 			}
 
 			// For i386 Mach-O PC-relative, the addend is written such that
