@@ -85,6 +85,14 @@ type distTest struct {
 }
 
 func (t *tester) run() {
+	var exeSuffix string
+	if goos == "windows" {
+		exeSuffix = ".exe"
+	}
+	if _, err := os.Stat(filepath.Join(gobin, "go"+exeSuffix)); err == nil {
+		os.Setenv("PATH", fmt.Sprintf("%s%c%s", gobin, os.PathListSeparator, os.Getenv("PATH")))
+	}
+
 	slurp, err := exec.Command("go", "env", "CGO_ENABLED").Output()
 	if err != nil {
 		log.Fatalf("Error running go env CGO_ENABLED: %v", err)

@@ -811,7 +811,7 @@ func main() {
 	}
 
 	exe := filepath.Join(tmpdir, "main.exe")
-	cmd := osexec.Command("go", "build", "-o", exe, src)
+	cmd := osexec.Command(testenv.GoToolPath(t), "build", "-o", exe, src)
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

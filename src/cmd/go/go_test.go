@@ -91,20 +91,25 @@ func TestMain(m *testing.M) {
 		if race.Enabled {
 			args = append(args, "-race")
 		}
-		out, err := exec.Command("go", args...).CombinedOutput()
+		gotool, err := testenv.GoTool()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		out, err := exec.Command(gotool, args...).CombinedOutput()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "building testgo failed: %v\n%s", err, out)
 			os.Exit(2)
 		}
 
-		out, err = exec.Command("go", "env", "GOROOT").CombinedOutput()
+		out, err = exec.Command(gotool, "env", "GOROOT").CombinedOutput()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "could not find testing GOROOT: %v\n%s", err, out)
 			os.Exit(2)
 		}
 		testGOROOT = strings.TrimSpace(string(out))
 
-		out, err = exec.Command("go", "env", "CC").CombinedOutput()
+		out, err = exec.Command(gotool, "env", "CC").CombinedOutput()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "could not find testing CC: %v\n%s", err, out)
 			os.Exit(2)

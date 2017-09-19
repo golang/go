@@ -12,10 +12,24 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	_ "unsafe"
 )
+
+func goCmd() string {
+	var exeSuffix string
+	if runtime.GOOS == "windows" {
+		exeSuffix = ".exe"
+	}
+	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
+	if _, err := os.Stat(path); err == nil {
+		return path
+	}
+	return "go"
+}
 
 // Event describes one event in the trace.
 type Event struct {
@@ -757,7 +771,7 @@ func symbolize(events []*Event, bin string) error {
 	}
 
 	// Start addr2line.
-	cmd := exec.Command("go", "tool", "addr2line", bin)
+	cmd := exec.Command(goCmd(), "tool", "addr2line", bin)
 	in, err := cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("failed to pipe addr2line stdin: %v", err)

@@ -22,7 +22,7 @@ func TestNooptCgoBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
-	cmd := exec.Command("go", "build", "-gcflags=-N -l", "-o", filepath.Join(dir, "a.out"))
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", filepath.Join(dir, "a.out"))
 	cmd.Dir = filepath.Join(runtime.GOROOT(), "src", "runtime", "testdata", "testprogcgo")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
