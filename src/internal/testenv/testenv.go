@@ -47,7 +47,7 @@ func HasGoBuild() bool {
 // MustHaveGoBuild checks that the current system can build programs with ``go build''
 // and then run them with os.StartProcess or exec.Command.
 // If not, MustHaveGoBuild calls t.Skip with an explanation.
-func MustHaveGoBuild(t *testing.T) {
+func MustHaveGoBuild(t testing.TB) {
 	if !HasGoBuild() {
 		t.Skipf("skipping test: 'go build' not available on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
@@ -61,7 +61,7 @@ func HasGoRun() bool {
 
 // MustHaveGoRun checks that the current system can run programs with ``go run.''
 // If not, MustHaveGoRun calls t.Skip with an explanation.
-func MustHaveGoRun(t *testing.T) {
+func MustHaveGoRun(t testing.TB) {
 	if !HasGoRun() {
 		t.Skipf("skipping test: 'go run' not available on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
@@ -71,7 +71,7 @@ func MustHaveGoRun(t *testing.T) {
 // It is a convenience wrapper around GoTool.
 // If the tool is unavailable GoToolPath calls t.Skip.
 // If the tool should be available and isn't, GoToolPath calls t.Fatal.
-func GoToolPath(t *testing.T) string {
+func GoToolPath(t testing.TB) string {
 	MustHaveGoBuild(t)
 	path, err := GoTool()
 	if err != nil {
@@ -130,7 +130,7 @@ func HasSrc() bool {
 // MustHaveExec checks that the current system can start new processes
 // using os.StartProcess or (more commonly) exec.Command.
 // If not, MustHaveExec calls t.Skip with an explanation.
-func MustHaveExec(t *testing.T) {
+func MustHaveExec(t testing.TB) {
 	if !HasExec() {
 		t.Skipf("skipping test: cannot exec subprocess on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
@@ -145,7 +145,7 @@ func HasExternalNetwork() bool {
 // MustHaveExternalNetwork checks that the current system can use
 // external (non-localhost) networks.
 // If not, MustHaveExternalNetwork calls t.Skip with an explanation.
-func MustHaveExternalNetwork(t *testing.T) {
+func MustHaveExternalNetwork(t testing.TB) {
 	if testing.Short() {
 		t.Skipf("skipping test: no external network in -short mode")
 	}
@@ -159,7 +159,7 @@ func HasCGO() bool {
 }
 
 // MustHaveCGO calls t.Skip if cgo is not available.
-func MustHaveCGO(t *testing.T) {
+func MustHaveCGO(t testing.TB) {
 	if !haveCGO {
 		t.Skipf("skipping test: no cgo")
 	}
@@ -173,7 +173,7 @@ func HasSymlink() bool {
 
 // MustHaveSymlink reports whether the current system can use os.Symlink.
 // If not, MustHaveSymlink calls t.Skip with an explanation.
-func MustHaveSymlink(t *testing.T) {
+func MustHaveSymlink(t testing.TB) {
 	ok, reason := hasSymlink()
 	if !ok {
 		t.Skipf("skipping test: cannot make symlinks on %s/%s%s", runtime.GOOS, runtime.GOARCH, reason)
@@ -190,7 +190,7 @@ func HasLink() bool {
 
 // MustHaveLink reports whether the current system can use os.Link.
 // If not, MustHaveLink calls t.Skip with an explanation.
-func MustHaveLink(t *testing.T) {
+func MustHaveLink(t testing.TB) {
 	if !HasLink() {
 		t.Skipf("skipping test: hardlinks are not supported on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
@@ -198,13 +198,13 @@ func MustHaveLink(t *testing.T) {
 
 var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
 
-func SkipFlaky(t *testing.T, issue int) {
+func SkipFlaky(t testing.TB, issue int) {
 	if !*flaky {
 		t.Skipf("skipping known flaky test without the -flaky flag; see golang.org/issue/%d", issue)
 	}
 }
 
-func SkipFlakyNet(t *testing.T) {
+func SkipFlakyNet(t testing.TB) {
 	if v, _ := strconv.ParseBool(os.Getenv("GO_BUILDER_FLAKY_NET")); v {
 		t.Skip("skipping test on builder known to have frequent network failures")
 	}
