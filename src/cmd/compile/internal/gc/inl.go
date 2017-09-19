@@ -740,10 +740,18 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 
 	inlgen++
 
+	parent := -1
+	if b := Ctxt.PosTable.Pos(n.Pos).Base(); b != nil {
+		parent = b.InliningIndex()
+	}
+	newIndex := Ctxt.InlTree.Add(parent, n.Pos, fn.Sym.Linksym())
+
 	subst := inlsubst{
-		retlabel: retlabel,
-		retvars:  retvars,
-		inlvars:  inlvars,
+		retlabel:    retlabel,
+		retvars:     retvars,
+		inlvars:     inlvars,
+		bases:       make(map[*src.PosBase]*src.PosBase),
+		newInlIndex: newIndex,
 	}
 
 	body := subst.list(fn.Func.Inl)
@@ -761,28 +769,6 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	call.Rlist.Set(retvars)
 	call.Type = n.Type
 	call.SetTypecheck(1)
-
-	// Hide the args from setPos -- the parameters to the inlined
-	// call already have good line numbers that should be preserved.
-	args := as.Rlist
-	as.Rlist.Set(nil)
-
-	// Rewrite the line information for the inlined AST.
-	parent := -1
-	callBase := Ctxt.PosTable.Pos(n.Pos).Base()
-	if callBase != nil {
-		parent = callBase.InliningIndex()
-	}
-	newIndex := Ctxt.InlTree.Add(parent, n.Pos, fn.Sym.Linksym())
-	setpos := &setPos{
-		bases:       make(map[*src.PosBase]*src.PosBase),
-		newInlIndex: newIndex,
-	}
-	setpos.node(call)
-
-	as.Rlist.Set(args.Slice())
-
-	//dumplist("call body", body);
 
 	n = call
 
@@ -861,6 +847,14 @@ type inlsubst struct {
 	retvars []*Node
 
 	inlvars map[*Node]*Node
+
+	// bases maps from original PosBase to PosBase with an extra
+	// inlined call frame.
+	bases map[*src.PosBase]*src.PosBase
+
+	// newInlIndex is the index of the inlined call frame to
+	// insert for inlined nodes.
+	newInlIndex int
 }
 
 // list inlines a list of nodes.
@@ -908,7 +902,6 @@ func (subst *inlsubst) node(n *Node) *Node {
 	//		dump("Return before substitution", n);
 	case ORETURN:
 		m := nod(OGOTO, subst.retlabel, nil)
-
 		m.Ninit.Set(subst.list(n.Ninit))
 
 		if len(subst.retvars) != 0 && n.List.Len() != 0 {
@@ -934,6 +927,7 @@ func (subst *inlsubst) node(n *Node) *Node {
 	case OGOTO, OLABEL:
 		m := nod(OXXX, nil, nil)
 		*m = *n
+		m.Pos = subst.updatedPos(m.Pos)
 		m.Ninit.Set(nil)
 		p := fmt.Sprintf("%s·%d", n.Left.Sym.Name, inlgen)
 		m.Left = newname(lookup(p))
@@ -943,6 +937,7 @@ func (subst *inlsubst) node(n *Node) *Node {
 
 	m := nod(OXXX, nil, nil)
 	*m = *n
+	m.Pos = subst.updatedPos(m.Pos)
 	m.Ninit.Set(nil)
 
 	if n.Op == OCLOSURE {
@@ -959,50 +954,13 @@ func (subst *inlsubst) node(n *Node) *Node {
 	return m
 }
 
-// setPos is a visitor to update position info with a new inlining index.
-type setPos struct {
-	bases       map[*src.PosBase]*src.PosBase
-	newInlIndex int
-}
-
-func (s *setPos) nodelist(ll Nodes) {
-	for _, n := range ll.Slice() {
-		s.node(n)
-	}
-}
-
-func (s *setPos) node(n *Node) {
-	if n == nil {
-		return
-	}
-	if n.Op == OLITERAL || n.Op == OTYPE {
-		if n.Sym != nil {
-			// This node is not a copy, so don't clobber position.
-			return
-		}
-	}
-
-	// don't clobber names, unless they're freshly synthesized
-	if n.Op != ONAME || !n.Pos.IsKnown() {
-		n.Pos = s.updatedPos(n)
-	}
-
-	s.node(n.Left)
-	s.node(n.Right)
-	s.nodelist(n.List)
-	s.nodelist(n.Rlist)
-	s.nodelist(n.Ninit)
-	s.nodelist(n.Nbody)
-}
-
-func (s *setPos) updatedPos(n *Node) src.XPos {
-	pos := Ctxt.PosTable.Pos(n.Pos)
+func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
+	pos := Ctxt.PosTable.Pos(xpos)
 	oldbase := pos.Base() // can be nil
-	newbase := s.bases[oldbase]
+	newbase := subst.bases[oldbase]
 	if newbase == nil {
-		newbase = src.NewInliningBase(oldbase, s.newInlIndex)
-		pos.SetBase(newbase)
-		s.bases[oldbase] = newbase
+		newbase = src.NewInliningBase(oldbase, subst.newInlIndex)
+		subst.bases[oldbase] = newbase
 	}
 	pos.SetBase(newbase)
 	return Ctxt.PosTable.XPos(pos)
