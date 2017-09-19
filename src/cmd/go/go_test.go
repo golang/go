@@ -4474,6 +4474,7 @@ func TestBuildmodePIE(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer f.Close()
 		if f.Type != elf.ET_DYN {
 			t.Errorf("PIE type must be ET_DYN, but %s", f.Type)
 		}
@@ -4482,6 +4483,7 @@ func TestBuildmodePIE(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer f.Close()
 		if f.Flags&macho.FlagDyldLink == 0 {
 			t.Error("PIE must have DyldLink flag, but not")
 		}
