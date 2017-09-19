@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 1, 2017",
+	"Subtitle": "Version of September 19, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -761,7 +761,8 @@ using a receiver of that type.
 <p>
 A <i>boolean type</i> represents the set of Boolean truth values
 denoted by the predeclared constants <code>true</code>
-and <code>false</code>. The predeclared boolean type is <code>bool</code>.
+and <code>false</code>. The predeclared boolean type is <code>bool</code>;
+it is a <a href="#Type_definitions">defined type</a>.
 </p>
 
 <h3 id="Numeric_types">Numeric types</h3>
@@ -808,8 +809,9 @@ uintptr  an unsigned integer large enough to store the uninterpreted bits of a p
 </pre>
 
 <p>
-To avoid portability issues all numeric types are distinct except
-<code>byte</code>, which is an alias for <code>uint8</code>, and
+To avoid portability issues all numeric types are <a href="#Type_definitions">defined
+types</a> and thus distinct except
+<code>byte</code>, which is an <a href="#Alias_declarations">alias</a> for <code>uint8</code>, and
 <code>rune</code>, which is an alias for <code>int32</code>.
 Conversions
 are required when different numeric types are mixed in an expression
@@ -825,7 +827,8 @@ A <i>string type</i> represents the set of string values.
 A string value is a (possibly empty) sequence of bytes.
 Strings are immutable: once created,
 it is impossible to change the contents of a string.
-The predeclared string type is <code>string</code>.
+The predeclared string type is <code>string</code>;
+it is a <a href="#Type_definitions">defined type</a>.
 </p>
 
 <p>
