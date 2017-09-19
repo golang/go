@@ -1043,7 +1043,7 @@ func BenchmarkRunningGoProgram(b *testing.B) {
 	}
 
 	exe := filepath.Join(tmpdir, "main.exe")
-	cmd := exec.Command("go", "build", "-o", exe, src)
+	cmd := exec.Command(testenv.GoToolPath(b), "build", "-o", exe, src)
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
