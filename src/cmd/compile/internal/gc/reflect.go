@@ -1774,8 +1774,7 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
 	}
 
 	vec := bvalloc(8 * int32(len(ptrmask)))
-	xoffset := int64(0)
-	onebitwalktype1(t, &xoffset, vec)
+	onebitwalktype1(t, 0, vec)
 
 	nptr := typeptrdata(t) / int64(Widthptr)
 	for i := int64(0); i < nptr; i++ {

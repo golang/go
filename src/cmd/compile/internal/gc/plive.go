@@ -355,84 +355,62 @@ func (lv *Liveness) blockEffects(b *ssa.Block) *BlockEffects {
 // and then simply copied into bv at the correct offset on future calls with
 // the same type t. On https://rsc.googlecode.com/hg/testdata/slow.go, onebitwalktype1
 // accounts for 40% of the 6g execution time.
-func onebitwalktype1(t *types.Type, xoffset *int64, bv bvec) {
-	if t.Align > 0 && *xoffset&int64(t.Align-1) != 0 {
+func onebitwalktype1(t *types.Type, off int64, bv bvec) {
+	if t.Align > 0 && off&int64(t.Align-1) != 0 {
 		Fatalf("onebitwalktype1: invalid initial alignment, %v", t)
 	}
 
 	switch t.Etype {
-	case TINT8,
-		TUINT8,
-		TINT16,
-		TUINT16,
-		TINT32,
-		TUINT32,
-		TINT64,
-		TUINT64,
-		TINT,
-		TUINT,
-		TUINTPTR,
-		TBOOL,
-		TFLOAT32,
-		TFLOAT64,
-		TCOMPLEX64,
-		TCOMPLEX128:
-		*xoffset += t.Width
+	case TINT8, TUINT8, TINT16, TUINT16,
+		TINT32, TUINT32, TINT64, TUINT64,
+		TINT, TUINT, TUINTPTR, TBOOL,
+		TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128:
 
-	case TPTR32,
-		TPTR64,
-		TUNSAFEPTR,
-		TFUNC,
-		TCHAN,
-		TMAP:
-		if *xoffset&int64(Widthptr-1) != 0 {
+	case TPTR32, TPTR64, TUNSAFEPTR, TFUNC, TCHAN, TMAP:
+		if off&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
-		bv.Set(int32(*xoffset / int64(Widthptr))) // pointer
-		*xoffset += t.Width
+		bv.Set(int32(off / int64(Widthptr))) // pointer
 
 	case TSTRING:
 		// struct { byte *str; intgo len; }
-		if *xoffset&int64(Widthptr-1) != 0 {
+		if off&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
-		bv.Set(int32(*xoffset / int64(Widthptr))) //pointer in first slot
-		*xoffset += t.Width
+		bv.Set(int32(off / int64(Widthptr))) //pointer in first slot
 
 	case TINTER:
 		// struct { Itab *tab;	void *data; }
 		// or, when isnilinter(t)==true:
 		// struct { Type *type; void *data; }
-		if *xoffset&int64(Widthptr-1) != 0 {
+		if off&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
-		bv.Set(int32(*xoffset / int64(Widthptr)))   // pointer in first slot
-		bv.Set(int32(*xoffset/int64(Widthptr) + 1)) // pointer in second slot
-		*xoffset += t.Width
+		bv.Set(int32(off / int64(Widthptr)))   // pointer in first slot
+		bv.Set(int32(off/int64(Widthptr) + 1)) // pointer in second slot
 
 	case TSLICE:
 		// struct { byte *array; uintgo len; uintgo cap; }
-		if *xoffset&int64(Widthptr-1) != 0 {
+		if off&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)
 		}
-		bv.Set(int32(*xoffset / int64(Widthptr))) // pointer in first slot (BitsPointer)
-		*xoffset += t.Width
+		bv.Set(int32(off / int64(Widthptr))) // pointer in first slot (BitsPointer)
 
 	case TARRAY:
+		elt := t.Elem()
+		if elt.Width == 0 {
+			// Short-circuit for #20739.
+			break
+		}
 		for i := int64(0); i < t.NumElem(); i++ {
-			onebitwalktype1(t.Elem(), xoffset, bv)
+			onebitwalktype1(elt, off, bv)
+			off += elt.Width
 		}
 
 	case TSTRUCT:
-		var o int64
-		for _, t1 := range t.Fields().Slice() {
-			fieldoffset := t1.Offset
-			*xoffset += fieldoffset - o
-			onebitwalktype1(t1.Type, xoffset, bv)
-			o = fieldoffset + t1.Type.Width
+		for _, f := range t.Fields().Slice() {
+			onebitwalktype1(f.Type, off+f.Offset, bv)
 		}
-
-		*xoffset += t.Width - o
 
 	default:
 		Fatalf("onebitwalktype1: unexpected type, %v", t)
@@ -453,8 +431,6 @@ func argswords(lv *Liveness) int32 {
 // this argument and the in arguments are always assumed live. The vars
 // argument is a slice of *Nodes.
 func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, locals bvec) {
-	var xoffset int64
-
 	for i := int32(0); ; i++ {
 		i = liveout.Next(i)
 		if i < 0 {
@@ -463,12 +439,10 @@ func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, l
 		node := vars[i]
 		switch node.Class() {
 		case PAUTO:
-			xoffset = node.Xoffset + lv.stkptrsize
-			onebitwalktype1(node.Type, &xoffset, locals)
+			onebitwalktype1(node.Type, node.Xoffset+lv.stkptrsize, locals)
 
 		case PPARAM, PPARAMOUT:
-			xoffset = node.Xoffset
-			onebitwalktype1(node.Type, &xoffset, args)
+			onebitwalktype1(node.Type, node.Xoffset, args)
 		}
 	}
 }
