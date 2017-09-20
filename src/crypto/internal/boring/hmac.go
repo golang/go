@@ -98,6 +98,10 @@ func (h *boringHMAC) Reset() {
 		C._goboringcrypto_HMAC_CTX_cleanup(&h.ctx)
 	} else {
 		h.needCleanup = true
+		// Note: Because of the finalizer, any time h.ctx is passed to cgo,
+		// that call must be followed by a call to runtime.KeepAlive(h),
+		// to make sure h is not collected (and finalized) before the cgo
+		// call returns.
 		runtime.SetFinalizer(h, (*boringHMAC).finalize)
 	}
 	C._goboringcrypto_HMAC_CTX_init(&h.ctx)
@@ -109,6 +113,7 @@ func (h *boringHMAC) Reset() {
 		println("boringcrypto: HMAC size:", C._goboringcrypto_HMAC_size(&h.ctx), "!=", h.size)
 		panic("boringcrypto: HMAC size mismatch")
 	}
+	runtime.KeepAlive(h) // Next line will keep h alive too; just making doubly sure.
 	h.sum = nil
 }
 
@@ -120,6 +125,7 @@ func (h *boringHMAC) Write(p []byte) (int, error) {
 	if len(p) > 0 {
 		C._goboringcrypto_HMAC_Update(&h.ctx, (*C.uint8_t)(unsafe.Pointer(&p[0])), C.size_t(len(p)))
 	}
+	runtime.KeepAlive(h)
 	return len(p), nil
 }
 
