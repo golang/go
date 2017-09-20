@@ -142,7 +142,7 @@ func TestBasicOperations(t *testing.T) {
 
 		n, err = buf.Write([]byte(data[2:26]))
 		if n != 24 {
-			t.Errorf("wrote 25 bytes, but n == %d", n)
+			t.Errorf("wrote 24 bytes, but n == %d", n)
 		}
 		check(t, "TestBasicOperations (6)", &buf, string(data[0:26]))
 
