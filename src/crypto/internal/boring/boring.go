@@ -11,7 +11,10 @@ package boring
 
 // #include "goboringcrypto.h"
 import "C"
-import "math/big"
+import (
+	"crypto/internal/boring/sig"
+	"math/big"
+)
 
 const available = true
 
@@ -20,6 +23,7 @@ func init() {
 	if C._goboringcrypto_FIPS_mode() != 1 {
 		panic("boringcrypto: not in FIPS mode")
 	}
+	sig.BoringCrypto()
 }
 
 // Unreachable marks code that should be unreachable

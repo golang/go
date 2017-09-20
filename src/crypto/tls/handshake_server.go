@@ -418,7 +418,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		}
 		if c.vers >= VersionTLS12 {
 			certReq.hasSignatureAndHash = true
-			certReq.signatureAndHashes = supportedSignatureAlgorithms
+			certReq.signatureAndHashes = supportedSignatureAlgorithms()
 		}
 
 		// An empty list of certificateAuthorities signals to
@@ -522,7 +522,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		var signatureAndHash signatureAndHash
 		if certVerify.hasSignatureAndHash {
 			signatureAndHash = certVerify.signatureAndHash
-			if !isSupportedSignatureAndHash(signatureAndHash, supportedSignatureAlgorithms) {
+			if !isSupportedSignatureAndHash(signatureAndHash, supportedSignatureAlgorithms()) {
 				return errors.New("tls: unsupported hash function for client certificate")
 			}
 		} else {
@@ -718,6 +718,8 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (c
 
 	if c.config.ClientAuth >= VerifyClientCertIfGiven && len(certs) > 0 {
 		opts := x509.VerifyOptions{
+			IsBoring: isBoringCertificate,
+
 			Roots:         c.config.ClientCAs,
 			CurrentTime:   c.config.time(),
 			Intermediates: x509.NewCertPool(),
