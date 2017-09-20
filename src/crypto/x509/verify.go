@@ -156,6 +156,11 @@ type VerifyOptions struct {
 	// constraint down the chain which mirrors Windows CryptoAPI behavior,
 	// but not the spec. To accept any key usage, include ExtKeyUsageAny.
 	KeyUsages []ExtKeyUsage
+
+	// IsBoring is a validity check for BoringCrypto.
+	// If not nil, it will be called to check whether a given certificate
+	// can be used for constructing verification chains.
+	IsBoring func(*Certificate) bool
 }
 
 const (
@@ -252,6 +257,13 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		if numIntermediates > c.MaxPathLen {
 			return CertificateInvalidError{c, TooManyIntermediates}
 		}
+	}
+
+	if opts.IsBoring != nil && !opts.IsBoring(c) {
+		// IncompatibleUsage is not quite right here,
+		// but it's also the "no chains found" error
+		// and is close enough.
+		return CertificateInvalidError{c, IncompatibleUsage}
 	}
 
 	return nil

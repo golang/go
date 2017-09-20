@@ -145,10 +145,10 @@ type signatureAndHash struct {
 	hash, signature uint8
 }
 
-// supportedSignatureAlgorithms contains the signature and hash algorithms that
+// defaultSupportedSignatureAlgorithms contains the signature and hash algorithms that
 // the code advertises as supported in a TLS 1.2 ClientHello and in a TLS 1.2
 // CertificateRequest.
-var supportedSignatureAlgorithms = []signatureAndHash{
+var defaultSupportedSignatureAlgorithms = []signatureAndHash{
 	{hashSHA256, signatureRSA},
 	{hashSHA256, signatureECDSA},
 	{hashSHA384, signatureRSA},
@@ -664,6 +664,9 @@ func (c *Config) time() time.Time {
 }
 
 func (c *Config) cipherSuites() []uint16 {
+	if needFIPS() {
+		return fipsCipherSuites(c)
+	}
 	s := c.CipherSuites
 	if s == nil {
 		s = defaultCipherSuites()
@@ -672,6 +675,9 @@ func (c *Config) cipherSuites() []uint16 {
 }
 
 func (c *Config) minVersion() uint16 {
+	if needFIPS() {
+		return fipsMinVersion(c)
+	}
 	if c == nil || c.MinVersion == 0 {
 		return minVersion
 	}
@@ -679,6 +685,9 @@ func (c *Config) minVersion() uint16 {
 }
 
 func (c *Config) maxVersion() uint16 {
+	if needFIPS() {
+		return fipsMaxVersion(c)
+	}
 	if c == nil || c.MaxVersion == 0 {
 		return maxVersion
 	}
@@ -688,6 +697,9 @@ func (c *Config) maxVersion() uint16 {
 var defaultCurvePreferences = []CurveID{X25519, CurveP256, CurveP384, CurveP521}
 
 func (c *Config) curvePreferences() []CurveID {
+	if needFIPS() {
+		return fipsCurvePreferences(c)
+	}
 	if c == nil || len(c.CurvePreferences) == 0 {
 		return defaultCurvePreferences
 	}

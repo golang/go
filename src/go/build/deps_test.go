@@ -114,14 +114,17 @@ var pkgDeps = map[string][]string{
 	"reflect":             {"L2"},
 	"sort":                {"reflect"},
 
-	"crypto/internal/boring":   {"L2", "C", "crypto", "crypto/cipher", "crypto/subtle", "encoding/asn1", "hash", "math/big"},
-	"crypto/internal/cipherhw": {"crypto/internal/boring"},
+	"crypto/internal/boring":         {"L2", "C", "crypto", "crypto/cipher", "crypto/internal/boring/sig", "crypto/subtle", "encoding/asn1", "hash", "math/big"},
+	"crypto/internal/boring/fipstls": {"sync/atomic"},
+	"crypto/internal/cipherhw":       {"crypto/internal/boring"},
+	"crypto/tls/fipsonly":            {"crypto/internal/boring/fipstls", "crypto/internal/boring/sig"},
 
 	"L3": {
 		"L2",
 		"crypto",
 		"crypto/cipher",
 		"crypto/internal/boring",
+		"crypto/internal/boring/fipstls",
 		"crypto/internal/cipherhw",
 		"crypto/subtle",
 		"encoding/base32",
