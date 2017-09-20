@@ -126,7 +126,7 @@ func (c *ctxtz) rewriteToUseGot(p *obj.Prog) {
 	// ADD instruction.
 	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
 		// MOVD $sym, Rx becomes MOVD sym@GOT, Rx
-		// MOVD $sym+<off>, Rx becomes MOVD sym@GOT, Rx; MOVD $<off>(Rx or REGTMP2), Rx
+		// MOVD $sym+<off>, Rx becomes MOVD sym@GOT, Rx or REGTMP2; MOVD $<off>(Rx or REGTMP2), Rx
 		if p.To.Type != obj.TYPE_REG || p.As != AMOVD {
 			c.ctxt.Diag("do not know how to handle LEA-type insn to non-register in %v with -dynlink", p)
 		}
@@ -154,8 +154,8 @@ func (c *ctxtz) rewriteToUseGot(p *obj.Prog) {
 		c.ctxt.Diag("don't know how to handle %v with -dynlink", p)
 	}
 	var source *obj.Addr
-	// MOVD sym, Ry becomes MOVD sym@GOT, REGTMP; MOVD (REGTMP), Ry
-	// MOVD Ry, sym becomes MOVD sym@GOT, REGTMP; MOVD Ry, (REGTMP)
+	// MOVD sym, Ry becomes MOVD sym@GOT, REGTMP2; MOVD (REGTMP2), Ry
+	// MOVD Ry, sym becomes MOVD sym@GOT, REGTMP2; MOVD Ry, (REGTMP2)
 	// An addition may be inserted between the two MOVs if there is an offset.
 	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
 		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
@@ -184,17 +184,17 @@ func (c *ctxtz) rewriteToUseGot(p *obj.Prog) {
 	p1.From.Sym = source.Sym
 	p1.From.Name = obj.NAME_GOTREF
 	p1.To.Type = obj.TYPE_REG
-	p1.To.Reg = REGTMP
+	p1.To.Reg = REGTMP2
 
 	p2.As = p.As
 	p2.From = p.From
 	p2.To = p.To
 	if p.From.Name == obj.NAME_EXTERN {
-		p2.From.Reg = REGTMP
+		p2.From.Reg = REGTMP2
 		p2.From.Name = obj.NAME_NONE
 		p2.From.Sym = nil
 	} else if p.To.Name == obj.NAME_EXTERN {
-		p2.To.Reg = REGTMP
+		p2.To.Reg = REGTMP2
 		p2.To.Name = obj.NAME_NONE
 		p2.To.Sym = nil
 	} else {
