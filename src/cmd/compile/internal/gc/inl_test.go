@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"internal/testenv"
 	"os/exec"
+	"runtime"
 	"testing"
 )
 
@@ -34,10 +35,6 @@ func TestIntendedInlining(t *testing.T) {
 			"bucketMask",
 			"fastrand",
 			"noescape",
-
-			// TODO: These were modified at some point to be
-			// made inlineable, but have since been broken.
-			// "nextFreeFast",
 		},
 		"unicode/utf8": {
 			"FullRune",
@@ -45,6 +42,13 @@ func TestIntendedInlining(t *testing.T) {
 			"RuneLen",
 			"ValidRune",
 		},
+	}
+
+	if runtime.GOARCH != "386" {
+		// nextFreeFast calls sys.Ctz64, which on 386 is implemented in asm and is not inlinable.
+		// We currently don't have midstack inlining so nextFreeFast is also not inlinable on 386.
+		// So check for it only on non-386 platforms.
+		want["runtime"] = append(want["runtime"], "nextFreeFast")
 	}
 
 	m := make(map[string]bool)
