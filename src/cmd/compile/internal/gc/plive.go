@@ -417,20 +417,20 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 	}
 }
 
-// Returns the number of words of local variables.
-func localswords(lv *Liveness) int32 {
+// localWords returns the number of words of local variables.
+func (lv *Liveness) localWords() int32 {
 	return int32(lv.stkptrsize / int64(Widthptr))
 }
 
-// Returns the number of words of in and out arguments.
-func argswords(lv *Liveness) int32 {
+// argWords returns the number of words of in and out arguments.
+func (lv *Liveness) argWords() int32 {
 	return int32(lv.fn.Type.ArgWidth() / int64(Widthptr))
 }
 
 // Generates live pointer value maps for arguments and local variables. The
 // this argument and the in arguments are always assumed live. The vars
 // argument is a slice of *Nodes.
-func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, locals bvec) {
+func (lv *Liveness) pointerMap(liveout bvec, vars []*Node, args, locals bvec) {
 	for i := int32(0); ; i++ {
 		i = liveout.Next(i)
 		if i < 0 {
@@ -456,7 +456,7 @@ func issafepoint(v *ssa.Value) bool {
 // Initializes the sets for solving the live variables. Visits all the
 // instructions in each basic block to summarizes the information at each basic
 // block
-func livenessprologue(lv *Liveness) {
+func (lv *Liveness) prologue() {
 	lv.initcache()
 
 	for _, b := range lv.f.Blocks {
@@ -490,7 +490,7 @@ func livenessprologue(lv *Liveness) {
 }
 
 // Solve the liveness dataflow equations.
-func livenesssolve(lv *Liveness) {
+func (lv *Liveness) solve() {
 	// These temporary bitvectors exist to avoid successive allocations and
 	// frees within the loop.
 	newlivein := bvalloc(int32(len(lv.vars)))
@@ -590,7 +590,7 @@ func livenesssolve(lv *Liveness) {
 
 // Visits all instructions in a basic block and computes a bit vector of live
 // variables at each safe point locations.
-func livenessepilogue(lv *Liveness) {
+func (lv *Liveness) epilogue() {
 	nvars := int32(len(lv.vars))
 	liveout := bvalloc(nvars)
 	any := bvalloc(nvars)
@@ -954,7 +954,7 @@ func hashbitmap(h uint32, bv bvec) uint32 {
 // is actually a net loss: we save about 50k of argument bitmaps but the new
 // PCDATA tables cost about 100k. So for now we keep using a single index for
 // both bitmap lists.
-func livenesscompact(lv *Liveness) {
+func (lv *Liveness) compact() {
 	// Linear probing hash table of bitmaps seen so far.
 	// The hash table has 4n entries to keep the linear
 	// scan short. An entry of -1 indicates an empty slot.
@@ -1104,7 +1104,7 @@ func (lv *Liveness) printeffect(printed bool, name string, pos int32, x bool) bo
 // Prints the computed liveness information and inputs, for debugging.
 // This format synthesizes the information used during the multiple passes
 // into a single presentation.
-func livenessprintdebug(lv *Liveness) {
+func (lv *Liveness) printDebug() {
 	fmt.Printf("liveness: %s\n", lv.fn.funcname())
 
 	pcdata := 0
@@ -1216,12 +1216,12 @@ func livenessprintdebug(lv *Liveness) {
 // first word dumped is the total number of bitmaps. The second word is the
 // length of the bitmaps. All bitmaps are assumed to be of equal length. The
 // remaining bytes are the raw bitmaps.
-func livenessemit(lv *Liveness, argssym, livesym *obj.LSym) {
-	args := bvalloc(argswords(lv))
+func (lv *Liveness) emit(argssym, livesym *obj.LSym) {
+	args := bvalloc(lv.argWords())
 	aoff := duint32(argssym, 0, uint32(len(lv.livevars))) // number of bitmaps
 	aoff = duint32(argssym, aoff, uint32(args.n))         // number of bits in each bitmap
 
-	locals := bvalloc(localswords(lv))
+	locals := bvalloc(lv.localWords())
 	loff := duint32(livesym, 0, uint32(len(lv.livevars))) // number of bitmaps
 	loff = duint32(livesym, loff, uint32(locals.n))       // number of bits in each bitmap
 
@@ -1229,7 +1229,7 @@ func livenessemit(lv *Liveness, argssym, livesym *obj.LSym) {
 		args.Clear()
 		locals.Clear()
 
-		onebitlivepointermap(lv, live, lv.vars, args, locals)
+		lv.pointerMap(live, lv.vars, args, locals)
 
 		aoff = dbvec(argssym, aoff, args)
 		loff = dbvec(livesym, loff, locals)
@@ -1254,18 +1254,18 @@ func liveness(e *ssafn, f *ssa.Func) map[*ssa.Value]int {
 	lv := newliveness(e.curfn, f, vars, idx, e.stkptrsize)
 
 	// Run the dataflow framework.
-	livenessprologue(lv)
-	livenesssolve(lv)
-	livenessepilogue(lv)
-	livenesscompact(lv)
+	lv.prologue()
+	lv.solve()
+	lv.epilogue()
+	lv.compact()
 	lv.clobber()
 	if debuglive >= 2 {
-		livenessprintdebug(lv)
+		lv.printDebug()
 	}
 
 	// Emit the live pointer map data structures
 	if ls := e.curfn.Func.lsym; ls != nil {
-		livenessemit(lv, &ls.Func.GCArgs, &ls.Func.GCLocals)
+		lv.emit(&ls.Func.GCArgs, &ls.Func.GCLocals)
 	}
 	return lv.stackMapIndex
 }
