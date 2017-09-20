@@ -351,10 +351,9 @@ func (lv *Liveness) blockEffects(b *ssa.Block) *BlockEffects {
 	return &lv.be[b.ID]
 }
 
-// NOTE: The bitmap for a specific type t should be cached in t after the first run
-// and then simply copied into bv at the correct offset on future calls with
-// the same type t. On https://rsc.googlecode.com/hg/testdata/slow.go, onebitwalktype1
-// accounts for 40% of the 6g execution time.
+// NOTE: The bitmap for a specific type t could be cached in t after
+// the first run and then simply copied into bv at the correct offset
+// on future calls with the same type t.
 func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 	if t.Align > 0 && off&int64(t.Align-1) != 0 {
 		Fatalf("onebitwalktype1: invalid initial alignment, %v", t)
