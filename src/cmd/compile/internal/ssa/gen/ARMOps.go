@@ -196,6 +196,10 @@ func init() {
 		{name: "BIC", argLength: 2, reg: gp21, asm: "BIC"},                    // arg0 &^ arg1
 		{name: "BICconst", argLength: 1, reg: gp11, asm: "BIC", aux: "Int32"}, // arg0 &^ auxInt
 
+		// bit extraction, AuxInt = Width<<8 | LSB
+		{name: "BFX", argLength: 1, reg: gp11, asm: "BFX", aux: "Int32"},   // extract W bits from bit L in arg0, then signed extend
+		{name: "BFXU", argLength: 1, reg: gp11, asm: "BFXU", aux: "Int32"}, // extract W bits from bit L in arg0, then unsigned extend
+
 		// unary ops
 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"}, // ^arg0
 
