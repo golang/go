@@ -225,6 +225,10 @@ func (c *aesCipher) newGCM(nonceSize int, tls bool) (cipher.AEAD, error) {
 	if C._goboringcrypto_EVP_AEAD_CTX_init(&g.ctx, aead, (*C.uint8_t)(unsafe.Pointer(&c.key[0])), C.size_t(len(c.key)), C.GO_EVP_AEAD_DEFAULT_TAG_LENGTH, nil) == 0 {
 		return nil, fail("EVP_AEAD_CTX_init")
 	}
+	// Note: Because of the finalizer, any time g.ctx is passed to cgo,
+	// that call must be followed by a call to runtime.KeepAlive(g),
+	// to make sure g is not collected (and finalized) before the cgo
+	// call returns.
 	runtime.SetFinalizer(g, (*aesGCM).finalize)
 	if g.NonceSize() != nonceSize {
 		panic("boringcrypto: internal confusion about nonce size")
@@ -287,6 +291,7 @@ func (g *aesGCM) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 		base(nonce), C.size_t(len(nonce)),
 		base(plaintext), C.size_t(len(plaintext)),
 		base(additionalData), C.size_t(len(additionalData)))
+	runtime.KeepAlive(g)
 	if ok == 0 {
 		panic(fail("EVP_AEAD_CTX_seal"))
 	}
@@ -328,6 +333,7 @@ func (g *aesGCM) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, er
 		base(nonce), C.size_t(len(nonce)),
 		base(ciphertext), C.size_t(len(ciphertext)),
 		base(additionalData), C.size_t(len(additionalData)))
+	runtime.KeepAlive(g)
 	if ok == 0 {
 		return nil, errOpen
 	}

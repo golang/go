@@ -61,6 +61,10 @@ func NewPublicKeyECDSA(curve string, X, Y *big.Int) (*PublicKeyECDSA, error) {
 		return nil, err
 	}
 	k := &PublicKeyECDSA{key}
+	// Note: Because of the finalizer, any time k.key is passed to cgo,
+	// that call must be followed by a call to runtime.KeepAlive(k),
+	// to make sure k is not collected (and finalized) before the cgo
+	// call returns.
 	runtime.SetFinalizer(k, (*PublicKeyECDSA).finalize)
 	return k, nil
 }
@@ -113,6 +117,10 @@ func NewPrivateKeyECDSA(curve string, X, Y *big.Int, D *big.Int) (*PrivateKeyECD
 		return nil, fail("EC_KEY_set_private_key")
 	}
 	k := &PrivateKeyECDSA{key}
+	// Note: Because of the finalizer, any time k.key is passed to cgo,
+	// that call must be followed by a call to runtime.KeepAlive(k),
+	// to make sure k is not collected (and finalized) before the cgo
+	// call returns.
 	runtime.SetFinalizer(k, (*PrivateKeyECDSA).finalize)
 	return k, nil
 }
@@ -140,6 +148,7 @@ func SignMarshalECDSA(priv *PrivateKeyECDSA, hash []byte) ([]byte, error) {
 	if C._goboringcrypto_ECDSA_sign(0, base(hash), C.size_t(len(hash)), (*C.uint8_t)(unsafe.Pointer(&sig[0])), &sigLen, priv.key) == 0 {
 		return nil, fail("ECDSA_sign")
 	}
+	runtime.KeepAlive(priv)
 	return sig[:sigLen], nil
 }
 
@@ -151,7 +160,9 @@ func VerifyECDSA(pub *PublicKeyECDSA, hash []byte, r, s *big.Int) bool {
 	if err != nil {
 		return false
 	}
-	return C._goboringcrypto_ECDSA_verify(0, base(hash), C.size_t(len(hash)), (*C.uint8_t)(unsafe.Pointer(&sig[0])), C.size_t(len(sig)), pub.key) != 0
+	ok := C._goboringcrypto_ECDSA_verify(0, base(hash), C.size_t(len(hash)), (*C.uint8_t)(unsafe.Pointer(&sig[0])), C.size_t(len(sig)), pub.key) != 0
+	runtime.KeepAlive(pub)
+	return ok
 }
 
 func GenerateKeyECDSA(curve string) (X, Y, D *big.Int, err error) {
