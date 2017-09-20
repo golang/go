@@ -841,3 +841,12 @@ func TestInterface(t *testing.T) {
 	goCmd(t, "install", "-linkshared", "iface")
 	run(t, "running type/itab uniqueness tester", "./bin/iface")
 }
+
+// Access a global variable from a library.
+func TestGlobal(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "globallib")
+	goCmd(t, "install", "-linkshared", "global")
+	run(t, "global executable", "./bin/global")
+	AssertIsLinkedTo(t, "./bin/global", soname)
+	AssertHasRPath(t, "./bin/global", gorootInstallDir)
+}
