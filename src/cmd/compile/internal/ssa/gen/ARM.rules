@@ -867,6 +867,9 @@
 (MOVHreg (MOVWconst [c])) -> (MOVWconst [int64(int16(c))])
 (MOVHUreg (MOVWconst [c])) -> (MOVWconst [int64(uint16(c))])
 (MOVWreg (MOVWconst [c])) -> (MOVWconst [c])
+// BFX: Width = c >> 8, LSB = c & 0xff, result = d << (32 - Width - LSB) >> (32 - Width)
+(BFX [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(d)<<(32-uint32(c&0xff)-uint32(c>>8))>>(32-uint32(c>>8)))])
+(BFXU [c] (MOVWconst [d])) -> (MOVWconst [int64(uint32(d)<<(32-uint32(c&0xff)-uint32(c>>8))>>(32-uint32(c>>8)))])
 
 // absorb shifts into ops
 (ADD x (SLLconst [c] y)) -> (ADDshiftLL x y [c])
@@ -1286,3 +1289,7 @@
 // floating point optimizations
 (CMPF x (MOVFconst [0])) -> (CMPF0 x)
 (CMPD x (MOVDconst [0])) -> (CMPD0 x)
+
+// bit extraction
+(SRAconst (SLLconst x [c]) [d]) && objabi.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31 -> (BFX [(d-c)|(32-d)<<8] x)
+(SRLconst (SLLconst x [c]) [d]) && objabi.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31 -> (BFXU [(d-c)|(32-d)<<8] x)
