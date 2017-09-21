@@ -23,8 +23,12 @@ func sparseDetectUnix(f *os.File) (sph sparseHoles, err error) {
 	const seekHole = 4 // SEEK_HOLE from unistd.h
 
 	// Check for seekData/seekHole support.
-	if _, err := f.Seek(0, seekHole); errno(err) == syscall.EINVAL {
-		return nil, nil // Either old kernel or FS does not support this
+	// Different OS and FS may differ in the exact errno that is returned when
+	// there is no support. Rather than special-casing every possible errno
+	// representing "not supported", just assume that a non-nil error means
+	// that seekData/seekHole is not supported.
+	if _, err := f.Seek(0, seekHole); err != nil {
+		return nil, nil
 	}
 
 	// Populate the SparseHoles.
