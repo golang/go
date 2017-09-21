@@ -758,7 +758,7 @@ func genhash(ctxt *Link, lib *Library) {
 		Errorf(nil, "%s: error reading package data: %v", lib.File, err)
 		return
 	}
-	firstEOL := bytes.Index(pkgDefBytes, []byte("\n"))
+	firstEOL := bytes.IndexByte(pkgDefBytes, '\n')
 	if firstEOL < 0 {
 		Errorf(nil, "cannot parse package data of %s for hash generation, no newline found", lib.File)
 		return

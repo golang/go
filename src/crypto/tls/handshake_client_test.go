@@ -85,7 +85,7 @@ func (o *opensslOutputSink) Write(data []byte) (n int, err error) {
 	o.all = append(o.all, data...)
 
 	for {
-		i := bytes.Index(o.line, []byte{'\n'})
+		i := bytes.IndexByte(o.line, '\n')
 		if i < 0 {
 			break
 		}
