@@ -30,7 +30,7 @@ func openMacho(r io.ReaderAt) (rawFile, error) {
 
 func (f *machoFile) symbols() ([]Sym, error) {
 	if f.macho.Symtab == nil {
-		return nil, fmt.Errorf("missing symbol table")
+		return nil, nil
 	}
 
 	// Build sorted list of addresses of all symbols.
