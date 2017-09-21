@@ -771,19 +771,9 @@ func TestSparseFiles(t *testing.T) {
 	// Only perform the tests for hole-detection on the builders,
 	// where we have greater control over the filesystem.
 	sparseSupport := testenv.Builder() != ""
-	if runtime.GOOS == "linux" && runtime.GOARCH == "arm" {
-		// The "linux-arm" builder uses aufs for its root FS,
-		// which only supports hole-punching, but not hole-detection.
-		sparseSupport = false
-	}
-	if runtime.GOOS == "darwin" {
-		// The "darwin-*" builders use hfs+ for its root FS,
-		// which does not support sparse files.
-		sparseSupport = false
-	}
-	if runtime.GOOS == "openbsd" {
-		// The "openbsd-*" builders use ffs for its root FS,
-		// which does not support sparse files.
+	switch runtime.GOOS + "-" + runtime.GOARCH {
+	case "linux-amd64", "linux-386", "windows-amd64", "windows-386":
+	default:
 		sparseSupport = false
 	}
 
