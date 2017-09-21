@@ -202,6 +202,11 @@ func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err err
 
 // String returns a string representation of x in the form "a/b" (even if b == 1).
 func (x *Rat) String() string {
+	return string(x.marshal())
+}
+
+// marshal implements String returning a slice of bytes
+func (x *Rat) marshal() []byte {
 	var buf []byte
 	buf = x.a.Append(buf, 10)
 	buf = append(buf, '/')
@@ -210,7 +215,7 @@ func (x *Rat) String() string {
 	} else {
 		buf = append(buf, '1')
 	}
-	return string(buf)
+	return buf
 }
 
 // RatString returns a string representation of x in the form "a/b" if b != 1,

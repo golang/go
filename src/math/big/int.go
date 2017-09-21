@@ -390,15 +390,20 @@ func (x *Int) IsUint64() bool {
 // ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base is 10.
 //
 func (z *Int) SetString(s string, base int) (*Int, bool) {
-	r := strings.NewReader(s)
+	return z.setFromScanner(strings.NewReader(s), base)
+}
+
+// setFromScanner implements SetString given an io.BytesScanner.
+// For documentation see comments of SetString.
+func (z *Int) setFromScanner(r io.ByteScanner, base int) (*Int, bool) {
 	if _, _, err := z.scan(r, base); err != nil {
 		return nil, false
 	}
-	// entire string must have been consumed
+	// entire content must have been consumed
 	if _, err := r.ReadByte(); err != io.EOF {
 		return nil, false
 	}
-	return z, true // err == io.EOF => scan consumed all of s
+	return z, true // err == io.EOF => scan consumed all content of r
 }
 
 // SetBytes interprets buf as the bytes of a big-endian unsigned
