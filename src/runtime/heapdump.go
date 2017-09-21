@@ -200,7 +200,6 @@ func dumptype(t *_type) {
 
 // dump an object
 func dumpobj(obj unsafe.Pointer, size uintptr, bv bitvector) {
-	dumpbvtypes(&bv, obj)
 	dumpint(tagObject)
 	dumpint(uint64(uintptr(obj)))
 	dumpmemrange(obj, size)
@@ -261,14 +260,9 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	}
 	stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
 
-	// Dump any types we will need to resolve Efaces.
-	if child.args.n >= 0 {
-		dumpbvtypes(&child.args, unsafe.Pointer(s.sp+child.argoff))
-	}
 	var bv bitvector
 	if stkmap != nil && stkmap.n > 0 {
 		bv = stackmapdata(stkmap, pcdata)
-		dumpbvtypes(&bv, unsafe.Pointer(s.varp-uintptr(bv.n*sys.PtrSize)))
 	} else {
 		bv.n = -1
 	}
@@ -423,14 +417,12 @@ func finq_callback(fn *funcval, obj unsafe.Pointer, nret uintptr, fint *_type, o
 func dumproots() {
 	// TODO(mwhudson): dump datamask etc from all objects
 	// data segment
-	dumpbvtypes(&firstmoduledata.gcdatamask, unsafe.Pointer(firstmoduledata.data))
 	dumpint(tagData)
 	dumpint(uint64(firstmoduledata.data))
 	dumpmemrange(unsafe.Pointer(firstmoduledata.data), firstmoduledata.edata-firstmoduledata.data)
 	dumpfields(firstmoduledata.gcdatamask)
 
 	// bss segment
-	dumpbvtypes(&firstmoduledata.gcbssmask, unsafe.Pointer(firstmoduledata.bss))
 	dumpint(tagBSS)
 	dumpint(uint64(firstmoduledata.bss))
 	dumpmemrange(unsafe.Pointer(firstmoduledata.bss), firstmoduledata.ebss-firstmoduledata.bss)
@@ -675,16 +667,6 @@ func writeheapdump_m(fd uintptr) {
 func dumpfields(bv bitvector) {
 	dumpbv(&bv, 0)
 	dumpint(fieldKindEol)
-}
-
-// The heap dump reader needs to be able to disambiguate
-// Eface entries. So it needs to know every type that might
-// appear in such an entry. The following routine accomplishes that.
-// TODO(rsc, khr): Delete - no longer possible.
-
-// Dump all the types that appear in the type field of
-// any Eface described by this bit vector.
-func dumpbvtypes(bv *bitvector, base unsafe.Pointer) {
 }
 
 func makeheapobjbv(p uintptr, size uintptr) bitvector {
