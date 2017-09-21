@@ -139,7 +139,7 @@ func testStringPairs(t *testing.T, name string, tests []stringPairTest, f func(s
 func testPatterns(t *testing.T, name, tests string, fn func(string, string) bool) {
 	var patterns []string
 	for _, line := range strings.Split(tests, "\n") {
-		if i := strings.Index(line, "#"); i >= 0 {
+		if i := strings.IndexByte(line, '#'); i >= 0 {
 			line = line[:i]
 		}
 		f := strings.Fields(line)

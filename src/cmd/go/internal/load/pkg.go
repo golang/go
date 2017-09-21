@@ -231,7 +231,7 @@ func (p *Package) copyBuild(pp *build.Package) {
 // their own code to $GOROOT instead of using $GOPATH, but we assume that
 // code will start with a domain name (dot in the first element).
 func isStandardImportPath(path string) bool {
-	i := strings.Index(path, "/")
+	i := strings.IndexByte(path, '/')
 	if i < 0 {
 		i = len(path)
 	}

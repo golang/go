@@ -687,7 +687,7 @@ func dedupEnvCase(caseInsensitive bool, env []string) []string {
 	out := make([]string, 0, len(env))
 	saw := map[string]int{} // key => index into out
 	for _, kv := range env {
-		eq := strings.Index(kv, "=")
+		eq := strings.IndexByte(kv, '=')
 		if eq < 0 {
 			out = append(out, kv)
 			continue

@@ -223,7 +223,7 @@ func (tg *testgoData) parallel() {
 	}
 	for _, e := range tg.env {
 		if strings.HasPrefix(e, "GOROOT=") || strings.HasPrefix(e, "GOPATH=") || strings.HasPrefix(e, "GOBIN=") {
-			val := e[strings.Index(e, "=")+1:]
+			val := e[strings.IndexByte(e, '=')+1:]
 			if strings.HasPrefix(val, "testdata") || strings.HasPrefix(val, "./testdata") {
 				tg.t.Fatalf("internal testsuite error: call to parallel with testdata in environment (%s)", e)
 			}

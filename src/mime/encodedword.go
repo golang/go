@@ -257,7 +257,7 @@ func (d *WordDecoder) DecodeHeader(header string) (string, error) {
 		}
 		cur := start + len("=?")
 
-		i := strings.Index(header[cur:], "?")
+		i := strings.IndexByte(header[cur:], '?')
 		if i == -1 {
 			break
 		}

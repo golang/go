@@ -184,7 +184,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 
 			local = expandpkg(local, pkg)
 			q = ""
-			if i := strings.Index(remote, "#"); i >= 0 {
+			if i := strings.IndexByte(remote, '#'); i >= 0 {
 				remote, q = remote[:i], remote[i+1:]
 			}
 			s = ctxt.Syms.Lookup(local, 0)

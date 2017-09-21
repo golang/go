@@ -475,8 +475,8 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 		}
 		// compound sexpr
 		var argname string
-		colon := strings.Index(arg, ":")
-		openparen := strings.Index(arg, "(")
+		colon := strings.IndexByte(arg, ':')
+		openparen := strings.IndexByte(arg, '(')
 		if colon >= 0 && openparen >= 0 && colon < openparen {
 			// rule-specified name
 			argname = arg[:colon]
@@ -817,7 +817,7 @@ func commute1(m string, cnt map[string]int, arch arch) []string {
 	}
 	// Split up input.
 	var prefix string
-	colon := strings.Index(m, ":")
+	colon := strings.IndexByte(m, ':')
 	if colon >= 0 && isVariable(m[:colon]) {
 		prefix = m[:colon+1]
 		m = m[colon+1:]
@@ -912,7 +912,7 @@ func varCount1(m string, cnt map[string]int) {
 		return
 	}
 	// Split up input.
-	colon := strings.Index(m, ":")
+	colon := strings.IndexByte(m, ':')
 	if colon >= 0 && isVariable(m[:colon]) {
 		cnt[m[:colon]]++
 		m = m[colon+1:]

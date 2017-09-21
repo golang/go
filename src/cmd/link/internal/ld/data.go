@@ -1074,7 +1074,7 @@ func strnputPad(s string, n int, pad []byte) {
 var strdata []*Symbol
 
 func addstrdata1(ctxt *Link, arg string) {
-	eq := strings.Index(arg, "=")
+	eq := strings.IndexByte(arg, '=')
 	dot := strings.LastIndex(arg[:eq+1], ".")
 	if eq < 0 || dot < 0 {
 		Exitf("-X flag requires argument of the form importpath.name=value")
