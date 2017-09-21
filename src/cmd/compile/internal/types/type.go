@@ -585,28 +585,28 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 	case TPTR32, TPTR64:
 		elem := SubstAny(t.Elem(), types)
 		if elem != t.Elem() {
-			t = t.Copy()
+			t = t.copy()
 			t.Extra = Ptr{Elem: elem}
 		}
 
 	case TARRAY:
 		elem := SubstAny(t.Elem(), types)
 		if elem != t.Elem() {
-			t = t.Copy()
+			t = t.copy()
 			t.Extra.(*Array).Elem = elem
 		}
 
 	case TSLICE:
 		elem := SubstAny(t.Elem(), types)
 		if elem != t.Elem() {
-			t = t.Copy()
+			t = t.copy()
 			t.Extra = Slice{Elem: elem}
 		}
 
 	case TCHAN:
 		elem := SubstAny(t.Elem(), types)
 		if elem != t.Elem() {
-			t = t.Copy()
+			t = t.copy()
 			t.Extra.(*Chan).Elem = elem
 		}
 
@@ -614,7 +614,7 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 		key := SubstAny(t.Key(), types)
 		val := SubstAny(t.Val(), types)
 		if key != t.Key() || val != t.Val() {
-			t = t.Copy()
+			t = t.copy()
 			t.Extra.(*Map).Key = key
 			t.Extra.(*Map).Val = val
 		}
@@ -624,7 +624,7 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 		params := SubstAny(t.Params(), types)
 		results := SubstAny(t.Results(), types)
 		if recvs != t.Recvs() || params != t.Params() || results != t.Results() {
-			t = t.Copy()
+			t = t.copy()
 			t.FuncType().Receiver = recvs
 			t.FuncType().Results = results
 			t.FuncType().Params = params
@@ -645,7 +645,7 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 			nfs[i].Type = nft
 		}
 		if nfs != nil {
-			t = t.Copy()
+			t = t.copy()
 			t.SetFields(nfs)
 		}
 	}
@@ -653,8 +653,8 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 	return t
 }
 
-// Copy returns a shallow copy of the Type.
-func (t *Type) Copy() *Type {
+// copy returns a shallow copy of the Type.
+func (t *Type) copy() *Type {
 	if t == nil {
 		return nil
 	}
