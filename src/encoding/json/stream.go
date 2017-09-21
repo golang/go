@@ -500,20 +500,3 @@ func (dec *Decoder) peek() (byte, error) {
 		err = dec.refill()
 	}
 }
-
-/*
-TODO
-
-// EncodeToken writes the given JSON token to the stream.
-// It returns an error if the delimiters [ ] { } are not properly used.
-//
-// EncodeToken does not call Flush, because usually it is part of
-// a larger operation such as Encode, and those will call Flush when finished.
-// Callers that create an Encoder and then invoke EncodeToken directly,
-// without using Encode, need to call Flush when finished to ensure that
-// the JSON is written to the underlying writer.
-func (e *Encoder) EncodeToken(t Token) error  {
-	...
-}
-
-*/
