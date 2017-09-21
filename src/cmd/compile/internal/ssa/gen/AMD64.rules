@@ -2405,15 +2405,17 @@
 (BSFQ (ORQconst <t> [1<<16] (MOVWQZX x))) -> (BSFQ (ORQconst <t> [1<<16] x))
 
 // Redundant sign/zero extensions
-(MOVLQSX x:(MOVLQSX _)) -> x
-(MOVLQSX x:(MOVWQSX _)) -> x
-(MOVLQSX x:(MOVBQSX _)) -> x
-(MOVWQSX x:(MOVWQSX _)) -> x
-(MOVWQSX x:(MOVBQSX _)) -> x
-(MOVBQSX x:(MOVBQSX _)) -> x
-(MOVLQZX x:(MOVLQZX _)) -> x
-(MOVLQZX x:(MOVWQZX _)) -> x
-(MOVLQZX x:(MOVBQZX _)) -> x
-(MOVWQZX x:(MOVWQZX _)) -> x
-(MOVWQZX x:(MOVBQZX _)) -> x
-(MOVBQZX x:(MOVBQZX _)) -> x
+// Note: see issue 21963. We have to make sure we use the right type on
+// the resulting extension (the outer type, not the inner type).
+(MOVLQSX (MOVLQSX x)) -> (MOVLQSX x)
+(MOVLQSX (MOVWQSX x)) -> (MOVWQSX x)
+(MOVLQSX (MOVBQSX x)) -> (MOVBQSX x)
+(MOVWQSX (MOVWQSX x)) -> (MOVWQSX x)
+(MOVWQSX (MOVBQSX x)) -> (MOVBQSX x)
+(MOVBQSX (MOVBQSX x)) -> (MOVBQSX x)
+(MOVLQZX (MOVLQZX x)) -> (MOVLQZX x)
+(MOVLQZX (MOVWQZX x)) -> (MOVWQZX x)
+(MOVLQZX (MOVBQZX x)) -> (MOVBQZX x)
+(MOVWQZX (MOVWQZX x)) -> (MOVWQZX x)
+(MOVWQZX (MOVBQZX x)) -> (MOVBQZX x)
+(MOVBQZX (MOVBQZX x)) -> (MOVBQZX x)
