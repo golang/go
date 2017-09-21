@@ -94,8 +94,23 @@ type SectionHeader struct {
 	Flags  uint32
 }
 
+// A Reloc represents a Mach-O relocation.
+type Reloc struct {
+	Addr  uint32
+	Value uint32
+	// when Scattered == false && Extern == true, Value is the symbol number.
+	// when Scattered == false && Extern == false, Value is the section number.
+	// when Scattered == true, Value is the value that this reloc refers to.
+	Type      uint8
+	Len       uint8 // 0=byte, 1=word, 2=long, 3=quad
+	Pcrel     bool
+	Extern    bool // valid if Scattered == false
+	Scattered bool
+}
+
 type Section struct {
 	SectionHeader
+	Relocs []Reloc
 
 	// Embed ReaderAt for ReadAt method.
 	// Do not embed SectionReader directly
@@ -377,7 +392,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				sh.Reloff = sh32.Reloff
 				sh.Nreloc = sh32.Nreloc
 				sh.Flags = sh32.Flags
-				f.pushSection(sh, r)
+				if err := f.pushSection(sh, r); err != nil {
+					return nil, err
+				}
 			}
 
 		case LoadCmdSegment64:
@@ -415,7 +432,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				sh.Reloff = sh64.Reloff
 				sh.Nreloc = sh64.Nreloc
 				sh.Flags = sh64.Flags
-				f.pushSection(sh, r)
+				if err := f.pushSection(sh, r); err != nil {
+					return nil, err
+				}
 			}
 		}
 		if s != nil {
@@ -463,10 +482,65 @@ func (f *File) parseSymtab(symdat, strtab, cmddat []byte, hdr *SymtabCmd, offset
 	return st, nil
 }
 
-func (f *File) pushSection(sh *Section, r io.ReaderAt) {
+type relocInfo struct {
+	Addr   uint32
+	Symnum uint32
+}
+
+func (f *File) pushSection(sh *Section, r io.ReaderAt) error {
 	f.Sections = append(f.Sections, sh)
 	sh.sr = io.NewSectionReader(r, int64(sh.Offset), int64(sh.Size))
 	sh.ReaderAt = sh.sr
+
+	if sh.Nreloc > 0 {
+		reldat := make([]byte, int(sh.Nreloc)*8)
+		if _, err := r.ReadAt(reldat, int64(sh.Reloff)); err != nil {
+			return err
+		}
+		b := bytes.NewReader(reldat)
+
+		bo := f.ByteOrder
+
+		sh.Relocs = make([]Reloc, sh.Nreloc)
+		for i := range sh.Relocs {
+			rel := &sh.Relocs[i]
+
+			var ri relocInfo
+			if err := binary.Read(b, bo, &ri); err != nil {
+				return err
+			}
+
+			if ri.Addr&(1<<31) != 0 { // scattered
+				rel.Addr = ri.Addr & (1<<24 - 1)
+				rel.Type = uint8((ri.Addr >> 24) & (1<<4 - 1))
+				rel.Len = uint8((ri.Addr >> 28) & (1<<2 - 1))
+				rel.Pcrel = ri.Addr&(1<<30) != 0
+				rel.Value = ri.Symnum
+				rel.Scattered = true
+			} else {
+				switch bo {
+				case binary.LittleEndian:
+					rel.Addr = ri.Addr
+					rel.Value = ri.Symnum & (1<<24 - 1)
+					rel.Pcrel = ri.Symnum&(1<<24) != 0
+					rel.Len = uint8((ri.Symnum >> 25) & (1<<2 - 1))
+					rel.Extern = ri.Symnum&(1<<27) != 0
+					rel.Type = uint8((ri.Symnum >> 28) & (1<<4 - 1))
+				case binary.BigEndian:
+					rel.Addr = ri.Addr
+					rel.Value = ri.Symnum >> 8
+					rel.Pcrel = ri.Symnum&(1<<7) != 0
+					rel.Len = uint8((ri.Symnum >> 5) & (1<<2 - 1))
+					rel.Extern = ri.Symnum&(1<<4) != 0
+					rel.Type = uint8(ri.Symnum & (1<<4 - 1))
+				default:
+					panic("unreachable")
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func cstring(b []byte) string {
