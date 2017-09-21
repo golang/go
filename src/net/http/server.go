@@ -2016,17 +2016,16 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 		}
 	}
 
-	// RFC 2616 recommends that a short note "SHOULD" be included in the
-	// response because older user agents may not understand 301/307.
-	// Shouldn't send the response for POST or HEAD; that leaves GET.
-	writeNote := r.Method == "GET"
-
 	w.Header().Set("Location", hexEscapeNonASCII(url))
-	if writeNote {
+	if r.Method == "GET" || r.Method == "HEAD" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	}
 	w.WriteHeader(code)
-	if writeNote {
+
+	// RFC 2616 recommends that a short note "SHOULD" be included in the
+	// response because older user agents may not understand 301/307.
+	// Shouldn't send the response for POST or HEAD; that leaves GET.
+	if r.Method == "GET" {
 		note := "<a href=\"" + htmlEscape(url) + "\">" + statusText[code] + "</a>.\n"
 		fmt.Fprintln(w, note)
 	}
