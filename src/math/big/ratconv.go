@@ -49,7 +49,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	// len(s) > 0
 
 	// parse fraction a/b, if any
-	if sep := strings.Index(s, "/"); sep >= 0 {
+	if sep := strings.IndexByte(s, '/'); sep >= 0 {
 		if _, ok := z.a.SetString(s[:sep], 0); !ok {
 			return nil, false
 		}

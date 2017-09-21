@@ -54,7 +54,7 @@ var Commands []*Command
 // Name returns the command's name: the first word in the usage line.
 func (c *Command) Name() string {
 	name := c.UsageLine
-	i := strings.Index(name, " ")
+	i := strings.IndexByte(name, ' ')
 	if i >= 0 {
 		name = name[:i]
 	}

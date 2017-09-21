@@ -2002,7 +2002,7 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 			}
 
 			var query string
-			if i := strings.Index(url, "?"); i != -1 {
+			if i := strings.IndexByte(url, '?'); i != -1 {
 				url, query = url[:i], url[i:]
 			}
 

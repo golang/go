@@ -215,7 +215,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
 	// slash+1: if there's no slash, the value is -1 and start is 0; otherwise
 	// start is the byte after the slash.
 	for start := slash + 1; start < len(arg); start = period + 1 {
-		period = strings.Index(arg[start:], ".")
+		period = strings.IndexByte(arg[start:], '.')
 		symbol := ""
 		if period < 0 {
 			period = len(arg)

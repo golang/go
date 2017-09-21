@@ -137,7 +137,7 @@ func main() {
 	// so OS X 10.6 is uname version 10 and OS X 10.8 is uname version 12.
 	if gohostos == "darwin" {
 		rel := run("", CheckExit, "uname", "-r")
-		if i := strings.Index(rel, "."); i >= 0 {
+		if i := strings.IndexByte(rel, '.'); i >= 0 {
 			rel = rel[:i]
 		}
 		osx, _ := strconv.Atoi(rel)

@@ -699,7 +699,7 @@ func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, 
 //
 // This handles custom import paths like "name.tld/pkg/foo" or just "name.tld".
 func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*repoRoot, error) {
-	slash := strings.Index(importPath, "/")
+	slash := strings.IndexByte(importPath, '/')
 	if slash < 0 {
 		slash = len(importPath)
 	}

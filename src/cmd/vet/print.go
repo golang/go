@@ -303,7 +303,7 @@ func (s *formatState) parseIndex() bool {
 	start := s.nbytes
 	s.scanNum()
 	if s.nbytes == len(s.format) || s.nbytes == start || s.format[s.nbytes] != ']' {
-		end := strings.Index(s.format, "]")
+		end := strings.IndexByte(s.format, ']')
 		if end < 0 {
 			end = len(s.format)
 		}

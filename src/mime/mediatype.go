@@ -20,7 +20,7 @@ import (
 // FormatMediaType returns the empty string.
 func FormatMediaType(t string, param map[string]string) string {
 	var b bytes.Buffer
-	if slash := strings.Index(t, "/"); slash == -1 {
+	if slash := strings.IndexByte(t, '/'); slash == -1 {
 		if !isToken(t) {
 			return ""
 		}
@@ -110,7 +110,7 @@ var ErrInvalidMediaParameter = errors.New("mime: invalid media parameter")
 // The returned map, params, maps from the lowercase
 // attribute to the attribute value with its case preserved.
 func ParseMediaType(v string) (mediatype string, params map[string]string, err error) {
-	i := strings.Index(v, ";")
+	i := strings.IndexByte(v, ';')
 	if i == -1 {
 		i = len(v)
 	}
@@ -146,7 +146,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 		}
 
 		pmap := params
-		if idx := strings.Index(key, "*"); idx != -1 {
+		if idx := strings.IndexByte(key, '*'); idx != -1 {
 			baseName := key[:idx]
 			if continuation == nil {
 				continuation = make(map[string]map[string]string)

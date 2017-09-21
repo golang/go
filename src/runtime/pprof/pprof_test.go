@@ -213,7 +213,7 @@ func profileOk(t *testing.T, need []string, prof bytes.Buffer, duration time.Dur
 		fprintStack(&buf, stk)
 		samples += count
 		for i, name := range need {
-			if semi := strings.Index(name, ";"); semi > -1 {
+			if semi := strings.IndexByte(name, ';'); semi > -1 {
 				kv := strings.SplitN(name[semi+1:], "=", 2)
 				if len(kv) != 2 || !contains(labels[kv[0]], kv[1]) {
 					continue

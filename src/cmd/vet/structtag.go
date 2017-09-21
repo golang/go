@@ -63,7 +63,7 @@ func checkCanonicalFieldTag(f *File, field *ast.Field, seen *map[[2]string]token
 			// by containing a field named XMLName; see issue 18256.
 			continue
 		}
-		if i := strings.Index(val, ","); i >= 0 {
+		if i := strings.IndexByte(val, ','); i >= 0 {
 			if key == "xml" {
 				// Use a separate namespace for XML attributes.
 				for _, opt := range strings.Split(val[i:], ",") {
