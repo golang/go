@@ -110,14 +110,18 @@ func nm(file string) {
 
 	entries := f.Entries()
 
+	var found bool
+
 	for _, e := range entries {
 		syms, err := e.Symbols()
 		if err != nil {
 			errorf("reading %s: %v", file, err)
 		}
 		if len(syms) == 0 {
-			errorf("reading %s: no symbols", file)
+			continue
 		}
+
+		found = true
 
 		switch *sortOrder {
 		case "address":
@@ -153,6 +157,10 @@ func nm(file string) {
 			}
 			fmt.Fprintf(w, "\n")
 		}
+	}
+
+	if !found {
+		errorf("reading %s: no symbols", file)
 	}
 
 	w.Flush()
