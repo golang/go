@@ -2506,6 +2506,37 @@ func TestRedirect(t *testing.T) {
 	}
 }
 
+// Test that Content-Type header is set for GET and HEAD requests.
+func TestRedirectContentTypeAndBody(t *testing.T) {
+	var tests = []struct {
+		method   string
+		wantCT   string
+		wantBody string
+	}{
+		{MethodGet, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n\n"},
+		{MethodHead, "text/html; charset=utf-8", ""},
+		{MethodPost, "", ""},
+		{MethodDelete, "", ""},
+		{"foo", "", ""},
+	}
+	for _, tt := range tests {
+		req := httptest.NewRequest(tt.method, "http://example.com/qux/", nil)
+		rec := httptest.NewRecorder()
+		Redirect(rec, req, "/foo", 302)
+		if got, want := rec.Header().Get("Content-Type"), tt.wantCT; got != want {
+			t.Errorf("Redirect(%q) generated Content-Type header %q; want %q", tt.method, got, want)
+		}
+		resp := rec.Result()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := string(body), tt.wantBody; got != want {
+			t.Errorf("Redirect(%q) generated Body %q; want %q", tt.method, got, want)
+		}
+	}
+}
+
 // TestZeroLengthPostAndResponse exercises an optimization done by the Transport:
 // when there is no body (either because the method doesn't permit a body, or an
 // explicit Content-Length of zero is present), then the transport can re-use the
