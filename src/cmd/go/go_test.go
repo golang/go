@@ -1689,6 +1689,27 @@ func TestRejectRelativePathsInGOPATHCommandLinePackage(t *testing.T) {
 	tg.grepStderr("GOPATH entry is relative", "expected an error message rejecting relative GOPATH entries")
 }
 
+// Issue 21928.
+func TestRejectBlankPathsInGOPATH(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	sep := string(filepath.ListSeparator)
+	tg.setenv("GOPATH", " "+sep+filepath.Join(tg.pwd(), "testdata"))
+	tg.runFail("build", "go-cmd-test")
+	tg.grepStderr("GOPATH entry is relative", "expected an error message rejecting relative GOPATH entries")
+}
+
+// Issue 21928.
+func TestIgnoreEmptyPathsInGOPATH(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.creatingTemp("testdata/bin/go-cmd-test" + exeSuffix)
+	sep := string(filepath.ListSeparator)
+	tg.setenv("GOPATH", ""+sep+filepath.Join(tg.pwd(), "testdata"))
+	tg.run("install", "go-cmd-test")
+	tg.wantExecutable("testdata/bin/go-cmd-test"+exeSuffix, "go install go-cmd-test did not write to testdata/bin/go-cmd-test")
+}
+
 // Issue 4104.
 func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
 	tg := testgo(t)

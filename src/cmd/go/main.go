@@ -89,6 +89,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
 	} else {
 		for _, p := range filepath.SplitList(gopath) {
+			// Some GOPATHs have empty directory elements - ignore them.
+			// See issue 21928 for details.
+			if p == "" {
+				continue
+			}
 			// Note: using HasPrefix instead of Contains because a ~ can appear
 			// in the middle of directory elements, such as /tmp/git-1.8.2~rc3
 			// or C:\PROGRA~1. Only ~ as a path prefix has meaning to the shell.
