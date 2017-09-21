@@ -88,7 +88,7 @@ func (u unmarshalerText) MarshalText() ([]byte, error) {
 }
 
 func (u *unmarshalerText) UnmarshalText(b []byte) error {
-	pos := bytes.Index(b, []byte(":"))
+	pos := bytes.IndexByte(b, ':')
 	if pos == -1 {
 		return errors.New("missing separator")
 	}

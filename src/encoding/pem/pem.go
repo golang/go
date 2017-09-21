@@ -36,7 +36,7 @@ type Block struct {
 // bytes) is also returned and this will always be smaller than the original
 // argument.
 func getLine(data []byte) (line, rest []byte) {
-	i := bytes.Index(data, []byte{'\n'})
+	i := bytes.IndexByte(data, '\n')
 	var j int
 	if i < 0 {
 		i = len(data)
@@ -106,7 +106,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		}
 		line, next := getLine(rest)
 
-		i := bytes.Index(line, []byte{':'})
+		i := bytes.IndexByte(line, ':')
 		if i == -1 {
 			break
 		}
