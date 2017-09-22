@@ -345,3 +345,12 @@ func issue11594() {
 	_ = complex64 /* ERROR "must be integer" */ (0) << 3
 	_ = complex64 /* ERROR "must be integer" */ (0) >> 4
 }
+
+func issue21727() {
+	var s uint
+	var a = make([]int, 1<<s + 1.2 /* ERROR "truncated to int" */ )
+	var _ = a[1<<s - 2.3 /* ERROR "truncated to int" */ ]
+	var _ int = 1<<s + 3.4 /* ERROR "truncated to int" */
+	var _ = string(1 << s)
+	var _ = string(1.0 /* ERROR "cannot convert" */ << s)
+}
