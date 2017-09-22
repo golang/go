@@ -677,9 +677,9 @@ TEXT setg<>(SB),NOSPLIT,$-4-0
 	MOVW	g, R0
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$4-8
-	MOVW	8(R13), R0		// LR saved by caller
-	MOVW	R0, ret+4(FP)
+TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
+	MOVW	0(R13), R0		// LR saved by caller
+	MOVW	R0, ret+0(FP)
 	RET
 
 TEXT runtime·emptyfunc(SB),0,$0-0

@@ -714,7 +714,7 @@ func traceback1(pc, sp, lr uintptr, gp *g, flags uint) {
 
 func callers(skip int, pcbuf []uintptr) int {
 	sp := getcallersp(unsafe.Pointer(&skip))
-	pc := getcallerpc(unsafe.Pointer(&skip))
+	pc := getcallerpc()
 	gp := getg()
 	var n int
 	systemstack(func() {

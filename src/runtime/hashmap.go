@@ -333,7 +333,7 @@ func makemap(t *maptype, hint int, h *hmap) *hmap {
 // hold onto it for very long.
 func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		pc := funcPC(mapaccess1)
 		racereadpc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
@@ -385,7 +385,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 
 func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		pc := funcPC(mapaccess2)
 		racereadpc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
@@ -498,7 +498,7 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		panic(plainError("assignment to entry in nil map"))
 	}
 	if raceenabled {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		pc := funcPC(mapassign)
 		racewritepc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
@@ -606,7 +606,7 @@ done:
 
 func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		pc := funcPC(mapdelete)
 		racewritepc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
@@ -681,7 +681,7 @@ search:
 // Both need to have zeroed hiter since the struct contains pointers.
 func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapiterinit))
 	}
 
@@ -731,7 +731,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 func mapiternext(it *hiter) {
 	h := it.h
 	if raceenabled {
-		callerpc := getcallerpc(unsafe.Pointer(&it))
+		callerpc := getcallerpc()
 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapiternext))
 	}
 	if h.flags&hashWriting != 0 {
@@ -1225,7 +1225,7 @@ func reflect_maplen(h *hmap) int {
 		return 0
 	}
 	if raceenabled {
-		callerpc := getcallerpc(unsafe.Pointer(&h))
+		callerpc := getcallerpc()
 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(reflect_maplen))
 	}
 	return h.count

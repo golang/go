@@ -83,7 +83,7 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 	// Until the copy completes, we can only call nosplit routines.
 	sp := getcallersp(unsafe.Pointer(&siz))
 	argp := uintptr(unsafe.Pointer(&fn)) + unsafe.Sizeof(fn)
-	callerpc := getcallerpc(unsafe.Pointer(&siz))
+	callerpc := getcallerpc()
 
 	d := newdefer(siz)
 	if d._panic != nil {
@@ -591,7 +591,7 @@ func startpanic() {
 
 //go:nosplit
 func dopanic(unused int) {
-	pc := getcallerpc(unsafe.Pointer(&unused))
+	pc := getcallerpc()
 	sp := getcallersp(unsafe.Pointer(&unused))
 	gp := getg()
 	systemstack(func() {

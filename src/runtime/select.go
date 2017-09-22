@@ -73,7 +73,7 @@ func newselect(sel *hselect, selsize int64, size int32) {
 }
 
 func selectsend(sel *hselect, c *hchan, elem unsafe.Pointer) {
-	pc := getcallerpc(unsafe.Pointer(&sel))
+	pc := getcallerpc()
 	i := sel.ncase
 	if i >= sel.tcase {
 		throw("selectsend: too many cases")
@@ -94,7 +94,7 @@ func selectsend(sel *hselect, c *hchan, elem unsafe.Pointer) {
 }
 
 func selectrecv(sel *hselect, c *hchan, elem unsafe.Pointer, received *bool) {
-	pc := getcallerpc(unsafe.Pointer(&sel))
+	pc := getcallerpc()
 	i := sel.ncase
 	if i >= sel.tcase {
 		throw("selectrecv: too many cases")
@@ -116,7 +116,7 @@ func selectrecv(sel *hselect, c *hchan, elem unsafe.Pointer, received *bool) {
 }
 
 func selectdefault(sel *hselect) {
-	pc := getcallerpc(unsafe.Pointer(&sel))
+	pc := getcallerpc()
 	i := sel.ncase
 	if i >= sel.tcase {
 		throw("selectdefault: too many cases")

@@ -11,7 +11,7 @@ import (
 
 func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_fast32))
 	}
 	if h == nil || h.count == 0 {
@@ -51,7 +51,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 
 func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_fast32))
 	}
 	if h == nil || h.count == 0 {
@@ -91,7 +91,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 
 func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_fast64))
 	}
 	if h == nil || h.count == 0 {
@@ -131,7 +131,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 
 func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_fast64))
 	}
 	if h == nil || h.count == 0 {
@@ -171,7 +171,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 
 func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_faststr))
 	}
 	if h == nil || h.count == 0 {
@@ -260,7 +260,7 @@ dohash:
 
 func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_faststr))
 	}
 	if h == nil || h.count == 0 {
@@ -352,7 +352,7 @@ func mapassign_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 		panic(plainError("assignment to entry in nil map"))
 	}
 	if raceenabled {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_fast32))
 	}
 	if h.flags&hashWriting != 0 {
@@ -441,7 +441,7 @@ func mapassign_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 		panic(plainError("assignment to entry in nil map"))
 	}
 	if raceenabled {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_fast64))
 	}
 	if h.flags&hashWriting != 0 {
@@ -536,7 +536,7 @@ func mapassign_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 		panic(plainError("assignment to entry in nil map"))
 	}
 	if raceenabled {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_faststr))
 	}
 	if h.flags&hashWriting != 0 {
@@ -623,7 +623,7 @@ done:
 
 func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapdelete_fast32))
 	}
 	if h == nil || h.count == 0 {
@@ -672,7 +672,7 @@ search:
 
 func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapdelete_fast64))
 	}
 	if h == nil || h.count == 0 {
@@ -721,7 +721,7 @@ search:
 
 func mapdelete_faststr(t *maptype, h *hmap, ky string) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapdelete_faststr))
 	}
 	if h == nil || h.count == 0 {

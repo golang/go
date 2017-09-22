@@ -81,7 +81,7 @@ func makeslice64(et *_type, len64, cap64 int64) slice {
 // The SSA backend might prefer the new length or to return only ptr/cap and save stack space.
 func growslice(et *_type, old slice, cap int) slice {
 	if raceenabled {
-		callerpc := getcallerpc(unsafe.Pointer(&et))
+		callerpc := getcallerpc()
 		racereadrangepc(old.array, uintptr(old.len*int(et.size)), callerpc, funcPC(growslice))
 	}
 	if msanenabled {
@@ -179,7 +179,7 @@ func slicecopy(to, fm slice, width uintptr) int {
 	}
 
 	if raceenabled {
-		callerpc := getcallerpc(unsafe.Pointer(&to))
+		callerpc := getcallerpc()
 		pc := funcPC(slicecopy)
 		racewriterangepc(to.array, uintptr(n*int(width)), callerpc, pc)
 		racereadrangepc(fm.array, uintptr(n*int(width)), callerpc, pc)
@@ -210,7 +210,7 @@ func slicestringcopy(to []byte, fm string) int {
 	}
 
 	if raceenabled {
-		callerpc := getcallerpc(unsafe.Pointer(&to))
+		callerpc := getcallerpc()
 		pc := funcPC(slicestringcopy)
 		racewriterangepc(unsafe.Pointer(&to[0]), uintptr(n), callerpc, pc)
 	}
