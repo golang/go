@@ -26,7 +26,7 @@ import (
 	"time"
 )
 
-func cpuHogger(f func(), dur time.Duration) {
+func cpuHogger(f func() int, dur time.Duration) {
 	// We only need to get one 100 Hz clock tick, so we've got
 	// a large safety buffer.
 	// But do at least 500 iterations (which should take about 100ms),
@@ -46,7 +46,7 @@ var (
 // The actual CPU hogging function.
 // Must not call other functions nor access heap/globals in the loop,
 // otherwise under race detector the samples will be in the race runtime.
-func cpuHog1() {
+func cpuHog1() int {
 	foo := salt1
 	for i := 0; i < 1e5; i++ {
 		if foo > 0 {
@@ -55,10 +55,10 @@ func cpuHog1() {
 			foo *= foo + 1
 		}
 	}
-	salt1 = foo
+	return foo
 }
 
-func cpuHog2() {
+func cpuHog2() int {
 	foo := salt2
 	for i := 0; i < 1e5; i++ {
 		if foo > 0 {
@@ -67,7 +67,7 @@ func cpuHog2() {
 			foo *= foo + 2
 		}
 	}
-	salt2 = foo
+	return foo
 }
 
 func TestCPUProfile(t *testing.T) {
@@ -95,8 +95,9 @@ func TestCPUProfileInlining(t *testing.T) {
 	})
 }
 
-func inlinedCaller() {
+func inlinedCaller() int {
 	inlinedCallee()
+	return 0
 }
 
 func inlinedCallee() {
@@ -713,6 +714,28 @@ func TestCPUProfileLabel(t *testing.T) {
 		Do(context.Background(), Labels("key", "value"), func(context.Context) {
 			cpuHogger(cpuHog1, dur)
 		})
+	})
+}
+
+func TestLabelRace(t *testing.T) {
+	// Test the race detector annotations for synchronization
+	// between settings labels and consuming them from the
+	// profile.
+	testCPUProfile(t, []string{"runtime/pprof.cpuHogger;key=value"}, func(dur time.Duration) {
+		start := time.Now()
+		var wg sync.WaitGroup
+		for time.Since(start) < dur {
+			for i := 0; i < 10; i++ {
+				wg.Add(1)
+				go func() {
+					Do(context.Background(), Labels("key", "value"), func(context.Context) {
+						cpuHogger(cpuHog1, time.Millisecond)
+					})
+					wg.Done()
+				}()
+			}
+			wg.Wait()
+		}
 	})
 }
 

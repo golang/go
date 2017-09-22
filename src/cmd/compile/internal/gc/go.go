@@ -293,4 +293,8 @@ var (
 	typedmemmove,
 	typedmemclr,
 	Udiv *obj.LSym
+
+	// GO386=387
+	ControlWord64trunc,
+	ControlWord32 *obj.LSym
 )
