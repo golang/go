@@ -57,6 +57,7 @@ pkg crypto/x509, const SHA384WithRSAPSS SignatureAlgorithm
 pkg crypto/x509, const SHA512WithRSAPSS = 15
 pkg crypto/x509, const SHA512WithRSAPSS SignatureAlgorithm
 pkg crypto/x509, type UnknownAuthorityError struct, Cert *Certificate
+pkg crypto/x509, type VerifyOptions struct, IsBoring func(*Certificate) bool
 pkg database/sql, const LevelDefault = 0
 pkg database/sql, const LevelDefault IsolationLevel
 pkg database/sql, const LevelLinearizable = 7
