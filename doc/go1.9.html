@@ -15,12 +15,7 @@ Do not send CLs removing the interior tags from such phrases.
 ul li { margin: 0.5em 0; }
 </style>
 
-<h2 id="introduction">DRAFT RELEASE NOTES - Introduction to Go 1.9</h2>
-
-<p><strong>
-    Go 1.9 is not yet released. These are work-in-progress
-    release notes. Go 1.9 is expected to be released in August 2017.
-</strong></p>
+<h2 id="introduction">Introduction to Go 1.9</h2>
 
 <p>
   The latest Go release, version 1.9, arrives six months
@@ -163,7 +158,7 @@ type T1 = T2
   was invoked to attempt to locate the root of the Go install tree.
   This means that if the entire Go installation is moved to a new
   location, the go tool should continue to work as usual.
-  This may be overriden by setting <code>GOROOT</code> in the environment,
+  This may be overridden by setting <code>GOROOT</code> in the environment,
   which should only be done in unusual circumstances.
   Note that this does not affect the result of
   the <a href="/pkg/runtime/#GOROOT">runtime.GOROOT</a> function, which
@@ -490,7 +485,7 @@ version of gccgo.
 
     <p><!-- CL 36696 -->
 
-    If any SAN extension, including with no DSN names, is present
+    If any SAN extension, including with no DNS names, is present
     in the certificate, then the Common Name from
     <a href="/pkg/crypto/x509/#Certificate.Subject"><code>Subject</code></a> is ignored.
     In previous releases, the code tested only whether DNS-name SANs were
