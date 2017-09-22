@@ -272,7 +272,7 @@ func panicnildottype(want *_type) {
 
 func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2E))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -288,7 +288,7 @@ func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
 
 func convT2E16(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E16))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2E16))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -307,7 +307,7 @@ func convT2E16(t *_type, elem unsafe.Pointer) (e eface) {
 
 func convT2E32(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E32))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2E32))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -326,7 +326,7 @@ func convT2E32(t *_type, elem unsafe.Pointer) (e eface) {
 
 func convT2E64(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E64))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2E64))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -345,7 +345,7 @@ func convT2E64(t *_type, elem unsafe.Pointer) (e eface) {
 
 func convT2Estring(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2Estring))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Estring))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -364,7 +364,7 @@ func convT2Estring(t *_type, elem unsafe.Pointer) (e eface) {
 
 func convT2Eslice(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2Eslice))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Eslice))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -383,7 +383,7 @@ func convT2Eslice(t *_type, elem unsafe.Pointer) (e eface) {
 
 func convT2Enoptr(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2Enoptr))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Enoptr))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -398,7 +398,7 @@ func convT2Enoptr(t *_type, elem unsafe.Pointer) (e eface) {
 func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2I))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -413,7 +413,7 @@ func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
 func convT2I16(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I16))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2I16))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -433,7 +433,7 @@ func convT2I16(tab *itab, elem unsafe.Pointer) (i iface) {
 func convT2I32(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I32))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2I32))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -453,7 +453,7 @@ func convT2I32(tab *itab, elem unsafe.Pointer) (i iface) {
 func convT2I64(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I64))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2I64))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -473,7 +473,7 @@ func convT2I64(tab *itab, elem unsafe.Pointer) (i iface) {
 func convT2Istring(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2Istring))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Istring))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -493,7 +493,7 @@ func convT2Istring(tab *itab, elem unsafe.Pointer) (i iface) {
 func convT2Islice(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2Islice))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Islice))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -513,7 +513,7 @@ func convT2Islice(tab *itab, elem unsafe.Pointer) (i iface) {
 func convT2Inoptr(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2Inoptr))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Inoptr))
 	}
 	if msanenabled {
 		msanread(elem, t.size)

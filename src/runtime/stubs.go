@@ -198,7 +198,7 @@ func publicationBarrier()
 
 // getcallerpc returns the program counter (PC) of its caller's caller.
 // getcallersp returns the stack pointer (SP) of its caller's caller.
-// For both, the argp must be a pointer to the caller's first function argument.
+// argp must be a pointer to the caller's first function argument.
 // The implementation may or may not use argp, depending on
 // the architecture. The implementation may be a compiler
 // intrinsic; there is not necessarily code implementing this
@@ -207,7 +207,7 @@ func publicationBarrier()
 // For example:
 //
 //	func f(arg1, arg2, arg3 int) {
-//		pc := getcallerpc(unsafe.Pointer(&arg1))
+//		pc := getcallerpc()
 //		sp := getcallersp(unsafe.Pointer(&arg1))
 //	}
 //
@@ -227,7 +227,7 @@ func publicationBarrier()
 // immediately and can only be passed to nosplit functions.
 
 //go:noescape
-func getcallerpc(argp unsafe.Pointer) uintptr
+func getcallerpc() uintptr
 
 //go:nosplit
 func getcallersp(argp unsafe.Pointer) uintptr {

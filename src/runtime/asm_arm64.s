@@ -704,9 +704,9 @@ TEXT setg_gcc<>(SB),NOSPLIT,$8
 	MOVD	savedR27-8(SP), R27
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
-	MOVD	16(RSP), R0		// LR saved by caller
-	MOVD	R0, ret+8(FP)
+TEXT runtime·getcallerpc(SB),NOSPLIT,$-8-8
+	MOVD	0(RSP), R0		// LR saved by caller
+	MOVD	R0, ret+0(FP)
 	RET
 
 TEXT runtime·abort(SB),NOSPLIT,$-8-0

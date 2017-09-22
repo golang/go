@@ -616,9 +616,9 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
 	JAL	runtime·save_g(SB)
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
-	MOVV	16(R29), R1		// LR saved by caller
-	MOVV	R1, ret+8(FP)
+TEXT runtime·getcallerpc(SB),NOSPLIT,$-8-8
+	MOVV	0(R29), R1		// LR saved by caller
+	MOVV	R1, ret+0(FP)
 	RET
 
 TEXT runtime·abort(SB),NOSPLIT,$-8-0

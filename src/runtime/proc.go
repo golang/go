@@ -2545,7 +2545,7 @@ func reentersyscall(pc, sp uintptr) {
 // Standard syscall entry used by the go syscall library and normal cgo calls.
 //go:nosplit
 func entersyscall(dummy int32) {
-	reentersyscall(getcallerpc(unsafe.Pointer(&dummy)), getcallersp(unsafe.Pointer(&dummy)))
+	reentersyscall(getcallerpc(), getcallersp(unsafe.Pointer(&dummy)))
 }
 
 func entersyscall_sysmon() {
@@ -2588,7 +2588,7 @@ func entersyscallblock(dummy int32) {
 	_g_.m.p.ptr().syscalltick++
 
 	// Leave SP around for GC and traceback.
-	pc := getcallerpc(unsafe.Pointer(&dummy))
+	pc := getcallerpc()
 	sp := getcallersp(unsafe.Pointer(&dummy))
 	save(pc, sp)
 	_g_.syscallsp = _g_.sched.sp
@@ -2613,7 +2613,7 @@ func entersyscallblock(dummy int32) {
 	systemstack(entersyscallblock_handoff)
 
 	// Resave for traceback during blocked call.
-	save(getcallerpc(unsafe.Pointer(&dummy)), getcallersp(unsafe.Pointer(&dummy)))
+	save(getcallerpc(), getcallersp(unsafe.Pointer(&dummy)))
 
 	_g_.m.locks--
 }
@@ -2941,7 +2941,7 @@ func malg(stacksize int32) *g {
 //go:nosplit
 func newproc(siz int32, fn *funcval) {
 	argp := add(unsafe.Pointer(&fn), sys.PtrSize)
-	pc := getcallerpc(unsafe.Pointer(&siz))
+	pc := getcallerpc()
 	systemstack(func() {
 		newproc1(fn, (*uint8)(argp), siz, 0, pc)
 	})

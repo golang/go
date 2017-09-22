@@ -122,7 +122,7 @@ func chanbuf(c *hchan, i uint) unsafe.Pointer {
 // entry point for c <- x from compiled code
 //go:nosplit
 func chansend1(c *hchan, elem unsafe.Pointer) {
-	chansend(c, elem, true, getcallerpc(unsafe.Pointer(&c)))
+	chansend(c, elem, true, getcallerpc())
 }
 
 /*
@@ -334,7 +334,7 @@ func closechan(c *hchan) {
 	}
 
 	if raceenabled {
-		callerpc := getcallerpc(unsafe.Pointer(&c))
+		callerpc := getcallerpc()
 		racewritepc(unsafe.Pointer(c), callerpc, funcPC(closechan))
 		racerelease(unsafe.Pointer(c))
 	}
@@ -606,7 +606,7 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 //	}
 //
 func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
-	return chansend(c, elem, false, getcallerpc(unsafe.Pointer(&c)))
+	return chansend(c, elem, false, getcallerpc())
 }
 
 // compiler implements
@@ -656,7 +656,7 @@ func selectnbrecv2(elem unsafe.Pointer, received *bool, c *hchan) (selected bool
 
 //go:linkname reflect_chansend reflect.chansend
 func reflect_chansend(c *hchan, elem unsafe.Pointer, nb bool) (selected bool) {
-	return chansend(c, elem, !nb, getcallerpc(unsafe.Pointer(&c)))
+	return chansend(c, elem, !nb, getcallerpc())
 }
 
 //go:linkname reflect_chanrecv reflect.chanrecv
