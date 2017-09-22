@@ -553,10 +553,6 @@ func makeaddable(n *Node) {
 		makeaddable(n.Left)
 
 		// nothing to do
-	case ODOTPTR:
-		fallthrough
-	default:
-		break
 	}
 }
 
