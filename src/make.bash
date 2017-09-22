@@ -29,6 +29,7 @@
 # CGO_ENABLED: Controls cgo usage during the build. Set it to 1
 # to include all cgo related files, .c and .go file with "cgo"
 # build directive, in the build. Set it to 0 to ignore them.
+# The default for this release is 0.
 #
 # GO_EXTLINK_ENABLED: Set to 1 to invoke the host linker when building
 # packages that use cgo.  Set to 0 to do all linking internally.  This
