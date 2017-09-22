@@ -20,7 +20,7 @@ import "regexp/syntax"
 // the instruction pc and the position in the input.
 type job struct {
 	pc  uint32
-	arg int
+	arg bool
 	pos int
 }
 
@@ -114,18 +114,12 @@ func (b *bitState) shouldVisit(pc uint32, pos int) bool {
 
 // push pushes (pc, pos, arg) onto the job stack if it should be
 // visited.
-func (b *bitState) push(pc uint32, pos int, arg int) {
-	if b.prog.Inst[pc].Op == syntax.InstFail {
-		return
+func (b *bitState) push(pc uint32, pos int, arg bool) {
+	// Only check shouldVisit when arg is false.
+	// When arg is true, we are continuing a previous visit.
+	if b.prog.Inst[pc].Op != syntax.InstFail && (arg || b.shouldVisit(pc, pos)) {
+		b.jobs = append(b.jobs, job{pc: pc, arg: arg, pos: pos})
 	}
-
-	// Only check shouldVisit when arg == 0.
-	// When arg > 0, we are continuing a previous visit.
-	if arg == 0 && !b.shouldVisit(pc, pos) {
-		return
-	}
-
-	b.jobs = append(b.jobs, job{pc: pc, arg: arg, pos: pos})
 }
 
 // tryBacktrack runs a backtracking search starting at pos.
@@ -133,7 +127,7 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 	longest := m.re.longest
 	m.matched = false
 
-	b.push(pc, pos, 0)
+	b.push(pc, pos, false)
 	for len(b.jobs) > 0 {
 		l := len(b.jobs) - 1
 		// Pop job off the stack.
@@ -165,38 +159,36 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 			panic("unexpected InstFail")
 		case syntax.InstAlt:
 			// Cannot just
-			//   b.push(inst.Out, pos, 0)
-			//   b.push(inst.Arg, pos, 0)
+			//   b.push(inst.Out, pos, false)
+			//   b.push(inst.Arg, pos, false)
 			// If during the processing of inst.Out, we encounter
 			// inst.Arg via another path, we want to process it then.
 			// Pushing it here will inhibit that. Instead, re-push
-			// inst with arg==1 as a reminder to push inst.Arg out
+			// inst with arg==true as a reminder to push inst.Arg out
 			// later.
-			switch arg {
-			case 0:
-				b.push(pc, pos, 1)
-				pc = inst.Out
-				goto CheckAndLoop
-			case 1:
+			if arg {
 				// Finished inst.Out; try inst.Arg.
-				arg = 0
+				arg = false
 				pc = inst.Arg
 				goto CheckAndLoop
+			} else {
+				b.push(pc, pos, true)
+				pc = inst.Out
+				goto CheckAndLoop
 			}
-			panic("bad arg in InstAlt")
 
 		case syntax.InstAltMatch:
 			// One opcode consumes runes; the other leads to match.
 			switch b.prog.Inst[inst.Out].Op {
 			case syntax.InstRune, syntax.InstRune1, syntax.InstRuneAny, syntax.InstRuneAnyNotNL:
 				// inst.Arg is the match.
-				b.push(inst.Arg, pos, 0)
+				b.push(inst.Arg, pos, false)
 				pc = inst.Arg
 				pos = b.end
 				goto CheckAndLoop
 			}
 			// inst.Out is the match - non-greedy
-			b.push(inst.Out, b.end, 0)
+			b.push(inst.Out, b.end, false)
 			pc = inst.Out
 			goto CheckAndLoop
 
@@ -237,22 +229,19 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 			goto CheckAndLoop
 
 		case syntax.InstCapture:
-			switch arg {
-			case 0:
+			if arg {
+				// Finished inst.Out; restore the old value.
+				b.cap[inst.Arg] = pos
+				continue
+			} else {
 				if 0 <= inst.Arg && inst.Arg < uint32(len(b.cap)) {
 					// Capture pos to register, but save old value.
-					b.push(pc, b.cap[inst.Arg], 1) // come back when we're done.
+					b.push(pc, b.cap[inst.Arg], true) // come back when we're done.
 					b.cap[inst.Arg] = pos
 				}
 				pc = inst.Out
 				goto CheckAndLoop
-			case 1:
-				// Finished inst.Out; restore the old value.
-				b.cap[inst.Arg] = pos
-				continue
-
 			}
-			panic("bad arg in InstCapture")
 
 		case syntax.InstEmptyWidth:
 			if syntax.EmptyOp(inst.Arg)&^i.context(pos) != 0 {
