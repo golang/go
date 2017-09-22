@@ -82,6 +82,9 @@ func TestIntendedInlining(t *testing.T) {
 			"RuneLen",
 			"ValidRune",
 		},
+		"regexp": {
+			"(*bitState).push",
+		},
 	}
 
 	if runtime.GOARCH != "386" {
