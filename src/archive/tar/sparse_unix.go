@@ -9,6 +9,7 @@ package tar
 import (
 	"io"
 	"os"
+	"runtime"
 	"syscall"
 )
 
@@ -19,8 +20,12 @@ func init() {
 func sparseDetectUnix(f *os.File) (sph sparseHoles, err error) {
 	// SEEK_DATA and SEEK_HOLE originated from Solaris and support for it
 	// has been added to most of the other major Unix systems.
-	const seekData = 3 // SEEK_DATA from unistd.h
-	const seekHole = 4 // SEEK_HOLE from unistd.h
+	var seekData, seekHole = 3, 4 // SEEK_DATA/SEEK_HOLE from unistd.h
+
+	if runtime.GOOS == "darwin" {
+		// Darwin has the constants swapped, compared to all other UNIX.
+		seekData, seekHole = 4, 3
+	}
 
 	// Check for seekData/seekHole support.
 	// Different OS and FS may differ in the exact errno that is returned when
