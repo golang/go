@@ -439,6 +439,11 @@ func downloadPackage(p *Package) error {
 		p.build.PkgRoot = filepath.Join(list[0], "pkg")
 	}
 	root := filepath.Join(p.build.SrcRoot, filepath.FromSlash(rootPath))
+
+	if err := checkNestedVCS(vcs, root, p.build.SrcRoot); err != nil {
+		return err
+	}
+
 	// If we've considered this repository already, don't do it again.
 	if downloadRootCache[root] {
 		return nil
