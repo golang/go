@@ -1317,6 +1317,25 @@ func TestGetGitDefaultBranch(t *testing.T) {
 	tg.grepStdout(`\* another-branch`, "not on correct default branch")
 }
 
+func TestAccidentalGitCheckout(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("skipping because git binary not found")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempDir("src")
+	tg.setenv("GOPATH", tg.path("."))
+
+	tg.runFail("get", "-u", "vcs-test.golang.org/go/test1-svn-git")
+	tg.grepStderr("src[\\\\/]vcs-test.* uses git, but parent .*src[\\\\/]vcs-test.* uses svn", "get did not fail for right reason")
+
+	tg.runFail("get", "-u", "vcs-test.golang.org/go/test2-svn-git/test2main")
+	tg.grepStderr("src[\\\\/]vcs-test.* uses git, but parent .*src[\\\\/]vcs-test.* uses svn", "get did not fail for right reason")
+}
+
 func TestErrorMessageForSyntaxErrorInTestGoFileSaysFAIL(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
