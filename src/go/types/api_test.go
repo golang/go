@@ -87,6 +87,10 @@ func TestValuesInfo(t *testing.T) {
 		{`package c5a; var _ = string("foo")`, `"foo"`, `string`, `"foo"`},
 		{`package c5b; var _ = string("foo")`, `string("foo")`, `string`, `"foo"`},
 		{`package c5c; type T string; var _ = T("foo")`, `T("foo")`, `c5c.T`, `"foo"`},
+		{`package c5d; var _ = string(65)`, `65`, `untyped int`, `65`},
+		{`package c5e; var _ = string('A')`, `'A'`, `untyped rune`, `65`},
+		{`package c5f; type T string; var _ = T('A')`, `'A'`, `untyped rune`, `65`},
+		{`package c5g; var s uint; var _ = string(1 << s)`, `1 << s`, `untyped int`, ``},
 
 		{`package d0; var _ = []byte("foo")`, `"foo"`, `string`, `"foo"`},
 		{`package d1; var _ = []byte(string("foo"))`, `"foo"`, `string`, `"foo"`},
@@ -122,7 +126,7 @@ func TestValuesInfo(t *testing.T) {
 		}
 		name := mustTypecheck(t, "ValuesInfo", test.src, &info)
 
-		// look for constant expression
+		// look for expression
 		var expr ast.Expr
 		for e := range info.Types {
 			if ExprString(e) == test.expr {
@@ -142,9 +146,15 @@ func TestValuesInfo(t *testing.T) {
 			continue
 		}
 
-		// check that value is correct
-		if got := tv.Value.ExactString(); got != test.val {
-			t.Errorf("package %s: got value %s; want %s", name, got, test.val)
+		// if we have a constant, check that value is correct
+		if tv.Value != nil {
+			if got := tv.Value.ExactString(); got != test.val {
+				t.Errorf("package %s: got value %s; want %s", name, got, test.val)
+			}
+		} else {
+			if test.val != "" {
+				t.Errorf("package %s: no constant found; want %s", name, test.val)
+			}
 		}
 	}
 }
