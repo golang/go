@@ -768,6 +768,9 @@ func TestHeaderAllowedFormats(t *testing.T) {
 }
 
 func TestSparseFiles(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping test on plan9; see https://golang.org/issue/21977")
+	}
 	// Only perform the tests for hole-detection on the builders,
 	// where we have greater control over the filesystem.
 	sparseSupport := testenv.Builder() != ""
