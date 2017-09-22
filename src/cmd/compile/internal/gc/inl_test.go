@@ -29,16 +29,39 @@ func TestIntendedInlining(t *testing.T) {
 	// be inlined.
 	want := map[string][]string{
 		"runtime": {
-			"tophash",
 			"add",
 			"addb",
-			"subtractb",
-			"(*bmap).keys",
-			"bucketShift",
+			"adjustpanics",
+			"adjustpointer",
 			"bucketMask",
+			"bucketShift",
+			"chanbuf",
+			"deferArgs",
+			"deferclass",
+			"evacuated",
+			"fastlog2",
 			"fastrand",
+			"float64bits",
+			"getm",
+			"isDirectIface",
+			"itabHashFunc",
+			"maxSliceCap",
 			"noescape",
+			"readUnaligned32",
+			"readUnaligned64",
+			"round",
+			"roundupsize",
+			"stringStructOf",
+			"subtractb",
+			"tophash",
+			"totaldefersize",
+			"(*bmap).keys",
+			"(*bmap).overflow",
+			"(*waitq).enqueue",
+
+			//"adjustctxt", TODO(mvdan): fix and re-enable
 		},
+		"runtime/internal/sys": {},
 		"unicode/utf8": {
 			"FullRune",
 			"FullRuneInString",
@@ -52,6 +75,16 @@ func TestIntendedInlining(t *testing.T) {
 		// We currently don't have midstack inlining so nextFreeFast is also not inlinable on 386.
 		// So check for it only on non-386 platforms.
 		want["runtime"] = append(want["runtime"], "nextFreeFast")
+		// As explained above, Ctz64 and Ctz32 are not Go code on 386.
+		// The same applies to Bswap32.
+		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Ctz64")
+		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Ctz32")
+		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Bswap32")
+	}
+	switch runtime.GOARCH {
+	case "amd64", "amd64p32", "arm64", "mips64", "mips64le", "ppc64", "ppc64le", "s390x":
+		// rotl_31 is only defined on 64-bit architectures
+		want["runtime"] = append(want["runtime"], "rotl_31")
 	}
 
 	notInlinedReason := make(map[string]string)
@@ -59,7 +92,11 @@ func TestIntendedInlining(t *testing.T) {
 	for pname, fnames := range want {
 		pkgs = append(pkgs, pname)
 		for _, fname := range fnames {
-			notInlinedReason[pname+"."+fname] = "unknown reason"
+			fullName := pname + "." + fname
+			if _, ok := notInlinedReason[fullName]; ok {
+				t.Errorf("duplicate func: %s", fullName)
+			}
+			notInlinedReason[fullName] = "unknown reason"
 		}
 	}
 
