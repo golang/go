@@ -506,11 +506,28 @@ func vcsFromDir(dir, srcRoot string) (vcs *vcsCmd, root string, err error) {
 		return nil, "", fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
 	}
 
+	var vcsRet *vcsCmd
+	var rootRet string
+
 	origDir := dir
 	for len(dir) > len(srcRoot) {
 		for _, vcs := range vcsList {
 			if _, err := os.Stat(filepath.Join(dir, "."+vcs.cmd)); err == nil {
-				return vcs, filepath.ToSlash(dir[len(srcRoot)+1:]), nil
+				root := filepath.ToSlash(dir[len(srcRoot)+1:])
+				// Record first VCS we find, but keep looking,
+				// to detect mistakes like one kind of VCS inside another.
+				if vcsRet == nil {
+					vcsRet = vcs
+					rootRet = root
+					continue
+				}
+				// Allow .git inside .git, which can arise due to submodules.
+				if vcsRet == vcs && vcs.cmd == "git" {
+					continue
+				}
+				// Otherwise, we have one VCS inside a different VCS.
+				return nil, "", fmt.Errorf("directory %q uses %s, but parent %q uses %s",
+					filepath.Join(srcRoot, rootRet), vcsRet.cmd, filepath.Join(srcRoot, root), vcs.cmd)
 			}
 		}
 
@@ -523,7 +540,46 @@ func vcsFromDir(dir, srcRoot string) (vcs *vcsCmd, root string, err error) {
 		dir = ndir
 	}
 
+	if vcsRet != nil {
+		return vcsRet, rootRet, nil
+	}
+
 	return nil, "", fmt.Errorf("directory %q is not using a known version control system", origDir)
+}
+
+// checkNestedVCS checks for an incorrectly-nested VCS-inside-VCS
+// situation for dir, checking parents up until srcRoot.
+func checkNestedVCS(vcs *vcsCmd, dir, srcRoot string) error {
+	if len(dir) <= len(srcRoot) || dir[len(srcRoot)] != filepath.Separator {
+		return fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
+	}
+
+	otherDir := dir
+	for len(otherDir) > len(srcRoot) {
+		for _, otherVCS := range vcsList {
+			if _, err := os.Stat(filepath.Join(dir, "."+otherVCS.cmd)); err == nil {
+				// Allow expected vcs in original dir.
+				if otherDir == dir && otherVCS == vcs {
+					continue
+				}
+				// Allow .git inside .git, which can arise due to submodules.
+				if otherVCS == vcs && vcs.cmd == "git" {
+					continue
+				}
+				// Otherwise, we have one VCS inside a different VCS.
+				return fmt.Errorf("directory %q uses %s, but parent %q uses %s", dir, vcs.cmd, otherDir, otherVCS.cmd)
+			}
+		}
+		// Move to parent.
+		newDir := filepath.Dir(otherDir)
+		if len(newDir) >= len(otherDir) {
+			// Shouldn't happen, but just in case, stop.
+			break
+		}
+		otherDir = newDir
+	}
+
+	return nil
 }
 
 // repoRoot represents a version control system, a repo, and a root of
