@@ -29,7 +29,7 @@ func RaceErrors() int {
 // between goroutines. These inform the race detector about actual synchronization
 // that it can't see for some reason (e.g. synchronization within RaceDisable/RaceEnable
 // sections of code).
-// RaceAcquire establishes a happens-before relation with the preceeding
+// RaceAcquire establishes a happens-before relation with the preceding
 // RaceReleaseMerge on addr up to and including the last RaceRelease on addr.
 // In terms of the C memory model (C11 §5.1.2.4, §7.17.3),
 // RaceAcquire is equivalent to atomic_load(memory_order_acquire).
@@ -51,7 +51,7 @@ func RaceRelease(addr unsafe.Pointer) {
 //go:nosplit
 
 // RaceReleaseMerge is like RaceRelease, but also establishes a happens-before
-// relation with the preceeding RaceRelease or RaceReleaseMerge on addr.
+// relation with the preceding RaceRelease or RaceReleaseMerge on addr.
 //
 // In terms of the C memory model, RaceReleaseMerge is equivalent to
 // atomic_exchange(memory_order_release).
