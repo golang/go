@@ -2349,7 +2349,7 @@ func Serve(l net.Listener, handler Handler) error {
 	return srv.Serve(l)
 }
 
-// Serve accepts incoming HTTPS connections on the listener l,
+// ServeTLS accepts incoming HTTPS connections on the listener l,
 // creating a new service goroutine for each. The service goroutines
 // read requests and then call handler to reply to them.
 //
