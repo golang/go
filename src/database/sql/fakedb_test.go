@@ -943,6 +943,7 @@ type rowsCursor struct {
 }
 
 func (rc *rowsCursor) touchMem() {
+	rc.parentMem.touchMem()
 	rc.line++
 }
 
