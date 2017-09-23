@@ -3576,19 +3576,14 @@ func typecheckdeftype(n *Node) {
 	if t == nil {
 		n.SetDiag(true)
 		n.Type = nil
-		goto ret
-	}
-
-	if n.Type == nil {
+	} else if n.Type == nil {
 		n.SetDiag(true)
-		goto ret
+	} else {
+		// copy new type and clear fields
+		// that don't come along.
+		copytype(n, t)
 	}
 
-	// copy new type and clear fields
-	// that don't come along.
-	copytype(n, t)
-
-ret:
 	lineno = lno
 
 	// if there are no type definitions going on, it's safe to

@@ -1195,8 +1195,6 @@ func evconst(n *Node) {
 		goto setfalse
 	}
 
-	goto ret
-
 ret:
 	norig = saveorig(n)
 	*n = *nl

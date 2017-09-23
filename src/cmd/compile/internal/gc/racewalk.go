@@ -140,11 +140,9 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 	case OAS, OAS2FUNC:
 		instrumentnode(&n.Left, init, 1, 0)
 		instrumentnode(&n.Right, init, 0, 0)
-		goto ret
 
 		// can't matter
 	case OCFUNC, OVARKILL, OVARLIVE:
-		goto ret
 
 	case OBLOCK:
 		ls := n.List.Slice()
@@ -162,26 +160,21 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 			instrumentnode(&ls[i], &ls[i].Ninit, 0, 0)
 			afterCall = (op == OCALLFUNC || op == OCALLMETH || op == OCALLINTER)
 		}
-		goto ret
 
 	case ODEFER:
 		instrumentnode(&n.Left, init, 0, 0)
-		goto ret
 
 	case OPROC:
 		instrumentnode(&n.Left, init, 0, 0)
-		goto ret
 
 	case OCALLINTER:
 		instrumentnode(&n.Left, init, 0, 0)
-		goto ret
 
 	// Instrument dst argument of runtime.writebarrier* calls
 	// as we do not instrument runtime code.
 	// typedslicecopy is instrumented in runtime.
 	case OCALLFUNC:
 		instrumentnode(&n.Left, init, 0, 0)
-		goto ret
 
 	case ONOT,
 		OMINUS,
@@ -190,28 +183,23 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		OIMAG,
 		OCOM:
 		instrumentnode(&n.Left, init, wr, 0)
-		goto ret
 
 	case ODOTINTER:
 		instrumentnode(&n.Left, init, 0, 0)
-		goto ret
 
 	case ODOT:
 		instrumentnode(&n.Left, init, 0, 1)
 		callinstr(&n, init, wr, skip)
-		goto ret
 
 	case ODOTPTR: // dst = (*x).f with implicit *; otherwise it's ODOT+OIND
 		instrumentnode(&n.Left, init, 0, 0)
 
 		callinstr(&n, init, wr, skip)
-		goto ret
 
 	case OIND: // *p
 		instrumentnode(&n.Left, init, 0, 0)
 
 		callinstr(&n, init, wr, skip)
-		goto ret
 
 	case OSPTR, OLEN, OCAP:
 		instrumentnode(&n.Left, init, 0, 0)
@@ -222,8 +210,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 			n1 = typecheck(n1, Erv)
 			callinstr(&n1, init, 0, skip)
 		}
-
-		goto ret
 
 	case OLSH,
 		ORSH,
@@ -243,7 +229,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		OCOMPLEX:
 		instrumentnode(&n.Left, init, wr, 0)
 		instrumentnode(&n.Right, init, wr, 0)
-		goto ret
 
 	case OANDAND, OOROR:
 		instrumentnode(&n.Left, init, wr, 0)
@@ -254,24 +239,18 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		// so instrumentation goes to n->right->ninit, not init.
 		instrumentnode(&n.Right, &n.Right.Ninit, wr, 0)
 
-		goto ret
-
 	case ONAME:
 		callinstr(&n, init, wr, skip)
-		goto ret
 
 	case OCONV:
 		instrumentnode(&n.Left, init, wr, 0)
-		goto ret
 
 	case OCONVNOP:
 		instrumentnode(&n.Left, init, wr, 0)
-		goto ret
 
 	case ODIV, OMOD:
 		instrumentnode(&n.Left, init, wr, 0)
 		instrumentnode(&n.Right, init, wr, 0)
-		goto ret
 
 	case OINDEX:
 		if !n.Left.Type.IsArray() {
@@ -281,14 +260,13 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 			instrumentnode(&n.Left, init, wr, 0)
 
 			instrumentnode(&n.Right, init, 0, 0)
-			goto ret
+			break
 		}
 
 		instrumentnode(&n.Right, init, 0, 0)
 		if !n.Left.Type.IsString() {
 			callinstr(&n, init, wr, skip)
 		}
-		goto ret
 
 	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR:
 		instrumentnode(&n.Left, init, 0, 0)
@@ -297,34 +275,26 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		instrumentnode(&high, init, 0, 0)
 		instrumentnode(&max, init, 0, 0)
 		n.SetSliceBounds(low, high, max)
-		goto ret
 
 	case OADDR:
 		instrumentnode(&n.Left, init, 0, 1)
-		goto ret
 
 		// n->left is Type* which is not interesting.
 	case OEFACE:
 		instrumentnode(&n.Right, init, 0, 0)
 
-		goto ret
-
 	case OITAB, OIDATA:
 		instrumentnode(&n.Left, init, 0, 0)
-		goto ret
 
 	case OSTRARRAYBYTETMP:
 		instrumentnode(&n.Left, init, 0, 0)
-		goto ret
 
 	case OAS2DOTTYPE:
 		instrumentnode(&n.Left, init, 1, 0)
 		instrumentnode(&n.Right, init, 0, 0)
-		goto ret
 
 	case ODOTTYPE, ODOTTYPE2:
 		instrumentnode(&n.Left, init, 0, 0)
-		goto ret
 
 		// should not appear in AST by now
 	case OSEND,
@@ -376,13 +346,11 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		if n.Right != nil {
 			instrumentnode(&n.Right, &n.Right.Ninit, 0, 0)
 		}
-		goto ret
 
 	case OIF, OSWITCH:
 		if n.Left != nil {
 			instrumentnode(&n.Left, &n.Left.Ninit, 0, 0)
 		}
-		goto ret
 
 		// just do generic traversal
 	case OCALLMETH,
@@ -395,7 +363,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		OFALL,
 		OGOTO,
 		OLABEL:
-		goto ret
 
 		// does not require instrumentation
 	case OPRINT, // don't bother instrumenting it
@@ -411,10 +378,8 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		ONONAME,
 		OLITERAL,
 		OTYPESW: // ignored by code generation, do not instrument.
-		goto ret
 	}
 
-ret:
 	if n.Op != OBLOCK { // OBLOCK is handled above in a special way.
 		instrumentlist(n.List, init)
 	}
