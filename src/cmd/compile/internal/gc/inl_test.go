@@ -29,6 +29,10 @@ func TestIntendedInlining(t *testing.T) {
 	// be inlined.
 	want := map[string][]string{
 		"runtime": {
+			// TODO(mvdan): enable these once mid-stack
+			// inlining is available
+			// "adjustctxt",
+
 			"add",
 			"addb",
 			"adjustpanics",
@@ -58,8 +62,6 @@ func TestIntendedInlining(t *testing.T) {
 			"(*bmap).keys",
 			"(*bmap).overflow",
 			"(*waitq).enqueue",
-
-			//"adjustctxt", TODO(mvdan): fix and re-enable
 		},
 		"runtime/internal/sys": {},
 		"unicode/utf8": {
