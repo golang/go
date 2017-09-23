@@ -432,9 +432,9 @@ var optab = []Optab{
 	{ALDP, C_NPAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
 	{ALDP, C_NPAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
 	{ALDP, C_NPAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
-	{ALDP, C_PPAUTO_8, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
-	{ALDP, C_PPAUTO_8, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
-	{ALDP, C_PPAUTO_8, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
+	{ALDP, C_PPAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
+	{ALDP, C_PPAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
+	{ALDP, C_PPAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
 	{ALDP, C_UAUTO4K, C_NONE, C_PAIR, 74, 8, REGSP, 0, 0},
 	{ALDP, C_UAUTO4K, C_NONE, C_PAIR, 74, 8, REGSP, 0, C_XPRE},
 	{ALDP, C_UAUTO4K, C_NONE, C_PAIR, 74, 8, REGSP, 0, C_XPOST},
@@ -444,9 +444,9 @@ var optab = []Optab{
 	{ALDP, C_NPOREG, C_NONE, C_PAIR, 66, 4, 0, 0, 0},
 	{ALDP, C_NPOREG, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPRE},
 	{ALDP, C_NPOREG, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPOST},
-	{ALDP, C_PPOREG_8, C_NONE, C_PAIR, 66, 4, 0, 0, 0},
-	{ALDP, C_PPOREG_8, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPRE},
-	{ALDP, C_PPOREG_8, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPOST},
+	{ALDP, C_PPOREG, C_NONE, C_PAIR, 66, 4, 0, 0, 0},
+	{ALDP, C_PPOREG, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPRE},
+	{ALDP, C_PPOREG, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPOST},
 	{ALDP, C_UOREG4K, C_NONE, C_PAIR, 74, 8, 0, 0, 0},
 	{ALDP, C_UOREG4K, C_NONE, C_PAIR, 74, 8, 0, 0, C_XPRE},
 	{ALDP, C_UOREG4K, C_NONE, C_PAIR, 74, 8, 0, 0, C_XPOST},
@@ -457,9 +457,9 @@ var optab = []Optab{
 	{ASTP, C_PAIR, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, 0},
 	{ASTP, C_PAIR, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, C_XPRE},
 	{ASTP, C_PAIR, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, C_XPOST},
-	{ASTP, C_PAIR, C_NONE, C_PPAUTO_8, 67, 4, REGSP, 0, 0},
-	{ASTP, C_PAIR, C_NONE, C_PPAUTO_8, 67, 4, REGSP, 0, C_XPRE},
-	{ASTP, C_PAIR, C_NONE, C_PPAUTO_8, 67, 4, REGSP, 0, C_XPOST},
+	{ASTP, C_PAIR, C_NONE, C_PPAUTO, 67, 4, REGSP, 0, 0},
+	{ASTP, C_PAIR, C_NONE, C_PPAUTO, 67, 4, REGSP, 0, C_XPRE},
+	{ASTP, C_PAIR, C_NONE, C_PPAUTO, 67, 4, REGSP, 0, C_XPOST},
 	{ASTP, C_PAIR, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, 0},
 	{ASTP, C_PAIR, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, C_XPRE},
 	{ASTP, C_PAIR, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, C_XPOST},
@@ -469,9 +469,9 @@ var optab = []Optab{
 	{ASTP, C_PAIR, C_NONE, C_NPOREG, 67, 4, 0, 0, 0},
 	{ASTP, C_PAIR, C_NONE, C_NPOREG, 67, 4, 0, 0, C_XPRE},
 	{ASTP, C_PAIR, C_NONE, C_NPOREG, 67, 4, 0, 0, C_XPOST},
-	{ASTP, C_PAIR, C_NONE, C_PPOREG_8, 67, 4, 0, 0, 0},
-	{ASTP, C_PAIR, C_NONE, C_PPOREG_8, 67, 4, 0, 0, C_XPRE},
-	{ASTP, C_PAIR, C_NONE, C_PPOREG_8, 67, 4, 0, 0, C_XPOST},
+	{ASTP, C_PAIR, C_NONE, C_PPOREG, 67, 4, 0, 0, 0},
+	{ASTP, C_PAIR, C_NONE, C_PPOREG, 67, 4, 0, 0, C_XPRE},
+	{ASTP, C_PAIR, C_NONE, C_PPOREG, 67, 4, 0, 0, C_XPOST},
 	{ASTP, C_PAIR, C_NONE, C_UOREG4K, 76, 8, 0, 0, 0},
 	{ASTP, C_PAIR, C_NONE, C_UOREG4K, 76, 8, 0, 0, C_XPRE},
 	{ASTP, C_PAIR, C_NONE, C_UOREG4K, 76, 8, 0, 0, C_XPOST},
@@ -808,7 +808,6 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 	case C_PSAUTO,
 		C_PSAUTO_8,
 		C_PPAUTO,
-		C_PPAUTO_8,
 		C_UAUTO4K_8,
 		C_UAUTO4K_4,
 		C_UAUTO4K_2,
@@ -823,7 +822,6 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 		C_NPAUTO,
 		C_LAUTO,
 		C_PPOREG,
-		C_PPOREG_8,
 		C_PSOREG,
 		C_PSOREG_8,
 		C_UOREG4K_8,
@@ -1051,10 +1049,7 @@ func autoclass(l int64) int {
 		}
 		return C_PSAUTO
 	}
-	if l <= 504 {
-		if (l & 7) == 0 {
-			return C_PPAUTO_8
-		}
+	if l <= 504 && l&7 == 0 {
 		return C_PPAUTO
 	}
 	if l <= 4095 {
@@ -1457,36 +1452,31 @@ func cmp(a int, b int) bool {
 		}
 
 	case C_PPAUTO:
-		if b == C_PSAUTO || b == C_PSAUTO_8 {
-			return true
-		}
-
-	case C_PPAUTO_8:
 		if b == C_PSAUTO_8 {
 			return true
 		}
 
 	case C_UAUTO4K:
 		switch b {
-		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_PPAUTO_8, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8:
+		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8:
 			return true
 		}
 
 	case C_UAUTO8K:
 		switch b {
-		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_PPAUTO_8, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8:
+		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8:
 			return true
 		}
 
 	case C_UAUTO16K:
 		switch b {
-		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_PPAUTO_8, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8, C_UAUTO16K_8:
+		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8, C_UAUTO16K_8:
 			return true
 		}
 
 	case C_UAUTO32K:
 		switch b {
-		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_PPAUTO_8, C_UAUTO4K_8, C_UAUTO8K_8, C_UAUTO16K_8:
+		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_8, C_UAUTO8K_8, C_UAUTO16K_8:
 			return true
 		}
 
@@ -1495,7 +1485,7 @@ func cmp(a int, b int) bool {
 
 	case C_LAUTO:
 		switch b {
-		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_PPAUTO_8,
+		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO,
 			C_UAUTO4K, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8,
 			C_UAUTO8K, C_UAUTO8K_4, C_UAUTO8K_8,
 			C_UAUTO16K, C_UAUTO16K_8,
@@ -1511,36 +1501,31 @@ func cmp(a int, b int) bool {
 
 	case C_PPOREG:
 		switch b {
-		case C_ZOREG, C_PSOREG, C_PSOREG_8, C_PPOREG_8:
-			return true
-		}
-
-	case C_PPOREG_8:
-		if b == C_ZOREG || b == C_PSOREG_8 {
+		case C_ZOREG, C_PSOREG_8:
 			return true
 		}
 
 	case C_UOREG4K:
 		switch b {
-		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG_8, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8:
+		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8:
 			return true
 		}
 
 	case C_UOREG8K:
 		switch b {
-		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG_8, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8:
+		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8:
 			return true
 		}
 
 	case C_UOREG16K:
 		switch b {
-		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG_8, C_PPOREG, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8, C_UOREG16K_8:
+		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8, C_UOREG16K_8:
 			return true
 		}
 
 	case C_UOREG32K:
 		switch b {
-		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG_8, C_PPOREG, C_UOREG4K_8, C_UOREG8K_8, C_UOREG16K_8:
+		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_8, C_UOREG8K_8, C_UOREG16K_8:
 			return true
 		}
 
@@ -1549,7 +1534,7 @@ func cmp(a int, b int) bool {
 
 	case C_LOREG:
 		switch b {
-		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG_8, C_PPOREG,
+		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG,
 			C_UOREG4K, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8,
 			C_UOREG8K, C_UOREG8K_4, C_UOREG8K_8,
 			C_UOREG16K, C_UOREG16K_8,
