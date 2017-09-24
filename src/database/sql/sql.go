@@ -1276,15 +1276,20 @@ func (db *DB) execDC(ctx context.Context, dc *driverConn, release func(error), q
 	defer func() {
 		release(err)
 	}()
-	if execer, ok := dc.ci.(driver.Execer); ok {
-		var dargs []driver.NamedValue
-		dargs, err = driverArgs(dc.ci, nil, args)
+	execerCtx, ok := dc.ci.(driver.ExecerContext)
+	var execer driver.Execer
+	if !ok {
+		execer, ok = dc.ci.(driver.Execer)
+	}
+	if ok {
+		var nvdargs []driver.NamedValue
+		nvdargs, err = driverArgs(dc.ci, nil, args)
 		if err != nil {
 			return nil, err
 		}
 		var resi driver.Result
 		withLock(dc, func() {
-			resi, err = ctxDriverExec(ctx, execer, query, dargs)
+			resi, err = ctxDriverExec(ctx, execerCtx, execer, query, nvdargs)
 		})
 		if err != driver.ErrSkip {
 			if err != nil {
@@ -1343,15 +1348,20 @@ func (db *DB) query(ctx context.Context, query string, args []interface{}, strat
 // The ctx context is from a query method and the txctx context is from an
 // optional transaction context.
 func (db *DB) queryDC(ctx, txctx context.Context, dc *driverConn, releaseConn func(error), query string, args []interface{}) (*Rows, error) {
-	if queryer, ok := dc.ci.(driver.Queryer); ok {
-		dargs, err := driverArgs(dc.ci, nil, args)
+	queryerCtx, ok := dc.ci.(driver.QueryerContext)
+	var queryer driver.Queryer
+	if !ok {
+		queryer, ok = dc.ci.(driver.Queryer)
+	}
+	if ok {
+		nvdargs, err := driverArgs(dc.ci, nil, args)
 		if err != nil {
 			releaseConn(err)
 			return nil, err
 		}
 		var rowsi driver.Rows
 		withLock(dc, func() {
-			rowsi, err = ctxDriverQuery(ctx, queryer, query, dargs)
+			rowsi, err = ctxDriverQuery(ctx, queryerCtx, queryer, query, nvdargs)
 		})
 		if err != driver.ErrSkip {
 			if err != nil {

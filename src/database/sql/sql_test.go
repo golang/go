@@ -3487,6 +3487,127 @@ func TestNamedValueCheckerSkip(t *testing.T) {
 	}
 }
 
+type ctxOnlyDriver struct {
+	fakeDriver
+}
+
+func (d *ctxOnlyDriver) Open(dsn string) (driver.Conn, error) {
+	conn, err := d.fakeDriver.Open(dsn)
+	if err != nil {
+		return nil, err
+	}
+	return &ctxOnlyConn{fc: conn.(*fakeConn)}, nil
+}
+
+var (
+	_ driver.Conn           = &ctxOnlyConn{}
+	_ driver.QueryerContext = &ctxOnlyConn{}
+	_ driver.ExecerContext  = &ctxOnlyConn{}
+)
+
+type ctxOnlyConn struct {
+	fc *fakeConn
+
+	queryCtxCalled bool
+	execCtxCalled  bool
+}
+
+func (c *ctxOnlyConn) Begin() (driver.Tx, error) {
+	return c.fc.Begin()
+}
+
+func (c *ctxOnlyConn) Close() error {
+	return c.fc.Close()
+}
+
+// Prepare is still part of the Conn interface, so while it isn't used
+// must be defined for compatibility.
+func (c *ctxOnlyConn) Prepare(q string) (driver.Stmt, error) {
+	panic("not used")
+}
+
+func (c *ctxOnlyConn) PrepareContext(ctx context.Context, q string) (driver.Stmt, error) {
+	return c.fc.PrepareContext(ctx, q)
+}
+
+func (c *ctxOnlyConn) QueryContext(ctx context.Context, q string, args []driver.NamedValue) (driver.Rows, error) {
+	c.queryCtxCalled = true
+	return c.fc.QueryContext(ctx, q, args)
+}
+
+func (c *ctxOnlyConn) ExecContext(ctx context.Context, q string, args []driver.NamedValue) (driver.Result, error) {
+	c.execCtxCalled = true
+	return c.fc.ExecContext(ctx, q, args)
+}
+
+// TestQueryExecContextOnly ensures drivers only need to implement QueryContext
+// and ExecContext methods.
+func TestQueryExecContextOnly(t *testing.T) {
+	// Ensure connection does not implment non-context interfaces.
+	var connType driver.Conn = &ctxOnlyConn{}
+	if _, ok := connType.(driver.Execer); ok {
+		t.Fatalf("%T must not implement driver.Execer", connType)
+	}
+	if _, ok := connType.(driver.Queryer); ok {
+		t.Fatalf("%T must not implement driver.Queryer", connType)
+	}
+
+	Register("ContextOnly", &ctxOnlyDriver{})
+	db, err := Open("ContextOnly", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal("db.Conn", err)
+	}
+	defer conn.Close()
+
+	_, err = conn.ExecContext(ctx, "WIPE")
+	if err != nil {
+		t.Fatal("exec wipe", err)
+	}
+
+	_, err = conn.ExecContext(ctx, "CREATE|keys|v1=string")
+	if err != nil {
+		t.Fatal("exec create", err)
+	}
+	expectedValue := "value1"
+	_, err = conn.ExecContext(ctx, "INSERT|keys|v1=?", expectedValue)
+	if err != nil {
+		t.Fatal("exec insert", err)
+	}
+	rows, err := conn.QueryContext(ctx, "SELECT|keys|v1|")
+	if err != nil {
+		t.Fatal("query select", err)
+	}
+	v1 := ""
+	for rows.Next() {
+		err = rows.Scan(&v1)
+		if err != nil {
+			t.Fatal("rows scan", err)
+		}
+	}
+	rows.Close()
+
+	if v1 != expectedValue {
+		t.Fatalf("expected %q, got %q", expectedValue, v1)
+	}
+
+	coc := conn.dc.ci.(*ctxOnlyConn)
+	if !coc.execCtxCalled {
+		t.Error("ExecContext not called")
+	}
+	if !coc.queryCtxCalled {
+		t.Error("QueryContext not called")
+	}
+}
+
 // badConn implements a bad driver.Conn, for TestBadDriver.
 // The Exec method panics.
 type badConn struct{}
