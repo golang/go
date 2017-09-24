@@ -3820,6 +3820,7 @@ func TestGoEnv(t *testing.T) {
 	tg := testgo(t)
 	tg.parallel()
 	defer tg.cleanup()
+	tg.setenv("GOOS", "freebsd") // to avoid invalid pair errors
 	tg.setenv("GOARCH", "arm")
 	tg.run("env", "GOARCH")
 	tg.grepStdout("^arm$", "GOARCH not honored")
@@ -4588,4 +4589,13 @@ func TestParallelNumber(t *testing.T) {
 			tg.grepBoth("-parallel can only be given", "go test -parallel with N<1 did not error")
 		})
 	}
+}
+
+func TestWrongGOOSErrorBeforeLoadError(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.setenv("GOOS", "windwos")
+	tg.runFail("build", "exclude")
+	tg.grepStderr("unsupported GOOS/GOARCH pair", "GOOS=windwos go build exclude did not report 'unsupported GOOS/GOARCH pair'")
 }
