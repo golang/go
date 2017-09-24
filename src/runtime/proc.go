@@ -2824,10 +2824,6 @@ func reentersyscall(pc, sp uintptr) {
 		save(pc, sp)
 	}
 
-	// Goroutines must not split stacks in Gsyscall status (it would corrupt g->sched).
-	// We set _StackGuard to StackPreempt so that first split stack check calls morestack.
-	// Morestack detects this case and throws.
-	_g_.stackguard0 = stackPreempt
 	_g_.m.locks--
 }
 
