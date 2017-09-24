@@ -64,6 +64,18 @@ func TestIntendedInlining(t *testing.T) {
 			"(*waitq).enqueue",
 		},
 		"runtime/internal/sys": {},
+		"bytes": {
+			"(*Buffer).Bytes",
+			"(*Buffer).Cap",
+			"(*Buffer).Len",
+			"(*Buffer).Next",
+			"(*Buffer).Read",
+			"(*Buffer).ReadByte",
+			"(*Buffer).Reset",
+			"(*Buffer).String",
+			"(*Buffer).UnreadByte",
+			"(*Buffer).tryGrowByReslice",
+		},
 		"unicode/utf8": {
 			"FullRune",
 			"FullRuneInString",
