@@ -45,10 +45,11 @@ func rename(oldname, newname string) error {
 // can overwrite this data, which could cause the finalizer
 // to close the wrong file descriptor.
 type file struct {
-	pfd      poll.FD
-	name     string
-	dirinfo  *dirInfo // nil unless directory being read
-	nonblock bool     // whether we set nonblocking mode
+	pfd         poll.FD
+	name        string
+	dirinfo     *dirInfo // nil unless directory being read
+	nonblock    bool     // whether we set nonblocking mode
+	stdoutOrErr bool     // whether this is stdout or stderr
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
@@ -90,7 +91,8 @@ func newFile(fd uintptr, name string, pollable bool) *File {
 			IsStream:      true,
 			ZeroReadIsEOF: true,
 		},
-		name: name,
+		name:        name,
+		stdoutOrErr: fdi == 1 || fdi == 2,
 	}}
 
 	// Don't try to use kqueue with regular files on FreeBSD.
@@ -130,7 +132,7 @@ type dirInfo struct {
 // output or standard error. See the SIGPIPE docs in os/signal, and
 // issue 11845.
 func epipecheck(file *File, e error) {
-	if e == syscall.EPIPE && (file.pfd.Sysfd == 1 || file.pfd.Sysfd == 2) {
+	if e == syscall.EPIPE && file.stdoutOrErr {
 		sigpipe()
 	}
 }
