@@ -1492,7 +1492,7 @@ func (db *DB) Driver() driver.Driver {
 }
 
 // ErrConnDone is returned by any operation that is performed on a connection
-// that has already been committed or rolled back.
+// that has already been returned to the connection pool.
 var ErrConnDone = errors.New("database/sql: connection is already closed")
 
 // Conn returns a single connection by either opening a new connection
@@ -1527,9 +1527,9 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 
 type releaseConn func(error)
 
-// Conn represents a single database session rather than a pool of database
-// sessions. Prefer running queries from DB unless there is a specific
-// need for a continuous single database session.
+// Conn represents a single database connection rather than a pool of database
+// connections. Prefer running queries from DB unless there is a specific
+// need for a continuous single database connection.
 //
 // A Conn must call Close to return the connection to the database pool
 // and may do so concurrently with a running query.
@@ -1892,6 +1892,9 @@ func (tx *Tx) Prepare(query string) (*Stmt, error) {
 //  tx, err := db.Begin()
 //  ...
 //  res, err := tx.StmtContext(ctx, updateMoney).Exec(123.45, 98293203)
+//
+// The provided context is used for the preparation of the statement, not for the
+// execution of the statement.
 //
 // The returned statement operates within the transaction and will be closed
 // when the transaction has been committed or rolled back.
