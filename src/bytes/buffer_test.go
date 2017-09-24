@@ -6,10 +6,8 @@ package bytes_test
 
 import (
 	. "bytes"
-	"internal/testenv"
 	"io"
 	"math/rand"
-	"os/exec"
 	"runtime"
 	"testing"
 	"unicode/utf8"
@@ -557,26 +555,6 @@ func TestBufferGrowth(t *testing.T) {
 	// so set our error threshold at 3x.
 	if cap1 > cap0*3 {
 		t.Errorf("buffer cap = %d; too big (grew from %d)", cap1, cap0)
-	}
-}
-
-// Test that tryGrowByReslice is inlined.
-// Only execute on "linux-amd64" builder in order to avoid breakage.
-func TestTryGrowByResliceInlined(t *testing.T) {
-	targetBuilder := "linux-amd64"
-	if testenv.Builder() != targetBuilder {
-		t.Skipf("%q gets executed on %q builder only", t.Name(), targetBuilder)
-	}
-	t.Parallel()
-	goBin := testenv.GoToolPath(t)
-	out, err := exec.Command(goBin, "tool", "nm", goBin).CombinedOutput()
-	if err != nil {
-		t.Fatalf("go tool nm: %v: %s", err, out)
-	}
-	// Verify this doesn't exist:
-	sym := "bytes.(*Buffer).tryGrowByReslice"
-	if Contains(out, []byte(sym)) {
-		t.Errorf("found symbol %q in cmd/go, but should be inlined", sym)
 	}
 }
 
