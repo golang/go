@@ -40,7 +40,7 @@ func (s *Sym) Static() bool { return s.Type >= 'a' }
 // PackageName returns the package part of the symbol name,
 // or the empty string if there is none.
 func (s *Sym) PackageName() string {
-	pathend := strings.LastIndex(s.Name, "/")
+	pathend := strings.LastIndexByte(s.Name, '/')
 	if pathend < 0 {
 		pathend = 0
 	}
@@ -54,12 +54,12 @@ func (s *Sym) PackageName() string {
 // ReceiverName returns the receiver type name of this symbol,
 // or the empty string if there is none.
 func (s *Sym) ReceiverName() string {
-	pathend := strings.LastIndex(s.Name, "/")
+	pathend := strings.LastIndexByte(s.Name, '/')
 	if pathend < 0 {
 		pathend = 0
 	}
 	l := strings.IndexByte(s.Name[pathend:], '.')
-	r := strings.LastIndex(s.Name[pathend:], ".")
+	r := strings.LastIndexByte(s.Name[pathend:], '.')
 	if l == -1 || r == -1 || l == r {
 		return ""
 	}
@@ -68,7 +68,7 @@ func (s *Sym) ReceiverName() string {
 
 // BaseName returns the symbol name without the package or receiver name.
 func (s *Sym) BaseName() string {
-	if i := strings.LastIndex(s.Name, "."); i != -1 {
+	if i := strings.LastIndexByte(s.Name, '.'); i != -1 {
 		return s.Name[i+1:]
 	}
 	return s.Name

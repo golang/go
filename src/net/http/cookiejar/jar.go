@@ -330,7 +330,7 @@ func jarKey(host string, psl PublicSuffixList) string {
 
 	var i int
 	if psl == nil {
-		i = strings.LastIndex(host, ".")
+		i = strings.LastIndexByte(host, '.')
 		if i <= 0 {
 			return host
 		}
@@ -349,7 +349,7 @@ func jarKey(host string, psl PublicSuffixList) string {
 		// here on, so it is okay if psl.PublicSuffix("www.buggy.psl")
 		// returns "com" as the jar key is generated from host.
 	}
-	prevDot := strings.LastIndex(host[:i-1], ".")
+	prevDot := strings.LastIndexByte(host[:i-1], '.')
 	return host[prevDot+1:]
 }
 
@@ -365,7 +365,7 @@ func defaultPath(path string) string {
 		return "/" // Path is empty or malformed.
 	}
 
-	i := strings.LastIndex(path, "/") // Path starts with "/", so i != -1.
+	i := strings.LastIndexByte(path, '/') // Path starts with "/", so i != -1.
 	if i == 0 {
 		return "/" // Path has the form "/abc".
 	}

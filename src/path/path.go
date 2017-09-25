@@ -145,7 +145,7 @@ func Clean(path string) string {
 // file set to path.
 // The returned values have the property that path = dir+file.
 func Split(path string) (dir, file string) {
-	i := strings.LastIndex(path, "/")
+	i := strings.LastIndexByte(path, '/')
 	return path[:i+1], path[i+1:]
 }
 
@@ -187,7 +187,7 @@ func Base(path string) string {
 		path = path[0 : len(path)-1]
 	}
 	// Find the last element
-	if i := strings.LastIndex(path, "/"); i >= 0 {
+	if i := strings.LastIndexByte(path, '/'); i >= 0 {
 		path = path[i+1:]
 	}
 	// If empty now, it had only slashes.
