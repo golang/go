@@ -116,7 +116,8 @@ const (
 	C_REGREG
 	C_REGREG2
 	C_REGLIST
-	C_SHIFT
+	C_SHIFT     /* register shift R>>x */
+	C_SHIFTADDR /* memory address with shifted offset R>>x(R) */
 	C_FREG
 	C_PSR
 	C_FCR
@@ -311,6 +312,11 @@ const (
 	AREV16
 	AREVSH
 	ARBIT
+
+	AXTAB
+	AXTAH
+	AXTABU
+	AXTAHU
 
 	ABFX
 	ABFXU
