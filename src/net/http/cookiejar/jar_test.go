@@ -37,7 +37,7 @@ func (testPSL) PublicSuffix(d string) string {
 	if d == "www2.buggy.psl" {
 		return "com"
 	}
-	return d[strings.LastIndex(d, ".")+1:]
+	return d[strings.LastIndexByte(d, '.')+1:]
 }
 
 // newTestJar creates an empty Jar with testPSL as the public suffix list.

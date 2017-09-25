@@ -172,7 +172,7 @@ func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
 				if i := len(name); i > 0 && name[i-1] == '/' {
 					name = name[:i-1]
 				}
-				if i := strings.LastIndex(name, "/"); i >= 0 {
+				if i := strings.LastIndexByte(name, '/'); i >= 0 {
 					name = name[i+1:]
 				}
 				imp = NewPackage(path, name)
@@ -516,7 +516,7 @@ func (check *Checker) unusedImports() {
 
 // pkgName returns the package name (last element) of an import path.
 func pkgName(path string) string {
-	if i := strings.LastIndex(path, "/"); i >= 0 {
+	if i := strings.LastIndexByte(path, '/'); i >= 0 {
 		path = path[i+1:]
 	}
 	return path

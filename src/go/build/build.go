@@ -465,7 +465,7 @@ func (e *MultiplePackageError) Error() string {
 }
 
 func nameExt(name string) string {
-	i := strings.LastIndex(name, ".")
+	i := strings.LastIndexByte(name, '.')
 	if i < 0 {
 		return ""
 	}
@@ -610,7 +610,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 						}
 						tried.vendor = append(tried.vendor, dir)
 					}
-					i := strings.LastIndex(sub, "/")
+					i := strings.LastIndexByte(sub, '/')
 					if i < 0 {
 						break
 					}
@@ -1064,7 +1064,7 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 		return
 	}
 
-	i := strings.LastIndex(name, ".")
+	i := strings.LastIndexByte(name, '.')
 	if i < 0 {
 		i = len(name)
 	}

@@ -253,7 +253,7 @@ func TestMonotonicString(t *testing.T) {
 		t1 := Now()
 		SetMono(&t1, tt.mono)
 		s := t1.String()
-		got := s[strings.LastIndex(s, " ")+1:]
+		got := s[strings.LastIndexByte(s, ' ')+1:]
 		if got != tt.want {
 			t.Errorf("with mono=%d: got %q; want %q", tt.mono, got, tt.want)
 		}

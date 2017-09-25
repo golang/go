@@ -624,7 +624,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
 	if strings.HasPrefix(text, linePrefix) && (!pos.IsValid() || pos.Column == 1) {
 		// possibly a line directive
 		ldir := strings.TrimSpace(text[len(linePrefix):])
-		if i := strings.LastIndex(ldir, ":"); i >= 0 {
+		if i := strings.LastIndexByte(ldir, ':'); i >= 0 {
 			if line, err := strconv.Atoi(ldir[i+1:]); err == nil && line > 0 {
 				// The line directive we are about to print changed
 				// the Filename and Line number used for subsequent

@@ -26,7 +26,7 @@ func chkStat(file string) error {
 }
 
 func hasExt(file string) bool {
-	i := strings.LastIndex(file, ".")
+	i := strings.LastIndexByte(file, '.')
 	if i < 0 {
 		return false
 	}

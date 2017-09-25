@@ -205,7 +205,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
 	}
 	// If it has a slash, it must be a package path but there is a symbol.
 	// It's the last package path we care about.
-	slash := strings.LastIndex(arg, "/")
+	slash := strings.LastIndexByte(arg, '/')
 	// There may be periods in the package path before or after the slash
 	// and between a symbol and method.
 	// Split the string at various periods to see what we find.

@@ -1236,7 +1236,7 @@ func useProxy(addr string) bool {
 
 	addr = strings.ToLower(strings.TrimSpace(addr))
 	if hasPort(addr) {
-		addr = addr[:strings.LastIndex(addr, ":")]
+		addr = addr[:strings.LastIndexByte(addr, ':')]
 	}
 
 	for _, p := range strings.Split(noProxy, ",") {
@@ -1245,7 +1245,7 @@ func useProxy(addr string) bool {
 			continue
 		}
 		if hasPort(p) {
-			p = p[:strings.LastIndex(p, ":")]
+			p = p[:strings.LastIndexByte(p, ':')]
 		}
 		if addr == p {
 			return false
@@ -1317,7 +1317,7 @@ func (cm *connectMethod) addr() string {
 func (cm *connectMethod) tlsHost() string {
 	h := cm.targetAddr
 	if hasPort(h) {
-		h = h[:strings.LastIndex(h, ":")]
+		h = h[:strings.LastIndexByte(h, ':')]
 	}
 	return h
 }
