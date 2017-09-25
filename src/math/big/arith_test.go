@@ -142,6 +142,23 @@ func BenchmarkAddVV(b *testing.B) {
 	}
 }
 
+func BenchmarkSubVV(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		y := rndV(n)
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			for i := 0; i < b.N; i++ {
+				subVV(z, x, y)
+			}
+		})
+	}
+}
+
 type funVW func(z, x []Word, y Word) (c Word)
 type argVW struct {
 	z, x nat

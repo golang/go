@@ -30,42 +30,82 @@ TEXT ·divWW(SB),NOSPLIT,$0
 
 // func addVV(z, x, y []Word) (c Word)
 TEXT ·addVV(SB),NOSPLIT,$0
-	MOVD	z+0(FP), R3
 	MOVD	z_len+8(FP), R0
-	MOVD	x+24(FP), R1
-	MOVD	y+48(FP), R2
-	ADDS	$0, R0 // clear carry flag
-loop:
-	CBZ	R0, done // careful not to touch the carry flag
-	MOVD.P	8(R1), R4
-	MOVD.P	8(R2), R5
-	ADCS	R4, R5
-	MOVD.P	R5, 8(R3)
+	MOVD	x+24(FP), R8
+	MOVD	y+48(FP), R9
+	MOVD	z+0(FP), R10
+	ADDS	$0, R0		// clear carry flag
+	TBZ	$0, R0, two
+	MOVD.P	8(R8), R11
+	MOVD.P	8(R9), R15
+	ADCS	R15, R11
+	MOVD.P	R11, 8(R10)
 	SUB	$1, R0
+two:
+	TBZ	$1, R0, loop
+	LDP.P	16(R8), (R11, R12)
+	LDP.P	16(R9), (R15, R16)
+	ADCS	R15, R11
+	ADCS	R16, R12
+	STP.P	(R11, R12), 16(R10)
+	SUB	$2, R0
+loop:
+	CBZ	R0, done	// careful not to touch the carry flag
+	LDP.P	32(R8), (R11, R12)
+	LDP	-16(R8), (R13, R14)
+	LDP.P	32(R9), (R15, R16)
+	LDP	-16(R9), (R17, R18)
+	ADCS	R15, R11
+	ADCS	R16, R12
+	ADCS	R17, R13
+	ADCS	R18, R14
+	STP.P	(R11, R12), 32(R10)
+	STP	(R13, R14), -16(R10)
+	SUB	$4, R0
 	B	loop
 done:
-	CSET	HS, R0 // extract carry flag
+	CSET	HS, R0		// extract carry flag
 	MOVD	R0, c+72(FP)
 	RET
 
 
 // func subVV(z, x, y []Word) (c Word)
 TEXT ·subVV(SB),NOSPLIT,$0
-	MOVD	z+0(FP), R3
 	MOVD	z_len+8(FP), R0
-	MOVD	x+24(FP), R1
-	MOVD	y+48(FP), R2
-	CMP	R0, R0 // set carry flag
-loop:
-	CBZ	R0, done // careful not to touch the carry flag
-	MOVD.P	8(R1), R4
-	MOVD.P	8(R2), R5
-	SBCS	R5, R4
-	MOVD.P	R4, 8(R3)
+	MOVD	x+24(FP), R8
+	MOVD	y+48(FP), R9
+	MOVD	z+0(FP), R10
+	CMP	R0, R0		// set carry flag
+	TBZ	$0, R0, two
+	MOVD.P	8(R8), R11
+	MOVD.P	8(R9), R15
+	SBCS	R15, R11
+	MOVD.P	R11, 8(R10)
 	SUB	$1, R0
+two:
+	TBZ	$1, R0, loop
+	LDP.P	16(R8), (R11, R12)
+	LDP.P	16(R9), (R15, R16)
+	SBCS	R15, R11
+	SBCS	R16, R12
+	STP.P	(R11, R12), 16(R10)
+	SUB	$2, R0
+loop:
+	CBZ	R0, done	// careful not to touch the carry flag
+	LDP.P	32(R8), (R11, R12)
+	LDP	-16(R8), (R13, R14)
+	LDP.P	32(R9), (R15, R16)
+	LDP	-16(R9), (R17, R18)
+	SBCS	R15, R11
+	SBCS	R16, R12
+	SBCS	R17, R13
+	SBCS	R18, R14
+	STP.P	(R11, R12), 32(R10)
+	STP	(R13, R14), -16(R10)
+	SUB	$4, R0
 	B	loop
 done:
-	CSET	LO, R0 // extract carry flag
+	CSET	LO, R0		// extract carry flag
 	MOVD	R0, c+72(FP)
 	RET
 
