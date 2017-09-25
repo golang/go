@@ -649,12 +649,14 @@ type regFileReader struct {
 	nb int64     // Number of remaining bytes to read
 }
 
-func (fr *regFileReader) Read(b []byte) (int, error) {
+func (fr *regFileReader) Read(b []byte) (n int, err error) {
 	if int64(len(b)) > fr.nb {
 		b = b[:fr.nb]
 	}
-	n, err := fr.r.Read(b)
-	fr.nb -= int64(n)
+	if len(b) > 0 {
+		n, err = fr.r.Read(b)
+		fr.nb -= int64(n)
+	}
 	switch {
 	case err == io.EOF && fr.nb > 0:
 		return n, io.ErrUnexpectedEOF
