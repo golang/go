@@ -1158,7 +1158,7 @@ func (t gcTrigger) test() bool {
 	if t.kind == gcTriggerAlways {
 		return true
 	}
-	if gcphase != _GCoff || gcpercent < 0 {
+	if gcphase != _GCoff {
 		return false
 	}
 	switch t.kind {
@@ -1169,6 +1169,9 @@ func (t gcTrigger) test() bool {
 		// own write.
 		return memstats.heap_live >= memstats.gc_trigger
 	case gcTriggerTime:
+		if gcpercent < 0 {
+			return false
+		}
 		lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
 		return lastgc != 0 && t.now-lastgc > forcegcperiod
 	case gcTriggerCycle:
