@@ -184,6 +184,8 @@ func TestParse(t *testing.T) {
 }
 
 func TestParseInLocation(t *testing.T) {
+	t.Skip("skipping test for Go 1.4; Issue 19457")
+
 	// Check that Parse (and ParseInLocation) understand that
 	// Feb 01 AST (Arabia Standard Time) and Feb 01 AST (Atlantic Standard Time)
 	// are in different time zones even though both are called AST
