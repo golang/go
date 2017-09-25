@@ -404,23 +404,6 @@ func (c *gcControllerState) startCycle() {
 	c.fractionalMarkTime = 0
 	c.idleMarkTime = 0
 
-	// If this is the first GC cycle or we're operating on a very
-	// small heap, fake heap_marked so it looks like gc_trigger is
-	// the appropriate growth from heap_marked, even though the
-	// real heap_marked may not have a meaningful value (on the
-	// first cycle) or may be much smaller (resulting in a large
-	// error response).
-	if memstats.gc_trigger <= heapminimum {
-		memstats.heap_marked = uint64(float64(memstats.gc_trigger) / (1 + memstats.triggerRatio))
-	}
-
-	// Re-compute the heap goal for this cycle in case something
-	// changed. This is the same calculation we use elsewhere.
-	memstats.next_gc = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
-	if gcpercent < 0 {
-		memstats.next_gc = ^uint64(0)
-	}
-
 	// Ensure that the heap goal is at least a little larger than
 	// the current live heap size. This may not be the case if GC
 	// start is delayed or if the allocation that pushed heap_live
@@ -585,7 +568,7 @@ func (c *gcControllerState) endCycle() float64 {
 	// growth if we had the desired CPU utilization). The
 	// difference between this estimate and the GOGC-based goal
 	// heap growth is the error.
-	goalGrowthRatio := float64(gcpercent) / 100
+	goalGrowthRatio := gcEffectiveGrowthRatio()
 	actualGrowthRatio := float64(memstats.heap_live)/float64(memstats.heap_marked) - 1
 	assistDuration := nanotime() - c.markStartTime
 
@@ -867,6 +850,24 @@ func gcSetTriggerRatio(triggerRatio float64) {
 			atomic.Store64(&mheap_.pagesSweptBasis, pagesSwept)
 		}
 	}
+}
+
+// gcEffectiveGrowthRatio returns the current effective heap growth
+// ratio (GOGC/100) based on heap_marked from the previous GC and
+// next_gc for the current GC.
+//
+// This may differ from gcpercent/100 because of various upper and
+// lower bounds on gcpercent. For example, if the heap is smaller than
+// heapminimum, this can be higher than gcpercent/100.
+//
+// mheap_.lock must be held or the world must be stopped.
+func gcEffectiveGrowthRatio() float64 {
+	egogc := float64(memstats.next_gc-memstats.heap_marked) / float64(memstats.heap_marked)
+	if egogc < 0 {
+		// Shouldn't happen, but just in case.
+		egogc = 0
+	}
+	return egogc
 }
 
 // gcGoalUtilization is the goal CPU utilization for
