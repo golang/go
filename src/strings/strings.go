@@ -166,22 +166,20 @@ func IndexRune(s string, r rune) int {
 // IndexAny returns the index of the first instance of any Unicode code point
 // from chars in s, or -1 if no Unicode code point from chars is present in s.
 func IndexAny(s, chars string) int {
-	if len(chars) > 0 {
-		if len(s) > 8 {
-			if as, isASCII := makeASCIISet(chars); isASCII {
-				for i := 0; i < len(s); i++ {
-					if as.contains(s[i]) {
-						return i
-					}
-				}
-				return -1
-			}
-		}
-		for i, c := range s {
-			for _, m := range chars {
-				if c == m {
+	if len(s) > 8 {
+		if as, isASCII := makeASCIISet(chars); isASCII {
+			for i := 0; i < len(s); i++ {
+				if as.contains(s[i]) {
 					return i
 				}
+			}
+			return -1
+		}
+	}
+	for i, c := range s {
+		for _, m := range chars {
+			if c == m {
+				return i
 			}
 		}
 	}
@@ -192,24 +190,22 @@ func IndexAny(s, chars string) int {
 // point from chars in s, or -1 if no Unicode code point from chars is
 // present in s.
 func LastIndexAny(s, chars string) int {
-	if len(chars) > 0 {
-		if len(s) > 8 {
-			if as, isASCII := makeASCIISet(chars); isASCII {
-				for i := len(s) - 1; i >= 0; i-- {
-					if as.contains(s[i]) {
-						return i
-					}
-				}
-				return -1
-			}
-		}
-		for i := len(s); i > 0; {
-			r, size := utf8.DecodeLastRuneInString(s[:i])
-			i -= size
-			for _, c := range chars {
-				if r == c {
+	if len(s) > 8 {
+		if as, isASCII := makeASCIISet(chars); isASCII {
+			for i := len(s) - 1; i >= 0; i-- {
+				if as.contains(s[i]) {
 					return i
 				}
+			}
+			return -1
+		}
+	}
+	for i := len(s); i > 0; {
+		r, size := utf8.DecodeLastRuneInString(s[:i])
+		i -= size
+		for _, c := range chars {
+			if r == c {
+				return i
 			}
 		}
 	}
