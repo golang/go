@@ -941,7 +941,7 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		if r.Op != OKEY {
 			Fatalf("maplit: rhs not OKEY: %v", r)
 		}
-		if isliteral(r.Left) && isliteral(r.Right) {
+		if isStaticCompositeLiteral(r.Left) && isStaticCompositeLiteral(r.Right) {
 			stat = append(stat, r)
 		} else {
 			dyn = append(dyn, r)
@@ -966,24 +966,14 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		vstatv := staticname(tv)
 		vstatv.Name.SetReadonly(true)
 
-		for i, r := range stat {
-			index := r.Left
-			value := r.Right
-
-			// build vstatk[b] = index
-			setlineno(index)
-			lhs := nod(OINDEX, vstatk, nodintconst(int64(i)))
-			as := nod(OAS, lhs, index)
-			as = typecheck(as, Etop)
-			genAsStatic(as)
-
-			// build vstatv[b] = value
-			setlineno(value)
-			lhs = nod(OINDEX, vstatv, nodintconst(int64(i)))
-			as = nod(OAS, lhs, value)
-			as = typecheck(as, Etop)
-			genAsStatic(as)
+		datak := nod(OARRAYLIT, nil, nil)
+		datav := nod(OARRAYLIT, nil, nil)
+		for _, r := range stat {
+			datak.List.Append(r.Left)
+			datav.List.Append(r.Right)
 		}
+		fixedlit(inInitFunction, initKindStatic, datak, vstatk, init)
+		fixedlit(inInitFunction, initKindStatic, datav, vstatv, init)
 
 		// loop adding structure elements to map
 		// for i = 0; i < len(vstatk); i++ {
