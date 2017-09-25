@@ -13,9 +13,10 @@ import (
 )
 
 // Text returns the string representation of x in the given base.
-// Base must be between 2 and 36, inclusive. The result uses the
-// lower-case letters 'a' to 'z' for digit values >= 10. No base
-// prefix (such as "0x") is added to the string.
+// Base must be between 2 and 62, inclusive. The result uses the
+// lower-case letters 'a' to 'z' for digit values 10 to 35, and
+// the upper-case letters 'A' to 'Z' for digit values 36 to 61.
+// No prefix (such as "0x") is added to the string.
 func (x *Int) Text(base int) string {
 	if x == nil {
 		return "<nil>"

@@ -389,6 +389,11 @@ func (x *Int) IsUint64() bool {
 // ``0x'' or ``0X'' selects base 16; the ``0'' prefix selects base 8, and a
 // ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base is 10.
 //
+// For bases <= 36, lower and upper case letters are considered the same:
+// The letters 'a' to 'z' and 'A' to 'Z' represent digit values 10 to 35.
+// For bases > 36, the upper case letters 'A' to 'Z' represent the digit
+// values 36 to 61.
+//
 func (z *Int) SetString(s string, base int) (*Int, bool) {
 	return z.setFromScanner(strings.NewReader(s), base)
 }
