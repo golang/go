@@ -42,6 +42,7 @@ type FD struct {
 // This can be called multiple times on a single FD.
 // The net argument is a network name from the net package (e.g., "tcp"),
 // or "file".
+// Set pollable to true if fd should be managed by runtime netpoll.
 func (fd *FD) Init(net string, pollable bool) error {
 	// We don't actually care about the various network types.
 	if net == "file" {
