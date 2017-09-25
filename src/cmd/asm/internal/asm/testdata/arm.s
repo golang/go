@@ -985,6 +985,40 @@ jmp_label_3:
 	REVSH	R1, R2               // b12fffe6
 	RBIT	R1, R2               // 312fffe6
 
+// XTAB/XTAH/XTABU/XTAHU
+	XTAB	R2@>0, R8            // 7280a8e6
+	XTAB	R2@>8, R8            // 7284a8e6
+	XTAB	R2@>16, R8           // 7288a8e6
+	XTAB	R2@>24, R8           // 728ca8e6
+	XTAH	R3@>0, R9            // 7390b9e6
+	XTAH	R3@>8, R9            // 7394b9e6
+	XTAH	R3@>16, R9           // 7398b9e6
+	XTAH	R3@>24, R9           // 739cb9e6
+	XTABU	R4@>0, R7            // 7470e7e6
+	XTABU	R4@>8, R7            // 7474e7e6
+	XTABU	R4@>16, R7           // 7478e7e6
+	XTABU	R4@>24, R7           // 747ce7e6
+	XTAHU	R5@>0, R1            // 7510f1e6
+	XTAHU	R5@>8, R1            // 7514f1e6
+	XTAHU	R5@>16, R1           // 7518f1e6
+	XTAHU	R5@>24, R1           // 751cf1e6
+	XTAB	R2@>0, R4, R8        // 7280a4e6
+	XTAB	R2@>8, R4, R8        // 7284a4e6
+	XTAB	R2@>16, R4, R8       // 7288a4e6
+	XTAB	R2@>24, R4, R8       // 728ca4e6
+	XTAH	R3@>0, R4, R9        // 7390b4e6
+	XTAH	R3@>8, R4, R9        // 7394b4e6
+	XTAH	R3@>16, R4, R9       // 7398b4e6
+	XTAH	R3@>24, R4, R9       // 739cb4e6
+	XTABU	R4@>0, R0, R7        // 7470e0e6
+	XTABU	R4@>8, R0, R7        // 7474e0e6
+	XTABU	R4@>16, R0, R7       // 7478e0e6
+	XTABU	R4@>24, R0, R7       // 747ce0e6
+	XTAHU	R5@>0, R9, R1        // 7510f9e6
+	XTAHU	R5@>8, R9, R1        // 7514f9e6
+	XTAHU	R5@>16, R9, R1       // 7518f9e6
+	XTAHU	R5@>24, R9, R1       // 751cf9e6
+
 // DIVHW R0, R1, R2: R1 / R0 -> R2
 	DIVHW	R0, R1, R2           // 11f012e7
 	DIVUHW	R0, R1, R2           // 11f032e7
@@ -1152,6 +1186,10 @@ jmp_label_3:
 // MOVW
 	MOVW	R3, R4                                            // 0340a0e1
 	MOVW	R9, R2                                            // 0920a0e1
+	MOVW	R5>>1, R2                                         // a520a0e1
+	MOVW	R5<<1, R2                                         // 8520a0e1
+	MOVW	R5->1, R2                                         // c520a0e1
+	MOVW	R5@>1, R2                                         // e520a0e1
 	MOVW	$0xff, R9            // MOVW $255, R9             // ff90a0e3
 	MOVW	$0xff000000, R9      // MOVW $4278190080, R9      // ff94a0e3
 	MOVW	$0xff(R0), R1        // MOVW $255(R0), R1         // ff1080e2
@@ -1394,6 +1432,18 @@ jmp_label_3:
 	MOVB.U	R0<<0(R1), R2                                     // d02011e1
 	MOVB.W	R0<<0(R1), R2                                     // d020b1e1
 	MOVB.P	R0<<0(R1), R2                                     // d02091e0
+	MOVBS	R2@>0, R8                                         // 7280afe6
+	MOVBS	R2@>8, R8                                         // 7284afe6
+	MOVBS	R2@>16, R8                                        // 7288afe6
+	MOVBS	R2@>24, R8                                        // 728cafe6
+	MOVB	R2@>0, R8                                         // 7280afe6
+	MOVB	R2@>8, R8                                         // 7284afe6
+	MOVB	R2@>16, R8                                        // 7288afe6
+	MOVB	R2@>24, R8                                        // 728cafe6
+	MOVBU	R4@>0, R7                                         // 7470efe6
+	MOVBU	R4@>8, R7                                         // 7474efe6
+	MOVBU	R4@>16, R7                                        // 7478efe6
+	MOVBU	R4@>24, R7                                        // 747cefe6
 
 // MOVH
 	MOVH	R3, R4                                            // 0340a0e1
@@ -1520,6 +1570,18 @@ jmp_label_3:
 	MOVHU.U	R2, R5<<0(R1)                                     // b52001e1
 	MOVHU.W	R2, R5<<0(R1)                                     // b520a1e1
 	MOVHU.P	R2, R5<<0(R1)                                     // b52081e0
+	MOVHS	R3@>0, R9                                         // 7390bfe6
+	MOVHS	R3@>8, R9                                         // 7394bfe6
+	MOVHS	R3@>16, R9                                        // 7398bfe6
+	MOVHS	R3@>24, R9                                        // 739cbfe6
+	MOVH	R3@>0, R9                                         // 7390bfe6
+	MOVH	R3@>8, R9                                         // 7394bfe6
+	MOVH	R3@>16, R9                                        // 7398bfe6
+	MOVH	R3@>24, R9                                        // 739cbfe6
+	MOVHU	R5@>0, R1                                         // 7510ffe6
+	MOVHU	R5@>8, R1                                         // 7514ffe6
+	MOVHU	R5@>16, R1                                        // 7518ffe6
+	MOVHU	R5@>24, R1                                        // 751cffe6
 
 //
 // END

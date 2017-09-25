@@ -194,6 +194,15 @@ var optab = []Optab{
 	{AMOVW, C_SOREG, C_NONE, C_REG, 21, 4, 0, 0, 0},
 	{AMOVBU, C_SAUTO, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
 	{AMOVBU, C_SOREG, C_NONE, C_REG, 21, 4, 0, 0, 0},
+	{AXTAB, C_SHIFT, C_REG, C_REG, 22, 4, 0, 0, 0},
+	{AXTAB, C_SHIFT, C_NONE, C_REG, 22, 4, 0, 0, 0},
+	{AMOVW, C_SHIFT, C_NONE, C_REG, 23, 4, 0, 0, 0},
+	{AMOVB, C_SHIFT, C_NONE, C_REG, 23, 4, 0, 0, 0},
+	{AMOVBS, C_SHIFT, C_NONE, C_REG, 23, 4, 0, 0, 0},
+	{AMOVBU, C_SHIFT, C_NONE, C_REG, 23, 4, 0, 0, 0},
+	{AMOVH, C_SHIFT, C_NONE, C_REG, 23, 4, 0, 0, 0},
+	{AMOVHS, C_SHIFT, C_NONE, C_REG, 23, 4, 0, 0, 0},
+	{AMOVHU, C_SHIFT, C_NONE, C_REG, 23, 4, 0, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
 	{AMOVW, C_REG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
 	{AMOVW, C_REG, C_NONE, C_ADDR, 64, 8, 0, LTO | LPCREL, 4},
@@ -238,20 +247,20 @@ var optab = []Optab{
 	{ANEGF, C_FREG, C_NONE, C_FREG, 55, 4, 0, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_FCR, 56, 4, 0, 0, 0},
 	{AMOVW, C_FCR, C_NONE, C_REG, 57, 4, 0, 0, 0},
-	{AMOVW, C_SHIFT, C_NONE, C_REG, 59, 4, 0, 0, 0},
-	{AMOVBU, C_SHIFT, C_NONE, C_REG, 59, 4, 0, 0, 0},
-	{AMOVB, C_SHIFT, C_NONE, C_REG, 60, 4, 0, 0, 0},
-	{AMOVBS, C_SHIFT, C_NONE, C_REG, 60, 4, 0, 0, 0},
-	{AMOVH, C_SHIFT, C_NONE, C_REG, 60, 4, 0, 0, 0},
-	{AMOVHS, C_SHIFT, C_NONE, C_REG, 60, 4, 0, 0, 0},
-	{AMOVHU, C_SHIFT, C_NONE, C_REG, 60, 4, 0, 0, 0},
-	{AMOVW, C_REG, C_NONE, C_SHIFT, 61, 4, 0, 0, 0},
-	{AMOVB, C_REG, C_NONE, C_SHIFT, 61, 4, 0, 0, 0},
-	{AMOVBS, C_REG, C_NONE, C_SHIFT, 61, 4, 0, 0, 0},
-	{AMOVBU, C_REG, C_NONE, C_SHIFT, 61, 4, 0, 0, 0},
-	{AMOVH, C_REG, C_NONE, C_SHIFT, 62, 4, 0, 0, 0},
-	{AMOVHS, C_REG, C_NONE, C_SHIFT, 62, 4, 0, 0, 0},
-	{AMOVHU, C_REG, C_NONE, C_SHIFT, 62, 4, 0, 0, 0},
+	{AMOVW, C_SHIFTADDR, C_NONE, C_REG, 59, 4, 0, 0, 0},
+	{AMOVBU, C_SHIFTADDR, C_NONE, C_REG, 59, 4, 0, 0, 0},
+	{AMOVB, C_SHIFTADDR, C_NONE, C_REG, 60, 4, 0, 0, 0},
+	{AMOVBS, C_SHIFTADDR, C_NONE, C_REG, 60, 4, 0, 0, 0},
+	{AMOVH, C_SHIFTADDR, C_NONE, C_REG, 60, 4, 0, 0, 0},
+	{AMOVHS, C_SHIFTADDR, C_NONE, C_REG, 60, 4, 0, 0, 0},
+	{AMOVHU, C_SHIFTADDR, C_NONE, C_REG, 60, 4, 0, 0, 0},
+	{AMOVW, C_REG, C_NONE, C_SHIFTADDR, 61, 4, 0, 0, 0},
+	{AMOVB, C_REG, C_NONE, C_SHIFTADDR, 61, 4, 0, 0, 0},
+	{AMOVBS, C_REG, C_NONE, C_SHIFTADDR, 61, 4, 0, 0, 0},
+	{AMOVBU, C_REG, C_NONE, C_SHIFTADDR, 61, 4, 0, 0, 0},
+	{AMOVH, C_REG, C_NONE, C_SHIFTADDR, 62, 4, 0, 0, 0},
+	{AMOVHS, C_REG, C_NONE, C_SHIFTADDR, 62, 4, 0, 0, 0},
+	{AMOVHU, C_REG, C_NONE, C_SHIFTADDR, 62, 4, 0, 0, 0},
 	{AMOVH, C_REG, C_NONE, C_HAUTO, 70, 4, REGSP, 0, 0},
 	{AMOVH, C_REG, C_NONE, C_HOREG, 70, 4, 0, 0, 0},
 	{AMOVHS, C_REG, C_NONE, C_HAUTO, 70, 4, REGSP, 0, 0},
@@ -1151,7 +1160,13 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
 		return C_REGLIST
 
 	case obj.TYPE_SHIFT:
-		return C_SHIFT
+		if a.Reg == 0 {
+			// register shift R>>i
+			return C_SHIFT
+		} else {
+			// memory address with shifted offset R>>i(R)
+			return C_SHIFTADDR
+		}
 
 	case obj.TYPE_MEM:
 		switch a.Name {
@@ -1373,19 +1388,14 @@ func (c *ctxt5) oplook(p *obj.Prog) *Optab {
 
 	// check illegal base register
 	switch a1 {
-	case C_SHIFT:
-		if p.From.Reg == 0 { // no base register
-			break
-		}
-		fallthrough
-	case C_SOREG, C_LOREG, C_HOREG, C_FOREG, C_ROREG, C_HFOREG, C_SROREG:
+	case C_SOREG, C_LOREG, C_HOREG, C_FOREG, C_ROREG, C_HFOREG, C_SROREG, C_SHIFTADDR:
 		if p.From.Reg < REG_R0 || REG_R15 < p.From.Reg {
 			c.ctxt.Diag("illegal base register: %v", p)
 		}
 	default:
 	}
 	switch a3 {
-	case C_SOREG, C_LOREG, C_HOREG, C_FOREG, C_ROREG, C_HFOREG, C_SROREG, C_SHIFT:
+	case C_SOREG, C_LOREG, C_HOREG, C_FOREG, C_ROREG, C_HFOREG, C_SROREG, C_SHIFTADDR:
 		if p.To.Reg < REG_R0 || REG_R15 < p.To.Reg {
 			c.ctxt.Diag("illegal base register: %v", p)
 		}
@@ -1719,6 +1729,11 @@ func buildop(ctxt *obj.Link) {
 			opset(AREV16, r0)
 			opset(AREVSH, r0)
 			opset(ARBIT, r0)
+
+		case AXTAB:
+			opset(AXTAH, r0)
+			opset(AXTABU, r0)
+			opset(AXTAHU, r0)
 
 		case ALDREX,
 			ASTREX,
@@ -2100,6 +2115,32 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 |= 1 << 22
 		}
 
+	case 22: /* XTAB R@>i, [R], R */
+		o1 = c.oprrr(p, p.As, int(p.Scond))
+		switch p.From.Offset &^ 0xf {
+		// only 0/8/16/24 bits rotation is accepted
+		case SHIFT_RR, SHIFT_RR | 8<<7, SHIFT_RR | 16<<7, SHIFT_RR | 24<<7:
+			o1 |= uint32(p.From.Offset) & 0xc0f
+		default:
+			c.ctxt.Diag("illegal shift: %v", p)
+		}
+		rt := p.To.Reg
+		r := p.Reg
+		if r == 0 {
+			r = rt
+		}
+		o1 |= (uint32(rt)&15)<<12 | (uint32(r)&15)<<16
+
+	case 23: /* MOVW/MOVB/MOVH R@>i, R */
+		switch p.As {
+		case AMOVW:
+			o1 = c.mov(p)
+		case AMOVBU, AMOVBS, AMOVB, AMOVHU, AMOVHS, AMOVH:
+			o1 = c.movxt(p)
+		default:
+			c.ctxt.Diag("illegal combination: %v", p)
+		}
+
 	case 30: /* mov/movb/movbu R,L(R) */
 		o1 = c.omvl(p, &p.To, REGTMP)
 
@@ -2322,15 +2363,12 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 59: /* movw/bu R<<I(R),R -> ldr indexed */
 		if p.From.Reg == 0 {
-			if p.As != AMOVW {
-				c.ctxt.Diag("byte MOV from shifter operand")
-			}
-			o1 = c.mov(p)
+			c.ctxt.Diag("source operand is not a memory address: %v", p)
 			break
 		}
-
 		if p.From.Offset&(1<<4) != 0 {
 			c.ctxt.Diag("bad shift in LDR")
+			break
 		}
 		o1 = c.olrr(int(p.From.Offset), int(p.From.Reg), int(p.To.Reg), int(p.Scond))
 		if p.As == AMOVBU {
@@ -2339,13 +2377,12 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 60: /* movb R(R),R -> ldrsb indexed */
 		if p.From.Reg == 0 {
-			c.ctxt.Diag("byte MOV from shifter operand")
-			o1 = c.mov(p)
+			c.ctxt.Diag("source operand is not a memory address: %v", p)
 			break
 		}
-
 		if p.From.Offset&(^0xf) != 0 {
 			c.ctxt.Diag("bad shift: %v", p)
+			break
 		}
 		o1 = c.olhrr(int(p.From.Offset), int(p.From.Reg), int(p.To.Reg), int(p.Scond))
 		switch p.As {
@@ -2789,6 +2826,31 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	return
 }
 
+func (c *ctxt5) movxt(p *obj.Prog) uint32 {
+	o1 := ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
+	switch p.As {
+	case AMOVB, AMOVBS:
+		o1 |= 0x6af<<16 | 0x7<<4
+	case AMOVH, AMOVHS:
+		o1 |= 0x6bf<<16 | 0x7<<4
+	case AMOVBU:
+		o1 |= 0x6ef<<16 | 0x7<<4
+	case AMOVHU:
+		o1 |= 0x6ff<<16 | 0x7<<4
+	default:
+		c.ctxt.Diag("illegal combination: %v", p)
+	}
+	switch p.From.Offset &^ 0xf {
+	// only 0/8/16/24 bits rotation is accepted
+	case SHIFT_RR, SHIFT_RR | 8<<7, SHIFT_RR | 16<<7, SHIFT_RR | 24<<7:
+		o1 |= uint32(p.From.Offset) & 0xc0f
+	default:
+		c.ctxt.Diag("illegal shift: %v", p)
+	}
+	o1 |= (uint32(p.To.Reg) & 15) << 12
+	return o1
+}
+
 func (c *ctxt5) mov(p *obj.Prog) uint32 {
 	c.aclass(&p.From)
 	o1 := c.oprrr(p, p.As, int(p.Scond))
@@ -2999,6 +3061,18 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
 
 	case ABFXU:
 		return o | 0x3f<<21 | 0x5<<4
+
+	case AXTAB:
+		return o | 0x6a<<20 | 0x7<<4
+
+	case AXTAH:
+		return o | 0x6b<<20 | 0x7<<4
+
+	case AXTABU:
+		return o | 0x6e<<20 | 0x7<<4
+
+	case AXTAHU:
+		return o | 0x6f<<20 | 0x7<<4
 
 		// CLZ doesn't support .nil
 	case ACLZ:
