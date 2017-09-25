@@ -431,11 +431,11 @@ func TestGdbConst(t *testing.T) {
 	}
 	got, _ := exec.Command("gdb", args...).CombinedOutput()
 
-	sgot := string(got)
+	sgot := strings.Replace(string(got), "\r\n", "\n", -1)
 
 	t.Logf("output %q", sgot)
 
-	if strings.Index(sgot, "\n$1 = 42\n$2 = 18446744073709551615\n$3 = -1\n$4 = 1 '\\001'") < 0 {
+	if !strings.Contains(sgot, "\n$1 = 42\n$2 = 18446744073709551615\n$3 = -1\n$4 = 1 '\\001'") {
 		t.Fatalf("output mismatch")
 	}
 }
