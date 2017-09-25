@@ -1136,15 +1136,10 @@ type gcTrigger struct {
 type gcTriggerKind int
 
 const (
-	// gcTriggerAlways indicates that a cycle should be started
-	// unconditionally, even if GOGC is off or we're in a cycle
-	// right now. This cannot be consolidated with other cycles.
-	gcTriggerAlways gcTriggerKind = iota
-
 	// gcTriggerHeap indicates that a cycle should be started when
 	// the heap size reaches the trigger heap size computed by the
 	// controller.
-	gcTriggerHeap
+	gcTriggerHeap gcTriggerKind = iota
 
 	// gcTriggerTime indicates that a cycle should be started when
 	// it's been more than forcegcperiod nanoseconds since the
@@ -1161,13 +1156,7 @@ const (
 // that the exit condition for the _GCoff phase has been met. The exit
 // condition should be tested when allocating.
 func (t gcTrigger) test() bool {
-	if !memstats.enablegc || panicking != 0 {
-		return false
-	}
-	if t.kind == gcTriggerAlways {
-		return true
-	}
-	if gcphase != _GCoff {
+	if !memstats.enablegc || panicking != 0 || gcphase != _GCoff {
 		return false
 	}
 	switch t.kind {
@@ -1233,7 +1222,7 @@ func gcStart(trigger gcTrigger) {
 	}
 
 	// For stats, check if this GC was forced by the user.
-	work.userForced = trigger.kind == gcTriggerAlways || trigger.kind == gcTriggerCycle
+	work.userForced = trigger.kind == gcTriggerCycle
 
 	// In gcstoptheworld debug mode, upgrade the mode accordingly.
 	// We do this after re-checking the transition condition so
