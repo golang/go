@@ -302,7 +302,8 @@ var logInitFD func(net string, fd *FD, err error)
 // This can be called multiple times on a single FD.
 // The net argument is a network name from the net package (e.g., "tcp"),
 // or "file" or "console" or "dir".
-func (fd *FD) Init(net string) (string, error) {
+// Set pollable to true if fd should be managed by runtime netpoll.
+func (fd *FD) Init(net string, pollable bool) (string, error) {
 	if initErr != nil {
 		return "", initErr
 	}
@@ -323,7 +324,7 @@ func (fd *FD) Init(net string) (string, error) {
 	}
 
 	var err error
-	if !fd.isFile && !fd.isConsole && !fd.isDir {
+	if pollable {
 		// Only call init for a network socket.
 		// This means that we don't add files to the runtime poller.
 		// Adding files to the runtime poller can confuse matters
