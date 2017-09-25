@@ -618,6 +618,11 @@ func (t *Transport) connectMethodForRequest(treq *transportRequest) (cm connectM
 			if port := cm.proxyURL.Port(); !validPort(port) {
 				return cm, fmt.Errorf("invalid proxy URL port %q", port)
 			}
+			switch cm.proxyURL.Scheme {
+			case "http", "socks5":
+			default:
+				return cm, fmt.Errorf("invalid proxy URL scheme %q", cm.proxyURL.Scheme)
+			}
 		}
 	}
 	return cm, err
