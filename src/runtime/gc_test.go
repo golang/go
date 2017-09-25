@@ -499,3 +499,19 @@ func BenchmarkReadMemStats(b *testing.B) {
 
 	hugeSink = nil
 }
+
+func TestUserForcedGC(t *testing.T) {
+	// Test that runtime.GC() triggers a GC even if GOGC=off.
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
+	var ms1, ms2 runtime.MemStats
+	runtime.ReadMemStats(&ms1)
+	runtime.GC()
+	runtime.ReadMemStats(&ms2)
+	if ms1.NumGC == ms2.NumGC {
+		t.Fatalf("runtime.GC() did not trigger GC")
+	}
+	if ms1.NumForcedGC == ms2.NumForcedGC {
+		t.Fatalf("runtime.GC() was not accounted in NumForcedGC")
+	}
+}
