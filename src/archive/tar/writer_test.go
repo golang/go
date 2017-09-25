@@ -7,6 +7,7 @@ package tar
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
@@ -987,6 +988,17 @@ func TestIssue12594(t *testing.T) {
 	}
 }
 
+// testNonEmptyWriter wraps an io.Writer and ensures that
+// Write is never called with an empty buffer.
+type testNonEmptyWriter struct{ io.Writer }
+
+func (w testNonEmptyWriter) Write(b []byte) (int, error) {
+	if len(b) == 0 {
+		return 0, errors.New("unexpected empty Write call")
+	}
+	return w.Writer.Write(b)
+}
+
 func TestFileWriter(t *testing.T) {
 	type (
 		testWrite struct { // Write(str) == (wantCnt, wantErr)
@@ -1225,17 +1237,18 @@ func TestFileWriter(t *testing.T) {
 	for i, v := range vectors {
 		var wantStr string
 		bb := new(bytes.Buffer)
+		w := testNonEmptyWriter{bb}
 		var fw fileWriter
 		switch maker := v.maker.(type) {
 		case makeReg:
-			fw = &regFileWriter{bb, maker.size}
+			fw = &regFileWriter{w, maker.size}
 			wantStr = maker.wantStr
 		case makeSparse:
 			if !validateSparseEntries(maker.sph, maker.size) {
 				t.Fatalf("invalid sparse map: %v", maker.sph)
 			}
 			spd := invertSparseEntries(maker.sph, maker.size)
-			fw = &regFileWriter{bb, maker.makeReg.size}
+			fw = &regFileWriter{w, maker.makeReg.size}
 			fw = &sparseFileWriter{fw, spd, 0}
 			wantStr = maker.makeReg.wantStr
 		default:

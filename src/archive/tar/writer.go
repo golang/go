@@ -452,13 +452,15 @@ type regFileWriter struct {
 	nb int64     // Number of remaining bytes to write
 }
 
-func (fw *regFileWriter) Write(b []byte) (int, error) {
+func (fw *regFileWriter) Write(b []byte) (n int, err error) {
 	overwrite := int64(len(b)) > fw.nb
 	if overwrite {
 		b = b[:fw.nb]
 	}
-	n, err := fw.w.Write(b)
-	fw.nb -= int64(n)
+	if len(b) > 0 {
+		n, err = fw.w.Write(b)
+		fw.nb -= int64(n)
+	}
 	switch {
 	case err != nil:
 		return n, err

@@ -7,6 +7,7 @@ package tar
 import (
 	"bytes"
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1395,6 +1396,17 @@ func TestReadGNUSparsePAXHeaders(t *testing.T) {
 	}
 }
 
+// testNonEmptyReader wraps an io.Reader and ensures that
+// Read is never called with an empty buffer.
+type testNonEmptyReader struct{ io.Reader }
+
+func (r testNonEmptyReader) Read(b []byte) (int, error) {
+	if len(b) == 0 {
+		return 0, errors.New("unexpected empty Read call")
+	}
+	return r.Reader.Read(b)
+}
+
 func TestFileReader(t *testing.T) {
 	type (
 		testRead struct { // Read(cnt) == (wantStr, wantErr)
@@ -1443,7 +1455,6 @@ func TestFileReader(t *testing.T) {
 		maker: makeReg{"", 1},
 		tests: []testFnc{
 			testRemaining{1, 1},
-			testRead{0, "", io.ErrUnexpectedEOF},
 			testRead{5, "", io.ErrUnexpectedEOF},
 			testWriteTo{nil, 0, io.ErrUnexpectedEOF},
 			testRemaining{1, 1},
@@ -1611,14 +1622,14 @@ func TestFileReader(t *testing.T) {
 		var fr fileReader
 		switch maker := v.maker.(type) {
 		case makeReg:
-			r := strings.NewReader(maker.str)
+			r := testNonEmptyReader{strings.NewReader(maker.str)}
 			fr = &regFileReader{r, maker.size}
 		case makeSparse:
 			if !validateSparseEntries(maker.spd, maker.size) {
 				t.Fatalf("invalid sparse map: %v", maker.spd)
 			}
 			sph := invertSparseEntries(maker.spd, maker.size)
-			r := strings.NewReader(maker.makeReg.str)
+			r := testNonEmptyReader{strings.NewReader(maker.makeReg.str)}
 			fr = &regFileReader{r, maker.makeReg.size}
 			fr = &sparseFileReader{fr, sph, 0}
 		default:
