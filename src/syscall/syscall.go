@@ -96,6 +96,7 @@ func (tv *Timeval) Nano() int64 {
 	return int64(tv.Sec)*1e9 + int64(tv.Usec)*1000
 }
 
-// Getpagesize is provided by the runtime.
+// Getpagesize and Exit are provided by the runtime.
 
 func Getpagesize() int
+func Exit(code int)

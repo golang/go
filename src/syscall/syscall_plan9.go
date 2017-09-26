@@ -85,11 +85,6 @@ func errstr() string {
 	return cstring(buf[:])
 }
 
-// Implemented in assembly to import from runtime.
-func exit(code int)
-
-func Exit(code int) { exit(code) }
-
 func readnum(path string) (uint, error) {
 	var b [12]byte
 
