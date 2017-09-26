@@ -80,6 +80,13 @@ func (f flag) kind() Kind {
 	return Kind(f & flagKindMask)
 }
 
+func (f flag) ro() flag {
+	if f&flagRO != 0 {
+		return flagStickyRO
+	}
+	return 0
+}
+
 // pointer returns the underlying pointer represented by v.
 // v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
 func (v Value) pointer() unsafe.Pointer {
@@ -237,7 +244,7 @@ func (v Value) Addr() Value {
 	if v.flag&flagAddr == 0 {
 		panic("reflect.Value.Addr of unaddressable value")
 	}
-	return Value{v.typ.ptrTo(), v.ptr, (v.flag & flagRO) | flag(Ptr)}
+	return Value{v.typ.ptrTo(), v.ptr, v.flag.ro() | flag(Ptr)}
 }
 
 // Bool returns v's underlying value.
@@ -736,7 +743,7 @@ func (v Value) Elem() Value {
 		}
 		x := unpackEface(eface)
 		if x.flag != 0 {
-			x.flag |= v.flag & flagRO
+			x.flag |= v.flag.ro()
 		}
 		return x
 	case Ptr:
@@ -865,7 +872,7 @@ func (v Value) Index(i int) Value {
 		// In the latter case, we must be doing Index(0), so offset = 0,
 		// so v.ptr + offset is still okay.
 		val := unsafe.Pointer(uintptr(v.ptr) + offset)
-		fl := v.flag&(flagRO|flagIndir|flagAddr) | flag(typ.Kind()) // bits same as overall array
+		fl := v.flag&(flagIndir|flagAddr) | v.flag.ro() | flag(typ.Kind()) // bits same as overall array
 		return Value{typ, val, fl}
 
 	case Slice:
@@ -878,7 +885,7 @@ func (v Value) Index(i int) Value {
 		tt := (*sliceType)(unsafe.Pointer(v.typ))
 		typ := tt.elem
 		val := arrayAt(s.Data, i, typ.size)
-		fl := flagAddr | flagIndir | v.flag&flagRO | flag(typ.Kind())
+		fl := flagAddr | flagIndir | v.flag.ro() | flag(typ.Kind())
 		return Value{typ, val, fl}
 
 	case String:
@@ -887,7 +894,7 @@ func (v Value) Index(i int) Value {
 			panic("reflect: string index out of range")
 		}
 		p := arrayAt(s.Data, i, 1)
-		fl := v.flag&flagRO | flag(Uint8) | flagIndir
+		fl := v.flag.ro() | flag(Uint8) | flagIndir
 		return Value{uint8Type, p, fl}
 	}
 	panic(&ValueError{"reflect.Value.Index", v.kind()})
@@ -1065,7 +1072,7 @@ func (v Value) MapIndex(key Value) Value {
 		return Value{}
 	}
 	typ := tt.elem
-	fl := (v.flag | key.flag) & flagRO
+	fl := (v.flag | key.flag).ro()
 	fl |= flag(typ.Kind())
 	if ifaceIndir(typ) {
 		// Copy result so future changes to the map
@@ -1087,7 +1094,7 @@ func (v Value) MapKeys() []Value {
 	tt := (*mapType)(unsafe.Pointer(v.typ))
 	keyType := tt.key
 
-	fl := v.flag&flagRO | flag(keyType.Kind())
+	fl := v.flag.ro() | flag(keyType.Kind())
 
 	m := v.pointer()
 	mlen := int(0)
@@ -1591,7 +1598,7 @@ func (v Value) Slice(i, j int) Value {
 		s.Data = base
 	}
 
-	fl := v.flag&flagRO | flagIndir | flag(Slice)
+	fl := v.flag.ro() | flagIndir | flag(Slice)
 	return Value{typ.common(), unsafe.Pointer(&x), fl}
 }
 
@@ -1643,7 +1650,7 @@ func (v Value) Slice3(i, j, k int) Value {
 		s.Data = base
 	}
 
-	fl := v.flag&flagRO | flagIndir | flag(Slice)
+	fl := v.flag.ro() | flagIndir | flag(Slice)
 	return Value{typ.common(), unsafe.Pointer(&x), fl}
 }
 
@@ -2170,7 +2177,7 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
 	case directlyAssignable(dst, v.typ):
 		// Overwrite type so that they match.
 		// Same memory layout, so no harm done.
-		fl := v.flag & (flagRO | flagAddr | flagIndir)
+		fl := v.flag&(flagAddr|flagIndir) | v.flag.ro()
 		fl |= flag(dst.Kind())
 		return Value{dst, v.ptr, fl}
 
@@ -2362,72 +2369,72 @@ func makeRunes(f flag, v []rune, t Type) Value {
 
 // convertOp: intXX -> [u]intXX
 func cvtInt(v Value, t Type) Value {
-	return makeInt(v.flag&flagRO, uint64(v.Int()), t)
+	return makeInt(v.flag.ro(), uint64(v.Int()), t)
 }
 
 // convertOp: uintXX -> [u]intXX
 func cvtUint(v Value, t Type) Value {
-	return makeInt(v.flag&flagRO, v.Uint(), t)
+	return makeInt(v.flag.ro(), v.Uint(), t)
 }
 
 // convertOp: floatXX -> intXX
 func cvtFloatInt(v Value, t Type) Value {
-	return makeInt(v.flag&flagRO, uint64(int64(v.Float())), t)
+	return makeInt(v.flag.ro(), uint64(int64(v.Float())), t)
 }
 
 // convertOp: floatXX -> uintXX
 func cvtFloatUint(v Value, t Type) Value {
-	return makeInt(v.flag&flagRO, uint64(v.Float()), t)
+	return makeInt(v.flag.ro(), uint64(v.Float()), t)
 }
 
 // convertOp: intXX -> floatXX
 func cvtIntFloat(v Value, t Type) Value {
-	return makeFloat(v.flag&flagRO, float64(v.Int()), t)
+	return makeFloat(v.flag.ro(), float64(v.Int()), t)
 }
 
 // convertOp: uintXX -> floatXX
 func cvtUintFloat(v Value, t Type) Value {
-	return makeFloat(v.flag&flagRO, float64(v.Uint()), t)
+	return makeFloat(v.flag.ro(), float64(v.Uint()), t)
 }
 
 // convertOp: floatXX -> floatXX
 func cvtFloat(v Value, t Type) Value {
-	return makeFloat(v.flag&flagRO, v.Float(), t)
+	return makeFloat(v.flag.ro(), v.Float(), t)
 }
 
 // convertOp: complexXX -> complexXX
 func cvtComplex(v Value, t Type) Value {
-	return makeComplex(v.flag&flagRO, v.Complex(), t)
+	return makeComplex(v.flag.ro(), v.Complex(), t)
 }
 
 // convertOp: intXX -> string
 func cvtIntString(v Value, t Type) Value {
-	return makeString(v.flag&flagRO, string(v.Int()), t)
+	return makeString(v.flag.ro(), string(v.Int()), t)
 }
 
 // convertOp: uintXX -> string
 func cvtUintString(v Value, t Type) Value {
-	return makeString(v.flag&flagRO, string(v.Uint()), t)
+	return makeString(v.flag.ro(), string(v.Uint()), t)
 }
 
 // convertOp: []byte -> string
 func cvtBytesString(v Value, t Type) Value {
-	return makeString(v.flag&flagRO, string(v.Bytes()), t)
+	return makeString(v.flag.ro(), string(v.Bytes()), t)
 }
 
 // convertOp: string -> []byte
 func cvtStringBytes(v Value, t Type) Value {
-	return makeBytes(v.flag&flagRO, []byte(v.String()), t)
+	return makeBytes(v.flag.ro(), []byte(v.String()), t)
 }
 
 // convertOp: []rune -> string
 func cvtRunesString(v Value, t Type) Value {
-	return makeString(v.flag&flagRO, string(v.runes()), t)
+	return makeString(v.flag.ro(), string(v.runes()), t)
 }
 
 // convertOp: string -> []rune
 func cvtStringRunes(v Value, t Type) Value {
-	return makeRunes(v.flag&flagRO, []rune(v.String()), t)
+	return makeRunes(v.flag.ro(), []rune(v.String()), t)
 }
 
 // convertOp: direct copy
@@ -2442,7 +2449,7 @@ func cvtDirect(v Value, typ Type) Value {
 		ptr = c
 		f &^= flagAddr
 	}
-	return Value{t, ptr, v.flag&flagRO | f} // v.flag&flagRO|f == f?
+	return Value{t, ptr, v.flag.ro() | f} // v.flag.ro()|f == f?
 }
 
 // convertOp: concrete -> interface
@@ -2454,14 +2461,14 @@ func cvtT2I(v Value, typ Type) Value {
 	} else {
 		ifaceE2I(typ.(*rtype), x, target)
 	}
-	return Value{typ.common(), target, v.flag&flagRO | flagIndir | flag(Interface)}
+	return Value{typ.common(), target, v.flag.ro() | flagIndir | flag(Interface)}
 }
 
 // convertOp: interface -> interface
 func cvtI2I(v Value, typ Type) Value {
 	if v.IsNil() {
 		ret := Zero(typ)
-		ret.flag |= v.flag & flagRO
+		ret.flag |= v.flag.ro()
 		return ret
 	}
 	return cvtT2I(v.Elem(), typ)
