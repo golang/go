@@ -290,6 +290,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				return nil, &FormatError{offset, "invalid path in rpath command", hdr.Path}
 			}
 			l.Path = cstring(cmddat[hdr.Path:])
+			l.LoadBytes = LoadBytes(cmddat)
 			f.Loads[i] = l
 
 		case LoadCmdDylib:
