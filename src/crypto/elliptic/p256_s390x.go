@@ -50,6 +50,8 @@ func (curve p256CurveFast) Params() *CurveParams {
 
 // Functions implemented in p256_asm_s390x.s
 // Montgomery multiplication modulo P256
+//
+//go:noescape
 func p256MulAsm(res, in1, in2 []byte)
 
 // Montgomery square modulo P256
@@ -58,19 +60,31 @@ func p256Sqr(res, in []byte) {
 }
 
 // Montgomery multiplication by 1
+//
+//go:noescape
 func p256FromMont(res, in []byte)
 
 // iff cond == 1  val <- -val
+//
+//go:noescape
 func p256NegCond(val *p256Point, cond int)
 
 // if cond == 0 res <- b; else res <- a
+//
+//go:noescape
 func p256MovCond(res, a, b *p256Point, cond int)
 
 // Constant time table access
+//
+//go:noescape
 func p256Select(point *p256Point, table []p256Point, idx int)
+
+//go:noescape
 func p256SelectBase(point *p256Point, table []p256Point, idx int)
 
 // Montgomery multiplication modulo Ord(G)
+//
+//go:noescape
 func p256OrdMul(res, in1, in2 []byte)
 
 // Montgomery square modulo Ord(G), repeated n times
@@ -85,10 +99,16 @@ func p256OrdSqr(res, in []byte, n int) {
 // If sign == 1 -> P2 = -P2
 // If sel == 0 -> P3 = P1
 // if zero == 0 -> P3 = P2
+//
+//go:noescape
 func p256PointAddAffineAsm(P3, P1, P2 *p256Point, sign, sel, zero int)
 
 // Point add
+//
+//go:noescape
 func p256PointAddAsm(P3, P1, P2 *p256Point) int
+
+//go:noescape
 func p256PointDoubleAsm(P3, P1 *p256Point)
 
 func (curve p256CurveFast) Inverse(k *big.Int) *big.Int {
