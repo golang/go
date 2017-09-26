@@ -3224,7 +3224,7 @@ func TestCallPanic(t *testing.T) {
 	i := timp(0)
 	v := ValueOf(T{i, i, i, i, T2{i, i}, i, i, T2{i, i}})
 	ok(func() { call(v.Field(0).Method(0)) })         // .t0.W
-	ok(func() { call(v.Field(0).Elem().Method(0)) })  // .t0.W
+	bad(func() { call(v.Field(0).Elem().Method(0)) }) // .t0.W
 	bad(func() { call(v.Field(0).Method(1)) })        // .t0.w
 	bad(func() { call(v.Field(0).Elem().Method(2)) }) // .t0.w
 	ok(func() { call(v.Field(1).Method(0)) })         // .T1.Y
@@ -3242,10 +3242,10 @@ func TestCallPanic(t *testing.T) {
 	bad(func() { call(v.Field(3).Method(1)) })        // .NamedT1.y
 	bad(func() { call(v.Field(3).Elem().Method(3)) }) // .NamedT1.y
 
-	ok(func() { call(v.Field(4).Field(0).Method(0)) })        // .NamedT2.T1.Y
-	ok(func() { call(v.Field(4).Field(0).Elem().Method(0)) }) // .NamedT2.T1.W
-	ok(func() { call(v.Field(4).Field(1).Method(0)) })        // .NamedT2.t0.W
-	ok(func() { call(v.Field(4).Field(1).Elem().Method(0)) }) // .NamedT2.t0.W
+	ok(func() { call(v.Field(4).Field(0).Method(0)) })         // .NamedT2.T1.Y
+	ok(func() { call(v.Field(4).Field(0).Elem().Method(0)) })  // .NamedT2.T1.W
+	ok(func() { call(v.Field(4).Field(1).Method(0)) })         // .NamedT2.t0.W
+	bad(func() { call(v.Field(4).Field(1).Elem().Method(0)) }) // .NamedT2.t0.W
 
 	bad(func() { call(v.Field(5).Method(0)) })        // .namedT0.W
 	bad(func() { call(v.Field(5).Elem().Method(0)) }) // .namedT0.W
@@ -6385,5 +6385,23 @@ func TestAliasNames(t *testing.T) {
 	want = "reflect_test.Talias2{Tint:1, Tint2:2}"
 	if out != want {
 		t.Errorf("Talias2 print:\nhave: %s\nwant: %s", out, want)
+	}
+}
+
+func TestIssue22031(t *testing.T) {
+	type s []struct{ C int }
+
+	type t1 struct{ s }
+	type t2 struct{ f s }
+
+	tests := []Value{
+		ValueOf(t1{s{{}}}).Field(0).Index(0).Field(0),
+		ValueOf(t2{s{{}}}).Field(0).Index(0).Field(0),
+	}
+
+	for i, test := range tests {
+		if test.CanSet() {
+			t.Errorf("%d: CanSet: got true, want false", i)
+		}
 	}
 }
