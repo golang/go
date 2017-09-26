@@ -128,6 +128,10 @@ C.complexfloat (complex float), and C.complexdouble (complex double).
 The C type void* is represented by Go's unsafe.Pointer.
 The C types __int128_t and __uint128_t are represented by [16]byte.
 
+A few special C types which would normally be represented by a pointer
+type in Go are instead represented by a uintptr.  See the Special
+cases section below.
+
 To access a struct, union, or enum type directly, prefix it with
 struct_, union_, or enum_, as in C.struct_stat.
 
@@ -333,6 +337,84 @@ It is possible to defeat this enforcement by using the unsafe package,
 and of course there is nothing stopping the C code from doing anything
 it likes. However, programs that break these rules are likely to fail
 in unexpected and unpredictable ways.
+
+Special cases
+
+A few special C types which would normally be represented by a pointer
+type in Go are instead represented by a uintptr. Those types are
+the CF*Ref types from the CoreFoundation library on Darwin, including:
+
+	CFAllocatorRef
+	CFArrayRef
+	CFAttributedStringRef
+	CFBagRef
+	CFBinaryHeapRef
+	CFBitVectorRef
+	CFBooleanRef
+	CFBundleRef
+	CFCalendarRef
+	CFCharacterSetRef
+	CFDataRef
+	CFDateFormatterRef
+	CFDateRef
+	CFDictionaryRef
+	CFErrorRef
+	CFFileDescriptorRef
+	CFFileSecurityRef
+	CFLocaleRef
+	CFMachPortRef
+	CFMessagePortRef
+	CFMutableArrayRef
+	CFMutableAttributedStringRef
+	CFMutableBagRef
+	CFMutableBitVectorRef
+	CFMutableCharacterSetRef
+	CFMutableDataRef
+	CFMutableDictionaryRef
+	CFMutableSetRef
+	CFMutableStringRef
+	CFNotificationCenterRef
+	CFNullRef
+	CFNumberFormatterRef
+	CFNumberRef
+	CFPlugInInstanceRef
+	CFPlugInRef
+	CFPropertyListRef
+	CFReadStreamRef
+	CFRunLoopObserverRef
+	CFRunLoopRef
+	CFRunLoopSourceRef
+	CFRunLoopTimerRef
+	CFSetRef
+	CFSocketRef
+	CFStringRef
+	CFStringTokenizerRef
+	CFTimeZoneRef
+	CFTreeRef
+	CFTypeRef
+	CFURLCreateFromFSRef
+	CFURLEnumeratorRef
+	CFURLGetFSRef
+	CFURLRef
+	CFUUIDRef
+	CFUserNotificationRef
+	CFWriteStreamRef
+	CFXMLNodeRef
+	CFXMLParserRef
+	CFXMLTreeRef
+
+These types are uintptr on the Go side because they would otherwise
+confuse the Go garbage collector; they are sometimes not really
+pointers but data structures encoded in a pointer type. All operations
+on these types must happen in C. The proper constant to initialize an
+empty such reference is 0, not nil.
+
+This special case was introduced in Go 1.10. For auto-updating code
+from Go 1.9 and earlier, use the cftype rewrite in the Go fix tool:
+
+	go tool fix -r cftype <pkg>
+
+It will replace nil with 0 in the appropriate places.
 
 Using cgo directly
 

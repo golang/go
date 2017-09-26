@@ -915,7 +915,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 	t.addCmd(dt, "misc/cgo/test", "go", "test", t.tags(), "-ldflags", "-linkmode=auto", t.runFlag(""))
 
 	if t.internalLink() {
-		t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=internal", t.runFlag(""))
+		t.addCmd(dt, "misc/cgo/test", "go", "test", "-tags", "internal", "-ldflags", "-linkmode=internal", t.runFlag(""))
 	}
 
 	pair := gohostos + "-" + goarch

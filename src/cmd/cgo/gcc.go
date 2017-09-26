@@ -2057,6 +2057,12 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		name := c.Ident("_Ctype_" + dt.Name)
 		goIdent[name.Name] = name
 		sub := c.Type(dt.Type, pos)
+		if badPointerTypedef(dt.Name) {
+			// Treat this typedef as a uintptr.
+			s := *sub
+			s.Go = c.uintptr
+			sub = &s
+		}
 		t.Go = name
 		if unionWithPointer[sub.Go] {
 			unionWithPointer[t.Go] = true
@@ -2213,6 +2219,11 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
 			// Unless the typedef happens to point to void* since
 			// Go has special rules around using unsafe.Pointer.
 			if _, void := base(ptr.Type).(*dwarf.VoidType); void {
+				break
+			}
+			// ...or the typedef is one in which we expect bad pointers.
+			// It will be a uintptr instead of *X.
+			if badPointerTypedef(dt.Name) {
 				break
 			}
 
@@ -2547,3 +2558,51 @@ func fieldPrefix(fld []*ast.Field) string {
 	}
 	return prefix
 }
+
+// badPointerTypedef reports whether t is a C typedef that should not be considered a pointer in Go.
+// A typedef is bad if C code sometimes stores non-pointers in this type.
+// TODO: Currently our best solution is to find these manually and list them as
+// they come up. A better solution is desired.
+func badPointerTypedef(t string) bool {
+	// The real bad types are CFNumberRef and CFTypeRef.
+	// Sometimes non-pointers are stored in these types.
+	// CFTypeRef is a supertype of those, so it can have bad pointers in it as well.
+	// We return true for the other CF*Ref types just so casting between them is easier.
+	// See comment below for details about the bad pointers.
+	return goos == "darwin" && strings.HasPrefix(t, "CF") && strings.HasSuffix(t, "Ref")
+}
+
+// Comment from Darwin's CFInternal.h
+/*
+// Tagged pointer support
+// Low-bit set means tagged object, next 3 bits (currently)
+// define the tagged object class, next 4 bits are for type
+// information for the specific tagged object class.  Thus,
+// the low byte is for type info, and the rest of a pointer
+// (32 or 64-bit) is for payload, whatever the tagged class.
+//
+// Note that the specific integers used to identify the
+// specific tagged classes can and will change from release
+// to release (that's why this stuff is in CF*Internal*.h),
+// as can the definition of type info vs payload above.
+//
+#if __LP64__
+#define CF_IS_TAGGED_OBJ(PTR)	((uintptr_t)(PTR) & 0x1)
+#define CF_TAGGED_OBJ_TYPE(PTR)	((uintptr_t)(PTR) & 0xF)
+#else
+#define CF_IS_TAGGED_OBJ(PTR)	0
+#define CF_TAGGED_OBJ_TYPE(PTR)	0
+#endif
+
+enum {
+    kCFTaggedObjectID_Invalid = 0,
+    kCFTaggedObjectID_Atom = (0 << 1) + 1,
+    kCFTaggedObjectID_Undefined3 = (1 << 1) + 1,
+    kCFTaggedObjectID_Undefined2 = (2 << 1) + 1,
+    kCFTaggedObjectID_Integer = (3 << 1) + 1,
+    kCFTaggedObjectID_DateTS = (4 << 1) + 1,
+    kCFTaggedObjectID_ManagedObjectID = (5 << 1) + 1, // Core Data
+    kCFTaggedObjectID_Date = (6 << 1) + 1,
+    kCFTaggedObjectID_Undefined7 = (7 << 1) + 1,
+};
+*/
