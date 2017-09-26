@@ -398,22 +398,33 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 			// no blank between keyword and {} in this case
 			p.print(lbrace, token.LBRACE, rbrace, token.RBRACE)
 			return
-		} else if isStruct && p.isOneLineFieldList(list) { // for now ignore interfaces
+		} else if p.isOneLineFieldList(list) {
 			// small enough - print on one line
 			// (don't use identList and ignore source line breaks)
 			p.print(lbrace, token.LBRACE, blank)
 			f := list[0]
-			for i, x := range f.Names {
-				if i > 0 {
-					// no comments so no need for comma position
-					p.print(token.COMMA, blank)
+			if isStruct {
+				for i, x := range f.Names {
+					if i > 0 {
+						// no comments so no need for comma position
+						p.print(token.COMMA, blank)
+					}
+					p.expr(x)
 				}
-				p.expr(x)
+				if len(f.Names) > 0 {
+					p.print(blank)
+				}
+				p.expr(f.Type)
+			} else { // interface
+				if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
+					// method
+					p.expr(f.Names[0])
+					p.signature(ftyp.Params, ftyp.Results)
+				} else {
+					// embedded interface
+					p.expr(f.Type)
+				}
 			}
-			if len(f.Names) > 0 {
-				p.print(blank)
-			}
-			p.expr(f.Type)
 			p.print(blank, rbrace, token.RBRACE)
 			return
 		}
