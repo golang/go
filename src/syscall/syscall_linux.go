@@ -295,7 +295,10 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) {
 func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	name := sa.Name
 	n := len(name)
-	if n >= len(sa.raw.Path) {
+	if n > len(sa.raw.Path) {
+		return nil, 0, EINVAL
+	}
+	if n == len(sa.raw.Path) && name[0] != '@' {
 		return nil, 0, EINVAL
 	}
 	sa.raw.Family = AF_UNIX
