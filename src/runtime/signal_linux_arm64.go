@@ -56,7 +56,7 @@ func (c *sigctxt) sp() uint64  { return c.regs().sp }
 func (c *sigctxt) pc() uint64 { return c.regs().pc }
 
 func (c *sigctxt) pstate() uint64 { return c.regs().pstate }
-func (c *sigctxt) fault() uint64  { return c.regs().fault_address }
+func (c *sigctxt) fault() uintptr { return uintptr(c.regs().fault_address) }
 
 func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
 func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
