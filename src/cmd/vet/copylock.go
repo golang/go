@@ -93,9 +93,16 @@ func checkCopyLocksReturnStmt(f *File, rs *ast.ReturnStmt) {
 
 // checkCopyLocksCallExpr detects lock copy in the arguments to a function call
 func checkCopyLocksCallExpr(f *File, ce *ast.CallExpr) {
-	if id, ok := ce.Fun.(*ast.Ident); ok && f.pkg.types[id].IsBuiltin() {
-		switch id.Name {
-		case "new", "len", "cap":
+	var id *ast.Ident
+	switch fun := ce.Fun.(type) {
+	case *ast.Ident:
+		id = fun
+	case *ast.SelectorExpr:
+		id = fun.Sel
+	}
+	if fun, ok := f.pkg.uses[id].(*types.Builtin); ok {
+		switch fun.Name() {
+		case "new", "len", "cap", "Sizeof":
 			return
 		}
 	}
