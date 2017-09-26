@@ -403,3 +403,33 @@ func loadLocation(name string, sources []string) (z *Location, firstErr error) {
 	}
 	return nil, errors.New("unknown time zone " + name)
 }
+
+// readFile reads and returns the content of the named file.
+// It is a trivial implementation of ioutil.ReadFile, reimplemented
+// here to avoid depending on io/ioutil or os.
+// It returns an error if name exceeds maxFileSize bytes.
+func readFile(name string) ([]byte, error) {
+	f, err := open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer closefd(f)
+	var (
+		buf [4096]byte
+		ret []byte
+		n   int
+	)
+	for {
+		n, err = read(f, buf[:])
+		if n > 0 {
+			ret = append(ret, buf[:n]...)
+		}
+		if n == 0 || err != nil {
+			break
+		}
+		if len(ret) > maxFileSize {
+			return nil, fileSizeError(name)
+		}
+	}
+	return ret, err
+}

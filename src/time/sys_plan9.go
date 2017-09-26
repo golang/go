@@ -16,42 +16,16 @@ func interrupt() {
 	// cannot predict pid, don't want to kill group
 }
 
-// readFile reads and returns the content of the named file.
-// It is a trivial implementation of ioutil.ReadFile, reimplemented
-// here to avoid depending on io/ioutil or os.
-// It returns an error if name exceeds maxFileSize bytes.
-func readFile(name string) ([]byte, error) {
-	f, err := syscall.Open(name, syscall.O_RDONLY)
-	if err != nil {
-		return nil, err
-	}
-	defer syscall.Close(f)
-	var (
-		buf [4096]byte
-		ret []byte
-		n   int
-	)
-	for {
-		n, err = syscall.Read(f, buf[:])
-		if n > 0 {
-			ret = append(ret, buf[:n]...)
-		}
-		if n == 0 || err != nil {
-			break
-		}
-		if len(ret) > maxFileSize {
-			return nil, fileSizeError(name)
-		}
-	}
-	return ret, err
-}
-
 func open(name string) (uintptr, error) {
 	fd, err := syscall.Open(name, syscall.O_RDONLY)
 	if err != nil {
 		return 0, err
 	}
 	return uintptr(fd), nil
+}
+
+func read(fd uintptr, buf []byte) (int, error) {
+	return syscall.Read(int(fd), buf)
 }
 
 func closefd(fd uintptr) {
