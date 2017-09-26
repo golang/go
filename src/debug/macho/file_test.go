@@ -234,6 +234,11 @@ func TestOpen(t *testing.T) {
 			t.Errorf("open %s:\n\thave %#v\n\twant %#v\n", tt.file, f.FileHeader, tt.hdr)
 			continue
 		}
+		for i, l := range f.Loads {
+			if len(l.Raw()) < 8 {
+				t.Errorf("open %s, command %d:\n\tload command %T don't have enough data\n", tt.file, i, l)
+			}
+		}
 		if tt.loads != nil {
 			for i, l := range f.Loads {
 				if i >= len(tt.loads) {
@@ -249,22 +254,22 @@ func TestOpen(t *testing.T) {
 				case *Segment:
 					have := &l.SegmentHeader
 					if !reflect.DeepEqual(have, want) {
-						t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
+						t.Errorf("open %s, command %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
 					}
 				case *Dylib:
 					have := l
 					have.LoadBytes = nil
 					if !reflect.DeepEqual(have, want) {
-						t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
+						t.Errorf("open %s, command %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
 					}
 				case *Rpath:
 					have := l
 					have.LoadBytes = nil
 					if !reflect.DeepEqual(have, want) {
-						t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
+						t.Errorf("open %s, command %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
 					}
 				default:
-					t.Errorf("open %s, section %d: unknown load command\n\thave %#v\n\twant %#v\n", tt.file, i, l, want)
+					t.Errorf("open %s, command %d: unknown load command\n\thave %#v\n\twant %#v\n", tt.file, i, l, want)
 				}
 			}
 			tn := len(tt.loads)
