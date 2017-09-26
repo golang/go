@@ -190,7 +190,8 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	// Internally linking cgo is incomplete on some architectures.
 	// https://golang.org/issue/10373
 	// https://golang.org/issue/14449
-	if iscgo && SysArch.InFamily(sys.ARM64, sys.MIPS64, sys.MIPS) {
+	// https://golang.org/issue/21961
+	if iscgo && SysArch.InFamily(sys.ARM64, sys.MIPS64, sys.MIPS, sys.PPC64) {
 		return true, objabi.GOARCH + " does not support internal cgo"
 	}
 
