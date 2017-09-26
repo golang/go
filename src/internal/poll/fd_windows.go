@@ -278,6 +278,9 @@ type FD struct {
 	readbyte       []byte   // buffer to hold decoding of readuint16 from utf16 to utf8
 	readbyteOffset int      // readbyte[readOffset:] is yet to be consumed with file.Read
 
+	// Semaphore signaled when file is closed.
+	csema uint32
+
 	skipSyncNotif bool
 
 	// Whether this is a streaming descriptor, as opposed to a
@@ -399,6 +402,7 @@ func (fd *FD) destroy() error {
 		err = CloseFunc(fd.Sysfd)
 	}
 	fd.Sysfd = syscall.InvalidHandle
+	runtime_Semrelease(&fd.csema)
 	return err
 }
 
@@ -410,7 +414,11 @@ func (fd *FD) Close() error {
 	}
 	// unblock pending reader and writer
 	fd.pd.evict()
-	return fd.decref()
+	err := fd.decref()
+	// Wait until the descriptor is closed. If this was the only
+	// reference, it is already closed.
+	runtime_Semacquire(&fd.csema)
+	return err
 }
 
 // Shutdown wraps the shutdown network call.
