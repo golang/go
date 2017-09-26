@@ -88,12 +88,3 @@ TEXT ·seek(SB),NOSPLIT,$0-36
 	MOVW	$err+28(FP), R1
 	BL		sysresult<>(SB)
 	RET
-
-//func exit(code int)
-// Import runtime·exit for cleanly exiting.
-TEXT ·exit(SB),NOSPLIT,$4-4
-	NO_LOCAL_POINTERS
-	MOVW	code+0(FP), R0
-	MOVW	R0, e-4(SP)
-	BL		runtime·exit(SB)
-	RET

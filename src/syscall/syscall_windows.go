@@ -236,9 +236,6 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 
 // syscall interface implementation for other packages
 
-// Implemented in ../runtime/syscall_windows.go.
-func Exit(code int)
-
 func makeInheritSa() *SecurityAttributes {
 	var sa SecurityAttributes
 	sa.Length = uint32(unsafe.Sizeof(sa))

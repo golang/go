@@ -152,12 +152,3 @@ copyresult6:
 	MOVSL
 	MOVSL
 	RET
-
-//func exit(code int)
-// Import runtime·exit for cleanly exiting.
-TEXT ·exit(SB),NOSPLIT,$4-4
-	NO_LOCAL_POINTERS
-	MOVL	code+0(FP), AX
-	MOVL	AX, 0(SP)
-	CALL	runtime·exit(SB)
-	RET

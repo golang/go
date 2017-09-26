@@ -21,7 +21,6 @@ import "unsafe"
 //go:cgo_import_dynamic libc_Chroot chroot "libc.so"
 //go:cgo_import_dynamic libc_Close close "libc.so"
 //go:cgo_import_dynamic libc_Dup dup "libc.so"
-//go:cgo_import_dynamic libc_Exit exit "libc.so"
 //go:cgo_import_dynamic libc_Fchdir fchdir "libc.so"
 //go:cgo_import_dynamic libc_Fchmod fchmod "libc.so"
 //go:cgo_import_dynamic libc_Fchown fchown "libc.so"
@@ -106,7 +105,6 @@ import "unsafe"
 //go:linkname libc_Chroot libc_Chroot
 //go:linkname libc_Close libc_Close
 //go:linkname libc_Dup libc_Dup
-//go:linkname libc_Exit libc_Exit
 //go:linkname libc_Fchdir libc_Fchdir
 //go:linkname libc_Fchmod libc_Fchmod
 //go:linkname libc_Fchown libc_Fchown
@@ -194,7 +192,6 @@ var (
 	libc_Chroot,
 	libc_Close,
 	libc_Dup,
-	libc_Exit,
 	libc_Fchdir,
 	libc_Fchmod,
 	libc_Fchown,
@@ -410,11 +407,6 @@ func Dup(fd int) (nfd int, err error) {
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
-	return
-}
-
-func Exit(code int) {
-	sysvicall6(uintptr(unsafe.Pointer(&libc_Exit)), 1, uintptr(code), 0, 0, 0, 0, 0)
 	return
 }
 

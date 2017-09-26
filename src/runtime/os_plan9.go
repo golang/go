@@ -393,7 +393,7 @@ func postnote(pid uint64, msg []byte) int {
 }
 
 //go:nosplit
-func exit(e int) {
+func exit(e int32) {
 	var status []byte
 	if e == 0 {
 		status = emptystatus
