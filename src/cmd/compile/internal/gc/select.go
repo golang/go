@@ -342,7 +342,6 @@ func selecttype(size int64) *types.Type {
 		namedfield("releasetime", types.Types[TUINT64]),
 	})
 	scase.SetNoalg(true)
-	scase.SetLocal(true)
 
 	sel := tostruct([]*Node{
 		namedfield("tcase", types.Types[TUINT16]),
@@ -354,7 +353,6 @@ func selecttype(size int64) *types.Type {
 		namedfield("pollorderarr", types.NewArray(types.Types[TUINT16], size)),
 	})
 	sel.SetNoalg(true)
-	sel.SetLocal(true)
 
 	return sel
 }

@@ -3524,7 +3524,6 @@ func copytype(n *Node, t *types.Type) {
 
 	t = n.Type
 	t.Sym = n.Sym
-	t.SetLocal(n.Local())
 	if n.Name != nil {
 		t.Vargen = n.Name.Vargen
 	}
