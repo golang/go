@@ -700,15 +700,15 @@ func multicastRIBContains(ip IP) (bool, error) {
 
 // Issue 21856.
 func TestClosingListener(t *testing.T) {
-	listener, err := Listen("tcp", ":0")
+	ln, err := newLocalListener("tcp")
 	if err != nil {
 		t.Fatal(err)
 	}
-	addr := listener.Addr()
+	addr := ln.Addr()
 
 	go func() {
 		for {
-			c, err := listener.Accept()
+			c, err := ln.Accept()
 			if err != nil {
 				return
 			}
@@ -721,10 +721,11 @@ func TestClosingListener(t *testing.T) {
 	// testing anything, which is OK.
 	time.Sleep(time.Millisecond)
 
-	listener.Close()
+	ln.Close()
 
-	_, err = Listen("tcp", addr.String())
+	ln, err = Listen("tcp", addr.String())
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
+	ln.Close()
 }
