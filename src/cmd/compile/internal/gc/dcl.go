@@ -975,7 +975,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) {
 		return
 	}
 
-	if local && !mt.Local() {
+	if local && mt.Sym.Pkg != localpkg {
 		yyerror("cannot define new methods on non-local type %v", mt)
 		return
 	}

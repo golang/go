@@ -162,22 +162,19 @@ type Type struct {
 }
 
 const (
-	typeLocal     = 1 << iota // created in this file
-	typeNotInHeap             // type cannot be heap allocated
+	typeNotInHeap = 1 << iota // type cannot be heap allocated
 	typeBroke                 // broken type definition
 	typeNoalg                 // suppress hash and eq algorithm generation
 	typeDeferwidth
 	typeRecur
 )
 
-func (t *Type) Local() bool      { return t.flags&typeLocal != 0 }
 func (t *Type) NotInHeap() bool  { return t.flags&typeNotInHeap != 0 }
 func (t *Type) Broke() bool      { return t.flags&typeBroke != 0 }
 func (t *Type) Noalg() bool      { return t.flags&typeNoalg != 0 }
 func (t *Type) Deferwidth() bool { return t.flags&typeDeferwidth != 0 }
 func (t *Type) Recur() bool      { return t.flags&typeRecur != 0 }
 
-func (t *Type) SetLocal(b bool)      { t.flags.set(typeLocal, b) }
 func (t *Type) SetNotInHeap(b bool)  { t.flags.set(typeNotInHeap, b) }
 func (t *Type) SetBroke(b bool)      { t.flags.set(typeBroke, b) }
 func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }

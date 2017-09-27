@@ -322,7 +322,6 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
 	n := p.declName(decl.Name)
 	n.Op = OTYPE
 	declare(n, dclcontext)
-	n.SetLocal(true)
 
 	// decl.Type may be nil but in that case we got a syntax error during parsing
 	typ := p.typeExprOrNil(decl.Type)

@@ -166,7 +166,6 @@ func bmap(t *types.Type) *types.Type {
 
 	// link up fields
 	bucket.SetNoalg(true)
-	bucket.SetLocal(t.Local())
 	bucket.SetFields(field[:])
 	dowidth(bucket)
 
@@ -262,7 +261,6 @@ func hmap(t *types.Type) *types.Type {
 
 	hmap := types.New(TSTRUCT)
 	hmap.SetNoalg(true)
-	hmap.SetLocal(t.Local())
 	hmap.SetFields(fields)
 	dowidth(hmap)
 
@@ -1167,7 +1165,7 @@ func dtypesym(t *types.Type) *types.Sym {
 
 	if myimportpath != "runtime" || (tbase != types.Types[tbase.Etype] && tbase != types.Bytetype && tbase != types.Runetype && tbase != types.Errortype) { // int, float, etc
 		// named types from other files are defined only by those files
-		if tbase.Sym != nil && !tbase.Local() {
+		if tbase.Sym != nil && tbase.Sym.Pkg != localpkg {
 			return s
 		}
 		// TODO(mdempsky): Investigate whether this can happen.

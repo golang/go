@@ -495,7 +495,6 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 	}
 	typ := tostruct(fields)
 	typ.SetNoalg(true)
-	typ.SetLocal(true)
 
 	clos := nod(OCOMPLIT, nil, nod(OIND, typenod(typ), nil))
 	clos.Esc = func_.Esc
@@ -689,7 +688,6 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 		namedfield("R", n.Left.Type),
 	})
 	typ.SetNoalg(true)
-	typ.SetLocal(true)
 
 	clos := nod(OCOMPLIT, nil, nod(OIND, typenod(typ), nil))
 	clos.Esc = n.Esc

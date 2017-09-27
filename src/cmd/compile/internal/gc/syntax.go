@@ -86,7 +86,6 @@ const (
 	_, nodeAddrtaken // address taken, even if not moved to heap
 	_, nodeImplicit
 	_, nodeIsddd    // is the argument variadic
-	_, nodeLocal    // type created in this file (see also Type.Local)
 	_, nodeDiag     // already printed error about this
 	_, nodeColas    // OAS resulting from :=
 	_, nodeNonNil   // guaranteed to be non-nil
@@ -113,7 +112,6 @@ func (n *Node) Assigned() bool              { return n.flags&nodeAssigned != 0 }
 func (n *Node) Addrtaken() bool             { return n.flags&nodeAddrtaken != 0 }
 func (n *Node) Implicit() bool              { return n.flags&nodeImplicit != 0 }
 func (n *Node) Isddd() bool                 { return n.flags&nodeIsddd != 0 }
-func (n *Node) Local() bool                 { return n.flags&nodeLocal != 0 }
 func (n *Node) Diag() bool                  { return n.flags&nodeDiag != 0 }
 func (n *Node) Colas() bool                 { return n.flags&nodeColas != 0 }
 func (n *Node) NonNil() bool                { return n.flags&nodeNonNil != 0 }
@@ -139,7 +137,6 @@ func (n *Node) SetAssigned(b bool)              { n.flags.set(nodeAssigned, b) }
 func (n *Node) SetAddrtaken(b bool)             { n.flags.set(nodeAddrtaken, b) }
 func (n *Node) SetImplicit(b bool)              { n.flags.set(nodeImplicit, b) }
 func (n *Node) SetIsddd(b bool)                 { n.flags.set(nodeIsddd, b) }
-func (n *Node) SetLocal(b bool)                 { n.flags.set(nodeLocal, b) }
 func (n *Node) SetDiag(b bool)                  { n.flags.set(nodeDiag, b) }
 func (n *Node) SetColas(b bool)                 { n.flags.set(nodeColas, b) }
 func (n *Node) SetNonNil(b bool)                { n.flags.set(nodeNonNil, b) }
