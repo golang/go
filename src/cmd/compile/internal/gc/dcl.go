@@ -254,7 +254,11 @@ func anonfield(typ *types.Type) *Node {
 }
 
 func namedfield(s string, typ *types.Type) *Node {
-	return nod(ODCLFIELD, newname(lookup(s)), typenod(typ))
+	return symfield(lookup(s), typ)
+}
+
+func symfield(s *types.Sym, typ *types.Type) *Node {
+	return nod(ODCLFIELD, newname(s), typenod(typ))
 }
 
 // oldname returns the Node that declares symbol s in the current scope.
