@@ -222,6 +222,12 @@ func TestConversions(t *testing.T) {
 		if ct.wantstr != "" && ct.wantstr != scanstr {
 			errf("want string %q, got %q", ct.wantstr, scanstr)
 		}
+		if ct.wantbytes != nil && string(ct.wantbytes) != string(scanbytes) {
+			errf("want byte %q, got %q", ct.wantbytes, scanbytes)
+		}
+		if ct.wantraw != nil && string(ct.wantraw) != string(scanraw) {
+			errf("want RawBytes %q, got %q", ct.wantraw, scanraw)
+		}
 		if ct.wantint != 0 && ct.wantint != intValue(ct.d) {
 			errf("want int %d, got %d", ct.wantint, intValue(ct.d))
 		}
