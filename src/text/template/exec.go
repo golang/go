@@ -25,11 +25,12 @@ const maxExecDepth = 100000
 // template so that multiple executions of the same template
 // can execute in parallel.
 type state struct {
-	tmpl  *Template
-	wr    io.Writer
-	node  parse.Node // current node, for errors
-	vars  []variable // push-down stack of variable values.
-	depth int        // the height of the stack of executing templates.
+	tmpl       *Template
+	wr         io.Writer
+	node       parse.Node // current node, for errors.
+	vars       []variable // push-down stack of variable values.
+	depth      int        // the height of the stack of executing templates.
+	rangeDepth int        // nesting level of range loops.
 }
 
 // variable holds the dynamic value of a variable such as $, $x etc.
@@ -220,9 +221,17 @@ func (t *Template) DefinedTemplates() string {
 	return s
 }
 
+type rangeControl int8
+
+const (
+	rangeNone     rangeControl = iota // no action.
+	rangeBreak                        // break out of range.
+	rangeContinue                     // continues next range iteration.
+)
+
 // Walk functions step through the major pieces of the template structure,
 // generating output as they go.
-func (s *state) walk(dot reflect.Value, node parse.Node) {
+func (s *state) walk(dot reflect.Value, node parse.Node) rangeControl {
 	s.at(node)
 	switch node := node.(type) {
 	case *parse.ActionNode:
@@ -233,13 +242,15 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 			s.printValue(node, val)
 		}
 	case *parse.IfNode:
-		s.walkIfOrWith(parse.NodeIf, dot, node.Pipe, node.List, node.ElseList)
+		return s.walkIfOrWith(parse.NodeIf, dot, node.Pipe, node.List, node.ElseList)
 	case *parse.ListNode:
 		for _, node := range node.Nodes {
-			s.walk(dot, node)
+			if c := s.walk(dot, node); c != rangeNone {
+				return c
+			}
 		}
 	case *parse.RangeNode:
-		s.walkRange(dot, node)
+		return s.walkRange(dot, node)
 	case *parse.TemplateNode:
 		s.walkTemplate(dot, node)
 	case *parse.TextNode:
@@ -247,15 +258,26 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 			s.writeError(err)
 		}
 	case *parse.WithNode:
-		s.walkIfOrWith(parse.NodeWith, dot, node.Pipe, node.List, node.ElseList)
+		return s.walkIfOrWith(parse.NodeWith, dot, node.Pipe, node.List, node.ElseList)
+	case *parse.BreakNode:
+		if s.rangeDepth == 0 {
+			s.errorf("invalid break outside of range")
+		}
+		return rangeBreak
+	case *parse.ContinueNode:
+		if s.rangeDepth == 0 {
+			s.errorf("invalid continue outside of range")
+		}
+		return rangeContinue
 	default:
 		s.errorf("unknown node: %s", node)
 	}
+	return rangeNone
 }
 
 // walkIfOrWith walks an 'if' or 'with' node. The two control structures
 // are identical in behavior except that 'with' sets dot.
-func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.PipeNode, list, elseList *parse.ListNode) {
+func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.PipeNode, list, elseList *parse.ListNode) rangeControl {
 	defer s.pop(s.mark())
 	val := s.evalPipeline(dot, pipe)
 	truth, ok := isTrue(val)
@@ -264,13 +286,14 @@ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.
 	}
 	if truth {
 		if typ == parse.NodeWith {
-			s.walk(val, list)
+			return s.walk(val, list)
 		} else {
-			s.walk(dot, list)
+			return s.walk(dot, list)
 		}
 	} else if elseList != nil {
-		s.walk(dot, elseList)
+		return s.walk(dot, elseList)
 	}
+	return rangeNone
 }
 
 // IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
@@ -308,13 +331,14 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 	return truth, true
 }
 
-func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
+func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) rangeControl {
 	s.at(r)
 	defer s.pop(s.mark())
 	val, _ := indirect(s.evalPipeline(dot, r.Pipe))
 	// mark top of stack before any variables in the body are pushed.
 	mark := s.mark()
-	oneIteration := func(index, elem reflect.Value) {
+	s.rangeDepth++
+	oneIteration := func(index, elem reflect.Value) rangeControl {
 		// Set top var (lexically the second if there are two) to the element.
 		if len(r.Pipe.Decl) > 0 {
 			s.setVar(1, elem)
@@ -323,8 +347,9 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		if len(r.Pipe.Decl) > 1 {
 			s.setVar(2, index)
 		}
-		s.walk(elem, r.List)
+		ctrl := s.walk(elem, r.List)
 		s.pop(mark)
+		return ctrl
 	}
 	switch val.Kind() {
 	case reflect.Array, reflect.Slice:
@@ -332,17 +357,23 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			break
 		}
 		for i := 0; i < val.Len(); i++ {
-			oneIteration(reflect.ValueOf(i), val.Index(i))
+			if ctrl := oneIteration(reflect.ValueOf(i), val.Index(i)); ctrl == rangeBreak {
+				break
+			}
 		}
-		return
+		s.rangeDepth--
+		return rangeNone
 	case reflect.Map:
 		if val.Len() == 0 {
 			break
 		}
 		for _, key := range sortKeys(val.MapKeys()) {
-			oneIteration(key, val.MapIndex(key))
+			if ctrl := oneIteration(key, val.MapIndex(key)); ctrl == rangeBreak {
+				break
+			}
 		}
-		return
+		s.rangeDepth--
+		return rangeNone
 	case reflect.Chan:
 		if val.IsNil() {
 			break
@@ -353,20 +384,25 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			if !ok {
 				break
 			}
-			oneIteration(reflect.ValueOf(i), elem)
+			if ctrl := oneIteration(reflect.ValueOf(i), elem); ctrl == rangeBreak {
+				break
+			}
 		}
 		if i == 0 {
 			break
 		}
-		return
+		s.rangeDepth--
+		return rangeNone
 	case reflect.Invalid:
 		break // An invalid value is likely a nil map, etc. and acts like an empty map.
 	default:
 		s.errorf("range can't iterate over %v", val)
 	}
+	s.rangeDepth--
 	if r.ElseList != nil {
-		s.walk(dot, r.ElseList)
+		return s.walk(dot, r.ElseList)
 	}
+	return rangeNone
 }
 
 func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
