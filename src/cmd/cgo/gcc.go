@@ -2141,7 +2141,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			if ss, ok := dwarfToName[s]; ok {
 				s = ss
 			}
-			s = strings.Join(strings.Split(s, " "), "") // strip spaces
+			s = strings.Replace(s, " ", "", -1)
 			name := c.Ident("_Ctype_" + s)
 			tt := *t
 			typedef[name.Name] = &tt
