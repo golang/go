@@ -480,28 +480,30 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 	// the struct is unnamed so that closures in multiple packages with the
 	// same struct type can share the descriptor.
 
-	typ := nod(OTSTRUCT, nil, nil)
-
-	typ.List.Set1(namedfield(".F", types.Types[TUINTPTR]))
+	fields := []*Node{
+		namedfield(".F", types.Types[TUINTPTR]),
+	}
 	for _, v := range func_.Func.Cvars.Slice() {
 		if v.Op == OXXX {
 			continue
 		}
-		typ1 := typenod(v.Type)
+		typ := v.Type
 		if !v.Name.Byval() {
-			typ1 = nod(OIND, typ1, nil)
+			typ = types.NewPtr(typ)
 		}
-		typ.List.Append(nod(ODCLFIELD, newname(v.Sym), typ1))
+		fields = append(fields, symfield(v.Sym, typ))
 	}
+	typ := tostruct(fields)
+	typ.SetNoalg(true)
+	typ.SetLocal(true)
 
-	clos := nod(OCOMPLIT, nil, nod(OIND, typ, nil))
+	clos := nod(OCOMPLIT, nil, nod(OIND, typenod(typ), nil))
 	clos.Esc = func_.Esc
 	clos.Right.SetImplicit(true)
 	clos.List.Set(append([]*Node{nod(OCFUNC, func_.Func.Closure.Func.Nname, nil)}, func_.Func.Enter.Slice()...))
 
 	// Force type conversion from *struct to the func type.
 	clos = nod(OCONVNOP, clos, nil)
-
 	clos.Type = func_.Type
 
 	clos = typecheck(clos, Erv)
@@ -682,11 +684,14 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 		checknil(n.Left, init)
 	}
 
-	typ := nod(OTSTRUCT, nil, nil)
-	typ.List.Set1(namedfield("F", types.Types[TUINTPTR]))
-	typ.List.Append(namedfield("R", n.Left.Type))
+	typ := tostruct([]*Node{
+		namedfield("F", types.Types[TUINTPTR]),
+		namedfield("R", n.Left.Type),
+	})
+	typ.SetNoalg(true)
+	typ.SetLocal(true)
 
-	clos := nod(OCOMPLIT, nil, nod(OIND, typ, nil))
+	clos := nod(OCOMPLIT, nil, nod(OIND, typenod(typ), nil))
 	clos.Esc = n.Esc
 	clos.Right.SetImplicit(true)
 	clos.List.Set1(nod(OCFUNC, n.Func.Nname, nil))
@@ -694,7 +699,6 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 
 	// Force type conversion from *struct to the func type.
 	clos = nod(OCONVNOP, clos, nil)
-
 	clos.Type = n.Type
 
 	clos = typecheck(clos, Erv)
