@@ -71,6 +71,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -448,9 +449,9 @@ func UnquoteUsage(flag *Flag) (name string, usage string) {
 	return
 }
 
-// PrintDefaults prints to standard error the default values of all
-// defined command-line flags in the set. See the documentation for
-// the global function PrintDefaults for more information.
+// PrintDefaults prints, to standard error unless configured otherwise, the
+// default values of all defined command-line flags in the set. See the
+// documentation for the global function PrintDefaults for more information.
 func (f *FlagSet) PrintDefaults() {
 	f.VisitAll(func(flag *Flag) {
 		s := fmt.Sprintf("  -%s", flag.Name) // Two spaces before -; see next two comments.
@@ -467,7 +468,8 @@ func (f *FlagSet) PrintDefaults() {
 			// for both 4- and 8-space tab stops.
 			s += "\n    \t"
 		}
-		s += usage
+		s += strings.Replace(usage, "\n", "\n    \t", -1)
+
 		if !isZeroValue(flag, flag.DefValue) {
 			if _, ok := flag.Value.(*stringValue); ok {
 				// put quotes on the value
