@@ -212,7 +212,7 @@ type Type interface {
 // t.FieldByName("x") is not well defined if the struct type t contains
 // multiple fields named x (embedded from different packages).
 // FieldByName may return one of the fields named x or may report that there are none.
-// See golang.org/issue/4876 for more details.
+// See https://golang.org/issue/4876 for more details.
 
 /*
  * These data structures are known to the compiler (../../cmd/internal/gc/reflect.go).
