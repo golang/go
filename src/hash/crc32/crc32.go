@@ -13,6 +13,7 @@
 package crc32
 
 import (
+	"errors"
 	"hash"
 	"sync"
 )
@@ -159,6 +160,48 @@ func (d *digest) BlockSize() int { return 1 }
 
 func (d *digest) Reset() { d.crc = 0 }
 
+const (
+	magic         = "crc\x01"
+	marshaledSize = len(magic) + 4 + 4
+)
+
+func (d *digest) MarshalBinary() ([]byte, error) {
+	b := make([]byte, 0, marshaledSize)
+	b = append(b, magic...)
+	b = appendUint32(b, tableSum(d.tab))
+	b = appendUint32(b, d.crc)
+	return b, nil
+}
+
+func (d *digest) UnmarshalBinary(b []byte) error {
+	if len(b) < len(magic) || string(b[:len(magic)]) != magic {
+		return errors.New("hash/crc32: invalid hash state identifier")
+	}
+	if len(b) != marshaledSize {
+		return errors.New("hash/crc32: invalid hash state size")
+	}
+	if tableSum(d.tab) != readUint32(b[4:]) {
+		return errors.New("hash/crc32: tables do not match")
+	}
+	d.crc = readUint32(b[8:])
+	return nil
+}
+
+func appendUint32(b []byte, x uint32) []byte {
+	a := [4]byte{
+		byte(x >> 24),
+		byte(x >> 16),
+		byte(x >> 8),
+		byte(x),
+	}
+	return append(b, a[:]...)
+}
+
+func readUint32(b []byte) uint32 {
+	_ = b[3]
+	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+}
+
 // Update returns the result of adding the bytes in p to the crc.
 func Update(crc uint32, tab *Table, p []byte) uint32 {
 	switch tab {
@@ -204,4 +247,16 @@ func Checksum(data []byte, tab *Table) uint32 { return Update(0, tab, data) }
 func ChecksumIEEE(data []byte) uint32 {
 	ieeeOnce.Do(ieeeInit)
 	return updateIEEE(0, data)
+}
+
+// tableSum returns the IEEE checksum of table t.
+func tableSum(t *Table) uint32 {
+	var a [1024]byte
+	b := a[:0]
+	if t != nil {
+		for _, x := range t {
+			b = appendUint32(b, x)
+		}
+	}
+	return ChecksumIEEE(b)
 }
