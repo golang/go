@@ -8,6 +8,7 @@ package sha512
 
 import (
 	"crypto"
+	"errors"
 	"hash"
 )
 
@@ -122,6 +123,92 @@ func (d *digest) Reset() {
 	}
 	d.nx = 0
 	d.len = 0
+}
+
+const (
+	magic384      = "sha\x04"
+	magic512_224  = "sha\x05"
+	magic512_256  = "sha\x06"
+	magic512      = "sha\x07"
+	marshaledSize = len(magic512) + 8*8 + chunk + 8
+)
+
+func (d *digest) MarshalBinary() ([]byte, error) {
+	b := make([]byte, 0, marshaledSize)
+	switch d.function {
+	case crypto.SHA384:
+		b = append(b, magic384...)
+	case crypto.SHA512_224:
+		b = append(b, magic512_224...)
+	case crypto.SHA512_256:
+		b = append(b, magic512_256...)
+	case crypto.SHA512:
+		b = append(b, magic512...)
+	default:
+		return nil, errors.New("crypto/sha512: invalid hash function")
+	}
+	b = appendUint64(b, d.h[0])
+	b = appendUint64(b, d.h[1])
+	b = appendUint64(b, d.h[2])
+	b = appendUint64(b, d.h[3])
+	b = appendUint64(b, d.h[4])
+	b = appendUint64(b, d.h[5])
+	b = appendUint64(b, d.h[6])
+	b = appendUint64(b, d.h[7])
+	b = append(b, d.x[:]...)
+	b = appendUint64(b, d.len)
+	return b, nil
+}
+
+func (d *digest) UnmarshalBinary(b []byte) error {
+	if len(b) < len(magic512) {
+		return errors.New("crypto/sha512: invalid hash state identifier")
+	}
+	switch {
+	case d.function == crypto.SHA384 && string(b[:len(magic384)]) == magic384:
+	case d.function == crypto.SHA512_224 && string(b[:len(magic512_224)]) == magic512_224:
+	case d.function == crypto.SHA512_256 && string(b[:len(magic512_256)]) == magic512_256:
+	case d.function == crypto.SHA512 && string(b[:len(magic512)]) == magic512:
+	default:
+		return errors.New("crypto/sha512: invalid hash state identifier")
+	}
+	if len(b) != marshaledSize {
+		return errors.New("crypto/sha512: invalid hash state size")
+	}
+	b = b[len(magic512):]
+	b, d.h[0] = consumeUint64(b)
+	b, d.h[1] = consumeUint64(b)
+	b, d.h[2] = consumeUint64(b)
+	b, d.h[3] = consumeUint64(b)
+	b, d.h[4] = consumeUint64(b)
+	b, d.h[5] = consumeUint64(b)
+	b, d.h[6] = consumeUint64(b)
+	b, d.h[7] = consumeUint64(b)
+	b = b[copy(d.x[:], b):]
+	b, d.len = consumeUint64(b)
+	d.nx = int(d.len) % chunk
+	return nil
+}
+
+func appendUint64(b []byte, x uint64) []byte {
+	a := [8]byte{
+		byte(x >> 56),
+		byte(x >> 48),
+		byte(x >> 40),
+		byte(x >> 32),
+		byte(x >> 24),
+		byte(x >> 16),
+		byte(x >> 8),
+		byte(x),
+	}
+	return append(b, a[:]...)
+}
+
+func consumeUint64(b []byte) ([]byte, uint64) {
+	_ = b[7]
+	x := uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
+	return b[8:], x
 }
 
 // New returns a new hash.Hash computing the SHA-512 checksum.
