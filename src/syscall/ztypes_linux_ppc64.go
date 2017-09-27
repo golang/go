@@ -600,7 +600,7 @@ type Termios struct {
 const (
 	IUCLC  = 0x1000
 	OLCUC  = 0x4
-	TCGETS = 0x403c7413
-	TCSETS = 0x803c7414
+	TCGETS = 0x402c7413
+	TCSETS = 0x802c7414
 	XCASE  = 0x4000
 )
