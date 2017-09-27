@@ -640,6 +640,11 @@ func checkDupExprCases(exprname *Node, clauses []*Node) {
 			if ct := consttype(n); ct < 0 || ct == CTBOOL {
 				continue
 			}
+			// If the value has no type, we have
+			// already printed an error about it.
+			if n.Type == nil {
+				continue
+			}
 			tv := typeVal{
 				typ: n.Type.LongString(),
 				val: n.Val().Interface(),
