@@ -273,21 +273,15 @@ func (s *exprSwitch) walk(sw *Node) {
 
 	// handle the cases in order
 	for len(cc) > 0 {
-		// deal with expressions one at a time
-		if !okforcmp[t.Etype] || !cc[0].isconst {
-			a := s.walkCases(cc[:1])
-			cas = append(cas, a)
-			cc = cc[1:]
-			continue
+		run := 1
+		if okforcmp[t.Etype] && cc[0].isconst {
+			// do binary search on runs of constants
+			for ; run < len(cc) && cc[run].isconst; run++ {
+			}
+			// sort and compile constants
+			sort.Sort(caseClauseByConstVal(cc[:run]))
 		}
 
-		// do binary search on runs of constants
-		var run int
-		for run = 1; run < len(cc) && cc[run].isconst; run++ {
-		}
-
-		// sort and compile constants
-		sort.Sort(caseClauseByConstVal(cc[:run]))
 		a := s.walkCases(cc[:run])
 		cas = append(cas, a)
 		cc = cc[run:]
