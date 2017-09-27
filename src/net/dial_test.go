@@ -225,6 +225,8 @@ func dialClosedPort() (actual, expected time.Duration) {
 	// but other platforms should be instantaneous.
 	if runtime.GOOS == "windows" {
 		expected = 1500 * time.Millisecond
+	} else if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		expected = 150 * time.Millisecond
 	} else {
 		expected = 95 * time.Millisecond
 	}
