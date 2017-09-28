@@ -584,11 +584,11 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
 		t = tt.typeOff(m.typ)
 	} else {
 		rcvrtype = v.typ
-		ut := v.typ.uncommon()
-		if ut == nil || uint(i) >= uint(ut.mcount) {
+		ms := v.typ.exportedMethods()
+		if uint(i) >= uint(len(ms)) {
 			panic("reflect: internal error: invalid method index")
 		}
-		m := ut.methods()[i]
+		m := ms[i]
 		if !v.typ.nameOff(m.name).isExported() {
 			panic("reflect: " + op + " of unexported method")
 		}
@@ -1717,11 +1717,11 @@ func (v Value) Type() Type {
 		return v.typ.typeOff(m.typ)
 	}
 	// Method on concrete type.
-	ut := v.typ.uncommon()
-	if ut == nil || uint(i) >= uint(ut.mcount) {
+	ms := v.typ.exportedMethods()
+	if uint(i) >= uint(len(ms)) {
 		panic("reflect: internal error: invalid method index")
 	}
-	m := ut.methods()[i]
+	m := ms[i]
 	return v.typ.typeOff(m.mtyp)
 }
 
