@@ -542,7 +542,33 @@ func Repeat(s string, count int) string {
 }
 
 // ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
-func ToUpper(s string) string { return Map(unicode.ToUpper, s) }
+func ToUpper(s string) string {
+	isASCII, hasLower := true, false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= utf8.RuneSelf {
+			isASCII = false
+			break
+		}
+		hasLower = hasLower || (c >= 'a' && c <= 'z')
+	}
+
+	if isASCII { // optimize for ASCII-only strings.
+		if !hasLower {
+			return s
+		}
+		b := make([]byte, len(s))
+		for i := 0; i < len(s); i++ {
+			c := s[i]
+			if c >= 'a' && c <= 'z' {
+				c -= 'a' - 'A'
+			}
+			b[i] = c
+		}
+		return string(b)
+	}
+	return Map(unicode.ToUpper, s)
+}
 
 // ToLower returns a copy of the string s with all Unicode letters mapped to their lower case.
 func ToLower(s string) string { return Map(unicode.ToLower, s) }
