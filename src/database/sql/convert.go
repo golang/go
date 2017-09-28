@@ -234,6 +234,12 @@ func convertAssign(dest, src interface{}) error {
 			}
 			*d = []byte(s)
 			return nil
+		case *RawBytes:
+			if d == nil {
+				return errNilPtr
+			}
+			*d = append((*d)[:0], s...)
+			return nil
 		}
 	case []byte:
 		switch d := dest.(type) {
@@ -272,6 +278,12 @@ func convertAssign(dest, src interface{}) error {
 				return errNilPtr
 			}
 			*d = []byte(s.Format(time.RFC3339Nano))
+			return nil
+		case *RawBytes:
+			if d == nil {
+				return errNilPtr
+			}
+			*d = s.AppendFormat((*d)[:0], time.RFC3339Nano)
 			return nil
 		}
 	case nil:

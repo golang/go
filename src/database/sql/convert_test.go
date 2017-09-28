@@ -106,6 +106,7 @@ var conversionTests = []conversionTest{
 	// To RawBytes
 	{s: nil, d: &scanraw, wantraw: nil},
 	{s: []byte("byteslice"), d: &scanraw, wantraw: RawBytes("byteslice")},
+	{s: "string", d: &scanraw, wantraw: RawBytes("string")},
 	{s: 123, d: &scanraw, wantraw: RawBytes("123")},
 	{s: int8(123), d: &scanraw, wantraw: RawBytes("123")},
 	{s: int64(123), d: &scanraw, wantraw: RawBytes("123")},
@@ -114,6 +115,9 @@ var conversionTests = []conversionTest{
 	{s: uint32(123), d: &scanraw, wantraw: RawBytes("123")},
 	{s: uint64(123), d: &scanraw, wantraw: RawBytes("123")},
 	{s: 1.5, d: &scanraw, wantraw: RawBytes("1.5")},
+	// time.Time has been placed here to check that the RawBytes slice gets
+	// correctly reset when calling time.Time.AppendFormat.
+	{s: time.Unix(2, 5).UTC(), d: &scanraw, wantraw: RawBytes("1970-01-01T00:00:02.000000005Z")},
 
 	// Strings to integers
 	{s: "255", d: &scanuint8, wantuint: 255},
@@ -347,6 +351,7 @@ func TestRawBytesAllocs(t *testing.T) {
 		{"float32", float32(1.5), "1.5"},
 		{"float64", float64(64), "64"},
 		{"bool", false, "false"},
+		{"time", time.Unix(2, 5).UTC(), "1970-01-01T00:00:02.000000005Z"},
 	}
 
 	buf := make(RawBytes, 10)
