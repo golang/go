@@ -3789,7 +3789,6 @@ ret:
 
 	lineno = lno
 	n.SetWalkdef(1)
-	return
 }
 
 func checkmake(t *types.Type, arg string, n *Node) bool {
