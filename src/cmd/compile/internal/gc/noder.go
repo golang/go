@@ -1047,7 +1047,6 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace src.Pos) []*Nod
 		if clause.Comm != nil {
 			n.List.Set1(p.stmt(clause.Comm))
 		}
-		n.Xoffset = int64(types.Block)
 		n.Nbody.Set(p.stmts(clause.Body))
 		nodes = append(nodes, n)
 	}
