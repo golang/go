@@ -734,6 +734,9 @@ label1:
 	POPCNTW	R1,R2
 	POPCNTB R1,R2
 
+//	Copysign
+	FCPSGN F1,F2,F3
+
 //	Random number generator, X-form
 //	DARN  L,RT produces
 //	darn  RT,L

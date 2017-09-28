@@ -604,6 +604,8 @@ const (
 
 	ARFCI
 
+	AFCPSGN
+	AFCPSGNCC
 	/* optional on 32-bit */
 	AFRES
 	AFRESCC

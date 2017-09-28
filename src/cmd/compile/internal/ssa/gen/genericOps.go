@@ -273,6 +273,10 @@ var genericOps = []opData{
 	{name: "Trunc", argLength: 1}, // round arg0 toward 0
 	{name: "Round", argLength: 1}, // round arg0 to nearest, ties away from 0
 
+	// Modify the sign bit
+	{name: "Abs", argLength: 1},      // absolute value arg0
+	{name: "Copysign", argLength: 2}, // copy sign from arg0 to arg1
+
 	// Data movement, max argument length for Phi is indefinite so just pick
 	// a really large number
 	{name: "Phi", argLength: -1}, // select an argument based on which predecessor block we came from

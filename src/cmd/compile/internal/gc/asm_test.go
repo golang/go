@@ -2220,6 +2220,24 @@ var linuxPPC64LETests = []*asmTest{
 	},
 
 	{
+		fn: `
+                func f12(a, b float64) float64 {
+                        return math.Copysign(a, b)
+                }
+                `,
+		pos: []string{"\tFCPSGN\t"},
+	},
+
+	{
+		fn: `
+                func f13(a float64) float64 {
+                        return math.Abs(a)
+                }
+                `,
+		pos: []string{"\tFABS\t"},
+	},
+
+	{
 		// check that stack store is optimized away
 		fn: `
 		func $() int {
