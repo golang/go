@@ -8,10 +8,10 @@
 
 set -e
 
-# With no arguments, use the most recent release in the RELEASES file.
+# With no arguments, use the most recent linux-amd64 release in the RELEASES file.
 case "$#" in
 0)
-	version=$(tail -1 RELEASES | awk '{print $1}');;
+	version=$(grep linux-amd64 RELEASES | tail -1 | awk '{print $1}');;
 1)
 	version="$1";;
 *)
@@ -19,8 +19,8 @@ case "$#" in
 	exit 2
 esac
 
-url="$(grep "^$version " RELEASES | awk '{print $3}')"
-sha256="$(grep "^$version " RELEASES | awk '{print $4}')"
+url="$(grep "^$version .* linux-amd64 " RELEASES | awk '{print $4}')"
+sha256="$(grep "^$version .* linux-amd64 " RELEASES | awk '{print $5}')"
 if [ "$sha256" = "" ]; then
 	echo "cannot find $version in RELEASES file" >&2
 	exit 2
