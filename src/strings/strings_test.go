@@ -518,9 +518,12 @@ func runStringTests(t *testing.T, f func(string) string, funcName string, testCa
 
 var upperTests = []StringTest{
 	{"", ""},
+	{"ONLYUPPER", "ONLYUPPER"},
 	{"abc", "ABC"},
 	{"AbC123", "ABC123"},
 	{"azAZ09_", "AZAZ09_"},
+	{"longStrinGwitHmixofsmaLLandcAps", "LONGSTRINGWITHMIXOFSMALLANDCAPS"},
+	{"long\u0250string\u0250with\u0250nonascii\u2C6Fchars", "LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS"},
 	{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"}, // grows one byte per char
 }
 
@@ -647,6 +650,19 @@ func TestMap(t *testing.T) {
 func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTests) }
 
 func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTests) }
+
+func BenchmarkToUpper(b *testing.B) {
+	for _, tc := range upperTests {
+		b.Run(tc.in, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				actual := ToUpper(tc.in)
+				if actual != tc.out {
+					b.Errorf("ToUpper(%q) = %q; want %q", tc.in, actual, tc.out)
+				}
+			}
+		})
+	}
+}
 
 func BenchmarkMapNoChanges(b *testing.B) {
 	identity := func(r rune) rune {
