@@ -267,8 +267,6 @@ func insertLoopReschedChecks(f *Func) {
 		sdom = newSparseTree(f, f.Idom())
 		fmt.Printf("after %s = %s\n", f.Name, sdom.treestructure(f.Entry))
 	}
-
-	return
 }
 
 // newPhiFor inserts a new Phi function into b,

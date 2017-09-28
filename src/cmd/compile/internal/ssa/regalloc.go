@@ -1715,14 +1715,10 @@ func (s *regAllocState) placeSpills() {
 		}
 		oldSched = append(oldSched[:0], b.Values[nphi:]...)
 		b.Values = b.Values[:nphi]
-		for _, v := range start[b.ID] {
-			b.Values = append(b.Values, v)
-		}
+		b.Values = append(b.Values, start[b.ID]...)
 		for _, v := range oldSched {
 			b.Values = append(b.Values, v)
-			for _, w := range after[v.ID] {
-				b.Values = append(b.Values, w)
-			}
+			b.Values = append(b.Values, after[v.ID]...)
 		}
 	}
 }
@@ -2209,12 +2205,6 @@ type liveInfo struct {
 	ID   ID       // ID of value
 	dist int32    // # of instructions before next use
 	pos  src.XPos // source position of next use
-}
-
-// dblock contains information about desired & avoid registers at the end of a block.
-type dblock struct {
-	prefers []desiredStateEntry
-	avoid   regMask
 }
 
 // computeLive computes a map from block ID to a list of value IDs live at the end

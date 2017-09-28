@@ -157,7 +157,6 @@ func init1(n *Node, out *[]*Node) {
 	initlist = initlist[:last]
 
 	n.SetInitorder(InitDone)
-	return
 }
 
 // foundinitloop prints an init loop error and exits.
