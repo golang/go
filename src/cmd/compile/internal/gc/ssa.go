@@ -2806,6 +2806,16 @@ func init() {
 			return s.newValue1(ssa.OpRound, types.Types[TFLOAT64], args[0])
 		},
 		sys.S390X)
+	addF("math", "Abs",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpAbs, types.Types[TFLOAT64], args[0])
+		},
+		sys.PPC64)
+	addF("math", "Copysign",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue2(ssa.OpCopysign, types.Types[TFLOAT64], args[0], args[1])
+		},
+		sys.PPC64)
 
 	/******** math/bits ********/
 	addF("math/bits", "TrailingZeros64",

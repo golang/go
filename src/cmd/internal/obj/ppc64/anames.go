@@ -230,6 +230,8 @@ var Anames = []string{
 	"SYSCALL",
 	"WORD",
 	"RFCI",
+	"FCPSGN",
+	"FCPSGNCC",
 	"FRES",
 	"FRESCC",
 	"FRIM",

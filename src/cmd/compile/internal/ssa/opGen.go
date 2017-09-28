@@ -1407,6 +1407,9 @@ const (
 	OpPPC64FFLOOR
 	OpPPC64FCEIL
 	OpPPC64FTRUNC
+	OpPPC64FABS
+	OpPPC64FNABS
+	OpPPC64FCPSGN
 	OpPPC64ORconst
 	OpPPC64XORconst
 	OpPPC64ANDconst
@@ -1892,6 +1895,8 @@ const (
 	OpCeil
 	OpTrunc
 	OpRound
+	OpAbs
+	OpCopysign
 	OpPhi
 	OpCopy
 	OpConvert
@@ -18114,6 +18119,46 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "FABS",
+		argLen: 1,
+		asm:    ppc64.AFABS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+		},
+	},
+	{
+		name:   "FNABS",
+		argLen: 1,
+		asm:    ppc64.AFNABS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+		},
+	},
+	{
+		name:   "FCPSGN",
+		argLen: 2,
+		asm:    ppc64.AFCPSGN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			},
+		},
+	},
+	{
 		name:    "ORconst",
 		auxType: auxInt64,
 		argLen:  1,
@@ -23184,6 +23229,16 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "Round",
 		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Abs",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Copysign",
+		argLen:  2,
 		generic: true,
 	},
 	{
