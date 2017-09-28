@@ -758,15 +758,10 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
 			return n
 		}
 
-		lhs := p.exprList(stmt.Lhs)
-		rhs := p.exprList(stmt.Rhs)
-
 		n := p.nod(stmt, OAS, nil, nil) // assume common case
 
-		if stmt.Op == syntax.Def {
-			n.SetColas(true)
-			colasdefn(lhs, n) // modifies lhs, call before using lhs[0] in common case
-		}
+		rhs := p.exprList(stmt.Rhs)
+		lhs := p.assignList(stmt.Lhs, n, stmt.Op == syntax.Def)
 
 		if len(lhs) == 1 && len(rhs) == 1 {
 			// common case
@@ -845,6 +840,66 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
 	panic("unhandled Stmt")
 }
 
+func (p *noder) assignList(expr syntax.Expr, defn *Node, colas bool) []*Node {
+	if !colas {
+		return p.exprList(expr)
+	}
+
+	defn.SetColas(true)
+
+	var exprs []syntax.Expr
+	if list, ok := expr.(*syntax.ListExpr); ok {
+		exprs = list.ElemList
+	} else {
+		exprs = []syntax.Expr{expr}
+	}
+
+	res := make([]*Node, len(exprs))
+	seen := make(map[*types.Sym]bool, len(exprs))
+
+	newOrErr := false
+	for i, expr := range exprs {
+		p.lineno(expr)
+		res[i] = nblank
+
+		name, ok := expr.(*syntax.Name)
+		if !ok {
+			yyerrorpos(expr.Pos(), "non-name %v on left side of :=", p.expr(expr))
+			newOrErr = true
+			continue
+		}
+
+		sym := p.name(name)
+		if sym.IsBlank() {
+			continue
+		}
+
+		if seen[sym] {
+			yyerrorpos(expr.Pos(), "%v repeated on left side of :=", sym)
+			newOrErr = true
+			continue
+		}
+		seen[sym] = true
+
+		if sym.Block == types.Block {
+			res[i] = oldname(sym)
+			continue
+		}
+
+		newOrErr = true
+		n := newname(sym)
+		declare(n, dclcontext)
+		n.Name.Defn = defn
+		defn.Ninit.Append(nod(ODCL, n, nil))
+		res[i] = n
+	}
+
+	if !newOrErr {
+		yyerrorl(defn.Pos, "no new variables on left side of :=")
+	}
+	return res
+}
+
 func (p *noder) blockStmt(stmt *syntax.BlockStmt) []*Node {
 	p.openScope(stmt.Pos())
 	nodes := p.stmts(stmt.List)
@@ -884,12 +939,7 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) *Node {
 
 		n = p.nod(r, ORANGE, nil, p.expr(r.X))
 		if r.Lhs != nil {
-			lhs := p.exprList(r.Lhs)
-			n.List.Set(lhs)
-			if r.Def {
-				n.SetColas(true)
-				colasdefn(lhs, n)
-			}
+			n.List.Set(p.assignList(r.Lhs, n, r.Def))
 		}
 	} else {
 		n = p.nod(stmt, OFOR, nil, nil)

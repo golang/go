@@ -14,7 +14,7 @@ func foo(runtime.UintType, i int) {  // ERROR "cannot declare name runtime.UintT
 }
 
 func bar(i int) {
-	runtime.UintType := i       // ERROR "cannot declare name runtime.UintType|non-name on left side|undefined identifier"
+	runtime.UintType := i       // ERROR "non-name runtime.UintType|non-name on left side|undefined identifier"
 	println(runtime.UintType)	// GCCGO_ERROR "invalid use of type|undefined identifier"
 }
 
