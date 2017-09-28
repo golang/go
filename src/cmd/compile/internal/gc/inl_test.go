@@ -113,6 +113,23 @@ func TestIntendedInlining(t *testing.T) {
 			"RuneLen",
 			"ValidRune",
 		},
+		"reflect": {
+			"Value.CanAddr",
+			"Value.CanSet",
+			"Value.IsValid",
+			"add",
+			"align",
+			"flag.kind",
+			"flag.ro",
+
+			// TODO: these use panic, need mid-stack
+			// inlining
+			// "Value.CanInterface",
+			// "Value.pointer",
+			// "flag.mustBe",
+			// "flag.mustBeAssignable",
+			// "flag.mustBeExported",
+		},
 		"regexp": {
 			"(*bitState).push",
 		},
