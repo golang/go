@@ -6405,3 +6405,19 @@ func TestIssue22031(t *testing.T) {
 		}
 	}
 }
+
+type NonExportedFirst int
+
+func (i NonExportedFirst) ΦExported()       {}
+func (i NonExportedFirst) nonexported() int { panic("wrong") }
+
+func TestIssue22073(t *testing.T) {
+	m := ValueOf(NonExportedFirst(0)).Method(0)
+
+	if got := m.Type().NumOut(); got != 0 {
+		t.Errorf("NumOut: got %v, want 0", got)
+	}
+
+	// Shouldn't panic.
+	m.Call(nil)
+}
