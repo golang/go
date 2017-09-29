@@ -437,7 +437,7 @@ func createComplexVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug) ([]*Node, []*d
 
 	// Group SSA variables by the user variable they were decomposed from.
 	varParts := map[*Node][]varPart{}
-	for slotID, slot := range debugInfo.Slots {
+	for slotID, slot := range debugInfo.VarSlots {
 		for slot.SplitOf != nil {
 			slot = slot.SplitOf
 		}
@@ -450,7 +450,7 @@ func createComplexVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug) ([]*Node, []*d
 	// createComplexVar has side effects. Instead, go by slot.
 	var decls []*Node
 	var vars []*dwarf.Var
-	for _, slot := range debugInfo.Slots {
+	for _, slot := range debugInfo.VarSlots {
 		for slot.SplitOf != nil {
 			slot = slot.SplitOf
 		}
@@ -490,6 +490,26 @@ func (a partsByVarOffset) Len() int           { return len(a) }
 func (a partsByVarOffset) Less(i, j int) bool { return a[i].varOffset < a[j].varOffset }
 func (a partsByVarOffset) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
+// stackOffset returns the stack location of a LocalSlot relative to the
+// stack pointer, suitable for use in a DWARF location entry. This has nothing
+// to do with its offset in the user variable.
+func stackOffset(slot *ssa.LocalSlot) int32 {
+	n := slot.N.(*Node)
+	var base int64
+	switch n.Class() {
+	case PAUTO:
+		if Ctxt.FixedFrameSize() == 0 {
+			base -= int64(Widthptr)
+		}
+		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+			base -= int64(Widthptr)
+		}
+	case PPARAM, PPARAMOUT:
+		base += Ctxt.FixedFrameSize()
+	}
+	return int32(base + n.Xoffset + slot.Off)
+}
+
 // createComplexVar builds a DWARF variable entry and location list representing n.
 func createComplexVar(debugInfo *ssa.FuncDebug, n *Node, parts []varPart) *dwarf.Var {
 	slots := debugInfo.Slots
@@ -514,14 +534,15 @@ func createComplexVar(debugInfo *ssa.FuncDebug, n *Node, parts []varPart) *dwarf
 
 	gotype := ngotype(n).Linksym()
 	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
-	// The stack offset is used as a sorting key, so for decomposed
-	// variables just give it the lowest one. It's not used otherwise.
-	stackOffset := debugInfo.Slots[parts[0].slot].N.(*Node).Xoffset + offs
 	dvar := &dwarf.Var{
-		Name:        n.Sym.Name,
-		Abbrev:      abbrev,
-		Type:        Ctxt.Lookup(typename),
-		StackOffset: int32(stackOffset),
+		Name:   n.Sym.Name,
+		Abbrev: abbrev,
+		Type:   Ctxt.Lookup(typename),
+		// The stack offset is used as a sorting key, so for decomposed
+		// variables just give it the lowest one. It's not used otherwise.
+		// This won't work well if the first slot hasn't been assigned a stack
+		// location, but it's not obvious how to do better.
+		StackOffset: int32(stackOffset(slots[parts[0].slot])),
 		DeclLine:    n.Pos.Line(),
 	}
 
@@ -666,7 +687,7 @@ func createComplexVar(debugInfo *ssa.FuncDebug, n *Node, parts []varPart) *dwarf
 			}
 			if loc.OnStack {
 				dpiece.OnStack = true
-				dpiece.StackOffset = int32(offs + slots[part.slot].Off + slots[part.slot].N.(*Node).Xoffset)
+				dpiece.StackOffset = stackOffset(slots[loc.StackLocation])
 			} else {
 				for reg := 0; reg < len(debugInfo.Registers); reg++ {
 					if loc.Registers&(1<<uint8(reg)) != 0 {
