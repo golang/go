@@ -1545,3 +1545,91 @@ func TestEmptyNameConstraints(t *testing.T) {
 		t.Errorf("expected %q in error but got %q", expected, str)
 	}
 }
+
+func TestPKIXNameString(t *testing.T) {
+	pem, err := hex.DecodeString(certBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	certs, err := ParseCertificates(pem)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		dn   pkix.Name
+		want string
+	}{
+		{pkix.Name{
+			CommonName:         "Steve Kille",
+			Organization:       []string{"Isode Limited"},
+			OrganizationalUnit: []string{"RFCs"},
+			Locality:           []string{"Richmond"},
+			Province:           []string{"Surrey"},
+			StreetAddress:      []string{"The Square"},
+			PostalCode:         []string{"TW9 1DT"},
+			SerialNumber:       "RFC 2253",
+			Country:            []string{"GB"},
+		}, "SERIALNUMBER=RFC 2253,CN=Steve Kille,OU=RFCs,O=Isode Limited,POSTALCODE=TW9 1DT,STREET=The Square,L=Richmond,ST=Surrey,C=GB"},
+		{certs[0].Subject,
+			"CN=mail.google.com,O=Google Inc,L=Mountain View,ST=California,C=US"},
+		{pkix.Name{
+			Organization: []string{"#Google, Inc. \n-> 'Alphabet\" "},
+			Country:      []string{"US"},
+		}, "O=\\#Google\\, Inc. \n-\\> 'Alphabet\\\"\\ ,C=US"},
+		{pkix.Name{
+			CommonName:   "foo.com",
+			Organization: []string{"Gopher Industries"},
+			ExtraNames: []pkix.AttributeTypeAndValue{
+				{Type: asn1.ObjectIdentifier([]int{2, 5, 4, 3}), Value: "bar.com"}},
+		}, "CN=bar.com,O=Gopher Industries"},
+		{pkix.Name{
+			Locality: []string{"Gophertown"},
+			ExtraNames: []pkix.AttributeTypeAndValue{
+				{Type: asn1.ObjectIdentifier([]int{1, 2, 3, 4, 5}), Value: "golang.org"}},
+		}, "1.2.3.4.5=#130a676f6c616e672e6f7267,L=Gophertown"},
+	}
+
+	for i, test := range tests {
+		if got := test.dn.String(); got != test.want {
+			t.Errorf("#%d: String() = \n%s\n, want \n%s", i, got, test.want)
+		}
+	}
+}
+
+func TestRDNSequenceString(t *testing.T) {
+	// Test some extra cases that get lost in pkix.Name conversions such as
+	// multi-valued attributes.
+
+	var (
+		oidCountry            = []int{2, 5, 4, 6}
+		oidOrganization       = []int{2, 5, 4, 10}
+		oidOrganizationalUnit = []int{2, 5, 4, 11}
+		oidCommonName         = []int{2, 5, 4, 3}
+	)
+
+	tests := []struct {
+		seq  pkix.RDNSequence
+		want string
+	}{
+		{seq: pkix.RDNSequence{
+			pkix.RelativeDistinguishedNameSET{
+				pkix.AttributeTypeAndValue{Type: oidCountry, Value: "US"},
+			},
+			pkix.RelativeDistinguishedNameSET{
+				pkix.AttributeTypeAndValue{Type: oidOrganization, Value: "Widget Inc."},
+			},
+			pkix.RelativeDistinguishedNameSET{
+				pkix.AttributeTypeAndValue{Type: oidOrganizationalUnit, Value: "Sales"},
+				pkix.AttributeTypeAndValue{Type: oidCommonName, Value: "J. Smith"},
+			},
+		},
+		want: "OU=Sales+CN=J. Smith,O=Widget Inc.,C=US"},
+	}
+
+	for i, test := range tests {
+		if got := test.seq.String(); got != test.want {
+			t.Errorf("#%d: String() = \n%s\n, want \n%s", i, got, test.want)
+		}
+	}
+}
