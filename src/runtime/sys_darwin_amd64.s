@@ -108,28 +108,28 @@ TEXT runtime·madvise(SB), NOSPLIT, $0
 
 // OS X comm page time offsets
 // http://www.opensource.apple.com/source/xnu/xnu-1699.26.8/osfmk/i386/cpu_capabilities.h
-#define	nt_tsc_base	0x50
-#define	nt_scale	0x58
-#define	nt_shift	0x5c
-#define	nt_ns_base	0x60
-#define	nt_generation	0x68
-#define	gtod_generation	0x6c
-#define	gtod_ns_base	0x70
-#define	gtod_sec_base	0x78
+#define	v12_nt_tsc_base	0x50
+#define	v12_nt_scale	0x58
+#define	v12_nt_shift	0x5c
+#define	v12_nt_ns_base	0x60
+#define	v12_nt_generation	0x68
+#define	v12_gtod_generation	0x6c
+#define	v12_gtod_ns_base	0x70
+#define	v12_gtod_sec_base	0x78
 
 TEXT runtime·nanotime(SB),NOSPLIT,$0-8
 	MOVQ	$0x7fffffe00000, BP	/* comm page base */
 	// Loop trying to take a consistent snapshot
 	// of the time parameters.
 timeloop:
-	MOVL	nt_generation(BP), R9
+	MOVL	v12_nt_generation(BP), R9
 	TESTL	R9, R9
 	JZ	timeloop
 	RDTSC
-	MOVQ	nt_tsc_base(BP), R10
-	MOVL	nt_scale(BP), R11
-	MOVQ	nt_ns_base(BP), R12
-	CMPL	nt_generation(BP), R9
+	MOVQ	v12_nt_tsc_base(BP), R10
+	MOVL	v12_nt_scale(BP), R11
+	MOVQ	v12_nt_ns_base(BP), R12
+	CMPL	v12_nt_generation(BP), R9
 	JNE	timeloop
 
 	// Gathered all the data we need. Compute monotonic time:
@@ -154,19 +154,19 @@ TEXT time·now(SB), NOSPLIT, $32-24
 	// Loop trying to take a consistent snapshot
 	// of the time parameters.
 timeloop:
-	MOVL	gtod_generation(BP), R8
-	MOVL	nt_generation(BP), R9
+	MOVL	v12_gtod_generation(BP), R8
+	MOVL	v12_nt_generation(BP), R9
 	TESTL	R9, R9
 	JZ	timeloop
 	RDTSC
-	MOVQ	nt_tsc_base(BP), R10
-	MOVL	nt_scale(BP), R11
-	MOVQ	nt_ns_base(BP), R12
-	CMPL	nt_generation(BP), R9
+	MOVQ	v12_nt_tsc_base(BP), R10
+	MOVL	v12_nt_scale(BP), R11
+	MOVQ	v12_nt_ns_base(BP), R12
+	CMPL	v12_nt_generation(BP), R9
 	JNE	timeloop
-	MOVQ	gtod_ns_base(BP), R13
-	MOVQ	gtod_sec_base(BP), R14
-	CMPL	gtod_generation(BP), R8
+	MOVQ	v12_gtod_ns_base(BP), R13
+	MOVQ	v12_gtod_sec_base(BP), R14
+	CMPL	v12_gtod_generation(BP), R8
 	JNE	timeloop
 
 	// Gathered all the data we need. Compute:
