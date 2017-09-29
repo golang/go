@@ -3333,7 +3333,8 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 		}
 		b.flagCache = make(map[[2]string]bool)
 	}
-	cmdArgs := append(compiler, flag, "-c", "trivial.c")
+	cmdArgs := append([]string(nil), compiler...)
+	cmdArgs = append(cmdArgs, flag, "-c", "trivial.c")
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd(b.WorkDir, "%s", joinUnambiguously(cmdArgs))
 		if cfg.BuildN {
