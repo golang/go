@@ -885,10 +885,16 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		},
 	}
 
-	// The generated main also imports testing, regexp, and os.
+	// The generated main also imports testing, regexp, os, and maybe runtime/cgo.
 	stk.Push("testmain")
+	forceCgo := false
+	if cfg.BuildContext.GOOS == "darwin" {
+		if cfg.BuildContext.GOARCH == "arm" || cfg.BuildContext.GOARCH == "arm64" {
+			forceCgo = true
+		}
+	}
 	deps := testMainDeps
-	if cfg.ExternalLinkingForced() {
+	if cfg.ExternalLinkingForced() || forceCgo {
 		deps = str.StringList(deps, "runtime/cgo")
 	}
 	for _, dep := range deps {
@@ -950,11 +956,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		recompileForTest(pmain, p, ptest, testDir)
 	}
 
-	if cfg.BuildContext.GOOS == "darwin" {
-		if cfg.BuildContext.GOARCH == "arm" || cfg.BuildContext.GOARCH == "arm64" {
-			t.NeedCgo = true
-		}
-	}
+	t.NeedCgo = forceCgo
 
 	for _, cp := range pmain.Internal.Imports {
 		if len(cp.Internal.CoverVars) > 0 {
