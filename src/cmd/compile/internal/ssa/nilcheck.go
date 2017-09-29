@@ -168,7 +168,7 @@ func nilcheckelim2(f *Func) {
 		// input pointer is nil. Remove nil checks on those pointers, as the
 		// faulting instruction effectively does the nil check for free.
 		unnecessary.clear()
-		// Optimization: keep track of removed nilckeck with smallest index
+		// Optimization: keep track of removed nilcheck with smallest index
 		firstToRemove := len(b.Values)
 		for i := len(b.Values) - 1; i >= 0; i-- {
 			v := b.Values[i]
