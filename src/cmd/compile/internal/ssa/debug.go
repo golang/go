@@ -15,9 +15,12 @@ type SlotID int32
 // function. Variables are identified by their LocalSlot, which may be the
 // result of decomposing a larger variable.
 type FuncDebug struct {
-	// Slots are all the slots in the function, indexed by their SlotID as
-	// used in various functions and parallel to BlockDebug.Variables.
+	// Slots is all the slots used in the debug info, indexed by their SlotID.
+	// Use this when getting a LocalSlot from a SlotID.
 	Slots []*LocalSlot
+	// VarSlots is the slots that represent part of user variables.
+	// Use this when iterating over all the slots to generate debug information.
+	VarSlots []*LocalSlot
 	// The blocks in the function, in program text order.
 	Blocks []*BlockDebug
 	// The registers of the current architecture, indexed by Register.num.
@@ -27,11 +30,11 @@ type FuncDebug struct {
 func (f *FuncDebug) BlockString(b *BlockDebug) string {
 	var vars []string
 
-	for slot, list := range b.Variables {
-		if len(list.Locations) == 0 {
+	for slot := range f.VarSlots {
+		if len(b.Variables[slot].Locations) == 0 {
 			continue
 		}
-		vars = append(vars, fmt.Sprintf("%v = %v", f.Slots[slot], list))
+		vars = append(vars, fmt.Sprintf("%v = %v", f.Slots[slot], b.Variables[slot]))
 	}
 	return fmt.Sprintf("{%v}", strings.Join(vars, ", "))
 }
@@ -159,9 +162,10 @@ type VarLoc struct {
 	// The registers this variable is available in. There can be more than
 	// one in various situations, e.g. it's being moved between registers.
 	Registers RegisterSet
-	// Indicates whether the variable is on the stack. The stack position is
-	// stored in the associated gc.Node.
-	OnStack bool
+	// OnStack indicates that the variable is on the stack in the LocalSlot
+	// identified by StackLocation.
+	OnStack       bool
+	StackLocation SlotID
 }
 
 var BlockStart = &Value{
@@ -194,6 +198,7 @@ func (s *debugState) logf(msg string, args ...interface{}) {
 type debugState struct {
 	loggingEnabled bool
 	slots          []*LocalSlot
+	varSlots       []*LocalSlot
 	f              *Func
 	cache          *Cache
 	numRegisters   int
@@ -202,9 +207,24 @@ type debugState struct {
 	registerContents [][]SlotID
 }
 
+// getHomeSlot returns the SlotID of the home slot for v, adding to s.slots
+// if necessary.
+func (s *debugState) getHomeSlot(v *Value) SlotID {
+	home := s.f.getHome(v.ID).(LocalSlot)
+	for id, slot := range s.slots {
+		if *slot == home {
+			return SlotID(id)
+		}
+	}
+	// This slot wasn't in the NamedValue table so it needs to be added.
+	s.slots = append(s.slots, &home)
+	return SlotID(len(s.slots) - 1)
+}
+
 func (s *debugState) BlockString(b *BlockDebug) string {
 	f := &FuncDebug{
 		Slots:     s.slots,
+		VarSlots:  s.varSlots,
 		Registers: s.f.Config.registers,
 	}
 	return f.BlockString(b)
@@ -239,6 +259,9 @@ func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
 			valueNames[value.ID] = append(valueNames[value.ID], SlotID(i))
 		}
 	}
+	// state.varSlots is never changed, and state.slots is only appended to,
+	// so aliasing is safe.
+	state.varSlots = state.slots
 
 	if state.loggingEnabled {
 		var names []string
@@ -335,6 +358,7 @@ func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
 
 	info := &FuncDebug{
 		Slots:     state.slots,
+		VarSlots:  state.varSlots,
 		Registers: f.Config.registers,
 	}
 	// Consumers want the information in textual order, not by block ID.
@@ -344,7 +368,7 @@ func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
 
 	if state.loggingEnabled {
 		f.Logf("Final result:\n")
-		for slot := range info.Slots {
+		for slot := range info.VarSlots {
 			f.Logf("\t%v => %v\n", info.Slots[slot], info.SlotLocsString(SlotID(slot)))
 		}
 	}
@@ -406,6 +430,7 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) *B
 			loc := state.cache.NewVarLoc()
 			loc.Start = BlockStart
 			loc.OnStack = last.OnStack
+			loc.StackLocation = last.StackLocation
 			loc.Registers = last.Registers
 			live[slot].append(loc)
 		}
@@ -433,7 +458,10 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) *B
 			}
 
 			// Unify storage locations.
-			liveLoc.OnStack = liveLoc.OnStack && predLoc.OnStack
+			if !liveLoc.OnStack || !predLoc.OnStack || liveLoc.StackLocation != predLoc.StackLocation {
+				liveLoc.OnStack = false
+				liveLoc.StackLocation = 0
+			}
 			liveLoc.Registers &= predLoc.Registers
 		}
 	}
@@ -506,6 +534,7 @@ func (state *debugState) processValue(locs *BlockDebug, v *Value, vSlots []SlotI
 			loc := state.cache.NewVarLoc()
 			loc.Start = v
 			loc.OnStack = last.OnStack
+			loc.StackLocation = last.StackLocation
 			loc.Registers = regs
 			locs.append(slot, loc)
 		}
@@ -515,20 +544,18 @@ func (state *debugState) processValue(locs *BlockDebug, v *Value, vSlots []SlotI
 				state.unexpected(v, "Arg op on already-live slot %v", state.slots[slot])
 				last.End = v
 			}
-			if state.loggingEnabled {
-				state.logf("at %v: %v now on stack from arg\n", v.ID, state.slots[slot])
-			}
 			loc := state.cache.NewVarLoc()
 			loc.Start = v
 			loc.OnStack = true
+			loc.StackLocation = state.getHomeSlot(v)
 			locs.append(slot, loc)
+			if state.loggingEnabled {
+				state.logf("at %v: arg %v now on stack in location %v\n", v.ID, state.slots[slot], state.slots[loc.StackLocation])
+			}
 		}
 
 	case v.Op == OpStoreReg:
 		for _, slot := range vSlots {
-			if state.loggingEnabled {
-				state.logf("at %v: %v spilled to stack\n", v.ID, state.slots[slot])
-			}
 			last := locs.lastLoc(slot)
 			if last == nil {
 				state.unexpected(v, "spill of unnamed register %s\n", vReg)
@@ -538,8 +565,13 @@ func (state *debugState) processValue(locs *BlockDebug, v *Value, vSlots []SlotI
 			loc := state.cache.NewVarLoc()
 			loc.Start = v
 			loc.OnStack = true
+			loc.StackLocation = state.getHomeSlot(v)
 			loc.Registers = last.Registers
 			locs.append(slot, loc)
+			if state.loggingEnabled {
+				state.logf("at %v: %v spilled to stack location %v\n", v.ID, state.slots[slot], state.slots[loc.StackLocation])
+			}
+
 		}
 
 	case vReg != nil:
@@ -569,6 +601,7 @@ func (state *debugState) processValue(locs *BlockDebug, v *Value, vSlots []SlotI
 			loc.Start = v
 			if last != nil {
 				loc.OnStack = last.OnStack
+				loc.StackLocation = last.StackLocation
 				loc.Registers = last.Registers
 			}
 			loc.Registers |= 1 << uint8(vReg.num)
