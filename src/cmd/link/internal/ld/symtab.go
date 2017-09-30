@@ -147,7 +147,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, go_ *S
 	if x.Type&SHIDDEN != 0 {
 		other = STV_HIDDEN
 	}
-	if SysArch.Family == sys.PPC64 && typ == STT_FUNC && x.Attr.Shared() && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
+	if ctxt.Arch.Family == sys.PPC64 && typ == STT_FUNC && x.Attr.Shared() && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
 		// On ppc64 the top three bits of the st_other field indicate how
 		// many instructions separate the global and local entry points. In
 		// our case it is two instructions, indicated by the value 3.
@@ -225,7 +225,7 @@ func putplan9sym(ctxt *Link, x *Symbol, s string, typ SymbolType, addr int64, go
 
 	case AutoSym, ParamSym, FrameSym:
 		l := 4
-		if Headtype == objabi.Hplan9 && SysArch.Family == sys.AMD64 && !Flag8 {
+		if Headtype == objabi.Hplan9 && ctxt.Arch.Family == sys.AMD64 && !Flag8 {
 			Lputb(uint32(addr >> 32))
 			l = 8
 		}
@@ -313,7 +313,7 @@ func textsectionmap(ctxt *Link) uint32 {
 			break
 		}
 	}
-	Symgrow(t, 3*nsections*int64(SysArch.PtrSize))
+	Symgrow(t, 3*nsections*int64(ctxt.Arch.PtrSize))
 
 	off := int64(0)
 	n := 0

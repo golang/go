@@ -178,7 +178,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	case "android":
 		return true, "android"
 	case "darwin":
-		if SysArch.InFamily(sys.ARM, sys.ARM64) {
+		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
 			return true, "iOS"
 		}
 	}
@@ -191,7 +191,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	// https://golang.org/issue/10373
 	// https://golang.org/issue/14449
 	// https://golang.org/issue/21961
-	if iscgo && SysArch.InFamily(sys.ARM64, sys.MIPS64, sys.MIPS, sys.PPC64) {
+	if iscgo && ctxt.Arch.InFamily(sys.ARM64, sys.MIPS64, sys.MIPS, sys.PPC64) {
 		return true, objabi.GOARCH + " does not support internal cgo"
 	}
 

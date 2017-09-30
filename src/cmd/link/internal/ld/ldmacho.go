@@ -480,9 +480,9 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	m.length = length
 	m.name = pn
 
-	switch SysArch.Family {
+	switch ctxt.Arch.Family {
 	default:
-		Errorf(nil, "%s: mach-o %s unimplemented", pn, SysArch.Name)
+		Errorf(nil, "%s: mach-o %s unimplemented", pn, ctxt.Arch.Name)
 		return
 
 	case sys.AMD64:
@@ -731,7 +731,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			rp = &r[rpi]
 			rel = &sect.rel[j]
 			if rel.scattered != 0 {
-				if SysArch.Family != sys.I386 {
+				if ctxt.Arch.Family != sys.I386 {
 					// mach-o only uses scattered relocation on 32-bit platforms
 					Errorf(s, "unexpected scattered relocation")
 					continue
@@ -827,7 +827,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			rp.Off = int32(rel.addr)
 
 			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).
-			if SysArch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_SIGNED {
+			if ctxt.Arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_SIGNED {
 				// Calculate the addend as the offset into the section.
 				//
 				// The rip-relative offset stored in the object file is encoded
@@ -852,7 +852,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 
 			// An unsigned internal relocation has a value offset
 			// by the section address.
-			if SysArch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_UNSIGNED {
+			if ctxt.Arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_UNSIGNED {
 				secaddr = c.seg.sect[rel.symnum-1].addr
 				rp.Add -= int64(secaddr)
 			}
@@ -860,7 +860,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			// For i386 Mach-O PC-relative, the addend is written such that
 			// it *is* the PC being subtracted. Use that to make
 			// it match our version of PC-relative.
-			if rel.pcrel != 0 && SysArch.Family == sys.I386 {
+			if rel.pcrel != 0 && ctxt.Arch.Family == sys.I386 {
 				rp.Add += int64(rp.Off) + int64(rp.Siz)
 			}
 			if rel.extrn == 0 {
@@ -879,7 +879,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 				// include that information in the addend.
 				// We only care about the delta from the
 				// section base.
-				if SysArch.Family == sys.I386 {
+				if ctxt.Arch.Family == sys.I386 {
 					rp.Add -= int64(c.seg.sect[rel.symnum-1].addr)
 				}
 			} else {

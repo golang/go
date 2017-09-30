@@ -93,7 +93,7 @@ func elfsetupplt(ctxt *ld.Link) {
 	return
 }
 
-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	return false
 }
 
@@ -140,7 +140,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 	case objabi.R_ADDRMIPS,
 		objabi.R_ADDRMIPSU:
 		t := ld.Symaddr(r.Sym) + r.Add
-		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
+		o1 := ctxt.Arch.ByteOrder.Uint32(s.P[r.Off:])
 		if r.Type == objabi.R_ADDRMIPS {
 			*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
 		} else {
@@ -153,14 +153,14 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 		if t < -32768 || t >= 32678 {
 			ld.Errorf(s, "TLS offset out of range %d", t)
 		}
-		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
+		o1 := ctxt.Arch.ByteOrder.Uint32(s.P[r.Off:])
 		*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
 		return true
 	case objabi.R_CALLMIPS,
 		objabi.R_JMPMIPS:
 		// Low 26 bits = (S + A) >> 2
 		t := ld.Symaddr(r.Sym) + r.Add
-		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
+		o1 := ctxt.Arch.ByteOrder.Uint32(s.P[r.Off:])
 		*val = int64(o1&0xfc000000 | uint32(t>>2)&^0xfc000000)
 		return true
 	}
@@ -272,7 +272,7 @@ func asmb(ctxt *ld.Link) {
 	default:
 	case objabi.Hplan9: /* plan 9 */
 		magic := uint32(4*18*18 + 7)
-		if ld.SysArch == sys.ArchMIPS64LE {
+		if ctxt.Arch == sys.ArchMIPS64LE {
 			magic = uint32(4*26*26 + 7)
 		}
 		ld.Thearch.Lput(magic)                      /* magic */

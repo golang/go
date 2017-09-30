@@ -6,6 +6,7 @@ package main
 
 import (
 	"cmd/internal/objabi"
+	"cmd/internal/sys"
 	"cmd/link/internal/amd64"
 	"cmd/link/internal/arm"
 	"cmd/link/internal/arm64"
@@ -26,7 +27,7 @@ import (
 //
 // Before any argument parsing is done, the Init function of relevant
 // architecture package is called. The only job done in Init is
-// configuration of the ld.Thearch and ld.SysArch variables.
+// configuration of the architecture-specific variables.
 //
 // Then control flow passes to ld.Main, which parses flags, makes
 // some configuration decisions, and then gives the architecture
@@ -34,26 +35,29 @@ import (
 // via the ld.Thearch.Archinit function.
 
 func main() {
+	var arch *sys.Arch
+	var theArch ld.Arch
+
 	switch objabi.GOARCH {
 	default:
 		fmt.Fprintf(os.Stderr, "link: unknown architecture %q\n", objabi.GOARCH)
 		os.Exit(2)
 	case "386":
-		x86.Init()
+		arch, theArch = x86.Init()
 	case "amd64", "amd64p32":
-		amd64.Init()
+		arch, theArch = amd64.Init()
 	case "arm":
-		arm.Init()
+		arch, theArch = arm.Init()
 	case "arm64":
-		arm64.Init()
+		arch, theArch = arm64.Init()
 	case "mips", "mipsle":
-		mips.Init()
+		arch, theArch = mips.Init()
 	case "mips64", "mips64le":
-		mips64.Init()
+		arch, theArch = mips64.Init()
 	case "ppc64", "ppc64le":
-		ppc64.Init()
+		arch, theArch = ppc64.Init()
 	case "s390x":
-		s390x.Init()
+		arch, theArch = s390x.Init()
 	}
-	ld.Main()
+	ld.Main(arch, theArch)
 }

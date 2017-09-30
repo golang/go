@@ -27,7 +27,7 @@ type dwctxt struct {
 }
 
 func (c dwctxt) PtrSize() int {
-	return SysArch.PtrSize
+	return c.linkctxt.Arch.PtrSize
 }
 func (c dwctxt) AddInt(s dwarf.Sym, size int, i int64) {
 	ls := s.(*Symbol)
@@ -57,7 +57,7 @@ func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 	default:
 		Errorf(ls, "invalid size %d in adddwarfref\n", size)
 		fallthrough
-	case SysArch.PtrSize:
+	case c.linkctxt.Arch.PtrSize:
 		Addaddr(c.linkctxt, ls, t.(*Symbol))
 	case 4:
 		addaddrplus4(c.linkctxt, ls, t.(*Symbol), 0)
@@ -211,7 +211,7 @@ func adddwarfref(ctxt *Link, s *Symbol, t *Symbol, size int) int64 {
 	default:
 		Errorf(s, "invalid size %d in adddwarfref\n", size)
 		fallthrough
-	case SysArch.PtrSize:
+	case ctxt.Arch.PtrSize:
 		result = Addaddr(ctxt, s, t)
 	case 4:
 		result = addaddrplus4(ctxt, s, t, 0)
@@ -362,7 +362,7 @@ func defgotype(ctxt *Link, gotype *Symbol) *Symbol {
 
 func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
 	name := gotype.Name[5:] // could also decode from Type.string
-	kind := decodetypeKind(gotype)
+	kind := decodetypeKind(ctxt.Arch, gotype)
 	bytesize := decodetypeSize(ctxt.Arch, gotype)
 
 	var die *dwarf.DWDie
@@ -407,7 +407,7 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_ARRAYTYPE, name, 0)
 		dotypedef(ctxt, &dwtypes, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
-		s := decodetypeArrayElem(gotype)
+		s := decodetypeArrayElem(ctxt.Arch, gotype)
 		newrefattr(die, dwarf.DW_AT_type, defgotype(ctxt, s))
 		fld := newdie(ctxt, die, dwarf.DW_ABRV_ARRAYRANGE, "range", 0)
 
@@ -419,7 +419,7 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
 	case objabi.KindChan:
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_CHANTYPE, name, 0)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
-		s := decodetypeChanElem(gotype)
+		s := decodetypeChanElem(ctxt.Arch, gotype)
 		newrefattr(die, dwarf.DW_AT_go_elem, defgotype(ctxt, s))
 		// Save elem type for synthesizechantypes. We could synthesize here
 		// but that would change the order of DIEs we output.
@@ -434,7 +434,7 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
 		var fld *dwarf.DWDie
 		var s *Symbol
 		for i := 0; i < nfields; i++ {
-			s = decodetypeFuncInType(gotype, i)
+			s = decodetypeFuncInType(ctxt.Arch, gotype, i)
 			fld = newdie(ctxt, die, dwarf.DW_ABRV_FUNCTYPEPARAM, s.Name[5:], 0)
 			newrefattr(fld, dwarf.DW_AT_type, defgotype(ctxt, s))
 		}
@@ -464,9 +464,9 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
 
 	case objabi.KindMap:
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_MAPTYPE, name, 0)
-		s := decodetypeMapKey(gotype)
+		s := decodetypeMapKey(ctxt.Arch, gotype)
 		newrefattr(die, dwarf.DW_AT_go_key, defgotype(ctxt, s))
-		s = decodetypeMapValue(gotype)
+		s = decodetypeMapValue(ctxt.Arch, gotype)
 		newrefattr(die, dwarf.DW_AT_go_elem, defgotype(ctxt, s))
 		// Save gotype for use in synthesizemaptypes. We could synthesize here,
 		// but that would change the order of the DIEs.
@@ -475,14 +475,14 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
 	case objabi.KindPtr:
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_PTRTYPE, name, 0)
 		dotypedef(ctxt, &dwtypes, name, die)
-		s := decodetypePtrElem(gotype)
+		s := decodetypePtrElem(ctxt.Arch, gotype)
 		newrefattr(die, dwarf.DW_AT_type, defgotype(ctxt, s))
 
 	case objabi.KindSlice:
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_SLICETYPE, name, 0)
 		dotypedef(ctxt, &dwtypes, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
-		s := decodetypeArrayElem(gotype)
+		s := decodetypeArrayElem(ctxt.Arch, gotype)
 		elem := defgotype(ctxt, s)
 		newrefattr(die, dwarf.DW_AT_go_elem, elem)
 
@@ -496,8 +496,8 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 		nfields := decodetypeStructFieldCount(ctxt.Arch, gotype)
 		for i := 0; i < nfields; i++ {
-			f := decodetypeStructFieldName(gotype, i)
-			s := decodetypeStructFieldType(gotype, i)
+			f := decodetypeStructFieldName(ctxt.Arch, gotype, i)
+			s := decodetypeStructFieldType(ctxt.Arch, gotype, i)
 			if f == "" {
 				f = s.Name[5:] // skip "type."
 			}
@@ -668,19 +668,19 @@ func synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
 			continue
 		}
 		gotype := getattr(die, dwarf.DW_AT_type).Data.(*Symbol)
-		keytype := decodetypeMapKey(gotype)
-		valtype := decodetypeMapValue(gotype)
+		keytype := decodetypeMapKey(ctxt.Arch, gotype)
+		valtype := decodetypeMapValue(ctxt.Arch, gotype)
 		keysize, valsize := decodetypeSize(ctxt.Arch, keytype), decodetypeSize(ctxt.Arch, valtype)
 		keytype, valtype = walksymtypedef(ctxt, defgotype(ctxt, keytype)), walksymtypedef(ctxt, defgotype(ctxt, valtype))
 
 		// compute size info like hashmap.c does.
 		indirectKey, indirectVal := false, false
 		if keysize > MaxKeySize {
-			keysize = int64(SysArch.PtrSize)
+			keysize = int64(ctxt.Arch.PtrSize)
 			indirectKey = true
 		}
 		if valsize > MaxValSize {
-			valsize = int64(SysArch.PtrSize)
+			valsize = int64(ctxt.Arch.PtrSize)
 			indirectVal = true
 		}
 
@@ -727,13 +727,13 @@ func synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
 			fld = newdie(ctxt, dwhb, dwarf.DW_ABRV_STRUCTFIELD, "overflow", 0)
 			newrefattr(fld, dwarf.DW_AT_type, defptrto(ctxt, dtolsym(dwhb.Sym)))
 			newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize)))
-			if SysArch.RegSize > SysArch.PtrSize {
+			if ctxt.Arch.RegSize > ctxt.Arch.PtrSize {
 				fld = newdie(ctxt, dwhb, dwarf.DW_ABRV_STRUCTFIELD, "pad", 0)
 				newrefattr(fld, dwarf.DW_AT_type, mustFind(ctxt, "uintptr"))
-				newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize))+int32(SysArch.PtrSize))
+				newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize))+int32(ctxt.Arch.PtrSize))
 			}
 
-			newattr(dwhb, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, BucketSize+BucketSize*keysize+BucketSize*valsize+int64(SysArch.RegSize), 0)
+			newattr(dwhb, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, BucketSize+BucketSize*keysize+BucketSize*valsize+int64(ctxt.Arch.RegSize), 0)
 		})
 
 		// Construct hash<K,V>
@@ -1060,7 +1060,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 	headerend = ls.Size
 
 	Adduint8(ctxt, ls, 0) // start extended opcode
-	dwarf.Uleb128put(dwarfctxt, ls, 1+int64(SysArch.PtrSize))
+	dwarf.Uleb128put(dwarfctxt, ls, 1+int64(ctxt.Arch.PtrSize))
 	Adduint8(ctxt, ls, dwarf.DW_LNE_set_address)
 
 	pc := s.Value
@@ -1189,11 +1189,11 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
 		dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfregsp)) // ...of the platform's SP register...
 		dwarf.Uleb128put(dwarfctxt, fs, int64(0))                  // ...is CFA+0.
 	} else {
-		dwarf.Uleb128put(dwarfctxt, fs, int64(SysArch.PtrSize)) // ...plus the word size (because the call instruction implicitly adds one word to the frame).
+		dwarf.Uleb128put(dwarfctxt, fs, int64(ctxt.Arch.PtrSize)) // ...plus the word size (because the call instruction implicitly adds one word to the frame).
 
-		Adduint8(ctxt, fs, dwarf.DW_CFA_offset_extended)                             // The previous value...
-		dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfreglr))                   // ...of the return address...
-		dwarf.Uleb128put(dwarfctxt, fs, int64(-SysArch.PtrSize)/dataAlignmentFactor) // ...is saved at [CFA - (PtrSize/4)].
+		Adduint8(ctxt, fs, dwarf.DW_CFA_offset_extended)                               // The previous value...
+		dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfreglr))                     // ...of the return address...
+		dwarf.Uleb128put(dwarfctxt, fs, int64(-ctxt.Arch.PtrSize)/dataAlignmentFactor) // ...is saved at [CFA - (PtrSize/4)].
 	}
 
 	// 4 is to exclude the length field.
@@ -1245,10 +1245,10 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
 				}
 				deltaBuf = appendPCDeltaCFA(deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(pcsp.value))
 			} else {
-				deltaBuf = appendPCDeltaCFA(deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(SysArch.PtrSize)+int64(pcsp.value))
+				deltaBuf = appendPCDeltaCFA(deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(ctxt.Arch.PtrSize)+int64(pcsp.value))
 			}
 		}
-		pad := int(Rnd(int64(len(deltaBuf)), int64(SysArch.PtrSize))) - len(deltaBuf)
+		pad := int(Rnd(int64(len(deltaBuf)), int64(ctxt.Arch.PtrSize))) - len(deltaBuf)
 		deltaBuf = append(deltaBuf, zeros[:pad]...)
 
 		// Emit the FDE header, Section 6.4.1.
@@ -1256,14 +1256,14 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
 		//	4 bytes: Pointer to the CIE above, at offset 0
 		//	ptrsize: initial location
 		//	ptrsize: address range
-		Adduint32(ctxt, fs, uint32(4+2*SysArch.PtrSize+len(deltaBuf))) // length (excludes itself)
+		Adduint32(ctxt, fs, uint32(4+2*ctxt.Arch.PtrSize+len(deltaBuf))) // length (excludes itself)
 		if Linkmode == LinkExternal {
 			adddwarfref(ctxt, fs, fs, 4)
 		} else {
 			Adduint32(ctxt, fs, 0) // CIE offset
 		}
 		Addaddr(ctxt, fs, s)
-		adduintxx(ctxt, fs, uint64(s.Size), SysArch.PtrSize) // address range
+		adduintxx(ctxt, fs, uint64(s.Size), ctxt.Arch.PtrSize) // address range
 		Addbytes(fs, deltaBuf)
 	}
 	return syms
@@ -1324,7 +1324,7 @@ func writeinfo(ctxt *Link, syms []*Symbol, funcs, consts []*Symbol, abbrevsym *S
 		// debug_abbrev_offset (*)
 		adddwarfref(ctxt, s, abbrevsym, 4)
 
-		Adduint8(ctxt, s, uint8(SysArch.PtrSize)) // address_size
+		Adduint8(ctxt, s, uint8(ctxt.Arch.PtrSize)) // address_size
 
 		dwarf.Uleb128put(dwarfctxt, s, int64(compunit.Abbrev))
 		dwarf.PutAttrs(dwarfctxt, s, compunit.Abbrev, compunit.Attr)
@@ -1414,7 +1414,7 @@ func writearanges(ctxt *Link, syms []*Symbol) []*Symbol {
 	s.Type = SDWARFSECT
 	// The first tuple is aligned to a multiple of the size of a single tuple
 	// (twice the size of an address)
-	headersize := int(Rnd(4+2+4+1+1, int64(SysArch.PtrSize*2))) // don't count unit_length field itself
+	headersize := int(Rnd(4+2+4+1+1, int64(ctxt.Arch.PtrSize*2))) // don't count unit_length field itself
 
 	for compunit := dwroot.Child; compunit != nil; compunit = compunit.Link {
 		b := getattr(compunit, dwarf.DW_AT_low_pc)
@@ -1427,23 +1427,23 @@ func writearanges(ctxt *Link, syms []*Symbol) []*Symbol {
 		}
 
 		// Write .debug_aranges	 Header + entry	 (sec 6.1.2)
-		unitlength := uint32(headersize) + 4*uint32(SysArch.PtrSize) - 4
+		unitlength := uint32(headersize) + 4*uint32(ctxt.Arch.PtrSize) - 4
 		Adduint32(ctxt, s, unitlength) // unit_length (*)
 		Adduint16(ctxt, s, 2)          // dwarf version (appendix F)
 
 		adddwarfref(ctxt, s, dtolsym(compunit.Sym), 4)
 
-		Adduint8(ctxt, s, uint8(SysArch.PtrSize)) // address_size
-		Adduint8(ctxt, s, 0)                      // segment_size
+		Adduint8(ctxt, s, uint8(ctxt.Arch.PtrSize)) // address_size
+		Adduint8(ctxt, s, 0)                        // segment_size
 		padding := headersize - (4 + 2 + 4 + 1 + 1)
 		for i := 0; i < padding; i++ {
 			Adduint8(ctxt, s, 0)
 		}
 
 		Addaddrplus(ctxt, s, b.Data.(*Symbol), b.Value-(b.Data.(*Symbol)).Value)
-		adduintxx(ctxt, s, uint64(e.Value-b.Value), SysArch.PtrSize)
-		adduintxx(ctxt, s, 0, SysArch.PtrSize)
-		adduintxx(ctxt, s, 0, SysArch.PtrSize)
+		adduintxx(ctxt, s, uint64(e.Value-b.Value), ctxt.Arch.PtrSize)
+		adduintxx(ctxt, s, 0, ctxt.Arch.PtrSize)
+		adduintxx(ctxt, s, 0, ctxt.Arch.PtrSize)
 	}
 	if s.Size > 0 {
 		syms = append(syms, s)
@@ -1520,7 +1520,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 
 	die := newdie(ctxt, &dwtypes, dwarf.DW_ABRV_BASETYPE, "uintptr", 0) // needed for array size
 	newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_unsigned, 0)
-	newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(SysArch.PtrSize), 0)
+	newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(ctxt.Arch.PtrSize), 0)
 	newattr(die, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, objabi.KindUintptr, 0)
 
 	// Prototypes needed for type synthesis.

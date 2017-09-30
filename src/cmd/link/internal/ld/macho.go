@@ -148,8 +148,6 @@ const (
 // Mach-O file writing
 // http://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
 
-var macho64 bool
-
 var machohdr MachoHdr
 
 var load []MachoLoad
@@ -183,16 +181,12 @@ var nsortsym int
 // up about 1300 bytes; we overestimate that as 2k.
 var loadBudget int = INITIAL_MACHO_HEADR - 2*1024
 
-func Machoinit() {
-	macho64 = SysArch.RegSize == 8
-}
-
 func getMachoHdr() *MachoHdr {
 	return &machohdr
 }
 
-func newMachoLoad(type_ uint32, ndata uint32) *MachoLoad {
-	if macho64 && (ndata&1 != 0) {
+func newMachoLoad(arch *sys.Arch, type_ uint32, ndata uint32) *MachoLoad {
+	if arch.PtrSize == 8 && (ndata&1 != 0) {
 		ndata++
 	}
 
@@ -235,14 +229,14 @@ var dylib []string
 
 var linkoff int64
 
-func machowrite() int {
+func machowrite(arch *sys.Arch) int {
 	o1 := coutbuf.Offset()
 
 	loadsize := 4 * 4 * ndebug
 	for i := 0; i < len(load); i++ {
 		loadsize += 4 * (len(load[i].data) + 2)
 	}
-	if macho64 {
+	if arch.PtrSize == 8 {
 		loadsize += 18 * 4 * nseg
 		loadsize += 20 * 4 * nsect
 	} else {
@@ -250,7 +244,7 @@ func machowrite() int {
 		loadsize += 17 * 4 * nsect
 	}
 
-	if macho64 {
+	if arch.PtrSize == 8 {
 		Thearch.Lput(MH_MAGIC_64)
 	} else {
 		Thearch.Lput(MH_MAGIC)
@@ -269,13 +263,13 @@ func machowrite() int {
 	} else {
 		Thearch.Lput(0) /* flags */
 	}
-	if macho64 {
+	if arch.PtrSize == 8 {
 		Thearch.Lput(0) /* reserved */
 	}
 
 	for i := 0; i < nseg; i++ {
 		s := &seg[i]
-		if macho64 {
+		if arch.PtrSize == 8 {
 			Thearch.Lput(LC_SEGMENT_64)
 			Thearch.Lput(72 + 80*s.nsect)
 			strnput(s.name, 16)
@@ -303,7 +297,7 @@ func machowrite() int {
 
 		for j := uint32(0); j < s.nsect; j++ {
 			t := &s.sect[j]
-			if macho64 {
+			if arch.PtrSize == 8 {
 				strnput(t.name, 16)
 				strnput(t.segname, 16)
 				Thearch.Vput(t.addr)
@@ -406,9 +400,9 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *Section, segname string) {
 	buf := "__" + strings.Replace(sect.Name[1:], ".", "_", -1)
 
 	var msect *MachoSect
-	if sect.Rwx&1 == 0 && segname != "__DWARF" && (SysArch.Family == sys.ARM64 ||
-		(SysArch.Family == sys.AMD64 && Buildmode != BuildmodeExe) ||
-		(SysArch.Family == sys.ARM && Buildmode != BuildmodeExe)) {
+	if sect.Rwx&1 == 0 && segname != "__DWARF" && (ctxt.Arch.Family == sys.ARM64 ||
+		(ctxt.Arch.Family == sys.AMD64 && Buildmode != BuildmodeExe) ||
+		(ctxt.Arch.Family == sys.ARM && Buildmode != BuildmodeExe)) {
 		// Darwin external linker on arm64 and on amd64 and arm in c-shared/c-archive buildmode
 		// complains about absolute relocs in __TEXT, so if the section is not
 		// executable, put it in __DATA segment.
@@ -471,9 +465,9 @@ func Asmbmacho(ctxt *Link) {
 	va := *FlagTextAddr - int64(HEADR)
 
 	mh := getMachoHdr()
-	switch SysArch.Family {
+	switch ctxt.Arch.Family {
 	default:
-		Exitf("unknown macho architecture: %v", SysArch.Family)
+		Exitf("unknown macho architecture: %v", ctxt.Arch.Family)
 
 	case sys.ARM:
 		mh.cpu = MACHO_CPU_ARM
@@ -498,7 +492,7 @@ func Asmbmacho(ctxt *Link) {
 		ms = newMachoSeg("", 40)
 
 		ms.fileoffset = Segtext.Fileoff
-		if SysArch.Family == sys.ARM || Buildmode == BuildmodeCArchive {
+		if ctxt.Arch.Family == sys.ARM || Buildmode == BuildmodeCArchive {
 			ms.filesize = Segdata.Fileoff + Segdata.Filelen - Segtext.Fileoff
 		} else {
 			ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
@@ -560,32 +554,32 @@ func Asmbmacho(ctxt *Link) {
 	}
 
 	if Linkmode != LinkExternal {
-		switch SysArch.Family {
+		switch ctxt.Arch.Family {
 		default:
-			Exitf("unknown macho architecture: %v", SysArch.Family)
+			Exitf("unknown macho architecture: %v", ctxt.Arch.Family)
 
 		case sys.ARM:
-			ml := newMachoLoad(LC_UNIXTHREAD, 17+2)
+			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 17+2)
 			ml.data[0] = 1                           /* thread type */
 			ml.data[1] = 17                          /* word count */
 			ml.data[2+15] = uint32(Entryvalue(ctxt)) /* start pc */
 
 		case sys.AMD64:
-			ml := newMachoLoad(LC_UNIXTHREAD, 42+2)
+			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 42+2)
 			ml.data[0] = 4                           /* thread type */
 			ml.data[1] = 42                          /* word count */
 			ml.data[2+32] = uint32(Entryvalue(ctxt)) /* start pc */
 			ml.data[2+32+1] = uint32(Entryvalue(ctxt) >> 32)
 
 		case sys.ARM64:
-			ml := newMachoLoad(LC_UNIXTHREAD, 68+2)
+			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 68+2)
 			ml.data[0] = 6                           /* thread type */
 			ml.data[1] = 68                          /* word count */
 			ml.data[2+64] = uint32(Entryvalue(ctxt)) /* start pc */
 			ml.data[2+64+1] = uint32(Entryvalue(ctxt) >> 32)
 
 		case sys.I386:
-			ml := newMachoLoad(LC_UNIXTHREAD, 16+2)
+			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 16+2)
 			ml.data[0] = 1                           /* thread type */
 			ml.data[1] = 16                          /* word count */
 			ml.data[2+10] = uint32(Entryvalue(ctxt)) /* start pc */
@@ -609,7 +603,7 @@ func Asmbmacho(ctxt *Link) {
 			ms.prot2 = 3
 		}
 
-		ml := newMachoLoad(LC_SYMTAB, 4)
+		ml := newMachoLoad(ctxt.Arch, LC_SYMTAB, 4)
 		ml.data[0] = uint32(linkoff)                               /* symoff */
 		ml.data[1] = uint32(nsortsym)                              /* nsyms */
 		ml.data[2] = uint32(linkoff + s1.Size + s2.Size + s3.Size) /* stroff */
@@ -618,12 +612,12 @@ func Asmbmacho(ctxt *Link) {
 		machodysymtab(ctxt)
 
 		if Linkmode != LinkExternal {
-			ml := newMachoLoad(LC_LOAD_DYLINKER, 6)
+			ml := newMachoLoad(ctxt.Arch, LC_LOAD_DYLINKER, 6)
 			ml.data[0] = 12 /* offset to string */
 			stringtouint32(ml.data[1:], "/usr/lib/dyld")
 
 			for i := 0; i < len(dylib); i++ {
-				ml = newMachoLoad(LC_LOAD_DYLIB, 4+(uint32(len(dylib[i]))+1+7)/8*2)
+				ml = newMachoLoad(ctxt.Arch, LC_LOAD_DYLIB, 4+(uint32(len(dylib[i]))+1+7)/8*2)
 				ml.data[0] = 24 /* offset of string from beginning of load */
 				ml.data[1] = 0  /* time stamp */
 				ml.data[2] = 0  /* version */
@@ -642,12 +636,12 @@ func Asmbmacho(ctxt *Link) {
 		// and we can assume OS X.
 		//
 		// See golang.org/issues/12941.
-		ml := newMachoLoad(LC_VERSION_MIN_MACOSX, 2)
+		ml := newMachoLoad(ctxt.Arch, LC_VERSION_MIN_MACOSX, 2)
 		ml.data[0] = 10<<16 | 7<<8 | 0<<0 // OS X version 10.7.0
 		ml.data[1] = 10<<16 | 7<<8 | 0<<0 // SDK 10.7.0
 	}
 
-	a := machowrite()
+	a := machowrite(ctxt.Arch)
 	if int32(a) > HEADR {
 		Exitf("HEADR too small: %d > %d", a, HEADR)
 	}
@@ -787,10 +781,10 @@ func machosymtab(ctxt *Link) {
 		Addstring(symstr, strings.Replace(s.Extname, "·", ".", -1))
 
 		if s.Type == SDYNIMPORT || s.Type == SHOSTOBJ {
-			Adduint8(ctxt, symtab, 0x01)                // type N_EXT, external symbol
-			Adduint8(ctxt, symtab, 0)                   // no section
-			Adduint16(ctxt, symtab, 0)                  // desc
-			adduintxx(ctxt, symtab, 0, SysArch.PtrSize) // no value
+			Adduint8(ctxt, symtab, 0x01)                  // type N_EXT, external symbol
+			Adduint8(ctxt, symtab, 0)                     // no section
+			Adduint16(ctxt, symtab, 0)                    // desc
+			adduintxx(ctxt, symtab, 0, ctxt.Arch.PtrSize) // no value
 		} else {
 			if s.Attr.CgoExport() || export {
 				Adduint8(ctxt, symtab, 0x0f)
@@ -808,13 +802,13 @@ func machosymtab(ctxt *Link) {
 				Adduint8(ctxt, symtab, uint8(o.Sect.Extnum))
 			}
 			Adduint16(ctxt, symtab, 0) // desc
-			adduintxx(ctxt, symtab, uint64(Symaddr(s)), SysArch.PtrSize)
+			adduintxx(ctxt, symtab, uint64(Symaddr(s)), ctxt.Arch.PtrSize)
 		}
 	}
 }
 
 func machodysymtab(ctxt *Link) {
-	ml := newMachoLoad(LC_DYSYMTAB, 18)
+	ml := newMachoLoad(ctxt.Arch, LC_DYSYMTAB, 18)
 
 	n := 0
 	ml.data[0] = uint32(n)                   /* ilocalsym */
@@ -930,10 +924,10 @@ func machorelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 				continue
 			}
 			if !r.Xsym.Attr.Reachable() {
-				Errorf(sym, "unreachable reloc %d (%s) target %v", r.Type, RelocName(r.Type), r.Xsym.Name)
+				Errorf(sym, "unreachable reloc %d (%s) target %v", r.Type, RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
 			}
-			if !Thearch.Machoreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) {
-				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, RelocName(r.Type), r.Siz, r.Sym.Name)
+			if !Thearch.Machoreloc1(ctxt.Arch, sym, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) {
+				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
 			}
 		}
 	}

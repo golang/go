@@ -27,7 +27,7 @@ func (ctxt *Link) typelink() {
 	typelinks := byTypeStr{}
 	for _, s := range ctxt.Syms.Allsym {
 		if s.Attr.Reachable() && s.Attr.MakeTypelink() {
-			typelinks = append(typelinks, typelinkSortKey{decodetypeStr(s), s})
+			typelinks = append(typelinks, typelinkSortKey{decodetypeStr(ctxt.Arch, s), s})
 		}
 	}
 	sort.Sort(typelinks)

@@ -404,7 +404,7 @@ func readpesym(ctxt *Link, f *pe.File, sym *pe.COFFSymbol, sectsyms map[*pe.Sect
 		if strings.HasPrefix(name, "__imp_") {
 			name = name[6:] // __imp_Name => Name
 		}
-		if SysArch.Family == sys.I386 && name[0] == '_' {
+		if ctxt.Arch.Family == sys.I386 && name[0] == '_' {
 			name = name[1:] // _Name => Name
 		}
 	}
