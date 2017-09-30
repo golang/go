@@ -990,7 +990,7 @@ func initdynimport(ctxt *Link) *Dll {
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
 				m.s.Type = SDATA
-				Symgrow(m.s, int64(ctxt.Arch.PtrSize))
+				m.s.Grow(int64(ctxt.Arch.PtrSize))
 				dynName := m.s.Extname
 				// only windows/386 requires stdcall decoration
 				if ctxt.Arch.Family == sys.I386 && m.argsize >= 0 {
@@ -999,7 +999,7 @@ func initdynimport(ctxt *Link) *Dll {
 				dynSym := ctxt.Syms.Lookup(dynName, 0)
 				dynSym.Attr |= AttrReachable
 				dynSym.Type = SHOSTOBJ
-				r := Addrel(m.s)
+				r := m.s.AddRel()
 				r.Sym = dynSym
 				r.Off = 0
 				r.Siz = uint8(ctxt.Arch.PtrSize)

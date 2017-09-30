@@ -42,8 +42,8 @@ func addcall(ctxt *ld.Link, s *ld.Symbol, t *ld.Symbol) {
 	s.Attr |= ld.AttrReachable
 	i := s.Size
 	s.Size += 4
-	ld.Symgrow(s, s.Size)
-	r := ld.Addrel(s)
+	s.Grow(s.Size)
+	r := s.AddRel()
 	r.Sym = t
 	r.Off = int32(i)
 	r.Type = objabi.R_CALL
@@ -87,7 +87,7 @@ func gentext(ctxt *ld.Link) {
 		thunkfunc.Attr |= ld.AttrReachable //TODO: remove?
 		o := func(op ...uint8) {
 			for _, op1 := range op {
-				ld.Adduint8(ctxt, thunkfunc, op1)
+				thunkfunc.AddUint8(op1)
 			}
 		}
 		// 8b 04 24	mov    (%esp),%eax
@@ -115,7 +115,7 @@ func gentext(ctxt *ld.Link) {
 	initfunc.Attr |= ld.AttrReachable
 	o := func(op ...uint8) {
 		for _, op1 := range op {
-			ld.Adduint8(ctxt, initfunc, op1)
+			initfunc.AddUint8(op1)
 		}
 	}
 
@@ -134,13 +134,13 @@ func gentext(ctxt *ld.Link) {
 	addcall(ctxt, initfunc, ctxt.Syms.Lookup("__x86.get_pc_thunk.cx", 0))
 
 	o(0x8d, 0x81)
-	ld.Addpcrelplus(ctxt, initfunc, ctxt.Moduledata, 6)
+	initfunc.AddPCRelPlus(ctxt.Arch, ctxt.Moduledata, 6)
 
 	o(0x8d, 0x99)
 	i := initfunc.Size
 	initfunc.Size += 4
-	ld.Symgrow(initfunc, initfunc.Size)
-	r := ld.Addrel(initfunc)
+	initfunc.Grow(initfunc.Size)
+	r := initfunc.AddRel()
 	r.Sym = ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
 	r.Off = int32(i)
 	r.Type = objabi.R_PCREL
@@ -162,7 +162,7 @@ func gentext(ctxt *ld.Link) {
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal
 	initarray_entry.Type = ld.SINITARR
-	ld.Addaddr(ctxt, initarray_entry, initfunc)
+	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
 func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
@@ -305,8 +305,8 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		if ld.Iself {
 			ld.Adddynsym(ctxt, targ)
 			rel := ctxt.Syms.Lookup(".rel", 0)
-			ld.Addaddrplus(ctxt, rel, s, int64(r.Off))
-			ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(targ.Dynid), ld.R_386_32))
+			rel.AddAddrPlus(ctxt.Arch, s, int64(r.Off))
+			rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(targ.Dynid), ld.R_386_32))
 			r.Type = objabi.R_CONST // write r->add during relocsym
 			r.Sym = nil
 			return true
@@ -331,8 +331,8 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			s.Sub = got.Sub
 			got.Sub = s
 			s.Value = got.Size
-			ld.Adduint32(ctxt, got, 0)
-			ld.Adduint32(ctxt, ctxt.Syms.Lookup(".linkedit.got", 0), uint32(targ.Dynid))
+			got.AddUint32(ctxt.Arch, 0)
+			ctxt.Syms.Lookup(".linkedit.got", 0).AddUint32(ctxt.Arch, uint32(targ.Dynid))
 			r.Type = 256 // ignore during relocsym
 			return true
 		}
@@ -508,25 +508,25 @@ func elfsetupplt(ctxt *ld.Link) {
 	got := ctxt.Syms.Lookup(".got.plt", 0)
 	if plt.Size == 0 {
 		// pushl got+4
-		ld.Adduint8(ctxt, plt, 0xff)
+		plt.AddUint8(0xff)
 
-		ld.Adduint8(ctxt, plt, 0x35)
-		ld.Addaddrplus(ctxt, plt, got, 4)
+		plt.AddUint8(0x35)
+		plt.AddAddrPlus(ctxt.Arch, got, 4)
 
 		// jmp *got+8
-		ld.Adduint8(ctxt, plt, 0xff)
+		plt.AddUint8(0xff)
 
-		ld.Adduint8(ctxt, plt, 0x25)
-		ld.Addaddrplus(ctxt, plt, got, 8)
+		plt.AddUint8(0x25)
+		plt.AddAddrPlus(ctxt.Arch, got, 8)
 
 		// zero pad
-		ld.Adduint32(ctxt, plt, 0)
+		plt.AddUint32(ctxt.Arch, 0)
 
 		// assume got->size == 0 too
-		ld.Addaddrplus(ctxt, got, ctxt.Syms.Lookup(".dynamic", 0), 0)
+		got.AddAddrPlus(ctxt.Arch, ctxt.Syms.Lookup(".dynamic", 0), 0)
 
-		ld.Adduint32(ctxt, got, 0)
-		ld.Adduint32(ctxt, got, 0)
+		got.AddUint32(ctxt.Arch, 0)
+		got.AddUint32(ctxt.Arch, 0)
 	}
 }
 
@@ -546,28 +546,28 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 		}
 
 		// jmpq *got+size
-		ld.Adduint8(ctxt, plt, 0xff)
+		plt.AddUint8(0xff)
 
-		ld.Adduint8(ctxt, plt, 0x25)
-		ld.Addaddrplus(ctxt, plt, got, got.Size)
+		plt.AddUint8(0x25)
+		plt.AddAddrPlus(ctxt.Arch, got, got.Size)
 
 		// add to got: pointer to current pos in plt
-		ld.Addaddrplus(ctxt, got, plt, plt.Size)
+		got.AddAddrPlus(ctxt.Arch, plt, plt.Size)
 
 		// pushl $x
-		ld.Adduint8(ctxt, plt, 0x68)
+		plt.AddUint8(0x68)
 
-		ld.Adduint32(ctxt, plt, uint32(rel.Size))
+		plt.AddUint32(ctxt.Arch, uint32(rel.Size))
 
 		// jmp .plt
-		ld.Adduint8(ctxt, plt, 0xe9)
+		plt.AddUint8(0xe9)
 
-		ld.Adduint32(ctxt, plt, uint32(-(plt.Size + 4)))
+		plt.AddUint32(ctxt.Arch, uint32(-(plt.Size + 4)))
 
 		// rel
-		ld.Addaddrplus(ctxt, rel, got, got.Size-4)
+		rel.AddAddrPlus(ctxt.Arch, got, got.Size-4)
 
-		ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_386_JMP_SLOT))
+		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_386_JMP_SLOT))
 
 		s.Plt = int32(plt.Size - 16)
 	} else if ld.Headtype == objabi.Hdarwin {
@@ -577,14 +577,14 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 
 		addgotsym(ctxt, s)
 
-		ld.Adduint32(ctxt, ctxt.Syms.Lookup(".linkedit.plt", 0), uint32(s.Dynid))
+		ctxt.Syms.Lookup(".linkedit.plt", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))
 
 		// jmpq *got+size(IP)
 		s.Plt = int32(plt.Size)
 
-		ld.Adduint8(ctxt, plt, 0xff)
-		ld.Adduint8(ctxt, plt, 0x25)
-		ld.Addaddrplus(ctxt, plt, ctxt.Syms.Lookup(".got", 0), int64(s.Got))
+		plt.AddUint8(0xff)
+		plt.AddUint8(0x25)
+		plt.AddAddrPlus(ctxt.Arch, ctxt.Syms.Lookup(".got", 0), int64(s.Got))
 	} else {
 		ld.Errorf(s, "addpltsym: unsupported binary format")
 	}
@@ -598,14 +598,14 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 	ld.Adddynsym(ctxt, s)
 	got := ctxt.Syms.Lookup(".got", 0)
 	s.Got = int32(got.Size)
-	ld.Adduint32(ctxt, got, 0)
+	got.AddUint32(ctxt.Arch, 0)
 
 	if ld.Iself {
 		rel := ctxt.Syms.Lookup(".rel", 0)
-		ld.Addaddrplus(ctxt, rel, got, int64(s.Got))
-		ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_386_GLOB_DAT))
+		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
+		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_386_GLOB_DAT))
 	} else if ld.Headtype == objabi.Hdarwin {
-		ld.Adduint32(ctxt, ctxt.Syms.Lookup(".linkedit.got", 0), uint32(s.Dynid))
+		ctxt.Syms.Lookup(".linkedit.got", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))
 	} else {
 		ld.Errorf(s, "addgotsym: unsupported binary format")
 	}

@@ -141,10 +141,10 @@ func genaddmoduledata(ctxt *ld.Link) {
 	initfunc.Attr |= ld.AttrLocal
 	initfunc.Attr |= ld.AttrReachable
 	o := func(op uint32) {
-		ld.Adduint32(ctxt, initfunc, op)
+		initfunc.AddUint32(ctxt.Arch, op)
 	}
 	// addis r2, r12, .TOC.-func@ha
-	rel := ld.Addrel(initfunc)
+	rel := initfunc.AddRel()
 	rel.Off = int32(initfunc.Size)
 	rel.Siz = 8
 	rel.Sym = ctxt.Syms.Lookup(".TOC.", 0)
@@ -158,7 +158,7 @@ func genaddmoduledata(ctxt *ld.Link) {
 	// stdu r31, -32(r1)
 	o(0xf801ffe1)
 	// addis r3, r2, local.moduledata@got@ha
-	rel = ld.Addrel(initfunc)
+	rel = initfunc.AddRel()
 	rel.Off = int32(initfunc.Size)
 	rel.Siz = 8
 	if !ctxt.CanUsePlugins() {
@@ -173,7 +173,7 @@ func genaddmoduledata(ctxt *ld.Link) {
 	// ld r3, local.moduledata@got@l(r3)
 	o(0xe8630000)
 	// bl runtime.addmoduledata
-	rel = ld.Addrel(initfunc)
+	rel = initfunc.AddRel()
 	rel.Off = int32(initfunc.Size)
 	rel.Siz = 4
 	rel.Sym = addmoduledata
@@ -198,7 +198,7 @@ func genaddmoduledata(ctxt *ld.Link) {
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal
 	initarray_entry.Type = ld.SINITARR
-	ld.Addaddr(ctxt, initarray_entry, initfunc)
+	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
 func gentext(ctxt *ld.Link) {
@@ -225,10 +225,10 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
 	stub.Type = ld.STEXT
 
 	// Save TOC pointer in TOC save slot
-	ld.Adduint32(ctxt, stub, 0xf8410018) // std r2,24(r1)
+	stub.AddUint32(ctxt.Arch, 0xf8410018) // std r2,24(r1)
 
 	// Load the function pointer from the PLT.
-	r := ld.Addrel(stub)
+	r := stub.AddRel()
 
 	r.Off = int32(stub.Size)
 	r.Sym = plt
@@ -239,8 +239,8 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
 	}
 	r.Type = objabi.R_POWER_TOC
 	r.Variant = ld.RV_POWER_HA
-	ld.Adduint32(ctxt, stub, 0x3d820000) // addis r12,r2,targ@plt@toc@ha
-	r = ld.Addrel(stub)
+	stub.AddUint32(ctxt.Arch, 0x3d820000) // addis r12,r2,targ@plt@toc@ha
+	r = stub.AddRel()
 	r.Off = int32(stub.Size)
 	r.Sym = plt
 	r.Add = int64(targ.Plt)
@@ -250,11 +250,11 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
 	}
 	r.Type = objabi.R_POWER_TOC
 	r.Variant = ld.RV_POWER_LO
-	ld.Adduint32(ctxt, stub, 0xe98c0000) // ld r12,targ@plt@toc@l(r12)
+	stub.AddUint32(ctxt.Arch, 0xe98c0000) // ld r12,targ@plt@toc@l(r12)
 
 	// Jump to the loaded pointer
-	ld.Adduint32(ctxt, stub, 0x7d8903a6) // mtctr r12
-	ld.Adduint32(ctxt, stub, 0x4e800420) // bctr
+	stub.AddUint32(ctxt.Arch, 0x7d8903a6) // mtctr r12
+	stub.AddUint32(ctxt.Arch, 0x4e800420) // bctr
 }
 
 func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
@@ -302,9 +302,9 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			ld.Adddynsym(ctxt, targ)
 
 			rela := ctxt.Syms.Lookup(".rela", 0)
-			ld.Addaddrplus(ctxt, rela, s, int64(r.Off))
-			ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(targ.Dynid), ld.R_PPC64_ADDR64))
-			ld.Adduint64(ctxt, rela, uint64(r.Add))
+			rela.AddAddrPlus(ctxt.Arch, s, int64(r.Off))
+			rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(targ.Dynid), ld.R_PPC64_ADDR64))
+			rela.AddUint64(ctxt.Arch, uint64(r.Add))
 			r.Type = 256 // ignore during relocsym
 		}
 
@@ -595,7 +595,7 @@ func gentramp(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
 	// With external linking, the target address must be
 	// relocated using LO and HA
 	if ld.Linkmode == ld.LinkExternal {
-		tr := ld.Addrel(tramp)
+		tr := tramp.AddRel()
 		tr.Off = 0
 		tr.Type = objabi.R_ADDRPOWER
 		tr.Siz = 8 // generates 2 relocations:  HA + LO
@@ -814,13 +814,13 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 
 		// Write symbol resolver stub (just a branch to the
 		// glink resolver stub)
-		r := ld.Addrel(glink)
+		r := glink.AddRel()
 
 		r.Sym = glink
 		r.Off = int32(glink.Size)
 		r.Siz = 4
 		r.Type = objabi.R_CALLPOWER
-		ld.Adduint32(ctxt, glink, 0x48000000) // b .glink
+		glink.AddUint32(ctxt.Arch, 0x48000000) // b .glink
 
 		// In the ppc64 ABI, the dynamic linker is responsible
 		// for writing the entire PLT.  We just need to
@@ -832,9 +832,9 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 
 		plt.Size += 8
 
-		ld.Addaddrplus(ctxt, rela, plt, int64(s.Plt))
-		ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_PPC64_JMP_SLOT))
-		ld.Adduint64(ctxt, rela, 0)
+		rela.AddAddrPlus(ctxt.Arch, plt, int64(s.Plt))
+		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_PPC64_JMP_SLOT))
+		rela.AddUint64(ctxt.Arch, 0)
 	} else {
 		ld.Errorf(s, "addpltsym: unsupported binary format")
 	}
@@ -854,39 +854,39 @@ func ensureglinkresolver(ctxt *ld.Link) *ld.Symbol {
 	//
 	// This stub is PIC, so first get the PC of label 1 into r11.
 	// Other things will be relative to this.
-	ld.Adduint32(ctxt, glink, 0x7c0802a6) // mflr r0
-	ld.Adduint32(ctxt, glink, 0x429f0005) // bcl 20,31,1f
-	ld.Adduint32(ctxt, glink, 0x7d6802a6) // 1: mflr r11
-	ld.Adduint32(ctxt, glink, 0x7c0803a6) // mtlf r0
+	glink.AddUint32(ctxt.Arch, 0x7c0802a6) // mflr r0
+	glink.AddUint32(ctxt.Arch, 0x429f0005) // bcl 20,31,1f
+	glink.AddUint32(ctxt.Arch, 0x7d6802a6) // 1: mflr r11
+	glink.AddUint32(ctxt.Arch, 0x7c0803a6) // mtlf r0
 
 	// Compute the .plt array index from the entry point address.
 	// Because this is PIC, everything is relative to label 1b (in
 	// r11):
 	//   r0 = ((r12 - r11) - (res_0 - r11)) / 4 = (r12 - res_0) / 4
-	ld.Adduint32(ctxt, glink, 0x3800ffd0) // li r0,-(res_0-1b)=-48
-	ld.Adduint32(ctxt, glink, 0x7c006214) // add r0,r0,r12
-	ld.Adduint32(ctxt, glink, 0x7c0b0050) // sub r0,r0,r11
-	ld.Adduint32(ctxt, glink, 0x7800f082) // srdi r0,r0,2
+	glink.AddUint32(ctxt.Arch, 0x3800ffd0) // li r0,-(res_0-1b)=-48
+	glink.AddUint32(ctxt.Arch, 0x7c006214) // add r0,r0,r12
+	glink.AddUint32(ctxt.Arch, 0x7c0b0050) // sub r0,r0,r11
+	glink.AddUint32(ctxt.Arch, 0x7800f082) // srdi r0,r0,2
 
 	// r11 = address of the first byte of the PLT
-	r := ld.Addrel(glink)
+	r := glink.AddRel()
 
 	r.Off = int32(glink.Size)
 	r.Sym = ctxt.Syms.Lookup(".plt", 0)
 	r.Siz = 8
 	r.Type = objabi.R_ADDRPOWER
 
-	ld.Adduint32(ctxt, glink, 0x3d600000) // addis r11,0,.plt@ha
-	ld.Adduint32(ctxt, glink, 0x396b0000) // addi r11,r11,.plt@l
+	glink.AddUint32(ctxt.Arch, 0x3d600000) // addis r11,0,.plt@ha
+	glink.AddUint32(ctxt.Arch, 0x396b0000) // addi r11,r11,.plt@l
 
 	// Load r12 = dynamic resolver address and r11 = DSO
 	// identifier from the first two doublewords of the PLT.
-	ld.Adduint32(ctxt, glink, 0xe98b0000) // ld r12,0(r11)
-	ld.Adduint32(ctxt, glink, 0xe96b0008) // ld r11,8(r11)
+	glink.AddUint32(ctxt.Arch, 0xe98b0000) // ld r12,0(r11)
+	glink.AddUint32(ctxt.Arch, 0xe96b0008) // ld r11,8(r11)
 
 	// Jump to the dynamic resolver
-	ld.Adduint32(ctxt, glink, 0x7d8903a6) // mtctr r12
-	ld.Adduint32(ctxt, glink, 0x4e800420) // bctr
+	glink.AddUint32(ctxt.Arch, 0x7d8903a6) // mtctr r12
+	glink.AddUint32(ctxt.Arch, 0x4e800420) // bctr
 
 	// The symbol resolvers must immediately follow.
 	//   res_0:

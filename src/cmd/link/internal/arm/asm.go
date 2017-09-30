@@ -75,13 +75,13 @@ func gentext(ctxt *ld.Link) {
 	initfunc.Attr |= ld.AttrLocal
 	initfunc.Attr |= ld.AttrReachable
 	o := func(op uint32) {
-		ld.Adduint32(ctxt, initfunc, op)
+		initfunc.AddUint32(ctxt.Arch, op)
 	}
 	o(0xe59f0004)
 	o(0xe08f0000)
 
 	o(0xeafffffe)
-	rel := ld.Addrel(initfunc)
+	rel := initfunc.AddRel()
 	rel.Off = 8
 	rel.Siz = 4
 	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
@@ -89,7 +89,7 @@ func gentext(ctxt *ld.Link) {
 	rel.Add = 0xeafffffe // vomit
 
 	o(0x00000000)
-	rel = ld.Addrel(initfunc)
+	rel = initfunc.AddRel()
 	rel.Off = 12
 	rel.Siz = 4
 	rel.Sym = ctxt.Moduledata
@@ -104,7 +104,7 @@ func gentext(ctxt *ld.Link) {
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal
 	initarray_entry.Type = ld.SINITARR
-	ld.Addaddr(ctxt, initarray_entry, initfunc)
+	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
 // Preserve highest 8 bits of a, and do addition to lower 24-bit
@@ -239,9 +239,9 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		if ld.Iself {
 			ld.Adddynsym(ctxt, targ)
 			rel := ctxt.Syms.Lookup(".rel", 0)
-			ld.Addaddrplus(ctxt, rel, s, int64(r.Off))
-			ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(targ.Dynid), ld.R_ARM_GLOB_DAT)) // we need a nil + A dynamic reloc
-			r.Type = objabi.R_CONST                                                         // write r->add during relocsym
+			rel.AddAddrPlus(ctxt.Arch, s, int64(r.Off))
+			rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(targ.Dynid), ld.R_ARM_GLOB_DAT)) // we need a nil + A dynamic reloc
+			r.Type = objabi.R_CONST                                                          // write r->add during relocsym
 			r.Sym = nil
 			return true
 		}
@@ -299,25 +299,25 @@ func elfsetupplt(ctxt *ld.Link) {
 	got := ctxt.Syms.Lookup(".got.plt", 0)
 	if plt.Size == 0 {
 		// str lr, [sp, #-4]!
-		ld.Adduint32(ctxt, plt, 0xe52de004)
+		plt.AddUint32(ctxt.Arch, 0xe52de004)
 
 		// ldr lr, [pc, #4]
-		ld.Adduint32(ctxt, plt, 0xe59fe004)
+		plt.AddUint32(ctxt.Arch, 0xe59fe004)
 
 		// add lr, pc, lr
-		ld.Adduint32(ctxt, plt, 0xe08fe00e)
+		plt.AddUint32(ctxt.Arch, 0xe08fe00e)
 
 		// ldr pc, [lr, #8]!
-		ld.Adduint32(ctxt, plt, 0xe5bef008)
+		plt.AddUint32(ctxt.Arch, 0xe5bef008)
 
 		// .word &GLOBAL_OFFSET_TABLE[0] - .
-		ld.Addpcrelplus(ctxt, plt, got, 4)
+		plt.AddPCRelPlus(ctxt.Arch, got, 4)
 
 		// the first .plt entry requires 3 .plt.got entries
-		ld.Adduint32(ctxt, got, 0)
+		got.AddUint32(ctxt.Arch, 0)
 
-		ld.Adduint32(ctxt, got, 0)
-		ld.Adduint32(ctxt, got, 0)
+		got.AddUint32(ctxt.Arch, 0)
+		got.AddUint32(ctxt.Arch, 0)
 	}
 }
 
@@ -492,7 +492,7 @@ func gentramp(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
 	arch.ByteOrder.PutUint32(tramp.P[8:], o3)
 
 	if ld.Linkmode == ld.LinkExternal {
-		r := ld.Addrel(tramp)
+		r := tramp.AddRel()
 		r.Off = 8
 		r.Type = objabi.R_ADDR
 		r.Siz = 4
@@ -514,7 +514,7 @@ func gentramppic(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
 	arch.ByteOrder.PutUint32(tramp.P[8:], o3)
 	arch.ByteOrder.PutUint32(tramp.P[12:], o4)
 
-	r := ld.Addrel(tramp)
+	r := tramp.AddRel()
 	r.Off = 12
 	r.Type = objabi.R_PCREL
 	r.Siz = 4
@@ -549,7 +549,7 @@ func gentrampdyn(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
 		arch.ByteOrder.PutUint32(tramp.P[20:], o6)
 	}
 
-	r := ld.Addrel(tramp)
+	r := tramp.AddRel()
 	r.Off = 16
 	r.Type = objabi.R_GOTPCREL
 	r.Siz = 4
@@ -648,7 +648,7 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 }
 
 func addpltreloc(ctxt *ld.Link, plt *ld.Symbol, got *ld.Symbol, sym *ld.Symbol, typ objabi.RelocType) *ld.Reloc {
-	r := ld.Addrel(plt)
+	r := plt.AddRel()
 	r.Sym = got
 	r.Off = int32(plt.Size)
 	r.Siz = 4
@@ -657,7 +657,7 @@ func addpltreloc(ctxt *ld.Link, plt *ld.Symbol, got *ld.Symbol, sym *ld.Symbol, 
 
 	plt.Attr |= ld.AttrReachable
 	plt.Size += 4
-	ld.Symgrow(plt, plt.Size)
+	plt.Grow(plt.Size)
 
 	return r
 }
@@ -683,7 +683,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 		// In theory, all GOT should point to the first PLT entry,
 		// Linux/ARM's dynamic linker will do that for us, but FreeBSD/ARM's
 		// dynamic linker won't, so we'd better do it ourselves.
-		ld.Addaddrplus(ctxt, got, plt, 0)
+		got.AddAddrPlus(ctxt.Arch, plt, 0)
 
 		// .plt entry, this depends on the .got entry
 		s.Plt = int32(plt.Size)
@@ -693,9 +693,9 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 		addpltreloc(ctxt, plt, got, s, objabi.R_PLT2) // ldr pc, [lr, #0xZZZ]!
 
 		// rel
-		ld.Addaddrplus(ctxt, rel, got, int64(s.Got))
+		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
 
-		ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_ARM_JUMP_SLOT))
+		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_ARM_JUMP_SLOT))
 	} else {
 		ld.Errorf(s, "addpltsym: unsupported binary format")
 	}
@@ -709,7 +709,7 @@ func addgotsyminternal(ctxt *ld.Link, s *ld.Symbol) {
 	got := ctxt.Syms.Lookup(".got", 0)
 	s.Got = int32(got.Size)
 
-	ld.Addaddrplus(ctxt, got, s, 0)
+	got.AddAddrPlus(ctxt.Arch, s, 0)
 
 	if ld.Iself {
 	} else {
@@ -725,12 +725,12 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 	ld.Adddynsym(ctxt, s)
 	got := ctxt.Syms.Lookup(".got", 0)
 	s.Got = int32(got.Size)
-	ld.Adduint32(ctxt, got, 0)
+	got.AddUint32(ctxt.Arch, 0)
 
 	if ld.Iself {
 		rel := ctxt.Syms.Lookup(".rel", 0)
-		ld.Addaddrplus(ctxt, rel, got, int64(s.Got))
-		ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_ARM_GLOB_DAT))
+		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
+		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_ARM_GLOB_DAT))
 	} else {
 		ld.Errorf(s, "addgotsym: unsupported binary format")
 	}

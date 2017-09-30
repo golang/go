@@ -279,7 +279,7 @@ func textsectionmap(ctxt *Link) uint32 {
 			break
 		}
 	}
-	Symgrow(t, 3*nsections*int64(ctxt.Arch.PtrSize))
+	t.Grow(3 * nsections * int64(ctxt.Arch.PtrSize))
 
 	off := int64(0)
 	n := 0
@@ -298,21 +298,21 @@ func textsectionmap(ctxt *Link) uint32 {
 		if sect.Name != ".text" {
 			break
 		}
-		off = setuint(ctxt, t, off, sect.Vaddr-textbase)
-		off = setuint(ctxt, t, off, sect.Length)
+		off = t.SetUint(ctxt.Arch, off, sect.Vaddr-textbase)
+		off = t.SetUint(ctxt.Arch, off, sect.Length)
 		if n == 0 {
 			s := ctxt.Syms.ROLookup("runtime.text", 0)
 			if s == nil {
 				Errorf(nil, "Unable to find symbol runtime.text\n")
 			}
-			off = setaddr(ctxt, t, off, s)
+			off = t.SetAddr(ctxt.Arch, off, s)
 
 		} else {
 			s := ctxt.Syms.Lookup(fmt.Sprintf("runtime.text.%d", n), 0)
 			if s == nil {
 				Errorf(nil, "Unable to find symbol runtime.text.%d\n", n)
 			}
-			off = setaddr(ctxt, t, off, s)
+			off = t.SetAddr(ctxt.Arch, off, s)
 		}
 		n++
 	}
@@ -491,8 +491,8 @@ func (ctxt *Link) symtab() {
 		abihashgostr.Attr |= AttrReachable
 		abihashgostr.Type = SRODATA
 		hashsym := ctxt.Syms.Lookup("go.link.abihashbytes", 0)
-		Addaddr(ctxt, abihashgostr, hashsym)
-		adduint(ctxt, abihashgostr, uint64(hashsym.Size))
+		abihashgostr.AddAddr(ctxt.Arch, hashsym)
+		abihashgostr.AddUint(ctxt.Arch, uint64(hashsym.Size))
 	}
 	if Buildmode == BuildmodePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
 		for _, l := range ctxt.Library {
@@ -504,8 +504,8 @@ func (ctxt *Link) symtab() {
 			str := ctxt.Syms.Lookup("go.link.pkghash."+l.Pkg, 0)
 			str.Attr |= AttrReachable
 			str.Type = SRODATA
-			Addaddr(ctxt, str, s)
-			adduint(ctxt, str, uint64(len(l.hash)))
+			str.AddAddr(ctxt.Arch, s)
+			str.AddUint(ctxt.Arch, uint64(len(l.hash)))
 		}
 	}
 
@@ -517,67 +517,67 @@ func (ctxt *Link) symtab() {
 	// This code uses several global variables that are set by pcln.go:pclntab.
 	moduledata := ctxt.Moduledata
 	// The pclntab slice
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.pclntab", 0))
-	adduint(ctxt, moduledata, uint64(ctxt.Syms.Lookup("runtime.pclntab", 0).Size))
-	adduint(ctxt, moduledata, uint64(ctxt.Syms.Lookup("runtime.pclntab", 0).Size))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.pclntab", 0))
+	moduledata.AddUint(ctxt.Arch, uint64(ctxt.Syms.Lookup("runtime.pclntab", 0).Size))
+	moduledata.AddUint(ctxt.Arch, uint64(ctxt.Syms.Lookup("runtime.pclntab", 0).Size))
 	// The ftab slice
-	Addaddrplus(ctxt, moduledata, ctxt.Syms.Lookup("runtime.pclntab", 0), int64(pclntabPclntabOffset))
-	adduint(ctxt, moduledata, uint64(pclntabNfunc+1))
-	adduint(ctxt, moduledata, uint64(pclntabNfunc+1))
+	moduledata.AddAddrPlus(ctxt.Arch, ctxt.Syms.Lookup("runtime.pclntab", 0), int64(pclntabPclntabOffset))
+	moduledata.AddUint(ctxt.Arch, uint64(pclntabNfunc+1))
+	moduledata.AddUint(ctxt.Arch, uint64(pclntabNfunc+1))
 	// The filetab slice
-	Addaddrplus(ctxt, moduledata, ctxt.Syms.Lookup("runtime.pclntab", 0), int64(pclntabFiletabOffset))
-	adduint(ctxt, moduledata, uint64(len(ctxt.Filesyms))+1)
-	adduint(ctxt, moduledata, uint64(len(ctxt.Filesyms))+1)
+	moduledata.AddAddrPlus(ctxt.Arch, ctxt.Syms.Lookup("runtime.pclntab", 0), int64(pclntabFiletabOffset))
+	moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Filesyms))+1)
+	moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Filesyms))+1)
 	// findfunctab
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.findfunctab", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.findfunctab", 0))
 	// minpc, maxpc
-	Addaddr(ctxt, moduledata, pclntabFirstFunc)
-	Addaddrplus(ctxt, moduledata, pclntabLastFunc, pclntabLastFunc.Size)
+	moduledata.AddAddr(ctxt.Arch, pclntabFirstFunc)
+	moduledata.AddAddrPlus(ctxt.Arch, pclntabLastFunc, pclntabLastFunc.Size)
 	// pointers to specific parts of the module
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.text", 0))
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.etext", 0))
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.noptrdata", 0))
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.enoptrdata", 0))
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.data", 0))
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.edata", 0))
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.bss", 0))
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.ebss", 0))
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.noptrbss", 0))
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.enoptrbss", 0))
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.end", 0))
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.gcdata", 0))
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.gcbss", 0))
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.types", 0))
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.etypes", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.text", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.etext", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.noptrdata", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.enoptrdata", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.data", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.edata", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.bss", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.ebss", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.noptrbss", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.enoptrbss", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.end", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.gcdata", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.gcbss", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.types", 0))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.etypes", 0))
 
 	// text section information
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.textsectionmap", 0))
-	adduint(ctxt, moduledata, uint64(nsections))
-	adduint(ctxt, moduledata, uint64(nsections))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.textsectionmap", 0))
+	moduledata.AddUint(ctxt.Arch, uint64(nsections))
+	moduledata.AddUint(ctxt.Arch, uint64(nsections))
 
 	// The typelinks slice
 	typelinkSym := ctxt.Syms.Lookup("runtime.typelink", 0)
 	ntypelinks := uint64(typelinkSym.Size) / 4
-	Addaddr(ctxt, moduledata, typelinkSym)
-	adduint(ctxt, moduledata, ntypelinks)
-	adduint(ctxt, moduledata, ntypelinks)
+	moduledata.AddAddr(ctxt.Arch, typelinkSym)
+	moduledata.AddUint(ctxt.Arch, ntypelinks)
+	moduledata.AddUint(ctxt.Arch, ntypelinks)
 	// The itablinks slice
-	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.itablink", 0))
-	adduint(ctxt, moduledata, uint64(nitablinks))
-	adduint(ctxt, moduledata, uint64(nitablinks))
+	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.itablink", 0))
+	moduledata.AddUint(ctxt.Arch, uint64(nitablinks))
+	moduledata.AddUint(ctxt.Arch, uint64(nitablinks))
 	// The ptab slice
 	if ptab := ctxt.Syms.ROLookup("go.plugin.tabs", 0); ptab != nil && ptab.Attr.Reachable() {
 		ptab.Attr |= AttrLocal
 		ptab.Type = SRODATA
 
 		nentries := uint64(len(ptab.P) / 8) // sizeof(nameOff) + sizeof(typeOff)
-		Addaddr(ctxt, moduledata, ptab)
-		adduint(ctxt, moduledata, nentries)
-		adduint(ctxt, moduledata, nentries)
+		moduledata.AddAddr(ctxt.Arch, ptab)
+		moduledata.AddUint(ctxt.Arch, nentries)
+		moduledata.AddUint(ctxt.Arch, nentries)
 	} else {
-		adduint(ctxt, moduledata, 0)
-		adduint(ctxt, moduledata, 0)
-		adduint(ctxt, moduledata, 0)
+		moduledata.AddUint(ctxt.Arch, 0)
+		moduledata.AddUint(ctxt.Arch, 0)
+		moduledata.AddUint(ctxt.Arch, 0)
 	}
 	if Buildmode == BuildmodePlugin {
 		addgostring(ctxt, moduledata, "go.link.thispluginpath", *flagPluginPath)
@@ -594,17 +594,17 @@ func (ctxt *Link) symtab() {
 			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), string(l.hash))
 			// pkghashes[i].runtimehash
 			hash := ctxt.Syms.ROLookup("go.link.pkghash."+l.Pkg, 0)
-			Addaddr(ctxt, pkghashes, hash)
+			pkghashes.AddAddr(ctxt.Arch, hash)
 		}
-		Addaddr(ctxt, moduledata, pkghashes)
-		adduint(ctxt, moduledata, uint64(len(ctxt.Library)))
-		adduint(ctxt, moduledata, uint64(len(ctxt.Library)))
+		moduledata.AddAddr(ctxt.Arch, pkghashes)
+		moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Library)))
+		moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Library)))
 	} else {
-		adduint(ctxt, moduledata, 0) // pluginpath
-		adduint(ctxt, moduledata, 0)
-		adduint(ctxt, moduledata, 0) // pkghashes slice
-		adduint(ctxt, moduledata, 0)
-		adduint(ctxt, moduledata, 0)
+		moduledata.AddUint(ctxt.Arch, 0) // pluginpath
+		moduledata.AddUint(ctxt.Arch, 0)
+		moduledata.AddUint(ctxt.Arch, 0) // pkghashes slice
+		moduledata.AddUint(ctxt.Arch, 0)
+		moduledata.AddUint(ctxt.Arch, 0)
 	}
 	if len(ctxt.Shlibs) > 0 {
 		thismodulename := filepath.Base(*flagOutfile)
@@ -632,12 +632,12 @@ func (ctxt *Link) symtab() {
 			// modulehashes[i].runtimehash
 			abihash := ctxt.Syms.Lookup("go.link.abihash."+modulename, 0)
 			abihash.Attr |= AttrReachable
-			Addaddr(ctxt, modulehashes, abihash)
+			modulehashes.AddAddr(ctxt.Arch, abihash)
 		}
 
-		Addaddr(ctxt, moduledata, modulehashes)
-		adduint(ctxt, moduledata, uint64(len(ctxt.Shlibs)))
-		adduint(ctxt, moduledata, uint64(len(ctxt.Shlibs)))
+		moduledata.AddAddr(ctxt.Arch, modulehashes)
+		moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Shlibs)))
+		moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Shlibs)))
 	}
 
 	// The rest of moduledata is zero initialized.
@@ -646,12 +646,12 @@ func (ctxt *Link) symtab() {
 	// compiler-provided size, so read it from the type data.
 	moduledatatype := ctxt.Syms.ROLookup("type.runtime.moduledata", 0)
 	moduledata.Size = decodetypeSize(ctxt.Arch, moduledatatype)
-	Symgrow(moduledata, moduledata.Size)
+	moduledata.Grow(moduledata.Size)
 
 	lastmoduledatap := ctxt.Syms.Lookup("runtime.lastmoduledatap", 0)
 	if lastmoduledatap.Type != SDYNIMPORT {
 		lastmoduledatap.Type = SNOPTRDATA
 		lastmoduledatap.Size = 0 // overwrite existing value
-		Addaddr(ctxt, lastmoduledatap, moduledata)
+		lastmoduledatap.AddAddr(ctxt.Arch, moduledata)
 	}
 }

@@ -348,8 +348,8 @@ func (ctxt *Link) domacho() {
 
 	s.Type = SMACHOSYMSTR
 	s.Attr |= AttrReachable
-	Adduint8(ctxt, s, ' ')
-	Adduint8(ctxt, s, '\x00')
+	s.AddUint8(' ')
+	s.AddUint8('\x00')
 
 	s = ctxt.Syms.Lookup(".machosymtab", 0)
 	s.Type = SMACHOSYMTAB
@@ -761,7 +761,7 @@ func machosymtab(ctxt *Link) {
 
 	for i := 0; i < nsortsym; i++ {
 		s := sortsym[i]
-		Adduint32(ctxt, symtab, uint32(symstr.Size))
+		symtab.AddUint32(ctxt.Arch, uint32(symstr.Size))
 
 		export := machoShouldExport(ctxt, s)
 
@@ -774,22 +774,22 @@ func machosymtab(ctxt *Link) {
 		// See Issue #18190.
 		cexport := !strings.Contains(s.Extname, ".") && (Buildmode != BuildmodePlugin || onlycsymbol(s))
 		if cexport || export {
-			Adduint8(ctxt, symstr, '_')
+			symstr.AddUint8('_')
 		}
 
 		// replace "·" as ".", because DTrace cannot handle it.
 		Addstring(symstr, strings.Replace(s.Extname, "·", ".", -1))
 
 		if s.Type == SDYNIMPORT || s.Type == SHOSTOBJ {
-			Adduint8(ctxt, symtab, 0x01)                  // type N_EXT, external symbol
-			Adduint8(ctxt, symtab, 0)                     // no section
-			Adduint16(ctxt, symtab, 0)                    // desc
-			adduintxx(ctxt, symtab, 0, ctxt.Arch.PtrSize) // no value
+			symtab.AddUint8(0x01)                             // type N_EXT, external symbol
+			symtab.AddUint8(0)                                // no section
+			symtab.AddUint16(ctxt.Arch, 0)                    // desc
+			symtab.addUintXX(ctxt.Arch, 0, ctxt.Arch.PtrSize) // no value
 		} else {
 			if s.Attr.CgoExport() || export {
-				Adduint8(ctxt, symtab, 0x0f)
+				symtab.AddUint8(0x0f)
 			} else {
-				Adduint8(ctxt, symtab, 0x0e)
+				symtab.AddUint8(0x0e)
 			}
 			o := s
 			for o.Outer != nil {
@@ -797,12 +797,12 @@ func machosymtab(ctxt *Link) {
 			}
 			if o.Sect == nil {
 				Errorf(s, "missing section for symbol")
-				Adduint8(ctxt, symtab, 0)
+				symtab.AddUint8(0)
 			} else {
-				Adduint8(ctxt, symtab, uint8(o.Sect.Extnum))
+				symtab.AddUint8(uint8(o.Sect.Extnum))
 			}
-			Adduint16(ctxt, symtab, 0) // desc
-			adduintxx(ctxt, symtab, uint64(Symaddr(s)), ctxt.Arch.PtrSize)
+			symtab.AddUint16(ctxt.Arch, 0) // desc
+			symtab.addUintXX(ctxt.Arch, uint64(Symaddr(s)), ctxt.Arch.PtrSize)
 		}
 	}
 }
@@ -871,7 +871,7 @@ func Domacholink(ctxt *Link) int64 {
 	// any alignment padding itself, working around the
 	// issue.
 	for s4.Size%16 != 0 {
-		Adduint8(ctxt, s4, 0)
+		s4.AddUint8(0)
 	}
 
 	size := int(s1.Size + s2.Size + s3.Size + s4.Size)

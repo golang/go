@@ -32,11 +32,11 @@ func (c dwctxt) PtrSize() int {
 }
 func (c dwctxt) AddInt(s dwarf.Sym, size int, i int64) {
 	ls := s.(*Symbol)
-	adduintxx(c.linkctxt, ls, uint64(i), size)
+	ls.addUintXX(c.linkctxt.Arch, uint64(i), size)
 }
 func (c dwctxt) AddBytes(s dwarf.Sym, b []byte) {
 	ls := s.(*Symbol)
-	Addbytes(ls, b)
+	ls.AddBytes(b)
 }
 func (c dwctxt) AddString(s dwarf.Sym, v string) {
 	Addstring(s.(*Symbol), v)
@@ -49,7 +49,7 @@ func (c dwctxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
 	if value != 0 {
 		value -= (data.(*Symbol)).Value
 	}
-	Addaddrplus(c.linkctxt, s.(*Symbol), data.(*Symbol), value)
+	s.(*Symbol).AddAddrPlus(c.linkctxt.Arch, data.(*Symbol), value)
 }
 
 func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
@@ -59,9 +59,9 @@ func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 		Errorf(ls, "invalid size %d in adddwarfref\n", size)
 		fallthrough
 	case c.linkctxt.Arch.PtrSize:
-		Addaddr(c.linkctxt, ls, t.(*Symbol))
+		ls.AddAddr(c.linkctxt.Arch, t.(*Symbol))
 	case 4:
-		addaddrplus4(c.linkctxt, ls, t.(*Symbol), 0)
+		ls.AddAddrPlus4(t.(*Symbol), 0)
 	}
 	r := &ls.R[len(ls.R)-1]
 	r.Type = objabi.R_DWARFREF
@@ -75,7 +75,7 @@ var dwarfp []*Symbol
 func writeabbrev(ctxt *Link) *Symbol {
 	s := ctxt.Syms.Lookup(".debug_abbrev", 0)
 	s.Type = SDWARFSECT
-	Addbytes(s, dwarf.GetAbbrev())
+	s.AddBytes(dwarf.GetAbbrev())
 	return s
 }
 
@@ -213,9 +213,9 @@ func adddwarfref(ctxt *Link, s *Symbol, t *Symbol, size int) int64 {
 		Errorf(s, "invalid size %d in adddwarfref\n", size)
 		fallthrough
 	case ctxt.Arch.PtrSize:
-		result = Addaddr(ctxt, s, t)
+		result = s.AddAddr(ctxt.Arch, t)
 	case 4:
-		result = addaddrplus4(ctxt, s, t, 0)
+		result = s.AddAddrPlus4(t, 0)
 	}
 	r := &s.R[len(s.R)-1]
 	r.Type = objabi.R_DWARFREF
@@ -233,7 +233,7 @@ func putdies(linkctxt *Link, ctxt dwarf.Context, syms []*Symbol, die *dwarf.DWDi
 	for ; die != nil; die = die.Link {
 		syms = putdie(linkctxt, ctxt, syms, die)
 	}
-	Adduint8(linkctxt, syms[len(syms)-1], 0)
+	syms[len(syms)-1].AddUint8(0)
 
 	return syms
 }
@@ -942,24 +942,24 @@ func putpclcdelta(linkctxt *Link, ctxt dwarf.Context, s *Symbol, deltaPC uint64,
 			if opcode < OPCODE_BASE {
 				panic(fmt.Sprintf("produced invalid special opcode %d", opcode))
 			}
-			Adduint8(linkctxt, s, dwarf.DW_LNS_const_add_pc)
+			s.AddUint8(dwarf.DW_LNS_const_add_pc)
 		} else if (1<<14) <= deltaPC && deltaPC < (1<<16) {
-			Adduint8(linkctxt, s, dwarf.DW_LNS_fixed_advance_pc)
-			Adduint16(linkctxt, s, uint16(deltaPC))
+			s.AddUint8(dwarf.DW_LNS_fixed_advance_pc)
+			s.AddUint16(linkctxt.Arch, uint16(deltaPC))
 		} else {
-			Adduint8(linkctxt, s, dwarf.DW_LNS_advance_pc)
+			s.AddUint8(dwarf.DW_LNS_advance_pc)
 			dwarf.Uleb128put(ctxt, s, int64(deltaPC))
 		}
 	}
 
 	// Encode deltaLC.
 	if deltaLC != 0 {
-		Adduint8(linkctxt, s, dwarf.DW_LNS_advance_line)
+		s.AddUint8(dwarf.DW_LNS_advance_line)
 		dwarf.Sleb128put(ctxt, s, deltaLC)
 	}
 
 	// Output the special opcode.
-	Adduint8(linkctxt, s, uint8(opcode))
+	s.AddUint8(uint8(opcode))
 }
 
 /*
@@ -1024,50 +1024,50 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 	// Write .debug_line Line Number Program Header (sec 6.2.4)
 	// Fields marked with (*) must be changed for 64-bit dwarf
 	unitLengthOffset := ls.Size
-	Adduint32(ctxt, ls, 0) // unit_length (*), filled in at end.
+	ls.AddUint32(ctxt.Arch, 0) // unit_length (*), filled in at end.
 	unitstart = ls.Size
-	Adduint16(ctxt, ls, 2) // dwarf version (appendix F)
+	ls.AddUint16(ctxt.Arch, 2) // dwarf version (appendix F)
 	headerLengthOffset := ls.Size
-	Adduint32(ctxt, ls, 0) // header_length (*), filled in at end.
+	ls.AddUint32(ctxt.Arch, 0) // header_length (*), filled in at end.
 	headerstart = ls.Size
 
 	// cpos == unitstart + 4 + 2 + 4
-	Adduint8(ctxt, ls, 1)              // minimum_instruction_length
-	Adduint8(ctxt, ls, 1)              // default_is_stmt
-	Adduint8(ctxt, ls, LINE_BASE&0xFF) // line_base
-	Adduint8(ctxt, ls, LINE_RANGE)     // line_range
-	Adduint8(ctxt, ls, OPCODE_BASE)    // opcode_base
-	Adduint8(ctxt, ls, 0)              // standard_opcode_lengths[1]
-	Adduint8(ctxt, ls, 1)              // standard_opcode_lengths[2]
-	Adduint8(ctxt, ls, 1)              // standard_opcode_lengths[3]
-	Adduint8(ctxt, ls, 1)              // standard_opcode_lengths[4]
-	Adduint8(ctxt, ls, 1)              // standard_opcode_lengths[5]
-	Adduint8(ctxt, ls, 0)              // standard_opcode_lengths[6]
-	Adduint8(ctxt, ls, 0)              // standard_opcode_lengths[7]
-	Adduint8(ctxt, ls, 0)              // standard_opcode_lengths[8]
-	Adduint8(ctxt, ls, 1)              // standard_opcode_lengths[9]
-	Adduint8(ctxt, ls, 0)              // include_directories  (empty)
+	ls.AddUint8(1)                // minimum_instruction_length
+	ls.AddUint8(1)                // default_is_stmt
+	ls.AddUint8(LINE_BASE & 0xFF) // line_base
+	ls.AddUint8(LINE_RANGE)       // line_range
+	ls.AddUint8(OPCODE_BASE)      // opcode_base
+	ls.AddUint8(0)                // standard_opcode_lengths[1]
+	ls.AddUint8(1)                // standard_opcode_lengths[2]
+	ls.AddUint8(1)                // standard_opcode_lengths[3]
+	ls.AddUint8(1)                // standard_opcode_lengths[4]
+	ls.AddUint8(1)                // standard_opcode_lengths[5]
+	ls.AddUint8(0)                // standard_opcode_lengths[6]
+	ls.AddUint8(0)                // standard_opcode_lengths[7]
+	ls.AddUint8(0)                // standard_opcode_lengths[8]
+	ls.AddUint8(1)                // standard_opcode_lengths[9]
+	ls.AddUint8(0)                // include_directories  (empty)
 
 	for _, f := range ctxt.Filesyms {
 		Addstring(ls, f.Name)
-		Adduint8(ctxt, ls, 0)
-		Adduint8(ctxt, ls, 0)
-		Adduint8(ctxt, ls, 0)
+		ls.AddUint8(0)
+		ls.AddUint8(0)
+		ls.AddUint8(0)
 	}
 
 	// 4 zeros: the string termination + 3 fields.
-	Adduint8(ctxt, ls, 0)
+	ls.AddUint8(0)
 	// terminate file_names.
 	headerend = ls.Size
 
-	Adduint8(ctxt, ls, 0) // start extended opcode
+	ls.AddUint8(0) // start extended opcode
 	dwarf.Uleb128put(dwarfctxt, ls, 1+int64(ctxt.Arch.PtrSize))
-	Adduint8(ctxt, ls, dwarf.DW_LNE_set_address)
+	ls.AddUint8(dwarf.DW_LNE_set_address)
 
 	pc := s.Value
 	line := 1
 	file := 1
-	Addaddr(ctxt, ls, s)
+	ls.AddAddr(ctxt.Arch, s)
 
 	var pcfile Pciter
 	var pcline Pciter
@@ -1100,7 +1100,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 			}
 
 			if int32(file) != pcfile.value {
-				Adduint8(ctxt, ls, dwarf.DW_LNS_set_file)
+				ls.AddUint8(dwarf.DW_LNS_set_file)
 				dwarf.Uleb128put(dwarfctxt, ls, int64(pcfile.value))
 				file = int(pcfile.value)
 			}
@@ -1118,14 +1118,14 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 		}
 	}
 
-	Adduint8(ctxt, ls, 0) // start extended opcode
+	ls.AddUint8(0) // start extended opcode
 	dwarf.Uleb128put(dwarfctxt, ls, 1)
-	Adduint8(ctxt, ls, dwarf.DW_LNE_end_sequence)
+	ls.AddUint8(dwarf.DW_LNE_end_sequence)
 
 	newattr(dwinfo, dwarf.DW_AT_high_pc, dwarf.DW_CLS_ADDRESS, epc+1, epcs)
 
-	setuint32(ctxt, ls, unitLengthOffset, uint32(ls.Size-unitstart))
-	setuint32(ctxt, ls, headerLengthOffset, uint32(headerend-headerstart))
+	ls.SetUint32(ctxt.Arch, unitLengthOffset, uint32(ls.Size-unitstart))
+	ls.SetUint32(ctxt.Arch, headerLengthOffset, uint32(headerend-headerstart))
 
 	return syms, funcs
 }
@@ -1170,29 +1170,29 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
 	if haslinkregister(ctxt) {
 		cieReserve = 32
 	}
-	Adduint32(ctxt, fs, cieReserve)                            // initial length, must be multiple of thearch.ptrsize
-	Adduint32(ctxt, fs, 0xffffffff)                            // cid.
-	Adduint8(ctxt, fs, 3)                                      // dwarf version (appendix F)
-	Adduint8(ctxt, fs, 0)                                      // augmentation ""
+	fs.AddUint32(ctxt.Arch, cieReserve)                        // initial length, must be multiple of thearch.ptrsize
+	fs.AddUint32(ctxt.Arch, 0xffffffff)                        // cid.
+	fs.AddUint8(3)                                             // dwarf version (appendix F)
+	fs.AddUint8(0)                                             // augmentation ""
 	dwarf.Uleb128put(dwarfctxt, fs, 1)                         // code_alignment_factor
 	dwarf.Sleb128put(dwarfctxt, fs, dataAlignmentFactor)       // all CFI offset calculations include multiplication with this factor
 	dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfreglr)) // return_address_register
 
-	Adduint8(ctxt, fs, dwarf.DW_CFA_def_cfa)                   // Set the current frame address..
+	fs.AddUint8(dwarf.DW_CFA_def_cfa)                          // Set the current frame address..
 	dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfregsp)) // ...to use the value in the platform's SP register (defined in l.go)...
 	if haslinkregister(ctxt) {
 		dwarf.Uleb128put(dwarfctxt, fs, int64(0)) // ...plus a 0 offset.
 
-		Adduint8(ctxt, fs, dwarf.DW_CFA_same_value) // The platform's link register is unchanged during the prologue.
+		fs.AddUint8(dwarf.DW_CFA_same_value) // The platform's link register is unchanged during the prologue.
 		dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfreglr))
 
-		Adduint8(ctxt, fs, dwarf.DW_CFA_val_offset)                // The previous value...
+		fs.AddUint8(dwarf.DW_CFA_val_offset)                       // The previous value...
 		dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfregsp)) // ...of the platform's SP register...
 		dwarf.Uleb128put(dwarfctxt, fs, int64(0))                  // ...is CFA+0.
 	} else {
 		dwarf.Uleb128put(dwarfctxt, fs, int64(ctxt.Arch.PtrSize)) // ...plus the word size (because the call instruction implicitly adds one word to the frame).
 
-		Adduint8(ctxt, fs, dwarf.DW_CFA_offset_extended)                               // The previous value...
+		fs.AddUint8(dwarf.DW_CFA_offset_extended)                                      // The previous value...
 		dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfreglr))                     // ...of the return address...
 		dwarf.Uleb128put(dwarfctxt, fs, int64(-ctxt.Arch.PtrSize)/dataAlignmentFactor) // ...is saved at [CFA - (PtrSize/4)].
 	}
@@ -1204,7 +1204,7 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
 		Exitf("dwarf: cieReserve too small by %d bytes.", -pad)
 	}
 
-	Addbytes(fs, zeros[:pad])
+	fs.AddBytes(zeros[:pad])
 
 	var deltaBuf []byte
 	var pcsp Pciter
@@ -1257,15 +1257,15 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
 		//	4 bytes: Pointer to the CIE above, at offset 0
 		//	ptrsize: initial location
 		//	ptrsize: address range
-		Adduint32(ctxt, fs, uint32(4+2*ctxt.Arch.PtrSize+len(deltaBuf))) // length (excludes itself)
+		fs.AddUint32(ctxt.Arch, uint32(4+2*ctxt.Arch.PtrSize+len(deltaBuf))) // length (excludes itself)
 		if Linkmode == LinkExternal {
 			adddwarfref(ctxt, fs, fs, 4)
 		} else {
-			Adduint32(ctxt, fs, 0) // CIE offset
+			fs.AddUint32(ctxt.Arch, 0) // CIE offset
 		}
-		Addaddr(ctxt, fs, s)
-		adduintxx(ctxt, fs, uint64(s.Size), ctxt.Arch.PtrSize) // address range
-		Addbytes(fs, deltaBuf)
+		fs.AddAddr(ctxt.Arch, s)
+		fs.addUintXX(ctxt.Arch, uint64(s.Size), ctxt.Arch.PtrSize) // address range
+		fs.AddBytes(deltaBuf)
 	}
 	return syms
 }
@@ -1319,13 +1319,13 @@ func writeinfo(ctxt *Link, syms []*Symbol, funcs, consts []*Symbol, abbrevsym *S
 		// Write .debug_info Compilation Unit Header (sec 7.5.1)
 		// Fields marked with (*) must be changed for 64-bit dwarf
 		// This must match COMPUNITHEADERSIZE above.
-		Adduint32(ctxt, s, 0) // unit_length (*), will be filled in later.
-		Adduint16(ctxt, s, 4) // dwarf version (appendix F)
+		s.AddUint32(ctxt.Arch, 0) // unit_length (*), will be filled in later.
+		s.AddUint16(ctxt.Arch, 4) // dwarf version (appendix F)
 
 		// debug_abbrev_offset (*)
 		adddwarfref(ctxt, s, abbrevsym, 4)
 
-		Adduint8(ctxt, s, uint8(ctxt.Arch.PtrSize)) // address_size
+		s.AddUint8(uint8(ctxt.Arch.PtrSize)) // address_size
 
 		dwarf.Uleb128put(dwarfctxt, s, int64(compunit.Abbrev))
 		dwarf.PutAttrs(dwarfctxt, s, compunit.Abbrev, compunit.Attr)
@@ -1345,7 +1345,7 @@ func writeinfo(ctxt *Link, syms []*Symbol, funcs, consts []*Symbol, abbrevsym *S
 			cusize += child.Size
 		}
 		cusize -= 4 // exclude the length field.
-		setuint32(ctxt, s, 0, uint32(cusize))
+		s.SetUint32(ctxt.Arch, 0, uint32(cusize))
 		newattr(compunit, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, cusize, 0)
 		syms = append(syms, cu...)
 	}
@@ -1380,10 +1380,10 @@ func writepub(ctxt *Link, sname string, ispub func(*dwarf.DWDie) bool, syms []*S
 		culength := uint32(getattr(compunit, dwarf.DW_AT_byte_size).Value) + 4
 
 		// Write .debug_pubnames/types	Header (sec 6.1.1)
-		Adduint32(ctxt, s, 0)                          // unit_length (*), will be filled in later.
-		Adduint16(ctxt, s, 2)                          // dwarf version (appendix F)
+		s.AddUint32(ctxt.Arch, 0)                      // unit_length (*), will be filled in later.
+		s.AddUint16(ctxt.Arch, 2)                      // dwarf version (appendix F)
 		adddwarfref(ctxt, s, dtolsym(compunit.Sym), 4) // debug_info_offset (of the Comp unit Header)
-		Adduint32(ctxt, s, culength)                   // debug_info_length
+		s.AddUint32(ctxt.Arch, culength)               // debug_info_length
 
 		for die := compunit.Child; die != nil; die = die.Link {
 			if !ispub(die) {
@@ -1398,9 +1398,9 @@ func writepub(ctxt *Link, sname string, ispub func(*dwarf.DWDie) bool, syms []*S
 			Addstring(s, name)
 		}
 
-		Adduint32(ctxt, s, 0)
+		s.AddUint32(ctxt.Arch, 0)
 
-		setuint32(ctxt, s, sectionstart, uint32(s.Size-sectionstart)-4) // exclude the length field.
+		s.SetUint32(ctxt.Arch, sectionstart, uint32(s.Size-sectionstart)-4) // exclude the length field.
 	}
 
 	return syms
@@ -1429,22 +1429,22 @@ func writearanges(ctxt *Link, syms []*Symbol) []*Symbol {
 
 		// Write .debug_aranges	 Header + entry	 (sec 6.1.2)
 		unitlength := uint32(headersize) + 4*uint32(ctxt.Arch.PtrSize) - 4
-		Adduint32(ctxt, s, unitlength) // unit_length (*)
-		Adduint16(ctxt, s, 2)          // dwarf version (appendix F)
+		s.AddUint32(ctxt.Arch, unitlength) // unit_length (*)
+		s.AddUint16(ctxt.Arch, 2)          // dwarf version (appendix F)
 
 		adddwarfref(ctxt, s, dtolsym(compunit.Sym), 4)
 
-		Adduint8(ctxt, s, uint8(ctxt.Arch.PtrSize)) // address_size
-		Adduint8(ctxt, s, 0)                        // segment_size
+		s.AddUint8(uint8(ctxt.Arch.PtrSize)) // address_size
+		s.AddUint8(0)                        // segment_size
 		padding := headersize - (4 + 2 + 4 + 1 + 1)
 		for i := 0; i < padding; i++ {
-			Adduint8(ctxt, s, 0)
+			s.AddUint8(0)
 		}
 
-		Addaddrplus(ctxt, s, b.Data.(*Symbol), b.Value-(b.Data.(*Symbol)).Value)
-		adduintxx(ctxt, s, uint64(e.Value-b.Value), ctxt.Arch.PtrSize)
-		adduintxx(ctxt, s, 0, ctxt.Arch.PtrSize)
-		adduintxx(ctxt, s, 0, ctxt.Arch.PtrSize)
+		s.AddAddrPlus(ctxt.Arch, b.Data.(*Symbol), b.Value-(b.Data.(*Symbol)).Value)
+		s.addUintXX(ctxt.Arch, uint64(e.Value-b.Value), ctxt.Arch.PtrSize)
+		s.addUintXX(ctxt.Arch, 0, ctxt.Arch.PtrSize)
+		s.addUintXX(ctxt.Arch, 0, ctxt.Arch.PtrSize)
 	}
 	if s.Size > 0 {
 		syms = append(syms, s)
@@ -1467,7 +1467,7 @@ func writegdbscript(ctxt *Link, syms []*Symbol) []*Symbol {
 		s := ctxt.Syms.Lookup(".debug_gdb_scripts", 0)
 		s.Type = SDWARFSECT
 		syms = append(syms, s)
-		Adduint8(ctxt, s, 1) // magic 1 byte?
+		s.AddUint8(1) // magic 1 byte?
 		Addstring(s, gdbscript)
 	}
 

@@ -55,7 +55,7 @@ func gentext(ctxt *ld.Link) {
 	initfunc.Attr |= ld.AttrLocal
 	initfunc.Attr |= ld.AttrReachable
 	o := func(op uint32) {
-		ld.Adduint32(ctxt, initfunc, op)
+		initfunc.AddUint32(ctxt.Arch, op)
 	}
 	// 0000000000000000 <local.dso_init>:
 	// 0:	90000000 	adrp	x0, 0 <runtime.firstmoduledata>
@@ -64,7 +64,7 @@ func gentext(ctxt *ld.Link) {
 	// 	4: R_AARCH64_ADD_ABS_LO12_NC	local.moduledata
 	o(0x90000000)
 	o(0x91000000)
-	rel := ld.Addrel(initfunc)
+	rel := initfunc.AddRel()
 	rel.Off = 0
 	rel.Siz = 8
 	rel.Sym = ctxt.Moduledata
@@ -73,7 +73,7 @@ func gentext(ctxt *ld.Link) {
 	// 8:	14000000 	bl	0 <runtime.addmoduledata>
 	// 	8: R_AARCH64_CALL26	runtime.addmoduledata
 	o(0x14000000)
-	rel = ld.Addrel(initfunc)
+	rel = initfunc.AddRel()
 	rel.Off = 8
 	rel.Siz = 4
 	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
@@ -84,7 +84,7 @@ func gentext(ctxt *ld.Link) {
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal
 	initarray_entry.Type = ld.SINITARR
-	ld.Addaddr(ctxt, initarray_entry, initfunc)
+	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
 func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
