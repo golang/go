@@ -206,19 +206,31 @@ func (l *Link) Logf(format string, args ...interface{}) {
 }
 
 type Library struct {
-	Objref      string
-	Srcref      string
-	File        string
-	Pkg         string
-	Shlib       string
-	hash        string
-	imports     []*Library
-	textp       []*Symbol // text symbols defined in this library
-	dupTextSyms []*Symbol // dupok text symbols defined in this library
+	Objref        string
+	Srcref        string
+	File          string
+	Pkg           string
+	Shlib         string
+	hash          string
+	importStrings []string
+	imports       []*Library
+	textp         []*Symbol // text symbols defined in this library
+	dupTextSyms   []*Symbol // dupok text symbols defined in this library
 }
 
 func (l Library) String() string {
 	return l.Pkg
+}
+
+func (l *Library) addImports(ctxt *Link, pn string) {
+	pkg := objabi.PathToPrefix(l.Pkg)
+	for _, importStr := range l.importStrings {
+		lib := addlib(ctxt, pkg, pn, importStr)
+		if lib != nil {
+			l.imports = append(l.imports, lib)
+		}
+	}
+	l.importStrings = nil
 }
 
 type FuncInfo struct {

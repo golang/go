@@ -1425,7 +1425,8 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string, fil
 	ldpkg(ctxt, f, pkg, import1-import0-2, pn, whence) // -2 for !\n
 	f.Seek(import1, 0)
 
-	LoadObjFile(ctxt, f, lib, eof-f.Offset(), pn)
+	LoadObjFile(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn)
+	lib.addImports(ctxt, pn)
 	return nil
 }
 

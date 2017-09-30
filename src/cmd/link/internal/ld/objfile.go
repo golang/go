@@ -12,6 +12,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
 	"cmd/internal/objabi"
+	"cmd/internal/sys"
 	"crypto/sha1"
 	"encoding/base64"
 	"io"
@@ -30,7 +31,8 @@ var emptyPkg = []byte(`"".`)
 // objReader reads Go object files.
 type objReader struct {
 	rd              *bufio.Reader
-	ctxt            *Link
+	arch            *sys.Arch
+	syms            *Symbols
 	lib             *Library
 	pn              string
 	dupSym          *Symbol
@@ -50,16 +52,16 @@ type objReader struct {
 	file        []*Symbol
 }
 
-func LoadObjFile(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string) {
-
+func LoadObjFile(arch *sys.Arch, syms *Symbols, f *bio.Reader, lib *Library, length int64, pn string) {
 	start := f.Offset()
 	r := &objReader{
 		rd:              f.Reader,
 		lib:             lib,
-		ctxt:            ctxt,
+		arch:            arch,
+		syms:            syms,
 		pn:              pn,
 		dupSym:          &Symbol{Name: ".dup"},
-		localSymVersion: ctxt.Syms.IncVersion(),
+		localSymVersion: syms.IncVersion(),
 	}
 	r.loadObjFile()
 	if f.Offset() != start+length {
@@ -68,8 +70,6 @@ func LoadObjFile(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn strin
 }
 
 func (r *objReader) loadObjFile() {
-	pkg := objabi.PathToPrefix(r.lib.Pkg)
-
 	// Magic header
 	var buf [8]uint8
 	r.readFull(buf[:])
@@ -89,10 +89,7 @@ func (r *objReader) loadObjFile() {
 		if lib == "" {
 			break
 		}
-		l := addlib(r.ctxt, pkg, r.pn, lib)
-		if l != nil {
-			r.lib.imports = append(r.lib.imports, l)
-		}
+		r.lib.importStrings = append(r.lib.importStrings, lib)
 	}
 
 	// Symbol references
@@ -386,7 +383,7 @@ func (r *objReader) readRef() {
 	if v == 1 {
 		v = r.localSymVersion
 	}
-	s := r.ctxt.Syms.Lookup(name, v)
+	s := r.syms.Lookup(name, v)
 	r.refs = append(r.refs, s)
 
 	if s == nil || v != 0 {
@@ -404,9 +401,9 @@ func (r *objReader) readRef() {
 			if uint64(uint32(x)) != x {
 				log.Panicf("$-symbol %s too large: %d", s.Name, x)
 			}
-			s.AddUint32(r.ctxt.Arch, uint32(x))
+			s.AddUint32(r.arch, uint32(x))
 		case "$f64.", "$i64.":
-			s.AddUint64(r.ctxt.Arch, x)
+			s.AddUint64(r.arch, x)
 		default:
 			log.Panicf("unrecognized $-symbol: %s", s.Name)
 		}
