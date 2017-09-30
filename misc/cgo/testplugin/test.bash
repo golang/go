@@ -71,3 +71,6 @@ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue18584 src/issue18584/main.
 GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin "-ldflags=-X main.Val=linkstr" -o plugin.so src/issue19418/plugin.go
 GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue19418 src/issue19418/main.go
 ./issue19418
+
+# Test for issue 19529
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o plugin.so src/issue19529/plugin.go
