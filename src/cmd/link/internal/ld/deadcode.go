@@ -199,7 +199,7 @@ func (d *deadcodepass) markMethod(m methodref) {
 func (d *deadcodepass) init() {
 	var names []string
 
-	if SysArch.Family == sys.ARM {
+	if d.ctxt.Arch.Family == sys.ARM {
 		// mark some functions that are only referenced after linker code editing
 		names = append(names, "runtime.read_tls_fallback")
 	}
@@ -221,7 +221,7 @@ func (d *deadcodepass) init() {
 		} else {
 			// The external linker refers main symbol directly.
 			if Linkmode == LinkExternal && (Buildmode == BuildmodeExe || Buildmode == BuildmodePIE) {
-				if Headtype == objabi.Hwindows && SysArch.Family == sys.I386 {
+				if Headtype == objabi.Hwindows && d.ctxt.Arch.Family == sys.I386 {
 					*flagEntrySymbol = "_main"
 				} else {
 					*flagEntrySymbol = "main"
@@ -275,7 +275,7 @@ func (d *deadcodepass) flood() {
 				// later will give a better error than deadcode.
 				continue
 			}
-			if decodetypeKind(s)&kindMask == kindInterface {
+			if decodetypeKind(d.ctxt.Arch, s)&kindMask == kindInterface {
 				for _, sig := range decodeIfaceMethods(d.ctxt.Arch, s) {
 					if d.ctxt.Debugvlog > 1 {
 						d.ctxt.Logf("reached iface method: %s\n", sig)

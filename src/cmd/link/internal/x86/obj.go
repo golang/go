@@ -37,37 +37,41 @@ import (
 	"fmt"
 )
 
-func Init() {
-	ld.SysArch = sys.Arch386
+func Init() (*sys.Arch, ld.Arch) {
+	arch := sys.Arch386
 
-	ld.Thearch.Funcalign = funcAlign
-	ld.Thearch.Maxalign = maxAlign
-	ld.Thearch.Minalign = minAlign
-	ld.Thearch.Dwarfregsp = dwarfRegSP
-	ld.Thearch.Dwarfreglr = dwarfRegLR
+	theArch := ld.Arch{
+		Funcalign:  funcAlign,
+		Maxalign:   maxAlign,
+		Minalign:   minAlign,
+		Dwarfregsp: dwarfRegSP,
+		Dwarfreglr: dwarfRegLR,
 
-	ld.Thearch.Adddynrel = adddynrel
-	ld.Thearch.Archinit = archinit
-	ld.Thearch.Archreloc = archreloc
-	ld.Thearch.Archrelocvariant = archrelocvariant
-	ld.Thearch.Asmb = asmb
-	ld.Thearch.Elfreloc1 = elfreloc1
-	ld.Thearch.Elfsetupplt = elfsetupplt
-	ld.Thearch.Gentext = gentext
-	ld.Thearch.Machoreloc1 = machoreloc1
-	ld.Thearch.PEreloc1 = pereloc1
-	ld.Thearch.Lput = ld.Lputl
-	ld.Thearch.Wput = ld.Wputl
-	ld.Thearch.Vput = ld.Vputl
-	ld.Thearch.Append16 = ld.Append16l
-	ld.Thearch.Append32 = ld.Append32l
-	ld.Thearch.Append64 = ld.Append64l
+		Adddynrel:        adddynrel,
+		Archinit:         archinit,
+		Archreloc:        archreloc,
+		Archrelocvariant: archrelocvariant,
+		Asmb:             asmb,
+		Elfreloc1:        elfreloc1,
+		Elfsetupplt:      elfsetupplt,
+		Gentext:          gentext,
+		Machoreloc1:      machoreloc1,
+		PEreloc1:         pereloc1,
+		Lput:             ld.Lputl,
+		Wput:             ld.Wputl,
+		Vput:             ld.Vputl,
+		Append16:         ld.Append16l,
+		Append32:         ld.Append32l,
+		Append64:         ld.Append64l,
 
-	ld.Thearch.Linuxdynld = "/lib/ld-linux.so.2"
-	ld.Thearch.Freebsddynld = "/usr/libexec/ld-elf.so.1"
-	ld.Thearch.Openbsddynld = "/usr/libexec/ld.so"
-	ld.Thearch.Netbsddynld = "/usr/libexec/ld.elf_so"
-	ld.Thearch.Solarisdynld = "/lib/ld.so.1"
+		Linuxdynld:   "/lib/ld-linux.so.2",
+		Freebsddynld: "/usr/libexec/ld-elf.so.1",
+		Openbsddynld: "/usr/libexec/ld.so",
+		Netbsddynld:  "/usr/libexec/ld.elf_so",
+		Solarisdynld: "/lib/ld.so.1",
+	}
+
+	return arch, theArch
 }
 
 func archinit(ctxt *ld.Link) {
@@ -89,8 +93,6 @@ func archinit(ctxt *ld.Link) {
 		}
 
 	case objabi.Hdarwin: /* apple MACH */
-		ld.Machoinit()
-
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)

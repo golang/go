@@ -517,7 +517,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 				if r.Xsym.Dynid < 0 {
 					Errorf(sym, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
 				}
-				if !Thearch.PEreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
+				if !Thearch.PEreloc1(ctxt.Arch, sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
 					Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
 				}
 				relocs++
@@ -636,7 +636,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 		}
 
 		// Only windows/386 requires underscore prefix on external symbols.
-		if SysArch.Family == sys.I386 &&
+		if ctxt.Arch.Family == sys.I386 &&
 			Linkmode == LinkExternal &&
 			(s.Type == SHOSTOBJ || s.Attr.CgoExport()) {
 			s.Name = "_" + s.Name
@@ -705,12 +705,12 @@ func (f *peFile) writeSymbolTableAndStringTable(ctxt *Link) {
 }
 
 // writeFileHeader writes COFF file header for peFile f.
-func (f *peFile) writeFileHeader() {
+func (f *peFile) writeFileHeader(arch *sys.Arch) {
 	var fh pe.FileHeader
 
-	switch SysArch.Family {
+	switch arch.Family {
 	default:
-		Exitf("unknown PE architecture: %v", SysArch.Family)
+		Exitf("unknown PE architecture: %v", arch.Family)
 	case sys.AMD64:
 		fh.Machine = IMAGE_FILE_MACHINE_AMD64
 	case sys.I386:
@@ -865,7 +865,7 @@ var pefile peFile
 func Peinit(ctxt *Link) {
 	var l int
 
-	switch SysArch.Family {
+	switch ctxt.Arch.Family {
 	// 64-bit architectures
 	case sys.AMD64:
 		pe64 = 1
@@ -923,7 +923,7 @@ func pewrite(ctxt *Link) {
 		strnput("PE", 4)
 	}
 
-	pefile.writeFileHeader()
+	pefile.writeFileHeader(ctxt.Arch)
 
 	pefile.writeOptionalHeader(ctxt)
 
@@ -976,7 +976,7 @@ func initdynimport(ctxt *Link) *Dll {
 			if err != nil {
 				Errorf(s, "failed to parse stdcall decoration: %v", err)
 			}
-			m.argsize *= SysArch.PtrSize
+			m.argsize *= ctxt.Arch.PtrSize
 			s.Extname = s.Extname[:i]
 		}
 
@@ -990,10 +990,10 @@ func initdynimport(ctxt *Link) *Dll {
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
 				m.s.Type = SDATA
-				Symgrow(m.s, int64(SysArch.PtrSize))
+				Symgrow(m.s, int64(ctxt.Arch.PtrSize))
 				dynName := m.s.Extname
 				// only windows/386 requires stdcall decoration
-				if SysArch.Family == sys.I386 && m.argsize >= 0 {
+				if ctxt.Arch.Family == sys.I386 && m.argsize >= 0 {
 					dynName += fmt.Sprintf("@%d", m.argsize)
 				}
 				dynSym := ctxt.Syms.Lookup(dynName, 0)
@@ -1002,7 +1002,7 @@ func initdynimport(ctxt *Link) *Dll {
 				r := Addrel(m.s)
 				r.Sym = dynSym
 				r.Off = 0
-				r.Siz = uint8(SysArch.PtrSize)
+				r.Siz = uint8(ctxt.Arch.PtrSize)
 				r.Type = objabi.R_ADDR
 			}
 		}
@@ -1016,10 +1016,10 @@ func initdynimport(ctxt *Link) *Dll {
 				m.s.Sub = dynamic.Sub
 				dynamic.Sub = m.s
 				m.s.Value = dynamic.Size
-				dynamic.Size += int64(SysArch.PtrSize)
+				dynamic.Size += int64(ctxt.Arch.PtrSize)
 			}
 
-			dynamic.Size += int64(SysArch.PtrSize)
+			dynamic.Size += int64(ctxt.Arch.PtrSize)
 		}
 	}
 
@@ -1285,9 +1285,9 @@ func addpersrc(ctxt *Link) {
 }
 
 func Asmbpe(ctxt *Link) {
-	switch SysArch.Family {
+	switch ctxt.Arch.Family {
 	default:
-		Exitf("unknown PE architecture: %v", SysArch.Family)
+		Exitf("unknown PE architecture: %v", ctxt.Arch.Family)
 	case sys.AMD64, sys.I386:
 	}
 

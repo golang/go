@@ -32,6 +32,7 @@ package mips
 
 import (
 	"cmd/internal/objabi"
+	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
 	"log"
@@ -75,12 +76,12 @@ func elfsetupplt(ctxt *ld.Link) {
 	return
 }
 
-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	return false
 }
 
-func applyrel(r *ld.Reloc, s *ld.Symbol, val *int64, t int64) {
-	o := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
+func applyrel(arch *sys.Arch, r *ld.Reloc, s *ld.Symbol, val *int64, t int64) {
+	o := arch.ByteOrder.Uint32(s.P[r.Off:])
 	switch r.Type {
 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSTLS:
 		*val = int64(o&0xffff0000 | uint32(t)&0xffff)
@@ -111,13 +112,13 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
-			applyrel(r, s, val, r.Xadd)
+			applyrel(ctxt.Arch, r, s, val, r.Xadd)
 			return true
 		case objabi.R_ADDRMIPSTLS, objabi.R_CALLMIPS, objabi.R_JMPMIPS:
 			r.Done = false
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
-			applyrel(r, s, val, r.Add)
+			applyrel(ctxt.Arch, r, s, val, r.Add)
 			return true
 		}
 	}
@@ -131,7 +132,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 		return true
 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
 		t := ld.Symaddr(r.Sym) + r.Add
-		applyrel(r, s, val, t)
+		applyrel(ctxt.Arch, r, s, val, t)
 		return true
 	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
 		t := ld.Symaddr(r.Sym) + r.Add
@@ -145,7 +146,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 			ld.Errorf(s, "direct call too far: %s %x", r.Sym.Name, t)
 		}
 
-		applyrel(r, s, val, t)
+		applyrel(ctxt.Arch, r, s, val, t)
 		return true
 	case objabi.R_ADDRMIPSTLS:
 		// thread pointer is at 0x7000 offset from the start of TLS data area
@@ -153,7 +154,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 		if t < -32768 || t >= 32678 {
 			ld.Errorf(s, "TLS offset out of range %d", t)
 		}
-		applyrel(r, s, val, t)
+		applyrel(ctxt.Arch, r, s, val, t)
 		return true
 	}
 

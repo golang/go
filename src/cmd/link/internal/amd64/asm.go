@@ -32,6 +32,7 @@ package amd64
 
 import (
 	"cmd/internal/objabi"
+	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"debug/elf"
 	"log"
@@ -102,7 +103,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	switch r.Type {
 	default:
 		if r.Type >= 256 {
-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(r.Type))
+			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(ctxt.Arch, r.Type))
 			return false
 		}
 
@@ -330,7 +331,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			return true
 		}
 
-		if ld.Headtype == objabi.Hdarwin && s.Size == int64(ld.SysArch.PtrSize) && r.Off == 0 {
+		if ld.Headtype == objabi.Hdarwin && s.Size == int64(ctxt.Arch.PtrSize) && r.Off == 0 {
 			// Mach-O relocations are a royal pain to lay out.
 			// They use a compact stateful bytecode representation
 			// that is too much bother to deal with.
@@ -422,14 +423,14 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
 	return true
 }
 
-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	var v uint32
 
 	rs := r.Xsym
 
 	if rs.Type == ld.SHOSTOBJ || r.Type == objabi.R_PCREL || r.Type == objabi.R_GOTPCREL {
 		if rs.Dynid < 0 {
-			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Type, rs.Type)
+			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
 			return false
 		}
 
@@ -438,7 +439,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	} else {
 		v = uint32(rs.Sect.Extnum)
 		if v == 0 {
-			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
+			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
 			return false
 		}
 	}
@@ -485,13 +486,13 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	return true
 }
 
-func pereloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+func pereloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	var v uint32
 
 	rs := r.Xsym
 
 	if rs.Dynid < 0 {
-		ld.Errorf(s, "reloc %d (%s) to non-coff symbol %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Type, rs.Type)
+		ld.Errorf(s, "reloc %d (%s) to non-coff symbol %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
 		return false
 	}
 

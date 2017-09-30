@@ -129,7 +129,7 @@ func Adduint64(ctxt *Link, s *Symbol, v uint64) int64 {
 }
 
 func adduint(ctxt *Link, s *Symbol, v uint64) int64 {
-	return adduintxx(ctxt, s, v, SysArch.PtrSize)
+	return adduintxx(ctxt, s, v, ctxt.Arch.PtrSize)
 }
 
 func setuint8(ctxt *Link, s *Symbol, r int64, v uint8) int64 {
@@ -141,7 +141,7 @@ func setuint32(ctxt *Link, s *Symbol, r int64, v uint32) int64 {
 }
 
 func setuint(ctxt *Link, s *Symbol, r int64, v uint64) int64 {
-	return setuintxx(ctxt, s, r, v, int64(SysArch.PtrSize))
+	return setuintxx(ctxt, s, r, v, int64(ctxt.Arch.PtrSize))
 }
 
 func Addaddrplus(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
@@ -175,7 +175,7 @@ func Addpcrelplus(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
 	r.Add = add
 	r.Type = objabi.R_PCREL
 	r.Siz = 4
-	if SysArch.Family == sys.S390X {
+	if ctxt.Arch.Family == sys.S390X {
 		r.Variant = RV_390_DBL
 	}
 	return i + int64(r.Siz)
@@ -422,8 +422,8 @@ func relocsym(ctxt *Link, s *Symbol) {
 		// We need to be able to reference dynimport symbols when linking against
 		// shared libraries, and Solaris needs it always
 		if Headtype != objabi.Hsolaris && r.Sym != nil && r.Sym.Type == SDYNIMPORT && !ctxt.DynlinkingGo() {
-			if !(SysArch.Family == sys.PPC64 && Linkmode == LinkExternal && r.Sym.Name == ".TOC.") {
-				Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", r.Sym.Name, r.Sym.Type, r.Sym.Type, r.Type, RelocName(r.Type))
+			if !(ctxt.Arch.Family == sys.PPC64 && Linkmode == LinkExternal && r.Sym.Name == ".TOC.") {
+				Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", r.Sym.Name, r.Sym.Type, r.Sym.Type, r.Type, RelocName(ctxt.Arch, r.Type))
 			}
 		}
 		if r.Sym != nil && r.Sym.Type != STLSBSS && r.Type != objabi.R_WEAKADDROFF && !r.Sym.Attr.Reachable() {
@@ -431,7 +431,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 		}
 
 		// TODO(mundaym): remove this special case - see issue 14218.
-		if SysArch.Family == sys.S390X {
+		if ctxt.Arch.Family == sys.S390X {
 			switch r.Type {
 			case objabi.R_PCRELDBL:
 				r.Type = objabi.R_PCREL
@@ -457,10 +457,10 @@ func relocsym(ctxt *Link, s *Symbol) {
 				o = int64(ctxt.Arch.ByteOrder.Uint64(s.P[off:]))
 			}
 			if !Thearch.Archreloc(ctxt, r, s, &o) {
-				Errorf(s, "unknown reloc to %v: %d (%s)", r.Sym.Name, r.Type, RelocName(r.Type))
+				Errorf(s, "unknown reloc to %v: %d (%s)", r.Sym.Name, r.Type, RelocName(ctxt.Arch, r.Type))
 			}
 		case objabi.R_TLS_LE:
-			isAndroidX86 := objabi.GOOS == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
+			isAndroidX86 := objabi.GOOS == "android" && (ctxt.Arch.InFamily(sys.AMD64, sys.I386))
 
 			if Linkmode == LinkExternal && Iself && !isAndroidX86 {
 				r.Done = false
@@ -470,13 +470,13 @@ func relocsym(ctxt *Link, s *Symbol) {
 				r.Xsym = r.Sym
 				r.Xadd = r.Add
 				o = 0
-				if SysArch.Family != sys.AMD64 {
+				if ctxt.Arch.Family != sys.AMD64 {
 					o = r.Add
 				}
 				break
 			}
 
-			if Iself && SysArch.Family == sys.ARM {
+			if Iself && ctxt.Arch.Family == sys.ARM {
 				// On ELF ARM, the thread pointer is 8 bytes before
 				// the start of the thread-local data block, so add 8
 				// to the actual TLS offset (r->sym->value).
@@ -493,7 +493,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 				log.Fatalf("unexpected R_TLS_LE relocation for %v", Headtype)
 			}
 		case objabi.R_TLS_IE:
-			isAndroidX86 := objabi.GOOS == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
+			isAndroidX86 := objabi.GOOS == "android" && (ctxt.Arch.InFamily(sys.AMD64, sys.I386))
 
 			if Linkmode == LinkExternal && Iself && !isAndroidX86 {
 				r.Done = false
@@ -503,7 +503,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 				r.Xsym = r.Sym
 				r.Xadd = r.Add
 				o = 0
-				if SysArch.Family != sys.AMD64 {
+				if ctxt.Arch.Family != sys.AMD64 {
 					o = r.Add
 				}
 				break
@@ -512,11 +512,11 @@ func relocsym(ctxt *Link, s *Symbol) {
 				// We are linking the final executable, so we
 				// can optimize any TLS IE relocation to LE.
 				if Thearch.TLSIEtoLE == nil {
-					log.Fatalf("internal linking of TLS IE not supported on %v", SysArch.Family)
+					log.Fatalf("internal linking of TLS IE not supported on %v", ctxt.Arch.Family)
 				}
 				Thearch.TLSIEtoLE(s, int(off), int(r.Siz))
 				o = int64(ctxt.Tlsoffset)
-				// TODO: o += r.Add when SysArch.Family != sys.AMD64?
+				// TODO: o += r.Add when ctxt.Arch.Family != sys.AMD64?
 				// Why do we treat r.Add differently on AMD64?
 				// Is the external linker using Xadd at all?
 			} else {
@@ -542,7 +542,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 
 				o = r.Xadd
 				if Iself {
-					if SysArch.Family == sys.AMD64 {
+					if ctxt.Arch.Family == sys.AMD64 {
 						o = 0
 					}
 				} else if Headtype == objabi.Hdarwin {
@@ -552,10 +552,10 @@ func relocsym(ctxt *Link, s *Symbol) {
 					// The workaround is that on arm64 don't ever add symaddr to o and always use
 					// extern relocation by requiring rs->dynid >= 0.
 					if rs.Type != SHOSTOBJ {
-						if SysArch.Family == sys.ARM64 && rs.Dynid < 0 {
+						if ctxt.Arch.Family == sys.ARM64 && rs.Dynid < 0 {
 							Errorf(s, "R_ADDR reloc to %s+%d is not supported on darwin/arm64", rs.Name, o)
 						}
-						if SysArch.Family != sys.ARM64 {
+						if ctxt.Arch.Family != sys.ARM64 {
 							o += Symaddr(rs)
 						}
 					}
@@ -575,7 +575,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 			// fail at runtime. See https://golang.org/issue/7980.
 			// Instead of special casing only amd64, we treat this as an error on all
 			// 64-bit architectures so as to be future-proof.
-			if int32(o) < 0 && SysArch.PtrSize > 4 && siz == 4 {
+			if int32(o) < 0 && ctxt.Arch.PtrSize > 4 && siz == 4 {
 				Errorf(s, "non-pc-relative relocation address for %s is too big: %#x (%#x + %#x)", r.Sym.Name, uint64(o), Symaddr(r.Sym), r.Add)
 				errorexit()
 			}
@@ -599,7 +599,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 				r.Xadd = r.Add + Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr)
 
 				o = r.Xadd
-				if Iself && SysArch.Family == sys.AMD64 {
+				if Iself && ctxt.Arch.Family == sys.AMD64 {
 					o = 0
 				}
 				break
@@ -654,7 +654,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 
 				o = r.Xadd
 				if Iself {
-					if SysArch.Family == sys.AMD64 {
+					if ctxt.Arch.Family == sys.AMD64 {
 						o = 0
 					}
 				} else if Headtype == objabi.Hdarwin {
@@ -663,13 +663,13 @@ func relocsym(ctxt *Link, s *Symbol) {
 							o += int64(uint64(Symaddr(rs)) - rs.Sect.Vaddr)
 						}
 						o -= int64(r.Off) // relative to section offset, not symbol
-					} else if SysArch.Family == sys.ARM {
+					} else if ctxt.Arch.Family == sys.ARM {
 						// see ../arm/asm.go:/machoreloc1
 						o += Symaddr(rs) - int64(s.Value) - int64(r.Off)
 					} else {
 						o += int64(r.Siz)
 					}
-				} else if Headtype == objabi.Hwindows && SysArch.Family == sys.AMD64 { // only amd64 needs PCREL
+				} else if Headtype == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64 { // only amd64 needs PCREL
 					// PE/COFF's PC32 relocation uses the address after the relocated
 					// bytes as the base. Compensate by skewing the addend.
 					o += int64(r.Siz)
@@ -699,7 +699,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 			if r.Sym != nil {
 				nam = r.Sym.Name
 			}
-			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x [type %d (%s)/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, Symaddr(r.Sym), r.Add, r.Type, RelocName(r.Type), r.Variant, o)
+			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x [type %d (%s)/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, Symaddr(r.Sym), r.Add, r.Type, RelocName(ctxt.Arch, r.Type), r.Variant, o)
 		}
 		switch siz {
 		default:
@@ -773,7 +773,7 @@ func windynrelocsym(ctxt *Link, s *Symbol) {
 			r.Add = int64(targ.Plt)
 
 			// jmp *addr
-			if SysArch.Family == sys.I386 {
+			if ctxt.Arch.Family == sys.I386 {
 				Adduint8(ctxt, rel, 0xff)
 				Adduint8(ctxt, rel, 0x25)
 				Addaddr(ctxt, rel, targ)
@@ -815,7 +815,7 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
 				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
 			}
 			if !Thearch.Adddynrel(ctxt, s, r) {
-				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, RelocName(r.Type), r.Sym.Type, r.Sym.Type)
+				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, RelocName(ctxt.Arch, r.Type), r.Sym.Type, r.Sym.Type)
 			}
 		}
 	}
@@ -1085,7 +1085,7 @@ func addstrdata(ctxt *Link, name string, value string) {
 	s.Attr |= AttrDuplicateOK
 	reachable := s.Attr.Reachable()
 	Addaddr(ctxt, s, sp)
-	adduintxx(ctxt, s, uint64(len(value)), SysArch.PtrSize)
+	adduintxx(ctxt, s, uint64(len(value)), ctxt.Arch.PtrSize)
 
 	// addstring, addaddr, etc., mark the symbols as reachable.
 	// In this case that is not necessarily true, so stick to what
@@ -1209,7 +1209,7 @@ func (p *GCProg) writeByte(ctxt *Link) func(x byte) {
 }
 
 func (p *GCProg) End(size int64) {
-	p.w.ZeroUntil(size / int64(SysArch.PtrSize))
+	p.w.ZeroUntil(size / int64(p.ctxt.Arch.PtrSize))
 	p.w.End()
 	if debugGCProg {
 		fmt.Fprintf(os.Stderr, "ld: end GCProg\n")
@@ -1232,14 +1232,14 @@ func (p *GCProg) AddSym(s *Symbol) {
 		return
 	}
 
-	ptrsize := int64(SysArch.PtrSize)
+	ptrsize := int64(p.ctxt.Arch.PtrSize)
 	nptr := decodetypePtrdata(p.ctxt.Arch, typ) / ptrsize
 
 	if debugGCProg {
 		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d+%d)\n", s.Name, s.Value, s.Value/ptrsize, nptr)
 	}
 
-	if decodetypeUsegcprog(typ) == 0 {
+	if decodetypeUsegcprog(p.ctxt.Arch, typ) == 0 {
 		// Copy pointers from mask into program.
 		mask := decodetypeGcmask(p.ctxt, typ)
 		for i := int64(0); i < nptr; i++ {
@@ -1430,7 +1430,7 @@ func (ctxt *Link) dodata() {
 	}
 	for _, symn := range writable {
 		for _, s := range data[symn] {
-			sect := addsection(&Segdata, s.Name, 06)
+			sect := addsection(ctxt.Arch, &Segdata, s.Name, 06)
 			sect.Align = symalign(s)
 			datsize = Rnd(datsize, int64(sect.Align))
 			sect.Vaddr = uint64(datsize)
@@ -1445,7 +1445,7 @@ func (ctxt *Link) dodata() {
 
 	// .got (and .toc on ppc64)
 	if len(data[SELFGOT]) > 0 {
-		sect := addsection(&Segdata, ".got", 06)
+		sect := addsection(ctxt.Arch, &Segdata, ".got", 06)
 		sect.Align = dataMaxAlign[SELFGOT]
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
@@ -1474,7 +1474,7 @@ func (ctxt *Link) dodata() {
 	}
 
 	/* pointer-free data */
-	sect := addsection(&Segdata, ".noptrdata", 06)
+	sect := addsection(ctxt.Arch, &Segdata, ".noptrdata", 06)
 	sect.Align = dataMaxAlign[SNOPTRDATA]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
@@ -1498,7 +1498,7 @@ func (ctxt *Link) dodata() {
 		hasinitarr = true
 	}
 	if hasinitarr {
-		sect := addsection(&Segdata, ".init_array", 06)
+		sect := addsection(ctxt.Arch, &Segdata, ".init_array", 06)
 		sect.Align = dataMaxAlign[SINITARR]
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
@@ -1513,7 +1513,7 @@ func (ctxt *Link) dodata() {
 	}
 
 	/* data */
-	sect = addsection(&Segdata, ".data", 06)
+	sect = addsection(ctxt.Arch, &Segdata, ".data", 06)
 	sect.Align = dataMaxAlign[SDATA]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
@@ -1534,7 +1534,7 @@ func (ctxt *Link) dodata() {
 	gc.End(int64(sect.Length))
 
 	/* bss */
-	sect = addsection(&Segdata, ".bss", 06)
+	sect = addsection(ctxt.Arch, &Segdata, ".bss", 06)
 	sect.Align = dataMaxAlign[SBSS]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
@@ -1554,7 +1554,7 @@ func (ctxt *Link) dodata() {
 	gc.End(int64(sect.Length))
 
 	/* pointer-free bss */
-	sect = addsection(&Segdata, ".noptrbss", 06)
+	sect = addsection(ctxt.Arch, &Segdata, ".noptrbss", 06)
 	sect.Align = dataMaxAlign[SNOPTRBSS]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
@@ -1574,8 +1574,8 @@ func (ctxt *Link) dodata() {
 	if len(data[STLSBSS]) > 0 {
 		var sect *Section
 		if Iself && (Linkmode == LinkExternal || !*FlagD) {
-			sect = addsection(&Segdata, ".tbss", 06)
-			sect.Align = int32(SysArch.PtrSize)
+			sect = addsection(ctxt.Arch, &Segdata, ".tbss", 06)
+			sect.Align = int32(ctxt.Arch.PtrSize)
 			sect.Vaddr = 0
 		}
 		datsize = 0
@@ -1617,7 +1617,7 @@ func (ctxt *Link) dodata() {
 		Errorf(nil, "dodata found an STEXT symbol: %s", data[STEXT][0].Name)
 	}
 	for _, s := range data[SELFRXSECT] {
-		sect := addsection(&Segtext, s.Name, 04)
+		sect := addsection(ctxt.Arch, &Segtext, s.Name, 04)
 		sect.Align = symalign(s)
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
@@ -1630,7 +1630,7 @@ func (ctxt *Link) dodata() {
 	}
 
 	/* read-only data */
-	sect = addsection(segro, ".rodata", 04)
+	sect = addsection(ctxt.Arch, segro, ".rodata", 04)
 
 	sect.Vaddr = 0
 	ctxt.Syms.Lookup("runtime.rodata", 0).Sect = sect
@@ -1660,7 +1660,7 @@ func (ctxt *Link) dodata() {
 
 	/* read-only ELF, Mach-O sections */
 	for _, s := range data[SELFROSECT] {
-		sect = addsection(segro, s.Name, 04)
+		sect = addsection(ctxt.Arch, segro, s.Name, 04)
 		sect.Align = symalign(s)
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
@@ -1673,7 +1673,7 @@ func (ctxt *Link) dodata() {
 	checkdatsize(ctxt, datsize, SELFROSECT)
 
 	for _, s := range data[SMACHOPLT] {
-		sect = addsection(segro, s.Name, 04)
+		sect = addsection(ctxt.Arch, segro, s.Name, 04)
 		sect.Align = symalign(s)
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
@@ -1696,7 +1696,7 @@ func (ctxt *Link) dodata() {
 	// TODO(mwhudson): It would make sense to do this more widely, but it makes
 	// the system linker segfault on darwin.
 	addrelrosection := func(suffix string) *Section {
-		return addsection(segro, suffix, 04)
+		return addsection(ctxt.Arch, segro, suffix, 04)
 	}
 
 	if UseRelro() {
@@ -1711,7 +1711,7 @@ func (ctxt *Link) dodata() {
 				// sort out a rel.ro segment.
 				seg = &Segrodata
 			}
-			return addsection(seg, ".data.rel.ro"+suffix, 06)
+			return addsection(ctxt.Arch, seg, ".data.rel.ro"+suffix, 06)
 		}
 		/* data only written by relocations */
 		sect = addrelrosection("")
@@ -1826,7 +1826,7 @@ func (ctxt *Link) dodata() {
 			break
 		}
 
-		sect = addsection(&Segdwarf, s.Name, 04)
+		sect = addsection(ctxt.Arch, &Segdwarf, s.Name, 04)
 		sect.Align = 1
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
@@ -1843,11 +1843,11 @@ func (ctxt *Link) dodata() {
 		var sect *Section
 		switch curType {
 		case SDWARFINFO:
-			sect = addsection(&Segdwarf, ".debug_info", 04)
+			sect = addsection(ctxt.Arch, &Segdwarf, ".debug_info", 04)
 		case SDWARFRANGE:
-			sect = addsection(&Segdwarf, ".debug_ranges", 04)
+			sect = addsection(ctxt.Arch, &Segdwarf, ".debug_ranges", 04)
 		case SDWARFLOC:
-			sect = addsection(&Segdwarf, ".debug_loc", 04)
+			sect = addsection(ctxt.Arch, &Segdwarf, ".debug_loc", 04)
 		default:
 			Errorf(dwarfp[i], "unknown DWARF section %v", curType)
 		}
@@ -2002,8 +2002,8 @@ func dodataSect(ctxt *Link, symn SymKind, syms []*Symbol) (result []*Symbol, max
 			// Setting the alignment explicitly prevents
 			// symalign from basing it on the size and
 			// getting it wrong.
-			rel.Align = int32(SysArch.RegSize)
-			plt.Align = int32(SysArch.RegSize)
+			rel.Align = int32(ctxt.Arch.RegSize)
+			plt.Align = int32(ctxt.Arch.RegSize)
 		}
 	}
 
@@ -2036,7 +2036,7 @@ func (ctxt *Link) textbuildid() {
 
 // assign addresses to text
 func (ctxt *Link) textaddress() {
-	addsection(&Segtext, ".text", 05)
+	addsection(ctxt.Arch, &Segtext, ".text", 05)
 
 	// Assign PCs in text segment.
 	// Could parallelize, by assigning to text
@@ -2124,13 +2124,13 @@ func assignAddress(ctxt *Link, sect *Section, n int, sym *Symbol, va uint64, isT
 
 	// Only break at outermost syms.
 
-	if SysArch.InFamily(sys.PPC64) && sym.Outer == nil && Iself && Linkmode == LinkExternal && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(sym, isTramp) > 0x1c00000 {
+	if ctxt.Arch.InFamily(sys.PPC64) && sym.Outer == nil && Iself && Linkmode == LinkExternal && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(sym, isTramp) > 0x1c00000 {
 
 		// Set the length for the previous text section
 		sect.Length = va - sect.Vaddr
 
 		// Create new section, set the starting Vaddr
-		sect = addsection(&Segtext, ".text", 05)
+		sect = addsection(ctxt.Arch, &Segtext, ".text", 05)
 		sect.Vaddr = va
 		sym.Sect = sect
 

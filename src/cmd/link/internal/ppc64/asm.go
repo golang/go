@@ -32,6 +32,7 @@ package ppc64
 
 import (
 	"cmd/internal/objabi"
+	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"encoding/binary"
 	"fmt"
@@ -262,7 +263,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	switch r.Type {
 	default:
 		if r.Type >= 256 {
-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(r.Type))
+			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(ctxt.Arch, r.Type))
 			return false
 		}
 
@@ -447,7 +448,7 @@ func elfsetupplt(ctxt *ld.Link) {
 	}
 }
 
-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	return false
 }
 
@@ -570,7 +571,7 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
 					ld.Errorf(s, "unexpected trampoline for shared or dynamic linking\n")
 				} else {
 					ctxt.AddTramp(tramp)
-					gentramp(tramp, r.Sym, int64(r.Add))
+					gentramp(ctxt.Arch, tramp, r.Sym, int64(r.Add))
 				}
 			}
 			r.Sym = tramp
@@ -578,11 +579,11 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
 			r.Done = false
 		}
 	default:
-		ld.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type, ld.RelocName(r.Type))
+		ld.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type, ld.RelocName(ctxt.Arch, r.Type))
 	}
 }
 
-func gentramp(tramp, target *ld.Symbol, offset int64) {
+func gentramp(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
 	// Used for default build mode for an executable
 	// Address of the call target is generated using
 	// relocation and doesn't depend on r2 (TOC).
@@ -612,10 +613,10 @@ func gentramp(tramp, target *ld.Symbol, offset int64) {
 	}
 	o3 := uint32(0x7fe903a6) // mtctr r31
 	o4 := uint32(0x4e800420) // bctr
-	ld.SysArch.ByteOrder.PutUint32(tramp.P, o1)
-	ld.SysArch.ByteOrder.PutUint32(tramp.P[4:], o2)
-	ld.SysArch.ByteOrder.PutUint32(tramp.P[8:], o3)
-	ld.SysArch.ByteOrder.PutUint32(tramp.P[12:], o4)
+	arch.ByteOrder.PutUint32(tramp.P, o1)
+	arch.ByteOrder.PutUint32(tramp.P[4:], o2)
+	arch.ByteOrder.PutUint32(tramp.P[8:], o3)
+	arch.ByteOrder.PutUint32(tramp.P[12:], o4)
 }
 
 func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {

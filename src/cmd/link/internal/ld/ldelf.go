@@ -528,9 +528,9 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		return
 	}
 
-	switch SysArch.Family {
+	switch ctxt.Arch.Family {
 	default:
-		Errorf(nil, "%s: elf %s unimplemented", pn, SysArch.Name)
+		Errorf(nil, "%s: elf %s unimplemented", pn, ctxt.Arch.Name)
 		return
 
 	case sys.MIPS:
@@ -1051,7 +1051,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int, loc
 			}
 
 		case ElfSymBindLocal:
-			if SysArch.Family == sys.ARM && (strings.HasPrefix(sym.name, "$a") || strings.HasPrefix(sym.name, "$d")) {
+			if ctxt.Arch.Family == sys.ARM && (strings.HasPrefix(sym.name, "$a") || strings.HasPrefix(sym.name, "$d")) {
 				// binutils for arm generate these mapping
 				// symbols, ignore these
 				break
@@ -1134,7 +1134,7 @@ func relSize(ctxt *Link, pn string, elftype uint32) uint8 {
 		S390X = uint32(sys.S390X)
 	)
 
-	switch uint32(SysArch.Family) | elftype<<24 {
+	switch uint32(ctxt.Arch.Family) | elftype<<24 {
 	default:
 		Errorf(nil, "%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
 		fallthrough

@@ -32,6 +32,7 @@ package arm64
 
 import (
 	"cmd/internal/objabi"
+	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"encoding/binary"
 	"fmt"
@@ -142,7 +143,7 @@ func elfsetupplt(ctxt *ld.Link) {
 	return
 }
 
-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	var v uint32
 
 	rs := r.Xsym
@@ -152,7 +153,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	// UNSIGNED relocation at all.
 	if rs.Type == ld.SHOSTOBJ || r.Type == objabi.R_CALLARM64 || r.Type == objabi.R_ADDRARM64 || r.Type == objabi.R_ADDR {
 		if rs.Dynid < 0 {
-			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Type, rs.Type)
+			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
 			return false
 		}
 
@@ -161,7 +162,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	} else {
 		v = uint32(rs.Sect.Extnum)
 		if v == 0 {
-			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
+			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
 			return false
 		}
 	}
@@ -348,7 +349,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 		}
 		// The TCB is two pointers. This is not documented anywhere, but is
 		// de facto part of the ABI.
-		v := r.Sym.Value + int64(2*ld.SysArch.PtrSize)
+		v := r.Sym.Value + int64(2*ctxt.Arch.PtrSize)
 		if v < 0 || v >= 32678 {
 			ld.Errorf(s, "TLS offset out of range %d", v)
 		}

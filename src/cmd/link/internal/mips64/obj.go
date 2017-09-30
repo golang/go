@@ -37,51 +37,52 @@ import (
 	"fmt"
 )
 
-func Init() {
+func Init() (*sys.Arch, ld.Arch) {
+	arch := sys.ArchMIPS64
 	if objabi.GOARCH == "mips64le" {
-		ld.SysArch = sys.ArchMIPS64LE
-	} else {
-		ld.SysArch = sys.ArchMIPS64
+		arch = sys.ArchMIPS64LE
 	}
 
-	ld.Thearch.Funcalign = funcAlign
-	ld.Thearch.Maxalign = maxAlign
-	ld.Thearch.Minalign = minAlign
-	ld.Thearch.Dwarfregsp = dwarfRegSP
-	ld.Thearch.Dwarfreglr = dwarfRegLR
+	theArch := ld.Arch{
+		Funcalign:        funcAlign,
+		Maxalign:         maxAlign,
+		Minalign:         minAlign,
+		Dwarfregsp:       dwarfRegSP,
+		Dwarfreglr:       dwarfRegLR,
+		Adddynrel:        adddynrel,
+		Archinit:         archinit,
+		Archreloc:        archreloc,
+		Archrelocvariant: archrelocvariant,
+		Asmb:             asmb,
+		Elfreloc1:        elfreloc1,
+		Elfsetupplt:      elfsetupplt,
+		Gentext:          gentext,
+		Machoreloc1:      machoreloc1,
 
-	ld.Thearch.Adddynrel = adddynrel
-	ld.Thearch.Archinit = archinit
-	ld.Thearch.Archreloc = archreloc
-	ld.Thearch.Archrelocvariant = archrelocvariant
-	ld.Thearch.Asmb = asmb
-	ld.Thearch.Elfreloc1 = elfreloc1
-	ld.Thearch.Elfsetupplt = elfsetupplt
-	ld.Thearch.Gentext = gentext
-	ld.Thearch.Machoreloc1 = machoreloc1
-	if ld.SysArch == sys.ArchMIPS64LE {
-		ld.Thearch.Lput = ld.Lputl
-		ld.Thearch.Wput = ld.Wputl
-		ld.Thearch.Vput = ld.Vputl
-		ld.Thearch.Append16 = ld.Append16l
-		ld.Thearch.Append32 = ld.Append32l
-		ld.Thearch.Append64 = ld.Append64l
+		Linuxdynld:     "/lib64/ld64.so.1",
+		Freebsddynld:   "XXX",
+		Openbsddynld:   "XXX",
+		Netbsddynld:    "XXX",
+		Dragonflydynld: "XXX",
+		Solarisdynld:   "XXX",
+	}
+	if arch == sys.ArchMIPS64LE {
+		theArch.Lput = ld.Lputl
+		theArch.Wput = ld.Wputl
+		theArch.Vput = ld.Vputl
+		theArch.Append16 = ld.Append16l
+		theArch.Append32 = ld.Append32l
+		theArch.Append64 = ld.Append64l
 	} else {
-		ld.Thearch.Lput = ld.Lputb
-		ld.Thearch.Wput = ld.Wputb
-		ld.Thearch.Vput = ld.Vputb
-		ld.Thearch.Append16 = ld.Append16b
-		ld.Thearch.Append32 = ld.Append32b
-		ld.Thearch.Append64 = ld.Append64b
+		theArch.Lput = ld.Lputb
+		theArch.Wput = ld.Wputb
+		theArch.Vput = ld.Vputb
+		theArch.Append16 = ld.Append16b
+		theArch.Append32 = ld.Append32b
+		theArch.Append64 = ld.Append64b
 	}
 
-	ld.Thearch.Linuxdynld = "/lib64/ld64.so.1"
-
-	ld.Thearch.Freebsddynld = "XXX"
-	ld.Thearch.Openbsddynld = "XXX"
-	ld.Thearch.Netbsddynld = "XXX"
-	ld.Thearch.Dragonflydynld = "XXX"
-	ld.Thearch.Solarisdynld = "XXX"
+	return arch, theArch
 }
 
 func archinit(ctxt *ld.Link) {

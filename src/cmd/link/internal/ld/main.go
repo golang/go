@@ -100,8 +100,9 @@ var (
 )
 
 // Main is the main entry point for the linker code.
-func Main() {
-	ctxt := linknew(SysArch)
+func Main(arch *sys.Arch, theArch Arch) {
+	Thearch = theArch
+	ctxt := linknew(arch)
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
 
 	// For testing behavior of go command when tools crash silently.
@@ -114,7 +115,7 @@ func Main() {
 	}
 
 	// TODO(matloob): define these above and then check flag values here
-	if SysArch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
+	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
 		flag.BoolVar(&Flag8, "8", false, "use 64-bit addresses in symbol table")
 	}
 	objabi.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)

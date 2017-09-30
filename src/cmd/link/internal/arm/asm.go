@@ -32,6 +32,7 @@ package arm
 
 import (
 	"cmd/internal/objabi"
+	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
 	"log"
@@ -118,7 +119,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	switch r.Type {
 	default:
 		if r.Type >= 256 {
-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(r.Type))
+			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(ctxt.Arch, r.Type))
 			return false
 		}
 
@@ -320,7 +321,7 @@ func elfsetupplt(ctxt *ld.Link) {
 	}
 }
 
-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	var v uint32
 
 	rs := r.Xsym
@@ -357,7 +358,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 
 	if rs.Type == ld.SHOSTOBJ || r.Type == objabi.R_CALLARM {
 		if rs.Dynid < 0 {
-			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Type, rs.Type)
+			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
 			return false
 		}
 
@@ -366,7 +367,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	} else {
 		v = uint32(rs.Sect.Extnum)
 		if v == 0 {
-			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
+			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
 			return false
 		}
 	}
@@ -461,11 +462,11 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
 					if immrot(uint32(offset)) == 0 {
 						ld.Errorf(s, "odd offset in dynlink direct call: %v+%d", r.Sym, offset)
 					}
-					gentrampdyn(tramp, r.Sym, int64(offset))
+					gentrampdyn(ctxt.Arch, tramp, r.Sym, int64(offset))
 				} else if ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ld.Buildmode == ld.BuildmodePIE {
-					gentramppic(tramp, r.Sym, int64(offset))
+					gentramppic(ctxt.Arch, tramp, r.Sym, int64(offset))
 				} else {
-					gentramp(tramp, r.Sym, int64(offset))
+					gentramp(ctxt.Arch, tramp, r.Sym, int64(offset))
 				}
 			}
 			// modify reloc to point to tramp, which will be resolved later
@@ -474,21 +475,21 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
 			r.Done = false
 		}
 	default:
-		ld.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type, ld.RelocName(r.Type))
+		ld.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type, ld.RelocName(ctxt.Arch, r.Type))
 	}
 }
 
 // generate a trampoline to target+offset
-func gentramp(tramp, target *ld.Symbol, offset int64) {
+func gentramp(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
 	tramp.Size = 12 // 3 instructions
 	tramp.P = make([]byte, tramp.Size)
 	t := ld.Symaddr(target) + int64(offset)
 	o1 := uint32(0xe5900000 | 11<<12 | 15<<16) // MOVW (R15), R11 // R15 is actual pc + 8
 	o2 := uint32(0xe12fff10 | 11)              // JMP  (R11)
 	o3 := uint32(t)                            // WORD $target
-	ld.SysArch.ByteOrder.PutUint32(tramp.P, o1)
-	ld.SysArch.ByteOrder.PutUint32(tramp.P[4:], o2)
-	ld.SysArch.ByteOrder.PutUint32(tramp.P[8:], o3)
+	arch.ByteOrder.PutUint32(tramp.P, o1)
+	arch.ByteOrder.PutUint32(tramp.P[4:], o2)
+	arch.ByteOrder.PutUint32(tramp.P[8:], o3)
 
 	if ld.Linkmode == ld.LinkExternal {
 		r := ld.Addrel(tramp)
@@ -501,17 +502,17 @@ func gentramp(tramp, target *ld.Symbol, offset int64) {
 }
 
 // generate a trampoline to target+offset in position independent code
-func gentramppic(tramp, target *ld.Symbol, offset int64) {
+func gentramppic(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
 	tramp.Size = 16 // 4 instructions
 	tramp.P = make([]byte, tramp.Size)
 	o1 := uint32(0xe5900000 | 11<<12 | 15<<16 | 4)  // MOVW 4(R15), R11 // R15 is actual pc + 8
 	o2 := uint32(0xe0800000 | 11<<12 | 15<<16 | 11) // ADD R15, R11, R11
 	o3 := uint32(0xe12fff10 | 11)                   // JMP  (R11)
 	o4 := uint32(0)                                 // WORD $(target-pc) // filled in with relocation
-	ld.SysArch.ByteOrder.PutUint32(tramp.P, o1)
-	ld.SysArch.ByteOrder.PutUint32(tramp.P[4:], o2)
-	ld.SysArch.ByteOrder.PutUint32(tramp.P[8:], o3)
-	ld.SysArch.ByteOrder.PutUint32(tramp.P[12:], o4)
+	arch.ByteOrder.PutUint32(tramp.P, o1)
+	arch.ByteOrder.PutUint32(tramp.P[4:], o2)
+	arch.ByteOrder.PutUint32(tramp.P[8:], o3)
+	arch.ByteOrder.PutUint32(tramp.P[12:], o4)
 
 	r := ld.Addrel(tramp)
 	r.Off = 12
@@ -522,7 +523,7 @@ func gentramppic(tramp, target *ld.Symbol, offset int64) {
 }
 
 // generate a trampoline to target+offset in dynlink mode (using GOT)
-func gentrampdyn(tramp, target *ld.Symbol, offset int64) {
+func gentrampdyn(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
 	tramp.Size = 20                                 // 5 instructions
 	o1 := uint32(0xe5900000 | 11<<12 | 15<<16 | 8)  // MOVW 8(R15), R11 // R15 is actual pc + 8
 	o2 := uint32(0xe0800000 | 11<<12 | 15<<16 | 11) // ADD R15, R11, R11
@@ -539,13 +540,13 @@ func gentrampdyn(tramp, target *ld.Symbol, offset int64) {
 		o1 = uint32(0xe5900000 | 11<<12 | 15<<16 | 12)                     // MOVW 12(R15), R11
 	}
 	tramp.P = make([]byte, tramp.Size)
-	ld.SysArch.ByteOrder.PutUint32(tramp.P, o1)
-	ld.SysArch.ByteOrder.PutUint32(tramp.P[4:], o2)
-	ld.SysArch.ByteOrder.PutUint32(tramp.P[8:], o3)
-	ld.SysArch.ByteOrder.PutUint32(tramp.P[12:], o4)
-	ld.SysArch.ByteOrder.PutUint32(tramp.P[16:], o5)
+	arch.ByteOrder.PutUint32(tramp.P, o1)
+	arch.ByteOrder.PutUint32(tramp.P[4:], o2)
+	arch.ByteOrder.PutUint32(tramp.P[8:], o3)
+	arch.ByteOrder.PutUint32(tramp.P[12:], o4)
+	arch.ByteOrder.PutUint32(tramp.P[16:], o5)
 	if offset != 0 {
-		ld.SysArch.ByteOrder.PutUint32(tramp.P[20:], o6)
+		arch.ByteOrder.PutUint32(tramp.P[20:], o6)
 	}
 
 	r := ld.Addrel(tramp)

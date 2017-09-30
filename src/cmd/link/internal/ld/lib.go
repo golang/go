@@ -105,8 +105,8 @@ type Arch struct {
 	Elfreloc1        func(*Link, *Reloc, int64) bool
 	Elfsetupplt      func(*Link)
 	Gentext          func(*Link)
-	Machoreloc1      func(*Symbol, *Reloc, int64) bool
-	PEreloc1         func(*Symbol, *Reloc, int64) bool
+	Machoreloc1      func(*sys.Arch, *Symbol, *Reloc, int64) bool
+	PEreloc1         func(*sys.Arch, *Symbol, *Reloc, int64) bool
 	Wput             func(uint16)
 	Lput             func(uint32)
 	Vput             func(uint64)
@@ -188,7 +188,6 @@ func UseRelro() bool {
 }
 
 var (
-	SysArch         *sys.Arch
 	dynexp          []*Symbol
 	dynlib          []string
 	ldflag          []string
@@ -379,7 +378,7 @@ func (ctxt *Link) findLibPathCmd(cmd, libname string) string {
 	if *flagExtld == "" {
 		*flagExtld = "gcc"
 	}
-	args := hostlinkArchArgs()
+	args := hostlinkArchArgs(ctxt.Arch)
 	args = append(args, cmd)
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%s %v\n", *flagExtld, args)
@@ -413,7 +412,7 @@ func (ctxt *Link) loadlib() {
 	}
 
 	loadinternal(ctxt, "runtime")
-	if SysArch.Family == sys.ARM {
+	if ctxt.Arch.Family == sys.ARM {
 		loadinternal(ctxt, "math")
 	}
 	if *flagRace {
@@ -457,7 +456,7 @@ func (ctxt *Link) loadlib() {
 		*FlagTextAddr = 0
 	}
 
-	if Linkmode == LinkExternal && SysArch.Family == sys.PPC64 {
+	if Linkmode == LinkExternal && ctxt.Arch.Family == sys.PPC64 {
 		toc := ctxt.Syms.Lookup(".TOC.", 0)
 		toc.Type = SDYNIMPORT
 	}
@@ -503,7 +502,7 @@ func (ctxt *Link) loadlib() {
 	// a variable to hold g in assembly (currently only intel).
 	if tlsg.Type == 0 {
 		tlsg.Type = STLSBSS
-		tlsg.Size = int64(SysArch.PtrSize)
+		tlsg.Size = int64(ctxt.Arch.PtrSize)
 	} else if tlsg.Type != SDYNIMPORT {
 		Errorf(nil, "runtime declared tlsg variable %v", tlsg.Type)
 	}
@@ -527,7 +526,7 @@ func (ctxt *Link) loadlib() {
 
 		// In addition, on ARM, the runtime depends on the linker
 		// recording the value of GOARM.
-		if SysArch.Family == sys.ARM {
+		if ctxt.Arch.Family == sys.ARM {
 			s := ctxt.Syms.Lookup("runtime.goarm", 0)
 			s.Type = SRODATA
 			s.Size = 0
@@ -639,7 +638,7 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
-	if SysArch == sys.Arch386 {
+	if ctxt.Arch == sys.Arch386 {
 		if (Buildmode == BuildmodeCArchive && Iself) || Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE || ctxt.DynlinkingGo() {
 			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
 			got.Type = SDYNIMPORT
@@ -1082,7 +1081,7 @@ func (l *Link) hostlink() {
 
 	var argv []string
 	argv = append(argv, *flagExtld)
-	argv = append(argv, hostlinkArchArgs()...)
+	argv = append(argv, hostlinkArchArgs(l.Arch)...)
 
 	if !*FlagS && !debug_s {
 		argv = append(argv, "-gdwarf-2")
@@ -1100,7 +1099,7 @@ func (l *Link) hostlink() {
 		if l.DynlinkingGo() {
 			argv = append(argv, "-Wl,-flat_namespace")
 		}
-		if Buildmode == BuildmodeExe && !SysArch.InFamily(sys.ARM64) {
+		if Buildmode == BuildmodeExe && !l.Arch.InFamily(sys.ARM64) {
 			argv = append(argv, "-Wl,-no_pie")
 		}
 	case objabi.Hopenbsd:
@@ -1129,7 +1128,7 @@ func (l *Link) hostlink() {
 	case BuildmodeCShared:
 		if Headtype == objabi.Hdarwin {
 			argv = append(argv, "-dynamiclib")
-			if SysArch.Family != sys.AMD64 {
+			if l.Arch.Family != sys.AMD64 {
 				argv = append(argv, "-Wl,-read_only_relocs,suppress")
 			}
 		} else {
@@ -1169,7 +1168,7 @@ func (l *Link) hostlink() {
 		// from the beginning of the section (like STYPE).
 		argv = append(argv, "-Wl,-znocopyreloc")
 
-		if SysArch.InFamily(sys.ARM, sys.ARM64) {
+		if l.Arch.InFamily(sys.ARM, sys.ARM64) {
 			// On ARM, the GNU linker will generate COPY relocations
 			// even with -znocopyreloc set.
 			// https://sourceware.org/bugzilla/show_bug.cgi?id=19962
@@ -1335,7 +1334,7 @@ func (l *Link) hostlink() {
 
 	if !*FlagS && !*FlagW && !debug_s && Headtype == objabi.Hdarwin {
 		// Skip combining dwarf on arm.
-		if !SysArch.InFamily(sys.ARM, sys.ARM64) {
+		if !l.Arch.InFamily(sys.ARM, sys.ARM64) {
 			dsym := filepath.Join(*flagTmpdir, "go.dwarf")
 			if out, err := exec.Command("dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
 				Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
@@ -1359,8 +1358,8 @@ func (l *Link) hostlink() {
 
 // hostlinkArchArgs returns arguments to pass to the external linker
 // based on the architecture.
-func hostlinkArchArgs() []string {
-	switch SysArch.Family {
+func hostlinkArchArgs(arch *sys.Arch) []string {
+	switch arch.Family {
 	case sys.I386:
 		return []string{"-m32"}
 	case sys.AMD64, sys.PPC64, sys.S390X:
@@ -1417,7 +1416,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string, fil
 			return nil
 		}
 
-		if line == SysArch.Name {
+		if line == ctxt.Arch.Name {
 			// old header format: just $GOOS
 			Errorf(nil, "%s: stale object file", pn)
 			return nil
@@ -1633,12 +1632,12 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			// the type data.
 			if strings.HasPrefix(lsym.Name, "type.") && !strings.HasPrefix(lsym.Name, "type..") {
 				lsym.P = readelfsymboldata(ctxt, f, &elfsym)
-				gcdataLocations[elfsym.Value+2*uint64(SysArch.PtrSize)+8+1*uint64(SysArch.PtrSize)] = lsym
+				gcdataLocations[elfsym.Value+2*uint64(ctxt.Arch.PtrSize)+8+1*uint64(ctxt.Arch.PtrSize)] = lsym
 			}
 		}
 	}
 	gcdataAddresses := make(map[*Symbol]uint64)
-	if SysArch.Family == sys.ARM64 {
+	if ctxt.Arch.Family == sys.ARM64 {
 		for _, sect := range f.Sections {
 			if sect.Type == elf.SHT_RELA {
 				var rela elf.Rela64
@@ -1666,12 +1665,12 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdataAddresses: gcdataAddresses})
 }
 
-func addsection(seg *Segment, name string, rwx int) *Section {
+func addsection(arch *sys.Arch, seg *Segment, name string, rwx int) *Section {
 	sect := new(Section)
 	sect.Rwx = uint8(rwx)
 	sect.Name = name
 	sect.Seg = seg
-	sect.Align = int32(SysArch.PtrSize) // everything is at least pointer-aligned
+	sect.Align = int32(arch.PtrSize) // everything is at least pointer-aligned
 	seg.Sections = append(seg.Sections, sect)
 	return sect
 }
@@ -1715,7 +1714,7 @@ func callsize(ctxt *Link) int {
 	if haslinkregister(ctxt) {
 		return 0
 	}
-	return SysArch.RegSize
+	return ctxt.Arch.RegSize
 }
 
 func (ctxt *Link) dostkcheck() {
@@ -2077,7 +2076,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 			locals = s.FuncInfo.Locals
 		}
 		// NOTE(ality): acid can't produce a stack trace without .frame symbols
-		put(ctxt, nil, ".frame", FrameSym, int64(locals)+int64(SysArch.PtrSize), nil)
+		put(ctxt, nil, ".frame", FrameSym, int64(locals)+int64(ctxt.Arch.PtrSize), nil)
 
 		if s.FuncInfo == nil {
 			continue
@@ -2093,7 +2092,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 			if a.Name == objabi.A_PARAM {
 				off = a.Aoffset
 			} else {
-				off = a.Aoffset - int32(SysArch.PtrSize)
+				off = a.Aoffset - int32(ctxt.Arch.PtrSize)
 			}
 
 			// FP
@@ -2103,8 +2102,8 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 			}
 
 			// SP
-			if off <= int32(-SysArch.PtrSize) {
-				put(ctxt, nil, a.Asym.Name, AutoSym, -(int64(off) + int64(SysArch.PtrSize)), a.Gotype)
+			if off <= int32(-ctxt.Arch.PtrSize) {
+				put(ctxt, nil, a.Asym.Name, AutoSym, -(int64(off) + int64(ctxt.Arch.PtrSize)), a.Gotype)
 				continue
 			}
 			// Otherwise, off is addressing the saved program counter.

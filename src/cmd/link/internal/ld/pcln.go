@@ -226,12 +226,12 @@ func (ctxt *Link) pclntab() {
 	}
 
 	pclntabNfunc = nfunc
-	Symgrow(ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize)+4)
+	Symgrow(ftab, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize)+4)
 	setuint32(ctxt, ftab, 0, 0xfffffffb)
-	setuint8(ctxt, ftab, 6, uint8(SysArch.MinLC))
-	setuint8(ctxt, ftab, 7, uint8(SysArch.PtrSize))
+	setuint8(ctxt, ftab, 6, uint8(ctxt.Arch.MinLC))
+	setuint8(ctxt, ftab, 7, uint8(ctxt.Arch.PtrSize))
 	setuint(ctxt, ftab, 8, uint64(nfunc))
-	pclntabPclntabOffset = int32(8 + SysArch.PtrSize)
+	pclntabPclntabOffset = int32(8 + ctxt.Arch.PtrSize)
 
 	funcnameoff := make(map[string]int32)
 	nameToOffset := func(name string) int32 {
@@ -279,10 +279,10 @@ func (ctxt *Link) pclntab() {
 		}
 
 		funcstart := int32(len(ftab.P))
-		funcstart += int32(-len(ftab.P)) & (int32(SysArch.PtrSize) - 1)
+		funcstart += int32(-len(ftab.P)) & (int32(ctxt.Arch.PtrSize) - 1)
 
-		setaddr(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize), s)
-		setuint(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint64(funcstart))
+		setaddr(ctxt, ftab, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), s)
+		setuint(ctxt, ftab, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint64(funcstart))
 
 		// Write runtime._func. Keep in sync with ../../../../runtime/runtime2.go:/_func
 		// and package debug/gosym.
@@ -290,8 +290,8 @@ func (ctxt *Link) pclntab() {
 		// fixed size of struct, checked below
 		off := funcstart
 
-		end := funcstart + int32(SysArch.PtrSize) + 3*4 + 5*4 + int32(len(pcln.Pcdata))*4 + int32(len(pcln.Funcdata))*int32(SysArch.PtrSize)
-		if len(pcln.Funcdata) > 0 && (end&int32(SysArch.PtrSize-1) != 0) {
+		end := funcstart + int32(ctxt.Arch.PtrSize) + 3*4 + 5*4 + int32(len(pcln.Pcdata))*4 + int32(len(pcln.Funcdata))*int32(ctxt.Arch.PtrSize)
+		if len(pcln.Funcdata) > 0 && (end&int32(ctxt.Arch.PtrSize-1) != 0) {
 			end += 4
 		}
 		Symgrow(ftab, int64(end))
@@ -370,25 +370,25 @@ func (ctxt *Link) pclntab() {
 		// funcdata, must be pointer-aligned and we're only int32-aligned.
 		// Missing funcdata will be 0 (nil pointer).
 		if len(pcln.Funcdata) > 0 {
-			if off&int32(SysArch.PtrSize-1) != 0 {
+			if off&int32(ctxt.Arch.PtrSize-1) != 0 {
 				off += 4
 			}
 			for i := 0; i < len(pcln.Funcdata); i++ {
 				if pcln.Funcdata[i] == nil {
-					setuint(ctxt, ftab, int64(off)+int64(SysArch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]))
+					setuint(ctxt, ftab, int64(off)+int64(ctxt.Arch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]))
 				} else {
 					// TODO: Dedup.
 					funcdataBytes += pcln.Funcdata[i].Size
 
-					setaddrplus(ctxt, ftab, int64(off)+int64(SysArch.PtrSize)*int64(i), pcln.Funcdata[i], pcln.Funcdataoff[i])
+					setaddrplus(ctxt, ftab, int64(off)+int64(ctxt.Arch.PtrSize)*int64(i), pcln.Funcdata[i], pcln.Funcdataoff[i])
 				}
 			}
 
-			off += int32(len(pcln.Funcdata)) * int32(SysArch.PtrSize)
+			off += int32(len(pcln.Funcdata)) * int32(ctxt.Arch.PtrSize)
 		}
 
 		if off != end {
-			Errorf(s, "bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), SysArch.PtrSize)
+			Errorf(s, "bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), ctxt.Arch.PtrSize)
 			errorexit()
 		}
 
@@ -397,14 +397,14 @@ func (ctxt *Link) pclntab() {
 
 	pclntabLastFunc = last
 	// Final entry of table is just end pc.
-	setaddrplus(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize), last, last.Size)
+	setaddrplus(ctxt, ftab, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), last, last.Size)
 
 	// Start file table.
 	start := int32(len(ftab.P))
 
-	start += int32(-len(ftab.P)) & (int32(SysArch.PtrSize) - 1)
+	start += int32(-len(ftab.P)) & (int32(ctxt.Arch.PtrSize) - 1)
 	pclntabFiletabOffset = start
-	setuint32(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint32(start))
+	setuint32(ctxt, ftab, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint32(start))
 
 	Symgrow(ftab, int64(start)+(int64(len(ctxt.Filesyms))+1)*4)
 	setuint32(ctxt, ftab, int64(start), uint32(len(ctxt.Filesyms)+1))

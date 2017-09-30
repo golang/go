@@ -331,14 +331,14 @@ const (
 	RV_TYPE_MASK      RelocVariant = RV_CHECK_OVERFLOW - 1
 )
 
-func RelocName(r objabi.RelocType) string {
+func RelocName(arch *sys.Arch, r objabi.RelocType) string {
 	// We didn't have some relocation types at Go1.4.
 	// Uncomment code when we include those in bootstrap code.
 
 	switch {
 	case r >= 512: // Mach-O
 		// nr := (r - 512)>>1
-		// switch SysArch.Family {
+		// switch ctxt.Arch.Family {
 		// case sys.AMD64:
 		// 	return macho.RelocTypeX86_64(nr).String()
 		// case sys.ARM:
@@ -352,7 +352,7 @@ func RelocName(r objabi.RelocType) string {
 		// }
 	case r >= 256: // ELF
 		nr := r - 256
-		switch SysArch.Family {
+		switch arch.Family {
 		case sys.AMD64:
 			return elf.R_X86_64(nr).String()
 		case sys.ARM:
