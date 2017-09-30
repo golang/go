@@ -275,8 +275,7 @@ func mallocinit() {
 		// not collecting memory because some non-pointer block of memory
 		// had a bit pattern that matched a memory address.
 		//
-		// Actually we reserve 544 GB (because the bitmap ends up being 32 GB)
-		// but it hardly matters: e0 00 is not valid UTF-8 either.
+		// Actually we reserve 16GB + 512MB + 512GB + 8KB
 		//
 		// If this fails we fall back to the 32 bit memory mechanism
 		//
