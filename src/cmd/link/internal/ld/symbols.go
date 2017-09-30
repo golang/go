@@ -82,3 +82,25 @@ func (syms *Symbols) IncVersion() int {
 	syms.hash = append(syms.hash, make(map[string]*Symbol))
 	return len(syms.hash) - 1
 }
+
+// Rename renames a symbol.
+func (syms *Symbols) Rename(old, new string, v int) {
+	s := syms.hash[v][old]
+	s.Name = new
+	if s.Extname == old {
+		s.Extname = new
+	}
+	delete(syms.hash[v], old)
+
+	dup := syms.hash[v][new]
+	if dup == nil {
+		syms.hash[v][new] = s
+	} else {
+		if s.Type == 0 {
+			*s = *dup
+		} else if dup.Type == 0 {
+			*dup = *s
+			syms.hash[v][new] = s
+		}
+	}
+}

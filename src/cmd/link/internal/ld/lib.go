@@ -38,6 +38,7 @@ import (
 	"cmd/internal/sys"
 	"crypto/sha1"
 	"debug/elf"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -583,9 +584,30 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
+	// If type. symbols are visible in the symbol table, rename them
+	// using a SHA-1 prefix. This reduces binary size (the full
+	// string of a type symbol can be multiple kilobytes) and removes
+	// characters that upset external linkers.
+	//
+	// Keep the type.. prefix, which parts of the linker (like the
+	// DWARF generator) know means the symbol is not decodable.
+	//
+	// Leave type.runtime. symbols alone, because other parts of
+	// the linker manipulates them, and also symbols whose names
+	// would not be shortened by this process.
+	if typeSymbolMangling(ctxt.Syms) {
+		*FlagW = true // disable DWARF generation
+		for _, s := range ctxt.Syms.Allsym {
+			newName := typeSymbolMangle(ctxt.Syms, s.Name)
+			if newName != s.Name {
+				ctxt.Syms.Rename(s.Name, newName, int(s.Version))
+			}
+		}
+	}
+
 	// If package versioning is required, generate a hash of the
 	// the packages used in the link.
-	if Buildmode == BuildmodeShared || Buildmode == BuildmodePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
+	if Buildmode == BuildmodeShared || Buildmode == BuildmodePlugin || ctxt.CanUsePlugins() {
 		for _, lib := range ctxt.Library {
 			if lib.Shlib == "" {
 				genhash(ctxt, lib)
@@ -640,6 +662,44 @@ func (ctxt *Link) loadlib() {
 		}
 		ctxt.Textp = textp
 	}
+}
+
+// typeSymbolMangling reports whether the linker should shorten the
+// names of symbols that represent Go types.
+//
+// As the names of these symbols are derived from the string of
+// the type, they can run to many kilobytes long. So we shorten
+// them using a SHA-1 when the name appears in the final binary.
+//
+// These are the symbols that begin with the prefix 'type.' and
+// contain run-time type information used by the runtime and reflect
+// packages. All Go binaries contain these symbols, but only only
+// those programs loaded dynamically in multiple parts need these
+// symbols to have entries in the symbol table.
+func typeSymbolMangling(syms *Symbols) bool {
+	return Buildmode == BuildmodeShared || *FlagLinkshared || Buildmode == BuildmodePlugin || syms.ROLookup("plugin.Open", 0) != nil
+}
+
+// typeSymbolMangle mangles the given symbol name into something shorter.
+func typeSymbolMangle(syms *Symbols, name string) string {
+	if !typeSymbolMangling(syms) {
+		return name
+	}
+	if !strings.HasPrefix(name, "type.") {
+		return name
+	}
+	if strings.HasPrefix(name, "type.runtime.") {
+		return name
+	}
+	if len(name) <= 14 && !strings.Contains(name, "@") { // Issue 19529
+		return name
+	}
+	hash := sha1.Sum([]byte(name))
+	prefix := "type."
+	if name[5] == '.' {
+		prefix = "type.."
+	}
+	return prefix + base64.StdEncoding.EncodeToString(hash[:6])
 }
 
 /*
