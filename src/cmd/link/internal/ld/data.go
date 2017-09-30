@@ -44,203 +44,6 @@ import (
 	"sync"
 )
 
-func Symgrow(s *Symbol, siz int64) {
-	if int64(int(siz)) != siz {
-		log.Fatalf("symgrow size %d too long", siz)
-	}
-	if int64(len(s.P)) >= siz {
-		return
-	}
-	if cap(s.P) < int(siz) {
-		p := make([]byte, 2*(siz+1))
-		s.P = append(p[:0], s.P...)
-	}
-	s.P = s.P[:siz]
-}
-
-func Addrel(s *Symbol) *Reloc {
-	s.R = append(s.R, Reloc{})
-	return &s.R[len(s.R)-1]
-}
-
-func setuintxx(ctxt *Link, s *Symbol, off int64, v uint64, wid int64) int64 {
-	if s.Type == 0 {
-		s.Type = SDATA
-	}
-	s.Attr |= AttrReachable
-	if s.Size < off+wid {
-		s.Size = off + wid
-		Symgrow(s, s.Size)
-	}
-
-	switch wid {
-	case 1:
-		s.P[off] = uint8(v)
-	case 2:
-		ctxt.Arch.ByteOrder.PutUint16(s.P[off:], uint16(v))
-	case 4:
-		ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(v))
-	case 8:
-		ctxt.Arch.ByteOrder.PutUint64(s.P[off:], v)
-	}
-
-	return off + wid
-}
-
-func Addbytes(s *Symbol, bytes []byte) int64 {
-	if s.Type == 0 {
-		s.Type = SDATA
-	}
-	s.Attr |= AttrReachable
-	s.P = append(s.P, bytes...)
-	s.Size = int64(len(s.P))
-
-	return s.Size
-}
-
-func adduintxx(ctxt *Link, s *Symbol, v uint64, wid int) int64 {
-	off := s.Size
-	setuintxx(ctxt, s, off, v, int64(wid))
-	return off
-}
-
-func Adduint8(ctxt *Link, s *Symbol, v uint8) int64 {
-	off := s.Size
-	if s.Type == 0 {
-		s.Type = SDATA
-	}
-	s.Attr |= AttrReachable
-	s.Size++
-	s.P = append(s.P, v)
-
-	return off
-}
-
-func Adduint16(ctxt *Link, s *Symbol, v uint16) int64 {
-	return adduintxx(ctxt, s, uint64(v), 2)
-}
-
-func Adduint32(ctxt *Link, s *Symbol, v uint32) int64 {
-	return adduintxx(ctxt, s, uint64(v), 4)
-}
-
-func Adduint64(ctxt *Link, s *Symbol, v uint64) int64 {
-	return adduintxx(ctxt, s, v, 8)
-}
-
-func adduint(ctxt *Link, s *Symbol, v uint64) int64 {
-	return adduintxx(ctxt, s, v, ctxt.Arch.PtrSize)
-}
-
-func setuint8(ctxt *Link, s *Symbol, r int64, v uint8) int64 {
-	return setuintxx(ctxt, s, r, uint64(v), 1)
-}
-
-func setuint32(ctxt *Link, s *Symbol, r int64, v uint32) int64 {
-	return setuintxx(ctxt, s, r, uint64(v), 4)
-}
-
-func setuint(ctxt *Link, s *Symbol, r int64, v uint64) int64 {
-	return setuintxx(ctxt, s, r, v, int64(ctxt.Arch.PtrSize))
-}
-
-func Addaddrplus(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
-	if s.Type == 0 {
-		s.Type = SDATA
-	}
-	s.Attr |= AttrReachable
-	i := s.Size
-	s.Size += int64(ctxt.Arch.PtrSize)
-	Symgrow(s, s.Size)
-	r := Addrel(s)
-	r.Sym = t
-	r.Off = int32(i)
-	r.Siz = uint8(ctxt.Arch.PtrSize)
-	r.Type = objabi.R_ADDR
-	r.Add = add
-	return i + int64(r.Siz)
-}
-
-func Addpcrelplus(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
-	if s.Type == 0 {
-		s.Type = SDATA
-	}
-	s.Attr |= AttrReachable
-	i := s.Size
-	s.Size += 4
-	Symgrow(s, s.Size)
-	r := Addrel(s)
-	r.Sym = t
-	r.Off = int32(i)
-	r.Add = add
-	r.Type = objabi.R_PCREL
-	r.Siz = 4
-	if ctxt.Arch.Family == sys.S390X {
-		r.Variant = RV_390_DBL
-	}
-	return i + int64(r.Siz)
-}
-
-func Addaddr(ctxt *Link, s *Symbol, t *Symbol) int64 {
-	return Addaddrplus(ctxt, s, t, 0)
-}
-
-func setaddrplus(ctxt *Link, s *Symbol, off int64, t *Symbol, add int64) int64 {
-	if s.Type == 0 {
-		s.Type = SDATA
-	}
-	s.Attr |= AttrReachable
-	if off+int64(ctxt.Arch.PtrSize) > s.Size {
-		s.Size = off + int64(ctxt.Arch.PtrSize)
-		Symgrow(s, s.Size)
-	}
-
-	r := Addrel(s)
-	r.Sym = t
-	r.Off = int32(off)
-	r.Siz = uint8(ctxt.Arch.PtrSize)
-	r.Type = objabi.R_ADDR
-	r.Add = add
-	return off + int64(r.Siz)
-}
-
-func setaddr(ctxt *Link, s *Symbol, off int64, t *Symbol) int64 {
-	return setaddrplus(ctxt, s, off, t, 0)
-}
-
-func addsize(ctxt *Link, s *Symbol, t *Symbol) int64 {
-	if s.Type == 0 {
-		s.Type = SDATA
-	}
-	s.Attr |= AttrReachable
-	i := s.Size
-	s.Size += int64(ctxt.Arch.PtrSize)
-	Symgrow(s, s.Size)
-	r := Addrel(s)
-	r.Sym = t
-	r.Off = int32(i)
-	r.Siz = uint8(ctxt.Arch.PtrSize)
-	r.Type = objabi.R_SIZE
-	return i + int64(r.Siz)
-}
-
-func addaddrplus4(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
-	if s.Type == 0 {
-		s.Type = SDATA
-	}
-	s.Attr |= AttrReachable
-	i := s.Size
-	s.Size += 4
-	Symgrow(s, s.Size)
-	r := Addrel(s)
-	r.Sym = t
-	r.Off = int32(i)
-	r.Siz = 4
-	r.Type = objabi.R_ADDR
-	r.Add = add
-	return i + int64(r.Siz)
-}
-
 /*
  * divide-and-conquer list-link (by Sub) sort of Symbol* by Value.
  * Used for sub-symbols when loading host objects (see e.g. ldelf.go).
@@ -774,17 +577,17 @@ func windynrelocsym(ctxt *Link, s *Symbol) {
 
 			// jmp *addr
 			if ctxt.Arch.Family == sys.I386 {
-				Adduint8(ctxt, rel, 0xff)
-				Adduint8(ctxt, rel, 0x25)
-				Addaddr(ctxt, rel, targ)
-				Adduint8(ctxt, rel, 0x90)
-				Adduint8(ctxt, rel, 0x90)
+				rel.AddUint8(0xff)
+				rel.AddUint8(0x25)
+				rel.AddAddr(ctxt.Arch, targ)
+				rel.AddUint8(0x90)
+				rel.AddUint8(0x90)
 			} else {
-				Adduint8(ctxt, rel, 0xff)
-				Adduint8(ctxt, rel, 0x24)
-				Adduint8(ctxt, rel, 0x25)
-				addaddrplus4(ctxt, rel, targ, 0)
-				Adduint8(ctxt, rel, 0x90)
+				rel.AddUint8(0xff)
+				rel.AddUint8(0x24)
+				rel.AddUint8(0x25)
+				rel.AddAddrPlus4(targ, 0)
+				rel.AddUint8(0x90)
 			}
 		} else if r.Sym.Plt >= 0 {
 			r.Sym = rel
@@ -1063,8 +866,8 @@ func addstrdata(ctxt *Link, name string, value string) {
 	s.Size = 0
 	s.Attr |= AttrDuplicateOK
 	reachable := s.Attr.Reachable()
-	Addaddr(ctxt, s, sp)
-	adduintxx(ctxt, s, uint64(len(value)), ctxt.Arch.PtrSize)
+	s.AddAddr(ctxt.Arch, sp)
+	s.AddUint(ctxt.Arch, uint64(len(value)))
 
 	// addstring, addaddr, etc., mark the symbols as reachable.
 	// In this case that is not necessarily true, so stick to what
@@ -1113,8 +916,8 @@ func addgostring(ctxt *Link, s *Symbol, symname, str string) {
 	sym.Type = SRODATA
 	sym.Size = int64(len(str))
 	sym.P = []byte(str)
-	Addaddr(ctxt, s, sym)
-	adduint(ctxt, s, uint64(len(str)))
+	s.AddAddr(ctxt.Arch, sym)
+	s.AddUint(ctxt.Arch, uint64(len(str)))
 }
 
 func addinitarrdata(ctxt *Link, s *Symbol) {
@@ -1123,7 +926,7 @@ func addinitarrdata(ctxt *Link, s *Symbol) {
 	sp.Type = SINITARR
 	sp.Size = 0
 	sp.Attr |= AttrDuplicateOK
-	Addaddr(ctxt, sp, s)
+	sp.AddAddr(ctxt.Arch, s)
 }
 
 func dosymtype(ctxt *Link) {
@@ -1183,7 +986,7 @@ func (p *GCProg) Init(ctxt *Link, name string) {
 
 func (p *GCProg) writeByte(ctxt *Link) func(x byte) {
 	return func(x byte) {
-		Adduint8(ctxt, p.sym, x)
+		p.sym.AddUint8(x)
 	}
 }
 

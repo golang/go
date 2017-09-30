@@ -404,9 +404,9 @@ func (r *objReader) readRef() {
 			if uint64(uint32(x)) != x {
 				log.Panicf("$-symbol %s too large: %d", s.Name, x)
 			}
-			Adduint32(r.ctxt, s, uint32(x))
+			s.AddUint32(r.ctxt.Arch, uint32(x))
 		case "$f64.", "$i64.":
-			Adduint64(r.ctxt, s, x)
+			s.AddUint64(r.ctxt.Arch, x)
 		default:
 			log.Panicf("unrecognized $-symbol: %s", s.Name)
 		}

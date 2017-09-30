@@ -359,11 +359,11 @@ func (ctxt *Link) loadlib() {
 	case BuildmodeCShared, BuildmodePlugin:
 		s := ctxt.Syms.Lookup("runtime.islibrary", 0)
 		s.Attr |= AttrDuplicateOK
-		Adduint8(ctxt, s, 1)
+		s.AddUint8(1)
 	case BuildmodeCArchive:
 		s := ctxt.Syms.Lookup("runtime.isarchive", 0)
 		s.Attr |= AttrDuplicateOK
-		Adduint8(ctxt, s, 1)
+		s.AddUint8(1)
 	}
 
 	loadinternal(ctxt, "runtime")
@@ -485,14 +485,14 @@ func (ctxt *Link) loadlib() {
 			s := ctxt.Syms.Lookup("runtime.goarm", 0)
 			s.Type = SRODATA
 			s.Size = 0
-			Adduint8(ctxt, s, uint8(objabi.GOARM))
+			s.AddUint8(uint8(objabi.GOARM))
 		}
 
 		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
 			s := ctxt.Syms.Lookup("runtime.framepointer_enabled", 0)
 			s.Type = SRODATA
 			s.Size = 0
-			Adduint8(ctxt, s, 1)
+			s.AddUint8(1)
 		}
 	} else {
 		// If OTOH the module does not contain the runtime package,

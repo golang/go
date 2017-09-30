@@ -1177,11 +1177,11 @@ func elfhash(name string) uint32 {
 
 func Elfwritedynent(ctxt *Link, s *Symbol, tag int, val uint64) {
 	if elf64 {
-		Adduint64(ctxt, s, uint64(tag))
-		Adduint64(ctxt, s, val)
+		s.AddUint64(ctxt.Arch, uint64(tag))
+		s.AddUint64(ctxt.Arch, val)
 	} else {
-		Adduint32(ctxt, s, uint32(tag))
-		Adduint32(ctxt, s, uint32(val))
+		s.AddUint32(ctxt.Arch, uint32(tag))
+		s.AddUint32(ctxt.Arch, uint32(val))
 	}
 }
 
@@ -1191,20 +1191,20 @@ func elfwritedynentsym(ctxt *Link, s *Symbol, tag int, t *Symbol) {
 
 func Elfwritedynentsymplus(ctxt *Link, s *Symbol, tag int, t *Symbol, add int64) {
 	if elf64 {
-		Adduint64(ctxt, s, uint64(tag))
+		s.AddUint64(ctxt.Arch, uint64(tag))
 	} else {
-		Adduint32(ctxt, s, uint32(tag))
+		s.AddUint32(ctxt.Arch, uint32(tag))
 	}
-	Addaddrplus(ctxt, s, t, add)
+	s.AddAddrPlus(ctxt.Arch, t, add)
 }
 
 func elfwritedynentsymsize(ctxt *Link, s *Symbol, tag int, t *Symbol) {
 	if elf64 {
-		Adduint64(ctxt, s, uint64(tag))
+		s.AddUint64(ctxt.Arch, uint64(tag))
 	} else {
-		Adduint32(ctxt, s, uint32(tag))
+		s.AddUint32(ctxt.Arch, uint32(tag))
 	}
-	addsize(ctxt, s, t)
+	s.AddSize(ctxt.Arch, t)
 }
 
 func elfinterp(sh *ElfShdr, startva uint64, resoff uint64, p string) int {
@@ -1480,22 +1480,22 @@ func elfdynhash(ctxt *Link) {
 
 	// s390x (ELF64) hash table entries are 8 bytes
 	if ctxt.Arch.Family == sys.S390X {
-		Adduint64(ctxt, s, uint64(nbucket))
-		Adduint64(ctxt, s, uint64(nsym))
+		s.AddUint64(ctxt.Arch, uint64(nbucket))
+		s.AddUint64(ctxt.Arch, uint64(nsym))
 		for i := 0; i < nbucket; i++ {
-			Adduint64(ctxt, s, uint64(buckets[i]))
+			s.AddUint64(ctxt.Arch, uint64(buckets[i]))
 		}
 		for i := 0; i < nsym; i++ {
-			Adduint64(ctxt, s, uint64(chain[i]))
+			s.AddUint64(ctxt.Arch, uint64(chain[i]))
 		}
 	} else {
-		Adduint32(ctxt, s, uint32(nbucket))
-		Adduint32(ctxt, s, uint32(nsym))
+		s.AddUint32(ctxt.Arch, uint32(nbucket))
+		s.AddUint32(ctxt.Arch, uint32(nsym))
 		for i := 0; i < nbucket; i++ {
-			Adduint32(ctxt, s, buckets[i])
+			s.AddUint32(ctxt.Arch, buckets[i])
 		}
 		for i := 0; i < nsym; i++ {
-			Adduint32(ctxt, s, chain[i])
+			s.AddUint32(ctxt.Arch, chain[i])
 		}
 	}
 
@@ -1509,18 +1509,18 @@ func elfdynhash(ctxt *Link) {
 		nfile++
 
 		// header
-		Adduint16(ctxt, s, 1) // table version
+		s.AddUint16(ctxt.Arch, 1) // table version
 		j := 0
 		for x := l.aux; x != nil; x = x.next {
 			j++
 		}
-		Adduint16(ctxt, s, uint16(j))                         // aux count
-		Adduint32(ctxt, s, uint32(Addstring(dynstr, l.file))) // file string offset
-		Adduint32(ctxt, s, 16)                                // offset from header to first aux
+		s.AddUint16(ctxt.Arch, uint16(j))                         // aux count
+		s.AddUint32(ctxt.Arch, uint32(Addstring(dynstr, l.file))) // file string offset
+		s.AddUint32(ctxt.Arch, 16)                                // offset from header to first aux
 		if l.next != nil {
-			Adduint32(ctxt, s, 16+uint32(j)*16) // offset from this header to next
+			s.AddUint32(ctxt.Arch, 16+uint32(j)*16) // offset from this header to next
 		} else {
-			Adduint32(ctxt, s, 0)
+			s.AddUint32(ctxt.Arch, 0)
 		}
 
 		for x := l.aux; x != nil; x = x.next {
@@ -1528,14 +1528,14 @@ func elfdynhash(ctxt *Link) {
 			i++
 
 			// aux struct
-			Adduint32(ctxt, s, elfhash(x.vers))                   // hash
-			Adduint16(ctxt, s, 0)                                 // flags
-			Adduint16(ctxt, s, uint16(x.num))                     // other - index we refer to this by
-			Adduint32(ctxt, s, uint32(Addstring(dynstr, x.vers))) // version string offset
+			s.AddUint32(ctxt.Arch, elfhash(x.vers))                   // hash
+			s.AddUint16(ctxt.Arch, 0)                                 // flags
+			s.AddUint16(ctxt.Arch, uint16(x.num))                     // other - index we refer to this by
+			s.AddUint32(ctxt.Arch, uint32(Addstring(dynstr, x.vers))) // version string offset
 			if x.next != nil {
-				Adduint32(ctxt, s, 16) // offset from this aux to next
+				s.AddUint32(ctxt.Arch, 16) // offset from this aux to next
 			} else {
-				Adduint32(ctxt, s, 0)
+				s.AddUint32(ctxt.Arch, 0)
 			}
 		}
 	}
@@ -1545,11 +1545,11 @@ func elfdynhash(ctxt *Link) {
 
 	for i := 0; i < nsym; i++ {
 		if i == 0 {
-			Adduint16(ctxt, s, 0) // first entry - no symbol
+			s.AddUint16(ctxt.Arch, 0) // first entry - no symbol
 		} else if need[i] == nil {
-			Adduint16(ctxt, s, 1) // global
+			s.AddUint16(ctxt.Arch, 1) // global
 		} else {
-			Adduint16(ctxt, s, uint16(need[i].num))
+			s.AddUint16(ctxt.Arch, uint16(need[i].num))
 		}
 	}
 
@@ -1840,11 +1840,11 @@ func addgonote(ctxt *Link, sectionName string, tag uint32, desc []byte) {
 	s.Attr |= AttrReachable
 	s.Type = SELFROSECT
 	// namesz
-	Adduint32(ctxt, s, uint32(len(ELF_NOTE_GO_NAME)))
+	s.AddUint32(ctxt.Arch, uint32(len(ELF_NOTE_GO_NAME)))
 	// descsz
-	Adduint32(ctxt, s, uint32(len(desc)))
+	s.AddUint32(ctxt.Arch, uint32(len(desc)))
 	// tag
-	Adduint32(ctxt, s, tag)
+	s.AddUint32(ctxt.Arch, tag)
 	// name + padding
 	s.P = append(s.P, ELF_NOTE_GO_NAME...)
 	for len(s.P)%4 != 0 {
@@ -2690,7 +2690,7 @@ func elfadddynsym(ctxt *Link, s *Symbol) {
 		d := ctxt.Syms.Lookup(".dynsym", 0)
 
 		name := s.Extname
-		Adduint32(ctxt, d, uint32(Addstring(ctxt.Syms.Lookup(".dynstr", 0), name)))
+		d.AddUint32(ctxt.Arch, uint32(Addstring(ctxt.Syms.Lookup(".dynstr", 0), name)))
 
 		/* type */
 		t := STB_GLOBAL << 4
@@ -2700,27 +2700,27 @@ func elfadddynsym(ctxt *Link, s *Symbol) {
 		} else {
 			t |= STT_OBJECT
 		}
-		Adduint8(ctxt, d, uint8(t))
+		d.AddUint8(uint8(t))
 
 		/* reserved */
-		Adduint8(ctxt, d, 0)
+		d.AddUint8(0)
 
 		/* section where symbol is defined */
 		if s.Type == SDYNIMPORT {
-			Adduint16(ctxt, d, SHN_UNDEF)
+			d.AddUint16(ctxt.Arch, SHN_UNDEF)
 		} else {
-			Adduint16(ctxt, d, 1)
+			d.AddUint16(ctxt.Arch, 1)
 		}
 
 		/* value */
 		if s.Type == SDYNIMPORT {
-			Adduint64(ctxt, d, 0)
+			d.AddUint64(ctxt.Arch, 0)
 		} else {
-			Addaddr(ctxt, d, s)
+			d.AddAddr(ctxt.Arch, s)
 		}
 
 		/* size of object */
-		Adduint64(ctxt, d, uint64(s.Size))
+		d.AddUint64(ctxt.Arch, uint64(s.Size))
 
 		if ctxt.Arch.Family == sys.AMD64 && !s.Attr.CgoExportDynamic() && s.Dynimplib != "" && !seenlib[s.Dynimplib] {
 			Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt.Syms.Lookup(".dynstr", 0), s.Dynimplib)))
@@ -2734,17 +2734,17 @@ func elfadddynsym(ctxt *Link, s *Symbol) {
 		/* name */
 		name := s.Extname
 
-		Adduint32(ctxt, d, uint32(Addstring(ctxt.Syms.Lookup(".dynstr", 0), name)))
+		d.AddUint32(ctxt.Arch, uint32(Addstring(ctxt.Syms.Lookup(".dynstr", 0), name)))
 
 		/* value */
 		if s.Type == SDYNIMPORT {
-			Adduint32(ctxt, d, 0)
+			d.AddUint32(ctxt.Arch, 0)
 		} else {
-			Addaddr(ctxt, d, s)
+			d.AddAddr(ctxt.Arch, s)
 		}
 
 		/* size of object */
-		Adduint32(ctxt, d, uint32(s.Size))
+		d.AddUint32(ctxt.Arch, uint32(s.Size))
 
 		/* type */
 		t := STB_GLOBAL << 4
@@ -2757,14 +2757,14 @@ func elfadddynsym(ctxt *Link, s *Symbol) {
 		} else {
 			t |= STT_OBJECT
 		}
-		Adduint8(ctxt, d, uint8(t))
-		Adduint8(ctxt, d, 0)
+		d.AddUint8(uint8(t))
+		d.AddUint8(0)
 
 		/* shndx */
 		if s.Type == SDYNIMPORT {
-			Adduint16(ctxt, d, SHN_UNDEF)
+			d.AddUint16(ctxt.Arch, SHN_UNDEF)
 		} else {
-			Adduint16(ctxt, d, 1)
+			d.AddUint16(ctxt.Arch, 1)
 		}
 	}
 }

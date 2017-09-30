@@ -65,31 +65,31 @@ func gentext(ctxt *ld.Link) {
 	initfunc.Attr |= ld.AttrReachable
 
 	// larl %r2, <local.moduledata>
-	ld.Adduint8(ctxt, initfunc, 0xc0)
-	ld.Adduint8(ctxt, initfunc, 0x20)
-	lmd := ld.Addrel(initfunc)
+	initfunc.AddUint8(0xc0)
+	initfunc.AddUint8(0x20)
+	lmd := initfunc.AddRel()
 	lmd.Off = int32(initfunc.Size)
 	lmd.Siz = 4
 	lmd.Sym = ctxt.Moduledata
 	lmd.Type = objabi.R_PCREL
 	lmd.Variant = ld.RV_390_DBL
 	lmd.Add = 2 + int64(lmd.Siz)
-	ld.Adduint32(ctxt, initfunc, 0)
+	initfunc.AddUint32(ctxt.Arch, 0)
 
 	// jg <runtime.addmoduledata[@plt]>
-	ld.Adduint8(ctxt, initfunc, 0xc0)
-	ld.Adduint8(ctxt, initfunc, 0xf4)
-	rel := ld.Addrel(initfunc)
+	initfunc.AddUint8(0xc0)
+	initfunc.AddUint8(0xf4)
+	rel := initfunc.AddRel()
 	rel.Off = int32(initfunc.Size)
 	rel.Siz = 4
 	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
 	rel.Type = objabi.R_CALL
 	rel.Variant = ld.RV_390_DBL
 	rel.Add = 2 + int64(rel.Siz)
-	ld.Adduint32(ctxt, initfunc, 0)
+	initfunc.AddUint32(ctxt.Arch, 0)
 
 	// undef (for debugging)
-	ld.Adduint32(ctxt, initfunc, 0)
+	initfunc.AddUint32(ctxt.Arch, 0)
 	if ld.Buildmode == ld.BuildmodePlugin {
 		ctxt.Textp = append(ctxt.Textp, addmoduledata)
 	}
@@ -98,7 +98,7 @@ func gentext(ctxt *ld.Link) {
 	initarray_entry.Attr |= ld.AttrLocal
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Type = ld.SINITARR
-	ld.Addaddr(ctxt, initarray_entry, initfunc)
+	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
 func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
@@ -332,48 +332,48 @@ func elfsetupplt(ctxt *ld.Link) {
 	got := ctxt.Syms.Lookup(".got", 0)
 	if plt.Size == 0 {
 		// stg     %r1,56(%r15)
-		ld.Adduint8(ctxt, plt, 0xe3)
-		ld.Adduint8(ctxt, plt, 0x10)
-		ld.Adduint8(ctxt, plt, 0xf0)
-		ld.Adduint8(ctxt, plt, 0x38)
-		ld.Adduint8(ctxt, plt, 0x00)
-		ld.Adduint8(ctxt, plt, 0x24)
+		plt.AddUint8(0xe3)
+		plt.AddUint8(0x10)
+		plt.AddUint8(0xf0)
+		plt.AddUint8(0x38)
+		plt.AddUint8(0x00)
+		plt.AddUint8(0x24)
 		// larl    %r1,_GLOBAL_OFFSET_TABLE_
-		ld.Adduint8(ctxt, plt, 0xc0)
-		ld.Adduint8(ctxt, plt, 0x10)
-		ld.Addpcrelplus(ctxt, plt, got, 6)
+		plt.AddUint8(0xc0)
+		plt.AddUint8(0x10)
+		plt.AddPCRelPlus(ctxt.Arch, got, 6)
 		// mvc     48(8,%r15),8(%r1)
-		ld.Adduint8(ctxt, plt, 0xd2)
-		ld.Adduint8(ctxt, plt, 0x07)
-		ld.Adduint8(ctxt, plt, 0xf0)
-		ld.Adduint8(ctxt, plt, 0x30)
-		ld.Adduint8(ctxt, plt, 0x10)
-		ld.Adduint8(ctxt, plt, 0x08)
+		plt.AddUint8(0xd2)
+		plt.AddUint8(0x07)
+		plt.AddUint8(0xf0)
+		plt.AddUint8(0x30)
+		plt.AddUint8(0x10)
+		plt.AddUint8(0x08)
 		// lg      %r1,16(%r1)
-		ld.Adduint8(ctxt, plt, 0xe3)
-		ld.Adduint8(ctxt, plt, 0x10)
-		ld.Adduint8(ctxt, plt, 0x10)
-		ld.Adduint8(ctxt, plt, 0x10)
-		ld.Adduint8(ctxt, plt, 0x00)
-		ld.Adduint8(ctxt, plt, 0x04)
+		plt.AddUint8(0xe3)
+		plt.AddUint8(0x10)
+		plt.AddUint8(0x10)
+		plt.AddUint8(0x10)
+		plt.AddUint8(0x00)
+		plt.AddUint8(0x04)
 		// br      %r1
-		ld.Adduint8(ctxt, plt, 0x07)
-		ld.Adduint8(ctxt, plt, 0xf1)
+		plt.AddUint8(0x07)
+		plt.AddUint8(0xf1)
 		// nopr    %r0
-		ld.Adduint8(ctxt, plt, 0x07)
-		ld.Adduint8(ctxt, plt, 0x00)
+		plt.AddUint8(0x07)
+		plt.AddUint8(0x00)
 		// nopr    %r0
-		ld.Adduint8(ctxt, plt, 0x07)
-		ld.Adduint8(ctxt, plt, 0x00)
+		plt.AddUint8(0x07)
+		plt.AddUint8(0x00)
 		// nopr    %r0
-		ld.Adduint8(ctxt, plt, 0x07)
-		ld.Adduint8(ctxt, plt, 0x00)
+		plt.AddUint8(0x07)
+		plt.AddUint8(0x00)
 
 		// assume got->size == 0 too
-		ld.Addaddrplus(ctxt, got, ctxt.Syms.Lookup(".dynamic", 0), 0)
+		got.AddAddrPlus(ctxt.Arch, ctxt.Syms.Lookup(".dynamic", 0), 0)
 
-		ld.Adduint64(ctxt, got, 0)
-		ld.Adduint64(ctxt, got, 0)
+		got.AddUint64(ctxt.Arch, 0)
+		got.AddUint64(ctxt.Arch, 0)
 	}
 }
 
@@ -431,45 +431,45 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 		}
 		// larl    %r1,_GLOBAL_OFFSET_TABLE_+index
 
-		ld.Adduint8(ctxt, plt, 0xc0)
-		ld.Adduint8(ctxt, plt, 0x10)
-		ld.Addpcrelplus(ctxt, plt, got, got.Size+6) // need variant?
+		plt.AddUint8(0xc0)
+		plt.AddUint8(0x10)
+		plt.AddPCRelPlus(ctxt.Arch, got, got.Size+6) // need variant?
 
 		// add to got: pointer to current pos in plt
-		ld.Addaddrplus(ctxt, got, plt, plt.Size+8) // weird but correct
+		got.AddAddrPlus(ctxt.Arch, plt, plt.Size+8) // weird but correct
 		// lg      %r1,0(%r1)
-		ld.Adduint8(ctxt, plt, 0xe3)
-		ld.Adduint8(ctxt, plt, 0x10)
-		ld.Adduint8(ctxt, plt, 0x10)
-		ld.Adduint8(ctxt, plt, 0x00)
-		ld.Adduint8(ctxt, plt, 0x00)
-		ld.Adduint8(ctxt, plt, 0x04)
+		plt.AddUint8(0xe3)
+		plt.AddUint8(0x10)
+		plt.AddUint8(0x10)
+		plt.AddUint8(0x00)
+		plt.AddUint8(0x00)
+		plt.AddUint8(0x04)
 		// br      %r1
-		ld.Adduint8(ctxt, plt, 0x07)
-		ld.Adduint8(ctxt, plt, 0xf1)
+		plt.AddUint8(0x07)
+		plt.AddUint8(0xf1)
 		// basr    %r1,%r0
-		ld.Adduint8(ctxt, plt, 0x0d)
-		ld.Adduint8(ctxt, plt, 0x10)
+		plt.AddUint8(0x0d)
+		plt.AddUint8(0x10)
 		// lgf     %r1,12(%r1)
-		ld.Adduint8(ctxt, plt, 0xe3)
-		ld.Adduint8(ctxt, plt, 0x10)
-		ld.Adduint8(ctxt, plt, 0x10)
-		ld.Adduint8(ctxt, plt, 0x0c)
-		ld.Adduint8(ctxt, plt, 0x00)
-		ld.Adduint8(ctxt, plt, 0x14)
+		plt.AddUint8(0xe3)
+		plt.AddUint8(0x10)
+		plt.AddUint8(0x10)
+		plt.AddUint8(0x0c)
+		plt.AddUint8(0x00)
+		plt.AddUint8(0x14)
 		// jg .plt
-		ld.Adduint8(ctxt, plt, 0xc0)
-		ld.Adduint8(ctxt, plt, 0xf4)
+		plt.AddUint8(0xc0)
+		plt.AddUint8(0xf4)
 
-		ld.Adduint32(ctxt, plt, uint32(-((plt.Size - 2) >> 1))) // roll-your-own relocation
+		plt.AddUint32(ctxt.Arch, uint32(-((plt.Size - 2) >> 1))) // roll-your-own relocation
 		//.plt index
-		ld.Adduint32(ctxt, plt, uint32(rela.Size)) // rela size before current entry
+		plt.AddUint32(ctxt.Arch, uint32(rela.Size)) // rela size before current entry
 
 		// rela
-		ld.Addaddrplus(ctxt, rela, got, got.Size-8)
+		rela.AddAddrPlus(ctxt.Arch, got, got.Size-8)
 
-		ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_390_JMP_SLOT))
-		ld.Adduint64(ctxt, rela, 0)
+		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_390_JMP_SLOT))
+		rela.AddUint64(ctxt.Arch, 0)
 
 		s.Plt = int32(plt.Size - 32)
 
@@ -486,13 +486,13 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 	ld.Adddynsym(ctxt, s)
 	got := ctxt.Syms.Lookup(".got", 0)
 	s.Got = int32(got.Size)
-	ld.Adduint64(ctxt, got, 0)
+	got.AddUint64(ctxt.Arch, 0)
 
 	if ld.Iself {
 		rela := ctxt.Syms.Lookup(".rela", 0)
-		ld.Addaddrplus(ctxt, rela, got, int64(s.Got))
-		ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_390_GLOB_DAT))
-		ld.Adduint64(ctxt, rela, 0)
+		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
+		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_390_GLOB_DAT))
+		rela.AddUint64(ctxt.Arch, 0)
 	} else {
 		ld.Errorf(s, "addgotsym: unsupported binary format")
 	}

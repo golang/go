@@ -46,8 +46,8 @@ func Addcall(ctxt *ld.Link, s *ld.Symbol, t *ld.Symbol) int64 {
 	s.Attr |= ld.AttrReachable
 	i := s.Size
 	s.Size += 4
-	ld.Symgrow(s, s.Size)
-	r := ld.Addrel(s)
+	s.Grow(s.Size)
+	r := s.AddRel()
 	r.Sym = t
 	r.Off = int32(i)
 	r.Type = objabi.R_CALL
@@ -72,14 +72,14 @@ func gentext(ctxt *ld.Link) {
 	initfunc.Attr |= ld.AttrReachable
 	o := func(op ...uint8) {
 		for _, op1 := range op {
-			ld.Adduint8(ctxt, initfunc, op1)
+			initfunc.AddUint8(op1)
 		}
 	}
 	// 0000000000000000 <local.dso_init>:
 	//    0:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 7 <local.dso_init+0x7>
 	// 			3: R_X86_64_PC32	runtime.firstmoduledata-0x4
 	o(0x48, 0x8d, 0x3d)
-	ld.Addpcrelplus(ctxt, initfunc, ctxt.Moduledata, 0)
+	initfunc.AddPCRelPlus(ctxt.Arch, ctxt.Moduledata, 0)
 	//    7:	e8 00 00 00 00       	callq  c <local.dso_init+0xc>
 	// 			8: R_X86_64_PLT32	runtime.addmoduledata-0x4
 	o(0xe8)
@@ -94,7 +94,7 @@ func gentext(ctxt *ld.Link) {
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal
 	initarray_entry.Type = ld.SINITARR
-	ld.Addaddr(ctxt, initarray_entry, initfunc)
+	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
 func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
@@ -319,14 +319,14 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			// generated R_X86_RELATIVE instead.
 			ld.Adddynsym(ctxt, targ)
 			rela := ctxt.Syms.Lookup(".rela", 0)
-			ld.Addaddrplus(ctxt, rela, s, int64(r.Off))
+			rela.AddAddrPlus(ctxt.Arch, s, int64(r.Off))
 			if r.Siz == 8 {
-				ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(targ.Dynid), ld.R_X86_64_64))
+				rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(targ.Dynid), ld.R_X86_64_64))
 			} else {
 				// TODO: never happens, remove.
-				ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(targ.Dynid), ld.R_X86_64_32))
+				rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(targ.Dynid), ld.R_X86_64_32))
 			}
-			ld.Adduint64(ctxt, rela, uint64(r.Add))
+			rela.AddUint64(ctxt.Arch, uint64(r.Add))
 			r.Type = 256 // ignore during relocsym
 			return true
 		}
@@ -350,8 +350,8 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			s.Sub = got.Sub
 			got.Sub = s
 			s.Value = got.Size
-			ld.Adduint64(ctxt, got, 0)
-			ld.Adduint32(ctxt, ctxt.Syms.Lookup(".linkedit.got", 0), uint32(targ.Dynid))
+			got.AddUint64(ctxt.Arch, 0)
+			ctxt.Syms.Lookup(".linkedit.got", 0).AddUint32(ctxt.Arch, uint32(targ.Dynid))
 			r.Type = 256 // ignore during relocsym
 			return true
 		}
@@ -537,25 +537,25 @@ func elfsetupplt(ctxt *ld.Link) {
 	got := ctxt.Syms.Lookup(".got.plt", 0)
 	if plt.Size == 0 {
 		// pushq got+8(IP)
-		ld.Adduint8(ctxt, plt, 0xff)
+		plt.AddUint8(0xff)
 
-		ld.Adduint8(ctxt, plt, 0x35)
-		ld.Addpcrelplus(ctxt, plt, got, 8)
+		plt.AddUint8(0x35)
+		plt.AddPCRelPlus(ctxt.Arch, got, 8)
 
 		// jmpq got+16(IP)
-		ld.Adduint8(ctxt, plt, 0xff)
+		plt.AddUint8(0xff)
 
-		ld.Adduint8(ctxt, plt, 0x25)
-		ld.Addpcrelplus(ctxt, plt, got, 16)
+		plt.AddUint8(0x25)
+		plt.AddPCRelPlus(ctxt.Arch, got, 16)
 
 		// nopl 0(AX)
-		ld.Adduint32(ctxt, plt, 0x00401f0f)
+		plt.AddUint32(ctxt.Arch, 0x00401f0f)
 
 		// assume got->size == 0 too
-		ld.Addaddrplus(ctxt, got, ctxt.Syms.Lookup(".dynamic", 0), 0)
+		got.AddAddrPlus(ctxt.Arch, ctxt.Syms.Lookup(".dynamic", 0), 0)
 
-		ld.Adduint64(ctxt, got, 0)
-		ld.Adduint64(ctxt, got, 0)
+		got.AddUint64(ctxt.Arch, 0)
+		got.AddUint64(ctxt.Arch, 0)
 	}
 }
 
@@ -575,29 +575,29 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 		}
 
 		// jmpq *got+size(IP)
-		ld.Adduint8(ctxt, plt, 0xff)
+		plt.AddUint8(0xff)
 
-		ld.Adduint8(ctxt, plt, 0x25)
-		ld.Addpcrelplus(ctxt, plt, got, got.Size)
+		plt.AddUint8(0x25)
+		plt.AddPCRelPlus(ctxt.Arch, got, got.Size)
 
 		// add to got: pointer to current pos in plt
-		ld.Addaddrplus(ctxt, got, plt, plt.Size)
+		got.AddAddrPlus(ctxt.Arch, plt, plt.Size)
 
 		// pushq $x
-		ld.Adduint8(ctxt, plt, 0x68)
+		plt.AddUint8(0x68)
 
-		ld.Adduint32(ctxt, plt, uint32((got.Size-24-8)/8))
+		plt.AddUint32(ctxt.Arch, uint32((got.Size-24-8)/8))
 
 		// jmpq .plt
-		ld.Adduint8(ctxt, plt, 0xe9)
+		plt.AddUint8(0xe9)
 
-		ld.Adduint32(ctxt, plt, uint32(-(plt.Size + 4)))
+		plt.AddUint32(ctxt.Arch, uint32(-(plt.Size + 4)))
 
 		// rela
-		ld.Addaddrplus(ctxt, rela, got, got.Size-8)
+		rela.AddAddrPlus(ctxt.Arch, got, got.Size-8)
 
-		ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_X86_64_JMP_SLOT))
-		ld.Adduint64(ctxt, rela, 0)
+		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_X86_64_JMP_SLOT))
+		rela.AddUint64(ctxt.Arch, 0)
 
 		s.Plt = int32(plt.Size - 16)
 	} else if ld.Headtype == objabi.Hdarwin {
@@ -614,14 +614,14 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 		addgotsym(ctxt, s)
 		plt := ctxt.Syms.Lookup(".plt", 0)
 
-		ld.Adduint32(ctxt, ctxt.Syms.Lookup(".linkedit.plt", 0), uint32(s.Dynid))
+		ctxt.Syms.Lookup(".linkedit.plt", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))
 
 		// jmpq *got+size(IP)
 		s.Plt = int32(plt.Size)
 
-		ld.Adduint8(ctxt, plt, 0xff)
-		ld.Adduint8(ctxt, plt, 0x25)
-		ld.Addpcrelplus(ctxt, plt, ctxt.Syms.Lookup(".got", 0), int64(s.Got))
+		plt.AddUint8(0xff)
+		plt.AddUint8(0x25)
+		plt.AddPCRelPlus(ctxt.Arch, ctxt.Syms.Lookup(".got", 0), int64(s.Got))
 	} else {
 		ld.Errorf(s, "addpltsym: unsupported binary format")
 	}
@@ -635,15 +635,15 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 	ld.Adddynsym(ctxt, s)
 	got := ctxt.Syms.Lookup(".got", 0)
 	s.Got = int32(got.Size)
-	ld.Adduint64(ctxt, got, 0)
+	got.AddUint64(ctxt.Arch, 0)
 
 	if ld.Iself {
 		rela := ctxt.Syms.Lookup(".rela", 0)
-		ld.Addaddrplus(ctxt, rela, got, int64(s.Got))
-		ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_X86_64_GLOB_DAT))
-		ld.Adduint64(ctxt, rela, 0)
+		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
+		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_X86_64_GLOB_DAT))
+		rela.AddUint64(ctxt.Arch, 0)
 	} else if ld.Headtype == objabi.Hdarwin {
-		ld.Adduint32(ctxt, ctxt.Syms.Lookup(".linkedit.got", 0), uint32(s.Dynid))
+		ctxt.Syms.Lookup(".linkedit.got", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))
 	} else {
 		ld.Errorf(s, "addgotsym: unsupported binary format")
 	}
