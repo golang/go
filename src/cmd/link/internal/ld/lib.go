@@ -36,6 +36,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
 	"crypto/sha1"
 	"debug/elf"
@@ -359,7 +360,7 @@ func (ctxt *Link) loadlib() {
 			if ctxt.Debugvlog > 1 {
 				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), lib.File, lib.Objref)
 			}
-			objfile(ctxt, lib)
+			loadobjfile(ctxt, lib)
 		}
 	}
 
@@ -403,7 +404,7 @@ func (ctxt *Link) loadlib() {
 				if Buildmode == BuildmodeShared || *FlagLinkshared {
 					Exitf("cannot implicitly include runtime/cgo in a shared library")
 				}
-				objfile(ctxt, lib)
+				loadobjfile(ctxt, lib)
 			}
 		}
 	}
@@ -765,7 +766,7 @@ func genhash(ctxt *Link, lib *sym.Library) {
 	lib.Hash = hex.EncodeToString(h.Sum(nil))
 }
 
-func objfile(ctxt *Link, lib *sym.Library) {
+func loadobjfile(ctxt *Link, lib *sym.Library) {
 	pkg := objabi.PathToPrefix(lib.Pkg)
 
 	if ctxt.Debugvlog > 1 {
@@ -1459,7 +1460,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	ldpkg(ctxt, f, pkg, import1-import0-2, pn, whence) // -2 for !\n
 	f.Seek(import1, 0)
 
-	LoadObjFile(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn)
+	objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn)
 	addImports(ctxt, lib, pn)
 	return nil
 }
