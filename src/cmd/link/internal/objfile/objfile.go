@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ld
-
-// Reading of Go object files.
+// Package objfile reads Go object files for the Go linker, cmd/link.
+//
+// This package is similar to cmd/internal/objfile which also reads
+// Go object files.
+package objfile
 
 import (
 	"bufio"
@@ -51,7 +53,9 @@ type objReader struct {
 	file        []*sym.Symbol
 }
 
-func LoadObjFile(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string) {
+// Load loads an object file f into library lib.
+// The symbols loaded are added to syms.
+func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string) {
 	start := f.Offset()
 	r := &objReader{
 		rd:              f.Reader,
@@ -91,7 +95,7 @@ func (r *objReader) loadObjFile() {
 		r.lib.ImportStrings = append(r.lib.ImportStrings, lib)
 	}
 
-	// sym.Symbol references
+	// Symbol references
 	r.refs = []*sym.Symbol{nil} // zeroth ref is nil
 	for {
 		c, err := r.rd.Peek(1)
