@@ -990,72 +990,72 @@ func fixElfPhdr(e *ElfPhdr) {
 	e.memsz += uint64(frag)
 }
 
-func elf64phdr(e *ElfPhdr) {
+func elf64phdr(out *OutBuf, e *ElfPhdr) {
 	if e.type_ == PT_LOAD {
 		fixElfPhdr(e)
 	}
 
-	Thearch.Lput(e.type_)
-	Thearch.Lput(e.flags)
-	Thearch.Vput(e.off)
-	Thearch.Vput(e.vaddr)
-	Thearch.Vput(e.paddr)
-	Thearch.Vput(e.filesz)
-	Thearch.Vput(e.memsz)
-	Thearch.Vput(e.align)
+	out.Write32(e.type_)
+	out.Write32(e.flags)
+	out.Write64(e.off)
+	out.Write64(e.vaddr)
+	out.Write64(e.paddr)
+	out.Write64(e.filesz)
+	out.Write64(e.memsz)
+	out.Write64(e.align)
 }
 
-func elf32phdr(e *ElfPhdr) {
+func elf32phdr(out *OutBuf, e *ElfPhdr) {
 	if e.type_ == PT_LOAD {
 		fixElfPhdr(e)
 	}
 
-	Thearch.Lput(e.type_)
-	Thearch.Lput(uint32(e.off))
-	Thearch.Lput(uint32(e.vaddr))
-	Thearch.Lput(uint32(e.paddr))
-	Thearch.Lput(uint32(e.filesz))
-	Thearch.Lput(uint32(e.memsz))
-	Thearch.Lput(e.flags)
-	Thearch.Lput(uint32(e.align))
+	out.Write32(e.type_)
+	out.Write32(uint32(e.off))
+	out.Write32(uint32(e.vaddr))
+	out.Write32(uint32(e.paddr))
+	out.Write32(uint32(e.filesz))
+	out.Write32(uint32(e.memsz))
+	out.Write32(e.flags)
+	out.Write32(uint32(e.align))
 }
 
-func elf64shdr(e *ElfShdr) {
-	Thearch.Lput(e.name)
-	Thearch.Lput(e.type_)
-	Thearch.Vput(e.flags)
-	Thearch.Vput(e.addr)
-	Thearch.Vput(e.off)
-	Thearch.Vput(e.size)
-	Thearch.Lput(e.link)
-	Thearch.Lput(e.info)
-	Thearch.Vput(e.addralign)
-	Thearch.Vput(e.entsize)
+func elf64shdr(out *OutBuf, e *ElfShdr) {
+	out.Write32(e.name)
+	out.Write32(e.type_)
+	out.Write64(e.flags)
+	out.Write64(e.addr)
+	out.Write64(e.off)
+	out.Write64(e.size)
+	out.Write32(e.link)
+	out.Write32(e.info)
+	out.Write64(e.addralign)
+	out.Write64(e.entsize)
 }
 
-func elf32shdr(e *ElfShdr) {
-	Thearch.Lput(e.name)
-	Thearch.Lput(e.type_)
-	Thearch.Lput(uint32(e.flags))
-	Thearch.Lput(uint32(e.addr))
-	Thearch.Lput(uint32(e.off))
-	Thearch.Lput(uint32(e.size))
-	Thearch.Lput(e.link)
-	Thearch.Lput(e.info)
-	Thearch.Lput(uint32(e.addralign))
-	Thearch.Lput(uint32(e.entsize))
+func elf32shdr(out *OutBuf, e *ElfShdr) {
+	out.Write32(e.name)
+	out.Write32(e.type_)
+	out.Write32(uint32(e.flags))
+	out.Write32(uint32(e.addr))
+	out.Write32(uint32(e.off))
+	out.Write32(uint32(e.size))
+	out.Write32(e.link)
+	out.Write32(e.info)
+	out.Write32(uint32(e.addralign))
+	out.Write32(uint32(e.entsize))
 }
 
-func elfwriteshdrs() uint32 {
+func elfwriteshdrs(out *OutBuf) uint32 {
 	if elf64 {
 		for i := 0; i < int(ehdr.shnum); i++ {
-			elf64shdr(shdr[i])
+			elf64shdr(out, shdr[i])
 		}
 		return uint32(ehdr.shnum) * ELF64SHDRSIZE
 	}
 
 	for i := 0; i < int(ehdr.shnum); i++ {
-		elf32shdr(shdr[i])
+		elf32shdr(out, shdr[i])
 	}
 	return uint32(ehdr.shnum) * ELF32SHDRSIZE
 }
@@ -1071,16 +1071,16 @@ func elfsetstring(s *Symbol, str string, off int) {
 	nelfstr++
 }
 
-func elfwritephdrs() uint32 {
+func elfwritephdrs(out *OutBuf) uint32 {
 	if elf64 {
 		for i := 0; i < int(ehdr.phnum); i++ {
-			elf64phdr(phdr[i])
+			elf64phdr(out, phdr[i])
 		}
 		return uint32(ehdr.phnum) * ELF64PHDRSIZE
 	}
 
 	for i := 0; i < int(ehdr.phnum); i++ {
-		elf32phdr(phdr[i])
+		elf32phdr(out, phdr[i])
 	}
 	return uint32(ehdr.phnum) * ELF32PHDRSIZE
 }
@@ -1119,47 +1119,47 @@ func getElfEhdr() *ElfEhdr {
 	return &ehdr
 }
 
-func elf64writehdr() uint32 {
-	Cwrite(ehdr.ident[:])
-	Thearch.Wput(ehdr.type_)
-	Thearch.Wput(ehdr.machine)
-	Thearch.Lput(ehdr.version)
-	Thearch.Vput(ehdr.entry)
-	Thearch.Vput(ehdr.phoff)
-	Thearch.Vput(ehdr.shoff)
-	Thearch.Lput(ehdr.flags)
-	Thearch.Wput(ehdr.ehsize)
-	Thearch.Wput(ehdr.phentsize)
-	Thearch.Wput(ehdr.phnum)
-	Thearch.Wput(ehdr.shentsize)
-	Thearch.Wput(ehdr.shnum)
-	Thearch.Wput(ehdr.shstrndx)
+func elf64writehdr(out *OutBuf) uint32 {
+	out.Write(ehdr.ident[:])
+	out.Write16(ehdr.type_)
+	out.Write16(ehdr.machine)
+	out.Write32(ehdr.version)
+	out.Write64(ehdr.entry)
+	out.Write64(ehdr.phoff)
+	out.Write64(ehdr.shoff)
+	out.Write32(ehdr.flags)
+	out.Write16(ehdr.ehsize)
+	out.Write16(ehdr.phentsize)
+	out.Write16(ehdr.phnum)
+	out.Write16(ehdr.shentsize)
+	out.Write16(ehdr.shnum)
+	out.Write16(ehdr.shstrndx)
 	return ELF64HDRSIZE
 }
 
-func elf32writehdr() uint32 {
-	Cwrite(ehdr.ident[:])
-	Thearch.Wput(ehdr.type_)
-	Thearch.Wput(ehdr.machine)
-	Thearch.Lput(ehdr.version)
-	Thearch.Lput(uint32(ehdr.entry))
-	Thearch.Lput(uint32(ehdr.phoff))
-	Thearch.Lput(uint32(ehdr.shoff))
-	Thearch.Lput(ehdr.flags)
-	Thearch.Wput(ehdr.ehsize)
-	Thearch.Wput(ehdr.phentsize)
-	Thearch.Wput(ehdr.phnum)
-	Thearch.Wput(ehdr.shentsize)
-	Thearch.Wput(ehdr.shnum)
-	Thearch.Wput(ehdr.shstrndx)
+func elf32writehdr(out *OutBuf) uint32 {
+	out.Write(ehdr.ident[:])
+	out.Write16(ehdr.type_)
+	out.Write16(ehdr.machine)
+	out.Write32(ehdr.version)
+	out.Write32(uint32(ehdr.entry))
+	out.Write32(uint32(ehdr.phoff))
+	out.Write32(uint32(ehdr.shoff))
+	out.Write32(ehdr.flags)
+	out.Write16(ehdr.ehsize)
+	out.Write16(ehdr.phentsize)
+	out.Write16(ehdr.phnum)
+	out.Write16(ehdr.shentsize)
+	out.Write16(ehdr.shnum)
+	out.Write16(ehdr.shstrndx)
 	return ELF32HDRSIZE
 }
 
-func elfwritehdr() uint32 {
+func elfwritehdr(out *OutBuf) uint32 {
 	if elf64 {
-		return elf64writehdr()
+		return elf64writehdr(out)
 	}
-	return elf32writehdr()
+	return elf32writehdr(out)
 }
 
 /* Taken directly from the definition document for ELF64 */
@@ -1217,11 +1217,11 @@ func elfinterp(sh *ElfShdr, startva uint64, resoff uint64, p string) int {
 	return n
 }
 
-func elfwriteinterp() int {
+func elfwriteinterp(out *OutBuf) int {
 	sh := elfshname(".interp")
-	Cseek(int64(sh.off))
-	coutbuf.WriteString(interp)
-	Cput(0)
+	out.SeekSet(int64(sh.off))
+	out.WriteString(interp)
+	out.Write8(0)
 	return int(sh.size)
 }
 
@@ -1240,15 +1240,15 @@ func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sz int, alloc bool) int
 	return int(n)
 }
 
-func elfwritenotehdr(str string, namesz uint32, descsz uint32, tag uint32) *ElfShdr {
+func elfwritenotehdr(out *OutBuf, str string, namesz uint32, descsz uint32, tag uint32) *ElfShdr {
 	sh := elfshname(str)
 
 	// Write Elf_Note header.
-	Cseek(int64(sh.off))
+	out.SeekSet(int64(sh.off))
 
-	Thearch.Lput(namesz)
-	Thearch.Lput(descsz)
-	Thearch.Lput(tag)
+	out.Write32(namesz)
+	out.Write32(descsz)
+	out.Write32(tag)
 
 	return sh
 }
@@ -1268,19 +1268,18 @@ func elfnetbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
 	return elfnote(sh, startva, resoff, n, true)
 }
 
-func elfwritenetbsdsig() int {
+func elfwritenetbsdsig(out *OutBuf) int {
 	// Write Elf_Note header.
-	sh := elfwritenotehdr(".note.netbsd.ident", ELF_NOTE_NETBSD_NAMESZ, ELF_NOTE_NETBSD_DESCSZ, ELF_NOTE_NETBSD_TAG)
+	sh := elfwritenotehdr(out, ".note.netbsd.ident", ELF_NOTE_NETBSD_NAMESZ, ELF_NOTE_NETBSD_DESCSZ, ELF_NOTE_NETBSD_TAG)
 
 	if sh == nil {
 		return 0
 	}
 
 	// Followed by NetBSD string and version.
-	Cwrite(ELF_NOTE_NETBSD_NAME)
-	Cput(0)
-
-	Thearch.Lput(ELF_NOTE_NETBSD_VERSION)
+	out.Write(ELF_NOTE_NETBSD_NAME)
+	out.Write8(0)
+	out.Write32(ELF_NOTE_NETBSD_VERSION)
 
 	return int(sh.size)
 }
@@ -1300,18 +1299,18 @@ func elfopenbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
 	return elfnote(sh, startva, resoff, n, true)
 }
 
-func elfwriteopenbsdsig() int {
+func elfwriteopenbsdsig(out *OutBuf) int {
 	// Write Elf_Note header.
-	sh := elfwritenotehdr(".note.openbsd.ident", ELF_NOTE_OPENBSD_NAMESZ, ELF_NOTE_OPENBSD_DESCSZ, ELF_NOTE_OPENBSD_TAG)
+	sh := elfwritenotehdr(out, ".note.openbsd.ident", ELF_NOTE_OPENBSD_NAMESZ, ELF_NOTE_OPENBSD_DESCSZ, ELF_NOTE_OPENBSD_TAG)
 
 	if sh == nil {
 		return 0
 	}
 
 	// Followed by OpenBSD string and version.
-	Cwrite(ELF_NOTE_OPENBSD_NAME)
+	out.Write(ELF_NOTE_OPENBSD_NAME)
 
-	Thearch.Lput(ELF_NOTE_OPENBSD_VERSION)
+	out.Write32(ELF_NOTE_OPENBSD_VERSION)
 
 	return int(sh.size)
 }
@@ -1361,30 +1360,30 @@ func elfgobuildid(sh *ElfShdr, startva uint64, resoff uint64) int {
 	return elfnote(sh, startva, resoff, n, true)
 }
 
-func elfwritebuildinfo() int {
-	sh := elfwritenotehdr(".note.gnu.build-id", ELF_NOTE_BUILDINFO_NAMESZ, uint32(len(buildinfo)), ELF_NOTE_BUILDINFO_TAG)
+func elfwritebuildinfo(out *OutBuf) int {
+	sh := elfwritenotehdr(out, ".note.gnu.build-id", ELF_NOTE_BUILDINFO_NAMESZ, uint32(len(buildinfo)), ELF_NOTE_BUILDINFO_TAG)
 	if sh == nil {
 		return 0
 	}
 
-	Cwrite(ELF_NOTE_BUILDINFO_NAME)
-	Cwrite(buildinfo)
+	out.Write(ELF_NOTE_BUILDINFO_NAME)
+	out.Write(buildinfo)
 	var zero = make([]byte, 4)
-	Cwrite(zero[:int(Rnd(int64(len(buildinfo)), 4)-int64(len(buildinfo)))])
+	out.Write(zero[:int(Rnd(int64(len(buildinfo)), 4)-int64(len(buildinfo)))])
 
 	return int(sh.size)
 }
 
-func elfwritegobuildid() int {
-	sh := elfwritenotehdr(".note.go.buildid", uint32(len(ELF_NOTE_GO_NAME)), uint32(len(*flagBuildid)), ELF_NOTE_GOBUILDID_TAG)
+func elfwritegobuildid(out *OutBuf) int {
+	sh := elfwritenotehdr(out, ".note.go.buildid", uint32(len(ELF_NOTE_GO_NAME)), uint32(len(*flagBuildid)), ELF_NOTE_GOBUILDID_TAG)
 	if sh == nil {
 		return 0
 	}
 
-	Cwrite(ELF_NOTE_GO_NAME)
-	Cwrite([]byte(*flagBuildid))
+	out.Write(ELF_NOTE_GO_NAME)
+	out.Write([]byte(*flagBuildid))
 	var zero = make([]byte, 4)
-	Cwrite(zero[:int(Rnd(int64(len(*flagBuildid)), 4)-int64(len(*flagBuildid)))])
+	out.Write(zero[:int(Rnd(int64(len(*flagBuildid)), 4)-int64(len(*flagBuildid)))])
 
 	return int(sh.size)
 }
@@ -1766,7 +1765,7 @@ func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 		return
 	}
 
-	sect.Reloff = uint64(coutbuf.Offset())
+	sect.Reloff = uint64(ctxt.Out.Offset())
 	for i, s := range syms {
 		if !s.Attr.Reachable() {
 			continue
@@ -1806,12 +1805,12 @@ func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 		}
 	}
 
-	sect.Rellen = uint64(coutbuf.Offset()) - sect.Reloff
+	sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
 }
 
 func Elfemitreloc(ctxt *Link) {
-	for coutbuf.Offset()&7 != 0 {
-		Cput(0)
+	for ctxt.Out.Offset()&7 != 0 {
+		ctxt.Out.Write8(0)
 	}
 
 	for _, sect := range Segtext.Sections {
@@ -2655,26 +2654,26 @@ elfobj:
 		pph.memsz = pph.filesz
 	}
 
-	Cseek(0)
+	ctxt.Out.SeekSet(0)
 	a := int64(0)
-	a += int64(elfwritehdr())
-	a += int64(elfwritephdrs())
-	a += int64(elfwriteshdrs())
+	a += int64(elfwritehdr(ctxt.Out))
+	a += int64(elfwritephdrs(ctxt.Out))
+	a += int64(elfwriteshdrs(ctxt.Out))
 	if !*FlagD {
-		a += int64(elfwriteinterp())
+		a += int64(elfwriteinterp(ctxt.Out))
 	}
 	if Linkmode != LinkExternal {
 		if Headtype == objabi.Hnetbsd {
-			a += int64(elfwritenetbsdsig())
+			a += int64(elfwritenetbsdsig(ctxt.Out))
 		}
 		if Headtype == objabi.Hopenbsd {
-			a += int64(elfwriteopenbsdsig())
+			a += int64(elfwriteopenbsdsig(ctxt.Out))
 		}
 		if len(buildinfo) > 0 {
-			a += int64(elfwritebuildinfo())
+			a += int64(elfwritebuildinfo(ctxt.Out))
 		}
 		if *flagBuildid != "" {
-			a += int64(elfwritegobuildid())
+			a += int64(elfwritegobuildid(ctxt.Out))
 		}
 	}
 

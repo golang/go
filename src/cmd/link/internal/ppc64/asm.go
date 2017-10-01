@@ -370,7 +370,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 }
 
 func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
-	ld.Thearch.Vput(uint64(sectoff))
+	ctxt.Out.Write64(uint64(sectoff))
 
 	elfsym := r.Xsym.ElfsymForReloc()
 	switch r.Type {
@@ -379,60 +379,60 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
 	case objabi.R_ADDR:
 		switch r.Siz {
 		case 4:
-			ld.Thearch.Vput(ld.R_PPC64_ADDR32 | uint64(elfsym)<<32)
+			ctxt.Out.Write64(ld.R_PPC64_ADDR32 | uint64(elfsym)<<32)
 		case 8:
-			ld.Thearch.Vput(ld.R_PPC64_ADDR64 | uint64(elfsym)<<32)
+			ctxt.Out.Write64(ld.R_PPC64_ADDR64 | uint64(elfsym)<<32)
 		default:
 			return false
 		}
 	case objabi.R_POWER_TLS:
-		ld.Thearch.Vput(ld.R_PPC64_TLS | uint64(elfsym)<<32)
+		ctxt.Out.Write64(ld.R_PPC64_TLS | uint64(elfsym)<<32)
 	case objabi.R_POWER_TLS_LE:
-		ld.Thearch.Vput(ld.R_PPC64_TPREL16 | uint64(elfsym)<<32)
+		ctxt.Out.Write64(ld.R_PPC64_TPREL16 | uint64(elfsym)<<32)
 	case objabi.R_POWER_TLS_IE:
-		ld.Thearch.Vput(ld.R_PPC64_GOT_TPREL16_HA | uint64(elfsym)<<32)
-		ld.Thearch.Vput(uint64(r.Xadd))
-		ld.Thearch.Vput(uint64(sectoff + 4))
-		ld.Thearch.Vput(ld.R_PPC64_GOT_TPREL16_LO_DS | uint64(elfsym)<<32)
+		ctxt.Out.Write64(ld.R_PPC64_GOT_TPREL16_HA | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(r.Xadd))
+		ctxt.Out.Write64(uint64(sectoff + 4))
+		ctxt.Out.Write64(ld.R_PPC64_GOT_TPREL16_LO_DS | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER:
-		ld.Thearch.Vput(ld.R_PPC64_ADDR16_HA | uint64(elfsym)<<32)
-		ld.Thearch.Vput(uint64(r.Xadd))
-		ld.Thearch.Vput(uint64(sectoff + 4))
-		ld.Thearch.Vput(ld.R_PPC64_ADDR16_LO | uint64(elfsym)<<32)
+		ctxt.Out.Write64(ld.R_PPC64_ADDR16_HA | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(r.Xadd))
+		ctxt.Out.Write64(uint64(sectoff + 4))
+		ctxt.Out.Write64(ld.R_PPC64_ADDR16_LO | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER_DS:
-		ld.Thearch.Vput(ld.R_PPC64_ADDR16_HA | uint64(elfsym)<<32)
-		ld.Thearch.Vput(uint64(r.Xadd))
-		ld.Thearch.Vput(uint64(sectoff + 4))
-		ld.Thearch.Vput(ld.R_PPC64_ADDR16_LO_DS | uint64(elfsym)<<32)
+		ctxt.Out.Write64(ld.R_PPC64_ADDR16_HA | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(r.Xadd))
+		ctxt.Out.Write64(uint64(sectoff + 4))
+		ctxt.Out.Write64(ld.R_PPC64_ADDR16_LO_DS | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER_GOT:
-		ld.Thearch.Vput(ld.R_PPC64_GOT16_HA | uint64(elfsym)<<32)
-		ld.Thearch.Vput(uint64(r.Xadd))
-		ld.Thearch.Vput(uint64(sectoff + 4))
-		ld.Thearch.Vput(ld.R_PPC64_GOT16_LO_DS | uint64(elfsym)<<32)
+		ctxt.Out.Write64(ld.R_PPC64_GOT16_HA | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(r.Xadd))
+		ctxt.Out.Write64(uint64(sectoff + 4))
+		ctxt.Out.Write64(ld.R_PPC64_GOT16_LO_DS | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER_PCREL:
-		ld.Thearch.Vput(ld.R_PPC64_REL16_HA | uint64(elfsym)<<32)
-		ld.Thearch.Vput(uint64(r.Xadd))
-		ld.Thearch.Vput(uint64(sectoff + 4))
-		ld.Thearch.Vput(ld.R_PPC64_REL16_LO | uint64(elfsym)<<32)
+		ctxt.Out.Write64(ld.R_PPC64_REL16_HA | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(r.Xadd))
+		ctxt.Out.Write64(uint64(sectoff + 4))
+		ctxt.Out.Write64(ld.R_PPC64_REL16_LO | uint64(elfsym)<<32)
 		r.Xadd += 4
 	case objabi.R_ADDRPOWER_TOCREL:
-		ld.Thearch.Vput(ld.R_PPC64_TOC16_HA | uint64(elfsym)<<32)
-		ld.Thearch.Vput(uint64(r.Xadd))
-		ld.Thearch.Vput(uint64(sectoff + 4))
-		ld.Thearch.Vput(ld.R_PPC64_TOC16_LO | uint64(elfsym)<<32)
+		ctxt.Out.Write64(ld.R_PPC64_TOC16_HA | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(r.Xadd))
+		ctxt.Out.Write64(uint64(sectoff + 4))
+		ctxt.Out.Write64(ld.R_PPC64_TOC16_LO | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER_TOCREL_DS:
-		ld.Thearch.Vput(ld.R_PPC64_TOC16_HA | uint64(elfsym)<<32)
-		ld.Thearch.Vput(uint64(r.Xadd))
-		ld.Thearch.Vput(uint64(sectoff + 4))
-		ld.Thearch.Vput(ld.R_PPC64_TOC16_LO_DS | uint64(elfsym)<<32)
+		ctxt.Out.Write64(ld.R_PPC64_TOC16_HA | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(r.Xadd))
+		ctxt.Out.Write64(uint64(sectoff + 4))
+		ctxt.Out.Write64(ld.R_PPC64_TOC16_LO_DS | uint64(elfsym)<<32)
 	case objabi.R_CALLPOWER:
 		if r.Siz != 4 {
 			return false
 		}
-		ld.Thearch.Vput(ld.R_PPC64_REL24 | uint64(elfsym)<<32)
+		ctxt.Out.Write64(ld.R_PPC64_REL24 | uint64(elfsym)<<32)
 
 	}
-	ld.Thearch.Vput(uint64(r.Xadd))
+	ctxt.Out.Write64(uint64(r.Xadd))
 
 	return true
 }
@@ -448,7 +448,7 @@ func elfsetupplt(ctxt *ld.Link) {
 	}
 }
 
-func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	return false
 }
 
@@ -910,7 +910,7 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	for _, sect := range ld.Segtext.Sections {
-		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+		ctxt.Out.SeekSet(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
 		// Handle additional text sections with Codeblk
 		if sect.Name == ".text" {
 			ld.Codeblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
@@ -923,14 +923,14 @@ func asmb(ctxt *ld.Link) {
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("%5.2f rodatblk\n", ld.Cputime())
 		}
-		ld.Cseek(int64(ld.Segrodata.Fileoff))
+		ctxt.Out.SeekSet(int64(ld.Segrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
 	}
 	if ld.Segrelrodata.Filelen > 0 {
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("%5.2f relrodatblk\n", ld.Cputime())
 		}
-		ld.Cseek(int64(ld.Segrelrodata.Fileoff))
+		ctxt.Out.SeekSet(int64(ld.Segrelrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrelrodata.Vaddr), int64(ld.Segrelrodata.Filelen))
 	}
 
@@ -938,10 +938,10 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Logf("%5.2f datblk\n", ld.Cputime())
 	}
 
-	ld.Cseek(int64(ld.Segdata.Fileoff))
+	ctxt.Out.SeekSet(int64(ld.Segdata.Fileoff))
 	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
 
-	ld.Cseek(int64(ld.Segdwarf.Fileoff))
+	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
 	/* output symbol table */
@@ -965,7 +965,7 @@ func asmb(ctxt *ld.Link) {
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
 		}
 
-		ld.Cseek(int64(symo))
+		ctxt.Out.SeekSet(int64(symo))
 		switch ld.Headtype {
 		default:
 			if ld.Iself {
@@ -973,8 +973,8 @@ func asmb(ctxt *ld.Link) {
 					ctxt.Logf("%5.2f elfsym\n", ld.Cputime())
 				}
 				ld.Asmelfsym(ctxt)
-				ld.Cflush()
-				ld.Cwrite(ld.Elfstrdat)
+				ctxt.Out.Flush()
+				ctxt.Out.Write(ld.Elfstrdat)
 
 				if ld.Linkmode == ld.LinkExternal {
 					ld.Elfemitreloc(ctxt)
@@ -983,13 +983,13 @@ func asmb(ctxt *ld.Link) {
 
 		case objabi.Hplan9:
 			ld.Asmplan9sym(ctxt)
-			ld.Cflush()
+			ctxt.Out.Flush()
 
 			sym := ctxt.Syms.Lookup("pclntab", 0)
 			if sym != nil {
 				ld.Lcsize = int32(len(sym.P))
-				ld.Cwrite(sym.P)
-				ld.Cflush()
+				ctxt.Out.Write(sym.P)
+				ctxt.Out.Flush()
 			}
 		}
 	}
@@ -997,18 +997,18 @@ func asmb(ctxt *ld.Link) {
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%5.2f header\n", ld.Cputime())
 	}
-	ld.Cseek(0)
+	ctxt.Out.SeekSet(0)
 	switch ld.Headtype {
 	default:
 	case objabi.Hplan9: /* plan 9 */
-		ld.Thearch.Lput(0x647)                      /* magic */
-		ld.Thearch.Lput(uint32(ld.Segtext.Filelen)) /* sizes */
-		ld.Thearch.Lput(uint32(ld.Segdata.Filelen))
-		ld.Thearch.Lput(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
-		ld.Thearch.Lput(uint32(ld.Symsize))          /* nsyms */
-		ld.Thearch.Lput(uint32(ld.Entryvalue(ctxt))) /* va of entry */
-		ld.Thearch.Lput(0)
-		ld.Thearch.Lput(uint32(ld.Lcsize))
+		ctxt.Out.Write32(0x647)                      /* magic */
+		ctxt.Out.Write32(uint32(ld.Segtext.Filelen)) /* sizes */
+		ctxt.Out.Write32(uint32(ld.Segdata.Filelen))
+		ctxt.Out.Write32(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+		ctxt.Out.Write32(uint32(ld.Symsize))          /* nsyms */
+		ctxt.Out.Write32(uint32(ld.Entryvalue(ctxt))) /* va of entry */
+		ctxt.Out.Write32(0)
+		ctxt.Out.Write32(uint32(ld.Lcsize))
 
 	case objabi.Hlinux,
 		objabi.Hfreebsd,
@@ -1018,7 +1018,7 @@ func asmb(ctxt *ld.Link) {
 		ld.Asmbelf(ctxt, int64(symo))
 	}
 
-	ld.Cflush()
+	ctxt.Out.Flush()
 	if *ld.FlagC {
 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)

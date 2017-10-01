@@ -93,7 +93,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 }
 
 func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
-	ld.Thearch.Vput(uint64(sectoff))
+	ctxt.Out.Write64(uint64(sectoff))
 
 	elfsym := r.Xsym.ElfsymForReloc()
 	switch r.Type {
@@ -102,38 +102,38 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
 	case objabi.R_ADDR:
 		switch r.Siz {
 		case 4:
-			ld.Thearch.Vput(ld.R_AARCH64_ABS32 | uint64(elfsym)<<32)
+			ctxt.Out.Write64(ld.R_AARCH64_ABS32 | uint64(elfsym)<<32)
 		case 8:
-			ld.Thearch.Vput(ld.R_AARCH64_ABS64 | uint64(elfsym)<<32)
+			ctxt.Out.Write64(ld.R_AARCH64_ABS64 | uint64(elfsym)<<32)
 		default:
 			return false
 		}
 	case objabi.R_ADDRARM64:
 		// two relocations: R_AARCH64_ADR_PREL_PG_HI21 and R_AARCH64_ADD_ABS_LO12_NC
-		ld.Thearch.Vput(ld.R_AARCH64_ADR_PREL_PG_HI21 | uint64(elfsym)<<32)
-		ld.Thearch.Vput(uint64(r.Xadd))
-		ld.Thearch.Vput(uint64(sectoff + 4))
-		ld.Thearch.Vput(ld.R_AARCH64_ADD_ABS_LO12_NC | uint64(elfsym)<<32)
+		ctxt.Out.Write64(ld.R_AARCH64_ADR_PREL_PG_HI21 | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(r.Xadd))
+		ctxt.Out.Write64(uint64(sectoff + 4))
+		ctxt.Out.Write64(ld.R_AARCH64_ADD_ABS_LO12_NC | uint64(elfsym)<<32)
 	case objabi.R_ARM64_TLS_LE:
-		ld.Thearch.Vput(ld.R_AARCH64_TLSLE_MOVW_TPREL_G0 | uint64(elfsym)<<32)
+		ctxt.Out.Write64(ld.R_AARCH64_TLSLE_MOVW_TPREL_G0 | uint64(elfsym)<<32)
 	case objabi.R_ARM64_TLS_IE:
-		ld.Thearch.Vput(ld.R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21 | uint64(elfsym)<<32)
-		ld.Thearch.Vput(uint64(r.Xadd))
-		ld.Thearch.Vput(uint64(sectoff + 4))
-		ld.Thearch.Vput(ld.R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC | uint64(elfsym)<<32)
+		ctxt.Out.Write64(ld.R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21 | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(r.Xadd))
+		ctxt.Out.Write64(uint64(sectoff + 4))
+		ctxt.Out.Write64(ld.R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC | uint64(elfsym)<<32)
 	case objabi.R_ARM64_GOTPCREL:
-		ld.Thearch.Vput(ld.R_AARCH64_ADR_GOT_PAGE | uint64(elfsym)<<32)
-		ld.Thearch.Vput(uint64(r.Xadd))
-		ld.Thearch.Vput(uint64(sectoff + 4))
-		ld.Thearch.Vput(ld.R_AARCH64_LD64_GOT_LO12_NC | uint64(elfsym)<<32)
+		ctxt.Out.Write64(ld.R_AARCH64_ADR_GOT_PAGE | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(r.Xadd))
+		ctxt.Out.Write64(uint64(sectoff + 4))
+		ctxt.Out.Write64(ld.R_AARCH64_LD64_GOT_LO12_NC | uint64(elfsym)<<32)
 	case objabi.R_CALLARM64:
 		if r.Siz != 4 {
 			return false
 		}
-		ld.Thearch.Vput(ld.R_AARCH64_CALL26 | uint64(elfsym)<<32)
+		ctxt.Out.Write64(ld.R_AARCH64_CALL26 | uint64(elfsym)<<32)
 
 	}
-	ld.Thearch.Vput(uint64(r.Xadd))
+	ctxt.Out.Write64(uint64(r.Xadd))
 
 	return true
 }
@@ -143,7 +143,7 @@ func elfsetupplt(ctxt *ld.Link) {
 	return
 }
 
-func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	var v uint32
 
 	rs := r.Xsym
@@ -184,14 +184,14 @@ func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool 
 		// Two relocation entries: MACHO_ARM64_RELOC_PAGEOFF12 MACHO_ARM64_RELOC_PAGE21
 		// if r.Xadd is non-zero, add two MACHO_ARM64_RELOC_ADDEND.
 		if r.Xadd != 0 {
-			ld.Thearch.Lput(uint32(sectoff + 4))
-			ld.Thearch.Lput((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
+			out.Write32(uint32(sectoff + 4))
+			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
 		}
-		ld.Thearch.Lput(uint32(sectoff + 4))
-		ld.Thearch.Lput(v | (ld.MACHO_ARM64_RELOC_PAGEOFF12 << 28) | (2 << 25))
+		out.Write32(uint32(sectoff + 4))
+		out.Write32(v | (ld.MACHO_ARM64_RELOC_PAGEOFF12 << 28) | (2 << 25))
 		if r.Xadd != 0 {
-			ld.Thearch.Lput(uint32(sectoff))
-			ld.Thearch.Lput((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
+			out.Write32(uint32(sectoff))
+			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
 		}
 		v |= 1 << 24 // pc-relative bit
 		v |= ld.MACHO_ARM64_RELOC_PAGE21 << 28
@@ -210,8 +210,8 @@ func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool 
 		v |= 3 << 25
 	}
 
-	ld.Thearch.Lput(uint32(sectoff))
-	ld.Thearch.Lput(v)
+	out.Write32(uint32(sectoff))
+	out.Write32(v)
 	return true
 }
 
@@ -382,10 +382,10 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	sect := ld.Segtext.Sections[0]
-	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+	ctxt.Out.SeekSet(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
 	ld.Codeblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
 	for _, sect = range ld.Segtext.Sections[1:] {
-		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+		ctxt.Out.SeekSet(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
 		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
 	}
 
@@ -393,14 +393,14 @@ func asmb(ctxt *ld.Link) {
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("%5.2f rodatblk\n", ld.Cputime())
 		}
-		ld.Cseek(int64(ld.Segrodata.Fileoff))
+		ctxt.Out.SeekSet(int64(ld.Segrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
 	}
 	if ld.Segrelrodata.Filelen > 0 {
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("%5.2f relrodatblk\n", ld.Cputime())
 		}
-		ld.Cseek(int64(ld.Segrelrodata.Fileoff))
+		ctxt.Out.SeekSet(int64(ld.Segrelrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrelrodata.Vaddr), int64(ld.Segrelrodata.Filelen))
 	}
 
@@ -408,10 +408,10 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Logf("%5.2f datblk\n", ld.Cputime())
 	}
 
-	ld.Cseek(int64(ld.Segdata.Fileoff))
+	ctxt.Out.SeekSet(int64(ld.Segdata.Fileoff))
 	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
 
-	ld.Cseek(int64(ld.Segdwarf.Fileoff))
+	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
 	machlink := uint32(0)
@@ -443,7 +443,7 @@ func asmb(ctxt *ld.Link) {
 			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
 		}
 
-		ld.Cseek(int64(symo))
+		ctxt.Out.SeekSet(int64(symo))
 		switch ld.Headtype {
 		default:
 			if ld.Iself {
@@ -451,8 +451,8 @@ func asmb(ctxt *ld.Link) {
 					ctxt.Logf("%5.2f elfsym\n", ld.Cputime())
 				}
 				ld.Asmelfsym(ctxt)
-				ld.Cflush()
-				ld.Cwrite(ld.Elfstrdat)
+				ctxt.Out.Flush()
+				ctxt.Out.Write(ld.Elfstrdat)
 
 				if ld.Linkmode == ld.LinkExternal {
 					ld.Elfemitreloc(ctxt)
@@ -461,13 +461,13 @@ func asmb(ctxt *ld.Link) {
 
 		case objabi.Hplan9:
 			ld.Asmplan9sym(ctxt)
-			ld.Cflush()
+			ctxt.Out.Flush()
 
 			sym := ctxt.Syms.Lookup("pclntab", 0)
 			if sym != nil {
 				ld.Lcsize = int32(len(sym.P))
-				ld.Cwrite(sym.P)
-				ld.Cflush()
+				ctxt.Out.Write(sym.P)
+				ctxt.Out.Flush()
 			}
 
 		case objabi.Hdarwin:
@@ -480,18 +480,18 @@ func asmb(ctxt *ld.Link) {
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%5.2f header\n", ld.Cputime())
 	}
-	ld.Cseek(0)
+	ctxt.Out.SeekSet(0)
 	switch ld.Headtype {
 	default:
 	case objabi.Hplan9: /* plan 9 */
-		ld.Thearch.Lput(0x647)                      /* magic */
-		ld.Thearch.Lput(uint32(ld.Segtext.Filelen)) /* sizes */
-		ld.Thearch.Lput(uint32(ld.Segdata.Filelen))
-		ld.Thearch.Lput(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
-		ld.Thearch.Lput(uint32(ld.Symsize))          /* nsyms */
-		ld.Thearch.Lput(uint32(ld.Entryvalue(ctxt))) /* va of entry */
-		ld.Thearch.Lput(0)
-		ld.Thearch.Lput(uint32(ld.Lcsize))
+		ctxt.Out.Write32(0x647)                      /* magic */
+		ctxt.Out.Write32(uint32(ld.Segtext.Filelen)) /* sizes */
+		ctxt.Out.Write32(uint32(ld.Segdata.Filelen))
+		ctxt.Out.Write32(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+		ctxt.Out.Write32(uint32(ld.Symsize))          /* nsyms */
+		ctxt.Out.Write32(uint32(ld.Entryvalue(ctxt))) /* va of entry */
+		ctxt.Out.Write32(0)
+		ctxt.Out.Write32(uint32(ld.Lcsize))
 
 	case objabi.Hlinux,
 		objabi.Hfreebsd,
@@ -504,7 +504,7 @@ func asmb(ctxt *ld.Link) {
 		ld.Asmbmacho(ctxt)
 	}
 
-	ld.Cflush()
+	ctxt.Out.Flush()
 	if *ld.FlagC {
 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)

@@ -47,6 +47,7 @@ func linknew(arch *sys.Arch) *Link {
 			},
 			Allsym: make([]*Symbol, 0, 100000),
 		},
+		Out:          &OutBuf{arch: arch},
 		Arch:         arch,
 		LibraryByPkg: make(map[string]*Library),
 	}
@@ -54,6 +55,13 @@ func linknew(arch *sys.Arch) *Link {
 	if objabi.GOARCH != arch.Name {
 		log.Fatalf("invalid objabi.GOARCH %s (want %s)", objabi.GOARCH, arch.Name)
 	}
+
+	AtExit(func() {
+		if nerrors > 0 && ctxt.Out.f != nil {
+			ctxt.Out.f.Close()
+			mayberemoveoutfile()
+		}
+	})
 
 	return ctxt
 }

@@ -48,7 +48,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 }
 
 func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
-	ld.Thearch.Lput(uint32(sectoff))
+	ctxt.Out.Write32(uint32(sectoff))
 
 	elfsym := r.Xsym.ElfsymForReloc()
 	switch r.Type {
@@ -58,15 +58,15 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
 		if r.Siz != 4 {
 			return false
 		}
-		ld.Thearch.Lput(ld.R_MIPS_32 | uint32(elfsym)<<8)
+		ctxt.Out.Write32(ld.R_MIPS_32 | uint32(elfsym)<<8)
 	case objabi.R_ADDRMIPS:
-		ld.Thearch.Lput(ld.R_MIPS_LO16 | uint32(elfsym)<<8)
+		ctxt.Out.Write32(ld.R_MIPS_LO16 | uint32(elfsym)<<8)
 	case objabi.R_ADDRMIPSU:
-		ld.Thearch.Lput(ld.R_MIPS_HI16 | uint32(elfsym)<<8)
+		ctxt.Out.Write32(ld.R_MIPS_HI16 | uint32(elfsym)<<8)
 	case objabi.R_ADDRMIPSTLS:
-		ld.Thearch.Lput(ld.R_MIPS_TLS_TPREL_LO16 | uint32(elfsym)<<8)
+		ctxt.Out.Write32(ld.R_MIPS_TLS_TPREL_LO16 | uint32(elfsym)<<8)
 	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
-		ld.Thearch.Lput(ld.R_MIPS_26 | uint32(elfsym)<<8)
+		ctxt.Out.Write32(ld.R_MIPS_26 | uint32(elfsym)<<8)
 	}
 
 	return true
@@ -76,7 +76,7 @@ func elfsetupplt(ctxt *ld.Link) {
 	return
 }
 
-func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	return false
 }
 
@@ -175,10 +175,10 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	sect := ld.Segtext.Sections[0]
-	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+	ctxt.Out.SeekSet(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
 	ld.Codeblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
 	for _, sect = range ld.Segtext.Sections[1:] {
-		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+		ctxt.Out.SeekSet(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
 		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
 	}
 
@@ -187,7 +187,7 @@ func asmb(ctxt *ld.Link) {
 			ctxt.Logf("%5.2f rodatblk\n", ld.Cputime())
 		}
 
-		ld.Cseek(int64(ld.Segrodata.Fileoff))
+		ctxt.Out.SeekSet(int64(ld.Segrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
 	}
 
@@ -195,10 +195,10 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Logf("%5.2f datblk\n", ld.Cputime())
 	}
 
-	ld.Cseek(int64(ld.Segdata.Fileoff))
+	ctxt.Out.SeekSet(int64(ld.Segdata.Fileoff))
 	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
 
-	ld.Cseek(int64(ld.Segdwarf.Fileoff))
+	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
 	/* output symbol table */
@@ -216,13 +216,13 @@ func asmb(ctxt *ld.Link) {
 		symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 		symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
 
-		ld.Cseek(int64(symo))
+		ctxt.Out.SeekSet(int64(symo))
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("%5.2f elfsym\n", ld.Cputime())
 		}
 		ld.Asmelfsym(ctxt)
-		ld.Cflush()
-		ld.Cwrite(ld.Elfstrdat)
+		ctxt.Out.Flush()
+		ctxt.Out.Write(ld.Elfstrdat)
 
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("%5.2f dwarf\n", ld.Cputime())
@@ -237,7 +237,7 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Logf("%5.2f header\n", ld.Cputime())
 	}
 
-	ld.Cseek(0)
+	ctxt.Out.SeekSet(0)
 	switch ld.Headtype {
 	default:
 		ld.Errorf(nil, "unsupported operating system")
@@ -245,7 +245,7 @@ func asmb(ctxt *ld.Link) {
 		ld.Asmbelf(ctxt, int64(symo))
 	}
 
-	ld.Cflush()
+	ctxt.Out.Flush()
 	if *ld.FlagC {
 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)

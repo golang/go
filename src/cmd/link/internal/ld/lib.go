@@ -105,14 +105,8 @@ type Arch struct {
 	Elfreloc1        func(*Link, *Reloc, int64) bool
 	Elfsetupplt      func(*Link)
 	Gentext          func(*Link)
-	Machoreloc1      func(*sys.Arch, *Symbol, *Reloc, int64) bool
-	PEreloc1         func(*sys.Arch, *Symbol, *Reloc, int64) bool
-	Wput             func(uint16)
-	Lput             func(uint32)
-	Vput             func(uint64)
-	Append16         func(b []byte, v uint16) []byte
-	Append32         func(b []byte, v uint32) []byte
-	Append64         func(b []byte, v uint64) []byte
+	Machoreloc1      func(*sys.Arch, *OutBuf, *Symbol, *Reloc, int64) bool
+	PEreloc1         func(*sys.Arch, *OutBuf, *Symbol, *Reloc, int64) bool
 
 	// TLSIEtoLE converts a TLS Initial Executable relocation to
 	// a TLS Local Executable relocation.
@@ -220,31 +214,6 @@ const (
 	Pkgdef
 )
 
-// TODO(dfc) outBuf duplicates bio.Writer
-type outBuf struct {
-	w   *bufio.Writer
-	f   *os.File
-	off int64
-}
-
-func (w *outBuf) Write(p []byte) (n int, err error) {
-	n, err = w.w.Write(p)
-	w.off += int64(n)
-	return n, err
-}
-
-func (w *outBuf) WriteString(s string) (n int, err error) {
-	n, err = coutbuf.w.WriteString(s)
-	w.off += int64(n)
-	return n, err
-}
-
-func (w *outBuf) Offset() int64 {
-	return w.off
-}
-
-var coutbuf outBuf
-
 const pkgdef = "__.PKGDEF"
 
 var (
@@ -297,8 +266,8 @@ func libinit(ctxt *Link) {
 		Exitf("cannot create %s: %v", *flagOutfile, err)
 	}
 
-	coutbuf.w = bufio.NewWriter(f)
-	coutbuf.f = f
+	ctxt.Out.w = bufio.NewWriter(f)
+	ctxt.Out.f = f
 
 	if *flagEntrySymbol == "" {
 		switch Buildmode {
@@ -315,23 +284,9 @@ func libinit(ctxt *Link) {
 }
 
 func errorexit() {
-	if coutbuf.f != nil {
-		if nerrors != 0 {
-			Cflush()
-		}
-		// For rmtemp run at atexit time on Windows.
-		if err := coutbuf.f.Close(); err != nil {
-			Exitf("close: %v", err)
-		}
-	}
-
 	if nerrors != 0 {
-		if coutbuf.f != nil {
-			mayberemoveoutfile()
-		}
 		Exit(2)
 	}
-
 	Exit(0)
 }
 
@@ -606,7 +561,7 @@ func (ctxt *Link) loadlib() {
 			}
 		}
 	} else {
-		hostlinksetup()
+		hostlinksetup(ctxt)
 	}
 
 	// We've loaded all the code now.
@@ -934,7 +889,7 @@ func rmtemp() {
 	os.RemoveAll(*flagTmpdir)
 }
 
-func hostlinksetup() {
+func hostlinksetup(ctxt *Link) {
 	if Linkmode != LinkExternal {
 		return
 	}
@@ -956,7 +911,7 @@ func hostlinksetup() {
 	}
 
 	// change our output to temporary object file
-	coutbuf.f.Close()
+	ctxt.Out.f.Close()
 	mayberemoveoutfile()
 
 	p := filepath.Join(*flagTmpdir, "go.o")
@@ -966,8 +921,9 @@ func hostlinksetup() {
 		Exitf("cannot create %s: %v", p, err)
 	}
 
-	coutbuf.w = bufio.NewWriter(f)
-	coutbuf.f = f
+	ctxt.Out.w = bufio.NewWriter(f)
+	ctxt.Out.f = f
+	ctxt.Out.off = 0
 }
 
 // hostobjCopy creates a copy of the object files in hostobj in a
@@ -1048,11 +1004,11 @@ func (ctxt *Link) archive() {
 
 	// Force the buffer to flush here so that external
 	// tools will see a complete file.
-	Cflush()
-	if err := coutbuf.f.Close(); err != nil {
+	ctxt.Out.Flush()
+	if err := ctxt.Out.f.Close(); err != nil {
 		Exitf("close: %v", err)
 	}
-	coutbuf.f = nil
+	ctxt.Out.f = nil
 
 	argv := []string{*flagExtar, "-q", "-c", "-s", *flagOutfile}
 	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
@@ -1905,36 +1861,6 @@ func stkprint(ctxt *Link, ch *chain, limit int) {
 	if ch.limit != limit {
 		fmt.Printf("\t%d\tafter %s uses %d\n", limit, name, ch.limit-limit)
 	}
-}
-
-func Cflush() {
-	if err := coutbuf.w.Flush(); err != nil {
-		Exitf("flushing %s: %v", coutbuf.f.Name(), err)
-	}
-}
-
-func Cseek(p int64) {
-	if p == coutbuf.off {
-		return
-	}
-	Cflush()
-	if _, err := coutbuf.f.Seek(p, 0); err != nil {
-		Exitf("seeking in output [0, 1]: %v", err)
-	}
-	coutbuf.off = p
-}
-
-func Cwritestring(s string) {
-	coutbuf.WriteString(s)
-}
-
-func Cwrite(p []byte) {
-	coutbuf.Write(p)
-}
-
-func Cput(c uint8) {
-	coutbuf.w.WriteByte(c)
-	coutbuf.off++
 }
 
 func usage() {

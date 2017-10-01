@@ -56,12 +56,6 @@ func Init() (*sys.Arch, ld.Arch) {
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,
-		Lput:             ld.Lputl,
-		Wput:             ld.Wputl,
-		Vput:             ld.Vputl,
-		Append16:         ld.Append16l,
-		Append32:         ld.Append32l,
-		Append64:         ld.Append64l,
 
 		Linuxdynld: "/lib/ld-linux-aarch64.so.1",
 

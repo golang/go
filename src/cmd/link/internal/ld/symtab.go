@@ -52,22 +52,22 @@ func putelfstr(s string) int {
 	return off
 }
 
-func putelfsyment(off int, addr int64, size int64, info int, shndx int, other int) {
+func putelfsyment(out *OutBuf, off int, addr int64, size int64, info int, shndx int, other int) {
 	if elf64 {
-		Thearch.Lput(uint32(off))
-		Cput(uint8(info))
-		Cput(uint8(other))
-		Thearch.Wput(uint16(shndx))
-		Thearch.Vput(uint64(addr))
-		Thearch.Vput(uint64(size))
+		out.Write32(uint32(off))
+		out.Write8(uint8(info))
+		out.Write8(uint8(other))
+		out.Write16(uint16(shndx))
+		out.Write64(uint64(addr))
+		out.Write64(uint64(size))
 		Symsize += ELF64SYMSIZE
 	} else {
-		Thearch.Lput(uint32(off))
-		Thearch.Lput(uint32(addr))
-		Thearch.Lput(uint32(size))
-		Cput(uint8(info))
-		Cput(uint8(other))
-		Thearch.Wput(uint16(shndx))
+		out.Write32(uint32(off))
+		out.Write32(uint32(addr))
+		out.Write32(uint32(size))
+		out.Write8(uint8(info))
+		out.Write8(uint8(other))
+		out.Write16(uint16(shndx))
 		Symsize += ELF32SYMSIZE
 	}
 }
@@ -174,7 +174,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, go_ *S
 		// (*Symbol).ElfsymForReloc). This is approximately equivalent to the
 		// ELF linker -Bsymbolic-functions option, but that is buggy on
 		// several platforms.
-		putelfsyment(putelfstr("local."+s), addr, size, STB_LOCAL<<4|typ&0xf, elfshnum, other)
+		putelfsyment(ctxt.Out, putelfstr("local."+s), addr, size, STB_LOCAL<<4|typ&0xf, elfshnum, other)
 		x.LocalElfsym = int32(numelfsym)
 		numelfsym++
 		return
@@ -182,20 +182,20 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, go_ *S
 		return
 	}
 
-	putelfsyment(putelfstr(s), addr, size, bind<<4|typ&0xf, elfshnum, other)
+	putelfsyment(ctxt.Out, putelfstr(s), addr, size, bind<<4|typ&0xf, elfshnum, other)
 	x.Elfsym = int32(numelfsym)
 	numelfsym++
 }
 
-func putelfsectionsym(s *Symbol, shndx int) {
-	putelfsyment(0, 0, 0, STB_LOCAL<<4|STT_SECTION, shndx, 0)
+func putelfsectionsym(out *OutBuf, s *Symbol, shndx int) {
+	putelfsyment(out, 0, 0, 0, STB_LOCAL<<4|STT_SECTION, shndx, 0)
 	s.Elfsym = int32(numelfsym)
 	numelfsym++
 }
 
 func Asmelfsym(ctxt *Link) {
 	// the first symbol entry is reserved
-	putelfsyment(0, 0, 0, STB_LOCAL<<4|STT_NOTYPE, 0, 0)
+	putelfsyment(ctxt.Out, 0, 0, 0, STB_LOCAL<<4|STT_NOTYPE, 0, 0)
 
 	dwarfaddelfsectionsyms(ctxt)
 
@@ -203,7 +203,7 @@ func Asmelfsym(ctxt *Link) {
 	// Avoid having the working directory inserted into the symbol table.
 	// It is added with a name to avoid problems with external linking
 	// encountered on some versions of Solaris. See issue #14957.
-	putelfsyment(putelfstr("go.go"), 0, 0, STB_LOCAL<<4|STT_FILE, SHN_ABS, 0)
+	putelfsyment(ctxt.Out, putelfstr("go.go"), 0, 0, STB_LOCAL<<4|STT_FILE, SHN_ABS, 0)
 	numelfsym++
 
 	elfbind = STB_LOCAL
@@ -226,15 +226,15 @@ func putplan9sym(ctxt *Link, x *Symbol, s string, typ SymbolType, addr int64, go
 	case AutoSym, ParamSym, FrameSym:
 		l := 4
 		if Headtype == objabi.Hplan9 && ctxt.Arch.Family == sys.AMD64 && !Flag8 {
-			Lputb(uint32(addr >> 32))
+			ctxt.Out.Write32b(uint32(addr >> 32))
 			l = 8
 		}
 
-		Lputb(uint32(addr))
-		Cput(uint8(t + 0x80)) /* 0x80 is variable length */
+		ctxt.Out.Write32b(uint32(addr))
+		ctxt.Out.Write8(uint8(t + 0x80)) /* 0x80 is variable length */
 
-		Cwritestring(s)
-		Cput(0)
+		ctxt.Out.WriteString(s)
+		ctxt.Out.Write8(0)
 
 		Symsize += int32(l) + 1 + int32(len(s)) + 1
 
@@ -248,40 +248,6 @@ func Asmplan9sym(ctxt *Link) {
 }
 
 var symt *Symbol
-
-var encbuf [10]byte
-
-func Wputb(w uint16) { Cwrite(Append16b(encbuf[:0], w)) }
-func Lputb(l uint32) { Cwrite(Append32b(encbuf[:0], l)) }
-func Vputb(v uint64) { Cwrite(Append64b(encbuf[:0], v)) }
-
-func Wputl(w uint16) { Cwrite(Append16l(encbuf[:0], w)) }
-func Lputl(l uint32) { Cwrite(Append32l(encbuf[:0], l)) }
-func Vputl(v uint64) { Cwrite(Append64l(encbuf[:0], v)) }
-
-func Append16b(b []byte, v uint16) []byte {
-	return append(b, uint8(v>>8), uint8(v))
-}
-func Append16l(b []byte, v uint16) []byte {
-	return append(b, uint8(v), uint8(v>>8))
-}
-
-func Append32b(b []byte, v uint32) []byte {
-	return append(b, uint8(v>>24), uint8(v>>16), uint8(v>>8), uint8(v))
-}
-func Append32l(b []byte, v uint32) []byte {
-	return append(b, uint8(v), uint8(v>>8), uint8(v>>16), uint8(v>>24))
-}
-
-func Append64b(b []byte, v uint64) []byte {
-	return append(b, uint8(v>>56), uint8(v>>48), uint8(v>>40), uint8(v>>32),
-		uint8(v>>24), uint8(v>>16), uint8(v>>8), uint8(v))
-}
-
-func Append64l(b []byte, v uint64) []byte {
-	return append(b, uint8(v), uint8(v>>8), uint8(v>>16), uint8(v>>24),
-		uint8(v>>32), uint8(v>>40), uint8(v>>48), uint8(v>>56))
-}
 
 type byPkg []*Library
 
