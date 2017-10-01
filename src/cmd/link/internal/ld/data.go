@@ -381,20 +381,11 @@ func trampoline(ctxt *Link, s *Symbol) {
 
 // resolve relocations in s.
 func relocsym(ctxt *Link, s *Symbol) {
-	var r *Reloc
-	var rs *Symbol
-	var i16 int16
-	var off int32
-	var siz int32
-	var fl int32
-	var o int64
-
 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
-		r = &s.R[ri]
-
+		r := &s.R[ri]
 		r.Done = true
-		off = r.Off
-		siz = int32(r.Siz)
+		off := r.Off
+		siz := int32(r.Siz)
 		if off < 0 || off+siz > int32(len(s.P)) {
 			rname := ""
 			if r.Sym != nil {
@@ -450,6 +441,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 			}
 		}
 
+		var o int64
 		switch r.Type {
 		default:
 			switch siz {
@@ -535,7 +527,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 				r.Done = false
 
 				// set up addend for eventual relocation via outer symbol.
-				rs = r.Sym
+				rs := r.Sym
 
 				r.Xadd = r.Add
 				for rs.Outer != nil {
@@ -607,7 +599,6 @@ func relocsym(ctxt *Link, s *Symbol) {
 				r.Xadd = r.Add + Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr)
 
 				o = r.Xadd
-				rs = r.Xsym
 				if Iself && SysArch.Family == sys.AMD64 {
 					o = 0
 				}
@@ -647,7 +638,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 				r.Done = false
 
 				// set up addend for eventual relocation via outer symbol.
-				rs = r.Sym
+				rs := r.Sym
 
 				r.Xadd = r.Add
 				for rs.Outer != nil {
@@ -722,7 +713,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 			if o != int64(int16(o)) {
 				Errorf(s, "relocation address for %s is too big: %#x", r.Sym.Name, o)
 			}
-			i16 = int16(o)
+			i16 := int16(o)
 			ctxt.Arch.ByteOrder.PutUint16(s.P[off:], uint16(i16))
 		case 4:
 			if r.Type == objabi.R_PCREL || r.Type == objabi.R_CALL {
@@ -735,7 +726,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 				}
 			}
 
-			fl = int32(o)
+			fl := int32(o)
 			ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(fl))
 		case 8:
 			ctxt.Arch.ByteOrder.PutUint64(s.P[off:], uint64(o))
@@ -2233,12 +2224,11 @@ func (ctxt *Link) address() {
 	var noptr *Section
 	var bss *Section
 	var noptrbss *Section
-	var vlen int64
 	for i, s := range Segdata.Sections {
 		if Iself && s.Name == ".tbss" {
 			continue
 		}
-		vlen = int64(s.Length)
+		vlen := int64(s.Length)
 		if i+1 < len(Segdata.Sections) && !(Iself && Segdata.Sections[i+1].Name == ".tbss") {
 			vlen = int64(Segdata.Sections[i+1].Vaddr - s.Vaddr)
 		}
@@ -2270,7 +2260,7 @@ func (ctxt *Link) address() {
 		Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(PEFILEALIGN)))
 	}
 	for i, s := range Segdwarf.Sections {
-		vlen = int64(s.Length)
+		vlen := int64(s.Length)
 		if i+1 < len(Segdwarf.Sections) {
 			vlen = int64(Segdwarf.Sections[i+1].Vaddr - s.Vaddr)
 		}

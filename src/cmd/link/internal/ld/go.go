@@ -29,8 +29,6 @@ func expandpkg(t0 string, pkg string) string {
 //		libmach, so that other linkers and ar can share.
 
 func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string, whence int) {
-	var p0, p1 int
-
 	if *flagG {
 		return
 	}
@@ -95,7 +93,8 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
 	}
 
 	// look for cgo section
-	p0 = strings.Index(data, "\n$$  // cgo")
+	p0 := strings.Index(data, "\n$$  // cgo")
+	var p1 int
 	if p0 >= 0 {
 		p0 += p1
 		i := strings.IndexByte(data[p0+1:], '\n')
@@ -128,9 +127,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
 func loadcgo(ctxt *Link, file string, pkg string, p string) {
 	var next string
 	var q string
-	var f []string
-	var local string
-	var remote string
 	var lib string
 	var s *Symbol
 
@@ -143,7 +139,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 		}
 
 		p0 = p // save for error message
-		f = tokenize(p)
+		f := tokenize(p)
 		if len(f) == 0 {
 			continue
 		}
@@ -153,8 +149,8 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				goto err
 			}
 
-			local = f[1]
-			remote = local
+			local := f[1]
+			remote := local
 			if len(f) > 2 {
 				remote = f[2]
 			}
@@ -205,7 +201,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			if len(f) != 2 {
 				goto err
 			}
-			local = f[1]
+			local := f[1]
 			s = ctxt.Syms.Lookup(local, 0)
 			s.Type = SHOSTOBJ
 			s.Size = 0
@@ -216,7 +212,8 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			if len(f) < 2 || len(f) > 3 {
 				goto err
 			}
-			local = f[1]
+			local := f[1]
+			var remote string
 			if len(f) > 2 {
 				remote = f[2]
 			} else {

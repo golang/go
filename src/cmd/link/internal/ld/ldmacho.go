@@ -306,12 +306,9 @@ func macholoadrel(m *ldMachoObj, sect *ldMachoSect) int {
 	if _, err := io.ReadFull(m.f, buf); err != nil {
 		return -1
 	}
-	var p []byte
-	var r *ldMachoRel
-	var v uint32
-	for i := 0; uint32(i) < sect.nreloc; i++ {
-		r = &rel[i]
-		p = buf[i*8:]
+	for i := uint32(0); i < sect.nreloc; i++ {
+		r := &rel[i]
+		p := buf[i*8:]
 		r.addr = m.e.Uint32(p)
 
 		// TODO(rsc): Wrong interpretation for big-endian bitfields?
@@ -319,7 +316,7 @@ func macholoadrel(m *ldMachoObj, sect *ldMachoSect) int {
 			// scatterbrained relocation
 			r.scattered = 1
 
-			v = r.addr >> 24
+			v := r.addr >> 24
 			r.addr &= 0xFFFFFF
 			r.type_ = uint8(v & 0xF)
 			v >>= 4
@@ -328,7 +325,7 @@ func macholoadrel(m *ldMachoObj, sect *ldMachoSect) int {
 			r.pcrel = uint8(v & 1)
 			r.value = m.e.Uint32(p[4:])
 		} else {
-			v = m.e.Uint32(p[4:])
+			v := m.e.Uint32(p[4:])
 			r.symnum = v & 0xFFFFFF
 			v >>= 24
 			r.pcrel = uint8(v & 1)
@@ -390,11 +387,9 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 	}
 	sym := make([]ldMachoSym, symtab.nsym)
 	p := symbuf
-	var s *ldMachoSym
-	var v uint32
-	for i := 0; uint32(i) < symtab.nsym; i++ {
-		s = &sym[i]
-		v = m.e.Uint32(p)
+	for i := uint32(0); i < symtab.nsym; i++ {
+		s := &sym[i]
+		v := m.e.Uint32(p)
 		if v >= symtab.strsize {
 			return -1
 		}
