@@ -450,36 +450,18 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	localSymVersion := ctxt.Syms.IncVersion()
 	base := f.Offset()
 
-	var add uint64
-	var e binary.ByteOrder
-	var elfobj *ElfObj
-	var flag int
-	var hdr *ElfHdrBytes
 	var hdrbuf [64]uint8
-	var info uint64
-	var is64 int
-	var j int
-	var n int
-	var name string
-	var p []byte
-	var r []Reloc
-	var rela int
-	var rp *Reloc
-	var rsect *ElfSect
-	var s *Symbol
-	var sect *ElfSect
-	var sym ElfSym
-	var symbols []*Symbol
 	if _, err := io.ReadFull(f, hdrbuf[:]); err != nil {
 		Errorf(nil, "%s: malformed elf file: %v", pn, err)
 		return
 	}
-	hdr = new(ElfHdrBytes)
+	hdr := new(ElfHdrBytes)
 	binary.Read(bytes.NewReader(hdrbuf[:]), binary.BigEndian, hdr) // only byte arrays; byte order doesn't matter
 	if string(hdr.Ident[:4]) != "\x7FELF" {
 		Errorf(nil, "%s: malformed elf file", pn)
 		return
 	}
+	var e binary.ByteOrder
 	switch hdr.Ident[5] {
 	case ElfDataLsb:
 		e = binary.LittleEndian
@@ -493,7 +475,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	}
 
 	// read header
-	elfobj = new(ElfObj)
+	elfobj := new(ElfObj)
 
 	elfobj.e = e
 	elfobj.f = f
@@ -501,7 +483,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	elfobj.length = length
 	elfobj.name = pn
 
-	is64 = 0
+	is64 := 0
 	if hdr.Ident[4] == ElfClass64 {
 		is64 = 1
 		hdr := new(ElfHdrBytes64)
@@ -609,7 +591,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			Errorf(nil, "%s: malformed elf file", pn)
 			return
 		}
-		sect = &elfobj.sect[i]
+		sect := &elfobj.sect[i]
 		if is64 != 0 {
 			var b ElfSectBytes64
 
@@ -655,7 +637,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		return
 	}
 
-	sect = &elfobj.sect[elfobj.shstrndx]
+	sect := &elfobj.sect[elfobj.shstrndx]
 	if err := elfmap(elfobj, sect); err != nil {
 		Errorf(nil, "%s: malformed elf file: %v", pn, err)
 		return
@@ -720,8 +702,8 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			}
 		}
 
-		name = fmt.Sprintf("%s(%s)", pkg, sect.name)
-		s = ctxt.Syms.Lookup(name, localSymVersion)
+		name := fmt.Sprintf("%s(%s)", pkg, sect.name)
+		s := ctxt.Syms.Lookup(name, localSymVersion)
 
 		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
 		default:
@@ -757,9 +739,10 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 
 	// enter sub-symbols into symbol table.
 	// symbol 0 is the null symbol.
-	symbols = make([]*Symbol, elfobj.nsymtab)
+	symbols := make([]*Symbol, elfobj.nsymtab)
 
 	for i := 1; i < elfobj.nsymtab; i++ {
+		var sym ElfSym
 		if err := readelfsym(ctxt, elfobj, i, &sym, 1, localSymVersion); err != nil {
 			Errorf(nil, "%s: malformed elf file: %v", pn, err)
 			return
@@ -769,7 +752,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			continue
 		}
 		if sym.shndx == ElfSymShnCommon || sym.type_ == ElfSymTypeCommon {
-			s = sym.sym
+			s := sym.sym
 			if uint64(s.Size) < sym.size {
 				s.Size = int64(sym.size)
 			}
@@ -806,7 +789,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			continue
 		}
 
-		s = sym.sym
+		s := sym.sym
 		if s.Outer != nil {
 			if s.Attr.DuplicateOK() {
 				continue
@@ -831,7 +814,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		}
 
 		if elfobj.machine == ElfMachPower64 {
-			flag = int(sym.other) >> 5
+			flag := int(sym.other) >> 5
 			if 2 <= flag && flag <= 6 {
 				s.Localentry = 1 << uint(flag-2)
 			} else if flag == 7 {
@@ -842,8 +825,8 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 
 	// Sort outer lists by address, adding to textp.
 	// This keeps textp in increasing address order.
-	for i := 0; uint(i) < elfobj.nsect; i++ {
-		s = elfobj.sect[i].sym
+	for i := uint(0); i < elfobj.nsect; i++ {
+		s := elfobj.sect[i].sym
 		if s == nil {
 			continue
 		}
@@ -867,8 +850,8 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	}
 
 	// load relocations
-	for i := 0; uint(i) < elfobj.nsect; i++ {
-		rsect = &elfobj.sect[i]
+	for i := uint(0); i < elfobj.nsect; i++ {
+		rsect := &elfobj.sect[i]
 		if rsect.type_ != ElfSectRela && rsect.type_ != ElfSectRel {
 			continue
 		}
@@ -880,16 +863,17 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			Errorf(nil, "%s: malformed elf file: %v", pn, err)
 			return
 		}
-		rela = 0
+		rela := 0
 		if rsect.type_ == ElfSectRela {
 			rela = 1
 		}
-		n = int(rsect.size / uint64(4+4*is64) / uint64(2+rela))
-		r = make([]Reloc, n)
-		p = rsect.base
-		for j = 0; j < n; j++ {
-			add = 0
-			rp = &r[j]
+		n := int(rsect.size / uint64(4+4*is64) / uint64(2+rela))
+		r := make([]Reloc, n)
+		p := rsect.base
+		for j := 0; j < n; j++ {
+			var add uint64
+			rp := &r[j]
+			var info uint64
 			if is64 != 0 {
 				// 64-bit rel/rela
 				rp.Off = int32(e.Uint64(p))
@@ -924,6 +908,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			if info>>32 == 0 { // absolute relocation, don't bother reading the null symbol
 				rp.Sym = nil
 			} else {
+				var sym ElfSym
 				if err := readelfsym(ctxt, elfobj, int(info>>32), &sym, 0, 0); err != nil {
 					Errorf(nil, "%s: malformed elf file: %v", pn, err)
 					return
@@ -964,7 +949,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		sort.Sort(rbyoff(r[:n]))
 		// just in case
 
-		s = sect.sym
+		s := sect.sym
 		s.R = r
 		s.R = s.R[:n]
 	}

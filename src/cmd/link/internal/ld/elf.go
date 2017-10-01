@@ -1462,7 +1462,6 @@ func elfdynhash(ctxt *Link) {
 	chain := make([]uint32, nsym)
 	buckets := make([]uint32, nbucket)
 
-	var b int
 	for _, sy := range ctxt.Syms.Allsym {
 		if sy.Dynid <= 0 {
 			continue
@@ -1475,7 +1474,7 @@ func elfdynhash(ctxt *Link) {
 		name := sy.Extname
 		hc := elfhash(name)
 
-		b = int(hc % uint32(nbucket))
+		b := hc % uint32(nbucket)
 		chain[sy.Dynid] = buckets[b]
 		buckets[b] = uint32(sy.Dynid)
 	}
@@ -1507,15 +1506,13 @@ func elfdynhash(ctxt *Link) {
 	s = ctxt.Syms.Lookup(".gnu.version_r", 0)
 	i = 2
 	nfile := 0
-	var j int
-	var x *Elfaux
 	for l := needlib; l != nil; l = l.next {
 		nfile++
 
 		// header
 		Adduint16(ctxt, s, 1) // table version
-		j = 0
-		for x = l.aux; x != nil; x = x.next {
+		j := 0
+		for x := l.aux; x != nil; x = x.next {
 			j++
 		}
 		Adduint16(ctxt, s, uint16(j))                         // aux count
@@ -1527,7 +1524,7 @@ func elfdynhash(ctxt *Link) {
 			Adduint32(ctxt, s, 0)
 		}
 
-		for x = l.aux; x != nil; x = x.next {
+		for x := l.aux; x != nil; x = x.next {
 			x.num = i
 			i++
 
@@ -1613,24 +1610,18 @@ func elfphrelro(seg *Segment) {
 }
 
 func elfshname(name string) *ElfShdr {
-	var off int
-	var sh *ElfShdr
-
 	for i := 0; i < nelfstr; i++ {
 		if name == elfstr[i].s {
-			off = elfstr[i].off
+			off := elfstr[i].off
 			for i = 0; i < int(ehdr.shnum); i++ {
-				sh = shdr[i]
+				sh := shdr[i]
 				if sh.name == uint32(off) {
 					return sh
 				}
 			}
-
-			sh = newElfShdr(int64(off))
-			return sh
+			return newElfShdr(int64(off))
 		}
 	}
-
 	Exitf("cannot find elf name %s", name)
 	return nil
 }
@@ -1638,14 +1629,10 @@ func elfshname(name string) *ElfShdr {
 // Create an ElfShdr for the section with name.
 // Create a duplicate if one already exists with that name
 func elfshnamedup(name string) *ElfShdr {
-	var off int
-	var sh *ElfShdr
-
 	for i := 0; i < nelfstr; i++ {
 		if name == elfstr[i].s {
-			off = elfstr[i].off
-			sh = newElfShdr(int64(off))
-			return sh
+			off := elfstr[i].off
+			return newElfShdr(int64(off))
 		}
 	}
 
