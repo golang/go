@@ -853,13 +853,9 @@ func step(p []byte, pc *uintptr, val *int32, first bool) (newp []byte, ok bool) 
 	if uvdelta&0x80 != 0 {
 		n, uvdelta = readvarint(p)
 	}
+	*val += int32(-(uvdelta & 1) ^ (uvdelta >> 1))
 	p = p[n:]
-	if uvdelta&1 != 0 {
-		uvdelta = ^(uvdelta >> 1)
-	} else {
-		uvdelta >>= 1
-	}
-	vdelta := int32(uvdelta)
+
 	pcdelta := uint32(p[0])
 	n = 1
 	if pcdelta&0x80 != 0 {
@@ -867,7 +863,6 @@ func step(p []byte, pc *uintptr, val *int32, first bool) (newp []byte, ok bool) 
 	}
 	p = p[n:]
 	*pc += uintptr(pcdelta * sys.PCQuantum)
-	*val += vdelta
 	return p, true
 }
 
