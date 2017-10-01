@@ -304,7 +304,7 @@ func disasm_amd64(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder)
 }
 
 func disasm_x86(code []byte, pc uint64, lookup lookupFunc, arch int) (string, int) {
-	inst, err := x86asm.Decode(code, 64)
+	inst, err := x86asm.Decode(code, arch)
 	var text string
 	size := inst.Len
 	if err != nil || size == 0 || inst.Op == 0 {
