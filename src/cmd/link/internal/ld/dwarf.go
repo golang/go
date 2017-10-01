@@ -16,6 +16,7 @@ package ld
 import (
 	"cmd/internal/dwarf"
 	"cmd/internal/objabi"
+	"cmd/internal/sys"
 	"fmt"
 	"log"
 	"os"
@@ -1137,7 +1138,7 @@ const (
 )
 
 // appendPCDeltaCFA appends per-PC CFA deltas to b and returns the final slice.
-func appendPCDeltaCFA(b []byte, deltapc, cfa int64) []byte {
+func appendPCDeltaCFA(arch *sys.Arch, b []byte, deltapc, cfa int64) []byte {
 	b = append(b, dwarf.DW_CFA_def_cfa_offset_sf)
 	b = dwarf.AppendSleb128(b, cfa/dataAlignmentFactor)
 
@@ -1148,11 +1149,11 @@ func appendPCDeltaCFA(b []byte, deltapc, cfa int64) []byte {
 		b = append(b, dwarf.DW_CFA_advance_loc1)
 		b = append(b, uint8(deltapc))
 	case deltapc < 0x10000:
-		b = append(b, dwarf.DW_CFA_advance_loc2)
-		b = Thearch.Append16(b, uint16(deltapc))
+		b = append(b, dwarf.DW_CFA_advance_loc2, 0, 0)
+		arch.ByteOrder.PutUint16(b[len(b)-2:], uint16(deltapc))
 	default:
-		b = append(b, dwarf.DW_CFA_advance_loc4)
-		b = Thearch.Append32(b, uint32(deltapc))
+		b = append(b, dwarf.DW_CFA_advance_loc4, 0, 0, 0, 0)
+		arch.ByteOrder.PutUint32(b[len(b)-4:], uint32(deltapc))
 	}
 	return b
 }
@@ -1243,9 +1244,9 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
 					deltaBuf = append(deltaBuf, dwarf.DW_CFA_same_value)
 					deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(Thearch.Dwarfreglr))
 				}
-				deltaBuf = appendPCDeltaCFA(deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(pcsp.value))
+				deltaBuf = appendPCDeltaCFA(ctxt.Arch, deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(pcsp.value))
 			} else {
-				deltaBuf = appendPCDeltaCFA(deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(ctxt.Arch.PtrSize)+int64(pcsp.value))
+				deltaBuf = appendPCDeltaCFA(ctxt.Arch, deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(ctxt.Arch.PtrSize)+int64(pcsp.value))
 			}
 		}
 		pad := int(Rnd(int64(len(deltaBuf)), int64(ctxt.Arch.PtrSize))) - len(deltaBuf)
@@ -1655,19 +1656,19 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
 		return
 	}
 	sym := ctxt.Syms.Lookup(".debug_info", 0)
-	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+	putelfsectionsym(ctxt.Out, sym, sym.Sect.Elfsect.shnum)
 	sym = ctxt.Syms.Lookup(".debug_abbrev", 0)
-	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+	putelfsectionsym(ctxt.Out, sym, sym.Sect.Elfsect.shnum)
 	sym = ctxt.Syms.Lookup(".debug_line", 0)
-	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+	putelfsectionsym(ctxt.Out, sym, sym.Sect.Elfsect.shnum)
 	sym = ctxt.Syms.Lookup(".debug_frame", 0)
-	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+	putelfsectionsym(ctxt.Out, sym, sym.Sect.Elfsect.shnum)
 	sym = ctxt.Syms.Lookup(".debug_loc", 0)
 	if sym.Sect != nil {
-		putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+		putelfsectionsym(ctxt.Out, sym, sym.Sect.Elfsect.shnum)
 	}
 	sym = ctxt.Syms.Lookup(".debug_ranges", 0)
 	if sym.Sect != nil {
-		putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+		putelfsectionsym(ctxt.Out, sym, sym.Sect.Elfsect.shnum)
 	}
 }

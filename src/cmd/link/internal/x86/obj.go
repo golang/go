@@ -57,12 +57,6 @@ func Init() (*sys.Arch, ld.Arch) {
 		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,
 		PEreloc1:         pereloc1,
-		Lput:             ld.Lputl,
-		Wput:             ld.Wputl,
-		Vput:             ld.Vputl,
-		Append16:         ld.Append16l,
-		Append32:         ld.Append32l,
-		Append64:         ld.Append64l,
 
 		Linuxdynld:   "/lib/ld-linux.so.2",
 		Freebsddynld: "/usr/libexec/ld-elf.so.1",

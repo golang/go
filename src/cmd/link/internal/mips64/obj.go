@@ -66,21 +66,6 @@ func Init() (*sys.Arch, ld.Arch) {
 		Dragonflydynld: "XXX",
 		Solarisdynld:   "XXX",
 	}
-	if arch == sys.ArchMIPS64LE {
-		theArch.Lput = ld.Lputl
-		theArch.Wput = ld.Wputl
-		theArch.Vput = ld.Vputl
-		theArch.Append16 = ld.Append16l
-		theArch.Append32 = ld.Append32l
-		theArch.Append64 = ld.Append64l
-	} else {
-		theArch.Lput = ld.Lputb
-		theArch.Wput = ld.Wputb
-		theArch.Vput = ld.Vputb
-		theArch.Append16 = ld.Append16b
-		theArch.Append32 = ld.Append32b
-		theArch.Append64 = ld.Append64b
-	}
 
 	return arch, theArch
 }

@@ -229,8 +229,8 @@ var dylib []string
 
 var linkoff int64
 
-func machowrite(arch *sys.Arch) int {
-	o1 := coutbuf.Offset()
+func machowrite(arch *sys.Arch, out *OutBuf) int {
+	o1 := out.Offset()
 
 	loadsize := 4 * 4 * ndebug
 	for i := 0; i < len(load); i++ {
@@ -245,97 +245,97 @@ func machowrite(arch *sys.Arch) int {
 	}
 
 	if arch.PtrSize == 8 {
-		Thearch.Lput(MH_MAGIC_64)
+		out.Write32(MH_MAGIC_64)
 	} else {
-		Thearch.Lput(MH_MAGIC)
+		out.Write32(MH_MAGIC)
 	}
-	Thearch.Lput(machohdr.cpu)
-	Thearch.Lput(machohdr.subcpu)
+	out.Write32(machohdr.cpu)
+	out.Write32(machohdr.subcpu)
 	if Linkmode == LinkExternal {
-		Thearch.Lput(MH_OBJECT) /* file type - mach object */
+		out.Write32(MH_OBJECT) /* file type - mach object */
 	} else {
-		Thearch.Lput(MH_EXECUTE) /* file type - mach executable */
+		out.Write32(MH_EXECUTE) /* file type - mach executable */
 	}
-	Thearch.Lput(uint32(len(load)) + uint32(nseg) + uint32(ndebug))
-	Thearch.Lput(uint32(loadsize))
+	out.Write32(uint32(len(load)) + uint32(nseg) + uint32(ndebug))
+	out.Write32(uint32(loadsize))
 	if nkind[SymKindUndef] == 0 {
-		Thearch.Lput(MH_NOUNDEFS) /* flags - no undefines */
+		out.Write32(MH_NOUNDEFS) /* flags - no undefines */
 	} else {
-		Thearch.Lput(0) /* flags */
+		out.Write32(0) /* flags */
 	}
 	if arch.PtrSize == 8 {
-		Thearch.Lput(0) /* reserved */
+		out.Write32(0) /* reserved */
 	}
 
 	for i := 0; i < nseg; i++ {
 		s := &seg[i]
 		if arch.PtrSize == 8 {
-			Thearch.Lput(LC_SEGMENT_64)
-			Thearch.Lput(72 + 80*s.nsect)
-			strnput(s.name, 16)
-			Thearch.Vput(s.vaddr)
-			Thearch.Vput(s.vsize)
-			Thearch.Vput(s.fileoffset)
-			Thearch.Vput(s.filesize)
-			Thearch.Lput(s.prot1)
-			Thearch.Lput(s.prot2)
-			Thearch.Lput(s.nsect)
-			Thearch.Lput(s.flag)
+			out.Write32(LC_SEGMENT_64)
+			out.Write32(72 + 80*s.nsect)
+			out.WriteStringN(s.name, 16)
+			out.Write64(s.vaddr)
+			out.Write64(s.vsize)
+			out.Write64(s.fileoffset)
+			out.Write64(s.filesize)
+			out.Write32(s.prot1)
+			out.Write32(s.prot2)
+			out.Write32(s.nsect)
+			out.Write32(s.flag)
 		} else {
-			Thearch.Lput(LC_SEGMENT)
-			Thearch.Lput(56 + 68*s.nsect)
-			strnput(s.name, 16)
-			Thearch.Lput(uint32(s.vaddr))
-			Thearch.Lput(uint32(s.vsize))
-			Thearch.Lput(uint32(s.fileoffset))
-			Thearch.Lput(uint32(s.filesize))
-			Thearch.Lput(s.prot1)
-			Thearch.Lput(s.prot2)
-			Thearch.Lput(s.nsect)
-			Thearch.Lput(s.flag)
+			out.Write32(LC_SEGMENT)
+			out.Write32(56 + 68*s.nsect)
+			out.WriteStringN(s.name, 16)
+			out.Write32(uint32(s.vaddr))
+			out.Write32(uint32(s.vsize))
+			out.Write32(uint32(s.fileoffset))
+			out.Write32(uint32(s.filesize))
+			out.Write32(s.prot1)
+			out.Write32(s.prot2)
+			out.Write32(s.nsect)
+			out.Write32(s.flag)
 		}
 
 		for j := uint32(0); j < s.nsect; j++ {
 			t := &s.sect[j]
 			if arch.PtrSize == 8 {
-				strnput(t.name, 16)
-				strnput(t.segname, 16)
-				Thearch.Vput(t.addr)
-				Thearch.Vput(t.size)
-				Thearch.Lput(t.off)
-				Thearch.Lput(t.align)
-				Thearch.Lput(t.reloc)
-				Thearch.Lput(t.nreloc)
-				Thearch.Lput(t.flag)
-				Thearch.Lput(t.res1) /* reserved */
-				Thearch.Lput(t.res2) /* reserved */
-				Thearch.Lput(0)      /* reserved */
+				out.WriteStringN(t.name, 16)
+				out.WriteStringN(t.segname, 16)
+				out.Write64(t.addr)
+				out.Write64(t.size)
+				out.Write32(t.off)
+				out.Write32(t.align)
+				out.Write32(t.reloc)
+				out.Write32(t.nreloc)
+				out.Write32(t.flag)
+				out.Write32(t.res1) /* reserved */
+				out.Write32(t.res2) /* reserved */
+				out.Write32(0)      /* reserved */
 			} else {
-				strnput(t.name, 16)
-				strnput(t.segname, 16)
-				Thearch.Lput(uint32(t.addr))
-				Thearch.Lput(uint32(t.size))
-				Thearch.Lput(t.off)
-				Thearch.Lput(t.align)
-				Thearch.Lput(t.reloc)
-				Thearch.Lput(t.nreloc)
-				Thearch.Lput(t.flag)
-				Thearch.Lput(t.res1) /* reserved */
-				Thearch.Lput(t.res2) /* reserved */
+				out.WriteStringN(t.name, 16)
+				out.WriteStringN(t.segname, 16)
+				out.Write32(uint32(t.addr))
+				out.Write32(uint32(t.size))
+				out.Write32(t.off)
+				out.Write32(t.align)
+				out.Write32(t.reloc)
+				out.Write32(t.nreloc)
+				out.Write32(t.flag)
+				out.Write32(t.res1) /* reserved */
+				out.Write32(t.res2) /* reserved */
 			}
 		}
 	}
 
 	for i := 0; i < len(load); i++ {
 		l := &load[i]
-		Thearch.Lput(l.type_)
-		Thearch.Lput(4 * (uint32(len(l.data)) + 2))
+		out.Write32(l.type_)
+		out.Write32(4 * (uint32(len(l.data)) + 2))
 		for j := 0; j < len(l.data); j++ {
-			Thearch.Lput(l.data[j])
+			out.Write32(l.data[j])
 		}
 	}
 
-	return int(coutbuf.Offset() - o1)
+	return int(out.Offset() - o1)
 }
 
 func (ctxt *Link) domacho() {
@@ -641,7 +641,7 @@ func Asmbmacho(ctxt *Link) {
 		ml.data[1] = 10<<16 | 7<<8 | 0<<0 // SDK 10.7.0
 	}
 
-	a := machowrite(ctxt.Arch)
+	a := machowrite(ctxt.Arch, ctxt.Out)
 	if int32(a) > HEADR {
 		Exitf("HEADR too small: %d > %d", a, HEADR)
 	}
@@ -878,12 +878,12 @@ func Domacholink(ctxt *Link) int64 {
 
 	if size > 0 {
 		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound)) + Rnd(int64(Segdata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))
-		Cseek(linkoff)
+		ctxt.Out.SeekSet(linkoff)
 
-		Cwrite(s1.P[:s1.Size])
-		Cwrite(s2.P[:s2.Size])
-		Cwrite(s3.P[:s3.Size])
-		Cwrite(s4.P[:s4.Size])
+		ctxt.Out.Write(s1.P[:s1.Size])
+		ctxt.Out.Write(s2.P[:s2.Size])
+		ctxt.Out.Write(s3.P[:s3.Size])
+		ctxt.Out.Write(s4.P[:s4.Size])
 	}
 
 	return Rnd(int64(size), int64(*FlagRound))
@@ -895,7 +895,7 @@ func machorelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 		return
 	}
 
-	sect.Reloff = uint64(coutbuf.Offset())
+	sect.Reloff = uint64(ctxt.Out.Offset())
 	for i, s := range syms {
 		if !s.Attr.Reachable() {
 			continue
@@ -926,18 +926,18 @@ func machorelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 			if !r.Xsym.Attr.Reachable() {
 				Errorf(sym, "unreachable reloc %d (%s) target %v", r.Type, RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
 			}
-			if !Thearch.Machoreloc1(ctxt.Arch, sym, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) {
+			if !Thearch.Machoreloc1(ctxt.Arch, ctxt.Out, sym, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) {
 				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
 			}
 		}
 	}
 
-	sect.Rellen = uint64(coutbuf.Offset()) - sect.Reloff
+	sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
 }
 
 func Machoemitreloc(ctxt *Link) {
-	for coutbuf.Offset()&7 != 0 {
-		Cput(0)
+	for ctxt.Out.Offset()&7 != 0 {
+		ctxt.Out.Write8(0)
 	}
 
 	machorelocsect(ctxt, Segtext.Sections[0], ctxt.Textp)

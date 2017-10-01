@@ -849,7 +849,7 @@ func Codeblk(ctxt *Link, addr int64, size int64) {
 }
 func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
 	if *flagA {
-		ctxt.Logf("codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, coutbuf.Offset())
+		ctxt.Logf("codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
 	}
 
 	blk(ctxt, ctxt.Textp, addr, size, pad)
@@ -932,13 +932,13 @@ func blk(ctxt *Link, syms []*Symbol, addr, size int64, pad []byte) {
 			errorexit()
 		}
 		if addr < s.Value {
-			strnputPad("", int(s.Value-addr), pad)
+			ctxt.Out.WriteStringPad("", int(s.Value-addr), pad)
 			addr = s.Value
 		}
-		Cwrite(s.P)
+		ctxt.Out.Write(s.P)
 		addr += int64(len(s.P))
 		if addr < s.Value+s.Size {
-			strnputPad("", int(s.Value+s.Size-addr), pad)
+			ctxt.Out.WriteStringPad("", int(s.Value+s.Size-addr), pad)
 			addr = s.Value + s.Size
 		}
 		if addr != s.Value+s.Size {
@@ -951,14 +951,14 @@ func blk(ctxt *Link, syms []*Symbol, addr, size int64, pad []byte) {
 	}
 
 	if addr < eaddr {
-		strnputPad("", int(eaddr-addr), pad)
+		ctxt.Out.WriteStringPad("", int(eaddr-addr), pad)
 	}
-	Cflush()
+	ctxt.Out.Flush()
 }
 
 func Datblk(ctxt *Link, addr int64, size int64) {
 	if *flagA {
-		ctxt.Logf("datblk [%#x,%#x) at offset %#x\n", addr, addr+size, coutbuf.Offset())
+		ctxt.Logf("datblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
 	}
 
 	blk(ctxt, datap, addr, size, zeros[:])
@@ -1029,38 +1029,13 @@ func Datblk(ctxt *Link, addr int64, size int64) {
 
 func Dwarfblk(ctxt *Link, addr int64, size int64) {
 	if *flagA {
-		ctxt.Logf("dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, coutbuf.Offset())
+		ctxt.Logf("dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
 	}
 
 	blk(ctxt, dwarfp, addr, size, zeros[:])
 }
 
 var zeros [512]byte
-
-// strnput writes the first n bytes of s.
-// If n is larger than len(s),
-// it is padded with NUL bytes.
-func strnput(s string, n int) {
-	strnputPad(s, n, zeros[:])
-}
-
-// strnput writes the first n bytes of s.
-// If n is larger than len(s),
-// it is padded with the bytes in pad (repeated as needed).
-func strnputPad(s string, n int, pad []byte) {
-	if len(s) >= n {
-		Cwritestring(s[:n])
-	} else {
-		Cwritestring(s)
-		n -= len(s)
-		for n > len(pad) {
-			Cwrite(pad)
-			n -= len(pad)
-
-		}
-		Cwrite(pad[:n])
-	}
-}
 
 var strdata []*Symbol
 
