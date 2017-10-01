@@ -148,6 +148,13 @@ func testDisasm(t *testing.T, printCode bool, flags ...string) {
 			ok = false
 		}
 	}
+	if goarch == "386" {
+		if strings.Contains(text, "(IP)") {
+			t.Errorf("disassembly contains PC-Relative addressing on 386")
+			ok = false
+		}
+	}
+
 	if !ok {
 		t.Logf("full disassembly:\n%s", text)
 	}
@@ -231,6 +238,12 @@ func TestDisasmGoobj(t *testing.T) {
 	for _, s := range need {
 		if !strings.Contains(text, s) {
 			t.Errorf("disassembly missing '%s'", s)
+			ok = false
+		}
+	}
+	if runtime.GOARCH == "386" {
+		if strings.Contains(text, "(IP)") {
+			t.Errorf("disassembly contains PC-Relative addressing on 386")
 			ok = false
 		}
 	}
