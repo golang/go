@@ -2438,6 +2438,14 @@ func TestTimeoutHandlerEmptyResponse(t *testing.T) {
 	}
 }
 
+// https://golang.org/issues/22084
+func TestTimeoutHandlerPanicRecovery(t *testing.T) {
+	wrapper := func(h Handler) Handler {
+		return TimeoutHandler(h, time.Second, "")
+	}
+	testHandlerPanic(t, false, false, wrapper, "intentional death for testing")
+}
+
 func TestRedirectBadPath(t *testing.T) {
 	// This used to crash. It's not valid input (bad path), but it
 	// shouldn't crash.
@@ -2551,22 +2559,22 @@ func testZeroLengthPostAndResponse(t *testing.T, h2 bool) {
 	}
 }
 
-func TestHandlerPanicNil_h1(t *testing.T) { testHandlerPanic(t, false, h1Mode, nil) }
-func TestHandlerPanicNil_h2(t *testing.T) { testHandlerPanic(t, false, h2Mode, nil) }
+func TestHandlerPanicNil_h1(t *testing.T) { testHandlerPanic(t, false, h1Mode, nil, nil) }
+func TestHandlerPanicNil_h2(t *testing.T) { testHandlerPanic(t, false, h2Mode, nil, nil) }
 
 func TestHandlerPanic_h1(t *testing.T) {
-	testHandlerPanic(t, false, h1Mode, "intentional death for testing")
+	testHandlerPanic(t, false, h1Mode, nil, "intentional death for testing")
 }
 func TestHandlerPanic_h2(t *testing.T) {
-	testHandlerPanic(t, false, h2Mode, "intentional death for testing")
+	testHandlerPanic(t, false, h2Mode, nil, "intentional death for testing")
 }
 
 func TestHandlerPanicWithHijack(t *testing.T) {
 	// Only testing HTTP/1, and our http2 server doesn't support hijacking.
-	testHandlerPanic(t, true, h1Mode, "intentional death for testing")
+	testHandlerPanic(t, true, h1Mode, nil, "intentional death for testing")
 }
 
-func testHandlerPanic(t *testing.T, withHijack, h2 bool, panicValue interface{}) {
+func testHandlerPanic(t *testing.T, withHijack, h2 bool, wrapper func(Handler) Handler, panicValue interface{}) {
 	defer afterTest(t)
 	// Unlike the other tests that set the log output to ioutil.Discard
 	// to quiet the output, this test uses a pipe. The pipe serves three
@@ -2589,7 +2597,7 @@ func testHandlerPanic(t *testing.T, withHijack, h2 bool, panicValue interface{})
 	defer log.SetOutput(os.Stderr)
 	defer pw.Close()
 
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+	var handler Handler = HandlerFunc(func(w ResponseWriter, r *Request) {
 		if withHijack {
 			rwc, _, err := w.(Hijacker).Hijack()
 			if err != nil {
@@ -2598,7 +2606,11 @@ func testHandlerPanic(t *testing.T, withHijack, h2 bool, panicValue interface{})
 			defer rwc.Close()
 		}
 		panic(panicValue)
-	}))
+	})
+	if wrapper != nil {
+		handler = wrapper(handler)
+	}
+	cst := newClientServerTest(t, h2, handler)
 	defer cst.close()
 
 	// Do a blocking read on the log output pipe so its logging
