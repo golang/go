@@ -55,6 +55,22 @@ type fakeDriver struct {
 	dbs        map[string]*fakeDB
 }
 
+type fakeConnector struct {
+	name string
+
+	waiter func(context.Context)
+}
+
+func (c *fakeConnector) Connect(context.Context) (driver.Conn, error) {
+	conn, err := fdriver.Open(c.name)
+	conn.(*fakeConn).waiter = c.waiter
+	return conn, err
+}
+
+func (c *fakeConnector) Driver() driver.Driver {
+	return fdriver
+}
+
 type fakeDB struct {
 	name string
 
@@ -107,6 +123,16 @@ type fakeConn struct {
 	// bad connection tests; see isBad()
 	bad       bool
 	stickyBad bool
+
+	skipDirtySession bool // tests that use Conn should set this to true.
+
+	// dirtySession tests ResetSession, true if a query has executed
+	// until ResetSession is called.
+	dirtySession bool
+
+	// The waiter is called before each query. May be used in place of the "WAIT"
+	// directive.
+	waiter func(context.Context)
 }
 
 func (c *fakeConn) touchMem() {
@@ -298,12 +324,30 @@ func (c *fakeConn) isBad() bool {
 	if c.stickyBad {
 		return true
 	} else if c.bad {
+		if c.db == nil {
+			return false
+		}
 		// alternate between bad conn and not bad conn
 		c.db.badConn = !c.db.badConn
 		return c.db.badConn
 	} else {
 		return false
 	}
+}
+
+func (c *fakeConn) isDirtyAndMark() bool {
+	if c.skipDirtySession {
+		return false
+	}
+	if c.currTx != nil {
+		c.dirtySession = true
+		return false
+	}
+	if c.dirtySession {
+		return true
+	}
+	c.dirtySession = true
+	return false
 }
 
 func (c *fakeConn) Begin() (driver.Tx, error) {
@@ -335,6 +379,14 @@ var testStrictClose *testing.T
 // fails to close. If nil, the check is disabled.
 func setStrictFakeConnClose(t *testing.T) {
 	testStrictClose = t
+}
+
+func (c *fakeConn) ResetSession(ctx context.Context) error {
+	c.dirtySession = false
+	if c.isBad() {
+		return driver.ErrBadConn
+	}
+	return nil
 }
 
 func (c *fakeConn) Close() (err error) {
@@ -572,6 +624,10 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
 		stmt.cmd = cmd
 		parts = parts[1:]
 
+		if c.waiter != nil {
+			c.waiter(ctx)
+		}
+
 		if stmt.wait > 0 {
 			wait := time.NewTimer(stmt.wait)
 			select {
@@ -661,6 +717,9 @@ func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 
 	if s.c.stickyBad || (hookExecBadConn != nil && hookExecBadConn()) {
 		return nil, driver.ErrBadConn
+	}
+	if s.c.isDirtyAndMark() {
+		return nil, errors.New("session is dirty")
 	}
 
 	err := checkSubsetTypes(s.c.db.allowAny, args)
@@ -773,6 +832,9 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 
 	if s.c.stickyBad || (hookQueryBadConn != nil && hookQueryBadConn()) {
 		return nil, driver.ErrBadConn
+	}
+	if s.c.isDirtyAndMark() {
+		return nil, errors.New("session is dirty")
 	}
 
 	err := checkSubsetTypes(s.c.db.allowAny, args)
