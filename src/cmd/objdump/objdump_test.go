@@ -63,7 +63,7 @@ var x86Need = []string{
 }
 
 var armNeed = []string{
-	//"B.LS main.main(SB)", // TODO(rsc): restore; golang.org/issue/9021
+	"B main.main(SB)",
 	"BL main.Println(SB)",
 	"RET",
 }
