@@ -847,9 +847,27 @@ const (
 	OpARMCMPshiftLL
 	OpARMCMPshiftRL
 	OpARMCMPshiftRA
+	OpARMCMNshiftLL
+	OpARMCMNshiftRL
+	OpARMCMNshiftRA
+	OpARMTSTshiftLL
+	OpARMTSTshiftRL
+	OpARMTSTshiftRA
+	OpARMTEQshiftLL
+	OpARMTEQshiftRL
+	OpARMTEQshiftRA
 	OpARMCMPshiftLLreg
 	OpARMCMPshiftRLreg
 	OpARMCMPshiftRAreg
+	OpARMCMNshiftLLreg
+	OpARMCMNshiftRLreg
+	OpARMCMNshiftRAreg
+	OpARMTSTshiftLLreg
+	OpARMTSTshiftRLreg
+	OpARMTSTshiftRAreg
+	OpARMTEQshiftLLreg
+	OpARMTEQshiftRLreg
+	OpARMTEQshiftRAreg
 	OpARMCMPF0
 	OpARMCMPD0
 	OpARMMOVWconst
@@ -10570,9 +10588,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CMN",
-		argLen: 2,
-		asm:    arm.ACMN,
+		name:        "CMN",
+		argLen:      2,
+		commutative: true,
+		asm:         arm.ACMN,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
@@ -10696,6 +10715,114 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "CMNshiftLL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ACMN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+				{1, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+			},
+		},
+	},
+	{
+		name:    "CMNshiftRL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ACMN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+				{1, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+			},
+		},
+	},
+	{
+		name:    "CMNshiftRA",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ACMN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+				{1, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+			},
+		},
+	},
+	{
+		name:    "TSTshiftLL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ATST,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+				{1, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+			},
+		},
+	},
+	{
+		name:    "TSTshiftRL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ATST,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+				{1, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+			},
+		},
+	},
+	{
+		name:    "TSTshiftRA",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ATST,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+				{1, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+			},
+		},
+	},
+	{
+		name:    "TEQshiftLL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ATEQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+				{1, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+			},
+		},
+	},
+	{
+		name:    "TEQshiftRL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ATEQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+				{1, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+			},
+		},
+	},
+	{
+		name:    "TEQshiftRA",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ATEQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+				{1, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+			},
+		},
+	},
+	{
 		name:   "CMPshiftLLreg",
 		argLen: 3,
 		asm:    arm.ACMP,
@@ -10723,6 +10850,114 @@ var opcodeTable = [...]opInfo{
 		name:   "CMPshiftRAreg",
 		argLen: 3,
 		asm:    arm.ACMP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{2, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:   "CMNshiftLLreg",
+		argLen: 3,
+		asm:    arm.ACMN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{2, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:   "CMNshiftRLreg",
+		argLen: 3,
+		asm:    arm.ACMN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{2, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:   "CMNshiftRAreg",
+		argLen: 3,
+		asm:    arm.ACMN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{2, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:   "TSTshiftLLreg",
+		argLen: 3,
+		asm:    arm.ATST,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{2, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:   "TSTshiftRLreg",
+		argLen: 3,
+		asm:    arm.ATST,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{2, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:   "TSTshiftRAreg",
+		argLen: 3,
+		asm:    arm.ATST,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{2, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:   "TEQshiftLLreg",
+		argLen: 3,
+		asm:    arm.ATEQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{2, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:   "TEQshiftRLreg",
+		argLen: 3,
+		asm:    arm.ATEQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{2, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:   "TEQshiftRAreg",
+		argLen: 3,
+		asm:    arm.ATEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14

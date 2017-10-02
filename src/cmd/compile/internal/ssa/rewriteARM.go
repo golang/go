@@ -101,6 +101,22 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpARMBICshiftRL_0(v)
 	case OpARMBICshiftRLreg:
 		return rewriteValueARM_OpARMBICshiftRLreg_0(v)
+	case OpARMCMN:
+		return rewriteValueARM_OpARMCMN_0(v) || rewriteValueARM_OpARMCMN_10(v)
+	case OpARMCMNconst:
+		return rewriteValueARM_OpARMCMNconst_0(v)
+	case OpARMCMNshiftLL:
+		return rewriteValueARM_OpARMCMNshiftLL_0(v)
+	case OpARMCMNshiftLLreg:
+		return rewriteValueARM_OpARMCMNshiftLLreg_0(v)
+	case OpARMCMNshiftRA:
+		return rewriteValueARM_OpARMCMNshiftRA_0(v)
+	case OpARMCMNshiftRAreg:
+		return rewriteValueARM_OpARMCMNshiftRAreg_0(v)
+	case OpARMCMNshiftRL:
+		return rewriteValueARM_OpARMCMNshiftRL_0(v)
+	case OpARMCMNshiftRLreg:
+		return rewriteValueARM_OpARMCMNshiftRLreg_0(v)
 	case OpARMCMOVWHSconst:
 		return rewriteValueARM_OpARMCMOVWHSconst_0(v)
 	case OpARMCMOVWLSconst:
@@ -361,6 +377,38 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpARMSUBshiftRL_0(v)
 	case OpARMSUBshiftRLreg:
 		return rewriteValueARM_OpARMSUBshiftRLreg_0(v)
+	case OpARMTEQ:
+		return rewriteValueARM_OpARMTEQ_0(v) || rewriteValueARM_OpARMTEQ_10(v)
+	case OpARMTEQconst:
+		return rewriteValueARM_OpARMTEQconst_0(v)
+	case OpARMTEQshiftLL:
+		return rewriteValueARM_OpARMTEQshiftLL_0(v)
+	case OpARMTEQshiftLLreg:
+		return rewriteValueARM_OpARMTEQshiftLLreg_0(v)
+	case OpARMTEQshiftRA:
+		return rewriteValueARM_OpARMTEQshiftRA_0(v)
+	case OpARMTEQshiftRAreg:
+		return rewriteValueARM_OpARMTEQshiftRAreg_0(v)
+	case OpARMTEQshiftRL:
+		return rewriteValueARM_OpARMTEQshiftRL_0(v)
+	case OpARMTEQshiftRLreg:
+		return rewriteValueARM_OpARMTEQshiftRLreg_0(v)
+	case OpARMTST:
+		return rewriteValueARM_OpARMTST_0(v) || rewriteValueARM_OpARMTST_10(v)
+	case OpARMTSTconst:
+		return rewriteValueARM_OpARMTSTconst_0(v)
+	case OpARMTSTshiftLL:
+		return rewriteValueARM_OpARMTSTshiftLL_0(v)
+	case OpARMTSTshiftLLreg:
+		return rewriteValueARM_OpARMTSTshiftLLreg_0(v)
+	case OpARMTSTshiftRA:
+		return rewriteValueARM_OpARMTSTshiftRA_0(v)
+	case OpARMTSTshiftRAreg:
+		return rewriteValueARM_OpARMTSTshiftRAreg_0(v)
+	case OpARMTSTshiftRL:
+		return rewriteValueARM_OpARMTSTshiftRL_0(v)
+	case OpARMTSTshiftRLreg:
+		return rewriteValueARM_OpARMTSTshiftRLreg_0(v)
 	case OpARMXOR:
 		return rewriteValueARM_OpARMXOR_0(v) || rewriteValueARM_OpARMXOR_10(v)
 	case OpARMXORconst:
@@ -4410,6 +4458,642 @@ func rewriteValueARM_OpARMBICshiftRLreg_0(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueARM_OpARMCMN_0(v *Value) bool {
+	// match: (CMN x (MOVWconst [c]))
+	// cond:
+	// result: (CMNconst [c] x)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMCMNconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (CMN (MOVWconst [c]) x)
+	// cond:
+	// result: (CMNconst [c] x)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMCMNconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (CMN x (SLLconst [c] y))
+	// cond:
+	// result: (CMNshiftLL x y [c])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMCMNshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (CMN (SLLconst [c] y) x)
+	// cond:
+	// result: (CMNshiftLL x y [c])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMCMNshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (CMN x (SRLconst [c] y))
+	// cond:
+	// result: (CMNshiftRL x y [c])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMCMNshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (CMN (SRLconst [c] y) x)
+	// cond:
+	// result: (CMNshiftRL x y [c])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMCMNshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (CMN x (SRAconst [c] y))
+	// cond:
+	// result: (CMNshiftRA x y [c])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRAconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMCMNshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (CMN (SRAconst [c] y) x)
+	// cond:
+	// result: (CMNshiftRA x y [c])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRAconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMCMNshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (CMN x (SLL y z))
+	// cond:
+	// result: (CMNshiftLLreg x y z)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLL {
+			break
+		}
+		_ = v_1.Args[1]
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMCMNshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (CMN (SLL y z) x)
+	// cond:
+	// result: (CMNshiftLLreg x y z)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLL {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMCMNshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMCMN_10(v *Value) bool {
+	// match: (CMN x (SRL y z))
+	// cond:
+	// result: (CMNshiftRLreg x y z)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRL {
+			break
+		}
+		_ = v_1.Args[1]
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMCMNshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (CMN (SRL y z) x)
+	// cond:
+	// result: (CMNshiftRLreg x y z)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRL {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMCMNshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (CMN x (SRA y z))
+	// cond:
+	// result: (CMNshiftRAreg x y z)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRA {
+			break
+		}
+		_ = v_1.Args[1]
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMCMNshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (CMN (SRA y z) x)
+	// cond:
+	// result: (CMNshiftRAreg x y z)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRA {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMCMNshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (CMN x (RSBconst [0] y))
+	// cond:
+	// result: (CMP x y)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMRSBconst {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpARMCMP)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (CMN (RSBconst [0] y) x)
+	// cond:
+	// result: (CMP x y)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMRSBconst {
+			break
+		}
+		if v_0.AuxInt != 0 {
+			break
+		}
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMCMP)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMCMNconst_0(v *Value) bool {
+	// match: (CMNconst (MOVWconst [x]) [y])
+	// cond: int32(x)==int32(-y)
+	// result: (FlagEQ)
+	for {
+		y := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		x := v_0.AuxInt
+		if !(int32(x) == int32(-y)) {
+			break
+		}
+		v.reset(OpARMFlagEQ)
+		return true
+	}
+	// match: (CMNconst (MOVWconst [x]) [y])
+	// cond: int32(x)<int32(-y) && uint32(x)<uint32(-y)
+	// result: (FlagLT_ULT)
+	for {
+		y := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		x := v_0.AuxInt
+		if !(int32(x) < int32(-y) && uint32(x) < uint32(-y)) {
+			break
+		}
+		v.reset(OpARMFlagLT_ULT)
+		return true
+	}
+	// match: (CMNconst (MOVWconst [x]) [y])
+	// cond: int32(x)<int32(-y) && uint32(x)>uint32(-y)
+	// result: (FlagLT_UGT)
+	for {
+		y := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		x := v_0.AuxInt
+		if !(int32(x) < int32(-y) && uint32(x) > uint32(-y)) {
+			break
+		}
+		v.reset(OpARMFlagLT_UGT)
+		return true
+	}
+	// match: (CMNconst (MOVWconst [x]) [y])
+	// cond: int32(x)>int32(-y) && uint32(x)<uint32(-y)
+	// result: (FlagGT_ULT)
+	for {
+		y := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		x := v_0.AuxInt
+		if !(int32(x) > int32(-y) && uint32(x) < uint32(-y)) {
+			break
+		}
+		v.reset(OpARMFlagGT_ULT)
+		return true
+	}
+	// match: (CMNconst (MOVWconst [x]) [y])
+	// cond: int32(x)>int32(-y) && uint32(x)>uint32(-y)
+	// result: (FlagGT_UGT)
+	for {
+		y := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		x := v_0.AuxInt
+		if !(int32(x) > int32(-y) && uint32(x) > uint32(-y)) {
+			break
+		}
+		v.reset(OpARMFlagGT_UGT)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMCMNshiftLL_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (CMNshiftLL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (CMNconst [c] (SLLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMCMNconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (CMNshiftLL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (CMNconst x [int64(uint32(c)<<uint64(d))])
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMCMNconst)
+		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMCMNshiftLLreg_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (CMNshiftLLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (CMNconst [c] (SLL <x.Type> x y))
+	for {
+		_ = v.Args[2]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMCMNconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (CMNshiftLLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (CMNshiftLL x y [c])
+	for {
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMCMNshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMCMNshiftRA_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (CMNshiftRA (MOVWconst [c]) x [d])
+	// cond:
+	// result: (CMNconst [c] (SRAconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMCMNconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSRAconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (CMNshiftRA x (MOVWconst [c]) [d])
+	// cond:
+	// result: (CMNconst x [int64(int32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMCMNconst)
+		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMCMNshiftRAreg_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (CMNshiftRAreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (CMNconst [c] (SRA <x.Type> x y))
+	for {
+		_ = v.Args[2]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMCMNconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSRA, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (CMNshiftRAreg x y (MOVWconst [c]))
+	// cond:
+	// result: (CMNshiftRA x y [c])
+	for {
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMCMNshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMCMNshiftRL_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (CMNshiftRL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (CMNconst [c] (SRLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMCMNconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSRLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (CMNshiftRL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (CMNconst x [int64(uint32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMCMNconst)
+		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMCMNshiftRLreg_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (CMNshiftRLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (CMNconst [c] (SRL <x.Type> x y))
+	for {
+		_ = v.Args[2]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMCMNconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSRL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (CMNshiftRLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (CMNshiftRL x y [c])
+	for {
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMCMNshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
 func rewriteValueARM_OpARMCMOVWHSconst_0(v *Value) bool {
 	// match: (CMOVWHSconst _ (FlagEQ) [c])
 	// cond:
@@ -4870,6 +5554,25 @@ func rewriteValueARM_OpARMCMP_10(v *Value) bool {
 		v0.AddArg(y)
 		v0.AddArg(z)
 		v.AddArg(v0)
+		return true
+	}
+	// match: (CMP x (RSBconst [0] y))
+	// cond:
+	// result: (CMN x y)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMRSBconst {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpARMCMN)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 	return false
@@ -14919,6 +15622,1138 @@ func rewriteValueARM_OpARMSUBshiftRLreg_0(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueARM_OpARMTEQ_0(v *Value) bool {
+	// match: (TEQ x (MOVWconst [c]))
+	// cond:
+	// result: (TEQconst [c] x)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMTEQconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (TEQ (MOVWconst [c]) x)
+	// cond:
+	// result: (TEQconst [c] x)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMTEQconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (TEQ x (SLLconst [c] y))
+	// cond:
+	// result: (TEQshiftLL x y [c])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMTEQshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (TEQ (SLLconst [c] y) x)
+	// cond:
+	// result: (TEQshiftLL x y [c])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMTEQshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (TEQ x (SRLconst [c] y))
+	// cond:
+	// result: (TEQshiftRL x y [c])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMTEQshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (TEQ (SRLconst [c] y) x)
+	// cond:
+	// result: (TEQshiftRL x y [c])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMTEQshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (TEQ x (SRAconst [c] y))
+	// cond:
+	// result: (TEQshiftRA x y [c])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRAconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMTEQshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (TEQ (SRAconst [c] y) x)
+	// cond:
+	// result: (TEQshiftRA x y [c])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRAconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMTEQshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (TEQ x (SLL y z))
+	// cond:
+	// result: (TEQshiftLLreg x y z)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLL {
+			break
+		}
+		_ = v_1.Args[1]
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMTEQshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (TEQ (SLL y z) x)
+	// cond:
+	// result: (TEQshiftLLreg x y z)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLL {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMTEQshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTEQ_10(v *Value) bool {
+	// match: (TEQ x (SRL y z))
+	// cond:
+	// result: (TEQshiftRLreg x y z)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRL {
+			break
+		}
+		_ = v_1.Args[1]
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMTEQshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (TEQ (SRL y z) x)
+	// cond:
+	// result: (TEQshiftRLreg x y z)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRL {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMTEQshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (TEQ x (SRA y z))
+	// cond:
+	// result: (TEQshiftRAreg x y z)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRA {
+			break
+		}
+		_ = v_1.Args[1]
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMTEQshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (TEQ (SRA y z) x)
+	// cond:
+	// result: (TEQshiftRAreg x y z)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRA {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMTEQshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTEQconst_0(v *Value) bool {
+	// match: (TEQconst (MOVWconst [x]) [y])
+	// cond: int32(x^y)==0
+	// result: (FlagEQ)
+	for {
+		y := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		x := v_0.AuxInt
+		if !(int32(x^y) == 0) {
+			break
+		}
+		v.reset(OpARMFlagEQ)
+		return true
+	}
+	// match: (TEQconst (MOVWconst [x]) [y])
+	// cond: int32(x^y)<0
+	// result: (FlagLT_UGT)
+	for {
+		y := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		x := v_0.AuxInt
+		if !(int32(x^y) < 0) {
+			break
+		}
+		v.reset(OpARMFlagLT_UGT)
+		return true
+	}
+	// match: (TEQconst (MOVWconst [x]) [y])
+	// cond: int32(x^y)>0
+	// result: (FlagGT_UGT)
+	for {
+		y := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		x := v_0.AuxInt
+		if !(int32(x^y) > 0) {
+			break
+		}
+		v.reset(OpARMFlagGT_UGT)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTEQshiftLL_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (TEQshiftLL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (TEQconst [c] (SLLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMTEQconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (TEQshiftLL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (TEQconst x [int64(uint32(c)<<uint64(d))])
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMTEQconst)
+		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTEQshiftLLreg_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (TEQshiftLLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (TEQconst [c] (SLL <x.Type> x y))
+	for {
+		_ = v.Args[2]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMTEQconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (TEQshiftLLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (TEQshiftLL x y [c])
+	for {
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMTEQshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTEQshiftRA_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (TEQshiftRA (MOVWconst [c]) x [d])
+	// cond:
+	// result: (TEQconst [c] (SRAconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMTEQconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSRAconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (TEQshiftRA x (MOVWconst [c]) [d])
+	// cond:
+	// result: (TEQconst x [int64(int32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMTEQconst)
+		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTEQshiftRAreg_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (TEQshiftRAreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (TEQconst [c] (SRA <x.Type> x y))
+	for {
+		_ = v.Args[2]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMTEQconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSRA, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (TEQshiftRAreg x y (MOVWconst [c]))
+	// cond:
+	// result: (TEQshiftRA x y [c])
+	for {
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMTEQshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTEQshiftRL_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (TEQshiftRL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (TEQconst [c] (SRLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMTEQconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSRLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (TEQshiftRL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (TEQconst x [int64(uint32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMTEQconst)
+		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTEQshiftRLreg_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (TEQshiftRLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (TEQconst [c] (SRL <x.Type> x y))
+	for {
+		_ = v.Args[2]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMTEQconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSRL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (TEQshiftRLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (TEQshiftRL x y [c])
+	for {
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMTEQshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTST_0(v *Value) bool {
+	// match: (TST x (MOVWconst [c]))
+	// cond:
+	// result: (TSTconst [c] x)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMTSTconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (TST (MOVWconst [c]) x)
+	// cond:
+	// result: (TSTconst [c] x)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMTSTconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (TST x (SLLconst [c] y))
+	// cond:
+	// result: (TSTshiftLL x y [c])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMTSTshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (TST (SLLconst [c] y) x)
+	// cond:
+	// result: (TSTshiftLL x y [c])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMTSTshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (TST x (SRLconst [c] y))
+	// cond:
+	// result: (TSTshiftRL x y [c])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMTSTshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (TST (SRLconst [c] y) x)
+	// cond:
+	// result: (TSTshiftRL x y [c])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMTSTshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (TST x (SRAconst [c] y))
+	// cond:
+	// result: (TSTshiftRA x y [c])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRAconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMTSTshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (TST (SRAconst [c] y) x)
+	// cond:
+	// result: (TSTshiftRA x y [c])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRAconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMTSTshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (TST x (SLL y z))
+	// cond:
+	// result: (TSTshiftLLreg x y z)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLL {
+			break
+		}
+		_ = v_1.Args[1]
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMTSTshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (TST (SLL y z) x)
+	// cond:
+	// result: (TSTshiftLLreg x y z)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLL {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMTSTshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTST_10(v *Value) bool {
+	// match: (TST x (SRL y z))
+	// cond:
+	// result: (TSTshiftRLreg x y z)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRL {
+			break
+		}
+		_ = v_1.Args[1]
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMTSTshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (TST (SRL y z) x)
+	// cond:
+	// result: (TSTshiftRLreg x y z)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRL {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMTSTshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (TST x (SRA y z))
+	// cond:
+	// result: (TSTshiftRAreg x y z)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRA {
+			break
+		}
+		_ = v_1.Args[1]
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMTSTshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (TST (SRA y z) x)
+	// cond:
+	// result: (TSTshiftRAreg x y z)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRA {
+			break
+		}
+		_ = v_0.Args[1]
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMTSTshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTSTconst_0(v *Value) bool {
+	// match: (TSTconst (MOVWconst [x]) [y])
+	// cond: int32(x&y)==0
+	// result: (FlagEQ)
+	for {
+		y := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		x := v_0.AuxInt
+		if !(int32(x&y) == 0) {
+			break
+		}
+		v.reset(OpARMFlagEQ)
+		return true
+	}
+	// match: (TSTconst (MOVWconst [x]) [y])
+	// cond: int32(x&y)<0
+	// result: (FlagLT_UGT)
+	for {
+		y := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		x := v_0.AuxInt
+		if !(int32(x&y) < 0) {
+			break
+		}
+		v.reset(OpARMFlagLT_UGT)
+		return true
+	}
+	// match: (TSTconst (MOVWconst [x]) [y])
+	// cond: int32(x&y)>0
+	// result: (FlagGT_UGT)
+	for {
+		y := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		x := v_0.AuxInt
+		if !(int32(x&y) > 0) {
+			break
+		}
+		v.reset(OpARMFlagGT_UGT)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTSTshiftLL_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (TSTshiftLL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (TSTconst [c] (SLLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMTSTconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (TSTshiftLL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (TSTconst x [int64(uint32(c)<<uint64(d))])
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMTSTconst)
+		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTSTshiftLLreg_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (TSTshiftLLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (TSTconst [c] (SLL <x.Type> x y))
+	for {
+		_ = v.Args[2]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMTSTconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (TSTshiftLLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (TSTshiftLL x y [c])
+	for {
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMTSTshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTSTshiftRA_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (TSTshiftRA (MOVWconst [c]) x [d])
+	// cond:
+	// result: (TSTconst [c] (SRAconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMTSTconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSRAconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (TSTshiftRA x (MOVWconst [c]) [d])
+	// cond:
+	// result: (TSTconst x [int64(int32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMTSTconst)
+		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTSTshiftRAreg_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (TSTshiftRAreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (TSTconst [c] (SRA <x.Type> x y))
+	for {
+		_ = v.Args[2]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMTSTconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSRA, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (TSTshiftRAreg x y (MOVWconst [c]))
+	// cond:
+	// result: (TSTshiftRA x y [c])
+	for {
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMTSTshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTSTshiftRL_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (TSTshiftRL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (TSTconst [c] (SRLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMTSTconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSRLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (TSTshiftRL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (TSTconst x [int64(uint32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMTSTconst)
+		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMTSTshiftRLreg_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (TSTshiftRLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (TSTconst [c] (SRL <x.Type> x y))
+	for {
+		_ = v.Args[2]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMTSTconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Pos, OpARMSRL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (TSTshiftRLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (TSTshiftRL x y [c])
+	for {
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMTSTshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
 func rewriteValueARM_OpARMXOR_0(v *Value) bool {
 	// match: (XOR x (MOVWconst [c]))
 	// cond:
@@ -20321,6 +22156,882 @@ func rewriteBlockARM(b *Block) bool {
 			b.Aux = nil
 			return true
 		}
+		// match: (EQ (CMPconst [0] (SUB x y)) yes no)
+		// cond:
+		// result: (EQ (CMP x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUB {
+				break
+			}
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (SUBconst [c] x)) yes no)
+		// cond:
+		// result: (EQ (CMPconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUBconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (SUBshiftLL x y [c])) yes no)
+		// cond:
+		// result: (EQ (CMPshiftLL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUBshiftLL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMPshiftLL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (SUBshiftRL x y [c])) yes no)
+		// cond:
+		// result: (EQ (CMPshiftRL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUBshiftRL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (SUBshiftRA x y [c])) yes no)
+		// cond:
+		// result: (EQ (CMPshiftRA x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUBshiftRA {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRA, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (SUBshiftLLreg x y z)) yes no)
+		// cond:
+		// result: (EQ (CMPshiftLLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUBshiftLLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMPshiftLLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (SUBshiftRLreg x y z)) yes no)
+		// cond:
+		// result: (EQ (CMPshiftRLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUBshiftRLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (SUBshiftRAreg x y z)) yes no)
+		// cond:
+		// result: (EQ (CMPshiftRAreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUBshiftRAreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRAreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (ADD x y)) yes no)
+		// cond:
+		// result: (EQ (CMN x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADD {
+				break
+			}
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMN, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (ADDconst [c] x)) yes no)
+		// cond:
+		// result: (EQ (CMNconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMNconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (ADDshiftLL x y [c])) yes no)
+		// cond:
+		// result: (EQ (CMNshiftLL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADDshiftLL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMNshiftLL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (ADDshiftRL x y [c])) yes no)
+		// cond:
+		// result: (EQ (CMNshiftRL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADDshiftRL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (ADDshiftRA x y [c])) yes no)
+		// cond:
+		// result: (EQ (CMNshiftRA x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADDshiftRA {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRA, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (ADDshiftLLreg x y z)) yes no)
+		// cond:
+		// result: (EQ (CMNshiftLLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADDshiftLLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMNshiftLLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (ADDshiftRLreg x y z)) yes no)
+		// cond:
+		// result: (EQ (CMNshiftRLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADDshiftRLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (ADDshiftRAreg x y z)) yes no)
+		// cond:
+		// result: (EQ (CMNshiftRAreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADDshiftRAreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRAreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (AND x y)) yes no)
+		// cond:
+		// result: (EQ (TST x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMAND {
+				break
+			}
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTST, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (ANDconst [c] x)) yes no)
+		// cond:
+		// result: (EQ (TSTconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMANDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTSTconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (ANDshiftLL x y [c])) yes no)
+		// cond:
+		// result: (EQ (TSTshiftLL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMANDshiftLL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTSTshiftLL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (ANDshiftRL x y [c])) yes no)
+		// cond:
+		// result: (EQ (TSTshiftRL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMANDshiftRL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (ANDshiftRA x y [c])) yes no)
+		// cond:
+		// result: (EQ (TSTshiftRA x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMANDshiftRA {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRA, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (ANDshiftLLreg x y z)) yes no)
+		// cond:
+		// result: (EQ (TSTshiftLLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMANDshiftLLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTSTshiftLLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (ANDshiftRLreg x y z)) yes no)
+		// cond:
+		// result: (EQ (TSTshiftRLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMANDshiftRLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (ANDshiftRAreg x y z)) yes no)
+		// cond:
+		// result: (EQ (TSTshiftRAreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMANDshiftRAreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRAreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (XOR x y)) yes no)
+		// cond:
+		// result: (EQ (TEQ x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXOR {
+				break
+			}
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTEQ, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (XORconst [c] x)) yes no)
+		// cond:
+		// result: (EQ (TEQconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXORconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTEQconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (XORshiftLL x y [c])) yes no)
+		// cond:
+		// result: (EQ (TEQshiftLL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXORshiftLL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTEQshiftLL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (XORshiftRL x y [c])) yes no)
+		// cond:
+		// result: (EQ (TEQshiftRL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXORshiftRL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (XORshiftRA x y [c])) yes no)
+		// cond:
+		// result: (EQ (TEQshiftRA x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXORshiftRA {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRA, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (XORshiftLLreg x y z)) yes no)
+		// cond:
+		// result: (EQ (TEQshiftLLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXORshiftLLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTEQshiftLLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (XORshiftRLreg x y z)) yes no)
+		// cond:
+		// result: (EQ (TEQshiftRLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXORshiftRLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] (XORshiftRAreg x y z)) yes no)
+		// cond:
+		// result: (EQ (TEQshiftRAreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXORshiftRAreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMEQ
+			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRAreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
 	case BlockARMGE:
 		// match: (GE (FlagEQ) yes no)
 		// cond:
@@ -21095,6 +23806,882 @@ func rewriteBlockARM(b *Block) bool {
 			cmp := v.Args[0]
 			b.Kind = BlockARMNE
 			b.SetControl(cmp)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (SUB x y)) yes no)
+		// cond:
+		// result: (NE (CMP x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUB {
+				break
+			}
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (SUBconst [c] x)) yes no)
+		// cond:
+		// result: (NE (CMPconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUBconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (SUBshiftLL x y [c])) yes no)
+		// cond:
+		// result: (NE (CMPshiftLL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUBshiftLL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMPshiftLL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (SUBshiftRL x y [c])) yes no)
+		// cond:
+		// result: (NE (CMPshiftRL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUBshiftRL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (SUBshiftRA x y [c])) yes no)
+		// cond:
+		// result: (NE (CMPshiftRA x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUBshiftRA {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRA, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (SUBshiftLLreg x y z)) yes no)
+		// cond:
+		// result: (NE (CMPshiftLLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUBshiftLLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMPshiftLLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (SUBshiftRLreg x y z)) yes no)
+		// cond:
+		// result: (NE (CMPshiftRLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUBshiftRLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (SUBshiftRAreg x y z)) yes no)
+		// cond:
+		// result: (NE (CMPshiftRAreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMSUBshiftRAreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRAreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ADD x y)) yes no)
+		// cond:
+		// result: (NE (CMN x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADD {
+				break
+			}
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMN, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ADDconst [c] x)) yes no)
+		// cond:
+		// result: (NE (CMNconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMNconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ADDshiftLL x y [c])) yes no)
+		// cond:
+		// result: (NE (CMNshiftLL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADDshiftLL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMNshiftLL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ADDshiftRL x y [c])) yes no)
+		// cond:
+		// result: (NE (CMNshiftRL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADDshiftRL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ADDshiftRA x y [c])) yes no)
+		// cond:
+		// result: (NE (CMNshiftRA x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADDshiftRA {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRA, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ADDshiftLLreg x y z)) yes no)
+		// cond:
+		// result: (NE (CMNshiftLLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADDshiftLLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMNshiftLLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ADDshiftRLreg x y z)) yes no)
+		// cond:
+		// result: (NE (CMNshiftRLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADDshiftRLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ADDshiftRAreg x y z)) yes no)
+		// cond:
+		// result: (NE (CMNshiftRAreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMADDshiftRAreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRAreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (AND x y)) yes no)
+		// cond:
+		// result: (NE (TST x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMAND {
+				break
+			}
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTST, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ANDconst [c] x)) yes no)
+		// cond:
+		// result: (NE (TSTconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMANDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTSTconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ANDshiftLL x y [c])) yes no)
+		// cond:
+		// result: (NE (TSTshiftLL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMANDshiftLL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTSTshiftLL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ANDshiftRL x y [c])) yes no)
+		// cond:
+		// result: (NE (TSTshiftRL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMANDshiftRL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ANDshiftRA x y [c])) yes no)
+		// cond:
+		// result: (NE (TSTshiftRA x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMANDshiftRA {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRA, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ANDshiftLLreg x y z)) yes no)
+		// cond:
+		// result: (NE (TSTshiftLLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMANDshiftLLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTSTshiftLLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ANDshiftRLreg x y z)) yes no)
+		// cond:
+		// result: (NE (TSTshiftRLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMANDshiftRLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ANDshiftRAreg x y z)) yes no)
+		// cond:
+		// result: (NE (TSTshiftRAreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMANDshiftRAreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRAreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (XOR x y)) yes no)
+		// cond:
+		// result: (NE (TEQ x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXOR {
+				break
+			}
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTEQ, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (XORconst [c] x)) yes no)
+		// cond:
+		// result: (NE (TEQconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXORconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTEQconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (XORshiftLL x y [c])) yes no)
+		// cond:
+		// result: (NE (TEQshiftLL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXORshiftLL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTEQshiftLL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (XORshiftRL x y [c])) yes no)
+		// cond:
+		// result: (NE (TEQshiftRL x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXORshiftRL {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRL, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (XORshiftRA x y [c])) yes no)
+		// cond:
+		// result: (NE (TEQshiftRA x y [c]) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXORshiftRA {
+				break
+			}
+			c := v_0.AuxInt
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRA, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (XORshiftLLreg x y z)) yes no)
+		// cond:
+		// result: (NE (TEQshiftLLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXORshiftLLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTEQshiftLLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (XORshiftRLreg x y z)) yes no)
+		// cond:
+		// result: (NE (TEQshiftRLreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXORshiftRLreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRLreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (XORshiftRAreg x y z)) yes no)
+		// cond:
+		// result: (NE (TEQshiftRAreg x y z) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARMCMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpARMXORshiftRAreg {
+				break
+			}
+			_ = v_0.Args[2]
+			x := v_0.Args[0]
+			y := v_0.Args[1]
+			z := v_0.Args[2]
+			b.Kind = BlockARMNE
+			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRAreg, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v0.AddArg(z)
+			b.SetControl(v0)
 			b.Aux = nil
 			return true
 		}
