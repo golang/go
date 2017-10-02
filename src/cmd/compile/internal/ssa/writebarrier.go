@@ -17,7 +17,7 @@ func needwb(v *Value) bool {
 	if !ok {
 		v.Fatalf("store aux is not a type: %s", v.LongString())
 	}
-	if !t.HasPointer() {
+	if !t.HasHeapPointer() {
 		return false
 	}
 	if IsStackAddr(v.Args[0]) {
