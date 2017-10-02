@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"internal/testenv"
 	"math"
 	"runtime"
 	"sync"
@@ -433,6 +434,9 @@ func TestSelectStress(t *testing.T) {
 
 func TestSelectFairness(t *testing.T) {
 	const trials = 10000
+	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64le" {
+		testenv.SkipFlaky(t, 22047)
+	}
 	c1 := make(chan byte, trials+1)
 	c2 := make(chan byte, trials+1)
 	for i := 0; i < trials+1; i++ {
