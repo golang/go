@@ -1045,7 +1045,11 @@ func addstrdata1(ctxt *Link, arg string) {
 	if eq < 0 || dot < 0 {
 		Exitf("-X flag requires argument of the form importpath.name=value")
 	}
-	addstrdata(ctxt, objabi.PathToPrefix(arg[:dot])+arg[dot:eq], arg[eq+1:])
+	pkg := objabi.PathToPrefix(arg[:dot])
+	if Buildmode == BuildmodePlugin && pkg == "main" {
+		pkg = *flagPluginPath
+	}
+	addstrdata(ctxt, pkg+arg[dot:eq], arg[eq+1:])
 }
 
 func addstrdata(ctxt *Link, name string, value string) {
