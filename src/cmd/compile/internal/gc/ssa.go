@@ -277,7 +277,7 @@ type state struct {
 
 type funcLine struct {
 	f    *obj.LSym
-	file string
+	base *src.PosBase
 	line uint
 }
 
@@ -3464,7 +3464,7 @@ func (s *state) check(cmp *ssa.Value, fn *obj.LSym) {
 	bNext := s.f.NewBlock(ssa.BlockPlain)
 	line := s.peekPos()
 	pos := Ctxt.PosTable.Pos(line)
-	fl := funcLine{f: fn, file: pos.Filename(), line: pos.Line()}
+	fl := funcLine{f: fn, base: pos.Base(), line: pos.Line()}
 	bPanic := s.panics[fl]
 	if bPanic == nil {
 		bPanic = s.f.NewBlock(ssa.BlockPlain)
