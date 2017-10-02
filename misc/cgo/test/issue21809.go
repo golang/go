@@ -17,29 +17,29 @@ import "C"
 import "testing"
 
 func test21809(t *testing.T) {
-    longVar := C.long(3)
-    typedefVar := C.MySigned_t(4)
-    typedefTypedefVar := C.MySigned2_t(5)
+	longVar := C.long(3)
+	typedefVar := C.MySigned_t(4)
+	typedefTypedefVar := C.MySigned2_t(5)
 
-    // all three should be considered identical to `long`
-    if ret := C.takes_long(longVar); ret != 9 {
-        t.Errorf("got %v but expected %v", ret, 9)
-    }
-    if ret := C.takes_long(typedefVar); ret != 16 {
-        t.Errorf("got %v but expected %v", ret, 16)
-    }
-    if ret := C.takes_long(typedefTypedefVar); ret != 25 {
-        t.Errorf("got %v but expected %v", ret, 25)
-    }
+	// all three should be considered identical to `long`
+	if ret := C.takes_long(longVar); ret != 9 {
+		t.Errorf("got %v but expected %v", ret, 9)
+	}
+	if ret := C.takes_long(typedefVar); ret != 16 {
+		t.Errorf("got %v but expected %v", ret, 16)
+	}
+	if ret := C.takes_long(typedefTypedefVar); ret != 25 {
+		t.Errorf("got %v but expected %v", ret, 25)
+	}
 
-    // They should also be identical to the typedef'd type
-    if ret := C.takes_typedef(longVar); ret != 9 {
-        t.Errorf("got %v but expected %v", ret, 9)
-    }
-    if ret := C.takes_typedef(typedefVar); ret != 16 {
-        t.Errorf("got %v but expected %v", ret, 16)
-    }
-    if ret := C.takes_typedef(typedefTypedefVar); ret != 25 {
-        t.Errorf("got %v but expected %v", ret, 25)
-    }
+	// They should also be identical to the typedef'd type
+	if ret := C.takes_typedef(longVar); ret != 9 {
+		t.Errorf("got %v but expected %v", ret, 9)
+	}
+	if ret := C.takes_typedef(typedefVar); ret != 16 {
+		t.Errorf("got %v but expected %v", ret, 16)
+	}
+	if ret := C.takes_typedef(typedefTypedefVar); ret != 25 {
+		t.Errorf("got %v but expected %v", ret, 25)
+	}
 }

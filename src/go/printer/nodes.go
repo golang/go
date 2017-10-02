@@ -774,20 +774,35 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		if x.Max != nil {
 			indices = append(indices, x.Max)
 		}
-		for i, y := range indices {
-			if i > 0 {
-				// blanks around ":" if both sides exist and either side is a binary expression
-				// TODO(gri) once we have committed a variant of a[i:j:k] we may want to fine-
-				//           tune the formatting here
-				x := indices[i-1]
-				if depth <= 1 && x != nil && y != nil && (isBinary(x) || isBinary(y)) {
-					p.print(blank, token.COLON, blank)
-				} else {
-					p.print(token.COLON)
+		// determine if we need extra blanks around ':'
+		var needsBlanks bool
+		if depth <= 1 {
+			var indexCount int
+			var hasBinaries bool
+			for _, x := range indices {
+				if x != nil {
+					indexCount++
+					if isBinary(x) {
+						hasBinaries = true
+					}
 				}
 			}
-			if y != nil {
-				p.expr0(y, depth+1)
+			if indexCount > 1 && hasBinaries {
+				needsBlanks = true
+			}
+		}
+		for i, x := range indices {
+			if i > 0 {
+				if indices[i-1] != nil && needsBlanks {
+					p.print(blank)
+				}
+				p.print(token.COLON)
+				if x != nil && needsBlanks {
+					p.print(blank)
+				}
+			}
+			if x != nil {
+				p.expr0(x, depth+1)
 			}
 		}
 		p.print(x.Rbrack, token.RBRACK)
