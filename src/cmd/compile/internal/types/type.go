@@ -1403,7 +1403,7 @@ func Haspointers(t *Type) bool {
 func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
 	switch t.Etype {
 	case TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64,
-		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL:
+		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL, TSSA:
 		return false
 
 	case TARRAY:
@@ -1422,6 +1422,10 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
 
 	case TPTR32, TPTR64, TSLICE:
 		return !(ignoreNotInHeap && t.Elem().NotInHeap())
+
+	case TTUPLE:
+		ttup := t.Extra.(*Tuple)
+		return Haspointers1(ttup.first, ignoreNotInHeap) || Haspointers1(ttup.second, ignoreNotInHeap)
 	}
 
 	return true
@@ -1462,6 +1466,7 @@ func FakeRecvType() *Type {
 }
 
 var (
+	// TSSA types. Haspointers assumes these are pointer-free.
 	TypeInvalid = newSSA("invalid")
 	TypeMem     = newSSA("mem")
 	TypeFlags   = newSSA("flags")
