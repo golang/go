@@ -1391,10 +1391,10 @@ func Haspointers(t *Type) bool {
 	return true
 }
 
-// HasPointer returns whether t contains heap pointer.
+// HasHeapPointer returns whether t contains a heap pointer.
 // This is used for write barrier insertion, so we ignore
 // pointers to go:notinheap types.
-func (t *Type) HasPointer() bool {
+func (t *Type) HasHeapPointer() bool {
 	if t.IsPtr() && t.Elem().NotInHeap() {
 		return false
 	}
