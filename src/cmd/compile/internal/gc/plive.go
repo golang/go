@@ -692,7 +692,7 @@ func (lv *Liveness) epilogue() {
 	for _, b := range lv.f.Blocks {
 		be := lv.blockEffects(b)
 
-		// walk backward, emit pcdata and populate the maps
+		// walk backward, construct maps at each safe point
 		index := int32(be.lastbitmapindex)
 		if index < 0 {
 			// the first block we encounter should have the ATEXT so
@@ -1012,7 +1012,8 @@ Outer:
 	}
 	lv.livevars = lv.livevars[:uniq]
 
-	// Rewrite PCDATA instructions to use new numbering.
+	// Record compacted stack map indexes for each value.
+	// These will later become PCDATA instructions.
 	lv.showlive(nil, lv.livevars[0])
 	pos := 1
 	lv.stackMapIndex = make(map[*ssa.Value]int)
