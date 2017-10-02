@@ -60,10 +60,12 @@ const fakeDBName = "foo"
 var chrisBirthday = time.Unix(123456789, 0)
 
 func newTestDB(t testing.TB, name string) *DB {
-	db, err := Open("test", fakeDBName)
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
+	return newTestDBConnector(t, &fakeConnector{name: fakeDBName}, name)
+}
+
+func newTestDBConnector(t testing.TB, fc *fakeConnector, name string) *DB {
+	fc.name = fakeDBName
+	db := OpenDB(fc)
 	if _, err := db.Exec("WIPE"); err != nil {
 		t.Fatalf("exec wipe: %v", err)
 	}
@@ -585,24 +587,46 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 	if testing.Short() {
 		t.Skip("long test")
 	}
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
 
 	max := 3
+	var saturate, saturateDone sync.WaitGroup
+	saturate.Add(max)
+	saturateDone.Add(max)
+
+	donePing := make(chan bool)
+	state := 0
+
+	// waiter will be called for all queries, including
+	// initial setup queries. The state is only assigned when no
+	// no queries are made.
+	//
+	// Only allow the first batch of queries to finish once the
+	// second batch of Ping queries have finished.
+	waiter := func(ctx context.Context) {
+		switch state {
+		case 0:
+			// Nothing. Initial database setup.
+		case 1:
+			saturate.Done()
+			select {
+			case <-ctx.Done():
+			case <-donePing:
+			}
+		case 2:
+		}
+	}
+	db := newTestDBConnector(t, &fakeConnector{waiter: waiter}, "people")
+	defer closeDB(t, db)
 
 	db.SetMaxOpenConns(max)
 
 	// First saturate the connection pool.
 	// Then start new requests for a connection that is cancelled after it is requested.
 
-	var saturate, saturateDone sync.WaitGroup
-	saturate.Add(max)
-	saturateDone.Add(max)
-
+	state = 1
 	for i := 0; i < max; i++ {
 		go func() {
-			saturate.Done()
-			rows, err := db.Query("WAIT|500ms|SELECT|people|name,photo|")
+			rows, err := db.Query("SELECT|people|name,photo|")
 			if err != nil {
 				t.Fatalf("Query: %v", err)
 			}
@@ -612,6 +636,7 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 	}
 
 	saturate.Wait()
+	state = 2
 
 	// Now cancel the request while it is waiting.
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -628,7 +653,7 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 			t.Fatalf("PingContext (Exhaust): %v", err)
 		}
 	}
-
+	close(donePing)
 	saturateDone.Wait()
 
 	// Now try to open a normal connection.
@@ -1332,6 +1357,7 @@ func TestConnQuery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	conn.dc.ci.(*fakeConn).skipDirtySession = true
 	defer conn.Close()
 
 	var name string
@@ -1359,6 +1385,7 @@ func TestConnTx(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	conn.dc.ci.(*fakeConn).skipDirtySession = true
 	defer conn.Close()
 
 	tx, err := conn.BeginTx(ctx, nil)
@@ -2384,7 +2411,9 @@ func TestManyErrBadConn(t *testing.T) {
 			t.Fatalf("unexpected len(db.freeConn) %d (was expecting %d)", len(db.freeConn), nconn)
 		}
 		for _, conn := range db.freeConn {
+			conn.Lock()
 			conn.ci.(*fakeConn).stickyBad = true
+			conn.Unlock()
 		}
 		return db
 	}
@@ -2474,6 +2503,7 @@ func TestManyErrBadConn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	conn.dc.ci.(*fakeConn).skipDirtySession = true
 	err = conn.Close()
 	if err != nil {
 		t.Fatal(err)
@@ -3238,9 +3268,8 @@ func TestIssue18719(t *testing.T) {
 
 	// This call will grab the connection and cancel the context
 	// after it has done so. Code after must deal with the canceled state.
-	rows, err := tx.QueryContext(ctx, "SELECT|people|name|")
+	_, err = tx.QueryContext(ctx, "SELECT|people|name|")
 	if err != nil {
-		rows.Close()
 		t.Fatalf("expected error %v but got %v", nil, err)
 	}
 
@@ -3263,6 +3292,7 @@ func TestIssue20647(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	conn.dc.ci.(*fakeConn).skipDirtySession = true
 	defer conn.Close()
 
 	stmt, err := conn.PrepareContext(ctx, "SELECT|people|name|")
