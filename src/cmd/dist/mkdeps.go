@@ -68,6 +68,7 @@ func main() {
 		}
 		topo = append(topo, p)
 	}
+	walk("cmd/go")
 
 	// We're only going to print imports, not deps,
 	// in hopes of making deps.go intelligible to people

@@ -13,10 +13,10 @@ var builddeps = map[string][]string{
 
 	"bytes": {
 		"errors",       // bytes
+		"internal/cpu", // bytes
 		"io",           // bytes
 		"unicode",      // bytes
 		"unicode/utf8", // bytes
-		"internal/cpu", // bytes
 	},
 
 	"cmd/go": {
@@ -456,7 +456,9 @@ var builddeps = map[string][]string{
 		"strconv",         // debug/macho
 	},
 
-	"encoding": {},
+	"encoding": {
+		"runtime", // encoding
+	},
 
 	"encoding/base64": {
 		"io",      // encoding/base64
@@ -505,7 +507,9 @@ var builddeps = map[string][]string{
 		"unicode/utf8", // encoding/xml
 	},
 
-	"errors": {},
+	"errors": {
+		"runtime", // errors
+	},
 
 	"flag": {
 		"errors",  // flag
@@ -625,22 +629,26 @@ var builddeps = map[string][]string{
 		"hash", // hash/adler32
 	},
 
-	"internal/cpu": {},
+	"internal/cpu": {
+		"runtime", // internal/cpu
+	},
 
 	"internal/poll": {
 		"errors",        // internal/poll
+		"internal/race", // internal/poll
 		"io",            // internal/poll
+		"runtime",       // internal/poll
 		"sync",          // internal/poll
 		"sync/atomic",   // internal/poll
 		"syscall",       // internal/poll
 		"time",          // internal/poll
-		"internal/race", // internal/poll
-		"runtime",       // internal/poll
 		"unicode/utf16", // internal/poll
 		"unicode/utf8",  // internal/poll
 	},
 
-	"internal/race": {},
+	"internal/race": {
+		"runtime", // internal/race
+	},
 
 	"internal/singleflight": {
 		"sync", // internal/singleflight
@@ -659,7 +667,9 @@ var builddeps = map[string][]string{
 		"unicode/utf16", // internal/syscall/windows/registry
 	},
 
-	"internal/syscall/windows/sysdll": {},
+	"internal/syscall/windows/sysdll": {
+		"runtime", // internal/syscall/windows/sysdll
+	},
 
 	"io": {
 		"errors", // io
@@ -690,7 +700,9 @@ var builddeps = map[string][]string{
 		"internal/cpu", // math
 	},
 
-	"math/bits": {},
+	"math/bits": {
+		"runtime", // math/bits
+	},
 
 	"net/url": {
 		"bytes",   // net/url
@@ -702,16 +714,16 @@ var builddeps = map[string][]string{
 	},
 
 	"os": {
-		"errors",        // os
-		"internal/poll", // os
+		"errors",                   // os
+		"internal/poll",            // os
+		"internal/syscall/windows", // os
 		"io",            // os
 		"runtime",       // os
 		"sync",          // os
 		"sync/atomic",   // os
 		"syscall",       // os
 		"time",          // os
-		"internal/syscall/windows", // os
-		"unicode/utf16",            // os
+		"unicode/utf16", // os
 	},
 
 	"os/exec": {
@@ -746,8 +758,8 @@ var builddeps = map[string][]string{
 		"runtime",      // path/filepath
 		"sort",         // path/filepath
 		"strings",      // path/filepath
-		"unicode/utf8", // path/filepath
 		"syscall",      // path/filepath
+		"unicode/utf8", // path/filepath
 	},
 
 	"reflect": {
@@ -785,7 +797,9 @@ var builddeps = map[string][]string{
 		"runtime/internal/sys",    // runtime
 	},
 
-	"runtime/internal/atomic": {},
+	"runtime/internal/atomic": {
+		"runtime/internal/sys", // runtime/internal/atomic
+	},
 
 	"runtime/internal/sys": {},
 
@@ -801,10 +815,10 @@ var builddeps = map[string][]string{
 
 	"strings": {
 		"errors",       // strings
+		"internal/cpu", // strings
 		"io",           // strings
 		"unicode",      // strings
 		"unicode/utf8", // strings
-		"internal/cpu", // strings
 	},
 
 	"sync": {
@@ -813,14 +827,16 @@ var builddeps = map[string][]string{
 		"sync/atomic",   // sync
 	},
 
-	"sync/atomic": {},
+	"sync/atomic": {
+		"runtime", // sync/atomic
+	},
 
 	"syscall": {
-		"internal/race", // syscall
-		"runtime",       // syscall
-		"sync",          // syscall
-		"errors",        // syscall
+		"errors",                          // syscall
+		"internal/race",                   // syscall
 		"internal/syscall/windows/sysdll", // syscall
+		"runtime",                         // syscall
+		"sync",                            // syscall
 		"sync/atomic",                     // syscall
 		"unicode/utf16",                   // syscall
 	},
@@ -854,16 +870,22 @@ var builddeps = map[string][]string{
 	},
 
 	"time": {
-		"errors",                            // time
+		"errors", // time
+		"internal/syscall/windows/registry", // time
 		"runtime",                           // time
 		"sync",                              // time
 		"syscall",                           // time
-		"internal/syscall/windows/registry", // time
 	},
 
-	"unicode": {},
+	"unicode": {
+		"runtime", // unicode
+	},
 
-	"unicode/utf16": {},
+	"unicode/utf16": {
+		"runtime", // unicode/utf16
+	},
 
-	"unicode/utf8": {},
+	"unicode/utf8": {
+		"runtime", // unicode/utf8
+	},
 }
