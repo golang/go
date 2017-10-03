@@ -17,6 +17,10 @@ const N = 10000       // make this bigger for a larger (and slower) test
 var testString string // test data for write tests
 var testBytes []byte  // test data; same as testString but as a slice.
 
+type negativeReader struct{}
+
+func (r *negativeReader) Read([]byte) (int, error) { return -1, nil }
+
 func init() {
 	testBytes = make([]byte, N)
 	for i := 0; i < N; i++ {
@@ -263,6 +267,26 @@ func TestReadFrom(t *testing.T) {
 		b.ReadFrom(&buf)
 		empty(t, "TestReadFrom (2)", &b, s, make([]byte, len(testString)))
 	}
+}
+
+func TestReadFromNegativeReader(t *testing.T) {
+	var b Buffer
+	defer func() {
+		switch err := recover().(type) {
+		case nil:
+			t.Fatal("bytes.Buffer.ReadFrom didn't panic")
+		case error:
+			// this is the error string of errNegativeRead
+			wantError := "bytes.Buffer: reader returned negative count from Read"
+			if err.Error() != wantError {
+				t.Fatalf("recovered panic: got %v, want %v", err.Error(), wantError)
+			}
+		default:
+			t.Fatalf("unexpected panic value: %#v", err)
+		}
+	}()
+
+	b.ReadFrom(new(negativeReader))
 }
 
 func TestWriteTo(t *testing.T) {

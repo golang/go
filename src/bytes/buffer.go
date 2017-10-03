@@ -41,6 +41,7 @@ const (
 
 // ErrTooLarge is passed to panic if memory cannot be allocated to store data in a buffer.
 var ErrTooLarge = errors.New("bytes.Buffer: too large")
+var errNegativeRead = errors.New("bytes.Buffer: reader returned negative count from Read")
 
 const maxInt = int(^uint(0) >> 1)
 
@@ -198,6 +199,10 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
 	for {
 		i := b.grow(MinRead)
 		m, e := r.Read(b.buf[i:cap(b.buf)])
+		if m < 0 {
+			panic(errNegativeRead)
+		}
+
 		b.buf = b.buf[:i+m]
 		n += int64(m)
 		if e == io.EOF {
