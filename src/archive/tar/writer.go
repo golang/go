@@ -392,7 +392,7 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
 // If the current file is sparse, then the regions marked as a hole
 // must be written as NUL-bytes.
 //
-// Calling Write on special types like TypeLink, TypeSymLink, TypeChar,
+// Calling Write on special types like TypeLink, TypeSymlink, TypeChar,
 // TypeBlock, TypeDir, and TypeFifo returns (0, ErrWriteTooLong) regardless
 // of what the Header.Size claims.
 func (tw *Writer) Write(b []byte) (int, error) {
