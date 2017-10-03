@@ -846,7 +846,7 @@ func movetomodule(parent *dwarf.DWDie) {
 	die.Link = parent.Child
 }
 
-// If the pcln table contains runtime/runtime.go, use that to set gdbscript path.
+// If the pcln table contains runtime/proc.go, use that to set gdbscript path.
 func finddebugruntimepath(s *Symbol) {
 	if gdbscript != "" {
 		return
@@ -854,7 +854,10 @@ func finddebugruntimepath(s *Symbol) {
 
 	for i := range s.FuncInfo.File {
 		f := s.FuncInfo.File[i]
-		if i := strings.Index(f.Name, "runtime/debug.go"); i >= 0 {
+		// We can't use something that may be dead-code
+		// eliminated from a binary here. proc.go contains
+		// main and the scheduler, so it's not going anywhere.
+		if i := strings.Index(f.Name, "runtime/proc.go"); i >= 0 {
 			gdbscript = f.Name[:i] + "runtime/runtime-gdb.py"
 			break
 		}
