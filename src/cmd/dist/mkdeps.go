@@ -155,6 +155,7 @@ func importsAndDepsOf(pkgs ...string) (map[string][]string, map[string][]string)
 		args := []string{"list", "-tags", "cmd_go_bootstrap", "-f", "{{range .Imports}}import {{$.ImportPath}} {{.}}\n{{end}}{{range .Deps}}dep {{$.ImportPath}} {{.}}\n{{end}}"}
 		args = append(args, pkgs...)
 		cmd := exec.Command("go", args...)
+		t := strings.Split(target, "/")
 		cmd.Env = append(os.Environ(), "GOOS="+t[0], "GOARCH="+t[1])
 		out, err := cmd.Output()
 		if err != nil {
