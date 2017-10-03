@@ -841,6 +841,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+
 	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,
 		ssa.OpAMD64SETL, ssa.OpAMD64SETLE,
 		ssa.OpAMD64SETG, ssa.OpAMD64SETGE,
@@ -851,6 +852,16 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+
+	case ssa.OpAMD64SETEQmem, ssa.OpAMD64SETNEmem,
+		ssa.OpAMD64SETLmem, ssa.OpAMD64SETLEmem,
+		ssa.OpAMD64SETGmem, ssa.OpAMD64SETGEmem,
+		ssa.OpAMD64SETBmem, ssa.OpAMD64SETBEmem,
+		ssa.OpAMD64SETAmem, ssa.OpAMD64SETAEmem:
+		p := s.Prog(v.Op.Asm())
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		gc.AddAux(&p.To, v)
 
 	case ssa.OpAMD64SETNEF:
 		p := s.Prog(v.Op.Asm())

@@ -486,6 +486,17 @@
 (Addr {sym} base) && config.PtrSize == 8 -> (LEAQ {sym} base)
 (Addr {sym} base) && config.PtrSize == 4 -> (LEAL {sym} base)
 
+(MOVBstore [off] {sym} ptr y:(SETL x) mem) && y.Uses == 1 -> (SETLmem [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETLE x) mem) && y.Uses == 1 -> (SETLEmem [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETG x) mem) && y.Uses == 1 -> (SETGmem [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETGE x) mem) && y.Uses == 1 -> (SETGEmem [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETEQ x) mem) && y.Uses == 1 -> (SETEQmem [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETNE x) mem) && y.Uses == 1 -> (SETNEmem [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETB x) mem) && y.Uses == 1 -> (SETBmem [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETBE x) mem) && y.Uses == 1 -> (SETBEmem [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETA x) mem) && y.Uses == 1 -> (SETAmem [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETAE x) mem) && y.Uses == 1 -> (SETAEmem [off] {sym} ptr x mem)
+
 // block rewrites
 (If (SETL  cmp) yes no) -> (LT  cmp yes no)
 (If (SETLE cmp) yes no) -> (LE  cmp yes no)
@@ -580,6 +591,17 @@
 (SETEQ (TESTQconst [c] x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETAE (BTQconst [log2(c)] x))
 (SETNE (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETB  (BTQconst [log2(c)] x))
 (SETEQ (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETAE (BTQconst [log2(c)] x))
+// SET..mem variant
+(SETNEmem [off] {sym} ptr (TESTL (SHLL (MOVLconst [1]) x) y) mem) && !config.nacl -> (SETBmem  [off] {sym} ptr (BTL x y) mem)
+(SETEQmem [off] {sym} ptr (TESTL (SHLL (MOVLconst [1]) x) y) mem) && !config.nacl -> (SETAEmem [off] {sym} ptr (BTL x y) mem)
+(SETNEmem [off] {sym} ptr (TESTQ (SHLQ (MOVQconst [1]) x) y) mem) && !config.nacl -> (SETBmem  [off] {sym} ptr (BTQ x y) mem)
+(SETEQmem [off] {sym} ptr (TESTQ (SHLQ (MOVQconst [1]) x) y) mem) && !config.nacl -> (SETAEmem [off] {sym} ptr (BTQ x y) mem)
+(SETNEmem [off] {sym} ptr (TESTLconst [c] x) mem) && isPowerOfTwo(c) && log2(c) < 32 && !config.nacl -> (SETBmem  [off] {sym} ptr (BTLconst [log2(c)] x) mem)
+(SETEQmem [off] {sym} ptr (TESTLconst [c] x) mem) && isPowerOfTwo(c) && log2(c) < 32 && !config.nacl -> (SETAEmem [off] {sym} ptr (BTLconst [log2(c)] x) mem)
+(SETNEmem [off] {sym} ptr (TESTQconst [c] x) mem) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETBmem  [off] {sym} ptr (BTQconst [log2(c)] x) mem)
+(SETEQmem [off] {sym} ptr (TESTQconst [c] x) mem) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETAEmem [off] {sym} ptr (BTQconst [log2(c)] x) mem)
+(SETNEmem [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETBmem  [off] {sym} ptr (BTQconst [log2(c)] x) mem)
+(SETEQmem [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETAEmem [off] {sym} ptr (BTQconst [log2(c)] x) mem)
 
 // Fold boolean negation into SETcc.
 (XORLconst [1] (SETNE x)) -> (SETEQ x)
@@ -968,6 +990,17 @@
 (SETAE (InvertFlags x)) -> (SETBE x)
 (SETEQ (InvertFlags x)) -> (SETEQ x)
 (SETNE (InvertFlags x)) -> (SETNE x)
+
+(SETLmem [off] {sym} ptr (InvertFlags x) mem) -> (SETGmem [off] {sym} ptr x mem)
+(SETGmem [off] {sym} ptr (InvertFlags x) mem) -> (SETLmem [off] {sym} ptr x mem)
+(SETBmem [off] {sym} ptr (InvertFlags x) mem) -> (SETAmem [off] {sym} ptr x mem)
+(SETAmem [off] {sym} ptr (InvertFlags x) mem) -> (SETBmem [off] {sym} ptr x mem)
+(SETLEmem [off] {sym} ptr (InvertFlags x) mem) -> (SETGEmem [off] {sym} ptr x mem)
+(SETGEmem [off] {sym} ptr (InvertFlags x) mem) -> (SETLEmem [off] {sym} ptr x mem)
+(SETBEmem [off] {sym} ptr (InvertFlags x) mem) -> (SETAEmem [off] {sym} ptr x mem)
+(SETAEmem [off] {sym} ptr (InvertFlags x) mem) -> (SETBEmem [off] {sym} ptr x mem)
+(SETEQmem [off] {sym} ptr (InvertFlags x) mem) -> (SETEQmem [off] {sym} ptr x mem)
+(SETNEmem [off] {sym} ptr (InvertFlags x) mem) -> (SETNEmem [off] {sym} ptr x mem)
 
 // sign extended loads
 // Note: The combined instruction must end up in the same block

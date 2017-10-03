@@ -355,6 +355,17 @@ func init() {
 		{name: "SETBE", argLength: 1, reg: readflags, asm: "SETLS"}, // extract unsigned <= condition from arg0
 		{name: "SETA", argLength: 1, reg: readflags, asm: "SETHI"},  // extract unsigned > condition from arg0
 		{name: "SETAE", argLength: 1, reg: readflags, asm: "SETCC"}, // extract unsigned >= condition from arg0
+		// Variants that store result to memory
+		{name: "SETEQmem", argLength: 3, reg: gpstoreconst, asm: "SETEQ", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // extract == condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETNEmem", argLength: 3, reg: gpstoreconst, asm: "SETNE", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // extract != condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETLmem", argLength: 3, reg: gpstoreconst, asm: "SETLT", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // extract signed < condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETLEmem", argLength: 3, reg: gpstoreconst, asm: "SETLE", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // extract signed <= condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETGmem", argLength: 3, reg: gpstoreconst, asm: "SETGT", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // extract signed > condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETGEmem", argLength: 3, reg: gpstoreconst, asm: "SETGE", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // extract signed >= condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETBmem", argLength: 3, reg: gpstoreconst, asm: "SETCS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // extract unsigned < condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETBEmem", argLength: 3, reg: gpstoreconst, asm: "SETLS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // extract unsigned <= condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETAmem", argLength: 3, reg: gpstoreconst, asm: "SETHI", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // extract unsigned > condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETAEmem", argLength: 3, reg: gpstoreconst, asm: "SETCC", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // extract unsigned >= condition from arg1 to arg0+auxint+aux, arg2=mem
 		// Need different opcodes for floating point conditions because
 		// any comparison involving a NaN is always FALSE and thus
 		// the patterns for inverting conditions cannot be used.

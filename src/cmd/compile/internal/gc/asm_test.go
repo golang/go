@@ -1120,6 +1120,14 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		pos: []string{"\tMOVL\t[^X].*, X.*"},
 	},
+	{
+		fn: `
+		func $(x uint32) bool {
+			return x > 4
+		}
+		`,
+		pos: []string{"\tSETHI\t\\("},
+	},
 }
 
 var linux386Tests = []*asmTest{
