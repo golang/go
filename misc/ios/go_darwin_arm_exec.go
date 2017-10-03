@@ -385,6 +385,9 @@ func (s *lldbSession) wait(reason string, cond func(out *buf) bool, extraTimeout
 			}
 			return fmt.Errorf("test timeout (%s)", reason)
 		case <-doTimedout:
+			if p := s.cmd.Process; p != nil {
+				p.Kill()
+			}
 			return fmt.Errorf("command timeout (%s for %v)", reason, doTimeout)
 		case err := <-s.exited:
 			return fmt.Errorf("exited (%s: %v)", reason, err)
