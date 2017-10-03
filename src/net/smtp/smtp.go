@@ -93,6 +93,9 @@ func (c *Client) hello() error {
 // automatically otherwise. If Hello is called, it must be called before
 // any of the other methods.
 func (c *Client) Hello(localName string) error {
+	if err := validateLine(localName); err != nil {
+		return err
+	}
 	if c.didHello {
 		return errors.New("smtp: Hello called after other methods")
 	}
@@ -179,6 +182,9 @@ func (c *Client) TLSConnectionState() (state tls.ConnectionState, ok bool) {
 // does not necessarily indicate an invalid address. Many servers
 // will not verify addresses for security reasons.
 func (c *Client) Verify(addr string) error {
+	if err := validateLine(addr); err != nil {
+		return err
+	}
 	if err := c.hello(); err != nil {
 		return err
 	}
@@ -237,6 +243,9 @@ func (c *Client) Auth(a Auth) error {
 // parameter.
 // This initiates a mail transaction and is followed by one or more Rcpt calls.
 func (c *Client) Mail(from string) error {
+	if err := validateLine(from); err != nil {
+		return err
+	}
 	if err := c.hello(); err != nil {
 		return err
 	}
@@ -254,6 +263,9 @@ func (c *Client) Mail(from string) error {
 // A call to Rcpt must be preceded by a call to Mail and may be followed by
 // a Data call or another Rcpt call.
 func (c *Client) Rcpt(to string) error {
+	if err := validateLine(to); err != nil {
+		return err
+	}
 	_, _, err := c.cmd(25, "RCPT TO:<%s>", to)
 	return err
 }
@@ -304,6 +316,14 @@ var testHookStartTLS func(*tls.Config) // nil, except for tests
 // functionality. Higher-level packages exist outside of the standard
 // library.
 func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
+	if err := validateLine(from); err != nil {
+		return err
+	}
+	for _, recp := range to {
+		if err := validateLine(recp); err != nil {
+			return err
+		}
+	}
 	c, err := Dial(addr)
 	if err != nil {
 		return err
@@ -387,4 +407,12 @@ func (c *Client) Quit() error {
 		return err
 	}
 	return c.Text.Close()
+}
+
+// validateLine checks to see if a line has CR or LF as per RFC 5321
+func validateLine(line string) error {
+	if strings.ContainsAny(line, "\n\r") {
+		return errors.New("smtp: A line must not contain CR or LF")
+	}
+	return nil
 }
