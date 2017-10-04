@@ -1671,7 +1671,7 @@ func structargs(tl *types.Type, mustname bool) []*Node {
 //	rcvr - U
 //	method - M func (t T)(), a TFIELD type struct
 //	newnam - the eventual mangled name of this function
-func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface int) {
+func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface bool) {
 	if false && Debug['r'] != 0 {
 		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", rcvr, method, newnam)
 	}
@@ -1688,7 +1688,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 
 	t := nod(OTFUNC, nil, nil)
 	l := []*Node{this}
-	if iface != 0 && rcvr.Width < int64(Widthptr) {
+	if iface && rcvr.Width < int64(Widthptr) {
 		// Building method for interface table and receiver
 		// is smaller than the single pointer-sized word
 		// that the interface call will pass in.
@@ -1746,9 +1746,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 		as := nod(OAS, this.Left, nod(OCONVNOP, dot, nil))
 		as.Right.Type = rcvr
 		fn.Nbody.Append(as)
-		n := nod(ORETJMP, nil, nil)
-		n.Left = newname(methodsym(method.Sym, methodrcvr, false))
-		fn.Nbody.Append(n)
+		fn.Nbody.Append(nodSym(ORETJMP, nil, methodsym(method.Sym, methodrcvr, false)))
 		// When tail-calling, we can't use a frame pointer.
 		fn.Func.SetNoFramePointer(true)
 	} else {

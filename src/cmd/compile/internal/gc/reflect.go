@@ -438,18 +438,18 @@ func methods(t *types.Type) []*Sig {
 		if !sig.isym.Siggen() {
 			sig.isym.SetSiggen(true)
 			if !eqtype(this, it) || this.Width < int64(Widthptr) {
-				compiling_wrappers = 1
-				genwrapper(it, f, sig.isym, 1)
-				compiling_wrappers = 0
+				compiling_wrappers = true
+				genwrapper(it, f, sig.isym, true)
+				compiling_wrappers = false
 			}
 		}
 
 		if !sig.tsym.Siggen() {
 			sig.tsym.SetSiggen(true)
 			if !eqtype(this, t) {
-				compiling_wrappers = 1
-				genwrapper(t, f, sig.tsym, 0)
-				compiling_wrappers = 0
+				compiling_wrappers = true
+				genwrapper(t, f, sig.tsym, false)
+				compiling_wrappers = false
 			}
 		}
 	}
@@ -500,7 +500,7 @@ func imethods(t *types.Type) []*Sig {
 		isym := methodsym(method, t, false)
 		if !isym.Siggen() {
 			isym.SetSiggen(true)
-			genwrapper(t, f, isym, 0)
+			genwrapper(t, f, isym, false)
 		}
 	}
 
