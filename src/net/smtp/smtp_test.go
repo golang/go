@@ -62,29 +62,41 @@ testLoop:
 }
 
 func TestAuthPlain(t *testing.T) {
-	auth := PlainAuth("foo", "bar", "baz", "servername")
 
 	tests := []struct {
-		server *ServerInfo
-		err    string
+		authName string
+		server   *ServerInfo
+		err      string
 	}{
 		{
-			server: &ServerInfo{Name: "servername", TLS: true},
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", TLS: true},
 		},
 		{
-			// Okay; explicitly advertised by server.
-			server: &ServerInfo{Name: "servername", Auth: []string{"PLAIN"}},
+			// OK to use PlainAuth on localhost without TLS
+			authName: "localhost",
+			server:   &ServerInfo{Name: "localhost", TLS: false},
 		},
 		{
-			server: &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
-			err:    "unencrypted connection",
+			// NOT OK on non-localhost, even if server says PLAIN is OK.
+			// (We don't know that the server is the real server.)
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", Auth: []string{"PLAIN"}},
+			err:      "unencrypted connection",
 		},
 		{
-			server: &ServerInfo{Name: "attacker", TLS: true},
-			err:    "wrong host name",
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
+			err:      "unencrypted connection",
+		},
+		{
+			authName: "servername",
+			server:   &ServerInfo{Name: "attacker", TLS: true},
+			err:      "wrong host name",
 		},
 	}
 	for i, tt := range tests {
+		auth := PlainAuth("foo", "bar", "baz", tt.authName)
 		_, _, err := auth.Start(tt.server)
 		got := ""
 		if err != nil {
