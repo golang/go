@@ -453,11 +453,28 @@ func (c *gcControllerState) startCycle() {
 		memstats.next_gc = memstats.heap_live + 1024*1024
 	}
 
-	// Compute the background mark utilization goal and divide it among
-	// dedicated and fractional workers.
+	// Compute the background mark utilization goal. In general,
+	// this may not come out exactly. We round the number of
+	// dedicated workers so that the utilization is closest to
+	// 25%. For small GOMAXPROCS, this would introduce too much
+	// error, so we add fractional workers in that case.
 	totalUtilizationGoal := float64(gomaxprocs) * gcBackgroundUtilization
-	c.dedicatedMarkWorkersNeeded = int64(totalUtilizationGoal)
-	c.fractionalUtilizationGoal = totalUtilizationGoal - float64(c.dedicatedMarkWorkersNeeded)
+	c.dedicatedMarkWorkersNeeded = int64(totalUtilizationGoal + 0.5)
+	utilError := float64(c.dedicatedMarkWorkersNeeded)/totalUtilizationGoal - 1
+	const maxUtilError = 0.3
+	if utilError < -maxUtilError || utilError > maxUtilError {
+		// Rounding put us more than 30% off our goal. With
+		// gcBackgroundUtilization of 25%, this happens for
+		// GOMAXPROCS<=3 or GOMAXPROCS=6. Enable fractional
+		// workers to compensate.
+		if float64(c.dedicatedMarkWorkersNeeded) > totalUtilizationGoal {
+			// Too many dedicated workers.
+			c.dedicatedMarkWorkersNeeded--
+		}
+		c.fractionalUtilizationGoal = totalUtilizationGoal - float64(c.dedicatedMarkWorkersNeeded)
+	} else {
+		c.fractionalUtilizationGoal = 0
+	}
 	if c.fractionalUtilizationGoal > 0 {
 		c.fractionalMarkWorkersNeeded = 1
 	} else {
@@ -863,7 +880,8 @@ const gcGoalUtilization = 0.25
 // gcBackgroundUtilization is the fixed CPU utilization for background
 // marking. It must be <= gcGoalUtilization. The difference between
 // gcGoalUtilization and gcBackgroundUtilization will be made up by
-// mark assists.
+// mark assists. The scheduler will aim to use within 50% of this
+// goal.
 const gcBackgroundUtilization = 0.25
 
 // gcCreditSlack is the amount of scan work credit that can can
