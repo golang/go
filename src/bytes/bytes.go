@@ -405,7 +405,7 @@ func HasSuffix(s, suffix []byte) bool {
 
 // Map returns a copy of the byte slice s with all its characters modified
 // according to the mapping function. If mapping returns a negative value, the character is
-// dropped from the string with no replacement. The characters in s and the
+// dropped from the byte slice with no replacement. The characters in s and the
 // output are interpreted as UTF-8-encoded code points.
 func Map(mapping func(r rune) rune, s []byte) []byte {
 	// In the worst case, the slice can grow when mapped, making
