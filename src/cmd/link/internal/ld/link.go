@@ -62,8 +62,8 @@ type Link struct {
 
 	Tlsg         *sym.Symbol
 	Libdir       []string
-	Library      []*Library
-	LibraryByPkg map[string]*Library
+	Library      []*sym.Library
+	LibraryByPkg map[string]*sym.Library
 	Shlibs       []Shlib
 	Tlsoffset    int
 	Textp        []*sym.Symbol
@@ -98,32 +98,15 @@ func (l *Link) Logf(format string, args ...interface{}) {
 	l.Bso.Flush()
 }
 
-type Library struct {
-	Objref        string
-	Srcref        string
-	File          string
-	Pkg           string
-	Shlib         string
-	hash          string
-	importStrings []string
-	imports       []*Library
-	textp         []*sym.Symbol // text symbols defined in this library
-	dupTextSyms   []*sym.Symbol // dupok text symbols defined in this library
-}
-
-func (l Library) String() string {
-	return l.Pkg
-}
-
-func (l *Library) addImports(ctxt *Link, pn string) {
+func addImports(ctxt *Link, l *sym.Library, pn string) {
 	pkg := objabi.PathToPrefix(l.Pkg)
-	for _, importStr := range l.importStrings {
+	for _, importStr := range l.ImportStrings {
 		lib := addlib(ctxt, pkg, pn, importStr)
 		if lib != nil {
-			l.imports = append(l.imports, lib)
+			l.Imports = append(l.Imports, lib)
 		}
 	}
-	l.importStrings = nil
+	l.ImportStrings = nil
 }
 
 type Pciter struct {

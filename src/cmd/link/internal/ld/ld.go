@@ -32,6 +32,7 @@
 package ld
 
 import (
+	"cmd/link/internal/sym"
 	"io/ioutil"
 	"log"
 	"os"
@@ -147,7 +148,7 @@ func findlib(ctxt *Link, lib string) (string, bool) {
 	return pname, isshlib
 }
 
-func addlib(ctxt *Link, src string, obj string, lib string) *Library {
+func addlib(ctxt *Link, src string, obj string, lib string) *sym.Library {
 	pkg := pkgname(lib)
 
 	// already loaded?
@@ -175,7 +176,7 @@ func addlib(ctxt *Link, src string, obj string, lib string) *Library {
  *	pkg: package import path, e.g. container/vector
  *	shlib: path to shared library, or .shlibname file holding path
  */
-func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlib string) *Library {
+func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlib string) *sym.Library {
 	if l := ctxt.LibraryByPkg[pkg]; l != nil {
 		return l
 	}
@@ -184,7 +185,7 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
 		ctxt.Logf("%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s shlib: %s\n", Cputime(), srcref, objref, file, pkg, shlib)
 	}
 
-	l := &Library{}
+	l := &sym.Library{}
 	ctxt.LibraryByPkg[pkg] = l
 	ctxt.Library = append(ctxt.Library, l)
 	l.Objref = objref
