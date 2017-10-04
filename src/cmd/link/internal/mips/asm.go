@@ -34,6 +34,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
+	"cmd/link/internal/sym"
 	"fmt"
 	"log"
 )
@@ -42,12 +43,12 @@ func gentext(ctxt *ld.Link) {
 	return
 }
 
-func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 	log.Fatalf("adddynrel not implemented")
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
+func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	ctxt.Out.Write32(uint32(sectoff))
 
 	elfsym := r.Xsym.ElfsymForReloc()
@@ -76,11 +77,11 @@ func elfsetupplt(ctxt *ld.Link) {
 	return
 }
 
-func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {
 	return false
 }
 
-func applyrel(arch *sys.Arch, r *ld.Reloc, s *ld.Symbol, val *int64, t int64) {
+func applyrel(arch *sys.Arch, r *sym.Reloc, s *sym.Symbol, val *int64, t int64) {
 	o := arch.ByteOrder.Uint32(s.P[r.Off:])
 	switch r.Type {
 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSTLS:
@@ -92,7 +93,7 @@ func applyrel(arch *sys.Arch, r *ld.Reloc, s *ld.Symbol, val *int64, t int64) {
 	}
 }
 
-func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
+func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 	if ld.Linkmode == ld.LinkExternal {
 		switch r.Type {
 		default:
@@ -108,7 +109,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 				rs = rs.Outer
 			}
 
-			if rs.Type != ld.SHOSTOBJ && rs.Type != ld.SDYNIMPORT && rs.Sect == nil {
+			if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Sect == nil {
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
@@ -161,7 +162,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 	return false
 }
 
-func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
+func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
 	return -1
 }
 

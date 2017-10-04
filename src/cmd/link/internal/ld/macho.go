@@ -7,6 +7,7 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/sym"
 	"sort"
 	"strings"
 )
@@ -169,7 +170,7 @@ const (
 
 var nkind [NumSymKind]int
 
-var sortsym []*Symbol
+var sortsym []*sym.Symbol
 
 var nsortsym int
 
@@ -346,32 +347,32 @@ func (ctxt *Link) domacho() {
 	// empirically, string table must begin with " \x00".
 	s := ctxt.Syms.Lookup(".machosymstr", 0)
 
-	s.Type = SMACHOSYMSTR
-	s.Attr |= AttrReachable
+	s.Type = sym.SMACHOSYMSTR
+	s.Attr |= sym.AttrReachable
 	s.AddUint8(' ')
 	s.AddUint8('\x00')
 
 	s = ctxt.Syms.Lookup(".machosymtab", 0)
-	s.Type = SMACHOSYMTAB
-	s.Attr |= AttrReachable
+	s.Type = sym.SMACHOSYMTAB
+	s.Attr |= sym.AttrReachable
 
 	if Linkmode != LinkExternal {
 		s := ctxt.Syms.Lookup(".plt", 0) // will be __symbol_stub
-		s.Type = SMACHOPLT
-		s.Attr |= AttrReachable
+		s.Type = sym.SMACHOPLT
+		s.Attr |= sym.AttrReachable
 
 		s = ctxt.Syms.Lookup(".got", 0) // will be __nl_symbol_ptr
-		s.Type = SMACHOGOT
-		s.Attr |= AttrReachable
+		s.Type = sym.SMACHOGOT
+		s.Attr |= sym.AttrReachable
 		s.Align = 4
 
 		s = ctxt.Syms.Lookup(".linkedit.plt", 0) // indirect table for .plt
-		s.Type = SMACHOINDIRECTPLT
-		s.Attr |= AttrReachable
+		s.Type = sym.SMACHOINDIRECTPLT
+		s.Attr |= sym.AttrReachable
 
 		s = ctxt.Syms.Lookup(".linkedit.got", 0) // indirect table for .got
-		s.Type = SMACHOINDIRECTGOT
-		s.Attr |= AttrReachable
+		s.Type = sym.SMACHOINDIRECTGOT
+		s.Attr |= sym.AttrReachable
 	}
 }
 
@@ -396,7 +397,7 @@ func machoadddynlib(lib string) {
 	dylib = append(dylib, lib)
 }
 
-func machoshbits(ctxt *Link, mseg *MachoSeg, sect *Section, segname string) {
+func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) {
 	buf := "__" + strings.Replace(sect.Name[1:], ".", "_", -1)
 
 	var msect *MachoSect
@@ -647,8 +648,8 @@ func Asmbmacho(ctxt *Link) {
 	}
 }
 
-func symkind(s *Symbol) int {
-	if s.Type == SDYNIMPORT {
+func symkind(s *sym.Symbol) int {
+	if s.Type == sym.SDYNIMPORT {
 		return SymKindUndef
 	}
 	if s.Attr.CgoExport() {
@@ -657,7 +658,7 @@ func symkind(s *Symbol) int {
 	return SymKindLocal
 }
 
-func addsym(ctxt *Link, s *Symbol, name string, type_ SymbolType, addr int64, gotype *Symbol) {
+func addsym(ctxt *Link, s *sym.Symbol, name string, type_ SymbolType, addr int64, gotype *sym.Symbol) {
 	if s == nil {
 		return
 	}
@@ -678,7 +679,7 @@ func addsym(ctxt *Link, s *Symbol, name string, type_ SymbolType, addr int64, go
 	nsortsym++
 }
 
-type machoscmp []*Symbol
+type machoscmp []*sym.Symbol
 
 func (x machoscmp) Len() int {
 	return len(x)
@@ -704,7 +705,7 @@ func (x machoscmp) Less(i, j int) bool {
 func machogenasmsym(ctxt *Link) {
 	genasmsym(ctxt, addsym)
 	for _, s := range ctxt.Syms.Allsym {
-		if s.Type == SDYNIMPORT || s.Type == SHOSTOBJ {
+		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ {
 			if s.Attr.Reachable() {
 				addsym(ctxt, s, "", DataSym, 0, nil)
 			}
@@ -717,10 +718,10 @@ func machosymorder(ctxt *Link) {
 	// So we sort them here and pre-allocate dynid for them
 	// See https://golang.org/issue/4029
 	for i := 0; i < len(dynexp); i++ {
-		dynexp[i].Attr |= AttrReachable
+		dynexp[i].Attr |= sym.AttrReachable
 	}
 	machogenasmsym(ctxt)
-	sortsym = make([]*Symbol, nsortsym)
+	sortsym = make([]*sym.Symbol, nsortsym)
 	nsortsym = 0
 	machogenasmsym(ctxt)
 	sort.Sort(machoscmp(sortsym[:nsortsym]))
@@ -733,7 +734,7 @@ func machosymorder(ctxt *Link) {
 //
 // When dynamically linking, all non-local variables and plugin-exported
 // symbols need to be exported.
-func machoShouldExport(ctxt *Link, s *Symbol) bool {
+func machoShouldExport(ctxt *Link, s *sym.Symbol) bool {
 	if !ctxt.DynlinkingGo() || s.Attr.Local() {
 		return false
 	}
@@ -752,7 +753,7 @@ func machoShouldExport(ctxt *Link, s *Symbol) bool {
 	if strings.HasPrefix(s.Name, "go.link.pkghash") {
 		return true
 	}
-	return s.Type >= SELFSECT // only writable sections
+	return s.Type >= sym.SELFSECT // only writable sections
 }
 
 func machosymtab(ctxt *Link) {
@@ -780,11 +781,11 @@ func machosymtab(ctxt *Link) {
 		// replace "·" as ".", because DTrace cannot handle it.
 		Addstring(symstr, strings.Replace(s.Extname, "·", ".", -1))
 
-		if s.Type == SDYNIMPORT || s.Type == SHOSTOBJ {
+		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ {
 			symtab.AddUint8(0x01)                             // type N_EXT, external symbol
 			symtab.AddUint8(0)                                // no section
 			symtab.AddUint16(ctxt.Arch, 0)                    // desc
-			symtab.addUintXX(ctxt.Arch, 0, ctxt.Arch.PtrSize) // no value
+			symtab.AddUintXX(ctxt.Arch, 0, ctxt.Arch.PtrSize) // no value
 		} else {
 			if s.Attr.CgoExport() || export {
 				symtab.AddUint8(0x0f)
@@ -802,7 +803,7 @@ func machosymtab(ctxt *Link) {
 				symtab.AddUint8(uint8(o.Sect.Extnum))
 			}
 			symtab.AddUint16(ctxt.Arch, 0) // desc
-			symtab.addUintXX(ctxt.Arch, uint64(Symaddr(s)), ctxt.Arch.PtrSize)
+			symtab.AddUintXX(ctxt.Arch, uint64(Symaddr(s)), ctxt.Arch.PtrSize)
 		}
 	}
 }
@@ -889,7 +890,7 @@ func Domacholink(ctxt *Link) int64 {
 	return Rnd(int64(size), int64(*FlagRound))
 }
 
-func machorelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
+func machorelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 	// If main section has no bits, nothing to relocate.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
 		return
@@ -907,27 +908,27 @@ func machorelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 	}
 
 	eaddr := int32(sect.Vaddr + sect.Length)
-	for _, sym := range syms {
-		if !sym.Attr.Reachable() {
+	for _, s := range syms {
+		if !s.Attr.Reachable() {
 			continue
 		}
-		if sym.Value >= int64(eaddr) {
+		if s.Value >= int64(eaddr) {
 			break
 		}
-		for ri := 0; ri < len(sym.R); ri++ {
-			r := &sym.R[ri]
+		for ri := 0; ri < len(s.R); ri++ {
+			r := &s.R[ri]
 			if r.Done {
 				continue
 			}
 			if r.Xsym == nil {
-				Errorf(sym, "missing xsym in relocation")
+				Errorf(s, "missing xsym in relocation")
 				continue
 			}
 			if !r.Xsym.Attr.Reachable() {
-				Errorf(sym, "unreachable reloc %d (%s) target %v", r.Type, RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
+				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
 			}
-			if !Thearch.Machoreloc1(ctxt.Arch, ctxt.Out, sym, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) {
-				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
+			if !Thearch.Machoreloc1(ctxt.Arch, ctxt.Out, s, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
+				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
 			}
 		}
 	}

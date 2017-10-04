@@ -4,6 +4,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -92,7 +93,7 @@ type ldMachoSect struct {
 	flags   uint32
 	res1    uint32
 	res2    uint32
-	sym     *Symbol
+	sym     *sym.Symbol
 	rel     []ldMachoRel
 }
 
@@ -123,7 +124,7 @@ type ldMachoSym struct {
 	desc    uint16
 	kind    int8
 	value   uint64
-	sym     *Symbol
+	sym     *sym.Symbol
 }
 
 type ldMachoDysymtab struct {
@@ -428,15 +429,14 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	var sect *ldMachoSect
 	var rel *ldMachoRel
 	var rpi int
-	var s *Symbol
-	var s1 *Symbol
-	var outer *Symbol
+	var s *sym.Symbol
+	var s1 *sym.Symbol
+	var outer *sym.Symbol
 	var c *ldMachoCmd
 	var symtab *ldMachoSymtab
 	var dsymtab *ldMachoDysymtab
-	var sym *ldMachoSym
-	var r []Reloc
-	var rp *Reloc
+	var r []sym.Reloc
+	var rp *sym.Reloc
 	var name string
 
 	localSymVersion := ctxt.Syms.IncVersion()
@@ -597,16 +597,16 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 
 		if sect.segname == "__TEXT" {
 			if sect.name == "__text" {
-				s.Type = STEXT
+				s.Type = sym.STEXT
 			} else {
-				s.Type = SRODATA
+				s.Type = sym.SRODATA
 			}
 		} else {
 			if sect.name == "__bss" {
-				s.Type = SNOPTRBSS
+				s.Type = sym.SNOPTRBSS
 				s.P = s.P[:0]
 			} else {
-				s.Type = SNOPTRDATA
+				s.Type = sym.SNOPTRDATA
 			}
 		}
 
@@ -616,35 +616,35 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	// enter sub-symbols into symbol table.
 	// have to guess sizes from next symbol.
 	for i := 0; uint32(i) < symtab.nsym; i++ {
-		sym = &symtab.sym[i]
-		if sym.type_&N_STAB != 0 {
+		machsym := &symtab.sym[i]
+		if machsym.type_&N_STAB != 0 {
 			continue
 		}
 
 		// TODO: check sym->type against outer->type.
-		name = sym.name
+		name = machsym.name
 
 		if name[0] == '_' && name[1] != '\x00' {
 			name = name[1:]
 		}
 		v := 0
-		if sym.type_&N_EXT == 0 {
+		if machsym.type_&N_EXT == 0 {
 			v = localSymVersion
 		}
 		s = ctxt.Syms.Lookup(name, v)
-		if sym.type_&N_EXT == 0 {
-			s.Attr |= AttrDuplicateOK
+		if machsym.type_&N_EXT == 0 {
+			s.Attr |= sym.AttrDuplicateOK
 		}
-		sym.sym = s
-		if sym.sectnum == 0 { // undefined
+		machsym.sym = s
+		if machsym.sectnum == 0 { // undefined
 			continue
 		}
-		if uint32(sym.sectnum) > c.seg.nsect {
-			err = fmt.Errorf("reference to invalid section %d", sym.sectnum)
+		if uint32(machsym.sectnum) > c.seg.nsect {
+			err = fmt.Errorf("reference to invalid section %d", machsym.sectnum)
 			goto bad
 		}
 
-		sect = &c.seg.sect[sym.sectnum-1]
+		sect = &c.seg.sect[machsym.sectnum-1]
 		outer = sect.sym
 		if outer == nil {
 			err = fmt.Errorf("reference to invalid section %s/%s", sect.segname, sect.name)
@@ -658,22 +658,22 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
 		}
 
-		s.Type = outer.Type | SSUB
+		s.Type = outer.Type | sym.SSUB
 		s.Sub = outer.Sub
 		outer.Sub = s
 		s.Outer = outer
-		s.Value = int64(sym.value - sect.addr)
+		s.Value = int64(machsym.value - sect.addr)
 		if !s.Attr.CgoExportDynamic() {
 			s.Dynimplib = "" // satisfy dynimport
 		}
-		if outer.Type == STEXT {
+		if outer.Type == sym.STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {
 				Errorf(s, "%s: duplicate symbol definition", pn)
 			}
-			s.Attr |= AttrExternal
+			s.Attr |= sym.AttrExternal
 		}
 
-		sym.sym = s
+		machsym.sym = s
 	}
 
 	// Sort outer lists by address, adding to textp.
@@ -697,17 +697,17 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			}
 		}
 
-		if s.Type == STEXT {
+		if s.Type == sym.STEXT {
 			if s.Attr.OnList() {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
-			s.Attr |= AttrOnList
+			s.Attr |= sym.AttrOnList
 			ctxt.Textp = append(ctxt.Textp, s)
 			for s1 = s.Sub; s1 != nil; s1 = s1.Sub {
 				if s1.Attr.OnList() {
 					log.Fatalf("symbol %s listed multiple times", s1.Name)
 				}
-				s1.Attr |= AttrOnList
+				s1.Attr |= sym.AttrOnList
 				ctxt.Textp = append(ctxt.Textp, s1)
 			}
 		}
@@ -724,7 +724,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		if sect.rel == nil {
 			continue
 		}
-		r = make([]Reloc, sect.nreloc)
+		r = make([]sym.Reloc, sect.nreloc)
 		rpi = 0
 	Reloc:
 		for j = 0; uint32(j) < sect.nreloc; j++ {

@@ -8,6 +8,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/sym"
 	"debug/pe"
 	"errors"
 	"fmt"
@@ -132,7 +133,7 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 
 	localSymVersion := ctxt.Syms.IncVersion()
 
-	sectsyms := make(map[*pe.Section]*Symbol)
+	sectsyms := make(map[*pe.Section]*sym.Symbol)
 	sectdata := make(map[*pe.Section][]byte)
 
 	// Some input files are archives containing multiple of
@@ -167,22 +168,22 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 
 		switch sect.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
-			s.Type = SRODATA
+			s.Type = sym.SRODATA
 
 		case IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.bss
-			s.Type = SNOPTRBSS
+			s.Type = sym.SNOPTRBSS
 
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.data
-			s.Type = SNOPTRDATA
+			s.Type = sym.SNOPTRDATA
 
 		case IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ: //.text
-			s.Type = STEXT
+			s.Type = sym.STEXT
 
 		default:
 			return fmt.Errorf("unexpected flags %#06x for PE section %s", sect.Characteristics, sect.Name)
 		}
 
-		if s.Type != SNOPTRBSS {
+		if s.Type != sym.SNOPTRBSS {
 			data, err := sect.Data()
 			if err != nil {
 				return err
@@ -214,7 +215,7 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 			continue
 		}
 
-		rs := make([]Reloc, rsect.NumberOfRelocations)
+		rs := make([]sym.Reloc, rsect.NumberOfRelocations)
 		for j, r := range rsect.Relocs {
 			rp := &rs[j]
 			if int(r.SymbolTableIndex) >= len(f.COFFSymbols) {
@@ -314,11 +315,11 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 		}
 
 		if pesym.SectionNumber == 0 { // extern
-			if s.Type == SDYNIMPORT {
+			if s.Type == sym.SDYNIMPORT {
 				s.Plt = -2 // flag for dynimport in PE object files.
 			}
-			if s.Type == SXREF && pesym.Value > 0 { // global data
-				s.Type = SNOPTRDATA
+			if s.Type == sym.SXREF && pesym.Value > 0 { // global data
+				s.Type = sym.SNOPTRDATA
 				s.Size = int64(pesym.Value)
 			}
 
@@ -346,15 +347,15 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 		sectsym := sectsyms[sect]
 		s.Sub = sectsym.Sub
 		sectsym.Sub = s
-		s.Type = sectsym.Type | SSUB
+		s.Type = sectsym.Type | sym.SSUB
 		s.Value = int64(pesym.Value)
 		s.Size = 4
 		s.Outer = sectsym
-		if sectsym.Type == STEXT {
+		if sectsym.Type == sym.STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {
 				Errorf(s, "%s: duplicate symbol definition", pn)
 			}
-			s.Attr |= AttrExternal
+			s.Attr |= sym.AttrExternal
 		}
 	}
 
@@ -368,17 +369,17 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 		if s.Sub != nil {
 			s.Sub = listsort(s.Sub)
 		}
-		if s.Type == STEXT {
+		if s.Type == sym.STEXT {
 			if s.Attr.OnList() {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
-			s.Attr |= AttrOnList
+			s.Attr |= sym.AttrOnList
 			ctxt.Textp = append(ctxt.Textp, s)
 			for s = s.Sub; s != nil; s = s.Sub {
 				if s.Attr.OnList() {
 					log.Fatalf("symbol %s listed multiple times", s.Name)
 				}
-				s.Attr |= AttrOnList
+				s.Attr |= sym.AttrOnList
 				ctxt.Textp = append(ctxt.Textp, s)
 			}
 		}
@@ -391,14 +392,14 @@ func issect(s *pe.COFFSymbol) bool {
 	return s.StorageClass == IMAGE_SYM_CLASS_STATIC && s.Type == 0 && s.Name[0] == '.'
 }
 
-func readpesym(ctxt *Link, f *pe.File, sym *pe.COFFSymbol, sectsyms map[*pe.Section]*Symbol, localSymVersion int) (*Symbol, error) {
-	symname, err := sym.FullName(f.StringTable)
+func readpesym(ctxt *Link, f *pe.File, pesym *pe.COFFSymbol, sectsyms map[*pe.Section]*sym.Symbol, localSymVersion int) (*sym.Symbol, error) {
+	symname, err := pesym.FullName(f.StringTable)
 	if err != nil {
 		return nil, err
 	}
 	var name string
-	if issect(sym) {
-		name = sectsyms[f.Sections[sym.SectionNumber-1]].Name
+	if issect(pesym) {
+		name = sectsyms[f.Sections[pesym.SectionNumber-1]].Name
 	} else {
 		name = symname
 		if strings.HasPrefix(name, "__imp_") {
@@ -414,27 +415,27 @@ func readpesym(ctxt *Link, f *pe.File, sym *pe.COFFSymbol, sectsyms map[*pe.Sect
 		name = name[:i]
 	}
 
-	var s *Symbol
-	switch sym.Type {
+	var s *sym.Symbol
+	switch pesym.Type {
 	default:
-		return nil, fmt.Errorf("%s: invalid symbol type %d", symname, sym.Type)
+		return nil, fmt.Errorf("%s: invalid symbol type %d", symname, pesym.Type)
 
 	case IMAGE_SYM_DTYPE_FUNCTION, IMAGE_SYM_DTYPE_NULL:
-		switch sym.StorageClass {
+		switch pesym.StorageClass {
 		case IMAGE_SYM_CLASS_EXTERNAL: //global
 			s = ctxt.Syms.Lookup(name, 0)
 
 		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
 			s = ctxt.Syms.Lookup(name, localSymVersion)
-			s.Attr |= AttrDuplicateOK
+			s.Attr |= sym.AttrDuplicateOK
 
 		default:
-			return nil, fmt.Errorf("%s: invalid symbol binding %d", symname, sym.StorageClass)
+			return nil, fmt.Errorf("%s: invalid symbol binding %d", symname, pesym.StorageClass)
 		}
 	}
 
-	if s != nil && s.Type == 0 && (sym.StorageClass != IMAGE_SYM_CLASS_STATIC || sym.Value != 0) {
-		s.Type = SXREF
+	if s != nil && s.Type == 0 && (pesym.StorageClass != IMAGE_SYM_CLASS_STATIC || pesym.Value != 0) {
+		s.Type = sym.SXREF
 	}
 	if strings.HasPrefix(symname, "__imp_") {
 		s.Got = -2 // flag for __imp_

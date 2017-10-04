@@ -28,7 +28,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package ld
+package sym
 
 type Symbols struct {
 	symbolBatch []Symbol
@@ -39,7 +39,18 @@ type Symbols struct {
 	Allsym []*Symbol
 }
 
-func (syms *Symbols) newsym(name string, v int) *Symbol {
+func NewSymbols() *Symbols {
+	return &Symbols{
+		hash: []map[string]*Symbol{
+			// preallocate about 2mb for hash of
+			// non static symbols
+			make(map[string]*Symbol, 100000),
+		},
+		Allsym: make([]*Symbol, 0, 100000),
+	}
+}
+
+func (syms *Symbols) Newsym(name string, v int) *Symbol {
 	batch := syms.symbolBatch
 	if len(batch) == 0 {
 		batch = make([]Symbol, 1000)
@@ -65,7 +76,7 @@ func (syms *Symbols) Lookup(name string, v int) *Symbol {
 	if s != nil {
 		return s
 	}
-	s = syms.newsym(name, v)
+	s = syms.Newsym(name, v)
 	s.Extname = s.Name
 	m[name] = s
 	return s

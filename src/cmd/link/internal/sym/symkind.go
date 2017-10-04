@@ -28,7 +28,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package ld
+package sym
 
 // A SymKind describes the kind of memory represented by a symbol.
 type SymKind int16
@@ -111,9 +111,9 @@ const (
 	SCONTAINER = SymKind(1 << 10) // has a sub-symbol
 )
 
-// abiSymKindToSymKind maps values read from object files (which are
+// AbiSymKindToSymKind maps values read from object files (which are
 // of type cmd/internal/objabi.SymKind) to values of type SymKind.
-var abiSymKindToSymKind = [...]SymKind{
+var AbiSymKindToSymKind = [...]SymKind{
 	Sxxx,
 	STEXT,
 	SRODATA,
@@ -127,10 +127,10 @@ var abiSymKindToSymKind = [...]SymKind{
 	SDWARFLOC,
 }
 
-// readOnly are the symbol kinds that form read-only sections. In some
+// ReadOnly are the symbol kinds that form read-only sections. In some
 // cases, if they will require relocations, they are transformed into
 // rel-ro sections using relROMap.
-var readOnly = []SymKind{
+var ReadOnly = []SymKind{
 	STYPE,
 	SSTRING,
 	SGOSTRING,
@@ -140,9 +140,9 @@ var readOnly = []SymKind{
 	SFUNCTAB,
 }
 
-// relROMap describes the transformation of read-only symbols to rel-ro
+// RelROMap describes the transformation of read-only symbols to rel-ro
 // symbols.
-var relROMap = map[SymKind]SymKind{
+var RelROMap = map[SymKind]SymKind{
 	STYPE:     STYPERELRO,
 	SSTRING:   SSTRINGRELRO,
 	SGOSTRING: SGOSTRINGRELRO,
