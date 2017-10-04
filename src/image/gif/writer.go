@@ -171,25 +171,42 @@ func encodeColorTable(dst []byte, p color.Palette, size int) (int, error) {
 	if uint(size) >= uint(len(log2Lookup)) {
 		return 0, errors.New("gif: cannot encode color table with more than 256 entries")
 	}
-	n := log2Lookup[size]
-	for i := 0; i < n; i++ {
-		if i < len(p) {
-			c := p[i]
-			if c == nil {
-				return 0, errors.New("gif: cannot encode color table with nil entries")
-			}
-			r, g, b, _ := c.RGBA()
-			dst[3*i+0] = uint8(r >> 8)
-			dst[3*i+1] = uint8(g >> 8)
-			dst[3*i+2] = uint8(b >> 8)
+	for i, c := range p {
+		if c == nil {
+			return 0, errors.New("gif: cannot encode color table with nil entries")
+		}
+		var r, g, b uint8
+		// It is most likely that the palette is full of color.RGBAs, so they
+		// get a fast path.
+		if rgba, ok := c.(color.RGBA); ok {
+			r, g, b = rgba.R, rgba.G, rgba.B
 		} else {
-			// Pad with black.
-			dst[3*i+0] = 0x00
-			dst[3*i+1] = 0x00
-			dst[3*i+2] = 0x00
+			rr, gg, bb, _ := c.RGBA()
+			r, g, b = uint8(rr>>8), uint8(gg>>8), uint8(bb>>8)
+		}
+		dst[3*i+0] = r
+		dst[3*i+1] = g
+		dst[3*i+2] = b
+	}
+	n := log2Lookup[size]
+	if n > len(p) {
+		// Pad with black.
+		fill := dst[3*len(p) : 3*n]
+		for i := range fill {
+			fill[i] = 0
 		}
 	}
 	return 3 * n, nil
+}
+
+func (e *encoder) colorTablesMatch(localLen, transparentIndex int) bool {
+	localSize := 3 * localLen
+	if transparentIndex >= 0 {
+		trOff := 3 * transparentIndex
+		return bytes.Equal(e.globalColorTable[:trOff], e.localColorTable[:trOff]) &&
+			bytes.Equal(e.globalColorTable[trOff+3:localSize], e.localColorTable[trOff+3:localSize])
+	}
+	return bytes.Equal(e.globalColorTable[:localSize], e.localColorTable[:localSize])
 }
 
 func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) {
@@ -251,19 +268,31 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 	writeUint16(e.buf[7:9], uint16(b.Dy()))
 	e.write(e.buf[:9])
 
+	// To determine whether or not this frame's palette is the same as the
+	// global palette, we can check a couple things. First, do they actually
+	// point to the same []color.Color? If so, they are equal so long as the
+	// frame's palette is not longer than the global palette...
 	paddedSize := log2(len(pm.Palette)) // Size of Local Color Table: 2^(1+n).
-	if ct, err := encodeColorTable(e.localColorTable[:], pm.Palette, paddedSize); err != nil {
-		if e.err == nil {
-			e.err = err
-		}
-		return
-	} else if ct != e.globalCT || !bytes.Equal(e.globalColorTable[:ct], e.localColorTable[:ct]) {
-		// Use a local color table.
-		e.writeByte(fColorTable | uint8(paddedSize))
-		e.write(e.localColorTable[:ct])
+	if gp, ok := e.g.Config.ColorModel.(color.Palette); ok && len(pm.Palette) <= len(gp) && &gp[0] == &pm.Palette[0] {
+		e.writeByte(0) // Use the global color table.
 	} else {
-		// Use the global color table.
-		e.writeByte(0)
+		ct, err := encodeColorTable(e.localColorTable[:], pm.Palette, paddedSize)
+		if err != nil {
+			if e.err == nil {
+				e.err = err
+			}
+			return
+		}
+		// This frame's palette is not the very same slice as the global
+		// palette, but it might be a copy, possibly with one value turned into
+		// transparency by DecodeAll.
+		if ct <= e.globalCT && e.colorTablesMatch(len(pm.Palette), transparentIndex) {
+			e.writeByte(0) // Use the global color table.
+		} else {
+			// Use a local color table.
+			e.writeByte(fColorTable | uint8(paddedSize))
+			e.write(e.localColorTable[:ct])
+		}
 	}
 
 	litWidth := paddedSize + 1
