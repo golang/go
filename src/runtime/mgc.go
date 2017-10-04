@@ -299,10 +299,10 @@ const (
 
 	// gcMarkWorkerFractionalMode indicates that a P is currently
 	// running the "fractional" mark worker. The fractional worker
-	// is necessary when GOMAXPROCS*gcGoalUtilization is not an
-	// integer. The fractional worker should run until it is
+	// is necessary when GOMAXPROCS*gcBackgroundUtilization is not
+	// an integer. The fractional worker should run until it is
 	// preempted and will be scheduled to pick up the fractional
-	// part of GOMAXPROCS*gcGoalUtilization.
+	// part of GOMAXPROCS*gcBackgroundUtilization.
 	gcMarkWorkerFractionalMode
 
 	// gcMarkWorkerIdleMode indicates that a P is running the mark
@@ -453,9 +453,9 @@ func (c *gcControllerState) startCycle() {
 		memstats.next_gc = memstats.heap_live + 1024*1024
 	}
 
-	// Compute the total mark utilization goal and divide it among
+	// Compute the background mark utilization goal and divide it among
 	// dedicated and fractional workers.
-	totalUtilizationGoal := float64(gomaxprocs) * gcGoalUtilization
+	totalUtilizationGoal := float64(gomaxprocs) * gcBackgroundUtilization
 	c.dedicatedMarkWorkersNeeded = int64(totalUtilizationGoal)
 	c.fractionalUtilizationGoal = totalUtilizationGoal - float64(c.dedicatedMarkWorkersNeeded)
 	if c.fractionalUtilizationGoal > 0 {
@@ -566,7 +566,7 @@ func (c *gcControllerState) endCycle() float64 {
 	assistDuration := nanotime() - c.markStartTime
 
 	// Assume background mark hit its utilization goal.
-	utilization := gcGoalUtilization
+	utilization := gcBackgroundUtilization
 	// Add assist utilization; avoid divide by zero.
 	if assistDuration > 0 {
 		utilization += float64(c.assistTime) / float64(assistDuration*int64(gomaxprocs))
@@ -856,9 +856,15 @@ func gcSetTriggerRatio(triggerRatio float64) {
 	}
 }
 
-// gcGoalUtilization is the goal CPU utilization for background
+// gcGoalUtilization is the goal CPU utilization for
 // marking as a fraction of GOMAXPROCS.
 const gcGoalUtilization = 0.25
+
+// gcBackgroundUtilization is the fixed CPU utilization for background
+// marking. It must be <= gcGoalUtilization. The difference between
+// gcGoalUtilization and gcBackgroundUtilization will be made up by
+// mark assists.
+const gcBackgroundUtilization = 0.25
 
 // gcCreditSlack is the amount of scan work credit that can can
 // accumulate locally before updating gcController.scanWork and,
