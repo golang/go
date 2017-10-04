@@ -711,6 +711,8 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		// This P has picked the token for the fractional worker.
 		// Is the GC currently under or at the utilization goal?
 		// If so, do more work.
+		//
+		// This should be kept in sync with pollFractionalWorkerExit.
 
 		// TODO(austin): We could fast path this and basically
 		// eliminate contention on c.fractionalMarkWorkersNeeded by
@@ -719,10 +721,6 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		// don't have to fight in the window where we've
 		// passed that deadline and no one has started the
 		// worker yet.
-		//
-		// TODO(austin): Shorter preemption interval for mark
-		// worker to improve fairness and give this
-		// finer-grained control over schedule?
 		delta := nanotime() - c.markStartTime
 		if delta > 0 && float64(c.fractionalMarkTime)/float64(delta) > c.fractionalUtilizationGoal {
 			// Nope, we'd overshoot the utilization goal
@@ -739,6 +737,25 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		traceGoUnpark(gp, 0)
 	}
 	return gp
+}
+
+// pollFractionalWorkerExit returns true if a fractional mark worker
+// should self-preempt. It assumes it is called from the fractional
+// worker.
+func pollFractionalWorkerExit() bool {
+	// This should be kept in sync with the fractional worker
+	// scheduler logic in findRunnableGCWorker.
+	now := nanotime()
+	delta := now - gcController.markStartTime
+	if delta <= 0 {
+		return true
+	}
+	p := getg().m.p.ptr()
+	// Account for time since starting this worker.
+	selfTime := gcController.fractionalMarkTime + (now - p.gcMarkWorkerStartTime)
+	// Add some slack to the utilization goal so that the
+	// fractional worker isn't behind again the instant it exits.
+	return float64(selfTime)/float64(delta) > 1.2*gcController.fractionalUtilizationGoal
 }
 
 // gcSetTriggerRatio sets the trigger ratio and updates everything
@@ -1765,6 +1782,7 @@ func gcBgMarkWorker(_p_ *p) {
 		}
 
 		startTime := nanotime()
+		_p_.gcMarkWorkerStartTime = startTime
 
 		decnwait := atomic.Xadd(&work.nwait, -1)
 		if decnwait == work.nproc {
@@ -1806,7 +1824,7 @@ func gcBgMarkWorker(_p_ *p) {
 				// without preemption.
 				gcDrain(&_p_.gcw, gcDrainNoBlock|gcDrainFlushBgCredit)
 			case gcMarkWorkerFractionalMode:
-				gcDrain(&_p_.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
+				gcDrain(&_p_.gcw, gcDrainFractional|gcDrainUntilPreempt|gcDrainFlushBgCredit)
 			case gcMarkWorkerIdleMode:
 				gcDrain(&_p_.gcw, gcDrainIdle|gcDrainUntilPreempt|gcDrainFlushBgCredit)
 			}
