@@ -170,7 +170,7 @@ func TestPeriodicGC(t *testing.T) {
 	// slack if things are slow.
 	var numGCs uint32
 	const want = 2
-	for i := 0; i < 20 && numGCs < want; i++ {
+	for i := 0; i < 200 && numGCs < want; i++ {
 		time.Sleep(5 * time.Millisecond)
 
 		// Test that periodic GC actually happened.
