@@ -250,7 +250,7 @@ func Asmplan9sym(ctxt *Link) {
 
 var symt *sym.Symbol
 
-type byPkg []*Library
+type byPkg []*sym.Library
 
 func (libs byPkg) Len() int {
 	return len(libs)
@@ -500,13 +500,13 @@ func (ctxt *Link) symtab() {
 			s := ctxt.Syms.Lookup("go.link.pkghashbytes."+l.Pkg, 0)
 			s.Attr |= sym.AttrReachable
 			s.Type = sym.SRODATA
-			s.Size = int64(len(l.hash))
-			s.P = []byte(l.hash)
+			s.Size = int64(len(l.Hash))
+			s.P = []byte(l.Hash)
 			str := ctxt.Syms.Lookup("go.link.pkghash."+l.Pkg, 0)
 			str.Attr |= sym.AttrReachable
 			str.Type = sym.SRODATA
 			str.AddAddr(ctxt.Arch, s)
-			str.AddUint(ctxt.Arch, uint64(len(l.hash)))
+			str.AddUint(ctxt.Arch, uint64(len(l.Hash)))
 		}
 	}
 
@@ -592,7 +592,7 @@ func (ctxt *Link) symtab() {
 			// pkghashes[i].name
 			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkgname.%d", i), l.Pkg)
 			// pkghashes[i].linktimehash
-			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), string(l.hash))
+			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), string(l.Hash))
 			// pkghashes[i].runtimehash
 			hash := ctxt.Syms.ROLookup("go.link.pkghash."+l.Pkg, 0)
 			pkghashes.AddAddr(ctxt.Arch, hash)

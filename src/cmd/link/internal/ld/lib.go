@@ -265,7 +265,7 @@ func errorexit() {
 	Exit(0)
 }
 
-func loadinternal(ctxt *Link, name string) *Library {
+func loadinternal(ctxt *Link, name string) *sym.Library {
 	if *FlagLinkshared && ctxt.PackageShlib != nil {
 		if shlib := ctxt.PackageShlib[name]; shlib != "" {
 			return addlibpath(ctxt, "internal", "internal", "", name, shlib)
@@ -608,8 +608,8 @@ func (ctxt *Link) loadlib() {
 			if isRuntimeDepPkg(lib.Pkg) != doInternal {
 				continue
 			}
-			ctxt.Textp = append(ctxt.Textp, lib.textp...)
-			for _, s := range lib.dupTextSyms {
+			ctxt.Textp = append(ctxt.Textp, lib.Textp...)
+			for _, s := range lib.DupTextSyms {
 				if !s.Attr.OnList() {
 					ctxt.Textp = append(ctxt.Textp, s)
 					s.Attr |= sym.AttrOnList
@@ -708,7 +708,7 @@ func nextar(bp *bio.Reader, off int64, a *ArHdr) int64 {
 	return arsize + SAR_HDR
 }
 
-func genhash(ctxt *Link, lib *Library) {
+func genhash(ctxt *Link, lib *sym.Library) {
 	f, err := bio.Open(lib.File)
 	if err != nil {
 		Errorf(nil, "cannot open file %s for hash generation: %v", lib.File, err)
@@ -762,10 +762,10 @@ func genhash(ctxt *Link, lib *Library) {
 	}
 	h.Write(pkgDefBytes[0:firstEOL])
 	h.Write(pkgDefBytes[firstDoubleDollar : firstDoubleDollar+secondDoubleDollar])
-	lib.hash = hex.EncodeToString(h.Sum(nil))
+	lib.Hash = hex.EncodeToString(h.Sum(nil))
 }
 
-func objfile(ctxt *Link, lib *Library) {
+func objfile(ctxt *Link, lib *sym.Library) {
 	pkg := objabi.PathToPrefix(lib.Pkg)
 
 	if ctxt.Debugvlog > 1 {
@@ -1369,7 +1369,7 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
 // ldobj loads an input object. If it is a host object (an object
 // compiled by a non-Go compiler) it returns the Hostobj pointer. If
 // it is a Go object, it returns nil.
-func ldobj(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string, file string, whence int) *Hostobj {
+func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string, file string, whence int) *Hostobj {
 	pkg := objabi.PathToPrefix(lib.Pkg)
 
 	eof := f.Offset() + length
@@ -1460,7 +1460,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string, fil
 	f.Seek(import1, 0)
 
 	LoadObjFile(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn)
-	lib.addImports(ctxt, pn)
+	addImports(ctxt, lib, pn)
 	return nil
 }
 
@@ -2199,16 +2199,16 @@ const (
 	visited
 )
 
-func postorder(libs []*Library) []*Library {
-	order := make([]*Library, 0, len(libs)) // hold the result
-	mark := make(map[*Library]markKind, len(libs))
+func postorder(libs []*sym.Library) []*sym.Library {
+	order := make([]*sym.Library, 0, len(libs)) // hold the result
+	mark := make(map[*sym.Library]markKind, len(libs))
 	for _, lib := range libs {
 		dfs(lib, mark, &order)
 	}
 	return order
 }
 
-func dfs(lib *Library, mark map[*Library]markKind, order *[]*Library) {
+func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library) {
 	if mark[lib] == visited {
 		return
 	}
@@ -2216,7 +2216,7 @@ func dfs(lib *Library, mark map[*Library]markKind, order *[]*Library) {
 		panic("found import cycle while visiting " + lib.Pkg)
 	}
 	mark[lib] = visiting
-	for _, i := range lib.imports {
+	for _, i := range lib.Imports {
 		dfs(i, mark, order)
 	}
 	mark[lib] = visited

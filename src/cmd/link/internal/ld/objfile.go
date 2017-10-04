@@ -32,7 +32,7 @@ type objReader struct {
 	rd              *bufio.Reader
 	arch            *sys.Arch
 	syms            *sym.Symbols
-	lib             *Library
+	lib             *sym.Library
 	pn              string
 	dupSym          *sym.Symbol
 	localSymVersion int
@@ -51,7 +51,7 @@ type objReader struct {
 	file        []*sym.Symbol
 }
 
-func LoadObjFile(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *Library, length int64, pn string) {
+func LoadObjFile(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string) {
 	start := f.Offset()
 	r := &objReader{
 		rd:              f.Reader,
@@ -88,7 +88,7 @@ func (r *objReader) loadObjFile() {
 		if lib == "" {
 			break
 		}
-		r.lib.importStrings = append(r.lib.importStrings, lib)
+		r.lib.ImportStrings = append(r.lib.ImportStrings, lib)
 	}
 
 	// sym.Symbol references
@@ -319,14 +319,14 @@ overwrite:
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
 			s.Attr |= sym.AttrOnList
-			r.lib.textp = append(r.lib.textp, s)
+			r.lib.Textp = append(r.lib.Textp, s)
 		} else {
 			// there may ba a dup in another package
 			// put into a temp list and add to text later
 			if !isdup {
-				r.lib.dupTextSyms = append(r.lib.dupTextSyms, s)
+				r.lib.DupTextSyms = append(r.lib.DupTextSyms, s)
 			} else {
-				r.lib.dupTextSyms = append(r.lib.dupTextSyms, dup)
+				r.lib.DupTextSyms = append(r.lib.DupTextSyms, dup)
 			}
 		}
 	}
