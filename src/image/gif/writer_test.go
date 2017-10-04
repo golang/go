@@ -471,6 +471,35 @@ func TestEncodeBadPalettes(t *testing.T) {
 	}
 }
 
+func TestColorTablesMatch(t *testing.T) {
+	const trIdx = 100
+	global := color.Palette(palette.Plan9)
+	if rgb := global[trIdx].(color.RGBA); rgb.R == 0 && rgb.G == 0 && rgb.B == 0 {
+		t.Fatalf("trIdx (%d) is already black", trIdx)
+	}
+
+	// Make a copy of the palette, substituting trIdx's slot with transparent,
+	// just like decoder.decode.
+	local := append(color.Palette(nil), global...)
+	local[trIdx] = color.RGBA{}
+
+	const testLen = 3 * 256
+	const padded = 7
+	e := new(encoder)
+	if l, err := encodeColorTable(e.globalColorTable[:], global, padded); err != nil || l != testLen {
+		t.Fatalf("Failed to encode global color table: got %d, %v; want nil, %d", l, err, testLen)
+	}
+	if l, err := encodeColorTable(e.localColorTable[:], local, padded); err != nil || l != testLen {
+		t.Fatalf("Failed to encode local color table: got %d, %v; want nil, %d", l, err, testLen)
+	}
+	if bytes.Equal(e.globalColorTable[:testLen], e.localColorTable[:testLen]) {
+		t.Fatal("Encoded color tables are equal, expected mismatch")
+	}
+	if !e.colorTablesMatch(len(local), trIdx) {
+		t.Fatal("colorTablesMatch() == false, expected true")
+	}
+}
+
 func TestEncodeCroppedSubImages(t *testing.T) {
 	// This test means to ensure that Encode honors the Bounds and Strides of
 	// images correctly when encoding.
