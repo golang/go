@@ -526,6 +526,10 @@ type p struct {
 	gcBgMarkWorker   guintptr
 	gcMarkWorkerMode gcMarkWorkerMode
 
+	// gcMarkWorkerStartTime is the nanotime() at which this mark
+	// worker started.
+	gcMarkWorkerStartTime int64
+
 	// gcw is this P's GC work buffer cache. The work buffer is
 	// filled by write barriers, drained by mutator assists, and
 	// disposed on certain GC state transitions.
