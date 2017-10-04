@@ -313,6 +313,16 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 
 			if ctxt.LinkMode == LinkExternal {
 				r.Done = false
+
+				// On most platforms, the external linker needs to adjust DWARF references
+				// as it combines DWARF sections. However, on Darwin, dsymutil does the
+				// DWARF linking, and it understands how to follow section offsets.
+				// Leaving in the relocation records confuses it (see
+				// https://golang.org/issue/22068) so drop them for Darwin.
+				if Headtype == objabi.Hdarwin {
+					r.Done = true
+				}
+
 				// PE code emits IMAGE_REL_I386_SECREL and IMAGE_REL_AMD64_SECREL
 				// for R_DWARFREF relocations, while R_ADDR is replaced with
 				// IMAGE_REL_I386_DIR32, IMAGE_REL_AMD64_ADDR64 and IMAGE_REL_AMD64_ADDR32.
