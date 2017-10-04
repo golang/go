@@ -424,7 +424,7 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	http.Redirect(w, r, gcsBaseURL+name, http.StatusFound)
+	http.Redirect(w, r, edgeCacheBaseURL+name, http.StatusFound)
 }
 
 func validUser(user string) bool {
