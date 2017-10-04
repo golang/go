@@ -726,15 +726,15 @@ func TestRowsColumnTypes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to scan values in %v", err)
 		}
-		ct++
-		if ct == 0 {
-			if values[0].(string) != "Bob" {
-				t.Errorf("Expected Bob, got %v", values[0])
+		if ct == 1 {
+			if age := *values[0].(*int32); age != 2 {
+				t.Errorf("Expected 2, got %v", age)
 			}
-			if values[1].(int) != 2 {
-				t.Errorf("Expected 2, got %v", values[1])
+			if name := *values[1].(*string); name != "Bob" {
+				t.Errorf("Expected Bob, got %v", name)
 			}
 		}
+		ct++
 	}
 	if ct != 3 {
 		t.Errorf("expected 3 rows, got %d", ct)
