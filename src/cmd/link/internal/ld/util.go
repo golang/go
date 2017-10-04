@@ -6,6 +6,7 @@ package ld
 
 import (
 	"bytes"
+	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -102,7 +103,7 @@ func Exitf(format string, a ...interface{}) {
 //
 // Logging an error means that on exit cmd/link will delete any
 // output file and return a non-zero error code.
-func Errorf(s *Symbol, format string, args ...interface{}) {
+func Errorf(s *sym.Symbol, format string, args ...interface{}) {
 	if s != nil {
 		format = s.Name + ": " + format
 	}

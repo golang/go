@@ -34,6 +34,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
+	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -88,11 +89,11 @@ func genplt(ctxt *ld.Link) {
 	//
 	// This assumes "case 1" from the ABI, where the caller needs
 	// us to save and restore the TOC pointer.
-	var stubs []*ld.Symbol
+	var stubs []*sym.Symbol
 	for _, s := range ctxt.Textp {
 		for i := range s.R {
 			r := &s.R[i]
-			if r.Type != 256+ld.R_PPC64_REL24 || r.Sym.Type != ld.SDYNIMPORT {
+			if r.Type != 256+ld.R_PPC64_REL24 || r.Sym.Type != sym.SDYNIMPORT {
 				continue
 			}
 
@@ -105,7 +106,7 @@ func genplt(ctxt *ld.Link) {
 
 			stub := ctxt.Syms.Lookup(n, 0)
 			if s.Attr.Reachable() {
-				stub.Attr |= ld.AttrReachable
+				stub.Attr |= sym.AttrReachable
 			}
 			if stub.Size == 0 {
 				// Need outer to resolve .TOC.
@@ -132,14 +133,14 @@ func genplt(ctxt *ld.Link) {
 
 func genaddmoduledata(ctxt *ld.Link) {
 	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == ld.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+	if addmoduledata.Type == sym.STEXT && ld.Buildmode != ld.BuildmodePlugin {
 		return
 	}
-	addmoduledata.Attr |= ld.AttrReachable
+	addmoduledata.Attr |= sym.AttrReachable
 	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
-	initfunc.Type = ld.STEXT
-	initfunc.Attr |= ld.AttrLocal
-	initfunc.Attr |= ld.AttrReachable
+	initfunc.Type = sym.STEXT
+	initfunc.Attr |= sym.AttrLocal
+	initfunc.Attr |= sym.AttrReachable
 	o := func(op uint32) {
 		initfunc.AddUint32(ctxt.Arch, op)
 	}
@@ -148,7 +149,7 @@ func genaddmoduledata(ctxt *ld.Link) {
 	rel.Off = int32(initfunc.Size)
 	rel.Siz = 8
 	rel.Sym = ctxt.Syms.Lookup(".TOC.", 0)
-	rel.Sym.Attr |= ld.AttrReachable
+	rel.Sym.Attr |= sym.AttrReachable
 	rel.Type = objabi.R_ADDRPOWER_PCREL
 	o(0x3c4c0000)
 	// addi r2, r2, .TOC.-func@l
@@ -166,8 +167,8 @@ func genaddmoduledata(ctxt *ld.Link) {
 	} else {
 		rel.Sym = ctxt.Syms.Lookup("runtime.firstmoduledata", 0)
 	}
-	rel.Sym.Attr |= ld.AttrReachable
-	rel.Sym.Attr |= ld.AttrLocal
+	rel.Sym.Attr |= sym.AttrReachable
+	rel.Sym.Attr |= sym.AttrLocal
 	rel.Type = objabi.R_ADDRPOWER_GOT
 	o(0x3c620000)
 	// ld r3, local.moduledata@got@l(r3)
@@ -195,9 +196,9 @@ func genaddmoduledata(ctxt *ld.Link) {
 	}
 	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
 	ctxt.Textp = append(ctxt.Textp, initfunc)
-	initarray_entry.Attr |= ld.AttrReachable
-	initarray_entry.Attr |= ld.AttrLocal
-	initarray_entry.Type = ld.SINITARR
+	initarray_entry.Attr |= sym.AttrReachable
+	initarray_entry.Attr |= sym.AttrLocal
+	initarray_entry.Type = sym.SINITARR
 	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
@@ -213,7 +214,7 @@ func gentext(ctxt *ld.Link) {
 
 // Construct a call stub in stub that calls symbol targ via its PLT
 // entry.
-func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
+func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol) {
 	if abicase != 1 {
 		// If we see R_PPC64_TOCSAVE or R_PPC64_REL24_NOTOC
 		// relocations, we'll need to implement cases 2 and 3.
@@ -222,7 +223,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
 
 	plt := ctxt.Syms.Lookup(".plt", 0)
 
-	stub.Type = ld.STEXT
+	stub.Type = sym.STEXT
 
 	// Save TOC pointer in TOC save slot
 	stub.AddUint32(ctxt.Arch, 0xf8410018) // std r2,24(r1)
@@ -238,7 +239,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
 		r.Off += int32(r.Siz)
 	}
 	r.Type = objabi.R_POWER_TOC
-	r.Variant = ld.RV_POWER_HA
+	r.Variant = sym.RV_POWER_HA
 	stub.AddUint32(ctxt.Arch, 0x3d820000) // addis r12,r2,targ@plt@toc@ha
 	r = stub.AddRel()
 	r.Off = int32(stub.Size)
@@ -249,7 +250,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
 		r.Off += int32(r.Siz)
 	}
 	r.Type = objabi.R_POWER_TOC
-	r.Variant = ld.RV_POWER_LO
+	r.Variant = sym.RV_POWER_LO
 	stub.AddUint32(ctxt.Arch, 0xe98c0000) // ld r12,targ@plt@toc@l(r12)
 
 	// Jump to the loaded pointer
@@ -257,13 +258,13 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
 	stub.AddUint32(ctxt.Arch, 0x4e800420) // bctr
 }
 
-func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 	targ := r.Sym
 
 	switch r.Type {
 	default:
 		if r.Type >= 256 {
-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(ctxt.Arch, r.Type))
+			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
 			return false
 		}
 
@@ -278,7 +279,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		// to use r12 to compute r2.)
 		r.Add += int64(r.Sym.Localentry) * 4
 
-		if targ.Type == ld.SDYNIMPORT {
+		if targ.Type == sym.SDYNIMPORT {
 			// Should have been handled in elfsetupplt
 			ld.Errorf(s, "unexpected R_PPC64_REL24 for dyn import")
 		}
@@ -289,7 +290,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		r.Type = objabi.R_PCREL
 		r.Add += 4
 
-		if targ.Type == ld.SDYNIMPORT {
+		if targ.Type == sym.SDYNIMPORT {
 			ld.Errorf(s, "unexpected R_PPC_REL32 for dyn import")
 		}
 
@@ -297,7 +298,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 
 	case 256 + ld.R_PPC64_ADDR64:
 		r.Type = objabi.R_ADDR
-		if targ.Type == ld.SDYNIMPORT {
+		if targ.Type == sym.SDYNIMPORT {
 			// These happen in .toc sections
 			ld.Adddynsym(ctxt, targ)
 
@@ -312,55 +313,55 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 
 	case 256 + ld.R_PPC64_TOC16:
 		r.Type = objabi.R_POWER_TOC
-		r.Variant = ld.RV_POWER_LO | ld.RV_CHECK_OVERFLOW
+		r.Variant = sym.RV_POWER_LO | sym.RV_CHECK_OVERFLOW
 		return true
 
 	case 256 + ld.R_PPC64_TOC16_LO:
 		r.Type = objabi.R_POWER_TOC
-		r.Variant = ld.RV_POWER_LO
+		r.Variant = sym.RV_POWER_LO
 		return true
 
 	case 256 + ld.R_PPC64_TOC16_HA:
 		r.Type = objabi.R_POWER_TOC
-		r.Variant = ld.RV_POWER_HA | ld.RV_CHECK_OVERFLOW
+		r.Variant = sym.RV_POWER_HA | sym.RV_CHECK_OVERFLOW
 		return true
 
 	case 256 + ld.R_PPC64_TOC16_HI:
 		r.Type = objabi.R_POWER_TOC
-		r.Variant = ld.RV_POWER_HI | ld.RV_CHECK_OVERFLOW
+		r.Variant = sym.RV_POWER_HI | sym.RV_CHECK_OVERFLOW
 		return true
 
 	case 256 + ld.R_PPC64_TOC16_DS:
 		r.Type = objabi.R_POWER_TOC
-		r.Variant = ld.RV_POWER_DS | ld.RV_CHECK_OVERFLOW
+		r.Variant = sym.RV_POWER_DS | sym.RV_CHECK_OVERFLOW
 		return true
 
 	case 256 + ld.R_PPC64_TOC16_LO_DS:
 		r.Type = objabi.R_POWER_TOC
-		r.Variant = ld.RV_POWER_DS
+		r.Variant = sym.RV_POWER_DS
 		return true
 
 	case 256 + ld.R_PPC64_REL16_LO:
 		r.Type = objabi.R_PCREL
-		r.Variant = ld.RV_POWER_LO
+		r.Variant = sym.RV_POWER_LO
 		r.Add += 2 // Compensate for relocation size of 2
 		return true
 
 	case 256 + ld.R_PPC64_REL16_HI:
 		r.Type = objabi.R_PCREL
-		r.Variant = ld.RV_POWER_HI | ld.RV_CHECK_OVERFLOW
+		r.Variant = sym.RV_POWER_HI | sym.RV_CHECK_OVERFLOW
 		r.Add += 2
 		return true
 
 	case 256 + ld.R_PPC64_REL16_HA:
 		r.Type = objabi.R_PCREL
-		r.Variant = ld.RV_POWER_HA | ld.RV_CHECK_OVERFLOW
+		r.Variant = sym.RV_POWER_HA | sym.RV_CHECK_OVERFLOW
 		r.Add += 2
 		return true
 	}
 
 	// Handle references to ELF symbols from our own object files.
-	if targ.Type != ld.SDYNIMPORT {
+	if targ.Type != sym.SDYNIMPORT {
 		return true
 	}
 
@@ -369,7 +370,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
+func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	ctxt.Out.Write64(uint64(sectoff))
 
 	elfsym := r.Xsym.ElfsymForReloc()
@@ -448,13 +449,13 @@ func elfsetupplt(ctxt *ld.Link) {
 	}
 }
 
-func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {
 	return false
 }
 
 // Return the value of .TOC. for symbol s
-func symtoc(ctxt *ld.Link, s *ld.Symbol) int64 {
-	var toc *ld.Symbol
+func symtoc(ctxt *ld.Link, s *sym.Symbol) int64 {
+	var toc *sym.Symbol
 
 	if s.Outer != nil {
 		toc = ctxt.Syms.ROLookup(".TOC.", int(s.Outer.Version))
@@ -470,7 +471,7 @@ func symtoc(ctxt *ld.Link, s *ld.Symbol) int64 {
 	return toc.Value
 }
 
-func archrelocaddr(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
+func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 	var o1, o2 uint32
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
 		o1 = uint32(*val >> 32)
@@ -518,7 +519,7 @@ func archrelocaddr(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 }
 
 // resolve direct jump relocation r in s, and add trampoline if necessary
-func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
+func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 
 	// Trampolines are created if the branch offset is too large and the linker cannot insert a call stub to handle it.
 	// For internal linking, trampolines are always created for long calls.
@@ -536,7 +537,7 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
 		// If branch offset is too far then create a trampoline.
 
 		if (ld.Linkmode == ld.LinkExternal && s.Sect != r.Sym.Sect) || (ld.Linkmode == ld.LinkInternal && int64(int32(t<<6)>>6) != t) || (*ld.FlagDebugTramp > 1 && s.File != r.Sym.File) {
-			var tramp *ld.Symbol
+			var tramp *sym.Symbol
 			for i := 0; ; i++ {
 
 				// Using r.Add as part of the name is significant in functions like duffzero where the call
@@ -579,11 +580,11 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
 			r.Done = false
 		}
 	default:
-		ld.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type, ld.RelocName(ctxt.Arch, r.Type))
+		ld.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
 	}
 }
 
-func gentramp(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
+func gentramp(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
 	// Used for default build mode for an executable
 	// Address of the call target is generated using
 	// relocation and doesn't depend on r2 (TOC).
@@ -619,7 +620,7 @@ func gentramp(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
 	arch.ByteOrder.PutUint32(tramp.P[12:], o4)
 }
 
-func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
+func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 	if ld.Linkmode == ld.LinkExternal {
 		switch r.Type {
 		default:
@@ -646,7 +647,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 				rs = rs.Outer
 			}
 
-			if rs.Type != ld.SHOSTOBJ && rs.Type != ld.SDYNIMPORT && rs.Sect == nil {
+			if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Sect == nil {
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
@@ -704,17 +705,17 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 	return false
 }
 
-func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
-	switch r.Variant & ld.RV_TYPE_MASK {
+func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+	switch r.Variant & sym.RV_TYPE_MASK {
 	default:
 		ld.Errorf(s, "unexpected relocation variant %d", r.Variant)
 		fallthrough
 
-	case ld.RV_NONE:
+	case sym.RV_NONE:
 		return t
 
-	case ld.RV_POWER_LO:
-		if r.Variant&ld.RV_CHECK_OVERFLOW != 0 {
+	case sym.RV_POWER_LO:
+		if r.Variant&sym.RV_CHECK_OVERFLOW != 0 {
 			// Whether to check for signed or unsigned
 			// overflow depends on the instruction
 			var o1 uint32
@@ -740,15 +741,15 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 
 		return int64(int16(t))
 
-	case ld.RV_POWER_HA:
+	case sym.RV_POWER_HA:
 		t += 0x8000
 		fallthrough
 
 		// Fallthrough
-	case ld.RV_POWER_HI:
+	case sym.RV_POWER_HI:
 		t >>= 16
 
-		if r.Variant&ld.RV_CHECK_OVERFLOW != 0 {
+		if r.Variant&sym.RV_CHECK_OVERFLOW != 0 {
 			// Whether to check for signed or unsigned
 			// overflow depends on the instruction
 			var o1 uint32
@@ -774,7 +775,7 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 
 		return int64(int16(t))
 
-	case ld.RV_POWER_DS:
+	case sym.RV_POWER_DS:
 		var o1 uint32
 		if ctxt.Arch.ByteOrder == binary.BigEndian {
 			o1 = uint32(ld.Be16(s.P[r.Off:]))
@@ -784,7 +785,7 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 		if t&3 != 0 {
 			ld.Errorf(s, "relocation for %s+%d is not aligned: %d", r.Sym.Name, r.Off, t)
 		}
-		if (r.Variant&ld.RV_CHECK_OVERFLOW != 0) && int64(int16(t)) != t {
+		if (r.Variant&sym.RV_CHECK_OVERFLOW != 0) && int64(int16(t)) != t {
 			goto overflow
 		}
 		return int64(o1)&0x3 | int64(int16(t))
@@ -795,7 +796,7 @@ overflow:
 	return t
 }
 
-func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 	if s.Plt >= 0 {
 		return
 	}
@@ -841,7 +842,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 }
 
 // Generate the glink resolver stub if necessary and return the .glink section
-func ensureglinkresolver(ctxt *ld.Link) *ld.Symbol {
+func ensureglinkresolver(ctxt *ld.Link) *sym.Symbol {
 	glink := ctxt.Syms.Lookup(".glink", 0)
 	if glink.Size != 0 {
 		return glink

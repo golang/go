@@ -7,6 +7,7 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/sym"
 	"debug/pe"
 	"encoding/binary"
 	"fmt"
@@ -231,7 +232,7 @@ var dosstub = []uint8{
 }
 
 type Imp struct {
-	s       *Symbol
+	s       *sym.Symbol
 	off     uint64
 	next    *Imp
 	argsize int
@@ -246,12 +247,12 @@ type Dll struct {
 }
 
 var (
-	rsrcsym     *Symbol
+	rsrcsym     *sym.Symbol
 	PESECTHEADR int32
 	PEFILEHEADR int32
 	pe64        int
 	dr          *Dll
-	dexport     [1024]*Symbol
+	dexport     [1024]*sym.Symbol
 	nexport     int
 )
 
@@ -308,7 +309,7 @@ func (sect *peSection) checkOffset(off int64) {
 
 // checkSegment verifies COFF section sect matches address
 // and file offset provided in segment seg.
-func (sect *peSection) checkSegment(seg *Segment) {
+func (sect *peSection) checkSegment(seg *sym.Segment) {
 	if seg.Vaddr-PEBASE != uint64(sect.virtualAddress) {
 		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", sect.name, uint64(int64(sect.virtualAddress)), uint64(int64(seg.Vaddr-PEBASE)))
 		errorexit()
@@ -481,7 +482,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 
 	// relocsect relocates symbols from first in section sect, and returns
 	// the total number of relocations emitted.
-	relocsect := func(sect *Section, syms []*Symbol, base uint64) int {
+	relocsect := func(sect *sym.Section, syms []*sym.Symbol, base uint64) int {
 		// If main section has no bits, nothing to relocate.
 		if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
 			return 0
@@ -574,7 +575,7 @@ dwarfLoop:
 
 // writeSymbol appends symbol s to file f symbol table.
 // It also sets s.Dynid to written symbol number.
-func (f *peFile) writeSymbol(out *OutBuf, s *Symbol, value int64, sectidx int, typ uint16, class uint8) {
+func (f *peFile) writeSymbol(out *OutBuf, s *sym.Symbol, value int64, sectidx int, typ uint16, class uint8) {
 	if len(s.Name) > 8 {
 		out.Write32(0)
 		out.Write32(uint32(f.stringTable.add(s.Name)))
@@ -594,7 +595,7 @@ func (f *peFile) writeSymbol(out *OutBuf, s *Symbol, value int64, sectidx int, t
 
 // mapToPESection searches peFile f for s symbol's location.
 // It returns PE section index, and offset within that section.
-func (f *peFile) mapToPESection(s *Symbol) (pesectidx int, offset int64, err error) {
+func (f *peFile) mapToPESection(s *sym.Symbol) (pesectidx int, offset int64, err error) {
 	if s.Sect == nil {
 		return 0, 0, fmt.Errorf("could not map %s symbol with no section", s.Name)
 	}
@@ -608,10 +609,10 @@ func (f *peFile) mapToPESection(s *Symbol) (pesectidx int, offset int64, err err
 	if Linkmode != LinkExternal {
 		return f.dataSect.index, int64(v), nil
 	}
-	if s.Type == SDATA {
+	if s.Type == sym.SDATA {
 		return f.dataSect.index, int64(v), nil
 	}
-	// Note: although address of runtime.edata (type SDATA) is at the start of .bss section
+	// Note: although address of runtime.edata (type sym.SDATA) is at the start of .bss section
 	// it still belongs to the .data section, not the .bss section.
 	if v < Segdata.Filelen {
 		return f.dataSect.index, int64(v), nil
@@ -622,7 +623,7 @@ func (f *peFile) mapToPESection(s *Symbol) (pesectidx int, offset int64, err err
 // writeSymbols writes all COFF symbol table records.
 func (f *peFile) writeSymbols(ctxt *Link) {
 
-	put := func(ctxt *Link, s *Symbol, name string, type_ SymbolType, addr int64, gotype *Symbol) {
+	put := func(ctxt *Link, s *sym.Symbol, name string, type_ SymbolType, addr int64, gotype *sym.Symbol) {
 		if s == nil {
 			return
 		}
@@ -638,7 +639,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 		// Only windows/386 requires underscore prefix on external symbols.
 		if ctxt.Arch.Family == sys.I386 &&
 			Linkmode == LinkExternal &&
-			(s.Type == SHOSTOBJ || s.Attr.CgoExport()) {
+			(s.Type == sym.SHOSTOBJ || s.Attr.CgoExport()) {
 			s.Name = "_" + s.Name
 		}
 
@@ -659,7 +660,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 			}
 		}
 		class := IMAGE_SYM_CLASS_EXTERNAL
-		if s.Version != 0 || (s.Type&SHIDDEN != 0) || s.Attr.Local() {
+		if s.Version != 0 || (s.Type&sym.SHIDDEN != 0) || s.Attr.Local() {
 			class = IMAGE_SYM_CLASS_STATIC
 		}
 		f.writeSymbol(ctxt.Out, s, value, sect, typ, uint8(class))
@@ -897,8 +898,8 @@ func Peinit(ctxt *Link) {
 
 	if Linkmode == LinkInternal {
 		// some mingw libs depend on this symbol, for example, FindPESectionByName
-		ctxt.xdefine("__image_base__", SDATA, PEBASE)
-		ctxt.xdefine("_image_base__", SDATA, PEBASE)
+		ctxt.xdefine("__image_base__", sym.SDATA, PEBASE)
+		ctxt.xdefine("_image_base__", sym.SDATA, PEBASE)
 	}
 
 	HEADR = PEFILEHEADR
@@ -947,7 +948,7 @@ func initdynimport(ctxt *Link) *Dll {
 	dr = nil
 	var m *Imp
 	for _, s := range ctxt.Syms.Allsym {
-		if !s.Attr.Reachable() || s.Type != SDYNIMPORT {
+		if !s.Attr.Reachable() || s.Type != sym.SDYNIMPORT {
 			continue
 		}
 		for d = dr; d != nil; d = d.next {
@@ -989,7 +990,7 @@ func initdynimport(ctxt *Link) *Dll {
 		// Add real symbol name
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
-				m.s.Type = SDATA
+				m.s.Type = sym.SDATA
 				m.s.Grow(int64(ctxt.Arch.PtrSize))
 				dynName := m.s.Extname
 				// only windows/386 requires stdcall decoration
@@ -997,8 +998,8 @@ func initdynimport(ctxt *Link) *Dll {
 					dynName += fmt.Sprintf("@%d", m.argsize)
 				}
 				dynSym := ctxt.Syms.Lookup(dynName, 0)
-				dynSym.Attr |= AttrReachable
-				dynSym.Type = SHOSTOBJ
+				dynSym.Attr |= sym.AttrReachable
+				dynSym.Type = sym.SHOSTOBJ
 				r := m.s.AddRel()
 				r.Sym = dynSym
 				r.Off = 0
@@ -1008,11 +1009,11 @@ func initdynimport(ctxt *Link) *Dll {
 		}
 	} else {
 		dynamic := ctxt.Syms.Lookup(".windynamic", 0)
-		dynamic.Attr |= AttrReachable
-		dynamic.Type = SWINDOWS
+		dynamic.Attr |= sym.AttrReachable
+		dynamic.Type = sym.SWINDOWS
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
-				m.s.Type = SWINDOWS | SSUB
+				m.s.Type = sym.SWINDOWS | sym.SSUB
 				m.s.Sub = dynamic.Sub
 				dynamic.Sub = m.s
 				m.s.Value = dynamic.Size
@@ -1143,7 +1144,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 	out.SeekSet(endoff)
 }
 
-type byExtname []*Symbol
+type byExtname []*sym.Symbol
 
 func (s byExtname) Len() int           { return len(s) }
 func (s byExtname) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
@@ -1237,14 +1238,14 @@ func (ctxt *Link) dope() {
 	/* relocation table */
 	rel := ctxt.Syms.Lookup(".rel", 0)
 
-	rel.Attr |= AttrReachable
-	rel.Type = SELFROSECT
+	rel.Attr |= sym.AttrReachable
+	rel.Type = sym.SELFROSECT
 
 	initdynimport(ctxt)
 	initdynexport(ctxt)
 }
 
-func setpersrc(ctxt *Link, sym *Symbol) {
+func setpersrc(ctxt *Link, sym *sym.Symbol) {
 	if rsrcsym != nil {
 		Errorf(sym, "too many .rsrc sections")
 	}
@@ -1263,7 +1264,7 @@ func addpersrc(ctxt *Link) {
 
 	// relocation
 	var p []byte
-	var r *Reloc
+	var r *sym.Reloc
 	var val uint32
 	for ri := 0; ri < len(rsrcsym.R); ri++ {
 		r = &rsrcsym.R[ri]

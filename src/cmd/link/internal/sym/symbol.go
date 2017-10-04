@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ld
+package sym
 
 import (
 	"cmd/internal/objabi"
@@ -105,19 +105,19 @@ func (s *Symbol) AddUint8(v uint8) int64 {
 }
 
 func (s *Symbol) AddUint16(arch *sys.Arch, v uint16) int64 {
-	return s.addUintXX(arch, uint64(v), 2)
+	return s.AddUintXX(arch, uint64(v), 2)
 }
 
 func (s *Symbol) AddUint32(arch *sys.Arch, v uint32) int64 {
-	return s.addUintXX(arch, uint64(v), 4)
+	return s.AddUintXX(arch, uint64(v), 4)
 }
 
 func (s *Symbol) AddUint64(arch *sys.Arch, v uint64) int64 {
-	return s.addUintXX(arch, v, 8)
+	return s.AddUintXX(arch, v, 8)
 }
 
 func (s *Symbol) AddUint(arch *sys.Arch, v uint64) int64 {
-	return s.addUintXX(arch, v, arch.PtrSize)
+	return s.AddUintXX(arch, v, arch.PtrSize)
 }
 
 func (s *Symbol) SetUint8(arch *sys.Arch, r int64, v uint8) int64 {
@@ -234,7 +234,7 @@ func (s *Symbol) AddRel() *Reloc {
 	return &s.R[len(s.R)-1]
 }
 
-func (s *Symbol) addUintXX(arch *sys.Arch, v uint64, wid int) int64 {
+func (s *Symbol) AddUintXX(arch *sys.Arch, v uint64, wid int) int64 {
 	off := s.Size
 	s.setUintXX(arch, off, v, int64(wid))
 	return off
@@ -262,4 +262,38 @@ func (s *Symbol) setUintXX(arch *sys.Arch, off int64, v uint64, wid int64) int64
 	}
 
 	return off + wid
+}
+
+type FuncInfo struct {
+	Args        int32
+	Locals      int32
+	Autom       []Auto
+	Pcsp        Pcdata
+	Pcfile      Pcdata
+	Pcline      Pcdata
+	Pcinline    Pcdata
+	Pcdata      []Pcdata
+	Funcdata    []*Symbol
+	Funcdataoff []int64
+	File        []*Symbol
+	InlTree     []InlinedCall
+}
+
+// InlinedCall is a node in a local inlining tree (FuncInfo.InlTree).
+type InlinedCall struct {
+	Parent int32   // index of parent in InlTree
+	File   *Symbol // file of the inlined call
+	Line   int32   // line number of the inlined call
+	Func   *Symbol // function that was inlined
+}
+
+type Pcdata struct {
+	P []byte
+}
+
+type Auto struct {
+	Asym    *Symbol
+	Gotype  *Symbol
+	Aoffset int32
+	Name    int16
 }

@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
+	"cmd/link/internal/sym"
 	"fmt"
 	"io"
 	"os"
@@ -128,7 +129,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 	var next string
 	var q string
 	var lib string
-	var s *Symbol
+	var s *sym.Symbol
 
 	p0 := ""
 	for ; p != ""; p = next {
@@ -184,12 +185,12 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				remote, q = remote[:i], remote[i+1:]
 			}
 			s = ctxt.Syms.Lookup(local, 0)
-			if s.Type == 0 || s.Type == SXREF || s.Type == SHOSTOBJ {
+			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SHOSTOBJ {
 				s.Dynimplib = lib
 				s.Extname = remote
 				s.Dynimpvers = q
-				if s.Type != SHOSTOBJ {
-					s.Type = SDYNIMPORT
+				if s.Type != sym.SHOSTOBJ {
+					s.Type = sym.SDYNIMPORT
 				}
 				havedynamic = 1
 			}
@@ -203,7 +204,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			}
 			local := f[1]
 			s = ctxt.Syms.Lookup(local, 0)
-			s.Type = SHOSTOBJ
+			s.Type = sym.SHOSTOBJ
 			s.Size = 0
 			continue
 		}
@@ -248,9 +249,9 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			}
 
 			if f[0] == "cgo_export_static" {
-				s.Attr |= AttrCgoExportStatic
+				s.Attr |= sym.AttrCgoExportStatic
 			} else {
-				s.Attr |= AttrCgoExportDynamic
+				s.Attr |= sym.AttrCgoExportDynamic
 			}
 			continue
 		}
@@ -308,7 +309,7 @@ func adddynlib(ctxt *Link, lib string) {
 	}
 }
 
-func Adddynsym(ctxt *Link, s *Symbol) {
+func Adddynsym(ctxt *Link, s *sym.Symbol) {
 	if s.Dynid >= 0 || Linkmode == LinkExternal {
 		return
 	}
@@ -329,8 +330,8 @@ func fieldtrack(ctxt *Link) {
 	var buf bytes.Buffer
 	for _, s := range ctxt.Syms.Allsym {
 		if strings.HasPrefix(s.Name, "go.track.") {
-			s.Attr |= AttrSpecial // do not lay out in data segment
-			s.Attr |= AttrNotInSymbolTable
+			s.Attr |= sym.AttrSpecial // do not lay out in data segment
+			s.Attr |= sym.AttrNotInSymbolTable
 			if s.Attr.Reachable() {
 				buf.WriteString(s.Name[9:])
 				for p := s.Reachparent; p != nil; p = p.Reachparent {
@@ -340,7 +341,7 @@ func fieldtrack(ctxt *Link) {
 				buf.WriteString("\n")
 			}
 
-			s.Type = SCONST
+			s.Type = sym.SCONST
 			s.Value = 0
 		}
 	}
@@ -353,7 +354,7 @@ func fieldtrack(ctxt *Link) {
 		return
 	}
 	addstrdata(ctxt, *flagFieldTrack, buf.String())
-	s.Type = SDATA
+	s.Type = sym.SDATA
 }
 
 func (ctxt *Link) addexport() {

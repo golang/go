@@ -7,6 +7,7 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/sym"
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/hex"
@@ -809,7 +810,7 @@ type ElfShdr struct {
 	addralign uint64
 	entsize   uint64
 	shnum     int
-	secsym    *Symbol
+	secsym    *sym.Symbol
 }
 
 /*
@@ -1060,7 +1061,7 @@ func elfwriteshdrs(out *OutBuf) uint32 {
 	return uint32(ehdr.shnum) * ELF32SHDRSIZE
 }
 
-func elfsetstring(s *Symbol, str string, off int) {
+func elfsetstring(s *sym.Symbol, str string, off int) {
 	if nelfstr >= len(elfstr) {
 		Errorf(s, "too many elf strings")
 		errorexit()
@@ -1175,7 +1176,7 @@ func elfhash(name string) uint32 {
 	return h
 }
 
-func Elfwritedynent(ctxt *Link, s *Symbol, tag int, val uint64) {
+func Elfwritedynent(ctxt *Link, s *sym.Symbol, tag int, val uint64) {
 	if elf64 {
 		s.AddUint64(ctxt.Arch, uint64(tag))
 		s.AddUint64(ctxt.Arch, val)
@@ -1185,11 +1186,11 @@ func Elfwritedynent(ctxt *Link, s *Symbol, tag int, val uint64) {
 	}
 }
 
-func elfwritedynentsym(ctxt *Link, s *Symbol, tag int, t *Symbol) {
+func elfwritedynentsym(ctxt *Link, s *sym.Symbol, tag int, t *sym.Symbol) {
 	Elfwritedynentsymplus(ctxt, s, tag, t, 0)
 }
 
-func Elfwritedynentsymplus(ctxt *Link, s *Symbol, tag int, t *Symbol, add int64) {
+func Elfwritedynentsymplus(ctxt *Link, s *sym.Symbol, tag int, t *sym.Symbol, add int64) {
 	if elf64 {
 		s.AddUint64(ctxt.Arch, uint64(tag))
 	} else {
@@ -1198,7 +1199,7 @@ func Elfwritedynentsymplus(ctxt *Link, s *Symbol, tag int, t *Symbol, add int64)
 	s.AddAddrPlus(ctxt.Arch, t, add)
 }
 
-func elfwritedynentsymsize(ctxt *Link, s *Symbol, tag int, t *Symbol) {
+func elfwritedynentsymsize(ctxt *Link, s *sym.Symbol, tag int, t *sym.Symbol) {
 	if elf64 {
 		s.AddUint64(ctxt.Arch, uint64(tag))
 	} else {
@@ -1446,8 +1447,8 @@ func elfdynhash(ctxt *Link) {
 
 	nsym := Nelfsym
 	s := ctxt.Syms.Lookup(".hash", 0)
-	s.Type = SELFROSECT
-	s.Attr |= AttrReachable
+	s.Type = sym.SELFROSECT
+	s.Attr |= sym.AttrReachable
 
 	i := nsym
 	nbucket := 1
@@ -1575,7 +1576,7 @@ func elfdynhash(ctxt *Link) {
 	Elfwritedynent(ctxt, s, DT_NULL, 0)
 }
 
-func elfphload(seg *Segment) *ElfPhdr {
+func elfphload(seg *sym.Segment) *ElfPhdr {
 	ph := newElfPhdr()
 	ph.type_ = PT_LOAD
 	if seg.Rwx&4 != 0 {
@@ -1597,7 +1598,7 @@ func elfphload(seg *Segment) *ElfPhdr {
 	return ph
 }
 
-func elfphrelro(seg *Segment) {
+func elfphrelro(seg *sym.Segment) {
 	ph := newElfPhdr()
 	ph.type_ = PT_GNU_RELRO
 	ph.vaddr = seg.Vaddr
@@ -1640,20 +1641,20 @@ func elfshnamedup(name string) *ElfShdr {
 	return nil
 }
 
-func elfshalloc(sect *Section) *ElfShdr {
+func elfshalloc(sect *sym.Section) *ElfShdr {
 	sh := elfshname(sect.Name)
 	sect.Elfsect = sh
 	return sh
 }
 
-func elfshbits(sect *Section) *ElfShdr {
+func elfshbits(sect *sym.Section) *ElfShdr {
 	var sh *ElfShdr
 
 	if sect.Name == ".text" {
 		if sect.Elfsect == nil {
 			sect.Elfsect = elfshnamedup(sect.Name)
 		}
-		sh = sect.Elfsect
+		sh = sect.Elfsect.(*ElfShdr)
 	} else {
 		sh = elfshalloc(sect)
 	}
@@ -1712,7 +1713,7 @@ func elfshbits(sect *Section) *ElfShdr {
 	return sh
 }
 
-func elfshreloc(arch *sys.Arch, sect *Section) *ElfShdr {
+func elfshreloc(arch *sys.Arch, sect *sym.Section) *ElfShdr {
 	// If main section is SHT_NOBITS, nothing to relocate.
 	// Also nothing to relocate in .shstrtab or notes.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
@@ -1721,7 +1722,7 @@ func elfshreloc(arch *sys.Arch, sect *Section) *ElfShdr {
 	if sect.Name == ".shstrtab" || sect.Name == ".tbss" {
 		return nil
 	}
-	if sect.Elfsect.type_ == SHT_NOTE {
+	if sect.Elfsect.(*ElfShdr).type_ == SHT_NOTE {
 		return nil
 	}
 
@@ -1737,7 +1738,7 @@ func elfshreloc(arch *sys.Arch, sect *Section) *ElfShdr {
 	// its own .rela.text.
 
 	if sect.Name == ".text" {
-		if sh.info != 0 && sh.info != uint32(sect.Elfsect.shnum) {
+		if sh.info != 0 && sh.info != uint32(sect.Elfsect.(*ElfShdr).shnum) {
 			sh = elfshnamedup(elfRelType + sect.Name)
 		}
 	}
@@ -1748,14 +1749,14 @@ func elfshreloc(arch *sys.Arch, sect *Section) *ElfShdr {
 		sh.entsize += uint64(arch.RegSize)
 	}
 	sh.link = uint32(elfshname(".symtab").shnum)
-	sh.info = uint32(sect.Elfsect.shnum)
+	sh.info = uint32(sect.Elfsect.(*ElfShdr).shnum)
 	sh.off = sect.Reloff
 	sh.size = sect.Rellen
 	sh.addralign = uint64(arch.RegSize)
 	return sh
 }
 
-func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
+func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 	// If main section is SHT_NOBITS, nothing to relocate.
 	// Also nothing to relocate in .shstrtab.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
@@ -1777,30 +1778,30 @@ func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 	}
 
 	eaddr := int32(sect.Vaddr + sect.Length)
-	for _, sym := range syms {
-		if !sym.Attr.Reachable() {
+	for _, s := range syms {
+		if !s.Attr.Reachable() {
 			continue
 		}
-		if sym.Value >= int64(eaddr) {
+		if s.Value >= int64(eaddr) {
 			break
 		}
-		for ri := 0; ri < len(sym.R); ri++ {
-			r := &sym.R[ri]
+		for ri := 0; ri < len(s.R); ri++ {
+			r := &s.R[ri]
 			if r.Done {
 				continue
 			}
 			if r.Xsym == nil {
-				Errorf(sym, "missing xsym in relocation %#v %#v", r.Sym.Name, sym)
+				Errorf(s, "missing xsym in relocation %#v %#v", r.Sym.Name, s)
 				continue
 			}
 			if r.Xsym.ElfsymForReloc() == 0 {
-				Errorf(sym, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type, RelocName(ctxt.Arch, r.Type), r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
+				Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
 			}
 			if !r.Xsym.Attr.Reachable() {
-				Errorf(sym, "unreachable reloc %d (%s) target %v", r.Type, RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
+				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
 			}
-			if !Thearch.Elfreloc1(ctxt, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) {
-				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
+			if !Thearch.Elfreloc1(ctxt, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
+				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
 			}
 		}
 	}
@@ -1837,8 +1838,8 @@ func Elfemitreloc(ctxt *Link) {
 
 func addgonote(ctxt *Link, sectionName string, tag uint32, desc []byte) {
 	s := ctxt.Syms.Lookup(sectionName, 0)
-	s.Attr |= AttrReachable
-	s.Type = SELFROSECT
+	s.Attr |= sym.AttrReachable
+	s.Type = sym.SELFROSECT
 	// namesz
 	s.AddUint32(ctxt.Arch, uint32(len(ELF_NOTE_GO_NAME)))
 	// descsz
@@ -1867,8 +1868,8 @@ func (ctxt *Link) doelf() {
 	/* predefine strings we need for section headers */
 	shstrtab := ctxt.Syms.Lookup(".shstrtab", 0)
 
-	shstrtab.Type = SELFROSECT
-	shstrtab.Attr |= AttrReachable
+	shstrtab.Type = sym.SELFROSECT
+	shstrtab.Attr |= sym.AttrReachable
 
 	Addstring(shstrtab, "")
 	Addstring(shstrtab, ".text")
@@ -1975,8 +1976,8 @@ func (ctxt *Link) doelf() {
 		/* dynamic symbol table - first entry all zeros */
 		s := ctxt.Syms.Lookup(".dynsym", 0)
 
-		s.Type = SELFROSECT
-		s.Attr |= AttrReachable
+		s.Type = sym.SELFROSECT
+		s.Attr |= sym.AttrReachable
 		if elf64 {
 			s.Size += ELF64SYMSIZE
 		} else {
@@ -1986,8 +1987,8 @@ func (ctxt *Link) doelf() {
 		/* dynamic string table */
 		s = ctxt.Syms.Lookup(".dynstr", 0)
 
-		s.Type = SELFROSECT
-		s.Attr |= AttrReachable
+		s.Type = sym.SELFROSECT
+		s.Attr |= sym.AttrReachable
 		if s.Size == 0 {
 			Addstring(s, "")
 		}
@@ -1995,62 +1996,62 @@ func (ctxt *Link) doelf() {
 
 		/* relocation table */
 		s = ctxt.Syms.Lookup(elfRelType, 0)
-		s.Attr |= AttrReachable
-		s.Type = SELFROSECT
+		s.Attr |= sym.AttrReachable
+		s.Type = sym.SELFROSECT
 
 		/* global offset table */
 		s = ctxt.Syms.Lookup(".got", 0)
 
-		s.Attr |= AttrReachable
-		s.Type = SELFGOT // writable
+		s.Attr |= sym.AttrReachable
+		s.Type = sym.SELFGOT // writable
 
 		/* ppc64 glink resolver */
 		if ctxt.Arch.Family == sys.PPC64 {
 			s := ctxt.Syms.Lookup(".glink", 0)
-			s.Attr |= AttrReachable
-			s.Type = SELFRXSECT
+			s.Attr |= sym.AttrReachable
+			s.Type = sym.SELFRXSECT
 		}
 
 		/* hash */
 		s = ctxt.Syms.Lookup(".hash", 0)
 
-		s.Attr |= AttrReachable
-		s.Type = SELFROSECT
+		s.Attr |= sym.AttrReachable
+		s.Type = sym.SELFROSECT
 
 		s = ctxt.Syms.Lookup(".got.plt", 0)
-		s.Attr |= AttrReachable
-		s.Type = SELFSECT // writable
+		s.Attr |= sym.AttrReachable
+		s.Type = sym.SELFSECT // writable
 
 		s = ctxt.Syms.Lookup(".plt", 0)
 
-		s.Attr |= AttrReachable
+		s.Attr |= sym.AttrReachable
 		if ctxt.Arch.Family == sys.PPC64 {
 			// In the ppc64 ABI, .plt is a data section
 			// written by the dynamic linker.
-			s.Type = SELFSECT
+			s.Type = sym.SELFSECT
 		} else {
-			s.Type = SELFRXSECT
+			s.Type = sym.SELFRXSECT
 		}
 
 		Thearch.Elfsetupplt(ctxt)
 
 		s = ctxt.Syms.Lookup(elfRelType+".plt", 0)
-		s.Attr |= AttrReachable
-		s.Type = SELFROSECT
+		s.Attr |= sym.AttrReachable
+		s.Type = sym.SELFROSECT
 
 		s = ctxt.Syms.Lookup(".gnu.version", 0)
-		s.Attr |= AttrReachable
-		s.Type = SELFROSECT
+		s.Attr |= sym.AttrReachable
+		s.Type = sym.SELFROSECT
 
 		s = ctxt.Syms.Lookup(".gnu.version_r", 0)
-		s.Attr |= AttrReachable
-		s.Type = SELFROSECT
+		s.Attr |= sym.AttrReachable
+		s.Type = sym.SELFROSECT
 
 		/* define dynamic elf table */
 		s = ctxt.Syms.Lookup(".dynamic", 0)
 
-		s.Attr |= AttrReachable
-		s.Type = SELFSECT // writable
+		s.Attr |= sym.AttrReachable
+		s.Type = sym.SELFSECT // writable
 
 		/*
 		 * .dynamic table
@@ -2102,10 +2103,10 @@ func (ctxt *Link) doelf() {
 		// The go.link.abihashbytes symbol will be pointed at the appropriate
 		// part of the .note.go.abihash section in data.go:func address().
 		s := ctxt.Syms.Lookup("go.link.abihashbytes", 0)
-		s.Attr |= AttrLocal
-		s.Type = SRODATA
-		s.Attr |= AttrSpecial
-		s.Attr |= AttrReachable
+		s.Attr |= sym.AttrLocal
+		s.Type = sym.SRODATA
+		s.Attr |= sym.AttrSpecial
+		s.Attr |= sym.AttrReachable
 		s.Size = int64(sha1.Size)
 
 		sort.Sort(byPkg(ctxt.Library))
@@ -2128,7 +2129,7 @@ func (ctxt *Link) doelf() {
 }
 
 // Do not write DT_NULL.  elfdynhash will finish it.
-func shsym(sh *ElfShdr, s *Symbol) {
+func shsym(sh *ElfShdr, s *sym.Symbol) {
 	addr := Symaddr(s)
 	if sh.flags&SHF_ALLOC != 0 {
 		sh.addr = uint64(addr)
@@ -2579,7 +2580,7 @@ elfobj:
 			elfshreloc(ctxt.Arch, sect)
 		}
 		for _, s := range dwarfp {
-			if len(s.R) > 0 || s.Type == SDWARFINFO || s.Type == SDWARFLOC {
+			if len(s.R) > 0 || s.Type == sym.SDWARFINFO || s.Type == sym.SDWARFLOC {
 				elfshreloc(ctxt.Arch, s.Sect)
 			}
 		}
@@ -2682,7 +2683,7 @@ elfobj:
 	}
 }
 
-func elfadddynsym(ctxt *Link, s *Symbol) {
+func elfadddynsym(ctxt *Link, s *sym.Symbol) {
 	if elf64 {
 		s.Dynid = int32(Nelfsym)
 		Nelfsym++
@@ -2695,7 +2696,7 @@ func elfadddynsym(ctxt *Link, s *Symbol) {
 		/* type */
 		t := STB_GLOBAL << 4
 
-		if s.Attr.CgoExport() && s.Type&SMASK == STEXT {
+		if s.Attr.CgoExport() && s.Type&sym.SMASK == sym.STEXT {
 			t |= STT_FUNC
 		} else {
 			t |= STT_OBJECT
@@ -2706,14 +2707,14 @@ func elfadddynsym(ctxt *Link, s *Symbol) {
 		d.AddUint8(0)
 
 		/* section where symbol is defined */
-		if s.Type == SDYNIMPORT {
+		if s.Type == sym.SDYNIMPORT {
 			d.AddUint16(ctxt.Arch, SHN_UNDEF)
 		} else {
 			d.AddUint16(ctxt.Arch, 1)
 		}
 
 		/* value */
-		if s.Type == SDYNIMPORT {
+		if s.Type == sym.SDYNIMPORT {
 			d.AddUint64(ctxt.Arch, 0)
 		} else {
 			d.AddAddr(ctxt.Arch, s)
@@ -2737,7 +2738,7 @@ func elfadddynsym(ctxt *Link, s *Symbol) {
 		d.AddUint32(ctxt.Arch, uint32(Addstring(ctxt.Syms.Lookup(".dynstr", 0), name)))
 
 		/* value */
-		if s.Type == SDYNIMPORT {
+		if s.Type == sym.SDYNIMPORT {
 			d.AddUint32(ctxt.Arch, 0)
 		} else {
 			d.AddAddr(ctxt.Arch, s)
@@ -2750,9 +2751,9 @@ func elfadddynsym(ctxt *Link, s *Symbol) {
 		t := STB_GLOBAL << 4
 
 		// TODO(mwhudson): presumably the behavior should actually be the same on both arm and 386.
-		if ctxt.Arch.Family == sys.I386 && s.Attr.CgoExport() && s.Type&SMASK == STEXT {
+		if ctxt.Arch.Family == sys.I386 && s.Attr.CgoExport() && s.Type&sym.SMASK == sym.STEXT {
 			t |= STT_FUNC
-		} else if ctxt.Arch.Family == sys.ARM && s.Attr.CgoExportDynamic() && s.Type&SMASK == STEXT {
+		} else if ctxt.Arch.Family == sys.ARM && s.Attr.CgoExportDynamic() && s.Type&sym.SMASK == sym.STEXT {
 			t |= STT_FUNC
 		} else {
 			t |= STT_OBJECT
@@ -2761,7 +2762,7 @@ func elfadddynsym(ctxt *Link, s *Symbol) {
 		d.AddUint8(0)
 
 		/* shndx */
-		if s.Type == SDYNIMPORT {
+		if s.Type == sym.SDYNIMPORT {
 			d.AddUint16(ctxt.Arch, SHN_UNDEF)
 		} else {
 			d.AddUint16(ctxt.Arch, 1)

@@ -34,19 +34,13 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/sym"
 	"log"
 )
 
 func linknew(arch *sys.Arch) *Link {
 	ctxt := &Link{
-		Syms: &Symbols{
-			hash: []map[string]*Symbol{
-				// preallocate about 2mb for hash of
-				// non static symbols
-				make(map[string]*Symbol, 100000),
-			},
-			Allsym: make([]*Symbol, 0, 100000),
-		},
+		Syms:         sym.NewSymbols(),
 		Out:          &OutBuf{arch: arch},
 		Arch:         arch,
 		LibraryByPkg: make(map[string]*Library),

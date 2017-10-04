@@ -34,6 +34,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
+	"cmd/link/internal/sym"
 	"fmt"
 	"log"
 )
@@ -64,16 +65,16 @@ func gentext(ctxt *ld.Link) {
 		return
 	}
 	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == ld.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+	if addmoduledata.Type == sym.STEXT && ld.Buildmode != ld.BuildmodePlugin {
 		// we're linking a module containing the runtime -> no need for
 		// an init function
 		return
 	}
-	addmoduledata.Attr |= ld.AttrReachable
+	addmoduledata.Attr |= sym.AttrReachable
 	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
-	initfunc.Type = ld.STEXT
-	initfunc.Attr |= ld.AttrLocal
-	initfunc.Attr |= ld.AttrReachable
+	initfunc.Type = sym.STEXT
+	initfunc.Attr |= sym.AttrLocal
+	initfunc.Attr |= sym.AttrReachable
 	o := func(op uint32) {
 		initfunc.AddUint32(ctxt.Arch, op)
 	}
@@ -101,9 +102,9 @@ func gentext(ctxt *ld.Link) {
 	}
 	ctxt.Textp = append(ctxt.Textp, initfunc)
 	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
-	initarray_entry.Attr |= ld.AttrReachable
-	initarray_entry.Attr |= ld.AttrLocal
-	initarray_entry.Type = ld.SINITARR
+	initarray_entry.Attr |= sym.AttrReachable
+	initarray_entry.Attr |= sym.AttrLocal
+	initarray_entry.Type = sym.SINITARR
 	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
@@ -113,13 +114,13 @@ func braddoff(a int32, b int32) int32 {
 	return int32((uint32(a))&0xff000000 | 0x00ffffff&uint32(a+b))
 }
 
-func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 	targ := r.Sym
 
 	switch r.Type {
 	default:
 		if r.Type >= 256 {
-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(ctxt.Arch, r.Type))
+			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
 			return false
 		}
 
@@ -127,7 +128,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	case 256 + ld.R_ARM_PLT32:
 		r.Type = objabi.R_CALLARM
 
-		if targ.Type == ld.SDYNIMPORT {
+		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
 			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
@@ -140,7 +141,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		return false
 
 	case 256 + ld.R_ARM_GOT32: // R_ARM_GOT_BREL
-		if targ.Type != ld.SDYNIMPORT {
+		if targ.Type != sym.SDYNIMPORT {
 			addgotsyminternal(ctxt, targ)
 		} else {
 			addgotsym(ctxt, targ)
@@ -152,7 +153,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		return true
 
 	case 256 + ld.R_ARM_GOT_PREL: // GOT(nil) + A - nil
-		if targ.Type != ld.SDYNIMPORT {
+		if targ.Type != sym.SDYNIMPORT {
 			addgotsyminternal(ctxt, targ)
 		} else {
 			addgotsym(ctxt, targ)
@@ -177,7 +178,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 
 	case 256 + ld.R_ARM_CALL:
 		r.Type = objabi.R_CALLARM
-		if targ.Type == ld.SDYNIMPORT {
+		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
 			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
@@ -192,7 +193,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		return true
 
 	case 256 + ld.R_ARM_ABS32:
-		if targ.Type == ld.SDYNIMPORT {
+		if targ.Type == sym.SDYNIMPORT {
 			ld.Errorf(s, "unexpected R_ARM_ABS32 relocation for dynamic symbol %s", targ.Name)
 		}
 		r.Type = objabi.R_ADDR
@@ -211,7 +212,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	case 256 + ld.R_ARM_PC24,
 		256 + ld.R_ARM_JUMP24:
 		r.Type = objabi.R_CALLARM
-		if targ.Type == ld.SDYNIMPORT {
+		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
 			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
@@ -221,7 +222,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	}
 
 	// Handle references to ELF symbols from our own object files.
-	if targ.Type != ld.SDYNIMPORT {
+	if targ.Type != sym.SDYNIMPORT {
 		return true
 	}
 
@@ -233,7 +234,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		return true
 
 	case objabi.R_ADDR:
-		if s.Type != ld.SDATA {
+		if s.Type != sym.SDATA {
 			break
 		}
 		if ld.Iself {
@@ -250,7 +251,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
+func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	ctxt.Out.Write32(uint32(sectoff))
 
 	elfsym := r.Xsym.ElfsymForReloc()
@@ -321,13 +322,13 @@ func elfsetupplt(ctxt *ld.Link) {
 	}
 }
 
-func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {
 	var v uint32
 
 	rs := r.Xsym
 
 	if r.Type == objabi.R_PCREL {
-		if rs.Type == ld.SHOSTOBJ {
+		if rs.Type == sym.SHOSTOBJ {
 			ld.Errorf(s, "pc-relative relocation of external symbol is not supported")
 			return false
 		}
@@ -356,9 +357,9 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *ld.Symbol, r *ld.Reloc, sect
 		return true
 	}
 
-	if rs.Type == ld.SHOSTOBJ || r.Type == objabi.R_CALLARM {
+	if rs.Type == sym.SHOSTOBJ || r.Type == objabi.R_CALLARM {
 		if rs.Dynid < 0 {
-			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
+			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, sym.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
 			return false
 		}
 
@@ -367,7 +368,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *ld.Symbol, r *ld.Reloc, sect
 	} else {
 		v = uint32(rs.Sect.Extnum)
 		if v == 0 {
-			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
+			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, sym.RelocName(arch, r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
 			return false
 		}
 	}
@@ -422,7 +423,7 @@ func immrot(v uint32) uint32 {
 }
 
 // Convert the direct jump relocation r to refer to a trampoline if the target is too far
-func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
+func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 	switch r.Type {
 	case objabi.R_CALLARM:
 		// r.Add is the instruction
@@ -433,11 +434,11 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
 			// look up existing trampolines first. if we found one within the range
 			// of direct call, we can reuse it. otherwise create a new one.
 			offset := (signext24(r.Add&0xffffff) + 2) * 4
-			var tramp *ld.Symbol
+			var tramp *sym.Symbol
 			for i := 0; ; i++ {
 				name := r.Sym.Name + fmt.Sprintf("%+d-tramp%d", offset, i)
 				tramp = ctxt.Syms.Lookup(name, int(r.Sym.Version))
-				if tramp.Type == ld.SDYNIMPORT {
+				if tramp.Type == sym.SDYNIMPORT {
 					// don't reuse trampoline defined in other module
 					continue
 				}
@@ -475,12 +476,12 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
 			r.Done = false
 		}
 	default:
-		ld.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type, ld.RelocName(ctxt.Arch, r.Type))
+		ld.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
 	}
 }
 
 // generate a trampoline to target+offset
-func gentramp(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
+func gentramp(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
 	tramp.Size = 12 // 3 instructions
 	tramp.P = make([]byte, tramp.Size)
 	t := ld.Symaddr(target) + int64(offset)
@@ -502,7 +503,7 @@ func gentramp(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
 }
 
 // generate a trampoline to target+offset in position independent code
-func gentramppic(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
+func gentramppic(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
 	tramp.Size = 16 // 4 instructions
 	tramp.P = make([]byte, tramp.Size)
 	o1 := uint32(0xe5900000 | 11<<12 | 15<<16 | 4)  // MOVW 4(R15), R11 // R15 is actual pc + 8
@@ -523,7 +524,7 @@ func gentramppic(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
 }
 
 // generate a trampoline to target+offset in dynlink mode (using GOT)
-func gentrampdyn(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
+func gentrampdyn(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
 	tramp.Size = 20                                 // 5 instructions
 	o1 := uint32(0xe5900000 | 11<<12 | 15<<16 | 8)  // MOVW 8(R15), R11 // R15 is actual pc + 8
 	o2 := uint32(0xe0800000 | 11<<12 | 15<<16 | 11) // ADD R15, R11, R11
@@ -562,7 +563,7 @@ func gentrampdyn(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
 	}
 }
 
-func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
+func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 	if ld.Linkmode == ld.LinkExternal {
 		switch r.Type {
 		case objabi.R_CALLARM:
@@ -578,7 +579,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 				rs = rs.Outer
 			}
 
-			if rs.Type != ld.SHOSTOBJ && rs.Type != ld.SDYNIMPORT && rs.Sect == nil {
+			if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Sect == nil {
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
@@ -642,27 +643,27 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 	return false
 }
 
-func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
+func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
 	log.Fatalf("unexpected relocation variant")
 	return t
 }
 
-func addpltreloc(ctxt *ld.Link, plt *ld.Symbol, got *ld.Symbol, sym *ld.Symbol, typ objabi.RelocType) *ld.Reloc {
+func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol, typ objabi.RelocType) *sym.Reloc {
 	r := plt.AddRel()
 	r.Sym = got
 	r.Off = int32(plt.Size)
 	r.Siz = 4
 	r.Type = typ
-	r.Add = int64(sym.Got) - 8
+	r.Add = int64(s.Got) - 8
 
-	plt.Attr |= ld.AttrReachable
+	plt.Attr |= sym.AttrReachable
 	plt.Size += 4
 	plt.Grow(plt.Size)
 
 	return r
 }
 
-func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 	if s.Plt >= 0 {
 		return
 	}
@@ -701,7 +702,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 	}
 }
 
-func addgotsyminternal(ctxt *ld.Link, s *ld.Symbol) {
+func addgotsyminternal(ctxt *ld.Link, s *sym.Symbol) {
 	if s.Got >= 0 {
 		return
 	}
@@ -717,7 +718,7 @@ func addgotsyminternal(ctxt *ld.Link, s *ld.Symbol) {
 	}
 }
 
-func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
+func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
 	if s.Got >= 0 {
 		return
 	}

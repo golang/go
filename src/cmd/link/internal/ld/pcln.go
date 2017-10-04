@@ -7,6 +7,7 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"cmd/link/internal/sym"
 	"log"
 	"os"
 	"path/filepath"
@@ -58,7 +59,7 @@ func pciternext(it *Pciter) {
 	it.nextpc = it.pc + v*it.pcscale
 }
 
-func pciterinit(ctxt *Link, it *Pciter, d *Pcdata) {
+func pciterinit(ctxt *Link, it *Pciter, d *sym.Pcdata) {
 	it.d = *d
 	it.p = it.d.P
 	it.pc = 0
@@ -70,7 +71,7 @@ func pciterinit(ctxt *Link, it *Pciter, d *Pcdata) {
 	pciternext(it)
 }
 
-func addvarint(d *Pcdata, val uint32) {
+func addvarint(d *sym.Pcdata, val uint32) {
 	n := int32(0)
 	for v := val; v >= 0x80; v >>= 7 {
 		n++
@@ -92,7 +93,7 @@ func addvarint(d *Pcdata, val uint32) {
 	p[0] = byte(v)
 }
 
-func addpctab(ctxt *Link, ftab *Symbol, off int32, d *Pcdata) int32 {
+func addpctab(ctxt *Link, ftab *sym.Symbol, off int32, d *sym.Pcdata) int32 {
 	var start int32
 	if len(d.P) > 0 {
 		start = int32(len(ftab.P))
@@ -101,7 +102,7 @@ func addpctab(ctxt *Link, ftab *Symbol, off int32, d *Pcdata) int32 {
 	return int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(start)))
 }
 
-func ftabaddstring(ctxt *Link, ftab *Symbol, s string) int32 {
+func ftabaddstring(ctxt *Link, ftab *sym.Symbol, s string) int32 {
 	n := int32(len(s)) + 1
 	start := int32(len(ftab.P))
 	ftab.Grow(int64(start) + int64(n) + 1)
@@ -110,18 +111,18 @@ func ftabaddstring(ctxt *Link, ftab *Symbol, s string) int32 {
 }
 
 // numberfile assigns a file number to the file if it hasn't been assigned already.
-func numberfile(ctxt *Link, file *Symbol) {
-	if file.Type != SFILEPATH {
+func numberfile(ctxt *Link, file *sym.Symbol) {
+	if file.Type != sym.SFILEPATH {
 		ctxt.Filesyms = append(ctxt.Filesyms, file)
 		file.Value = int64(len(ctxt.Filesyms))
-		file.Type = SFILEPATH
+		file.Type = sym.SFILEPATH
 		path := file.Name[len(src.FileSymPrefix):]
 		file.Name = expandGoroot(path)
 	}
 }
 
-func renumberfiles(ctxt *Link, files []*Symbol, d *Pcdata) {
-	var f *Symbol
+func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
+	var f *sym.Symbol
 
 	// Give files numbers.
 	for i := 0; i < len(files); i++ {
@@ -130,7 +131,7 @@ func renumberfiles(ctxt *Link, files []*Symbol, d *Pcdata) {
 	}
 
 	newval := int32(-1)
-	var out Pcdata
+	var out sym.Pcdata
 	var it Pciter
 	for pciterinit(ctxt, &it, d); it.done == 0; pciternext(&it) {
 		// value delta
@@ -163,7 +164,7 @@ func renumberfiles(ctxt *Link, files []*Symbol, d *Pcdata) {
 
 // onlycsymbol reports whether this is a cgo symbol provided by the
 // runtime and only used from C code.
-func onlycsymbol(s *Symbol) bool {
+func onlycsymbol(s *sym.Symbol) bool {
 	switch s.Name {
 	case "_cgo_topofstack", "_cgo_panic", "crosscall2":
 		return true
@@ -171,7 +172,7 @@ func onlycsymbol(s *Symbol) bool {
 	return false
 }
 
-func emitPcln(s *Symbol) bool {
+func emitPcln(s *sym.Symbol) bool {
 	if s == nil {
 		return true
 	}
@@ -180,7 +181,7 @@ func emitPcln(s *Symbol) bool {
 	}
 	// We want to generate func table entries only for the "lowest level" symbols,
 	// not containers of subsymbols.
-	if s.Type&SCONTAINER != 0 {
+	if s.Type&sym.SCONTAINER != 0 {
 		return false
 	}
 	return true
@@ -189,20 +190,20 @@ func emitPcln(s *Symbol) bool {
 // pclntab initializes the pclntab symbol with
 // runtime function and file name information.
 
-var pclntabZpcln FuncInfo
+var pclntabZpcln sym.FuncInfo
 
 // These variables are used to initialize runtime.firstmoduledata, see symtab.go:symtab.
 var pclntabNfunc int32
 var pclntabFiletabOffset int32
 var pclntabPclntabOffset int32
-var pclntabFirstFunc *Symbol
-var pclntabLastFunc *Symbol
+var pclntabFirstFunc *sym.Symbol
+var pclntabLastFunc *sym.Symbol
 
 func (ctxt *Link) pclntab() {
 	funcdataBytes := int64(0)
 	ftab := ctxt.Syms.Lookup("runtime.pclntab", 0)
-	ftab.Type = SPCLNTAB
-	ftab.Attr |= AttrReachable
+	ftab.Type = sym.SPCLNTAB
+	ftab.Attr |= sym.AttrReachable
 
 	// See golang.org/s/go12symtab for the format. Briefly:
 	//	8-byte header
@@ -212,10 +213,10 @@ func (ctxt *Link) pclntab() {
 	//	offset to file table [4 bytes]
 	nfunc := int32(0)
 
-	// Find container symbols, mark them with SCONTAINER
+	// Find container symbols, mark them with sym.SCONTAINER
 	for _, s := range ctxt.Textp {
 		if s.Outer != nil {
-			s.Outer.Type |= SCONTAINER
+			s.Outer.Type |= sym.SCONTAINER
 		}
 	}
 
@@ -244,7 +245,7 @@ func (ctxt *Link) pclntab() {
 	}
 
 	nfunc = 0
-	var last *Symbol
+	var last *sym.Symbol
 	for _, s := range ctxt.Textp {
 		last = s
 		if !emitPcln(s) {
@@ -262,14 +263,14 @@ func (ctxt *Link) pclntab() {
 		if len(pcln.InlTree) > 0 {
 			if len(pcln.Pcdata) <= objabi.PCDATA_InlTreeIndex {
 				// Create inlining pcdata table.
-				pcdata := make([]Pcdata, objabi.PCDATA_InlTreeIndex+1)
+				pcdata := make([]sym.Pcdata, objabi.PCDATA_InlTreeIndex+1)
 				copy(pcdata, pcln.Pcdata)
 				pcln.Pcdata = pcdata
 			}
 
 			if len(pcln.Funcdataoff) <= objabi.FUNCDATA_InlTree {
 				// Create inline tree funcdata.
-				funcdata := make([]*Symbol, objabi.FUNCDATA_InlTree+1)
+				funcdata := make([]*sym.Symbol, objabi.FUNCDATA_InlTree+1)
 				funcdataoff := make([]int64, objabi.FUNCDATA_InlTree+1)
 				copy(funcdata, pcln.Funcdata)
 				copy(funcdataoff, pcln.Funcdataoff)
@@ -334,8 +335,8 @@ func (ctxt *Link) pclntab() {
 
 		if len(pcln.InlTree) > 0 {
 			inlTreeSym := ctxt.Syms.Lookup("inltree."+s.Name, 0)
-			inlTreeSym.Type = SRODATA
-			inlTreeSym.Attr |= AttrReachable | AttrDuplicateOK
+			inlTreeSym.Type = sym.SRODATA
+			inlTreeSym.Attr |= sym.AttrReachable | sym.AttrDuplicateOK
 
 			for i, call := range pcln.InlTree {
 				// Usually, call.File is already numbered since the file
@@ -443,9 +444,9 @@ const (
 // function for a pc. See src/runtime/symtab.go:findfunc for details.
 func (ctxt *Link) findfunctab() {
 	t := ctxt.Syms.Lookup("runtime.findfunctab", 0)
-	t.Type = SRODATA
-	t.Attr |= AttrReachable
-	t.Attr |= AttrLocal
+	t.Type = sym.SRODATA
+	t.Attr |= sym.AttrReachable
+	t.Attr |= sym.AttrLocal
 
 	// find min and max address
 	min := ctxt.Textp[0].Value
@@ -468,7 +469,7 @@ func (ctxt *Link) findfunctab() {
 			continue
 		}
 		p := s.Value
-		var e *Symbol
+		var e *sym.Symbol
 		i++
 		if i < len(ctxt.Textp) {
 			e = ctxt.Textp[i]

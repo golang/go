@@ -7,6 +7,7 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/sym"
 	"fmt"
 	"strings"
 	"unicode"
@@ -112,13 +113,13 @@ func deadcode(ctxt *Link) {
 		// (When BuildmodeShared, always keep itablinks.)
 		for _, s := range ctxt.Syms.Allsym {
 			if strings.HasPrefix(s.Name, "go.itablink.") {
-				s.Attr.Set(AttrReachable, len(s.R) == 1 && s.R[0].Sym.Attr.Reachable())
+				s.Attr.Set(sym.AttrReachable, len(s.R) == 1 && s.R[0].Sym.Attr.Reachable())
 			}
 		}
 	}
 
 	// Remove dead text but keep file information (z symbols).
-	textp := make([]*Symbol, 0, len(ctxt.Textp))
+	textp := make([]*sym.Symbol, 0, len(ctxt.Textp))
 	for _, s := range ctxt.Textp {
 		if s.Attr.Reachable() {
 			textp = append(textp, s)
@@ -132,11 +133,11 @@ func deadcode(ctxt *Link) {
 // the reflect.method struct: mtyp, ifn, and tfn.
 type methodref struct {
 	m   methodsig
-	src *Symbol   // receiver type symbol
-	r   [3]*Reloc // R_METHODOFF relocations to fields of runtime.method
+	src *sym.Symbol   // receiver type symbol
+	r   [3]*sym.Reloc // R_METHODOFF relocations to fields of runtime.method
 }
 
-func (m methodref) ifn() *Symbol { return m.r[1].Sym }
+func (m methodref) ifn() *sym.Symbol { return m.r[1].Sym }
 
 func (m methodref) isExported() bool {
 	for _, r := range m.m {
@@ -148,13 +149,13 @@ func (m methodref) isExported() bool {
 // deadcodepass holds state for the deadcode flood fill.
 type deadcodepass struct {
 	ctxt            *Link
-	markQueue       []*Symbol          // symbols to flood fill in next pass
+	markQueue       []*sym.Symbol      // symbols to flood fill in next pass
 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
 	markableMethods []methodref        // methods of reached types
 	reflectMethod   bool
 }
 
-func (d *deadcodepass) cleanupReloc(r *Reloc) {
+func (d *deadcodepass) cleanupReloc(r *sym.Reloc) {
 	if r.Sym.Attr.Reachable() {
 		r.Type = objabi.R_ADDROFF
 	} else {
@@ -167,7 +168,7 @@ func (d *deadcodepass) cleanupReloc(r *Reloc) {
 }
 
 // mark appends a symbol to the mark queue for flood filling.
-func (d *deadcodepass) mark(s, parent *Symbol) {
+func (d *deadcodepass) mark(s, parent *sym.Symbol) {
 	if s == nil || s.Attr.Reachable() {
 		return
 	}
@@ -181,7 +182,7 @@ func (d *deadcodepass) mark(s, parent *Symbol) {
 		}
 		fmt.Printf("%s -> %s\n", p, s.Name)
 	}
-	s.Attr |= AttrReachable
+	s.Attr |= sym.AttrReachable
 	s.Reachparent = parent
 	d.markQueue = append(d.markQueue, s)
 }
@@ -208,7 +209,7 @@ func (d *deadcodepass) init() {
 		// Mark all symbols defined in this library as reachable when
 		// building a shared library.
 		for _, s := range d.ctxt.Syms.Allsym {
-			if s.Type != 0 && s.Type != SDYNIMPORT {
+			if s.Type != 0 && s.Type != sym.SDYNIMPORT {
 				d.mark(s, nil)
 			}
 		}
@@ -257,7 +258,7 @@ func (d *deadcodepass) flood() {
 	for len(d.markQueue) > 0 {
 		s := d.markQueue[0]
 		d.markQueue = d.markQueue[1:]
-		if s.Type == STEXT {
+		if s.Type == sym.STEXT {
 			if d.ctxt.Debugvlog > 1 {
 				d.ctxt.Logf("marktext %s\n", s.Name)
 			}

@@ -34,6 +34,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
+	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
 )
@@ -53,16 +54,16 @@ func gentext(ctxt *ld.Link) {
 		return
 	}
 	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == ld.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+	if addmoduledata.Type == sym.STEXT && ld.Buildmode != ld.BuildmodePlugin {
 		// we're linking a module containing the runtime -> no need for
 		// an init function
 		return
 	}
-	addmoduledata.Attr |= ld.AttrReachable
+	addmoduledata.Attr |= sym.AttrReachable
 	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
-	initfunc.Type = ld.STEXT
-	initfunc.Attr |= ld.AttrLocal
-	initfunc.Attr |= ld.AttrReachable
+	initfunc.Type = sym.STEXT
+	initfunc.Attr |= sym.AttrLocal
+	initfunc.Attr |= sym.AttrReachable
 
 	// larl %r2, <local.moduledata>
 	initfunc.AddUint8(0xc0)
@@ -72,7 +73,7 @@ func gentext(ctxt *ld.Link) {
 	lmd.Siz = 4
 	lmd.Sym = ctxt.Moduledata
 	lmd.Type = objabi.R_PCREL
-	lmd.Variant = ld.RV_390_DBL
+	lmd.Variant = sym.RV_390_DBL
 	lmd.Add = 2 + int64(lmd.Siz)
 	initfunc.AddUint32(ctxt.Arch, 0)
 
@@ -84,7 +85,7 @@ func gentext(ctxt *ld.Link) {
 	rel.Siz = 4
 	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
 	rel.Type = objabi.R_CALL
-	rel.Variant = ld.RV_390_DBL
+	rel.Variant = sym.RV_390_DBL
 	rel.Add = 2 + int64(rel.Siz)
 	initfunc.AddUint32(ctxt.Arch, 0)
 
@@ -95,13 +96,13 @@ func gentext(ctxt *ld.Link) {
 	}
 	ctxt.Textp = append(ctxt.Textp, initfunc)
 	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
-	initarray_entry.Attr |= ld.AttrLocal
-	initarray_entry.Attr |= ld.AttrReachable
-	initarray_entry.Type = ld.SINITARR
+	initarray_entry.Attr |= sym.AttrLocal
+	initarray_entry.Attr |= sym.AttrReachable
+	initarray_entry.Type = sym.SINITARR
 	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
-func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 	targ := r.Sym
 
 	switch r.Type {
@@ -121,7 +122,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		256 + ld.R_390_16,
 		256 + ld.R_390_32,
 		256 + ld.R_390_64:
-		if targ.Type == ld.SDYNIMPORT {
+		if targ.Type == sym.SDYNIMPORT {
 			ld.Errorf(s, "unexpected R_390_nn relocation for dynamic symbol %s", targ.Name)
 		}
 		r.Type = objabi.R_ADDR
@@ -130,10 +131,10 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	case 256 + ld.R_390_PC16,
 		256 + ld.R_390_PC32,
 		256 + ld.R_390_PC64:
-		if targ.Type == ld.SDYNIMPORT {
+		if targ.Type == sym.SDYNIMPORT {
 			ld.Errorf(s, "unexpected R_390_PCnn relocation for dynamic symbol %s", targ.Name)
 		}
-		if targ.Type == 0 || targ.Type == ld.SXREF {
+		if targ.Type == 0 || targ.Type == sym.SXREF {
 			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
 		}
 		r.Type = objabi.R_PCREL
@@ -149,9 +150,9 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	case 256 + ld.R_390_PLT16DBL,
 		256 + ld.R_390_PLT32DBL:
 		r.Type = objabi.R_PCREL
-		r.Variant = ld.RV_390_DBL
+		r.Variant = sym.RV_390_DBL
 		r.Add += int64(r.Siz)
-		if targ.Type == ld.SDYNIMPORT {
+		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
 			r.Add += int64(targ.Plt)
@@ -162,7 +163,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		256 + ld.R_390_PLT64:
 		r.Type = objabi.R_PCREL
 		r.Add += int64(r.Siz)
-		if targ.Type == ld.SDYNIMPORT {
+		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
 			r.Add += int64(targ.Plt)
@@ -186,7 +187,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		return false
 
 	case 256 + ld.R_390_GOTOFF:
-		if targ.Type == ld.SDYNIMPORT {
+		if targ.Type == sym.SDYNIMPORT {
 			ld.Errorf(s, "unexpected R_390_GOTOFF relocation for dynamic symbol %s", targ.Name)
 		}
 		r.Type = objabi.R_GOTOFF
@@ -201,16 +202,16 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	case 256 + ld.R_390_PC16DBL,
 		256 + ld.R_390_PC32DBL:
 		r.Type = objabi.R_PCREL
-		r.Variant = ld.RV_390_DBL
+		r.Variant = sym.RV_390_DBL
 		r.Add += int64(r.Siz)
-		if targ.Type == ld.SDYNIMPORT {
+		if targ.Type == sym.SDYNIMPORT {
 			ld.Errorf(s, "unexpected R_390_PCnnDBL relocation for dynamic symbol %s", targ.Name)
 		}
 		return true
 
 	case 256 + ld.R_390_GOTPCDBL:
 		r.Type = objabi.R_PCREL
-		r.Variant = ld.RV_390_DBL
+		r.Variant = sym.RV_390_DBL
 		r.Sym = ctxt.Syms.Lookup(".got", 0)
 		r.Add += int64(r.Siz)
 		return true
@@ -219,21 +220,21 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		addgotsym(ctxt, targ)
 
 		r.Type = objabi.R_PCREL
-		r.Variant = ld.RV_390_DBL
+		r.Variant = sym.RV_390_DBL
 		r.Sym = ctxt.Syms.Lookup(".got", 0)
 		r.Add += int64(targ.Got)
 		r.Add += int64(r.Siz)
 		return true
 	}
 	// Handle references to ELF symbols from our own object files.
-	if targ.Type != ld.SDYNIMPORT {
+	if targ.Type != sym.SDYNIMPORT {
 		return true
 	}
 
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
+func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	ctxt.Out.Write64(uint64(sectoff))
 
 	elfsym := r.Xsym.ElfsymForReloc()
@@ -275,14 +276,14 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
 		}
 	case objabi.R_PCREL, objabi.R_PCRELDBL, objabi.R_CALL:
 		elfrel := ld.R_390_NONE
-		isdbl := r.Variant&ld.RV_TYPE_MASK == ld.RV_390_DBL
+		isdbl := r.Variant&sym.RV_TYPE_MASK == sym.RV_390_DBL
 		// TODO(mundaym): all DBL style relocations should be
 		// signalled using the variant - see issue 14218.
 		switch r.Type {
 		case objabi.R_PCRELDBL, objabi.R_CALL:
 			isdbl = true
 		}
-		if r.Xsym.Type == ld.SDYNIMPORT && (r.Xsym.ElfType == elf.STT_FUNC || r.Type == objabi.R_CALL) {
+		if r.Xsym.Type == sym.SDYNIMPORT && (r.Xsym.ElfType == elf.STT_FUNC || r.Type == objabi.R_CALL) {
 			if isdbl {
 				switch r.Siz {
 				case 2:
@@ -377,11 +378,11 @@ func elfsetupplt(ctxt *ld.Link) {
 	}
 }
 
-func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {
 	return false
 }
 
-func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
+func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 	if ld.Linkmode == ld.LinkExternal {
 		return false
 	}
@@ -398,16 +399,16 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
 	return false
 }
 
-func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
-	switch r.Variant & ld.RV_TYPE_MASK {
+func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+	switch r.Variant & sym.RV_TYPE_MASK {
 	default:
 		ld.Errorf(s, "unexpected relocation variant %d", r.Variant)
 		return t
 
-	case ld.RV_NONE:
+	case sym.RV_NONE:
 		return t
 
-	case ld.RV_390_DBL:
+	case sym.RV_390_DBL:
 		if (t & 1) != 0 {
 			ld.Errorf(s, "%s+%v is not 2-byte aligned", r.Sym.Name, r.Sym.Value)
 		}
@@ -415,7 +416,7 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 	}
 }
 
-func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 	if s.Plt >= 0 {
 		return
 	}
@@ -478,7 +479,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 	}
 }
 
-func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
+func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
 	if s.Got >= 0 {
 		return
 	}
