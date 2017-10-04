@@ -401,6 +401,7 @@ var pkgDeps = map[string][]string{
 		"crypto/rand",
 		"crypto/tls",
 		"golang_org/x/net/http/httpguts",
+		"golang_org/x/net/http/httpproxy",
 		"golang_org/x/net/http2/hpack",
 		"golang_org/x/net/idna",
 		"golang_org/x/text/unicode/norm",
