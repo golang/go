@@ -266,7 +266,7 @@ func indexlit(n *Node) *Node {
 // 	n.Left = typecheck1(n.Left, top)
 func typecheck1(n *Node, top int) *Node {
 	switch n.Op {
-	case OXDOT, ODOT, ODOTPTR, ODOTMETH, ODOTINTER:
+	case OXDOT, ODOT, ODOTPTR, ODOTMETH, ODOTINTER, ORETJMP:
 		// n.Sym is a field/method name, not a variable.
 	default:
 		if n.Sym != nil {
@@ -2143,7 +2143,7 @@ func typecheck1(n *Node, top int) *Node {
 		}
 	}
 
-	if safemode && !inimport && compiling_wrappers == 0 && t != nil && t.Etype == TUNSAFEPTR {
+	if safemode && !inimport && !compiling_wrappers && t != nil && t.Etype == TUNSAFEPTR {
 		yyerror("cannot use unsafe.Pointer")
 	}
 

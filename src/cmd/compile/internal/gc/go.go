@@ -198,7 +198,7 @@ var compiling_runtime bool
 // Compiling the standard library
 var compiling_std bool
 
-var compiling_wrappers int
+var compiling_wrappers bool
 
 var use_writebarrier bool
 

@@ -780,7 +780,7 @@ func (s *state) stmt(n *Node) {
 		s.stmtList(n.List)
 		b := s.exit()
 		b.Kind = ssa.BlockRetJmp // override BlockRet
-		b.Aux = n.Left.Sym.Linksym()
+		b.Aux = n.Sym.Linksym()
 
 	case OCONTINUE, OBREAK:
 		var to *ssa.Block
