@@ -160,6 +160,8 @@ type mheap struct {
 	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
 	specialprofilealloc   fixalloc // allocator for specialprofile*
 	speciallock           mutex    // lock for special record allocators.
+
+	unused *specialfinalizer // never set, just here to force the specialfinalizer type into DWARF
 }
 
 var mheap_ mheap
