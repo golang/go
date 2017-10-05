@@ -1438,24 +1438,6 @@ func (b *Builder) build(a *Action) (err error) {
 		return fmt.Errorf("missing or invalid package binary for binary-only package %s", a.Package.ImportPath)
 	}
 
-	// Return an error if the package has CXX files but it's not using
-	// cgo nor SWIG, since the CXX files can only be processed by cgo
-	// and SWIG.
-	if len(a.Package.CXXFiles) > 0 && !a.Package.UsesCgo() && !a.Package.UsesSwig() {
-		return fmt.Errorf("can't build package %s because it contains C++ files (%s) but it's not using cgo nor SWIG",
-			a.Package.ImportPath, strings.Join(a.Package.CXXFiles, ","))
-	}
-	// Same as above for Objective-C files
-	if len(a.Package.MFiles) > 0 && !a.Package.UsesCgo() && !a.Package.UsesSwig() {
-		return fmt.Errorf("can't build package %s because it contains Objective-C files (%s) but it's not using cgo nor SWIG",
-			a.Package.ImportPath, strings.Join(a.Package.MFiles, ","))
-	}
-	// Same as above for Fortran files
-	if len(a.Package.FFiles) > 0 && !a.Package.UsesCgo() && !a.Package.UsesSwig() {
-		return fmt.Errorf("can't build package %s because it contains Fortran files (%s) but it's not using cgo nor SWIG",
-			a.Package.ImportPath, strings.Join(a.Package.FFiles, ","))
-	}
-
 	defer func() {
 		if err != nil && err != errPrintedOutput {
 			err = fmt.Errorf("go build %s: %v", a.Package.ImportPath, err)
@@ -1558,6 +1540,7 @@ func (b *Builder) build(a *Action) (err error) {
 		gofiles = append(gofiles, outGo...)
 	}
 
+	// Sanity check only, since Package.load already checked as well.
 	if len(gofiles) == 0 {
 		return &load.NoGoError{Package: a.Package}
 	}
