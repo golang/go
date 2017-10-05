@@ -35,6 +35,7 @@ var bootstrapDirs = []string{
 	"cmd/asm/internal/asm",
 	"cmd/asm/internal/flags",
 	"cmd/asm/internal/lex",
+	"cmd/cgo",
 	"cmd/compile",
 	"cmd/compile/internal/amd64",
 	"cmd/compile/internal/arm",
@@ -72,6 +73,9 @@ var bootstrapDirs = []string{
 	"cmd/link/internal/s390x",
 	"cmd/link/internal/sym",
 	"cmd/link/internal/x86",
+	"debug/dwarf",
+	"debug/elf",
+	"debug/macho",
 	"debug/pe",
 	"math/big",
 	"math/bits",
@@ -115,6 +119,11 @@ func bootstrapBuildTools() {
 		src := pathf("%s/src/%s", goroot, dir)
 		dst := pathf("%s/%s", base, dir)
 		xmkdirall(dst)
+		if dir == "cmd/cgo" {
+			// Write to src because we need the file both for bootstrap
+			// and for later in the main build.
+			mkzdefaultcc("", pathf("%s/zdefaultcc.go", src))
+		}
 	Dir:
 		for _, name := range xreaddirfiles(src) {
 			for _, pre := range ignorePrefixes {

@@ -18,7 +18,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strings"
 	"text/template"
@@ -511,9 +510,6 @@ func runTest(cmd *base.Command, args []string) {
 		if deps["C"] {
 			delete(deps, "C")
 			deps["runtime/cgo"] = true
-			if cfg.Goos == runtime.GOOS && cfg.Goarch == runtime.GOARCH && !cfg.BuildRace && !cfg.BuildMSan {
-				deps["cmd/cgo"] = true
-			}
 		}
 		// Ignore pseudo-packages.
 		delete(deps, "unsafe")
