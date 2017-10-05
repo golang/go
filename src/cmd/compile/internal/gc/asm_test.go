@@ -276,17 +276,29 @@ var allAsmTests = []*asmTests{
 }
 
 var linuxAMD64Tests = []*asmTest{
+	// multiplication by powers of two
 	{
 		fn: `
-		func f0(x int) int {
-			return x * 64
+		func $(n int) int {
+			return n * 64
 		}
 		`,
 		pos: []string{"\tSHLQ\t\\$6,"},
+		neg: []string{"IMULQ"},
 	},
 	{
 		fn: `
-		func f1(x int) int {
+		func $(n int) int {
+			return -128*n
+		}
+		`,
+		pos: []string{"SHLQ"},
+		neg: []string{"IMULQ"},
+	},
+
+	{
+		fn: `
+		func $(x int) int {
 			return x * 96
 		}
 		`,
@@ -1146,6 +1158,26 @@ var linux386Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
+	},
+
+	// multiplication by powers of two
+	{
+		fn: `
+		func $(n int) int {
+			return 32*n
+		}
+		`,
+		pos: []string{"SHLL"},
+		neg: []string{"IMULL"},
+	},
+	{
+		fn: `
+		func $(n int) int {
+			return -64*n
+		}
+		`,
+		pos: []string{"SHLL"},
+		neg: []string{"IMULL"},
 	},
 
 	// multiplication merging tests

@@ -8543,20 +8543,6 @@ func rewriteValue386_Op386MULLconst_10(v *Value) bool {
 		return true
 	}
 	// match: (MULLconst [c] x)
-	// cond: isPowerOfTwo(c)
-	// result: (SHLLconst [log2(c)] x)
-	for {
-		c := v.AuxInt
-		x := v.Args[0]
-		if !(isPowerOfTwo(c)) {
-			break
-		}
-		v.reset(Op386SHLLconst)
-		v.AuxInt = log2(c)
-		v.AddArg(x)
-		return true
-	}
-	// match: (MULLconst [c] x)
 	// cond: isPowerOfTwo(c+1) && c >= 15
 	// result: (SUBL (SHLLconst <v.Type> [log2(c+1)] x) x)
 	for {
@@ -8624,11 +8610,6 @@ func rewriteValue386_Op386MULLconst_10(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
-}
-func rewriteValue386_Op386MULLconst_20(v *Value) bool {
-	b := v.Block
-	_ = b
 	// match: (MULLconst [c] x)
 	// cond: isPowerOfTwo(c-8) && c >= 136
 	// result: (LEAL8 (SHLLconst <v.Type> [log2(c-8)] x) x)
@@ -8646,6 +8627,11 @@ func rewriteValue386_Op386MULLconst_20(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	return false
+}
+func rewriteValue386_Op386MULLconst_20(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (MULLconst [c] x)
 	// cond: c%3 == 0 && isPowerOfTwo(c/3)
 	// result: (SHLLconst [log2(c/3)] (LEAL2 <v.Type> x x))
