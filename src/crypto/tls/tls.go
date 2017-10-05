@@ -122,7 +122,7 @@ func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*
 		return nil, err
 	}
 
-	colonPos := strings.LastIndexByte(addr, ':')
+	colonPos := strings.LastIndex(addr, ":")
 	if colonPos == -1 {
 		colonPos = len(addr)
 	}

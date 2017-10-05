@@ -688,11 +688,11 @@ func removeZone(host string) string {
 	if !strings.HasPrefix(host, "[") {
 		return host
 	}
-	i := strings.LastIndexByte(host, ']')
+	i := strings.LastIndex(host, "]")
 	if i < 0 {
 		return host
 	}
-	j := strings.LastIndexByte(host[:i], '%')
+	j := strings.LastIndex(host[:i], "%")
 	if j < 0 {
 		return host
 	}

@@ -93,7 +93,7 @@ func decorate(s string, addFileLine bool) string {
 		_, file, line, ok := runtime.Caller(3) // decorate + log + public function.
 		if ok {
 			// Truncate file name at last file name separator.
-			if index := strings.LastIndexByte(file, '/'); index >= 0 {
+			if index := strings.LastIndex(file, "/"); index >= 0 {
 				file = file[index+1:]
 			} else if index = strings.LastIndex(file, "\\"); index >= 0 {
 				file = file[index+1:]
