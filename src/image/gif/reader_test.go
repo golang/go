@@ -9,6 +9,7 @@ import (
 	"compress/lzw"
 	"image"
 	"image/color"
+	"io"
 	"io/ioutil"
 	"reflect"
 	"strings"
@@ -23,6 +24,9 @@ const (
 	paletteStr = "\x10\x20\x30\x40\x50\x60" // the color table, also known as a palette
 	trailerStr = "\x3b"
 )
+
+// lzw.NewReader wants a io.ByteReader, this ensures we're compatible.
+var _ io.ByteReader = (*blockReader)(nil)
 
 // lzwEncode returns an LZW encoding (with 2-bit literals) of in.
 func lzwEncode(in []byte) []byte {
@@ -67,6 +71,9 @@ func TestDecode(t *testing.T) {
 		{2, 1, 0, nil},
 		// Two extra bytes after LZW data, but inside the same data sub-block.
 		{2, 2, 0, nil},
+		// Extra data exists in the final sub-block with LZW data, AND there is
+		// a bogus sub-block following.
+		{2, 1, 1, errTooMuch},
 	}
 	for _, tc := range testCases {
 		b := &bytes.Buffer{}
