@@ -2522,8 +2522,16 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg string, allaction
 	if cfg.BuildBuildmode == "plugin" {
 		ldflags = append(ldflags, "-pluginpath", load.PluginPath(root.Package))
 	}
+
+	// TODO(rsc): This is probably wrong - see golang.org/issue/22155.
 	if cfg.GOROOT != runtime.GOROOT() {
 		ldflags = append(ldflags, "-X=runtime/internal/sys.DefaultGoroot="+cfg.GOROOT)
+	}
+
+	// Store BuildID inside toolchain binaries as a unique identifier of the
+	// tool being run, for use by content-based staleness determination.
+	if root.Package.Goroot && strings.HasPrefix(root.Package.ImportPath, "cmd/") {
+		ldflags = append(ldflags, "-X=cmd/internal/objabi.buildID="+root.Package.Internal.BuildID)
 	}
 
 	// If the user has not specified the -extld option, then specify the

@@ -36,7 +36,7 @@ Flags:
 	-T address
 		Set text segment address.
 	-V
-		Print the linker version and exit.
+		Print linker version and exit.
 	-X importpath.name=value
 		Set the value of the string variable in importpath named name to value.
 		Note that before Go 1.5 this option took two separate arguments.

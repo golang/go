@@ -20,6 +20,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"cmd/internal/objabi"
 )
 
 const usageMessage = "" +
@@ -67,6 +69,7 @@ const (
 )
 
 func main() {
+	objabi.AddVersionFlag()
 	flag.Usage = usage
 	flag.Parse()
 

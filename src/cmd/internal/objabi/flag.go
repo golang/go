@@ -9,14 +9,11 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 func Flagcount(name, usage string, val *int) {
 	flag.Var((*count)(val), name, usage)
-}
-
-func Flagfn0(name, usage string, f func()) {
-	flag.Var(fn0(f), name, usage)
 }
 
 func Flagfn1(name, usage string, f func(string)) {
@@ -33,6 +30,43 @@ func Flagprint(fd int) {
 func Flagparse(usage func()) {
 	flag.Usage = usage
 	flag.Parse()
+}
+
+func AddVersionFlag() {
+	flag.Var(versionFlag{}, "V", "print version and exit")
+}
+
+var buildID string // filled in by linker
+
+type versionFlag struct{}
+
+func (versionFlag) IsBoolFlag() bool { return true }
+func (versionFlag) Get() interface{} { return nil }
+func (versionFlag) String() string   { return "" }
+func (versionFlag) Set(s string) error {
+	name := os.Args[0]
+	name = name[strings.LastIndex(name, `/`)+1:]
+	name = name[strings.LastIndex(name, `\`)+1:]
+	p := Expstring()
+	if p == DefaultExpstring() {
+		p = ""
+	}
+	sep := ""
+	if p != "" {
+		sep = " "
+	}
+
+	// The go command invokes -V=full to get a unique identifier
+	// for this tool. It is assumed that the release version is sufficient
+	// for releases, but during development we include the full
+	// build ID of the binary, so that if the compiler is changed and
+	// rebuilt, we notice and rebuild all packages.
+	if s == "full" && strings.HasPrefix(Version, "devel") {
+		p += " buildID=" + buildID
+	}
+	fmt.Printf("%s version %s%s%s\n", name, Version, sep, p)
+	os.Exit(0)
+	return nil
 }
 
 // count is a flag.Value that is like a flag.Bool and a flag.Int.

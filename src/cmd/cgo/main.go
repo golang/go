@@ -24,6 +24,8 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+
+	"cmd/internal/objabi"
 )
 
 // A Package collects information about the package we're going to write.
@@ -201,6 +203,7 @@ var importSyscall = flag.Bool("import_syscall", true, "import syscall in generat
 var goarch, goos string
 
 func main() {
+	objabi.AddVersionFlag() // -V
 	flag.Usage = usage
 	flag.Parse()
 
