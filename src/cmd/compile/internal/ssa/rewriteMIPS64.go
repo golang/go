@@ -41,6 +41,30 @@ func rewriteValueMIPS64(v *Value) bool {
 		return rewriteValueMIPS64_OpAnd8_0(v)
 	case OpAndB:
 		return rewriteValueMIPS64_OpAndB_0(v)
+	case OpAtomicAdd32:
+		return rewriteValueMIPS64_OpAtomicAdd32_0(v)
+	case OpAtomicAdd64:
+		return rewriteValueMIPS64_OpAtomicAdd64_0(v)
+	case OpAtomicCompareAndSwap32:
+		return rewriteValueMIPS64_OpAtomicCompareAndSwap32_0(v)
+	case OpAtomicCompareAndSwap64:
+		return rewriteValueMIPS64_OpAtomicCompareAndSwap64_0(v)
+	case OpAtomicExchange32:
+		return rewriteValueMIPS64_OpAtomicExchange32_0(v)
+	case OpAtomicExchange64:
+		return rewriteValueMIPS64_OpAtomicExchange64_0(v)
+	case OpAtomicLoad32:
+		return rewriteValueMIPS64_OpAtomicLoad32_0(v)
+	case OpAtomicLoad64:
+		return rewriteValueMIPS64_OpAtomicLoad64_0(v)
+	case OpAtomicLoadPtr:
+		return rewriteValueMIPS64_OpAtomicLoadPtr_0(v)
+	case OpAtomicStore32:
+		return rewriteValueMIPS64_OpAtomicStore32_0(v)
+	case OpAtomicStore64:
+		return rewriteValueMIPS64_OpAtomicStore64_0(v)
+	case OpAtomicStorePtrNoWB:
+		return rewriteValueMIPS64_OpAtomicStorePtrNoWB_0(v)
 	case OpAvg64u:
 		return rewriteValueMIPS64_OpAvg64u_0(v)
 	case OpClosureCall:
@@ -269,6 +293,14 @@ func rewriteValueMIPS64(v *Value) bool {
 		return rewriteValueMIPS64_OpMIPS64AND_0(v)
 	case OpMIPS64ANDconst:
 		return rewriteValueMIPS64_OpMIPS64ANDconst_0(v)
+	case OpMIPS64LoweredAtomicAdd32:
+		return rewriteValueMIPS64_OpMIPS64LoweredAtomicAdd32_0(v)
+	case OpMIPS64LoweredAtomicAdd64:
+		return rewriteValueMIPS64_OpMIPS64LoweredAtomicAdd64_0(v)
+	case OpMIPS64LoweredAtomicStore32:
+		return rewriteValueMIPS64_OpMIPS64LoweredAtomicStore32_0(v)
+	case OpMIPS64LoweredAtomicStore64:
+		return rewriteValueMIPS64_OpMIPS64LoweredAtomicStore64_0(v)
 	case OpMIPS64MOVBUload:
 		return rewriteValueMIPS64_OpMIPS64MOVBUload_0(v)
 	case OpMIPS64MOVBUreg:
@@ -752,6 +784,196 @@ func rewriteValueMIPS64_OpAndB_0(v *Value) bool {
 		v.reset(OpMIPS64AND)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpAtomicAdd32_0(v *Value) bool {
+	// match: (AtomicAdd32 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicAdd32 ptr val mem)
+	for {
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpMIPS64LoweredAtomicAdd32)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpAtomicAdd64_0(v *Value) bool {
+	// match: (AtomicAdd64 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicAdd64 ptr val mem)
+	for {
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpMIPS64LoweredAtomicAdd64)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpAtomicCompareAndSwap32_0(v *Value) bool {
+	// match: (AtomicCompareAndSwap32 ptr old new_ mem)
+	// cond:
+	// result: (LoweredAtomicCas32 ptr old new_ mem)
+	for {
+		_ = v.Args[3]
+		ptr := v.Args[0]
+		old := v.Args[1]
+		new_ := v.Args[2]
+		mem := v.Args[3]
+		v.reset(OpMIPS64LoweredAtomicCas32)
+		v.AddArg(ptr)
+		v.AddArg(old)
+		v.AddArg(new_)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpAtomicCompareAndSwap64_0(v *Value) bool {
+	// match: (AtomicCompareAndSwap64 ptr old new_ mem)
+	// cond:
+	// result: (LoweredAtomicCas64 ptr old new_ mem)
+	for {
+		_ = v.Args[3]
+		ptr := v.Args[0]
+		old := v.Args[1]
+		new_ := v.Args[2]
+		mem := v.Args[3]
+		v.reset(OpMIPS64LoweredAtomicCas64)
+		v.AddArg(ptr)
+		v.AddArg(old)
+		v.AddArg(new_)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpAtomicExchange32_0(v *Value) bool {
+	// match: (AtomicExchange32 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicExchange32 ptr val mem)
+	for {
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpMIPS64LoweredAtomicExchange32)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpAtomicExchange64_0(v *Value) bool {
+	// match: (AtomicExchange64 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicExchange64 ptr val mem)
+	for {
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpMIPS64LoweredAtomicExchange64)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpAtomicLoad32_0(v *Value) bool {
+	// match: (AtomicLoad32 ptr mem)
+	// cond:
+	// result: (LoweredAtomicLoad32 ptr mem)
+	for {
+		_ = v.Args[1]
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpMIPS64LoweredAtomicLoad32)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpAtomicLoad64_0(v *Value) bool {
+	// match: (AtomicLoad64 ptr mem)
+	// cond:
+	// result: (LoweredAtomicLoad64 ptr mem)
+	for {
+		_ = v.Args[1]
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpMIPS64LoweredAtomicLoad64)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpAtomicLoadPtr_0(v *Value) bool {
+	// match: (AtomicLoadPtr ptr mem)
+	// cond:
+	// result: (LoweredAtomicLoad64 ptr mem)
+	for {
+		_ = v.Args[1]
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpMIPS64LoweredAtomicLoad64)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpAtomicStore32_0(v *Value) bool {
+	// match: (AtomicStore32 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicStore32 ptr val mem)
+	for {
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpMIPS64LoweredAtomicStore32)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpAtomicStore64_0(v *Value) bool {
+	// match: (AtomicStore64 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicStore64 ptr val mem)
+	for {
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpMIPS64LoweredAtomicStore64)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpAtomicStorePtrNoWB_0(v *Value) bool {
+	// match: (AtomicStorePtrNoWB ptr val mem)
+	// cond:
+	// result: (LoweredAtomicStore64 ptr val mem)
+	for {
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpMIPS64LoweredAtomicStore64)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
 		return true
 	}
 }
@@ -3482,6 +3704,98 @@ func rewriteValueMIPS64_OpMIPS64ANDconst_0(v *Value) bool {
 		v.reset(OpMIPS64ANDconst)
 		v.AuxInt = c & d
 		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64LoweredAtomicAdd32_0(v *Value) bool {
+	// match: (LoweredAtomicAdd32 ptr (MOVVconst [c]) mem)
+	// cond: is32Bit(c)
+	// result: (LoweredAtomicAddconst32 [c] ptr mem)
+	for {
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_1.AuxInt
+		mem := v.Args[2]
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpMIPS64LoweredAtomicAddconst32)
+		v.AuxInt = c
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64LoweredAtomicAdd64_0(v *Value) bool {
+	// match: (LoweredAtomicAdd64 ptr (MOVVconst [c]) mem)
+	// cond: is32Bit(c)
+	// result: (LoweredAtomicAddconst64 [c] ptr mem)
+	for {
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_1.AuxInt
+		mem := v.Args[2]
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpMIPS64LoweredAtomicAddconst64)
+		v.AuxInt = c
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64LoweredAtomicStore32_0(v *Value) bool {
+	// match: (LoweredAtomicStore32 ptr (MOVVconst [0]) mem)
+	// cond:
+	// result: (LoweredAtomicStorezero32 ptr mem)
+	for {
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		mem := v.Args[2]
+		v.reset(OpMIPS64LoweredAtomicStorezero32)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64LoweredAtomicStore64_0(v *Value) bool {
+	// match: (LoweredAtomicStore64 ptr (MOVVconst [0]) mem)
+	// cond:
+	// result: (LoweredAtomicStorezero64 ptr mem)
+	for {
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		mem := v.Args[2]
+		v.reset(OpMIPS64LoweredAtomicStorezero64)
+		v.AddArg(ptr)
+		v.AddArg(mem)
 		return true
 	}
 	return false
