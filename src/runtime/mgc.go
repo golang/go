@@ -396,21 +396,16 @@ type gcControllerState struct {
 	assistBytesPerWork float64
 
 	// fractionalUtilizationGoal is the fraction of wall clock
-	// time that should be spent in the fractional mark worker.
-	// For example, if the overall mark utilization goal is 25%
-	// and GOMAXPROCS is 6, one P will be a dedicated mark worker
-	// and this will be set to 0.5 so that 50% of the time some P
-	// is in a fractional mark worker. This is computed at the
-	// beginning of each cycle.
+	// time that should be spent in the fractional mark worker on
+	// each P that isn't running a dedicated worker.
+	//
+	// For example, if the utilization goal is 25% and there are
+	// no dedicated workers, this will be 0.25. If there goal is
+	// 25%, there is one dedicated worker, and GOMAXPROCS is 5,
+	// this will be 0.05 to make up the missing 5%.
+	//
+	// If this is zero, no fractional workers are needed.
 	fractionalUtilizationGoal float64
-
-	_ [sys.CacheLineSize]byte
-
-	// fractionalMarkWorkersNeeded is the number of fractional
-	// mark workers that need to be started. This is either 0 or
-	// 1. This is potentially updated atomically at every
-	// scheduling point (hence it gets its own cache line).
-	fractionalMarkWorkersNeeded int64
 
 	_ [sys.CacheLineSize]byte
 }
@@ -471,19 +466,15 @@ func (c *gcControllerState) startCycle() {
 			// Too many dedicated workers.
 			c.dedicatedMarkWorkersNeeded--
 		}
-		c.fractionalUtilizationGoal = totalUtilizationGoal - float64(c.dedicatedMarkWorkersNeeded)
+		c.fractionalUtilizationGoal = (totalUtilizationGoal - float64(c.dedicatedMarkWorkersNeeded)) / float64(gomaxprocs)
 	} else {
 		c.fractionalUtilizationGoal = 0
-	}
-	if c.fractionalUtilizationGoal > 0 {
-		c.fractionalMarkWorkersNeeded = 1
-	} else {
-		c.fractionalMarkWorkersNeeded = 0
 	}
 
 	// Clear per-P state
 	for _, p := range allp {
 		p.gcAssistTime = 0
+		p.gcFractionalMarkTime = 0
 	}
 
 	// Compute initial values for controls that are updated
@@ -496,7 +487,7 @@ func (c *gcControllerState) startCycle() {
 			work.initialHeapLive>>20, "->",
 			memstats.next_gc>>20, " MB)",
 			" workers=", c.dedicatedMarkWorkersNeeded,
-			"+", c.fractionalMarkWorkersNeeded, "\n")
+			"+", c.fractionalUtilizationGoal, "\n")
 	}
 }
 
@@ -702,31 +693,20 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		// This P is now dedicated to marking until the end of
 		// the concurrent mark phase.
 		_p_.gcMarkWorkerMode = gcMarkWorkerDedicatedMode
+	} else if c.fractionalUtilizationGoal == 0 {
+		// No need for fractional workers.
+		return nil
 	} else {
-		if !decIfPositive(&c.fractionalMarkWorkersNeeded) {
-			// No more workers are need right now.
-			return nil
-		}
-
-		// This P has picked the token for the fractional worker.
-		// Is the GC currently under or at the utilization goal?
-		// If so, do more work.
+		// Is this P behind on the fractional utilization
+		// goal?
 		//
 		// This should be kept in sync with pollFractionalWorkerExit.
-
-		// TODO(austin): We could fast path this and basically
-		// eliminate contention on c.fractionalMarkWorkersNeeded by
-		// precomputing the minimum time at which it's worth
-		// next scheduling the fractional worker. Then Ps
-		// don't have to fight in the window where we've
-		// passed that deadline and no one has started the
-		// worker yet.
-		delta := nanotime() - c.markStartTime
-		if delta > 0 && float64(c.fractionalMarkTime)/float64(delta) > c.fractionalUtilizationGoal {
-			// Nope, we'd overshoot the utilization goal
-			atomic.Xaddint64(&c.fractionalMarkWorkersNeeded, +1)
+		delta := nanotime() - gcController.markStartTime
+		if delta > 0 && float64(_p_.gcFractionalMarkTime)/float64(delta) > c.fractionalUtilizationGoal {
+			// Nope. No need to run a fractional worker.
 			return nil
 		}
+		// Run a fractional worker.
 		_p_.gcMarkWorkerMode = gcMarkWorkerFractionalMode
 	}
 
@@ -751,8 +731,7 @@ func pollFractionalWorkerExit() bool {
 		return true
 	}
 	p := getg().m.p.ptr()
-	// Account for time since starting this worker.
-	selfTime := gcController.fractionalMarkTime + (now - p.gcMarkWorkerStartTime)
+	selfTime := p.gcFractionalMarkTime + (now - p.gcMarkWorkerStartTime)
 	// Add some slack to the utilization goal so that the
 	// fractional worker isn't behind again the instant it exits.
 	return float64(selfTime)/float64(delta) > 1.2*gcController.fractionalUtilizationGoal
@@ -1387,7 +1366,8 @@ top:
 	// TODO(austin): Should dedicated workers keep an eye on this
 	// and exit gcDrain promptly?
 	atomic.Xaddint64(&gcController.dedicatedMarkWorkersNeeded, -0xffffffff)
-	atomic.Xaddint64(&gcController.fractionalMarkWorkersNeeded, -0xffffffff)
+	prevFractionalGoal := gcController.fractionalUtilizationGoal
+	gcController.fractionalUtilizationGoal = 0
 
 	if !gcBlackenPromptly {
 		// Transition from mark 1 to mark 2.
@@ -1430,7 +1410,7 @@ top:
 
 		// Now we can start up mark 2 workers.
 		atomic.Xaddint64(&gcController.dedicatedMarkWorkersNeeded, 0xffffffff)
-		atomic.Xaddint64(&gcController.fractionalMarkWorkersNeeded, 0xffffffff)
+		gcController.fractionalUtilizationGoal = prevFractionalGoal
 
 		incnwait := atomic.Xadd(&work.nwait, +1)
 		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
@@ -1849,7 +1829,7 @@ func gcBgMarkWorker(_p_ *p) {
 			atomic.Xaddint64(&gcController.dedicatedMarkWorkersNeeded, 1)
 		case gcMarkWorkerFractionalMode:
 			atomic.Xaddint64(&gcController.fractionalMarkTime, duration)
-			atomic.Xaddint64(&gcController.fractionalMarkWorkersNeeded, 1)
+			atomic.Xaddint64(&_p_.gcFractionalMarkTime, duration)
 		case gcMarkWorkerIdleMode:
 			atomic.Xaddint64(&gcController.idleMarkTime, duration)
 		}
