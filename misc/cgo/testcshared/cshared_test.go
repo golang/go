@@ -188,6 +188,7 @@ func adbRun(t *testing.T, env []string, adbargs ...string) string {
 }
 
 func run(t *testing.T, env []string, args ...string) string {
+	t.Helper()
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = env
 	out, err := cmd.CombinedOutput()
@@ -200,6 +201,7 @@ func run(t *testing.T, env []string, args ...string) string {
 }
 
 func runExe(t *testing.T, env []string, args ...string) string {
+	t.Helper()
 	if GOOS == "android" {
 		return adbRun(t, env, args...)
 	}
@@ -207,6 +209,7 @@ func runExe(t *testing.T, env []string, args ...string) string {
 }
 
 func runCC(t *testing.T, args ...string) string {
+	t.Helper()
 	return run(t, nil, append(cc, args...)...)
 }
 
@@ -295,6 +298,11 @@ func TestExportedSymbols(t *testing.T) {
 func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
 	t.Parallel()
 
+	if GOOS == "windows" {
+		t.Logf("Skipping on %s", GOOS)
+		return
+	}
+
 	cmd := "testp1"
 
 	createHeadersOnce(t)
@@ -313,6 +321,11 @@ func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
 // test2: tests libgo2 which does not export any functions.
 func TestUnexportedSymbols(t *testing.T) {
 	t.Parallel()
+
+	if GOOS == "windows" {
+		t.Logf("Skipping on %s", GOOS)
+		return
+	}
 
 	cmd := "testp2"
 	libname := "libgo2." + libSuffix
@@ -348,7 +361,11 @@ func TestUnexportedSymbols(t *testing.T) {
 func TestMainExportedOnAndroid(t *testing.T) {
 	t.Parallel()
 
-	if GOOS != "android" {
+	switch GOOS {
+	case "android":
+		break
+	default:
+		t.Logf("Skipping on %s", GOOS)
 		return
 	}
 
@@ -394,12 +411,20 @@ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
 // test4: test signal handlers
 func TestSignalHandlers(t *testing.T) {
 	t.Parallel()
+	if GOOS == "windows" {
+		t.Logf("Skipping on %s", GOOS)
+		return
+	}
 	testSignalHandlers(t, "libgo4", "main4.c", "testp4")
 }
 
 // test5: test signal handlers with os/signal.Notify
 func TestSignalHandlersWithNotify(t *testing.T) {
 	t.Parallel()
+	if GOOS == "windows" {
+		t.Logf("Skipping on %s", GOOS)
+		return
+	}
 	testSignalHandlers(t, "libgo5", "main5.c", "testp5")
 }
 
@@ -410,7 +435,7 @@ func TestPIE(t *testing.T) {
 	case "linux", "android":
 		break
 	default:
-		t.Logf("Skipping TestPIE on %s", GOOS)
+		t.Logf("Skipping on %s", GOOS)
 		return
 	}
 
