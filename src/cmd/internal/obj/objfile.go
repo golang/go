@@ -443,9 +443,6 @@ func (c dwCtxt) AddString(s dwarf.Sym, v string) {
 	ls.WriteString(c.Link, ls.Size, len(v), v)
 	ls.WriteInt(c.Link, ls.Size, 1, 0)
 }
-func (c dwCtxt) SymValue(s dwarf.Sym) int64 {
-	return 0
-}
 func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
 	ls := s.(*LSym)
 	size := c.PtrSize()

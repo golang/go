@@ -42,9 +42,6 @@ func (c dwctxt) AddBytes(s dwarf.Sym, b []byte) {
 func (c dwctxt) AddString(s dwarf.Sym, v string) {
 	Addstring(s.(*sym.Symbol), v)
 }
-func (c dwctxt) SymValue(s dwarf.Sym) int64 {
-	return s.(*sym.Symbol).Value
-}
 
 func (c dwctxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
 	if value != 0 {

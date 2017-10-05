@@ -118,7 +118,6 @@ type Context interface {
 	AddAddress(s Sym, t interface{}, ofs int64)
 	AddSectionOffset(s Sym, size int, t interface{}, ofs int64)
 	AddString(s Sym, v string)
-	SymValue(s Sym) int64
 }
 
 // AppendUleb128 appends v to b using DWARF's unsigned LEB128 encoding.
