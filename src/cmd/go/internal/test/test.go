@@ -816,10 +816,11 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	}
 
 	// The generated main also imports testing, regexp, and os.
+	// Also the linker introduces implicit dependencies reported by LinkerDeps.
 	stk.Push("testmain")
-	deps := testMainDeps
-	if cfg.ExternalLinkingForced(pmain.Goroot) {
-		deps = str.StringList(deps, "runtime/cgo")
+	deps := testMainDeps // cap==len, so safe for append
+	for _, d := range load.LinkerDeps(p) {
+		deps = append(deps, d)
 	}
 	for _, dep := range deps {
 		if dep == ptest.ImportPath {
