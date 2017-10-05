@@ -113,6 +113,10 @@
 
 (Sqrt x) -> (SQRTSD x)
 
+(Floor x) -> (ROUNDSD [1] x)
+(Ceil x)  -> (ROUNDSD [2] x)
+(Trunc x) -> (ROUNDSD [3] x)
+
 // Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
 (SignExt8to16  x) -> (MOVBQSX x)

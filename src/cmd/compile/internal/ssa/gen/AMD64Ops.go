@@ -341,6 +341,10 @@ func init() {
 
 		{name: "SQRTSD", argLength: 1, reg: fp11, asm: "SQRTSD"}, // sqrt(arg0)
 
+		// ROUNDSD instruction isn't guaranteed to be on the target platform (it is SSE4.1)
+		// Any use must be preceded by a successful check of runtime.support_sse41.
+		{name: "ROUNDSD", argLength: 1, reg: fp11, aux: "Int8", asm: "ROUNDSD"}, // rounds arg0 depending on auxint, 1 means math.Floor, 2 Ceil, 3 Trunc
+
 		{name: "SBBQcarrymask", argLength: 1, reg: flagsgp, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
 		{name: "SBBLcarrymask", argLength: 1, reg: flagsgp, asm: "SBBL"}, // (int32)(-1) if carry is set, 0 if carry is clear.
 		// Note: SBBW and SBBB are subsumed by SBBL

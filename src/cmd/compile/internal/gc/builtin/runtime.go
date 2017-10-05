@@ -191,3 +191,4 @@ func msanwrite(addr, size uintptr)
 
 // architecture variants
 var support_popcnt bool
+var support_sse41 bool

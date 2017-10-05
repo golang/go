@@ -852,6 +852,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpAMD64ROUNDSD:
+		p := s.Prog(v.Op.Asm())
+		val := v.AuxInt
+		// 1 means math.Floor, 2 Ceil, 3 Trunc
+		if val != 1 && val != 2 && val != 3 {
+			v.Fatalf("Invalid rounding mode")
+		}
+		p.From.Offset = val
+		p.From.Type = obj.TYPE_CONST
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[0].Reg()})
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	case ssa.OpAMD64POPCNTQ, ssa.OpAMD64POPCNTL:
 		if v.Args[0].Reg() != v.Reg() {
 			// POPCNT on Intel has a false dependency on the destination register.
