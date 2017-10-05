@@ -688,6 +688,7 @@ type Action struct {
 	// Generated files, directories.
 	Objdir string // directory for intermediate objects
 	Target string // goal of the action: the created package or executable
+	built  string // the actual created package or executable
 
 	// Execution state.
 	pending  int  // number of deps yet to complete
@@ -707,7 +708,7 @@ type actionJSON struct {
 	Target     string   `json:",omitempty"`
 	Priority   int      `json:",omitempty"`
 	Failed     bool     `json:",omitempty"`
-	Pkgfile    string   `json:",omitempty"`
+	Built      string   `json:",omitempty"`
 }
 
 // cacheKey is the key for the action cache.
@@ -746,11 +747,11 @@ func actionGraphJSON(a *Action) string {
 			Target:     a.Target,
 			Failed:     a.Failed,
 			Priority:   a.priority,
+			Built:      a.built,
 		}
 		if a.Package != nil {
 			// TODO(rsc): Make this a unique key for a.Package somehow.
 			aj.Package = a.Package.ImportPath
-			aj.Pkgfile = a.Package.Internal.Pkgfile
 		}
 		for _, a1 := range a.Deps {
 			aj.Deps = append(aj.Deps, inWorkq[a1])
@@ -900,7 +901,7 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 			Objdir:  b.NewObjdir(),
 		}
 		a.Target = a.Objdir + "_pkg_.a"
-		a.Package.Internal.Pkgfile = a.Target
+		a.built = a.Target
 
 		for _, p1 := range p.Internal.Imports {
 			a.Deps = append(a.Deps, b.CompileAction(depMode, depMode, p1))
@@ -931,7 +932,7 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 			a.Mode = "use installed"
 			a.Target = p.Internal.Target
 			a.Func = nil
-			p.Internal.Pkgfile = a.Target
+			a.built = a.Target
 			return a
 		}
 		return a
@@ -962,7 +963,7 @@ func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
 			a.Mode = "use installed"
 			a.Func = nil
 			a.Target = p.Internal.Target
-			p.Internal.Pkgfile = a.Target
+			a.built = a.Target
 			return a
 		}
 
@@ -992,6 +993,7 @@ func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
 			_, name = filepath.Split(p.Internal.Target)
 		}
 		a.Target = a.Objdir + filepath.Join("exe", name) + cfg.ExeSuffix
+		a.built = a.Target
 		b.addTransitiveLinkDeps(a, a1, "")
 		return a
 	})
@@ -1021,8 +1023,8 @@ func (b *Builder) installAction(a1 *Action) *Action {
 			Objdir:  a1.Objdir,
 			Deps:    []*Action{a1},
 			Target:  p.Internal.Target,
+			built:   p.Internal.Target,
 		}
-		p.Internal.Pkgfile = a.Target
 		b.addInstallHeaderAction(a)
 		return a
 	})
@@ -1591,7 +1593,12 @@ func (b *Builder) build(a *Action) (err error) {
 
 	// Prepare Go import config.
 	var icfg bytes.Buffer
-	for _, path := range a.Package.Imports {
+	for _, a1 := range a.Deps {
+		p1 := a1.Package
+		if p1 == nil || p1.ImportPath == "" {
+			continue
+		}
+		path := p1.ImportPath
 		i := strings.LastIndex(path, "/vendor/")
 		if i >= 0 {
 			i += len("/vendor/")
@@ -1602,15 +1609,12 @@ func (b *Builder) build(a *Action) (err error) {
 		}
 		fmt.Fprintf(&icfg, "importmap %s=%s\n", path[i:], path)
 	}
-	for _, p1 := range a.Package.Internal.Imports {
-		if p1.ImportPath == "unsafe" {
+	for _, a1 := range a.Deps {
+		p1 := a1.Package
+		if p1 == nil || p1.ImportPath == "" || a1.built == "" {
 			continue
 		}
-		if p1.Internal.Pkgfile == "" {
-			// This happens for gccgo-internal packages like runtime.
-			continue
-		}
-		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, p1.Internal.Pkgfile)
+		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, a1.built)
 	}
 
 	// Compile Go.
@@ -1728,7 +1732,7 @@ func (b *Builder) writeLinkImportcfg(a *Action, file string) error {
 		if p1 == nil {
 			continue
 		}
-		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, p1.Internal.Pkgfile)
+		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, a1.built)
 		if p1.Shlib != "" {
 			fmt.Fprintf(&icfg, "packageshlib %s=%s\n", p1.ImportPath, p1.Shlib)
 		}
