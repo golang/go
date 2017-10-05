@@ -87,7 +87,7 @@ func Parse(cmd string, defns []*Defn, args []string, i int) (f *Defn, value stri
 	name := arg[1:]
 	// If there's already a prefix such as "test.", drop it for now.
 	name = strings.TrimPrefix(name, cmd+".")
-	equals := strings.IndexByte(name, '=')
+	equals := strings.Index(name, "=")
 	if equals >= 0 {
 		value = name[equals+1:]
 		name = name[:equals]

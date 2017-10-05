@@ -540,7 +540,7 @@ func init() {
 	for key, val := range knownFormats {
 		// key must be "typename format", and format starts with a '%'
 		// (formats containing '*' alone are not collected in this table)
-		i := strings.IndexByte(key, '%')
+		i := strings.Index(key, "%")
 		if i < 0 || !oneFormat(key[i:]) {
 			log.Fatalf("incorrect knownFormats key: %q", key)
 		}

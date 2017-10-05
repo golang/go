@@ -844,7 +844,7 @@ var zeros [512]byte
 var strdata []*sym.Symbol
 
 func addstrdata1(ctxt *Link, arg string) {
-	eq := strings.IndexByte(arg, '=')
+	eq := strings.Index(arg, "=")
 	dot := strings.LastIndex(arg[:eq+1], ".")
 	if eq < 0 || dot < 0 {
 		Exitf("-X flag requires argument of the form importpath.name=value")

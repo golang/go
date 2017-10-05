@@ -501,7 +501,7 @@ func downloadPackage(p *load.Package) error {
 		return err
 	}
 	vers := runtime.Version()
-	if i := strings.IndexByte(vers, ' '); i >= 0 {
+	if i := strings.Index(vers, " "); i >= 0 {
 		vers = vers[:i]
 	}
 	if err := vcs.tagSync(root, selectTag(vers, tags)); err != nil {

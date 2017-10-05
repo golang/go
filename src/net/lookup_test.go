@@ -475,7 +475,7 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
 		}
 	loop:
 		for i, name := range names {
-			if strings.IndexByte(name, '.') == len(name)-1 { // "localhost" not "localhost."
+			if strings.Index(name, ".") == len(name)-1 { // "localhost" not "localhost."
 				for j := range names {
 					if j == i {
 						continue

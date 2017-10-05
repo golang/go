@@ -678,7 +678,7 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
 
 	// Determine whether the match we're holding
 	// is the first or second argument.
-	if strings.Index(line, expr) > strings.IndexByte(line, ',') {
+	if strings.Index(line, expr) > strings.Index(line, ",") {
 		kind = dst
 	} else {
 		kind = src

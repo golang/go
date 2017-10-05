@@ -161,7 +161,7 @@ func fetchCertIDs() ([]certID, error) {
 		}
 		if strings.HasPrefix(ln, sn) {
 			// extract hex value from parentheses.
-			id.serialNumber = ln[strings.IndexByte(ln, '(')+1 : len(ln)-1]
+			id.serialNumber = ln[strings.Index(ln, "(")+1 : len(ln)-1]
 			continue
 		}
 		if strings.TrimSpace(ln) == "X509v3 Subject Key Identifier:" {

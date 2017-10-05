@@ -45,7 +45,7 @@ func (s *Sym) PackageName() string {
 		pathend = 0
 	}
 
-	if i := strings.IndexByte(s.Name[pathend:], '.'); i != -1 {
+	if i := strings.Index(s.Name[pathend:], "."); i != -1 {
 		return s.Name[:pathend+i]
 	}
 	return ""
@@ -58,7 +58,7 @@ func (s *Sym) ReceiverName() string {
 	if pathend < 0 {
 		pathend = 0
 	}
-	l := strings.IndexByte(s.Name[pathend:], '.')
+	l := strings.Index(s.Name[pathend:], ".")
 	r := strings.LastIndexByte(s.Name[pathend:], '.')
 	if l == -1 || r == -1 || l == r {
 		return ""
