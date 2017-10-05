@@ -1647,7 +1647,7 @@ func elfshalloc(sect *sym.Section) *ElfShdr {
 	return sh
 }
 
-func elfshbits(sect *sym.Section) *ElfShdr {
+func elfshbits(linkmode LinkMode, sect *sym.Section) *ElfShdr {
 	var sh *ElfShdr
 
 	if sect.Name == ".text" {
@@ -1662,7 +1662,7 @@ func elfshbits(sect *sym.Section) *ElfShdr {
 	// If this section has already been set up as a note, we assume type_ and
 	// flags are already correct, but the other fields still need filling in.
 	if sh.type_ == SHT_NOTE {
-		if Linkmode != LinkExternal {
+		if linkmode != LinkExternal {
 			// TODO(mwhudson): the approach here will work OK when
 			// linking internally for notes that we want to be included
 			// in a loadable segment (e.g. the abihash note) but not for
@@ -1701,7 +1701,7 @@ func elfshbits(sect *sym.Section) *ElfShdr {
 		sh.flags = 0
 	}
 
-	if Linkmode != LinkExternal {
+	if linkmode != LinkExternal {
 		sh.addr = sect.Vaddr
 	}
 	sh.addralign = uint64(sect.Align)
@@ -1881,7 +1881,7 @@ func (ctxt *Link) doelf() {
 	// generate .tbss section for dynamic internal linker or external
 	// linking, so that various binutils could correctly calculate
 	// PT_TLS size. See https://golang.org/issue/5200.
-	if !*FlagD || Linkmode == LinkExternal {
+	if !*FlagD || ctxt.LinkMode == LinkExternal {
 		Addstring(shstrtab, ".tbss")
 	}
 	if Headtype == objabi.Hnetbsd {
@@ -1900,7 +1900,7 @@ func (ctxt *Link) doelf() {
 	Addstring(shstrtab, ".rodata")
 	// See the comment about data.rel.ro.FOO section names in data.go.
 	relro_prefix := ""
-	if UseRelro() {
+	if ctxt.UseRelro() {
 		Addstring(shstrtab, ".data.rel.ro")
 		relro_prefix = ".data.rel.ro"
 	}
@@ -1909,7 +1909,7 @@ func (ctxt *Link) doelf() {
 	Addstring(shstrtab, relro_prefix+".gosymtab")
 	Addstring(shstrtab, relro_prefix+".gopclntab")
 
-	if Linkmode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
 		*FlagD = true
 
 		Addstring(shstrtab, elfRelType+".text")
@@ -1920,14 +1920,14 @@ func (ctxt *Link) doelf() {
 		Addstring(shstrtab, elfRelType+relro_prefix+".gopclntab")
 		Addstring(shstrtab, elfRelType+".noptrdata")
 		Addstring(shstrtab, elfRelType+".data")
-		if UseRelro() {
+		if ctxt.UseRelro() {
 			Addstring(shstrtab, elfRelType+".data.rel.ro")
 		}
 
 		// add a .note.GNU-stack section to mark the stack as non-executable
 		Addstring(shstrtab, ".note.GNU-stack")
 
-		if Buildmode == BuildmodeShared {
+		if ctxt.BuildMode == BuildModeShared {
 			Addstring(shstrtab, ".note.go.abihash")
 			Addstring(shstrtab, ".note.go.pkg-list")
 			Addstring(shstrtab, ".note.go.deps")
@@ -1937,8 +1937,8 @@ func (ctxt *Link) doelf() {
 	hasinitarr := *FlagLinkshared
 
 	/* shared library initializer */
-	switch Buildmode {
-	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared, BuildmodePlugin:
+	switch ctxt.BuildMode {
+	case BuildModeCArchive, BuildModeCShared, BuildModeShared, BuildModePlugin:
 		hasinitarr = true
 	}
 
@@ -2099,7 +2099,7 @@ func (ctxt *Link) doelf() {
 		Elfwritedynent(ctxt, s, DT_DEBUG, 0)
 	}
 
-	if Buildmode == BuildmodeShared {
+	if ctxt.BuildMode == BuildModeShared {
 		// The go.link.abihashbytes symbol will be pointed at the appropriate
 		// part of the .note.go.abihash section in data.go:func address().
 		s := ctxt.Syms.Lookup("go.link.abihashbytes", 0)
@@ -2123,7 +2123,7 @@ func (ctxt *Link) doelf() {
 		addgonote(ctxt, ".note.go.deps", ELF_NOTE_GODEPS_TAG, []byte(strings.Join(deplist, "\n")))
 	}
 
-	if Linkmode == LinkExternal && *flagBuildid != "" {
+	if ctxt.LinkMode == LinkExternal && *flagBuildid != "" {
 		addgonote(ctxt, ".note.go.buildid", ELF_NOTE_GOBUILDID_TAG, []byte(*flagBuildid))
 	}
 }
@@ -2220,13 +2220,13 @@ func Asmbelf(ctxt *Link, symo int64) {
 
 	var pph *ElfPhdr
 	var pnote *ElfPhdr
-	if Linkmode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
 		/* skip program headers */
 		eh.phoff = 0
 
 		eh.phentsize = 0
 
-		if Buildmode == BuildmodeShared {
+		if ctxt.BuildMode == BuildModeShared {
 			sh := elfshname(".note.go.pkg-list")
 			sh.type_ = SHT_NOTE
 			sh = elfshname(".note.go.abihash")
@@ -2551,22 +2551,22 @@ elfobj:
 	}
 
 	for _, sect := range Segtext.Sections {
-		elfshbits(sect)
+		elfshbits(ctxt.LinkMode, sect)
 	}
 	for _, sect := range Segrodata.Sections {
-		elfshbits(sect)
+		elfshbits(ctxt.LinkMode, sect)
 	}
 	for _, sect := range Segrelrodata.Sections {
-		elfshbits(sect)
+		elfshbits(ctxt.LinkMode, sect)
 	}
 	for _, sect := range Segdata.Sections {
-		elfshbits(sect)
+		elfshbits(ctxt.LinkMode, sect)
 	}
 	for _, sect := range Segdwarf.Sections {
-		elfshbits(sect)
+		elfshbits(ctxt.LinkMode, sect)
 	}
 
-	if Linkmode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
 		for _, sect := range Segtext.Sections {
 			elfshreloc(ctxt.Arch, sect)
 		}
@@ -2636,15 +2636,15 @@ elfobj:
 	}
 	eh.ident[EI_VERSION] = EV_CURRENT
 
-	if Linkmode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
 		eh.type_ = ET_REL
-	} else if Buildmode == BuildmodePIE {
+	} else if ctxt.BuildMode == BuildModePIE {
 		eh.type_ = ET_DYN
 	} else {
 		eh.type_ = ET_EXEC
 	}
 
-	if Linkmode != LinkExternal {
+	if ctxt.LinkMode != LinkExternal {
 		eh.entry = uint64(Entryvalue(ctxt))
 	}
 
@@ -2663,7 +2663,7 @@ elfobj:
 	if !*FlagD {
 		a += int64(elfwriteinterp(ctxt.Out))
 	}
-	if Linkmode != LinkExternal {
+	if ctxt.LinkMode != LinkExternal {
 		if Headtype == objabi.Hnetbsd {
 			a += int64(elfwritenetbsdsig(ctxt.Out))
 		}

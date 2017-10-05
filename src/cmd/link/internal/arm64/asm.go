@@ -217,7 +217,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 }
 
 func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
-	if ld.Linkmode == ld.LinkExternal {
+	if ctxt.LinkMode == ld.LinkExternal {
 		switch r.Type {
 		default:
 			return false
@@ -455,7 +455,7 @@ func asmb(ctxt *ld.Link) {
 				ctxt.Out.Flush()
 				ctxt.Out.Write(ld.Elfstrdat)
 
-				if ld.Linkmode == ld.LinkExternal {
+				if ctxt.LinkMode == ld.LinkExternal {
 					ld.Elfemitreloc(ctxt)
 				}
 			}
@@ -472,7 +472,7 @@ func asmb(ctxt *ld.Link) {
 			}
 
 		case objabi.Hdarwin:
-			if ld.Linkmode == ld.LinkExternal {
+			if ctxt.LinkMode == ld.LinkExternal {
 				ld.Machoemitreloc(ctxt)
 			}
 		}

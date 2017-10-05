@@ -108,9 +108,9 @@ func deadcode(ctxt *Link) {
 		}
 	}
 
-	if Buildmode != BuildmodeShared {
+	if ctxt.BuildMode != BuildModeShared {
 		// Keep a itablink if the symbol it points at is being kept.
-		// (When BuildmodeShared, always keep itablinks.)
+		// (When BuildModeShared, always keep itablinks.)
 		for _, s := range ctxt.Syms.Allsym {
 			if strings.HasPrefix(s.Name, "go.itablink.") {
 				s.Attr.Set(sym.AttrReachable, len(s.R) == 1 && s.R[0].Sym.Attr.Reachable())
@@ -205,7 +205,7 @@ func (d *deadcodepass) init() {
 		names = append(names, "runtime.read_tls_fallback")
 	}
 
-	if Buildmode == BuildmodeShared {
+	if d.ctxt.BuildMode == BuildModeShared {
 		// Mark all symbols defined in this library as reachable when
 		// building a shared library.
 		for _, s := range d.ctxt.Syms.Allsym {
@@ -217,11 +217,11 @@ func (d *deadcodepass) init() {
 		// In a normal binary, start at main.main and the init
 		// functions and mark what is reachable from there.
 
-		if *FlagLinkshared && (Buildmode == BuildmodeExe || Buildmode == BuildmodePIE) {
+		if *FlagLinkshared && (d.ctxt.BuildMode == BuildModeExe || d.ctxt.BuildMode == BuildModePIE) {
 			names = append(names, "main.main", "main.init")
 		} else {
 			// The external linker refers main symbol directly.
-			if Linkmode == LinkExternal && (Buildmode == BuildmodeExe || Buildmode == BuildmodePIE) {
+			if d.ctxt.LinkMode == LinkExternal && (d.ctxt.BuildMode == BuildModeExe || d.ctxt.BuildMode == BuildModePIE) {
 				if Headtype == objabi.Hwindows && d.ctxt.Arch.Family == sys.I386 {
 					*flagEntrySymbol = "_main"
 				} else {
@@ -229,7 +229,7 @@ func (d *deadcodepass) init() {
 				}
 			}
 			names = append(names, *flagEntrySymbol)
-			if Buildmode == BuildmodePlugin {
+			if d.ctxt.BuildMode == BuildModePlugin {
 				names = append(names, *flagPluginPath+".init", *flagPluginPath+".main", "go.plugin.tabs")
 
 				// We don't keep the go.plugin.exports symbol,

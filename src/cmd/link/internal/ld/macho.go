@@ -230,7 +230,7 @@ var dylib []string
 
 var linkoff int64
 
-func machowrite(arch *sys.Arch, out *OutBuf) int {
+func machowrite(arch *sys.Arch, out *OutBuf, linkmode LinkMode) int {
 	o1 := out.Offset()
 
 	loadsize := 4 * 4 * ndebug
@@ -252,7 +252,7 @@ func machowrite(arch *sys.Arch, out *OutBuf) int {
 	}
 	out.Write32(machohdr.cpu)
 	out.Write32(machohdr.subcpu)
-	if Linkmode == LinkExternal {
+	if linkmode == LinkExternal {
 		out.Write32(MH_OBJECT) /* file type - mach object */
 	} else {
 		out.Write32(MH_EXECUTE) /* file type - mach executable */
@@ -356,7 +356,7 @@ func (ctxt *Link) domacho() {
 	s.Type = sym.SMACHOSYMTAB
 	s.Attr |= sym.AttrReachable
 
-	if Linkmode != LinkExternal {
+	if ctxt.LinkMode != LinkExternal {
 		s := ctxt.Syms.Lookup(".plt", 0) // will be __symbol_stub
 		s.Type = sym.SMACHOPLT
 		s.Attr |= sym.AttrReachable
@@ -376,8 +376,8 @@ func (ctxt *Link) domacho() {
 	}
 }
 
-func machoadddynlib(lib string) {
-	if seenlib[lib] || Linkmode == LinkExternal {
+func machoadddynlib(lib string, linkmode LinkMode) {
+	if seenlib[lib] || linkmode == LinkExternal {
 		return
 	}
 	seenlib[lib] = true
@@ -402,8 +402,8 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 
 	var msect *MachoSect
 	if sect.Rwx&1 == 0 && segname != "__DWARF" && (ctxt.Arch.Family == sys.ARM64 ||
-		(ctxt.Arch.Family == sys.AMD64 && Buildmode != BuildmodeExe) ||
-		(ctxt.Arch.Family == sys.ARM && Buildmode != BuildmodeExe)) {
+		(ctxt.Arch.Family == sys.AMD64 && ctxt.BuildMode != BuildModeExe) ||
+		(ctxt.Arch.Family == sys.ARM && ctxt.BuildMode != BuildModeExe)) {
 		// Darwin external linker on arm64 and on amd64 and arm in c-shared/c-archive buildmode
 		// complains about absolute relocs in __TEXT, so if the section is not
 		// executable, put it in __DATA segment.
@@ -488,12 +488,12 @@ func Asmbmacho(ctxt *Link) {
 	}
 
 	var ms *MachoSeg
-	if Linkmode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
 		/* segment for entire file */
 		ms = newMachoSeg("", 40)
 
 		ms.fileoffset = Segtext.Fileoff
-		if ctxt.Arch.Family == sys.ARM || Buildmode == BuildmodeCArchive {
+		if ctxt.Arch.Family == sys.ARM || ctxt.BuildMode == BuildModeCArchive {
 			ms.filesize = Segdata.Fileoff + Segdata.Filelen - Segtext.Fileoff
 		} else {
 			ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
@@ -502,7 +502,7 @@ func Asmbmacho(ctxt *Link) {
 	}
 
 	/* segment for zero page */
-	if Linkmode != LinkExternal {
+	if ctxt.LinkMode != LinkExternal {
 		ms = newMachoSeg("__PAGEZERO", 0)
 		ms.vsize = uint64(va)
 	}
@@ -510,7 +510,7 @@ func Asmbmacho(ctxt *Link) {
 	/* text */
 	v := Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound))
 
-	if Linkmode != LinkExternal {
+	if ctxt.LinkMode != LinkExternal {
 		ms = newMachoSeg("__TEXT", 20)
 		ms.vaddr = uint64(va)
 		ms.vsize = uint64(v)
@@ -525,7 +525,7 @@ func Asmbmacho(ctxt *Link) {
 	}
 
 	/* data */
-	if Linkmode != LinkExternal {
+	if ctxt.LinkMode != LinkExternal {
 		w := int64(Segdata.Length)
 		ms = newMachoSeg("__DATA", 20)
 		ms.vaddr = uint64(va) + uint64(v)
@@ -542,7 +542,7 @@ func Asmbmacho(ctxt *Link) {
 
 	/* dwarf */
 	if !*FlagW {
-		if Linkmode != LinkExternal {
+		if ctxt.LinkMode != LinkExternal {
 			ms = newMachoSeg("__DWARF", 20)
 			ms.vaddr = Segdwarf.Vaddr
 			ms.vsize = 0
@@ -554,7 +554,7 @@ func Asmbmacho(ctxt *Link) {
 		}
 	}
 
-	if Linkmode != LinkExternal {
+	if ctxt.LinkMode != LinkExternal {
 		switch ctxt.Arch.Family {
 		default:
 			Exitf("unknown macho architecture: %v", ctxt.Arch.Family)
@@ -594,7 +594,7 @@ func Asmbmacho(ctxt *Link) {
 		s3 := ctxt.Syms.Lookup(".linkedit.got", 0)
 		s4 := ctxt.Syms.Lookup(".machosymstr", 0)
 
-		if Linkmode != LinkExternal {
+		if ctxt.LinkMode != LinkExternal {
 			ms := newMachoSeg("__LINKEDIT", 0)
 			ms.vaddr = uint64(va) + uint64(v) + uint64(Rnd(int64(Segdata.Length), int64(*FlagRound)))
 			ms.vsize = uint64(s1.Size) + uint64(s2.Size) + uint64(s3.Size) + uint64(s4.Size)
@@ -612,7 +612,7 @@ func Asmbmacho(ctxt *Link) {
 
 		machodysymtab(ctxt)
 
-		if Linkmode != LinkExternal {
+		if ctxt.LinkMode != LinkExternal {
 			ml := newMachoLoad(ctxt.Arch, LC_LOAD_DYLINKER, 6)
 			ml.data[0] = 12 /* offset to string */
 			stringtouint32(ml.data[1:], "/usr/lib/dyld")
@@ -628,7 +628,7 @@ func Asmbmacho(ctxt *Link) {
 		}
 	}
 
-	if Linkmode == LinkInternal {
+	if ctxt.LinkMode == LinkInternal {
 		// For lldb, must say LC_VERSION_MIN_MACOSX or else
 		// it won't know that this Mach-O binary is from OS X
 		// (could be iOS or WatchOS instead).
@@ -642,7 +642,7 @@ func Asmbmacho(ctxt *Link) {
 		ml.data[1] = 10<<16 | 7<<8 | 0<<0 // SDK 10.7.0
 	}
 
-	a := machowrite(ctxt.Arch, ctxt.Out)
+	a := machowrite(ctxt.Arch, ctxt.Out, ctxt.LinkMode)
 	if int32(a) > HEADR {
 		Exitf("HEADR too small: %d > %d", a, HEADR)
 	}
@@ -738,7 +738,7 @@ func machoShouldExport(ctxt *Link, s *sym.Symbol) bool {
 	if !ctxt.DynlinkingGo() || s.Attr.Local() {
 		return false
 	}
-	if Buildmode == BuildmodePlugin && strings.HasPrefix(s.Extname, objabi.PathToPrefix(*flagPluginPath)) {
+	if ctxt.BuildMode == BuildModePlugin && strings.HasPrefix(s.Extname, objabi.PathToPrefix(*flagPluginPath)) {
 		return true
 	}
 	if strings.HasPrefix(s.Name, "go.itab.") {
@@ -773,7 +773,7 @@ func machosymtab(ctxt *Link) {
 		// symbols like crosscall2 are in pclntab and end up
 		// pointing at the host binary, breaking unwinding.
 		// See Issue #18190.
-		cexport := !strings.Contains(s.Extname, ".") && (Buildmode != BuildmodePlugin || onlycsymbol(s))
+		cexport := !strings.Contains(s.Extname, ".") && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
 		if cexport || export {
 			symstr.AddUint8('_')
 		}

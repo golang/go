@@ -328,7 +328,7 @@ func (sect *peSection) pad(out *OutBuf, n uint32) {
 }
 
 // write writes COFF section sect into the output file.
-func (sect *peSection) write(out *OutBuf) error {
+func (sect *peSection) write(out *OutBuf, linkmode LinkMode) error {
 	h := pe.SectionHeader32{
 		VirtualSize:          sect.virtualSize,
 		SizeOfRawData:        sect.sizeOfRawData,
@@ -337,7 +337,7 @@ func (sect *peSection) write(out *OutBuf) error {
 		NumberOfRelocations:  sect.numberOfRelocations,
 		Characteristics:      sect.characteristics,
 	}
-	if Linkmode != LinkExternal {
+	if linkmode != LinkExternal {
 		h.VirtualAddress = sect.virtualAddress
 	}
 	copy(h.Name[:], sect.shortName)
@@ -595,7 +595,7 @@ func (f *peFile) writeSymbol(out *OutBuf, s *sym.Symbol, value int64, sectidx in
 
 // mapToPESection searches peFile f for s symbol's location.
 // It returns PE section index, and offset within that section.
-func (f *peFile) mapToPESection(s *sym.Symbol) (pesectidx int, offset int64, err error) {
+func (f *peFile) mapToPESection(s *sym.Symbol, linkmode LinkMode) (pesectidx int, offset int64, err error) {
 	if s.Sect == nil {
 		return 0, 0, fmt.Errorf("could not map %s symbol with no section", s.Name)
 	}
@@ -606,7 +606,7 @@ func (f *peFile) mapToPESection(s *sym.Symbol) (pesectidx int, offset int64, err
 		return 0, 0, fmt.Errorf("could not map %s symbol with non .text or .data section", s.Name)
 	}
 	v := uint64(s.Value) - Segdata.Vaddr
-	if Linkmode != LinkExternal {
+	if linkmode != LinkExternal {
 		return f.dataSect.index, int64(v), nil
 	}
 	if s.Type == sym.SDATA {
@@ -638,20 +638,20 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 
 		// Only windows/386 requires underscore prefix on external symbols.
 		if ctxt.Arch.Family == sys.I386 &&
-			Linkmode == LinkExternal &&
+			ctxt.LinkMode == LinkExternal &&
 			(s.Type == sym.SHOSTOBJ || s.Attr.CgoExport()) {
 			s.Name = "_" + s.Name
 		}
 
 		var typ uint16
-		if Linkmode == LinkExternal {
+		if ctxt.LinkMode == LinkExternal {
 			typ = IMAGE_SYM_TYPE_NULL
 		} else {
 			// TODO: fix IMAGE_SYM_DTYPE_ARRAY value and use following expression, instead of 0x0308
 			typ = IMAGE_SYM_DTYPE_ARRAY<<8 + IMAGE_SYM_TYPE_STRUCT
 			typ = 0x0308 // "array of structs"
 		}
-		sect, value, err := f.mapToPESection(s)
+		sect, value, err := f.mapToPESection(s, ctxt.LinkMode)
 		if err != nil {
 			if type_ == UndefinedSym {
 				typ = IMAGE_SYM_DTYPE_FUNCTION
@@ -666,7 +666,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 		f.writeSymbol(ctxt.Out, s, value, sect, typ, uint8(class))
 	}
 
-	if Linkmode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
 		// Include section symbols as external, because
 		// .ctors and .debug_* section relocations refer to it.
 		for _, pesect := range f.sections {
@@ -683,14 +683,14 @@ func (f *peFile) writeSymbolTableAndStringTable(ctxt *Link) {
 	f.symtabOffset = ctxt.Out.Offset()
 
 	// write COFF symbol table
-	if !*FlagS || Linkmode == LinkExternal {
+	if !*FlagS || ctxt.LinkMode == LinkExternal {
 		f.writeSymbols(ctxt)
 	}
 
 	// update COFF file header and section table
 	size := f.stringTable.size() + 18*f.symbolCount
 	var h *peSection
-	if Linkmode != LinkExternal {
+	if ctxt.LinkMode != LinkExternal {
 		// We do not really need .symtab for go.o, and if we have one, ld
 		// will also include it in the exe, and that will confuse windows.
 		h = f.addSection(".symtab", size, size)
@@ -700,13 +700,13 @@ func (f *peFile) writeSymbolTableAndStringTable(ctxt *Link) {
 
 	// write COFF string table
 	f.stringTable.write(ctxt.Out)
-	if Linkmode != LinkExternal {
+	if ctxt.LinkMode != LinkExternal {
 		h.pad(ctxt.Out, uint32(size))
 	}
 }
 
 // writeFileHeader writes COFF file header for peFile f.
-func (f *peFile) writeFileHeader(arch *sys.Arch, out *OutBuf) {
+func (f *peFile) writeFileHeader(arch *sys.Arch, out *OutBuf, linkmode LinkMode) {
 	var fh pe.FileHeader
 
 	switch arch.Family {
@@ -724,7 +724,7 @@ func (f *peFile) writeFileHeader(arch *sys.Arch, out *OutBuf) {
 	// much more beneficial than having build timestamp in the header.
 	fh.TimeDateStamp = 0
 
-	if Linkmode == LinkExternal {
+	if linkmode == LinkExternal {
 		fh.Characteristics = IMAGE_FILE_LINE_NUMS_STRIPPED
 	} else {
 		fh.Characteristics = IMAGE_FILE_RELOCS_STRIPPED | IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_DEBUG_STRIPPED
@@ -768,7 +768,7 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	oh.SizeOfInitializedData = f.dataSect.sizeOfRawData
 	oh64.SizeOfUninitializedData = 0
 	oh.SizeOfUninitializedData = 0
-	if Linkmode != LinkExternal {
+	if ctxt.LinkMode != LinkExternal {
 		oh64.AddressOfEntryPoint = uint32(Entryvalue(ctxt) - PEBASE)
 		oh.AddressOfEntryPoint = uint32(Entryvalue(ctxt) - PEBASE)
 	}
@@ -880,7 +880,7 @@ func Peinit(ctxt *Link) {
 
 	}
 
-	if Linkmode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
 		PESECTALIGN = 0
 		PEFILEALIGN = 0
 	}
@@ -888,7 +888,7 @@ func Peinit(ctxt *Link) {
 	var sh [16]pe.SectionHeader32
 	var fh pe.FileHeader
 	PEFILEHEADR = int32(Rnd(int64(len(dosstub)+binary.Size(&fh)+l+binary.Size(&sh)), PEFILEALIGN))
-	if Linkmode != LinkExternal {
+	if ctxt.LinkMode != LinkExternal {
 		PESECTHEADR = int32(Rnd(int64(PEFILEHEADR), PESECTALIGN))
 	} else {
 		PESECTHEADR = 0
@@ -896,7 +896,7 @@ func Peinit(ctxt *Link) {
 	pefile.nextSectOffset = uint32(PESECTHEADR)
 	pefile.nextFileOffset = uint32(PEFILEHEADR)
 
-	if Linkmode == LinkInternal {
+	if ctxt.LinkMode == LinkInternal {
 		// some mingw libs depend on this symbol, for example, FindPESectionByName
 		ctxt.xdefine("__image_base__", sym.SDATA, PEBASE)
 		ctxt.xdefine("_image_base__", sym.SDATA, PEBASE)
@@ -919,17 +919,17 @@ func Peinit(ctxt *Link) {
 
 func pewrite(ctxt *Link) {
 	ctxt.Out.SeekSet(0)
-	if Linkmode != LinkExternal {
+	if ctxt.LinkMode != LinkExternal {
 		ctxt.Out.Write(dosstub)
 		ctxt.Out.WriteStringN("PE", 4)
 	}
 
-	pefile.writeFileHeader(ctxt.Arch, ctxt.Out)
+	pefile.writeFileHeader(ctxt.Arch, ctxt.Out, ctxt.LinkMode)
 
 	pefile.writeOptionalHeader(ctxt)
 
 	for _, sect := range pefile.sections {
-		sect.write(ctxt.Out)
+		sect.write(ctxt.Out, ctxt.LinkMode)
 	}
 }
 
@@ -986,7 +986,7 @@ func initdynimport(ctxt *Link) *Dll {
 		d.ms = m
 	}
 
-	if Linkmode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
 		// Add real symbol name
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
@@ -1297,7 +1297,7 @@ func Asmbpe(ctxt *Link) {
 
 	t := pefile.addSection(".text", int(Segtext.Length), int(Segtext.Length))
 	t.characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
-	if Linkmode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
 		// some data symbols (e.g. masks) end up in the .text section, and they normally
 		// expect larger alignment requirement than the default text section alignment.
 		t.characteristics |= IMAGE_SCN_ALIGN_32BYTES
@@ -1306,7 +1306,7 @@ func Asmbpe(ctxt *Link) {
 	pefile.textSect = t
 
 	var d *peSection
-	if Linkmode != LinkExternal {
+	if ctxt.LinkMode != LinkExternal {
 		d = pefile.addSection(".data", int(Segdata.Length), int(Segdata.Filelen))
 		d.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
 		d.checkSegment(&Segdata)
@@ -1325,18 +1325,18 @@ func Asmbpe(ctxt *Link) {
 
 	pefile.addDWARF()
 
-	if Linkmode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
 		pefile.ctorsSect = pefile.addInitArray(ctxt)
 	}
 
 	ctxt.Out.SeekSet(int64(pefile.nextFileOffset))
-	if Linkmode != LinkExternal {
+	if ctxt.LinkMode != LinkExternal {
 		addimports(ctxt, d)
 		addexports(ctxt)
 	}
 	pefile.writeSymbolTableAndStringTable(ctxt)
 	addpersrc(ctxt)
-	if Linkmode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
 		pefile.emitRelocations(ctxt)
 	}
 

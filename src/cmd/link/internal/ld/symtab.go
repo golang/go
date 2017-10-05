@@ -137,11 +137,11 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 	// To avoid filling the dynamic table with lots of unnecessary symbols,
 	// mark all Go symbols local (not global) in the final executable.
 	// But when we're dynamically linking, we need all those global symbols.
-	if !ctxt.DynlinkingGo() && Linkmode == LinkExternal && !x.Attr.CgoExportStatic() && elfshnum != SHN_UNDEF {
+	if !ctxt.DynlinkingGo() && ctxt.LinkMode == LinkExternal && !x.Attr.CgoExportStatic() && elfshnum != SHN_UNDEF {
 		bind = STB_LOCAL
 	}
 
-	if Linkmode == LinkExternal && elfshnum != SHN_UNDEF {
+	if ctxt.LinkMode == LinkExternal && elfshnum != SHN_UNDEF {
 		addr -= int64(xo.Sect.Vaddr)
 	}
 	other := STV_DEFAULT
@@ -363,7 +363,7 @@ func (ctxt *Link) symtab() {
 	// pseudo-symbols to mark locations of type, string, and go string data.
 	var symtype *sym.Symbol
 	var symtyperel *sym.Symbol
-	if UseRelro() && (Buildmode == BuildmodeCArchive || Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE) {
+	if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
 		s = ctxt.Syms.Lookup("type.*", 0)
 
 		s.Type = sym.STYPE
@@ -402,7 +402,7 @@ func (ctxt *Link) symtab() {
 
 	var symgofuncrel *sym.Symbol
 	if !ctxt.DynlinkingGo() {
-		if UseRelro() {
+		if ctxt.UseRelro() {
 			symgofuncrel = groupSym("go.funcrel.*", sym.SGOFUNCRELRO)
 		} else {
 			symgofuncrel = symgofunc
@@ -434,7 +434,7 @@ func (ctxt *Link) symtab() {
 			if !ctxt.DynlinkingGo() {
 				s.Attr |= sym.AttrNotInSymbolTable
 			}
-			if UseRelro() {
+			if ctxt.UseRelro() {
 				s.Type = sym.STYPERELRO
 				s.Outer = symtyperel
 			} else {
@@ -442,7 +442,7 @@ func (ctxt *Link) symtab() {
 				s.Outer = symtype
 			}
 
-		case strings.HasPrefix(s.Name, "go.importpath.") && UseRelro():
+		case strings.HasPrefix(s.Name, "go.importpath.") && ctxt.UseRelro():
 			// Keep go.importpath symbols in the same section as types and
 			// names, as they can be referred to by a section offset.
 			s.Type = sym.STYPERELRO
@@ -467,7 +467,7 @@ func (ctxt *Link) symtab() {
 			if !ctxt.DynlinkingGo() {
 				s.Attr |= sym.AttrNotInSymbolTable
 			}
-			if UseRelro() {
+			if ctxt.UseRelro() {
 				s.Type = sym.SGOFUNCRELRO
 				s.Outer = symgofuncrel
 			} else {
@@ -487,7 +487,7 @@ func (ctxt *Link) symtab() {
 		}
 	}
 
-	if Buildmode == BuildmodeShared {
+	if ctxt.BuildMode == BuildModeShared {
 		abihashgostr := ctxt.Syms.Lookup("go.link.abihash."+filepath.Base(*flagOutfile), 0)
 		abihashgostr.Attr |= sym.AttrReachable
 		abihashgostr.Type = sym.SRODATA
@@ -495,7 +495,7 @@ func (ctxt *Link) symtab() {
 		abihashgostr.AddAddr(ctxt.Arch, hashsym)
 		abihashgostr.AddUint(ctxt.Arch, uint64(hashsym.Size))
 	}
-	if Buildmode == BuildmodePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
+	if ctxt.BuildMode == BuildModePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
 		for _, l := range ctxt.Library {
 			s := ctxt.Syms.Lookup("go.link.pkghashbytes."+l.Pkg, 0)
 			s.Attr |= sym.AttrReachable
@@ -580,7 +580,7 @@ func (ctxt *Link) symtab() {
 		moduledata.AddUint(ctxt.Arch, 0)
 		moduledata.AddUint(ctxt.Arch, 0)
 	}
-	if Buildmode == BuildmodePlugin {
+	if ctxt.BuildMode == BuildModePlugin {
 		addgostring(ctxt, moduledata, "go.link.thispluginpath", *flagPluginPath)
 
 		pkghashes := ctxt.Syms.Lookup("go.link.pkghashes", 0)
@@ -609,8 +609,8 @@ func (ctxt *Link) symtab() {
 	}
 	if len(ctxt.Shlibs) > 0 {
 		thismodulename := filepath.Base(*flagOutfile)
-		switch Buildmode {
-		case BuildmodeExe, BuildmodePIE:
+		switch ctxt.BuildMode {
+		case BuildModeExe, BuildModePIE:
 			// When linking an executable, outfile is just "a.out". Make
 			// it something slightly more comprehensible.
 			thismodulename = "the executable"

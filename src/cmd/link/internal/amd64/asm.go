@@ -61,7 +61,7 @@ func gentext(ctxt *ld.Link) {
 		return
 	}
 	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == sym.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
 		// we're linking a module containing the runtime -> no need for
 		// an init function
 		return
@@ -87,7 +87,7 @@ func gentext(ctxt *ld.Link) {
 	Addcall(ctxt, initfunc, addmoduledata)
 	//    c:	c3                   	retq
 	o(0xc3)
-	if ld.Buildmode == ld.BuildmodePlugin {
+	if ctxt.BuildMode == ld.BuildModePlugin {
 		ctxt.Textp = append(ctxt.Textp, addmoduledata)
 	}
 	ctxt.Textp = append(ctxt.Textp, initfunc)
@@ -266,7 +266,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		}
 
 		// Process dynamic relocations for the data sections.
-		if ld.Buildmode == ld.BuildmodePIE && ld.Linkmode == ld.LinkInternal {
+		if ctxt.BuildMode == ld.BuildModePIE && ctxt.LinkMode == ld.LinkInternal {
 			// When internally linking, generate dynamic relocations
 			// for all typical R_ADDR relocations. The exception
 			// are those R_ADDR that are created as part of generating
@@ -771,7 +771,7 @@ func asmb(ctxt *ld.Link) {
 					ctxt.Logf("%5.2f dwarf\n", ld.Cputime())
 				}
 
-				if ld.Linkmode == ld.LinkExternal {
+				if ctxt.LinkMode == ld.LinkExternal {
 					ld.Elfemitreloc(ctxt)
 				}
 			}
@@ -793,7 +793,7 @@ func asmb(ctxt *ld.Link) {
 			}
 
 		case objabi.Hdarwin:
-			if ld.Linkmode == ld.LinkExternal {
+			if ctxt.LinkMode == ld.LinkExternal {
 				ld.Machoemitreloc(ctxt)
 			}
 		}

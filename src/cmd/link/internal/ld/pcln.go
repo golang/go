@@ -172,11 +172,11 @@ func onlycsymbol(s *sym.Symbol) bool {
 	return false
 }
 
-func emitPcln(s *sym.Symbol) bool {
+func emitPcln(ctxt *Link, s *sym.Symbol) bool {
 	if s == nil {
 		return true
 	}
-	if Buildmode == BuildmodePlugin && Headtype == objabi.Hdarwin && onlycsymbol(s) {
+	if ctxt.BuildMode == BuildModePlugin && Headtype == objabi.Hdarwin && onlycsymbol(s) {
 		return false
 	}
 	// We want to generate func table entries only for the "lowest level" symbols,
@@ -221,7 +221,7 @@ func (ctxt *Link) pclntab() {
 	}
 
 	for _, s := range ctxt.Textp {
-		if emitPcln(s) {
+		if emitPcln(ctxt, s) {
 			nfunc++
 		}
 	}
@@ -248,7 +248,7 @@ func (ctxt *Link) pclntab() {
 	var last *sym.Symbol
 	for _, s := range ctxt.Textp {
 		last = s
-		if !emitPcln(s) {
+		if !emitPcln(ctxt, s) {
 			continue
 		}
 		pcln := s.FuncInfo
@@ -465,7 +465,7 @@ func (ctxt *Link) findfunctab() {
 	}
 	idx := int32(0)
 	for i, s := range ctxt.Textp {
-		if !emitPcln(s) {
+		if !emitPcln(ctxt, s) {
 			continue
 		}
 		p := s.Value
@@ -474,7 +474,7 @@ func (ctxt *Link) findfunctab() {
 		if i < len(ctxt.Textp) {
 			e = ctxt.Textp[i]
 		}
-		for !emitPcln(e) && i < len(ctxt.Textp) {
+		for !emitPcln(ctxt, e) && i < len(ctxt.Textp) {
 			e = ctxt.Textp[i]
 			i++
 		}

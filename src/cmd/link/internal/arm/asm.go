@@ -65,7 +65,7 @@ func gentext(ctxt *ld.Link) {
 		return
 	}
 	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == sym.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
 		// we're linking a module containing the runtime -> no need for
 		// an init function
 		return
@@ -97,7 +97,7 @@ func gentext(ctxt *ld.Link) {
 	rel.Type = objabi.R_PCREL
 	rel.Add = 4
 
-	if ld.Buildmode == ld.BuildmodePlugin {
+	if ctxt.BuildMode == ld.BuildModePlugin {
 		ctxt.Textp = append(ctxt.Textp, addmoduledata)
 	}
 	ctxt.Textp = append(ctxt.Textp, initfunc)
@@ -464,10 +464,10 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 						ld.Errorf(s, "odd offset in dynlink direct call: %v+%d", r.Sym, offset)
 					}
 					gentrampdyn(ctxt.Arch, tramp, r.Sym, int64(offset))
-				} else if ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ld.Buildmode == ld.BuildmodePIE {
+				} else if ctxt.BuildMode == ld.BuildModeCArchive || ctxt.BuildMode == ld.BuildModeCShared || ctxt.BuildMode == ld.BuildModePIE {
 					gentramppic(ctxt.Arch, tramp, r.Sym, int64(offset))
 				} else {
-					gentramp(ctxt.Arch, tramp, r.Sym, int64(offset))
+					gentramp(ctxt.Arch, ctxt.LinkMode, tramp, r.Sym, int64(offset))
 				}
 			}
 			// modify reloc to point to tramp, which will be resolved later
@@ -481,7 +481,7 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 }
 
 // generate a trampoline to target+offset
-func gentramp(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
+func gentramp(arch *sys.Arch, linkmode ld.LinkMode, tramp, target *sym.Symbol, offset int64) {
 	tramp.Size = 12 // 3 instructions
 	tramp.P = make([]byte, tramp.Size)
 	t := ld.Symaddr(target) + int64(offset)
@@ -492,7 +492,7 @@ func gentramp(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
 	arch.ByteOrder.PutUint32(tramp.P[4:], o2)
 	arch.ByteOrder.PutUint32(tramp.P[8:], o3)
 
-	if ld.Linkmode == ld.LinkExternal {
+	if linkmode == ld.LinkExternal {
 		r := tramp.AddRel()
 		r.Off = 8
 		r.Type = objabi.R_ADDR
@@ -564,7 +564,7 @@ func gentrampdyn(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
 }
 
 func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
-	if ld.Linkmode == ld.LinkExternal {
+	if ctxt.LinkMode == ld.LinkExternal {
 		switch r.Type {
 		case objabi.R_CALLARM:
 			r.Done = false
@@ -819,7 +819,7 @@ func asmb(ctxt *ld.Link) {
 				ctxt.Out.Flush()
 				ctxt.Out.Write(ld.Elfstrdat)
 
-				if ld.Linkmode == ld.LinkExternal {
+				if ctxt.LinkMode == ld.LinkExternal {
 					ld.Elfemitreloc(ctxt)
 				}
 			}
@@ -836,7 +836,7 @@ func asmb(ctxt *ld.Link) {
 			}
 
 		case objabi.Hdarwin:
-			if ld.Linkmode == ld.LinkExternal {
+			if ctxt.LinkMode == ld.LinkExternal {
 				ld.Machoemitreloc(ctxt)
 			}
 		}
