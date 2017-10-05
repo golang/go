@@ -315,32 +315,35 @@ invoking the C compiler to compile the C parts of the package.
 
 The following options are available when running cgo directly:
 
+	-V
+		Print cgo version and exit.
+	-debug-define
+		Debugging option. Print #defines.
+	-debug-gcc
+		Debugging option. Trace C compiler execution and output.
 	-dynimport file
 		Write list of symbols imported by file. Write to
 		-dynout argument or to standard output. Used by go
 		build when building a cgo package.
+	-dynlinker
+		Write dynamic linker as part of -dynimport output.
 	-dynout file
 		Write -dynimport output to file.
 	-dynpackage package
 		Set Go package for -dynimport output.
-	-dynlinker
-		Write dynamic linker as part of -dynimport output.
-	-godefs
-		Write out input file in Go syntax replacing C package
-		names with real values. Used to generate files in the
-		syscall package when bootstrapping a new target.
-	-srcdir directory
-		Find the Go input files, listed on the command line,
-		in directory.
-	-objdir directory
-		Put all generated files in directory.
-	-importpath string
-		The import path for the Go package. Optional; used for
-		nicer comments in the generated files.
 	-exportheader file
 		If there are any exported functions, write the
 		generated export declarations to file.
 		C code can #include this to see the declarations.
+	-importpath string
+		The import path for the Go package. Optional; used for
+		nicer comments in the generated files.
+	-import_runtime_cgo
+		If set (which it is by default) import runtime/cgo in
+		generated output.
+	-import_syscall
+		If set (which it is by default) import syscall in
+		generated output.
 	-gccgo
 		Generate output for the gccgo compiler rather than the
 		gc compiler.
@@ -348,16 +351,13 @@ The following options are available when running cgo directly:
 		The -fgo-prefix option to be used with gccgo.
 	-gccgopkgpath path
 		The -fgo-pkgpath option to be used with gccgo.
-	-import_runtime_cgo
-		If set (which it is by default) import runtime/cgo in
-		generated output.
-	-import_syscall
-		If set (which it is by default) import syscall in
-		generated output.
-	-debug-define
-		Debugging option. Print #defines.
-	-debug-gcc
-		Debugging option. Trace C compiler execution and output.
+	-godefs
+		Write out input file in Go syntax replacing C package
+		names with real values. Used to generate files in the
+		syscall package when bootstrapping a new target.
+	-objdir directory
+		Put all generated files in directory.
+	-srcdir directory
 */
 package main
 
