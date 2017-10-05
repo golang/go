@@ -38,7 +38,7 @@ func initPrintFlags() {
 
 		// Backwards compatibility: skip optional first argument
 		// index after the colon.
-		if colon := strings.LastIndexByte(name, ':'); colon > 0 {
+		if colon := strings.LastIndex(name, ":"); colon > 0 {
 			name = name[:colon]
 		}
 
