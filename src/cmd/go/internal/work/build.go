@@ -301,6 +301,9 @@ func BuildModeInit() {
 				"android/amd64", "android/arm", "android/arm64", "android/386":
 				codegenArg = "-shared"
 			case "darwin/amd64", "darwin/386":
+			case "windows/amd64", "windows/386":
+				// Do not add usual .exe suffix to the .dll file.
+				cfg.ExeSuffix = ""
 			default:
 				base.Fatalf("-buildmode=c-shared not supported on %s\n", platform)
 			}
@@ -997,12 +1000,14 @@ func (b *Builder) action1(mode BuildMode, depMode BuildMode, p *load.Package, lo
 			name := "a.out"
 			if p.Internal.ExeName != "" {
 				name = p.Internal.ExeName
-			} else if cfg.Goos == "darwin" && cfg.BuildBuildmode == "c-shared" && p.Internal.Target != "" {
+			} else if (cfg.Goos == "darwin" || cfg.Goos == "windows") && cfg.BuildBuildmode == "c-shared" && p.Internal.Target != "" {
 				// On OS X, the linker output name gets recorded in the
 				// shared library's LC_ID_DYLIB load command.
 				// The code invoking the linker knows to pass only the final
 				// path element. Arrange that the path element matches what
 				// we'll install it as; otherwise the library is only loadable as "a.out".
+				// On Windows, DLL file name is recorded in PE file
+				// export section, so do like on OS X.
 				_, name = filepath.Split(p.Internal.Target)
 			}
 			a.Target = a.Objdir + filepath.Join("exe", name) + cfg.ExeSuffix
@@ -2641,8 +2646,10 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg string, allaction
 	// (and making the resulting shared library useless),
 	// run the link in the output directory so that -o can name
 	// just the final path element.
+	// On Windows, DLL file name is recorded in PE file
+	// export section, so do like on OS X.
 	dir := "."
-	if cfg.Goos == "darwin" && cfg.BuildBuildmode == "c-shared" {
+	if (cfg.Goos == "darwin" || cfg.Goos == "windows") && cfg.BuildBuildmode == "c-shared" {
 		dir, out = filepath.Split(out)
 	}
 
