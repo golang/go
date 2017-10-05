@@ -500,8 +500,6 @@ func TestEncodeCroppedSubImages(t *testing.T) {
 }
 
 func BenchmarkEncode(b *testing.B) {
-	b.StopTimer()
-
 	bo := image.Rect(0, 0, 640, 480)
 	rnd := rand.New(rand.NewSource(123))
 
@@ -523,14 +521,14 @@ func BenchmarkEncode(b *testing.B) {
 	}
 
 	b.SetBytes(640 * 480 * 4)
-	b.StartTimer()
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Encode(ioutil.Discard, img, nil)
 	}
 }
 
 func BenchmarkQuantizedEncode(b *testing.B) {
-	b.StopTimer()
 	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
 	bo := img.Bounds()
 	rnd := rand.New(rand.NewSource(123))
@@ -545,7 +543,8 @@ func BenchmarkQuantizedEncode(b *testing.B) {
 		}
 	}
 	b.SetBytes(640 * 480 * 4)
-	b.StartTimer()
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Encode(ioutil.Discard, img, nil)
 	}

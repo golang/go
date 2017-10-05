@@ -650,20 +650,19 @@ func TestGray8Transparent(t *testing.T) {
 }
 
 func benchmarkDecode(b *testing.B, filename string, bytesPerPixel int) {
-	b.StopTimer()
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		b.Fatal(err)
 	}
-	s := string(data)
-	cfg, err := DecodeConfig(strings.NewReader(s))
+	cfg, err := DecodeConfig(bytes.NewReader(data))
 	if err != nil {
 		b.Fatal(err)
 	}
 	b.SetBytes(int64(cfg.Width * cfg.Height * bytesPerPixel))
-	b.StartTimer()
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Decode(strings.NewReader(s))
+		Decode(bytes.NewReader(data))
 	}
 }
 
