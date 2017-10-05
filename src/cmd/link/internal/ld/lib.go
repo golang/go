@@ -592,7 +592,7 @@ func (ctxt *Link) loadlib() {
 	}
 
 	if ctxt.Arch == sys.Arch386 {
-		if (ctxt.BuildMode == BuildModeCArchive && Iself) || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
+		if (ctxt.BuildMode == BuildModeCArchive && Iself) || (ctxt.BuildMode == BuildModeCShared && Headtype != objabi.Hwindows) || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
 			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
 			got.Type = sym.SDYNIMPORT
 			got.Attr |= sym.AttrReachable
@@ -1126,9 +1126,12 @@ func (ctxt *Link) hostlink() {
 			if ctxt.UseRelro() {
 				argv = append(argv, "-Wl,-z,relro")
 			}
-			// Pass -z nodelete to mark the shared library as
-			// non-closeable: a dlclose will do nothing.
-			argv = append(argv, "-shared", "-Wl,-z,nodelete")
+			argv = append(argv, "-shared")
+			if Headtype != objabi.Hwindows {
+				// Pass -z nodelete to mark the shared library as
+				// non-closeable: a dlclose will do nothing.
+				argv = append(argv, "-Wl,-z,nodelete")
+			}
 		}
 	case BuildModeShared:
 		if ctxt.UseRelro() {
