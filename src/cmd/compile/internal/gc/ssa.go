@@ -2823,6 +2823,47 @@ func init() {
 		},
 		sys.PPC64)
 
+	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			aux := syslook("support_sse41").Sym.Linksym()
+			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), aux, s.sb)
+			v := s.newValue2(ssa.OpLoad, types.Types[TBOOL], addr, s.mem())
+			b := s.endBlock()
+			b.Kind = ssa.BlockIf
+			b.SetControl(v)
+			bTrue := s.f.NewBlock(ssa.BlockPlain)
+			bFalse := s.f.NewBlock(ssa.BlockPlain)
+			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			b.AddEdgeTo(bTrue)
+			b.AddEdgeTo(bFalse)
+			b.Likely = ssa.BranchLikely // most machines have sse4.1 nowadays
+
+			// We have the intrinsic - use it directly.
+			s.startBlock(bTrue)
+			s.vars[n] = s.newValue1(op, types.Types[TFLOAT64], args[0])
+			s.endBlock().AddEdgeTo(bEnd)
+
+			// Call the pure Go version.
+			s.startBlock(bFalse)
+			a := s.call(n, callNormal)
+			s.vars[n] = s.newValue2(ssa.OpLoad, types.Types[TFLOAT64], a, s.mem())
+			s.endBlock().AddEdgeTo(bEnd)
+
+			// Merge results.
+			s.startBlock(bEnd)
+			return s.variable(n, types.Types[TFLOAT64])
+		}
+	}
+	addF("math", "Floor",
+		makeRoundAMD64(ssa.OpFloor),
+		sys.AMD64)
+	addF("math", "Ceil",
+		makeRoundAMD64(ssa.OpCeil),
+		sys.AMD64)
+	addF("math", "Trunc",
+		makeRoundAMD64(ssa.OpTrunc),
+		sys.AMD64)
+
 	/******** math/bits ********/
 	addF("math/bits", "TrailingZeros64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
