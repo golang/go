@@ -600,10 +600,8 @@ func InstallPackages(args []string, forGet bool) {
 			// If p is a tool, delay the installation until the end of the build.
 			// This avoids installing assemblers/compilers that are being executed
 			// by other steps in the build.
-			// cmd/cgo is handled specially in b.Action, so that we can
-			// both build and use it in the same 'go install'.
 			Action := b.Action(ModeInstall, ModeInstall, p)
-			if load.GoTools[p.ImportPath] == load.ToTool && p.ImportPath != "cmd/cgo" {
+			if load.GoTools[p.ImportPath] == load.ToTool {
 				a.Deps = append(a.Deps, Action.Deps...)
 				Action.Deps = append(Action.Deps, a)
 				tools = append(tools, Action)
@@ -682,7 +680,6 @@ type Action struct {
 	Args       []string                      // additional args for runProgram
 
 	triggers []*Action // inverse of deps
-	cgo      *Action   // action for cgo binary if needed
 
 	// Generated files, directories.
 	Link   bool   // target is executable, not just package
@@ -853,23 +850,6 @@ func (b *Builder) action1(mode BuildMode, depMode BuildMode, p *load.Package, lo
 		}
 	}
 
-	// If we are not doing a cross-build, then record the binary we'll
-	// generate for cgo as a dependency of the build of any package
-	// using cgo, to make sure we do not overwrite the binary while
-	// a package is using it. If this is a cross-build, then the cgo we
-	// are writing is not the cgo we need to use.
-	if cfg.Goos == runtime.GOOS && cfg.Goarch == runtime.GOARCH && !cfg.BuildRace && !cfg.BuildMSan {
-		if (len(p.CgoFiles) > 0 || p.Standard && p.ImportPath == "runtime/cgo") && !cfg.BuildLinkshared && cfg.BuildBuildmode != "shared" {
-			var stk load.ImportStack
-			p1 := load.LoadPackage("cmd/cgo", &stk)
-			if p1.Error != nil {
-				base.Fatalf("load cmd/cgo: %v", p1.Error)
-			}
-			a.cgo = b.Action(depMode, depMode, p1)
-			a.Deps = append(a.Deps, a.cgo)
-		}
-	}
-
 	if p.Standard {
 		switch p.ImportPath {
 		case "builtin", "unsafe":
@@ -978,6 +958,7 @@ func (b *Builder) libaction(libname string, pkgs []*load.Package, mode, depMode 
 		// external linking mode forces an import of runtime/cgo (and
 		// math on arm). So if it was not passed on the command line and
 		// it is not present in another shared library, add it here.
+		// TODO(rsc): This should probably be changed to use load.LinkerDeps(p).
 		gccgo := cfg.BuildToolchainName == "gccgo"
 		if !gccgo {
 			seencgo := false
@@ -1324,13 +1305,7 @@ func (b *Builder) build(a *Action) (err error) {
 			sfiles = nil
 		}
 
-		var cgoExe string
-		if a.cgo != nil && a.cgo.Target != "" {
-			cgoExe = a.cgo.Target
-		} else {
-			cgoExe = base.Tool("cgo")
-		}
-		outGo, outObj, err := b.cgo(a, cgoExe, objdir, pcCFLAGS, pcLDFLAGS, cgofiles, objdirCgofiles, gccfiles, cxxfiles, a.Package.MFiles, a.Package.FFiles)
+		outGo, outObj, err := b.cgo(a, base.Tool("cgo"), objdir, pcCFLAGS, pcLDFLAGS, cgofiles, objdirCgofiles, gccfiles, cxxfiles, a.Package.MFiles, a.Package.FFiles)
 		if err != nil {
 			return err
 		}
@@ -2575,6 +2550,9 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg string, allaction
 		// but the whole-GOROOT prohibition matches the similar
 		// logic in ../load/pkg.go that decides whether to add an
 		// implicit runtime/cgo dependency.
+		// TODO(rsc): We may be able to remove this exception
+		// now that CL 68338 has made cmd/cgo not a special case.
+		// See the longer comment in ../load/pkg.go.
 		ldflags = removeLinkmodeExternal(ldflags)
 	}
 	ldflags = setextld(ldflags, compiler)
