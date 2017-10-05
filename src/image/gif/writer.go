@@ -70,25 +70,54 @@ type blockWriter struct {
 	e *encoder
 }
 
-func (b blockWriter) Write(data []byte) (int, error) {
-	if b.e.err != nil {
-		return 0, b.e.err
-	}
-	if len(data) == 0 {
-		return 0, nil
-	}
-	total := 0
-	for total < len(data) {
-		n := copy(b.e.buf[1:256], data[total:])
-		total += n
-		b.e.buf[0] = uint8(n)
+func (b blockWriter) setup() {
+	b.e.buf[0] = 0
+}
 
-		_, b.e.err = b.e.w.Write(b.e.buf[:n+1])
-		if b.e.err != nil {
-			return 0, b.e.err
+func (b blockWriter) Flush() error {
+	return b.e.err
+}
+
+func (b blockWriter) WriteByte(c byte) error {
+	if b.e.err != nil {
+		return b.e.err
+	}
+
+	// Append c to buffered sub-block.
+	b.e.buf[0]++
+	b.e.buf[b.e.buf[0]] = c
+	if b.e.buf[0] < 255 {
+		return nil
+	}
+
+	// Flush block
+	b.e.write(b.e.buf[:256])
+	b.e.buf[0] = 0
+	return b.e.err
+}
+
+// blockWriter must be an io.Writer for lzw.NewWriter, but this is never
+// actually called.
+func (b blockWriter) Write(data []byte) (int, error) {
+	for i, c := range data {
+		if err := b.WriteByte(c); err != nil {
+			return i, err
 		}
 	}
-	return total, b.e.err
+	return len(data), nil
+}
+
+func (b blockWriter) close() {
+	// Write the block terminator (0x00), either by itself, or along with a
+	// pending sub-block.
+	if b.e.buf[0] == 0 {
+		b.e.writeByte(0)
+	} else {
+		n := uint(b.e.buf[0])
+		b.e.buf[n+1] = 0
+		b.e.write(b.e.buf[:n+2])
+	}
+	b.e.flush()
 }
 
 func (e *encoder) flush() {
@@ -301,7 +330,9 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 	}
 	e.writeByte(uint8(litWidth)) // LZW Minimum Code Size.
 
-	lzww := lzw.NewWriter(blockWriter{e: e}, lzw.LSB, litWidth)
+	bw := blockWriter{e: e}
+	bw.setup()
+	lzww := lzw.NewWriter(bw, lzw.LSB, litWidth)
 	if dx := b.Dx(); dx == pm.Stride {
 		_, e.err = lzww.Write(pm.Pix[:dx*b.Dy()])
 		if e.err != nil {
@@ -317,8 +348,8 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 			}
 		}
 	}
-	lzww.Close()
-	e.writeByte(0x00) // Block Terminator.
+	lzww.Close() // flush to bw
+	bw.close()   // flush to e.w
 }
 
 // Options are the encoding parameters.

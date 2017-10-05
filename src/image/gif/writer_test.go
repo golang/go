@@ -64,6 +64,10 @@ func averageDelta(m0, m1 image.Image) int64 {
 	return sum / n
 }
 
+// lzw.NewWriter wants an interface which is basically the same thing as gif's
+// writer interface.  This ensures we're compatible.
+var _ writer = blockWriter{}
+
 var testCase = []struct {
 	filename  string
 	tolerance int64
