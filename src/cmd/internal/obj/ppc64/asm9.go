@@ -546,7 +546,9 @@ var optab = []Optab{
 	{ATW, C_LCON, C_REG, C_NONE, C_REG, 60, 4, 0},
 	{ATW, C_LCON, C_REG, C_NONE, C_ADDCON, 61, 4, 0},
 	{ADCBF, C_ZOREG, C_NONE, C_NONE, C_NONE, 43, 4, 0},
-	{ADCBF, C_ZOREG, C_REG, C_NONE, C_NONE, 43, 4, 0},
+	{ADCBF, C_SOREG, C_NONE, C_NONE, C_NONE, 43, 4, 0},
+	{ADCBF, C_ZOREG, C_REG, C_NONE, C_SCON, 43, 4, 0},
+	{ADCBF, C_SOREG, C_NONE, C_NONE, C_SCON, 43, 4, 0},
 	{AECOWX, C_REG, C_REG, C_NONE, C_ZOREG, 44, 4, 0},
 	{AECIWX, C_ZOREG, C_REG, C_NONE, C_REG, 45, 4, 0},
 	{AECOWX, C_REG, C_NONE, C_NONE, C_ZOREG, 44, 4, 0},
@@ -2894,8 +2896,23 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 42: /* lswi */
 		o1 = AOP_RRR(c.opirr(p.As), uint32(p.To.Reg), uint32(p.From.Reg), 0) | (uint32(c.regoff(p.GetFrom3()))&0x7F)<<11
 
-	case 43: /* unary indexed source: dcbf (b); dcbf (a+b) */
-		o1 = AOP_RRR(c.oprrr(p.As), 0, uint32(p.From.Index), uint32(p.From.Reg))
+	case 43: /* data cache instructions: op (Ra+[Rb]), [th|l] */
+		/* TH field for dcbt/dcbtst: */
+		/* 0 = Block access - program will soon access EA. */
+		/* 8-15 = Stream access - sequence of access (data stream). See section 4.3.2 of the ISA for details. */
+		/* 16 = Block access - program will soon make a transient access to EA. */
+		/* 17 = Block access - program will not access EA for a long time. */
+
+		/* L field for dcbf: */
+		/* 0 = invalidates the block containing EA in all processors. */
+		/* 1 = same as 0, but with limited scope (i.e. block in the current processor will not be reused soon). */
+		/* 3 = same as 1, but with even more limited scope (i.e. block in the current processor primary cache will not be reused soon). */
+		if p.To.Type == obj.TYPE_NONE {
+			o1 = AOP_RRR(c.oprrr(p.As), 0, uint32(p.From.Index), uint32(p.From.Reg))
+		} else {
+			th := c.regoff(&p.To)
+			o1 = AOP_RRR(c.oprrr(p.As), uint32(th), uint32(p.From.Index), uint32(p.From.Reg))
+		}
 
 	case 44: /* indexed store */
 		o1 = AOP_RRR(c.opstorex(p.As), uint32(p.From.Reg), uint32(p.To.Index), uint32(p.To.Reg))
