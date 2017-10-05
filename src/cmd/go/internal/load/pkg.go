@@ -1086,12 +1086,31 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		// code; see issue #16050).
 	}
 
-	// The gc toolchain only permits C source files with cgo.
-	if len(p.CFiles) > 0 && !p.UsesCgo() && !p.UsesSwig() && cfg.BuildContext.Compiler == "gc" {
+	setError := func(msg string) {
 		p.Error = &PackageError{
 			ImportStack: stk.Copy(),
-			Err:         fmt.Sprintf("C source files not allowed when not using cgo or SWIG: %s", strings.Join(p.CFiles, " ")),
+			Err:         msg,
 		}
+	}
+
+	// The gc toolchain only permits C source files with cgo or SWIG.
+	if len(p.CFiles) > 0 && !p.UsesCgo() && !p.UsesSwig() && cfg.BuildContext.Compiler == "gc" {
+		setError(fmt.Sprintf("C source files not allowed when not using cgo or SWIG: %s", strings.Join(p.CFiles, " ")))
+		return
+	}
+
+	// C++, Objective-C, and Fortran source files are permitted only with cgo or SWIG,
+	// regardless of toolchain.
+	if len(p.CXXFiles) > 0 && !p.UsesCgo() && !p.UsesSwig() {
+		setError(fmt.Sprintf("C++ source files not allowed when not using cgo or SWIG: %s", strings.Join(p.CXXFiles, " ")))
+		return
+	}
+	if len(p.MFiles) > 0 && !p.UsesCgo() && !p.UsesSwig() {
+		setError(fmt.Sprintf("Objective-C source files not allowed when not using cgo or SWIG: %s", strings.Join(p.MFiles, " ")))
+		return
+	}
+	if len(p.FFiles) > 0 && !p.UsesCgo() && !p.UsesSwig() {
+		setError(fmt.Sprintf("Fortran source files not allowed when not using cgo or SWIG: %s", strings.Join(p.FFiles, " ")))
 		return
 	}
 
@@ -1100,10 +1119,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 	if other := foldPath[fold]; other == "" {
 		foldPath[fold] = p.ImportPath
 	} else if other != p.ImportPath {
-		p.Error = &PackageError{
-			ImportStack: stk.Copy(),
-			Err:         fmt.Sprintf("case-insensitive import collision: %q and %q", p.ImportPath, other),
-		}
+		setError(fmt.Sprintf("case-insensitive import collision: %q and %q", p.ImportPath, other))
 		return
 	}
 
