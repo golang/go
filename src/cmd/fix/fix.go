@@ -791,7 +791,7 @@ func renameFix(tab []rename) func(*ast.File) bool {
 }
 
 func parseName(s string) (ptr bool, pkg, nam string) {
-	i := strings.IndexByte(s, '.')
+	i := strings.Index(s, ".")
 	if i < 0 {
 		panic("parseName: invalid name " + s)
 	}

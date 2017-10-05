@@ -1523,7 +1523,7 @@ func TestHostname(t *testing.T) {
 	}
 	want := runBinHostname(t)
 	if hostname != want {
-		i := strings.IndexByte(hostname, '.')
+		i := strings.Index(hostname, ".")
 		if i < 0 || hostname[0:i] != want {
 			t.Errorf("Hostname() = %q, want %q", hostname, want)
 		}

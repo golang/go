@@ -505,8 +505,8 @@ func parse(rawurl string, viaRequest bool) (*URL, error) {
 		// RFC 3986, §3.3:
 		// In addition, a URI reference (Section 4.1) may be a relative-path reference,
 		// in which case the first path segment cannot contain a colon (":") character.
-		colon := strings.IndexByte(rest, ':')
-		slash := strings.IndexByte(rest, '/')
+		colon := strings.Index(rest, ":")
+		slash := strings.Index(rest, "/")
 		if colon >= 0 && (slash < 0 || colon < slash) {
 			// First path segment has colon. Not allowed in relative URL.
 			return nil, errors.New("first path segment in URL cannot contain colon")
@@ -830,7 +830,7 @@ func parseQuery(m Values, query string) (err error) {
 			continue
 		}
 		value := ""
-		if i := strings.IndexByte(key, '='); i >= 0 {
+		if i := strings.Index(key, "="); i >= 0 {
 			key, value = key[:i], key[i+1:]
 		}
 		key, err1 := QueryUnescape(key)
