@@ -9,6 +9,7 @@ import (
 	"compress/lzw"
 	"image"
 	"image/color"
+	"io/ioutil"
 	"reflect"
 	"strings"
 	"testing"
@@ -340,5 +341,22 @@ func TestUnexpectedEOF(t *testing.T) {
 		if !strings.HasPrefix(text, "gif:") || !strings.HasSuffix(text, ": unexpected EOF") {
 			t.Errorf("Decode(testGIF[:%d]) = %v, want gif: ...: unexpected EOF", i, err)
 		}
+	}
+}
+
+func BenchmarkDecode(b *testing.B) {
+	data, err := ioutil.ReadFile("../testdata/video-001.gif")
+	if err != nil {
+		b.Fatal(err)
+	}
+	cfg, err := DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.SetBytes(int64(cfg.Width * cfg.Height))
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Decode(bytes.NewReader(data))
 	}
 }
