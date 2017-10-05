@@ -1406,10 +1406,6 @@ func (b *Builder) build(a *Action) (err error) {
 			// This happens for gccgo-internal packages like runtime.
 			continue
 		}
-		// TODO(rsc): runtime/internal/sys appears twice sometimes,
-		// because of the blind append in ../load/pkg.go that
-		// claims to fix issue 13655. That's probably not the right fix.
-		// Look into that.
 		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, p1.Internal.Pkgfile)
 	}
 

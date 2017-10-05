@@ -829,15 +829,6 @@ var GoTools = map[string]targetDir{
 	"code.google.com/p/go.tools/cmd/vet":   StalePath,
 }
 
-var raceExclude = map[string]bool{
-	"runtime/race": true,
-	"runtime/msan": true,
-	"runtime/cgo":  true,
-	"cmd/cgo":      true,
-	"syscall":      true,
-	"errors":       true,
-}
-
 var cgoExclude = map[string]bool{
 	"runtime/cgo": true,
 }
@@ -934,47 +925,52 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		}
 	}
 
+	// Build augmented import list to add implicit dependencies.
+	// Be careful not to add imports twice, just to avoid confusion.
 	importPaths := p.Imports
-	// Packages that use cgo import runtime/cgo implicitly.
-	// Packages that use cgo also import syscall implicitly,
-	// to wrap errno.
-	// Exclude certain packages to avoid circular dependencies.
+	addImport := func(path string) {
+		for _, p := range importPaths {
+			if path == p {
+				return
+			}
+		}
+		importPaths = append(importPaths, path)
+	}
+
+	// Cgo translation adds imports of "runtime/cgo" and "syscall",
+	// except for certain packages, to avoid circular dependencies.
 	if len(p.CgoFiles) > 0 && (!p.Standard || !cgoExclude[p.ImportPath]) {
-		importPaths = append(importPaths, "runtime/cgo")
+		addImport("runtime/cgo")
 	}
 	if len(p.CgoFiles) > 0 && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
-		importPaths = append(importPaths, "syscall")
+		addImport("syscall")
 	}
 
-	if p.Name == "main" && cfg.ExternalLinkingForced(p.Goroot) {
-		importPaths = append(importPaths, "runtime/cgo")
-	}
-
-	// Everything depends on runtime, except runtime, its internal
-	// subpackages, and unsafe.
-	if !p.Standard || (p.ImportPath != "runtime" && !strings.HasPrefix(p.ImportPath, "runtime/internal/") && p.ImportPath != "unsafe") {
-		importPaths = append(importPaths, "runtime")
-		// When race detection enabled everything depends on runtime/race.
-		// Exclude certain packages to avoid circular dependencies.
-		if cfg.BuildRace && (!p.Standard || !raceExclude[p.ImportPath]) {
-			importPaths = append(importPaths, "runtime/race")
-		}
-		// MSan uses runtime/msan.
-		if cfg.BuildMSan && (!p.Standard || !raceExclude[p.ImportPath]) {
-			importPaths = append(importPaths, "runtime/msan")
-		}
-		// On ARM with GOARM=5, everything depends on math for the link.
-		if p.Name == "main" && cfg.Goarch == "arm" {
-			importPaths = append(importPaths, "math")
+	// The linker loads implicit dependencies.
+	if p.Name == "main" && !p.Internal.ForceLibrary {
+		for _, dep := range LinkerDeps(p) {
+			addImport(dep)
 		}
 	}
 
-	// Runtime and its internal packages depend on runtime/internal/sys,
-	// so that they pick up the generated zversion.go file.
-	// This can be an issue particularly for runtime/internal/atomic;
-	// see issue 13655.
-	if p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal/")) && p.ImportPath != "runtime/internal/sys" {
-		importPaths = append(importPaths, "runtime/internal/sys")
+	// If runtime/internal/sys/zversion.go changes, it very likely means the
+	// compiler has been recompiled with that new version, so all existing
+	// archives are now stale. Make everything appear to import runtime/internal/sys,
+	// so that in this situation everything will appear stale and get recompiled.
+	// Due to the rules for visibility of internal packages, things outside runtime
+	// must import runtime, and runtime imports runtime/internal/sys.
+	// Content-based staleness that includes a check of the compiler version
+	// will make this hack unnecessary; once that lands, this whole comment
+	// and switch statement should be removed.
+	switch {
+	case p.Standard && p.ImportPath == "runtime/internal/sys":
+		// nothing
+	case p.Standard && p.ImportPath == "unsafe":
+		// nothing - not a real package, and used by runtime
+	case p.Standard && strings.HasPrefix(p.ImportPath, "runtime"):
+		addImport("runtime/internal/sys")
+	default:
+		addImport("runtime")
 	}
 
 	// Check for case-insensitive collision of input files.
@@ -1121,6 +1117,30 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 	} else {
 		computeBuildID(p)
 	}
+}
+
+// LinkerDeps returns the list of linker-induced dependencies for p.
+func LinkerDeps(p *Package) []string {
+	var deps []string
+
+	// External linking mode forces an import of runtime/cgo.
+	if cfg.ExternalLinkingForced(p.Goroot) {
+		deps = append(deps, "runtime/cgo")
+	}
+	// On ARM with GOARM=5, it forces an import of math, for soft floating point.
+	if cfg.Goarch == "arm" {
+		deps = append(deps, "math")
+	}
+	// Using the race detector forces an import of runtime/race.
+	if cfg.BuildRace {
+		deps = append(deps, "runtime/race")
+	}
+	// Using memory sanitizer forces an import of runtime/msan.
+	if cfg.BuildMSan {
+		deps = append(deps, "runtime/msan")
+	}
+
+	return deps
 }
 
 // mkAbs rewrites list, which must be paths relative to p.Dir,
