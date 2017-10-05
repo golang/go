@@ -131,7 +131,24 @@ func isGOROOT(path string) bool {
 
 // ExternalLinkingForced reports whether external linking is being
 // forced even for programs that do not use cgo.
-func ExternalLinkingForced() bool {
+func ExternalLinkingForced(inGoroot bool) bool {
+	// Some targets must use external linking even inside GOROOT.
+	switch BuildContext.GOOS {
+	case "android":
+		return true
+	case "darwin":
+		switch BuildContext.GOARCH {
+		case "arm", "arm64":
+			return true
+		}
+	}
+
+	// Otherwise we disable forcing of external linking for GOROOT binaries.
+	// This is primarily for cgo, so we will be able to relax this soon.
+	if inGoroot {
+		return false
+	}
+
 	if !BuildContext.CgoEnabled {
 		return false
 	}
@@ -151,5 +168,6 @@ func ExternalLinkingForced() bool {
 			linkmodeExternal = true
 		}
 	}
+
 	return BuildBuildmode == "c-shared" || BuildBuildmode == "plugin" || pieCgo || BuildLinkshared || linkmodeExternal
 }

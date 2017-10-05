@@ -39,7 +39,8 @@
 #include "libcgo.h"
 #include "libcgo_unix.h"
 
-uintptr_t x_cgo_panicmem;
+void xx_cgo_panicmem(void);
+uintptr_t x_cgo_panicmem = (uintptr_t)xx_cgo_panicmem;
 
 static pthread_mutex_t mach_exception_handler_port_set_mu;
 static mach_port_t mach_exception_handler_port_set = MACH_PORT_NULL;
