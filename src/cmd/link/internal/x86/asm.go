@@ -55,12 +55,12 @@ func gentext(ctxt *ld.Link) {
 	if ctxt.DynlinkingGo() {
 		// We need get_pc_thunk.
 	} else {
-		switch ld.Buildmode {
-		case ld.BuildmodeCArchive:
+		switch ctxt.BuildMode {
+		case ld.BuildModeCArchive:
 			if !ld.Iself {
 				return
 			}
-		case ld.BuildmodePIE, ld.BuildmodeCShared, ld.BuildmodePlugin:
+		case ld.BuildModePIE, ld.BuildModeCShared, ld.BuildModePlugin:
 			// We need get_pc_thunk.
 		default:
 			return
@@ -102,7 +102,7 @@ func gentext(ctxt *ld.Link) {
 	ctxt.Textp = append(thunks, ctxt.Textp...) // keep Textp in dependency order
 
 	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == sym.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
 		// we're linking a module containing the runtime -> no need for
 		// an init function
 		return
@@ -155,7 +155,7 @@ func gentext(ctxt *ld.Link) {
 
 	o(0xc3)
 
-	if ld.Buildmode == ld.BuildmodePlugin {
+	if ctxt.BuildMode == ld.BuildModePlugin {
 		ctxt.Textp = append(ctxt.Textp, addmoduledata)
 	}
 	ctxt.Textp = append(ctxt.Textp, initfunc)
@@ -484,7 +484,7 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, secto
 }
 
 func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
-	if ld.Linkmode == ld.LinkExternal {
+	if ctxt.LinkMode == ld.LinkExternal {
 		return false
 	}
 	switch r.Type {
@@ -699,7 +699,7 @@ func asmb(ctxt *ld.Link) {
 				ctxt.Out.Flush()
 				ctxt.Out.Write(ld.Elfstrdat)
 
-				if ld.Linkmode == ld.LinkExternal {
+				if ctxt.LinkMode == ld.LinkExternal {
 					ld.Elfemitreloc(ctxt)
 				}
 			}
@@ -721,7 +721,7 @@ func asmb(ctxt *ld.Link) {
 			}
 
 		case objabi.Hdarwin:
-			if ld.Linkmode == ld.LinkExternal {
+			if ctxt.LinkMode == ld.LinkExternal {
 				ld.Machoemitreloc(ctxt)
 			}
 		}

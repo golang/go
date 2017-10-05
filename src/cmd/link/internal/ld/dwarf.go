@@ -979,8 +979,8 @@ func importInfoSymbol(ctxt *Link, dsym *sym.Symbol) {
 	dsym.Type = sym.SDWARFINFO
 	for _, r := range dsym.R {
 		if r.Type == objabi.R_DWARFREF && r.Sym.Size == 0 {
-			if Buildmode == BuildmodeShared {
-				// These type symbols may not be present in BuildmodeShared. Skip.
+			if ctxt.BuildMode == BuildModeShared {
+				// These type symbols may not be present in BuildModeShared. Skip.
 				continue
 			}
 			n := nameFromDIESym(r.Sym)
@@ -1259,7 +1259,7 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 		//	ptrsize: initial location
 		//	ptrsize: address range
 		fs.AddUint32(ctxt.Arch, uint32(4+2*ctxt.Arch.PtrSize+len(deltaBuf))) // length (excludes itself)
-		if Linkmode == LinkExternal {
+		if ctxt.LinkMode == LinkExternal {
 			adddwarfref(ctxt, fs, fs, 4)
 		} else {
 			fs.AddUint32(ctxt.Arch, 0) // CIE offset
@@ -1454,7 +1454,7 @@ func writearanges(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 }
 
 func writegdbscript(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
-	if Linkmode == LinkExternal && Headtype == objabi.Hwindows && Buildmode == BuildmodeCArchive {
+	if ctxt.LinkMode == LinkExternal && Headtype == objabi.Hwindows && ctxt.BuildMode == BuildModeCArchive {
 		// gcc on Windows places .debug_gdb_scripts in the wrong location, which
 		// causes the program not to run. See https://golang.org/issue/20183
 		// Non c-archives can avoid this issue via a linker script
@@ -1497,7 +1497,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 		return
 	}
 
-	if Linkmode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
 		switch {
 		case Iself:
 		case Headtype == objabi.Hdarwin:
@@ -1635,7 +1635,7 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *sym.Symbol) {
 	Addstring(shstrtab, ".debug_pubtypes")
 	Addstring(shstrtab, ".debug_gdb_scripts")
 	Addstring(shstrtab, ".debug_ranges")
-	if Linkmode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
 		Addstring(shstrtab, elfRelType+".debug_info")
 		Addstring(shstrtab, elfRelType+".debug_loc")
 		Addstring(shstrtab, elfRelType+".debug_aranges")
@@ -1653,7 +1653,7 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
 	if *FlagW { // disable dwarf
 		return
 	}
-	if Linkmode != LinkExternal {
+	if ctxt.LinkMode != LinkExternal {
 		return
 	}
 	s := ctxt.Syms.Lookup(".debug_info", 0)

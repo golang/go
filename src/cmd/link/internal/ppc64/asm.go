@@ -133,7 +133,7 @@ func genplt(ctxt *ld.Link) {
 
 func genaddmoduledata(ctxt *ld.Link) {
 	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == sym.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
 		return
 	}
 	addmoduledata.Attr |= sym.AttrReachable
@@ -191,7 +191,7 @@ func genaddmoduledata(ctxt *ld.Link) {
 	// blr
 	o(0x4e800020)
 
-	if ld.Buildmode == ld.BuildmodePlugin {
+	if ctxt.BuildMode == ld.BuildModePlugin {
 		ctxt.Textp = append(ctxt.Textp, addmoduledata)
 	}
 	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
@@ -207,7 +207,7 @@ func gentext(ctxt *ld.Link) {
 		genaddmoduledata(ctxt)
 	}
 
-	if ld.Linkmode == ld.LinkInternal {
+	if ctxt.LinkMode == ld.LinkInternal {
 		genplt(ctxt)
 	}
 }
@@ -525,7 +525,7 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 	// For internal linking, trampolines are always created for long calls.
 	// For external linking, the linker can insert a call stub to handle a long call, but depends on having the TOC address in
 	// r2.  For those build modes with external linking where the TOC address is not maintained in r2, trampolines must be created.
-	if ld.Linkmode == ld.LinkExternal && (ctxt.DynlinkingGo() || ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ld.Buildmode == ld.BuildmodePIE) {
+	if ctxt.LinkMode == ld.LinkExternal && (ctxt.DynlinkingGo() || ctxt.BuildMode == ld.BuildModeCArchive || ctxt.BuildMode == ld.BuildModeCShared || ctxt.BuildMode == ld.BuildModePIE) {
 		// No trampolines needed since r2 contains the TOC
 		return
 	}
@@ -536,7 +536,7 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 
 		// If branch offset is too far then create a trampoline.
 
-		if (ld.Linkmode == ld.LinkExternal && s.Sect != r.Sym.Sect) || (ld.Linkmode == ld.LinkInternal && int64(int32(t<<6)>>6) != t) || (*ld.FlagDebugTramp > 1 && s.File != r.Sym.File) {
+		if (ctxt.LinkMode == ld.LinkExternal && s.Sect != r.Sym.Sect) || (ctxt.LinkMode == ld.LinkInternal && int64(int32(t<<6)>>6) != t) || (*ld.FlagDebugTramp > 1 && s.File != r.Sym.File) {
 			var tramp *sym.Symbol
 			for i := 0; ; i++ {
 
@@ -562,17 +562,17 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 
 				// With internal linking, the trampoline can be used if it is not too far.
 				// With external linking, the trampoline must be in this section for it to be reused.
-				if (ld.Linkmode == ld.LinkInternal && int64(int32(t<<6)>>6) == t) || (ld.Linkmode == ld.LinkExternal && s.Sect == tramp.Sect) {
+				if (ctxt.LinkMode == ld.LinkInternal && int64(int32(t<<6)>>6) == t) || (ctxt.LinkMode == ld.LinkExternal && s.Sect == tramp.Sect) {
 					break
 				}
 			}
 			if tramp.Type == 0 {
-				if ctxt.DynlinkingGo() || ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ld.Buildmode == ld.BuildmodePIE {
+				if ctxt.DynlinkingGo() || ctxt.BuildMode == ld.BuildModeCArchive || ctxt.BuildMode == ld.BuildModeCShared || ctxt.BuildMode == ld.BuildModePIE {
 					// Should have returned for above cases
 					ld.Errorf(s, "unexpected trampoline for shared or dynamic linking\n")
 				} else {
 					ctxt.AddTramp(tramp)
-					gentramp(ctxt.Arch, tramp, r.Sym, int64(r.Add))
+					gentramp(ctxt.Arch, ctxt.LinkMode, tramp, r.Sym, int64(r.Add))
 				}
 			}
 			r.Sym = tramp
@@ -584,7 +584,7 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 	}
 }
 
-func gentramp(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
+func gentramp(arch *sys.Arch, linkmode ld.LinkMode, tramp, target *sym.Symbol, offset int64) {
 	// Used for default build mode for an executable
 	// Address of the call target is generated using
 	// relocation and doesn't depend on r2 (TOC).
@@ -595,7 +595,7 @@ func gentramp(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
 	o2 := uint32(0x3bff0000) // addi r31,targetaddr lo
 	// With external linking, the target address must be
 	// relocated using LO and HA
-	if ld.Linkmode == ld.LinkExternal {
+	if linkmode == ld.LinkExternal {
 		tr := tramp.AddRel()
 		tr.Off = 0
 		tr.Type = objabi.R_ADDRPOWER
@@ -621,7 +621,7 @@ func gentramp(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
 }
 
 func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
-	if ld.Linkmode == ld.LinkExternal {
+	if ctxt.LinkMode == ld.LinkExternal {
 		switch r.Type {
 		default:
 			return false
@@ -977,7 +977,7 @@ func asmb(ctxt *ld.Link) {
 				ctxt.Out.Flush()
 				ctxt.Out.Write(ld.Elfstrdat)
 
-				if ld.Linkmode == ld.LinkExternal {
+				if ctxt.LinkMode == ld.LinkExternal {
 					ld.Elfemitreloc(ctxt)
 				}
 			}

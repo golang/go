@@ -91,7 +91,7 @@ func (r loadCmdReader) WriteAt(offset int64, data interface{}) error {
 // header to add the DWARF sections. (Use ld's -headerpad option)
 // dsym is the path to the macho file containing DWARF from dsymutil.
 // outexe is the path where the combined executable should be saved.
-func machoCombineDwarf(inexe, dsym, outexe string) error {
+func machoCombineDwarf(inexe, dsym, outexe string, buildmode BuildMode) error {
 	exef, err := os.Open(inexe)
 	if err != nil {
 		return err
@@ -230,7 +230,7 @@ func machoCombineDwarf(inexe, dsym, outexe string) error {
 			return err
 		}
 	}
-	return machoUpdateDwarfHeader(&reader)
+	return machoUpdateDwarfHeader(&reader, buildmode)
 }
 
 // machoUpdateSegment updates the load command for a moved segment.
@@ -291,7 +291,7 @@ func machoUpdateSections(r loadCmdReader, seg, sect reflect.Value, deltaOffset, 
 }
 
 // machoUpdateDwarfHeader updates the DWARF segment load command.
-func machoUpdateDwarfHeader(r *loadCmdReader) error {
+func machoUpdateDwarfHeader(r *loadCmdReader, buildmode BuildMode) error {
 	var seg, sect interface{}
 	cmd, err := r.Next()
 	if err != nil {
@@ -321,7 +321,7 @@ func machoUpdateDwarfHeader(r *loadCmdReader) error {
 	// We don't need the DWARF information actually available in memory.
 	// But if we do this for buildmode=c-shared then the user-space
 	// dynamic loader complains about memsz < filesz. Sigh.
-	if Buildmode != BuildmodeCShared {
+	if buildmode != BuildModeCShared {
 		segv.FieldByName("Addr").SetUint(0)
 		segv.FieldByName("Memsz").SetUint(0)
 		deltaAddr = 0
