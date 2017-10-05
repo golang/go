@@ -946,7 +946,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		importPaths = append(importPaths, "syscall")
 	}
 
-	if p.Name == "main" && !p.Goroot && cfg.ExternalLinkingForced() {
+	if p.Name == "main" && cfg.ExternalLinkingForced(p.Goroot) {
 		importPaths = append(importPaths, "runtime/cgo")
 	}
 
