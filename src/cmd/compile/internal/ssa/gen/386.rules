@@ -539,7 +539,6 @@
 (MULLconst [41] x) -> (LEAL8 x (LEAL4 <v.Type> x x))
 (MULLconst [73] x) -> (LEAL8 x (LEAL8 <v.Type> x x))
 
-(MULLconst [c] x) && isPowerOfTwo(c) -> (SHLLconst [log2(c)] x)
 (MULLconst [c] x) && isPowerOfTwo(c+1) && c >= 15 -> (SUBL (SHLLconst <v.Type> [log2(c+1)] x) x)
 (MULLconst [c] x) && isPowerOfTwo(c-1) && c >= 17 -> (LEAL1 (SHLLconst <v.Type> [log2(c-1)] x) x)
 (MULLconst [c] x) && isPowerOfTwo(c-2) && c >= 34 -> (LEAL2 (SHLLconst <v.Type> [log2(c-2)] x) x)

@@ -14516,20 +14516,6 @@ func rewriteValueAMD64_OpAMD64MULQconst_10(v *Value) bool {
 		return true
 	}
 	// match: (MULQconst [c] x)
-	// cond: isPowerOfTwo(c)
-	// result: (SHLQconst [log2(c)] x)
-	for {
-		c := v.AuxInt
-		x := v.Args[0]
-		if !(isPowerOfTwo(c)) {
-			break
-		}
-		v.reset(OpAMD64SHLQconst)
-		v.AuxInt = log2(c)
-		v.AddArg(x)
-		return true
-	}
-	// match: (MULQconst [c] x)
 	// cond: isPowerOfTwo(c+1) && c >= 15
 	// result: (SUBQ (SHLQconst <v.Type> [log2(c+1)] x) x)
 	for {
@@ -14597,11 +14583,6 @@ func rewriteValueAMD64_OpAMD64MULQconst_10(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64MULQconst_20(v *Value) bool {
-	b := v.Block
-	_ = b
 	// match: (MULQconst [c] x)
 	// cond: isPowerOfTwo(c-8) && c >= 136
 	// result: (LEAQ8 (SHLQconst <v.Type> [log2(c-8)] x) x)
@@ -14619,6 +14600,11 @@ func rewriteValueAMD64_OpAMD64MULQconst_20(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64MULQconst_20(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (MULQconst [c] x)
 	// cond: c%3 == 0 && isPowerOfTwo(c/3)
 	// result: (SHLQconst [log2(c/3)] (LEAQ2 <v.Type> x x))

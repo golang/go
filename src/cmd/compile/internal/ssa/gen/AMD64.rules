@@ -931,7 +931,6 @@
 (MULQconst [41] x) -> (LEAQ8 x (LEAQ4 <v.Type> x x))
 (MULQconst [73] x) -> (LEAQ8 x (LEAQ8 <v.Type> x x))
 
-(MULQconst [c] x) && isPowerOfTwo(c) -> (SHLQconst [log2(c)] x)
 (MULQconst [c] x) && isPowerOfTwo(c+1) && c >= 15 -> (SUBQ (SHLQconst <v.Type> [log2(c+1)] x) x)
 (MULQconst [c] x) && isPowerOfTwo(c-1) && c >= 17 -> (LEAQ1 (SHLQconst <v.Type> [log2(c-1)] x) x)
 (MULQconst [c] x) && isPowerOfTwo(c-2) && c >= 34 -> (LEAQ2 (SHLQconst <v.Type> [log2(c-2)] x) x)
