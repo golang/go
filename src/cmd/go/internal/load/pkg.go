@@ -95,7 +95,6 @@ type PackageInternal struct {
 	Build        *build.Package
 	Imports      []*Package           // this package's direct imports
 	Target       string               // installed file for this package (may be executable)
-	Pkgfile      string               // where package will be (or is already) built or installed
 	ForceLibrary bool                 // this package is a library (even if named "main")
 	Cmdline      bool                 // defined by files listed on command line
 	Local        bool                 // imported via local path (./ or ../)
@@ -1171,29 +1170,6 @@ func (p *Package) InternalAllGoFiles() []string {
 		}
 	}
 	return p.mkAbs(str.StringList(extra, p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles))
-}
-
-// InternalDeps returns the full dependency list for p,
-// built by traversing p.Internal.Imports, their .Internal.Imports, and so on.
-// It guarantees that the returned list has only one package per ImportPath
-// and that "test" copies of a package are returned in preference to "real" ones.
-func (p *Package) InternalDeps() []*Package {
-	// Note: breadth-first search here to ensure that test-augmented copies
-	// of a package under test are found before the "real" ones
-	// (the real ones are deeper in the import graph).
-	// Since we're building the slice anyway, it doesn't cost anything.
-	all := []*Package{p}
-	have := map[string]bool{p.ImportPath: true, "unsafe": true}
-	// Note: Not a range loop because all is growing during the loop.
-	for i := 0; i < len(all); i++ {
-		for _, p1 := range all[i].Internal.Imports {
-			if !have[p1.ImportPath] {
-				have[p1.ImportPath] = true
-				all = append(all, p1)
-			}
-		}
-	}
-	return all[1:] // slice off p itself
 }
 
 // usesSwig reports whether the package needs to run SWIG.
