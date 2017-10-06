@@ -332,6 +332,7 @@ var builddeps = map[string][]string{
 		"cmd/go/internal/str",  // cmd/go/internal/work
 		"cmd/internal/buildid", // cmd/go/internal/work
 		"container/heap",       // cmd/go/internal/work
+		"crypto/sha256",        // cmd/go/internal/work
 		"debug/elf",            // cmd/go/internal/work
 		"errors",               // cmd/go/internal/work
 		"flag",                 // cmd/go/internal/work
