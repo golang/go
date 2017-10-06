@@ -1544,19 +1544,21 @@ func TestRDNSequenceString(t *testing.T) {
 		seq  pkix.RDNSequence
 		want string
 	}{
-		{seq: pkix.RDNSequence{
-			pkix.RelativeDistinguishedNameSET{
-				pkix.AttributeTypeAndValue{Type: oidCountry, Value: "US"},
+		{
+			seq: pkix.RDNSequence{
+				pkix.RelativeDistinguishedNameSET{
+					pkix.AttributeTypeAndValue{Type: oidCountry, Value: "US"},
+				},
+				pkix.RelativeDistinguishedNameSET{
+					pkix.AttributeTypeAndValue{Type: oidOrganization, Value: "Widget Inc."},
+				},
+				pkix.RelativeDistinguishedNameSET{
+					pkix.AttributeTypeAndValue{Type: oidOrganizationalUnit, Value: "Sales"},
+					pkix.AttributeTypeAndValue{Type: oidCommonName, Value: "J. Smith"},
+				},
 			},
-			pkix.RelativeDistinguishedNameSET{
-				pkix.AttributeTypeAndValue{Type: oidOrganization, Value: "Widget Inc."},
-			},
-			pkix.RelativeDistinguishedNameSET{
-				pkix.AttributeTypeAndValue{Type: oidOrganizationalUnit, Value: "Sales"},
-				pkix.AttributeTypeAndValue{Type: oidCommonName, Value: "J. Smith"},
-			},
+			want: "OU=Sales+CN=J. Smith,O=Widget Inc.,C=US",
 		},
-		want: "OU=Sales+CN=J. Smith,O=Widget Inc.,C=US"},
 	}
 
 	for i, test := range tests {
