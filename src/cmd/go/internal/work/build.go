@@ -29,10 +29,10 @@ import (
 	"time"
 
 	"cmd/go/internal/base"
-	"cmd/go/internal/buildid"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
+	"cmd/internal/buildid"
 )
 
 var CmdBuild = &base.Command{

@@ -20,9 +20,9 @@ import (
 	"unicode"
 
 	"cmd/go/internal/base"
-	"cmd/go/internal/buildid"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/str"
+	"cmd/internal/buildid"
 )
 
 var IgnoreImports bool // control whether we ignore imports in packages
@@ -1116,7 +1116,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 
 	if p.BinaryOnly {
 		// For binary-only package, use build ID from supplied package binary.
-		buildID, err := buildid.ReadBuildID(p.Name, p.Target)
+		buildID, err := buildid.ReadFile(p.Target)
 		if err == nil {
 			p.Internal.BuildID = buildID
 		}
@@ -1540,7 +1540,7 @@ func isStale(p *Package) (bool, string) {
 	// It also catches changes in toolchain, like when flipping between
 	// two versions of Go compiling a single GOPATH.
 	// See issue 8290 and issue 10702.
-	targetBuildID, err := buildid.ReadBuildID(p.Name, p.Target)
+	targetBuildID, err := buildid.ReadFile(p.Target)
 	if err == nil && targetBuildID != p.Internal.BuildID {
 		return true, "build ID mismatch"
 	}
