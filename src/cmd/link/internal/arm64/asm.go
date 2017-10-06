@@ -35,6 +35,7 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"cmd/link/internal/sym"
+	"debug/elf"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -103,35 +104,35 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	case objabi.R_ADDR:
 		switch r.Siz {
 		case 4:
-			ctxt.Out.Write64(ld.R_AARCH64_ABS32 | uint64(elfsym)<<32)
+			ctxt.Out.Write64(uint64(elf.R_AARCH64_ABS32) | uint64(elfsym)<<32)
 		case 8:
-			ctxt.Out.Write64(ld.R_AARCH64_ABS64 | uint64(elfsym)<<32)
+			ctxt.Out.Write64(uint64(elf.R_AARCH64_ABS64) | uint64(elfsym)<<32)
 		default:
 			return false
 		}
 	case objabi.R_ADDRARM64:
 		// two relocations: R_AARCH64_ADR_PREL_PG_HI21 and R_AARCH64_ADD_ABS_LO12_NC
-		ctxt.Out.Write64(ld.R_AARCH64_ADR_PREL_PG_HI21 | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_AARCH64_ADR_PREL_PG_HI21) | uint64(elfsym)<<32)
 		ctxt.Out.Write64(uint64(r.Xadd))
 		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(ld.R_AARCH64_ADD_ABS_LO12_NC | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_AARCH64_ADD_ABS_LO12_NC) | uint64(elfsym)<<32)
 	case objabi.R_ARM64_TLS_LE:
-		ctxt.Out.Write64(ld.R_AARCH64_TLSLE_MOVW_TPREL_G0 | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_AARCH64_TLSLE_MOVW_TPREL_G0) | uint64(elfsym)<<32)
 	case objabi.R_ARM64_TLS_IE:
-		ctxt.Out.Write64(ld.R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21 | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21) | uint64(elfsym)<<32)
 		ctxt.Out.Write64(uint64(r.Xadd))
 		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(ld.R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC) | uint64(elfsym)<<32)
 	case objabi.R_ARM64_GOTPCREL:
-		ctxt.Out.Write64(ld.R_AARCH64_ADR_GOT_PAGE | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_AARCH64_ADR_GOT_PAGE) | uint64(elfsym)<<32)
 		ctxt.Out.Write64(uint64(r.Xadd))
 		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(ld.R_AARCH64_LD64_GOT_LO12_NC | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_AARCH64_LD64_GOT_LO12_NC) | uint64(elfsym)<<32)
 	case objabi.R_CALLARM64:
 		if r.Siz != 4 {
 			return false
 		}
-		ctxt.Out.Write64(ld.R_AARCH64_CALL26 | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_AARCH64_CALL26) | uint64(elfsym)<<32)
 
 	}
 	ctxt.Out.Write64(uint64(r.Xadd))

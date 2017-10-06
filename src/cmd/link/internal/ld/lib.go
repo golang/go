@@ -36,6 +36,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loadelf"
 	"cmd/link/internal/loadmacho"
 	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
@@ -1384,6 +1385,15 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
+		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+			textp, flags, err := loadelf.Load(ctxt.Arch, ctxt.Syms, f, pkg, length, pn, ehdr.flags)
+			if err != nil {
+				Errorf(nil, "%v", err)
+				return
+			}
+			ehdr.flags = flags
+			ctxt.Textp = append(ctxt.Textp, textp...)
+		}
 		return ldhostobj(ldelf, f, pkg, length, pn, file)
 	}
 
