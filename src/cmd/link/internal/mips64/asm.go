@@ -35,6 +35,7 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"cmd/link/internal/sym"
+	"debug/elf"
 	"fmt"
 	"log"
 )
@@ -69,21 +70,21 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	case objabi.R_ADDR:
 		switch r.Siz {
 		case 4:
-			ctxt.Out.Write8(ld.R_MIPS_32)
+			ctxt.Out.Write8(uint8(elf.R_MIPS_32))
 		case 8:
-			ctxt.Out.Write8(ld.R_MIPS_64)
+			ctxt.Out.Write8(uint8(elf.R_MIPS_64))
 		default:
 			return false
 		}
 	case objabi.R_ADDRMIPS:
-		ctxt.Out.Write8(ld.R_MIPS_LO16)
+		ctxt.Out.Write8(uint8(elf.R_MIPS_LO16))
 	case objabi.R_ADDRMIPSU:
-		ctxt.Out.Write8(ld.R_MIPS_HI16)
+		ctxt.Out.Write8(uint8(elf.R_MIPS_HI16))
 	case objabi.R_ADDRMIPSTLS:
-		ctxt.Out.Write8(ld.R_MIPS_TLS_TPREL_LO16)
+		ctxt.Out.Write8(uint8(elf.R_MIPS_TLS_TPREL_LO16))
 	case objabi.R_CALLMIPS,
 		objabi.R_JMPMIPS:
-		ctxt.Out.Write8(ld.R_MIPS_26)
+		ctxt.Out.Write8(uint8(elf.R_MIPS_26))
 	}
 	ctxt.Out.Write64(uint64(r.Xadd))
 

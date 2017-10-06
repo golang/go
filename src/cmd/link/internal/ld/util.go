@@ -5,7 +5,6 @@
 package ld
 
 import (
-	"bytes"
 	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
@@ -22,14 +21,6 @@ func Cputime() float64 {
 		startTime = time.Now()
 	}
 	return time.Since(startTime).Seconds()
-}
-
-func cstring(x []byte) string {
-	i := bytes.IndexByte(x, '\x00')
-	if i >= 0 {
-		x = x[:i]
-	}
-	return string(x)
 }
 
 func tokenize(s string) []string {

@@ -68,6 +68,7 @@ var bootstrapDirs = []string{
 	"cmd/link/internal/arm64",
 	"cmd/link/internal/ld",
 	"cmd/link/internal/loadmacho",
+	"cmd/link/internal/loadelf",
 	"cmd/link/internal/mips",
 	"cmd/link/internal/mips64",
 	"cmd/link/internal/objfile",

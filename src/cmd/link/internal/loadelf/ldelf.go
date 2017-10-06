@@ -1,4 +1,9 @@
-package ld
+// Copyright 2017 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package loadelf implements an ELF file reader.
+package loadelf
 
 import (
 	"bytes"
@@ -6,6 +11,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
+	"debug/elf"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -168,6 +174,14 @@ const (
 	ElfNotePrTaskstruct = 4
 	ElfNotePrAuxv       = 6
 	ElfNotePrXfpreg     = 0x46e62b7f
+)
+
+// TODO(crawshaw): de-duplicate with cmd/link/internal/ld/elf.go.
+const (
+	ELF64SYMSIZE = 24
+	ELF32SYMSIZE = 16
+
+	SHT_ARM_ATTRIBUTES = 0x70000003
 )
 
 type ElfHdrBytes struct {
@@ -391,15 +405,13 @@ func (a *elfAttributeList) done() bool {
 // find the one we are looking for. This format is slightly documented in "ELF
 // for the ARM Architecture" but mostly this is derived from reading the source
 // to gold and readelf.
-func parseArmAttributes(ctxt *Link, e binary.ByteOrder, data []byte) {
+func parseArmAttributes(e binary.ByteOrder, initEhdrFlags uint32, data []byte) (ehdrFlags uint32, err error) {
 	// We assume the soft-float ABI unless we see a tag indicating otherwise.
-	if ehdr.flags == 0x5000002 {
-		ehdr.flags = 0x5000202
+	if initEhdrFlags == 0x5000002 {
+		ehdrFlags = 0x5000202
 	}
 	if data[0] != 'A' {
-		// TODO(dfc) should this be ctxt.Diag ?
-		ctxt.Logf(".ARM.attributes has unexpected format %c\n", data[0])
-		return
+		return 0, fmt.Errorf(".ARM.attributes has unexpected format %c\n", data[0])
 	}
 	data = data[1:]
 	for len(data) != 0 {
@@ -409,9 +421,7 @@ func parseArmAttributes(ctxt *Link, e binary.ByteOrder, data []byte) {
 
 		nulIndex := bytes.IndexByte(sectiondata, 0)
 		if nulIndex < 0 {
-			// TODO(dfc) should this be ctxt.Diag ?
-			ctxt.Logf("corrupt .ARM.attributes (section name not NUL-terminated)\n")
-			return
+			return 0, fmt.Errorf("corrupt .ARM.attributes (section name not NUL-terminated)\n")
 		}
 		name := string(sectiondata[:nulIndex])
 		sectiondata = sectiondata[nulIndex+1:]
@@ -432,35 +442,41 @@ func parseArmAttributes(ctxt *Link, e binary.ByteOrder, data []byte) {
 			for !attrList.done() {
 				attr := attrList.armAttr()
 				if attr.tag == TagABIVFPArgs && attr.ival == 1 {
-					ehdr.flags = 0x5000402 // has entry point, Version5 EABI, hard-float ABI
+					ehdrFlags = 0x5000402 // has entry point, Version5 EABI, hard-float ABI
 				}
 			}
 			if attrList.err != nil {
-				// TODO(dfc) should this be ctxt.Diag ?
-				ctxt.Logf("could not parse .ARM.attributes\n")
+				return 0, fmt.Errorf("could not parse .ARM.attributes\n")
 			}
 		}
 	}
+	return ehdrFlags, nil
 }
 
-func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f ldelf %s\n", Cputime(), pn)
+// Load loads the ELF file pn from f.
+// Symbols are written into syms, and a slice of the text symbols is returned.
+//
+// On ARM systems, Load will attempt to determine what ELF header flags to
+// emit by scanning the attributes in the ELF file being loaded. The
+// parameter initEhdrFlags contains the current header flags for the output
+// object, and the returnd ehdrFlags contains what this Load function computes.
+// TODO: find a better place for this logic.
+func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []*sym.Symbol, ehdrFlags uint32, err error) {
+	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, uint32, error) {
+		return nil, 0, fmt.Errorf("loadelf: %s: %v", pn, fmt.Sprintf(str, args...))
 	}
 
-	localSymVersion := ctxt.Syms.IncVersion()
+	localSymVersion := syms.IncVersion()
 	base := f.Offset()
 
 	var hdrbuf [64]uint8
 	if _, err := io.ReadFull(f, hdrbuf[:]); err != nil {
-		Errorf(nil, "%s: malformed elf file: %v", pn, err)
-		return
+		return errorf("malformed elf file: %v", err)
 	}
 	hdr := new(ElfHdrBytes)
 	binary.Read(bytes.NewReader(hdrbuf[:]), binary.BigEndian, hdr) // only byte arrays; byte order doesn't matter
 	if string(hdr.Ident[:4]) != "\x7FELF" {
-		Errorf(nil, "%s: malformed elf file", pn)
-		return
+		return errorf("malformed elf file, bad header")
 	}
 	var e binary.ByteOrder
 	switch hdr.Ident[5] {
@@ -471,8 +487,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		e = binary.BigEndian
 
 	default:
-		Errorf(nil, "%s: malformed elf file", pn)
-		return
+		return errorf("malformed elf file, unknown header")
 	}
 
 	// read header
@@ -520,66 +535,55 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	elfobj.is64 = is64
 
 	if v := uint32(hdr.Ident[6]); v != elfobj.version {
-		Errorf(nil, "%s: malformed elf version: got %d, want %d", pn, v, elfobj.version)
-		return
+		return errorf("malformed elf version: got %d, want %d", v, elfobj.version)
 	}
 
 	if e.Uint16(hdr.Type[:]) != ElfTypeRelocatable {
-		Errorf(nil, "%s: elf but not elf relocatable object", pn)
-		return
+		return errorf("elf but not elf relocatable object")
 	}
 
-	switch ctxt.Arch.Family {
+	switch arch.Family {
 	default:
-		Errorf(nil, "%s: elf %s unimplemented", pn, ctxt.Arch.Name)
-		return
+		return errorf("elf %s unimplemented", arch.Name)
 
 	case sys.MIPS:
 		if elfobj.machine != ElfMachMips || hdr.Ident[4] != ElfClass32 {
-			Errorf(nil, "%s: elf object but not mips", pn)
-			return
+			return errorf("elf object but not mips")
 		}
 
 	case sys.MIPS64:
 		if elfobj.machine != ElfMachMips || hdr.Ident[4] != ElfClass64 {
-			Errorf(nil, "%s: elf object but not mips64", pn)
-			return
+			return errorf("elf object but not mips64")
 		}
 
 	case sys.ARM:
 		if e != binary.LittleEndian || elfobj.machine != ElfMachArm || hdr.Ident[4] != ElfClass32 {
-			Errorf(nil, "%s: elf object but not arm", pn)
-			return
+			return errorf("elf object but not arm")
 		}
 
 	case sys.AMD64:
 		if e != binary.LittleEndian || elfobj.machine != ElfMachAmd64 || hdr.Ident[4] != ElfClass64 {
-			Errorf(nil, "%s: elf object but not amd64", pn)
-			return
+			return errorf("elf object but not amd64")
 		}
 
 	case sys.ARM64:
 		if e != binary.LittleEndian || elfobj.machine != ElfMachArm64 || hdr.Ident[4] != ElfClass64 {
-			Errorf(nil, "%s: elf object but not arm64", pn)
-			return
+			return errorf("elf object but not arm64")
 		}
 
 	case sys.I386:
 		if e != binary.LittleEndian || elfobj.machine != ElfMach386 || hdr.Ident[4] != ElfClass32 {
-			Errorf(nil, "%s: elf object but not 386", pn)
-			return
+			return errorf("elf object but not 386")
 		}
 
 	case sys.PPC64:
 		if elfobj.machine != ElfMachPower64 || hdr.Ident[4] != ElfClass64 {
-			Errorf(nil, "%s: elf object but not ppc64", pn)
-			return
+			return errorf("elf object but not ppc64")
 		}
 
 	case sys.S390X:
 		if elfobj.machine != ElfMachS390 || hdr.Ident[4] != ElfClass64 {
-			Errorf(nil, "%s: elf object but not s390x", pn)
-			return
+			return errorf("elf object but not s390x")
 		}
 	}
 
@@ -589,16 +593,14 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	elfobj.nsect = uint(elfobj.shnum)
 	for i := 0; uint(i) < elfobj.nsect; i++ {
 		if f.Seek(int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0) < 0 {
-			Errorf(nil, "%s: malformed elf file", pn)
-			return
+			return errorf("malformed elf file: negative seek")
 		}
 		sect := &elfobj.sect[i]
 		if is64 != 0 {
 			var b ElfSectBytes64
 
 			if err := binary.Read(f, e, &b); err != nil {
-				Errorf(nil, "%s: malformed elf file: %v", pn, err)
-				return
+				return errorf("malformed elf file: %v", err)
 			}
 
 			sect.nameoff = e.Uint32(b.Name[:])
@@ -615,8 +617,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			var b ElfSectBytes
 
 			if err := binary.Read(f, e, &b); err != nil {
-				Errorf(nil, "%s: malformed elf file: %v", pn, err)
-				return
+				return errorf("malformed elf file: %v", err)
 			}
 
 			sect.nameoff = e.Uint32(b.Name[:])
@@ -634,14 +635,12 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 
 	// read section string table and translate names
 	if elfobj.shstrndx >= uint32(elfobj.nsect) {
-		Errorf(nil, "%s: malformed elf file: shstrndx out of range %d >= %d", pn, elfobj.shstrndx, elfobj.nsect)
-		return
+		return errorf("malformed elf file: shstrndx out of range %d >= %d", elfobj.shstrndx, elfobj.nsect)
 	}
 
 	sect := &elfobj.sect[elfobj.shstrndx]
 	if err := elfmap(elfobj, sect); err != nil {
-		Errorf(nil, "%s: malformed elf file: %v", pn, err)
-		return
+		return errorf("malformed elf file: %v", err)
 	}
 	for i := 0; uint(i) < elfobj.nsect; i++ {
 		if elfobj.sect[i].nameoff != 0 {
@@ -658,8 +657,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	}
 
 	if elfobj.symtab.link <= 0 || elfobj.symtab.link >= uint32(elfobj.nsect) {
-		Errorf(nil, "%s: elf object has symbol table with invalid string table link", pn)
-		return
+		return errorf("elf object has symbol table with invalid string table link")
 	}
 
 	elfobj.symstr = &elfobj.sect[elfobj.symtab.link]
@@ -670,12 +668,10 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	}
 
 	if err := elfmap(elfobj, elfobj.symtab); err != nil {
-		Errorf(nil, "%s: malformed elf file: %v", pn, err)
-		return
+		return errorf("malformed elf file: %v", err)
 	}
 	if err := elfmap(elfobj, elfobj.symstr); err != nil {
-		Errorf(nil, "%s: malformed elf file: %v", pn, err)
-		return
+		return errorf("malformed elf file: %v", err)
 	}
 
 	// load text and data segments into memory.
@@ -688,28 +684,29 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		sect = &elfobj.sect[i]
 		if sect.type_ == SHT_ARM_ATTRIBUTES && sect.name == ".ARM.attributes" {
 			if err := elfmap(elfobj, sect); err != nil {
-				Errorf(nil, "%s: malformed elf file: %v", pn, err)
-				return
+				return errorf("%s: malformed elf file: %v", pn, err)
 			}
-			parseArmAttributes(ctxt, e, sect.base[:sect.size])
+			ehdrFlags, err = parseArmAttributes(e, initEhdrFlags, sect.base[:sect.size])
+			if err != nil {
+				// TODO(dfc) should this return an error?
+				log.Printf("%s: %v", pn, err)
+			}
 		}
 		if (sect.type_ != ElfSectProgbits && sect.type_ != ElfSectNobits) || sect.flags&ElfSectFlagAlloc == 0 {
 			continue
 		}
 		if sect.type_ != ElfSectNobits {
 			if err := elfmap(elfobj, sect); err != nil {
-				Errorf(nil, "%s: malformed elf file: %v", pn, err)
-				return
+				return errorf("%s: malformed elf file: %v", pn, err)
 			}
 		}
 
 		name := fmt.Sprintf("%s(%s)", pkg, sect.name)
-		s := ctxt.Syms.Lookup(name, localSymVersion)
+		s := syms.Lookup(name, localSymVersion)
 
 		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
 		default:
-			Errorf(nil, "%s: unexpected flags for ELF section %s", pn, sect.name)
-			return
+			return errorf("%s: unexpected flags for ELF section %s", pn, sect.name)
 
 		case ElfSectFlagAlloc:
 			s.Type = sym.SRODATA
@@ -744,9 +741,8 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 
 	for i := 1; i < elfobj.nsymtab; i++ {
 		var elfsym ElfSym
-		if err := readelfsym(ctxt, elfobj, i, &elfsym, 1, localSymVersion); err != nil {
-			Errorf(nil, "%s: malformed elf file: %v", pn, err)
-			return
+		if err := readelfsym(arch, syms, elfobj, i, &elfsym, 1, localSymVersion); err != nil {
+			return errorf("%s: malformed elf file: %v", pn, err)
 		}
 		symbols[i] = elfsym.sym
 		if elfsym.type_ != ElfSymTypeFunc && elfsym.type_ != ElfSymTypeObject && elfsym.type_ != ElfSymTypeNone && elfsym.type_ != ElfSymTypeCommon {
@@ -786,8 +782,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			if strings.HasPrefix(elfsym.name, ".LASF") { // gcc on s390x does this
 				continue
 			}
-			Errorf(elfsym.sym, "%s: sym#%d: ignoring symbol in section %d (type %d)", pn, i, elfsym.shndx, elfsym.type_)
-			continue
+			return errorf("%v: sym#%d: ignoring symbol in section %d (type %d)", elfsym.sym, i, elfsym.shndx, elfsym.type_)
 		}
 
 		s := elfsym.sym
@@ -795,7 +790,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			if s.Attr.DuplicateOK() {
 				continue
 			}
-			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
+			return errorf("duplicate symbol reference: %s in both %s and %s", s.Name, s.Outer.Name, sect.sym.Name)
 		}
 
 		s.Sub = sect.sym.Sub
@@ -809,7 +804,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		s.Outer = sect.sym
 		if sect.sym.Type == sym.STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {
-				Errorf(s, "%s: duplicate symbol definition", pn)
+				return errorf("%v: duplicate symbol definition", s)
 			}
 			s.Attr |= sym.AttrExternal
 		}
@@ -819,7 +814,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			if 2 <= flag && flag <= 6 {
 				s.Localentry = 1 << uint(flag-2)
 			} else if flag == 7 {
-				Errorf(s, "%s: invalid sym.other 0x%x", pn, elfsym.other)
+				return errorf("%v: invalid sym.other 0x%x", s, elfsym.other)
 			}
 		}
 	}
@@ -836,16 +831,16 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		}
 		if s.Type == sym.STEXT {
 			if s.Attr.OnList() {
-				log.Fatalf("symbol %s listed multiple times", s.Name)
+				return errorf("symbol %s listed multiple times", s.Name)
 			}
 			s.Attr |= sym.AttrOnList
-			ctxt.Textp = append(ctxt.Textp, s)
+			textp = append(textp, s)
 			for s = s.Sub; s != nil; s = s.Sub {
 				if s.Attr.OnList() {
-					log.Fatalf("symbol %s listed multiple times", s.Name)
+					return errorf("symbol %s listed multiple times", s.Name)
 				}
 				s.Attr |= sym.AttrOnList
-				ctxt.Textp = append(ctxt.Textp, s)
+				textp = append(textp, s)
 			}
 		}
 	}
@@ -861,8 +856,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		}
 		sect = &elfobj.sect[rsect.info]
 		if err := elfmap(elfobj, rsect); err != nil {
-			Errorf(nil, "%s: malformed elf file: %v", pn, err)
-			return
+			return errorf("malformed elf file: %v", err)
 		}
 		rela := 0
 		if rsect.type_ == ElfSectRela {
@@ -910,21 +904,22 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 				rp.Sym = nil
 			} else {
 				var elfsym ElfSym
-				if err := readelfsym(ctxt, elfobj, int(info>>32), &elfsym, 0, 0); err != nil {
-					Errorf(nil, "%s: malformed elf file: %v", pn, err)
-					return
+				if err := readelfsym(arch, syms, elfobj, int(info>>32), &elfsym, 0, 0); err != nil {
+					return errorf("malformed elf file: %v", err)
 				}
 				elfsym.sym = symbols[info>>32]
 				if elfsym.sym == nil {
-					Errorf(nil, "%s: malformed elf file: %s#%d: reloc of invalid sym #%d %s shndx=%d type=%d", pn, sect.sym.Name, j, int(info>>32), elfsym.name, elfsym.shndx, elfsym.type_)
-					return
+					return errorf("malformed elf file: %s#%d: reloc of invalid sym #%d %s shndx=%d type=%d", sect.sym.Name, j, int(info>>32), elfsym.name, elfsym.shndx, elfsym.type_)
 				}
 
 				rp.Sym = elfsym.sym
 			}
 
 			rp.Type = 256 + objabi.RelocType(info)
-			rp.Siz = relSize(ctxt, pn, uint32(info))
+			rp.Siz, err = relSize(arch, pn, uint32(info))
+			if err != nil {
+				return nil, 0, err
+			}
 			if rela != 0 {
 				rp.Add = int64(add)
 			} else {
@@ -934,7 +929,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 				} else if rp.Siz == 8 {
 					rp.Add = int64(e.Uint64(sect.base[rp.Off:]))
 				} else {
-					Errorf(nil, "invalid rela size %d", rp.Siz)
+					return errorf("invalid rela size %d", rp.Siz)
 				}
 			}
 
@@ -954,6 +949,8 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		s.R = r
 		s.R = s.R[:n]
 	}
+
+	return textp, ehdrFlags, nil
 }
 
 func section(elfobj *ElfObj, name string) *ElfSect {
@@ -986,14 +983,14 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
 	return nil
 }
 
-func readelfsym(ctxt *Link, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
+func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
 	if i >= elfobj.nsymtab || i < 0 {
 		err = fmt.Errorf("invalid elf symbol index")
 		return err
 	}
 
 	if i == 0 {
-		Errorf(nil, "readym: read null symbol!")
+		return fmt.Errorf("readym: read null symbol!")
 	}
 
 	if elfobj.is64 != 0 {
@@ -1036,7 +1033,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, 
 		switch elfsym.bind {
 		case ElfSymBindGlobal:
 			if needSym != 0 {
-				s = ctxt.Syms.Lookup(elfsym.name, 0)
+				s = syms.Lookup(elfsym.name, 0)
 
 				// for global scoped hidden symbols we should insert it into
 				// symbol hash table, but mark them as hidden.
@@ -1052,7 +1049,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, 
 			}
 
 		case ElfSymBindLocal:
-			if ctxt.Arch.Family == sys.ARM && (strings.HasPrefix(elfsym.name, "$a") || strings.HasPrefix(elfsym.name, "$d")) {
+			if arch.Family == sys.ARM && (strings.HasPrefix(elfsym.name, "$a") || strings.HasPrefix(elfsym.name, "$d")) {
 				// binutils for arm generate these mapping
 				// symbols, ignore these
 				break
@@ -1062,7 +1059,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, 
 				// We need to be able to look this up,
 				// so put it in the hash table.
 				if needSym != 0 {
-					s = ctxt.Syms.Lookup(elfsym.name, localSymVersion)
+					s = syms.Lookup(elfsym.name, localSymVersion)
 					s.Type |= sym.SHIDDEN
 				}
 
@@ -1073,14 +1070,14 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, 
 				// local names and hidden global names are unique
 				// and should only be referenced by their index, not name, so we
 				// don't bother to add them into the hash table
-				s = ctxt.Syms.Newsym(elfsym.name, localSymVersion)
+				s = syms.Newsym(elfsym.name, localSymVersion)
 
 				s.Type |= sym.SHIDDEN
 			}
 
 		case ElfSymBindWeak:
 			if needSym != 0 {
-				s = ctxt.Syms.Lookup(elfsym.name, 0)
+				s = syms.Lookup(elfsym.name, 0)
 				if elfsym.other == 2 {
 					s.Type |= sym.SHIDDEN
 				}
@@ -1100,7 +1097,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, 
 	return nil
 }
 
-func relSize(ctxt *Link, pn string, elftype uint32) uint8 {
+func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, error) {
 	// TODO(mdempsky): Replace this with a struct-valued switch statement
 	// once golang.org/issue/15164 is fixed or found to not impair cmd/link
 	// performance.
@@ -1113,77 +1110,84 @@ func relSize(ctxt *Link, pn string, elftype uint32) uint8 {
 		S390X = uint32(sys.S390X)
 	)
 
-	switch uint32(ctxt.Arch.Family) | elftype<<24 {
+	switch uint32(arch.Family) | elftype<<24 {
 	default:
-		Errorf(nil, "%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
-		fallthrough
+		return 0, fmt.Errorf("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
 
-	case S390X | R_390_8<<24:
-		return 1
+	case S390X | uint32(elf.R_390_8)<<24:
+		return 1, nil
 
-	case PPC64 | R_PPC64_TOC16<<24,
-		PPC64 | R_PPC64_TOC16_LO<<24,
-		PPC64 | R_PPC64_TOC16_HI<<24,
-		PPC64 | R_PPC64_TOC16_HA<<24,
-		PPC64 | R_PPC64_TOC16_DS<<24,
-		PPC64 | R_PPC64_TOC16_LO_DS<<24,
-		PPC64 | R_PPC64_REL16_LO<<24,
-		PPC64 | R_PPC64_REL16_HI<<24,
-		PPC64 | R_PPC64_REL16_HA<<24,
-		S390X | R_390_16<<24,
-		S390X | R_390_GOT16<<24,
-		S390X | R_390_PC16<<24,
-		S390X | R_390_PC16DBL<<24,
-		S390X | R_390_PLT16DBL<<24:
-		return 2
+	case PPC64 | uint32(elf.R_PPC64_TOC16)<<24,
+		PPC64 | uint32(elf.R_PPC64_TOC16_LO)<<24,
+		PPC64 | uint32(elf.R_PPC64_TOC16_HI)<<24,
+		PPC64 | uint32(elf.R_PPC64_TOC16_HA)<<24,
+		PPC64 | uint32(elf.R_PPC64_TOC16_DS)<<24,
+		PPC64 | uint32(elf.R_PPC64_TOC16_LO_DS)<<24,
+		PPC64 | uint32(elf.R_PPC64_REL16_LO)<<24,
+		PPC64 | uint32(elf.R_PPC64_REL16_HI)<<24,
+		PPC64 | uint32(elf.R_PPC64_REL16_HA)<<24,
+		S390X | uint32(elf.R_390_16)<<24,
+		S390X | uint32(elf.R_390_GOT16)<<24,
+		S390X | uint32(elf.R_390_PC16)<<24,
+		S390X | uint32(elf.R_390_PC16DBL)<<24,
+		S390X | uint32(elf.R_390_PLT16DBL)<<24:
+		return 2, nil
 
-	case ARM | R_ARM_ABS32<<24,
-		ARM | R_ARM_GOT32<<24,
-		ARM | R_ARM_PLT32<<24,
-		ARM | R_ARM_GOTOFF<<24,
-		ARM | R_ARM_GOTPC<<24,
-		ARM | R_ARM_THM_PC22<<24,
-		ARM | R_ARM_REL32<<24,
-		ARM | R_ARM_CALL<<24,
-		ARM | R_ARM_V4BX<<24,
-		ARM | R_ARM_GOT_PREL<<24,
-		ARM | R_ARM_PC24<<24,
-		ARM | R_ARM_JUMP24<<24,
-		AMD64 | R_X86_64_PC32<<24,
-		AMD64 | R_X86_64_PLT32<<24,
-		AMD64 | R_X86_64_GOTPCREL<<24,
-		AMD64 | R_X86_64_GOTPCRELX<<24,
-		AMD64 | R_X86_64_REX_GOTPCRELX<<24,
-		I386 | R_386_32<<24,
-		I386 | R_386_PC32<<24,
-		I386 | R_386_GOT32<<24,
-		I386 | R_386_PLT32<<24,
-		I386 | R_386_GOTOFF<<24,
-		I386 | R_386_GOTPC<<24,
-		I386 | R_386_GOT32X<<24,
-		PPC64 | R_PPC64_REL24<<24,
-		PPC64 | R_PPC_REL32<<24,
-		S390X | R_390_32<<24,
-		S390X | R_390_PC32<<24,
-		S390X | R_390_GOT32<<24,
-		S390X | R_390_PLT32<<24,
-		S390X | R_390_PC32DBL<<24,
-		S390X | R_390_PLT32DBL<<24,
-		S390X | R_390_GOTPCDBL<<24,
-		S390X | R_390_GOTENT<<24:
-		return 4
+	case ARM | uint32(elf.R_ARM_ABS32)<<24,
+		ARM | uint32(elf.R_ARM_GOT32)<<24,
+		ARM | uint32(elf.R_ARM_PLT32)<<24,
+		ARM | uint32(elf.R_ARM_GOTOFF)<<24,
+		ARM | uint32(elf.R_ARM_GOTPC)<<24,
+		ARM | uint32(elf.R_ARM_THM_PC22)<<24,
+		ARM | uint32(elf.R_ARM_REL32)<<24,
+		ARM | uint32(elf.R_ARM_CALL)<<24,
+		ARM | uint32(elf.R_ARM_V4BX)<<24,
+		ARM | uint32(elf.R_ARM_GOT_PREL)<<24,
+		ARM | uint32(elf.R_ARM_PC24)<<24,
+		ARM | uint32(elf.R_ARM_JUMP24)<<24,
+		AMD64 | uint32(elf.R_X86_64_PC32)<<24,
+		AMD64 | uint32(elf.R_X86_64_PLT32)<<24,
+		AMD64 | uint32(elf.R_X86_64_GOTPCREL)<<24,
+		AMD64 | uint32(elf.R_X86_64_GOTPCRELX)<<24,
+		AMD64 | uint32(elf.R_X86_64_REX_GOTPCRELX)<<24,
+		I386 | uint32(elf.R_386_32)<<24,
+		I386 | uint32(elf.R_386_PC32)<<24,
+		I386 | uint32(elf.R_386_GOT32)<<24,
+		I386 | uint32(elf.R_386_PLT32)<<24,
+		I386 | uint32(elf.R_386_GOTOFF)<<24,
+		I386 | uint32(elf.R_386_GOTPC)<<24,
+		I386 | uint32(elf.R_386_GOT32X)<<24,
+		PPC64 | uint32(elf.R_PPC64_REL24)<<24,
+		PPC64 | uint32(elf.R_PPC_REL32)<<24,
+		S390X | uint32(elf.R_390_32)<<24,
+		S390X | uint32(elf.R_390_PC32)<<24,
+		S390X | uint32(elf.R_390_GOT32)<<24,
+		S390X | uint32(elf.R_390_PLT32)<<24,
+		S390X | uint32(elf.R_390_PC32DBL)<<24,
+		S390X | uint32(elf.R_390_PLT32DBL)<<24,
+		S390X | uint32(elf.R_390_GOTPCDBL)<<24,
+		S390X | uint32(elf.R_390_GOTENT)<<24:
+		return 4, nil
 
-	case AMD64 | R_X86_64_64<<24,
-		AMD64 | R_X86_64_PC64<<24,
-		PPC64 | R_PPC64_ADDR64<<24,
-		S390X | R_390_GLOB_DAT<<24,
-		S390X | R_390_RELATIVE<<24,
-		S390X | R_390_GOTOFF<<24,
-		S390X | R_390_GOTPC<<24,
-		S390X | R_390_64<<24,
-		S390X | R_390_PC64<<24,
-		S390X | R_390_GOT64<<24,
-		S390X | R_390_PLT64<<24:
-		return 8
+	case AMD64 | uint32(elf.R_X86_64_64)<<24,
+		AMD64 | uint32(elf.R_X86_64_PC64)<<24,
+		PPC64 | uint32(elf.R_PPC64_ADDR64)<<24,
+		S390X | uint32(elf.R_390_GLOB_DAT)<<24,
+		S390X | uint32(elf.R_390_RELATIVE)<<24,
+		S390X | uint32(elf.R_390_GOTOFF)<<24,
+		S390X | uint32(elf.R_390_GOTPC)<<24,
+		S390X | uint32(elf.R_390_64)<<24,
+		S390X | uint32(elf.R_390_PC64)<<24,
+		S390X | uint32(elf.R_390_GOT64)<<24,
+		S390X | uint32(elf.R_390_PLT64)<<24:
+		return 8, nil
 	}
+}
+
+func cstring(x []byte) string {
+	i := bytes.IndexByte(x, '\x00')
+	if i >= 0 {
+		x = x[:i]
+	}
+	return string(x)
 }

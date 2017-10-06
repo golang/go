@@ -35,6 +35,7 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"cmd/link/internal/sym"
+	"debug/elf"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -93,7 +94,7 @@ func genplt(ctxt *ld.Link) {
 	for _, s := range ctxt.Textp {
 		for i := range s.R {
 			r := &s.R[i]
-			if r.Type != 256+ld.R_PPC64_REL24 || r.Sym.Type != sym.SDYNIMPORT {
+			if r.Type != 256+objabi.RelocType(elf.R_PPC64_REL24) || r.Sym.Type != sym.SDYNIMPORT {
 				continue
 			}
 
@@ -269,7 +270,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		}
 
 		// Handle relocations found in ELF object files.
-	case 256 + ld.R_PPC64_REL24:
+	case 256 + objabi.RelocType(elf.R_PPC64_REL24):
 		r.Type = objabi.R_CALLPOWER
 
 		// This is a local call, so the caller isn't setting
@@ -286,7 +287,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 		return true
 
-	case 256 + ld.R_PPC_REL32:
+	case 256 + objabi.RelocType(elf.R_PPC_REL32):
 		r.Type = objabi.R_PCREL
 		r.Add += 4
 
@@ -296,7 +297,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 		return true
 
-	case 256 + ld.R_PPC64_ADDR64:
+	case 256 + objabi.RelocType(elf.R_PPC64_ADDR64):
 		r.Type = objabi.R_ADDR
 		if targ.Type == sym.SDYNIMPORT {
 			// These happen in .toc sections
@@ -304,56 +305,56 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 			rela := ctxt.Syms.Lookup(".rela", 0)
 			rela.AddAddrPlus(ctxt.Arch, s, int64(r.Off))
-			rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(targ.Dynid), ld.R_PPC64_ADDR64))
+			rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(targ.Dynid), uint32(elf.R_PPC64_ADDR64)))
 			rela.AddUint64(ctxt.Arch, uint64(r.Add))
 			r.Type = 256 // ignore during relocsym
 		}
 
 		return true
 
-	case 256 + ld.R_PPC64_TOC16:
+	case 256 + objabi.RelocType(elf.R_PPC64_TOC16):
 		r.Type = objabi.R_POWER_TOC
 		r.Variant = sym.RV_POWER_LO | sym.RV_CHECK_OVERFLOW
 		return true
 
-	case 256 + ld.R_PPC64_TOC16_LO:
+	case 256 + objabi.RelocType(elf.R_PPC64_TOC16_LO):
 		r.Type = objabi.R_POWER_TOC
 		r.Variant = sym.RV_POWER_LO
 		return true
 
-	case 256 + ld.R_PPC64_TOC16_HA:
+	case 256 + objabi.RelocType(elf.R_PPC64_TOC16_HA):
 		r.Type = objabi.R_POWER_TOC
 		r.Variant = sym.RV_POWER_HA | sym.RV_CHECK_OVERFLOW
 		return true
 
-	case 256 + ld.R_PPC64_TOC16_HI:
+	case 256 + objabi.RelocType(elf.R_PPC64_TOC16_HI):
 		r.Type = objabi.R_POWER_TOC
 		r.Variant = sym.RV_POWER_HI | sym.RV_CHECK_OVERFLOW
 		return true
 
-	case 256 + ld.R_PPC64_TOC16_DS:
+	case 256 + objabi.RelocType(elf.R_PPC64_TOC16_DS):
 		r.Type = objabi.R_POWER_TOC
 		r.Variant = sym.RV_POWER_DS | sym.RV_CHECK_OVERFLOW
 		return true
 
-	case 256 + ld.R_PPC64_TOC16_LO_DS:
+	case 256 + objabi.RelocType(elf.R_PPC64_TOC16_LO_DS):
 		r.Type = objabi.R_POWER_TOC
 		r.Variant = sym.RV_POWER_DS
 		return true
 
-	case 256 + ld.R_PPC64_REL16_LO:
+	case 256 + objabi.RelocType(elf.R_PPC64_REL16_LO):
 		r.Type = objabi.R_PCREL
 		r.Variant = sym.RV_POWER_LO
 		r.Add += 2 // Compensate for relocation size of 2
 		return true
 
-	case 256 + ld.R_PPC64_REL16_HI:
+	case 256 + objabi.RelocType(elf.R_PPC64_REL16_HI):
 		r.Type = objabi.R_PCREL
 		r.Variant = sym.RV_POWER_HI | sym.RV_CHECK_OVERFLOW
 		r.Add += 2
 		return true
 
-	case 256 + ld.R_PPC64_REL16_HA:
+	case 256 + objabi.RelocType(elf.R_PPC64_REL16_HA):
 		r.Type = objabi.R_PCREL
 		r.Variant = sym.RV_POWER_HA | sym.RV_CHECK_OVERFLOW
 		r.Add += 2
@@ -380,57 +381,57 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	case objabi.R_ADDR:
 		switch r.Siz {
 		case 4:
-			ctxt.Out.Write64(ld.R_PPC64_ADDR32 | uint64(elfsym)<<32)
+			ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR32) | uint64(elfsym)<<32)
 		case 8:
-			ctxt.Out.Write64(ld.R_PPC64_ADDR64 | uint64(elfsym)<<32)
+			ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR64) | uint64(elfsym)<<32)
 		default:
 			return false
 		}
 	case objabi.R_POWER_TLS:
-		ctxt.Out.Write64(ld.R_PPC64_TLS | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_TLS) | uint64(elfsym)<<32)
 	case objabi.R_POWER_TLS_LE:
-		ctxt.Out.Write64(ld.R_PPC64_TPREL16 | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_TPREL16) | uint64(elfsym)<<32)
 	case objabi.R_POWER_TLS_IE:
-		ctxt.Out.Write64(ld.R_PPC64_GOT_TPREL16_HA | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_HA) | uint64(elfsym)<<32)
 		ctxt.Out.Write64(uint64(r.Xadd))
 		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(ld.R_PPC64_GOT_TPREL16_LO_DS | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_LO_DS) | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER:
-		ctxt.Out.Write64(ld.R_PPC64_ADDR16_HA | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR16_HA) | uint64(elfsym)<<32)
 		ctxt.Out.Write64(uint64(r.Xadd))
 		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(ld.R_PPC64_ADDR16_LO | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR16_LO) | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER_DS:
-		ctxt.Out.Write64(ld.R_PPC64_ADDR16_HA | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR16_HA) | uint64(elfsym)<<32)
 		ctxt.Out.Write64(uint64(r.Xadd))
 		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(ld.R_PPC64_ADDR16_LO_DS | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR16_LO_DS) | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER_GOT:
-		ctxt.Out.Write64(ld.R_PPC64_GOT16_HA | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_GOT16_HA) | uint64(elfsym)<<32)
 		ctxt.Out.Write64(uint64(r.Xadd))
 		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(ld.R_PPC64_GOT16_LO_DS | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_GOT16_LO_DS) | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER_PCREL:
-		ctxt.Out.Write64(ld.R_PPC64_REL16_HA | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_REL16_HA) | uint64(elfsym)<<32)
 		ctxt.Out.Write64(uint64(r.Xadd))
 		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(ld.R_PPC64_REL16_LO | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_REL16_LO) | uint64(elfsym)<<32)
 		r.Xadd += 4
 	case objabi.R_ADDRPOWER_TOCREL:
-		ctxt.Out.Write64(ld.R_PPC64_TOC16_HA | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_TOC16_HA) | uint64(elfsym)<<32)
 		ctxt.Out.Write64(uint64(r.Xadd))
 		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(ld.R_PPC64_TOC16_LO | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_TOC16_LO) | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER_TOCREL_DS:
-		ctxt.Out.Write64(ld.R_PPC64_TOC16_HA | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_TOC16_HA) | uint64(elfsym)<<32)
 		ctxt.Out.Write64(uint64(r.Xadd))
 		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(ld.R_PPC64_TOC16_LO_DS | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_TOC16_LO_DS) | uint64(elfsym)<<32)
 	case objabi.R_CALLPOWER:
 		if r.Siz != 4 {
 			return false
 		}
-		ctxt.Out.Write64(ld.R_PPC64_REL24 | uint64(elfsym)<<32)
+		ctxt.Out.Write64(uint64(elf.R_PPC64_REL24) | uint64(elfsym)<<32)
 
 	}
 	ctxt.Out.Write64(uint64(r.Xadd))
@@ -834,7 +835,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		plt.Size += 8
 
 		rela.AddAddrPlus(ctxt.Arch, plt, int64(s.Plt))
-		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_PPC64_JMP_SLOT))
+		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_PPC64_JMP_SLOT)))
 		rela.AddUint64(ctxt.Arch, 0)
 	} else {
 		ld.Errorf(s, "addpltsym: unsupported binary format")
