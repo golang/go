@@ -272,7 +272,7 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 			}
 		}
 
-		sort.Sort(rbyoff(rs[:rsect.NumberOfRelocations]))
+		sort.Sort(sym.RelocByOff(rs[:rsect.NumberOfRelocations]))
 
 		s := sectsyms[rsect]
 		s.R = rs
@@ -367,7 +367,7 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 			continue
 		}
 		if s.Sub != nil {
-			s.Sub = listsort(s.Sub)
+			s.Sub = sym.SortSub(s.Sub)
 		}
 		if s.Type == sym.STEXT {
 			if s.Attr.OnList() {

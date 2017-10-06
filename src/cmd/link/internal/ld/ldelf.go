@@ -832,7 +832,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			continue
 		}
 		if s.Sub != nil {
-			s.Sub = listsort(s.Sub)
+			s.Sub = sym.SortSub(s.Sub)
 		}
 		if s.Type == sym.STEXT {
 			if s.Attr.OnList() {
@@ -947,7 +947,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		}
 
 		//print("rel %s %d %d %s %#llx\n", sect->sym->name, rp->type, rp->siz, rp->sym->name, rp->add);
-		sort.Sort(rbyoff(r[:n]))
+		sort.Sort(sym.RelocByOff(r[:n]))
 		// just in case
 
 		s := sect.sym
@@ -1098,28 +1098,6 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, 
 	elfsym.sym = s
 
 	return nil
-}
-
-type rbyoff []sym.Reloc
-
-func (x rbyoff) Len() int {
-	return len(x)
-}
-
-func (x rbyoff) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
-func (x rbyoff) Less(i, j int) bool {
-	a := &x[i]
-	b := &x[j]
-	if a.Off < b.Off {
-		return true
-	}
-	if a.Off > b.Off {
-		return false
-	}
-	return false
 }
 
 func relSize(ctxt *Link, pn string, elftype uint32) uint8 {

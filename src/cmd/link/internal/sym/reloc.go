@@ -95,3 +95,22 @@ func RelocName(arch *sys.Arch, r objabi.RelocType) string {
 
 	return r.String()
 }
+
+// RelocByOff implements sort.Interface for sorting relocations by offset.
+type RelocByOff []Reloc
+
+func (x RelocByOff) Len() int { return len(x) }
+
+func (x RelocByOff) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+
+func (x RelocByOff) Less(i, j int) bool {
+	a := &x[i]
+	b := &x[j]
+	if a.Off < b.Off {
+		return true
+	}
+	if a.Off > b.Off {
+		return false
+	}
+	return false
+}
