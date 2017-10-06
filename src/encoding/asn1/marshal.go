@@ -268,7 +268,10 @@ func makeObjectIdentifier(oid []int) (e encoder, err error) {
 
 func makePrintableString(s string) (e encoder, err error) {
 	for i := 0; i < len(s); i++ {
-		if !isPrintable(s[i]) {
+		// The asterisk is often used in PrintableString, even though
+		// it is invalid. If a PrintableString was specifically
+		// requested then the asterisk is permitted by this code.
+		if !isPrintable(s[i], allowAsterisk) {
 			return nil, StructuralError{"PrintableString contains invalid character"}
 		}
 	}
@@ -576,7 +579,7 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 			// a PrintableString if the character set in the string is
 			// sufficiently limited, otherwise we'll use a UTF8String.
 			for _, r := range v.String() {
-				if r >= utf8.RuneSelf || !isPrintable(byte(r)) {
+				if r >= utf8.RuneSelf || !isPrintable(byte(r), rejectAsterisk) {
 					if !utf8.ValidString(v.String()) {
 						return nil, errors.New("asn1: string not valid UTF-8")
 					}

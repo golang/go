@@ -378,7 +378,7 @@ func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
 // array and returns it.
 func parsePrintableString(bytes []byte) (ret string, err error) {
 	for _, b := range bytes {
-		if !isPrintable(b) {
+		if !isPrintable(b, allowAsterisk) {
 			err = SyntaxError{"PrintableString contains invalid character"}
 			return
 		}
@@ -387,8 +387,17 @@ func parsePrintableString(bytes []byte) (ret string, err error) {
 	return
 }
 
+type asteriskFlag bool
+
+const (
+	allowAsterisk  asteriskFlag = true
+	rejectAsterisk asteriskFlag = false
+)
+
 // isPrintable reports whether the given b is in the ASN.1 PrintableString set.
-func isPrintable(b byte) bool {
+// If asterisk is allowAsterisk then '*' is also allowed, reflecting existing
+// practice.
+func isPrintable(b byte, asterisk asteriskFlag) bool {
 	return 'a' <= b && b <= 'z' ||
 		'A' <= b && b <= 'Z' ||
 		'0' <= b && b <= '9' ||
@@ -401,7 +410,7 @@ func isPrintable(b byte) bool {
 		// This is technically not allowed in a PrintableString.
 		// However, x509 certificates with wildcard strings don't
 		// always use the correct string type so we permit it.
-		b == '*'
+		(bool(asterisk) && b == '*')
 }
 
 // IA5String
