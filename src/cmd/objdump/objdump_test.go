@@ -198,8 +198,6 @@ func TestDisasmExtld(t *testing.T) {
 
 func TestDisasmGoobj(t *testing.T) {
 	switch runtime.GOARCH {
-	case "arm":
-		t.Skipf("skipping on %s, issue 19811", runtime.GOARCH)
 	case "mips", "mipsle", "mips64", "mips64le":
 		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
 	case "s390x":
