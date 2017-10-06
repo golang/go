@@ -72,7 +72,25 @@ func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 	r.Add = ofs
 }
 
+func (c dwctxt) Logf(format string, args ...interface{}) {
+	c.linkctxt.Logf(format, args...)
+}
+
+// At the moment these interfaces are only used in the compiler.
+
 func (c dwctxt) AddFileRef(s dwarf.Sym, f interface{}) {
+	panic("should be used only in the compiler")
+}
+
+func (c dwctxt) CurrentOffset(s dwarf.Sym) int64 {
+	panic("should be used only in the compiler")
+}
+
+func (c dwctxt) RecordDclReference(s dwarf.Sym, t dwarf.Sym, dclIdx int, inlIndex int) {
+	panic("should be used only in the compiler")
+}
+
+func (c dwctxt) RecordChildDieOffsets(s dwarf.Sym, vars []*dwarf.Var, offsets []int32) {
 	panic("should be used only in the compiler")
 }
 
@@ -132,8 +150,10 @@ func getattr(die *dwarf.DWDie, attr uint16) *dwarf.DWAttr {
 	return nil
 }
 
-// Every DIE has at least an AT_name attribute (but it will only be
-// written out if it is listed in the abbrev).
+// Every DIE manufactured by the linker has at least an AT_name
+// attribute (but it will only be written out if it is listed in the abbrev).
+// The compiler does create nameless DWARF DIEs (ex: concrete subprogram
+// instance).
 func newdie(ctxt *Link, parent *dwarf.DWDie, abbrev int, name string, version int) *dwarf.DWDie {
 	die := new(dwarf.DWDie)
 	die.Abbrev = abbrev
@@ -849,11 +869,12 @@ func defdwsymb(ctxt *Link, s *sym.Symbol, str string, t SymbolType, v int64, got
 // compilationUnit is per-compilation unit (equivalently, per-package)
 // debug-related data.
 type compilationUnit struct {
-	lib      *sym.Library
-	consts   *sym.Symbol   // Package constants DIEs
-	pcs      []dwarf.Range // PC ranges, relative to textp[0]
-	dwinfo   *dwarf.DWDie  // CU root DIE
-	funcDIEs []*sym.Symbol // Function DIE subtrees
+	lib       *sym.Library
+	consts    *sym.Symbol   // Package constants DIEs
+	pcs       []dwarf.Range // PC ranges, relative to textp[0]
+	dwinfo    *dwarf.DWDie  // CU root DIE
+	funcDIEs  []*sym.Symbol // Function DIE subtrees
+	absFnDIEs []*sym.Symbol // Abstract function DIE subtrees
 }
 
 // getCompilationUnits divides the symbols in ctxt.Textp by package.
@@ -1052,7 +1073,52 @@ func importInfoSymbol(ctxt *Link, dsym *sym.Symbol) {
 	}
 }
 
-func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbol) (dwinfo *dwarf.DWDie, funcs []*sym.Symbol) {
+// For the specified function, collect symbols corresponding to any
+// "abstract" subprogram DIEs referenced. The first case of interest
+// is a concrete subprogram DIE, which will refer to its corresponding
+// abstract subprogram DIE, and then there can be references from a
+// non-abstract subprogram DIE to the abstract subprogram DIEs for any
+// functions inlined into this one.
+//
+// A given abstract subprogram DIE can be referenced in numerous
+// places (even within the same DIE), so it is important to make sure
+// it gets imported and added to the absfuncs lists only once.
+
+func collectAbstractFunctions(ctxt *Link, fn *sym.Symbol, dsym *sym.Symbol, absfuncs []*sym.Symbol) []*sym.Symbol {
+
+	var newabsfns []*sym.Symbol
+
+	// Walk the relocations on the primary subprogram DIE and look for
+	// references to abstract funcs.
+	for _, reloc := range dsym.R {
+		candsym := reloc.Sym
+		if reloc.Type != objabi.R_DWARFSECREF {
+			continue
+		}
+		if !strings.HasPrefix(candsym.Name, dwarf.InfoPrefix) {
+			continue
+		}
+		if !strings.HasSuffix(candsym.Name, dwarf.AbstractFuncSuffix) {
+			continue
+		}
+		if candsym.Attr.OnList() {
+			continue
+		}
+		candsym.Attr |= sym.AttrOnList
+		newabsfns = append(newabsfns, candsym)
+	}
+
+	// Import any new symbols that have turned up.
+	for _, absdsym := range newabsfns {
+		importInfoSymbol(ctxt, absdsym)
+		absfuncs = append(absfuncs, absdsym)
+	}
+
+	return absfuncs
+}
+
+func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbol) (dwinfo *dwarf.DWDie, funcs []*sym.Symbol, absfuncs []*sym.Symbol) {
+
 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
 
 	unitstart := int64(-1)
@@ -1125,6 +1191,27 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 			ls.AddUint8(0)
 			ls.AddUint8(0)
 		}
+
+		// Look up the .debug_info sym for the function. We do this
+		// now so that we can walk the sym's relocations to discover
+		// files that aren't mentioned in S.FuncInfo.File (for
+		// example, files mentioned only in an inlined subroutine).
+		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+		importInfoSymbol(ctxt, dsym)
+		for ri := 0; ri < len(dsym.R); ri++ {
+			r := &dsym.R[ri]
+			if r.Type != objabi.R_DWARFFILEREF {
+				continue
+			}
+			_, ok := fileNums[int(r.Sym.Value)]
+			if !ok {
+				fileNums[int(r.Sym.Value)] = len(fileNums) + 1
+				Addstring(ls, r.Sym.Name)
+				ls.AddUint8(0)
+				ls.AddUint8(0)
+				ls.AddUint8(0)
+			}
+		}
 	}
 
 	// 4 zeros: the string termination + 3 fields.
@@ -1146,8 +1233,8 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 	var pcline Pciter
 	for _, s := range textp {
 		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
-		importInfoSymbol(ctxt, dsym)
 		funcs = append(funcs, dsym)
+		absfuncs = collectAbstractFunctions(ctxt, s, dsym, absfuncs)
 
 		finddebugruntimepath(s)
 
@@ -1201,6 +1288,7 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 	// changed to generate DW_AT_decl_file attributes for other
 	// DIE flavors (ex: variables) then those DIEs would need to
 	// be included below.
+	missing := make(map[int]interface{})
 	for fidx := 0; fidx < len(funcs); fidx++ {
 		f := funcs[fidx]
 		for ri := 0; ri < len(f.R); ri++ {
@@ -1224,12 +1312,16 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 				}
 				ctxt.Arch.ByteOrder.PutUint32(f.P[r.Off:r.Off+4], uint32(idx))
 			} else {
-				Errorf(f, "R_DWARFFILEREF relocation file missing: %v", r.Sym)
+				_, found := missing[int(r.Sym.Value)]
+				if !found {
+					Errorf(f, "R_DWARFFILEREF relocation file missing: %v idx %d", r.Sym, r.Sym.Value)
+					missing[int(r.Sym.Value)] = nil
+				}
 			}
 		}
 	}
 
-	return dwinfo, funcs
+	return dwinfo, funcs, absfuncs
 }
 
 // writepcranges generates the DW_AT_ranges table for compilation unit cu.
@@ -1434,6 +1526,7 @@ func writeinfo(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit, abbrevs
 		dwarf.PutAttrs(dwarfctxt, s, compunit.Abbrev, compunit.Attr)
 
 		cu := []*sym.Symbol{s}
+		cu = append(cu, u.absFnDIEs...)
 		cu = append(cu, u.funcDIEs...)
 		if u.consts != nil {
 			cu = append(cu, u.consts)
@@ -1621,7 +1714,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 	debugRanges.Attr |= sym.AttrReachable
 	syms = append(syms, debugLine)
 	for _, u := range units {
-		u.dwinfo, u.funcDIEs = writelines(ctxt, u.lib, u.lib.Textp, debugLine)
+		u.dwinfo, u.funcDIEs, u.absFnDIEs = writelines(ctxt, u.lib, u.lib.Textp, debugLine)
 		writepcranges(ctxt, u.dwinfo, u.lib.Textp[0], u.pcs, debugRanges)
 	}
 

@@ -218,7 +218,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 	// a collection of scalar vars holding the fields. In such cases
 	// the DWARF variable location expression should be of the
 	// form "var.field" and not just "field".
-	infoLocalsRe := regexp.MustCompile(`^slicevar.len = `)
+	infoLocalsRe := regexp.MustCompile(`.*\sslicevar.cap = `)
 	if bl := blocks["info locals"]; !infoLocalsRe.MatchString(bl) {
 		t.Fatalf("info locals failed: %s", bl)
 	}

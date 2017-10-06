@@ -72,7 +72,7 @@ func main() {
 			break
 		}
 		// reports errors to parser.Errorf
-		obj.Flushplist(ctxt, pList, nil)
+		obj.Flushplist(ctxt, pList, nil, "")
 	}
 	if ok {
 		obj.WriteObjFile(ctxt, buf)

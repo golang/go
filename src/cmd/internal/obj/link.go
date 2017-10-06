@@ -389,6 +389,7 @@ type FuncInfo struct {
 	dwarfInfoSym   *LSym
 	dwarfLocSym    *LSym
 	dwarfRangesSym *LSym
+	dwarfAbsFnSym  *LSym
 
 	GCArgs   LSym
 	GCLocals LSym
@@ -427,6 +428,10 @@ const (
 	// definition. (When not compiling to support Go shared libraries, all symbols are
 	// local in this sense unless there is a cgo_export_* directive).
 	AttrLocal
+
+	// For function symbols; indicates that the specified function was the
+	// target of an inline during compilation
+	AttrWasInlined
 )
 
 func (a Attribute) DuplicateOK() bool   { return a&AttrDuplicateOK != 0 }
@@ -442,6 +447,7 @@ func (a Attribute) Wrapper() bool       { return a&AttrWrapper != 0 }
 func (a Attribute) NeedCtxt() bool      { return a&AttrNeedCtxt != 0 }
 func (a Attribute) NoFrame() bool       { return a&AttrNoFrame != 0 }
 func (a Attribute) Static() bool        { return a&AttrStatic != 0 }
+func (a Attribute) WasInlined() bool    { return a&AttrWasInlined != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	if value {
@@ -468,6 +474,7 @@ var textAttrStrings = [...]struct {
 	{bit: AttrNeedCtxt, s: "NEEDCTXT"},
 	{bit: AttrNoFrame, s: "NOFRAME"},
 	{bit: AttrStatic, s: "STATIC"},
+	{bit: AttrWasInlined, s: ""},
 }
 
 // TextAttrString formats a for printing in as part of a TEXT prog.
@@ -549,12 +556,15 @@ type Link struct {
 	statichash         map[string]*LSym // name -> sym mapping for static syms
 	PosTable           src.PosTable
 	InlTree            InlTree // global inlining tree used by gc/inl.go
+	DwFixups           *DwarfFixupTable
 	Imports            []string
 	DiagFunc           func(string, ...interface{})
 	DiagFlush          func()
-	DebugInfo          func(fn *LSym, curfn interface{}) []dwarf.Scope // if non-nil, curfn is a *gc.Node
+	DebugInfo          func(fn *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
+	GenAbstractFunc    func(fn *LSym)
 	Errors             int
 
+	InParallel           bool // parallel backend phase in effect
 	Framepointer_enabled bool
 
 	// state for writing objects

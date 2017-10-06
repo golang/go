@@ -85,18 +85,20 @@ const (
 	_, nodeAssigned  // is the variable ever assigned to
 	_, nodeAddrtaken // address taken, even if not moved to heap
 	_, nodeImplicit
-	_, nodeIsddd    // is the argument variadic
-	_, nodeDiag     // already printed error about this
-	_, nodeColas    // OAS resulting from :=
-	_, nodeNonNil   // guaranteed to be non-nil
-	_, nodeNoescape // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
-	_, nodeBounded  // bounds check unnecessary
-	_, nodeAddable  // addressable
-	_, nodeHasCall  // expression contains a function call
-	_, nodeLikely   // if statement condition likely
-	_, nodeHasVal   // node.E contains a Val
-	_, nodeHasOpt   // node.E contains an Opt
-	_, nodeEmbedded // ODCLFIELD embedded type
+	_, nodeIsddd     // is the argument variadic
+	_, nodeDiag      // already printed error about this
+	_, nodeColas     // OAS resulting from :=
+	_, nodeNonNil    // guaranteed to be non-nil
+	_, nodeNoescape  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+	_, nodeBounded   // bounds check unnecessary
+	_, nodeAddable   // addressable
+	_, nodeHasCall   // expression contains a function call
+	_, nodeLikely    // if statement condition likely
+	_, nodeHasVal    // node.E contains a Val
+	_, nodeHasOpt    // node.E contains an Opt
+	_, nodeEmbedded  // ODCLFIELD embedded type
+	_, nodeInlFormal // OPAUTO created by inliner, derived from callee formal
+	_, nodeInlLocal  // OPAUTO created by inliner, derived from callee local
 )
 
 func (n *Node) Class() Class     { return Class(n.flags.get3(nodeClass)) }
@@ -123,6 +125,8 @@ func (n *Node) Likely() bool                { return n.flags&nodeLikely != 0 }
 func (n *Node) HasVal() bool                { return n.flags&nodeHasVal != 0 }
 func (n *Node) HasOpt() bool                { return n.flags&nodeHasOpt != 0 }
 func (n *Node) Embedded() bool              { return n.flags&nodeEmbedded != 0 }
+func (n *Node) InlFormal() bool             { return n.flags&nodeInlFormal != 0 }
+func (n *Node) InlLocal() bool              { return n.flags&nodeInlLocal != 0 }
 
 func (n *Node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
 func (n *Node) SetWalkdef(b uint8)   { n.flags.set2(nodeWalkdef, b) }
@@ -148,6 +152,8 @@ func (n *Node) SetLikely(b bool)                { n.flags.set(nodeLikely, b) }
 func (n *Node) SetHasVal(b bool)                { n.flags.set(nodeHasVal, b) }
 func (n *Node) SetHasOpt(b bool)                { n.flags.set(nodeHasOpt, b) }
 func (n *Node) SetEmbedded(b bool)              { n.flags.set(nodeEmbedded, b) }
+func (n *Node) SetInlFormal(b bool)             { n.flags.set(nodeInlFormal, b) }
+func (n *Node) SetInlLocal(b bool)              { n.flags.set(nodeInlLocal, b) }
 
 // Val returns the Val for the node.
 func (n *Node) Val() Val {

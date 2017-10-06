@@ -7,6 +7,8 @@ package ld
 import (
 	objfilepkg "cmd/internal/objfile" // renamed to avoid conflict with objfile function
 	"debug/dwarf"
+	"errors"
+	"fmt"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -30,7 +32,7 @@ func TestRuntimeTypeDIEs(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	f := gobuild(t, dir, `package main; func main() { }`)
+	f := gobuild(t, dir, `package main; func main() { }`, false)
 	defer f.Close()
 
 	dwarf, err := f.DWARF()
@@ -75,7 +77,7 @@ func findTypes(t *testing.T, dw *dwarf.Data, want map[string]bool) (found map[st
 	return
 }
 
-func gobuild(t *testing.T, dir string, testfile string) *objfilepkg.File {
+func gobuild(t *testing.T, dir string, testfile string, opt bool) *objfilepkg.File {
 	src := filepath.Join(dir, "test.go")
 	dst := filepath.Join(dir, "out")
 
@@ -83,7 +85,11 @@ func gobuild(t *testing.T, dir string, testfile string) *objfilepkg.File {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", dst, src)
+	gcflags := "-gcflags=-N -l"
+	if opt {
+		gcflags = "-gcflags=-l=4"
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, src)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("build: %s\n", b)
 		t.Fatalf("build error: %v", err)
@@ -136,7 +142,7 @@ func main() {
 	}
 	defer os.RemoveAll(dir)
 
-	f := gobuild(t, dir, prog)
+	f := gobuild(t, dir, prog, false)
 
 	defer f.Close()
 
@@ -214,7 +220,7 @@ func main() {
 		t.Fatalf("could not create directory: %v", err)
 	}
 	defer os.RemoveAll(dir)
-	f := gobuild(t, dir, prog)
+	f := gobuild(t, dir, prog, false)
 	defer f.Close()
 	d, err := f.DWARF()
 	if err != nil {
@@ -262,7 +268,7 @@ func main() {
 	}
 	defer os.RemoveAll(dir)
 
-	f := gobuild(t, dir, prog)
+	f := gobuild(t, dir, prog, false)
 	defer f.Close()
 
 	d, err := f.DWARF()
@@ -320,7 +326,7 @@ func main() {
 	}
 	defer os.RemoveAll(dir)
 
-	f := gobuild(t, dir, prog)
+	f := gobuild(t, dir, prog, false)
 
 	d, err := f.DWARF()
 	if err != nil {
@@ -328,37 +334,274 @@ func main() {
 	}
 
 	rdr := d.Reader()
+	ex := examiner{}
+	if err := ex.populate(rdr); err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	// Locate the main.main DIE
+	mains := ex.Named("main.main")
+	if len(mains) == 0 {
+		t.Fatalf("unable to locate DIE for main.main")
+	}
+	if len(mains) != 1 {
+		t.Fatalf("more than one main.main DIE")
+	}
+	maindie := mains[0]
+
+	// Vet the main.main DIE
+	if maindie.Tag != dwarf.TagSubprogram {
+		t.Fatalf("unexpected tag %v on main.main DIE", maindie.Tag)
+	}
+
+	// Walk main's children and select variable "i".
+	mainIdx := ex.idxFromOffset(maindie.Offset)
+	childDies := ex.Children(mainIdx)
 	var iEntry *dwarf.Entry
-	var pEntry *dwarf.Entry
-	foundMain := false
-	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
-		if err != nil {
-			t.Fatalf("error reading DWARF: %v", err)
-		}
-		if entry.Tag == dwarf.TagSubprogram && entry.Val(dwarf.AttrName).(string) == "main.main" {
-			foundMain = true
-			pEntry = entry
-			continue
-		}
-		if !foundMain {
-			continue
-		}
-		if entry.Tag == dwarf.TagSubprogram {
-			t.Fatalf("didn't find DW_TAG_variable for i in main.main")
-		}
-		if foundMain && entry.Tag == dwarf.TagVariable && entry.Val(dwarf.AttrName).(string) == "i" {
-			iEntry = entry
+	for _, child := range childDies {
+		if child.Tag == dwarf.TagVariable && child.Val(dwarf.AttrName).(string) == "i" {
+			iEntry = child
 			break
 		}
 	}
+	if iEntry == nil {
+		t.Fatalf("didn't find DW_TAG_variable for i in main.main")
+	}
 
+	// Verify line/file attributes.
 	line := iEntry.Val(dwarf.AttrDeclLine)
 	if line == nil || line.(int64) != 5 {
 		t.Errorf("DW_AT_decl_line for i is %v, want 5", line)
 	}
 
-	file := pEntry.Val(dwarf.AttrDeclFile)
+	file := maindie.Val(dwarf.AttrDeclFile)
 	if file == nil || file.(int64) != 1 {
 		t.Errorf("DW_AT_decl_file for main is %v, want 1", file)
+	}
+}
+
+// Helper class for supporting queries on DIEs within a DWARF .debug_info
+// section. Invoke the populate() method below passing in a dwarf.Reader,
+// which will read in all DIEs and keep track of parent/child
+// relationships. Queries can then be made to ask for DIEs by name or
+// by offset. This will hopefully reduce boilerplate for future test
+// writing.
+
+type examiner struct {
+	dies        []*dwarf.Entry
+	idxByOffset map[dwarf.Offset]int
+	kids        map[int][]int
+	byname      map[string][]int
+}
+
+// Populate the examiner using the DIEs read from rdr.
+func (ex *examiner) populate(rdr *dwarf.Reader) error {
+	ex.idxByOffset = make(map[dwarf.Offset]int)
+	ex.kids = make(map[int][]int)
+	ex.byname = make(map[string][]int)
+	var nesting []int
+	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
+		if err != nil {
+			return err
+		}
+		if entry.Tag == 0 {
+			// terminator
+			if len(nesting) == 0 {
+				return errors.New("nesting stack underflow")
+			}
+			nesting = nesting[:len(nesting)-1]
+			continue
+		}
+		idx := len(ex.dies)
+		ex.dies = append(ex.dies, entry)
+		if _, found := ex.idxByOffset[entry.Offset]; found {
+			return errors.New("DIE clash on offset")
+		}
+		ex.idxByOffset[entry.Offset] = idx
+		if name, ok := entry.Val(dwarf.AttrName).(string); ok {
+			ex.byname[name] = append(ex.byname[name], idx)
+		}
+		if len(nesting) > 0 {
+			parent := nesting[len(nesting)-1]
+			ex.kids[parent] = append(ex.kids[parent], idx)
+		}
+		if entry.Children {
+			nesting = append(nesting, idx)
+		}
+	}
+	if len(nesting) > 0 {
+		return errors.New("unterminated child sequence")
+	}
+	return nil
+}
+
+func indent(ilevel int) {
+	for i := 0; i < ilevel; i++ {
+		fmt.Printf("  ")
+	}
+}
+
+// For debugging new tests
+func (ex *examiner) dumpEntry(idx int, dumpKids bool, ilevel int) error {
+	if idx >= len(ex.dies) {
+		msg := fmt.Sprintf("bad DIE %d: index out of range\n", idx)
+		return errors.New(msg)
+	}
+	entry := ex.dies[idx]
+	indent(ilevel)
+	fmt.Printf("%d: %v\n", idx, entry.Tag)
+	for _, f := range entry.Field {
+		indent(ilevel)
+		fmt.Printf("at=%v val=%v\n", f.Attr, f.Val)
+	}
+	if dumpKids {
+		ksl := ex.kids[idx]
+		for _, k := range ksl {
+			ex.dumpEntry(k, true, ilevel+2)
+		}
+	}
+	return nil
+}
+
+// Given a DIE offset, return the previously read dwarf.Entry, or nil
+func (ex *examiner) entryFromOffset(off dwarf.Offset) *dwarf.Entry {
+	if idx, found := ex.idxByOffset[off]; found && idx != -1 {
+		return ex.entryFromIdx(idx)
+	}
+	return nil
+}
+
+// Return the ID that that examiner uses to refer to the DIE at offset off
+func (ex *examiner) idxFromOffset(off dwarf.Offset) int {
+	if idx, found := ex.idxByOffset[off]; found {
+		return idx
+	}
+	return -1
+}
+
+// Return the dwarf.Entry pointer for the DIE with id 'idx'
+func (ex *examiner) entryFromIdx(idx int) *dwarf.Entry {
+	if idx >= len(ex.dies) {
+		return nil
+	}
+	return ex.dies[idx]
+}
+
+// Returns a list of child entries for a die with ID 'idx'
+func (ex *examiner) Children(idx int) []*dwarf.Entry {
+	sl := ex.kids[idx]
+	ret := make([]*dwarf.Entry, len(sl))
+	for i, k := range sl {
+		ret[i] = ex.entryFromIdx(k)
+	}
+	return ret
+}
+
+// Return a list of all DIEs with name 'name'. When searching for DIEs
+// by name, keep in mind that the returned results will include child
+// DIEs such as params/variables. For example, asking for all DIEs named
+// "p" for even a small program will give you 400-500 entries.
+func (ex *examiner) Named(name string) []*dwarf.Entry {
+	sl := ex.byname[name]
+	ret := make([]*dwarf.Entry, len(sl))
+	for i, k := range sl {
+		ret[i] = ex.entryFromIdx(k)
+	}
+	return ret
+}
+
+func TestInlinedRoutineRecords(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	const prog = `
+package main
+
+var G int
+
+func cand(x, y int) int {
+    return (x + y) ^ (y - x)
+}
+
+func main() {
+    x := cand(G*G,G|7%G)
+    G = x
+}
+`
+	dir, err := ioutil.TempDir("", "TestInlinedRoutineRecords")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// Note: this is a regular go build here, without "-l -N". The
+	// test is intended to verify DWARF that is only generated when the
+	// inliner is active.
+	f := gobuild(t, dir, prog, true)
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	// The inlined subroutines we expect to visit
+	expectedInl := []string{"main.cand"}
+
+	rdr := d.Reader()
+	ex := examiner{}
+	if err := ex.populate(rdr); err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	// Locate the main.main DIE
+	mains := ex.Named("main.main")
+	if len(mains) == 0 {
+		t.Fatalf("unable to locate DIE for main.main")
+	}
+	if len(mains) != 1 {
+		t.Fatalf("more than one main.main DIE")
+	}
+	maindie := mains[0]
+
+	// Vet the main.main DIE
+	if maindie.Tag != dwarf.TagSubprogram {
+		t.Fatalf("unexpected tag %v on main.main DIE", maindie.Tag)
+	}
+
+	// Walk main's children and pick out the inlined subroutines
+	mainIdx := ex.idxFromOffset(maindie.Offset)
+	childDies := ex.Children(mainIdx)
+	exCount := 0
+	for _, child := range childDies {
+		if child.Tag == dwarf.TagInlinedSubroutine {
+			// Found an inlined subroutine, locate abstract origin.
+			ooff, originOK := child.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+			if !originOK {
+				t.Fatalf("no abstract origin attr for inlined subroutine at offset %v", child.Offset)
+			}
+			originDIE := ex.entryFromOffset(ooff)
+			if originDIE == nil {
+				t.Fatalf("can't locate origin DIE at off %v", ooff)
+			}
+
+			if exCount >= len(expectedInl) {
+				t.Fatalf("too many inlined subroutines found in main.main")
+			}
+
+			// Name should check out.
+			expected := expectedInl[exCount]
+			if name, ok := originDIE.Val(dwarf.AttrName).(string); ok {
+				if name != expected {
+					t.Fatalf("expected inlined routine %s got %s", name, expected)
+				}
+			}
+			exCount++
+		}
+	}
+	if exCount != len(expectedInl) {
+		t.Fatalf("not enough inlined subroutines found in main.main")
 	}
 }
