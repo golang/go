@@ -399,7 +399,7 @@ type m struct {
 	caughtsig     guintptr // goroutine running during fatal signal
 	p             puintptr // attached p for executing go code (nil if not executing go code)
 	nextp         puintptr
-	id            int32
+	id            int64
 	mallocing     int32
 	throwing      int32
 	preemptoff    string // if != "", keep curg running on this m
@@ -531,7 +531,7 @@ type schedt struct {
 	midle        muintptr // idle m's waiting for work
 	nmidle       int32    // number of idle m's waiting for work
 	nmidlelocked int32    // number of locked m's waiting for work
-	mcount       int32    // number of m's that have been created
+	mnext        int64    // number of m's that have been created and next M ID
 	maxmcount    int32    // maximum number of m's allowed (or die)
 	nmsys        int32    // number of system m's not counted for deadlock
 
