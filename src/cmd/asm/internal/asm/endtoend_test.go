@@ -186,7 +186,7 @@ Diff:
 		t.Errorf(format, args...)
 		ok = false
 	}
-	obj.Flushplist(ctxt, pList, nil)
+	obj.Flushplist(ctxt, pList, nil, "")
 
 	for p := top; p != nil; p = p.Link {
 		if p.As == obj.ATEXT {
@@ -290,7 +290,7 @@ func testErrors(t *testing.T, goarch, file string) {
 		errBuf.WriteString(s)
 	}
 	pList.Firstpc, ok = parser.Parse()
-	obj.Flushplist(ctxt, pList, nil)
+	obj.Flushplist(ctxt, pList, nil, "")
 	if ok && !failed {
 		t.Errorf("asm: %s had no errors", goarch)
 	}

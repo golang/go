@@ -31,8 +31,11 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
+	"sort"
+	"strings"
 )
 
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
@@ -809,6 +812,9 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 	// Make temp names to use instead of the originals.
 	inlvars := make(map[*Node]*Node)
 
+	// record formals/locals for later post-processing
+	var inlfvars []*Node
+
 	// Find declarations corresponding to inlineable body.
 	var dcl []*Node
 	if fn.Name.Defn != nil {
@@ -867,19 +873,42 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 		if ln.Class() == PPARAM || ln.Name.Param.Stackcopy != nil && ln.Name.Param.Stackcopy.Class() == PPARAM {
 			ninit.Append(nod(ODCL, inlvars[ln], nil))
 		}
+		if genDwarfInline > 0 {
+			inlf := inlvars[ln]
+			if ln.Class() == PPARAM {
+				inlf.SetInlFormal(true)
+			} else {
+				inlf.SetInlLocal(true)
+			}
+			inlf.Pos = ln.Pos
+			inlfvars = append(inlfvars, inlf)
+		}
 	}
 
 	// temporaries for return values.
 	var retvars []*Node
 	for i, t := range fn.Type.Results().Fields().Slice() {
 		var m *Node
+		var mpos src.XPos
 		if t != nil && asNode(t.Nname) != nil && !isblank(asNode(t.Nname)) {
+			mpos = asNode(t.Nname).Pos
 			m = inlvar(asNode(t.Nname))
 			m = typecheck(m, Erv)
 			inlvars[asNode(t.Nname)] = m
 		} else {
 			// anonymous return values, synthesize names for use in assignment that replaces return
 			m = retvar(t, i)
+		}
+
+		if genDwarfInline > 0 {
+			// Don't update the src.Pos on a return variable if it
+			// was manufactured by the inliner (e.g. "~r2"); such vars
+			// were not part of the original callee.
+			if !strings.HasPrefix(m.Sym.Name, "~r") {
+				m.SetInlFormal(true)
+				m.Pos = mpos
+				inlfvars = append(inlfvars, m)
+			}
 		}
 
 		ninit.Append(nod(ODCL, m, nil))
@@ -976,7 +1005,15 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 	if b := Ctxt.PosTable.Pos(n.Pos).Base(); b != nil {
 		parent = b.InliningIndex()
 	}
+	sort.Sort(byNodeName(dcl))
 	newIndex := Ctxt.InlTree.Add(parent, n.Pos, fn.Sym.Linksym())
+
+	if genDwarfInline > 0 {
+		if !fn.Sym.Linksym().WasInlined() {
+			Ctxt.DwFixups.SetPrecursorFunc(fn.Sym.Linksym(), fn)
+			fn.Sym.Linksym().Set(obj.AttrWasInlined, true)
+		}
+	}
 
 	subst := inlsubst{
 		retlabel:    retlabel,
@@ -992,6 +1029,12 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 	body = append(body, lab)
 
 	typecheckslice(body, Etop)
+
+	if genDwarfInline > 0 {
+		for _, v := range inlfvars {
+			v.Pos = subst.updatedPos(v.Pos)
+		}
+	}
 
 	//dumplist("ninit post", ninit);
 
@@ -1192,3 +1235,28 @@ func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
 	pos.SetBase(newbase)
 	return Ctxt.PosTable.XPos(pos)
 }
+
+func cmpNodeName(a, b *Node) bool {
+	// named before artificial
+	aart := 0
+	if strings.HasPrefix(a.Sym.Name, "~r") {
+		aart = 1
+	}
+	bart := 0
+	if strings.HasPrefix(b.Sym.Name, "~r") {
+		bart = 1
+	}
+	if aart != bart {
+		return aart < bart
+	}
+
+	// otherwise sort by name
+	return a.Sym.Name < b.Sym.Name
+}
+
+// byNodeName implements sort.Interface for []*Node using cmpNodeName.
+type byNodeName []*Node
+
+func (s byNodeName) Len() int           { return len(s) }
+func (s byNodeName) Less(i, j int) bool { return cmpNodeName(s[i], s[j]) }
+func (s byNodeName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

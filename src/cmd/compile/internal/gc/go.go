@@ -219,6 +219,11 @@ var instrumenting bool
 // Whether we are tracking lexical scopes for DWARF.
 var trackScopes bool
 
+// Controls generation of DWARF inlined instance records. Zero
+// disables, 1 emits inlined routines but suppresses var info,
+// and 2 emits inlined routines with tracking of formals/locals.
+var genDwarfInline int
+
 var debuglive int
 
 var Ctxt *obj.Link

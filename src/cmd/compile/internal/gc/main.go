@@ -48,6 +48,7 @@ var (
 	Debug_pctab        string
 	Debug_locationlist int
 	Debug_typecheckinl int
+	Debug_gendwarfinl  int
 )
 
 // Debug arguments.
@@ -76,6 +77,7 @@ var debugtab = []struct {
 	{"pctab", "print named pc-value table", &Debug_pctab},
 	{"locationlists", "print information about DWARF location list creation", &Debug_locationlist},
 	{"typecheckinl", "eager typechecking of inline function bodies", &Debug_typecheckinl},
+	{"dwarfinl", "print information about DWARF inlined function creation", &Debug_gendwarfinl},
 }
 
 const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
@@ -191,6 +193,7 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`; try -d help")
 	flag.BoolVar(&flagDWARF, "dwarf", true, "generate DWARF symbols")
 	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", false, "add location lists to DWARF in optimized mode")
+	flag.IntVar(&genDwarfInline, "gendwarfinl", 2, "generate DWARF inline info records")
 	objabi.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
 	objabi.Flagcount("f", "debug stack frames", &Debug['f'])
 	objabi.Flagcount("h", "halt on error", &Debug['h'])
@@ -247,6 +250,11 @@ func Main(archInit func(*Arch)) {
 	Ctxt.Debugvlog = Debug_vlog
 	if flagDWARF {
 		Ctxt.DebugInfo = debuginfo
+		Ctxt.GenAbstractFunc = genAbstractFunc
+		Ctxt.DwFixups = obj.NewDwarfFixupTable(Ctxt)
+	} else {
+		// turn off inline generation if no dwarf at all
+		genDwarfInline = 0
 	}
 
 	if flag.NArg() < 1 && debugstr != "help" && debugstr != "ssa/help" {
@@ -381,6 +389,9 @@ func Main(archInit func(*Arch)) {
 
 	// set via a -d flag
 	Ctxt.Debugpcln = Debug_pctab
+	if flagDWARF {
+		dwarf.EnableLogging(Debug_gendwarfinl != 0)
+	}
 
 	// enable inlining.  for now:
 	//	default: inlining on.  (debug['l'] == 1)
@@ -629,6 +640,15 @@ func Main(archInit func(*Arch)) {
 			// call graph.
 			nowritebarrierrecCheck.check()
 			nowritebarrierrecCheck = nil
+		}
+
+		// Finalize DWARF inline routine DIEs, then explicitly turn off
+		// DWARF inlining gen so as to avoid problems with generated
+		// method wrappers.
+		if Ctxt.DwFixups != nil {
+			Ctxt.DwFixups.Finalize(myimportpath, Debug_gendwarfinl != 0)
+			Ctxt.DwFixups = nil
+			genDwarfInline = 0
 		}
 
 		// Check whether any of the functions we have compiled have gigantic stack frames.

@@ -6,7 +6,7 @@ package obj
 
 import "cmd/internal/src"
 
-// InlTree s a collection of inlined calls. The Parent field of an
+// InlTree is a collection of inlined calls. The Parent field of an
 // InlinedCall is the index of another InlinedCall in InlTree.
 //
 // The compiler maintains a global inlining tree and adds a node to it
@@ -62,6 +62,18 @@ func (tree *InlTree) Add(parent int, pos src.XPos, func_ *LSym) int {
 	}
 	tree.nodes = append(tree.nodes, call)
 	return r
+}
+
+func (tree *InlTree) Parent(inlIndex int) int {
+	return tree.nodes[inlIndex].Parent
+}
+
+func (tree *InlTree) InlinedFunction(inlIndex int) *LSym {
+	return tree.nodes[inlIndex].Func
+}
+
+func (tree *InlTree) CallPos(inlIndex int) src.XPos {
+	return tree.nodes[inlIndex].Pos
 }
 
 // OutermostPos returns the outermost position corresponding to xpos,
