@@ -889,7 +889,7 @@ var ymmxmm0f38 = []ytab{
 }
 
 var yextractps = []ytab{
-	{Yu2, Yxr, Yml, Zibr_m, 2},
+	{Zibr_m, 2, argList{Yu2, Yxr, Yml}},
 }
 
 /*
