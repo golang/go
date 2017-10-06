@@ -1171,22 +1171,6 @@ func (p *parser) interfaceType() *InterfaceType {
 	return typ
 }
 
-// FunctionBody = Block .
-func (p *parser) funcBody() []Stmt {
-	if trace {
-		defer p.trace("funcBody")()
-	}
-
-	p.fnest++
-	body := p.stmtList()
-	p.fnest--
-
-	if body == nil {
-		body = []Stmt{new(EmptyStmt)}
-	}
-	return body
-}
-
 // Result = Parameters | Type .
 func (p *parser) funcResult() []*Field {
 	if trace {
@@ -1676,6 +1660,11 @@ func (p *parser) blockStmt(context string) *BlockStmt {
 		defer p.trace("blockStmt")()
 	}
 
+	// TODO(gri) If we are in a function we should update p.fnest
+	// accordingly. Currently p.fnest is always zero and thus not
+	// used in error recovery.
+	// Not enabled for for because it performs worse for some code
+	// without more fine tuning (see example in #22164).
 	s := new(BlockStmt)
 	s.pos = p.pos()
 
