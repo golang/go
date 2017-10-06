@@ -18,11 +18,11 @@ func initTestingZone() {
 	localLoc = *z
 }
 
-var origZoneSources = zoneSources
+var OrigZoneSources = zoneSources
 
 func forceZipFileForTesting(zipOnly bool) {
-	zoneSources = make([]string, len(origZoneSources))
-	copy(zoneSources, origZoneSources)
+	zoneSources = make([]string, len(OrigZoneSources))
+	copy(zoneSources, OrigZoneSources)
 	if zipOnly {
 		zoneSources = zoneSources[len(zoneSources)-1:]
 	}
