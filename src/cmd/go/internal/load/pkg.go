@@ -1118,6 +1118,12 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		// For binary-only package, use build ID from supplied package binary.
 		buildID, err := buildid.ReadFile(p.Target)
 		if err == nil {
+			// The stored build ID used to be "<actionID>".
+			// Now it is "<actionID>.<contentID>".
+			// For now at least, we want only the <actionID> part here.
+			if i := strings.Index(buildID, "."); i >= 0 {
+				buildID = buildID[:i]
+			}
 			p.Internal.BuildID = buildID
 		}
 	} else {
@@ -1215,6 +1221,9 @@ func PackageList(roots []*Package) []*Package {
 // at the named pkgs (command-line arguments).
 func ComputeStale(pkgs ...*Package) {
 	for _, p := range PackageList(pkgs) {
+		if p.Internal.BuildID == "" {
+			computeBuildID(p)
+		}
 		p.Stale, p.StaleReason = isStale(p)
 	}
 }
@@ -1541,6 +1550,12 @@ func isStale(p *Package) (bool, string) {
 	// two versions of Go compiling a single GOPATH.
 	// See issue 8290 and issue 10702.
 	targetBuildID, err := buildid.ReadFile(p.Target)
+	// The build ID used to be "<actionID>".
+	// Now we've started writing "<actionID>.<contentID>".
+	// Ignore contentID for now and record only "<actionID>" here.
+	if i := strings.Index(targetBuildID, "."); i >= 0 {
+		targetBuildID = targetBuildID[:i]
+	}
 	if err == nil && targetBuildID != p.Internal.BuildID {
 		return true, "build ID mismatch"
 	}

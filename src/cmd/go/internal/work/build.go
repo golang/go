@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"container/heap"
+	"crypto/sha256"
 	"debug/elf"
 	"encoding/json"
 	"errors"
@@ -684,6 +685,7 @@ type Action struct {
 	Args       []string                      // additional args for runProgram
 
 	triggers []*Action // inverse of deps
+	buildID  string
 
 	// Generated files, directories.
 	Objdir string // directory for intermediate objects
@@ -1466,6 +1468,18 @@ func (b *Builder) build(a *Action) (err error) {
 		}
 	}
 
+	// We want to keep the action ID available for consultation later,
+	// but we'll append to it the SHA256 of the file (without this ID included).
+	// We don't know the SHA256 yet, so make one up to find and replace
+	// later. Becuase the action ID is a hash of the inputs to this built,
+	// the chance of SHA256(actionID) occurring elsewhere in the result
+	// of the build is essentially zero, at least in 2017.
+	actionID := a.Package.Internal.BuildID
+	if actionID == "" {
+		return fmt.Errorf("missing action ID")
+	}
+	a.buildID = actionID + "." + fmt.Sprintf("%x", sha256.Sum256([]byte(actionID)))
+
 	var gofiles, cgofiles, objdirCgofiles, cfiles, sfiles, cxxfiles, objects, cgoObjects, pcCFLAGS, pcLDFLAGS []string
 
 	gofiles = append(gofiles, a.Package.GoFiles...)
@@ -1682,6 +1696,10 @@ func (b *Builder) build(a *Action) (err error) {
 		}
 	}
 
+	if err := b.updateBuildID(a, actionID, objpkg); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -1699,11 +1717,65 @@ func (b *Builder) link(a *Action) (err error) {
 		}
 	}
 
+	actionID := a.Package.Internal.BuildID
+	if actionID == "" {
+		return fmt.Errorf("missing action ID")
+	}
+	a.buildID = actionID + "." + fmt.Sprintf("%x", sha256.Sum256([]byte(actionID)))
+
 	objpkg := a.Objdir + "_pkg_.a"
 	if err := BuildToolchain.ld(b, a, a.Target, importcfg, objpkg); err != nil {
 		return err
 	}
 
+	if err := b.updateBuildID(a, actionID, a.Target); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (b *Builder) updateBuildID(a *Action, actionID, target string) error {
+	if cfg.BuildX || cfg.BuildN {
+		b.Showcmd("", "%s # internal", joinUnambiguously(str.StringList(base.Tool("buildid"), "-w", target)))
+		if cfg.BuildN {
+			return nil
+		}
+	}
+
+	// Find occurrences of old ID and compute new content-based ID.
+	r, err := os.Open(target)
+	if err != nil {
+		return err
+	}
+	matches, hash, err := buildid.FindAndHash(r, a.buildID, 0)
+	r.Close()
+	if err != nil {
+		return err
+	}
+	newID := fmt.Sprintf("%s.%x", actionID, hash)
+	if len(newID) != len(a.buildID) {
+		return fmt.Errorf("internal error: build ID length mismatch %d+1+%d != %d", len(actionID), len(hash)*2, len(a.buildID))
+	}
+
+	// Replace with new content-based ID.
+	a.buildID = newID
+	if len(matches) == 0 {
+		// Assume the user specified -buildid= to override what we were going to choose.
+		return nil
+	}
+	w, err := os.OpenFile(target, os.O_WRONLY, 0)
+	if err != nil {
+		return err
+	}
+	err = buildid.Rewrite(w, matches, newID)
+	if err != nil {
+		w.Close()
+		return err
+	}
+	if err := w.Close(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -2451,8 +2523,8 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 	if cfg.BuildContext.InstallSuffix != "" {
 		gcargs = append(gcargs, "-installsuffix", cfg.BuildContext.InstallSuffix)
 	}
-	if p.Internal.BuildID != "" {
-		gcargs = append(gcargs, "-buildid", p.Internal.BuildID)
+	if a.buildID != "" {
+		gcargs = append(gcargs, "-buildid", a.buildID)
 	}
 	platform := cfg.Goos + "/" + cfg.Goarch
 	if p.Internal.OmitDebug || platform == "nacl/amd64p32" || platform == "darwin/arm" || platform == "darwin/arm64" || cfg.Goos == "plan9" {
@@ -2758,7 +2830,7 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 	// Store BuildID inside toolchain binaries as a unique identifier of the
 	// tool being run, for use by content-based staleness determination.
 	if root.Package.Goroot && strings.HasPrefix(root.Package.ImportPath, "cmd/") {
-		ldflags = append(ldflags, "-X=cmd/internal/objabi.buildID="+root.Package.Internal.BuildID)
+		ldflags = append(ldflags, "-X=cmd/internal/objabi.buildID="+root.buildID)
 	}
 
 	// If the user has not specified the -extld option, then specify the
@@ -2772,8 +2844,8 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 		compiler = envList("CC", cfg.DefaultCC)
 	}
 	ldflags = append(ldflags, "-buildmode="+ldBuildmode)
-	if root.Package.Internal.BuildID != "" {
-		ldflags = append(ldflags, "-buildid="+root.Package.Internal.BuildID)
+	if root.buildID != "" {
+		ldflags = append(ldflags, "-buildid="+root.buildID)
 	}
 	ldflags = append(ldflags, cfg.BuildLdflags...)
 	ldflags = setextld(ldflags, compiler)
