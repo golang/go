@@ -1,6 +1,12 @@
-package ld
+// Copyright 2017 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package loadmacho implements a Mach-O file reader.
+package loadmacho
 
 import (
+	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -8,7 +14,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 	"sort"
 )
 
@@ -42,6 +47,13 @@ const (
 	N_EXT  = 0x01
 	N_TYPE = 0x1e
 	N_STAB = 0xe0
+)
+
+// TODO(crawshaw): de-duplicate these symbols with cmd/internal/ld
+const (
+	MACHO_X86_64_RELOC_UNSIGNED = 0
+	MACHO_X86_64_RELOC_SIGNED   = 1
+	MACHO_FAKE_GOTPCREL         = 100
 )
 
 type ldMachoObj struct {
@@ -411,8 +423,9 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 	return 0
 }
 
-func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-	var err error
+// Load loads the Mach-O file pn from f.
+// Symbols are written into syms, and a slice of the text symbols is returned.
+func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
 	var j int
 	var is64 bool
 	var secaddr uint64
@@ -439,10 +452,14 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	var rp *sym.Reloc
 	var name string
 
-	localSymVersion := ctxt.Syms.IncVersion()
+	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, error) {
+		return nil, fmt.Errorf("loadmacho: %v: %v", pn, fmt.Sprintf(str, args...))
+	}
+
+	localSymVersion := syms.IncVersion()
 	base := f.Offset()
 	if _, err := io.ReadFull(f, hdr[:]); err != nil {
-		goto bad
+		return errorf("%v", err)
 	}
 
 	if binary.BigEndian.Uint32(hdr[:])&^1 == 0xFEEDFACE {
@@ -450,16 +467,14 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	} else if binary.LittleEndian.Uint32(hdr[:])&^1 == 0xFEEDFACE {
 		e = binary.LittleEndian
 	} else {
-		err = fmt.Errorf("bad magic - not mach-o file")
-		goto bad
+		return errorf("bad magic - not mach-o file")
 	}
 
 	is64 = e.Uint32(hdr[:]) == 0xFEEDFACF
 	ncmd = e.Uint32(hdr[4*4:])
 	cmdsz = e.Uint32(hdr[5*4:])
 	if ncmd > 0x10000 || cmdsz >= 0x01000000 {
-		err = fmt.Errorf("implausible mach-o header ncmd=%d cmdsz=%d", ncmd, cmdsz)
-		goto bad
+		return errorf("implausible mach-o header ncmd=%d cmdsz=%d", ncmd, cmdsz)
 	}
 
 	if is64 {
@@ -480,21 +495,18 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	m.length = length
 	m.name = pn
 
-	switch ctxt.Arch.Family {
+	switch arch.Family {
 	default:
-		Errorf(nil, "%s: mach-o %s unimplemented", pn, ctxt.Arch.Name)
-		return
+		return errorf("mach-o %s unimplemented", arch.Name)
 
 	case sys.AMD64:
 		if e != binary.LittleEndian || m.cputype != LdMachoCpuAmd64 {
-			Errorf(nil, "%s: mach-o object but not amd64", pn)
-			return
+			return errorf("mach-o object but not amd64")
 		}
 
 	case sys.I386:
 		if e != binary.LittleEndian || m.cputype != LdMachoCpu386 {
-			Errorf(nil, "%s: mach-o object but not 386", pn)
-			return
+			return errorf("mach-o object but not 386")
 		}
 	}
 
@@ -502,8 +514,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	off = uint32(len(hdr))
 	cmdp = make([]byte, cmdsz)
 	if _, err2 := io.ReadFull(f, cmdp); err2 != nil {
-		err = fmt.Errorf("reading cmds: %v", err)
-		goto bad
+		return errorf("reading cmds: %v", err)
 	}
 
 	// read and parse load commands
@@ -521,8 +532,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		off += sz
 		if ty == LdMachoCmdSymtab {
 			if symtab != nil {
-				err = fmt.Errorf("multiple symbol tables")
-				goto bad
+				return errorf("multiple symbol tables")
 			}
 
 			symtab = &m.cmd[i].sym
@@ -536,8 +546,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 
 		if (is64 && ty == LdMachoCmdSegment64) || (!is64 && ty == LdMachoCmdSegment) {
 			if c != nil {
-				err = fmt.Errorf("multiple load commands")
-				goto bad
+				return errorf("multiple load commands")
 			}
 
 			c = &m.cmd[i]
@@ -549,8 +558,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	// the memory anyway for the symbol images, so we might
 	// as well use one large chunk.
 	if c == nil {
-		err = fmt.Errorf("no load command")
-		goto bad
+		return errorf("no load command")
 	}
 
 	if symtab == nil {
@@ -559,18 +567,15 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	}
 
 	if int64(c.seg.fileoff+c.seg.filesz) >= length {
-		err = fmt.Errorf("load segment out of range")
-		goto bad
+		return errorf("load segment out of range")
 	}
 
 	dat = make([]byte, c.seg.filesz)
 	if f.Seek(m.base+int64(c.seg.fileoff), 0) < 0 {
-		err = fmt.Errorf("cannot load object data: %v", err)
-		goto bad
+		return errorf("cannot load object data: %v", err)
 	}
 	if _, err2 := io.ReadFull(f, dat); err2 != nil {
-		err = fmt.Errorf("cannot load object data: %v", err)
-		goto bad
+		return errorf("cannot load object data: %v", err)
 	}
 
 	for i := 0; uint32(i) < c.seg.nsect; i++ {
@@ -582,10 +587,9 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			continue
 		}
 		name = fmt.Sprintf("%s(%s/%s)", pkg, sect.segname, sect.name)
-		s = ctxt.Syms.Lookup(name, localSymVersion)
+		s = syms.Lookup(name, localSymVersion)
 		if s.Type != 0 {
-			err = fmt.Errorf("duplicate %s/%s", sect.segname, sect.name)
-			goto bad
+			return errorf("duplicate %s/%s", sect.segname, sect.name)
 		}
 
 		if sect.flags&0xff == 1 { // S_ZEROFILL
@@ -631,7 +635,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		if machsym.type_&N_EXT == 0 {
 			v = localSymVersion
 		}
-		s = ctxt.Syms.Lookup(name, v)
+		s = syms.Lookup(name, v)
 		if machsym.type_&N_EXT == 0 {
 			s.Attr |= sym.AttrDuplicateOK
 		}
@@ -640,22 +644,20 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			continue
 		}
 		if uint32(machsym.sectnum) > c.seg.nsect {
-			err = fmt.Errorf("reference to invalid section %d", machsym.sectnum)
-			goto bad
+			return errorf("reference to invalid section %d", machsym.sectnum)
 		}
 
 		sect = &c.seg.sect[machsym.sectnum-1]
 		outer = sect.sym
 		if outer == nil {
-			err = fmt.Errorf("reference to invalid section %s/%s", sect.segname, sect.name)
-			continue
+			return errorf("reference to invalid section %s/%s", sect.segname, sect.name)
 		}
 
 		if s.Outer != nil {
 			if s.Attr.DuplicateOK() {
 				continue
 			}
-			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
+			return errorf("duplicate symbol reference: %s in both %s and %s", s.Name, s.Outer.Name, sect.sym.Name)
 		}
 
 		s.Type = outer.Type | sym.SSUB
@@ -668,7 +670,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		}
 		if outer.Type == sym.STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {
-				Errorf(s, "%s: duplicate symbol definition", pn)
+				return errorf("%v: duplicate symbol definition", s)
 			}
 			s.Attr |= sym.AttrExternal
 		}
@@ -685,7 +687,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			continue
 		}
 		if s.Sub != nil {
-			s.Sub = listsort(s.Sub)
+			s.Sub = sym.SortSub(s.Sub)
 
 			// assign sizes, now that we know symbols in sorted order.
 			for s1 = s.Sub; s1 != nil; s1 = s1.Sub {
@@ -699,16 +701,16 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 
 		if s.Type == sym.STEXT {
 			if s.Attr.OnList() {
-				log.Fatalf("symbol %s listed multiple times", s.Name)
+				return errorf("symbol %s listed multiple times", s.Name)
 			}
 			s.Attr |= sym.AttrOnList
-			ctxt.Textp = append(ctxt.Textp, s)
+			textp = append(textp, s)
 			for s1 = s.Sub; s1 != nil; s1 = s1.Sub {
 				if s1.Attr.OnList() {
-					log.Fatalf("symbol %s listed multiple times", s1.Name)
+					return errorf("symbol %s listed multiple times", s1.Name)
 				}
 				s1.Attr |= sym.AttrOnList
-				ctxt.Textp = append(ctxt.Textp, s1)
+				textp = append(textp, s1)
 			}
 		}
 	}
@@ -731,10 +733,9 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			rp = &r[rpi]
 			rel = &sect.rel[j]
 			if rel.scattered != 0 {
-				if ctxt.Arch.Family != sys.I386 {
+				if arch.Family != sys.I386 {
 					// mach-o only uses scattered relocation on 32-bit platforms
-					Errorf(s, "unexpected scattered relocation")
-					continue
+					return errorf("%v: unexpected scattered relocation", s)
 				}
 
 				// on 386, rewrite scattered 4/1 relocation and some
@@ -743,13 +744,11 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 				// assume that the second in the pair is in this section
 				// and use that as the pc-relative base.
 				if uint32(j+1) >= sect.nreloc {
-					err = fmt.Errorf("unsupported scattered relocation %d", int(rel.type_))
-					goto bad
+					return errorf("unsupported scattered relocation %d", int(rel.type_))
 				}
 
 				if sect.rel[j+1].scattered == 0 || sect.rel[j+1].type_ != 1 || (rel.type_ != 4 && rel.type_ != 2) || uint64(sect.rel[j+1].value) < sect.addr || uint64(sect.rel[j+1].value) >= sect.addr+sect.size {
-					err = fmt.Errorf("unsupported scattered relocation %d/%d", int(rel.type_), int(sect.rel[j+1].type_))
-					goto bad
+					return errorf("unsupported scattered relocation %d/%d", int(rel.type_), int(sect.rel[j+1].type_))
 				}
 
 				rp.Siz = rel.length
@@ -792,20 +791,17 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 							// load indirect table for __pointers
 							// fetch symbol number
 							if dsymtab == nil || k < 0 || uint32(k) >= dsymtab.nindirectsyms || dsymtab.indir == nil {
-								err = fmt.Errorf("invalid scattered relocation: indirect symbol reference out of range")
-								goto bad
+								return errorf("invalid scattered relocation: indirect symbol reference out of range")
 							}
 
 							k = int(dsymtab.indir[k])
 							if k < 0 || uint32(k) >= symtab.nsym {
-								err = fmt.Errorf("invalid scattered relocation: symbol reference out of range")
-								goto bad
+								return errorf("invalid scattered relocation: symbol reference out of range")
 							}
 
 							rp.Sym = symtab.sym[k].sym
 						} else {
-							err = fmt.Errorf("unsupported scattered relocation: reference to %s/%s", ks.segname, ks.name)
-							goto bad
+							return errorf("unsupported scattered relocation: reference to %s/%s", ks.segname, ks.name)
 						}
 
 						rpi++
@@ -817,8 +813,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 					}
 				}
 
-				err = fmt.Errorf("unsupported scattered relocation: invalid address %#x", rel.addr)
-				goto bad
+				return errorf("unsupported scattered relocation: invalid address %#x", rel.addr)
 
 			}
 
@@ -827,7 +822,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			rp.Off = int32(rel.addr)
 
 			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).
-			if ctxt.Arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_SIGNED {
+			if arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_SIGNED {
 				// Calculate the addend as the offset into the section.
 				//
 				// The rip-relative offset stored in the object file is encoded
@@ -852,7 +847,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 
 			// An unsigned internal relocation has a value offset
 			// by the section address.
-			if ctxt.Arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_UNSIGNED {
+			if arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_UNSIGNED {
 				secaddr = c.seg.sect[rel.symnum-1].addr
 				rp.Add -= int64(secaddr)
 			}
@@ -860,32 +855,29 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			// For i386 Mach-O PC-relative, the addend is written such that
 			// it *is* the PC being subtracted. Use that to make
 			// it match our version of PC-relative.
-			if rel.pcrel != 0 && ctxt.Arch.Family == sys.I386 {
+			if rel.pcrel != 0 && arch.Family == sys.I386 {
 				rp.Add += int64(rp.Off) + int64(rp.Siz)
 			}
 			if rel.extrn == 0 {
 				if rel.symnum < 1 || rel.symnum > c.seg.nsect {
-					err = fmt.Errorf("invalid relocation: section reference out of range %d vs %d", rel.symnum, c.seg.nsect)
-					goto bad
+					return errorf("invalid relocation: section reference out of range %d vs %d", rel.symnum, c.seg.nsect)
 				}
 
 				rp.Sym = c.seg.sect[rel.symnum-1].sym
 				if rp.Sym == nil {
-					err = fmt.Errorf("invalid relocation: %s", c.seg.sect[rel.symnum-1].name)
-					goto bad
+					return errorf("invalid relocation: %s", c.seg.sect[rel.symnum-1].name)
 				}
 
 				// References to symbols in other sections
 				// include that information in the addend.
 				// We only care about the delta from the
 				// section base.
-				if ctxt.Arch.Family == sys.I386 {
+				if arch.Family == sys.I386 {
 					rp.Add -= int64(c.seg.sect[rel.symnum-1].addr)
 				}
 			} else {
 				if rel.symnum >= symtab.nsym {
-					err = fmt.Errorf("invalid relocation: symbol reference out of range")
-					goto bad
+					return errorf("invalid relocation: symbol reference out of range")
 				}
 
 				rp.Sym = symtab.sym[rel.symnum].sym
@@ -894,13 +886,18 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			rpi++
 		}
 
-		sort.Sort(rbyoff(r[:rpi]))
+		sort.Sort(sym.RelocByOff(r[:rpi]))
 		s.R = r
 		s.R = s.R[:rpi]
 	}
 
-	return
+	return textp, nil
+}
 
-bad:
-	Errorf(nil, "%s: malformed mach-o file: %v", pn, err)
+func cstring(x []byte) string {
+	i := bytes.IndexByte(x, '\x00')
+	if i >= 0 {
+		x = x[:i]
+	}
+	return string(x)
 }
