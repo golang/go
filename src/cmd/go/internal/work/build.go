@@ -594,7 +594,7 @@ func InstallPackages(args []string, forGet bool) {
 		// This avoids installing assemblers/compilers that are being executed
 		// by other steps in the build.
 		a1 := b.AutoAction(ModeInstall, ModeInstall, p)
-		if load.GoTools[p.ImportPath] == load.ToTool {
+		if load.InstallTargetDir(p) == load.ToTool {
 			a.Deps = append(a.Deps, a1.Deps...)
 			a1.Deps = append(a1.Deps, a)
 			tools = append(tools, a1)

@@ -796,36 +796,27 @@ func FindVendor(path string) (index int, ok bool) {
 	return 0, false
 }
 
-type targetDir int
+type TargetDir int
 
 const (
-	ToRoot    targetDir = iota // to bin dir inside package root (default)
-	ToTool                     // GOROOT/pkg/tool
-	StalePath                  // the old import path; fail to build
+	ToTool    TargetDir = iota // to GOROOT/pkg/tool (default for cmd/*)
+	ToBin                      // to bin dir inside package root (default for non-cmd/*)
+	StalePath                  // an old import path; fail to build
 )
 
-// goTools is a map of Go program import path to install target directory.
-var GoTools = map[string]targetDir{
-	"cmd/addr2line": ToTool,
-	"cmd/api":       ToTool,
-	"cmd/asm":       ToTool,
-	"cmd/compile":   ToTool,
-	"cmd/cgo":       ToTool,
-	"cmd/cover":     ToTool,
-	"cmd/dist":      ToTool,
-	"cmd/doc":       ToTool,
-	"cmd/fix":       ToTool,
-	"cmd/link":      ToTool,
-	"cmd/newlink":   ToTool,
-	"cmd/nm":        ToTool,
-	"cmd/objdump":   ToTool,
-	"cmd/pack":      ToTool,
-	"cmd/pprof":     ToTool,
-	"cmd/trace":     ToTool,
-	"cmd/vet":       ToTool,
-	"code.google.com/p/go.tools/cmd/cover": StalePath,
-	"code.google.com/p/go.tools/cmd/godoc": StalePath,
-	"code.google.com/p/go.tools/cmd/vet":   StalePath,
+// InstallTargetDir reports the target directory for installing the command p.
+func InstallTargetDir(p *Package) TargetDir {
+	if strings.HasPrefix(p.ImportPath, "code.google.com/p/go.tools/cmd/") {
+		return StalePath
+	}
+	if p.Goroot && strings.HasPrefix(p.ImportPath, "cmd/") && p.Name == "main" {
+		switch p.ImportPath {
+		case "cmd/go", "cmd/gofmt":
+			return ToBin
+		}
+		return ToTool
+	}
+	return ToBin
 }
 
 var cgoExclude = map[string]bool{
@@ -872,7 +863,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 
 	if useBindir {
 		// Report an error when the old code.google.com/p/go.tools paths are used.
-		if GoTools[p.ImportPath] == StalePath {
+		if InstallTargetDir(p) == StalePath {
 			newPath := strings.Replace(p.ImportPath, "code.google.com/p/go.", "golang.org/x/", 1)
 			e := fmt.Sprintf("the %v command has moved; use %v instead.", p.ImportPath, newPath)
 			p.Error = &PackageError{Err: e}
@@ -893,7 +884,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 				p.Internal.GobinSubdir = true
 			}
 		}
-		if GoTools[p.ImportPath] == ToTool {
+		if InstallTargetDir(p) == ToTool {
 			// This is for 'go tool'.
 			// Override all the usual logic and force it into the tool directory.
 			p.Internal.Target = filepath.Join(cfg.GOROOTpkg, "tool", full)
