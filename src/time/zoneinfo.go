@@ -294,7 +294,7 @@ func LoadLocation(name string) (*Location, error) {
 	})
 	if *zoneinfo != "" {
 		if zoneData, err := loadTzinfoFromDirOrZip(*zoneinfo, name); err == nil {
-			if z, err := newLocationFromTzinfo(name, zoneData); err == nil {
+			if z, err := LoadLocationFromTZData(name, zoneData); err == nil {
 				return z, nil
 			}
 		}

@@ -79,11 +79,12 @@ func byteString(p []byte) string {
 
 var badData = errors.New("malformed time zone information")
 
-// newLocationFromTzinfo returns the Location described by Tzinfo with the given name.
-// The expected format for Tzinfo is that of a timezone file as they are found in the
-// the IANA Time Zone database.
-func newLocationFromTzinfo(name string, Tzinfo []byte) (*Location, error) {
-	d := dataIO{Tzinfo, false}
+// LoadLocationFromTZData returns a Location with the given name
+// initialized from the IANA Time Zone database-formatted data.
+// The data should be in the format of a standard IANA time zone file
+// (for example, the content of /etc/localtime on Unix systems).
+func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
+	d := dataIO{data, false}
 
 	// 4-byte magic "TZif"
 	if magic := d.read(4); string(magic) != "TZif" {
@@ -390,7 +391,7 @@ func loadLocation(name string, sources []string) (z *Location, firstErr error) {
 	for _, source := range sources {
 		var zoneData, err = loadTzinfo(name, source)
 		if err == nil {
-			if z, err = newLocationFromTzinfo(name, zoneData); err == nil {
+			if z, err = LoadLocationFromTZData(name, zoneData); err == nil {
 				return z, nil
 			}
 		}
