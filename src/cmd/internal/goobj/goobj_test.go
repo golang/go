@@ -32,14 +32,6 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	if runtime.GOARCH == "arm" {
-		switch runtime.GOOS {
-		case "darwin", "android", "nacl":
-		default:
-			return // skip tests due to #19811
-		}
-	}
-
 	if err := buildGoobj(); err != nil {
 		fmt.Println(err)
 		os.RemoveAll(buildDir)

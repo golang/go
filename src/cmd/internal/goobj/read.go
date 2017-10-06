@@ -25,7 +25,7 @@ type Sym struct {
 	SymID                // symbol identifier (name and version)
 	Kind  objabi.SymKind // kind of symbol
 	DupOK bool           // are duplicate definitions okay?
-	Size  int            // size of corresponding data
+	Size  int64          // size of corresponding data
 	Type  SymID          // symbol for Go type information
 	Data  Data           // memory image of symbol
 	Reloc []Reloc        // relocations to apply to Data
@@ -43,7 +43,7 @@ type SymID struct {
 	// declarations in C) have a non-zero version distinguishing
 	// a symbol in one file from a symbol of the same name
 	// in another file
-	Version int
+	Version int64
 }
 
 func (s SymID) String() string {
@@ -67,10 +67,10 @@ type Reloc struct {
 	// The bytes at [Offset, Offset+Size) within the containing Sym
 	// should be updated to refer to the address Add bytes after the start
 	// of the symbol Sym.
-	Offset int
-	Size   int
+	Offset int64
+	Size   int64
 	Sym    SymID
-	Add    int
+	Add    int64
 
 	// The Type records the form of address expected in the bytes
 	// described by the previous fields: absolute, PC-relative, and so on.
@@ -85,16 +85,16 @@ type Var struct {
 	// identifies a variable in a function stack frame.
 	// Using fewer of these - in particular, using only Name - does not.
 	Name   string // Name of variable.
-	Kind   int    // TODO(rsc): Define meaning.
-	Offset int    // Frame offset. TODO(rsc): Define meaning.
+	Kind   int64  // TODO(rsc): Define meaning.
+	Offset int64  // Frame offset. TODO(rsc): Define meaning.
 
 	Type SymID // Go type for variable.
 }
 
 // Func contains additional per-symbol information specific to functions.
 type Func struct {
-	Args     int        // size in bytes of argument frame: inputs and outputs
-	Frame    int        // size in bytes of local variable frame
+	Args     int64      // size in bytes of argument frame: inputs and outputs
+	Frame    int64      // size in bytes of local variable frame
 	Leaf     bool       // function omits save of link register (ARM)
 	NoSplit  bool       // function omits stack split prologue
 	Var      []Var      // detail about local variables
@@ -119,9 +119,9 @@ type FuncData struct {
 // An InlinedCall is a node in an InlTree.
 // See cmd/internal/obj.InlTree for details.
 type InlinedCall struct {
-	Parent int
+	Parent int64
 	File   string
-	Line   int
+	Line   int64
 	Func   SymID
 }
 
@@ -131,7 +131,7 @@ type Package struct {
 	Imports    []string        // packages imported by this package
 	SymRefs    []SymID         // list of symbol names and versions referred to by this pack
 	Syms       []*Sym          // symbols defined by this package
-	MaxVersion int             // maximum Version in any SymID in Syms
+	MaxVersion int64           // maximum Version in any SymID in Syms
 	Arch       string          // architecture
 	Native     []*NativeReader // native object data (e.g. ELF)
 }
@@ -255,7 +255,7 @@ func (r *objReader) readFull(b []byte) error {
 }
 
 // readInt reads a zigzag varint from the input file.
-func (r *objReader) readInt() int {
+func (r *objReader) readInt() int64 {
 	var u uint64
 
 	for shift := uint(0); ; shift += 7 {
@@ -270,12 +270,7 @@ func (r *objReader) readInt() int {
 		}
 	}
 
-	v := int64(u>>1) ^ (int64(u) << 63 >> 63)
-	if int64(int(v)) != v {
-		r.error(errCorruptObject) // TODO
-		return 0
-	}
-	return int(v)
+	return int64(u>>1) ^ (int64(u) << 63 >> 63)
 }
 
 // readString reads a length-delimited string from the input file.
@@ -313,8 +308,8 @@ func (r *objReader) readRef() {
 // readData reads a data reference from the input file.
 func (r *objReader) readData() Data {
 	n := r.readInt()
-	d := Data{Offset: r.dataOffset, Size: int64(n)}
-	r.dataOffset += int64(n)
+	d := Data{Offset: r.dataOffset, Size: n}
+	r.dataOffset += n
 	return d
 }
 
@@ -530,7 +525,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 	r.readInt() // n files - ignore
 
 	r.dataOffset = r.offset
-	r.skip(int64(dataLength))
+	r.skip(dataLength)
 
 	// Symbols.
 	for {
@@ -615,7 +610,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 }
 
 func (r *Reloc) String(insnOffset uint64) string {
-	delta := r.Offset - int(insnOffset)
+	delta := r.Offset - int64(insnOffset)
 	s := fmt.Sprintf("[%d:%d]%s", delta, delta+r.Size, r.Type)
 	if r.Sym.Name != "" {
 		if r.Add != 0 {
