@@ -280,15 +280,16 @@ func TestExportedSymbols(t *testing.T) {
 	t.Parallel()
 
 	cmd := "testp0"
+	bin := cmdToRun(cmd)
 
 	createHeadersOnce(t)
 
 	runCC(t, "-I", installdir, "-o", cmd, "main0.c", libgoname)
 	adbPush(t, cmd)
 
-	defer os.Remove(cmd)
+	defer os.Remove(bin)
 
-	out := runExe(t, append(gopathEnv, "LD_LIBRARY_PATH=."), cmdToRun(cmd))
+	out := runExe(t, append(gopathEnv, "LD_LIBRARY_PATH=."), bin)
 	if strings.TrimSpace(out) != "PASS" {
 		t.Error(out)
 	}
@@ -304,15 +305,16 @@ func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
 	}
 
 	cmd := "testp1"
+	bin := cmdToRun(cmd)
 
 	createHeadersOnce(t)
 
 	runCC(t, "-o", cmd, "main1.c", "-ldl")
 	adbPush(t, cmd)
 
-	defer os.Remove(cmd)
+	defer os.Remove(bin)
 
-	out := runExe(t, nil, cmdToRun(cmd), "./"+libgoname)
+	out := runExe(t, nil, bin, "./"+libgoname)
 	if strings.TrimSpace(out) != "PASS" {
 		t.Error(out)
 	}
@@ -328,6 +330,7 @@ func TestUnexportedSymbols(t *testing.T) {
 	}
 
 	cmd := "testp2"
+	bin := cmdToRun(cmd)
 	libname := "libgo2." + libSuffix
 
 	run(t,
@@ -348,9 +351,9 @@ func TestUnexportedSymbols(t *testing.T) {
 	adbPush(t, cmd)
 
 	defer os.Remove(libname)
-	defer os.Remove(cmd)
+	defer os.Remove(bin)
 
-	out := runExe(t, append(gopathEnv, "LD_LIBRARY_PATH=."), cmdToRun(cmd))
+	out := runExe(t, append(gopathEnv, "LD_LIBRARY_PATH=."), bin)
 
 	if strings.TrimSpace(out) != "PASS" {
 		t.Error(out)
@@ -370,15 +373,16 @@ func TestMainExportedOnAndroid(t *testing.T) {
 	}
 
 	cmd := "testp3"
+	bin := cmdToRun(cmd)
 
 	createHeadersOnce(t)
 
 	runCC(t, "-o", cmd, "main3.c", "-ldl")
 	adbPush(t, cmd)
 
-	defer os.Remove(cmd)
+	defer os.Remove(bin)
 
-	out := runExe(t, nil, cmdToRun(cmd), "./"+libgoname)
+	out := runExe(t, nil, bin, "./"+libgoname)
 	if strings.TrimSpace(out) != "PASS" {
 		t.Error(out)
 	}
@@ -397,11 +401,12 @@ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
 	runCC(t, "-pthread", "-o", cmd, cfile, "-ldl")
 	adbPush(t, cmd)
 
+	bin := cmdToRun(cmd)
+
 	defer os.Remove(libname)
-	defer os.Remove(cmd)
+	defer os.Remove(bin)
 	defer os.Remove(pkgname + ".h")
 
-	bin := cmdToRun(cmd)
 	out := runExe(t, nil, bin, "./"+libname)
 	if strings.TrimSpace(out) != "PASS" {
 		t.Error(run(t, nil, bin, libname, "verbose"))
