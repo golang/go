@@ -158,9 +158,11 @@ func importsAndDepsOf(pkgs ...string) (map[string][]string, map[string][]string)
 		cmd := exec.Command("go", args...)
 		t := strings.Split(target, "/")
 		cmd.Env = append(os.Environ(), "GOOS="+t[0], "GOARCH="+t[1])
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
 		out, err := cmd.Output()
-		if err != nil {
-			log.Fatalf("GOOS=%s GOARCH=%s go list: %v", t[0], t[1], err)
+		if err != nil && !strings.Contains(stderr.String(), "build constraints exclude all Go files") {
+			log.Fatalf("GOOS=%s GOARCH=%s go list: %v\n%s\n%s", t[0], t[1], err, stderr.Bytes(), out)
 		}
 		helped := false
 		for _, line := range strings.Split(string(out), "\n") {

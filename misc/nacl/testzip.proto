@@ -31,6 +31,9 @@ go	src=..
 			internal
 				objfile
 					objfile.go
+				buildid
+					testdata
+						+
 			gofmt
 				gofmt.go
 				gofmt_test.go

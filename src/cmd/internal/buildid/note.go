@@ -73,7 +73,7 @@ var elfGoNote = []byte("Go\x00\x00")
 // The Go build ID is stored in a note described by an ELF PT_NOTE prog
 // header. The caller has already opened filename, to get f, and read
 // at least 4 kB out, in data.
-func readELFGoBuildID(filename string, f *os.File, data []byte) (buildid string, err error) {
+func readELF(name string, f *os.File, data []byte) (buildid string, err error) {
 	// Assume the note content is in the data, already read.
 	// Rewrite the ELF header to set shnum to 0, so that we can pass
 	// the data to elf.NewFile and it will decode the Prog list but not
@@ -93,7 +93,7 @@ func readELFGoBuildID(filename string, f *os.File, data []byte) (buildid string,
 
 	ef, err := elf.NewFile(bytes.NewReader(data))
 	if err != nil {
-		return "", &os.PathError{Path: filename, Op: "parse", Err: err}
+		return "", &os.PathError{Path: name, Op: "parse", Err: err}
 	}
 	for _, p := range ef.Progs {
 		if p.Type != elf.PT_NOTE || p.Filesz < 16 {
@@ -151,23 +151,23 @@ func readELFGoBuildID(filename string, f *os.File, data []byte) (buildid string,
 // The caller has already opened filename, to get f, and read a few kB out, in data.
 // Sadly, that's not guaranteed to hold the note, because there is an arbitrary amount
 // of other junk placed in the file ahead of the main text.
-func readMachoGoBuildID(filename string, f *os.File, data []byte) (buildid string, err error) {
+func readMacho(name string, f *os.File, data []byte) (buildid string, err error) {
 	// If the data we want has already been read, don't worry about Mach-O parsing.
 	// This is both an optimization and a hedge against the Mach-O parsing failing
 	// in the future due to, for example, the name of the __text section changing.
-	if b, err := readRawGoBuildID(filename, data); b != "" && err == nil {
+	if b, err := readRaw(name, data); b != "" && err == nil {
 		return b, err
 	}
 
 	mf, err := macho.NewFile(f)
 	if err != nil {
-		return "", &os.PathError{Path: filename, Op: "parse", Err: err}
+		return "", &os.PathError{Path: name, Op: "parse", Err: err}
 	}
 
 	sect := mf.Section("__text")
 	if sect == nil {
 		// Every binary has a __text section. Something is wrong.
-		return "", &os.PathError{Path: filename, Op: "parse", Err: fmt.Errorf("cannot find __text section")}
+		return "", &os.PathError{Path: name, Op: "parse", Err: fmt.Errorf("cannot find __text section")}
 	}
 
 	// It should be in the first few bytes, but read a lot just in case,
@@ -175,13 +175,13 @@ func readMachoGoBuildID(filename string, f *os.File, data []byte) (buildid strin
 	// There shouldn't be much difference between reading 4kB and 32kB:
 	// the hard part is getting to the data, not transferring it.
 	n := sect.Size
-	if n > uint64(BuildIDReadSize) {
-		n = uint64(BuildIDReadSize)
+	if n > uint64(readSize) {
+		n = uint64(readSize)
 	}
 	buf := make([]byte, n)
 	if _, err := f.ReadAt(buf, int64(sect.Offset)); err != nil {
 		return "", err
 	}
 
-	return readRawGoBuildID(filename, buf)
+	return readRaw(name, buf)
 }
