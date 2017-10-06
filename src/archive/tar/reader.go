@@ -130,6 +130,9 @@ loop:
 			if gnuLongLink != "" {
 				hdr.Linkname = gnuLongLink
 			}
+			if hdr.Typeflag == TypeRegA && strings.HasSuffix(hdr.Name, "/") {
+				hdr.Typeflag = TypeDir // Legacy archives use trailing slash for directories
+			}
 
 			// The extended headers may have updated the size.
 			// Thus, setup the regFileReader again after merging PAX headers.

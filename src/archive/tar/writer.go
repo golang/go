@@ -323,6 +323,7 @@ func (tw *Writer) writeRawFile(name, data string, flag byte, format Format) erro
 	if len(name) > nameSize {
 		name = name[:nameSize]
 	}
+	name = strings.TrimRight(name, "/")
 
 	var f formatter
 	v7 := tw.blk.V7()
