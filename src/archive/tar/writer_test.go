@@ -451,6 +451,12 @@ func TestWriter(t *testing.T) {
 			}, 6e10, nil},
 			testClose{nil},
 		},
+	}, {
+		file: "testdata/trailing-slash.tar",
+		tests: []testFnc{
+			testHeader{Header{Name: strings.Repeat("123456789/", 30)}, nil},
+			testClose{nil},
+		},
 	}}
 
 	equalError := func(x, y error) bool {

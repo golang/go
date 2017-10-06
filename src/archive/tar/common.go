@@ -444,6 +444,11 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
 	// Check for header-only types.
 	var whyOnlyPAX, whyOnlyGNU string
 	switch h.Typeflag {
+	case TypeReg, TypeChar, TypeBlock, TypeFifo, TypeGNUSparse:
+		// Exclude TypeLink and TypeSymlink, since they may reference directories.
+		if strings.HasSuffix(h.Name, "/") {
+			return FormatUnknown, nil, headerError{"filename may not have trailing slash"}
+		}
 	case TypeXHeader, TypeGNULongName, TypeGNULongLink:
 		return FormatUnknown, nil, headerError{"cannot manually encode TypeXHeader, TypeGNULongName, or TypeGNULongLink headers"}
 	case TypeXGlobalHeader:

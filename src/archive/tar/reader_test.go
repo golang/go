@@ -675,6 +675,17 @@ func TestReader(t *testing.T) {
 			},
 			Format: FormatPAX,
 		}},
+	}, {
+		file: "testdata/trailing-slash.tar",
+		headers: []*Header{{
+			Typeflag: TypeDir,
+			Name:     strings.Repeat("123456789/", 30),
+			ModTime:  time.Unix(0, 0),
+			PAXRecords: map[string]string{
+				"path": strings.Repeat("123456789/", 30),
+			},
+			Format: FormatPAX,
+		}},
 	}}
 
 	for _, v := range vectors {

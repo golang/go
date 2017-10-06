@@ -68,6 +68,14 @@ func (f *formatter) formatString(b []byte, s string) {
 	if len(s) < len(b) {
 		b[len(s)] = 0
 	}
+
+	// Some buggy readers treat regular files with a trailing slash
+	// in the V7 path field as a directory even though the full path
+	// recorded elsewhere (e.g., via PAX record) contains no trailing slash.
+	if len(s) > len(b) && b[len(b)-1] == '/' {
+		n := len(strings.TrimRight(s[:len(b)], "/"))
+		b[n] = 0 // Replace trailing slash with NUL terminator
+	}
 }
 
 // fitsInBase256 reports whether x can be encoded into n bytes using base-256

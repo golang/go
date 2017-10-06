@@ -748,6 +748,15 @@ func TestHeaderAllowedFormats(t *testing.T) {
 	}, {
 		header:  &Header{Name: "sparse.db", Size: 1000, SparseHoles: []SparseEntry{{0, 500}}, Format: FormatUSTAR},
 		formats: FormatUnknown,
+	}, {
+		header:  &Header{Name: "foo/", Typeflag: TypeDir},
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
+	}, {
+		header:  &Header{Name: "foo/", Typeflag: TypeReg},
+		formats: FormatUnknown,
+	}, {
+		header:  &Header{Name: "foo/", Typeflag: TypeSymlink},
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
 	}}
 
 	for i, v := range vectors {
