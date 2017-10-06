@@ -200,7 +200,7 @@ func (r *reader) filterSpecList(list []ast.Spec, tok token.Token) []ast.Spec {
 		var prevType ast.Expr
 		for _, spec := range list {
 			spec := spec.(*ast.ValueSpec)
-			if spec.Type == nil && prevType != nil {
+			if spec.Type == nil && len(spec.Values) == 0 && prevType != nil {
 				// provide current spec with an explicit type
 				spec.Type = copyConstType(prevType, spec.Pos())
 			}
