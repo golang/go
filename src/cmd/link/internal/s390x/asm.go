@@ -425,7 +425,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 
 	ld.Adddynsym(ctxt, s)
 
-	if ld.Iself {
+	if ctxt.IsELF {
 		plt := ctxt.Syms.Lookup(".plt", 0)
 		got := ctxt.Syms.Lookup(".got", 0)
 		rela := ctxt.Syms.Lookup(".rela.plt", 0)
@@ -491,7 +491,7 @@ func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
 	s.Got = int32(got.Size)
 	got.AddUint64(ctxt.Arch, 0)
 
-	if ld.Iself {
+	if ctxt.IsELF {
 		rela := ctxt.Syms.Lookup(".rela", 0)
 		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_390_GLOB_DAT)))
@@ -506,7 +506,7 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Logf("%5.2f asmb\n", ld.Cputime())
 	}
 
-	if ld.Iself {
+	if ctxt.IsELF {
 		ld.Asmbelfsetup()
 	}
 
@@ -549,7 +549,7 @@ func asmb(ctxt *ld.Link) {
 	ld.Lcsize = 0
 	symo := uint32(0)
 	if !*ld.FlagS {
-		if !ld.Iself {
+		if !ctxt.IsELF {
 			ld.Errorf(nil, "unsupported executable format")
 		}
 		if ctxt.Debugvlog != 0 {

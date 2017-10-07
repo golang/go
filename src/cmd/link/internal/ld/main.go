@@ -166,7 +166,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.computeTLSOffset()
 	Thearch.Archinit(ctxt)
 
-	if ctxt.linkShared && !Iself {
+	if ctxt.linkShared && !ctxt.IsELF {
 		Exitf("-linkshared can only be used on elf systems")
 	}
 

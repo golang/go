@@ -154,7 +154,7 @@ func (ctxt *Link) CanUsePlugins() bool {
 func (ctxt *Link) UseRelro() bool {
 	switch ctxt.BuildMode {
 	case BuildModeCArchive, BuildModeCShared, BuildModeShared, BuildModePIE, BuildModePlugin:
-		return Iself
+		return ctxt.IsELF
 	default:
 		return ctxt.linkShared
 	}
@@ -594,7 +594,7 @@ func (ctxt *Link) loadlib() {
 	}
 
 	if ctxt.Arch == sys.Arch386 {
-		if (ctxt.BuildMode == BuildModeCArchive && Iself) || (ctxt.BuildMode == BuildModeCShared && Headtype != objabi.Hwindows) || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
+		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || (ctxt.BuildMode == BuildModeCShared && Headtype != objabi.Hwindows) || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
 			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
 			got.Type = sym.SDYNIMPORT
 			got.Attr |= sym.AttrReachable
@@ -1151,7 +1151,7 @@ func (ctxt *Link) hostlink() {
 		}
 	}
 
-	if Iself && ctxt.DynlinkingGo() {
+	if ctxt.IsELF && ctxt.DynlinkingGo() {
 		// We force all symbol resolution to be done at program startup
 		// because lazy PLT resolution can use large amounts of stack at
 		// times we cannot allow it to do so.
@@ -1185,7 +1185,7 @@ func (ctxt *Link) hostlink() {
 		}
 	}
 
-	if Iself && len(buildinfo) > 0 {
+	if ctxt.IsELF && len(buildinfo) > 0 {
 		argv = append(argv, fmt.Sprintf("-Wl,--build-id=0x%x", buildinfo))
 	}
 
@@ -1207,7 +1207,7 @@ func (ctxt *Link) hostlink() {
 	}
 
 	// Force global symbols to be exported for dlopen, etc.
-	if Iself {
+	if ctxt.IsELF {
 		argv = append(argv, "-rdynamic")
 	}
 
@@ -1291,7 +1291,7 @@ func (ctxt *Link) hostlink() {
 		// we added it. We do it in this order, rather than
 		// only adding -rdynamic later, so that -*extldflags
 		// can override -rdynamic without using -static.
-		if Iself && p == "-static" {
+		if ctxt.IsELF && p == "-static" {
 			for i := range argv {
 				if argv[i] == "-rdynamic" {
 					argv[i] = "-static"
@@ -2043,7 +2043,7 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 			put(ctxt, s, s.Name, BSSSym, Symaddr(s), s.Gotype)
 
 		case sym.SHOSTOBJ:
-			if Headtype == objabi.Hwindows || Iself {
+			if Headtype == objabi.Hwindows || ctxt.IsELF {
 				put(ctxt, s, s.Name, UndefinedSym, s.Value, nil)
 			}
 

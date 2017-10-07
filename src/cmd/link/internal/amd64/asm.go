@@ -250,7 +250,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		return true
 
 	case objabi.R_ADDR:
-		if s.Type == sym.STEXT && ld.Iself {
+		if s.Type == sym.STEXT && ctxt.IsELF {
 			if ld.Headtype == objabi.Hsolaris {
 				addpltsym(ctxt, targ)
 				r.Sym = ctxt.Syms.Lookup(".plt", 0)
@@ -316,7 +316,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			}
 		}
 
-		if ld.Iself {
+		if ctxt.IsELF {
 			// TODO: We generate a R_X86_64_64 relocation for every R_ADDR, even
 			// though it would be more efficient (for the dynamic linker) if we
 			// generated R_X86_RELATIVE instead.
@@ -569,7 +569,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 
 	ld.Adddynsym(ctxt, s)
 
-	if ld.Iself {
+	if ctxt.IsELF {
 		plt := ctxt.Syms.Lookup(".plt", 0)
 		got := ctxt.Syms.Lookup(".got.plt", 0)
 		rela := ctxt.Syms.Lookup(".rela.plt", 0)
@@ -640,7 +640,7 @@ func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
 	s.Got = int32(got.Size)
 	got.AddUint64(ctxt.Arch, 0)
 
-	if ld.Iself {
+	if ctxt.IsELF {
 		rela := ctxt.Syms.Lookup(".rela", 0)
 		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_GLOB_DAT)))
@@ -661,7 +661,7 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Logf("%5.2f codeblk\n", ld.Cputime())
 	}
 
-	if ld.Iself {
+	if ctxt.IsELF {
 		ld.Asmbelfsetup()
 	}
 
@@ -763,7 +763,7 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Out.SeekSet(symo)
 		switch ld.Headtype {
 		default:
-			if ld.Iself {
+			if ctxt.IsELF {
 				ctxt.Out.SeekSet(symo)
 				ld.Asmelfsym(ctxt)
 				ctxt.Out.Flush()

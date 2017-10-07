@@ -453,8 +453,6 @@ const (
 )
 
 var (
-	Iself bool
-
 	Nelfsym = 1
 
 	elf64 bool
@@ -485,7 +483,7 @@ var buildinfo []byte
  we write section and prog headers.
 */
 func Elfinit(ctxt *Link) {
-	Iself = true
+	ctxt.IsELF = true
 
 	if ctxt.Arch.InFamily(sys.AMD64, sys.ARM64, sys.MIPS64, sys.PPC64, sys.S390X) {
 		elfRelType = ".rela"
@@ -1008,7 +1006,7 @@ havelib:
 }
 
 func elfdynhash(ctxt *Link) {
-	if !Iself {
+	if !ctxt.IsELF {
 		return
 	}
 
@@ -1429,7 +1427,7 @@ func addgonote(ctxt *Link, sectionName string, tag uint32, desc []byte) {
 }
 
 func (ctxt *Link) doelf() {
-	if !Iself {
+	if !ctxt.IsELF {
 		return
 	}
 

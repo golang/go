@@ -189,7 +189,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 		case objabi.R_TLS_LE:
 			isAndroidX86 := objabi.GOOS == "android" && (ctxt.Arch.InFamily(sys.AMD64, sys.I386))
 
-			if ctxt.LinkMode == LinkExternal && Iself && !isAndroidX86 {
+			if ctxt.LinkMode == LinkExternal && ctxt.IsELF && !isAndroidX86 {
 				r.Done = false
 				if r.Sym == nil {
 					r.Sym = ctxt.Tlsg
@@ -203,7 +203,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				break
 			}
 
-			if Iself && ctxt.Arch.Family == sys.ARM {
+			if ctxt.IsELF && ctxt.Arch.Family == sys.ARM {
 				// On ELF ARM, the thread pointer is 8 bytes before
 				// the start of the thread-local data block, so add 8
 				// to the actual TLS offset (r->sym->value).
@@ -212,7 +212,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				// related to the fact that our own TLS storage happens
 				// to take up 8 bytes.
 				o = 8 + r.Sym.Value
-			} else if Iself || Headtype == objabi.Hplan9 || Headtype == objabi.Hdarwin || isAndroidX86 {
+			} else if ctxt.IsELF || Headtype == objabi.Hplan9 || Headtype == objabi.Hdarwin || isAndroidX86 {
 				o = int64(ctxt.Tlsoffset) + r.Add
 			} else if Headtype == objabi.Hwindows {
 				o = r.Add
@@ -222,7 +222,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 		case objabi.R_TLS_IE:
 			isAndroidX86 := objabi.GOOS == "android" && (ctxt.Arch.InFamily(sys.AMD64, sys.I386))
 
-			if ctxt.LinkMode == LinkExternal && Iself && !isAndroidX86 {
+			if ctxt.LinkMode == LinkExternal && ctxt.IsELF && !isAndroidX86 {
 				r.Done = false
 				if r.Sym == nil {
 					r.Sym = ctxt.Tlsg
@@ -235,7 +235,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				}
 				break
 			}
-			if ctxt.BuildMode == BuildModePIE && Iself {
+			if ctxt.BuildMode == BuildModePIE && ctxt.IsELF {
 				// We are linking the final executable, so we
 				// can optimize any TLS IE relocation to LE.
 				if Thearch.TLSIEtoLE == nil {
@@ -268,7 +268,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				r.Xsym = rs
 
 				o = r.Xadd
-				if Iself {
+				if ctxt.IsELF {
 					if ctxt.Arch.Family == sys.AMD64 {
 						o = 0
 					}
@@ -336,7 +336,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				r.Xadd = r.Add + Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr)
 
 				o = r.Xadd
-				if Iself && ctxt.Arch.Family == sys.AMD64 {
+				if ctxt.IsELF && ctxt.Arch.Family == sys.AMD64 {
 					o = 0
 				}
 				break
@@ -390,7 +390,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				r.Xsym = rs
 
 				o = r.Xadd
-				if Iself {
+				if ctxt.IsELF {
 					if ctxt.Arch.Family == sys.AMD64 {
 						o = 0
 					}
@@ -576,7 +576,7 @@ func dynreloc(ctxt *Link, data *[sym.SXREF][]*sym.Symbol) {
 			dynrelocsym(ctxt, s)
 		}
 	}
-	if Iself {
+	if ctxt.IsELF {
 		elfdynhash(ctxt)
 	}
 }
@@ -1289,7 +1289,7 @@ func (ctxt *Link) dodata() {
 
 	if len(data[sym.STLSBSS]) > 0 {
 		var sect *sym.Section
-		if Iself && (ctxt.LinkMode == LinkExternal || !*FlagD) {
+		if ctxt.IsELF && (ctxt.LinkMode == LinkExternal || !*FlagD) {
 			sect = addsection(ctxt.Arch, &Segdata, ".tbss", 06)
 			sect.Align = int32(ctxt.Arch.PtrSize)
 			sect.Vaddr = 0
@@ -1320,7 +1320,7 @@ func (ctxt *Link) dodata() {
 	 * segtext.
 	 */
 	var segro *sym.Segment
-	if Iself && ctxt.LinkMode == LinkInternal {
+	if ctxt.IsELF && ctxt.LinkMode == LinkInternal {
 		segro = &Segrodata
 	} else {
 		segro = &Segtext
@@ -1690,7 +1690,7 @@ func dodataSect(ctxt *Link, symn sym.SymKind, syms []*sym.Symbol) (result []*sym
 		syms[len(syms)-1] = tail
 	}
 
-	if Iself && symn == sym.SELFROSECT {
+	if ctxt.IsELF && symn == sym.SELFROSECT {
 		// Make .rela and .rela.plt contiguous, the ELF ABI requires this
 		// and Solaris actually cares.
 		reli, plti := -1, -1
@@ -1732,7 +1732,7 @@ func dodataSect(ctxt *Link, symn sym.SymKind, syms []*sym.Symbol) (result []*sym
 // at the very beginning of the text segment.
 // This ``header'' is read by cmd/go.
 func (ctxt *Link) textbuildid() {
-	if Iself || ctxt.BuildMode == BuildModePlugin || *flagBuildid == "" {
+	if ctxt.IsELF || ctxt.BuildMode == BuildModePlugin || *flagBuildid == "" {
 		return
 	}
 
@@ -1840,7 +1840,7 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint6
 
 	// Only break at outermost syms.
 
-	if ctxt.Arch.InFamily(sys.PPC64) && s.Outer == nil && Iself && ctxt.LinkMode == LinkExternal && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(s, isTramp) > 0x1c00000 {
+	if ctxt.Arch.InFamily(sys.PPC64) && s.Outer == nil && ctxt.IsELF && ctxt.LinkMode == LinkExternal && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(s, isTramp) > 0x1c00000 {
 
 		// Set the length for the previous text section
 		sect.Length = va - sect.Vaddr
@@ -1941,11 +1941,11 @@ func (ctxt *Link) address() {
 	var bss *sym.Section
 	var noptrbss *sym.Section
 	for i, s := range Segdata.Sections {
-		if Iself && s.Name == ".tbss" {
+		if ctxt.IsELF && s.Name == ".tbss" {
 			continue
 		}
 		vlen := int64(s.Length)
-		if i+1 < len(Segdata.Sections) && !(Iself && Segdata.Sections[i+1].Name == ".tbss") {
+		if i+1 < len(Segdata.Sections) && !(ctxt.IsELF && Segdata.Sections[i+1].Name == ".tbss") {
 			vlen = int64(Segdata.Sections[i+1].Vaddr - s.Vaddr)
 		}
 		s.Vaddr = va
