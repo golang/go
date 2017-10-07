@@ -208,7 +208,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	case BuildModeShared:
 		return true, "buildmode=shared"
 	}
-	if *FlagLinkshared {
+	if ctxt.linkShared {
 		return true, "dynamically linking with a shared library"
 	}
 

@@ -1502,7 +1502,7 @@ func (ctxt *Link) doelf() {
 		}
 	}
 
-	hasinitarr := *FlagLinkshared
+	hasinitarr := ctxt.linkShared
 
 	/* shared library initializer */
 	switch ctxt.BuildMode {

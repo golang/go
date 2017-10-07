@@ -1206,7 +1206,7 @@ func (ctxt *Link) dodata() {
 	checkdatsize(ctxt, datsize, sym.SNOPTRDATA)
 	sect.Length = uint64(datsize) - sect.Vaddr
 
-	hasinitarr := *FlagLinkshared
+	hasinitarr := ctxt.linkShared
 
 	/* shared library initializer */
 	switch ctxt.BuildMode {
