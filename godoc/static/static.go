@@ -2925,16 +2925,15 @@ body {
 a,
 .exampleHeading .text {
 	color: #375EAB;
-	text-decoration: none;
 }
-a:hover,
+a,
 .exampleHeading .text:hover {
 	text-decoration: underline;
+	-webkit-text-decoration: skip;
+	text-decoration-skip: ink;
 }
-.article a {
-	text-decoration: underline;
-}
-.article .title a {
+a:hover,
+.exampleHeading .text {
 	text-decoration: none;
 }
 
