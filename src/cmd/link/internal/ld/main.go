@@ -57,7 +57,6 @@ var (
 
 	flagOutfile    = flag.String("o", "", "write output to `file`")
 	flagPluginPath = flag.String("pluginpath", "", "full path name for plugin")
-	FlagLinkshared = flag.Bool("linkshared", false, "link against installed Go shared libraries")
 
 	flagInstallSuffix = flag.String("installsuffix", "", "set package directory `suffix`")
 	flagDumpDep       = flag.Bool("dumpdep", false, "dump symbol dependency graph")
@@ -116,6 +115,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
 		flag.BoolVar(&Flag8, "8", false, "use 64-bit addresses in symbol table")
 	}
+	flag.BoolVar(&ctxt.linkShared, "linkshared", false, "link against installed Go shared libraries")
 	flag.Var(&ctxt.LinkMode, "linkmode", "set link `mode`")
 	flag.Var(&ctxt.BuildMode, "buildmode", "set build `mode`")
 	objabi.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)
@@ -166,7 +166,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.computeTLSOffset()
 	Thearch.Archinit(ctxt)
 
-	if *FlagLinkshared && !Iself {
+	if ctxt.linkShared && !Iself {
 		Exitf("-linkshared can only be used on elf systems")
 	}
 

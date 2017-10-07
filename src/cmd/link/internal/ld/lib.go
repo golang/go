@@ -141,7 +141,7 @@ func (ctxt *Link) DynlinkingGo() bool {
 	if !ctxt.Loaded {
 		panic("DynlinkingGo called before all symbols loaded")
 	}
-	return ctxt.BuildMode == BuildModeShared || *FlagLinkshared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins()
+	return ctxt.BuildMode == BuildModeShared || ctxt.linkShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins()
 }
 
 // CanUsePlugins returns whether a plugins can be used
@@ -156,7 +156,7 @@ func (ctxt *Link) UseRelro() bool {
 	case BuildModeCArchive, BuildModeCShared, BuildModeShared, BuildModePIE, BuildModePlugin:
 		return Iself
 	default:
-		return *FlagLinkshared
+		return ctxt.linkShared
 	}
 }
 
@@ -270,7 +270,7 @@ func errorexit() {
 }
 
 func loadinternal(ctxt *Link, name string) *sym.Library {
-	if *FlagLinkshared && ctxt.PackageShlib != nil {
+	if ctxt.linkShared && ctxt.PackageShlib != nil {
 		if shlib := ctxt.PackageShlib[name]; shlib != "" {
 			return addlibpath(ctxt, "internal", "internal", "", name, shlib)
 		}
@@ -284,7 +284,7 @@ func loadinternal(ctxt *Link, name string) *sym.Library {
 	}
 
 	for i := 0; i < len(ctxt.Libdir); i++ {
-		if *FlagLinkshared {
+		if ctxt.linkShared {
 			shlibname := filepath.Join(ctxt.Libdir[i], name+".shlibname")
 			if ctxt.Debugvlog != 0 {
 				ctxt.Logf("searching for %s.a in %s\n", name, shlibname)
@@ -404,7 +404,7 @@ func (ctxt *Link) loadlib() {
 			if lib.Shlib != "" {
 				ldshlibsyms(ctxt, lib.Shlib)
 			} else {
-				if ctxt.BuildMode == BuildModeShared || *FlagLinkshared {
+				if ctxt.BuildMode == BuildModeShared || ctxt.linkShared {
 					Exitf("cannot implicitly include runtime/cgo in a shared library")
 				}
 				loadobjfile(ctxt, lib)
@@ -655,7 +655,7 @@ func (ctxt *Link) loadlib() {
 // those programs loaded dynamically in multiple parts need these
 // symbols to have entries in the symbol table.
 func typeSymbolMangling(ctxt *Link) bool {
-	return ctxt.BuildMode == BuildModeShared || *FlagLinkshared || ctxt.BuildMode == BuildModePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil
+	return ctxt.BuildMode == BuildModeShared || ctxt.linkShared || ctxt.BuildMode == BuildModePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil
 }
 
 // typeSymbolMangle mangles the given symbol name into something shorter.
@@ -1218,7 +1218,7 @@ func (ctxt *Link) hostlink() {
 	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
 	argv = append(argv, hostobjCopy()...)
 
-	if *FlagLinkshared {
+	if ctxt.linkShared {
 		seenDirs := make(map[string]bool)
 		seenLibs := make(map[string]bool)
 		addshlib := func(path string) {
