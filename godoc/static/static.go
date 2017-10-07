@@ -1908,7 +1908,7 @@ function cgAddChild(tree, ul, cgn) {
 			</dl>
 		</div>
 		<h2 id="stdlib">Standard library</h2>
-		<img class="gopher" src="/doc/gopher/pkg.png"/>
+		<img alt="" class="gopher" src="/doc/gopher/pkg.png"/>
 	{{end}}
 
 
