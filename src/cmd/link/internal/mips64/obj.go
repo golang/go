@@ -71,9 +71,9 @@ func Init() (*sys.Arch, ld.Arch) {
 }
 
 func archinit(ctxt *ld.Link) {
-	switch ld.Headtype {
+	switch ctxt.HeadType {
 	default:
-		ld.Exitf("unknown -H option: %v", ld.Headtype)
+		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
 
 	case objabi.Hplan9: /* plan 9 */
 		ld.HEADR = 32

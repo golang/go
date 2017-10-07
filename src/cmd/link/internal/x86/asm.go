@@ -316,7 +316,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			return true
 		}
 
-		if ld.Headtype == objabi.Hdarwin && s.Size == int64(ctxt.Arch.PtrSize) && r.Off == 0 {
+		if ctxt.HeadType == objabi.Hdarwin && s.Size == int64(ctxt.Arch.PtrSize) && r.Off == 0 {
 			// Mach-O relocations are a royal pain to lay out.
 			// They use a compact stateful bytecode representation
 			// that is too much bother to deal with.
@@ -574,7 +574,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_386_JMP_SLOT)))
 
 		s.Plt = int32(plt.Size - 16)
-	} else if ld.Headtype == objabi.Hdarwin {
+	} else if ctxt.HeadType == objabi.Hdarwin {
 		// Same laziness as in 6l.
 
 		plt := ctxt.Syms.Lookup(".plt", 0)
@@ -608,7 +608,7 @@ func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
 		rel := ctxt.Syms.Lookup(".rel", 0)
 		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
 		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_386_GLOB_DAT)))
-	} else if ld.Headtype == objabi.Hdarwin {
+	} else if ctxt.HeadType == objabi.Hdarwin {
 		ctxt.Syms.Lookup(".linkedit.got", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))
 	} else {
 		ld.Errorf(s, "addgotsym: unsupported binary format")
@@ -660,7 +660,7 @@ func asmb(ctxt *ld.Link) {
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
 	machlink := uint32(0)
-	if ld.Headtype == objabi.Hdarwin {
+	if ctxt.HeadType == objabi.Hdarwin {
 		machlink = uint32(ld.Domacholink(ctxt))
 	}
 
@@ -673,7 +673,7 @@ func asmb(ctxt *ld.Link) {
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("%5.2f sym\n", ld.Cputime())
 		}
-		switch ld.Headtype {
+		switch ctxt.HeadType {
 		default:
 			if ctxt.IsELF {
 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
@@ -692,7 +692,7 @@ func asmb(ctxt *ld.Link) {
 		}
 
 		ctxt.Out.SeekSet(int64(symo))
-		switch ld.Headtype {
+		switch ctxt.HeadType {
 		default:
 			if ctxt.IsELF {
 				if ctxt.Debugvlog != 0 {
@@ -734,7 +734,7 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Logf("%5.2f headr\n", ld.Cputime())
 	}
 	ctxt.Out.SeekSet(0)
-	switch ld.Headtype {
+	switch ctxt.HeadType {
 	default:
 	case objabi.Hplan9: /* plan9 */
 		magic := int32(4*11*11 + 7)

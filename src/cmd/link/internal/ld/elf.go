@@ -516,7 +516,7 @@ func Elfinit(ctxt *Link) {
 	case sys.ARM, sys.MIPS:
 		if ctxt.Arch.Family == sys.ARM {
 			// we use EABI on linux/arm, freebsd/arm, netbsd/arm.
-			if Headtype == objabi.Hlinux || Headtype == objabi.Hfreebsd || Headtype == objabi.Hnetbsd {
+			if ctxt.HeadType == objabi.Hlinux || ctxt.HeadType == objabi.Hfreebsd || ctxt.HeadType == objabi.Hnetbsd {
 				// We set a value here that makes no indication of which
 				// float ABI the object uses, because this is information
 				// used by the dynamic linker to compare executables and
@@ -1450,10 +1450,10 @@ func (ctxt *Link) doelf() {
 	if !*FlagD || ctxt.LinkMode == LinkExternal {
 		Addstring(shstrtab, ".tbss")
 	}
-	if Headtype == objabi.Hnetbsd {
+	if ctxt.HeadType == objabi.Hnetbsd {
 		Addstring(shstrtab, ".note.netbsd.ident")
 	}
-	if Headtype == objabi.Hopenbsd {
+	if ctxt.HeadType == objabi.Hopenbsd {
 		Addstring(shstrtab, ".note.openbsd.ident")
 	}
 	if len(buildinfo) > 0 {
@@ -1826,7 +1826,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 	 * segment boundaries downwards to include it.
 	 * Except on NaCl where it must not be loaded.
 	 */
-	if Headtype != objabi.Hnacl {
+	if ctxt.HeadType != objabi.Hnacl {
 		o := int64(Segtext.Vaddr - pph.vaddr)
 		Segtext.Vaddr -= uint64(o)
 		Segtext.Length += uint64(o)
@@ -1843,7 +1843,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 		sh.flags = SHF_ALLOC
 		sh.addralign = 1
 		if interpreter == "" {
-			switch Headtype {
+			switch ctxt.HeadType {
 			case objabi.Hlinux:
 				interpreter = Thearch.Linuxdynld
 
@@ -1873,9 +1873,9 @@ func Asmbelf(ctxt *Link, symo int64) {
 	}
 
 	pnote = nil
-	if Headtype == objabi.Hnetbsd || Headtype == objabi.Hopenbsd {
+	if ctxt.HeadType == objabi.Hnetbsd || ctxt.HeadType == objabi.Hopenbsd {
 		var sh *ElfShdr
-		switch Headtype {
+		switch ctxt.HeadType {
 		case objabi.Hnetbsd:
 			sh = elfshname(".note.netbsd.ident")
 			resoff -= int64(elfnetbsdsig(sh, uint64(startva), uint64(resoff)))
@@ -2087,7 +2087,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 		}
 	}
 
-	if Headtype == objabi.Hlinux {
+	if ctxt.HeadType == objabi.Hlinux {
 		ph := newElfPhdr()
 		ph.type_ = PT_GNU_STACK
 		ph.flags = PF_W + PF_R
@@ -2097,7 +2097,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 		ph.type_ = PT_PAX_FLAGS
 		ph.flags = 0x2a00 // mprotect, randexec, emutramp disabled
 		ph.align = uint64(ctxt.Arch.RegSize)
-	} else if Headtype == objabi.Hsolaris {
+	} else if ctxt.HeadType == objabi.Hsolaris {
 		ph := newElfPhdr()
 		ph.type_ = PT_SUNWSTACK
 		ph.flags = PF_W + PF_R
@@ -2181,13 +2181,13 @@ elfobj:
 	eh.ident[EI_MAG1] = 'E'
 	eh.ident[EI_MAG2] = 'L'
 	eh.ident[EI_MAG3] = 'F'
-	if Headtype == objabi.Hfreebsd {
+	if ctxt.HeadType == objabi.Hfreebsd {
 		eh.ident[EI_OSABI] = ELFOSABI_FREEBSD
-	} else if Headtype == objabi.Hnetbsd {
+	} else if ctxt.HeadType == objabi.Hnetbsd {
 		eh.ident[EI_OSABI] = ELFOSABI_NETBSD
-	} else if Headtype == objabi.Hopenbsd {
+	} else if ctxt.HeadType == objabi.Hopenbsd {
 		eh.ident[EI_OSABI] = ELFOSABI_OPENBSD
-	} else if Headtype == objabi.Hdragonfly {
+	} else if ctxt.HeadType == objabi.Hdragonfly {
 		eh.ident[EI_OSABI] = ELFOSABI_NONE
 	}
 	if elf64 {
@@ -2230,10 +2230,10 @@ elfobj:
 		a += int64(elfwriteinterp(ctxt.Out))
 	}
 	if ctxt.LinkMode != LinkExternal {
-		if Headtype == objabi.Hnetbsd {
+		if ctxt.HeadType == objabi.Hnetbsd {
 			a += int64(elfwritenetbsdsig(ctxt.Out))
 		}
-		if Headtype == objabi.Hopenbsd {
+		if ctxt.HeadType == objabi.Hopenbsd {
 			a += int64(elfwriteopenbsdsig(ctxt.Out))
 		}
 		if len(buildinfo) > 0 {

@@ -85,7 +85,6 @@ var (
 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
 	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
 
-	flagHeadtype    = flag.String("H", "", "set header `type`")
 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
 	FlagDataAddr    = flag.Int64("D", -1, "set data segment `address`")
@@ -115,6 +114,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
 		flag.BoolVar(&Flag8, "8", false, "use 64-bit addresses in symbol table")
 	}
+	flagHeadType := flag.String("H", "", "set header `type`")
 	flag.BoolVar(&ctxt.linkShared, "linkshared", false, "link against installed Go shared libraries")
 	flag.Var(&ctxt.LinkMode, "linkmode", "set link `mode`")
 	flag.Var(&ctxt.BuildMode, "buildmode", "set build `mode`")
@@ -127,13 +127,13 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	objabi.Flagparse(usage)
 
-	switch *flagHeadtype {
+	switch *flagHeadType {
 	case "":
 	case "windowsgui":
-		Headtype = objabi.Hwindows
+		ctxt.HeadType = objabi.Hwindows
 		windowsgui = true
 	default:
-		if err := Headtype.Set(*flagHeadtype); err != nil {
+		if err := ctxt.HeadType.Set(*flagHeadType); err != nil {
 			Errorf(nil, "%v", err)
 			usage()
 		}
@@ -150,7 +150,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	if *flagOutfile == "" {
 		*flagOutfile = "a.out"
-		if Headtype == objabi.Hwindows {
+		if ctxt.HeadType == objabi.Hwindows {
 			*flagOutfile += ".exe"
 		}
 	}
@@ -159,8 +159,8 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	libinit(ctxt) // creates outfile
 
-	if Headtype == objabi.Hunknown {
-		Headtype.Set(objabi.GOOS)
+	if ctxt.HeadType == objabi.Hunknown {
+		ctxt.HeadType.Set(objabi.GOOS)
 	}
 
 	ctxt.computeTLSOffset()
@@ -171,7 +171,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", Headtype, uint64(*FlagTextAddr), uint64(*FlagDataAddr), uint32(*FlagRound))
+		ctxt.Logf("HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", ctxt.HeadType, uint64(*FlagTextAddr), uint64(*FlagDataAddr), uint32(*FlagRound))
 	}
 
 	switch ctxt.BuildMode {
@@ -202,11 +202,11 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.callgraph()
 
 	ctxt.doelf()
-	if Headtype == objabi.Hdarwin {
+	if ctxt.HeadType == objabi.Hdarwin {
 		ctxt.domacho()
 	}
 	ctxt.dostkcheck()
-	if Headtype == objabi.Hwindows {
+	if ctxt.HeadType == objabi.Hwindows {
 		ctxt.dope()
 	}
 	ctxt.addexport()

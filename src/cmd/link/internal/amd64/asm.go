@@ -251,7 +251,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 	case objabi.R_ADDR:
 		if s.Type == sym.STEXT && ctxt.IsELF {
-			if ld.Headtype == objabi.Hsolaris {
+			if ctxt.HeadType == objabi.Hsolaris {
 				addpltsym(ctxt, targ)
 				r.Sym = ctxt.Syms.Lookup(".plt", 0)
 				r.Add += int64(targ.Plt)
@@ -334,7 +334,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			return true
 		}
 
-		if ld.Headtype == objabi.Hdarwin && s.Size == int64(ctxt.Arch.PtrSize) && r.Off == 0 {
+		if ctxt.HeadType == objabi.Hdarwin && s.Size == int64(ctxt.Arch.PtrSize) && r.Off == 0 {
 			// Mach-O relocations are a royal pain to lay out.
 			// They use a compact stateful bytecode representation
 			// that is too much bother to deal with.
@@ -603,7 +603,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		rela.AddUint64(ctxt.Arch, 0)
 
 		s.Plt = int32(plt.Size - 16)
-	} else if ld.Headtype == objabi.Hdarwin {
+	} else if ctxt.HeadType == objabi.Hdarwin {
 		// To do lazy symbol lookup right, we're supposed
 		// to tell the dynamic loader which library each
 		// symbol comes from and format the link info
@@ -645,7 +645,7 @@ func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
 		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_GLOB_DAT)))
 		rela.AddUint64(ctxt.Arch, 0)
-	} else if ld.Headtype == objabi.Hdarwin {
+	} else if ctxt.HeadType == objabi.Hdarwin {
 		ctxt.Syms.Lookup(".linkedit.got", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))
 	} else {
 		ld.Errorf(s, "addgotsym: unsupported binary format")
@@ -700,13 +700,13 @@ func asmb(ctxt *ld.Link) {
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
 	machlink := int64(0)
-	if ld.Headtype == objabi.Hdarwin {
+	if ctxt.HeadType == objabi.Hdarwin {
 		machlink = ld.Domacholink(ctxt)
 	}
 
-	switch ld.Headtype {
+	switch ctxt.HeadType {
 	default:
-		ld.Errorf(nil, "unknown header type %v", ld.Headtype)
+		ld.Errorf(nil, "unknown header type %v", ctxt.HeadType)
 		fallthrough
 
 	case objabi.Hplan9:
@@ -736,7 +736,7 @@ func asmb(ctxt *ld.Link) {
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("%5.2f sym\n", ld.Cputime())
 		}
-		switch ld.Headtype {
+		switch ctxt.HeadType {
 		default:
 		case objabi.Hplan9:
 			*ld.FlagS = true
@@ -761,7 +761,7 @@ func asmb(ctxt *ld.Link) {
 		}
 
 		ctxt.Out.SeekSet(symo)
-		switch ld.Headtype {
+		switch ctxt.HeadType {
 		default:
 			if ctxt.IsELF {
 				ctxt.Out.SeekSet(symo)
@@ -805,7 +805,7 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Logf("%5.2f headr\n", ld.Cputime())
 	}
 	ctxt.Out.SeekSet(0)
-	switch ld.Headtype {
+	switch ctxt.HeadType {
 	default:
 	case objabi.Hplan9: /* plan9 */
 		magic := int32(4*26*26 + 7)
