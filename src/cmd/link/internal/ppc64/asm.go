@@ -806,7 +806,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 
 	ld.Adddynsym(ctxt, s)
 
-	if ld.Iself {
+	if ctxt.IsELF {
 		plt := ctxt.Syms.Lookup(".plt", 0)
 		rela := ctxt.Syms.Lookup(".rela.plt", 0)
 		if plt.Size == 0 {
@@ -909,7 +909,7 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Logf("%5.2f asmb\n", ld.Cputime())
 	}
 
-	if ld.Iself {
+	if ctxt.IsELF {
 		ld.Asmbelfsetup()
 	}
 
@@ -960,7 +960,7 @@ func asmb(ctxt *ld.Link) {
 		}
 		switch ld.Headtype {
 		default:
-			if ld.Iself {
+			if ctxt.IsELF {
 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
 			}
@@ -972,7 +972,7 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Out.SeekSet(int64(symo))
 		switch ld.Headtype {
 		default:
-			if ld.Iself {
+			if ctxt.IsELF {
 				if ctxt.Debugvlog != 0 {
 					ctxt.Logf("%5.2f elfsym\n", ld.Cputime())
 				}

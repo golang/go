@@ -298,7 +298,7 @@ func adddynlib(ctxt *Link, lib string) {
 	}
 	seenlib[lib] = true
 
-	if Iself {
+	if ctxt.IsELF {
 		s := ctxt.Syms.Lookup(".dynstr", 0)
 		if s.Size == 0 {
 			Addstring(s, "")
@@ -314,7 +314,7 @@ func Adddynsym(ctxt *Link, s *sym.Symbol) {
 		return
 	}
 
-	if Iself {
+	if ctxt.IsELF {
 		elfadddynsym(ctxt, s)
 	} else if Headtype == objabi.Hdarwin {
 		Errorf(s, "adddynsym: missed symbol (Extname=%s)", s.Extname)

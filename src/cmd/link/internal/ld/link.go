@@ -60,6 +60,8 @@ type Link struct {
 
 	Loaded bool // set after all inputs have been loaded as symbols
 
+	IsELF bool
+
 	linkShared bool // link against installed Go shared libraries
 	LinkMode   LinkMode
 	BuildMode  BuildMode

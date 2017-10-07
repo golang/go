@@ -172,7 +172,7 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Logf("%5.2f asmb\n", ld.Cputime())
 	}
 
-	if ld.Iself {
+	if ctxt.IsELF {
 		ld.Asmbelfsetup()
 	}
 
@@ -209,7 +209,7 @@ func asmb(ctxt *ld.Link) {
 	ld.Lcsize = 0
 	symo := uint32(0)
 	if !*ld.FlagS {
-		if !ld.Iself {
+		if !ctxt.IsELF {
 			ld.Errorf(nil, "unsupported executable format")
 		}
 		if ctxt.Debugvlog != 0 {
