@@ -222,7 +222,7 @@ func (d *deadcodepass) init() {
 		} else {
 			// The external linker refers main symbol directly.
 			if d.ctxt.LinkMode == LinkExternal && (d.ctxt.BuildMode == BuildModeExe || d.ctxt.BuildMode == BuildModePIE) {
-				if Headtype == objabi.Hwindows && d.ctxt.Arch.Family == sys.I386 {
+				if d.ctxt.HeadType == objabi.Hwindows && d.ctxt.Arch.Family == sys.I386 {
 					*flagEntrySymbol = "_main"
 				} else {
 					*flagEntrySymbol = "main"

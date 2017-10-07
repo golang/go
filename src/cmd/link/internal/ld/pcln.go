@@ -176,7 +176,7 @@ func emitPcln(ctxt *Link, s *sym.Symbol) bool {
 	if s == nil {
 		return true
 	}
-	if ctxt.BuildMode == BuildModePlugin && Headtype == objabi.Hdarwin && onlycsymbol(s) {
+	if ctxt.BuildMode == BuildModePlugin && ctxt.HeadType == objabi.Hdarwin && onlycsymbol(s) {
 		return false
 	}
 	// We want to generate func table entries only for the "lowest level" symbols,

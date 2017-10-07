@@ -231,7 +231,7 @@ func putplan9sym(ctxt *Link, x *sym.Symbol, s string, typ SymbolType, addr int64
 
 	case AutoSym, ParamSym, FrameSym:
 		l := 4
-		if Headtype == objabi.Hplan9 && ctxt.Arch.Family == sys.AMD64 && !Flag8 {
+		if ctxt.HeadType == objabi.Hplan9 && ctxt.Arch.Family == sys.AMD64 && !Flag8 {
 			ctxt.Out.Write32b(uint32(addr >> 32))
 			l = 8
 		}

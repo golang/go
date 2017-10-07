@@ -240,7 +240,7 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	ctxt.Out.SeekSet(0)
-	switch ld.Headtype {
+	switch ctxt.HeadType {
 	default:
 		ld.Errorf(nil, "unsupported operating system")
 	case objabi.Hlinux:

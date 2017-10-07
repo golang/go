@@ -170,9 +170,8 @@ var (
 	elfglobalsymndx int
 	interpreter     string
 
-	debug_s  bool // backup old value of debug['s']
-	HEADR    int32
-	Headtype objabi.HeadType
+	debug_s bool // backup old value of debug['s']
+	HEADR   int32
 
 	nerrors  int
 	liveness int64
@@ -382,11 +381,11 @@ func (ctxt *Link) loadlib() {
 	determineLinkMode(ctxt)
 
 	// Recalculate pe parameters now that we have ctxt.LinkMode set.
-	if Headtype == objabi.Hwindows {
+	if ctxt.HeadType == objabi.Hwindows {
 		Peinit(ctxt)
 	}
 
-	if Headtype == objabi.Hdarwin && ctxt.LinkMode == LinkExternal {
+	if ctxt.HeadType == objabi.Hdarwin && ctxt.LinkMode == LinkExternal {
 		*FlagTextAddr = 0
 	}
 
@@ -522,7 +521,7 @@ func (ctxt *Link) loadlib() {
 			if *flagLibGCC != "none" {
 				hostArchive(ctxt, *flagLibGCC)
 			}
-			if Headtype == objabi.Hwindows {
+			if ctxt.HeadType == objabi.Hwindows {
 				if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
 					hostArchive(ctxt, p)
 				}
@@ -557,7 +556,7 @@ func (ctxt *Link) loadlib() {
 	// Also leave it enabled on Solaris which doesn't support
 	// statically linked binaries.
 	if ctxt.BuildMode == BuildModeExe {
-		if havedynamic == 0 && Headtype != objabi.Hdarwin && Headtype != objabi.Hsolaris {
+		if havedynamic == 0 && ctxt.HeadType != objabi.Hdarwin && ctxt.HeadType != objabi.Hsolaris {
 			*FlagD = true
 		}
 	}
@@ -594,7 +593,7 @@ func (ctxt *Link) loadlib() {
 	}
 
 	if ctxt.Arch == sys.Arch386 {
-		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || (ctxt.BuildMode == BuildModeCShared && Headtype != objabi.Hwindows) || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
+		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || (ctxt.BuildMode == BuildModeCShared && ctxt.HeadType != objabi.Hwindows) || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
 			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
 			got.Type = sym.SDYNIMPORT
 			got.Attr |= sym.AttrReachable
@@ -866,7 +865,7 @@ var internalpkg = []string{
 	"runtime/msan",
 }
 
-func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), f *bio.Reader, pkg string, length int64, pn string, file string) *Hostobj {
+func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), headType objabi.HeadType, f *bio.Reader, pkg string, length int64, pn string, file string) *Hostobj {
 	isinternal := false
 	for i := 0; i < len(internalpkg); i++ {
 		if pkg == internalpkg[i] {
@@ -881,7 +880,7 @@ func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), f *bio.Reader
 	// force external linking for any libraries that link in code that
 	// uses errno. This can be removed if the Go linker ever supports
 	// these relocation types.
-	if Headtype == objabi.Hdragonfly {
+	if headType == objabi.Hdragonfly {
 		if pkg == "net" || pkg == "os/user" {
 			isinternal = false
 		}
@@ -1076,7 +1075,7 @@ func (ctxt *Link) hostlink() {
 
 	if !*FlagS && !debug_s {
 		argv = append(argv, "-gdwarf-2")
-	} else if Headtype == objabi.Hdarwin {
+	} else if ctxt.HeadType == objabi.Hdarwin {
 		// Recent versions of macOS print
 		//	ld: warning: option -s is obsolete and being ignored
 		// so do not pass any arguments.
@@ -1084,7 +1083,7 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, "-s")
 	}
 
-	switch Headtype {
+	switch ctxt.HeadType {
 	case objabi.Hdarwin:
 		argv = append(argv, "-Wl,-headerpad,1144")
 		if ctxt.DynlinkingGo() {
@@ -1105,19 +1104,19 @@ func (ctxt *Link) hostlink() {
 
 	switch ctxt.BuildMode {
 	case BuildModeExe:
-		if Headtype == objabi.Hdarwin {
+		if ctxt.HeadType == objabi.Hdarwin {
 			argv = append(argv, "-Wl,-pagezero_size,4000000")
 		}
 	case BuildModePIE:
 		// ELF.
-		if Headtype != objabi.Hdarwin {
+		if ctxt.HeadType != objabi.Hdarwin {
 			if ctxt.UseRelro() {
 				argv = append(argv, "-Wl,-z,relro")
 			}
 			argv = append(argv, "-pie")
 		}
 	case BuildModeCShared:
-		if Headtype == objabi.Hdarwin {
+		if ctxt.HeadType == objabi.Hdarwin {
 			argv = append(argv, "-dynamiclib")
 			if ctxt.Arch.Family != sys.AMD64 {
 				argv = append(argv, "-Wl,-read_only_relocs,suppress")
@@ -1129,7 +1128,7 @@ func (ctxt *Link) hostlink() {
 				argv = append(argv, "-Wl,-z,relro")
 			}
 			argv = append(argv, "-shared")
-			if Headtype != objabi.Hwindows {
+			if ctxt.HeadType != objabi.Hwindows {
 				// Pass -z nodelete to mark the shared library as
 				// non-closeable: a dlclose will do nothing.
 				argv = append(argv, "-Wl,-z,nodelete")
@@ -1141,7 +1140,7 @@ func (ctxt *Link) hostlink() {
 		}
 		argv = append(argv, "-shared")
 	case BuildModePlugin:
-		if Headtype == objabi.Hdarwin {
+		if ctxt.HeadType == objabi.Hdarwin {
 			argv = append(argv, "-dynamiclib")
 		} else {
 			if ctxt.UseRelro() {
@@ -1299,7 +1298,7 @@ func (ctxt *Link) hostlink() {
 			}
 		}
 	}
-	if Headtype == objabi.Hwindows {
+	if ctxt.HeadType == objabi.Hwindows {
 		// use gcc linker script to work around gcc bug
 		// (see https://golang.org/issue/20183 for details).
 		p := writeGDBLinkerScript()
@@ -1326,7 +1325,7 @@ func (ctxt *Link) hostlink() {
 		ctxt.Logf("%s", out)
 	}
 
-	if !*FlagS && !*FlagW && !debug_s && Headtype == objabi.Hdarwin {
+	if !*FlagS && !*FlagW && !debug_s && ctxt.HeadType == objabi.Hdarwin {
 		// Skip combining dwarf on arm.
 		if !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
 			dsym := filepath.Join(*flagTmpdir, "go.dwarf")
@@ -1395,7 +1394,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 			ehdr.flags = flags
 			ctxt.Textp = append(ctxt.Textp, textp...)
 		}
-		return ldhostobj(ldelf, f, pkg, length, pn, file)
+		return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
@@ -1407,7 +1406,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 			}
 			ctxt.Textp = append(ctxt.Textp, textp...)
 		}
-		return ldhostobj(ldmacho, f, pkg, length, pn, file)
+		return ldhostobj(ldmacho, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
 	if c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86 {
@@ -1422,7 +1421,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 			}
 			ctxt.Textp = append(ctxt.Textp, textp...)
 		}
-		return ldhostobj(ldpe, f, pkg, length, pn, file)
+		return ldhostobj(ldpe, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
 	/* check the header */
@@ -1959,9 +1958,9 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 	s := ctxt.Syms.Lookup("runtime.text", 0)
 	if s.Type == sym.STEXT {
 		// We've already included this symbol in ctxt.Textp
-		// if ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin.
+		// if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin.
 		// See data.go:/textaddress
-		if !(ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin) {
+		if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) {
 			put(ctxt, s, s.Name, TextSym, s.Value, nil)
 		}
 	}
@@ -1990,9 +1989,9 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 	s = ctxt.Syms.Lookup("runtime.etext", 0)
 	if s.Type == sym.STEXT {
 		// We've already included this symbol in ctxt.Textp
-		// if ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin.
+		// if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin.
 		// See data.go:/textaddress
-		if !(ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin) {
+		if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) {
 			put(ctxt, s, s.Name, TextSym, s.Value, nil)
 		}
 	}
@@ -2043,7 +2042,7 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 			put(ctxt, s, s.Name, BSSSym, Symaddr(s), s.Gotype)
 
 		case sym.SHOSTOBJ:
-			if Headtype == objabi.Hwindows || ctxt.IsELF {
+			if ctxt.HeadType == objabi.Hwindows || ctxt.IsELF {
 				put(ctxt, s, s.Name, UndefinedSym, s.Value, nil)
 			}
 

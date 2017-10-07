@@ -1463,7 +1463,7 @@ func writepub(ctxt *Link, sname string, ispub func(*dwarf.DWDie) bool, syms []*s
 }
 
 func writegdbscript(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
-	if ctxt.LinkMode == LinkExternal && Headtype == objabi.Hwindows && ctxt.BuildMode == BuildModeCArchive {
+	if ctxt.LinkMode == LinkExternal && ctxt.HeadType == objabi.Hwindows && ctxt.BuildMode == BuildModeCArchive {
 		// gcc on Windows places .debug_gdb_scripts in the wrong location, which
 		// causes the program not to run. See https://golang.org/issue/20183
 		// Non c-archives can avoid this issue via a linker script
@@ -1499,18 +1499,18 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 	if *FlagW { // disable dwarf
 		return
 	}
-	if *FlagS && Headtype != objabi.Hdarwin {
+	if *FlagS && ctxt.HeadType != objabi.Hdarwin {
 		return
 	}
-	if Headtype == objabi.Hplan9 {
+	if ctxt.HeadType == objabi.Hplan9 {
 		return
 	}
 
 	if ctxt.LinkMode == LinkExternal {
 		switch {
 		case ctxt.IsELF:
-		case Headtype == objabi.Hdarwin:
-		case Headtype == objabi.Hwindows:
+		case ctxt.HeadType == objabi.Hdarwin:
+		case ctxt.HeadType == objabi.Hwindows:
 		default:
 			return
 		}
