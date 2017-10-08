@@ -37,6 +37,9 @@ func checkAssignStmt(f *File, node ast.Node) {
 	}
 	for i, lhs := range stmt.Lhs {
 		rhs := stmt.Rhs[i]
+		if hasSideEffects(lhs) || hasSideEffects(rhs) {
+			continue // expressions may not be equal
+		}
 		if reflect.TypeOf(lhs) != reflect.TypeOf(rhs) {
 			continue // short-circuit the heavy-weight gofmt check
 		}
