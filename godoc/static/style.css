@@ -61,13 +61,6 @@ a:hover,
 	text-decoration: none;
 }
 
-.permalink {
-	display: none;
-}
-:hover > .permalink {
-	display: inline;
-}
-
 p, li {
 	max-width: 800px;
 	word-wrap: break-word;

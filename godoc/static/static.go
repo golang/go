@@ -795,7 +795,7 @@ function setupInlinePlayground() {
 			code.on('keyup', resize);
 			code.keyup(); // resize now.
 		};
-		
+
 		// If example already visible, set up playground now.
 		if ($(el).is(':visible')) {
 			setup();
@@ -929,7 +929,7 @@ function addPermalinks() {
       // Already attached.
       return;
     }
-    parent.append(" ").append($("<a class='permalink'>&#xb6;</a>").attr("href", "#" + id));
+    parent.append(" ").append($("<a class='permalink' title='permalink' aria-label='permalink'>&#xb6;</a>").attr("href", "#" + id));
   }
 
   $("#page .container").find("h2[id], h3[id]").each(function() {
@@ -1819,7 +1819,7 @@ function cgAddChild(tree, ul, cgn) {
 			{{/* Name is a string - no need for FSet */}}
 			{{$name_html := html .Name}}
 			<h2 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a>
-				<a class="permalink" href="#{{$name_html}}">&#xb6;</a>
+				<a class="permalink" title="permalink" aria-label="permalink" href="#{{$name_html}}">&#xb6;</a>
 			</h2>
 			<pre>{{node_html $ .Decl true}}</pre>
 			{{comment_html .Doc}}
@@ -1831,7 +1831,7 @@ function cgAddChild(tree, ul, cgn) {
 			{{$tname := .Name}}
 			{{$tname_html := html .Name}}
 			<h2 id="{{$tname_html}}">type <a href="{{posLink_url $ .Decl}}">{{$tname_html}}</a>
-				<a class="permalink" href="#{{$tname_html}}">&#xb6;</a>
+				<a class="permalink" title="permalink" aria-label="permalink" href="#{{$tname_html}}">&#xb6;</a>
 			</h2>
 			{{comment_html .Doc}}
 			<pre>{{node_html $ .Decl true}}</pre>
@@ -1853,7 +1853,7 @@ function cgAddChild(tree, ul, cgn) {
 			{{range .Funcs}}
 				{{$name_html := html .Name}}
 				<h3 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a>
-					<a class="permalink" href="#{{$name_html}}">&#xb6;</a>
+					<a class="permalink" title="permalink" aria-label="permalink" href="#{{$name_html}}">&#xb6;</a>
 				</h3>
 				<pre>{{node_html $ .Decl true}}</pre>
 				{{comment_html .Doc}}
@@ -1864,7 +1864,7 @@ function cgAddChild(tree, ul, cgn) {
 			{{range .Methods}}
 				{{$name_html := html .Name}}
 				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a>
-					<a class="permalink" href="#{{$tname_html}}.{{$name_html}}">&#xb6;</a>
+					<a class="permalink" title="permalink" aria-label="permalink" href="#{{$tname_html}}.{{$name_html}}">&#xb6;</a>
 				</h3>
 				<pre>{{node_html $ .Decl true}}</pre>
 				{{comment_html .Doc}}
@@ -2966,13 +2966,6 @@ a:hover,
 }
 .article .title a {
 	text-decoration: none;
-}
-
-.permalink {
-	display: none;
-}
-:hover > .permalink {
-	display: inline;
 }
 
 p, li {
