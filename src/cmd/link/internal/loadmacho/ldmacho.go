@@ -627,7 +627,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 		sect := &c.seg.sect[machsym.sectnum-1]
 		outer := sect.sym
 		if outer == nil {
-			return errorf("reference to invalid section %s/%s", sect.segname, sect.name)
+			continue // ignore reference to invalid section
 		}
 
 		if s.Outer != nil {
