@@ -338,7 +338,7 @@ type chunkWriter struct {
 	res *response
 
 	// header is either nil or a deep clone of res.handlerHeader
-	// at the time of res.WriteHeader, if res.WriteHeader is
+	// at the time of res.writeHeader, if res.writeHeader is
 	// called and extra buffering is being done to calculate
 	// Content-Type and/or Content-Length.
 	header Header
