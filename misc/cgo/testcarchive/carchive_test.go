@@ -549,6 +549,8 @@ func TestSIGPROF(t *testing.T) {
 	switch GOOS {
 	case "windows", "plan9":
 		t.Skipf("skipping SIGPROF test on %s", GOOS)
+	case "darwin":
+		t.Skipf("skipping SIGPROF test on %s; see https://golang.org/issue/19320", GOOS)
 	}
 
 	t.Parallel()
