@@ -10,4 +10,4 @@
 // We hope that for real binaries the definition provided by Go will take precedence
 // and the linker will drop this .o file altogether, which is why this definition
 // is all by itself in its own file.
-void xx_cgo_panicmem(void) {}
+void __attribute__((weak)) xx_cgo_panicmem(void) {}

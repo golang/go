@@ -4,13 +4,13 @@
 
 #include "textflag.h"
 
-// panicmem is the entrypoint for SIGSEGV as intercepted via a
+// xx_cgo_panicmem is the entrypoint for SIGSEGV as intercepted via a
 // mach thread port as EXC_BAD_ACCESS. As the segfault may have happened
-// in C code, we first need to load_g then call panicmem.
+// in C code, we first need to load_g then call xx_cgo_panicmem.
 //
 //	R1 - LR at moment of fault
 //	R2 - PC at moment of fault
-TEXT ·panicmem(SB),NOSPLIT,$-8
+TEXT xx_cgo_panicmem(SB),NOSPLIT,$-8
 	// If in external C code, we need to load the g register.
 	BL  runtime·load_g(SB)
 	CMP $0, g
