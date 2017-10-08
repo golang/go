@@ -5,7 +5,6 @@
 /* A little code to ease navigation of these documents.
  *
  * On window load we:
- *  + Bind search box hint placeholder show/hide events (bindSearchEvents)
  *  + Generate a table of contents (generateTOC)
  *  + Bind foldable sections (bindToggles)
  *  + Bind links to foldable sections (bindToggleLinks)
@@ -26,34 +25,6 @@ $(function() {
     return false;
   });
 });
-
-function bindSearchEvents() {
-
-  var search = $('#search');
-  if (search.length === 0) {
-    return; // no search box
-  }
-
-  function clearInactive() {
-    if (search.is('.inactive')) {
-      search.val('');
-      search.removeClass('inactive');
-    }
-  }
-
-  function restoreInactive() {
-    if (search.val() !== '') {
-      return;
-    }
-    search.val(search.attr('placeholder'));
-    search.addClass('inactive');
-  }
-
-  search.on('focus', clearInactive);
-  search.on('blur', restoreInactive);
-
-  restoreInactive();
-}
 
 /* Generates a table of contents: looks for h2 and h3 elements and generates
  * links. "Decorates" the element with id=="nav" with this table of contents.
@@ -359,7 +330,6 @@ function addPermalinks() {
 }
 
 $(document).ready(function() {
-  bindSearchEvents();
   generateTOC();
   addPermalinks();
   bindToggles(".toggle");

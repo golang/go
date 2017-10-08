@@ -206,7 +206,7 @@ div#footer {
 }
 
 div#menu > a,
-div#menu > input,
+input#search,
 div#learn .buttons a,
 div.play .buttons a,
 div#blog .read a,
@@ -222,7 +222,7 @@ div#blog .read a,
 }
 div#playground .buttons a,
 div#menu > a,
-div#menu > input,
+input#search,
 #menu-button {
 	border: 1px solid #375EAB;
 }
@@ -265,16 +265,50 @@ div#menu > a,
 	margin: 10px 2px;
 	padding: 10px;
 }
-div#menu > input {
-	position: relative;
-	top: 1px;
+::-webkit-input-placeholder {
+	color: #7f7f7f;
+	opacity: 1;
+}
+::placeholder {
+	color: #7f7f7f;
+	opacity: 1;
+}
+#menu .search-box {
+	display: inline-flex;
 	width: 140px;
+}
+input#search {
 	background: white;
 	color: #222;
 	box-sizing: border-box;
+	-webkit-appearance: none;
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+	border-right: 0;
+	margin-right: 0;
+	flex-grow: 1;
+	max-width: 100%;
+	min-width: 90px;
 }
-div#menu > input.inactive {
-	color: #999;
+input#search:-moz-ui-invalid {
+	box-shadow: unset;
+}
+input#search + button {
+	display: inline;
+	font-size: 1em;
+	background-color: #375EAB;
+	color: white;
+	border: 1px solid #375EAB;
+	border-top-right-radius: 5px;
+	border-bottom-right-radius: 5px;
+	margin-left: 0;
+	cursor: pointer;
+}
+input#search + button span {
+	display: flex;
+}
+input#search + button svg {
+	fill: white
 }
 
 #menu-button {
@@ -701,7 +735,7 @@ a.error {
 		font-size: 14px;
 	}
 
-	div#menu > input {
+	input#search {
 		font-size: 14px;
 	}
 }
@@ -749,14 +783,14 @@ a.error {
 		float: left;
 	}
 
-	div#menu > a,
-	div#menu > input {
+	div#menu > a {
 		display: block;
 		margin-left: 0;
 		margin-right: 0;
 	}
 
-	div#menu > input {
+	#menu .search-box {
+		display: flex;
 		width: 100%;
 	}
 

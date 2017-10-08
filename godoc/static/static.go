@@ -502,7 +502,7 @@ var Files = map[string]string{
 {{if .Playground}}
 <a id="playgroundButton" href="http://play.golang.org/" title="Show Go Playground">Play</a>
 {{end}}
-<input type="text" id="search" name="q" class="inactive" value="Search" placeholder="Search">
+<span class="search-box"><input type="search" id="search" name="q" placeholder="Search" aria-label="Search" required><button type="submit"><span><svg width="24" height="24" viewBox="0 0 24 24"><title>submit search</title><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/><path d="M0 0h24v24H0z" fill="none"/></svg></span></button></span>
 </div>
 </form>
 
@@ -591,7 +591,6 @@ and code is licensed under a <a href="/LICENSE">BSD license</a>.<br>
 /* A little code to ease navigation of these documents.
  *
  * On window load we:
- *  + Bind search box hint placeholder show/hide events (bindSearchEvents)
  *  + Generate a table of contents (generateTOC)
  *  + Bind foldable sections (bindToggles)
  *  + Bind links to foldable sections (bindToggleLinks)
@@ -612,34 +611,6 @@ $(function() {
     return false;
   });
 });
-
-function bindSearchEvents() {
-
-  var search = $('#search');
-  if (search.length === 0) {
-    return; // no search box
-  }
-
-  function clearInactive() {
-    if (search.is('.inactive')) {
-      search.val('');
-      search.removeClass('inactive');
-    }
-  }
-
-  function restoreInactive() {
-    if (search.val() !== '') {
-      return;
-    }
-    search.val(search.attr('placeholder'));
-    search.addClass('inactive');
-  }
-
-  search.on('focus', clearInactive);
-  search.on('blur', restoreInactive);
-
-  restoreInactive();
-}
 
 /* Generates a table of contents: looks for h2 and h3 elements and generates
  * links. "Decorates" the element with id=="nav" with this table of contents.
@@ -945,7 +916,6 @@ function addPermalinks() {
 }
 
 $(document).ready(function() {
-  bindSearchEvents();
   generateTOC();
   addPermalinks();
   bindToggles(".toggle");
@@ -3113,7 +3083,7 @@ div#footer {
 }
 
 div#menu > a,
-div#menu > input,
+input#search,
 div#learn .buttons a,
 div.play .buttons a,
 div#blog .read a,
@@ -3129,7 +3099,7 @@ div#blog .read a,
 }
 div#playground .buttons a,
 div#menu > a,
-div#menu > input,
+input#search,
 #menu-button {
 	border: 1px solid #375EAB;
 }
@@ -3172,16 +3142,50 @@ div#menu > a,
 	margin: 10px 2px;
 	padding: 10px;
 }
-div#menu > input {
-	position: relative;
-	top: 1px;
+::-webkit-input-placeholder {
+	color: #7f7f7f;
+	opacity: 1;
+}
+::placeholder {
+	color: #7f7f7f;
+	opacity: 1;
+}
+#menu .search-box {
+	display: inline-flex;
 	width: 140px;
+}
+input#search {
 	background: white;
 	color: #222;
 	box-sizing: border-box;
+	-webkit-appearance: none;
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+	border-right: 0;
+	margin-right: 0;
+	flex-grow: 1;
+	max-width: 100%;
+	min-width: 90px;
 }
-div#menu > input.inactive {
-	color: #999;
+input#search:-moz-ui-invalid {
+	box-shadow: unset;
+}
+input#search + button {
+	display: inline;
+	font-size: 1em;
+	background-color: #375EAB;
+	color: white;
+	border: 1px solid #375EAB;
+	border-top-right-radius: 5px;
+	border-bottom-right-radius: 5px;
+	margin-left: 0;
+	cursor: pointer;
+}
+input#search + button span {
+	display: flex;
+}
+input#search + button svg {
+	fill: white
 }
 
 #menu-button {
@@ -3608,7 +3612,7 @@ a.error {
 		font-size: 14px;
 	}
 
-	div#menu > input {
+	input#search {
 		font-size: 14px;
 	}
 }
@@ -3656,14 +3660,14 @@ a.error {
 		float: left;
 	}
 
-	div#menu > a,
-	div#menu > input {
+	div#menu > a {
 		display: block;
 		margin-left: 0;
 		margin-right: 0;
 	}
 
-	div#menu > input {
+	#menu .search-box {
+		display: flex;
 		width: 100%;
 	}
 
