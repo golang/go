@@ -1742,7 +1742,7 @@ function cgAddChild(tree, ul, cgn) {
 
 		{{if $.Examples}}
 		<div id="pkg-examples">
-			<h4>Examples</h4>
+			<h3>Examples</h3>
 			<dl>
 			{{range $.Examples}}
 			<dd><a class="exampleLink" href="#example_{{.Name}}">{{example_name .Name}}</a></dd>
@@ -1752,7 +1752,7 @@ function cgAddChild(tree, ul, cgn) {
 		{{end}}
 
 		{{with .Filenames}}
-			<h4>Package files</h4>
+			<h3>Package files</h3>
 			<p>
 			<span style="font-size:90%">
 			{{range .}}
@@ -3051,6 +3051,9 @@ div#nav table td {
 }
 
 
+#pkg-index h3 {
+	font-size: 16px;
+}
 .pkg-dir {
 	padding: 0 10px;
 }

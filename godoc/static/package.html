@@ -89,7 +89,7 @@
 
 		{{if $.Examples}}
 		<div id="pkg-examples">
-			<h4>Examples</h4>
+			<h3>Examples</h3>
 			<dl>
 			{{range $.Examples}}
 			<dd><a class="exampleLink" href="#example_{{.Name}}">{{example_name .Name}}</a></dd>
@@ -99,7 +99,7 @@
 		{{end}}
 
 		{{with .Filenames}}
-			<h4>Package files</h4>
+			<h3>Package files</h3>
 			<p>
 			<span style="font-size:90%">
 			{{range .}}
