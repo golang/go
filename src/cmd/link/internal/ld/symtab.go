@@ -641,6 +641,13 @@ func (ctxt *Link) symtab() {
 		moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Shlibs)))
 	}
 
+	hasmain := ctxt.BuildMode == BuildModeExe || ctxt.BuildMode == BuildModePIE
+	if hasmain {
+		moduledata.AddUint8(1)
+	} else {
+		moduledata.AddUint8(0)
+	}
+
 	// The rest of moduledata is zero initialized.
 	// When linking an object that does not contain the runtime we are
 	// creating the moduledata from scratch and it does not have a

@@ -375,6 +375,8 @@ type moduledata struct {
 	modulename   string
 	modulehashes []modulehash
 
+	hasmain uint8 // 1 if module contains the main function, 0 otherwise
+
 	gcdatamask, gcbssmask bitvector
 
 	typemap map[typeOff]*_type // offset to *_rtype in previous module
@@ -472,9 +474,8 @@ func modulesinit() {
 	// contains the main function.
 	//
 	// See Issue #18729.
-	mainText := funcPC(main_main)
 	for i, md := range *modules {
-		if md.text <= mainText && mainText <= md.etext {
+		if md.hasmain != 0 {
 			(*modules)[0] = md
 			(*modules)[i] = &firstmoduledata
 			break
