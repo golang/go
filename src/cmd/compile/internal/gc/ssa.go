@@ -2641,6 +2641,12 @@ func init() {
 			return s.newValue0(ssa.OpGetCallerPC, s.f.Config.Types.Uintptr)
 		}, sys.AMD64, sys.I386)
 
+	add("runtime", "getcallersp",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue0(ssa.OpGetCallerSP, s.f.Config.Types.Uintptr)
+		},
+		all...)
+
 	/******** runtime/internal/sys ********/
 	addF("runtime/internal/sys", "Ctz32",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {

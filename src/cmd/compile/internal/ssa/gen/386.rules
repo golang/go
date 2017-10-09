@@ -384,6 +384,7 @@
 (GetG mem) -> (LoweredGetG mem)
 (GetClosurePtr) -> (LoweredGetClosurePtr)
 (GetCallerPC) -> (LoweredGetCallerPC)
+(GetCallerSP) -> (LoweredGetCallerSP)
 (Addr {sym} base) -> (LEAL {sym} base)
 
 // block rewrites

@@ -397,6 +397,7 @@ const (
 	Op386LoweredGetG
 	Op386LoweredGetClosurePtr
 	Op386LoweredGetCallerPC
+	Op386LoweredGetCallerSP
 	Op386LoweredNilCheck
 	Op386MOVLconvert
 	Op386FlagEQ
@@ -665,6 +666,7 @@ const (
 	OpAMD64LoweredGetG
 	OpAMD64LoweredGetClosurePtr
 	OpAMD64LoweredGetCallerPC
+	OpAMD64LoweredGetCallerSP
 	OpAMD64LoweredNilCheck
 	OpAMD64MOVQconvert
 	OpAMD64MOVLconvert
@@ -918,6 +920,7 @@ const (
 	OpARMLoweredZero
 	OpARMLoweredMove
 	OpARMLoweredGetClosurePtr
+	OpARMLoweredGetCallerSP
 	OpARMMOVWconvert
 	OpARMFlagEQ
 	OpARMFlagLT_ULT
@@ -1083,6 +1086,7 @@ const (
 	OpARM64DUFFCOPY
 	OpARM64LoweredMove
 	OpARM64LoweredGetClosurePtr
+	OpARM64LoweredGetCallerSP
 	OpARM64MOVDconvert
 	OpARM64FlagEQ
 	OpARM64FlagLT_ULT
@@ -1202,6 +1206,7 @@ const (
 	OpMIPSFPFlagTrue
 	OpMIPSFPFlagFalse
 	OpMIPSLoweredGetClosurePtr
+	OpMIPSLoweredGetCallerSP
 	OpMIPSMOVWconvert
 
 	OpMIPS64ADDV
@@ -1298,6 +1303,7 @@ const (
 	OpMIPS64FPFlagTrue
 	OpMIPS64FPFlagFalse
 	OpMIPS64LoweredGetClosurePtr
+	OpMIPS64LoweredGetCallerSP
 	OpMIPS64MOVVconvert
 
 	OpPPC64ADD
@@ -1421,6 +1427,7 @@ const (
 	OpPPC64GreaterEqual
 	OpPPC64FGreaterEqual
 	OpPPC64LoweredGetClosurePtr
+	OpPPC64LoweredGetCallerSP
 	OpPPC64LoweredNilCheck
 	OpPPC64LoweredRound32F
 	OpPPC64LoweredRound64F
@@ -1624,6 +1631,7 @@ const (
 	OpS390XInvertFlags
 	OpS390XLoweredGetG
 	OpS390XLoweredGetClosurePtr
+	OpS390XLoweredGetCallerSP
 	OpS390XLoweredNilCheck
 	OpS390XLoweredRound32F
 	OpS390XLoweredRound64F
@@ -1918,6 +1926,7 @@ const (
 	OpGetG
 	OpGetClosurePtr
 	OpGetCallerPC
+	OpGetCallerSP
 	OpPtrIndex
 	OpOffPtr
 	OpSliceMake
@@ -4302,6 +4311,16 @@ var opcodeTable = [...]opInfo{
 	{
 		name:   "LoweredGetCallerPC",
 		argLen: 0,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
+			},
+		},
+	},
+	{
+		name:              "LoweredGetCallerSP",
+		argLen:            0,
+		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -8076,6 +8095,16 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:              "LoweredGetCallerSP",
+		argLen:            0,
+		rematerializeable: true,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
 		name:           "LoweredNilCheck",
 		argLen:         2,
 		clobberFlags:   true,
@@ -11599,6 +11628,16 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:              "LoweredGetCallerSP",
+		argLen:            0,
+		rematerializeable: true,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
 		name:   "MOVWconvert",
 		argLen: 2,
 		asm:    arm.AMOVW,
@@ -13744,6 +13783,16 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:              "LoweredGetCallerSP",
+		argLen:            0,
+		rematerializeable: true,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
 		name:   "MOVDconvert",
 		argLen: 2,
 		asm:    arm64.AMOVD,
@@ -15322,6 +15371,16 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:              "LoweredGetCallerSP",
+		argLen:            0,
+		rematerializeable: true,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 335544318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
+			},
+		},
+	},
+	{
 		name:   "MOVWconvert",
 		argLen: 2,
 		asm:    mips.AMOVW,
@@ -16611,6 +16670,16 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 4194304}, // R22
+			},
+		},
+	},
+	{
+		name:              "LoweredGetCallerSP",
+		argLen:            0,
+		rematerializeable: true,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 167772158}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
 			},
 		},
 	},
@@ -18235,6 +18304,16 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 2048}, // R11
+			},
+		},
+	},
+	{
+		name:              "LoweredGetCallerSP",
+		argLen:            0,
+		rematerializeable: true,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -21201,6 +21280,16 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:              "LoweredGetCallerSP",
+		argLen:            0,
+		rematerializeable: true,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
 		name:           "LoweredNilCheck",
 		argLen:         2,
 		clobberFlags:   true,
@@ -22997,6 +23086,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "GetCallerPC",
+		argLen:  0,
+		generic: true,
+	},
+	{
+		name:    "GetCallerSP",
 		argLen:  0,
 		generic: true,
 	},

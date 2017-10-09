@@ -422,6 +422,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// Closure pointer is R11 (already)
 		gc.CheckLoweredGetClosurePtr(v)
 
+	case ssa.OpPPC64LoweredGetCallerSP:
+		// caller's SP is FixedFrameSize below the address of the first arg
+		p := s.Prog(ppc64.AMOVD)
+		p.From.Type = obj.TYPE_ADDR
+		p.From.Offset = -gc.Ctxt.FixedFrameSize()
+		p.From.Name = obj.NAME_PARAM
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
 	case ssa.OpPPC64LoweredRound32F, ssa.OpPPC64LoweredRound64F:
 		// input is already rounded
 

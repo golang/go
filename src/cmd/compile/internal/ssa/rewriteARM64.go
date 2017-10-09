@@ -399,6 +399,8 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpGeq8_0(v)
 	case OpGeq8U:
 		return rewriteValueARM64_OpGeq8U_0(v)
+	case OpGetCallerSP:
+		return rewriteValueARM64_OpGetCallerSP_0(v)
 	case OpGetClosurePtr:
 		return rewriteValueARM64_OpGetClosurePtr_0(v)
 	case OpGreater16:
@@ -11843,6 +11845,15 @@ func rewriteValueARM64_OpGeq8U_0(v *Value) bool {
 		v2.AddArg(y)
 		v0.AddArg(v2)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM64_OpGetCallerSP_0(v *Value) bool {
+	// match: (GetCallerSP)
+	// cond:
+	// result: (LoweredGetCallerSP)
+	for {
+		v.reset(OpARM64LoweredGetCallerSP)
 		return true
 	}
 }
