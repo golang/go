@@ -522,7 +522,7 @@ func runTest(cmd *base.Command, args []string) {
 		}
 		sort.Strings(all)
 
-		a := &work.Action{}
+		a := &work.Action{Mode: "go test -i"}
 		for _, p := range load.PackagesForBuild(all) {
 			a.Deps = append(a.Deps, b.Action(work.ModeInstall, work.ModeInstall, p))
 		}
@@ -599,7 +599,7 @@ func runTest(cmd *base.Command, args []string) {
 	}
 
 	// Ultimately the goal is to print the output.
-	root := &work.Action{Deps: prints}
+	root := &work.Action{Mode: "go test", Deps: prints}
 
 	// Force the printing of results to happen in order,
 	// one at a time.
@@ -652,8 +652,8 @@ var windowsBadWords = []string{
 func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := b.Action(work.ModeBuild, work.ModeBuild, p)
-		run := &work.Action{Package: p, Deps: []*work.Action{build}}
-		print := &work.Action{Func: builderNoTest, Package: p, Deps: []*work.Action{run}}
+		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
+		print := &work.Action{Mode: "test print", Func: builderNoTest, Package: p, Deps: []*work.Action{run}}
 		return build, run, print, nil
 	}
 
@@ -945,6 +945,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 			}
 		}
 		buildAction = &work.Action{
+			Mode:    "test build",
 			Func:    work.BuildInstallFunc,
 			Deps:    []*work.Action{buildAction},
 			Package: pmain,
@@ -953,22 +954,25 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		runAction = buildAction // make sure runAction != nil even if not running test
 	}
 	if testC {
-		printAction = &work.Action{Package: p, Deps: []*work.Action{runAction}} // nop
+		printAction = &work.Action{Mode: "test print (nop)", Package: p, Deps: []*work.Action{runAction}} // nop
 	} else {
 		// run test
 		runAction = &work.Action{
+			Mode:       "test run",
 			Func:       builderRunTest,
 			Deps:       []*work.Action{buildAction},
 			Package:    p,
 			IgnoreFail: true,
 		}
 		cleanAction := &work.Action{
+			Mode:    "test clean",
 			Func:    builderCleanTest,
 			Deps:    []*work.Action{runAction},
 			Package: p,
 			Objdir:  testDir,
 		}
 		printAction = &work.Action{
+			Mode:    "test print",
 			Func:    builderPrintTest,
 			Deps:    []*work.Action{cleanAction},
 			Package: p,
