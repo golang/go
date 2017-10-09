@@ -729,10 +729,10 @@ func TestBuildComplex(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.run("build", "-o", os.DevNull, "complex")
+	tg.run("build", "-x", "-o", os.DevNull, "complex")
 
 	if _, err := exec.LookPath("gccgo"); err == nil {
-		tg.run("build", "-o", os.DevNull, "-compiler=gccgo", "complex")
+		tg.run("build", "-x", "-o", os.DevNull, "-compiler=gccgo", "complex")
 	}
 }
 
