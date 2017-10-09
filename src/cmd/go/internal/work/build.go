@@ -691,7 +691,6 @@ type Action struct {
 	triggers []*Action // inverse of deps
 
 	// Generated files, directories.
-	Link   bool   // target is executable, not just package
 	Objdir string // directory for intermediate objects
 	Target string // goal of the action: the created package or executable
 
@@ -749,7 +748,6 @@ func actionGraphJSON(a *Action) string {
 			ID:         id,
 			IgnoreFail: a.IgnoreFail,
 			Args:       a.Args,
-			Link:       a.Link,
 			Objdir:     a.Objdir,
 			Target:     a.Target,
 			Failed:     a.Failed,
@@ -955,7 +953,7 @@ func (b *Builder) action1(mode BuildMode, depMode BuildMode, p *load.Package, lo
 		mode = ModeBuild
 	}
 	a.Objdir = b.NewObjdir()
-	a.Link = p.Name == "main" && !p.Internal.ForceLibrary
+	link := p.Name == "main" && !p.Internal.ForceLibrary
 
 	switch mode {
 	case ModeInstall:
@@ -989,7 +987,16 @@ func (b *Builder) action1(mode BuildMode, depMode BuildMode, p *load.Package, lo
 		a.Func = (*Builder).build
 		a.Target = a.Objdir + "_pkg_.a"
 		a.Package.Internal.Pkgfile = a.Target
-		if a.Link {
+
+		if link {
+			a = &Action{
+				Mode:    "link",
+				Func:    (*Builder).link,
+				Package: a.Package,
+				Objdir:  a.Objdir,
+				Deps:    []*Action{a},
+			}
+
 			// An executable file. (This is the name of a temporary file.)
 			// Because we run the temporary file in 'go run' and 'go test',
 			// the name will show up in ps listings. If the caller has specified
@@ -1018,7 +1025,10 @@ func (b *Builder) action1(mode BuildMode, depMode BuildMode, p *load.Package, lo
 }
 
 func (b *Builder) libaction(libname string, pkgs []*load.Package, mode, depMode BuildMode) *Action {
-	a := &Action{Mode: "libaction???"}
+	a := &Action{
+		Mode:   "libaction", // should be overwritten below
+		Objdir: b.NewObjdir(),
+	}
 	switch mode {
 	default:
 		base.Fatalf("unrecognized mode %v", mode)
@@ -1201,8 +1211,14 @@ func (b *Builder) Do(root *Action) {
 	// any actions that are runnable as a result.
 	handle := func(a *Action) {
 		var err error
+
 		if a.Func != nil && (!a.Failed || a.IgnoreFail) {
-			err = a.Func(b, a)
+			if a.Objdir != "" {
+				err = b.Mkdir(a.Objdir)
+			}
+			if err == nil {
+				err = a.Func(b, a)
+			}
 		}
 
 		// The actions run in parallel but all the updates to the
@@ -1316,11 +1332,7 @@ func (b *Builder) build(a *Action) (err error) {
 		b.Print(a.Package.ImportPath + "\n")
 	}
 
-	// Make build directory.
 	objdir := a.Objdir
-	if err := b.Mkdir(objdir); err != nil {
-		return err
-	}
 
 	// make target directory
 	dir, _ := filepath.Split(a.Target)
@@ -1554,20 +1566,30 @@ func (b *Builder) build(a *Action) (err error) {
 		}
 	}
 
-	// Link if needed.
-	if a.Link {
-		importcfg := a.Objdir + "importcfg.link"
-		if err := b.writeLinkImportcfg(a, importcfg); err != nil {
-			return err
-		}
+	return nil
+}
 
-		// The compiler only cares about direct imports, but the
-		// linker needs the whole dependency tree.
-		all := ActionList(a)
-		all = all[:len(all)-1] // drop a
-		if err := BuildToolchain.ld(b, a, a.Target, importcfg, all, objpkg, objects); err != nil {
+func (b *Builder) link(a *Action) (err error) {
+	importcfg := a.Objdir + "importcfg.link"
+	if err := b.writeLinkImportcfg(a, importcfg); err != nil {
+		return err
+	}
+
+	// make target directory
+	dir, _ := filepath.Split(a.Target)
+	if dir != "" {
+		if err := b.Mkdir(dir); err != nil {
 			return err
 		}
+	}
+
+	// The compiler only cares about direct imports, but the
+	// linker needs the whole dependency tree.
+	all := ActionList(a)
+	all = all[:len(all)-1] // drop a
+	objpkg := a.Objdir + "_pkg_.a"
+	if err := BuildToolchain.ld(b, a, a.Target, importcfg, all, objpkg, nil); err != nil { // TODO: ofiles
+		return err
 	}
 
 	return nil
@@ -1698,7 +1720,7 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 	}()
 	a1 := a.Deps[0]
 	perm := os.FileMode(0666)
-	if a1.Link {
+	if a1.Mode == "link" {
 		switch cfg.BuildBuildmode {
 		case "c-archive", "c-shared", "plugin":
 		default:
@@ -2859,7 +2881,7 @@ func (gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []string)
 	return b.run(p.Dir, p.ImportPath, nil, "ar", "rc", mkAbs(objdir, afile), absOfiles)
 }
 
-func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string, allactions []*Action, mainpkg string, ofiles []string, buildmode, desc string) error {
+func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string, allactions []*Action, buildmode, desc string) error {
 	// gccgo needs explicit linking with all package dependencies,
 	// and all LDFLAGS from cgo dependencies.
 	apackagePathsSeen := make(map[string]bool)
@@ -2899,42 +2921,36 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 		return nil
 	}
 
+	newID := 0
 	readAndRemoveCgoFlags := func(archive string) (string, error) {
-		newa, err := ioutil.TempFile(b.WorkDir, filepath.Base(archive))
+		newID++
+		newArchive := root.Objdir + fmt.Sprintf("_pkg%d_.a", newID)
+		if err := b.copyFile(root, newArchive, archive, 0666, false); err != nil {
+			return "", err
+		}
+		if cfg.BuildN || cfg.BuildX {
+			b.Showcmd("", "ar d %s _cgo_flags", newArchive)
+			if cfg.BuildN {
+				// TODO(rsc): We could do better about showing the right _cgo_flags even in -n mode.
+				// Either the archive is already built and we can read them out,
+				// or we're printing commands to build the archive and can
+				// forward the _cgo_flags directly to this step.
+				return "", nil
+			}
+		}
+		err := b.run(root.Objdir, desc, nil, "ar", "x", newArchive, "_cgo_flags")
 		if err != nil {
 			return "", err
 		}
-		olda, err := os.Open(archive)
+		err = b.run(".", desc, nil, "ar", "d", newArchive, "_cgo_flags")
 		if err != nil {
 			return "", err
 		}
-		_, err = io.Copy(newa, olda)
+		err = readCgoFlags(filepath.Join(root.Objdir, "_cgo_flags"))
 		if err != nil {
 			return "", err
 		}
-		err = olda.Close()
-		if err != nil {
-			return "", err
-		}
-		err = newa.Close()
-		if err != nil {
-			return "", err
-		}
-
-		newarchive := newa.Name()
-		err = b.run(b.WorkDir, desc, nil, "ar", "x", newarchive, "_cgo_flags")
-		if err != nil {
-			return "", err
-		}
-		err = b.run(".", desc, nil, "ar", "d", newarchive, "_cgo_flags")
-		if err != nil {
-			return "", err
-		}
-		err = readCgoFlags(filepath.Join(b.WorkDir, "_cgo_flags"))
-		if err != nil {
-			return "", err
-		}
-		return newarchive, nil
+		return newArchive, nil
 	}
 
 	actionsSeen := make(map[*Action]bool)
@@ -3015,14 +3031,6 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 		}
 		if len(a.Package.FFiles) > 0 {
 			fortran = true
-		}
-	}
-
-	for i, o := range ofiles {
-		if filepath.Base(o) == "_cgo_flags" {
-			readCgoFlags(o)
-			ofiles = append(ofiles[:i], ofiles[i+1:]...)
-			break
 		}
 	}
 
@@ -3112,7 +3120,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 		}
 	}
 
-	if err := b.run(".", desc, nil, tools.linker(), "-o", out, ofiles, ldflags, buildGccgoflags); err != nil {
+	if err := b.run(".", desc, nil, tools.linker(), "-o", out, ldflags, buildGccgoflags); err != nil {
 		return err
 	}
 
@@ -3126,13 +3134,13 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 }
 
 func (tools gccgoToolchain) ld(b *Builder, root *Action, out, importcfg string, allactions []*Action, mainpkg string, ofiles []string) error {
-	return tools.link(b, root, out, importcfg, allactions, mainpkg, ofiles, ldBuildmode, root.Package.ImportPath)
+	return tools.link(b, root, out, importcfg, allactions, ldBuildmode, root.Package.ImportPath)
 }
 
 func (tools gccgoToolchain) ldShared(b *Builder, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
 	fakeRoot := &Action{Mode: "gccgo ldshared"}
 	fakeRoot.Deps = toplevelactions
-	return tools.link(b, fakeRoot, out, importcfg, allactions, "", nil, "shared", out)
+	return tools.link(b, fakeRoot, out, importcfg, allactions, "shared", out)
 }
 
 func (tools gccgoToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {

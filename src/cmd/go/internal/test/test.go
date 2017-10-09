@@ -896,11 +896,6 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 
 	load.ComputeStale(pmain)
 
-	if ptest != p {
-		a := b.Action(work.ModeBuild, work.ModeBuild, ptest)
-		a.Link = false
-	}
-
 	a := b.Action(work.ModeBuild, work.ModeBuild, pmain)
 	a.Target = testDir + testBinary + cfg.ExeSuffix
 	if cfg.Goos == "windows" {
