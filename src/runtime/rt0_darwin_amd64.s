@@ -5,10 +5,7 @@
 #include "textflag.h"
 
 TEXT _rt0_amd64_darwin(SB),NOSPLIT,$-8
-	LEAQ	8(SP), SI // argv
-	MOVQ	0(SP), DI // argc
-	MOVQ	$main(SB), AX
-	JMP	AX
+	JMP	_rt0_amd64(SB)
 
 // When linking with -shared, this symbol is called when the shared library
 // is loaded.
@@ -73,7 +70,3 @@ DATA _rt0_amd64_darwin_lib_argc<>(SB)/8, $0
 GLOBL _rt0_amd64_darwin_lib_argc<>(SB),NOPTR, $8
 DATA _rt0_amd64_darwin_lib_argv<>(SB)/8, $0
 GLOBL _rt0_amd64_darwin_lib_argv<>(SB),NOPTR, $8
-
-TEXT main(SB),NOSPLIT,$-8
-	MOVQ	$runtime·rt0_go(SB), AX
-	JMP	AX

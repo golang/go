@@ -7,10 +7,7 @@
 #include "textflag.h"
 
 TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
-	LEAQ	8(SP), SI // argv
-	MOVQ	0(SP), DI // argc
-	MOVQ	$main(SB), AX
-	JMP	AX
+	JMP	_rt0_amd64(SB)
 
 // When building with -buildmode=(c-shared or c-archive), this
 // symbol is called. For dynamic libraries it is called when the
@@ -40,9 +37,5 @@ TEXT _rt0_amd64_windows_lib(SB),NOSPLIT,$0x28
 TEXT _rt0_amd64_windows_lib_go(SB),NOSPLIT,$0
 	MOVQ  $0, DI
 	MOVQ	$0, SI
-	MOVQ	$runtime·rt0_go(SB), AX
-	JMP	AX
-
-TEXT main(SB),NOSPLIT,$-8
 	MOVQ	$runtime·rt0_go(SB), AX
 	JMP	AX
