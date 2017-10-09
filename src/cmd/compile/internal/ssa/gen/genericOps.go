@@ -379,6 +379,7 @@ var genericOps = []opData{
 	{name: "GetG", argLength: 1}, // runtime.getg() (read g pointer). arg0=mem
 	{name: "GetClosurePtr"},      // get closure pointer from dedicated register
 	{name: "GetCallerPC"},        // for getcallerpc intrinsic
+	{name: "GetCallerSP"},        // for getcallersp intrinsic
 
 	// Indexing operations
 	{name: "PtrIndex", argLength: 2},             // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type

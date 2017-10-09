@@ -643,6 +643,7 @@
 // Miscellaneous
 (Convert <t> x mem) -> (MOVDconvert <t> x mem)
 (GetClosurePtr) -> (LoweredGetClosurePtr)
+(GetCallerSP) -> (LoweredGetCallerSP)
 (IsNonNil ptr) -> (NotEqual (CMPconst [0] ptr))
 (IsInBounds idx len) -> (LessThan (CMPU idx len))
 (IsSliceInBounds idx len) -> (LessEqual (CMPU idx len))

@@ -585,6 +585,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpGeq8U_0(v)
 	case OpGetCallerPC:
 		return rewriteValueAMD64_OpGetCallerPC_0(v)
+	case OpGetCallerSP:
+		return rewriteValueAMD64_OpGetCallerSP_0(v)
 	case OpGetClosurePtr:
 		return rewriteValueAMD64_OpGetClosurePtr_0(v)
 	case OpGetG:
@@ -41964,6 +41966,15 @@ func rewriteValueAMD64_OpGetCallerPC_0(v *Value) bool {
 	// result: (LoweredGetCallerPC)
 	for {
 		v.reset(OpAMD64LoweredGetCallerPC)
+		return true
+	}
+}
+func rewriteValueAMD64_OpGetCallerSP_0(v *Value) bool {
+	// match: (GetCallerSP)
+	// cond:
+	// result: (LoweredGetCallerSP)
+	for {
+		v.reset(OpAMD64LoweredGetCallerSP)
 		return true
 	}
 }

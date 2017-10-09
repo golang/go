@@ -427,6 +427,7 @@
 (NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
 (GetG mem) -> (LoweredGetG mem)
 (GetClosurePtr) -> (LoweredGetClosurePtr)
+(GetCallerSP) -> (LoweredGetCallerSP)
 (Addr {sym} base) -> (MOVDaddr {sym} base)
 (ITab (Load ptr mem)) -> (MOVDload ptr mem)
 
