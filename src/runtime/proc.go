@@ -2936,15 +2936,14 @@ func newproc(siz int32, fn *funcval) {
 	argp := add(unsafe.Pointer(&fn), sys.PtrSize)
 	pc := getcallerpc()
 	systemstack(func() {
-		newproc1(fn, (*uint8)(argp), siz, 0, pc)
+		newproc1(fn, (*uint8)(argp), siz, pc)
 	})
 }
 
 // Create a new g running fn with narg bytes of arguments starting
-// at argp and returning nret bytes of results.  callerpc is the
-// address of the go statement that created this. The new g is put
-// on the queue of g's waiting to run.
-func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr) *g {
+// at argp. callerpc is the address of the go statement that created
+// this. The new g is put on the queue of g's waiting to run.
+func newproc1(fn *funcval, argp *uint8, narg int32, callerpc uintptr) {
 	_g_ := getg()
 
 	if fn == nil {
@@ -2952,7 +2951,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
 		throw("go of nil func value")
 	}
 	_g_.m.locks++ // disable preemption because it can be holding p in a local var
-	siz := narg + nret
+	siz := narg
 	siz = (siz + 7) &^ 7
 
 	// We could allocate a larger initial stack if necessary.
@@ -3047,7 +3046,6 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
 		_g_.stackguard0 = stackPreempt
 	}
-	return newg
 }
 
 // Put on gfree list.
