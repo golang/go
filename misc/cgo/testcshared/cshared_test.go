@@ -210,7 +210,9 @@ func runExe(t *testing.T, env []string, args ...string) string {
 
 func runCC(t *testing.T, args ...string) string {
 	t.Helper()
-	return run(t, nil, append(cc, args...)...)
+	// This function is run in parallel, so append to a copy of cc
+	// rather than cc itself.
+	return run(t, nil, append(append([]string(nil), cc...), args...)...)
 }
 
 func createHeaders() error {
