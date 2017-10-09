@@ -4630,3 +4630,57 @@ func TestWrongGOOSErrorBeforeLoadError(t *testing.T) {
 	tg.runFail("build", "exclude")
 	tg.grepStderr("unsupported GOOS/GOARCH pair", "GOOS=windwos go build exclude did not report 'unsupported GOOS/GOARCH pair'")
 }
+
+func TestUpxCompression(t *testing.T) {
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		t.Skipf("skipping upx test on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+
+	out, err := exec.Command("upx", "--version").CombinedOutput()
+	if err != nil {
+		t.Skip("skipping because upx is not available")
+	}
+
+	// upx --version prints `upx <version>` in the first line of output:
+	//   upx 3.94
+	//   [...]
+	re := regexp.MustCompile(`([[:digit:]]+)\.([[:digit:]]+)`)
+	upxVersion := re.FindStringSubmatch(string(out))
+	if len(upxVersion) != 3 {
+		t.Errorf("bad upx version string: %s", upxVersion)
+	}
+
+	major, err1 := strconv.Atoi(upxVersion[1])
+	minor, err2 := strconv.Atoi(upxVersion[2])
+	if err1 != nil || err2 != nil {
+		t.Errorf("bad upx version string: %s", upxVersion[0])
+	}
+
+	// Anything below 3.94 is known not to work with go binaries
+	if (major < 3) || (major == 3 && minor < 94) {
+		t.Skipf("skipping because upx version %v.%v is too old", major, minor)
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.tempFile("main.go", `package main; import "fmt"; func main() { fmt.Print("hello upx") }`)
+	src := tg.path("main.go")
+	obj := tg.path("main")
+	tg.run("build", "-o", obj, src)
+
+	out, err = exec.Command("upx", obj).CombinedOutput()
+	if err != nil {
+		t.Logf("executing upx\n%s\n", out)
+		t.Fatalf("upx failed with %v", err)
+	}
+
+	out, err = exec.Command(obj).CombinedOutput()
+	if err != nil {
+		t.Logf("%s", out)
+		t.Fatalf("running compressed go binary failed with error %s", err)
+	}
+	if string(out) != "hello upx" {
+		t.Fatalf("bad output from compressed go binary:\ngot %q; want %q", out, "hello upx")
+	}
+}
