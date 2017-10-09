@@ -41,6 +41,7 @@ type Symbol struct {
 	Dynimpvers  string
 	Sect        *Section
 	FuncInfo    *FuncInfo
+	Lib         *Library // Package defining this symbol
 	// P contains the raw symbol data.
 	P []byte
 	R []Reloc

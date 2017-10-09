@@ -318,6 +318,7 @@ overwrite:
 			pc.InlTree[i].Func = r.readSymIndex()
 		}
 
+		s.Lib = r.lib
 		if !dupok {
 			if s.Attr.OnList() {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
