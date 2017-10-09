@@ -281,8 +281,6 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_language, DW_FORM_data1},
-			{DW_AT_low_pc, DW_FORM_addr},
-			{DW_AT_high_pc, DW_FORM_addr},
 			{DW_AT_stmt_list, DW_FORM_sec_offset},
 			{DW_AT_comp_dir, DW_FORM_string},
 			{DW_AT_producer, DW_FORM_string},
