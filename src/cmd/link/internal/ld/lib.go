@@ -574,7 +574,7 @@ func (ctxt *Link) loadlib() {
 	if typeSymbolMangling(ctxt) {
 		*FlagW = true // disable DWARF generation
 		for _, s := range ctxt.Syms.Allsym {
-			newName := typeSymbolMangle(ctxt.Syms, s.Name)
+			newName := typeSymbolMangle(s.Name)
 			if newName != s.Name {
 				ctxt.Syms.Rename(s.Name, newName, int(s.Version))
 			}
@@ -657,7 +657,7 @@ func typeSymbolMangling(ctxt *Link) bool {
 }
 
 // typeSymbolMangle mangles the given symbol name into something shorter.
-func typeSymbolMangle(syms *sym.Symbols, name string) string {
+func typeSymbolMangle(name string) string {
 	if !strings.HasPrefix(name, "type.") {
 		return name
 	}

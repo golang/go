@@ -17,7 +17,7 @@ import (
 
 var realdwarf, linkseg *macho.Segment
 var dwarfstart, linkstart int64
-var dwarfaddr, linkaddr int64
+var dwarfaddr int64
 var linkoffset uint32
 
 const (

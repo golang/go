@@ -266,7 +266,7 @@ func reverselist(list **dwarf.DWDie) {
 	curr := *list
 	var prev *dwarf.DWDie
 	for curr != nil {
-		var next *dwarf.DWDie = curr.Link
+		next := curr.Link
 		curr.Link = prev
 		prev = curr
 		curr = next
@@ -1077,7 +1077,6 @@ func writelines(ctxt *Link, syms []*sym.Symbol) ([]*sym.Symbol, []*sym.Symbol) {
 			continue
 		}
 
-		epc = s.Value + s.Size
 		epcs = s
 
 		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))

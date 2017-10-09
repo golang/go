@@ -279,7 +279,6 @@ type ElfObj struct {
 	e         binary.ByteOrder
 	sect      []ElfSect
 	nsect     uint
-	shstrtab  string
 	nsymtab   int
 	symtab    *ElfSect
 	symstr    *ElfSect
@@ -426,18 +425,19 @@ func parseArmAttributes(ctxt *Link, e binary.ByteOrder, data []byte) {
 			subsectiondata := sectiondata[sz+4 : subsectionsize]
 			sectiondata = sectiondata[subsectionsize:]
 
-			if subsectiontag == TagFile {
-				attrList := elfAttributeList{data: subsectiondata}
-				for !attrList.done() {
-					attr := attrList.armAttr()
-					if attr.tag == TagABIVFPArgs && attr.ival == 1 {
-						ehdr.flags = 0x5000402 // has entry point, Version5 EABI, hard-float ABI
-					}
+			if subsectiontag != TagFile {
+				continue
+			}
+			attrList := elfAttributeList{data: subsectiondata}
+			for !attrList.done() {
+				attr := attrList.armAttr()
+				if attr.tag == TagABIVFPArgs && attr.ival == 1 {
+					ehdr.flags = 0x5000402 // has entry point, Version5 EABI, hard-float ABI
 				}
-				if attrList.err != nil {
-					// TODO(dfc) should this be ctxt.Diag ?
-					ctxt.Logf("could not parse .ARM.attributes\n")
-				}
+			}
+			if attrList.err != nil {
+				// TODO(dfc) should this be ctxt.Diag ?
+				ctxt.Logf("could not parse .ARM.attributes\n")
 			}
 		}
 	}

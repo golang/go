@@ -180,7 +180,7 @@ var nsortsym int
 // "big enough" header size. The initial header is
 // one page, the non-dynamic library stuff takes
 // up about 1300 bytes; we overestimate that as 2k.
-var loadBudget int = INITIAL_MACHO_HEADR - 2*1024
+var loadBudget = INITIAL_MACHO_HEADR - 2*1024
 
 func getMachoHdr() *MachoHdr {
 	return &machohdr
