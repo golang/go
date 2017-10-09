@@ -37,6 +37,8 @@ var (
 	BuildV                 bool // -v flag
 	BuildWork              bool // -work flag
 	BuildX                 bool // -x flag
+
+	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
 )
 
 func init() {
