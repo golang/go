@@ -5,10 +5,7 @@
 #include "textflag.h"
 
 TEXT _rt0_amd64_linux(SB),NOSPLIT,$-8
-	LEAQ	8(SP), SI // argv
-	MOVQ	0(SP), DI // argc
-	MOVQ	$main(SB), AX
-	JMP	AX
+	JMP	_rt0_amd64(SB)
 
 // When building with -buildmode=c-shared, this symbol is called when the shared
 // library is loaded.
@@ -68,7 +65,3 @@ DATA _rt0_amd64_linux_lib_argc<>(SB)/8, $0
 GLOBL _rt0_amd64_linux_lib_argc<>(SB),NOPTR, $8
 DATA _rt0_amd64_linux_lib_argv<>(SB)/8, $0
 GLOBL _rt0_amd64_linux_lib_argv<>(SB),NOPTR, $8
-
-TEXT main(SB),NOSPLIT,$-8
-	MOVQ	$runtime·rt0_go(SB), AX
-	JMP	AX

@@ -5,10 +5,7 @@
 #include "textflag.h"
 
 TEXT _rt0_amd64_android(SB),NOSPLIT,$-8
-	MOVQ	0(SP), DI // argc
-	LEAQ	8(SP), SI // argv
-	MOVQ	$main(SB), AX
-	JMP	AX
+	JMP	_rt0_amd64(SB)
 
 TEXT _rt0_amd64_android_lib(SB),NOSPLIT,$0
 	MOVQ	$1, DI // argc

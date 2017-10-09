@@ -5,11 +5,4 @@
 #include "textflag.h"
 
 TEXT _rt0_amd64_dragonfly(SB),NOSPLIT,$-8
-	LEAQ	8(DI), SI // argv
-	MOVQ	0(DI), DI // argc
-	MOVQ	$main(SB), AX
-	JMP	AX
-
-TEXT main(SB),NOSPLIT,$-8
-	MOVQ	$runtime·rt0_go(SB), AX
-	JMP	AX
+	JMP	_rt0_amd64(SB)
