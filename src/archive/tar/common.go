@@ -152,10 +152,11 @@ type Header struct {
 	Uname string // User name of owner
 	Gname string // Group name of owner
 
-	// The PAX format encodes the timestamps with sub-second resolution,
-	// while the other formats (USTAR and GNU) truncate to the nearest second.
-	// If the Format is unspecified, then Writer.WriteHeader ignores
-	// AccessTime and ChangeTime when using the USTAR format.
+	// If the Format is unspecified, then Writer.WriteHeader rounds ModTime
+	// to the nearest second and ignores the AccessTime and ChangeTime fields.
+	//
+	// To use AccessTime or ChangeTime, specify the Format as PAX or GNU.
+	// To use sub-second resolution, specify the Format as PAX.
 	ModTime    time.Time // Modification time
 	AccessTime time.Time // Access time (requires either PAX or GNU support)
 	ChangeTime time.Time // Change time (requires either PAX or GNU support)
@@ -340,7 +341,8 @@ type fileState interface {
 //
 // As a by-product of checking the fields, this function returns paxHdrs, which
 // contain all fields that could not be directly encoded.
-func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err error) {
+// A value receiver ensures that this method does not mutate the source Header.
+func (h Header) allowedFormats() (format Format, paxHdrs map[string]string, err error) {
 	format = FormatUSTAR | FormatPAX | FormatGNU
 	paxHdrs = make(map[string]string)
 
@@ -402,8 +404,7 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
 		}
 		isMtime := paxKey == paxMtime
 		fitsOctal := fitsInOctal(size, ts.Unix())
-		noACTime := !isMtime && h.Format != FormatUnknown
-		if (isMtime && !fitsOctal) || noACTime {
+		if (isMtime && !fitsOctal) || !isMtime {
 			whyNoUSTAR = fmt.Sprintf("USTAR cannot encode %s=%v", name, ts)
 			format.mustNotBe(FormatUSTAR)
 		}
@@ -452,7 +453,7 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
 	case TypeXHeader, TypeGNULongName, TypeGNULongLink:
 		return FormatUnknown, nil, headerError{"cannot manually encode TypeXHeader, TypeGNULongName, or TypeGNULongLink headers"}
 	case TypeXGlobalHeader:
-		if !reflect.DeepEqual(h, &Header{Typeflag: h.Typeflag, Xattrs: h.Xattrs, PAXRecords: h.PAXRecords, Format: h.Format}) {
+		if !reflect.DeepEqual(h, Header{Typeflag: h.Typeflag, Xattrs: h.Xattrs, PAXRecords: h.PAXRecords, Format: h.Format}) {
 			return FormatUnknown, nil, headerError{"only PAXRecords may be set for TypeXGlobalHeader"}
 		}
 		whyOnlyPAX = "only PAX supports TypeXGlobalHeader"
