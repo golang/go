@@ -583,7 +583,7 @@ var inlgen int
 // parameters.
 // The result of mkinlcall1 MUST be assigned back to n, e.g.
 // 	n.Left = mkinlcall1(n.Left, fn, isddd)
-func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+func mkinlcall1(n, fn *Node, isddd bool) *Node {
 	if fn.Func.Inl.Len() == 0 {
 		// No inlinable body.
 		return n
@@ -769,29 +769,24 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	call.Type = n.Type
 	call.SetTypecheck(1)
 
-	n = call
-
 	// transitive inlining
 	// might be nice to do this before exporting the body,
 	// but can't emit the body with inlining expanded.
 	// instead we emit the things that the body needs
 	// and each use must redo the inlining.
 	// luckily these are small.
-	body = fn.Func.Inl.Slice()
-	fn.Func.Inl.Set(nil) // prevent infinite recursion (shouldn't happen anyway)
 	inlnodelist(call.Nbody)
 	for _, n := range call.Nbody.Slice() {
 		if n.Op == OINLCALL {
 			inlconv2stmt(n)
 		}
 	}
-	fn.Func.Inl.Set(body)
 
 	if Debug['m'] > 2 {
-		fmt.Printf("%v: After inlining %+v\n\n", n.Line(), n)
+		fmt.Printf("%v: After inlining %+v\n\n", call.Line(), call)
 	}
 
-	return n
+	return call
 }
 
 // Every time we expand a function we generate a new set of tmpnames,
