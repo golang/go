@@ -427,6 +427,7 @@ func TestGdbConst(t *testing.T) {
 		"-ex", "print main.largeConstant",
 		"-ex", "print main.minusOne",
 		"-ex", "print 'runtime._MSpanInUse'",
+		"-ex", "print 'runtime._PageSize'",
 		filepath.Join(dir, "a.exe"),
 	}
 	got, _ := exec.Command("gdb", args...).CombinedOutput()
@@ -435,7 +436,7 @@ func TestGdbConst(t *testing.T) {
 
 	t.Logf("output %q", sgot)
 
-	if !strings.Contains(sgot, "\n$1 = 42\n$2 = 18446744073709551615\n$3 = -1\n$4 = 1 '\\001'") {
+	if !strings.Contains(sgot, "\n$1 = 42\n$2 = 18446744073709551615\n$3 = -1\n$4 = 1 '\\001'\n$5 = 8192") {
 		t.Fatalf("output mismatch")
 	}
 }
