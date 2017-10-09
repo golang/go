@@ -810,7 +810,6 @@ type ElfShdr struct {
 	addralign uint64
 	entsize   uint64
 	shnum     int
-	secsym    *sym.Symbol
 }
 
 /*
@@ -888,7 +887,7 @@ const (
 var (
 	Iself bool
 
-	Nelfsym int = 1
+	Nelfsym = 1
 
 	elf64 bool
 	// Either ".rel" or ".rela" depending on which type of relocation the
@@ -1611,16 +1610,17 @@ func elfphrelro(seg *sym.Segment) {
 
 func elfshname(name string) *ElfShdr {
 	for i := 0; i < nelfstr; i++ {
-		if name == elfstr[i].s {
-			off := elfstr[i].off
-			for i = 0; i < int(ehdr.shnum); i++ {
-				sh := shdr[i]
-				if sh.name == uint32(off) {
-					return sh
-				}
-			}
-			return newElfShdr(int64(off))
+		if name != elfstr[i].s {
+			continue
 		}
+		off := elfstr[i].off
+		for i = 0; i < int(ehdr.shnum); i++ {
+			sh := shdr[i]
+			if sh.name == uint32(off) {
+				return sh
+			}
+		}
+		return newElfShdr(int64(off))
 	}
 	Exitf("cannot find elf name %s", name)
 	return nil

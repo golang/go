@@ -73,7 +73,7 @@ func putelfsyment(out *OutBuf, off int, addr int64, size int64, info int, shndx 
 	}
 }
 
-var numelfsym int = 1 // 0 is reserved
+var numelfsym = 1 // 0 is reserved
 
 var elfbind int
 
@@ -592,7 +592,7 @@ func (ctxt *Link) symtab() {
 			// pkghashes[i].name
 			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkgname.%d", i), l.Pkg)
 			// pkghashes[i].linktimehash
-			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), string(l.Hash))
+			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), l.Hash)
 			// pkghashes[i].runtimehash
 			hash := ctxt.Syms.ROLookup("go.link.pkghash."+l.Pkg, 0)
 			pkghashes.AddAddr(ctxt.Arch, hash)

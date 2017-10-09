@@ -96,9 +96,9 @@ func (ctxt *Link) FixedFrameSize() int64 {
 	}
 }
 
-func (l *Link) Logf(format string, args ...interface{}) {
-	fmt.Fprintf(l.Bso, format, args...)
-	l.Bso.Flush()
+func (ctxt *Link) Logf(format string, args ...interface{}) {
+	fmt.Fprintf(ctxt.Bso, format, args...)
+	ctxt.Bso.Flush()
 }
 
 func addImports(ctxt *Link, l *sym.Library, pn string) {
