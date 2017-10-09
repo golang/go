@@ -70,8 +70,19 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
 	if err := tw.Flush(); err != nil {
 		return err
 	}
-
 	tw.hdr = *hdr // Shallow copy of Header
+
+	// Round ModTime and ignore AccessTime and ChangeTime unless
+	// the format is explicitly chosen.
+	// This ensures nominal usage of WriteHeader (without specifying the format)
+	// does not always result in the PAX format being chosen, which
+	// causes a 1KiB increase to every header.
+	if tw.hdr.Format == FormatUnknown {
+		tw.hdr.ModTime = tw.hdr.ModTime.Round(time.Second)
+		tw.hdr.AccessTime = time.Time{}
+		tw.hdr.ChangeTime = time.Time{}
+	}
+
 	allowedFormats, paxHdrs, err := tw.hdr.allowedFormats()
 	switch {
 	case allowedFormats.has(FormatUSTAR):

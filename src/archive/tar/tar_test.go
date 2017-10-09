@@ -696,7 +696,7 @@ func TestHeaderAllowedFormats(t *testing.T) {
 	}, {
 		header:  &Header{AccessTime: time.Unix(0, 0)},
 		paxHdrs: map[string]string{paxAtime: "0"},
-		formats: FormatUSTAR | FormatPAX | FormatGNU,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{AccessTime: time.Unix(0, 0), Format: FormatUSTAR},
 		paxHdrs: map[string]string{paxAtime: "0"},
@@ -712,7 +712,7 @@ func TestHeaderAllowedFormats(t *testing.T) {
 	}, {
 		header:  &Header{AccessTime: time.Unix(-123, 0)},
 		paxHdrs: map[string]string{paxAtime: "-123"},
-		formats: FormatUSTAR | FormatPAX | FormatGNU,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{AccessTime: time.Unix(-123, 0), Format: FormatPAX},
 		paxHdrs: map[string]string{paxAtime: "-123"},
@@ -720,7 +720,7 @@ func TestHeaderAllowedFormats(t *testing.T) {
 	}, {
 		header:  &Header{ChangeTime: time.Unix(123, 456)},
 		paxHdrs: map[string]string{paxCtime: "123.000000456"},
-		formats: FormatUSTAR | FormatPAX | FormatGNU,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{ChangeTime: time.Unix(123, 456), Format: FormatUSTAR},
 		paxHdrs: map[string]string{paxCtime: "123.000000456"},
