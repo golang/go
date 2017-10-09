@@ -164,11 +164,10 @@ func (root *mTreap) insert(span *mspan) {
 	}
 }
 
-func (root *mTreap) removeNode(t *treapNode) *mspan {
+func (root *mTreap) removeNode(t *treapNode) {
 	if t.spanKey.npages != t.npagesKey {
 		throw("span and treap node npages do not match")
 	}
-	result := t.spanKey
 
 	// Rotate t down to be leaf of tree for removal, respecting priorities.
 	for t.right != nil || t.left != nil {
@@ -192,7 +191,6 @@ func (root *mTreap) removeNode(t *treapNode) *mspan {
 	t.spanKey = nil
 	t.npagesKey = 0
 	mheap_.treapalloc.free(unsafe.Pointer(t))
-	return result
 }
 
 // remove searches for, finds, removes from the treap, and returns the smallest
