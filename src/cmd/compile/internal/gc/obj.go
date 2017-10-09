@@ -219,14 +219,15 @@ func dumpGlobal(n *Node) {
 
 func dumpGlobalConst(n *Node) {
 	// only export typed constants
-	if n.Type == nil {
+	t := n.Type
+	if t == nil {
 		return
 	}
 	if n.Sym.Pkg != localpkg {
 		return
 	}
 	// only export integer constants for now
-	switch n.Type.Etype {
+	switch t.Etype {
 	case TINT8:
 	case TINT16:
 	case TINT32:
@@ -239,10 +240,20 @@ func dumpGlobalConst(n *Node) {
 	case TUINT:
 	case TUINTPTR:
 		// ok
+	case TIDEAL:
+		if !Isconst(n, CTINT) {
+			return
+		}
+		x := n.Val().U.(*Mpint)
+		if x.Cmp(minintval[TINT]) < 0 || x.Cmp(maxintval[TINT]) > 0 {
+			return
+		}
+		// Ideal integers we export as int (if they fit).
+		t = types.Types[TINT]
 	default:
 		return
 	}
-	Ctxt.DwarfIntConst(myimportpath, n.Sym.Name, typesymname(n.Type), n.Int64())
+	Ctxt.DwarfIntConst(myimportpath, n.Sym.Name, typesymname(t), n.Int64())
 }
 
 func dumpglobls() {
