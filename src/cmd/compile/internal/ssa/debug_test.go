@@ -32,6 +32,8 @@ var hexRe = regexp.MustCompile("0x[a-zA-Z0-9]+")
 var numRe = regexp.MustCompile("-?[0-9]+")
 var stringRe = regexp.MustCompile("\"([^\\\"]|(\\.))*\"")
 
+var gdb = "gdb" // Might be "ggdb" on Darwin, because gdb no longer part of XCode
+
 // TestNexting go-builds a file, then uses a debugger (default gdb, optionally delve)
 // to next through the generated executable, recording each line landed at, and
 // then compares those lines with reference file(s).
@@ -56,10 +58,46 @@ var stringRe = regexp.MustCompile("\"([^\\\"]|(\\.))*\"")
 // go test debug_test.go -args -u
 // (for Delve)
 // go test debug_test.go -args -u -d
+
 func TestNexting(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+
+	if !*delve && !*force && !(runtime.GOOS == "linux" && runtime.GOARCH == "amd64") {
+		// Running gdb on OSX/darwin is very flaky.
+		// Sometimes it is called ggdb, depending on how it is installed.
+		// It also probably requires an admin password typed into a dialog box.
+		// Various architectures tend to differ slightly sometimes, and keeping them
+		// all in sync is a pain for people who don't have them all at hand,
+		// so limit testing to amd64 (for now)
+
+		t.Skip("Skipped unless -d (delve), -f (force), or linux-amd64")
+	}
+
+	if *delve {
+		_, err := exec.LookPath("dlv")
+		if err != nil {
+			t.Fatal("dlv specified on command line with -d but no dlv on path")
+		}
+	} else {
+		_, err := exec.LookPath(gdb)
+		if err != nil {
+			if runtime.GOOS != "darwin" {
+				t.Skip("Skipped because gdb not available")
+			}
+			_, err = exec.LookPath("ggdb")
+			if err != nil {
+				t.Skip("Skipped because gdb (and also ggdb) not available")
+			}
+			gdb = "ggdb"
+		}
+	}
+
 	testNexting(t, "hist", "dbg", "-N -l")
-	testNexting(t, "hist", "opt", "")
+	// If this is test is run with a runtime compiled with -N -l, it is very likely to fail.
+	// This occurs in the noopt builders (for example).
+	if gogcflags := os.Getenv("GO_GCFLAGS"); *force || !strings.Contains(gogcflags, "-N") && !strings.Contains(gogcflags, "-l") {
+		testNexting(t, "hist", "opt", "")
+	}
 }
 
 func testNexting(t *testing.T, base, tag, gcflags string) {
@@ -67,16 +105,6 @@ func testNexting(t *testing.T, base, tag, gcflags string) {
 	// (2) Run debugger gathering a history
 	// (3) Read expected history from testdata/sample.nexts
 	// optionally, write out testdata/sample.nexts
-
-	if !*delve && !*force && !(runtime.GOOS == "linux" && runtime.GOARCH == "amd64") {
-		// Running gdb on OSX/darwin is very flaky.
-		// It also probably requires an admin password typed into a dialog box.
-		// Various architectures tend to differ slightly sometimes, and keeping them
-		// all in sync is a pain for people who don't have them all at hand,
-		// so limit testing to amd64 (for now)
-
-		t.Skip()
-	}
 
 	exe := filepath.Join("testdata", base)
 	logbase := exe + "-" + tag
@@ -300,10 +328,6 @@ func (h *nextHist) addVar(text string) {
 func invertMapSU8(hf2i map[string]uint8) map[uint8]string {
 	hi2f := make(map[uint8]string)
 	for hs, i := range hf2i {
-		hsi := strings.Index(hs, "/src/")
-		if hsi != -1 {
-			hs = hs[hsi+1:]
-		}
 		hi2f[i] = hs
 	}
 	return hi2f
@@ -331,6 +355,14 @@ func (h *nextHist) equals(k *nextHist) bool {
 		}
 	}
 	return true
+}
+
+func canonFileName(f string) string {
+	i := strings.Index(f, "/src/")
+	if i != -1 {
+		f = f[i+1:]
+	}
+	return f
 }
 
 /* Delve */
@@ -371,14 +403,15 @@ func (s *delveState) stepnext(ss string) bool {
 		excerpt = excerpts[1]
 	}
 	if len(locations) > 0 {
+		fn := canonFileName(locations[2])
 		if *verbose {
-			if s.file != locations[2] {
-				fmt.Printf("%s\n", locations[2])
+			if s.file != fn {
+				fmt.Printf("%s\n", locations[2]) // don't canonocalize verbose logging
 			}
 			fmt.Printf("  %s\n", locations[3])
 		}
 		s.line = locations[3]
-		s.file = locations[2]
+		s.file = fn
 		s.function = locations[1]
 		s.ioState.history.add(s.file, s.line, excerpt)
 		return true
@@ -427,11 +460,8 @@ type gdbState struct {
 }
 
 func newGdb(tag, executable string, args ...string) dbgr {
-	gdb := "gdb"
-	if runtime.GOOS == "darwin" {
-		gdb = "ggdb" // A possibility on a Mac
-	}
-	cmd := exec.Command(gdb, executable)
+	// Turn off shell, necessary for Darwin apparently
+	cmd := exec.Command(gdb, "-ex", "set startup-with-shell off", executable)
 	cmd.Env = replaceEnv(cmd.Env, "TERM", "dumb")
 	s := &gdbState{tag: tag, cmd: cmd, args: args}
 	s.atLineRe = regexp.MustCompile("(^|\n)([0-9]+)(.*)")
@@ -479,14 +509,15 @@ func (s *gdbState) stepnext(ss string) bool {
 		excerpt = excerpts[3]
 	}
 	if len(locations) > 0 {
+		fn := canonFileName(locations[2])
 		if *verbose {
-			if s.file != locations[2] {
+			if s.file != fn {
 				fmt.Printf("%s\n", locations[2])
 			}
 			fmt.Printf("  %s\n", locations[3])
 		}
 		s.line = locations[3]
-		s.file = locations[2]
+		s.file = fn
 		s.function = locations[1]
 		s.ioState.history.add(s.file, s.line, excerpt)
 	}

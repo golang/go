@@ -1,7 +1,7 @@
-  /usr/local/google/home/drchase/work/go/src/cmd/compile/internal/ssa/testdata/hist.go
+  src/cmd/compile/internal/ssa/testdata/hist.go
 35:	func main() {
 35:	func main() {
-36:		hist := make([]int, 100)
+36:		hist := make([]int, 10)
 37:		var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A,cannedInput/A)
 13:		"strings"
 150:	func NewReader(s string) *Reader { return &Reader{s, 0, -1} }
@@ -117,98 +117,8 @@
 59:		for i, a := range hist {
 65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
-60:			if a == 0 {
 68:	}
-  /usr/local/google/home/drchase/work/go/src/runtime/proc.go
+  src/runtime/proc.go
 201:		if atomic.Load(&runningPanicDefers) != 0 {
 201:		if atomic.Load(&runningPanicDefers) != 0 {
 210:		if atomic.Load(&panicking) != 0 {

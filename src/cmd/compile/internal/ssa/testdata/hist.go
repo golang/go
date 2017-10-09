@@ -33,7 +33,7 @@ var cannedInput string = `1
 `
 
 func main() {
-	hist := make([]int, 100)
+	hist := make([]int, 10)
 	var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A,cannedInput/A)
 	if len(os.Args) > 1 {
 		var err error
