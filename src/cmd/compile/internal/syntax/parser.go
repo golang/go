@@ -487,14 +487,26 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	f.Name = p.name()
 	f.Type = p.funcType()
 	if p.tok == _Lbrace {
-		f.Body = p.blockStmt("")
-		if p.mode&CheckBranches != 0 {
-			checkBranches(f.Body, p.errh)
-		}
+		f.Body = p.funcBody()
 	}
 	f.Pragma = p.pragma
 
 	return f
+}
+
+func (p *parser) funcBody() *BlockStmt {
+	// TODO(gri) If we are in a function we should update p.fnest
+	// accordingly. Currently p.fnest is always zero and thus not
+	// used in error recovery.
+	// Not enabled because it performs worse for some code without
+	// more fine tuning (see example in #22164).
+	// p.fnest++
+	body := p.blockStmt("")
+	// p.fnest--
+	if p.mode&CheckBranches != 0 {
+		checkBranches(body, p.errh)
+	}
+	return body
 }
 
 // ----------------------------------------------------------------------------
@@ -712,10 +724,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 			f := new(FuncLit)
 			f.pos = pos
 			f.Type = t
-			f.Body = p.blockStmt("")
-			if p.mode&CheckBranches != 0 {
-				checkBranches(f.Body, p.errh)
-			}
+			f.Body = p.funcBody()
 
 			p.xnest--
 			return f
@@ -1635,16 +1644,12 @@ func (p *parser) labeledStmtOrNil(label *Name) Stmt {
 	return nil // avoids follow-on errors (see e.g., fixedbugs/bug274.go)
 }
 
+// context must be a non-empty string unless we know that p.tok == _Lbrace.
 func (p *parser) blockStmt(context string) *BlockStmt {
 	if trace {
 		defer p.trace("blockStmt")()
 	}
 
-	// TODO(gri) If we are in a function we should update p.fnest
-	// accordingly. Currently p.fnest is always zero and thus not
-	// used in error recovery.
-	// Not enabled for for because it performs worse for some code
-	// without more fine tuning (see example in #22164).
 	s := new(BlockStmt)
 	s.pos = p.pos()
 
