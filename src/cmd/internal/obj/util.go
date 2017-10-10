@@ -13,8 +13,32 @@ import (
 
 const REG_NONE = 0
 
+// Line returns a string containing the filename and line number for p
 func (p *Prog) Line() string {
 	return p.Ctxt.OutermostPos(p.Pos).Format(false)
+}
+
+// LineNumber returns a string containing the line number for p's position
+func (p *Prog) LineNumber() string {
+	pos := p.Ctxt.OutermostPos(p.Pos)
+	if !pos.IsKnown() {
+		return "?"
+	}
+	return fmt.Sprintf("%d", pos.Line())
+}
+
+// FileName returns a string containing the filename for p's position
+func (p *Prog) FileName() string {
+	// TODO LineNumber and FileName cases don't handle full generality of positions,
+	// but because these are currently used only for GOSSAFUNC debugging output, that
+	// is okay.  The intent is that "LineNumber()" yields the rapidly varying part,
+	// while "FileName()" yields the longer and slightly more constant material.
+	pos := p.Ctxt.OutermostPos(p.Pos)
+	if !pos.IsKnown() {
+		return "<unknown file name>"
+	}
+
+	return pos.Filename()
 }
 
 var armCondCode = []string{
@@ -72,6 +96,18 @@ func (p *Prog) String() string {
 	if p == nil {
 		return "<nil Prog>"
 	}
+	if p.Ctxt == nil {
+		return "<Prog without ctxt>"
+	}
+	return fmt.Sprintf("%.5d (%v)\t%s", p.Pc, p.Line(), p.InstructionString())
+}
+
+// InstructionString returns a string representation of the instruction without preceding
+// program counter or file and line number.
+func (p *Prog) InstructionString() string {
+	if p == nil {
+		return "<nil Prog>"
+	}
 
 	if p.Ctxt == nil {
 		return "<Prog without ctxt>"
@@ -81,7 +117,7 @@ func (p *Prog) String() string {
 
 	var buf bytes.Buffer
 
-	fmt.Fprintf(&buf, "%.5d (%v)\t%v%s", p.Pc, p.Line(), p.As, sc)
+	fmt.Fprintf(&buf, "%v%s", p.As, sc)
 	sep := "\t"
 
 	if p.From.Type != TYPE_NONE {

@@ -229,7 +229,7 @@ func TestFormats(t *testing.T) {
 			}
 		}
 		if mismatch {
-			t.Errorf("knownFormats is out of date; please run with -v to regenerate")
+			t.Errorf("knownFormats is out of date; please 'go test -v fmt_test.go > foo', then extract new definition of knownFormats from foo")
 		}
 	}
 
@@ -683,6 +683,7 @@ var knownFormats = map[string]string{
 	"int32 %d":                                        "",
 	"int32 %v":                                        "",
 	"int32 %x":                                        "",
+	"int64 %.5d":                                      "",
 	"int64 %+d":                                       "",
 	"int64 %-10d":                                     "",
 	"int64 %X":                                        "",
