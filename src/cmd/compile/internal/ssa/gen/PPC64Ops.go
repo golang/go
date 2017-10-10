@@ -155,13 +155,13 @@ func init() {
 		callerSave  = regMask(gp | fp | gr)
 	)
 	ops := []opData{
-		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},                     // arg0 + arg1
-		{name: "ADDconst", argLength: 1, reg: gp11, asm: "ADD", aux: "SymOff", symEffect: "Addr"}, // arg0 + auxInt + aux.(*gc.Sym)
-		{name: "FADD", argLength: 2, reg: fp21, asm: "FADD", commutative: true},                   // arg0+arg1
-		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true},                 // arg0+arg1
-		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                                        // arg0-arg1
-		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                                      // arg0-arg1
-		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                                    // arg0-arg1
+		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1
+		{name: "ADDconst", argLength: 1, reg: gp11, asm: "ADD", aux: "Int64"},     // arg0 + auxInt
+		{name: "FADD", argLength: 2, reg: fp21, asm: "FADD", commutative: true},   // arg0+arg1
+		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true}, // arg0+arg1
+		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                        // arg0-arg1
+		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                      // arg0-arg1
+		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                    // arg0-arg1
 
 		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", typ: "Int64", commutative: true}, // arg0*arg1 (signed 64-bit)
 		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", typ: "Int32", commutative: true}, // arg0*arg1 (signed 32-bit)
