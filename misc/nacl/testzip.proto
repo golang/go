@@ -22,6 +22,9 @@ go	src=..
 				internal
 					syntax
 						parser.go
+			cover
+				testdata
+					+
 			doc
 				main.go
 				pkg.go
