@@ -8,39 +8,32 @@ import "cmd/compile/internal/types"
 
 // select
 func typecheckselect(sel *Node) {
-	var ncase *Node
-	var n *Node
-
 	var def *Node
 	lno := setlineno(sel)
-	count := 0
 	typecheckslice(sel.Ninit.Slice(), Etop)
-	for _, n1 := range sel.List.Slice() {
-		count++
-		ncase = n1
-		setlineno(ncase)
+	for _, ncase := range sel.List.Slice() {
 		if ncase.Op != OXCASE {
+			setlineno(ncase)
 			Fatalf("typecheckselect %v", ncase.Op)
 		}
 
 		if ncase.List.Len() == 0 {
 			// default
 			if def != nil {
-				yyerror("multiple defaults in select (first at %v)", def.Line())
+				yyerrorl(ncase.Pos, "multiple defaults in select (first at %v)", def.Line())
 			} else {
 				def = ncase
 			}
 		} else if ncase.List.Len() > 1 {
-			yyerror("select cases cannot be lists")
+			yyerrorl(ncase.Pos, "select cases cannot be lists")
 		} else {
 			ncase.List.SetFirst(typecheck(ncase.List.First(), Etop))
-			n = ncase.List.First()
+			n := ncase.List.First()
 			ncase.Left = n
 			ncase.List.Set(nil)
-			setlineno(n)
 			switch n.Op {
 			default:
-				yyerror("select case must be receive, send or assign recv")
+				yyerrorl(n.Pos, "select case must be receive, send or assign recv")
 
 			// convert x = <-c into OSELRECV(x, <-c).
 			// remove implicit conversions; the eventual assignment
@@ -51,7 +44,7 @@ func typecheckselect(sel *Node) {
 				}
 
 				if n.Right.Op != ORECV {
-					yyerror("select assignment must have receive on right hand side")
+					yyerrorl(n.Pos, "select assignment must have receive on right hand side")
 					break
 				}
 
@@ -60,7 +53,7 @@ func typecheckselect(sel *Node) {
 				// convert x, ok = <-c into OSELRECV2(x, <-c) with ntest=ok
 			case OAS2RECV:
 				if n.Rlist.First().Op != ORECV {
-					yyerror("select assignment must have receive on right hand side")
+					yyerrorl(n.Pos, "select assignment must have receive on right hand side")
 					break
 				}
 
@@ -72,7 +65,7 @@ func typecheckselect(sel *Node) {
 
 				// convert <-c into OSELRECV(N, <-c)
 			case ORECV:
-				n = nod(OSELRECV, nil, n)
+				n = nodl(n.Pos, OSELRECV, nil, n)
 
 				n.SetTypecheck(1)
 				ncase.Left = n
@@ -85,7 +78,7 @@ func typecheckselect(sel *Node) {
 		typecheckslice(ncase.Nbody.Slice(), Etop)
 	}
 
-	sel.Xoffset = int64(count)
+	sel.Xoffset = int64(sel.List.Len())
 	lineno = lno
 }
 

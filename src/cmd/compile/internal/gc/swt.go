@@ -393,7 +393,7 @@ func casebody(sw *Node, typeswvar *Node) {
 		case 0:
 			// default
 			if def != nil {
-				yyerror("more than one default case")
+				yyerrorl(n.Pos, "more than one default case")
 			}
 			// reuse original default case
 			n.Right = jmp
@@ -673,14 +673,13 @@ func (s *typeSwitch) walk(sw *Node) {
 		return
 	}
 	if cond.Right == nil {
-		setlineno(sw)
-		yyerror("type switch must have an assignment")
+		yyerrorl(sw.Pos, "type switch must have an assignment")
 		return
 	}
 
 	cond.Right = walkexpr(cond.Right, &sw.Ninit)
 	if !cond.Right.Type.IsInterface() {
-		yyerror("type switch must be on an interface")
+		yyerrorl(sw.Pos, "type switch must be on an interface")
 		return
 	}
 

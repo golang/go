@@ -52,7 +52,7 @@ func typecheckrange(n *Node) {
 	toomany = 0
 	switch t.Etype {
 	default:
-		yyerror("cannot range over %L", n.Right)
+		yyerrorl(n.Pos, "cannot range over %L", n.Right)
 		goto out
 
 	case TARRAY, TSLICE:
@@ -65,7 +65,7 @@ func typecheckrange(n *Node) {
 
 	case TCHAN:
 		if !t.ChanDir().CanRecv() {
-			yyerror("invalid operation: range %v (receive from send-only type %v)", n.Right, n.Right.Type)
+			yyerrorl(n.Pos, "invalid operation: range %v (receive from send-only type %v)", n.Right, n.Right.Type)
 			goto out
 		}
 
@@ -81,7 +81,7 @@ func typecheckrange(n *Node) {
 	}
 
 	if n.List.Len() > 2 || toomany != 0 {
-		yyerror("too many variables in range")
+		yyerrorl(n.Pos, "too many variables in range")
 	}
 
 	v1 = nil
@@ -108,7 +108,7 @@ func typecheckrange(n *Node) {
 		if v1.Name != nil && v1.Name.Defn == n {
 			v1.Type = t1
 		} else if v1.Type != nil && assignop(t1, v1.Type, &why) == 0 {
-			yyerror("cannot assign type %v to %L in range%s", t1, v1, why)
+			yyerrorl(n.Pos, "cannot assign type %v to %L in range%s", t1, v1, why)
 		}
 		checkassign(n, v1)
 	}
@@ -117,7 +117,7 @@ func typecheckrange(n *Node) {
 		if v2.Name != nil && v2.Name.Defn == n {
 			v2.Type = t2
 		} else if v2.Type != nil && assignop(t2, v2.Type, &why) == 0 {
-			yyerror("cannot assign type %v to %L in range%s", t2, v2, why)
+			yyerrorl(n.Pos, "cannot assign type %v to %L in range%s", t2, v2, why)
 		}
 		checkassign(n, v2)
 	}
