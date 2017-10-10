@@ -4606,22 +4606,31 @@ func genssa(f *ssa.Func, pp *Progs) {
 			var buf bytes.Buffer
 			buf.WriteString("<code>")
 			buf.WriteString("<dl class=\"ssa-gen\">")
+			filename := ""
 			for p := pp.Text; p != nil; p = p.Link {
+				// Don't spam every line with the file name, which is often huge.
+				// Only print changes.
+				if f := p.FileName(); f != filename {
+					filename = f
+					buf.WriteString("<dt class=\"ssa-prog-src\"></dt><dd class=\"ssa-prog\">")
+					buf.WriteString(html.EscapeString("# " + filename))
+					buf.WriteString("</dd>")
+				}
+
 				buf.WriteString("<dt class=\"ssa-prog-src\">")
 				if v, ok := progToValue[p]; ok {
 					buf.WriteString(v.HTML())
 				} else if b, ok := progToBlock[p]; ok {
-					buf.WriteString(b.HTML())
+					buf.WriteString("<b>" + b.HTML() + "</b>")
 				}
 				buf.WriteString("</dt>")
 				buf.WriteString("<dd class=\"ssa-prog\">")
-				buf.WriteString(html.EscapeString(p.String()))
+				buf.WriteString(fmt.Sprintf("%.5d <span class=\"line-number\">(%s)</span> %s", p.Pc, p.LineNumber(), html.EscapeString(p.InstructionString())))
 				buf.WriteString("</dd>")
-				buf.WriteString("</li>")
 			}
 			buf.WriteString("</dl>")
 			buf.WriteString("</code>")
-			f.HTMLWriter.WriteColumn("genssa", buf.String())
+			f.HTMLWriter.WriteColumn("genssa", "ssa-prog", buf.String())
 			// pp.Text.Ctxt.LineHist.PrintFilenameOnly = saved
 		}
 	}
