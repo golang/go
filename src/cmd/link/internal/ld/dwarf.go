@@ -1273,8 +1273,8 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 func writeranges(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 	empty := true
 	for _, s := range ctxt.Textp {
-		rangeSym := ctxt.Syms.Lookup(dwarf.RangePrefix+s.Name, int(s.Version))
-		if rangeSym.Size == 0 {
+		rangeSym := ctxt.Syms.ROLookup(dwarf.RangePrefix+s.Name, int(s.Version))
+		if rangeSym == nil || rangeSym.Size == 0 {
 			continue
 		}
 		rangeSym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
@@ -1555,7 +1555,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 
 	var consts []*sym.Symbol
 	for _, lib := range ctxt.Library {
-		if s := ctxt.Syms.Lookup(dwarf.ConstInfoPrefix+lib.Pkg, 0); s != nil {
+		if s := ctxt.Syms.ROLookup(dwarf.ConstInfoPrefix+lib.Pkg, 0); s != nil {
 			importInfoSymbol(ctxt, s)
 			consts = append(consts, s)
 		}
