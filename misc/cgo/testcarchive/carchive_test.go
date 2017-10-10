@@ -134,8 +134,10 @@ func cmdToRun(name string) []string {
 }
 
 func testInstall(t *testing.T, exe, libgoa, libgoh string, buildcmd ...string) {
+	t.Helper()
 	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
 	cmd.Env = gopathEnv
+	t.Log(buildcmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)

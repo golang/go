@@ -911,16 +911,16 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		if cfg.BuildLinkshared {
 			shlibnamefile := p.Internal.Target[:len(p.Internal.Target)-2] + ".shlibname"
 			shlib, err := ioutil.ReadFile(shlibnamefile)
+			if err != nil && !os.IsNotExist(err) {
+				base.Fatalf("reading shlibname: %v", err)
+			}
 			if err == nil {
 				libname := strings.TrimSpace(string(shlib))
 				if cfg.BuildContext.Compiler == "gccgo" {
 					p.Shlib = filepath.Join(p.Internal.Build.PkgTargetRoot, "shlibs", libname)
 				} else {
 					p.Shlib = filepath.Join(p.Internal.Build.PkgTargetRoot, libname)
-
 				}
-			} else if !os.IsNotExist(err) {
-				base.Fatalf("unexpected error reading %s: %v", shlibnamefile, err)
 			}
 		}
 	}
