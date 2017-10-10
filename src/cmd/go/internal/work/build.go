@@ -463,25 +463,19 @@ func runBuild(cmd *base.Command, args []string) {
 		p.Internal.Target = cfg.BuildO
 		p.Stale = true // must build - not up to date
 		p.StaleReason = "build -o flag in use"
-		a := b.Action(ModeInstall, depMode, p)
+		a := b.AutoAction(ModeInstall, depMode, p)
 		b.Do(a)
 		return
 	}
 
 	pkgs = pkgsFilter(load.Packages(args))
 
-	var a *Action
+	a := &Action{Mode: "go build"}
+	for _, p := range pkgs {
+		a.Deps = append(a.Deps, b.AutoAction(ModeBuild, depMode, p))
+	}
 	if cfg.BuildBuildmode == "shared" {
-		if libName, err := libname(args, pkgs); err != nil {
-			base.Fatalf("%s", err.Error())
-		} else {
-			a = b.libaction(libName, pkgs, ModeBuild, depMode)
-		}
-	} else {
-		a = &Action{Mode: "go build"}
-		for _, p := range pkgs {
-			a.Deps = append(a.Deps, b.Action(ModeBuild, depMode, p))
-		}
+		a = b.buildmodeShared(ModeBuild, depMode, args, pkgs, a)
 	}
 	b.Do(a)
 }
@@ -588,41 +582,42 @@ func InstallPackages(args []string, forGet bool) {
 
 	var b Builder
 	b.Init()
-	var a *Action
-	if cfg.BuildBuildmode == "shared" {
-		if libName, err := libname(args, pkgs); err != nil {
-			base.Fatalf("%s", err.Error())
-		} else {
-			a = b.libaction(libName, pkgs, ModeInstall, ModeInstall)
+	a := &Action{Mode: "go install"}
+	var tools []*Action
+	for _, p := range pkgs {
+		// During 'go get', don't attempt (and fail) to install packages with only tests.
+		// TODO(rsc): It's not clear why 'go get' should be different from 'go install' here. See #20760.
+		if forGet && len(p.GoFiles)+len(p.CgoFiles) == 0 && len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
+			continue
 		}
-	} else {
-		a = &Action{Mode: "go install"}
-		var tools []*Action
-		for _, p := range pkgs {
-			// During 'go get', don't attempt (and fail) to install packages with only tests.
-			// TODO(rsc): It's not clear why 'go get' should be different from 'go install' here. See #20760.
-			if forGet && len(p.GoFiles)+len(p.CgoFiles) == 0 && len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
-				continue
-			}
-			// If p is a tool, delay the installation until the end of the build.
-			// This avoids installing assemblers/compilers that are being executed
-			// by other steps in the build.
-			Action := b.Action(ModeInstall, ModeInstall, p)
-			if load.GoTools[p.ImportPath] == load.ToTool {
-				a.Deps = append(a.Deps, Action.Deps...)
-				Action.Deps = append(Action.Deps, a)
-				tools = append(tools, Action)
-				continue
-			}
-			a.Deps = append(a.Deps, Action)
+		// If p is a tool, delay the installation until the end of the build.
+		// This avoids installing assemblers/compilers that are being executed
+		// by other steps in the build.
+		a1 := b.AutoAction(ModeInstall, ModeInstall, p)
+		if load.GoTools[p.ImportPath] == load.ToTool {
+			a.Deps = append(a.Deps, a1.Deps...)
+			a1.Deps = append(a1.Deps, a)
+			tools = append(tools, a1)
+			continue
 		}
-		if len(tools) > 0 {
-			a = &Action{
-				Mode: "go install (tools)",
-				Deps: tools,
-			}
+		a.Deps = append(a.Deps, a1)
+	}
+	if len(tools) > 0 {
+		a = &Action{
+			Mode: "go install (tools)",
+			Deps: tools,
 		}
 	}
+
+	if cfg.BuildBuildmode == "shared" {
+		// Note: If buildmode=shared then only non-main packages
+		// are present in the pkgs list, so all the special case code about
+		// tools above did not apply, and a is just a simple Action
+		// with a list of Deps, one per package named in pkgs,
+		// the same as in runBuild.
+		a = b.buildmodeShared(ModeInstall, ModeInstall, args, pkgs, a)
+	}
+
 	b.Do(a)
 	base.ExitIfErrors()
 
@@ -717,9 +712,8 @@ type actionJSON struct {
 
 // cacheKey is the key for the action cache.
 type cacheKey struct {
-	mode  BuildMode
-	p     *load.Package
-	shlib string
+	mode string
+	p    *load.Package
 }
 
 func actionGraphJSON(a *Action) string {
@@ -863,293 +857,439 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 	return
 }
 
-// Action returns the action for applying the given operation (mode) to the package.
-// depMode is the action to use when building dependencies.
-// action never looks for p in a shared library, but may find p's dependencies in a
-// shared library if buildLinkshared is true.
-func (b *Builder) Action(mode BuildMode, depMode BuildMode, p *load.Package) *Action {
-	return b.action1(mode, depMode, p, false, "")
+// cacheAction looks up {mode, p} in the cache and returns the resulting action.
+// If the cache has no such action, f() is recorded and returned.
+func (b *Builder) cacheAction(mode string, p *load.Package, f func() *Action) *Action {
+	a := b.actionCache[cacheKey{mode, p}]
+	if a == nil {
+		a = f()
+		b.actionCache[cacheKey{mode, p}] = a
+	}
+	return a
 }
 
-// action1 returns the action for applying the given operation (mode) to the package.
-// depMode is the action to use when building dependencies.
-// action1 will look for p in a shared library if lookshared is true.
-// forShlib is the shared library that p will become part of, if any.
-func (b *Builder) action1(mode BuildMode, depMode BuildMode, p *load.Package, lookshared bool, forShlib string) *Action {
-	shlib := ""
-	if lookshared {
-		shlib = p.Shlib
+// AutoAction returns the "right" action for go build or go install of p.
+func (b *Builder) AutoAction(mode, depMode BuildMode, p *load.Package) *Action {
+	if p.Name == "main" {
+		return b.LinkAction(mode, depMode, p)
 	}
-	key := cacheKey{mode, p, shlib}
+	return b.CompileAction(mode, depMode, p)
+}
 
-	a := b.actionCache[key]
-	if a != nil {
-		return a
-	}
-	if shlib != "" {
-		key2 := cacheKey{ModeInstall, nil, shlib}
-		a = b.actionCache[key2]
-		if a != nil {
-			b.actionCache[key] = a
-			return a
-		}
-		pkgs := readpkglist(shlib)
-		a = b.libaction(filepath.Base(shlib), pkgs, ModeInstall, depMode)
-		b.actionCache[key2] = a
-		b.actionCache[key] = a
-		return a
-	}
-
-	a = &Action{Mode: "???", Package: p}
-	b.actionCache[key] = a
-
-	for _, p1 := range p.Internal.Imports {
-		if forShlib != "" {
-			// p is part of a shared library.
-			if p1.Shlib != "" && p1.Shlib != forShlib {
-				// p1 is explicitly part of a different shared library.
-				// Put the action for that shared library into a.Deps.
-				a.Deps = append(a.Deps, b.action1(depMode, depMode, p1, true, p1.Shlib))
-			} else {
-				// p1 is (implicitly or not) part of this shared library.
-				// Put the action for p1 into a.Deps.
-				a.Deps = append(a.Deps, b.action1(depMode, depMode, p1, false, forShlib))
-			}
-		} else {
-			// p is not part of a shared library.
-			// If p1 is in a shared library, put the action for that into
-			// a.Deps, otherwise put the action for p1 into a.Deps.
-			a.Deps = append(a.Deps, b.action1(depMode, depMode, p1, cfg.BuildLinkshared, p1.Shlib))
-		}
-	}
-
-	if p.Standard {
-		switch p.ImportPath {
-		case "builtin", "unsafe":
-			// Fake packages - nothing to build.
-			a.Mode = "built-in package"
-			return a
-		}
-		// gccgo standard library is "fake" too.
-		if cfg.BuildToolchainName == "gccgo" {
-			// the target name is needed for cgo.
-			a.Mode = "gccgo stdlib"
-			a.Target = p.Internal.Target
-			return a
-		}
-	}
-
-	if !p.Stale && p.Internal.Target != "" {
-		// p.Stale==false implies that p.Internal.Target is up-to-date.
-		// Record target name for use by actions depending on this one.
-		a.Mode = "use installed"
-		a.Target = p.Internal.Target
-		p.Internal.Pkgfile = a.Target
-		return a
-	}
-
-	if p.Internal.Local && p.Internal.Target == "" {
+// CompileAction returns the action for compiling and possibly installing
+// (according to mode) the given package. The resulting action is only
+// for building packages (archives), never for linking executables.
+// depMode is the action (build or install) to use when building dependencies.
+// To turn package main into an executable, call b.Link instead.
+func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Action {
+	if mode == ModeInstall && p.Internal.Local && p.Internal.Target == "" {
 		// Imported via local path. No permanent target.
 		mode = ModeBuild
 	}
-	a.Objdir = b.NewObjdir()
-	link := p.Name == "main" && !p.Internal.ForceLibrary
+	if mode == ModeInstall && p.Name == "main" {
+		// We never install the .a file for a main package.
+		mode = ModeBuild
+	}
 
-	switch mode {
-	case ModeInstall:
-		a.Func = BuildInstallFunc
-		a.Deps = []*Action{b.action1(ModeBuild, depMode, p, lookshared, forShlib)}
-		a.Target = a.Package.Internal.Target
-		a.Package.Internal.Pkgfile = a.Target
-
-		// Install header for cgo in c-archive and c-shared modes.
-		if p.UsesCgo() && (cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-shared") {
-			hdrTarget := a.Target[:len(a.Target)-len(filepath.Ext(a.Target))] + ".h"
-			if cfg.BuildContext.Compiler == "gccgo" {
-				// For the header file, remove the "lib"
-				// added by go/build, so we generate pkg.h
-				// rather than libpkg.h.
-				dir, file := filepath.Split(hdrTarget)
-				file = strings.TrimPrefix(file, "lib")
-				hdrTarget = filepath.Join(dir, file)
-			}
-			ah := &Action{
-				Package: a.Package,
-				Deps:    []*Action{a.Deps[0]},
-				Func:    (*Builder).installHeader,
-				Objdir:  a.Deps[0].Objdir,
-				Target:  hdrTarget,
-			}
-			a.Deps = append(a.Deps, ah)
+	// Construct package build action.
+	a := b.cacheAction("build", p, func() *Action {
+		a := &Action{
+			Mode:    "build",
+			Package: p,
+			Func:    (*Builder).build,
+			Objdir:  b.NewObjdir(),
 		}
-
-	case ModeBuild:
-		a.Func = (*Builder).build
 		a.Target = a.Objdir + "_pkg_.a"
 		a.Package.Internal.Pkgfile = a.Target
 
-		if link {
-			a = &Action{
-				Mode:    "link",
-				Func:    (*Builder).link,
-				Package: a.Package,
-				Objdir:  a.Objdir,
-				Deps:    []*Action{a},
+		for _, p1 := range p.Internal.Imports {
+			a.Deps = append(a.Deps, b.CompileAction(depMode, depMode, p1))
+		}
+
+		if p.Standard {
+			switch p.ImportPath {
+			case "builtin", "unsafe":
+				// Fake packages - nothing to build.
+				a.Mode = "built-in package"
+				a.Func = nil
+				return a
 			}
 
-			// An executable file. (This is the name of a temporary file.)
-			// Because we run the temporary file in 'go run' and 'go test',
-			// the name will show up in ps listings. If the caller has specified
-			// a name, use that instead of a.out. The binary is generated
-			// in an otherwise empty subdirectory named exe to avoid
-			// naming conflicts. The only possible conflict is if we were
-			// to create a top-level package named exe.
-			name := "a.out"
-			if p.Internal.ExeName != "" {
-				name = p.Internal.ExeName
-			} else if (cfg.Goos == "darwin" || cfg.Goos == "windows") && cfg.BuildBuildmode == "c-shared" && p.Internal.Target != "" {
-				// On OS X, the linker output name gets recorded in the
-				// shared library's LC_ID_DYLIB load command.
-				// The code invoking the linker knows to pass only the final
-				// path element. Arrange that the path element matches what
-				// we'll install it as; otherwise the library is only loadable as "a.out".
-				// On Windows, DLL file name is recorded in PE file
-				// export section, so do like on OS X.
-				_, name = filepath.Split(p.Internal.Target)
+			// gccgo standard library is "fake" too.
+			if cfg.BuildToolchainName == "gccgo" {
+				// the target name is needed for cgo.
+				a.Mode = "gccgo stdlib"
+				a.Target = p.Internal.Target
+				a.Func = nil
+				return a
 			}
-			a.Target = a.Objdir + filepath.Join("exe", name) + cfg.ExeSuffix
 		}
+
+		if !p.Stale && p.Internal.Target != "" && p.Name != "main" {
+			// p.Stale==false implies that p.Internal.Target is up-to-date.
+			// Record target name for use by actions depending on this one.
+			a.Mode = "use installed"
+			a.Target = p.Internal.Target
+			a.Func = nil
+			p.Internal.Pkgfile = a.Target
+			return a
+		}
+		return a
+	})
+
+	// Construct install action.
+	if mode == ModeInstall {
+		a = b.installAction(a)
 	}
 
 	return a
 }
 
-func (b *Builder) libaction(libname string, pkgs []*load.Package, mode, depMode BuildMode) *Action {
-	a := &Action{
-		Mode:   "libaction", // should be overwritten below
-		Objdir: b.NewObjdir(),
-	}
-	switch mode {
-	default:
-		base.Fatalf("unrecognized mode %v", mode)
-
-	case ModeBuild:
-		a.Func = (*Builder).linkShared
-		a.Target = filepath.Join(b.WorkDir, libname)
-		for _, p := range pkgs {
-			if p.Internal.Target == "" {
-				continue
-			}
-			a.Deps = append(a.Deps, b.Action(depMode, depMode, p))
+// LinkAction returns the action for linking p into an executable
+// and possibly installing the result (according to mode).
+// depMode is the action (build or install) to use when compiling dependencies.
+func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
+	// Construct link action.
+	a := b.cacheAction("link", p, func() *Action {
+		a := &Action{
+			Mode:    "link",
+			Package: p,
 		}
 
-	case ModeInstall:
-		// Currently build mode shared forces external linking mode, and
+		if !p.Stale && p.Internal.Target != "" {
+			// p.Stale==false implies that p.Internal.Target is up-to-date.
+			// Record target name for use by actions depending on this one.
+			a.Mode = "use installed"
+			a.Func = nil
+			a.Target = p.Internal.Target
+			p.Internal.Pkgfile = a.Target
+			return a
+		}
+
+		a1 := b.CompileAction(ModeBuild, depMode, p)
+		a.Func = (*Builder).link
+		a.Deps = []*Action{a1}
+		a.Objdir = a1.Objdir
+
+		// An executable file. (This is the name of a temporary file.)
+		// Because we run the temporary file in 'go run' and 'go test',
+		// the name will show up in ps listings. If the caller has specified
+		// a name, use that instead of a.out. The binary is generated
+		// in an otherwise empty subdirectory named exe to avoid
+		// naming conflicts. The only possible conflict is if we were
+		// to create a top-level package named exe.
+		name := "a.out"
+		if p.Internal.ExeName != "" {
+			name = p.Internal.ExeName
+		} else if (cfg.Goos == "darwin" || cfg.Goos == "windows") && cfg.BuildBuildmode == "c-shared" && p.Internal.Target != "" {
+			// On OS X, the linker output name gets recorded in the
+			// shared library's LC_ID_DYLIB load command.
+			// The code invoking the linker knows to pass only the final
+			// path element. Arrange that the path element matches what
+			// we'll install it as; otherwise the library is only loadable as "a.out".
+			// On Windows, DLL file name is recorded in PE file
+			// export section, so do like on OS X.
+			_, name = filepath.Split(p.Internal.Target)
+		}
+		a.Target = a.Objdir + filepath.Join("exe", name) + cfg.ExeSuffix
+		b.addTransitiveLinkDeps(a, a1, "")
+		return a
+	})
+
+	if mode == ModeInstall {
+		a = b.installAction(a)
+	}
+
+	return a
+}
+
+// installAction returns the action for installing the result of a1.
+func (b *Builder) installAction(a1 *Action) *Action {
+	// If there's no actual action to build a1,
+	// there's nothing to install either.
+	// This happens if a1 corresponds to reusing an already-built object.
+	if a1.Func == nil {
+		return a1
+	}
+
+	p := a1.Package
+	return b.cacheAction(a1.Mode+"-install", p, func() *Action {
+		a := &Action{
+			Mode:    a1.Mode + "-install",
+			Func:    BuildInstallFunc,
+			Package: p,
+			Objdir:  a1.Objdir,
+			Deps:    []*Action{a1},
+			Target:  p.Internal.Target,
+		}
+		p.Internal.Pkgfile = a.Target
+		b.addInstallHeaderAction(a)
+		return a
+	})
+}
+
+// addTransitiveLinkDeps adds to the link action a all packages
+// that are transitive dependencies of a1.Deps.
+// That is, if a is a link of package main, a1 is the compile of package main
+// and a1.Deps is the actions for building packages directly imported by
+// package main (what the compiler needs). The linker needs all packages
+// transitively imported by the whole program; addTransitiveLinkDeps
+// makes sure those are present in a.Deps.
+// If shlib is non-empty, then a corresponds to the build and installation of shlib,
+// so any rebuild of shlib should not be added as a dependency.
+func (b *Builder) addTransitiveLinkDeps(a, a1 *Action, shlib string) {
+	// Expand Deps to include all built packages, for the linker.
+	// Use breadth-first search to find rebuilt-for-test packages
+	// before the standard ones.
+	// TODO(rsc): Eliminate the standard ones from the action graph,
+	// which will require doing a little bit more rebuilding.
+	workq := []*Action{a1}
+	haveDep := map[string]bool{}
+	if a1.Package != nil {
+		haveDep[a1.Package.ImportPath] = true
+	}
+	for i := 0; i < len(workq); i++ {
+		a1 := workq[i]
+		for _, a2 := range a1.Deps {
+			// TODO(rsc): Find a better discriminator than the Mode strings, once the dust settles.
+			if a2.Package == nil || (a2.Mode != "build-install" && a2.Mode != "build" && a2.Mode != "use installed") || haveDep[a2.Package.ImportPath] {
+				continue
+			}
+			haveDep[a2.Package.ImportPath] = true
+			a.Deps = append(a.Deps, a2)
+			if a2.Mode == "build-install" {
+				a2 = a2.Deps[0] // walk children of "build" action
+			}
+			workq = append(workq, a2)
+		}
+	}
+
+	// If this is go build -linkshared, then the link depends on the shared libraries
+	// in addition to the packages themselves. (The compile steps do not.)
+	if cfg.BuildLinkshared {
+		haveShlib := map[string]bool{shlib: true}
+		for _, a1 := range a.Deps {
+			p1 := a1.Package
+			if p1 == nil || p1.Shlib == "" || haveShlib[filepath.Base(p1.Shlib)] {
+				continue
+			}
+			haveShlib[filepath.Base(p1.Shlib)] = true
+			// TODO(rsc): The use of ModeInstall here is suspect, but if we only do ModeBuild,
+			// we'll end up building an overall library or executable that depends at runtime
+			// on other libraries that are out-of-date, which is clearly not good either.
+			a.Deps = append(a.Deps, b.linkSharedAction(ModeInstall, ModeInstall, p1.Shlib, nil))
+		}
+	}
+}
+
+// addInstallHeaderAction adds an install header action to a, if needed.
+// The action a should be an install action as generated by either
+// b.CompileAction or b.LinkAction with mode=ModeInstall,
+// and so a.Deps[0] is the corresponding build action.
+func (b *Builder) addInstallHeaderAction(a *Action) {
+	// Install header for cgo in c-archive and c-shared modes.
+	p := a.Package
+	if p.UsesCgo() && (cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-shared") {
+		hdrTarget := a.Target[:len(a.Target)-len(filepath.Ext(a.Target))] + ".h"
+		if cfg.BuildContext.Compiler == "gccgo" {
+			// For the header file, remove the "lib"
+			// added by go/build, so we generate pkg.h
+			// rather than libpkg.h.
+			dir, file := filepath.Split(hdrTarget)
+			file = strings.TrimPrefix(file, "lib")
+			hdrTarget = filepath.Join(dir, file)
+		}
+		ah := &Action{
+			Mode:    "install header",
+			Package: a.Package,
+			Deps:    []*Action{a.Deps[0]},
+			Func:    (*Builder).installHeader,
+			Objdir:  a.Deps[0].Objdir,
+			Target:  hdrTarget,
+		}
+		a.Deps = append(a.Deps, ah)
+	}
+}
+
+// buildmodeShared takes the "go build" action a1 into the building of a shared library of a1.Deps.
+// That is, the input a1 represents "go build pkgs" and the result represents "go build -buidmode=shared pkgs".
+func (b *Builder) buildmodeShared(mode, depMode BuildMode, args []string, pkgs []*load.Package, a1 *Action) *Action {
+	name, err := libname(args, pkgs)
+	if err != nil {
+		base.Fatalf("%v", err)
+	}
+	return b.linkSharedAction(mode, depMode, name, a1)
+}
+
+// linkSharedAction takes a grouping action a1 corresponding to a list of built packages
+// and returns an action that links them together into a shared library with the name shlib.
+// If a1 is nil, shlib should be an absolute path to an existing shared library,
+// and then linkSharedAction reads that library to find out the package list.
+func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Action) *Action {
+	fullShlib := shlib
+	shlib = filepath.Base(shlib)
+	a := b.cacheAction("build-shlib "+shlib, nil, func() *Action {
+		if a1 == nil {
+			// TODO(rsc): Need to find some other place to store config,
+			// not in pkg directory. See golang.org/issue/22196.
+			pkgs := readpkglist(fullShlib)
+			a1 = &Action{
+				Mode: "shlib packages",
+			}
+			for _, p := range pkgs {
+				a1.Deps = append(a1.Deps, b.CompileAction(mode, depMode, p))
+			}
+		}
+
+		// Add implicit dependencies to pkgs list.
+		// Currently buildmode=shared forces external linking mode, and
 		// external linking mode forces an import of runtime/cgo (and
 		// math on arm). So if it was not passed on the command line and
 		// it is not present in another shared library, add it here.
+		// TODO(rsc): Maybe this should only happen if "runtime" is in the original package set.
 		// TODO(rsc): This should probably be changed to use load.LinkerDeps(p).
-		gccgo := cfg.BuildToolchainName == "gccgo"
-		if !gccgo {
-			seencgo := false
-			for _, p := range pkgs {
-				seencgo = seencgo || (p.Standard && p.ImportPath == "runtime/cgo")
-			}
-			if !seencgo {
+		// TODO(rsc): Find out and explain here why gccgo is excluded.
+		// If the answer is that gccgo is different in implicit linker deps, maybe
+		// load.LinkerDeps should be used and updated.
+		if cfg.BuildToolchainName != "gccgo" {
+			add := func(pkg string) {
+				for _, a2 := range a1.Deps {
+					if a2.Package.ImportPath == pkg {
+						return
+					}
+				}
 				var stk load.ImportStack
-				p := load.LoadPackage("runtime/cgo", &stk)
+				p := load.LoadPackage(pkg, &stk)
 				if p.Error != nil {
-					base.Fatalf("load runtime/cgo: %v", p.Error)
+					base.Fatalf("load %s: %v", pkg, p.Error)
 				}
 				load.ComputeStale(p)
-				// If runtime/cgo is in another shared library, then that's
-				// also the shared library that contains runtime, so
-				// something will depend on it and so runtime/cgo's staleness
-				// will be checked when processing that library.
-				if p.Shlib == "" || p.Shlib == libname {
-					pkgs = append([]*load.Package{}, pkgs...)
-					pkgs = append(pkgs, p)
+				// Assume that if pkg (runtime/cgo or math)
+				// is already accounted for in a different shared library,
+				// then that shared library also contains runtime,
+				// so that anything we do will depend on that library,
+				// so we don't need to include pkg in our shared library.
+				if p.Shlib == "" || filepath.Base(p.Shlib) == pkg {
+					a1.Deps = append(a1.Deps, b.CompileAction(depMode, depMode, p))
 				}
 			}
+			add("runtime/cgo")
 			if cfg.Goarch == "arm" {
-				seenmath := false
-				for _, p := range pkgs {
-					seenmath = seenmath || (p.Standard && p.ImportPath == "math")
-				}
-				if !seenmath {
-					var stk load.ImportStack
-					p := load.LoadPackage("math", &stk)
-					if p.Error != nil {
-						base.Fatalf("load math: %v", p.Error)
-					}
-					load.ComputeStale(p)
-					// If math is in another shared library, then that's
-					// also the shared library that contains runtime, so
-					// something will depend on it and so math's staleness
-					// will be checked when processing that library.
-					if p.Shlib == "" || p.Shlib == libname {
-						pkgs = append([]*load.Package{}, pkgs...)
-						pkgs = append(pkgs, p)
-					}
-				}
+				add("math")
 			}
 		}
 
-		// Figure out where the library will go.
-		var libdir string
-		for _, p := range pkgs {
-			plibdir := p.Internal.Build.PkgTargetRoot
-			if gccgo {
-				plibdir = filepath.Join(plibdir, "shlibs")
-			}
-			if libdir == "" {
-				libdir = plibdir
-			} else if libdir != plibdir {
-				base.Fatalf("multiple roots %s & %s", libdir, plibdir)
+		// Determine the eventual install target and compute staleness.
+		// TODO(rsc): This doesn't belong here and should be with the
+		// other staleness code. When we move to content-based staleness
+		// determination, that will happen for us.
+
+		// The install target is root/pkg/shlib, where root is the source root
+		// in which all the packages lie.
+		// TODO(rsc): Perhaps this cross-root check should apply to the full
+		// transitive package dependency list, not just the ones named
+		// on the command line?
+		pkgDir := a1.Deps[0].Package.Internal.Build.PkgTargetRoot
+		for _, a2 := range a1.Deps {
+			if dir := a2.Package.Internal.Build.PkgTargetRoot; dir != pkgDir {
+				// TODO(rsc): Misuse of base.Fatalf?
+				base.Fatalf("installing shared library: cannot use packages %s and %s from different roots %s and %s",
+					a1.Deps[0].Package.ImportPath,
+					a2.Package.ImportPath,
+					pkgDir,
+					dir)
 			}
 		}
-		a.Target = filepath.Join(libdir, libname)
+		// TODO(rsc): Find out and explain here why gccgo is different.
+		if cfg.BuildToolchainName == "gccgo" {
+			pkgDir = filepath.Join(pkgDir, "shlibs")
+		}
+		target := filepath.Join(pkgDir, shlib)
 
-		// Now we can check whether we need to rebuild it.
-		stale := false
+		// The install target is stale if it doesn't exist or if it is older than
+		// any of the .a files that are written into it.
+		// TODO(rsc): This computation does not detect packages that
+		// have been removed from a wildcard used to construct the package list
+		// but are still present in the installed list.
+		// It would be possible to detect this by reading the pkg list
+		// out of any installed target, but content-based staleness
+		// determination should discover that too.
 		var built time.Time
-		if fi, err := os.Stat(a.Target); err == nil {
+		if fi, err := os.Stat(target); err == nil {
 			built = fi.ModTime()
 		}
-		for _, p := range pkgs {
-			if p.Internal.Target == "" {
-				continue
+		stale := cfg.BuildA
+		if !stale {
+			for _, a2 := range a1.Deps {
+				if a2.Target == "" {
+					continue
+				}
+				if a2.Func != nil {
+					// a2 is going to be rebuilt (reuse of existing target would have Func==nil).
+					stale = true
+					break
+				}
+				info, err := os.Stat(a2.Target)
+				if err != nil || info.ModTime().After(built) {
+					stale = true
+					break
+				}
 			}
-			stale = stale || p.Stale
-			lstat, err := os.Stat(p.Internal.Target)
-			if err != nil || lstat.ModTime().After(built) {
-				stale = true
-			}
-			a.Deps = append(a.Deps, b.action1(depMode, depMode, p, false, a.Target))
 		}
+		if !stale {
+			return &Action{
+				Mode:   "use installed buildmode=shared",
+				Target: target,
+				Deps:   []*Action{a1},
+			}
+		}
+		// Link packages into a shared library.
+		a := &Action{
+			Mode:   "go build -buildmode=shared",
+			Objdir: b.NewObjdir(),
+			Func:   (*Builder).linkShared,
+			Deps:   []*Action{a1},
+			Args:   []string{target}, // awful side-channel for install action
+		}
+		a.Target = filepath.Join(a.Objdir, shlib)
+		b.addTransitiveLinkDeps(a, a1, shlib)
+		return a
+	})
 
-		if stale {
-			a.Func = BuildInstallFunc
-			buildAction := b.libaction(libname, pkgs, ModeBuild, depMode)
-			a.Deps = []*Action{buildAction}
-			for _, p := range pkgs {
+	// Install result.
+	if mode == ModeInstall && a.Func != nil {
+		buildAction := a
+		a = b.cacheAction("install-shlib "+shlib, nil, func() *Action {
+			a := &Action{
+				Mode:   "go install -buildmode=shared",
+				Objdir: buildAction.Objdir,
+				Func:   BuildInstallFunc,
+				Deps:   []*Action{buildAction},
+				Target: buildAction.Args[0],
+			}
+			for _, a2 := range buildAction.Deps[0].Deps {
+				p := a2.Package
 				if p.Internal.Target == "" {
 					continue
 				}
-				shlibnameaction := &Action{Mode: "shlibname"}
-				shlibnameaction.Func = (*Builder).installShlibname
-				shlibnameaction.Target = p.Internal.Target[:len(p.Internal.Target)-2] + ".shlibname"
-				a.Deps = append(a.Deps, shlibnameaction)
-				shlibnameaction.Deps = append(shlibnameaction.Deps, buildAction)
+				a.Deps = append(a.Deps, &Action{
+					Mode:    "shlibname",
+					Package: p,
+					Func:    (*Builder).installShlibname,
+					Target:  strings.TrimSuffix(p.Internal.Target, ".a") + ".shlibname",
+					Deps:    []*Action{a.Deps[0]},
+				})
 			}
-		}
+			return a
+		})
 	}
+
 	return a
 }
 
-// ActionList returns the list of actions in the dag rooted at root
+// actionList returns the list of actions in the dag rooted at root
 // as visited in a depth-first post-order traversal.
-func ActionList(root *Action) []*Action {
+func actionList(root *Action) []*Action {
 	seen := map[*Action]bool{}
 	all := []*Action{}
 	var walk func(*Action)
@@ -1180,7 +1320,7 @@ func (b *Builder) Do(root *Action) {
 	// ensure that, all else being equal, the execution prefers
 	// to do what it would have done first in a simple depth-first
 	// dependency order traversal.
-	all := ActionList(root)
+	all := actionList(root)
 	for i, a := range all {
 		a.priority = i
 	}
@@ -1449,17 +1589,6 @@ func (b *Builder) build(a *Action) (err error) {
 		}
 	}
 
-	// NOTE: We used to call allArchiveActions(a) here and use it for -I.
-	// The comment on allArchiveActions(a) said:
-	//
-	//     allArchiveActions returns a list of the archive dependencies of root.
-	//     This is needed because if package p depends on package q that is in libr.so, the
-	//     action graph looks like p->libr.so->q and so just scanning through p's
-	//     dependencies does not find the import dir for q.
-	//
-	// If that's true, then the action graph is wrong, and q should be listed
-	// as a direct dependency of p as well as indirectly through libr.so.
-
 	// Prepare Go import config.
 	var icfg bytes.Buffer
 	for _, path := range a.Package.Imports {
@@ -1583,12 +1712,8 @@ func (b *Builder) link(a *Action) (err error) {
 		}
 	}
 
-	// The compiler only cares about direct imports, but the
-	// linker needs the whole dependency tree.
-	all := ActionList(a)
-	all = all[:len(all)-1] // drop a
 	objpkg := a.Objdir + "_pkg_.a"
-	if err := BuildToolchain.ld(b, a, a.Target, importcfg, all, objpkg, nil); err != nil { // TODO: ofiles
+	if err := BuildToolchain.ld(b, a, a.Target, importcfg, objpkg); err != nil {
 		return err
 	}
 
@@ -1598,19 +1723,9 @@ func (b *Builder) link(a *Action) (err error) {
 func (b *Builder) writeLinkImportcfg(a *Action, file string) error {
 	// Prepare Go import cfg.
 	var icfg bytes.Buffer
-	p := a.Package
-	if p == nil {
-		// For linkShared, build fake package to serve as root
-		// for InternalDeps call.
-		p = new(load.Package)
-		for _, a1 := range a.Deps {
-			if a1.Package != nil {
-				p.Internal.Imports = append(p.Internal.Imports, a1.Package)
-			}
-		}
-	}
-	for _, p1 := range p.InternalDeps() {
-		if p1.ImportPath == "unsafe" {
+	for _, a1 := range a.Deps {
+		p1 := a1.Package
+		if p1 == nil {
 			continue
 		}
 		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, p1.Internal.Pkgfile)
@@ -1705,17 +1820,21 @@ func (b *Builder) linkShared(a *Action) (err error) {
 	if err := b.writeLinkImportcfg(a, importcfg); err != nil {
 		return err
 	}
-
-	allactions := ActionList(a)
-	allactions = allactions[:len(allactions)-1]
-	return BuildToolchain.ldShared(b, a.Deps, a.Target, importcfg, allactions)
+	return BuildToolchain.ldShared(b, a.Deps[0].Deps, a.Target, importcfg, a.Deps)
 }
 
 // BuildInstallFunc is the action for installing a single package or executable.
 func BuildInstallFunc(b *Builder, a *Action) (err error) {
 	defer func() {
 		if err != nil && err != errPrintedOutput {
-			err = fmt.Errorf("go install %s: %v", a.Package.ImportPath, err)
+			// a.Package == nil is possible for the go install -buildmode=shared
+			// action that installs libmangledname.so, which corresponds to
+			// a list of packages, not just one.
+			sep, path := "", ""
+			if a.Package != nil {
+				sep, path = " ", a.Package.ImportPath
+			}
+			err = fmt.Errorf("go install%s%s: %v", sep, path, err)
 		}
 	}()
 	a1 := a.Deps[0]
@@ -2199,6 +2318,17 @@ func (b *Builder) Mkdir(dir string) error {
 	return nil
 }
 
+// symlink creates a symlink newname -> oldname.
+func (b *Builder) Symlink(oldname, newname string) error {
+	if cfg.BuildN || cfg.BuildX {
+		b.Showcmd("", "ln -s %s %s", oldname, newname)
+		if cfg.BuildN {
+			return nil
+		}
+	}
+	return os.Symlink(oldname, newname)
+}
+
 // mkAbs returns an absolute path corresponding to
 // evaluating f in the directory dir.
 // We always pass absolute paths of source files so that
@@ -2230,7 +2360,7 @@ type toolchain interface {
 	// typically it is run in the object directory.
 	pack(b *Builder, a *Action, afile string, ofiles []string) error
 	// ld runs the linker to create an executable starting at mainpkg.
-	ld(b *Builder, root *Action, out, importcfg string, allactions []*Action, mainpkg string, ofiles []string) error
+	ld(b *Builder, root *Action, out, importcfg, mainpkg string) error
 	// ldShared runs the linker to create a shared library containing the pkgs built by toplevelactions
 	ldShared(b *Builder, toplevelactions []*Action, out, importcfg string, allactions []*Action) error
 
@@ -2267,7 +2397,7 @@ func (noToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) er
 	return noCompiler()
 }
 
-func (noToolchain) ld(b *Builder, root *Action, out, importcfg string, allactions []*Action, mainpkg string, ofiles []string) error {
+func (noToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) error {
 	return noCompiler()
 }
 
@@ -2615,9 +2745,9 @@ func setextld(ldflags []string, compiler []string) []string {
 	return ldflags
 }
 
-func (gcToolchain) ld(b *Builder, root *Action, out, importcfg string, allactions []*Action, mainpkg string, ofiles []string) error {
+func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) error {
 	cxx := len(root.Package.CXXFiles) > 0 || len(root.Package.SwigCXXFiles) > 0
-	for _, a := range allactions {
+	for _, a := range root.Deps {
 		if a.Package != nil && (len(a.Package.CXXFiles) > 0 || len(a.Package.SwigCXXFiles) > 0) {
 			cxx = true
 		}
@@ -2818,7 +2948,7 @@ func buildImportcfgSymlinks(b *Builder, root string, importcfg []byte) error {
 			if err := b.Mkdir(filepath.Dir(archive)); err != nil {
 				return err
 			}
-			if err := os.Symlink(after, archive); err != nil {
+			if err := b.Symlink(after, archive); err != nil {
 				return err
 			}
 		case "importmap":
@@ -2833,7 +2963,7 @@ func buildImportcfgSymlinks(b *Builder, root string, importcfg []byte) error {
 			if err := b.Mkdir(filepath.Dir(afterA)); err != nil {
 				return err
 			}
-			if err := os.Symlink(afterA, beforeA); err != nil {
+			if err := b.Symlink(afterA, beforeA); err != nil {
 				return err
 			}
 		case "packageshlib":
@@ -3133,8 +3263,8 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 	return nil
 }
 
-func (tools gccgoToolchain) ld(b *Builder, root *Action, out, importcfg string, allactions []*Action, mainpkg string, ofiles []string) error {
-	return tools.link(b, root, out, importcfg, allactions, ldBuildmode, root.Package.ImportPath)
+func (tools gccgoToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) error {
+	return tools.link(b, root, out, importcfg, root.Deps, ldBuildmode, root.Package.ImportPath)
 }
 
 func (tools gccgoToolchain) ldShared(b *Builder, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {

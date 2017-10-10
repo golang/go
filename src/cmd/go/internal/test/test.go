@@ -524,7 +524,7 @@ func runTest(cmd *base.Command, args []string) {
 
 		a := &work.Action{Mode: "go test -i"}
 		for _, p := range load.PackagesForBuild(all) {
-			a.Deps = append(a.Deps, b.Action(work.ModeInstall, work.ModeInstall, p))
+			a.Deps = append(a.Deps, b.CompileAction(work.ModeInstall, work.ModeInstall, p))
 		}
 		b.Do(a)
 		if !testC || a.Failed {
@@ -651,7 +651,7 @@ var windowsBadWords = []string{
 
 func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
-		build := b.Action(work.ModeBuild, work.ModeBuild, p)
+		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
 		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
 		print := &work.Action{Mode: "test print", Func: builderNoTest, Package: p, Deps: []*work.Action{run}}
 		return build, run, print, nil
@@ -896,7 +896,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 
 	load.ComputeStale(pmain)
 
-	a := b.Action(work.ModeBuild, work.ModeBuild, pmain)
+	a := b.LinkAction(work.ModeBuild, work.ModeBuild, pmain)
 	a.Target = testDir + testBinary + cfg.ExeSuffix
 	if cfg.Goos == "windows" {
 		// There are many reserved words on Windows that,
