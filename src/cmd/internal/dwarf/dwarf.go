@@ -282,6 +282,8 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_language, DW_FORM_data1},
 			{DW_AT_stmt_list, DW_FORM_sec_offset},
+			{DW_AT_low_pc, DW_FORM_addr},
+			{DW_AT_ranges, DW_FORM_sec_offset},
 			{DW_AT_comp_dir, DW_FORM_string},
 			{DW_AT_producer, DW_FORM_string},
 		},
@@ -755,6 +757,28 @@ func PutIntConst(ctxt Context, info, typ Sym, name string, val int64) {
 	putattr(ctxt, info, DW_ABRV_INT_CONSTANT, DW_FORM_sdata, DW_CLS_CONSTANT, val, nil)
 }
 
+// PutRanges writes a range table to sym. All addresses in ranges are
+// relative to some base address. If base is not nil, then they're
+// relative to the start of base. If base is nil, then the caller must
+// arrange a base address some other way (such as a DW_AT_low_pc
+// attribute).
+func PutRanges(ctxt Context, sym Sym, base Sym, ranges []Range) {
+	ps := ctxt.PtrSize()
+	// Write base address entry.
+	if base != nil {
+		ctxt.AddInt(sym, ps, -1)
+		ctxt.AddAddress(sym, base, 0)
+	}
+	// Write ranges.
+	for _, r := range ranges {
+		ctxt.AddInt(sym, ps, r.Start)
+		ctxt.AddInt(sym, ps, r.End)
+	}
+	// Write trailer.
+	ctxt.AddInt(sym, ps, 0)
+	ctxt.AddInt(sym, ps, 0)
+}
+
 // PutFunc writes a DIE for a function to s.
 // It also writes child DIEs for each variable in vars.
 func PutFunc(ctxt Context, info, loc, ranges Sym, name string, external bool, startPC Sym, size int64, scopes []Scope) error {
@@ -798,14 +822,7 @@ func putscope(ctxt Context, info, loc, ranges, startPC Sym, curscope int32, scop
 			Uleb128put(ctxt, info, DW_ABRV_LEXICAL_BLOCK_RANGES)
 			putattr(ctxt, info, DW_ABRV_LEXICAL_BLOCK_RANGES, DW_FORM_sec_offset, DW_CLS_PTR, ranges.Len(), ranges)
 
-			ctxt.AddAddress(ranges, nil, -1)
-			ctxt.AddAddress(ranges, startPC, 0)
-			for _, r := range scope.Ranges {
-				ctxt.AddAddress(ranges, nil, r.Start)
-				ctxt.AddAddress(ranges, nil, r.End)
-			}
-			ctxt.AddAddress(ranges, nil, 0)
-			ctxt.AddAddress(ranges, nil, 0)
+			PutRanges(ctxt, ranges, startPC, scope.Ranges)
 		}
 
 		curscope = putscope(ctxt, info, loc, ranges, startPC, curscope, scopes, encbuf)

@@ -842,6 +842,7 @@ type compilationUnit struct {
 	lib      *sym.Library
 	textp    []*sym.Symbol // Function symbols in this package
 	consts   *sym.Symbol   // Package constants DIEs
+	pcs      []dwarf.Range // PC ranges, relative to textp[0]
 	dwinfo   *dwarf.DWDie  // CU root DIE
 	funcDIEs []*sym.Symbol // Function DIE subtrees
 }
@@ -850,6 +851,7 @@ type compilationUnit struct {
 func getCompilationUnits(ctxt *Link) []*compilationUnit {
 	units := []*compilationUnit{}
 	index := make(map[*sym.Library]*compilationUnit)
+	var prevUnit *compilationUnit
 	for _, s := range ctxt.Textp {
 		if s.FuncInfo == nil {
 			continue
@@ -865,6 +867,19 @@ func getCompilationUnits(ctxt *Link) []*compilationUnit {
 			index[s.Lib] = unit
 		}
 		unit.textp = append(unit.textp, s)
+
+		// Update PC ranges.
+		//
+		// We don't simply compare the end of the previous
+		// symbol with the start of the next because there's
+		// often a little padding between them. Instead, we
+		// only create boundaries between symbols from
+		// different units.
+		if prevUnit != unit {
+			unit.pcs = append(unit.pcs, dwarf.Range{Start: s.Value - unit.textp[0].Value})
+			prevUnit = unit
+		}
+		unit.pcs[len(unit.pcs)-1].End = s.Value - unit.textp[0].Value + s.Size
 	}
 	return units
 }
@@ -1035,8 +1050,6 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 
 	lang := dwarf.DW_LANG_Go
 
-	// TODO: Generate DW_AT_ranges for dwinfo.
-
 	dwinfo = newdie(ctxt, &dwroot, dwarf.DW_ABRV_COMPUNIT, lib.Pkg, 0)
 	newattr(dwinfo, dwarf.DW_AT_language, dwarf.DW_CLS_CONSTANT, int64(lang), 0)
 	newattr(dwinfo, dwarf.DW_AT_stmt_list, dwarf.DW_CLS_PTR, ls.Size, ls)
@@ -1162,6 +1175,16 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 	ls.SetUint32(ctxt.Arch, headerLengthOffset, uint32(headerend-headerstart))
 
 	return dwinfo, funcs
+}
+
+// writepcranges generates the DW_AT_ranges table for compilation unit cu.
+func writepcranges(ctxt *Link, cu *dwarf.DWDie, base *sym.Symbol, pcs []dwarf.Range, ranges *sym.Symbol) {
+	var dwarfctxt dwarf.Context = dwctxt{ctxt}
+
+	// Create PC ranges for this CU.
+	newattr(cu, dwarf.DW_AT_ranges, dwarf.DW_CLS_PTR, ranges.Size, ranges)
+	newattr(cu, dwarf.DW_AT_low_pc, dwarf.DW_CLS_ADDRESS, base.Value, base)
+	dwarf.PutRanges(dwarfctxt, ranges, nil, pcs)
 }
 
 /*
@@ -1304,7 +1327,6 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 }
 
 func writeranges(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
-	empty := true
 	for _, s := range ctxt.Textp {
 		rangeSym := ctxt.Syms.ROLookup(dwarf.RangePrefix+s.Name, int(s.Version))
 		if rangeSym == nil || rangeSym.Size == 0 {
@@ -1313,15 +1335,6 @@ func writeranges(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 		rangeSym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
 		rangeSym.Type = sym.SDWARFRANGE
 		syms = append(syms, rangeSym)
-		empty = false
-	}
-	if !empty {
-		// PE does not like empty sections
-		rangesec := ctxt.Syms.Lookup(".debug_ranges", 0)
-		rangesec.Type = sym.SDWARFRANGE
-		rangesec.Attr |= sym.AttrReachable
-
-		syms = append(syms, rangesec)
 	}
 	return syms
 }
@@ -1545,12 +1558,16 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 
 	units := getCompilationUnits(ctxt)
 
-	// Write per-package line tables and start their CU DIEs.
+	// Write per-package line and range tables and start their CU DIEs.
 	debugLine := ctxt.Syms.Lookup(".debug_line", 0)
 	debugLine.Type = sym.SDWARFSECT
+	debugRanges := ctxt.Syms.Lookup(".debug_ranges", 0)
+	debugRanges.Type = sym.SDWARFRANGE
+	debugRanges.Attr |= sym.AttrReachable
 	syms = append(syms, debugLine)
 	for _, u := range units {
 		u.dwinfo, u.funcDIEs = writelines(ctxt, u.lib, u.textp, debugLine)
+		writepcranges(ctxt, u.dwinfo, u.textp[0], u.pcs, debugRanges)
 	}
 
 	synthesizestringtypes(ctxt, dwtypes.Child)
@@ -1576,8 +1593,11 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 	syms = writepub(ctxt, ".debug_pubnames", ispubname, syms)
 	syms = writepub(ctxt, ".debug_pubtypes", ispubtype, syms)
 	syms = writegdbscript(ctxt, syms)
+	// Now we're done writing SDWARFSECT symbols, so we can write
+	// other SDWARF* symbols.
 	syms = append(syms, infosyms...)
 	syms = collectlocs(ctxt, syms, units)
+	syms = append(syms, debugRanges)
 	syms = writeranges(ctxt, syms)
 	dwarfp = syms
 }
