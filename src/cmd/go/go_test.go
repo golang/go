@@ -1164,7 +1164,7 @@ func testMove(t *testing.T, vcs, url, base, config string) {
 	tg.runFail("get", "-d", "-u", url)
 	tg.grepStderr("is a custom import path for", "go get -d -u "+url+" failed for wrong reason")
 	tg.runFail("get", "-d", "-f", "-u", url)
-	tg.grepStderr("validating server certificate|not found", "go get -d -f -u "+url+" failed for wrong reason")
+	tg.grepStderr("validating server certificate|[nN]ot [fF]ound", "go get -d -f -u "+url+" failed for wrong reason")
 }
 
 func TestInternalPackageErrorsAreHandled(t *testing.T) {
@@ -1185,10 +1185,9 @@ func TestMoveGit(t *testing.T) {
 	testMove(t, "git", "rsc.io/pdf", "pdf", "rsc.io/pdf/.git/config")
 }
 
-// TODO(rsc): Set up a test case on bitbucket for hg.
-// func TestMoveHG(t *testing.T) {
-// 	testMove(t, "hg", "rsc.io/x86/x86asm", "x86", "rsc.io/x86/.hg/hgrc")
-// }
+func TestMoveHG(t *testing.T) {
+	testMove(t, "hg", "vcs-test.golang.org/go/custom-hg-hello", "custom-hg-hello", "vcs-test.golang.org/go/custom-hg-hello/.hg/hgrc")
+}
 
 // TODO(rsc): Set up a test case on SourceForge (?) for svn.
 // func testMoveSVN(t *testing.T) {

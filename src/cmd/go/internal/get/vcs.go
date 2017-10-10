@@ -557,7 +557,7 @@ func checkNestedVCS(vcs *vcsCmd, dir, srcRoot string) error {
 	otherDir := dir
 	for len(otherDir) > len(srcRoot) {
 		for _, otherVCS := range vcsList {
-			if _, err := os.Stat(filepath.Join(dir, "."+otherVCS.cmd)); err == nil {
+			if _, err := os.Stat(filepath.Join(otherDir, "."+otherVCS.cmd)); err == nil {
 				// Allow expected vcs in original dir.
 				if otherDir == dir && otherVCS == vcs {
 					continue
