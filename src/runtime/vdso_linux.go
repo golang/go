@@ -46,86 +46,23 @@ const (
 	_STB_WEAK   = 2 /* Weak symbol */
 
 	_EI_NIDENT = 16
+
+	// Maximum indices for the array types used when traversing the vDSO ELF structures.
+	// Computed from architecture-specific max provided by vdso_linux_*.go
+	vdsoSymTabSize     = vdsoArrayMax / unsafe.Sizeof(elfSym{})
+	vdsoDynSize        = vdsoArrayMax / unsafe.Sizeof(elfDyn{})
+	vdsoSymStringsSize = vdsoArrayMax     // byte
+	vdsoVerSymSize     = vdsoArrayMax / 2 // uint16
+	vdsoHashSize       = vdsoArrayMax / 4 // uint32
+
+	// vdsoBloomSizeScale is a scaling factor for gnuhash tables which are uint32 indexed,
+	// but contain uintptrs
+	vdsoBloomSizeScale = unsafe.Sizeof(uintptr(0)) / 4 // uint32
 )
 
 /* How to extract and insert information held in the st_info field.  */
-func _ELF64_ST_BIND(val byte) byte { return val >> 4 }
-func _ELF64_ST_TYPE(val byte) byte { return val & 0xf }
-
-type elf64Sym struct {
-	st_name  uint32
-	st_info  byte
-	st_other byte
-	st_shndx uint16
-	st_value uint64
-	st_size  uint64
-}
-
-type elf64Verdef struct {
-	vd_version uint16 /* Version revision */
-	vd_flags   uint16 /* Version information */
-	vd_ndx     uint16 /* Version Index */
-	vd_cnt     uint16 /* Number of associated aux entries */
-	vd_hash    uint32 /* Version name hash value */
-	vd_aux     uint32 /* Offset in bytes to verdaux array */
-	vd_next    uint32 /* Offset in bytes to next verdef entry */
-}
-
-type elf64Ehdr struct {
-	e_ident     [_EI_NIDENT]byte /* Magic number and other info */
-	e_type      uint16           /* Object file type */
-	e_machine   uint16           /* Architecture */
-	e_version   uint32           /* Object file version */
-	e_entry     uint64           /* Entry point virtual address */
-	e_phoff     uint64           /* Program header table file offset */
-	e_shoff     uint64           /* Section header table file offset */
-	e_flags     uint32           /* Processor-specific flags */
-	e_ehsize    uint16           /* ELF header size in bytes */
-	e_phentsize uint16           /* Program header table entry size */
-	e_phnum     uint16           /* Program header table entry count */
-	e_shentsize uint16           /* Section header table entry size */
-	e_shnum     uint16           /* Section header table entry count */
-	e_shstrndx  uint16           /* Section header string table index */
-}
-
-type elf64Phdr struct {
-	p_type   uint32 /* Segment type */
-	p_flags  uint32 /* Segment flags */
-	p_offset uint64 /* Segment file offset */
-	p_vaddr  uint64 /* Segment virtual address */
-	p_paddr  uint64 /* Segment physical address */
-	p_filesz uint64 /* Segment size in file */
-	p_memsz  uint64 /* Segment size in memory */
-	p_align  uint64 /* Segment alignment */
-}
-
-type elf64Shdr struct {
-	sh_name      uint32 /* Section name (string tbl index) */
-	sh_type      uint32 /* Section type */
-	sh_flags     uint64 /* Section flags */
-	sh_addr      uint64 /* Section virtual addr at execution */
-	sh_offset    uint64 /* Section file offset */
-	sh_size      uint64 /* Section size in bytes */
-	sh_link      uint32 /* Link to another section */
-	sh_info      uint32 /* Additional section information */
-	sh_addralign uint64 /* Section alignment */
-	sh_entsize   uint64 /* Entry size if section holds table */
-}
-
-type elf64Dyn struct {
-	d_tag int64  /* Dynamic entry type */
-	d_val uint64 /* Integer value */
-}
-
-type elf64Verdaux struct {
-	vda_name uint32 /* Version or dependency names */
-	vda_next uint32 /* Offset in bytes to next verdaux entry */
-}
-
-type elf64Auxv struct {
-	a_type uint64 /* Entry type */
-	a_val  uint64 /* Integer value */
-}
+func _ELF_ST_BIND(val byte) byte { return val >> 4 }
+func _ELF_ST_TYPE(val byte) byte { return val & 0xf }
 
 type symbol_key struct {
 	name     string
@@ -147,34 +84,23 @@ type vdso_info struct {
 	load_offset uintptr /* load_addr - recorded vaddr */
 
 	/* Symbol table */
-	symtab     *[1 << 32]elf64Sym
-	symstrings *[1 << 32]byte
+	symtab     *[vdsoSymTabSize]elfSym
+	symstrings *[vdsoSymStringsSize]byte
 	chain      []uint32
 	bucket     []uint32
 	symOff     uint32
 	isGNUHash  bool
 
 	/* Version table */
-	versym *[1 << 32]uint16
-	verdef *elf64Verdef
+	versym *[vdsoVerSymSize]uint16
+	verdef *elfVerdef
 }
 
 var linux26 = version_key{"LINUX_2.6", 0x3ae75f6}
 
-var sym_keys = []symbol_key{
-	{"__vdso_time", 0xa33c485, 0x821e8e0d, &__vdso_time_sym},
-	{"__vdso_gettimeofday", 0x315ca59, 0xb01bca00, &__vdso_gettimeofday_sym},
-	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &__vdso_clock_gettime_sym},
-}
+// see vdso_linux_*.go for sym_keys[] and __vdso_* vars
 
-// initialize with vsyscall fallbacks
-var (
-	__vdso_time_sym          uintptr = 0xffffffffff600400
-	__vdso_gettimeofday_sym  uintptr = 0xffffffffff600000
-	__vdso_clock_gettime_sym uintptr = 0
-)
-
-func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elf64Ehdr) {
+func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elfEhdr) {
 	info.valid = false
 	info.load_addr = uintptr(unsafe.Pointer(hdr))
 
@@ -183,9 +109,9 @@ func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elf64Ehdr) {
 	// We need two things from the segment table: the load offset
 	// and the dynamic table.
 	var found_vaddr bool
-	var dyn *[1 << 20]elf64Dyn
+	var dyn *[vdsoDynSize]elfDyn
 	for i := uint16(0); i < hdr.e_phnum; i++ {
-		pt := (*elf64Phdr)(add(pt, uintptr(i)*unsafe.Sizeof(elf64Phdr{})))
+		pt := (*elfPhdr)(add(pt, uintptr(i)*unsafe.Sizeof(elfPhdr{})))
 		switch pt.p_type {
 		case _PT_LOAD:
 			if !found_vaddr {
@@ -194,7 +120,7 @@ func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elf64Ehdr) {
 			}
 
 		case _PT_DYNAMIC:
-			dyn = (*[1 << 20]elf64Dyn)(unsafe.Pointer(info.load_addr + uintptr(pt.p_offset)))
+			dyn = (*[vdsoDynSize]elfDyn)(unsafe.Pointer(info.load_addr + uintptr(pt.p_offset)))
 		}
 	}
 
@@ -204,7 +130,7 @@ func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elf64Ehdr) {
 
 	// Fish out the useful bits of the dynamic table.
 
-	var hash, gnuhash *[1 << 30]uint32
+	var hash, gnuhash *[vdsoHashSize]uint32
 	info.symstrings = nil
 	info.symtab = nil
 	info.versym = nil
@@ -214,17 +140,17 @@ func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elf64Ehdr) {
 		p := info.load_offset + uintptr(dt.d_val)
 		switch dt.d_tag {
 		case _DT_STRTAB:
-			info.symstrings = (*[1 << 32]byte)(unsafe.Pointer(p))
+			info.symstrings = (*[vdsoSymStringsSize]byte)(unsafe.Pointer(p))
 		case _DT_SYMTAB:
-			info.symtab = (*[1 << 32]elf64Sym)(unsafe.Pointer(p))
+			info.symtab = (*[vdsoSymTabSize]elfSym)(unsafe.Pointer(p))
 		case _DT_HASH:
-			hash = (*[1 << 30]uint32)(unsafe.Pointer(p))
+			hash = (*[vdsoHashSize]uint32)(unsafe.Pointer(p))
 		case _DT_GNU_HASH:
-			gnuhash = (*[1 << 30]uint32)(unsafe.Pointer(p))
+			gnuhash = (*[vdsoHashSize]uint32)(unsafe.Pointer(p))
 		case _DT_VERSYM:
-			info.versym = (*[1 << 32]uint16)(unsafe.Pointer(p))
+			info.versym = (*[vdsoVerSymSize]uint16)(unsafe.Pointer(p))
 		case _DT_VERDEF:
-			info.verdef = (*elf64Verdef)(unsafe.Pointer(p))
+			info.verdef = (*elfVerdef)(unsafe.Pointer(p))
 		}
 	}
 
@@ -241,8 +167,8 @@ func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elf64Ehdr) {
 		nbucket := gnuhash[0]
 		info.symOff = gnuhash[1]
 		bloomSize := gnuhash[2]
-		info.bucket = gnuhash[4+bloomSize*2:][:nbucket]
-		info.chain = gnuhash[4+bloomSize*2+nbucket:]
+		info.bucket = gnuhash[4+bloomSize*uint32(vdsoBloomSizeScale):][:nbucket]
+		info.chain = gnuhash[4+bloomSize*uint32(vdsoBloomSizeScale)+nbucket:]
 		info.isGNUHash = true
 	} else {
 		// Parse the hash table header.
@@ -264,7 +190,7 @@ func vdso_find_version(info *vdso_info, ver *version_key) int32 {
 	def := info.verdef
 	for {
 		if def.vd_flags&_VER_FLG_BASE == 0 {
-			aux := (*elf64Verdaux)(add(unsafe.Pointer(def), uintptr(def.vd_aux)))
+			aux := (*elfVerdaux)(add(unsafe.Pointer(def), uintptr(def.vd_aux)))
 			if def.vd_hash == ver.ver_hash && ver.version == gostringnocopy(&info.symstrings[aux.vda_name]) {
 				return int32(def.vd_ndx & 0x7fff)
 			}
@@ -273,7 +199,7 @@ func vdso_find_version(info *vdso_info, ver *version_key) int32 {
 		if def.vd_next == 0 {
 			break
 		}
-		def = (*elf64Verdef)(add(unsafe.Pointer(def), uintptr(def.vd_next)))
+		def = (*elfVerdef)(add(unsafe.Pointer(def), uintptr(def.vd_next)))
 	}
 
 	return -1 // cannot match any version
@@ -286,8 +212,8 @@ func vdso_parse_symbols(info *vdso_info, version int32) {
 
 	apply := func(symIndex uint32, k symbol_key) bool {
 		sym := &info.symtab[symIndex]
-		typ := _ELF64_ST_TYPE(sym.st_info)
-		bind := _ELF64_ST_BIND(sym.st_info)
+		typ := _ELF_ST_TYPE(sym.st_info)
+		bind := _ELF_ST_BIND(sym.st_info)
 		if typ != _STT_FUNC || bind != _STB_GLOBAL && bind != _STB_WEAK || sym.st_shndx == _SHN_UNDEF {
 			return false
 		}
@@ -349,7 +275,7 @@ func archauxv(tag, val uintptr) {
 		// TODO(rsc): I don't understand why the compiler thinks info escapes
 		// when passed to the three functions below.
 		info1 := (*vdso_info)(noescape(unsafe.Pointer(&info)))
-		vdso_init_from_sysinfo_ehdr(info1, (*elf64Ehdr)(unsafe.Pointer(val)))
+		vdso_init_from_sysinfo_ehdr(info1, (*elfEhdr)(unsafe.Pointer(val)))
 		vdso_parse_symbols(info1, vdso_find_version(info1, &linux26))
 	}
 }
