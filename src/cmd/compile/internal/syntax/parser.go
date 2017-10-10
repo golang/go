@@ -484,20 +484,6 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 		return nil
 	}
 
-	// TODO(gri) check for regular functions only
-	// if name.Sym.Name == "init" {
-	// 	name = renameinit()
-	// 	if params != nil || result != nil {
-	// 		p.error("func init must have no arguments and no return values")
-	// 	}
-	// }
-
-	// if localpkg.Name == "main" && name.Name == "main" {
-	// 	if params != nil || result != nil {
-	// 		p.error("func main must have no arguments and no return values")
-	// 	}
-	// }
-
 	f.Name = p.name()
 	f.Type = p.funcType()
 	if p.tok == _Lbrace {
@@ -506,13 +492,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 			checkBranches(f.Body, p.errh)
 		}
 	}
-
 	f.Pragma = p.pragma
-
-	// TODO(gri) deal with function properties
-	// if noescape && body != nil {
-	// 	p.error("can only use //go:noescape with external func implementations")
-	// }
 
 	return f
 }
@@ -1709,9 +1689,6 @@ func (p *parser) forStmt() Stmt {
 	return s
 }
 
-// TODO(gri) This function is now so heavily influenced by the keyword that
-//           it may not make sense anymore to combine all three cases. It
-//           may be simpler to just split it up for each statement kind.
 func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleStmt) {
 	p.want(keyword)
 
