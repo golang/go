@@ -257,7 +257,7 @@ func (s *exprSwitch) walk(sw *Node) {
 	var cas []*Node
 	if s.kind == switchKindTrue || s.kind == switchKindFalse {
 		s.exprname = nodbool(s.kind == switchKindTrue)
-	} else if consttype(cond) >= 0 {
+	} else if consttype(cond) > 0 {
 		// leave constants to enable dead code elimination (issue 9608)
 		s.exprname = cond
 	} else {
@@ -607,12 +607,7 @@ func checkDupExprCases(exprname *Node, clauses []*Node) {
 				//       case GOARCH == "arm" && GOARM == "5":
 				//       case GOARCH == "arm":
 				//     which would both evaluate to false for non-ARM compiles.
-				if ct := consttype(n); ct < 0 || ct == CTBOOL {
-					continue
-				}
-				// If the value has no type, we have
-				// already printed an error about it.
-				if n.Type == nil {
+				if ct := consttype(n); ct == 0 || ct == CTBOOL {
 					continue
 				}
 
@@ -637,12 +632,7 @@ func checkDupExprCases(exprname *Node, clauses []*Node) {
 	seen := make(map[typeVal]*Node)
 	for _, ncase := range clauses {
 		for _, n := range ncase.List.Slice() {
-			if ct := consttype(n); ct < 0 || ct == CTBOOL {
-				continue
-			}
-			// If the value has no type, we have
-			// already printed an error about it.
-			if n.Type == nil {
+			if ct := consttype(n); ct == 0 || ct == CTBOOL {
 				continue
 			}
 			tv := typeVal{

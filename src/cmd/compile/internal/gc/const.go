@@ -12,7 +12,7 @@ import (
 )
 
 // Ctype describes the constant kind of an "ideal" (untyped) constant.
-type Ctype int8
+type Ctype uint8
 
 const (
 	CTxxx Ctype = iota
@@ -297,7 +297,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 
 	ct := consttype(n)
 	var et types.EType
-	if ct < 0 {
+	if ct == 0 {
 		goto bad
 	}
 
@@ -591,7 +591,7 @@ func tostr(v Val) Val {
 
 func consttype(n *Node) Ctype {
 	if n == nil || n.Op != OLITERAL {
-		return -1
+		return 0
 	}
 	return n.Val().Ctype()
 }
@@ -693,7 +693,7 @@ func evconst(n *Node) {
 	if nl == nil || nl.Type == nil {
 		return
 	}
-	if consttype(nl) < 0 {
+	if consttype(nl) == 0 {
 		return
 	}
 	wl := nl.Type.Etype
@@ -840,7 +840,7 @@ func evconst(n *Node) {
 	if nr.Type == nil {
 		return
 	}
-	if consttype(nr) < 0 {
+	if consttype(nr) == 0 {
 		return
 	}
 	wr = nr.Type.Etype
