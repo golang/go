@@ -23,6 +23,7 @@ type parser struct {
 	scanner
 
 	first  error  // first error encountered
+	errcnt int    // number of errors encountered
 	pragma Pragma // pragma flags
 
 	fnest  int    // function nesting level (for error handling)
@@ -57,6 +58,7 @@ func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh P
 	)
 
 	p.first = nil
+	p.errcnt = 0
 	p.pragma = 0
 
 	p.fnest = 0
@@ -114,6 +116,7 @@ func (p *parser) error_at(pos src.Pos, msg string) {
 	if p.first == nil {
 		p.first = err
 	}
+	p.errcnt++
 	if p.errh == nil {
 		panic(p.first)
 	}
@@ -179,7 +182,6 @@ const stopset uint64 = 1<<_Break |
 	1<<_Defer |
 	1<<_Fallthrough |
 	1<<_For |
-	1<<_Func |
 	1<<_Go |
 	1<<_Goto |
 	1<<_If |
@@ -495,17 +497,18 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 }
 
 func (p *parser) funcBody() *BlockStmt {
-	// TODO(gri) If we are in a function we should update p.fnest
-	// accordingly. Currently p.fnest is always zero and thus not
-	// used in error recovery.
-	// Not enabled because it performs worse for some code without
-	// more fine tuning (see example in #22164).
-	// p.fnest++
+	p.fnest++
+	errcnt := p.errcnt
 	body := p.blockStmt("")
-	// p.fnest--
-	if p.mode&CheckBranches != 0 {
+	p.fnest--
+
+	// Don't check branches if there were syntax errors in the function
+	// as it may lead to spurious errors (e.g., see test/switch2.go) or
+	// possibly crashes due to incomplete syntax trees.
+	if p.mode&CheckBranches != 0 && errcnt == p.errcnt {
 		checkBranches(body, p.errh)
 	}
+
 	return body
 }
 
