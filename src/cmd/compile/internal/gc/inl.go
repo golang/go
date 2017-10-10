@@ -23,7 +23,6 @@
 //
 // TODO:
 //   - inline functions with ... args
-//   - handle T.meth(f()) with func f() (t T, arg, arg, )
 
 package gc
 

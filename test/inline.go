@@ -72,3 +72,13 @@ func switchType(x interface{}) int { // ERROR "switchType x does not escape"
 		return 0
 	}
 }
+
+type T struct{}
+
+func (T) meth(int, int) {} // ERROR "can inline T.meth"
+
+func k() (T, int, int) { return T{}, 0, 0 } // ERROR "can inline k"
+
+func _() { // ERROR "can inline _"
+	T.meth(k()) // ERROR "inlining call to k" "inlining call to T.meth"
+}
