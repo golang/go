@@ -10,8 +10,7 @@ TEXT _rt0_amd64_android(SB),NOSPLIT,$-8
 TEXT _rt0_amd64_android_lib(SB),NOSPLIT,$0
 	MOVQ	$1, DI // argc
 	MOVQ	$_rt0_amd64_android_argv(SB), SI  // argv
-	MOVQ	$_rt0_amd64_linux_lib(SB), AX
-	JMP	AX
+	JMP	_rt0_amd64_lib(SB)
 
 DATA _rt0_amd64_android_argv+0x00(SB)/8,$_rt0_amd64_android_argv0(SB)
 DATA _rt0_amd64_android_argv+0x08(SB)/8,$0 // end argv
