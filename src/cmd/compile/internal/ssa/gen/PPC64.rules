@@ -287,7 +287,6 @@
 // (MaskIfNotCarry CarrySet) -> -1
 
 (Addr {sym} base) -> (MOVDaddr {sym} base)
-// (Addr {sym} base) -> (ADDconst {sym} base)
 (OffPtr [off] ptr) -> (ADD (MOVDconst <typ.Int64> [off]) ptr)
 
 (Ctz64 x) -> (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
