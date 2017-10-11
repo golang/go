@@ -33,6 +33,7 @@ func ReadFile(name string) (id string, err error) {
 	if err != nil {
 		return "", err
 	}
+	defer f.Close()
 
 	buf := make([]byte, 8)
 	if _, err := f.ReadAt(buf, 0); err != nil {
@@ -54,8 +55,6 @@ func ReadFile(name string) (id string, err error) {
 	// Reading the first 1024 bytes should be plenty.
 	data := make([]byte, 1024)
 	n, err := io.ReadFull(f, data)
-	f.Close()
-
 	if err != nil && n == 0 {
 		return "", err
 	}
