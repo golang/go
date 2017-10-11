@@ -744,6 +744,10 @@ func unminitSignals() {
 	if getg().m.newSigstack {
 		st := stackt{ss_flags: _SS_DISABLE}
 		sigaltstack(&st, nil)
+	} else {
+		// We got the signal stack from someone else. Clear it
+		// so we don't get confused.
+		getg().m.gsignal.stack = stack{}
 	}
 }
 

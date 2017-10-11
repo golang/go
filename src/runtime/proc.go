@@ -1268,7 +1268,13 @@ func mexit(osStack bool) {
 	unminit()
 
 	// Free the gsignal stack.
-	if m.gsignal != nil {
+	//
+	// If the signal stack was created outside Go, then gsignal
+	// will be non-nil, but unminitSignals set stack.lo to 0
+	// (e.g., Android's libc creates all threads with a signal
+	// stack, so it's possible for Go to exit them but not control
+	// the signal stack).
+	if m.gsignal != nil && m.gsignal.stack.lo != 0 {
 		stackfree(m.gsignal.stack)
 	}
 
