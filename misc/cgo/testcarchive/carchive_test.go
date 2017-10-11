@@ -6,6 +6,7 @@ package carchive_test
 
 import (
 	"bufio"
+	"bytes"
 	"debug/elf"
 	"fmt"
 	"io/ioutil"
@@ -609,9 +610,26 @@ func TestCompileWithoutShared(t *testing.T) {
 	}
 
 	exe := "./testnoshared" + exeSuffix
-	ccArgs := append(cc, "-o", exe, "main5.c", "libgo2.a")
+
+	// In some cases, -no-pie is needed here, but not accepted everywhere. First try
+	// if -no-pie is accepted. See #22126.
+	ccArgs := append(cc, "-o", exe, "-no-pie", "main5.c", "libgo2.a")
 	t.Log(ccArgs)
 	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+
+	// If -no-pie unrecognized, try -nopie if this is possibly clang
+	if err != nil && bytes.Contains(out, []byte("unknown")) && !strings.Contains(cc[0], "gcc") {
+		ccArgs = append(cc, "-o", exe, "-nopie", "main5.c", "libgo2.a")
+		t.Log(ccArgs)
+		out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+	}
+
+	// Don't use either -no-pie or -nopie
+	if err != nil && bytes.Contains(out, []byte("unrecognized")) {
+		ccArgs := append(cc, "-o", exe, "main5.c", "libgo2.a")
+		t.Log(ccArgs)
+		out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+	}
 	t.Logf("%s", out)
 	if err != nil {
 		t.Fatal(err)
