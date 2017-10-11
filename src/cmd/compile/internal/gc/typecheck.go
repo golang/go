@@ -2204,7 +2204,7 @@ func checkdefergo(n *Node) {
 		if n.Left.Orig != nil && n.Left.Orig.Op == OCONV {
 			break
 		}
-		yyerror("%s discards result of %v", what, n.Left)
+		yyerrorl(n.Pos, "%s discards result of %v", what, n.Left)
 		return
 	}
 
@@ -2218,7 +2218,7 @@ func checkdefergo(n *Node) {
 		// The syntax made sure it was a call, so this must be
 		// a conversion.
 		n.SetDiag(true)
-		yyerror("%s requires function call, not conversion", what)
+		yyerrorl(n.Pos, "%s requires function call, not conversion", what)
 	}
 }
 
