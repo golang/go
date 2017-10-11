@@ -60,6 +60,12 @@ var gdb = "gdb" // Might be "ggdb" on Darwin, because gdb no longer part of XCod
 // go test debug_test.go -args -u -d
 
 func TestNexting(t *testing.T) {
+	// Skip this test in an ordinary run.bash.  Too many things
+	// can cause it to break.
+	if testing.Short() {
+		t.Skip("skipping in short mode; see issue #22206")
+	}
+
 	testenv.MustHaveGoBuild(t)
 
 	if !*delve && !*force && !(runtime.GOOS == "linux" && runtime.GOARCH == "amd64") {
