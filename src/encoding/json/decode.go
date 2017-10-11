@@ -138,7 +138,8 @@ func (e *UnmarshalTypeError) Error() string {
 
 // An UnmarshalFieldError describes a JSON object key that
 // led to an unexported (and therefore unwritable) struct field.
-// (No longer used; kept for compatibility.)
+//
+// Deprecated: No longer used; kept for compatibility.
 type UnmarshalFieldError struct {
 	Key   string
 	Type  reflect.Type

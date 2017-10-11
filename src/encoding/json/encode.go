@@ -245,8 +245,8 @@ func (e *UnsupportedValueError) Error() string {
 // attempting to encode a string value with invalid UTF-8 sequences.
 // As of Go 1.2, Marshal instead coerces the string to valid UTF-8 by
 // replacing invalid bytes with the Unicode replacement rune U+FFFD.
-// This error is no longer generated but is kept for backwards compatibility
-// with programs that might mention it.
+//
+// Deprecated: No longer used; kept for compatibility.
 type InvalidUTF8Error struct {
 	S string // the whole string value that caused the error
 }
