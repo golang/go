@@ -993,7 +993,6 @@ func writelines(ctxt *Link, syms []*sym.Symbol) ([]*sym.Symbol, []*sym.Symbol) {
 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
 	ls := ctxt.Syms.Lookup(".debug_line", 0)
 	ls.Type = sym.SDWARFSECT
-	ls.R = ls.R[:0]
 
 	syms = append(syms, ls)
 	var funcs []*sym.Symbol
@@ -1162,7 +1161,6 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
 	fs := ctxt.Syms.Lookup(".debug_frame", 0)
 	fs.Type = sym.SDWARFSECT
-	fs.R = fs.R[:0]
 	syms = append(syms, fs)
 
 	// Emit the CIE, Section 6.4.1
@@ -1287,7 +1285,6 @@ func writeranges(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 		rangesec := ctxt.Syms.Lookup(".debug_ranges", 0)
 		rangesec.Type = sym.SDWARFRANGE
 		rangesec.Attr |= sym.AttrReachable
-		rangesec.R = rangesec.R[:0]
 
 		syms = append(syms, rangesec)
 	}
@@ -1303,7 +1300,6 @@ const (
 
 func writeinfo(ctxt *Link, syms []*sym.Symbol, funcs, consts []*sym.Symbol, abbrevsym *sym.Symbol) []*sym.Symbol {
 	infosec := ctxt.Syms.Lookup(".debug_info", 0)
-	infosec.R = infosec.R[:0]
 	infosec.Type = sym.SDWARFINFO
 	infosec.Attr |= sym.AttrReachable
 	syms = append(syms, infosec)
@@ -1558,7 +1554,6 @@ func collectlocs(ctxt *Link, syms []*sym.Symbol, funcs []*sym.Symbol) []*sym.Sym
 	// Don't emit .debug_loc if it's empty -- it makes the ARM linker mad.
 	if !empty {
 		locsym := ctxt.Syms.Lookup(".debug_loc", 0)
-		locsym.R = locsym.R[:0]
 		locsym.Type = sym.SDWARFLOC
 		locsym.Attr |= sym.AttrReachable
 		syms = append(syms, locsym)
