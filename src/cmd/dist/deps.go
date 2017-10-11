@@ -334,6 +334,7 @@ var builddeps = map[string][]string{
 		"container/heap",       // cmd/go/internal/work
 		"crypto/sha256",        // cmd/go/internal/work
 		"debug/elf",            // cmd/go/internal/work
+		"encoding/json",        // cmd/go/internal/work
 		"errors",               // cmd/go/internal/work
 		"flag",                 // cmd/go/internal/work
 		"fmt",                  // cmd/go/internal/work

@@ -15,7 +15,6 @@ import (
 )
 
 func TestDeps(t *testing.T) {
-	t.Skip("broken - golang.org/issue/21522")
 	if testing.Short() && testenv.Builder() == "" {
 		t.Skip("skipping in short mode")
 	}
