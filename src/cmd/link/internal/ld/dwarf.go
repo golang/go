@@ -1308,9 +1308,6 @@ func writeinfo(ctxt *Link, syms []*sym.Symbol, funcs, consts []*sym.Symbol, abbr
 	infosec.Attr |= sym.AttrReachable
 	syms = append(syms, infosec)
 
-	arangessec := ctxt.Syms.Lookup(".dwarfaranges", 0)
-	arangessec.R = arangessec.R[:0]
-
 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
 
 	for compunit := dwroot.Child; compunit != nil; compunit = compunit.Link {
@@ -1403,52 +1400,6 @@ func writepub(ctxt *Link, sname string, ispub func(*dwarf.DWDie) bool, syms []*s
 		s.SetUint32(ctxt.Arch, sectionstart, uint32(s.Size-sectionstart)-4) // exclude the length field.
 	}
 
-	return syms
-}
-
-/*
- *  emit .debug_aranges.  _info must have been written before,
- *  because we need die->offs of dwarf.DW_globals.
- */
-func writearanges(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
-	s := ctxt.Syms.Lookup(".debug_aranges", 0)
-	s.Type = sym.SDWARFSECT
-	// The first tuple is aligned to a multiple of the size of a single tuple
-	// (twice the size of an address)
-	headersize := int(Rnd(4+2+4+1+1, int64(ctxt.Arch.PtrSize*2))) // don't count unit_length field itself
-
-	for compunit := dwroot.Child; compunit != nil; compunit = compunit.Link {
-		b := getattr(compunit, dwarf.DW_AT_low_pc)
-		if b == nil {
-			continue
-		}
-		e := getattr(compunit, dwarf.DW_AT_high_pc)
-		if e == nil {
-			continue
-		}
-
-		// Write .debug_aranges	 Header + entry	 (sec 6.1.2)
-		unitlength := uint32(headersize) + 4*uint32(ctxt.Arch.PtrSize) - 4
-		s.AddUint32(ctxt.Arch, unitlength) // unit_length (*)
-		s.AddUint16(ctxt.Arch, 2)          // dwarf version (appendix F)
-
-		adddwarfref(ctxt, s, dtolsym(compunit.Sym), 4)
-
-		s.AddUint8(uint8(ctxt.Arch.PtrSize)) // address_size
-		s.AddUint8(0)                        // segment_size
-		padding := headersize - (4 + 2 + 4 + 1 + 1)
-		for i := 0; i < padding; i++ {
-			s.AddUint8(0)
-		}
-
-		s.AddAddrPlus(ctxt.Arch, b.Data.(*sym.Symbol), b.Value-(b.Data.(*sym.Symbol)).Value)
-		s.AddUintXX(ctxt.Arch, uint64(e.Value-b.Value), ctxt.Arch.PtrSize)
-		s.AddUintXX(ctxt.Arch, 0, ctxt.Arch.PtrSize)
-		s.AddUintXX(ctxt.Arch, 0, ctxt.Arch.PtrSize)
-	}
-	if s.Size > 0 {
-		syms = append(syms, s)
-	}
 	return syms
 }
 
@@ -1584,7 +1535,6 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 
 	syms = writepub(ctxt, ".debug_pubnames", ispubname, syms)
 	syms = writepub(ctxt, ".debug_pubtypes", ispubtype, syms)
-	syms = writearanges(ctxt, syms)
 	syms = writegdbscript(ctxt, syms)
 	syms = append(syms, infosyms...)
 	syms = collectlocs(ctxt, syms, funcs)
@@ -1625,7 +1575,6 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *sym.Symbol) {
 	}
 
 	Addstring(shstrtab, ".debug_abbrev")
-	Addstring(shstrtab, ".debug_aranges")
 	Addstring(shstrtab, ".debug_frame")
 	Addstring(shstrtab, ".debug_info")
 	Addstring(shstrtab, ".debug_loc")
@@ -1637,7 +1586,6 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *sym.Symbol) {
 	if ctxt.LinkMode == LinkExternal {
 		Addstring(shstrtab, elfRelType+".debug_info")
 		Addstring(shstrtab, elfRelType+".debug_loc")
-		Addstring(shstrtab, elfRelType+".debug_aranges")
 		Addstring(shstrtab, elfRelType+".debug_line")
 		Addstring(shstrtab, elfRelType+".debug_frame")
 		Addstring(shstrtab, elfRelType+".debug_pubnames")
