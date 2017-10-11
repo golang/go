@@ -1170,10 +1170,10 @@ func mstart() {
 	mstart1(0)
 
 	// Exit this thread.
-	if GOOS == "windows" || GOOS == "solaris" {
-		// Windows and Solaris always system-allocate the
-		// stack, but put it in _g_.stack before mstart, so
-		// the logic above hasn't set osStack yet.
+	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" {
+		// Window, Solaris and Plan 9 always system-allocate
+		// the stack, but put it in _g_.stack before mstart,
+		// so the logic above hasn't set osStack yet.
 		osStack = true
 	}
 	mexit(osStack)
