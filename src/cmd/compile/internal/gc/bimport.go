@@ -187,6 +187,7 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
 		// them only for functions with inlineable bodies. funchdr does
 		// parameter renaming which doesn't matter if we don't have a body.
 
+		inlCost := p.int()
 		if f := p.funcList[i]; f != nil {
 			// function not yet imported - read body and set it
 			funchdr(f)
@@ -200,6 +201,7 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
 				body = []*Node{nod(OEMPTY, nil, nil)}
 			}
 			f.Func.Inl.Set(body)
+			f.Func.InlCost = int32(inlCost)
 			funcbody()
 		} else {
 			// function already imported - read body but discard declarations

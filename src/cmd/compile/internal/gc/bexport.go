@@ -377,6 +377,7 @@ func export(out *bufio.Writer, trace bool) int {
 				p.tracef("\n----\nfunc { %#v }\n", f.Inl)
 			}
 			p.int(i)
+			p.int(int(f.InlCost))
 			p.stmtList(f.Inl)
 			if p.trace {
 				p.tracef("\n")
