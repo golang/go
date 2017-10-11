@@ -97,7 +97,7 @@ func (p *parser) got(tok token) bool {
 
 func (p *parser) want(tok token) {
 	if !p.got(tok) {
-		p.syntax_error("expecting " + tok.String())
+		p.syntax_error("expecting " + tokstring(tok))
 		p.advance()
 	}
 }
@@ -126,7 +126,7 @@ func (p *parser) error_at(pos src.Pos, msg string) {
 // syntax_error_at reports a syntax error at the given position.
 func (p *parser) syntax_error_at(pos src.Pos, msg string) {
 	if trace {
-		defer p.trace("syntax_error (" + msg + ")")()
+		p.print("syntax error: " + msg)
 	}
 
 	if p.tok == _EOF && p.first != nil {
@@ -168,6 +168,18 @@ func (p *parser) syntax_error_at(pos src.Pos, msg string) {
 	p.error_at(pos, "syntax error: unexpected "+tok+msg)
 }
 
+// tokstring returns the English word for selected punctuation tokens
+// for more readable error messages.
+func tokstring(tok token) string {
+	switch tok {
+	case _Comma:
+		return "comma"
+	case _Semi:
+		return "semicolon"
+	}
+	return tok.String()
+}
+
 // Convenience methods using the current token position.
 func (p *parser) pos() src.Pos            { return p.pos_at(p.line, p.col) }
 func (p *parser) error(msg string)        { p.error_at(p.pos(), msg) }
@@ -194,40 +206,42 @@ const stopset uint64 = 1<<_Break |
 // Advance consumes tokens until it finds a token of the stopset or followlist.
 // The stopset is only considered if we are inside a function (p.fnest > 0).
 // The followlist is the list of valid tokens that can follow a production;
-// if it is empty, exactly one token is consumed to ensure progress.
+// if it is empty, exactly one (non-EOF) token is consumed to ensure progress.
 func (p *parser) advance(followlist ...token) {
-	if len(followlist) == 0 {
-		p.next()
-		return
+	if trace {
+		p.print(fmt.Sprintf("advance %s", followlist))
 	}
 
 	// compute follow set
 	// (not speed critical, advance is only called in error situations)
-	var followset uint64 = 1 << _EOF // never skip over EOF
-	for _, tok := range followlist {
-		followset |= 1 << tok
+	var followset uint64 = 1 << _EOF // don't skip over EOF
+	if len(followlist) > 0 {
+		if p.fnest > 0 {
+			followset |= stopset
+		}
+		for _, tok := range followlist {
+			followset |= 1 << tok
+		}
 	}
 
-	for !(contains(followset, p.tok) || p.fnest > 0 && contains(stopset, p.tok)) {
+	for !contains(followset, p.tok) {
+		if trace {
+			p.print("skip " + p.tok.String())
+		}
 		p.next()
+		if len(followlist) == 0 {
+			break
+		}
 	}
-}
 
-func tokstring(tok token) string {
-	switch tok {
-	case _EOF:
-		return "EOF"
-	case _Comma:
-		return "comma"
-	case _Semi:
-		return "semicolon"
+	if trace {
+		p.print("next " + p.tok.String())
 	}
-	return tok.String()
 }
 
 // usage: defer p.trace(msg)()
 func (p *parser) trace(msg string) func() {
-	fmt.Printf("%5d: %s%s (\n", p.line, p.indent, msg)
+	p.print(msg + " (")
 	const tab = ". "
 	p.indent = append(p.indent, tab...)
 	return func() {
@@ -235,8 +249,12 @@ func (p *parser) trace(msg string) func() {
 		if x := recover(); x != nil {
 			panic(x) // skip print_trace
 		}
-		fmt.Printf("%5d: %s)\n", p.line, p.indent)
+		p.print(")")
 	}
+}
+
+func (p *parser) print(msg string) {
+	fmt.Printf("%5d: %s%s\n", p.line, p.indent, msg)
 }
 
 // ----------------------------------------------------------------------------
