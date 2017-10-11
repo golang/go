@@ -1332,11 +1332,9 @@ func dtypesym(t *types.Type) *obj.LSym {
 	// ../../../../runtime/type.go:/structType
 	// for security, only the exported fields.
 	case TSTRUCT:
-		n := 0
-
-		for _, t1 := range t.Fields().Slice() {
+		fields := t.Fields().Slice()
+		for _, t1 := range fields {
 			dtypesym(t1.Type)
-			n++
 		}
 
 		// All non-exported struct field names within a struct
@@ -1345,7 +1343,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		// struct type descriptor, we can omit that
 		// information from the field descriptors.
 		var spkg *types.Pkg
-		for _, f := range t.Fields().Slice() {
+		for _, f := range fields {
 			if !exportname(f.Sym.Name) {
 				spkg = f.Sym.Pkg
 				break
@@ -1355,13 +1353,13 @@ func dtypesym(t *types.Type) *obj.LSym {
 		ot = dcommontype(lsym, ot, t)
 		ot = dgopkgpath(lsym, ot, spkg)
 		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
-		ot = duintptr(lsym, ot, uint64(n))
-		ot = duintptr(lsym, ot, uint64(n))
+		ot = duintptr(lsym, ot, uint64(len(fields)))
+		ot = duintptr(lsym, ot, uint64(len(fields)))
 
-		dataAdd := n * structfieldSize()
+		dataAdd := len(fields) * structfieldSize()
 		ot = dextratype(lsym, ot, t, dataAdd)
 
-		for _, f := range t.Fields().Slice() {
+		for _, f := range fields {
 			// ../../../../runtime/type.go:/structField
 			ot = dnameField(lsym, ot, spkg, f)
 			ot = dsymptr(lsym, ot, dtypesym(f.Type), 0)

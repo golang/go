@@ -257,9 +257,6 @@ func restrictlookup(name string, pkg *types.Pkg) *types.Sym {
 // find all the exported symbols in package opkg
 // and make them available in the current package
 func importdot(opkg *types.Pkg, pack *Node) {
-	var s1 *types.Sym
-	var pkgerror string
-
 	n := 0
 	for _, s := range opkg.Syms {
 		if s.Def == nil {
@@ -268,9 +265,9 @@ func importdot(opkg *types.Pkg, pack *Node) {
 		if !exportname(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
 			continue
 		}
-		s1 = lookup(s.Name)
+		s1 := lookup(s.Name)
 		if s1.Def != nil {
-			pkgerror = fmt.Sprintf("during import %q", opkg.Path)
+			pkgerror := fmt.Sprintf("during import %q", opkg.Path)
 			redeclare(s1, pkgerror)
 			continue
 		}
