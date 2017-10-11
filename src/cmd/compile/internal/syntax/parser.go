@@ -875,7 +875,11 @@ loop:
 			p.xnest--
 
 		case _Lparen:
-			x = p.call(x)
+			t := new(CallExpr)
+			t.pos = pos
+			t.Fun = x
+			t.ArgList, t.HasDots = p.argList()
+			x = t
 
 		case _Lbrace:
 			// operand may have returned a parenthesized complit
@@ -2062,24 +2066,18 @@ func (p *parser) stmtList() (l []Stmt) {
 }
 
 // Arguments = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
-func (p *parser) call(fun Expr) *CallExpr {
+func (p *parser) argList() (list []Expr, hasDots bool) {
 	if trace {
-		defer p.trace("call")()
+		defer p.trace("argList")()
 	}
-
-	// call or conversion
-	// convtype '(' expr ocomma ')'
-	c := new(CallExpr)
-	c.pos = p.pos()
-	c.Fun = fun
 
 	p.want(_Lparen)
 	p.xnest++
 
 	for p.tok != _EOF && p.tok != _Rparen {
-		c.ArgList = append(c.ArgList, p.expr())
-		c.HasDots = p.got(_DotDotDot)
-		if !p.ocomma(_Rparen) || c.HasDots {
+		list = append(list, p.expr())
+		hasDots = p.got(_DotDotDot)
+		if !p.ocomma(_Rparen) || hasDots {
 			break
 		}
 	}
@@ -2087,7 +2085,7 @@ func (p *parser) call(fun Expr) *CallExpr {
 	p.xnest--
 	p.want(_Rparen)
 
-	return c
+	return
 }
 
 // ----------------------------------------------------------------------------
