@@ -354,12 +354,12 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if useSetFileCompletionNotificationModes {
+	if pollable && useSetFileCompletionNotificationModes {
 		// We do not use events, so we can skip them always.
 		flags := uint8(syscall.FILE_SKIP_SET_EVENT_ON_HANDLE)
 		// It's not safe to skip completion notifications for UDP:
 		// http://blogs.technet.com/b/winserverperformance/archive/2008/06/26/designing-applications-for-high-performance-part-iii.aspx
-		if net == "tcp" || net == "file" {
+		if net == "tcp" {
 			flags |= syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
 		}
 		err := syscall.SetFileCompletionNotificationModes(fd.Sysfd, flags)
