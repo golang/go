@@ -679,8 +679,9 @@ var builddeps = map[string][]string{
 	},
 
 	"io": {
-		"errors", // io
-		"sync",   // io
+		"errors",      // io
+		"sync",        // io
+		"sync/atomic", // io
 	},
 
 	"io/ioutil": {
