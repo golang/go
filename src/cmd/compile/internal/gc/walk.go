@@ -2337,18 +2337,18 @@ out:
 // then it is done first. otherwise must
 // make temp variables
 func reorder1(all []*Node) []*Node {
-	c := 0 // function calls
-	t := 0 // total parameters
-
-	for _, n := range all {
-		t++
-		updateHasCall(n)
-		if n.HasCall() {
-			c++
-		}
+	if len(all) == 1 {
+		return all
 	}
 
-	if c == 0 || t == 1 {
+	funcCalls := 0
+	for _, n := range all {
+		updateHasCall(n)
+		if n.HasCall() {
+			funcCalls++
+		}
+	}
+	if funcCalls == 0 {
 		return all
 	}
 
@@ -2363,7 +2363,7 @@ func reorder1(all []*Node) []*Node {
 		}
 
 		d++
-		if d == c {
+		if d == funcCalls {
 			f = n
 			continue
 		}
@@ -3898,11 +3898,9 @@ func walkprintfunc(n *Node, init *Nodes) *Node {
 	}
 
 	t := nod(OTFUNC, nil, nil)
-	num := 0
 	var printargs []*Node
-	for _, n1 := range n.List.Slice() {
-		buf := fmt.Sprintf("a%d", num)
-		num++
+	for i, n1 := range n.List.Slice() {
+		buf := fmt.Sprintf("a%d", i)
 		a := namedfield(buf, n1.Type)
 		t.List.Append(a)
 		printargs = append(printargs, a.Left)

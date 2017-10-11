@@ -3017,7 +3017,7 @@ func typecheckcomplit(n *Node) *Node {
 		for i3, l := range n.List.Slice() {
 			setlineno(l)
 			if l.Op != OKEY {
-				n.List.SetIndex(i3, typecheck(n.List.Index(i3), Erv))
+				n.List.SetIndex(i3, typecheck(l, Erv))
 				yyerror("missing key in map literal")
 				continue
 			}
@@ -3044,7 +3044,7 @@ func typecheckcomplit(n *Node) *Node {
 		// Need valid field offsets for Xoffset below.
 		dowidth(t)
 
-		bad := 0
+		errored := false
 		if n.List.Len() != 0 && nokeys(n.List) {
 			// simple list of variables
 			ls := n.List.Slice()
@@ -3053,10 +3053,10 @@ func typecheckcomplit(n *Node) *Node {
 				n1 = typecheck(n1, Erv)
 				ls[i] = n1
 				if i >= t.NumFields() {
-					if bad == 0 {
+					if !errored {
 						yyerror("too many values in struct initializer")
+						errored = true
 					}
-					bad++
 					continue
 				}
 
@@ -3113,10 +3113,10 @@ func typecheckcomplit(n *Node) *Node {
 				}
 
 				if l.Op != OSTRUCTKEY {
-					if bad == 0 {
+					if !errored {
 						yyerror("mixture of field:value and value initializers")
+						errored = true
 					}
-					bad++
 					ls[i] = typecheck(ls[i], Erv)
 					continue
 				}

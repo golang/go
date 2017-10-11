@@ -235,18 +235,16 @@ func poptemp(mark ordermarker, order *Order) {
 // above the mark on the temporary stack, but it does not pop them
 // from the stack.
 func cleantempnopop(mark ordermarker, order *Order, out *[]*Node) {
-	var kill *Node
-
 	for i := len(order.temp) - 1; i >= int(mark); i-- {
 		n := order.temp[i]
 		if n.Name.Keepalive() {
 			n.Name.SetKeepalive(false)
 			n.SetAddrtaken(true) // ensure SSA keeps the n variable
-			kill = nod(OVARLIVE, n, nil)
+			kill := nod(OVARLIVE, n, nil)
 			kill = typecheck(kill, Etop)
 			*out = append(*out, kill)
 		}
-		kill = nod(OVARKILL, n, nil)
+		kill := nod(OVARKILL, n, nil)
 		kill = typecheck(kill, Etop)
 		*out = append(*out, kill)
 	}
@@ -450,26 +448,20 @@ func ordermapassign(n *Node, order *Order) {
 
 	case OAS2, OAS2DOTTYPE, OAS2MAPR, OAS2FUNC:
 		var post []*Node
-		var m *Node
-		var a *Node
-		for i1, n1 := range n.List.Slice() {
-			if n1.Op == OINDEXMAP {
-				m = n1
+		for i, m := range n.List.Slice() {
+			switch {
+			case m.Op == OINDEXMAP:
 				if !m.Left.IsAutoTmp() {
 					m.Left = ordercopyexpr(m.Left, m.Left.Type, order, 0)
 				}
 				if !m.Right.IsAutoTmp() {
 					m.Right = ordercopyexpr(m.Right, m.Right.Type, order, 0)
 				}
-				n.List.SetIndex(i1, ordertemp(m.Type, order, false))
-				a = nod(OAS, m, n.List.Index(i1))
-				a = typecheck(a, Etop)
-				post = append(post, a)
-			} else if instrumenting && n.Op == OAS2FUNC && !isblank(n.List.Index(i1)) {
-				m = n.List.Index(i1)
+				fallthrough
+			case instrumenting && n.Op == OAS2FUNC && !isblank(m):
 				t := ordertemp(m.Type, order, false)
-				n.List.SetIndex(i1, t)
-				a = nod(OAS, m, t)
+				n.List.SetIndex(i, t)
+				a := nod(OAS, m, t)
 				a = typecheck(a, Etop)
 				post = append(post, a)
 			}
@@ -765,8 +757,8 @@ func orderstmt(n *Node, order *Order) {
 			// hiter contains pointers and needs to be zeroed.
 			prealloc[n] = ordertemp(hiter(n.Type), order, true)
 		}
-		for i := range n.List.Slice() {
-			n.List.SetIndex(i, orderexprinplace(n.List.Index(i), order))
+		for i, n1 := range n.List.Slice() {
+			n.List.SetIndex(i, orderexprinplace(n1, order))
 		}
 		orderblockNodes(&n.Nbody)
 		order.out = append(order.out, n)
@@ -788,14 +780,11 @@ func orderstmt(n *Node, order *Order) {
 	case OSELECT:
 		t := marktemp(order)
 
-		var tmp1 *Node
-		var tmp2 *Node
-		var r *Node
 		for _, n2 := range n.List.Slice() {
 			if n2.Op != OXCASE {
 				Fatalf("order select case %v", n2.Op)
 			}
-			r = n2.Left
+			r := n2.Left
 			setlineno(n2)
 
 			// Append any new body prologue to ninit.
@@ -856,16 +845,16 @@ func orderstmt(n *Node, order *Order) {
 						// use channel element type for temporary to avoid conversions,
 						// such as in case interfacevalue = <-intchan.
 						// the conversion happens in the OAS instead.
-						tmp1 = r.Left
+						tmp1 := r.Left
 
 						if r.Colas() {
-							tmp2 = nod(ODCL, tmp1, nil)
+							tmp2 := nod(ODCL, tmp1, nil)
 							tmp2 = typecheck(tmp2, Etop)
 							n2.Ninit.Append(tmp2)
 						}
 
 						r.Left = ordertemp(r.Right.Left.Type.Elem(), order, types.Haspointers(r.Right.Left.Type.Elem()))
-						tmp2 = nod(OAS, tmp1, r.Left)
+						tmp2 := nod(OAS, tmp1, r.Left)
 						tmp2 = typecheck(tmp2, Etop)
 						n2.Ninit.Append(tmp2)
 					}
@@ -874,15 +863,15 @@ func orderstmt(n *Node, order *Order) {
 						r.List.Set(nil)
 					}
 					if r.List.Len() != 0 {
-						tmp1 = r.List.First()
+						tmp1 := r.List.First()
 						if r.Colas() {
-							tmp2 = nod(ODCL, tmp1, nil)
+							tmp2 := nod(ODCL, tmp1, nil)
 							tmp2 = typecheck(tmp2, Etop)
 							n2.Ninit.Append(tmp2)
 						}
 
 						r.List.Set1(ordertemp(types.Types[TBOOL], order, false))
-						tmp2 = okas(tmp1, r.List.First())
+						tmp2 := okas(tmp1, r.List.First())
 						tmp2 = typecheck(tmp2, Etop)
 						n2.Ninit.Append(tmp2)
 					}

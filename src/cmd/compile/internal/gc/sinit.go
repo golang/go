@@ -228,8 +228,7 @@ func init2list(l Nodes, out *[]*Node) {
 }
 
 func initreorder(l []*Node, out *[]*Node) {
-	var n *Node
-	for _, n = range l {
+	for _, n := range l {
 		switch n.Op {
 		case ODCLFUNC, ODCLCONST, ODCLTYPE:
 			continue
@@ -883,11 +882,10 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 
 	// put dynamics into array (5)
 	var index int64
-	for _, r := range n.List.Slice() {
-		value := r
-		if r.Op == OKEY {
-			index = nonnegintconst(r.Left)
-			value = r.Right
+	for _, value := range n.List.Slice() {
+		if value.Op == OKEY {
+			index = nonnegintconst(value.Left)
+			value = value.Right
 		}
 		a := nod(OINDEX, vauto, nodintconst(index))
 		a.SetBounded(true)

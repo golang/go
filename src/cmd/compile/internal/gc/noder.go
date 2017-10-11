@@ -19,7 +19,6 @@ import (
 )
 
 func parseFiles(filenames []string) uint {
-	var lines uint
 	var noders []*noder
 	// Limit the number of simultaneously open files.
 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
@@ -45,6 +44,7 @@ func parseFiles(filenames []string) uint {
 		}(filename)
 	}
 
+	var lines uint
 	for _, p := range noders {
 		for e := range p.err {
 			yyerrorpos(e.Pos, "%s", e.Msg)

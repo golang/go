@@ -1537,13 +1537,11 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		n.Right.exprfmt(s, nprec+1, mode)
 
 	case OADDSTR:
-		i := 0
-		for _, n1 := range n.List.Slice() {
+		for i, n1 := range n.List.Slice() {
 			if i != 0 {
 				fmt.Fprint(s, " + ")
 			}
 			n1.exprfmt(s, nprec, mode)
-			i++
 		}
 
 	case OCMPSTR, OCMPIFACE:
