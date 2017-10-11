@@ -150,7 +150,7 @@ func (b *blockReader) Read(p []byte) (int, error) {
 }
 
 // decode reads a GIF image from r and stores the result in d.
-func (d *decoder) decode(r io.Reader, configOnly bool) error {
+func (d *decoder) decode(r io.Reader, configOnly, keepAllFrames bool) error {
 	// Add buffering if r does not provide ReadByte.
 	if rr, ok := r.(reader); ok {
 		d.r = rr
@@ -279,9 +279,11 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 				uninterlace(m)
 			}
 
-			d.image = append(d.image, m)
-			d.delay = append(d.delay, d.delayTime)
-			d.disposal = append(d.disposal, d.disposalMethod)
+			if keepAllFrames || len(d.image) == 0 {
+				d.image = append(d.image, m)
+				d.delay = append(d.delay, d.delayTime)
+				d.disposal = append(d.disposal, d.disposalMethod)
+			}
 			// The GIF89a spec, Section 23 (Graphic Control Extension) says:
 			// "The scope of this extension is the first graphic rendering block
 			// to follow." We therefore reset the GCE fields to zero.
@@ -491,7 +493,7 @@ func uninterlace(m *image.Paletted) {
 // image as an image.Image.
 func Decode(r io.Reader) (image.Image, error) {
 	var d decoder
-	if err := d.decode(r, false); err != nil {
+	if err := d.decode(r, false, false); err != nil {
 		return nil, err
 	}
 	return d.image[0], nil
@@ -526,7 +528,7 @@ type GIF struct {
 // and timing information.
 func DecodeAll(r io.Reader) (*GIF, error) {
 	var d decoder
-	if err := d.decode(r, false); err != nil {
+	if err := d.decode(r, false, true); err != nil {
 		return nil, err
 	}
 	gif := &GIF{
@@ -548,7 +550,7 @@ func DecodeAll(r io.Reader) (*GIF, error) {
 // without decoding the entire image.
 func DecodeConfig(r io.Reader) (image.Config, error) {
 	var d decoder
-	if err := d.decode(r, true); err != nil {
+	if err := d.decode(r, true, false); err != nil {
 		return image.Config{}, err
 	}
 	return image.Config{
