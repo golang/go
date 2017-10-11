@@ -31,11 +31,40 @@ var (
 // package uses CancelIoEx API, if present, otherwise it fallback
 // to CancelIo.
 
-var (
-	canCancelIO                               bool // determines if CancelIoEx API is present
-	skipSyncNotif                             bool
-	hasLoadSetFileCompletionNotificationModes bool
-)
+var canCancelIO bool // determines if CancelIoEx API is present
+
+// This package uses SetFileCompletionNotificationModes Windows API
+// to skip calling GetQueuedCompletionStatus if an IO operation completes
+// synchronously. Unfortuently SetFileCompletionNotificationModes is not
+// available on Windows XP. Also there is a known bug where
+// SetFileCompletionNotificationModes crashes on some systems
+// (see http://support.microsoft.com/kb/2568167 for details).
+
+var useSetFileCompletionNotificationModes bool // determines is SetFileCompletionNotificationModes is present and safe to use
+
+// checkSetFileCompletionNotificationModes verifies that
+// SetFileCompletionNotificationModes Windows API is present
+// on the system and is safe to use.
+// See http://support.microsoft.com/kb/2568167 for details.
+func checkSetFileCompletionNotificationModes() {
+	err := syscall.LoadSetFileCompletionNotificationModes()
+	if err != nil {
+		return
+	}
+	protos := [2]int32{syscall.IPPROTO_TCP, 0}
+	var buf [32]syscall.WSAProtocolInfo
+	len := uint32(unsafe.Sizeof(buf))
+	n, err := syscall.WSAEnumProtocols(&protos[0], &buf[0], &len)
+	if err != nil {
+		return
+	}
+	for i := int32(0); i < n; i++ {
+		if buf[i].ServiceFlags1&syscall.XP1_IFS_HANDLES == 0 {
+			return
+		}
+	}
+	useSetFileCompletionNotificationModes = true
+}
 
 func init() {
 	var d syscall.WSAData
@@ -44,26 +73,7 @@ func init() {
 		initErr = e
 	}
 	canCancelIO = syscall.LoadCancelIoEx() == nil
-	hasLoadSetFileCompletionNotificationModes = syscall.LoadSetFileCompletionNotificationModes() == nil
-	if hasLoadSetFileCompletionNotificationModes {
-		// It's not safe to use FILE_SKIP_COMPLETION_PORT_ON_SUCCESS if non IFS providers are installed:
-		// http://support.microsoft.com/kb/2568167
-		skipSyncNotif = true
-		protos := [2]int32{syscall.IPPROTO_TCP, 0}
-		var buf [32]syscall.WSAProtocolInfo
-		len := uint32(unsafe.Sizeof(buf))
-		n, err := syscall.WSAEnumProtocols(&protos[0], &buf[0], &len)
-		if err != nil {
-			skipSyncNotif = false
-		} else {
-			for i := int32(0); i < n; i++ {
-				if buf[i].ServiceFlags1&syscall.XP1_IFS_HANDLES == 0 {
-					skipSyncNotif = false
-					break
-				}
-			}
-		}
-	}
+	checkSetFileCompletionNotificationModes()
 }
 
 // operation contains superset of data necessary to perform all async IO.
@@ -344,12 +354,12 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if hasLoadSetFileCompletionNotificationModes {
+	if useSetFileCompletionNotificationModes {
 		// We do not use events, so we can skip them always.
 		flags := uint8(syscall.FILE_SKIP_SET_EVENT_ON_HANDLE)
 		// It's not safe to skip completion notifications for UDP:
 		// http://blogs.technet.com/b/winserverperformance/archive/2008/06/26/designing-applications-for-high-performance-part-iii.aspx
-		if skipSyncNotif && (net == "tcp" || net == "file") {
+		if net == "tcp" || net == "file" {
 			flags |= syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
 		}
 		err := syscall.SetFileCompletionNotificationModes(fd.Sysfd, flags)
