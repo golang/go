@@ -4443,11 +4443,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 
 	e := f.Frontend().(*ssafn)
 
-	// Generate GC bitmaps, except if the stack is too large,
-	// in which compilation will fail later anyway (issue 20529).
-	if e.stksize < maxStackSize {
-		s.stackMapIndex = liveness(e, f)
-	}
+	s.stackMapIndex = liveness(e, f)
 
 	// Remember where each block starts.
 	s.bstart = make([]*obj.Prog, f.NumBlocks())

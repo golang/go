@@ -3892,6 +3892,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 			case Zcall, Zcallduff:
 				if p.To.Sym == nil {
 					ctxt.Diag("call without target")
+					ctxt.DiagFlush()
 					log.Fatalf("bad code")
 				}
 
@@ -3932,6 +3933,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				if p.To.Sym != nil {
 					if yt.zcase != Zjmp {
 						ctxt.Diag("branch to ATEXT")
+						ctxt.DiagFlush()
 						log.Fatalf("bad code")
 					}
 
@@ -3953,6 +3955,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 
 				if q == nil {
 					ctxt.Diag("jmp/branch/loop without target")
+					ctxt.DiagFlush()
 					log.Fatalf("bad code")
 				}
 
@@ -4450,6 +4453,7 @@ func byteswapreg(ctxt *obj.Link, a *obj.Addr) int {
 		return REG_DX
 	default:
 		ctxt.Diag("impossible byte register")
+		ctxt.DiagFlush()
 		log.Fatalf("bad code")
 		return 0
 	}

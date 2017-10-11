@@ -223,6 +223,7 @@ func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg in
 	}
 	if oldval+p.Spadj < -10000 || oldval+p.Spadj > 1100000000 {
 		ctxt.Diag("overflow in spadj: %d + %d = %d", oldval, p.Spadj, oldval+p.Spadj)
+		ctxt.DiagFlush()
 		log.Fatalf("bad code")
 	}
 
@@ -240,6 +241,7 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
 	}
 	if int64(int32(p.To.Offset)) != p.To.Offset {
 		ctxt.Diag("overflow in PCDATA instruction: %v", p)
+		ctxt.DiagFlush()
 		log.Fatalf("bad code")
 	}
 

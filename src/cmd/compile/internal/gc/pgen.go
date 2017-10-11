@@ -228,23 +228,23 @@ func compilenow() bool {
 	return nBackendWorkers == 1 && Debug_compilelater == 0
 }
 
-const maxStackSize = 1 << 31
+const maxStackSize = 1 << 30
 
 // compileSSA builds an SSA backend function,
 // uses it to generate a plist,
 // and flushes that plist to machine code.
 // worker indicates which of the backend workers is doing the processing.
 func compileSSA(fn *Node, worker int) {
-	ssafn := buildssa(fn, worker)
-	pp := newProgs(fn, worker)
-	genssa(ssafn, pp)
-	if pp.Text.To.Offset < maxStackSize {
-		pp.Flush()
-	} else {
+	f := buildssa(fn, worker)
+	if f.Frontend().(*ssafn).stksize >= maxStackSize {
 		largeStackFramesMu.Lock()
 		largeStackFrames = append(largeStackFrames, fn.Pos)
 		largeStackFramesMu.Unlock()
+		return
 	}
+	pp := newProgs(fn, worker)
+	genssa(f, pp)
+	pp.Flush()
 	// fieldtrack must be called after pp.Flush. See issue 20014.
 	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
 	pp.Free()
