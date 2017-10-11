@@ -527,6 +527,7 @@ type Link struct {
 	InlTree            InlTree // global inlining tree used by gc/inl.go
 	Imports            []string
 	DiagFunc           func(string, ...interface{})
+	DiagFlush          func()
 	DebugInfo          func(fn *LSym, curfn interface{}) []dwarf.Scope // if non-nil, curfn is a *gc.Node
 	Errors             int
 

@@ -139,6 +139,7 @@ func Main(archInit func(*Arch)) {
 
 	Ctxt = obj.Linknew(thearch.LinkArch)
 	Ctxt.DiagFunc = yyerror
+	Ctxt.DiagFlush = flusherrors
 	Ctxt.Bso = bufio.NewWriter(os.Stdout)
 
 	localpkg = types.NewPkg("", "")
@@ -616,7 +617,7 @@ func Main(archInit func(*Arch)) {
 			return largeStackFrames[i].Before(largeStackFrames[j])
 		})
 		for _, largePos := range largeStackFrames {
-			yyerrorl(largePos, "stack frame too large (>2GB)")
+			yyerrorl(largePos, "stack frame too large (>1GB)")
 		}
 	}
 

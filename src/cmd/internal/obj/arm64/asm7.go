@@ -1618,6 +1618,7 @@ func buildop(ctxt *obj.Link) {
 		switch r {
 		default:
 			ctxt.Diag("unknown op in build: %v", r)
+			ctxt.DiagFlush()
 			log.Fatalf("bad code")
 
 		case AADD:
