@@ -1545,6 +1545,66 @@
 (SETAE (FlagGT_ULT)) -> (MOVLconst [0])
 (SETAE (FlagGT_UGT)) -> (MOVLconst [1])
 
+(SETEQmem [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETEQmem [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETEQmem [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETEQmem [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETEQmem [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+
+(SETNEmem [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETNEmem [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETNEmem [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETNEmem [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETNEmem [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+
+(SETLmem  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETLmem  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETLmem  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETLmem  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETLmem  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+
+(SETLEmem [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETLEmem [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETLEmem [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETLEmem [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETLEmem [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+
+(SETGmem  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETGmem  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETGmem  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETGmem  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETGmem  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+
+(SETGEmem [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETGEmem [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETGEmem [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETGEmem [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETGEmem [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+
+(SETBmem  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETBmem  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETBmem  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETBmem  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETBmem  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+
+(SETBEmem [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETBEmem [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETBEmem [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETBEmem [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETBEmem [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+
+(SETAmem  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETAmem  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETAmem  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETAmem  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETAmem  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+
+(SETAEmem [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETAEmem [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETAEmem [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETAEmem [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETAEmem [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+
 // Remove redundant *const ops
 (ADDQconst [0] x) -> x
 (ADDLconst [c] x) && int32(c)==0 -> x
