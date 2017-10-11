@@ -734,6 +734,7 @@ func validMethod(method string) bool {
 	                    | "HEAD"                   ; Section 9.4
 	                    | "POST"                   ; Section 9.5
 	                    | "PUT"                    ; Section 9.6
+			    | "PATCH"		       ; RFC 5789
 	                    | "DELETE"                 ; Section 9.7
 	                    | "TRACE"                  ; Section 9.8
 	                    | "CONNECT"                ; Section 9.9
