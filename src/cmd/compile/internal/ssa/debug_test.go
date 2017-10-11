@@ -98,12 +98,18 @@ func TestNexting(t *testing.T) {
 		}
 	}
 
-	testNexting(t, "hist", "dbg", "-N -l")
-	// If this is test is run with a runtime compiled with -N -l, it is very likely to fail.
-	// This occurs in the noopt builders (for example).
-	if gogcflags := os.Getenv("GO_GCFLAGS"); *force || !strings.Contains(gogcflags, "-N") && !strings.Contains(gogcflags, "-l") {
-		testNexting(t, "hist", "opt", "")
-	}
+	t.Run("dbg", func(t *testing.T) {
+		testNexting(t, "hist", "dbg", "-N -l")
+	})
+	t.Run("opt", func(t *testing.T) {
+		// If this is test is run with a runtime compiled with -N -l, it is very likely to fail.
+		// This occurs in the noopt builders (for example).
+		if gogcflags := os.Getenv("GO_GCFLAGS"); *force || (!strings.Contains(gogcflags, "-N") && !strings.Contains(gogcflags, "-l")) {
+			testNexting(t, "hist", "opt", "")
+		} else {
+			t.Skip("skipping for unoptimized runtime")
+		}
+	})
 }
 
 func testNexting(t *testing.T, base, tag, gcflags string) {
