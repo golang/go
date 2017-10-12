@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ld
+// Package loadpe implements a PE/COFF file reader.
+package loadpe
 
 import (
 	"cmd/internal/bio"
@@ -10,10 +11,10 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
 	"debug/pe"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"sort"
 	"strings"
 )
@@ -102,6 +103,17 @@ const (
 	IMAGE_REL_AMD64_SSPAN32          = 0x0010
 )
 
+// TODO(crawshaw): de-duplicate these symbols with cmd/internal/ld, ideally in debug/pe.
+const (
+	IMAGE_SCN_CNT_CODE               = 0x00000020
+	IMAGE_SCN_CNT_INITIALIZED_DATA   = 0x00000040
+	IMAGE_SCN_CNT_UNINITIALIZED_DATA = 0x00000080
+	IMAGE_SCN_MEM_DISCARDABLE        = 0x02000000
+	IMAGE_SCN_MEM_EXECUTE            = 0x20000000
+	IMAGE_SCN_MEM_READ               = 0x40000000
+	IMAGE_SCN_MEM_WRITE              = 0x80000000
+)
+
 // TODO(brainman): maybe just add ReadAt method to bio.Reader instead of creating peBiobuf
 
 // peBiobuf makes bio.Reader look like io.ReaderAt.
@@ -119,19 +131,11 @@ func (f *peBiobuf) ReadAt(p []byte, off int64) (int, error) {
 	return n, nil
 }
 
-func ldpe(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) {
-	err := ldpeError(ctxt, input, pkg, length, pn)
-	if err != nil {
-		Errorf(nil, "%s: malformed pe file: %v", pn, err)
-	}
-}
-
-func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) error {
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f ldpe %s\n", Cputime(), pn)
-	}
-
-	localSymVersion := ctxt.Syms.IncVersion()
+// Load loads the PE file pn from input.
+// Symbols are written into syms, and a slice of the text symbols is returned.
+// If an .rsrc section is found, its symbol is returned as rsrc.
+func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, rsrc *sym.Symbol, err error) {
+	localSymVersion := syms.IncVersion()
 
 	sectsyms := make(map[*pe.Section]*sym.Symbol)
 	sectdata := make(map[*pe.Section][]byte)
@@ -145,7 +149,7 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 	// TODO: replace pe.NewFile with pe.Load (grep for "add Load function" in debug/pe for details)
 	f, err := pe.NewFile(sr)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	defer f.Close()
 
@@ -164,7 +168,7 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 		}
 
 		name := fmt.Sprintf("%s(%s)", pkg, sect.Name)
-		s := ctxt.Syms.Lookup(name, localSymVersion)
+		s := syms.Lookup(name, localSymVersion)
 
 		switch sect.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
@@ -180,13 +184,13 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 			s.Type = sym.STEXT
 
 		default:
-			return fmt.Errorf("unexpected flags %#06x for PE section %s", sect.Characteristics, sect.Name)
+			return nil, nil, fmt.Errorf("unexpected flags %#06x for PE section %s", sect.Characteristics, sect.Name)
 		}
 
 		if s.Type != sym.SNOPTRBSS {
 			data, err := sect.Data()
 			if err != nil {
-				return err
+				return nil, nil, err
 			}
 			sectdata[sect] = data
 			s.P = data
@@ -194,7 +198,7 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 		s.Size = int64(sect.Size)
 		sectsyms[sect] = s
 		if sect.Name == ".rsrc" {
-			setpersrc(ctxt, s)
+			rsrc = s
 		}
 	}
 
@@ -219,19 +223,19 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 		for j, r := range rsect.Relocs {
 			rp := &rs[j]
 			if int(r.SymbolTableIndex) >= len(f.COFFSymbols) {
-				return fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
+				return nil, nil, fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
 			}
 			pesym := &f.COFFSymbols[r.SymbolTableIndex]
-			gosym, err := readpesym(ctxt, f, pesym, sectsyms, localSymVersion)
+			gosym, err := readpesym(arch, syms, f, pesym, sectsyms, localSymVersion)
 			if err != nil {
-				return err
+				return nil, nil, err
 			}
 			if gosym == nil {
 				name, err := pesym.FullName(f.StringTable)
 				if err != nil {
 					name = string(pesym.Name[:])
 				}
-				return fmt.Errorf("reloc of invalid sym %s idx=%d type=%d", name, r.SymbolTableIndex, pesym.Type)
+				return nil, nil, fmt.Errorf("reloc of invalid sym %s idx=%d type=%d", name, r.SymbolTableIndex, pesym.Type)
 			}
 
 			rp.Sym = gosym
@@ -239,21 +243,20 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 			rp.Off = int32(r.VirtualAddress)
 			switch r.Type {
 			default:
-				Errorf(sectsyms[rsect], "%s: unknown relocation type %d;", pn, r.Type)
-				fallthrough
+				return nil, nil, fmt.Errorf("%s: %v: unknown relocation type %v", pn, sectsyms[rsect], r.Type)
 
 			case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
 				IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
 				IMAGE_REL_AMD64_ADDR32NB:
 				rp.Type = objabi.R_PCREL
 
-				rp.Add = int64(int32(Le32(sectdata[rsect][rp.Off:])))
+				rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
 
 			case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
 				rp.Type = objabi.R_ADDR
 
 				// load addend from image
-				rp.Add = int64(int32(Le32(sectdata[rsect][rp.Off:])))
+				rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
 
 			case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
 				rp.Siz = 8
@@ -261,7 +264,7 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 				rp.Type = objabi.R_ADDR
 
 				// load addend from image
-				rp.Add = int64(Le64(sectdata[rsect][rp.Off:]))
+				rp.Add = int64(binary.LittleEndian.Uint64(sectdata[rsect][rp.Off:]))
 			}
 
 			// ld -r could generate multiple section symbols for the
@@ -287,7 +290,7 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 
 		name, err := pesym.FullName(f.StringTable)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		if name == "" {
 			continue
@@ -309,9 +312,9 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 			}
 		}
 
-		s, err := readpesym(ctxt, f, pesym, sectsyms, localSymVersion)
+		s, err := readpesym(arch, syms, f, pesym, sectsyms, localSymVersion)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 
 		if pesym.SectionNumber == 0 { // extern
@@ -327,21 +330,21 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 		} else if pesym.SectionNumber > 0 && int(pesym.SectionNumber) <= len(f.Sections) {
 			sect = f.Sections[pesym.SectionNumber-1]
 			if _, found := sectsyms[sect]; !found {
-				Errorf(s, "%s: missing sect.sym", pn)
+				return nil, nil, fmt.Errorf("%s: %v: missing sect.sym", pn, s)
 			}
 		} else {
-			Errorf(s, "%s: sectnum < 0!", pn)
+			return nil, nil, fmt.Errorf("%s: %v: sectnum < 0!", pn, s)
 		}
 
 		if sect == nil {
-			return nil
+			return nil, rsrc, nil
 		}
 
 		if s.Outer != nil {
 			if s.Attr.DuplicateOK() {
 				continue
 			}
-			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sectsyms[sect].Name)
+			return nil, nil, fmt.Errorf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sectsyms[sect].Name)
 		}
 
 		sectsym := sectsyms[sect]
@@ -353,7 +356,7 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 		s.Outer = sectsym
 		if sectsym.Type == sym.STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {
-				Errorf(s, "%s: duplicate symbol definition", pn)
+				return nil, nil, fmt.Errorf("%s: duplicate symbol definition", s.Name)
 			}
 			s.Attr |= sym.AttrExternal
 		}
@@ -371,28 +374,28 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 		}
 		if s.Type == sym.STEXT {
 			if s.Attr.OnList() {
-				log.Fatalf("symbol %s listed multiple times", s.Name)
+				return nil, nil, fmt.Errorf("symbol %s listed multiple times", s.Name)
 			}
 			s.Attr |= sym.AttrOnList
-			ctxt.Textp = append(ctxt.Textp, s)
+			textp = append(textp, s)
 			for s = s.Sub; s != nil; s = s.Sub {
 				if s.Attr.OnList() {
-					log.Fatalf("symbol %s listed multiple times", s.Name)
+					return nil, nil, fmt.Errorf("symbol %s listed multiple times", s.Name)
 				}
 				s.Attr |= sym.AttrOnList
-				ctxt.Textp = append(ctxt.Textp, s)
+				textp = append(textp, s)
 			}
 		}
 	}
 
-	return nil
+	return textp, rsrc, nil
 }
 
 func issect(s *pe.COFFSymbol) bool {
 	return s.StorageClass == IMAGE_SYM_CLASS_STATIC && s.Type == 0 && s.Name[0] == '.'
 }
 
-func readpesym(ctxt *Link, f *pe.File, pesym *pe.COFFSymbol, sectsyms map[*pe.Section]*sym.Symbol, localSymVersion int) (*sym.Symbol, error) {
+func readpesym(arch *sys.Arch, syms *sym.Symbols, f *pe.File, pesym *pe.COFFSymbol, sectsyms map[*pe.Section]*sym.Symbol, localSymVersion int) (*sym.Symbol, error) {
 	symname, err := pesym.FullName(f.StringTable)
 	if err != nil {
 		return nil, err
@@ -405,7 +408,7 @@ func readpesym(ctxt *Link, f *pe.File, pesym *pe.COFFSymbol, sectsyms map[*pe.Se
 		if strings.HasPrefix(name, "__imp_") {
 			name = name[6:] // __imp_Name => Name
 		}
-		if ctxt.Arch.Family == sys.I386 && name[0] == '_' {
+		if arch.Family == sys.I386 && name[0] == '_' {
 			name = name[1:] // _Name => Name
 		}
 	}
@@ -423,10 +426,10 @@ func readpesym(ctxt *Link, f *pe.File, pesym *pe.COFFSymbol, sectsyms map[*pe.Se
 	case IMAGE_SYM_DTYPE_FUNCTION, IMAGE_SYM_DTYPE_NULL:
 		switch pesym.StorageClass {
 		case IMAGE_SYM_CLASS_EXTERNAL: //global
-			s = ctxt.Syms.Lookup(name, 0)
+			s = syms.Lookup(name, 0)
 
 		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
-			s = ctxt.Syms.Lookup(name, localSymVersion)
+			s = syms.Lookup(name, localSymVersion)
 			s.Attr |= sym.AttrDuplicateOK
 
 		default:

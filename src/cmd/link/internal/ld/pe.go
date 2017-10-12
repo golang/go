@@ -91,6 +91,25 @@ const (
 	IMAGE_SUBSYSTEM_WINDOWS_CUI          = 3
 )
 
+// TODO(crawshaw): add these constants to debug/pe.
+const (
+	IMAGE_SYM_TYPE_NULL      = 0
+	IMAGE_SYM_TYPE_STRUCT    = 8
+	IMAGE_SYM_DTYPE_FUNCTION = 0x20
+	IMAGE_SYM_DTYPE_ARRAY    = 0x30
+	IMAGE_SYM_CLASS_EXTERNAL = 2
+	IMAGE_SYM_CLASS_STATIC   = 3
+
+	IMAGE_REL_I386_DIR32  = 0x0006
+	IMAGE_REL_I386_SECREL = 0x000B
+	IMAGE_REL_I386_REL32  = 0x0014
+
+	IMAGE_REL_AMD64_ADDR64 = 0x0001
+	IMAGE_REL_AMD64_ADDR32 = 0x0002
+	IMAGE_REL_AMD64_REL32  = 0x0004
+	IMAGE_REL_AMD64_SECREL = 0x000B
+)
+
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
