@@ -461,7 +461,7 @@ func runBuild(cmd *base.Command, args []string) {
 			base.Fatalf("no packages to build")
 		}
 		p := pkgs[0]
-		p.Internal.Target = cfg.BuildO
+		p.Target = cfg.BuildO
 		p.Stale = true // must build - not up to date
 		p.StaleReason = "build -o flag in use"
 		a := b.AutoAction(ModeInstall, depMode, p)
@@ -885,7 +885,7 @@ func (b *Builder) AutoAction(mode, depMode BuildMode, p *load.Package) *Action {
 // depMode is the action (build or install) to use when building dependencies.
 // To turn package main into an executable, call b.Link instead.
 func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Action {
-	if mode == ModeInstall && p.Internal.Local && p.Internal.Target == "" {
+	if mode == ModeInstall && p.Internal.Local && p.Target == "" {
 		// Imported via local path. No permanent target.
 		mode = ModeBuild
 	}
@@ -922,17 +922,17 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 			if cfg.BuildToolchainName == "gccgo" {
 				// the target name is needed for cgo.
 				a.Mode = "gccgo stdlib"
-				a.Target = p.Internal.Target
+				a.Target = p.Target
 				a.Func = nil
 				return a
 			}
 		}
 
-		if !p.Stale && p.Internal.Target != "" && p.Name != "main" {
-			// p.Stale==false implies that p.Internal.Target is up-to-date.
+		if !p.Stale && p.Target != "" && p.Name != "main" {
+			// p.Stale==false implies that p.Target is up-to-date.
 			// Record target name for use by actions depending on this one.
 			a.Mode = "use installed"
-			a.Target = p.Internal.Target
+			a.Target = p.Target
 			a.Func = nil
 			a.built = a.Target
 			return a
@@ -959,12 +959,12 @@ func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
 			Package: p,
 		}
 
-		if !p.Stale && p.Internal.Target != "" {
-			// p.Stale==false implies that p.Internal.Target is up-to-date.
+		if !p.Stale && p.Target != "" {
+			// p.Stale==false implies that p.Target is up-to-date.
 			// Record target name for use by actions depending on this one.
 			a.Mode = "use installed"
 			a.Func = nil
-			a.Target = p.Internal.Target
+			a.Target = p.Target
 			a.built = a.Target
 			return a
 		}
@@ -984,7 +984,7 @@ func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
 		name := "a.out"
 		if p.Internal.ExeName != "" {
 			name = p.Internal.ExeName
-		} else if (cfg.Goos == "darwin" || cfg.Goos == "windows") && cfg.BuildBuildmode == "c-shared" && p.Internal.Target != "" {
+		} else if (cfg.Goos == "darwin" || cfg.Goos == "windows") && cfg.BuildBuildmode == "c-shared" && p.Target != "" {
 			// On OS X, the linker output name gets recorded in the
 			// shared library's LC_ID_DYLIB load command.
 			// The code invoking the linker knows to pass only the final
@@ -992,7 +992,7 @@ func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
 			// we'll install it as; otherwise the library is only loadable as "a.out".
 			// On Windows, DLL file name is recorded in PE file
 			// export section, so do like on OS X.
-			_, name = filepath.Split(p.Internal.Target)
+			_, name = filepath.Split(p.Target)
 		}
 		a.Target = a.Objdir + filepath.Join("exe", name) + cfg.ExeSuffix
 		a.built = a.Target
@@ -1024,8 +1024,8 @@ func (b *Builder) installAction(a1 *Action) *Action {
 			Package: p,
 			Objdir:  a1.Objdir,
 			Deps:    []*Action{a1},
-			Target:  p.Internal.Target,
-			built:   p.Internal.Target,
+			Target:  p.Target,
+			built:   p.Target,
 		}
 		b.addInstallHeaderAction(a)
 		return a
@@ -1273,14 +1273,14 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 			}
 			for _, a2 := range buildAction.Deps[0].Deps {
 				p := a2.Package
-				if p.Internal.Target == "" {
+				if p.Target == "" {
 					continue
 				}
 				a.Deps = append(a.Deps, &Action{
 					Mode:    "shlibname",
 					Package: p,
 					Func:    (*Builder).installShlibname,
-					Target:  strings.TrimSuffix(p.Internal.Target, ".a") + ".shlibname",
+					Target:  strings.TrimSuffix(p.Target, ".a") + ".shlibname",
 					Deps:    []*Action{a.Deps[0]},
 				})
 			}

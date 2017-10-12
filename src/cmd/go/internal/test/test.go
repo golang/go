@@ -737,7 +737,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		ptest.GoFiles = nil
 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
 		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
-		ptest.Internal.Target = ""
+		ptest.Target = ""
 		ptest.Imports = str.StringList(p.Imports, p.TestImports)
 		ptest.Internal.Imports = append(append([]*load.Package{}, p.Internal.Imports...), imports...)
 		ptest.Internal.ForceLibrary = true
@@ -1017,7 +1017,7 @@ func recompileForTest(pmain, preal, ptest *load.Package) {
 			p1.Internal.Imports = make([]*load.Package, len(p.Internal.Imports))
 			copy(p1.Internal.Imports, p.Internal.Imports)
 			p = p1
-			p.Internal.Target = ""
+			p.Target = ""
 			p.Stale = true
 			p.StaleReason = "depends on package being tested"
 		}

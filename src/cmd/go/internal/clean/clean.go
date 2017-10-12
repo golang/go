@@ -213,12 +213,12 @@ func clean(p *load.Package) {
 		}
 	}
 
-	if cleanI && p.Internal.Target != "" {
+	if cleanI && p.Target != "" {
 		if cfg.BuildN || cfg.BuildX {
-			b.Showcmd("", "rm -f %s", p.Internal.Target)
+			b.Showcmd("", "rm -f %s", p.Target)
 		}
 		if !cfg.BuildN {
-			removeFile(p.Internal.Target)
+			removeFile(p.Target)
 		}
 	}
 
