@@ -668,6 +668,47 @@ func TestCopy(t *testing.T) {
 	}
 }
 
+func TestCopyString(t *testing.T) {
+	t.Run("Slice", func(t *testing.T) {
+		s := bytes.Repeat([]byte{'_'}, 8)
+		val := ValueOf(s)
+
+		n := Copy(val, ValueOf(""))
+		if expecting := []byte("________"); n != 0 || !bytes.Equal(s, expecting) {
+			t.Errorf("got n = %d, s = %s, expecting n = 0, s = %s", n, s, expecting)
+		}
+
+		n = Copy(val, ValueOf("hello"))
+		if expecting := []byte("hello___"); n != 5 || !bytes.Equal(s, expecting) {
+			t.Errorf("got n = %d, s = %s, expecting n = 5, s = %s", n, s, expecting)
+		}
+
+		n = Copy(val, ValueOf("helloworld"))
+		if expecting := []byte("hellowor"); n != 8 || !bytes.Equal(s, expecting) {
+			t.Errorf("got n = %d, s = %s, expecting n = 8, s = %s", n, s, expecting)
+		}
+	})
+	t.Run("Array", func(t *testing.T) {
+		s := [...]byte{'_', '_', '_', '_', '_', '_', '_', '_'}
+		val := ValueOf(&s).Elem()
+
+		n := Copy(val, ValueOf(""))
+		if expecting := []byte("________"); n != 0 || !bytes.Equal(s[:], expecting) {
+			t.Errorf("got n = %d, s = %s, expecting n = 0, s = %s", n, s[:], expecting)
+		}
+
+		n = Copy(val, ValueOf("hello"))
+		if expecting := []byte("hello___"); n != 5 || !bytes.Equal(s[:], expecting) {
+			t.Errorf("got n = %d, s = %s, expecting n = 5, s = %s", n, s[:], expecting)
+		}
+
+		n = Copy(val, ValueOf("helloworld"))
+		if expecting := []byte("hellowor"); n != 8 || !bytes.Equal(s[:], expecting) {
+			t.Errorf("got n = %d, s = %s, expecting n = 8, s = %s", n, s[:], expecting)
+		}
+	})
+}
+
 func TestCopyArray(t *testing.T) {
 	a := [8]int{1, 2, 3, 4, 10, 9, 8, 7}
 	b := [11]int{11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44}
