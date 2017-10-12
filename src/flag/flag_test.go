@@ -8,6 +8,7 @@ import (
 	"bytes"
 	. "flag"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strconv"
@@ -452,5 +453,38 @@ func TestUsageOutput(t *testing.T) {
 	const want = "flag provided but not defined: -i\nUsage of app:\n"
 	if got := buf.String(); got != want {
 		t.Errorf("output = %q; want %q", got, want)
+	}
+}
+
+func TestGetters(t *testing.T) {
+	expectedName := "flag set"
+	expectedErrorHandling := ContinueOnError
+	expectedOutput := io.Writer(os.Stderr)
+	fs := NewFlagSet(expectedName, expectedErrorHandling)
+
+	if fs.Name() != expectedName {
+		t.Errorf("unexpected name: got %s, expected %s", fs.Name(), expectedName)
+	}
+	if fs.ErrorHandling() != expectedErrorHandling {
+		t.Errorf("unexpected ErrorHandling: got %d, expected %d", fs.ErrorHandling(), expectedErrorHandling)
+	}
+	if fs.Output() != expectedOutput {
+		t.Errorf("unexpected output: got %#v, expected %#v", fs.Output(), expectedOutput)
+	}
+
+	expectedName = "gopher"
+	expectedErrorHandling = ExitOnError
+	expectedOutput = os.Stdout
+	fs.Init(expectedName, expectedErrorHandling)
+	fs.SetOutput(expectedOutput)
+
+	if fs.Name() != expectedName {
+		t.Errorf("unexpected name: got %s, expected %s", fs.Name(), expectedName)
+	}
+	if fs.ErrorHandling() != expectedErrorHandling {
+		t.Errorf("unexpected ErrorHandling: got %d, expected %d", fs.ErrorHandling(), expectedErrorHandling)
+	}
+	if fs.Output() != expectedOutput {
+		t.Errorf("unexpected output: got %v, expected %v", fs.Output(), expectedOutput)
 	}
 }
