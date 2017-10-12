@@ -38,6 +38,7 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/loadelf"
 	"cmd/link/internal/loadmacho"
+	"cmd/link/internal/loadpe"
 	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
 	"crypto/sha1"
@@ -1410,6 +1411,17 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	}
 
 	if c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86 {
+		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+			textp, rsrc, err := loadpe.Load(ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
+			if err != nil {
+				Errorf(nil, "%v", err)
+				return
+			}
+			if rsrc != nil {
+				setpersrc(ctxt, rsrc)
+			}
+			ctxt.Textp = append(ctxt.Textp, textp...)
+		}
 		return ldhostobj(ldpe, f, pkg, length, pn, file)
 	}
 
