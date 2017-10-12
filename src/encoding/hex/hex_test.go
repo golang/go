@@ -7,6 +7,9 @@ package hex
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"strings"
 	"testing"
 )
 
@@ -107,6 +110,63 @@ func TestInvalidStringErr(t *testing.T) {
 			t.Errorf("#%d: expected %v; got none", i, test.err)
 		} else if err != test.err {
 			t.Errorf("#%d: got: %v want: %v", i, err, test.err)
+		}
+	}
+}
+
+func TestEncoderDecoder(t *testing.T) {
+	for _, multiplier := range []int{1, 128, 192} {
+		for _, test := range encDecTests {
+			input := bytes.Repeat(test.dec, multiplier)
+			output := strings.Repeat(test.enc, multiplier)
+
+			var buf bytes.Buffer
+			enc := NewEncoder(&buf)
+			r := struct{ io.Reader }{bytes.NewReader(input)} // io.Reader only; not io.WriterTo
+			if n, err := io.CopyBuffer(enc, r, make([]byte, 7)); n != int64(len(input)) || err != nil {
+				t.Errorf("encoder.Write(%q*%d) = (%d, %v), want (%d, nil)", test.dec, multiplier, n, err, len(input))
+				continue
+			}
+
+			if encDst := buf.String(); encDst != output {
+				t.Errorf("buf(%q*%d) = %v, want %v", test.dec, multiplier, encDst, output)
+				continue
+			}
+
+			dec := NewDecoder(&buf)
+			var decBuf bytes.Buffer
+			w := struct{ io.Writer }{&decBuf} // io.Writer only; not io.ReaderFrom
+			if _, err := io.CopyBuffer(w, dec, make([]byte, 7)); err != nil || decBuf.Len() != len(input) {
+				t.Errorf("decoder.Read(%q*%d) = (%d, %v), want (%d, nil)", test.enc, multiplier, decBuf.Len(), err, len(input))
+			}
+
+			if !bytes.Equal(decBuf.Bytes(), input) {
+				t.Errorf("decBuf(%q*%d) = %v, want %v", test.dec, multiplier, decBuf.Bytes(), input)
+				continue
+			}
+		}
+	}
+}
+
+func TestDecodeErr(t *testing.T) {
+	tests := []struct {
+		in      string
+		wantOut string
+		wantErr error
+	}{
+		{"", "", nil},
+		{"0", "", io.ErrUnexpectedEOF},
+		{"0g", "", InvalidByteError('g')},
+		{"00gg", "\x00", InvalidByteError('g')},
+		{"0\x01", "", InvalidByteError('\x01')},
+		{"ffeed", "\xff\xee", io.ErrUnexpectedEOF},
+	}
+
+	for _, tt := range tests {
+		dec := NewDecoder(strings.NewReader(tt.in))
+		got, err := ioutil.ReadAll(dec)
+		if string(got) != tt.wantOut || err != tt.wantErr {
+			t.Errorf("NewDecoder(%q) = (%q, %v), want (%q, %v)", tt.in, got, err, tt.wantOut, tt.wantErr)
 		}
 	}
 }
