@@ -1018,7 +1018,9 @@ func cmdenv() {
 // that setting, not the new one.
 func cmdbootstrap() {
 	var noBanner bool
+	var debug bool
 	flag.BoolVar(&rebuildall, "a", rebuildall, "rebuild all")
+	flag.BoolVar(&debug, "d", debug, "enable debugging of bootstrap process")
 	flag.BoolVar(&noBanner, "no-banner", noBanner, "do not print banner")
 
 	xflagparse(0)
@@ -1055,31 +1057,7 @@ func cmdbootstrap() {
 	os.Setenv("GOARCH", goarch)
 	os.Setenv("GOOS", goos)
 
-	// TODO(rsc): Enable when appropriate.
-	// This step is only needed if we believe that the Go compiler built from Go 1.4
-	// will produce different object files than the Go compiler built from itself.
-	// In the absence of bugs, that should not happen.
-	// And if there are bugs, they're more likely in the current development tree
-	// than in a standard release like Go 1.4, so don't do this rebuild by default.
-	if false {
-		xprintf("##### Building Go toolchain using itself.\n")
-		for _, dir := range buildlist {
-			installed[dir] = make(chan struct{})
-		}
-		var wg sync.WaitGroup
-		for _, dir := range builddeps["cmd/go"] {
-			wg.Add(1)
-			dir := dir
-			go func() {
-				defer wg.Done()
-				install(dir)
-			}()
-		}
-		wg.Wait()
-		xprintf("\n")
-	}
-
-	xprintf("##### Building go_bootstrap for host, %s/%s.\n", gohostos, gohostarch)
+	xprintf("##### Building go_bootstrap.\n")
 	for _, dir := range buildlist {
 		installed[dir] = make(chan struct{})
 	}
@@ -1091,20 +1069,97 @@ func cmdbootstrap() {
 
 	gogcflags = os.Getenv("GO_GCFLAGS") // we were using $BOOT_GO_GCFLAGS until now
 	goldflags = os.Getenv("GO_LDFLAGS")
+	goBootstrap := pathf("%s/go_bootstrap", tooldir)
+	cmdGo := pathf("%s/go", gobin)
+	if debug {
+		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
+		copyfile(pathf("%s/compile1", tooldir), pathf("%s/compile", tooldir), writeExec)
+	}
 
-	// Build full toolchain for host and (if different) for target.
-	if goos != oldgoos || goarch != oldgoarch {
-		os.Setenv("CC", defaultcc)
-		buildAll()
-		xprintf("\n")
+	// To recap, so far we have built the new toolchain
+	// (cmd/asm, cmd/cgo, cmd/compile, cmd/link)
+	// using Go 1.4's toolchain and go command.
+	// Then we built the new go command (as go_bootstrap)
+	// using the new toolchain and our own build logic (above).
+	//
+	//	toolchain1 = mk(new toolchain, go1.4 toolchain, go1.4 cmd/go)
+	//	go_bootstrap = mk(new cmd/go, toolchain1, cmd/dist)
+	//
+	// The toolchain1 we built earlier is built from the new sources,
+	// but because it was built using cmd/go it has no build IDs.
+	// The eventually installed toolchain needs build IDs, so we need
+	// to do another round:
+	//
+	//	toolchain2 = mk(new toolchain, toolchain1, go_bootstrap)
+	//
+	xprintf("\n##### Building Go toolchain2 using go_bootstrap and Go toolchain1.\n")
+	os.Setenv("CC", defaultcc)
+	if goos == oldgoos && goarch == oldgoarch {
+		// Host and target are same, and we have historically
+		// chosen $CC_FOR_TARGET in this case.
+		os.Setenv("CC", defaultcctarget)
+	}
+	toolchain := []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link", "cmd/buildid"}
+	goInstall(toolchain...)
+	if debug {
+		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
+		run("", ShowOutput|CheckExit, pathf("%s/buildid", tooldir), pathf("%s/../../darwin_amd64/runtime/internal/sys.a", tooldir))
+		copyfile(pathf("%s/compile2", tooldir), pathf("%s/compile", tooldir), writeExec)
+	}
+
+	// Toolchain2 should be semantically equivalent to toolchain1,
+	// but it was built using the new compilers instead of the Go 1.4 compilers,
+	// so it should at the least run faster. Also, toolchain1 had no build IDs
+	// in the binaries, while toolchain2 does. In non-release builds, the
+	// toolchain's build IDs feed into constructing the build IDs of built targets,
+	// so in non-release builds, everything now looks out-of-date due to
+	// toolchain2 having build IDs - that is, due to the go command seeing
+	// that there are new compilers. In release builds, the toolchain's reported
+	// version is used in place of the build ID, and the go command does not
+	// see that change from toolchain1 to toolchain2, so in release builds,
+	// nothing looks out of date.
+	// To keep the behavior the same in both non-release and release builds,
+	// we force-install everything here.
+	//
+	//	toolchain3 = mk(new toolchain, toolchain2, go_bootstrap)
+	//
+	xprintf("\n##### Building Go toolchain3 using go_bootstrap and Go toolchain2.\n")
+	goInstall(append([]string{"-a"}, toolchain...)...)
+	if debug {
+		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
+		run("", ShowOutput|CheckExit, pathf("%s/buildid", tooldir), pathf("%s/../../darwin_amd64/runtime/internal/sys.a", tooldir))
+		copyfile(pathf("%s/compile3", tooldir), pathf("%s/compile", tooldir), writeExec)
+	}
+	checkNotStale(goBootstrap, append(toolchain, "runtime/internal/sys")...)
+
+	if goos == oldgoos && goarch == oldgoarch {
+		// Common case - not setting up for cross-compilation.
+		xprintf("\n##### Building packages and commands for %s/%s\n", goos, goarch)
+	} else {
+		// GOOS/GOARCH does not match GOHOSTOS/GOHOSTARCH.
+		// Finish GOHOSTOS/GOHOSTARCH installation and then
+		// run GOOS/GOARCH installation.
+		xprintf("\n##### Building packages and commands for host, %s/%s\n", goos, goarch)
+		goInstall("std", "cmd")
+		checkNotStale(goBootstrap, "std", "cmd")
+		checkNotStale(cmdGo, "std", "cmd")
+
+		xprintf("\n##### Building packages and commands for target, %s/%s\n", goos, goarch)
 		goos = oldgoos
 		goarch = oldgoarch
 		os.Setenv("GOOS", goos)
 		os.Setenv("GOARCH", goarch)
+		os.Setenv("CC", defaultcctarget)
 	}
-
-	os.Setenv("CC", defaultcctarget)
-	buildAll()
+	goInstall("std", "cmd")
+	checkNotStale(goBootstrap, "std", "cmd")
+	checkNotStale(cmdGo, "std", "cmd")
+	if debug {
+		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
+		run("", ShowOutput|CheckExit, pathf("%s/buildid", tooldir), pathf("%s/../../darwin_amd64/runtime/internal/sys.a", tooldir))
+		checkNotStale(goBootstrap, append(toolchain, "runtime/internal/sys")...)
+		copyfile(pathf("%s/compile4", tooldir), pathf("%s/compile", tooldir), writeExec)
+	}
 
 	// Check that there are no new files in $GOROOT/bin other than
 	// go and gofmt and $GOOS_$GOARCH (target bin when cross-compiling).
@@ -1129,21 +1184,34 @@ func cmdbootstrap() {
 	}
 }
 
-func buildAll() {
-	desc := ""
-	if oldgoos != goos || oldgoarch != goarch {
-		desc = " host,"
-	}
-	xprintf("##### Building packages and commands for%s %s/%s.\n", desc, goos, goarch)
-	go_bootstrap := pathf("%s/go_bootstrap", tooldir)
-	go_install := []string{go_bootstrap, "install", "-v", "-gcflags=" + gogcflags, "-ldflags=" + goldflags}
+func goInstall(args ...string) {
+	installCmd := []string{pathf("%s/go_bootstrap", tooldir), "install", "-v", "-gcflags=" + gogcflags, "-ldflags=" + goldflags}
 
 	// Force only one process at a time on vx32 emulation.
 	if gohostos == "plan9" && os.Getenv("sysname") == "vx32" {
-		go_install = append(go_install, "-p=1")
+		installCmd = append(installCmd, "-p=1")
 	}
 
-	run(pathf("%s/src", goroot), ShowOutput|CheckExit, append(go_install, "std", "cmd")...)
+	run(goroot, ShowOutput|CheckExit, append(installCmd, args...)...)
+}
+
+func checkNotStale(goBinary string, targets ...string) {
+	out := run(goroot, CheckExit,
+		append([]string{
+			goBinary,
+			"list", "-gcflags=" + gogcflags, "-ldflags=" + goldflags,
+			"-f={{if .Stale}}\t{{.ImportPath}}: {{.StaleReason}}{{end}}",
+		}, targets...)...)
+	if out != "" {
+		os.Setenv("GOCMDDEBUGHASH", "1")
+		for _, target := range []string{"runtime/internal/sys", "cmd/dist", "cmd/link"} {
+			if strings.Contains(out, target) {
+				run(goroot, ShowOutput|CheckExit, goBinary, "list", "-f={{.ImportPath}} {{.Stale}}", target)
+				break
+			}
+		}
+		fatalf("unexpected stale targets reported by %s list -gcflags=\"%s\" -ldflags=\"%s\" for %v:\n%s", goBinary, gogcflags, goldflags, targets, out)
+	}
 }
 
 // Cannot use go/build directly because cmd/dist for a new release

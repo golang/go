@@ -560,8 +560,6 @@ func runTest(cmd *base.Command, args []string) {
 			if p.ImportPath == "unsafe" {
 				continue
 			}
-			p.Stale = true // rebuild
-			p.StaleReason = "rebuild for coverage"
 			p.Internal.CoverMode = testCoverMode
 			var coverFiles []string
 			coverFiles = append(coverFiles, p.GoFiles...)
@@ -633,13 +631,12 @@ func ensureImport(p *load.Package, pkg string) {
 		}
 	}
 
-	a := load.LoadPackage(pkg, &load.ImportStack{})
-	if a.Error != nil {
-		base.Fatalf("load %s: %v", pkg, a.Error)
+	p1 := load.LoadPackage(pkg, &load.ImportStack{})
+	if p1.Error != nil {
+		base.Fatalf("load %s: %v", pkg, p1.Error)
 	}
-	load.ComputeStale(a)
 
-	p.Internal.Imports = append(p.Internal.Imports, a)
+	p.Internal.Imports = append(p.Internal.Imports, p1)
 }
 
 var windowsBadWords = []string{
@@ -741,8 +738,6 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		ptest.Imports = str.StringList(p.Imports, p.TestImports)
 		ptest.Internal.Imports = append(append([]*load.Package{}, p.Internal.Imports...), imports...)
 		ptest.Internal.ForceLibrary = true
-		ptest.Stale = true
-		ptest.StaleReason = "rebuild for test"
 		ptest.Internal.Build = new(build.Package)
 		*ptest.Internal.Build = *p.Internal.Build
 		m := map[string][]token.Position{}
@@ -775,7 +770,6 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 				Dir:        p.Dir,
 				GoFiles:    p.XTestGoFiles,
 				Imports:    p.XTestImports,
-				Stale:      true,
 			},
 			Internal: load.PackageInternal{
 				LocalPrefix: p.Internal.LocalPrefix,
@@ -803,7 +797,6 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 			GoFiles:    []string{"_testmain.go"},
 			ImportPath: p.ImportPath + " (testmain)",
 			Root:       p.Root,
-			Stale:      true,
 		},
 		Internal: load.PackageInternal{
 			Build:     &build.Package{Name: "main"},
@@ -894,8 +887,6 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		}
 	}
 
-	load.ComputeStale(pmain)
-
 	a := b.LinkAction(work.ModeBuild, work.ModeBuild, pmain)
 	a.Target = testDir + testBinary + cfg.ExeSuffix
 	if cfg.Goos == "windows" {
@@ -939,6 +930,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 				target = filepath.Join(base.Cwd, target)
 			}
 		}
+		pmain.Target = target
 		buildAction = &work.Action{
 			Mode:    "test build",
 			Func:    work.BuildInstallFunc,
@@ -1018,8 +1010,6 @@ func recompileForTest(pmain, preal, ptest *load.Package) {
 			copy(p1.Internal.Imports, p.Internal.Imports)
 			p = p1
 			p.Target = ""
-			p.Stale = true
-			p.StaleReason = "depends on package being tested"
 		}
 
 		// Update p.Internal.Imports to use test copies.

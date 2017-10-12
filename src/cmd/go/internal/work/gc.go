@@ -47,7 +47,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 
 	pkgpath := p.ImportPath
 	if cfg.BuildBuildmode == "plugin" {
-		pkgpath = pluginPath(p)
+		pkgpath = pluginPath(a)
 	} else if p.Name == "main" {
 		pkgpath = "main"
 	}
@@ -86,6 +86,9 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 	if p.Internal.OmitDebug || platform == "nacl/amd64p32" || platform == "darwin/arm" || platform == "darwin/arm64" || cfg.Goos == "plan9" {
 		gcargs = append(gcargs, "-dwarf=false")
 	}
+	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
+		gcargs = append(gcargs, "-goversion", runtimeVersion)
+	}
 
 	gcflags := buildGcflags
 	if compilingRuntime {
@@ -102,6 +105,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 			}
 		}
 	}
+
 	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", b.WorkDir, gcflags, gcargs, "-D", p.Internal.LocalPrefix}
 	if importcfg != nil {
 		if err := b.writeFile(objdir+"importcfg", importcfg); err != nil {
@@ -367,12 +371,13 @@ func setextld(ldflags []string, compiler []string) []string {
 // combine the package build ID with the contents of the main package
 // source files. This allows us to identify two different plugins
 // built from two source files with the same name.
-func pluginPath(p *load.Package) string {
+func pluginPath(a *Action) string {
+	p := a.Package
 	if p.ImportPath != "command-line-arguments" {
 		return p.ImportPath
 	}
 	h := sha1.New()
-	fmt.Fprintf(h, "build ID: %s\n", p.Internal.BuildID)
+	fmt.Fprintf(h, "build ID: %s\n", a.buildID)
 	for _, file := range str.StringList(p.GoFiles, p.CgoFiles, p.SFiles) {
 		data, err := ioutil.ReadFile(filepath.Join(p.Dir, file))
 		if err != nil {
@@ -398,7 +403,7 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 		ldflags = append(ldflags, "-s", "-w")
 	}
 	if cfg.BuildBuildmode == "plugin" {
-		ldflags = append(ldflags, "-pluginpath", pluginPath(root.Package))
+		ldflags = append(ldflags, "-pluginpath", pluginPath(root))
 	}
 
 	// TODO(rsc): This is probably wrong - see golang.org/issue/22155.

@@ -12,7 +12,7 @@ import (
 	"os"
 )
 
-const debugHash = false
+var debugHash = os.Getenv("GOCMDDEBUGHASH") == "1"
 
 // HashSize is the number of bytes in a hash.
 const HashSize = 32

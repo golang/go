@@ -739,6 +739,7 @@ func TestBuildComplex(t *testing.T) {
 	tg.run("build", "-x", "-o", os.DevNull, "complex")
 
 	if _, err := exec.LookPath("gccgo"); err == nil {
+		t.Skip("golang.org/issue/22472")
 		tg.run("build", "-x", "-o", os.DevNull, "-compiler=gccgo", "complex")
 	}
 }
@@ -841,40 +842,36 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 		}
 	}
 
-	tg.setenv("TESTGO_IS_GO_RELEASE", "1")
-
 	tg.tempFile("d1/src/p1/p1.go", `package p1`)
 	tg.setenv("GOPATH", tg.path("d1"))
 	tg.run("install", "-a", "p1")
-	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly")
-	tg.sleep()
+	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, before any changes")
 
-	// Changing mtime and content of runtime/internal/sys/sys.go
-	// should have no effect: we're in a release, which doesn't rebuild
-	// for general mtime or content changes.
+	// Changing mtime of runtime/internal/sys/sys.go
+	// should have no effect: only the content matters.
+	// In fact this should be true even outside a release branch.
 	sys := runtime.GOROOT() + "/src/runtime/internal/sys/sys.go"
+	tg.sleep()
 	restore := addNL(sys)
-	defer restore()
-	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after updating runtime/internal/sys/sys.go")
 	restore()
-	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after restoring runtime/internal/sys/sys.go")
+	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after updating mtime of runtime/internal/sys/sys.go")
 
-	// But changing runtime/internal/sys/zversion.go should have an effect:
-	// that's how we tell when we flip from one release to another.
-	zversion := runtime.GOROOT() + "/src/runtime/internal/sys/zversion.go"
-	restore = addNL(zversion)
+	// But changing content of any file should have an effect.
+	// Previously zversion.go was the only one that mattered;
+	// now they all matter, so keep using sys.go.
+	restore = addNL(sys)
 	defer restore()
-	tg.wantStale("p1", "build ID mismatch", "./testgo list claims p1 is NOT stale, incorrectly, after changing to new release")
+	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after changing sys.go")
 	restore()
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after changing back to old release")
-	addNL(zversion)
-	tg.wantStale("p1", "build ID mismatch", "./testgo list claims p1 is NOT stale, incorrectly, after changing again to new release")
+	addNL(sys)
+	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after changing sys.go again")
 	tg.run("install", "p1")
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with new release")
 
 	// Restore to "old" release.
 	restore()
-	tg.wantStale("p1", "build ID mismatch", "./testgo list claims p1 is NOT stale, incorrectly, after changing to old release after new build")
+	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after restoring sys.go")
 	tg.run("install", "p1")
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with old release")
 
@@ -971,8 +968,8 @@ func TestGoInstallRebuildsStalePackagesInOtherGOPATH(t *testing.T) {
 	} else {
 		tg.must(f.Close())
 	}
-	tg.wantStale("p2", "newer source file", "./testgo list claims p2 is NOT stale, incorrectly")
-	tg.wantStale("p1", "stale dependency", "./testgo list claims p1 is NOT stale, incorrectly")
+	tg.wantStale("p2", "build ID mismatch", "./testgo list claims p2 is NOT stale, incorrectly")
+	tg.wantStale("p1", "stale dependency: p2", "./testgo list claims p1 is NOT stale, incorrectly")
 
 	tg.run("install", "p1")
 	tg.wantNotStale("p2", "", "./testgo list claims p2 is stale after reinstall, incorrectly")
@@ -1578,14 +1575,9 @@ func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
 	goroot := runtime.GOROOT()
 	tg.setenv("GOROOT", goroot+"/")
 
-	want := ""
-	if isGoRelease {
-		want = "standard package in Go release distribution"
-	}
-
-	tg.wantNotStale("runtime", want, "with trailing slash in GOROOT, runtime listed as stale")
-	tg.wantNotStale("os", want, "with trailing slash in GOROOT, os listed as stale")
-	tg.wantNotStale("io", want, "with trailing slash in GOROOT, io listed as stale")
+	tg.wantNotStale("runtime", "", "with trailing slash in GOROOT, runtime listed as stale")
+	tg.wantNotStale("os", "", "with trailing slash in GOROOT, os listed as stale")
+	tg.wantNotStale("io", "", "with trailing slash in GOROOT, io listed as stale")
 }
 
 // With $GOBIN set, binaries get installed to $GOBIN.
@@ -2667,6 +2659,7 @@ func TestIssue7573(t *testing.T) {
 	if _, err := exec.LookPath("gccgo"); err != nil {
 		t.Skip("skipping because no gccgo compiler found")
 	}
+	t.Skip("golang.org/issue/22472")
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -3710,9 +3703,9 @@ func TestBinaryOnlyPackages(t *testing.T) {
 
 		package p1
 	`)
-	tg.wantStale("p1", "cannot access install target", "p1 is binary-only but has no binary, should be stale")
+	tg.wantStale("p1", "missing or invalid binary-only package", "p1 is binary-only but has no binary, should be stale")
 	tg.runFail("install", "p1")
-	tg.grepStderr("missing or invalid package binary", "did not report attempt to compile binary-only package")
+	tg.grepStderr("missing or invalid binary-only package", "did not report attempt to compile binary-only package")
 
 	tg.tempFile("src/p1/p1.go", `
 		package p1
@@ -3738,7 +3731,7 @@ func TestBinaryOnlyPackages(t *testing.T) {
 		import _ "fmt"
 		func G()
 	`)
-	tg.wantNotStale("p1", "no source code", "should NOT want to rebuild p1 (first)")
+	tg.wantNotStale("p1", "binary-only package", "should NOT want to rebuild p1 (first)")
 	tg.run("install", "-x", "p1") // no-op, up to date
 	tg.grepBothNot("/compile", "should not have run compiler")
 	tg.run("install", "p2") // does not rebuild p1 (or else p2 will fail)
@@ -3750,7 +3743,7 @@ func TestBinaryOnlyPackages(t *testing.T) {
 		package p1
 		func H()
 	`)
-	tg.wantNotStale("p1", "no source code", "should NOT want to rebuild p1 (second)")
+	tg.wantNotStale("p1", "binary-only package", "should NOT want to rebuild p1 (second)")
 	tg.wantNotStale("p2", "", "should NOT want to rebuild p2")
 
 	tg.tempFile("src/p3/p3.go", `
@@ -4417,7 +4410,7 @@ func main() {}`)
 			before()
 			tg.run("install", "mycmd")
 			after()
-			tg.wantStale("mycmd", "build ID mismatch", "should be stale after environment variable change")
+			tg.wantStale("mycmd", "stale dependency: runtime/internal/sys", "should be stale after environment variable change")
 		}
 	}
 

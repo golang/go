@@ -598,6 +598,7 @@ func TestThreeGopathShlibs(t *testing.T) {
 // If gccgo is not available or not new enough call t.Skip. Otherwise,
 // return a build.Context that is set up for gccgo.
 func prepGccgo(t *testing.T) build.Context {
+	t.Skip("golang.org/issue/22472")
 	gccgoName := os.Getenv("GCCGO")
 	if gccgoName == "" {
 		gccgoName = "gccgo"

@@ -47,6 +47,7 @@ func (versionFlag) Set(s string) error {
 	name := os.Args[0]
 	name = name[strings.LastIndex(name, `/`)+1:]
 	name = name[strings.LastIndex(name, `\`)+1:]
+	name = strings.TrimSuffix(name, ".exe")
 	p := Expstring()
 	if p == DefaultExpstring() {
 		p = ""
