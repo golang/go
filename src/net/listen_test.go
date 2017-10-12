@@ -723,9 +723,9 @@ func TestClosingListener(t *testing.T) {
 
 	ln.Close()
 
-	ln, err = Listen("tcp", addr.String())
+	ln2, err := Listen("tcp", addr.String())
 	if err != nil {
 		t.Fatal(err)
 	}
-	ln.Close()
+	ln2.Close()
 }
