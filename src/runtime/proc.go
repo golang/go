@@ -1813,13 +1813,15 @@ func newm(fn func(), _p_ *p) {
 	mp := allocm(_p_, fn)
 	mp.nextp.set(_p_)
 	mp.sigmask = initSigmask
-	if gp := getg(); gp != nil && gp.m != nil && (gp.m.lockedExt != 0 || gp.m.incgo) {
+	if gp := getg(); gp != nil && gp.m != nil && (gp.m.lockedExt != 0 || gp.m.incgo) && GOOS != "plan9" {
 		// We're on a locked M or a thread that may have been
 		// started by C. The kernel state of this thread may
 		// be strange (the user may have locked it for that
 		// purpose). We don't want to clone that into another
 		// thread. Instead, ask a known-good thread to create
 		// the thread for us.
+		//
+		// This is disabled on Plan 9. See golang.org/issue/22227.
 		//
 		// TODO: This may be unnecessary on Windows, which
 		// doesn't model thread creation off fork.
@@ -3443,7 +3445,7 @@ func dolockOSThread() {
 // A goroutine should call LockOSThread before calling OS services or
 // non-Go library functions that depend on per-thread state.
 func LockOSThread() {
-	if atomic.Load(&newmHandoff.haveTemplateThread) == 0 {
+	if atomic.Load(&newmHandoff.haveTemplateThread) == 0 && GOOS != "plan9" {
 		// If we need to start a new thread from the locked
 		// thread, we need the template thread. Start it now
 		// while we're in a known-good state.
