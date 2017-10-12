@@ -106,7 +106,7 @@ func bootstrapBuildTools() {
 	if goroot_bootstrap == "" {
 		goroot_bootstrap = pathf("%s/go1.4", os.Getenv("HOME"))
 	}
-	xprintf("##### Building Go toolchain using %s.\n", goroot_bootstrap)
+	xprintf("##### Building Go toolchain1 using %s.\n", goroot_bootstrap)
 
 	mkzbootstrap(pathf("%s/src/cmd/internal/objabi/zbootstrap.go", goroot))
 

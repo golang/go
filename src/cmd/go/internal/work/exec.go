@@ -8,7 +8,6 @@ package work
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -23,10 +22,10 @@ import (
 	"sync"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
-	"cmd/internal/buildid"
 )
 
 // actionList returns the list of actions in the dag rooted at root
@@ -95,9 +94,6 @@ func (b *Builder) Do(root *Action) {
 		var err error
 
 		if a.Func != nil && (!a.Failed || a.IgnoreFail) {
-			if a.Objdir != "" {
-				err = b.Mkdir(a.Objdir)
-			}
 			if err == nil {
 				err = a.Func(b, a)
 			}
@@ -169,13 +165,99 @@ func (b *Builder) Do(root *Action) {
 	wg.Wait()
 }
 
-// build is the action for building a single package or command.
+// buildActionID computes the action ID for a build action.
+func (b *Builder) buildActionID(a *Action) cache.ActionID {
+	h := cache.NewHash("actionID")
+	p := a.Package
+
+	// Configuration independent of compiler toolchain.
+	// Note: buildmode has already been accounted for in buildGcflags
+	// and should not be inserted explicitly. Most buildmodes use the
+	// same compiler settings and can reuse each other's results.
+	// If not, the reason is already recorded in buildGcflags.
+	fmt.Fprintf(h, "compile\n")
+	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+	fmt.Fprintf(h, "import %q\n", p.ImportPath)
+	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
+	if len(p.CgoFiles)+len(p.SwigFiles) > 0 {
+		fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
+		cppflags, cflags, cxxflags, fflags, _ := b.CFlags(p)
+		fmt.Fprintf(h, "CC=%q %q %q\n", b.ccExe(), cppflags, cflags)
+		if len(p.CXXFiles)+len(p.SwigFiles) > 0 {
+			fmt.Fprintf(h, "CXX=%q %q\n", b.cxxExe(), cxxflags)
+		}
+		if len(p.FFiles) > 0 {
+			fmt.Fprintf(h, "FC=%q %q\n", b.fcExe(), fflags)
+		}
+		// TODO(rsc): Should we include the SWIG version or Fortran/GCC/G++/Objective-C compiler versions?
+	}
+	if p.Internal.CoverMode != "" {
+		fmt.Fprintf(h, "cover %q %q\n", p.Internal.CoverMode, b.toolID("cover"))
+	}
+
+	// Configuration specific to compiler toolchain.
+	switch cfg.BuildToolchainName {
+	default:
+		base.Fatalf("buildActionID: unknown build toolchain %q", cfg.BuildToolchainName)
+	case "gc":
+		fmt.Fprintf(h, "compile %s %q\n", b.toolID("compile"), buildGcflags)
+		if len(p.SFiles) > 0 {
+			fmt.Fprintf(h, "asm %q %q\n", b.toolID("asm"), buildAsmflags)
+		}
+		fmt.Fprintf(h, "GO$GOARCH=%s\n", os.Getenv("GO"+strings.ToUpper(cfg.BuildContext.GOARCH))) // GO386, GOARM, etc
+
+		// TODO(rsc): Convince compiler team not to add more magic environment variables,
+		// or perhaps restrict the environment variables passed to subprocesses.
+		magic := []string{
+			"GOEXPERIMENT",
+			"GOCLOBBERDEADHASH",
+			"GOSSAFUNC",
+			"GO_SSA_PHI_LOC_CUTOFF",
+			"GSHS_LOGFILE",
+			"GOSSAHASH",
+		}
+		for _, env := range magic {
+			if x := os.Getenv(env); x != "" {
+				fmt.Fprintf(h, "magic %s=%s\n", env, x)
+			}
+		}
+	}
+
+	// Input files.
+	inputFiles := str.StringList(
+		p.GoFiles,
+		p.CgoFiles,
+		p.CFiles,
+		p.CXXFiles,
+		p.FFiles,
+		p.MFiles,
+		p.HFiles,
+		p.SFiles,
+		p.SysoFiles,
+		p.SwigFiles,
+		p.SwigCXXFiles,
+	)
+	for _, file := range inputFiles {
+		fmt.Fprintf(h, "file %s %s\n", file, b.fileHash(filepath.Join(p.Dir, file)))
+	}
+	for _, a1 := range a.Deps {
+		p1 := a1.Package
+		if p1 != nil {
+			fmt.Fprintf(h, "import %s %s\n", p1.ImportPath, a1.buildID)
+		}
+	}
+
+	return h.Sum()
+}
+
+// build is the action for building a single package.
+// Note that any new influence on this logic must be reported in b.buildActionID above as well.
 func (b *Builder) build(a *Action) (err error) {
-	// Return an error for binary-only package.
-	// We only reach this if isStale believes the binary form is
-	// either not present or not usable.
-	if a.Package.BinaryOnly {
-		return fmt.Errorf("missing or invalid package binary for binary-only package %s", a.Package.ImportPath)
+	p := a.Package
+	if !p.BinaryOnly {
+		if b.useCache(a, p, b.buildActionID(a), p.Target) {
+			return nil
+		}
 	}
 
 	defer func() {
@@ -196,6 +278,27 @@ func (b *Builder) build(a *Action) (err error) {
 		b.Print(a.Package.ImportPath + "\n")
 	}
 
+	if a.Package.BinaryOnly {
+		_, err := os.Stat(a.Package.Target)
+		if err == nil {
+			a.built = a.Package.Target
+			a.Target = a.Package.Target
+			a.buildID = b.fileHash(a.Package.Target)
+			a.Package.Stale = false
+			a.Package.StaleReason = "binary-only package"
+			return nil
+		}
+		if b.ComputeStaleOnly {
+			a.Package.Stale = true
+			a.Package.StaleReason = "missing or invalid binary-only package"
+			return nil
+		}
+		return fmt.Errorf("missing or invalid binary-only package")
+	}
+
+	if err := b.Mkdir(a.Objdir); err != nil {
+		return err
+	}
 	objdir := a.Objdir
 
 	// make target directory
@@ -205,18 +308,6 @@ func (b *Builder) build(a *Action) (err error) {
 			return err
 		}
 	}
-
-	// We want to keep the action ID available for consultation later,
-	// but we'll append to it the SHA256 of the file (without this ID included).
-	// We don't know the SHA256 yet, so make one up to find and replace
-	// later. Becuase the action ID is a hash of the inputs to this built,
-	// the chance of SHA256(actionID) occurring elsewhere in the result
-	// of the build is essentially zero, at least in 2017.
-	actionID := a.Package.Internal.BuildID
-	if actionID == "" {
-		return fmt.Errorf("missing action ID")
-	}
-	a.buildID = actionID + "." + fmt.Sprintf("%x", sha256.Sum256([]byte(actionID)))
 
 	var gofiles, cgofiles, objdirCgofiles, cfiles, sfiles, cxxfiles, objects, cgoObjects, pcCFLAGS, pcLDFLAGS []string
 
@@ -434,14 +525,95 @@ func (b *Builder) build(a *Action) (err error) {
 		}
 	}
 
-	if err := b.updateBuildID(a, actionID, objpkg); err != nil {
+	if err := b.updateBuildID(a, objpkg); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+// linkActionID computes the action ID for a link action.
+func (b *Builder) linkActionID(a *Action) cache.ActionID {
+	h := cache.NewHash("link")
+	p := a.Package
+
+	// Toolchain-independent configuration.
+	fmt.Fprintf(h, "link\n")
+	fmt.Fprintf(h, "buildmode %s goos %s goarch %s\n", cfg.BuildBuildmode, cfg.Goos, cfg.Goarch)
+	fmt.Fprintf(h, "import %q\n", p.ImportPath)
+	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
+
+	// Toolchain-dependent configuration, shared with b.linkSharedActionID.
+	b.printLinkerConfig(h)
+
+	// Input files.
+	for _, a1 := range a.Deps {
+		p1 := a1.Package
+		if p1 != nil {
+			if a1.built != "" || a1.buildID != "" {
+				buildID := a1.buildID
+				if buildID == "" {
+					buildID = b.buildID(a1.built)
+				}
+				fmt.Fprintf(h, "packagefile %s=%s\n", p1.ImportPath, contentID(buildID))
+			}
+			if p1.Shlib != "" {
+				fmt.Fprintf(h, "pakageshlib %s=%s\n", p1.ImportPath, contentID(b.buildID(p1.Shlib)))
+			}
+		}
+	}
+
+	return h.Sum()
+}
+
+// printLinkerConfig prints the linker config into the hash h,
+// as part of the computation of a linker-related action ID.
+func (b *Builder) printLinkerConfig(h io.Writer) {
+	switch cfg.BuildToolchainName {
+	default:
+		base.Fatalf("linkActionID: unknown toolchain %q", cfg.BuildToolchainName)
+
+	case "gc":
+		fmt.Fprintf(h, "link %s %q %s\n", b.toolID("link"), cfg.BuildLdflags, ldBuildmode)
+		fmt.Fprintf(h, "GO$GOARCH=%s\n", os.Getenv("GO"+strings.ToUpper(cfg.BuildContext.GOARCH))) // GO386, GOARM, etc
+
+		/*
+			// TODO(rsc): Enable this code.
+			// golang.org/issue/22475.
+			goroot := cfg.BuildContext.GOROOT
+			if final := os.Getenv("GOROOT_FINAL"); final != "" {
+				goroot = final
+			}
+			fmt.Fprintf(h, "GOROOT=%s\n", goroot)
+		*/
+
+		// TODO(rsc): Convince linker team not to add more magic environment variables,
+		// or perhaps restrict the environment variables passed to subprocesses.
+		magic := []string{
+			"GO_EXTLINK_ENABLED",
+		}
+		for _, env := range magic {
+			if x := os.Getenv(env); x != "" {
+				fmt.Fprintf(h, "magic %s=%s\n", env, x)
+			}
+		}
+
+		// TODO(rsc): Do cgo settings and flags need to be included?
+		// Or external linker settings and flags?
+	}
+}
+
+// link is the action for linking a single command.
+// Note that any new influence on this logic must be reported in b.linkActionID above as well.
 func (b *Builder) link(a *Action) (err error) {
+	if b.useCache(a, a.Package, b.linkActionID(a), a.Package.Target) {
+		return nil
+	}
+
+	if err := b.Mkdir(a.Objdir); err != nil {
+		return err
+	}
+
 	importcfg := a.Objdir + "importcfg.link"
 	if err := b.writeLinkImportcfg(a, importcfg); err != nil {
 		return err
@@ -454,12 +626,6 @@ func (b *Builder) link(a *Action) (err error) {
 			return err
 		}
 	}
-
-	actionID := a.Package.Internal.BuildID
-	if actionID == "" {
-		return fmt.Errorf("missing action ID")
-	}
-	a.buildID = actionID + "." + fmt.Sprintf("%x", sha256.Sum256([]byte(actionID)))
 
 	objpkg := a.Objdir + "_pkg_.a"
 	if err := BuildToolchain.ld(b, a, a.Target, importcfg, objpkg); err != nil {
@@ -475,55 +641,11 @@ func (b *Builder) link(a *Action) (err error) {
 	// incompatibility between ETXTBSY and threads on modern Unix systems.
 	// See golang.org/issue/22220.
 	if !a.Package.Internal.OmitDebug {
-		if err := b.updateBuildID(a, actionID, a.Target); err != nil {
+		if err := b.updateBuildID(a, a.Target); err != nil {
 			return err
 		}
 	}
 
-	return nil
-}
-
-func (b *Builder) updateBuildID(a *Action, actionID, target string) error {
-	if cfg.BuildX || cfg.BuildN {
-		b.Showcmd("", "%s # internal", joinUnambiguously(str.StringList(base.Tool("buildid"), "-w", target)))
-		if cfg.BuildN {
-			return nil
-		}
-	}
-
-	// Find occurrences of old ID and compute new content-based ID.
-	r, err := os.Open(target)
-	if err != nil {
-		return err
-	}
-	matches, hash, err := buildid.FindAndHash(r, a.buildID, 0)
-	r.Close()
-	if err != nil {
-		return err
-	}
-	newID := fmt.Sprintf("%s.%x", actionID, hash)
-	if len(newID) != len(a.buildID) {
-		return fmt.Errorf("internal error: build ID length mismatch %d+1+%d != %d", len(actionID), len(hash)*2, len(a.buildID))
-	}
-
-	// Replace with new content-based ID.
-	a.buildID = newID
-	if len(matches) == 0 {
-		// Assume the user specified -buildid= to override what we were going to choose.
-		return nil
-	}
-	w, err := os.OpenFile(target, os.O_WRONLY, 0)
-	if err != nil {
-		return err
-	}
-	err = buildid.Rewrite(w, matches, newID)
-	if err != nil {
-		w.Close()
-		return err
-	}
-	if err := w.Close(); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -623,11 +745,54 @@ func (b *Builder) installShlibname(a *Action) error {
 	return nil
 }
 
+func (b *Builder) linkSharedActionID(a *Action) cache.ActionID {
+	h := cache.NewHash("linkShared")
+
+	// Toolchain-independent configuration.
+	fmt.Fprintf(h, "linkShared\n")
+	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+
+	// Toolchain-dependent configuration, shared with b.linkActionID.
+	b.printLinkerConfig(h)
+
+	// Input files.
+	for _, a1 := range a.Deps {
+		p1 := a1.Package
+		if a1.built == "" {
+			continue
+		}
+		if p1 != nil {
+			fmt.Fprintf(h, "packagefile %s=%s\n", p1.ImportPath, contentID(b.buildID(a1.built)))
+			if p1.Shlib != "" {
+				fmt.Fprintf(h, "pakageshlib %s=%s\n", p1.ImportPath, contentID(b.buildID(p1.Shlib)))
+			}
+		}
+	}
+	// Files named on command line are special.
+	for _, a1 := range a.Deps[0].Deps {
+		p1 := a1.Package
+		fmt.Fprintf(h, "top %s=%s\n", p1.ImportPath, contentID(b.buildID(a1.built)))
+	}
+
+	return h.Sum()
+}
+
 func (b *Builder) linkShared(a *Action) (err error) {
+	if b.useCache(a, nil, b.linkSharedActionID(a), a.Target) {
+		return nil
+	}
+
+	if err := b.Mkdir(a.Objdir); err != nil {
+		return err
+	}
+
 	importcfg := a.Objdir + "importcfg.link"
 	if err := b.writeLinkImportcfg(a, importcfg); err != nil {
 		return err
 	}
+
+	// TODO(rsc): There is a missing updateBuildID here,
+	// but we have to decide where to store the build ID in these files.
 	return BuildToolchain.ldShared(b, a.Deps[0].Deps, a.Target, importcfg, a.Deps)
 }
 
@@ -645,7 +810,28 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 			err = fmt.Errorf("go install%s%s: %v", sep, path, err)
 		}
 	}()
+
 	a1 := a.Deps[0]
+	a.buildID = a1.buildID
+
+	// If we are using the eventual install target as an up-to-date
+	// cached copy of the thing we built, then there's no need to
+	// copy it into itself (and that would probably fail anyway).
+	// In this case a1.built == a.Target because a1.built == p.Target,
+	// so the built target is not in the a1.Objdir tree that b.cleanup(a1) removes.
+	if a1.built == a.Target {
+		a.built = a.Target
+		b.cleanup(a1)
+		return nil
+	}
+	if b.ComputeStaleOnly {
+		return nil
+	}
+
+	if err := b.Mkdir(a.Objdir); err != nil {
+		return err
+	}
+
 	perm := os.FileMode(0666)
 	if a1.Mode == "link" {
 		switch cfg.BuildBuildmode {
@@ -663,26 +849,22 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 		}
 	}
 
-	// remove object dir to keep the amount of
-	// garbage down in a large build. On an operating system
-	// with aggressive buffering, cleaning incrementally like
-	// this keeps the intermediate objects from hitting the disk.
-	if !cfg.BuildWork {
-		defer func() {
-			if cfg.BuildX {
-				b.Showcmd("", "rm -r %s", a1.Objdir)
-			}
-			os.RemoveAll(a1.Objdir)
-			if _, err := os.Stat(a1.Target); err == nil {
-				if cfg.BuildX {
-					b.Showcmd("", "rm %s", a1.Target)
-				}
-				os.Remove(a1.Target)
-			}
-		}()
-	}
+	defer b.cleanup(a1)
 
 	return b.moveOrCopyFile(a, a.Target, a1.Target, perm, false)
+}
+
+// cleanup removes a's object dir to keep the amount of
+// on-disk garbage down in a large build. On an operating system
+// with aggressive buffering, cleaning incrementally like
+// this keeps the intermediate objects from hitting the disk.
+func (b *Builder) cleanup(a *Action) {
+	if !cfg.BuildWork {
+		if cfg.BuildX {
+			b.Showcmd("", "rm -r %s", a.Objdir)
+		}
+		os.RemoveAll(a.Objdir)
+	}
 }
 
 // moveOrCopyFile is like 'mv src dst' or 'cp src dst'.
@@ -1054,6 +1236,11 @@ func joinUnambiguously(a []string) string {
 
 // mkdir makes the named directory.
 func (b *Builder) Mkdir(dir string) error {
+	// Make Mkdir(a.Objdir) a no-op instead of an error when a.Objdir == "".
+	if dir == "" {
+		return nil
+	}
+
 	b.exec.Lock()
 	defer b.exec.Unlock()
 	// We can be a little aggressive about being
@@ -1241,30 +1428,54 @@ var (
 // gccCmd returns a gcc command line prefix
 // defaultCC is defined in zdefaultcc.go, written by cmd/dist.
 func (b *Builder) GccCmd(incdir, workdir string) []string {
-	return b.compilerCmd(origCC, cfg.DefaultCC, incdir, workdir)
+	return b.compilerCmd(b.ccExe(), incdir, workdir)
 }
 
 // gxxCmd returns a g++ command line prefix
 // defaultCXX is defined in zdefaultcc.go, written by cmd/dist.
 func (b *Builder) GxxCmd(incdir, workdir string) []string {
-	return b.compilerCmd(origCXX, cfg.DefaultCXX, incdir, workdir)
+	return b.compilerCmd(b.cxxExe(), incdir, workdir)
 }
 
 // gfortranCmd returns a gfortran command line prefix.
 func (b *Builder) gfortranCmd(incdir, workdir string) []string {
-	return b.compilerCmd(os.Getenv("FC"), "gfortran", incdir, workdir)
+	return b.compilerCmd(b.fcExe(), incdir, workdir)
+}
+
+// ccExe returns the CC compiler setting without all the extra flags we add implicitly.
+func (b *Builder) ccExe() []string {
+	return b.compilerExe(origCC, cfg.DefaultCC)
+}
+
+// cxxExe returns the CXX compiler setting without all the extra flags we add implicitly.
+func (b *Builder) cxxExe() []string {
+	return b.compilerExe(origCXX, cfg.DefaultCXX)
+}
+
+// fcExe returns the FC compiler setting without all the extra flags we add implicitly.
+func (b *Builder) fcExe() []string {
+	return b.compilerExe(os.Getenv("FC"), "gfortran")
+}
+
+// compilerExe returns the compiler to use given an
+// environment variable setting (the value not the name)
+// and a default. The resulting slice is usually just the name
+// of the compiler but can have additional arguments if they
+// were present in the environment value.
+// For example if CC="gcc -DGOPHER" then the result is ["gcc", "-DGOPHER"].
+func (b *Builder) compilerExe(envValue string, def string) []string {
+	compiler := strings.Fields(envValue)
+	if len(compiler) == 0 {
+		compiler = []string{def}
+	}
+	return compiler
 }
 
 // compilerCmd returns a command line prefix for the given environment
 // variable and using the default command when the variable is empty.
-func (b *Builder) compilerCmd(envValue, defcmd, incdir, workdir string) []string {
+func (b *Builder) compilerCmd(compiler []string, incdir, workdir string) []string {
 	// NOTE: env.go's mkEnv knows that the first three
 	// strings returned are "gcc", "-I", incdir (and cuts them off).
-
-	if envValue == "" {
-		envValue = defcmd
-	}
-	compiler := strings.Fields(envValue)
 	a := []string{compiler[0], "-I", incdir}
 	a = append(a, compiler[1:]...)
 

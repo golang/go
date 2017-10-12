@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -36,6 +35,8 @@ type Builder struct {
 	flagCache   map[[2]string]bool   // a cache of supported compiler flags
 	Print       func(args ...interface{}) (int, error)
 
+	ComputeStaleOnly bool // compute staleness for go list; no actual build
+
 	objdirSeq int // counter for NewObjdir
 	pkgSeq    int
 
@@ -45,6 +46,11 @@ type Builder struct {
 	exec      sync.Mutex
 	readySema chan bool
 	ready     actionQueue
+
+	id            sync.Mutex
+	toolIDCache   map[string]string // tool name -> tool ID
+	buildIDCache  map[string]string // file name -> build ID
+	fileHashCache map[string]string // file name -> content hash
 }
 
 // NOTE: Much of Action would not need to be exported if not for test.
@@ -61,12 +67,12 @@ type Action struct {
 	Args       []string                      // additional args for runProgram
 
 	triggers []*Action // inverse of deps
-	buildID  string
 
 	// Generated files, directories.
-	Objdir string // directory for intermediate objects
-	Target string // goal of the action: the created package or executable
-	built  string // the actual created package or executable
+	Objdir  string // directory for intermediate objects
+	Target  string // goal of the action: the created package or executable
+	built   string // the actual created package or executable
+	buildID string // build ID of action output
 
 	// Execution state.
 	pending  int  // number of deps yet to complete
@@ -184,6 +190,9 @@ func (b *Builder) Init() {
 	}
 	b.actionCache = make(map[cacheKey]*Action)
 	b.mkdirCache = make(map[string]bool)
+	b.toolIDCache = make(map[string]string)
+	b.buildIDCache = make(map[string]string)
+	b.fileHashCache = make(map[string]string)
 
 	if cfg.BuildN {
 		b.WorkDir = "$WORK"
@@ -261,6 +270,8 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 
 // cacheAction looks up {mode, p} in the cache and returns the resulting action.
 // If the cache has no such action, f() is recorded and returned.
+// TODO(rsc): Change the second key from *load.Package to interface{},
+// to make the caching in linkShared less awkward?
 func (b *Builder) cacheAction(mode string, p *load.Package, f func() *Action) *Action {
 	a := b.actionCache[cacheKey{mode, p}]
 	if a == nil {
@@ -327,15 +338,6 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 			}
 		}
 
-		if !p.Stale && p.Target != "" && p.Name != "main" {
-			// p.Stale==false implies that p.Target is up-to-date.
-			// Record target name for use by actions depending on this one.
-			a.Mode = "use installed"
-			a.Target = p.Target
-			a.Func = nil
-			a.built = a.Target
-			return a
-		}
 		return a
 	})
 
@@ -356,16 +358,6 @@ func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
 		a := &Action{
 			Mode:    "link",
 			Package: p,
-		}
-
-		if !p.Stale && p.Target != "" {
-			// p.Stale==false implies that p.Target is up-to-date.
-			// Record target name for use by actions depending on this one.
-			a.Mode = "use installed"
-			a.Func = nil
-			a.Target = p.Target
-			a.built = a.Target
-			return a
 		}
 
 		a1 := b.CompileAction(ModeBuild, depMode, p)
@@ -396,6 +388,15 @@ func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
 		a.Target = a.Objdir + filepath.Join("exe", name) + cfg.ExeSuffix
 		a.built = a.Target
 		b.addTransitiveLinkDeps(a, a1, "")
+
+		// Sequence the build of the main package (a1) strictly after the build
+		// of all other dependencies that go into the link. It is likely to be after
+		// them anyway, but just make sure. This is required by the build ID-based
+		// shortcut in (*Builder).useCache(a1), which will call b.linkActionID(a).
+		// In order for that linkActionID call to compute the right action ID, all the
+		// dependencies of a (except a1) must have completed building and have
+		// recorded their build IDs.
+		a1.Deps = append(a1.Deps, &Action{Mode: "nop", Deps: a.Deps[1:]})
 		return a
 	})
 
@@ -426,6 +427,7 @@ func (b *Builder) installAction(a1 *Action) *Action {
 			Target:  p.Target,
 			built:   p.Target,
 		}
+
 		b.addInstallHeaderAction(a)
 		return a
 	})
@@ -566,7 +568,6 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 				if p.Error != nil {
 					base.Fatalf("load %s: %v", pkg, p.Error)
 				}
-				load.ComputeStale(p)
 				// Assume that if pkg (runtime/cgo or math)
 				// is already accounted for in a different shared library,
 				// then that shared library also contains runtime,
@@ -581,78 +582,12 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 				add("math")
 			}
 		}
-
-		// Determine the eventual install target and compute staleness.
-		// TODO(rsc): This doesn't belong here and should be with the
-		// other staleness code. When we move to content-based staleness
-		// determination, that will happen for us.
-
-		// The install target is root/pkg/shlib, where root is the source root
-		// in which all the packages lie.
-		// TODO(rsc): Perhaps this cross-root check should apply to the full
-		// transitive package dependency list, not just the ones named
-		// on the command line?
-		pkgDir := a1.Deps[0].Package.Internal.Build.PkgTargetRoot
-		for _, a2 := range a1.Deps {
-			if dir := a2.Package.Internal.Build.PkgTargetRoot; dir != pkgDir {
-				// TODO(rsc): Misuse of base.Fatalf?
-				base.Fatalf("installing shared library: cannot use packages %s and %s from different roots %s and %s",
-					a1.Deps[0].Package.ImportPath,
-					a2.Package.ImportPath,
-					pkgDir,
-					dir)
-			}
-		}
-		// TODO(rsc): Find out and explain here why gccgo is different.
-		if cfg.BuildToolchainName == "gccgo" {
-			pkgDir = filepath.Join(pkgDir, "shlibs")
-		}
-		target := filepath.Join(pkgDir, shlib)
-
-		// The install target is stale if it doesn't exist or if it is older than
-		// any of the .a files that are written into it.
-		// TODO(rsc): This computation does not detect packages that
-		// have been removed from a wildcard used to construct the package list
-		// but are still present in the installed list.
-		// It would be possible to detect this by reading the pkg list
-		// out of any installed target, but content-based staleness
-		// determination should discover that too.
-		var built time.Time
-		if fi, err := os.Stat(target); err == nil {
-			built = fi.ModTime()
-		}
-		stale := cfg.BuildA
-		if !stale {
-			for _, a2 := range a1.Deps {
-				if a2.Target == "" {
-					continue
-				}
-				if a2.Func != nil {
-					// a2 is going to be rebuilt (reuse of existing target would have Func==nil).
-					stale = true
-					break
-				}
-				info, err := os.Stat(a2.Target)
-				if err != nil || info.ModTime().After(built) {
-					stale = true
-					break
-				}
-			}
-		}
-		if !stale {
-			return &Action{
-				Mode:   "use installed buildmode=shared",
-				Target: target,
-				Deps:   []*Action{a1},
-			}
-		}
 		// Link packages into a shared library.
 		a := &Action{
 			Mode:   "go build -buildmode=shared",
 			Objdir: b.NewObjdir(),
 			Func:   (*Builder).linkShared,
 			Deps:   []*Action{a1},
-			Args:   []string{target}, // awful side-channel for install action
 		}
 		a.Target = filepath.Join(a.Objdir, shlib)
 		b.addTransitiveLinkDeps(a, a1, shlib)
@@ -662,13 +597,36 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 	// Install result.
 	if mode == ModeInstall && a.Func != nil {
 		buildAction := a
+
 		a = b.cacheAction("install-shlib "+shlib, nil, func() *Action {
+			// Determine the eventual install target.
+			// The install target is root/pkg/shlib, where root is the source root
+			// in which all the packages lie.
+			// TODO(rsc): Perhaps this cross-root check should apply to the full
+			// transitive package dependency list, not just the ones named
+			// on the command line?
+			pkgDir := a1.Deps[0].Package.Internal.Build.PkgTargetRoot
+			for _, a2 := range a1.Deps {
+				if dir := a2.Package.Internal.Build.PkgTargetRoot; dir != pkgDir {
+					base.Fatalf("installing shared library: cannot use packages %s and %s from different roots %s and %s",
+						a1.Deps[0].Package.ImportPath,
+						a2.Package.ImportPath,
+						pkgDir,
+						dir)
+				}
+			}
+			// TODO(rsc): Find out and explain here why gccgo is different.
+			if cfg.BuildToolchainName == "gccgo" {
+				pkgDir = filepath.Join(pkgDir, "shlibs")
+			}
+			target := filepath.Join(pkgDir, shlib)
+
 			a := &Action{
 				Mode:   "go install -buildmode=shared",
 				Objdir: buildAction.Objdir,
 				Func:   BuildInstallFunc,
 				Deps:   []*Action{buildAction},
-				Target: buildAction.Args[0],
+				Target: target,
 			}
 			for _, a2 := range buildAction.Deps[0].Deps {
 				p := a2.Package

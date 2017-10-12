@@ -7,7 +7,7 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"runtime"
 )
 
@@ -56,8 +56,8 @@ func testCallersFrames(skp int) (frames []string) {
 }
 
 var expectedFrames [][]string = [][]string{
-	0: {"runtime.Callers", "main.testCallers", "main.main"},
-	1: {"main.testCallers", "main.main"},
+	0: {"main.testCallers", "main.main"},
+	1: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
 	2: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
 	3: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
 	4: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
@@ -83,13 +83,13 @@ func main() {
 		frames := testCallers(i)
 		expected := expectedFrames[i]
 		if !same(frames, expected) {
-			log.Fatalf("testCallers(%d):\n got %v\n want %v", i, frames, expected)
+			fmt.Printf("testCallers(%d):\n got %v\n want %v", i, frames, expected)
 		}
 
 		frames = testCallersFrames(i)
 		expected = allFrames[i:]
 		if !same(frames, expected) {
-			log.Fatalf("testCallersFrames(%d):\n got %v\n want %v", i, frames, expected)
+			fmt.Printf("testCallersFrames(%d):\n got %v\n want %v", i, frames, expected)
 		}
 	}
 }

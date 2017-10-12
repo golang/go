@@ -394,9 +394,6 @@ func BuildModeInit() {
 			cfg.BuildContext.InstallSuffix += codegenArg[1:]
 		}
 	}
-	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
-		buildGcflags = append(buildGcflags, "-goversion", runtimeVersion)
-	}
 }
 
 var runtimeVersion = runtime.Version()

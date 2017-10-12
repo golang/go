@@ -84,6 +84,14 @@ var builddeps = map[string][]string{
 		"strings",       // cmd/go/internal/bug
 	},
 
+	"cmd/go/internal/cache": {
+		"crypto/sha256", // cmd/go/internal/cache
+		"fmt",           // cmd/go/internal/cache
+		"hash",          // cmd/go/internal/cache
+		"io",            // cmd/go/internal/cache
+		"os",            // cmd/go/internal/cache
+	},
+
 	"cmd/go/internal/cfg": {
 		"cmd/internal/objabi", // cmd/go/internal/cfg
 		"fmt",           // cmd/go/internal/cfg
@@ -224,21 +232,18 @@ var builddeps = map[string][]string{
 		"cmd/go/internal/base", // cmd/go/internal/load
 		"cmd/go/internal/cfg",  // cmd/go/internal/load
 		"cmd/go/internal/str",  // cmd/go/internal/load
-		"cmd/internal/buildid", // cmd/go/internal/load
-		"crypto/sha1",          // cmd/go/internal/load
-		"fmt",                  // cmd/go/internal/load
-		"go/build",             // cmd/go/internal/load
-		"go/token",             // cmd/go/internal/load
-		"io/ioutil",            // cmd/go/internal/load
-		"log",                  // cmd/go/internal/load
-		"os",                   // cmd/go/internal/load
-		"path",                 // cmd/go/internal/load
-		"path/filepath",        // cmd/go/internal/load
-		"regexp",               // cmd/go/internal/load
-		"runtime",              // cmd/go/internal/load
-		"sort",                 // cmd/go/internal/load
-		"strings",              // cmd/go/internal/load
-		"unicode",              // cmd/go/internal/load
+		"fmt",           // cmd/go/internal/load
+		"go/build",      // cmd/go/internal/load
+		"go/token",      // cmd/go/internal/load
+		"io/ioutil",     // cmd/go/internal/load
+		"log",           // cmd/go/internal/load
+		"os",            // cmd/go/internal/load
+		"path",          // cmd/go/internal/load
+		"path/filepath", // cmd/go/internal/load
+		"regexp",        // cmd/go/internal/load
+		"sort",          // cmd/go/internal/load
+		"strings",       // cmd/go/internal/load
+		"unicode",       // cmd/go/internal/load
 	},
 
 	"cmd/go/internal/run": {
@@ -324,35 +329,34 @@ var builddeps = map[string][]string{
 	},
 
 	"cmd/go/internal/work": {
-		"bufio",                // cmd/go/internal/work
-		"bytes",                // cmd/go/internal/work
-		"cmd/go/internal/base", // cmd/go/internal/work
-		"cmd/go/internal/cfg",  // cmd/go/internal/work
-		"cmd/go/internal/load", // cmd/go/internal/work
-		"cmd/go/internal/str",  // cmd/go/internal/work
-		"cmd/internal/buildid", // cmd/go/internal/work
-		"container/heap",       // cmd/go/internal/work
-		"crypto/sha1",          // cmd/go/internal/work
-		"crypto/sha256",        // cmd/go/internal/work
-		"debug/elf",            // cmd/go/internal/work
-		"encoding/json",        // cmd/go/internal/work
-		"errors",               // cmd/go/internal/work
-		"flag",                 // cmd/go/internal/work
-		"fmt",                  // cmd/go/internal/work
-		"go/build",             // cmd/go/internal/work
-		"io",                   // cmd/go/internal/work
-		"io/ioutil",            // cmd/go/internal/work
-		"log",                  // cmd/go/internal/work
-		"os",                   // cmd/go/internal/work
-		"os/exec",              // cmd/go/internal/work
-		"path",                 // cmd/go/internal/work
-		"path/filepath",        // cmd/go/internal/work
-		"regexp",               // cmd/go/internal/work
-		"runtime",              // cmd/go/internal/work
-		"strconv",              // cmd/go/internal/work
-		"strings",              // cmd/go/internal/work
-		"sync",                 // cmd/go/internal/work
-		"time",                 // cmd/go/internal/work
+		"bufio",                 // cmd/go/internal/work
+		"bytes",                 // cmd/go/internal/work
+		"cmd/go/internal/base",  // cmd/go/internal/work
+		"cmd/go/internal/cache", // cmd/go/internal/work
+		"cmd/go/internal/cfg",   // cmd/go/internal/work
+		"cmd/go/internal/load",  // cmd/go/internal/work
+		"cmd/go/internal/str",   // cmd/go/internal/work
+		"cmd/internal/buildid",  // cmd/go/internal/work
+		"container/heap",        // cmd/go/internal/work
+		"crypto/sha1",           // cmd/go/internal/work
+		"debug/elf",             // cmd/go/internal/work
+		"encoding/json",         // cmd/go/internal/work
+		"errors",                // cmd/go/internal/work
+		"flag",                  // cmd/go/internal/work
+		"fmt",                   // cmd/go/internal/work
+		"go/build",              // cmd/go/internal/work
+		"io",                    // cmd/go/internal/work
+		"io/ioutil",             // cmd/go/internal/work
+		"log",                   // cmd/go/internal/work
+		"os",                    // cmd/go/internal/work
+		"os/exec",               // cmd/go/internal/work
+		"path",                  // cmd/go/internal/work
+		"path/filepath",         // cmd/go/internal/work
+		"regexp",                // cmd/go/internal/work
+		"runtime",               // cmd/go/internal/work
+		"strconv",               // cmd/go/internal/work
+		"strings",               // cmd/go/internal/work
+		"sync",                  // cmd/go/internal/work
 	},
 
 	"cmd/internal/buildid": {
