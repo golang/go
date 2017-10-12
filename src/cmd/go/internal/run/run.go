@@ -94,7 +94,7 @@ func runRun(cmd *base.Command, args []string) {
 	if p.Name != "main" {
 		base.Fatalf("go run: cannot run non-main package")
 	}
-	p.Internal.Target = "" // must build - not up to date
+	p.Target = "" // must build - not up to date
 	var src string
 	if len(p.GoFiles) > 0 {
 		src = p.GoFiles[0]
