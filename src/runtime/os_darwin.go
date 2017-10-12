@@ -188,7 +188,11 @@ func minit() {
 // Called from dropm to undo the effect of an minit.
 //go:nosplit
 func unminit() {
-	unminitSignals()
+	// The alternate signal stack is buggy on arm and arm64.
+	// See minit.
+	if GOARCH != "arm" && GOARCH != "arm64" {
+		unminitSignals()
+	}
 }
 
 // Mach IPC, to get at semaphores
