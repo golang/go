@@ -9,9 +9,12 @@ import (
 	"compress/lzw"
 	"image"
 	"image/color"
+	"image/color/palette"
 	"io"
 	"io/ioutil"
 	"reflect"
+	"runtime"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
@@ -348,6 +351,36 @@ func TestUnexpectedEOF(t *testing.T) {
 		if !strings.HasPrefix(text, "gif:") || !strings.HasSuffix(text, ": unexpected EOF") {
 			t.Errorf("Decode(testGIF[:%d]) = %v, want gif: ...: unexpected EOF", i, err)
 		}
+	}
+}
+
+// See golang.org/issue/22237
+func TestDecodeMemoryConsumption(t *testing.T) {
+	const frames = 3000
+	img := image.NewPaletted(image.Rectangle{Max: image.Point{1, 1}}, palette.WebSafe)
+	hugeGIF := &GIF{
+		Image:    make([]*image.Paletted, frames),
+		Delay:    make([]int, frames),
+		Disposal: make([]byte, frames),
+	}
+	for i := 0; i < frames; i++ {
+		hugeGIF.Image[i] = img
+		hugeGIF.Delay[i] = 60
+	}
+	buf := new(bytes.Buffer)
+	if err := EncodeAll(buf, hugeGIF); err != nil {
+		t.Fatal("EncodeAll:", err)
+	}
+	s0, s1 := new(runtime.MemStats), new(runtime.MemStats)
+	runtime.GC()
+	defer debug.SetGCPercent(debug.SetGCPercent(5))
+	runtime.ReadMemStats(s0)
+	if _, err := Decode(buf); err != nil {
+		t.Fatal("Decode:", err)
+	}
+	runtime.ReadMemStats(s1)
+	if heapDiff := int64(s1.HeapAlloc - s0.HeapAlloc); heapDiff > 30<<20 {
+		t.Fatalf("Decode of %d frames increased heap by %dMB", frames, heapDiff>>20)
 	}
 }
 
