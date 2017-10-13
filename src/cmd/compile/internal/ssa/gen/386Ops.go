@@ -444,7 +444,7 @@ func init() {
 		// I.e., if f calls g "calls" getcallerpc,
 		// the result should be the PC within f that g will return to.
 		// See runtime/stubs.go for a more detailed discussion.
-		{name: "LoweredGetCallerPC", reg: gp01},
+		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
 		// LoweredGetCallerSP returns the SP of the caller of the current function.
 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.

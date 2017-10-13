@@ -4341,8 +4341,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "LoweredGetCallerPC",
-		argLen: 0,
+		name:              "LoweredGetCallerPC",
+		argLen:            0,
+		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -8118,8 +8119,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "LoweredGetCallerPC",
-		argLen: 0,
+		name:              "LoweredGetCallerPC",
+		argLen:            0,
+		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
