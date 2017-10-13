@@ -7,10 +7,87 @@
 #include "funcdata.h"
 #include "textflag.h"
 
+// _rt0_386 is common startup code for most 386 systems when using
+// internal linking. This is the entry point for the program from the
+// kernel for an ordinary -buildmode=exe program. The stack holds the
+// number of arguments and the C-style argv.
+TEXT _rt0_386(SB),NOSPLIT,$8
+	MOVL	8(SP), AX	// argc
+	LEAL	12(SP), BX	// argv
+	MOVL	AX, 0(SP)
+	MOVL	BX, 4(SP)
+	JMP	runtime·rt0_go(SB)
+
+// _rt0_386_lib is common startup code for most 386 systems when
+// using -buildmode=c-archive or -buildmode=c-shared. The linker will
+// arrange to invoke this function as a global constructor (for
+// c-archive) or when the shared library is loaded (for c-shared).
+// We expect argc and argv to be passed on the stack following the
+// usual C ABI.
+TEXT _rt0_386_lib(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	PUSHL	BX
+	PUSHL	SI
+	PUSHL	DI
+
+	MOVL	8(BP), AX
+	MOVL	AX, _rt0_386_lib_argc<>(SB)
+	MOVL	12(BP), AX
+	MOVL	AX, _rt0_386_lib_argv<>(SB)
+
+	// Synchronous initialization.
+	CALL	runtime·libpreinit(SB)
+
+	SUBL	$8, SP
+
+	// Create a new thread to do the runtime initialization.
+	MOVL	_cgo_sys_thread_create(SB), AX
+	TESTL	AX, AX
+	JZ	nocgo
+	MOVL	$_rt0_386_lib_go(SB), BX
+	MOVL	BX, 0(SP)
+	MOVL	$0, 4(SP)
+
+	// TODO: We are calling a C function here so we should be
+	// aligning the stack.
+
+	CALL	AX
+	JMP	restore
+
+nocgo:
+	MOVL	$0x800000, 0(SP)                    // stacksize = 8192KB
+	MOVL	$_rt0_386_lib_go(SB), AX
+	MOVL	AX, 4(SP)                           // fn
+	CALL	runtime·newosproc0(SB)
+
+restore:
+	ADDL	$8, SP
+	POPL	DI
+	POPL	SI
+	POPL	BX
+	POPL	BP
+	RET
+
+// _rt0_386_lib_go initializes the Go runtime.
+// This is started in a separate thread by _rt0_386_lib.
+TEXT _rt0_386_lib_go(SB),NOSPLIT,$8
+	MOVL	_rt0_386_lib_argc<>(SB), AX
+	MOVL	AX, 0(SP)
+	MOVL	_rt0_386_lib_argv<>(SB), AX
+	MOVL	AX, 4(SP)
+	JMP	runtime·rt0_go(SB)
+
+DATA _rt0_386_lib_argc<>(SB)/4, $0
+GLOBL _rt0_386_lib_argc<>(SB),NOPTR, $4
+DATA _rt0_386_lib_argv<>(SB)/4, $0
+GLOBL _rt0_386_lib_argv<>(SB),NOPTR, $4
+
 TEXT runtime·rt0_go(SB),NOSPLIT,$0
-	// copy arguments forward on an even stack
-	MOVL	argc+0(FP), AX
-	MOVL	argv+4(FP), BX
+	// Copy arguments forward on an even stack.
+	// Users of this function jump to it, they don't call it.
+	MOVL	0(SP), AX
+	MOVL	4(SP), BX
 	SUBL	$128, SP		// plenty of scratch
 	ANDL	$~15, SP
 	MOVL	AX, 120(SP)		// save argc, argv away
