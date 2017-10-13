@@ -1240,8 +1240,9 @@ func TestCertificateRequestOverrides(t *testing.T) {
 		// template.
 		ExtraExtensions: []pkix.Extension{
 			{
-				Id:    oidExtensionSubjectAltName,
-				Value: sanContents,
+				Id:       oidExtensionSubjectAltName,
+				Value:    sanContents,
+				Critical: true,
 			},
 		},
 	}
@@ -1250,6 +1251,10 @@ func TestCertificateRequestOverrides(t *testing.T) {
 
 	if len(csr.DNSNames) != 1 || csr.DNSNames[0] != "foo.example.com" {
 		t.Errorf("Extension did not override template. Got %v\n", csr.DNSNames)
+	}
+
+	if len(csr.Extensions) != 1 || !csr.Extensions[0].Id.Equal(oidExtensionSubjectAltName) || !csr.Extensions[0].Critical {
+		t.Errorf("SAN extension was not faithfully copied, got %#v", csr.Extensions)
 	}
 
 	// If there is already an attribute with X.509 extensions then the
