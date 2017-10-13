@@ -204,11 +204,17 @@ const (
 	Zil_rr
 	Zbyte
 	Zvex_rm_v_r
+	Zvex_rm_v_ro
 	Zvex_r_v_rm
 	Zvex_v_rm_r
 	Zvex_i_rm_r
 	Zvex_i_r_v
 	Zvex_i_rm_v_r
+	Zvex
+	Zvex_rm_r_vo
+	Zvex_i_r_rm
+	Zvex_hr_rm_v_r
+
 	Zmax
 )
 
@@ -880,6 +886,152 @@ var yvex_vpbroadcast = []ytab{
 
 var yvex_vpbroadcast_sd = []ytab{
 	{Zvex_rm_v_r, 2, argList{Yxm, Yyr}},
+}
+
+var yvex_vpextrw = []ytab{
+	{Zvex_i_rm_r, 2, argList{Yi8, Yxr, Yrl}},
+	{Zvex_i_r_rm, 2, argList{Yi8, Yxr, Yml}},
+}
+
+var yvex_m = []ytab{
+	{Zvex_rm_v_ro, 3, argList{Ym}},
+}
+
+var yvex_xx3 = []ytab{
+	{Zvex_rm_v_r, 2, argList{Yxr, Yxr, Yxr}},
+}
+
+var yvex_yi3 = []ytab{
+	{Zvex_i_r_rm, 2, argList{Yi8, Yyr, Yxm}},
+}
+
+var yvex_mxy = []ytab{
+	{Zvex_rm_v_r, 2, argList{Ym, Yxr}},
+	{Zvex_rm_v_r, 2, argList{Ym, Yyr}},
+}
+
+var yvex_yy3 = []ytab{
+	{Zvex_rm_v_r, 2, argList{Yym, Yyr, Yyr}},
+}
+
+var yvex_xi3 = []ytab{
+	{Zvex_i_rm_r, 2, argList{Yi8, Yxm, Yxr}},
+}
+
+var yvex_vpermpd = []ytab{
+	{Zvex_i_rm_r, 2, argList{Yi8, Yym, Yyr}},
+}
+
+var yvex_vpermilp = []ytab{
+	{Zvex_i_rm_r, 2, argList{Yi8, Yxm, Yxr}},
+	{Zvex_rm_v_r, 2, argList{Yxm, Yxr, Yxr}},
+	{Zvex_i_rm_r, 2, argList{Yi8, Yym, Yyr}},
+	{Zvex_rm_v_r, 2, argList{Yym, Yyr, Yyr}},
+}
+
+var yvex_vcvtps2ph = []ytab{
+	{Zvex_i_r_rm, 2, argList{Yi8, Yyr, Yxm}},
+	{Zvex_i_r_rm, 2, argList{Yi8, Yxr, Yxm}},
+}
+
+var yvex_vbroadcastf = []ytab{
+	{Zvex_rm_v_r, 2, argList{Ym, Yyr}},
+}
+
+var yvex_vmovd = []ytab{
+	{Zvex_r_v_rm, 2, argList{Yxr, Yml}},
+	{Zvex_rm_v_r, 2, argList{Yml, Yxr}},
+}
+
+var yvex_x2 = []ytab{
+	{Zvex_rm_v_r, 2, argList{Yxm, Yxr}},
+}
+
+var yvex_y2 = []ytab{
+	{Zvex_rm_v_r, 2, argList{Yym, Yxr}},
+}
+
+var yvex = []ytab{
+	{Zvex, 2, argList{}},
+}
+
+var yvex_xx2 = []ytab{
+	{Zvex_rm_v_r, 2, argList{Yxr, Yxr}},
+}
+
+var yvex_vpalignr = []ytab{
+	{Zvex_i_rm_v_r, 2, argList{Yu8, Yxm, Yxr, Yxr}},
+	{Zvex_i_rm_v_r, 2, argList{Yu8, Yym, Yyr, Yyr}},
+}
+
+var yvex_rxi4 = []ytab{
+	{Zvex_i_rm_v_r, 2, argList{Yu8, Yml, Yxr, Yxr}},
+}
+
+var yvex_xxi4 = []ytab{
+	{Zvex_i_rm_v_r, 2, argList{Yu8, Yxm, Yxr, Yxr}},
+}
+
+var yvex_xy4 = []ytab{
+	{Zvex_hr_rm_v_r, 2, argList{Yxr, Yxm, Yxr, Yxr}},
+	{Zvex_hr_rm_v_r, 2, argList{Yyr, Yym, Yyr, Yyr}},
+}
+
+var yvex_vpbroadcast_ss = []ytab{
+	{Zvex_rm_v_r, 2, argList{Ym, Yxr}},
+	{Zvex_rm_v_r, 2, argList{Yxr, Yxr}},
+	{Zvex_rm_v_r, 2, argList{Ym, Yyr}},
+	{Zvex_rm_v_r, 2, argList{Yxr, Yyr}},
+}
+
+var yvex_vblendvpd = []ytab{
+	{Zvex_r_v_rm, 2, argList{Yxr, Yxr, Yml}},
+	{Zvex_r_v_rm, 2, argList{Yyr, Yyr, Yml}},
+	{Zvex_rm_v_r, 2, argList{Ym, Yxr, Yxr}},
+	{Zvex_rm_v_r, 2, argList{Ym, Yyr, Yyr}},
+}
+
+var yvex_vmov = []ytab{
+	{Zvex_r_v_rm, 2, argList{Yxr, Ym}},
+	{Zvex_rm_v_r, 2, argList{Ym, Yxr}},
+	{Zvex_rm_v_r, 2, argList{Yxr, Yxr, Yxr}},
+	{Zvex_rm_v_r, 2, argList{Yxr, Yxr, Yxr}},
+}
+
+var yvex_vps = []ytab{
+	{Zvex_rm_v_r, 2, argList{Yxm, Yxr, Yxr}},
+	{Zvex_i_r_v, 3, argList{Yi8, Yxr, Yxr}},
+	{Zvex_rm_v_r, 2, argList{Yxm, Yyr, Yyr}},
+	{Zvex_i_r_v, 3, argList{Yi8, Yyr, Yyr}},
+}
+
+var yvex_r2 = []ytab{
+	{Zvex_rm_r_vo, 3, argList{Yml, Yrl}},
+}
+
+var yvex_vpextr = []ytab{
+	{Zvex_i_r_rm, 2, argList{Yi8, Yxr, Yml}},
+}
+
+var yvex_rx3 = []ytab{
+	{Zvex_rm_v_r, 2, argList{Yml, Yxr, Yxr}},
+}
+
+var yvex_vcvtsd2si = []ytab{
+	{Zvex_rm_v_r, 2, argList{Yxm, Yrl}},
+}
+
+var yvex_vmovhpd = []ytab{
+	{Zvex_r_v_rm, 2, argList{Yxr, Ym}},
+	{Zvex_rm_v_r, 2, argList{Ym, Yxr, Yxr}},
+}
+
+var yvex_vmovq = []ytab{
+	{Zvex_r_v_rm, 2, argList{Yxr, Yml}},
+	{Zvex_rm_v_r, 2, argList{Ym, Yxr}},
+	{Zvex_rm_v_r, 2, argList{Yml, Yxr}},
+	{Zvex_rm_v_r, 2, argList{Yxr, Yxr}},
+	{Zvex_r_v_rm, 2, argList{Yxr, Yxm}},
 }
 
 var ymmxmm0f38 = []ytab{
@@ -3617,9 +3769,16 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				asmbuf.Put1(byte(op))
 				asmbuf.asmand(ctxt, cursym, p, &p.To, &p.From)
 
+			case Zvex:
+				asmbuf.asmvex(ctxt, &p.From, p.GetFrom3(), &p.To, o.op[z], o.op[z+1])
+
 			case Zvex_rm_v_r:
 				asmbuf.asmvex(ctxt, &p.From, p.GetFrom3(), &p.To, o.op[z], o.op[z+1])
 				asmbuf.asmand(ctxt, cursym, p, &p.From, &p.To)
+
+			case Zvex_rm_v_ro:
+				asmbuf.asmvex(ctxt, &p.From, p.GetFrom3(), &p.To, o.op[z], o.op[z+1])
+				asmbuf.asmando(ctxt, cursym, p, &p.From, int(o.op[z+2]))
 
 			case Zvex_i_r_v:
 				asmbuf.asmvex(ctxt, p.GetFrom3(), &p.To, nil, o.op[z], o.op[z+1])
@@ -3650,6 +3809,21 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 			case Zvex_r_v_rm:
 				asmbuf.asmvex(ctxt, &p.To, p.GetFrom3(), &p.From, o.op[z], o.op[z+1])
 				asmbuf.asmand(ctxt, cursym, p, &p.To, &p.From)
+
+			case Zvex_rm_r_vo:
+				asmbuf.asmvex(ctxt, &p.From, &p.To, p.GetFrom3(), o.op[z], o.op[z+1])
+				asmbuf.asmando(ctxt, cursym, p, &p.From, int(o.op[z+2]))
+
+			case Zvex_i_r_rm:
+				asmbuf.asmvex(ctxt, &p.To, nil, p.GetFrom3(), o.op[z], o.op[z+1])
+				asmbuf.asmand(ctxt, cursym, p, &p.To, p.GetFrom3())
+				asmbuf.Put1(byte(p.From.Offset))
+
+			case Zvex_hr_rm_v_r:
+				hr, from, from3, to := unpackOps4(p)
+				asmbuf.asmvex(ctxt, from, from3, to, o.op[z], o.op[z+1])
+				asmbuf.asmand(ctxt, cursym, p, from, to)
+				asmbuf.Put1(byte(regrex[hr.Reg]+reg[hr.Reg]+1) << 4)
 
 			case Zr_m_xm:
 				asmbuf.mediaop(ctxt, o, op, int(yt.zoffset), z)

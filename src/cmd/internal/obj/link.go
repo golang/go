@@ -351,7 +351,7 @@ const (
 // Subspaces are aligned to a power of two so opcodes can be masked
 // with AMask and used as compact array indices.
 const (
-	ABase386 = (1 + iota) << 10
+	ABase386 = (1 + iota) << 11
 	ABaseARM
 	ABaseAMD64
 	ABasePPC64
@@ -359,7 +359,7 @@ const (
 	ABaseMIPS
 	ABaseS390X
 
-	AllowedOpCodes = 1 << 10            // The number of opcodes available for any given architecture.
+	AllowedOpCodes = 1 << 11            // The number of opcodes available for any given architecture.
 	AMask          = AllowedOpCodes - 1 // AND with this to use the opcode as an array index.
 )
 
