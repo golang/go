@@ -166,20 +166,22 @@ func Warnl(line src.XPos, fmt_ string, args ...interface{}) {
 func Fatalf(fmt_ string, args ...interface{}) {
 	flusherrors()
 
-	fmt.Printf("%v: internal compiler error: ", linestr(lineno))
-	fmt.Printf(fmt_, args...)
-	fmt.Printf("\n")
-
-	// If this is a released compiler version, ask for a bug report.
-	if strings.HasPrefix(objabi.Version, "release") {
+	if Debug_panic != 0 || nsavederrors+nerrors == 0 {
+		fmt.Printf("%v: internal compiler error: ", linestr(lineno))
+		fmt.Printf(fmt_, args...)
 		fmt.Printf("\n")
-		fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
-		fmt.Printf("https://golang.org/issue/new\n")
-	} else {
-		// Not a release; dump a stack trace, too.
-		fmt.Println()
-		os.Stdout.Write(debug.Stack())
-		fmt.Println()
+
+		// If this is a released compiler version, ask for a bug report.
+		if strings.HasPrefix(objabi.Version, "go") {
+			fmt.Printf("\n")
+			fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
+			fmt.Printf("https://golang.org/issue/new\n")
+		} else {
+			// Not a release; dump a stack trace, too.
+			fmt.Println()
+			os.Stdout.Write(debug.Stack())
+			fmt.Println()
+		}
 	}
 
 	hcrash()
