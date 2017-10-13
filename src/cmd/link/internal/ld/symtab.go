@@ -639,6 +639,12 @@ func (ctxt *Link) symtab() {
 		moduledata.AddAddr(ctxt.Arch, modulehashes)
 		moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Shlibs)))
 		moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Shlibs)))
+	} else {
+		moduledata.AddUint(ctxt.Arch, 0) // modulename
+		moduledata.AddUint(ctxt.Arch, 0)
+		moduledata.AddUint(ctxt.Arch, 0) // moduleshashes slice
+		moduledata.AddUint(ctxt.Arch, 0)
+		moduledata.AddUint(ctxt.Arch, 0)
 	}
 
 	hasmain := ctxt.BuildMode == BuildModeExe || ctxt.BuildMode == BuildModePIE
