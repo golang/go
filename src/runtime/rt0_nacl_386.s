@@ -15,8 +15,10 @@ TEXT _rt0_386_nacl(SB),NOSPLIT,$8
 	LEAL	argv+16(FP), BX
 	MOVL	AX, 0(SP)
 	MOVL	BX, 4(SP)
-	CALL	main(SB)
-	INT	$3
+	JMP	runtime·rt0_go(SB)
 
 TEXT main(SB),NOSPLIT,$0
+	// Remove the return address from the stack.
+	// rt0_go doesn't expect it to be there.
+	ADDL	$4, SP
 	JMP	runtime·rt0_go(SB)
