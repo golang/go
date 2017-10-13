@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"container/heap"
+	"crypto/sha1"
 	"crypto/sha256"
 	"debug/elf"
 	"encoding/json"
@@ -2501,7 +2502,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 
 	pkgpath := p.ImportPath
 	if cfg.BuildBuildmode == "plugin" {
-		pkgpath = load.PluginPath(p)
+		pkgpath = pluginPath(p)
 	} else if p.Name == "main" {
 		pkgpath = "main"
 	}
@@ -2814,6 +2815,29 @@ func setextld(ldflags []string, compiler []string) []string {
 	return ldflags
 }
 
+// pluginPath computes the package path for a plugin main package.
+//
+// This is typically the import path of the main package p, unless the
+// plugin is being built directly from source files. In that case we
+// combine the package build ID with the contents of the main package
+// source files. This allows us to identify two different plugins
+// built from two source files with the same name.
+func pluginPath(p *load.Package) string {
+	if p.ImportPath != "command-line-arguments" {
+		return p.ImportPath
+	}
+	h := sha1.New()
+	fmt.Fprintf(h, "build ID: %s\n", p.Internal.BuildID)
+	for _, file := range str.StringList(p.GoFiles, p.CgoFiles, p.SFiles) {
+		data, err := ioutil.ReadFile(filepath.Join(p.Dir, file))
+		if err != nil {
+			base.Fatalf("go: %s", err)
+		}
+		h.Write(data)
+	}
+	return fmt.Sprintf("plugin/unnamed-%x", h.Sum(nil))
+}
+
 func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) error {
 	cxx := len(root.Package.CXXFiles) > 0 || len(root.Package.SwigCXXFiles) > 0
 	for _, a := range root.Deps {
@@ -2829,7 +2853,7 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 		ldflags = append(ldflags, "-s", "-w")
 	}
 	if cfg.BuildBuildmode == "plugin" {
-		ldflags = append(ldflags, "-pluginpath", load.PluginPath(root.Package))
+		ldflags = append(ldflags, "-pluginpath", pluginPath(root.Package))
 	}
 
 	// TODO(rsc): This is probably wrong - see golang.org/issue/22155.
