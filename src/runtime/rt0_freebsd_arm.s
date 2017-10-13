@@ -4,13 +4,8 @@
 
 #include "textflag.h"
 
-TEXT _rt0_arm_freebsd(SB),NOSPLIT,$-4
-	MOVW	(R13), R0		// argc
-	MOVW	$4(R13), R1		// argv
-	MOVM.DB.W [R0-R1], (R13)
-	B	runtime·rt0_go(SB)
+TEXT _rt0_arm_freebsd(SB),NOSPLIT,$0
+	B	_rt0_arm(SB)
 
-TEXT main(SB),NOSPLIT,$-4
-	MOVM.DB.W [R0-R1], (R13)
-	MOVW	$runtime·rt0_go(SB), R4
-	B	(R4)
+TEXT _rt0_arm_freebsd_lib(SB),NOSPLIT,$0
+	B	_rt0_arm_lib(SB)
