@@ -536,12 +536,22 @@ func (c *Client) Do(req *Request) (*Response, error) {
 				resp.closeBody()
 				return nil, uerr(fmt.Errorf("failed to parse Location header %q: %v", loc, err))
 			}
+			host := ""
+			if req.Host != "" && req.Host != req.URL.Host {
+				// If the caller specified a custom Host header and the
+				// redirect location is relative, preserve the Host header
+				// through the redirect. See issue #22233.
+				if u, _ := url.Parse(loc); u != nil && !u.IsAbs() {
+					host = req.Host
+				}
+			}
 			ireq := reqs[0]
 			req = &Request{
 				Method:   redirectMethod,
 				Response: resp,
 				URL:      u,
 				Header:   make(Header),
+				Host:     host,
 				Cancel:   ireq.Cancel,
 				ctx:      ireq.ctx,
 			}
