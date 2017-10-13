@@ -2176,6 +2176,8 @@ func TestPipeThreads(t *testing.T) {
 		t.Skip("skipping on Plan 9; does not support runtime poller")
 	}
 
+	testenv.SkipFlaky(t, 21559)
+
 	threads := 100
 
 	// OpenBSD has a low default for max number of files.
