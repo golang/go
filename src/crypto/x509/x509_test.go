@@ -524,6 +524,14 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			t.Errorf("%s: ExtraNames didn't override Country", test.name)
 		}
 
+		for _, ext := range cert.Extensions {
+			if ext.Id.Equal(oidExtensionSubjectAltName) {
+				if ext.Critical {
+					t.Fatal("SAN extension is marked critical")
+				}
+			}
+		}
+
 		found := false
 		for _, atv := range cert.Subject.Names {
 			if atv.Type.Equal([]int{2, 5, 4, 42}) {
@@ -1735,4 +1743,32 @@ func TestAdditionFieldsInGeneralSubtree(t *testing.T) {
 	if _, err := ParseCertificate(block.Bytes); err != nil {
 		t.Fatalf("failed to parse certificate: %s", err)
 	}
+}
+
+func TestEmptySubject(t *testing.T) {
+	template := Certificate{
+		SerialNumber: big.NewInt(1),
+		DNSNames:     []string{"example.com"},
+	}
+
+	derBytes, err := CreateCertificate(rand.Reader, &template, &template, &testPrivateKey.PublicKey, testPrivateKey)
+	if err != nil {
+		t.Fatalf("failed to create certificate: %s", err)
+	}
+
+	cert, err := ParseCertificate(derBytes)
+	if err != nil {
+		t.Fatalf("failed to parse certificate: %s", err)
+	}
+
+	for _, ext := range cert.Extensions {
+		if ext.Id.Equal(oidExtensionSubjectAltName) {
+			if !ext.Critical {
+				t.Fatal("SAN extension is not critical")
+			}
+			return
+		}
+	}
+
+	t.Fatal("SAN extension is missing")
 }
