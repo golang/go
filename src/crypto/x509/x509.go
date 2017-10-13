@@ -1708,7 +1708,7 @@ func isIA5String(s string) error {
 	return nil
 }
 
-func buildExtensions(template *Certificate, authorityKeyId []byte) (ret []pkix.Extension, err error) {
+func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId []byte) (ret []pkix.Extension, err error) {
 	ret = make([]pkix.Extension, 10 /* maximum number of elements. */)
 	n := 0
 
@@ -1817,6 +1817,10 @@ func buildExtensions(template *Certificate, authorityKeyId []byte) (ret []pkix.E
 	if (len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0 || len(template.URIs) > 0) &&
 		!oidInExtensions(oidExtensionSubjectAltName, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionSubjectAltName
+		// https://tools.ietf.org/html/rfc5280#section-4.2.1.6
+		// “If the subject field contains an empty sequence ... then
+		// subjectAltName extension ... is marked as critical”
+		ret[n].Critical = subjectIsEmpty
 		ret[n].Value, err = marshalSANs(template.DNSNames, template.EmailAddresses, template.IPAddresses, template.URIs)
 		if err != nil {
 			return
@@ -2042,6 +2046,10 @@ func signingParamsForPublicKey(pub interface{}, requestedSigAlgo SignatureAlgori
 	return
 }
 
+// emptyASN1Subject is the ASN.1 DER encoding of an empty Subject, which is
+// just an empty SEQUENCE.
+var emptyASN1Subject = []byte{0x30, 0}
+
 // CreateCertificate creates a new certificate based on a template.
 // The following members of template are used: AuthorityKeyId,
 // BasicConstraintsValid, DNSNames, ExcludedDNSDomains, ExtKeyUsage,
@@ -2096,7 +2104,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		authorityKeyId = parent.SubjectKeyId
 	}
 
-	extensions, err := buildExtensions(template, authorityKeyId)
+	extensions, err := buildExtensions(template, bytes.Equal(asn1Subject, emptyASN1Subject), authorityKeyId)
 	if err != nil {
 		return
 	}
