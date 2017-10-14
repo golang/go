@@ -277,9 +277,6 @@ func NewTokenDecoder(t TokenReader) *Decoder {
 // If Token encounters an unrecognized name space prefix,
 // it uses the prefix as the Space rather than report an error.
 func (d *Decoder) Token() (Token, error) {
-	if d.t != nil {
-		return d.t.Token()
-	}
 	var t Token
 	var err error
 	if d.stk != nil && d.stk.kind == stkEOF {
@@ -548,6 +545,9 @@ func (d *Decoder) RawToken() (Token, error) {
 }
 
 func (d *Decoder) rawToken() (Token, error) {
+	if d.t != nil {
+		return d.t.Token()
+	}
 	if d.err != nil {
 		return nil, d.err
 	}
