@@ -134,6 +134,19 @@ struct_, union_, or enum_, as in C.struct_stat.
 The size of any C type T is available as C.sizeof_T, as in
 C.sizeof_struct_stat.
 
+A C function may be declared in the Go file with a parameter type of
+the special name _GoString_. This function may be called with an
+ordinary Go string value. The string length, and a pointer to the
+string contents, may be accessed by calling the C functions
+
+	size_t _GoStringLen(_GoString_ s);
+	const char *_GoStringPtr(_GoString_ s);
+
+These functions are only available in the preamble, not in other C
+files. The C code must not modify the contents of the pointer returned
+by _GoStringPtr. Note that the string contents may not have a trailing
+NUL byte.
+
 As Go doesn't have support for C's union type in the general case,
 C's union types are represented as a Go byte array with the same length.
 
@@ -248,6 +261,12 @@ Not all Go types can be mapped to C types in a useful way.
 Go struct types are not supported; use a C struct type.
 Go array types are not supported; use a C pointer.
 
+Go functions that take arguments of type string may be called with the
+C type _GoString_, described above. The _GoString_ type will be
+automatically defined in the preamble. Note that there is no way for C
+code to create a value of this type; this is only useful for passing
+string values from Go to C and back to Go.
+
 Using //export in a file places a restriction on the preamble:
 since it is copied into two different C output files, it must not
 contain any definitions, only declarations. If a file contains both
@@ -269,6 +288,14 @@ pointer is a Go pointer or a C pointer is a dynamic property
 determined by how the memory was allocated; it has nothing to do with
 the type of the pointer.
 
+Note that values of some Go types, other than the type's zero value,
+always include Go pointers. This is true of string, slice, interface,
+channel, map, and function types. A pointer type may hold a Go pointer
+or a C pointer. Array and struct types may or may not include Go
+pointers, depending on the element types. All the discussion below
+about Go pointers applies not just to pointer types, but also to other
+types that include Go pointers.
+
 Go code may pass a Go pointer to C provided the Go memory to which it
 points does not contain any Go pointers. The C code must preserve
 this property: it must not store any Go pointers in Go memory, even
@@ -279,14 +306,17 @@ the Go memory in question is the entire array or the entire backing
 array of the slice.
 
 C code may not keep a copy of a Go pointer after the call returns.
+This includes the _GoString_ type, which, as noted above, includes a
+Go pointer; _GoString_ values may not be retained by C code.
 
-A Go function called by C code may not return a Go pointer. A Go
-function called by C code may take C pointers as arguments, and it may
-store non-pointer or C pointer data through those pointers, but it may
-not store a Go pointer in memory pointed to by a C pointer. A Go
-function called by C code may take a Go pointer as an argument, but it
-must preserve the property that the Go memory to which it points does
-not contain any Go pointers.
+A Go function called by C code may not return a Go pointer (which
+implies that it may not return a string, slice, channel, and so
+forth). A Go function called by C code may take C pointers as
+arguments, and it may store non-pointer or C pointer data through
+those pointers, but it may not store a Go pointer in memory pointed to
+by a C pointer. A Go function called by C code may take a Go pointer
+as an argument, but it must preserve the property that the Go memory
+to which it points does not contain any Go pointers.
 
 Go code may not store a Go pointer in C memory. C code may store Go
 pointers in C memory, subject to the rule above: it must stop storing

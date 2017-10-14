@@ -192,8 +192,8 @@ func (p *Package) Translate(f *File) {
 // in the file f and saves relevant renamings in f.Name[name].Define.
 func (p *Package) loadDefines(f *File) {
 	var b bytes.Buffer
-	b.WriteString(f.Preamble)
 	b.WriteString(builtinProlog)
+	b.WriteString(f.Preamble)
 	stdout := p.gccDefines(b.Bytes())
 
 	for _, line := range strings.Split(stdout, "\n") {
@@ -312,8 +312,8 @@ func (p *Package) guessKinds(f *File) []*Name {
 	// whether name denotes a type or an expression.
 
 	var b bytes.Buffer
-	b.WriteString(f.Preamble)
 	b.WriteString(builtinProlog)
+	b.WriteString(f.Preamble)
 
 	for i, n := range names {
 		fmt.Fprintf(&b, "#line %d \"not-declared\"\n"+
@@ -461,8 +461,8 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 	// for each entry in names and then dereference the type we
 	// learn for __cgo__i.
 	var b bytes.Buffer
-	b.WriteString(f.Preamble)
 	b.WriteString(builtinProlog)
+	b.WriteString(f.Preamble)
 	b.WriteString("#line 1 \"cgo-dwarf-inference\"\n")
 	for i, n := range names {
 		fmt.Fprintf(&b, "__typeof__(%s) *__cgo__%d;\n", n.C, i)
