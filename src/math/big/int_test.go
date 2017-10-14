@@ -1384,6 +1384,12 @@ func testModSqrt(t *testing.T, elt, mod, sq, sqrt *Int) bool {
 		t.Errorf("ModSqrt returned inconsistent value %s", z)
 	}
 
+	// test x aliasing z
+	z = sqrtChk.ModSqrt(sqrtChk.Set(sq), mod)
+	if z != &sqrtChk || z.Cmp(sqrt) != 0 {
+		t.Errorf("ModSqrt returned inconsistent value %s", z)
+	}
+
 	// make sure we actually got a square root
 	if sqrt.Cmp(elt) == 0 {
 		return true // we found the "desired" square root

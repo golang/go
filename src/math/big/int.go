@@ -667,10 +667,9 @@ func Jacobi(x, y *Int) int {
 // to calculate the square root of any quadratic residue mod p quickly for 3
 // mod 4 primes.
 func (z *Int) modSqrt3Mod4Prime(x, p *Int) *Int {
-	z.Set(p)         // z = p
-	z.Add(z, intOne) // z = p + 1
-	z.Rsh(z, 2)      // z = (p + 1) / 4
-	z.Exp(x, z, p)   // z = x^z mod p
+	e := new(Int).Add(p, intOne) // e = p + 1
+	e.Rsh(e, 2)                  // e = (p + 1) / 4
+	z.Exp(x, e, p)               // z = x^e mod p
 	return z
 }
 
