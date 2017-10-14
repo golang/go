@@ -57,7 +57,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
 //		outcode($1, $2, &$3, 0, &$5);
 //	}
 	MOVW.S	R1, R2
-	MOVW.S	$1, R2
+	MOVW	$1, R2
 	MOVW.S	R1<<R2, R3
 
 //
@@ -1116,8 +1116,6 @@ jmp_label_3:
 // MVN
 	MVN	$0xff, R1        // MVN $255, R1          // ff10e0e3
 	MVN	$0xff000000, R1  // MVN $4278190080, R1   // ff14e0e3
-	MVN.S	$0xff, R1        // MVN.S $255, R1        // ff10f0e3
-	MVN.S	$0xff000000, R1  // MVN.S $4278190080, R1 // ff14f0e3
 	MVN	R9<<30, R7       // 097fe0e1
 	MVN	R9>>30, R7       // 297fe0e1
 	MVN	R9->30, R7       // 497fe0e1
@@ -1135,7 +1133,6 @@ jmp_label_3:
 	MVN.S	R9->R8, R7       // 5978f0e1
 	MVN.S	R9@>R8, R7       // 7978f0e1
 	MVN	$0xffffffbe, R5  // MVN $4294967230, R5   // 4150a0e3
-	MVN.S	$0xffffffbf, R5  // MVN.S $4294967231, R5 // 4050b0e3
 
 // MOVM
 	MOVM.IA   [R0,R2,R4,R6], (R1)        // MOVM.U [R0,R2,R4,R6], (R1)                      // 550081e8
@@ -1173,15 +1170,23 @@ jmp_label_3:
 
 // MOVW
 	MOVW	R3, R4                                            // 0340a0e1
+	MOVW.S	R3, R4                                            // 0340b0e1
 	MOVW	R9, R2                                            // 0920a0e1
+	MOVW.S	R9, R2                                            // 0920b0e1
 	MOVW	R5>>1, R2                                         // a520a0e1
+	MOVW.S	R5>>1, R2                                         // a520b0e1
 	MOVW	R5<<1, R2                                         // 8520a0e1
+	MOVW.S	R5<<1, R2                                         // 8520b0e1
 	MOVW	R5->1, R2                                         // c520a0e1
+	MOVW.S	R5->1, R2                                         // c520b0e1
 	MOVW	R5@>1, R2                                         // e520a0e1
+	MOVW.S	R5@>1, R2                                         // e520b0e1
 	MOVW	$0xff, R9            // MOVW $255, R9             // ff90a0e3
 	MOVW	$0xff000000, R9      // MOVW $4278190080, R9      // ff94a0e3
 	MOVW	$0xff(R0), R1        // MOVW $255(R0), R1         // ff1080e2
+	MOVW.S	$0xff(R0), R1        // MOVW.S $255(R0), R1       // ff1090e2
 	MOVW	$-0xff(R0), R1       // MOVW $-255(R0), R1        // ff1040e2
+	MOVW.S	$-0xff(R0), R1       // MOVW.S $-255(R0), R1      // ff1050e2
 	MOVW	$0xffffffae, R1      // MOVW $4294967214, R1      // 5110e0e3
 	MOVW	$0xaaaaaaaa, R1      // MOVW $2863311530, R1
 	MOVW	R1, (R2)                                          // 001082e5
