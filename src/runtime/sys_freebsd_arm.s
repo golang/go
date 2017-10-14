@@ -86,10 +86,10 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
 TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVW	wait+0(FP), R0
 	// We're done using the stack.
-	MOVW	$0, R1
+	MOVW	$0, R2
 storeloop:
 	LDREX	(R0), R4          // loads R4
-	STREX	R1, (R0), R1      // stores R2
+	STREX	R2, (R0), R1      // stores R2
 	CMP	$0, R1
 	BNE	storeloop
 	MOVW	$0, R0		// arg 1 long *state
