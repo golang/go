@@ -861,3 +861,26 @@ func TestWrapDecoder(t *testing.T) {
 		t.Fatalf("Got unexpected chardata: `%s`\n", o.Chardata)
 	}
 }
+
+type tokReader struct{}
+
+func (tokReader) Token() (Token, error) {
+	return StartElement{}, nil
+}
+
+type Failure struct{}
+
+func (Failure) UnmarshalXML(*Decoder, StartElement) error {
+	return nil
+}
+
+func TestTokenUnmarshaler(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error("Unexpected panic using custom token unmarshaler")
+		}
+	}()
+
+	d := NewTokenDecoder(tokReader{})
+	d.Decode(&Failure{})
+}
