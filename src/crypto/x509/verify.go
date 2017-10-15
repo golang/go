@@ -53,6 +53,10 @@ const (
 	// prevent pathological certificates can consuming excessive amounts of
 	// CPU time to verify.
 	TooManyConstraints
+	// CANotAuthorizedForExtKeyUsage results when an intermediate or root
+	// certificate does not permit an extended key usage that is claimed by
+	// the leaf certificate.
+	CANotAuthorizedForExtKeyUsage
 )
 
 // CertificateInvalidError results when an odd error occurs. Users of this
@@ -71,10 +75,12 @@ func (e CertificateInvalidError) Error() string {
 		return "x509: certificate has expired or is not yet valid"
 	case CANotAuthorizedForThisName:
 		return "x509: a root or intermediate certificate is not authorized to sign for this name: " + e.Detail
+	case CANotAuthorizedForExtKeyUsage:
+		return "x509: a root or intermediate certificate is not authorized for an extended key usage: " + e.Detail
 	case TooManyIntermediates:
 		return "x509: too many intermediates for path length constraint"
 	case IncompatibleUsage:
-		return "x509: certificate specifies an incompatible key usage"
+		return "x509: certificate specifies an incompatible key usage: " + e.Detail
 	case NameMismatch:
 		return "x509: issuer name does not match subject from issuing certificate"
 	case NameConstraintsWithoutSANs:
@@ -537,6 +543,24 @@ func (c *Certificate) checkNameConstraints(count *int,
 	return nil
 }
 
+// ekuPermittedBy returns true iff the given extended key usage is permitted by
+// the given EKU from a certificate. Normally, this would be a simple
+// comparison plus a special case for the “any” EKU. But, in order to support
+// COMODO chains, SGC EKUs permit generic server and client authentication
+// EKUs.
+func ekuPermittedBy(eku, certEKU ExtKeyUsage) bool {
+	if certEKU == ExtKeyUsageAny || eku == certEKU {
+		return true
+	}
+
+	if (eku == ExtKeyUsageServerAuth || eku == ExtKeyUsageClientAuth) &&
+		(certEKU == ExtKeyUsageNetscapeServerGatedCrypto || certEKU == ExtKeyUsageMicrosoftServerGatedCrypto) {
+		return true
+	}
+
+	return false
+}
+
 // isValid performs validity checks on c given that it is a candidate to append
 // to the chain in currentChain.
 func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *VerifyOptions) error {
@@ -559,18 +583,21 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		return CertificateInvalidError{c, Expired, ""}
 	}
 
-	if (certType == intermediateCertificate || certType == rootCertificate) && c.hasNameConstraints() {
-		maxConstraintComparisons := opts.MaxConstraintComparisions
-		if maxConstraintComparisons == 0 {
-			maxConstraintComparisons = 250000
-		}
-		count := 0
+	maxConstraintComparisons := opts.MaxConstraintComparisions
+	if maxConstraintComparisons == 0 {
+		maxConstraintComparisons = 250000
+	}
+	comparisonCount := 0
 
+	var leaf *Certificate
+	if certType == intermediateCertificate || certType == rootCertificate {
 		if len(currentChain) == 0 {
 			return errors.New("x509: internal error: empty chain when appending CA cert")
 		}
-		leaf := currentChain[0]
+		leaf = currentChain[0]
+	}
 
+	if (certType == intermediateCertificate || certType == rootCertificate) && c.hasNameConstraints() {
 		sanExtension, ok := leaf.getSANExtension()
 		if !ok {
 			// This is the deprecated, legacy case of depending on
@@ -590,7 +617,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 					return errors.New("x509: internal error: rfc822Name SAN failed to parse")
 				}
 
-				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "email address", name, mailbox,
+				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "email address", name, mailbox,
 					func(parsedName, constraint interface{}) (bool, error) {
 						return matchEmailConstraint(parsedName.(rfc2821Mailbox), constraint.(string))
 					}, c.PermittedEmailAddresses, c.ExcludedEmailAddresses); err != nil {
@@ -599,7 +626,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 
 			case nameTypeDNS:
 				name := string(data)
-				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "DNS name", name, name,
+				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "DNS name", name, name,
 					func(parsedName, constraint interface{}) (bool, error) {
 						return matchDomainConstraint(parsedName.(string), constraint.(string))
 					}, c.PermittedDNSDomains, c.ExcludedDNSDomains); err != nil {
@@ -613,7 +640,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 					return fmt.Errorf("x509: internal error: URI SAN %q failed to parse", name)
 				}
 
-				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "URI", name, uri,
+				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "URI", name, uri,
 					func(parsedName, constraint interface{}) (bool, error) {
 						return matchURIConstraint(parsedName.(*url.URL), constraint.(string))
 					}, c.PermittedURIDomains, c.ExcludedURIDomains); err != nil {
@@ -626,7 +653,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 					return fmt.Errorf("x509: internal error: IP SAN %x failed to parse", data)
 				}
 
-				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "IP address", ip.String(), ip,
+				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "IP address", ip.String(), ip,
 					func(parsedName, constraint interface{}) (bool, error) {
 						return matchIPConstraint(parsedName.(net.IP), constraint.(*net.IPNet))
 					}, c.PermittedIPRanges, c.ExcludedIPRanges); err != nil {
@@ -642,6 +669,59 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 
 		if err != nil {
 			return err
+		}
+	}
+
+	checkEKUs := certType == intermediateCertificate || certType == rootCertificate
+
+	// If no extended key usages are specified, then all are acceptable.
+	if checkEKUs && (len(c.ExtKeyUsage) == 0 && len(c.UnknownExtKeyUsage) == 0) {
+		checkEKUs = false
+	}
+
+	// If the “any” key usage is permitted, then no more checks are needed.
+	if checkEKUs {
+		for _, caEKU := range c.ExtKeyUsage {
+			comparisonCount++
+			if caEKU == ExtKeyUsageAny {
+				checkEKUs = false
+				break
+			}
+		}
+	}
+
+	if checkEKUs {
+	NextEKU:
+		for _, eku := range leaf.ExtKeyUsage {
+			if comparisonCount > maxConstraintComparisons {
+				return CertificateInvalidError{c, TooManyConstraints, ""}
+			}
+
+			for _, caEKU := range c.ExtKeyUsage {
+				comparisonCount++
+				if ekuPermittedBy(eku, caEKU) {
+					continue NextEKU
+				}
+			}
+
+			oid, _ := oidFromExtKeyUsage(eku)
+			return CertificateInvalidError{c, CANotAuthorizedForExtKeyUsage, fmt.Sprintf("EKU not permitted: %#v", oid)}
+		}
+
+	NextUnknownEKU:
+		for _, eku := range leaf.UnknownExtKeyUsage {
+			if comparisonCount > maxConstraintComparisons {
+				return CertificateInvalidError{c, TooManyConstraints, ""}
+			}
+
+			for _, caEKU := range c.UnknownExtKeyUsage {
+				comparisonCount++
+				if caEKU.Equal(eku) {
+					continue NextUnknownEKU
+				}
+			}
+
+			return CertificateInvalidError{c, CANotAuthorizedForExtKeyUsage, fmt.Sprintf("EKU not permitted: %#v", eku)}
 		}
 	}
 
@@ -723,6 +803,36 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
+	requestedKeyUsages := make([]ExtKeyUsage, len(opts.KeyUsages))
+	copy(requestedKeyUsages, opts.KeyUsages)
+	if len(requestedKeyUsages) == 0 {
+		requestedKeyUsages = append(requestedKeyUsages, ExtKeyUsageServerAuth)
+	}
+
+	// If no key usages are specified, then any are acceptable.
+	checkEKU := len(c.ExtKeyUsage) > 0
+
+	for _, eku := range requestedKeyUsages {
+		if eku == ExtKeyUsageAny {
+			checkEKU = false
+			break
+		}
+	}
+
+	if checkEKU {
+	NextUsage:
+		for _, eku := range requestedKeyUsages {
+			for _, leafEKU := range c.ExtKeyUsage {
+				if ekuPermittedBy(eku, leafEKU) {
+					continue NextUsage
+				}
+			}
+
+			oid, _ := oidFromExtKeyUsage(eku)
+			return nil, CertificateInvalidError{c, IncompatibleUsage, fmt.Sprintf("%#v", oid)}
+		}
+	}
+
 	var candidateChains [][]*Certificate
 	if opts.Roots.contains(c) {
 		candidateChains = append(candidateChains, []*Certificate{c})
@@ -732,30 +842,7 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
-	keyUsages := opts.KeyUsages
-	if len(keyUsages) == 0 {
-		keyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
-	}
-
-	// If any key usage is acceptable then we're done.
-	for _, usage := range keyUsages {
-		if usage == ExtKeyUsageAny {
-			chains = candidateChains
-			return
-		}
-	}
-
-	for _, candidate := range candidateChains {
-		if checkChainForKeyUsage(candidate, keyUsages) {
-			chains = append(chains, candidate)
-		}
-	}
-
-	if len(chains) == 0 {
-		err = CertificateInvalidError{c, IncompatibleUsage, ""}
-	}
-
-	return
+	return candidateChains, nil
 }
 
 func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate {
@@ -915,66 +1002,4 @@ func (c *Certificate) VerifyHostname(h string) error {
 	}
 
 	return HostnameError{c, h}
-}
-
-func checkChainForKeyUsage(chain []*Certificate, keyUsages []ExtKeyUsage) bool {
-	usages := make([]ExtKeyUsage, len(keyUsages))
-	copy(usages, keyUsages)
-
-	if len(chain) == 0 {
-		return false
-	}
-
-	usagesRemaining := len(usages)
-
-	// We walk down the list and cross out any usages that aren't supported
-	// by each certificate. If we cross out all the usages, then the chain
-	// is unacceptable.
-
-NextCert:
-	for i := len(chain) - 1; i >= 0; i-- {
-		cert := chain[i]
-		if len(cert.ExtKeyUsage) == 0 && len(cert.UnknownExtKeyUsage) == 0 {
-			// The certificate doesn't have any extended key usage specified.
-			continue
-		}
-
-		for _, usage := range cert.ExtKeyUsage {
-			if usage == ExtKeyUsageAny {
-				// The certificate is explicitly good for any usage.
-				continue NextCert
-			}
-		}
-
-		const invalidUsage ExtKeyUsage = -1
-
-	NextRequestedUsage:
-		for i, requestedUsage := range usages {
-			if requestedUsage == invalidUsage {
-				continue
-			}
-
-			for _, usage := range cert.ExtKeyUsage {
-				if requestedUsage == usage {
-					continue NextRequestedUsage
-				} else if requestedUsage == ExtKeyUsageServerAuth &&
-					(usage == ExtKeyUsageNetscapeServerGatedCrypto ||
-						usage == ExtKeyUsageMicrosoftServerGatedCrypto) {
-					// In order to support COMODO
-					// certificate chains, we have to
-					// accept Netscape or Microsoft SGC
-					// usages as equal to ServerAuth.
-					continue NextRequestedUsage
-				}
-			}
-
-			usages[i] = invalidUsage
-			usagesRemaining--
-			if usagesRemaining == 0 {
-				return false
-			}
-		}
-	}
-
-	return true
 }
