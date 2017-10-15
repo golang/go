@@ -990,61 +990,55 @@ opswitch:
 		n = walkexpr(n, init)
 
 	case OCONV, OCONVNOP:
-		if thearch.LinkArch.Family == sys.ARM || thearch.LinkArch.Family == sys.MIPS {
+		switch thearch.LinkArch.Family {
+		case sys.ARM, sys.MIPS:
 			if n.Left.Type.IsFloat() {
-				if n.Type.Etype == TINT64 {
+				switch n.Type.Etype {
+				case TINT64:
 					n = mkcall("float64toint64", n.Type, init, conv(n.Left, types.Types[TFLOAT64]))
-					break
-				}
-
-				if n.Type.Etype == TUINT64 {
+					break opswitch
+				case TUINT64:
 					n = mkcall("float64touint64", n.Type, init, conv(n.Left, types.Types[TFLOAT64]))
-					break
+					break opswitch
 				}
 			}
 
 			if n.Type.IsFloat() {
-				if n.Left.Type.Etype == TINT64 {
+				switch n.Left.Type.Etype {
+				case TINT64:
 					n = conv(mkcall("int64tofloat64", types.Types[TFLOAT64], init, conv(n.Left, types.Types[TINT64])), n.Type)
-					break
-				}
-
-				if n.Left.Type.Etype == TUINT64 {
+					break opswitch
+				case TUINT64:
 					n = conv(mkcall("uint64tofloat64", types.Types[TFLOAT64], init, conv(n.Left, types.Types[TUINT64])), n.Type)
-					break
+					break opswitch
 				}
 			}
-		}
 
-		if thearch.LinkArch.Family == sys.I386 {
+		case sys.I386:
 			if n.Left.Type.IsFloat() {
-				if n.Type.Etype == TINT64 {
+				switch n.Type.Etype {
+				case TINT64:
 					n = mkcall("float64toint64", n.Type, init, conv(n.Left, types.Types[TFLOAT64]))
-					break
-				}
-
-				if n.Type.Etype == TUINT64 {
+					break opswitch
+				case TUINT64:
 					n = mkcall("float64touint64", n.Type, init, conv(n.Left, types.Types[TFLOAT64]))
-					break
-				}
-				if n.Type.Etype == TUINT32 || n.Type.Etype == TUINT || n.Type.Etype == TUINTPTR {
+					break opswitch
+				case TUINT32, TUINT, TUINTPTR:
 					n = mkcall("float64touint32", n.Type, init, conv(n.Left, types.Types[TFLOAT64]))
-					break
+					break opswitch
 				}
 			}
 			if n.Type.IsFloat() {
-				if n.Left.Type.Etype == TINT64 {
+				switch n.Left.Type.Etype {
+				case TINT64:
 					n = conv(mkcall("int64tofloat64", types.Types[TFLOAT64], init, conv(n.Left, types.Types[TINT64])), n.Type)
-					break
-				}
-
-				if n.Left.Type.Etype == TUINT64 {
+					break opswitch
+				case TUINT64:
 					n = conv(mkcall("uint64tofloat64", types.Types[TFLOAT64], init, conv(n.Left, types.Types[TUINT64])), n.Type)
-					break
-				}
-				if n.Left.Type.Etype == TUINT32 || n.Left.Type.Etype == TUINT || n.Left.Type.Etype == TUINTPTR {
+					break opswitch
+				case TUINT32, TUINT, TUINTPTR:
 					n = conv(mkcall("uint32tofloat64", types.Types[TFLOAT64], init, conv(n.Left, types.Types[TUINT32])), n.Type)
-					break
+					break opswitch
 				}
 			}
 		}
@@ -2419,22 +2413,21 @@ func reorder3save(n *Node, all []*Node, i int, early *[]*Node) *Node {
 // outer value means containing struct or array.
 func outervalue(n *Node) *Node {
 	for {
-		if n.Op == OXDOT {
+		switch n.Op {
+		case OXDOT:
 			Fatalf("OXDOT in walk")
-		}
-		if n.Op == ODOT || n.Op == OPAREN || n.Op == OCONVNOP {
+		case ODOT, OPAREN, OCONVNOP:
 			n = n.Left
 			continue
-		}
-
-		if n.Op == OINDEX && n.Left.Type != nil && n.Left.Type.IsArray() {
-			n = n.Left
-			continue
+		case OINDEX:
+			if n.Left.Type != nil && n.Left.Type.IsArray() {
+				n = n.Left
+				continue
+			}
 		}
 
 		break
 	}
-
 	return n
 }
 
