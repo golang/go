@@ -153,6 +153,14 @@ func ExampleCount() {
 	// 5
 }
 
+func ExampleEqual() {
+	fmt.Println(bytes.Equal([]byte("Go"), []byte("Go")))
+	fmt.Println(bytes.Equal([]byte("Go"), []byte("go")))
+	// Output:
+	// true
+	// false
+}
+
 func ExampleEqualFold() {
 	fmt.Println(bytes.EqualFold([]byte("Go"), []byte("go")))
 	// Output: true
@@ -183,6 +191,14 @@ func ExampleHasSuffix() {
 func ExampleIndex() {
 	fmt.Println(bytes.Index([]byte("chicken"), []byte("ken")))
 	fmt.Println(bytes.Index([]byte("chicken"), []byte("dmr")))
+	// Output:
+	// 4
+	// -1
+}
+
+func ExampleIndexByte() {
+	fmt.Println(bytes.IndexByte([]byte("chicken"), byte('k')))
+	fmt.Println(bytes.IndexByte([]byte("chicken"), byte('g')))
 	// Output:
 	// 4
 	// -1
