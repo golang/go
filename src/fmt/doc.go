@@ -81,7 +81,8 @@
 	that is, runes. (This differs from C's printf where the
 	units are always measured in bytes.) Either or both of the flags
 	may be replaced with the character '*', causing their values to be
-	obtained from the next operand, which must be of type int.
+	obtained from the next operand (preceding the one to format),
+	which must be of type int.
 
 	For most values, width is the minimum number of runes to output,
 	padding the formatted form with spaces if necessary.
