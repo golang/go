@@ -213,10 +213,10 @@ func init2(n *Node, out *[]*Node) {
 	init2list(n.Rlist, out)
 	init2list(n.Nbody, out)
 
-	if n.Op == OCLOSURE {
+	switch n.Op {
+	case OCLOSURE:
 		init2list(n.Func.Closure.Nbody, out)
-	}
-	if n.Op == ODOTMETH || n.Op == OCALLPART {
+	case ODOTMETH, OCALLPART:
 		init2(asNode(n.Type.FuncType().Nname), out)
 	}
 }

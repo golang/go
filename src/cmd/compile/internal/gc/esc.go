@@ -129,7 +129,8 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 	min = v.visitcodelist(n.Nbody, min)
 	min = v.visitcodelist(n.Rlist, min)
 
-	if n.Op == OCALLFUNC || n.Op == OCALLMETH {
+	switch n.Op {
+	case OCALLFUNC, OCALLMETH:
 		fn := n.Left
 		if n.Op == OCALLMETH {
 			fn = asNode(n.Left.Sym.Def)
@@ -140,9 +141,8 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 				min = m
 			}
 		}
-	}
 
-	if n.Op == OCLOSURE {
+	case OCLOSURE:
 		m := v.visit(n.Func.Closure)
 		if m < min {
 			min = m
@@ -1279,16 +1279,14 @@ func parsetag(note string) uint16 {
 // to the second output (and if there are more than two outputs, there is no flow to those.)
 func describeEscape(em uint16) string {
 	var s string
-	if em&EscMask == EscUnknown {
+	switch em & EscMask {
+	case EscUnknown:
 		s = "EscUnknown"
-	}
-	if em&EscMask == EscNone {
+	case EscNone:
 		s = "EscNone"
-	}
-	if em&EscMask == EscHeap {
+	case EscHeap:
 		s = "EscHeap"
-	}
-	if em&EscMask == EscReturn {
+	case EscReturn:
 		s = "EscReturn"
 	}
 	if em&EscContentEscapes != 0 {
