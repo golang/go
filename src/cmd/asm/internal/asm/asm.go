@@ -507,27 +507,6 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				break
 			}
 			// Strange special cases.
-			if arch.IsARMSTREX(op) {
-				/*
-					STREX x, (y)
-						from=(y) reg=x to=x
-					STREX (x), y
-						from=(x) reg=y to=y
-				*/
-				if a[0].Type == obj.TYPE_REG && a[1].Type != obj.TYPE_REG {
-					prog.From = a[1]
-					prog.Reg = a[0].Reg
-					prog.To = a[0]
-					break
-				} else if a[0].Type != obj.TYPE_REG && a[1].Type == obj.TYPE_REG {
-					prog.From = a[0]
-					prog.Reg = a[1].Reg
-					prog.To = a[1]
-					break
-				}
-				p.errorf("unrecognized addressing for %s", op)
-				return
-			}
 			if arch.IsARMFloatCmp(op) {
 				prog.From = a[0]
 				prog.Reg = p.getRegister(prog, op, &a[1])

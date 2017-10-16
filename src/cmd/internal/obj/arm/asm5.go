@@ -2611,6 +2611,9 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if c.instoffset != 0 {
 			c.ctxt.Diag("offset must be zero in STREX")
 		}
+		if p.To.Reg == p.From.Reg || p.To.Reg == p.Reg {
+			c.ctxt.Diag("cannot use same register as both source and destination: %v", p)
+		}
 		o1 = 0x18<<20 | 0xf90
 		o1 |= (uint32(p.From.Reg) & 15) << 16
 		o1 |= (uint32(p.Reg) & 15) << 0
@@ -2724,6 +2727,12 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		if c.instoffset != 0 {
 			c.ctxt.Diag("offset must be zero in STREX")
+		}
+		if p.Reg&1 != 0 {
+			c.ctxt.Diag("source register must be even in STREXD: %v", p)
+		}
+		if p.To.Reg == p.From.Reg || p.To.Reg == p.Reg || p.To.Reg == p.Reg+1 {
+			c.ctxt.Diag("cannot use same register as both source and destination: %v", p)
 		}
 		o1 = 0x1a<<20 | 0xf90
 		o1 |= (uint32(p.From.Reg) & 15) << 16
