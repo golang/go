@@ -107,7 +107,6 @@ const (
 	SDWARFLOC
 	SSUB       = SymKind(1 << 8)
 	SMASK      = SymKind(SSUB - 1)
-	SCONTAINER = SymKind(1 << 10) // has a sub-symbol
 )
 
 // AbiSymKindToSymKind maps values read from object files (which are
