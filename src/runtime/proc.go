@@ -2671,7 +2671,9 @@ func goexit0(gp *g) {
 
 		// Return to mstart, which will release the P and exit
 		// the thread.
-		gogo(&_g_.m.g0.sched)
+		if GOOS != "plan9" { // See golang.org/issue/22227.
+			gogo(&_g_.m.g0.sched)
+		}
 	}
 	schedule()
 }
