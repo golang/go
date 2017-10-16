@@ -35,12 +35,8 @@ func pHash(result, secret, seed []byte, hash func() hash.Hash) {
 		h.Write(a)
 		h.Write(seed)
 		b := h.Sum(nil)
-		todo := len(b)
-		if j+todo > len(result) {
-			todo = len(result) - j
-		}
-		copy(result[j:j+todo], b)
-		j += todo
+		copy(result[j:], b)
+		j += len(b)
 
 		h.Reset()
 		h.Write(a)
