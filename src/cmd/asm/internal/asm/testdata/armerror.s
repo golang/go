@@ -162,4 +162,13 @@ TEXT errors(SB),$0
 	XTABU	R0->24, R5, R2     // ERROR "illegal shift"
 	XTAHU	R0@>1, R5, R2      // ERROR "illegal shift"
 
+	STREX	R1, (R0)           // ERROR "illegal combination"
+	STREX	(R1), R0           // ERROR "illegal combination"
+	STREX	R1, (R0), R1       // ERROR "cannot use same register as both source and destination"
+	STREX	R1, (R0), R0       // ERROR "cannot use same register as both source and destination"
+	STREXD	R0, (R2), R0       // ERROR "cannot use same register as both source and destination"
+	STREXD	R0, (R2), R1       // ERROR "cannot use same register as both source and destination"
+	STREXD	R0, (R2), R2       // ERROR "cannot use same register as both source and destination"
+	STREXD	R1, (R4), R7       // ERROR "must be even"
+
 	END

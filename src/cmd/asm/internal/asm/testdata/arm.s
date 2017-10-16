@@ -156,18 +156,6 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
 //	}
 	STREX	R1, (R2), R3 // STREX (R2), R1, R3
 
-//	LTYPE9 cond reg ',' ireg
-//	{
-//		outcode($1, $2, &$5, int32($3.Reg), &$3);
-//	}
-	STREX	R1, (R2) // STREX (R2), R1, R1
-
-//	LTYPE9 cond comma ireg ',' reg
-//	{
-//		outcode($1, $2, &$4, int32($6.Reg), &$6);
-//	}
-	STREX	(R2), R3 // STREX (R2), R3, R3
-
 //
 // word
 //
@@ -771,21 +759,21 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
 	B	jmp_label_0 // JMP     // ffffffea
 jmp_label_0:
 	ADD	$0, R0, R0
-	BEQ	jmp_label_0 // BEQ 521 // fdffff0a
-	BNE	jmp_label_0 // BNE 521 // fcffff1a
-	BCS	jmp_label_0 // BCS 521 // fbffff2a
-	BCC	jmp_label_0 // BCC 521 // faffff3a
-	BMI	jmp_label_0 // BMI 521 // f9ffff4a
-	BPL	jmp_label_0 // BPL 521 // f8ffff5a
-	BVS	jmp_label_0 // BVS 521 // f7ffff6a
-	BVC	jmp_label_0 // BVC 521 // f6ffff7a
-	BHI	jmp_label_0 // BHI 521 // f5ffff8a
-	BLS	jmp_label_0 // BLS 521 // f4ffff9a
-	BGE	jmp_label_0 // BGE 521 // f3ffffaa
-	BLT	jmp_label_0 // BLT 521 // f2ffffba
-	BGT	jmp_label_0 // BGT 521 // f1ffffca
-	BLE	jmp_label_0 // BLE 521 // f0ffffda
-	B	jmp_label_0 // JMP 521 // efffffea
+	BEQ	jmp_label_0 // BEQ 519 // fdffff0a
+	BNE	jmp_label_0 // BNE 519 // fcffff1a
+	BCS	jmp_label_0 // BCS 519 // fbffff2a
+	BCC	jmp_label_0 // BCC 519 // faffff3a
+	BMI	jmp_label_0 // BMI 519 // f9ffff4a
+	BPL	jmp_label_0 // BPL 519 // f8ffff5a
+	BVS	jmp_label_0 // BVS 519 // f7ffff6a
+	BVC	jmp_label_0 // BVC 519 // f6ffff7a
+	BHI	jmp_label_0 // BHI 519 // f5ffff8a
+	BLS	jmp_label_0 // BLS 519 // f4ffff9a
+	BGE	jmp_label_0 // BGE 519 // f3ffffaa
+	BLT	jmp_label_0 // BLT 519 // f2ffffba
+	BGT	jmp_label_0 // BGT 519 // f1ffffca
+	BLE	jmp_label_0 // BLE 519 // f0ffffda
+	B	jmp_label_0 // JMP 519 // efffffea
 	B	0(PC)    // JMP 0(PC)  // feffffea
 jmp_label_1:
 	B	jmp_label_1 // JMP     // feffffea
@@ -816,21 +804,21 @@ jmp_label_1:
 	BL	jmp_label_2 // CALL        // ffffffeb
 jmp_label_2:
 	ADD	$0, R0, R0
-	BL.EQ	jmp_label_2 // CALL.EQ 562 // fdffff0b
-	BL.NE	jmp_label_2 // CALL.NE 562 // fcffff1b
-	BL.CS	jmp_label_2 // CALL.CS 562 // fbffff2b
-	BL.CC	jmp_label_2 // CALL.CC 562 // faffff3b
-	BL.MI	jmp_label_2 // CALL.MI 562 // f9ffff4b
-	BL.PL	jmp_label_2 // CALL.PL 562 // f8ffff5b
-	BL.VS	jmp_label_2 // CALL.VS 562 // f7ffff6b
-	BL.VC	jmp_label_2 // CALL.VC 562 // f6ffff7b
-	BL.HI	jmp_label_2 // CALL.HI 562 // f5ffff8b
-	BL.LS	jmp_label_2 // CALL.LS 562 // f4ffff9b
-	BL.GE	jmp_label_2 // CALL.GE 562 // f3ffffab
-	BL.LT	jmp_label_2 // CALL.LT 562 // f2ffffbb
-	BL.GT	jmp_label_2 // CALL.GT 562 // f1ffffcb
-	BL.LE	jmp_label_2 // CALL.LE 562 // f0ffffdb
-	BL	jmp_label_2 // CALL 562    // efffffeb
+	BL.EQ	jmp_label_2 // CALL.EQ 560 // fdffff0b
+	BL.NE	jmp_label_2 // CALL.NE 560 // fcffff1b
+	BL.CS	jmp_label_2 // CALL.CS 560 // fbffff2b
+	BL.CC	jmp_label_2 // CALL.CC 560 // faffff3b
+	BL.MI	jmp_label_2 // CALL.MI 560 // f9ffff4b
+	BL.PL	jmp_label_2 // CALL.PL 560 // f8ffff5b
+	BL.VS	jmp_label_2 // CALL.VS 560 // f7ffff6b
+	BL.VC	jmp_label_2 // CALL.VC 560 // f6ffff7b
+	BL.HI	jmp_label_2 // CALL.HI 560 // f5ffff8b
+	BL.LS	jmp_label_2 // CALL.LS 560 // f4ffff9b
+	BL.GE	jmp_label_2 // CALL.GE 560 // f3ffffab
+	BL.LT	jmp_label_2 // CALL.LT 560 // f2ffffbb
+	BL.GT	jmp_label_2 // CALL.GT 560 // f1ffffcb
+	BL.LE	jmp_label_2 // CALL.LE 560 // f0ffffdb
+	BL	jmp_label_2 // CALL 560    // efffffeb
 	BL	0(PC)    // CALL 0(PC)     // feffffeb
 jmp_label_3:
 	BL	jmp_label_3 // CALL        // feffffeb
