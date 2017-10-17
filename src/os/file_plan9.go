@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/poll"
 	"io"
 	"runtime"
 	"syscall"
@@ -489,6 +490,30 @@ func (f *File) Chdir() error {
 		return &PathError{"chdir", f.name, e}
 	}
 	return nil
+}
+
+// setDeadline sets the read and write deadline.
+func (f *File) setDeadline(time.Time) error {
+	if err := f.checkValid("SetDeadline"); err != nil {
+		return err
+	}
+	return poll.ErrNoDeadline
+}
+
+// setReadDeadline sets the read deadline.
+func (f *File) setReadDeadline(time.Time) error {
+	if err := f.checkValid("SetReadDeadline"); err != nil {
+		return err
+	}
+	return poll.ErrNoDeadline
+}
+
+// setWriteDeadline sets the write deadline.
+func (f *File) setWriteDeadline(time.Time) error {
+	if err := f.checkValid("SetWriteDeadline"); err != nil {
+		return err
+	}
+	return poll.ErrNoDeadline
 }
 
 // checkValid checks whether f is valid for use.

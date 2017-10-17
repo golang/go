@@ -75,12 +75,22 @@ func (f *File) Fd() uintptr {
 // name. The returned value will be nil if fd is not a valid file
 // descriptor.
 func NewFile(fd uintptr, name string) *File {
-	return newFile(fd, name, false)
+	return newFile(fd, name, kindNewFile)
 }
 
-// newFile is like NewFile, but if pollable is true it tries to add the
-// file to the runtime poller.
-func newFile(fd uintptr, name string, pollable bool) *File {
+// newFileKind describes the kind of file to newFile.
+type newFileKind int
+
+const (
+	kindNewFile newFileKind = iota
+	kindOpenFile
+	kindPipe
+)
+
+// newFile is like NewFile, but if called from OpenFile or Pipe
+// (as passed in the kind parameter) it tries to add the file to
+// the runtime poller.
+func newFile(fd uintptr, name string, kind newFileKind) *File {
 	fdi := int(fd)
 	if fdi < 0 {
 		return nil
@@ -98,10 +108,11 @@ func newFile(fd uintptr, name string, pollable bool) *File {
 	// Don't try to use kqueue with regular files on FreeBSD.
 	// It crashes the system unpredictably while running all.bash.
 	// Issue 19093.
-	if runtime.GOOS == "freebsd" {
-		pollable = false
+	if runtime.GOOS == "freebsd" && kind == kindOpenFile {
+		kind = kindNewFile
 	}
 
+	pollable := kind == kindOpenFile || kind == kindPipe
 	if err := f.pfd.Init("file", pollable); err != nil {
 		// An error here indicates a failure to register
 		// with the netpoll system. That can happen for
@@ -183,7 +194,7 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 		syscall.CloseOnExec(r)
 	}
 
-	return newFile(uintptr(r), name, true), nil
+	return newFile(uintptr(r), name, kindOpenFile), nil
 }
 
 // Close closes the File, rendering it unusable for I/O.
