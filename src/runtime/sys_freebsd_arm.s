@@ -258,8 +258,11 @@ TEXT runtime·mmap(SB),NOSPLIT,$16
 	MOVW $SYS_mmap, R7
 	SWI $0
 	SUB $4, R13
-	// TODO(dfc) error checking ?
-	MOVW	R0, ret+24(FP)
+	MOVW $0, R1
+	MOVW.CS R0, R1		// if failed, put in R1
+	MOVW.CS $0, R0
+	MOVW	R0, p+24(FP)
+	MOVW	R1, err+28(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0

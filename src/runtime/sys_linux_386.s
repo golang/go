@@ -359,10 +359,15 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	SHRL	$12, BP
 	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
-	JLS	3(PC)
+	JLS	ok
 	NOTL	AX
 	INCL	AX
-	MOVL	AX, ret+24(FP)
+	MOVL	$0, p+24(FP)
+	MOVL	AX, err+28(FP)
+	RET
+ok:
+	MOVL	AX, p+24(FP)
+	MOVL	$0, err+28(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0

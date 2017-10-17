@@ -239,9 +239,14 @@ TEXT runtime·mmap(SB),NOSPLIT,$8
 	MOVL SP, R9
 	NACL_SYSCALL(SYS_mmap)
 	CMPL AX, $-4095
-	JNA 2(PC)
+	JNA ok
 	NEGL AX
-	MOVL	AX, ret+24(FP)
+	MOVL	$0, p+24(FP)
+	MOVL	AX, err+28(FP)
+	RET
+ok:
+	MOVL	AX, p+24(FP)
+	MOVL	$0, err+28(FP)
 	RET
 
 TEXT runtime·walltime(SB),NOSPLIT,$16

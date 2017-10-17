@@ -220,8 +220,8 @@ func sysargs(argc int32, argv **byte) {
 		// try using mincore to detect the physical page size.
 		// mincore should return EINVAL when address is not a multiple of system page size.
 		const size = 256 << 10 // size of memory region to allocate
-		p := mmap(nil, size, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
-		if uintptr(p) < 4096 {
+		p, err := mmap(nil, size, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+		if err != 0 {
 			return
 		}
 		var n uintptr

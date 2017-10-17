@@ -282,8 +282,15 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVQ	$0, R9			// arg 6 - pad
 	MOVL	$197, AX
 	SYSCALL
+	JCC	ok
 	ADDQ	$16, SP
-	MOVQ	AX, ret+32(FP)
+	MOVQ	$0, p+32(FP)
+	MOVQ	AX, err+40(FP)
+	RET
+ok:
+	ADDQ	$16, SP
+	MOVQ	AX, p+32(FP)
+	MOVQ	$0, err+40(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0

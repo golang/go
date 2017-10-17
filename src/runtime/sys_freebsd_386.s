@@ -149,7 +149,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$32
 	STOSL
 	MOVL	$477, AX
 	INT	$0x80
-	MOVL	AX, ret+24(FP)
+	JAE	ok
+	MOVL	$0, p+24(FP)
+	MOVL	AX, err+28(FP)
+	RET
+ok:
+	MOVL	AX, p+24(FP)
+	MOVL	$0, err+28(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$-4

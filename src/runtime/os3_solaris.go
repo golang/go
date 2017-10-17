@@ -402,12 +402,12 @@ func madvise(addr unsafe.Pointer, n uintptr, flags int32) {
 }
 
 //go:nosplit
-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer {
+func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
 	p, err := doMmap(uintptr(addr), n, uintptr(prot), uintptr(flags), uintptr(fd), uintptr(off))
 	if p == ^uintptr(0) {
-		return unsafe.Pointer(err)
+		return nil, int(err)
 	}
-	return unsafe.Pointer(p)
+	return unsafe.Pointer(p), 0
 }
 
 //go:nosplit

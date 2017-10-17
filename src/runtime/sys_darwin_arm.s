@@ -140,7 +140,14 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVW	$0, R6 // off_t is uint64_t
 	MOVW	$SYS_mmap, R12
 	SWI	$0x80
-	MOVW	R0, ret+24(FP)
+	MOVW	$0, R1
+	BCC     ok
+	MOVW	R1, p+24(FP)
+	MOVW	R0, err+28(FP)
+	RET
+ok:
+	MOVW	R0, p+24(FP)
+	MOVW	R1, err+28(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0

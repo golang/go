@@ -135,7 +135,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVW	off+28(FP), R5
 	MOVW	$SYS_mmap, R16
 	SVC	$0x80
-	MOVD	R0, ret+32(FP)
+	BCC	ok
+	MOVD	$0, p+32(FP)
+	MOVD	R0, err+40(FP)
+	RET
+ok:
+	MOVD	R0, p+32(FP)
+	MOVD	$0, err+40(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0

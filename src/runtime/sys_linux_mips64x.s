@@ -269,7 +269,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$-8
 
 	MOVV	$SYS_mmap, R2
 	SYSCALL
-	MOVV	R2, ret+32(FP)
+	BEQ	R7, ok
+	MOVV	$0, p+32(FP)
+	MOVV	R2, err+40(FP)
+	RET
+ok:
+	MOVV	R2, p+32(FP)
+	MOVV	$0, err+40(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$-8

@@ -264,7 +264,11 @@ TEXT runtime·mmap(SB),NOSPLIT,$12
 	ADD $4, R13 // pass arg 5 and arg 6 on stack
 	SWI $0xa000c5	// sys_mmap
 	SUB $4, R13
-	MOVW	R0, ret+24(FP)
+	MOVW	$0, R1
+	MOVW.CS R0, R1	// if error, move to R1
+	MOVW.CS $0, R0
+	MOVW	R0, p+24(FP)
+	MOVW	R1, err+28(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0

@@ -33,7 +33,7 @@ func nacl_thread_create(fn uintptr, stk, tls, xx unsafe.Pointer) int32
 //go:noescape
 func nacl_nanosleep(ts, extra *timespec) int32
 func nanotime() int64
-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
+func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int)
 func exit(code int32)
 func osyield()
 

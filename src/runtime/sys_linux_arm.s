@@ -173,8 +173,12 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	SWI	$0
 	MOVW	$0xfffff001, R6
 	CMP		R6, R0
+	MOVW	$0, R1
 	RSB.HI	$0, R0
-	MOVW	R0, ret+24(FP)
+	MOVW.HI	R0, R1		// if error, put in R1
+	MOVW.HI	$0, R0
+	MOVW	R0, p+24(FP)
+	MOVW	R1, err+28(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
