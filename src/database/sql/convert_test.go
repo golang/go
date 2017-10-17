@@ -481,7 +481,7 @@ func TestDriverArgs(t *testing.T) {
 	}
 	for i, tt := range tests {
 		ds := &driverStmt{Locker: &sync.Mutex{}, si: stubDriverStmt{nil}}
-		got, err := driverArgs(nil, ds, tt.args)
+		got, err := driverArgsConnLocked(nil, ds, tt.args)
 		if err != nil {
 			t.Errorf("test[%d]: %v", i, err)
 			continue
