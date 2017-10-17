@@ -121,8 +121,8 @@ func TestDirectives(t *testing.T) {
 	}
 	sourceDirectives := findDirectives(source)
 
-	// go tool cover -mode=set ./testdata/directives.go
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "cover", "-mode=set", testDirectives)
+	// go tool cover -mode=atomic ./testdata/directives.go
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "cover", "-mode=atomic", testDirectives)
 	cmd.Stderr = os.Stderr
 	output, err := cmd.Output()
 	if err != nil {
