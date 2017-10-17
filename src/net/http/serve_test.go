@@ -686,12 +686,8 @@ func TestHTTP2WriteDeadlineExtendedOnNewRequest(t *testing.T) {
 		req = req.WithContext(ctx)
 
 		r, err := c.Do(req)
-		select {
-		case <-ctx.Done():
-			if ctx.Err() == context.DeadlineExceeded {
-				t.Fatalf("http2 Get #%d response timed out", i)
-			}
-		default:
+		if ctx.Err() == context.DeadlineExceeded {
+			t.Fatalf("http2 Get #%d response timed out", i)
 		}
 		if err != nil {
 			t.Fatalf("http2 Get #%d: %v", i, err)
