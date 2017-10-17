@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 19, 2017",
+	"Subtitle": "Version of October 17, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -6459,7 +6459,8 @@ type Error interface {
 <h3 id="Package_unsafe">Package <code>unsafe</code></h3>
 
 <p>
-The built-in package <code>unsafe</code>, known to the compiler,
+The built-in package <code>unsafe</code>, known to the compiler
+and accessible through the <a href="#Import_declarations">import path</a> <code>"unsafe"</code>,
 provides facilities for low-level programming including operations
 that violate the type system. A package using <code>unsafe</code>
 must be vetted manually for type safety and may not be portable.
