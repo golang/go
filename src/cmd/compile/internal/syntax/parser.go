@@ -377,8 +377,10 @@ func (p *parser) list(open, sep, close token, f func() bool) src.Pos {
 			//            to the expected close token only
 		default:
 			p.syntax_error(fmt.Sprintf("expecting %s or %s", tokstring(sep), tokstring(close)))
-			p.advance(close)
-			done = true
+			p.advance(_Rparen, _Rbrack, _Rbrace)
+			if p.tok != close {
+				return p.pos()
+			}
 		}
 	}
 
