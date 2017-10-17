@@ -21,9 +21,13 @@ const LocPrefix = "go.loc."
 // RangePrefix is the prefix for all the symbols containing DWARF range lists.
 const RangePrefix = "go.range."
 
-// InfoConstPrefix is the prefix for all symbols containing DWARF info
+// ConstInfoPrefix is the prefix for all symbols containing DWARF info
 // entries that contain constants.
 const ConstInfoPrefix = "go.constinfo."
+
+// CUInfoPrefix is the prefix for symbols containing information to
+// populate the DWARF compilation unit info entries.
+const CUInfoPrefix = "go.cuinfo."
 
 // Sym represents a symbol.
 type Sym interface {
