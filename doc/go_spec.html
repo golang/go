@@ -5028,12 +5028,10 @@ the range clause is equivalent to the same clause without that identifier.
 </p>
 
 <p>
-The range expression is evaluated once before beginning the loop,
-with one exception: if the range expression is an array or a pointer to an array
-and at most one iteration variable is present, only the range expression's
-length is evaluated; if that length is constant,
-<a href="#Length_and_capacity">by definition</a>
-the range expression itself will not be evaluated.
+The range expression <code>x</code> is evaluated once before beginning the loop,
+with one exception: if at most one iteration variable is present and
+<code>len(x)</code> is <a href="#Length_and_capacity">constant</a>,
+the range expression is not evaluated.
 </p>
 
 <p>
