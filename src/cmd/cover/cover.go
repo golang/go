@@ -258,29 +258,48 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 func (f *File) fixDirectives() []*ast.Comment {
 	// Scan comments in the file and collect directives. Detach all comments.
 	var directives []*ast.Comment
+	prev := token.NoPos // smaller than any valid token.Pos
 	for _, cg := range f.astFile.Comments {
 		for _, c := range cg.List {
 			// Skip directives that will be included by initialComments, i.e., those
 			// before the package declaration but not in the file doc comment group.
 			if f.isDirective(c) && (c.Pos() >= f.astFile.Package || cg == f.astFile.Doc) {
+				// Assume (but verify) that comments are sorted by position.
+				pos := c.Pos()
+				if !pos.IsValid() {
+					log.Fatalf("compiler directive has no position: %q", c.Text)
+				} else if pos < prev {
+					log.Fatalf("compiler directives are out of order. %s was before %s.",
+						f.fset.Position(prev), f.fset.Position(pos))
+				}
+				prev = pos
+
 				directives = append(directives, c)
 			}
 		}
 		cg.List = nil
 	}
 	f.astFile.Comments = nil // force printer to use node comments
+	if len(directives) == 0 {
+		// Common case: no directives to attach.
+		return nil
+	}
 
 	// Iterate over top-level declarations and attach preceding directives.
 	di := 0
-	var prevPos token.Pos
+	prev = token.NoPos
 	for _, decl := range f.astFile.Decls {
-		// Assume (but verify) that comments are sorted by position.
+		// Assume (but verify) that declarations are sorted by position.
 		pos := decl.Pos()
-		if pos < prevPos {
-			log.Fatalf("comments are out of order. %s was before %s.",
-				f.fset.Position(prevPos), f.fset.Position(pos))
+		if !pos.IsValid() {
+			// Synthetic decl. Don't add directives.
+			continue
 		}
-		prevPos = pos
+		if pos < prev {
+			log.Fatalf("declarations are out of order. %s was before %s.",
+				f.fset.Position(prev), f.fset.Position(pos))
+		}
+		prev = pos
 
 		var doc **ast.CommentGroup
 		switch d := decl.(type) {
