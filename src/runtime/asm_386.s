@@ -45,14 +45,20 @@ TEXT _rt0_386_lib(SB),NOSPLIT,$0
 	MOVL	_cgo_sys_thread_create(SB), AX
 	TESTL	AX, AX
 	JZ	nocgo
+
+	// Align stack to call C function.
+	// We moved SP to BP above, but BP was clobbered by the libpreinit call.
+	MOVL	SP, BP
+	ANDL	$~15, SP
+
 	MOVL	$_rt0_386_lib_go(SB), BX
 	MOVL	BX, 0(SP)
 	MOVL	$0, 4(SP)
 
-	// TODO: We are calling a C function here so we should be
-	// aligning the stack.
-
 	CALL	AX
+
+	MOVL	BP, SP
+
 	JMP	restore
 
 nocgo:
