@@ -368,17 +368,12 @@ func (p *parser) list(open, sep, close token, f func() bool) src.Pos {
 	var done bool
 	for p.tok != _EOF && p.tok != close && !done {
 		done = f()
-		switch p.tok {
-		case sep:
-			p.next()
-		case _Rparen, _Rbrace:
-			// comma is optional before ) or } - nothing to do
-			// TODO(gri): consider restricting this case
-			//            to the expected close token only
-		default:
+		// sep is optional before close
+		if !p.got(sep) && p.tok != close {
 			p.syntax_error(fmt.Sprintf("expecting %s or %s", tokstring(sep), tokstring(close)))
 			p.advance(_Rparen, _Rbrack, _Rbrace)
 			if p.tok != close {
+				// position could be better but we had an error so we don't care
 				return p.pos()
 			}
 		}
@@ -386,7 +381,6 @@ func (p *parser) list(open, sep, close token, f func() bool) src.Pos {
 
 	pos := p.pos()
 	p.want(close)
-
 	return pos
 }
 
