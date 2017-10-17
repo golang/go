@@ -3157,6 +3157,9 @@ func TestIssue6081(t *testing.T) {
 // In the test, a context is canceled while the query is in process so
 // the internal rollback will run concurrently with the explicitly called
 // Tx.Rollback.
+//
+// The addition of calling rows.Next also tests
+// Issue 21117.
 func TestIssue18429(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
@@ -3189,6 +3192,9 @@ func TestIssue18429(t *testing.T) {
 			// reported.
 			rows, _ := tx.QueryContext(ctx, "WAIT|"+qwait+"|SELECT|people|name|")
 			if rows != nil {
+				// Call Next to test Issue 21117 and check for races.
+				for rows.Next() {
+				}
 				rows.Close()
 			}
 			// This call will race with the context cancel rollback to complete

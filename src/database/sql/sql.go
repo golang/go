@@ -1368,12 +1368,12 @@ func (db *DB) execDC(ctx context.Context, dc *driverConn, release func(error), q
 	}
 	if ok {
 		var nvdargs []driver.NamedValue
-		nvdargs, err = driverArgs(dc.ci, nil, args)
-		if err != nil {
-			return nil, err
-		}
 		var resi driver.Result
 		withLock(dc, func() {
+			nvdargs, err = driverArgsConnLocked(dc.ci, nil, args)
+			if err != nil {
+				return
+			}
 			resi, err = ctxDriverExec(ctx, execerCtx, execer, query, nvdargs)
 		})
 		if err != driver.ErrSkip {
@@ -1439,13 +1439,14 @@ func (db *DB) queryDC(ctx, txctx context.Context, dc *driverConn, releaseConn fu
 		queryer, ok = dc.ci.(driver.Queryer)
 	}
 	if ok {
-		nvdargs, err := driverArgs(dc.ci, nil, args)
-		if err != nil {
-			releaseConn(err)
-			return nil, err
-		}
+		var nvdargs []driver.NamedValue
 		var rowsi driver.Rows
+		var err error
 		withLock(dc, func() {
+			nvdargs, err = driverArgsConnLocked(dc.ci, nil, args)
+			if err != nil {
+				return
+			}
 			rowsi, err = ctxDriverQuery(ctx, queryerCtx, queryer, query, nvdargs)
 		})
 		if err != driver.ErrSkip {
@@ -2034,11 +2035,14 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 		stmt.mu.Unlock()
 
 		if si == nil {
-			cs, err := stmt.prepareOnConnLocked(ctx, dc)
+			withLock(dc, func() {
+				var ds *driverStmt
+				ds, err = stmt.prepareOnConnLocked(ctx, dc)
+				si = ds.si
+			})
 			if err != nil {
 				return &Stmt{stickyErr: err}
 			}
-			si = cs.si
 		}
 		parentStmt = stmt
 	}
@@ -2230,13 +2234,13 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 }
 
 func resultFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, args ...interface{}) (Result, error) {
-	dargs, err := driverArgs(ci, ds, args)
+	ds.Lock()
+	defer ds.Unlock()
+
+	dargs, err := driverArgsConnLocked(ci, ds, args)
 	if err != nil {
 		return nil, err
 	}
-
-	ds.Lock()
-	defer ds.Unlock()
 
 	resi, err := ctxDriverStmtExec(ctx, ds.si, dargs)
 	if err != nil {
@@ -2401,10 +2405,10 @@ func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
 }
 
 func rowsiFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, args ...interface{}) (driver.Rows, error) {
-	var want int
-	withLock(ds, func() {
-		want = ds.si.NumInput()
-	})
+	ds.Lock()
+	defer ds.Unlock()
+
+	want := ds.si.NumInput()
 
 	// -1 means the driver doesn't know how to count the number of
 	// placeholders, so we won't sanity check input here and instead let the
@@ -2413,13 +2417,10 @@ func rowsiFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, arg
 		return nil, fmt.Errorf("sql: statement expects %d inputs; got %d", want, len(args))
 	}
 
-	dargs, err := driverArgs(ci, ds, args)
+	dargs, err := driverArgsConnLocked(ci, ds, args)
 	if err != nil {
 		return nil, err
 	}
-
-	ds.Lock()
-	defer ds.Unlock()
 
 	rowsi, err := ctxDriverStmtQuery(ctx, ds.si, dargs)
 	if err != nil {
@@ -2583,9 +2584,16 @@ func (rs *Rows) nextLocked() (doClose, ok bool) {
 	if rs.closed {
 		return false, false
 	}
+
+	// Lock the driver connection before calling the driver interface
+	// rowsi to prevent a Tx from rolling back the connection at the same time.
+	rs.dc.Lock()
+	defer rs.dc.Unlock()
+
 	if rs.lastcols == nil {
 		rs.lastcols = make([]driver.Value, len(rs.rowsi.Columns()))
 	}
+
 	rs.lasterr = rs.rowsi.Next(rs.lastcols)
 	if rs.lasterr != nil {
 		// Close the connection if there is a driver error.
@@ -2635,6 +2643,12 @@ func (rs *Rows) NextResultSet() bool {
 		doClose = true
 		return false
 	}
+
+	// Lock the driver connection before calling the driver interface
+	// rowsi to prevent a Tx from rolling back the connection at the same time.
+	rs.dc.Lock()
+	defer rs.dc.Unlock()
+
 	rs.lasterr = nextResultSet.NextResultSet()
 	if rs.lasterr != nil {
 		doClose = true
@@ -2666,6 +2680,9 @@ func (rs *Rows) Columns() ([]string, error) {
 	if rs.rowsi == nil {
 		return nil, errors.New("sql: no Rows available")
 	}
+	rs.dc.Lock()
+	defer rs.dc.Unlock()
+
 	return rs.rowsi.Columns(), nil
 }
 
@@ -2680,7 +2697,10 @@ func (rs *Rows) ColumnTypes() ([]*ColumnType, error) {
 	if rs.rowsi == nil {
 		return nil, errors.New("sql: no Rows available")
 	}
-	return rowsColumnInfoSetup(rs.rowsi), nil
+	rs.dc.Lock()
+	defer rs.dc.Unlock()
+
+	return rowsColumnInfoSetupConnLocked(rs.rowsi), nil
 }
 
 // ColumnType contains the name and type of a column.
@@ -2741,7 +2761,7 @@ func (ci *ColumnType) DatabaseTypeName() string {
 	return ci.databaseType
 }
 
-func rowsColumnInfoSetup(rowsi driver.Rows) []*ColumnType {
+func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 	names := rowsi.Columns()
 
 	list := make([]*ColumnType, len(names))
