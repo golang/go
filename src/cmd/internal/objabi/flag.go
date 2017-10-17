@@ -94,7 +94,15 @@ func (c *count) Set(s string) error {
 	return nil
 }
 
+func (c *count) Get() interface{} {
+	return int(*c)
+}
+
 func (c *count) IsBoolFlag() bool {
+	return true
+}
+
+func (c *count) IsCountFlag() bool {
 	return true
 }
 
