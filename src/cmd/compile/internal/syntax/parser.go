@@ -2063,14 +2063,11 @@ func (p *parser) stmtList() (l []Stmt) {
 			break
 		}
 		l = append(l, s)
-		// customized version of osemi:
-		// ';' is optional before a closing ')' or '}'
-		if p.tok == _Rparen || p.tok == _Rbrace {
-			continue
-		}
-		if !p.got(_Semi) {
+		// ";" is optional before "}"
+		if !p.got(_Semi) && p.tok != _Rbrace {
 			p.syntax_error("at end of statement")
-			p.advance(_Semi, _Rbrace)
+			p.advance(_Semi, _Rbrace, _Case, _Default)
+			p.got(_Semi) // avoid spurious empty statement
 		}
 	}
 	return
