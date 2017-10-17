@@ -41,30 +41,30 @@ func addrspace_free(v unsafe.Pointer, n uintptr) bool {
 	return true
 }
 
-func mmap_fixed(v unsafe.Pointer, n uintptr, prot, flags, fd int32, offset uint32) unsafe.Pointer {
-	p := mmap(v, n, prot, flags, fd, offset)
+func mmap_fixed(v unsafe.Pointer, n uintptr, prot, flags, fd int32, offset uint32) (unsafe.Pointer, int) {
+	p, err := mmap(v, n, prot, flags, fd, offset)
 	// On some systems, mmap ignores v without
 	// MAP_FIXED, so retry if the address space is free.
 	if p != v && addrspace_free(v, n) {
-		if uintptr(p) > 4096 {
+		if err == 0 {
 			munmap(p, n)
 		}
-		p = mmap(v, n, prot, flags|_MAP_FIXED, fd, offset)
+		p, err = mmap(v, n, prot, flags|_MAP_FIXED, fd, offset)
 	}
-	return p
+	return p, err
 }
 
 // Don't split the stack as this method may be invoked without a valid G, which
 // prevents us from allocating more stack.
 //go:nosplit
 func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
-	p := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
-	if uintptr(p) < 4096 {
-		if uintptr(p) == _EACCES {
+	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+	if err != 0 {
+		if err == _EACCES {
 			print("runtime: mmap: access denied\n")
 			exit(2)
 		}
-		if uintptr(p) == _EAGAIN {
+		if err == _EAGAIN {
 			print("runtime: mmap: too much locked memory (check 'ulimit -l').\n")
 			exit(2)
 		}
@@ -186,9 +186,9 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
 	// if we can reserve at least 64K and check the assumption in SysMap.
 	// Only user-mode Linux (UML) rejects these requests.
 	if sys.PtrSize == 8 && uint64(n) > 1<<32 {
-		p := mmap_fixed(v, 64<<10, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
-		if p != v {
-			if uintptr(p) >= 4096 {
+		p, err := mmap_fixed(v, 64<<10, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+		if p != v || err != 0 {
+			if err == 0 {
 				munmap(p, 64<<10)
 			}
 			return nil
@@ -198,8 +198,8 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
 		return v
 	}
 
-	p := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
-	if uintptr(p) < 4096 {
+	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+	if err != 0 {
 		return nil
 	}
 	*reserved = true
@@ -211,22 +211,22 @@ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
 
 	// On 64-bit, we don't actually have v reserved, so tread carefully.
 	if !reserved {
-		p := mmap_fixed(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
-		if uintptr(p) == _ENOMEM {
+		p, err := mmap_fixed(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+		if err == _ENOMEM {
 			throw("runtime: out of memory")
 		}
-		if p != v {
-			print("runtime: address space conflict: map(", v, ") = ", p, "\n")
+		if p != v || err != 0 {
+			print("runtime: address space conflict: map(", v, ") = ", p, " (err ", err, ")\n")
 			throw("runtime: address space conflict")
 		}
 		return
 	}
 
-	p := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
-	if uintptr(p) == _ENOMEM {
+	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+	if err == _ENOMEM {
 		throw("runtime: out of memory")
 	}
-	if p != v {
+	if p != v || err != 0 {
 		throw("runtime: cannot map pages in arena address space")
 	}
 }

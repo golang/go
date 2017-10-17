@@ -272,7 +272,13 @@ TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0
 	MOVW	off+28(FP), R8
 
 	SYSCALL	$SYS_mmap
-	MOVD	R3, ret+32(FP)
+	BVC	ok
+	MOVD	$0, p+32(FP)
+	MOVD	R3, err+40(FP)
+	RET
+ok:
+	MOVD	R3, p+32(FP)
+	MOVD	$0, err+40(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0

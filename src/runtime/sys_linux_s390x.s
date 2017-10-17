@@ -251,7 +251,7 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 	BR	runtime·sigtramp(SB)
 
 // func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
-TEXT runtime·mmap(SB),NOSPLIT,$48-40
+TEXT runtime·mmap(SB),NOSPLIT,$48-48
 	MOVD	addr+0(FP), R2
 	MOVD	n+8(FP), R3
 	MOVW	prot+16(FP), R4
@@ -272,9 +272,14 @@ TEXT runtime·mmap(SB),NOSPLIT,$48-40
 	MOVW	$SYS_mmap, R1
 	SYSCALL
 	MOVD	$-4095, R3
-	CMPUBLT	R2, R3, 2(PC)
+	CMPUBLT	R2, R3, ok
 	NEG	R2
-	MOVD	R2, ret+32(FP)
+	MOVD	$0, p+32(FP)
+	MOVD	R2, err+40(FP)
+	RET
+ok:
+	MOVD	R2, p+32(FP)
+	MOVD	$0, err+40(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0

@@ -411,10 +411,15 @@ TEXT runtime·sysMmap(SB),NOSPLIT,$0
 	MOVL	$SYS_mmap, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
-	JLS	3(PC)
+	JLS	ok
 	NOTQ	AX
 	INCQ	AX
-	MOVQ	AX, ret+32(FP)
+	MOVQ	$0, p+32(FP)
+	MOVQ	AX, err+40(FP)
+	RET
+ok:
+	MOVQ	AX, p+32(FP)
+	MOVQ	$0, err+40(FP)
 	RET
 
 // Call the function stored in _cgo_mmap using the GCC calling convention.

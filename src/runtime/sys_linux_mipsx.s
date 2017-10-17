@@ -279,7 +279,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
 TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 	JMP	runtime·sigtramp(SB)
 
-TEXT runtime·mmap(SB),NOSPLIT,$20-28
+TEXT runtime·mmap(SB),NOSPLIT,$20-32
 	MOVW	addr+0(FP), R4
 	MOVW	n+4(FP), R5
 	MOVW	prot+8(FP), R6
@@ -291,7 +291,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$20-28
 
 	MOVW	$SYS_mmap, R2
 	SYSCALL
-	MOVW	R2, ret+24(FP)
+	BEQ	R7, ok
+	MOVW	$0, p+24(FP)
+	MOVW	R2, err+28(FP)
+	RET
+ok:
+	MOVW	R2, p+24(FP)
+	MOVW	$0, err+28(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0-8
