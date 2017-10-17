@@ -400,11 +400,7 @@ func isZeroValue(flag *Flag, value string) bool {
 	}
 
 	switch value {
-	case "false":
-		return true
-	case "":
-		return true
-	case "0":
+	case "false", "", "0":
 		return true
 	}
 	return false
