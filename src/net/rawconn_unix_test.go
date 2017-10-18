@@ -92,3 +92,53 @@ func TestRawConn(t *testing.T) {
 		t.Fatal("should fail")
 	}
 }
+
+func TestRawConnListener(t *testing.T) {
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	cc, err := ln.(*TCPListener).SyscallConn()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	called := false
+	op := func(uintptr) bool {
+		called = true
+		return true
+	}
+
+	err = cc.Write(op)
+	if err == nil {
+		t.Error("Write should return an error")
+	}
+	if called {
+		t.Error("Write shouldn't call op")
+	}
+
+	called = false
+	err = cc.Read(op)
+	if err == nil {
+		t.Error("Read should return an error")
+	}
+	if called {
+		t.Error("Read shouldn't call op")
+	}
+
+	var operr error
+	fn := func(s uintptr) {
+		_, operr = syscall.GetsockoptInt(int(s), syscall.SOL_SOCKET, syscall.SO_REUSEADDR)
+	}
+	err = cc.Control(fn)
+	if err != nil || operr != nil {
+		t.Fatal(err, operr)
+	}
+	ln.Close()
+	err = cc.Control(fn)
+	if err == nil {
+		t.Fatal("Control after Close should fail")
+	}
+}
