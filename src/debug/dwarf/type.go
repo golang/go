@@ -154,7 +154,7 @@ type StructField struct {
 	Name       string
 	Type       Type
 	ByteOffset int64
-	ByteSize   int64
+	ByteSize   int64 // usually zero; use Type.Size() for normal fields
 	BitOffset  int64 // within the ByteSize bytes at ByteOffset
 	BitSize    int64 // zero if not a bit field
 }
