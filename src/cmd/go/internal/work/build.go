@@ -1696,8 +1696,18 @@ func (b *Builder) build(a *Action) (err error) {
 		}
 	}
 
-	if err := b.updateBuildID(a, actionID, objpkg); err != nil {
-		return err
+	// Update the binary with the final build ID.
+	// But if OmitDebug is set, don't, because we set OmitDebug
+	// on binaries that we are going to run and then delete.
+	// There's no point in doing work on such a binary.
+	// Worse, opening the binary for write here makes it
+	// essentially impossible to safely fork+exec due to a fundamental
+	// incompatibility between ETXTBSY and threads on modern Unix systems.
+	// See golang.org/issue/22220.
+	if !a.Package.Internal.OmitDebug {
+		if err := b.updateBuildID(a, actionID, objpkg); err != nil {
+			return err
+		}
 	}
 
 	return nil
