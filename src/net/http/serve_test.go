@@ -2765,15 +2765,28 @@ func testRequestLimit(t *testing.T, h2 bool) {
 		req.Header.Set(fmt.Sprintf("header%05d", i), fmt.Sprintf("val%05d", i))
 	}
 	res, err := cst.c.Do(req)
-	if err != nil {
+	if res != nil {
+		defer res.Body.Close()
+	}
+	if h2 {
+		// In HTTP/2, the result depends on a race. If the client has received the
+		// server's SETTINGS before RoundTrip starts sending the request, then RoundTrip
+		// will fail with an error. Otherwise, the client should receive a 431 from the
+		// server.
+		if err == nil && res.StatusCode != 431 {
+			t.Fatalf("expected 431 response status; got: %d %s", res.StatusCode, res.Status)
+		}
+	} else {
+		// In HTTP/1, we expect a 431 from the server.
 		// Some HTTP clients may fail on this undefined behavior (server replying and
 		// closing the connection while the request is still being written), but
 		// we do support it (at least currently), so we expect a response below.
-		t.Fatalf("Do: %v", err)
-	}
-	defer res.Body.Close()
-	if res.StatusCode != 431 {
-		t.Fatalf("expected 431 response status; got: %d %s", res.StatusCode, res.Status)
+		if err != nil {
+			t.Fatalf("Do: %v", err)
+		}
+		if res.StatusCode != 431 {
+			t.Fatalf("expected 431 response status; got: %d %s", res.StatusCode, res.Status)
+		}
 	}
 }
 

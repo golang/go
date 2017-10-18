@@ -6606,7 +6606,7 @@ type http2Transport struct {
 
 	// MaxHeaderListSize is the http2 SETTINGS_MAX_HEADER_LIST_SIZE to
 	// send in the initial settings frame. It is how many bytes
-	// of response headers are allow. Unlike the http2 spec, zero here
+	// of response headers are allowed. Unlike the http2 spec, zero here
 	// means to use a default limit (currently 10MB). If you actually
 	// want to advertise an ulimited value to the peer, Transport
 	// interprets the highest possible value here (0xffffffff or 1<<32-1)
@@ -6691,9 +6691,10 @@ type http2ClientConn struct {
 	fr              *http2Framer
 	lastActive      time.Time
 	// Settings from peer: (also guarded by mu)
-	maxFrameSize         uint32
-	maxConcurrentStreams uint32
-	initialWindowSize    uint32
+	maxFrameSize          uint32
+	maxConcurrentStreams  uint32
+	peerMaxHeaderListSize uint64
+	initialWindowSize     uint32
 
 	hbuf    bytes.Buffer // HPACK encoder writes into this
 	henc    *hpack.Encoder
@@ -7038,17 +7039,18 @@ func (t *http2Transport) NewClientConn(c net.Conn) (*http2ClientConn, error) {
 
 func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2ClientConn, error) {
 	cc := &http2ClientConn{
-		t:                    t,
-		tconn:                c,
-		readerDone:           make(chan struct{}),
-		nextStreamID:         1,
-		maxFrameSize:         16 << 10, // spec default
-		initialWindowSize:    65535,    // spec default
-		maxConcurrentStreams: 1000,     // "infinite", per spec. 1000 seems good enough.
-		streams:              make(map[uint32]*http2clientStream),
-		singleUse:            singleUse,
-		wantSettingsAck:      true,
-		pings:                make(map[[8]byte]chan struct{}),
+		t:                     t,
+		tconn:                 c,
+		readerDone:            make(chan struct{}),
+		nextStreamID:          1,
+		maxFrameSize:          16 << 10,           // spec default
+		initialWindowSize:     65535,              // spec default
+		maxConcurrentStreams:  1000,               // "infinite", per spec. 1000 seems good enough.
+		peerMaxHeaderListSize: 0xffffffffffffffff, // "infinite", per spec. Use 2^64-1 instead.
+		streams:               make(map[uint32]*http2clientStream),
+		singleUse:             singleUse,
+		wantSettingsAck:       true,
+		pings:                 make(map[[8]byte]chan struct{}),
 	}
 	if d := t.idleConnTimeout(); d != 0 {
 		cc.idleTimeout = d
@@ -7604,8 +7606,13 @@ func (cs *http2clientStream) writeRequestBody(body io.Reader, bodyCloser io.Clos
 	var trls []byte
 	if hasTrailers {
 		cc.mu.Lock()
-		defer cc.mu.Unlock()
-		trls = cc.encodeTrailers(req)
+		trls, err = cc.encodeTrailers(req)
+		cc.mu.Unlock()
+		if err != nil {
+			cc.writeStreamReset(cs.ID, http2ErrCodeInternal, err)
+			cc.forgetStreamID(cs.ID)
+			return err
+		}
 	}
 
 	cc.wmu.Lock()
@@ -7708,62 +7715,86 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 		}
 	}
 
-	// 8.1.2.3 Request Pseudo-Header Fields
-	// The :path pseudo-header field includes the path and query parts of the
-	// target URI (the path-absolute production and optionally a '?' character
-	// followed by the query production (see Sections 3.3 and 3.4 of
-	// [RFC3986]).
-	cc.writeHeader(":authority", host)
-	cc.writeHeader(":method", req.Method)
-	if req.Method != "CONNECT" {
-		cc.writeHeader(":path", path)
-		cc.writeHeader(":scheme", req.URL.Scheme)
-	}
-	if trailers != "" {
-		cc.writeHeader("trailer", trailers)
+	enumerateHeaders := func(f func(name, value string)) {
+		// 8.1.2.3 Request Pseudo-Header Fields
+		// The :path pseudo-header field includes the path and query parts of the
+		// target URI (the path-absolute production and optionally a '?' character
+		// followed by the query production (see Sections 3.3 and 3.4 of
+		// [RFC3986]).
+		f(":authority", host)
+		f(":method", req.Method)
+		if req.Method != "CONNECT" {
+			f(":path", path)
+			f(":scheme", req.URL.Scheme)
+		}
+		if trailers != "" {
+			f("trailer", trailers)
+		}
+
+		var didUA bool
+		for k, vv := range req.Header {
+			if strings.EqualFold(k, "host") || strings.EqualFold(k, "content-length") {
+				// Host is :authority, already sent.
+				// Content-Length is automatic, set below.
+				continue
+			} else if strings.EqualFold(k, "connection") || strings.EqualFold(k, "proxy-connection") ||
+				strings.EqualFold(k, "transfer-encoding") || strings.EqualFold(k, "upgrade") ||
+				strings.EqualFold(k, "keep-alive") {
+				// Per 8.1.2.2 Connection-Specific Header
+				// Fields, don't send connection-specific
+				// fields. We have already checked if any
+				// are error-worthy so just ignore the rest.
+				continue
+			} else if strings.EqualFold(k, "user-agent") {
+				// Match Go's http1 behavior: at most one
+				// User-Agent. If set to nil or empty string,
+				// then omit it. Otherwise if not mentioned,
+				// include the default (below).
+				didUA = true
+				if len(vv) < 1 {
+					continue
+				}
+				vv = vv[:1]
+				if vv[0] == "" {
+					continue
+				}
+
+			}
+
+			for _, v := range vv {
+				f(k, v)
+			}
+		}
+		if http2shouldSendReqContentLength(req.Method, contentLength) {
+			f("content-length", strconv.FormatInt(contentLength, 10))
+		}
+		if addGzipHeader {
+			f("accept-encoding", "gzip")
+		}
+		if !didUA {
+			f("user-agent", http2defaultUserAgent)
+		}
 	}
 
-	var didUA bool
-	for k, vv := range req.Header {
-		lowKey := strings.ToLower(k)
-		switch lowKey {
-		case "host", "content-length":
-			// Host is :authority, already sent.
-			// Content-Length is automatic, set below.
-			continue
-		case "connection", "proxy-connection", "transfer-encoding", "upgrade", "keep-alive":
-			// Per 8.1.2.2 Connection-Specific Header
-			// Fields, don't send connection-specific
-			// fields. We have already checked if any
-			// are error-worthy so just ignore the rest.
-			continue
-		case "user-agent":
-			// Match Go's http1 behavior: at most one
-			// User-Agent. If set to nil or empty string,
-			// then omit it. Otherwise if not mentioned,
-			// include the default (below).
-			didUA = true
-			if len(vv) < 1 {
-				continue
-			}
-			vv = vv[:1]
-			if vv[0] == "" {
-				continue
-			}
-		}
-		for _, v := range vv {
-			cc.writeHeader(lowKey, v)
-		}
+	// Do a first pass over the headers counting bytes to ensure
+	// we don't exceed cc.peerMaxHeaderListSize. This is done as a
+	// separate pass before encoding the headers to prevent
+	// modifying the hpack state.
+	hlSize := uint64(0)
+	enumerateHeaders(func(name, value string) {
+		hf := hpack.HeaderField{Name: name, Value: value}
+		hlSize += uint64(hf.Size())
+	})
+
+	if hlSize > cc.peerMaxHeaderListSize {
+		return nil, http2errRequestHeaderListSize
 	}
-	if http2shouldSendReqContentLength(req.Method, contentLength) {
-		cc.writeHeader("content-length", strconv.FormatInt(contentLength, 10))
-	}
-	if addGzipHeader {
-		cc.writeHeader("accept-encoding", "gzip")
-	}
-	if !didUA {
-		cc.writeHeader("user-agent", http2defaultUserAgent)
-	}
+
+	// Header list size is ok. Write the headers.
+	enumerateHeaders(func(name, value string) {
+		cc.writeHeader(strings.ToLower(name), value)
+	})
+
 	return cc.hbuf.Bytes(), nil
 }
 
@@ -7790,17 +7821,29 @@ func http2shouldSendReqContentLength(method string, contentLength int64) bool {
 }
 
 // requires cc.mu be held.
-func (cc *http2ClientConn) encodeTrailers(req *Request) []byte {
+func (cc *http2ClientConn) encodeTrailers(req *Request) ([]byte, error) {
 	cc.hbuf.Reset()
+
+	hlSize := uint64(0)
 	for k, vv := range req.Trailer {
-		// Transfer-Encoding, etc.. have already been filter at the
+		for _, v := range vv {
+			hf := hpack.HeaderField{Name: k, Value: v}
+			hlSize += uint64(hf.Size())
+		}
+	}
+	if hlSize > cc.peerMaxHeaderListSize {
+		return nil, http2errRequestHeaderListSize
+	}
+
+	for k, vv := range req.Trailer {
+		// Transfer-Encoding, etc.. have already been filtered at the
 		// start of RoundTrip
 		lowKey := strings.ToLower(k)
 		for _, v := range vv {
 			cc.writeHeader(lowKey, v)
 		}
 	}
-	return cc.hbuf.Bytes()
+	return cc.hbuf.Bytes(), nil
 }
 
 func (cc *http2ClientConn) writeHeader(name, value string) {
@@ -8012,7 +8055,17 @@ func (rl *http2clientConnReadLoop) run() error {
 
 func (rl *http2clientConnReadLoop) processHeaders(f *http2MetaHeadersFrame) error {
 	cc := rl.cc
-	cs := cc.streamByID(f.StreamID, f.StreamEnded())
+	if f.StreamEnded() {
+		// Issue 20521: If the stream has ended, streamByID() causes
+		// clientStream.done to be closed, which causes the request's bodyWriter
+		// to be closed with an errStreamClosed, which may be received by
+		// clientConn.RoundTrip before the result of processing these headers.
+		// Deferring stream closure allows the header processing to occur first.
+		// clientConn.RoundTrip may still receive the bodyWriter error first, but
+		// the fix for issue 16102 prioritises any response.
+		defer cc.streamByID(f.StreamID, true)
+	}
+	cs := cc.streamByID(f.StreamID, false)
 	if cs == nil {
 		// We'd get here if we canceled a request while the
 		// server had its response still in flight. So if this
@@ -8308,6 +8361,14 @@ func (rl *http2clientConnReadLoop) processData(f *http2DataFrame) error {
 		}
 		return nil
 	}
+	if !cs.firstByte {
+		cc.logf("protocol error: received DATA before a HEADERS frame")
+		rl.endStreamError(cs, http2StreamError{
+			StreamID: f.StreamID,
+			Code:     http2ErrCodeProtocol,
+		})
+		return nil
+	}
 	if f.Length > 0 {
 		// Check connection-level flow control.
 		cc.mu.Lock()
@@ -8422,6 +8483,8 @@ func (rl *http2clientConnReadLoop) processSettings(f *http2SettingsFrame) error 
 			cc.maxFrameSize = s.Val
 		case http2SettingMaxConcurrentStreams:
 			cc.maxConcurrentStreams = s.Val
+		case http2SettingMaxHeaderListSize:
+			cc.peerMaxHeaderListSize = uint64(s.Val)
 		case http2SettingInitialWindowSize:
 			// Values above the maximum flow-control
 			// window size of 2^31-1 MUST be treated as a
@@ -8588,6 +8651,7 @@ func (cc *http2ClientConn) writeStreamReset(streamID uint32, code http2ErrCode, 
 
 var (
 	http2errResponseHeaderListSize = errors.New("http2: response header list larger than advertised limit")
+	http2errRequestHeaderListSize  = errors.New("http2: request header list larger than peer's advertised limit")
 	http2errPseudoTrailers         = errors.New("http2: invalid pseudo header in trailers")
 )
 
