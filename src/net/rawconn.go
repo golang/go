@@ -60,3 +60,19 @@ func (c *rawConn) Write(f func(uintptr) bool) error {
 func newRawConn(fd *netFD) (*rawConn, error) {
 	return &rawConn{fd: fd}, nil
 }
+
+type rawListener struct {
+	rawConn
+}
+
+func (l *rawListener) Read(func(uintptr) bool) error {
+	return syscall.EINVAL
+}
+
+func (l *rawListener) Write(func(uintptr) bool) error {
+	return syscall.EINVAL
+}
+
+func newRawListener(fd *netFD) (*rawListener, error) {
+	return &rawListener{rawConn{fd: fd}}, nil
+}
