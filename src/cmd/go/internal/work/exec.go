@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -1015,73 +1014,23 @@ func (b *Builder) runOut(dir string, desc string, env []string, cmdargs ...inter
 		}
 	}
 
-	nbusy := 0
-	for {
-		var buf bytes.Buffer
-		cmd := exec.Command(cmdline[0], cmdline[1:]...)
-		cmd.Stdout = &buf
-		cmd.Stderr = &buf
-		cmd.Dir = dir
-		cmd.Env = base.MergeEnvLists(env, base.EnvForDir(cmd.Dir, os.Environ()))
-		err := cmd.Run()
+	var buf bytes.Buffer
+	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	cmd.Dir = dir
+	cmd.Env = base.MergeEnvLists(env, base.EnvForDir(cmd.Dir, os.Environ()))
+	err := cmd.Run()
 
-		// cmd.Run will fail on Unix if some other process has the binary
-		// we want to run open for writing. This can happen here because
-		// we build and install the cgo command and then run it.
-		// If another command was kicked off while we were writing the
-		// cgo binary, the child process for that command may be holding
-		// a reference to the fd, keeping us from running exec.
-		//
-		// But, you might reasonably wonder, how can this happen?
-		// The cgo fd, like all our fds, is close-on-exec, so that we need
-		// not worry about other processes inheriting the fd accidentally.
-		// The answer is that running a command is fork and exec.
-		// A child forked while the cgo fd is open inherits that fd.
-		// Until the child has called exec, it holds the fd open and the
-		// kernel will not let us run cgo. Even if the child were to close
-		// the fd explicitly, it would still be open from the time of the fork
-		// until the time of the explicit close, and the race would remain.
-		//
-		// On Unix systems, this results in ETXTBSY, which formats
-		// as "text file busy". Rather than hard-code specific error cases,
-		// we just look for that string. If this happens, sleep a little
-		// and try again. We let this happen three times, with increasing
-		// sleep lengths: 100+200+400 ms = 0.7 seconds.
-		//
-		// An alternate solution might be to split the cmd.Run into
-		// separate cmd.Start and cmd.Wait, and then use an RWLock
-		// to make sure that copyFile only executes when no cmd.Start
-		// call is in progress. However, cmd.Start (really syscall.forkExec)
-		// only guarantees that when it returns, the exec is committed to
-		// happen and succeed. It uses a close-on-exec file descriptor
-		// itself to determine this, so we know that when cmd.Start returns,
-		// at least one close-on-exec file descriptor has been closed.
-		// However, we cannot be sure that all of them have been closed,
-		// so the program might still encounter ETXTBSY even with such
-		// an RWLock. The race window would be smaller, perhaps, but not
-		// guaranteed to be gone.
-		//
-		// Sleeping when we observe the race seems to be the most reliable
-		// option we have.
-		//
-		// https://golang.org/issue/3001
-		//
-		if err != nil && nbusy < 3 && strings.Contains(err.Error(), "text file busy") {
-			time.Sleep(100 * time.Millisecond << uint(nbusy))
-			nbusy++
-			continue
-		}
-
-		// err can be something like 'exit status 1'.
-		// Add information about what program was running.
-		// Note that if buf.Bytes() is non-empty, the caller usually
-		// shows buf.Bytes() and does not print err at all, so the
-		// prefix here does not make most output any more verbose.
-		if err != nil {
-			err = errors.New(cmdline[0] + ": " + err.Error())
-		}
-		return buf.Bytes(), err
+	// err can be something like 'exit status 1'.
+	// Add information about what program was running.
+	// Note that if buf.Bytes() is non-empty, the caller usually
+	// shows buf.Bytes() and does not print err at all, so the
+	// prefix here does not make most output any more verbose.
+	if err != nil {
+		err = errors.New(cmdline[0] + ": " + err.Error())
 	}
+	return buf.Bytes(), err
 }
 
 // joinUnambiguously prints the slice, quoting where necessary to make the
