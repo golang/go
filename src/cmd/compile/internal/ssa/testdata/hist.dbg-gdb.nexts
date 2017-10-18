@@ -1,133 +1,124 @@
   src/cmd/compile/internal/ssa/testdata/hist.go
-35:	func main() {
-36:		hist := make([]int, 10)
-37:		var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A,cannedInput/A)
-$1 =  []int = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-$2 = "1\n1\n1\n1\n2\n2\n2\n4\n4\n8\n"
-38:		if len(os.Args) > 1 {
-43:				return
-47:		for scanner.Scan() {
-48:			s := scanner.Text()
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
-$3 = 1
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-48:			s := scanner.Text()
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
-$4 = 1
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-48:			s := scanner.Text()
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
+55:	func main() {
+57:		l := line{point{1 + zero, 2 + zero}, point{3 + zero, 4 + zero}}
+58:		tinycall()                // this forces l etc to stack
+59:		dx := l.end.x - l.begin.x //gdb-dbg=(l.begin.x,l.end.y)
+$1 = 1
+$2 = 4
+60:		dy := l.end.y - l.begin.y
+61:		sink = dx + dy
+63:		hist := make([]int, 7)
+64:		var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A,cannedInput/A)
+$3 =  []int = {0, 0, 0, 0, 0, 0, 0}
+$4 = "1\n1\n1\n2\n2\n2\n4\n4\n5\n"
+65:		if len(os.Args) > 1 {
+70:				return
+74:		for scanner.Scan() {
+75:			s := scanner.Text()
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i)
 $5 = 1
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-48:			s := scanner.Text()
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
+81:			hist = ensure(int(i), hist)
+82:			hist[int(i)]++
+74:		for scanner.Scan() {
+75:			s := scanner.Text()
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i)
 $6 = 1
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-48:			s := scanner.Text()
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
-$7 = 2
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-48:			s := scanner.Text()
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
+81:			hist = ensure(int(i), hist)
+82:			hist[int(i)]++
+74:		for scanner.Scan() {
+75:			s := scanner.Text()
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i)
+$7 = 1
+81:			hist = ensure(int(i), hist)
+82:			hist[int(i)]++
+74:		for scanner.Scan() {
+75:			s := scanner.Text()
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i)
 $8 = 2
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-48:			s := scanner.Text()
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
+81:			hist = ensure(int(i), hist)
+82:			hist[int(i)]++
+74:		for scanner.Scan() {
+75:			s := scanner.Text()
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i)
 $9 = 2
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-48:			s := scanner.Text()
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
-$10 = 4
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-48:			s := scanner.Text()
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
+81:			hist = ensure(int(i), hist)
+82:			hist[int(i)]++
+74:		for scanner.Scan() {
+75:			s := scanner.Text()
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i)
+$10 = 2
+81:			hist = ensure(int(i), hist)
+82:			hist[int(i)]++
+74:		for scanner.Scan() {
+75:			s := scanner.Text()
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i)
 $11 = 4
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-48:			s := scanner.Text()
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
-$12 = 8
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-57:		t := 0
-58:		n := 0
-59:		for i, a := range hist {
-60:			if a == 0 {
-61:				continue
-59:		for i, a := range hist {
-60:			if a == 0 {
-63:			t += i * a
-64:			n += a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-$13 = 4
-$14 = 1
-$15 = 4
-59:		for i, a := range hist {
-60:			if a == 0 {
-63:			t += i * a
-64:			n += a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-$16 = 7
-$17 = 2
-$18 = 10
-59:		for i, a := range hist {
-60:			if a == 0 {
-61:				continue
-59:		for i, a := range hist {
-60:			if a == 0 {
-63:			t += i * a
-64:			n += a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+81:			hist = ensure(int(i), hist)
+82:			hist[int(i)]++
+74:		for scanner.Scan() {
+75:			s := scanner.Text()
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i)
+$12 = 4
+81:			hist = ensure(int(i), hist)
+82:			hist[int(i)]++
+74:		for scanner.Scan() {
+75:			s := scanner.Text()
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i)
+$13 = 5
+81:			hist = ensure(int(i), hist)
+82:			hist[int(i)]++
+74:		for scanner.Scan() {
+84:		t := 0
+85:		n := 0
+86:		for i, a := range hist {
+87:			if a == 0 {
+88:				continue
+86:		for i, a := range hist {
+87:			if a == 0 {
+90:			t += i * a
+91:			n += a
+92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+$14 = 3
+$15 = 1
+$16 = 3
+86:		for i, a := range hist {
+87:			if a == 0 {
+90:			t += i * a
+91:			n += a
+92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+$17 = 6
+$18 = 2
 $19 = 9
-$20 = 4
-$21 = 18
-59:		for i, a := range hist {
-60:			if a == 0 {
-61:				continue
-59:		for i, a := range hist {
-60:			if a == 0 {
-61:				continue
-59:		for i, a := range hist {
-60:			if a == 0 {
-61:				continue
-59:		for i, a := range hist {
-60:			if a == 0 {
-63:			t += i * a
-64:			n += a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-$22 = 10
-$23 = 8
-$24 = 26
-59:		for i, a := range hist {
-60:			if a == 0 {
-61:				continue
-59:		for i, a := range hist {
-68:	}
+86:		for i, a := range hist {
+87:			if a == 0 {
+88:				continue
+86:		for i, a := range hist {
+87:			if a == 0 {
+90:			t += i * a
+91:			n += a
+92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+$20 = 8
+$21 = 4
+$22 = 17
+86:		for i, a := range hist {
+87:			if a == 0 {
+90:			t += i * a
+91:			n += a
+92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+$23 = 9
+$24 = 5
+$25 = 22
+86:		for i, a := range hist {
+87:			if a == 0 {
+88:				continue
+86:		for i, a := range hist {
+95:	}

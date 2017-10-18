@@ -6704,25 +6704,6 @@ func rewriteValuegeneric_OpArraySelect_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (ArraySelect [0] (Load ptr mem))
-	// cond:
-	// result: (Load ptr mem)
-	for {
-		if v.AuxInt != 0 {
-			break
-		}
-		v_0 := v.Args[0]
-		if v_0.Op != OpLoad {
-			break
-		}
-		_ = v_0.Args[1]
-		ptr := v_0.Args[0]
-		mem := v_0.Args[1]
-		v.reset(OpLoad)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
 	// match: (ArraySelect [0] x:(IData _))
 	// cond:
 	// result: x
