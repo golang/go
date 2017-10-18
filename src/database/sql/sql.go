@@ -285,7 +285,7 @@ type Scanner interface {
 // Example usage:
 //
 //   var outArg string
-//   _, err := db.ExecContext(ctx, "ProcName", sql.Named("Arg1", Out{Dest: &outArg}))
+//   _, err := db.ExecContext(ctx, "ProcName", sql.Named("Arg1", sql.Out{Dest: &outArg}))
 type Out struct {
 	_Named_Fields_Required struct{}
 
