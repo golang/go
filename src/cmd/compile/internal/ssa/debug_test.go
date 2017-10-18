@@ -25,7 +25,7 @@ import (
 var update = flag.Bool("u", false, "update test reference files")
 var verbose = flag.Bool("v", false, "print debugger interactions (very verbose)")
 var dryrun = flag.Bool("n", false, "just print the command line and first debugging bits")
-var delve = flag.Bool("d", false, "use Delve (dlv) instead of gdb, use dlv reverence files")
+var useDelve = flag.Bool("d", false, "use Delve (dlv) instead of gdb, use dlv reverence files")
 var force = flag.Bool("f", false, "force run under not linux-amd64; also do not use tempdir")
 
 var repeats = flag.Bool("r", false, "detect repeats in debug steps and don't ignore them")
@@ -89,7 +89,7 @@ func TestNexting(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 
-	if !*delve && !*force && !(runtime.GOOS == "linux" && runtime.GOARCH == "amd64") {
+	if !*useDelve && !*force && !(runtime.GOOS == "linux" && runtime.GOARCH == "amd64") {
 		// Running gdb on OSX/darwin is very flaky.
 		// Sometimes it is called ggdb, depending on how it is installed.
 		// It also probably requires an admin password typed into a dialog box.
@@ -99,7 +99,7 @@ func TestNexting(t *testing.T) {
 		skipReasons += "not run unless linux-amd64 or -d or -f; "
 	}
 
-	if *delve {
+	if *useDelve {
 		debugger = "dlv"
 		_, err := exec.LookPath("dlv")
 		if err != nil {
@@ -132,11 +132,11 @@ func TestNexting(t *testing.T) {
 		// If this is test is run with a runtime compiled with -N -l, it is very likely to fail.
 		// This occurs in the noopt builders (for example).
 		if gogcflags := os.Getenv("GO_GCFLAGS"); *force || (!strings.Contains(gogcflags, "-N") && !strings.Contains(gogcflags, "-l")) {
-			if *delve || *inlines {
-				testNexting(t, "hist", "opt", "")
+			if *useDelve || *inlines {
+				testNexting(t, "hist", "opt", "-dwarflocationlists")
 			} else {
 				// For gdb, disable inlining so that a compiler test does not depend on library code.
-				testNexting(t, "hist", "opt", "-l")
+				testNexting(t, "hist", "opt", "-l -dwarflocationlists")
 			}
 		} else {
 			t.Skip("skipping for unoptimized runtime")
@@ -176,7 +176,7 @@ func testNexting(t *testing.T, base, tag, gcflags string) {
 
 	nextlog := logbase + "-" + debugger + ".nexts"
 	tmplog := tmpbase + "-" + debugger + ".nexts"
-	if *delve {
+	if *useDelve {
 		h1 = dlvTest(tag, exe, 1000)
 	} else {
 		h1 = gdbTest(tag, exe, 1000)

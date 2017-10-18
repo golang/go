@@ -1,101 +1,11 @@
   ./testdata/hist.go
-35:	func main() {
-36:		hist := make([]int, 10)
-37:		var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A,cannedInput/A)
-13:		"strings"
-38:		if len(os.Args) > 1 {
-8:		"bufio"
-47:		for scanner.Scan() {
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-49:			i, err := strconv.ParseInt(s, 10, 64)
-50:			if err != nil { //gdb-dbg=(i)
-54:			hist = ensure(int(i), hist)
-55:			hist[int(i)]++
-47:		for scanner.Scan() {
-59:		for i, a := range hist {
-60:			if a == 0 {
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-64:			n += a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-63:			t += i * a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-63:			t += i * a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-59:		for i, a := range hist {
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-60:			if a == 0 {
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-64:			n += a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-63:			t += i * a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-63:			t += i * a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-59:		for i, a := range hist {
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-60:			if a == 0 {
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-64:			n += a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-63:			t += i * a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-63:			t += i * a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-59:		for i, a := range hist {
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-60:			if a == 0 {
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-64:			n += a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-63:			t += i * a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-63:			t += i * a
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-59:		for i, a := range hist {
-65:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-60:			if a == 0 {
-68:	}
+55:	func main() {
+57:		l := line{point{1 + zero, 2 + zero}, point{3 + zero, 4 + zero}}
+58:		tinycall()                // this forces l etc to stack
+57:		l := line{point{1 + zero, 2 + zero}, point{3 + zero, 4 + zero}}
+59:		dx := l.end.x - l.begin.x //gdb-dbg=(l.begin.x,l.end.y)
+60:		dy := l.end.y - l.begin.y
+61:		sink = dx + dy
+63:		hist := make([]int, 7)
+64:		var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A,cannedInput/A)
+19:		"strings"
