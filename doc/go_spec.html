@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 17, 2017",
+	"Subtitle": "Version of October 18, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -1866,8 +1866,8 @@ const (
 <p>
 Within a <a href="#Constant_declarations">constant declaration</a>, the predeclared identifier
 <code>iota</code> represents successive untyped integer <a href="#Constants">
-constants</a>. It is reset to 0 whenever the reserved word <code>const</code>
-appears in the source and increments after each <a href="#ConstSpec">ConstSpec</a>.
+constants</a>. Its value is the index of the respective <a href="#ConstSpec">ConstSpec</a>
+in that constant declaration, starting at zero.
 It can be used to construct a set of related constants:
 </p>
 
