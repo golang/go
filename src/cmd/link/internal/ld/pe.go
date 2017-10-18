@@ -93,6 +93,7 @@ const (
 
 // TODO(crawshaw): add these constants to debug/pe.
 const (
+	// TODO: the Microsoft doco says IMAGE_SYM_DTYPE_ARRAY is 3 and IMAGE_SYM_DTYPE_FUNCTION is 2
 	IMAGE_SYM_TYPE_NULL      = 0
 	IMAGE_SYM_TYPE_STRUCT    = 8
 	IMAGE_SYM_DTYPE_FUNCTION = 0x20
