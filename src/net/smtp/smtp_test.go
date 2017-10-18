@@ -478,6 +478,8 @@ func TestHello(t *testing.T) {
 					t.Errorf("Want error, got none")
 				}
 			}
+		case 9:
+			err = c.Noop()
 		default:
 			t.Fatalf("Unhandled command")
 		}
@@ -510,6 +512,7 @@ var helloServer = []string{
 	"250 Reset ok\n",
 	"221 Goodbye\n",
 	"250 Sender ok\n",
+	"250 ok\n",
 }
 
 var baseHelloClient = `EHLO customhost
@@ -526,6 +529,7 @@ var helloClient = []string{
 	"RSET\n",
 	"QUIT\n",
 	"VRFY test@example.com\n",
+	"NOOP\n",
 }
 
 func TestSendMail(t *testing.T) {

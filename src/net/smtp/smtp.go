@@ -398,6 +398,16 @@ func (c *Client) Reset() error {
 	return err
 }
 
+// Noop sends the NOOP command to the server. It does nothing but check
+// that the connaction to the server is okay.
+func (c *Client) Noop() error {
+	if err := c.hello(); err != nil {
+		return err
+	}
+	_, _, err := c.cmd(250, "NOOP")
+	return err
+}
+
 // Quit sends the QUIT command and closes the connection to the server.
 func (c *Client) Quit() error {
 	if err := c.hello(); err != nil {
