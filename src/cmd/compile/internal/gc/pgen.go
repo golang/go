@@ -400,11 +400,12 @@ func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var) {
 		typename := dwarf.InfoPrefix + typesymname(n.Type)
 		decls = append(decls, n)
 		vars = append(vars, &dwarf.Var{
-			Name:        n.Sym.Name,
-			Abbrev:      abbrev,
-			StackOffset: int32(offs),
-			Type:        Ctxt.Lookup(typename),
-			DeclLine:    n.Pos.Line(),
+			Name:          n.Sym.Name,
+			IsReturnValue: n.Class() == PPARAMOUT,
+			Abbrev:        abbrev,
+			StackOffset:   int32(offs),
+			Type:          Ctxt.Lookup(typename),
+			DeclLine:      n.Pos.Line(),
 		})
 	}
 	return decls, vars

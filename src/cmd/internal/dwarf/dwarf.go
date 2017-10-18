@@ -49,13 +49,14 @@ type Piece struct {
 
 // A Var represents a local variable or a function parameter.
 type Var struct {
-	Name         string
-	Abbrev       int // Either DW_ABRV_AUTO or DW_ABRV_PARAM
-	StackOffset  int32
-	LocationList []Location
-	Scope        int32
-	Type         Sym
-	DeclLine     uint
+	Name          string
+	Abbrev        int // Either DW_ABRV_AUTO[_LOCLIST] or DW_ABRV_PARAM[_LOCLIST]
+	IsReturnValue bool
+	StackOffset   int32
+	LocationList  []Location
+	Scope         int32
+	Type          Sym
+	DeclLine      uint
 }
 
 // A Scope represents a lexical scope. All variables declared within a
@@ -355,6 +356,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_CHILDREN_no,
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
+			{DW_AT_variable_parameter, DW_FORM_flag},
 			{DW_AT_decl_line, DW_FORM_udata},
 			{DW_AT_location, DW_FORM_block1},
 			{DW_AT_type, DW_FORM_ref_addr},
@@ -367,6 +369,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_CHILDREN_no,
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
+			{DW_AT_variable_parameter, DW_FORM_flag},
 			{DW_AT_decl_line, DW_FORM_udata},
 			{DW_AT_location, DW_FORM_sec_offset},
 			{DW_AT_type, DW_FORM_ref_addr},
@@ -833,8 +836,6 @@ func putscope(ctxt Context, info, loc, ranges, startPC Sym, curscope int32, scop
 }
 
 func putvar(ctxt Context, info, loc Sym, v *Var, startPC Sym, encbuf []byte) {
-	n := v.Name
-
 	// If the variable was entirely optimized out, don't emit a location list;
 	// convert to an inline abbreviation and emit an empty location.
 	missing := false
@@ -848,7 +849,14 @@ func putvar(ctxt Context, info, loc Sym, v *Var, startPC Sym, encbuf []byte) {
 	}
 
 	Uleb128put(ctxt, info, int64(v.Abbrev))
-	putattr(ctxt, info, v.Abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
+	putattr(ctxt, info, v.Abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(v.Name)), v.Name)
+	if v.Abbrev == DW_ABRV_PARAM || v.Abbrev == DW_ABRV_PARAM_LOCLIST {
+		var isReturn int64
+		if v.IsReturnValue {
+			isReturn = 1
+		}
+		putattr(ctxt, info, v.Abbrev, DW_FORM_flag, DW_CLS_FLAG, isReturn, nil)
+	}
 	putattr(ctxt, info, v.Abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
 	if v.Abbrev == DW_ABRV_AUTO_LOCLIST || v.Abbrev == DW_ABRV_PARAM_LOCLIST {
 		putattr(ctxt, info, v.Abbrev, DW_FORM_sec_offset, DW_CLS_PTR, int64(loc.Len()), loc)
