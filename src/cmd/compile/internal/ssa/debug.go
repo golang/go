@@ -274,30 +274,14 @@ func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
 	// Build up block states, starting with the first block, then
 	// processing blocks once their predecessors have been processed.
 
-	// TODO: use a reverse post-order traversal instead of the work queue.
-
 	// Location list entries for each block.
 	blockLocs := make([]*BlockDebug, f.NumBlocks())
 
-	// Work queue of blocks to visit. Some of them may already be processed.
-	work := []*Block{f.Entry}
-
-	for len(work) > 0 {
-		b := work[0]
-		work = work[1:]
-		if blockLocs[b.ID] != nil {
-			continue // already processed
-		}
-		if !state.predecessorsDone(b, blockLocs) {
-			continue // not ready yet
-		}
-
-		for _, edge := range b.Succs {
-			if blockLocs[edge.Block().ID] != nil {
-				continue
-			}
-			work = append(work, edge.Block())
-		}
+	// Reverse postorder: visit a block after as many as possible of its
+	// predecessors have been visited.
+	po := f.Postorder()
+	for i := len(po) - 1; i >= 0; i-- {
+		b := po[i]
 
 		// Build the starting state for the block from the final
 		// state of its predecessors.
@@ -351,7 +335,7 @@ func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
 			last.End = BlockEnd
 		}
 		if state.loggingEnabled {
-			f.Logf("Block done: locs %v, regs %v. work = %+v\n", state.BlockString(locs), state.registerContents, work)
+			f.Logf("Block done: locs %v, regs %v\n", state.BlockString(locs), state.registerContents)
 		}
 		blockLocs[b.ID] = locs
 	}
@@ -380,30 +364,6 @@ func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
 func isSynthetic(slot *LocalSlot) bool {
 	c := slot.String()[0]
 	return c == '.' || c == '~'
-}
-
-// predecessorsDone reports whether block is ready to be processed.
-func (state *debugState) predecessorsDone(b *Block, blockLocs []*BlockDebug) bool {
-	f := b.Func
-	for _, edge := range b.Preds {
-		// Ignore back branches, e.g. the continuation of a for loop.
-		// This may not work for functions with mutual gotos, which are not
-		// reducible, in which case debug information will be missing for any
-		// code after that point in the control flow.
-		if f.sdom().isAncestorEq(b, edge.b) {
-			if state.loggingEnabled {
-				f.Logf("ignoring back branch from %v to %v\n", edge.b, b)
-			}
-			continue // back branch
-		}
-		if blockLocs[edge.b.ID] == nil {
-			if state.loggingEnabled {
-				f.Logf("%v is not ready because %v isn't done\n", b, edge.b)
-			}
-			return false
-		}
-	}
-	return true
 }
 
 // mergePredecessors takes the end state of each of b's predecessors and
