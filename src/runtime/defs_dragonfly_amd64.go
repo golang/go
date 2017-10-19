@@ -82,6 +82,7 @@ const (
 	_EV_DELETE    = 0x2
 	_EV_CLEAR     = 0x20
 	_EV_ERROR     = 0x4000
+	_EV_EOF       = 0x8000
 	_EVFILT_READ  = -0x1
 	_EVFILT_WRITE = -0x2
 )
