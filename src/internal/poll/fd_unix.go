@@ -411,6 +411,15 @@ func (fd *FD) WaitWrite() error {
 	return fd.pd.waitWrite(fd.isFile)
 }
 
+// WriteOnce is for testing only. It makes a single write call.
+func (fd *FD) WriteOnce(p []byte) (int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, err
+	}
+	defer fd.writeUnlock()
+	return syscall.Write(fd.Sysfd, p)
+}
+
 // RawControl invokes the user-defined function f for a non-IO
 // operation.
 func (fd *FD) RawControl(f func(uintptr)) error {
