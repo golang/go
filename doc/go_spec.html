@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 18, 2017",
+	"Subtitle": "Version of October 19, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -1837,7 +1837,7 @@ const u, v float32 = 0, 3    // u = 0.0, v = 3.0
 
 <p>
 Within a parenthesized <code>const</code> declaration list the
-expression list may be omitted from any but the first declaration.
+expression list may be omitted from any but the first ConstSpec.
 Such an empty list is equivalent to the textual substitution of the
 first preceding non-empty expression list and its type if any.
 Omitting the list of expressions is therefore equivalent to
@@ -1872,46 +1872,45 @@ It can be used to construct a set of related constants:
 </p>
 
 <pre>
-const ( // iota is reset to 0
+const (
 	c0 = iota  // c0 == 0
 	c1 = iota  // c1 == 1
 	c2 = iota  // c2 == 2
 )
 
-const ( // iota is reset to 0
-	a = 1 &lt;&lt; iota  // a == 1
-	b = 1 &lt;&lt; iota  // b == 2
-	c = 3          // c == 3  (iota is not used but still incremented)
-	d = 1 &lt;&lt; iota  // d == 8
+const (
+	a = 1 &lt;&lt; iota  // a == 1  (iota == 0)
+	b = 1 &lt;&lt; iota  // b == 2  (iota == 1)
+	c = 3          // c == 3  (iota == 2, unused)
+	d = 1 &lt;&lt; iota  // d == 8  (iota == 3)
 )
 
-const ( // iota is reset to 0
+const (
 	u         = iota * 42  // u == 0     (untyped integer constant)
 	v float64 = iota * 42  // v == 42.0  (float64 constant)
 	w         = iota * 42  // w == 84    (untyped integer constant)
 )
 
-const x = iota  // x == 0  (iota has been reset)
-const y = iota  // y == 0  (iota has been reset)
+const x = iota  // x == 0
+const y = iota  // y == 0
 </pre>
 
 <p>
-Within an ExpressionList, the value of each <code>iota</code> is the same because
-it is only incremented after each ConstSpec:
+By definition, multiple uses of <code>iota</code> in the same ConstSpec all have the same value:
 </p>
 
 <pre>
 const (
-	bit0, mask0 = 1 &lt;&lt; iota, 1&lt;&lt;iota - 1  // bit0 == 1, mask0 == 0
-	bit1, mask1                           // bit1 == 2, mask1 == 1
-	_, _                                  // skips iota == 2
-	bit3, mask3                           // bit3 == 8, mask3 == 7
+	bit0, mask0 = 1 &lt;&lt; iota, 1&lt;&lt;iota - 1  // bit0 == 1, mask0 == 0  (iota == 0)
+	bit1, mask1                           // bit1 == 2, mask1 == 1  (iota == 1)
+	_, _                                  //                        (iota == 2, unused)
+	bit3, mask3                           // bit3 == 8, mask3 == 7  (iota == 3)
 )
 </pre>
 
 <p>
-This last example exploits the implicit repetition of the
-last non-empty expression list.
+This last example exploits the <a href="#Constant_declarations">implicit repetition</a>
+of the last non-empty expression list.
 </p>
 
 
