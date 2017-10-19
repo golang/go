@@ -1250,6 +1250,9 @@ func recordFlags(flags ...string) {
 	}
 	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "producer." + myimportpath)
 	s.Type = objabi.SDWARFINFO
+	// Sometimes (for example when building tests) we can link
+	// together two package main archives. So allow dups.
+	s.Set(obj.AttrDuplicateOK, true)
 	Ctxt.Data = append(Ctxt.Data, s)
 	s.P = cmd.Bytes()[1:]
 }
