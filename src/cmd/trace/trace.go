@@ -114,7 +114,7 @@ var templTrace = `
     viewer.viewTitle = "trace";
   }
 
-  function onImportFail() {
+  function onImportFail(err) {
     var overlay = new tr.ui.b.Overlay();
     overlay.textContent = tr.b.normalizeException(err).message;
     overlay.title = 'Import error';
