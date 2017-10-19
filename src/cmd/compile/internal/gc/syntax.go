@@ -744,3 +744,23 @@ func (n *Nodes) AppendNodes(n2 *Nodes) {
 	}
 	n2.slice = nil
 }
+
+// inspect invokes f on each node in an AST in depth-first order.
+// If f(n) returns false, inspect skips visiting n's children.
+func inspect(n *Node, f func(*Node) bool) {
+	if n == nil || !f(n) {
+		return
+	}
+	inspectList(n.Ninit, f)
+	inspect(n.Left, f)
+	inspect(n.Right, f)
+	inspectList(n.List, f)
+	inspectList(n.Nbody, f)
+	inspectList(n.Rlist, f)
+}
+
+func inspectList(l Nodes, f func(*Node) bool) {
+	for _, n := range l.Slice() {
+		inspect(n, f)
+	}
+}

@@ -452,9 +452,15 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 	// that has got a pointer inside. Whether it points to
 	// the heap or not is impossible to know at compile time
 	if class == PAUTOHEAP || class == PEXTERN || b.Op == OINDEX || b.Op == ODOTPTR || b.Op == OIND {
-		hascalls := 0
-		foreach(n, hascallspred, &hascalls)
-		if hascalls != 0 {
+		hasCalls := false
+		inspect(n, func(n *Node) bool {
+			switch n.Op {
+			case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
+				hasCalls = true
+			}
+			return !hasCalls
+		})
+		if hasCalls {
 			n = detachexpr(n, init)
 			*np = n
 		}
@@ -540,34 +546,6 @@ func detachexpr(n *Node, init *Nodes) *Node {
 	ind = typecheck(ind, Erv)
 	ind = walkexpr(ind, init)
 	return ind
-}
-
-func foreachnode(n *Node, f func(*Node, interface{}), c interface{}) {
-	if n != nil {
-		f(n, c)
-	}
-}
-
-func foreachlist(l Nodes, f func(*Node, interface{}), c interface{}) {
-	for _, n := range l.Slice() {
-		foreachnode(n, f, c)
-	}
-}
-
-func foreach(n *Node, f func(*Node, interface{}), c interface{}) {
-	foreachlist(n.Ninit, f, c)
-	foreachnode(n.Left, f, c)
-	foreachnode(n.Right, f, c)
-	foreachlist(n.List, f, c)
-	foreachlist(n.Nbody, f, c)
-	foreachlist(n.Rlist, f, c)
-}
-
-func hascallspred(n *Node, c interface{}) {
-	switch n.Op {
-	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
-		(*c.(*int))++
-	}
 }
 
 // appendinit is like addinit in subr.go
