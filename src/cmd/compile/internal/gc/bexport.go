@@ -594,7 +594,7 @@ func isInlineable(n *Node) bool {
 	if exportInlined && n != nil && n.Func != nil && n.Func.Inl.Len() != 0 {
 		// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
 		// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
-		if Debug['l'] < 2 {
+		if Debug_typecheckinl == 0 {
 			typecheckinl(n)
 		}
 		return true
