@@ -8,18 +8,21 @@
 // expand calls to inlinable functions.
 //
 // The debug['l'] flag controls the aggressiveness. Note that main() swaps level 0 and 1,
-// making 1 the default and -l disable.  -ll and more is useful to flush out bugs.
-// These additional levels (beyond -l) may be buggy and are not supported.
+// making 1 the default and -l disable. Additional levels (beyond -l) may be buggy and
+// are not supported.
 //      0: disabled
 //      1: 80-nodes leaf functions, oneliners, lazy typechecking (default)
-//      2: early typechecking of all imported bodies
+//      2: (unassigned)
 //      3: allow variadic functions
-//      4: allow non-leaf functions , (breaks runtime.Caller)
+//      4: allow non-leaf functions
 //
-//  At some point this may get another default and become switch-offable with -N.
+// At some point this may get another default and become switch-offable with -N.
 //
-//  The debug['m'] flag enables diagnostic output.  a single -m is useful for verifying
-//  which calls get inlined or not, more is for debugging, and may go away at any point.
+// The -d typcheckinl flag enables early typechecking of all imported bodies,
+// which is useful to flush out bugs.
+//
+// The debug['m'] flag enables diagnostic output.  a single -m is useful for verifying
+// which calls get inlined or not, more is for debugging, and may go away at any point.
 //
 // TODO:
 //   - inline functions with ... args
@@ -727,7 +730,7 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 		return n
 	}
 
-	if Debug['l'] < 2 {
+	if Debug_typecheckinl == 0 {
 		typecheckinl(fn)
 	}
 

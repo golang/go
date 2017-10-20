@@ -46,6 +46,7 @@ var (
 	Debug_wb           int
 	Debug_pctab        string
 	Debug_locationlist int
+	Debug_typecheckinl int
 )
 
 // Debug arguments.
@@ -72,6 +73,7 @@ var debugtab = []struct {
 	{"export", "print export data", &Debug_export},
 	{"pctab", "print named pc-value table", &Debug_pctab},
 	{"locationlists", "print information about DWARF location list creation", &Debug_locationlist},
+	{"typecheckinl", "eager typechecking of inline function bodies", &Debug_typecheckinl},
 }
 
 const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
@@ -523,7 +525,7 @@ func Main(archInit func(*Arch)) {
 
 	// Phase 5: Inlining
 	timings.Start("fe", "inlining")
-	if Debug['l'] > 1 {
+	if Debug_typecheckinl != 0 {
 		// Typecheck imported function bodies if debug['l'] > 1,
 		// otherwise lazily when used or re-exported.
 		for _, n := range importlist {
