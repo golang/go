@@ -13,6 +13,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
+	"cmd/internal/objabi"
 )
 
 // loadByType returns the load instruction of the given type.
@@ -603,6 +604,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				return
 			default:
 			}
+		}
+		if objabi.GOARM >= 6 {
+			// generate more efficient "MOVB/MOVBU/MOVH/MOVHU Reg@>0, Reg" on ARMv6 & ARMv7
+			genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, 0)
+			return
 		}
 		fallthrough
 	case ssa.OpARMMVN,
