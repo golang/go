@@ -1373,7 +1373,8 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
 			return convlit(n, t)
 		}
 
-		if n.Val().Ctype() == CTNIL {
+		switch n.Val().Ctype() {
+		case CTNIL:
 			lineno = lno
 			if !n.Diag() {
 				yyerror("use of untyped nil")
@@ -1381,16 +1382,12 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
 			}
 
 			n.Type = nil
-			break
-		}
-
-		if n.Val().Ctype() == CTSTR {
+		case CTSTR:
 			t1 := types.Types[TSTRING]
 			n = convlit1(n, t1, false, reuse)
-			break
+		default:
+			yyerror("defaultlit: unknown literal: %v", n)
 		}
-
-		yyerror("defaultlit: unknown literal: %v", n)
 
 	case CTxxx:
 		Fatalf("defaultlit: idealkind is CTxxx: %+v", n)

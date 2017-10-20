@@ -205,9 +205,7 @@ const (
 // allowed level when a loop is encountered. Using -2 suffices to
 // pass all the tests we have written so far, which we assume matches
 // the level of complexity we want the escape analysis code to handle.
-const (
-	MinLevel = -2
-)
+const MinLevel = -2
 
 // A Level encodes the reference state and context applied to
 // (stack, heap) allocated memory.

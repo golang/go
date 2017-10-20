@@ -13,9 +13,7 @@ import (
 )
 
 // The constant is known to runtime.
-const (
-	tmpstringbufsize = 32
-)
+const tmpstringbufsize = 32
 
 func walk(fn *Node) {
 	Curfn = fn
@@ -2247,24 +2245,23 @@ func convas(n *Node, init *Nodes) *Node {
 	if n.Op != OAS {
 		Fatalf("convas: not OAS %v", n.Op)
 	}
+	defer updateHasCall(n)
 
 	n.SetTypecheck(1)
 
-	var lt *types.Type
-	var rt *types.Type
 	if n.Left == nil || n.Right == nil {
-		goto out
+		return n
 	}
 
-	lt = n.Left.Type
-	rt = n.Right.Type
+	lt := n.Left.Type
+	rt := n.Right.Type
 	if lt == nil || rt == nil {
-		goto out
+		return n
 	}
 
 	if isblank(n.Left) {
 		n.Right = defaultlit(n.Right, nil)
-		goto out
+		return n
 	}
 
 	if !eqtype(lt, rt) {
@@ -2273,8 +2270,6 @@ func convas(n *Node, init *Nodes) *Node {
 	}
 	dowidth(n.Right.Type)
 
-out:
-	updateHasCall(n)
 	return n
 }
 
@@ -2429,9 +2424,8 @@ func outervalue(n *Node) *Node {
 			}
 		}
 
-		break
+		return n
 	}
-	return n
 }
 
 // Is it possible that the computation of n might be

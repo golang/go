@@ -70,13 +70,13 @@ func newProgs(fn *Node, worker int) *Progs {
 }
 
 func (pp *Progs) NewProg() *obj.Prog {
+	var p *obj.Prog
 	if pp.cacheidx < len(pp.progcache) {
-		p := &pp.progcache[pp.cacheidx]
-		p.Ctxt = Ctxt
+		p = &pp.progcache[pp.cacheidx]
 		pp.cacheidx++
-		return p
+	} else {
+		p = new(obj.Prog)
 	}
-	p := new(obj.Prog)
 	p.Ctxt = Ctxt
 	return p
 }
