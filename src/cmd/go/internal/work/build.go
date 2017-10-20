@@ -3581,7 +3581,9 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	cmd.Dir = b.WorkDir
 	cmd.Env = base.MergeEnvLists([]string{"LC_ALL=C"}, base.EnvForDir(cmd.Dir, os.Environ()))
 	out, err := cmd.CombinedOutput()
-	supported := err == nil && !bytes.Contains(out, []byte("unrecognized"))
+	// GCC says "unrecognized command line option".
+	// clang says "unknown argument".
+	supported := err == nil && !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
 	b.flagCache[key] = supported
 	return supported
 }
