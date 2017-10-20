@@ -12,7 +12,6 @@ func evalunsafe(n *Node) int64 {
 		n.Left = defaultlit(n.Left, nil)
 		tr := n.Left.Type
 		if tr == nil {
-			yyerror("invalid expression %v", n)
 			return 0
 		}
 		dowidth(tr)
@@ -35,6 +34,9 @@ func evalunsafe(n *Node) int64 {
 		base := n.Left.Left
 
 		n.Left = typecheck(n.Left, Erv)
+		if n.Left.Type == nil {
+			return 0
+		}
 		switch n.Left.Op {
 		case ODOT, ODOTPTR:
 			break
