@@ -250,7 +250,96 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
 
 #ifdef GOARCH_ppc64le
 // ppc64le doesn't need function descriptors
-TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
+	// The stack unwinder, presumably written in C, may not be able to
+	// handle Go frame correctly. So, this function is NOFRAME, and we
+	// we save/restore LR manually.
+	MOVD	LR, R10
+
+	// We're coming from C code, initialize essential registers.
+	CALL	runtime·reginit(SB)
+
+	// If no traceback function, do usual sigtramp.
+	MOVD	runtime·cgoTraceback(SB), R6
+	CMP	$0, R6
+	BEQ	sigtramp
+
+	// If no traceback support function, which means that
+	// runtime/cgo was not linked in, do usual sigtramp.
+	MOVD	_cgo_callers(SB), R6
+	CMP	$0, R6
+	BEQ	sigtramp
+
+	// Set up g register.
+	CALL	runtime·load_g(SB)
+
+	// Figure out if we are currently in a cgo call.
+	// If not, just do usual sigtramp.
+	CMP	$0, g
+	BEQ	sigtrampnog // g == nil
+	MOVD	g_m(g), R6
+	CMP	$0, R6
+	BEQ	sigtramp    // g.m == nil
+	MOVW	m_ncgo(R6), R7
+	CMPW	$0, R7
+	BEQ	sigtramp    // g.m.ncgo = 0
+	MOVD	m_curg(R6), R7
+	CMP	$0, R7
+	BEQ	sigtramp    // g.m.curg == nil
+	MOVD	g_syscallsp(R7), R7
+	CMP	$0, R7
+	BEQ	sigtramp    // g.m.curg.syscallsp == 0
+	MOVD	m_cgoCallers(R6), R7 // R7 is the fifth arg in C calling convention.
+	CMP	$0, R7
+	BEQ	sigtramp    // g.m.cgoCallers == nil
+	MOVW	m_cgoCallersUse(R6), R8
+	CMPW	$0, R8
+	BNE	sigtramp    // g.m.cgoCallersUse != 0
+
+	// Jump to a function in runtime/cgo.
+	// That function, written in C, will call the user's traceback
+	// function with proper unwind info, and will then call back here.
+	// The first three arguments, and the fifth, are already in registers.
+	// Set the two remaining arguments now.
+	MOVD	runtime·cgoTraceback(SB), R6
+	MOVD	$runtime·sigtramp(SB), R8
+	MOVD	_cgo_callers(SB), R12
+	MOVD	R12, CTR
+	MOVD	R10, LR // restore LR
+	JMP	(CTR)
+
+sigtramp:
+	MOVD	R10, LR // restore LR
+	JMP	runtime·sigtramp(SB)
+
+sigtrampnog:
+	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
+	// stack trace.
+	CMPW	R3, $27 // 27 == SIGPROF
+	BNE	sigtramp
+
+	// Lock sigprofCallersUse (cas from 0 to 1).
+	MOVW	$1, R7
+	MOVD	$runtime·sigprofCallersUse(SB), R8
+	SYNC
+	LWAR    (R8), R6
+	CMPW    $0, R6
+	BNE     sigtramp
+	STWCCC  R7, (R8)
+	BNE     -4(PC)
+	ISYNC
+
+	// Jump to the traceback function in runtime/cgo.
+	// It will call back to sigprofNonGo, which will ignore the
+	// arguments passed in registers.
+	// First three arguments to traceback function are in registers already.
+	MOVD	runtime·cgoTraceback(SB), R6
+	MOVD	$runtime·sigprofCallers(SB), R7
+	MOVD	$runtime·sigprofNonGoWrapper<>(SB), R8
+	MOVD	_cgo_callers(SB), R12
+	MOVD	R12, CTR
+	MOVD	R10, LR // restore LR
+	JMP	(CTR)
 #else
 // function descriptor for the real sigtramp
 TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
@@ -258,10 +347,14 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
 	DWORD	$0
 	DWORD	$0
 TEXT runtime·_cgoSigtramp(SB),NOSPLIT,$0
+	JMP	runtime·sigtramp(SB)
 #endif
-	MOVD	$runtime·sigtramp(SB), R12
-	MOVD	R12, CTR
-	JMP	(CTR)
+
+TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
+	// We're coming from C code, set up essential register, then call sigprofNonGo.
+	CALL	runtime·reginit(SB)
+	CALL	runtime·sigprofNonGo(SB)
+	RET
 
 TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0
 	MOVD	addr+0(FP), R3
