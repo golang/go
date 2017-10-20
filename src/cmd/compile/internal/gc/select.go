@@ -156,8 +156,7 @@ func walkselect(sel *Node) {
 			a.Nbody.Set1(mkcall("block", nil, &ln))
 			l = ln.Slice()
 			a = typecheck(a, Etop)
-			l = append(l, a)
-			l = append(l, n)
+			l = append(l, a, n)
 		}
 
 		l = append(l, cas.Nbody.Slice()...)

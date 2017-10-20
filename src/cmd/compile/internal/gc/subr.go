@@ -1130,48 +1130,42 @@ func updateHasCall(n *Node) {
 	if n == nil {
 		return
 	}
+	n.SetHasCall(calcHasCall(n))
+}
 
-	b := false
+func calcHasCall(n *Node) bool {
 	if n.Ninit.Len() != 0 {
 		// TODO(mdempsky): This seems overly conservative.
-		b = true
-		goto out
+		return true
 	}
 
 	switch n.Op {
 	case OLITERAL, ONAME, OTYPE:
-		if b || n.HasCall() {
+		if n.HasCall() {
 			Fatalf("OLITERAL/ONAME/OTYPE should never have calls: %+v", n)
 		}
-		return
+		return false
 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
-		b = true
-		goto out
+		return true
 	case OANDAND, OOROR:
 		// hard with instrumented code
 		if instrumenting {
-			b = true
-			goto out
+			return true
 		}
 	case OINDEX, OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR,
 		OIND, ODOTPTR, ODOTTYPE, ODIV, OMOD:
 		// These ops might panic, make sure they are done
 		// before we start marshaling args for a call. See issue 16760.
-		b = true
-		goto out
+		return true
 	}
 
 	if n.Left != nil && n.Left.HasCall() {
-		b = true
-		goto out
+		return true
 	}
 	if n.Right != nil && n.Right.HasCall() {
-		b = true
-		goto out
+		return true
 	}
-
-out:
-	n.SetHasCall(b)
+	return false
 }
 
 func badtype(op Op, tl *types.Type, tr *types.Type) {
@@ -1383,6 +1377,7 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase 
 		return
 	}
 	t.SetRecur(true)
+	defer t.SetRecur(false)
 
 	var u *types.Type
 	d--
@@ -1392,7 +1387,7 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase 
 		// below for embedded fields.
 		c = lookdot0(s, t, save, ignorecase)
 		if c != 0 {
-			goto out
+			return c, false
 		}
 	}
 
@@ -1401,7 +1396,7 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase 
 		u = u.Elem()
 	}
 	if !u.IsStruct() && !u.IsInterface() {
-		goto out
+		return c, false
 	}
 
 	for _, f := range u.Fields().Slice() {
@@ -1410,8 +1405,7 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase 
 		}
 		if d < 0 {
 			// Found an embedded field at target depth.
-			more = true
-			goto out
+			return c, true
 		}
 		a, more1 := adddot1(s, f.Type, d, save, ignorecase)
 		if a != 0 && c == 0 {
@@ -1423,8 +1417,6 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase 
 		}
 	}
 
-out:
-	t.SetRecur(false)
 	return c, more
 }
 
@@ -1553,21 +1545,18 @@ func expand1(t *types.Type, top, followptr bool) {
 		u = u.Elem()
 	}
 
-	if !u.IsStruct() && !u.IsInterface() {
-		goto out
+	if u.IsStruct() || u.IsInterface() {
+		for _, f := range u.Fields().Slice() {
+			if f.Embedded == 0 {
+				continue
+			}
+			if f.Sym == nil {
+				continue
+			}
+			expand1(f.Type, false, followptr)
+		}
 	}
 
-	for _, f := range u.Fields().Slice() {
-		if f.Embedded == 0 {
-			continue
-		}
-		if f.Sym == nil {
-			continue
-		}
-		expand1(f.Type, false, followptr)
-	}
-
-out:
 	t.SetRecur(false)
 }
 

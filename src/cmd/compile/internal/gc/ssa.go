@@ -5119,10 +5119,11 @@ func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
 func (e *ssafn) splitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
 	s := &types.Sym{Name: parent.N.(*Node).Sym.Name + suffix, Pkg: localpkg}
 
-	n := new(Node)
-	n.Name = new(Name)
-	n.Op = ONAME
-	n.Pos = parent.N.(*Node).Pos
+	n := &Node{
+		Name: new(Name),
+		Op:   ONAME,
+		Pos:  parent.N.(*Node).Pos,
+	}
 	n.Orig = n
 
 	s.Def = asTypesNode(n)
