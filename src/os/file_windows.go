@@ -310,18 +310,10 @@ func rename(oldname, newname string) error {
 // It returns the files and an error, if any.
 func Pipe() (r *File, w *File, err error) {
 	var p [2]syscall.Handle
-
-	// See ../syscall/exec.go for description of lock.
-	syscall.ForkLock.RLock()
-	e := syscall.Pipe(p[0:])
+	e := syscall.CreatePipe(&p[0], &p[1], nil, 0)
 	if e != nil {
-		syscall.ForkLock.RUnlock()
 		return nil, nil, NewSyscallError("pipe", e)
 	}
-	syscall.CloseOnExec(p[0])
-	syscall.CloseOnExec(p[1])
-	syscall.ForkLock.RUnlock()
-
 	return newFile(p[0], "|0", "file"), newFile(p[1], "|1", "file"), nil
 }
 
