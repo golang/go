@@ -117,6 +117,15 @@ func caninl(fn *Node) {
 		return
 	}
 
+	// The nowritebarrierrec checker currently works at function
+	// granularity, so inlining yeswritebarrierrec functions can
+	// confuse it (#22342). As a workaround, disallow inlining
+	// them for now.
+	if fn.Func.Pragma&Yeswritebarrierrec != 0 {
+		reason = "marked go:yeswritebarrierrec"
+		return
+	}
+
 	// If fn has no body (is defined outside of Go), cannot inline it.
 	if fn.Nbody.Len() == 0 {
 		reason = "no function body"
