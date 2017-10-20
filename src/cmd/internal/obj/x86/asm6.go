@@ -1996,7 +1996,6 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		c = 0
 		for p := s.Func.Text; p != nil; p = p.Link {
 			if ctxt.Headtype == objabi.Hnacl && p.Isize > 0 {
-
 				// pad everything to avoid crossing 32-byte boundary
 				if c>>5 != (c+int32(p.Isize)-1)>>5 {
 					c = naclpad(ctxt, s, c, -c&31)

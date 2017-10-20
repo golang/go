@@ -52,7 +52,6 @@ func sysctlNodes(mib []_C_int) (nodes []Sysctlnode, err error) {
 }
 
 func nametomib(name string) (mib []_C_int, err error) {
-
 	// Split name into components.
 	var parts []string
 	last := 0

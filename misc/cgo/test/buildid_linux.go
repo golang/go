@@ -39,7 +39,6 @@ func testBuildID(t *testing.T) {
 		}
 
 		for len(d) > 0 {
-
 			// ELF standards differ as to the sizes in
 			// note sections.  Both the GNU linker and
 			// gold always generate 32-bit sizes, so that

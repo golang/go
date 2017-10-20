@@ -290,7 +290,6 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 		dlen := 8
 
 		for j := 0; j < 8; {
-
 			// We have reached the end and are missing padding
 			if len(src) == 0 && enc.padChar != NoPadding {
 				return n, false, CorruptInputError(olen - len(src) - j)

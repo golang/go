@@ -82,7 +82,6 @@ func TestAfterStress(t *testing.T) {
 }
 
 func benchmark(b *testing.B, bench func(n int)) {
-
 	// Create equal number of garbage timers on each P before starting
 	// the benchmark.
 	var wg sync.WaitGroup

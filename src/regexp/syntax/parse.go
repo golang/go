@@ -1626,7 +1626,6 @@ func (p *parser) parseClass(s string) (rest string, err error) {
 // cleanClass sorts the ranges (pairs of elements of r),
 // merges them, and eliminates duplicates.
 func cleanClass(rp *[]rune) []rune {
-
 	// Sort by lo increasing, hi decreasing to break ties.
 	sort.Sort(ranges{rp})
 
