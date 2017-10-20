@@ -62,7 +62,7 @@ type printer struct {
 	mode        pmode        // current printer mode
 	impliedSemi bool         // if set, a linebreak implies a semicolon
 	lastTok     token.Token  // last token printed (token.ILLEGAL if it's whitespace)
-	prevOpen    token.Token  // previous non-brace "open" token (, [, or token.ILLEGAL
+	prevOpen    token.Token  // previous "open" token: (, [, {, or token.ILLEGAL
 	wsbuf       []whiteSpace // delayed white space
 
 	// Positions
@@ -426,6 +426,11 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment
 		n := 0
 		if pos.IsValid() && p.last.IsValid() {
 			n = pos.Line - p.last.Line
+			if n > 1 && p.prevOpen != token.ILLEGAL && prev == nil {
+				// Forbid multiple empty lines from appearing immediately
+				// following some type of open paren, bracket, or brace.
+				n = 1
+			}
 			if n < 0 { // should never happen
 				n = 0
 			}
@@ -879,7 +884,7 @@ func (p *printer) print(args ...interface{}) {
 		switch p.lastTok {
 		case token.ILLEGAL:
 			// ignore (white space)
-		case token.LPAREN, token.LBRACK:
+		case token.LPAREN, token.LBRACK, token.LBRACE:
 			p.prevOpen = p.lastTok
 		default:
 			// other tokens followed any opening token

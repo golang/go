@@ -813,7 +813,6 @@ func TestRequestWriteError(t *testing.T) {
 // try to restore it. It always dumps the whole body.
 // And it doesn't support https.
 func dumpRequestOut(req *Request, onReadHeaders func()) ([]byte, error) {
-
 	// Use the actual Transport code to record what we would send
 	// on the wire, but not using TCP.  Use a Transport with a
 	// custom dialer that returns a fake net.Conn that waits

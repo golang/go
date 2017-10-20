@@ -2468,7 +2468,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		d := c.vregoff(p.GetFrom3())
 		var a int
 		switch p.As {
-
 		// These opcodes expect a mask operand that has to be converted into the
 		// appropriate operand.  The way these were defined, not all valid masks are possible.
 		// Left here for compatibility in case they were used or generated.

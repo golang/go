@@ -65,7 +65,6 @@ func archInitIEEE() {
 
 // archUpdateIEEE calculates the checksum of p using vectorizedIEEE.
 func archUpdateIEEE(crc uint32, p []byte) uint32 {
-
 	// Check if vector code should be used.  If not aligned, then handle those
 	// first up to the aligned bytes.
 

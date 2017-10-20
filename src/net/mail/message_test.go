@@ -727,7 +727,6 @@ func TestAddressString(t *testing.T) {
 
 // Check if all valid addresses can be parsed, formatted and parsed again
 func TestAddressParsingAndFormatting(t *testing.T) {
-
 	// Should pass
 	tests := []string{
 		`<Bob@example.com>`,
