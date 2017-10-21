@@ -170,4 +170,114 @@ func main() {
 			}
 		}()
 	}
+
+	{
+		x := 42
+		if y := func() int { // ERROR "can inline main.func20"
+			return x
+		}(); y != 42 { // ERROR "inlining call to main.func20"
+			panic("y != 42")
+		}
+		if y := func() int { // ERROR "can inline main.func21" "func literal does not escape"
+			return x
+		}; y() != 42 { // ERROR "inlining call to main.func21"
+			panic("y() != 42")
+		}
+	}
+
+	{
+		x := 42
+		if z := func(y int) int { // ERROR "func literal does not escape"
+			return func() int { // ERROR "can inline main.func22.1"
+				return x + y
+			}() // ERROR "inlining call to main.func22.1"
+		}(1); z != 43 {
+			panic("z != 43")
+		}
+		if z := func(y int) int { // ERROR "func literal does not escape"
+			return func() int { // ERROR "can inline main.func23.1"
+				return x + y
+			}() // ERROR "inlining call to main.func23.1"
+		}; z(1) != 43 {
+			panic("z(1) != 43")
+		}
+	}
+
+	{
+		a := 1
+		func() { // ERROR "func literal does not escape"
+			func() { // ERROR "can inline main.func24"
+				a = 2
+			}() // ERROR "inlining call to main.func24" "&a does not escape"
+		}()
+		if a != 2 {
+			panic("a != 2")
+		}
+	}
+
+	{
+		b := 2
+		func(b int) { // ERROR "func literal does not escape"
+			func() { // ERROR "can inline main.func25.1"
+				b = 3
+			}() // ERROR "inlining call to main.func25.1" "&b does not escape"
+			if b != 3 {
+				panic("b != 3")
+			}
+		}(b)
+		if b != 2 {
+			panic("b != 2")
+		}
+	}
+
+	{
+		c := 3
+		func() { // ERROR "func literal does not escape"
+			c = 4
+			func() { // ERROR "func literal does not escape"
+				if c != 4 {
+					panic("c != 4")
+				}
+			}()
+		}()
+		if c != 4 {
+			panic("c != 4")
+		}
+	}
+
+	{
+		a := 2
+		if r := func(x int) int { // ERROR "func literal does not escape"
+			b := 3
+			return func(y int) int { // ERROR "func literal does not escape"
+				c := 5
+				return func(z int) int { // ERROR "can inline main.func27.1.1"
+					return a*x + b*y + c*z
+				}(10) // ERROR "inlining call to main.func27.1.1"
+			}(100)
+		}(1000); r != 2350 {
+			panic("r != 2350")
+		}
+	}
+
+	{
+		a := 2
+		if r := func(x int) int { // ERROR "func literal does not escape"
+			b := 3
+			return func(y int) int { // ERROR "func literal does not escape"
+				c := 5
+				func(z int) { // ERROR "can inline main.func28.1.1"
+					a = a * x
+					b = b * y
+					c = c * z
+				}(10) // ERROR "inlining call to main.func28.1.1" "&a does not escape" "&b does not escape" "&c does not escape"
+				return a + c
+			}(100) + b
+		}(1000); r != 2350 {
+			panic("r != 2350")
+		}
+		if a != 2000 {
+			panic("a != 2000")
+		}
+	}
 }

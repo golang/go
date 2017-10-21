@@ -280,6 +280,26 @@ func (v *hairyVisitor) visit(n *Node) bool {
 			v.budget -= fn.InlCost
 			break
 		}
+		if n.Left.Op == OCLOSURE {
+			if fn := inlinableClosure(n.Left); fn != nil {
+				v.budget -= fn.Func.InlCost
+				break
+			}
+		} else if n.Left.Op == ONAME && n.Left.Name != nil && n.Left.Name.Defn != nil {
+			// NB: this case currently cannot trigger since closure definition
+			// prevents inlining
+			// NB: ideally we would also handle captured variables defined as
+			// closures in the outer scope this brings us back to the idea of
+			// function value propagation, which if available would both avoid
+			// the "reassigned" check and neatly handle multiple use cases in a
+			// single code path
+			if d := n.Left.Name.Defn; d.Op == OAS && d.Right.Op == OCLOSURE {
+				if fn := inlinableClosure(d.Right); fn != nil {
+					v.budget -= fn.Func.InlCost
+					break
+				}
+			}
+		}
 
 		if n.Left.isMethodExpression() {
 			if d := asNode(n.Left.Sym.Def); d != nil && d.Func.Inl.Len() != 0 {
@@ -629,22 +649,16 @@ func inlnode(n *Node) *Node {
 	return n
 }
 
+// inlinableClosure takes an OCLOSURE node and follows linkage to the matching ONAME with
+// the inlinable body. Returns nil if the function is not inlinable.
 func inlinableClosure(n *Node) *Node {
 	c := n.Func.Closure
 	caninl(c)
 	f := c.Func.Nname
-	if f != nil && f.Func.Inl.Len() != 0 {
-		if n.Func.Cvars.Len() != 0 {
-			// FIXME: support closure with captured variables
-			// they currently result in invariant violation in the SSA phase
-			if Debug['m'] > 1 {
-				fmt.Printf("%v: cannot inline closure w/ captured vars %v\n", n.Line(), n.Left)
-			}
-			return nil
-		}
-		return f
+	if f == nil || f.Func.Inl.Len() == 0 {
+		return nil
 	}
-	return nil
+	return f
 }
 
 // reassigned takes an ONAME node, walks the function in which it is defined, and returns a boolean
@@ -792,16 +806,53 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 
 	ninit := n.Ninit
 
+	// Make temp names to use instead of the originals.
+	inlvars := make(map[*Node]*Node)
+
 	// Find declarations corresponding to inlineable body.
 	var dcl []*Node
 	if fn.Name.Defn != nil {
 		dcl = fn.Func.Inldcl.Slice() // local function
+
+		// handle captured variables when inlining closures
+		if c := fn.Name.Defn.Func.Closure; c != nil {
+			for _, v := range c.Func.Cvars.Slice() {
+				if v.Op == OXXX {
+					continue
+				}
+
+				o := v.Name.Param.Outer
+				// make sure the outer param matches the inlining location
+				// NB: if we enabled inlining of functions containing OCLOSURE or refined
+				// the reassigned check via some sort of copy propagation this would most
+				// likely need to be changed to a loop to walk up to the correct Param
+				if o == nil || (o.Name.Curfn != Curfn && o.Name.Curfn.Func.Closure != Curfn) {
+					Fatalf("%v: unresolvable capture %v %v\n", n.Line(), fn, v)
+				}
+
+				if v.Name.Byval() {
+					iv := typecheck(inlvar(v), Erv)
+					ninit.Append(nod(ODCL, iv, nil))
+					ninit.Append(typecheck(nod(OAS, iv, o), Etop))
+					inlvars[v] = iv
+				} else {
+					addr := newname(lookup("&" + v.Sym.Name))
+					addr.Type = types.NewPtr(v.Type)
+					ia := typecheck(inlvar(addr), Erv)
+					ninit.Append(nod(ODCL, ia, nil))
+					ninit.Append(typecheck(nod(OAS, ia, nod(OADDR, o, nil)), Etop))
+					inlvars[addr] = ia
+
+					// When capturing by reference, all occurrence of the captured var
+					// must be substituted with dereference of the temporary address
+					inlvars[v] = typecheck(nod(OIND, ia, nil), Erv)
+				}
+			}
+		}
 	} else {
 		dcl = fn.Func.Dcl // imported function
 	}
 
-	// Make temp names to use instead of the originals.
-	inlvars := make(map[*Node]*Node)
 	for _, ln := range dcl {
 		if ln.Op != ONAME {
 			continue
