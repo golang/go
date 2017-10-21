@@ -230,7 +230,7 @@ func (d *deadcodepass) init() {
 			}
 			names = append(names, *flagEntrySymbol)
 			if d.ctxt.BuildMode == BuildModePlugin {
-				names = append(names, *flagPluginPath+".init", *flagPluginPath+".main", "go.plugin.tabs")
+				names = append(names, objabi.PathToPrefix(*flagPluginPath)+".init", objabi.PathToPrefix(*flagPluginPath)+".main", "go.plugin.tabs")
 
 				// We don't keep the go.plugin.exports symbol,
 				// but we do keep the symbols it refers to.

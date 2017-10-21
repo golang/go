@@ -586,7 +586,7 @@ func (ctxt *Link) symtab() {
 		moduledata.AddUint(ctxt.Arch, 0)
 	}
 	if ctxt.BuildMode == BuildModePlugin {
-		addgostring(ctxt, moduledata, "go.link.thispluginpath", *flagPluginPath)
+		addgostring(ctxt, moduledata, "go.link.thispluginpath", objabi.PathToPrefix(*flagPluginPath))
 
 		pkghashes := ctxt.Syms.Lookup("go.link.pkghashes", 0)
 		pkghashes.Attr |= sym.AttrReachable
