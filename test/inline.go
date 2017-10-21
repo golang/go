@@ -93,6 +93,39 @@ func p() int {
 	return func() int { return 42 }() // ERROR "can inline p.func1" "inlining call to p.func1"
 }
 
+func q(x int) int {
+	foo := func() int { return x * 2 } // ERROR "can inline q.func1" "q func literal does not escape"
+	return foo()                       // ERROR "inlining call to q.func1"
+}
+
+func r(z int) int {
+	foo := func(x int) int { // ERROR "can inline r.func1" "r func literal does not escape"
+		return x + z
+	}
+	bar := func(x int) int { // ERROR "r func literal does not escape"
+		return x + func(y int) int { // ERROR "can inline r.func2.1"
+			return 2*y + x*z
+		}(x) // ERROR "inlining call to r.func2.1"
+	}
+	return foo(42) + bar(42) // ERROR "inlining call to r.func1"
+}
+
+func s0(x int) int {
+	foo := func() { // ERROR "can inline s0.func1" "s0 func literal does not escape"
+		x = x + 1
+	}
+	foo() // ERROR "inlining call to s0.func1" "&x does not escape"
+	return x
+}
+
+func s1(x int) int {
+	foo := func() int { // ERROR "can inline s1.func1" "s1 func literal does not escape"
+		return x
+	}
+	x = x + 1
+	return foo() // ERROR "inlining call to s1.func1" "&x does not escape"
+}
+
 // can't currently inline functions with a break statement
 func switchBreak(x, y int) int {
 	var n int
