@@ -11,42 +11,35 @@ import (
 	"testing"
 )
 
-var readTests = []struct {
-	Name               string
-	Input              string
-	Output             [][]string
-	UseFieldsPerRecord bool // false (default) means FieldsPerRecord is -1
+func TestRead(t *testing.T) {
+	tests := []struct {
+		Name   string
+		Input  string
+		Output [][]string
+		Error  error
 
-	// These fields are copied into the Reader
-	Comma            rune
-	Comment          rune
-	FieldsPerRecord  int
-	LazyQuotes       bool
-	TrailingComma    bool
-	TrimLeadingSpace bool
-	ReuseRecord      bool
-
-	Error error
-	Line  int // Expected error line if != 0
-}{
-	{
+		// These fields are copied into the Reader
+		Comma              rune
+		Comment            rune
+		UseFieldsPerRecord bool // false (default) means FieldsPerRecord is -1
+		FieldsPerRecord    int
+		LazyQuotes         bool
+		TrimLeadingSpace   bool
+		ReuseRecord        bool
+	}{{
 		Name:   "Simple",
 		Input:  "a,b,c\n",
 		Output: [][]string{{"a", "b", "c"}},
-	},
-	{
+	}, {
 		Name:   "CRLF",
 		Input:  "a,b\r\nc,d\r\n",
 		Output: [][]string{{"a", "b"}, {"c", "d"}},
-	},
-	{
+	}, {
 		Name:   "BareCR",
 		Input:  "a,b\rc,d\r\n",
 		Output: [][]string{{"a", "b\rc", "d"}},
-	},
-	{
-		Name:               "RFC4180test",
-		UseFieldsPerRecord: true,
+	}, {
+		Name: "RFC4180test",
 		Input: `#field1,field2,field3
 "aaa","bb
 b","ccc"
@@ -59,163 +52,139 @@ zzz,yyy,xxx
 			{"a,a", `b"bb`, "ccc"},
 			{"zzz", "yyy", "xxx"},
 		},
-	},
-	{
+		UseFieldsPerRecord: true,
+		FieldsPerRecord:    0,
+	}, {
 		Name:   "NoEOLTest",
 		Input:  "a,b,c",
 		Output: [][]string{{"a", "b", "c"}},
-	},
-	{
+	}, {
 		Name:   "Semicolon",
-		Comma:  ';',
 		Input:  "a;b;c\n",
 		Output: [][]string{{"a", "b", "c"}},
-	},
-	{
+		Comma:  ';',
+	}, {
 		Name: "MultiLine",
 		Input: `"two
 line","one line","three
 line
 field"`,
 		Output: [][]string{{"two\nline", "one line", "three\nline\nfield"}},
-	},
-	{
+	}, {
 		Name:  "BlankLine",
 		Input: "a,b,c\n\nd,e,f\n\n",
 		Output: [][]string{
 			{"a", "b", "c"},
 			{"d", "e", "f"},
 		},
-	},
-	{
-		Name:               "BlankLineFieldCount",
-		Input:              "a,b,c\n\nd,e,f\n\n",
-		UseFieldsPerRecord: true,
+	}, {
+		Name:  "BlankLineFieldCount",
+		Input: "a,b,c\n\nd,e,f\n\n",
 		Output: [][]string{
 			{"a", "b", "c"},
 			{"d", "e", "f"},
 		},
-	},
-	{
+		UseFieldsPerRecord: true,
+		FieldsPerRecord:    0,
+	}, {
 		Name:             "TrimSpace",
 		Input:            " a,  b,   c\n",
-		TrimLeadingSpace: true,
 		Output:           [][]string{{"a", "b", "c"}},
-	},
-	{
+		TrimLeadingSpace: true,
+	}, {
 		Name:   "LeadingSpace",
 		Input:  " a,  b,   c\n",
 		Output: [][]string{{" a", "  b", "   c"}},
-	},
-	{
+	}, {
 		Name:    "Comment",
-		Comment: '#',
 		Input:   "#1,2,3\na,b,c\n#comment",
 		Output:  [][]string{{"a", "b", "c"}},
-	},
-	{
+		Comment: '#',
+	}, {
 		Name:   "NoComment",
 		Input:  "#1,2,3\na,b,c",
 		Output: [][]string{{"#1", "2", "3"}, {"a", "b", "c"}},
-	},
-	{
+	}, {
 		Name:       "LazyQuotes",
-		LazyQuotes: true,
 		Input:      `a "word","1"2",a","b`,
 		Output:     [][]string{{`a "word"`, `1"2`, `a"`, `b`}},
-	},
-	{
-		Name:       "BareQuotes",
 		LazyQuotes: true,
+	}, {
+		Name:       "BareQuotes",
 		Input:      `a "word","1"2",a"`,
 		Output:     [][]string{{`a "word"`, `1"2`, `a"`}},
-	},
-	{
-		Name:       "BareDoubleQuotes",
 		LazyQuotes: true,
+	}, {
+		Name:       "BareDoubleQuotes",
 		Input:      `a""b,c`,
 		Output:     [][]string{{`a""b`, `c`}},
-	},
-	{
+		LazyQuotes: true,
+	}, {
 		Name:  "BadDoubleQuotes",
 		Input: `a""b,c`,
-		Error: &ParseError{Line: 1, Column: 1, Err: ErrBareQuote},
-	},
-	{
+		Error: &ParseError{RecordLine: 1, Line: 1, Column: 1, Err: ErrBareQuote},
+	}, {
 		Name:             "TrimQuote",
 		Input:            ` "a"," b",c`,
-		TrimLeadingSpace: true,
 		Output:           [][]string{{"a", " b", "c"}},
-	},
-	{
+		TrimLeadingSpace: true,
+	}, {
 		Name:  "BadBareQuote",
 		Input: `a "word","b"`,
-		Error: &ParseError{Line: 1, Column: 2, Err: ErrBareQuote},
-	},
-	{
+		Error: &ParseError{RecordLine: 1, Line: 1, Column: 2, Err: ErrBareQuote},
+	}, {
 		Name:  "BadTrailingQuote",
 		Input: `"a word",b"`,
-		Error: &ParseError{Line: 1, Column: 10, Err: ErrBareQuote},
-	},
-	{
+		Error: &ParseError{RecordLine: 1, Line: 1, Column: 10, Err: ErrBareQuote},
+	}, {
 		Name:  "ExtraneousQuote",
 		Input: `"a "word","b"`,
-		Error: &ParseError{Line: 1, Column: 3, Err: ErrQuote},
-	},
-	{
+		Error: &ParseError{RecordLine: 1, Line: 1, Column: 3, Err: ErrQuote},
+	}, {
 		Name:               "BadFieldCount",
-		UseFieldsPerRecord: true,
 		Input:              "a,b,c\nd,e",
-		Error:              &ParseError{Line: 2, Err: ErrFieldCount},
-	},
-	{
+		Error:              &ParseError{RecordLine: 2, Line: 2, Err: ErrFieldCount},
+		UseFieldsPerRecord: true,
+		FieldsPerRecord:    0,
+	}, {
 		Name:               "BadFieldCount1",
+		Input:              `a,b,c`,
+		Error:              &ParseError{RecordLine: 1, Line: 1, Err: ErrFieldCount},
 		UseFieldsPerRecord: true,
 		FieldsPerRecord:    2,
-		Input:              `a,b,c`,
-		Error:              &ParseError{Line: 1, Err: ErrFieldCount},
-	},
-	{
+	}, {
 		Name:   "FieldCount",
 		Input:  "a,b,c\nd,e",
 		Output: [][]string{{"a", "b", "c"}, {"d", "e"}},
-	},
-	{
+	}, {
 		Name:   "TrailingCommaEOF",
 		Input:  "a,b,c,",
 		Output: [][]string{{"a", "b", "c", ""}},
-	},
-	{
+	}, {
 		Name:   "TrailingCommaEOL",
 		Input:  "a,b,c,\n",
 		Output: [][]string{{"a", "b", "c", ""}},
-	},
-	{
+	}, {
 		Name:             "TrailingCommaSpaceEOF",
-		TrimLeadingSpace: true,
 		Input:            "a,b,c, ",
 		Output:           [][]string{{"a", "b", "c", ""}},
-	},
-	{
-		Name:             "TrailingCommaSpaceEOL",
 		TrimLeadingSpace: true,
+	}, {
+		Name:             "TrailingCommaSpaceEOL",
 		Input:            "a,b,c, \n",
 		Output:           [][]string{{"a", "b", "c", ""}},
-	},
-	{
-		Name:             "TrailingCommaLine3",
 		TrimLeadingSpace: true,
+	}, {
+		Name:             "TrailingCommaLine3",
 		Input:            "a,b,c\nd,e,f\ng,hi,",
 		Output:           [][]string{{"a", "b", "c"}, {"d", "e", "f"}, {"g", "hi", ""}},
-	},
-	{
+		TrimLeadingSpace: true,
+	}, {
 		Name:   "NotTrailingComma3",
 		Input:  "a,b,c, \n",
 		Output: [][]string{{"a", "b", "c", " "}},
-	},
-	{
-		Name:          "CommaFieldTest",
-		TrailingComma: true,
+	}, {
+		Name: "CommaFieldTest",
 		Input: `x,y,z,w
 x,y,z,
 x,y,,
@@ -239,166 +208,136 @@ x,,,
 			{"x", "", "", ""},
 			{"", "", "", ""},
 		},
-	},
-	{
-		Name:             "TrailingCommaIneffective1",
-		TrailingComma:    true,
-		TrimLeadingSpace: true,
-		Input:            "a,b,\nc,d,e",
+	}, {
+		Name:  "TrailingCommaIneffective1",
+		Input: "a,b,\nc,d,e",
 		Output: [][]string{
 			{"a", "b", ""},
 			{"c", "d", "e"},
 		},
-	},
-	{
-		Name:             "TrailingCommaIneffective2",
-		TrailingComma:    false,
 		TrimLeadingSpace: true,
-		Input:            "a,b,\nc,d,e",
-		Output: [][]string{
-			{"a", "b", ""},
-			{"c", "d", "e"},
-		},
-	},
-	{
-		Name:        "ReadAllReuseRecord",
-		ReuseRecord: true,
-		Input:       "a,b\nc,d",
+	}, {
+		Name:  "ReadAllReuseRecord",
+		Input: "a,b\nc,d",
 		Output: [][]string{
 			{"a", "b"},
 			{"c", "d"},
 		},
-	},
-	{ // issue 19019
-		Name:  "RecordLine1",
+		ReuseRecord: true,
+	}, {
+		Name:  "RecordLine1", // Issue 19019
 		Input: "a,\"b\nc\"d,e",
-		Error: &ParseError{Line: 2, Column: 1, Err: ErrQuote},
-	},
-	{
+		Error: &ParseError{RecordLine: 1, Line: 2, Column: 1, Err: ErrQuote},
+	}, {
 		Name:  "RecordLine2",
 		Input: "a,b\n\"d\n\n,e",
-		Error: &ParseError{Line: 5, Column: 0, Err: ErrQuote},
-	},
-	{ // issue 21201
-		Name:  "CRLFInQuotedField",
+		Error: &ParseError{RecordLine: 2, Line: 5, Column: 0, Err: ErrQuote},
+	}, {
+		Name:  "CRLFInQuotedField", // Issue 21201
 		Input: "\"Hello\r\nHi\"",
 		Output: [][]string{
 			{"Hello\r\nHi"},
 		},
-	},
-	{ // issue 19410
-		Name:   "BinaryBlobField",
+	}, {
+		Name:   "BinaryBlobField", // Issue 19410
 		Input:  "x09\x41\xb4\x1c,aktau",
 		Output: [][]string{{"x09A\xb4\x1c", "aktau"}},
-	},
-	{
+	}, {
 		Name:   "TrailingCR",
 		Input:  "field1,field2\r",
 		Output: [][]string{{"field1", "field2\r"}},
-	},
-	{
+	}, {
 		Name:             "NonASCIICommaAndComment",
+		Input:            "a£b,c£ \td,e\n€ comment\n",
+		Output:           [][]string{{"a", "b,c", "d,e"}},
 		TrimLeadingSpace: true,
 		Comma:            '£',
 		Comment:          '€',
-		Input:            "a£b,c£ \td,e\n€ comment\n",
-		Output:           [][]string{{"a", "b,c", "d,e"}},
-	},
-	{
+	}, {
 		Name:    "NonASCIICommaAndCommentWithQuotes",
-		Comma:   '€',
-		Comment: 'λ',
 		Input:   "a€\"  b,\"€ c\nλ comment\n",
 		Output:  [][]string{{"a", "  b,", " c"}},
-	},
-	{
+		Comma:   '€',
+		Comment: 'λ',
+	}, {
+		// λ and θ start with the same byte.
+		// This tests that the parser doesn't confuse such characters.
 		Name:    "NonASCIICommaConfusion",
+		Input:   "\"abθcd\"λefθgh",
+		Output:  [][]string{{"abθcd", "efθgh"}},
 		Comma:   'λ',
 		Comment: '€',
-		// λ and θ start with the same byte. This test is intended to ensure the parser doesn't
-		// confuse such characters.
-		Input:  "\"abθcd\"λefθgh",
-		Output: [][]string{{"abθcd", "efθgh"}},
-	},
-	{
+	}, {
 		Name:    "NonASCIICommentConfusion",
-		Comment: 'θ',
 		Input:   "λ\nλ\nθ\nλ\n",
 		Output:  [][]string{{"λ"}, {"λ"}, {"λ"}},
-	},
-	{
+		Comment: 'θ',
+	}, {
 		Name:   "QuotedFieldMultipleLF",
 		Input:  "\"\n\n\n\n\"",
 		Output: [][]string{{"\n\n\n\n"}},
-	},
-	{
+	}, {
 		Name:  "MultipleCRLF",
 		Input: "\r\n\r\n\r\n\r\n",
-	},
-	{
+	}, {
 		// The implementation may read each line in several chunks if it doesn't fit entirely
 		// in the read buffer, so we should test the code to handle that condition.
 		Name:    "HugeLines",
-		Comment: '#',
 		Input:   strings.Repeat("#ignore\n", 10000) + strings.Repeat("@", 5000) + "," + strings.Repeat("*", 5000),
 		Output:  [][]string{{strings.Repeat("@", 5000), strings.Repeat("*", 5000)}},
-	},
-	{
+		Comment: '#',
+	}, {
 		Name:  "QuoteWithTrailingCRLF",
 		Input: "\"foo\"bar\"\r\n",
-		Error: &ParseError{Line: 1, Column: 4, Err: ErrQuote},
-	},
-	{
+		Error: &ParseError{RecordLine: 1, Line: 1, Column: 4, Err: ErrQuote},
+	}, {
 		Name:       "LazyQuoteWithTrailingCRLF",
 		Input:      "\"foo\"bar\"\r\n",
-		LazyQuotes: true,
 		Output:     [][]string{{`foo"bar`}},
-	},
-	{
+		LazyQuotes: true,
+	}, {
 		Name:   "DoubleQuoteWithTrailingCRLF",
 		Input:  "\"foo\"\"bar\"\r\n",
 		Output: [][]string{{`foo"bar`}},
-	},
-	{
+	}, {
 		Name:   "EvenQuotes",
 		Input:  `""""""""`,
 		Output: [][]string{{`"""`}},
-	},
-	{
+	}, {
 		Name:  "OddQuotes",
 		Input: `"""""""`,
-		Error: &ParseError{Line: 1, Column: 7, Err: ErrQuote},
-	},
-	{
+		Error: &ParseError{RecordLine: 1, Line: 1, Column: 7, Err: ErrQuote},
+	}, {
 		Name:       "LazyOddQuotes",
 		Input:      `"""""""`,
-		LazyQuotes: true,
 		Output:     [][]string{{`"""`}},
-	},
-}
+		LazyQuotes: true,
+	}}
 
-func TestRead(t *testing.T) {
-	for _, tt := range readTests {
-		r := NewReader(strings.NewReader(tt.Input))
-		r.Comment = tt.Comment
-		if tt.UseFieldsPerRecord {
-			r.FieldsPerRecord = tt.FieldsPerRecord
-		} else {
-			r.FieldsPerRecord = -1
-		}
-		r.LazyQuotes = tt.LazyQuotes
-		r.TrailingComma = tt.TrailingComma
-		r.TrimLeadingSpace = tt.TrimLeadingSpace
-		r.ReuseRecord = tt.ReuseRecord
-		if tt.Comma != 0 {
-			r.Comma = tt.Comma
-		}
-		out, err := r.ReadAll()
-		if !reflect.DeepEqual(err, tt.Error) {
-			t.Errorf("%s: ReadAll() error:\ngot  %v\nwant %v", tt.Name, err, tt.Error)
-		} else if !reflect.DeepEqual(out, tt.Output) {
-			t.Errorf("%s: ReadAll() output:\ngot  %q\nwant %q", tt.Name, out, tt.Output)
-		}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			r := NewReader(strings.NewReader(tt.Input))
+
+			if tt.Comma != 0 {
+				r.Comma = tt.Comma
+			}
+			r.Comment = tt.Comment
+			if tt.UseFieldsPerRecord {
+				r.FieldsPerRecord = tt.FieldsPerRecord
+			} else {
+				r.FieldsPerRecord = -1
+			}
+			r.LazyQuotes = tt.LazyQuotes
+			r.TrimLeadingSpace = tt.TrimLeadingSpace
+			r.ReuseRecord = tt.ReuseRecord
+
+			out, err := r.ReadAll()
+			if !reflect.DeepEqual(err, tt.Error) {
+				t.Errorf("ReadAll() error:\ngot  %v\nwant %v", err, tt.Error)
+			} else if !reflect.DeepEqual(out, tt.Output) {
+				t.Errorf("ReadAll() output:\ngot  %q\nwant %q", out, tt.Output)
+			}
+		})
 	}
 }
 
