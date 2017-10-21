@@ -157,6 +157,7 @@ func (d *decoder) parseIHDR(length uint32) error {
 		return FormatError("invalid interlace method")
 	}
 	d.interlace = int(d.tmp[12])
+
 	w := int32(binary.BigEndian.Uint32(d.tmp[0:4]))
 	h := int32(binary.BigEndian.Uint32(d.tmp[4:8]))
 	if w <= 0 || h <= 0 {
@@ -166,6 +167,11 @@ func (d *decoder) parseIHDR(length uint32) error {
 	if nPixels != int64(int(nPixels)) {
 		return UnsupportedError("dimension overflow")
 	}
+	// There can be up to 8 bytes per pixel, for 16 bits per channel RGBA.
+	if nPixels != (nPixels*8)/8 {
+		return UnsupportedError("dimension overflow")
+	}
+
 	d.cb = cbInvalid
 	d.depth = int(d.tmp[8])
 	switch d.depth {
