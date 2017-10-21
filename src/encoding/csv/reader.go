@@ -80,7 +80,7 @@ func (e *ParseError) Error() string {
 	return fmt.Sprintf("parse error on line %d, column %d: %v", e.Line, e.Column, e.Err)
 }
 
-// These are the errors that can be returned in ParseError.Error
+// These are the errors that can be returned in ParseError.Err.
 var (
 	ErrTrailingComma = errors.New("extra delimiter at end of line") // Deprecated: No longer used.
 	ErrBareQuote     = errors.New("bare \" in non-quoted-field")
@@ -315,7 +315,7 @@ parseField:
 						// `"` sequence (bare quote).
 						r.recordBuffer = append(r.recordBuffer, '"')
 					default:
-						// `"*` squence (invalid non-escaped quote).
+						// `"*` sequence (invalid non-escaped quote).
 						col := utf8.RuneCount(fullLine[:len(fullLine)-len(line)-quoteLen])
 						err = &ParseError{RecordLine: recLine, Line: r.numLine, Column: col, Err: ErrQuote}
 						break parseField
