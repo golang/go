@@ -49,6 +49,13 @@ func (c dwctxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
 	s.(*sym.Symbol).AddAddrPlus(c.linkctxt.Arch, data.(*sym.Symbol), value)
 }
 
+func (c dwctxt) AddCURelativeAddress(s dwarf.Sym, data interface{}, value int64) {
+	if value != 0 {
+		value -= (data.(*sym.Symbol)).Value
+	}
+	s.(*sym.Symbol).AddCURelativeAddrPlus(c.linkctxt.Arch, data.(*sym.Symbol), value)
+}
+
 func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
 	ls := s.(*sym.Symbol)
 	switch size {
@@ -843,7 +850,6 @@ func defdwsymb(ctxt *Link, s *sym.Symbol, str string, t SymbolType, v int64, got
 // debug-related data.
 type compilationUnit struct {
 	lib      *sym.Library
-	textp    []*sym.Symbol // Function symbols in this package
 	consts   *sym.Symbol   // Package constants DIEs
 	pcs      []dwarf.Range // PC ranges, relative to textp[0]
 	dwinfo   *dwarf.DWDie  // CU root DIE
@@ -869,7 +875,6 @@ func getCompilationUnits(ctxt *Link) []*compilationUnit {
 			units = append(units, unit)
 			index[s.Lib] = unit
 		}
-		unit.textp = append(unit.textp, s)
 
 		// Update PC ranges.
 		//
@@ -879,10 +884,10 @@ func getCompilationUnits(ctxt *Link) []*compilationUnit {
 		// only create boundaries between symbols from
 		// different units.
 		if prevUnit != unit {
-			unit.pcs = append(unit.pcs, dwarf.Range{Start: s.Value - unit.textp[0].Value})
+			unit.pcs = append(unit.pcs, dwarf.Range{Start: s.Value - unit.lib.Textp[0].Value})
 			prevUnit = unit
 		}
-		unit.pcs[len(unit.pcs)-1].End = s.Value - unit.textp[0].Value + s.Size
+		unit.pcs[len(unit.pcs)-1].End = s.Value - unit.lib.Textp[0].Value + s.Size
 	}
 	return units
 }
@@ -1612,8 +1617,8 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 	debugRanges.Attr |= sym.AttrReachable
 	syms = append(syms, debugLine)
 	for _, u := range units {
-		u.dwinfo, u.funcDIEs = writelines(ctxt, u.lib, u.textp, debugLine)
-		writepcranges(ctxt, u.dwinfo, u.textp[0], u.pcs, debugRanges)
+		u.dwinfo, u.funcDIEs = writelines(ctxt, u.lib, u.lib.Textp, debugLine)
+		writepcranges(ctxt, u.dwinfo, u.lib.Textp[0], u.pcs, debugRanges)
 	}
 
 	synthesizestringtypes(ctxt, dwtypes.Child)
