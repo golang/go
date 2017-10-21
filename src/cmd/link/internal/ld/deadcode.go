@@ -118,10 +118,17 @@ func deadcode(ctxt *Link) {
 		}
 	}
 
+	for _, lib := range ctxt.Library {
+		lib.Textp = lib.Textp[:0]
+	}
+
 	// Remove dead text but keep file information (z symbols).
 	textp := make([]*sym.Symbol, 0, len(ctxt.Textp))
 	for _, s := range ctxt.Textp {
 		if s.Attr.Reachable() {
+			if s.Lib != nil {
+				s.Lib.Textp = append(s.Lib.Textp, s)
+			}
 			textp = append(textp, s)
 		}
 	}

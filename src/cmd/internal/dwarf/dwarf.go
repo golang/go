@@ -121,6 +121,7 @@ type Context interface {
 	AddInt(s Sym, size int, i int64)
 	AddBytes(s Sym, b []byte)
 	AddAddress(s Sym, t interface{}, ofs int64)
+	AddCURelativeAddress(s Sym, t interface{}, ofs int64)
 	AddSectionOffset(s Sym, size int, t interface{}, ofs int64)
 	AddString(s Sym, v string)
 	AddFileRef(s Sym, f interface{})
@@ -773,15 +774,18 @@ func PutIntConst(ctxt Context, info, typ Sym, name string, val int64) {
 // attribute).
 func PutRanges(ctxt Context, sym Sym, base Sym, ranges []Range) {
 	ps := ctxt.PtrSize()
-	// Write base address entry.
-	if base != nil {
-		ctxt.AddInt(sym, ps, -1)
-		ctxt.AddAddress(sym, base, 0)
-	}
 	// Write ranges.
+	// We do not emit base address entries here, even though they would reduce
+	// the number of relocations, because dsymutil (which is used on macOS when
+	// linking externally) does not support them.
 	for _, r := range ranges {
-		ctxt.AddInt(sym, ps, r.Start)
-		ctxt.AddInt(sym, ps, r.End)
+		if base == nil {
+			ctxt.AddInt(sym, ps, r.Start)
+			ctxt.AddInt(sym, ps, r.End)
+		} else {
+			ctxt.AddCURelativeAddress(sym, base, r.Start)
+			ctxt.AddCURelativeAddress(sym, base, r.End)
+		}
 	}
 	// Write trailer.
 	ctxt.AddInt(sym, ps, 0)

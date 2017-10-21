@@ -190,6 +190,9 @@ const (
 	// R_ADDRMIPSTLS (only used on mips64) resolves to the low 16 bits of a TLS
 	// address (offset from thread pointer), by encoding it into the instruction.
 	R_ADDRMIPSTLS
+	// R_ADDRCUOFF resolves to a pointer-sized offset from the start of the
+	// symbol's DWARF compile unit.
+	R_ADDRCUOFF
 )
 
 // IsDirectJump returns whether r is a relocation for a direct jump.
