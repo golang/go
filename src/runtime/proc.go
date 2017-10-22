@@ -1938,7 +1938,9 @@ retry:
 	notesleep(&_g_.m.park)
 	noteclear(&_g_.m.park)
 	if _g_.m.helpgc != 0 {
+		// helpgc() set _g_.m.p and _g_.m.mcache, so we have a P.
 		gchelper()
+		// Undo the effects of helpgc().
 		_g_.m.helpgc = 0
 		_g_.m.mcache = nil
 		_g_.m.p = 0

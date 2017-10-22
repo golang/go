@@ -2099,9 +2099,14 @@ func clearpools() {
 	unlock(&sched.deferlock)
 }
 
-// Timing
-
-//go:nowritebarrier
+// gchelper runs mark termination tasks on Ps other than the P
+// coordinating mark termination.
+//
+// The caller is responsible for ensuring that this has a P to run on,
+// even though it's running during STW. Because of this, it's allowed
+// to have write barriers.
+//
+//go:yeswritebarrierrec
 func gchelper() {
 	_g_ := getg()
 	_g_.m.traceback = 2
@@ -2135,6 +2140,8 @@ func gchelperstart() {
 		throw("gchelper not running on g0 stack")
 	}
 }
+
+// Timing
 
 // itoaDiv formats val/(10**dec) into buf.
 func itoaDiv(buf []byte, val uint64, dec int) []byte {
