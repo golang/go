@@ -564,12 +564,10 @@ func clamp(i int32) int32 {
 //
 // x and y are both assumed to be in the range [0, 0xffff].
 func sqDiff(x, y int32) uint32 {
-	var d uint32
-	if x > y {
-		d = uint32(x - y)
-	} else {
-		d = uint32(y - x)
-	}
+	// This is an optimized code relying on the overflow/wrap around
+	// properties of unsigned integers operations guaranteed by the language
+	// spec. See sqDiff from the image/color package for more details.
+	d := uint32(x - y)
 	return (d * d) >> 2
 }
 
