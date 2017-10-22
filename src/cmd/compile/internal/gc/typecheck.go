@@ -2547,18 +2547,18 @@ func hasddd(t *types.Type) bool {
 // typecheck assignment: type list = expression list
 func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes, desc func() string) {
 	var t *types.Type
-	var n *Node
 	var n1 int
 	var n2 int
 	var i int
 
 	lno := lineno
+	defer func() { lineno = lno }()
 
 	if tstruct.Broke() {
-		goto out
+		return
 	}
 
-	n = nil
+	var n *Node
 	if nl.Len() == 1 {
 		n = nl.First()
 		if n.Type != nil && n.Type.IsFuncArgStruct() {
@@ -2587,7 +2587,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
 							}
 						}
 					}
-					goto out
+					return
 				}
 
 				if i >= len(rfs) {
@@ -2606,7 +2606,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
 			if len(rfs) > len(lfs) {
 				goto toomany
 			}
-			goto out
+			return
 		}
 	}
 
@@ -2650,7 +2650,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
 				if n.Type != nil {
 					nl.SetIndex(i, assignconvfn(n, t, desc))
 				}
-				goto out
+				return
 			}
 
 			for ; i < nl.Len(); i++ {
@@ -2660,8 +2660,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
 					nl.SetIndex(i, assignconvfn(n, t.Elem(), desc))
 				}
 			}
-
-			goto out
+			return
 		}
 
 		if i >= nl.Len() {
@@ -2685,9 +2684,6 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
 			yyerror("invalid use of ... in %v", op)
 		}
 	}
-
-out:
-	lineno = lno
 	return
 
 notenough:
@@ -2709,8 +2705,7 @@ notenough:
 			n.SetDiag(true)
 		}
 	}
-
-	goto out
+	return
 
 toomany:
 	details := errorDetails(nl, tstruct, isddd)
@@ -2719,7 +2714,6 @@ toomany:
 	} else {
 		yyerror("too many arguments to %v%s", op, details)
 	}
-	goto out
 }
 
 func errorDetails(nl Nodes, tstruct *types.Type, isddd bool) string {

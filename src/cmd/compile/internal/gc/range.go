@@ -13,14 +13,6 @@ import (
 
 // range
 func typecheckrange(n *Node) {
-	var toomany bool
-	var why string
-	var t1 *types.Type
-	var t2 *types.Type
-	var v1 *Node
-	var v2 *Node
-	var ls []*Node
-
 	// Typechecking order is important here:
 	// 0. first typecheck range expression (slice/map/chan),
 	//	it is evaluated only once and so logically it is not part of the loop.
@@ -30,15 +22,31 @@ func typecheckrange(n *Node) {
 	// 2. decldepth++ to denote loop body.
 	// 3. typecheck body.
 	// 4. decldepth--.
+	typecheckrangeExpr(n)
 
+	// second half of dance, the first half being typecheckrangeExpr
+	n.SetTypecheck(1)
+	ls := n.List.Slice()
+	for i1, n1 := range ls {
+		if n1.Typecheck() == 0 {
+			ls[i1] = typecheck(ls[i1], Erv|Easgn)
+		}
+	}
+
+	decldepth++
+	typecheckslice(n.Nbody.Slice(), Etop)
+	decldepth--
+}
+
+func typecheckrangeExpr(n *Node) {
 	n.Right = typecheck(n.Right, Erv)
 
 	t := n.Right.Type
 	if t == nil {
-		goto out
+		return
 	}
 	// delicate little dance.  see typecheckas2
-	ls = n.List.Slice()
+	ls := n.List.Slice()
 	for i1, n1 := range ls {
 		if n1.Name == nil || n1.Name.Defn != n {
 			ls[i1] = typecheck(ls[i1], Erv|Easgn)
@@ -50,11 +58,12 @@ func typecheckrange(n *Node) {
 	}
 	n.Type = t
 
-	toomany = false
+	var t1, t2 *types.Type
+	toomany := false
 	switch t.Etype {
 	default:
 		yyerrorl(n.Pos, "cannot range over %L", n.Right)
-		goto out
+		return
 
 	case TARRAY, TSLICE:
 		t1 = types.Types[TINT]
@@ -67,7 +76,7 @@ func typecheckrange(n *Node) {
 	case TCHAN:
 		if !t.ChanDir().CanRecv() {
 			yyerrorl(n.Pos, "invalid operation: range %v (receive from send-only type %v)", n.Right, n.Right.Type)
-			goto out
+			return
 		}
 
 		t1 = t.Elem()
@@ -85,11 +94,10 @@ func typecheckrange(n *Node) {
 		yyerrorl(n.Pos, "too many variables in range")
 	}
 
-	v1 = nil
+	var v1, v2 *Node
 	if n.List.Len() != 0 {
 		v1 = n.List.First()
 	}
-	v2 = nil
 	if n.List.Len() > 1 {
 		v2 = n.List.Second()
 	}
@@ -105,6 +113,7 @@ func typecheckrange(n *Node) {
 		v2 = nil
 	}
 
+	var why string
 	if v1 != nil {
 		if v1.Name != nil && v1.Name.Defn == n {
 			v1.Type = t1
@@ -122,20 +131,6 @@ func typecheckrange(n *Node) {
 		}
 		checkassign(n, v2)
 	}
-
-	// second half of dance
-out:
-	n.SetTypecheck(1)
-	ls = n.List.Slice()
-	for i1, n1 := range ls {
-		if n1.Typecheck() == 0 {
-			ls[i1] = typecheck(ls[i1], Erv|Easgn)
-		}
-	}
-
-	decldepth++
-	typecheckslice(n.Nbody.Slice(), Etop)
-	decldepth--
 }
 
 func cheapComputableIndex(width int64) bool {
