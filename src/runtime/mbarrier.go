@@ -182,6 +182,8 @@ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 func writebarrierptr_prewrite1(dst *uintptr, src uintptr) {
 	mp := acquirem()
 	if mp.inwb || mp.dying > 0 {
+		// We explicitly allow write barriers in startpanic_m,
+		// since we're going down anyway. Ignore them here.
 		releasem(mp)
 		return
 	}

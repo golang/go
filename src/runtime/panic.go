@@ -654,6 +654,12 @@ func recovery(gp *g) {
 	gogo(&gp.sched)
 }
 
+// startpanic_m implements unrecoverable panic.
+//
+// It can have write barriers because the write barrier explicitly
+// ignores writes once dying > 0.
+//
+//go:yeswritebarrierrec
 func startpanic_m() {
 	_g_ := getg()
 	if mheap_.cachealloc.size == 0 { // very early
