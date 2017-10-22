@@ -130,6 +130,8 @@ func supportsDynlink(arch *sys.Arch) bool {
 var timings Timings
 var benchfile string
 
+var nowritebarrierrecCheck *nowritebarrierrecChecker
+
 // Main parses flags and Go source files specified in the command-line
 // arguments, type-checks the parsed Go package, compiles functions to machine
 // code, and finally writes the compiled package definition to disk.
@@ -568,6 +570,14 @@ func Main(archInit func(*Arch)) {
 	escapes(xtop)
 
 	if dolinkobj {
+		// Collect information for go:nowritebarrierrec
+		// checking. This must happen before transformclosure.
+		// We'll do the final check after write barriers are
+		// inserted.
+		if compiling_runtime {
+			nowritebarrierrecCheck = newNowritebarrierrecChecker()
+		}
+
 		// Phase 7: Transform closure bodies to properly reference captured variables.
 		// This needs to happen before walk, because closures must be transformed
 		// before walk reaches a call of a closure.
@@ -616,8 +626,11 @@ func Main(archInit func(*Arch)) {
 		// at least until this convoluted structure has been unwound.
 		nBackendWorkers = 1
 
-		if compiling_runtime {
-			checknowritebarrierrec()
+		if nowritebarrierrecCheck != nil {
+			// Write barriers are now known. Check the
+			// call graph.
+			nowritebarrierrecCheck.check()
+			nowritebarrierrecCheck = nil
 		}
 
 		// Check whether any of the functions we have compiled have gigantic stack frames.
