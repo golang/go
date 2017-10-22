@@ -928,7 +928,7 @@ func nextSampleNoFP() int32 {
 }
 
 type persistentAlloc struct {
-	base unsafe.Pointer
+	base *notInHeap
 	off  uintptr
 }
 
@@ -945,17 +945,17 @@ var globalAlloc struct {
 //
 // Consider marking persistentalloc'd types go:notinheap.
 func persistentalloc(size, align uintptr, sysStat *uint64) unsafe.Pointer {
-	var p unsafe.Pointer
+	var p *notInHeap
 	systemstack(func() {
 		p = persistentalloc1(size, align, sysStat)
 	})
-	return p
+	return unsafe.Pointer(p)
 }
 
 // Must run on system stack because stack growth can (re)invoke it.
 // See issue 9174.
 //go:systemstack
-func persistentalloc1(size, align uintptr, sysStat *uint64) unsafe.Pointer {
+func persistentalloc1(size, align uintptr, sysStat *uint64) *notInHeap {
 	const (
 		chunk    = 256 << 10
 		maxBlock = 64 << 10 // VM reservation granularity is 64K on windows
@@ -976,7 +976,7 @@ func persistentalloc1(size, align uintptr, sysStat *uint64) unsafe.Pointer {
 	}
 
 	if size >= maxBlock {
-		return sysAlloc(size, sysStat)
+		return (*notInHeap)(sysAlloc(size, sysStat))
 	}
 
 	mp := acquirem()
@@ -989,7 +989,7 @@ func persistentalloc1(size, align uintptr, sysStat *uint64) unsafe.Pointer {
 	}
 	persistent.off = round(persistent.off, align)
 	if persistent.off+size > chunk || persistent.base == nil {
-		persistent.base = sysAlloc(chunk, &memstats.other_sys)
+		persistent.base = (*notInHeap)(sysAlloc(chunk, &memstats.other_sys))
 		if persistent.base == nil {
 			if persistent == &globalAlloc.persistentAlloc {
 				unlock(&globalAlloc.mutex)
@@ -998,7 +998,7 @@ func persistentalloc1(size, align uintptr, sysStat *uint64) unsafe.Pointer {
 		}
 		persistent.off = 0
 	}
-	p := add(persistent.base, persistent.off)
+	p := persistent.base.add(persistent.off)
 	persistent.off += size
 	releasem(mp)
 	if persistent == &globalAlloc.persistentAlloc {
@@ -1010,4 +1010,20 @@ func persistentalloc1(size, align uintptr, sysStat *uint64) unsafe.Pointer {
 		mSysStatDec(&memstats.other_sys, size)
 	}
 	return p
+}
+
+// notInHeap is off-heap memory allocated by a lower-level allocator
+// like sysAlloc or persistentAlloc.
+//
+// In general, it's better to use real types marked as go:notinheap,
+// but this serves as a generic type for situations where that isn't
+// possible (like in the allocators).
+//
+// TODO: Use this as the return type of sysAlloc, persistentAlloc, etc?
+//
+//go:notinheap
+type notInHeap struct{}
+
+func (p *notInHeap) add(bytes uintptr) *notInHeap {
+	return (*notInHeap)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) + bytes))
 }
