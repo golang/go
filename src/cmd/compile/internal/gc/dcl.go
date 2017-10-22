@@ -5,7 +5,9 @@
 package gc
 
 import (
+	"bytes"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"strings"
@@ -1108,123 +1110,175 @@ func dclfunc(sym *types.Sym, tfn *Node) *Node {
 }
 
 type nowritebarrierrecChecker struct {
-	curfn  *Node
-	stable bool
+	// extraCalls contains extra function calls that may not be
+	// visible during later analysis. It maps from the ODCLFUNC of
+	// the caller to a list of callees.
+	extraCalls map[*Node][]nowritebarrierrecCall
 
-	// best maps from the ODCLFUNC of each visited function that
-	// recursively invokes a write barrier to the called function
-	// on the shortest path to a write barrier.
-	best map[*Node]nowritebarrierrecCall
+	// curfn is the current function during AST walks.
+	curfn *Node
 }
 
 type nowritebarrierrecCall struct {
-	target *Node
-	depth  int
-	lineno src.XPos
+	target *Node    // ODCLFUNC of caller or callee
+	lineno src.XPos // line of call
 }
 
-func checknowritebarrierrec() {
-	c := nowritebarrierrecChecker{
-		best: make(map[*Node]nowritebarrierrecCall),
+type nowritebarrierrecCallSym struct {
+	target *obj.LSym // LSym of callee
+	lineno src.XPos  // line of call
+}
+
+// newNowritebarrierrecChecker creates a nowritebarrierrecChecker. It
+// must be called before transformclosure and walk.
+func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
+	c := &nowritebarrierrecChecker{
+		extraCalls: make(map[*Node][]nowritebarrierrecCall),
 	}
-	visitBottomUp(xtop, func(list []*Node, recursive bool) {
-		// Functions with write barriers have depth 0.
-		for _, n := range list {
-			if n.Func.WBPos.IsKnown() && n.Func.Pragma&Nowritebarrier != 0 {
-				yyerrorl(n.Func.WBPos, "write barrier prohibited")
-			}
-			if n.Func.WBPos.IsKnown() && n.Func.Pragma&Yeswritebarrierrec == 0 {
-				c.best[n] = nowritebarrierrecCall{target: nil, depth: 0, lineno: n.Func.WBPos}
-			}
+
+	// Find all systemstack calls and record their targets. In
+	// general, flow analysis can't see into systemstack, but it's
+	// important to handle it for this check, so we model it
+	// directly. This has to happen before transformclosure since
+	// it's a lot harder to work out the argument after.
+	for _, n := range xtop {
+		if n.Op != ODCLFUNC {
+			continue
 		}
-
-		// Propagate write barrier depth up from callees. In
-		// the recursive case, we have to update this at most
-		// len(list) times and can stop when we an iteration
-		// that doesn't change anything.
-		for range list {
-			c.stable = false
-			for _, n := range list {
-				if n.Func.Pragma&Yeswritebarrierrec != 0 {
-					// Don't propagate write
-					// barrier up to a
-					// yeswritebarrierrec function.
-					continue
-				}
-				if !n.Func.WBPos.IsKnown() {
-					c.curfn = n
-					c.visitcodelist(n.Nbody)
-				}
-			}
-			if c.stable {
-				break
-			}
-		}
-
-		// Check nowritebarrierrec functions.
-		for _, n := range list {
-			if n.Func.Pragma&Nowritebarrierrec == 0 {
-				continue
-			}
-			call, hasWB := c.best[n]
-			if !hasWB {
-				continue
-			}
-
-			// Build the error message in reverse.
-			err := ""
-			for call.target != nil {
-				err = fmt.Sprintf("\n\t%v: called by %v%s", linestr(call.lineno), n.Func.Nname, err)
-				n = call.target
-				call = c.best[n]
-			}
-			err = fmt.Sprintf("write barrier prohibited by caller; %v%s", n.Func.Nname, err)
-			yyerrorl(n.Func.WBPos, err)
-		}
-	})
+		c.curfn = n
+		inspect(n, c.findExtraCalls)
+	}
+	c.curfn = nil
+	return c
 }
 
-func (c *nowritebarrierrecChecker) visitcodelist(l Nodes) {
-	for _, n := range l.Slice() {
-		c.visitcode(n)
+func (c *nowritebarrierrecChecker) findExtraCalls(n *Node) bool {
+	if n.Op != OCALLFUNC {
+		return true
 	}
-}
-
-func (c *nowritebarrierrecChecker) visitcode(n *Node) {
-	if n == nil {
-		return
-	}
-
-	if n.Op == OCALLFUNC || n.Op == OCALLMETH {
-		c.visitcall(n)
-	}
-
-	c.visitcodelist(n.Ninit)
-	c.visitcode(n.Left)
-	c.visitcode(n.Right)
-	c.visitcodelist(n.List)
-	c.visitcodelist(n.Nbody)
-	c.visitcodelist(n.Rlist)
-}
-
-func (c *nowritebarrierrecChecker) visitcall(n *Node) {
 	fn := n.Left
-	if n.Op == OCALLMETH {
-		fn = asNode(n.Left.Sym.Def)
-	}
 	if fn == nil || fn.Op != ONAME || fn.Class() != PFUNC || fn.Name.Defn == nil {
-		return
+		return true
 	}
-	defn := fn.Name.Defn
+	if !isRuntimePkg(fn.Sym.Pkg) || fn.Sym.Name != "systemstack" {
+		return true
+	}
 
-	fnbest, ok := c.best[defn]
-	if !ok {
-		return
+	var callee *Node
+	arg := n.List.First()
+	switch arg.Op {
+	case ONAME:
+		callee = arg.Name.Defn
+	case OCLOSURE:
+		callee = arg.Func.Closure
+	default:
+		Fatalf("expected ONAME or OCLOSURE node, got %+v", arg)
 	}
-	best, ok := c.best[c.curfn]
-	if ok && fnbest.depth+1 >= best.depth {
-		return
+	if callee.Op != ODCLFUNC {
+		Fatalf("expected ODCLFUNC node, got %+v", callee)
 	}
-	c.best[c.curfn] = nowritebarrierrecCall{target: defn, depth: fnbest.depth + 1, lineno: n.Pos}
-	c.stable = false
+	c.extraCalls[c.curfn] = append(c.extraCalls[c.curfn], nowritebarrierrecCall{callee, n.Pos})
+	return true
+}
+
+// recordCall records a call from ODCLFUNC node "from", to function
+// symbol "to" at position pos.
+//
+// This should be done as late as possible during compilation to
+// capture precise call graphs. The target of the call is an LSym
+// because that's all we know after we start SSA.
+//
+// This can be called concurrently for different from Nodes.
+func (c *nowritebarrierrecChecker) recordCall(from *Node, to *obj.LSym, pos src.XPos) {
+	if from.Op != ODCLFUNC {
+		Fatalf("expected ODCLFUNC, got %v", from)
+	}
+	// We record this information on the *Func so this is
+	// concurrent-safe.
+	fn := from.Func
+	if fn.nwbrCalls == nil {
+		fn.nwbrCalls = new([]nowritebarrierrecCallSym)
+	}
+	*fn.nwbrCalls = append(*fn.nwbrCalls, nowritebarrierrecCallSym{to, pos})
+}
+
+func (c *nowritebarrierrecChecker) check() {
+	// We walk the call graph as late as possible so we can
+	// capture all calls created by lowering, but this means we
+	// only get to see the obj.LSyms of calls. symToFunc lets us
+	// get back to the ODCLFUNCs.
+	symToFunc := make(map[*obj.LSym]*Node)
+	// funcs records the back-edges of the BFS call graph walk. It
+	// maps from the ODCLFUNC of each function that must not have
+	// write barriers to the call that inhibits them. Functions
+	// that are directly marked go:nowritebarrierrec are in this
+	// map with a zero-valued nowritebarrierrecCall. This also
+	// acts as the set of marks for the BFS of the call graph.
+	funcs := make(map[*Node]nowritebarrierrecCall)
+	// q is the queue of ODCLFUNC Nodes to visit in BFS order.
+	var q nodeQueue
+
+	for _, n := range xtop {
+		if n.Op != ODCLFUNC {
+			continue
+		}
+
+		symToFunc[n.Func.lsym] = n
+
+		// Make nowritebarrierrec functions BFS roots.
+		if n.Func.Pragma&Nowritebarrierrec != 0 {
+			funcs[n] = nowritebarrierrecCall{}
+			q.pushRight(n)
+		}
+		// Check go:nowritebarrier functions.
+		if n.Func.Pragma&Nowritebarrier != 0 && n.Func.WBPos.IsKnown() {
+			yyerrorl(n.Func.WBPos, "write barrier prohibited")
+		}
+	}
+
+	// Perform a BFS of the call graph from all
+	// go:nowritebarrierrec functions.
+	enqueue := func(src, target *Node, pos src.XPos) {
+		if target.Func.Pragma&Yeswritebarrierrec != 0 {
+			// Don't flow into this function.
+			return
+		}
+		if _, ok := funcs[target]; ok {
+			// Already found a path to target.
+			return
+		}
+
+		// Record the path.
+		funcs[target] = nowritebarrierrecCall{target: src, lineno: pos}
+		q.pushRight(target)
+	}
+	for !q.empty() {
+		fn := q.popLeft()
+
+		// Check fn.
+		if fn.Func.WBPos.IsKnown() {
+			var err bytes.Buffer
+			call := funcs[fn]
+			for call.target != nil {
+				fmt.Fprintf(&err, "\n\t%v: called by %v", linestr(call.lineno), call.target.Func.Nname)
+				call = funcs[call.target]
+			}
+			yyerrorl(fn.Func.WBPos, "write barrier prohibited by caller; %v%s", fn.Func.Nname, err.String())
+			continue
+		}
+
+		// Enqueue fn's calls.
+		for _, callee := range c.extraCalls[fn] {
+			enqueue(fn, callee.target, callee.lineno)
+		}
+		if fn.Func.nwbrCalls == nil {
+			continue
+		}
+		for _, callee := range *fn.Func.nwbrCalls {
+			target := symToFunc[callee.target]
+			if target != nil {
+				enqueue(fn, target, callee.lineno)
+			}
+		}
+	}
 }

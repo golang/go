@@ -432,6 +432,11 @@ type Func struct {
 	Pragma syntax.Pragma // go:xxx function annotations
 
 	flags bitset16
+
+	// nwbrCalls records the LSyms of functions called by this
+	// function for go:nowritebarrierrec analysis. Only filled in
+	// if nowritebarrierrecCheck != nil.
+	nwbrCalls *[]nowritebarrierrecCallSym
 }
 
 // A Mark represents a scope boundary.
@@ -810,4 +815,50 @@ func inspectList(l Nodes, f func(*Node) bool) {
 	for _, n := range l.Slice() {
 		inspect(n, f)
 	}
+}
+
+// nodeQueue is a FIFO queue of *Node. The zero value of nodeQueue is
+// a ready-to-use empty queue.
+type nodeQueue struct {
+	ring       []*Node
+	head, tail int
+}
+
+// empty returns true if q contains no Nodes.
+func (q *nodeQueue) empty() bool {
+	return q.head == q.tail
+}
+
+// pushRight appends n to the right of the queue.
+func (q *nodeQueue) pushRight(n *Node) {
+	if len(q.ring) == 0 {
+		q.ring = make([]*Node, 16)
+	} else if q.head+len(q.ring) == q.tail {
+		// Grow the ring.
+		nring := make([]*Node, len(q.ring)*2)
+		// Copy the old elements.
+		part := q.ring[q.head%len(q.ring):]
+		if q.tail-q.head <= len(part) {
+			part = part[:q.tail-q.head]
+			copy(nring, part)
+		} else {
+			pos := copy(nring, part)
+			copy(nring[pos:], q.ring[:q.tail%len(q.ring)])
+		}
+		q.ring, q.head, q.tail = nring, 0, q.tail-q.head
+	}
+
+	q.ring[q.tail%len(q.ring)] = n
+	q.tail++
+}
+
+// popLeft pops a node from the left of the queue. It panics if q is
+// empty.
+func (q *nodeQueue) popLeft() *Node {
+	if q.empty() {
+		panic("dequeue empty")
+	}
+	n := q.ring[q.head%len(q.ring)]
+	q.head++
+	return n
 }

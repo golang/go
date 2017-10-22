@@ -4919,6 +4919,12 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = sym
+
+		// Record call graph information for nowritebarrierrec
+		// analysis.
+		if nowritebarrierrecCheck != nil {
+			nowritebarrierrecCheck.recordCall(s.pp.curfn, sym, v.Pos)
+		}
 	} else {
 		// TODO(mdempsky): Can these differences be eliminated?
 		switch thearch.LinkArch.Family {
