@@ -1105,7 +1105,10 @@ func (ctxt *Link) hostlink() {
 	switch ctxt.BuildMode {
 	case BuildModeExe:
 		if ctxt.HeadType == objabi.Hdarwin {
-			argv = append(argv, "-Wl,-pagezero_size,4000000")
+			// __PAGEZERO segment size determined empirically.
+			// XCode 9.0.1 successfully uploads an iOS app with this value.
+			// Also works for macOS apps.
+			argv = append(argv, "-Wl,-pagezero_size,100000000")
 		}
 	case BuildModePIE:
 		// ELF.
