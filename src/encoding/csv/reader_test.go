@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestRead(t *testing.T) {
@@ -312,6 +313,35 @@ x,,,
 		Input:      `"""""""`,
 		Output:     [][]string{{`"""`}},
 		LazyQuotes: true,
+	}, {
+		Name:  "BadComma1",
+		Comma: '\n',
+		Error: errInvalidDelim,
+	}, {
+		Name:  "BadComma2",
+		Comma: '\r',
+		Error: errInvalidDelim,
+	}, {
+		Name:  "BadComma3",
+		Comma: utf8.RuneError,
+		Error: errInvalidDelim,
+	}, {
+		Name:    "BadComment1",
+		Comment: '\n',
+		Error:   errInvalidDelim,
+	}, {
+		Name:    "BadComment2",
+		Comment: '\r',
+		Error:   errInvalidDelim,
+	}, {
+		Name:    "BadComment3",
+		Comment: utf8.RuneError,
+		Error:   errInvalidDelim,
+	}, {
+		Name:    "BadCommaComment",
+		Comma:   'X',
+		Comment: 'X',
+		Error:   errInvalidDelim,
 	}}
 
 	for _, tt := range tests {

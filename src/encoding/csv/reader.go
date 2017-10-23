@@ -88,6 +88,12 @@ var (
 	ErrFieldCount    = errors.New("wrong number of fields")
 )
 
+var errInvalidDelim = errors.New("csv: invalid field or comment delimiter")
+
+func validDelim(r rune) bool {
+	return r != 0 && r != '\r' && r != '\n' && utf8.ValidRune(r) && r != utf8.RuneError
+}
+
 // A Reader reads records from a CSV-encoded file.
 //
 // As returned by NewReader, a Reader expects input conforming to RFC 4180.
@@ -232,6 +238,10 @@ func nextRune(b []byte) rune {
 }
 
 func (r *Reader) readRecord(dst []string) ([]string, error) {
+	if r.Comma == r.Comment || !validDelim(r.Comma) || (r.Comment != 0 && !validDelim(r.Comment)) {
+		return nil, errInvalidDelim
+	}
+
 	// Read line (automatically skipping past empty lines and any comments).
 	var line, fullLine []byte
 	var errRead error
