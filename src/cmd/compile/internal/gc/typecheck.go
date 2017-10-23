@@ -2873,9 +2873,7 @@ func typecheckcomplit(n *Node) *Node {
 	}
 
 	// Save original node (including n.Right)
-	norig := nod(n.Op, nil, nil)
-
-	*norig = *n
+	norig := n.copy()
 
 	setlineno(n.Right)
 	n.Right = typecheck(n.Right, Etype|Ecomplit)

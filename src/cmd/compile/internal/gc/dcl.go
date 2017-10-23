@@ -466,11 +466,11 @@ func funcargs(nt *Node) {
 			// So the two cases must be distinguished.
 			// We do not record a pointer to the original node (n->orig).
 			// Having multiple names causes too much confusion in later passes.
-			nn := *n.Left
-			nn.Orig = &nn
+			nn := n.Left.copy()
+			nn.Orig = nn
 			nn.Sym = lookupN("~b", gen)
 			gen++
-			n.Left = &nn
+			n.Left = nn
 		}
 
 		n.Left.Name.Param.Ntype = n.Right

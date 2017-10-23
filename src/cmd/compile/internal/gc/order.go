@@ -109,10 +109,10 @@ func (o *Order) cheapExpr(n *Node) *Node {
 		if l == n.Left {
 			return n
 		}
-		a := *n
-		a.Orig = &a
+		a := n.copy()
+		a.Orig = a
 		a.Left = l
-		return typecheck(&a, Erv)
+		return typecheck(a, Erv)
 	}
 
 	return o.copyExpr(n, n.Type, false)
@@ -135,20 +135,20 @@ func (o *Order) safeExpr(n *Node) *Node {
 		if l == n.Left {
 			return n
 		}
-		a := *n
-		a.Orig = &a
+		a := n.copy()
+		a.Orig = a
 		a.Left = l
-		return typecheck(&a, Erv)
+		return typecheck(a, Erv)
 
 	case ODOTPTR, OIND:
 		l := o.cheapExpr(n.Left)
 		if l == n.Left {
 			return n
 		}
-		a := *n
-		a.Orig = &a
+		a := n.copy()
+		a.Orig = a
 		a.Left = l
-		return typecheck(&a, Erv)
+		return typecheck(a, Erv)
 
 	case OINDEX, OINDEXMAP:
 		var l *Node
@@ -161,11 +161,11 @@ func (o *Order) safeExpr(n *Node) *Node {
 		if l == n.Left && r == n.Right {
 			return n
 		}
-		a := *n
-		a.Orig = &a
+		a := n.copy()
+		a.Orig = a
 		a.Left = l
 		a.Right = r
-		return typecheck(&a, Erv)
+		return typecheck(a, Erv)
 
 	default:
 		Fatalf("ordersafeexpr %v", n.Op)

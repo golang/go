@@ -3894,7 +3894,7 @@ func wrapCall(n *Node, init *Nodes) *Node {
 // The result of substArgTypes MUST be assigned back to old, e.g.
 // 	n.Left = substArgTypes(n.Left, t1, t2)
 func substArgTypes(old *Node, types_ ...*types.Type) *Node {
-	n := *old // make shallow copy
+	n := old.copy() // make shallow copy
 
 	for _, t := range types_ {
 		dowidth(t)
@@ -3903,5 +3903,5 @@ func substArgTypes(old *Node, types_ ...*types.Type) *Node {
 	if len(types_) > 0 {
 		Fatalf("substArgTypes: too many argument types")
 	}
-	return &n
+	return n
 }
