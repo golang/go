@@ -913,9 +913,12 @@ func round2(x int32) int32 {
 // g->atomicstatus will be Grunning or Gscanrunning upon entry.
 // If the GC is trying to stop this g then it will set preemptscan to true.
 //
-// ctxt is the value of the context register on morestack. newstack
-// will write it to g.sched.ctxt.
-func newstack(ctxt unsafe.Pointer) {
+// This must be nowritebarrierrec because it can be called as part of
+// stack growth from other nowritebarrierrec functions, but the
+// compiler doesn't check this.
+//
+//go:nowritebarrierrec
+func newstack() {
 	thisg := getg()
 	// TODO: double check all gp. shouldn't be getg().
 	if thisg.m.morebuf.g.ptr().stackguard0 == stackFork {
@@ -929,9 +932,6 @@ func newstack(ctxt unsafe.Pointer) {
 	}
 
 	gp := thisg.m.curg
-	// Write ctxt to gp.sched. We do this here instead of in
-	// morestack so it has the necessary write barrier.
-	gp.sched.ctxt = ctxt
 
 	if thisg.m.curg.throwsplit {
 		// Update syscallsp, syscallpc in case traceback uses them.

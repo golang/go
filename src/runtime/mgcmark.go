@@ -770,6 +770,13 @@ func scanstack(gp *g, gcw *gcWork) {
 		shrinkstack(gp)
 	}
 
+	// Scan the saved context register. This is effectively a live
+	// register that gets moved back and forth between the
+	// register and sched.ctxt without a write barrier.
+	if gp.sched.ctxt != nil {
+		scanblock(uintptr(unsafe.Pointer(&gp.sched.ctxt)), sys.PtrSize, &oneptrmask[0], gcw)
+	}
+
 	// Scan the stack.
 	var cache pcvalueCache
 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
