@@ -2901,6 +2901,21 @@ func TestGoTestFooTestWorks(t *testing.T) {
 	tg.run("test", "testdata/standalone_test.go")
 }
 
+// Issue 22388
+func TestGoTestMainWithWrongSignature(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.runFail("test", "testdata/standalone_main_wrong_test.go")
+	tg.grepStderr(`wrong signature for TestMain, must be: func TestMain\(m \*testing.M\)`, "detected wrong error message")
+}
+
+func TestGoTestMainAsNormalTest(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "testdata/standalone_main_normal_test.go")
+	tg.grepBoth(okPattern, "go test did not say ok")
+}
+
 func TestGoTestFlagsAfterPackage(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()

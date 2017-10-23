@@ -1694,7 +1694,16 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 		}
 		name := n.Name.String()
 		switch {
-		case name == "TestMain" && isTestFunc(n, "M"):
+		case name == "TestMain":
+			if isTestFunc(n, "T") {
+				t.Tests = append(t.Tests, testFunc{pkg, name, "", false})
+				*doImport, *seen = true, true
+				continue
+			}
+			err := checkTestFunc(n, "M")
+			if err != nil {
+				return err
+			}
 			if t.TestMain != nil {
 				return errors.New("multiple definitions of TestMain")
 			}
