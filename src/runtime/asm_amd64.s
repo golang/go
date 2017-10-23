@@ -304,18 +304,6 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-8
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB), NOSPLIT, $16-8
 	MOVQ	buf+0(FP), BX		// gobuf
-
-	// If ctxt is not nil, invoke deletion barrier before overwriting.
-	MOVQ	gobuf_ctxt(BX), AX
-	TESTQ	AX, AX
-	JZ	nilctxt
-	LEAQ	gobuf_ctxt(BX), AX
-	MOVQ	AX, 0(SP)
-	MOVQ	$0, 8(SP)
-	CALL	runtime·writebarrierptr_prewrite(SB)
-	MOVQ	buf+0(FP), BX
-
-nilctxt:
 	MOVQ	gobuf_g(BX), DX
 	MOVQ	0(DX), CX		// make sure g != nil
 	get_tls(CX)
@@ -482,16 +470,14 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	LEAQ	8(SP), AX // f's SP
 	MOVQ	AX, (g_sched+gobuf_sp)(SI)
 	MOVQ	BP, (g_sched+gobuf_bp)(SI)
-	// newstack will fill gobuf.ctxt.
+	MOVQ	DX, (g_sched+gobuf_ctxt)(SI)
 
 	// Call newstack on m->g0's stack.
 	MOVQ	m_g0(BX), BX
 	MOVQ	BX, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(BX), SP
-	PUSHQ	DX	// ctxt argument
 	CALL	runtime·newstack(SB)
 	MOVQ	$0, 0x1003	// crash if newstack returns
-	POPQ	DX	// keep balance check happy
 	RET
 
 // morestack but not preserving ctxt.

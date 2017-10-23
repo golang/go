@@ -254,17 +254,19 @@ type gobuf struct {
 	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
 	//
 	// ctxt is unusual with respect to GC: it may be a
-	// heap-allocated funcval so write require a write barrier,
-	// but gobuf needs to be cleared from assembly. We take
-	// advantage of the fact that the only path that uses a
-	// non-nil ctxt is morestack. As a result, gogo is the only
-	// place where it may not already be nil, so gogo uses an
-	// explicit write barrier. Everywhere else that resets the
-	// gobuf asserts that ctxt is already nil.
+	// heap-allocated funcval, so GC needs to track it, but it
+	// needs to be set and cleared from assembly, where it's
+	// difficult to have write barriers. However, ctxt is really a
+	// saved, live register, and we only ever exchange it between
+	// the real register and the gobuf. Hence, we treat it as a
+	// root during stack scanning, which means assembly that saves
+	// and restores it doesn't need write barriers. It's still
+	// typed as a pointer so that any other writes from Go get
+	// write barriers.
 	sp   uintptr
 	pc   uintptr
 	g    guintptr
-	ctxt unsafe.Pointer // this has to be a pointer so that gc scans it
+	ctxt unsafe.Pointer
 	ret  sys.Uintreg
 	lr   uintptr
 	bp   uintptr // for GOEXPERIMENT=framepointer

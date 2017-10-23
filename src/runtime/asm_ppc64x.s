@@ -133,18 +133,6 @@ TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB), NOSPLIT, $16-8
 	MOVD	buf+0(FP), R5
-
-	// If ctxt is not nil, invoke deletion barrier before overwriting.
-	MOVD	gobuf_ctxt(R5), R3
-	CMP	R0, R3
-	BEQ	nilctxt
-	MOVD	$gobuf_ctxt(R5), R3
-	MOVD	R3, FIXED_FRAME+0(R1)
-	MOVD	R0, FIXED_FRAME+8(R1)
-	BL	runtime·writebarrierptr_prewrite(SB)
-	MOVD	buf+0(FP), R5
-
-nilctxt:
 	MOVD	gobuf_g(R5), g	// make sure g is not nil
 	BL	runtime·save_g(SB)
 
@@ -317,7 +305,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	LR, R8
 	MOVD	R8, (g_sched+gobuf_pc)(g)
 	MOVD	R5, (g_sched+gobuf_lr)(g)
-	// newstack will fill gobuf.ctxt.
+	MOVD	R11, (g_sched+gobuf_ctxt)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
@@ -329,8 +317,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	m_g0(R7), g
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R1
-	MOVDU   R0, -(FIXED_FRAME+8)(R1)	// create a call frame on g0
-	MOVD	R11, FIXED_FRAME+0(R1)	// ctxt argument
+	MOVDU   R0, -(FIXED_FRAME+0)(R1)	// create a call frame on g0
 	BL	runtime·newstack(SB)
 
 	// Not reached, but make sure the return PC from the call to newstack
