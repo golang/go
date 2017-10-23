@@ -338,7 +338,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
 	var dwarfVars []*dwarf.Var
 	var decls []*Node
 	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize {
-		decls, dwarfVars = createComplexVars(fnsym, debugInfo)
+		decls, dwarfVars = createComplexVars(fnsym, debugInfo, automDecls)
 	} else {
 		decls, dwarfVars = createSimpleVars(automDecls)
 	}
@@ -416,7 +416,7 @@ type varPart struct {
 	slot      ssa.SlotID
 }
 
-func createComplexVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug) ([]*Node, []*dwarf.Var) {
+func createComplexVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*Node) ([]*Node, []*dwarf.Var) {
 	for _, blockDebug := range debugInfo.Blocks {
 		for _, locList := range blockDebug.Variables {
 			for _, loc := range locList.Locations {
@@ -438,11 +438,13 @@ func createComplexVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug) ([]*Node, []*d
 
 	// Group SSA variables by the user variable they were decomposed from.
 	varParts := map[*Node][]varPart{}
+	ssaVars := make(map[*Node]bool)
 	for slotID, slot := range debugInfo.VarSlots {
 		for slot.SplitOf != nil {
 			slot = slot.SplitOf
 		}
 		n := slot.N.(*Node)
+		ssaVars[n] = true
 		varParts[n] = append(varParts[n], varPart{varOffset(slot), ssa.SlotID(slotID)})
 	}
 
@@ -472,6 +474,39 @@ func createComplexVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug) ([]*Node, []*d
 			vars = append(vars, dvar)
 		}
 	}
+
+	// The machinery above will create a dwarf.Var for only those
+	// variables that are decomposed into SSA names. Fill in the list
+	// with entries for the remaining variables (including things too
+	// big to decompose). Since optimization is enabled, the recipe
+	// below creates a conservative location. The idea here is that we
+	// want to communicate to the user that "yes, there is a variable
+	// named X in this function, but no, I don't have enough
+	// information to reliably report its contents."
+	for _, n := range automDecls {
+		if _, found := ssaVars[n]; !found {
+			continue
+		}
+		c := n.Sym.Name[0]
+		if c == '~' || c == '.' {
+			continue
+		}
+		typename := dwarf.InfoPrefix + typesymname(n.Type)
+		decls = append(decls, n)
+		abbrev := dwarf.DW_ABRV_AUTO_LOCLIST
+		if n.Class() == PPARAM || n.Class() == PPARAMOUT {
+			abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+		}
+		vars = append(vars, &dwarf.Var{
+			Name:          n.Sym.Name,
+			IsReturnValue: n.Class() == PPARAMOUT,
+			Abbrev:        abbrev,
+			StackOffset:   int32(n.Xoffset),
+			Type:          Ctxt.Lookup(typename),
+			DeclLine:      n.Pos.Line(),
+		})
+	}
+
 	return decls, vars
 }
 
