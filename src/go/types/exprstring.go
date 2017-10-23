@@ -11,14 +11,18 @@ import (
 	"go/ast"
 )
 
-// ExprString returns the (possibly simplified) string representation for x.
+// ExprString returns the (possibly shortened) string representation for x.
+// Shortened representations are suitable for user interfaces but may not
+// necessarily follow Go syntax.
 func ExprString(x ast.Expr) string {
 	var buf bytes.Buffer
 	WriteExpr(&buf, x)
 	return buf.String()
 }
 
-// WriteExpr writes the (possibly simplified) string representation for x to buf.
+// WriteExpr writes the (possibly shortened) string representation for x to buf.
+// Shortened representations are suitable for user interfaces but may not
+// necessarily follow Go syntax.
 func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 	// The AST preserves source-level parentheses so there is
 	// no need to introduce them here to correct for different
@@ -44,12 +48,12 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 	case *ast.FuncLit:
 		buf.WriteByte('(')
 		WriteExpr(buf, x.Type)
-		buf.WriteString(" literal)") // simplified
+		buf.WriteString(" literal)") // shortened
 
 	case *ast.CompositeLit:
 		buf.WriteByte('(')
 		WriteExpr(buf, x.Type)
-		buf.WriteString(" literal)") // simplified
+		buf.WriteString(" literal)") // shortened
 
 	case *ast.ParenExpr:
 		buf.WriteByte('(')
