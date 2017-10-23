@@ -215,18 +215,20 @@ func (w *Writer) Create(name string) (io.Writer, error) {
 	return w.CreateHeader(header)
 }
 
-func hasValidUTF8(s string) bool {
-	n := 0
+// detectUTF8 reports whether s is a valid UTF-8 string, and whether the string
+// must be considered UTF-8 encoding (i.e., not compatible with CP-437).
+func detectUTF8(s string) (valid, require bool) {
 	for _, r := range s {
-		// By default, ZIP uses CP437, which is only identical to ASCII for the printable characters.
+		// By default, ZIP uses CP-437,
+		// which is only identical to ASCII for the printable characters.
 		if r < 0x20 || r >= 0x7f {
-			if !utf8.ValidRune(r) {
-				return false
+			if !utf8.ValidRune(r) || r == utf8.RuneError {
+				return false, false
 			}
-			n++
+			require = true
 		}
 	}
-	return n > 0
+	return true, require
 }
 
 // CreateHeader adds a file to the zip file using the provided FileHeader
@@ -249,8 +251,29 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 
 	fh.Flags |= 0x8 // we will write a data descriptor
 
-	if hasValidUTF8(fh.Name) || hasValidUTF8(fh.Comment) {
-		fh.Flags |= 0x800 // filename or comment have valid utf-8 string
+	// The ZIP format has a sad state of affairs regarding character encoding.
+	// Officially, the name and comment fields are supposed to be encoded
+	// in CP-437 (which is mostly compatible with ASCII), unless the UTF-8
+	// flag bit is set. However, there are several problems:
+	//
+	//	* Many ZIP readers still do not support UTF-8.
+	//	* If the UTF-8 flag is cleared, several readers simply interpret the
+	//	name and comment fields as whatever the local system encoding is.
+	//
+	// In order to avoid breaking readers without UTF-8 support,
+	// we avoid setting the UTF-8 flag if the strings are CP-437 compatible.
+	// However, if the strings require multibyte UTF-8 encoding and is a
+	// valid UTF-8 string, then we set the UTF-8 bit.
+	//
+	// For the case, where the user explicitly wants to specify the encoding
+	// as UTF-8, they will need to set the flag bit themselves.
+	// TODO: For the case, where the user explicitly wants to specify that the
+	// encoding is *not* UTF-8, that is currently not possible.
+	// See golang.org/issue/10741.
+	utf8Valid1, utf8Require1 := detectUTF8(fh.Name)
+	utf8Valid2, utf8Require2 := detectUTF8(fh.Comment)
+	if (utf8Require1 || utf8Require2) && utf8Valid1 && utf8Valid2 {
+		fh.Flags |= 0x800
 	}
 
 	fh.CreatorVersion = fh.CreatorVersion&0xff00 | zipVersion20 // preserve compatibility byte
