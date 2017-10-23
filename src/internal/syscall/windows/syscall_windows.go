@@ -113,6 +113,13 @@ const (
 //sys	GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
 
 const (
+	WSA_FLAG_OVERLAPPED        = 0x01
+	WSA_FLAG_NO_HANDLE_INHERIT = 0x80
+)
+
+//sys	WSASocket(af int32, typ int32, protocol int32, protinfo *syscall.WSAProtocolInfo, group uint32, flags uint32) (handle syscall.Handle, err error) [failretval==syscall.InvalidHandle] = ws2_32.WSASocketW
+
+const (
 	ComputerNameNetBIOS                   = 0
 	ComputerNameDnsHostname               = 1
 	ComputerNameDnsDomain                 = 2

@@ -38,6 +38,7 @@ func errnoErr(e syscall.Errno) error {
 var (
 	modiphlpapi = syscall.NewLazyDLL(sysdll.Add("iphlpapi.dll"))
 	modkernel32 = syscall.NewLazyDLL(sysdll.Add("kernel32.dll"))
+	modws2_32   = syscall.NewLazyDLL(sysdll.Add("ws2_32.dll"))
 	modnetapi32 = syscall.NewLazyDLL(sysdll.Add("netapi32.dll"))
 	modadvapi32 = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
 	modpsapi    = syscall.NewLazyDLL(sysdll.Add("psapi.dll"))
@@ -46,6 +47,7 @@ var (
 	procGetComputerNameExW        = modkernel32.NewProc("GetComputerNameExW")
 	procMoveFileExW               = modkernel32.NewProc("MoveFileExW")
 	procGetModuleFileNameW        = modkernel32.NewProc("GetModuleFileNameW")
+	procWSASocketW                = modws2_32.NewProc("WSASocketW")
 	procGetACP                    = modkernel32.NewProc("GetACP")
 	procGetConsoleCP              = modkernel32.NewProc("GetConsoleCP")
 	procMultiByteToWideChar       = modkernel32.NewProc("MultiByteToWideChar")
@@ -99,6 +101,19 @@ func GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32,
 	r0, _, e1 := syscall.Syscall(procGetModuleFileNameW.Addr(), 3, uintptr(module), uintptr(unsafe.Pointer(fn)), uintptr(len))
 	n = uint32(r0)
 	if n == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func WSASocket(af int32, typ int32, protocol int32, protinfo *syscall.WSAProtocolInfo, group uint32, flags uint32) (handle syscall.Handle, err error) {
+	r0, _, e1 := syscall.Syscall6(procWSASocketW.Addr(), 6, uintptr(af), uintptr(typ), uintptr(protocol), uintptr(unsafe.Pointer(protinfo)), uintptr(group), uintptr(flags))
+	handle = syscall.Handle(r0)
+	if handle == syscall.InvalidHandle {
 		if e1 != 0 {
 			err = errnoErr(e1)
 		} else {

@@ -266,7 +266,7 @@ var pkgDeps = map[string][]string{
 	"math/big":                 {"L4"},
 	"mime":                     {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
 	"mime/quotedprintable":     {"L4"},
-	"net/internal/socktest":    {"L4", "OS", "syscall"},
+	"net/internal/socktest":    {"L4", "OS", "syscall", "internal/syscall/windows"},
 	"net/url":                  {"L4"},
 	"plugin":                   {"L0", "OS", "CGO"},
 	"runtime/pprof/internal/profile": {"L4", "OS", "compress/gzip", "regexp"},
