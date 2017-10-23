@@ -484,7 +484,7 @@ func createComplexVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*
 	// named X in this function, but no, I don't have enough
 	// information to reliably report its contents."
 	for _, n := range automDecls {
-		if _, found := ssaVars[n]; !found {
+		if _, found := ssaVars[n]; found {
 			continue
 		}
 		c := n.Sym.Name[0]
