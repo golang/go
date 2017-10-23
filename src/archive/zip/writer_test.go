@@ -156,6 +156,12 @@ func TestWriterUTF8(t *testing.T) {
 			comment: "in the 世界",
 			expect:  0x808,
 		},
+		{
+			// Name is Japanese encoded in Shift JIS.
+			name:    "\x93\xfa\x96{\x8c\xea.txt",
+			comment: "in the 世界",
+			expect:  0x008, // UTF-8 must not be set
+		},
 	}
 
 	// write a zip file
