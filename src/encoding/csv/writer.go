@@ -38,6 +38,10 @@ func NewWriter(w io.Writer) *Writer {
 // Writer writes a single CSV record to w along with any necessary quoting.
 // A record is a slice of strings with each string being one field.
 func (w *Writer) Write(record []string) error {
+	if !validDelim(w.Comma) {
+		return errInvalidDelim
+	}
+
 	for n, field := range record {
 		if n > 0 {
 			if _, err := w.w.WriteRune(w.Comma); err != nil {
