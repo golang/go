@@ -84,7 +84,7 @@ func (e *ParseError) Error() string {
 var (
 	ErrTrailingComma = errors.New("extra delimiter at end of line") // Deprecated: No longer used.
 	ErrBareQuote     = errors.New("bare \" in non-quoted-field")
-	ErrQuote         = errors.New("extraneous or missing \" in field")
+	ErrQuote         = errors.New("extraneous or missing \" in quoted-field")
 	ErrFieldCount    = errors.New("wrong number of fields")
 )
 
