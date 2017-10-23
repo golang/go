@@ -465,6 +465,7 @@ var optab = []Optab{
 	{ALDP, C_LOREG, C_NONE, C_PAIR, 75, 12, 0, LFROM, 0},
 	{ALDP, C_LOREG, C_NONE, C_PAIR, 75, 12, 0, LFROM, C_XPRE},
 	{ALDP, C_LOREG, C_NONE, C_PAIR, 75, 12, 0, LFROM, C_XPOST},
+	{ALDP, C_ADDR, C_NONE, C_PAIR, 88, 12, 0, 0, 0},
 
 	{ASTP, C_PAIR, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, 0},
 	{ASTP, C_PAIR, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, C_XPRE},
@@ -490,6 +491,7 @@ var optab = []Optab{
 	{ASTP, C_PAIR, C_NONE, C_LOREG, 77, 12, 0, LTO, 0},
 	{ASTP, C_PAIR, C_NONE, C_LOREG, 77, 12, 0, LTO, C_XPRE},
 	{ASTP, C_PAIR, C_NONE, C_LOREG, 77, 12, 0, LTO, C_XPOST},
+	{ASTP, C_PAIR, C_NONE, C_ADDR, 87, 12, 0, 0, 0},
 
 	/* special */
 	{AMOVD, C_SPR, C_NONE, C_REG, 35, 4, 0, 0, 0},
@@ -3628,6 +3630,28 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 = 0xf<<24 | 0xe<<12 | 1<<10
 		o1 |= (uint32(Q&1) << 30) | (uint32((r>>5)&7) << 16) | (uint32(r&0x1f) << 5) | uint32(rt&31)
+
+	case 87: /* stp (r,r), addr(SB) -> adrp + add + stp */
+		o1 = ADR(1, 0, REGTMP)
+		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 8
+		rel.Sym = p.To.Sym
+		rel.Add = p.To.Offset
+		rel.Type = objabi.R_ADDRARM64
+		o3 |= 2<<30 | 5<<27 | 2<<23 | uint32(p.From.Offset&31)<<10 | (REGTMP&31)<<5 | uint32(p.From.Reg&31)
+
+	case 88: /* ldp addr(SB), (r,r) -> adrp + add + ldp */
+		o1 = ADR(1, 0, REGTMP)
+		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 8
+		rel.Sym = p.From.Sym
+		rel.Add = p.From.Offset
+		rel.Type = objabi.R_ADDRARM64
+		o3 |= 2<<30 | 5<<27 | 2<<23 | 1<<22 | uint32(p.To.Offset&31)<<10 | (REGTMP&31)<<5 | uint32(p.To.Reg&31)
 
 	// This is supposed to be something that stops execution.
 	// It's not supposed to be reached, ever, but if it is, we'd
