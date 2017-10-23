@@ -382,6 +382,20 @@ again:
 	JMP	foo(SB)
 	CALL	foo(SB)
 
+// LDP/STP
+	LDP	(R0), (R1, R2)
+	LDP	8(R0), (R1, R2)
+	LDP.W	8(R0), (R1, R2)
+	LDP.P	8(R0), (R1, R2)
+	LDP	x(SB), (R1, R2)
+	LDP	x+8(SB), (R1, R2)
+	STP	(R3, R4), (R5)
+	STP	(R3, R4), 8(R5)
+	STP.W	(R3, R4), 8(R5)
+	STP.P	(R3, R4), 8(R5)
+	STP	(R3, R4), x(SB)
+	STP	(R3, R4), x+8(SB)
+
 // END
 //
 //	LTYPEE comma
