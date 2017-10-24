@@ -458,7 +458,14 @@ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 	rsym := t.(*LSym)
 	ls.WriteAddr(c.Link, ls.Size, size, rsym, ofs)
 	r := &ls.R[len(ls.R)-1]
-	r.Type = objabi.R_DWARFREF
+	r.Type = objabi.R_DWARFSECREF
+}
+func (c dwCtxt) AddFileRef(s dwarf.Sym, f interface{}) {
+	ls := s.(*LSym)
+	rsym := f.(*LSym)
+	ls.WriteAddr(c.Link, ls.Size, 4, rsym, 0)
+	r := &ls.R[len(ls.R)-1]
+	r.Type = objabi.R_DWARFFILEREF
 }
 
 // dwarfSym returns the DWARF symbols for TEXT symbol.
@@ -480,6 +487,19 @@ func (s *LSym) Len() int64 {
 	return s.Size
 }
 
+// fileSymbol returns a symbol corresponding to the source file of the
+// first instruction (prog) of the specified function. This will
+// presumably be the file in which the function is defined.
+func (ctxt *Link) fileSymbol(fn *LSym) *LSym {
+	p := fn.Func.Text
+	if p != nil {
+		f, _ := linkgetlineFromPos(ctxt, p.Pos)
+		fsym := ctxt.Lookup(f)
+		return fsym
+	}
+	return nil
+}
+
 // populateDWARF fills in the DWARF Debugging Information Entries for TEXT symbol s.
 // The DWARFs symbol must already have been initialized in InitTextSym.
 func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym) {
@@ -491,7 +511,9 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym) {
 	if ctxt.DebugInfo != nil {
 		scopes = ctxt.DebugInfo(s, curfn)
 	}
-	err := dwarf.PutFunc(dwCtxt{ctxt}, info, loc, ranges, s.Name, !s.Static(), s, s.Size, scopes)
+
+	fs := ctxt.fileSymbol(s)
+	err := dwarf.PutFunc(dwCtxt{ctxt}, info, loc, ranges, fs, s.Name, !s.Static(), s, s.Size, scopes)
 	if err != nil {
 		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
 	}

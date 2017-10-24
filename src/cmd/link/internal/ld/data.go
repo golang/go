@@ -110,6 +110,10 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 func relocsym(ctxt *Link, s *sym.Symbol) {
 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
 		r := &s.R[ri]
+		if r.Done {
+			// Relocation already processed by an earlier phase.
+			continue
+		}
 		r.Done = true
 		off := r.Off
 		siz := int32(r.Siz)
@@ -143,6 +147,12 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			continue
 		}
 		if r.Siz == 0 { // informational relocation - no work to do
+			continue
+		}
+		if r.Type == objabi.R_DWARFFILEREF {
+			// These should have been processed previously during
+			// line table writing.
+			Errorf(s, "orphan R_DWARFFILEREF reloc to %v", r.Sym.Name)
 			continue
 		}
 
@@ -306,7 +316,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				Errorf(s, "non-pc-relative relocation address for %s is too big: %#x (%#x + %#x)", r.Sym.Name, uint64(o), Symaddr(r.Sym), r.Add)
 				errorexit()
 			}
-		case objabi.R_DWARFREF:
+		case objabi.R_DWARFSECREF:
 			if r.Sym.Sect == nil {
 				Errorf(s, "missing DWARF section for relocation target %s", r.Sym.Name)
 			}
@@ -324,9 +334,9 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				}
 
 				// PE code emits IMAGE_REL_I386_SECREL and IMAGE_REL_AMD64_SECREL
-				// for R_DWARFREF relocations, while R_ADDR is replaced with
+				// for R_DWARFSECREF relocations, while R_ADDR is replaced with
 				// IMAGE_REL_I386_DIR32, IMAGE_REL_AMD64_ADDR64 and IMAGE_REL_AMD64_ADDR32.
-				// Do not replace R_DWARFREF with R_ADDR for windows -
+				// Do not replace R_DWARFSECREF with R_ADDR for windows -
 				// let PE code emit correct relocations.
 				if ctxt.HeadType != objabi.Hwindows {
 					r.Type = objabi.R_ADDR

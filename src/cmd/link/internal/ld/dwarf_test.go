@@ -299,7 +299,7 @@ func main() {
 	}
 }
 
-func TestVarDeclCoords(t *testing.T) {
+func TestVarDeclCoordsAndSubrogramDeclFile(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	if runtime.GOOS == "plan9" {
@@ -329,6 +329,7 @@ func main() {
 
 	rdr := d.Reader()
 	var iEntry *dwarf.Entry
+	var pEntry *dwarf.Entry
 	foundMain := false
 	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
 		if err != nil {
@@ -336,6 +337,7 @@ func main() {
 		}
 		if entry.Tag == dwarf.TagSubprogram && entry.Val(dwarf.AttrName).(string) == "main.main" {
 			foundMain = true
+			pEntry = entry
 			continue
 		}
 		if !foundMain {
@@ -353,5 +355,10 @@ func main() {
 	line := iEntry.Val(dwarf.AttrDeclLine)
 	if line == nil || line.(int64) != 5 {
 		t.Errorf("DW_AT_decl_line for i is %v, want 5", line)
+	}
+
+	file := pEntry.Val(dwarf.AttrDeclFile)
+	if file == nil || file.(int64) != 1 {
+		t.Errorf("DW_AT_decl_file for main is %v, want 1", file)
 	}
 }

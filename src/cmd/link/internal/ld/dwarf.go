@@ -62,8 +62,12 @@ func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 		ls.AddAddrPlus4(t.(*sym.Symbol), 0)
 	}
 	r := &ls.R[len(ls.R)-1]
-	r.Type = objabi.R_DWARFREF
+	r.Type = objabi.R_DWARFSECREF
 	r.Add = ofs
+}
+
+func (c dwctxt) AddFileRef(s dwarf.Sym, f interface{}) {
+	panic("should be used only in the compiler")
 }
 
 var gdbscript string
@@ -220,7 +224,7 @@ func adddwarfref(ctxt *Link, s *sym.Symbol, t *sym.Symbol, size int) int64 {
 		result = s.AddAddrPlus4(t, 0)
 	}
 	r := &s.R[len(s.R)-1]
-	r.Type = objabi.R_DWARFREF
+	r.Type = objabi.R_DWARFSECREF
 	return result
 }
 
@@ -1030,7 +1034,7 @@ func importInfoSymbol(ctxt *Link, dsym *sym.Symbol) {
 	dsym.Attr |= sym.AttrNotInSymbolTable | sym.AttrReachable
 	dsym.Type = sym.SDWARFINFO
 	for _, r := range dsym.R {
-		if r.Type == objabi.R_DWARFREF && r.Sym.Size == 0 {
+		if r.Type == objabi.R_DWARFSECREF && r.Sym.Size == 0 {
 			if ctxt.BuildMode == BuildModeShared {
 				// These type symbols may not be present in BuildModeShared. Skip.
 				continue
@@ -1183,6 +1187,40 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 
 	ls.SetUint32(ctxt.Arch, unitLengthOffset, uint32(ls.Size-unitstart))
 	ls.SetUint32(ctxt.Arch, headerLengthOffset, uint32(headerend-headerstart))
+
+	// Apply any R_DWARFFILEREF relocations, since we now know the
+	// line table file indices for this compilation unit. Note that
+	// this loop visits only subprogram DIEs: if the compiler is
+	// changed to generate DW_AT_decl_file attributes for other
+	// DIE flavors (ex: variables) then those DIEs would need to
+	// be included below.
+	for fidx := 0; fidx < len(funcs); fidx++ {
+		f := funcs[fidx]
+		for ri := 0; ri < len(f.R); ri++ {
+			r := &f.R[ri]
+			if r.Type != objabi.R_DWARFFILEREF {
+				continue
+			}
+			// Mark relocation as applied (signal to relocsym)
+			r.Done = true
+			idx, ok := fileNums[int(r.Sym.Value)]
+			if ok {
+				if int(int32(idx)) != idx {
+					Errorf(f, "bad R_DWARFFILEREF relocation: file index overflow")
+				}
+				if r.Siz != 4 {
+					Errorf(f, "bad R_DWARFFILEREF relocation: has size %d, expected 4", r.Siz)
+				}
+				if r.Off < 0 || r.Off+4 > int32(len(f.P)) {
+					Errorf(f, "bad R_DWARFFILEREF relocation offset %d + 4 would write past length %d", r.Off, len(s.P))
+					continue
+				}
+				ctxt.Arch.ByteOrder.PutUint32(f.P[r.Off:r.Off+4], uint32(idx))
+			} else {
+				Errorf(f, "R_DWARFFILEREF relocation file missing: %v", r.Sym)
+			}
+		}
+	}
 
 	return dwinfo, funcs
 }
@@ -1617,7 +1655,7 @@ func collectlocs(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit) []*sy
 	for _, u := range units {
 		for _, fn := range u.funcDIEs {
 			for _, reloc := range fn.R {
-				if reloc.Type == objabi.R_DWARFREF && strings.HasPrefix(reloc.Sym.Name, dwarf.LocPrefix) {
+				if reloc.Type == objabi.R_DWARFSECREF && strings.HasPrefix(reloc.Sym.Name, dwarf.LocPrefix) {
 					reloc.Sym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
 					syms = append(syms, reloc.Sym)
 					empty = false
