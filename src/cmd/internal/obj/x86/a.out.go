@@ -36,8 +36,7 @@ import "cmd/internal/obj"
 
 const (
 	/* mark flags */
-	DONE          = 1 << iota
-	PRESERVEFLAGS // not allowed to clobber flags
+	DONE = 1 << iota
 )
 
 /*

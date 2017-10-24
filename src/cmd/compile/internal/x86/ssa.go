@@ -426,16 +426,23 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Args[0].Reg()
 	case ssa.Op386MOVLconst:
 		x := v.Reg()
+
+		// If flags aren't live (indicated by v.Aux == nil),
+		// then we can rewrite MOV $0, AX into XOR AX, AX.
+		if v.AuxInt == 0 && v.Aux == nil {
+			p := s.Prog(x86.AXORL)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = x
+			break
+		}
+
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
-		// If flags are live at this instruction, suppress the
-		// MOV $0,AX -> XOR AX,AX optimization.
-		if v.Aux != nil {
-			p.Mark |= x86.PRESERVEFLAGS
-		}
 	case ssa.Op386MOVSSconst, ssa.Op386MOVSDconst:
 		x := v.Reg()
 		p := s.Prog(v.Op.Asm())

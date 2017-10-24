@@ -202,7 +202,6 @@ const (
 	Zm_ilo
 	Zib_rr
 	Zil_rr
-	Zclr
 	Zbyte
 	Zvex_rm_v_r
 	Zvex_r_v_rm
@@ -412,7 +411,6 @@ var ybtl = []ytab{
 var ymovw = []ytab{
 	{Zr_m, 1, argList{Yrl, Yml}},
 	{Zm_r, 1, argList{Yml, Yrl}},
-	{Zclr, 1, argList{Yi0, Yrl}},
 	{Zil_rp, 1, argList{Yi32, Yrl}},
 	{Zilo_m, 2, argList{Yi32, Yml}},
 	{Zaut_r, 2, argList{Yiauto, Yrl}},
@@ -421,7 +419,6 @@ var ymovw = []ytab{
 var ymovl = []ytab{
 	{Zr_m, 1, argList{Yrl, Yml}},
 	{Zm_r, 1, argList{Yml, Yrl}},
-	{Zclr, 1, argList{Yi0, Yrl}},
 	{Zil_rp, 1, argList{Yi32, Yrl}},
 	{Zilo_m, 2, argList{Yi32, Yml}},
 	{Zm_r_xm, 1, argList{Yml, Ymr}}, // MMX MOVD
@@ -447,7 +444,6 @@ var ymovq = []ytab{
 	// valid only in 64-bit mode, usually with 64-bit prefix
 	{Zr_m, 1, argList{Yrl, Yml}},      // 0x89
 	{Zm_r, 1, argList{Yml, Yrl}},      // 0x8b
-	{Zclr, 1, argList{Yi0, Yrl}},      // 0x31
 	{Zilo_m, 2, argList{Ys32, Yrl}},   // 32 bit signed 0xc7,(0)
 	{Ziq_rp, 1, argList{Yi64, Yrl}},   // 0xb8 -- 32/64 bit immediate
 	{Zilo_m, 2, argList{Yi32, Yml}},   // 0xc7,(0)
@@ -1217,7 +1213,7 @@ var optab =
 	{AMOVHLPS, yxr, Pm, [23]uint8{0x12}},
 	{AMOVHPD, yxmov, Pe, [23]uint8{0x16, 0x17}},
 	{AMOVHPS, yxmov, Pm, [23]uint8{0x16, 0x17}},
-	{AMOVL, ymovl, Px, [23]uint8{0x89, 0x8b, 0x31, 0xb8, 0xc7, 00, 0x6e, 0x7e, Pe, 0x6e, Pe, 0x7e, 0}},
+	{AMOVL, ymovl, Px, [23]uint8{0x89, 0x8b, 0xb8, 0xc7, 00, 0x6e, 0x7e, Pe, 0x6e, Pe, 0x7e, 0}},
 	{AMOVLHPS, yxr, Pm, [23]uint8{0x16}},
 	{AMOVLPD, yxmov, Pe, [23]uint8{0x12, 0x13}},
 	{AMOVLPS, yxmov, Pm, [23]uint8{0x12, 0x13}},
@@ -1230,7 +1226,7 @@ var optab =
 	{AMOVNTPD, yxr_ml, Pe, [23]uint8{0x2b}},
 	{AMOVNTPS, yxr_ml, Pm, [23]uint8{0x2b}},
 	{AMOVNTQ, ymr_ml, Pm, [23]uint8{0xe7}},
-	{AMOVQ, ymovq, Pw8, [23]uint8{0x6f, 0x7f, Pf2, 0xd6, Pf3, 0x7e, Pe, 0xd6, 0x89, 0x8b, 0x31, 0xc7, 00, 0xb8, 0xc7, 00, 0x6e, 0x7e, Pe, 0x6e, Pe, 0x7e, 0}},
+	{AMOVQ, ymovq, Pw8, [23]uint8{0x6f, 0x7f, Pf2, 0xd6, Pf3, 0x7e, Pe, 0xd6, 0x89, 0x8b, 0xc7, 00, 0xb8, 0xc7, 00, 0x6e, 0x7e, Pe, 0x6e, Pe, 0x7e, 0}},
 	{AMOVQOZX, ymrxr, Pf3, [23]uint8{0xd6, 0x7e}},
 	{AMOVSB, ynone, Pb, [23]uint8{0xa4}},
 	{AMOVSD, yxmov, Pf2, [23]uint8{0x10, 0x11}},
@@ -1240,7 +1236,7 @@ var optab =
 	{AMOVSW, ynone, Pe, [23]uint8{0xa5}},
 	{AMOVUPD, yxmov, Pe, [23]uint8{0x10, 0x11}},
 	{AMOVUPS, yxmov, Pm, [23]uint8{0x10, 0x11}},
-	{AMOVW, ymovw, Pe, [23]uint8{0x89, 0x8b, 0x31, 0xb8, 0xc7, 00, 0}},
+	{AMOVW, ymovw, Pe, [23]uint8{0x89, 0x8b, 0xb8, 0xc7, 00, 0}},
 	{AMOVWLSX, yml_rl, Pm, [23]uint8{0xbf}},
 	{AMOVWLZX, yml_rl, Pm, [23]uint8{0xb7}},
 	{AMOVWQSX, yml_rl, Pw, [23]uint8{0x0f, 0xbf}},
@@ -2405,10 +2401,6 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 			v = int64(int32(v))
 		}
 		if v == 0 {
-			if p.Mark&PRESERVEFLAGS != 0 {
-				// If PRESERVEFLAGS is set, avoid MOV $0, AX turning into XOR AX, AX.
-				return Yu7
-			}
 			return Yi0
 		}
 		if v == 1 {
@@ -3856,11 +3848,6 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 			case Zrp_:
 				asmbuf.rexflag |= regrex[p.From.Reg] & (Rxb | 0x40)
 				asmbuf.Put1(byte(op + reg[p.From.Reg]))
-
-			case Zclr:
-				asmbuf.rexflag &^= Pw
-				asmbuf.Put1(byte(op))
-				asmbuf.asmand(ctxt, cursym, p, &p.To, &p.To)
 
 			case Zcallcon, Zjmpcon:
 				if yt.zcase == Zcallcon {
