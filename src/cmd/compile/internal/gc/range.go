@@ -13,7 +13,7 @@ import (
 
 // range
 func typecheckrange(n *Node) {
-	var toomany int
+	var toomany bool
 	var why string
 	var t1 *types.Type
 	var t2 *types.Type
@@ -50,7 +50,7 @@ func typecheckrange(n *Node) {
 	}
 	n.Type = t
 
-	toomany = 0
+	toomany = false
 	switch t.Etype {
 	default:
 		yyerrorl(n.Pos, "cannot range over %L", n.Right)
@@ -73,7 +73,7 @@ func typecheckrange(n *Node) {
 		t1 = t.Elem()
 		t2 = nil
 		if n.List.Len() == 2 {
-			toomany = 1
+			toomany = true
 		}
 
 	case TSTRING:
@@ -81,7 +81,7 @@ func typecheckrange(n *Node) {
 		t2 = types.Runetype
 	}
 
-	if n.List.Len() > 2 || toomany != 0 {
+	if n.List.Len() > 2 || toomany {
 		yyerrorl(n.Pos, "too many variables in range")
 	}
 
