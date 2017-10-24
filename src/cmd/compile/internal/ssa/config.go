@@ -88,7 +88,6 @@ type Logger interface {
 
 	// Forwards the Debug flags from gc
 	Debug_checknil() bool
-	Debug_wb() bool
 }
 
 type Frontend interface {
@@ -131,6 +130,10 @@ type Frontend interface {
 
 	// UseWriteBarrier returns whether write barrier is enabled
 	UseWriteBarrier() bool
+
+	// SetWBPos indicates that a write barrier has been inserted
+	// in this function at position pos.
+	SetWBPos(pos src.XPos)
 }
 
 // interface used to hold a *gc.Node (a stack variable).

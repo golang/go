@@ -427,7 +427,7 @@ type Func struct {
 	Label int32 // largest auto-generated label in this function
 
 	Endlineno src.XPos
-	WBPos     src.XPos // position of first write barrier
+	WBPos     src.XPos // position of first write barrier; see SetWBPos
 
 	Pragma syntax.Pragma // go:xxx function annotations
 
@@ -483,6 +483,15 @@ func (f *Func) SetNoFramePointer(b bool)      { f.flags.set(funcNoFramePointer, 
 func (f *Func) SetHasDefer(b bool)            { f.flags.set(funcHasDefer, b) }
 func (f *Func) SetNilCheckDisabled(b bool)    { f.flags.set(funcNilCheckDisabled, b) }
 func (f *Func) SetInlinabilityChecked(b bool) { f.flags.set(funcInlinabilityChecked, b) }
+
+func (f *Func) setWBPos(pos src.XPos) {
+	if Debug_wb != 0 {
+		Warnl(pos, "write barrier")
+	}
+	if !f.WBPos.IsKnown() {
+		f.WBPos = pos
+	}
+}
 
 type Op uint8
 

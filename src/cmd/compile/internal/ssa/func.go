@@ -44,8 +44,6 @@ type Func struct {
 	scheduled bool // Values in Blocks are in final order
 	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.
 
-	WBPos src.XPos // line number of first write barrier
-
 	// when register allocation is done, maps value ids to locations
 	RegAlloc []Location
 
