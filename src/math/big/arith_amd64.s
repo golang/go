@@ -30,8 +30,6 @@ TEXT ·divWW(SB),NOSPLIT,$0
 // The carry bit is saved with SBBQ Rx, Rx: if the carry was set, Rx is -1, otherwise it is 0.
 // It is restored with ADDQ Rx, Rx: if Rx was -1 the carry is set, otherwise it is cleared.
 // This is faster than using rotate instructions.
-//
-// CAUTION: Note that MOVQ $0, Rx is translated to XORQ Rx, Rx which clears the carry bit!
 
 // func addVV(z, x, y []Word) (c Word)
 TEXT ·addVV(SB),NOSPLIT,$0
