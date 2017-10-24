@@ -180,7 +180,7 @@ function setupInlinePlayground() {
 			code.on('keyup', resize);
 			code.keyup(); // resize now.
 		};
-
+		
 		// If example already visible, set up playground now.
 		if ($(el).is(':visible')) {
 			setup();
@@ -314,7 +314,7 @@ function addPermalinks() {
       // Already attached.
       return;
     }
-    parent.append(" ").append($("<a class='permalink' title='permalink' aria-label='permalink'>&#xb6;</a>").attr("href", "#" + id));
+    parent.append(" ").append($("<a class='permalink'>&#xb6;</a>").attr("href", "#" + id));
   }
 
   $("#page .container").find("h2[id], h3[id]").each(function() {
