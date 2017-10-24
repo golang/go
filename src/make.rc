@@ -82,31 +82,18 @@ if(~ $1 --dist-tool){
 }
 
 buildall = -a
-if(~ $1 --no-clean)
+if(~ $1 --no-clean) {
 	buildall = ()
-./cmd/dist/dist bootstrap $buildall -v # builds go_bootstrap
-# Delay move of dist tool to now, because bootstrap may clear tool directory.
-mv cmd/dist/dist $GOTOOLDIR/dist
-echo
-
-# Run only one process at a time on 9vx.
-if(~ $sysname vx32)
-	pflag = (-p 1)
-
-if(! ~ $GOHOSTARCH $GOARCH || ! ~ $GOHOSTOS $GOOS){
-	echo '##### Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
-	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN=() \
-		$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
-	echo
+	shift
 }
+# Run dist bootstrap to complete make.bash.
+# Bootstrap installs a proper cmd/dist, built with the new toolchain.
+# Throw ours, built with Go 1.4, away after bootstrap.
+./cmd/dist/dist bootstrap -v $buildall $*
+rm -f ./cmd/dist/dist
 
-echo '##### Building packages and commands for' $GOOS/$GOARCH^.
-$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
-echo
-
-rm -f $GOTOOLDIR/go_bootstrap
-
-if(! ~ $1 --no-banner)
-	$GOTOOLDIR/dist banner
-
-status=''
+# DO NOT ADD ANY NEW CODE HERE.
+# The bootstrap+rm above are the final step of make.rc.
+# If something must be added, add it to cmd/dist's cmdbootstrap,
+# to avoid needing three copies in three different shell languages
+# (make.bash, make.bat, make.rc).
