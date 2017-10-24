@@ -244,7 +244,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
 			break
 		}
 
-		if n.isMethodCalledAsFunction() {
+		if n.Left.isMethodExpression() {
 			if d := asNode(n.Left.Sym.Def); d != nil && d.Func.Inl.Len() != 0 {
 				v.budget -= d.Func.InlCost
 				break
@@ -536,7 +536,7 @@ func inlnode(n *Node) *Node {
 		}
 		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 && !isIntrinsicCall(n) { // normal case
 			n = mkinlcall(n, n.Left, n.Isddd())
-		} else if n.isMethodCalledAsFunction() && asNode(n.Left.Sym.Def) != nil {
+		} else if n.Left.isMethodExpression() && asNode(n.Left.Sym.Def) != nil {
 			n = mkinlcall(n, asNode(n.Left.Sym.Def), n.Isddd())
 		} else if n.Left.Op == OCLOSURE {
 			if f := inlinableClosure(n.Left); f != nil {
@@ -1094,8 +1094,4 @@ func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
 	}
 	pos.SetBase(newbase)
 	return Ctxt.PosTable.XPos(pos)
-}
-
-func (n *Node) isMethodCalledAsFunction() bool {
-	return n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME
 }

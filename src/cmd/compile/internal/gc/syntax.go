@@ -209,6 +209,11 @@ func (n *Node) mayBeShared() bool {
 	return false
 }
 
+// isMethodExpression reports whether n represents a method expression T.M.
+func (n *Node) isMethodExpression() bool {
+	return n.Op == ONAME && n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME
+}
+
 // funcname returns the name of the function n.
 func (n *Node) funcname() string {
 	if n == nil || n.Func == nil || n.Func.Nname == nil {

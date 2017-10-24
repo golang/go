@@ -1192,7 +1192,7 @@ func (p *exporter) expr(n *Node) {
 		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
 		// but for export, this should be rendered as (*pkg.T).meth.
 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
-		if n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME {
+		if n.isMethodExpression() {
 			p.op(OXDOT)
 			p.pos(n)
 			p.expr(n.Left) // n.Left.Op == OTYPE
