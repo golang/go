@@ -30,6 +30,9 @@ type ih struct { // In-heap type
 var (
 	v1 t1
 	v2 t2
+
+	v1s []t1
+	v2s []t2
 )
 
 func f() {
@@ -42,4 +45,12 @@ func g() {
 	// Test aggregate writes
 	v1 = t1{x: nil} // no barrier
 	v2 = t2{x: nil} // ERROR "write barrier"
+}
+
+func h() {
+	// Test copies and appends.
+	copy(v1s, v1s[1:])      // no barrier
+	copy(v2s, v2s[1:])      // ERROR "write barrier"
+	_ = append(v1s, v1s...) // no barrier
+	_ = append(v2s, v2s...) // ERROR "write barrier"
 }
