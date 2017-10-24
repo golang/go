@@ -32,6 +32,7 @@ var (
 	goroot_final           string
 	goextlinkenabled       string
 	gogcflags              string // For running built compiler
+	goldflags              string
 	workdir                string
 	tooldir                string
 	oldgoos                string
@@ -984,8 +985,22 @@ func cmdenv() {
 
 // The bootstrap command runs a build from scratch,
 // stopping at having installed the go_bootstrap command.
+//
+// WARNING: This command runs after cmd/dist is built with Go 1.4.
+// It rebuilds and installs cmd/dist with the new toolchain, so other
+// commands (like "go tool dist test" in run.bash) can rely on bug fixes
+// made since Go 1.4, but this function cannot. In particular, the uses
+// of os/exec in this function cannot assume that
+//	cmd.Env = append(os.Environ(), "X=Y")
+// sets $X to Y in the command's environment. That guarantee was
+// added after Go 1.4, and in fact in Go 1.4 it was typically the opposite:
+// if $X was already present in os.Environ(), most systems preferred
+// that setting, not the new one.
 func cmdbootstrap() {
+	var noBanner bool
 	flag.BoolVar(&rebuildall, "a", rebuildall, "rebuild all")
+	flag.BoolVar(&noBanner, "no-banner", noBanner, "do not print banner")
+
 	xflagparse(0)
 
 	if isdir(pathf("%s/src/pkg", goroot)) {
@@ -1006,6 +1021,9 @@ func cmdbootstrap() {
 
 	checkCC()
 	bootstrapBuildTools()
+
+	// Remember old content of $GOROOT/bin for comparison below.
+	oldBinFiles, _ := filepath.Glob(pathf("%s/bin/*", goroot))
 
 	// For the main bootstrap, building for host os/arch.
 	oldgoos = goos
@@ -1049,17 +1067,63 @@ func cmdbootstrap() {
 		go install(dir)
 	}
 	<-installed["cmd/go"]
+	xprintf("\n")
 
-	goos = oldgoos
-	goarch = oldgoarch
-	os.Setenv("GOARCH", goarch)
-	os.Setenv("GOOS", goos)
+	gogcflags = os.Getenv("GO_GCFLAGS") // we were using $BOOT_GO_GCFLAGS until now
+	goldflags = os.Getenv("GO_LDFLAGS")
 
-	// Build runtime for actual goos/goarch too.
-	if goos != gohostos || goarch != gohostarch {
-		installed["runtime"] = make(chan struct{})
-		install("runtime")
+	// Build full toolchain for host and (if different) for target.
+	if goos != oldgoos || goarch != oldgoarch {
+		os.Setenv("CC", defaultcc)
+		buildAll()
+		xprintf("\n")
+		goos = oldgoos
+		goarch = oldgoarch
+		os.Setenv("GOOS", goos)
+		os.Setenv("GOARCH", goarch)
 	}
+
+	os.Setenv("CC", defaultcctarget)
+	buildAll()
+
+	// Check that there are no new files in $GOROOT/bin other than
+	// go and gofmt and $GOOS_$GOARCH (target bin when cross-compiling).
+	binFiles, _ := filepath.Glob(pathf("%s/bin/*", goroot))
+	ok := map[string]bool{}
+	for _, f := range oldBinFiles {
+		ok[f] = true
+	}
+	for _, f := range binFiles {
+		elem := strings.TrimSuffix(filepath.Base(f), ".exe")
+		if !ok[f] && elem != "go" && elem != "gofmt" && elem != goos+"_"+goarch {
+			fatalf("unexpected new file in $GOROOT/bin: %s", elem)
+		}
+	}
+
+	// Remove go_bootstrap now that we're done.
+	xremove(pathf("%s/go_bootstrap", tooldir))
+
+	// Print trailing banner unless instructed otherwise.
+	if !noBanner {
+		banner()
+	}
+}
+
+func buildAll() {
+	desc := ""
+	if oldgoos != goos || oldgoarch != goarch {
+		desc = " host,"
+	}
+	xprintf("##### Building packages and commands for%s %s/%s.\n", desc, goos, goarch)
+	go_bootstrap := pathf("%s/go_bootstrap", tooldir)
+	go_install := []string{go_bootstrap, "install", "-v", "-gcflags=" + gogcflags, "-ldflags=" + goldflags}
+
+	// Force only one process at a time on vx32 emulation.
+	if gohostos == "plan9" && os.Getenv("sysname") == "vx32" {
+		go_install = append(go_install, "-p=1")
+	}
+
+	run(pathf("%s/src", goroot), ShowOutput|CheckExit, append(go_install, "std", "cmd")...)
 }
 
 // Cannot use go/build directly because cmd/dist for a new release
@@ -1176,7 +1240,10 @@ func cmdclean() {
 // Banner prints the 'now you've installed Go' banner.
 func cmdbanner() {
 	xflagparse(0)
+	banner()
+}
 
+func banner() {
 	xprintf("\n")
 	xprintf("---\n")
 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot)

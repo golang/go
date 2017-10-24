@@ -83,43 +83,23 @@ if x%2==x--dist-tool goto copydist
 
 set buildall=-a
 if x%1==x--no-clean set buildall=
+if x%2==x--no-clean set buildall=
+if x%1==x--no-banner set buildall=%buildall% --no-banner
+if x%2==x--no-banner set buildall=%buildall% --no-banner
+
+:: Run dist bootstrap to complete make.bash.
+:: Bootstrap installs a proper cmd/dist, built with the new toolchain.
+:: Throw ours, built with Go 1.4, away after bootstrap.
 .\cmd\dist\dist bootstrap %buildall% -v
 if errorlevel 1 goto fail
-:: Delay move of dist tool to now, because bootstrap cleared tool directory.
-move .\cmd\dist\dist.exe "%GOTOOLDIR%\dist.exe"
-echo.
-
-if not %GOHOSTARCH% == %GOARCH% goto localbuild
-if not %GOHOSTOS% == %GOOS% goto localbuild
-goto mainbuild
-
-:localbuild
-echo ##### Building packages and commands for host, %GOHOSTOS%/%GOHOSTARCH%.
-:: CC_FOR_TARGET is recorded as the default compiler for the go tool. When building for the
-:: host, however, use the host compiler, CC, from `cmd/dist/dist env` instead.
-setlocal
-set GOOS=%GOHOSTOS%
-set GOARCH=%GOHOSTARCH%
-"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -v std cmd
-endlocal
-if errorlevel 1 goto fail
-echo.
-
-:mainbuild
-echo ##### Building packages and commands for %GOOS%/%GOARCH%.
-setlocal
-set CC=%CC_FOR_TARGET%
-"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -a -v std cmd
-endlocal
-if errorlevel 1 goto fail
-del "%GOTOOLDIR%\go_bootstrap.exe"
-echo.
-
-if x%1==x--no-banner goto nobanner
-"%GOTOOLDIR%\dist" banner
-:nobanner
-
+del .\cmd\dist\dist.exe
 goto end
+
+:: DO NOT ADD ANY NEW CODE HERE.
+:: The bootstrap+del above are the final step of make.bat.
+:: If something must be added, add it to cmd/dist's cmdbootstrap,
+:: to avoid needing three copies in three different shell languages
+:: (make.bash, make.bat, make.rc).
 
 :copydist
 mkdir "%GOTOOLDIR%" 2>NUL
