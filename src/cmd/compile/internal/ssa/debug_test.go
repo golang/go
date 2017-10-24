@@ -409,6 +409,19 @@ func (h *nextHist) equals(k *nextHist) bool {
 			return false
 		}
 	}
+
+	for i, hv := range h.vars {
+		kv := k.vars[i]
+		if len(hv) != len(kv) {
+			return false
+		}
+		for j, hvt := range hv {
+			if hvt != kv[j] {
+				return false
+			}
+		}
+	}
+
 	return true
 }
 

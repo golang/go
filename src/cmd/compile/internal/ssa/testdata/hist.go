@@ -57,10 +57,10 @@ func main() {
 	l := line{point{1 + zero, 2 + zero}, point{3 + zero, 4 + zero}}
 	tinycall()                // this forces l etc to stack
 	dx := l.end.x - l.begin.x //gdb-dbg=(l.begin.x,l.end.y)
-	dy := l.end.y - l.begin.y
+	dy := l.end.y - l.begin.y //gdb-opt=(dx)
 	sink = dx + dy
 	// For #21098
-	hist := make([]int, 7)
+	hist := make([]int, 7)                                //gdb-opt=(sink)
 	var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A,cannedInput/A)
 	if len(os.Args) > 1 {
 		var err error
@@ -71,10 +71,10 @@ func main() {
 		}
 	}
 	scanner := bufio.NewScanner(reader)
-	for scanner.Scan() {
+	for scanner.Scan() { //gdb-opt=(scanner/A)
 		s := scanner.Text()
 		i, err := strconv.ParseInt(s, 10, 64)
-		if err != nil { //gdb-dbg=(i)
+		if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
 			fmt.Fprintf(os.Stderr, "There was an error: %v\n", err)
 			return
 		}
@@ -84,7 +84,7 @@ func main() {
 	t := 0
 	n := 0
 	for i, a := range hist {
-		if a == 0 {
+		if a == 0 { //gdb-opt=(a,n,t)
 			continue
 		}
 		t += i * a
