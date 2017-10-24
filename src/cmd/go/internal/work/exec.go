@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -1062,6 +1063,14 @@ func (b *Builder) moveOrCopyFile(a *Action, dst, src string, perm os.FileMode, f
 
 	// If the source is in the build cache, we need to copy it.
 	if strings.HasPrefix(src, cache.DefaultDir()) {
+		return b.copyFile(a, dst, src, perm, force)
+	}
+
+	// On Windows, always copy the file, so that we respect the NTFS
+	// permissions of the parent folder. https://golang.org/issue/22343.
+	// What matters here is not cfg.Goos (the system we are building
+	// for) but runtime.GOOS (the system we are building on).
+	if runtime.GOOS == "windows" {
 		return b.copyFile(a, dst, src, perm, force)
 	}
 
