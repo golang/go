@@ -320,6 +320,8 @@ const (
 
 	ABFX
 	ABFXU
+	ABFC
+	ABFI
 
 	AMULWT
 	AMULWB

@@ -69,7 +69,7 @@ type Optab struct {
 	param    int16
 	flag     int8
 	pcrelsiz uint8
-	scond    uint8  // optional flags accepted by the instruction
+	scond    uint8 // optional flags accepted by the instruction
 }
 
 type Opcross [32][2][32]uint8
@@ -1679,6 +1679,8 @@ func buildop(ctxt *obj.Link) {
 
 		case ABFX:
 			opset(ABFXU, r0)
+			opset(ABFC, r0)
+			opset(ABFI, r0)
 
 		case ACLZ:
 			opset(AREV, r0)
@@ -2033,12 +2035,14 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		r := int(p.Reg)
 		o1 |= (uint32(rf)&15)<<8 | (uint32(r)&15)<<0 | (uint32(rt)&15)<<16 | (uint32(rt2)&15)<<12
 
-	case 18: /* BFX/BFXU */
+	case 18: /* BFX/BFXU/BFC/BFI */
 		o1 = c.oprrr(p, p.As, int(p.Scond))
 		rt := int(p.To.Reg)
 		r := int(p.Reg)
 		if r == 0 {
 			r = rt
+		} else if p.As == ABFC { // only "BFC $width, $lsb, Reg" is accepted, p.Reg must be 0
+			c.ctxt.Diag("illegal combination: %v", p)
 		}
 		if p.GetFrom3() == nil || p.GetFrom3().Type != obj.TYPE_CONST {
 			c.ctxt.Diag("%v: missing or wrong LSB", p)
@@ -2046,10 +2050,17 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		lsb := p.GetFrom3().Offset
 		width := p.From.Offset
-		if lsb < 0 || lsb > 31 || width <= 0 || (lsb+width) > 31 {
+		if lsb < 0 || lsb > 31 || width <= 0 || (lsb+width) > 32 {
 			c.ctxt.Diag("%v: wrong width or LSB", p)
 		}
-		o1 |= (uint32(r)&15)<<0 | (uint32(rt)&15)<<12 | uint32(lsb)<<7 | uint32(width-1)<<16
+		switch p.As {
+		case ABFX, ABFXU: // (width-1) is encoded
+			o1 |= (uint32(r)&15)<<0 | (uint32(rt)&15)<<12 | uint32(lsb)<<7 | uint32(width-1)<<16
+		case ABFC, ABFI: // MSB is encoded
+			o1 |= (uint32(r)&15)<<0 | (uint32(rt)&15)<<12 | uint32(lsb)<<7 | uint32(lsb+width-1)<<16
+		default:
+			c.ctxt.Diag("illegal combination: %v", p)
+		}
 
 	case 20: /* mov/movb/movbu R,O(R) */
 		c.aclass(&p.To)
@@ -3021,6 +3032,12 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
 
 	case ABFXU:
 		return o | 0x3f<<21 | 0x5<<4
+
+	case ABFC:
+		return o | 0x3e<<21 | 0x1f
+
+	case ABFI:
+		return o | 0x3e<<21 | 0x1<<4
 
 	case AXTAB:
 		return o | 0x6a<<20 | 0x7<<4
