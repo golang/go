@@ -131,6 +131,8 @@ var Anames = []string{
 	"XTAHU",
 	"BFX",
 	"BFXU",
+	"BFC",
+	"BFI",
 	"MULWT",
 	"MULWB",
 	"MULBB",

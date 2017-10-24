@@ -149,6 +149,7 @@ TEXT errors(SB),$0
 	BFX	$-2, $4, R2, R3    // ERROR "wrong width or LSB"
 	BFXU	$4, R2, R5, R2     // ERROR "missing or wrong LSB"
 	BFXU	$4, R2, R5         // ERROR "missing or wrong LSB"
+	BFC	$12, $8, R2, R3    // ERROR "illegal combination"
 	MOVB	R0>>8, R2          // ERROR "illegal shift"
 	MOVH	R0<<16, R2         // ERROR "illegal shift"
 	MOVBS	R0->8, R2          // ERROR "illegal shift"

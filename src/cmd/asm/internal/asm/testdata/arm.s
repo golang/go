@@ -1029,11 +1029,14 @@ jmp_label_3:
 	SWI	$65535         // ffff00ef
 	SWI	               // 000000ef
 
-// BFX/BFXU
+// BFX/BFXU/BFC/BFI
 	BFX	$16, $8, R1, R2 // BFX $16, R1, $8, R2   // 5124afe7
 	BFX	$29, $2, R8                              // 5881bce7
 	BFXU	$16, $8, R1, R2 // BFXU $16, R1, $8, R2  // 5124efe7
 	BFXU	$29, $2, R8                              // 5881fce7
+	BFC	$29, $2, R8                              // 1f81dee7
+	BFI	$29, $2, R8                              // 1881dee7
+	BFI	$16, $8, R1, R2 // BFI $16, R1, $8, R2   // 1124d7e7
 
 // synthetic arithmatic
 	ADD	$0xffffffaa, R2, R3 // ADD $4294967210, R2, R3   // 55b0e0e30b3082e0
