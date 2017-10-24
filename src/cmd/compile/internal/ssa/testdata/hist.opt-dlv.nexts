@@ -4,8 +4,8 @@
 58:		tinycall()                // this forces l etc to stack
 57:		l := line{point{1 + zero, 2 + zero}, point{3 + zero, 4 + zero}}
 59:		dx := l.end.x - l.begin.x //gdb-dbg=(l.begin.x,l.end.y)
-60:		dy := l.end.y - l.begin.y
+60:		dy := l.end.y - l.begin.y //gdb-opt=(dx)
 61:		sink = dx + dy
-63:		hist := make([]int, 7)
+63:		hist := make([]int, 7)                                //gdb-opt=(sink)
 64:		var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A,cannedInput/A)
 19:		"strings"
