@@ -471,7 +471,7 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, secto
 	default:
 		return false
 
-	case objabi.R_DWARFREF:
+	case objabi.R_DWARFSECREF:
 		v = ld.IMAGE_REL_I386_SECREL
 
 	case objabi.R_ADDR:

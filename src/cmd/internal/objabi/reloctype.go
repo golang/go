@@ -99,8 +99,15 @@ const (
 	// of a JMP instruction, by encoding the address into the instruction.
 	// The stack nosplit check ignores this since it is not a function call.
 	R_JMPMIPS
-	// R_DWARFREF resolves to the offset of the symbol from its section.
-	R_DWARFREF
+
+	// R_DWARFSECREF resolves to the offset of the symbol from its section.
+	// Target of relocation must be size 4 (in current implementation).
+	R_DWARFSECREF
+
+	// R_DWARFFILEREF resolves to an index into the DWARF .debug_line
+	// file table for the specified file symbol. Must be applied to an
+	// attribute of form DW_FORM_data4.
+	R_DWARFFILEREF
 
 	// Platform dependent relocations. Architectures with fixed width instructions
 	// have the inherent issue that a 32-bit (or 64-bit!) displacement cannot be

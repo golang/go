@@ -123,6 +123,7 @@ type Context interface {
 	AddAddress(s Sym, t interface{}, ofs int64)
 	AddSectionOffset(s Sym, size int, t interface{}, ofs int64)
 	AddString(s Sym, v string)
+	AddFileRef(s Sym, f interface{})
 }
 
 // AppendUleb128 appends v to b using DWARF's unsigned LEB128 encoding.
@@ -303,6 +304,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_low_pc, DW_FORM_addr},
 			{DW_AT_high_pc, DW_FORM_addr},
 			{DW_AT_frame_base, DW_FORM_block1},
+			{DW_AT_decl_file, DW_FORM_data4},
 			{DW_AT_external, DW_FORM_flag},
 		},
 	},
@@ -788,12 +790,14 @@ func PutRanges(ctxt Context, sym Sym, base Sym, ranges []Range) {
 
 // PutFunc writes a DIE for a function to s.
 // It also writes child DIEs for each variable in vars.
-func PutFunc(ctxt Context, info, loc, ranges Sym, name string, external bool, startPC Sym, size int64, scopes []Scope) error {
+func PutFunc(ctxt Context, info, loc, ranges, filesym Sym, name string, external bool, startPC Sym, size int64, scopes []Scope) error {
 	Uleb128put(ctxt, info, DW_ABRV_FUNCTION)
 	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
 	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, 0, startPC)
 	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, size, startPC)
 	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_block1, DW_CLS_BLOCK, 1, []byte{DW_OP_call_frame_cfa})
+	// DW_AT_decl_file attribute
+	ctxt.AddFileRef(info, filesym)
 	var ev int64
 	if external {
 		ev = 1
