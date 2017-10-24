@@ -1364,7 +1364,14 @@ func (t *Type) IsUntyped() bool {
 	return false
 }
 
+// TODO(austin): We probably only need HasHeapPointer. See
+// golang.org/cl/73412 for discussion.
+
 func Haspointers(t *Type) bool {
+	return Haspointers1(t, false)
+}
+
+func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
 	switch t.Etype {
 	case TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64,
 		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL:
@@ -1374,28 +1381,28 @@ func Haspointers(t *Type) bool {
 		if t.NumElem() == 0 { // empty array has no pointers
 			return false
 		}
-		return Haspointers(t.Elem())
+		return Haspointers1(t.Elem(), ignoreNotInHeap)
 
 	case TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {
-			if Haspointers(t1.Type) {
+			if Haspointers1(t1.Type, ignoreNotInHeap) {
 				return true
 			}
 		}
 		return false
+
+	case TPTR32, TPTR64:
+		return !(ignoreNotInHeap && t.Elem().NotInHeap())
 	}
 
 	return true
 }
 
 // HasHeapPointer returns whether t contains a heap pointer.
-// This is used for write barrier insertion, so we ignore
+// This is used for write barrier insertion, so it ignores
 // pointers to go:notinheap types.
 func (t *Type) HasHeapPointer() bool {
-	if t.IsPtr() && t.Elem().NotInHeap() {
-		return false
-	}
-	return Haspointers(t)
+	return Haspointers1(t, true)
 }
 
 func (t *Type) Symbol() *obj.LSym {
