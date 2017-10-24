@@ -38,6 +38,23 @@ func TestReadForm(t *testing.T) {
 	fd.Close()
 }
 
+func TestReadFormWithNamelessFile(t *testing.T) {
+	b := strings.NewReader(strings.Replace(messageWithFileWithoutName, "\n", "\r\n", -1))
+	r := NewReader(b, boundary)
+	f, err := r.ReadForm(25)
+	if err != nil {
+		t.Fatal("ReadForm:", err)
+	}
+	defer f.RemoveAll()
+
+	fd := testFile(t, f.File["hiddenfile"][0], "", filebContents)
+	if _, ok := fd.(sectionReadCloser); !ok {
+		t.Errorf("file has unexpected underlying type %T", fd)
+	}
+	fd.Close()
+
+}
+
 func testFile(t *testing.T, fh *FileHeader, efn, econtent string) File {
 	if fh.Filename != efn {
 		t.Errorf("filename = %q, want %q", fh.Filename, efn)
@@ -67,6 +84,15 @@ const (
 	textbValue    = "bar"
 	boundary      = `MyBoundary`
 )
+
+const messageWithFileWithoutName = `
+--MyBoundary
+Content-Disposition: form-data; name="hiddenfile"; filename=""
+Content-Type: text/plain
+
+` + filebContents + `
+--MyBoundary--
+`
 
 const message = `
 --MyBoundary
