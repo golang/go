@@ -226,12 +226,7 @@ func writebarrier(f *Func) {
 
 			if fn != nil {
 				// Note that we set up a writebarrier function call.
-				if !f.WBPos.IsKnown() {
-					f.WBPos = pos
-				}
-				if f.fe.Debug_wb() {
-					f.Warnl(pos, "write barrier")
-				}
+				f.fe.SetWBPos(pos)
 			}
 		}
 

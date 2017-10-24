@@ -136,11 +136,6 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	if fn.Func.Pragma&Nosplit != 0 {
 		s.f.NoSplit = true
 	}
-	defer func() {
-		if s.f.WBPos.IsKnown() {
-			fn.Func.WBPos = s.f.WBPos
-		}
-	}()
 	s.exitCode = fn.Func.Exit
 	s.panics = map[funcLine]*ssa.Block{}
 
@@ -5180,10 +5175,6 @@ func (e *ssafn) Debug_checknil() bool {
 	return Debug_checknil != 0
 }
 
-func (e *ssafn) Debug_wb() bool {
-	return Debug_wb != 0
-}
-
 func (e *ssafn) UseWriteBarrier() bool {
 	return use_writebarrier
 }
@@ -5203,6 +5194,10 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
 	}
 	Fatalf("unknown Syslook func %v", name)
 	return nil
+}
+
+func (e *ssafn) SetWBPos(pos src.XPos) {
+	e.curfn.Func.setWBPos(pos)
 }
 
 func (n *Node) Typ() *types.Type {
