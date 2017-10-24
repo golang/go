@@ -3910,17 +3910,17 @@ func (n *Node) isterminating() bool {
 		if n.HasBreak() {
 			return false
 		}
-		def := 0
+		def := false
 		for _, n1 := range n.List.Slice() {
 			if !n1.Nbody.isterminating() {
 				return false
 			}
 			if n1.List.Len() == 0 { // default
-				def = 1
+				def = true
 			}
 		}
 
-		if n.Op != OSELECT && def == 0 {
+		if n.Op != OSELECT && !def {
 			return false
 		}
 		return true

@@ -2481,9 +2481,8 @@ func aliased(n *Node, all []*Node, i int) bool {
 	// Also record whether there are any writes to main memory.
 	// Also record whether there are any writes to variables
 	// whose addresses have been taken.
-	memwrite := 0
-
-	varwrite := 0
+	memwrite := false
+	varwrite := false
 	for _, an := range all[:i] {
 		a := outervalue(an.Left)
 
@@ -2492,18 +2491,18 @@ func aliased(n *Node, all []*Node, i int) bool {
 		}
 
 		if a.Op != ONAME {
-			memwrite = 1
+			memwrite = true
 			continue
 		}
 
 		switch n.Class() {
 		default:
-			varwrite = 1
+			varwrite = true
 			continue
 
 		case PAUTO, PPARAM, PPARAMOUT:
 			if n.Addrtaken() {
-				varwrite = 1
+				varwrite = true
 				continue
 			}
 
@@ -2519,7 +2518,7 @@ func aliased(n *Node, all []*Node, i int) bool {
 	// that are being written.
 
 	// If no computed addresses are affected by the writes, no aliasing.
-	if memwrite == 0 && varwrite == 0 {
+	if !memwrite && !varwrite {
 		return false
 	}
 
@@ -3208,7 +3207,7 @@ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
 	return nlen
 }
 
-func eqfor(t *types.Type, needsize *int) *Node {
+func eqfor(t *types.Type) (n *Node, needsize bool) {
 	// Should only arrive here with large memory or
 	// a struct/array containing a non-memory field/element.
 	// Small memory is handled inline, and single non-memory
@@ -3217,8 +3216,7 @@ func eqfor(t *types.Type, needsize *int) *Node {
 	case AMEM:
 		n := syslook("memequal")
 		n = substArgTypes(n, t, t)
-		*needsize = 1
-		return n
+		return n, true
 	case ASPECIAL:
 		sym := typesymprefix(".eq", t)
 		n := newname(sym)
@@ -3229,11 +3227,10 @@ func eqfor(t *types.Type, needsize *int) *Node {
 		ntype.Rlist.Append(anonfield(types.Types[TBOOL]))
 		ntype = typecheck(ntype, Etype)
 		n.Type = ntype.Type
-		*needsize = 0
-		return n
+		return n, false
 	}
 	Fatalf("eqfor %v", t)
-	return nil
+	return nil, false
 }
 
 // The result of walkcompare MUST be assigned back to n, e.g.
@@ -3353,11 +3350,11 @@ func walkcompare(n *Node, init *Nodes) *Node {
 		ar = typecheck(ar, Etop)
 		init.Append(ar)
 
-		var needsize int
-		call := nod(OCALL, eqfor(t, &needsize), nil)
+		fn, needsize := eqfor(t)
+		call := nod(OCALL, fn, nil)
 		call.List.Append(pl)
 		call.List.Append(pr)
-		if needsize != 0 {
+		if needsize {
 			call.List.Append(nodintconst(t.Width))
 		}
 		res := call

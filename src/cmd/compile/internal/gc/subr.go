@@ -1800,35 +1800,32 @@ func hashmem(t *types.Type) *Node {
 	return n
 }
 
-func ifacelookdot(s *types.Sym, t *types.Type, followptr *bool, ignorecase bool) *types.Field {
-	*followptr = false
-
+func ifacelookdot(s *types.Sym, t *types.Type, ignorecase bool) (m *types.Field, followptr bool) {
 	if t == nil {
-		return nil
+		return nil, false
 	}
 
-	var m *types.Field
 	path, ambig := dotpath(s, t, &m, ignorecase)
 	if path == nil {
 		if ambig {
 			yyerror("%v.%v is ambiguous", t, s)
 		}
-		return nil
+		return nil, false
 	}
 
 	for _, d := range path {
 		if d.field.Type.IsPtr() {
-			*followptr = true
+			followptr = true
 			break
 		}
 	}
 
 	if m.Type.Etype != TFUNC || m.Type.Recv() == nil {
 		yyerror("%v.%v is a field, not a method", t, s)
-		return nil
+		return nil, followptr
 	}
 
-	return m
+	return m, followptr
 }
 
 func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool {
@@ -1873,11 +1870,10 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 		if im.Broke() {
 			continue
 		}
-		var followptr bool
-		tm := ifacelookdot(im.Sym, t, &followptr, false)
+		tm, followptr := ifacelookdot(im.Sym, t, false)
 		if tm == nil || tm.Nointerface() || !eqtype(tm.Type, im.Type) {
 			if tm == nil {
-				tm = ifacelookdot(im.Sym, t, &followptr, true)
+				tm, followptr = ifacelookdot(im.Sym, t, true)
 			}
 			*m = im
 			*samename = tm
