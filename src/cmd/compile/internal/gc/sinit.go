@@ -44,7 +44,7 @@ func init1(n *Node, out *[]*Node) {
 		init1(n1, out)
 	}
 
-	if n.Left != nil && n.Type != nil && n.Left.Op == OTYPE && n.Class() == PFUNC {
+	if n.isMethodExpression() {
 		// Methods called as Type.Method(receiver, ...).
 		// Definitions for method expressions are stored in type->nname.
 		init1(asNode(n.Type.FuncType().Nname), out)

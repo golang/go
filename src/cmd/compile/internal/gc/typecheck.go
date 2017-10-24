@@ -2709,7 +2709,7 @@ notenough:
 			// call is the expression being called, not the overall call.
 			// Method expressions have the form T.M, and the compiler has
 			// rewritten those to ONAME nodes but left T in Left.
-			if call.Op == ONAME && call.Left != nil && call.Left.Op == OTYPE {
+			if call.isMethodExpression() {
 				yyerror("not enough arguments in call to method expression %v%s", call, details)
 			} else {
 				yyerror("not enough arguments in call to %v%s", call, details)
