@@ -142,6 +142,9 @@ func main() {
 	}
 
 	runtime_init() // must be before defer
+	if nanotime() == 0 {
+		throw("nanotime returning zero")
+	}
 
 	// Defer unlock so that runtime.Goexit during init does the unlock too.
 	needUnlock := true
