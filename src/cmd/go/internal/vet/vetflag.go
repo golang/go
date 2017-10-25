@@ -44,6 +44,7 @@ var vetFlagDefn = []*cmdflag.Defn{
 	{Name: "rangeloops", BoolVar: new(bool)},
 	{Name: "shadow", BoolVar: new(bool)},
 	{Name: "shadowstrict", BoolVar: new(bool)},
+	{Name: "shift", BoolVar: new(bool)},
 	{Name: "source", BoolVar: new(bool)},
 	{Name: "structtags", BoolVar: new(bool)},
 	{Name: "tests", BoolVar: new(bool)},
