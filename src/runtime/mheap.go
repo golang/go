@@ -319,6 +319,17 @@ func (s *mspan) layout() (size, n, total uintptr) {
 	return
 }
 
+// recordspan adds a newly allocated span to h.allspans.
+//
+// This only happens the first time a span is allocated from
+// mheap.spanalloc (it is not called when a span is reused).
+//
+// Write barriers are disallowed here because it can be called from
+// gcWork when allocating new workbufs. However, because it's an
+// indirect call from the fixalloc initializer, the compiler can't see
+// this.
+//
+//go:nowritebarrierrec
 func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 	h := (*mheap)(vh)
 	s := (*mspan)(p)
@@ -339,12 +350,13 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 			copy(new, h.allspans)
 		}
 		oldAllspans := h.allspans
-		h.allspans = new
+		*(*notInHeapSlice)(unsafe.Pointer(&h.allspans)) = *(*notInHeapSlice)(unsafe.Pointer(&new))
 		if len(oldAllspans) != 0 {
 			sysFree(unsafe.Pointer(&oldAllspans[0]), uintptr(cap(oldAllspans))*unsafe.Sizeof(oldAllspans[0]), &memstats.other_sys)
 		}
 	}
-	h.allspans = append(h.allspans, s)
+	h.allspans = h.allspans[:len(h.allspans)+1]
+	h.allspans[len(h.allspans)-1] = s
 }
 
 // A spanClass represents the size class and noscan-ness of a span.
