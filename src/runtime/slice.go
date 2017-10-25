@@ -14,6 +14,13 @@ type slice struct {
 	cap   int
 }
 
+// An notInHeapSlice is a slice backed by go:notinheap memory.
+type notInHeapSlice struct {
+	array *notInHeap
+	len   int
+	cap   int
+}
+
 // maxElems is a lookup table containing the maximum capacity for a slice.
 // The index is the size of the slice element.
 var maxElems = [...]uintptr{
