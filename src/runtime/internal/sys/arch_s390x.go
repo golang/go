@@ -6,7 +6,7 @@ package sys
 
 const (
 	ArchFamily          = S390X
-	BigEndian           = 1
+	BigEndian           = true
 	CacheLineSize       = 256
 	DefaultPhysPageSize = 4096
 	PCQuantum           = 2
