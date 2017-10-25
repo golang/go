@@ -6,7 +6,7 @@ package sys
 
 const (
 	ArchFamily          = MIPS64
-	BigEndian           = 0
+	BigEndian           = false
 	CacheLineSize       = 32
 	DefaultPhysPageSize = 16384
 	PCQuantum           = 4
