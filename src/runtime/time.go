@@ -309,4 +309,10 @@ func time_runtimeNano() int64 {
 	return nanotime()
 }
 
-var startNano int64 = nanotime()
+// Monotonic times are reported as offsets from startNano.
+// We initialize startNano to nanotime() - 1 so that on systems where
+// monotonic time resolution is fairly low (e.g. Windows 2008
+// which appears to have a default resolution of 15ms),
+// we avoid ever reporting a nanotime of 0.
+// (Callers may want to use 0 as "time not set".)
+var startNano int64 = nanotime() - 1
