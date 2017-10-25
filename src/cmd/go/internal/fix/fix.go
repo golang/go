@@ -15,7 +15,7 @@ import (
 var CmdFix = &base.Command{
 	Run:       runFix,
 	UsageLine: "fix [packages]",
-	Short:     "run go tool fix on packages",
+	Short:     "update packages to use new APIs",
 	Long: `
 Fix runs the Go fix command on the packages named by the import paths.
 

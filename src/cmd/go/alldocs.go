@@ -18,8 +18,8 @@
 // 	doc         show documentation for package or symbol
 // 	env         print Go environment information
 // 	bug         start a bug report
-// 	fix         run go tool fix on packages
-// 	fmt         run gofmt on package sources
+// 	fix         update packages to use new APIs
+// 	fmt         gofmt (reformat) package sources
 // 	generate    generate Go files by processing source
 // 	get         download and install packages and dependencies
 // 	install     compile and install packages and dependencies
@@ -28,7 +28,7 @@
 // 	test        test packages
 // 	tool        run specified go tool
 // 	version     print Go version
-// 	vet         run go tool vet on packages
+// 	vet         report likely mistakes in packages
 //
 // Use "go help [command]" for more information about a command.
 //
@@ -339,7 +339,7 @@
 // The report includes useful system information.
 //
 //
-// Run go tool fix on packages
+// Update packages to use new APIs
 //
 // Usage:
 //
@@ -355,7 +355,7 @@
 // See also: go fmt, go vet.
 //
 //
-// Run gofmt on package sources
+// Gofmt (reformat) package sources
 //
 // Usage:
 //
@@ -794,7 +794,7 @@
 // Version prints the Go version, as reported by runtime.Version.
 //
 //
-// Run go tool vet on packages
+// Report likely mistakes in packages
 //
 // Usage:
 //
