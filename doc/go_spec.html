@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 23, 2017",
+	"Subtitle": "Version of October 25, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -2278,7 +2278,6 @@ non-<a href="#Blank_identifier">blank</a> identifier denoting a
 <a href="#Constant_declarations">constant</a>,
 <a href="#Variable_declarations">variable</a>, or
 <a href="#Function_declarations">function</a>,
-a <a href="#Method_expressions">method expression</a> yielding a function,
 or a parenthesized expression.
 </p>
 
@@ -2288,7 +2287,7 @@ operand only on the left-hand side of an <a href="#Assignments">assignment</a>.
 </p>
 
 <pre class="ebnf">
-Operand     = Literal | OperandName | MethodExpr | "(" Expression ")" .
+Operand     = Literal | OperandName | "(" Expression ")" .
 Literal     = BasicLit | CompositeLit | FunctionLit .
 BasicLit    = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
 OperandName = identifier | QualifiedIdent.
@@ -2554,6 +2553,7 @@ Primary expressions are the operands for unary and binary expressions.
 PrimaryExpr =
 	Operand |
 	Conversion |
+	MethodExpr |
 	PrimaryExpr Selector |
 	PrimaryExpr Index |
 	PrimaryExpr Slice |
@@ -2740,7 +2740,7 @@ argument that is the receiver of the method.
 
 <pre class="ebnf">
 MethodExpr    = ReceiverType "." MethodName .
-ReceiverType  = TypeName | "(" "*" TypeName ")" | "(" ReceiverType ")" .
+ReceiverType  = Type .
 </pre>
 
 <p>
