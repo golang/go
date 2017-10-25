@@ -259,6 +259,9 @@ func convertAssign(dest, src interface{}) error {
 		}
 	case time.Time:
 		switch d := dest.(type) {
+		case *time.Time:
+			*d = s
+			return nil
 		case *string:
 			*d = s.Format(time.RFC3339Nano)
 			return nil
