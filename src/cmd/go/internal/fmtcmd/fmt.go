@@ -24,7 +24,7 @@ func init() {
 var CmdFmt = &base.Command{
 	Run:       runFmt,
 	UsageLine: "fmt [-n] [-x] [packages]",
-	Short:     "run gofmt on package sources",
+	Short:     "gofmt (reformat) package sources",
 	Long: `
 Fmt runs the command 'gofmt -l -w' on the packages named
 by the import paths. It prints the names of the files that are modified.
