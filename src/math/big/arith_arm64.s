@@ -197,12 +197,159 @@ len0:
 
 // func shlVU(z, x []Word, s uint) (c Word)
 TEXT ·shlVU(SB),NOSPLIT,$0
-	B ·shlVU_g(SB)
+	MOVD	z+0(FP), R0
+	MOVD	z_len+8(FP), R1
+	MOVD	x+24(FP), R2
+	MOVD	s+48(FP), R3
+	MOVD	$0, R8		// in order not to affect the first element, R8 is initialized to zero
+	MOVD	$64, R4
+	SUB	R3, R4
+	CBZ	R1, len0
+	CBZ	R3, copy	// if the number of shift is 0, just copy x to z
+
+	TBZ	$0, R1, two
+	MOVD.P	8(R2), R6
+	LSR	R4, R6, R8
+	LSL	R3, R6
+	MOVD.P	R6, 8(R0)
+	SUB	$1, R1
+two:
+	TBZ	$1, R1, loop
+	LDP.P	16(R2), (R6, R7)
+	LSR	R4, R6, R9
+	LSL	R3, R6
+	ORR	R8, R6
+	LSR	R4, R7, R8
+	LSL	R3, R7
+	ORR	R9, R7
+	STP.P	(R6, R7), 16(R0)
+	SUB	$2, R1
+loop:
+	CBZ	R1, done
+	LDP.P	32(R2), (R10, R11)
+	LDP	-16(R2), (R12, R13)
+	LSR	R4, R10, R20
+	LSL	R3, R10
+	ORR	R8, R10		// z[i] = (x[i] << s) | (x[i-1] >> (64 - s))
+	LSR	R4, R11, R21
+	LSL	R3, R11
+	ORR	R20, R11
+	LSR	R4, R12, R22
+	LSL	R3, R12
+	ORR	R21, R12
+	LSR	R4, R13, R8
+	LSL	R3, R13
+	ORR	R22, R13
+	STP.P	(R10, R11), 32(R0)
+	STP	(R12, R13), -16(R0)
+	SUB	$4, R1
+	B	loop
+done:
+	MOVD	R8, c+56(FP)	// the part moved out from the last element
+	RET
+copy:
+	TBZ	$0, R1, ctwo
+	MOVD.P	8(R2), R3
+	MOVD.P	R3, 8(R0)
+	SUB	$1, R1
+ctwo:
+	TBZ	$1, R1, cloop
+	LDP.P	16(R2), (R4, R5)
+	STP.P	(R4, R5), 16(R0)
+	SUB	$2, R1
+cloop:
+	CBZ	R1, len0
+	LDP.P	32(R2), (R4, R5)
+	LDP	-16(R2), (R6, R7)
+	STP.P	(R4, R5), 32(R0)
+	STP	(R6, R7), -16(R0)
+	SUB	$4, R1
+	B	cloop
+len0:
+	MOVD	$0, c+56(FP)
+	RET
 
 
 // func shrVU(z, x []Word, s uint) (c Word)
 TEXT ·shrVU(SB),NOSPLIT,$0
-	B ·shrVU_g(SB)
+	MOVD	z+0(FP), R0
+	MOVD	z_len+8(FP), R1
+	MOVD	x+24(FP), R2
+	MOVD	s+48(FP), R3
+	MOVD	$0, R8
+	MOVD	$64, R4
+	SUB	R3, R4
+	CBZ	R1, len0
+	CBZ	R3, copy	// if the number of shift is 0, just copy x to z
+
+	MOVD.P	8(R2), R20
+	LSR	R3, R20, R8
+	LSL	R4, R20
+	MOVD	R20, c+56(FP)	// deal with the first element
+	SUB	$1, R1
+
+	TBZ	$0, R1, two
+	MOVD.P	8(R2), R6
+	LSL	R4, R6, R20
+	ORR	R8, R20
+	LSR	R3, R6, R8
+	MOVD.P	R20, 8(R0)
+	SUB	$1, R1
+two:
+	TBZ	$1, R1, loop
+	LDP.P	16(R2), (R6, R7)
+	LSL	R4, R6, R20
+	LSR	R3, R6
+	ORR	R8, R20
+	LSL	R4, R7, R21
+	LSR	R3, R7, R8
+	ORR	R6, R21
+	STP.P	(R20, R21), 16(R0)
+	SUB	$2, R1
+loop:
+	CBZ	R1, done
+	LDP.P	32(R2), (R10, R11)
+	LDP	-16(R2), (R12, R13)
+	LSL	R4, R10, R20
+	LSR	R3, R10
+	ORR	R8, R20		// z[i] = (x[i] >> s) | (x[i+1] << (64 - s))
+	LSL	R4, R11, R21
+	LSR	R3, R11
+	ORR	R10, R21
+	LSL	R4, R12, R22
+	LSR	R3, R12
+	ORR	R11, R22
+	LSL	R4, R13, R23
+	LSR	R3, R13, R8
+	ORR	R12, R23
+	STP.P	(R20, R21), 32(R0)
+	STP	(R22, R23), -16(R0)
+	SUB	$4, R1
+	B	loop
+done:
+	MOVD	R8, (R0)	// deal with the last element
+	RET
+copy:
+	TBZ	$0, R1, ctwo
+	MOVD.P	8(R2), R3
+	MOVD.P	R3, 8(R0)
+	SUB	$1, R1
+ctwo:
+	TBZ	$1, R1, cloop
+	LDP.P	16(R2), (R4, R5)
+	STP.P	(R4, R5), 16(R0)
+	SUB	$2, R1
+cloop:
+	CBZ	R1, len0
+	LDP.P	32(R2), (R4, R5)
+	LDP	-16(R2), (R6, R7)
+	STP.P	(R4, R5), 32(R0)
+	STP	(R6, R7), -16(R0)
+	SUB	$4, R1
+	B	cloop
+len0:
+	MOVD	$0, c+56(FP)
+	RET
 
 
 // func mulAddVWW(z, x []Word, y, r Word) (c Word)
