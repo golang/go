@@ -242,7 +242,7 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "arm",
 		os:      "linux",
-		imports: []string{"math/bits"},
+		imports: []string{"math/bits", "runtime"},
 		tests:   linuxARMTests,
 	},
 	{
@@ -1020,12 +1020,11 @@ var linuxAMD64Tests = []*asmTest{
 		// make sure assembly output has matching offset and base register.
 		fn: `
 		func f72(a, b int) int {
-			//go:noinline
-			func() {_, _ = a, b} () // use some frame
+			runtime.GC() // use some frame
 			return b
 		}
 		`,
-		pos: []string{"b\\+40\\(SP\\)"},
+		pos: []string{"b\\+24\\(SP\\)"},
 	},
 	{
 		// check load combining
@@ -1803,8 +1802,7 @@ var linuxARMTests = []*asmTest{
 		// make sure assembly output has matching offset and base register.
 		fn: `
 		func f13(a, b int) int {
-			//go:noinline
-			func() {_, _ = a, b} () // use some frame
+			runtime.GC() // use some frame
 			return b
 		}
 		`,
