@@ -506,6 +506,17 @@ func schedinit() {
 		throw("unknown runnable goroutine during bootstrap")
 	}
 
+	// For cgocheck > 1, we turn on the write barrier at all times
+	// and check all pointer writes. We can't do this until after
+	// procresize because the write barrier needs a P.
+	if debug.cgocheck > 1 {
+		writeBarrier.cgo = true
+		writeBarrier.enabled = true
+		for _, p := range allp {
+			p.wbBuf.reset()
+		}
+	}
+
 	if buildVersion == "" {
 		// Condition should never trigger. This code just serves
 		// to ensure runtime·buildVersion is kept in the resulting binary.
@@ -3862,6 +3873,7 @@ func procresize(nprocs int32) *p {
 			for i := range pp.deferpool {
 				pp.deferpool[i] = pp.deferpoolbuf[i][:0]
 			}
+			pp.wbBuf.reset()
 			atomicstorep(unsafe.Pointer(&allp[i]), unsafe.Pointer(pp))
 		}
 		if pp.mcache == nil {
@@ -3916,6 +3928,11 @@ func procresize(nprocs int32) *p {
 			// This assignment doesn't race because the
 			// world is stopped.
 			p.gcBgMarkWorker.set(nil)
+		}
+		// Flush p's write barrier buffer.
+		if gcphase != _GCoff {
+			wbBufFlush1(p)
+			p.gcw.dispose()
 		}
 		for i := range p.sudogbuf {
 			p.sudogbuf[i] = nil

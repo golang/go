@@ -1394,6 +1394,7 @@ top:
 			// workers have exited their loop so we can
 			// start new mark 2 workers.
 			forEachP(func(_p_ *p) {
+				wbBufFlush1(_p_)
 				_p_.gcw.dispose()
 			})
 		})

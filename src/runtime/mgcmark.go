@@ -1234,6 +1234,9 @@ func shade(b uintptr) {
 // obj is the start of an object with mark mbits.
 // If it isn't already marked, mark it and enqueue into gcw.
 // base and off are for debugging only and could be removed.
+//
+// See also wbBufFlush1, which partially duplicates this logic.
+//
 //go:nowritebarrierrec
 func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork, objIndex uintptr) {
 	// obj should be start of allocation, and so must be at least pointer-aligned.

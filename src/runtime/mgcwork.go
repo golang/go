@@ -150,6 +150,39 @@ func (w *gcWork) putFast(obj uintptr) bool {
 	return true
 }
 
+// putBatch performs a put on every pointer in obj. See put for
+// constraints on these pointers.
+//
+//go:nowritebarrierrec
+func (w *gcWork) putBatch(obj []uintptr) {
+	if len(obj) == 0 {
+		return
+	}
+
+	flushed := false
+	wbuf := w.wbuf1
+	if wbuf == nil {
+		w.init()
+		wbuf = w.wbuf1
+	}
+
+	for len(obj) > 0 {
+		for wbuf.nobj == len(wbuf.obj) {
+			putfull(wbuf)
+			w.wbuf1, w.wbuf2 = w.wbuf2, getempty()
+			wbuf = w.wbuf1
+			flushed = true
+		}
+		n := copy(wbuf.obj[wbuf.nobj:], obj)
+		wbuf.nobj += n
+		obj = obj[n:]
+	}
+
+	if flushed && gcphase == _GCmark {
+		gcController.enlistWorker()
+	}
+}
+
 // tryGet dequeues a pointer for the garbage collector to trace.
 //
 // If there are no pointers remaining in this gcWork or in the global
