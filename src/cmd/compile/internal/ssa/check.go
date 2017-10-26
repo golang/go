@@ -465,10 +465,6 @@ func memCheck(f *Func) {
 					if seenNonPhi {
 						f.Fatalf("phi after non-phi @ %s: %s", b, v)
 					}
-				case OpRegKill:
-					if f.RegAlloc == nil {
-						f.Fatalf("RegKill seen before register allocation @ %s: %s", b, v)
-					}
 				default:
 					seenNonPhi = true
 				}

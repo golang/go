@@ -14,7 +14,7 @@ dy = <Optimized out, as expected>
 dx = 2
 dy = 2
 63:		hist := make([]int, 7)                                //gdb-opt=(dx/O,dy/O) // TODO sink is missing if this code is in 'test' instead of 'main'
-dx = <Optimized out, as expected>
+dx = 2
 dy = <Optimized out, as expected>
 64:		var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A) // TODO cannedInput/A is missing if this code is in 'test' instead of 'main'
 65:		if len(os.Args) > 1 {
@@ -116,11 +116,6 @@ scanner = (struct bufio.Scanner *) <A>
 a = 0
 n = 0
 t = 0
-88:				continue
-87:			if a == 0 { //gdb-opt=(a,n,t)
-a = 3
-n = 0
-t = 0
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
@@ -145,11 +140,6 @@ t = 3
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 87:			if a == 0 { //gdb-opt=(a,n,t)
 a = 0
-n = 6
-t = 9
-88:				continue
-87:			if a == 0 { //gdb-opt=(a,n,t)
-a = 2
 n = 6
 t = 9
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
@@ -178,5 +168,4 @@ t = 17
 a = 0
 n = 9
 t = 22
-88:				continue
 98:	}

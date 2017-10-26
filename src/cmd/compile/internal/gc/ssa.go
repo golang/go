@@ -4652,15 +4652,14 @@ func genssa(f *ssa.Func, pp *Progs) {
 
 	s.ScratchFpMem = e.scratchFpMem
 
-	logLocationLists := Debug_locationlist != 0
 	if Ctxt.Flag_locationlists {
-		e.curfn.Func.DebugInfo = ssa.BuildFuncDebug(f, logLocationLists)
 		valueToProgAfter = make([]*obj.Prog, f.NumValues())
 	}
 
 	// Emit basic blocks
 	for i, b := range f.Blocks {
 		s.bstart[b.ID] = s.pp.next
+
 		// Emit values in block
 		thearch.SSAMarkMoves(&s, b)
 		for _, v := range b.Values {
@@ -4698,8 +4697,6 @@ func genssa(f *ssa.Func, pp *Progs) {
 				}
 			case ssa.OpPhi:
 				CheckLoweredPhi(v)
-			case ssa.OpRegKill:
-				// nothing to do
 			default:
 				// let the backend handle it
 				thearch.SSAGenValue(&s, v)
@@ -4708,12 +4705,14 @@ func genssa(f *ssa.Func, pp *Progs) {
 			if Ctxt.Flag_locationlists {
 				valueToProgAfter[v.ID] = s.pp.next
 			}
+
 			if logProgs {
 				for ; x != s.pp.next; x = x.Link {
 					progToValue[x] = v
 				}
 			}
 		}
+
 		// Emit control flow instructions for block
 		var next *ssa.Block
 		if i < len(f.Blocks)-1 && Debug['N'] == 0 {
@@ -4734,41 +4733,19 @@ func genssa(f *ssa.Func, pp *Progs) {
 	}
 
 	if Ctxt.Flag_locationlists {
-		for i := range f.Blocks {
-			blockDebug := e.curfn.Func.DebugInfo.Blocks[i]
-			for _, locList := range blockDebug.Variables {
-				for _, loc := range locList.Locations {
-					if loc.Start == ssa.BlockStart {
-						loc.StartProg = s.bstart[f.Blocks[i].ID]
-					} else {
-						loc.StartProg = valueToProgAfter[loc.Start.ID]
-					}
-					if loc.End == nil {
-						Fatalf("empty loc %v compiling %v", loc, f.Name)
-					}
-
-					if loc.End == ssa.BlockEnd {
-						// If this variable was live at the end of the block, it should be
-						// live over the control flow instructions. Extend it up to the
-						// beginning of the next block.
-						// If this is the last block, then there's no Prog to use for it, and
-						// EndProg is unset.
-						if i < len(f.Blocks)-1 {
-							loc.EndProg = s.bstart[f.Blocks[i+1].ID]
-						}
-					} else {
-						// Advance the "end" forward by one; the end-of-range doesn't take effect
-						// until the instruction actually executes.
-						loc.EndProg = valueToProgAfter[loc.End.ID].Link
-						if loc.EndProg == nil {
-							Fatalf("nil loc.EndProg compiling %v, loc=%v", f.Name, loc)
-						}
-					}
-					if !logLocationLists {
-						loc.Start = nil
-						loc.End = nil
-					}
-				}
+		e.curfn.Func.DebugInfo = ssa.BuildFuncDebug(Ctxt, f, Debug_locationlist > 1, stackOffset)
+		bstart := s.bstart
+		// Note that at this moment, Prog.Pc is a sequence number; it's
+		// not a real PC until after assembly, so this mapping has to
+		// be done later.
+		e.curfn.Func.DebugInfo.GetPC = func(b, v ssa.ID) int64 {
+			switch v {
+			case ssa.BlockStart.ID:
+				return int64(bstart[b].Pc)
+			case ssa.BlockEnd.ID:
+				return int64(e.curfn.Func.lsym.Size)
+			default:
+				return int64(valueToProgAfter[v].Pc)
 			}
 		}
 	}
