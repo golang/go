@@ -331,6 +331,12 @@ var genericOps = []opData{
 	{name: "MoveWB", argLength: 3, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size, aux=type.  Returns memory.
 	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
 
+	// WB invokes runtime.gcWriteBarrier. This is not a normal
+	// call: it takes arguments in registers, doesn't clobber
+	// general-purpose registers (the exact clobber set is
+	// arch-dependent), and is not a safe-point.
+	{name: "WB", argLength: 3, typ: "Mem", aux: "Sym", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+
 	// Function calls. Arguments to the call have already been written to the stack.
 	// Return values appear on the stack. The method receiver, if any, is treated
 	// as a phantom first argument.
