@@ -242,9 +242,6 @@ type regAllocState struct {
 	// current state of each (preregalloc) Value
 	values []valState
 
-	// names associated with each Value
-	valueNames [][]LocalSlot
-
 	// ID of SP, SB values
 	sp, sb ID
 
@@ -303,13 +300,6 @@ type startReg struct {
 
 // freeReg frees up register r. Any current user of r is kicked out.
 func (s *regAllocState) freeReg(r register) {
-	s.freeOrResetReg(r, false)
-}
-
-// freeOrResetReg frees up register r. Any current user of r is kicked out.
-// resetting indicates that the operation is only for bookkeeping,
-// e.g. when clearing out state upon entry to a new block.
-func (s *regAllocState) freeOrResetReg(r register, resetting bool) {
 	v := s.regs[r].v
 	if v == nil {
 		s.f.Fatalf("tried to free an already free register %d\n", r)
@@ -318,16 +308,6 @@ func (s *regAllocState) freeOrResetReg(r register, resetting bool) {
 	// Mark r as unused.
 	if s.f.pass.debug > regDebug {
 		fmt.Printf("freeReg %s (dump %s/%s)\n", &s.registers[r], v, s.regs[r].c)
-	}
-	if !resetting && s.f.Config.ctxt.Flag_locationlists && len(s.valueNames[v.ID]) != 0 {
-		kill := s.curBlock.NewValue0(src.NoXPos, OpRegKill, types.TypeVoid)
-		for int(kill.ID) >= len(s.orig) {
-			s.orig = append(s.orig, nil)
-		}
-		for _, name := range s.valueNames[v.ID] {
-			s.f.NamedValues[name] = append(s.f.NamedValues[name], kill)
-		}
-		s.f.setHome(kill, &s.registers[r])
 	}
 	s.regs[r] = regState{}
 	s.values[v.ID].regs &^= regMask(1) << r
@@ -613,17 +593,6 @@ func (s *regAllocState) init(f *Func) {
 	s.values = make([]valState, f.NumValues())
 	s.orig = make([]*Value, f.NumValues())
 	s.copies = make(map[*Value]bool)
-	if s.f.Config.ctxt.Flag_locationlists {
-		s.valueNames = make([][]LocalSlot, f.NumValues())
-		for slot, values := range f.NamedValues {
-			if isSynthetic(&slot) {
-				continue
-			}
-			for _, value := range values {
-				s.valueNames[value.ID] = append(s.valueNames[value.ID], slot)
-			}
-		}
-	}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && !v.Type.IsTuple() {
@@ -717,9 +686,7 @@ func (s *regAllocState) liveAfterCurrentInstruction(v *Value) bool {
 
 // Sets the state of the registers to that encoded in regs.
 func (s *regAllocState) setState(regs []endReg) {
-	for s.used != 0 {
-		s.freeOrResetReg(pickReg(s.used), true)
-	}
+	s.freeRegs(s.used)
 	for _, x := range regs {
 		s.assignReg(x.r, x.v, x.c)
 	}
@@ -1035,7 +1002,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			pidx := e.i
 			for _, v := range succ.Values {
 				if v.Op != OpPhi {
-					continue
+					break
 				}
 				if !s.values[v.ID].needReg {
 					continue
@@ -1598,9 +1565,6 @@ func (s *regAllocState) placeSpills() {
 	for _, b := range f.Blocks {
 		var m regMask
 		for _, v := range b.Values {
-			if v.Op == OpRegKill {
-				continue
-			}
 			if v.Op != OpPhi {
 				break
 			}
@@ -1711,7 +1675,7 @@ func (s *regAllocState) placeSpills() {
 	for _, b := range f.Blocks {
 		nphi := 0
 		for _, v := range b.Values {
-			if v.Op != OpRegKill && v.Op != OpPhi {
+			if v.Op != OpPhi {
 				break
 			}
 			nphi++
@@ -1832,9 +1796,6 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 	}
 	// Phis need their args to end up in a specific location.
 	for _, v := range e.b.Values {
-		if v.Op == OpRegKill {
-			continue
-		}
 		if v.Op != OpPhi {
 			break
 		}
@@ -2094,16 +2055,6 @@ func (e *edgeState) erase(loc Location) {
 				fmt.Printf("v%d no longer available in %s:%s\n", vid, loc, c)
 			}
 			a[i], a = a[len(a)-1], a[:len(a)-1]
-			if e.s.f.Config.ctxt.Flag_locationlists {
-				if _, isReg := loc.(*Register); isReg && int(c.ID) < len(e.s.valueNames) && len(e.s.valueNames[c.ID]) != 0 {
-					kill := e.p.NewValue0(src.NoXPos, OpRegKill, types.TypeVoid)
-					e.s.f.setHome(kill, loc)
-					for _, name := range e.s.valueNames[c.ID] {
-						e.s.f.NamedValues[name] = append(e.s.f.NamedValues[name], kill)
-					}
-				}
-			}
-
 			break
 		}
 	}

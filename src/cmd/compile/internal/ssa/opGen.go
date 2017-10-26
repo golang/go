@@ -2017,7 +2017,6 @@ const (
 	OpVarKill
 	OpVarLive
 	OpKeepAlive
-	OpRegKill
 	OpInt64Make
 	OpInt64Hi
 	OpInt64Lo
@@ -24079,11 +24078,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "KeepAlive",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RegKill",
-		argLen:  0,
 		generic: true,
 	},
 	{
