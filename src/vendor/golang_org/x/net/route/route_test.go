@@ -74,6 +74,10 @@ var addrAttrNames = [...]string{
 	"df:mpls1-n:tag-o:src", // mpls1 for dragonfly, tag for netbsd, src for openbsd
 	"df:mpls2-o:srcmask",   // mpls2 for dragonfly, srcmask for openbsd
 	"df:mpls3-o:label",     // mpls3 for dragonfly, label for openbsd
+	"o:bfd",                // bfd for openbsd
+	"o:dns",                // dns for openbsd
+	"o:static",             // static for openbsd
+	"o:search",             // search for openbsd
 }
 
 func (attrs addrAttrs) String() string {
