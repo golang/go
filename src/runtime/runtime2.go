@@ -538,6 +538,11 @@ type p struct {
 	// disposed on certain GC state transitions.
 	gcw gcWork
 
+	// wbBuf is this P's GC write barrier buffer.
+	//
+	// TODO: Consider caching this in the running G.
+	wbBuf wbBuf
+
 	runSafePointFn uint32 // if 1, run sched.safePointFn at next safe point
 
 	pad [sys.CacheLineSize]byte

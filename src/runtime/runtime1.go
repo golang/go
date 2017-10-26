@@ -386,13 +386,6 @@ func parsedebugvars() {
 
 	setTraceback(gogetenv("GOTRACEBACK"))
 	traceback_env = traceback_cache
-
-	// For cgocheck > 1, we turn on the write barrier at all times
-	// and check all pointer writes.
-	if debug.cgocheck > 1 {
-		writeBarrier.cgo = true
-		writeBarrier.enabled = true
-	}
 }
 
 //go:linkname setTraceback runtime/debug.SetTraceback
