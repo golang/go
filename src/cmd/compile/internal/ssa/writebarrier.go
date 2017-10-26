@@ -44,7 +44,7 @@ func writebarrier(f *Func) {
 	}
 
 	var sb, sp, wbaddr, const0 *Value
-	var writebarrierptr, typedmemmove, typedmemclr *obj.LSym
+	var writebarrierptr, typedmemmove, typedmemclr, gcWriteBarrier *obj.LSym
 	var stores, after []*Value
 	var sset *sparseSet
 	var storeNumber []int32
@@ -97,6 +97,9 @@ func writebarrier(f *Func) {
 			wbsym := f.fe.Syslook("writeBarrier")
 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
 			writebarrierptr = f.fe.Syslook("writebarrierptr")
+			if !f.fe.Debug_eagerwb() {
+				gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
+			}
 			typedmemmove = f.fe.Syslook("typedmemmove")
 			typedmemclr = f.fe.Syslook("typedmemclr")
 			const0 = f.ConstInt32(initpos, f.Config.Types.UInt32, 0)
@@ -170,6 +173,15 @@ func writebarrier(f *Func) {
 		b.Succs = b.Succs[:0]
 		b.AddEdgeTo(bThen)
 		b.AddEdgeTo(bElse)
+		// TODO: For OpStoreWB and the buffered write barrier,
+		// we could move the write out of the write barrier,
+		// which would lead to fewer branches. We could do
+		// something similar to OpZeroWB, since the runtime
+		// could provide just the barrier half and then we
+		// could unconditionally do an OpZero (which could
+		// also generate better zeroing code). OpMoveWB is
+		// trickier and would require changing how
+		// cgoCheckMemmove works.
 		bThen.AddEdgeTo(bEnd)
 		bElse.AddEdgeTo(bEnd)
 
@@ -205,7 +217,11 @@ func writebarrier(f *Func) {
 			switch w.Op {
 			case OpStoreWB, OpMoveWB, OpZeroWB:
 				volatile := w.Op == OpMoveWB && isVolatile(val)
-				memThen = wbcall(pos, bThen, fn, typ, ptr, val, memThen, sp, sb, volatile)
+				if w.Op == OpStoreWB && !f.fe.Debug_eagerwb() {
+					memThen = bThen.NewValue3A(pos, OpWB, types.TypeMem, gcWriteBarrier, ptr, val, memThen)
+				} else {
+					memThen = wbcall(pos, bThen, fn, typ, ptr, val, memThen, sp, sb, volatile)
+				}
 			case OpVarDef, OpVarLive, OpVarKill:
 				memThen = bThen.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, memThen)
 			}

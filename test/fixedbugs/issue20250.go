@@ -1,4 +1,4 @@
-// errorcheck -0 -live -d=compilelater
+// errorcheck -0 -live -d=compilelater,eagerwb
 
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -7,6 +7,10 @@
 // Issue 20250: liveness differed with concurrent compilation
 // due to propagation of addrtaken to outer variables for
 // closure variables.
+
+// TODO(austin): This expects function calls to the write barrier, so
+// we enable the legacy eager write barrier. Fix this once the
+// buffered write barrier works on all arches.
 
 package p
 

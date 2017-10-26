@@ -551,6 +551,9 @@
 (AtomicAnd8 ptr val mem) -> (ANDBlock ptr val mem)
 (AtomicOr8 ptr val mem) -> (ORBlock ptr val mem)
 
+// Write barrier.
+(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+
 // ***************************
 // Above: lowering rules
 // Below: optimizations

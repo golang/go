@@ -88,6 +88,7 @@ type Logger interface {
 
 	// Forwards the Debug flags from gc
 	Debug_checknil() bool
+	Debug_eagerwb() bool
 }
 
 type Frontend interface {
