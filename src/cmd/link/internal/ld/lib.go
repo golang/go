@@ -1073,14 +1073,14 @@ func (ctxt *Link) hostlink() {
 	argv = append(argv, *flagExtld)
 	argv = append(argv, hostlinkArchArgs(ctxt.Arch)...)
 
-	if !*FlagS && !debug_s {
-		argv = append(argv, "-gdwarf-2")
-	} else if ctxt.HeadType == objabi.Hdarwin {
-		// Recent versions of macOS print
-		//	ld: warning: option -s is obsolete and being ignored
-		// so do not pass any arguments.
-	} else {
-		argv = append(argv, "-s")
+	if *FlagS || debug_s {
+		if ctxt.HeadType == objabi.Hdarwin {
+			// Recent versions of macOS print
+			//	ld: warning: option -s is obsolete and being ignored
+			// so do not pass any arguments.
+		} else {
+			argv = append(argv, "-s")
+		}
 	}
 
 	switch ctxt.HeadType {
