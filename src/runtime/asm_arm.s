@@ -358,10 +358,12 @@ switch:
 	RET
 
 noswitch:
+	// Using a tail call here cleans up tracebacks since we won't stop
+	// at an intermediate systemstack.
 	MOVW	R0, R7
 	MOVW	0(R0), R0
-	BL	(R0)
-	RET
+	MOVW.P	4(R13), R14	// restore LR
+	B	(R0)
 
 /*
  * support for morestack

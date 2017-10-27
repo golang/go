@@ -265,6 +265,9 @@ switch:
 
 noswitch:
 	// already on m stack, just call directly
+	// On other arches we do a tail call here, but it appears to be
+	// impossible to tail call a function pointer in shared mode on
+	// ppc64 because the caller is responsible for restoring the TOC.
 	MOVD	0(R11), R12	// code pointer
 	MOVD	R12, CTR
 	BL	(CTR)
