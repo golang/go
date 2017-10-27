@@ -244,7 +244,7 @@ func testConcurrentReadsAfterGrowth(t *testing.T, useReflect bool) {
 	numGrowStep := 250
 	numReader := 16
 	if testing.Short() {
-		numLoop, numGrowStep = 2, 500
+		numLoop, numGrowStep = 2, 100
 	}
 	for i := 0; i < numLoop; i++ {
 		m := make(map[int]int, 0)

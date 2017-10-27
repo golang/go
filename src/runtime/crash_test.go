@@ -44,6 +44,10 @@ type buildexe struct {
 }
 
 func runTestProg(t *testing.T, binary, name string, env ...string) string {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+
 	testenv.MustHaveGoBuild(t)
 
 	exe, err := buildTestProg(t, binary)
@@ -53,6 +57,9 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
 
 	cmd := testenv.CleanCmdEnv(exec.Command(exe, name))
 	cmd.Env = append(cmd.Env, env...)
+	if testing.Short() {
+		cmd.Env = append(cmd.Env, "RUNTIME_TEST_SHORT=1")
+	}
 	var b bytes.Buffer
 	cmd.Stdout = &b
 	cmd.Stderr = &b
@@ -93,6 +100,10 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
 }
 
 func buildTestProg(t *testing.T, binary string, flags ...string) (string, error) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+
 	checkStaleRuntime(t)
 
 	testprog.Lock()

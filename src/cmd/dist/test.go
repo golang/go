@@ -402,9 +402,9 @@ func (t *tester) registerTests() {
 		testName := "runtime:cpu124"
 		t.tests = append(t.tests, distTest{
 			name:    testName,
-			heading: "GOMAXPROCS=2 runtime -cpu=1,2,4",
+			heading: "GOMAXPROCS=2 runtime -cpu=1,2,4 -quick",
 			fn: func(dt *distTest) error {
-				cmd := t.addCmd(dt, "src", "go", "test", "-short", t.timeout(300), t.tags(), "runtime", "-cpu=1,2,4")
+				cmd := t.addCmd(dt, "src", "go", "test", "-short", t.timeout(300), t.tags(), "runtime", "-cpu=1,2,4", "-quick")
 				// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
 				// creation of first goroutines and first garbage collections in the parallel setting.
 				cmd.Env = append(os.Environ(), "GOMAXPROCS=2")
