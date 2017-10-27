@@ -3,117 +3,125 @@
 57:		l := line{point{1 + zero, 2 + zero}, point{3 + zero, 4 + zero}}
 58:		tinycall()                // this forces l etc to stack
 57:		l := line{point{1 + zero, 2 + zero}, point{3 + zero, 4 + zero}}
-59:		dx := l.end.x - l.begin.x //gdb-dbg=(l.begin.x,l.end.y)
-60:		dy := l.end.y - l.begin.y //gdb-opt=(dx)
-$1 = 2
-61:		sink = dx + dy
-63:		hist := make([]int, 7)                                //gdb-opt=(sink)
-$2 = 4
+59:		dx := l.end.x - l.begin.x //gdb-dbg=(l.begin.x,l.end.y)//gdb-opt=(l,dx/O,dy/O)
+l = {begin = {x = 1, y = 2}, end = {x = 3, y = 4}}
+dx = <Optimized out, as expected>
+dy = <Optimized out, as expected>
+60:		dy := l.end.y - l.begin.y //gdb-opt=(dx,dy/O)
+dx = 2
+dy = <Optimized out, as expected>
+61:		sink = dx + dy            //gdb-opt=(dx,dy)
+dx = 2
+dy = 2
+63:		hist := make([]int, 7)                                //gdb-opt=(sink,dx/O,dy/O)
+sink = 4
+dx = <Optimized out, as expected>
+dy = <Optimized out, as expected>
 64:		var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A,cannedInput/A)
 65:		if len(os.Args) > 1 {
 73:		scanner := bufio.NewScanner(reader)
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-$3 = (struct bufio.Scanner *) <A>
+scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
-$4 = {tab = 0x0, data = 0x0}
-$5 =  []int = {0, 0, 0, 0, 0, 0, 0}
-$6 = 1
+err = {tab = 0x0, data = 0x0}
+hist =  []int = {0, 0, 0, 0, 0, 0, 0}
+i = 1
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-$7 = (struct bufio.Scanner *) <A>
+scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
-$8 = {tab = 0x0, data = 0x0}
-$9 =  []int = {0, 1, 0, 0, 0, 0, 0}
-$10 = 1
+err = {tab = 0x0, data = 0x0}
+hist =  []int = {0, 1, 0, 0, 0, 0, 0}
+i = 1
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-$11 = (struct bufio.Scanner *) <A>
+scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
-$12 = {tab = 0x0, data = 0x0}
-$13 =  []int = {0, 2, 0, 0, 0, 0, 0}
-$14 = 1
+err = {tab = 0x0, data = 0x0}
+hist =  []int = {0, 2, 0, 0, 0, 0, 0}
+i = 1
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-$15 = (struct bufio.Scanner *) <A>
+scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
-$16 = {tab = 0x0, data = 0x0}
-$17 =  []int = {0, 3, 0, 0, 0, 0, 0}
-$18 = 2
+err = {tab = 0x0, data = 0x0}
+hist =  []int = {0, 3, 0, 0, 0, 0, 0}
+i = 2
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-$19 = (struct bufio.Scanner *) <A>
+scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
-$20 = {tab = 0x0, data = 0x0}
-$21 =  []int = {0, 3, 1, 0, 0, 0, 0}
-$22 = 2
+err = {tab = 0x0, data = 0x0}
+hist =  []int = {0, 3, 1, 0, 0, 0, 0}
+i = 2
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-$23 = (struct bufio.Scanner *) <A>
+scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
-$24 = {tab = 0x0, data = 0x0}
-$25 =  []int = {0, 3, 2, 0, 0, 0, 0}
-$26 = 2
+err = {tab = 0x0, data = 0x0}
+hist =  []int = {0, 3, 2, 0, 0, 0, 0}
+i = 2
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-$27 = (struct bufio.Scanner *) <A>
+scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
-$28 = {tab = 0x0, data = 0x0}
-$29 =  []int = {0, 3, 3, 0, 0, 0, 0}
-$30 = 4
+err = {tab = 0x0, data = 0x0}
+hist =  []int = {0, 3, 3, 0, 0, 0, 0}
+i = 4
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-$31 = (struct bufio.Scanner *) <A>
+scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
-$32 = {tab = 0x0, data = 0x0}
-$33 =  []int = {0, 3, 3, 0, 1, 0, 0}
-$34 = 4
+err = {tab = 0x0, data = 0x0}
+hist =  []int = {0, 3, 3, 0, 1, 0, 0}
+i = 4
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-$35 = (struct bufio.Scanner *) <A>
+scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
-$36 = {tab = 0x0, data = 0x0}
-$37 =  []int = {0, 3, 3, 0, 2, 0, 0}
-$38 = 5
+err = {tab = 0x0, data = 0x0}
+hist =  []int = {0, 3, 3, 0, 2, 0, 0}
+i = 5
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-$39 = (struct bufio.Scanner *) <A>
+scanner = (struct bufio.Scanner *) <A>
 86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
-$40 = 0
-$41 = 0
-$42 = 0
+a = 0
+n = 0
+t = 0
 88:				continue
 87:			if a == 0 { //gdb-opt=(a,n,t)
-$43 = 3
-$44 = 0
-$45 = 0
+a = 3
+n = 0
+t = 0
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
@@ -124,9 +132,9 @@ $45 = 0
 86:		for i, a := range hist {
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 87:			if a == 0 { //gdb-opt=(a,n,t)
-$46 = 3
-$47 = 3
-$48 = 3
+a = 3
+n = 3
+t = 3
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
@@ -137,14 +145,14 @@ $48 = 3
 86:		for i, a := range hist {
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 87:			if a == 0 { //gdb-opt=(a,n,t)
-$49 = 0
-$50 = 6
-$51 = 9
+a = 0
+n = 6
+t = 9
 88:				continue
 87:			if a == 0 { //gdb-opt=(a,n,t)
-$52 = 2
-$53 = 6
-$54 = 9
+a = 2
+n = 6
+t = 9
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
@@ -155,9 +163,9 @@ $54 = 9
 86:		for i, a := range hist {
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 87:			if a == 0 { //gdb-opt=(a,n,t)
-$55 = 1
-$56 = 8
-$57 = 17
+a = 1
+n = 8
+t = 17
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
@@ -168,8 +176,8 @@ $57 = 17
 86:		for i, a := range hist {
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 87:			if a == 0 { //gdb-opt=(a,n,t)
-$58 = 0
-$59 = 9
-$60 = 22
+a = 0
+n = 9
+t = 22
 88:				continue
 95:	}

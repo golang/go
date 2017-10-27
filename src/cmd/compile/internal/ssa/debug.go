@@ -290,6 +290,8 @@ func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
 			state.logf("Processing %v, initial locs %v, regs %v\n", b, state.BlockString(locs), state.registerContents)
 		}
 		// Update locs/registers with the effects of each Value.
+		// The location list generated here needs to be slightly adjusted for use by gdb.
+		// These adjustments are applied in genssa.
 		for _, v := range b.Values {
 			slots := valueNames[v.ID]
 
@@ -323,7 +325,6 @@ func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
 
 			reg, _ := f.getHome(v.ID).(*Register)
 			state.processValue(locs, v, slots, reg)
-
 		}
 
 		// The block is done; mark any live locations as ending with the block.
@@ -449,7 +450,8 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) *B
 }
 
 // processValue updates locs and state.registerContents to reflect v, a value with
-// the names in vSlots and homed in vReg.
+// the names in vSlots and homed in vReg.  "v" becomes visible after execution of
+// the instructions evaluating it.
 func (state *debugState) processValue(locs *BlockDebug, v *Value, vSlots []SlotID, vReg *Register) {
 	switch {
 	case v.Op == OpRegKill:
@@ -531,7 +533,6 @@ func (state *debugState) processValue(locs *BlockDebug, v *Value, vSlots []SlotI
 			if state.loggingEnabled {
 				state.logf("at %v: %v spilled to stack location %v\n", v.ID, state.slots[slot], state.slots[loc.StackLocation])
 			}
-
 		}
 
 	case vReg != nil:
