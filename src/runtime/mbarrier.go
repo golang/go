@@ -341,41 +341,13 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 	// compiler only emits calls to typedslicecopy for types with pointers,
 	// and growslice and reflect_typedslicecopy check for pointers
 	// before calling typedslicecopy.
-	if !writeBarrier.needed {
-		memmove(dstp, srcp, uintptr(n)*typ.size)
-		return n
+	size := uintptr(n) * typ.size
+	if writeBarrier.needed {
+		bulkBarrierPreWrite(uintptr(dstp), uintptr(srcp), size)
 	}
-
-	systemstack(func() {
-		if uintptr(srcp) < uintptr(dstp) && uintptr(srcp)+uintptr(n)*typ.size > uintptr(dstp) {
-			// Overlap with src before dst.
-			// Copy backward, being careful not to move dstp/srcp
-			// out of the array they point into.
-			dstp = add(dstp, uintptr(n-1)*typ.size)
-			srcp = add(srcp, uintptr(n-1)*typ.size)
-			i := 0
-			for {
-				typedmemmove(typ, dstp, srcp)
-				if i++; i >= n {
-					break
-				}
-				dstp = add(dstp, -typ.size)
-				srcp = add(srcp, -typ.size)
-			}
-		} else {
-			// Copy forward, being careful not to move dstp/srcp
-			// out of the array they point into.
-			i := 0
-			for {
-				typedmemmove(typ, dstp, srcp)
-				if i++; i >= n {
-					break
-				}
-				dstp = add(dstp, typ.size)
-				srcp = add(srcp, typ.size)
-			}
-		}
-	})
+	// See typedmemmove for a discussion of the race between the
+	// barrier and memmove.
+	memmove(dstp, srcp, size)
 	return n
 }
 
