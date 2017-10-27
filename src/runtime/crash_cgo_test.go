@@ -330,7 +330,7 @@ func TestCgoPprof(t *testing.T) {
 }
 
 func TestCgoPprofPIE(t *testing.T) {
-	testCgoPprof(t, "-ldflags=-extldflags=-pie", "CgoPprof")
+	testCgoPprof(t, "-buildmode=pie", "CgoPprof")
 }
 
 func TestCgoPprofThread(t *testing.T) {
