@@ -253,7 +253,7 @@ func (p *addrParser) parseAddressList() ([]*Address, error) {
 		}
 		list = append(list, addrs...)
 
-		if !p.skipCfws() {
+		if !p.skipCFWS() {
 			return nil, errors.New("mail: misformatted parenthetical comment")
 		}
 		if p.empty() {
@@ -271,7 +271,7 @@ func (p *addrParser) parseSingleAddress() (*Address, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !p.skipCfws() {
+	if !p.skipCFWS() {
 		return nil, errors.New("mail: misformatted parenthetical comment")
 	}
 	if !p.empty() {
@@ -350,7 +350,7 @@ func (p *addrParser) consumeGroupList() ([]*Address, error) {
 	// handle empty group.
 	p.skipSpace()
 	if p.consume(';') {
-		p.skipCfws()
+		p.skipCFWS()
 		return group, nil
 	}
 
@@ -363,11 +363,11 @@ func (p *addrParser) consumeGroupList() ([]*Address, error) {
 		}
 		group = append(group, addrs...)
 
-		if !p.skipCfws() {
+		if !p.skipCFWS() {
 			return nil, errors.New("mail: misformatted parenthetical comment")
 		}
 		if p.consume(';') {
-			p.skipCfws()
+			p.skipCFWS()
 			break
 		}
 		if !p.consume(',') {
@@ -595,8 +595,8 @@ func (p *addrParser) len() int {
 	return len(p.s)
 }
 
-// skipCfws skips CFWS as defined in RFC5322.
-func (p *addrParser) skipCfws() bool {
+// skipCFWS skips CFWS as defined in RFC5322.
+func (p *addrParser) skipCFWS() bool {
 	p.skipSpace()
 
 	for {
