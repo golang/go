@@ -214,6 +214,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		default:
 			v.Fatalf("invalid FIDBR mask: %v", v.AuxInt)
 		}
+	case ssa.OpS390XCPSDR:
+		p := opregreg(s, v.Op.Asm(), v.Reg(), v.Args[1].Reg())
+		p.Reg = v.Args[0].Reg()
 	case ssa.OpS390XDIVD, ssa.OpS390XDIVW,
 		ssa.OpS390XDIVDU, ssa.OpS390XDIVWU,
 		ssa.OpS390XMODD, ssa.OpS390XMODW,
@@ -432,10 +435,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux2(&p.To, v, sc.Off())
 	case ssa.OpS390XMOVBreg, ssa.OpS390XMOVHreg, ssa.OpS390XMOVWreg,
 		ssa.OpS390XMOVBZreg, ssa.OpS390XMOVHZreg, ssa.OpS390XMOVWZreg,
+		ssa.OpS390XLDGR, ssa.OpS390XLGDR,
 		ssa.OpS390XCEFBRA, ssa.OpS390XCDFBRA, ssa.OpS390XCEGBRA, ssa.OpS390XCDGBRA,
 		ssa.OpS390XCFEBRA, ssa.OpS390XCFDBRA, ssa.OpS390XCGEBRA, ssa.OpS390XCGDBRA,
 		ssa.OpS390XLDEBR, ssa.OpS390XLEDBR,
-		ssa.OpS390XFNEG, ssa.OpS390XFNEGS:
+		ssa.OpS390XFNEG, ssa.OpS390XFNEGS,
+		ssa.OpS390XLPDFR, ssa.OpS390XLNDFR:
 		opregreg(s, v.Op.Asm(), v.Reg(), v.Args[0].Reg())
 	case ssa.OpS390XCLEAR:
 		p := s.Prog(v.Op.Asm())

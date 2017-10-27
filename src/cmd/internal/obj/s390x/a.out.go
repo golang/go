@@ -283,12 +283,15 @@ const (
 	AFNEGS
 	ALEDBR
 	ALDEBR
+	ALPDFR
+	ALNDFR
 	AFSUB
 	AFSUBS
 	AFSQRT
 	AFSQRTS
 	AFIEBR
 	AFIDBR
+	ACPSDR
 
 	// move from GPR to FPR and vice versa
 	ALDGR

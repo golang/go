@@ -688,10 +688,55 @@
 (MOVWZreg x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <v.Type> [off] {sym} ptr idx mem)
 
 // replace load from same location as preceding store with copy
-(MOVBZload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVBZreg x)
-(MOVHZload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVHZreg x)
-(MOVWZload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVWZreg x)
-(MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVDreg x)
+(MOVDload  [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVDreg x)
+(MOVWload  [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVWreg x)
+(MOVHload  [off] {sym} ptr1 (MOVHstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVHreg x)
+(MOVBload  [off] {sym} ptr1 (MOVBstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVBreg x)
+(MOVWZload [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVWZreg x)
+(MOVHZload [off] {sym} ptr1 (MOVHstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVHZreg x)
+(MOVBZload [off] {sym} ptr1 (MOVBstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVBZreg x)
+(MOVDload  [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (LGDR x)
+(FMOVDload [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (LDGR x)
+(FMOVDload [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> x
+(FMOVSload [off] {sym} ptr1 (FMOVSstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> x
+
+// prefer FPR <-> GPR moves over combined load ops
+(MULLDload <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) -> (MULLD x (LGDR <t> y))
+(ADDload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) -> (ADD   x (LGDR <t> y))
+(SUBload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) -> (SUB   x (LGDR <t> y))
+(ORload    <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) -> (OR    x (LGDR <t> y))
+(ANDload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) -> (AND   x (LGDR <t> y))
+(XORload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) -> (XOR   x (LGDR <t> y))
+
+// detect attempts to set/clear the sign bit
+// may need to be reworked when NIHH/OIHH are added
+(SRDconst [1] (SLDconst [1] (LGDR <t> x))) -> (LGDR <t> (LPDFR <x.Type> x))
+(LDGR <t> (SRDconst [1] (SLDconst [1] x))) -> (LPDFR (LDGR <t> x))
+(OR (MOVDconst [-1<<63]) (LGDR <t> x))     -> (LGDR <t> (LNDFR <x.Type> x))
+(LDGR <t> (OR (MOVDconst [-1<<63]) x))     -> (LNDFR (LDGR <t> x))
+
+// detect attempts to set the sign bit with load
+(LDGR <t> x:(ORload <t1> [off] {sym} (MOVDconst [-1<<63]) ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (LNDFR <t> (LDGR <t> (MOVDload <t1> [off] {sym} ptr mem)))
+
+// detect copysign
+(OR (SLDconst [63] (SRDconst [63] (LGDR x))) (LGDR (LPDFR <t> y))) -> (LGDR (CPSDR <t> y x))
+(OR (SLDconst [63] (SRDconst [63] (LGDR x))) (MOVDconst [c])) && c & -1<<63 == 0 -> (LGDR (CPSDR <x.Type> (FMOVDconst <x.Type> [c]) x))
+(CPSDR y (FMOVDconst [c])) && c & -1<<63 == 0 -> (LPDFR y)
+(CPSDR y (FMOVDconst [c])) && c & -1<<63 != 0 -> (LNDFR y)
+
+// absorb negations into set/clear sign bit
+(FNEG  (LPDFR x)) -> (LNDFR x)
+(FNEG  (LNDFR x)) -> (LPDFR x)
+(FNEGS (LPDFR x)) -> (LNDFR x)
+(FNEGS (LNDFR x)) -> (LPDFR x)
+
+// no need to convert float32 to float64 to set/clear sign bit
+(LEDBR (LPDFR (LDEBR x))) -> (LPDFR x)
+(LEDBR (LNDFR (LDEBR x))) -> (LNDFR x)
+
+// remove unnecessary FPR <-> GPR moves
+(LDGR (LGDR x)) -> x
+(LGDR (LDGR x)) -> (MOVDreg x)
 
 // Don't extend before storing
 (MOVWstore [off] {sym} ptr (MOVWreg x) mem) -> (MOVWstore [off] {sym} ptr x mem)
@@ -722,6 +767,20 @@
 (MOVBstore  [off1] {sym} (ADDconst [off2] ptr) val mem) && is20Bit(off1+off2) -> (MOVBstore  [off1+off2] {sym} ptr val mem)
 (FMOVSstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is20Bit(off1+off2) -> (FMOVSstore [off1+off2] {sym} ptr val mem)
 (FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is20Bit(off1+off2) -> (FMOVDstore [off1+off2] {sym} ptr val mem)
+
+(ADDload   [off1] {sym} x (ADDconst [off2] ptr) mem) && ptr.Op != OpSB && is20Bit(off1+off2) -> (ADDload   [off1+off2] {sym} x ptr mem)
+(ADDWload  [off1] {sym} x (ADDconst [off2] ptr) mem) && ptr.Op != OpSB && is20Bit(off1+off2) -> (ADDWload  [off1+off2] {sym} x ptr mem)
+(MULLDload [off1] {sym} x (ADDconst [off2] ptr) mem) && ptr.Op != OpSB && is20Bit(off1+off2) -> (MULLDload [off1+off2] {sym} x ptr mem)
+(MULLWload [off1] {sym} x (ADDconst [off2] ptr) mem) && ptr.Op != OpSB && is20Bit(off1+off2) -> (MULLWload [off1+off2] {sym} x ptr mem)
+(SUBload   [off1] {sym} x (ADDconst [off2] ptr) mem) && ptr.Op != OpSB && is20Bit(off1+off2) -> (SUBload   [off1+off2] {sym} x ptr mem)
+(SUBWload  [off1] {sym} x (ADDconst [off2] ptr) mem) && ptr.Op != OpSB && is20Bit(off1+off2) -> (SUBWload  [off1+off2] {sym} x ptr mem)
+
+(ANDload   [off1] {sym} x (ADDconst [off2] ptr) mem) && ptr.Op != OpSB && is20Bit(off1+off2) -> (ANDload   [off1+off2] {sym} x ptr mem)
+(ANDWload  [off1] {sym} x (ADDconst [off2] ptr) mem) && ptr.Op != OpSB && is20Bit(off1+off2) -> (ANDWload  [off1+off2] {sym} x ptr mem)
+(ORload    [off1] {sym} x (ADDconst [off2] ptr) mem) && ptr.Op != OpSB && is20Bit(off1+off2) -> (ORload    [off1+off2] {sym} x ptr mem)
+(ORWload   [off1] {sym} x (ADDconst [off2] ptr) mem) && ptr.Op != OpSB && is20Bit(off1+off2) -> (ORWload   [off1+off2] {sym} x ptr mem)
+(XORload   [off1] {sym} x (ADDconst [off2] ptr) mem) && ptr.Op != OpSB && is20Bit(off1+off2) -> (XORload   [off1+off2] {sym} x ptr mem)
+(XORWload  [off1] {sym} x (ADDconst [off2] ptr) mem) && ptr.Op != OpSB && is20Bit(off1+off2) -> (XORWload  [off1+off2] {sym} x ptr mem)
 
 // Fold constants into stores.
 (MOVDstore [off] {sym} ptr (MOVDconst [c]) mem) && is16Bit(c) && isU12Bit(off) && ptr.Op != OpSB ->
@@ -779,6 +838,20 @@
 	(FMOVSstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 (FMOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(FMOVDstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+
+(ADDload   [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(o1+o2) && canMergeSym(s1, s2) -> (ADDload   [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(ADDWload  [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(o1+o2) && canMergeSym(s1, s2) -> (ADDWload  [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(MULLDload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(o1+o2) && canMergeSym(s1, s2) -> (MULLDload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(MULLWload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(o1+o2) && canMergeSym(s1, s2) -> (MULLWload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(SUBload   [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(o1+o2) && canMergeSym(s1, s2) -> (SUBload   [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(SUBWload  [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(o1+o2) && canMergeSym(s1, s2) -> (SUBWload  [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+
+(ANDload   [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(o1+o2) && canMergeSym(s1, s2) -> (ANDload   [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(ANDWload  [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(o1+o2) && canMergeSym(s1, s2) -> (ANDWload  [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(ORload    [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(o1+o2) && canMergeSym(s1, s2) -> (ORload    [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(ORWload   [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(o1+o2) && canMergeSym(s1, s2) -> (ORWload   [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(XORload   [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(o1+o2) && canMergeSym(s1, s2) -> (XORload   [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(XORWload  [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(o1+o2) && canMergeSym(s1, s2) -> (XORWload  [o1+o2] {mergeSym(s1, s2)} x ptr mem)
 
 // Cannot store constant to SB directly (no 'move relative long immediate' instructions).
 (MOVDstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem) && ptr.Op != OpSB && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->

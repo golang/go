@@ -1691,6 +1691,70 @@ var linuxS390XTests = []*asmTest{
 		pos: []string{"\tMOV(B|BZ|D)\t[$]1,"},
 		neg: []string{"\tCEBR\t", "\tMOV(B|BZ|D)\t[$]0,"},
 	},
+	// math tests
+	{
+		fn: `
+		func $(x float64) float64 {
+			return math.Abs(x)
+		}
+		`,
+		pos: []string{"\tLPDFR\t"},
+		neg: []string{"\tMOVD\t"}, // no integer loads/stores
+	},
+	{
+		fn: `
+		func $(x float32) float32 {
+			return float32(math.Abs(float64(x)))
+		}
+		`,
+		pos: []string{"\tLPDFR\t"},
+		neg: []string{"\tLDEBR\t", "\tLEDBR\t"}, // no float64 conversion
+	},
+	{
+		fn: `
+		func $(x float64) float64 {
+			return math.Float64frombits(math.Float64bits(x)|1<<63)
+		}
+		`,
+		pos: []string{"\tLNDFR\t"},
+		neg: []string{"\tMOVD\t"}, // no integer loads/stores
+	},
+	{
+		fn: `
+		func $(x float64) float64 {
+			return -math.Abs(x)
+		}
+		`,
+		pos: []string{"\tLNDFR\t"},
+		neg: []string{"\tMOVD\t"}, // no integer loads/stores
+	},
+	{
+		fn: `
+		func $(x, y float64) float64 {
+			return math.Copysign(x, y)
+		}
+		`,
+		pos: []string{"\tCPSDR\t"},
+		neg: []string{"\tMOVD\t"}, // no integer loads/stores
+	},
+	{
+		fn: `
+		func $(x float64) float64 {
+			return math.Copysign(x, -1)
+		}
+		`,
+		pos: []string{"\tLNDFR\t"},
+		neg: []string{"\tMOVD\t"}, // no integer loads/stores
+	},
+	{
+		fn: `
+		func $(x float64) float64 {
+			return math.Copysign(-1, x)
+		}
+		`,
+		pos: []string{"\tCPSDR\t"},
+		neg: []string{"\tMOVD\t"}, // no integer loads/stores
+	},
 }
 
 var linuxARMTests = []*asmTest{
