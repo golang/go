@@ -915,7 +915,8 @@ TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
 	RET
 
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
-	SYNC
+        // Stores are already ordered on s390x, so this is just a
+        // compile barrier.
 	RET
 
 TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
