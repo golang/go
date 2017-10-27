@@ -77,12 +77,14 @@ var bootstrapDirs = []string{
 	"cmd/link/internal/s390x",
 	"cmd/link/internal/sym",
 	"cmd/link/internal/x86",
+	"container/heap",
 	"debug/dwarf",
 	"debug/elf",
 	"debug/macho",
 	"debug/pe",
 	"math/big",
 	"math/bits",
+	"sort",
 }
 
 // File prefixes that are ignored by go/build anyway, and cause
@@ -180,7 +182,7 @@ func bootstrapBuildTools() {
 		pathf("%s/bin/go", goroot_bootstrap),
 		"install",
 		"-gcflags=-l",
-		"-tags=math_big_pure_go",
+		"-tags=math_big_pure_go compiler_bootstrap",
 		"-v",
 	}
 	if tool := os.Getenv("GOBOOTSTRAP_TOOLEXEC"); tool != "" {
