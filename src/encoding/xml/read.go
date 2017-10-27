@@ -107,7 +107,8 @@ import (
 // to the newly created value.
 //
 // Unmarshal maps an XML element or attribute value to a bool by
-// setting it to the boolean value represented by the string.
+// setting it to the boolean value represented by the string. Whitespace
+// is trimmed and ignored.
 //
 // Unmarshal maps an XML element or attribute value to an integer or
 // floating-point field by setting the field to the result of

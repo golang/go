@@ -908,3 +908,60 @@ func TestUnmarshalEmptyValues(t *testing.T) {
 		t.Fatalf("populated: Unmarshal:\nhave:  %#+v\nwant: %#+v", v, want)
 	}
 }
+
+type WhitespaceValuesParent struct {
+	BFalse bool
+	BTrue  bool
+}
+
+const whitespaceValuesXML = `
+<WhitespaceValuesParent>
+    <BFalse>   false   </BFalse>
+    <BTrue>   true   </BTrue>
+</WhitespaceValuesParent>
+`
+
+// golang.org/issues/22146
+func TestUnmarshalWhitespaceValues(t *testing.T) {
+	v := WhitespaceValuesParent{}
+	if err := Unmarshal([]byte(whitespaceValuesXML), &v); err != nil {
+		t.Fatalf("whitespace values: Unmarshal failed: got %v", err)
+	}
+
+	want := WhitespaceValuesParent{
+		BFalse: false,
+		BTrue:  true,
+	}
+	if v != want {
+		t.Fatalf("whitespace values: Unmarshal:\nhave: %#+v\nwant: %#+v", v, want)
+	}
+}
+
+type WhitespaceAttrsParent struct {
+	BFalse bool `xml:",attr"`
+	BTrue  bool `xml:",attr"`
+}
+
+const whitespaceAttrsXML = `
+<WhitespaceAttrsParent
+    BFalse="  false  "
+    BTrue="  true  "
+>
+</WhitespaceAttrsParent>
+`
+
+// golang.org/issues/22146
+func TestUnmarshalWhitespaceAttrs(t *testing.T) {
+	v := WhitespaceAttrsParent{}
+	if err := Unmarshal([]byte(whitespaceAttrsXML), &v); err != nil {
+		t.Fatalf("whitespace attrs: Unmarshal failed: got %v", err)
+	}
+
+	want := WhitespaceAttrsParent{
+		BFalse: false,
+		BTrue:  true,
+	}
+	if v != want {
+		t.Fatalf("whitespace attrs: Unmarshal:\nhave: %#+v\nwant: %#+v", v, want)
+	}
+}
