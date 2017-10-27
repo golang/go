@@ -200,6 +200,43 @@ func caninl(fn *Node) {
 	Curfn = savefn
 }
 
+// inlFlood marks n's inline body for export and recursively ensures
+// all called functions are marked too.
+func inlFlood(n *Node) {
+	if n == nil {
+		return
+	}
+	if n.Op != ONAME || n.Class() != PFUNC {
+		Fatalf("inlFlood: unexpected %v, %v, %v", n, n.Op, n.Class())
+	}
+	if n.Func == nil {
+		// TODO(mdempsky): Should init have a Func too?
+		if n.Sym.Name == "init" {
+			return
+		}
+		Fatalf("inlFlood: missing Func on %v", n)
+	}
+	if n.Func.Inl.Len() == 0 {
+		return
+	}
+
+	if n.Func.ExportInline() {
+		return
+	}
+	n.Func.SetExportInline(true)
+
+	typecheckinl(n)
+
+	// Recursively flood any functions called by this one.
+	inspectList(n.Func.Inl, func(n *Node) bool {
+		switch n.Op {
+		case OCALLFUNC, OCALLMETH:
+			inlFlood(asNode(n.Left.Type.Nname()))
+		}
+		return true
+	})
+}
+
 // hairyVisitor visits a function body to determine its inlining
 // hairiness and whether or not it can be inlined.
 type hairyVisitor struct {
