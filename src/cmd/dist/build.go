@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -99,6 +100,22 @@ func xinit() {
 		fatalf("$GOROOT must be set")
 	}
 	goroot = filepath.Clean(b)
+
+	if runtime.GOOS == "darwin" && strings.HasPrefix(goroot, "/private/") {
+		// The builders don't set $PWD correctly during make.bash
+		// but then they apparently do set it or perhaps $GOROOT
+		// during run.bash. During make.bash we infer that
+		// GOROOT=/private/var/blah/blah but then during run.bash
+		// apparently GOROOT=/var/blah/blah. This makes all commands
+		// seem out of date, which breaks some tests.
+		// Instead of finding the problem in the builders, fix it here.
+		// This is not great but is the best we can do today.
+		f1, err1 := os.Stat(goroot)
+		f2, err2 := os.Stat(strings.TrimPrefix(goroot, "/private"))
+		if err1 == nil && err2 == nil && os.SameFile(f1, f2) {
+			goroot = strings.TrimPrefix(goroot, "/private")
+		}
+	}
 
 	b = os.Getenv("GOROOT_FINAL")
 	if b == "" {
