@@ -131,10 +131,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 
 	switch n.Op {
 	case OCALLFUNC, OCALLMETH:
-		fn := n.Left
-		if n.Op == OCALLMETH {
-			fn = asNode(n.Left.Sym.Def)
-		}
+		fn := asNode(n.Left.Type.Nname())
 		if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC && fn.Name.Defn != nil {
 			m := v.visit(fn.Name.Defn)
 			if m < min {

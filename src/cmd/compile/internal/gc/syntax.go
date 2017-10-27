@@ -462,6 +462,7 @@ const (
 	funcHasDefer            // contains a defer statement
 	funcNilCheckDisabled    // disable nil checks when compiling this function
 	funcInlinabilityChecked // inliner has already determined whether the function is inlinable
+	funcExportInline        // include inline body in export data
 )
 
 func (f *Func) Dupok() bool               { return f.flags&funcDupok != 0 }
@@ -473,6 +474,7 @@ func (f *Func) NoFramePointer() bool      { return f.flags&funcNoFramePointer !=
 func (f *Func) HasDefer() bool            { return f.flags&funcHasDefer != 0 }
 func (f *Func) NilCheckDisabled() bool    { return f.flags&funcNilCheckDisabled != 0 }
 func (f *Func) InlinabilityChecked() bool { return f.flags&funcInlinabilityChecked != 0 }
+func (f *Func) ExportInline() bool        { return f.flags&funcExportInline != 0 }
 
 func (f *Func) SetDupok(b bool)               { f.flags.set(funcDupok, b) }
 func (f *Func) SetWrapper(b bool)             { f.flags.set(funcWrapper, b) }
@@ -483,6 +485,7 @@ func (f *Func) SetNoFramePointer(b bool)      { f.flags.set(funcNoFramePointer, 
 func (f *Func) SetHasDefer(b bool)            { f.flags.set(funcHasDefer, b) }
 func (f *Func) SetNilCheckDisabled(b bool)    { f.flags.set(funcNilCheckDisabled, b) }
 func (f *Func) SetInlinabilityChecked(b bool) { f.flags.set(funcInlinabilityChecked, b) }
+func (f *Func) SetExportInline(b bool)        { f.flags.set(funcExportInline, b) }
 
 func (f *Func) setWBPos(pos src.XPos) {
 	if Debug_wb != 0 {
