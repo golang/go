@@ -523,12 +523,13 @@ func (h heapBits) setCheckmarked(size uintptr) {
 	atomic.Or8(h.bitp, bitScan<<(heapBitsShift+h.shift))
 }
 
-// bulkBarrierPreWrite executes writebarrierptr_prewrite1
+// bulkBarrierPreWrite executes a write barrier
 // for every pointer slot in the memory range [src, src+size),
 // using pointer/scalar information from [dst, dst+size).
 // This executes the write barriers necessary before a memmove.
 // src, dst, and size must be pointer-aligned.
 // The range [dst, dst+size) must lie within a single object.
+// It does not perform the actual writes.
 //
 // As a special case, src == 0 indicates that this is being used for a
 // memclr. bulkBarrierPreWrite will pass 0 for the src of each write
@@ -578,12 +579,15 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 		return
 	}
 
+	buf := &getg().m.p.ptr().wbBuf
 	h := heapBitsForAddr(dst)
 	if src == 0 {
 		for i := uintptr(0); i < size; i += sys.PtrSize {
 			if h.isPointer() {
 				dstx := (*uintptr)(unsafe.Pointer(dst + i))
-				writebarrierptr_prewrite1(dstx, 0)
+				if !buf.putFast(*dstx, 0) {
+					wbBufFlush(nil, 0)
+				}
 			}
 			h = h.next()
 		}
@@ -592,7 +596,9 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 			if h.isPointer() {
 				dstx := (*uintptr)(unsafe.Pointer(dst + i))
 				srcx := (*uintptr)(unsafe.Pointer(src + i))
-				writebarrierptr_prewrite1(dstx, *srcx)
+				if !buf.putFast(*dstx, *srcx) {
+					wbBufFlush(nil, 0)
+				}
 			}
 			h = h.next()
 		}
@@ -612,6 +618,7 @@ func bulkBarrierBitmap(dst, src, size, maskOffset uintptr, bits *uint8) {
 	bits = addb(bits, word/8)
 	mask := uint8(1) << (word % 8)
 
+	buf := &getg().m.p.ptr().wbBuf
 	for i := uintptr(0); i < size; i += sys.PtrSize {
 		if mask == 0 {
 			bits = addb(bits, 1)
@@ -625,10 +632,14 @@ func bulkBarrierBitmap(dst, src, size, maskOffset uintptr, bits *uint8) {
 		if *bits&mask != 0 {
 			dstx := (*uintptr)(unsafe.Pointer(dst + i))
 			if src == 0 {
-				writebarrierptr_prewrite1(dstx, 0)
+				if !buf.putFast(*dstx, 0) {
+					wbBufFlush(nil, 0)
+				}
 			} else {
 				srcx := (*uintptr)(unsafe.Pointer(src + i))
-				writebarrierptr_prewrite1(dstx, *srcx)
+				if !buf.putFast(*dstx, *srcx) {
+					wbBufFlush(nil, 0)
+				}
 			}
 		}
 		mask <<= 1

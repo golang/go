@@ -239,6 +239,10 @@ func writebarrierptr_prewrite(dst *uintptr, src uintptr) {
 
 // typedmemmove copies a value of type t to dst from src.
 // Must be nosplit, see #16026.
+//
+// TODO: Perfect for go:nosplitrec since we can't have a safe point
+// anywhere in the bulk barrier or memmove.
+//
 //go:nosplit
 func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	if typ.kind&kindNoPointers == 0 {
