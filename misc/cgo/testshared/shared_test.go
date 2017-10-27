@@ -647,6 +647,8 @@ func TestGoPathShlibGccgo(t *testing.T) {
 // library with gccgo, another GOPATH package that depends on the first and an
 // executable that links the second library.
 func TestTwoGopathShlibsGccgo(t *testing.T) {
+	t.Skip("golang.org/issue/22224")
+
 	gccgoContext := prepGccgo(t)
 
 	libgoRE := regexp.MustCompile("libgo.so.[0-9]+")
