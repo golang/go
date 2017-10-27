@@ -87,6 +87,8 @@ type distTest struct {
 }
 
 func (t *tester) run() {
+	timelog("start", "dist test")
+
 	var exeSuffix string
 	if goos == "windows" {
 		exeSuffix = ".exe"
@@ -205,6 +207,7 @@ func (t *tester) run() {
 		}
 	}
 	t.runPending(nil)
+	timelog("end", "dist test")
 	if t.failed {
 		fmt.Println("\nFAILED")
 		os.Exit(1)
@@ -268,6 +271,8 @@ func (t *tester) registerStdTest(pkg string) {
 				return nil
 			}
 			t.runPending(dt)
+			timelog("start", dt.name)
+			defer timelog("end", dt.name)
 			ranGoTest = true
 			args := []string{
 				"test",
@@ -304,6 +309,8 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 				return nil
 			}
 			t.runPending(dt)
+			timelog("start", dt.name)
+			defer timelog("end", dt.name)
 			ranGoBench = true
 			args := []string{
 				"test",
@@ -414,6 +421,8 @@ func (t *tester) registerTests() {
 			heading: "cmd/go terminal test",
 			fn: func(dt *distTest) error {
 				t.runPending(dt)
+				timelog("start", dt.name)
+				defer timelog("end", dt.name)
 				if !stdOutErrAreTerminals() {
 					fmt.Println("skipping terminal test; stdout/stderr not terminals")
 					return nil
@@ -438,6 +447,8 @@ func (t *tester) registerTests() {
 			heading: "moved GOROOT",
 			fn: func(dt *distTest) error {
 				t.runPending(dt)
+				timelog("start", dt.name)
+				defer timelog("end", dt.name)
 				moved := goroot + "-moved"
 				if err := os.Rename(goroot, moved); err != nil {
 					if goos == "windows" {
@@ -696,6 +707,8 @@ func (t *tester) registerTest1(seq bool, name, dirBanner, bin string, args ...st
 		fn: func(dt *distTest) error {
 			if seq {
 				t.runPending(dt)
+				timelog("start", name)
+				defer timelog("end", name)
 				return t.dirCmd(filepath.Join(goroot, "src", dirBanner), bin, args...).Run()
 			}
 			t.addCmd(dt, filepath.Join(goroot, "src", dirBanner), bin, args...)
@@ -867,6 +880,8 @@ func (t *tester) registerHostTest(name, heading, dir, pkg string) {
 		heading: heading,
 		fn: func(dt *distTest) error {
 			t.runPending(dt)
+			timelog("start", name)
+			defer timelog("end", name)
 			return t.runHostTest(dir, pkg)
 		},
 	})
@@ -946,10 +961,13 @@ func (t *tester) runPending(nextTest *distTest) {
 		w.end = make(chan bool)
 		go func(w *work) {
 			if !<-w.start {
+				timelog("skip", w.dt.name)
 				w.out = []byte(fmt.Sprintf("skipped due to earlier error\n"))
 			} else {
+				timelog("start", w.dt.name)
 				w.out, w.err = w.cmd.CombinedOutput()
 			}
+			timelog("end", w.dt.name)
 			w.end <- true
 		}(w)
 	}
@@ -1023,6 +1041,9 @@ func (t *tester) cgoTestSOSupported() bool {
 
 func (t *tester) cgoTestSO(dt *distTest, testpath string) error {
 	t.runPending(dt)
+
+	timelog("start", dt.name)
+	defer timelog("end", dt.name)
 
 	dir := filepath.Join(goroot, testpath)
 
