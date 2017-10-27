@@ -385,21 +385,21 @@ func TestNewClientWithTLS(t *testing.T) {
 	if err != nil {
 		ln, err = tls.Listen("tcp", "[::1]:0", &config)
 		if err != nil {
-			t.Fatalf("server: listen: %s", err)
+			t.Fatalf("server: listen: %v", err)
 		}
 	}
 
 	go func() {
 		conn, err := ln.Accept()
 		if err != nil {
-			t.Fatalf("server: accept: %s", err)
+			t.Errorf("server: accept: %v", err)
 			return
 		}
 		defer conn.Close()
 
 		_, err = conn.Write([]byte("220 SIGNS\r\n"))
 		if err != nil {
-			t.Fatalf("server: write: %s", err)
+			t.Errorf("server: write: %v", err)
 			return
 		}
 	}()
@@ -407,13 +407,13 @@ func TestNewClientWithTLS(t *testing.T) {
 	config.InsecureSkipVerify = true
 	conn, err := tls.Dial("tcp", ln.Addr().String(), &config)
 	if err != nil {
-		t.Fatalf("client: dial: %s", err)
+		t.Fatalf("client: dial: %v", err)
 	}
 	defer conn.Close()
 
 	client, err := NewClient(conn, ln.Addr().String())
 	if err != nil {
-		t.Fatalf("smtp: newclient: %s", err)
+		t.Fatalf("smtp: newclient: %v", err)
 	}
 	if !client.tls {
 		t.Errorf("client.tls Got: %t Expected: %t", client.tls, true)
