@@ -156,6 +156,7 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
 			v = textproto.TrimString(v)
 			for _, s := range []string{kv.key, ": ", v, "\r\n"} {
 				if _, err := ws.WriteString(s); err != nil {
+					headerSorterPool.Put(sorter)
 					return err
 				}
 			}
