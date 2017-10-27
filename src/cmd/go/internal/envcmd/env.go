@@ -73,11 +73,16 @@ func MkEnv() []cfg.EnvVar {
 		env = append(env, cfg.EnvVar{Name: "GO386", Value: cfg.GO386})
 	}
 
-	cmd := b.GccCmd(".", "")
-	env = append(env, cfg.EnvVar{Name: "CC", Value: cmd[0]})
-	env = append(env, cfg.EnvVar{Name: "GOGCCFLAGS", Value: strings.Join(cmd[3:], " ")})
-	cmd = b.GxxCmd(".", "")
-	env = append(env, cfg.EnvVar{Name: "CXX", Value: cmd[0]})
+	cc := cfg.DefaultCC
+	if env := strings.Fields(os.Getenv("CC")); len(env) > 0 {
+		cc = env[0]
+	}
+	cxx := cfg.DefaultCXX
+	if env := strings.Fields(os.Getenv("CXX")); len(env) > 0 {
+		cxx = env[0]
+	}
+	env = append(env, cfg.EnvVar{Name: "CC", Value: cc})
+	env = append(env, cfg.EnvVar{Name: "CXX", Value: cxx})
 
 	if cfg.BuildContext.CgoEnabled {
 		env = append(env, cfg.EnvVar{Name: "CGO_ENABLED", Value: "1"})
@@ -102,19 +107,45 @@ func ExtraEnvVars() []cfg.EnvVar {
 	var b work.Builder
 	b.Init()
 	cppflags, cflags, cxxflags, fflags, ldflags := b.CFlags(&load.Package{})
+	cmd := b.GccCmd(".", "")
 	return []cfg.EnvVar{
+		// Note: Update the switch in runEnv below when adding to this list.
 		{Name: "CGO_CFLAGS", Value: strings.Join(cflags, " ")},
 		{Name: "CGO_CPPFLAGS", Value: strings.Join(cppflags, " ")},
 		{Name: "CGO_CXXFLAGS", Value: strings.Join(cxxflags, " ")},
 		{Name: "CGO_FFLAGS", Value: strings.Join(fflags, " ")},
 		{Name: "CGO_LDFLAGS", Value: strings.Join(ldflags, " ")},
 		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
+		{Name: "GOGCCFLAGS", Value: strings.Join(cmd[3:], " ")},
 	}
 }
 
 func runEnv(cmd *base.Command, args []string) {
 	env := cfg.CmdEnv
-	env = append(env, ExtraEnvVars()...)
+
+	// Do we need to call ExtraEnvVars, which is a bit expensive?
+	// Only if we're listing all environment variables ("go env")
+	// or the variables being requested are in the extra list.
+	needExtra := true
+	if len(args) > 0 {
+		needExtra = false
+		for _, arg := range args {
+			switch arg {
+			case "CGO_CFLAGS",
+				"CGO_CPPFLAGS",
+				"CGO_CXXFLAGS",
+				"CGO_FFLAGS",
+				"CGO_LDFLAGS",
+				"PKG_CONFIG",
+				"GOGCCFLAGS":
+				needExtra = true
+			}
+		}
+	}
+	if needExtra {
+		env = append(env, ExtraEnvVars()...)
+	}
+
 	if len(args) > 0 {
 		if *envJson {
 			var es []cfg.EnvVar

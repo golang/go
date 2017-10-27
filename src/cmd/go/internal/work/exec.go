@@ -1232,30 +1232,39 @@ func (b *Builder) gccld(p *load.Package, objdir, out string, flags []string, obj
 	return b.run(p.Dir, p.ImportPath, nil, cmd, "-o", out, objs, flags)
 }
 
+// Grab these before main helpfully overwrites them.
+var (
+	origCC  = os.Getenv("CC")
+	origCXX = os.Getenv("CXX")
+)
+
 // gccCmd returns a gcc command line prefix
 // defaultCC is defined in zdefaultcc.go, written by cmd/dist.
 func (b *Builder) GccCmd(incdir, workdir string) []string {
-	return b.compilerCmd("CC", cfg.DefaultCC, incdir, workdir)
+	return b.compilerCmd(origCC, cfg.DefaultCC, incdir, workdir)
 }
 
 // gxxCmd returns a g++ command line prefix
 // defaultCXX is defined in zdefaultcc.go, written by cmd/dist.
 func (b *Builder) GxxCmd(incdir, workdir string) []string {
-	return b.compilerCmd("CXX", cfg.DefaultCXX, incdir, workdir)
+	return b.compilerCmd(origCXX, cfg.DefaultCXX, incdir, workdir)
 }
 
 // gfortranCmd returns a gfortran command line prefix.
 func (b *Builder) gfortranCmd(incdir, workdir string) []string {
-	return b.compilerCmd("FC", "gfortran", incdir, workdir)
+	return b.compilerCmd(os.Getenv("FC"), "gfortran", incdir, workdir)
 }
 
 // compilerCmd returns a command line prefix for the given environment
 // variable and using the default command when the variable is empty.
-func (b *Builder) compilerCmd(envvar, defcmd, incdir, workdir string) []string {
+func (b *Builder) compilerCmd(envValue, defcmd, incdir, workdir string) []string {
 	// NOTE: env.go's mkEnv knows that the first three
 	// strings returned are "gcc", "-I", incdir (and cuts them off).
 
-	compiler := envList(envvar, defcmd)
+	if envValue == "" {
+		envValue = defcmd
+	}
+	compiler := strings.Fields(envValue)
 	a := []string{compiler[0], "-I", incdir}
 	a = append(a, compiler[1:]...)
 
