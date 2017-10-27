@@ -20,6 +20,7 @@
 package runtime
 
 import (
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -94,6 +95,37 @@ func (b *wbBuf) reset() {
 	}
 }
 
+// putFast adds old and new to the write barrier buffer and returns
+// false if a flush is necessary. Callers should use this as:
+//
+//     buf := &getg().m.p.ptr().wbBuf
+//     if !buf.putFast(old, new) {
+//         wbBufFlush(...)
+//     }
+//
+// The arguments to wbBufFlush depend on whether the caller is doing
+// its own cgo pointer checks. If it is, then this can be
+// wbBufFlush(nil, 0). Otherwise, it must pass the slot address and
+// new.
+//
+// Since buf is a per-P resource, the caller must ensure there are no
+// preemption points while buf is in use.
+//
+// It must be nowritebarrierrec to because write barriers here would
+// corrupt the write barrier buffer. It (and everything it calls, if
+// it called anything) has to be nosplit to avoid scheduling on to a
+// different P and a different buffer.
+//
+//go:nowritebarrierrec
+//go:nosplit
+func (b *wbBuf) putFast(old, new uintptr) bool {
+	p := (*[2]uintptr)(unsafe.Pointer(b.next))
+	p[0] = old
+	p[1] = new
+	b.next += 2 * sys.PtrSize
+	return b.next != b.end
+}
+
 // wbBufFlush flushes the current P's write barrier buffer to the GC
 // workbufs. It is passed the slot and value of the write barrier that
 // caused the flush so that it can implement cgocheck.
@@ -118,7 +150,7 @@ func wbBufFlush(dst *uintptr, src uintptr) {
 		return
 	}
 
-	if writeBarrier.cgo {
+	if writeBarrier.cgo && dst != nil {
 		// This must be called from the stack that did the
 		// write. It's nosplit all the way down.
 		cgoCheckWriteBarrier(dst, src)
