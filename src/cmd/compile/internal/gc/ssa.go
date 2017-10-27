@@ -4511,7 +4511,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 	s.pp = pp
 	var progToValue map[*obj.Prog]*ssa.Value
 	var progToBlock map[*obj.Prog]*ssa.Block
-	var valueToProg []*obj.Prog
+	var valueToProgAfter []*obj.Prog // The first Prog following computation of a value v; v is visible at this point.
 	var logProgs = e.log
 	if logProgs {
 		progToValue = make(map[*obj.Prog]*ssa.Value, f.NumValues())
@@ -4529,8 +4529,9 @@ func genssa(f *ssa.Func, pp *Progs) {
 	logLocationLists := Debug_locationlist != 0
 	if Ctxt.Flag_locationlists {
 		e.curfn.Func.DebugInfo = ssa.BuildFuncDebug(f, logLocationLists)
-		valueToProg = make([]*obj.Prog, f.NumValues())
+		valueToProgAfter = make([]*obj.Prog, f.NumValues())
 	}
+
 	// Emit basic blocks
 	for i, b := range f.Blocks {
 		s.bstart[b.ID] = s.pp.next
@@ -4579,7 +4580,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 			}
 
 			if Ctxt.Flag_locationlists {
-				valueToProg[v.ID] = x
+				valueToProgAfter[v.ID] = s.pp.next
 			}
 			if logProgs {
 				for ; x != s.pp.next; x = x.Link {
@@ -4614,7 +4615,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 					if loc.Start == ssa.BlockStart {
 						loc.StartProg = s.bstart[f.Blocks[i].ID]
 					} else {
-						loc.StartProg = valueToProg[loc.Start.ID]
+						loc.StartProg = valueToProgAfter[loc.Start.ID]
 					}
 					if loc.End == nil {
 						Fatalf("empty loc %v compiling %v", loc, f.Name)
@@ -4630,7 +4631,12 @@ func genssa(f *ssa.Func, pp *Progs) {
 							loc.EndProg = s.bstart[f.Blocks[i+1].ID]
 						}
 					} else {
-						loc.EndProg = valueToProg[loc.End.ID]
+						// Advance the "end" forward by one; the end-of-range doesn't take effect
+						// until the instruction actually executes.
+						loc.EndProg = valueToProgAfter[loc.End.ID].Link
+						if loc.EndProg == nil {
+							Fatalf("nil loc.EndProg compiling %v, loc=%v", f.Name, loc)
+						}
 					}
 					if !logLocationLists {
 						loc.Start = nil

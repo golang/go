@@ -56,11 +56,11 @@ func main() {
 	// For #19868
 	l := line{point{1 + zero, 2 + zero}, point{3 + zero, 4 + zero}}
 	tinycall()                // this forces l etc to stack
-	dx := l.end.x - l.begin.x //gdb-dbg=(l.begin.x,l.end.y)
-	dy := l.end.y - l.begin.y //gdb-opt=(dx)
-	sink = dx + dy
+	dx := l.end.x - l.begin.x //gdb-dbg=(l.begin.x,l.end.y)//gdb-opt=(l,dx/O,dy/O)
+	dy := l.end.y - l.begin.y //gdb-opt=(dx,dy/O)
+	sink = dx + dy            //gdb-opt=(dx,dy)
 	// For #21098
-	hist := make([]int, 7)                                //gdb-opt=(sink)
+	hist := make([]int, 7)                                //gdb-opt=(sink,dx/O,dy/O)
 	var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A,cannedInput/A)
 	if len(os.Args) > 1 {
 		var err error

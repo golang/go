@@ -34,6 +34,9 @@ var inlines = flag.Bool("i", false, "do inlining for gdb (makes testing flaky ti
 var hexRe = regexp.MustCompile("0x[a-zA-Z0-9]+")
 var numRe = regexp.MustCompile("-?[0-9]+")
 var stringRe = regexp.MustCompile("\"([^\\\"]|(\\.))*\"")
+var leadingDollarNumberRe = regexp.MustCompile("^[$][0-9]+")
+var optOutGdbRe = regexp.MustCompile("[<]optimized out[>]")
+var numberColonRe = regexp.MustCompile("^ *[0-9]+:")
 
 var gdb = "gdb"      // Might be "ggdb" on Darwin, because gdb no longer part of XCode
 var debugger = "gdb" // For naming files, etc.
@@ -68,8 +71,9 @@ var debugger = "gdb" // For naming files, etc.
 // The file being tested may contain comments of the form
 // //DBG-TAG=(v1,v2,v3)
 // where DBG = {gdb,dlv} and TAG={dbg,opt}
-// each variable may optionally be followed by a / and one or more of S,A,N
+// each variable may optionally be followed by a / and one or more of S,A,N,O
 // to indicate normalization of Strings, (hex) addresses, and numbers.
+// "O" is an explicit indication that we expect it to be optimized out.
 // For example:
 /*
 	if len(os.Args) > 1 { //gdb-dbg=(hist/A,cannedInput/A) //dlv-dbg=(hist/A,cannedInput/A)
@@ -302,13 +306,9 @@ func (h *nextHist) write(filename string) {
 			lastfile = p.file
 		}
 		fmt.Fprintf(file, "%d:%s\n", p.line, x)
-		// Vars must begin with a dollar-sign.
 		// TODO, normalize between gdb and dlv into a common, comparable format.
 		for _, y := range h.vars[i] {
 			y = strings.TrimSpace(y)
-			if y[0] != '$' {
-				panic(fmt.Sprintf("Var line '%s' must begin with $, but does not\n", y))
-			}
 			fmt.Fprintf(file, "%s\n", y)
 		}
 	}
@@ -328,15 +328,15 @@ func (h *nextHist) read(filename string) {
 			if l[0] == ' ' {
 				// file -- first two characters expected to be "  "
 				lastfile = strings.TrimSpace(l)
-			} else if l[0] == '$' {
-				h.addVar(l)
-			} else {
+			} else if numberColonRe.MatchString(l) {
 				// line number -- <number>:<line>
 				colonPos := strings.Index(l, ":")
 				if colonPos == -1 {
 					panic(fmt.Sprintf("Line %d (%s) in file %s expected to contain '<number>:' but does not.\n", i+1, l, filename))
 				}
 				h.add(lastfile, l[0:colonPos], l[colonPos+1:])
+			} else {
+				h.addVar(l)
 			}
 		}
 	}
@@ -634,7 +634,11 @@ func (s *gdbState) stepnext(ss string) bool {
 		if cr == -1 {
 			cr = len(response)
 		}
+		// Convert the leading $<number> into $<N> to limit scope of diffs
+		// when a new print-this-variable comment is added.
 		response = strings.TrimSpace(response[dollar:cr])
+		response = leadingDollarNumberRe.ReplaceAllString(response, v)
+
 		if strings.Contains(substitutions, "A") {
 			response = hexRe.ReplaceAllString(response, "<A>")
 		}
@@ -643,6 +647,9 @@ func (s *gdbState) stepnext(ss string) bool {
 		}
 		if strings.Contains(substitutions, "S") {
 			response = stringRe.ReplaceAllString(response, "<S>")
+		}
+		if strings.Contains(substitutions, "O") {
+			response = optOutGdbRe.ReplaceAllString(response, "<Optimized out, as expected>")
 		}
 		s.ioState.history.addVar(response)
 	}
