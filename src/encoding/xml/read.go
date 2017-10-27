@@ -113,7 +113,7 @@ import (
 // Unmarshal maps an XML element or attribute value to an integer or
 // floating-point field by setting the field to the result of
 // interpreting the string value in decimal. There is no check for
-// overflow.
+// overflow. Whitespace is trimmed and ignored.
 //
 // Unmarshal maps an XML element to a Name by recording the element
 // name.
@@ -615,7 +615,7 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
 			dst.SetInt(0)
 			return nil
 		}
-		itmp, err := strconv.ParseInt(string(src), 10, dst.Type().Bits())
+		itmp, err := strconv.ParseInt(strings.TrimSpace(string(src)), 10, dst.Type().Bits())
 		if err != nil {
 			return err
 		}
@@ -625,7 +625,7 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
 			dst.SetUint(0)
 			return nil
 		}
-		utmp, err := strconv.ParseUint(string(src), 10, dst.Type().Bits())
+		utmp, err := strconv.ParseUint(strings.TrimSpace(string(src)), 10, dst.Type().Bits())
 		if err != nil {
 			return err
 		}
@@ -635,7 +635,7 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
 			dst.SetFloat(0)
 			return nil
 		}
-		ftmp, err := strconv.ParseFloat(string(src), dst.Type().Bits())
+		ftmp, err := strconv.ParseFloat(strings.TrimSpace(string(src)), dst.Type().Bits())
 		if err != nil {
 			return err
 		}

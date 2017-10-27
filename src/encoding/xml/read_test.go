@@ -912,12 +912,50 @@ func TestUnmarshalEmptyValues(t *testing.T) {
 type WhitespaceValuesParent struct {
 	BFalse bool
 	BTrue  bool
+	I      int
+	INeg   int
+	I8     int8
+	I8Neg  int8
+	I16    int16
+	I16Neg int16
+	I32    int32
+	I32Neg int32
+	I64    int64
+	I64Neg int64
+	UI     uint
+	UI8    uint8
+	UI16   uint16
+	UI32   uint32
+	UI64   uint64
+	F32    float32
+	F32Neg float32
+	F64    float64
+	F64Neg float64
 }
 
 const whitespaceValuesXML = `
 <WhitespaceValuesParent>
     <BFalse>   false   </BFalse>
     <BTrue>   true   </BTrue>
+    <I>   266703   </I>
+    <INeg>   -266703   </INeg>
+    <I8>  112  </I8>
+    <I8Neg>  -112  </I8Neg>
+    <I16>  6703  </I16>
+    <I16Neg>  -6703  </I16Neg>
+    <I32>  266703  </I32>
+    <I32Neg>  -266703  </I32Neg>
+    <I64>  266703  </I64>
+    <I64Neg>  -266703  </I64Neg>
+    <UI>   266703   </UI>
+    <UI8>  112  </UI8>
+    <UI16>  6703  </UI16>
+    <UI32>  266703  </UI32>
+    <UI64>  266703  </UI64>
+    <F32>  266.703  </F32>
+    <F32Neg>  -266.703  </F32Neg>
+    <F64>  266.703  </F64>
+    <F64Neg>  -266.703  </F64Neg>
 </WhitespaceValuesParent>
 `
 
@@ -931,6 +969,25 @@ func TestUnmarshalWhitespaceValues(t *testing.T) {
 	want := WhitespaceValuesParent{
 		BFalse: false,
 		BTrue:  true,
+		I:      266703,
+		INeg:   -266703,
+		I8:     112,
+		I8Neg:  -112,
+		I16:    6703,
+		I16Neg: -6703,
+		I32:    266703,
+		I32Neg: -266703,
+		I64:    266703,
+		I64Neg: -266703,
+		UI:     266703,
+		UI8:    112,
+		UI16:   6703,
+		UI32:   266703,
+		UI64:   266703,
+		F32:    266.703,
+		F32Neg: -266.703,
+		F64:    266.703,
+		F64Neg: -266.703,
 	}
 	if v != want {
 		t.Fatalf("whitespace values: Unmarshal:\nhave: %#+v\nwant: %#+v", v, want)
@@ -938,14 +995,52 @@ func TestUnmarshalWhitespaceValues(t *testing.T) {
 }
 
 type WhitespaceAttrsParent struct {
-	BFalse bool `xml:",attr"`
-	BTrue  bool `xml:",attr"`
+	BFalse bool    `xml:",attr"`
+	BTrue  bool    `xml:",attr"`
+	I      int     `xml:",attr"`
+	INeg   int     `xml:",attr"`
+	I8     int8    `xml:",attr"`
+	I8Neg  int8    `xml:",attr"`
+	I16    int16   `xml:",attr"`
+	I16Neg int16   `xml:",attr"`
+	I32    int32   `xml:",attr"`
+	I32Neg int32   `xml:",attr"`
+	I64    int64   `xml:",attr"`
+	I64Neg int64   `xml:",attr"`
+	UI     uint    `xml:",attr"`
+	UI8    uint8   `xml:",attr"`
+	UI16   uint16  `xml:",attr"`
+	UI32   uint32  `xml:",attr"`
+	UI64   uint64  `xml:",attr"`
+	F32    float32 `xml:",attr"`
+	F32Neg float32 `xml:",attr"`
+	F64    float64 `xml:",attr"`
+	F64Neg float64 `xml:",attr"`
 }
 
 const whitespaceAttrsXML = `
 <WhitespaceAttrsParent
     BFalse="  false  "
     BTrue="  true  "
+    I="  266703  "
+    INeg="  -266703  "
+    I8="  112  "
+    I8Neg="  -112  "
+    I16="  6703  "
+    I16Neg="  -6703  "
+    I32="  266703  "
+    I32Neg="  -266703  "
+    I64="  266703  "
+    I64Neg="  -266703  "
+    UI="  266703  "
+    UI8="  112  "
+    UI16="  6703  "
+    UI32="  266703  "
+    UI64="  266703  "
+    F32="  266.703  "
+    F32Neg="  -266.703  "
+    F64="  266.703  "
+    F64Neg="  -266.703  "
 >
 </WhitespaceAttrsParent>
 `
@@ -960,6 +1055,25 @@ func TestUnmarshalWhitespaceAttrs(t *testing.T) {
 	want := WhitespaceAttrsParent{
 		BFalse: false,
 		BTrue:  true,
+		I:      266703,
+		INeg:   -266703,
+		I8:     112,
+		I8Neg:  -112,
+		I16:    6703,
+		I16Neg: -6703,
+		I32:    266703,
+		I32Neg: -266703,
+		I64:    266703,
+		I64Neg: -266703,
+		UI:     266703,
+		UI8:    112,
+		UI16:   6703,
+		UI32:   266703,
+		UI64:   266703,
+		F32:    266.703,
+		F32Neg: -266.703,
+		F64:    266.703,
+		F64Neg: -266.703,
 	}
 	if v != want {
 		t.Fatalf("whitespace attrs: Unmarshal:\nhave: %#+v\nwant: %#+v", v, want)
