@@ -51,6 +51,10 @@
 #
 # GO_DISTFLAGS: extra flags to provide to "dist bootstrap".
 # (Or just pass them to the make.bash command line.)
+#
+# GOBUILDTIMELOGFILE: If set, make.bash and all.bash write
+# timing information to this file. Useful for profiling where the
+# time goes when these scripts run.
 
 set -e
 
@@ -59,6 +63,10 @@ unset GOBIN # Issue 14340
 if [ ! -f run.bash ]; then
 	echo 'make.bash must be run from $GOROOT/src' 1>&2
 	exit 1
+fi
+
+if [ "$GOBUILDTIMELOGFILE" != "" ]; then
+	echo $(date) start make.bash >"$GOBUILDTIMELOGFILE"
 fi
 
 # Test for Windows.
