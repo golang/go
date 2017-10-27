@@ -395,3 +395,16 @@ func LockOSCounts() (external, internal uint32) {
 	}
 	return g.m.lockedExt, g.m.lockedInt
 }
+
+//go:noinline
+func TracebackSystemstack(stk []uintptr, i int) int {
+	if i == 0 {
+		pc, sp := getcallerpc(), getcallersp(unsafe.Pointer(&stk))
+		return gentraceback(pc, sp, 0, getg(), 0, &stk[0], len(stk), nil, nil, _TraceJumpStack)
+	}
+	n := 0
+	systemstack(func() {
+		n = TracebackSystemstack(stk, i-1)
+	})
+	return n
+}

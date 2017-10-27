@@ -215,9 +215,12 @@ switch:
 
 noswitch:
 	// already on m stack, just call directly
+	// Using a tail call here cleans up tracebacks since we won't stop
+	// at an intermediate systemstack.
 	MOVW	0(REGCTXT), R4	// code pointer
-	JAL	(R4)
-	RET
+	MOVW	0(R29), R31	// restore LR
+	ADD	$4, R29
+	JMP	(R4)
 
 /*
  * support for morestack

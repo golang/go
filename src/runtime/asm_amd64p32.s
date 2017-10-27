@@ -306,10 +306,11 @@ switch:
 
 noswitch:
 	// already on m stack, just call directly
+	// Using a tail call here cleans up tracebacks since we won't stop
+	// at an intermediate systemstack.
 	MOVL	DI, DX
 	MOVL	0(DI), DI
-	CALL	DI
-	RET
+	JMP	DI
 
 /*
  * support for morestack

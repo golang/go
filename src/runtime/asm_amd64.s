@@ -419,11 +419,12 @@ switch:
 	RET
 
 noswitch:
-	// already on m stack, just call directly
+	// already on m stack; tail call the function
+	// Using a tail call here cleans up tracebacks since we won't stop
+	// at an intermediate systemstack.
 	MOVQ	DI, DX
 	MOVQ	0(DI), DI
-	CALL	DI
-	RET
+	JMP	DI
 
 /*
  * support for morestack
