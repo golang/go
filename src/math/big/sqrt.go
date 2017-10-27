@@ -7,10 +7,9 @@ package big
 import "math"
 
 var (
-	nhalf = NewFloat(-0.5)
 	half  = NewFloat(0.5)
-	one   = NewFloat(1.0)
 	two   = NewFloat(2.0)
+	three = NewFloat(3.0)
 )
 
 // Sqrt sets z to the rounded square root of x, and returns it.
@@ -90,14 +89,15 @@ func (z *Float) sqrtDirect(x *Float) {
 	//   f(t) = t² - x
 	// then
 	//   g(t) = f(t)/f'(t) = ½(t² - x)/t
+	// and the next guess is given by
+	//   t2 = t - g(t) = ½(t² + x)/t
 	u := new(Float)
-	g := func(t *Float) *Float {
+	ng := func(t *Float) *Float {
 		u.prec = t.prec
-		u.Mul(t, t)    // u = t²
-		u.Sub(u, x)    //   = t² - x
-		u.Mul(half, u) //   = ½(t² - x)
-		u.Quo(u, t)    //   = ½(t² - x)/t
-		return u
+		u.Mul(t, t)        // u = t²
+		u.Add(u, x)        //   = t² + x
+		u.Mul(half, u)     //   = ½(t² + x)
+		return t.Quo(u, t) //   = ½(t² + x)/t
 	}
 
 	xf, _ := x.Float64()
@@ -108,11 +108,11 @@ func (z *Float) sqrtDirect(x *Float) {
 		panic("sqrtDirect: only for z.prec <= 128")
 	case z.prec > 64:
 		sq.prec *= 2
-		sq.Sub(sq, g(sq))
+		sq = ng(sq)
 		fallthrough
 	default:
 		sq.prec *= 2
-		sq.Sub(sq, g(sq))
+		sq = ng(sq)
 	}
 
 	z.Set(sq)
@@ -126,22 +126,23 @@ func (z *Float) sqrtInverse(x *Float) {
 	//   f(t) = 1/t² - x
 	// then
 	//   g(t) = f(t)/f'(t) = -½t(1 - xt²)
+	// and the next guess is given by
+	//   t2 = t - g(t) = ½t(3 - xt²)
 	u := new(Float)
-	g := func(t *Float) *Float {
+	ng := func(t *Float) *Float {
 		u.prec = t.prec
-		u.Mul(t, t)     // u = t²
-		u.Mul(x, u)     //   = xt²
-		u.Sub(one, u)   //   = 1 - xt²
-		u.Mul(nhalf, u) //   = -½(1 - xt²)
-		u.Mul(t, u)     //   = -½t(1 - xt²)
-		return u
+		u.Mul(t, t)           // u = t²
+		u.Mul(x, u)           //   = xt²
+		u.Sub(three, u)       //   = 3 - xt²
+		u.Mul(t, u)           //   = t(3 - xt²)
+		return t.Mul(half, u) //   = ½t(3 - xt²)
 	}
 
 	xf, _ := x.Float64()
 	sqi := NewFloat(1 / math.Sqrt(xf))
 	for prec := 2 * z.prec; sqi.prec < prec; {
 		sqi.prec *= 2
-		sqi.Sub(sqi, g(sqi))
+		sqi = ng(sqi)
 	}
 	// sqi = 1/√x
 
