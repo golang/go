@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"flag"
 	"io"
 	. "runtime"
 	"runtime/debug"
@@ -12,6 +13,8 @@ import (
 	"testing"
 	"unsafe"
 )
+
+var flagQuick = flag.Bool("quick", false, "skip slow tests, for second run in all.bash")
 
 func init() {
 	// We're testing the runtime, so make tracebacks show things
