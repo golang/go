@@ -296,6 +296,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	FMADDS	F1, F2, F3             // b30e3012
 	FMSUB	F4, F5, F5             // b31f5045
 	FMSUBS	F6, F6, F7             // b30f7066
+	LPDFR	F1, F2                 // b3700021
+	LNDFR	F3, F4                 // b3710043
+	CPSDR	F5, F6, F7             // b3725076
 
 	VL	(R15), V1               // e710f0000006
 	VST	V1, (R15)               // e710f000000e
