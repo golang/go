@@ -300,7 +300,7 @@ func ExampleTime_Format() {
 }
 
 func ExampleParse() {
-	// See the example for time.Format for a thorough description of how
+	// See the example for Time.Format for a thorough description of how
 	// to define the layout string to parse a time.Time value; Parse and
 	// Format use the same model to describe their input and output.
 
@@ -317,9 +317,25 @@ func ExampleParse() {
 	t, _ = time.Parse(shortForm, "2013-Feb-03")
 	fmt.Println(t)
 
+	// Valid layouts may not be a valid time value, due to format specifiers
+	// like _ for zero padding or Z for zone information.
+	// For example the RFC3339 layout 2006-01-02T15:04:05Z07:00
+	// contains both Z and a time zone offset in order to handle both valid options:
+	// 2006-01-02T15:04:05Z
+	// 2006-01-02T15:04:05+07:00
+	t, _ = time.Parse(time.RFC3339, "2006-01-02T15:04:05Z")
+	fmt.Println(t)
+	t, _ = time.Parse(time.RFC3339, "2006-01-02T15:04:05+07:00")
+	fmt.Println(t)
+	_, err := time.Parse(time.RFC3339, time.RFC3339)
+	fmt.Println("error", err) // Returns an error as the layout is not a valid time value
+
 	// Output:
 	// 2013-02-03 19:54:00 -0800 PST
 	// 2013-02-03 00:00:00 +0000 UTC
+	// 2006-01-02 15:04:05 +0000 UTC
+	// 2006-01-02 15:04:05 +0700 +0700
+	// error parsing time "2006-01-02T15:04:05Z07:00": extra text: 07:00
 }
 
 func ExampleParseInLocation() {
