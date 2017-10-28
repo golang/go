@@ -1103,12 +1103,15 @@ func (s *regAllocState) regalloc(f *Func) {
 			if v.Op == OpKeepAlive {
 				// Make sure the argument to v is still live here.
 				s.advanceUses(v)
-				vi := &s.values[v.Args[0].ID]
-				if vi.spill != nil {
+				a := v.Args[0]
+				vi := &s.values[a.ID]
+				if vi.regs == 0 && !vi.rematerializeable {
 					// Use the spill location.
-					v.SetArg(0, vi.spill)
+					// This forces later liveness analysis to make the
+					// value live at this point.
+					v.SetArg(0, s.makeSpill(a, b))
 				} else {
-					// No need to keep unspilled values live.
+					// In-register and rematerializeable values are already live.
 					// These are typically rematerializeable constants like nil,
 					// or values of a variable that were modified since the last call.
 					v.Op = OpCopy
