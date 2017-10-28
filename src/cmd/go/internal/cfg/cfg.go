@@ -100,22 +100,41 @@ func findGOROOT() string {
 	if env := os.Getenv("GOROOT"); env != "" {
 		return filepath.Clean(env)
 	}
+	def := filepath.Clean(runtime.GOROOT())
 	exe, err := os.Executable()
 	if err == nil {
 		exe, err = filepath.Abs(exe)
 		if err == nil {
 			if dir := filepath.Join(exe, "../.."); isGOROOT(dir) {
+				// If def (runtime.GOROOT()) and dir are the same
+				// directory, prefer the spelling used in def.
+				if isSameDir(def, dir) {
+					return def
+				}
 				return dir
 			}
 			exe, err = filepath.EvalSymlinks(exe)
 			if err == nil {
 				if dir := filepath.Join(exe, "../.."); isGOROOT(dir) {
+					if isSameDir(def, dir) {
+						return def
+					}
 					return dir
 				}
 			}
 		}
 	}
-	return filepath.Clean(runtime.GOROOT())
+	return def
+}
+
+// isSameDir reports whether dir1 and dir2 are the same directory.
+func isSameDir(dir1, dir2 string) bool {
+	if dir1 == dir2 {
+		return true
+	}
+	info1, err1 := os.Stat(dir1)
+	info2, err2 := os.Stat(dir2)
+	return err1 == nil && err2 == nil && os.SameFile(info1, info2)
 }
 
 // isGOROOT reports whether path looks like a GOROOT.
