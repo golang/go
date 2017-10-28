@@ -702,18 +702,55 @@ func resetFileStamps() {
 	reset(gorootInstallDir)
 }
 
-// touch makes path newer than the "old" time stamp used by resetFileStamps.
-func touch(path string) {
+// touch changes path and returns a function that changes it back.
+// It also sets the time of the file, so that we can see if it is rewritten.
+func touch(t *testing.T, path string) (cleanup func()) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := make([]byte, len(data))
+	copy(old, data)
+	if bytes.HasPrefix(data, []byte("!<arch>\n")) {
+		// Change last digit of build ID.
+		// (Content ID in the new content-based build IDs.)
+		const marker = `build id "`
+		i := bytes.Index(data, []byte(marker))
+		if i < 0 {
+			t.Fatal("cannot find build id in archive")
+		}
+		j := bytes.IndexByte(data[i+len(marker):], '"')
+		if j < 0 {
+			t.Fatal("cannot find build id in archive")
+		}
+		i += len(marker) + j - 1
+		if data[i] == 'a' {
+			data[i] = 'b'
+		} else {
+			data[i] = 'a'
+		}
+	} else {
+		// assume it's a text file
+		data = append(data, '\n')
+	}
+	if err := ioutil.WriteFile(path, data, 0666); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Chtimes(path, nearlyNew, nearlyNew); err != nil {
-		log.Fatalf("os.Chtimes failed: %v", err)
+		t.Fatal(err)
+	}
+	return func() {
+		if err := ioutil.WriteFile(path, old, 0666); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
 // isNew returns if the path is newer than the time stamp used by touch.
-func isNew(path string) bool {
+func isNew(t *testing.T, path string) bool {
 	fi, err := os.Stat(path)
 	if err != nil {
-		log.Fatalf("os.Stat failed: %v", err)
+		t.Fatal(err)
 	}
 	return fi.ModTime().After(stampTime)
 }
@@ -721,14 +758,16 @@ func isNew(path string) bool {
 // Fail unless path has been rebuilt (i.e. is newer than the time stamp used by
 // isNew)
 func AssertRebuilt(t *testing.T, msg, path string) {
-	if !isNew(path) {
+	t.Helper()
+	if !isNew(t, path) {
 		t.Errorf("%s was not rebuilt (%s)", msg, path)
 	}
 }
 
 // Fail if path has been rebuilt (i.e. is newer than the time stamp used by isNew)
 func AssertNotRebuilt(t *testing.T, msg, path string) {
-	if isNew(path) {
+	t.Helper()
+	if isNew(t, path) {
 		t.Errorf("%s was rebuilt (%s)", msg, path)
 	}
 }
@@ -738,41 +777,55 @@ func TestRebuilding(t *testing.T) {
 	goCmd(t, "install", "-linkshared", "exe")
 
 	// If the source is newer than both the .a file and the .so, both are rebuilt.
-	resetFileStamps()
-	touch("src/depBase/dep.go")
-	goCmd(t, "install", "-linkshared", "exe")
-	AssertRebuilt(t, "new source", filepath.Join(gopathInstallDir, "depBase.a"))
-	AssertRebuilt(t, "new source", filepath.Join(gopathInstallDir, "libdepBase.so"))
+	t.Run("newsource", func(t *testing.T) {
+		resetFileStamps()
+		cleanup := touch(t, "src/depBase/dep.go")
+		defer func() {
+			cleanup()
+			goCmd(t, "install", "-linkshared", "exe")
+		}()
+		goCmd(t, "install", "-linkshared", "exe")
+		AssertRebuilt(t, "new source", filepath.Join(gopathInstallDir, "depBase.a"))
+		AssertRebuilt(t, "new source", filepath.Join(gopathInstallDir, "libdepBase.so"))
+	})
 
 	// If the .a file is newer than the .so, the .so is rebuilt (but not the .a)
-	resetFileStamps()
-	touch(filepath.Join(gopathInstallDir, "depBase.a"))
-	goCmd(t, "install", "-linkshared", "exe")
-	AssertNotRebuilt(t, "new .a file", filepath.Join(gopathInstallDir, "depBase.a"))
-	AssertRebuilt(t, "new .a file", filepath.Join(gopathInstallDir, "libdepBase.so"))
+	t.Run("newarchive", func(t *testing.T) {
+		resetFileStamps()
+		goCmd(t, "list", "-linkshared", "-f={{.ImportPath}} {{.Stale}} {{.StaleReason}} {{.Target}}", "depBase")
+		AssertNotRebuilt(t, "new .a file before build", filepath.Join(gopathInstallDir, "depBase.a"))
+		cleanup := touch(t, filepath.Join(gopathInstallDir, "depBase.a"))
+		defer func() {
+			cleanup()
+			goCmd(t, "install", "-v", "-linkshared", "exe")
+		}()
+		goCmd(t, "install", "-v", "-linkshared", "exe")
+		AssertNotRebuilt(t, "new .a file", filepath.Join(gopathInstallDir, "depBase.a"))
+		AssertRebuilt(t, "new .a file", filepath.Join(gopathInstallDir, "libdepBase.so"))
+	})
 }
 
-func appendFile(path, content string) {
+func appendFile(t *testing.T, path, content string) {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0660)
 	if err != nil {
-		log.Fatalf("os.OpenFile failed: %v", err)
+		t.Fatalf("os.OpenFile failed: %v", err)
 	}
 	defer func() {
 		err := f.Close()
 		if err != nil {
-			log.Fatalf("f.Close failed: %v", err)
+			t.Fatalf("f.Close failed: %v", err)
 		}
 	}()
 	_, err = f.WriteString(content)
 	if err != nil {
-		log.Fatalf("f.WriteString failed: %v", err)
+		t.Fatalf("f.WriteString failed: %v", err)
 	}
 }
 
-func writeFile(path, content string) {
+func writeFile(t *testing.T, path, content string) {
 	err := ioutil.WriteFile(path, []byte(content), 0644)
 	if err != nil {
-		log.Fatalf("ioutil.WriteFile failed: %v", err)
+		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
 }
 
@@ -786,7 +839,7 @@ func TestABIChecking(t *testing.T) {
 	// some senses but suffices for the narrow definition of ABI compatibility the
 	// toolchain uses today.
 	resetFileStamps()
-	appendFile("src/depBase/dep.go", "func ABIBreak() {}\n")
+	appendFile(t, "src/depBase/dep.go", "func ABIBreak() {}\n")
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "depBase")
 	c := exec.Command("./bin/exe")
 	output, err := c.CombinedOutput()
@@ -817,7 +870,7 @@ func TestABIChecking(t *testing.T) {
 	// function) and rebuild libdepBase.so, exe still works, even if new function
 	// is in a file by itself.
 	resetFileStamps()
-	writeFile("src/depBase/dep2.go", "package depBase\nfunc noABIBreak() {}\n")
+	writeFile(t, "src/depBase/dep2.go", "package depBase\nfunc noABIBreak() {}\n")
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "depBase")
 	run(t, "after non-ABI breaking change", "./bin/exe")
 }
