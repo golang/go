@@ -352,19 +352,18 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int) {
 		discardable := true // true if all cells in this column are empty and "soft"
 		for ; this < line1; this++ {
 			line = b.lines[this]
-			if column < len(line)-1 {
-				// cell exists in this column
-				c := line[column]
-				// update width
-				if w := c.width + b.padding; w > width {
-					width = w
-				}
-				// update discardable
-				if c.width > 0 || c.htab {
-					discardable = false
-				}
-			} else {
+			if column >= len(line)-1 {
 				break
+			}
+			// cell exists in this column
+			c := line[column]
+			// update width
+			if w := c.width + b.padding; w > width {
+				width = w
+			}
+			// update discardable
+			if c.width > 0 || c.htab {
+				discardable = false
 			}
 		}
 		// column block end

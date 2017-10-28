@@ -338,15 +338,14 @@ func (m *machine) onepass(i input, pos, ncap int) bool {
 	if pos == 0 && syntax.EmptyOp(inst.Arg)&^flag == 0 &&
 		len(m.re.prefix) > 0 && i.canCheckPrefix() {
 		// Match requires literal prefix; fast search for it.
-		if i.hasPrefix(m.re) {
-			pos += len(m.re.prefix)
-			r, width = i.step(pos)
-			r1, width1 = i.step(pos + width)
-			flag = i.context(pos)
-			pc = int(m.re.prefixEnd)
-		} else {
+		if !i.hasPrefix(m.re) {
 			return m.matched
 		}
+		pos += len(m.re.prefix)
+		r, width = i.step(pos)
+		r1, width1 = i.step(pos + width)
+		flag = i.context(pos)
+		pc = int(m.re.prefixEnd)
 	}
 	for {
 		inst = m.op.Inst[pc]
