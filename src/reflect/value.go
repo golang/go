@@ -1074,15 +1074,14 @@ func (v Value) MapIndex(key Value) Value {
 	typ := tt.elem
 	fl := (v.flag | key.flag).ro()
 	fl |= flag(typ.Kind())
-	if ifaceIndir(typ) {
-		// Copy result so future changes to the map
-		// won't change the underlying value.
-		c := unsafe_New(typ)
-		typedmemmove(typ, c, e)
-		return Value{typ, c, fl | flagIndir}
-	} else {
+	if !ifaceIndir(typ) {
 		return Value{typ, *(*unsafe.Pointer)(e), fl}
 	}
+	// Copy result so future changes to the map
+	// won't change the underlying value.
+	c := unsafe_New(typ)
+	typedmemmove(typ, c, e)
+	return Value{typ, c, fl | flagIndir}
 }
 
 // MapKeys returns a slice containing all the keys present in the map,

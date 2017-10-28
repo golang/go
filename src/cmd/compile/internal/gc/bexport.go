@@ -1056,17 +1056,16 @@ func parName(f *types.Field, numbered bool) string {
 	// Take the name from the original, lest we substituted it with ~r%d or ~b%d.
 	// ~r%d is a (formerly) unnamed result.
 	if asNode(f.Nname) != nil {
-		if asNode(f.Nname).Orig != nil {
-			s = asNode(f.Nname).Orig.Sym
-			if s != nil && s.Name[0] == '~' {
-				if s.Name[1] == 'r' { // originally an unnamed result
-					return "" // s = nil
-				} else if s.Name[1] == 'b' { // originally the blank identifier _
-					return "_" // belongs to localpkg
-				}
-			}
-		} else {
+		if asNode(f.Nname).Orig == nil {
 			return "" // s = nil
+		}
+		s = asNode(f.Nname).Orig.Sym
+		if s != nil && s.Name[0] == '~' {
+			if s.Name[1] == 'r' { // originally an unnamed result
+				return "" // s = nil
+			} else if s.Name[1] == 'b' { // originally the blank identifier _
+				return "_" // belongs to localpkg
+			}
 		}
 	}
 

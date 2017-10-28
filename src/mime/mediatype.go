@@ -187,18 +187,18 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 				continue
 			}
 			encodedPart := simplePart + "*"
-			if v, ok := pieceMap[encodedPart]; ok {
-				valid = true
-				if n == 0 {
-					if decv, ok := decode2231Enc(v); ok {
-						buf.WriteString(decv)
-					}
-				} else {
-					decv, _ := percentHexUnescape(v)
+			v, ok := pieceMap[encodedPart]
+			if !ok {
+				break
+			}
+			valid = true
+			if n == 0 {
+				if decv, ok := decode2231Enc(v); ok {
 					buf.WriteString(decv)
 				}
 			} else {
-				break
+				decv, _ := percentHexUnescape(v)
+				buf.WriteString(decv)
 			}
 		}
 		if valid {

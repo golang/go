@@ -2049,13 +2049,12 @@ func (ctxt *Link) address() {
 	// their section Vaddr, using n for index
 	n := 1
 	for _, sect := range Segtext.Sections[1:] {
-		if sect.Name == ".text" {
-			symname := fmt.Sprintf("runtime.text.%d", n)
-			ctxt.xdefine(symname, sym.STEXT, int64(sect.Vaddr))
-			n++
-		} else {
+		if sect.Name != ".text" {
 			break
 		}
+		symname := fmt.Sprintf("runtime.text.%d", n)
+		ctxt.xdefine(symname, sym.STEXT, int64(sect.Vaddr))
+		n++
 	}
 
 	ctxt.xdefine("runtime.rodata", sym.SRODATA, int64(rodata.Vaddr))
