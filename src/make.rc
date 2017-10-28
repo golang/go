@@ -41,8 +41,13 @@ rm -f ./runtime/runtime_defs.go
 # Determine the host compiler toolchain.
 eval `{grep '^(CC|LD|O)=' /$objtype/mkfile}
 
-echo '##### Building Go bootstrap tool.'
-echo cmd/dist
+vflag=()
+if(~ $1 -v) {
+	vflag=(-v)
+	shift
+}
+
+
 GOROOT = `{cd .. && pwd}
 if(! ~ $#GOROOT_BOOTSTRAP 1)
 	GOROOT_BOOTSTRAP = $home/go1.4
@@ -66,11 +71,15 @@ if(~ $GOROOT_BOOTSTRAP $GOROOT){
 	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4.' >[1=2]
 	exit bootstrap
 }
-rm -f cmd/dist/dist
+
+echo 'Building Go cmd/dist using '^$GOROOT_BOOTSTRAP
+if(~ $#vflag 1)
+	echo cmd/dist
 GOROOT=$GOROOT_BOOTSTRAP GOOS='' GOARCH='' $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
 
 eval `{./cmd/dist/dist env -9}
-echo
+if(~ $#vflag 1)
+	echo
 
 if(~ $1 --dist-tool){
 	# Stop after building dist tool.
@@ -89,7 +98,7 @@ if(~ $1 --no-clean) {
 # Run dist bootstrap to complete make.bash.
 # Bootstrap installs a proper cmd/dist, built with the new toolchain.
 # Throw ours, built with Go 1.4, away after bootstrap.
-./cmd/dist/dist bootstrap -v $buildall $*
+./cmd/dist/dist bootstrap $vflag $buildall $*
 rm -f ./cmd/dist/dist
 
 # DO NOT ADD ANY NEW CODE HERE.

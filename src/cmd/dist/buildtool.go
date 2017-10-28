@@ -106,7 +106,7 @@ func bootstrapBuildTools() {
 	if goroot_bootstrap == "" {
 		goroot_bootstrap = pathf("%s/go1.4", os.Getenv("HOME"))
 	}
-	xprintf("##### Building Go toolchain1 using %s.\n", goroot_bootstrap)
+	xprintf("Building Go toolchain1 using %s.\n", goroot_bootstrap)
 
 	mkzbootstrap(pathf("%s/src/cmd/internal/objabi/zbootstrap.go", goroot))
 
@@ -183,7 +183,9 @@ func bootstrapBuildTools() {
 		"install",
 		"-gcflags=-l",
 		"-tags=math_big_pure_go compiler_bootstrap",
-		"-v",
+	}
+	if vflag > 0 {
+		cmd = append(cmd, "-v")
 	}
 	if tool := os.Getenv("GOBOOTSTRAP_TOOLEXEC"); tool != "" {
 		cmd = append(cmd, "-toolexec="+tool)
@@ -202,7 +204,9 @@ func bootstrapBuildTools() {
 		}
 	}
 
-	xprintf("\n")
+	if vflag > 0 {
+		xprintf("\n")
+	}
 }
 
 var ssaRewriteFileSubstring = filepath.FromSlash("src/cmd/compile/internal/ssa/rewrite")
