@@ -6,7 +6,7 @@ package time
 
 import "errors"
 
-// These are predefined layouts for use in Time.Format and Time.Parse.
+// These are predefined layouts for use in Time.Format and time.Parse.
 // The reference time used in the layouts is the specific time:
 //	Mon Jan 2 15:04:05 MST 2006
 // which is Unix time 1136239445. Since MST is GMT-0700,
@@ -17,6 +17,9 @@ import "errors"
 // StampMicro or Kitchen for examples. The model is to demonstrate what the
 // reference time looks like so that the Format and Parse methods can apply
 // the same transformation to a general time value.
+//
+// Valid layouts may not be a valid time value for time.Parse, due to formats
+// like _ for zero padding or Z for zone information.
 //
 // Within the format string, an underscore _ represents a space that may be
 // replaced by a digit if the following number (a day) has two digits; for
@@ -49,7 +52,7 @@ import "errors"
 // time is echoed verbatim during Format and expected to appear verbatim
 // in the input to Parse.
 //
-// The executable example for time.Format demonstrates the working
+// The executable example for Time.Format demonstrates the working
 // of the layout string in detail and is a good reference.
 //
 // Note that the RFC822, RFC850, and RFC1123 formats should be applied
@@ -58,7 +61,7 @@ import "errors"
 // use of "GMT" in that case.
 // In general RFC1123Z should be used instead of RFC1123 for servers
 // that insist on that format, and RFC3339 should be preferred for new protocols.
-// RFC822, RFC822Z, RFC1123, and RFC1123Z are useful for formatting;
+// RFC3339, RFC822, RFC822Z, RFC1123, and RFC1123Z are useful for formatting;
 // when used with time.Parse they do not accept all the time formats
 // permitted by the RFCs.
 // The RFC3339Nano format removes trailing zeros from the seconds field
@@ -741,7 +744,7 @@ func skip(value, prefix string) (string, error) {
 // and convenient representations of the reference time. For more information
 // about the formats and the definition of the reference time, see the
 // documentation for ANSIC and the other constants defined by this package.
-// Also, the executable example for time.Format demonstrates the working
+// Also, the executable example for Time.Format demonstrates the working
 // of the layout string in detail and is a good reference.
 //
 // Elements omitted from the value are assumed to be zero or, when
