@@ -125,10 +125,20 @@ rm -f ./runtime/runtime_defs.go
 
 # Finally!  Run the build.
 
-echo '##### Building Go bootstrap tool.'
-echo cmd/dist
-export GOROOT="$(cd .. && pwd)"
+verbose=false
+vflag=""
+if [ "$1" = "-v" ]; then
+	verbose=true
+	vflag=-v
+	shift
+fi
+
 export GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
+echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP."
+if $verbose; then
+	echo cmd/dist
+fi
+export GOROOT="$(cd .. && pwd)"
 for go_exe in $(type -ap go); do
 	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
 		goroot=$(GOROOT='' $go_exe env GOROOT)
@@ -156,7 +166,9 @@ if [ "$FAIL" = true ]; then
 	exit 1
 fi
 
-echo
+if $verbose; then
+	echo
+fi
 
 if [ "$1" = "--dist-tool" ]; then
 	# Stop after building dist tool.
@@ -177,7 +189,7 @@ fi
 # Run dist bootstrap to complete make.bash.
 # Bootstrap installs a proper cmd/dist, built with the new toolchain.
 # Throw ours, built with Go 1.4, away after bootstrap.
-./cmd/dist/dist bootstrap $buildall -v $GO_DISTFLAGS "$@"
+./cmd/dist/dist bootstrap $buildall $vflag $GO_DISTFLAGS "$@"
 rm -f ./cmd/dist/dist
 
 # DO NOT ADD ANY NEW CODE HERE.

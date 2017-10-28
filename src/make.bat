@@ -41,6 +41,8 @@
 :: unless invoked with --no-local.
 if x%1==x--no-local goto nolocal
 if x%2==x--no-local goto nolocal
+if x%3==x--no-local goto nolocal
+if x%4==x--no-local goto nolocal
 setlocal
 :nolocal
 
@@ -58,12 +60,17 @@ del /F ".\pkg\runtime\runtime_defs.go" 2>NUL
 cd ..
 set GOROOT=%CD%
 cd src
+set vflag=
+if x%1==x-v set vflag=-v
+if x%2==x-v set vflag=-v
+if x%3==x-v set vflag=-v
+if x%4==x-v set vflag=-v
 
-echo ##### Building Go bootstrap tool.
-echo cmd/dist
 if not exist ..\bin\tool mkdir ..\bin\tool
 if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
 if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" goto bootstrapfail
+echo Building Go cmd/dist using %GOROOT_BOOTSTRAP%
+if x%vflag==x-v echo cmd/dist
 setlocal
 set GOROOT=%GOROOT_BOOTSTRAP%
 set GOOS=
@@ -76,21 +83,27 @@ if errorlevel 1 goto fail
 if errorlevel 1 goto fail
 call env.bat
 del env.bat
-echo.
+if x%vflag==x-v echo.
 
 if x%1==x--dist-tool goto copydist
 if x%2==x--dist-tool goto copydist
+if x%3==x--dist-tool goto copydist
+if x%4==x--dist-tool goto copydist
 
 set buildall=-a
 if x%1==x--no-clean set buildall=
 if x%2==x--no-clean set buildall=
+if x%3==x--no-clean set buildall=
+if x%4==x--no-clean set buildall=
 if x%1==x--no-banner set buildall=%buildall% --no-banner
 if x%2==x--no-banner set buildall=%buildall% --no-banner
+if x%3==x--no-banner set buildall=%buildall% --no-banner
+if x%4==x--no-banner set buildall=%buildall% --no-banner
 
 :: Run dist bootstrap to complete make.bash.
 :: Bootstrap installs a proper cmd/dist, built with the new toolchain.
 :: Throw ours, built with Go 1.4, away after bootstrap.
-.\cmd\dist\dist bootstrap %buildall% -v
+.\cmd\dist\dist bootstrap %vflag% %buildall% 
 if errorlevel 1 goto fail
 del .\cmd\dist\dist.exe
 goto end

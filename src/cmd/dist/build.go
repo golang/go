@@ -1103,7 +1103,7 @@ func cmdbootstrap() {
 	os.Setenv("GOOS", goos)
 
 	timelog("build", "go_bootstrap")
-	xprintf("##### Building go_bootstrap.\n")
+	xprintf("Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.\n")
 	for _, dir := range buildlist {
 		installed[dir] = make(chan struct{})
 	}
@@ -1111,7 +1111,9 @@ func cmdbootstrap() {
 		go install(dir)
 	}
 	<-installed["cmd/go"]
-	xprintf("\n")
+	if vflag > 0 {
+		xprintf("\n")
+	}
 
 	gogcflags = os.Getenv("GO_GCFLAGS") // we were using $BOOT_GO_GCFLAGS until now
 	goldflags = os.Getenv("GO_LDFLAGS")
@@ -1139,7 +1141,10 @@ func cmdbootstrap() {
 	//	toolchain2 = mk(new toolchain, toolchain1, go_bootstrap)
 	//
 	timelog("build", "toolchain2")
-	xprintf("\n##### Building Go toolchain2 using go_bootstrap and Go toolchain1.\n")
+	if vflag > 0 {
+		xprintf("\n")
+	}
+	xprintf("Building Go toolchain2 using go_bootstrap and Go toolchain1.\n")
 	os.Setenv("CC", defaultcc)
 	if goos == oldgoos && goarch == oldgoarch {
 		// Host and target are same, and we have historically
@@ -1171,7 +1176,10 @@ func cmdbootstrap() {
 	//	toolchain3 = mk(new toolchain, toolchain2, go_bootstrap)
 	//
 	timelog("build", "toolchain3")
-	xprintf("\n##### Building Go toolchain3 using go_bootstrap and Go toolchain2.\n")
+	if vflag > 0 {
+		xprintf("\n")
+	}
+	xprintf("Building Go toolchain3 using go_bootstrap and Go toolchain2.\n")
 	goInstall(append([]string{"-a"}, toolchain...)...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
@@ -1183,19 +1191,28 @@ func cmdbootstrap() {
 	if goos == oldgoos && goarch == oldgoarch {
 		// Common case - not setting up for cross-compilation.
 		timelog("build", "toolchain")
-		xprintf("\n##### Building packages and commands for %s/%s\n", goos, goarch)
+		if vflag > 0 {
+			xprintf("\n")
+		}
+		xprintf("Building packages and commands for %s/%s.\n", goos, goarch)
 	} else {
 		// GOOS/GOARCH does not match GOHOSTOS/GOHOSTARCH.
 		// Finish GOHOSTOS/GOHOSTARCH installation and then
 		// run GOOS/GOARCH installation.
 		timelog("build", "host toolchain")
-		xprintf("\n##### Building packages and commands for host, %s/%s\n", goos, goarch)
+		if vflag > 0 {
+			xprintf("\n")
+		}
+		xprintf("Building packages and commands for host, %s/%s.\n", goos, goarch)
 		goInstall("std", "cmd")
 		checkNotStale(goBootstrap, "std", "cmd")
 		checkNotStale(cmdGo, "std", "cmd")
 
 		timelog("build", "target toolchain")
-		xprintf("\n##### Building packages and commands for target, %s/%s\n", goos, goarch)
+		if vflag > 0 {
+			xprintf("\n")
+		}
+		xprintf("Building packages and commands for target, %s/%s.\n", goos, goarch)
 		goos = oldgoos
 		goarch = oldgoarch
 		os.Setenv("GOOS", goos)
@@ -1236,7 +1253,10 @@ func cmdbootstrap() {
 }
 
 func goInstall(args ...string) {
-	installCmd := []string{pathf("%s/go_bootstrap", tooldir), "install", "-v", "-gcflags=" + gogcflags, "-ldflags=" + goldflags}
+	installCmd := []string{pathf("%s/go_bootstrap", tooldir), "install", "-gcflags=" + gogcflags, "-ldflags=" + goldflags}
+	if vflag > 0 {
+		installCmd = append(installCmd, "-v")
+	}
 
 	// Force only one process at a time on vx32 emulation.
 	if gohostos == "plan9" && os.Getenv("sysname") == "vx32" {
@@ -1383,7 +1403,9 @@ func cmdbanner() {
 }
 
 func banner() {
-	xprintf("\n")
+	if vflag > 0 {
+		xprintf("\n")
+	}
 	xprintf("---\n")
 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot)
 	xprintf("Installed commands in %s\n", gobin)
