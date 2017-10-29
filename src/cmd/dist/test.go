@@ -343,7 +343,7 @@ func (t *tester) registerTests() {
 			osarch := k
 			t.tests = append(t.tests, distTest{
 				name:    "vet/" + osarch,
-				heading: "go vet std cmd",
+				heading: "cmd/vet/all",
 				fn: func(dt *distTest) error {
 					t.addCmd(dt, "src/cmd/vet/all", "go", "run", "main.go", "-p="+osarch)
 					return nil

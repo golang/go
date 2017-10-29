@@ -6,7 +6,10 @@
 
 package testdata
 
-import "unsafe"
+import (
+	"fmt"
+	"unsafe"
+)
 
 func ShiftTest() {
 	var i8 int8
@@ -154,6 +157,6 @@ func ShiftDeadCode() {
 	// Make sure other vet checks work in dead code.
 	if iBits == 1024 {
 		_ = i << 512                  // OK
-		fmt.Printf("foo %s bar", 123) // ERROR "arg 123 for printf verb %s of wrong type: untyped int"
+		fmt.Printf("foo %s bar", 123) // ERROR "Printf"
 	}
 }
