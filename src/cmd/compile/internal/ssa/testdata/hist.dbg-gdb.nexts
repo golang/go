@@ -12,7 +12,7 @@ l.end.y = 4
 hist =  []int = {0, 0, 0, 0, 0, 0, 0}
 cannedInput = "1\n1\n1\n2\n2\n2\n4\n4\n5\n"
 65:		if len(os.Args) > 1 {
-70:				return
+73:		scanner := bufio.NewScanner(reader)
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
@@ -121,4 +121,3 @@ t = 22
 87:			if a == 0 { //gdb-opt=(a,n,t)
 88:				continue
 86:		for i, a := range hist {
-95:	}
