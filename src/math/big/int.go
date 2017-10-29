@@ -533,7 +533,6 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 // See Jebelean, "Improving the multiprecision Euclidean algorithm",
 // Design and Implementation of Symbolic Computation Systems, pp 45-58.
 func (z *Int) lehmerGCD(a, b *Int) *Int {
-
 	// ensure a >= b
 	if a.abs.cmp(b.abs) < 0 {
 		a, b = b, a
@@ -551,7 +550,6 @@ func (z *Int) lehmerGCD(a, b *Int) *Int {
 
 	// loop invariant A >= B
 	for len(B.abs) > 1 {
-
 		// initialize the digits
 		var a1, a2, u0, u1, u2, v0, v1, v2 Word
 
