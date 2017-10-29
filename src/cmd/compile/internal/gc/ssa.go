@@ -203,7 +203,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 
 	for _, b := range s.f.Blocks {
 		if b.Pos != src.NoXPos {
-			updateUnsetPredPos(b)
+			s.updateUnsetPredPos(b)
 		}
 	}
 
@@ -217,26 +217,35 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	return s.f
 }
 
-func updateUnsetPredPos(b *ssa.Block) {
+// updateUnsetPredPos propagates the earliest-value position information for b
+// towards all of b's predecessors that need a position, and recurs on that
+// predecessor if its position is updated. B should have a non-empty position.
+func (s *state) updateUnsetPredPos(b *ssa.Block) {
+	if b.Pos == src.NoXPos {
+		s.Fatalf("Block %s should have a position", b)
+	}
+	bestPos := src.NoXPos
 	for _, e := range b.Preds {
 		p := e.Block()
-		if p.Pos == src.NoXPos && p.Kind == ssa.BlockPlain {
-			pos := b.Pos
-			// TODO: This ought to be produce a better result, but it causes
-			// line 46 ("scanner := bufio.NewScanner(reader)")
-			// to drop out of gdb-dbg and dlv-dbg debug-next traces for hist.go.
+		if !p.LackingPos() {
+			continue
+		}
+		if bestPos == src.NoXPos {
+			bestPos = b.Pos
 			for _, v := range b.Values {
-				if v.Op == ssa.OpVarDef || v.Op == ssa.OpVarKill || v.Op == ssa.OpVarLive || v.Op == ssa.OpCopy && v.Type == types.TypeMem {
+				if v.LackingPos() {
 					continue
 				}
 				if v.Pos != src.NoXPos {
-					pos = v.Pos
+					// Assume values are still in roughly textual order;
+					// TODO: could also seek minimum position?
+					bestPos = v.Pos
 					break
 				}
 			}
-			p.Pos = pos
-			updateUnsetPredPos(p) // We do not expect long chains of these, thus recursion is okay.
 		}
+		p.Pos = bestPos
+		s.updateUnsetPredPos(p) // We do not expect long chains of these, thus recursion is okay.
 	}
 	return
 }
@@ -372,7 +381,7 @@ func (s *state) endBlock() *ssa.Block {
 	s.defvars[b.ID] = s.vars
 	s.curBlock = nil
 	s.vars = nil
-	if len(b.Values) == 0 && b.Kind == ssa.BlockPlain {
+	if b.LackingPos() {
 		// Empty plain blocks get the line of their successor (handled after all blocks created),
 		// except for increment blocks in For statements (handled in ssa conversion of OFOR),
 		// and for blocks ending in GOTO/BREAK/CONTINUE.
@@ -817,7 +826,9 @@ func (s *state) stmt(n *Node) {
 
 	case ORETURN:
 		s.stmtList(n.List)
-		s.exit()
+		b := s.exit()
+		b.Pos = s.lastPos
+
 	case ORETJMP:
 		s.stmtList(n.List)
 		b := s.exit()

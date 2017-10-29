@@ -50,7 +50,7 @@ func main() {
 	testarch := os.Getenv("TESTARCH")     // Targets other platform in test compilation.
 	debug := os.Getenv("TESTDEBUG") != "" // Output the relevant assembly language.
 
-	cmd := exec.Command("go", "build", "-gcflags", "-S", "fixedbugs/issue18902b.go")
+	cmd := exec.Command("go", "tool", "compile", "-S", "fixedbugs/issue18902b.go")
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
