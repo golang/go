@@ -865,7 +865,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		if len(x.Elts) > 0 {
 			mode |= noExtraBlank
 		}
-		p.print(mode, x.Rbrace, token.RBRACE, mode)
+		// need the initial indent to print lone comments with
+		// the proper level of indentation
+		p.print(indent, unindent, mode, x.Rbrace, token.RBRACE, mode)
 		p.level--
 
 	case *ast.Ellipsis:
