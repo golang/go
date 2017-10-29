@@ -2909,7 +2909,7 @@ func TestGoVetWithExternalTests(t *testing.T) {
 	tg.run("install", "cmd/vet")
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.runFail("vet", "vetpkg")
-	tg.grepBoth("missing argument for Printf", "go vet vetpkg did not find missing argument for Printf")
+	tg.grepBoth("Printf", "go vet vetpkg did not find missing argument for Printf")
 }
 
 func TestGoVetWithTags(t *testing.T) {
@@ -2919,7 +2919,7 @@ func TestGoVetWithTags(t *testing.T) {
 	tg.run("install", "cmd/vet")
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.runFail("vet", "-tags", "tagtest", "vetpkg")
-	tg.grepBoth(`c\.go.*wrong number of args for format`, "go vet vetpkg did not run scan tagged file")
+	tg.grepBoth(`c\.go.*Printf`, "go vet vetpkg did not run scan tagged file")
 }
 
 func TestGoVetWithFlagsOn(t *testing.T) {
@@ -2929,7 +2929,7 @@ func TestGoVetWithFlagsOn(t *testing.T) {
 	tg.run("install", "cmd/vet")
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.runFail("vet", "-printf", "vetpkg")
-	tg.grepBoth("missing argument for Printf", "go vet -printf vetpkg did not find missing argument for Printf")
+	tg.grepBoth("Printf", "go vet -printf vetpkg did not find missing argument for Printf")
 }
 
 func TestGoVetWithFlagsOff(t *testing.T) {

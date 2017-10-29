@@ -9,10 +9,12 @@ package main
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
 	"go/types"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -88,8 +90,8 @@ var isPrint = map[string]bool{
 // The first string literal or string constant is assumed to be a format string
 // if the call's signature cannot be determined.
 //
-// If it cannot find any format string parameter, it returns  ("", -1).
-func formatString(f *File, call *ast.CallExpr) (string, int) {
+// If it cannot find any format string parameter, it returns ("", -1).
+func formatString(f *File, call *ast.CallExpr) (format string, idx int) {
 	typ := f.pkg.types[call.Fun].Type
 	if typ != nil {
 		if sig, ok := typ.(*types.Signature); ok {
@@ -228,7 +230,7 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string) {
 	firstArg := idx + 1 // Arguments are immediately after format string.
 	if !strings.Contains(format, "%") {
 		if len(call.Args) > firstArg {
-			f.Badf(call.Pos(), "no formatting directive in %s call", name)
+			f.Badf(call.Pos(), "%s call has arguments but no formatting directives", name)
 		}
 		return
 	}
@@ -266,7 +268,7 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string) {
 	if maxArgNum != len(call.Args) {
 		expect := maxArgNum - firstArg
 		numArgs := len(call.Args) - firstArg
-		f.Badf(call.Pos(), "wrong number of args for format in %s call: %d needed but %d args", name, expect, numArgs)
+		f.Badf(call.Pos(), "%s call needs %v but has %v", name, count(expect, "arg"), count(numArgs, "arg"))
 	}
 }
 
@@ -302,17 +304,18 @@ func (s *formatState) parseIndex() bool {
 	s.nbytes++ // skip '['
 	start := s.nbytes
 	s.scanNum()
+	ok := true
 	if s.nbytes == len(s.format) || s.nbytes == start || s.format[s.nbytes] != ']' {
-		end := strings.Index(s.format, "]")
-		if end < 0 {
-			end = len(s.format)
+		ok = false
+		s.nbytes = strings.Index(s.format, "]")
+		if s.nbytes < 0 {
+			s.file.Badf(s.call.Pos(), "%s format %s is missing closing ]", s.name, s.format)
+			return false
 		}
-		s.file.Badf(s.call.Pos(), "bad syntax for printf argument index: [%s]", s.format[start:end])
-		return false
 	}
 	arg32, err := strconv.ParseInt(s.format[start:s.nbytes], 10, 32)
-	if err != nil {
-		s.file.Badf(s.call.Pos(), "bad syntax for printf argument index: %s", err)
+	if err != nil || !ok || arg32 <= 0 || arg32 > int64(len(s.call.Args)-s.firstArg) {
+		s.file.Badf(s.call.Pos(), "%s format has invalid argument index [%s]", s.name, s.format[start:s.nbytes])
 		return false
 	}
 	s.nbytes++ // skip ']'
@@ -388,7 +391,7 @@ func (f *File) parsePrintfVerb(call *ast.CallExpr, name, format string, firstArg
 		return nil
 	}
 	if state.nbytes == len(state.format) {
-		f.Badf(call.Pos(), "missing verb at end of format string in %s call", name)
+		f.Badf(call.Pos(), "%s format %s is missing verb at end of string", name, state.format)
 		return nil
 	}
 	verb, w := utf8.DecodeRuneInString(state.format[state.nbytes:])
@@ -481,12 +484,12 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 	}
 
 	if !found && !formatter {
-		f.Badf(call.Pos(), "unrecognized printf verb %q", state.verb)
+		f.Badf(call.Pos(), "%s format %s has unknown verb %c", state.name, state.format, state.verb)
 		return false
 	}
 	for _, flag := range state.flags {
 		if !strings.ContainsRune(v.flags, rune(flag)) {
-			f.Badf(call.Pos(), "unrecognized printf flag for verb %q: %q", state.verb, flag)
+			f.Badf(call.Pos(), "%s format %s has unrecognized flag %c", state.name, state.format, flag)
 			return false
 		}
 	}
@@ -504,7 +507,7 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 		}
 		arg := call.Args[argNum]
 		if !f.matchArgType(argInt, nil, arg) {
-			f.Badf(call.Pos(), "arg %s for * in printf format not of type int", f.gofmt(arg))
+			f.Badf(call.Pos(), "%s format %s uses non-int %s as argument of *", state.name, state.format, f.gofmt(arg))
 			return false
 		}
 	}
@@ -517,7 +520,7 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 	}
 	arg := call.Args[argNum]
 	if f.isFunctionValue(arg) && state.verb != 'p' && state.verb != 'T' {
-		f.Badf(call.Pos(), "arg %s in printf call is a function value, not a function call", f.gofmt(arg))
+		f.Badf(call.Pos(), "%s format %s arg %s is a func value, not called", state.name, state.format, f.gofmt(arg))
 		return false
 	}
 	if !f.matchArgType(v.typ, nil, arg) {
@@ -525,11 +528,11 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 		if typ := f.pkg.types[arg].Type; typ != nil {
 			typeString = typ.String()
 		}
-		f.Badf(call.Pos(), "arg %s for printf verb %%%c of wrong type: %s", f.gofmt(arg), state.verb, typeString)
+		f.Badf(call.Pos(), "%s format %s has arg %s of wrong type %s", state.name, state.format, f.gofmt(arg), typeString)
 		return false
 	}
 	if v.typ&argString != 0 && v.verb != 'T' && !bytes.Contains(state.flags, []byte{'#'}) && f.recursiveStringer(arg) {
-		f.Badf(call.Pos(), "arg %s for printf causes recursive call to String method", f.gofmt(arg))
+		f.Badf(call.Pos(), "%s format %s with arg %s causes recursive String method call", state.name, state.format, f.gofmt(arg))
 		return false
 	}
 	return true
@@ -580,13 +583,9 @@ func (f *File) isFunctionValue(e ast.Expr) bool {
 // means we can't see it.
 func (f *File) argCanBeChecked(call *ast.CallExpr, formatArg int, state *formatState) bool {
 	argNum := state.argNums[formatArg]
-	if argNum < 0 {
+	if argNum <= 0 {
 		// Shouldn't happen, so catch it with prejudice.
 		panic("negative arg num")
-	}
-	if argNum == 0 {
-		f.Badf(call.Pos(), `index value [0] for %s("%s"); indexes start at 1`, state.name, state.format)
-		return false
 	}
 	if argNum < len(call.Args)-1 {
 		return true // Always OK.
@@ -600,9 +599,21 @@ func (f *File) argCanBeChecked(call *ast.CallExpr, formatArg int, state *formatS
 	// There are bad indexes in the format or there are fewer arguments than the format needs.
 	// This is the argument number relative to the format: Printf("%s", "hi") will give 1 for the "hi".
 	arg := argNum - state.firstArg + 1 // People think of arguments as 1-indexed.
-	f.Badf(call.Pos(), `missing argument for %s("%s"): format reads arg %d, have only %d args`, state.name, state.format, arg, len(call.Args)-state.firstArg)
+	f.Badf(call.Pos(), "%s format %s reads arg #%d, but call has only %v", state.name, state.format, arg, count(len(call.Args)-state.firstArg, "arg"))
 	return false
 }
+
+// printFormatRE is the regexp we match and report as a possible format string
+// in the first argument to unformatted prints like fmt.Print.
+// We exclude the space flag, so that printing a string like "x % y" is not reported as a format.
+var printFormatRE = regexp.MustCompile(`%` + flagsRE + numOptRE + `\.?` + numOptRE + indexOptRE + verbRE)
+
+const (
+	flagsRE    = `[+\-#]*`
+	indexOptRE = `(\[[0-9]+\])?`
+	numOptRE   = `([0-9]+|` + indexOptRE + `\*)?`
+	verbRE     = `[bcdefgopqstxEFGUX]`
+)
 
 // checkPrint checks a call to an unformatted print routine such as Println.
 func (f *File) checkPrint(call *ast.CallExpr, name string) {
@@ -635,23 +646,26 @@ func (f *File) checkPrint(call *ast.CallExpr, name string) {
 	}
 	args = args[firstArg:]
 
-	// check for Println(os.Stderr, ...)
 	if firstArg == 0 {
-		if sel, ok := args[0].(*ast.SelectorExpr); ok {
+		if sel, ok := call.Args[0].(*ast.SelectorExpr); ok {
 			if x, ok := sel.X.(*ast.Ident); ok {
 				if x.Name == "os" && strings.HasPrefix(sel.Sel.Name, "Std") {
-					f.Badf(call.Pos(), "first argument to %s is %s.%s", name, x.Name, sel.Sel.Name)
+					f.Badf(call.Pos(), "%s does not take io.Writer but has first arg %s", name, f.gofmt(call.Args[0]))
 				}
 			}
 		}
 	}
+
 	arg := args[0]
 	if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
 		// Ignore trailing % character in lit.Value.
 		// The % in "abc 0.0%" couldn't be a formatting directive.
 		s := strings.TrimSuffix(lit.Value, `%"`)
 		if strings.Contains(s, "%") {
-			f.Badf(call.Pos(), "possible formatting directive in %s call", name)
+			m := printFormatRE.FindStringSubmatch(s)
+			if m != nil {
+				f.Badf(call.Pos(), "%s call has possible formatting directive %s", name, m[0])
+			}
 		}
 	}
 	if strings.HasSuffix(name, "ln") {
@@ -659,16 +673,25 @@ func (f *File) checkPrint(call *ast.CallExpr, name string) {
 		arg = args[len(args)-1]
 		if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
 			if strings.HasSuffix(lit.Value, `\n"`) {
-				f.Badf(call.Pos(), "%s call ends with newline", name)
+				f.Badf(call.Pos(), "%s args end with redundant newline", name)
 			}
 		}
 	}
 	for _, arg := range args {
 		if f.isFunctionValue(arg) {
-			f.Badf(call.Pos(), "arg %s in %s call is a function value, not a function call", f.gofmt(arg), name)
+			f.Badf(call.Pos(), "%s arg %s is a func value, not called", name, f.gofmt(arg))
 		}
 		if f.recursiveStringer(arg) {
-			f.Badf(call.Pos(), "arg %s in %s call causes recursive call to String method", f.gofmt(arg), name)
+			f.Badf(call.Pos(), "%s arg %s causes recursive call to String method", name, f.gofmt(arg))
 		}
 	}
+}
+
+// count(n, what) returns "1 what" or "N whats"
+// (assuming the plural of what is whats).
+func count(n int, what string) string {
+	if n == 1 {
+		return "1 " + what
+	}
+	return fmt.Sprintf("%d %ss", n, what)
 }
