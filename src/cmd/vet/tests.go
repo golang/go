@@ -161,7 +161,7 @@ func checkTest(fn *ast.FuncDecl, prefix string, report reporter) {
 type reporter func(format string, args ...interface{})
 
 // checkTestFunctions walks Test, Benchmark and Example functions checking
-// malformed names, wrong signatures and examples documenting inexistent
+// malformed names, wrong signatures and examples documenting nonexistent
 // identifiers.
 func checkTestFunctions(f *File, node ast.Node) {
 	if !strings.HasSuffix(f.name, "_test.go") {

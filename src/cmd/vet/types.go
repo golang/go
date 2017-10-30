@@ -19,11 +19,9 @@ import (
 var stdImporter types.Importer
 
 var (
-	errorType        *types.Interface
-	stringerType     *types.Interface // possibly nil
-	formatterType    *types.Interface // possibly nil
-	httpResponseType types.Type       // possibly nil
-	httpClientType   types.Type       // possibly nil
+	errorType     *types.Interface
+	stringerType  *types.Interface // possibly nil
+	formatterType *types.Interface // possibly nil
 )
 
 func inittypes() {
@@ -35,12 +33,16 @@ func inittypes() {
 	if typ := importType("fmt", "Formatter"); typ != nil {
 		formatterType = typ.Underlying().(*types.Interface)
 	}
-	if typ := importType("net/http", "Response"); typ != nil {
-		httpResponseType = typ
+}
+
+// isNamedType reports whether t is the named type path.name.
+func isNamedType(t types.Type, path, name string) bool {
+	n, ok := t.(*types.Named)
+	if !ok {
+		return false
 	}
-	if typ := importType("net/http", "Client"); typ != nil {
-		httpClientType = typ
-	}
+	obj := n.Obj()
+	return obj.Name() == name && obj.Pkg() != nil && obj.Pkg().Path() == path
 }
 
 // importType returns the type denoted by the qualified identifier
