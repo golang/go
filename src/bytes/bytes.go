@@ -39,7 +39,7 @@ func explode(s []byte, n int) [][]byte {
 			break
 		}
 		_, size = utf8.DecodeRune(s)
-		a[na] = s[0:size]
+		a[na] = s[0:size:size]
 		s = s[size:]
 		na++
 	}
@@ -219,7 +219,7 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 		if m < 0 {
 			break
 		}
-		a[i] = s[:m+sepSave]
+		a[i] = s[: m+sepSave : m+sepSave]
 		s = s[m+len(sep):]
 		i++
 	}
@@ -302,7 +302,7 @@ func Fields(s []byte) [][]byte {
 			i++
 			continue
 		}
-		a[na] = s[fieldStart:i]
+		a[na] = s[fieldStart:i:i]
 		na++
 		i++
 		// Skip spaces in between fields.
@@ -312,7 +312,7 @@ func Fields(s []byte) [][]byte {
 		fieldStart = i
 	}
 	if fieldStart < len(s) { // Last field might end at EOF.
-		a[na] = s[fieldStart:]
+		a[na] = s[fieldStart:len(s):len(s)]
 	}
 	return a
 }
@@ -363,7 +363,7 @@ func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
 	// Create subslices from recorded field indices.
 	a := make([][]byte, len(spans))
 	for i, span := range spans {
-		a[i] = s[span.start:span.end]
+		a[i] = s[span.start:span.end:span.end]
 	}
 
 	return a
