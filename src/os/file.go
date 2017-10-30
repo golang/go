@@ -60,7 +60,8 @@ var (
 )
 
 // Flags to OpenFile wrapping those of the underlying system. Not all
-// flags may be implemented on a given system.
+// flags may be implemented on a given system. Each call to OpenFile
+// should specify exactly one of O_RDONLY, O_WRONLY, or O_RDWR.
 const (
 	O_RDONLY int = syscall.O_RDONLY // open the file read-only.
 	O_WRONLY int = syscall.O_WRONLY // open the file write-only.
