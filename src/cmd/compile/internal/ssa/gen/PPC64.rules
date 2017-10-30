@@ -945,3 +945,117 @@
 (FSUB (FMUL x y) z) -> (FMSUB x y z)
 (FADDS (FMULS x y) z) -> (FMADDS x y z)
 (FSUBS (FMULS x y) z) -> (FMSUBS x y z)
+
+
+// The following statements are found in encoding/binary functions UintXX (load) and PutUintXX (store)
+// and convert the statements in these functions from multiple single byte loads or stores to
+// the single largest possible load or store. For now only little endian loads and stores on
+// little endian machines are implemented. Longer rules make use of the match with shorter rules
+// where possible.
+// TODO implement big endian loads and stores for little endian machines (using byte reverse
+// loads and stores).
+// b[0] | b[1]<<8 -> load 16-bit Little endian
+(OR <t> x0:(MOVBZload [i0] {s} p mem)
+	o1:(SLWconst x1:(MOVBZload [i1] {s} p mem) [8]))
+	&& !config.BigEndian
+	&& i1 == i0+1
+	&& x0.Uses ==1 && x1.Uses == 1
+	&& o1.Uses == 1
+	&& mergePoint(b, x0, x1) != nil
+	&& clobber(x0) && clobber(x1) && clobber(o1)
+	 -> @mergePoint(b,x0,x1) (MOVHZload <t> {s} [i0] p mem)
+
+// b[0] | b[1]<<8 | b[2]<<16 | b[3]<<24 -> load 32-bit Little endian
+(OR <t> s1:(SLWconst x2:(MOVBZload [i3] {s} p mem) [24])
+	o0:(OR <t> s0:(SLWconst x1:(MOVBZload [i2] {s} p mem) [16]) x0:(MOVHZload [i0] {s} p mem)))
+	&& !config.BigEndian
+	&& i2 == i0+2
+	&& i3 == i0+3
+	&& x0.Uses ==1 && x1.Uses == 1 && x2.Uses == 1
+	&& o0.Uses == 1
+	&& s0.Uses == 1 && s1.Uses == 1
+	&& mergePoint(b, x0, x1, x2) != nil
+	&& clobber(x0) && clobber(x1) && clobber(x2)
+	&& clobber(s0) && clobber(s1)
+	&& clobber(o0)
+	 -> @mergePoint(b,x0,x1,x2) (MOVWZload <t> {s} [i0] p mem)
+
+// b[0] | b[1]<<8 | b[2]<<16 | b[3]<<24 | b[4] <<32 | b[5]<<40 | b[6]<<48 | b[7]<<56 -> load 64-bit Little endian
+// Can't build on shorter rules because they use SLW instead of SLD
+// Offset must be multiple of 4 for MOVD
+(OR <t> s6:(SLDconst x7:(MOVBZload [i7] {s} p mem) [56])
+	o5:(OR <t> s5:(SLDconst x6:(MOVBZload [i6] {s} p mem) [48])
+	o4:(OR <t> s4:(SLDconst x5:(MOVBZload [i5] {s} p mem) [40])
+	o3:(OR <t> s3:(SLDconst x4:(MOVBZload [i4] {s} p mem) [32])
+	o2:(OR <t> s2:(SLDconst x3:(MOVBZload [i3] {s} p mem) [24])
+	o1:(OR <t> s1:(SLDconst x2:(MOVBZload [i2] {s} p mem) [16])
+	o0:(OR <t> s0:(SLDconst x1:(MOVBZload [i1] {s} p mem) [8]) x0:(MOVBZload [i0] {s} p mem))))))))
+	&& !config.BigEndian
+	&& i0%4 == 0
+	&& i1 == i0+1
+	&& i2 == i0+2
+	&& i3 == i0+3
+	&& i4 == i0+4
+	&& i5 == i0+5
+	&& i6 == i0+6
+	&& i7 == i0+7
+	&& x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses ==1 && x7.Uses == 1
+	&& o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1
+	&& s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1
+	&& mergePoint(b, x0, x1, x2, x3, x4, x5, x6, x7) != nil
+	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7)
+	&& clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3) && clobber(s4) && clobber(s5) && clobber (s6)
+	&& clobber(o0) && clobber(o1) && clobber(o2) && clobber(o3) && clobber(o4) && clobber(o5)
+	  -> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (MOVDload <t> {s} [i0] p mem)
+
+// 2 byte store Little endian as in:
+//      b[0] = byte(v)
+//      b[1] = byte(v >> 8)
+(MOVBstore [i1] {s} p (SRWconst (MOVHZreg w) [8])
+	x0:(MOVBstore [i0] {s} p w mem))
+	&& !config.BigEndian
+	&& x0.Uses == 1
+	&& i1 == i0+1
+	&& clobber(x0)
+	  -> (MOVHstore [i0] {s} p w mem)
+
+// 4 byte store Little endian as in:
+//     b[0] = byte(v)
+//     b[1] = byte(v >> 8)
+//     b[2] = byte(v >> 16)
+//     b[3] = byte(v >> 24)
+(MOVBstore [i3] {s} p (SRWconst w [24])
+	x0:(MOVBstore [i2] {s} p (SRWconst w [16])
+	x1:(MOVBstore [i1] {s} p (SRWconst w [8])
+	x2:(MOVBstore [i0] {s} p w mem))))
+	&& !config.BigEndian
+	&& x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1
+	&& i1 == i0+1 && i2 == i0+2 && i3 == i0+3
+	&& clobber(x0) && clobber(x1) && clobber(x2)
+	  -> (MOVWstore [i0] {s} p w mem)
+
+// 8 byte store Little endian as in:
+//	b[0] = byte(v)
+//	b[1] = byte(v >> 8)
+//	b[2] = byte(v >> 16)
+//	b[3] = byte(v >> 24)
+//	b[4] = byte(v >> 32)
+//	b[5] = byte(v >> 40)
+//	b[6] = byte(v >> 48)
+//	b[7] = byte(v >> 56)
+// Offset must be multiple of 4 for MOVDstore
+// Can't build on previous rules for 2 or 4 bytes because they use SRW not SRD
+(MOVBstore [i7] {s} p (SRDconst w [56])
+	x0:(MOVBstore [i6] {s} p (SRDconst w [48])
+	x1:(MOVBstore [i5] {s} p (SRDconst w [40])
+	x2:(MOVBstore [i4] {s} p (SRDconst w [32])
+	x3:(MOVBstore [i3] {s} p (SRDconst w [24])
+	x4:(MOVBstore [i2] {s} p (SRDconst w [16])
+	x5:(MOVBstore [i1] {s} p (SRDconst w [8])
+	x6:(MOVBstore [i0] {s} p w mem))))))))
+	&& !config.BigEndian
+	&& i0%4 == 0
+	&& x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1
+	&& i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7
+	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6)
+	  -> (MOVDstore [i0] {s} p w mem)

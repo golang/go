@@ -265,7 +265,7 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "ppc64le",
 		os:      "linux",
-		imports: []string{"math", "math/bits"},
+		imports: []string{"encoding/binary", "math", "math/bits"},
 		tests:   linuxPPC64LETests,
 	},
 	{
@@ -2357,6 +2357,61 @@ var linuxPPC64LETests = []*asmTest{
                 }
                 `,
 		pos: []string{"\tFABS\t"},
+	},
+
+	{
+		fn: `
+		func f14(b []byte) uint16 {
+			return binary.LittleEndian.Uint16(b)
+	}
+		`,
+		pos: []string{"\tMOVHZ\t"},
+	},
+	{
+		fn: `
+		func f15(b []byte) uint32 {
+			return binary.LittleEndian.Uint32(b)
+		}
+		`,
+		pos: []string{"\tMOVWZ\t"},
+	},
+
+	{
+		fn: `
+		func f16(b []byte) uint64 {
+			return binary.LittleEndian.Uint64(b)
+		}
+		`,
+		pos: []string{"\tMOVD\t"},
+		neg: []string{"MOVBZ", "MOVHZ", "MOVWZ"},
+	},
+
+	{
+		fn: `
+		func f17(b []byte, v uint16) {
+			binary.LittleEndian.PutUint16(b, v)
+		}
+		`,
+		pos: []string{"\tMOVH\t"},
+	},
+
+	{
+		fn: `
+		func f18(b []byte, v uint32) {
+			binary.LittleEndian.PutUint32(b, v)
+		}
+		`,
+		pos: []string{"\tMOVW\t"},
+	},
+
+	{
+		fn: `
+		func f19(b []byte, v uint64) {
+			binary.LittleEndian.PutUint64(b, v)
+		}
+		`,
+		pos: []string{"\tMOVD\t"},
+		neg: []string{"MOVB", "MOVH", "MOVW"},
 	},
 
 	{
