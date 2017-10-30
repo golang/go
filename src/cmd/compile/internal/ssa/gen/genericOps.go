@@ -268,10 +268,11 @@ var genericOps = []opData{
 	//   ±∞  → ±∞ (sign preserved)
 	//   ±0  → ±0 (sign preserved)
 	//   NaN → NaN
-	{name: "Floor", argLength: 1}, // round arg0 toward -∞
-	{name: "Ceil", argLength: 1},  // round arg0 toward +∞
-	{name: "Trunc", argLength: 1}, // round arg0 toward 0
-	{name: "Round", argLength: 1}, // round arg0 to nearest, ties away from 0
+	{name: "Floor", argLength: 1},       // round arg0 toward -∞
+	{name: "Ceil", argLength: 1},        // round arg0 toward +∞
+	{name: "Trunc", argLength: 1},       // round arg0 toward 0
+	{name: "Round", argLength: 1},       // round arg0 to nearest, ties away from 0
+	{name: "RoundToEven", argLength: 1}, // round arg0 to nearest, ties to even
 
 	// Modify the sign bit
 	{name: "Abs", argLength: 1},      // absolute value arg0

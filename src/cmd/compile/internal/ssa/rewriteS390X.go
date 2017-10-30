@@ -383,6 +383,8 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpRound32F_0(v)
 	case OpRound64F:
 		return rewriteValueS390X_OpRound64F_0(v)
+	case OpRoundToEven:
+		return rewriteValueS390X_OpRoundToEven_0(v)
 	case OpRsh16Ux16:
 		return rewriteValueS390X_OpRsh16Ux16_0(v)
 	case OpRsh16Ux32:
@@ -5024,6 +5026,18 @@ func rewriteValueS390X_OpRound64F_0(v *Value) bool {
 	for {
 		x := v.Args[0]
 		v.reset(OpS390XLoweredRound64F)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueS390X_OpRoundToEven_0(v *Value) bool {
+	// match: (RoundToEven x)
+	// cond:
+	// result: (FIDBR [4] x)
+	for {
+		x := v.Args[0]
+		v.reset(OpS390XFIDBR)
+		v.AuxInt = 4
 		v.AddArg(x)
 		return true
 	}

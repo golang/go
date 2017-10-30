@@ -1901,6 +1901,7 @@ const (
 	OpCeil
 	OpTrunc
 	OpRound
+	OpRoundToEven
 	OpAbs
 	OpCopysign
 	OpPhi
@@ -23315,6 +23316,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Round",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "RoundToEven",
 		argLen:  1,
 		generic: true,
 	},
