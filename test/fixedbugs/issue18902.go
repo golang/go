@@ -56,7 +56,10 @@ func main() {
 	cmd.Stderr = &buf
 	cmd.Env = os.Environ()
 
-	updateEnv(&cmd.Env, "GOARCH", testarch)
+	if testarch != "" {
+		updateEnv(&cmd.Env, "GOARCH", testarch)
+		updateEnv(&cmd.Env, "GOOS", "linux") // Simplify multi-arch testing
+	}
 
 	err := cmd.Run()
 	if err != nil {
@@ -89,8 +92,9 @@ func main() {
 		i = strings.Index(line, beforeLineNumber)
 		if i < 0 {
 			// Done reading lines
-			if scannedCount < 200 { // When test was written, 251 lines observed on amd64
-				fmt.Printf("Scanned only %d lines, was expecting more than 200", scannedCount)
+			const minLines = 150
+			if scannedCount <= minLines { // When test was written, 251 lines observed on amd64; arm64 now obtains 184
+				fmt.Printf("Scanned only %d lines, was expecting more than %d\n", int(scannedCount), minLines)
 				return
 			}
 			// Note: when test was written, before changes=92, after=50 (was 62 w/o rematerialization NoXPos in *Value.copyInto())
