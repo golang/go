@@ -578,7 +578,12 @@ func (t *tester) registerTests() {
 	if t.hasBash() && t.cgoEnabled && goos != "android" && goos != "darwin" {
 		t.registerTest("testgodefs", "../misc/cgo/testgodefs", "./test.bash")
 	}
-	if t.cgoEnabled {
+
+	// Don't run these tests with $GO_GCFLAGS because most of them
+	// assume that they can run "go install" with no -gcflags and not
+	// recompile the entire standard library. If make.bash ran with
+	// special -gcflags, that's not true.
+	if t.cgoEnabled && gogcflags == "" {
 		if t.cgoTestSOSupported() {
 			t.tests = append(t.tests, distTest{
 				name:    "testso",
