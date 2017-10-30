@@ -69,11 +69,31 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
 
 	stdout.Reset()
 	stderr.Reset()
-	cmd = exec.Command("go", "run", "-gcflags", "-d=ssa/check/on", rungo)
+	// Execute compile+link+run instead of "go run" to avoid applying -gcflags=-d=ssa/check/on
+	// to the runtime (especially over and over and over).
+	// compile
+	cmd = exec.Command("go", "tool", "compile", "-d=ssa/check/on", "-o", filepath.Join(tmpdir, "run.a"), rungo)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	cmd.Env = append(cmd.Env, ev...)
-	if err := cmd.Run(); err != nil {
+	err := cmd.Run()
+	if err == nil {
+		// link
+		cmd = exec.Command("go", "tool", "link", "-o", filepath.Join(tmpdir, "run.exe"), filepath.Join(tmpdir, "run.a"))
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		cmd.Env = append(cmd.Env, ev...)
+		err = cmd.Run()
+	}
+	if err == nil {
+		// run
+		cmd = exec.Command(filepath.Join(tmpdir, "run.exe"))
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		cmd.Env = append(cmd.Env, ev...)
+		err = cmd.Run()
+	}
+	if err != nil {
 		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
 	}
 	if s := stderr.String(); s != "" {
@@ -82,7 +102,6 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
 	if s := stdout.String(); s != "" {
 		t.Errorf("Stdout = %s\nWant empty", s)
 	}
-
 }
 
 func TestGenFlowGraph(t *testing.T) {
