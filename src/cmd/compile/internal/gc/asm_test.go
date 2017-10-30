@@ -1634,6 +1634,14 @@ var linuxS390XTests = []*asmTest{
 		pos: []string{"\tFIDBR\t[$]5"},
 	},
 	{
+		fn: `
+		func roundToEven(x float64) float64 {
+			return math.RoundToEven(x)
+		}
+		`,
+		pos: []string{"\tFIDBR\t[$]4"},
+	},
+	{
 		// check that stack store is optimized away
 		fn: `
 		func $() int {
