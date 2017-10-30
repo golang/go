@@ -166,14 +166,14 @@ func TestInstallationImporter(t *testing.T) {
 	// all packages into the same map and then each individually.
 	pkgMap := make(map[string]*types.Package)
 	for _, pkg := range importablePackages {
-		_, err = imp(pkgMap, pkg)
+		_, err = imp(pkgMap, pkg, ".", nil)
 		if err != nil {
 			t.Error(err)
 		}
 	}
 
 	for _, pkg := range importablePackages {
-		_, err = imp(make(map[string]*types.Package), pkg)
+		_, err = imp(make(map[string]*types.Package), pkg, ".", nil)
 		if err != nil {
 			t.Error(err)
 		}

@@ -21,7 +21,7 @@ type importerTest struct {
 }
 
 func runImporterTest(t *testing.T, imp Importer, initmap map[*types.Package]InitData, test *importerTest) {
-	pkg, err := imp(make(map[string]*types.Package), test.pkgpath)
+	pkg, err := imp(make(map[string]*types.Package), test.pkgpath, ".", nil)
 	if err != nil {
 		t.Error(err)
 		return
