@@ -326,6 +326,10 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 	dstp := dst.array
 	srcp := src.array
 
+	// The compiler emits calls to typedslicecopy before
+	// instrumentation runs, so unlike the other copying and
+	// assignment operations, it's not instrumented in the calling
+	// code and needs its own instrumentation.
 	if raceenabled {
 		callerpc := getcallerpc()
 		pc := funcPC(slicecopy)
