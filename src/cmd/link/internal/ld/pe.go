@@ -848,7 +848,14 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	// runtime/cgo/gcc_windows_{386,amd64}.c and the correspondent
 	// CreateThread parameter in runtime.newosproc.
 	oh64.SizeOfStackReserve = 0x00200000
-	oh64.SizeOfStackCommit = 0x00200000 - 0x2000 // account for 2 guard pages
+	if !iscgo {
+		oh64.SizeOfStackCommit = 0x00001000
+	} else {
+		// TODO(brainman): Maybe remove optional header writing altogether for cgo.
+		// For cgo it is the external linker that is building final executable.
+		// And it probably does not use any information stored in optional header.
+		oh64.SizeOfStackCommit = 0x00200000 - 0x2000 // account for 2 guard pages
+	}
 
 	// 32-bit is trickier since there much less address space to
 	// work with. Here we use large stacks only in cgo binaries as
@@ -858,7 +865,7 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 		oh.SizeOfStackCommit = 0x00001000
 	} else {
 		oh.SizeOfStackReserve = 0x00100000
-		oh.SizeOfStackCommit = 0x00100000 - 0x2000
+		oh.SizeOfStackCommit = 0x00100000 - 0x2000 // account for 2 guard pages
 	}
 
 	oh64.SizeOfHeapReserve = 0x00100000
