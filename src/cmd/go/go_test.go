@@ -5199,3 +5199,47 @@ func TestGoTestJSON(t *testing.T) {
 	}
 	t.Fatalf("did not see JSON output")
 }
+
+func TestFailFast(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tests := []struct {
+		run      string
+		failfast bool
+		nfail    int
+	}{
+		{"TestFailingA", true, 1},
+		{"TestFailing[AB]", true, 1},
+		{"TestFailing[AB]", false, 2},
+		// mix with non-failing tests:
+		{"TestA|TestFailing[AB]", true, 1},
+		{"TestA|TestFailing[AB]", false, 2},
+		// mix with parallel tests:
+		{"TestFailingB|TestParallelFailingA", true, 2},
+		{"TestFailingB|TestParallelFailingA", false, 2},
+		{"TestFailingB|TestParallelFailing[AB]", true, 3},
+		{"TestFailingB|TestParallelFailing[AB]", false, 3},
+		// mix with parallel sub-tests
+		{"TestFailingB|TestParallelFailing[AB]|TestParallelFailingSubtestsA", true, 3},
+		{"TestFailingB|TestParallelFailing[AB]|TestParallelFailingSubtestsA", false, 5},
+		{"TestParallelFailingSubtestsA", true, 1},
+		// only parallels:
+		{"TestParallelFailing[AB]", false, 2},
+		// non-parallel subtests:
+		{"TestFailingSubtestsA", true, 1},
+		{"TestFailingSubtestsA", false, 2},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.run, func(t *testing.T) {
+			tg.runFail("test", "./testdata/src/failfast_test.go", "-run="+tt.run, "-failfast="+strconv.FormatBool(tt.failfast))
+
+			nfail := strings.Count(tg.getStdout(), "FAIL - ")
+
+			if nfail != tt.nfail {
+				t.Errorf("go test -run=%s -failfast=%t printed %d FAILs, want %d", tt.run, tt.failfast, nfail, tt.nfail)
+			}
+		})
+	}
+}

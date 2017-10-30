@@ -1537,6 +1537,9 @@
 // 	    benchmarks should be executed. The default is the current value
 // 	    of GOMAXPROCS.
 //
+// 	-failfast
+// 	    Do not start new tests after the first test failure.
+//
 // 	-list regexp
 // 	    List tests, benchmarks, or examples matching the regular expression.
 // 	    No tests, benchmarks or examples will be run. This will only
