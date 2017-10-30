@@ -31,6 +31,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
+
+	"golang_org/x/crypto/cryptobyte"
+	cryptobyte_asn1 "golang_org/x/crypto/cryptobyte/asn1"
 )
 
 // pkixPublicKey reflects a PKIX public key structure. See SubjectPublicKeyInfo
@@ -953,25 +957,12 @@ type policyInformation struct {
 	// policyQualifiers omitted
 }
 
-// RFC 5280, 4.2.1.10
-type nameConstraints struct {
-	Permitted []generalSubtree `asn1:"optional,tag:0"`
-	Excluded  []generalSubtree `asn1:"optional,tag:1"`
-}
-
 const (
 	nameTypeEmail = 1
 	nameTypeDNS   = 2
 	nameTypeURI   = 6
 	nameTypeIP    = 7
 )
-
-type generalSubtree struct {
-	Email     string `asn1:"tag:1,optional,ia5"`
-	Name      string `asn1:"tag:2,optional,ia5"`
-	URIDomain string `asn1:"tag:6,optional,ia5"`
-	IPAndMask []byte `asn1:"tag:7,optional"`
-}
 
 // RFC 5280, 4.2.2.1
 type authorityInfoAccess struct {
@@ -1207,14 +1198,18 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 	//
 	// BaseDistance ::= INTEGER (0..MAX)
 
-	var constraints nameConstraints
-	if rest, err := asn1.Unmarshal(e.Value, &constraints); err != nil {
-		return false, err
-	} else if len(rest) != 0 {
-		return false, errors.New("x509: trailing data after X.509 NameConstraints")
+	outer := cryptobyte.String(e.Value)
+	var toplevel, permitted, excluded cryptobyte.String
+	var havePermitted, haveExcluded bool
+	if !outer.ReadASN1(&toplevel, cryptobyte_asn1.SEQUENCE) ||
+		!outer.Empty() ||
+		!toplevel.ReadOptionalASN1(&permitted, &havePermitted, cryptobyte_asn1.Tag(0).ContextSpecific().Constructed()) ||
+		!toplevel.ReadOptionalASN1(&excluded, &haveExcluded, cryptobyte_asn1.Tag(1).ContextSpecific().Constructed()) ||
+		!toplevel.Empty() {
+		return false, errors.New("x509: invalid NameConstraints extension")
 	}
 
-	if len(constraints.Permitted) == 0 && len(constraints.Excluded) == 0 {
+	if !havePermitted && !haveExcluded || len(permitted) == 0 && len(excluded) == 0 {
 		// https://tools.ietf.org/html/rfc5280#section-4.2.1.10:
 		//   “either the permittedSubtrees field
 		//   or the excludedSubtrees MUST be
@@ -1222,35 +1217,55 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 		return false, errors.New("x509: empty name constraints extension")
 	}
 
-	getValues := func(subtrees []generalSubtree) (dnsNames []string, ips []*net.IPNet, emails, uriDomains []string, err error) {
-		for _, subtree := range subtrees {
-			switch {
-			case len(subtree.Name) != 0:
-				domain := subtree.Name
-				if len(domain) > 0 && domain[0] == '.' {
+	getValues := func(subtrees cryptobyte.String) (dnsNames []string, ips []*net.IPNet, emails, uriDomains []string, err error) {
+		for !subtrees.Empty() {
+			var seq, value cryptobyte.String
+			var tag cryptobyte_asn1.Tag
+			if !subtrees.ReadASN1(&seq, cryptobyte_asn1.SEQUENCE) ||
+				!seq.ReadAnyASN1(&value, &tag) ||
+				!seq.Empty() {
+				return nil, nil, nil, nil, fmt.Errorf("x509: invalid NameConstraints extension")
+			}
+
+			var (
+				dnsTag   = cryptobyte_asn1.Tag(2).ContextSpecific()
+				emailTag = cryptobyte_asn1.Tag(1).ContextSpecific()
+				ipTag    = cryptobyte_asn1.Tag(7).ContextSpecific()
+				uriTag   = cryptobyte_asn1.Tag(6).ContextSpecific()
+			)
+
+			switch tag {
+			case dnsTag:
+				domain := string(value)
+				if err := isIA5String(domain); err != nil {
+					return nil, nil, nil, nil, errors.New("x509: invalid constraint value: " + err.Error())
+				}
+
+				trimmedDomain := domain
+				if len(trimmedDomain) > 0 && trimmedDomain[0] == '.' {
 					// constraints can have a leading
 					// period to exclude the domain
 					// itself, but that's not valid in a
 					// normal domain name.
-					domain = domain[1:]
+					trimmedDomain = trimmedDomain[1:]
 				}
-				if _, ok := domainToReverseLabels(domain); !ok {
-					return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse dnsName constraint %q", subtree.Name)
+				if _, ok := domainToReverseLabels(trimmedDomain); !ok {
+					return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse dnsName constraint %q", domain)
 				}
-				dnsNames = append(dnsNames, subtree.Name)
+				dnsNames = append(dnsNames, domain)
 
-			case len(subtree.IPAndMask) != 0:
-				l := len(subtree.IPAndMask)
+			case ipTag:
+				l := len(value)
 				var ip, mask []byte
 
 				switch l {
 				case 8:
-					ip = subtree.IPAndMask[:4]
-					mask = subtree.IPAndMask[4:]
+					ip = value[:4]
+					mask = value[4:]
 
 				case 32:
-					ip = subtree.IPAndMask[:16]
-					mask = subtree.IPAndMask[16:]
+					ip = value[:16]
+					mask = value[16:]
 
 				default:
 					return nil, nil, nil, nil, fmt.Errorf("x509: IP constraint contained value of length %d", l)
@@ -1262,8 +1277,12 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 
 				ips = append(ips, &net.IPNet{IP: net.IP(ip), Mask: net.IPMask(mask)})
 
-			case len(subtree.Email) != 0:
-				constraint := subtree.Email
+			case emailTag:
+				constraint := string(value)
+				if err := isIA5String(constraint); err != nil {
+					return nil, nil, nil, nil, errors.New("x509: invalid constraint value: " + err.Error())
+				}
+
 				// If the constraint contains an @ then
 				// it specifies an exact mailbox name.
 				if strings.Contains(constraint, "@") {
@@ -1282,24 +1301,28 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 				}
 				emails = append(emails, constraint)
 
-			case len(subtree.URIDomain) != 0:
-				domain := subtree.URIDomain
+			case uriTag:
+				domain := string(value)
+				if err := isIA5String(domain); err != nil {
+					return nil, nil, nil, nil, errors.New("x509: invalid constraint value: " + err.Error())
+				}
 
 				if net.ParseIP(domain) != nil {
-					return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse URI constraint %q: cannot be IP address", subtree.URIDomain)
+					return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse URI constraint %q: cannot be IP address", domain)
 				}
 
-				if len(domain) > 0 && domain[0] == '.' {
+				trimmedDomain := domain
+				if len(trimmedDomain) > 0 && trimmedDomain[0] == '.' {
 					// constraints can have a leading
-					// period to exclude the domain
-					// itself, but that's not valid in a
-					// normal domain name.
-					domain = domain[1:]
+					// period to exclude the domain itself,
+					// but that's not valid in a normal
+					// domain name.
+					trimmedDomain = trimmedDomain[1:]
 				}
-				if _, ok := domainToReverseLabels(domain); !ok {
-					return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse URI constraint %q", subtree.URIDomain)
+				if _, ok := domainToReverseLabels(trimmedDomain); !ok {
+					return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse URI constraint %q", domain)
 				}
-				uriDomains = append(uriDomains, subtree.URIDomain)
+				uriDomains = append(uriDomains, domain)
 
 			default:
 				unhandled = true
@@ -1309,10 +1332,10 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 		return dnsNames, ips, emails, uriDomains, nil
 	}
 
-	if out.PermittedDNSDomains, out.PermittedIPRanges, out.PermittedEmailAddresses, out.PermittedURIDomains, err = getValues(constraints.Permitted); err != nil {
+	if out.PermittedDNSDomains, out.PermittedIPRanges, out.PermittedEmailAddresses, out.PermittedURIDomains, err = getValues(permitted); err != nil {
 		return false, err
 	}
-	if out.ExcludedDNSDomains, out.ExcludedIPRanges, out.ExcludedEmailAddresses, out.ExcludedURIDomains, err = getValues(constraints.Excluded); err != nil {
+	if out.ExcludedDNSDomains, out.ExcludedIPRanges, out.ExcludedEmailAddresses, out.ExcludedURIDomains, err = getValues(excluded); err != nil {
 		return false, err
 	}
 	out.PermittedDNSDomainsCritical = e.Critical
@@ -1670,6 +1693,16 @@ func marshalSANs(dnsNames, emailAddresses []string, ipAddresses []net.IP, uris [
 	return asn1.Marshal(rawValues)
 }
 
+func isIA5String(s string) error {
+	for _, r := range s {
+		if r >= utf8.RuneSelf {
+			return fmt.Errorf("x509: %q cannot be encoded as an IA5String", s)
+		}
+	}
+
+	return nil
+}
+
 func buildExtensions(template *Certificate, authorityKeyId []byte) (ret []pkix.Extension, err error) {
 	ret = make([]pkix.Extension, 10 /* maximum number of elements. */)
 	n := 0
@@ -1808,8 +1841,6 @@ func buildExtensions(template *Certificate, authorityKeyId []byte) (ret []pkix.E
 		ret[n].Id = oidExtensionNameConstraints
 		ret[n].Critical = template.PermittedDNSDomainsCritical
 
-		var out nameConstraints
-
 		ipAndMask := func(ipNet *net.IPNet) []byte {
 			maskedIP := ipNet.IP.Mask(ipNet.Mask)
 			ipAndMask := make([]byte, 0, len(maskedIP)+len(ipNet.Mask))
@@ -1818,37 +1849,84 @@ func buildExtensions(template *Certificate, authorityKeyId []byte) (ret []pkix.E
 			return ipAndMask
 		}
 
-		out.Permitted = make([]generalSubtree, 0, len(template.PermittedDNSDomains)+len(template.PermittedIPRanges))
-		for _, permitted := range template.PermittedDNSDomains {
-			out.Permitted = append(out.Permitted, generalSubtree{Name: permitted})
-		}
-		for _, permitted := range template.PermittedIPRanges {
-			out.Permitted = append(out.Permitted, generalSubtree{IPAndMask: ipAndMask(permitted)})
-		}
-		for _, permitted := range template.PermittedEmailAddresses {
-			out.Permitted = append(out.Permitted, generalSubtree{Email: permitted})
-		}
-		for _, permitted := range template.PermittedURIDomains {
-			out.Permitted = append(out.Permitted, generalSubtree{URIDomain: permitted})
+		serialiseConstraints := func(dns []string, ips []*net.IPNet, emails []string, uriDomains []string) (der []byte, err error) {
+			var b cryptobyte.Builder
+
+			for _, name := range dns {
+				if err = isIA5String(name); err != nil {
+					return nil, err
+				}
+
+				b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+					b.AddASN1(cryptobyte_asn1.Tag(2).ContextSpecific(), func(b *cryptobyte.Builder) {
+						b.AddBytes([]byte(name))
+					})
+				})
+			}
+
+			for _, ipNet := range ips {
+				b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+					b.AddASN1(cryptobyte_asn1.Tag(7).ContextSpecific(), func(b *cryptobyte.Builder) {
+						b.AddBytes(ipAndMask(ipNet))
+					})
+				})
+			}
+
+			for _, email := range emails {
+				if err = isIA5String(email); err != nil {
+					return nil, err
+				}
+
+				b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+					b.AddASN1(cryptobyte_asn1.Tag(1).ContextSpecific(), func(b *cryptobyte.Builder) {
+						b.AddBytes([]byte(email))
+					})
+				})
+			}
+
+			for _, uriDomain := range uriDomains {
+				if err = isIA5String(uriDomain); err != nil {
+					return nil, err
+				}
+
+				b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+					b.AddASN1(cryptobyte_asn1.Tag(6).ContextSpecific(), func(b *cryptobyte.Builder) {
+						b.AddBytes([]byte(uriDomain))
+					})
+				})
+			}
+
+			return b.Bytes()
 		}
 
-		out.Excluded = make([]generalSubtree, 0, len(template.ExcludedDNSDomains)+len(template.ExcludedIPRanges))
-		for _, excluded := range template.ExcludedDNSDomains {
-			out.Excluded = append(out.Excluded, generalSubtree{Name: excluded})
-		}
-		for _, excluded := range template.ExcludedIPRanges {
-			out.Excluded = append(out.Excluded, generalSubtree{IPAndMask: ipAndMask(excluded)})
-		}
-		for _, excluded := range template.ExcludedEmailAddresses {
-			out.Excluded = append(out.Excluded, generalSubtree{Email: excluded})
-		}
-		for _, excluded := range template.ExcludedURIDomains {
-			out.Excluded = append(out.Excluded, generalSubtree{URIDomain: excluded})
-		}
-
-		ret[n].Value, err = asn1.Marshal(out)
+		permitted, err := serialiseConstraints(template.PermittedDNSDomains, template.PermittedIPRanges, template.PermittedEmailAddresses, template.PermittedURIDomains)
 		if err != nil {
-			return
+			return nil, err
+		}
+
+		excluded, err := serialiseConstraints(template.ExcludedDNSDomains, template.ExcludedIPRanges, template.ExcludedEmailAddresses, template.ExcludedURIDomains)
+		if err != nil {
+			return nil, err
+		}
+
+		var b cryptobyte.Builder
+		b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+			if len(permitted) > 0 {
+				b.AddASN1(cryptobyte_asn1.Tag(0).ContextSpecific().Constructed(), func(b *cryptobyte.Builder) {
+					b.AddBytes(permitted)
+				})
+			}
+
+			if len(excluded) > 0 {
+				b.AddASN1(cryptobyte_asn1.Tag(1).ContextSpecific().Constructed(), func(b *cryptobyte.Builder) {
+					b.AddBytes(excluded)
+				})
+			}
+		})
+
+		ret[n].Value, err = b.Bytes()
+		if err != nil {
+			return nil, err
 		}
 		n++
 	}

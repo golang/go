@@ -378,6 +378,7 @@ var pkgDeps = map[string][]string{
 	"crypto/x509": {
 		"L4", "CRYPTO-MATH", "OS", "CGO",
 		"crypto/x509/pkix", "encoding/pem", "encoding/hex", "net", "os/user", "syscall", "net/url",
+		"golang_org/x/crypto/cryptobyte", "golang_org/x/crypto/cryptobyte/asn1",
 	},
 	"crypto/x509/pkix": {"L4", "CRYPTO-MATH", "encoding/hex"},
 
