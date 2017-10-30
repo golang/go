@@ -86,6 +86,13 @@ var testCC string
 // The TestMain function creates a go command for testing purposes and
 // deletes it after the tests have been run.
 func TestMain(m *testing.M) {
+	if os.Getenv("GO_GCFLAGS") != "" {
+		fmt.Fprintf(os.Stderr, "testing: warning: no tests to run\n") // magic string for cmd/go
+		fmt.Printf("cmd/go test is not compatible with $GO_GCFLAGS being set\n")
+		fmt.Printf("SKIP\n")
+		return
+	}
+
 	if canRun {
 		args := []string{"build", "-tags", "testgo", "-o", "testgo" + exeSuffix}
 		if race.Enabled {

@@ -417,6 +417,14 @@ func (ctxt *context) match(name string) bool {
 
 func init() { checkShouldTest() }
 
+// goGcflags returns the -gcflags argument to use with go build / go run.
+// This must match the flags used for building the standard libary,
+// or else the commands will rebuild any needed packages (like runtime)
+// over and over.
+func goGcflags() string {
+	return "-gcflags=" + os.Getenv("GO_GCFLAGS")
+}
+
 // run runs a test.
 func (t *test) run() {
 	start := time.Now()
@@ -701,7 +709,7 @@ func (t *test) run() {
 		}
 
 	case "build":
-		_, err := runcmd("go", "build", "-o", "a.exe", long)
+		_, err := runcmd("go", "build", goGcflags(), "-o", "a.exe", long)
 		if err != nil {
 			t.err = err
 		}
@@ -766,7 +774,7 @@ func (t *test) run() {
 	case "buildrun": // build binary, then run binary, instead of go run. Useful for timeout tests where failure mode is infinite loop.
 		// TODO: not supported on NaCl
 		useTmp = true
-		cmd := []string{"go", "build", "-o", "a.exe"}
+		cmd := []string{"go", "build", goGcflags(), "-o", "a.exe"}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -791,7 +799,7 @@ func (t *test) run() {
 
 	case "run":
 		useTmp = false
-		cmd := []string{"go", "run"}
+		cmd := []string{"go", "run", goGcflags()}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -812,7 +820,7 @@ func (t *test) run() {
 			<-rungatec
 		}()
 		useTmp = false
-		cmd := []string{"go", "run"}
+		cmd := []string{"go", "run", goGcflags()}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -827,7 +835,7 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
-		cmd = []string{"go", "run"}
+		cmd = []string{"go", "run", goGcflags()}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -843,7 +851,7 @@ func (t *test) run() {
 
 	case "errorcheckoutput":
 		useTmp = false
-		cmd := []string{"go", "run"}
+		cmd := []string{"go", "run", goGcflags()}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
