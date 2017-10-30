@@ -1185,9 +1185,6 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 	},
 
-	// TODO(agl): handle empty name constraints. Currently this doesn't
-	// work because empty values are treated as missing.
-
 	// #61: omitting extended key usage in a CA certificate implies that
 	// any usage is ok.
 	nameConstraintsTest{
@@ -1344,6 +1341,111 @@ var nameConstraintsTests = []nameConstraintsTest{
 			sans: []string{"dns:example.com"},
 			ekus: []string{"serverAuth", "clientAuth"},
 		},
+	},
+
+	// #69: an empty DNS constraint should allow anything.
+	nameConstraintsTest{
+		roots: []constraintsSpec{
+			constraintsSpec{
+				ok: []string{"dns:"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			[]constraintsSpec{
+				constraintsSpec{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:example.com"},
+		},
+	},
+
+	// #70: an empty DNS constraint should also reject everything.
+	nameConstraintsTest{
+		roots: []constraintsSpec{
+			constraintsSpec{
+				bad: []string{"dns:"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			[]constraintsSpec{
+				constraintsSpec{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:example.com"},
+		},
+		expectedError: "\"example.com\" is excluded",
+	},
+
+	// #71: an empty email constraint should allow anything
+	nameConstraintsTest{
+		roots: []constraintsSpec{
+			constraintsSpec{
+				ok: []string{"email:"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			[]constraintsSpec{
+				constraintsSpec{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"email:foo@example.com"},
+		},
+	},
+
+	// #72: an empty email constraint should also reject everything.
+	nameConstraintsTest{
+		roots: []constraintsSpec{
+			constraintsSpec{
+				bad: []string{"email:"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			[]constraintsSpec{
+				constraintsSpec{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"email:foo@example.com"},
+		},
+		expectedError: "\"foo@example.com\" is excluded",
+	},
+
+	// #73: an empty URI constraint should allow anything
+	nameConstraintsTest{
+		roots: []constraintsSpec{
+			constraintsSpec{
+				ok: []string{"uri:"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			[]constraintsSpec{
+				constraintsSpec{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"uri:https://example.com/test"},
+		},
+	},
+
+	// #74: an empty URI constraint should also reject everything.
+	nameConstraintsTest{
+		roots: []constraintsSpec{
+			constraintsSpec{
+				bad: []string{"uri:"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			[]constraintsSpec{
+				constraintsSpec{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"uri:https://example.com/test"},
+		},
+		expectedError: "\"https://example.com/test\" is excluded",
 	},
 }
 
@@ -1826,14 +1928,29 @@ func TestRFC2821Parsing(t *testing.T) {
 }
 
 func TestBadNamesInConstraints(t *testing.T) {
+	constraintParseError := func(err error) bool {
+		str := err.Error()
+		return strings.Contains(str, "failed to parse ") && strings.Contains(str, "constraint")
+	}
+
+	encodingError := func(err error) bool {
+		return strings.Contains(err.Error(), "cannot be encoded as an IA5String")
+	}
+
 	// Bad names in constraints should not parse.
-	badNames := []string{
-		"dns:foo.com.",
-		"email:abc@foo.com.",
-		"email:foo.com.",
-		"uri:example.com.",
-		"uri:1.2.3.4",
-		"uri:ffff::1",
+	badNames := []struct {
+		name    string
+		matcher func(error) bool
+	}{
+		{"dns:foo.com.", constraintParseError},
+		{"email:abc@foo.com.", constraintParseError},
+		{"email:foo.com.", constraintParseError},
+		{"uri:example.com.", constraintParseError},
+		{"uri:1.2.3.4", constraintParseError},
+		{"uri:ffff::1", constraintParseError},
+		{"dns:not–hyphen.com", encodingError},
+		{"email:foo@not–hyphen.com", encodingError},
+		{"uri:not–hyphen.com", encodingError},
 	}
 
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -1841,19 +1958,17 @@ func TestBadNamesInConstraints(t *testing.T) {
 		panic(err)
 	}
 
-	for _, badName := range badNames {
+	for _, test := range badNames {
 		_, err := makeConstraintsCACert(constraintsSpec{
-			ok: []string{badName},
+			ok: []string{test.name},
 		}, "TestAbsoluteNamesInConstraints", priv, nil, priv)
 
 		if err == nil {
-			t.Errorf("bad name %q unexpectedly accepted in name constraint", badName)
+			t.Errorf("bad name %q unexpectedly accepted in name constraint", test.name)
 			continue
-		}
-
-		if err != nil {
-			if str := err.Error(); !strings.Contains(str, "failed to parse ") && !strings.Contains(str, "constraint") {
-				t.Errorf("bad name %q triggered unrecognised error: %s", badName, str)
+		} else {
+			if !test.matcher(err) {
+				t.Errorf("bad name %q triggered unrecognised error: %s", test.name, err)
 			}
 		}
 	}
