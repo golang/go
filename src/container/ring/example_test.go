@@ -24,14 +24,17 @@ func ExampleRing_Next() {
 	// Create a new ring of size 5
 	r := ring.New(5)
 
+	// Get the length of the ring
+	n := r.Len()
+
 	// Initialize the ring with some integer values
-	for i := 0; i < r.Len(); i++ {
+	for i := 0; i < n; i++ {
 		r.Value = i
 		r = r.Next()
 	}
 
 	// Iterate through the ring and print its contents
-	for j := 0; j < r.Len(); j++ {
+	for j := 0; j < n; j++ {
 		fmt.Println(r.Value)
 		r = r.Next()
 	}
@@ -48,14 +51,17 @@ func ExampleRing_Prev() {
 	// Create a new ring of size 5
 	r := ring.New(5)
 
+	// Get the length of the ring
+	n := r.Len()
+
 	// Initialize the ring with some integer values
-	for i := 0; i < r.Len(); i++ {
+	for i := 0; i < n; i++ {
 		r.Value = i
 		r = r.Next()
 	}
 
 	// Iterate through the ring backwards and print its contents
-	for j := 0; j < r.Len(); j++ {
+	for j := 0; j < n; j++ {
 		r = r.Prev()
 		fmt.Println(r.Value)
 	}
@@ -72,8 +78,11 @@ func ExampleRing_Do() {
 	// Create a new ring of size 5
 	r := ring.New(5)
 
+	// Get the length of the ring
+	n := r.Len()
+
 	// Initialize the ring with some integer values
-	for i := 0; i < r.Len(); i++ {
+	for i := 0; i < n; i++ {
 		r.Value = i
 		r = r.Next()
 	}
@@ -95,8 +104,11 @@ func ExampleRing_Move() {
 	// Create a new ring of size 5
 	r := ring.New(5)
 
+	// Get the length of the ring
+	n := r.Len()
+
 	// Initialize the ring with some integer values
-	for i := 0; i < r.Len(); i++ {
+	for i := 0; i < n; i++ {
 		r.Value = i
 		r = r.Next()
 	}
@@ -122,14 +134,18 @@ func ExampleRing_Link() {
 	r := ring.New(2)
 	s := ring.New(2)
 
+	// Get the length of the ring
+	lr := r.Len()
+	ls := s.Len()
+
 	// Initialize r with 0s
-	for i := 0; i < r.Len(); i++ {
+	for i := 0; i < lr; i++ {
 		r.Value = 0
 		r = r.Next()
 	}
 
 	// Initialize s with 1s
-	for j := 0; j < s.Len(); j++ {
+	for j := 0; j < ls; j++ {
 		s.Value = 1
 		s = s.Next()
 	}
@@ -153,8 +169,11 @@ func ExampleRing_Unlink() {
 	// Create a new ring of size 6
 	r := ring.New(6)
 
+	// Get the length of the ring
+	n := r.Len()
+
 	// Initialize the ring with some integer values
-	for i := 0; i < r.Len(); i++ {
+	for i := 0; i < n; i++ {
 		r.Value = i
 		r = r.Next()
 	}
