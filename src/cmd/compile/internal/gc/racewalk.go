@@ -170,10 +170,14 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 	case OCALLINTER:
 		instrumentnode(&n.Left, init, 0, 0)
 
-	// Instrument dst argument of runtime.writebarrier* calls
-	// as we do not instrument runtime code.
-	// typedslicecopy is instrumented in runtime.
 	case OCALLFUNC:
+		// Note that runtime.typedslicecopy is the only
+		// assignment-like function call in the AST at this
+		// point (between walk and SSA); since we don't
+		// instrument it here, typedslicecopy is manually
+		// instrumented in runtime. Calls to the write barrier
+		// and typedmemmove are created later by SSA, so those
+		// still appear as OAS nodes at this point.
 		instrumentnode(&n.Left, init, 0, 0)
 
 	case ONOT,
