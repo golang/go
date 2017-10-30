@@ -242,6 +242,9 @@ var (
 	// full test of the package.
 	short = flag.Bool("test.short", false, "run smaller test suite to save time")
 
+	// The failfast flag requests that test execution stop after the first test failure.
+	failFast = flag.Bool("test.failfast", false, "do not start new tests after the first test failure")
+
 	// The directory in which to create profile files and the like. When run from
 	// "go test", the binary always runs in the source directory for the package;
 	// this flag lets "go test" tell the binary to write the files in the directory where
@@ -269,6 +272,8 @@ var (
 	haveExamples bool // are there examples?
 
 	cpuList []int
+
+	numFailed uint32 // number of test failures
 )
 
 // common holds the elements common between T and B and
@@ -767,6 +772,10 @@ func tRunner(t *T, fn func(t *T)) {
 	t.start = time.Now()
 	t.raceErrors = -race.Errors()
 	fn(t)
+
+	if t.failed {
+		atomic.AddUint32(&numFailed, 1)
+	}
 	t.finished = true
 }
 
@@ -779,7 +788,7 @@ func tRunner(t *T, fn func(t *T)) {
 func (t *T) Run(name string, f func(t *T)) bool {
 	atomic.StoreInt32(&t.hasSub, 1)
 	testName, ok, _ := t.context.match.fullName(&t.common, name)
-	if !ok {
+	if !ok || shouldFailFast() {
 		return true
 	}
 	t = &T{
@@ -1021,6 +1030,9 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 	for _, procs := range cpuList {
 		runtime.GOMAXPROCS(procs)
 		for i := uint(0); i < *count; i++ {
+			if shouldFailFast() {
+				break
+			}
 			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
 			t := &T{
 				common: common{
@@ -1208,4 +1220,8 @@ func parseCpuList() {
 	if cpuList == nil {
 		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
 	}
+}
+
+func shouldFailFast() bool {
+	return *failFast && atomic.LoadUint32(&numFailed) > 0
 }
