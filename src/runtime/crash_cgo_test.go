@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -451,4 +452,21 @@ func TestCgoLockOSThreadExit(t *testing.T) {
 	}
 	t.Parallel()
 	testLockOSThreadExit(t, "testprogcgo")
+}
+
+func testWindowsStackMemory(t *testing.T, o string) {
+	stackUsage, err := strconv.Atoi(o)
+	if err != nil {
+		t.Fatalf("Failed to read stack usage: %v", err)
+	}
+	if expected, got := 100<<10, stackUsage; got > expected {
+		t.Fatalf("expected < %d bytes of memory per thread, got %d", expected, got)
+	}
+}
+
+func TestWindowsStackMemoryCgo(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("skipping windows specific test")
+	}
+	testWindowsStackMemory(t, runTestProg(t, "testprogcgo", "StackMemory"))
 }

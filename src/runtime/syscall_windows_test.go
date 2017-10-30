@@ -537,6 +537,10 @@ func TestWERDialogue(t *testing.T) {
 	cmd.CombinedOutput()
 }
 
+func TestWindowsStackMemory(t *testing.T) {
+	testWindowsStackMemory(t, runTestProg(t, "testprog", "StackMemory"))
+}
+
 var used byte
 
 func use(buf []byte) {
