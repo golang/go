@@ -351,3 +351,14 @@ func ExampleTrimRightFunc() {
 	}))
 	// Output: ¡¡¡Hello, Gophers
 }
+
+func ExampleBuilder() {
+	var b strings.Builder
+	for i := 3; i >= 1; i-- {
+		fmt.Fprintf(&b, "%d...", i)
+	}
+	b.WriteString("ignition")
+	fmt.Println(b.String())
+
+	// Output: 3...2...1...ignition
+}
