@@ -795,6 +795,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpRound32F_0(v)
 	case OpRound64F:
 		return rewriteValueAMD64_OpRound64F_0(v)
+	case OpRoundToEven:
+		return rewriteValueAMD64_OpRoundToEven_0(v)
 	case OpRsh16Ux16:
 		return rewriteValueAMD64_OpRsh16Ux16_0(v)
 	case OpRsh16Ux32:
@@ -45648,6 +45650,18 @@ func rewriteValueAMD64_OpRound64F_0(v *Value) bool {
 		x := v.Args[0]
 		v.reset(OpCopy)
 		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueAMD64_OpRoundToEven_0(v *Value) bool {
+	// match: (RoundToEven x)
+	// cond:
+	// result: (ROUNDSD [0] x)
+	for {
+		x := v.Args[0]
+		v.reset(OpAMD64ROUNDSD)
+		v.AuxInt = 0
 		v.AddArg(x)
 		return true
 	}

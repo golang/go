@@ -2860,6 +2860,9 @@ func init() {
 			return s.variable(n, types.Types[TFLOAT64])
 		}
 	}
+	addF("math", "RoundToEven",
+		makeRoundAMD64(ssa.OpRoundToEven),
+		sys.AMD64)
 	addF("math", "Floor",
 		makeRoundAMD64(ssa.OpFloor),
 		sys.AMD64)
