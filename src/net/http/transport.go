@@ -1303,16 +1303,16 @@ func useProxy(addr string) bool {
 //
 // A connect method may be of the following types:
 //
-// Cache key form                    Description
-// -----------------                 -------------------------
-// |http|foo.com                     http directly to server, no proxy
-// |https|foo.com                    https directly to server, no proxy
-// http://proxy.com|https|foo.com    http to proxy, then CONNECT to foo.com
-// http://proxy.com|http             http to proxy, http to anywhere after that
-// socks5://proxy.com|http|foo.com   socks5 to proxy, then http to foo.com
-// socks5://proxy.com|https|foo.com  socks5 to proxy, then https to foo.com
-// https://proxy.com|https|foo.com   https to proxy, then CONNECT to foo.com
-// https://proxy.com|http            https to proxy, http to anywhere after that
+//	Cache key form                    Description
+//	-----------------                 -------------------------
+//	|http|foo.com                     http directly to server, no proxy
+//	|https|foo.com                    https directly to server, no proxy
+//	http://proxy.com|https|foo.com    http to proxy, then CONNECT to foo.com
+//	http://proxy.com|http             http to proxy, http to anywhere after that
+//	socks5://proxy.com|http|foo.com   socks5 to proxy, then http to foo.com
+//	socks5://proxy.com|https|foo.com  socks5 to proxy, then https to foo.com
+//	https://proxy.com|https|foo.com   https to proxy, then CONNECT to foo.com
+//	https://proxy.com|http            https to proxy, http to anywhere after that
 //
 type connectMethod struct {
 	proxyURL     *url.URL // nil for no proxy, else full proxy URL
