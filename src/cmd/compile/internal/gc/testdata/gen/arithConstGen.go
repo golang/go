@@ -54,6 +54,9 @@ var ops = []op{
 	{"lsh", "<<"},
 	{"rsh", ">>"},
 	{"mod", "%"},
+	{"and", "&"},
+	{"or", "|"},
+	{"xor", "^"},
 }
 
 // compute the result of i op j, cast as type t.
@@ -78,6 +81,12 @@ func ansU(i, j uint64, t, op string) string {
 		ans = i << j
 	case ">>":
 		ans = i >> j
+	case "&":
+		ans = i & j
+	case "|":
+		ans = i | j
+	case "^":
+		ans = i ^ j
 	}
 	switch t {
 	case "uint32":
@@ -112,6 +121,12 @@ func ansS(i, j int64, t, op string) string {
 		ans = i << uint64(j)
 	case ">>":
 		ans = i >> uint64(j)
+	case "&":
+		ans = i & j
+	case "|":
+		ans = i | j
+	case "^":
+		ans = i ^ j
 	}
 	switch t {
 	case "int32":
