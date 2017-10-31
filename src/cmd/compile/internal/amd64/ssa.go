@@ -855,8 +855,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpAMD64ROUNDSD:
 		p := s.Prog(v.Op.Asm())
 		val := v.AuxInt
-		// 1 means math.Floor, 2 Ceil, 3 Trunc
-		if val != 1 && val != 2 && val != 3 {
+		// 0 means math.RoundToEven, 1 Floor, 2 Ceil, 3 Trunc
+		if val != 0 && val != 1 && val != 2 && val != 3 {
 			v.Fatalf("Invalid rounding mode")
 		}
 		p.From.Offset = val
