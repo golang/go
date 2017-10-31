@@ -20,7 +20,6 @@ import (
 	"cmd/link/internal/sym"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 )
 
@@ -1024,9 +1023,8 @@ func putpclcdelta(linkctxt *Link, ctxt dwarf.Context, s *sym.Symbol, deltaPC uin
  */
 
 func getCompilationDir() string {
-	if dir, err := os.Getwd(); err == nil {
-		return dir
-	}
+	// OS X requires this, but it's really none of its business.
+	// Hard-code "/" for reproducible builds.
 	return "/"
 }
 
