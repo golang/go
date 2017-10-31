@@ -504,7 +504,7 @@ func testABIHashNote(t *testing.T, f *elf.File, note *note) {
 		t.Errorf("%s has incorrect binding %v, want STB_LOCAL", hashbytes.Name, elf.ST_BIND(hashbytes.Info))
 	}
 	if f.Sections[hashbytes.Section] != note.section {
-		t.Errorf("%s has incorrect section %v, want %s", hashbytes.Name, f.Sections[hashbytes.Section].Name, note.section)
+		t.Errorf("%s has incorrect section %v, want %s", hashbytes.Name, f.Sections[hashbytes.Section].Name, note.section.Name)
 	}
 	if hashbytes.Value-note.section.Addr != 16 {
 		t.Errorf("%s has incorrect offset into section %d, want 16", hashbytes.Name, hashbytes.Value-note.section.Addr)

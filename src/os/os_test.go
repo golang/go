@@ -1169,9 +1169,9 @@ func testChtimes(t *testing.T, name string) {
 			// the contents are accessed; also, it is set
 			// whenever mtime is set.
 		case "netbsd":
-			t.Logf("AccessTime didn't go backwards; was=%d, after=%d (Ignoring. See NetBSD issue golang.org/issue/19293)", at, pat)
+			t.Logf("AccessTime didn't go backwards; was=%v, after=%v (Ignoring. See NetBSD issue golang.org/issue/19293)", at, pat)
 		default:
-			t.Errorf("AccessTime didn't go backwards; was=%d, after=%d", at, pat)
+			t.Errorf("AccessTime didn't go backwards; was=%v, after=%v", at, pat)
 		}
 	}
 

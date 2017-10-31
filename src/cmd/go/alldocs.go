@@ -735,6 +735,13 @@
 // The go tool will ignore a directory named "testdata", making it available
 // to hold ancillary data needed by the tests.
 //
+// As part of building a test binary, go test runs go vet on the package
+// and its test source files to identify significant problems. If go vet
+// finds any problems, go test reports those and does not run the test binary.
+// Only a high-confidence subset of the default go vet checks are used.
+// To disable the running of go vet, use the -vet=off flag.
+//
+//
 // Go test runs in two different modes: local directory mode when invoked with
 // no package arguments (for example, 'go test'), and package list mode when
 // invoked with package arguments (for example 'go test math', 'go test ./...',
@@ -1546,6 +1553,10 @@
 // 	-v
 // 	    Verbose output: log all tests as they are run. Also print all
 // 	    text from Log and Logf calls even if the test succeeds.
+//
+// 	-vet mode
+// 	    Configure the invocation of "go vet" during "go test".
+// 	    The default is to run "go vet". If mode is "off", vet is disabled.
 //
 // The following flags are also recognized by 'go test' and can be used to
 // profile the tests during execution:
