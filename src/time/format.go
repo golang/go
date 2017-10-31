@@ -18,8 +18,8 @@ import "errors"
 // reference time looks like so that the Format and Parse methods can apply
 // the same transformation to a general time value.
 //
-// Valid layouts may not be a valid time value for time.Parse, due to formats
-// like _ for zero padding or Z for zone information.
+// Some valid layouts are invalid time values for time.Parse, due to formats
+// such as _ for zero padding and Z for zone information.
 //
 // Within the format string, an underscore _ represents a space that may be
 // replaced by a digit if the following number (a day) has two digits; for
