@@ -12,6 +12,7 @@ func TestRace(t *testing.T) {
 		}()
 		x = 3
 		<-c
+		_ = x
 	}
 }
 
@@ -25,5 +26,6 @@ func BenchmarkRace(b *testing.B) {
 		}()
 		x = 3
 		<-c
+		_ = x
 	}
 }

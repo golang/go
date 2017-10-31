@@ -185,6 +185,7 @@ import "testing"
 func TestFail(t *testing.T) {
 	done := make(chan bool)
 	x := 0
+	_ = x
 	go func() {
 		x = 42
 		done <- true
@@ -196,7 +197,7 @@ func TestFail(t *testing.T) {
 `, `
 ==================
 --- FAIL: TestFail \(0...s\)
-.*main_test.go:13: true
+.*main_test.go:14: true
 .*testing.go:.*: race detected during execution of test
 FAIL`},
 
@@ -275,6 +276,7 @@ import "testing"
 func TestFail(t *testing.T) {
 	done := make(chan bool)
 	x := 0
+	_ = x
 	go func() {
 		x = 42
 		done <- true

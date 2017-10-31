@@ -69,6 +69,12 @@ separate package, and then linked and run with the main test binary.
 The go tool will ignore a directory named "testdata", making it available
 to hold ancillary data needed by the tests.
 
+As part of building a test binary, go test runs go vet on the package
+and its test source files to identify significant problems. If go vet
+finds any problems, go test reports those and does not run the test binary.
+Only a high-confidence subset of the default go vet checks are used.
+To disable the running of go vet, use the -vet=off flag.
+
 Go test runs in two different modes: local directory mode when invoked with
 no package arguments (for example, 'go test'), and package list mode when
 invoked with package arguments (for example 'go test math', 'go test ./...',
@@ -258,6 +264,13 @@ const testFlag2 = `
 	    Verbose output: log all tests as they are run. Also print all
 	    text from Log and Logf calls even if the test succeeds.
 
+	-vet list
+	    Configure the invocation of "go vet" during "go test"
+	    to use the comma-separated list of vet checks.
+	    If list is empty, "go test" runs "go vet" with a curated list of
+	    checks believed to be always worth addressing.
+	    If list is "off", "go test" does not run "go vet" at all.
+
 The following flags are also recognized by 'go test' and can be used to
 profile the tests during execution:
 
@@ -446,7 +459,8 @@ var (
 	testArgs       []string
 	testBench      bool
 	testList       bool
-	testShowPass   bool // show passing output
+	testShowPass   bool   // show passing output
+	testVetList    string // -vet flag
 	pkgArgs        []string
 	pkgs           []*load.Package
 
@@ -460,6 +474,32 @@ var testMainDeps = []string{
 	"testing/internal/testdeps",
 }
 
+// testVetFlags is the list of flags to pass to vet when invoked automatically during go test.
+var testVetFlags = []string{
+	// TODO(rsc): Decide which tests are enabled by default.
+	// See golang.org/issue/18085.
+	// "-asmdecl",
+	// "-assign",
+	"-atomic",
+	"-bool",
+	"-buildtags",
+	// "-cgocall",
+	// "-composites",
+	// "-copylocks",
+	// "-httpresponse",
+	// "-lostcancel",
+	// "-methods",
+	"-nilfunc",
+	"-printf",
+	// "-rangeloops",
+	// "-shift",
+	// "-structtags",
+	// "-tests",
+	// "-unreachable",
+	// "-unsafeptr",
+	// "-unusedresult",
+}
+
 func runTest(cmd *base.Command, args []string) {
 	pkgArgs, testArgs = testFlags(args)
 
@@ -467,6 +507,8 @@ func runTest(cmd *base.Command, args []string) {
 
 	work.InstrumentInit()
 	work.BuildModeInit()
+	work.VetFlags = testVetFlags
+
 	pkgs = load.PackagesForBuild(pkgArgs)
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to test")
@@ -668,6 +710,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
 		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
+		addTestVet(b, p, run, nil)
 		print := &work.Action{Mode: "test print", Func: builderNoTest, Package: p, Deps: []*work.Action{run}}
 		return build, run, print, nil
 	}
@@ -681,6 +724,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	var imports, ximports []*load.Package
 	var stk load.ImportStack
 	stk.Push(p.ImportPath + " (test)")
+	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
 		p1 := load.LoadImport(path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], load.UseVendor)
 		if p1.Error != nil {
@@ -708,6 +752,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	stk.Pop()
 	stk.Push(p.ImportPath + "_test")
 	pxtestNeedsPtest := false
+	rawXTestImports := str.StringList(p.XTestImports)
 	for i, path := range p.XTestImports {
 		p1 := load.LoadImport(path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], load.UseVendor)
 		if p1.Error != nil {
@@ -753,8 +798,20 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
 		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
 		ptest.Target = ""
-		ptest.Imports = str.StringList(p.Imports, p.TestImports)
-		ptest.Internal.Imports = append(append([]*load.Package{}, p.Internal.Imports...), imports...)
+		// Note: The preparation of the vet config requires that common
+		// indexes in ptest.Imports, ptest.Internal.Imports, and ptest.Internal.RawImports
+		// all line up (but RawImports can be shorter than the others).
+		// That is, for 0 ≤ i < len(RawImports),
+		// RawImports[i] is the import string in the program text,
+		// Imports[i] is the expanded import string (vendoring applied or relative path expanded away),
+		// and Internal.Imports[i] is the corresponding *Package.
+		// Any implicitly added imports appear in Imports and Internal.Imports
+		// but not RawImports (because they were not in the source code).
+		// We insert TestImports, imports, and rawTestImports at the start of
+		// these lists to preserve the alignment.
+		ptest.Imports = str.StringList(p.TestImports, p.Imports)
+		ptest.Internal.Imports = append(imports, p.Internal.Imports...)
+		ptest.Internal.RawImports = str.StringList(rawTestImports, p.Internal.RawImports)
 		ptest.Internal.ForceLibrary = true
 		ptest.Internal.Build = new(build.Package)
 		*ptest.Internal.Build = *p.Internal.Build
@@ -794,7 +851,8 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 				Build: &build.Package{
 					ImportPos: p.Internal.Build.XTestImportPos,
 				},
-				Imports: ximports,
+				Imports:    ximports,
+				RawImports: rawXTestImports,
 			},
 		}
 		if pxtestNeedsPtest {
@@ -942,6 +1000,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		}
 	}
 	buildAction = a
+	var installAction *work.Action
 
 	if testC || testNeedBinary {
 		// -c or profiling flag: create action to copy binary to ./test.out.
@@ -953,14 +1012,15 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 			}
 		}
 		pmain.Target = target
-		buildAction = &work.Action{
+		installAction = &work.Action{
 			Mode:    "test build",
 			Func:    work.BuildInstallFunc,
 			Deps:    []*work.Action{buildAction},
 			Package: pmain,
 			Target:  target,
 		}
-		runAction = buildAction // make sure runAction != nil even if not running test
+		buildAction = installAction
+		runAction = installAction // make sure runAction != nil even if not running test
 	}
 	if testC {
 		printAction = &work.Action{Mode: "test print (nop)", Package: p, Deps: []*work.Action{runAction}} // nop
@@ -974,6 +1034,12 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 			Package:    p,
 			IgnoreFail: true,
 			TryCache:   c.tryCache,
+		}
+		if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
+			addTestVet(b, ptest, runAction, installAction)
+		}
+		if pxtest != nil {
+			addTestVet(b, pxtest, runAction, installAction)
 		}
 		cleanAction := &work.Action{
 			Mode:    "test clean",
@@ -991,6 +1057,22 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	}
 
 	return buildAction, runAction, printAction, nil
+}
+
+func addTestVet(b *work.Builder, p *load.Package, runAction, installAction *work.Action) {
+	if testVetList == "off" {
+		return
+	}
+
+	vet := b.VetAction(work.ModeBuild, work.ModeBuild, p)
+	runAction.Deps = append(runAction.Deps, vet)
+	// Install will clean the build directory.
+	// Make sure vet runs first.
+	// The install ordering in b.VetAction does not apply here
+	// because we are using a custom installAction (created above).
+	if installAction != nil {
+		installAction.Deps = append(installAction.Deps, vet)
+	}
 }
 
 func testImportStack(top string, p *load.Package, target string) []string {

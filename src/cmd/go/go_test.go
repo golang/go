@@ -4748,6 +4748,7 @@ func TestTestCache(t *testing.T) {
 	}
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.makeTempdir()
 	tg.setenv("GOPATH", tg.tempdir)
 	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "cache"))
@@ -4833,4 +4834,38 @@ func TestTestCache(t *testing.T) {
 	tg.grepStderrNot(`([\\/]compile|gccgo).*t4_test.go`, "incorrectly recompiled t4")
 	tg.grepStderr(`([\\/]link|gccgo).*t4\.test`, "did not relink t4_test")
 	tg.grepStdout(`ok  \tt/t4\t\(cached\)`, "did not cache t/t4")
+}
+
+func TestTestVet(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	tg.tempFile("p1_test.go", `
+		package p
+		import "testing"
+		func Test(t *testing.T) {
+			t.Logf("%d") // oops
+		}
+	`)
+
+	tg.runFail("test", filepath.Join(tg.tempdir, "p1_test.go"))
+	tg.grepStderr(`Logf format %d`, "did not diagnose bad Logf")
+	tg.run("test", "-vet=off", filepath.Join(tg.tempdir, "p1_test.go"))
+	tg.grepStdout(`^ok`, "did not print test summary")
+
+	tg.tempFile("p1.go", `
+		package p
+		import "fmt"
+		func F() {
+			fmt.Printf("%d") // oops
+		}
+	`)
+	tg.runFail("test", filepath.Join(tg.tempdir, "p1.go"))
+	tg.grepStderr(`Printf format %d`, "did not diagnose bad Printf")
+	tg.run("test", "-x", "-vet=shift", filepath.Join(tg.tempdir, "p1.go"))
+	tg.grepStderr(`[\\/]vet.*-shift`, "did not run vet with -shift")
+	tg.grepStdout(`\[no test files\]`, "did not print test summary")
+	tg.run("test", "-vet=off", filepath.Join(tg.tempdir, "p1.go"))
+	tg.grepStdout(`\[no test files\]`, "did not print test summary")
 }

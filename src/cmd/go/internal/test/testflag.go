@@ -33,6 +33,7 @@ var testFlagDefn = []*cmdflag.Defn{
 	{Name: "covermode"},
 	{Name: "coverpkg"},
 	{Name: "exec"},
+	{Name: "vet"},
 
 	// Passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
 	{Name: "bench", PassToTest: true},
@@ -175,6 +176,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 				testCover = true
 			case "outputdir":
 				outputDir = value
+			case "vet":
+				testVetList = value
 			}
 		}
 		if extraWord {
@@ -191,6 +194,20 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			// Default coverage mode is atomic when -race is set.
 			testCoverMode = "atomic"
 		}
+	}
+
+	if testVetList != "" && testVetList != "off" {
+		if strings.Contains(testVetList, "=") {
+			base.Fatalf("-vet argument cannot contain equal signs")
+		}
+		if strings.Contains(testVetList, " ") {
+			base.Fatalf("-vet argument is comma-separated list, cannot contain spaces")
+		}
+		list := strings.Split(testVetList, ",")
+		for i, arg := range list {
+			list[i] = "-" + arg
+		}
+		testVetFlags = list
 	}
 
 	if cfg.BuildRace && testCoverMode != "atomic" {
