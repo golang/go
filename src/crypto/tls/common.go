@@ -141,6 +141,8 @@ var supportedSignatureAlgorithms = []SignatureScheme{
 	ECDSAWithP256AndSHA256,
 	PKCS1WithSHA384,
 	ECDSAWithP384AndSHA384,
+	PKCS1WithSHA512,
+	ECDSAWithP521AndSHA512,
 	PKCS1WithSHA1,
 	ECDSAWithSHA1,
 }
