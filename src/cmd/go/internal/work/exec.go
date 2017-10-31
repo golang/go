@@ -8,6 +8,7 @@ package work
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -254,9 +255,13 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 // Note that any new influence on this logic must be reported in b.buildActionID above as well.
 func (b *Builder) build(a *Action) (err error) {
 	p := a.Package
+	cached := false
 	if !p.BinaryOnly {
 		if b.useCache(a, p, b.buildActionID(a), p.Target) {
-			return nil
+			if !a.needVet {
+				return nil
+			}
+			cached = true
 		}
 	}
 
@@ -417,6 +422,34 @@ func (b *Builder) build(a *Action) (err error) {
 		}
 	}
 
+	// Prepare Go vet config if needed.
+	var vcfg *vetConfig
+	if a.needVet {
+		// Pass list of absolute paths to vet,
+		// so that vet's error messages will use absolute paths,
+		// so that we can reformat them relative to the directory
+		// in which the go command is invoked.
+		absfiles := make([]string, len(gofiles))
+		for i, f := range gofiles {
+			if !filepath.IsAbs(f) {
+				f = filepath.Join(a.Package.Dir, f)
+			}
+			absfiles[i] = f
+		}
+		vcfg = &vetConfig{
+			Compiler:    cfg.BuildToolchainName,
+			Dir:         a.Package.Dir,
+			GoFiles:     absfiles,
+			ImportMap:   make(map[string]string),
+			PackageFile: make(map[string]string),
+		}
+		a.vetCfg = vcfg
+		for i, raw := range a.Package.Internal.RawImports {
+			final := a.Package.Imports[i]
+			vcfg.ImportMap[raw] = final
+		}
+	}
+
 	// Prepare Go import config.
 	var icfg bytes.Buffer
 	for _, a1 := range a.Deps {
@@ -434,13 +467,42 @@ func (b *Builder) build(a *Action) (err error) {
 			continue
 		}
 		fmt.Fprintf(&icfg, "importmap %s=%s\n", path[i:], path)
+		if vcfg != nil {
+			vcfg.ImportMap[path[i:]] = path
+		}
 	}
+
+	// Compute the list of mapped imports in the vet config
+	// so that we can add any missing mappings below.
+	var vcfgMapped map[string]bool
+	if vcfg != nil {
+		vcfgMapped = make(map[string]bool)
+		for _, p := range vcfg.ImportMap {
+			vcfgMapped[p] = true
+		}
+	}
+
 	for _, a1 := range a.Deps {
 		p1 := a1.Package
 		if p1 == nil || p1.ImportPath == "" || a1.built == "" {
 			continue
 		}
 		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, a1.built)
+		if vcfg != nil {
+			// Add import mapping if needed
+			// (for imports like "runtime/cgo" that appear only in generated code).
+			if !vcfgMapped[p1.ImportPath] {
+				vcfg.ImportMap[p1.ImportPath] = p1.ImportPath
+			}
+			vcfg.PackageFile[p1.ImportPath] = a1.built
+		}
+	}
+
+	if cached {
+		// The cached package file is OK, so we don't need to run the compile.
+		// We've only going through the motions to prepare the vet configuration,
+		// which is now complete.
+		return nil
 	}
 
 	// Compile Go.
@@ -530,6 +592,50 @@ func (b *Builder) build(a *Action) (err error) {
 	}
 
 	return nil
+}
+
+type vetConfig struct {
+	Compiler    string
+	Dir         string
+	GoFiles     []string
+	ImportMap   map[string]string
+	PackageFile map[string]string
+}
+
+// VetFlags are the flags to pass to vet.
+// The caller is expected to set them before executing any vet actions.
+var VetFlags []string
+
+func (b *Builder) vet(a *Action) error {
+	// a.Deps[0] is the build of the package being vetted.
+	// a.Deps[1] is the build of the "fmt" package.
+
+	vcfg := a.Deps[0].vetCfg
+	if vcfg == nil {
+		// Vet config should only be missing if the build failed.
+		if !a.Deps[0].Failed {
+			return fmt.Errorf("vet config not found")
+		}
+		return nil
+	}
+
+	if vcfg.ImportMap["fmt"] == "" {
+		a1 := a.Deps[1]
+		vcfg.ImportMap["fmt"] = "fmt"
+		vcfg.PackageFile["fmt"] = a1.built
+	}
+
+	js, err := json.MarshalIndent(vcfg, "", "\t")
+	if err != nil {
+		return fmt.Errorf("internal error marshaling vet config: %v", err)
+	}
+	js = append(js, '\n')
+	if err := b.writeFile(a.Objdir+"vet.cfg", js); err != nil {
+		return err
+	}
+
+	p := a.Package
+	return b.run(p.Dir, p.ImportPath, nil, cfg.BuildToolexec, base.Tool("vet"), VetFlags, a.Objdir+"vet.cfg")
 }
 
 // linkActionID computes the action ID for a link action.

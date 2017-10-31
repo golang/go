@@ -311,15 +311,12 @@ var builddeps = map[string][]string{
 
 	"cmd/go/internal/vet": {
 		"cmd/go/internal/base",    // cmd/go/internal/vet
-		"cmd/go/internal/cfg",     // cmd/go/internal/vet
 		"cmd/go/internal/cmdflag", // cmd/go/internal/vet
 		"cmd/go/internal/load",    // cmd/go/internal/vet
-		"cmd/go/internal/str",     // cmd/go/internal/vet
 		"cmd/go/internal/work",    // cmd/go/internal/vet
 		"flag",                    // cmd/go/internal/vet
 		"fmt",                     // cmd/go/internal/vet
 		"os",                      // cmd/go/internal/vet
-		"path/filepath",           // cmd/go/internal/vet
 		"strings",                 // cmd/go/internal/vet
 	},
 
