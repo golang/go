@@ -760,7 +760,7 @@ func PostForm(url string, data url.Values) (resp *Response, err error) {
 // with data's keys and values URL-encoded as the request body.
 //
 // The Content-Type header is set to application/x-www-form-urlencoded.
-// To set other headers, use NewRequest and DefaultClient.Do.
+// To set other headers, use NewRequest and Client.Do.
 //
 // When err is nil, resp always contains a non-nil resp.Body.
 // Caller should close resp.Body when done reading from it.
