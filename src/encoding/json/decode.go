@@ -44,8 +44,9 @@ import (
 //
 // To unmarshal JSON into a struct, Unmarshal matches incoming object
 // keys to the keys used by Marshal (either the struct field name or its tag),
-// preferring an exact match but also accepting a case-insensitive match.
-// Unmarshal will only set exported fields of the struct.
+// preferring an exact match but also accepting a case-insensitive match. By
+// default, object keys which don't have a corresponding struct field are
+// ignored (see Decoder.DisallowUnknownFields for an alternative).
 //
 // To unmarshal JSON into an interface value,
 // Unmarshal stores one of these in the interface value:
@@ -275,8 +276,9 @@ type decodeState struct {
 		Struct string
 		Field  string
 	}
-	savedError error
-	useNumber  bool
+	savedError            error
+	useNumber             bool
+	disallowUnknownFields bool
 }
 
 // errPhase is used for errors that should not happen unless
@@ -713,6 +715,8 @@ func (d *decodeState) object(v reflect.Value) {
 				}
 				d.errorContext.Field = f.name
 				d.errorContext.Struct = v.Type().Name()
+			} else if d.disallowUnknownFields {
+				d.saveError(fmt.Errorf("json: unknown field %q", key))
 			}
 		}
 

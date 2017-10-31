@@ -372,12 +372,13 @@ func (b *intWithPtrMarshalText) UnmarshalText(data []byte) error {
 }
 
 type unmarshalTest struct {
-	in        string
-	ptr       interface{}
-	out       interface{}
-	err       error
-	useNumber bool
-	golden    bool
+	in                    string
+	ptr                   interface{}
+	out                   interface{}
+	err                   error
+	useNumber             bool
+	golden                bool
+	disallowUnknownFields bool
 }
 
 type B struct {
@@ -401,6 +402,7 @@ var unmarshalTests = []unmarshalTest{
 	{in: "null", ptr: new(interface{}), out: nil},
 	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf(""), 7, "T", "X"}},
 	{in: `{"x": 1}`, ptr: new(tx), out: tx{}},
+	{in: `{"x": 1}`, ptr: new(tx), err: fmt.Errorf("json: unknown field \"x\""), disallowUnknownFields: true},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: Number("1"), F2: int32(2), F3: Number("3")}, useNumber: true},
 	{in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(interface{}), out: ifaceNumAsFloat64},
@@ -415,10 +417,13 @@ var unmarshalTests = []unmarshalTest{
 
 	// Z has a "-" tag.
 	{in: `{"Y": 1, "Z": 2}`, ptr: new(T), out: T{Y: 1}},
+	{in: `{"Y": 1, "Z": 2}`, ptr: new(T), err: fmt.Errorf("json: unknown field \"Z\""), disallowUnknownFields: true},
 
 	{in: `{"alpha": "abc", "alphabet": "xyz"}`, ptr: new(U), out: U{Alphabet: "abc"}},
+	{in: `{"alpha": "abc", "alphabet": "xyz"}`, ptr: new(U), err: fmt.Errorf("json: unknown field \"alphabet\""), disallowUnknownFields: true},
 	{in: `{"alpha": "abc"}`, ptr: new(U), out: U{Alphabet: "abc"}},
 	{in: `{"alphabet": "xyz"}`, ptr: new(U), out: U{}},
+	{in: `{"alphabet": "xyz"}`, ptr: new(U), err: fmt.Errorf("json: unknown field \"alphabet\""), disallowUnknownFields: true},
 
 	// syntax errors
 	{in: `{"X": "foo", "Y"}`, err: &SyntaxError{"invalid character '}' after object key", 17}},
@@ -611,8 +616,20 @@ var unmarshalTests = []unmarshalTest{
 	},
 	{
 		in:  `{"X": 1,"Y":2}`,
+		ptr: new(S5),
+		err: fmt.Errorf("json: unknown field \"X\""),
+		disallowUnknownFields: true,
+	},
+	{
+		in:  `{"X": 1,"Y":2}`,
 		ptr: new(S10),
 		out: S10{S13: S13{S8: S8{S9: S9{Y: 2}}}},
+	},
+	{
+		in:  `{"X": 1,"Y":2}`,
+		ptr: new(S10),
+		err: fmt.Errorf("json: unknown field \"X\""),
+		disallowUnknownFields: true,
 	},
 
 	// invalid UTF-8 is coerced to valid UTF-8.
@@ -793,6 +810,62 @@ var unmarshalTests = []unmarshalTest{
 	{in: `{"B": "False"}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal "False" into bool`)},
 	{in: `{"B": "null"}`, ptr: new(B), out: B{false}},
 	{in: `{"B": "nul"}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal "nul" into bool`)},
+
+	// additional tests for disallowUnknownFields
+	{
+		in: `{
+			"Level0": 1,
+			"Level1b": 2,
+			"Level1c": 3,
+			"x": 4,
+			"Level1a": 5,
+			"LEVEL1B": 6,
+			"e": {
+				"Level1a": 8,
+				"Level1b": 9,
+				"Level1c": 10,
+				"Level1d": 11,
+				"x": 12
+			},
+			"Loop1": 13,
+			"Loop2": 14,
+			"X": 15,
+			"Y": 16,
+			"Z": 17,
+			"Q": 18,
+			"extra": true
+		}`,
+		ptr: new(Top),
+		err: fmt.Errorf("json: unknown field \"extra\""),
+		disallowUnknownFields: true,
+	},
+	{
+		in: `{
+			"Level0": 1,
+			"Level1b": 2,
+			"Level1c": 3,
+			"x": 4,
+			"Level1a": 5,
+			"LEVEL1B": 6,
+			"e": {
+				"Level1a": 8,
+				"Level1b": 9,
+				"Level1c": 10,
+				"Level1d": 11,
+				"x": 12,
+				"extra": null
+			},
+			"Loop1": 13,
+			"Loop2": 14,
+			"X": 15,
+			"Y": 16,
+			"Z": 17,
+			"Q": 18
+		}`,
+		ptr: new(Top),
+		err: fmt.Errorf("json: unknown field \"extra\""),
+		disallowUnknownFields: true,
+	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -910,6 +983,9 @@ func TestUnmarshal(t *testing.T) {
 		dec := NewDecoder(bytes.NewReader(in))
 		if tt.useNumber {
 			dec.UseNumber()
+		}
+		if tt.disallowUnknownFields {
+			dec.DisallowUnknownFields()
 		}
 		if err := dec.Decode(v.Interface()); !reflect.DeepEqual(err, tt.err) {
 			t.Errorf("#%d: %v, want %v", i, err, tt.err)
