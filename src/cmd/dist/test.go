@@ -116,12 +116,12 @@ func (t *tester) run() {
 
 	if t.rebuild {
 		t.out("Building packages and commands.")
-		cmd := exec.Command("go", "install", "-a", "-v", "std", "cmd")
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			log.Fatalf("building packages and commands: %v", err)
-		}
+		// Rebuilding is a shortened bootstrap.
+		// See cmdbootstrap for a description of the overall process.
+		goInstall("go", toolchain...)
+		goInstall("go", toolchain...)
+		goInstall("go", "std", "cmd")
+		checkNotStale("go", "std", "cmd")
 	}
 
 	if t.iOS() {
