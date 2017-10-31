@@ -1044,6 +1044,8 @@ func timelog(op, name string) {
 	fmt.Fprintf(timeLogFile, "%s %+.1fs %s %s\n", t.Format(time.UnixDate), t.Sub(timeLogStart).Seconds(), op, name)
 }
 
+var toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link"}
+
 // The bootstrap command runs a build from scratch,
 // stopping at having installed the go_bootstrap command.
 //
@@ -1151,8 +1153,7 @@ func cmdbootstrap() {
 		// chosen $CC_FOR_TARGET in this case.
 		os.Setenv("CC", defaultcctarget)
 	}
-	toolchain := []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link", "cmd/buildid"}
-	goInstall(toolchain...)
+	goInstall(goBootstrap, toolchain...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		run("", ShowOutput|CheckExit, pathf("%s/buildid", tooldir), pathf("%s/pkg/%s_%s/runtime/internal/sys.a", goroot, goos, goarch))
@@ -1180,7 +1181,7 @@ func cmdbootstrap() {
 		xprintf("\n")
 	}
 	xprintf("Building Go toolchain3 using go_bootstrap and Go toolchain2.\n")
-	goInstall(append([]string{"-a"}, toolchain...)...)
+	goInstall(goBootstrap, append([]string{"-a"}, toolchain...)...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		run("", ShowOutput|CheckExit, pathf("%s/buildid", tooldir), pathf("%s/pkg/%s_%s/runtime/internal/sys.a", goroot, goos, goarch))
@@ -1204,7 +1205,7 @@ func cmdbootstrap() {
 			xprintf("\n")
 		}
 		xprintf("Building packages and commands for host, %s/%s.\n", goos, goarch)
-		goInstall("std", "cmd")
+		goInstall(goBootstrap, "std", "cmd")
 		checkNotStale(goBootstrap, "std", "cmd")
 		checkNotStale(cmdGo, "std", "cmd")
 
@@ -1219,7 +1220,7 @@ func cmdbootstrap() {
 		os.Setenv("CC", defaultcctarget)
 		xprintf("Building packages and commands for target, %s/%s.\n", goos, goarch)
 	}
-	goInstall("std", "cmd")
+	goInstall(goBootstrap, "std", "cmd")
 	checkNotStale(goBootstrap, "std", "cmd")
 	checkNotStale(cmdGo, "std", "cmd")
 	if debug {
@@ -1252,8 +1253,8 @@ func cmdbootstrap() {
 	}
 }
 
-func goInstall(args ...string) {
-	installCmd := []string{pathf("%s/go_bootstrap", tooldir), "install", "-gcflags=" + gogcflags, "-ldflags=" + goldflags}
+func goInstall(goBinary string, args ...string) {
+	installCmd := []string{goBinary, "install", "-gcflags=" + gogcflags, "-ldflags=" + goldflags}
 	if vflag > 0 {
 		installCmd = append(installCmd, "-v")
 	}
