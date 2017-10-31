@@ -84,22 +84,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	ADCB (R11), DL                          // 411213
 	ADCB (BX), R11                          // 44121b
 	ADCB (R11), R11                         // 45121b
-	//TODO: ADCXL (BX), DX                  // 660f38f613
-	//TODO: ADCXL (R11), DX                 // 66410f38f613
-	//TODO: ADCXL DX, DX                    // 660f38f6d2
-	//TODO: ADCXL R11, DX                   // 66410f38f6d3
-	//TODO: ADCXL (BX), R11                 // 66440f38f61b
-	//TODO: ADCXL (R11), R11                // 66450f38f61b
-	//TODO: ADCXL DX, R11                   // 66440f38f6da
-	//TODO: ADCXL R11, R11                  // 66450f38f6db
-	//TODO: ADCXQ (BX), DX                  // 66480f38f613
-	//TODO: ADCXQ (R11), DX                 // 66490f38f613
-	//TODO: ADCXQ DX, DX                    // 66480f38f6d2
-	//TODO: ADCXQ R11, DX                   // 66490f38f6d3
-	//TODO: ADCXQ (BX), R11                 // 664c0f38f61b
-	//TODO: ADCXQ (R11), R11                // 664d0f38f61b
-	//TODO: ADCXQ DX, R11                   // 664c0f38f6da
-	//TODO: ADCXQ R11, R11                  // 664d0f38f6db
+	ADCXL (BX), DX                          // 660f38f613
+	ADCXL (R11), DX                         // 66410f38f613
+	ADCXL DX, DX                            // 660f38f6d2
+	ADCXL R11, DX                           // 66410f38f6d3
+	ADCXL (BX), R11                         // 66440f38f61b
+	ADCXL (R11), R11                        // 66450f38f61b
+	ADCXL DX, R11                           // 66440f38f6da
+	ADCXL R11, R11                          // 66450f38f6db
+	ADCXQ (BX), DX                          // 66480f38f613
+	ADCXQ (R11), DX                         // 66490f38f613
+	ADCXQ DX, DX                            // 66480f38f6d2
+	ADCXQ R11, DX                           // 66490f38f6d3
+	ADCXQ (BX), R11                         // 664c0f38f61b
+	ADCXQ (R11), R11                        // 664d0f38f61b
+	ADCXQ DX, R11                           // 664c0f38f6da
+	ADCXQ R11, R11                          // 664d0f38f6db
 	ADDB $7, AL                             // 0407
 	ADDW $61731, AX                         // 660523f1
 	ADDL $4045620583, AX                    // 05674523f1
@@ -228,22 +228,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	ADDSUBPS (R11), X11                     // f2450fd01b
 	ADDSUBPS X2, X11                        // f2440fd0da
 	ADDSUBPS X11, X11                       // f2450fd0db
-	//TODO: ADOXL (BX), DX                  // f30f38f613
-	//TODO: ADOXL (R11), DX                 // f3410f38f613
-	//TODO: ADOXL DX, DX                    // f30f38f6d2
-	//TODO: ADOXL R11, DX                   // f3410f38f6d3
-	//TODO: ADOXL (BX), R11                 // f3440f38f61b
-	//TODO: ADOXL (R11), R11                // f3450f38f61b
-	//TODO: ADOXL DX, R11                   // f3440f38f6da
-	//TODO: ADOXL R11, R11                  // f3450f38f6db
-	//TODO: ADOXQ (BX), DX                  // f3480f38f613
-	//TODO: ADOXQ (R11), DX                 // f3490f38f613
-	//TODO: ADOXQ DX, DX                    // f3480f38f6d2
-	//TODO: ADOXQ R11, DX                   // f3490f38f6d3
-	//TODO: ADOXQ (BX), R11                 // f34c0f38f61b
-	//TODO: ADOXQ (R11), R11                // f34d0f38f61b
-	//TODO: ADOXQ DX, R11                   // f34c0f38f6da
-	//TODO: ADOXQ R11, R11                  // f34d0f38f6db
+	ADOXL (BX), DX                          // f30f38f613
+	ADOXL (R11), DX                         // f3410f38f613
+	ADOXL DX, DX                            // f30f38f6d2
+	ADOXL R11, DX                           // f3410f38f6d3
+	ADOXL (BX), R11                         // f3440f38f61b
+	ADOXL (R11), R11                        // f3450f38f61b
+	ADOXL DX, R11                           // f3440f38f6da
+	ADOXL R11, R11                          // f3450f38f6db
+	ADOXQ (BX), DX                          // f3480f38f613
+	ADOXQ (R11), DX                         // f3490f38f613
+	ADOXQ DX, DX                            // f3480f38f6d2
+	ADOXQ R11, DX                           // f3490f38f6d3
+	ADOXQ (BX), R11                         // f34c0f38f61b
+	ADOXQ (R11), R11                        // f34d0f38f61b
+	ADOXQ DX, R11                           // f34c0f38f6da
+	ADOXQ R11, R11                          // f34d0f38f6db
 	AESDEC (BX), X2                         // 660f38de13
 	AESDEC (R11), X2                        // 66410f38de13
 	AESDEC X2, X2                           // 660f38ded2

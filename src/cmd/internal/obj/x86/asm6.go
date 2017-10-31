@@ -225,6 +225,9 @@ const (
 	Pef3 = 0xf5 /* xmm escape 2 with 16-bit prefix: 66 f3 0f */
 	Pq3  = 0x67 /* xmm escape 3: 66 48 0f */
 	Pq4  = 0x68 /* xmm escape 4: 66 0F 38 */
+	Pq4w = 0x69 /* Pq4 with Rex.w 66 0F 38 */
+	Pq5  = 0x6a /* xmm escape 5: F3 0F 38 */
+	Pq5w = 0x6b /* Pq5 with Rex.w F3 0F 38 */
 	Pfw  = 0xf4 /* Pf3 with Rex.w: f3 48 0f */
 	Pw   = 0x48 /* Rex.w */
 	Pw8  = 0x90 // symbolic; exact value doesn't matter
@@ -956,6 +959,8 @@ var optab =
 	{AADCL, yaddl, Px, [23]uint8{0x83, 02, 0x15, 0x81, 02, 0x11, 0x13}},
 	{AADCQ, yaddl, Pw, [23]uint8{0x83, 02, 0x15, 0x81, 02, 0x11, 0x13}},
 	{AADCW, yaddl, Pe, [23]uint8{0x83, 02, 0x15, 0x81, 02, 0x11, 0x13}},
+	{AADCXL, yml_rl, Pq4, [23]uint8{0xf6}},
+	{AADCXQ, yml_rl, Pq4w, [23]uint8{0xf6}},
 	{AADDB, yxorb, Pb, [23]uint8{0x04, 0x80, 00, 0x00, 0x02}},
 	{AADDL, yaddl, Px, [23]uint8{0x83, 00, 0x05, 0x81, 00, 0x01, 0x03}},
 	{AADDPD, yxm, Pq, [23]uint8{0x58}},
@@ -966,6 +971,8 @@ var optab =
 	{AADDSUBPD, yxm, Pq, [23]uint8{0xd0}},
 	{AADDSUBPS, yxm, Pf2, [23]uint8{0xd0}},
 	{AADDW, yaddl, Pe, [23]uint8{0x83, 00, 0x05, 0x81, 00, 0x01, 0x03}},
+	{AADOXL, yml_rl, Pq5, [23]uint8{0xf6}},
+	{AADOXQ, yml_rl, Pq5w, [23]uint8{0xf6}},
 	{AADJSP, nil, 0, [23]uint8{}},
 	{AANDB, yxorb, Pb, [23]uint8{0x24, 0x80, 04, 0x20, 0x22}},
 	{AANDL, yaddl, Px, [23]uint8{0x83, 04, 0x25, 0x81, 04, 0x21, 0x23}},
@@ -3431,6 +3438,17 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 
 			case Pq4: /*  66 0F 38 */
 				asmbuf.Put3(0x66, 0x0F, 0x38)
+
+			case Pq4w: /*  66 0F 38 + REX.W */
+				asmbuf.rexflag |= Pw
+				asmbuf.Put3(0x66, 0x0F, 0x38)
+
+			case Pq5: /*  F3 0F 38 */
+				asmbuf.Put3(0xF3, 0x0F, 0x38)
+
+			case Pq5w: /*  F3 0F 38 + REX.W */
+				asmbuf.rexflag |= Pw
+				asmbuf.Put3(0xF3, 0x0F, 0x38)
 
 			case Pf2, /* xmm opcode escape */
 				Pf3:
