@@ -15,6 +15,7 @@ var X86 x86
 type x86 struct {
 	_            [CacheLineSize]byte
 	HasAES       bool
+	HasADX       bool
 	HasAVX       bool
 	HasAVX2      bool
 	HasBMI1      bool
