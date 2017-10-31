@@ -106,7 +106,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 		}
 	}
 
-	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", b.WorkDir, gcflags, gcargs, "-D", p.Internal.LocalPrefix}
+	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", trimDir(a.Objdir), gcflags, gcargs, "-D", p.Internal.LocalPrefix}
 	if importcfg != nil {
 		if err := b.writeFile(objdir+"importcfg", importcfg); err != nil {
 			return "", nil, err
@@ -204,11 +204,18 @@ CheckFlags:
 	return c
 }
 
+func trimDir(dir string) string {
+	if len(dir) > 1 && dir[len(dir)-1] == filepath.Separator {
+		dir = dir[:len(dir)-1]
+	}
+	return dir
+}
+
 func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error) {
 	p := a.Package
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
 	inc := filepath.Join(cfg.GOROOT, "pkg", "include")
-	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-trimpath", b.WorkDir, "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, buildAsmflags}
+	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-trimpath", trimDir(a.Objdir), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, buildAsmflags}
 	if p.ImportPath == "runtime" && cfg.Goarch == "386" {
 		for _, arg := range buildAsmflags {
 			if arg == "-dynlink" {
