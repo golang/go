@@ -144,9 +144,6 @@ func (f *File) ParseGo(name string, src []byte) {
 // Like ast.CommentGroup's Text method but preserves
 // leading blank lines, so that line numbers line up.
 func commentText(g *ast.CommentGroup) string {
-	if g == nil {
-		return ""
-	}
 	var pieces []string
 	for _, com := range g.List {
 		c := com.Text
