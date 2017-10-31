@@ -3763,9 +3763,11 @@ func TestBinaryOnlyPackages(t *testing.T) {
 	tg.grepStdout("hello from p1", "did not see message from p1")
 
 	tg.tempFile("src/p4/p4.go", `package main`)
+	// The odd string split below avoids vet complaining about
+	// a // +build line appearing too late in this source file.
 	tg.tempFile("src/p4/p4not.go", `//go:binary-only-package
 
-		// +build asdf
+		/`+`/ +build asdf
 
 		package main
 	`)

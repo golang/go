@@ -95,6 +95,7 @@ type PackageInternal struct {
 	// Unexported fields are not part of the public API.
 	Build        *build.Package
 	Imports      []*Package           // this package's direct imports
+	RawImports   []string             // this package's original imports as they appear in the text of the program
 	ForceLibrary bool                 // this package is a library (even if named "main")
 	Cmdline      bool                 // defined by files listed on command line
 	Local        bool                 // imported via local path (./ or ../)
@@ -208,6 +209,7 @@ func (p *Package) copyBuild(pp *build.Package) {
 	// We modify p.Imports in place, so make copy now.
 	p.Imports = make([]string, len(pp.Imports))
 	copy(p.Imports, pp.Imports)
+	p.Internal.RawImports = pp.Imports
 	p.TestGoFiles = pp.TestGoFiles
 	p.TestImports = pp.TestImports
 	p.XTestGoFiles = pp.XTestGoFiles
