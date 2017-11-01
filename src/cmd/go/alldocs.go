@@ -724,10 +724,10 @@
 //
 // 'Go test' recompiles each package along with any files with names matching
 // the file pattern "*_test.go".
-// Files whose names begin with "_" (including "_test.go") or "." are ignored.
 // These additional files can contain test functions, benchmark functions, and
 // example functions. See 'go help testfunc' for more.
 // Each listed package causes the execution of a separate test binary.
+// Files whose names begin with "_" (including "_test.go") or "." are ignored.
 //
 // Test files that declare a package with the suffix "_test" will be compiled as a
 // separate package, and then linked and run with the main test binary.
@@ -735,11 +735,37 @@
 // The go tool will ignore a directory named "testdata", making it available
 // to hold ancillary data needed by the tests.
 //
-// By default, go test needs no arguments. It compiles and tests the package
-// with source in the current directory, including tests, and runs the tests.
+// Go test runs in two different modes: local directory mode when invoked with
+// no package arguments (for example, 'go test'), and package list mode when
+// invoked with package arguments (for example 'go test math', 'go test ./...',
+// and even 'go test .').
 //
-// The package is built in a temporary directory so it does not interfere with the
-// non-test installation.
+// In local directory mode, go test compiles and tests the package sources
+// found in the current directory and then runs the resulting test binary.
+// In this mode, the test binary runs with standard output and standard error
+// connected directly to the go command's own standard output and standard
+// error, and test result caching (discussed below) is disabled.
+// After the package test finishes, go test prints to standard output a
+// summary line showing the test status ('ok' or 'FAIL'), package name,
+// and elapsed time.
+//
+// In package list mode, go test compiles and tests each of the packages
+// listed on the command line. If a package test passes, go test prints only
+// the final 'ok' summary line. If a package test fails, go test prints the
+// full test output. If invoked with the -bench or -v flag, go test prints
+// the full output even for passing package tests, in order to display the
+// requested benchmark results or verbose logging. In package list mode,
+// go test prints all test output and summary lines to standard output.
+//
+// In package list mode, go test also caches successful package test results.
+// If go test has cached a previous test run using the same test binary and
+// the same command line consisting entirely of cacheable test flags
+// (defined as -cpu, -list, -parallel, -run, -short, and -v),
+// go test will redisplay the previous output instead of running the test
+// binary again. In the summary line, go test prints '(cached)' in place of
+// the elapsed time. To disable test caching, use any test flag or argument
+// other than the cacheable flags. The idiomatic way to disable test caching
+// explicitly is to use -count=1.
 //
 // In addition to the build flags, the flags handled by 'go test' itself are:
 //

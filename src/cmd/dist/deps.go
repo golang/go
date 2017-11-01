@@ -280,6 +280,7 @@ var builddeps = map[string][]string{
 	"cmd/go/internal/test": {
 		"bytes",                   // cmd/go/internal/test
 		"cmd/go/internal/base",    // cmd/go/internal/test
+		"cmd/go/internal/cache",   // cmd/go/internal/test
 		"cmd/go/internal/cfg",     // cmd/go/internal/test
 		"cmd/go/internal/cmdflag", // cmd/go/internal/test
 		"cmd/go/internal/load",    // cmd/go/internal/test
@@ -293,6 +294,7 @@ var builddeps = map[string][]string{
 		"go/doc",                  // cmd/go/internal/test
 		"go/parser",               // cmd/go/internal/test
 		"go/token",                // cmd/go/internal/test
+		"io",                      // cmd/go/internal/test
 		"os",                      // cmd/go/internal/test
 		"os/exec",                 // cmd/go/internal/test
 		"path",                    // cmd/go/internal/test

@@ -14,6 +14,9 @@ fi
 goos=$(go env GOOS)
 goarch=$(go env GOARCH)
 
+echo SKIP: golang.org/issue/22571.
+exit 0
+
 function cleanup() {
 	rm -f plugin*.so unnamed*.so iface*.so issue*
 	rm -rf host pkg sub iface
