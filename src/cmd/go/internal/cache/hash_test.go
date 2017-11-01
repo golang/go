@@ -12,6 +12,12 @@ import (
 )
 
 func TestHash(t *testing.T) {
+	oldSalt := hashSalt
+	hashSalt = nil
+	defer func() {
+		hashSalt = oldSalt
+	}()
+
 	h := NewHash("alice")
 	h.Write([]byte("hello world"))
 	sum := fmt.Sprintf("%x", h.Sum())

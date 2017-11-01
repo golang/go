@@ -466,15 +466,17 @@ func (t *tester) registerTests() {
 				}
 
 				// Run `go test fmt` in the moved GOROOT.
+				// Disable GOCACHE because it points back at the old GOROOT.
 				cmd := exec.Command(filepath.Join(moved, "bin", "go"), "test", "fmt")
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr
 				// Don't set GOROOT in the environment.
 				for _, e := range os.Environ() {
-					if !strings.HasPrefix(e, "GOROOT=") {
+					if !strings.HasPrefix(e, "GOROOT=") && !strings.HasPrefix(e, "GOCACHE=") {
 						cmd.Env = append(cmd.Env, e)
 					}
 				}
+				cmd.Env = append(cmd.Env, "GOCACHE=off")
 				err := cmd.Run()
 
 				if rerr := os.Rename(moved, goroot); rerr != nil {

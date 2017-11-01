@@ -3736,7 +3736,7 @@ func TestBinaryOnlyPackages(t *testing.T) {
 	`)
 	tg.wantNotStale("p1", "binary-only package", "should NOT want to rebuild p1 (first)")
 	tg.run("install", "-x", "p1") // no-op, up to date
-	tg.grepBothNot("/compile", "should not have run compiler")
+	tg.grepBothNot(`[\\/]compile`, "should not have run compiler")
 	tg.run("install", "p2") // does not rebuild p1 (or else p2 will fail)
 	tg.wantNotStale("p2", "", "should NOT want to rebuild p2")
 
@@ -4688,4 +4688,32 @@ func TestUpxCompression(t *testing.T) {
 	if string(out) != "hello upx" {
 		t.Fatalf("bad output from compressed go binary:\ngot %q; want %q", out, "hello upx")
 	}
+}
+
+func TestBuildCache(t *testing.T) {
+	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+		t.Skip("GODEBUG gocacheverify")
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.makeTempdir()
+	tg.setenv("GOCACHE", tg.tempdir)
+
+	// complex/x is a trivial non-main package.
+	tg.run("build", "-x", "complex/w")
+	tg.grepStderr(`[\\/]compile|gccgo`, "did not run compiler")
+
+	tg.run("build", "-x", "complex/w")
+	tg.grepStderrNot(`[\\/]compile|gccgo`, "did not run compiler")
+
+	// complex is a non-trivial main package.
+	// the link step should not be cached.
+	tg.run("build", "-o", os.DevNull, "-x", "complex")
+	tg.grepStderr(`[\\/]link|gccgo`, "did not run linker")
+
+	tg.run("build", "-o", os.DevNull, "-x", "complex")
+	tg.grepStderr(`[\\/]link|gccgo`, "did not run linker")
+
 }
