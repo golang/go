@@ -72,7 +72,11 @@ func (check *Checker) usage(scope *Scope) {
 	}
 
 	for _, scope := range scope.children {
-		check.usage(scope)
+		// Don't go inside closure scopes a second time;
+		// they are handled explicitly by funcBody.
+		if !scope.isFunc {
+			check.usage(scope)
+		}
 	}
 }
 
