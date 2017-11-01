@@ -4690,6 +4690,20 @@ func TestUpxCompression(t *testing.T) {
 	}
 }
 
+func TestGOTMPDIR(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.makeTempdir()
+	tg.setenv("GOTMPDIR", tg.tempdir)
+	tg.setenv("GOCACHE", "off")
+
+	// complex/x is a trivial non-main package.
+	tg.run("build", "-work", "-x", "complex/w")
+	tg.grepStderr("WORK="+regexp.QuoteMeta(tg.tempdir), "did not work in $GOTMPDIR")
+}
+
 func TestBuildCache(t *testing.T) {
 	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
 		t.Skip("GODEBUG gocacheverify")
