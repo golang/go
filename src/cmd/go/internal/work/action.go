@@ -68,6 +68,8 @@ type Action struct {
 
 	triggers []*Action // inverse of deps
 
+	TryCache func(*Builder, *Action) bool // callback for cache bypass
+
 	// Generated files, directories.
 	Objdir   string         // directory for intermediate objects
 	Target   string         // goal of the action: the created package or executable
@@ -83,6 +85,15 @@ type Action struct {
 	priority int  // relative execution priority
 	Failed   bool // whether the action failed
 }
+
+// BuildActionID returns the action ID section of a's build ID.
+func (a *Action) BuildActionID() string { return actionID(a.buildID) }
+
+// BuildContentID returns the content ID section of a's build ID.
+func (a *Action) BuildContentID() string { return contentID(a.buildID) }
+
+// BuildID returns a's build ID.
+func (a *Action) BuildID() string { return a.buildID }
 
 // An actionQueue is a priority queue of actions.
 type actionQueue []*Action

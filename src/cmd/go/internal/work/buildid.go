@@ -93,6 +93,15 @@ import (
 
 const buildIDSeparator = "/"
 
+// actionID returns the action ID half of a build ID.
+func actionID(buildID string) string {
+	i := strings.Index(buildID, buildIDSeparator)
+	if i < 0 {
+		return buildID
+	}
+	return buildID[:i]
+}
+
 // contentID returns the content ID half of a build ID.
 func contentID(buildID string) string {
 	return buildID[strings.LastIndex(buildID, buildIDSeparator)+1:]
@@ -276,6 +285,7 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 	// want the package for is to link a binary, and the binary is
 	// already up-to-date, then to avoid a rebuild, report the package
 	// as up-to-date as well. See "Build IDs" comment above.
+	// TODO(rsc): Rewrite this code to use a TryCache func on the link action.
 	if target != "" && !cfg.BuildA && a.Mode == "build" && len(a.triggers) == 1 && a.triggers[0].Mode == "link" {
 		buildID, err := buildid.ReadFile(target)
 		if err == nil {
@@ -304,6 +314,17 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 				a.buildID = oldBuildID
 			}
 		}
+	}
+
+	// Special case for linking a test binary: if the only thing we
+	// want the binary for is to run the test, and the test result is cached,
+	// then to avoid the link step, report the link as up-to-date.
+	// We avoid the nested build ID problem in the previous special case
+	// by recording the test results in the cache under the action ID half.
+	if !cfg.BuildA && len(a.triggers) == 1 && a.triggers[0].TryCache != nil && a.triggers[0].TryCache(b, a.triggers[0]) {
+		a.Target = "DO NOT USE -  pseudo-cache Target"
+		a.built = "DO NOT USE - pseudo-cache built"
+		return true
 	}
 
 	if b.ComputeStaleOnly {
@@ -358,9 +379,11 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 // a.buildID to record as the build ID in the resulting package or binary.
 // updateBuildID computes the final content ID and updates the build IDs
 // in the binary.
-func (b *Builder) updateBuildID(a *Action, target string) error {
+func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 	if cfg.BuildX || cfg.BuildN {
-		b.Showcmd("", "%s # internal", joinUnambiguously(str.StringList(base.Tool("buildid"), "-w", target)))
+		if rewrite {
+			b.Showcmd("", "%s # internal", joinUnambiguously(str.StringList(base.Tool("buildid"), "-w", target)))
+		}
 		if cfg.BuildN {
 			return nil
 		}
@@ -387,17 +410,20 @@ func (b *Builder) updateBuildID(a *Action, target string) error {
 		// Assume the user specified -buildid= to override what we were going to choose.
 		return nil
 	}
-	w, err := os.OpenFile(target, os.O_WRONLY, 0)
-	if err != nil {
-		return err
-	}
-	err = buildid.Rewrite(w, matches, newID)
-	if err != nil {
-		w.Close()
-		return err
-	}
-	if err := w.Close(); err != nil {
-		return err
+
+	if rewrite {
+		w, err := os.OpenFile(target, os.O_WRONLY, 0)
+		if err != nil {
+			return err
+		}
+		err = buildid.Rewrite(w, matches, newID)
+		if err != nil {
+			w.Close()
+			return err
+		}
+		if err := w.Close(); err != nil {
+			return err
+		}
 	}
 
 	// Cache package builds, but not binaries (link steps).
@@ -408,6 +434,11 @@ func (b *Builder) updateBuildID(a *Action, target string) error {
 	// Not caching the link step also makes sure that repeated "go run" at least
 	// always rerun the linker, so that they don't get too fast.
 	// (We don't want people thinking go is a scripting language.)
+	// Note also that if we start caching binaries, then we will
+	// copy the binaries out of the cache to run them, and then
+	// that will mean the go process is itself writing a binary
+	// and then executing it, so we will need to defend against
+	// ETXTBSY problems as discussed in exec.go and golang.org/issue/22220.
 	if c := cache.Default(); c != nil && a.Mode == "build" {
 		r, err := os.Open(target)
 		if err == nil {

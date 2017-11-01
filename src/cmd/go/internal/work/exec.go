@@ -244,7 +244,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	for _, a1 := range a.Deps {
 		p1 := a1.Package
 		if p1 != nil {
-			fmt.Fprintf(h, "import %s %s\n", p1.ImportPath, a1.buildID)
+			fmt.Fprintf(h, "import %s %s\n", p1.ImportPath, contentID(a1.buildID))
 		}
 	}
 
@@ -613,7 +613,7 @@ func (b *Builder) build(a *Action) (err error) {
 		}
 	}
 
-	if err := b.updateBuildID(a, objpkg); err != nil {
+	if err := b.updateBuildID(a, objpkg, true); err != nil {
 		return err
 	}
 
@@ -765,21 +765,23 @@ func (b *Builder) link(a *Action) (err error) {
 	}
 
 	// Update the binary with the final build ID.
-	// But if OmitDebug is set, don't, because we set OmitDebug
+	// But if OmitDebug is set, don't rewrite the binary, because we set OmitDebug
 	// on binaries that we are going to run and then delete.
 	// There's no point in doing work on such a binary.
 	// Worse, opening the binary for write here makes it
 	// essentially impossible to safely fork+exec due to a fundamental
 	// incompatibility between ETXTBSY and threads on modern Unix systems.
 	// See golang.org/issue/22220.
+	// We still call updateBuildID to update a.buildID, which is important
+	// for test result caching, but passing rewrite=false (final arg)
+	// means we don't actually rewrite the binary, nor store the
+	// result into the cache.
 	// Not calling updateBuildID means we also don't insert these
 	// binaries into the build object cache. That's probably a net win:
 	// less cache space wasted on large binaries we are not likely to
 	// need again. (On the other hand it does make repeated go test slower.)
-	if !a.Package.Internal.OmitDebug {
-		if err := b.updateBuildID(a, a.Target); err != nil {
-			return err
-		}
+	if err := b.updateBuildID(a, a.Target, !a.Package.Internal.OmitDebug); err != nil {
+		return err
 	}
 
 	a.built = a.Target

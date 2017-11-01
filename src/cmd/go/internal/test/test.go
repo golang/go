@@ -13,6 +13,7 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -26,6 +27,7 @@ import (
 	"unicode/utf8"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
@@ -56,10 +58,10 @@ followed by detailed output for each failed package.
 
 'Go test' recompiles each package along with any files with names matching
 the file pattern "*_test.go".
-Files whose names begin with "_" (including "_test.go") or "." are ignored.
 These additional files can contain test functions, benchmark functions, and
 example functions. See 'go help testfunc' for more.
 Each listed package causes the execution of a separate test binary.
+Files whose names begin with "_" (including "_test.go") or "." are ignored.
 
 Test files that declare a package with the suffix "_test" will be compiled as a
 separate package, and then linked and run with the main test binary.
@@ -67,11 +69,37 @@ separate package, and then linked and run with the main test binary.
 The go tool will ignore a directory named "testdata", making it available
 to hold ancillary data needed by the tests.
 
-By default, go test needs no arguments. It compiles and tests the package
-with source in the current directory, including tests, and runs the tests.
+Go test runs in two different modes: local directory mode when invoked with
+no package arguments (for example, 'go test'), and package list mode when
+invoked with package arguments (for example 'go test math', 'go test ./...',
+and even 'go test .').
 
-The package is built in a temporary directory so it does not interfere with the
-non-test installation.
+In local directory mode, go test compiles and tests the package sources
+found in the current directory and then runs the resulting test binary.
+In this mode, the test binary runs with standard output and standard error
+connected directly to the go command's own standard output and standard
+error, and test result caching (discussed below) is disabled.
+After the package test finishes, go test prints to standard output a
+summary line showing the test status ('ok' or 'FAIL'), package name,
+and elapsed time.
+
+In package list mode, go test compiles and tests each of the packages
+listed on the command line. If a package test passes, go test prints only
+the final 'ok' summary line. If a package test fails, go test prints the
+full test output. If invoked with the -bench or -v flag, go test prints
+the full output even for passing package tests, in order to display the
+requested benchmark results or verbose logging. In package list mode,
+go test prints all test output and summary lines to standard output.
+
+In package list mode, go test also caches successful package test results.
+If go test has cached a previous test run using the same test binary and
+the same command line consisting entirely of cacheable test flags
+(defined as -cpu, -list, -parallel, -run, -short, and -v),
+go test will redisplay the previous output instead of running the test
+binary again. In the summary line, go test prints '(cached)' in place of
+the elapsed time. To disable test caching, use any test flag or argument
+other than the cacheable flags. The idiomatic way to disable test caching
+explicitly is to use -count=1.
 
 ` + strings.TrimSpace(testFlag1) + ` See 'go help testflag' for details.
 
@@ -405,21 +433,22 @@ See the documentation of the testing package for more information.
 }
 
 var (
-	testC            bool            // -c flag
-	testCover        bool            // -cover flag
-	testCoverMode    string          // -covermode flag
-	testCoverPaths   []string        // -coverpkg flag
-	testCoverPkgs    []*load.Package // -coverpkg flag
-	testO            string          // -o flag
-	testProfile      bool            // some profiling flag
-	testNeedBinary   bool            // profile needs to keep binary around
-	testV            bool            // -v flag
-	testTimeout      string          // -timeout flag
-	testArgs         []string
-	testBench        bool
-	testList         bool
-	testStreamOutput bool // show output as it is generated
-	testShowPass     bool // show passing output
+	testC          bool            // -c flag
+	testCover      bool            // -cover flag
+	testCoverMode  string          // -covermode flag
+	testCoverPaths []string        // -coverpkg flag
+	testCoverPkgs  []*load.Package // -coverpkg flag
+	testO          string          // -o flag
+	testProfile    bool            // some profiling flag
+	testNeedBinary bool            // profile needs to keep binary around
+	testV          bool            // -v flag
+	testTimeout    string          // -timeout flag
+	testArgs       []string
+	testBench      bool
+	testList       bool
+	testShowPass   bool // show passing output
+	pkgArgs        []string
+	pkgs           []*load.Package
 
 	testKillTimeout = 10 * time.Minute
 )
@@ -432,14 +461,13 @@ var testMainDeps = []string{
 }
 
 func runTest(cmd *base.Command, args []string) {
-	var pkgArgs []string
 	pkgArgs, testArgs = testFlags(args)
 
 	work.FindExecCmd() // initialize cached result
 
 	work.InstrumentInit()
 	work.BuildModeInit()
-	pkgs := load.PackagesForBuild(pkgArgs)
+	pkgs = load.PackagesForBuild(pkgArgs)
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to test")
 	}
@@ -466,16 +494,6 @@ func runTest(cmd *base.Command, args []string) {
 	// must buffer because tests are running in parallel, and
 	// otherwise the output will get mixed.
 	testShowPass = testV || testList
-
-	// stream test output (no buffering) when no package has
-	// been given on the command line (implicit current directory)
-	// or when benchmarking.
-	// Also stream if we're showing output anyway with a
-	// single package under test or if parallelism is set to 1.
-	// In these cases, streaming the output produces the same result
-	// as not streaming, just more immediately.
-	testStreamOutput = len(pkgArgs) == 0 || testBench ||
-		(testShowPass && (len(pkgs) == 1 || cfg.BuildP == 1))
 
 	// For 'go test -i -o x.test', we want to build x.test. Imply -c to make the logic easier.
 	if cfg.BuildI && testO != "" {
@@ -948,12 +966,14 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		printAction = &work.Action{Mode: "test print (nop)", Package: p, Deps: []*work.Action{runAction}} // nop
 	} else {
 		// run test
+		c := new(runCache)
 		runAction = &work.Action{
 			Mode:       "test run",
-			Func:       builderRunTest,
+			Func:       c.builderRunTest,
 			Deps:       []*work.Action{buildAction},
 			Package:    p,
 			IgnoreFail: true,
+			TryCache:   c.tryCache,
 		}
 		cleanAction := &work.Action{
 			Mode:    "test clean",
@@ -1054,11 +1074,34 @@ func declareCoverVars(importPath string, files ...string) map[string]*load.Cover
 
 var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
 
-// builderRunTest is the action for running a test binary.
-func builderRunTest(b *work.Builder, a *work.Action) error {
-	args := str.StringList(work.FindExecCmd(), a.Deps[0].Target, testArgs)
-	a.TestOutput = new(bytes.Buffer)
+type runCache struct {
+	disableCache bool // cache should be disabled for this run
 
+	buf *bytes.Buffer
+	id1 cache.ActionID
+	id2 cache.ActionID
+}
+
+// builderRunTest is the action for running a test binary.
+func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+	if c.buf == nil {
+		// We did not find a cached result using the link step action ID,
+		// so we ran the link step. Try again now with the link output
+		// content ID. The attempt using the action ID makes sure that
+		// if the link inputs don't change, we reuse the cached test
+		// result without even rerunning the linker. The attempt using
+		// the link output (test binary) content ID makes sure that if
+		// we have different link inputs but the same final binary,
+		// we still reuse the cached test result.
+		// c.saveOutput will store the result under both IDs.
+		c.tryCacheWithID(b, a, a.Deps[0].BuildContentID())
+	}
+	if c.buf != nil {
+		a.TestOutput = c.buf
+		return nil
+	}
+
+	args := str.StringList(work.FindExecCmd(), a.Deps[0].Target, testArgs)
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd("", "%s", strings.Join(args, " "))
 		if cfg.BuildN {
@@ -1069,6 +1112,7 @@ func builderRunTest(b *work.Builder, a *work.Action) error {
 	if a.Failed {
 		// We were unable to build the binary.
 		a.Failed = false
+		a.TestOutput = new(bytes.Buffer)
 		fmt.Fprintf(a.TestOutput, "FAIL\t%s [build failed]\n", a.Package.ImportPath)
 		base.SetExitStatus(1)
 		return nil
@@ -1078,12 +1122,48 @@ func builderRunTest(b *work.Builder, a *work.Action) error {
 	cmd.Dir = a.Package.Dir
 	cmd.Env = base.EnvForDir(cmd.Dir, cfg.OrigEnv)
 	var buf bytes.Buffer
-	if testStreamOutput {
+	if len(pkgArgs) == 0 || testBench {
+		// Stream test output (no buffering) when no package has
+		// been given on the command line (implicit current directory)
+		// or when benchmarking. Allowing stderr to pass through to
+		// stderr here is a bit of an historical mistake, but now a
+		// documented one. Except in this case, all output is merged
+		// to one stream written to stdout.
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	} else {
-		cmd.Stdout = &buf
-		cmd.Stderr = &buf
+		// If we're only running a single package under test
+		// or if parallelism is set to 1, and if we're displaying
+		// all output (testShowPass), we can hurry the output along,
+		// echoing it as soon as it comes in. We still have to copy
+		// to &buf for caching the result. This special case was
+		// introduced in Go 1.5 and is intentionally undocumented:
+		// the rationale is that the exact details of output buffering
+		// are up to the go command and subject to change.
+		// NOTE(rsc): Originally this special case also had the effect of
+		// allowing stderr to pass through to os.Stderr, unlike
+		// the normal buffering that merges stdout and stderr into stdout.
+		// This had the truly mysterious result that on a multiprocessor,
+		// "go test -v math" could print to stderr,
+		// "go test -v math strings" could not, and
+		// "go test -p=1 -v math strings" could once again.
+		// While I'm willing to let the buffer flush timing
+		// fluctuate based on minor details like this,
+		// allowing the file descriptor to which output is sent
+		// to change as well seems like a serious mistake.
+		// Go 1.10 changed this code to allow the less aggressive
+		// buffering but still merge all output to standard output.
+		// I'd really like to remove this special case entirely,
+		// but it is surely very helpful to see progress being made
+		// when tests are run on slow single-CPU ARM systems.
+		if testShowPass && (len(pkgs) == 1 || cfg.BuildP == 1) {
+			// Write both to stdout and buf, for possible saving
+			// to cache, and for looking for the "no tests to run" message.
+			cmd.Stdout = io.MultiWriter(os.Stdout, &buf)
+		} else {
+			cmd.Stdout = &buf
+		}
+		cmd.Stderr = cmd.Stdout
 	}
 
 	// If there are any local SWIG dependencies, we want to load
@@ -1130,41 +1210,141 @@ func builderRunTest(b *work.Builder, a *work.Action) error {
 				cmd.Process.Signal(base.SignalTrace)
 				select {
 				case err = <-done:
-					fmt.Fprintf(&buf, "*** Test killed with %v: ran too long (%v).\n", base.SignalTrace, testKillTimeout)
+					fmt.Fprintf(cmd.Stdout, "*** Test killed with %v: ran too long (%v).\n", base.SignalTrace, testKillTimeout)
 					break Outer
 				case <-time.After(5 * time.Second):
 				}
 			}
 			cmd.Process.Kill()
 			err = <-done
-			fmt.Fprintf(&buf, "*** Test killed: ran too long (%v).\n", testKillTimeout)
+			fmt.Fprintf(cmd.Stdout, "*** Test killed: ran too long (%v).\n", testKillTimeout)
 		}
 		tick.Stop()
 	}
 	out := buf.Bytes()
+	a.TestOutput = &buf
 	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
 	if err == nil {
 		norun := ""
-		if testShowPass {
-			a.TestOutput.Write(out)
+		if !testShowPass {
+			buf.Reset()
 		}
 		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
 			norun = " [no tests to run]"
 		}
-		fmt.Fprintf(a.TestOutput, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
-		return nil
-	}
-
-	base.SetExitStatus(1)
-	if len(out) > 0 {
-		a.TestOutput.Write(out)
-		// assume printing the test binary's exit status is superfluous
+		fmt.Fprintf(cmd.Stdout, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
+		c.saveOutput(a)
 	} else {
-		fmt.Fprintf(a.TestOutput, "%s\n", err)
+		base.SetExitStatus(1)
+		// If there was test output, assume we don't need to print the exit status.
+		// Buf there's no test output, do print the exit status.
+		if len(out) == 0 {
+			fmt.Fprintf(cmd.Stdout, "%s\n", err)
+		}
+		fmt.Fprintf(cmd.Stdout, "FAIL\t%s\t%s\n", a.Package.ImportPath, t)
 	}
-	fmt.Fprintf(a.TestOutput, "FAIL\t%s\t%s\n", a.Package.ImportPath, t)
 
+	if cmd.Stdout != &buf {
+		buf.Reset() // cmd.Stdout was going to os.Stdout already
+	}
 	return nil
+}
+
+// tryCache is called just before the link attempt,
+// to see if the test result is cached and therefore the link is unneeded.
+// It reports whether the result can be satisfied from cache.
+func (c *runCache) tryCache(b *work.Builder, a *work.Action) bool {
+	return c.tryCacheWithID(b, a, a.Deps[0].BuildActionID())
+}
+
+func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bool {
+	if len(pkgArgs) == 0 {
+		// Caching does not apply to "go test",
+		// only to "go test foo" (including "go test .").
+		c.disableCache = true
+		return false
+	}
+
+	for _, arg := range testArgs {
+		i := strings.Index(arg, "=")
+		if i < 0 || !strings.HasPrefix(arg, "-test.") {
+			c.disableCache = true
+			return false
+		}
+		switch arg[:i] {
+		case "-test.cpu",
+			"-test.list",
+			"-test.parallel",
+			"-test.run",
+			"-test.short",
+			"-test.v":
+			// These are cacheable.
+			// Note that this list is documented above,
+			// so if you add to this list, update the docs too.
+		default:
+			// nothing else is cacheable
+			c.disableCache = true
+			return false
+		}
+	}
+
+	if cache.Default() == nil {
+		c.disableCache = true
+		return false
+	}
+
+	h := cache.NewHash("testResult")
+	fmt.Fprintf(h, "test binary %s args %q execcmd %q", id, testArgs, work.ExecCmd)
+	// TODO(rsc): How to handle other test dependencies like environment variables or input files?
+	// We could potentially add new API like testing.UsedEnv(envName string)
+	// or testing.UsedFile(inputFile string) to let tests declare what external inputs
+	// they consulted. These could be recorded and rechecked.
+	// The lookup here would become a two-step lookup: first use the binary+args
+	// to fetch the list of other inputs, then add the other inputs to produce a
+	// second key for fetching the results.
+	// For now, we'll assume that users will use -count=1 (or "go test") to bypass the test result
+	// cache when modifying those things.
+	testID := h.Sum()
+	if c.id1 == (cache.ActionID{}) {
+		c.id1 = testID
+	} else {
+		c.id2 = testID
+	}
+
+	// Parse cached result in preparation for changing run time to "(cached)".
+	// If we can't parse the cached result, don't use it.
+	data, _ := cache.Default().GetBytes(testID)
+	if len(data) == 0 || data[len(data)-1] != '\n' {
+		return false
+	}
+	i := bytes.LastIndexByte(data[:len(data)-1], '\n') + 1
+	if !bytes.HasPrefix(data[i:], []byte("ok  \t")) {
+		return false
+	}
+	j := bytes.IndexByte(data[i+len("ok  \t"):], '\t')
+	if j < 0 {
+		return false
+	}
+	j += i + len("ok  \t") + 1
+
+	// Committed to printing.
+	c.buf = new(bytes.Buffer)
+	c.buf.Write(data[:j])
+	c.buf.WriteString("(cached)")
+	for j < len(data) && ('0' <= data[j] && data[j] <= '9' || data[j] == '.' || data[j] == 's') {
+		j++
+	}
+	c.buf.Write(data[j:])
+	return true
+}
+
+func (c *runCache) saveOutput(a *work.Action) {
+	if c.id1 != (cache.ActionID{}) {
+		cache.Default().PutNoVerify(c.id1, bytes.NewReader(a.TestOutput.Bytes()))
+	}
+	if c.id2 != (cache.ActionID{}) {
+		cache.Default().PutNoVerify(c.id2, bytes.NewReader(a.TestOutput.Bytes()))
+	}
 }
 
 // coveragePercentage returns the coverage results (if enabled) for the
