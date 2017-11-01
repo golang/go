@@ -55,6 +55,10 @@
 # GOBUILDTIMELOGFILE: If set, make.bash and all.bash write
 # timing information to this file. Useful for profiling where the
 # time goes when these scripts run.
+#
+# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.4 for bootstrap.
+# If $GOROOT_BOOTSTRAP/bin/go is missing, $(go env GOROOT) is
+# tried for all "go" in $PATH. $HOME/go1.4 by default.
 
 set -e
 
@@ -134,19 +138,19 @@ if [ "$1" = "-v" ]; then
 fi
 
 export GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
-echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP."
-if $verbose; then
-	echo cmd/dist
-fi
 export GOROOT="$(cd .. && pwd)"
-for go_exe in $(type -ap go); do
+IFS=$'\n'; for go_exe in $(type -ap go); do
 	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
-		goroot=$(GOROOT='' $go_exe env GOROOT)
+		goroot=$(GOROOT='' "$go_exe" env GOROOT)
 		if [ "$goroot" != "$GOROOT" ]; then
 			GOROOT_BOOTSTRAP=$goroot
 		fi
 	fi
-done
+done; unset IFS
+echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP."
+if $verbose; then
+	echo cmd/dist
+fi
 if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
 	echo "ERROR: Cannot find $GOROOT_BOOTSTRAP/bin/go." >&2
 	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
