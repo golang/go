@@ -238,10 +238,10 @@ func ExampleTime_Format() {
 	// value.
 	do("No pad", "<2>", "<7>")
 
-	// An underscore represents a zero pad, if required.
+	// An underscore represents a space pad, if the date only has one digit.
 	do("Spaces", "<_2>", "< 7>")
 
-	// Similarly, a 0 indicates zero padding.
+	// A "0" indicates zero padding for single-digit values.
 	do("Zeros", "<02>", "<07>")
 
 	// If the value is already the right width, padding is not used.
