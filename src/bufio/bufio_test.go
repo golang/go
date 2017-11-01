@@ -1418,6 +1418,24 @@ func TestReaderDiscard(t *testing.T) {
 
 }
 
+func TestReaderSize(t *testing.T) {
+	if got, want := NewReader(nil).Size(), DefaultBufSize; got != want {
+		t.Errorf("NewReader's Reader.Size = %d; want %d", got, want)
+	}
+	if got, want := NewReaderSize(nil, 1234).Size(), 1234; got != want {
+		t.Errorf("NewReaderSize's Reader.Size = %d; want %d", got, want)
+	}
+}
+
+func TestWriterSize(t *testing.T) {
+	if got, want := NewWriter(nil).Size(), DefaultBufSize; got != want {
+		t.Errorf("NewWriter's Writer.Size = %d; want %d", got, want)
+	}
+	if got, want := NewWriterSize(nil, 1234).Size(), 1234; got != want {
+		t.Errorf("NewWriterSize's Writer.Size = %d; want %d", got, want)
+	}
+}
+
 // An onlyReader only implements io.Reader, no matter what other methods the underlying implementation may have.
 type onlyReader struct {
 	io.Reader
