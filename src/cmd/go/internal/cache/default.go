@@ -26,52 +26,61 @@ var (
 // initDefaultCache does the work of finding the default cache
 // the first time Default is called.
 func initDefaultCache() {
-	dir := os.Getenv("GOCACHE")
+	dir := DefaultDir()
 	if dir == "off" {
 		return
 	}
-	if dir == "" {
-		// Compute default location.
-		// TODO(rsc): This code belongs somewhere else,
-		// like maybe ioutil.CacheDir or os.CacheDir.
-		switch runtime.GOOS {
-		case "windows":
-			dir = os.Getenv("LocalAppData")
-
-		case "darwin":
-			dir = os.Getenv("HOME")
-			if dir == "" {
-				return
-			}
-			dir += "/Library/Caches"
-
-		case "plan9":
-			dir = os.Getenv("home")
-			if dir == "" {
-				return
-			}
-			dir += "/lib/cache"
-
-		default: // Unix
-			// https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
-			dir = os.Getenv("XDG_CACHE_HOME")
-			if dir == "" {
-				dir = os.Getenv("HOME")
-				if dir == "" {
-					return
-				}
-				dir += "/.cache"
-			}
-		}
-		dir = filepath.Join(dir, "go-build")
-		if err := os.MkdirAll(dir, 0777); err != nil {
-			return
-		}
+	if err := os.MkdirAll(dir, 0777); err != nil {
+		base.Fatalf("initializing cache in $GOCACHE: %s", err)
 	}
-
 	c, err := Open(dir)
 	if err != nil {
 		base.Fatalf("initializing cache in $GOCACHE: %s", err)
 	}
 	defaultCache = c
+}
+
+// DefaultDir returns the effective GOCACHE setting.
+// It returns "off" if the cache is disabled.
+func DefaultDir() string {
+	dir := os.Getenv("GOCACHE")
+	if dir != "" {
+		return dir
+	}
+
+	// Compute default location.
+	// TODO(rsc): This code belongs somewhere else,
+	// like maybe ioutil.CacheDir or os.CacheDir.
+	switch runtime.GOOS {
+	case "windows":
+		dir = os.Getenv("LocalAppData")
+
+	case "darwin":
+		dir = os.Getenv("HOME")
+		if dir == "" {
+			return "off"
+		}
+		dir += "/Library/Caches"
+
+	case "plan9":
+		dir = os.Getenv("home")
+		if dir == "" {
+			return "off"
+		}
+		// Plan 9 has no established per-user cache directory,
+		// but $home/lib/xyz is the usual equivalent of $HOME/.xyz on Unix.
+		dir += "/lib/cache"
+
+	default: // Unix
+		// https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
+		dir = os.Getenv("XDG_CACHE_HOME")
+		if dir == "" {
+			dir = os.Getenv("HOME")
+			if dir == "" {
+				return "off"
+			}
+			dir += "/.cache"
+		}
+	}
+	return filepath.Join(dir, "go-build")
 }

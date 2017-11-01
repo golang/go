@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/work"
@@ -55,6 +56,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GORACE", Value: os.Getenv("GORACE")},
 		{Name: "GOROOT", Value: cfg.GOROOT},
 		{Name: "GOTOOLDIR", Value: base.ToolDir},
+		{Name: "GOCACHE", Value: cache.DefaultDir()},
 
 		// disable escape codes in clang errors
 		{Name: "TERM", Value: "dumb"},
