@@ -137,15 +137,16 @@ var builddeps = map[string][]string{
 	},
 
 	"cmd/go/internal/envcmd": {
-		"cmd/go/internal/base", // cmd/go/internal/envcmd
-		"cmd/go/internal/cfg",  // cmd/go/internal/envcmd
-		"cmd/go/internal/load", // cmd/go/internal/envcmd
-		"cmd/go/internal/work", // cmd/go/internal/envcmd
-		"encoding/json",        // cmd/go/internal/envcmd
-		"fmt",                  // cmd/go/internal/envcmd
-		"os",                   // cmd/go/internal/envcmd
-		"runtime",              // cmd/go/internal/envcmd
-		"strings",              // cmd/go/internal/envcmd
+		"cmd/go/internal/base",  // cmd/go/internal/envcmd
+		"cmd/go/internal/cache", // cmd/go/internal/envcmd
+		"cmd/go/internal/cfg",   // cmd/go/internal/envcmd
+		"cmd/go/internal/load",  // cmd/go/internal/envcmd
+		"cmd/go/internal/work",  // cmd/go/internal/envcmd
+		"encoding/json",         // cmd/go/internal/envcmd
+		"fmt",                   // cmd/go/internal/envcmd
+		"os",                    // cmd/go/internal/envcmd
+		"runtime",               // cmd/go/internal/envcmd
+		"strings",               // cmd/go/internal/envcmd
 	},
 
 	"cmd/go/internal/fix": {
