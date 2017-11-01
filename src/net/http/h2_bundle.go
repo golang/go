@@ -4546,8 +4546,13 @@ func (sc *http2serverConn) serve() {
 			}
 		}
 
-		if sc.inGoAway && sc.curOpenStreams() == 0 && !sc.needToSendGoAway && !sc.writingFrame {
-			return
+		// Start the shutdown timer after sending a GOAWAY. When sending GOAWAY
+		// with no error code (graceful shutdown), don't start the timer until
+		// all open streams have been completed.
+		sentGoAway := sc.inGoAway && !sc.needToSendGoAway && !sc.writingFrame
+		gracefulShutdownComplete := sc.goAwayCode == http2ErrCodeNo && sc.curOpenStreams() == 0
+		if sentGoAway && sc.shutdownTimer == nil && (sc.goAwayCode != http2ErrCodeNo || gracefulShutdownComplete) {
+			sc.shutDownIn(http2goAwayTimeout)
 		}
 	}
 }
@@ -4913,29 +4918,30 @@ func (sc *http2serverConn) startGracefulShutdown() {
 	sc.shutdownOnce.Do(func() { sc.sendServeMsg(http2gracefulShutdownMsg) })
 }
 
+// After sending GOAWAY, the connection will close after goAwayTimeout.
+// If we close the connection immediately after sending GOAWAY, there may
+// be unsent data in our kernel receive buffer, which will cause the kernel
+// to send a TCP RST on close() instead of a FIN. This RST will abort the
+// connection immediately, whether or not the client had received the GOAWAY.
+//
+// Ideally we should delay for at least 1 RTT + epsilon so the client has
+// a chance to read the GOAWAY and stop sending messages. Measuring RTT
+// is hard, so we approximate with 1 second. See golang.org/issue/18701.
+//
+// This is a var so it can be shorter in tests, where all requests uses the
+// loopback interface making the expected RTT very small.
+//
+// TODO: configurable?
+var http2goAwayTimeout = 1 * time.Second
+
 func (sc *http2serverConn) startGracefulShutdownInternal() {
-	sc.goAwayIn(http2ErrCodeNo, 0)
+	sc.goAway(http2ErrCodeNo)
 }
 
 func (sc *http2serverConn) goAway(code http2ErrCode) {
 	sc.serveG.check()
-	var forceCloseIn time.Duration
-	if code != http2ErrCodeNo {
-		forceCloseIn = 250 * time.Millisecond
-	} else {
-		// TODO: configurable
-		forceCloseIn = 1 * time.Second
-	}
-	sc.goAwayIn(code, forceCloseIn)
-}
-
-func (sc *http2serverConn) goAwayIn(code http2ErrCode, forceCloseIn time.Duration) {
-	sc.serveG.check()
 	if sc.inGoAway {
 		return
-	}
-	if forceCloseIn != 0 {
-		sc.shutDownIn(forceCloseIn)
 	}
 	sc.inGoAway = true
 	sc.needToSendGoAway = true
@@ -8370,6 +8376,14 @@ func (rl *http2clientConnReadLoop) processData(f *http2DataFrame) error {
 		return nil
 	}
 	if f.Length > 0 {
+		if cs.req.Method == "HEAD" && len(data) > 0 {
+			cc.logf("protocol error: received DATA on a HEAD request")
+			rl.endStreamError(cs, http2StreamError{
+				StreamID: f.StreamID,
+				Code:     http2ErrCodeProtocol,
+			})
+			return nil
+		}
 		// Check connection-level flow control.
 		cc.mu.Lock()
 		if cs.inflow.available() >= int32(f.Length) {
@@ -8877,11 +8891,7 @@ type http2writeGoAway struct {
 
 func (p *http2writeGoAway) writeFrame(ctx http2writeContext) error {
 	err := ctx.Framer().WriteGoAway(p.maxStreamID, p.code, nil)
-	if p.code != 0 {
-		ctx.Flush() // ignore error: we're hanging up on them anyway
-		time.Sleep(50 * time.Millisecond)
-		ctx.CloseConn()
-	}
+	ctx.Flush() // ignore error: we're hanging up on them anyway
 	return err
 }
 
