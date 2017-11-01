@@ -13,7 +13,7 @@ import (
 	"sync"
 )
 
-var debugHash = os.Getenv("GOCMDDEBUGHASH") == "1"
+var debugHash = false // set when GODEBUG=gocachehash=1
 
 // HashSize is the number of bytes in a hash.
 const HashSize = 32

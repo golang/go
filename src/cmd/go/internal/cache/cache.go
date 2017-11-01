@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 // An ActionID is a cache action key, the hash of a complete description of a
@@ -74,11 +75,46 @@ const (
 	entrySize = 2 + 1 + hexSize + 1 + hexSize + 1 + 20 + 1
 )
 
+// verify controls whether to run the cache in verify mode.
+// In verify mode, the cache always returns errMissing from Get
+// but then double-checks in Put that the data being written
+// exactly matches any existing entry. This provides an easy
+// way to detect program behavior that would have been different
+// had the cache entry been returned from Get.
+//
+// verify is enabled by setting the environment variable
+// GODEBUG=gocacheverify=1.
+var verify = false
+
+func init() { initEnv() }
+
+func initEnv() {
+	verify = false
+	debugHash = false
+	debug := strings.Split(os.Getenv("GODEBUG"), ",")
+	for _, f := range debug {
+		if f == "gocacheverify=1" {
+			verify = true
+		}
+		if f == "gocachehash=1" {
+			debugHash = true
+		}
+	}
+}
+
 // Get looks up the action ID in the cache,
 // returning the corresponding output ID and file size, if any.
 // Note that finding an output ID does not guarantee that the
 // saved file for that output ID is still available.
 func (c *Cache) Get(id ActionID) (OutputID, int64, error) {
+	if verify {
+		return OutputID{}, 0, errMissing
+	}
+	return c.get(id)
+}
+
+// get is Get but does not respect verify mode, so that Put can use it.
+func (c *Cache) get(id ActionID) (OutputID, int64, error) {
 	missing := func() (OutputID, int64, error) {
 		// TODO: log miss
 		return OutputID{}, 0, errMissing
@@ -147,7 +183,20 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64) error {
 	// While not ideal, this is also not a correctness problem, so we
 	// don't make a big deal about it. In particular, we leave the action
 	// cache entries writable specifically so that they can be overwritten.
+	//
+	// Setting GODEBUG=gocacheverify=1 does make a big deal:
+	// in verify mode we are double-checking that the cache entries
+	// are entirely reproducible. As just noted, this may be unrealistic
+	// in some cases but the check is also useful for shaking out real bugs.
 	entry := []byte(fmt.Sprintf("v1 %x %x %20d\n", id, out, size))
+	if verify {
+		oldOut, oldSize, err := c.get(id)
+		if err == nil && (oldOut != out || oldSize != size) {
+			fmt.Fprintf(os.Stderr, "go: internal cache error: id=%x changed:\nold: %x %d\nnew: %x %d\n", id, out, size, oldOut, oldSize)
+			// panic to show stack trace, so we can see what code is generating this cache entry.
+			panic("cache verify failed")
+		}
+	}
 	return ioutil.WriteFile(c.fileName(id, "a"), entry, 0666)
 }
 

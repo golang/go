@@ -1276,7 +1276,7 @@ func checkNotStale(goBinary string, targets ...string) {
 			"-f={{if .Stale}}\t{{.ImportPath}}: {{.StaleReason}}{{end}}",
 		}, targets...)...)
 	if out != "" {
-		os.Setenv("GOCMDDEBUGHASH", "1")
+		os.Setenv("GODEBUG", "gocachehash=1")
 		for _, target := range []string{"runtime/internal/sys", "cmd/dist", "cmd/link"} {
 			if strings.Contains(out, target) {
 				run(goroot, ShowOutput|CheckExit, goBinary, "list", "-f={{.ImportPath}} {{.Stale}}", target)
