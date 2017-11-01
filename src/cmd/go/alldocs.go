@@ -331,6 +331,8 @@
 // The -json flag prints the environment in JSON format
 // instead of as a shell script.
 //
+// For more about environment variables, see 'go help environment'.
+//
 //
 // Start a bug report
 //
@@ -1103,6 +1105,12 @@
 // 		See https://golang.org/doc/articles/race_detector.html.
 // 	GOROOT
 // 		The root of the go tree.
+// 	GOTMPDIR
+// 		The directory where the go command will write
+// 		temporary source files, packages, and binaries.
+// 	GOCACHE
+// 		The directory where the go command will store
+// 		cached information for reuse in future builds.
 //
 // Environment variables for use with cgo:
 //

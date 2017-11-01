@@ -200,7 +200,7 @@ func (b *Builder) Init() {
 	if cfg.BuildN {
 		b.WorkDir = "$WORK"
 	} else {
-		b.WorkDir, err = ioutil.TempDir("", "go-build")
+		b.WorkDir, err = ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-build")
 		if err != nil {
 			base.Fatalf("%s", err)
 		}

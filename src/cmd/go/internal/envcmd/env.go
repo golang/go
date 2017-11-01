@@ -32,6 +32,8 @@ each named variable on its own line.
 
 The -json flag prints the environment in JSON format
 instead of as a shell script.
+
+For more about environment variables, see 'go help environment'.
 	`,
 }
 
@@ -48,6 +50,7 @@ func MkEnv() []cfg.EnvVar {
 	env := []cfg.EnvVar{
 		{Name: "GOARCH", Value: cfg.Goarch},
 		{Name: "GOBIN", Value: cfg.GOBIN},
+		{Name: "GOCACHE", Value: cache.DefaultDir()},
 		{Name: "GOEXE", Value: cfg.ExeSuffix},
 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
 		{Name: "GOHOSTOS", Value: runtime.GOOS},
@@ -55,8 +58,8 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOPATH", Value: cfg.BuildContext.GOPATH},
 		{Name: "GORACE", Value: os.Getenv("GORACE")},
 		{Name: "GOROOT", Value: cfg.GOROOT},
+		{Name: "GOTMPDIR", Value: os.Getenv("GOTMPDIR")},
 		{Name: "GOTOOLDIR", Value: base.ToolDir},
-		{Name: "GOCACHE", Value: cache.DefaultDir()},
 
 		// disable escape codes in clang errors
 		{Name: "TERM", Value: "dumb"},
