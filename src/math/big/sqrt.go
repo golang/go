@@ -140,7 +140,7 @@ func (z *Float) sqrtInverse(x *Float) {
 
 	xf, _ := x.Float64()
 	sqi := NewFloat(1 / math.Sqrt(xf))
-	for prec := 2 * z.prec; sqi.prec < prec; {
+	for prec := z.prec + 32; sqi.prec < prec; {
 		sqi.prec *= 2
 		sqi = ng(sqi)
 	}
