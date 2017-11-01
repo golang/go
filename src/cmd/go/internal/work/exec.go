@@ -258,7 +258,30 @@ func (b *Builder) build(a *Action) (err error) {
 	cached := false
 	if !p.BinaryOnly {
 		if b.useCache(a, p, b.buildActionID(a), p.Target) {
-			if !a.needVet {
+			// If this build triggers a header install, run cgo to get the header.
+			// TODO(rsc): Once we can cache multiple file outputs from an action,
+			// the header should be cached, and then this awful test can be deleted.
+			// Need to look for install header actions depending on this action,
+			// or depending on a link that depends on this action.
+			needHeader := false
+			if (a.Package.UsesCgo() || a.Package.UsesSwig()) && (cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-header") {
+				for _, t1 := range a.triggers {
+					if t1.Mode == "install header" {
+						needHeader = true
+						goto CheckedHeader
+					}
+				}
+				for _, t1 := range a.triggers {
+					for _, t2 := range t1.triggers {
+						if t2.Mode == "install header" {
+							needHeader = true
+							goto CheckedHeader
+						}
+					}
+				}
+			}
+		CheckedHeader:
+			if b.ComputeStaleOnly || !a.needVet && !needHeader {
 				return nil
 			}
 			cached = true
@@ -386,6 +409,9 @@ func (b *Builder) build(a *Action) (err error) {
 		}
 		cgoObjects = append(cgoObjects, outObj...)
 		gofiles = append(gofiles, outGo...)
+	}
+	if cached && !a.needVet {
+		return nil
 	}
 
 	// Sanity check only, since Package.load already checked as well.
@@ -591,6 +617,7 @@ func (b *Builder) build(a *Action) (err error) {
 		return err
 	}
 
+	a.built = objpkg
 	return nil
 }
 
@@ -733,8 +760,7 @@ func (b *Builder) link(a *Action) (err error) {
 		}
 	}
 
-	objpkg := a.Objdir + "_pkg_.a"
-	if err := BuildToolchain.ld(b, a, a.Target, importcfg, objpkg); err != nil {
+	if err := BuildToolchain.ld(b, a, a.Target, importcfg, a.Deps[0].built); err != nil {
 		return err
 	}
 
@@ -746,12 +772,17 @@ func (b *Builder) link(a *Action) (err error) {
 	// essentially impossible to safely fork+exec due to a fundamental
 	// incompatibility between ETXTBSY and threads on modern Unix systems.
 	// See golang.org/issue/22220.
+	// Not calling updateBuildID means we also don't insert these
+	// binaries into the build object cache. That's probably a net win:
+	// less cache space wasted on large binaries we are not likely to
+	// need again. (On the other hand it does make repeated go test slower.)
 	if !a.Package.Internal.OmitDebug {
 		if err := b.updateBuildID(a, a.Target); err != nil {
 			return err
 		}
 	}
 
+	a.built = a.Target
 	return nil
 }
 
@@ -899,6 +930,7 @@ func (b *Builder) linkShared(a *Action) (err error) {
 
 	// TODO(rsc): There is a missing updateBuildID here,
 	// but we have to decide where to store the build ID in these files.
+	a.built = a.Target
 	return BuildToolchain.ldShared(b, a.Deps[0].Deps, a.Target, importcfg, a.Deps)
 }
 
@@ -957,7 +989,7 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 
 	defer b.cleanup(a1)
 
-	return b.moveOrCopyFile(a, a.Target, a1.Target, perm, false)
+	return b.moveOrCopyFile(a, a.Target, a1.built, perm, false)
 }
 
 // cleanup removes a's object dir to keep the amount of
@@ -982,6 +1014,11 @@ func (b *Builder) moveOrCopyFile(a *Action, dst, src string, perm os.FileMode, f
 
 	// If we can update the mode and rename to the dst, do it.
 	// Otherwise fall back to standard copy.
+
+	// If the source is in the build cache, we need to copy it.
+	if strings.HasPrefix(src, cache.DefaultDir()) {
+		return b.copyFile(a, dst, src, perm, force)
+	}
 
 	// If the destination directory has the group sticky bit set,
 	// we have to copy the file to retain the correct permissions.
@@ -1097,6 +1134,9 @@ func (b *Builder) installHeader(a *Action) error {
 	if _, err := os.Stat(src); os.IsNotExist(err) {
 		// If the file does not exist, there are no exported
 		// functions, and we do not install anything.
+		// TODO(rsc): Once we know that caching is rebuilding
+		// at the right times (not missing rebuilds), here we should
+		// probably delete the installed header, if any.
 		if cfg.BuildX {
 			b.Showcmd("", "# %s not created", src)
 		}

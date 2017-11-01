@@ -229,7 +229,10 @@ func xinit() {
 	// Use a build cache separate from the default user one.
 	// Also one that will be wiped out during startup, so that
 	// make.bash really does start from a clean slate.
-	os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
+	// But if the user has specified no caching, don't cache.
+	if os.Getenv("GOCACHE") != "off" {
+		os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
+	}
 
 	// Make the environment more predictable.
 	os.Setenv("LANG", "C")

@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/internal/buildid"
@@ -68,10 +69,11 @@ type Action struct {
 	triggers []*Action // inverse of deps
 
 	// Generated files, directories.
-	Objdir  string // directory for intermediate objects
-	Target  string // goal of the action: the created package or executable
-	built   string // the actual created package or executable
-	buildID string // build ID of action output
+	Objdir   string         // directory for intermediate objects
+	Target   string         // goal of the action: the created package or executable
+	built    string         // the actual created package or executable
+	actionID cache.ActionID // cache ID of action input
+	buildID  string         // build ID of action output
 
 	needVet bool       // Mode=="build": need to fill in vet config
 	vetCfg  *vetConfig // vet config
@@ -313,8 +315,6 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 			Func:    (*Builder).build,
 			Objdir:  b.NewObjdir(),
 		}
-		a.Target = a.Objdir + "_pkg_.a"
-		a.built = a.Target
 
 		for _, p1 := range p.Internal.Imports {
 			a.Deps = append(a.Deps, b.CompileAction(depMode, depMode, p1))

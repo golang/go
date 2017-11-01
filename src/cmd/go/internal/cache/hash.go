@@ -10,6 +10,7 @@ import (
 	"hash"
 	"io"
 	"os"
+	"runtime"
 	"sync"
 )
 
@@ -19,11 +20,21 @@ var debugHash = false // set when GODEBUG=gocachehash=1
 const HashSize = 32
 
 // A Hash provides access to the canonical hash function used to index the cache.
-// The current implementation uses SHA256, but clients must not assume this.
+// The current implementation uses salted SHA256, but clients must not assume this.
 type Hash struct {
 	h    hash.Hash
 	name string // for debugging
 }
+
+// hashSalt is a salt string added to the beginning of every hash
+// created by NewHash. Using the Go version makes sure that different
+// versions of the go command (or even different Git commits during
+// work on the development branch) do not address the same cache
+// entries, so that a bug in one version does not affect the execution
+// of other versions. This salt will result in additional ActionID files
+// in the cache, but not additional copies of the large output files,
+// which are still addressed by unsalted SHA256.
+var hashSalt = []byte(runtime.Version())
 
 // NewHash returns a new Hash.
 // The caller is expected to Write data to it and then call Sum.
@@ -32,6 +43,7 @@ func NewHash(name string) *Hash {
 	if debugHash {
 		fmt.Fprintf(os.Stderr, "HASH[%s]\n", h.name)
 	}
+	h.Write(hashSalt)
 	return h
 }
 
@@ -62,6 +74,8 @@ var hashFileCache struct {
 // It caches repeated lookups for a given file,
 // and the cache entry for a file can be initialized
 // using SetFileHash.
+// The hash used by FileHash is not the same as
+// the hash used by NewHash.
 func FileHash(file string) ([HashSize]byte, error) {
 	hashFileCache.Lock()
 	out, ok := hashFileCache.m[file]
