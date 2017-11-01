@@ -11,6 +11,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
+	"sort"
 )
 
 func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt) {
@@ -57,11 +58,19 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 }
 
 func (check *Checker) usage(scope *Scope) {
-	for _, obj := range scope.elems {
-		if v, _ := obj.(*Var); v != nil && !v.used {
-			check.softErrorf(v.pos, "%s declared but not used", v.name)
+	var unused []*Var
+	for _, elem := range scope.elems {
+		if v, _ := elem.(*Var); v != nil && !v.used {
+			unused = append(unused, v)
 		}
 	}
+	sort.Slice(unused, func(i, j int) bool {
+		return unused[i].pos < unused[j].pos
+	})
+	for _, v := range unused {
+		check.softErrorf(v.pos, "%s declared but not used", v.name)
+	}
+
 	for _, scope := range scope.children {
 		check.usage(scope)
 	}

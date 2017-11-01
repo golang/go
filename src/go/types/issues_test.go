@@ -292,3 +292,25 @@ func main() {
 	f("src1", src1)
 	f("src2", src2)
 }
+
+func TestIssue22525(t *testing.T) {
+	src := `package p; func f() { var a, b, c, d, e int }`
+	f, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := "\n"
+	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
+	conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // do not crash
+	want := `
+1:27: a declared but not used
+1:30: b declared but not used
+1:33: c declared but not used
+1:36: d declared but not used
+1:39: e declared but not used
+`
+	if got != want {
+		t.Errorf("got: %swant: %s", got, want)
+	}
+}
