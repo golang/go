@@ -152,7 +152,6 @@ func TestInstallationImporter(t *testing.T) {
 	// were compiled with gccgo.
 	if runtime.Compiler != "gccgo" {
 		t.Skip("This test needs gccgo")
-		return
 	}
 
 	var inst GccgoInstallation

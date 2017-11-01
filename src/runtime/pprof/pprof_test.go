@@ -179,7 +179,6 @@ func testCPUProfile(t *testing.T, need []string, f func(dur time.Duration)) {
 
 	if badOS[runtime.GOOS] {
 		t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
-		return
 	}
 	// Ignore the failure if the tests are running in a QEMU-based emulator,
 	// QEMU is not perfect at emulating everything.
@@ -187,7 +186,6 @@ func testCPUProfile(t *testing.T, need []string, f func(dur time.Duration)) {
 	// IN_QEMU=1 indicates that the tests are running in QEMU. See issue 9605.
 	if os.Getenv("IN_QEMU") == "1" {
 		t.Skip("ignore the failure in QEMU; see golang.org/issue/9605")
-		return
 	}
 	t.FailNow()
 }
