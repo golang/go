@@ -226,6 +226,11 @@ func xinit() {
 	os.Setenv("GOROOT", goroot)
 	os.Setenv("GOROOT_FINAL", goroot_final)
 
+	// Use a build cache separate from the default user one.
+	// Also one that will be wiped out during startup, so that
+	// make.bash really does start from a clean slate.
+	os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
+
 	// Make the environment more predictable.
 	os.Setenv("LANG", "C")
 	os.Setenv("LANGUAGE", "en_US.UTF8")
@@ -428,14 +433,10 @@ func setup() {
 	}
 
 	// Create object directory.
-	// We keep it in pkg/ so that all the generated binaries
-	// are in one tree. If pkg/obj/libgc.a exists, it is a dreg from
-	// before we used subdirectories of obj. Delete all of obj
-	// to clean up.
-	if p := pathf("%s/pkg/obj/libgc.a", goroot); isfile(p) {
-		xremoveall(pathf("%s/pkg/obj", goroot))
-	}
-	p = pathf("%s/pkg/obj/%s_%s", goroot, gohostos, gohostarch)
+	// We used to use it for C objects.
+	// Now we use it for the build cache, to separate dist's cache
+	// from any other cache the user might have.
+	p = pathf("%s/pkg/obj/go-build", goroot)
 	if rebuildall {
 		xremoveall(p)
 	}
