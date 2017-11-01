@@ -329,6 +329,16 @@ func (x *Int) Cmp(y *Int) (r int) {
 	return
 }
 
+// CmpAbs compares the absolute values of x and y and returns:
+//
+//   -1 if |x| <  |y|
+//    0 if |x| == |y|
+//   +1 if |x| >  |y|
+//
+func (x *Int) CmpAbs(y *Int) int {
+	return x.abs.cmp(y.abs)
+}
+
 // low32 returns the least significant 32 bits of x.
 func low32(x nat) uint32 {
 	if len(x) == 0 {

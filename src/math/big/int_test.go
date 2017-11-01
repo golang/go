@@ -929,6 +929,63 @@ func TestLshRsh(t *testing.T) {
 	}
 }
 
+// Entries must be sorted by value in ascending order.
+var cmpAbsTests = []string{
+	"0",
+	"1",
+	"2",
+	"10",
+	"10000000",
+	"2783678367462374683678456387645876387564783686583485",
+	"2783678367462374683678456387645876387564783686583486",
+	"32957394867987420967976567076075976570670947609750670956097509670576075067076027578341538",
+}
+
+func TestCmpAbs(t *testing.T) {
+	values := make([]*Int, len(cmpAbsTests))
+	var prev *Int
+	for i, s := range cmpAbsTests {
+		x, ok := new(Int).SetString(s, 0)
+		if !ok {
+			t.Fatalf("SetString(%s, 0) failed", s)
+		}
+		if prev != nil && prev.Cmp(x) >= 0 {
+			t.Fatal("cmpAbsTests entries not sorted in ascending order")
+		}
+		values[i] = x
+		prev = x
+	}
+
+	for i, x := range values {
+		for j, y := range values {
+			// try all combinations of signs for x, y
+			for k := 0; k < 4; k++ {
+				var a, b Int
+				a.Set(x)
+				b.Set(y)
+				if k&1 != 0 {
+					a.Neg(&a)
+				}
+				if k&2 != 0 {
+					b.Neg(&b)
+				}
+
+				got := a.CmpAbs(&b)
+				want := 0
+				switch {
+				case i > j:
+					want = 1
+				case i < j:
+					want = -1
+				}
+				if got != want {
+					t.Errorf("absCmp |%s|, |%s|: got %d; want %d", &a, &b, got, want)
+				}
+			}
+		}
+	}
+}
+
 var int64Tests = []string{
 	// int64
 	"0",
