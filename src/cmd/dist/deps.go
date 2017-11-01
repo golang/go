@@ -98,6 +98,7 @@ var builddeps = map[string][]string{
 		"path/filepath",        // cmd/go/internal/cache
 		"runtime",              // cmd/go/internal/cache
 		"strconv",              // cmd/go/internal/cache
+		"strings",              // cmd/go/internal/cache
 		"sync",                 // cmd/go/internal/cache
 	},
 

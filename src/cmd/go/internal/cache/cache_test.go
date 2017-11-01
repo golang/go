@@ -12,6 +12,10 @@ import (
 	"testing"
 )
 
+func init() {
+	verify = false // even if GODEBUG is set
+}
+
 func TestBasic(t *testing.T) {
 	dir, err := ioutil.TempDir("", "cachetest-")
 	if err != nil {
@@ -97,6 +101,44 @@ func TestGrowth(t *testing.T) {
 			t.Errorf("Get2(%x) = %x, %d, want %x, %d", id, out, size, dummyID(i*99), int64(i)*101)
 		}
 	}
+}
+
+func TestVerifyPanic(t *testing.T) {
+	os.Setenv("GODEBUG", "gocacheverify=1")
+	initEnv()
+	defer func() {
+		os.Unsetenv("GODEBUG")
+		verify = false
+	}()
+
+	if !verify {
+		t.Fatal("initEnv did not set verify")
+	}
+
+	dir, err := ioutil.TempDir("", "cachetest-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	c, err := Open(dir)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+
+	id := ActionID(dummyID(1))
+	if err := c.PutBytes(id, []byte("abc")); err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		if err := recover(); err != nil {
+			t.Log(err)
+			return
+		}
+	}()
+	c.PutBytes(id, []byte("def"))
+	t.Fatal("mismatched Put did not panic in verify mode")
 }
 
 func dummyID(x int) [HashSize]byte {
