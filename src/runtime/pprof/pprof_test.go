@@ -177,7 +177,8 @@ func testCPUProfile(t *testing.T, need []string, f func(dur time.Duration)) {
 		}
 	}
 
-	if badOS[runtime.GOOS] {
+	switch runtime.GOOS {
+	case "darwin", "dragonfly", "netbsd", "solaris":
 		t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
 	}
 	// Ignore the failure if the tests are running in a QEMU-based emulator,
@@ -390,15 +391,6 @@ func TestMathBigDivide(t *testing.T) {
 			}
 		}
 	})
-}
-
-// Operating systems that are expected to fail the tests. See issue 13841.
-var badOS = map[string]bool{
-	"darwin":    true,
-	"netbsd":    true,
-	"plan9":     true,
-	"dragonfly": true,
-	"solaris":   true,
 }
 
 func TestBlockProfile(t *testing.T) {
