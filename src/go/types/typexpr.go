@@ -143,6 +143,7 @@ func (check *Checker) typ(e ast.Expr) Type {
 // funcType type-checks a function or method type.
 func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
 	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function")
+	scope.isFunc = true
 	check.recordScope(ftyp, scope)
 
 	recvList, _ := check.collectParams(scope, recvPar, false)

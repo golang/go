@@ -1030,6 +1030,15 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			// Anonymous functions are considered part of the
 			// init expression/func declaration which contains
 			// them: use existing package-level declaration info.
+			//
+			// TODO(gri) We delay type-checking of regular (top-level)
+			//           function bodies until later. Why don't we do
+			//           it for closures of top-level expressions?
+			//           (We can't easily do it for local closures
+			//           because the surrounding scopes must reflect
+			//           the exact position where the closure appears
+			//           in the source; e.g., variables declared below
+			//           must not be visible).
 			check.funcBody(check.decl, "", sig, e.Body)
 			x.mode = value
 			x.typ = sig
