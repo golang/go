@@ -118,6 +118,21 @@ func (c *Cache) Get(id ActionID) (OutputID, int64, error) {
 	return buf, size, nil
 }
 
+// GetBytes looks up the action ID in the cache and returns
+// the corresponding output bytes.
+// GetBytes should only be used for data that can be expected to fit in memory.
+func (c *Cache) GetBytes(id ActionID) ([]byte, error) {
+	out, _, err := c.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	data, _ := ioutil.ReadFile(c.OutputFile(out))
+	if sha256.Sum256(data) != out {
+		return nil, errMissing
+	}
+	return data, nil
+}
+
 // OutputFile returns the name of the cache file storing output with the given OutputID.
 func (c *Cache) OutputFile(out OutputID) string {
 	return c.fileName(out, "d")
@@ -159,6 +174,12 @@ func (c *Cache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
 	// Add to cache index.
 	// TODO: log put
 	return out, size, c.putIndexEntry(id, out, size)
+}
+
+// PutBytes stores the given bytes in the cache as the output for the action ID.
+func (c *Cache) PutBytes(id ActionID, data []byte) error {
+	_, _, err := c.Put(id, bytes.NewReader(data))
+	return err
 }
 
 // copyFile copies file into the cache, expecting it to have the given
