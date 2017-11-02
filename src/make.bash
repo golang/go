@@ -70,7 +70,7 @@ if [ ! -f run.bash ]; then
 fi
 
 if [ "$GOBUILDTIMELOGFILE" != "" ]; then
-	echo $(date) start make.bash >"$GOBUILDTIMELOGFILE"
+	echo $(LC_TIME=C date) start make.bash >"$GOBUILDTIMELOGFILE"
 fi
 
 # Test for Windows.
