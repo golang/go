@@ -1113,15 +1113,14 @@ func TestTransportProxy(t *testing.T) {
 						Header:     make(Header),
 					}
 
-					log.Printf("Dialing %s", r.URL.Host)
 					targetConn, err := net.Dial("tcp", r.URL.Host)
 					if err != nil {
-						t.Errorf("net.Dial failed")
+						t.Errorf("net.Dial(%q) failed: %v", r.URL.Host, err)
 						return
 					}
 
 					if err := res.Write(clientConn); err != nil {
-						t.Errorf("Writing 200 OK failed")
+						t.Errorf("Writing 200 OK failed: %v", err)
 						return
 					}
 
