@@ -2644,7 +2644,8 @@ func main() {
 	tg.run("run", tg.path("foo.go"))
 }
 
-// "go test -c -test.bench=XXX errors" should not hang
+// "go test -c -test.bench=XXX errors" should not hang.
+// "go test -c" should also produce reproducible binaries.
 func TestIssue6480(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2652,6 +2653,15 @@ func TestIssue6480(t *testing.T) {
 	tg.makeTempdir()
 	tg.cd(tg.path("."))
 	tg.run("test", "-c", "-test.bench=XXX", "errors")
+	tg.run("test", "-c", "-o", "errors2.test", "errors")
+
+	data1, err := ioutil.ReadFile("errors.test" + exeSuffix)
+	tg.must(err)
+	data2, err := ioutil.ReadFile("errors2.test") // no exeSuffix because -o above doesn't have it
+	tg.must(err)
+	if !bytes.Equal(data1, data2) {
+		t.Fatalf("go test -c errors produced different binaries when run twice")
+	}
 }
 
 // cmd/cgo: undefined reference when linking a C-library using gccgo

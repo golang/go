@@ -5,6 +5,7 @@
 package cache
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"hash"
@@ -23,7 +24,8 @@ const HashSize = 32
 // The current implementation uses salted SHA256, but clients must not assume this.
 type Hash struct {
 	h    hash.Hash
-	name string // for debugging
+	name string        // for debugging
+	buf  *bytes.Buffer // for verify
 }
 
 // hashSalt is a salt string added to the beginning of every hash
@@ -44,6 +46,9 @@ func NewHash(name string) *Hash {
 		fmt.Fprintf(os.Stderr, "HASH[%s]\n", h.name)
 	}
 	h.Write(hashSalt)
+	if verify {
+		h.buf = new(bytes.Buffer)
+	}
 	return h
 }
 
@@ -51,6 +56,9 @@ func NewHash(name string) *Hash {
 func (h *Hash) Write(b []byte) (int, error) {
 	if debugHash {
 		fmt.Fprintf(os.Stderr, "HASH[%s]: %q\n", h.name, b)
+	}
+	if h.buf != nil {
+		h.buf.Write(b)
 	}
 	return h.h.Write(b)
 }
@@ -62,7 +70,32 @@ func (h *Hash) Sum() [HashSize]byte {
 	if debugHash {
 		fmt.Fprintf(os.Stderr, "HASH[%s]: %x\n", h.name, out)
 	}
+	if h.buf != nil {
+		hashDebug.Lock()
+		if hashDebug.m == nil {
+			hashDebug.m = make(map[[HashSize]byte]string)
+		}
+		hashDebug.m[out] = h.buf.String()
+		hashDebug.Unlock()
+	}
 	return out
+}
+
+// In GODEBUG=gocacheverify=1 mode,
+// hashDebug holds the input to every computed hash ID,
+// so that we can work backward from the ID involved in a
+// cache entry mismatch to a description of what should be there.
+var hashDebug struct {
+	sync.Mutex
+	m map[[HashSize]byte]string
+}
+
+// reverseHash returns the input used to compute the hash id.
+func reverseHash(id [HashSize]byte) string {
+	hashDebug.Lock()
+	s := hashDebug.m[id]
+	hashDebug.Unlock()
+	return s
 }
 
 var hashFileCache struct {

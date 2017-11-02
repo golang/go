@@ -887,6 +887,10 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		}
 	}
 
+	// Set compile objdir to testDir we've already created,
+	// so that the default file path stripping applies to _testmain.go.
+	b.CompileAction(work.ModeBuild, work.ModeBuild, pmain).Objdir = testDir
+
 	a := b.LinkAction(work.ModeBuild, work.ModeBuild, pmain)
 	a.Target = testDir + testBinary + cfg.ExeSuffix
 	if cfg.Goos == "windows" {
