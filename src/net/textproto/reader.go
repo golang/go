@@ -476,6 +476,14 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 	}
 
 	m := make(MIMEHeader, hint)
+
+	for r.skipSpace() > 0 {
+		line, err := r.readLineSlice()
+		if len(line) == 0 || err != nil {
+			return m, err
+		}
+	}
+
 	for {
 		kv, err := r.readContinuedLineSlice()
 		if len(kv) == 0 {

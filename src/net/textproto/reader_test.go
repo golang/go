@@ -211,6 +211,25 @@ func TestReadMIMEHeaderNonCompliant(t *testing.T) {
 	}
 }
 
+func TestReadMIMEHeaderLeadingSpace(t *testing.T) {
+	tests := []struct {
+		input string
+		want  MIMEHeader
+	}{
+		{" Ignore: ignore\r\nFoo: foo\r\n\r\n", MIMEHeader{"Foo": {"foo"}}},
+		{"\tIgnore: ignore\r\nFoo: foo\r\n\r\n", MIMEHeader{"Foo": {"foo"}}},
+		{" Ignore1: ignore\r\n Ignore2: ignore\r\nFoo: foo\r\n\r\n", MIMEHeader{"Foo": {"foo"}}},
+		{" Ignore1: ignore\r\n\r\n", MIMEHeader{}},
+	}
+	for _, tt := range tests {
+		r := reader(tt.input)
+		m, err := r.ReadMIMEHeader()
+		if !reflect.DeepEqual(m, tt.want) || err != nil {
+			t.Errorf("ReadMIMEHeader(%q) = %v, %v; want %v", tt.input, m, err, tt.want)
+		}
+	}
+}
+
 // Test that continued lines are properly trimmed. Issue 11204.
 func TestReadMIMEHeaderTrimContinued(t *testing.T) {
 	// In this header, \n and \r\n terminated lines are mixed on purpose.
