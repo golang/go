@@ -550,14 +550,14 @@ func InstallPackages(args []string, forGet bool) {
 		if p.Target == "" && (!p.Standard || p.ImportPath != "unsafe") {
 			switch {
 			case p.Internal.GobinSubdir:
-				base.Errorf("go install: cannot install cross-compiled binaries when GOBIN is set")
+				base.Errorf("go %s: cannot install cross-compiled binaries when GOBIN is set", cfg.CmdName)
 			case p.Internal.Cmdline:
-				base.Errorf("go install: no install location for .go files listed on command line (GOBIN not set)")
+				base.Errorf("go %s: no install location for .go files listed on command line (GOBIN not set)", cfg.CmdName)
 			case p.ConflictDir != "":
-				base.Errorf("go install: no install location for %s: hidden by %s", p.Dir, p.ConflictDir)
+				base.Errorf("go %s: no install location for %s: hidden by %s", cfg.CmdName, p.Dir, p.ConflictDir)
 			default:
-				base.Errorf("go install: no install location for directory %s outside GOPATH\n"+
-					"\tFor more details see: 'go help gopath'", p.Dir)
+				base.Errorf("go %s: no install location for directory %s outside GOPATH\n"+
+					"\tFor more details see: 'go help gopath'", cfg.CmdName, p.Dir)
 			}
 		}
 	}

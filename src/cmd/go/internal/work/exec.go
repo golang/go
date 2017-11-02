@@ -945,7 +945,7 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 			if a.Package != nil {
 				sep, path = " ", a.Package.ImportPath
 			}
-			err = fmt.Errorf("go install%s%s: %v", sep, path, err)
+			err = fmt.Errorf("go %s%s%s: %v", cfg.CmdName, sep, path, err)
 		}
 	}()
 

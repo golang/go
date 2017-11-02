@@ -38,6 +38,8 @@ var (
 	BuildWork              bool // -work flag
 	BuildX                 bool // -x flag
 
+	CmdName string // "build", "install", "list", etc.
+
 	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
 )
 
