@@ -196,7 +196,7 @@ func (c *Cache) OutputFile(out OutputID) string {
 
 // putIndexEntry adds an entry to the cache recording that executing the action
 // with the given id produces an output with the given output id (hash) and size.
-func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64) error {
+func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify bool) error {
 	// Note: We expect that for one reason or another it may happen
 	// that repeating an action produces a different output hash
 	// (for example, if the output contains a time stamp or temp dir name).
@@ -209,10 +209,10 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64) error {
 	// are entirely reproducible. As just noted, this may be unrealistic
 	// in some cases but the check is also useful for shaking out real bugs.
 	entry := []byte(fmt.Sprintf("v1 %x %x %20d\n", id, out, size))
-	if verify {
+	if verify && allowVerify {
 		oldOut, oldSize, err := c.get(id)
 		if err == nil && (oldOut != out || oldSize != size) {
-			fmt.Fprintf(os.Stderr, "go: internal cache error: id=%x changed:\nold: %x %d\nnew: %x %d\n", id, out, size, oldOut, oldSize)
+			fmt.Fprintf(os.Stderr, "go: internal cache error: id=%x changed:<<<\n%s\n>>>\nold: %x %d\nnew: %x %d\n", id, reverseHash(id), out, size, oldOut, oldSize)
 			// panic to show stack trace, so we can see what code is generating this cache entry.
 			panic("cache verify failed")
 		}
@@ -230,6 +230,18 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64) error {
 // Put stores the given output in the cache as the output for the action ID.
 // It may read file twice. The content of file must not change between the two passes.
 func (c *Cache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
+	return c.put(id, file, true)
+}
+
+// PutNoVerify is like Put but disables the verify check
+// when GODEBUG=goverifycache=1 is set.
+// It is meant for data that is OK to cache but that we expect to vary slightly from run to run,
+// like test output containing times and the like.
+func (c *Cache) PutNoVerify(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
+	return c.put(id, file, false)
+}
+
+func (c *Cache) put(id ActionID, file io.ReadSeeker, allowVerify bool) (OutputID, int64, error) {
 	// Compute output ID.
 	h := sha256.New()
 	if _, err := file.Seek(0, 0); err != nil {
@@ -248,7 +260,7 @@ func (c *Cache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
 	}
 
 	// Add to cache index.
-	return out, size, c.putIndexEntry(id, out, size)
+	return out, size, c.putIndexEntry(id, out, size, allowVerify)
 }
 
 // PutBytes stores the given bytes in the cache as the output for the action ID.

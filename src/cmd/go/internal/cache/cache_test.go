@@ -37,10 +37,10 @@ func TestBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open(c1) (create): %v", err)
 	}
-	if err := c1.putIndexEntry(dummyID(1), dummyID(12), 13); err != nil {
+	if err := c1.putIndexEntry(dummyID(1), dummyID(12), 13, true); err != nil {
 		t.Fatalf("addIndexEntry: %v", err)
 	}
-	if err := c1.putIndexEntry(dummyID(1), dummyID(2), 3); err != nil { // overwrite entry
+	if err := c1.putIndexEntry(dummyID(1), dummyID(2), 3, true); err != nil { // overwrite entry
 		t.Fatalf("addIndexEntry: %v", err)
 	}
 	if out, size, err := c1.Get(dummyID(1)); err != nil || out != dummyID(2) || size != 3 {
@@ -54,7 +54,7 @@ func TestBasic(t *testing.T) {
 	if out, size, err := c2.Get(dummyID(1)); err != nil || out != dummyID(2) || size != 3 {
 		t.Fatalf("c2.Get(1) = %x, %v, %v, want %x, %v, nil", out[:], size, err, dummyID(2), 3)
 	}
-	if err := c2.putIndexEntry(dummyID(2), dummyID(3), 4); err != nil {
+	if err := c2.putIndexEntry(dummyID(2), dummyID(3), 4, true); err != nil {
 		t.Fatalf("addIndexEntry: %v", err)
 	}
 	if out, size, err := c1.Get(dummyID(2)); err != nil || out != dummyID(3) || size != 4 {
@@ -80,7 +80,7 @@ func TestGrowth(t *testing.T) {
 	}
 
 	for i := 0; i < n; i++ {
-		if err := c.putIndexEntry(dummyID(i), dummyID(i*99), int64(i)*101); err != nil {
+		if err := c.putIndexEntry(dummyID(i), dummyID(i*99), int64(i)*101, true); err != nil {
 			t.Fatalf("addIndexEntry: %v", err)
 		}
 		id := ActionID(dummyID(i))
