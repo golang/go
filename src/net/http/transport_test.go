@@ -4349,6 +4349,12 @@ func TestNoBodyOnChunked304Response(t *testing.T) {
 	}))
 	defer cst.close()
 
+	// Our test server above is sending back bogus data after the
+	// response (the "0\r\n\r\n" part), which causes the Transport
+	// code to log spam. Disable keep-alives so we never even try
+	// to reuse the connection.
+	cst.tr.DisableKeepAlives = true
+
 	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
