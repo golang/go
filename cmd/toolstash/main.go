@@ -174,9 +174,16 @@ var (
 	binDir   string
 )
 
-func canCmp(name string) bool {
+func canCmp(name string, args []string) bool {
 	switch name {
-	case "compile", "link", "asm":
+	case "compile":
+		if len(args) == 1 && (args[0] == "-V" || strings.HasPrefix(args[0], "-V=")) {
+			// cmd/go uses "compile -V=full" to query the
+			// compiler's build ID.
+			return false
+		}
+		return true
+	case "link", "asm":
 		return true
 	}
 	return len(name) == 2 && '0' <= name[0] && name[0] <= '9' && (name[1] == 'a' || name[1] == 'g' || name[1] == 'l')
@@ -235,7 +242,7 @@ func main() {
 			os.Exit(2)
 		}
 
-		if *cmp && canCmp(tool) {
+		if *cmp && canCmp(tool, cmd[1:]) {
 			compareTool()
 			return
 		}
