@@ -1391,7 +1391,7 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
 		}
 		return false
 
-	case TPTR32, TPTR64:
+	case TPTR32, TPTR64, TSLICE:
 		return !(ignoreNotInHeap && t.Elem().NotInHeap())
 	}
 
