@@ -112,10 +112,11 @@ var builddeps = map[string][]string{
 	},
 
 	"cmd/go/internal/clean": {
-		"cmd/go/internal/base", // cmd/go/internal/clean
-		"cmd/go/internal/cfg",  // cmd/go/internal/clean
-		"cmd/go/internal/load", // cmd/go/internal/clean
-		"cmd/go/internal/work", // cmd/go/internal/clean
+		"cmd/go/internal/base",  // cmd/go/internal/clean
+		"cmd/go/internal/cache", // cmd/go/internal/clean
+		"cmd/go/internal/cfg",   // cmd/go/internal/clean
+		"cmd/go/internal/load",  // cmd/go/internal/clean
+		"cmd/go/internal/work",  // cmd/go/internal/clean
 		"fmt",           // cmd/go/internal/clean
 		"io/ioutil",     // cmd/go/internal/clean
 		"os",            // cmd/go/internal/clean

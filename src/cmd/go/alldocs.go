@@ -162,7 +162,7 @@
 //
 // Usage:
 //
-// 	go clean [-i] [-r] [-n] [-x] [build flags] [packages]
+// 	go clean [-i] [-r] [-n] [-x] [-cache] [build flags] [packages]
 //
 // Clean removes object files from package source directories.
 // The go command builds most objects in a temporary directory,
@@ -199,6 +199,9 @@
 // dependencies of the packages named by the import paths.
 //
 // The -x flag causes clean to print remove commands as it executes them.
+//
+// The -cache flag causes clean to remove the entire go build cache,
+// in addition to cleaning specified packages (if any).
 //
 // For more about build flags, see 'go help build'.
 //
