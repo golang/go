@@ -89,13 +89,13 @@ func getproccount() int32 {
 	// buffers, but we don't have a dynamic memory allocator at the
 	// moment, so that's a bit tricky and seems like overkill.
 	const maxCPUs = 64 * 1024
-	var buf [maxCPUs / (sys.PtrSize * 8)]uintptr
+	var buf [maxCPUs / 8]byte
 	r := sched_getaffinity(0, unsafe.Sizeof(buf), &buf[0])
 	if r < 0 {
 		return 1
 	}
 	n := int32(0)
-	for _, v := range buf[:r/sys.PtrSize] {
+	for _, v := range buf[:r] {
 		for v != 0 {
 			n += int32(v & 1)
 			v >>= 1
@@ -385,7 +385,7 @@ func raise(sig uint32)
 func raiseproc(sig uint32)
 
 //go:noescape
-func sched_getaffinity(pid, len uintptr, buf *uintptr) int32
+func sched_getaffinity(pid, len uintptr, buf *byte) int32
 func osyield()
 
 //go:nosplit
