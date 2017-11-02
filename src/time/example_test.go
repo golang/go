@@ -318,7 +318,7 @@ func ExampleParse() {
 	fmt.Println(t)
 
 	// Some valid layouts are invalid time values, due to format specifiers
-	// such as _ for zero padding and Z for zone information.
+	// such as _ for space padding and Z for zone information.
 	// For example the RFC3339 layout 2006-01-02T15:04:05Z07:00
 	// contains both Z and a time zone offset in order to handle both valid options:
 	// 2006-01-02T15:04:05Z
