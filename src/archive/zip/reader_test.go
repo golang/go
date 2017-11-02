@@ -29,7 +29,8 @@ type ZipTest struct {
 type ZipTestFile struct {
 	Name    string
 	Mode    os.FileMode
-	ModTime time.Time // optional, modified time in format "mm-dd-yy hh:mm:ss"
+	NonUTF8 bool
+	ModTime time.Time
 
 	// Information describing expected zip file content.
 	// First, reading the entire content should produce the error ContentErr.
@@ -316,6 +317,68 @@ var tests = []ZipTest{
 				Size:    1<<32 - 1,
 				ModTime: time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
 				Mode:    0666,
+			},
+		},
+	},
+	{
+		Name: "utf8-7zip.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "世界",
+				Content: []byte{},
+				Mode:    0666,
+				ModTime: time.Date(2017, 11, 6, 13, 9, 27, 867862500, timeZone(-8*time.Hour)),
+			},
+		},
+	},
+	{
+		Name: "utf8-infozip.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "世界",
+				Content: []byte{},
+				Mode:    0644,
+				// Name is valid UTF-8, but format does not have UTF-8 flag set.
+				// We don't do UTF-8 detection for multi-byte runes due to
+				// false-positives with other encodings (e.g., Shift-JIS).
+				// Format says encoding is not UTF-8, so we trust it.
+				NonUTF8: true,
+				ModTime: time.Date(2017, 11, 6, 13, 9, 27, 0, timeZone(-8*time.Hour)),
+			},
+		},
+	},
+	{
+		Name: "utf8-osx.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "世界",
+				Content: []byte{},
+				Mode:    0644,
+				// Name is valid UTF-8, but format does not have UTF-8 set.
+				NonUTF8: true,
+				ModTime: time.Date(2017, 11, 6, 13, 9, 27, 0, timeZone(-8*time.Hour)),
+			},
+		},
+	},
+	{
+		Name: "utf8-winrar.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "世界",
+				Content: []byte{},
+				Mode:    0666,
+				ModTime: time.Date(2017, 11, 6, 13, 9, 27, 867862500, timeZone(-8*time.Hour)),
+			},
+		},
+	},
+	{
+		Name: "utf8-winzip.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "世界",
+				Content: []byte{},
+				Mode:    0666,
+				ModTime: time.Date(2017, 11, 6, 13, 9, 27, 867000000, timeZone(-8*time.Hour)),
 			},
 		},
 	},

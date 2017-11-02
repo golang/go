@@ -81,10 +81,23 @@ const (
 // See the zip spec for details.
 type FileHeader struct {
 	// Name is the name of the file.
-	// It must be a relative path: it must not start with a drive
-	// letter (e.g. C:) or leading slash, and only forward slashes
-	// are allowed.
+	// It must be a relative path, not start with a drive letter (e.g. C:),
+	// and must use forward slashes instead of back slashes.
 	Name string
+
+	// Comment is any arbitrary user-defined string shorter than 64KiB.
+	Comment string
+
+	// NonUTF8 indicates that Name and Comment are not encoded in UTF-8.
+	//
+	// By specification, the only other encoding permitted should be CP-437,
+	// but historically many ZIP readers interpret Name and Comment as whatever
+	// the system's local character encoding happens to be.
+	//
+	// This flag should only be set if the user intends to encode a non-portable
+	// ZIP file for a specific localized region. Otherwise, the Writer
+	// automatically sets the ZIP format's UTF-8 flag for valid UTF-8 strings.
+	NonUTF8 bool
 
 	CreatorVersion uint16
 	ReaderVersion  uint16
@@ -111,7 +124,6 @@ type FileHeader struct {
 	UncompressedSize64 uint64
 	Extra              []byte
 	ExternalAttrs      uint32 // Meaning depends on CreatorVersion
-	Comment            string
 }
 
 // FileInfo returns an os.FileInfo for the FileHeader.

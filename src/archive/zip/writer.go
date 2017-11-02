@@ -216,12 +216,17 @@ func (w *Writer) Create(name string) (io.Writer, error) {
 }
 
 // detectUTF8 reports whether s is a valid UTF-8 string, and whether the string
-// must be considered UTF-8 encoding (i.e., not compatible with CP-437).
+// must be considered UTF-8 encoding (i.e., not compatible with CP-437, ASCII,
+// or any other common encoding).
 func detectUTF8(s string) (valid, require bool) {
 	for _, r := range s {
-		// By default, ZIP uses CP-437,
-		// which is only identical to ASCII for the printable characters.
-		if r < 0x20 || r >= 0x7f {
+		// Officially, ZIP uses CP-437, but many readers use the system's
+		// local character encoding. Most encoding are compatible with a large
+		// subset of CP-437, which itself is ASCII-like.
+		//
+		// Forbid 0x7e and 0x5c since EUC-KR and Shift-JIS replace those
+		// characters with localized currency and overline characters.
+		if r < 0x20 || r > 0x7d || r == 0x5c {
 			if !utf8.ValidRune(r) || r == utf8.RuneError {
 				return false, false
 			}
@@ -267,12 +272,12 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 	//
 	// For the case, where the user explicitly wants to specify the encoding
 	// as UTF-8, they will need to set the flag bit themselves.
-	// TODO: For the case, where the user explicitly wants to specify that the
-	// encoding is *not* UTF-8, that is currently not possible.
-	// See golang.org/issue/10741.
 	utf8Valid1, utf8Require1 := detectUTF8(fh.Name)
 	utf8Valid2, utf8Require2 := detectUTF8(fh.Comment)
-	if (utf8Require1 || utf8Require2) && utf8Valid1 && utf8Valid2 {
+	switch {
+	case fh.NonUTF8:
+		fh.Flags &^= 0x800
+	case (utf8Require1 || utf8Require2) && (utf8Valid1 && utf8Valid2):
 		fh.Flags |= 0x800
 	}
 
