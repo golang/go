@@ -401,6 +401,26 @@ var reqTests = []reqTest{
 		noTrailer,
 		noError,
 	},
+
+	// leading whitespace in the first header. golang.org/issue/22464
+	{
+		"GET / HTTP/1.1\r\n Foobar: ignored\r\nConnection: close\r\n\r\n",
+		&Request{
+			Method: "GET",
+			URL: &url.URL{
+				Path: "/",
+			},
+			Header:     Header{"Connection": {"close"}},
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			RequestURI: "/",
+			Close:      true,
+		},
+		noBodyStr,
+		noTrailer,
+		noError,
+	},
 }
 
 func TestReadRequest(t *testing.T) {

@@ -555,6 +555,28 @@ some body`,
 		},
 		"Your Authentication failed.\r\n",
 	},
+
+	// leading whitespace in the first header. golang.org/issue/22464
+	{
+		"HTTP/1.1 200 OK\r\n" +
+			" Content-type: text/html\r\n" +
+			"\tIgnore: foobar\r\n" +
+			"Foo: bar\r\n\r\n",
+		Response{
+			Status:     "200 OK",
+			StatusCode: 200,
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Request:    dummyReq("GET"),
+			Header: Header{
+				"Foo": {"bar"},
+			},
+			Close:         true,
+			ContentLength: -1,
+		},
+		"",
+	},
 }
 
 // tests successful calls to ReadResponse, and inspects the returned Response.
