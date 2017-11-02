@@ -513,6 +513,8 @@ func Main(archInit func(*Arch)) {
 			fcount++
 		}
 	}
+	// With all types ckecked, it's now safe to verify map keys.
+	checkMapKeys()
 	timings.AddEvent(fcount, "funcs")
 
 	// Phase 4: Decide how to capture closed variables.
