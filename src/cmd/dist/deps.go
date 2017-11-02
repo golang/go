@@ -100,6 +100,7 @@ var builddeps = map[string][]string{
 		"strconv",              // cmd/go/internal/cache
 		"strings",              // cmd/go/internal/cache
 		"sync",                 // cmd/go/internal/cache
+		"time",                 // cmd/go/internal/cache
 	},
 
 	"cmd/go/internal/cfg": {

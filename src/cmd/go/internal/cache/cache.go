@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // An ActionID is a cache action key, the hash of a complete description of a
@@ -30,6 +31,8 @@ type OutputID [HashSize]byte
 // A Cache is a package cache, backed by a file system directory tree.
 type Cache struct {
 	dir string
+	log *os.File
+	now func() time.Time
 }
 
 // Open opens and returns the cache in the given directory.
@@ -58,7 +61,15 @@ func Open(dir string) (*Cache, error) {
 			return nil, err
 		}
 	}
-	c := &Cache{dir: dir}
+	f, err := os.OpenFile(filepath.Join(dir, "log.txt"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+	if err != nil {
+		return nil, err
+	}
+	c := &Cache{
+		dir: dir,
+		log: f,
+		now: time.Now,
+	}
 	return c, nil
 }
 
@@ -116,7 +127,7 @@ func (c *Cache) Get(id ActionID) (OutputID, int64, error) {
 // get is Get but does not respect verify mode, so that Put can use it.
 func (c *Cache) get(id ActionID) (OutputID, int64, error) {
 	missing := func() (OutputID, int64, error) {
-		// TODO: log miss
+		fmt.Fprintf(c.log, "%d miss %x\n", c.now().Unix(), id)
 		return OutputID{}, 0, errMissing
 	}
 	f, err := os.Open(c.fileName(id, "a"))
@@ -148,8 +159,11 @@ func (c *Cache) get(id ActionID) (OutputID, int64, error) {
 		return missing()
 	}
 
-	// TODO: Update modtime of f to give a signal about recently used?
-	// TODO: log hit
+	fmt.Fprintf(c.log, "%d get %x\n", c.now().Unix(), id)
+
+	// Best-effort attempt to update mtime on file,
+	// so that mtime reflects cache access time.
+	os.Chtimes(c.fileName(id, "a"), c.now(), c.now())
 
 	return buf, size, nil
 }
@@ -171,7 +185,13 @@ func (c *Cache) GetBytes(id ActionID) ([]byte, error) {
 
 // OutputFile returns the name of the cache file storing output with the given OutputID.
 func (c *Cache) OutputFile(out OutputID) string {
-	return c.fileName(out, "d")
+	file := c.fileName(out, "d")
+
+	// Best-effort attempt to update mtime on file,
+	// so that mtime reflects cache access time.
+	os.Chtimes(file, c.now(), c.now())
+
+	return file
 }
 
 // putIndexEntry adds an entry to the cache recording that executing the action
@@ -197,7 +217,14 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64) error {
 			panic("cache verify failed")
 		}
 	}
-	return ioutil.WriteFile(c.fileName(id, "a"), entry, 0666)
+	file := c.fileName(id, "a")
+	if err := ioutil.WriteFile(file, entry, 0666); err != nil {
+		os.Remove(file)
+		return err
+	}
+
+	fmt.Fprintf(c.log, "%d put %x %x %d\n", c.now().Unix(), id, out, size)
+	return nil
 }
 
 // Put stores the given output in the cache as the output for the action ID.
@@ -221,7 +248,6 @@ func (c *Cache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
 	}
 
 	// Add to cache index.
-	// TODO: log put
 	return out, size, c.putIndexEntry(id, out, size)
 }
 

@@ -6,6 +6,7 @@ package cache
 
 import (
 	"cmd/go/internal/base"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -23,6 +24,14 @@ var (
 	defaultCache *Cache
 )
 
+// cacheREADME is a message stored in a README in the cache directory.
+// Because the cache lives outside the normal Go trees, we leave the
+// README as a courtesy to explain where it came from.
+const cacheREADME = `This directory holds cached build artifacts from the Go build system.
+Run "go clean -cache" if the directory is getting too large.
+See golang.org to learn more about Go.
+`
+
 // initDefaultCache does the work of finding the default cache
 // the first time Default is called.
 func initDefaultCache() {
@@ -33,6 +42,11 @@ func initDefaultCache() {
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		base.Fatalf("initializing cache in $GOCACHE: %s", err)
 	}
+	if _, err := os.Stat(filepath.Join(dir, "README")); err != nil {
+		// Best effort.
+		ioutil.WriteFile(filepath.Join(dir, "README"), []byte(cacheREADME), 0666)
+	}
+
 	c, err := Open(dir)
 	if err != nil {
 		base.Fatalf("initializing cache in $GOCACHE: %s", err)
