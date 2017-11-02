@@ -176,14 +176,11 @@ var (
 
 func canCmp(name string, args []string) bool {
 	switch name {
-	case "compile":
+	case "asm", "compile", "link":
 		if len(args) == 1 && (args[0] == "-V" || strings.HasPrefix(args[0], "-V=")) {
-			// cmd/go uses "compile -V=full" to query the
-			// compiler's build ID.
+			// cmd/go uses "compile -V=full" to query the tool's build ID.
 			return false
 		}
-		return true
-	case "link", "asm":
 		return true
 	}
 	return len(name) == 2 && '0' <= name[0] && name[0] <= '9' && (name[1] == 'a' || name[1] == 'g' || name[1] == 'l')
