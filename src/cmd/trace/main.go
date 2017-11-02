@@ -79,7 +79,7 @@ func main() {
 		flag.Usage()
 	}
 
-	var pprofFunc func(io.Writer) error
+	var pprofFunc func(io.Writer, string) error
 	switch *pprofFlag {
 	case "net":
 		pprofFunc = pprofIO
@@ -91,7 +91,7 @@ func main() {
 		pprofFunc = pprofSched
 	}
 	if pprofFunc != nil {
-		if err := pprofFunc(os.Stdout); err != nil {
+		if err := pprofFunc(os.Stdout, ""); err != nil {
 			dief("failed to generate pprof: %v\n", err)
 		}
 		os.Exit(0)
@@ -187,10 +187,10 @@ var templMain = template.Must(template.New("").Parse(`
 	<a href="/trace">View trace</a><br>
 {{end}}
 <a href="/goroutines">Goroutine analysis</a><br>
-<a href="/io">Network blocking profile</a><br>
-<a href="/block">Synchronization blocking profile</a><br>
-<a href="/syscall">Syscall blocking profile</a><br>
-<a href="/sched">Scheduler latency profile</a><br>
+<a href="/io">Network blocking profile</a> (<a href="/io?raw=1" download="io.profile">⬇</a>)<br>
+<a href="/block">Synchronization blocking profile</a> (<a href="/block?raw=1" download="block.profile">⬇</a>)<br>
+<a href="/syscall">Syscall blocking profile</a> (<a href="/syscall?raw=1" download="syscall.profile">⬇</a>)<br>
+<a href="/sched">Scheduler latency profile</a> (<a href="/sche?raw=1" download="sched.profile">⬇</a>)<br>
 </body>
 </html>
 `))
