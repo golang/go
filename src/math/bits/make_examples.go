@@ -37,6 +37,7 @@ func main() {
 		name string
 		in   int
 		out  [4]interface{}
+		out2 [4]interface{}
 	}{
 		{
 			name: "LeadingZeros",
@@ -57,6 +58,7 @@ func main() {
 			name: "RotateLeft",
 			in:   15,
 			out:  [4]interface{}{bits.RotateLeft8(15, 2), bits.RotateLeft16(15, 2), bits.RotateLeft32(15, 2), bits.RotateLeft64(15, 2)},
+			out2: [4]interface{}{bits.RotateLeft8(15, -2), bits.RotateLeft16(15, -2), bits.RotateLeft32(15, -2), bits.RotateLeft64(15, -2)},
 		},
 		{
 			name: "Reverse",
@@ -85,12 +87,16 @@ func main() {
 				fmt.Fprintf(w, "\tfmt.Printf(\"%%0%db\\n\", %d)\n", size, e.in)
 				if e.name == "RotateLeft" {
 					fmt.Fprintf(w, "\tfmt.Printf(\"%%0%db\\n\", bits.%s(%d, 2))\n", size, f, e.in)
+					fmt.Fprintf(w, "\tfmt.Printf(\"%%0%db\\n\", bits.%s(%d, -2))\n", size, f, e.in)
 				} else {
 					fmt.Fprintf(w, "\tfmt.Printf(\"%%0%db\\n\", bits.%s(%d))\n", size, f, e.in)
 				}
 				fmt.Fprintf(w, "\t// Output:\n")
 				fmt.Fprintf(w, "\t// %0*b\n", size, e.in)
 				fmt.Fprintf(w, "\t// %0*b\n", size, e.out[i])
+				if e.name == "RotateLeft" && e.out2[i] != nil {
+					fmt.Fprintf(w, "\t// %0*b\n", size, e.out2[i])
+				}
 			default:
 				fmt.Fprintf(w, "\tfmt.Printf(\"%s(%%0%db) = %%d\\n\", %d, bits.%s(%d))\n", f, size, e.in, f, e.in)
 				fmt.Fprintf(w, "\t// Output:\n")
