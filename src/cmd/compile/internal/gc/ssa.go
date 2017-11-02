@@ -3736,8 +3736,9 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 		ptr := s.newValue1(ssa.OpStringPtr, s.f.Config.Types.BytePtr, right)
 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, s.f.Config.Types.BytePtr, left, ptr, s.mem())
 	case t.IsSlice():
-		ptr := s.newValue1(ssa.OpSlicePtr, s.f.Config.Types.BytePtr, right)
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, s.f.Config.Types.BytePtr, left, ptr, s.mem())
+		elType := types.NewPtr(t.Elem())
+		ptr := s.newValue1(ssa.OpSlicePtr, elType, right)
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, elType, left, ptr, s.mem())
 	case t.IsInterface():
 		// itab field is treated as a scalar.
 		idata := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, right)

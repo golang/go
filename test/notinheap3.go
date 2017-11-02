@@ -10,11 +10,13 @@ package p
 
 type t1 struct {
 	x *nih
+	s []nih
 	y [1024]byte // Prevent write decomposition
 }
 
 type t2 struct {
 	x *ih
+	s []ih
 	y [1024]byte
 }
 
@@ -37,8 +39,10 @@ var (
 
 func f() {
 	// Test direct writes
-	v1.x = nil // no barrier
-	v2.x = nil // ERROR "write barrier"
+	v1.x = nil        // no barrier
+	v2.x = nil        // ERROR "write barrier"
+	v1.s = []nih(nil) // no barrier
+	v2.s = []ih(nil)  // ERROR "write barrier"
 }
 
 func g() {
