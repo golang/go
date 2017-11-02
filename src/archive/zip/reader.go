@@ -281,6 +281,24 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 	f.Extra = d[filenameLen : filenameLen+extraLen]
 	f.Comment = string(d[filenameLen+extraLen:])
 
+	// Determine the character encoding.
+	utf8Valid1, utf8Require1 := detectUTF8(f.Name)
+	utf8Valid2, utf8Require2 := detectUTF8(f.Comment)
+	switch {
+	case !utf8Valid1 || !utf8Valid2:
+		// Name and Comment definitely not UTF-8.
+		f.NonUTF8 = true
+	case !utf8Require1 && !utf8Require2:
+		// Name and Comment use only single-byte runes that overlap with UTF-8.
+		f.NonUTF8 = false
+	default:
+		// Might be UTF-8, might be some other encoding; preserve existing flag.
+		// Some ZIP writers use UTF-8 encoding without setting the UTF-8 flag.
+		// Since it is impossible to always distinguish valid UTF-8 from some
+		// other encoding (e.g., GBK or Shift-JIS), we trust the flag.
+		f.NonUTF8 = f.Flags&0x800 == 0
+	}
+
 	needUSize := f.UncompressedSize == ^uint32(0)
 	needCSize := f.CompressedSize == ^uint32(0)
 	needHeaderOffset := f.headerOffset == int64(^uint32(0))

@@ -137,6 +137,7 @@ func TestWriterUTF8(t *testing.T) {
 		name    string
 		comment string
 		expect  uint16
+		nonUTF8 bool
 	}{
 		{
 			name:    "hi, hello",
@@ -147,6 +148,12 @@ func TestWriterUTF8(t *testing.T) {
 			name:    "hi, こんにちわ",
 			comment: "in the world",
 			expect:  0x808,
+		},
+		{
+			name:    "hi, こんにちわ",
+			comment: "in the world",
+			nonUTF8: true,
+			expect:  0x8,
 		},
 		{
 			name:    "hi, hello",
@@ -174,6 +181,7 @@ func TestWriterUTF8(t *testing.T) {
 		h := &FileHeader{
 			Name:    test.name,
 			Comment: test.comment,
+			NonUTF8: test.nonUTF8,
 			Method:  Deflate,
 		}
 		w, err := w.CreateHeader(h)
