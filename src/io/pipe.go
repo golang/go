@@ -13,6 +13,18 @@ import (
 	"sync/atomic"
 )
 
+// atomicError is a type-safe atomic value for errors.
+// We use a struct{ error } to ensure consistent use of a concrete type.
+type atomicError struct{ v atomic.Value }
+
+func (a *atomicError) Store(err error) {
+	a.v.Store(struct{ error }{err})
+}
+func (a *atomicError) Load() error {
+	err, _ := a.v.Load().(struct{ error })
+	return err.error
+}
+
 // ErrClosedPipe is the error used for read or write operations on a closed pipe.
 var ErrClosedPipe = errors.New("io: read/write on closed pipe")
 
@@ -24,8 +36,8 @@ type pipe struct {
 
 	once sync.Once // Protects closing done
 	done chan struct{}
-	rerr atomic.Value
-	werr atomic.Value
+	rerr atomicError
+	werr atomicError
 }
 
 func (p *pipe) Read(b []byte) (n int, err error) {
@@ -46,8 +58,8 @@ func (p *pipe) Read(b []byte) (n int, err error) {
 }
 
 func (p *pipe) readCloseError() error {
-	_, rok := p.rerr.Load().(error)
-	if werr, wok := p.werr.Load().(error); !rok && wok {
+	rerr := p.rerr.Load()
+	if werr := p.werr.Load(); rerr == nil && werr != nil {
 		return werr
 	}
 	return ErrClosedPipe
@@ -85,8 +97,8 @@ func (p *pipe) Write(b []byte) (n int, err error) {
 }
 
 func (p *pipe) writeCloseError() error {
-	_, wok := p.werr.Load().(error)
-	if rerr, rok := p.rerr.Load().(error); !wok && rok {
+	werr := p.werr.Load()
+	if rerr := p.rerr.Load(); werr == nil && rerr != nil {
 		return rerr
 	}
 	return ErrClosedPipe

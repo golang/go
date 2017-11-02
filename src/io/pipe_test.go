@@ -316,6 +316,31 @@ func TestWriteAfterWriterClose(t *testing.T) {
 	}
 }
 
+func TestPipeCloseError(t *testing.T) {
+	type testError1 struct{ error }
+	type testError2 struct{ error }
+
+	r, w := Pipe()
+	r.CloseWithError(testError1{})
+	if _, err := w.Write(nil); err != (testError1{}) {
+		t.Errorf("Write error: got %T, want testError1", err)
+	}
+	r.CloseWithError(testError2{})
+	if _, err := w.Write(nil); err != (testError2{}) {
+		t.Errorf("Write error: got %T, want testError2", err)
+	}
+
+	r, w = Pipe()
+	w.CloseWithError(testError1{})
+	if _, err := r.Read(nil); err != (testError1{}) {
+		t.Errorf("Read error: got %T, want testError1", err)
+	}
+	w.CloseWithError(testError2{})
+	if _, err := r.Read(nil); err != (testError2{}) {
+		t.Errorf("Read error: got %T, want testError2", err)
+	}
+}
+
 func TestPipeConcurrent(t *testing.T) {
 	const (
 		input    = "0123456789abcdef"
