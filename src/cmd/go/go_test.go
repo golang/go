@@ -960,7 +960,7 @@ func TestGoInstallRebuildsStalePackagesInOtherGOPATH(t *testing.T) {
 		func F() {}`)
 	sep := string(filepath.ListSeparator)
 	tg.setenv("GOPATH", tg.path("d1")+sep+tg.path("d2"))
-	tg.run("install", "p1")
+	tg.run("install", "-i", "p1")
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly")
 	tg.wantNotStale("p2", "", "./testgo list claims p2 is stale, incorrectly")
 	tg.sleep()
@@ -974,7 +974,7 @@ func TestGoInstallRebuildsStalePackagesInOtherGOPATH(t *testing.T) {
 	tg.wantStale("p2", "build ID mismatch", "./testgo list claims p2 is NOT stale, incorrectly")
 	tg.wantStale("p1", "stale dependency: p2", "./testgo list claims p1 is NOT stale, incorrectly")
 
-	tg.run("install", "p1")
+	tg.run("install", "-i", "p1")
 	tg.wantNotStale("p2", "", "./testgo list claims p2 is stale after reinstall, incorrectly")
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after reinstall, incorrectly")
 }
@@ -3296,10 +3296,11 @@ func TestGoInstallPkgdir(t *testing.T) {
 	tg.makeTempdir()
 	pkg := tg.path(".")
 	tg.run("install", "-pkgdir", pkg, "errors")
-	_, err := os.Stat(filepath.Join(pkg, "errors.a"))
-	tg.must(err)
-	_, err = os.Stat(filepath.Join(pkg, "runtime.a"))
-	tg.must(err)
+	tg.mustExist(filepath.Join(pkg, "errors.a"))
+	tg.mustNotExist(filepath.Join(pkg, "runtime.a"))
+	tg.run("install", "-i", "-pkgdir", pkg, "errors")
+	tg.mustExist(filepath.Join(pkg, "errors.a"))
+	tg.mustExist(filepath.Join(pkg, "runtime.a"))
 }
 
 func TestGoTestRaceInstallCgo(t *testing.T) {
@@ -4868,4 +4869,40 @@ func TestTestVet(t *testing.T) {
 	tg.grepStdout(`\[no test files\]`, "did not print test summary")
 	tg.run("test", "-vet=off", filepath.Join(tg.tempdir, "p1.go"))
 	tg.grepStdout(`\[no test files\]`, "did not print test summary")
+}
+
+func TestInstallDeps(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.tempdir)
+
+	tg.tempFile("src/p1/p1.go", "package p1\nvar X =  1\n")
+	tg.tempFile("src/p2/p2.go", "package p2\nimport _ \"p1\"\n")
+	tg.tempFile("src/main1/main.go", "package main\nimport _ \"p2\"\nfunc main() {}\n")
+
+	tg.run("list", "-f={{.Target}}", "p1")
+	p1 := strings.TrimSpace(tg.getStdout())
+	tg.run("list", "-f={{.Target}}", "p2")
+	p2 := strings.TrimSpace(tg.getStdout())
+	tg.run("list", "-f={{.Target}}", "main1")
+	main1 := strings.TrimSpace(tg.getStdout())
+
+	tg.run("install", "main1")
+
+	tg.mustExist(main1)
+	tg.mustNotExist(p2)
+	tg.mustNotExist(p1)
+
+	tg.run("install", "p2")
+	tg.mustExist(p2)
+	tg.mustNotExist(p1)
+
+	tg.run("install", "-i", "main1")
+	tg.mustExist(p1)
+	tg.must(os.Remove(p1))
+
+	tg.run("install", "-i", "p2")
+	tg.mustExist(p1)
 }
