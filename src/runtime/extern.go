@@ -212,8 +212,8 @@ func Callers(skip int, pc []uintptr) int {
 	return callers(skip, pc)
 }
 
-// GOROOT returns the root of the Go tree.
-// It uses the GOROOT environment variable, if set,
+// GOROOT returns the root of the Go tree. It uses the
+// GOROOT environment variable, if set at process start,
 // or else the root used during the Go build.
 func GOROOT() string {
 	s := gogetenv("GOROOT")
