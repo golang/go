@@ -141,6 +141,8 @@ func init() {
 	CmdBuild.Flag.BoolVar(&cfg.BuildI, "i", false, "")
 	CmdBuild.Flag.StringVar(&cfg.BuildO, "o", "", "output file")
 
+	CmdInstall.Flag.BoolVar(&cfg.BuildI, "i", false, "")
+
 	AddBuildFlags(CmdBuild)
 	AddBuildFlags(CmdInstall)
 }
@@ -464,11 +466,12 @@ func runBuild(cmd *base.Command, args []string) {
 }
 
 var CmdInstall = &base.Command{
-	UsageLine: "install [build flags] [packages]",
+	UsageLine: "install [-i] [build flags] [packages]",
 	Short:     "compile and install packages and dependencies",
 	Long: `
-Install compiles and installs the packages named by the import paths,
-along with their dependencies.
+Install compiles and installs the packages named by the import paths.
+
+The -i flag installs the dependencies of the named packages as well.
 
 For more about the build flags, see 'go help build'.
 For more about specifying packages, see 'go help packages'.
@@ -565,6 +568,10 @@ func InstallPackages(args []string, forGet bool) {
 
 	var b Builder
 	b.Init()
+	depMode := ModeBuild
+	if cfg.BuildI {
+		depMode = ModeInstall
+	}
 	a := &Action{Mode: "go install"}
 	var tools []*Action
 	for _, p := range pkgs {
@@ -576,7 +583,7 @@ func InstallPackages(args []string, forGet bool) {
 		// If p is a tool, delay the installation until the end of the build.
 		// This avoids installing assemblers/compilers that are being executed
 		// by other steps in the build.
-		a1 := b.AutoAction(ModeInstall, ModeInstall, p)
+		a1 := b.AutoAction(ModeInstall, depMode, p)
 		if load.InstallTargetDir(p) == load.ToTool {
 			a.Deps = append(a.Deps, a1.Deps...)
 			a1.Deps = append(a1.Deps, a)

@@ -174,7 +174,7 @@ func TestInstall(t *testing.T) {
 	testInstall(t, "./testp1"+exeSuffix,
 		filepath.Join("pkg", libgodir, "libgo.a"),
 		filepath.Join("pkg", libgodir, "libgo.h"),
-		"go", "install", "-buildmode=c-archive", "libgo")
+		"go", "install", "-i", "-buildmode=c-archive", "libgo")
 
 	// Test building libgo other than installing it.
 	// Header files are now present.
@@ -491,7 +491,7 @@ func TestPIE(t *testing.T) {
 		os.RemoveAll("pkg")
 	}()
 
-	cmd := exec.Command("go", "install", "-buildmode=c-archive", "libgo")
+	cmd := exec.Command("go", "install", "-i", "-buildmode=c-archive", "libgo")
 	cmd.Env = gopathEnv
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)

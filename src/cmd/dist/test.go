@@ -116,10 +116,25 @@ func (t *tester) run() {
 
 	if t.rebuild {
 		t.out("Building packages and commands.")
-		// Rebuilding is a shortened bootstrap.
-		// See cmdbootstrap for a description of the overall process.
-		goInstall("go", toolchain...)
-		goInstall("go", toolchain...)
+		// Force rebuild the whole toolchain.
+		goInstall("go", append([]string{"-a", "-i"}, toolchain...)...)
+	}
+
+	// Complete rebuild bootstrap, even with -no-rebuild.
+	// If everything is up-to-date, this is a no-op.
+	// If everything is not up-to-date, the first checkNotStale
+	// during the test process will kill the tests, so we might
+	// as well install the world.
+	// Now that for example "go install cmd/compile" does not
+	// also install runtime (you need "go install -i cmd/compile"
+	// for that), it's easy for previous workflows like
+	// "rebuild the compiler and then run run.bash"
+	// to break if we don't automatically refresh things here.
+	// Rebuilding is a shortened bootstrap.
+	// See cmdbootstrap for a description of the overall process.
+	if !t.listMode {
+		goInstall("go", append([]string{"-i"}, toolchain...)...)
+		goInstall("go", append([]string{"-i"}, toolchain...)...)
 		goInstall("go", "std", "cmd")
 		checkNotStale("go", "std", "cmd")
 	}

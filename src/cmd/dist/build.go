@@ -1157,7 +1157,7 @@ func cmdbootstrap() {
 		// chosen $CC_FOR_TARGET in this case.
 		os.Setenv("CC", defaultcctarget)
 	}
-	goInstall(goBootstrap, toolchain...)
+	goInstall(goBootstrap, append([]string{"-i"}, toolchain...)...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		run("", ShowOutput|CheckExit, pathf("%s/buildid", tooldir), pathf("%s/pkg/%s_%s/runtime/internal/sys.a", goroot, goos, goarch))
@@ -1185,7 +1185,7 @@ func cmdbootstrap() {
 		xprintf("\n")
 	}
 	xprintf("Building Go toolchain3 using go_bootstrap and Go toolchain2.\n")
-	goInstall(goBootstrap, append([]string{"-a"}, toolchain...)...)
+	goInstall(goBootstrap, append([]string{"-a", "-i"}, toolchain...)...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		run("", ShowOutput|CheckExit, pathf("%s/buildid", tooldir), pathf("%s/pkg/%s_%s/runtime/internal/sys.a", goroot, goos, goarch))

@@ -216,7 +216,7 @@ func runCC(t *testing.T, args ...string) string {
 }
 
 func createHeaders() error {
-	args := []string{"go", "install", "-buildmode=c-shared",
+	args := []string{"go", "install", "-i", "-buildmode=c-shared",
 		"-installsuffix", "testcshared", "libgo"}
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = gopathEnv
