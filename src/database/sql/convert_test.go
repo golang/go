@@ -398,7 +398,7 @@ func TestRawBytesAllocs(t *testing.T) {
 	}
 }
 
-// https://github.com/golang/go/issues/13905
+// https://golang.org/issues/13905
 func TestUserDefinedBytes(t *testing.T) {
 	type userDefinedBytes []byte
 	var u userDefinedBytes
