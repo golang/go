@@ -661,8 +661,17 @@ func reassigned(n *Node) (bool, *Node) {
 	if n.Name.Curfn == nil {
 		return true, nil
 	}
+	f := n.Name.Curfn
+	// There just might be a good reason for this although this can be pretty surprising:
+	// local variables inside a closure have Curfn pointing to the OCLOSURE node instead
+	// of the corresponding ODCLFUNC.
+	// We need to walk the function body to check for reassignments so we follow the
+	// linkage to the ODCLFUNC node as that is where body is held.
+	if f.Op == OCLOSURE {
+		f = f.Func.Closure
+	}
 	v := reassignVisitor{name: n}
-	a := v.visitList(n.Name.Curfn.Nbody)
+	a := v.visitList(f.Nbody)
 	return a != nil, a
 }
 
@@ -680,7 +689,7 @@ func (v *reassignVisitor) visit(n *Node) *Node {
 			return n
 		}
 		return nil
-	case OAS2, OAS2FUNC:
+	case OAS2, OAS2FUNC, OAS2MAPR, OAS2DOTTYPE:
 		for _, p := range n.List.Slice() {
 			if p == v.name && n != v.name.Name.Defn {
 				return n
