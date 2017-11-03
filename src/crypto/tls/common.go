@@ -29,10 +29,11 @@ const (
 )
 
 const (
-	maxPlaintext    = 16384        // maximum plaintext payload length
-	maxCiphertext   = 16384 + 2048 // maximum ciphertext payload length
-	recordHeaderLen = 5            // record header length
-	maxHandshake    = 65536        // maximum handshake we support (protocol max is 16 MB)
+	maxPlaintext      = 16384        // maximum plaintext payload length
+	maxCiphertext     = 16384 + 2048 // maximum ciphertext payload length
+	recordHeaderLen   = 5            // record header length
+	maxHandshake      = 65536        // maximum handshake we support (protocol max is 16 MB)
+	maxWarnAlertCount = 5            // maximum number of consecutive warning alerts
 
 	minVersion = VersionTLS10
 	maxVersion = VersionTLS12

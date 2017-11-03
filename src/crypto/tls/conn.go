@@ -94,6 +94,10 @@ type Conn struct {
 	bytesSent   int64
 	packetsSent int64
 
+	// warnCount counts the number of consecutive warning alerts received
+	// by Conn.readRecord. Protected by in.Mutex.
+	warnCount int
+
 	// activeCall is an atomic int32; the low bit is whether Close has
 	// been called. the rest of the bits are the number of goroutines
 	// in Conn.Write.
@@ -658,6 +662,11 @@ Again:
 		return c.in.setErrorLocked(err)
 	}
 
+	if typ != recordTypeAlert && len(data) > 0 {
+		// this is a valid non-alert message: reset the count of alerts
+		c.warnCount = 0
+	}
+
 	switch typ {
 	default:
 		c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
@@ -675,6 +684,13 @@ Again:
 		case alertLevelWarning:
 			// drop on the floor
 			c.in.freeBlock(b)
+
+			c.warnCount++
+			if c.warnCount > maxWarnAlertCount {
+				c.sendAlert(alertUnexpectedMessage)
+				return c.in.setErrorLocked(errors.New("tls: too many warn alerts"))
+			}
+
 			goto Again
 		case alertLevelError:
 			c.in.setErrorLocked(&net.OpError{Op: "remote error", Err: alert(data[1])})
