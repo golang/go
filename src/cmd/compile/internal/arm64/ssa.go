@@ -553,6 +553,28 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Reg = arm64.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p3, p)
+	case ssa.OpARM64LoweredAtomicAdd64Variant,
+		ssa.OpARM64LoweredAtomicAdd32Variant:
+		// LDADDAL	Rarg1, (Rarg0), Rout
+		// ADD		Rarg1, Rout
+		op := arm64.ALDADDALD
+		if v.Op == ssa.OpARM64LoweredAtomicAdd32Variant {
+			op = arm64.ALDADDALW
+		}
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		out := v.Reg0()
+		p := s.Prog(op)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r1
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = r0
+		p.RegTo2 = out
+		p1 := s.Prog(arm64.AADD)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r1
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = out
 	case ssa.OpARM64LoweredAtomicCas64,
 		ssa.OpARM64LoweredAtomicCas32:
 		// LDAXR	(Rarg0), Rtmp
