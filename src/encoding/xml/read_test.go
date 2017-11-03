@@ -819,7 +819,7 @@ const (
 `
 )
 
-// github.com/golang/go/issues/13417
+// golang.org/issues/13417
 func TestUnmarshalEmptyValues(t *testing.T) {
 	// Test first with a zero-valued dst.
 	v := new(Parent)

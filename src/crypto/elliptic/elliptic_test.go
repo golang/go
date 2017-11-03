@@ -581,7 +581,7 @@ func TestP224Overflow(t *testing.T) {
 	}
 }
 
-// See https://github.com/golang/go/issues/20482
+// See https://golang.org/issues/20482
 func TestUnmarshalToLargeCoordinates(t *testing.T) {
 	curve := P256()
 	p := curve.Params().P

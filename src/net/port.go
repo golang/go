@@ -9,7 +9,7 @@ package net
 // parse service as a non-decimal integer when needsLookup is true.
 //
 // Some system resolvers will return a valid port number when given a number
-// over 65536 (see https://github.com/golang/go/issues/11715). Alas, the parser
+// over 65536 (see https://golang.org/issues/11715). Alas, the parser
 // can't bail early on numbers > 65536. Therefore reasonably large/small
 // numbers are parsed in full and rejected if invalid.
 func parsePort(service string) (port int, needsLookup bool) {

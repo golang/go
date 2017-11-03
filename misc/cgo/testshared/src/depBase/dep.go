@@ -22,7 +22,7 @@ type Dep struct {
 func (d *Dep) Method() int {
 	// This code below causes various go.itab.* symbols to be generated in
 	// the shared library. Similar code in ../exe/exe.go results in
-	// exercising https://github.com/golang/go/issues/17594
+	// exercising https://golang.org/issues/17594
 	reflect.TypeOf(os.Stdout).Elem()
 	return 10
 }

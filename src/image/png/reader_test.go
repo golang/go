@@ -589,7 +589,7 @@ func TestUnknownChunkLengthUnderflow(t *testing.T) {
 }
 
 func TestGray8Transparent(t *testing.T) {
-	// These bytes come from https://github.com/golang/go/issues/19553
+	// These bytes come from https://golang.org/issues/19553
 	m, err := Decode(bytes.NewReader([]byte{
 		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
 		0x00, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x00, 0x0b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x85, 0x2c, 0x88,
@@ -650,7 +650,7 @@ func TestGray8Transparent(t *testing.T) {
 }
 
 func TestDimensionOverflow(t *testing.T) {
-	// These bytes come from https://github.com/golang/go/issues/22304
+	// These bytes come from https://golang.org/issues/22304
 	//
 	// It encodes a 2147483646 × 2147483646 (i.e. 0x7ffffffe × 0x7ffffffe)
 	// NRGBA image. The (width × height) per se doesn't overflow an int64, but
