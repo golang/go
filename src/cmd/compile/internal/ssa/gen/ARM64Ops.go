@@ -578,6 +578,13 @@ func init() {
 		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 
+		// atomic add variant.
+		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
+		// LDADDAL	(Rarg0), Rarg1, Rout
+		// ADD		Rarg1, Rout
+		{name: "LoweredAtomicAdd64Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicAdd32Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+
 		// atomic compare and swap.
 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory. auxint must be zero.
 		// if *arg0 == arg1 {

@@ -515,6 +515,13 @@ var genericOps = []opData{
 	{name: "AtomicAnd8", argLength: 3, typ: "Mem", hasSideEffects: true},                    // *arg0 &= arg1.  arg2=memory.  Returns memory.
 	{name: "AtomicOr8", argLength: 3, typ: "Mem", hasSideEffects: true},                     // *arg0 |= arg1.  arg2=memory.  Returns memory.
 
+	// Atomic operation variants
+	// These variants have the same semantics as above atomic operations.
+	// But they are used for generating more efficient code on certain modern machines, with run-time CPU feature detection.
+	// Currently, they are used on ARM64 only.
+	{name: "AtomicAdd32Variant", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true}, // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicAdd64Variant", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true}, // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+
 	// Clobber experiment op
 	{name: "Clobber", argLength: 0, typ: "Void", aux: "SymOff", symEffect: "None"}, // write an invalid pointer value to the given pointer slot of a stack variable
 }

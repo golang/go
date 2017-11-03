@@ -341,8 +341,12 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpAndB_0(v)
 	case OpAtomicAdd32:
 		return rewriteValueARM64_OpAtomicAdd32_0(v)
+	case OpAtomicAdd32Variant:
+		return rewriteValueARM64_OpAtomicAdd32Variant_0(v)
 	case OpAtomicAdd64:
 		return rewriteValueARM64_OpAtomicAdd64_0(v)
+	case OpAtomicAdd64Variant:
+		return rewriteValueARM64_OpAtomicAdd64Variant_0(v)
 	case OpAtomicAnd8:
 		return rewriteValueARM64_OpAtomicAnd8_0(v)
 	case OpAtomicCompareAndSwap32:
@@ -25908,6 +25912,22 @@ func rewriteValueARM64_OpAtomicAdd32_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueARM64_OpAtomicAdd32Variant_0(v *Value) bool {
+	// match: (AtomicAdd32Variant ptr val mem)
+	// cond:
+	// result: (LoweredAtomicAdd32Variant ptr val mem)
+	for {
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARM64LoweredAtomicAdd32Variant)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
 func rewriteValueARM64_OpAtomicAdd64_0(v *Value) bool {
 	// match: (AtomicAdd64 ptr val mem)
 	// cond:
@@ -25918,6 +25938,22 @@ func rewriteValueARM64_OpAtomicAdd64_0(v *Value) bool {
 		val := v.Args[1]
 		mem := v.Args[2]
 		v.reset(OpARM64LoweredAtomicAdd64)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM64_OpAtomicAdd64Variant_0(v *Value) bool {
+	// match: (AtomicAdd64Variant ptr val mem)
+	// cond:
+	// result: (LoweredAtomicAdd64Variant ptr val mem)
+	for {
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARM64LoweredAtomicAdd64Variant)
 		v.AddArg(ptr)
 		v.AddArg(val)
 		v.AddArg(mem)

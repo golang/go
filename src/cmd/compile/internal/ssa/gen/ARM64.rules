@@ -544,6 +544,9 @@
 (AtomicAnd8 ptr val mem) -> (Select1 (LoweredAtomicAnd8 ptr val mem))
 (AtomicOr8  ptr val mem) -> (Select1 (LoweredAtomicOr8  ptr val mem))
 
+(AtomicAdd32Variant ptr val mem) -> (LoweredAtomicAdd32Variant ptr val mem)
+(AtomicAdd64Variant ptr val mem) -> (LoweredAtomicAdd64Variant ptr val mem)
+
 // Write barrier.
 (WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
 
