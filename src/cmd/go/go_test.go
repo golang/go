@@ -4906,3 +4906,11 @@ func TestInstallDeps(t *testing.T) {
 	tg.run("install", "-i", "p2")
 	tg.mustExist(p1)
 }
+
+func TestFmtLoadErrors(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.runFail("fmt", "does-not-exist")
+	tg.run("fmt", "-n", "exclude")
+}

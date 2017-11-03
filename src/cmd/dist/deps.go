@@ -167,6 +167,7 @@ var builddeps = map[string][]string{
 		"os",            // cmd/go/internal/fmtcmd
 		"path/filepath", // cmd/go/internal/fmtcmd
 		"runtime",       // cmd/go/internal/fmtcmd
+		"strings",       // cmd/go/internal/fmtcmd
 		"sync",          // cmd/go/internal/fmtcmd
 	},
 
