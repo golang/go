@@ -569,3 +569,14 @@ func ExampleTime_Sub() {
 	// Output:
 	// difference = 12h0m0s
 }
+
+func ExampleTime_AppendFormat() {
+	t := time.Date(2017, time.November, 4, 11, 0, 0, 0, time.UTC)
+	text := []byte("Time: ")
+
+	text = t.AppendFormat(text, time.Kitchen)
+	fmt.Println(string(text))
+
+	// Output:
+	// Time: 11:00AM
+}
