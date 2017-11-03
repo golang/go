@@ -98,6 +98,11 @@ import "errors"
 // change the instant in time being denoted and therefore does not affect the
 // computations described in earlier paragraphs.
 //
+// In addition to the required “wall clock” reading, a Time may contain an optional
+// reading of the current process's monotonic clock, to provide additional precision
+// for comparison or subtraction.
+// See the “Monotonic Clocks” section in the package documentation for details.
+//
 // Note that the Go == operator compares not just the time instant but also the
 // Location and the monotonic clock reading. Therefore, Time values should not
 // be used as map or database keys without first guaranteeing that the
@@ -107,11 +112,6 @@ import "errors"
 // to t == u, since t.Equal uses the most accurate comparison available and
 // correctly handles the case when only one of its arguments has a monotonic
 // clock reading.
-//
-// In addition to the required “wall clock” reading, a Time may contain an optional
-// reading of the current process's monotonic clock, to provide additional precision
-// for comparison or subtraction.
-// See the “Monotonic Clocks” section in the package documentation for details.
 //
 type Time struct {
 	// wall and ext encode the wall time seconds, wall time nanoseconds,
