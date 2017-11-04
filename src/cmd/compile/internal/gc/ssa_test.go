@@ -48,8 +48,9 @@ func doTest(t *testing.T, filename string, kind string) {
 // of the generated test.
 func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
 	testenv.MustHaveGoRun(t)
+	gotool := testenv.GoToolPath(t)
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command("go", "run", filepath.Join("testdata", filename))
+	cmd := exec.Command(gotool, "run", filepath.Join("testdata", filename))
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
@@ -72,14 +73,14 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
 	// Execute compile+link+run instead of "go run" to avoid applying -gcflags=-d=ssa/check/on
 	// to the runtime (especially over and over and over).
 	// compile
-	cmd = exec.Command("go", "tool", "compile", "-d=ssa/check/on", "-o", filepath.Join(tmpdir, "run.a"), rungo)
+	cmd = exec.Command(gotool, "tool", "compile", "-d=ssa/check/on", "-o", filepath.Join(tmpdir, "run.a"), rungo)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	cmd.Env = append(cmd.Env, ev...)
 	err := cmd.Run()
 	if err == nil {
 		// link
-		cmd = exec.Command("go", "tool", "link", "-o", filepath.Join(tmpdir, "run.exe"), filepath.Join(tmpdir, "run.a"))
+		cmd = exec.Command(gotool, "tool", "link", "-o", filepath.Join(tmpdir, "run.exe"), filepath.Join(tmpdir, "run.a"))
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		cmd.Env = append(cmd.Env, ev...)
