@@ -139,6 +139,9 @@ var indexTests = []BinOpTest{
 	{"barfoobarfooyyyzzzyyyzzzyyyzzzyyyxxxzzzyyy", "x", 33},
 	{"foofyfoobarfoobar", "y", 4},
 	{"oooooooooooooooooooooo", "r", -1},
+	// test fallback to Rabin-Karp.
+	{"oxoxoxoxoxoxoxoxoxoxoxoy", "oy", 22},
+	{"oxoxoxoxoxoxoxoxoxoxoxox", "oy", -1},
 }
 
 var lastIndexTests = []BinOpTest{
@@ -1728,5 +1731,20 @@ func BenchmarkTrimASCII(b *testing.B) {
 				}
 			})
 		}
+	}
+}
+
+func BenchmarkIndexPeriodic(b *testing.B) {
+	key := []byte{1, 1}
+	for _, skip := range [...]int{2, 4, 8, 16, 32, 64} {
+		b.Run(fmt.Sprintf("IndexPeriodic%d", skip), func(b *testing.B) {
+			buf := make([]byte, 1<<16)
+			for i := 0; i < len(buf); i += skip {
+				buf[i] = 1
+			}
+			for i := 0; i < b.N; i++ {
+				Index(buf, key)
+			}
+		})
 	}
 }

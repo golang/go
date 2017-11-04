@@ -25,22 +25,30 @@ func Index(s, substr string) int {
 	case n > len(s):
 		return -1
 	}
-	// Rabin-Karp search
-	hashss, pow := hashStr(substr)
-	var h uint32
-	for i := 0; i < n; i++ {
-		h = h*primeRK + uint32(s[i])
-	}
-	if h == hashss && s[:n] == substr {
-		return 0
-	}
-	for i := n; i < len(s); {
-		h *= primeRK
-		h += uint32(s[i])
-		h -= pow * uint32(s[i-n])
+	c := substr[0]
+	i := 0
+	t := s[:len(s)-n+1]
+	fails := 0
+	for i < len(t) {
+		if t[i] != c {
+			o := IndexByte(t[i:], c)
+			if o < 0 {
+				return -1
+			}
+			i += o
+		}
+		if s[i:i+n] == substr {
+			return i
+		}
 		i++
-		if h == hashss && s[i-n:i] == substr {
-			return i - n
+		fails++
+		if fails >= 4+i>>4 && i < len(t) {
+			// See comment in ../bytes/bytes_generic.go.
+			j := indexRabinKarp(s[i:], substr)
+			if j < 0 {
+				return -1
+			}
+			return i + j
 		}
 	}
 	return -1

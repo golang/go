@@ -125,6 +125,9 @@ var indexTests = []IndexTest{
 	{"xx012345678901234567890123456789012345678901234567890123456789012"[:41], "0123456789012345678901234567890123456789", -1},
 	{"xx012345678901234567890123456789012345678901234567890123456789012", "0123456789012345678901234567890123456xxx", -1},
 	{"xx0123456789012345678901234567890123456789012345678901234567890120123456789012345678901234567890123456xxx", "0123456789012345678901234567890123456xxx", 65},
+	// test fallback to Rabin-Karp.
+	{"oxoxoxoxoxoxoxoxoxoxoxoy", "oy", 22},
+	{"oxoxoxoxoxoxoxoxoxoxoxox", "oy", -1},
 }
 
 var lastIndexTests = []IndexTest{
@@ -1639,5 +1642,17 @@ func BenchmarkTrimASCII(b *testing.B) {
 				}
 			})
 		}
+	}
+}
+
+func BenchmarkIndexPeriodic(b *testing.B) {
+	key := "aa"
+	for _, skip := range [...]int{2, 4, 8, 16, 32, 64} {
+		b.Run(fmt.Sprintf("IndexPeriodic%d", skip), func(b *testing.B) {
+			s := Repeat("a"+Repeat(" ", skip-1), 1<<16/skip)
+			for i := 0; i < b.N; i++ {
+				Index(s, key)
+			}
+		})
 	}
 }
