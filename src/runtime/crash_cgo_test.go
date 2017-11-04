@@ -468,5 +468,6 @@ func TestWindowsStackMemoryCgo(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("skipping windows specific test")
 	}
+	testenv.SkipFlaky(t, 22575)
 	testWindowsStackMemory(t, runTestProg(t, "testprogcgo", "StackMemory"))
 }
