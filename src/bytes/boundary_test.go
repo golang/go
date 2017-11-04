@@ -67,6 +67,10 @@ func TestIndexNearPageBoundary(t *testing.T) {
 	t.Parallel()
 	var q [64]byte
 	b := dangerousSlice(t)
+	if len(b) > 256 {
+		// Only worry about when we're near the end of a page.
+		b = b[len(b)-256:]
+	}
 	for j := 1; j < len(q); j++ {
 		q[j-1] = 1 // difference is only found on the last byte
 		for i := range b {
