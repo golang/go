@@ -209,12 +209,14 @@ func MustHaveLink(t testing.TB) {
 var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
 
 func SkipFlaky(t testing.TB, issue int) {
+	t.Helper()
 	if !*flaky {
 		t.Skipf("skipping known flaky test without the -flaky flag; see golang.org/issue/%d", issue)
 	}
 }
 
 func SkipFlakyNet(t testing.TB) {
+	t.Helper()
 	if v, _ := strconv.ParseBool(os.Getenv("GO_BUILDER_FLAKY_NET")); v {
 		t.Skip("skipping test on builder known to have frequent network failures")
 	}
