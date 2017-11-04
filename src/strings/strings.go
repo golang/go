@@ -918,3 +918,27 @@ func EqualFold(s, t string) bool {
 	// One string is empty. Are both?
 	return s == t
 }
+
+func indexRabinKarp(s, substr string) int {
+	// Rabin-Karp search
+	hashss, pow := hashStr(substr)
+	n := len(substr)
+	var h uint32
+	for i := 0; i < n; i++ {
+		h = h*primeRK + uint32(s[i])
+	}
+	if h == hashss && s[:n] == substr {
+		return 0
+	}
+	for i := n; i < len(s); {
+		h *= primeRK
+		h += uint32(s[i])
+		h -= pow * uint32(s[i-n])
+		i++
+		if h == hashss && s[i-n:i] == substr {
+			return i - n
+		}
+	}
+	return -1
+
+}

@@ -6,23 +6,25 @@
 
 package bytes
 
-// TODO: implements short string optimization on non amd64 platforms
-// and get rid of bytes_amd64.go
-
 // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
 func Index(s, sep []byte) int {
 	n := len(sep)
-	if n == 0 {
+	switch {
+	case n == 0:
 		return 0
-	}
-	if n > len(s) {
+	case n == 1:
+		return IndexByte(s, sep[0])
+	case n == len(s):
+		if Equal(sep, s) {
+			return 0
+		}
+		return -1
+	case n > len(s):
 		return -1
 	}
 	c := sep[0]
-	if n == 1 {
-		return IndexByte(s, c)
-	}
 	i := 0
+	fails := 0
 	t := s[:len(s)-n+1]
 	for i < len(t) {
 		if t[i] != c {
@@ -36,6 +38,22 @@ func Index(s, sep []byte) int {
 			return i
 		}
 		i++
+		fails++
+		if fails >= 4+i>>4 && i < len(t) {
+			// Give up on IndexByte, it isn't skipping ahead
+			// far enough to be better than Rabin-Karp.
+			// Experiments (using IndexPeriodic) suggest
+			// the cutover is about 16 byte skips.
+			// TODO: if large prefixes of sep are matching
+			// we should cutover at even larger average skips,
+			// because Equal becomes that much more expensive.
+			// This code does not take that effect into account.
+			j := indexRabinKarp(s[i:], sep)
+			if j < 0 {
+				return -1
+			}
+			return i + j
+		}
 	}
 	return -1
 }
