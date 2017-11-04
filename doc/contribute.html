@@ -208,12 +208,6 @@ daily work, install the hooks in a new Git checkout by running
 <code>git-codereview</code> <code>hooks</code>.
 </p>
 
-<p>
-The workflow described below assumes a single change per branch.
-It is also possible to prepare a sequence of (usually related) changes in a single branch.
-See the <a href="https://golang.org/x/review/git-codereview">git-codereview documentation</a> for details.
-</p>
-
 <h3 id="git-config">Set up git aliases</h3>
 
 <p>
@@ -427,6 +421,12 @@ Once you have the changes queued up, you will want to commit them.
 In the Go contribution workflow this is done with a <code>git</code>
 <code>change</code> command, which creates a local branch and commits the changes
 directly to that local branch.
+</p>
+
+<p>
+The workflow described here assumes a single change per branch.
+It is also possible to prepare a sequence of (usually related) changes in a single branch.
+See the <a href="https://golang.org/x/review/git-codereview">git-codereview documentation</a> for details.
 </p>
 
 <pre>
