@@ -23,29 +23,28 @@ import (
 
 // The usual variables.
 var (
-	goarch                 string
-	gobin                  string
-	gohostarch             string
-	gohostos               string
-	goos                   string
-	goarm                  string
-	go386                  string
-	goroot                 string
-	goroot_final           string
-	goextlinkenabled       string
-	gogcflags              string // For running built compiler
-	goldflags              string
-	workdir                string
-	tooldir                string
-	oldgoos                string
-	oldgoarch              string
-	exe                    string
-	defaultcc              string
-	defaultcflags          string
-	defaultldflags         string
-	defaultcxxtarget       string
-	defaultcctarget        string
-	defaultpkgconfigtarget string
+	goarch           string
+	gobin            string
+	gohostarch       string
+	gohostos         string
+	goos             string
+	goarm            string
+	go386            string
+	goroot           string
+	goroot_final     string
+	goextlinkenabled string
+	gogcflags        string // For running built compiler
+	goldflags        string
+	workdir          string
+	tooldir          string
+	oldgoos          string
+	oldgoarch        string
+	exe              string
+	defaultcc        map[string]string
+	defaultcxx       map[string]string
+	defaultcflags    string
+	defaultldflags   string
+	defaultpkgconfig string
 
 	rebuildall   bool
 	defaultclang bool
@@ -172,49 +171,21 @@ func xinit() {
 
 	gogcflags = os.Getenv("BOOT_GO_GCFLAGS")
 
-	b = os.Getenv("CC")
-	if b == "" {
-		// Use clang on OS X, because gcc is deprecated there.
-		// Xcode for OS X 10.9 Mavericks will ship a fake "gcc" binary that
-		// actually runs clang. We prepare different command
-		// lines for the two binaries, so it matters what we call it.
-		// See golang.org/issue/5822.
-		if defaultclang {
-			b = "clang"
-		} else {
-			b = "gcc"
-		}
+	cc := "gcc"
+	if defaultclang {
+		cc = "clang"
 	}
-	defaultcc = b
+	defaultcc = compilerEnv("CC", cc)
+	defaultcxx = compilerEnv("CXX", cc+"++")
 
 	defaultcflags = os.Getenv("CFLAGS")
-
 	defaultldflags = os.Getenv("LDFLAGS")
-
-	b = os.Getenv("CC_FOR_TARGET")
-	if b == "" {
-		b = defaultcc
-	}
-	defaultcctarget = b
-
-	b = os.Getenv("CXX_FOR_TARGET")
-	if b == "" {
-		b = os.Getenv("CXX")
-		if b == "" {
-			if defaultclang {
-				b = "clang++"
-			} else {
-				b = "g++"
-			}
-		}
-	}
-	defaultcxxtarget = b
 
 	b = os.Getenv("PKG_CONFIG")
 	if b == "" {
 		b = "pkg-config"
 	}
-	defaultpkgconfigtarget = b
+	defaultpkgconfig = b
 
 	// For tools being invoked but also for os.ExpandEnv.
 	os.Setenv("GO386", go386)
@@ -242,6 +213,55 @@ func xinit() {
 	xatexit(rmworkdir)
 
 	tooldir = pathf("%s/pkg/tool/%s_%s", goroot, gohostos, gohostarch)
+}
+
+// compilerEnv returns a map from "goos/goarch" to the
+// compiler setting to use for that platform.
+// The entry for key "" covers any goos/goarch not explicitly set in the map.
+// For example, compilerEnv("CC", "gcc") returns the C compiler settings
+// read from $CC, defaulting to gcc.
+//
+// The result is a map because additional environment variables
+// can be set to change the compiler based on goos/goarch settings.
+// The following applies to all envNames but CC is assumed to simplify
+// the presentation.
+//
+// If no environment variables are set, we use def for all goos/goarch.
+// $CC, if set, applies to all goos/goarch but is overridden by the following.
+// $CC_FOR_TARGET, if set, applies to all goos/goarch except gohostos/gohostarch,
+// but is overridden by the following.
+// If gohostos=goos and gohostarch=goarch, then $CC_FOR_TARGET applies even for gohostos/gohostarch.
+// $CC_FOR_goos_goarch, if set, applies only to goos/goarch.
+func compilerEnv(envName, def string) map[string]string {
+	m := map[string]string{"": def}
+
+	if env := os.Getenv(envName); env != "" {
+		m[""] = env
+	}
+	if env := os.Getenv(envName + "_FOR_TARGET"); env != "" {
+		if gohostos != goos || gohostarch != goarch {
+			m[gohostos+"/"+gohostarch] = m[""]
+		}
+		m[""] = env
+	}
+
+	for _, goos := range okgoos {
+		for _, goarch := range okgoarch {
+			if env := os.Getenv(envName + "_FOR_" + goos + "_" + goarch); env != "" {
+				m[goos+"/"+goarch] = env
+			}
+		}
+	}
+
+	return m
+}
+
+// compilerEnvLookup returns the compiler settings for goos/goarch in map m.
+func compilerEnvLookup(m map[string]string, goos, goarch string) string {
+	if cc := m[goos+"/"+goarch]; cc != "" {
+		return cc
+	}
+	return m[""]
 }
 
 // rmworkdir deletes the work directory.
@@ -1009,8 +1029,6 @@ func cmdenv() {
 		format = "set %s=%s\r\n"
 	}
 
-	xprintf(format, "CC", defaultcc)
-	xprintf(format, "CC_FOR_TARGET", defaultcctarget)
 	xprintf(format, "GOROOT", goroot)
 	xprintf(format, "GOBIN", gobin)
 	xprintf(format, "GOARCH", goarch)
@@ -1171,12 +1189,7 @@ func cmdbootstrap() {
 		xprintf("\n")
 	}
 	xprintf("Building Go toolchain2 using go_bootstrap and Go toolchain1.\n")
-	os.Setenv("CC", defaultcc)
-	if goos == oldgoos && goarch == oldgoarch {
-		// Host and target are same, and we have historically
-		// chosen $CC_FOR_TARGET in this case.
-		os.Setenv("CC", defaultcctarget)
-	}
+	os.Setenv("CC", compilerEnvLookup(defaultcc, goos, goarch))
 	goInstall(goBootstrap, append([]string{"-i"}, toolchain...)...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
@@ -1241,7 +1254,7 @@ func cmdbootstrap() {
 		goarch = oldgoarch
 		os.Setenv("GOOS", goos)
 		os.Setenv("GOARCH", goarch)
-		os.Setenv("CC", defaultcctarget)
+		os.Setenv("CC", compilerEnvLookup(defaultcc, goos, goarch))
 		xprintf("Building packages and commands for target, %s/%s.\n", goos, goarch)
 	}
 	goInstall(goBootstrap, "std", "cmd")
@@ -1372,7 +1385,7 @@ func checkCC() {
 	if !needCC() {
 		return
 	}
-	if output, err := exec.Command(defaultcc, "--help").CombinedOutput(); err != nil {
+	if output, err := exec.Command(defaultcc[""], "--help").CombinedOutput(); err != nil {
 		outputHdr := ""
 		if len(output) > 0 {
 			outputHdr = "\nCommand output:\n\n"

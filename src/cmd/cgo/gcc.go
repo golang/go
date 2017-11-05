@@ -1221,7 +1221,7 @@ func (p *Package) gccBaseCmd() []string {
 	if ret := strings.Fields(os.Getenv("GCC")); len(ret) > 0 {
 		return ret
 	}
-	return strings.Fields(defaultCC)
+	return strings.Fields(defaultCC(goos, goarch))
 }
 
 // gccMachine returns the gcc -m flag to use, either "-m32", "-m64" or "-marm".

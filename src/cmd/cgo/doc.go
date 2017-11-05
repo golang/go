@@ -102,11 +102,13 @@ the use of cgo, and to 0 to disable it. The go tool will set the
 build constraint "cgo" if cgo is enabled.
 
 When cross-compiling, you must specify a C cross-compiler for cgo to
-use. You can do this by setting the CC_FOR_TARGET environment
-variable when building the toolchain using make.bash, or by setting
-the CC environment variable any time you run the go tool. The
-CXX_FOR_TARGET and CXX environment variables work in a similar way for
-C++ code.
+use. You can do this by setting the generic CC_FOR_TARGET or the
+more specific CC_FOR_${GOOS}_${GOARCH} (for example, CC_FOR_linux_arm)
+environment variable when building the toolchain using make.bash,
+or you can set the CC environment variable any time you run the go tool.
+
+The CXX_FOR_TARGET, CXX_FOR_${GOOS}_${GOARCH}, and CXX
+environment variables work in a similar way for C++ code.
 
 Go references to C
 

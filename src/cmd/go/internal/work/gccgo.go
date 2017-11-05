@@ -464,7 +464,7 @@ func (tools gccgoToolchain) cc(b *Builder, a *Action, ofile, cfile string) error
 		defs = append(defs, "-fsplit-stack")
 	}
 	defs = tools.maybePIC(defs)
-	return b.run(p.Dir, p.ImportPath, nil, envList("CC", cfg.DefaultCC), "-Wall", "-g",
+	return b.run(p.Dir, p.ImportPath, nil, envList("CC", cfg.DefaultCC(cfg.Goos, cfg.Goarch)), "-Wall", "-g",
 		"-I", a.Objdir, "-I", inc, "-o", ofile, defs, "-c", cfile)
 }
 

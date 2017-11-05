@@ -33,9 +33,9 @@ func mkzdefaultcc(dir, file string) {
 		fmt.Fprintln(&buf)
 		fmt.Fprintf(&buf, "package cfg\n")
 		fmt.Fprintln(&buf)
-		fmt.Fprintf(&buf, "const DefaultCC = `%s`\n", defaultcctarget)
-		fmt.Fprintf(&buf, "const DefaultCXX = `%s`\n", defaultcxxtarget)
-		fmt.Fprintf(&buf, "const DefaultPkgConfig = `%s`\n", defaultpkgconfigtarget)
+		fmt.Fprintf(&buf, "const DefaultPkgConfig = `%s`\n", defaultpkgconfig)
+		buf.WriteString(defaultCCFunc("DefaultCC", defaultcc))
+		buf.WriteString(defaultCCFunc("DefaultCXX", defaultcxx))
 		writefile(buf.String(), file, writeSkipSame)
 		return
 	}
@@ -45,10 +45,32 @@ func mkzdefaultcc(dir, file string) {
 	fmt.Fprintln(&buf)
 	fmt.Fprintf(&buf, "package main\n")
 	fmt.Fprintln(&buf)
-	fmt.Fprintf(&buf, "const defaultCC = `%s`\n", defaultcctarget)
-	fmt.Fprintf(&buf, "const defaultCXX = `%s`\n", defaultcxxtarget)
-	fmt.Fprintf(&buf, "const defaultPkgConfig = `%s`\n", defaultpkgconfigtarget)
+	fmt.Fprintf(&buf, "const defaultPkgConfig = `%s`\n", defaultpkgconfig)
+	buf.WriteString(defaultCCFunc("defaultCC", defaultcc))
+	buf.WriteString(defaultCCFunc("defaultCXX", defaultcxx))
 	writefile(buf.String(), file, writeSkipSame)
+}
+
+func defaultCCFunc(name string, defaultcc map[string]string) string {
+	var buf bytes.Buffer
+
+	fmt.Fprintf(&buf, "func %s(goos, goarch string) string {\n", name)
+	fmt.Fprintf(&buf, "\tswitch goos+`/`+goarch {\n")
+	var keys []string
+	for k := range defaultcc {
+		if k != "" {
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		fmt.Fprintf(&buf, "\tcase %q:\n\t\treturn %q\n", k, defaultcc[k])
+	}
+	fmt.Fprintf(&buf, "\t}\n")
+	fmt.Fprintf(&buf, "\treturn %q\n", defaultcc[""])
+	fmt.Fprintf(&buf, "}\n")
+
+	return buf.String()
 }
 
 // mkzcgo writes zosarch.go for cmd/go.
