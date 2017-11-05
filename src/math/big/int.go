@@ -644,6 +644,9 @@ func (z *Int) lehmerGCD(a, b *Int) *Int {
 }
 
 // Rand sets z to a pseudo-random number in [0, n) and returns z.
+//
+// As this uses the math/rand package, it must not be used for
+// security-sensitive work. Use crypto/rand.Int instead.
 func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 	z.neg = false
 	if n.neg || len(n.abs) == 0 {
