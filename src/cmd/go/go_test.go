@@ -4740,6 +4740,21 @@ func TestBuildCache(t *testing.T) {
 	tg.grepStderr(`[\\/]link|gccgo`, "did not run linker")
 }
 
+func TestIssue22588(t *testing.T) {
+	// Don't get confused by stderr coming from tools.
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	if _, err := os.Stat("/usr/bin/time"); err != nil {
+		t.Skip(err)
+	}
+
+	tg.run("list", "-f={{.Stale}}", "runtime")
+	tg.run("list", "-toolexec=/usr/bin/time", "-f={{.Stale}}", "runtime")
+	tg.grepStdout("false", "incorrectly reported runtime as stale")
+}
+
 func TestIssue22531(t *testing.T) {
 	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
 		t.Skip("GODEBUG gocacheverify")
