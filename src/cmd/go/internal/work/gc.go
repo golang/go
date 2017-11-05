@@ -430,9 +430,9 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 	// Else, use the CC environment variable and defaultCC as fallback.
 	var compiler []string
 	if cxx {
-		compiler = envList("CXX", cfg.DefaultCXX)
+		compiler = envList("CXX", cfg.DefaultCXX(cfg.Goos, cfg.Goarch))
 	} else {
-		compiler = envList("CC", cfg.DefaultCC)
+		compiler = envList("CC", cfg.DefaultCC(cfg.Goos, cfg.Goarch))
 	}
 	ldflags = append(ldflags, "-buildmode="+ldBuildmode)
 	if root.buildID != "" {
@@ -474,9 +474,9 @@ func (gcToolchain) ldShared(b *Builder, toplevelactions []*Action, out, importcf
 	// Else, use the CC environment variable and defaultCC as fallback.
 	var compiler []string
 	if cxx {
-		compiler = envList("CXX", cfg.DefaultCXX)
+		compiler = envList("CXX", cfg.DefaultCXX(cfg.Goos, cfg.Goarch))
 	} else {
-		compiler = envList("CC", cfg.DefaultCC)
+		compiler = envList("CC", cfg.DefaultCC(cfg.Goos, cfg.Goarch))
 	}
 	ldflags = setextld(ldflags, compiler)
 	for _, d := range toplevelactions {

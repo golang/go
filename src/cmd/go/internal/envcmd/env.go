@@ -78,11 +78,11 @@ func MkEnv() []cfg.EnvVar {
 		env = append(env, cfg.EnvVar{Name: "GO386", Value: cfg.GO386})
 	}
 
-	cc := cfg.DefaultCC
+	cc := cfg.DefaultCC(cfg.Goos, cfg.Goarch)
 	if env := strings.Fields(os.Getenv("CC")); len(env) > 0 {
 		cc = env[0]
 	}
-	cxx := cfg.DefaultCXX
+	cxx := cfg.DefaultCXX(cfg.Goos, cfg.Goarch)
 	if env := strings.Fields(os.Getenv("CXX")); len(env) > 0 {
 		cxx = env[0]
 	}
