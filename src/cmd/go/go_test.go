@@ -4740,7 +4740,34 @@ func TestBuildCache(t *testing.T) {
 
 	tg.run("build", "-o", os.DevNull, "-x", "complex")
 	tg.grepStderr(`[\\/]link|gccgo`, "did not run linker")
+}
 
+func TestIssue22531(t *testing.T) {
+	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+		t.Skip("GODEBUG gocacheverify")
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.tempdir)
+	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "cache"))
+	tg.tempFile("src/m/main.go", "package main /* c1 */; func main() {}\n")
+	tg.run("install", "-x", "m")
+	tg.run("list", "-f", "{{.Stale}}", "m")
+	tg.grepStdout("false", "reported m as stale after install")
+	tg.run("tool", "buildid", filepath.Join(tg.tempdir, "bin/m"+exeSuffix))
+
+	// The link action ID did not include the full main build ID,
+	// even though the full main build ID is written into the
+	// eventual binary. That caused the following install to
+	// be a no-op, thinking the gofmt binary was up-to-date,
+	// even though .Stale could see it was not.
+	tg.tempFile("src/m/main.go", "package main /* c2 */; func main() {}\n")
+	tg.run("install", "-x", "m")
+	tg.run("list", "-f", "{{.Stale}}", "m")
+	tg.grepStdout("false", "reported m as stale after reinstall")
+	tg.run("tool", "buildid", filepath.Join(tg.tempdir, "bin/m"+exeSuffix))
 }
 
 func TestTestCache(t *testing.T) {
