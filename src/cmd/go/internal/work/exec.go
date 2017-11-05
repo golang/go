@@ -690,6 +690,11 @@ func (b *Builder) linkActionID(a *Action) cache.ActionID {
 				}
 				fmt.Fprintf(h, "packagefile %s=%s\n", p1.ImportPath, contentID(buildID))
 			}
+			// Because we put package main's full action ID into the binary's build ID,
+			// we must also put the full action ID into the binary's action ID hash.
+			if p1.Name == "main" {
+				fmt.Fprintf(h, "packagemain %s\n", a1.buildID)
+			}
 			if p1.Shlib != "" {
 				fmt.Fprintf(h, "pakageshlib %s=%s\n", p1.ImportPath, contentID(b.buildID(p1.Shlib)))
 			}
