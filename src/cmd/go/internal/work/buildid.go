@@ -355,17 +355,19 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 	// We treat hits in this cache as being "stale" for the purposes of go list
 	// (in effect, "stale" means whether p.Target is up-to-date),
 	// but we're still happy to use results from the build artifact cache.
-	if c := cache.Default(); c != nil {
-		outputID, size, err := c.Get(actionHash)
-		if err == nil {
-			file := c.OutputFile(outputID)
-			info, err1 := os.Stat(file)
-			buildID, err2 := buildid.ReadFile(file)
-			if err1 == nil && err2 == nil && info.Size() == size {
-				a.built = file
-				a.Target = "DO NOT USE - using cache"
-				a.buildID = buildID
-				return true
+	if !cfg.BuildA {
+		if c := cache.Default(); c != nil {
+			outputID, size, err := c.Get(actionHash)
+			if err == nil {
+				file := c.OutputFile(outputID)
+				info, err1 := os.Stat(file)
+				buildID, err2 := buildid.ReadFile(file)
+				if err1 == nil && err2 == nil && info.Size() == size {
+					a.built = file
+					a.Target = "DO NOT USE - using cache"
+					a.buildID = buildID
+					return true
+				}
 			}
 		}
 	}

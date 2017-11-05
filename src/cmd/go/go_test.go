@@ -4728,6 +4728,9 @@ func TestBuildCache(t *testing.T) {
 	tg.run("build", "-x", "complex/w")
 	tg.grepStderrNot(`[\\/]compile|gccgo`, "ran compiler incorrectly")
 
+	tg.run("build", "-a", "-x", "complex/w")
+	tg.grepStderr(`[\\/]compile|gccgo`, "did not run compiler with -a")
+
 	// complex is a non-trivial main package.
 	// the link step should not be cached.
 	tg.run("build", "-o", os.DevNull, "-x", "complex")
