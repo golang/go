@@ -627,10 +627,18 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 		// TODO(rsc): Find out and explain here why gccgo is excluded.
 		// If the answer is that gccgo is different in implicit linker deps, maybe
 		// load.LinkerDeps should be used and updated.
+		// Link packages into a shared library.
+		a := &Action{
+			Mode:   "go build -buildmode=shared",
+			Objdir: b.NewObjdir(),
+			Func:   (*Builder).linkShared,
+			Deps:   []*Action{a1},
+		}
+		a.Target = filepath.Join(a.Objdir, shlib)
 		if cfg.BuildToolchainName != "gccgo" {
-			add := func(pkg string) {
+			add := func(a1 *Action, pkg string, force bool) {
 				for _, a2 := range a1.Deps {
-					if a2.Package.ImportPath == pkg {
+					if a2.Package != nil && a2.Package.ImportPath == pkg {
 						return
 					}
 				}
@@ -644,23 +652,21 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 				// then that shared library also contains runtime,
 				// so that anything we do will depend on that library,
 				// so we don't need to include pkg in our shared library.
-				if p.Shlib == "" || filepath.Base(p.Shlib) == pkg {
+				if force || p.Shlib == "" || filepath.Base(p.Shlib) == pkg {
 					a1.Deps = append(a1.Deps, b.CompileAction(depMode, depMode, p))
 				}
 			}
-			add("runtime/cgo")
+			add(a1, "runtime/cgo", false)
 			if cfg.Goarch == "arm" {
-				add("math")
+				add(a1, "math", false)
+			}
+
+			// The linker step still needs all the usual linker deps.
+			// (For example, the linker always opens runtime.a.)
+			for _, dep := range load.LinkerDeps(nil) {
+				add(a, dep, true)
 			}
 		}
-		// Link packages into a shared library.
-		a := &Action{
-			Mode:   "go build -buildmode=shared",
-			Objdir: b.NewObjdir(),
-			Func:   (*Builder).linkShared,
-			Deps:   []*Action{a1},
-		}
-		a.Target = filepath.Join(a.Objdir, shlib)
 		b.addTransitiveLinkDeps(a, a1, shlib)
 		return a
 	})

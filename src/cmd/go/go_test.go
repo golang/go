@@ -3295,12 +3295,12 @@ func TestGoInstallPkgdir(t *testing.T) {
 	defer tg.cleanup()
 	tg.makeTempdir()
 	pkg := tg.path(".")
-	tg.run("install", "-pkgdir", pkg, "errors")
-	tg.mustExist(filepath.Join(pkg, "errors.a"))
-	tg.mustNotExist(filepath.Join(pkg, "runtime.a"))
-	tg.run("install", "-i", "-pkgdir", pkg, "errors")
-	tg.mustExist(filepath.Join(pkg, "errors.a"))
-	tg.mustExist(filepath.Join(pkg, "runtime.a"))
+	tg.run("install", "-pkgdir", pkg, "sync")
+	tg.mustExist(filepath.Join(pkg, "sync.a"))
+	tg.mustNotExist(filepath.Join(pkg, "sync/atomic.a"))
+	tg.run("install", "-i", "-pkgdir", pkg, "sync")
+	tg.mustExist(filepath.Join(pkg, "sync.a"))
+	tg.mustExist(filepath.Join(pkg, "sync/atomic.a"))
 }
 
 func TestGoTestRaceInstallCgo(t *testing.T) {
@@ -3609,15 +3609,6 @@ func TestGoBuildARM(t *testing.T) {
 		func main() {}`)
 	tg.run("build", "hello.go")
 	tg.grepStderrNot("unable to find math.a", "did not build math.a correctly")
-}
-
-func TestIssue13655(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	for _, pkg := range []string{"runtime", "runtime/internal/atomic"} {
-		tg.run("list", "-f", "{{.Deps}}", pkg)
-		tg.grepStdout("runtime/internal/sys", "did not find required dependency of "+pkg+" on runtime/internal/sys")
-	}
 }
 
 // For issue 14337.
@@ -4726,12 +4717,16 @@ func TestBuildCache(t *testing.T) {
 	tg.makeTempdir()
 	tg.setenv("GOCACHE", tg.tempdir)
 
-	// complex/x is a trivial non-main package.
+	// complex/w is a trivial non-main package.
+	// It imports nothing, so there should be no Deps.
+	tg.run("list", "-f={{join .Deps \" \"}}", "complex/w")
+	tg.grepStdoutNot(".+", "complex/w depends on unexpected packages")
+
 	tg.run("build", "-x", "complex/w")
 	tg.grepStderr(`[\\/]compile|gccgo`, "did not run compiler")
 
 	tg.run("build", "-x", "complex/w")
-	tg.grepStderrNot(`[\\/]compile|gccgo`, "did not run compiler")
+	tg.grepStderrNot(`[\\/]compile|gccgo`, "ran compiler incorrectly")
 
 	// complex is a non-trivial main package.
 	// the link step should not be cached.
