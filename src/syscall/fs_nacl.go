@@ -636,6 +636,10 @@ func Link(path, link string) error {
 	if ip.Mode&S_IFMT == S_IFDIR {
 		return EPERM
 	}
+	_, _, err = fs.dirlookup(dp, elem)
+	if err == nil {
+		return EEXIST
+	}
 	fs.dirlink(dp, elem, ip)
 	return nil
 }
