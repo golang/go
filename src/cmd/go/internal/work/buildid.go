@@ -5,6 +5,7 @@
 package work
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -175,12 +176,14 @@ func (b *Builder) toolID(name string) string {
 	cmdline := str.StringList(cfg.BuildToolexec, base.Tool(name), "-V=full")
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		base.Fatalf("go tool %s: %v\n%s", name, err, out)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		base.Fatalf("go tool %s: %v\n%s%s", name, err, stdout.Bytes(), stderr.Bytes())
 	}
 
-	line := string(out)
+	line := stdout.String()
 	f := strings.Fields(line)
 	if len(f) < 3 || f[0] != name || f[1] != "version" || f[2] == "devel" && !strings.HasPrefix(f[len(f)-1], "buildID=") {
 		base.Fatalf("go tool %s -V=full: unexpected output:\n\t%s", name, line)
