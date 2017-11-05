@@ -946,26 +946,6 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		}
 	}
 
-	// If runtime/internal/sys/zversion.go changes, it very likely means the
-	// compiler has been recompiled with that new version, so all existing
-	// archives are now stale. Make everything appear to import runtime/internal/sys,
-	// so that in this situation everything will appear stale and get recompiled.
-	// Due to the rules for visibility of internal packages, things outside runtime
-	// must import runtime, and runtime imports runtime/internal/sys.
-	// Content-based staleness that includes a check of the compiler version
-	// will make this hack unnecessary; once that lands, this whole comment
-	// and switch statement should be removed.
-	switch {
-	case p.Standard && p.ImportPath == "runtime/internal/sys":
-		// nothing
-	case p.Standard && p.ImportPath == "unsafe":
-		// nothing - not a real package, and used by runtime
-	case p.Standard && strings.HasPrefix(p.ImportPath, "runtime"):
-		addImport("runtime/internal/sys")
-	default:
-		addImport("runtime")
-	}
-
 	// Check for case-insensitive collision of input files.
 	// To avoid problems on case-insensitive files, we reject any package
 	// where two different input files have equal names under a case-insensitive
@@ -1117,9 +1097,10 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 	}
 }
 
-// LinkerDeps returns the list of linker-induced dependencies for p.
+// LinkerDeps returns the list of linker-induced dependencies for main package p.
 func LinkerDeps(p *Package) []string {
-	var deps []string
+	// Everything links runtime.
+	deps := []string{"runtime"}
 
 	// External linking mode forces an import of runtime/cgo.
 	if cfg.ExternalLinkingForced() {
