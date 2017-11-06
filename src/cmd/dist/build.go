@@ -1309,12 +1309,12 @@ func checkNotStale(goBinary string, targets ...string) {
 		append([]string{
 			goBinary,
 			"list", "-gcflags=" + gogcflags, "-ldflags=" + goldflags,
-			"-f={{if .Stale}}\t{{.ImportPath}}: {{.StaleReason}}{{end}}",
+			"-f={{if .Stale}}\tSTALE {{.ImportPath}}: {{.StaleReason}}{{end}}",
 		}, targets...)...)
-	if out != "" {
+	if strings.Contains(out, "\tSTALE ") {
 		os.Setenv("GODEBUG", "gocachehash=1")
 		for _, target := range []string{"runtime/internal/sys", "cmd/dist", "cmd/link"} {
-			if strings.Contains(out, target) {
+			if strings.Contains(out, "STALE "+target) {
 				run(goroot, ShowOutput|CheckExit, goBinary, "list", "-f={{.ImportPath}} {{.Stale}}", target)
 				break
 			}

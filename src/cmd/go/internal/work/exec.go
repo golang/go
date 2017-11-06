@@ -168,8 +168,8 @@ func (b *Builder) Do(root *Action) {
 
 // buildActionID computes the action ID for a build action.
 func (b *Builder) buildActionID(a *Action) cache.ActionID {
-	h := cache.NewHash("actionID")
 	p := a.Package
+	h := cache.NewHash("build " + p.ImportPath)
 
 	// Configuration independent of compiler toolchain.
 	// Note: buildmode has already been accounted for in buildGcflags
@@ -667,8 +667,8 @@ func (b *Builder) vet(a *Action) error {
 
 // linkActionID computes the action ID for a link action.
 func (b *Builder) linkActionID(a *Action) cache.ActionID {
-	h := cache.NewHash("link")
 	p := a.Package
+	h := cache.NewHash("link " + p.ImportPath)
 
 	// Toolchain-independent configuration.
 	fmt.Fprintf(h, "link\n")
