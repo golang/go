@@ -250,12 +250,8 @@ func dowidth(t *types.Type) {
 		w = 16
 		t.Align = uint8(Widthreg)
 
-	case TPTR32:
-		w = 4
-		checkwidth(t.Elem())
-
-	case TPTR64:
-		w = 8
+	case TPTR:
+		w = int64(Widthptr)
 		checkwidth(t.Elem())
 
 	case TUNSAFEPTR:

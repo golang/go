@@ -697,7 +697,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 	}
 
 	switch t.Etype {
-	case TPTR32, TPTR64:
+	case TPTR:
 		switch mode {
 		case FTypeId, FTypeIdName:
 			if flag&FmtShort != 0 {

@@ -1507,7 +1507,7 @@ func (e *EscState) addDereference(n *Node) *Node {
 	e.nodeEscState(ind).Loopdepth = e.nodeEscState(n).Loopdepth
 	ind.Pos = n.Pos
 	t := n.Type
-	if t.IsKind(types.Tptr) || t.IsSlice() {
+	if t.IsPtr() || t.IsSlice() {
 		// This should model our own sloppy use of OIND to encode
 		// decreasing levels of indirection; i.e., "indirecting" a slice
 		// yields the type of an element.

@@ -347,7 +347,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 		case TARRAY:
 			goto bad
 
-		case TPTR32, TPTR64, TUNSAFEPTR:
+		case TPTR, TUNSAFEPTR:
 			n.SetVal(Val{new(Mpint)})
 
 		case TCHAN, TFUNC, TINTER, TMAP, TSLICE:
@@ -1482,7 +1482,7 @@ func smallintconst(n *Node) bool {
 			TBOOL:
 			return true
 
-		case TIDEAL, TINT64, TUINT64, TPTR32, TPTR64:
+		case TIDEAL, TINT64, TUINT64, TPTR:
 			v, ok := n.Val().U.(*Mpint)
 			if ok && v.Cmp(minintval[TINT32]) > 0 && v.Cmp(maxintval[TINT32]) < 0 {
 				return true

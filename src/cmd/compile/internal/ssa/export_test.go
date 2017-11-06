@@ -163,7 +163,6 @@ func init() {
 	}
 	types.Dowidth = func(t *types.Type) {}
 
-	types.Tptr = types.TPTR64
 	for _, typ := range [...]struct {
 		width int64
 		et    types.EType

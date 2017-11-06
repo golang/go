@@ -2138,7 +2138,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 				on = syslook("printiface")
 			}
 			on = substArgTypes(on, n.Type) // any-1
-		case TPTR32, TPTR64, TCHAN, TMAP, TFUNC, TUNSAFEPTR:
+		case TPTR, TCHAN, TMAP, TFUNC, TUNSAFEPTR:
 			on = syslook("printpointer")
 			on = substArgTypes(on, n.Type) // any-1
 		case TSLICE:
