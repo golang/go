@@ -948,7 +948,9 @@ type V struct{ foo.U }
 			ctxt: fakeContext(map[string][]string{
 				"main": {`
 package main
-type I interface { f() }
+type I interface {
+	f()
+}
 type J interface { f(); g() }
 type A int
 func (A) f()
@@ -963,7 +965,7 @@ var _, _ J = B(0), C(0)
 `,
 				},
 			}),
-			offset: "/go/src/main/0.go:#33", to: "F", // abstract method I.f
+			offset: "/go/src/main/0.go:#34", to: "F", // abstract method I.f
 			want: map[string]string{
 				"/go/src/main/0.go": `package main
 
@@ -994,7 +996,7 @@ var _, _ J = B(0), C(0)
 			},
 		},
 		{
-			offset: "/go/src/main/0.go:#58", to: "F", // abstract method J.f
+			offset: "/go/src/main/0.go:#59", to: "F", // abstract method J.f
 			want: map[string]string{
 				"/go/src/main/0.go": `package main
 
@@ -1025,7 +1027,7 @@ var _, _ J = B(0), C(0)
 			},
 		},
 		{
-			offset: "/go/src/main/0.go:#63", to: "G", // abstract method J.g
+			offset: "/go/src/main/0.go:#64", to: "G", // abstract method J.g
 			want: map[string]string{
 				"/go/src/main/0.go": `package main
 
@@ -1060,7 +1062,9 @@ var _, _ J = B(0), C(0)
 			ctxt: fakeContext(map[string][]string{
 				"main": {`
 package main
-type I interface { f() }
+type I interface {
+	f()
+}
 type C int
 func (C) f()
 type D struct{C}
@@ -1068,7 +1072,7 @@ var _ I = D{}
 `,
 				},
 			}),
-			offset: "/go/src/main/0.go:#33", to: "F", // abstract method I.f
+			offset: "/go/src/main/0.go:#34", to: "F", // abstract method I.f
 			want: map[string]string{
 				"/go/src/main/0.go": `package main
 
@@ -1090,14 +1094,16 @@ var _ I = D{}
 			ctxt: fakeContext(map[string][]string{
 				"main": {`
 package main
-type I interface {f()}
+type I interface {
+	f()
+}
 type C struct{I}
 func (C) g() int
 var _ int = C{}.g()
 `,
 				},
 			}),
-			offset: "/go/src/main/0.go:#32", to: "g", // abstract method I.f
+			offset: "/go/src/main/0.go:#34", to: "g", // abstract method I.f
 			want: map[string]string{
 				"/go/src/main/0.go": `package main
 
@@ -1116,13 +1122,17 @@ var _ int = C{}.g()
 		{
 			ctxt: fakeContext(map[string][]string{
 				"main": {`package main
-type I interface{f()}
-type J interface{f()}
+type I interface{
+	f()
+}
+type J interface{
+	f()
+}
 var _ = I(nil).(J)
 `,
 				},
 			}),
-			offset: "/go/src/main/0.go:#30", to: "g", // abstract method I.f
+			offset: "/go/src/main/0.go:#32", to: "g", // abstract method I.f
 			want: map[string]string{
 				"/go/src/main/0.go": `package main
 
@@ -1141,13 +1151,17 @@ var _ = I(nil).(J)
 		{
 			ctxt: fakeContext(map[string][]string{
 				"main": {`package main
-type I interface{f()}
-type J interface{f()int}
+type I interface{
+	f()
+}
+type J interface{
+	f()int
+}
 var _ = I(nil).(J)
 `,
 				},
 			}),
-			offset: "/go/src/main/0.go:#30", to: "g", // abstract method I.f
+			offset: "/go/src/main/0.go:#32", to: "g", // abstract method I.f
 			want: map[string]string{
 				"/go/src/main/0.go": `package main
 
@@ -1166,15 +1180,19 @@ var _ = I(nil).(J)
 		{
 			ctxt: fakeContext(map[string][]string{
 				"main": {`package main
-type I interface{f()}
+type I interface{
+	f()
+}
 type C int
 func (C) f()
-type J interface{f()int}
+type J interface{
+	f()int
+}
 var _ = I(C(0)).(J)
 `,
 				},
 			}),
-			offset: "/go/src/main/0.go:#30", to: "g", // abstract method I.f
+			offset: "/go/src/main/0.go:#32", to: "g", // abstract method I.f
 			want: map[string]string{
 				"/go/src/main/0.go": `package main
 
