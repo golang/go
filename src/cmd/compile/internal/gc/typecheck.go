@@ -2436,7 +2436,7 @@ func isMethodApplicable(t *types.Type, m *types.Field) bool {
 }
 
 func derefall(t *types.Type) *types.Type {
-	for t != nil && t.Etype == types.Tptr {
+	for t != nil && t.IsPtr() {
 		t = t.Elem()
 	}
 	return t
@@ -2506,20 +2506,20 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 		dowidth(tt)
 		rcvr := f2.Type.Recv().Type
 		if !eqtype(rcvr, tt) {
-			if rcvr.Etype == types.Tptr && eqtype(rcvr.Elem(), tt) {
+			if rcvr.IsPtr() && eqtype(rcvr.Elem(), tt) {
 				checklvalue(n.Left, "call pointer method on")
 				n.Left = nod(OADDR, n.Left, nil)
 				n.Left.SetImplicit(true)
 				n.Left = typecheck(n.Left, Etype|Erv)
-			} else if tt.Etype == types.Tptr && rcvr.Etype != types.Tptr && eqtype(tt.Elem(), rcvr) {
+			} else if tt.IsPtr() && !rcvr.IsPtr() && eqtype(tt.Elem(), rcvr) {
 				n.Left = nod(OIND, n.Left, nil)
 				n.Left.SetImplicit(true)
 				n.Left = typecheck(n.Left, Etype|Erv)
-			} else if tt.Etype == types.Tptr && tt.Elem().Etype == types.Tptr && eqtype(derefall(tt), derefall(rcvr)) {
+			} else if tt.IsPtr() && tt.Elem().IsPtr() && eqtype(derefall(tt), derefall(rcvr)) {
 				yyerror("calling method %v with receiver %L requires explicit dereference", n.Sym, n.Left)
-				for tt.Etype == types.Tptr {
+				for tt.IsPtr() {
 					// Stop one level early for method with pointer receiver.
-					if rcvr.Etype == types.Tptr && tt.Elem().Etype != types.Tptr {
+					if rcvr.IsPtr() && !tt.Elem().IsPtr() {
 						break
 					}
 					n.Left = nod(OIND, n.Left, nil)
