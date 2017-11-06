@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"internal/testenv"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -27,11 +28,38 @@ func buildTest(t *testing.T, filename string) {
 }
 func doTest(t *testing.T, filename string, kind string) {
 	testenv.MustHaveGoBuild(t)
+	gotool := testenv.GoToolPath(t)
+	tmpdir, ok := ioutil.TempDir("", "ssatest")
+	if ok != nil {
+		t.Fatalf("Failed to create temporary directory")
+	}
+	defer os.RemoveAll(tmpdir)
+
+	// Execute compile+link+run instead of "go run" to avoid applying -gcflags=-d=ssa/check/on
+	// to the runtime (especially over and over and over).
+	// compile
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(testenv.GoToolPath(t), kind, filepath.Join("testdata", filename))
+	cmd := exec.Command(gotool, "tool", "compile", "-d=ssa/check/on", "-o", filepath.Join(tmpdir, "run.a"), filepath.Join("testdata", filename))
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
+	err := cmd.Run()
+	if kind == "run" {
+		if err == nil {
+			// link
+			cmd = exec.Command(gotool, "tool", "link", "-o", filepath.Join(tmpdir, "run.exe"), filepath.Join(tmpdir, "run.a"))
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+			err = cmd.Run()
+		}
+		if err == nil {
+			// run
+			cmd = exec.Command(filepath.Join(tmpdir, "run.exe"))
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+			err = cmd.Run()
+		}
+	}
+	if err != nil {
 		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
 	}
 	if s := stdout.String(); s != "" {
