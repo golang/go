@@ -139,29 +139,6 @@ func (t *tester) run() {
 		checkNotStale("go", "std", "cmd")
 	}
 
-	if t.iOS() {
-		// Install the Mach exception handler used to intercept
-		// EXC_BAD_ACCESS and convert it into a Go panic. This is
-		// necessary for a Go program running under lldb (the way
-		// we run tests). It is disabled by default because iOS
-		// apps are not allowed to access the exc_server symbol.
-		cmd := exec.Command("go", "install", "-a", "-tags", "lldb", "runtime/cgo")
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			log.Fatalf("building mach exception handler: %v", err)
-		}
-
-		defer func() {
-			cmd := exec.Command("go", "install", "-a", "runtime/cgo")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				log.Fatalf("reverting mach exception handler: %v", err)
-			}
-		}()
-	}
-
 	t.timeoutScale = 1
 	switch goarch {
 	case "arm":
