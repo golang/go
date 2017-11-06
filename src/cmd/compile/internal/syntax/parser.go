@@ -1766,10 +1766,10 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 		pos src.Pos
 		lit string // valid if pos.IsKnown()
 	}
-	if p.tok == _Semi {
+	if p.tok != _Lbrace {
 		semi.pos = p.pos()
 		semi.lit = p.lit
-		p.next()
+		p.want(_Semi)
 		if keyword == _For {
 			if p.tok != _Semi {
 				if p.tok == _Lbrace {
