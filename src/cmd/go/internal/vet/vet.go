@@ -36,8 +36,7 @@ See also: go fmt, go fix.
 func runVet(cmd *base.Command, args []string) {
 	vetFlags, pkgArgs := vetFlags(args)
 
-	work.InstrumentInit()
-	work.BuildModeInit()
+	work.BuildInit()
 	work.VetFlags = vetFlags
 
 	pkgs := load.PackagesForBuild(pkgArgs)

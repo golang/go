@@ -4982,3 +4982,13 @@ func TestFmtLoadErrors(t *testing.T) {
 	tg.runFail("fmt", "does-not-exist")
 	tg.run("fmt", "-n", "exclude")
 }
+
+func TestRelativePkgdir(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOCACHE", "off")
+	tg.cd(tg.tempdir)
+
+	tg.run("build", "-i", "-pkgdir=.", "runtime")
+}

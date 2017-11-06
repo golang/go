@@ -505,8 +505,7 @@ func runTest(cmd *base.Command, args []string) {
 
 	work.FindExecCmd() // initialize cached result
 
-	work.InstrumentInit()
-	work.BuildModeInit()
+	work.BuildInit()
 	work.VetFlags = testVetFlags
 
 	pkgs = load.PackagesForBuild(pkgArgs)

@@ -52,8 +52,7 @@ func printStderr(args ...interface{}) (int, error) {
 }
 
 func runRun(cmd *base.Command, args []string) {
-	work.InstrumentInit()
-	work.BuildModeInit()
+	work.BuildInit()
 	var b work.Builder
 	b.Init()
 	b.Print = printStderr
