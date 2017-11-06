@@ -1118,6 +1118,11 @@ func cmdbootstrap() {
 
 	xflagparse(0)
 
+	if debug {
+		// cmd/buildid is used in debug mode.
+		toolchain = append(toolchain, "cmd/buildid")
+	}
+
 	if isdir(pathf("%s/src/pkg", goroot)) {
 		fatalf("\n\n"+
 			"The Go package sources have moved to $GOROOT/src.\n"+
