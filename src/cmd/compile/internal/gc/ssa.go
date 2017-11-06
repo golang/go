@@ -1247,10 +1247,8 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OADD, TUINT16}:  ssa.OpAdd16,
 	opAndType{OADD, TINT32}:   ssa.OpAdd32,
 	opAndType{OADD, TUINT32}:  ssa.OpAdd32,
-	opAndType{OADD, TPTR32}:   ssa.OpAdd32,
 	opAndType{OADD, TINT64}:   ssa.OpAdd64,
 	opAndType{OADD, TUINT64}:  ssa.OpAdd64,
-	opAndType{OADD, TPTR64}:   ssa.OpAdd64,
 	opAndType{OADD, TFLOAT32}: ssa.OpAdd32F,
 	opAndType{OADD, TFLOAT64}: ssa.OpAdd64F,
 
