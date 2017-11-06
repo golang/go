@@ -199,8 +199,89 @@ done:
 
 // func addMulVVW(z, x []Word, y Word) (c Word)
 TEXT ·addMulVVW(SB),NOSPLIT,$0
-	B ·addMulVVW_g(SB)
+	MOVD	z+0(FP), R1
+	MOVD	z_len+8(FP), R0
+	MOVD	x+24(FP), R2
+	MOVD	y+48(FP), R3
+	MOVD	$0, R4
 
+	TBZ	$0, R0, two
+
+	MOVD.P	8(R2), R5
+	MOVD	(R1), R6
+
+	MUL	R5, R3, R7
+	UMULH	R5, R3, R8
+
+	ADDS	R7, R6
+	ADC	$0, R8, R4
+
+	MOVD.P	R6, 8(R1)
+	SUB	$1, R0
+
+two:
+	TBZ	$1, R0, loop
+
+	LDP.P	16(R2), (R5, R10)
+	LDP	(R1), (R6, R11)
+
+	MUL	R10, R3, R13
+	UMULH	R10, R3, R12
+
+	MUL	R5, R3, R7
+	UMULH	R5, R3, R8
+
+	ADDS	R4, R6
+	ADCS	R13, R11
+	ADC	$0, R12
+
+	ADDS	R7, R6
+	ADCS	R8, R11
+	ADC	$0, R12, R4
+
+	STP.P	(R6, R11), 16(R1)
+	SUB	$2, R0
+
+// The main loop of this code operates on a block of 4 words every iteration
+// performing [R4:R12:R11:R10:R9] = R4 + R3 * [R8:R7:R6:R5] + [R12:R11:R10:R9]
+// where R4 is carried from the previous iteration, R8:R7:R6:R5 hold the next
+// 4 words of x, R3 is y and R12:R11:R10:R9 are part of the result z.
+loop:
+	CBZ	R0, done
+
+	LDP.P	16(R2), (R5, R6)
+	LDP.P	16(R2), (R7, R8)
+
+	LDP	(R1), (R9, R10)
+	ADDS	R4, R9
+	MUL	R6, R3, R14
+	ADCS	R14, R10
+	MUL	R7, R3, R15
+	LDP	16(R1), (R11, R12)
+	ADCS	R15, R11
+	MUL	R8, R3, R16
+	ADCS	R16, R12
+	UMULH	R8, R3, R20
+	ADC	$0, R20
+
+	MUL	R5, R3, R13
+	ADDS	R13, R9
+	UMULH	R5, R3, R17
+	ADCS	R17, R10
+	UMULH	R6, R3, R21
+	STP.P	(R9, R10), 16(R1)
+	ADCS	R21, R11
+	UMULH	R7, R3, R19
+	ADCS	R19, R12
+	STP.P	(R11, R12), 16(R1)
+	ADC	$0, R20, R4
+
+	SUB	$4, R0
+	B	loop
+
+done:
+	MOVD	R4, c+56(FP)
+	RET
 
 // func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
 TEXT ·divWVW(SB),NOSPLIT,$0
