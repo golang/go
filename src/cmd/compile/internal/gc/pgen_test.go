@@ -20,7 +20,7 @@ func typeWithoutPointers() *types.Type {
 
 func typeWithPointers() *types.Type {
 	t := types.New(TSTRUCT)
-	f := &types.Field{Type: types.New(TPTR64)}
+	f := &types.Field{Type: types.New(TPTR)}
 	t.SetFields([]*types.Field{f})
 	return t
 }

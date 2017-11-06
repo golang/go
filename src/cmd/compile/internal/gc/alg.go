@@ -102,7 +102,7 @@ func algtype1(t *types.Type) (AlgKind, *types.Type) {
 	case TINT8, TUINT8, TINT16, TUINT16,
 		TINT32, TUINT32, TINT64, TUINT64,
 		TINT, TUINT, TUINTPTR,
-		TBOOL, TPTR32, TPTR64,
+		TBOOL, TPTR,
 		TCHAN, TUNSAFEPTR:
 		return AMEM, nil
 

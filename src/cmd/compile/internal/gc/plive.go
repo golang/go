@@ -534,7 +534,7 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 		TINT, TUINT, TUINTPTR, TBOOL,
 		TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128:
 
-	case TPTR32, TPTR64, TUNSAFEPTR, TFUNC, TCHAN, TMAP:
+	case TPTR, TUNSAFEPTR, TFUNC, TCHAN, TMAP:
 		if off&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
@@ -1163,8 +1163,7 @@ func clobberWalk(b *ssa.Block, v *Node, offset int64, t *types.Type) {
 		return
 	}
 	switch t.Etype {
-	case TPTR32,
-		TPTR64,
+	case TPTR,
 		TUNSAFEPTR,
 		TFUNC,
 		TCHAN,
