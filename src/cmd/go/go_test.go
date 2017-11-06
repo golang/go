@@ -4783,6 +4783,34 @@ func TestIssue22531(t *testing.T) {
 	tg.run("tool", "buildid", filepath.Join(tg.tempdir, "bin/m"+exeSuffix))
 }
 
+func TestIssue22596(t *testing.T) {
+	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+		t.Skip("GODEBUG gocacheverify")
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "cache"))
+	tg.tempFile("gopath1/src/p/p.go", "package p; func F(){}\n")
+	tg.tempFile("gopath2/src/p/p.go", "package p; func F(){}\n")
+
+	tg.setenv("GOPATH", filepath.Join(tg.tempdir, "gopath1"))
+	tg.run("list", "-f={{.Target}}", "p")
+	target1 := strings.TrimSpace(tg.getStdout())
+	tg.run("install", "p")
+	tg.wantNotStale("p", "", "p stale after install")
+
+	tg.setenv("GOPATH", filepath.Join(tg.tempdir, "gopath2"))
+	tg.run("list", "-f={{.Target}}", "p")
+	target2 := strings.TrimSpace(tg.getStdout())
+	tg.must(os.MkdirAll(filepath.Dir(target2), 0777))
+	tg.must(copyFile(target1, target2, 0666))
+	tg.wantStale("p", "build ID mismatch", "p not stale after copy from gopath1")
+	tg.run("install", "p")
+	tg.wantNotStale("p", "", "p stale after install2")
+}
+
 func TestTestCache(t *testing.T) {
 	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
 		t.Skip("GODEBUG gocacheverify")
