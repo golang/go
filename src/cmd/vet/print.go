@@ -672,8 +672,9 @@ func (f *File) checkPrint(call *ast.CallExpr, name string) {
 		// The last item, if a string, should not have a newline.
 		arg = args[len(args)-1]
 		if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-			if strings.HasSuffix(lit.Value, `\n"`) {
-				f.Badf(call.Pos(), "%s args end with redundant newline", name)
+			str, _ := strconv.Unquote(lit.Value)
+			if strings.HasSuffix(str, "\n") {
+				f.Badf(call.Pos(), "%s arg list ends with redundant newline", name)
 			}
 		}
 	}
