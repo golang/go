@@ -27,22 +27,16 @@ import (
 	"strings"
 )
 
-// TODO(mdempsky): Update to reference OpVar{Def,Kill,Live} instead.
-
-// VARDEF is an annotation for the liveness analysis, marking a place
+// OpVarDef is an annotation for the liveness analysis, marking a place
 // where a complete initialization (definition) of a variable begins.
 // Since the liveness analysis can see initialization of single-word
-// variables quite easy, gvardef is usually only called for multi-word
-// or 'fat' variables, those satisfying isfat(n->type).
-// However, gvardef is also called when a non-fat variable is initialized
-// via a block move; the only time this happens is when you have
-//	return f()
-// for a function with multiple return values exactly matching the return
-// types of the current function.
+// variables quite easy, OpVarDef is only needed for multi-word
+// variables satisfying isfat(n.Type). For simplicity though, buildssa
+// emits OpVarDef regardless of variable width.
 //
-// A 'VARDEF x' annotation in the instruction stream tells the liveness
+// An 'OpVarDef x' annotation in the instruction stream tells the liveness
 // analysis to behave as though the variable x is being initialized at that
-// point in the instruction stream. The VARDEF must appear before the
+// point in the instruction stream. The OpVarDef must appear before the
 // actual (multi-instruction) initialization, and it must also appear after
 // any uses of the previous value, if any. For example, if compiling:
 //
@@ -51,12 +45,12 @@ import (
 // it is important to generate code like:
 //
 //	base, len, cap = pieces of x[1:]
-//	VARDEF x
+//	OpVarDef x
 //	x = {base, len, cap}
 //
 // If instead the generated code looked like:
 //
-//	VARDEF x
+//	OpVarDef x
 //	base, len, cap = pieces of x[1:]
 //	x = {base, len, cap}
 //
@@ -66,12 +60,12 @@ import (
 //
 //	base, len, cap = pieces of x[1:]
 //	x = {base, len, cap}
-//	VARDEF x
+//	OpVarDef x
 //
 // then the liveness analysis will not preserve the new value of x, because
-// the VARDEF appears to have "overwritten" it.
+// the OpVarDef appears to have "overwritten" it.
 //
-// VARDEF is a bit of a kludge to work around the fact that the instruction
+// OpVarDef is a bit of a kludge to work around the fact that the instruction
 // stream is working on single-word values but the liveness analysis
 // wants to work on individual variables, which might be multi-word
 // aggregates. It might make sense at some point to look into letting
@@ -79,8 +73,8 @@ import (
 // there are complications around interface values, slices, and strings,
 // all of which cannot be treated as individual words.
 //
-// VARKILL is the opposite of VARDEF: it marks a value as no longer needed,
-// even if its address has been taken. That is, a VARKILL annotation asserts
+// OpVarKill is the opposite of OpVarDef: it marks a value as no longer needed,
+// even if its address has been taken. That is, an OpVarKill annotation asserts
 // that its argument is certainly dead, for use when the liveness analysis
 // would not otherwise be able to deduce that fact.
 
