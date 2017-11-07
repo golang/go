@@ -92,8 +92,17 @@ type Cmd struct {
 	// If either is nil, Run connects the corresponding file descriptor
 	// to the null device (os.DevNull).
 	//
-	// If Stdout and Stderr are the same writer, and have a type that can be compared with ==,
-	// at most one goroutine at a time will call Write.
+	// If either is an *os.File, the process's standard output or standard
+	// error, respectively, are connected directly to that file. Otherwise,
+	// if either is not nil, during the execution of the command a separate
+	// goroutine reads from the process's standard output or standard error
+	// and delivers that to Stdout or Stderr. In this case, Wait does not
+	// complete until the goroutine stops copying, either because it has
+	// reached the end of Stdin (EOF or a read error) or because writing to
+	// the pipe returned an error.
+	//
+	// If Stdout and Stderr are the same writer, and have a type that can
+	// be compared with ==, at most one goroutine at a time will call Write.
 	Stdout io.Writer
 	Stderr io.Writer
 
@@ -190,7 +199,7 @@ func (c *Cmd) argv() []string {
 }
 
 // skipStdinCopyError optionally specifies a function which reports
-// whether the provided the stdin copy error should be ignored.
+// whether the provided stdin copy error should be ignored.
 // It is non-nil everywhere but Plan 9, which lacks EPIPE. See exec_posix.go.
 var skipStdinCopyError func(error) bool
 
@@ -429,9 +438,8 @@ func (e *ExitError) Error() string {
 // error is of type *ExitError. Other error types may be
 // returned for I/O problems.
 //
-// If c.Stdin is not an *os.File, Wait also waits for the I/O loop
-// copying from c.Stdin into the process's standard input
-// to complete.
+// If any of c.Stdin, c.Stdout or c.Stderr are not an *os.File, Wait also waits
+// for the respective I/O loop copying to or from the process to complete.
 //
 // Wait releases any resources associated with the Cmd.
 func (c *Cmd) Wait() error {
