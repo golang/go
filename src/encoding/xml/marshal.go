@@ -67,6 +67,9 @@ const (
 // parent elements a and b. Fields that appear next to each other that name
 // the same parent will be enclosed in one XML element.
 //
+// If the XML name for a struct field is defined by both the field tag and the
+// struct's XMLName field, the names must match.
+//
 // See MarshalIndent for an example.
 //
 // Marshal will return an error if asked to marshal a channel, function, or map.
