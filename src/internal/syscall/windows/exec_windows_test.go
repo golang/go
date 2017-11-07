@@ -40,7 +40,7 @@ func TestRunAtLowIntegrity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer syscall.CloseHandle(token)
+	defer token.Close()
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Token: token,
@@ -105,9 +105,8 @@ func tokenGetInfo(t syscall.Token, class uint32, initSize int) (unsafe.Pointer, 
 	}
 }
 
-func getIntegrityLevelToken(wns string) (syscall.Handle, error) {
-	var token syscall.Handle
-	var procToken syscall.Token
+func getIntegrityLevelToken(wns string) (syscall.Token, error) {
+	var procToken, token syscall.Token
 
 	proc, err := syscall.GetCurrentProcess()
 	if err != nil {
@@ -135,7 +134,7 @@ func getIntegrityLevelToken(wns string) (syscall.Handle, error) {
 	tml.Label.Attributes = windows.SE_GROUP_INTEGRITY
 	tml.Label.Sid = sid
 
-	err = windows.DuplicateTokenEx(syscall.Handle(procToken), 0, nil, windows.SecurityImpersonation,
+	err = windows.DuplicateTokenEx(procToken, 0, nil, windows.SecurityImpersonation,
 		windows.TokenPrimary, &token)
 	if err != nil {
 		return 0, err
@@ -146,7 +145,7 @@ func getIntegrityLevelToken(wns string) (syscall.Handle, error) {
 		uintptr(unsafe.Pointer(tml)),
 		tml.Size())
 	if err != nil {
-		syscall.CloseHandle(token)
+		token.Close()
 		return 0, err
 	}
 	return token, nil
