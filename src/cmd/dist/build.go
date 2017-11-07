@@ -171,12 +171,12 @@ func xinit() {
 
 	gogcflags = os.Getenv("BOOT_GO_GCFLAGS")
 
-	cc := "gcc"
+	cc, cxx := "gcc", "g++"
 	if defaultclang {
-		cc = "clang"
+		cc, cxx = "clang", "clang++"
 	}
 	defaultcc = compilerEnv("CC", cc)
-	defaultcxx = compilerEnv("CXX", cc+"++")
+	defaultcxx = compilerEnv("CXX", cxx)
 
 	defaultcflags = os.Getenv("CFLAGS")
 	defaultldflags = os.Getenv("LDFLAGS")
