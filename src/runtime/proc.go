@@ -1085,9 +1085,11 @@ func mhelpgc() {
 func startTheWorldWithSema(emitTraceEvent bool) int64 {
 	_g_ := getg()
 
-	_g_.m.locks++        // disable preemption because it can be holding p in a local var
-	gp := netpoll(false) // non-blocking
-	injectglist(gp)
+	_g_.m.locks++ // disable preemption because it can be holding p in a local var
+	if netpollinited() {
+		gp := netpoll(false) // non-blocking
+		injectglist(gp)
+	}
 	add := needaddgcproc()
 	lock(&sched.lock)
 
@@ -4237,7 +4239,7 @@ func sysmon() {
 		// poll network if not polled for more than 10ms
 		lastpoll := int64(atomic.Load64(&sched.lastpoll))
 		now := nanotime()
-		if lastpoll != 0 && lastpoll+10*1000*1000 < now {
+		if netpollinited() && lastpoll != 0 && lastpoll+10*1000*1000 < now {
 			atomic.Cas64(&sched.lastpoll, uint64(lastpoll), uint64(now))
 			gp := netpoll(false) // non-blocking - returns list of goroutines
 			if gp != nil {
