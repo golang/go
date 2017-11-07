@@ -9,19 +9,15 @@ calls whose arguments do not align with the format string. Vet uses heuristics
 that do not guarantee all reports are genuine problems, but it can find errors
 not caught by the compilers.
 
-It can be invoked three ways:
+Vet is normally invoked using the go command by running "go vet":
 
-By package, from the go tool:
+	go vet
+vets the package in the current directory.
+
 	go vet package/path/name
 vets the package whose path is provided.
 
-By files:
-	go tool vet source/directory/*.go
-vets the files named, all of which must be in the same package.
-
-By directory:
-	go tool vet source/directory
-recursively descends the directory, vetting each package it finds.
+Use "go help packages" to see other ways of specifying which packages to vet.
 
 Vet's exit code is 2 for erroneous invocation of the tool, 1 if a
 problem was reported, and 0 otherwise. Note that the tool does not
@@ -211,5 +207,18 @@ These flags configure the behavior of vet:
 		For more information, see the discussion of the -printf flag.
 	-shadowstrict
 		Whether to be strict about shadowing; can be noisy.
+
+Using vet directly
+
+For testing and debugging vet can be run directly by invoking
+"go tool vet" or just running the binary. Run this way, vet might not
+have up to date information for imported packages.
+
+	go tool vet source/directory/*.go
+vets the files named, all of which must be in the same package.
+
+	go tool vet source/directory
+recursively descends the directory, vetting each package it finds.
+
 */
 package main
