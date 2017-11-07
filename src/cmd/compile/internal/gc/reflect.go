@@ -960,10 +960,17 @@ func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
 	return ot
 }
 
+// typeHasNoAlg returns whether t does not have any associated hash/eq
+// algorithms because t, or some component of t, is marked Noalg.
+func typeHasNoAlg(t *types.Type) bool {
+	a, bad := algtype1(t)
+	return a == ANOEQ && bad.Noalg()
+}
+
 func typesymname(t *types.Type) string {
 	name := t.ShortString()
 	// Use a separate symbol name for Noalg types for #17752.
-	if a, bad := algtype1(t); a == ANOEQ && bad.Noalg() {
+	if typeHasNoAlg(t) {
 		name = "noalg." + name
 	}
 	return name
@@ -1393,6 +1400,10 @@ func dtypesym(t *types.Type) *obj.LSym {
 		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP, TSLICE, TSTRUCT:
 			keep = true
 		}
+	}
+	// Do not put Noalg types in typelinks.  See issue #22605.
+	if typeHasNoAlg(t) {
+		keep = false
 	}
 	lsym.Set(obj.AttrMakeTypelink, keep)
 
