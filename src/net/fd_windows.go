@@ -223,17 +223,21 @@ func (fd *netFD) accept() (*netFD, error) {
 	return netfd, nil
 }
 
+func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
+	n, oobn, flags, sa, err = fd.pfd.ReadMsg(p, oob)
+	runtime.KeepAlive(fd)
+	return n, oobn, flags, sa, wrapSyscallError("wsarecvmsg", err)
+}
+
+func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
+	n, oobn, err = fd.pfd.WriteMsg(p, oob, sa)
+	runtime.KeepAlive(fd)
+	return n, oobn, wrapSyscallError("wsasendmsg", err)
+}
+
 // Unimplemented functions.
 
 func (fd *netFD) dup() (*os.File, error) {
 	// TODO: Implement this
 	return nil, syscall.EWINDOWS
-}
-
-func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
-	return 0, 0, 0, nil, syscall.EWINDOWS
-}
-
-func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
-	return 0, 0, syscall.EWINDOWS
 }
