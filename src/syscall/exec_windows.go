@@ -222,7 +222,7 @@ type SysProcAttr struct {
 	HideWindow    bool
 	CmdLine       string // used if non-empty, else the windows command line is built by escaping the arguments passed to StartProcess
 	CreationFlags uint32
-	Token         Handle // if set, runs new process in the security context represented by the token
+	Token         Token // if set, runs new process in the security context represented by the token
 }
 
 var zeroProcAttr ProcAttr

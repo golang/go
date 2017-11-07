@@ -57,8 +57,8 @@ func AdjustTokenPrivileges(token syscall.Token, disableAllPrivileges bool, newst
 	return err
 }
 
-//sys DuplicateTokenEx(hExistingToken syscall.Handle, dwDesiredAccess uint32, lpTokenAttributes *syscall.SecurityAttributes, impersonationLevel uint32, tokenType TokenType, phNewToken *syscall.Handle) (err error) = advapi32.DuplicateTokenEx
-//sys SetTokenInformation(tokenHandle syscall.Handle, tokenInformationClass uint32, tokenInformation uintptr, tokenInformationLength uint32) (err error) = advapi32.SetTokenInformation
+//sys DuplicateTokenEx(hExistingToken syscall.Token, dwDesiredAccess uint32, lpTokenAttributes *syscall.SecurityAttributes, impersonationLevel uint32, tokenType TokenType, phNewToken *syscall.Token) (err error) = advapi32.DuplicateTokenEx
+//sys SetTokenInformation(tokenHandle syscall.Token, tokenInformationClass uint32, tokenInformation uintptr, tokenInformationLength uint32) (err error) = advapi32.SetTokenInformation
 
 type SID_AND_ATTRIBUTES struct {
 	Sid        *syscall.SID

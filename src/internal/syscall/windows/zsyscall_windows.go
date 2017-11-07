@@ -263,7 +263,7 @@ func adjustTokenPrivileges(token syscall.Token, disableAllPrivileges bool, newst
 	return
 }
 
-func DuplicateTokenEx(hExistingToken syscall.Handle, dwDesiredAccess uint32, lpTokenAttributes *syscall.SecurityAttributes, impersonationLevel uint32, tokenType TokenType, phNewToken *syscall.Handle) (err error) {
+func DuplicateTokenEx(hExistingToken syscall.Token, dwDesiredAccess uint32, lpTokenAttributes *syscall.SecurityAttributes, impersonationLevel uint32, tokenType TokenType, phNewToken *syscall.Token) (err error) {
 	r1, _, e1 := syscall.Syscall6(procDuplicateTokenEx.Addr(), 6, uintptr(hExistingToken), uintptr(dwDesiredAccess), uintptr(unsafe.Pointer(lpTokenAttributes)), uintptr(impersonationLevel), uintptr(tokenType), uintptr(unsafe.Pointer(phNewToken)))
 	if r1 == 0 {
 		if e1 != 0 {
@@ -275,7 +275,7 @@ func DuplicateTokenEx(hExistingToken syscall.Handle, dwDesiredAccess uint32, lpT
 	return
 }
 
-func SetTokenInformation(tokenHandle syscall.Handle, tokenInformationClass uint32, tokenInformation uintptr, tokenInformationLength uint32) (err error) {
+func SetTokenInformation(tokenHandle syscall.Token, tokenInformationClass uint32, tokenInformation uintptr, tokenInformationLength uint32) (err error) {
 	r1, _, e1 := syscall.Syscall6(procSetTokenInformation.Addr(), 4, uintptr(tokenHandle), uintptr(tokenInformationClass), uintptr(tokenInformation), uintptr(tokenInformationLength), 0, 0)
 	if r1 == 0 {
 		if e1 != 0 {
