@@ -10,11 +10,44 @@ import (
 )
 
 func readRawConn(c syscall.RawConn, b []byte) (int, error) {
-	return 0, syscall.EWINDOWS
+	var operr error
+	var n int
+	err := c.Read(func(s uintptr) bool {
+		var read uint32
+		var flags uint32
+		var buf syscall.WSABuf
+		buf.Buf = &b[0]
+		buf.Len = uint32(len(b))
+		operr = syscall.WSARecv(syscall.Handle(s), &buf, 1, &read, &flags, nil, nil)
+		n = int(read)
+		return true
+	})
+	if err != nil {
+		return n, err
+	}
+	if operr != nil {
+		return n, operr
+	}
+	return n, nil
 }
 
 func writeRawConn(c syscall.RawConn, b []byte) error {
-	return syscall.EWINDOWS
+	var operr error
+	err := c.Write(func(s uintptr) bool {
+		var written uint32
+		var buf syscall.WSABuf
+		buf.Buf = &b[0]
+		buf.Len = uint32(len(b))
+		operr = syscall.WSASend(syscall.Handle(s), &buf, 1, &written, 0, nil, nil)
+		return true
+	})
+	if err != nil {
+		return err
+	}
+	if operr != nil {
+		return operr
+	}
+	return nil
 }
 
 func controlRawConn(c syscall.RawConn, addr Addr) error {

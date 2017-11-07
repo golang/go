@@ -913,12 +913,44 @@ func (fd *FD) RawControl(f func(uintptr)) error {
 
 // RawRead invokes the user-defined function f for a read operation.
 func (fd *FD) RawRead(f func(uintptr) bool) error {
-	return errors.New("not implemented")
+	if err := fd.readLock(); err != nil {
+		return err
+	}
+	defer fd.readUnlock()
+	for {
+		if f(uintptr(fd.Sysfd)) {
+			return nil
+		}
+
+		// Use a zero-byte read as a way to get notified when this
+		// socket is readable. h/t https://stackoverflow.com/a/42019668/332798
+		o := &fd.rop
+		o.InitBuf(nil)
+		if !fd.IsStream {
+			o.flags |= windows.MSG_PEEK
+		}
+		_, err := rsrv.ExecIO(o, func(o *operation) error {
+			return syscall.WSARecv(o.fd.Sysfd, &o.buf, 1, &o.qty, &o.flags, &o.o, nil)
+		})
+		if err == windows.WSAEMSGSIZE {
+			// expected with a 0-byte peek, ignore.
+		} else if err != nil {
+			return err
+		}
+	}
 }
 
 // RawWrite invokes the user-defined function f for a write operation.
 func (fd *FD) RawWrite(f func(uintptr) bool) error {
-	return errors.New("not implemented")
+	if err := fd.writeLock(); err != nil {
+		return err
+	}
+	defer fd.writeUnlock()
+	for {
+		if f(uintptr(fd.Sysfd)) {
+			return nil
+		}
+	}
 }
 
 func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {
