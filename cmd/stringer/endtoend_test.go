@@ -54,7 +54,7 @@ func TestEndToEnd(t *testing.T) {
 			continue
 		}
 		if name == "cgo.go" && !build.Default.CgoEnabled {
-			t.Logf("cgo is no enabled for %s", name)
+			t.Logf("cgo is not enabled for %s", name)
 			continue
 		}
 		// Names are known to be ASCII and long enough.
