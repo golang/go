@@ -235,21 +235,21 @@ func init() {
 		// binary ops
 		{name: "ADD", argLength: 2, reg: gp21sp, asm: "ADD", commutative: true, clobberFlags: true},                                                                  // arg0 + arg1
 		{name: "ADDW", argLength: 2, reg: gp21sp, asm: "ADDW", commutative: true, clobberFlags: true},                                                                // arg0 + arg1
-		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADD", aux: "Int64", typ: "UInt64", clobberFlags: true},                                                   // arg0 + auxint
+		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADD", aux: "Int32", typ: "UInt64", clobberFlags: true},                                                   // arg0 + auxint
 		{name: "ADDWconst", argLength: 1, reg: gp11sp, asm: "ADDW", aux: "Int32", clobberFlags: true},                                                                // arg0 + auxint
 		{name: "ADDload", argLength: 3, reg: gpopload, asm: "ADD", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"},   // arg0 + *arg1. arg2=mem
 		{name: "ADDWload", argLength: 3, reg: gpopload, asm: "ADDW", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 + *arg1. arg2=mem
 
 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB", clobberFlags: true},                                                                                       // arg0 - arg1
 		{name: "SUBW", argLength: 2, reg: gp21, asm: "SUBW", clobberFlags: true},                                                                                     // arg0 - arg1
-		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int64", resultInArg0: true, clobberFlags: true},                                                // arg0 - auxint
+		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int32", resultInArg0: true, clobberFlags: true},                                                // arg0 - auxint
 		{name: "SUBWconst", argLength: 1, reg: gp11, asm: "SUBW", aux: "Int32", resultInArg0: true, clobberFlags: true},                                              // arg0 - auxint
 		{name: "SUBload", argLength: 3, reg: gpopload, asm: "SUB", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"},   // arg0 - *arg1. arg2=mem
 		{name: "SUBWload", argLength: 3, reg: gpopload, asm: "SUBW", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 - *arg1. arg2=mem
 
 		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", typ: "Int64", commutative: true, resultInArg0: true, clobberFlags: true},                                // arg0 * arg1
 		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", typ: "Int32", commutative: true, resultInArg0: true, clobberFlags: true},                                // arg0 * arg1
-		{name: "MULLDconst", argLength: 1, reg: gp11, asm: "MULLD", aux: "Int64", typ: "Int64", resultInArg0: true, clobberFlags: true},                                // arg0 * auxint
+		{name: "MULLDconst", argLength: 1, reg: gp11, asm: "MULLD", aux: "Int32", typ: "Int64", resultInArg0: true, clobberFlags: true},                                // arg0 * auxint
 		{name: "MULLWconst", argLength: 1, reg: gp11, asm: "MULLW", aux: "Int32", typ: "Int32", resultInArg0: true, clobberFlags: true},                                // arg0 * auxint
 		{name: "MULLDload", argLength: 3, reg: gpopload, asm: "MULLD", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 * *arg1. arg2=mem
 		{name: "MULLWload", argLength: 3, reg: gpopload, asm: "MULLW", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 * *arg1. arg2=mem
@@ -295,9 +295,9 @@ func init() {
 		{name: "CMPU", argLength: 2, reg: gp2flags, asm: "CMPU", typ: "Flags"},   // arg0 compare to arg1
 		{name: "CMPWU", argLength: 2, reg: gp2flags, asm: "CMPWU", typ: "Flags"}, // arg0 compare to arg1
 
-		{name: "CMPconst", argLength: 1, reg: gp1flags, asm: "CMP", typ: "Flags", aux: "Int64"},     // arg0 compare to auxint
+		{name: "CMPconst", argLength: 1, reg: gp1flags, asm: "CMP", typ: "Flags", aux: "Int32"},     // arg0 compare to auxint
 		{name: "CMPWconst", argLength: 1, reg: gp1flags, asm: "CMPW", typ: "Flags", aux: "Int32"},   // arg0 compare to auxint
-		{name: "CMPUconst", argLength: 1, reg: gp1flags, asm: "CMPU", typ: "Flags", aux: "Int64"},   // arg0 compare to auxint
+		{name: "CMPUconst", argLength: 1, reg: gp1flags, asm: "CMPU", typ: "Flags", aux: "Int32"},   // arg0 compare to auxint
 		{name: "CMPWUconst", argLength: 1, reg: gp1flags, asm: "CMPWU", typ: "Flags", aux: "Int32"}, // arg0 compare to auxint
 
 		{name: "FCMPS", argLength: 2, reg: fp2flags, asm: "CEBR", typ: "Flags"}, // arg0 compare to arg1, f32

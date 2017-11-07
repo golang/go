@@ -19641,7 +19641,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "ADDconst",
-		auxType:      auxInt64,
+		auxType:      auxInt32,
 		argLen:       1,
 		clobberFlags: true,
 		asm:          s390x.AADD,
@@ -19739,7 +19739,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SUBconst",
-		auxType:      auxInt64,
+		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -19843,7 +19843,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "MULLDconst",
-		auxType:      auxInt64,
+		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -20425,7 +20425,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "CMPconst",
-		auxType: auxInt64,
+		auxType: auxInt32,
 		argLen:  1,
 		asm:     s390x.ACMP,
 		reg: regInfo{
@@ -20447,7 +20447,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "CMPUconst",
-		auxType: auxInt64,
+		auxType: auxInt32,
 		argLen:  1,
 		asm:     s390x.ACMPU,
 		reg: regInfo{

@@ -520,31 +520,31 @@
 
 // Fold constants into instructions.
 (ADD x (MOVDconst [c])) && is32Bit(c) -> (ADDconst [c] x)
-(ADDW x (MOVDconst [c])) -> (ADDWconst [c] x)
+(ADDW x (MOVDconst [c])) -> (ADDWconst [int64(int32(c))] x)
 
 (SUB x (MOVDconst [c])) && is32Bit(c) -> (SUBconst x [c])
 (SUB (MOVDconst [c]) x) && is32Bit(c) -> (NEG (SUBconst <v.Type> x [c]))
-(SUBW x (MOVDconst [c])) -> (SUBWconst x [c])
-(SUBW (MOVDconst [c]) x) -> (NEGW (SUBWconst <v.Type> x [c]))
+(SUBW x (MOVDconst [c])) -> (SUBWconst x [int64(int32(c))])
+(SUBW (MOVDconst [c]) x) -> (NEGW (SUBWconst <v.Type> x [int64(int32(c))]))
 
 (MULLD x (MOVDconst [c])) && is32Bit(c) -> (MULLDconst [c] x)
-(MULLW x (MOVDconst [c])) -> (MULLWconst [c] x)
+(MULLW x (MOVDconst [c])) -> (MULLWconst [int64(int32(c))] x)
 
 // NILF instructions leave the high 32 bits unchanged which is
 // equivalent to the leftmost 32 bits being set.
 // TODO(mundaym): modify the assembler to accept 64-bit values
 // and use isU32Bit(^c).
 (AND x (MOVDconst [c])) && is32Bit(c) && c < 0 -> (ANDconst [c] x)
-(ANDW x (MOVDconst [c])) -> (ANDWconst [c] x)
+(ANDW x (MOVDconst [c])) -> (ANDWconst [int64(int32(c))] x)
 
 (ANDWconst [c] (ANDWconst [d] x)) -> (ANDWconst [c & d] x)
 (ANDconst [c] (ANDconst [d] x)) -> (ANDconst [c & d] x)
 
 (OR x (MOVDconst [c])) && isU32Bit(c) -> (ORconst [c] x)
-(ORW x (MOVDconst [c])) -> (ORWconst [c] x)
+(ORW x (MOVDconst [c])) -> (ORWconst [int64(int32(c))] x)
 
 (XOR x (MOVDconst [c])) && isU32Bit(c) -> (XORconst [c] x)
-(XORW x (MOVDconst [c])) -> (XORWconst [c] x)
+(XORW x (MOVDconst [c])) -> (XORWconst [int64(int32(c))] x)
 
 (SLD x (MOVDconst [c])) -> (SLDconst [c&63] x)
 (SLW x (MOVDconst [c])) -> (SLWconst [c&63] x)
@@ -571,12 +571,12 @@
 
 (CMP x (MOVDconst [c])) && is32Bit(c) -> (CMPconst x [c])
 (CMP (MOVDconst [c]) x) && is32Bit(c) -> (InvertFlags (CMPconst x [c]))
-(CMPW x (MOVDconst [c])) -> (CMPWconst x [c])
-(CMPW (MOVDconst [c]) x) -> (InvertFlags (CMPWconst x [c]))
-(CMPU x (MOVDconst [c])) && isU32Bit(c) -> (CMPUconst x [int64(uint32(c))])
-(CMPU (MOVDconst [c]) x) && isU32Bit(c) -> (InvertFlags (CMPUconst x [int64(uint32(c))]))
-(CMPWU x (MOVDconst [c])) -> (CMPWUconst x [int64(uint32(c))])
-(CMPWU (MOVDconst [c]) x) -> (InvertFlags (CMPWUconst x [int64(uint32(c))]))
+(CMPW x (MOVDconst [c])) -> (CMPWconst x [int64(int32(c))])
+(CMPW (MOVDconst [c]) x) -> (InvertFlags (CMPWconst x [int64(int32(c))]))
+(CMPU x (MOVDconst [c])) && isU32Bit(c) -> (CMPUconst x [int64(int32(c))])
+(CMPU (MOVDconst [c]) x) && isU32Bit(c) -> (InvertFlags (CMPUconst x [int64(int32(c))]))
+(CMPWU x (MOVDconst [c])) -> (CMPWUconst x [int64(int32(c))])
+(CMPWU (MOVDconst [c]) x) -> (InvertFlags (CMPWUconst x [int64(int32(c))]))
 
 // Using MOV{W,H,B}Zreg instead of AND is cheaper.
 (AND x (MOVDconst [0xFF])) -> (MOVBZreg x)
