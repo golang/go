@@ -532,4 +532,9 @@ func UnexportedStringerOrError() {
 	}
 	fmt.Printf("%s", uef)  // ERROR "Printf format %s has arg uef of wrong type testdata.unexportedErrorOtherFields"
 	fmt.Printf("%s", &uef) // ERROR "Printf format %s has arg &uef of wrong type [*]testdata.unexportedErrorOtherFields"
+
+	fmt.Println("foo\n", "bar") // not an error
+	fmt.Println("foo\n")        // ERROR "Println arg list ends with redundant newline"
+	fmt.Println("foo\\n")       // not an error
+	fmt.Println(`foo\n`)        // not an error
 }
