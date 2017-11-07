@@ -238,9 +238,8 @@ func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header) (sparseDatas, error) {
 	// Read the sparse map according to the appropriate format.
 	if is1x0 {
 		return readGNUSparseMap1x0(tr.curr)
-	} else {
-		return readGNUSparseMap0x1(hdr.PAXRecords)
 	}
+	return readGNUSparseMap0x1(hdr.PAXRecords)
 }
 
 // mergePAX merges paxHdrs into hdr for all relevant fields of Header.
@@ -674,11 +673,12 @@ func (fr *regFileReader) WriteTo(w io.Writer) (int64, error) {
 	return io.Copy(w, struct{ io.Reader }{fr})
 }
 
-func (rf regFileReader) LogicalRemaining() int64 {
-	return rf.nb
+func (fr regFileReader) LogicalRemaining() int64 {
+	return fr.nb
 }
-func (rf regFileReader) PhysicalRemaining() int64 {
-	return rf.nb
+
+func (fr regFileReader) PhysicalRemaining() int64 {
+	return fr.nb
 }
 
 // sparseFileReader is a fileReader for reading data from a sparse file entry.
