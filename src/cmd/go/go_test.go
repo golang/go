@@ -4342,7 +4342,8 @@ func TestUserOverrideFlags(t *testing.T) {
 
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.parallel()
+	// Don't call tg.parallel, as creating override.h and override.a may
+	// confuse other tests.
 	tg.tempFile("override.go", `package main
 
 import "C"
