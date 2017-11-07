@@ -254,6 +254,16 @@ type Transport struct {
 	// Zero means to use a default limit.
 	MaxResponseHeaderBytes int64
 
+	// WriteBufferSize specifies the size of the write buffer used
+	// when writing to the transport.
+	// If zero, a default (currently 4KB) is used.
+	WriteBufferSize int
+
+	// ReadBufferSize specifies the size of the read buffer used
+	// when reading from the transport.
+	//If zero, a default (currently 4KB) is used.
+	ReadBufferSize int
+
 	// nextProtoOnce guards initialization of TLSNextProto and
 	// h2transport (via onceSetNextProtoDefaults)
 	nextProtoOnce sync.Once
@@ -264,6 +274,20 @@ type Transport struct {
 	// disables HTTP/2. To use a customer dialer or TLS config and still attempt HTTP/2
 	// upgrades, set this to true.
 	ForceAttemptHTTP2 bool
+}
+
+func (t *Transport) writeBufferSize() int {
+	if t.WriteBufferSize > 0 {
+		return t.WriteBufferSize
+	}
+	return 4 << 10
+}
+
+func (t *Transport) readBufferSize() int {
+	if t.ReadBufferSize > 0 {
+		return t.ReadBufferSize
+	}
+	return 4 << 10
 }
 
 // h2Transport is the interface we expect to be able to call from
@@ -1360,8 +1384,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 	if t.MaxConnsPerHost > 0 {
 		pconn.conn = &connCloseListener{Conn: pconn.conn, t: t, cmKey: pconn.cacheKey}
 	}
-	pconn.br = bufio.NewReader(pconn)
-	pconn.bw = bufio.NewWriter(persistConnWriter{pconn})
+	pconn.br = bufio.NewReaderSize(pconn, t.readBufferSize())
+	pconn.bw = bufio.NewWriterSize(persistConnWriter{pconn}, t.writeBufferSize())
+
 	go pconn.readLoop()
 	go pconn.writeLoop()
 	return pconn, nil
