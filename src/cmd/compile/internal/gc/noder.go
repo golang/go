@@ -537,6 +537,9 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		// ntype? Shrug, doesn't matter here.
 		return p.nod(expr, ODOTTYPE, p.expr(expr.X), p.expr(expr.Type))
 	case *syntax.Operation:
+		if expr.Op == syntax.Add && expr.Y != nil {
+			return p.sum(expr)
+		}
 		x := p.expr(expr.X)
 		if expr.Y == nil {
 			if expr.Op == syntax.And {
@@ -595,6 +598,82 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		return n
 	}
 	panic("unhandled Expr")
+}
+
+// sum efficiently handles very large summation expressions (such as
+// in issue #16394). In particular, it avoids left recursion and
+// collapses string literals.
+func (p *noder) sum(x syntax.Expr) *Node {
+	// While we need to handle long sums with asymptotic
+	// efficiency, the vast majority of sums are very small: ~95%
+	// have only 2 or 3 operands, and ~99% of string literals are
+	// never concatenated.
+
+	adds := make([]*syntax.Operation, 0, 2)
+	for {
+		add, ok := x.(*syntax.Operation)
+		if !ok || add.Op != syntax.Add || add.Y == nil {
+			break
+		}
+		adds = append(adds, add)
+		x = add.X
+	}
+
+	// nstr is the current rightmost string literal in the
+	// summation (if any), and chunks holds its accumulated
+	// substrings.
+	//
+	// Consider the expression x + "a" + "b" + "c" + y. When we
+	// reach the string literal "a", we assign nstr to point to
+	// its corresponding Node and initialize chunks to {"a"}.
+	// Visiting the subsequent string literals "b" and "c", we
+	// simply append their values to chunks. Finally, when we
+	// reach the non-constant operand y, we'll join chunks to form
+	// "abc" and reassign the "a" string literal's value.
+	//
+	// N.B., we need to be careful about named string constants
+	// (indicated by Sym != nil) because 1) we can't modify their
+	// value, as doing so would affect other uses of the string
+	// constant, and 2) they may have types, which we need to
+	// handle correctly. For now, we avoid these problems by
+	// treating named string constants the same as non-constant
+	// operands.
+	var nstr *Node
+	chunks := make([]string, 0, 1)
+
+	n := p.expr(x)
+	if Isconst(n, CTSTR) && n.Sym == nil {
+		nstr = n
+		chunks = append(chunks, nstr.Val().U.(string))
+	}
+
+	for i := len(adds) - 1; i >= 0; i-- {
+		add := adds[i]
+
+		r := p.expr(add.Y)
+		if Isconst(r, CTSTR) && r.Sym == nil {
+			if nstr != nil {
+				// Collapse r into nstr instead of adding to n.
+				chunks = append(chunks, r.Val().U.(string))
+				continue
+			}
+
+			nstr = r
+			chunks = append(chunks, nstr.Val().U.(string))
+		} else {
+			if len(chunks) > 1 {
+				nstr.SetVal(Val{U: strings.Join(chunks, "")})
+			}
+			nstr = nil
+			chunks = chunks[:0]
+		}
+		n = p.nod(add, OADD, n, r)
+	}
+	if len(chunks) > 1 {
+		nstr.SetVal(Val{U: strings.Join(chunks, "")})
+	}
+
+	return n
 }
 
 func (p *noder) typeExpr(typ syntax.Expr) *Node {
