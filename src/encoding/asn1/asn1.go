@@ -407,6 +407,7 @@ func isPrintable(b byte, asterisk asteriskFlag) bool {
 		b == ':' ||
 		b == '=' ||
 		b == '?' ||
+                b == '@' ||
 		// This is technically not allowed in a PrintableString.
 		// However, x509 certificates with wildcard strings don't
 		// always use the correct string type so we permit it.
