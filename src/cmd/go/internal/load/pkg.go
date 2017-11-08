@@ -1103,7 +1103,7 @@ func LinkerDeps(p *Package) []string {
 	deps := []string{"runtime"}
 
 	// External linking mode forces an import of runtime/cgo.
-	if cfg.ExternalLinkingForced() {
+	if externalLinkingForced() {
 		deps = append(deps, "runtime/cgo")
 	}
 	// On ARM with GOARM=5, it forces an import of math, for soft floating point.
@@ -1120,6 +1120,43 @@ func LinkerDeps(p *Package) []string {
 	}
 
 	return deps
+}
+
+// externalLinkingForced reports whether external linking is being
+// forced even for programs that do not use cgo.
+func externalLinkingForced() bool {
+	// Some targets must use external linking even inside GOROOT.
+	switch cfg.BuildContext.GOOS {
+	case "android":
+		return true
+	case "darwin":
+		switch cfg.BuildContext.GOARCH {
+		case "arm", "arm64":
+			return true
+		}
+	}
+
+	if !cfg.BuildContext.CgoEnabled {
+		return false
+	}
+	// Currently build modes c-shared, pie (on systems that do not
+	// support PIE with internal linking mode (currently all
+	// systems: issue #18968)), plugin, and -linkshared force
+	// external linking mode, as of course does
+	// -ldflags=-linkmode=external. External linking mode forces
+	// an import of runtime/cgo.
+	pieCgo := cfg.BuildBuildmode == "pie"
+	linkmodeExternal := false
+	for i, a := range cfg.BuildLdflags {
+		if a == "-linkmode=external" {
+			linkmodeExternal = true
+		}
+		if a == "-linkmode" && i+1 < len(cfg.BuildLdflags) && cfg.BuildLdflags[i+1] == "external" {
+			linkmodeExternal = true
+		}
+	}
+
+	return cfg.BuildBuildmode == "c-shared" || cfg.BuildBuildmode == "plugin" || pieCgo || cfg.BuildLinkshared || linkmodeExternal
 }
 
 // mkAbs rewrites list, which must be paths relative to p.Dir,
