@@ -958,11 +958,21 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 
 	// Cgo translation adds imports of "runtime/cgo" and "syscall",
 	// except for certain packages, to avoid circular dependencies.
-	if len(p.CgoFiles) > 0 && (!p.Standard || !cgoExclude[p.ImportPath]) {
+	if p.UsesCgo() && (!p.Standard || !cgoExclude[p.ImportPath]) {
 		addImport("runtime/cgo")
 	}
-	if len(p.CgoFiles) > 0 && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
+	if p.UsesCgo() && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
 		addImport("syscall")
+	}
+
+	// SWIG adds imports of some standard packages.
+	if p.UsesSwig() {
+		addImport("runtime/cgo")
+		addImport("syscall")
+		addImport("sync")
+
+		// TODO: The .swig and .swigcxx files can use
+		// %go_import directives to import other packages.
 	}
 
 	// The linker loads implicit dependencies.
