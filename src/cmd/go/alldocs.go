@@ -104,15 +104,15 @@
 // 	-x
 // 		print the commands.
 //
-// 	-asmflags 'flag list'
+// 	-asmflags '[pattern=]arg list'
 // 		arguments to pass on each go tool asm invocation.
 // 	-buildmode mode
 // 		build mode to use. See 'go help buildmode' for more.
 // 	-compiler name
 // 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
-// 	-gccgoflags 'arg list'
+// 	-gccgoflags '[pattern=]arg list'
 // 		arguments to pass on each gccgo compiler/linker invocation.
-// 	-gcflags 'arg list'
+// 	-gcflags '[pattern=]arg list'
 // 		arguments to pass on each go tool compile invocation.
 // 	-installsuffix suffix
 // 		a suffix to use in the name of the package installation directory,
@@ -121,7 +121,7 @@
 // 		or, if set explicitly, has _race appended to it. Likewise for the -msan
 // 		flag. Using a -buildmode option that requires non-default compile flags
 // 		has a similar effect.
-// 	-ldflags 'flag list'
+// 	-ldflags '[pattern=]arg list'
 // 		arguments to pass on each go tool link invocation.
 // 	-linkshared
 // 		link against shared libraries previously created with
@@ -139,9 +139,21 @@
 // 		For example, instead of running asm, the go command will run
 // 		'cmd args /path/to/asm <arguments for asm>'.
 //
-// All the flags that take a list of arguments accept a space-separated
-// list of strings. To embed spaces in an element in the list, surround
-// it with either single or double quotes.
+// The -asmflags, -gccgoflags, -gcflags, and -ldflags flags accept a
+// space-separated list of arguments to pass to an underlying tool
+// during the build. To embed spaces in an element in the list, surround
+// it with either single or double quotes. The argument list may be
+// preceded by a package pattern and an equal sign, which restricts
+// the use of that argument list to the building of packages matching
+// that pattern (see 'go help packages' for a description of package
+// patterns). Without a pattern, the argument list applies only to the
+// packages named on the command line. The flags may be repeated
+// with different patterns in order to specify different arguments for
+// different sets of packages. If a package matches patterns given in
+// multiple flags, the latest match on the command line wins.
+// For example, 'go build -gcflags=-S fmt' prints the disassembly
+// only for package fmt, while 'go build -gcflags=all=-S fmt'
+// prints the disassembly for fmt and all its dependencies.
 //
 // For more about specifying packages, see 'go help packages'.
 // For more about where packages and binaries are installed,
@@ -548,10 +560,11 @@
 //
 // Usage:
 //
-// 	go install [build flags] [packages]
+// 	go install [-i] [build flags] [packages]
 //
-// Install compiles and installs the packages named by the import paths,
-// along with their dependencies.
+// Install compiles and installs the packages named by the import paths.
+//
+// The -i flag installs the dependencies of the named packages as well.
 //
 // For more about the build flags, see 'go help build'.
 // For more about specifying packages, see 'go help packages'.
@@ -740,7 +753,6 @@
 // finds any problems, go test reports those and does not run the test binary.
 // Only a high-confidence subset of the default go vet checks are used.
 // To disable the running of go vet, use the -vet=off flag.
-//
 //
 // Go test runs in two different modes: local directory mode when invoked with
 // no package arguments (for example, 'go test'), and package list mode when
@@ -1554,9 +1566,12 @@
 // 	    Verbose output: log all tests as they are run. Also print all
 // 	    text from Log and Logf calls even if the test succeeds.
 //
-// 	-vet mode
-// 	    Configure the invocation of "go vet" during "go test".
-// 	    The default is to run "go vet". If mode is "off", vet is disabled.
+// 	-vet list
+// 	    Configure the invocation of "go vet" during "go test"
+// 	    to use the comma-separated list of vet checks.
+// 	    If list is empty, "go test" runs "go vet" with a curated list of
+// 	    checks believed to be always worth addressing.
+// 	    If list is "off", "go test" does not run "go vet" at all.
 //
 // The following flags are also recognized by 'go test' and can be used to
 // profile the tests during execution:

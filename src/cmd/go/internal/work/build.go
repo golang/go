@@ -75,15 +75,15 @@ and test commands:
 	-x
 		print the commands.
 
-	-asmflags 'flag list'
+	-asmflags '[pattern=]arg list'
 		arguments to pass on each go tool asm invocation.
 	-buildmode mode
 		build mode to use. See 'go help buildmode' for more.
 	-compiler name
 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
-	-gccgoflags 'arg list'
+	-gccgoflags '[pattern=]arg list'
 		arguments to pass on each gccgo compiler/linker invocation.
-	-gcflags 'arg list'
+	-gcflags '[pattern=]arg list'
 		arguments to pass on each go tool compile invocation.
 	-installsuffix suffix
 		a suffix to use in the name of the package installation directory,
@@ -92,7 +92,7 @@ and test commands:
 		or, if set explicitly, has _race appended to it. Likewise for the -msan
 		flag. Using a -buildmode option that requires non-default compile flags
 		has a similar effect.
-	-ldflags 'flag list'
+	-ldflags '[pattern=]arg list'
 		arguments to pass on each go tool link invocation.
 	-linkshared
 		link against shared libraries previously created with
@@ -110,9 +110,21 @@ and test commands:
 		For example, instead of running asm, the go command will run
 		'cmd args /path/to/asm <arguments for asm>'.
 
-All the flags that take a list of arguments accept a space-separated
-list of strings. To embed spaces in an element in the list, surround
-it with either single or double quotes.
+The -asmflags, -gccgoflags, -gcflags, and -ldflags flags accept a
+space-separated list of arguments to pass to an underlying tool
+during the build. To embed spaces in an element in the list, surround
+it with either single or double quotes. The argument list may be
+preceded by a package pattern and an equal sign, which restricts
+the use of that argument list to the building of packages matching
+that pattern (see 'go help packages' for a description of package
+patterns). Without a pattern, the argument list applies only to the
+packages named on the command line. The flags may be repeated
+with different patterns in order to specify different arguments for
+different sets of packages. If a package matches patterns given in
+multiple flags, the latest match on the command line wins.
+For example, 'go build -gcflags=-S fmt' prints the disassembly
+only for package fmt, while 'go build -gcflags=all=-S fmt'
+prints the disassembly for fmt and all its dependencies.
 
 For more about specifying packages, see 'go help packages'.
 For more about where packages and binaries are installed,
@@ -149,9 +161,12 @@ func init() {
 // Note that flags consulted by other parts of the code
 // (for example, buildV) are in cmd/go/internal/cfg.
 
-var buildAsmflags []string   // -asmflags flag
-var buildGcflags []string    // -gcflags flag
-var buildGccgoflags []string // -gccgoflags flag
+var (
+	forcedAsmflags   []string // internally-forced flags for cmd/asm
+	forcedGcflags    []string // internally-forced flags for cmd/compile
+	forcedLdflags    []string // internally-forced flags for cmd/link
+	forcedGccgoflags []string // internally-forced flags for gccgo
+)
 
 var BuildToolchain toolchain = noToolchain{}
 var ldBuildmode string
@@ -197,13 +212,13 @@ func AddBuildFlags(cmd *base.Command) {
 	cmd.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildX, "x", false, "")
 
-	cmd.Flag.Var((*base.StringsFlag)(&buildAsmflags), "asmflags", "")
+	cmd.Flag.Var(&load.BuildAsmflags, "asmflags", "")
 	cmd.Flag.Var(buildCompiler{}, "compiler", "")
 	cmd.Flag.StringVar(&cfg.BuildBuildmode, "buildmode", "default", "")
-	cmd.Flag.Var((*base.StringsFlag)(&buildGcflags), "gcflags", "")
-	cmd.Flag.Var((*base.StringsFlag)(&buildGccgoflags), "gccgoflags", "")
+	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
+	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
-	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildLdflags), "ldflags", "")
+	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
@@ -277,14 +292,14 @@ func runBuild(cmd *base.Command, args []string) {
 	// sanity check some often mis-used options
 	switch cfg.BuildContext.Compiler {
 	case "gccgo":
-		if len(buildGcflags) != 0 {
+		if load.BuildGcflags.Present() {
 			fmt.Println("go build: when using gccgo toolchain, please pass compiler flags using -gccgoflags, not -gcflags")
 		}
-		if len(cfg.BuildLdflags) != 0 {
+		if load.BuildLdflags.Present() {
 			fmt.Println("go build: when using gccgo toolchain, please pass linker flags using -gccgoflags, not -ldflags")
 		}
 	case "gc":
-		if len(buildGccgoflags) != 0 {
+		if load.BuildGccgoflags.Present() {
 			fmt.Println("go build: when using gc toolchain, please pass compile flags using -gcflags, and linker flags using -ldflags")
 		}
 	}
@@ -409,7 +424,7 @@ func InstallPackages(args []string, forGet bool) {
 			switch {
 			case p.Internal.GobinSubdir:
 				base.Errorf("go %s: cannot install cross-compiled binaries when GOBIN is set", cfg.CmdName)
-			case p.Internal.Cmdline:
+			case p.Internal.CmdlineFiles:
 				base.Errorf("go %s: no install location for .go files listed on command line (GOBIN not set)", cfg.CmdName)
 			case p.ConflictDir != "":
 				base.Errorf("go %s: no install location for %s: hidden by %s", cfg.CmdName, p.Dir, p.ConflictDir)

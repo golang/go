@@ -154,7 +154,7 @@ func TestLldbPython(t *testing.T) {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags", "-N -l", "-o", "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-o", "a.exe")
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

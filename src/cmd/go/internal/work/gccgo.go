@@ -65,7 +65,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg 
 		gcargs = append(gcargs, "-fgo-relative-import-path="+p.Internal.LocalPrefix)
 	}
 
-	args := str.StringList(tools.compiler(), "-c", gcargs, "-o", ofile)
+	args := str.StringList(tools.compiler(), "-c", gcargs, "-o", ofile, forcedGccgoflags)
 	if importcfg != nil {
 		if b.gccSupportsFlag(args[:1], "-fgo-importcfg=/dev/null") {
 			if err := b.writeFile(objdir+"importcfg", importcfg); err != nil {
@@ -80,7 +80,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg 
 			args = append(args, "-I", root)
 		}
 	}
-	args = append(args, buildGccgoflags...)
+	args = append(args, a.Package.Internal.Gccgoflags...)
 	for _, f := range gofiles {
 		args = append(args, mkAbs(p.Dir, f))
 	}
@@ -427,7 +427,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 		}
 	}
 
-	if err := b.run(".", desc, nil, tools.linker(), "-o", out, ldflags, buildGccgoflags); err != nil {
+	if err := b.run(".", desc, nil, tools.linker(), "-o", out, ldflags, forcedGccgoflags, root.Package.Internal.Gccgoflags); err != nil {
 		return err
 	}
 
@@ -444,10 +444,10 @@ func (tools gccgoToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg
 	return tools.link(b, root, out, importcfg, root.Deps, ldBuildmode, root.Package.ImportPath)
 }
 
-func (tools gccgoToolchain) ldShared(b *Builder, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
-	fakeRoot := &Action{Mode: "gccgo ldshared"}
+func (tools gccgoToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
+	fakeRoot := *root
 	fakeRoot.Deps = toplevelactions
-	return tools.link(b, fakeRoot, out, importcfg, allactions, "shared", out)
+	return tools.link(b, &fakeRoot, out, importcfg, allactions, "shared", out)
 }
 
 func (tools gccgoToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {

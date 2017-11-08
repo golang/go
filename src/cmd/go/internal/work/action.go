@@ -617,6 +617,14 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 			}
 		}
 
+		// Fake package to hold ldflags.
+		// As usual shared libraries are a kludgy, abstraction-violating special case:
+		// we let them use the flags specified for the command-line arguments.
+		p := &load.Package{}
+		p.Internal.CmdlinePkg = true
+		p.Internal.Ldflags = load.BuildLdflags.For(p)
+		p.Internal.Gccgoflags = load.BuildGccgoflags.For(p)
+
 		// Add implicit dependencies to pkgs list.
 		// Currently buildmode=shared forces external linking mode, and
 		// external linking mode forces an import of runtime/cgo (and
@@ -628,11 +636,13 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 		// If the answer is that gccgo is different in implicit linker deps, maybe
 		// load.LinkerDeps should be used and updated.
 		// Link packages into a shared library.
+
 		a := &Action{
-			Mode:   "go build -buildmode=shared",
-			Objdir: b.NewObjdir(),
-			Func:   (*Builder).linkShared,
-			Deps:   []*Action{a1},
+			Mode:    "go build -buildmode=shared",
+			Package: p,
+			Objdir:  b.NewObjdir(),
+			Func:    (*Builder).linkShared,
+			Deps:    []*Action{a1},
 		}
 		a.Target = filepath.Join(a.Objdir, shlib)
 		if cfg.BuildToolchainName != "gccgo" {

@@ -22,7 +22,6 @@ var (
 	BuildBuildmode         string // -buildmode flag
 	BuildContext           = build.Default
 	BuildI                 bool               // -i flag
-	BuildLdflags           []string           // -ldflags flag
 	BuildLinkshared        bool               // -linkshared flag
 	BuildMSan              bool               // -msan flag
 	BuildN                 bool               // -n flag

@@ -178,6 +178,9 @@ func bootstrapBuildTools() {
 	// https://groups.google.com/d/msg/golang-dev/Ss7mCKsvk8w/Gsq7VYI0AwAJ
 	// Use the math_big_pure_go build tag to disable the assembly in math/big
 	// which may contain unsupported instructions.
+	// Note that if we are using Go 1.10 or later as bootstrap, the -gcflags=-l
+	// only applies to the final cmd/go binary, but that's OK: if this is Go 1.10
+	// or later we don't need to disable inlining to work around bugs in the Go 1.4 compiler.
 	cmd := []string{
 		pathf("%s/bin/go", goroot_bootstrap),
 		"install",
