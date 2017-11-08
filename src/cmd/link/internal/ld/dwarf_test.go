@@ -83,7 +83,7 @@ func gobuild(t *testing.T, dir string, testfile string) *objfilepkg.File {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags", "-N -l", "-o", dst, src)
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", dst, src)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("build: %s\n", b)
 		t.Fatalf("build error: %v", err)

@@ -47,32 +47,25 @@ func instrumentInit() {
 		fmt.Fprintf(os.Stderr, "go %s: -race and -msan are only supported on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
 		os.Exit(2)
 	}
+
+	mode := "race"
+	if cfg.BuildMSan {
+		mode = "msan"
+	}
+	modeFlag := "-" + mode
+
 	if !cfg.BuildContext.CgoEnabled {
-		instrFlag := "-race"
-		if cfg.BuildMSan {
-			instrFlag = "-msan"
-		}
-		fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], instrFlag)
+		fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], modeFlag)
 		os.Exit(2)
 	}
-	if cfg.BuildRace {
-		buildGcflags = append(buildGcflags, "-race")
-		cfg.BuildLdflags = append(cfg.BuildLdflags, "-race")
-	} else {
-		buildGcflags = append(buildGcflags, "-msan")
-		cfg.BuildLdflags = append(cfg.BuildLdflags, "-msan")
-	}
+	forcedGcflags = append(forcedGcflags, modeFlag)
+	forcedLdflags = append(forcedLdflags, modeFlag)
+
 	if cfg.BuildContext.InstallSuffix != "" {
 		cfg.BuildContext.InstallSuffix += "_"
 	}
-
-	if cfg.BuildRace {
-		cfg.BuildContext.InstallSuffix += "race"
-		cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "race")
-	} else {
-		cfg.BuildContext.InstallSuffix += "msan"
-		cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "msan")
-	}
+	cfg.BuildContext.InstallSuffix += mode
+	cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, mode)
 }
 
 func buildModeInit() {
@@ -174,7 +167,7 @@ func buildModeInit() {
 				"android/amd64", "android/arm", "android/arm64", "android/386":
 			case "darwin/amd64":
 				// Skip DWARF generation due to #21647
-				cfg.BuildLdflags = append(cfg.BuildLdflags, "-w")
+				forcedLdflags = append(forcedLdflags, "-w")
 			default:
 				base.Fatalf("-buildmode=plugin not supported on %s\n", platform)
 			}
@@ -191,21 +184,21 @@ func buildModeInit() {
 		} else {
 			switch platform {
 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
-				buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_shared=1")
+				forcedAsmflags = append(forcedAsmflags, "-D=GOBUILDMODE_shared=1")
 			default:
 				base.Fatalf("-linkshared not supported on %s\n", platform)
 			}
 			codegenArg = "-dynlink"
 			// TODO(mwhudson): remove -w when that gets fixed in linker.
-			cfg.BuildLdflags = append(cfg.BuildLdflags, "-linkshared", "-w")
+			forcedLdflags = append(forcedLdflags, "-linkshared", "-w")
 		}
 	}
 	if codegenArg != "" {
 		if gccgo {
-			buildGccgoflags = append([]string{codegenArg}, buildGccgoflags...)
+			forcedGccgoflags = append([]string{codegenArg}, forcedGccgoflags...)
 		} else {
-			buildAsmflags = append([]string{codegenArg}, buildAsmflags...)
-			buildGcflags = append([]string{codegenArg}, buildGcflags...)
+			forcedAsmflags = append([]string{codegenArg}, forcedAsmflags...)
+			forcedGcflags = append([]string{codegenArg}, forcedGcflags...)
 		}
 		// Don't alter InstallSuffix when modifying default codegen args.
 		if cfg.BuildBuildmode != "default" || cfg.BuildLinkshared {

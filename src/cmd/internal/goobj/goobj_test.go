@@ -125,7 +125,7 @@ func buildGoobj() error {
 		if err != nil {
 			return err
 		}
-		cmd := exec.Command(gotool, "install", "-gcflags="+os.Getenv("GO_GCFLAGS"), "mycgo")
+		cmd := exec.Command(gotool, "install", "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "mycgo")
 		cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 		out, err = cmd.CombinedOutput()
 		if err != nil {

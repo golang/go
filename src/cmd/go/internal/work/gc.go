@@ -90,13 +90,11 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 		gcargs = append(gcargs, "-goversion", runtimeVersion)
 	}
 
-	gcflags := buildGcflags
+	gcflags := str.StringList(forcedGcflags, p.Internal.Gcflags)
 	if compilingRuntime {
 		// Remove -N, if present.
 		// It is not possible to build the runtime with no optimizations,
 		// because the compiler cannot eliminate enough write barriers.
-		gcflags = make([]string, len(buildGcflags))
-		copy(gcflags, buildGcflags)
 		for i := 0; i < len(gcflags); i++ {
 			if gcflags[i] == "-N" {
 				copy(gcflags[i:], gcflags[i+1:])
@@ -215,9 +213,9 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 	p := a.Package
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
 	inc := filepath.Join(cfg.GOROOT, "pkg", "include")
-	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-trimpath", trimDir(a.Objdir), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, buildAsmflags}
+	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-trimpath", trimDir(a.Objdir), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, forcedAsmflags, p.Internal.Asmflags}
 	if p.ImportPath == "runtime" && cfg.Goarch == "386" {
-		for _, arg := range buildAsmflags {
+		for _, arg := range forcedAsmflags {
 			if arg == "-dynlink" {
 				args = append(args, "-D=GOBUILDMODE_shared=1")
 			}
@@ -438,7 +436,8 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 	if root.buildID != "" {
 		ldflags = append(ldflags, "-buildid="+root.buildID)
 	}
-	ldflags = append(ldflags, cfg.BuildLdflags...)
+	ldflags = append(ldflags, forcedLdflags...)
+	ldflags = append(ldflags, root.Package.Internal.Ldflags...)
 	ldflags = setextld(ldflags, compiler)
 
 	// On OS X when using external linking to build a shared library,
@@ -458,10 +457,11 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 	return b.run(dir, root.Package.ImportPath, nil, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags, mainpkg)
 }
 
-func (gcToolchain) ldShared(b *Builder, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
+func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
 	ldflags := []string{"-installsuffix", cfg.BuildContext.InstallSuffix}
 	ldflags = append(ldflags, "-buildmode=shared")
-	ldflags = append(ldflags, cfg.BuildLdflags...)
+	ldflags = append(ldflags, forcedLdflags...)
+	ldflags = append(ldflags, root.Package.Internal.Ldflags...)
 	cxx := false
 	for _, a := range allactions {
 		if a.Package != nil && (len(a.Package.CXXFiles) > 0 || len(a.Package.SwigCXXFiles) > 0) {

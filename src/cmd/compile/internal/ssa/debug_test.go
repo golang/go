@@ -171,13 +171,9 @@ func testNexting(t *testing.T, base, tag, gcflags string) {
 		defer os.RemoveAll(tmpdir)
 	}
 
-	if gcflags == "" {
-		runGo(t, "", "build", "-o", exe, filepath.Join("testdata", base+".go"))
-	} else {
-		runGo(t, "", "build", "-o", exe, "-gcflags", gcflags, filepath.Join("testdata", base+".go"))
-	}
-	var h1 *nextHist
+	runGo(t, "", "build", "-o", exe, "-gcflags=all="+gcflags, filepath.Join("testdata", base+".go"))
 
+	var h1 *nextHist
 	nextlog := logbase + "-" + debugger + ".nexts"
 	tmplog := tmpbase + "-" + debugger + ".nexts"
 	if *useDelve {

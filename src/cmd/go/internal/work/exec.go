@@ -209,9 +209,9 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	default:
 		base.Fatalf("buildActionID: unknown build toolchain %q", cfg.BuildToolchainName)
 	case "gc":
-		fmt.Fprintf(h, "compile %s %q\n", b.toolID("compile"), buildGcflags)
+		fmt.Fprintf(h, "compile %s %q %q\n", b.toolID("compile"), forcedGcflags, p.Internal.Gcflags)
 		if len(p.SFiles) > 0 {
-			fmt.Fprintf(h, "asm %q %q\n", b.toolID("asm"), buildAsmflags)
+			fmt.Fprintf(h, "asm %q %q %q\n", b.toolID("asm"), forcedAsmflags, p.Internal.Asmflags)
 		}
 		fmt.Fprintf(h, "GO$GOARCH=%s\n", os.Getenv("GO"+strings.ToUpper(cfg.BuildContext.GOARCH))) // GO386, GOARM, etc
 
@@ -685,7 +685,7 @@ func (b *Builder) linkActionID(a *Action) cache.ActionID {
 	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
 
 	// Toolchain-dependent configuration, shared with b.linkSharedActionID.
-	b.printLinkerConfig(h)
+	b.printLinkerConfig(h, p)
 
 	// Input files.
 	for _, a1 := range a.Deps {
@@ -714,13 +714,16 @@ func (b *Builder) linkActionID(a *Action) cache.ActionID {
 
 // printLinkerConfig prints the linker config into the hash h,
 // as part of the computation of a linker-related action ID.
-func (b *Builder) printLinkerConfig(h io.Writer) {
+func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 	switch cfg.BuildToolchainName {
 	default:
 		base.Fatalf("linkActionID: unknown toolchain %q", cfg.BuildToolchainName)
 
 	case "gc":
-		fmt.Fprintf(h, "link %s %q %s\n", b.toolID("link"), cfg.BuildLdflags, ldBuildmode)
+		fmt.Fprintf(h, "link %s %q %s\n", b.toolID("link"), forcedLdflags, ldBuildmode)
+		if p != nil {
+			fmt.Fprintf(h, "linkflags %q\n", p.Internal.Ldflags)
+		}
 		fmt.Fprintf(h, "GO$GOARCH=%s\n", os.Getenv("GO"+strings.ToUpper(cfg.BuildContext.GOARCH))) // GO386, GOARM, etc
 
 		/*
@@ -905,7 +908,7 @@ func (b *Builder) linkSharedActionID(a *Action) cache.ActionID {
 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
 
 	// Toolchain-dependent configuration, shared with b.linkActionID.
-	b.printLinkerConfig(h)
+	b.printLinkerConfig(h, nil)
 
 	// Input files.
 	for _, a1 := range a.Deps {
@@ -946,7 +949,7 @@ func (b *Builder) linkShared(a *Action) (err error) {
 	// TODO(rsc): There is a missing updateBuildID here,
 	// but we have to decide where to store the build ID in these files.
 	a.built = a.Target
-	return BuildToolchain.ldShared(b, a.Deps[0].Deps, a.Target, importcfg, a.Deps)
+	return BuildToolchain.ldShared(b, a, a.Deps[0].Deps, a.Target, importcfg, a.Deps)
 }
 
 // BuildInstallFunc is the action for installing a single package or executable.
@@ -1468,7 +1471,7 @@ type toolchain interface {
 	// ld runs the linker to create an executable starting at mainpkg.
 	ld(b *Builder, root *Action, out, importcfg, mainpkg string) error
 	// ldShared runs the linker to create a shared library containing the pkgs built by toplevelactions
-	ldShared(b *Builder, toplevelactions []*Action, out, importcfg string, allactions []*Action) error
+	ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error
 
 	compiler() string
 	linker() string
@@ -1507,7 +1510,7 @@ func (noToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 	return noCompiler()
 }
 
-func (noToolchain) ldShared(b *Builder, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
+func (noToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
 	return noCompiler()
 }
 

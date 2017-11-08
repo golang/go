@@ -4354,7 +4354,7 @@ func GoFunc() {}
 func main() {}`)
 	tg.creatingTemp("override.a")
 	tg.creatingTemp("override.h")
-	tg.run("build", "-x", "-buildmode=c-archive", "-gcflags=-shared=false", tg.path("override.go"))
+	tg.run("build", "-x", "-buildmode=c-archive", "-gcflags=all=-shared=false", tg.path("override.go"))
 	tg.grepStderr("compile .*-shared .*-shared=false", "user can not override code generation flag")
 }
 
@@ -4992,4 +4992,26 @@ func TestRelativePkgdir(t *testing.T) {
 	tg.cd(tg.tempdir)
 
 	tg.run("build", "-i", "-pkgdir=.", "runtime")
+}
+
+func TestGcflagsPatterns(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", "")
+	tg.setenv("GOCACHE", "off")
+
+	tg.run("build", "-v", "-gcflags=-e", "fmt")
+	tg.grepStderr("fmt", "did not rebuild fmt")
+	tg.grepStderrNot("reflect", "incorrectly rebuilt reflect")
+
+	tg.run("build", "-v", "-gcflags=-e", "fmt", "reflect")
+	tg.grepStderr("fmt", "did not rebuild fmt")
+	tg.grepStderr("reflect", "did not rebuild reflect")
+	tg.grepStderrNot("runtime", "incorrectly rebuilt runtime")
+
+	tg.run("build", "-x", "-v", "-gcflags=reflect=-N", "fmt")
+	tg.grepStderr("fmt", "did not rebuild fmt")
+	tg.grepStderr("reflect", "did not rebuild reflect")
+	tg.grepStderr("compile.* -N .*-p reflect", "did not build reflect with -N flag")
+	tg.grepStderrNot("compile.* -N .*-p fmt", "incorrectly built fmt with -N flag")
 }

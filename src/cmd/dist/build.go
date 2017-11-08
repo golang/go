@@ -1296,7 +1296,7 @@ func cmdbootstrap() {
 }
 
 func goInstall(goBinary string, args ...string) {
-	installCmd := []string{goBinary, "install", "-gcflags=" + gogcflags, "-ldflags=" + goldflags}
+	installCmd := []string{goBinary, "install", "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags}
 	if vflag > 0 {
 		installCmd = append(installCmd, "-v")
 	}
@@ -1313,7 +1313,7 @@ func checkNotStale(goBinary string, targets ...string) {
 	out := run(goroot, CheckExit,
 		append([]string{
 			goBinary,
-			"list", "-gcflags=" + gogcflags, "-ldflags=" + goldflags,
+			"list", "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags,
 			"-f={{if .Stale}}\tSTALE {{.ImportPath}}: {{.StaleReason}}{{end}}",
 		}, targets...)...)
 	if strings.Contains(out, "\tSTALE ") {
