@@ -532,6 +532,8 @@ var lowerTests = []StringTest{
 	{"abc", "abc"},
 	{"AbC123", "abc123"},
 	{"azAZ09_", "azaz09_"},
+	{"longStrinGwitHmixofsmaLLandcAps", "longstringwithmixofsmallandcaps"},
+	{"LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS", "long\u0250string\u0250with\u0250nonascii\u0250chars"},
 	{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"}, // shrinks one byte per char
 }
 
@@ -658,6 +660,19 @@ func BenchmarkToUpper(b *testing.B) {
 				actual := ToUpper(tc.in)
 				if actual != tc.out {
 					b.Errorf("ToUpper(%q) = %q; want %q", tc.in, actual, tc.out)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkToLower(b *testing.B) {
+	for _, tc := range lowerTests {
+		b.Run(tc.in, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				actual := ToLower(tc.in)
+				if actual != tc.out {
+					b.Errorf("ToLower(%q) = %q; want %q", tc.in, actual, tc.out)
 				}
 			}
 		})
