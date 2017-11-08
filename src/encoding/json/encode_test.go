@@ -71,14 +71,16 @@ func TestOmitEmpty(t *testing.T) {
 }
 
 type StringTag struct {
-	BoolStr bool   `json:",string"`
-	IntStr  int64  `json:",string"`
-	StrStr  string `json:",string"`
+	BoolStr    bool    `json:",string"`
+	IntStr     int64   `json:",string"`
+	UintptrStr uintptr `json:",string"`
+	StrStr     string  `json:",string"`
 }
 
 var stringTagExpected = `{
  "BoolStr": "true",
  "IntStr": "42",
+ "UintptrStr": "44",
  "StrStr": "\"xzbit\""
 }`
 
@@ -86,6 +88,7 @@ func TestStringTag(t *testing.T) {
 	var s StringTag
 	s.BoolStr = true
 	s.IntStr = 42
+	s.UintptrStr = 44
 	s.StrStr = "xzbit"
 	got, err := MarshalIndent(&s, "", " ")
 	if err != nil {

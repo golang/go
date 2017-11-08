@@ -1193,7 +1193,8 @@ type All struct {
 	Foo  string `json:"bar"`
 	Foo2 string `json:"bar2,dummyopt"`
 
-	IntStr int64 `json:",string"`
+	IntStr     int64   `json:",string"`
+	UintptrStr uintptr `json:",string"`
 
 	PBool    *bool
 	PInt     *int
@@ -1247,24 +1248,25 @@ type Small struct {
 }
 
 var allValue = All{
-	Bool:    true,
-	Int:     2,
-	Int8:    3,
-	Int16:   4,
-	Int32:   5,
-	Int64:   6,
-	Uint:    7,
-	Uint8:   8,
-	Uint16:  9,
-	Uint32:  10,
-	Uint64:  11,
-	Uintptr: 12,
-	Float32: 14.1,
-	Float64: 15.1,
-	Foo:     "foo",
-	Foo2:    "foo2",
-	IntStr:  42,
-	String:  "16",
+	Bool:       true,
+	Int:        2,
+	Int8:       3,
+	Int16:      4,
+	Int32:      5,
+	Int64:      6,
+	Uint:       7,
+	Uint8:      8,
+	Uint16:     9,
+	Uint32:     10,
+	Uint64:     11,
+	Uintptr:    12,
+	Float32:    14.1,
+	Float64:    15.1,
+	Foo:        "foo",
+	Foo2:       "foo2",
+	IntStr:     42,
+	UintptrStr: 44,
+	String:     "16",
 	Map: map[string]Small{
 		"17": {Tag: "tag17"},
 		"18": {Tag: "tag18"},
@@ -1326,6 +1328,7 @@ var allValueIndent = `{
 	"bar": "foo",
 	"bar2": "foo2",
 	"IntStr": "42",
+	"UintptrStr": "44",
 	"PBool": null,
 	"PInt": null,
 	"PInt8": null,
@@ -1418,6 +1421,7 @@ var pallValueIndent = `{
 	"bar": "",
 	"bar2": "",
         "IntStr": "0",
+	"UintptrStr": "0",
 	"PBool": true,
 	"PInt": 2,
 	"PInt8": 3,
