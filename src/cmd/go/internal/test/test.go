@@ -105,7 +105,9 @@ go test will redisplay the previous output instead of running the test
 binary again. In the summary line, go test prints '(cached)' in place of
 the elapsed time. To disable test caching, use any test flag or argument
 other than the cacheable flags. The idiomatic way to disable test caching
-explicitly is to use -count=1.
+explicitly is to use -count=1. A cached result is treated as executing in
+no time at all, so a successful package test result will be cached and reused
+regardless of -timeout setting.
 
 ` + strings.TrimSpace(testFlag1) + ` See 'go help testflag' for details.
 
@@ -1346,6 +1348,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 		return false
 	}
 
+	var cacheArgs []string
 	for _, arg := range testArgs {
 		i := strings.Index(arg, "=")
 		if i < 0 || !strings.HasPrefix(arg, "-test.") {
@@ -1362,6 +1365,12 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 			// These are cacheable.
 			// Note that this list is documented above,
 			// so if you add to this list, update the docs too.
+			cacheArgs = append(cacheArgs, arg)
+
+		case "-test.timeout":
+			// Special case: this is cacheable but ignored during the hash.
+			// Do not add to cacheArgs.
+
 		default:
 			// nothing else is cacheable
 			c.disableCache = true
@@ -1375,7 +1384,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 	}
 
 	h := cache.NewHash("testResult")
-	fmt.Fprintf(h, "test binary %s args %q execcmd %q", id, testArgs, work.ExecCmd)
+	fmt.Fprintf(h, "test binary %s args %q execcmd %q", id, cacheArgs, work.ExecCmd)
 	// TODO(rsc): How to handle other test dependencies like environment variables or input files?
 	// We could potentially add new API like testing.UsedEnv(envName string)
 	// or testing.UsedFile(inputFile string) to let tests declare what external inputs
