@@ -68,6 +68,8 @@ type Action struct {
 
 	triggers []*Action // inverse of deps
 
+	buggyInstall bool // is this a buggy install (see -linkshared)?
+
 	TryCache func(*Builder, *Action) bool // callback for cache bypass
 
 	// Generated files, directories.
@@ -196,6 +198,7 @@ type BuildMode int
 const (
 	ModeBuild BuildMode = iota
 	ModeInstall
+	ModeBuggyInstall
 )
 
 func (b *Builder) Init() {
@@ -309,11 +312,11 @@ func (b *Builder) AutoAction(mode, depMode BuildMode, p *load.Package) *Action {
 // depMode is the action (build or install) to use when building dependencies.
 // To turn package main into an executable, call b.Link instead.
 func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Action {
-	if mode == ModeInstall && p.Internal.Local && p.Target == "" {
+	if mode != ModeBuild && p.Internal.Local && p.Target == "" {
 		// Imported via local path. No permanent target.
 		mode = ModeBuild
 	}
-	if mode == ModeInstall && p.Name == "main" {
+	if mode != ModeBuild && p.Name == "main" {
 		// We never install the .a file for a main package.
 		mode = ModeBuild
 	}
@@ -354,8 +357,8 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 	})
 
 	// Construct install action.
-	if mode == ModeInstall {
-		a = b.installAction(a)
+	if mode == ModeInstall || mode == ModeBuggyInstall {
+		a = b.installAction(a, mode)
 	}
 
 	return a
@@ -446,19 +449,23 @@ func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
 		return a
 	})
 
-	if mode == ModeInstall {
-		a = b.installAction(a)
+	if mode == ModeInstall || mode == ModeBuggyInstall {
+		a = b.installAction(a, mode)
 	}
 
 	return a
 }
 
 // installAction returns the action for installing the result of a1.
-func (b *Builder) installAction(a1 *Action) *Action {
+func (b *Builder) installAction(a1 *Action, mode BuildMode) *Action {
 	// Because we overwrite the build action with the install action below,
 	// a1 may already be an install action fetched from the "build" cache key,
 	// and the caller just doesn't realize.
 	if strings.HasSuffix(a1.Mode, "-install") {
+		if a1.buggyInstall && mode == ModeInstall {
+			//  Congratulations! The buggy install is now a proper install.
+			a1.buggyInstall = false
+		}
 		return a1
 	}
 
@@ -497,6 +504,8 @@ func (b *Builder) installAction(a1 *Action) *Action {
 			Deps:    []*Action{buildAction},
 			Target:  p.Target,
 			built:   p.Target,
+
+			buggyInstall: mode == ModeBuggyInstall,
 		}
 
 		b.addInstallHeaderAction(a1)
@@ -553,7 +562,8 @@ func (b *Builder) addTransitiveLinkDeps(a, a1 *Action, shlib string) {
 			// TODO(rsc): The use of ModeInstall here is suspect, but if we only do ModeBuild,
 			// we'll end up building an overall library or executable that depends at runtime
 			// on other libraries that are out-of-date, which is clearly not good either.
-			a.Deps = append(a.Deps, b.linkSharedAction(ModeInstall, ModeInstall, p1.Shlib, nil))
+			// We call it ModeBuggyInstall to make clear that this is not right.
+			a.Deps = append(a.Deps, b.linkSharedAction(ModeBuggyInstall, ModeBuggyInstall, p1.Shlib, nil))
 		}
 	}
 }
@@ -682,7 +692,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 	})
 
 	// Install result.
-	if mode == ModeInstall && a.Func != nil {
+	if (mode == ModeInstall || mode == ModeBuggyInstall) && a.Func != nil {
 		buildAction := a
 
 		a = b.cacheAction("install-shlib "+shlib, nil, func() *Action {

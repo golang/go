@@ -2646,6 +2646,8 @@ func main() {
 
 // "go test -c -test.bench=XXX errors" should not hang.
 // "go test -c" should also produce reproducible binaries.
+// "go test -c" should also appear to write a new binary every time,
+// even if it's really just updating the mtime on an existing up-to-date binary.
 func TestIssue6480(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2662,6 +2664,43 @@ func TestIssue6480(t *testing.T) {
 	if !bytes.Equal(data1, data2) {
 		t.Fatalf("go test -c errors produced different binaries when run twice")
 	}
+
+	start := time.Now()
+	tg.run("test", "-x", "-c", "-test.bench=XXX", "errors")
+	tg.grepStderrNot(`[\\/]link|gccgo`, "incorrectly relinked up-to-date test binary")
+	info, err := os.Stat("errors.test" + exeSuffix)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start = truncateLike(start, info.ModTime())
+	if info.ModTime().Before(start) {
+		t.Fatalf("mtime of errors.test predates test -c command (%v < %v)", info.ModTime(), start)
+	}
+
+	start = time.Now()
+	tg.run("test", "-x", "-c", "-o", "errors2.test", "errors")
+	tg.grepStderrNot(`[\\/]link|gccgo`, "incorrectly relinked up-to-date test binary")
+	info, err = os.Stat("errors2.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	start = truncateLike(start, info.ModTime())
+	if info.ModTime().Before(start) {
+		t.Fatalf("mtime of errors2.test predates test -c command (%v < %v)", info.ModTime(), start)
+	}
+}
+
+// truncateLike returns the result of truncating t to the apparent precision of p.
+func truncateLike(t, p time.Time) time.Time {
+	nano := p.UnixNano()
+	d := 1 * time.Nanosecond
+	for nano%int64(d) == 0 && d < 1*time.Second {
+		d *= 10
+	}
+	for nano%int64(d) == 0 && d < 2*time.Second {
+		d *= 2
+	}
+	return t.Truncate(d)
 }
 
 // cmd/cgo: undefined reference when linking a C-library using gccgo
