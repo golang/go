@@ -16,18 +16,20 @@ import (
 
 // Golden represents a test case.
 type Golden struct {
-	name   string
-	input  string // input; the package clause is provided when running the test.
-	output string // exected output.
+	name       string
+	trimPrefix string
+	input      string // input; the package clause is provided when running the test.
+	output     string // exected output.
 }
 
 var golden = []Golden{
-	{"day", day_in, day_out},
-	{"offset", offset_in, offset_out},
-	{"gap", gap_in, gap_out},
-	{"num", num_in, num_out},
-	{"unum", unum_in, unum_out},
-	{"prime", prime_in, prime_out},
+	{"day", "", day_in, day_out},
+	{"offset", "", offset_in, offset_out},
+	{"gap", "", gap_in, gap_out},
+	{"num", "", num_in, num_out},
+	{"unum", "", unum_in, unum_out},
+	{"prime", "", prime_in, prime_out},
+	{"prefix", "Type", prefix_in, prefix_out},
 }
 
 // Each example starts with "type XXX [u]int", with a single space separating them.
@@ -238,9 +240,34 @@ func (i Prime) String() string {
 }
 `
 
+const prefix_in = `type Type int
+const (
+	TypeInt Type = iota
+	TypeString
+	TypeFloat
+	TypeRune
+	TypeByte
+	TypeStruct
+	TypeSlice
+)
+`
+
+const prefix_out = `
+const _Type_name = "IntStringFloatRuneByteStructSlice"
+
+var _Type_index = [...]uint8{0, 3, 9, 14, 18, 22, 28, 33}
+
+func (i Type) String() string {
+	if i < 0 || i >= Type(len(_Type_index)-1) {
+		return fmt.Sprintf("Type(%d)", i)
+	}
+	return _Type_name[_Type_index[i]:_Type_index[i+1]]
+}
+`
+
 func TestGolden(t *testing.T) {
 	for _, test := range golden {
-		var g Generator
+		g := Generator{trimPrefix: test.trimPrefix}
 		input := "package test\n" + test.input
 		file := test.name + ".go"
 		g.parsePackage(".", []string{file}, input)

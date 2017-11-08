@@ -78,8 +78,9 @@ import (
 )
 
 var (
-	typeNames = flag.String("type", "", "comma-separated list of type names; must be set")
-	output    = flag.String("output", "", "output file name; default srcdir/<type>_string.go")
+	typeNames  = flag.String("type", "", "comma-separated list of type names; must be set")
+	output     = flag.String("output", "", "output file name; default srcdir/<type>_string.go")
+	trimprefix = flag.String("trimprefix", "", "trim the `prefix` from the generated constant names")
 )
 
 // Usage is a replacement usage function for the flags package.
@@ -112,10 +113,8 @@ func main() {
 	}
 
 	// Parse the package once.
-	var (
-		dir string
-		g   Generator
-	)
+	var dir string
+	g := Generator{trimPrefix: *trimprefix}
 	if len(args) == 1 && isDirectory(args[0]) {
 		dir = args[0]
 		g.parsePackageDir(args[0])
@@ -165,6 +164,8 @@ func isDirectory(name string) bool {
 type Generator struct {
 	buf bytes.Buffer // Accumulated output.
 	pkg *Package     // Package we are scanning.
+
+	trimPrefix string
 }
 
 func (g *Generator) Printf(format string, args ...interface{}) {
@@ -178,6 +179,8 @@ type File struct {
 	// These fields are reset for each type being generated.
 	typeName string  // Name of the constant type.
 	values   []Value // Accumulator for constant values of that type.
+
+	trimPrefix string
 }
 
 type Package struct {
@@ -240,8 +243,9 @@ func (g *Generator) parsePackage(directory string, names []string, text interfac
 		}
 		astFiles = append(astFiles, parsedFile)
 		files = append(files, &File{
-			file: parsedFile,
-			pkg:  g.pkg,
+			file:       parsedFile,
+			pkg:        g.pkg,
+			trimPrefix: g.trimPrefix,
 		})
 	}
 	if len(astFiles) == 0 {
@@ -453,6 +457,7 @@ func (f *File) genDecl(node ast.Node) bool {
 				signed: info&types.IsUnsigned == 0,
 				str:    value.String(),
 			}
+			v.name = strings.TrimPrefix(v.name, f.trimPrefix)
 			f.values = append(f.values, v)
 		}
 	}
