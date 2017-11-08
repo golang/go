@@ -1744,7 +1744,7 @@ opswitch:
 		// Emit string symbol now to avoid emitting
 		// any concurrently during the backend.
 		if s, ok := n.Val().U.(string); ok {
-			_ = stringsym(s)
+			_ = stringsym(n.Pos, s)
 		}
 	}
 

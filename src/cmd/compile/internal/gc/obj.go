@@ -9,6 +9,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -330,7 +331,7 @@ func dbvec(s *obj.LSym, off int, bv bvec) int {
 	return off
 }
 
-func stringsym(s string) (data *obj.LSym) {
+func stringsym(pos src.XPos, s string) (data *obj.LSym) {
 	var symname string
 	if len(s) > 100 {
 		// Huge strings are hashed to avoid long names in object files.
@@ -351,7 +352,7 @@ func stringsym(s string) (data *obj.LSym) {
 
 	if !symdata.SeenGlobl() {
 		// string data
-		off := dsname(symdata, 0, s)
+		off := dsname(symdata, 0, s, pos, "string")
 		ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
 	}
 
@@ -367,7 +368,7 @@ func slicebytes(nam *Node, s string, len int) {
 	sym.Def = asTypesNode(newname(sym))
 
 	lsym := sym.Linksym()
-	off := dsname(lsym, 0, s)
+	off := dsname(lsym, 0, s, nam.Pos, "slice")
 	ggloblsym(lsym, int32(off), obj.NOPTR|obj.LOCAL)
 
 	if nam.Op != ONAME {
@@ -380,7 +381,15 @@ func slicebytes(nam *Node, s string, len int) {
 	duintptr(nsym, off, uint64(len))
 }
 
-func dsname(s *obj.LSym, off int, t string) int {
+func dsname(s *obj.LSym, off int, t string, pos src.XPos, what string) int {
+	// Objects that are too large will cause the data section to overflow right away,
+	// causing a cryptic error message by the linker. Check for oversize objects here
+	// and provide a useful error message instead.
+	if int64(len(t)) > 2e9 {
+		yyerrorl(pos, "%v with length %v is too big", what, len(t))
+		return 0
+	}
+
 	s.WriteString(Ctxt, int64(off), len(t), t)
 	return off + len(t)
 }
@@ -445,7 +454,7 @@ func gdata(nam *Node, nr *Node, wid int) {
 			}
 
 		case string:
-			symdata := stringsym(u)
+			symdata := stringsym(nam.Pos, u)
 			s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, symdata, 0)
 			s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthptr, int64(len(u)))
 

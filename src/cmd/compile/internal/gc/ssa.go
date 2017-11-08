@@ -5067,7 +5067,7 @@ func (e *ssafn) StringData(s string) interface{} {
 	if e.strings == nil {
 		e.strings = make(map[string]interface{})
 	}
-	data := stringsym(s)
+	data := stringsym(e.curfn.Pos, s)
 	e.strings[s] = data
 	return data
 }
