@@ -57,3 +57,21 @@ type ppc64 struct {
 	IsPOWER9   bool // ISA v3.00 (POWER9)
 	_          [CacheLineSize]byte
 }
+
+var ARM64 arm64
+
+// The booleans in arm64 contain the correspondingly named cpu feature bit.
+// The struct is padded to avoid false sharing.
+type arm64 struct {
+	_          [CacheLineSize]byte
+	HasFP      bool
+	HasASIMD   bool
+	HasEVTSTRM bool
+	HasAES     bool
+	HasPMULL   bool
+	HasSHA1    bool
+	HasSHA2    bool
+	HasCRC32   bool
+	HasATOMICS bool
+	_          [CacheLineSize]byte
+}
