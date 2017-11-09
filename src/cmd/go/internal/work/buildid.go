@@ -448,6 +448,7 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 		r, err := os.Open(target)
 		if err == nil {
 			c.Put(a.actionID, r)
+			r.Close()
 		}
 	}
 
