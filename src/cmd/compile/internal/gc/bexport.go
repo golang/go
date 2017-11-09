@@ -1412,7 +1412,7 @@ func (p *exporter) expr(n *Node) {
 		if op == OAPPEND {
 			p.bool(n.Isddd())
 		} else if n.Isddd() {
-			Fatalf("exporter: unexpected '...' with %s call", opnames[op])
+			Fatalf("exporter: unexpected '...' with %v call", op)
 		}
 
 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:

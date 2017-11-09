@@ -496,11 +496,13 @@ func (f *Func) setWBPos(pos src.XPos) {
 	}
 }
 
+//go:generate stringer -type=Op -trimprefix=O
+
 type Op uint8
 
 // Node ops.
 const (
-	OXXX = Op(iota)
+	OXXX Op = iota
 
 	// names
 	ONAME    // var, const or func name
