@@ -266,8 +266,8 @@ func matchPattern(pattern string) func(name string) bool {
 	}
 }
 
-// matchPackage(pattern, cwd)(p) reports whether package p matches pattern in the working directory cwd.
-func matchPackage(pattern, cwd string) func(*Package) bool {
+// MatchPackage(pattern, cwd)(p) reports whether package p matches pattern in the working directory cwd.
+func MatchPackage(pattern, cwd string) func(*Package) bool {
 	switch {
 	case strings.HasPrefix(pattern, "./") || strings.HasPrefix(pattern, "../") || pattern == "." || pattern == "..":
 		// Split pattern into leading pattern-free directory path

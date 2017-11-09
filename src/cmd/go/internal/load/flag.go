@@ -56,7 +56,7 @@ func (f *PerPackageFlag) set(v, cwd string) error {
 			return fmt.Errorf("missing <pattern> in <pattern>=<value>")
 		}
 		pattern := v[:i]
-		match = matchPackage(pattern, cwd)
+		match = MatchPackage(pattern, cwd)
 		v = v[i+1:]
 	}
 	flags, err := str.SplitQuotedFields(v)
@@ -104,7 +104,7 @@ func setCmdlinePatterns(args []string, cwd string) {
 	}
 	cmdlineMatchers = nil // allow reset for testing
 	for _, arg := range args {
-		cmdlineMatchers = append(cmdlineMatchers, matchPackage(arg, cwd))
+		cmdlineMatchers = append(cmdlineMatchers, MatchPackage(arg, cwd))
 	}
 }
 
