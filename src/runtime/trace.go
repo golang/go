@@ -64,7 +64,14 @@ const (
 	traceEvGoBlockGC         = 42 // goroutine blocks on GC assist [timestamp, stack]
 	traceEvGCMarkAssistStart = 43 // GC mark assist start [timestamp, stack]
 	traceEvGCMarkAssistDone  = 44 // GC mark assist done [timestamp]
-	traceEvCount             = 45
+	traceEvUserTaskCreate    = 45 // trace.NewContext [timestamp, internal task id, internal parent task id, stack, name string]
+	traceEvUserTaskEnd       = 46 // end of a task [timestamp, internal task id, stack]
+	traceEvUserSpan          = 47 // trace.WithSpan [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
+	traceEvUserLog           = 48 // trace.Log [timestamp, internal task id, key string id, stack, value string]
+	traceEvCount             = 49
+	// Byte is used but only 6 bits are available for event type.
+	// The remaining 2 bits are used to specify the number of arguments.
+	// That means, the max event type value is 63.
 )
 
 const (
@@ -378,7 +385,7 @@ func ReadTrace() []byte {
 		trace.headerWritten = true
 		trace.lockOwner = nil
 		unlock(&trace.lock)
-		return []byte("go 1.10 trace\x00\x00\x00")
+		return []byte("go 1.11 trace\x00\x00\x00")
 	}
 	// Wait for new data.
 	if trace.fullHead == 0 && !trace.shutdown {
@@ -1095,4 +1102,31 @@ func traceNextGC() {
 	} else {
 		traceEvent(traceEvNextGC, -1, memstats.next_gc)
 	}
+}
+
+// To access runtime functions from runtime/trace.
+// See runtime/trace/annotation.go
+
+//go:linkname trace_userTaskCreate runtime/trace.userTaskCreate
+func trace_userTaskCreate(id, parentID uint64, taskType string) {
+	// TODO: traceEvUserTaskCreate
+	// TODO: truncate the name if too long.
+}
+
+//go:linkname trace_userTaskEnd runtime/trace.userTaskEnd
+func trace_userTaskEnd(id uint64) {
+	// TODO: traceEvUserSpan
+}
+
+//go:linkname trace_userSpan runtime/trace.userSpan
+func trace_userSpan(id, mode uint64, spanType string) {
+	// TODO: traceEvString for name.
+	// TODO: truncate the name if too long.
+	// TODO: traceEvSpan.
+}
+
+//go:linkname trace_userLog runtime/trace.userLog
+func trace_userLog(id uint64, category, message string) {
+	// TODO: traceEvString for key.
+	// TODO: traceEvUserLog.
 }

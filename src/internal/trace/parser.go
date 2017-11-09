@@ -150,7 +150,7 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
 		return
 	}
 	switch ver {
-	case 1005, 1007, 1008, 1009, 1010:
+	case 1005, 1007, 1008, 1009, 1010, 1011:
 		// Note: When adding a new version, add canned traces
 		// from the old version to the test suite using mkcanned.bash.
 		break
@@ -967,7 +967,11 @@ const (
 	EvGoBlockGC         = 42 // goroutine blocks on GC assist [timestamp, stack]
 	EvGCMarkAssistStart = 43 // GC mark assist start [timestamp, stack]
 	EvGCMarkAssistDone  = 44 // GC mark assist done [timestamp]
-	EvCount             = 45
+	EvUserTaskCreate    = 45 // trace.NewContext [timestamp, internal task id, internal parent id, stack, name string]
+	EvUserTaskEnd       = 46 // end of task [timestamp, internal task id, stack]
+	EvUserSpan          = 47 // trace.WithSpan [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
+	EvUserLog           = 48 // trace.Log [timestamp, internal id, key string id, stack, value string]
+	EvCount             = 49
 )
 
 var EventDescriptions = [EvCount]struct {
@@ -1021,4 +1025,8 @@ var EventDescriptions = [EvCount]struct {
 	EvGoBlockGC:         {"GoBlockGC", 1008, true, []string{}},
 	EvGCMarkAssistStart: {"GCMarkAssistStart", 1009, true, []string{}},
 	EvGCMarkAssistDone:  {"GCMarkAssistDone", 1009, false, []string{}},
+	EvUserTaskCreate:    {"UserTaskCreate", 1011, true, []string{"taskid", "pid", "nameid"}},
+	EvUserTaskEnd:       {"UserTaskEnd", 1011, true, []string{"taskid"}},
+	EvUserSpan:          {"UserSpan", 1011, true, []string{"taskid", "mode", "nameid"}},
+	EvUserLog:           {"UserLog", 1011, true, []string{"id", "key id"}},
 }
