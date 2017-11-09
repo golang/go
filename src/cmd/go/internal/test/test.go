@@ -1472,8 +1472,10 @@ func builderCleanTest(b *work.Builder, a *work.Action) error {
 func builderPrintTest(b *work.Builder, a *work.Action) error {
 	clean := a.Deps[0]
 	run := clean.Deps[0]
-	os.Stdout.Write(run.TestOutput.Bytes())
-	run.TestOutput = nil
+	if run.TestOutput != nil {
+		os.Stdout.Write(run.TestOutput.Bytes())
+		run.TestOutput = nil
+	}
 	return nil
 }
 

@@ -5060,3 +5060,12 @@ func TestGcflagsPatterns(t *testing.T) {
 	tg.grepStderr("compile.* -N .*-p reflect", "did not build reflect with -N flag")
 	tg.grepStderrNot("compile.* -N .*-p fmt", "incorrectly built fmt with -N flag")
 }
+
+// Issue 22644
+func TestGoTestMinusN(t *testing.T) {
+	// Intent here is to verify that 'go test -n' works without crashing.
+	// This reuses flag_test.go, but really any test would do.
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "testdata/flag_test.go", "-n", "-args", "-v=7")
+}
