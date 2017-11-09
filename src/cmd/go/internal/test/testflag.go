@@ -33,6 +33,7 @@ var testFlagDefn = []*cmdflag.Defn{
 	{Name: "covermode"},
 	{Name: "coverpkg"},
 	{Name: "exec"},
+	{Name: "json", BoolVar: &testJSON},
 	{Name: "vet"},
 
 	// Passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
@@ -133,8 +134,11 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			// Arguably should be handled by f.Value, but aren't.
 			switch f.Name {
 			// bool flags.
-			case "c", "i", "v", "cover":
+			case "c", "i", "v", "cover", "json":
 				cmdflag.SetBool(cmd, f.BoolVar, value)
+				if f.Name == "json" && testJSON {
+					passToTest = append(passToTest, "-test.v")
+				}
 			case "o":
 				testO = value
 				testNeedBinary = true

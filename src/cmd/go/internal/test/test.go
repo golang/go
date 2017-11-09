@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 	"unicode"
@@ -32,6 +33,7 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"cmd/go/internal/work"
+	"cmd/internal/test2json"
 )
 
 // Break init loop.
@@ -457,6 +459,7 @@ var (
 	testO          string          // -o flag
 	testProfile    bool            // some profiling flag
 	testNeedBinary bool            // profile needs to keep binary around
+	testJSON       bool            // -json flag
 	testV          bool            // -v flag
 	testTimeout    string          // -timeout flag
 	testArgs       []string
@@ -1166,6 +1169,21 @@ type runCache struct {
 	id2 cache.ActionID
 }
 
+// stdoutMu and lockedStdout provide a locked standard output
+// that guarantees never to interlace writes from multiple
+// goroutines, so that we can have multiple JSON streams writing
+// to a lockedStdout simultaneously and know that events will
+// still be intelligible.
+var stdoutMu sync.Mutex
+
+type lockedStdout struct{}
+
+func (lockedStdout) Write(b []byte) (int, error) {
+	stdoutMu.Lock()
+	defer stdoutMu.Unlock()
+	return os.Stdout.Write(b)
+}
+
 // builderRunTest is the action for running a test binary.
 func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	if c.buf == nil {
@@ -1206,6 +1224,12 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	cmd.Dir = a.Package.Dir
 	cmd.Env = base.EnvForDir(cmd.Dir, cfg.OrigEnv)
 	var buf bytes.Buffer
+	var stdout io.Writer = os.Stdout
+	if testJSON {
+		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
+		defer json.Close()
+		stdout = json
+	}
 	if len(pkgArgs) == 0 || testBench {
 		// Stream test output (no buffering) when no package has
 		// been given on the command line (implicit current directory)
@@ -1221,10 +1245,15 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 		// subject to change. It would be nice to remove this special case
 		// entirely, but it is surely very helpful to see progress being made
 		// when tests are run on slow single-CPU ARM systems.
-		if testShowPass && (len(pkgs) == 1 || cfg.BuildP == 1) {
+		//
+		// If we're showing JSON output, then display output as soon as
+		// possible even when multiple tests are being run: the JSON output
+		// events are attributed to specific package tests, so interlacing them
+		// is OK.
+		if testShowPass && (len(pkgs) == 1 || cfg.BuildP == 1) || testJSON {
 			// Write both to stdout and buf, for possible saving
 			// to cache, and for looking for the "no tests to run" message.
-			cmd.Stdout = io.MultiWriter(os.Stdout, &buf)
+			cmd.Stdout = io.MultiWriter(stdout, &buf)
 		} else {
 			cmd.Stdout = &buf
 		}
