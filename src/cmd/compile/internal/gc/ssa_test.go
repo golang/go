@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"internal/testenv"
 	"io/ioutil"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -29,11 +28,6 @@ func buildTest(t *testing.T, filename string) {
 func doTest(t *testing.T, filename string, kind string) {
 	testenv.MustHaveGoBuild(t)
 	gotool := testenv.GoToolPath(t)
-	tmpdir, ok := ioutil.TempDir("", "ssatest")
-	if ok != nil {
-		t.Fatalf("Failed to create temporary directory")
-	}
-	defer os.RemoveAll(tmpdir)
 
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command(gotool, kind, "-gcflags=-d=ssa/check/on", filepath.Join("testdata", filename))
