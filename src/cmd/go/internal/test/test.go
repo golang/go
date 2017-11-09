@@ -220,10 +220,10 @@ const testFlag2 = `
 			significantly more expensive.
 	    Sets -cover.
 
-	-coverpkg pkg1,pkg2,pkg3
-	    Apply coverage analysis in each test to the given list of packages.
+	-coverpkg pattern1,pattern2,pattern3
+	    Apply coverage analysis in each test to packages matching the patterns.
 	    The default is for each test to analyze only the package being tested.
-	    Packages are specified as import paths.
+	    See 'go help packages' for a description of package patterns.
 	    Sets -cover.
 
 	-cpu 1,2,4
@@ -604,21 +604,30 @@ func runTest(cmd *base.Command, args []string) {
 	var builds, runs, prints []*work.Action
 
 	if testCoverPaths != nil {
-		// Load packages that were asked about for coverage.
-		// packagesForBuild exits if the packages cannot be loaded.
-		testCoverPkgs = load.PackagesForBuild(testCoverPaths)
+		match := make([]func(*load.Package) bool, len(testCoverPaths))
+		matched := make([]bool, len(testCoverPaths))
+		for i := range testCoverPaths {
+			match[i] = load.MatchPackage(testCoverPaths[i], base.Cwd)
+		}
 
-		// Warn about -coverpkg arguments that are not actually used.
-		used := make(map[string]bool)
-		for _, p := range pkgs {
-			used[p.ImportPath] = true
-			for _, dep := range p.Deps {
-				used[dep] = true
+		// Select for coverage all dependencies matching the testCoverPaths patterns.
+		for _, p := range load.PackageList(pkgs) {
+			haveMatch := false
+			for i := range testCoverPaths {
+				if match[i](p) {
+					matched[i] = true
+					haveMatch = true
+				}
+			}
+			if haveMatch {
+				testCoverPkgs = append(testCoverPkgs, p)
 			}
 		}
-		for _, p := range testCoverPkgs {
-			if !used[p.ImportPath] {
-				fmt.Fprintf(os.Stderr, "warning: no packages being tested depend on %s\n", p.ImportPath)
+
+		// Warn about -coverpkg arguments that are not actually used.
+		for i := range testCoverPaths {
+			if !matched[i] {
+				fmt.Fprintf(os.Stderr, "warning: no packages being tested depend on matches for pattern %s\n", testCoverPaths[i])
 			}
 		}
 

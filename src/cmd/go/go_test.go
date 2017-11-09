@@ -2416,6 +2416,20 @@ func TestCoverageImportMainLoop(t *testing.T) {
 	tg.grepStderr("not an importable package", "did not detect import main")
 }
 
+func TestCoveragePattern(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+
+	// If coverpkg=sleepy... expands by package loading
+	// (as opposed to pattern matching on deps)
+	// then it will try to load sleepybad, which does not compile,
+	// and the test command will fail.
+	tg.run("test", "-coverprofile="+filepath.Join(tg.tempdir, "cover.out"), "-coverpkg=sleepy...", "-run=^$", "sleepy1")
+}
+
 func TestPluginNonMain(t *testing.T) {
 	wd, err := os.Getwd()
 	if err != nil {

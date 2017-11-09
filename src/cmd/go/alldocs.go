@@ -576,7 +576,7 @@
 //
 // Usage:
 //
-// 	go list [-e] [-f format] [-json] [build flags] [packages]
+// 	go list [-deps] [-e] [-f format] [-json] [build flags] [packages]
 //
 // List lists the packages named by the import paths, one per line.
 //
@@ -680,6 +680,9 @@
 // The -json flag causes the package data to be printed in JSON format
 // instead of using the template format.
 //
+// The -deps flag causes list to add to its output all the dependencies of
+// the packages named on the command line.
+//
 // The -e flag changes the handling of erroneous packages, those that
 // cannot be found or are malformed. By default, the list command
 // prints an error to standard error for each erroneous package and
@@ -761,20 +764,21 @@
 //
 // In local directory mode, go test compiles and tests the package sources
 // found in the current directory and then runs the resulting test binary.
-// In this mode, the test binary runs with standard output and standard error
-// connected directly to the go command's own standard output and standard
-// error, and test result caching (discussed below) is disabled.
-// After the package test finishes, go test prints to standard output a
-// summary line showing the test status ('ok' or 'FAIL'), package name,
-// and elapsed time.
+// In this mode, caching (discussed below) is disabled. After the package test
+// finishes, go test prints a summary line showing the test status ('ok' or 'FAIL'),
+// package name, and elapsed time.
 //
 // In package list mode, go test compiles and tests each of the packages
 // listed on the command line. If a package test passes, go test prints only
 // the final 'ok' summary line. If a package test fails, go test prints the
 // full test output. If invoked with the -bench or -v flag, go test prints
 // the full output even for passing package tests, in order to display the
-// requested benchmark results or verbose logging. In package list mode,
-// go test prints all test output and summary lines to standard output.
+// requested benchmark results or verbose logging.
+//
+// All test output and summary lines are printed to the go command's standard
+// output, even if the test printed them to its own standard error.
+// (The go command's standard error is reserved for printing errors building
+// the tests.)
 //
 // In package list mode, go test also caches successful package test results.
 // If go test has cached a previous test run using the same test binary and
@@ -784,7 +788,9 @@
 // binary again. In the summary line, go test prints '(cached)' in place of
 // the elapsed time. To disable test caching, use any test flag or argument
 // other than the cacheable flags. The idiomatic way to disable test caching
-// explicitly is to use -count=1.
+// explicitly is to use -count=1. A cached result is treated as executing in
+// no time at all, so a successful package test result will be cached and reused
+// regardless of -timeout setting.
 //
 // In addition to the build flags, the flags handled by 'go test' itself are:
 //
@@ -1517,10 +1523,10 @@
 // 			significantly more expensive.
 // 	    Sets -cover.
 //
-// 	-coverpkg pkg1,pkg2,pkg3
-// 	    Apply coverage analysis in each test to the given list of packages.
+// 	-coverpkg pattern1,pattern2,pattern3
+// 	    Apply coverage analysis in each test to packages matching the patterns.
 // 	    The default is for each test to analyze only the package being tested.
-// 	    Packages are specified as import paths.
+// 	    See 'go help packages' for a description of package patterns.
 // 	    Sets -cover.
 //
 // 	-cpu 1,2,4
