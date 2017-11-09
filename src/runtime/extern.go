@@ -178,11 +178,11 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	// We asked for one extra, so skip that one. If this is sigpanic,
 	// stepping over this frame will set up state in Frames so the
 	// next frame is correct.
-	callers, _, ok = stackExpander.next(callers)
+	callers, _, ok = stackExpander.next(callers, true)
 	if !ok {
 		return
 	}
-	_, frame, _ := stackExpander.next(callers)
+	_, frame, _ := stackExpander.next(callers, true)
 	pc = frame.PC
 	file = frame.File
 	line = frame.Line
