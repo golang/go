@@ -206,10 +206,6 @@ var goopnames = []string{
 	OXOR:      "^",
 }
 
-func (o Op) String() string {
-	return fmt.Sprint(o)
-}
-
 func (o Op) GoString() string {
 	return fmt.Sprintf("%#v", o)
 }
@@ -232,12 +228,8 @@ func (o Op) oconv(s fmt.State, flag FmtFlag, mode fmtMode) {
 		}
 	}
 
-	if int(o) < len(opnames) && opnames[o] != "" {
-		fmt.Fprint(s, opnames[o])
-		return
-	}
-
-	fmt.Fprintf(s, "O-%d", int(o))
+	// 'o.String()' instead of just 'o' to avoid infinite recursion
+	fmt.Fprint(s, o.String())
 }
 
 var classnames = []string{

@@ -631,6 +631,7 @@ var knownFormats = map[string]string{
 	"cmd/compile/internal/gc.Nodes %.v":               "",
 	"cmd/compile/internal/gc.Nodes %v":                "",
 	"cmd/compile/internal/gc.Op %#v":                  "",
+	"cmd/compile/internal/gc.Op %d":                   "",
 	"cmd/compile/internal/gc.Op %v":                   "",
 	"cmd/compile/internal/gc.Val %#v":                 "",
 	"cmd/compile/internal/gc.Val %T":                  "",

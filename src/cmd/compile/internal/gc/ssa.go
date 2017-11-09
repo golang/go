@@ -3185,7 +3185,7 @@ func (s *state) intrinsicArgs(n *Node) []*ssa.Value {
 	temps := map[*Node]*ssa.Value{}
 	for _, a := range n.List.Slice() {
 		if a.Op != OAS {
-			s.Fatalf("non-assignment as a function argument %s", opnames[a.Op])
+			s.Fatalf("non-assignment as a function argument %v", a.Op)
 		}
 		l, r := a.Left, a.Right
 		switch l.Op {
@@ -3205,7 +3205,7 @@ func (s *state) intrinsicArgs(n *Node) []*ssa.Value {
 			}
 			args = append(args, callArg{l.Xoffset, v})
 		default:
-			s.Fatalf("function argument assignment target not allowed: %s", opnames[l.Op])
+			s.Fatalf("function argument assignment target not allowed: %v", l.Op)
 		}
 	}
 	sort.Sort(byOffset(args))
