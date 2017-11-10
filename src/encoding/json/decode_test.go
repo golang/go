@@ -195,6 +195,11 @@ type embed struct {
 	Q int
 }
 
+type Issue21357 struct {
+	*embed
+	R int
+}
+
 type Loop struct {
 	Loop1 int `json:",omitempty"`
 	Loop2 int `json:",omitempty"`
@@ -864,6 +869,20 @@ var unmarshalTests = []unmarshalTest{
 		}`,
 		ptr: new(Top),
 		err: fmt.Errorf("json: unknown field \"extra\""),
+		disallowUnknownFields: true,
+	},
+
+	// Issue 21357.
+	// Ignore any embedded fields that are pointers to unexported structs.
+	{
+		in:  `{"Q":1,"R":2}`,
+		ptr: new(Issue21357),
+		out: Issue21357{R: 2},
+	},
+	{
+		in:  `{"Q":1,"R":2}`,
+		ptr: new(Issue21357),
+		err: fmt.Errorf("json: unknown field \"Q\""),
 		disallowUnknownFields: true,
 	},
 }
