@@ -24,7 +24,7 @@
 // corresponding to the Go struct:
 //
 //	type TestEvent struct {
-//		Time    time.Time
+//		Time    time.Time // encodes as an RFC3339-format string
 //		Event   string
 //		Package string
 //		Test    string
