@@ -225,8 +225,8 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 	for _, sfile := range sfiles {
 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
 		ofiles = append(ofiles, ofile)
-		a := append(args, "-o", ofile, mkAbs(p.Dir, sfile))
-		if err := b.run(p.Dir, p.ImportPath, nil, a...); err != nil {
+		args1 := append(args, "-o", ofile, mkAbs(p.Dir, sfile))
+		if err := b.run(a, p.Dir, p.ImportPath, nil, args1...); err != nil {
 			return nil, err
 		}
 	}
@@ -236,12 +236,12 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 // toolVerify checks that the command line args writes the same output file
 // if run using newTool instead.
 // Unused now but kept around for future use.
-func toolVerify(b *Builder, p *load.Package, newTool string, ofile string, args []interface{}) error {
+func toolVerify(a *Action, b *Builder, p *load.Package, newTool string, ofile string, args []interface{}) error {
 	newArgs := make([]interface{}, len(args))
 	copy(newArgs, args)
 	newArgs[1] = base.Tool(newTool)
 	newArgs[3] = ofile + ".new" // x.6 becomes x.6.new
-	if err := b.run(p.Dir, p.ImportPath, nil, newArgs...); err != nil {
+	if err := b.run(a, p.Dir, p.ImportPath, nil, newArgs...); err != nil {
 		return err
 	}
 	data1, err := ioutil.ReadFile(ofile)
@@ -283,7 +283,7 @@ func (gcToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) er
 		return nil
 	}
 	if err := packInternal(b, absAfile, absOfiles); err != nil {
-		b.showOutput(p.Dir, p.ImportPath, err.Error()+"\n")
+		b.showOutput(a, p.Dir, p.ImportPath, err.Error()+"\n")
 		return errPrintedOutput
 	}
 	return nil
@@ -454,7 +454,7 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 		dir, out = filepath.Split(out)
 	}
 
-	return b.run(dir, root.Package.ImportPath, nil, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags, mainpkg)
+	return b.run(root, dir, root.Package.ImportPath, nil, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags, mainpkg)
 }
 
 func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
@@ -485,7 +485,7 @@ func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action,
 		}
 		ldflags = append(ldflags, d.Package.ImportPath+"="+d.Target)
 	}
-	return b.run(".", out, nil, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags)
+	return b.run(root, ".", out, nil, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags)
 }
 
 func (gcToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {
