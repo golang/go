@@ -81,6 +81,7 @@ type Action struct {
 
 	needVet bool       // Mode=="build": need to fill in vet config
 	vetCfg  *vetConfig // vet config
+	output  []byte     // output redirect buffer (nil means use b.Print)
 
 	// Execution state.
 	pending  int  // number of deps yet to complete

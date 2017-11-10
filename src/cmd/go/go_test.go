@@ -4803,6 +4803,32 @@ func TestBuildCache(t *testing.T) {
 	tg.grepStderr(`[\\/]link|gccgo`, "did not run linker")
 }
 
+func TestCacheOutput(t *testing.T) {
+	// Test that command output is cached and replayed too.
+	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+		t.Skip("GODEBUG gocacheverify")
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.makeTempdir()
+	tg.setenv("GOCACHE", tg.tempdir)
+
+	tg.run("build", "-gcflags=-m", "errors")
+	stdout1 := tg.getStdout()
+	stderr1 := tg.getStderr()
+
+	tg.run("build", "-gcflags=-m", "errors")
+	stdout2 := tg.getStdout()
+	stderr2 := tg.getStderr()
+
+	if stdout2 != stdout1 || stderr2 != stderr1 {
+		t.Errorf("cache did not reproduce output:\n\nstdout1:\n%s\n\nstdout2:\n%s\n\nstderr1:\n%s\n\nstderr2:\n%s",
+			stdout1, stdout2, stderr1, stderr2)
+	}
+}
+
 func TestIssue22588(t *testing.T) {
 	// Don't get confused by stderr coming from tools.
 	tg := testgo(t)

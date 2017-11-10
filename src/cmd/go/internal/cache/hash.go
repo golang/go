@@ -38,6 +38,26 @@ type Hash struct {
 // which are still addressed by unsalted SHA256.
 var hashSalt = []byte(runtime.Version())
 
+// Subkey returns an action ID corresponding to mixing a parent
+// action ID with a string description of the subkey.
+func Subkey(parent ActionID, desc string) ActionID {
+	h := sha256.New()
+	h.Write([]byte("subkey:"))
+	h.Write(parent[:])
+	h.Write([]byte(desc))
+	var out ActionID
+	h.Sum(out[:0])
+	if debugHash {
+		fmt.Fprintf(os.Stderr, "HASH subkey %x %q = %x\n", parent, desc, out)
+	}
+	if verify {
+		hashDebug.Lock()
+		hashDebug.m[out] = fmt.Sprintf("subkey %x %q", parent, desc)
+		hashDebug.Unlock()
+	}
+	return out
+}
+
 // NewHash returns a new Hash.
 // The caller is expected to Write data to it and then call Sum.
 func NewHash(name string) *Hash {

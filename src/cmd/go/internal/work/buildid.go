@@ -244,6 +244,10 @@ func (b *Builder) fileHash(file string) string {
 // and returns false. When useCache returns false the expectation is that
 // the caller will build the target and then call updateBuildID to finish the
 // build ID computation.
+// When useCache returns false, it may have initiated buffering of output
+// during a's work. The caller should defer b.flushOutput(a), to make sure
+// that flushOutput is eventually called regardless of whether the action
+// succeeds. The flushOutput call must happen after updateBuildID.
 func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID, target string) bool {
 	// The second half of the build ID here is a placeholder for the content hash.
 	// It's important that the overall buildID be unlikely verging on impossible
@@ -358,24 +362,45 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 	// We treat hits in this cache as being "stale" for the purposes of go list
 	// (in effect, "stale" means whether p.Target is up-to-date),
 	// but we're still happy to use results from the build artifact cache.
-	if !cfg.BuildA {
-		if c := cache.Default(); c != nil {
+	if c := cache.Default(); c != nil {
+		if !cfg.BuildA {
 			outputID, size, err := c.Get(actionHash)
 			if err == nil {
 				file := c.OutputFile(outputID)
 				info, err1 := os.Stat(file)
 				buildID, err2 := buildid.ReadFile(file)
 				if err1 == nil && err2 == nil && info.Size() == size {
-					a.built = file
-					a.Target = "DO NOT USE - using cache"
-					a.buildID = buildID
-					return true
+					stdout, err := c.GetBytes(cache.Subkey(a.actionID, "stdout"))
+					if err == nil {
+						if len(stdout) > 0 {
+							if cfg.BuildX || cfg.BuildN {
+								id, _, _ := c.Get(cache.Subkey(a.actionID, "stdout"))
+								b.Showcmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(id))))
+							}
+							if !cfg.BuildN {
+								b.Print(string(stdout))
+							}
+						}
+						a.built = file
+						a.Target = "DO NOT USE - using cache"
+						a.buildID = buildID
+						return true
+					}
 				}
 			}
 		}
+
+		// Begin saving output for later writing to cache.
+		a.output = []byte{}
 	}
 
 	return false
+}
+
+// flushOutput flushes the output being queued in a.
+func (b *Builder) flushOutput(a *Action) {
+	b.Print(string(a.output))
+	a.output = nil
 }
 
 // updateBuildID updates the build ID in the target written by action a.
@@ -447,7 +472,11 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 	if c := cache.Default(); c != nil && a.Mode == "build" {
 		r, err := os.Open(target)
 		if err == nil {
+			if a.output == nil {
+				panic("internal error: a.output not set")
+			}
 			c.Put(a.actionID, r)
+			c.PutBytes(cache.Subkey(a.actionID, "stdout"), a.output)
 			r.Close()
 		}
 	}
