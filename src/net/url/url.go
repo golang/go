@@ -163,18 +163,23 @@ func shouldEscape(c byte, mode encoding) bool {
 	return true
 }
 
-// QueryUnescape does the inverse transformation of QueryEscape, converting
-// %AB into the byte 0xAB and '+' into ' ' (space). It returns an error if
-// any % is not followed by two hexadecimal digits.
+// QueryUnescape does the inverse transformation of QueryEscape,
+// converting 3-byte encoded substrings of the form "%AB" into the
+// hex-decoded byte 0xAB. It also converts '+' into ' ' (space).
+// It returns an error if any % is not followed by two hexadecimal
+// digits.
 func QueryUnescape(s string) (string, error) {
 	return unescape(s, encodeQueryComponent)
 }
 
-// PathUnescape does the inverse transformation of PathEscape, converting
-// %AB into the byte 0xAB. It returns an error if any % is not followed by
-// two hexadecimal digits.
+// PathUnescape does the inverse transformation of PathEscape,
+// converting 3-byte encoded substrings of the form "%AB" into the
+// hex-decoded byte 0xAB. It also converts '+' into ' ' (space).
+// It returns an error if any % is not followed by two hexadecimal
+// digits.
 //
-// PathUnescape is identical to QueryUnescape except that it does not unescape '+' to ' ' (space).
+// PathUnescape is identical to QueryUnescape except that it does not
+// unescape '+' to ' ' (space).
 func PathUnescape(s string) (string, error) {
 	return unescape(s, encodePathSegment)
 }
