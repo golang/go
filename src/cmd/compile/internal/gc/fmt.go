@@ -232,16 +232,6 @@ func (o Op) oconv(s fmt.State, flag FmtFlag, mode fmtMode) {
 	fmt.Fprint(s, o.String())
 }
 
-var classnames = []string{
-	"Pxxx",
-	"PEXTERN",
-	"PAUTO",
-	"PAUTOHEAP",
-	"PPARAM",
-	"PPARAMOUT",
-	"PFUNC",
-}
-
 type (
 	fmtMode int
 
@@ -439,11 +429,7 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	}
 
 	if n.Class() != 0 {
-		if int(n.Class()) < len(classnames) {
-			fmt.Fprintf(s, " class(%s)", classnames[n.Class()])
-		} else {
-			fmt.Fprintf(s, " class(%d?)", n.Class())
-		}
+		fmt.Fprintf(s, " class(%v)", n.Class())
 	}
 
 	if n.Colas() {

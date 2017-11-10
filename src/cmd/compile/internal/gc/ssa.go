@@ -179,7 +179,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 		case PFUNC:
 			// local function - already handled by frontend
 		default:
-			s.Fatalf("local variable with class %s unimplemented", classnames[n.Class()])
+			s.Fatalf("local variable with class %v unimplemented", n.Class())
 		}
 	}
 
@@ -3394,7 +3394,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			// that cse works on their addresses
 			return s.newValue1A(ssa.OpAddr, t, n, s.sp)
 		default:
-			s.Fatalf("variable address class %v not implemented", classnames[n.Class()])
+			s.Fatalf("variable address class %v not implemented", n.Class())
 			return nil
 		}
 	case OINDREGSP:
