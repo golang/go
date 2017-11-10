@@ -13,6 +13,7 @@ import (
 	"text/scanner"
 
 	"cmd/asm/internal/flags"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -454,7 +455,7 @@ func (in *Input) line() {
 		in.Error("unexpected token at end of #line: ", tok)
 	}
 	pos := src.MakePos(in.Base(), uint(in.Line()), uint(in.Col()))
-	in.Stack.SetBase(src.NewLinePragmaBase(pos, file, uint(line)))
+	in.Stack.SetBase(src.NewLinePragmaBase(pos, file, objabi.AbsFile(objabi.WorkingDir(), file, *flags.TrimPath), uint(line)))
 }
 
 // #undef processing

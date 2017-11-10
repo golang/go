@@ -192,6 +192,7 @@ func Main(archInit func(*Arch)) {
 	objabi.Flagcount("E", "debug symbol export", &Debug['E'])
 	objabi.Flagfn1("I", "add `directory` to import search path", addidir)
 	objabi.Flagcount("K", "debug missing line numbers", &Debug['K'])
+	objabi.Flagcount("L", "show full file names in error messages", &Debug['L'])
 	objabi.Flagcount("N", "disable optimizations", &Debug['N'])
 	flag.BoolVar(&Debug_asm, "S", false, "print assembly listing")
 	objabi.AddVersionFlag() // -V

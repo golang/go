@@ -15,7 +15,7 @@ const REG_NONE = 0
 
 // Line returns a string containing the filename and line number for p
 func (p *Prog) Line() string {
-	return p.Ctxt.OutermostPos(p.Pos).Format(false)
+	return p.Ctxt.OutermostPos(p.Pos).Format(false, true)
 }
 
 // LineNumber returns a string containing the line number for p's position

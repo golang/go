@@ -93,7 +93,7 @@ func hcrash() {
 }
 
 func linestr(pos src.XPos) string {
-	return Ctxt.OutermostPos(pos).Format(Debug['C'] == 0)
+	return Ctxt.OutermostPos(pos).Format(Debug['C'] == 0, Debug['L'] == 1)
 }
 
 // lasterror keeps track of the most recently issued error.

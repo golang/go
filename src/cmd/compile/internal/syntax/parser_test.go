@@ -221,7 +221,7 @@ func TestLineDirectives(t *testing.T) {
 		if msg := perr.Msg; msg != test.msg {
 			t.Errorf("%s: got msg = %q; want %q", test.src, msg, test.msg)
 		}
-		if filename := perr.Pos.RelFilename(); filename != test.filename {
+		if filename := perr.Pos.AbsFilename(); filename != test.filename {
 			t.Errorf("%s: got filename = %q; want %q", test.src, filename, test.filename)
 		}
 		if line := perr.Pos.RelLine(); line != test.line+linebase {
