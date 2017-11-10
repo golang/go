@@ -2430,6 +2430,33 @@ func TestCoveragePattern(t *testing.T) {
 	tg.run("test", "-coverprofile="+filepath.Join(tg.tempdir, "cover.out"), "-coverpkg=sleepy...", "-run=^$", "sleepy1")
 }
 
+func TestCoverageErrorLine(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.setenv("GOTMPDIR", tg.tempdir)
+
+	tg.runFail("test", "coverbad")
+	tg.grepStderr(`coverbad[\\/]p.go:4`, "did not find correct line number for error")
+	tg.grepStderrNot(regexp.QuoteMeta(tg.tempdir), "found temporary directory in error")
+	stderr := tg.getStderr()
+
+	tg.runFail("test", "-cover", "coverbad")
+	tg.grepStderr(`coverbad[\\/]p.go:4`, "did not find correct line number for error")
+	stderr2 := tg.getStderr()
+
+	// It's OK that stderr2 drops the character position in the error,
+	// because of the //line directive.
+	stderr = strings.Replace(stderr, "p.go:4:2:", "p.go:4:", -1)
+	if stderr != stderr2 {
+		t.Logf("test -cover changed error messages:\nbefore:\n%s\n\nafter:\n%s", stderr, stderr2)
+		t.Skip("golang.org/issue/22660")
+		t.FailNow()
+	}
+}
+
 func TestPluginNonMain(t *testing.T) {
 	wd, err := os.Getwd()
 	if err != nil {
