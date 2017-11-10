@@ -36,6 +36,7 @@ type Config struct {
 	useSSE          bool          // Use SSE for non-float operations
 	nacl            bool          // GOOS=nacl
 	use387          bool          // GO386=387
+	SoftFloat       bool          //
 	NeedsFpScratch  bool          // No direct move between GP and FP register sets
 	BigEndian       bool          //
 	sparsePhiCutoff uint64        // Sparse phi location algorithm used above this #blocks*#variables score

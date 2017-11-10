@@ -49,6 +49,7 @@ var (
 	Debug_locationlist int
 	Debug_typecheckinl int
 	Debug_gendwarfinl  int
+	Debug_softfloat    int
 )
 
 // Debug arguments.
@@ -78,6 +79,7 @@ var debugtab = []struct {
 	{"locationlists", "print information about DWARF location list creation", &Debug_locationlist},
 	{"typecheckinl", "eager typechecking of inline function bodies", &Debug_typecheckinl},
 	{"dwarfinl", "print information about DWARF inlined function creation", &Debug_gendwarfinl},
+	{"softfloat", "force compiler to emit soft-float code", &Debug_softfloat},
 }
 
 const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
@@ -391,6 +393,10 @@ func Main(archInit func(*Arch)) {
 	Ctxt.Debugpcln = Debug_pctab
 	if flagDWARF {
 		dwarf.EnableLogging(Debug_gendwarfinl != 0)
+	}
+
+	if Debug_softfloat != 0 {
+		thearch.SoftFloat = true
 	}
 
 	// enable inlining.  for now:

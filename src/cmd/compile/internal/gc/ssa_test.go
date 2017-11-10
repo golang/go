@@ -18,20 +18,27 @@ import (
 
 // TODO: move all these tests elsewhere?
 // Perhaps teach test/run.go how to run them with a new action verb.
-func runTest(t *testing.T, filename string) {
+func runTest(t *testing.T, filename string, flags ...string) {
 	t.Parallel()
-	doTest(t, filename, "run")
+	doTest(t, filename, "run", flags...)
 }
-func buildTest(t *testing.T, filename string) {
+func buildTest(t *testing.T, filename string, flags ...string) {
 	t.Parallel()
-	doTest(t, filename, "build")
+	doTest(t, filename, "build", flags...)
 }
-func doTest(t *testing.T, filename string, kind string) {
+func doTest(t *testing.T, filename string, kind string, flags ...string) {
 	testenv.MustHaveGoBuild(t)
 	gotool := testenv.GoToolPath(t)
 
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(gotool, kind, "-gcflags=-d=ssa/check/on", filepath.Join("testdata", filename))
+	args := []string{kind}
+	if len(flags) == 0 {
+		args = append(args, "-gcflags=-d=ssa/check/on")
+	} else {
+		args = append(args, flags...)
+	}
+	args = append(args, filepath.Join("testdata", filename))
+	cmd := exec.Command(gotool, args...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
@@ -112,6 +119,10 @@ func TestArithmetic(t *testing.T) { runTest(t, "arith.go") }
 
 // TestFP tests that both backends have the same result for floating point expressions.
 func TestFP(t *testing.T) { runTest(t, "fp.go") }
+
+func TestFPSoftFloat(t *testing.T) {
+	runTest(t, "fp.go", "-gcflags=-d=softfloat,ssa/check/on")
+}
 
 // TestArithmeticBoundary tests boundary results for arithmetic operations.
 func TestArithmeticBoundary(t *testing.T) { runTest(t, "arithBoundary.go") }
