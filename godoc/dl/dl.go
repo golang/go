@@ -35,9 +35,9 @@ import (
 )
 
 const (
-	edgeCacheBaseURL = "https://redirector.gvt1.com/edgedl/go/"
-	cacheKey         = "download_list_3" // increment if listTemplateData changes
-	cacheDuration    = time.Hour
+	downloadBaseURL = "https://dl.google.com/go/"
+	cacheKey        = "download_list_3" // increment if listTemplateData changes
+	cacheDuration   = time.Hour
 )
 
 func RegisterHandlers(mux *http.ServeMux) {
@@ -133,7 +133,7 @@ func (f File) Highlight() bool {
 }
 
 func (f File) URL() string {
-	return edgeCacheBaseURL + f.Filename
+	return downloadBaseURL + f.Filename
 }
 
 type Release struct {
@@ -424,7 +424,7 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	http.Redirect(w, r, edgeCacheBaseURL+name, http.StatusFound)
+	http.Redirect(w, r, downloadBaseURL+name, http.StatusFound)
 }
 
 func validUser(user string) bool {
