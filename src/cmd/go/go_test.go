@@ -2457,6 +2457,19 @@ func TestCoverageErrorLine(t *testing.T) {
 	}
 }
 
+func TestCoverageFunc(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+
+	tg.run("test", "-coverprofile="+filepath.Join(tg.tempdir, "cover.out"), "coverasm")
+	tg.run("tool", "cover", "-func="+filepath.Join(tg.tempdir, "cover.out"))
+	tg.grepStdout(`\tg\t*100.0%`, "did not find g 100% covered")
+	tg.grepStdoutNot(`\tf\t*[0-9]`, "reported coverage for assembly function f")
+}
+
 func TestPluginNonMain(t *testing.T) {
 	wd, err := os.Getwd()
 	if err != nil {
