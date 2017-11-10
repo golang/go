@@ -390,6 +390,40 @@ func (b *Builder) build(a *Action) (err error) {
 		cxxfiles = append(cxxfiles, outCXX...)
 	}
 
+	// If we're doing coverage, preprocess the .go files and put them in the work directory
+	if a.Package.Internal.CoverMode != "" {
+		for i, file := range str.StringList(gofiles, cgofiles) {
+			var sourceFile string
+			var coverFile string
+			var key string
+			if strings.HasSuffix(file, ".cgo1.go") {
+				// cgo files have absolute paths
+				base := filepath.Base(file)
+				sourceFile = file
+				coverFile = objdir + base
+				key = strings.TrimSuffix(base, ".cgo1.go") + ".go"
+			} else {
+				sourceFile = filepath.Join(a.Package.Dir, file)
+				coverFile = objdir + file
+				key = file
+			}
+			coverFile = strings.TrimSuffix(coverFile, ".go") + ".cover.go"
+			cover := a.Package.Internal.CoverVars[key]
+			if cover == nil || base.IsTestFile(file) {
+				// Not covering this file.
+				continue
+			}
+			if err := b.cover(a, coverFile, sourceFile, 0666, cover.Var); err != nil {
+				return err
+			}
+			if i < len(gofiles) {
+				gofiles[i] = coverFile
+			} else {
+				cgofiles[i-len(gofiles)] = coverFile
+			}
+		}
+	}
+
 	// Run cgo.
 	if a.Package.UsesCgo() || a.Package.UsesSwig() {
 		// In a package using cgo, cgo compiles the C, C++ and assembly files with gcc.
@@ -443,35 +477,6 @@ func (b *Builder) build(a *Action) (err error) {
 	// Sanity check only, since Package.load already checked as well.
 	if len(gofiles) == 0 {
 		return &load.NoGoError{Package: a.Package}
-	}
-
-	// If we're doing coverage, preprocess the .go files and put them in the work directory
-	if a.Package.Internal.CoverMode != "" {
-		for i, file := range gofiles {
-			var sourceFile string
-			var coverFile string
-			var key string
-			if strings.HasSuffix(file, ".cgo1.go") {
-				// cgo files have absolute paths
-				base := filepath.Base(file)
-				sourceFile = file
-				coverFile = objdir + base
-				key = strings.TrimSuffix(base, ".cgo1.go") + ".go"
-			} else {
-				sourceFile = filepath.Join(a.Package.Dir, file)
-				coverFile = objdir + file
-				key = file
-			}
-			cover := a.Package.Internal.CoverVars[key]
-			if cover == nil || base.IsTestFile(file) {
-				// Not covering this file.
-				continue
-			}
-			if err := b.cover(a, coverFile, sourceFile, 0666, cover.Var); err != nil {
-				return err
-			}
-			gofiles[i] = coverFile
-		}
 	}
 
 	// Prepare Go vet config if needed.
