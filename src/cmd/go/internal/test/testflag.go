@@ -156,10 +156,10 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			case "timeout":
 				testTimeout = value
 			case "blockprofile", "cpuprofile", "memprofile", "mutexprofile":
-				testProfile = true
+				testProfile = "-" + f.Name
 				testNeedBinary = true
 			case "trace":
-				testProfile = true
+				testProfile = "-trace"
 			case "coverpkg":
 				testCover = true
 				if value == "" {
@@ -169,7 +169,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 				}
 			case "coverprofile":
 				testCover = true
-				testProfile = true
+				testCoverProfile = value
 			case "covermode":
 				switch value {
 				case "set", "count", "atomic":
@@ -219,7 +219,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 	}
 
 	// Tell the test what directory we're running in, so it can write the profiles there.
-	if testProfile && outputDir == "" {
+	if testProfile != "" && outputDir == "" {
 		dir, err := os.Getwd()
 		if err != nil {
 			base.Fatalf("error from os.Getwd: %s", err)

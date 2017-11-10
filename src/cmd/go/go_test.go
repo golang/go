@@ -2338,7 +2338,6 @@ func checkCoverage(tg *testgoData, data string) {
 	if regexp.MustCompile(`[^0-9]0\.0%`).MatchString(data) {
 		tg.t.Error("some coverage results are 0.0%")
 	}
-	tg.t.Log(data)
 }
 
 func TestCoverageRuns(t *testing.T) {
@@ -2355,6 +2354,7 @@ func TestCoverageRuns(t *testing.T) {
 }
 
 // Check that coverage analysis uses set mode.
+// Also check that coverage profiles merge correctly.
 func TestCoverageUsesSetMode(t *testing.T) {
 	if testing.Short() {
 		t.Skip("don't build libraries for coverage in short mode")
@@ -2362,13 +2362,22 @@ func TestCoverageUsesSetMode(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.creatingTemp("testdata/cover.out")
-	tg.run("test", "-short", "-cover", "encoding/binary", "-coverprofile=testdata/cover.out")
+	tg.run("test", "-short", "-cover", "encoding/binary", "errors", "-coverprofile=testdata/cover.out")
 	data := tg.getStdout() + tg.getStderr()
 	if out, err := ioutil.ReadFile("testdata/cover.out"); err != nil {
 		t.Error(err)
 	} else {
 		if !bytes.Contains(out, []byte("mode: set")) {
 			t.Error("missing mode: set")
+		}
+		if !bytes.Contains(out, []byte("errors.go")) {
+			t.Error("missing errors.go")
+		}
+		if !bytes.Contains(out, []byte("binary.go")) {
+			t.Error("missing binary.go")
+		}
+		if bytes.Count(out, []byte("mode: set")) != 1 {
+			t.Error("too many mode: set")
 		}
 	}
 	checkCoverage(tg, data)

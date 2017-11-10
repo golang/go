@@ -451,24 +451,25 @@ See the documentation of the testing package for more information.
 }
 
 var (
-	testC          bool            // -c flag
-	testCover      bool            // -cover flag
-	testCoverMode  string          // -covermode flag
-	testCoverPaths []string        // -coverpkg flag
-	testCoverPkgs  []*load.Package // -coverpkg flag
-	testO          string          // -o flag
-	testProfile    bool            // some profiling flag
-	testNeedBinary bool            // profile needs to keep binary around
-	testJSON       bool            // -json flag
-	testV          bool            // -v flag
-	testTimeout    string          // -timeout flag
-	testArgs       []string
-	testBench      bool
-	testList       bool
-	testShowPass   bool   // show passing output
-	testVetList    string // -vet flag
-	pkgArgs        []string
-	pkgs           []*load.Package
+	testC            bool            // -c flag
+	testCover        bool            // -cover flag
+	testCoverMode    string          // -covermode flag
+	testCoverPaths   []string        // -coverpkg flag
+	testCoverPkgs    []*load.Package // -coverpkg flag
+	testCoverProfile string          // -coverprofile flag
+	testO            string          // -o flag
+	testProfile      string          // profiling flag that limits test to one package
+	testNeedBinary   bool            // profile needs to keep binary around
+	testJSON         bool            // -json flag
+	testV            bool            // -v flag
+	testTimeout      string          // -timeout flag
+	testArgs         []string
+	testBench        bool
+	testList         bool
+	testShowPass     bool   // show passing output
+	testVetList      string // -vet flag
+	pkgArgs          []string
+	pkgs             []*load.Package
 
 	testKillTimeout = 10 * time.Minute
 )
@@ -525,9 +526,11 @@ func runTest(cmd *base.Command, args []string) {
 	if testO != "" && len(pkgs) != 1 {
 		base.Fatalf("cannot use -o flag with multiple packages")
 	}
-	if testProfile && len(pkgs) != 1 {
-		base.Fatalf("cannot use test profile flag with multiple packages")
+	if testProfile != "" && len(pkgs) != 1 {
+		base.Fatalf("cannot use %s flag with multiple packages", testProfile)
 	}
+	initCoverProfile()
+	defer closeCoverProfile()
 
 	// If a test timeout was given and is parseable, set our kill timeout
 	// to that timeout plus one minute. This is a backup alarm in case
@@ -1039,6 +1042,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 			Package:    p,
 			IgnoreFail: true,
 			TryCache:   c.tryCache,
+			Objdir:     testDir,
 		}
 		if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
 			addTestVet(b, ptest, runAction, installAction)
@@ -1220,6 +1224,15 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 		return nil
 	}
 
+	if testCoverProfile != "" {
+		// Write coverage to temporary profile, for merging later.
+		for i, arg := range args {
+			if strings.HasPrefix(arg, "-test.coverprofile=") {
+				args[i] = "-test.coverprofile=" + a.Objdir + "_cover_.out"
+			}
+		}
+	}
+
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = a.Package.Dir
 	cmd.Env = base.EnvForDir(cmd.Dir, cfg.OrigEnv)
@@ -1318,6 +1331,9 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	out := buf.Bytes()
 	a.TestOutput = &buf
 	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
+
+	mergeCoverProfile(cmd.Stdout, a.Objdir+"_cover_.out")
+
 	if err == nil {
 		norun := ""
 		if !testShowPass {
