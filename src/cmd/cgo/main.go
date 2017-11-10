@@ -25,6 +25,7 @@ import (
 	"sort"
 	"strings"
 
+	"cmd/internal/edit"
 	"cmd/internal/objabi"
 )
 
@@ -57,6 +58,11 @@ type File struct {
 	ExpFunc  []*ExpFunc          // exported functions for this file
 	Name     map[string]*Name    // map from Go name to Name
 	NamePos  map[*Name]token.Pos // map from Name to position of the first reference
+	Edit     *edit.Buffer
+}
+
+func (f *File) offset(p token.Pos) int {
+	return fset.Position(p).Offset
 }
 
 func nameKeys(m map[string]*Name) []string {
@@ -284,6 +290,7 @@ func main() {
 		}
 
 		f := new(File)
+		f.Edit = edit.NewBuffer(b)
 		f.ParseGo(input, b)
 		f.DiscardCgoDirectives()
 		fs[i] = f
@@ -308,7 +315,9 @@ func main() {
 				if cref.Name.Kind != "type" {
 					break
 				}
+				old := *cref.Expr
 				*cref.Expr = cref.Name.Type.Go
+				f.Edit.Replace(f.offset(old.Pos()), f.offset(old.End()), gofmt(cref.Name.Type.Go))
 			}
 		}
 		if nerrors > 0 {

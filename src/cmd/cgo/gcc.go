@@ -169,21 +169,8 @@ func (p *Package) Translate(f *File) {
 		p.loadDWARF(f, needType)
 	}
 	if p.rewriteCalls(f) {
-		// Add `import _cgo_unsafe "unsafe"` as the first decl
-		// after the package statement.
-		imp := &ast.GenDecl{
-			Tok: token.IMPORT,
-			Specs: []ast.Spec{
-				&ast.ImportSpec{
-					Name: ast.NewIdent("_cgo_unsafe"),
-					Path: &ast.BasicLit{
-						Kind:  token.STRING,
-						Value: `"unsafe"`,
-					},
-				},
-			},
-		}
-		f.AST.Decls = append([]ast.Decl{imp}, f.AST.Decls...)
+		// Add `import _cgo_unsafe "unsafe"` after the package statement.
+		f.Edit.Insert(f.offset(f.AST.Name.End()), "; import _cgo_unsafe \"unsafe\"")
 	}
 	p.rewriteRef(f)
 }
@@ -718,8 +705,9 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 		stmts = append(stmts, stmt)
 	}
 
+	const cgoMarker = "__cgo__###__marker__"
 	fcall := &ast.CallExpr{
-		Fun:  call.Call.Fun,
+		Fun:  ast.NewIdent(cgoMarker),
 		Args: nargs,
 	}
 	ftype := &ast.FuncType{
@@ -741,31 +729,26 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 		}
 	}
 
-	// There is a Ref pointing to the old call.Call.Fun.
+	// If this call expects two results, we have to
+	// adjust the results of the function we generated.
 	for _, ref := range f.Ref {
-		if ref.Expr == &call.Call.Fun {
-			ref.Expr = &fcall.Fun
-
-			// If this call expects two results, we have to
-			// adjust the results of the function we generated.
-			if ref.Context == ctxCall2 {
-				if ftype.Results == nil {
-					// An explicit void argument
-					// looks odd but it seems to
-					// be how cgo has worked historically.
-					ftype.Results = &ast.FieldList{
-						List: []*ast.Field{
-							&ast.Field{
-								Type: ast.NewIdent("_Ctype_void"),
-							},
+		if ref.Expr == &call.Call.Fun && ref.Context == ctxCall2 {
+			if ftype.Results == nil {
+				// An explicit void argument
+				// looks odd but it seems to
+				// be how cgo has worked historically.
+				ftype.Results = &ast.FieldList{
+					List: []*ast.Field{
+						&ast.Field{
+							Type: ast.NewIdent("_Ctype_void"),
 						},
-					}
+					},
 				}
-				ftype.Results.List = append(ftype.Results.List,
-					&ast.Field{
-						Type: ast.NewIdent("error"),
-					})
 			}
+			ftype.Results.List = append(ftype.Results.List,
+				&ast.Field{
+					Type: ast.NewIdent("error"),
+				})
 		}
 	}
 
@@ -779,14 +762,16 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 			Results: []ast.Expr{fcall},
 		}
 	}
-	call.Call.Fun = &ast.FuncLit{
+	lit := &ast.FuncLit{
 		Type: ftype,
 		Body: &ast.BlockStmt{
 			List: append(stmts, fbody),
 		},
 	}
-	call.Call.Lparen = token.NoPos
-	call.Call.Rparen = token.NoPos
+	text := strings.Replace(gofmt(lit), "\n", ";", -1)
+	repl := strings.Split(text, cgoMarker)
+	f.Edit.Insert(f.offset(call.Call.Fun.Pos()), repl[0])
+	f.Edit.Insert(f.offset(call.Call.Fun.End()), repl[1])
 
 	return needsUnsafe
 }
@@ -1175,6 +1160,7 @@ func (p *Package) rewriteRef(f *File) {
 				error_(r.Pos(), "must call C.%s", fixGo(r.Name.Go))
 			}
 		}
+
 		if *godefs {
 			// Substitute definition for mangled type name.
 			if id, ok := expr.(*ast.Ident); ok {
@@ -1196,7 +1182,17 @@ func (p *Package) rewriteRef(f *File) {
 			expr = &ast.Ident{NamePos: pos, Name: x.Name}
 		}
 
+		// Change AST, because some later processing depends on it,
+		// and also because -godefs mode still prints the AST.
+		old := *r.Expr
 		*r.Expr = expr
+
+		// Record source-level edit for cgo output.
+		repl := gofmt(expr)
+		if r.Name.Kind != "type" {
+			repl = "(" + repl + ")"
+		}
+		f.Edit.Replace(f.offset(old.Pos()), f.offset(old.End()), repl)
 	}
 
 	// Remove functions only used as expressions, so their respective
