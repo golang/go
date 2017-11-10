@@ -203,17 +203,34 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
 	RET
 
 // func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $16
+TEXT runtime·walltime(SB), NOSPLIT, $0-12
+	// We don't know how much stack space the VDSO code will need,
+	// so switch to g0.
+
+	MOVL	SP, BP	// Save old SP; BP unchanged by C code.
+
+	get_tls(CX)
+	MOVL	g(CX), AX
+	MOVL	g_m(AX), CX
+	MOVL	m_curg(CX), DX
+
+	CMPL	AX, DX		// Only switch if on curg.
+	JNE	noswitch
+
+	MOVL	m_g0(CX), DX
+	MOVL	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
+
+noswitch:
+	SUBL	$16, SP		// Space for results
+	ANDL	$~15, SP	// Align for C code
+
 	// Stack layout, depending on call path:
 	//  x(SP)   vDSO            INVOKE_SYSCALL
 	//    12    ts.tv_nsec      ts.tv_nsec
 	//     8    ts.tv_sec       ts.tv_sec
 	//     4    &ts             -
 	//     0    CLOCK_<id>      -
-	//
-	// If we take the vDSO path, we're calling a function with gcc calling convention.
-	// We're guaranteed 128 bytes on entry. We've taken 16, and the call uses another 4,
-	// leaving 108 for __vdso_clock_gettime to use.
+
 	MOVL	runtime·__vdso_clock_gettime_sym(SB), AX
 	CMPL	AX, $0
 	JEQ	fallback
@@ -234,6 +251,8 @@ finish:
 	MOVL	8(SP), AX	// sec
 	MOVL	12(SP), BX	// nsec
 
+	MOVL	BP, SP		// Restore real SP
+
 	// sec is in AX, nsec in BX
 	MOVL	AX, sec_lo+0(FP)
 	MOVL	$0, sec_hi+4(FP)
@@ -242,8 +261,26 @@ finish:
 
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB), NOSPLIT, $16
-	// See comments above in walltime() about stack space usage and layout.
+TEXT runtime·nanotime(SB), NOSPLIT, $0-8
+	// Switch to g0 stack. See comment above in runtime·walltime.
+
+	MOVL	SP, BP	// Save old SP; BP unchanged by C code.
+
+	get_tls(CX)
+	MOVL	g(CX), AX
+	MOVL	g_m(AX), CX
+	MOVL	m_curg(CX), DX
+
+	CMPL	AX, DX		// Only switch if on curg.
+	JNE	noswitch
+
+	MOVL	m_g0(CX), DX
+	MOVL	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
+
+noswitch:
+	SUBL	$16, SP		// Space for results
+	ANDL	$~15, SP	// Align for C code
+
 	MOVL	runtime·__vdso_clock_gettime_sym(SB), AX
 	CMPL	AX, $0
 	JEQ	fallback
@@ -263,6 +300,8 @@ fallback:
 finish:
 	MOVL	8(SP), AX	// sec
 	MOVL	12(SP), BX	// nsec
+
+	MOVL	BP, SP		// Restore real SP
 
 	// sec is in AX, nsec in BX
 	// convert to DX:AX nsec
