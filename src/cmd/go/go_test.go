@@ -5093,6 +5093,9 @@ func TestGoTestMinusN(t *testing.T) {
 }
 
 func TestGoTestJSON(t *testing.T) {
+	if runtime.NumCPU() == 1 {
+		t.Skip("skipping on uniprocessor")
+	}
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
