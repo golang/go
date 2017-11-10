@@ -25,13 +25,22 @@ import (
 	"regexp"
 	"sync"
 	"testing"
+	"time"
+
+	"runtime"
 
 	"github.com/google/pprof/internal/plugin"
 	"github.com/google/pprof/profile"
-	"runtime"
 )
 
 func TestWebInterface(t *testing.T) {
+	// This test starts a web browser in a background goroutine
+	// after a 500ms delay. Sometimes the test exits before it
+	// can run the browser, but sometimes the browser does open.
+	// That's obviously unacceptable.
+	defer time.Sleep(2 * time.Second) // to see the browser open
+	t.Skip("golang.org/issue/22651")
+
 	if runtime.GOOS == "nacl" {
 		t.Skip("test assumes tcp available")
 	}
@@ -124,6 +133,8 @@ func TestWebInterface(t *testing.T) {
 		}
 	}
 	wg.Wait()
+
+	time.Sleep(5 * time.Second)
 }
 
 // Implement fake object file support.
