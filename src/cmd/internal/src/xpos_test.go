@@ -19,7 +19,7 @@ func TestNoXPos(t *testing.T) {
 func TestConversion(t *testing.T) {
 	b1 := NewFileBase("b1", "b1")
 	b2 := NewFileBase("b2", "b2")
-	b3 := NewLinePragmaBase(MakePos(b1, 10, 0), "b3", 123)
+	b3 := NewLinePragmaBase(MakePos(b1, 10, 0), "b3", "b3", 123)
 
 	var tab PosTable
 	for _, want := range []Pos{

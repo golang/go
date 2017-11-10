@@ -79,15 +79,15 @@ func (p Pos) AbsFilename() string { return p.base.AbsFilename() }
 func (p Pos) SymFilename() string { return p.base.SymFilename() }
 
 func (p Pos) String() string {
-	return p.Format(true)
+	return p.Format(true, true)
 }
 
 // Format formats a position as "filename:line" or "filename:line:column",
-// controlled by the showCol flag.
-// If the position is relative to a line directive, the original position
-// is appended in square brackets without column (since the column doesn't
-// change).
-func (p Pos) Format(showCol bool) string {
+// controlled by the showCol flag. A position relative to a line directive
+// is always formatted without column information. In that case, if showOrig
+// is set, the original position (again controlled by showCol) is appended
+// in square brackets: "filename:line[origfile:origline:origcolumn]".
+func (p Pos) Format(showCol, showOrig bool) string {
 	if !p.IsKnown() {
 		return "<unknown line number>"
 	}
@@ -105,8 +105,11 @@ func (p Pos) Format(showCol bool) string {
 	// that's provided via a line directive).
 	// TODO(gri) This may not be true if we have an inlining base.
 	// We may want to differentiate at some point.
-	return format(p.RelFilename(), p.RelLine(), 0, false) +
-		"[" + format(p.Filename(), p.Line(), p.Col(), showCol) + "]"
+	s := format(p.RelFilename(), p.RelLine(), 0, false)
+	if showOrig {
+		s += "[" + format(p.Filename(), p.Line(), p.Col(), showCol) + "]"
+	}
+	return s
 }
 
 // format formats a (filename, line, col) tuple as "filename:line" (showCol
@@ -155,8 +158,8 @@ func NewFileBase(filename, absFilename string) *PosBase {
 // NewLinePragmaBase returns a new *PosBase for a line pragma of the form
 //      //line filename:line
 // at position pos.
-func NewLinePragmaBase(pos Pos, filename string, line uint) *PosBase {
-	return &PosBase{pos, filename, filename, FileSymPrefix + filename, line - 1, -1}
+func NewLinePragmaBase(pos Pos, filename, absFilename string, line uint) *PosBase {
+	return &PosBase{pos, filename, absFilename, FileSymPrefix + absFilename, line - 1, -1}
 }
 
 // NewInliningBase returns a copy of the old PosBase with the given inlining

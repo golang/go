@@ -80,11 +80,12 @@ func (p *parser) updateBase(line, col uint, text string) {
 		p.error_at(p.pos_at(line, col+uint(i+1)), "invalid line number: "+nstr)
 		return
 	}
-	absFile := text[:i]
+	filename := text[:i]
+	absFilename := filename
 	if p.fileh != nil {
-		absFile = p.fileh(absFile)
+		absFilename = p.fileh(filename)
 	}
-	p.base = src.NewLinePragmaBase(src.MakePos(p.base.Pos().Base(), line, col), absFile, uint(n))
+	p.base = src.NewLinePragmaBase(src.MakePos(p.base.Pos().Base(), line, col), filename, absFilename, uint(n))
 }
 
 func (p *parser) got(tok token) bool {
