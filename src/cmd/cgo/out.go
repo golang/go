@@ -535,7 +535,8 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 
 	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
 	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n\n")
-	conf.Fprint(fgo1, fset, f.AST)
+	fmt.Fprintf(fgo1, "//line %s:1\n", srcfile)
+	fgo1.Write(f.Edit.Bytes())
 
 	// While we process the vars and funcs, also write gcc output.
 	// Gcc output starts with the preamble.

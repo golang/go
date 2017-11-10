@@ -58,6 +58,8 @@ func (f *File) ParseGo(name string, src []byte) {
 	// so we use ast1 to look for the doc comments on import "C"
 	// and on exported functions, and we use ast2 for translating
 	// and reprinting.
+	// In cgo mode, we ignore ast2 and just apply edits directly
+	// the text behind ast1. In godefs mode we modify and print ast2.
 	ast1 := parse(name, src, parser.ParseComments)
 	ast2 := parse(name, src, 0)
 
@@ -97,30 +99,47 @@ func (f *File) ParseGo(name string, src []byte) {
 	}
 
 	// In ast2, strip the import "C" line.
-	w := 0
-	for _, decl := range ast2.Decls {
-		d, ok := decl.(*ast.GenDecl)
-		if !ok {
-			ast2.Decls[w] = decl
+	if *godefs {
+		w := 0
+		for _, decl := range ast2.Decls {
+			d, ok := decl.(*ast.GenDecl)
+			if !ok {
+				ast2.Decls[w] = decl
+				w++
+				continue
+			}
+			ws := 0
+			for _, spec := range d.Specs {
+				s, ok := spec.(*ast.ImportSpec)
+				if !ok || s.Path.Value != `"C"` {
+					d.Specs[ws] = spec
+					ws++
+				}
+			}
+			if ws == 0 {
+				continue
+			}
+			d.Specs = d.Specs[0:ws]
+			ast2.Decls[w] = d
 			w++
-			continue
 		}
-		ws := 0
-		for _, spec := range d.Specs {
-			s, ok := spec.(*ast.ImportSpec)
-			if !ok || s.Path.Value != `"C"` {
-				d.Specs[ws] = spec
-				ws++
+		ast2.Decls = ast2.Decls[0:w]
+	} else {
+		for _, decl := range ast2.Decls {
+			d, ok := decl.(*ast.GenDecl)
+			if !ok {
+				continue
+			}
+			for _, spec := range d.Specs {
+				if s, ok := spec.(*ast.ImportSpec); ok && s.Path.Value == `"C"` {
+					// Replace "C" with _ "unsafe", to keep program valid.
+					// (Deleting import statement or clause is not safe if it is followed
+					// in the source by an explicit semicolon.)
+					f.Edit.Replace(f.offset(s.Path.Pos()), f.offset(s.Path.End()), `_ "unsafe"`)
+				}
 			}
 		}
-		if ws == 0 {
-			continue
-		}
-		d.Specs = d.Specs[0:ws]
-		ast2.Decls[w] = d
-		w++
 	}
-	ast2.Decls = ast2.Decls[0:w]
 
 	// Accumulate pointers to uses of C.x.
 	if f.Ref == nil {
