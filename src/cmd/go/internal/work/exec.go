@@ -426,7 +426,7 @@ func (b *Builder) build(a *Action) (err error) {
 			sfiles = nil
 		}
 
-		outGo, outObj, err := b.cgo(a, base.Tool("cgo"), objdir, pcCFLAGS, pcLDFLAGS, cgofiles, objdirCgofiles, gccfiles, cxxfiles, a.Package.MFiles, a.Package.FFiles)
+		outGo, outObj, err := b.cgo(a, base.Tool("cgo"), objdir, pcCFLAGS, pcLDFLAGS, mkAbsFiles(a.Package.Dir, cgofiles), objdirCgofiles, gccfiles, cxxfiles, a.Package.MFiles, a.Package.FFiles)
 		if err != nil {
 			return err
 		}
@@ -481,17 +481,10 @@ func (b *Builder) build(a *Action) (err error) {
 		// so that vet's error messages will use absolute paths,
 		// so that we can reformat them relative to the directory
 		// in which the go command is invoked.
-		absfiles := make([]string, len(gofiles))
-		for i, f := range gofiles {
-			if !filepath.IsAbs(f) {
-				f = filepath.Join(a.Package.Dir, f)
-			}
-			absfiles[i] = f
-		}
 		vcfg = &vetConfig{
 			Compiler:    cfg.BuildToolchainName,
 			Dir:         a.Package.Dir,
-			GoFiles:     absfiles,
+			GoFiles:     mkAbsFiles(a.Package.Dir, gofiles),
 			ImportMap:   make(map[string]string),
 			PackageFile: make(map[string]string),
 		}
@@ -1351,8 +1344,8 @@ func (b *Builder) showOutput(a *Action, dir, desc, out string) {
 // print this error.
 var errPrintedOutput = errors.New("already printed output - no need to show error")
 
-var cgoLine = regexp.MustCompile(`\[[^\[\]]+\.cgo1\.go:[0-9]+(:[0-9]+)?\]`)
-var cgoTypeSigRe = regexp.MustCompile(`\b_Ctype_\B`)
+var cgoLine = regexp.MustCompile(`\[[^\[\]]+\.(cgo1|cover)\.go:[0-9]+(:[0-9]+)?\]`)
+var cgoTypeSigRe = regexp.MustCompile(`\b_C2?(type|func|var|macro)_\B`)
 
 // run runs the command given by cmdline in the directory dir.
 // If the command fails, run prints information about the failure
@@ -1895,9 +1888,9 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	gofiles := []string{objdir + "_cgo_gotypes.go"}
 	cfiles := []string{"_cgo_export.c"}
 	for _, fn := range cgofiles {
-		f := cgoRe.ReplaceAllString(fn[:len(fn)-2], "_")
-		gofiles = append(gofiles, objdir+f+"cgo1.go")
-		cfiles = append(cfiles, f+"cgo2.c")
+		f := strings.TrimSuffix(filepath.Base(fn), ".go")
+		gofiles = append(gofiles, objdir+f+".cgo1.go")
+		cfiles = append(cfiles, f+".cgo2.c")
 	}
 
 	// TODO: make cgo not depend on $GOARCH?
@@ -2285,4 +2278,18 @@ func (b *Builder) disableBuildID(ldflags []string) []string {
 		ldflags = append(ldflags, "-Wl,--build-id=none")
 	}
 	return ldflags
+}
+
+// mkAbsFiles converts files into a list of absolute files,
+// assuming they were originally relative to dir,
+// and returns that new list.
+func mkAbsFiles(dir string, files []string) []string {
+	abs := make([]string, len(files))
+	for i, f := range files {
+		if !filepath.IsAbs(f) {
+			f = filepath.Join(dir, f)
+		}
+		abs[i] = f
+	}
+	return abs
 }
