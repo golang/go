@@ -231,7 +231,7 @@ func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
 // Deprecated: Use Modified instead.
 func (h *FileHeader) ModTime() time.Time {
 	if !h.Modified.IsZero() {
-		return h.Modified.In(time.UTC) // Convert to UTC for compatibility
+		return h.Modified.UTC() // Convert to UTC for compatibility
 	}
 	return msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
 }
@@ -241,7 +241,7 @@ func (h *FileHeader) ModTime() time.Time {
 //
 // Deprecated: Use Modified instead.
 func (h *FileHeader) SetModTime(t time.Time) {
-	t = t.In(time.UTC) // Convert to UTC for compatibility
+	t = t.UTC() // Convert to UTC for compatibility
 	h.Modified = t
 	h.ModifiedDate, h.ModifiedTime = timeToMsDosTime(t)
 }

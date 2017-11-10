@@ -391,7 +391,7 @@ parseExtras:
 	msdosModified := msDosTimeToTime(f.ModifiedDate, f.ModifiedTime)
 	f.Modified = msdosModified
 	if !modified.IsZero() {
-		f.Modified = modified.In(time.UTC)
+		f.Modified = modified.UTC()
 
 		// If legacy MS-DOS timestamps are set, we can use the delta between
 		// the legacy and extended versions to estimate timezone offset.
