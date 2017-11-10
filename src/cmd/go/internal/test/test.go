@@ -143,6 +143,10 @@ In addition to the build flags, the flags handled by 'go test' itself are:
 	    Install packages that are dependencies of the test.
 	    Do not run the test.
 
+	-json
+	    Convert test output to JSON suitable for automated processing.
+	    See 'go doc test2json' for the encoding details.
+
 	-o file
 	    Compile the test binary to the named file.
 	    The test still runs (unless -c or -i is specified).
