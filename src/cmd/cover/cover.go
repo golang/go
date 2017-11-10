@@ -340,6 +340,7 @@ func annotate(name string) {
 		}
 	}
 
+	fmt.Fprintf(fd, "//line %s:1\n", name)
 	fd.Write(newContent)
 
 	// After printing the source tree, add some declarations for the counters etc.
