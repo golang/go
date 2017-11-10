@@ -15,6 +15,7 @@ import (
 	"go/token"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -526,7 +527,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 	if strings.HasSuffix(base, ".go") {
 		base = base[0 : len(base)-3]
 	}
-	base = strings.Map(slashToUnderscore, base)
+	base = filepath.Base(base)
 	fgo1 := creat(*objDir + base + ".cgo1.go")
 	fgcc := creat(*objDir + base + ".cgo2.c")
 

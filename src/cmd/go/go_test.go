@@ -2439,16 +2439,16 @@ func TestCoverageErrorLine(t *testing.T) {
 	tg.setenv("GOTMPDIR", tg.tempdir)
 
 	tg.runFail("test", "coverbad")
-	tg.grepStderr(`coverbad[\\/]p.go:4`, "did not find correct line number for error")
+	tg.grepStderr(`coverbad[\\/]p\.go:4`, "did not find coverbad/p.go:4")
+	tg.grepStderr(`coverbad[\\/]p1\.go:6`, "did not find coverbad/p1.go:6")
 	tg.grepStderrNot(regexp.QuoteMeta(tg.tempdir), "found temporary directory in error")
 	stderr := tg.getStderr()
 
 	tg.runFail("test", "-cover", "coverbad")
-	tg.grepStderr(`coverbad[\\/]p.go:4`, "did not find correct line number for error")
 	stderr2 := tg.getStderr()
 
 	// It's OK that stderr2 drops the character position in the error,
-	// because of the //line directive.
+	// because of the //line directive (see golang.org/issue/22662).
 	stderr = strings.Replace(stderr, "p.go:4:2:", "p.go:4:", -1)
 	if stderr != stderr2 {
 		t.Logf("test -cover changed error messages:\nbefore:\n%s\n\nafter:\n%s", stderr, stderr2)
@@ -4707,10 +4707,11 @@ func TestExecBuildX(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err = exec.Command("/bin/sh", sh).CombinedOutput()
+	out, err = exec.Command("/usr/bin/env", "bash", "-x", sh).CombinedOutput()
 	if err != nil {
 		t.Fatalf("/bin/sh %s: %v\n%s", sh, err, out)
 	}
+	t.Logf("shell output:\n%s", out)
 
 	out, err = exec.Command(obj).CombinedOutput()
 	if err != nil {
