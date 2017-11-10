@@ -6,6 +6,7 @@ package main_test
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -37,7 +38,7 @@ var (
 	coverProfile = filepath.Join(testdata, "profile.cov")
 )
 
-var debug = false // Keeps the rewritten files around if set.
+var debug = flag.Bool("debug", false, "keep rewritten files for debugging")
 
 // Run this shell script, but do it in Go so it can be run by "go test".
 //
@@ -63,7 +64,7 @@ func TestCover(t *testing.T) {
 	}
 
 	// defer removal of test_line.go
-	if !debug {
+	if !*debug {
 		defer os.Remove(coverInput)
 	}
 
@@ -79,7 +80,7 @@ func TestCover(t *testing.T) {
 	run(cmd, t)
 
 	// defer removal of ./testdata/test_cover.go
-	if !debug {
+	if !*debug {
 		defer os.Remove(coverOutput)
 	}
 
@@ -100,10 +101,10 @@ func TestCover(t *testing.T) {
 		t.Error("'go:linkname' compiler directive not found")
 	}
 
-	// No other comments should be present in generated code.
-	c := ".*// This comment shouldn't appear in generated go code.*"
-	if got, err := regexp.MatchString(c, string(file)); err != nil || got {
-		t.Errorf("non compiler directive comment %q found", c)
+	// Other comments should be preserved too.
+	c := ".*// This comment didn't appear in generated go code.*"
+	if got, err := regexp.MatchString(c, string(file)); err != nil || !got {
+		t.Errorf("non compiler directive comment %q not found", c)
 	}
 }
 
