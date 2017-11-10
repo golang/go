@@ -82,20 +82,21 @@ and even 'go test .').
 
 In local directory mode, go test compiles and tests the package sources
 found in the current directory and then runs the resulting test binary.
-In this mode, the test binary runs with standard output and standard error
-connected directly to the go command's own standard output and standard
-error, and test result caching (discussed below) is disabled.
-After the package test finishes, go test prints to standard output a
-summary line showing the test status ('ok' or 'FAIL'), package name,
-and elapsed time.
+In this mode, caching (discussed below) is disabled. After the package test
+finishes, go test prints a summary line showing the test status ('ok' or 'FAIL'),
+package name, and elapsed time.
 
 In package list mode, go test compiles and tests each of the packages
 listed on the command line. If a package test passes, go test prints only
 the final 'ok' summary line. If a package test fails, go test prints the
 full test output. If invoked with the -bench or -v flag, go test prints
 the full output even for passing package tests, in order to display the
-requested benchmark results or verbose logging. In package list mode,
-go test prints all test output and summary lines to standard output.
+requested benchmark results or verbose logging.
+
+All test output and summary lines are printed to the go command's standard
+output, even if the test printed them to its own standard error.
+(The go command's standard error is reserved for printing errors building
+the tests.)
 
 In package list mode, go test also caches successful package test results.
 If go test has cached a previous test run using the same test binary and
@@ -1208,36 +1209,17 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	if len(pkgArgs) == 0 || testBench {
 		// Stream test output (no buffering) when no package has
 		// been given on the command line (implicit current directory)
-		// or when benchmarking. Allowing stderr to pass through to
-		// stderr here is a bit of an historical mistake, but now a
-		// documented one. Except in this case, all output is merged
-		// to one stream written to stdout.
+		// or when benchmarking.
 		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
 	} else {
-		// If we're only running a single package under test
-		// or if parallelism is set to 1, and if we're displaying
-		// all output (testShowPass), we can hurry the output along,
-		// echoing it as soon as it comes in. We still have to copy
-		// to &buf for caching the result. This special case was
-		// introduced in Go 1.5 and is intentionally undocumented:
-		// the rationale is that the exact details of output buffering
-		// are up to the go command and subject to change.
-		// NOTE(rsc): Originally this special case also had the effect of
-		// allowing stderr to pass through to os.Stderr, unlike
-		// the normal buffering that merges stdout and stderr into stdout.
-		// This had the truly mysterious result that on a multiprocessor,
-		// "go test -v math" could print to stderr,
-		// "go test -v math strings" could not, and
-		// "go test -p=1 -v math strings" could once again.
-		// While I'm willing to let the buffer flush timing
-		// fluctuate based on minor details like this,
-		// allowing the file descriptor to which output is sent
-		// to change as well seems like a serious mistake.
-		// Go 1.10 changed this code to allow the less aggressive
-		// buffering but still merge all output to standard output.
-		// I'd really like to remove this special case entirely,
-		// but it is surely very helpful to see progress being made
+		// If we're only running a single package under test or if parallelism is
+		// set to 1, and if we're displaying all output (testShowPass), we can
+		// hurry the output along, echoing it as soon as it comes in.
+		// We still have to copy to &buf for caching the result. This special
+		// case was introduced in Go 1.5 and is intentionally undocumented:
+		// the exact details of output buffering are up to the go command and
+		// subject to change. It would be nice to remove this special case
+		// entirely, but it is surely very helpful to see progress being made
 		// when tests are run on slow single-CPU ARM systems.
 		if testShowPass && (len(pkgs) == 1 || cfg.BuildP == 1) {
 			// Write both to stdout and buf, for possible saving
@@ -1246,8 +1228,8 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 		} else {
 			cmd.Stdout = &buf
 		}
-		cmd.Stderr = cmd.Stdout
 	}
+	cmd.Stderr = cmd.Stdout
 
 	// If there are any local SWIG dependencies, we want to load
 	// the shared library from the build directory.
