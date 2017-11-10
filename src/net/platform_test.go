@@ -149,12 +149,13 @@ func testableListenArgs(network, address, client string) bool {
 	return true
 }
 
-func condFatalf(t *testing.T, api string, format string, args ...interface{}) {
+func condFatalf(t *testing.T, network string, format string, args ...interface{}) {
+	t.Helper()
 	// A few APIs like File and Read/WriteMsg{UDP,IP} are not
 	// fully implemented yet on Plan 9 and Windows.
 	switch runtime.GOOS {
 	case "windows":
-		if api == "file" {
+		if network == "file+net" {
 			t.Logf(format, args...)
 			return
 		}
