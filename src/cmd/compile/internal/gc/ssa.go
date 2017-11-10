@@ -49,6 +49,11 @@ func initssaconfig() {
 		Float64Ptr: types.NewPtr(types.Types[TFLOAT64]),
 		BytePtrPtr: types.NewPtr(types.NewPtr(types.Types[TUINT8])),
 	}
+
+	if thearch.SoftFloat {
+		softfloatInit()
+	}
+
 	// Generate a few pointer types that are uncommon in the frontend but common in the backend.
 	// Caching is disabled in the backend, so generating these here avoids allocations.
 	_ = types.NewPtr(types.Types[TINTER])                             // *interface{}
@@ -68,6 +73,7 @@ func initssaconfig() {
 	if thearch.LinkArch.Name == "386" {
 		ssaConfig.Set387(thearch.Use387)
 	}
+	ssaConfig.SoftFloat = thearch.SoftFloat
 	ssaCaches = make([]ssa.Cache, nBackendWorkers)
 
 	// Set up some runtime functions we'll need to call.
@@ -139,6 +145,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	}
 	s.exitCode = fn.Func.Exit
 	s.panics = map[funcLine]*ssa.Block{}
+	s.softFloat = s.config.SoftFloat
 
 	if name == os.Getenv("GOSSAFUNC") {
 		s.f.HTMLWriter = ssa.NewHTMLWriter("ssa.html", s.f.Frontend(), name)
@@ -310,6 +317,7 @@ type state struct {
 
 	cgoUnsafeArgs bool
 	hasdefer      bool // whether the function contains a defer statement
+	softFloat     bool
 }
 
 type funcLine struct {
@@ -551,6 +559,25 @@ func (s *state) constInt(t *types.Type, c int64) *ssa.Value {
 }
 func (s *state) constOffPtrSP(t *types.Type, c int64) *ssa.Value {
 	return s.f.ConstOffPtrSP(s.peekPos(), t, c, s.sp)
+}
+
+// newValueOrSfCall* are wrappers around newValue*, which may create a call to a
+// soft-float runtime function instead (when emitting soft-float code).
+func (s *state) newValueOrSfCall1(op ssa.Op, t *types.Type, arg *ssa.Value) *ssa.Value {
+	if s.softFloat {
+		if c, ok := s.sfcall(op, arg); ok {
+			return c
+		}
+	}
+	return s.newValue1(op, t, arg)
+}
+func (s *state) newValueOrSfCall2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Value) *ssa.Value {
+	if s.softFloat {
+		if c, ok := s.sfcall(op, arg0, arg1); ok {
+			return c
+		}
+	}
+	return s.newValue2(op, t, arg0, arg1)
 }
 
 // stmtList converts the statement list n to SSA and adds it to s.
@@ -1689,18 +1716,18 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		if ft.IsFloat() || tt.IsFloat() {
 			conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
-			if s.config.RegSize == 4 && thearch.LinkArch.Family != sys.MIPS {
+			if s.config.RegSize == 4 && thearch.LinkArch.Family != sys.MIPS && !s.softFloat {
 				if conv1, ok1 := fpConvOpToSSA32[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
 					conv = conv1
 				}
 			}
-			if thearch.LinkArch.Family == sys.ARM64 {
+			if thearch.LinkArch.Family == sys.ARM64 || s.softFloat {
 				if conv1, ok1 := uint64fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
 					conv = conv1
 				}
 			}
 
-			if thearch.LinkArch.Family == sys.MIPS {
+			if thearch.LinkArch.Family == sys.MIPS && !s.softFloat {
 				if ft.Size() == 4 && ft.IsInteger() && !ft.IsSigned() {
 					// tt is float32 or float64, and ft is also unsigned
 					if tt.Size() == 4 {
@@ -1731,12 +1758,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 					if op2 == ssa.OpCopy {
 						return x
 					}
-					return s.newValue1(op2, n.Type, x)
+					return s.newValueOrSfCall1(op2, n.Type, x)
 				}
 				if op2 == ssa.OpCopy {
-					return s.newValue1(op1, n.Type, x)
+					return s.newValueOrSfCall1(op1, n.Type, x)
 				}
-				return s.newValue1(op2, n.Type, s.newValue1(op1, types.Types[it], x))
+				return s.newValueOrSfCall1(op2, n.Type, s.newValueOrSfCall1(op1, types.Types[it], x))
 			}
 			// Tricky 64-bit unsigned cases.
 			if ft.IsInteger() {
@@ -1781,8 +1808,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 			ftp := floatForComplex(ft)
 			ttp := floatForComplex(tt)
 			return s.newValue2(ssa.OpComplexMake, tt,
-				s.newValue1(op, ttp, s.newValue1(ssa.OpComplexReal, ftp, x)),
-				s.newValue1(op, ttp, s.newValue1(ssa.OpComplexImag, ftp, x)))
+				s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexReal, ftp, x)),
+				s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexImag, ftp, x)))
 		}
 
 		s.Fatalf("unhandled OCONV %s -> %s", n.Left.Type.Etype, n.Type.Etype)
@@ -1799,8 +1826,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if n.Left.Type.IsComplex() {
 			pt := floatForComplex(n.Left.Type)
 			op := s.ssaOp(OEQ, pt)
-			r := s.newValue2(op, types.Types[TBOOL], s.newValue1(ssa.OpComplexReal, pt, a), s.newValue1(ssa.OpComplexReal, pt, b))
-			i := s.newValue2(op, types.Types[TBOOL], s.newValue1(ssa.OpComplexImag, pt, a), s.newValue1(ssa.OpComplexImag, pt, b))
+			r := s.newValueOrSfCall2(op, types.Types[TBOOL], s.newValue1(ssa.OpComplexReal, pt, a), s.newValue1(ssa.OpComplexReal, pt, b))
+			i := s.newValueOrSfCall2(op, types.Types[TBOOL], s.newValue1(ssa.OpComplexImag, pt, a), s.newValue1(ssa.OpComplexImag, pt, b))
 			c := s.newValue2(ssa.OpAndB, types.Types[TBOOL], r, i)
 			switch n.Op {
 			case OEQ:
@@ -1810,6 +1837,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 			default:
 				s.Fatalf("ordered complex compare %v", n.Op)
 			}
+		}
+		if n.Left.Type.IsFloat() {
+			return s.newValueOrSfCall2(s.ssaOp(n.Op, n.Left.Type), types.Types[TBOOL], a, b)
 		}
 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), types.Types[TBOOL], a, b)
 	case OMUL:
@@ -1828,22 +1858,27 @@ func (s *state) expr(n *Node) *ssa.Value {
 			bimag := s.newValue1(ssa.OpComplexImag, pt, b)
 
 			if pt != wt { // Widen for calculation
-				areal = s.newValue1(ssa.OpCvt32Fto64F, wt, areal)
-				breal = s.newValue1(ssa.OpCvt32Fto64F, wt, breal)
-				aimag = s.newValue1(ssa.OpCvt32Fto64F, wt, aimag)
-				bimag = s.newValue1(ssa.OpCvt32Fto64F, wt, bimag)
+				areal = s.newValueOrSfCall1(ssa.OpCvt32Fto64F, wt, areal)
+				breal = s.newValueOrSfCall1(ssa.OpCvt32Fto64F, wt, breal)
+				aimag = s.newValueOrSfCall1(ssa.OpCvt32Fto64F, wt, aimag)
+				bimag = s.newValueOrSfCall1(ssa.OpCvt32Fto64F, wt, bimag)
 			}
 
-			xreal := s.newValue2(subop, wt, s.newValue2(mulop, wt, areal, breal), s.newValue2(mulop, wt, aimag, bimag))
-			ximag := s.newValue2(addop, wt, s.newValue2(mulop, wt, areal, bimag), s.newValue2(mulop, wt, aimag, breal))
+			xreal := s.newValueOrSfCall2(subop, wt, s.newValueOrSfCall2(mulop, wt, areal, breal), s.newValueOrSfCall2(mulop, wt, aimag, bimag))
+			ximag := s.newValueOrSfCall2(addop, wt, s.newValueOrSfCall2(mulop, wt, areal, bimag), s.newValueOrSfCall2(mulop, wt, aimag, breal))
 
 			if pt != wt { // Narrow to store back
-				xreal = s.newValue1(ssa.OpCvt64Fto32F, pt, xreal)
-				ximag = s.newValue1(ssa.OpCvt64Fto32F, pt, ximag)
+				xreal = s.newValueOrSfCall1(ssa.OpCvt64Fto32F, pt, xreal)
+				ximag = s.newValueOrSfCall1(ssa.OpCvt64Fto32F, pt, ximag)
 			}
 
 			return s.newValue2(ssa.OpComplexMake, n.Type, xreal, ximag)
 		}
+
+		if n.Type.IsFloat() {
+			return s.newValueOrSfCall2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+		}
+
 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
 
 	case ODIV:
@@ -1866,31 +1901,31 @@ func (s *state) expr(n *Node) *ssa.Value {
 			bimag := s.newValue1(ssa.OpComplexImag, pt, b)
 
 			if pt != wt { // Widen for calculation
-				areal = s.newValue1(ssa.OpCvt32Fto64F, wt, areal)
-				breal = s.newValue1(ssa.OpCvt32Fto64F, wt, breal)
-				aimag = s.newValue1(ssa.OpCvt32Fto64F, wt, aimag)
-				bimag = s.newValue1(ssa.OpCvt32Fto64F, wt, bimag)
+				areal = s.newValueOrSfCall1(ssa.OpCvt32Fto64F, wt, areal)
+				breal = s.newValueOrSfCall1(ssa.OpCvt32Fto64F, wt, breal)
+				aimag = s.newValueOrSfCall1(ssa.OpCvt32Fto64F, wt, aimag)
+				bimag = s.newValueOrSfCall1(ssa.OpCvt32Fto64F, wt, bimag)
 			}
 
-			denom := s.newValue2(addop, wt, s.newValue2(mulop, wt, breal, breal), s.newValue2(mulop, wt, bimag, bimag))
-			xreal := s.newValue2(addop, wt, s.newValue2(mulop, wt, areal, breal), s.newValue2(mulop, wt, aimag, bimag))
-			ximag := s.newValue2(subop, wt, s.newValue2(mulop, wt, aimag, breal), s.newValue2(mulop, wt, areal, bimag))
+			denom := s.newValueOrSfCall2(addop, wt, s.newValueOrSfCall2(mulop, wt, breal, breal), s.newValueOrSfCall2(mulop, wt, bimag, bimag))
+			xreal := s.newValueOrSfCall2(addop, wt, s.newValueOrSfCall2(mulop, wt, areal, breal), s.newValueOrSfCall2(mulop, wt, aimag, bimag))
+			ximag := s.newValueOrSfCall2(subop, wt, s.newValueOrSfCall2(mulop, wt, aimag, breal), s.newValueOrSfCall2(mulop, wt, areal, bimag))
 
 			// TODO not sure if this is best done in wide precision or narrow
 			// Double-rounding might be an issue.
 			// Note that the pre-SSA implementation does the entire calculation
 			// in wide format, so wide is compatible.
-			xreal = s.newValue2(divop, wt, xreal, denom)
-			ximag = s.newValue2(divop, wt, ximag, denom)
+			xreal = s.newValueOrSfCall2(divop, wt, xreal, denom)
+			ximag = s.newValueOrSfCall2(divop, wt, ximag, denom)
 
 			if pt != wt { // Narrow to store back
-				xreal = s.newValue1(ssa.OpCvt64Fto32F, pt, xreal)
-				ximag = s.newValue1(ssa.OpCvt64Fto32F, pt, ximag)
+				xreal = s.newValueOrSfCall1(ssa.OpCvt64Fto32F, pt, xreal)
+				ximag = s.newValueOrSfCall1(ssa.OpCvt64Fto32F, pt, ximag)
 			}
 			return s.newValue2(ssa.OpComplexMake, n.Type, xreal, ximag)
 		}
 		if n.Type.IsFloat() {
-			return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+			return s.newValueOrSfCall2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
 		}
 		return s.intDivide(n, a, b)
 	case OMOD:
@@ -1904,8 +1939,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 			pt := floatForComplex(n.Type)
 			op := s.ssaOp(n.Op, pt)
 			return s.newValue2(ssa.OpComplexMake, n.Type,
-				s.newValue2(op, pt, s.newValue1(ssa.OpComplexReal, pt, a), s.newValue1(ssa.OpComplexReal, pt, b)),
-				s.newValue2(op, pt, s.newValue1(ssa.OpComplexImag, pt, a), s.newValue1(ssa.OpComplexImag, pt, b)))
+				s.newValueOrSfCall2(op, pt, s.newValue1(ssa.OpComplexReal, pt, a), s.newValue1(ssa.OpComplexReal, pt, b)),
+				s.newValueOrSfCall2(op, pt, s.newValue1(ssa.OpComplexImag, pt, a), s.newValue1(ssa.OpComplexImag, pt, b)))
+		}
+		if n.Type.IsFloat() {
+			return s.newValueOrSfCall2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
 		}
 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
 	case OAND, OOR, OXOR:
@@ -2564,6 +2602,79 @@ const (
 	callGo
 )
 
+type sfRtCallDef struct {
+	rtfn  *obj.LSym
+	rtype types.EType
+}
+
+var softFloatOps map[ssa.Op]sfRtCallDef
+
+func softfloatInit() {
+	// Some of these operations get transformed by sfcall.
+	softFloatOps = map[ssa.Op]sfRtCallDef{
+		ssa.OpAdd32F: sfRtCallDef{sysfunc("fadd32"), TFLOAT32},
+		ssa.OpAdd64F: sfRtCallDef{sysfunc("fadd64"), TFLOAT64},
+		ssa.OpSub32F: sfRtCallDef{sysfunc("fadd32"), TFLOAT32},
+		ssa.OpSub64F: sfRtCallDef{sysfunc("fadd64"), TFLOAT64},
+		ssa.OpMul32F: sfRtCallDef{sysfunc("fmul32"), TFLOAT32},
+		ssa.OpMul64F: sfRtCallDef{sysfunc("fmul64"), TFLOAT64},
+		ssa.OpDiv32F: sfRtCallDef{sysfunc("fdiv32"), TFLOAT32},
+		ssa.OpDiv64F: sfRtCallDef{sysfunc("fdiv64"), TFLOAT64},
+
+		ssa.OpEq64F:      sfRtCallDef{sysfunc("feq64"), TBOOL},
+		ssa.OpEq32F:      sfRtCallDef{sysfunc("feq32"), TBOOL},
+		ssa.OpNeq64F:     sfRtCallDef{sysfunc("feq64"), TBOOL},
+		ssa.OpNeq32F:     sfRtCallDef{sysfunc("feq32"), TBOOL},
+		ssa.OpLess64F:    sfRtCallDef{sysfunc("fgt64"), TBOOL},
+		ssa.OpLess32F:    sfRtCallDef{sysfunc("fgt32"), TBOOL},
+		ssa.OpGreater64F: sfRtCallDef{sysfunc("fgt64"), TBOOL},
+		ssa.OpGreater32F: sfRtCallDef{sysfunc("fgt32"), TBOOL},
+		ssa.OpLeq64F:     sfRtCallDef{sysfunc("fge64"), TBOOL},
+		ssa.OpLeq32F:     sfRtCallDef{sysfunc("fge32"), TBOOL},
+		ssa.OpGeq64F:     sfRtCallDef{sysfunc("fge64"), TBOOL},
+		ssa.OpGeq32F:     sfRtCallDef{sysfunc("fge32"), TBOOL},
+
+		ssa.OpCvt32to32F:  sfRtCallDef{sysfunc("fint32to32"), TFLOAT32},
+		ssa.OpCvt32Fto32:  sfRtCallDef{sysfunc("f32toint32"), TINT32},
+		ssa.OpCvt64to32F:  sfRtCallDef{sysfunc("fint64to32"), TFLOAT32},
+		ssa.OpCvt32Fto64:  sfRtCallDef{sysfunc("f32toint64"), TINT64},
+		ssa.OpCvt64Uto32F: sfRtCallDef{sysfunc("fuint64to32"), TFLOAT32},
+		ssa.OpCvt32Fto64U: sfRtCallDef{sysfunc("f32touint64"), TUINT64},
+		ssa.OpCvt32to64F:  sfRtCallDef{sysfunc("fint32to64"), TFLOAT64},
+		ssa.OpCvt64Fto32:  sfRtCallDef{sysfunc("f64toint32"), TINT32},
+		ssa.OpCvt64to64F:  sfRtCallDef{sysfunc("fint64to64"), TFLOAT64},
+		ssa.OpCvt64Fto64:  sfRtCallDef{sysfunc("f64toint64"), TINT64},
+		ssa.OpCvt64Uto64F: sfRtCallDef{sysfunc("fuint64to64"), TFLOAT64},
+		ssa.OpCvt64Fto64U: sfRtCallDef{sysfunc("f64touint64"), TUINT64},
+		ssa.OpCvt32Fto64F: sfRtCallDef{sysfunc("f32to64"), TFLOAT64},
+		ssa.OpCvt64Fto32F: sfRtCallDef{sysfunc("f64to32"), TFLOAT32},
+	}
+}
+
+// TODO: do not emit sfcall if operation can be optimized to constant in later
+// opt phase
+func (s *state) sfcall(op ssa.Op, args ...*ssa.Value) (*ssa.Value, bool) {
+	if callDef, ok := softFloatOps[op]; ok {
+		switch op {
+		case ssa.OpLess32F,
+			ssa.OpLess64F,
+			ssa.OpLeq32F,
+			ssa.OpLeq64F:
+			args[0], args[1] = args[1], args[0]
+		case ssa.OpSub32F,
+			ssa.OpSub64F:
+			args[1] = s.newValue1(s.ssaOp(OMINUS, types.Types[callDef.rtype]), args[1].Type, args[1])
+		}
+
+		result := s.rtcall(callDef.rtfn, true, []*types.Type{types.Types[callDef.rtype]}, args...)[0]
+		if op == ssa.OpNeq32F || op == ssa.OpNeq64F {
+			result = s.newValue1(ssa.OpNot, result.Type, result)
+		}
+		return result, true
+	}
+	return nil, false
+}
+
 var intrinsics map[intrinsicKey]intrinsicBuilder
 
 // An intrinsicBuilder converts a call node n into an ssa value that
@@ -3134,6 +3245,12 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 		// We can't intrinsify them.
 		return nil
 	}
+	// Skip intrinsifying math functions (which may contain hard-float
+	// instructions) when soft-float
+	if thearch.SoftFloat && pkg == "math" {
+		return nil
+	}
+
 	fn := sym.Name
 	return intrinsics[intrinsicKey{thearch.LinkArch.Arch, pkg, fn}]
 }

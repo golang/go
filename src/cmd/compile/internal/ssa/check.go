@@ -203,6 +203,10 @@ func checkFunc(f *Func) {
 				}
 			}
 
+			if f.RegAlloc != nil && f.Config.SoftFloat && v.Type.IsFloat() {
+				f.Fatalf("unexpected floating-point type %v", v.LongString())
+			}
+
 			// TODO: check for cycles in values
 			// TODO: check type
 		}
