@@ -207,6 +207,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		if err := p.ModifyResponse(res); err != nil {
 			p.logf("http: proxy error: %v", err)
 			rw.WriteHeader(http.StatusBadGateway)
+			res.Body.Close()
 			return
 		}
 	}

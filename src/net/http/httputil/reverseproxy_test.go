@@ -769,3 +769,47 @@ type roundTripperFunc func(req *http.Request) (*http.Response, error)
 func (fn roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return fn(req)
 }
+
+func TestModifyResponseClosesBody(t *testing.T) {
+	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
+	req.RemoteAddr = "1.2.3.4:56789"
+	closeCheck := new(checkCloser)
+	logBuf := new(bytes.Buffer)
+	outErr := errors.New("ModifyResponse error")
+	rp := &ReverseProxy{
+		Director: func(req *http.Request) {},
+		Transport: &staticTransport{&http.Response{
+			StatusCode: 200,
+			Body:       closeCheck,
+		}},
+		ErrorLog: log.New(logBuf, "", 0),
+		ModifyResponse: func(*http.Response) error {
+			return outErr
+		},
+	}
+	rec := httptest.NewRecorder()
+	rp.ServeHTTP(rec, req)
+	res := rec.Result()
+	if g, e := res.StatusCode, http.StatusBadGateway; g != e {
+		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+	}
+	if !closeCheck.closed {
+		t.Errorf("body should have been closed")
+	}
+	if g, e := logBuf.String(), outErr.Error(); !strings.Contains(g, e) {
+		t.Errorf("ErrorLog %q does not contain %q", g, e)
+	}
+}
+
+type checkCloser struct {
+	closed bool
+}
+
+func (cc *checkCloser) Close() error {
+	cc.closed = true
+	return nil
+}
+
+func (cc *checkCloser) Read(b []byte) (int, error) {
+	return len(b), nil
+}
