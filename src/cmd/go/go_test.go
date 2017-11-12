@@ -4970,6 +4970,10 @@ func TestTestCache(t *testing.T) {
 	tg.run("test", "-timeout=1ns", "-x", "errors")
 	tg.grepStderrNot(`errors\.test`, "incorrectly ran test")
 
+	tg.run("clean", "-testcache")
+	tg.run("test", "-x", "errors")
+	tg.grepStderr(`errors\.test`, "did not run test")
+
 	// The -p=1 in the commands below just makes the -x output easier to read.
 
 	t.Log("\n\nINITIAL\n\n")

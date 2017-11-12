@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
@@ -20,8 +21,8 @@ import (
 )
 
 var CmdClean = &base.Command{
-	UsageLine: "clean [-i] [-r] [-n] [-x] [-cache] [build flags] [packages]",
-	Short:     "remove object files",
+	UsageLine: "clean [-i] [-r] [-n] [-x] [-cache] [-testcache] [build flags] [packages]",
+	Short:     "remove object files and cached files",
 	Long: `
 Clean removes object files from package source directories.
 The go command builds most objects in a temporary directory,
@@ -59,8 +60,10 @@ dependencies of the packages named by the import paths.
 
 The -x flag causes clean to print remove commands as it executes them.
 
-The -cache flag causes clean to remove the entire go build cache,
-in addition to cleaning specified packages (if any).
+The -cache flag causes clean to remove the entire go build cache.
+
+The -testcache flag causes clean to expire all test results in the
+go build cache.
 
 For more about build flags, see 'go help build'.
 
@@ -69,9 +72,10 @@ For more about specifying packages, see 'go help packages'.
 }
 
 var (
-	cleanI     bool // clean -i flag
-	cleanR     bool // clean -r flag
-	cleanCache bool // clean -cache flag
+	cleanI         bool // clean -i flag
+	cleanR         bool // clean -r flag
+	cleanCache     bool // clean -cache flag
+	cleanTestcache bool // clean -testcache flag
 )
 
 func init() {
@@ -81,6 +85,7 @@ func init() {
 	CmdClean.Flag.BoolVar(&cleanI, "i", false, "")
 	CmdClean.Flag.BoolVar(&cleanR, "r", false, "")
 	CmdClean.Flag.BoolVar(&cleanCache, "cache", false, "")
+	CmdClean.Flag.BoolVar(&cleanTestcache, "testcache", false, "")
 
 	// -n and -x are important enough to be
 	// mentioned explicitly in the docs but they
@@ -117,6 +122,19 @@ func runClean(cmd *base.Command, args []string) {
 						base.Errorf("go clean -cache: %v", err)
 					}
 				}
+			}
+		}
+	}
+
+	if cleanTestcache && !cleanCache {
+		// Instead of walking through the entire cache looking for test results,
+		// we write a file to the cache indicating that all test results from before
+		// right now are to be ignored.
+		dir := cache.DefaultDir()
+		if dir != "off" {
+			err := ioutil.WriteFile(filepath.Join(dir, "testexpire.txt"), []byte(fmt.Sprintf("%d\n", time.Now().UnixNano())), 0666)
+			if err != nil {
+				base.Errorf("go clean -testcache: %v", err)
 			}
 		}
 	}

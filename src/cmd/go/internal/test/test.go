@@ -14,12 +14,14 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -476,6 +478,7 @@ var (
 	pkgs             []*load.Package
 
 	testKillTimeout = 10 * time.Minute
+	testCacheExpire time.Time // ignore cached test results before this time
 )
 
 var testMainDeps = []string{
@@ -552,6 +555,17 @@ func runTest(cmd *base.Command, args []string) {
 	// For 'go test -i -o x.test', we want to build x.test. Imply -c to make the logic easier.
 	if cfg.BuildI && testO != "" {
 		testC = true
+	}
+
+	// Read testcache expiration time, if present.
+	// (We implement go clean -testcache by writing an expiration date
+	// instead of searching out and deleting test result cache entries.)
+	if dir := cache.DefaultDir(); dir != "off" {
+		if data, _ := ioutil.ReadFile(filepath.Join(dir, "testexpire.txt")); len(data) > 0 && data[len(data)-1] == '\n' {
+			if t, err := strconv.ParseInt(string(data[:len(data)-1]), 10, 64); err == nil {
+				testCacheExpire = time.Unix(0, t)
+			}
+		}
 	}
 
 	var b work.Builder
@@ -1443,8 +1457,11 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 
 	// Parse cached result in preparation for changing run time to "(cached)".
 	// If we can't parse the cached result, don't use it.
-	data, _ := cache.Default().GetBytes(testID)
+	data, entry, _ := cache.Default().GetBytes(testID)
 	if len(data) == 0 || data[len(data)-1] != '\n' {
+		return false
+	}
+	if entry.Time.Before(testCacheExpire) {
 		return false
 	}
 	i := bytes.LastIndexByte(data[:len(data)-1], '\n') + 1

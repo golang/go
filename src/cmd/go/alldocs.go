@@ -14,7 +14,7 @@
 // The commands are:
 //
 // 	build       compile packages and dependencies
-// 	clean       remove object files
+// 	clean       remove object files and cached files
 // 	doc         show documentation for package or symbol
 // 	env         print Go environment information
 // 	bug         start a bug report
@@ -170,11 +170,11 @@
 // See also: go install, go get, go clean.
 //
 //
-// Remove object files
+// Remove object files and cached files
 //
 // Usage:
 //
-// 	go clean [-i] [-r] [-n] [-x] [-cache] [build flags] [packages]
+// 	go clean [-i] [-r] [-n] [-x] [-cache] [-testcache] [build flags] [packages]
 //
 // Clean removes object files from package source directories.
 // The go command builds most objects in a temporary directory,
@@ -212,8 +212,10 @@
 //
 // The -x flag causes clean to print remove commands as it executes them.
 //
-// The -cache flag causes clean to remove the entire go build cache,
-// in addition to cleaning specified packages (if any).
+// The -cache flag causes clean to remove the entire go build cache.
+//
+// The -testcache flag causes clean to expire all test results in the
+// go build cache.
 //
 // For more about build flags, see 'go help build'.
 //
@@ -576,7 +578,7 @@
 //
 // Usage:
 //
-// 	go list [-deps] [-e] [-f format] [-json] [build flags] [packages]
+// 	go list [-e] [-f format] [-json] [build flags] [packages]
 //
 // List lists the packages named by the import paths, one per line.
 //
@@ -679,9 +681,6 @@
 //
 // The -json flag causes the package data to be printed in JSON format
 // instead of using the template format.
-//
-// The -deps flag causes list to add to its output all the dependencies of
-// the packages named on the command line.
 //
 // The -e flag changes the handling of erroneous packages, those that
 // cannot be found or are malformed. By default, the list command
