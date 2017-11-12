@@ -80,9 +80,11 @@ type digest struct {
 	tab *Table
 }
 
-// New creates a new hash.Hash64 computing the CRC-64 checksum
-// using the polynomial represented by the Table.
-// Its Sum method will lay the value out in big-endian byte order.
+// New creates a new hash.Hash64 computing the CRC-64 checksum using the
+// polynomial represented by the Table. Its Sum method will lay the
+// value out in big-endian byte order. The returned Hash64 also
+// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
+// marshal and unmarshal the internal state of the hash.
 func New(tab *Table) hash.Hash64 { return &digest{0, tab} }
 
 func (d *digest) Size() int { return Size }

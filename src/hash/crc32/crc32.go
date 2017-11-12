@@ -139,9 +139,11 @@ type digest struct {
 	tab *Table
 }
 
-// New creates a new hash.Hash32 computing the CRC-32 checksum
-// using the polynomial represented by the Table.
-// Its Sum method will lay the value out in big-endian byte order.
+// New creates a new hash.Hash32 computing the CRC-32 checksum using the
+// polynomial represented by the Table. Its Sum method will lay the
+// value out in big-endian byte order. The returned Hash32 also
+// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
+// marshal and unmarshal the internal state of the hash.
 func New(tab *Table) hash.Hash32 {
 	if tab == IEEETable {
 		ieeeOnce.Do(ieeeInit)
@@ -149,9 +151,11 @@ func New(tab *Table) hash.Hash32 {
 	return &digest{0, tab}
 }
 
-// NewIEEE creates a new hash.Hash32 computing the CRC-32 checksum
-// using the IEEE polynomial.
-// Its Sum method will lay the value out in big-endian byte order.
+// NewIEEE creates a new hash.Hash32 computing the CRC-32 checksum using
+// the IEEE polynomial. Its Sum method will lay the value out in
+// big-endian byte order. The returned Hash32 also implements
+// encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to marshal
+// and unmarshal the internal state of the hash.
 func NewIEEE() hash.Hash32 { return New(IEEETable) }
 
 func (d *digest) Size() int { return Size }
