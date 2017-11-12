@@ -15,11 +15,13 @@ import (
 // TODO(gri) try to eliminate soon
 type Node struct{ _ int }
 
+//go:generate stringer -type EType -trimprefix T
+
 // EType describes a kind of type.
 type EType uint8
 
 const (
-	Txxx = iota
+	Txxx EType = iota
 
 	TINT8
 	TUINT8
