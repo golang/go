@@ -163,11 +163,12 @@ func PrintfTests() {
 	Printf(format, "hi")              // ERROR "Printf format %s reads arg #2, but call has only 1 arg$"
 	Printf("%s %d %.3v %q", "str", 4) // ERROR "Printf format %.3v reads arg #3, but call has only 2 args"
 	f := new(stringer)
-	f.Warn(0, "%s", "hello", 3)  // ERROR "Warn call has possible formatting directive %s"
-	f.Warnf(0, "%s", "hello", 3) // ERROR "Warnf call needs 1 arg but has 2 args"
-	f.Warnf(0, "%r", "hello")    // ERROR "Warnf format %r has unknown verb r"
-	f.Warnf(0, "%#s", "hello")   // ERROR "Warnf format %#s has unrecognized flag #"
-	Printf("d%", 2)              // ERROR "Printf format % is missing verb at end of string"
+	f.Warn(0, "%s", "hello", 3)           // ERROR "Warn call has possible formatting directive %s"
+	f.Warnf(0, "%s", "hello", 3)          // ERROR "Warnf call needs 1 arg but has 2 args"
+	f.Warnf(0, "%r", "hello")             // ERROR "Warnf format %r has unknown verb r"
+	f.Warnf(0, "%#s", "hello")            // ERROR "Warnf format %#s has unrecognized flag #"
+	fmt.Printf("%#s", FormatterVal(true)) // correct (the type is responsible for formatting)
+	Printf("d%", 2)                       // ERROR "Printf format % is missing verb at end of string"
 	Printf("%d", percentDV)
 	Printf("%d", &percentDV)
 	Printf("%d", notPercentDV)  // ERROR "Printf format %d has arg notPercentDV of wrong type testdata.notPercentDStruct"

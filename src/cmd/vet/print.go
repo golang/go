@@ -483,14 +483,16 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 		}
 	}
 
-	if !found && !formatter {
-		f.Badf(call.Pos(), "%s format %s has unknown verb %c", state.name, state.format, state.verb)
-		return false
-	}
-	for _, flag := range state.flags {
-		if !strings.ContainsRune(v.flags, rune(flag)) {
-			f.Badf(call.Pos(), "%s format %s has unrecognized flag %c", state.name, state.format, flag)
+	if !formatter {
+		if !found {
+			f.Badf(call.Pos(), "%s format %s has unknown verb %c", state.name, state.format, state.verb)
 			return false
+		}
+		for _, flag := range state.flags {
+			if !strings.ContainsRune(v.flags, rune(flag)) {
+				f.Badf(call.Pos(), "%s format %s has unrecognized flag %c", state.name, state.format, flag)
+				return false
+			}
 		}
 	}
 	// Verb is good. If len(state.argNums)>trueArgs, we have something like %.*s and all
