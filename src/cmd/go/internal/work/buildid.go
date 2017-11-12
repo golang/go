@@ -364,18 +364,17 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 	// but we're still happy to use results from the build artifact cache.
 	if c := cache.Default(); c != nil {
 		if !cfg.BuildA {
-			outputID, size, err := c.Get(actionHash)
+			entry, err := c.Get(actionHash)
 			if err == nil {
-				file := c.OutputFile(outputID)
+				file := c.OutputFile(entry.OutputID)
 				info, err1 := os.Stat(file)
 				buildID, err2 := buildid.ReadFile(file)
-				if err1 == nil && err2 == nil && info.Size() == size {
-					stdout, err := c.GetBytes(cache.Subkey(a.actionID, "stdout"))
+				if err1 == nil && err2 == nil && info.Size() == entry.Size {
+					stdout, stdoutEntry, err := c.GetBytes(cache.Subkey(a.actionID, "stdout"))
 					if err == nil {
 						if len(stdout) > 0 {
 							if cfg.BuildX || cfg.BuildN {
-								id, _, _ := c.Get(cache.Subkey(a.actionID, "stdout"))
-								b.Showcmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(id))))
+								b.Showcmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(stdoutEntry.OutputID))))
 							}
 							if !cfg.BuildN {
 								b.Print(string(stdout))

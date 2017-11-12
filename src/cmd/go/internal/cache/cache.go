@@ -81,9 +81,9 @@ func (c *Cache) fileName(id [HashSize]byte, key string) string {
 var errMissing = errors.New("cache entry not found")
 
 const (
-	// action entry file is "v1 <hex id> <hex out> <decimal size space-padded to 20 bytes>\n"
+	// action entry file is "v1 <hex id> <hex out> <decimal size space-padded to 20 bytes> <unixnano space-padded to 20 bytes>\n"
 	hexSize   = HashSize * 2
-	entrySize = 2 + 1 + hexSize + 1 + hexSize + 1 + 20 + 1
+	entrySize = 2 + 1 + hexSize + 1 + hexSize + 1 + 20 + 1 + 20 + 1
 )
 
 // verify controls whether to run the cache in verify mode.
@@ -117,18 +117,24 @@ func initEnv() {
 // returning the corresponding output ID and file size, if any.
 // Note that finding an output ID does not guarantee that the
 // saved file for that output ID is still available.
-func (c *Cache) Get(id ActionID) (OutputID, int64, error) {
+func (c *Cache) Get(id ActionID) (Entry, error) {
 	if verify {
-		return OutputID{}, 0, errMissing
+		return Entry{}, errMissing
 	}
 	return c.get(id)
 }
 
+type Entry struct {
+	OutputID OutputID
+	Size     int64
+	Time     time.Time
+}
+
 // get is Get but does not respect verify mode, so that Put can use it.
-func (c *Cache) get(id ActionID) (OutputID, int64, error) {
-	missing := func() (OutputID, int64, error) {
+func (c *Cache) get(id ActionID) (Entry, error) {
+	missing := func() (Entry, error) {
 		fmt.Fprintf(c.log, "%d miss %x\n", c.now().Unix(), id)
-		return OutputID{}, 0, errMissing
+		return Entry{}, errMissing
 	}
 	f, err := os.Open(c.fileName(id, "a"))
 	if err != nil {
@@ -139,10 +145,13 @@ func (c *Cache) get(id ActionID) (OutputID, int64, error) {
 	if n, err := io.ReadFull(f, entry); n != entrySize || err != io.ErrUnexpectedEOF {
 		return missing()
 	}
-	if entry[0] != 'v' || entry[1] != '1' || entry[2] != ' ' || entry[3+hexSize] != ' ' || entry[3+hexSize+1+64] != ' ' || entry[entrySize-1] != '\n' {
+	if entry[0] != 'v' || entry[1] != '1' || entry[2] != ' ' || entry[3+hexSize] != ' ' || entry[3+hexSize+1+hexSize] != ' ' || entry[3+hexSize+1+hexSize+1+20] != ' ' || entry[entrySize-1] != '\n' {
 		return missing()
 	}
-	eid, eout, esize := entry[3:3+hexSize], entry[3+hexSize+1:3+hexSize+1+hexSize], entry[3+hexSize+1+hexSize+1:entrySize-1]
+	eid, entry := entry[3:3+hexSize], entry[3+hexSize:]
+	eout, entry := entry[1:1+hexSize], entry[1+hexSize:]
+	esize, entry := entry[1:1+20], entry[1+20:]
+	etime, entry := entry[1:1+20], entry[1+20:]
 	var buf [HashSize]byte
 	if _, err := hex.Decode(buf[:], eid); err != nil || buf != id {
 		return missing()
@@ -158,6 +167,14 @@ func (c *Cache) get(id ActionID) (OutputID, int64, error) {
 	if err != nil || size < 0 {
 		return missing()
 	}
+	i = 0
+	for i < len(etime) && etime[i] == ' ' {
+		i++
+	}
+	tm, err := strconv.ParseInt(string(etime[i:]), 10, 64)
+	if err != nil || size < 0 {
+		return missing()
+	}
 
 	fmt.Fprintf(c.log, "%d get %x\n", c.now().Unix(), id)
 
@@ -165,22 +182,22 @@ func (c *Cache) get(id ActionID) (OutputID, int64, error) {
 	// so that mtime reflects cache access time.
 	os.Chtimes(c.fileName(id, "a"), c.now(), c.now())
 
-	return buf, size, nil
+	return Entry{buf, size, time.Unix(0, tm)}, nil
 }
 
 // GetBytes looks up the action ID in the cache and returns
 // the corresponding output bytes.
 // GetBytes should only be used for data that can be expected to fit in memory.
-func (c *Cache) GetBytes(id ActionID) ([]byte, error) {
-	out, _, err := c.Get(id)
+func (c *Cache) GetBytes(id ActionID) ([]byte, Entry, error) {
+	entry, err := c.Get(id)
 	if err != nil {
-		return nil, err
+		return nil, entry, err
 	}
-	data, _ := ioutil.ReadFile(c.OutputFile(out))
-	if sha256.Sum256(data) != out {
-		return nil, errMissing
+	data, _ := ioutil.ReadFile(c.OutputFile(entry.OutputID))
+	if sha256.Sum256(data) != entry.OutputID {
+		return nil, entry, errMissing
 	}
-	return data, nil
+	return data, entry, nil
 }
 
 // OutputFile returns the name of the cache file storing output with the given OutputID.
@@ -208,11 +225,11 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify
 	// in verify mode we are double-checking that the cache entries
 	// are entirely reproducible. As just noted, this may be unrealistic
 	// in some cases but the check is also useful for shaking out real bugs.
-	entry := []byte(fmt.Sprintf("v1 %x %x %20d\n", id, out, size))
+	entry := []byte(fmt.Sprintf("v1 %x %x %20d %20d\n", id, out, size, time.Now().UnixNano()))
 	if verify && allowVerify {
-		oldOut, oldSize, err := c.get(id)
-		if err == nil && (oldOut != out || oldSize != size) {
-			fmt.Fprintf(os.Stderr, "go: internal cache error: id=%x changed:<<<\n%s\n>>>\nold: %x %d\nnew: %x %d\n", id, reverseHash(id), out, size, oldOut, oldSize)
+		old, err := c.get(id)
+		if err == nil && (old.OutputID != out || old.Size != size) {
+			fmt.Fprintf(os.Stderr, "go: internal cache error: id=%x changed:<<<\n%s\n>>>\nold: %x %d\nnew: %x %d\n", id, reverseHash(id), out, size, old.OutputID, old.Size)
 			// panic to show stack trace, so we can see what code is generating this cache entry.
 			panic("cache verify failed")
 		}
