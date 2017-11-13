@@ -48,7 +48,8 @@ tail:
 	CMPQ	BX, $2
 	JBE	move_1or2
 	CMPQ	BX, $4
-	JBE	move_3or4
+	JB	move_3
+	JBE	move_4
 	CMPQ	BX, $8
 	JB	move_5through7
 	JE	move_8
@@ -145,9 +146,7 @@ move_1or2:
 	RET
 move_0:
 	RET
-move_3or4:
-	CMPQ	BX, $4
-	JB	move_3
+move_4:
 	MOVL	(SI), AX
 	MOVL	AX, (DI)
 	RET
