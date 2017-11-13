@@ -1222,8 +1222,7 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 			var seq, value cryptobyte.String
 			var tag cryptobyte_asn1.Tag
 			if !subtrees.ReadASN1(&seq, cryptobyte_asn1.SEQUENCE) ||
-				!seq.ReadAnyASN1(&value, &tag) ||
-				!seq.Empty() {
+				!seq.ReadAnyASN1(&value, &tag) {
 				return nil, nil, nil, nil, fmt.Errorf("x509: invalid NameConstraints extension")
 			}
 
