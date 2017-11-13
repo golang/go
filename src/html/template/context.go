@@ -314,6 +314,8 @@ func (e element) String() string {
 	return fmt.Sprintf("illegal element %d", int(e))
 }
 
+//go:generate stringer -type attr
+
 // attr identifies the current HTML attribute when inside the attribute,
 // that is, starting from stateAttrName until stateTag/stateText (exclusive).
 type attr uint8
@@ -332,19 +334,3 @@ const (
 	// attrSrcset corresponds to a srcset attribute.
 	attrSrcset
 )
-
-var attrNames = [...]string{
-	attrNone:       "attrNone",
-	attrScript:     "attrScript",
-	attrScriptType: "attrScriptType",
-	attrStyle:      "attrStyle",
-	attrURL:        "attrURL",
-	attrSrcset:     "attrSrcset",
-}
-
-func (a attr) String() string {
-	if int(a) < len(attrNames) {
-		return attrNames[a]
-	}
-	return fmt.Sprintf("illegal attr %d", int(a))
-}
