@@ -5119,9 +5119,6 @@ func TestGoTestMinusN(t *testing.T) {
 }
 
 func TestGoTestJSON(t *testing.T) {
-	if runtime.NumCPU() == 1 {
-		t.Skip("skipping on uniprocessor")
-	}
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -5130,32 +5127,42 @@ func TestGoTestJSON(t *testing.T) {
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 
 	// Test that math and fmt output is interlaced.
-	if runtime.GOMAXPROCS(-1) < 2 {
-		tg.setenv("GOMAXPROCS", "2")
-	}
-	// This has the potential to be a flaky test.
-	// Probably the first try will work, but the second try should have
-	// both tests equally cached and should definitely work.
+	// This has the potential to be a flaky test,
+	// especially on uniprocessor systems, so only
+	// require interlacing if we have at least 4 CPUs.
+	// We also try twice, hoping that the cache will be
+	// warmed up the second time.
+	needInterlace := runtime.GOMAXPROCS(-1) >= 4
 	for try := 0; ; try++ {
 		tg.run("test", "-json", "-short", "-v", "sleepy1", "sleepy2")
+		sawSleepy1 := false
+		sawSleepy2 := false
 		state := 0
 		for _, line := range strings.Split(tg.getStdout(), "\n") {
-			if state == 0 && strings.Contains(line, `"Package":"sleepy1"`) {
-				state = 1
+			if strings.Contains(line, `"Package":"sleepy1"`) {
+				sawSleepy1 = true
+				if state == 0 {
+					state = 1
+				}
+				if state == 2 {
+					state = 3
+				}
 			}
-			if state == 1 && strings.Contains(line, `"Package":"sleepy2"`) {
-				state = 2
-			}
-			if state == 2 && strings.Contains(line, `"Package":"sleepy1"`) {
-				state = 3
-				break
+			if strings.Contains(line, `"Package":"sleepy2"`) {
+				sawSleepy2 = true
+				if state == 1 {
+					state = 2
+				}
 			}
 		}
-		if state != 3 {
+		if !sawSleepy1 || !sawSleepy2 {
+			t.Fatalf("did not see output from both sleepy1 and sleepy2")
+		}
+		if needInterlace && state != 3 {
 			if try < 1 {
 				continue
 			}
-			t.Fatalf("did not find fmt interlaced with math")
+			t.Fatalf("did not find sleepy1 interlaced with sleepy2")
 		}
 		break
 	}
