@@ -1282,9 +1282,7 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 	},
 
-	// #66: trying to add extra permitted key usages in an intermediate
-	// (after a limitation in the root) doesn't allow those usages in a
-	// leaf.
+	// #66: EKUs in roots are ignored.
 	nameConstraintsTest{
 		roots: []constraintsSpec{
 			constraintsSpec{
@@ -1302,7 +1300,6 @@ var nameConstraintsTests = []nameConstraintsTest{
 			sans: []string{"dns:example.com"},
 			ekus: []string{"serverAuth", "email"},
 		},
-		expectedError: "EKU not permitted",
 	},
 
 	// #67: in order to support COMODO chains, SGC key usages permit
