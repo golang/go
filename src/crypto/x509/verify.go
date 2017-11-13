@@ -546,15 +546,32 @@ func (c *Certificate) checkNameConstraints(count *int,
 // ekuPermittedBy returns true iff the given extended key usage is permitted by
 // the given EKU from a certificate. Normally, this would be a simple
 // comparison plus a special case for the “any” EKU. But, in order to support
-// COMODO chains, SGC EKUs permit generic server and client authentication
-// EKUs.
+// existing certificates, some exceptions are made.
 func ekuPermittedBy(eku, certEKU ExtKeyUsage) bool {
 	if certEKU == ExtKeyUsageAny || eku == certEKU {
 		return true
 	}
 
-	if (eku == ExtKeyUsageServerAuth || eku == ExtKeyUsageClientAuth) &&
-		(certEKU == ExtKeyUsageNetscapeServerGatedCrypto || certEKU == ExtKeyUsageMicrosoftServerGatedCrypto) {
+	// Some exceptions are made to support existing certificates. Firstly,
+	// the ServerAuth and SGC EKUs are treated as a group.
+	mapServerAuthEKUs := func(eku ExtKeyUsage) ExtKeyUsage {
+		if eku == ExtKeyUsageNetscapeServerGatedCrypto || eku == ExtKeyUsageMicrosoftServerGatedCrypto {
+			return ExtKeyUsageServerAuth
+		}
+		return eku
+	}
+
+	eku = mapServerAuthEKUs(eku)
+	certEKU = mapServerAuthEKUs(certEKU)
+
+	if eku == certEKU ||
+		// ServerAuth in a CA permits ClientAuth in the leaf.
+		(eku == ExtKeyUsageClientAuth && certEKU == ExtKeyUsageServerAuth) ||
+		// Any CA may issue an OCSP responder certificate.
+		eku == ExtKeyUsageOCSPSigning ||
+		// Code-signing CAs can use Microsoft's commercial and
+		// kernel-mode EKUs.
+		((eku == ExtKeyUsageMicrosoftCommercialCodeSigning || eku == ExtKeyUsageMicrosoftKernelCodeSigning) && certEKU == ExtKeyUsageCodeSigning) {
 		return true
 	}
 
@@ -672,7 +689,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		}
 	}
 
-	checkEKUs := certType == intermediateCertificate || certType == rootCertificate
+	checkEKUs := certType == intermediateCertificate
 
 	// If no extended key usages are specified, then all are acceptable.
 	if checkEKUs && (len(c.ExtKeyUsage) == 0 && len(c.UnknownExtKeyUsage) == 0) {
