@@ -284,7 +284,7 @@ move_256through2048:
 
 avxUnaligned:
 	// There are two implementations of move algorithm.
-	// The first one for non-ovelapped memory regions. It uses forward copying.
+	// The first one for non-overlapped memory regions. It uses forward copying.
 	// The second one for overlapped regions. It uses backward copying
 	MOVQ	DI, CX
 	SUBQ	SI, CX
@@ -346,7 +346,7 @@ avxUnaligned:
 	// Continue tail saving.
 	MOVOU	-0x20(CX), X11
 	MOVOU	-0x10(CX), X12
-	// The tail will be put on it's place after main body copying.
+	// The tail will be put on its place after main body copying.
 	// It's time for the unaligned heading part.
 	VMOVDQU	(SI), Y4
 	// Adjust source address to point past head.
