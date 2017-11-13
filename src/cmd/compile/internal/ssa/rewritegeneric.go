@@ -5670,6 +5670,8 @@ func rewriteValuegeneric_OpArg_10(v *Value) bool {
 	return false
 }
 func rewriteValuegeneric_OpArraySelect_0(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (ArraySelect (ArrayMake1 x))
 	// cond:
 	// result: x
@@ -5684,23 +5686,26 @@ func rewriteValuegeneric_OpArraySelect_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (ArraySelect [0] (Load ptr mem))
+	// match: (ArraySelect [0] x:(Load ptr mem))
 	// cond:
-	// result: (Load ptr mem)
+	// result: @x.Block (Load <v.Type> ptr mem)
 	for {
 		if v.AuxInt != 0 {
 			break
 		}
-		v_0 := v.Args[0]
-		if v_0.Op != OpLoad {
+		x := v.Args[0]
+		if x.Op != OpLoad {
 			break
 		}
-		_ = v_0.Args[1]
-		ptr := v_0.Args[0]
-		mem := v_0.Args[1]
-		v.reset(OpLoad)
-		v.AddArg(ptr)
-		v.AddArg(mem)
+		_ = x.Args[1]
+		ptr := x.Args[0]
+		mem := x.Args[1]
+		b = x.Block
+		v0 := b.NewValue0(v.Pos, OpLoad, v.Type)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
 		return true
 	}
 	// match: (ArraySelect [0] x:(IData _))

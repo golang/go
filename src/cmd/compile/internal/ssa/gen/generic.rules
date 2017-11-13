@@ -819,7 +819,7 @@
 (Store _ (ArrayMake0) mem) -> mem
 (Store dst (ArrayMake1 e) mem) -> (Store {e.Type} dst e mem)
 
-(ArraySelect [0] (Load ptr mem)) -> (Load ptr mem)
+(ArraySelect [0] x:(Load ptr mem)) -> @x.Block (Load <v.Type> ptr mem)
 
 // Putting [1]{*byte} and similar into direct interfaces.
 (IMake typ (ArrayMake1 val)) -> (IMake typ val)
