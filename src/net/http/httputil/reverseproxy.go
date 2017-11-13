@@ -55,10 +55,23 @@ type ReverseProxy struct {
 	// copying HTTP response bodies.
 	BufferPool BufferPool
 
-	// ModifyResponse is an optional function that
-	// modifies the Response from the backend.
-	// If it returns an error, the proxy returns a StatusBadGateway error.
+	// ModifyResponse is an optional function that modifies the
+	// Response from the backend. It is called if the backend
+	// returns a response at all, with any HTTP status code.
+	// If the backend is unreachable, the optional ErrorHandler is
+	// called without any call to ModifyResponse.
+	//
+	// If ModifyResponse returns an error, ErrorHandler is called
+	// with its error value. If ErrorHandler is nil, its default
+	// implementation is used.
 	ModifyResponse func(*http.Response) error
+
+	// ErrorHandler is an optional function that handles errors
+	// reaching the backend or errors from ModifyResponse.
+	//
+	// If nil, the default is to log the provided error and return
+	// a 502 Status Bad Gateway response.
+	ErrorHandler func(http.ResponseWriter, *http.Request, error)
 }
 
 // A BufferPool is an interface for getting and returning temporary
@@ -141,6 +154,18 @@ var hopHeaders = []string{
 	"Upgrade",
 }
 
+func (p *ReverseProxy) defaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
+	p.logf("http: proxy error: %v", err)
+	rw.WriteHeader(http.StatusBadGateway)
+}
+
+func (p *ReverseProxy) getErrorHandler() func(http.ResponseWriter, *http.Request, error) {
+	if p.ErrorHandler != nil {
+		return p.ErrorHandler
+	}
+	return p.defaultErrorHandler
+}
+
 func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	transport := p.Transport
 	if transport == nil {
@@ -206,8 +231,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	res, err := transport.RoundTrip(outreq)
 	if err != nil {
-		p.logf("http: proxy error: %v", err)
-		rw.WriteHeader(http.StatusBadGateway)
+		p.getErrorHandler()(rw, outreq, err)
 		return
 	}
 
@@ -219,9 +243,8 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	if p.ModifyResponse != nil {
 		if err := p.ModifyResponse(res); err != nil {
-			p.logf("http: proxy error: %v", err)
-			rw.WriteHeader(http.StatusBadGateway)
 			res.Body.Close()
+			p.getErrorHandler()(rw, outreq, err)
 			return
 		}
 	}
