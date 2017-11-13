@@ -939,6 +939,7 @@ func (db *DB) connectionResetter(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			close(db.resetterCh)
 			for dc := range db.resetterCh {
 				dc.Unlock()
 			}
@@ -1170,6 +1171,11 @@ func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
 	}
 	if putConnHook != nil {
 		putConnHook(db, dc)
+	}
+	if db.closed {
+		// Connections do not need to be reset if they will be closed.
+		// Prevents writing to resetterCh after the DB has closed.
+		resetSession = false
 	}
 	if resetSession {
 		if _, resetSession = dc.ci.(driver.ResetSessioner); resetSession {
