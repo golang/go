@@ -254,6 +254,10 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 		cgoCheckSliceCopy(typ, dst, src, n)
 	}
 
+	if dstp == srcp {
+		return n
+	}
+
 	// Note: No point in checking typ.kind&kindNoPointers here:
 	// compiler only emits calls to typedslicecopy for types with pointers,
 	// and growslice and reflect_typedslicecopy check for pointers
