@@ -154,6 +154,9 @@ import (
 //
 //go:nosplit
 func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+	if dst == src {
+		return
+	}
 	if typ.kind&kindNoPointers == 0 {
 		bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.size)
 	}
