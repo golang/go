@@ -303,7 +303,17 @@ func (p *addrParser) parseAddress(handleGroup bool) ([]*Address, error) {
 	// TODO(dsymonds): Is this really correct?
 	spec, err := p.consumeAddrSpec()
 	if err == nil {
+		var displayName string
+		p.skipSpace()
+		if !p.empty() && p.peek() == '(' {
+			displayName, err = p.consumeDisplayNameComment()
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		return []*Address{{
+			Name:    displayName,
 			Address: spec,
 		}}, err
 	}
@@ -570,6 +580,30 @@ Loop:
 	return atom, nil
 }
 
+func (p *addrParser) consumeDisplayNameComment() (string, error) {
+	if !p.consume('(') {
+		return "", errors.New("mail: comment does not start with (")
+	}
+	comment, ok := p.consumeComment()
+	if !ok {
+		return "", errors.New("mail: misformatted parenthetical comment")
+	}
+
+	// TODO(stapelberg): parse quoted-string within comment
+	words := strings.FieldsFunc(comment, func(r rune) bool { return r == ' ' || r == '\t' })
+	for idx, word := range words {
+		decoded, isEncoded, err := p.decodeRFC2047Word(word)
+		if err != nil {
+			return "", err
+		}
+		if isEncoded {
+			words[idx] = decoded
+		}
+	}
+
+	return strings.Join(words, " "), nil
+}
+
 func (p *addrParser) consume(c byte) bool {
 	if p.empty() || p.peek() != c {
 		return false
@@ -604,7 +638,7 @@ func (p *addrParser) skipCFWS() bool {
 			break
 		}
 
-		if !p.skipComment() {
+		if _, ok := p.consumeComment(); !ok {
 			return false
 		}
 
@@ -614,10 +648,11 @@ func (p *addrParser) skipCFWS() bool {
 	return true
 }
 
-func (p *addrParser) skipComment() bool {
+func (p *addrParser) consumeComment() (string, bool) {
 	// '(' already consumed.
 	depth := 1
 
+	var comment string
 	for {
 		if p.empty() || depth == 0 {
 			break
@@ -630,10 +665,13 @@ func (p *addrParser) skipComment() bool {
 		} else if p.peek() == ')' {
 			depth--
 		}
+		if depth > 0 {
+			comment += p.s[:1]
+		}
 		p.s = p.s[1:]
 	}
 
-	return depth == 0
+	return comment, depth == 0
 }
 
 func (p *addrParser) decodeRFC2047Word(s string) (word string, isEncoded bool, err error) {

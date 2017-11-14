@@ -426,7 +426,7 @@ func TestAddressParsing(t *testing.T) {
 		},
 		// CFWS
 		{
-			`cfws@example.com (CFWS (cfws))  (another comment)`,
+			`<cfws@example.com> (CFWS (cfws))  (another comment)`,
 			[]*Address{
 				{
 					Name:    "",
@@ -435,7 +435,7 @@ func TestAddressParsing(t *testing.T) {
 			},
 		},
 		{
-			`cfws@example.com ()  (another comment), cfws2@example.com (another)`,
+			`<cfws@example.com> ()  (another comment), <cfws2@example.com> (another)`,
 			[]*Address{
 				{
 					Name:    "",
@@ -444,6 +444,66 @@ func TestAddressParsing(t *testing.T) {
 				{
 					Name:    "",
 					Address: "cfws2@example.com",
+				},
+			},
+		},
+		// Comment as display name
+		{
+			`john@example.com (John Doe)`,
+			[]*Address{
+				{
+					Name:    "John Doe",
+					Address: "john@example.com",
+				},
+			},
+		},
+		// Comment and display name
+		{
+			`John Doe <john@example.com> (Joey)`,
+			[]*Address{
+				{
+					Name:    "John Doe",
+					Address: "john@example.com",
+				},
+			},
+		},
+		// Comment as display name, no space
+		{
+			`john@example.com(John Doe)`,
+			[]*Address{
+				{
+					Name:    "John Doe",
+					Address: "john@example.com",
+				},
+			},
+		},
+		// Comment as display name, Q-encoded
+		{
+			`asjo@example.com (Adam =?utf-8?Q?Sj=C3=B8gren?=)`,
+			[]*Address{
+				{
+					Name:    "Adam Sjøgren",
+					Address: "asjo@example.com",
+				},
+			},
+		},
+		// Comment as display name, Q-encoded and tab-separated
+		{
+			`asjo@example.com (Adam	=?utf-8?Q?Sj=C3=B8gren?=)`,
+			[]*Address{
+				{
+					Name:    "Adam Sjøgren",
+					Address: "asjo@example.com",
+				},
+			},
+		},
+		// Nested comment as display name, Q-encoded
+		{
+			`asjo@example.com (Adam =?utf-8?Q?Sj=C3=B8gren?= (Debian))`,
+			[]*Address{
+				{
+					Name:    "Adam Sjøgren (Debian)",
+					Address: "asjo@example.com",
 				},
 			},
 		},
