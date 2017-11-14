@@ -1,0 +1,11 @@
+// +build ignore
+
+package I1
+
+import "fmt"
+
+func example() {
+	temp := 5
+	temp := temp + temp
+	fmt.Print(temp + temp)
+}

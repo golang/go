@@ -1,0 +1,11 @@
+// +build ignore
+
+package templates
+
+import ()
+
+func before(x int) int { return x + x + x }
+func after(x int) int {
+	temp := x + x
+	return temp + x
+}

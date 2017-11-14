@@ -1,0 +1,14 @@
+// +build ignore
+
+package templates
+
+import (
+	"errors"
+	"fmt"
+)
+
+func before(s string) error { return fmt.Errorf("%s", s) }
+func after(s string) error {
+	n := fmt.Sprintf("error - %s", s)
+	return errors.New(n)
+}

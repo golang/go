@@ -22,6 +22,52 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 )
 
+// transformItem takes a reflect.Value representing a variable of type ast.Node
+// transforms its child elements recursively with apply, and then transforms the
+// actual element if it contains an expression.
+func (tr *Transformer) transformItem(rv reflect.Value) (reflect.Value, bool, map[string]ast.Expr) {
+	// don't bother if val is invalid to start with
+	if !rv.IsValid() {
+		return reflect.Value{}, false, nil
+	}
+
+	rv, changed, newEnv := tr.apply(tr.transformItem, rv)
+
+	e := rvToExpr(rv)
+	if e == nil {
+		return rv, changed, newEnv
+	}
+
+	savedEnv := tr.env
+	tr.env = make(map[string]ast.Expr) // inefficient!  Use a slice of k/v pairs
+
+	if tr.matchExpr(tr.before, e) {
+		if tr.verbose {
+			fmt.Fprintf(os.Stderr, "%s matches %s",
+				astString(tr.fset, tr.before), astString(tr.fset, e))
+			if len(tr.env) > 0 {
+				fmt.Fprintf(os.Stderr, " with:")
+				for name, ast := range tr.env {
+					fmt.Fprintf(os.Stderr, " %s->%s",
+						name, astString(tr.fset, ast))
+				}
+			}
+			fmt.Fprintf(os.Stderr, "\n")
+		}
+		tr.nsubsts++
+
+		// Clone the replacement tree, performing parameter substitution.
+		// We update all positions to n.Pos() to aid comment placement.
+		rv = tr.subst(tr.env, reflect.ValueOf(tr.after),
+			reflect.ValueOf(e.Pos()))
+		changed = true
+		newEnv = tr.env
+	}
+	tr.env = savedEnv
+
+	return rv, changed, newEnv
+}
+
 // Transform applies the transformation to the specified parsed file,
 // whose type information is supplied in info, and returns the number
 // of replacements that were made.
@@ -43,48 +89,14 @@ func (tr *Transformer) Transform(info *types.Info, pkg *types.Package, file *ast
 	if tr.verbose {
 		fmt.Fprintf(os.Stderr, "before: %s\n", astString(tr.fset, tr.before))
 		fmt.Fprintf(os.Stderr, "after: %s\n", astString(tr.fset, tr.after))
+		fmt.Fprintf(os.Stderr, "afterStmts: %s\n", tr.afterStmts)
 	}
 
-	var f func(rv reflect.Value) reflect.Value
-	f = func(rv reflect.Value) reflect.Value {
-		// don't bother if val is invalid to start with
-		if !rv.IsValid() {
-			return reflect.Value{}
-		}
-
-		rv = apply(f, rv)
-
-		e := rvToExpr(rv)
-		if e != nil {
-			savedEnv := tr.env
-			tr.env = make(map[string]ast.Expr) // inefficient!  Use a slice of k/v pairs
-
-			if tr.matchExpr(tr.before, e) {
-				if tr.verbose {
-					fmt.Fprintf(os.Stderr, "%s matches %s",
-						astString(tr.fset, tr.before), astString(tr.fset, e))
-					if len(tr.env) > 0 {
-						fmt.Fprintf(os.Stderr, " with:")
-						for name, ast := range tr.env {
-							fmt.Fprintf(os.Stderr, " %s->%s",
-								name, astString(tr.fset, ast))
-						}
-					}
-					fmt.Fprintf(os.Stderr, "\n")
-				}
-				tr.nsubsts++
-
-				// Clone the replacement tree, performing parameter substitution.
-				// We update all positions to n.Pos() to aid comment placement.
-				rv = tr.subst(tr.env, reflect.ValueOf(tr.after),
-					reflect.ValueOf(e.Pos()))
-			}
-			tr.env = savedEnv
-		}
-
-		return rv
+	o, changed, _ := tr.apply(tr.transformItem, reflect.ValueOf(file))
+	if changed {
+		panic("BUG")
 	}
-	file2 := apply(f, reflect.ValueOf(file)).Interface().(*ast.File)
+	file2 := o.Interface().(*ast.File)
 
 	// By construction, the root node is unchanged.
 	if file != file2 {
@@ -150,45 +162,91 @@ var (
 	identType        = reflect.TypeOf((*ast.Ident)(nil))
 	selectorExprType = reflect.TypeOf((*ast.SelectorExpr)(nil))
 	objectPtrType    = reflect.TypeOf((*ast.Object)(nil))
+	statementType    = reflect.TypeOf((*ast.Stmt)(nil)).Elem()
 	positionType     = reflect.TypeOf(token.NoPos)
 	scopePtrType     = reflect.TypeOf((*ast.Scope)(nil))
 )
 
 // apply replaces each AST field x in val with f(x), returning val.
 // To avoid extra conversions, f operates on the reflect.Value form.
-func apply(f func(reflect.Value) reflect.Value, val reflect.Value) reflect.Value {
+// f takes a reflect.Value representing the variable to modify of type ast.Node.
+// It returns a reflect.Value containing the transformed value of type ast.Node,
+// whether any change was made, and a map of identifiers to ast.Expr (so we can
+// do contextually correct substitutions in the parent statements).
+func (tr *Transformer) apply(f func(reflect.Value) (reflect.Value, bool, map[string]ast.Expr), val reflect.Value) (reflect.Value, bool, map[string]ast.Expr) {
 	if !val.IsValid() {
-		return reflect.Value{}
+		return reflect.Value{}, false, nil
 	}
 
 	// *ast.Objects introduce cycles and are likely incorrect after
 	// rewrite; don't follow them but replace with nil instead
 	if val.Type() == objectPtrType {
-		return objectPtrNil
+		return objectPtrNil, false, nil
 	}
 
 	// similarly for scopes: they are likely incorrect after a rewrite;
 	// replace them with nil
 	if val.Type() == scopePtrType {
-		return scopePtrNil
+		return scopePtrNil, false, nil
 	}
 
 	switch v := reflect.Indirect(val); v.Kind() {
 	case reflect.Slice:
+		// no possible rewriting of statements.
+		if v.Type().Elem() != statementType {
+			changed := false
+			var envp map[string]ast.Expr
+			for i := 0; i < v.Len(); i++ {
+				e := v.Index(i)
+				o, localchanged, env := f(e)
+				if localchanged {
+					changed = true
+					// we clobber envp here,
+					// which means if we have two sucessive
+					// replacements inside the same statement
+					// we will only generate the setup for one of them.
+					envp = env
+				}
+				setValue(e, o)
+			}
+			return val, changed, envp
+		}
+
+		// statements are rewritten.
+		var out []ast.Stmt
 		for i := 0; i < v.Len(); i++ {
 			e := v.Index(i)
-			setValue(e, f(e))
+			o, changed, env := f(e)
+			if changed {
+				for _, s := range tr.afterStmts {
+					t := tr.subst(env, reflect.ValueOf(s), reflect.Value{}).Interface()
+					out = append(out, t.(ast.Stmt))
+				}
+			}
+			setValue(e, o)
+			out = append(out, e.Interface().(ast.Stmt))
 		}
+		return reflect.ValueOf(out), false, nil
 	case reflect.Struct:
+		changed := false
+		var envp map[string]ast.Expr
 		for i := 0; i < v.NumField(); i++ {
 			e := v.Field(i)
-			setValue(e, f(e))
+			o, localchanged, env := f(e)
+			if localchanged {
+				changed = true
+				envp = env
+			}
+			setValue(e, o)
 		}
+		return val, changed, envp
 	case reflect.Interface:
 		e := v.Elem()
-		setValue(v, f(e))
+		o, changed, env := f(e)
+		setValue(v, o)
+		return val, changed, env
 	}
-	return val
+	return val, false, nil
 }
 
 // subst returns a copy of (replacement) pattern with values from env

@@ -1,0 +1,14 @@
+// +build ignore
+
+package I1
+
+import (
+	"errors"
+	"fmt"
+)
+
+func example() {
+
+	n := fmt.Sprintf("error - %s", "foo")
+	_ = errors.New(n)
+}
