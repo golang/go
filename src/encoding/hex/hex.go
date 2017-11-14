@@ -31,7 +31,9 @@ func Encode(dst, src []byte) int {
 	return len(src) * 2
 }
 
-// ErrLength results from decoding an odd length slice.
+// ErrLength reports an attempt to decode an odd-length input
+// using Decode or DecodeString.
+// The stream-based Decoder returns io.ErrUnexpectedEOF instead of ErrLength.
 var ErrLength = errors.New("encoding/hex: odd length hex string")
 
 // InvalidByteError values describe errors resulting from an invalid byte in a hex string.
@@ -50,12 +52,11 @@ func DecodedLen(x int) int { return x / 2 }
 //
 // Decode expects that src contain only hexadecimal
 // characters and that src should have an even length.
+// If the input is malformed, Decode returns the number
+// of bytes decoded before the error.
 func Decode(dst, src []byte) (int, error) {
-	if len(src)%2 == 1 {
-		return 0, ErrLength
-	}
-
-	for i := 0; i < len(src)/2; i++ {
+	var i int
+	for i = 0; i < len(src)/2; i++ {
 		a, ok := fromHexChar(src[i*2])
 		if !ok {
 			return i, InvalidByteError(src[i*2])
@@ -66,8 +67,15 @@ func Decode(dst, src []byte) (int, error) {
 		}
 		dst[i] = (a << 4) | b
 	}
-
-	return len(src) / 2, nil
+	if len(src)%2 == 1 {
+		// Check for invalid char before reporting bad length,
+		// since the invalid char (if present) is an earlier problem.
+		if _, ok := fromHexChar(src[i*2]); !ok {
+			return i, InvalidByteError(src[i*2])
+		}
+		return i, ErrLength
+	}
+	return i, nil
 }
 
 // fromHexChar converts a hex character into its value and a success flag.
@@ -92,15 +100,17 @@ func EncodeToString(src []byte) string {
 }
 
 // DecodeString returns the bytes represented by the hexadecimal string s.
+//
+// DecodeString expects that src contain only hexadecimal
+// characters and that src should have an even length.
+// If the input is malformed, DecodeString returns a string
+// containing the bytes decoded before the error.
 func DecodeString(s string) ([]byte, error) {
 	src := []byte(s)
 	// We can use the source slice itself as the destination
 	// because the decode loop increments by one and then the 'seen' byte is not used anymore.
-	len, err := Decode(src, src)
-	if err != nil {
-		return nil, err
-	}
-	return src[:len], nil
+	n, err := Decode(src, src)
+	return src[:n], err
 }
 
 // Dump returns a string that contains a hex dump of the given data. The format
@@ -164,7 +174,11 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 		numRead, d.err = d.r.Read(d.arr[numCopy:])
 		d.in = d.arr[:numCopy+numRead]
 		if d.err == io.EOF && len(d.in)%2 != 0 {
-			d.err = io.ErrUnexpectedEOF
+			if _, ok := fromHexChar(d.in[len(d.in)-1]); !ok {
+				d.err = InvalidByteError(d.in[len(d.in)-1])
+			} else {
+				d.err = io.ErrUnexpectedEOF
+			}
 		}
 	}
 
