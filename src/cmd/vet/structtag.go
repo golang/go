@@ -115,7 +115,7 @@ var (
 	errTagSyntax      = errors.New("bad syntax for struct tag pair")
 	errTagKeySyntax   = errors.New("bad syntax for struct tag key")
 	errTagValueSyntax = errors.New("bad syntax for struct tag value")
-	errTagValueSpace  = errors.New("suspicious space found in struct tag value")
+	errTagValueSpace  = errors.New("suspicious space in struct tag value")
 	errTagSpace       = errors.New("key:\"value\" pairs not separated by spaces")
 )
 
