@@ -13,7 +13,7 @@ Notable divergences:
 	* The full range of spacing (the CFWS syntax element) is not supported,
 	  such as breaking addresses across lines.
 	* No unicode normalization is performed.
-	* Address with some RFC 5322 3.2.3 specials without quotes are parsed.
+	* The special characters ()[]:;@\, are allowed to appear unquoted in names.
 */
 package mail
 
