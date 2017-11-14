@@ -5,3 +5,10 @@
 package cpu
 
 const CacheLineSize = 64
+
+// TODO: delete this once https://go-review.googlesource.com/c/go/+/76490 lands.
+// These will just be false for now.
+var ARM64 struct {
+	HasSHA1 bool
+	HasSHA2 bool
+}
