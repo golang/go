@@ -581,7 +581,10 @@ func (z *Int) lehmerGCD(a, b *Int) *Int {
 		u0, u1, u2 = 0, 1, 0
 		v0, v1, v2 = 0, 0, 1
 
-		// calculate the quotient and cosequences using Collins' stopping condition
+		// Calculate the quotient and cosequences using Collins' stopping condition.
+		// Note that overflow of a Word is not possible when computing the remainder
+		// sequence and cosequences since the cosequence size is bounded by the input size.
+		// See section 4.2 of Jebelean for details.
 		for a2 >= v2 && a1-a2 >= v1+v2 {
 			q := a1 / a2
 			a1, a2 = a2, a1-q*a2
