@@ -3258,9 +3258,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		}
 		i := s.expr(fn.Left)
 		itab := s.newValue1(ssa.OpITab, types.Types[TUINTPTR], i)
-		if k != callNormal {
-			s.nilCheck(itab)
-		}
+		s.nilCheck(itab)
 		itabidx := fn.Xoffset + 2*int64(Widthptr) + 8 // offset of fun field in runtime.itab
 		itab = s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.UintptrPtr, itabidx, itab)
 		if k == callNormal {
