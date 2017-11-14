@@ -430,11 +430,9 @@ func ExampleToLower() {
 }
 
 func ExampleReader_Len() {
-	fmt.Println(bytes.NewReader([]byte("")).Len())
 	fmt.Println(bytes.NewReader([]byte("Hi!")).Len())
-	fmt.Println(bytes.NewReader([]byte("Hello Gopher!")).Len())
+	fmt.Println(bytes.NewReader([]byte("こんにちは!")).Len())
 	// Output:
-	// 0
 	// 3
-	// 13
+	// 16
 }
