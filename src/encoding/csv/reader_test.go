@@ -123,7 +123,7 @@ field"`,
 	}, {
 		Name:  "BadDoubleQuotes",
 		Input: `a""b,c`,
-		Error: &ParseError{RecordLine: 1, Line: 1, Column: 1, Err: ErrBareQuote},
+		Error: &ParseError{StartLine: 1, Line: 1, Column: 1, Err: ErrBareQuote},
 	}, {
 		Name:             "TrimQuote",
 		Input:            ` "a"," b",c`,
@@ -132,25 +132,25 @@ field"`,
 	}, {
 		Name:  "BadBareQuote",
 		Input: `a "word","b"`,
-		Error: &ParseError{RecordLine: 1, Line: 1, Column: 2, Err: ErrBareQuote},
+		Error: &ParseError{StartLine: 1, Line: 1, Column: 2, Err: ErrBareQuote},
 	}, {
 		Name:  "BadTrailingQuote",
 		Input: `"a word",b"`,
-		Error: &ParseError{RecordLine: 1, Line: 1, Column: 10, Err: ErrBareQuote},
+		Error: &ParseError{StartLine: 1, Line: 1, Column: 10, Err: ErrBareQuote},
 	}, {
 		Name:  "ExtraneousQuote",
 		Input: `"a "word","b"`,
-		Error: &ParseError{RecordLine: 1, Line: 1, Column: 3, Err: ErrQuote},
+		Error: &ParseError{StartLine: 1, Line: 1, Column: 3, Err: ErrQuote},
 	}, {
 		Name:               "BadFieldCount",
 		Input:              "a,b,c\nd,e",
-		Error:              &ParseError{RecordLine: 2, Line: 2, Err: ErrFieldCount},
+		Error:              &ParseError{StartLine: 2, Line: 2, Err: ErrFieldCount},
 		UseFieldsPerRecord: true,
 		FieldsPerRecord:    0,
 	}, {
 		Name:               "BadFieldCount1",
 		Input:              `a,b,c`,
-		Error:              &ParseError{RecordLine: 1, Line: 1, Err: ErrFieldCount},
+		Error:              &ParseError{StartLine: 1, Line: 1, Err: ErrFieldCount},
 		UseFieldsPerRecord: true,
 		FieldsPerRecord:    2,
 	}, {
@@ -226,13 +226,13 @@ x,,,
 		},
 		ReuseRecord: true,
 	}, {
-		Name:  "RecordLine1", // Issue 19019
+		Name:  "StartLine1", // Issue 19019
 		Input: "a,\"b\nc\"d,e",
-		Error: &ParseError{RecordLine: 1, Line: 2, Column: 1, Err: ErrQuote},
+		Error: &ParseError{StartLine: 1, Line: 2, Column: 1, Err: ErrQuote},
 	}, {
-		Name:  "RecordLine2",
+		Name:  "StartLine2",
 		Input: "a,b\n\"d\n\n,e",
-		Error: &ParseError{RecordLine: 2, Line: 5, Column: 0, Err: ErrQuote},
+		Error: &ParseError{StartLine: 2, Line: 5, Column: 0, Err: ErrQuote},
 	}, {
 		Name:  "CRLFInQuotedField", // Issue 21201
 		Input: "\"Hello\r\nHi\"",
@@ -290,7 +290,7 @@ x,,,
 	}, {
 		Name:  "QuoteWithTrailingCRLF",
 		Input: "\"foo\"bar\"\r\n",
-		Error: &ParseError{RecordLine: 1, Line: 1, Column: 4, Err: ErrQuote},
+		Error: &ParseError{StartLine: 1, Line: 1, Column: 4, Err: ErrQuote},
 	}, {
 		Name:       "LazyQuoteWithTrailingCRLF",
 		Input:      "\"foo\"bar\"\r\n",
@@ -307,7 +307,7 @@ x,,,
 	}, {
 		Name:  "OddQuotes",
 		Input: `"""""""`,
-		Error: &ParseError{RecordLine: 1, Line: 1, Column: 7, Err: ErrQuote},
+		Error: &ParseError{StartLine: 1, Line: 1, Column: 7, Err: ErrQuote},
 	}, {
 		Name:       "LazyOddQuotes",
 		Input:      `"""""""`,
