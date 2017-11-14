@@ -949,6 +949,22 @@ func (t *tester) cgoTest(dt *distTest) error {
 			// static linking on FreeBSD/ARM with clang. (cgo depends on
 			// -fPIC fundamentally.)
 		default:
+			cmd := t.dirCmd("misc/cgo/test",
+				compilerEnvLookup(defaultcc, goos, goarch), "-xc", "-o", "/dev/null", "-static", "-")
+			cmd.Stdin = strings.NewReader("int main() {}")
+			if err := cmd.Run(); err != nil {
+				fmt.Println("No support for static linking found (lacks libc.a?), skip cgo static linking test.")
+			} else {
+				if goos != "android" {
+					t.addCmd(dt, "misc/cgo/testtls", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+				}
+				t.addCmd(dt, "misc/cgo/nocgo", "go", "test")
+				t.addCmd(dt, "misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external`)
+				if goos != "android" {
+					t.addCmd(dt, "misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+				}
+			}
+
 			if t.supportedBuildmode("pie") {
 				t.addCmd(dt, "misc/cgo/test", "go", "test", "-buildmode=pie")
 				t.addCmd(dt, "misc/cgo/testtls", "go", "test", "-buildmode=pie")
