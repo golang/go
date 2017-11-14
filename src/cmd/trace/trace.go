@@ -278,7 +278,7 @@ type traceContext struct {
 
 	heapStats, prevHeapStats     heapStats
 	threadStats, prevThreadStats threadStats
-	gstates, prevGstates         [gStateCount]uint64
+	gstates, prevGstates         [gStateCount]int64
 }
 
 type heapStats struct {
@@ -448,6 +448,9 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 		}
 		if setGStateErr != nil {
 			return ctx.data, setGStateErr
+		}
+		if ctx.gstates[gRunnable] < 0 || ctx.gstates[gRunning] < 0 || ctx.threadStats.insyscall < 0 {
+			return ctx.data, fmt.Errorf("invalid state after processing %v: runnable=%d running=%d insyscall=%d", ev, ctx.gstates[gRunnable], ctx.gstates[gRunning], ctx.threadStats.insyscall)
 		}
 
 		// Ignore events that are from uninteresting goroutines
@@ -644,7 +647,7 @@ func (ctx *traceContext) emitGoroutineCounters(ev *trace.Event) {
 	if ctx.prevGstates == ctx.gstates {
 		return
 	}
-	ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{ctx.gstates[gRunning], ctx.gstates[gRunnable], ctx.gstates[gWaitingGC]}})
+	ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{uint64(ctx.gstates[gRunning]), uint64(ctx.gstates[gRunnable]), uint64(ctx.gstates[gWaitingGC])}})
 	ctx.prevGstates = ctx.gstates
 }
 
