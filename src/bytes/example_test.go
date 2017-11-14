@@ -155,7 +155,7 @@ func ExampleCount() {
 
 func ExampleEqual() {
 	fmt.Println(bytes.Equal([]byte("Go"), []byte("Go")))
-	fmt.Println(bytes.Equal([]byte("Go"), []byte("go")))
+	fmt.Println(bytes.Equal([]byte("Go"), []byte("C++")))
 	// Output:
 	// true
 	// false
