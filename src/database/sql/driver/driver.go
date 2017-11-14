@@ -55,6 +55,17 @@ type Driver interface {
 	Open(name string) (Conn, error)
 }
 
+// DriverContext enhances the Driver interface by returning a Connector
+// rather then a single Conn.
+// It separates out the name parsing step from actually connecting to the
+// database. It also gives dialers access to the context by using the
+// Connector.
+type DriverContext interface {
+	// OpenConnector must parse the name in the same format that Driver.Open
+	// parses the name parameter.
+	OpenConnector(name string) (Connector, error)
+}
+
 // Connector is an optional interface that drivers can implement.
 // It allows drivers to provide more flexible methods to open
 // database connections without requiring the use of a DSN string.

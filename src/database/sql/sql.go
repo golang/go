@@ -662,6 +662,14 @@ func Open(driverName, dataSourceName string) (*DB, error) {
 		return nil, fmt.Errorf("sql: unknown driver %q (forgotten import?)", driverName)
 	}
 
+	if driverCtx, ok := driveri.(driver.DriverContext); ok {
+		connector, err := driverCtx.OpenConnector(dataSourceName)
+		if err != nil {
+			return nil, err
+		}
+		return OpenDB(connector), nil
+	}
+
 	return OpenDB(dsnConnector{dsn: dataSourceName, driver: driveri}), nil
 }
 
