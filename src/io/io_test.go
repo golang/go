@@ -32,6 +32,21 @@ func TestCopy(t *testing.T) {
 	}
 }
 
+func TestCopyNegative(t *testing.T) {
+	rb := new(Buffer)
+	wb := new(Buffer)
+	rb.WriteString("hello")
+	Copy(wb, &LimitedReader{R: rb, N: -1})
+	if wb.String() != "" {
+		t.Errorf("Copy on LimitedReader with N<0 copied data")
+	}
+
+	CopyN(wb, rb, -1)
+	if wb.String() != "" {
+		t.Errorf("CopyN with N<0 copied data")
+	}
+}
+
 func TestCopyBuffer(t *testing.T) {
 	rb := new(Buffer)
 	wb := new(Buffer)
