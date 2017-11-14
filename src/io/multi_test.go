@@ -176,6 +176,21 @@ func TestMultiWriterSingleChainFlatten(t *testing.T) {
 	}
 }
 
+func TestMultiWriterError(t *testing.T) {
+	f1 := writerFunc(func(p []byte) (int, error) {
+		return len(p) / 2, ErrShortWrite
+	})
+	f2 := writerFunc(func(p []byte) (int, error) {
+		t.Errorf("MultiWriter called f2.Write")
+		return len(p), nil
+	})
+	w := MultiWriter(f1, f2)
+	n, err := w.Write(make([]byte, 100))
+	if n != 50 || err != ErrShortWrite {
+		t.Errorf("Write = %d, %v, want 50, ErrShortWrite", n, err)
+	}
+}
+
 // Test that MultiReader copies the input slice and is insulated from future modification.
 func TestMultiReaderCopy(t *testing.T) {
 	slice := []Reader{strings.NewReader("hello world")}
