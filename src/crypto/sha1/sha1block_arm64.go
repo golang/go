@@ -15,7 +15,7 @@ var k = []uint32{
 
 var hasSHA1 = cpu.ARM64.HasSHA1
 
-
+//go:noescape
 func sha1block(h []uint32, p []byte, k []uint32)
 
 func block(dig *digest, p []byte) {
