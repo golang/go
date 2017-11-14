@@ -54,7 +54,7 @@ var _Day_index = [...]uint8{0, 6, 13, 22, 30, 36, 44, 50}
 
 func (i Day) String() string {
 	if i < 0 || i >= Day(len(_Day_index)-1) {
-		return fmt.Sprintf("Day(%d)", i)
+		return "Day(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _Day_name[_Day_index[i]:_Day_index[i+1]]
 }
@@ -80,7 +80,7 @@ var _Number_index = [...]uint8{0, 3, 6, 11}
 func (i Number) String() string {
 	i -= 1
 	if i < 0 || i >= Number(len(_Number_index)-1) {
-		return fmt.Sprintf("Number(%d)", i+1)
+		return "Number(" + strconv.FormatInt(int64(i+1), 10) + ")"
 	}
 	return _Number_name[_Number_index[i]:_Number_index[i+1]]
 }
@@ -124,7 +124,7 @@ func (i Gap) String() string {
 	case i == 11:
 		return _Gap_name_2
 	default:
-		return fmt.Sprintf("Gap(%d)", i)
+		return "Gap(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 }
 `
@@ -148,7 +148,7 @@ var _Num_index = [...]uint8{0, 3, 6, 8, 10, 12}
 func (i Num) String() string {
 	i -= -2
 	if i < 0 || i >= Num(len(_Num_index)-1) {
-		return fmt.Sprintf("Num(%d)", i+-2)
+		return "Num(" + strconv.FormatInt(int64(i+-2), 10) + ")"
 	}
 	return _Num_name[_Num_index[i]:_Num_index[i+1]]
 }
@@ -187,7 +187,7 @@ func (i Unum) String() string {
 		i -= 253
 		return _Unum_name_1[_Unum_index_1[i]:_Unum_index_1[i+1]]
 	default:
-		return fmt.Sprintf("Unum(%d)", i)
+		return "Unum(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 }
 `
@@ -236,7 +236,7 @@ func (i Prime) String() string {
 	if str, ok := _Prime_map[i]; ok {
 		return str
 	}
-	return fmt.Sprintf("Prime(%d)", i)
+	return "Prime(" + strconv.FormatInt(int64(i), 10) + ")"
 }
 `
 
@@ -259,7 +259,7 @@ var _Type_index = [...]uint8{0, 3, 9, 14, 18, 22, 28, 33}
 
 func (i Type) String() string {
 	if i < 0 || i >= Type(len(_Type_index)-1) {
-		return fmt.Sprintf("Type(%d)", i)
+		return "Type(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _Type_name[_Type_index[i]:_Type_index[i+1]]
 }

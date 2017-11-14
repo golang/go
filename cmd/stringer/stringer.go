@@ -128,7 +128,7 @@ func main() {
 	g.Printf("\n")
 	g.Printf("package %s", g.pkg.name)
 	g.Printf("\n")
-	g.Printf("import \"fmt\"\n") // Used by all methods.
+	g.Printf("import \"strconv\"\n") // Used by all methods.
 
 	// Run generate for each type.
 	for _, typeName := range types {
@@ -565,7 +565,7 @@ func (g *Generator) buildOneRun(runs [][]Value, typeName string) {
 //	[3]: less than zero check (for signed types)
 const stringOneRun = `func (i %[1]s) String() string {
 	if %[3]si >= %[1]s(len(_%[1]s_index)-1) {
-		return fmt.Sprintf("%[1]s(%%d)", i)
+		return "%[1]s(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _%[1]s_name[_%[1]s_index[i]:_%[1]s_index[i+1]]
 }
@@ -581,7 +581,7 @@ const stringOneRun = `func (i %[1]s) String() string {
 const stringOneRunWithOffset = `func (i %[1]s) String() string {
 	i -= %[2]s
 	if %[4]si >= %[1]s(len(_%[1]s_index)-1) {
-		return fmt.Sprintf("%[1]s(%%d)", i + %[2]s)
+		return "%[1]s(" + strconv.FormatInt(int64(i + %[2]s), 10) + ")"
 	}
 	return _%[1]s_name[_%[1]s_index[i] : _%[1]s_index[i+1]]
 }
@@ -608,7 +608,7 @@ func (g *Generator) buildMultipleRuns(runs [][]Value, typeName string) {
 			typeName, i, typeName, i, typeName, i)
 	}
 	g.Printf("\tdefault:\n")
-	g.Printf("\t\treturn fmt.Sprintf(\"%s(%%d)\", i)\n", typeName)
+	g.Printf("\t\treturn \"%s(\" + strconv.FormatInt(int64(i), 10) + \")\"\n", typeName)
 	g.Printf("\t}\n")
 	g.Printf("}\n")
 }
@@ -635,6 +635,6 @@ const stringMap = `func (i %[1]s) String() string {
 	if str, ok := _%[1]s_map[i]; ok {
 		return str
 	}
-	return fmt.Sprintf("%[1]s(%%d)", i)
+	return "%[1]s(" + strconv.FormatInt(int64(i), 10) + ")"
 }
 `
