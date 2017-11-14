@@ -383,9 +383,9 @@ func ExampleMap() {
 }
 
 func ExampleTrimLeft() {
-	fmt.Print(string(bytes.TrimLeft([]byte("+ 005400"), "+0 ")))
+	fmt.Print(string(bytes.TrimLeft([]byte("453gopher8257"), "0123456789")))
 	// Output:
-	// 5400
+	// gopher8257
 }
 
 func ExampleTrimLeftFunc() {
