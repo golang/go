@@ -71,6 +71,16 @@ func (c *fakeConnector) Driver() driver.Driver {
 	return fdriver
 }
 
+type fakeDriverCtx struct {
+	fakeDriver
+}
+
+var _ driver.DriverContext = &fakeDriverCtx{}
+
+func (cc *fakeDriverCtx) OpenConnector(name string) (driver.Connector, error) {
+	return &fakeConnector{name: name}, nil
+}
+
 type fakeDB struct {
 	name string
 

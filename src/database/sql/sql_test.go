@@ -3523,6 +3523,19 @@ func TestNamedValueCheckerSkip(t *testing.T) {
 	}
 }
 
+func TestOpenConnector(t *testing.T) {
+	Register("testctx", &fakeDriverCtx{})
+	db, err := Open("testctx", "people")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	if _, is := db.connector.(*fakeConnector); !is {
+		t.Fatal("not using *fakeConnector")
+	}
+}
+
 type ctxOnlyDriver struct {
 	fakeDriver
 }
