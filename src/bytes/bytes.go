@@ -144,6 +144,10 @@ func IndexRune(s []byte, r rune) int {
 // code points in chars. It returns -1 if chars is empty or if there is no code
 // point in common.
 func IndexAny(s []byte, chars string) int {
+	if chars == "" {
+		// Avoid scanning all of s.
+		return -1
+	}
 	if len(s) > 8 {
 		if as, isASCII := makeASCIISet(chars); isASCII {
 			for i, c := range s {
@@ -176,6 +180,10 @@ func IndexAny(s []byte, chars string) int {
 // the Unicode code points in chars. It returns -1 if chars is empty or if
 // there is no code point in common.
 func LastIndexAny(s []byte, chars string) int {
+	if chars == "" {
+		// Avoid scanning all of s.
+		return -1
+	}
 	if len(s) > 8 {
 		if as, isASCII := makeASCIISet(chars); isASCII {
 			for i := len(s) - 1; i >= 0; i-- {
