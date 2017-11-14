@@ -64,18 +64,18 @@ import (
 // A ParseError is returned for parsing errors.
 // Line numbers are 1-indexed and columns are 0-indexed.
 type ParseError struct {
-	RecordLine int   // Line where the record starts
-	Line       int   // Line where the error occurred
-	Column     int   // Column (rune index) where the error occurred
-	Err        error // The actual error
+	StartLine int   // Line where the record starts
+	Line      int   // Line where the error occurred
+	Column    int   // Column (rune index) where the error occurred
+	Err       error // The actual error
 }
 
 func (e *ParseError) Error() string {
 	if e.Err == ErrFieldCount {
 		return fmt.Sprintf("record on line %d: %v", e.Line, e.Err)
 	}
-	if e.RecordLine != e.Line {
-		return fmt.Sprintf("record on line %d; parse error on line %d, column %d: %v", e.RecordLine, e.Line, e.Column, e.Err)
+	if e.StartLine != e.Line {
+		return fmt.Sprintf("record on line %d; parse error on line %d, column %d: %v", e.StartLine, e.Line, e.Column, e.Err)
 	}
 	return fmt.Sprintf("parse error on line %d, column %d: %v", e.Line, e.Column, e.Err)
 }
@@ -287,7 +287,7 @@ parseField:
 			if !r.LazyQuotes {
 				if j := bytes.IndexByte(field, '"'); j >= 0 {
 					col := utf8.RuneCount(fullLine[:len(fullLine)-len(line[j:])])
-					err = &ParseError{RecordLine: recLine, Line: r.numLine, Column: col, Err: ErrBareQuote}
+					err = &ParseError{StartLine: recLine, Line: r.numLine, Column: col, Err: ErrBareQuote}
 					break parseField
 				}
 			}
@@ -327,7 +327,7 @@ parseField:
 					default:
 						// `"*` sequence (invalid non-escaped quote).
 						col := utf8.RuneCount(fullLine[:len(fullLine)-len(line)-quoteLen])
-						err = &ParseError{RecordLine: recLine, Line: r.numLine, Column: col, Err: ErrQuote}
+						err = &ParseError{StartLine: recLine, Line: r.numLine, Column: col, Err: ErrQuote}
 						break parseField
 					}
 				} else if len(line) > 0 {
@@ -345,7 +345,7 @@ parseField:
 					// Abrupt end of file (EOF or error).
 					if !r.LazyQuotes && errRead == nil {
 						col := utf8.RuneCount(fullLine)
-						err = &ParseError{RecordLine: recLine, Line: r.numLine, Column: col, Err: ErrQuote}
+						err = &ParseError{StartLine: recLine, Line: r.numLine, Column: col, Err: ErrQuote}
 						break parseField
 					}
 					r.fieldIndexes = append(r.fieldIndexes, len(r.recordBuffer))
@@ -375,7 +375,7 @@ parseField:
 	// Check or update the expected fields per record.
 	if r.FieldsPerRecord > 0 {
 		if len(dst) != r.FieldsPerRecord && err == nil {
-			err = &ParseError{RecordLine: recLine, Line: recLine, Err: ErrFieldCount}
+			err = &ParseError{StartLine: recLine, Line: recLine, Err: ErrFieldCount}
 		}
 	} else if r.FieldsPerRecord == 0 {
 		r.FieldsPerRecord = len(dst)
