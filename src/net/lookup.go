@@ -200,7 +200,7 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
 		// rather than waiting for the current lookup to
 		// complete. See issue 8602.
 		ctxErr := ctx.Err()
-		if ctxErr == context.DeadlineExceeded {
+		if ctxErr == context.Canceled || ctxErr == context.DeadlineExceeded {
 			lookupGroup.Forget(host)
 		}
 		err := mapErr(ctxErr)
