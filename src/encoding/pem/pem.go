@@ -252,6 +252,7 @@ func writeHeader(out io.Writer, k, v string) error {
 	return err
 }
 
+// Encode writes the Block b to out.
 func Encode(out io.Writer, b *Block) error {
 	if _, err := out.Write(pemStart[1:]); err != nil {
 		return err
@@ -310,6 +311,10 @@ func Encode(out io.Writer, b *Block) error {
 	return err
 }
 
+// EncodeToMemory returns the Block b.
+//
+// EncodeToMemory will return an incomplete PEM encoded structure if an invalid block is given.
+// To catch errors, Blocks with user-supplied headers should use Encode.
 func EncodeToMemory(b *Block) []byte {
 	var buf bytes.Buffer
 	Encode(&buf, b)
