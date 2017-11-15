@@ -109,22 +109,23 @@ type Pinger interface {
 
 // Execer is an optional interface that may be implemented by a Conn.
 //
-// If a Conn does not implement Execer, the sql package's DB.Exec will
-// first prepare a query, execute the statement, and then close the
-// statement.
+// If a Conn implements neither ExecerContext nor Execer Execer,
+// the sql package's DB.Exec will first prepare a query, execute the statement,
+// and then close the statement.
 //
 // Exec may return ErrSkip.
 //
-// Deprecated: Drivers should implement ExecerContext instead (or additionally).
+// Deprecated: Drivers should implement ExecerContext instead.
 type Execer interface {
 	Exec(query string, args []Value) (Result, error)
 }
 
 // ExecerContext is an optional interface that may be implemented by a Conn.
 //
-// If a Conn does not implement ExecerContext, the sql package's DB.Exec will
-// first prepare a query, execute the statement, and then close the
-// statement.
+// If a Conn does not implement ExecerContext, the sql package's DB.Exec
+// will fall back to Execer; if the Conn does not implement Execer either,
+// DB.Exec will first prepare a query, execute the statement, and then
+// close the statement.
 //
 // ExecerContext may return ErrSkip.
 //
@@ -135,22 +136,23 @@ type ExecerContext interface {
 
 // Queryer is an optional interface that may be implemented by a Conn.
 //
-// If a Conn does not implement Queryer, the sql package's DB.Query will
-// first prepare a query, execute the statement, and then close the
-// statement.
+// If a Conn implements neither QueryerContext nor Queryer,
+// the sql package's DB.Query will first prepare a query, execute the statement,
+// and then close the statement.
 //
 // Query may return ErrSkip.
 //
-// Deprecated: Drivers should implement QueryerContext instead (or additionally).
+// Deprecated: Drivers should implement QueryerContext instead.
 type Queryer interface {
 	Query(query string, args []Value) (Rows, error)
 }
 
 // QueryerContext is an optional interface that may be implemented by a Conn.
 //
-// If a Conn does not implement QueryerContext, the sql package's DB.Query will
-// first prepare a query, execute the statement, and then close the
-// statement.
+// If a Conn does not implement QueryerContext, the sql package's DB.Query
+// will fall back to Queryer; if the Conn does not implement Queryer either,
+// DB.Query will first prepare a query, execute the statement, and then
+// close the statement.
 //
 // QueryerContext may return ErrSkip.
 //
