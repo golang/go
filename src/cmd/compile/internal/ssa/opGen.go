@@ -1686,6 +1686,7 @@ const (
 	OpS390XLoweredNilCheck
 	OpS390XLoweredRound32F
 	OpS390XLoweredRound64F
+	OpS390XLoweredWB
 	OpS390XMOVDconvert
 	OpS390XFlagEQ
 	OpS390XFlagLT
@@ -22072,6 +22073,20 @@ var opcodeTable = [...]opInfo{
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
+		},
+	},
+	{
+		name:         "LoweredWB",
+		auxType:      auxSym,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymNone,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4}, // R2
+				{1, 8}, // R3
+			},
+			clobbers: 4294918144, // R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 		},
 	},
 	{

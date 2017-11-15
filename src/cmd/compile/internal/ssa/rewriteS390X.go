@@ -753,6 +753,8 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpTrunc64to32_0(v)
 	case OpTrunc64to8:
 		return rewriteValueS390X_OpTrunc64to8_0(v)
+	case OpWB:
+		return rewriteValueS390X_OpWB_0(v)
 	case OpXor16:
 		return rewriteValueS390X_OpXor16_0(v)
 	case OpXor32:
@@ -39215,6 +39217,24 @@ func rewriteValueS390X_OpTrunc64to8_0(v *Value) bool {
 		v.reset(OpCopy)
 		v.Type = x.Type
 		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueS390X_OpWB_0(v *Value) bool {
+	// match: (WB {fn} destptr srcptr mem)
+	// cond:
+	// result: (LoweredWB {fn} destptr srcptr mem)
+	for {
+		fn := v.Aux
+		_ = v.Args[2]
+		destptr := v.Args[0]
+		srcptr := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpS390XLoweredWB)
+		v.Aux = fn
+		v.AddArg(destptr)
+		v.AddArg(srcptr)
+		v.AddArg(mem)
 		return true
 	}
 }
