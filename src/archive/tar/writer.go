@@ -53,7 +53,7 @@ func (tw *Writer) Flush() error {
 		return tw.err
 	}
 	if nb := tw.curr.LogicalRemaining(); nb > 0 {
-		return fmt.Errorf("tar: missed writing %d bytes", nb)
+		return fmt.Errorf("archive/tar: missed writing %d bytes", nb)
 	}
 	if _, tw.err = tw.w.Write(zeroBlock[:tw.pad]); tw.err != nil {
 		return tw.err
