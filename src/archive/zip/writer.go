@@ -219,7 +219,9 @@ func (w *Writer) Create(name string) (io.Writer, error) {
 // must be considered UTF-8 encoding (i.e., not compatible with CP-437, ASCII,
 // or any other common encoding).
 func detectUTF8(s string) (valid, require bool) {
-	for _, r := range s {
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		i += size
 		// Officially, ZIP uses CP-437, but many readers use the system's
 		// local character encoding. Most encoding are compatible with a large
 		// subset of CP-437, which itself is ASCII-like.
@@ -227,7 +229,7 @@ func detectUTF8(s string) (valid, require bool) {
 		// Forbid 0x7e and 0x5c since EUC-KR and Shift-JIS replace those
 		// characters with localized currency and overline characters.
 		if r < 0x20 || r > 0x7d || r == 0x5c {
-			if !utf8.ValidRune(r) || r == utf8.RuneError {
+			if !utf8.ValidRune(r) || (r == utf8.RuneError && size == 1) {
 				return false, false
 			}
 			require = true

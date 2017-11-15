@@ -136,40 +136,45 @@ func TestWriterUTF8(t *testing.T) {
 	var utf8Tests = []struct {
 		name    string
 		comment string
-		expect  uint16
 		nonUTF8 bool
+		flags   uint16
 	}{
 		{
 			name:    "hi, hello",
 			comment: "in the world",
-			expect:  0x8,
+			flags:   0x8,
 		},
 		{
 			name:    "hi, こんにちわ",
 			comment: "in the world",
-			expect:  0x808,
+			flags:   0x808,
 		},
 		{
 			name:    "hi, こんにちわ",
 			comment: "in the world",
 			nonUTF8: true,
-			expect:  0x8,
+			flags:   0x8,
 		},
 		{
 			name:    "hi, hello",
 			comment: "in the 世界",
-			expect:  0x808,
+			flags:   0x808,
 		},
 		{
 			name:    "hi, こんにちわ",
 			comment: "in the 世界",
-			expect:  0x808,
+			flags:   0x808,
+		},
+		{
+			name:    "the replacement rune is �",
+			comment: "the replacement rune is �",
+			flags:   0x808,
 		},
 		{
 			// Name is Japanese encoded in Shift JIS.
 			name:    "\x93\xfa\x96{\x8c\xea.txt",
 			comment: "in the 世界",
-			expect:  0x008, // UTF-8 must not be set
+			flags:   0x008, // UTF-8 must not be set
 		},
 	}
 
@@ -201,10 +206,9 @@ func TestWriterUTF8(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, test := range utf8Tests {
-		got := r.File[i].Flags
-		t.Logf("name %v, comment %v", test.name, test.comment)
-		if got != test.expect {
-			t.Fatalf("Flags: got %v, want %v", got, test.expect)
+		flags := r.File[i].Flags
+		if flags != test.flags {
+			t.Errorf("CreateHeader(name=%q comment=%q nonUTF8=%v): flags=%#x, want %#x", test.name, test.comment, test.nonUTF8, flags, test.flags)
 		}
 	}
 }
