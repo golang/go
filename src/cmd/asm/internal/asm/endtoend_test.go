@@ -391,6 +391,7 @@ func TestAMD64EndToEnd(t *testing.T) {
 
 func TestAMD64Encoder(t *testing.T) {
 	testEndToEnd(t, "amd64", "amd64enc")
+	testEndToEnd(t, "amd64", "amd64enc_extra")
 }
 
 func TestAMD64Errors(t *testing.T) {
