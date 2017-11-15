@@ -4773,22 +4773,25 @@ func runqgrab(_p_ *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool
 			if stealRunNextG {
 				// Try to steal from _p_.runnext.
 				if next := _p_.runnext; next != 0 {
-					// Sleep to ensure that _p_ isn't about to run the g we
-					// are about to steal.
-					// The important use case here is when the g running on _p_
-					// ready()s another g and then almost immediately blocks.
-					// Instead of stealing runnext in this window, back off
-					// to give _p_ a chance to schedule runnext. This will avoid
-					// thrashing gs between different Ps.
-					// A sync chan send/recv takes ~50ns as of time of writing,
-					// so 3us gives ~50x overshoot.
-					if GOOS != "windows" {
-						usleep(3)
-					} else {
-						// On windows system timer granularity is 1-15ms,
-						// which is way too much for this optimization.
-						// So just yield.
-						osyield()
+					if _p_.status == _Prunning {
+						// Sleep to ensure that _p_ isn't about to run the g
+						// we are about to steal.
+						// The important use case here is when the g running
+						// on _p_ ready()s another g and then almost
+						// immediately blocks. Instead of stealing runnext
+						// in this window, back off to give _p_ a chance to
+						// schedule runnext. This will avoid thrashing gs
+						// between different Ps.
+						// A sync chan send/recv takes ~50ns as of time of
+						// writing, so 3us gives ~50x overshoot.
+						if GOOS != "windows" {
+							usleep(3)
+						} else {
+							// On windows system timer granularity is
+							// 1-15ms, which is way too much for this
+							// optimization. So just yield.
+							osyield()
+						}
 					}
 					if !_p_.runnext.cas(next, 0) {
 						continue
