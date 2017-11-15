@@ -491,6 +491,8 @@ func rewriteValueMIPS(v *Value) bool {
 		return rewriteValueMIPS_OpTrunc32to16_0(v)
 	case OpTrunc32to8:
 		return rewriteValueMIPS_OpTrunc32to8_0(v)
+	case OpWB:
+		return rewriteValueMIPS_OpWB_0(v)
 	case OpXor16:
 		return rewriteValueMIPS_OpXor16_0(v)
 	case OpXor32:
@@ -9110,6 +9112,24 @@ func rewriteValueMIPS_OpTrunc32to8_0(v *Value) bool {
 		v.reset(OpCopy)
 		v.Type = x.Type
 		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueMIPS_OpWB_0(v *Value) bool {
+	// match: (WB {fn} destptr srcptr mem)
+	// cond:
+	// result: (LoweredWB {fn} destptr srcptr mem)
+	for {
+		fn := v.Aux
+		_ = v.Args[2]
+		destptr := v.Args[0]
+		srcptr := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpMIPSLoweredWB)
+		v.Aux = fn
+		v.AddArg(destptr)
+		v.AddArg(srcptr)
+		v.AddArg(mem)
 		return true
 	}
 }
