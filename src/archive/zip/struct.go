@@ -27,8 +27,8 @@ import (
 
 // Compression methods.
 const (
-	Store   uint16 = 0
-	Deflate uint16 = 8
+	Store   uint16 = 0 // no compression
+	Deflate uint16 = 8 // DEFLATE compressed
 )
 
 const (
@@ -102,7 +102,9 @@ type FileHeader struct {
 	CreatorVersion uint16
 	ReaderVersion  uint16
 	Flags          uint16
-	Method         uint16
+
+	// Method is the compression method. If zero, Store is used.
+	Method uint16
 
 	// Modified is the modified time of the file.
 	//
@@ -153,6 +155,8 @@ func (fi headerFileInfo) Sys() interface{}   { return fi.fh }
 // Because os.FileInfo's Name method returns only the base name of
 // the file it describes, it may be necessary to modify the Name field
 // of the returned header to provide the full path name of the file.
+// If compression is desired, callers should set the FileHeader.Method
+// field; it is unset by default.
 func FileInfoHeader(fi os.FileInfo) (*FileHeader, error) {
 	size := fi.Size()
 	fh := &FileHeader{
