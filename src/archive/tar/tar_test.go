@@ -16,7 +16,6 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -99,94 +98,94 @@ func (f *testFile) Seek(pos int64, whence int) (int64, error) {
 	return f.pos, nil
 }
 
-func equalSparseEntries(x, y []SparseEntry) bool {
+func equalSparseEntries(x, y []sparseEntry) bool {
 	return (len(x) == 0 && len(y) == 0) || reflect.DeepEqual(x, y)
 }
 
 func TestSparseEntries(t *testing.T) {
 	vectors := []struct {
-		in   []SparseEntry
+		in   []sparseEntry
 		size int64
 
 		wantValid    bool          // Result of validateSparseEntries
-		wantAligned  []SparseEntry // Result of alignSparseEntries
-		wantInverted []SparseEntry // Result of invertSparseEntries
+		wantAligned  []sparseEntry // Result of alignSparseEntries
+		wantInverted []sparseEntry // Result of invertSparseEntries
 	}{{
-		in: []SparseEntry{}, size: 0,
+		in: []sparseEntry{}, size: 0,
 		wantValid:    true,
-		wantInverted: []SparseEntry{{0, 0}},
+		wantInverted: []sparseEntry{{0, 0}},
 	}, {
-		in: []SparseEntry{}, size: 5000,
+		in: []sparseEntry{}, size: 5000,
 		wantValid:    true,
-		wantInverted: []SparseEntry{{0, 5000}},
+		wantInverted: []sparseEntry{{0, 5000}},
 	}, {
-		in: []SparseEntry{{0, 5000}}, size: 5000,
+		in: []sparseEntry{{0, 5000}}, size: 5000,
 		wantValid:    true,
-		wantAligned:  []SparseEntry{{0, 5000}},
-		wantInverted: []SparseEntry{{5000, 0}},
+		wantAligned:  []sparseEntry{{0, 5000}},
+		wantInverted: []sparseEntry{{5000, 0}},
 	}, {
-		in: []SparseEntry{{1000, 4000}}, size: 5000,
+		in: []sparseEntry{{1000, 4000}}, size: 5000,
 		wantValid:    true,
-		wantAligned:  []SparseEntry{{1024, 3976}},
-		wantInverted: []SparseEntry{{0, 1000}, {5000, 0}},
+		wantAligned:  []sparseEntry{{1024, 3976}},
+		wantInverted: []sparseEntry{{0, 1000}, {5000, 0}},
 	}, {
-		in: []SparseEntry{{0, 3000}}, size: 5000,
+		in: []sparseEntry{{0, 3000}}, size: 5000,
 		wantValid:    true,
-		wantAligned:  []SparseEntry{{0, 2560}},
-		wantInverted: []SparseEntry{{3000, 2000}},
+		wantAligned:  []sparseEntry{{0, 2560}},
+		wantInverted: []sparseEntry{{3000, 2000}},
 	}, {
-		in: []SparseEntry{{3000, 2000}}, size: 5000,
+		in: []sparseEntry{{3000, 2000}}, size: 5000,
 		wantValid:    true,
-		wantAligned:  []SparseEntry{{3072, 1928}},
-		wantInverted: []SparseEntry{{0, 3000}, {5000, 0}},
+		wantAligned:  []sparseEntry{{3072, 1928}},
+		wantInverted: []sparseEntry{{0, 3000}, {5000, 0}},
 	}, {
-		in: []SparseEntry{{2000, 2000}}, size: 5000,
+		in: []sparseEntry{{2000, 2000}}, size: 5000,
 		wantValid:    true,
-		wantAligned:  []SparseEntry{{2048, 1536}},
-		wantInverted: []SparseEntry{{0, 2000}, {4000, 1000}},
+		wantAligned:  []sparseEntry{{2048, 1536}},
+		wantInverted: []sparseEntry{{0, 2000}, {4000, 1000}},
 	}, {
-		in: []SparseEntry{{0, 2000}, {8000, 2000}}, size: 10000,
+		in: []sparseEntry{{0, 2000}, {8000, 2000}}, size: 10000,
 		wantValid:    true,
-		wantAligned:  []SparseEntry{{0, 1536}, {8192, 1808}},
-		wantInverted: []SparseEntry{{2000, 6000}, {10000, 0}},
+		wantAligned:  []sparseEntry{{0, 1536}, {8192, 1808}},
+		wantInverted: []sparseEntry{{2000, 6000}, {10000, 0}},
 	}, {
-		in: []SparseEntry{{0, 2000}, {2000, 2000}, {4000, 0}, {4000, 3000}, {7000, 1000}, {8000, 0}, {8000, 2000}}, size: 10000,
+		in: []sparseEntry{{0, 2000}, {2000, 2000}, {4000, 0}, {4000, 3000}, {7000, 1000}, {8000, 0}, {8000, 2000}}, size: 10000,
 		wantValid:    true,
-		wantAligned:  []SparseEntry{{0, 1536}, {2048, 1536}, {4096, 2560}, {7168, 512}, {8192, 1808}},
-		wantInverted: []SparseEntry{{10000, 0}},
+		wantAligned:  []sparseEntry{{0, 1536}, {2048, 1536}, {4096, 2560}, {7168, 512}, {8192, 1808}},
+		wantInverted: []sparseEntry{{10000, 0}},
 	}, {
-		in: []SparseEntry{{0, 0}, {1000, 0}, {2000, 0}, {3000, 0}, {4000, 0}, {5000, 0}}, size: 5000,
+		in: []sparseEntry{{0, 0}, {1000, 0}, {2000, 0}, {3000, 0}, {4000, 0}, {5000, 0}}, size: 5000,
 		wantValid:    true,
-		wantInverted: []SparseEntry{{0, 5000}},
+		wantInverted: []sparseEntry{{0, 5000}},
 	}, {
-		in: []SparseEntry{{1, 0}}, size: 0,
+		in: []sparseEntry{{1, 0}}, size: 0,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{-1, 0}}, size: 100,
+		in: []sparseEntry{{-1, 0}}, size: 100,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{0, -1}}, size: 100,
+		in: []sparseEntry{{0, -1}}, size: 100,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{0, 0}}, size: -100,
+		in: []sparseEntry{{0, 0}}, size: -100,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{math.MaxInt64, 3}, {6, -5}}, size: 35,
+		in: []sparseEntry{{math.MaxInt64, 3}, {6, -5}}, size: 35,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{1, 3}, {6, -5}}, size: 35,
+		in: []sparseEntry{{1, 3}, {6, -5}}, size: 35,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{math.MaxInt64, math.MaxInt64}}, size: math.MaxInt64,
+		in: []sparseEntry{{math.MaxInt64, math.MaxInt64}}, size: math.MaxInt64,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{3, 3}}, size: 5,
+		in: []sparseEntry{{3, 3}}, size: 5,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{2, 0}, {1, 0}, {0, 0}}, size: 3,
+		in: []sparseEntry{{2, 0}, {1, 0}, {0, 0}}, size: 3,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{1, 3}, {2, 2}}, size: 10,
+		in: []sparseEntry{{1, 3}, {2, 2}}, size: 10,
 		wantValid: false,
 	}}
 
@@ -198,11 +197,11 @@ func TestSparseEntries(t *testing.T) {
 		if !v.wantValid {
 			continue
 		}
-		gotAligned := alignSparseEntries(append([]SparseEntry{}, v.in...), v.size)
+		gotAligned := alignSparseEntries(append([]sparseEntry{}, v.in...), v.size)
 		if !equalSparseEntries(gotAligned, v.wantAligned) {
 			t.Errorf("test %d, alignSparseEntries():\ngot  %v\nwant %v", i, gotAligned, v.wantAligned)
 		}
-		gotInverted := invertSparseEntries(append([]SparseEntry{}, v.in...), v.size)
+		gotInverted := invertSparseEntries(append([]sparseEntry{}, v.in...), v.size)
 		if !equalSparseEntries(gotInverted, v.wantInverted) {
 			t.Errorf("test %d, inverseSparseEntries():\ngot  %v\nwant %v", i, gotInverted, v.wantInverted)
 		}
@@ -734,21 +733,6 @@ func TestHeaderAllowedFormats(t *testing.T) {
 		paxHdrs: map[string]string{paxCtime: "123.000000456"},
 		formats: FormatPAX,
 	}, {
-		header:  &Header{Name: "sparse.db", Size: 1000, SparseHoles: []SparseEntry{{0, 500}}},
-		formats: FormatPAX,
-	}, {
-		header:  &Header{Name: "sparse.db", Size: 1000, Typeflag: TypeGNUSparse, SparseHoles: []SparseEntry{{0, 500}}},
-		formats: FormatGNU,
-	}, {
-		header:  &Header{Name: "sparse.db", Size: 1000, SparseHoles: []SparseEntry{{0, 500}}, Format: FormatGNU},
-		formats: FormatUnknown,
-	}, {
-		header:  &Header{Name: "sparse.db", Size: 1000, Typeflag: TypeGNUSparse, SparseHoles: []SparseEntry{{0, 500}}, Format: FormatPAX},
-		formats: FormatUnknown,
-	}, {
-		header:  &Header{Name: "sparse.db", Size: 1000, SparseHoles: []SparseEntry{{0, 500}}, Format: FormatUSTAR},
-		formats: FormatUnknown,
-	}, {
 		header:  &Header{Name: "foo/", Typeflag: TypeDir},
 		formats: FormatUSTAR | FormatPAX | FormatGNU,
 	}, {
@@ -773,140 +757,6 @@ func TestHeaderAllowedFormats(t *testing.T) {
 		if (formats == FormatUnknown) && (err == nil) {
 			t.Errorf("test %d, got nil-error, want non-nil error", i)
 		}
-	}
-}
-
-func TestSparseFiles(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test on plan9; see https://golang.org/issue/21977")
-	}
-	// Only perform the tests for hole-detection on the builders,
-	// where we have greater control over the filesystem.
-	sparseSupport := testenv.Builder() != ""
-	switch runtime.GOOS + "-" + runtime.GOARCH {
-	case "linux-amd64", "linux-386", "windows-amd64", "windows-386":
-	default:
-		sparseSupport = false
-	}
-
-	vectors := []struct {
-		label     string
-		sparseMap sparseHoles
-	}{
-		{"EmptyFile", sparseHoles{{0, 0}}},
-		{"BigData", sparseHoles{{1e6, 0}}},
-		{"BigHole", sparseHoles{{0, 1e6}}},
-		{"DataFront", sparseHoles{{1e3, 1e6 - 1e3}}},
-		{"HoleFront", sparseHoles{{0, 1e6 - 1e3}, {1e6, 0}}},
-		{"DataMiddle", sparseHoles{{0, 5e5 - 1e3}, {5e5, 5e5}}},
-		{"HoleMiddle", sparseHoles{{1e3, 1e6 - 2e3}, {1e6, 0}}},
-		{"Multiple", func() (sph []SparseEntry) {
-			const chunkSize = 1e6
-			for i := 0; i < 100; i++ {
-				sph = append(sph, SparseEntry{chunkSize * int64(i), chunkSize - 1e3})
-			}
-			return append(sph, SparseEntry{int64(len(sph) * chunkSize), 0})
-		}()},
-	}
-
-	for _, v := range vectors {
-		sph := v.sparseMap
-		t.Run(v.label, func(t *testing.T) {
-			src, err := ioutil.TempFile("", "")
-			if err != nil {
-				t.Fatalf("unexpected TempFile error: %v", err)
-			}
-			defer os.Remove(src.Name())
-			dst, err := ioutil.TempFile("", "")
-			if err != nil {
-				t.Fatalf("unexpected TempFile error: %v", err)
-			}
-			defer os.Remove(dst.Name())
-
-			// Create the source sparse file.
-			hdr := Header{
-				Typeflag:    TypeReg,
-				Name:        "sparse.db",
-				Size:        sph[len(sph)-1].endOffset(),
-				SparseHoles: sph,
-			}
-			junk := bytes.Repeat([]byte{'Z'}, int(hdr.Size+1e3))
-			if _, err := src.Write(junk); err != nil {
-				t.Fatalf("unexpected Write error: %v", err)
-			}
-			if err := hdr.PunchSparseHoles(src); err != nil {
-				t.Fatalf("unexpected PunchSparseHoles error: %v", err)
-			}
-			var pos int64
-			for _, s := range sph {
-				b := bytes.Repeat([]byte{'X'}, int(s.Offset-pos))
-				if _, err := src.WriteAt(b, pos); err != nil {
-					t.Fatalf("unexpected WriteAt error: %v", err)
-				}
-				pos = s.endOffset()
-			}
-
-			// Round-trip the sparse file to/from a tar archive.
-			b := new(bytes.Buffer)
-			tw := NewWriter(b)
-			if err := tw.WriteHeader(&hdr); err != nil {
-				t.Fatalf("unexpected WriteHeader error: %v", err)
-			}
-			if _, err := tw.ReadFrom(src); err != nil {
-				t.Fatalf("unexpected ReadFrom error: %v", err)
-			}
-			if err := tw.Close(); err != nil {
-				t.Fatalf("unexpected Close error: %v", err)
-			}
-			tr := NewReader(b)
-			if _, err := tr.Next(); err != nil {
-				t.Fatalf("unexpected Next error: %v", err)
-			}
-			if err := hdr.PunchSparseHoles(dst); err != nil {
-				t.Fatalf("unexpected PunchSparseHoles error: %v", err)
-			}
-			if _, err := tr.WriteTo(dst); err != nil {
-				t.Fatalf("unexpected Copy error: %v", err)
-			}
-
-			// Verify the sparse file matches.
-			// Even if the OS and underlying FS do not support sparse files,
-			// the content should still match (i.e., holes read as zeros).
-			got, err := ioutil.ReadFile(dst.Name())
-			if err != nil {
-				t.Fatalf("unexpected ReadFile error: %v", err)
-			}
-			want, err := ioutil.ReadFile(src.Name())
-			if err != nil {
-				t.Fatalf("unexpected ReadFile error: %v", err)
-			}
-			if !bytes.Equal(got, want) {
-				t.Fatal("sparse files mismatch")
-			}
-
-			// Detect and compare the sparse holes.
-			if err := hdr.DetectSparseHoles(dst); err != nil {
-				t.Fatalf("unexpected DetectSparseHoles error: %v", err)
-			}
-			if sparseSupport && sysSparseDetect != nil {
-				if len(sph) > 0 && sph[len(sph)-1].Length == 0 {
-					sph = sph[:len(sph)-1]
-				}
-				if len(hdr.SparseHoles) != len(sph) {
-					t.Fatalf("len(SparseHoles) = %d, want %d", len(hdr.SparseHoles), len(sph))
-				}
-				for j, got := range hdr.SparseHoles {
-					// Each FS has their own block size, so these may not match.
-					want := sph[j]
-					if got.Offset < want.Offset {
-						t.Errorf("index %d, StartOffset = %d, want <%d", j, got.Offset, want.Offset)
-					}
-					if got.endOffset() > want.endOffset() {
-						t.Errorf("index %d, EndOffset = %d, want >%d", j, got.endOffset(), want.endOffset())
-					}
-				}
-			}
-		})
 	}
 }
 
