@@ -18,19 +18,41 @@ pkg archive/tar, type Header struct, SparseHoles []SparseEntry
 pkg archive/tar, type SparseEntry struct
 pkg archive/tar, type SparseEntry struct, Length int64
 pkg archive/tar, type SparseEntry struct, Offset int64
+pkg archive/zip, type FileHeader struct, Modified time.Time
+pkg archive/zip, type FileHeader struct, NonUTF8 bool
 pkg archive/zip, type Writer struct, Comment string
+pkg bufio, method (*Reader) Size() int
+pkg bufio, method (*Writer) Size() int
 pkg crypto/tls, const ECDSAWithSHA1 = 515
 pkg crypto/tls, const ECDSAWithSHA1 SignatureScheme
+pkg crypto/x509, const CANotAuthorizedForExtKeyUsage = 9
+pkg crypto/x509, const CANotAuthorizedForExtKeyUsage InvalidReason
+pkg crypto/x509, const NameConstraintsWithoutSANs = 6
+pkg crypto/x509, const NameConstraintsWithoutSANs InvalidReason
+pkg crypto/x509, const TooManyConstraints = 8
+pkg crypto/x509, const TooManyConstraints InvalidReason
+pkg crypto/x509, const UnconstrainedName = 7
+pkg crypto/x509, const UnconstrainedName InvalidReason
 pkg crypto/x509, func MarshalPKCS8PrivateKey(interface{}) ([]uint8, error)
 pkg crypto/x509, method (PublicKeyAlgorithm) String() string
+pkg crypto/x509, type Certificate struct, ExcludedEmailAddresses []string
+pkg crypto/x509, type Certificate struct, ExcludedIPRanges []*net.IPNet
+pkg crypto/x509, type Certificate struct, ExcludedURIDomains []string
+pkg crypto/x509, type Certificate struct, PermittedEmailAddresses []string
+pkg crypto/x509, type Certificate struct, PermittedIPRanges []*net.IPNet
+pkg crypto/x509, type Certificate struct, PermittedURIDomains []string
+pkg crypto/x509, type Certificate struct, URIs []*url.URL
+pkg crypto/x509, type CertificateInvalidError struct, Detail string
+pkg crypto/x509, type CertificateRequest struct, URIs []*url.URL
+pkg crypto/x509, type VerifyOptions struct, MaxConstraintComparisions int
 pkg crypto/x509/pkix, method (Name) String() string
 pkg crypto/x509/pkix, method (RDNSequence) String() string
 pkg database/sql, func OpenDB(driver.Connector) *DB
 pkg database/sql/driver, type Connector interface { Connect, Driver }
 pkg database/sql/driver, type Connector interface, Connect(context.Context) (Conn, error)
 pkg database/sql/driver, type Connector interface, Driver() Driver
-pkg database/sql/driver, type ResetSessioner interface { ResetSession }
-pkg database/sql/driver, type ResetSessioner interface, ResetSession(context.Context) error
+pkg database/sql/driver, type SessionResetter interface { ResetSession }
+pkg database/sql/driver, type SessionResetter interface, ResetSession(context.Context) error
 pkg debug/elf, const R_386_16 = 20
 pkg debug/elf, const R_386_16 R_386
 pkg debug/elf, const R_386_32PLT = 11
@@ -538,18 +560,23 @@ pkg debug/macho, type RpathCmd struct, Cmd LoadCmd
 pkg debug/macho, type RpathCmd struct, Len uint32
 pkg debug/macho, type RpathCmd struct, Path uint32
 pkg debug/macho, type Section struct, Relocs []Reloc
-pkg encoding/csv, type ParseError struct, RecordLine int
+pkg encoding/csv, type ParseError struct, StartLine int
 pkg encoding/hex, func NewDecoder(io.Reader) io.Reader
 pkg encoding/hex, func NewEncoder(io.Writer) io.Writer
+pkg encoding/json, method (*Decoder) DisallowUnknownFields()
 pkg encoding/xml, func NewTokenDecoder(TokenReader) *Decoder
 pkg encoding/xml, type TokenReader interface { Token }
 pkg encoding/xml, type TokenReader interface, Token() (Token, error)
+pkg flag, method (*FlagSet) ErrorHandling() ErrorHandling
+pkg flag, method (*FlagSet) Name() string
+pkg flag, method (*FlagSet) Output() io.Writer
 pkg math, func Erfcinv(float64) float64
 pkg math, func Erfinv(float64) float64
 pkg math, func Round(float64) float64
 pkg math, func RoundToEven(float64) float64
 pkg math/big, const MaxBase = 62
 pkg math/big, method (*Float) Sqrt(*Float) *Float
+pkg math/big, method (*Int) CmpAbs(*Int) int
 pkg math/rand, func Shuffle(int, func(int, int))
 pkg math/rand, method (*Rand) Shuffle(int, func(int, int))
 pkg net, method (*TCPListener) SyscallConn() (syscall.RawConn, error)
@@ -562,6 +589,16 @@ pkg os, method (*File) SetWriteDeadline(time.Time) error
 pkg os, method (*PathError) Timeout() bool
 pkg os, method (*SyscallError) Timeout() bool
 pkg os, var ErrNoDeadline error
+pkg strings, method (*Builder) Grow(int)
+pkg strings, method (*Builder) Len() int
+pkg strings, method (*Builder) ReadFrom(io.Reader) (int64, error)
+pkg strings, method (*Builder) Reset()
+pkg strings, method (*Builder) String() string
+pkg strings, method (*Builder) Write([]uint8) (int, error)
+pkg strings, method (*Builder) WriteByte(uint8) error
+pkg strings, method (*Builder) WriteRune(int32) (int, error)
+pkg strings, method (*Builder) WriteString(string) (int, error)
+pkg strings, type Builder struct
 pkg syscall (freebsd-386), const SYS_UTIMENSAT = 547
 pkg syscall (freebsd-386), const SYS_UTIMENSAT ideal-int
 pkg syscall (freebsd-386-cgo), const SYS_UTIMENSAT = 547
@@ -574,6 +611,10 @@ pkg syscall (freebsd-arm), const SYS_UTIMENSAT = 547
 pkg syscall (freebsd-arm), const SYS_UTIMENSAT ideal-int
 pkg syscall (freebsd-arm-cgo), const SYS_UTIMENSAT = 547
 pkg syscall (freebsd-arm-cgo), const SYS_UTIMENSAT ideal-int
+pkg syscall (windows-386), func CreateProcessAsUser(Token, *uint16, *uint16, *SecurityAttributes, *SecurityAttributes, bool, uint32, *uint16, *uint16, *StartupInfo, *ProcessInformation) error
+pkg syscall (windows-386), type SysProcAttr struct, Token Token
+pkg syscall (windows-amd64), func CreateProcessAsUser(Token, *uint16, *uint16, *SecurityAttributes, *SecurityAttributes, bool, uint32, *uint16, *uint16, *StartupInfo, *ProcessInformation) error
+pkg syscall (windows-amd64), type SysProcAttr struct, Token Token
 pkg text/template/parse, const NodeBreak = 20
 pkg text/template/parse, const NodeBreak NodeType
 pkg text/template/parse, const NodeContinue = 21
