@@ -973,3 +973,84 @@ TEXT runtime·goexit(SB),NOSPLIT,$0-0
 TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVB	$1, ret+0(FP)
 	RET
+
+// gcWriteBarrier performs a heap pointer write and informs the GC.
+//
+// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+// - DI is the destination of the write
+// - AX is the value being written at DI
+// It clobbers FLAGS and SI. It does not clobber any other general-purpose registers,
+// but may clobber others (e.g., SSE registers).
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$88
+	// Save the registers clobbered by the fast path. This is slightly
+	// faster than having the caller spill these.
+	MOVQ	R14, 72(SP)
+	MOVQ	R13, 80(SP)
+	// TODO: Consider passing g.m.p in as an argument so they can be shared
+	// across a sequence of write barriers.
+	get_tls(R13)
+	MOVL	g(R13), R13
+	MOVL	g_m(R13), R13
+	MOVL	m_p(R13), R13
+	MOVL	(p_wbBuf+wbBuf_next)(R13), R14
+	// Increment wbBuf.next position.
+	LEAL	8(R14), R14
+	MOVL	R14, (p_wbBuf+wbBuf_next)(R13)
+	CMPL	R14, (p_wbBuf+wbBuf_end)(R13)
+	// Record the write.
+	MOVL	AX, -8(R14)	// Record value
+	MOVL	(DI), R13	// TODO: This turns bad writes into bad reads.
+	MOVL	R13, -4(R14)	// Record *slot
+	// Is the buffer full? (flags set in CMPL above)
+	JEQ	flush
+ret:
+	MOVQ	72(SP), R14
+	MOVQ	80(SP), R13
+	// Do the write.
+	MOVL	AX, (DI)
+	RET			// Clobbers SI on NaCl
+
+flush:
+	// Save all general purpose registers since these could be
+	// clobbered by wbBufFlush and were not saved by the caller.
+	// It is possible for wbBufFlush to clobber other registers
+	// (e.g., SSE registers), but the compiler takes care of saving
+	// those in the caller if necessary. This strikes a balance
+	// with registers that are likely to be used.
+	//
+	// We don't have type information for these, but all code under
+	// here is NOSPLIT, so nothing will observe these.
+	//
+	// TODO: We could strike a different balance; e.g., saving X0
+	// and not saving GP registers that are less likely to be used.
+	MOVL	DI, 0(SP)	// Also first argument to wbBufFlush
+	MOVL	AX, 4(SP)	// Also second argument to wbBufFlush
+	MOVQ	BX, 8(SP)
+	MOVQ	CX, 16(SP)
+	MOVQ	DX, 24(SP)
+	// DI already saved
+	// SI is always clobbered on nacl
+	// BP is reserved on nacl
+	MOVQ	R8, 32(SP)
+	MOVQ	R9, 40(SP)
+	MOVQ	R10, 48(SP)
+	MOVQ	R11, 56(SP)
+	MOVQ	R12, 64(SP)
+	// R13 already saved
+	// R14 already saved
+	// R15 is reserved on nacl
+
+	// This takes arguments DI and AX
+	CALL	runtime·wbBufFlush(SB)
+
+	MOVL	0(SP), DI
+	MOVL	4(SP), AX
+	MOVQ	8(SP), BX
+	MOVQ	16(SP), CX
+	MOVQ	24(SP), DX
+	MOVQ	32(SP), R8
+	MOVQ	40(SP), R9
+	MOVQ	48(SP), R10
+	MOVQ	56(SP), R11
+	MOVQ	64(SP), R12
+	JMP	ret

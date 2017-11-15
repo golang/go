@@ -408,7 +408,7 @@ func Main(archInit func(*Arch)) {
 	}
 
 	switch objabi.GOARCH {
-	case "amd64", "386":
+	case "amd64", "amd64p32", "386":
 	default:
 		// Other architectures don't support the buffered
 		// write barrier yet.
