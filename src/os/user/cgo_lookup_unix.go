@@ -114,8 +114,8 @@ func lookupUnixUid(uid int) (*User, error) {
 
 func buildUser(pwd *C.struct_passwd) *User {
 	u := &User{
-		Uid:      strconv.Itoa(int(pwd.pw_uid)),
-		Gid:      strconv.Itoa(int(pwd.pw_gid)),
+		Uid:      strconv.FormatUint(uint64(pwd.pw_uid), 10),
+		Gid:      strconv.FormatUint(uint64(pwd.pw_gid), 10),
 		Username: C.GoString(pwd.pw_name),
 		Name:     C.GoString(pwd.pw_gecos),
 		HomeDir:  C.GoString(pwd.pw_dir),
@@ -268,4 +268,12 @@ const maxBufferSize = 1 << 20
 
 func isSizeReasonable(sz int64) bool {
 	return sz > 0 && sz <= maxBufferSize
+}
+
+// Because we can't use cgo in tests:
+func structPasswdForNegativeTest() C.struct_passwd {
+	sp := C.struct_passwd{}
+	sp.pw_uid = 1<<32 - 2
+	sp.pw_gid = 1<<32 - 3
+	return sp
 }
