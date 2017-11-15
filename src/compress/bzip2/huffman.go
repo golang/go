@@ -90,13 +90,24 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 
 	// First we sort the code length assignments by ascending code length,
 	// using the symbol value to break ties.
-	pairs := huffmanSymbolLengthPairs(make([]huffmanSymbolLengthPair, len(lengths)))
+	pairs := make([]huffmanSymbolLengthPair, len(lengths))
 	for i, length := range lengths {
 		pairs[i].value = uint16(i)
 		pairs[i].length = length
 	}
 
-	sort.Sort(pairs)
+	sort.Slice(pairs, func(i, j int) bool {
+		if pairs[i].length < pairs[j].length {
+			return true
+		}
+		if pairs[i].length > pairs[j].length {
+			return false
+		}
+		if pairs[i].value < pairs[j].value {
+			return true
+		}
+		return false
+	})
 
 	// Now we assign codes to the symbols, starting with the longest code.
 	// We keep the codes packed into a uint32, at the most-significant end.
@@ -105,7 +116,7 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 	code := uint32(0)
 	length := uint8(32)
 
-	codes := huffmanCodes(make([]huffmanCode, len(lengths)))
+	codes := make([]huffmanCode, len(lengths))
 	for i := len(pairs) - 1; i >= 0; i-- {
 		if length > pairs[i].length {
 			length = pairs[i].length
@@ -120,7 +131,9 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 
 	// Now we can sort by the code so that the left half of each branch are
 	// grouped together, recursively.
-	sort.Sort(codes)
+	sort.Slice(codes, func(i, j int) bool {
+		return codes[i].code < codes[j].code
+	})
 
 	t.nodes = make([]huffmanNode, len(codes))
 	_, err := buildHuffmanNode(&t, codes, 0)
@@ -133,50 +146,11 @@ type huffmanSymbolLengthPair struct {
 	length uint8
 }
 
-// huffmanSymbolLengthPair is used to provide an interface for sorting.
-type huffmanSymbolLengthPairs []huffmanSymbolLengthPair
-
-func (h huffmanSymbolLengthPairs) Len() int {
-	return len(h)
-}
-
-func (h huffmanSymbolLengthPairs) Less(i, j int) bool {
-	if h[i].length < h[j].length {
-		return true
-	}
-	if h[i].length > h[j].length {
-		return false
-	}
-	if h[i].value < h[j].value {
-		return true
-	}
-	return false
-}
-
-func (h huffmanSymbolLengthPairs) Swap(i, j int) {
-	h[i], h[j] = h[j], h[i]
-}
-
 // huffmanCode contains a symbol, its code and code length.
 type huffmanCode struct {
 	code    uint32
 	codeLen uint8
 	value   uint16
-}
-
-// huffmanCodes is used to provide an interface for sorting.
-type huffmanCodes []huffmanCode
-
-func (n huffmanCodes) Len() int {
-	return len(n)
-}
-
-func (n huffmanCodes) Less(i, j int) bool {
-	return n[i].code < n[j].code
-}
-
-func (n huffmanCodes) Swap(i, j int) {
-	n[i], n[j] = n[j], n[i]
 }
 
 // buildHuffmanNode takes a slice of sorted huffmanCodes and builds a node in
