@@ -28,19 +28,19 @@ import (
 // stored in Header will be the truncated version.
 
 var (
-	ErrHeader          = errors.New("tar: invalid tar header")
-	ErrWriteTooLong    = errors.New("tar: write too long")
-	ErrFieldTooLong    = errors.New("tar: header field too long")
-	ErrWriteAfterClose = errors.New("tar: write after close")
-	errMissData        = errors.New("tar: sparse file references non-existent data")
-	errUnrefData       = errors.New("tar: sparse file contains unreferenced data")
-	errWriteHole       = errors.New("tar: write non-NUL byte in sparse hole")
+	ErrHeader          = errors.New("archive/tar: invalid tar header")
+	ErrWriteTooLong    = errors.New("archive/tar: write too long")
+	ErrFieldTooLong    = errors.New("archive/tar: header field too long")
+	ErrWriteAfterClose = errors.New("archive/tar: write after close")
+	errMissData        = errors.New("archive/tar: sparse file references non-existent data")
+	errUnrefData       = errors.New("archive/tar: sparse file contains unreferenced data")
+	errWriteHole       = errors.New("archive/tar: write non-NUL byte in sparse hole")
 )
 
 type headerError []string
 
 func (he headerError) Error() string {
-	const prefix = "tar: cannot encode header"
+	const prefix = "archive/tar: cannot encode header"
 	var ss []string
 	for _, s := range he {
 		if s != "" {
@@ -580,7 +580,7 @@ func (h *Header) PunchSparseHoles(f *os.File) (err error) {
 		size = h.SparseHoles[len(h.SparseHoles)-1].endOffset()
 	}
 	if !validateSparseEntries(h.SparseHoles, size) {
-		return errors.New("tar: invalid sparse holes")
+		return errors.New("archive/tar: invalid sparse holes")
 	}
 
 	if size == 0 {
@@ -698,7 +698,7 @@ const (
 // for sparse file support, additionally call Header.DetectSparseHoles.
 func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	if fi == nil {
-		return nil, errors.New("tar: FileInfo is nil")
+		return nil, errors.New("archive/tar: FileInfo is nil")
 	}
 	fm := fi.Mode()
 	h := &Header{
@@ -725,9 +725,9 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	case fm&os.ModeNamedPipe != 0:
 		h.Typeflag = TypeFifo
 	case fm&os.ModeSocket != 0:
-		return nil, fmt.Errorf("tar: sockets not supported")
+		return nil, fmt.Errorf("archive/tar: sockets not supported")
 	default:
-		return nil, fmt.Errorf("tar: unknown file mode %v", fm)
+		return nil, fmt.Errorf("archive/tar: unknown file mode %v", fm)
 	}
 	if fm&os.ModeSetuid != 0 {
 		h.Mode |= c_ISUID
