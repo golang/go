@@ -431,7 +431,7 @@ func (dc *driverConn) resetSession(ctx context.Context) {
 	if dc.closed {    // Check if the database has been closed.
 		return
 	}
-	dc.lastErr = dc.ci.(driver.ResetSessioner).ResetSession(ctx)
+	dc.lastErr = dc.ci.(driver.SessionResetter).ResetSession(ctx)
 }
 
 // the dc.db's Mutex is held.
@@ -1178,7 +1178,7 @@ func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
 		resetSession = false
 	}
 	if resetSession {
-		if _, resetSession = dc.ci.(driver.ResetSessioner); resetSession {
+		if _, resetSession = dc.ci.(driver.SessionResetter); resetSession {
 			// Lock the driverConn here so it isn't released until
 			// the connection is reset.
 			// The lock must be taken before the connection is put into

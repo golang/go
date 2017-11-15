@@ -222,9 +222,9 @@ type ConnBeginTx interface {
 	BeginTx(ctx context.Context, opts TxOptions) (Tx, error)
 }
 
-// ResetSessioner may be implemented by Conn to allow drivers to reset the
+// SessionResetter may be implemented by Conn to allow drivers to reset the
 // session state associated with the connection and to signal a bad connection.
-type ResetSessioner interface {
+type SessionResetter interface {
 	// ResetSession is called while a connection is in the connection
 	// pool. No queries will run on this connection until this method returns.
 	//
