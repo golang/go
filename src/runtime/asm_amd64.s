@@ -2379,8 +2379,6 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 // - AX is the value being written at DI
 // It clobbers FLAGS. It does not clobber any general-purpose registers,
 // but may clobber others (e.g., SSE registers).
-//
-// TODO: AX may be a bad choice because regalloc likes to use it.
 TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$120
 	// Save the registers clobbered by the fast path.
 	//
