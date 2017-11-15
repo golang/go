@@ -116,6 +116,7 @@ func init() {
 
 		// R10 and R11 are reserved by the assembler.
 		gp   = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14")
+		gpg  = gp | buildReg("g")
 		gpsp = gp | sp
 
 		// R0 is considered to contain the value 0 in address calculations.
@@ -452,6 +453,11 @@ func init() {
 		// Round ops to block fused-multiply-add extraction.
 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true},
 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true},
+
+		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+		// It saves all GP registers if necessary,
+		// but clobbers R14 (LR) because it's a call.
+		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R14")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
 
 		// MOVDconvert converts between pointers and integers.
 		// We have a special op for this so as to not confuse GC

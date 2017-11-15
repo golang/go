@@ -511,6 +511,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpS390XCALLstatic, ssa.OpS390XCALLclosure, ssa.OpS390XCALLinter:
 		s.Call(v)
+	case ssa.OpS390XLoweredWB:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = v.Aux.(*obj.LSym)
 	case ssa.OpS390XFLOGR, ssa.OpS390XNEG, ssa.OpS390XNEGW,
 		ssa.OpS390XMOVWBR, ssa.OpS390XMOVDBR:
 		p := s.Prog(v.Op.Asm())

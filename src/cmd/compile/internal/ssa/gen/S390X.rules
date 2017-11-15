@@ -446,6 +446,9 @@
 
 (If cond yes no) -> (NE (CMPWconst [0] (MOVBZreg <typ.Bool> cond)) yes no)
 
+// Write barrier.
+(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+
 // ***************************
 // Above: lowering rules
 // Below: optimizations
