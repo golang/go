@@ -623,6 +623,8 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpTrunc64to32_0(v)
 	case OpTrunc64to8:
 		return rewriteValuePPC64_OpTrunc64to8_0(v)
+	case OpWB:
+		return rewriteValuePPC64_OpWB_0(v)
 	case OpXor16:
 		return rewriteValuePPC64_OpXor16_0(v)
 	case OpXor32:
@@ -43012,6 +43014,24 @@ func rewriteValuePPC64_OpTrunc64to8_0(v *Value) bool {
 		x := v.Args[0]
 		v.reset(OpPPC64MOVBreg)
 		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValuePPC64_OpWB_0(v *Value) bool {
+	// match: (WB {fn} destptr srcptr mem)
+	// cond:
+	// result: (LoweredWB {fn} destptr srcptr mem)
+	for {
+		fn := v.Aux
+		_ = v.Args[2]
+		destptr := v.Args[0]
+		srcptr := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpPPC64LoweredWB)
+		v.Aux = fn
+		v.AddArg(destptr)
+		v.AddArg(srcptr)
+		v.AddArg(mem)
 		return true
 	}
 }
