@@ -228,15 +228,11 @@ func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
 	return
 }
 
-// ModTime returns the modification time in UTC.
-// This returns Modified if non-zero, otherwise it computes the timestamp
-// from the legacy ModifiedDate and ModifiedTime fields.
+// ModTime returns the modification time in UTC using the legacy
+// ModifiedDate and ModifiedTime fields.
 //
 // Deprecated: Use Modified instead.
 func (h *FileHeader) ModTime() time.Time {
-	if !h.Modified.IsZero() {
-		return h.Modified.UTC() // Convert to UTC for compatibility
-	}
 	return msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
 }
 

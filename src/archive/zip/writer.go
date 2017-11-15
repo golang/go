@@ -310,7 +310,7 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 		// This format happens to be identical for both local and central header
 		// if modification time is the only timestamp being encoded.
 		var mbuf [9]byte // 2*SizeOf(uint16) + SizeOf(uint8) + SizeOf(uint32)
-		mt := uint32(fh.ModTime().Unix())
+		mt := uint32(fh.Modified.Unix())
 		eb := writeBuf(mbuf[:])
 		eb.uint16(extTimeExtraID)
 		eb.uint16(5)  // Size: SizeOf(uint8) + SizeOf(uint32)
