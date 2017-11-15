@@ -506,6 +506,9 @@
 (AtomicAnd8 ptr val mem) -> (LoweredAtomicAnd8 ptr val mem)
 (AtomicOr8  ptr val mem) -> (LoweredAtomicOr8  ptr val mem)
 
+// Write barrier.
+(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+
 // Optimizations
 
 // Absorb boolean tests into block

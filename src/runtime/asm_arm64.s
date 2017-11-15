@@ -1055,3 +1055,102 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVW	$1, R3
 	MOVB	R3, ret+0(FP)
 	RET
+
+// gcWriteBarrier performs a heap pointer write and informs the GC.
+//
+// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+// - R2 is the destination of the write
+// - R3 is the value being written at R2
+// It clobbers condition codes.
+// It does not clobber any general-purpose registers,
+// but may clobber others (e.g., floating point registers)
+// The act of CALLing gcWriteBarrier will clobber R30 (LR).
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$216
+	// Save the registers clobbered by the fast path.
+	MOVD	R0, 200(RSP)
+	MOVD	R1, 208(RSP)
+	MOVD	g_m(g), R0
+	MOVD	m_p(R0), R0
+	MOVD	(p_wbBuf+wbBuf_next)(R0), R1
+	// Increment wbBuf.next position.
+	ADD	$16, R1
+	MOVD	R1, (p_wbBuf+wbBuf_next)(R0)
+	MOVD	(p_wbBuf+wbBuf_end)(R0), R0
+	CMP	R1, R0
+	// Record the write.
+	MOVD	R3, -16(R1)	// Record value
+	MOVD	(R2), R0	// TODO: This turns bad writes into bad reads.
+	MOVD	R0, -8(R1)	// Record *slot
+	// Is the buffer full? (flags set in CMP above)
+	BEQ	flush
+ret:
+	MOVD	200(RSP), R0
+	MOVD	208(RSP), R1
+	// Do the write.
+	MOVD	R3, (R2)
+	RET
+
+flush:
+	// Save all general purpose registers since these could be
+	// clobbered by wbBufFlush and were not saved by the caller.
+	MOVD	R2, 8(RSP)	// Also first argument to wbBufFlush
+	MOVD	R3, 16(RSP)	// Also second argument to wbBufFlush
+	// R0 already saved
+	// R1 already saved
+	MOVD	R4, 24(RSP)
+	MOVD	R5, 32(RSP)
+	MOVD	R6, 40(RSP)
+	MOVD	R7, 48(RSP)
+	MOVD	R8, 56(RSP)
+	MOVD	R9, 64(RSP)
+	MOVD	R10, 72(RSP)
+	MOVD	R11, 80(RSP)
+	MOVD	R12, 88(RSP)
+	MOVD	R13, 96(RSP)
+	MOVD	R14, 104(RSP)
+	MOVD	R15, 112(RSP)
+	MOVD	R16, 120(RSP)
+	MOVD	R17, 128(RSP)
+	// R18 is unused.
+	MOVD	R19, 136(RSP)
+	MOVD	R20, 144(RSP)
+	MOVD	R21, 152(RSP)
+	MOVD	R22, 160(RSP)
+	MOVD	R23, 168(RSP)
+	MOVD	R24, 176(RSP)
+	MOVD	R25, 184(RSP)
+	MOVD	R26, 192(RSP)
+	// R27 is temp register.
+	// R28 is g.
+	// R29 is frame pointer (unused).
+	// R30 is LR, which was saved by the prologue.
+	// R31 is SP.
+
+	// This takes arguments R2 and R3.
+	CALL	runtime·wbBufFlush(SB)
+
+	MOVD	8(RSP), R2
+	MOVD	16(RSP), R3
+	MOVD	24(RSP), R4
+	MOVD	32(RSP), R5
+	MOVD	40(RSP), R6
+	MOVD	48(RSP), R7
+	MOVD	56(RSP), R8
+	MOVD	64(RSP), R9
+	MOVD	72(RSP), R10
+	MOVD	80(RSP), R11
+	MOVD	88(RSP), R12
+	MOVD	96(RSP), R13
+	MOVD	104(RSP), R14
+	MOVD	112(RSP), R15
+	MOVD	120(RSP), R16
+	MOVD	128(RSP), R17
+	MOVD	136(RSP), R19
+	MOVD	144(RSP), R20
+	MOVD	152(RSP), R21
+	MOVD	160(RSP), R22
+	MOVD	168(RSP), R23
+	MOVD	176(RSP), R24
+	MOVD	184(RSP), R25
+	MOVD	192(RSP), R26
+	JMP	ret
