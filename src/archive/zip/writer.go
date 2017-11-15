@@ -202,6 +202,7 @@ func (w *Writer) Close() error {
 
 // Create adds a file to the zip file using the provided name.
 // It returns a Writer to which the file contents should be written.
+// The file contents will be compressed using the Deflate method.
 // The name must be a relative path: it must not start with a drive
 // letter (e.g. C:) or leading slash, and only forward slashes are
 // allowed.
