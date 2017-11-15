@@ -294,6 +294,17 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 
 		// runtime call clobber R12 on nacl
 		opcodeTable[OpARMCALLudiv].reg.clobbers |= 1 << 12 // R12
+
+		// Returns clobber BP on nacl/386, so the write
+		// barrier does.
+		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 5 // BP
+	}
+
+	if ctxt.Flag_shared {
+		// LoweredWB is secretly a CALL and CALLs on 386 in
+		// shared mode get rewritten by obj6.go to go through
+		// the GOT, which clobbers BX.
+		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 3 // BX
 	}
 
 	// cutoff is compared with product of numblocks and numvalues,

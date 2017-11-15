@@ -399,6 +399,7 @@ const (
 	Op386LoweredGetCallerPC
 	Op386LoweredGetCallerSP
 	Op386LoweredNilCheck
+	Op386LoweredWB
 	Op386MOVLconvert
 	Op386FlagEQ
 	Op386FlagLT_ULT
@@ -4387,6 +4388,20 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
+		},
+	},
+	{
+		name:         "LoweredWB",
+		auxType:      auxSym,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymNone,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 128}, // DI
+				{1, 1},   // AX
+			},
+			clobbers: 65280, // X0 X1 X2 X3 X4 X5 X6 X7
 		},
 	},
 	{

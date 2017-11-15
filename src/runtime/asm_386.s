@@ -1695,3 +1695,61 @@ TEXT runtime·float64touint32(SB),NOSPLIT,$12-12
 	MOVL	4(SP), AX
 	MOVL	AX, ret+8(FP)
 	RET
+
+// gcWriteBarrier performs a heap pointer write and informs the GC.
+//
+// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+// - DI is the destination of the write
+// - AX is the value being written at DI
+// It clobbers FLAGS. It does not clobber any general-purpose registers,
+// but may clobber others (e.g., SSE registers).
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$28
+	// Save the registers clobbered by the fast path. This is slightly
+	// faster than having the caller spill these.
+	MOVL	CX, 20(SP)
+	MOVL	BX, 24(SP)
+	// TODO: Consider passing g.m.p in as an argument so they can be shared
+	// across a sequence of write barriers.
+	get_tls(BX)
+	MOVL	g(BX), BX
+	MOVL	g_m(BX), BX
+	MOVL	m_p(BX), BX
+	MOVL	(p_wbBuf+wbBuf_next)(BX), CX
+	// Increment wbBuf.next position.
+	LEAL	8(CX), CX
+	MOVL	CX, (p_wbBuf+wbBuf_next)(BX)
+	CMPL	CX, (p_wbBuf+wbBuf_end)(BX)
+	// Record the write.
+	MOVL	AX, -8(CX)	// Record value
+	MOVL	(DI), BX	// TODO: This turns bad writes into bad reads.
+	MOVL	BX, -4(CX)	// Record *slot
+	// Is the buffer full? (flags set in CMPL above)
+	JEQ	flush
+ret:
+	MOVL	20(SP), CX
+	MOVL	24(SP), BX
+	// Do the write.
+	MOVL	AX, (DI)
+	RET
+
+flush:
+	// Save all general purpose registers since these could be
+	// clobbered by wbBufFlush and were not saved by the caller.
+	MOVL	DI, 0(SP)	// Also first argument to wbBufFlush
+	MOVL	AX, 4(SP)	// Also second argument to wbBufFlush
+	// BX already saved
+	// CX already saved
+	MOVL	DX, 8(SP)
+	MOVL	BP, 12(SP)
+	MOVL	SI, 16(SP)
+	// DI already saved
+
+	// This takes arguments DI and AX
+	CALL	runtime·wbBufFlush(SB)
+
+	MOVL	0(SP), DI
+	MOVL	4(SP), AX
+	MOVL	8(SP), DX
+	MOVL	12(SP), BP
+	MOVL	16(SP), SI
+	JMP	ret

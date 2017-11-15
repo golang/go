@@ -407,9 +407,11 @@ func Main(archInit func(*Arch)) {
 		Debug['l'] = 1 - Debug['l']
 	}
 
-	// The buffered write barrier is only implemented on amd64
-	// right now.
-	if objabi.GOARCH != "amd64" {
+	switch objabi.GOARCH {
+	case "amd64", "386":
+	default:
+		// Other architectures don't support the buffered
+		// write barrier yet.
 		Debug_eagerwb = 1
 	}
 
