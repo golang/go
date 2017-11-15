@@ -148,8 +148,10 @@ const (
 	Ymm
 	Yxr
 	Yxm
+	Yxvm // VSIB vector array; vm32x/vm64x
 	Yyr
 	Yym
+	Yyvm // VSIB vector array; vm32y/vm64y
 	Ytls
 	Ytextsize
 	Yindir
@@ -1034,6 +1036,21 @@ var yvex_vmovq = []ytab{
 	{Zvex_r_v_rm, 2, argList{Yxr, Yxm}},
 }
 
+var yvpgatherdq = []ytab{
+	{Zvex_v_rm_r, 2, argList{Yxr, Yxvm, Yxr}},
+	{Zvex_v_rm_r, 2, argList{Yyr, Yxvm, Yyr}},
+}
+
+var yvpgatherqq = []ytab{
+	{Zvex_v_rm_r, 2, argList{Yxr, Yxvm, Yxr}},
+	{Zvex_v_rm_r, 2, argList{Yyr, Yyvm, Yyr}},
+}
+
+var yvgatherqps = []ytab{
+	{Zvex_v_rm_r, 2, argList{Yxr, Yxvm, Yxr}},
+	{Zvex_v_rm_r, 2, argList{Yxr, Yyvm, Yxr}},
+}
+
 var ymmxmm0f38 = []ytab{
 	{Zlitm_r, 3, argList{Ymm, Ymr}},
 	{Zlitm_r, 5, argList{Yxm, Yxr}},
@@ -1855,6 +1872,44 @@ var optab =
 	{obj.APCDATA, ypcdata, Px, [23]uint8{0, 0}},
 	{obj.ADUFFCOPY, yduff, Px, [23]uint8{0xe8}},
 	{obj.ADUFFZERO, yduff, Px, [23]uint8{0xe8}},
+
+	// AVX2 gather instructions.
+	// Added as a part of VSIB support implementation,
+	// when x86avxgen will output these, they will be moved to
+	// vex_optabs.go where they belong.
+	{AVGATHERDPD, yvpgatherdq, Pvex, [23]uint8{
+		vexDDS | vex128 | vex66 | vex0F38 | vexW1, 0x92,
+		vexDDS | vex256 | vex66 | vex0F38 | vexW1, 0x92,
+	}},
+	{AVGATHERQPD, yvpgatherqq, Pvex, [23]uint8{
+		vexDDS | vex128 | vex66 | vex0F38 | vexW1, 0x93,
+		vexDDS | vex256 | vex66 | vex0F38 | vexW1, 0x93,
+	}},
+	{AVGATHERDPS, yvpgatherqq, Pvex, [23]uint8{
+		vexDDS | vex128 | vex66 | vex0F38 | vexW0, 0x92,
+		vexDDS | vex256 | vex66 | vex0F38 | vexW0, 0x92,
+	}},
+	{AVGATHERQPS, yvgatherqps, Pvex, [23]uint8{
+		vexDDS | vex128 | vex66 | vex0F38 | vexW0, 0x93,
+		vexDDS | vex256 | vex66 | vex0F38 | vexW0, 0x93,
+	}},
+	{AVPGATHERDD, yvpgatherqq, Pvex, [23]uint8{
+		vexDDS | vex128 | vex66 | vex0F38 | vexW0, 0x90,
+		vexDDS | vex256 | vex66 | vex0F38 | vexW0, 0x90,
+	}},
+	{AVPGATHERQD, yvgatherqps, Pvex, [23]uint8{
+		vexDDS | vex128 | vex66 | vex0F38 | vexW0, 0x91,
+		vexDDS | vex256 | vex66 | vex0F38 | vexW0, 0x91,
+	}},
+	{AVPGATHERDQ, yvpgatherdq, Pvex, [23]uint8{
+		vexDDS | vex128 | vex66 | vex0F38 | vexW1, 0x90,
+		vexDDS | vex256 | vex66 | vex0F38 | vexW1, 0x90,
+	}},
+	{AVPGATHERQQ, yvpgatherqq, Pvex, [23]uint8{
+		vexDDS | vex128 | vex66 | vex0F38 | vexW1, 0x91,
+		vexDDS | vex256 | vex66 | vex0F38 | vexW1, 0x91,
+	}},
+
 	{obj.AEND, nil, 0, [23]uint8{}},
 	{0, nil, 0, [23]uint8{}},
 }
@@ -2435,6 +2490,18 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 			// Can't use SP as the index register
 			return Yxxx
 		}
+		if a.Index >= REG_X0 && a.Index <= REG_X15 {
+			if ctxt.Arch.Family == sys.I386 && a.Index > REG_X7 {
+				return Yxxx
+			}
+			return Yxvm
+		}
+		if a.Index >= REG_Y0 && a.Index <= REG_Y15 {
+			if ctxt.Arch.Family == sys.I386 && a.Index > REG_Y7 {
+				return Yxxx
+			}
+			return Yyvm
+		}
 		if ctxt.Arch.Family == sys.AMD64 {
 			// Offset must fit in a 32-bit signed field (or fit in a 32-bit unsigned field
 			// where the sign extension doesn't matter).
@@ -2847,9 +2914,11 @@ func (a *AsmBuf) Reset() { a.off = 0 }
 // At returns the byte at offset i.
 func (a *AsmBuf) At(i int) byte { return a.buf[i] }
 
+// asmidx emits SIB byte.
 func (asmbuf *AsmBuf) asmidx(ctxt *obj.Link, scale int, index int, base int) {
 	var i int
 
+	// X/Y index register is used in VSIB.
 	switch index {
 	default:
 		goto bad
@@ -2865,7 +2934,23 @@ func (asmbuf *AsmBuf) asmidx(ctxt *obj.Link, scale int, index int, base int) {
 		REG_R12,
 		REG_R13,
 		REG_R14,
-		REG_R15:
+		REG_R15,
+		REG_X8,
+		REG_X9,
+		REG_X10,
+		REG_X11,
+		REG_X12,
+		REG_X13,
+		REG_X14,
+		REG_X15,
+		REG_Y8,
+		REG_Y9,
+		REG_Y10,
+		REG_Y11,
+		REG_Y12,
+		REG_Y13,
+		REG_Y14,
+		REG_Y15:
 		if ctxt.Arch.Family == sys.I386 {
 			goto bad
 		}
@@ -2877,7 +2962,23 @@ func (asmbuf *AsmBuf) asmidx(ctxt *obj.Link, scale int, index int, base int) {
 		REG_BX,
 		REG_BP,
 		REG_SI,
-		REG_DI:
+		REG_DI,
+		REG_X0,
+		REG_X1,
+		REG_X2,
+		REG_X3,
+		REG_X4,
+		REG_X5,
+		REG_X6,
+		REG_X7,
+		REG_Y0,
+		REG_Y1,
+		REG_Y2,
+		REG_Y3,
+		REG_Y4,
+		REG_Y5,
+		REG_Y6,
+		REG_Y7:
 		i = reg[index] << 3
 	}
 
@@ -3488,6 +3589,35 @@ func (asmbuf *AsmBuf) asmvex(ctxt *obj.Link, rm, v, r *obj.Addr, vex, opcode uin
 	asmbuf.Put1(opcode)
 }
 
+// regIndex returns register index that fits in 4 bits.
+//
+// Examples:
+//   REG_X15 => 15
+//   REG_R9  => 9
+//   REG_AX  => 0
+//
+func regIndex(r int16) int {
+	lower3bits := reg[r]
+	high4bit := regrex[r] & Rxr << 1
+	return lower3bits | high4bit
+}
+
+// avx2gatherValid returns true if p satisfies AVX2 gather constraints.
+// Reports errors via ctxt.
+func avx2gatherValid(ctxt *obj.Link, p *obj.Prog) bool {
+	// If any pair of the index, mask, or destination registers
+	// are the same, this instruction results a #UD fault.
+	index := regIndex(p.GetFrom3().Index)
+	mask := regIndex(p.From.Reg)
+	dest := regIndex(p.To.Reg)
+	if dest == mask || dest == index || mask == index {
+		ctxt.Diag("mask, index, and destination registers should be distinct: %v", p)
+		return false
+	}
+
+	return true
+}
+
 func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 	o := opindex[p.As&obj.AMask]
 
@@ -3535,6 +3665,18 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 			p.To.Type = obj.TYPE_CONST
 			p.To.Offset = p.GetFrom3().Offset
 			p.GetFrom3().Offset = 0
+		}
+
+	case AVGATHERDPD,
+		AVGATHERQPD,
+		AVGATHERDPS,
+		AVGATHERQPS,
+		AVPGATHERDD,
+		AVPGATHERQD,
+		AVPGATHERDQ,
+		AVPGATHERQQ:
+		if !avx2gatherValid(ctxt, p) {
+			return
 		}
 	}
 
