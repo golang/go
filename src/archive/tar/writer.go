@@ -10,7 +10,6 @@ import (
 	"io"
 	"path"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -46,7 +45,7 @@ type fileWriter interface {
 // Flush finishes writing the current file's block padding.
 // The current file must be fully written before Flush can be called.
 //
-// Deprecated: This is unnecessary as the next call to WriteHeader or Close
+// This is unnecessary as the next call to WriteHeader or Close
 // will implicitly flush out the file's padding.
 func (tw *Writer) Flush() error {
 	if tw.err != nil {
@@ -120,36 +119,41 @@ func (tw *Writer) writeUSTARHeader(hdr *Header) error {
 func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 	realName, realSize := hdr.Name, hdr.Size
 
-	// Handle sparse files.
-	var spd sparseDatas
-	var spb []byte
-	if len(hdr.SparseHoles) > 0 {
-		sph := append([]SparseEntry{}, hdr.SparseHoles...) // Copy sparse map
-		sph = alignSparseEntries(sph, hdr.Size)
-		spd = invertSparseEntries(sph, hdr.Size)
+	// TODO(dsnet): Re-enable this when adding sparse support.
+	// See https://golang.org/issue/22735
+	/*
+		// Handle sparse files.
+		var spd sparseDatas
+		var spb []byte
+		if len(hdr.SparseHoles) > 0 {
+			sph := append([]sparseEntry{}, hdr.SparseHoles...) // Copy sparse map
+			sph = alignSparseEntries(sph, hdr.Size)
+			spd = invertSparseEntries(sph, hdr.Size)
 
-		// Format the sparse map.
-		hdr.Size = 0 // Replace with encoded size
-		spb = append(strconv.AppendInt(spb, int64(len(spd)), 10), '\n')
-		for _, s := range spd {
-			hdr.Size += s.Length
-			spb = append(strconv.AppendInt(spb, s.Offset, 10), '\n')
-			spb = append(strconv.AppendInt(spb, s.Length, 10), '\n')
+			// Format the sparse map.
+			hdr.Size = 0 // Replace with encoded size
+			spb = append(strconv.AppendInt(spb, int64(len(spd)), 10), '\n')
+			for _, s := range spd {
+				hdr.Size += s.Length
+				spb = append(strconv.AppendInt(spb, s.Offset, 10), '\n')
+				spb = append(strconv.AppendInt(spb, s.Length, 10), '\n')
+			}
+			pad := blockPadding(int64(len(spb)))
+			spb = append(spb, zeroBlock[:pad]...)
+			hdr.Size += int64(len(spb)) // Accounts for encoded sparse map
+
+			// Add and modify appropriate PAX records.
+			dir, file := path.Split(realName)
+			hdr.Name = path.Join(dir, "GNUSparseFile.0", file)
+			paxHdrs[paxGNUSparseMajor] = "1"
+			paxHdrs[paxGNUSparseMinor] = "0"
+			paxHdrs[paxGNUSparseName] = realName
+			paxHdrs[paxGNUSparseRealSize] = strconv.FormatInt(realSize, 10)
+			paxHdrs[paxSize] = strconv.FormatInt(hdr.Size, 10)
+			delete(paxHdrs, paxPath) // Recorded by paxGNUSparseName
 		}
-		pad := blockPadding(int64(len(spb)))
-		spb = append(spb, zeroBlock[:pad]...)
-		hdr.Size += int64(len(spb)) // Accounts for encoded sparse map
-
-		// Add and modify appropriate PAX records.
-		dir, file := path.Split(realName)
-		hdr.Name = path.Join(dir, "GNUSparseFile.0", file)
-		paxHdrs[paxGNUSparseMajor] = "1"
-		paxHdrs[paxGNUSparseMinor] = "0"
-		paxHdrs[paxGNUSparseName] = realName
-		paxHdrs[paxGNUSparseRealSize] = strconv.FormatInt(realSize, 10)
-		paxHdrs[paxSize] = strconv.FormatInt(hdr.Size, 10)
-		delete(paxHdrs, paxPath) // Recorded by paxGNUSparseName
-	}
+	*/
+	_ = realSize
 
 	// Write PAX records to the output.
 	isGlobal := hdr.Typeflag == TypeXGlobalHeader
@@ -197,14 +201,18 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 		return err
 	}
 
-	// Write the sparse map and setup the sparse writer if necessary.
-	if len(spd) > 0 {
-		// Use tw.curr since the sparse map is accounted for in hdr.Size.
-		if _, err := tw.curr.Write(spb); err != nil {
-			return err
+	// TODO(dsnet): Re-enable this when adding sparse support.
+	// See https://golang.org/issue/22735
+	/*
+		// Write the sparse map and setup the sparse writer if necessary.
+		if len(spd) > 0 {
+			// Use tw.curr since the sparse map is accounted for in hdr.Size.
+			if _, err := tw.curr.Write(spb); err != nil {
+				return err
+			}
+			tw.curr = &sparseFileWriter{tw.curr, spd, 0}
 		}
-		tw.curr = &sparseFileWriter{tw.curr, spd, 0}
-	}
+	*/
 	return nil
 }
 
@@ -235,40 +243,44 @@ func (tw *Writer) writeGNUHeader(hdr *Header) error {
 	if !hdr.ChangeTime.IsZero() {
 		f.formatNumeric(blk.GNU().ChangeTime(), hdr.ChangeTime.Unix())
 	}
-	if hdr.Typeflag == TypeGNUSparse {
-		sph := append([]SparseEntry{}, hdr.SparseHoles...) // Copy sparse map
-		sph = alignSparseEntries(sph, hdr.Size)
-		spd = invertSparseEntries(sph, hdr.Size)
+	// TODO(dsnet): Re-enable this when adding sparse support.
+	// See https://golang.org/issue/22735
+	/*
+		if hdr.Typeflag == TypeGNUSparse {
+			sph := append([]sparseEntry{}, hdr.SparseHoles...) // Copy sparse map
+			sph = alignSparseEntries(sph, hdr.Size)
+			spd = invertSparseEntries(sph, hdr.Size)
 
-		// Format the sparse map.
-		formatSPD := func(sp sparseDatas, sa sparseArray) sparseDatas {
-			for i := 0; len(sp) > 0 && i < sa.MaxEntries(); i++ {
-				f.formatNumeric(sa.Entry(i).Offset(), sp[0].Offset)
-				f.formatNumeric(sa.Entry(i).Length(), sp[0].Length)
-				sp = sp[1:]
+			// Format the sparse map.
+			formatSPD := func(sp sparseDatas, sa sparseArray) sparseDatas {
+				for i := 0; len(sp) > 0 && i < sa.MaxEntries(); i++ {
+					f.formatNumeric(sa.Entry(i).Offset(), sp[0].Offset)
+					f.formatNumeric(sa.Entry(i).Length(), sp[0].Length)
+					sp = sp[1:]
+				}
+				if len(sp) > 0 {
+					sa.IsExtended()[0] = 1
+				}
+				return sp
 			}
-			if len(sp) > 0 {
-				sa.IsExtended()[0] = 1
+			sp2 := formatSPD(spd, blk.GNU().Sparse())
+			for len(sp2) > 0 {
+				var spHdr block
+				sp2 = formatSPD(sp2, spHdr.Sparse())
+				spb = append(spb, spHdr[:]...)
 			}
-			return sp
-		}
-		sp2 := formatSPD(spd, blk.GNU().Sparse())
-		for len(sp2) > 0 {
-			var spHdr block
-			sp2 = formatSPD(sp2, spHdr.Sparse())
-			spb = append(spb, spHdr[:]...)
-		}
 
-		// Update size fields in the header block.
-		realSize := hdr.Size
-		hdr.Size = 0 // Encoded size; does not account for encoded sparse map
-		for _, s := range spd {
-			hdr.Size += s.Length
+			// Update size fields in the header block.
+			realSize := hdr.Size
+			hdr.Size = 0 // Encoded size; does not account for encoded sparse map
+			for _, s := range spd {
+				hdr.Size += s.Length
+			}
+			copy(blk.V7().Size(), zeroBlock[:]) // Reset field
+			f.formatNumeric(blk.V7().Size(), hdr.Size)
+			f.formatNumeric(blk.GNU().RealSize(), realSize)
 		}
-		copy(blk.V7().Size(), zeroBlock[:]) // Reset field
-		f.formatNumeric(blk.V7().Size(), hdr.Size)
-		f.formatNumeric(blk.GNU().RealSize(), realSize)
-	}
+	*/
 	blk.SetFormat(FormatGNU)
 	if err := tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag); err != nil {
 		return err
@@ -401,9 +413,6 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
 // Write returns the error ErrWriteTooLong if more than
 // Header.Size bytes are written after WriteHeader.
 //
-// If the current file is sparse, then the regions marked as a hole
-// must be written as NUL-bytes.
-//
 // Calling Write on special types like TypeLink, TypeSymlink, TypeChar,
 // TypeBlock, TypeDir, and TypeFifo returns (0, ErrWriteTooLong) regardless
 // of what the Header.Size claims.
@@ -418,14 +427,17 @@ func (tw *Writer) Write(b []byte) (int, error) {
 	return n, err
 }
 
-// ReadFrom populates the content of the current file by reading from r.
+// readFrom populates the content of the current file by reading from r.
 // The bytes read must match the number of remaining bytes in the current file.
 //
 // If the current file is sparse and r is an io.ReadSeeker,
-// then ReadFrom uses Seek to skip past holes defined in Header.SparseHoles,
+// then readFrom uses Seek to skip past holes defined in Header.SparseHoles,
 // assuming that skipped regions are all NULs.
 // This always reads the last byte to ensure r is the right size.
-func (tw *Writer) ReadFrom(r io.Reader) (int64, error) {
+//
+// TODO(dsnet): Re-export this when adding sparse file support.
+// See https://golang.org/issue/22735
+func (tw *Writer) readFrom(r io.Reader) (int64, error) {
 	if tw.err != nil {
 		return 0, tw.err
 	}

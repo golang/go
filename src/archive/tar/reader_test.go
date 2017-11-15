@@ -71,24 +71,7 @@ func TestReader(t *testing.T) {
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
-			SparseHoles: []SparseEntry{
-				{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}, {12, 1}, {14, 1},
-				{16, 1}, {18, 1}, {20, 1}, {22, 1}, {24, 1}, {26, 1}, {28, 1},
-				{30, 1}, {32, 1}, {34, 1}, {36, 1}, {38, 1}, {40, 1}, {42, 1},
-				{44, 1}, {46, 1}, {48, 1}, {50, 1}, {52, 1}, {54, 1}, {56, 1},
-				{58, 1}, {60, 1}, {62, 1}, {64, 1}, {66, 1}, {68, 1}, {70, 1},
-				{72, 1}, {74, 1}, {76, 1}, {78, 1}, {80, 1}, {82, 1}, {84, 1},
-				{86, 1}, {88, 1}, {90, 1}, {92, 1}, {94, 1}, {96, 1}, {98, 1},
-				{100, 1}, {102, 1}, {104, 1}, {106, 1}, {108, 1}, {110, 1},
-				{112, 1}, {114, 1}, {116, 1}, {118, 1}, {120, 1}, {122, 1},
-				{124, 1}, {126, 1}, {128, 1}, {130, 1}, {132, 1}, {134, 1},
-				{136, 1}, {138, 1}, {140, 1}, {142, 1}, {144, 1}, {146, 1},
-				{148, 1}, {150, 1}, {152, 1}, {154, 1}, {156, 1}, {158, 1},
-				{160, 1}, {162, 1}, {164, 1}, {166, 1}, {168, 1}, {170, 1},
-				{172, 1}, {174, 1}, {176, 1}, {178, 1}, {180, 1}, {182, 1},
-				{184, 1}, {186, 1}, {188, 1}, {190, 10},
-			},
-			Format: FormatGNU,
+			Format:   FormatGNU,
 		}, {
 			Name:     "sparse-posix-0.0",
 			Mode:     420,
@@ -102,23 +85,6 @@ func TestReader(t *testing.T) {
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
-			SparseHoles: []SparseEntry{
-				{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}, {12, 1}, {14, 1},
-				{16, 1}, {18, 1}, {20, 1}, {22, 1}, {24, 1}, {26, 1}, {28, 1},
-				{30, 1}, {32, 1}, {34, 1}, {36, 1}, {38, 1}, {40, 1}, {42, 1},
-				{44, 1}, {46, 1}, {48, 1}, {50, 1}, {52, 1}, {54, 1}, {56, 1},
-				{58, 1}, {60, 1}, {62, 1}, {64, 1}, {66, 1}, {68, 1}, {70, 1},
-				{72, 1}, {74, 1}, {76, 1}, {78, 1}, {80, 1}, {82, 1}, {84, 1},
-				{86, 1}, {88, 1}, {90, 1}, {92, 1}, {94, 1}, {96, 1}, {98, 1},
-				{100, 1}, {102, 1}, {104, 1}, {106, 1}, {108, 1}, {110, 1},
-				{112, 1}, {114, 1}, {116, 1}, {118, 1}, {120, 1}, {122, 1},
-				{124, 1}, {126, 1}, {128, 1}, {130, 1}, {132, 1}, {134, 1},
-				{136, 1}, {138, 1}, {140, 1}, {142, 1}, {144, 1}, {146, 1},
-				{148, 1}, {150, 1}, {152, 1}, {154, 1}, {156, 1}, {158, 1},
-				{160, 1}, {162, 1}, {164, 1}, {166, 1}, {168, 1}, {170, 1},
-				{172, 1}, {174, 1}, {176, 1}, {178, 1}, {180, 1}, {182, 1},
-				{184, 1}, {186, 1}, {188, 1}, {190, 10},
-			},
 			PAXRecords: map[string]string{
 				"GNU.sparse.size":      "200",
 				"GNU.sparse.numblocks": "95",
@@ -138,23 +104,6 @@ func TestReader(t *testing.T) {
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
-			SparseHoles: []SparseEntry{
-				{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}, {12, 1}, {14, 1},
-				{16, 1}, {18, 1}, {20, 1}, {22, 1}, {24, 1}, {26, 1}, {28, 1},
-				{30, 1}, {32, 1}, {34, 1}, {36, 1}, {38, 1}, {40, 1}, {42, 1},
-				{44, 1}, {46, 1}, {48, 1}, {50, 1}, {52, 1}, {54, 1}, {56, 1},
-				{58, 1}, {60, 1}, {62, 1}, {64, 1}, {66, 1}, {68, 1}, {70, 1},
-				{72, 1}, {74, 1}, {76, 1}, {78, 1}, {80, 1}, {82, 1}, {84, 1},
-				{86, 1}, {88, 1}, {90, 1}, {92, 1}, {94, 1}, {96, 1}, {98, 1},
-				{100, 1}, {102, 1}, {104, 1}, {106, 1}, {108, 1}, {110, 1},
-				{112, 1}, {114, 1}, {116, 1}, {118, 1}, {120, 1}, {122, 1},
-				{124, 1}, {126, 1}, {128, 1}, {130, 1}, {132, 1}, {134, 1},
-				{136, 1}, {138, 1}, {140, 1}, {142, 1}, {144, 1}, {146, 1},
-				{148, 1}, {150, 1}, {152, 1}, {154, 1}, {156, 1}, {158, 1},
-				{160, 1}, {162, 1}, {164, 1}, {166, 1}, {168, 1}, {170, 1},
-				{172, 1}, {174, 1}, {176, 1}, {178, 1}, {180, 1}, {182, 1},
-				{184, 1}, {186, 1}, {188, 1}, {190, 10},
-			},
 			PAXRecords: map[string]string{
 				"GNU.sparse.size":      "200",
 				"GNU.sparse.numblocks": "95",
@@ -175,23 +124,6 @@ func TestReader(t *testing.T) {
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
-			SparseHoles: []SparseEntry{
-				{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}, {12, 1}, {14, 1},
-				{16, 1}, {18, 1}, {20, 1}, {22, 1}, {24, 1}, {26, 1}, {28, 1},
-				{30, 1}, {32, 1}, {34, 1}, {36, 1}, {38, 1}, {40, 1}, {42, 1},
-				{44, 1}, {46, 1}, {48, 1}, {50, 1}, {52, 1}, {54, 1}, {56, 1},
-				{58, 1}, {60, 1}, {62, 1}, {64, 1}, {66, 1}, {68, 1}, {70, 1},
-				{72, 1}, {74, 1}, {76, 1}, {78, 1}, {80, 1}, {82, 1}, {84, 1},
-				{86, 1}, {88, 1}, {90, 1}, {92, 1}, {94, 1}, {96, 1}, {98, 1},
-				{100, 1}, {102, 1}, {104, 1}, {106, 1}, {108, 1}, {110, 1},
-				{112, 1}, {114, 1}, {116, 1}, {118, 1}, {120, 1}, {122, 1},
-				{124, 1}, {126, 1}, {128, 1}, {130, 1}, {132, 1}, {134, 1},
-				{136, 1}, {138, 1}, {140, 1}, {142, 1}, {144, 1}, {146, 1},
-				{148, 1}, {150, 1}, {152, 1}, {154, 1}, {156, 1}, {158, 1},
-				{160, 1}, {162, 1}, {164, 1}, {166, 1}, {168, 1}, {170, 1},
-				{172, 1}, {174, 1}, {176, 1}, {178, 1}, {180, 1}, {182, 1},
-				{184, 1}, {186, 1}, {188, 1}, {190, 10},
-			},
 			PAXRecords: map[string]string{
 				"GNU.sparse.major":    "1",
 				"GNU.sparse.minor":    "0",
@@ -493,19 +425,18 @@ func TestReader(t *testing.T) {
 			ChangeTime: time.Unix(1441973436, 0),
 			Format:     FormatGNU,
 		}, {
-			Name:        "test2/sparse",
-			Mode:        33188,
-			Uid:         1000,
-			Gid:         1000,
-			Size:        536870912,
-			ModTime:     time.Unix(1441973427, 0),
-			Typeflag:    'S',
-			Uname:       "rawr",
-			Gname:       "dsnet",
-			AccessTime:  time.Unix(1441991948, 0),
-			ChangeTime:  time.Unix(1441973436, 0),
-			SparseHoles: []SparseEntry{{0, 536870912}},
-			Format:      FormatGNU,
+			Name:       "test2/sparse",
+			Mode:       33188,
+			Uid:        1000,
+			Gid:        1000,
+			Size:       536870912,
+			ModTime:    time.Unix(1441973427, 0),
+			Typeflag:   'S',
+			Uname:      "rawr",
+			Gname:      "dsnet",
+			AccessTime: time.Unix(1441991948, 0),
+			ChangeTime: time.Unix(1441973436, 0),
+			Format:     FormatGNU,
 		}},
 	}, {
 		// Matches the behavior of GNU and BSD tar utilities.
@@ -621,33 +552,30 @@ func TestReader(t *testing.T) {
 		// Generated by Go, works on BSD tar v3.1.2 and GNU tar v.1.27.1.
 		file: "testdata/gnu-nil-sparse-data.tar",
 		headers: []*Header{{
-			Name:        "sparse.db",
-			Typeflag:    TypeGNUSparse,
-			Size:        1000,
-			ModTime:     time.Unix(0, 0),
-			SparseHoles: []SparseEntry{{Offset: 1000, Length: 0}},
-			Format:      FormatGNU,
+			Name:     "sparse.db",
+			Typeflag: TypeGNUSparse,
+			Size:     1000,
+			ModTime:  time.Unix(0, 0),
+			Format:   FormatGNU,
 		}},
 	}, {
 		// Generated by Go, works on BSD tar v3.1.2 and GNU tar v.1.27.1.
 		file: "testdata/gnu-nil-sparse-hole.tar",
 		headers: []*Header{{
-			Name:        "sparse.db",
-			Typeflag:    TypeGNUSparse,
-			Size:        1000,
-			ModTime:     time.Unix(0, 0),
-			SparseHoles: []SparseEntry{{Offset: 0, Length: 1000}},
-			Format:      FormatGNU,
+			Name:     "sparse.db",
+			Typeflag: TypeGNUSparse,
+			Size:     1000,
+			ModTime:  time.Unix(0, 0),
+			Format:   FormatGNU,
 		}},
 	}, {
 		// Generated by Go, works on BSD tar v3.1.2 and GNU tar v.1.27.1.
 		file: "testdata/pax-nil-sparse-data.tar",
 		headers: []*Header{{
-			Name:        "sparse.db",
-			Typeflag:    TypeReg,
-			Size:        1000,
-			ModTime:     time.Unix(0, 0),
-			SparseHoles: []SparseEntry{{Offset: 1000, Length: 0}},
+			Name:     "sparse.db",
+			Typeflag: TypeReg,
+			Size:     1000,
+			ModTime:  time.Unix(0, 0),
 			PAXRecords: map[string]string{
 				"size":                "1512",
 				"GNU.sparse.major":    "1",
@@ -661,11 +589,10 @@ func TestReader(t *testing.T) {
 		// Generated by Go, works on BSD tar v3.1.2 and GNU tar v.1.27.1.
 		file: "testdata/pax-nil-sparse-hole.tar",
 		headers: []*Header{{
-			Name:        "sparse.db",
-			Typeflag:    TypeReg,
-			Size:        1000,
-			ModTime:     time.Unix(0, 0),
-			SparseHoles: []SparseEntry{{Offset: 0, Length: 1000}},
+			Name:     "sparse.db",
+			Typeflag: TypeReg,
+			Size:     1000,
+			ModTime:  time.Unix(0, 0),
 			PAXRecords: map[string]string{
 				"size":                "512",
 				"GNU.sparse.major":    "1",
@@ -935,7 +862,7 @@ func TestReadTruncation(t *testing.T) {
 				}
 				cnt++
 				if s2 == "manual" {
-					if _, err = tr.WriteTo(ioutil.Discard); err != nil {
+					if _, err = tr.writeTo(ioutil.Discard); err != nil {
 						break
 					}
 				}
@@ -1123,7 +1050,7 @@ func TestReadOldGNUSparseMap(t *testing.T) {
 		return out
 	}
 
-	makeSparseStrings := func(sp []SparseEntry) (out []string) {
+	makeSparseStrings := func(sp []sparseEntry) (out []string) {
 		var f formatter
 		for _, s := range sp {
 			var b [24]byte
@@ -1377,7 +1304,7 @@ func TestReadGNUSparsePAXHeaders(t *testing.T) {
 		inputHdrs: map[string]string{paxGNUSparseMajor: "1", paxGNUSparseMinor: "0"},
 		wantMap: func() (spd sparseDatas) {
 			for i := 0; i < 100; i++ {
-				spd = append(spd, SparseEntry{int64(i) << 30, 512})
+				spd = append(spd, sparseEntry{int64(i) << 30, 512})
 			}
 			return spd
 		}(),

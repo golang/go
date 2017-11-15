@@ -339,118 +339,122 @@ func TestWriter(t *testing.T) {
 			}, nil},
 			testClose{nil},
 		},
-	}, {
-		file: "testdata/gnu-nil-sparse-data.tar",
-		tests: []testFnc{
-			testHeader{Header{
-				Typeflag:    TypeGNUSparse,
-				Name:        "sparse.db",
-				Size:        1000,
-				SparseHoles: []SparseEntry{{Offset: 1000, Length: 0}},
-			}, nil},
-			testWrite{strings.Repeat("0123456789", 100), 1000, nil},
-			testClose{},
-		},
-	}, {
-		file: "testdata/gnu-nil-sparse-hole.tar",
-		tests: []testFnc{
-			testHeader{Header{
-				Typeflag:    TypeGNUSparse,
-				Name:        "sparse.db",
-				Size:        1000,
-				SparseHoles: []SparseEntry{{Offset: 0, Length: 1000}},
-			}, nil},
-			testWrite{strings.Repeat("\x00", 1000), 1000, nil},
-			testClose{},
-		},
-	}, {
-		file: "testdata/pax-nil-sparse-data.tar",
-		tests: []testFnc{
-			testHeader{Header{
-				Typeflag:    TypeReg,
-				Name:        "sparse.db",
-				Size:        1000,
-				SparseHoles: []SparseEntry{{Offset: 1000, Length: 0}},
-			}, nil},
-			testWrite{strings.Repeat("0123456789", 100), 1000, nil},
-			testClose{},
-		},
-	}, {
-		file: "testdata/pax-nil-sparse-hole.tar",
-		tests: []testFnc{
-			testHeader{Header{
-				Typeflag:    TypeReg,
-				Name:        "sparse.db",
-				Size:        1000,
-				SparseHoles: []SparseEntry{{Offset: 0, Length: 1000}},
-			}, nil},
-			testWrite{strings.Repeat("\x00", 1000), 1000, nil},
-			testClose{},
-		},
-	}, {
-		file: "testdata/gnu-sparse-big.tar",
-		tests: []testFnc{
-			testHeader{Header{
-				Typeflag: TypeGNUSparse,
-				Name:     "gnu-sparse",
-				Size:     6e10,
-				SparseHoles: []SparseEntry{
-					{Offset: 0e10, Length: 1e10 - 100},
-					{Offset: 1e10, Length: 1e10 - 100},
-					{Offset: 2e10, Length: 1e10 - 100},
-					{Offset: 3e10, Length: 1e10 - 100},
-					{Offset: 4e10, Length: 1e10 - 100},
-					{Offset: 5e10, Length: 1e10 - 100},
+		// TODO(dsnet): Re-enable this test when adding sparse support.
+		// See https://golang.org/issue/22735
+		/*
+			}, {
+				file: "testdata/gnu-nil-sparse-data.tar",
+				tests: []testFnc{
+					testHeader{Header{
+						Typeflag:    TypeGNUSparse,
+						Name:        "sparse.db",
+						Size:        1000,
+						SparseHoles: []sparseEntry{{Offset: 1000, Length: 0}},
+					}, nil},
+					testWrite{strings.Repeat("0123456789", 100), 1000, nil},
+					testClose{},
 				},
-			}, nil},
-			testReadFrom{fileOps{
-				int64(1e10 - blockSize),
-				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
-				int64(1e10 - blockSize),
-				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
-				int64(1e10 - blockSize),
-				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
-				int64(1e10 - blockSize),
-				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
-				int64(1e10 - blockSize),
-				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
-				int64(1e10 - blockSize),
-				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
-			}, 6e10, nil},
-			testClose{nil},
-		},
-	}, {
-		file: "testdata/pax-sparse-big.tar",
-		tests: []testFnc{
-			testHeader{Header{
-				Typeflag: TypeReg,
-				Name:     "pax-sparse",
-				Size:     6e10,
-				SparseHoles: []SparseEntry{
-					{Offset: 0e10, Length: 1e10 - 100},
-					{Offset: 1e10, Length: 1e10 - 100},
-					{Offset: 2e10, Length: 1e10 - 100},
-					{Offset: 3e10, Length: 1e10 - 100},
-					{Offset: 4e10, Length: 1e10 - 100},
-					{Offset: 5e10, Length: 1e10 - 100},
+			}, {
+				file: "testdata/gnu-nil-sparse-hole.tar",
+				tests: []testFnc{
+					testHeader{Header{
+						Typeflag:    TypeGNUSparse,
+						Name:        "sparse.db",
+						Size:        1000,
+						SparseHoles: []sparseEntry{{Offset: 0, Length: 1000}},
+					}, nil},
+					testWrite{strings.Repeat("\x00", 1000), 1000, nil},
+					testClose{},
 				},
-			}, nil},
-			testReadFrom{fileOps{
-				int64(1e10 - blockSize),
-				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
-				int64(1e10 - blockSize),
-				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
-				int64(1e10 - blockSize),
-				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
-				int64(1e10 - blockSize),
-				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
-				int64(1e10 - blockSize),
-				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
-				int64(1e10 - blockSize),
-				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
-			}, 6e10, nil},
-			testClose{nil},
-		},
+			}, {
+				file: "testdata/pax-nil-sparse-data.tar",
+				tests: []testFnc{
+					testHeader{Header{
+						Typeflag:    TypeReg,
+						Name:        "sparse.db",
+						Size:        1000,
+						SparseHoles: []sparseEntry{{Offset: 1000, Length: 0}},
+					}, nil},
+					testWrite{strings.Repeat("0123456789", 100), 1000, nil},
+					testClose{},
+				},
+			}, {
+				file: "testdata/pax-nil-sparse-hole.tar",
+				tests: []testFnc{
+					testHeader{Header{
+						Typeflag:    TypeReg,
+						Name:        "sparse.db",
+						Size:        1000,
+						SparseHoles: []sparseEntry{{Offset: 0, Length: 1000}},
+					}, nil},
+					testWrite{strings.Repeat("\x00", 1000), 1000, nil},
+					testClose{},
+				},
+			}, {
+				file: "testdata/gnu-sparse-big.tar",
+				tests: []testFnc{
+					testHeader{Header{
+						Typeflag: TypeGNUSparse,
+						Name:     "gnu-sparse",
+						Size:     6e10,
+						SparseHoles: []sparseEntry{
+							{Offset: 0e10, Length: 1e10 - 100},
+							{Offset: 1e10, Length: 1e10 - 100},
+							{Offset: 2e10, Length: 1e10 - 100},
+							{Offset: 3e10, Length: 1e10 - 100},
+							{Offset: 4e10, Length: 1e10 - 100},
+							{Offset: 5e10, Length: 1e10 - 100},
+						},
+					}, nil},
+					testReadFrom{fileOps{
+						int64(1e10 - blockSize),
+						strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+						int64(1e10 - blockSize),
+						strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+						int64(1e10 - blockSize),
+						strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+						int64(1e10 - blockSize),
+						strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+						int64(1e10 - blockSize),
+						strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+						int64(1e10 - blockSize),
+						strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+					}, 6e10, nil},
+					testClose{nil},
+				},
+			}, {
+				file: "testdata/pax-sparse-big.tar",
+				tests: []testFnc{
+					testHeader{Header{
+						Typeflag: TypeReg,
+						Name:     "pax-sparse",
+						Size:     6e10,
+						SparseHoles: []sparseEntry{
+							{Offset: 0e10, Length: 1e10 - 100},
+							{Offset: 1e10, Length: 1e10 - 100},
+							{Offset: 2e10, Length: 1e10 - 100},
+							{Offset: 3e10, Length: 1e10 - 100},
+							{Offset: 4e10, Length: 1e10 - 100},
+							{Offset: 5e10, Length: 1e10 - 100},
+						},
+					}, nil},
+					testReadFrom{fileOps{
+						int64(1e10 - blockSize),
+						strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+						int64(1e10 - blockSize),
+						strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+						int64(1e10 - blockSize),
+						strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+						int64(1e10 - blockSize),
+						strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+						int64(1e10 - blockSize),
+						strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+						int64(1e10 - blockSize),
+						strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
+					}, 6e10, nil},
+					testClose{nil},
+				},
+		*/
 	}, {
 		file: "testdata/trailing-slash.tar",
 		tests: []testFnc{
@@ -487,7 +491,7 @@ func TestWriter(t *testing.T) {
 					}
 				case testReadFrom:
 					f := &testFile{ops: tf.ops}
-					got, err := tw.ReadFrom(f)
+					got, err := tw.readFrom(f)
 					if _, ok := err.(testError); ok {
 						t.Errorf("test %d, ReadFrom(): %v", i, err)
 					} else if got != tf.wantCnt || !equalError(err, tf.wantErr) {

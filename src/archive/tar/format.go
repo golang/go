@@ -41,6 +41,8 @@ import "strings"
 // The table's lower portion shows specialized features of each format,
 // such as supported string encodings, support for sub-second timestamps,
 // or support for sparse files.
+//
+// The Writer currently provides no support for sparse files.
 type Format int
 
 // Constants to identify various tar formats.
