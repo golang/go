@@ -322,7 +322,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		//     $LEA $offset($reg), $reg
 		//     CALL $reg
 		// (we use LEAx rather than ADDx because ADDx clobbers
-		// flags and duffzero on 386 does not otherwise do so)
+		// flags and duffzero on 386 does not otherwise do so).
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
 			sym = ctxt.Lookup("runtime.duffzero")
@@ -1260,5 +1260,5 @@ var Link386 = obj.LinkArch{
 	Assemble:       span6,
 	Progedit:       progedit,
 	UnaryDst:       unaryDst,
-	DWARFRegisters: AMD64DWARFRegisters,
+	DWARFRegisters: X86DWARFRegisters,
 }
