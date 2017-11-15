@@ -776,3 +776,101 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVW	$1, R1
 	MOVB	R1, ret+0(FP)
 	RET
+
+// gcWriteBarrier performs a heap pointer write and informs the GC.
+//
+// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+// - R20 is the destination of the write
+// - R21 is the value being written at R20.
+// It clobbers R23 (the linker temp register).
+// The act of CALLing gcWriteBarrier will clobber R31 (LR).
+// It does not clobber any other general-purpose registers,
+// but may clobber others (e.g., floating point registers).
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$192
+	// Save the registers clobbered by the fast path.
+	MOVV	R1, 184(R29)
+	MOVV	R2, 192(R29)
+	MOVV	g_m(g), R1
+	MOVV	m_p(R1), R1
+	MOVV	(p_wbBuf+wbBuf_next)(R1), R2
+	// Increment wbBuf.next position.
+	ADDV	$16, R2
+	MOVV	R2, (p_wbBuf+wbBuf_next)(R1)
+	MOVV	(p_wbBuf+wbBuf_end)(R1), R1
+	MOVV	R1, R23		// R23 is linker temp register
+	// Record the write.
+	MOVV	R21, -16(R2)	// Record value
+	MOVV	(R20), R1	// TODO: This turns bad writes into bad reads.
+	MOVV	R1, -8(R2)	// Record *slot
+	// Is the buffer full?
+	BEQ	R2, R23, flush
+ret:
+	MOVV	184(R29), R1
+	MOVV	192(R29), R2
+	// Do the write.
+	MOVV	R21, (R20)
+	RET
+
+flush:
+	// Save all general purpose registers since these could be
+	// clobbered by wbBufFlush and were not saved by the caller.
+	MOVV	R20, 8(R29)	// Also first argument to wbBufFlush
+	MOVV	R21, 16(R29)	// Also second argument to wbBufFlush
+	// R1 already saved
+	// R2 already saved
+	MOVV	R3, 24(R29)
+	MOVV	R4, 32(R29)
+	MOVV	R5, 40(R29)
+	MOVV	R6, 48(R29)
+	MOVV	R7, 56(R29)
+	MOVV	R8, 64(R29)
+	MOVV	R9, 72(R29)
+	MOVV	R10, 80(R29)
+	MOVV	R11, 88(R29)
+	MOVV	R12, 96(R29)
+	MOVV	R13, 104(R29)
+	MOVV	R14, 112(R29)
+	MOVV	R15, 120(R29)
+	MOVV	R16, 128(R29)
+	MOVV	R17, 136(R29)
+	MOVV	R18, 144(R29)
+	MOVV	R19, 152(R29)
+	// R20 already saved
+	// R21 already saved.
+	MOVV	R22, 160(R29)
+	// R23 is tmp register.
+	MOVV	R24, 168(R29)
+	MOVV	R25, 176(R29)
+	// R26 is reserved by kernel.
+	// R27 is reserved by kernel.
+	// R28 is REGSB (not modified by Go code).
+	// R29 is SP.
+	// R30 is g.
+	// R31 is LR, which was saved by the prologue.
+
+	// This takes arguments R20 and R21.
+	CALL	runtime·wbBufFlush(SB)
+
+	MOVV	8(R29), R20
+	MOVV	16(R29), R21
+	MOVV	24(R29), R3
+	MOVV	32(R29), R4
+	MOVV	40(R29), R5
+	MOVV	48(R29), R6
+	MOVV	56(R29), R7
+	MOVV	64(R29), R8
+	MOVV	72(R29), R9
+	MOVV	80(R29), R10
+	MOVV	88(R29), R11
+	MOVV	96(R29), R12
+	MOVV	104(R29), R13
+	MOVV	112(R29), R14
+	MOVV	120(R29), R15
+	MOVV	128(R29), R16
+	MOVV	136(R29), R17
+	MOVV	144(R29), R18
+	MOVV	152(R29), R19
+	MOVV	160(R29), R22
+	MOVV	168(R29), R24
+	MOVV	176(R29), R25
+	JMP	ret
