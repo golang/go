@@ -442,6 +442,9 @@
 
 (If cond yes no) -> (NE cond yes no)
 
+// Write barrier.
+(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+
 
 // Optimizations
 

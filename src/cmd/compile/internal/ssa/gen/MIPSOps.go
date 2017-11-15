@@ -379,6 +379,12 @@ func init() {
 		// LoweredGetCallerSP returns the SP of the caller of the current function.
 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
 
+		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+		// It saves all GP registers if necessary,
+		// but clobbers R31 (LR) because it's a call
+		// and R23 (REGTMP).
+		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ gpg) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+
 		// MOVWconvert converts between pointers and integers.
 		// We have a special op for this so as to not confuse GC
 		// (particularly stack maps).  It takes a memory arg so it

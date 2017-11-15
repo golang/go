@@ -480,6 +480,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.Patch(p6, p2)
 	case ssa.OpMIPSCALLstatic, ssa.OpMIPSCALLclosure, ssa.OpMIPSCALLinter:
 		s.Call(v)
+	case ssa.OpMIPSLoweredWB:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = v.Aux.(*obj.LSym)
 	case ssa.OpMIPSLoweredAtomicLoad:
 		s.Prog(mips.ASYNC)
 
