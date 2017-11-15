@@ -1086,6 +1086,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			q.To.Reg = ppc64.REG_R2
 		}
 
+	case ssa.OpPPC64LoweredWB:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = v.Aux.(*obj.LSym)
+
 	case ssa.OpPPC64LoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
 		p := s.Prog(ppc64.AMOVBZ)
