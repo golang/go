@@ -2380,11 +2380,8 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 // It clobbers FLAGS. It does not clobber any general-purpose registers,
 // but may clobber others (e.g., SSE registers).
 TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$120
-	// Save the registers clobbered by the fast path.
-	//
-	// TODO: Teach the register allocator that this clobbers some registers
-	// so we don't always have to save them? Use regs it's least likely to
-	// care about.
+	// Save the registers clobbered by the fast path. This is slightly
+	// faster than having the caller spill these.
 	MOVQ	R14, 104(SP)
 	MOVQ	R13, 112(SP)
 	// TODO: Consider passing g.m.p in as an argument so they can be shared
