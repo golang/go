@@ -1054,3 +1054,61 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVW	$1, R3
 	MOVB	R3, ret+0(FP)
 	RET
+
+// gcWriteBarrier performs a heap pointer write and informs the GC.
+//
+// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+// - R2 is the destination of the write
+// - R3 is the value being written at R2
+// It clobbers condition codes.
+// It does not clobber any other general-purpose registers,
+// but may clobber others (e.g., floating point registers).
+// The act of CALLing gcWriteBarrier will clobber R14 (LR).
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT|NOFRAME,$0
+	// Save the registers clobbered by the fast path.
+	MOVM.DB.W	[R0,R1], (R13)
+	MOVW	g_m(g), R0
+	MOVW	m_p(R0), R0
+	MOVW	(p_wbBuf+wbBuf_next)(R0), R1
+	// Increment wbBuf.next position.
+	ADD	$8, R1
+	MOVW	R1, (p_wbBuf+wbBuf_next)(R0)
+	MOVW	(p_wbBuf+wbBuf_end)(R0), R0
+	CMP	R1, R0
+	// Record the write.
+	MOVW	R3, -8(R1)	// Record value
+	MOVW	(R2), R0	// TODO: This turns bad writes into bad reads.
+	MOVW	R0, -4(R1)	// Record *slot
+	// Is the buffer full? (flags set in CMP above)
+	B.EQ	flush
+ret:
+	MOVM.IA.W	(R13), [R0,R1]
+	// Do the write.
+	MOVW	R3, (R2)
+	// Normally RET on nacl clobbers R12, but because this
+	// function has no frame it doesn't have to usual epilogue.
+	RET
+
+flush:
+	// Save all general purpose registers since these could be
+	// clobbered by wbBufFlush and were not saved by the caller.
+	//
+	// R0 and R1 were saved at entry.
+	// R10 is g, so preserved.
+	// R11 is linker temp, so no need to save.
+	// R13 is stack pointer.
+	// R15 is PC.
+	//
+	// This also sets up R2 and R3 as the arguments to wbBufFlush.
+	MOVM.DB.W	[R2-R9,R12], (R13)
+	// Save R14 (LR) because the fast path above doesn't save it,
+	// but needs it to RET. This is after the MOVM so it appears below
+	// the arguments in the stack frame.
+	MOVM.DB.W	[R14], (R13)
+
+	// This takes arguments R2 and R3.
+	CALL	runtime·wbBufFlush(SB)
+
+	MOVM.IA.W	(R13), [R14]
+	MOVM.IA.W	(R13), [R2-R9,R12]
+	JMP	ret

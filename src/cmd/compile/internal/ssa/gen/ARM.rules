@@ -427,6 +427,9 @@
 (NE (CMPconst [0] (GreaterEqual cc)) yes no) -> (GE cc yes no)
 (NE (CMPconst [0] (GreaterEqualU cc)) yes no) -> (UGE cc yes no)
 
+// Write barrier.
+(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+
 // Optimizations
 
 // fold offset into address
