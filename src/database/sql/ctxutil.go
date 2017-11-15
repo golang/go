@@ -120,7 +120,7 @@ func ctxDriverBegin(ctx context.Context, opts *TxOptions, ci driver.Conn) (drive
 		}
 	}
 
-	if ctx.Done() == context.Background().Done() {
+	if ctx.Done() == nil {
 		return ci.Begin()
 	}
 
