@@ -94,7 +94,7 @@ func Example_rand() {
 	// Intn(10)    1                   2                   5
 	// Int31n(10)  4                   7                   8
 	// Int63n(10)  7                   6                   3
-	// Perm        [0 1 4 2 3]         [0 4 3 1 2]         [1 2 3 0 4]
+	// Perm        [1 4 2 3 0]         [4 2 1 3 0]         [1 2 4 0 3]
 }
 
 func ExamplePerm() {
@@ -115,7 +115,7 @@ func ExampleShuffle() {
 	fmt.Println(words)
 
 	// Output:
-	// [my of the mouth corners from ink runs]
+	// [mouth my the of runs corners from ink]
 }
 
 func ExampleShuffle_slicesInUnison() {
@@ -132,8 +132,8 @@ func ExampleShuffle_slicesInUnison() {
 
 	// Output:
 	// C: 3
+	// D: 4
+	// A: 1
 	// E: 5
 	// B: 2
-	// A: 1
-	// D: 4
 }
