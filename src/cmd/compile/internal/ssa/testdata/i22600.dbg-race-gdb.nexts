@@ -1,0 +1,6 @@
+  src/cmd/compile/internal/ssa/testdata/i22600.go
+8:	func main() {
+9:		pwd, err := os.Getwd()
+10:		if err != nil {
+14:		fmt.Println(pwd)
+15:	}

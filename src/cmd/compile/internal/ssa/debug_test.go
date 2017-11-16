@@ -132,6 +132,9 @@ func TestNexting(t *testing.T) {
 	t.Run("dbg-"+debugger, func(t *testing.T) {
 		testNexting(t, "hist", "dbg", "-N -l")
 	})
+	t.Run("dbg-race-"+debugger, func(t *testing.T) {
+		testNexting(t, "i22600", "dbg-race", "-N -l", "-race")
+	})
 	t.Run("opt-"+debugger, func(t *testing.T) {
 		// If this is test is run with a runtime compiled with -N -l, it is very likely to fail.
 		// This occurs in the noopt builders (for example).
@@ -148,7 +151,7 @@ func TestNexting(t *testing.T) {
 	})
 }
 
-func testNexting(t *testing.T, base, tag, gcflags string) {
+func testNexting(t *testing.T, base, tag, gcflags string, moreArgs ...string) {
 	// (1) In testdata, build sample.go into sample
 	// (2) Run debugger gathering a history
 	// (3) Read expected history from testdata/sample.<variant>.nexts
@@ -171,7 +174,11 @@ func testNexting(t *testing.T, base, tag, gcflags string) {
 		defer os.RemoveAll(tmpdir)
 	}
 
-	runGo(t, "", "build", "-o", exe, "-gcflags=all="+gcflags, filepath.Join("testdata", base+".go"))
+	runGoArgs := []string{"build", "-o", exe, "-gcflags=all=" + gcflags}
+	runGoArgs = append(runGoArgs, moreArgs...)
+	runGoArgs = append(runGoArgs, filepath.Join("testdata", base+".go"))
+
+	runGo(t, "", runGoArgs...)
 
 	var h1 *nextHist
 	nextlog := logbase + "-" + debugger + ".nexts"
@@ -533,7 +540,7 @@ func newGdb(tag, executable string, args ...string) dbgr {
 	s := &gdbState{tag: tag, cmd: cmd, args: args}
 	s.atLineRe = regexp.MustCompile("(^|\n)([0-9]+)(.*)")
 	s.funcFileLinePCre = regexp.MustCompile(
-		"([^ ]+) [(][)][ \\t\\n]+at ([^:]+):([0-9]+)")
+		"([^ ]+) [(][^)]*[)][ \\t\\n]+at ([^:]+):([0-9]+)")
 	// runtime.main () at /Users/drchase/GoogleDrive/work/go/src/runtime/proc.go:201
 	//                                    function              file    line
 	// Thread 2 hit Breakpoint 1, main.main () at /Users/drchase/GoogleDrive/work/debug/hist.go:18
