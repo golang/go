@@ -2440,7 +2440,9 @@ func TestCoverageErrorLine(t *testing.T) {
 
 	tg.runFail("test", "coverbad")
 	tg.grepStderr(`coverbad[\\/]p\.go:4`, "did not find coverbad/p.go:4")
-	tg.grepStderr(`coverbad[\\/]p1\.go:6`, "did not find coverbad/p1.go:6")
+	if canCgo {
+		tg.grepStderr(`coverbad[\\/]p1\.go:6`, "did not find coverbad/p1.go:6")
+	}
 	tg.grepStderrNot(regexp.QuoteMeta(tg.tempdir), "found temporary directory in error")
 	stderr := tg.getStderr()
 
