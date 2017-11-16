@@ -5173,44 +5173,14 @@ func TestGoTestJSON(t *testing.T) {
 	tg.setenv("GOCACHE", tg.tempdir)
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 
-	// Test that math and fmt output is interlaced.
-	// This has the potential to be a flaky test,
-	// especially on uniprocessor systems, so only
-	// require interlacing if we have at least 4 CPUs.
-	// We also try twice, hoping that the cache will be
-	// warmed up the second time.
-	needInterlace := runtime.GOMAXPROCS(-1) >= 4
-	for try := 0; ; try++ {
-		tg.run("test", "-json", "-short", "-v", "sleepy1", "sleepy2")
-		sawSleepy1 := false
-		sawSleepy2 := false
-		state := 0
-		for _, line := range strings.Split(tg.getStdout(), "\n") {
-			if strings.Contains(line, `"Package":"sleepy1"`) {
-				sawSleepy1 = true
-				if state == 0 {
-					state = 1
-				}
-				if state == 2 {
-					state = 3
-				}
-			}
-			if strings.Contains(line, `"Package":"sleepy2"`) {
-				sawSleepy2 = true
-				if state == 1 {
-					state = 2
-				}
-			}
+	// It would be nice to test that the output is interlaced
+	// but it seems to be impossible to do that in a short test
+	// that isn't also flaky. Just check that we get JSON output.
+	tg.run("test", "-json", "-short", "-v", "errors")
+	for _, line := range strings.Split(tg.getStdout(), "\n") {
+		if strings.Contains(line, `"Package":"errors"`) {
+			return
 		}
-		if !sawSleepy1 || !sawSleepy2 {
-			t.Fatalf("did not see output from both sleepy1 and sleepy2")
-		}
-		if needInterlace && state != 3 {
-			if try < 1 {
-				continue
-			}
-			t.Fatalf("did not find sleepy1 interlaced with sleepy2")
-		}
-		break
 	}
+	t.Fatalf("did not see JSON output")
 }
