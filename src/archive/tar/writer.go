@@ -179,7 +179,10 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 		var name string
 		var flag byte
 		if isGlobal {
-			name = "GlobalHead.0.0"
+			name = realName
+			if name == "" {
+				name = "GlobalHead.0.0"
+			}
 			flag = TypeXGlobalHeader
 		} else {
 			dir, file := path.Split(realName)

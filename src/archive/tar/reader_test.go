@@ -285,6 +285,7 @@ func TestReader(t *testing.T) {
 		file: "testdata/pax-global-records.tar",
 		headers: []*Header{{
 			Typeflag:   TypeXGlobalHeader,
+			Name:       "global1",
 			PAXRecords: map[string]string{"path": "global1", "mtime": "1500000000.0"},
 			Format:     FormatPAX,
 		}, {
@@ -300,6 +301,7 @@ func TestReader(t *testing.T) {
 			Format:     FormatPAX,
 		}, {
 			Typeflag:   TypeXGlobalHeader,
+			Name:       "GlobalHead.0.0",
 			PAXRecords: map[string]string{"path": ""},
 			Format:     FormatPAX,
 		}, {
