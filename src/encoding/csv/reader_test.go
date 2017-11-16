@@ -235,9 +235,9 @@ x,,,
 		Error: &ParseError{StartLine: 2, Line: 5, Column: 0, Err: ErrQuote},
 	}, {
 		Name:  "CRLFInQuotedField", // Issue 21201
-		Input: "\"Hello\r\nHi\"",
+		Input: "A,\"Hello\r\nHi\",B\r\n",
 		Output: [][]string{
-			{"Hello\r\nHi"},
+			{"A", "Hello\nHi", "B"},
 		},
 	}, {
 		Name:   "BinaryBlobField", // Issue 19410
