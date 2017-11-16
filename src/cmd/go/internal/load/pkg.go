@@ -406,9 +406,6 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 		// Load package.
 		// Import always returns bp != nil, even if an error occurs,
 		// in order to return partial information.
-		//
-		// TODO: After Go 1, decide when to pass build.AllowBinary here.
-		// See issue 3268 for mistakes to avoid.
 		buildMode := build.ImportComment
 		if mode&UseVendor == 0 || path != origPath {
 			// Not vendoring, or we already found the vendored path.
