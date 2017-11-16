@@ -70,11 +70,15 @@ func instrument(fn *Node) {
 		nodpc := *nodfp
 		nodpc.Type = types.Types[TUINTPTR]
 		nodpc.Xoffset = int64(-Widthptr)
+		savedLineno := lineno
+		lineno = src.NoXPos
 		nd := mkcall("racefuncenter", nil, nil, &nodpc)
+
 		fn.Func.Enter.Prepend(nd)
 		nd = mkcall("racefuncexit", nil, nil)
 		fn.Func.Exit.Append(nd)
 		fn.Func.Dcl = append(fn.Func.Dcl, &nodpc)
+		lineno = savedLineno
 	}
 
 	if Debug['W'] != 0 {
