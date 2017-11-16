@@ -383,8 +383,14 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 	importPath := path
 	origPath := path
 	isLocal := build.IsLocalImport(path)
+	var debugDeprecatedImportcfgDir string
 	if isLocal {
 		importPath = dirToImportPath(filepath.Join(srcDir, path))
+	} else if DebugDeprecatedImportcfg.enabled {
+		if d, i := DebugDeprecatedImportcfg.lookup(parent, path); d != "" {
+			debugDeprecatedImportcfgDir = d
+			importPath = i
+		}
 	} else if mode&UseVendor != 0 {
 		// We do our own vendor resolution, because we want to
 		// find out the key to use in packageCache without the
@@ -406,17 +412,23 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 		// Load package.
 		// Import always returns bp != nil, even if an error occurs,
 		// in order to return partial information.
-		buildMode := build.ImportComment
-		if mode&UseVendor == 0 || path != origPath {
-			// Not vendoring, or we already found the vendored path.
-			buildMode |= build.IgnoreVendor
+		var bp *build.Package
+		var err error
+		if debugDeprecatedImportcfgDir != "" {
+			bp, err = cfg.BuildContext.ImportDir(debugDeprecatedImportcfgDir, 0)
+		} else {
+			buildMode := build.ImportComment
+			if mode&UseVendor == 0 || path != origPath {
+				// Not vendoring, or we already found the vendored path.
+				buildMode |= build.IgnoreVendor
+			}
+			bp, err = cfg.BuildContext.Import(path, srcDir, buildMode)
 		}
-		bp, err := cfg.BuildContext.Import(path, srcDir, buildMode)
 		bp.ImportPath = importPath
 		if cfg.GOBIN != "" {
 			bp.BinDir = cfg.GOBIN
 		}
-		if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
+		if debugDeprecatedImportcfgDir == "" && err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
 			!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
 			err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
 		}
@@ -425,7 +437,7 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 			p = setErrorPos(p, importPos)
 		}
 
-		if origPath != cleanImport(origPath) {
+		if debugDeprecatedImportcfgDir == "" && origPath != cleanImport(origPath) {
 			p.Error = &PackageError{
 				ImportStack: stk.Copy(),
 				Err:         fmt.Sprintf("non-canonical import path: %q should be %q", origPath, pathpkg.Clean(origPath)),
