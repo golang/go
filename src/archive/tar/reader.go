@@ -95,6 +95,7 @@ loop:
 			if hdr.Typeflag == TypeXGlobalHeader {
 				mergePAX(hdr, paxHdrs)
 				return &Header{
+					Name:       hdr.Name,
 					Typeflag:   hdr.Typeflag,
 					Xattrs:     hdr.Xattrs,
 					PAXRecords: hdr.PAXRecords,
