@@ -363,7 +363,7 @@ func (b *Builder) build(a *Action) (err error) {
 		}
 	}
 
-	var gofiles, cgofiles, objdirCgofiles, cfiles, sfiles, cxxfiles, objects, cgoObjects, pcCFLAGS, pcLDFLAGS []string
+	var gofiles, cgofiles, cfiles, sfiles, cxxfiles, objects, cgoObjects, pcCFLAGS, pcLDFLAGS []string
 
 	gofiles = append(gofiles, a.Package.GoFiles...)
 	cgofiles = append(cgofiles, a.Package.CgoFiles...)
@@ -385,7 +385,7 @@ func (b *Builder) build(a *Action) (err error) {
 		if err != nil {
 			return err
 		}
-		objdirCgofiles = append(objdirCgofiles, outGo...)
+		cgofiles = append(cgofiles, outGo...)
 		cfiles = append(cfiles, outC...)
 		cxxfiles = append(cxxfiles, outCXX...)
 	}
@@ -460,7 +460,7 @@ func (b *Builder) build(a *Action) (err error) {
 			sfiles = nil
 		}
 
-		outGo, outObj, err := b.cgo(a, base.Tool("cgo"), objdir, pcCFLAGS, pcLDFLAGS, mkAbsFiles(a.Package.Dir, cgofiles), objdirCgofiles, gccfiles, cxxfiles, a.Package.MFiles, a.Package.FFiles)
+		outGo, outObj, err := b.cgo(a, base.Tool("cgo"), objdir, pcCFLAGS, pcLDFLAGS, mkAbsFiles(a.Package.Dir, cgofiles), gccfiles, cxxfiles, a.Package.MFiles, a.Package.FFiles)
 		if err != nil {
 			return err
 		}
@@ -1843,7 +1843,7 @@ func (b *Builder) CFlags(p *load.Package) (cppflags, cflags, cxxflags, fflags, l
 
 var cgoRe = regexp.MustCompile(`[/\\:]`)
 
-func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgofiles, objdirCgofiles, gccfiles, gxxfiles, mfiles, ffiles []string) (outGo, outObj []string, err error) {
+func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgofiles, gccfiles, gxxfiles, mfiles, ffiles []string) (outGo, outObj []string, err error) {
 	p := a.Package
 	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, cgoFFLAGS, cgoLDFLAGS := b.CFlags(p)
 	cgoCPPFLAGS = append(cgoCPPFLAGS, pcCFLAGS...)
@@ -1873,20 +1873,6 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 
 	// Allows including _cgo_export.h from .[ch] files in the package.
 	cgoCPPFLAGS = append(cgoCPPFLAGS, "-I", objdir)
-
-	// If we have cgo files in the object directory, then copy any
-	// other cgo files into the object directory, and pass a
-	// -srcdir option to cgo.
-	var srcdirarg []string
-	if len(objdirCgofiles) > 0 {
-		for _, fn := range cgofiles {
-			if err := b.copyFile(a, objdir+filepath.Base(fn), filepath.Join(p.Dir, fn), 0666, false); err != nil {
-				return nil, nil, err
-			}
-		}
-		cgofiles = append(cgofiles, objdirCgofiles...)
-		srcdirarg = []string{"-srcdir", objdir}
-	}
 
 	// cgo
 	// TODO: CGO_FLAGS?
@@ -1937,7 +1923,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 		cgoflags = append(cgoflags, "-exportheader="+objdir+"_cgo_install.h")
 	}
 
-	if err := b.run(a, p.Dir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, srcdirarg, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
+	if err := b.run(a, p.Dir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
 		return nil, nil, err
 	}
 	outGo = append(outGo, gofiles...)
@@ -2264,7 +2250,20 @@ func (b *Builder) swigOne(a *Action, p *load.Package, file, objdir string, pcCFL
 		b.showOutput(a, p.Dir, p.ImportPath, b.processOutput(out)) // swig warning
 	}
 
-	return goFile, objdir + gccBase + gccExt, nil
+	// If the input was x.swig, the output is x.go in the objdir.
+	// But there might be an x.go in the original dir too, and if it
+	// uses cgo as well, cgo will be processing both and will
+	// translate both into x.cgo1.go in the objdir, overwriting one.
+	// Rename x.go to _x_swig.go to avoid this problem.
+	// We ignore files in the original dir that begin with underscore
+	// so _x_swig.go cannot conflict with an original file we were
+	// going to compile.
+	goFile = objdir + goFile
+	newGoFile := objdir + "_" + base + "_swig.go"
+	if err := os.Rename(goFile, newGoFile); err != nil {
+		return "", "", err
+	}
+	return newGoFile, objdir + gccBase + gccExt, nil
 }
 
 // disableBuildID adjusts a linker command line to avoid creating a
