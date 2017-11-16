@@ -99,15 +99,24 @@ func validDelim(r rune) bool {
 // As returned by NewReader, a Reader expects input conforming to RFC 4180.
 // The exported fields can be changed to customize the details before the
 // first call to Read or ReadAll.
+//
+// The Reader converts all \r\n sequences in its input to plain \n,
+// including in multiline field values, so that the returned data does
+// not depend on which line-ending convention an input file uses.
 type Reader struct {
 	// Comma is the field delimiter.
 	// It is set to comma (',') by NewReader.
+	// Comma must be a valid rune and must not be \r, \n,
+	// or the Unicode replacement character (0xFFFD).
 	Comma rune
 
 	// Comment, if not 0, is the comment character. Lines beginning with the
 	// Comment character without preceding whitespace are ignored.
 	// With leading whitespace the Comment character becomes part of the
 	// field, even if TrimLeadingSpace is true.
+	// Comment must be a valid rune and must not be \r, \n,
+	// or the Unicode replacement character (0xFFFD).
+	// It must also not be equal to Comma.
 	Comment rune
 
 	// FieldsPerRecord is the number of expected fields per record.
@@ -217,15 +226,17 @@ func (r *Reader) readLine() ([]byte, error) {
 		err = nil
 	}
 	r.numLine++
+	// Normalize \r\n to \n on all input lines.
+	if n := len(line); n >= 2 && line[n-2] == '\r' && line[n-1] == '\n' {
+		line[n-2] = '\n'
+		line = line[:n-1]
+	}
 	return line, err
 }
 
-// lengthCRLF reports the number of bytes for a trailing "\r\n".
-func lengthCRLF(b []byte) int {
-	if j := len(b) - 1; j >= 0 && b[j] == '\n' {
-		if j := len(b) - 2; j >= 0 && b[j] == '\r' {
-			return 2
-		}
+// lengthNL reports the number of bytes for the trailing \n.
+func lengthNL(b []byte) int {
+	if len(b) > 0 && b[len(b)-1] == '\n' {
 		return 1
 	}
 	return 0
@@ -251,7 +262,7 @@ func (r *Reader) readRecord(dst []string) ([]string, error) {
 			line = nil
 			continue // Skip comment lines
 		}
-		if errRead == nil && len(line) == lengthCRLF(line) {
+		if errRead == nil && len(line) == lengthNL(line) {
 			line = nil
 			continue // Skip empty lines
 		}
@@ -281,7 +292,7 @@ parseField:
 			if i >= 0 {
 				field = field[:i]
 			} else {
-				field = field[:len(field)-lengthCRLF(field)]
+				field = field[:len(field)-lengthNL(field)]
 			}
 			// Check to make sure a quote does not appear in field.
 			if !r.LazyQuotes {
@@ -317,7 +328,7 @@ parseField:
 						line = line[commaLen:]
 						r.fieldIndexes = append(r.fieldIndexes, len(r.recordBuffer))
 						continue parseField
-					case lengthCRLF(line) == len(line):
+					case lengthNL(line) == len(line):
 						// `"\n` sequence (end of line).
 						r.fieldIndexes = append(r.fieldIndexes, len(r.recordBuffer))
 						break parseField
