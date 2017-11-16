@@ -573,6 +573,26 @@ func (t *tester) registerTests() {
 				},
 			})
 		}
+		if swig, _ := exec.LookPath("swig"); swig != "" {
+			t.tests = append(t.tests, distTest{
+				name:    "swig_stdio",
+				heading: "../misc/swig/stdio",
+				fn: func(dt *distTest) error {
+					t.addCmd(dt, "misc/swig/stdio", "go", "test")
+					return nil
+				},
+			})
+			if cxx, _ := exec.LookPath(compilerEnvLookup(defaultcxx, goos, goarch)); cxx != "" {
+				t.tests = append(t.tests, distTest{
+					name:    "swig_callback",
+					heading: "../misc/swig/callback",
+					fn: func(dt *distTest) error {
+						t.addCmd(dt, "misc/swig/callback", "go", "test")
+						return nil
+					},
+				})
+			}
+		}
 	}
 	if t.cgoEnabled {
 		t.tests = append(t.tests, distTest{
