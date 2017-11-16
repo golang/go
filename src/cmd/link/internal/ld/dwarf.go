@@ -1028,9 +1028,13 @@ func putpclcdelta(linkctxt *Link, ctxt dwarf.Context, s *sym.Symbol, deltaPC uin
  */
 
 func getCompilationDir() string {
-	// OS X requires this, but it's really none of its business.
-	// Hard-code "/" for reproducible builds.
-	return "/"
+	// OSX requires this be set to something, but it's not easy to choose
+	// a value. Linking takes place in a temporary directory, so there's
+	// no point including it here. Paths in the file table are usually
+	// absolute, in which case debuggers will ignore this value. -trimpath
+	// produces relative paths, but we don't know where they start, so
+	// all we can do here is try not to make things worse.
+	return "."
 }
 
 func importInfoSymbol(ctxt *Link, dsym *sym.Symbol) {
