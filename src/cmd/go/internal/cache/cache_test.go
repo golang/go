@@ -43,22 +43,22 @@ func TestBasic(t *testing.T) {
 	if err := c1.putIndexEntry(dummyID(1), dummyID(2), 3, true); err != nil { // overwrite entry
 		t.Fatalf("addIndexEntry: %v", err)
 	}
-	if out, size, err := c1.Get(dummyID(1)); err != nil || out != dummyID(2) || size != 3 {
-		t.Fatalf("c1.Get(1) = %x, %v, %v, want %x, %v, nil", out[:], size, err, dummyID(2), 3)
+	if entry, err := c1.Get(dummyID(1)); err != nil || entry.OutputID != dummyID(2) || entry.Size != 3 {
+		t.Fatalf("c1.Get(1) = %x, %v, %v, want %x, %v, nil", entry.OutputID, entry.Size, err, dummyID(2), 3)
 	}
 
 	c2, err := Open(cdir)
 	if err != nil {
 		t.Fatalf("Open(c2) (reuse): %v", err)
 	}
-	if out, size, err := c2.Get(dummyID(1)); err != nil || out != dummyID(2) || size != 3 {
-		t.Fatalf("c2.Get(1) = %x, %v, %v, want %x, %v, nil", out[:], size, err, dummyID(2), 3)
+	if entry, err := c2.Get(dummyID(1)); err != nil || entry.OutputID != dummyID(2) || entry.Size != 3 {
+		t.Fatalf("c2.Get(1) = %x, %v, %v, want %x, %v, nil", entry.OutputID, entry.Size, err, dummyID(2), 3)
 	}
 	if err := c2.putIndexEntry(dummyID(2), dummyID(3), 4, true); err != nil {
 		t.Fatalf("addIndexEntry: %v", err)
 	}
-	if out, size, err := c1.Get(dummyID(2)); err != nil || out != dummyID(3) || size != 4 {
-		t.Fatalf("c1.Get(2) = %x, %v, %v, want %x, %v, nil", out[:], size, err, dummyID(3), 4)
+	if entry, err := c1.Get(dummyID(2)); err != nil || entry.OutputID != dummyID(3) || entry.Size != 4 {
+		t.Fatalf("c1.Get(2) = %x, %v, %v, want %x, %v, nil", entry.OutputID, entry.Size, err, dummyID(3), 4)
 	}
 }
 
@@ -84,22 +84,22 @@ func TestGrowth(t *testing.T) {
 			t.Fatalf("addIndexEntry: %v", err)
 		}
 		id := ActionID(dummyID(i))
-		out, size, err := c.Get(id)
+		entry, err := c.Get(id)
 		if err != nil {
 			t.Fatalf("Get(%x): %v", id, err)
 		}
-		if out != dummyID(i*99) || size != int64(i)*101 {
-			t.Errorf("Get(%x) = %x, %d, want %x, %d", id, out, size, dummyID(i*99), int64(i)*101)
+		if entry.OutputID != dummyID(i*99) || entry.Size != int64(i)*101 {
+			t.Errorf("Get(%x) = %x, %d, want %x, %d", id, entry.OutputID, entry.Size, dummyID(i*99), int64(i)*101)
 		}
 	}
 	for i := 0; i < n; i++ {
 		id := ActionID(dummyID(i))
-		out, size, err := c.Get(id)
+		entry, err := c.Get(id)
 		if err != nil {
 			t.Fatalf("Get2(%x): %v", id, err)
 		}
-		if out != dummyID(i*99) || size != int64(i)*101 {
-			t.Errorf("Get2(%x) = %x, %d, want %x, %d", id, out, size, dummyID(i*99), int64(i)*101)
+		if entry.OutputID != dummyID(i*99) || entry.Size != int64(i)*101 {
+			t.Errorf("Get2(%x) = %x, %d, want %x, %d", id, entry.OutputID, entry.Size, dummyID(i*99), int64(i)*101)
 		}
 	}
 }

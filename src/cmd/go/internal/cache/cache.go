@@ -229,9 +229,9 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify
 	if verify && allowVerify {
 		old, err := c.get(id)
 		if err == nil && (old.OutputID != out || old.Size != size) {
-			fmt.Fprintf(os.Stderr, "go: internal cache error: id=%x changed:<<<\n%s\n>>>\nold: %x %d\nnew: %x %d\n", id, reverseHash(id), out, size, old.OutputID, old.Size)
 			// panic to show stack trace, so we can see what code is generating this cache entry.
-			panic("cache verify failed")
+			msg := fmt.Sprintf("go: internal cache error: cache verify failed: id=%x changed:<<<\n%s\n>>>\nold: %x %d\nnew: %x %d", id, reverseHash(id), out, size, old.OutputID, old.Size)
+			panic(msg)
 		}
 	}
 	file := c.fileName(id, "a")
