@@ -502,23 +502,10 @@ func (b *Builder) build(a *Action) (err error) {
 
 	// Prepare Go import config.
 	var icfg bytes.Buffer
-	for _, a1 := range a.Deps {
-		p1 := a1.Package
-		if p1 == nil || p1.ImportPath == "" {
-			continue
-		}
-		path := p1.ImportPath
-		i := strings.LastIndex(path, "/vendor/")
-		if i >= 0 {
-			i += len("/vendor/")
-		} else if strings.HasPrefix(path, "vendor/") {
-			i = len("vendor/")
-		} else {
-			continue
-		}
-		fmt.Fprintf(&icfg, "importmap %s=%s\n", path[i:], path)
-		if vcfg != nil {
-			vcfg.ImportMap[path[i:]] = path
+	for i, raw := range a.Package.Internal.RawImports {
+		final := a.Package.Imports[i]
+		if final != raw {
+			fmt.Fprintf(&icfg, "importmap %s=%s\n", raw, final)
 		}
 	}
 
