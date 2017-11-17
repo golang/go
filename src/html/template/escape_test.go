@@ -1903,3 +1903,25 @@ func BenchmarkEscapedExecute(b *testing.B) {
 		buf.Reset()
 	}
 }
+
+// Covers issue 22780.
+func TestOrphanedTemplate(t *testing.T) {
+	t1 := Must(New("foo").Parse(`<a href="{{.}}">link1</a>`))
+	t2 := Must(t1.New("foo").Parse(`bar`))
+
+	var b bytes.Buffer
+	const wantError = `template: "foo" is an incomplete or empty template`
+	if err := t1.Execute(&b, "javascript:alert(1)"); err == nil {
+		t.Fatal("expected error executing t1")
+	} else if gotError := err.Error(); gotError != wantError {
+		t.Fatalf("got t1 execution error:\n\t%s\nwant:\n\t%s", gotError, wantError)
+	}
+	b.Reset()
+	if err := t2.Execute(&b, nil); err != nil {
+		t.Fatalf("error executing t1: %s", err)
+	}
+	const want = "bar"
+	if got := b.String(); got != want {
+		t.Fatalf("t2 rendered %q, want %q", got, want)
+	}
+}
