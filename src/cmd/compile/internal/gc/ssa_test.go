@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"internal/testenv"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -64,6 +65,7 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
 	if ok != nil {
 		t.Fatalf("Failed to create temporary directory")
 	}
+	defer os.RemoveAll(tmpdir)
 
 	rungo := filepath.Join(tmpdir, "run.go")
 	ok = ioutil.WriteFile(rungo, stdout.Bytes(), 0600)
