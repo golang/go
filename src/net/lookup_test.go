@@ -739,25 +739,3 @@ func TestLookupNonLDH(t *testing.T) {
 		t.Fatalf("lookup error = %v, want %v", err, errNoSuchHost)
 	}
 }
-
-func TestLookupContextCancel(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		t.Skip("skip on NaCl")
-	}
-
-	ctx, ctxCancel := context.WithCancel(context.Background())
-	ctxCancel()
-
-	_, err := DefaultResolver.LookupIPAddr(ctx, "google.com")
-	if err != errCanceled {
-		testenv.SkipFlakyNet(t)
-		t.Fatalf("unexpected error: %q", err)
-	}
-
-	ctx = context.Background()
-
-	_, err = DefaultResolver.LookupIPAddr(ctx, "google.com")
-	if err != nil {
-		t.Fatalf("unexpected error: %q", err)
-	}
-}
