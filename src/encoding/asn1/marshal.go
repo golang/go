@@ -289,6 +289,16 @@ func makeIA5String(s string) (e encoder, err error) {
 	return stringEncoder(s), nil
 }
 
+func makeNumericString(s string) (e encoder, err error) {
+	for i := 0; i < len(s); i++ {
+		if !isNumeric(s[i]) {
+			return nil, StructuralError{"NumericString contains invalid character"}
+		}
+	}
+
+	return stringEncoder(s), nil
+}
+
 func makeUTF8String(s string) encoder {
 	return stringEncoder(s)
 }
@@ -506,6 +516,8 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
 			return makeIA5String(v.String())
 		case TagPrintableString:
 			return makePrintableString(v.String())
+		case TagNumericString:
+			return makeNumericString(v.String())
 		default:
 			return makeUTF8String(v.String()), nil
 		}

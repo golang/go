@@ -30,6 +30,7 @@ const (
 	TagUTF8String      = 12
 	TagSequence        = 16
 	TagSet             = 17
+	TagNumericString   = 18
 	TagPrintableString = 19
 	TagT61String       = 20
 	TagIA5String       = 22
@@ -106,6 +107,8 @@ func parseFieldParameters(str string) (ret fieldParameters) {
 			ret.stringType = TagIA5String
 		case part == "printable":
 			ret.stringType = TagPrintableString
+		case part == "numeric":
+			ret.stringType = TagNumericString
 		case part == "utf8":
 			ret.stringType = TagUTF8String
 		case strings.HasPrefix(part, "default:"):
