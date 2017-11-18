@@ -31,12 +31,12 @@ type Buffer struct {
 type readOp int8
 
 const (
-	opRead      readOp = -1 // Any other read operation.
-	opInvalid          = 0  // Non-read operation.
-	opReadRune1        = 1  // Read rune of size 1.
-	opReadRune2        = 2  // Read rune of size 2.
-	opReadRune3        = 3  // Read rune of size 3.
-	opReadRune4        = 4  // Read rune of size 4.
+	opRead      readOp = iota - 1 // Any other read operation.
+	opInvalid                     // Non-read operation.
+	opReadRune1                   // Read rune of size 1.
+	opReadRune2                   // Read rune of size 2.
+	opReadRune3                   // Read rune of size 3.
+	opReadRune4                   // Read rune of size 4.
 )
 
 // ErrTooLarge is passed to panic if memory cannot be allocated to store data in a buffer.
