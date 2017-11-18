@@ -424,6 +424,7 @@ var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParame
 	{"generalized", fieldParameters{timeType: TagGeneralizedTime}},
 	{"utc", fieldParameters{timeType: TagUTCTime}},
 	{"printable", fieldParameters{stringType: TagPrintableString}},
+	{"numeric", fieldParameters{stringType: TagNumericString}},
 	{"optional", fieldParameters{optional: true}},
 	{"explicit", fieldParameters{explicit: true, tag: new(int)}},
 	{"application", fieldParameters{application: true, tag: new(int)}},
@@ -496,6 +497,7 @@ var unmarshalTestData = []struct {
 	{[]byte{0x30, 0x0b, 0x13, 0x03, 0x66, 0x6f, 0x6f, 0x02, 0x01, 0x22, 0x02, 0x01, 0x33}, &TestElementsAfterString{"foo", 0x22, 0x33}},
 	{[]byte{0x30, 0x05, 0x02, 0x03, 0x12, 0x34, 0x56}, &TestBigInt{big.NewInt(0x123456)}},
 	{[]byte{0x30, 0x0b, 0x31, 0x09, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x01, 0x03}, &TestSet{Ints: []int{1, 2, 3}}},
+	{[]byte{0x12, 0x0b, '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ' '}, newString("0123456789 ")},
 }
 
 func TestUnmarshal(t *testing.T) {

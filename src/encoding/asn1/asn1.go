@@ -372,6 +372,25 @@ func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
 	return
 }
 
+// NumericString
+
+// parseNumericString parses an ASN.1 NumericString from the given byte array
+// and returns it.
+func parseNumericString(bytes []byte) (ret string, err error) {
+	for _, b := range bytes {
+		if !isNumeric(b) {
+			return "", SyntaxError{"NumericString contains invalid character"}
+		}
+	}
+	return string(bytes), nil
+}
+
+// isNumeric reports whether the given b is in the ASN.1 NumericString set.
+func isNumeric(b byte) bool {
+	return '0' <= b && b <= '9' ||
+		b == ' '
+}
+
 // PrintableString
 
 // parsePrintableString parses an ASN.1 PrintableString from the given byte
@@ -561,7 +580,7 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 			return
 		}
 		switch t.tag {
-		case TagIA5String, TagGeneralString, TagT61String, TagUTF8String:
+		case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString:
 			// We pretend that various other string types are
 			// PRINTABLE STRINGs so that a sequence of them can be
 			// parsed into a []string.
@@ -643,6 +662,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			switch t.tag {
 			case TagPrintableString:
 				result, err = parsePrintableString(innerBytes)
+			case TagNumericString:
+				result, err = parseNumericString(innerBytes)
 			case TagIA5String:
 				result, err = parseIA5String(innerBytes)
 			case TagT61String:
@@ -729,7 +750,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	if universalTag == TagPrintableString {
 		if t.class == ClassUniversal {
 			switch t.tag {
-			case TagIA5String, TagGeneralString, TagT61String, TagUTF8String:
+			case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString:
 				universalTag = t.tag
 			}
 		} else if params.stringType != 0 {
@@ -907,6 +928,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		switch universalTag {
 		case TagPrintableString:
 			v, err = parsePrintableString(innerBytes)
+		case TagNumericString:
+			v, err = parseNumericString(innerBytes)
 		case TagIA5String:
 			v, err = parseIA5String(innerBytes)
 		case TagT61String:
@@ -980,7 +1003,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //
 // An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a time.Time.
 //
-// An ASN.1 PrintableString or IA5String can be written to a string.
+// An ASN.1 PrintableString, IA5String, or NumericString can be written to a string.
 //
 // Any of the above ASN.1 values can be written to an interface{}.
 // The value stored in the interface has the corresponding Go type.
