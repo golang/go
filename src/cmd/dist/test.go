@@ -573,7 +573,7 @@ func (t *tester) registerTests() {
 				},
 			})
 		}
-		if swig, _ := exec.LookPath("swig"); swig != "" {
+		if swig, _ := exec.LookPath("swig"); swig != "" && goos != "android" {
 			t.tests = append(t.tests, distTest{
 				name:    "swig_stdio",
 				heading: "../misc/swig/stdio",
