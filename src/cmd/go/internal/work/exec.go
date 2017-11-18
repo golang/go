@@ -1759,18 +1759,13 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	if b.flagCache == nil {
 		b.flagCache = make(map[[2]string]bool)
 	}
-	// We used to write an empty C file, but we already look to make
-	// sure the error is specifically about the command-line option,
-	// so the file does not need to exist at all. This avoids creating a
-	// file in -n mode and (if -n mode must not create a file) ensures
-	// that -n mode matches the regular mode.
-	cmdArgs := str.StringList(compiler, flag, "-c", "does_not_exist.c")
-	if cfg.BuildN || cfg.BuildX {
-		b.Showcmd(b.WorkDir, "%s", joinUnambiguously(cmdArgs))
-		if cfg.BuildN {
-			return false
-		}
-	}
+	// We used to write an empty C file, but that gets complicated with
+	// go build -n. We tried using a file that does not exist, but that
+	// fails on systems with GCC version 4.2.1; that is the last GPLv2
+	// version of GCC, so some systems have frozen on it.
+	// Now we pass an empty file on stdin, which should work at least for
+	// GCC and clang.
+	cmdArgs := str.StringList(compiler, flag, "-c", "-x", "c", "-")
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd(b.WorkDir, "%s", joinUnambiguously(cmdArgs))
 		if cfg.BuildN {
@@ -1783,7 +1778,10 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	out, _ := cmd.CombinedOutput()
 	// GCC says "unrecognized command line option".
 	// clang says "unknown argument".
-	supported := !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
+	// Older versions of GCC say "unrecognised debug output level".
+	supported := !bytes.Contains(out, []byte("unrecognized")) &&
+		!bytes.Contains(out, []byte("unknown")) &&
+		!bytes.Contains(out, []byte("unrecognised"))
 	b.flagCache[key] = supported
 	return supported
 }
