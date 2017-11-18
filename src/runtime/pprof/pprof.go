@@ -18,7 +18,7 @@
 // To add equivalent profiling support to a standalone program, add
 // code like the following to your main function:
 //
-//    var cpuprofile = flag.String("cpuprofile", "", "write cpu profile `file`")
+//    var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 //    var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 //
 //    func main() {
