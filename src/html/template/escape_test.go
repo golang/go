@@ -650,6 +650,12 @@ func TestEscape(t *testing.T) {
 			`<{{"script"}}>{{"doEvil()"}}</{{"script"}}>`,
 			`&lt;script>doEvil()&lt;/script>`,
 		},
+		{
+			"srcset bad URL in second position",
+			`<img srcset="{{"/not-an-image#,javascript:alert(1)"}}">`,
+			// The second URL is also filtered.
+			`<img srcset="/not-an-image#,#ZgotmplZ">`,
+		},
 	}
 
 	for _, test := range tests {
