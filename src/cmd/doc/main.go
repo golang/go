@@ -93,6 +93,9 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 		if i > 0 && !more { // Ignore the "more" bit on the first iteration.
 			return failMessage(paths, symbol, method)
 		}
+		if buildPackage == nil {
+			return fmt.Errorf("no such package: %s", userPath)
+		}
 		symbol, method = parseSymbol(sym)
 		pkg := parsePackage(writer, buildPackage, userPath)
 		paths = append(paths, pkg.prettyPath())
@@ -179,7 +182,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
 		// Package must be findable and importable.
 		packagePath, ok := findPackage(args[0])
 		if !ok {
-			log.Fatalf("no such package: %s", args[0])
+			return nil, args[0], args[1], false
 		}
 		return importDir(packagePath), args[0], args[1], true
 	}

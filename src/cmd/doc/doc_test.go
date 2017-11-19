@@ -569,6 +569,24 @@ func TestTwoArgLookup(t *testing.T) {
 			t.Errorf("unexpected error %q from rand Float64", err)
 		}
 	}
+	{
+		var flagSet flag.FlagSet
+		err := do(&b, &flagSet, []string{"bytes", "Foo"})
+		if err == nil {
+			t.Errorf("expected error from bytes Foo")
+		} else if !strings.Contains(err.Error(), "no symbol Foo") {
+			t.Errorf("unexpected error %q from bytes Foo", err)
+		}
+	}
+	{
+		var flagSet flag.FlagSet
+		err := do(&b, &flagSet, []string{"nosuchpackage", "Foo"})
+		if err == nil {
+			// actually present in the user's filesystem
+		} else if !strings.Contains(err.Error(), "no such package") {
+			t.Errorf("unexpected error %q from nosuchpackage Foo", err)
+		}
+	}
 }
 
 type trimTest struct {
