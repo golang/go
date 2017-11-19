@@ -385,7 +385,7 @@ func (g *Generator) setShorthand(words []string) {
 	}
 	command := words[1]
 	if g.commands[command] != nil {
-		g.errorf("command %q defined multiply defined", command)
+		g.errorf("command %q multiply defined", command)
 	}
 	g.commands[command] = words[2:len(words):len(words)] // force later append to make copy
 }
