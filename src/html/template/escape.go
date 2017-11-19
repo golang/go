@@ -71,6 +71,7 @@ var funcMap = template.FuncMap{
 	"_html_template_jsvalescaper":    jsValEscaper,
 	"_html_template_nospaceescaper":  htmlNospaceEscaper,
 	"_html_template_rcdataescaper":   rcdataEscaper,
+	"_html_template_srcsetescaper":   srcsetFilterAndEscaper,
 	"_html_template_urlescaper":      urlEscaper,
 	"_html_template_urlfilter":       urlFilter,
 	"_html_template_urlnormalizer":   urlNormalizer,
@@ -215,6 +216,8 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	case stateAttrName, stateTag:
 		c.state = stateAttrName
 		s = append(s, "_html_template_htmlnamefilter")
+	case stateSrcset:
+		s = append(s, "_html_template_srcsetescaper")
 	default:
 		if isComment(c.state) {
 			s = append(s, "_html_template_commentescaper")

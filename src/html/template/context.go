@@ -102,6 +102,8 @@ const (
 	stateAttr
 	// stateURL occurs inside an HTML attribute whose content is a URL.
 	stateURL
+	// stateSrcset occurs inside an HTML srcset attribute.
+	stateSrcset
 	// stateJS occurs inside an event handler or script element.
 	stateJS
 	// stateJSDqStr occurs inside a JavaScript double quoted string.
@@ -145,6 +147,7 @@ var stateNames = [...]string{
 	stateRCDATA:      "stateRCDATA",
 	stateAttr:        "stateAttr",
 	stateURL:         "stateURL",
+	stateSrcset:      "stateSrcset",
 	stateJS:          "stateJS",
 	stateJSDqStr:     "stateJSDqStr",
 	stateJSSqStr:     "stateJSSqStr",
@@ -326,6 +329,8 @@ const (
 	attrStyle
 	// attrURL corresponds to an attribute whose value is a URL.
 	attrURL
+	// attrSrcset corresponds to a srcset attribute.
+	attrSrcset
 )
 
 var attrNames = [...]string{
@@ -334,6 +339,7 @@ var attrNames = [...]string{
 	attrScriptType: "attrScriptType",
 	attrStyle:      "attrStyle",
 	attrURL:        "attrURL",
+	attrSrcset:     "attrSrcset",
 }
 
 func (a attr) String() string {
