@@ -78,9 +78,10 @@ import (
 )
 
 var (
-	typeNames  = flag.String("type", "", "comma-separated list of type names; must be set")
-	output     = flag.String("output", "", "output file name; default srcdir/<type>_string.go")
-	trimprefix = flag.String("trimprefix", "", "trim the `prefix` from the generated constant names")
+	typeNames   = flag.String("type", "", "comma-separated list of type names; must be set")
+	output      = flag.String("output", "", "output file name; default srcdir/<type>_string.go")
+	trimprefix  = flag.String("trimprefix", "", "trim the `prefix` from the generated constant names")
+	linecomment = flag.Bool("linecomment", false, "use line comment text as printed text when present")
 )
 
 // Usage is a replacement usage function for the flags package.
@@ -114,7 +115,10 @@ func main() {
 
 	// Parse the package once.
 	var dir string
-	g := Generator{trimPrefix: *trimprefix}
+	g := Generator{
+		trimPrefix:  *trimprefix,
+		lineComment: *linecomment,
+	}
 	if len(args) == 1 && isDirectory(args[0]) {
 		dir = args[0]
 		g.parsePackageDir(args[0])
@@ -165,7 +169,8 @@ type Generator struct {
 	buf bytes.Buffer // Accumulated output.
 	pkg *Package     // Package we are scanning.
 
-	trimPrefix string
+	trimPrefix  string
+	lineComment bool
 }
 
 func (g *Generator) Printf(format string, args ...interface{}) {
@@ -180,7 +185,8 @@ type File struct {
 	typeName string  // Name of the constant type.
 	values   []Value // Accumulator for constant values of that type.
 
-	trimPrefix string
+	trimPrefix  string
+	lineComment bool
 }
 
 type Package struct {
@@ -237,15 +243,16 @@ func (g *Generator) parsePackage(directory string, names []string, text interfac
 		if !strings.HasSuffix(name, ".go") {
 			continue
 		}
-		parsedFile, err := parser.ParseFile(fs, name, text, 0)
+		parsedFile, err := parser.ParseFile(fs, name, text, parser.ParseComments)
 		if err != nil {
 			log.Fatalf("parsing package: %s: %s", name, err)
 		}
 		astFiles = append(astFiles, parsedFile)
 		files = append(files, &File{
-			file:       parsedFile,
-			pkg:        g.pkg,
-			trimPrefix: g.trimPrefix,
+			file:        parsedFile,
+			pkg:         g.pkg,
+			trimPrefix:  g.trimPrefix,
+			lineComment: g.lineComment,
 		})
 	}
 	if len(astFiles) == 0 {
@@ -456,6 +463,9 @@ func (f *File) genDecl(node ast.Node) bool {
 				value:  u64,
 				signed: info&types.IsUnsigned == 0,
 				str:    value.String(),
+			}
+			if c := vspec.Comment; f.lineComment && c != nil && len(c.List) == 1 {
+				v.name = strings.TrimSpace(c.Text())
 			}
 			v.name = strings.TrimPrefix(v.name, f.trimPrefix)
 			f.values = append(f.values, v)

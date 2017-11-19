@@ -16,20 +16,22 @@ import (
 
 // Golden represents a test case.
 type Golden struct {
-	name       string
-	trimPrefix string
-	input      string // input; the package clause is provided when running the test.
-	output     string // exected output.
+	name        string
+	trimPrefix  string
+	lineComment bool
+	input       string // input; the package clause is provided when running the test.
+	output      string // exected output.
 }
 
 var golden = []Golden{
-	{"day", "", day_in, day_out},
-	{"offset", "", offset_in, offset_out},
-	{"gap", "", gap_in, gap_out},
-	{"num", "", num_in, num_out},
-	{"unum", "", unum_in, unum_out},
-	{"prime", "", prime_in, prime_out},
-	{"prefix", "Type", prefix_in, prefix_out},
+	{"day", "", false, day_in, day_out},
+	{"offset", "", false, offset_in, offset_out},
+	{"gap", "", false, gap_in, gap_out},
+	{"num", "", false, num_in, num_out},
+	{"unum", "", false, unum_in, unum_out},
+	{"prime", "", false, prime_in, prime_out},
+	{"prefix", "Type", false, prefix_in, prefix_out},
+	{"tokens", "", true, tokens_in, tokens_out},
 }
 
 // Each example starts with "type XXX [u]int", with a single space separating them.
@@ -264,9 +266,42 @@ func (i Type) String() string {
 }
 `
 
+const tokens_in = `type Token int
+const (
+	And Token = iota // &
+	Or               // |
+	Add              // +
+	Sub              // -
+	Ident
+	Period // .
+
+	// not to be used
+	SingleBefore
+	// not to be used
+	BeforeAndInline // inline
+	InlineGeneral /* inline general */
+)
+`
+
+const tokens_out = `
+const _Token_name = "&|+-Ident.SingleBeforeinlineinline general"
+
+var _Token_index = [...]uint8{0, 1, 2, 3, 4, 9, 10, 22, 28, 42}
+
+func (i Token) String() string {
+	if i < 0 || i >= Token(len(_Token_index)-1) {
+		return "Token(" + strconv.FormatInt(int64(i), 10) + ")"
+	}
+	return _Token_name[_Token_index[i]:_Token_index[i+1]]
+}
+`
+
 func TestGolden(t *testing.T) {
 	for _, test := range golden {
-		g := Generator{trimPrefix: test.trimPrefix}
+		g := Generator{
+			trimPrefix:  test.trimPrefix,
+			lineComment: test.lineComment,
+		}
 		input := "package test\n" + test.input
 		file := test.name + ".go"
 		g.parsePackage(".", []string{file}, input)
