@@ -722,7 +722,7 @@ func (d Duration) String() string {
 }
 
 // fmtFrac formats the fraction of v/10**prec (e.g., ".12345") into the
-// tail of buf, omitting trailing zeros. it omits the decimal
+// tail of buf, omitting trailing zeros. It omits the decimal
 // point too when the fraction is 0. It returns the index where the
 // output bytes begin and the value v/10**prec.
 func fmtFrac(buf []byte, v uint64, prec int) (nw int, nv uint64) {
