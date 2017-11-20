@@ -2269,6 +2269,13 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 			return Yxxx
 		}
 		if ctxt.Arch.Family == sys.AMD64 {
+			// Offset must fit in a 32-bit signed field (or fit in a 32-bit unsigned field
+			// where the sign extension doesn't matter).
+			// Note: The latter happens only in assembly, for example crypto/sha1/sha1block_amd64.s.
+			if !(a.Offset == int64(int32(a.Offset)) ||
+				a.Offset == int64(uint32(a.Offset)) && p.As == ALEAL) {
+				return Yxxx
+			}
 			switch a.Name {
 			case obj.NAME_EXTERN, obj.NAME_STATIC, obj.NAME_GOTREF:
 				// Global variables can't use index registers and their

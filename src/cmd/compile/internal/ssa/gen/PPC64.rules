@@ -526,49 +526,29 @@
 	(MOVBstorezero [6] destptr
 		(MOVHstorezero [4] destptr
 			(MOVWstorezero destptr mem)))
-(Zero [8] destptr mem) ->
-	(MOVDstorezero destptr mem)
 
-// Zero small numbers of words directly.
-(Zero [12] destptr mem) ->
+// MOVD for store with DS must have offsets that are multiple of 4
+(Zero [8] {t} destptr mem) && t.(*types.Type).Alignment()%4 == 0 ->
+        (MOVDstorezero destptr mem)
+(Zero [8] destptr mem) ->
+        (MOVWstorezero [4] destptr
+                (MOVWstorezero [0] destptr mem))
+// Handle these cases only if aligned properly, otherwise use general case below
+(Zero [12] {t} destptr mem) && t.(*types.Type).Alignment()%4 == 0 ->
         (MOVWstorezero [8] destptr
                 (MOVDstorezero [0] destptr mem))
-(Zero [16] destptr mem) ->
-	(MOVDstorezero [8] destptr
+(Zero [16] {t} destptr mem) && t.(*types.Type).Alignment()%4 == 0 ->
+       (MOVDstorezero [8] destptr
                 (MOVDstorezero [0] destptr mem))
-(Zero [24] destptr mem) ->
-	(MOVDstorezero [16] destptr
-		(MOVDstorezero [8] destptr
-			(MOVDstorezero [0] destptr mem)))
-(Zero [32] destptr mem) ->
-	(MOVDstorezero [24] destptr
-		(MOVDstorezero [16] destptr
-			(MOVDstorezero [8] destptr
-				(MOVDstorezero [0] destptr mem))))
-
-(Zero [40] destptr mem) ->
-	(MOVDstorezero [32] destptr
-		(MOVDstorezero [24] destptr
-			(MOVDstorezero [16] destptr
-				(MOVDstorezero [8] destptr
-					(MOVDstorezero [0] destptr mem)))))
-
-(Zero [48] destptr mem) ->
-	(MOVDstorezero [40] destptr
-		(MOVDstorezero [32] destptr
-			(MOVDstorezero [24] destptr
-				(MOVDstorezero [16] destptr
-					(MOVDstorezero [8] destptr
-						(MOVDstorezero [0] destptr mem))))))
-
-(Zero [56] destptr mem) ->
-	(MOVDstorezero [48] destptr
-		(MOVDstorezero [40] destptr
-			(MOVDstorezero [32] destptr
-				(MOVDstorezero [24] destptr
-					(MOVDstorezero [16] destptr
-						(MOVDstorezero [8] destptr
-							(MOVDstorezero [0] destptr mem)))))))
+(Zero [24] {t} destptr mem) && t.(*types.Type).Alignment()%4 == 0 ->
+       (MOVDstorezero [16] destptr
+               (MOVDstorezero [8] destptr
+                       (MOVDstorezero [0] destptr mem)))
+(Zero [32] {t} destptr mem) && t.(*types.Type).Alignment()%4 == 0 ->
+       (MOVDstorezero [24] destptr
+               (MOVDstorezero [16] destptr
+                       (MOVDstorezero [8] destptr
+                               (MOVDstorezero [0] destptr mem))))
 
 // Handle cases not handled above
 (Zero [s] ptr mem) -> (LoweredZero [s] ptr mem)

@@ -80,5 +80,6 @@ func Test20369(t *testing.T)                 { test20369(t) }
 func Test18720(t *testing.T)                 { test18720(t) }
 func Test20266(t *testing.T)                 { test20266(t) }
 func Test20129(t *testing.T)                 { test20129(t) }
+func Test21708(t *testing.T)                 { test21708(t) }
 
 func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }

@@ -7,6 +7,7 @@ package gc
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -20,12 +21,16 @@ import (
 func parseFiles(filenames []string) uint {
 	var lines uint
 	var noders []*noder
+	// Limit the number of simultaneously open files.
+	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
 
 	for _, filename := range filenames {
 		p := &noder{err: make(chan syntax.Error)}
 		noders = append(noders, p)
 
 		go func(filename string) {
+			sem <- struct{}{}
+			defer func() { <-sem }()
 			defer close(p.err)
 			base := src.NewFileBase(filename, absFilename(filename))
 
@@ -36,7 +41,7 @@ func parseFiles(filenames []string) uint {
 			}
 			defer f.Close()
 
-			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, syntax.CheckBranches) // errors are tracked via p.error
+			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, fileh, syntax.CheckBranches) // errors are tracked via p.error
 		}(filename)
 	}
 
@@ -64,6 +69,10 @@ func yyerrorpos(pos src.Pos, format string, args ...interface{}) {
 }
 
 var pathPrefix string
+
+func fileh(name string) string {
+	return objabi.AbsFile("", name, pathPrefix)
+}
 
 func absFilename(name string) string {
 	return objabi.AbsFile(Ctxt.Pathname, name, pathPrefix)
@@ -401,7 +410,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		f.Func.Endlineno = lineno
 	} else {
 		if pure_go || strings.HasPrefix(f.funcname(), "init.") {
-			yyerrorl(f.Pos, "missing function body for %q", f.funcname())
+			yyerrorl(f.Pos, "missing function body")
 		}
 	}
 

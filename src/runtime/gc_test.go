@@ -170,7 +170,7 @@ func TestPeriodicGC(t *testing.T) {
 	// slack if things are slow.
 	var numGCs uint32
 	const want = 2
-	for i := 0; i < 20 && numGCs < want; i++ {
+	for i := 0; i < 200 && numGCs < want; i++ {
 		time.Sleep(5 * time.Millisecond)
 
 		// Test that periodic GC actually happened.
@@ -498,4 +498,20 @@ func BenchmarkReadMemStats(b *testing.B) {
 	}
 
 	hugeSink = nil
+}
+
+func TestUserForcedGC(t *testing.T) {
+	// Test that runtime.GC() triggers a GC even if GOGC=off.
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
+	var ms1, ms2 runtime.MemStats
+	runtime.ReadMemStats(&ms1)
+	runtime.GC()
+	runtime.ReadMemStats(&ms2)
+	if ms1.NumGC == ms2.NumGC {
+		t.Fatalf("runtime.GC() did not trigger GC")
+	}
+	if ms1.NumForcedGC == ms2.NumForcedGC {
+		t.Fatalf("runtime.GC() was not accounted in NumForcedGC")
+	}
 }

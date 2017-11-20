@@ -456,8 +456,14 @@ func (v Value) call(op string, in []Value) []Value {
 			tv := t.Out(i)
 			a := uintptr(tv.Align())
 			off = (off + a - 1) &^ (a - 1)
-			fl := flagIndir | flag(tv.Kind())
-			ret[i] = Value{tv.common(), unsafe.Pointer(uintptr(args) + off), fl}
+			if tv.Size() != 0 {
+				fl := flagIndir | flag(tv.Kind())
+				ret[i] = Value{tv.common(), unsafe.Pointer(uintptr(args) + off), fl}
+			} else {
+				// For zero-sized return value, args+off may point to the next object.
+				// In this case, return the zero value instead.
+				ret[i] = Zero(tv)
+			}
 			off += tv.Size()
 		}
 	}

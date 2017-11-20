@@ -52,7 +52,7 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error)
 }
 
 func (fd *netFD) init() error {
-	errcall, err := fd.pfd.Init(fd.net)
+	errcall, err := fd.pfd.Init(fd.net, true)
 	if errcall != "" {
 		err = wrapSyscallError(errcall, err)
 	}

@@ -19,6 +19,7 @@ import (
 // will be written into the parent directory containing the tests.
 
 var sizes = [...]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 23, 24, 25, 31, 32, 33, 63, 64, 65, 1023, 1024, 1025}
+var usizes = [...]int{8, 16, 24, 32, 64, 256}
 
 func main() {
 	w := new(bytes.Buffer)
@@ -61,11 +62,73 @@ func main() {
 		fmt.Fprintf(w, "}\n")
 	}
 
+	for _, s := range usizes {
+		// type for test
+		fmt.Fprintf(w, "type T%du1 struct {\n", s)
+		fmt.Fprintf(w, "  b   bool\n")
+		fmt.Fprintf(w, "  val [%d]byte\n", s)
+		fmt.Fprintf(w, "}\n")
+
+		fmt.Fprintf(w, "type T%du2 struct {\n", s)
+		fmt.Fprintf(w, "  i   uint16\n")
+		fmt.Fprintf(w, "  val [%d]byte\n", s)
+		fmt.Fprintf(w, "}\n")
+
+		// function being tested
+		fmt.Fprintf(w, "//go:noinline\n")
+		fmt.Fprintf(w, "func zero%du1_ssa(t *T%du1) {\n", s, s)
+		fmt.Fprintf(w, "  t.val = [%d]byte{}\n", s)
+		fmt.Fprintf(w, "}\n")
+
+		// function being tested
+		fmt.Fprintf(w, "//go:noinline\n")
+		fmt.Fprintf(w, "func zero%du2_ssa(t *T%du2) {\n", s, s)
+		fmt.Fprintf(w, "  t.val = [%d]byte{}\n", s)
+		fmt.Fprintf(w, "}\n")
+
+		// testing harness
+		fmt.Fprintf(w, "func testZero%du() {\n", s)
+		fmt.Fprintf(w, "  a := T%du1{false, [%d]byte{", s, s)
+		for i := 0; i < s; i++ {
+			fmt.Fprintf(w, "255,")
+		}
+		fmt.Fprintf(w, "}}\n")
+		fmt.Fprintf(w, "  zero%du1_ssa(&a)\n", s)
+		fmt.Fprintf(w, "  want := T%du1{false, [%d]byte{", s, s)
+		for i := 0; i < s; i++ {
+			fmt.Fprintf(w, "0,")
+		}
+		fmt.Fprintf(w, "}}\n")
+		fmt.Fprintf(w, "  if a != want {\n")
+		fmt.Fprintf(w, "    fmt.Printf(\"zero%du2 got=%%v, want %%v\\n\", a, want)\n", s)
+		fmt.Fprintf(w, "    failed=true\n")
+		fmt.Fprintf(w, "  }\n")
+		fmt.Fprintf(w, "  b := T%du2{15, [%d]byte{", s, s)
+		for i := 0; i < s; i++ {
+			fmt.Fprintf(w, "255,")
+		}
+		fmt.Fprintf(w, "}}\n")
+		fmt.Fprintf(w, "  zero%du2_ssa(&b)\n", s)
+		fmt.Fprintf(w, "  wantb := T%du2{15, [%d]byte{", s, s)
+		for i := 0; i < s; i++ {
+			fmt.Fprintf(w, "0,")
+		}
+		fmt.Fprintf(w, "}}\n")
+		fmt.Fprintf(w, "  if b != wantb {\n")
+		fmt.Fprintf(w, "    fmt.Printf(\"zero%du2 got=%%v, want %%v\\n\", b, wantb)\n", s)
+		fmt.Fprintf(w, "    failed=true\n")
+		fmt.Fprintf(w, "  }\n")
+		fmt.Fprintf(w, "}\n")
+	}
+
 	// boilerplate at end
 	fmt.Fprintf(w, "var failed bool\n")
 	fmt.Fprintf(w, "func main() {\n")
 	for _, s := range sizes {
 		fmt.Fprintf(w, "  testZero%d()\n", s)
+	}
+	for _, s := range usizes {
+		fmt.Fprintf(w, "  testZero%du()\n", s)
 	}
 	fmt.Fprintf(w, "  if failed {\n")
 	fmt.Fprintf(w, "    panic(\"failed\")\n")

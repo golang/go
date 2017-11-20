@@ -125,7 +125,17 @@ func (v *Map) String() string {
 	return b.String()
 }
 
-func (v *Map) Init() *Map { return v }
+// Init removes all keys from the map.
+func (v *Map) Init() *Map {
+	v.keysMu.Lock()
+	defer v.keysMu.Unlock()
+	v.keys = v.keys[:0]
+	v.m.Range(func(k, _ interface{}) bool {
+		v.m.Delete(k)
+		return true
+	})
+	return v
+}
 
 // updateKeys updates the sorted list of keys in v.keys.
 func (v *Map) addKey(key string) {
