@@ -4663,7 +4663,13 @@ func genssa(f *ssa.Func, pp *Progs) {
 	}
 
 	if logProgs {
+		filename := ""
 		for p := pp.Text; p != nil; p = p.Link {
+			if p.Pos.IsKnown() && p.InnermostFilename() != filename {
+				filename = p.InnermostFilename()
+				f.Logf("# %s\n", filename)
+			}
+
 			var s string
 			if v, ok := progToValue[p]; ok {
 				s = v.String()
@@ -4672,7 +4678,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 			} else {
 				s = "   " // most value and branch strings are 2-3 characters long
 			}
-			f.Logf("%s\t%s\n", s, p)
+			f.Logf(" %-6s\t%.5d (%s)\t%s\n", s, p.Pc, p.InnermostLineNumber(), p.InstructionString())
 		}
 		if f.HTMLWriter != nil {
 			// LineHist is defunct now - this code won't do
@@ -4686,9 +4692,9 @@ func genssa(f *ssa.Func, pp *Progs) {
 			filename := ""
 			for p := pp.Text; p != nil; p = p.Link {
 				// Don't spam every line with the file name, which is often huge.
-				// Only print changes.
-				if f := p.FileName(); f != filename {
-					filename = f
+				// Only print changes, and "unknown" is not a change.
+				if p.Pos.IsKnown() && p.InnermostFilename() != filename {
+					filename = p.InnermostFilename()
 					buf.WriteString("<dt class=\"ssa-prog-src\"></dt><dd class=\"ssa-prog\">")
 					buf.WriteString(html.EscapeString("# " + filename))
 					buf.WriteString("</dd>")
@@ -4702,7 +4708,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 				}
 				buf.WriteString("</dt>")
 				buf.WriteString("<dd class=\"ssa-prog\">")
-				buf.WriteString(fmt.Sprintf("%.5d <span class=\"line-number\">(%s)</span> %s", p.Pc, p.LineNumber(), html.EscapeString(p.InstructionString())))
+				buf.WriteString(fmt.Sprintf("%.5d <span class=\"line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumber(), html.EscapeString(p.InstructionString())))
 				buf.WriteString("</dd>")
 			}
 			buf.WriteString("</dl>")
