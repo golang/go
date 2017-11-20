@@ -193,3 +193,8 @@ var LongLine = newLongLine(
 type T2 int
 
 type T1 = T2
+
+const (
+	Duplicate = iota
+	duplicate
+)

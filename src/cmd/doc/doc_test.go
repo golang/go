@@ -445,6 +445,19 @@ var tests = []test{
 			`CaseMatch`,
 		},
 	},
+
+	// No dups with -u. Issue 21797.
+	{
+		"case matching on, no dups",
+		[]string{"-u", p, `duplicate`},
+		[]string{
+			`Duplicate`,
+			`duplicate`,
+		},
+		[]string{
+			"\\)\n+const", // This will appear if the const decl appears twice.
+		},
+	},
 }
 
 func TestDoc(t *testing.T) {
