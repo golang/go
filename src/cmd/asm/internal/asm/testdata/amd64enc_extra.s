@@ -233,5 +233,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPGATHERQQ Y0, (R13)(Y1*1), Y2          // c4c2fd91540d00
 	VPGATHERQQ Y0, 16(R13)(Y1*1), Y2        // c4c2fd91540d10
 	VPGATHERQQ Y0, 512(R13)(Y1*1), Y2       // c4c2fd91940d00020000
+	// Test low-8 register for /is4 "hr" operand.
+	VPBLENDVB X0, (BX), X1, X2              // c4e3714c1300
 	// End of tests.
 	RET

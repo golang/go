@@ -3964,7 +3964,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				hr, from, from3, to := unpackOps4(p)
 				asmbuf.asmvex(ctxt, from, from3, to, o.op[z], o.op[z+1])
 				asmbuf.asmand(ctxt, cursym, p, from, to)
-				asmbuf.Put1(byte(regrex[hr.Reg]+reg[hr.Reg]+1) << 4)
+				asmbuf.Put1(byte(regIndex(hr.Reg) << 4))
 
 			case Zr_m_xm:
 				asmbuf.mediaop(ctxt, o, op, int(yt.zoffset), z)
