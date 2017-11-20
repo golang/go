@@ -2241,11 +2241,12 @@ top:
 
 	// Poll network.
 	// This netpoll is only an optimization before we resort to stealing.
-	// We can safely skip it if there a thread blocked in netpoll already.
-	// If there is any kind of logical race with that blocked thread
-	// (e.g. it has already returned from netpoll, but does not set lastpoll yet),
-	// this thread will do blocking netpoll below anyway.
-	if netpollinited() && sched.lastpoll != 0 {
+	// We can safely skip it if there are no waiters or a thread is blocked
+	// in netpoll already. If there is any kind of logical race with that
+	// blocked thread (e.g. it has already returned from netpoll, but does
+	// not set lastpoll yet), this thread will do blocking netpoll below
+	// anyway.
+	if netpollinited() && atomic.Load(&netpollWaiters) > 0 && atomic.Load64(&sched.lastpoll) != 0 {
 		if gp := netpoll(false); gp != nil { // non-blocking
 			// netpoll returns list of goroutines linked by schedlink.
 			injectglist(gp.schedlink.ptr())
