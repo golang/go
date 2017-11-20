@@ -594,6 +594,11 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 	// Constants and variables behave the same.
 	values := pkg.findValues(symbol, pkg.doc.Consts)
 	values = append(values, pkg.findValues(symbol, pkg.doc.Vars)...)
+	// A declaration like
+	//	const ( c = 1; C = 2 )
+	// could be printed twice if the -u flag is set, as it matches twice.
+	// So we remember which declarations we've printed to avoid duplication.
+	printed := make(map[*ast.GenDecl]bool)
 	for _, value := range values {
 		// Print each spec only if there is at least one exported symbol in it.
 		// (See issue 11008.)
@@ -628,7 +633,7 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 				}
 			}
 		}
-		if len(specs) == 0 {
+		if len(specs) == 0 || printed[value.Decl] {
 			continue
 		}
 		value.Decl.Specs = specs
@@ -636,6 +641,7 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 			pkg.packageClause(true)
 		}
 		pkg.emit(value.Doc, value.Decl)
+		printed[value.Decl] = true
 		found = true
 	}
 	// Types.
