@@ -44,7 +44,7 @@ func AbsFile(dir, file, pathPrefix string) string {
 		abs = "??"
 	}
 
-	return filepath.Clean(abs)
+	return abs
 }
 
 // Does s have t as a path prefix?

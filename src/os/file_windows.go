@@ -54,7 +54,7 @@ func newFile(h syscall.Handle, name string, kind string) *File {
 
 	// Ignore initialization errors.
 	// Assume any problems will show up in later I/O.
-	f.pfd.Init(kind)
+	f.pfd.Init(kind, false)
 
 	return f
 }

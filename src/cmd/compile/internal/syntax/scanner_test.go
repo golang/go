@@ -7,6 +7,7 @@ package syntax
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -365,5 +366,17 @@ func TestScanErrors(t *testing.T) {
 		if nerrors == 0 {
 			t.Errorf("%q: got no error; want %q", test.src, test.msg)
 		}
+	}
+}
+
+func TestIssue21938(t *testing.T) {
+	s := "/*" + strings.Repeat(" ", 4089) + "*/ .5"
+
+	var got scanner
+	got.init(strings.NewReader(s), nil, nil)
+	got.next()
+
+	if got.tok != _Literal || got.lit != ".5" {
+		t.Errorf("got %s %q; want %s %q", got.tok, got.lit, _Literal, ".5")
 	}
 }

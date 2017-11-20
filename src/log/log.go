@@ -147,11 +147,7 @@ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 // provided for generality, although at the moment on all pre-defined
 // paths it will be 2.
 func (l *Logger) Output(calldepth int, s string) error {
-	// Get time early if we need it.
-	var now time.Time
-	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
-		now = time.Now()
-	}
+	now := time.Now() // get this early.
 	var file string
 	var line int
 	l.mu.Lock()

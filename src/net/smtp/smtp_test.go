@@ -62,29 +62,41 @@ testLoop:
 }
 
 func TestAuthPlain(t *testing.T) {
-	auth := PlainAuth("foo", "bar", "baz", "servername")
 
 	tests := []struct {
-		server *ServerInfo
-		err    string
+		authName string
+		server   *ServerInfo
+		err      string
 	}{
 		{
-			server: &ServerInfo{Name: "servername", TLS: true},
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", TLS: true},
 		},
 		{
-			// Okay; explicitly advertised by server.
-			server: &ServerInfo{Name: "servername", Auth: []string{"PLAIN"}},
+			// OK to use PlainAuth on localhost without TLS
+			authName: "localhost",
+			server:   &ServerInfo{Name: "localhost", TLS: false},
 		},
 		{
-			server: &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
-			err:    "unencrypted connection",
+			// NOT OK on non-localhost, even if server says PLAIN is OK.
+			// (We don't know that the server is the real server.)
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", Auth: []string{"PLAIN"}},
+			err:      "unencrypted connection",
 		},
 		{
-			server: &ServerInfo{Name: "attacker", TLS: true},
-			err:    "wrong host name",
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
+			err:      "unencrypted connection",
+		},
+		{
+			authName: "servername",
+			server:   &ServerInfo{Name: "attacker", TLS: true},
+			err:      "wrong host name",
 		},
 	}
 	for i, tt := range tests {
+		auth := PlainAuth("foo", "bar", "baz", tt.authName)
 		_, _, err := auth.Start(tt.server)
 		got := ""
 		if err != nil {
@@ -351,6 +363,53 @@ var newClient2Client = `EHLO localhost
 HELO localhost
 QUIT
 `
+
+func TestNewClientWithTLS(t *testing.T) {
+	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
+	if err != nil {
+		t.Fatalf("loadcert: %v", err)
+	}
+
+	config := tls.Config{Certificates: []tls.Certificate{cert}}
+
+	ln, err := tls.Listen("tcp", "127.0.0.1:0", &config)
+	if err != nil {
+		ln, err = tls.Listen("tcp", "[::1]:0", &config)
+		if err != nil {
+			t.Fatalf("server: listen: %s", err)
+		}
+	}
+
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			t.Fatalf("server: accept: %s", err)
+			return
+		}
+		defer conn.Close()
+
+		_, err = conn.Write([]byte("220 SIGNS\r\n"))
+		if err != nil {
+			t.Fatalf("server: write: %s", err)
+			return
+		}
+	}()
+
+	config.InsecureSkipVerify = true
+	conn, err := tls.Dial("tcp", ln.Addr().String(), &config)
+	if err != nil {
+		t.Fatalf("client: dial: %s", err)
+	}
+	defer conn.Close()
+
+	client, err := NewClient(conn, ln.Addr().String())
+	if err != nil {
+		t.Fatalf("smtp: newclient: %s", err)
+	}
+	if !client.tls {
+		t.Errorf("client.tls Got: %t Expected: %t", client.tls, true)
+	}
+}
 
 func TestHello(t *testing.T) {
 
