@@ -90,6 +90,7 @@ const (
 	stdLongMonth             = iota + stdNeedDate  // "January"
 	stdMonth                                       // "Jan"
 	stdNumMonth                                    // "1"
+	stdUnderMonth                                  // "_1"
 	stdZeroMonth                                   // "01"
 	stdLongWeekDay                                 // "Monday"
 	stdWeekDay                                     // "Mon"
@@ -98,10 +99,13 @@ const (
 	stdZeroDay                                     // "02"
 	stdHour                  = iota + stdNeedClock // "15"
 	stdHour12                                      // "3"
+	stdUnderHour12                                 // "_3"
 	stdZeroHour12                                  // "03"
 	stdMinute                                      // "4"
+	stdUnderMinute                                 // "_4"
 	stdZeroMinute                                  // "04"
 	stdSecond                                      // "5"
+	stdUnderSecond                                 // "_5"
 	stdZeroSecond                                  // "05"
 	stdLongYear              = iota + stdNeedDate  // "2006"
 	stdYear                                        // "06"
@@ -187,13 +191,24 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
 			}
 			return layout[0:i], stdDay, layout[i+1:]
 
-		case '_': // _2, _2006
-			if len(layout) >= i+2 && layout[i+1] == '2' {
-				//_2006 is really a literal _, followed by stdLongYear
-				if len(layout) >= i+5 && layout[i+1:i+5] == "2006" {
-					return layout[0 : i+1], stdLongYear, layout[i+5:]
+		case '_': // _1, _2, _2006, _3, _4, _5
+			if len(layout) >= i+2 {
+				switch layout[i+1] {
+				case '1':
+					return layout[0:i], stdUnderMonth, layout[i+2:]
+				case '2':
+					//_2006 is really a literal _, followed by stdLongYear
+					if len(layout) >= i+5 && layout[i+1:i+5] == "2006" {
+						return layout[0 : i+1], stdLongYear, layout[i+5:]
+					}
+					return layout[0:i], stdUnderDay, layout[i+2:]
+				case '3':
+					return layout[0:i], stdUnderHour12, layout[i+2:]
+				case '4':
+					return layout[0:i], stdUnderMinute, layout[i+2:]
+				case '5':
+					return layout[0:i], stdUnderSecond, layout[i+2:]
 				}
-				return layout[0:i], stdUnderDay, layout[i+2:]
 			}
 
 		case '3':
@@ -544,6 +559,11 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 			b = append(b, m...)
 		case stdNumMonth:
 			b = appendInt(b, int(month), 0)
+		case stdUnderMonth:
+			if month < 10 {
+				b = append(b, ' ')
+			}
+			b = appendInt(b, int(month), 0)
 		case stdZeroMonth:
 			b = appendInt(b, int(month), 2)
 		case stdWeekDay:
@@ -569,6 +589,16 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 				hr = 12
 			}
 			b = appendInt(b, hr, 0)
+		case stdUnderHour12:
+			// Noon is 12PM, midnight is 12AM.
+			hr := hour % 12
+			if hr == 0 {
+				hr = 12
+			}
+			if hr < 10 {
+				b = append(b, ' ')
+			}
+			b = appendInt(b, hr, 0)
 		case stdZeroHour12:
 			// Noon is 12PM, midnight is 12AM.
 			hr := hour % 12
@@ -578,9 +608,19 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 			b = appendInt(b, hr, 2)
 		case stdMinute:
 			b = appendInt(b, min, 0)
+		case stdUnderMinute:
+			if min < 10 {
+				b = append(b, ' ')
+			}
+			b = appendInt(b, min, 0)
 		case stdZeroMinute:
 			b = appendInt(b, min, 2)
 		case stdSecond:
+			b = appendInt(b, sec, 0)
+		case stdUnderSecond:
+			if sec < 10 {
+				b = append(b, ' ')
+			}
 			b = appendInt(b, sec, 0)
 		case stdZeroSecond:
 			b = appendInt(b, sec, 2)
@@ -846,7 +886,10 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		case stdLongMonth:
 			month, value, err = lookup(longMonthNames, value)
 			month++
-		case stdNumMonth, stdZeroMonth:
+		case stdNumMonth, stdUnderMonth, stdZeroMonth:
+			if std == stdUnderMonth && len(value) > 0 && value[0] == ' ' {
+				value = value[1:]
+			}
 			month, value, err = getnum(value, std == stdZeroMonth)
 			if month <= 0 || 12 < month {
 				rangeErrString = "month"
@@ -870,17 +913,26 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			if hour < 0 || 24 <= hour {
 				rangeErrString = "hour"
 			}
-		case stdHour12, stdZeroHour12:
+		case stdHour12, stdUnderHour12, stdZeroHour12:
+			if std == stdUnderHour12 && len(value) > 0 && value[0] == ' ' {
+				value = value[1:]
+			}
 			hour, value, err = getnum(value, std == stdZeroHour12)
 			if hour < 0 || 12 < hour {
 				rangeErrString = "hour"
 			}
-		case stdMinute, stdZeroMinute:
+		case stdMinute, stdUnderMinute, stdZeroMinute:
+			if std == stdUnderMinute && len(value) > 0 && value[0] == ' ' {
+				value = value[1:]
+			}
 			min, value, err = getnum(value, std == stdZeroMinute)
 			if min < 0 || 60 <= min {
 				rangeErrString = "minute"
 			}
-		case stdSecond, stdZeroSecond:
+		case stdSecond, stdUnderSecond, stdZeroSecond:
+			if std == stdUnderSecond && len(value) > 0 && value[0] == ' ' {
+				value = value[1:]
+			}
 			sec, value, err = getnum(value, std == stdZeroSecond)
 			if sec < 0 || 60 <= sec {
 				rangeErrString = "second"
