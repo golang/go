@@ -23,6 +23,9 @@ import "cmd/internal/src"
 //  8     h()
 //  9     h()
 // 10 }
+// 11 func h() {
+// 12     println("H")
+// 13 }
 //
 // Assuming the global tree starts empty, inlining will produce the
 // following tree:
@@ -66,7 +69,7 @@ func (tree *InlTree) Add(parent int, pos src.XPos, func_ *LSym) int {
 // InlTree, main() contains inlined AST nodes from h(), but the
 // outermost position for those nodes is line 2.
 func (ctxt *Link) OutermostPos(xpos src.XPos) src.Pos {
-	pos := ctxt.PosTable.Pos(xpos)
+	pos := ctxt.InnermostPos(xpos)
 
 	outerxpos := xpos
 	for ix := pos.Base().InliningIndex(); ix >= 0; {
@@ -75,6 +78,17 @@ func (ctxt *Link) OutermostPos(xpos src.XPos) src.Pos {
 		outerxpos = call.Pos
 	}
 	return ctxt.PosTable.Pos(outerxpos)
+}
+
+// InnermostPos returns the innermost position corresponding to xpos,
+// that is, the code that is inlined and that inlines nothing else.
+// In the example for InlTree above, the code for println within h
+// would have an innermost position with line number 12, whether
+// h was not inlined, inlined into g, g-then-f, or g-then-f-then-main.
+// This corresponds to what someone debugging main, f, g, or h might
+// expect to see while single-stepping.
+func (ctxt *Link) InnermostPos(xpos src.XPos) src.Pos {
+	return ctxt.PosTable.Pos(xpos)
 }
 
 func dumpInlTree(ctxt *Link, tree InlTree) {

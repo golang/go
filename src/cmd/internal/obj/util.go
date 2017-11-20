@@ -18,26 +18,25 @@ func (p *Prog) Line() string {
 	return p.Ctxt.OutermostPos(p.Pos).Format(false, true)
 }
 
-// LineNumber returns a string containing the line number for p's position
-func (p *Prog) LineNumber() string {
-	pos := p.Ctxt.OutermostPos(p.Pos)
+// InnermostLineNumber returns a string containing the line number for the
+// innermost inlined function (if any inlining) at p's position
+func (p *Prog) InnermostLineNumber() string {
+	pos := p.Ctxt.InnermostPos(p.Pos)
 	if !pos.IsKnown() {
 		return "?"
 	}
 	return fmt.Sprintf("%d", pos.Line())
 }
 
-// FileName returns a string containing the filename for p's position
-func (p *Prog) FileName() string {
-	// TODO LineNumber and FileName cases don't handle full generality of positions,
-	// but because these are currently used only for GOSSAFUNC debugging output, that
-	// is okay.  The intent is that "LineNumber()" yields the rapidly varying part,
-	// while "FileName()" yields the longer and slightly more constant material.
-	pos := p.Ctxt.OutermostPos(p.Pos)
+// InnermostFilename returns a string containing the innermost
+// (in inlining) filename at p's position
+func (p *Prog) InnermostFilename() string {
+	// TODO For now, this is only used for debugging output, and if we need more/better information, it might change.
+	// An example of what we might want to see is the full stack of positions for inlined code, so we get some visibility into what is recorded there.
+	pos := p.Ctxt.InnermostPos(p.Pos)
 	if !pos.IsKnown() {
 		return "<unknown file name>"
 	}
-
 	return pos.Filename()
 }
 
