@@ -37,6 +37,18 @@ func (check *Checker) declare(scope *Scope, id *ast.Ident, obj Object, pos token
 	}
 }
 
+// pathString returns a string of the form a->b-> ... ->g for a path [a, b, ... g].
+func pathString(path []*TypeName) string {
+	var s string
+	for i, p := range path {
+		if i > 0 {
+			s += "->"
+		}
+		s += p.Name()
+	}
+	return s
+}
+
 // objDecl type-checks the declaration of obj in its respective (file) context.
 // See check.typ for the details on def and path.
 func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
@@ -45,7 +57,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 	}
 
 	if trace {
-		check.trace(obj.Pos(), "-- declaring %s", obj.Name())
+		check.trace(obj.Pos(), "-- declaring %s (path = %s)", obj.Name(), pathString(path))
 		check.indent++
 		defer func() {
 			check.indent--

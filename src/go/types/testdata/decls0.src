@@ -159,13 +159,13 @@ type (
 	I8 /* ERROR "illegal cycle" */ interface {
 		I8
 	}
-	I9 interface {
+	I9 /* ERROR "illegal cycle" */ interface {
 		I10
 	}
 	I10 interface {
 		I11
 	}
-	I11 /* ERROR "illegal cycle" */ interface {
+	I11 interface {
 		I9
 	}
 

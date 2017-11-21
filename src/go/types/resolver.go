@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -453,8 +454,17 @@ func (check *Checker) collectObjects() {
 	}
 }
 
-// packageObjects typechecks all package objects in objList, but not function bodies.
-func (check *Checker) packageObjects(objList []Object) {
+// packageObjects typechecks all package objects, but not function bodies.
+func (check *Checker) packageObjects() {
+	// process package objects in source order for reproducible results
+	objList := make([]Object, len(check.objMap))
+	i := 0
+	for obj := range check.objMap {
+		objList[i] = obj
+		i++
+	}
+	sort.Sort(inSourceOrder(objList))
+
 	// add new methods to already type-checked types (from a prior Checker.Files call)
 	for _, obj := range objList {
 		if obj, _ := obj.(*TypeName); obj != nil && obj.typ != nil {
@@ -475,6 +485,13 @@ func (check *Checker) packageObjects(objList []Object) {
 	// methods. We can now safely discard this map.
 	check.methods = nil
 }
+
+// inSourceOrder implements the sort.Sort interface.
+type inSourceOrder []Object
+
+func (a inSourceOrder) Len() int           { return len(a) }
+func (a inSourceOrder) Less(i, j int) bool { return a[i].order() < a[j].order() }
+func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 // functionBodies typechecks all function bodies.
 func (check *Checker) functionBodies() {
