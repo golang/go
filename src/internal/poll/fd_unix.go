@@ -8,6 +8,7 @@ package poll
 
 import (
 	"io"
+	"runtime"
 	"syscall"
 )
 
@@ -134,6 +135,12 @@ func (fd *FD) Read(p []byte) (int, error) {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
 					continue
 				}
+			}
+
+			// On MacOS we can see EINTR here if the user
+			// pressed ^Z.  See issue #22838.
+			if runtime.GOOS == "darwin" && err == syscall.EINTR {
+				continue
 			}
 		}
 		err = fd.eofError(n, err)
