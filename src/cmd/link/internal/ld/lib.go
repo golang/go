@@ -1474,13 +1474,29 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		}
 	}
 
-	/* skip over exports and other info -- ends with \n!\n */
+	// Skip over exports and other info -- ends with \n!\n.
+	//
+	// Note: It's possible for "\n!\n" to appear within the binary
+	// package export data format. To avoid truncating the package
+	// definition prematurely (issue 21703), we keep keep track of
+	// how many "$$" delimiters we've seen.
+
 	import0 := f.Offset()
 
 	c1 = '\n' // the last line ended in \n
 	c2 = bgetc(f)
 	c3 = bgetc(f)
-	for c1 != '\n' || c2 != '!' || c3 != '\n' {
+	markers := 0
+	for {
+		if c1 == '\n' {
+			if markers%2 == 0 && c2 == '!' && c3 == '\n' {
+				break
+			}
+			if c2 == '$' && c3 == '$' {
+				markers++
+			}
+		}
+
 		c1 = c2
 		c2 = c3
 		c3 = bgetc(f)
