@@ -230,6 +230,24 @@ func setGCPercent(in int32) (out int32) {
 	// Update pacing in response to gcpercent change.
 	gcSetTriggerRatio(memstats.triggerRatio)
 	unlock(&mheap_.lock)
+
+	// If we just disabled GC, wait for any concurrent GC to
+	// finish so we always return with no GC running.
+	if in < 0 {
+		// Disable phase transitions.
+		lock(&work.sweepWaiters.lock)
+		if gcphase == _GCmark {
+			// GC is active. Wait until we reach sweeping.
+			gp := getg()
+			gp.schedlink = work.sweepWaiters.head
+			work.sweepWaiters.head.set(gp)
+			goparkunlock(&work.sweepWaiters.lock, "wait for GC cycle", traceEvGoBlock, 1)
+		} else {
+			// GC isn't active.
+			unlock(&work.sweepWaiters.lock)
+		}
+	}
+
 	return out
 }
 
