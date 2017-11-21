@@ -178,7 +178,7 @@ exported from the package.
 
 <p>
 For example, the following example will serve the pprof.Profile
-handler on :7777 at /pprof/profile:
+handler on :7777 at /custom_debug_path/profile:
 </p>
 
 <p>
@@ -389,7 +389,7 @@ allocated objects as well as goroutines, finalizers, and more.</li>
 <li><code><a href="/pkg/runtime#NumGoroutine">runtime.NumGoroutine</a></code>
 returns the number of current goroutines.
 The value can be monitored to see whether enough goroutines are
-utilized or to detect the goroutine leaks.</li>
+utilized, or to detect goroutine leaks.</li>
 </ul>
 
 <h3 id="execution-tracer">Execution tracer</h3>
@@ -433,7 +433,7 @@ environmental variable is set accordingly.</p>
 
 <ul>
 <li>GODEBUG=gctrace=1 prints garbage collector events at
-the event of collection, summarizing the amount of memory collected
+each collection, summarizing the amount of memory collected
 and the length of the pause.</li>
-<li>GODEBUG=schedtrace=X prints scheduling events at every X milliseconds.</li>
+<li>GODEBUG=schedtrace=X prints scheduling events every X milliseconds.</li>
 </ul>
