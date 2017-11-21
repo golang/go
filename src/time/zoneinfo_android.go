@@ -47,11 +47,11 @@ func androidLoadTzinfoFromTzdata(file, name string) ([]byte, error) {
 	if err := preadn(fd, buf, 0); err != nil {
 		return nil, errors.New("corrupt tzdata file " + file)
 	}
-	d := data{buf, false}
+	d := dataIO{buf, false}
 	if magic := d.read(6); string(magic) != "tzdata" {
 		return nil, errors.New("corrupt tzdata file " + file)
 	}
-	d = data{buf[12:], false}
+	d = dataIO{buf[12:], false}
 	indexOff, _ := d.big4()
 	dataOff, _ := d.big4()
 	indexSize := dataOff - indexOff
@@ -66,7 +66,7 @@ func androidLoadTzinfoFromTzdata(file, name string) ([]byte, error) {
 		if string(entry[:len(name)]) != name {
 			continue
 		}
-		d := data{entry[namesize:], false}
+		d := dataIO{entry[namesize:], false}
 		off, _ := d.big4()
 		size, _ := d.big4()
 		buf := make([]byte, size)
