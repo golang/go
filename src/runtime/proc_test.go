@@ -750,16 +750,18 @@ func BenchmarkWakeupParallelSpinning(b *testing.B) {
 	})
 }
 
+// sysNanosleep is defined by OS-specific files (such as runtime_linux_test.go)
+// to sleep for the given duration. If nil, dependent tests are skipped.
+// The implementation should invoke a blocking system call and not
+// call time.Sleep, which would deschedule the goroutine.
+var sysNanosleep func(d time.Duration)
+
 func BenchmarkWakeupParallelSyscall(b *testing.B) {
+	if sysNanosleep == nil {
+		b.Skipf("skipping on %v; sysNanosleep not defined", runtime.GOOS)
+	}
 	benchmarkWakeupParallel(b, func(d time.Duration) {
-		// Invoke a blocking syscall directly; calling time.Sleep()
-		// would deschedule the goroutine instead.
-		ts := syscall.NsecToTimespec(d.Nanoseconds())
-		for {
-			if err := syscall.Nanosleep(&ts, &ts); err != syscall.EINTR {
-				return
-			}
-		}
+		sysNanosleep(d)
 	})
 }
 
