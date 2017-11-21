@@ -118,7 +118,7 @@ func TestLocationNames(t *testing.T) {
 	}
 }
 
-func TestLoadLocationFromTzinfo(t *testing.T) {
+func TestLoadLocationFromTZData(t *testing.T) {
 	time.ForceZipFileForTesting(true)
 	defer time.ForceZipFileForTesting(false)
 
