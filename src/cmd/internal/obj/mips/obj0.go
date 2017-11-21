@@ -495,10 +495,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.From.Offset = 0
 			p.From.Reg = REGSP
 			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REG_R4
-			if retSym != nil { // retjmp from non-leaf, need to restore LINK register
-				p.To.Reg = REGLINK
-			}
+			p.To.Reg = REGLINK
 
 			if autosize != 0 {
 				q = c.newprog()
@@ -524,7 +521,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			} else {
 				q1.To.Type = obj.TYPE_MEM
 				q1.To.Offset = 0
-				q1.To.Reg = REG_R4
+				q1.To.Reg = REGLINK
 			}
 			q1.Mark |= BRANCH
 			q1.Spadj = +autosize
