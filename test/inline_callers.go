@@ -1,4 +1,4 @@
-// run -gcflags=all=-l=4
+// run -gcflags=-l=4
 
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -56,8 +56,8 @@ func testCallersFrames(skp int) (frames []string) {
 }
 
 var expectedFrames [][]string = [][]string{
-	0: {"main.testCallers", "main.main"},
-	1: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
+	0: {"runtime.Callers", "main.testCallers", "main.main"},
+	1: {"main.testCallers", "main.main"},
 	2: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
 	3: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
 	4: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
@@ -83,13 +83,13 @@ func main() {
 		frames := testCallers(i)
 		expected := expectedFrames[i]
 		if !same(frames, expected) {
-			fmt.Printf("testCallers(%d):\n got %v\n want %v", i, frames, expected)
+			fmt.Printf("testCallers(%d):\n got %v\n want %v\n", i, frames, expected)
 		}
 
 		frames = testCallersFrames(i)
 		expected = allFrames[i:]
 		if !same(frames, expected) {
-			fmt.Printf("testCallersFrames(%d):\n got %v\n want %v", i, frames, expected)
+			fmt.Printf("testCallersFrames(%d):\n got %v\n want %v\n", i, frames, expected)
 		}
 	}
 }
