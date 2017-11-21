@@ -4,7 +4,7 @@
 
 package net
 
-// parsePort parses service as a decimal interger and returns the
+// parsePort parses service as a decimal integer and returns the
 // corresponding value as port. It is the caller's responsibility to
 // parse service as a non-decimal integer when needsLookup is true.
 //
