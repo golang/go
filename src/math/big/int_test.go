@@ -1625,6 +1625,26 @@ func TestSqrt(t *testing.T) {
 	}
 }
 
+// We can't test this together with the other Exp tests above because
+// it requires a different receiver setup.
+func TestIssue22830(t *testing.T) {
+	one := new(Int).SetInt64(1)
+	base, _ := new(Int).SetString("84555555300000000000", 10)
+	mod, _ := new(Int).SetString("66666670001111111111", 10)
+	want, _ := new(Int).SetString("17888885298888888889", 10)
+
+	var tests = []int64{
+		0, 1, -1,
+	}
+
+	for _, n := range tests {
+		m := NewInt(n)
+		if got := m.Exp(base, one, mod); got.Cmp(want) != 0 {
+			t.Errorf("(%v).Exp(%s, 1, %s) = %s, want %s", n, base, mod, got, want)
+		}
+	}
+}
+
 func BenchmarkSqrt(b *testing.B) {
 	n, _ := new(Int).SetString("1"+strings.Repeat("0", 1001), 10)
 	b.ResetTimer()
