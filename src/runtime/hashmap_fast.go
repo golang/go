@@ -507,6 +507,94 @@ done:
 	return val
 }
 
+func mapassign_fast32ptr(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+	if h == nil {
+		panic(plainError("assignment to entry in nil map"))
+	}
+	if raceenabled {
+		callerpc := getcallerpc(unsafe.Pointer(&t))
+		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_fast32))
+	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map writes")
+	}
+	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+
+	// Set hashWriting after calling alg.hash for consistency with mapassign.
+	h.flags |= hashWriting
+
+	if h.buckets == nil {
+		h.buckets = newarray(t.bucket, 1)
+	}
+
+again:
+	bucket := hash & (uintptr(1)<<h.B - 1)
+	if h.growing() {
+		growWork(t, h, bucket)
+	}
+	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	top := uint8(hash >> (sys.PtrSize*8 - 8))
+	if top < minTopHash {
+		top += minTopHash
+	}
+
+	var inserti *uint8
+	var insertk unsafe.Pointer
+	var val unsafe.Pointer
+	for {
+		for i := uintptr(0); i < bucketCnt; i++ {
+			if b.tophash[i] != top {
+				if b.tophash[i] == empty && inserti == nil {
+					inserti = &b.tophash[i]
+					insertk = add(unsafe.Pointer(b), dataOffset+i*4)
+					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
+				}
+				continue
+			}
+			k := *((*unsafe.Pointer)(add(unsafe.Pointer(b), dataOffset+i*4)))
+			if k != key {
+				continue
+			}
+			val = add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
+			goto done
+		}
+		ovf := b.overflow(t)
+		if ovf == nil {
+			break
+		}
+		b = ovf
+	}
+
+	// Did not find mapping for key. Allocate new cell & add entry.
+
+	// If we hit the max load factor or we have too many overflow buckets,
+	// and we're not already in the middle of growing, start growing.
+	if !h.growing() && (overLoadFactor(int64(h.count), h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+		hashGrow(t, h)
+		goto again // Growing the table invalidates everything, so try again
+	}
+
+	if inserti == nil {
+		// all current buckets are full, allocate a new one.
+		newb := h.newoverflow(t, b)
+		inserti = &newb.tophash[0]
+		insertk = add(unsafe.Pointer(newb), dataOffset)
+		val = add(insertk, bucketCnt*4)
+	}
+
+	// store new key/value at insert position
+	typedmemmove(t.key, insertk, unsafe.Pointer(&key))
+	*inserti = top
+	h.count++
+
+done:
+	if h.flags&hashWriting == 0 {
+		throw("concurrent map writes")
+	}
+	h.flags &^= hashWriting
+	return val
+}
+
 func mapassign_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 	if h == nil {
 		panic(plainError("assignment to entry in nil map"))
@@ -552,6 +640,94 @@ again:
 				continue
 			}
 			k := *((*uint64)(add(unsafe.Pointer(b), dataOffset+i*8)))
+			if k != key {
+				continue
+			}
+			val = add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
+			goto done
+		}
+		ovf := b.overflow(t)
+		if ovf == nil {
+			break
+		}
+		b = ovf
+	}
+
+	// Did not find mapping for key. Allocate new cell & add entry.
+
+	// If we hit the max load factor or we have too many overflow buckets,
+	// and we're not already in the middle of growing, start growing.
+	if !h.growing() && (overLoadFactor(int64(h.count), h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+		hashGrow(t, h)
+		goto again // Growing the table invalidates everything, so try again
+	}
+
+	if inserti == nil {
+		// all current buckets are full, allocate a new one.
+		newb := h.newoverflow(t, b)
+		inserti = &newb.tophash[0]
+		insertk = add(unsafe.Pointer(newb), dataOffset)
+		val = add(insertk, bucketCnt*8)
+	}
+
+	// store new key/value at insert position
+	typedmemmove(t.key, insertk, unsafe.Pointer(&key))
+	*inserti = top
+	h.count++
+
+done:
+	if h.flags&hashWriting == 0 {
+		throw("concurrent map writes")
+	}
+	h.flags &^= hashWriting
+	return val
+}
+
+func mapassign_fast64ptr(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+	if h == nil {
+		panic(plainError("assignment to entry in nil map"))
+	}
+	if raceenabled {
+		callerpc := getcallerpc(unsafe.Pointer(&t))
+		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_fast64))
+	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map writes")
+	}
+	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+
+	// Set hashWriting after calling alg.hash for consistency with mapassign.
+	h.flags |= hashWriting
+
+	if h.buckets == nil {
+		h.buckets = newarray(t.bucket, 1)
+	}
+
+again:
+	bucket := hash & (uintptr(1)<<h.B - 1)
+	if h.growing() {
+		growWork(t, h, bucket)
+	}
+	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	top := uint8(hash >> (sys.PtrSize*8 - 8))
+	if top < minTopHash {
+		top += minTopHash
+	}
+
+	var inserti *uint8
+	var insertk unsafe.Pointer
+	var val unsafe.Pointer
+	for {
+		for i := uintptr(0); i < bucketCnt; i++ {
+			if b.tophash[i] != top {
+				if b.tophash[i] == empty && inserti == nil {
+					inserti = &b.tophash[i]
+					insertk = add(unsafe.Pointer(b), dataOffset+i*8)
+					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
+				}
+				continue
+			}
+			k := *((*unsafe.Pointer)(add(unsafe.Pointer(b), dataOffset+i*8)))
 			if k != key {
 				continue
 			}
