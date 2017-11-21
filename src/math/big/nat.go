@@ -621,8 +621,8 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	// determine if z can be reused
 	// TODO(gri) should find a better solution - this if statement
 	//           is very costly (see e.g. time pidigits -s -n 10000)
-	if alias(z, uIn) || alias(z, v) {
-		z = nil // z is an alias for uIn or v - cannot reuse
+	if alias(z, u) || alias(z, uIn) || alias(z, v) {
+		z = nil // z is an alias for u or uIn or v - cannot reuse
 	}
 	q = z.make(m + 1)
 
