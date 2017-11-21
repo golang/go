@@ -1,6 +1,13 @@
 package main
 
-import "testing"
+import (
+	"internal/testenv"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+)
 
 var AuthorPaidByTheColumnInch struct {
 	fog int `
@@ -27,4 +34,39 @@ func TestLargeSymName(t *testing.T) {
 	// type. This tests that the linker can read symbol names larger than
 	// the bufio buffer. Issue #15104.
 	_ = AuthorPaidByTheColumnInch
+}
+
+func TestIssue21703(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	const source = `
+package main
+const X = "\n!\n"
+func main() {}
+`
+
+	tmpdir, err := ioutil.TempDir("", "issue21703")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v\n", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	err = ioutil.WriteFile(filepath.Join(tmpdir, "main.go"), []byte(source), 0666)
+	if err != nil {
+		t.Fatalf("failed to write main.go: %v\n", err)
+	}
+
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "main.go")
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to compile main.go: %v, output: %s\n", err, out)
+	}
+
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "main.o")
+	cmd.Dir = tmpdir
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to link main.o: %v, output: %s\n", err, out)
+	}
 }
