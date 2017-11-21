@@ -85,11 +85,12 @@ type Checker struct {
 	files            []*ast.File                       // package files
 	unusedDotImports map[*Scope]map[*Package]token.Pos // positions of unused dot-imported packages for each file scope
 
-	firstErr error                 // first error encountered
-	methods  map[string][]*Func    // maps type names to associated methods
-	untyped  map[ast.Expr]exprInfo // map of expressions without final type
-	funcs    []funcInfo            // list of functions to type-check
-	delayed  []func()              // delayed checks requiring fully setup types
+	firstErr   error                    // first error encountered
+	methods    map[string][]*Func       // maps package scope type names to associated non-blank, non-interface methods
+	interfaces map[*TypeName]*ifaceInfo // maps interface type names to corresponding interface infos
+	untyped    map[ast.Expr]exprInfo    // map of expressions without final type
+	funcs      []funcInfo               // list of functions to type-check
+	delayed    []func()                 // delayed checks requiring fully setup types
 
 	// context within which the current object is type-checked
 	// (valid only for the duration of type-checking a specific object)
@@ -186,6 +187,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 
 	check.firstErr = nil
 	check.methods = nil
+	check.interfaces = nil
 	check.untyped = nil
 	check.funcs = nil
 	check.delayed = nil
@@ -236,19 +238,21 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 
 	check.collectObjects()
 
-	check.packageObjects(check.resolveOrder())
+	check.packageObjects()
 
 	check.functionBodies()
 
 	check.initOrder()
 
-	if !check.conf.DisableUnusedImportCheck {
-		check.unusedImports()
+	// perform delayed checks
+	// (cannot use range - delayed checks may add more delayed checks;
+	// e.g., when type-checking delayed embedded interfaces)
+	for i := 0; i < len(check.delayed); i++ {
+		check.delayed[i]()
 	}
 
-	// perform delayed checks
-	for _, f := range check.delayed {
-		f()
+	if !check.conf.DisableUnusedImportCheck {
+		check.unusedImports()
 	}
 
 	check.recordUntyped()

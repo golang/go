@@ -61,6 +61,7 @@ var tests = [][]string{
 	{"testdata/cycles2.src"},
 	{"testdata/cycles3.src"},
 	{"testdata/cycles4.src"},
+	{"testdata/cycles5.src"},
 	{"testdata/init0.src"},
 	{"testdata/init1.src"},
 	{"testdata/init2.src"},
