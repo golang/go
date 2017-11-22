@@ -614,7 +614,7 @@ const (
 	flagsRE    = `[+\-#]*`
 	indexOptRE = `(\[[0-9]+\])?`
 	numOptRE   = `([0-9]+|` + indexOptRE + `\*)?`
-	verbRE     = `[bcdefgopqstxEFGUX]`
+	verbRE     = `[bcdefgopqstvxEFGUX]`
 )
 
 // checkPrint checks a call to an unformatted print routine such as Println.
