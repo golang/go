@@ -262,7 +262,7 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 	}
 	sort.Sort(byUniqueMethodName(methods))
 
-	if embeddeds == nil {
+	if embeddeds != nil {
 		sort.Sort(byUniqueTypeName(embeddeds))
 	}
 
