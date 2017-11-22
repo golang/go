@@ -625,6 +625,8 @@ func UtimesNano(path string, ts []Timespec) error {
 
 func Link(path, link string) error {
 	fsinit()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 	ip, _, err := fs.namei(path, false)
 	if err != nil {
 		return err
@@ -646,6 +648,8 @@ func Link(path, link string) error {
 
 func Rename(from, to string) error {
 	fsinit()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 	fdp, felem, err := fs.namei(from, true)
 	if err != nil {
 		return err
