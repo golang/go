@@ -106,7 +106,16 @@ func TestWriterComment(t *testing.T) {
 		// write a zip file
 		buf := new(bytes.Buffer)
 		w := NewWriter(buf)
-		w.Comment = test.comment
+		if err := w.SetComment(test.comment); err != nil {
+			if test.ok {
+				t.Fatalf("SetComment: unexpected error %v", err)
+			}
+			continue
+		} else {
+			if !test.ok {
+				t.Fatalf("SetComment: unexpected success, want error")
+			}
+		}
 
 		if err := w.Close(); test.ok == (err != nil) {
 			t.Fatal(err)
