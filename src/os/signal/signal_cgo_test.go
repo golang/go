@@ -9,6 +9,7 @@ package signal_test
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -23,17 +24,29 @@ import (
 )
 
 func TestTerminalSignal(t *testing.T) {
+	const enteringRead = "test program entering read"
 	if os.Getenv("GO_TEST_TERMINAL_SIGNALS") != "" {
 		var b [1]byte
-		fmt.Println("entering read")
+		fmt.Println(enteringRead)
 		n, err := os.Stdin.Read(b[:])
-		fmt.Printf("read %d bytes: %q\n", n, b)
+		if n == 1 {
+			if b[0] == '\n' {
+				// This is what we expect
+				fmt.Println("read newline")
+			} else {
+				fmt.Printf("read 1 byte: %q\n", b)
+			}
+		} else {
+			fmt.Printf("read %d bytes\n", n)
+		}
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 		os.Exit(0)
 	}
+
+	t.Parallel()
 
 	// The test requires a shell that uses job control.
 	bash, err := exec.LookPath("bash")
@@ -47,6 +60,8 @@ func TestTerminalSignal(t *testing.T) {
 			scale = sc
 		}
 	}
+	pause := time.Duration(scale) * 10 * time.Millisecond
+	wait := time.Duration(scale) * 5 * time.Second
 
 	// The test only fails when using a "slow device," in this
 	// case a pseudo-terminal.
@@ -65,7 +80,7 @@ func TestTerminalSignal(t *testing.T) {
 	// Start an interactive shell.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, bash, "-i")
+	cmd := exec.CommandContext(ctx, bash, "--norc", "--noprofile", "-i")
 	cmd.Stdin = slave
 	cmd.Stdout = slave
 	cmd.Stderr = slave
@@ -83,15 +98,20 @@ func TestTerminalSignal(t *testing.T) {
 		t.Errorf("closing slave: %v", err)
 	}
 
+	progReady := make(chan bool)
+	sawPrompt := make(chan bool, 10)
+	const prompt = "prompt> "
+
 	// Read data from master in the background.
 	go func() {
-		buf := bufio.NewReader(master)
+		input := bufio.NewReader(master)
+		var line, handled []byte
 		for {
-			data, err := buf.ReadBytes('\n')
-			if len(data) > 0 {
-				t.Logf("%q", data)
-			}
+			b, err := input.ReadByte()
 			if err != nil {
+				if len(line) > 0 || len(handled) > 0 {
+					t.Logf("%q", append(handled, line...))
+				}
 				if perr, ok := err.(*os.PathError); ok {
 					err = perr.Err
 				}
@@ -103,8 +123,37 @@ func TestTerminalSignal(t *testing.T) {
 				}
 				return
 			}
+
+			line = append(line, b)
+
+			if b == '\n' {
+				t.Logf("%q", append(handled, line...))
+				line = nil
+				handled = nil
+				continue
+			}
+
+			if bytes.Contains(line, []byte(enteringRead)) {
+				close(progReady)
+				handled = append(handled, line...)
+				line = nil
+			} else if bytes.Contains(line, []byte(prompt)) && !bytes.Contains(line, []byte("PS1=")) {
+				sawPrompt <- true
+				handled = append(handled, line...)
+				line = nil
+			}
 		}
 	}()
+
+	// Set the bash prompt so that we can see it.
+	if _, err := master.Write([]byte("PS1='" + prompt + "'\n")); err != nil {
+		t.Fatal("setting prompt: %v", err)
+	}
+	select {
+	case <-sawPrompt:
+	case <-time.After(wait):
+		t.Fatal("timed out waiting for shell prompt")
+	}
 
 	// Start a small program that reads from stdin
 	// (namely the code at the top of this function).
@@ -112,26 +161,56 @@ func TestTerminalSignal(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Wait for the program to print that it is starting.
+	select {
+	case <-progReady:
+	case <-time.After(wait):
+		t.Fatal("timed out waiting for program to start")
+	}
+
 	// Give the program time to enter the read call.
-	time.Sleep(time.Duration(scale) * 100 * time.Millisecond)
+	// It doesn't matter much if we occasionally don't wait long enough;
+	// we won't be testing what we want to test, but the overall test
+	// will pass.
+	time.Sleep(pause)
 
 	// Send a ^Z to stop the program.
 	if _, err := master.Write([]byte{26}); err != nil {
 		t.Fatalf("writing ^Z to pty: %v", err)
 	}
 
-	// Give the process time to handle the signal.
-	time.Sleep(time.Duration(scale) * 100 * time.Millisecond)
+	// Wait for the program to stop and return to the shell.
+	select {
+	case <-sawPrompt:
+	case <-time.After(wait):
+		t.Fatal("timed out waiting for shell prompt")
+	}
 
 	// Restart the stopped program.
 	if _, err := master.Write([]byte("fg\n")); err != nil {
 		t.Fatalf("writing %q to pty: %v", "fg", err)
 	}
 
+	// Give the process time to restart.
+	// This is potentially racy: if the process does not restart
+	// quickly enough then the byte we send will go to bash rather
+	// than the program. Unfortunately there isn't anything we can
+	// look for to know that the program is running again.
+	// bash will print the program name, but that happens before it
+	// restarts the program.
+	time.Sleep(10 * pause)
+
 	// Write some data for the program to read,
 	// which should cause it to exit.
 	if _, err := master.Write([]byte{'\n'}); err != nil {
 		t.Fatalf("writing %q to pty: %v", "\n", err)
+	}
+
+	// Wait for the program to exit.
+	select {
+	case <-sawPrompt:
+	case <-time.After(wait):
+		t.Fatal("timed out waiting for shell prompt")
 	}
 
 	// Exit the shell with the program's exit status.
