@@ -149,7 +149,7 @@ func TestTerminalSignal(t *testing.T) {
 
 	// Set the bash prompt so that we can see it.
 	if _, err := master.Write([]byte("PS1='" + prompt + "'\n")); err != nil {
-		t.Fatal("setting prompt: %v", err)
+		t.Fatalf("setting prompt: %v", err)
 	}
 	select {
 	case <-sawPrompt:
