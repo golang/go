@@ -309,50 +309,35 @@ func (h finishedHash) serverSum(masterSecret []byte) []byte {
 	return out
 }
 
-// selectClientCertSignatureAlgorithm returns a SignatureScheme to sign a
-// client's CertificateVerify with, or an error if none can be found.
-func (h finishedHash) selectClientCertSignatureAlgorithm(serverList []SignatureScheme, sigType uint8) (SignatureScheme, error) {
-	for _, v := range serverList {
-		if signatureFromSignatureScheme(v) == sigType && isSupportedSignatureAlgorithm(v, supportedSignatureAlgorithms) {
-			return v, nil
-		}
-	}
-	return 0, errors.New("tls: no supported signature algorithm found for signing client certificate")
-}
-
-// hashForClientCertificate returns a digest, hash function, and TLS 1.2 hash
-// id suitable for signing by a TLS client certificate.
-func (h finishedHash) hashForClientCertificate(sigType uint8, signatureAlgorithm SignatureScheme, masterSecret []byte) ([]byte, crypto.Hash, error) {
+// hashForClientCertificate returns a digest over the handshake messages so far,
+// suitable for signing by a TLS client certificate.
+func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash, masterSecret []byte) ([]byte, error) {
 	if (h.version == VersionSSL30 || h.version >= VersionTLS12) && h.buffer == nil {
 		panic("a handshake hash for a client-certificate was requested after discarding the handshake buffer")
 	}
 
 	if h.version == VersionSSL30 {
 		if sigType != signatureRSA {
-			return nil, 0, errors.New("tls: unsupported signature type for client certificate")
+			return nil, errors.New("tls: unsupported signature type for client certificate")
 		}
 
 		md5Hash := md5.New()
 		md5Hash.Write(h.buffer)
 		sha1Hash := sha1.New()
 		sha1Hash.Write(h.buffer)
-		return finishedSum30(md5Hash, sha1Hash, masterSecret, nil), crypto.MD5SHA1, nil
+		return finishedSum30(md5Hash, sha1Hash, masterSecret, nil), nil
 	}
 	if h.version >= VersionTLS12 {
-		hashAlg, err := lookupTLSHash(signatureAlgorithm)
-		if err != nil {
-			return nil, 0, err
-		}
 		hash := hashAlg.New()
 		hash.Write(h.buffer)
-		return hash.Sum(nil), hashAlg, nil
+		return hash.Sum(nil), nil
 	}
 
 	if sigType == signatureECDSA {
-		return h.server.Sum(nil), crypto.SHA1, nil
+		return h.server.Sum(nil), nil
 	}
 
-	return h.Sum(), crypto.MD5SHA1, nil
+	return h.Sum(), nil
 }
 
 // discardHandshakeBuffer is called when there is no more need to
