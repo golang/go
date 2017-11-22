@@ -75,6 +75,11 @@ func (t *Arith) Error(args *Args, reply *Reply) error {
 	panic("ERROR")
 }
 
+func (t *Arith) SleepMilli(args *Args, reply *Reply) error {
+	time.Sleep(time.Duration(args.A) * time.Millisecond)
+	return nil
+}
+
 type hidden int
 
 func (t *hidden) Exported(args Args, reply *Reply) error {
@@ -691,6 +696,53 @@ func TestAcceptExitAfterListenerClose(t *testing.T) {
 	l, _ = listenTCP()
 	l.Close()
 	newServer.Accept(l)
+}
+
+func TestShutdown(t *testing.T) {
+	var l net.Listener
+	l, _ = listenTCP()
+	ch := make(chan net.Conn, 1)
+	go func() {
+		defer l.Close()
+		c, err := l.Accept()
+		if err != nil {
+			t.Error(err)
+		}
+		ch <- c
+	}()
+	c, err := net.Dial("tcp", l.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	c1 := <-ch
+	if c1 == nil {
+		t.Fatal(err)
+	}
+
+	newServer := NewServer()
+	newServer.Register(new(Arith))
+	go newServer.ServeConn(c1)
+
+	args := &Args{7, 8}
+	reply := new(Reply)
+	client := NewClient(c)
+	err = client.Call("Arith.Add", args, reply)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// On an unloaded system 10ms is usually enough to fail 100% of the time
+	// with a broken server. On a loaded system, a broken server might incorrectly
+	// be reported as passing, but we're OK with that kind of flakiness.
+	// If the code is correct, this test will never fail, regardless of timeout.
+	args.A = 10 // 10 ms
+	done := make(chan *Call, 1)
+	call := client.Go("Arith.SleepMilli", args, reply, done)
+	c.(*net.TCPConn).CloseWrite()
+	<-done
+	if call.Error != nil {
+		t.Fatal(err)
+	}
 }
 
 func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
