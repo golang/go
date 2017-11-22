@@ -85,12 +85,14 @@ func declare(n *Node, ctxt Class) {
 		yyerror("cannot declare name %v", s)
 	}
 
-	if ctxt == PEXTERN && s.Name == "init" {
-		yyerror("cannot declare init - must be func")
-	}
-
 	gen := 0
 	if ctxt == PEXTERN {
+		if s.Name == "init" {
+			yyerror("cannot declare init - must be func")
+		}
+		if s.Name == "main" && localpkg.Name == "main" {
+			yyerror("cannot declare main - must be func")
+		}
 		externdcl = append(externdcl, n)
 	} else {
 		if Curfn == nil && ctxt == PAUTO {
