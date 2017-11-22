@@ -942,6 +942,7 @@ func newstack() {
 			"\tmorebuf={pc:", hex(morebuf.pc), " sp:", hex(morebuf.sp), " lr:", hex(morebuf.lr), "}\n",
 			"\tsched={pc:", hex(gp.sched.pc), " sp:", hex(gp.sched.sp), " lr:", hex(gp.sched.lr), " ctxt:", gp.sched.ctxt, "}\n")
 
+		thisg.m.traceback = 2 // Include runtime frames
 		traceback(morebuf.pc, morebuf.sp, morebuf.lr, gp)
 		throw("runtime: stack split at bad time")
 	}
