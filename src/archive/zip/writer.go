@@ -26,13 +26,11 @@ type Writer struct {
 	last        *fileWriter
 	closed      bool
 	compressors map[uint16]Compressor
+	comment     string
 
 	// testHookCloseSizeOffset if non-nil is called with the size
 	// of offset of the central directory at Close.
 	testHookCloseSizeOffset func(size, offset uint64)
-
-	// Comment is the central directory comment and must be set before Close is called.
-	Comment string
 }
 
 type header struct {
@@ -62,13 +60,19 @@ func (w *Writer) Flush() error {
 	return w.cw.w.(*bufio.Writer).Flush()
 }
 
+// SetComment sets the end-of-central-directory comment field.
+// It can only be called before Close.
+func (w *Writer) SetComment(comment string) error {
+	if len(comment) > uint16max {
+		return errors.New("zip: Writer.Comment too long")
+	}
+	w.comment = comment
+	return nil
+}
+
 // Close finishes writing the zip file by writing the central directory.
 // It does not (and cannot) close the underlying writer.
 func (w *Writer) Close() error {
-	if len(w.Comment) > uint16max {
-		return errors.New("zip: Writer.Comment too long")
-	}
-
 	if w.last != nil && !w.last.closed {
 		if err := w.last.close(); err != nil {
 			return err
@@ -189,11 +193,11 @@ func (w *Writer) Close() error {
 	b.uint16(uint16(records))        // number of entries total
 	b.uint32(uint32(size))           // size of directory
 	b.uint32(uint32(offset))         // start of directory
-	b.uint16(uint16(len(w.Comment))) // byte size of EOCD comment
+	b.uint16(uint16(len(w.comment))) // byte size of EOCD comment
 	if _, err := w.cw.Write(buf[:]); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(w.cw, w.Comment); err != nil {
+	if _, err := io.WriteString(w.cw, w.comment); err != nil {
 		return err
 	}
 
