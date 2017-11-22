@@ -493,7 +493,11 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			c.sendAlert(alertInternalError)
 			return err
 		}
-		certVerify.signature, err = key.Sign(c.config.rand(), digest, hashFunc)
+		signOpts := crypto.SignerOpts(hashFunc)
+		if sigType == signatureRSAPSS {
+			signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: hashFunc}
+		}
+		certVerify.signature, err = key.Sign(c.config.rand(), digest, signOpts)
 		if err != nil {
 			c.sendAlert(alertInternalError)
 			return err

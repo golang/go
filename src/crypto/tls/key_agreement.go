@@ -139,13 +139,13 @@ func curveForCurveID(id CurveID) (elliptic.Curve, bool) {
 
 }
 
-// ecdheRSAKeyAgreement implements a TLS key agreement where the server
+// ecdheKeyAgreement implements a TLS key agreement where the server
 // generates an ephemeral EC public/private key pair and signs it. The
 // pre-master secret is then calculated using ECDH. The signature may
 // either be ECDSA or RSA.
 type ecdheKeyAgreement struct {
 	version    uint16
-	sigType    uint8
+	isRSA      bool
 	privateKey []byte
 	curveid    CurveID
 
@@ -217,7 +217,7 @@ NextCandidate:
 	if err != nil {
 		return nil, err
 	}
-	if sigType != ka.sigType {
+	if (sigType == signaturePKCS1v15 || sigType == signatureRSAPSS) != ka.isRSA {
 		return nil, errors.New("tls: certificate cannot be used with the selected cipher suite")
 	}
 
@@ -226,7 +226,11 @@ NextCandidate:
 		return nil, err
 	}
 
-	sig, err := priv.Sign(config.rand(), digest, hashFunc)
+	signOpts := crypto.SignerOpts(hashFunc)
+	if sigType == signatureRSAPSS {
+		signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: hashFunc}
+	}
+	sig, err := priv.Sign(config.rand(), digest, signOpts)
 	if err != nil {
 		return nil, errors.New("tls: failed to sign ECDHE parameters: " + err.Error())
 	}
@@ -334,7 +338,7 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 	if err != nil {
 		return err
 	}
-	if sigType != ka.sigType {
+	if (sigType == signaturePKCS1v15 || sigType == signatureRSAPSS) != ka.isRSA {
 		return errServerKeyExchange
 	}
 

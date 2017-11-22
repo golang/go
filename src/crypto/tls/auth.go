@@ -30,9 +30,9 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 		switch pubkey.(type) {
 		case *rsa.PublicKey:
 			if tlsVersion < VersionTLS12 {
-				return 0, signatureRSA, crypto.MD5SHA1, nil
+				return 0, signaturePKCS1v15, crypto.MD5SHA1, nil
 			} else {
-				return PKCS1WithSHA1, signatureRSA, crypto.SHA1, nil
+				return PKCS1WithSHA1, signaturePKCS1v15, crypto.SHA1, nil
 			}
 		case *ecdsa.PublicKey:
 			return ECDSAWithSHA1, signatureECDSA, crypto.SHA1, nil
@@ -51,7 +51,7 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 		sigType := signatureFromSignatureScheme(sigAlg)
 		switch pubkey.(type) {
 		case *rsa.PublicKey:
-			if sigType == signatureRSA {
+			if sigType == signaturePKCS1v15 || sigType == signatureRSAPSS {
 				return sigAlg, sigType, hashAlg, nil
 			}
 		case *ecdsa.PublicKey:
@@ -84,12 +84,21 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
 		if !ecdsa.Verify(pubKey, digest, ecdsaSig.R, ecdsaSig.S) {
 			return errors.New("tls: ECDSA verification failure")
 		}
-	case signatureRSA:
+	case signaturePKCS1v15:
 		pubKey, ok := pubkey.(*rsa.PublicKey)
 		if !ok {
 			return errors.New("tls: RSA signing requires a RSA public key")
 		}
 		if err := rsa.VerifyPKCS1v15(pubKey, hashFunc, digest, sig); err != nil {
+			return err
+		}
+	case signatureRSAPSS:
+		pubKey, ok := pubkey.(*rsa.PublicKey)
+		if !ok {
+			return errors.New("tls: RSA signing requires a RSA public key")
+		}
+		signOpts := &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash}
+		if err := rsa.VerifyPSS(pubKey, hashFunc, digest, sig, signOpts); err != nil {
 			return err
 		}
 	default:
