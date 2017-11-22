@@ -34,7 +34,7 @@ var (
 	debug      = false
 )
 
-// A ExtInst represents a single decoded instruction parsed
+// An ExtInst represents a single decoded instruction parsed
 // from an external disassembler's output.
 type ExtInst struct {
 	addr uint32

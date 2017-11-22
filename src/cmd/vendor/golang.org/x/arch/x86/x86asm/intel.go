@@ -10,7 +10,11 @@ import (
 )
 
 // IntelSyntax returns the Intel assembler syntax for the instruction, as defined by Intel's XED tool.
-func IntelSyntax(inst Inst) string {
+func IntelSyntax(inst Inst, pc uint64, symname SymLookup) string {
+	if symname == nil {
+		symname = func(uint64) (string, uint64) { return "", 0 }
+	}
+
 	var iargs []Arg
 	for _, a := range inst.Args {
 		if a == nil {
@@ -256,7 +260,7 @@ func IntelSyntax(inst Inst) string {
 		if a == nil {
 			break
 		}
-		args = append(args, intelArg(&inst, a))
+		args = append(args, intelArg(&inst, pc, symname, a))
 	}
 
 	var op string
@@ -334,9 +338,16 @@ func IntelSyntax(inst Inst) string {
 	return prefix + op
 }
 
-func intelArg(inst *Inst, arg Arg) string {
+func intelArg(inst *Inst, pc uint64, symname SymLookup, arg Arg) string {
 	switch a := arg.(type) {
 	case Imm:
+		if s, base := symname(uint64(a)); s != "" {
+			suffix := ""
+			if uint64(a) != base {
+				suffix = fmt.Sprintf("%+d", uint64(a)-base)
+			}
+			return fmt.Sprintf("$%s%s", s, suffix)
+		}
 		if inst.Mode == 32 {
 			return fmt.Sprintf("%#x", uint32(a))
 		}
@@ -417,18 +428,25 @@ func intelArg(inst *Inst, arg Arg) string {
 		}
 
 		prefix += "ptr "
+		if s, disp := memArgToSymbol(a, pc, inst.Len, symname); s != "" {
+			suffix := ""
+			if disp != 0 {
+				suffix = fmt.Sprintf("%+d", disp)
+			}
+			return prefix + fmt.Sprintf("[%s%s]", s, suffix)
+		}
 		if a.Segment != 0 {
 			prefix += strings.ToLower(a.Segment.String()) + ":"
 		}
 		prefix += "["
 		if a.Base != 0 {
-			prefix += intelArg(inst, a.Base)
+			prefix += intelArg(inst, pc, symname, a.Base)
 		}
 		if a.Scale != 0 && a.Index != 0 {
 			if a.Base != 0 {
 				prefix += "+"
 			}
-			prefix += fmt.Sprintf("%s*%d", intelArg(inst, a.Index), a.Scale)
+			prefix += fmt.Sprintf("%s*%d", intelArg(inst, pc, symname, a.Index), a.Scale)
 		}
 		if a.Disp != 0 {
 			if prefix[len(prefix)-1] == '[' && (a.Disp >= 0 || int64(int32(a.Disp)) != a.Disp) {
@@ -440,7 +458,17 @@ func intelArg(inst *Inst, arg Arg) string {
 		prefix += "]"
 		return prefix
 	case Rel:
-		return fmt.Sprintf(".%+#x", int64(a))
+		if pc == 0 {
+			return fmt.Sprintf(".%+#x", int64(a))
+		} else {
+			addr := pc + uint64(inst.Len) + uint64(a)
+			if s, base := symname(addr); s != "" && addr == base {
+				return fmt.Sprintf("%s", s)
+			} else {
+				addr := pc + uint64(inst.Len) + uint64(a)
+				return fmt.Sprintf("%#x", addr)
+			}
+		}
 	case Reg:
 		if int(a) < len(intelReg) && intelReg[a] != "" {
 			switch inst.Op {
