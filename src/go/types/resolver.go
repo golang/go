@@ -111,6 +111,13 @@ func (check *Checker) declarePkgObj(ident *ast.Ident, obj Object, d *declInfo) {
 		return
 	}
 
+	// spec: "The main package must have package name main and declare
+	// a function main that takes no arguments and returns no value."
+	if ident.Name == "main" && check.pkg.name == "main" {
+		check.errorf(ident.Pos(), "cannot declare main - must be func")
+		return
+	}
+
 	check.declare(check.pkg.scope, ident, obj, token.NoPos)
 	check.objMap[obj] = d
 	obj.setOrder(uint32(len(check.objMap)))
