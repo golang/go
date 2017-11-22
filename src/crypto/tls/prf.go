@@ -317,7 +317,7 @@ func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Has
 	}
 
 	if h.version == VersionSSL30 {
-		if sigType != signatureRSA {
+		if sigType != signaturePKCS1v15 {
 			return nil, errors.New("tls: unsupported signature type for client certificate")
 		}
 
