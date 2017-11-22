@@ -2939,7 +2939,9 @@ func exitsyscall(dummy int32) {
 	oldp := _g_.m.p.ptr()
 	if exitsyscallfast() {
 		if _g_.m.mcache == nil {
-			throw("lost mcache")
+			systemstack(func() {
+				throw("lost mcache")
+			})
 		}
 		if trace.enabled {
 			if oldp != _g_.m.p.ptr() || _g_.m.syscalltick != _g_.m.p.ptr().syscalltick {
@@ -2986,7 +2988,9 @@ func exitsyscall(dummy int32) {
 	mcall(exitsyscall0)
 
 	if _g_.m.mcache == nil {
-		throw("lost mcache")
+		systemstack(func() {
+			throw("lost mcache")
+		})
 	}
 
 	// Scheduler returned, so we're allowed to run now.
