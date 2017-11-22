@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd
+// +build darwin dragonfly freebsd linux,!android netbsd openbsd
 // +build cgo
 
 // Note that this test does not work on Solaris: issue #22849.
+// Don't run the test on Android because at least some versions of the
+// C library do not define the posix_openpt function.
 
 package signal_test
 
