@@ -69,7 +69,7 @@ func open(name string) (*file, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &file{fd, make([]byte, 0, os.Getpagesize()), false}, nil
+	return &file{fd, make([]byte, 0, 64*1024), false}, nil
 }
 
 func stat(name string) (mtime time.Time, size int64, err error) {
