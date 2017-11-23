@@ -77,9 +77,12 @@ type Cmd struct {
 	Dir string
 
 	// Stdin specifies the process's standard input.
+	//
 	// If Stdin is nil, the process reads from the null device (os.DevNull).
+	//
 	// If Stdin is an *os.File, the process's standard input is connected
 	// directly to that file.
+	//
 	// Otherwise, during the execution of the command a separate
 	// goroutine reads from Stdin and delivers that data to the command
 	// over a pipe. In this case, Wait does not complete until the goroutine
@@ -92,14 +95,13 @@ type Cmd struct {
 	// If either is nil, Run connects the corresponding file descriptor
 	// to the null device (os.DevNull).
 	//
-	// If either is an *os.File, the process's standard output or standard
-	// error, respectively, are connected directly to that file. Otherwise,
-	// if either is not nil, during the execution of the command a separate
-	// goroutine reads from the process's standard output or standard error
-	// and delivers that to Stdout or Stderr. In this case, Wait does not
-	// complete until the goroutine stops copying, either because it has
-	// reached the end of Stdin (EOF or a read error) or because writing to
-	// the pipe returned an error.
+	// If either is an *os.File, the corresponding output from the process
+	// is connected directly to that file.
+	//
+	// Otherwise, during the execution of the command a separate goroutine
+	// reads from the process over a pipe and delivers that data to the
+	// corresponding Writer. In this case, Wait does not complete until the
+	// goroutine reaches EOF or encounters an error.
 	//
 	// If Stdout and Stderr are the same writer, and have a type that can
 	// be compared with ==, at most one goroutine at a time will call Write.
