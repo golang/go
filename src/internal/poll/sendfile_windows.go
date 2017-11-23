@@ -8,6 +8,15 @@ import "syscall"
 
 // SendFile wraps the TransmitFile call.
 func SendFile(fd *FD, src syscall.Handle, n int64) (int64, error) {
+	ft, err := syscall.GetFileType(src)
+	if err != nil {
+		return 0, err
+	}
+	// TransmitFile does not work with pipes
+	if ft == syscall.FILE_TYPE_PIPE {
+		return 0, syscall.ESPIPE
+	}
+
 	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
