@@ -784,7 +784,7 @@ func (t *tester) extLink() bool {
 	switch pair {
 	case "android-arm",
 		"darwin-arm", "darwin-arm64",
-		"dragonfly-386", "dragonfly-amd64",
+		"dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
 		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-s390x",
 		"netbsd-386", "netbsd-amd64",
@@ -930,7 +930,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 		t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")
 		t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external -s")
 	case "android-arm",
-		"dragonfly-386", "dragonfly-amd64",
+		"dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
 		"linux-386", "linux-amd64", "linux-arm", "linux-ppc64le", "linux-s390x",
 		"netbsd-386", "netbsd-amd64":
