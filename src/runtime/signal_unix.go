@@ -275,6 +275,12 @@ func sigpipe() {
 // sigtrampgo is called from the signal handler function, sigtramp,
 // written in assembly code.
 // This is called by the signal handler, and the world may be stopped.
+//
+// It must be nosplit because getg() is still the G that was running
+// (if any) when the signal was delivered, but it's (usually) called
+// on the gsignal stack. Until this switches the G to gsignal, the
+// stack bounds check won't work.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
