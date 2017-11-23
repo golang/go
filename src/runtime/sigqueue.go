@@ -45,13 +45,14 @@ import (
 // as there is no connection between handling a signal and receiving one,
 // but atomic instructions should minimize it.
 var sig struct {
-	note    note
-	mask    [(_NSIG + 31) / 32]uint32
-	wanted  [(_NSIG + 31) / 32]uint32
-	ignored [(_NSIG + 31) / 32]uint32
-	recv    [(_NSIG + 31) / 32]uint32
-	state   uint32
-	inuse   bool
+	note       note
+	mask       [(_NSIG + 31) / 32]uint32
+	wanted     [(_NSIG + 31) / 32]uint32
+	ignored    [(_NSIG + 31) / 32]uint32
+	recv       [(_NSIG + 31) / 32]uint32
+	state      uint32
+	delivering uint32
+	inuse      bool
 }
 
 const (
@@ -68,7 +69,11 @@ func sigsend(s uint32) bool {
 		return false
 	}
 
+	atomic.Xadd(&sig.delivering, 1)
+	// We are running in the signal handler; defer is not available.
+
 	if w := atomic.Load(&sig.wanted[s/32]); w&bit == 0 {
+		atomic.Xadd(&sig.delivering, -1)
 		return false
 	}
 
@@ -76,6 +81,7 @@ func sigsend(s uint32) bool {
 	for {
 		mask := sig.mask[s/32]
 		if mask&bit != 0 {
+			atomic.Xadd(&sig.delivering, -1)
 			return true // signal already in queue
 		}
 		if atomic.Cas(&sig.mask[s/32], mask, mask|bit) {
@@ -104,6 +110,7 @@ Send:
 		}
 	}
 
+	atomic.Xadd(&sig.delivering, -1)
 	return true
 }
 
@@ -155,6 +162,15 @@ func signal_recv() uint32 {
 // by the os/signal package.
 //go:linkname signalWaitUntilIdle os/signal.signalWaitUntilIdle
 func signalWaitUntilIdle() {
+	// Although the signals we care about have been removed from
+	// sig.wanted, it is possible that another thread has received
+	// a signal, has read from sig.wanted, is now updating sig.mask,
+	// and has not yet woken up the processor thread. We need to wait
+	// until all current signal deliveries have completed.
+	for atomic.Load(&sig.delivering) != 0 {
+		Gosched()
+	}
+
 	// Although WaitUntilIdle seems like the right name for this
 	// function, the state we are looking for is sigReceiving, not
 	// sigIdle.  The sigIdle state is really more like sigProcessing.
