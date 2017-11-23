@@ -622,7 +622,7 @@ const (
 	_SigDefault              // if the signal isn't explicitly requested, don't monitor it
 	_SigGoExit               // cause all runtime procs to exit (only used on Plan 9).
 	_SigSetStack             // add SA_ONSTACK to libc handler
-	_SigUnblock              // unblocked in minit
+	_SigUnblock              // always unblock; see blockableSig
 	_SigIgn                  // _SIG_DFL action is to ignore the signal
 )
 

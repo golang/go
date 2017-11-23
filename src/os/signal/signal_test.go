@@ -321,7 +321,9 @@ func TestAtomicStop(t *testing.T) {
 		cmd.Env = append(os.Environ(), "GO_TEST_ATOMIC_STOP=1")
 		out, err := cmd.CombinedOutput()
 		if err == nil {
-			t.Logf("iteration %d: output %s", i, out)
+			if len(out) > 0 {
+				t.Logf("iteration %d: output %s", i, out)
+			}
 		} else {
 			t.Logf("iteration %d: exit status %q: output: %s", i, err, out)
 		}
@@ -378,7 +380,7 @@ func atomicStopTestProgram() {
 		case <-cs:
 		case <-time.After(1 * time.Second):
 			if !printed {
-				fmt.Print("lost signal on iterations:")
+				fmt.Print("lost signal on tries:")
 				printed = true
 			}
 			fmt.Printf(" %d", i)
