@@ -782,8 +782,10 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		// _Grunning or _Grunning|_Gscan; either way,
 		// we own gp.gcscanvalid, so it's safe to read.
 		// gp.gcscanvalid must not be true when we are running.
-		print("runtime: casgstatus ", hex(oldval), "->", hex(newval), " gp.status=", hex(gp.atomicstatus), " gp.gcscanvalid=true\n")
-		throw("casgstatus")
+		systemstack(func() {
+			print("runtime: casgstatus ", hex(oldval), "->", hex(newval), " gp.status=", hex(gp.atomicstatus), " gp.gcscanvalid=true\n")
+			throw("casgstatus")
+		})
 	}
 
 	// See http://golang.org/cl/21503 for justification of the yield delay.
