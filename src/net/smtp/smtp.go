@@ -343,10 +343,11 @@ func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
 		}
 	}
 	if a != nil && c.ext != nil {
-		if _, ok := c.ext["AUTH"]; ok {
-			if err = c.Auth(a); err != nil {
-				return err
-			}
+		if _, ok := c.ext["AUTH"]; !ok {
+			return errors.New("smtp: server doesn't support AUTH")
+		}
+		if err = c.Auth(a); err != nil {
+			return err
 		}
 	}
 	if err = c.Mail(from); err != nil {
