@@ -2050,7 +2050,7 @@ func signingParamsForPublicKey(pub interface{}, requestedSigAlgo SignatureAlgori
 // just an empty SEQUENCE.
 var emptyASN1Subject = []byte{0x30, 0}
 
-// CreateCertificate creates a new certificate based on a template.
+// CreateCertificate creates a new X.509v3 certificate based on a template.
 // The following members of template are used: AuthorityKeyId,
 // BasicConstraintsValid, DNSNames, ExcludedDNSDomains, ExtKeyUsage,
 // IsCA, KeyUsage, MaxPathLen, MaxPathLenZero, NotAfter, NotBefore,
