@@ -306,6 +306,32 @@ func TestLookupIPv6LinkLocalAddr(t *testing.T) {
 	}
 }
 
+func TestLookupIPv6LinkLocalAddrWithZone(t *testing.T) {
+	if !supportsIPv6() || !*testIPv6 {
+		t.Skip("IPv6 is required")
+	}
+
+	ipaddrs, err := DefaultResolver.LookupIPAddr(context.Background(), "fe80::1%lo0")
+	if err != nil {
+		t.Error(err)
+	}
+	for _, addr := range ipaddrs {
+		if e, a := "lo0", addr.Zone; e != a {
+			t.Errorf("wrong zone: want %q, got %q", e, a)
+		}
+	}
+
+	addrs, err := DefaultResolver.LookupHost(context.Background(), "fe80::1%lo0")
+	if err != nil {
+		t.Error(err)
+	}
+	for _, addr := range addrs {
+		if e, a := "fe80::1%lo0", addr; e != a {
+			t.Errorf("wrong host: want %q got %q", e, a)
+		}
+	}
+}
+
 var lookupCNAMETests = []struct {
 	name, cname string
 }{

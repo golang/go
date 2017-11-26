@@ -73,7 +73,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 				// to look it up.
 				if parseIPv4(f[1]) != nil {
 					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
-				} else if ip, _ := parseIPv6(f[1], true); ip != nil {
+				} else if ip, _ := parseIPv6Zone(f[1]); ip != nil {
 					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
 				}
 			}
