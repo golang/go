@@ -162,11 +162,11 @@ func LookupHost(host string) (addrs []string, err error) {
 // It returns a slice of that host's addresses.
 func (r *Resolver) LookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	// Make sure that no matter what we do later, host=="" is rejected.
-	// ParseIP, for example, does accept empty strings.
+	// parseIP, for example, does accept empty strings.
 	if host == "" {
 		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host}
 	}
-	if ip := ParseIP(host); ip != nil {
+	if ip, _ := parseIPZone(host); ip != nil {
 		return []string{host}, nil
 	}
 	return r.lookupHost(ctx, host)
@@ -190,12 +190,12 @@ func LookupIP(host string) ([]IP, error) {
 // It returns a slice of that host's IPv4 and IPv6 addresses.
 func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, error) {
 	// Make sure that no matter what we do later, host=="" is rejected.
-	// ParseIP, for example, does accept empty strings.
+	// parseIP, for example, does accept empty strings.
 	if host == "" {
 		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host}
 	}
-	if ip := ParseIP(host); ip != nil {
-		return []IPAddr{{IP: ip}}, nil
+	if ip, zone := parseIPZone(host); ip != nil {
+		return []IPAddr{{IP: ip, Zone: zone}}, nil
 	}
 	trace, _ := ctx.Value(nettrace.TraceKey{}).(*nettrace.Trace)
 	if trace != nil && trace.DNSStart != nil {
