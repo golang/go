@@ -73,6 +73,51 @@ functions.
 For these internal escaping functions, if an action pipeline evaluates to
 a nil interface value, it is treated as though it were an empty string.
 
+Namespaced and data- attributes
+
+Attributes with a namespace are treated as if they had no namespace.
+Given the excerpt
+
+  <a my:href="{{.}}"></a>
+
+At parse time the attribute will be treated as if it were just "href".
+So at parse time the template becomes:
+
+  <a my:href="{{. | urlescaper | attrescaper}}"></a>
+
+Similarly to attributes with namespaces, attributes with a "data-" prefix are
+treated as if they had no "data-" prefix. So given
+
+  <a data-href="{{.}}"></a>
+
+At parse time this becomes
+
+  <a data-href="{{. | urlescaper | attrescaper}}"></a>
+
+If an attribute has both a namespace and a "data-" prefix, only the namespace
+will be removed when determining the context. For example
+
+  <a my:data-href="{{.}}"></a>
+
+This is handled as if "my:data-href" was just "data-href" and not "href" as
+it would be if the "data-" prefix were to be ignored too. Thus at parse
+time this becomes just
+
+  <a my:data-href="{{. | attrescaper}}"></a>
+
+As a special case, attributes with the namespace "xmlns" are always treated
+as containing URLs. Given the excerpts
+
+  <a xmlns:title="{{.}}"></a>
+  <a xmlns:href="{{.}}"></a>
+  <a xmlns:onclick="{{.}}"></a>
+
+At parse time they become:
+
+  <a xmlns:title="{{. | urlescaper | attrescaper}}"></a>
+  <a xmlns:href="{{. | urlescaper | attrescaper}}"></a>
+  <a xmlns:onclick="{{. | urlescaper | attrescaper}}"></a>
+
 Errors
 
 See the documentation of ErrorCode for details.
