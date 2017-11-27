@@ -211,21 +211,20 @@ func TestReadMIMEHeaderNonCompliant(t *testing.T) {
 	}
 }
 
-func TestReadMIMEHeaderLeadingSpace(t *testing.T) {
-	tests := []struct {
-		input string
-		want  MIMEHeader
-	}{
-		{" Ignore: ignore\r\nFoo: foo\r\n\r\n", MIMEHeader{"Foo": {"foo"}}},
-		{"\tIgnore: ignore\r\nFoo: foo\r\n\r\n", MIMEHeader{"Foo": {"foo"}}},
-		{" Ignore1: ignore\r\n Ignore2: ignore\r\nFoo: foo\r\n\r\n", MIMEHeader{"Foo": {"foo"}}},
-		{" Ignore1: ignore\r\n\r\n", MIMEHeader{}},
+func TestReadMIMEHeaderMalformed(t *testing.T) {
+	inputs := []string{
+		"No colon first line\r\nFoo: foo\r\n\r\n",
+		" No colon first line with leading space\r\nFoo: foo\r\n\r\n",
+		"\tNo colon first line with leading tab\r\nFoo: foo\r\n\r\n",
+		" First: line with leading space\r\nFoo: foo\r\n\r\n",
+		"\tFirst: line with leading tab\r\nFoo: foo\r\n\r\n",
+		"Foo: foo\r\nNo colon second line\r\n\r\n",
 	}
-	for _, tt := range tests {
-		r := reader(tt.input)
-		m, err := r.ReadMIMEHeader()
-		if !reflect.DeepEqual(m, tt.want) || err != nil {
-			t.Errorf("ReadMIMEHeader(%q) = %v, %v; want %v", tt.input, m, err, tt.want)
+
+	for _, input := range inputs {
+		r := reader(input)
+		if m, err := r.ReadMIMEHeader(); err == nil {
+			t.Errorf("ReadMIMEHeader(%q) = %v, %v; want nil, err", input, m, err)
 		}
 	}
 }

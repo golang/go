@@ -401,26 +401,6 @@ var reqTests = []reqTest{
 		noTrailer,
 		noError,
 	},
-
-	// leading whitespace in the first header. golang.org/issue/22464
-	{
-		"GET / HTTP/1.1\r\n Foobar: ignored\r\nConnection: close\r\n\r\n",
-		&Request{
-			Method: "GET",
-			URL: &url.URL{
-				Path: "/",
-			},
-			Header:     Header{"Connection": {"close"}},
-			Proto:      "HTTP/1.1",
-			ProtoMajor: 1,
-			ProtoMinor: 1,
-			RequestURI: "/",
-			Close:      true,
-		},
-		noBodyStr,
-		noTrailer,
-		noError,
-	},
 }
 
 func TestReadRequest(t *testing.T) {
@@ -473,6 +453,14 @@ Content-Length: 4
 abc`)},
 	{"smuggle_content_len_head", reqBytes(`HEAD / HTTP/1.1
 Host: foo
+Content-Length: 5`)},
+
+	// golang.org/issue/22464
+	{"leading_space_in_header", reqBytes(`HEAD / HTTP/1.1
+ Host: foo
+Content-Length: 5`)},
+	{"leading_tab_in_header", reqBytes(`HEAD / HTTP/1.1
+\tHost: foo
 Content-Length: 5`)},
 }
 
