@@ -4281,12 +4281,13 @@ func TestMissingStatusNoPanic(t *testing.T) {
 	shutdown := make(chan bool, 1)
 	done := make(chan bool)
 	fullAddrURL := fmt.Sprintf("http://%s", addr)
-	raw := `HTTP/1.1 400
-		Date: Wed, 30 Aug 2017 19:09:27 GMT
-		Content-Type: text/html; charset=utf-8
-		Content-Length: 10
-		Last-Modified: Wed, 30 Aug 2017 19:02:02 GMT
-		Vary: Accept-Encoding` + "\r\n\r\nAloha Olaa"
+	raw := "HTTP/1.1 400\r\n" +
+		"Date: Wed, 30 Aug 2017 19:09:27 GMT\r\n" +
+		"Content-Type: text/html; charset=utf-8\r\n" +
+		"Content-Length: 10\r\n" +
+		"Last-Modified: Wed, 30 Aug 2017 19:02:02 GMT\r\n" +
+		"Vary: Accept-Encoding\r\n\r\n" +
+		"Aloha Olaa"
 
 	go func() {
 		defer func() {
