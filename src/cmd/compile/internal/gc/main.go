@@ -109,19 +109,6 @@ func hidePanic() {
 	}
 }
 
-func doversion() {
-	p := objabi.Expstring()
-	if p == objabi.DefaultExpstring() {
-		p = ""
-	}
-	sep := ""
-	if p != "" {
-		sep = " "
-	}
-	fmt.Printf("compile version %s%s%s\n", objabi.Version, sep, p)
-	os.Exit(0)
-}
-
 // supportsDynlink reports whether or not the code generator for the given
 // architecture supports the -shared and -dynlink flags.
 func supportsDynlink(arch *sys.Arch) bool {
