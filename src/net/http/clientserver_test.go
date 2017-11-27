@@ -1391,9 +1391,6 @@ func TestBadResponseAfterReadingBody(t *testing.T) {
 func TestWriteHeader0_h1(t *testing.T) { testWriteHeader0(t, h1Mode) }
 func TestWriteHeader0_h2(t *testing.T) { testWriteHeader0(t, h2Mode) }
 func testWriteHeader0(t *testing.T, h2 bool) {
-	if h2 {
-		t.Skip("skipping until CL 80076 is vendored into std")
-	}
 	defer afterTest(t)
 	gotpanic := make(chan bool, 1)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {

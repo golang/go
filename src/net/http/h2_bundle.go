@@ -3910,12 +3910,15 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
 	} else if s.TLSConfig.CipherSuites != nil {
 		// If they already provided a CipherSuite list, return
 		// an error if it has a bad order or is missing
-		// ECDHE_RSA_WITH_AES_128_GCM_SHA256.
-		const requiredCipher = tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+		// ECDHE_RSA_WITH_AES_128_GCM_SHA256 or ECDHE_ECDSA_WITH_AES_128_GCM_SHA256.
 		haveRequired := false
 		sawBad := false
 		for i, cs := range s.TLSConfig.CipherSuites {
-			if cs == requiredCipher {
+			switch cs {
+			case tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+				// Alternative MTI cipher to not discourage ECDSA-only servers.
+				// See http://golang.org/cl/30721 for further information.
+				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
 				haveRequired = true
 			}
 			if http2isBadCipher(cs) {
@@ -3925,7 +3928,7 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
 			}
 		}
 		if !haveRequired {
-			return fmt.Errorf("http2: TLSConfig.CipherSuites is missing HTTP/2-required TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
+			return fmt.Errorf("http2: TLSConfig.CipherSuites is missing an HTTP/2-required AES_128_GCM_SHA256 cipher.")
 		}
 	}
 
@@ -4342,7 +4345,7 @@ func (sc *http2serverConn) condlogf(err error, format string, args ...interface{
 	if err == nil {
 		return
 	}
-	if err == io.EOF || err == io.ErrUnexpectedEOF || http2isClosedConnError(err) {
+	if err == io.EOF || err == io.ErrUnexpectedEOF || http2isClosedConnError(err) || err == http2errPrefaceTimeout {
 		// Boring, expected errors.
 		sc.vlogf(format, args...)
 	} else {
@@ -4589,8 +4592,11 @@ func (sc *http2serverConn) sendServeMsg(msg interface{}) {
 	}
 }
 
-// readPreface reads the ClientPreface greeting from the peer
-// or returns an error on timeout or an invalid greeting.
+var http2errPrefaceTimeout = errors.New("timeout waiting for client preface")
+
+// readPreface reads the ClientPreface greeting from the peer or
+// returns errPrefaceTimeout on timeout, or an error if the greeting
+// is invalid.
 func (sc *http2serverConn) readPreface() error {
 	errc := make(chan error, 1)
 	go func() {
@@ -4608,7 +4614,7 @@ func (sc *http2serverConn) readPreface() error {
 	defer timer.Stop()
 	select {
 	case <-timer.C:
-		return errors.New("timeout waiting for client preface")
+		return http2errPrefaceTimeout
 	case err := <-errc:
 		if err == nil {
 			if http2VerboseLogs {
@@ -6179,7 +6185,26 @@ func (w *http2responseWriter) Header() Header {
 	return rws.handlerHeader
 }
 
+// checkWriteHeaderCode is a copy of net/http's checkWriteHeaderCode.
+func http2checkWriteHeaderCode(code int) {
+	// Issue 22880: require valid WriteHeader status codes.
+	// For now we only enforce that it's three digits.
+	// In the future we might block things over 599 (600 and above aren't defined
+	// at http://httpwg.org/specs/rfc7231.html#status.codes)
+	// and we might block under 200 (once we have more mature 1xx support).
+	// But for now any three digits.
+	//
+	// We used to send "HTTP/1.1 000 0" on the wire in responses but there's
+	// no equivalent bogus thing we can realistically send in HTTP/2,
+	// so we'll consistently panic instead and help people find their bugs
+	// early. (We can't return an error from WriteHeader even if we wanted to.)
+	if code < 100 || code > 999 {
+		panic(fmt.Sprintf("invalid WriteHeader code %v", code))
+	}
+}
+
 func (w *http2responseWriter) WriteHeader(code int) {
+	http2checkWriteHeaderCode(code)
 	rws := w.rws
 	if rws == nil {
 		panic("WriteHeader called after Handler finished")
@@ -6799,6 +6824,13 @@ func (cs *http2clientStream) checkResetOrDone() error {
 	}
 }
 
+func (cs *http2clientStream) getStartedWrite() bool {
+	cc := cs.cc
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	return cs.startedWrite
+}
+
 func (cs *http2clientStream) abortRequestBodyWrite(err error) {
 	if err == nil {
 		panic("nil error")
@@ -6874,14 +6906,9 @@ func (t *http2Transport) RoundTripOpt(req *Request, opt http2RoundTripOpt) (*Res
 			return nil, err
 		}
 		http2traceGotConn(req, cc)
-		res, err := cc.RoundTrip(req)
+		res, gotErrAfterReqBodyWrite, err := cc.roundTrip(req)
 		if err != nil && retry <= 6 {
-			afterBodyWrite := false
-			if e, ok := err.(http2afterReqBodyWriteError); ok {
-				err = e
-				afterBodyWrite = true
-			}
-			if req, err = http2shouldRetryRequest(req, err, afterBodyWrite); err == nil {
+			if req, err = http2shouldRetryRequest(req, err, gotErrAfterReqBodyWrite); err == nil {
 				// After the first retry, do exponential backoff with 10% jitter.
 				if retry == 0 {
 					continue
@@ -6918,16 +6945,6 @@ var (
 	http2errClientConnUnusable  = errors.New("http2: client conn not usable")
 	http2errClientConnGotGoAway = errors.New("http2: Transport received Server's graceful shutdown GOAWAY")
 )
-
-// afterReqBodyWriteError is a wrapper around errors returned by ClientConn.RoundTrip.
-// It is used to signal that err happened after part of Request.Body was sent to the server.
-type http2afterReqBodyWriteError struct {
-	err error
-}
-
-func (e http2afterReqBodyWriteError) Error() string {
-	return e.err.Error() + "; some request body already written"
-}
 
 // shouldRetryRequest is called by RoundTrip when a request fails to get
 // response headers. It is always called with a non-nil error.
@@ -7277,8 +7294,13 @@ func http2actualContentLength(req *Request) int64 {
 }
 
 func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
+	resp, _, err := cc.roundTrip(req)
+	return resp, err
+}
+
+func (cc *http2ClientConn) roundTrip(req *Request) (res *Response, gotErrAfterReqBodyWrite bool, err error) {
 	if err := http2checkConnHeaders(req); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if cc.idleTimer != nil {
 		cc.idleTimer.Stop()
@@ -7286,14 +7308,14 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 
 	trailers, err := http2commaSeparatedTrailers(req)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	hasTrailers := trailers != ""
 
 	cc.mu.Lock()
 	if err := cc.awaitOpenSlotForRequest(req); err != nil {
 		cc.mu.Unlock()
-		return nil, err
+		return nil, false, err
 	}
 
 	body := req.Body
@@ -7327,7 +7349,7 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 	hdrs, err := cc.encodeHeaders(req, requestedGzip, trailers, contentLen)
 	if err != nil {
 		cc.mu.Unlock()
-		return nil, err
+		return nil, false, err
 	}
 
 	cs := cc.newStream()
@@ -7339,7 +7361,7 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 
 	cc.wmu.Lock()
 	endStream := !hasBody && !hasTrailers
-	werr := cc.writeHeaders(cs.ID, endStream, hdrs)
+	werr := cc.writeHeaders(cs.ID, endStream, int(cc.maxFrameSize), hdrs)
 	cc.wmu.Unlock()
 	http2traceWroteHeaders(cs.trace)
 	cc.mu.Unlock()
@@ -7353,7 +7375,7 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 		// Don't bother sending a RST_STREAM (our write already failed;
 		// no need to keep writing)
 		http2traceWroteRequest(cs.trace, werr)
-		return nil, werr
+		return nil, false, werr
 	}
 
 	var respHeaderTimer <-chan time.Time
@@ -7372,7 +7394,7 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 	bodyWritten := false
 	ctx := http2reqContext(req)
 
-	handleReadLoopResponse := func(re http2resAndError) (*Response, error) {
+	handleReadLoopResponse := func(re http2resAndError) (*Response, bool, error) {
 		res := re.res
 		if re.err != nil || res.StatusCode > 299 {
 			// On error or status code 3xx, 4xx, 5xx, etc abort any
@@ -7388,18 +7410,12 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 			cs.abortRequestBodyWrite(http2errStopReqBodyWrite)
 		}
 		if re.err != nil {
-			cc.mu.Lock()
-			afterBodyWrite := cs.startedWrite
-			cc.mu.Unlock()
 			cc.forgetStreamID(cs.ID)
-			if afterBodyWrite {
-				return nil, http2afterReqBodyWriteError{re.err}
-			}
-			return nil, re.err
+			return nil, cs.getStartedWrite(), re.err
 		}
 		res.Request = req
 		res.TLS = cc.tlsState
-		return res, nil
+		return res, false, nil
 	}
 
 	for {
@@ -7414,7 +7430,7 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 				cs.abortRequestBodyWrite(http2errStopReqBodyWriteAndCancel)
 			}
 			cc.forgetStreamID(cs.ID)
-			return nil, http2errTimeout
+			return nil, cs.getStartedWrite(), http2errTimeout
 		case <-ctx.Done():
 			if !hasBody || bodyWritten {
 				cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
@@ -7423,7 +7439,7 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 				cs.abortRequestBodyWrite(http2errStopReqBodyWriteAndCancel)
 			}
 			cc.forgetStreamID(cs.ID)
-			return nil, ctx.Err()
+			return nil, cs.getStartedWrite(), ctx.Err()
 		case <-req.Cancel:
 			if !hasBody || bodyWritten {
 				cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
@@ -7432,12 +7448,12 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 				cs.abortRequestBodyWrite(http2errStopReqBodyWriteAndCancel)
 			}
 			cc.forgetStreamID(cs.ID)
-			return nil, http2errRequestCanceled
+			return nil, cs.getStartedWrite(), http2errRequestCanceled
 		case <-cs.peerReset:
 			// processResetStream already removed the
 			// stream from the streams map; no need for
 			// forgetStreamID.
-			return nil, cs.resetErr
+			return nil, cs.getStartedWrite(), cs.resetErr
 		case err := <-bodyWriter.resc:
 			// Prefer the read loop's response, if available. Issue 16102.
 			select {
@@ -7446,7 +7462,7 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 			default:
 			}
 			if err != nil {
-				return nil, err
+				return nil, cs.getStartedWrite(), err
 			}
 			bodyWritten = true
 			if d := cc.responseHeaderTimeout(); d != 0 {
@@ -7498,13 +7514,12 @@ func (cc *http2ClientConn) awaitOpenSlotForRequest(req *Request) error {
 }
 
 // requires cc.wmu be held
-func (cc *http2ClientConn) writeHeaders(streamID uint32, endStream bool, hdrs []byte) error {
+func (cc *http2ClientConn) writeHeaders(streamID uint32, endStream bool, maxFrameSize int, hdrs []byte) error {
 	first := true // first frame written (HEADERS is first, then CONTINUATION)
-	frameSize := int(cc.maxFrameSize)
 	for len(hdrs) > 0 && cc.werr == nil {
 		chunk := hdrs
-		if len(chunk) > frameSize {
-			chunk = chunk[:frameSize]
+		if len(chunk) > maxFrameSize {
+			chunk = chunk[:maxFrameSize]
 		}
 		hdrs = hdrs[len(chunk):]
 		endHeaders := len(hdrs) == 0
@@ -7621,13 +7636,17 @@ func (cs *http2clientStream) writeRequestBody(body io.Reader, bodyCloser io.Clos
 		}
 	}
 
+	cc.mu.Lock()
+	maxFrameSize := int(cc.maxFrameSize)
+	cc.mu.Unlock()
+
 	cc.wmu.Lock()
 	defer cc.wmu.Unlock()
 
 	// Two ways to send END_STREAM: either with trailers, or
 	// with an empty DATA frame.
 	if len(trls) > 0 {
-		err = cc.writeHeaders(cs.ID, true, trls)
+		err = cc.writeHeaders(cs.ID, true, maxFrameSize, trls)
 	} else {
 		err = cc.fr.WriteData(cs.ID, true, nil)
 	}
@@ -8101,6 +8120,7 @@ func (rl *http2clientConnReadLoop) processHeaders(f *http2MetaHeadersFrame) erro
 		}
 		// Any other error type is a stream error.
 		cs.cc.writeStreamReset(f.StreamID, http2ErrCodeProtocol, err)
+		cc.forgetStreamID(cs.ID)
 		cs.resc <- http2resAndError{err: err}
 		return nil // return nil from process* funcs to keep conn alive
 	}
@@ -8130,11 +8150,11 @@ func (rl *http2clientConnReadLoop) handleResponse(cs *http2clientStream, f *http
 
 	status := f.PseudoValue("status")
 	if status == "" {
-		return nil, errors.New("missing status pseudo header")
+		return nil, errors.New("malformed response from server: missing status pseudo header")
 	}
 	statusCode, err := strconv.Atoi(status)
 	if err != nil {
-		return nil, errors.New("malformed non-numeric status pseudo header")
+		return nil, errors.New("malformed response from server: malformed non-numeric status pseudo header")
 	}
 
 	if statusCode == 100 {
@@ -8445,11 +8465,11 @@ func (rl *http2clientConnReadLoop) endStreamError(cs *http2clientStream, err err
 		err = io.EOF
 		code = cs.copyTrailers
 	}
-	cs.bufPipe.closeWithErrorAndCode(err, code)
-	delete(rl.activeRes, cs.ID)
 	if http2isConnectionCloseRequest(cs.req) {
 		rl.closeWhenIdle = true
 	}
+	cs.bufPipe.closeWithErrorAndCode(err, code)
+	delete(rl.activeRes, cs.ID)
 
 	select {
 	case cs.resc <- http2resAndError{err: err}:
