@@ -2227,32 +2227,6 @@ func iscallret(n *Node) bool {
 	return n.Op == OINDREGSP
 }
 
-func isstack(n *Node) bool {
-	n = outervalue(n)
-
-	// If n is *autotmp and autotmp = &foo, replace n with foo.
-	// We introduce such temps when initializing struct literals.
-	if n.Op == OIND && n.Left.Op == ONAME && n.Left.IsAutoTmp() {
-		defn := n.Left.Name.Defn
-		if defn != nil && defn.Op == OAS && defn.Right.Op == OADDR {
-			n = defn.Right.Left
-		}
-	}
-
-	switch n.Op {
-	case OINDREGSP:
-		return true
-
-	case ONAME:
-		switch n.Class() {
-		case PAUTO, PPARAM, PPARAMOUT:
-			return true
-		}
-	}
-
-	return false
-}
-
 // isReflectHeaderDataField reports whether l is an expression p.Data
 // where p has type reflect.SliceHeader or reflect.StringHeader.
 func isReflectHeaderDataField(l *Node) bool {

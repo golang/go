@@ -117,10 +117,6 @@ func isSigned(t *types.Type) bool {
 	return t.IsSigned()
 }
 
-func typeSize(t *types.Type) int64 {
-	return t.Size()
-}
-
 // mergeSym merges two symbolic offsets. There is no real merging of
 // offsets, we just pick the non-nil one.
 func mergeSym(x, y interface{}) interface{} {
