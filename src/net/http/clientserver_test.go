@@ -1141,27 +1141,6 @@ func testTransportRejectsInvalidHeaders(t *testing.T, h2 bool) {
 	}
 }
 
-// Tests that we support bogus under-100 HTTP statuses, because we historically
-// have. This might change at some point, but not yet in Go 1.6.
-func TestBogusStatusWorks_h1(t *testing.T) { testBogusStatusWorks(t, h1Mode) }
-func TestBogusStatusWorks_h2(t *testing.T) { testBogusStatusWorks(t, h2Mode) }
-func testBogusStatusWorks(t *testing.T, h2 bool) {
-	defer afterTest(t)
-	const code = 7
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.WriteHeader(code)
-	}))
-	defer cst.close()
-
-	res, err := cst.c.Get(cst.ts.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.StatusCode != code {
-		t.Errorf("StatusCode = %d; want %d", res.StatusCode, code)
-	}
-}
-
 func TestInterruptWithPanic_h1(t *testing.T)     { testInterruptWithPanic(t, h1Mode, "boom") }
 func TestInterruptWithPanic_h2(t *testing.T)     { testInterruptWithPanic(t, h2Mode, "boom") }
 func TestInterruptWithPanic_nil_h1(t *testing.T) { testInterruptWithPanic(t, h1Mode, nil) }
@@ -1406,5 +1385,45 @@ func TestBadResponseAfterReadingBody(t *testing.T) {
 	}
 	if closes != 1 {
 		t.Errorf("closes = %d; want 1", closes)
+	}
+}
+
+func TestWriteHeader0_h1(t *testing.T) { testWriteHeader0(t, h1Mode) }
+func TestWriteHeader0_h2(t *testing.T) { testWriteHeader0(t, h2Mode) }
+func testWriteHeader0(t *testing.T, h2 bool) {
+	if h2 {
+		t.Skip("skipping until CL 80076 is vendored into std")
+	}
+	defer afterTest(t)
+	gotpanic := make(chan bool, 1)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		defer close(gotpanic)
+		defer func() {
+			if e := recover(); e != nil {
+				got := fmt.Sprintf("%T, %v", e, e)
+				want := "string, invalid WriteHeader code 0"
+				if got != want {
+					t.Errorf("unexpected panic value:\n got: %v\nwant: %v\n", got, want)
+				}
+				gotpanic <- true
+
+				// Set an explicit 503. This also tests that the WriteHeader call panics
+				// before it recorded that an explicit value was set and that bogus
+				// value wasn't stuck.
+				w.WriteHeader(503)
+			}
+		}()
+		w.WriteHeader(0)
+	}))
+	defer cst.close()
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 503 {
+		t.Errorf("Response: %v %q; want 503", res.StatusCode, res.Status)
+	}
+	if !<-gotpanic {
+		t.Error("expected panic in handler")
 	}
 }
