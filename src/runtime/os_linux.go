@@ -24,8 +24,9 @@ func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer, 
 // Futexsleep is allowed to wake up spuriously.
 
 const (
-	_FUTEX_WAIT = 0
-	_FUTEX_WAKE = 1
+	_FUTEX_PRIVATE_FLAG = 128
+	_FUTEX_WAIT_PRIVATE = 0 | _FUTEX_PRIVATE_FLAG
+	_FUTEX_WAKE_PRIVATE = 1 | _FUTEX_PRIVATE_FLAG
 )
 
 // Atomically,
@@ -42,7 +43,7 @@ func futexsleep(addr *uint32, val uint32, ns int64) {
 	// here, and so can we: as it says a few lines up,
 	// spurious wakeups are allowed.
 	if ns < 0 {
-		futex(unsafe.Pointer(addr), _FUTEX_WAIT, val, nil, nil, 0)
+		futex(unsafe.Pointer(addr), _FUTEX_WAIT_PRIVATE, val, nil, nil, 0)
 		return
 	}
 
@@ -59,13 +60,13 @@ func futexsleep(addr *uint32, val uint32, ns int64) {
 		ts.tv_nsec = 0
 		ts.set_sec(int64(timediv(ns, 1000000000, (*int32)(unsafe.Pointer(&ts.tv_nsec)))))
 	}
-	futex(unsafe.Pointer(addr), _FUTEX_WAIT, val, unsafe.Pointer(&ts), nil, 0)
+	futex(unsafe.Pointer(addr), _FUTEX_WAIT_PRIVATE, val, unsafe.Pointer(&ts), nil, 0)
 }
 
 // If any procs are sleeping on addr, wake up at most cnt.
 //go:nosplit
 func futexwakeup(addr *uint32, cnt uint32) {
-	ret := futex(unsafe.Pointer(addr), _FUTEX_WAKE, cnt, nil, nil, 0)
+	ret := futex(unsafe.Pointer(addr), _FUTEX_WAKE_PRIVATE, cnt, nil, nil, 0)
 	if ret >= 0 {
 		return
 	}
