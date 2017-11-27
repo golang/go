@@ -202,6 +202,13 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
 			}
 			f.Func.Inl.Set(body)
 			f.Func.InlCost = int32(inlCost)
+			if Debug['E'] > 0 && Debug['m'] > 2 && f.Func.Inl.Len() != 0 {
+				if Debug['m'] > 3 {
+					fmt.Printf("inl body for %v: %+v\n", f, f.Func.Inl)
+				} else {
+					fmt.Printf("inl body for %v: %v\n", f, f.Func.Inl)
+				}
+			}
 			funcbody()
 		} else {
 			// function already imported - read body but discard declarations
@@ -369,7 +376,11 @@ func (p *importer) obj(tag int) {
 
 		n := newfuncnamel(pos, sym)
 		n.Type = sig
+		// TODO(mdempsky): Stop clobbering n.Pos in declare.
+		savedlineno := lineno
+		lineno = pos
 		declare(n, PFUNC)
+		lineno = savedlineno
 		p.funcList = append(p.funcList, n)
 		importlist = append(importlist, n)
 
@@ -377,9 +388,6 @@ func (p *importer) obj(tag int) {
 
 		if Debug['E'] > 0 {
 			fmt.Printf("import [%q] func %v \n", p.imp.Path, n)
-			if Debug['m'] > 2 && n.Func.Inl.Len() != 0 {
-				fmt.Printf("inl body: %v\n", n.Func.Inl)
-			}
 		}
 
 	default:
@@ -493,7 +501,11 @@ func (p *importer) typ() *types.Type {
 
 		// read underlying type
 		t0 := p.typ()
+		// TODO(mdempsky): Stop clobbering n.Pos in declare.
+		savedlineno := lineno
+		lineno = pos
 		p.importtype(t, t0)
+		lineno = savedlineno
 
 		// interfaces don't have associated methods
 		if t0.IsInterface() {
@@ -547,9 +559,6 @@ func (p *importer) typ() *types.Type {
 
 			if Debug['E'] > 0 {
 				fmt.Printf("import [%q] meth %v \n", p.imp.Path, n)
-				if Debug['m'] > 2 && n.Func.Inl.Len() != 0 {
-					fmt.Printf("inl body: %v\n", n.Func.Inl)
-				}
 			}
 		}
 
@@ -963,21 +972,26 @@ func (p *importer) node() *Node {
 	//	unimplemented
 
 	case OPTRLIT:
-		n := npos(p.pos(), p.expr())
+		pos := p.pos()
+		n := npos(pos, p.expr())
 		if !p.bool() /* !implicit, i.e. '&' operator */ {
 			if n.Op == OCOMPLIT {
 				// Special case for &T{...}: turn into (*T){...}.
-				n.Right = nod(OIND, n.Right, nil)
+				n.Right = nodl(pos, OIND, n.Right, nil)
 				n.Right.SetImplicit(true)
 			} else {
-				n = nod(OADDR, n, nil)
+				n = nodl(pos, OADDR, n, nil)
 			}
 		}
 		return n
 
 	case OSTRUCTLIT:
-		n := nodl(p.pos(), OCOMPLIT, nil, typenod(p.typ()))
+		// TODO(mdempsky): Export position information for OSTRUCTKEY nodes.
+		savedlineno := lineno
+		lineno = p.pos()
+		n := nodl(lineno, OCOMPLIT, nil, typenod(p.typ()))
 		n.List.Set(p.elemList()) // special handling of field names
+		lineno = savedlineno
 		return n
 
 	// case OARRAYLIT, OSLICELIT, OMAPLIT:

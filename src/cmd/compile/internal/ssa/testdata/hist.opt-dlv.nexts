@@ -8,9 +8,7 @@
 61:		sink = dx + dy            //gdb-opt=(dx,dy)
 63:		hist := make([]int, 7)                                //gdb-opt=(sink,dx/O,dy/O)
 64:		var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A,cannedInput/A)
-19:		"strings"
 65:		if len(os.Args) > 1 {
-14:		"bufio"
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
