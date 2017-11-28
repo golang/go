@@ -659,20 +659,29 @@ func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 }
 
 // ModInverse sets z to the multiplicative inverse of g in the ring ℤ/nℤ
-// and returns z. If g and n are not relatively prime, the result is undefined.
+// and returns z. If g and n are not relatively prime, g has no multiplicative
+// inverse in the ring ℤ/nℤ.  In this case, z is unchanged and the return value
+// is nil.
 func (z *Int) ModInverse(g, n *Int) *Int {
 	if g.neg {
 		// GCD expects parameters a and b to be > 0.
 		var g2 Int
 		g = g2.Mod(g, n)
 	}
-	var d Int
-	d.GCD(z, nil, g, n)
-	// x and y are such that g*x + n*y = d. Since g and n are
-	// relatively prime, d = 1. Taking that modulo n results in
-	// g*x = 1, therefore x is the inverse element.
-	if z.neg {
-		z.Add(z, n)
+	var d, x Int
+	d.GCD(&x, nil, g, n)
+
+	// if and only if d==1, g and n are relatively prime
+	if d.Cmp(intOne) != 0 {
+		return nil
+	}
+
+	// x and y are such that g*x + n*y = 1, therefore x is the inverse element,
+	// but it may be negative, so convert to the range 0 <= z < |n|
+	if x.neg {
+		z.Add(&x, n)
+	} else {
+		z.Set(&x)
 	}
 	return z
 }
