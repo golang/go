@@ -2435,6 +2435,10 @@ func TestMod(t *testing.T) {
 			t.Errorf("Mod(%g, %g) = %g, want %g", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
 		}
 	}
+	// verify precision of result for extreme inputs
+	if f := Mod(5.9790119248836734e+200, 1.1258465975523544); 0.6447968302508578 != f {
+		t.Errorf("Remainder(5.9790119248836734e+200, 1.1258465975523544) = %g, want 0.6447968302508578", f)
+	}
 }
 
 func TestFrexp(t *testing.T) {
@@ -2775,6 +2779,10 @@ func TestRemainder(t *testing.T) {
 		if f := Remainder(vffmodSC[i][0], vffmodSC[i][1]); !alike(fmodSC[i], f) {
 			t.Errorf("Remainder(%g, %g) = %g, want %g", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
 		}
+	}
+	// verify precision of result for extreme inputs
+	if f := Remainder(5.9790119248836734e+200, 1.1258465975523544); -0.4810497673014966 != f {
+		t.Errorf("Remainder(5.9790119248836734e+200, 1.1258465975523544) = %g, want -0.4810497673014966", f)
 	}
 }
 
