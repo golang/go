@@ -22,11 +22,15 @@ import (
 
 func checkGdbEnvironment(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	if runtime.GOOS == "darwin" {
+	switch runtime.GOOS {
+	case "darwin":
 		t.Skip("gdb does not work on darwin")
-	}
-	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64" {
-		t.Skip("skipping gdb tests on linux/ppc64; see golang.org/issue/17366")
+	case "netbsd":
+		t.Skip("test times out on NetBSD for unknown reasons; issue 22893")
+	case "linux":
+		if runtime.GOARCH == "ppc64" {
+			t.Skip("skipping gdb tests on linux/ppc64; see golang.org/issue/17366")
+		}
 	}
 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
 		t.Skip("gdb test can fail with GOROOT_FINAL pending")
