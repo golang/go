@@ -2022,6 +2022,10 @@ func checknil(x *Node, init *Nodes) {
 // Can this type be stored directly in an interface word?
 // Yes, if the representation is a single pointer.
 func isdirectiface(t *types.Type) bool {
+	if t.Broke() {
+		return false
+	}
+
 	switch t.Etype {
 	case TPTR32,
 		TPTR64,
