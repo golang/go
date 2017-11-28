@@ -1443,6 +1443,17 @@ func TestModInverse(t *testing.T) {
 	}
 }
 
+func BenchmarkModInverse(b *testing.B) {
+	p := new(Int).SetInt64(1) // Mersenne prime 2**1279 -1
+	p.abs = p.abs.shl(p.abs, 1279)
+	p.Sub(p, intOne)
+	x := new(Int).Sub(p, intOne)
+	z := new(Int)
+	for i := 0; i < b.N; i++ {
+		z.ModInverse(x, p)
+	}
+}
+
 // testModSqrt is a helper for TestModSqrt,
 // which checks that ModSqrt can compute a square-root of elt^2.
 func testModSqrt(t *testing.T, elt, mod, sq, sqrt *Int) bool {
