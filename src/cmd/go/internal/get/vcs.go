@@ -970,7 +970,7 @@ var vcsPaths = []*vcsPath{
 
 	// IBM DevOps Services (JazzHub)
 	{
-		prefix: "hub.jazz.net/git",
+		prefix: "hub.jazz.net/git/",
 		re:     `^(?P<root>hub.jazz.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`,
 		vcs:    "git",
 		repo:   "https://{root}",
@@ -979,7 +979,7 @@ var vcsPaths = []*vcsPath{
 
 	// Git at Apache
 	{
-		prefix: "git.apache.org",
+		prefix: "git.apache.org/",
 		re:     `^(?P<root>git.apache.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`,
 		vcs:    "git",
 		repo:   "https://{root}",
@@ -987,7 +987,7 @@ var vcsPaths = []*vcsPath{
 
 	// Git at OpenStack
 	{
-		prefix: "git.openstack.org",
+		prefix: "git.openstack.org/",
 		re:     `^(?P<root>git\.openstack\.org/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(\.git)?(/[A-Za-z0-9_.\-]+)*$`,
 		vcs:    "git",
 		repo:   "https://{root}",
@@ -995,7 +995,7 @@ var vcsPaths = []*vcsPath{
 
 	// chiselapp.com for fossil
 	{
-		prefix: "chiselapp.com",
+		prefix: "chiselapp.com/",
 		re:     `^(?P<root>chiselapp\.com/user/[A-Za-z0-9]+/repository/[A-Za-z0-9_.\-]+)$`,
 		vcs:    "fossil",
 		repo:   "https://{root}",
