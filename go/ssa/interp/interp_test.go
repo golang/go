@@ -152,27 +152,6 @@ var testdataTests = []string{
 	"callstack.go",
 }
 
-// These are files and packages in $GOROOT/src/.
-var gorootSrcTests = []string{
-	"encoding/ascii85",
-	"encoding/hex",
-	// "encoding/pem", // TODO(adonovan): implement (reflect.Value).SetString
-	// "testing",      // TODO(adonovan): implement runtime.Goexit correctly
-	// "hash/crc32",   // TODO(adonovan): implement hash/crc32.haveCLMUL
-	// "log",          // TODO(adonovan): implement runtime.Callers correctly
-
-	// Too slow:
-	// "container/ring",
-	// "hash/adler32",
-
-	"unicode/utf8",
-	"path",
-	"flag",
-	"encoding/csv",
-	"text/scanner",
-	"unicode",
-}
-
 type successPredicate func(exitcode int, output string) error
 
 func run(t *testing.T, dir, input string, success successPredicate) bool {
@@ -312,51 +291,7 @@ func TestGorootTest(t *testing.T) {
 			failures = append(failures, input)
 		}
 	}
-	for _, input := range gorootSrcTests {
-		if !run(t, filepath.Join(build.Default.GOROOT, "src")+slash, input, success) {
-			failures = append(failures, input)
-		}
-	}
 	printFailures(failures)
-}
-
-// TestTestmainPackage runs the interpreter on a synthetic "testmain" package.
-func TestTestmainPackage(t *testing.T) {
-	if testing.Short() {
-		t.Skip() // too slow on some platforms
-	}
-
-	success := func(exitcode int, output string) error {
-		if exitcode == 0 {
-			return fmt.Errorf("unexpected success")
-		}
-		if !strings.Contains(output, "FAIL: TestFoo") {
-			return fmt.Errorf("missing failure log for TestFoo")
-		}
-		if !strings.Contains(output, "FAIL: TestBar") {
-			return fmt.Errorf("missing failure log for TestBar")
-		}
-		// TODO(adonovan): test benchmarks too
-		return nil
-	}
-	run(t, "testdata"+slash, "a_test.go", success)
-
-	// Run a test with a custom TestMain function and ensure that it
-	// is executed, and that m.Run runs the tests.
-	success = func(exitcode int, output string) error {
-		if exitcode != 0 {
-			return fmt.Errorf("unexpected failure; output=%s", output)
-		}
-		if want := `TestMain start
-TestC
-PASS
-TestMain end
-`; output != want {
-			return fmt.Errorf("output was %q, want %q", output, want)
-		}
-		return nil
-	}
-	run(t, "testdata"+slash, "c_test.go", success)
 }
 
 // CreateTestMainPackage should return nil if there were no tests.

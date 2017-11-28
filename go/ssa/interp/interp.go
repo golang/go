@@ -20,11 +20,13 @@
 //
 // * The reflect package is only partially implemented.
 //
-// * "sync/atomic" operations are not currently atomic due to the
-// "boxed" value representation: it is not possible to read, modify
-// and write an interface value atomically.  As a consequence, Mutexes
-// are currently broken.  TODO(adonovan): provide a metacircular
-// implementation of Mutex avoiding the broken atomic primitives.
+// * The "testing" package is no longer supported because it
+// depends on low-level details that change too often.
+//
+// * "sync/atomic" operations are not atomic due to the "boxed" value
+// representation: it is not possible to read, modify and write an
+// interface value atomically. As a consequence, Mutexes are currently
+// broken.
 //
 // * recover is only partially implemented.  Also, the interpreter
 // makes no attempt to distinguish target panics from interpreter

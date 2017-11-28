@@ -49,14 +49,13 @@ Use -help flag to display options.
 
 Examples:
 % ssadump -build=F hello.go              # dump SSA form of a single package
+% ssadump -build=F -test fmt             # dump SSA form of a package and its tests
 % ssadump -run -interp=T hello.go        # interpret a program, with tracing
-% ssadump -run -test unicode -- -test.v  # interpret the unicode package's tests, verbosely
 ` + loader.FromArgsUsage +
 	`
-When -run is specified, ssadump will run the program.
-The entry point depends on the -test flag:
-if clear, it runs the first package named main.
-if set, it runs the tests of each package.
+The -run flag causes ssadump to run the first package named main.
+
+Interpretation of the standard "testing" package is no longer supported.
 `
 
 func main() {
