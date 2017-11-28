@@ -237,7 +237,7 @@ func dclname(s *types.Sym) *Node {
 }
 
 func typenod(t *types.Type) *Node {
-	return typenodl(lineno, t)
+	return typenodl(src.NoXPos, t)
 }
 
 func typenodl(pos src.XPos, t *types.Type) *Node {
