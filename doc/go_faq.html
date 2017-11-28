@@ -1476,6 +1476,53 @@ For more detail on this topic see the talk entitled,
 <a href="//blog.golang.org/2013/01/concurrency-is-not-parallelism.html">Concurrency
 is not Parallelism</a>.
 
+<h3 id="no_goroutine_id">
+Why is there no goroutine ID?</h3>
+
+<p>
+Goroutines do not have names; they are just anonymous workers.
+They expose no unique identifier, name, or data structure to the programmer.
+Some people are surprised by this, expecting the <code>go</code>
+statement to return some item that can be used to access and control
+the goroutine later.
+</p>
+
+<p>
+The usage patterns that develop when threads and goroutines are
+named can restrict what a library using them can do.
+Goroutines
+are anonymous so the full Go language is available when programming
+concurrent code.
+</p>
+
+<p>
+For example, once one names a goroutine and constructs a model around
+it, it becomes special, and one is tempted to associate all computation
+with that goroutine, ignoring the possibility
+of using multiple, possibly shared goroutines for the processing.
+If the <code>net/http</code> package associated per-request
+state with a goroutine,
+clients would be unable to use more goroutines
+when serving a request.
+</p>
+
+<p>
+Also, experience with libraries, such as those for graphics systems,
+that require all processing to occur on the "main thread",
+shows how awkward and limiting the approach can be when
+deployed in a concurrent language.
+The very existence of a special thread or goroutine forces
+the programmer to distort the program to avoid crashes
+and other problems caused by inadvertently operating
+on the wrong thread.
+</p>
+
+<p>
+For those cases where a particular goroutine is truly special,
+the language provides features such as channels that can be
+used in flexible ways to interact with it.
+</p>
+
 <h2 id="Functions_methods">Functions and Methods</h2>
 
 <h3 id="different_method_sets">
