@@ -468,8 +468,8 @@ type name struct {
 	bytes *byte
 }
 
-func (n name) data(off int) *byte {
-	return (*byte)(add(unsafe.Pointer(n.bytes), uintptr(off)))
+func (n name) data(off int, whySafe string) *byte {
+	return (*byte)(add(unsafe.Pointer(n.bytes), uintptr(off), whySafe))
 }
 
 func (n name) isExported() bool {
@@ -477,15 +477,15 @@ func (n name) isExported() bool {
 }
 
 func (n name) nameLen() int {
-	return int(uint16(*n.data(1))<<8 | uint16(*n.data(2)))
+	return int(uint16(*n.data(1, "name len field"))<<8 | uint16(*n.data(2, "name len field")))
 }
 
 func (n name) tagLen() int {
-	if *n.data(0)&(1<<1) == 0 {
+	if *n.data(0, "name flag field")&(1<<1) == 0 {
 		return 0
 	}
 	off := 3 + n.nameLen()
-	return int(uint16(*n.data(off))<<8 | uint16(*n.data(off + 1)))
+	return int(uint16(*n.data(off, "name taglen field"))<<8 | uint16(*n.data(off+1, "name taglen field")))
 }
 
 func (n name) name() (s string) {
@@ -507,13 +507,13 @@ func (n name) tag() (s string) {
 	}
 	nl := n.nameLen()
 	hdr := (*stringHeader)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(n.data(3 + nl + 2))
+	hdr.Data = unsafe.Pointer(n.data(3+nl+2, "non-empty string"))
 	hdr.Len = tl
 	return s
 }
 
 func (n name) pkgPath() string {
-	if n.bytes == nil || *n.data(0)&(1<<2) == 0 {
+	if n.bytes == nil || *n.data(0, "name flag field")&(1<<2) == 0 {
 		return ""
 	}
 	off := 3 + n.nameLen()
@@ -521,7 +521,9 @@ func (n name) pkgPath() string {
 		off += 2 + tl
 	}
 	var nameOff int32
-	copy((*[4]byte)(unsafe.Pointer(&nameOff))[:], (*[4]byte)(unsafe.Pointer(n.data(off)))[:])
+	// Note that this field may not be aligned in memory,
+	// so we cannot use a direct int32 assignment here.
+	copy((*[4]byte)(unsafe.Pointer(&nameOff))[:], (*[4]byte)(unsafe.Pointer(n.data(off, "name offset field")))[:])
 	pkgPathName := name{(*byte)(resolveTypeOff(unsafe.Pointer(n.bytes), nameOff))}
 	return pkgPathName.name()
 }
@@ -630,7 +632,10 @@ var kindNames = []string{
 }
 
 func (t *uncommonType) methods() []method {
-	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff)))[:t.mcount:t.mcount]
+	if t.mcount == 0 {
+		return nil
+	}
+	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff), "t.mcount > 0"))[:t.mcount:t.mcount]
 }
 
 // resolveNameOff resolves a name offset from a base pointer.
@@ -1045,7 +1050,10 @@ func (t *funcType) in() []*rtype {
 	if t.tflag&tflagUncommon != 0 {
 		uadd += unsafe.Sizeof(uncommonType{})
 	}
-	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd))[:t.inCount]
+	if t.inCount == 0 {
+		return nil
+	}
+	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "t.inCount > 0"))[:t.inCount]
 }
 
 func (t *funcType) out() []*rtype {
@@ -1054,10 +1062,20 @@ func (t *funcType) out() []*rtype {
 		uadd += unsafe.Sizeof(uncommonType{})
 	}
 	outCount := t.outCount & (1<<15 - 1)
-	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd))[t.inCount : t.inCount+outCount]
+	if outCount == 0 {
+		return nil
+	}
+	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "outCount > 0"))[t.inCount : t.inCount+outCount]
 }
 
-func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
+// add returns p+x.
+//
+// The whySafe string is ignored, so that the function still inlines
+// as efficiently as p+x, but all call sites should use the string to
+// record why the addition is safe, which is to say why the addition
+// does not cause x to advance to the very end of p's allocation
+// and therefore point incorrectly at the next block in memory.
+func add(p unsafe.Pointer, x uintptr, whySafe string) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + x)
 }
 
@@ -1721,7 +1739,7 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 func typelinks() (sections []unsafe.Pointer, offset [][]int32)
 
 func rtypeOff(section unsafe.Pointer, off int32) *rtype {
-	return (*rtype)(add(section, uintptr(off)))
+	return (*rtype)(add(section, uintptr(off), "sizeof(rtype) > 0"))
 }
 
 // typesByString returns the subslice of typelinks() whose elements have
@@ -2747,7 +2765,7 @@ func StructOf(fields []StructField) Type {
 		typ.alg.hash = func(p unsafe.Pointer, seed uintptr) uintptr {
 			o := seed
 			for _, ft := range typ.fields {
-				pi := unsafe.Pointer(uintptr(p) + ft.offset())
+				pi := add(p, ft.offset(), "&x.field safe")
 				o = ft.typ.alg.hash(pi, o)
 			}
 			return o
@@ -2757,8 +2775,8 @@ func StructOf(fields []StructField) Type {
 	if comparable {
 		typ.alg.equal = func(p, q unsafe.Pointer) bool {
 			for _, ft := range typ.fields {
-				pi := unsafe.Pointer(uintptr(p) + ft.offset())
-				qi := unsafe.Pointer(uintptr(q) + ft.offset())
+				pi := add(p, ft.offset(), "&x.field safe")
+				qi := add(q, ft.offset(), "&x.field safe")
 				if !ft.typ.alg.equal(pi, qi) {
 					return false
 				}
@@ -2972,8 +2990,8 @@ func ArrayOf(count int, elem Type) Type {
 		eequal := ealg.equal
 		array.alg.equal = func(p, q unsafe.Pointer) bool {
 			for i := 0; i < count; i++ {
-				pi := arrayAt(p, i, esize)
-				qi := arrayAt(q, i, esize)
+				pi := arrayAt(p, i, esize, "i < count")
+				qi := arrayAt(q, i, esize, "i < count")
 				if !eequal(pi, qi) {
 					return false
 				}
@@ -2987,7 +3005,7 @@ func ArrayOf(count int, elem Type) Type {
 		array.alg.hash = func(ptr unsafe.Pointer, seed uintptr) uintptr {
 			o := seed
 			for i := 0; i < count; i++ {
-				o = ehash(arrayAt(ptr, i, esize), o)
+				o = ehash(arrayAt(ptr, i, esize, "i < count"), o)
 			}
 			return o
 		}
