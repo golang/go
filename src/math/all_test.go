@@ -3210,7 +3210,7 @@ func BenchmarkAbs(b *testing.B) {
 func BenchmarkDim(b *testing.B) {
 	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Dim(10, 3)
+		x = Dim(GlobalF, x)
 	}
 	GlobalF = x
 }
