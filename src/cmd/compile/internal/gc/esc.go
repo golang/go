@@ -680,7 +680,18 @@ func (e *EscState) esc(n *Node, parent *Node) {
 	}
 
 	e.esc(n.Left, n)
+
+	if n.Op == ORANGE {
+		// ORANGE node's Right is evaluated before the loop
+		e.loopdepth--
+	}
+
 	e.esc(n.Right, n)
+
+	if n.Op == ORANGE {
+		e.loopdepth++
+	}
+
 	e.esclist(n.Nbody, n)
 	e.esclist(n.List, n)
 	e.esclist(n.Rlist, n)
