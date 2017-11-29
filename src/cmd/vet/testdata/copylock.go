@@ -178,9 +178,11 @@ func AtomicTypesCheck() {
 	var vX atomic.Value
 	var vXX = atomic.Value{}
 	vX1 := new(atomic.Value)
-	vY := vX     // ERROR "assignment copies lock value to vY: sync/atomic.Value contains sync/atomic.noCopy"
-	vY = vX      // ERROR "assignment copies lock value to vY: sync/atomic.Value contains sync/atomic.noCopy"
-	var vYY = vX // ERROR "variable declaration copies lock value to vYY: sync/atomic.Value contains sync/atomic.noCopy"
+	// These are OK because the value has not been used yet.
+	// (And vet can't tell whether it has been used, so they're always OK.)
+	vY := vX
+	vY = vX
+	var vYY = vX
 	vP := &vX
 	vZ := &atomic.Value{}
 }
