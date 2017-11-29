@@ -205,6 +205,9 @@ func TestWebIndex(t *testing.T) {
 
 // Basic integration test for godoc HTTP interface.
 func testWeb(t *testing.T, withIndex bool) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; files to start up quickly enough")
+	}
 	bin, cleanup := buildGodoc(t)
 	defer cleanup()
 	addr := serverAddress(t)
