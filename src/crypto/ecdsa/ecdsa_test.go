@@ -48,10 +48,13 @@ func BenchmarkSignP256(b *testing.B) {
 	hashed := []byte("testing")
 	priv, _ := GenerateKey(p256, rand.Reader)
 
+	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, _, _ = Sign(rand.Reader, priv, hashed)
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_, _, _ = Sign(rand.Reader, priv, hashed)
+		}
+	})
 }
 
 func BenchmarkSignP384(b *testing.B) {
@@ -60,10 +63,13 @@ func BenchmarkSignP384(b *testing.B) {
 	hashed := []byte("testing")
 	priv, _ := GenerateKey(p384, rand.Reader)
 
+	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, _, _ = Sign(rand.Reader, priv, hashed)
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_, _, _ = Sign(rand.Reader, priv, hashed)
+		}
+	})
 }
 
 func BenchmarkVerifyP256(b *testing.B) {
@@ -73,20 +79,26 @@ func BenchmarkVerifyP256(b *testing.B) {
 	priv, _ := GenerateKey(p256, rand.Reader)
 	r, s, _ := Sign(rand.Reader, priv, hashed)
 
+	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		Verify(&priv.PublicKey, hashed, r, s)
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Verify(&priv.PublicKey, hashed, r, s)
+		}
+	})
 }
 
 func BenchmarkKeyGeneration(b *testing.B) {
 	b.ResetTimer()
 	p256 := elliptic.P256()
 
+	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		GenerateKey(p256, rand.Reader)
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			GenerateKey(p256, rand.Reader)
+		}
+	})
 }
 
 func testSignAndVerify(t *testing.T, c elliptic.Curve, tag string) {
