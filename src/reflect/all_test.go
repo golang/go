@@ -1631,6 +1631,15 @@ func TestFunc(t *testing.T) {
 	}
 }
 
+func TestCallConvert(t *testing.T) {
+	v := ValueOf(new(io.ReadWriter)).Elem()
+	f := ValueOf(func(r io.Reader) io.Reader { return r })
+	out := f.Call([]Value{v})
+	if len(out) != 1 || out[0].Type() != TypeOf(new(io.Reader)).Elem() || !out[0].IsNil() {
+		t.Errorf("expected [nil], got %v", out)
+	}
+}
+
 type emptyStruct struct{}
 
 type nonEmptyStruct struct {

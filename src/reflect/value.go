@@ -2197,6 +2197,12 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
 		if target == nil {
 			target = unsafe_New(dst)
 		}
+		if v.Kind() == Interface && v.IsNil() {
+			// A nil ReadWriter passed to nil Reader is OK,
+			// but using ifaceE2I below will panic.
+			// Avoid the panic by returning a nil dst (e.g., Reader) explicitly.
+			return Value{dst, nil, flag(Interface)}
+		}
 		x := valueInterface(v, false)
 		if dst.NumMethod() == 0 {
 			*(*interface{})(target) = x
