@@ -156,6 +156,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		//     }
 		//
 		buf.WriteString("interface{")
+		empty := true
 		if gcCompatibilityMode {
 			// print flattened interface
 			// (useful to compare against gc-generated interfaces)
@@ -165,6 +166,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 				}
 				buf.WriteString(m.name)
 				writeSignature(buf, m.typ.(*Signature), qf, visited)
+				empty = false
 			}
 		} else {
 			// print explicit interface methods and embedded types
@@ -174,13 +176,21 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 				}
 				buf.WriteString(m.name)
 				writeSignature(buf, m.typ.(*Signature), qf, visited)
+				empty = false
 			}
 			for i, typ := range t.embeddeds {
 				if i > 0 || len(t.methods) > 0 {
 					buf.WriteString("; ")
 				}
 				writeType(buf, typ, qf, visited)
+				empty = false
 			}
+		}
+		if t.allMethods == nil || len(t.methods) > len(t.allMethods) {
+			if !empty {
+				buf.WriteByte(' ')
+			}
+			buf.WriteString("/* incomplete */")
 		}
 		buf.WriteByte('}')
 

@@ -32,12 +32,12 @@ func TestIsAlias(t *testing.T) {
 		{NewTypeName(0, nil, "t0", nil), false}, // no type yet
 		{NewTypeName(0, pkg, "t0", nil), false}, // no type yet
 		{t1, false},                             // type name refers to named type and vice versa
-		{NewTypeName(0, nil, "t2", new(Interface)), true}, // type name refers to unnamed type
-		{NewTypeName(0, pkg, "t3", n1), true},             // type name refers to named type with different type name
-		{NewTypeName(0, nil, "t4", Typ[Int32]), true},     // type name refers to basic type with different name
-		{NewTypeName(0, nil, "int32", Typ[Int32]), false}, // type name refers to basic type with same name
-		{NewTypeName(0, pkg, "int32", Typ[Int32]), true},  // type name is declared in user-defined package (outside Universe)
-		{NewTypeName(0, nil, "rune", Typ[Rune]), true},    // type name refers to basic type rune which is an alias already
+		{NewTypeName(0, nil, "t2", &emptyInterface), true}, // type name refers to unnamed type
+		{NewTypeName(0, pkg, "t3", n1), true},              // type name refers to named type with different type name
+		{NewTypeName(0, nil, "t4", Typ[Int32]), true},      // type name refers to basic type with different name
+		{NewTypeName(0, nil, "int32", Typ[Int32]), false},  // type name refers to basic type with same name
+		{NewTypeName(0, pkg, "int32", Typ[Int32]), true},   // type name is declared in user-defined package (outside Universe)
+		{NewTypeName(0, nil, "rune", Typ[Rune]), true},     // type name refers to basic type rune which is an alias already
 	} {
 		check(test.name, test.alias)
 	}
