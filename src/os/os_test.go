@@ -1239,9 +1239,9 @@ func TestChdirAndGetwd(t *testing.T) {
 			if mode == 0 {
 				err = Chdir(d)
 			} else {
-				fd1, err := Open(d)
-				if err != nil {
-					t.Errorf("Open %s: %s", d, err)
+				fd1, err1 := Open(d)
+				if err1 != nil {
+					t.Errorf("Open %s: %s", d, err1)
 					continue
 				}
 				err = fd1.Chdir()
