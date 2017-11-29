@@ -10,9 +10,7 @@ package math
 //	Dim(+Inf, +Inf) = NaN
 //	Dim(-Inf, -Inf) = NaN
 //	Dim(x, NaN) = Dim(NaN, x) = NaN
-func Dim(x, y float64) float64
-
-func dim(x, y float64) float64 {
+func Dim(x, y float64) float64 {
 	// The special cases result in NaN after the subtraction:
 	//      +Inf - +Inf = NaN
 	//      -Inf - -Inf = NaN
