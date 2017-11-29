@@ -7,63 +7,13 @@
 package nettest
 
 import (
-	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"runtime"
 	"testing"
+
+	"golang_org/x/net/internal/nettest"
 )
-
-// testUnixAddr uses ioutil.TempFile to get a name that is unique.
-// It also uses /tmp directory in case it is prohibited to create UNIX
-// sockets in TMPDIR.
-func testUnixAddr() string {
-	f, err := ioutil.TempFile("", "go-nettest")
-	if err != nil {
-		panic(err)
-	}
-	addr := f.Name()
-	f.Close()
-	os.Remove(addr)
-	return addr
-}
-
-// testableNetwork reports whether network is testable on the current
-// platform configuration.
-// This is based on logic from standard library's net/platform_test.go.
-func testableNetwork(network string) bool {
-	switch network {
-	case "unix":
-		switch runtime.GOOS {
-		case "android", "nacl", "plan9", "windows":
-			return false
-		}
-		if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-			return false
-		}
-	case "unixpacket":
-		switch runtime.GOOS {
-		case "android", "darwin", "nacl", "plan9", "windows", "freebsd":
-			return false
-		}
-	}
-	return true
-}
-
-func newLocalListener(network string) (net.Listener, error) {
-	switch network {
-	case "tcp":
-		ln, err := net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			ln, err = net.Listen("tcp6", "[::1]:0")
-		}
-		return ln, err
-	case "unix", "unixpacket":
-		return net.Listen(network, testUnixAddr())
-	}
-	return nil, fmt.Errorf("%s is not supported", network)
-}
 
 func TestTestConn(t *testing.T) {
 	tests := []struct{ name, network string }{
@@ -74,12 +24,12 @@ func TestTestConn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if !testableNetwork(tt.network) {
+			if !nettest.TestableNetwork(tt.network) {
 				t.Skipf("not supported on %s", runtime.GOOS)
 			}
 
 			mp := func() (c1, c2 net.Conn, stop func(), err error) {
-				ln, err := newLocalListener(tt.network)
+				ln, err := nettest.NewLocalListener(tt.network)
 				if err != nil {
 					return nil, nil, nil, err
 				}
