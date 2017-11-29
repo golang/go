@@ -220,7 +220,6 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		// TODO(rsc): Convince compiler team not to add more magic environment variables,
 		// or perhaps restrict the environment variables passed to subprocesses.
 		magic := []string{
-			"GOEXPERIMENT",
 			"GOCLOBBERDEADHASH",
 			"GOSSAFUNC",
 			"GO_SSA_PHI_LOC_CUTOFF",

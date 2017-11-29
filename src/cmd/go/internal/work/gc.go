@@ -147,11 +147,6 @@ func gcBackendConcurrency(gcflags []string) int {
 		log.Fatalf("GO19CONCURRENTCOMPILATION must be 0, 1, or unset, got %q", e)
 	}
 
-	if os.Getenv("GOEXPERIMENT") != "" {
-		// Concurrent compilation is presumed incompatible with GOEXPERIMENTs.
-		canDashC = false
-	}
-
 CheckFlags:
 	for _, flag := range gcflags {
 		// Concurrent compilation is presumed incompatible with any gcflags,
