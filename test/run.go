@@ -736,6 +736,9 @@ func (t *test) run() {
 		}
 		var objs []string
 		cmd := []string{"go", "tool", "compile", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
+		if len(asms) > 0 {
+			cmd = append(cmd, "-asmhdr", "go_asm.h")
+		}
 		for _, file := range gos {
 			cmd = append(cmd, filepath.Join(longdir, file.Name()))
 		}
