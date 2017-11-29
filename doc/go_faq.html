@@ -1488,15 +1488,15 @@ the goroutine later.
 </p>
 
 <p>
-The usage patterns that develop when threads and goroutines are
+The fundamental reason goroutines are anonymous is so that
+the full Go language is available when programming concurrent code.
+By contrast, the usage patterns that develop when threads and goroutines are
 named can restrict what a library using them can do.
-Goroutines
-are anonymous so the full Go language is available when programming
-concurrent code.
 </p>
 
 <p>
-For example, once one names a goroutine and constructs a model around
+Here is an illustration of the difficulties.
+Once one names a goroutine and constructs a model around
 it, it becomes special, and one is tempted to associate all computation
 with that goroutine, ignoring the possibility
 of using multiple, possibly shared goroutines for the processing.
@@ -1507,9 +1507,9 @@ when serving a request.
 </p>
 
 <p>
-Also, experience with libraries, such as those for graphics systems,
-that require all processing to occur on the "main thread",
-shows how awkward and limiting the approach can be when
+Moreover, experience with libraries such as those for graphics systems
+that require all processing to occur on the "main thread"
+has shown how awkward and limiting the approach can be when
 deployed in a concurrent language.
 The very existence of a special thread or goroutine forces
 the programmer to distort the program to avoid crashes
