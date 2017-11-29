@@ -540,9 +540,8 @@ func (check *Checker) interfaceType(iface *Interface, ityp *ast.InterfaceType, d
 		}
 		iface.embeddeds = append(iface.embeddeds, named)
 		// collect embedded methods
-		if debug && embed.allMethods == nil {
-			check.dump("%s: incomplete embedded interface %s", pos, named)
-			unreachable()
+		if embed.allMethods == nil {
+			check.errorf(pos, "internal error: incomplete embedded interface %s (issue #18395)", named)
 		}
 		for _, m := range embed.allMethods {
 			if check.declareInSet(&mset, pos, m) {

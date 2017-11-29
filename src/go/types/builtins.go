@@ -470,15 +470,14 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Panic:
 		// panic(x)
-		T := new(Interface)
-		check.assignment(x, T, "argument to panic")
+		check.assignment(x, &emptyInterface, "argument to panic")
 		if x.mode == invalid {
 			return
 		}
 
 		x.mode = novalue
 		if check.Types != nil {
-			check.recordBuiltinType(call.Fun, makeSig(nil, T))
+			check.recordBuiltinType(call.Fun, makeSig(nil, &emptyInterface))
 		}
 
 	case _Print, _Println:
@@ -508,7 +507,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Recover:
 		// recover() interface{}
 		x.mode = value
-		x.typ = new(Interface)
+		x.typ = &emptyInterface
 		if check.Types != nil {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ))
 		}

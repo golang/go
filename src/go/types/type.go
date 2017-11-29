@@ -246,9 +246,21 @@ type Interface struct {
 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
 }
 
-// NewInterface returns a new interface for the given methods and embedded types.
+// emptyInterface represents the empty (completed) interface
+var emptyInterface = Interface{allMethods: markComplete}
+
+// markComplete is used to mark an empty interface as completely
+// set up by setting the allMethods field to a non-nil empty slice.
+var markComplete = make([]*Func, 0)
+
+// NewInterface returns a new (incomplete) interface for the given methods and embedded types.
+// To compute the method set of the interface, Complete must be called.
 func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 	typ := new(Interface)
+
+	if len(methods) == 0 && len(embeddeds) == 0 {
+		return typ
+	}
 
 	var mset objset
 	for _, m := range methods {
