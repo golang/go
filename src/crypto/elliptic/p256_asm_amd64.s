@@ -81,17 +81,23 @@ TEXT ·p256MovCond(SB),NOSPLIT,$0
 	PCMPEQL X13, X12
 
 	MOVOU X12, X0
-	PANDN (16*0)(x_ptr), X0
+	MOVOU (16*0)(x_ptr), X6
+	PANDN X6, X0
 	MOVOU X12, X1
-	PANDN (16*1)(x_ptr), X1
+	MOVOU (16*1)(x_ptr), X7
+	PANDN X7, X1
 	MOVOU X12, X2
-	PANDN (16*2)(x_ptr), X2
+	MOVOU (16*2)(x_ptr), X8
+	PANDN X8, X2
 	MOVOU X12, X3
-	PANDN (16*3)(x_ptr), X3
+	MOVOU (16*3)(x_ptr), X9
+	PANDN X9, X3
 	MOVOU X12, X4
-	PANDN (16*4)(x_ptr), X4
+	MOVOU (16*4)(x_ptr), X10
+	PANDN X10, X4
 	MOVOU X12, X5
-	PANDN (16*5)(x_ptr), X5
+	MOVOU (16*5)(x_ptr), X11
+	PANDN X11, X5
 
 	MOVOU (16*0)(y_ptr), X6
 	MOVOU (16*1)(y_ptr), X7
