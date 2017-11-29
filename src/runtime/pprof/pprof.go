@@ -509,6 +509,14 @@ func countHeap() int {
 
 // writeHeap writes the current runtime heap profile to w.
 func writeHeap(w io.Writer, debug int) error {
+	var memStats *runtime.MemStats
+	if debug != 0 {
+		// Read mem stats first, so that our other allocations
+		// do not appear in the statistics.
+		memStats = new(runtime.MemStats)
+		runtime.ReadMemStats(memStats)
+	}
+
 	// Find out how many records there are (MemProfile(nil, true)),
 	// allocate that many records, and get the data.
 	// There's a race—more records might be added between
@@ -571,8 +579,7 @@ func writeHeap(w io.Writer, debug int) error {
 
 	// Print memstats information too.
 	// Pprof will ignore, but useful for people
-	s := new(runtime.MemStats)
-	runtime.ReadMemStats(s)
+	s := memStats
 	fmt.Fprintf(w, "\n# runtime.MemStats\n")
 	fmt.Fprintf(w, "# Alloc = %d\n", s.Alloc)
 	fmt.Fprintf(w, "# TotalAlloc = %d\n", s.TotalAlloc)
