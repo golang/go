@@ -426,7 +426,14 @@ func (v Value) call(op string, in []Value) []Value {
 		a := uintptr(targ.align)
 		off = (off + a - 1) &^ (a - 1)
 		n := targ.size
-		addr := unsafe.Pointer(uintptr(args) + off)
+		if n == 0 {
+			// Not safe to compute args+off pointing at 0 bytes,
+			// because that might point beyond the end of the frame,
+			// but we still need to call assignTo to check assignability.
+			v.assignTo("reflect.Value.Call", targ, nil)
+			continue
+		}
+		addr := add(args, off, "n > 0")
 		v = v.assignTo("reflect.Value.Call", targ, addr)
 		if v.flag&flagIndir != 0 {
 			typedmemmove(targ, addr, v.ptr)
@@ -464,7 +471,7 @@ func (v Value) call(op string, in []Value) []Value {
 			off = (off + a - 1) &^ (a - 1)
 			if tv.Size() != 0 {
 				fl := flagIndir | flag(tv.Kind())
-				ret[i] = Value{tv.common(), unsafe.Pointer(uintptr(args) + off), fl}
+				ret[i] = Value{tv.common(), add(args, off, "tv.Size() != 0"), fl}
 			} else {
 				// For zero-sized return value, args+off may point to the next object.
 				// In this case, return the zero value instead.
@@ -499,7 +506,6 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 	in := make([]Value, 0, int(ftyp.inCount))
 	for _, typ := range ftyp.in() {
 		off += -off & uintptr(typ.align-1)
-		addr := unsafe.Pointer(uintptr(ptr) + off)
 		v := Value{typ, nil, flag(typ.Kind())}
 		if ifaceIndir(typ) {
 			// value cannot be inlined in interface data.
@@ -507,10 +513,12 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 			// and we cannot let f keep a reference to the stack frame
 			// after this function returns, not even a read-only reference.
 			v.ptr = unsafe_New(typ)
-			typedmemmove(typ, v.ptr, addr)
+			if typ.size > 0 {
+				typedmemmove(typ, v.ptr, add(ptr, off, "typ.size > 0"))
+			}
 			v.flag |= flagIndir
 		} else {
-			v.ptr = *(*unsafe.Pointer)(addr)
+			v.ptr = *(*unsafe.Pointer)(add(ptr, off, "1-ptr"))
 		}
 		in = append(in, v)
 		off += typ.size
@@ -541,7 +549,10 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 					" returned value obtained from unexported field")
 			}
 			off += -off & uintptr(typ.align-1)
-			addr := unsafe.Pointer(uintptr(ptr) + off)
+			if typ.size == 0 {
+				continue
+			}
+			addr := add(ptr, off, "typ.size > 0")
 			if v.flag&flagIndir != 0 {
 				typedmemmove(typ, addr, v.ptr)
 			} else {
@@ -645,7 +656,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 	// Avoid constructing out-of-bounds pointers if there are no args.
 	storeRcvr(rcvr, args)
 	if argSize-ptrSize > 0 {
-		typedmemmovepartial(frametype, unsafe.Pointer(uintptr(args)+ptrSize), frame, ptrSize, argSize-ptrSize)
+		typedmemmovepartial(frametype, add(args, ptrSize, "argSize > ptrSize"), frame, ptrSize, argSize-ptrSize)
 	}
 
 	// Call.
@@ -663,8 +674,8 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 			callerRetOffset = align(argSize-ptrSize, 8)
 		}
 		typedmemmovepartial(frametype,
-			unsafe.Pointer(uintptr(frame)+callerRetOffset),
-			unsafe.Pointer(uintptr(args)+retOffset),
+			add(frame, callerRetOffset, "frametype.size > retOffset"),
+			add(args, retOffset, "frametype.size > retOffset"),
 			retOffset,
 			frametype.size-retOffset)
 	}
@@ -791,8 +802,8 @@ func (v Value) Field(i int) Value {
 	// or flagIndir is not set and v.ptr is the actual struct data.
 	// In the former case, we want v.ptr + offset.
 	// In the latter case, we must have field.offset = 0,
-	// so v.ptr + field.offset is still okay.
-	ptr := unsafe.Pointer(uintptr(v.ptr) + field.offset())
+	// so v.ptr + field.offset is still the correct address.
+	ptr := add(v.ptr, field.offset(), "same as non-reflect &v.field")
 	return Value{typ, ptr, fl}
 }
 
@@ -870,8 +881,8 @@ func (v Value) Index(i int) Value {
 		// or flagIndir is not set and v.ptr is the actual array data.
 		// In the former case, we want v.ptr + offset.
 		// In the latter case, we must be doing Index(0), so offset = 0,
-		// so v.ptr + offset is still okay.
-		val := unsafe.Pointer(uintptr(v.ptr) + offset)
+		// so v.ptr + offset is still the correct address.
+		val := add(v.ptr, offset, "same as &v[i], i < tt.len")
 		fl := v.flag&(flagIndir|flagAddr) | v.flag.ro() | flag(typ.Kind()) // bits same as overall array
 		return Value{typ, val, fl}
 
@@ -884,7 +895,7 @@ func (v Value) Index(i int) Value {
 		}
 		tt := (*sliceType)(unsafe.Pointer(v.typ))
 		typ := tt.elem
-		val := arrayAt(s.Data, i, typ.size)
+		val := arrayAt(s.Data, i, typ.size, "i < s.Len")
 		fl := flagAddr | flagIndir | v.flag.ro() | flag(typ.Kind())
 		return Value{typ, val, fl}
 
@@ -893,7 +904,7 @@ func (v Value) Index(i int) Value {
 		if uint(i) >= uint(s.Len) {
 			panic("reflect: string index out of range")
 		}
-		p := arrayAt(s.Data, i, 1)
+		p := arrayAt(s.Data, i, 1, "i < s.Len")
 		fl := v.flag.ro() | flag(Uint8) | flagIndir
 		return Value{uint8Type, p, fl}
 	}
@@ -1575,7 +1586,10 @@ func (v Value) Slice(i, j int) Value {
 		if i < 0 || j < i || j > s.Len {
 			panic("reflect.Value.Slice: string slice index out of bounds")
 		}
-		t := stringHeader{arrayAt(s.Data, i, 1), j - i}
+		var t stringHeader
+		if i < s.Len {
+			t = stringHeader{arrayAt(s.Data, i, 1, "i < s.Len"), j - i}
+		}
 		return Value{v.typ, unsafe.Pointer(&t), v.flag}
 	}
 
@@ -1591,7 +1605,7 @@ func (v Value) Slice(i, j int) Value {
 	s.Len = j - i
 	s.Cap = cap - i
 	if cap-i > 0 {
-		s.Data = arrayAt(base, i, typ.elem.Size())
+		s.Data = arrayAt(base, i, typ.elem.Size(), "i < cap")
 	} else {
 		// do not advance pointer, to avoid pointing beyond end of slice
 		s.Data = base
@@ -1643,7 +1657,7 @@ func (v Value) Slice3(i, j, k int) Value {
 	s.Len = j - i
 	s.Cap = k - i
 	if k-i > 0 {
-		s.Data = arrayAt(base, i, typ.elem.Size())
+		s.Data = arrayAt(base, i, typ.elem.Size(), "i < k <= cap")
 	} else {
 		// do not advance pointer, to avoid pointing beyond end of slice
 		s.Data = base
@@ -1802,10 +1816,15 @@ func typesMustMatch(what string, t1, t2 Type) {
 	}
 }
 
-// arrayAt returns the i-th element of p, a C-array whose elements are
-// eltSize wide (in bytes).
-func arrayAt(p unsafe.Pointer, i int, eltSize uintptr) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(p) + uintptr(i)*eltSize)
+// arrayAt returns the i-th element of p,
+// an array whose elements are eltSize bytes wide.
+// The array pointed at by p must have at least i+1 elements:
+// it is invalid (but impossible to check here) to pass i >= len,
+// because then the result will point outside the array.
+// whySafe must explain why i < len. (Passing "i < len" is fine;
+// the benefit is to surface this assumption at the call site.)
+func arrayAt(p unsafe.Pointer, i int, eltSize uintptr, whySafe string) unsafe.Pointer {
+	return add(p, uintptr(i)*eltSize, "i < len")
 }
 
 // grow grows the slice s so that it can hold extra more values, allocating
