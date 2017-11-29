@@ -1230,8 +1230,8 @@ func concurrentBackendAllowed() bool {
 	if Debug_vlog || debugstr != "" || debuglive > 0 {
 		return false
 	}
-	// TODO: test and add builders for GOEXPERIMENT values, and enable
-	if os.Getenv("GOEXPERIMENT") != "" {
+	// TODO: Test and delete these conditions.
+	if objabi.Fieldtrack_enabled != 0 || objabi.Preemptibleloops_enabled != 0 || objabi.Clobberdead_enabled != 0 {
 		return false
 	}
 	// TODO: fix races and enable the following flags
