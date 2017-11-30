@@ -47,6 +47,11 @@ func TestTypeParser(t *testing.T) {
 			t.Errorf("expected full parse, stopped at %q", p.lit)
 		}
 
+		// interfaces must be explicitly completed
+		if ityp, _ := typ.(*types.Interface); ityp != nil {
+			ityp.Complete()
+		}
+
 		got := typ.String()
 		if got != test.want {
 			t.Errorf("got type %q, expected %q", got, test.want)
