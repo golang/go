@@ -134,6 +134,42 @@ func rconv(r int) string {
 		return "DAIFSet"
 	case r == REG_DAIFClr:
 		return "DAIFClr"
+	case r == REG_PLDL1KEEP:
+		return "PLDL1KEEP"
+	case r == REG_PLDL1STRM:
+		return "PLDL1STRM"
+	case r == REG_PLDL2KEEP:
+		return "PLDL2KEEP"
+	case r == REG_PLDL2STRM:
+		return "PLDL2STRM"
+	case r == REG_PLDL3KEEP:
+		return "PLDL3KEEP"
+	case r == REG_PLDL3STRM:
+		return "PLDL3STRM"
+	case r == REG_PLIL1KEEP:
+		return "PLIL1KEEP"
+	case r == REG_PLIL1STRM:
+		return "PLIL1STRM"
+	case r == REG_PLIL2KEEP:
+		return "PLIL2KEEP"
+	case r == REG_PLIL2STRM:
+		return "PLIL2STRM"
+	case r == REG_PLIL3KEEP:
+		return "PLIL3KEEP"
+	case r == REG_PLIL3STRM:
+		return "PLIL3STRM"
+	case r == REG_PSTL1KEEP:
+		return "PSTL1KEEP"
+	case r == REG_PSTL1STRM:
+		return "PSTL1STRM"
+	case r == REG_PSTL2KEEP:
+		return "PSTL2KEEP"
+	case r == REG_PSTL2STRM:
+		return "PSTL2STRM"
+	case r == REG_PSTL3KEEP:
+		return "PSTL3KEEP"
+	case r == REG_PSTL3STRM:
+		return "PSTL3STRM"
 	case REG_UXTB <= r && r < REG_UXTH:
 		if (r>>5)&7 != 0 {
 			return fmt.Sprintf("R%d.UXTB<<%d", r&31, (r>>5)&7)

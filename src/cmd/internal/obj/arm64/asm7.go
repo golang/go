@@ -305,6 +305,8 @@ var optab = []Optab{
 	{ACSEL, C_COND, C_REG, C_REG, 18, 4, 0, 0, 0}, /* from3 optional */
 	{ACSET, C_COND, C_NONE, C_REG, 18, 4, 0, 0, 0},
 	{ACCMN, C_COND, C_REG, C_VCON, 19, 4, 0, 0, 0}, /* from3 either C_REG or C_VCON */
+	{APRFM, C_UOREG32K, C_NONE, C_SPR, 91, 4, 0, 0, 0},
+	{APRFM, C_UOREG32K, C_NONE, C_LCON, 91, 4, 0, 0, 0},
 
 	/* scaled 12-bit unsigned displacement store */
 	{AMOVB, C_REG, C_NONE, C_UAUTO4K, 20, 4, REGSP, 0, 0},
@@ -626,6 +628,30 @@ var systemreg = []struct {
 	enc uint32
 }{
 	{REG_ELR_EL1, 8<<16 | 4<<12 | 1<<5},
+}
+
+var prfopfield = []struct {
+	reg int16
+	enc uint32
+}{
+	{REG_PLDL1KEEP, 0},
+	{REG_PLDL1STRM, 1},
+	{REG_PLDL2KEEP, 2},
+	{REG_PLDL2STRM, 3},
+	{REG_PLDL3KEEP, 4},
+	{REG_PLDL3STRM, 5},
+	{REG_PLIL1KEEP, 8},
+	{REG_PLIL1STRM, 9},
+	{REG_PLIL2KEEP, 10},
+	{REG_PLIL2STRM, 11},
+	{REG_PLIL3KEEP, 12},
+	{REG_PLIL3STRM, 13},
+	{REG_PSTL1KEEP, 16},
+	{REG_PSTL1STRM, 17},
+	{REG_PSTL2KEEP, 18},
+	{REG_PSTL2STRM, 19},
+	{REG_PSTL3KEEP, 20},
+	{REG_PSTL3STRM, 21},
 }
 
 func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
@@ -2106,7 +2132,8 @@ func buildop(ctxt *obj.Link) {
 			AVST1,
 			AVDUP,
 			AVMOVS,
-			AVMOVI:
+			AVMOVI,
+			APRFM:
 			break
 
 		case obj.ANOP,
@@ -3731,8 +3758,32 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = 0xbea71700
 
 		break
-	}
 
+	case 91: /* prfm imm(Rn), <prfop | $imm5> */
+		imm := uint32(p.From.Offset)
+		r := p.From.Reg
+		v := uint32(0xff)
+		if p.To.Type == obj.TYPE_CONST {
+			v = uint32(p.To.Offset)
+			if v > 31 {
+				c.ctxt.Diag("illegal prefetch operation\n%v", p)
+			}
+		} else {
+			for i := 0; i < len(prfopfield); i++ {
+				if prfopfield[i].reg == p.To.Reg {
+					v = prfopfield[i].enc
+					break
+				}
+			}
+			if v == 0xff {
+				c.ctxt.Diag("illegal prefetch operation:\n%v", p)
+			}
+		}
+
+		o1 = c.opldrpp(p, p.As)
+		o1 |= (uint32(r&31) << 5) | (uint32((imm>>3)&0xfff) << 10) | (uint32(v & 31))
+
+	}
 	out[0] = o1
 	out[1] = o2
 	out[2] = o3
@@ -4993,6 +5044,10 @@ func (c *ctxt7) opldrpp(p *obj.Prog, a obj.As) uint32 {
 
 	case AVMOVS:
 		return 2<<30 | 7<<27 | 1<<26 | 0<<24 | 1<<22
+
+	case APRFM:
+		return 0xf9<<24 | 2<<22
+
 	}
 
 	c.ctxt.Diag("bad opldr %v\n%v", a, p)

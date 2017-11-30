@@ -135,6 +135,12 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VMOVS	(R0), V20                                       // 140040bd
 	VMOVS.P	8(R0), V20                                      // 148440bc
 	VMOVS.W	8(R0), V20                                      // 148c40bc
+	PRFM	(R2), PLDL1KEEP                                 // 400080f9
+	PRFM	16(R2), PLDL1KEEP                               // 400880f9
+	PRFM	48(R6), PSTL2STRM                               // d31880f9
+	PRFM	8(R12), PLIL3STRM                               // 8d0580f9
+	PRFM	(R8), $25                                       // 190180f9
+	PRFM	8(R9), $30                                      // 3e0580f9
 
 	// small offset fits into instructions
 	MOVB	1(R1), R2 // 22048039
