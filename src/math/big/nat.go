@@ -985,7 +985,7 @@ func (z nat) expNN(x, y, m nat) nat {
 
 	// x**1 mod m == x mod m
 	if len(y) == 1 && y[0] == 1 && len(m) != 0 {
-		_, z = z.div(z, x, m)
+		_, z = nat(nil).div(z, x, m)
 		return z
 	}
 	// y > 1
@@ -1158,7 +1158,7 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
 	// RR = 2**(2*_W*len(m)) mod m
 	RR := nat(nil).setWord(1)
 	zz := nat(nil).shl(RR, uint(2*numWords*_W))
-	_, RR = RR.div(RR, zz, m)
+	_, RR = nat(nil).div(RR, zz, m)
 	if len(RR) < numWords {
 		zz = zz.make(numWords)
 		copy(zz, RR)
