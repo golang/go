@@ -164,7 +164,7 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB),NOSPLIT,$32
 	LEAL	12(SP), BX
-	MOVL	$0, 4(SP)		// arg 1 - clock_id
+	MOVL	$3, 4(SP)		// arg 1 - clock_id CLOCK_MONOTONIC
 	MOVL	BX, 8(SP)		// arg 2 - tp
 	MOVL	$427, AX		// sys_clock_gettime
 	INT	$0x80
