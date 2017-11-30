@@ -1,5 +1,5 @@
   src/cmd/compile/internal/ssa/testdata/hist.go
-55:	func main() {
+55:	func test() {
 57:		l := line{point{1 + zero, 2 + zero}, point{3 + zero, 4 + zero}}
 58:		tinycall()                // this forces l etc to stack
 57:		l := line{point{1 + zero, 2 + zero}, point{3 + zero, 4 + zero}}
@@ -13,11 +13,10 @@ dy = <Optimized out, as expected>
 61:		sink = dx + dy            //gdb-opt=(dx,dy)
 dx = 2
 dy = 2
-63:		hist := make([]int, 7)                                //gdb-opt=(sink,dx/O,dy/O)
-sink = 4
+63:		hist := make([]int, 7)                                //gdb-opt=(dx/O,dy/O) // TODO sink is missing if this code is in 'test' instead of 'main'
 dx = <Optimized out, as expected>
 dy = <Optimized out, as expected>
-64:		var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A,cannedInput/A)
+64:		var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A) // TODO cannedInput/A is missing if this code is in 'test' instead of 'main'
 65:		if len(os.Args) > 1 {
 73:		scanner := bufio.NewScanner(reader)
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
@@ -180,3 +179,4 @@ a = 0
 n = 9
 t = 22
 88:				continue
+98:	}

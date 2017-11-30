@@ -407,6 +407,7 @@ func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2, 
 
 // constVal returns a constant value for c.
 func (f *Func) constVal(pos src.XPos, op Op, t *types.Type, c int64, setAuxInt bool) *Value {
+	// TODO remove unused pos parameter, both here and in *func.ConstXXX callers.
 	if f.constants == nil {
 		f.constants = make(map[int64][]*Value)
 	}
@@ -421,9 +422,9 @@ func (f *Func) constVal(pos src.XPos, op Op, t *types.Type, c int64, setAuxInt b
 	}
 	var v *Value
 	if setAuxInt {
-		v = f.Entry.NewValue0I(pos, op, t, c)
+		v = f.Entry.NewValue0I(src.NoXPos, op, t, c)
 	} else {
-		v = f.Entry.NewValue0(pos, op, t)
+		v = f.Entry.NewValue0(src.NoXPos, op, t)
 	}
 	f.constants[c] = append(vv, v)
 	return v
