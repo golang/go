@@ -61,8 +61,9 @@ const (
 	sigSending
 )
 
-// Called from sighandler to send a signal back out of the signal handling thread.
-// Reports whether the signal was sent. If not, the caller typically crashes the program.
+// sigsend delivers a signal from sighandler to the internal signal delivery queue.
+// It reports whether the signal was sent. If not, the caller typically crashes the program.
+// It runs from the signal handler, so it's limited in what it can do.
 func sigsend(s uint32) bool {
 	bit := uint32(1) << uint(s&31)
 	if !sig.inuse || s >= uint32(32*len(sig.wanted)) {
