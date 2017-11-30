@@ -708,7 +708,7 @@ func (b *Builder) linkActionID(a *Action) cache.ActionID {
 				fmt.Fprintf(h, "packagemain %s\n", a1.buildID)
 			}
 			if p1.Shlib != "" {
-				fmt.Fprintf(h, "pakageshlib %s=%s\n", p1.ImportPath, contentID(b.buildID(p1.Shlib)))
+				fmt.Fprintf(h, "packageshlib %s=%s\n", p1.ImportPath, contentID(b.buildID(p1.Shlib)))
 			}
 		}
 	}
@@ -924,7 +924,7 @@ func (b *Builder) linkSharedActionID(a *Action) cache.ActionID {
 		if p1 != nil {
 			fmt.Fprintf(h, "packagefile %s=%s\n", p1.ImportPath, contentID(b.buildID(a1.built)))
 			if p1.Shlib != "" {
-				fmt.Fprintf(h, "pakageshlib %s=%s\n", p1.ImportPath, contentID(b.buildID(p1.Shlib)))
+				fmt.Fprintf(h, "packageshlib %s=%s\n", p1.ImportPath, contentID(b.buildID(p1.Shlib)))
 			}
 		}
 	}
