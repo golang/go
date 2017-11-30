@@ -7926,17 +7926,12 @@ func (cc *http2ClientConn) streamByID(id uint32, andRemove bool) *http2clientStr
 // clientConnReadLoop is the state owned by the clientConn's frame-reading readLoop.
 type http2clientConnReadLoop struct {
 	cc            *http2ClientConn
-	activeRes     map[uint32]*http2clientStream // keyed by streamID
 	closeWhenIdle bool
 }
 
 // readLoop runs in its own goroutine and reads and dispatches frames.
 func (cc *http2ClientConn) readLoop() {
-	rl := &http2clientConnReadLoop{
-		cc:        cc,
-		activeRes: make(map[uint32]*http2clientStream),
-	}
-
+	rl := &http2clientConnReadLoop{cc: cc}
 	defer rl.cleanup()
 	cc.readerErr = rl.run()
 	if ce, ok := cc.readerErr.(http2ConnectionError); ok {
@@ -7991,10 +7986,8 @@ func (rl *http2clientConnReadLoop) cleanup() {
 	} else if err == io.EOF {
 		err = io.ErrUnexpectedEOF
 	}
-	for _, cs := range rl.activeRes {
-		cs.bufPipe.CloseWithError(err)
-	}
 	for _, cs := range cc.streams {
+		cs.bufPipe.CloseWithError(err) // no-op if already closed
 		select {
 		case cs.resc <- http2resAndError{err: err}:
 		default:
@@ -8072,7 +8065,7 @@ func (rl *http2clientConnReadLoop) run() error {
 			}
 			return err
 		}
-		if rl.closeWhenIdle && gotReply && maybeIdle && len(rl.activeRes) == 0 {
+		if rl.closeWhenIdle && gotReply && maybeIdle {
 			cc.closeIfIdle()
 		}
 	}
@@ -8080,6 +8073,13 @@ func (rl *http2clientConnReadLoop) run() error {
 
 func (rl *http2clientConnReadLoop) processHeaders(f *http2MetaHeadersFrame) error {
 	cc := rl.cc
+	cs := cc.streamByID(f.StreamID, false)
+	if cs == nil {
+		// We'd get here if we canceled a request while the
+		// server had its response still in flight. So if this
+		// was just something we canceled, ignore it.
+		return nil
+	}
 	if f.StreamEnded() {
 		// Issue 20521: If the stream has ended, streamByID() causes
 		// clientStream.done to be closed, which causes the request's bodyWriter
@@ -8088,14 +8088,15 @@ func (rl *http2clientConnReadLoop) processHeaders(f *http2MetaHeadersFrame) erro
 		// Deferring stream closure allows the header processing to occur first.
 		// clientConn.RoundTrip may still receive the bodyWriter error first, but
 		// the fix for issue 16102 prioritises any response.
-		defer cc.streamByID(f.StreamID, true)
-	}
-	cs := cc.streamByID(f.StreamID, false)
-	if cs == nil {
-		// We'd get here if we canceled a request while the
-		// server had its response still in flight. So if this
-		// was just something we canceled, ignore it.
-		return nil
+		//
+		// Issue 22413: If there is no request body, we should close the
+		// stream before writing to cs.resc so that the stream is closed
+		// immediately once RoundTrip returns.
+		if cs.req.Body != nil {
+			defer cc.forgetStreamID(f.StreamID)
+		} else {
+			cc.forgetStreamID(f.StreamID)
+		}
 	}
 	if !cs.firstByte {
 		if cs.trace != nil {
@@ -8127,9 +8128,6 @@ func (rl *http2clientConnReadLoop) processHeaders(f *http2MetaHeadersFrame) erro
 	if res == nil {
 		// (nil, nil) special case. See handleResponse docs.
 		return nil
-	}
-	if res.Body != http2noBody {
-		rl.activeRes[cs.ID] = cs
 	}
 	cs.resTrailer = &res.Trailer
 	cs.resc <- http2resAndError{res: res}
@@ -8469,7 +8467,6 @@ func (rl *http2clientConnReadLoop) endStreamError(cs *http2clientStream, err err
 		rl.closeWhenIdle = true
 	}
 	cs.bufPipe.closeWithErrorAndCode(err, code)
-	delete(rl.activeRes, cs.ID)
 
 	select {
 	case cs.resc <- http2resAndError{err: err}:
@@ -8596,7 +8593,6 @@ func (rl *http2clientConnReadLoop) processResetStream(f *http2RSTStreamFrame) er
 		cs.bufPipe.CloseWithError(err)
 		cs.cc.cond.Broadcast() // wake up checkResetOrDone via clientStream.awaitFlowControl
 	}
-	delete(rl.activeRes, cs.ID)
 	return nil
 }
 
