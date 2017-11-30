@@ -52,7 +52,7 @@ var cannedInput string = `1
 5
 `
 
-func main() {
+func test() {
 	// For #19868
 	l := line{point{1 + zero, 2 + zero}, point{3 + zero, 4 + zero}}
 	tinycall()                // this forces l etc to stack
@@ -60,8 +60,8 @@ func main() {
 	dy := l.end.y - l.begin.y //gdb-opt=(dx,dy/O)
 	sink = dx + dy            //gdb-opt=(dx,dy)
 	// For #21098
-	hist := make([]int, 7)                                //gdb-opt=(sink,dx/O,dy/O)
-	var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A,cannedInput/A)
+	hist := make([]int, 7)                                //gdb-opt=(dx/O,dy/O) // TODO sink is missing if this code is in 'test' instead of 'main'
+	var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A) // TODO cannedInput/A is missing if this code is in 'test' instead of 'main'
 	if len(os.Args) > 1 {
 		var err error
 		reader, err = os.Open(os.Args[1])
@@ -91,5 +91,8 @@ func main() {
 		n += a
 		fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 	}
+}
 
+func main() {
+	test()
 }

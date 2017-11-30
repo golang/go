@@ -135,6 +135,9 @@ func TestNexting(t *testing.T) {
 	t.Run("dbg-race-"+debugger, func(t *testing.T) {
 		testNexting(t, "i22600", "dbg-race", "-N -l", "-race")
 	})
+	t.Run("dbg-22558-"+debugger, func(t *testing.T) {
+		testNexting(t, "i22558", "dbg-22558", "-N -l")
+	})
 	t.Run("opt-"+debugger, func(t *testing.T) {
 		// If this is test is run with a runtime compiled with -N -l, it is very likely to fail.
 		// This occurs in the noopt builders (for example).
@@ -501,7 +504,7 @@ func (s *delveState) stepnext(ss string) bool {
 func (s *delveState) start() {
 	if *dryrun {
 		fmt.Printf("%s\n", asCommandLine("", s.cmd))
-		fmt.Printf("b main.main\n")
+		fmt.Printf("b main.test\n")
 		fmt.Printf("c\n")
 		return
 	}
@@ -511,7 +514,7 @@ func (s *delveState) start() {
 		panic(fmt.Sprintf("There was an error [start] running '%s', %v\n", line, err))
 	}
 	s.ioState.readExpecting(-1, 5000, "Type 'help' for list of commands.")
-	expect("Breakpoint [0-9]+ set at ", s.ioState.writeReadExpect("b main.main\n", "[(]dlv[)] "))
+	expect("Breakpoint [0-9]+ set at ", s.ioState.writeReadExpect("b main.test\n", "[(]dlv[)] "))
 	s.stepnext("c")
 }
 
@@ -555,7 +558,7 @@ func (s *gdbState) start() {
 	}
 	if *dryrun {
 		fmt.Printf("%s\n", asCommandLine("", s.cmd))
-		fmt.Printf("tbreak main.main\n")
+		fmt.Printf("tbreak main.test\n")
 		fmt.Printf("%s\n", run)
 		return
 	}
@@ -565,7 +568,7 @@ func (s *gdbState) start() {
 		panic(fmt.Sprintf("There was an error [start] running '%s', %v\n", line, err))
 	}
 	s.ioState.readExpecting(-1, -1, "[(]gdb[)] ")
-	x := s.ioState.writeReadExpect("b main.main\n", "[(]gdb[)] ")
+	x := s.ioState.writeReadExpect("b main.test\n", "[(]gdb[)] ")
 	expect("Breakpoint [0-9]+ at", x)
 	s.stepnext(run)
 }
