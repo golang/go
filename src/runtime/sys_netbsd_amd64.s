@@ -188,7 +188,7 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 	RET
 
 TEXT runtime·nanotime(SB),NOSPLIT,$32
-	MOVQ	$0, DI			// arg 1 - clock_id
+	MOVQ	$3, DI			// arg 1 - clock_id CLOCK_MONOTONIC
 	LEAQ	8(SP), SI		// arg 2 - tp
 	MOVL	$427, AX		// sys_clock_gettime
 	SYSCALL
