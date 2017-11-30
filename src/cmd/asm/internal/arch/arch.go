@@ -260,6 +260,25 @@ func archArm64() *Arch {
 	register["SPSel"] = arm64.REG_SPSel
 	register["DAIFSet"] = arm64.REG_DAIFSet
 	register["DAIFClr"] = arm64.REG_DAIFClr
+	register["PLDL1KEEP"] = arm64.REG_PLDL1KEEP
+	register["PLDL1STRM"] = arm64.REG_PLDL1STRM
+	register["PLDL2KEEP"] = arm64.REG_PLDL2KEEP
+	register["PLDL2STRM"] = arm64.REG_PLDL2STRM
+	register["PLDL3KEEP"] = arm64.REG_PLDL3KEEP
+	register["PLDL3STRM"] = arm64.REG_PLDL3STRM
+	register["PLIL1KEEP"] = arm64.REG_PLIL1KEEP
+	register["PLIL1STRM"] = arm64.REG_PLIL1STRM
+	register["PLIL2KEEP"] = arm64.REG_PLIL2KEEP
+	register["PLIL2STRM"] = arm64.REG_PLIL2STRM
+	register["PLIL3KEEP"] = arm64.REG_PLIL3KEEP
+	register["PLIL3STRM"] = arm64.REG_PLIL3STRM
+	register["PSTL1KEEP"] = arm64.REG_PSTL1KEEP
+	register["PSTL1STRM"] = arm64.REG_PSTL1STRM
+	register["PSTL2KEEP"] = arm64.REG_PSTL2KEEP
+	register["PSTL2STRM"] = arm64.REG_PSTL2STRM
+	register["PSTL3KEEP"] = arm64.REG_PSTL3KEEP
+	register["PSTL3STRM"] = arm64.REG_PSTL3STRM
+
 	// Conditional operators, like EQ, NE, etc.
 	register["EQ"] = arm64.COND_EQ
 	register["NE"] = arm64.COND_NE
