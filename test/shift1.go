@@ -152,8 +152,7 @@ func _() {
 	var a []int
 	_ = a[1<<s]
 	_ = a[1.]
-	// For now, the spec disallows these. We may revisit past Go 1.1.
-	_ = a[1.<<s]  // ERROR "integer|shift of type float64"
+	_ = a[1.<<s]
 	_ = a[1.1<<s] // ERROR "integer|shift of type float64"
 
 	_ = make([]int, 1)

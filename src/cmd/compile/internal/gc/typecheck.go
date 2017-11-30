@@ -243,21 +243,15 @@ func callrecvlist(l Nodes) bool {
 }
 
 // indexlit implements typechecking of untyped values as
-// array/slice indexes. It is equivalent to defaultlit
-// except for constants of numerical kind, which are acceptable
-// whenever they can be represented by a value of type int.
+// array/slice indexes. It is almost equivalent to defaultlit
+// but also accepts untyped numeric values representable as
+// value of type int (see also checkmake for comparison).
 // The result of indexlit MUST be assigned back to n, e.g.
 // 	n.Left = indexlit(n.Left)
 func indexlit(n *Node) *Node {
-	if n == nil || !n.Type.IsUntyped() {
-		return n
+	if n != nil && n.Type != nil && n.Type.Etype == TIDEAL {
+		return defaultlit(n, types.Types[TINT])
 	}
-	switch consttype(n) {
-	case CTINT, CTRUNE, CTFLT, CTCPLX:
-		n = defaultlit(n, types.Types[TINT])
-	}
-
-	n = defaultlit(n, nil)
 	return n
 }
 
@@ -3783,6 +3777,10 @@ func checkmake(t *types.Type, arg string, n *Node) bool {
 	}
 
 	// defaultlit is necessary for non-constants too: n might be 1.1<<k.
+	// TODO(gri) The length argument requirements for (array/slice) make
+	// are the same as for index expressions. Factor the code better;
+	// for instance, indexlit might be called here and incorporate some
+	// of the bounds checks done for make.
 	n = defaultlit(n, types.Types[TINT])
 
 	return true
