@@ -648,6 +648,7 @@ func findfunc(pc uintptr) funcInfo {
 		idx = uint32(len(datap.ftab) - 1)
 	}
 	if pc < datap.ftab[idx].entry {
+
 		// With multiple text sections, the idx might reference a function address that
 		// is higher than the pc being searched, so search backward until the matching address is found.
 
@@ -658,6 +659,7 @@ func findfunc(pc uintptr) funcInfo {
 			throw("findfunc: bad findfunctab entry idx")
 		}
 	} else {
+
 		// linear search to find func with pc >= entry.
 		for datap.ftab[idx+1].entry <= pc {
 			idx++

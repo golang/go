@@ -479,7 +479,6 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 		if isIncomplete {
 			if len(list) > 0 {
 				p.print(formfeed)
-				p.print(newline)
 			}
 			p.flush(p.posFor(rbrace), token.RBRACE) // make sure we don't lose the last line comment
 			p.setLineComment("// contains filtered or unexported fields")
@@ -507,7 +506,6 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 		if isIncomplete {
 			if len(list) > 0 {
 				p.print(formfeed)
-				p.print(newline)
 			}
 			p.flush(p.posFor(rbrace), token.RBRACE) // make sure we don't lose the last line comment
 			p.setLineComment("// contains filtered or unexported methods")

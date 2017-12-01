@@ -173,6 +173,7 @@ func (sc *ServerConn) Pending() int {
 // Response.Close field to true. Write should be considered operational until
 // it returns an error, regardless of any errors returned on the Read side.
 func (sc *ServerConn) Write(req *http.Request, resp *http.Response) error {
+
 	// Retrieve the pipeline ID of this request/response pair
 	sc.mu.Lock()
 	id, ok := sc.pipereq[req]

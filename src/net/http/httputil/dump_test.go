@@ -27,6 +27,7 @@ type dumpTest struct {
 }
 
 var dumpTests = []dumpTest{
+
 	// HTTP/1.1 => chunked coding; body; empty trailer
 	{
 		Req: http.Request{

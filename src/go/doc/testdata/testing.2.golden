@@ -42,7 +42,6 @@ TYPES
 	// B is a type passed to Benchmark functions to manage benchmark ...
 	type B struct {
 		N int
-	
 		// contains filtered or unexported fields
 	}
 
