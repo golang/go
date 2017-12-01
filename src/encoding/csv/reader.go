@@ -224,6 +224,10 @@ func (r *Reader) readLine() ([]byte, error) {
 	}
 	if len(line) > 0 && err == io.EOF {
 		err = nil
+		// For backwards compatibility, drop trailing \r before EOF.
+		if line[len(line)-1] == '\r' {
+			line = line[:len(line)-1]
+		}
 	}
 	r.numLine++
 	// Normalize \r\n to \n on all input lines.

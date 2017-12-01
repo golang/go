@@ -246,7 +246,43 @@ x,,,
 	}, {
 		Name:   "TrailingCR",
 		Input:  "field1,field2\r",
-		Output: [][]string{{"field1", "field2\r"}},
+		Output: [][]string{{"field1", "field2"}},
+	}, {
+		Name:   "QuotedTrailingCR",
+		Input:  "\"field\"\r",
+		Output: [][]string{{"field"}},
+	}, {
+		Name:  "QuotedTrailingCRCR",
+		Input: "\"field\"\r\r",
+		Error: &ParseError{StartLine: 1, Line: 1, Column: 6, Err: ErrQuote},
+	}, {
+		Name:   "FieldCR",
+		Input:  "field\rfield\r",
+		Output: [][]string{{"field\rfield"}},
+	}, {
+		Name:   "FieldCRCR",
+		Input:  "field\r\rfield\r\r",
+		Output: [][]string{{"field\r\rfield\r"}},
+	}, {
+		Name:   "FieldCRCRLF",
+		Input:  "field\r\r\nfield\r\r\n",
+		Output: [][]string{{"field\r"}, {"field\r"}},
+	}, {
+		Name:   "FieldCRCRLFCR",
+		Input:  "field\r\r\n\rfield\r\r\n\r",
+		Output: [][]string{{"field\r"}, {"\rfield\r"}},
+	}, {
+		Name:   "FieldCRCRLFCRCR",
+		Input:  "field\r\r\n\r\rfield\r\r\n\r\r",
+		Output: [][]string{{"field\r"}, {"\r\rfield\r"}, {"\r"}},
+	}, {
+		Name:  "MultiFieldCRCRLFCRCR",
+		Input: "field1,field2\r\r\n\r\rfield1,field2\r\r\n\r\r,",
+		Output: [][]string{
+			{"field1", "field2\r"},
+			{"\r\rfield1", "field2\r"},
+			{"\r\r", ""},
+		},
 	}, {
 		Name:             "NonASCIICommaAndComment",
 		Input:            "a£b,c£ \td,e\n€ comment\n",
