@@ -211,3 +211,9 @@ func (s *Server) ExportAllConnsIdle() bool {
 func (r *Request) WithT(t *testing.T) *Request {
 	return r.WithContext(context.WithValue(r.Context(), tLogKey{}, t.Logf))
 }
+
+func ExportSetH2GoawayTimeout(d time.Duration) (restore func()) {
+	old := http2goAwayTimeout
+	http2goAwayTimeout = d
+	return func() { http2goAwayTimeout = old }
+}
