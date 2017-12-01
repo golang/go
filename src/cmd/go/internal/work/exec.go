@@ -638,6 +638,8 @@ type vetConfig struct {
 	GoFiles     []string
 	ImportMap   map[string]string
 	PackageFile map[string]string
+
+	SucceedOnTypecheckFailure bool
 }
 
 // VetFlags are the flags to pass to vet.
@@ -662,6 +664,13 @@ func (b *Builder) vet(a *Action) error {
 		vcfg.ImportMap["fmt"] = "fmt"
 		vcfg.PackageFile["fmt"] = a1.built
 	}
+
+	// During go test, ignore type-checking failures during vet.
+	// We only run vet if the compilation has succeeded,
+	// so at least for now assume the bug is in vet.
+	// We know of at least #18395.
+	// TODO(rsc,gri): Try to remove this for Go 1.11.
+	vcfg.SucceedOnTypecheckFailure = cfg.CmdName == "test"
 
 	js, err := json.MarshalIndent(vcfg, "", "\t")
 	if err != nil {

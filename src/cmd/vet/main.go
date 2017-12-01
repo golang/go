@@ -35,6 +35,8 @@ var (
 	tagList = []string{} // exploded version of tags flag; set in main
 
 	mustTypecheck bool
+
+	succeedOnTypecheckFailure bool // during go test, we ignore potential bugs in go/types
 )
 
 var exitCode = 0
@@ -291,6 +293,8 @@ type vetConfig struct {
 	ImportMap   map[string]string
 	PackageFile map[string]string
 
+	SucceedOnTypecheckFailure bool
+
 	imp types.Importer
 }
 
@@ -336,6 +340,7 @@ func doPackageCfg(cfgFile string) {
 	if err := json.Unmarshal(js, &vcfg); err != nil {
 		errorf("parsing vet config %s: %v", cfgFile, err)
 	}
+	succeedOnTypecheckFailure = vcfg.SucceedOnTypecheckFailure
 	stdImporter = &vcfg
 	inittypes()
 	mustTypecheck = true
@@ -427,6 +432,9 @@ func doPackage(names []string, basePkg *Package) *Package {
 	// Type check the package.
 	errs := pkg.check(fs, astFiles)
 	if errs != nil {
+		if succeedOnTypecheckFailure {
+			os.Exit(0)
+		}
 		if *verbose || mustTypecheck {
 			for _, err := range errs {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
