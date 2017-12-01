@@ -2476,7 +2476,7 @@ func TestCoverageFunc(t *testing.T) {
 	tg.makeTempdir()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 
-	tg.run("test", "-coverprofile="+filepath.Join(tg.tempdir, "cover.out"), "coverasm")
+	tg.run("test", "-outputdir="+tg.tempdir, "-coverprofile=cover.out", "coverasm")
 	tg.run("tool", "cover", "-func="+filepath.Join(tg.tempdir, "cover.out"))
 	tg.grepStdout(`\tg\t*100.0%`, "did not find g 100% covered")
 	tg.grepStdoutNot(`\tf\t*[0-9]`, "reported coverage for assembly function f")

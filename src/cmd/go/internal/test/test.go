@@ -466,6 +466,7 @@ var (
 	testCoverPaths   []string        // -coverpkg flag
 	testCoverPkgs    []*load.Package // -coverpkg flag
 	testCoverProfile string          // -coverprofile flag
+	testOutputDir    string          // -outputdir flag
 	testO            string          // -o flag
 	testProfile      string          // profiling flag that limits test to one package
 	testNeedBinary   bool            // profile needs to keep binary around
