@@ -81,10 +81,13 @@ func TestStackGrowth(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// in a normal goroutine
+	var growDuration time.Duration // For debugging failures
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		growStack()
+		start := time.Now()
+		growStack(nil)
+		growDuration = time.Since(start)
 	}()
 	wg.Wait()
 
@@ -93,7 +96,7 @@ func TestStackGrowth(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		LockOSThread()
-		growStack()
+		growStack(nil)
 		UnlockOSThread()
 	}()
 	wg.Wait()
@@ -103,12 +106,14 @@ func TestStackGrowth(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		done := make(chan bool)
-		var started uint32
+		var startTime time.Time
+		var started, progress uint32
 		go func() {
 			s := new(string)
 			SetFinalizer(s, func(ss *string) {
+				startTime = time.Now()
 				atomic.StoreUint32(&started, 1)
-				growStack()
+				growStack(&progress)
 				done <- true
 			})
 			s = nil
@@ -121,7 +126,10 @@ func TestStackGrowth(t *testing.T) {
 		case <-time.After(20 * time.Second):
 			if atomic.LoadUint32(&started) == 0 {
 				t.Log("finalizer did not start")
+			} else {
+				t.Logf("finalizer started %s ago and finished %d iterations", time.Since(startTime), atomic.LoadUint32(&progress))
 			}
+			t.Log("first growStack took", growDuration)
 			t.Error("finalizer did not run")
 			return
 		}
@@ -134,7 +142,7 @@ func TestStackGrowth(t *testing.T) {
 //	growStack()
 //}
 
-func growStack() {
+func growStack(progress *uint32) {
 	n := 1 << 10
 	if testing.Short() {
 		n = 1 << 8
@@ -144,6 +152,9 @@ func growStack() {
 		growStackIter(&x, i)
 		if x != i+1 {
 			panic("stack is corrupted")
+		}
+		if progress != nil {
+			atomic.StoreUint32(progress, uint32(i))
 		}
 	}
 	GC()
@@ -234,7 +245,7 @@ func TestDeferPtrs(t *testing.T) {
 		}
 	}()
 	defer set(&y, 42)
-	growStack()
+	growStack(nil)
 }
 
 type bigBuf [4 * 1024]byte
