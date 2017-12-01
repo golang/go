@@ -110,8 +110,8 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Skip("skipping because cgo is not enabled")
 	}
 
-	t.Parallel()
 	checkGdbEnvironment(t)
+	t.Parallel()
 	checkGdbVersion(t)
 	checkGdbPython(t)
 
@@ -266,8 +266,8 @@ func TestGdbBacktrace(t *testing.T) {
 		testenv.SkipFlaky(t, 15603)
 	}
 
-	t.Parallel()
 	checkGdbEnvironment(t)
+	t.Parallel()
 	checkGdbVersion(t)
 
 	dir, err := ioutil.TempDir("", "go-build")
@@ -336,8 +336,8 @@ func main() {
 // TestGdbAutotmpTypes ensures that types of autotmp variables appear in .debug_info
 // See bug #17830.
 func TestGdbAutotmpTypes(t *testing.T) {
-	t.Parallel()
 	checkGdbEnvironment(t)
+	t.Parallel()
 	checkGdbVersion(t)
 
 	dir, err := ioutil.TempDir("", "go-build")
@@ -401,8 +401,8 @@ func main() {
 `
 
 func TestGdbConst(t *testing.T) {
-	t.Parallel()
 	checkGdbEnvironment(t)
+	t.Parallel()
 	checkGdbVersion(t)
 
 	dir, err := ioutil.TempDir("", "go-build")
