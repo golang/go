@@ -5115,6 +5115,9 @@ func TestTestVet(t *testing.T) {
 	tg.grepStdout(`\[no test files\]`, "did not print test summary")
 	tg.run("test", "-vet=off", filepath.Join(tg.tempdir, "p1.go"))
 	tg.grepStdout(`\[no test files\]`, "did not print test summary")
+
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.run("test", "vetcycle") // must not fail; #22890
 }
 
 func TestInstallDeps(t *testing.T) {
