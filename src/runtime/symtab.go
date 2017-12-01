@@ -358,6 +358,7 @@ type funcID uint32
 
 const (
 	funcID_normal funcID = iota // not a special function
+	funcID_runtime_main
 	funcID_goexit
 	funcID_jmpdefer
 	funcID_mcall
@@ -367,9 +368,6 @@ const (
 	funcID_asmcgocall
 	funcID_sigpanic
 	funcID_runfinq
-	funcID_bgsweep
-	funcID_forcegchelper
-	funcID_timerproc
 	funcID_gcBgMarkWorker
 	funcID_systemstack_switch
 	funcID_systemstack

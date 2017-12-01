@@ -312,6 +312,8 @@ func (ctxt *Link) pclntab() {
 		// funcID uint32
 		funcID := objabi.FuncID_normal
 		switch s.Name {
+		case "runtime.main":
+			funcID = objabi.FuncID_runtime_main
 		case "runtime.goexit":
 			funcID = objabi.FuncID_goexit
 		case "runtime.jmpdefer":
@@ -330,12 +332,6 @@ func (ctxt *Link) pclntab() {
 			funcID = objabi.FuncID_sigpanic
 		case "runtime.runfinq":
 			funcID = objabi.FuncID_runfinq
-		case "runtime.bgsweep":
-			funcID = objabi.FuncID_bgsweep
-		case "runtime.forcegchelper":
-			funcID = objabi.FuncID_forcegchelper
-		case "runtime.timerproc":
-			funcID = objabi.FuncID_timerproc
 		case "runtime.gcBgMarkWorker":
 			funcID = objabi.FuncID_gcBgMarkWorker
 		case "runtime.systemstack_switch":
