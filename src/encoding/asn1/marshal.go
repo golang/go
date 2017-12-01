@@ -271,7 +271,10 @@ func makePrintableString(s string) (e encoder, err error) {
 		// The asterisk is often used in PrintableString, even though
 		// it is invalid. If a PrintableString was specifically
 		// requested then the asterisk is permitted by this code.
-		if !isPrintable(s[i], allowAsterisk) {
+		// Ampersand is allowed in parsing due a handful of CA
+		// certificates, however when making new certificates
+		// it is rejected.
+		if !isPrintable(s[i], allowAsterisk, rejectAmpersand) {
 			return nil, StructuralError{"PrintableString contains invalid character"}
 		}
 	}
@@ -591,7 +594,7 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 			// a PrintableString if the character set in the string is
 			// sufficiently limited, otherwise we'll use a UTF8String.
 			for _, r := range v.String() {
-				if r >= utf8.RuneSelf || !isPrintable(byte(r), rejectAsterisk) {
+				if r >= utf8.RuneSelf || !isPrintable(byte(r), rejectAsterisk, rejectAmpersand) {
 					if !utf8.ValidString(v.String()) {
 						return nil, errors.New("asn1: string not valid UTF-8")
 					}

@@ -487,6 +487,8 @@ var unmarshalTestData = []struct {
 	{[]byte{0x02, 0x01, 0x10}, newInt(16)},
 	{[]byte{0x13, 0x04, 't', 'e', 's', 't'}, newString("test")},
 	{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, newString("test")},
+	// Ampersand is allowed in PrintableString due to mistakes by major CAs.
+	{[]byte{0x13, 0x05, 't', 'e', 's', 't', '&'}, newString("test&")},
 	{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, &RawValue{0, 22, false, []byte("test"), []byte("\x16\x04test")}},
 	{[]byte{0x04, 0x04, 1, 2, 3, 4}, &RawValue{0, 4, false, []byte{1, 2, 3, 4}, []byte{4, 4, 1, 2, 3, 4}}},
 	{[]byte{0x30, 0x03, 0x81, 0x01, 0x01}, &TestContextSpecificTags{1}},
