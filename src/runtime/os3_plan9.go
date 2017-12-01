@@ -153,3 +153,6 @@ func setThreadCPUProfiler(hz int32) {
 	// TODO: Enable profiling interrupts.
 	getg().m.profilehz = hz
 }
+
+// gsignalStack is unused on Plan 9.
+type gsignalStack struct{}
