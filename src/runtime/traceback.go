@@ -990,18 +990,25 @@ func topofstack(f funcInfo, g0 bool) bool {
 		(g0 && f.funcID == funcID_asmcgocall)
 }
 
-// isSystemGoroutine reports whether the goroutine g must be omitted in
-// stack dumps and deadlock detector.
+// isSystemGoroutine reports whether the goroutine g must be omitted
+// in stack dumps and deadlock detector. This is any goroutine that
+// starts at a runtime.* entry point, except for runtime.main and
+// sometimes runtime.runfinq.
 func isSystemGoroutine(gp *g) bool {
+	// Keep this in sync with cmd/trace/trace.go:isSystemGoroutine.
 	f := findfunc(gp.startpc)
 	if !f.valid() {
 		return false
 	}
-	return f.funcID == funcID_runfinq && !fingRunning ||
-		f.funcID == funcID_bgsweep ||
-		f.funcID == funcID_forcegchelper ||
-		f.funcID == funcID_timerproc ||
-		f.funcID == funcID_gcBgMarkWorker
+	if f.funcID == funcID_runtime_main {
+		return false
+	}
+	if f.funcID == funcID_runfinq {
+		// We include the finalizer goroutine if it's calling
+		// back into user code.
+		return !fingRunning
+	}
+	return hasprefix(funcname(f), "runtime.")
 }
 
 // SetCgoTraceback records three C functions to use to gather
