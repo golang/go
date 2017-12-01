@@ -1173,8 +1173,6 @@ func recompileForTest(pmain, preal, ptest *load.Package) {
 	}
 }
 
-var coverIndex = 0
-
 // isTestFile reports whether the source file is a set of tests and should therefore
 // be excluded from coverage analysis.
 func isTestFile(file string) bool {
@@ -1186,6 +1184,7 @@ func isTestFile(file string) bool {
 // to the files, to be used when annotating the files.
 func declareCoverVars(importPath string, files ...string) map[string]*load.CoverVar {
 	coverVars := make(map[string]*load.CoverVar)
+	coverIndex := 0
 	for _, file := range files {
 		if isTestFile(file) {
 			continue

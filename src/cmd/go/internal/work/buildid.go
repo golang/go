@@ -474,7 +474,10 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 			if a.output == nil {
 				panic("internal error: a.output not set")
 			}
-			c.Put(a.actionID, r)
+			outputID, _, err := c.Put(a.actionID, r)
+			if err == nil && cfg.BuildX {
+				b.Showcmd("", "%s # internal", joinUnambiguously(str.StringList("cp", target, c.OutputFile(outputID))))
+			}
 			c.PutBytes(cache.Subkey(a.actionID, "stdout"), a.output)
 			r.Close()
 		}
