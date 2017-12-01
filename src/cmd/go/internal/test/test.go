@@ -272,6 +272,7 @@ const testFlag2 = `
 
 	-timeout d
 	    If a test binary runs longer than duration d, panic.
+	    If d is 0, the timeout is disabled.
 	    The default is 10 minutes (10m).
 
 	-v
@@ -549,6 +550,10 @@ func runTest(cmd *base.Command, args []string) {
 	// timer does not get a chance to fire.
 	if dt, err := time.ParseDuration(testTimeout); err == nil && dt > 0 {
 		testKillTimeout = dt + 1*time.Minute
+	} else if err == nil && dt == 0 {
+		// An explicit zero disables the test timeout.
+		// Let it have one century (almost) before we kill it.
+		testKillTimeout = 100 * 365 * 24 * time.Hour
 	}
 
 	// show passing test output (after buffering) with -v flag.
