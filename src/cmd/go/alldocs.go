@@ -1199,9 +1199,9 @@
 // 	GO386
 // 		For GOARCH=386, the floating point instruction set.
 // 		Valid values are 387, sse2.
-//	GOMIPS
-//		For GOARCH=mips{,le}, whether to use floating point instructions.
-//		Valid values are hardfloat (default), softfloat.
+// 	GOMIPS
+// 		For GOARCH=mips{,le}, whether to use floating point instructions.
+// 		Valid values are hardfloat (default), softfloat.
 //
 // Special-purpose environment variables:
 //
@@ -1575,6 +1575,7 @@
 //
 // 	-timeout d
 // 	    If a test binary runs longer than duration d, panic.
+// 	    If d is 0, the timeout is disabled.
 // 	    The default is 10 minutes (10m).
 //
 // 	-v
