@@ -223,3 +223,6 @@ func crash() {
 	// It's okay to leave this empty for now: if crash returns
 	// the ordinary exit-after-panic happens.
 }
+
+// gsignalStack is unused on Windows.
+type gsignalStack struct{}
