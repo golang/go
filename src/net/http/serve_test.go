@@ -5447,7 +5447,11 @@ func TestServerCloseDeadlock(t *testing.T) {
 func TestServerKeepAlivesEnabled_h1(t *testing.T) { testServerKeepAlivesEnabled(t, h1Mode) }
 func TestServerKeepAlivesEnabled_h2(t *testing.T) { testServerKeepAlivesEnabled(t, h2Mode) }
 func testServerKeepAlivesEnabled(t *testing.T, h2 bool) {
-	setParallel(t)
+	if h2 {
+		restore := ExportSetH2GoawayTimeout(10 * time.Millisecond)
+		defer restore()
+	}
+	// Not parallel: messes with global variable. (http2goAwayTimeout)
 	defer afterTest(t)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "%v", r.RemoteAddr)
