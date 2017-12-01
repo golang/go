@@ -892,6 +892,11 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 				},
 				Imports:    ximports,
 				RawImports: rawXTestImports,
+
+				Asmflags:   p.Internal.Asmflags,
+				Gcflags:    p.Internal.Gcflags,
+				Ldflags:    p.Internal.Ldflags,
+				Gccgoflags: p.Internal.Gccgoflags,
 			},
 		}
 		if pxtestNeedsPtest {
