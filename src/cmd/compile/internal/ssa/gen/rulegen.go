@@ -659,6 +659,7 @@ func extract(val string) (op string, typ string, auxint string, aux string, args
 // It returns the op and unparsed strings for typ, auxint, and aux restrictions and for all args.
 // oparch is the architecture that op is located in, or "" for generic.
 func parseValue(val string, arch arch, loc string) (op opData, oparch string, typ string, auxint string, aux string, args []string) {
+
 	// Resolve the op.
 	var s string
 	s, typ, auxint, aux, args = extract(val)

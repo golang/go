@@ -48,7 +48,6 @@ TYPES
 		H	uint32
 	
 		A	uint8
-	
 		// contains filtered or unexported fields
 	}
 
