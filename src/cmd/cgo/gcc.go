@@ -2388,7 +2388,9 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 		size := t.Size
 		talign := t.Align
 		if f.BitSize > 0 {
-			if f.BitSize%8 != 0 {
+			switch f.BitSize {
+			case 8, 16, 32, 64:
+			default:
 				continue
 			}
 			size = f.BitSize / 8
