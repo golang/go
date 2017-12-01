@@ -54,7 +54,7 @@ type converter struct {
 	start    time.Time  // time converter started
 	testName string     // name of current test, for output attribution
 	report   []*event   // pending test result reports (nested for subtests)
-	passed   bool       // whether we've seen the final whole-package PASS line
+	result   string     // overall test result if seen
 	input    lineBuffer // input buffer
 	output   lineBuffer // output buffer
 }
@@ -139,9 +139,13 @@ var (
 	reports = [][]byte{
 		[]byte("--- PASS: "),
 		[]byte("--- FAIL: "),
+		[]byte("--- SKIP: "),
 	}
 
 	fourSpace = []byte("    ")
+
+	skipLinePrefix = []byte("?   \t")
+	skipLineSuffix = []byte("\t[no test files]\n")
 )
 
 // handleInputLine handles a single whole test output line.
@@ -152,8 +156,18 @@ func (c *converter) handleInputLine(line []byte) {
 	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigFail) {
 		c.flushReport(0)
 		c.output.write(line)
-		c.passed = bytes.Equal(line, bigPass)
+		if bytes.Equal(line, bigPass) {
+			c.result = "pass"
+		} else {
+			c.result = "fail"
+		}
 		return
+	}
+
+	// Special case for entirely skipped test binary: "?   \tpkgname\t[no test files]\n" is only line.
+	// Report it as plain output but remember to say skip in the final summary.
+	if bytes.HasPrefix(line, skipLinePrefix) && bytes.HasSuffix(line, skipLineSuffix) && len(c.report) == 0 {
+		c.result = "skip"
 	}
 
 	// "=== RUN   "
@@ -171,6 +185,7 @@ func (c *converter) handleInputLine(line []byte) {
 	if !ok {
 		// "--- PASS: "
 		// "--- FAIL: "
+		// "--- SKIP: "
 		// but possibly indented.
 		for bytes.HasPrefix(line, fourSpace) {
 			line = line[4:]
@@ -257,8 +272,8 @@ func (c *converter) Close() error {
 	c.input.flush()
 	c.output.flush()
 	e := &event{Action: "fail"}
-	if c.passed {
-		e.Action = "pass"
+	if c.result != "" {
+		e.Action = c.result
 	}
 	if c.mode&Timestamp != 0 {
 		dt := time.Since(c.start).Round(1 * time.Millisecond).Seconds()

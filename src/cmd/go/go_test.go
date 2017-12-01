@@ -5237,13 +5237,20 @@ func TestGoTestJSON(t *testing.T) {
 	// It would be nice to test that the output is interlaced
 	// but it seems to be impossible to do that in a short test
 	// that isn't also flaky. Just check that we get JSON output.
-	tg.run("test", "-json", "-short", "-v", "errors")
-	for _, line := range strings.Split(tg.getStdout(), "\n") {
-		if strings.Contains(line, `"Package":"errors"`) {
-			return
-		}
-	}
-	t.Fatalf("did not see JSON output")
+	tg.run("test", "-json", "-short", "-v", "errors", "empty/pkg", "skipper")
+	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
+	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
+
+	tg.grepStdout(`"Action":"output","Package":"empty/pkg","Output":".*no test files`, "did not see no test files print")
+	tg.grepStdout(`"Action":"skip","Package":"empty/pkg"`, "did not see skip")
+
+	tg.grepStdout(`"Action":"output","Package":"skipper","Test":"Test","Output":"--- SKIP:`, "did not see SKIP output")
+	tg.grepStdout(`"Action":"skip","Package":"skipper","Test":"Test"`, "did not see skip result for Test")
+
+	tg.run("test", "-json", "-bench=NONE", "-short", "-v", "errors")
+	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
+	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
+
 }
 
 func TestFailFast(t *testing.T) {
