@@ -4908,6 +4908,22 @@ func TestCacheOutput(t *testing.T) {
 	}
 }
 
+func TestCacheCoverage(t *testing.T) {
+	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+		t.Skip("GODEBUG gocacheverify")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.makeTempdir()
+
+	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "c1"))
+	tg.run("test", "-cover", "strings")
+	tg.run("test", "-cover", "math", "strings")
+}
+
 func TestIssue22588(t *testing.T) {
 	// Don't get confused by stderr coming from tools.
 	tg := testgo(t)
