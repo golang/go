@@ -41,6 +41,8 @@ func (f *PerPackageFlag) Set(v string) error {
 func (f *PerPackageFlag) set(v, cwd string) error {
 	f.present = true
 	match := func(p *Package) bool { return p.Internal.CmdlinePkg || p.Internal.CmdlineFiles } // default predicate with no pattern
+	// For backwards compatibility with earlier flag splitting, ignore spaces around flags.
+	v = strings.TrimSpace(v)
 	if v == "" {
 		// Special case: -gcflags="" means no flags for command-line arguments
 		// (overrides previous -gcflags="-whatever").
@@ -55,7 +57,7 @@ func (f *PerPackageFlag) set(v, cwd string) error {
 		if i == 0 {
 			return fmt.Errorf("missing <pattern> in <pattern>=<value>")
 		}
-		pattern := v[:i]
+		pattern := strings.TrimSpace(v[:i])
 		match = MatchPackage(pattern, cwd)
 		v = v[i+1:]
 	}
