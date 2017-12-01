@@ -468,3 +468,16 @@ func TestWindowsStackMemoryCgo(t *testing.T) {
 		t.Fatalf("expected < %d bytes of memory per thread, got %d", expected, got)
 	}
 }
+
+func TestSigStackSwapping(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skip("no sigaltstack on %s", runtime.GOOS)
+	}
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "SigStack")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}
