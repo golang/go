@@ -103,18 +103,42 @@ func TestMain(m *testing.M) {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
 		}
+
+		goEnv := func(name string) string {
+			out, err := exec.Command(gotool, "env", name).CombinedOutput()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "go env %s: %v\n%s", name, err, out)
+				os.Exit(2)
+			}
+			return strings.TrimSpace(string(out))
+		}
+		testGOROOT = goEnv("GOROOT")
+
+		// The whole GOROOT/pkg tree was installed using the GOHOSTOS/GOHOSTARCH
+		// toolchain (installed in GOROOT/pkg/tool/GOHOSTOS_GOHOSTARCH).
+		// The testgo.exe we are about to create will be built for GOOS/GOARCH,
+		// which means it will use the GOOS/GOARCH toolchain
+		// (installed in GOROOT/pkg/tool/GOOS_GOARCH).
+		// If these are not the same toolchain, then the entire standard library
+		// will look out of date (the compilers in those two different tool directories
+		// are built for different architectures and have different buid IDs),
+		// which will cause many tests to do unnecessary rebuilds and some
+		// tests to attempt to overwrite the installed standard library.
+		// Bail out entirely in this case.
+		hostGOOS := goEnv("GOHOSTOS")
+		hostGOARCH := goEnv("GOHOSTARCH")
+		if hostGOOS != runtime.GOOS || hostGOARCH != runtime.GOARCH {
+			fmt.Fprintf(os.Stderr, "testing: warning: no tests to run\n") // magic string for cmd/go
+			fmt.Printf("cmd/go test is not compatible with GOOS/GOARCH != GOHOSTOS/GOHOSTARCH (%s/%s != %s/%s)\n", runtime.GOOS, runtime.GOARCH, hostGOOS, hostGOARCH)
+			fmt.Printf("SKIP\n")
+			return
+		}
+
 		out, err := exec.Command(gotool, args...).CombinedOutput()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "building testgo failed: %v\n%s", err, out)
 			os.Exit(2)
 		}
-
-		out, err = exec.Command(gotool, "env", "GOROOT").CombinedOutput()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "could not find testing GOROOT: %v\n%s", err, out)
-			os.Exit(2)
-		}
-		testGOROOT = strings.TrimSpace(string(out))
 
 		out, err = exec.Command(gotool, "env", "CC").CombinedOutput()
 		if err != nil {
@@ -1449,6 +1473,10 @@ func TestRelativeImportsGoTest(t *testing.T) {
 func TestRelativeImportsGoTestDashI(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+
+	// don't let test -i overwrite runtime
+	tg.wantNotStale("runtime", "", "must be non-stale before test -i")
+
 	tg.run("test", "-i", "./testdata/testimport")
 }
 
@@ -1573,7 +1601,9 @@ func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
 	defer tg.cleanup()
 
 	// Make sure the packages below are not stale.
-	tg.run("install", "runtime", "os", "io")
+	tg.wantNotStale("runtime", "", "must be non-stale before test runs")
+	tg.wantNotStale("os", "", "must be non-stale before test runs")
+	tg.wantNotStale("io", "", "must be non-stale before test runs")
 
 	goroot := runtime.GOROOT()
 	tg.setenv("GOROOT", goroot+"/")
@@ -2078,6 +2108,10 @@ func TestGoTestDashIDashOWritesBinary(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.makeTempdir()
+
+	// don't let test -i overwrite runtime
+	tg.wantNotStale("runtime", "", "must be non-stale before test -i")
+
 	tg.run("test", "-v", "-i", "-o", tg.path("myerrors.test"+exeSuffix), "errors")
 	tg.grepBothNot("PASS|FAIL", "test should not have run")
 	tg.wantExecutable(tg.path("myerrors.test"+exeSuffix), "go test -o myerrors.test did not create myerrors.test")
@@ -2888,6 +2922,9 @@ func TestBuildDashIInstallsDependencies(t *testing.T) {
 		func F() { foo.F() }`)
 	tg.setenv("GOPATH", tg.path("."))
 
+	// don't let build -i overwrite runtime
+	tg.wantNotStale("runtime", "", "must be non-stale before build -i")
+
 	checkbar := func(desc string) {
 		tg.run("build", "-v", "-i", "x/y/bar")
 		tg.grepBoth("x/y/foo", "first build -i "+desc+" did not build x/y/foo")
@@ -3067,7 +3104,6 @@ func TestGoVetWithExternalTests(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.makeTempdir()
-	tg.run("install", "cmd/vet")
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.runFail("vet", "vetpkg")
 	tg.grepBoth("Printf", "go vet vetpkg did not find missing argument for Printf")
@@ -3077,7 +3113,6 @@ func TestGoVetWithTags(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.makeTempdir()
-	tg.run("install", "cmd/vet")
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.runFail("vet", "-tags", "tagtest", "vetpkg")
 	tg.grepBoth(`c\.go.*Printf`, "go vet vetpkg did not run scan tagged file")
@@ -3087,7 +3122,6 @@ func TestGoVetWithFlagsOn(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.makeTempdir()
-	tg.run("install", "cmd/vet")
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.runFail("vet", "-printf", "vetpkg")
 	tg.grepBoth("Printf", "go vet -printf vetpkg did not find missing argument for Printf")
@@ -3097,7 +3131,6 @@ func TestGoVetWithFlagsOff(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.makeTempdir()
-	tg.run("install", "cmd/vet")
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.run("vet", "-printf=false", "vetpkg")
 }
@@ -4321,9 +4354,7 @@ func TestBuildTagsNoComma(t *testing.T) {
 	defer tg.cleanup()
 	tg.makeTempdir()
 	tg.setenv("GOPATH", tg.path("go"))
-	tg.run("install", "-tags", "tag1 tag2", "math")
-	tg.runFail("install", "-tags", "tag1,tag2", "math")
-	tg.grepBoth("space-separated list contains comma", "-tags with a comma-separated list didn't error")
+	tg.run("build", "-tags", "tag1 tag2", "math")
 	tg.runFail("build", "-tags", "tag1,tag2", "math")
 	tg.grepBoth("space-separated list contains comma", "-tags with a comma-separated list didn't error")
 }
@@ -5171,6 +5202,9 @@ func TestInstallDeps(t *testing.T) {
 	tg.run("install", "p2")
 	tg.mustExist(p2)
 	tg.mustNotExist(p1)
+
+	// don't let install -i overwrite runtime
+	tg.wantNotStale("runtime", "", "must be non-stale before install -i")
 
 	tg.run("install", "-i", "main1")
 	tg.mustExist(p1)
