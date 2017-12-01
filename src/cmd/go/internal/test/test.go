@@ -1238,14 +1238,6 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 		return nil
 	}
 
-	args := str.StringList(work.FindExecCmd(), a.Deps[0].Target, testArgs)
-	if cfg.BuildN || cfg.BuildX {
-		b.Showcmd("", "%s", strings.Join(args, " "))
-		if cfg.BuildN {
-			return nil
-		}
-	}
-
 	if a.Failed {
 		// We were unable to build the binary.
 		a.Failed = false
@@ -1255,12 +1247,21 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 		return nil
 	}
 
+	args := str.StringList(work.FindExecCmd(), a.Deps[0].Target, testArgs)
+
 	if testCoverProfile != "" {
 		// Write coverage to temporary profile, for merging later.
 		for i, arg := range args {
 			if strings.HasPrefix(arg, "-test.coverprofile=") {
 				args[i] = "-test.coverprofile=" + a.Objdir + "_cover_.out"
 			}
+		}
+	}
+
+	if cfg.BuildN || cfg.BuildX {
+		b.Showcmd("", "%s", strings.Join(args, " "))
+		if cfg.BuildN {
+			return nil
 		}
 	}
 

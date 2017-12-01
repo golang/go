@@ -2469,6 +2469,17 @@ func TestCoverageErrorLine(t *testing.T) {
 	}
 }
 
+func TestTestBuildFailureOutput(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+
+	// Doesn't build, -x output should not claim to run test.
+	tg.runFail("test", "-x", "coverbad")
+	tg.grepStderrNot(`[\\/]coverbad\.test( |$)`, "claimed to run test")
+}
+
 func TestCoverageFunc(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
