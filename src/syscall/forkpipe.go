@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly netbsd openbsd
+// +build darwin dragonfly netbsd openbsd solaris
 
 package syscall
 
+// Try to open a pipe with O_CLOEXEC set on both file descriptors.
 func forkExecPipe(p []int) error {
 	err := Pipe(p)
 	if err != nil {
