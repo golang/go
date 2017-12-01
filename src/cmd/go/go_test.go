@@ -5177,7 +5177,7 @@ func TestGcflagsPatterns(t *testing.T) {
 	tg.setenv("GOPATH", "")
 	tg.setenv("GOCACHE", "off")
 
-	tg.run("build", "-v", "-gcflags=-e", "fmt")
+	tg.run("build", "-v", "-gcflags= \t\r\n -e", "fmt")
 	tg.grepStderr("fmt", "did not rebuild fmt")
 	tg.grepStderrNot("reflect", "incorrectly rebuilt reflect")
 
@@ -5186,7 +5186,7 @@ func TestGcflagsPatterns(t *testing.T) {
 	tg.grepStderr("reflect", "did not rebuild reflect")
 	tg.grepStderrNot("runtime", "incorrectly rebuilt runtime")
 
-	tg.run("build", "-x", "-v", "-gcflags=reflect=-N", "fmt")
+	tg.run("build", "-x", "-v", "-gcflags= \t\r\n reflect \t\r\n = \t\r\n -N", "fmt")
 	tg.grepStderr("fmt", "did not rebuild fmt")
 	tg.grepStderr("reflect", "did not rebuild reflect")
 	tg.grepStderr("compile.* -N .*-p reflect", "did not build reflect with -N flag")
