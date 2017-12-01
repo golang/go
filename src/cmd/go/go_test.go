@@ -2416,6 +2416,14 @@ func TestCoverageUsesAtomicModeForRace(t *testing.T) {
 	checkCoverage(tg, data)
 }
 
+func TestCoverageSyncAtomicImport(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.run("test", "-short", "-cover", "-covermode=atomic", "-coverpkg=coverdep/p1", "coverdep")
+}
+
 func TestCoverageImportMainLoop(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()

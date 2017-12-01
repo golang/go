@@ -670,6 +670,9 @@ func runTest(cmd *base.Command, args []string) {
 			coverFiles = append(coverFiles, p.CgoFiles...)
 			coverFiles = append(coverFiles, p.TestGoFiles...)
 			p.Internal.CoverVars = declareCoverVars(p.ImportPath, coverFiles...)
+			if testCover && testCoverMode == "atomic" {
+				ensureImport(p, "sync/atomic")
+			}
 		}
 	}
 
