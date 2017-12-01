@@ -6,10 +6,10 @@
 //
 // Usage:
 //
-//	go test ... | go tool test2json [-p pkg] [-t]
-//	./test.out 2>&1 | go tool test2json [-p pkg] [-t]
+//	go tool test2json [-p pkg] [-t] [./pkg.test -test.v]
 //
-// Test2json expects to read go test output from standard input.
+// Test2json runs the given test command and converts its output to JSON;
+// with no command specified, test2json expects test output on standard input.
 // It writes a corresponding stream of JSON events to standard output.
 // There is no unnecessary input or output buffering, so that
 // the JSON stream can be read for “live updates” of test status.
@@ -17,6 +17,10 @@
 // The -p flag sets the package reported in each test event.
 //
 // The -t flag requests that time stamps be added to each test event.
+//
+// Note that test2json is only intended for converting a single test
+// binary's output. To convert the output of a "go test" command,
+// use "go test -json" instead of invoking test2json directly.
 //
 // Output Format
 //
@@ -56,7 +60,7 @@
 // The Elapsed field is set for "pass" and "fail" events. It gives the time
 // elapsed for the specific test or the overall package test that passed or failed.
 //
-// The Output field is set for Event == "output" and is a portion of the test's output
+// The Output field is set for Action == "output" and is a portion of the test's output
 // (standard output and standard error merged together). The output is
 // unmodified except that invalid UTF-8 output from a test is coerced
 // into valid UTF-8 by use of replacement characters. With that one exception,
@@ -70,6 +74,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 
 	"cmd/internal/test2json"
 )
@@ -80,16 +85,13 @@ var (
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: go test ... | go tool test2json [-p pkg] [-t]\n")
+	fmt.Fprintf(os.Stderr, "usage: go tool test2json [-p pkg] [-t] [./pkg.test -test.v]\n")
 	os.Exit(2)
 }
 
 func main() {
 	flag.Usage = usage
 	flag.Parse()
-	if flag.NArg() > 0 {
-		usage()
-	}
 
 	var mode test2json.Mode
 	if *flagT {
@@ -97,5 +99,33 @@ func main() {
 	}
 	c := test2json.NewConverter(os.Stdout, *flagP, mode)
 	defer c.Close()
-	io.Copy(c, os.Stdin)
+
+	if flag.NArg() == 0 {
+		io.Copy(c, os.Stdin)
+	} else {
+		args := flag.Args()
+		cmd := exec.Command(args[0], args[1:]...)
+		w := &countWriter{0, c}
+		cmd.Stdout = w
+		cmd.Stderr = w
+		if err := cmd.Run(); err != nil {
+			if w.n > 0 {
+				// Assume command printed why it failed.
+			} else {
+				fmt.Fprintf(c, "test2json: %v\n", err)
+			}
+			c.Close()
+			os.Exit(1)
+		}
+	}
+}
+
+type countWriter struct {
+	n int64
+	w io.Writer
+}
+
+func (w *countWriter) Write(b []byte) (int, error) {
+	w.n += int64(len(b))
+	return w.w.Write(b)
 }

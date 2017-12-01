@@ -5251,6 +5251,11 @@ func TestGoTestJSON(t *testing.T) {
 	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
 	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
 
+	tg.run("test", "-o", filepath.Join(tg.tempdir, "errors.test.exe"), "-c", "errors")
+	tg.run("tool", "test2json", "-p", "errors", filepath.Join(tg.tempdir, "errors.test.exe"), "-test.v", "-test.short")
+	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
+	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
+	tg.grepStdout(`\{"Action":"pass","Package":"errors"\}`, "did not see final pass")
 }
 
 func TestFailFast(t *testing.T) {
