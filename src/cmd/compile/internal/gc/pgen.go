@@ -322,7 +322,11 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCall
 		switch n.Class() {
 		case PAUTO:
 			if !n.Name.Used() {
-				Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
+				// Text == nil -> generating abstract function
+				if fnsym.Func.Text != nil {
+					Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
+				}
+				continue
 			}
 			name = obj.NAME_AUTO
 		case PPARAM, PPARAMOUT:
@@ -558,15 +562,14 @@ func createDwarfVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*No
 			InlIndex:      int32(inlIndex),
 			ChildIndex:    -1,
 		})
-		// Note: the auto that we're appending here is simply to insure
-		// that the DWARF type in question is picked up by the linker --
-		// there isn't a real auto variable with this name. This is
-		// to fix issue 22941.
+		// Append a "deleted auto" entry to the autom list so as to
+		// insure that the type in question is picked up by the linker.
+		// See issue 22941.
 		gotype := ngotype(n).Linksym()
 		fnsym.Func.Autom = append(fnsym.Func.Autom, &obj.Auto{
 			Asym:    Ctxt.Lookup(n.Sym.Name),
 			Aoffset: int32(-1),
-			Name:    obj.NAME_AUTO,
+			Name:    obj.NAME_DELETED_AUTO,
 			Gotype:  gotype,
 		})
 

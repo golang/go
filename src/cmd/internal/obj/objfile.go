@@ -351,6 +351,8 @@ func (w *objWriter) writeSym(s *LSym) {
 			w.writeInt(objabi.A_AUTO)
 		} else if a.Name == NAME_PARAM {
 			w.writeInt(objabi.A_PARAM)
+		} else if a.Name == NAME_DELETED_AUTO {
+			w.writeInt(objabi.A_DELETED_AUTO)
 		} else {
 			log.Fatalf("%s: invalid local variable type %d", s.Name, a.Name)
 		}

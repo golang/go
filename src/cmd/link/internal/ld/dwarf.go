@@ -857,7 +857,7 @@ func defdwsymb(ctxt *Link, s *sym.Symbol, str string, t SymbolType, v int64, got
 		}
 		fallthrough
 
-	case AutoSym, ParamSym:
+	case AutoSym, ParamSym, DeletedAutoSym:
 		dt = defgotype(ctxt, gotype)
 	}
 
