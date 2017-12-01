@@ -397,7 +397,7 @@ func isNumeric(b byte) bool {
 // array and returns it.
 func parsePrintableString(bytes []byte) (ret string, err error) {
 	for _, b := range bytes {
-		if !isPrintable(b, allowAsterisk) {
+		if !isPrintable(b, allowAsterisk, allowAmpersand) {
 			err = SyntaxError{"PrintableString contains invalid character"}
 			return
 		}
@@ -407,16 +407,20 @@ func parsePrintableString(bytes []byte) (ret string, err error) {
 }
 
 type asteriskFlag bool
+type ampersandFlag bool
 
 const (
 	allowAsterisk  asteriskFlag = true
 	rejectAsterisk asteriskFlag = false
+
+	allowAmpersand  ampersandFlag = true
+	rejectAmpersand ampersandFlag = false
 )
 
 // isPrintable reports whether the given b is in the ASN.1 PrintableString set.
 // If asterisk is allowAsterisk then '*' is also allowed, reflecting existing
-// practice.
-func isPrintable(b byte, asterisk asteriskFlag) bool {
+// practice. If ampersand is allowAmpersand then '&' is allowed as well.
+func isPrintable(b byte, asterisk asteriskFlag, ampersand ampersandFlag) bool {
 	return 'a' <= b && b <= 'z' ||
 		'A' <= b && b <= 'Z' ||
 		'0' <= b && b <= '9' ||
@@ -429,7 +433,12 @@ func isPrintable(b byte, asterisk asteriskFlag) bool {
 		// This is technically not allowed in a PrintableString.
 		// However, x509 certificates with wildcard strings don't
 		// always use the correct string type so we permit it.
-		(bool(asterisk) && b == '*')
+		(bool(asterisk) && b == '*') ||
+		// This is not technically allowed either. However, not
+		// only is it relatively common, but there are also a
+		// handful of CA certificates that contain it. At least
+		// one of which will not expire until 2027.
+		(bool(ampersand) && b == '&')
 }
 
 // IA5String

@@ -157,6 +157,7 @@ var marshalTests = []marshalTest{
 	{printableStringTest{"test*"}, "30071305746573742a"},
 	{genericStringTest{"test"}, "3006130474657374"},
 	{genericStringTest{"test*"}, "30070c05746573742a"},
+	{genericStringTest{"test&"}, "30070c057465737426"},
 	{rawContentsStruct{nil, 64}, "3003020140"},
 	{rawContentsStruct{[]byte{0x30, 3, 1, 2, 3}, 64}, "3003010203"},
 	{RawValue{Tag: 1, Class: 2, IsCompound: false, Bytes: []byte{1, 2, 3}}, "8103010203"},
