@@ -1283,7 +1283,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 		// Stream test output (no buffering) when no package has
 		// been given on the command line (implicit current directory)
 		// or when benchmarking.
-		cmd.Stdout = os.Stdout
+		cmd.Stdout = stdout
 	} else {
 		// If we're only running a single package under test or if parallelism is
 		// set to 1, and if we're displaying all output (testShowPass), we can
@@ -1547,7 +1547,13 @@ func builderPrintTest(b *work.Builder, a *work.Action) error {
 
 // builderNoTest is the action for testing a package with no test files.
 func builderNoTest(b *work.Builder, a *work.Action) error {
-	fmt.Printf("?   \t%s\t[no test files]\n", a.Package.ImportPath)
+	var stdout io.Writer = os.Stdout
+	if testJSON {
+		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
+		defer json.Close()
+		stdout = json
+	}
+	fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", a.Package.ImportPath)
 	return nil
 }
 

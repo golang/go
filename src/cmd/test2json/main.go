@@ -25,7 +25,7 @@
 //
 //	type TestEvent struct {
 //		Time    time.Time // encodes as an RFC3339-format string
-//		Event   string
+//		Action  string
 //		Package string
 //		Test    string
 //		Elapsed float64 // seconds
@@ -35,7 +35,7 @@
 // The Time field holds the time the event happened.
 // It is conventionally omitted for cached test results.
 //
-// The Event field is one of a fixed set of event descriptions:
+// The Action field is one of a fixed set of action descriptions:
 //
 //	run    - the test has started running
 //	pause  - the test has been paused
