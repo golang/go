@@ -558,6 +558,18 @@ func createDwarfVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*No
 			InlIndex:      int32(inlIndex),
 			ChildIndex:    -1,
 		})
+		// Note: the auto that we're appending here is simply to insure
+		// that the DWARF type in question is picked up by the linker --
+		// there isn't a real auto variable with this name. This is
+		// to fix issue 22941.
+		gotype := ngotype(n).Linksym()
+		fnsym.Func.Autom = append(fnsym.Func.Autom, &obj.Auto{
+			Asym:    Ctxt.Lookup(n.Sym.Name),
+			Aoffset: int32(-1),
+			Name:    obj.NAME_AUTO,
+			Gotype:  gotype,
+		})
+
 	}
 
 	// Parameter and local variable names are given middle dot
