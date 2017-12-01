@@ -1373,7 +1373,7 @@ func TestFailedImport(t *testing.T) {
 	const src = `
 package p
 
-import "foo" // should only see an error here
+import foo "go/types/thisdirectorymustnotexistotherwisethistestmayfail/foo" // should only see an error here
 
 const c = foo.C
 type T = foo.T
@@ -1393,7 +1393,7 @@ func f(x T) T { return foo.F(x) }
 		conf := Config{
 			Error: func(err error) {
 				// we should only see the import error
-				if errcount > 0 || !strings.Contains(err.Error(), "could not import foo") {
+				if errcount > 0 || !strings.Contains(err.Error(), "could not import") {
 					t.Errorf("for %s importer, got unexpected error: %v", compiler, err)
 				}
 				errcount++
