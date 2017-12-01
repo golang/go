@@ -88,7 +88,6 @@ func init() {
 //	go test -x math
 func testFlags(args []string) (packageNames, passToTest []string) {
 	inPkg := false
-	outputDir := ""
 	var explicitArgs []string
 	for i := 0; i < len(args); i++ {
 		if !strings.HasPrefix(args[i], "-") {
@@ -180,7 +179,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 				}
 				testCover = true
 			case "outputdir":
-				outputDir = value
+				testOutputDir = value
 			case "vet":
 				testVetList = value
 			}
@@ -220,7 +219,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 	}
 
 	// Tell the test what directory we're running in, so it can write the profiles there.
-	if testProfile != "" && outputDir == "" {
+	if testProfile != "" && testOutputDir == "" {
 		dir, err := os.Getwd()
 		if err != nil {
 			base.Fatalf("error from os.Getwd: %s", err)

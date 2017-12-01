@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -24,6 +25,9 @@ var coverMerge struct {
 func initCoverProfile() {
 	if testCoverProfile == "" {
 		return
+	}
+	if !filepath.IsAbs(testCoverProfile) && testOutputDir != "" {
+		testCoverProfile = filepath.Join(testOutputDir, testCoverProfile)
 	}
 
 	// No mutex - caller's responsibility to call with no racing goroutines.
