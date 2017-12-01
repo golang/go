@@ -1190,7 +1190,12 @@ func testChtimes(t *testing.T, name string) {
 			// the contents are accessed; also, it is set
 			// whenever mtime is set.
 		case "netbsd":
-			t.Logf("AccessTime didn't go backwards; was=%v, after=%v (Ignoring. See NetBSD issue golang.org/issue/19293)", at, pat)
+			mounts, _ := ioutil.ReadFile("/proc/mounts")
+			if strings.Contains(string(mounts), "noatime") {
+				t.Logf("AccessTime didn't go backwards, but see a filesystem mounted noatime; ignoring. Issue 19293.")
+			} else {
+				t.Logf("AccessTime didn't go backwards; was=%v, after=%v (Ignoring on NetBSD, assuming noatime, Issue 19293)", at, pat)
+			}
 		default:
 			t.Errorf("AccessTime didn't go backwards; was=%v, after=%v", at, pat)
 		}
