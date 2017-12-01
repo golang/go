@@ -1964,6 +1964,7 @@ func doversion() {
 type SymbolType int8
 
 const (
+	// see also http://9p.io/magic/man2html/1/nm
 	TextSym      SymbolType = 'T'
 	DataSym                 = 'D'
 	BSSSym                  = 'B'
@@ -1972,6 +1973,9 @@ const (
 	FrameSym                = 'm'
 	ParamSym                = 'p'
 	AutoSym                 = 'a'
+
+	// Deleted auto (not a real sym, just placeholder for type)
+	DeletedAutoSym = 'x'
 )
 
 func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int64, *sym.Symbol)) {
@@ -2096,6 +2100,11 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 			continue
 		}
 		for _, a := range s.FuncInfo.Autom {
+			if a.Name == objabi.A_DELETED_AUTO {
+				put(ctxt, nil, "", DeletedAutoSym, 0, a.Gotype)
+				continue
+			}
+
 			// Emit a or p according to actual offset, even if label is wrong.
 			// This avoids negative offsets, which cannot be encoded.
 			if a.Name != objabi.A_AUTO && a.Name != objabi.A_PARAM {
