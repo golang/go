@@ -25,6 +25,7 @@ type file struct {
 
 // Fd returns the Windows handle referencing the open file.
 // The handle is valid only until f.Close is called or f is garbage collected.
+// On Unix systems this will cause the SetDeadline methods to stop working.
 func (file *File) Fd() uintptr {
 	if file == nil {
 		return uintptr(syscall.InvalidHandle)
