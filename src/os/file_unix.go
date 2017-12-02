@@ -54,6 +54,7 @@ type file struct {
 
 // Fd returns the integer Unix file descriptor referencing the open file.
 // The file descriptor is valid only until f.Close is called or f is garbage collected.
+// On Unix systems this will cause the SetDeadline methods to stop working.
 func (f *File) Fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
