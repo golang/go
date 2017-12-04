@@ -45,9 +45,8 @@ func main() {
 	interface{ m1(string) }.m1(x, "d")
 	want += " m1(d)"
 
-	g := struct{ T }.m2
-	_ = g
 	// cannot link the call below - see #22444
+	// g := struct{ T }.m2
 	// g(struct{T}{})
 	// want += " m2()"
 
