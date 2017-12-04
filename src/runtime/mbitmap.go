@@ -381,15 +381,8 @@ func heapBitsForSpan(base uintptr) (hbits heapBits) {
 // in which the pointer p was found and the byte offset at which it
 // was found. These are used for error reporting.
 func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex uintptr) {
-	arenaStart := mheap_.arena_start
-	if p < arenaStart || p >= mheap_.arena_used {
-		return
-	}
-	off := p - arenaStart
-	idx := off >> _PageShift
-	// p points into the heap, but possibly to the middle of an object.
-	// Consult the span table to find the block beginning.
-	s = mheap_.spans[idx]
+	s = spanOf(p)
+	// If p is a bad pointer, it may not be in s's bounds.
 	if s == nil || p < s.base() || p >= s.limit || s.state != mSpanInUse {
 		if s == nil || s.state == _MSpanManual {
 			// If s is nil, the virtual address has never been part of the heap.
@@ -416,7 +409,7 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
 			} else {
 				print(" to unused region of span")
 			}
-			print(" idx=", hex(idx), " span.base()=", hex(s.base()), " span.limit=", hex(s.limit), " span.state=", s.state, "\n")
+			print(" span.base()=", hex(s.base()), " span.limit=", hex(s.limit), " span.state=", s.state, "\n")
 			if refBase != 0 {
 				print("runtime: found in object at *(", hex(refBase), "+", hex(refOff), ")\n")
 				gcDumpObject("object", refBase, refOff)

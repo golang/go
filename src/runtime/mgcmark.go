@@ -1309,11 +1309,8 @@ func gcDumpObject(label string, obj, off uintptr) {
 		print(label, "=", hex(obj), " is not in the Go heap\n")
 		return
 	}
-	k := obj >> _PageShift
-	x := k
-	x -= mheap_.arena_start >> _PageShift
-	s := mheap_.spans[x]
-	print(label, "=", hex(obj), " k=", hex(k))
+	s := spanOf(obj)
+	print(label, "=", hex(obj))
 	if s == nil {
 		print(" s=nil\n")
 		return
