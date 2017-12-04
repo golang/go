@@ -58,7 +58,7 @@ func getcontext(ctxt unsafe.Pointer)
 func lwp_create(ctxt unsafe.Pointer, flags uintptr, lwpid unsafe.Pointer) int32
 
 //go:noescape
-func lwp_park(abstime *timespec, unpark int32, hint, unparkhint unsafe.Pointer) int32
+func lwp_park(clockid, flags int32, ts *timespec, unpark int32, hint, unparkhint unsafe.Pointer) int32
 
 //go:noescape
 func lwp_unpark(lwp int32, hint unsafe.Pointer) int32
@@ -76,6 +76,9 @@ const (
 	_CLOCK_VIRTUAL   = 1
 	_CLOCK_PROF      = 2
 	_CLOCK_MONOTONIC = 3
+
+	_TIMER_RELTIME = 0
+	_TIMER_ABSTIME = 1
 )
 
 var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
@@ -122,7 +125,6 @@ func semasleep(ns int64) int32 {
 	if ns >= 0 {
 		var ts timespec
 		var nsec int32
-		ns += nanotime()
 		ts.set_sec(timediv(ns, 1000000000, &nsec))
 		ts.set_nsec(nsec)
 		tsp = &ts
@@ -138,7 +140,7 @@ func semasleep(ns int64) int32 {
 		}
 
 		// Sleep until unparked by semawakeup or timeout.
-		ret := lwp_park(tsp, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
+		ret := lwp_park(_CLOCK_MONOTONIC, _TIMER_RELTIME, tsp, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
 		if ret == _ETIMEDOUT {
 			return -1
 		}
