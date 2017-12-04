@@ -2662,3 +2662,7 @@
 (MOVLf2i <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
 (MOVQi2f <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
 (MOVLi2f <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
+
+// LEAQ is rematerializeable, so this helps to avoid register spill.
+// See isuue 22947 for details
+(ADDQconst [off] x:(SP)) -> (LEAQ [off] x)

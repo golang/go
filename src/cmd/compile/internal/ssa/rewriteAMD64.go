@@ -2054,6 +2054,20 @@ func rewriteValueAMD64_OpAMD64ADDQconst_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ADDQconst [off] x:(SP))
+	// cond:
+	// result: (LEAQ [off] x)
+	for {
+		off := v.AuxInt
+		x := v.Args[0]
+		if x.Op != OpSP {
+			break
+		}
+		v.reset(OpAMD64LEAQ)
+		v.AuxInt = off
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64ADDQconstmem_0(v *Value) bool {
