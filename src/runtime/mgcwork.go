@@ -400,6 +400,7 @@ func getempty() *workbuf {
 		for i := uintptr(0); i+_WorkbufSize <= workbufAlloc; i += _WorkbufSize {
 			newb := (*workbuf)(unsafe.Pointer(s.base() + i))
 			newb.nobj = 0
+			lfnodeValidate(&newb.node)
 			if i == 0 {
 				b = newb
 			} else {
