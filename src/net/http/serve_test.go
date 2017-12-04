@@ -5980,6 +5980,21 @@ func TestServerCloseListenerOnce(t *testing.T) {
 	}
 }
 
+// Issue 20239: don't block in Serve if Shutdown is called first.
+func TestServerShutdownThenServe(t *testing.T) {
+	var srv Server
+	cl := &countCloseListener{Listener: nil}
+	srv.Shutdown(context.Background())
+	got := srv.Serve(cl)
+	if got != ErrServerClosed {
+		t.Errorf("Serve err = %v; want ErrServerClosed", got)
+	}
+	nclose := atomic.LoadInt32(&cl.closes)
+	if nclose != 1 {
+		t.Errorf("Close calls = %v; want 1", nclose)
+	}
+}
+
 // Issue 23351: document and test behavior of ServeMux with ports
 func TestStripPortFromHost(t *testing.T) {
 	mux := NewServeMux()
