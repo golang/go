@@ -26,7 +26,7 @@ type mstats struct {
 	alloc       uint64 // bytes allocated and not yet freed
 	total_alloc uint64 // bytes allocated (even if freed)
 	sys         uint64 // bytes obtained from system (should be sum of xxx_sys below, no locking, approximate)
-	nlookup     uint64 // number of pointer lookups
+	nlookup     uint64 // number of pointer lookups (unused)
 	nmalloc     uint64 // number of mallocs
 	nfree       uint64 // number of frees
 
@@ -638,8 +638,6 @@ func purgecachedstats(c *mcache) {
 	c.local_scan = 0
 	memstats.tinyallocs += uint64(c.local_tinyallocs)
 	c.local_tinyallocs = 0
-	memstats.nlookup += uint64(c.local_nlookup)
-	c.local_nlookup = 0
 	h.largefree += uint64(c.local_largefree)
 	c.local_largefree = 0
 	h.nlargefree += uint64(c.local_nlargefree)
