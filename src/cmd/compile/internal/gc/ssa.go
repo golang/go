@@ -737,7 +737,7 @@ func (s *state) stmt(n *Node) {
 				// Check whether we're writing the result of an append back to the same slice.
 				// If so, we handle it specially to avoid write barriers on the fast
 				// (non-growth) path.
-				if !samesafeexpr(n.Left, rhs.List.First()) {
+				if !samesafeexpr(n.Left, rhs.List.First()) || Debug['N'] != 0 {
 					break
 				}
 				// If the slice can be SSA'd, it'll be on the stack,
