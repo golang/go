@@ -8,6 +8,7 @@ package os
 
 import (
 	"internal/poll"
+	"internal/testlog"
 	"runtime"
 	"syscall"
 )
@@ -159,6 +160,8 @@ const DevNull = "/dev/null"
 // methods on the returned File can be used for I/O.
 // If there is an error, it will be of type *PathError.
 func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+	testlog.Open(name)
+
 	chmod := false
 	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
 		if _, err := Stat(name); IsNotExist(err) {

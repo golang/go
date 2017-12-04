@@ -7,6 +7,7 @@ package os
 import (
 	"internal/poll"
 	"internal/syscall/windows"
+	"internal/testlog"
 	"runtime"
 	"syscall"
 	"unicode/utf16"
@@ -154,6 +155,8 @@ func openDir(name string) (file *File, err error) {
 // methods on the returned File can be used for I/O.
 // If there is an error, it will be of type *PathError.
 func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+	testlog.Open(name)
+
 	if name == "" {
 		return nil, &PathError{"open", name, syscall.ENOENT}
 	}

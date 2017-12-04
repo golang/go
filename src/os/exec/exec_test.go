@@ -401,9 +401,15 @@ var testedAlreadyLeaked = false
 
 // basefds returns the number of expected file descriptors
 // to be present in a process at start.
-// stdin, stdout, stderr, epoll/kqueue
+// stdin, stdout, stderr, epoll/kqueue, maybe testlog
 func basefds() uintptr {
-	return os.Stderr.Fd() + 1
+	n := os.Stderr.Fd() + 1
+	for _, arg := range os.Args {
+		if strings.HasPrefix(arg, "-test.testlogfile=") {
+			n++
+		}
+	}
+	return n
 }
 
 func closeUnexpectedFds(t *testing.T, m string) {

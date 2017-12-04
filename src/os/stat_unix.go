@@ -7,6 +7,7 @@
 package os
 
 import (
+	"internal/testlog"
 	"syscall"
 )
 
@@ -28,6 +29,7 @@ func (f *File) Stat() (FileInfo, error) {
 // Stat returns a FileInfo describing the named file.
 // If there is an error, it will be of type *PathError.
 func Stat(name string) (FileInfo, error) {
+	testlog.Stat(name)
 	var fs fileStat
 	err := syscall.Stat(name, &fs.sys)
 	if err != nil {
@@ -42,6 +44,7 @@ func Stat(name string) (FileInfo, error) {
 // describes the symbolic link. Lstat makes no attempt to follow the link.
 // If there is an error, it will be of type *PathError.
 func Lstat(name string) (FileInfo, error) {
+	testlog.Stat(name)
 	var fs fileStat
 	err := syscall.Lstat(name, &fs.sys)
 	if err != nil {

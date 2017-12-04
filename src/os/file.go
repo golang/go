@@ -39,6 +39,7 @@ package os
 import (
 	"errors"
 	"internal/poll"
+	"internal/testlog"
 	"io"
 	"syscall"
 	"time"
@@ -228,7 +229,14 @@ func Mkdir(name string, perm FileMode) error {
 // If there is an error, it will be of type *PathError.
 func Chdir(dir string) error {
 	if e := syscall.Chdir(dir); e != nil {
+		testlog.Open(dir) // observe likely non-existent directory
 		return &PathError{"chdir", dir, e}
+	}
+	if log := testlog.Logger(); log != nil {
+		wd, err := Getwd()
+		if err == nil {
+			log.Chdir(wd)
+		}
 	}
 	return nil
 }

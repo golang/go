@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/testlog"
 	"syscall"
 	"time"
 )
@@ -89,6 +90,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 // Stat returns a FileInfo describing the named file.
 // If there is an error, it will be of type *PathError.
 func Stat(name string) (FileInfo, error) {
+	testlog.Stat(name)
 	d, err := dirstat(name)
 	if err != nil {
 		return nil, err
