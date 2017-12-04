@@ -442,55 +442,6 @@ func spanOfUnchecked(p uintptr) *mspan {
 	return mheap_.spans[(p-mheap_.arena_start)>>_PageShift]
 }
 
-func mlookup(v uintptr, base *uintptr, size *uintptr, sp **mspan) int32 {
-	_g_ := getg()
-
-	_g_.m.mcache.local_nlookup++
-	if sys.PtrSize == 4 && _g_.m.mcache.local_nlookup >= 1<<30 {
-		// purge cache stats to prevent overflow
-		lock(&mheap_.lock)
-		purgecachedstats(_g_.m.mcache)
-		unlock(&mheap_.lock)
-	}
-
-	s := mheap_.lookupMaybe(unsafe.Pointer(v))
-	if sp != nil {
-		*sp = s
-	}
-	if s == nil {
-		if base != nil {
-			*base = 0
-		}
-		if size != nil {
-			*size = 0
-		}
-		return 0
-	}
-
-	p := s.base()
-	if s.spanclass.sizeclass() == 0 {
-		// Large object.
-		if base != nil {
-			*base = p
-		}
-		if size != nil {
-			*size = s.npages << _PageShift
-		}
-		return 1
-	}
-
-	n := s.elemsize
-	if base != nil {
-		i := (v - p) / n
-		*base = p + i*n
-	}
-	if size != nil {
-		*size = n
-	}
-
-	return 1
-}
-
 // Initialize the heap.
 func (h *mheap) init(spansStart, spansBytes uintptr) {
 	h.treapalloc.init(unsafe.Sizeof(treapNode{}), nil, nil, &memstats.other_sys)
@@ -1459,12 +1410,12 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
 		// situation where it's possible that markrootSpans
 		// has already run but mark termination hasn't yet.
 		if gcphase != _GCoff {
-			_, base, _ := findObject(p)
+			base, _, _, _ := heapBitsForObject(uintptr(p), 0, 0)
 			mp := acquirem()
 			gcw := &mp.p.ptr().gcw
 			// Mark everything reachable from the object
 			// so it's retained for the finalizer.
-			scanobject(uintptr(base), gcw)
+			scanobject(base, gcw)
 			// Mark the finalizer itself, since the
 			// special isn't part of the GC'd heap.
 			scanblock(uintptr(unsafe.Pointer(&s.fn)), sys.PtrSize, &oneptrmask[0], gcw)

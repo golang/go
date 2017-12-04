@@ -48,7 +48,7 @@ func TestMemStats(t *testing.T) {
 	// PauseTotalNs can be 0 if timer resolution is poor.
 	fields := map[string][]func(interface{}) error{
 		"Alloc": {nz, le(1e10)}, "TotalAlloc": {nz, le(1e11)}, "Sys": {nz, le(1e10)},
-		"Lookups": {nz, le(1e10)}, "Mallocs": {nz, le(1e10)}, "Frees": {nz, le(1e10)},
+		"Lookups": {eq(uint64(0))}, "Mallocs": {nz, le(1e10)}, "Frees": {nz, le(1e10)},
 		"HeapAlloc": {nz, le(1e10)}, "HeapSys": {nz, le(1e10)}, "HeapIdle": {le(1e10)},
 		"HeapInuse": {nz, le(1e10)}, "HeapReleased": {le(1e10)}, "HeapObjects": {nz, le(1e10)},
 		"StackInuse": {nz, le(1e10)}, "StackSys": {nz, le(1e10)},

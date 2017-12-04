@@ -39,7 +39,6 @@ type mcache struct {
 	stackcache [_NumStackOrders]stackfreelist
 
 	// Local allocator stats, flushed during GC.
-	local_nlookup    uintptr                  // number of pointer lookups
 	local_largefree  uintptr                  // bytes freed for large objects (>maxsmallsize)
 	local_nlargefree uintptr                  // number of frees for large objects (>maxsmallsize)
 	local_nsmallfree [_NumSizeClasses]uintptr // number of frees for small objects (<=maxsmallsize)

@@ -1852,12 +1852,10 @@ func getgcmask(ep interface{}) (mask []byte) {
 	}
 
 	// heap
-	var n uintptr
-	var base uintptr
-	if mlookup(uintptr(p), &base, &n, nil) != 0 {
+	if base, hbits, s, _ := heapBitsForObject(uintptr(p), 0, 0); base != 0 {
+		n := s.elemsize
 		mask = make([]byte, n/sys.PtrSize)
 		for i := uintptr(0); i < n; i += sys.PtrSize {
-			hbits := heapBitsForAddr(base + i)
 			if hbits.isPointer() {
 				mask[i/sys.PtrSize] = 1
 			}
@@ -1865,6 +1863,7 @@ func getgcmask(ep interface{}) (mask []byte) {
 				mask = mask[:i/sys.PtrSize]
 				break
 			}
+			hbits = hbits.next()
 		}
 		return
 	}
