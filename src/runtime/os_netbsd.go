@@ -122,8 +122,8 @@ func semasleep(ns int64) int32 {
 
 	// Compute sleep deadline.
 	var tsp *timespec
+	var ts timespec
 	if ns >= 0 {
-		var ts timespec
 		var nsec int32
 		ts.set_sec(timediv(ns, 1000000000, &nsec))
 		ts.set_nsec(nsec)
@@ -143,6 +143,15 @@ func semasleep(ns int64) int32 {
 		ret := lwp_park(_CLOCK_MONOTONIC, _TIMER_RELTIME, tsp, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
 		if ret == _ETIMEDOUT {
 			return -1
+		} else if ret == _EINTR && ns >= 0 {
+			// Avoid sleeping forever if we keep getting
+			// interrupted (for example by the profiling
+			// timer). It would be if tsp upon return had the
+			// remaining time to sleep, but this is good enough.
+			var nsec int32
+			ns /= 2
+			ts.set_sec(timediv(ns, 1000000000, &nsec))
+			ts.set_nsec(nsec)
 		}
 	}
 }
