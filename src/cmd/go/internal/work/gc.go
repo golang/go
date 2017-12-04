@@ -20,6 +20,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
+	"cmd/internal/objabi"
 	"crypto/sha1"
 )
 
@@ -159,6 +160,11 @@ CheckFlags:
 			canDashC = false
 			break CheckFlags
 		}
+	}
+
+	// TODO: Test and delete these conditions.
+	if objabi.Fieldtrack_enabled != 0 || objabi.Preemptibleloops_enabled != 0 || objabi.Clobberdead_enabled != 0 {
+		canDashC = false
 	}
 
 	if !canDashC {
