@@ -78,19 +78,11 @@ func isClosedChan(c <-chan struct{}) bool {
 	}
 }
 
-type pipeError struct {
-	errStr  string
-	timeout bool
-}
+type timeoutError struct{}
 
-func (pe pipeError) Error() string   { return pe.errStr }
-func (pe pipeError) Timeout() bool   { return pe.timeout }
-func (pe pipeError) Temporary() bool { return pe.timeout }
-
-var (
-	errDeadline = pipeError{"deadline exceeded", true}
-	errClosed   = pipeError{"closed connection", false}
-)
+func (timeoutError) Error() string   { return "deadline exceeded" }
+func (timeoutError) Timeout() bool   { return true }
+func (timeoutError) Temporary() bool { return true }
 
 type pipeAddr struct{}
 
@@ -153,7 +145,7 @@ func (*pipe) RemoteAddr() Addr { return pipeAddr{} }
 
 func (p *pipe) Read(b []byte) (int, error) {
 	n, err := p.read(b)
-	if err != nil && err != io.EOF {
+	if err != nil && err != io.EOF && err != io.ErrClosedPipe {
 		err = &OpError{Op: "read", Net: "pipe", Err: err}
 	}
 	return n, err
@@ -162,11 +154,11 @@ func (p *pipe) Read(b []byte) (int, error) {
 func (p *pipe) read(b []byte) (n int, err error) {
 	switch {
 	case isClosedChan(p.localDone):
-		return 0, errClosed
+		return 0, io.ErrClosedPipe
 	case isClosedChan(p.remoteDone):
 		return 0, io.EOF
 	case isClosedChan(p.readDeadline.wait()):
-		return 0, errDeadline
+		return 0, timeoutError{}
 	}
 
 	select {
@@ -175,17 +167,17 @@ func (p *pipe) read(b []byte) (n int, err error) {
 		p.rdTx <- nr
 		return nr, nil
 	case <-p.localDone:
-		return 0, errClosed
+		return 0, io.ErrClosedPipe
 	case <-p.remoteDone:
 		return 0, io.EOF
 	case <-p.readDeadline.wait():
-		return 0, errDeadline
+		return 0, timeoutError{}
 	}
 }
 
 func (p *pipe) Write(b []byte) (int, error) {
 	n, err := p.write(b)
-	if err != nil {
+	if err != nil && err != io.ErrClosedPipe {
 		err = &OpError{Op: "write", Net: "pipe", Err: err}
 	}
 	return n, err
@@ -194,11 +186,11 @@ func (p *pipe) Write(b []byte) (int, error) {
 func (p *pipe) write(b []byte) (n int, err error) {
 	switch {
 	case isClosedChan(p.localDone):
-		return 0, errClosed
+		return 0, io.ErrClosedPipe
 	case isClosedChan(p.remoteDone):
-		return 0, errClosed
+		return 0, io.ErrClosedPipe
 	case isClosedChan(p.writeDeadline.wait()):
-		return 0, errDeadline
+		return 0, timeoutError{}
 	}
 
 	p.wrMu.Lock() // Ensure entirety of b is written together
@@ -210,11 +202,11 @@ func (p *pipe) write(b []byte) (n int, err error) {
 			b = b[nw:]
 			n += nw
 		case <-p.localDone:
-			return n, errClosed
+			return n, io.ErrClosedPipe
 		case <-p.remoteDone:
-			return n, errClosed
+			return n, io.ErrClosedPipe
 		case <-p.writeDeadline.wait():
-			return n, errDeadline
+			return n, timeoutError{}
 		}
 	}
 	return n, nil
@@ -222,7 +214,7 @@ func (p *pipe) write(b []byte) (n int, err error) {
 
 func (p *pipe) SetDeadline(t time.Time) error {
 	if isClosedChan(p.localDone) || isClosedChan(p.remoteDone) {
-		return &OpError{Op: "set", Net: "pipe", Err: errClosed}
+		return io.ErrClosedPipe
 	}
 	p.readDeadline.set(t)
 	p.writeDeadline.set(t)
@@ -231,7 +223,7 @@ func (p *pipe) SetDeadline(t time.Time) error {
 
 func (p *pipe) SetReadDeadline(t time.Time) error {
 	if isClosedChan(p.localDone) || isClosedChan(p.remoteDone) {
-		return &OpError{Op: "set", Net: "pipe", Err: errClosed}
+		return io.ErrClosedPipe
 	}
 	p.readDeadline.set(t)
 	return nil
@@ -239,7 +231,7 @@ func (p *pipe) SetReadDeadline(t time.Time) error {
 
 func (p *pipe) SetWriteDeadline(t time.Time) error {
 	if isClosedChan(p.localDone) || isClosedChan(p.remoteDone) {
-		return &OpError{Op: "set", Net: "pipe", Err: errClosed}
+		return io.ErrClosedPipe
 	}
 	p.writeDeadline.set(t)
 	return nil
