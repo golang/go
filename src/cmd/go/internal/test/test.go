@@ -1052,8 +1052,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		}
 	}
 	buildAction = a
-	var installAction *work.Action
-
+	var installAction, cleanAction *work.Action
 	if testC || testNeedBinary {
 		// -c or profiling flag: create action to copy binary to ./test.out.
 		target := filepath.Join(base.Cwd, testBinary+cfg.ExeSuffix)
@@ -1071,7 +1070,6 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 			Package: pmain,
 			Target:  target,
 		}
-		buildAction = installAction
 		runAction = installAction // make sure runAction != nil even if not running test
 	}
 	if testC {
@@ -1094,7 +1092,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		if pxtest != nil {
 			addTestVet(b, pxtest, runAction, installAction)
 		}
-		cleanAction := &work.Action{
+		cleanAction = &work.Action{
 			Mode:    "test clean",
 			Func:    builderCleanTest,
 			Deps:    []*work.Action{runAction},
@@ -1106,6 +1104,14 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 			Func:    builderPrintTest,
 			Deps:    []*work.Action{cleanAction},
 			Package: p,
+		}
+	}
+	if installAction != nil {
+		if runAction != installAction {
+			installAction.Deps = append(installAction.Deps, runAction)
+		}
+		if cleanAction != nil {
+			cleanAction.Deps = append(cleanAction.Deps, installAction)
 		}
 	}
 
@@ -1259,7 +1265,11 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 		return nil
 	}
 
-	args := str.StringList(work.FindExecCmd(), a.Deps[0].Target, testArgs)
+	testlogArg := []string{}
+	if !c.disableCache {
+		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
+	}
+	args := str.StringList(work.FindExecCmd(), a.Deps[0].Target, testlogArg, testArgs)
 
 	if testCoverProfile != "" {
 		// Write coverage to temporary profile, for merging later.
@@ -1454,39 +1464,95 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 		return false
 	}
 
+	// The test cache result fetch is a two-level lookup.
+	//
+	// First, we use the content hash of the test binary
+	// and its command-line arguments to find the
+	// list of environment variables and files consulted
+	// the last time the test was run with those arguments.
+	// (To avoid unnecessary links, we store this entry
+	// under two hashes: id1 uses the linker inputs as a
+	// proxy for the test binary, and id2 uses the actual
+	// test binary. If the linker inputs are unchanged,
+	// this way we avoid the link step, even though we
+	// do not cache link outputs.)
+	//
+	// Second, we compute a hash of the values of the
+	// environment variables and the content of the files
+	// listed in the log from the previous run.
+	// Then we look up test output using a combination of
+	// the hash from the first part (testID) and the hash of the
+	// test inputs (testInputsID).
+	//
+	// In order to store a new test result, we must redo the
+	// testInputsID computation using the log from the run
+	// we want to cache, and then we store that new log and
+	// the new outputs.
+
 	h := cache.NewHash("testResult")
 	fmt.Fprintf(h, "test binary %s args %q execcmd %q", id, cacheArgs, work.ExecCmd)
-	// TODO(rsc): How to handle other test dependencies like environment variables or input files?
-	// We could potentially add new API like testing.UsedEnv(envName string)
-	// or testing.UsedFile(inputFile string) to let tests declare what external inputs
-	// they consulted. These could be recorded and rechecked.
-	// The lookup here would become a two-step lookup: first use the binary+args
-	// to fetch the list of other inputs, then add the other inputs to produce a
-	// second key for fetching the results.
-	// For now, we'll assume that users will use -count=1 (or "go test") to bypass the test result
-	// cache when modifying those things.
 	testID := h.Sum()
 	if c.id1 == (cache.ActionID{}) {
 		c.id1 = testID
 	} else {
 		c.id2 = testID
 	}
+	if cache.DebugTest {
+		fmt.Fprintf(os.Stderr, "testcache: %s: test ID %x => %x\n", a.Package.ImportPath, id, testID)
+	}
+
+	// Load list of referenced environment variables and files
+	// from last run of testID, and compute hash of that content.
+	data, entry, err := cache.Default().GetBytes(testID)
+	if !bytes.HasPrefix(data, testlogMagic) || data[len(data)-1] != '\n' {
+		if cache.DebugTest {
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "testcache: %s: input list not found: %v\n", a.Package.ImportPath, err)
+			} else {
+				fmt.Fprintf(os.Stderr, "testcache: %s: input list malformed\n", a.Package.ImportPath)
+			}
+		}
+		return false
+	}
+	testInputsID, err := computeTestInputsID(a, data)
+	if err != nil {
+		return false
+	}
+	if cache.DebugTest {
+		fmt.Fprintf(os.Stderr, "testcache: %s: test ID %x => input ID %x => %x\n", a.Package.ImportPath, testID, testInputsID, testAndInputKey(testID, testInputsID))
+	}
 
 	// Parse cached result in preparation for changing run time to "(cached)".
 	// If we can't parse the cached result, don't use it.
-	data, entry, _ := cache.Default().GetBytes(testID)
+	data, entry, err = cache.Default().GetBytes(testAndInputKey(testID, testInputsID))
 	if len(data) == 0 || data[len(data)-1] != '\n' {
+		if cache.DebugTest {
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "testcache: %s: test output not found: %v\n", a.Package.ImportPath, err)
+			} else {
+				fmt.Fprintf(os.Stderr, "testcache: %s: test output malformed\n", a.Package.ImportPath)
+			}
+		}
 		return false
 	}
 	if entry.Time.Before(testCacheExpire) {
+		if cache.DebugTest {
+			fmt.Fprintf(os.Stderr, "testcache: %s: test output expired due to go clean -testcache\n", a.Package.ImportPath)
+		}
 		return false
 	}
 	i := bytes.LastIndexByte(data[:len(data)-1], '\n') + 1
 	if !bytes.HasPrefix(data[i:], []byte("ok  \t")) {
+		if cache.DebugTest {
+			fmt.Fprintf(os.Stderr, "testcache: %s: test output malformed\n", a.Package.ImportPath)
+		}
 		return false
 	}
 	j := bytes.IndexByte(data[i+len("ok  \t"):], '\t')
 	if j < 0 {
+		if cache.DebugTest {
+			fmt.Fprintf(os.Stderr, "testcache: %s: test output malformed\n", a.Package.ImportPath)
+		}
 		return false
 	}
 	j += i + len("ok  \t") + 1
@@ -1502,12 +1568,168 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 	return true
 }
 
+var errBadTestInputs = errors.New("error parsing test inputs")
+var testlogMagic = []byte("# test log\n") // known to testing/internal/testdeps/deps.go
+
+// computeTestInputsID computes the "test inputs ID"
+// (see comment in tryCacheWithID above) for the
+// test log.
+func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error) {
+	testlog = bytes.TrimPrefix(testlog, testlogMagic)
+	h := cache.NewHash("testInputs")
+	pwd := a.Package.Dir
+	for _, line := range bytes.Split(testlog, []byte("\n")) {
+		if len(line) == 0 {
+			continue
+		}
+		s := string(line)
+		i := strings.Index(s, " ")
+		if i < 0 {
+			if cache.DebugTest {
+				fmt.Fprintf(os.Stderr, "testcache: %s: input list malformed (%q)\n", a.Package.ImportPath, line)
+			}
+			return cache.ActionID{}, errBadTestInputs
+		}
+		op := s[:i]
+		name := s[i+1:]
+		switch op {
+		default:
+			if cache.DebugTest {
+				fmt.Fprintf(os.Stderr, "testcache: %s: input list malformed (%q)\n", a.Package.ImportPath, line)
+			}
+			return cache.ActionID{}, errBadTestInputs
+		case "getenv":
+			fmt.Fprintf(h, "env %s %x\n", name, hashGetenv(name))
+		case "chdir":
+			pwd = name // always absolute
+			fmt.Fprintf(h, "cbdir %s %x\n", name, hashStat(name))
+		case "stat":
+			if !filepath.IsAbs(name) {
+				name = filepath.Join(pwd, name)
+			}
+			fmt.Fprintf(h, "stat %s %x\n", name, hashStat(name))
+		case "open":
+			if !filepath.IsAbs(name) {
+				name = filepath.Join(pwd, name)
+			}
+			fh, err := hashOpen(name)
+			if err != nil {
+				if cache.DebugTest {
+					fmt.Fprintf(os.Stderr, "testcache: %s: input file %s: %s\n", a.Package.ImportPath, name, err)
+				}
+				return cache.ActionID{}, err
+			}
+			fmt.Fprintf(h, "open %s %x\n", name, fh)
+		}
+	}
+	sum := h.Sum()
+	return sum, nil
+}
+
+func hashGetenv(name string) cache.ActionID {
+	h := cache.NewHash("getenv")
+	v, ok := os.LookupEnv(name)
+	if !ok {
+		h.Write([]byte{0})
+	} else {
+		h.Write([]byte{1})
+		h.Write([]byte(v))
+	}
+	return h.Sum()
+}
+
+const modTimeCutoff = 2 * time.Second
+
+var errFileTooNew = errors.New("file used as input is too new")
+
+func hashOpen(name string) (cache.ActionID, error) {
+	h := cache.NewHash("open")
+	info, err := os.Stat(name)
+	if err != nil {
+		fmt.Fprintf(h, "err %v\n", err)
+		return h.Sum(), nil
+	}
+	hashWriteStat(h, info)
+	if info.IsDir() {
+		names, err := ioutil.ReadDir(name)
+		if err != nil {
+			fmt.Fprintf(h, "err %v\n", err)
+		}
+		for _, f := range names {
+			fmt.Fprintf(h, "file %s ", f.Name())
+			hashWriteStat(h, f)
+		}
+	} else if info.Mode().IsRegular() {
+		// Because files might be very large, do not attempt
+		// to hash the entirety of their content. Instead assume
+		// the mtime and size recorded in hashWriteStat above
+		// are good enough.
+		//
+		// To avoid problems for very recent files where a new
+		// write might not change the mtime due to file system
+		// mtime precision, reject caching if a file was read that
+		// is less than modTimeCutoff old.
+		if time.Since(info.ModTime()) < modTimeCutoff {
+			return cache.ActionID{}, errFileTooNew
+		}
+	}
+	return h.Sum(), nil
+}
+
+func hashStat(name string) cache.ActionID {
+	h := cache.NewHash("stat")
+	if info, err := os.Stat(name); err != nil {
+		fmt.Fprintf(h, "err %v\n", err)
+	} else {
+		hashWriteStat(h, info)
+	}
+	if info, err := os.Lstat(name); err != nil {
+		fmt.Fprintf(h, "err %v\n", err)
+	} else {
+		hashWriteStat(h, info)
+	}
+	return h.Sum()
+}
+
+func hashWriteStat(h io.Writer, info os.FileInfo) {
+	fmt.Fprintf(h, "stat %d %x %v %v\n", info.Size(), uint64(info.Mode()), info.ModTime(), info.IsDir())
+}
+
+// testAndInputKey returns the actual cache key for the pair (testID, testInputsID).
+func testAndInputKey(testID, testInputsID cache.ActionID) cache.ActionID {
+	return cache.Subkey(testID, fmt.Sprintf("inputs:%x", testInputsID))
+}
+
 func (c *runCache) saveOutput(a *work.Action) {
+	// See comment about two-level lookup in tryCacheWithID above.
+	testlog, err := ioutil.ReadFile(a.Objdir + "testlog.txt")
+	if err != nil || !bytes.HasPrefix(testlog, testlogMagic) || testlog[len(testlog)-1] != '\n' {
+		if cache.DebugTest {
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "testcache: %s: reading testlog: %v\n", a.Package.ImportPath, err)
+			} else {
+				fmt.Fprintf(os.Stderr, "testcache: %s: reading testlog: malformed\n", a.Package.ImportPath)
+			}
+		}
+		return
+	}
+	testInputsID, err := computeTestInputsID(a, testlog)
+	if err != nil {
+		return
+	}
 	if c.id1 != (cache.ActionID{}) {
-		cache.Default().PutNoVerify(c.id1, bytes.NewReader(a.TestOutput.Bytes()))
+		if cache.DebugTest {
+			fmt.Fprintf(os.Stderr, "testcache: %s: save test ID %x => input ID %x => %x\n", a.Package.ImportPath, c.id1, testInputsID, testAndInputKey(c.id1, testInputsID))
+		}
+		cache.Default().PutNoVerify(c.id1, bytes.NewReader(testlog))
+		cache.Default().PutNoVerify(testAndInputKey(c.id1, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
 	}
 	if c.id2 != (cache.ActionID{}) {
-		cache.Default().PutNoVerify(c.id2, bytes.NewReader(a.TestOutput.Bytes()))
+		if cache.DebugTest {
+			fmt.Fprintf(os.Stderr, "testcache: %s: save test ID %x => input ID %x => %x\n", a.Package.ImportPath, c.id2, testInputsID, testAndInputKey(c.id2, testInputsID))
+		}
+		cache.Default().PutNoVerify(c.id2, bytes.NewReader(testlog))
+		cache.Default().PutNoVerify(testAndInputKey(c.id2, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
 	}
 }
 

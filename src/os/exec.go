@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/testlog"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -91,6 +92,7 @@ func FindProcess(pid int) (*Process, error) {
 //
 // If there is an error, it will be of type *PathError.
 func StartProcess(name string, argv []string, attr *ProcAttr) (*Process, error) {
+	testlog.Open(name)
 	return startProcess(name, argv, attr)
 }
 

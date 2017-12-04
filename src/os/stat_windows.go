@@ -6,6 +6,7 @@ package os
 
 import (
 	"internal/syscall/windows"
+	"internal/testlog"
 	"syscall"
 	"unsafe"
 )
@@ -59,6 +60,7 @@ func (file *File) Stat() (FileInfo, error) {
 // Stat returns a FileInfo structure describing the named file.
 // If there is an error, it will be of type *PathError.
 func Stat(name string) (FileInfo, error) {
+	testlog.Stat(name)
 	if len(name) == 0 {
 		return nil, &PathError{"Stat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
 	}
@@ -161,6 +163,7 @@ func statWithFindFirstFile(name string, namep *uint16) (FileInfo, error) {
 // describes the symbolic link. Lstat makes no attempt to follow the link.
 // If there is an error, it will be of type *PathError.
 func Lstat(name string) (FileInfo, error) {
+	testlog.Stat(name)
 	if len(name) == 0 {
 		return nil, &PathError{"Lstat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
 	}

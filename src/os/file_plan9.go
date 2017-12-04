@@ -6,6 +6,7 @@ package os
 
 import (
 	"internal/poll"
+	"internal/testlog"
 	"io"
 	"runtime"
 	"syscall"
@@ -85,6 +86,8 @@ func syscallMode(i FileMode) (o uint32) {
 // methods on the returned File can be used for I/O.
 // If there is an error, it will be of type *PathError.
 func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+	testlog.Open(name)
+
 	var (
 		fd     int
 		e      error

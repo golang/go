@@ -154,12 +154,13 @@ var pkgDeps = map[string][]string{
 		"syscall",
 	},
 
-	"internal/poll": {"L0", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
-	"os":            {"L1", "os", "syscall", "time", "internal/poll", "internal/syscall/windows"},
-	"path/filepath": {"L2", "os", "syscall", "internal/syscall/windows"},
-	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
-	"os/exec":       {"L2", "os", "context", "path/filepath", "syscall"},
-	"os/signal":     {"L2", "os", "syscall"},
+	"internal/poll":    {"L0", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
+	"internal/testlog": {"L0"},
+	"os":               {"L1", "os", "syscall", "time", "internal/poll", "internal/syscall/windows", "internal/testlog"},
+	"path/filepath":    {"L2", "os", "syscall", "internal/syscall/windows"},
+	"io/ioutil":        {"L2", "os", "path/filepath", "time"},
+	"os/exec":          {"L2", "os", "context", "path/filepath", "syscall"},
+	"os/signal":        {"L2", "os", "syscall"},
 
 	// OS enables basic operating system functionality,
 	// but not direct use of package syscall, nor os/signal.
@@ -270,7 +271,7 @@ var pkgDeps = map[string][]string{
 	"net/url":                  {"L4"},
 	"plugin":                   {"L0", "OS", "CGO"},
 	"runtime/pprof/internal/profile": {"L4", "OS", "compress/gzip", "regexp"},
-	"testing/internal/testdeps":      {"L4", "runtime/pprof", "regexp"},
+	"testing/internal/testdeps":      {"L4", "internal/testlog", "runtime/pprof", "regexp"},
 	"text/scanner":                   {"L4", "OS"},
 	"text/template/parse":            {"L4"},
 
