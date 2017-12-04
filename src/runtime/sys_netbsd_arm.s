@@ -80,13 +80,17 @@ TEXT runtime·osyield(SB),NOSPLIT,$0
 	SWI $0xa0015e	// sys_sched_yield
 	RET
 
-TEXT runtime·lwp_park(SB),NOSPLIT,$0
-	MOVW abstime+0(FP), R0	// arg 1 - abstime
-	MOVW unpark+4(FP), R1	// arg 2 - unpark
-	MOVW hint+8(FP), R2	// arg 3 - hint
-	MOVW unparkhint+12(FP), R3	// arg 4 - unparkhint
-	SWI $0xa001b2	// sys__lwp_park
-	MOVW	R0, ret+16(FP)
+TEXT runtime·lwp_park(SB),NOSPLIT,$8
+	MOVW clockid+0(FP), R0		// arg 1 - clock_id
+	MOVW flags+4(FP), R1		// arg 2 - flags
+	MOVW ts+8(FP), R2		// arg 3 - ts
+	MOVW unpark+12(FP), R3		// arg 4 - unpark
+	MOVW hint+16(FP), R4		// arg 5 - hint
+	MOVW R4, 4(R13)
+	MOVW unparkhint+20(FP), R5	// arg 6 - unparkhint
+	MOVW R5, 8(R13)
+	SWI $0xa001de			// sys__lwp_park
+	MOVW	R0, ret+24(FP)
 	RET
 
 TEXT runtime·lwp_unpark(SB),NOSPLIT,$0
@@ -164,7 +168,7 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB), NOSPLIT, $32
-	MOVW $0, R0 // CLOCK_REALTIME
+	MOVW $3, R0 // CLOCK_MONOTONIC
 	MOVW $8(R13), R1
 	SWI $0xa001ab	// clock_gettime
 

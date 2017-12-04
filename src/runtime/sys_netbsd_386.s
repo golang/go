@@ -346,9 +346,9 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·lwp_park(SB),NOSPLIT,$-4
-	MOVL	$434, AX		// sys__lwp_park
+	MOVL	$478, AX		// sys__lwp_park
 	INT	$0x80
-	MOVL	AX, ret+16(FP)
+	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT runtime·lwp_unpark(SB),NOSPLIT,$-4
