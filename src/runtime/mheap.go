@@ -426,8 +426,13 @@ func inHeapOrStack(b uintptr) bool {
 // TODO: spanOf and spanOfUnchecked are open-coded in a lot of places.
 // Use the functions instead.
 
-// spanOf returns the span of p. If p does not point into the heap or
-// no span contains p, spanOf returns nil.
+// spanOf returns the span of p. If p does not point into the heap
+// arena or no span has ever contained p, spanOf returns nil.
+//
+// If p does not point to allocated memory, this may return a non-nil
+// span that does *not* contain p. If this is a possibility, the
+// caller should either call spanOfHeap or check the span bounds
+// explicitly.
 func spanOf(p uintptr) *mspan {
 	if p == 0 || p < mheap_.arena_start || p >= mheap_.arena_used {
 		return nil
@@ -440,6 +445,18 @@ func spanOf(p uintptr) *mspan {
 // mheap_.arena_used).
 func spanOfUnchecked(p uintptr) *mspan {
 	return mheap_.spans[(p-mheap_.arena_start)>>_PageShift]
+}
+
+// spanOfHeap is like spanOf, but returns nil if p does not point to a
+// heap object.
+func spanOfHeap(p uintptr) *mspan {
+	s := spanOf(p)
+	// If p is not allocated, it may point to a stale span, so we
+	// have to check the span's bounds and state.
+	if s == nil || p < s.base() || p >= s.limit || s.state != mSpanInUse {
+		return nil
+	}
+	return s
 }
 
 // Initialize the heap.
@@ -882,33 +899,6 @@ func (h *mheap) grow(npage uintptr) bool {
 	return true
 }
 
-// Look up the span at the given address.
-// Address is guaranteed to be in map
-// and is guaranteed to be start or end of span.
-func (h *mheap) lookup(v unsafe.Pointer) *mspan {
-	p := uintptr(v)
-	p -= h.arena_start
-	return h.spans[p>>_PageShift]
-}
-
-// Look up the span at the given address.
-// Address is *not* guaranteed to be in map
-// and may be anywhere in the span.
-// Map entries for the middle of a span are only
-// valid for allocated spans. Free spans may have
-// other garbage in their middles, so we have to
-// check for that.
-func (h *mheap) lookupMaybe(v unsafe.Pointer) *mspan {
-	if uintptr(v) < h.arena_start || uintptr(v) >= h.arena_used {
-		return nil
-	}
-	s := h.spans[(uintptr(v)-h.arena_start)>>_PageShift]
-	if s == nil || uintptr(v) < s.base() || uintptr(v) >= uintptr(unsafe.Pointer(s.limit)) || s.state != _MSpanInUse {
-		return nil
-	}
-	return s
-}
-
 // Free the span back into the heap.
 func (h *mheap) freeSpan(s *mspan, acct int32) {
 	systemstack(func() {
@@ -1297,7 +1287,7 @@ type special struct {
 // (The add will fail only if a record with the same p and s->kind
 //  already exists.)
 func addspecial(p unsafe.Pointer, s *special) bool {
-	span := mheap_.lookupMaybe(p)
+	span := spanOfHeap(uintptr(p))
 	if span == nil {
 		throw("addspecial on invalid pointer")
 	}
@@ -1345,7 +1335,7 @@ func addspecial(p unsafe.Pointer, s *special) bool {
 // Returns the record if the record existed, nil otherwise.
 // The caller must FixAlloc_Free the result.
 func removespecial(p unsafe.Pointer, kind uint8) *special {
-	span := mheap_.lookupMaybe(p)
+	span := spanOfHeap(uintptr(p))
 	if span == nil {
 		throw("removespecial on invalid pointer")
 	}
