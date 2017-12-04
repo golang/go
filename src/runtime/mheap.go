@@ -390,15 +390,7 @@ func (sc spanClass) noscan() bool {
 //go:nowritebarrier
 //go:nosplit
 func inheap(b uintptr) bool {
-	if b == 0 || b < mheap_.arena_start || b >= mheap_.arena_used {
-		return false
-	}
-	// Not a beginning of a block, consult span table to find the block beginning.
-	s := mheap_.spans[(b-mheap_.arena_start)>>_PageShift]
-	if s == nil || b < s.base() || b >= s.limit || s.state != mSpanInUse {
-		return false
-	}
-	return true
+	return spanOfHeap(b) != nil
 }
 
 // inHeapOrStack is a variant of inheap that returns true for pointers
@@ -407,11 +399,7 @@ func inheap(b uintptr) bool {
 //go:nowritebarrier
 //go:nosplit
 func inHeapOrStack(b uintptr) bool {
-	if b == 0 || b < mheap_.arena_start || b >= mheap_.arena_used {
-		return false
-	}
-	// Not a beginning of a block, consult span table to find the block beginning.
-	s := mheap_.spans[(b-mheap_.arena_start)>>_PageShift]
+	s := spanOf(b)
 	if s == nil || b < s.base() {
 		return false
 	}
@@ -423,9 +411,6 @@ func inHeapOrStack(b uintptr) bool {
 	}
 }
 
-// TODO: spanOf and spanOfUnchecked are open-coded in a lot of places.
-// Use the functions instead.
-
 // spanOf returns the span of p. If p does not point into the heap
 // arena or no span has ever contained p, spanOf returns nil.
 //
@@ -433,6 +418,10 @@ func inHeapOrStack(b uintptr) bool {
 // span that does *not* contain p. If this is a possibility, the
 // caller should either call spanOfHeap or check the span bounds
 // explicitly.
+//
+// Must be nosplit because it has callers that are nosplit.
+//
+//go:nosplit
 func spanOf(p uintptr) *mspan {
 	if p == 0 || p < mheap_.arena_start || p >= mheap_.arena_used {
 		return nil
@@ -443,12 +432,20 @@ func spanOf(p uintptr) *mspan {
 // spanOfUnchecked is equivalent to spanOf, but the caller must ensure
 // that p points into the heap (that is, mheap_.arena_start <= p <
 // mheap_.arena_used).
+//
+// Must be nosplit because it has callers that are nosplit.
+//
+//go:nosplit
 func spanOfUnchecked(p uintptr) *mspan {
 	return mheap_.spans[(p-mheap_.arena_start)>>_PageShift]
 }
 
 // spanOfHeap is like spanOf, but returns nil if p does not point to a
 // heap object.
+//
+// Must be nosplit because it has callers that are nosplit.
+//
+//go:nosplit
 func spanOfHeap(p uintptr) *mspan {
 	s := spanOf(p)
 	// If p is not allocated, it may point to a stale span, so we
