@@ -590,3 +590,17 @@ N4XPksobn/NO2IDvPM7N9ZCe+aeyDEkE8QmP6mPScLuGvzSrsgOxWTMWF7Dbdzj0
 tJQLJRZ+ItT5Irl4owSEBNLahC1j3fhQavbj9WVAfKk=
 -----END RSA PRIVATE KEY-----
 `
+
+func TestBadEncode(t *testing.T) {
+	b := &Block{Type: "BAD", Headers: map[string]string{"X:Y": "Z"}}
+	var buf bytes.Buffer
+	if err := Encode(&buf, b); err == nil {
+		t.Fatalf("Encode did not report invalid header")
+	}
+	if buf.Len() != 0 {
+		t.Fatalf("Encode wrote data before reporting invalid header")
+	}
+	if data := EncodeToMemory(b); data != nil {
+		t.Fatalf("EncodeToMemory returned non-nil data")
+	}
+}
