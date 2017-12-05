@@ -53,6 +53,11 @@ func actionList(root *Action) []*Action {
 
 // do runs the action graph rooted at root.
 func (b *Builder) Do(root *Action) {
+	if c := cache.Default(); c != nil && !b.ComputeStaleOnly {
+		// If we're doing real work, take time at the end to trim the cache.
+		defer c.Trim()
+	}
+
 	// Build list of all actions, assigning depth-first post-order priority.
 	// The original implementation here was a true queue
 	// (using a channel) but it had the effect of getting
