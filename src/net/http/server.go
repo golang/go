@@ -2998,6 +2998,8 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 		return err
 	}
 
+	defer ln.Close()
+
 	return srv.ServeTLS(tcpKeepAliveListener{ln.(*net.TCPListener)}, certFile, keyFile)
 }
 
