@@ -130,9 +130,10 @@ func parse(r io.Reader, bin string) (int, ParseResult, error) {
 
 // rawEvent is a helper type used during parsing.
 type rawEvent struct {
-	off  int
-	typ  byte
-	args []uint64
+	off   int
+	typ   byte
+	args  []uint64
+	sargs []string
 }
 
 // readTrace does wire-format parsing and verification.
@@ -259,9 +260,32 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
 				return
 			}
 		}
+		switch ev.typ {
+		case EvUserLog: // EvUserLog records are followed by a value string of length ev.args[len(ev.args)-1]
+			var s string
+			s, off, err = readStr(r, off)
+			ev.sargs = append(ev.sargs, s)
+		}
 		events = append(events, ev)
 	}
 	return
+}
+
+func readStr(r io.Reader, off0 int) (s string, off int, err error) {
+	var sz uint64
+	sz, off, err = readVal(r, off0)
+	if err != nil || sz == 0 {
+		return "", off, err
+	}
+	if sz > 1e6 {
+		return "", off, fmt.Errorf("string at offset %d is too large (len=%d)", off, sz)
+	}
+	buf := make([]byte, sz)
+	n, err := io.ReadFull(r, buf)
+	if err != nil || sz != uint64(n) {
+		return "", off + n, fmt.Errorf("failed to read trace at offset %d: read %v, want %v, error %v", off, n, sz, err)
+	}
+	return string(buf), off + n, nil
 }
 
 // parseHeader parses trace header of the form "go 1.7 trace\x00\x00\x00\x00"
@@ -416,6 +440,15 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 				lastG = 0
 			case EvGoSysExit, EvGoWaiting, EvGoInSyscall:
 				e.G = e.Args[0]
+			case EvUserTaskCreate:
+				// e.Args 0: taskID, 1:parentID, 2:nameID
+				e.SArgs = []string{strings[e.Args[2]]}
+			case EvUserSpan:
+				// e.Args 0: taskID, 1: mode, 2:nameID
+				e.SArgs = []string{strings[e.Args[2]]}
+			case EvUserLog:
+				// e.Args 0: taskID, 1:keyID, 2: stackID
+				e.SArgs = []string{strings[e.Args[1]], raw.sargs[0]}
 			}
 			batches[lastP] = append(batches[lastP], e)
 		}
@@ -551,6 +584,7 @@ func postProcessTrace(ver int, events []*Event) error {
 
 	gs := make(map[uint64]gdesc)
 	ps := make(map[int]pdesc)
+	tasks := make(map[uint64]*Event) // task id to task events
 	gs[0] = gdesc{state: gRunning}
 	var evGC, evSTW *Event
 
@@ -756,6 +790,16 @@ func postProcessTrace(ver int, events []*Event) error {
 			g.evStart.Link = ev
 			g.evStart = nil
 			p.g = 0
+		case EvUserTaskCreate:
+			taskid := ev.Args[0]
+			if prevEv, ok := tasks[taskid]; ok {
+				return fmt.Errorf("task id conflicts (id:%d), %q vs %q", taskid, ev, prevEv)
+			}
+			tasks[ev.Args[0]] = ev
+		case EvUserTaskEnd:
+			if prevEv, ok := tasks[ev.Args[0]]; ok {
+				prevEv.Link = ev
+			}
 		}
 
 		gs[ev.G] = g
@@ -869,12 +913,20 @@ func Print(events []*Event) {
 
 // PrintEvent dumps the event to stdout. For debugging.
 func PrintEvent(ev *Event) {
+	fmt.Printf("%s\n", ev)
+}
+
+func (ev *Event) String() string {
 	desc := EventDescriptions[ev.Type]
-	fmt.Printf("%v %v p=%v g=%v off=%v", ev.Ts, desc.Name, ev.P, ev.G, ev.Off)
+	w := new(bytes.Buffer)
+	fmt.Fprintf(w, "%v %v p=%v g=%v off=%v", ev.Ts, desc.Name, ev.P, ev.G, ev.Off)
 	for i, a := range desc.Args {
-		fmt.Printf(" %v=%v", a, ev.Args[i])
+		fmt.Fprintf(w, " %v=%v", a, ev.Args[i])
 	}
-	fmt.Printf("\n")
+	for i, a := range desc.SArgs {
+		fmt.Fprintf(w, " %v=%v", a, ev.SArgs[i])
+	}
+	return w.String()
 }
 
 // argNum returns total number of args for the event accounting for timestamps,
@@ -979,54 +1031,55 @@ var EventDescriptions = [EvCount]struct {
 	minVersion int
 	Stack      bool
 	Args       []string
+	SArgs      []string // string arguments
 }{
-	EvNone:              {"None", 1005, false, []string{}},
-	EvBatch:             {"Batch", 1005, false, []string{"p", "ticks"}}, // in 1.5 format it was {"p", "seq", "ticks"}
-	EvFrequency:         {"Frequency", 1005, false, []string{"freq"}},   // in 1.5 format it was {"freq", "unused"}
-	EvStack:             {"Stack", 1005, false, []string{"id", "siz"}},
-	EvGomaxprocs:        {"Gomaxprocs", 1005, true, []string{"procs"}},
-	EvProcStart:         {"ProcStart", 1005, false, []string{"thread"}},
-	EvProcStop:          {"ProcStop", 1005, false, []string{}},
-	EvGCStart:           {"GCStart", 1005, true, []string{"seq"}}, // in 1.5 format it was {}
-	EvGCDone:            {"GCDone", 1005, false, []string{}},
-	EvGCSTWStart:        {"GCSTWStart", 1005, false, []string{"kind"}}, // <= 1.9, args was {} (implicitly {0})
-	EvGCSTWDone:         {"GCSTWDone", 1005, false, []string{}},
-	EvGCSweepStart:      {"GCSweepStart", 1005, true, []string{}},
-	EvGCSweepDone:       {"GCSweepDone", 1005, false, []string{"swept", "reclaimed"}}, // before 1.9, format was {}
-	EvGoCreate:          {"GoCreate", 1005, true, []string{"g", "stack"}},
-	EvGoStart:           {"GoStart", 1005, false, []string{"g", "seq"}}, // in 1.5 format it was {"g"}
-	EvGoEnd:             {"GoEnd", 1005, false, []string{}},
-	EvGoStop:            {"GoStop", 1005, true, []string{}},
-	EvGoSched:           {"GoSched", 1005, true, []string{}},
-	EvGoPreempt:         {"GoPreempt", 1005, true, []string{}},
-	EvGoSleep:           {"GoSleep", 1005, true, []string{}},
-	EvGoBlock:           {"GoBlock", 1005, true, []string{}},
-	EvGoUnblock:         {"GoUnblock", 1005, true, []string{"g", "seq"}}, // in 1.5 format it was {"g"}
-	EvGoBlockSend:       {"GoBlockSend", 1005, true, []string{}},
-	EvGoBlockRecv:       {"GoBlockRecv", 1005, true, []string{}},
-	EvGoBlockSelect:     {"GoBlockSelect", 1005, true, []string{}},
-	EvGoBlockSync:       {"GoBlockSync", 1005, true, []string{}},
-	EvGoBlockCond:       {"GoBlockCond", 1005, true, []string{}},
-	EvGoBlockNet:        {"GoBlockNet", 1005, true, []string{}},
-	EvGoSysCall:         {"GoSysCall", 1005, true, []string{}},
-	EvGoSysExit:         {"GoSysExit", 1005, false, []string{"g", "seq", "ts"}},
-	EvGoSysBlock:        {"GoSysBlock", 1005, false, []string{}},
-	EvGoWaiting:         {"GoWaiting", 1005, false, []string{"g"}},
-	EvGoInSyscall:       {"GoInSyscall", 1005, false, []string{"g"}},
-	EvHeapAlloc:         {"HeapAlloc", 1005, false, []string{"mem"}},
-	EvNextGC:            {"NextGC", 1005, false, []string{"mem"}},
-	EvTimerGoroutine:    {"TimerGoroutine", 1005, false, []string{"g"}}, // in 1.5 format it was {"g", "unused"}
-	EvFutileWakeup:      {"FutileWakeup", 1005, false, []string{}},
-	EvString:            {"String", 1007, false, []string{}},
-	EvGoStartLocal:      {"GoStartLocal", 1007, false, []string{"g"}},
-	EvGoUnblockLocal:    {"GoUnblockLocal", 1007, true, []string{"g"}},
-	EvGoSysExitLocal:    {"GoSysExitLocal", 1007, false, []string{"g", "ts"}},
-	EvGoStartLabel:      {"GoStartLabel", 1008, false, []string{"g", "seq", "label"}},
-	EvGoBlockGC:         {"GoBlockGC", 1008, true, []string{}},
-	EvGCMarkAssistStart: {"GCMarkAssistStart", 1009, true, []string{}},
-	EvGCMarkAssistDone:  {"GCMarkAssistDone", 1009, false, []string{}},
-	EvUserTaskCreate:    {"UserTaskCreate", 1011, true, []string{"taskid", "pid", "nameid"}},
-	EvUserTaskEnd:       {"UserTaskEnd", 1011, true, []string{"taskid"}},
-	EvUserSpan:          {"UserSpan", 1011, true, []string{"taskid", "mode", "nameid"}},
-	EvUserLog:           {"UserLog", 1011, true, []string{"id", "key id"}},
+	EvNone:              {"None", 1005, false, []string{}, nil},
+	EvBatch:             {"Batch", 1005, false, []string{"p", "ticks"}, nil}, // in 1.5 format it was {"p", "seq", "ticks"}
+	EvFrequency:         {"Frequency", 1005, false, []string{"freq"}, nil},   // in 1.5 format it was {"freq", "unused"}
+	EvStack:             {"Stack", 1005, false, []string{"id", "siz"}, nil},
+	EvGomaxprocs:        {"Gomaxprocs", 1005, true, []string{"procs"}, nil},
+	EvProcStart:         {"ProcStart", 1005, false, []string{"thread"}, nil},
+	EvProcStop:          {"ProcStop", 1005, false, []string{}, nil},
+	EvGCStart:           {"GCStart", 1005, true, []string{"seq"}, nil}, // in 1.5 format it was {}
+	EvGCDone:            {"GCDone", 1005, false, []string{}, nil},
+	EvGCSTWStart:        {"GCSTWStart", 1005, false, []string{"kindid"}, []string{"kind"}}, // <= 1.9, args was {} (implicitly {0})
+	EvGCSTWDone:         {"GCSTWDone", 1005, false, []string{}, nil},
+	EvGCSweepStart:      {"GCSweepStart", 1005, true, []string{}, nil},
+	EvGCSweepDone:       {"GCSweepDone", 1005, false, []string{"swept", "reclaimed"}, nil}, // before 1.9, format was {}
+	EvGoCreate:          {"GoCreate", 1005, true, []string{"g", "stack"}, nil},
+	EvGoStart:           {"GoStart", 1005, false, []string{"g", "seq"}, nil}, // in 1.5 format it was {"g"}
+	EvGoEnd:             {"GoEnd", 1005, false, []string{}, nil},
+	EvGoStop:            {"GoStop", 1005, true, []string{}, nil},
+	EvGoSched:           {"GoSched", 1005, true, []string{}, nil},
+	EvGoPreempt:         {"GoPreempt", 1005, true, []string{}, nil},
+	EvGoSleep:           {"GoSleep", 1005, true, []string{}, nil},
+	EvGoBlock:           {"GoBlock", 1005, true, []string{}, nil},
+	EvGoUnblock:         {"GoUnblock", 1005, true, []string{"g", "seq"}, nil}, // in 1.5 format it was {"g"}
+	EvGoBlockSend:       {"GoBlockSend", 1005, true, []string{}, nil},
+	EvGoBlockRecv:       {"GoBlockRecv", 1005, true, []string{}, nil},
+	EvGoBlockSelect:     {"GoBlockSelect", 1005, true, []string{}, nil},
+	EvGoBlockSync:       {"GoBlockSync", 1005, true, []string{}, nil},
+	EvGoBlockCond:       {"GoBlockCond", 1005, true, []string{}, nil},
+	EvGoBlockNet:        {"GoBlockNet", 1005, true, []string{}, nil},
+	EvGoSysCall:         {"GoSysCall", 1005, true, []string{}, nil},
+	EvGoSysExit:         {"GoSysExit", 1005, false, []string{"g", "seq", "ts"}, nil},
+	EvGoSysBlock:        {"GoSysBlock", 1005, false, []string{}, nil},
+	EvGoWaiting:         {"GoWaiting", 1005, false, []string{"g"}, nil},
+	EvGoInSyscall:       {"GoInSyscall", 1005, false, []string{"g"}, nil},
+	EvHeapAlloc:         {"HeapAlloc", 1005, false, []string{"mem"}, nil},
+	EvNextGC:            {"NextGC", 1005, false, []string{"mem"}, nil},
+	EvTimerGoroutine:    {"TimerGoroutine", 1005, false, []string{"g"}, nil}, // in 1.5 format it was {"g", "unused"}
+	EvFutileWakeup:      {"FutileWakeup", 1005, false, []string{}, nil},
+	EvString:            {"String", 1007, false, []string{}, nil},
+	EvGoStartLocal:      {"GoStartLocal", 1007, false, []string{"g"}, nil},
+	EvGoUnblockLocal:    {"GoUnblockLocal", 1007, true, []string{"g"}, nil},
+	EvGoSysExitLocal:    {"GoSysExitLocal", 1007, false, []string{"g", "ts"}, nil},
+	EvGoStartLabel:      {"GoStartLabel", 1008, false, []string{"g", "seq", "labelid"}, []string{"label"}},
+	EvGoBlockGC:         {"GoBlockGC", 1008, true, []string{}, nil},
+	EvGCMarkAssistStart: {"GCMarkAssistStart", 1009, true, []string{}, nil},
+	EvGCMarkAssistDone:  {"GCMarkAssistDone", 1009, false, []string{}, nil},
+	EvUserTaskCreate:    {"UserTaskCreate", 1011, true, []string{"taskid", "pid", "typeid"}, []string{"name"}},
+	EvUserTaskEnd:       {"UserTaskEnd", 1011, true, []string{"taskid"}, nil},
+	EvUserSpan:          {"UserSpan", 1011, true, []string{"taskid", "mode", "typeid"}, []string{"name"}},
+	EvUserLog:           {"UserLog", 1011, true, []string{"id", "keyid"}, []string{"category", "message"}},
 }
