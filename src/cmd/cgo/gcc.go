@@ -2057,7 +2057,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		name := c.Ident("_Ctype_" + dt.Name)
 		goIdent[name.Name] = name
 		sub := c.Type(dt.Type, pos)
-		if badPointerTypedef(dt.Name) {
+		if badPointerTypedef(dt) {
 			// Treat this typedef as a uintptr.
 			s := *sub
 			s.Go = c.uintptr
@@ -2223,7 +2223,7 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
 			}
 			// ...or the typedef is one in which we expect bad pointers.
 			// It will be a uintptr instead of *X.
-			if badPointerTypedef(dt.Name) {
+			if badPointerTypedef(dt) {
 				break
 			}
 
@@ -2571,13 +2571,23 @@ func fieldPrefix(fld []*ast.Field) string {
 // A typedef is bad if C code sometimes stores non-pointers in this type.
 // TODO: Currently our best solution is to find these manually and list them as
 // they come up. A better solution is desired.
-func badPointerTypedef(t string) bool {
-	// The real bad types are CFNumberRef and CFTypeRef.
+func badPointerTypedef(dt *dwarf.TypedefType) bool {
+	if badCFType(dt) {
+		return true
+	}
+	if badJNI(dt) {
+		return true
+	}
+	return false
+}
+
+func badCFType(dt *dwarf.TypedefType) bool {
+	// The real bad types are CFNumberRef and CFDateRef.
 	// Sometimes non-pointers are stored in these types.
 	// CFTypeRef is a supertype of those, so it can have bad pointers in it as well.
 	// We return true for the other CF*Ref types just so casting between them is easier.
 	// See comment below for details about the bad pointers.
-	return goos == "darwin" && strings.HasPrefix(t, "CF") && strings.HasSuffix(t, "Ref")
+	return goos == "darwin" && strings.HasPrefix(dt.Name, "CF") && strings.HasSuffix(dt.Name, "Ref")
 }
 
 // Comment from Darwin's CFInternal.h
@@ -2614,3 +2624,61 @@ enum {
     kCFTaggedObjectID_Undefined7 = (7 << 1) + 1,
 };
 */
+
+func badJNI(dt *dwarf.TypedefType) bool {
+	// In Dalvik and ART, the jobject type in the JNI interface of the JVM has the
+	// property that it is sometimes (always?) a small integer instead of a real pointer.
+	// Note: although only the android JVMs are bad in this respect, we declare the JNI types
+	// bad regardless of platform, so the same Go code compiles on both android and non-android.
+	if parent, ok := jniTypes[dt.Name]; ok {
+		// Try to make sure we're talking about a JNI type, not just some random user's
+		// type that happens to use the same name.
+		// C doesn't have the notion of a package, so it's hard to be certain.
+
+		// Walk up to jobject, checking each typedef on the way.
+		w := dt
+		for parent != "" {
+			t, ok := w.Type.(*dwarf.TypedefType)
+			if !ok || t.Name != parent {
+				return false
+			}
+			w = t
+			parent, ok = jniTypes[w.Name]
+			if !ok {
+				return false
+			}
+		}
+
+		// Check that the typedef is:
+		//     struct _jobject;
+		//     typedef struct _jobject *jobject;
+		if ptr, ok := w.Type.(*dwarf.PtrType); ok {
+			if str, ok := ptr.Type.(*dwarf.StructType); ok {
+				if str.StructName == "_jobject" && str.Kind == "struct" && len(str.Field) == 0 && str.Incomplete {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// jniTypes maps from JNI types that we want to be uintptrs, to the underlying type to which
+// they are mapped.  The base "jobject" maps to the empty string.
+var jniTypes = map[string]string{
+	"jobject":       "",
+	"jclass":        "jobject",
+	"jthrowable":    "jobject",
+	"jstring":       "jobject",
+	"jarray":        "jobject",
+	"jbooleanArray": "jarray",
+	"jbyteArray":    "jarray",
+	"jcharArray":    "jarray",
+	"jshortArray":   "jarray",
+	"jintArray":     "jarray",
+	"jlongArray":    "jarray",
+	"jfloatArray":   "jarray",
+	"jdoubleArray":  "jarray",
+	"jobjectArray":  "jarray",
+	"jweak":         "jobject",
+}
