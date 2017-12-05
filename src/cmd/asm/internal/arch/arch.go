@@ -260,6 +260,7 @@ func archArm64() *Arch {
 	register["SPSel"] = arm64.REG_SPSel
 	register["DAIFSet"] = arm64.REG_DAIFSet
 	register["DAIFClr"] = arm64.REG_DAIFClr
+	register["DCZID_EL0"] = arm64.REG_DCZID_EL0
 	register["PLDL1KEEP"] = arm64.REG_PLDL1KEEP
 	register["PLDL1STRM"] = arm64.REG_PLDL1STRM
 	register["PLDL2KEEP"] = arm64.REG_PLDL2KEEP

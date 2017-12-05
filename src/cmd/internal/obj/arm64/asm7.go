@@ -634,6 +634,7 @@ var systemreg = []struct {
 	enc uint32
 }{
 	{REG_ELR_EL1, 8<<16 | 4<<12 | 1<<5},
+	{REG_DCZID_EL0, 3<<19 | 3<<16 | 7<<5},
 }
 
 var prfopfield = []struct {

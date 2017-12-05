@@ -134,6 +134,8 @@ func rconv(r int) string {
 		return "DAIFSet"
 	case r == REG_DAIFClr:
 		return "DAIFClr"
+	case r == REG_DCZID_EL0:
+		return "DCZID_EL0"
 	case r == REG_PLDL1KEEP:
 		return "PLDL1KEEP"
 	case r == REG_PLDL1STRM:
