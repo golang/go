@@ -5433,3 +5433,50 @@ func TestFailFast(t *testing.T) {
 		})
 	}
 }
+
+// Issue 22986.
+func TestImportPath(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	tg.tempFile("src/a/a.go", `
+package main
+
+import (
+	"log"
+	p "a/p-1.0"
+)
+
+func main() {
+	if !p.V {
+		log.Fatal("false")
+	}
+}`)
+
+	tg.tempFile("src/a/a_test.go", `
+package main_test
+
+import (
+	p "a/p-1.0"
+	"testing"
+)
+
+func TestV(t *testing.T) {
+	if !p.V {
+		t.Fatal("false")
+	}
+}`)
+
+	tg.tempFile("src/a/p-1.0/p.go", `
+package p
+
+var V = true
+
+func init() {}
+`)
+
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("build", "-o", tg.path("a.exe"), "a")
+	tg.run("test", "a")
+}
