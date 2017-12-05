@@ -30,6 +30,13 @@ var cftypeFix = fix{
 // and similar for other CF*Ref types.
 // This fix finds nils initializing these types and replaces the nils with 0s.
 func cftypefix(f *ast.File) bool {
+	return typefix(f, func(s string) bool {
+		return strings.HasPrefix(s, "C.CF") && strings.HasSuffix(s, "Ref")
+	})
+}
+
+// typefix replaces nil with 0 for all nils whose type, when passed to badType, returns true.
+func typefix(f *ast.File, badType func(string) bool) bool {
 	if !imports(f, "C") {
 		return false
 	}
@@ -39,7 +46,7 @@ func cftypefix(f *ast.File) bool {
 	// Compute their replacement.
 	badNils := map[interface{}]ast.Expr{}
 	walk(f, func(n interface{}) {
-		if i, ok := n.(*ast.Ident); ok && i.Name == "nil" && badPointerType(typeof[n]) {
+		if i, ok := n.(*ast.Ident); ok && i.Name == "nil" && badType(typeof[n]) {
 			badNils[n] = &ast.BasicLit{ValuePos: i.NamePos, Kind: token.INT, Value: "0"}
 		}
 	})
@@ -86,8 +93,4 @@ func cftypefix(f *ast.File) bool {
 	})
 
 	return true
-}
-
-func badPointerType(s string) bool {
-	return strings.HasPrefix(s, "C.CF") && strings.HasSuffix(s, "Ref")
 }
