@@ -22,16 +22,6 @@ ul li { margin: 0.5em 0; }
   release notes. Go 1.10 is expected to be released in February 2018.
 </strong></p>
 
-<!-- TODO: not sure about these relnotes
-
-cmd/compile
-  https://golang.org/cl/60410: cmd/compile: fix and improve struct field reflect information
-encoding/json
-  https://golang.org/cl/76851: encoding/json: always ignore embedded pointers to unexported struct types
-runtime
-  https://golang.org/cl/59970: runtime: separate soft and hard heap limits
--->
-
 <p>
 The latest Go release, version 1.10, arrives six months after <a href="go1.9">go1.9</a>.
 Most of its changes are in the implementation of the toolchain, runtime, and libraries.
@@ -127,7 +117,7 @@ applies the <code>flags</code> only to the packages matching the pattern.
 For example: <code>go</code> <code>install</code> <code>-ldflags=cmd/gofmt=-X=main.version=1.2.3</code> <code>cmd/...</code>
 installs all the commands matching <code>cmd/...</code> but only applies the <code>-X</code> option
 to the linker flags for <code>cmd/gofmt</code>.
-For more details, see <a href="TODO"><code>go</code> <code>help</code> <code>build</code></a>.
+For more details, see <a href="/cmd/go/#hdr-Compile_packages_and_dependencies"><code>go</code> <code>help</code> <code>build</code></a>.
 </p>
 
 <p>
@@ -161,7 +151,7 @@ One new requirement implied by these changes is that
 binary-only packages must now declare accurate import blocks in their
 stub source code, so that those imports can be made available when
 linking a program using the binary-only package.
-For more details, see <a href="TODO"><code>go</code> <code>help</code> <code>filetype</code></a>.
+For more details, see <a href="/cmd/go/#hdr-File_types"><code>go</code> <code>help</code> <code>filetype</code></a>.
 </p>
 
 <h3 id="test">Test</h3>
@@ -404,11 +394,6 @@ and each package is now presented as its own DWARF compilation unit.
 </p>
 
 <p>
-TODO: What to say about FMA, if anything?
-The spec change was mentioned in Go 1.9 but I am not sure whether any new architectures turned it on in Go 1.10.
-</p>
-
-<p>
 The various <a href="https://docs.google.com/document/d/1nr-TQHw_er6GOQRsF6T43GGhFDelrAP0NqSS_00RgZQ/edit">build modes</a>
 has been ported to more systems.
 Specifically, <code>c-shared</code> now works on <code>linux/ppc64le</code>, <code>windows/386</code>, and <code>windows/amd64</code>;
@@ -555,6 +540,10 @@ optimization decisions and implementation details.
 <p>
 There is no longer a limit on the <a href="/pkg/runtime/#GOMAXPROCS"><code>GOMAXPROCS</code></a> setting.
 (In Go 1.9 the limit was 1024.)
+</p>
+
+<p>
+TODO: Anything about CL 59970: "runtime: separate soft and hard heap limits"?
 </p>
 
 <h2 id="performance">Performance</h2>
@@ -894,6 +883,16 @@ adds a new method
 that causes it to report inputs with unknown JSON fields as a decoding error.
 (The default behavior has always been to discard unknown fields.)
 </p>
+
+<p>
+As a result of <a href="#reflect">fixing a reflect bug</a>,
+<a href="/pkg/encoding/json/#Unmarshal"><code>Unmarshal</code></a>
+can no longer decode into fields inside
+embedded pointers to unexported struct types,
+because it cannot initialize the unexported embedded pointer
+to point at fresh storage.
+<code>Unmarshal</code> now returns an error in this case.
+</p>
 </dl>
 
 <dl id="encoding/pem"><dt><a href="/pkg/encoding/pem/">encoding/pem</a></dt>
@@ -904,10 +903,6 @@ and
 <a href="/pkg/encoding/pem/#EncodeToMemory"><code>EncodeToMemory</code></a>
 no longer generate partial output when presented with a
 block that is impossible to encode as PEM data.
-</p>
-
-<p>
-TODO: Reflect fallout.
 </p>
 </dl>
 
@@ -1268,7 +1263,23 @@ from a string into a byte array or byte slice, to match the
 </p>
 
 <p>
-TODO: New reflect CanSet change for pointers to unexported fields.
+In structs, embedded pointers to unexported struct types were
+previously incorrectly reported with an empty <code>PkgPath</code>
+in the corresponding <a href="/pkg/reflect/#StructField">StructField</a>,
+with the result that for those fields,
+and <a href="/pkg/reflect/#Value.CanSet"><code>Value.CanSet</code></a>
+incorrectly returned true and
+and <a href="/pkg/reflect/#Value.Set"><code>Value.Set</code></a>
+incorrectly succeeded.
+The underlying metadata has been corrected;
+for those fields,
+<code>CanSet</code> now correctly returns false
+and <code>Set</code> now correctly panics.
+This may affect reflection-based unmarshalers
+that could previously unmarshal into such fields
+but no longer can.
+For example, see the <a href="#encoding/json"><code>encoding/json</code> notes</a>.
+</p>
 </p>
 </dl>
 
