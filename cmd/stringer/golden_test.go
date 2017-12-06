@@ -110,7 +110,6 @@ const (
 var (
 	_Gap_index_0 = [...]uint8{0, 3, 8}
 	_Gap_index_1 = [...]uint8{0, 4, 7, 12, 17, 21}
-	_Gap_index_2 = [...]uint8{0, 6}
 )
 
 func (i Gap) String() string {

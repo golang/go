@@ -487,7 +487,9 @@ func (g *Generator) declareIndexAndNameVars(runs [][]Value, typeName string) {
 	var indexes, names []string
 	for i, run := range runs {
 		index, name := g.createIndexAndNameDecl(run, typeName, fmt.Sprintf("_%d", i))
-		indexes = append(indexes, index)
+		if len(run) != 1 {
+			indexes = append(indexes, index)
+		}
 		names = append(names, name)
 	}
 	g.Printf("const (\n")
@@ -495,11 +497,14 @@ func (g *Generator) declareIndexAndNameVars(runs [][]Value, typeName string) {
 		g.Printf("\t%s\n", name)
 	}
 	g.Printf(")\n\n")
-	g.Printf("var (")
-	for _, index := range indexes {
-		g.Printf("\t%s\n", index)
+
+	if len(indexes) > 0 {
+		g.Printf("var (")
+		for _, index := range indexes {
+			g.Printf("\t%s\n", index)
+		}
+		g.Printf(")\n\n")
 	}
-	g.Printf(")\n\n")
 }
 
 // declareIndexAndNameVar is the single-run version of declareIndexAndNameVars
