@@ -1360,7 +1360,7 @@ func BenchmarkModSqrt225_Tonelli(b *testing.B) {
 	}
 }
 
-func BenchmarkModSqrt224_3Mod4(b *testing.B) {
+func BenchmarkModSqrt225_3Mod4(b *testing.B) {
 	p := tri(225)
 	x := new(Int).SetUint64(2)
 	for i := 0; i < b.N; i++ {
@@ -1369,27 +1369,25 @@ func BenchmarkModSqrt224_3Mod4(b *testing.B) {
 	}
 }
 
-func BenchmarkModSqrt5430_Tonelli(b *testing.B) {
-	if isRaceBuilder {
-		b.Skip("skipping on race builder")
-	}
-	p := tri(5430)
-	x := new(Int).SetUint64(2)
+func BenchmarkModSqrt231_Tonelli(b *testing.B) {
+	p := tri(231)
+	p.Sub(p, intOne)
+	p.Sub(p, intOne) // tri(231) - 2 is a prime == 5 mod 8
+	x := new(Int).SetUint64(7)
 	for i := 0; i < b.N; i++ {
-		x.SetUint64(2)
+		x.SetUint64(7)
 		x.modSqrtTonelliShanks(x, p)
 	}
 }
 
-func BenchmarkModSqrt5430_3Mod4(b *testing.B) {
-	if isRaceBuilder {
-		b.Skip("skipping on race builder")
-	}
-	p := tri(5430)
-	x := new(Int).SetUint64(2)
+func BenchmarkModSqrt231_5Mod8(b *testing.B) {
+	p := tri(231)
+	p.Sub(p, intOne)
+	p.Sub(p, intOne) // tri(231) - 2 is a prime == 5 mod 8
+	x := new(Int).SetUint64(7)
 	for i := 0; i < b.N; i++ {
-		x.SetUint64(2)
-		x.modSqrt3Mod4Prime(x, p)
+		x.SetUint64(7)
+		x.modSqrt5Mod8Prime(x, p)
 	}
 }
 
