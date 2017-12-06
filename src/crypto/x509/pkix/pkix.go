@@ -35,8 +35,8 @@ var attributeTypeNames = map[string]string{
 	"2.5.4.17": "POSTALCODE",
 }
 
-// String implements the fmt.Stringer interface. It loosely follows the
-// string conversion rules for Distinguished Names from RFC 2253.
+// String returns a string representation of the sequence r,
+// roughly following the RFC 2253 Distinguished Names syntax.
 func (r RDNSequence) String() string {
 	s := ""
 	for i := 0; i < len(r); i++ {
@@ -221,8 +221,8 @@ func (n Name) ToRDNSequence() (ret RDNSequence) {
 	return ret
 }
 
-// String implements the fmt.Stringer interface. It loosely follows the
-// string conversion rules for Distinguished Names from RFC 2253.
+// String returns the string form of n, roughly following
+// the RFC 2253 Distinguished Names syntax.
 func (n Name) String() string {
 	return n.ToRDNSequence().String()
 }
