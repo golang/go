@@ -23,6 +23,7 @@ var sniffTests = []struct {
 	contentType string
 }{
 	// Some nonsense.
+	{"Empty", []byte{}, "text/plain; charset=utf-8"},
 	{"Binary", []byte{1, 2, 3}, "application/octet-stream"},
 
 	{"HTML document #1", []byte(`<HtMl><bOdY>blah blah blah</body></html>`), "text/html; charset=utf-8"},
@@ -98,8 +99,17 @@ func testServerContentType(t *testing.T, h2 bool) {
 			t.Errorf("%v: %v", tt.desc, err)
 			continue
 		}
-		if ct := resp.Header.Get("Content-Type"); ct != tt.contentType {
-			t.Errorf("%v: Content-Type = %q, want %q", tt.desc, ct, tt.contentType)
+		// DetectContentType is defined to return
+		// text/plain; charset=utf-8 for an empty body,
+		// but as of Go 1.10 the HTTP server has been changed
+		// to return no content-type at all for an empty body.
+		// Adjust the expectation here.
+		wantContentType := tt.contentType
+		if len(tt.data) == 0 {
+			wantContentType = ""
+		}
+		if ct := resp.Header.Get("Content-Type"); ct != wantContentType {
+			t.Errorf("%v: Content-Type = %q, want %q", tt.desc, ct, wantContentType)
 		}
 		data, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
