@@ -153,6 +153,11 @@ func (z *Int) Mul(x, y *Int) *Int {
 	// x * (-y) == -(x * y)
 	// (-x) * y == -(x * y)
 	// (-x) * (-y) == x * y
+	if x == y {
+		z.abs = z.abs.sqr(x.abs)
+		z.neg = false
+		return z
+	}
 	z.abs = z.abs.mul(x.abs, y.abs)
 	z.neg = len(z.abs) > 0 && x.neg != y.neg // 0 has no sign
 	return z
@@ -324,6 +329,16 @@ func (x *Int) Cmp(y *Int) (r int) {
 	return
 }
 
+// CmpAbs compares the absolute values of x and y and returns:
+//
+//   -1 if |x| <  |y|
+//    0 if |x| == |y|
+//   +1 if |x| >  |y|
+//
+func (x *Int) CmpAbs(y *Int) int {
+	return x.abs.cmp(y.abs)
+}
+
 // low32 returns the least significant 32 bits of x.
 func low32(x nat) uint32 {
 	if len(x) == 0 {
@@ -384,16 +399,26 @@ func (x *Int) IsUint64() bool {
 // ``0x'' or ``0X'' selects base 16; the ``0'' prefix selects base 8, and a
 // ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base is 10.
 //
+// For bases <= 36, lower and upper case letters are considered the same:
+// The letters 'a' to 'z' and 'A' to 'Z' represent digit values 10 to 35.
+// For bases > 36, the upper case letters 'A' to 'Z' represent the digit
+// values 36 to 61.
+//
 func (z *Int) SetString(s string, base int) (*Int, bool) {
-	r := strings.NewReader(s)
+	return z.setFromScanner(strings.NewReader(s), base)
+}
+
+// setFromScanner implements SetString given an io.BytesScanner.
+// For documentation see comments of SetString.
+func (z *Int) setFromScanner(r io.ByteScanner, base int) (*Int, bool) {
 	if _, _, err := z.scan(r, base); err != nil {
 		return nil, false
 	}
-	// entire string must have been consumed
+	// entire content must have been consumed
 	if _, err := r.ReadByte(); err != io.EOF {
 		return nil, false
 	}
-	return z, true // err == io.EOF => scan consumed all of s
+	return z, true // err == io.EOF => scan consumed all content of r
 }
 
 // SetBytes interprets buf as the bytes of a big-endian unsigned
@@ -447,7 +472,7 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 
 // GCD sets z to the greatest common divisor of a and b, which both must
 // be > 0, and returns z.
-// If x and y are not nil, GCD sets x and y such that z = a*x + b*y.
+// If x or y are not nil, GCD sets their value such that z = a*x + b*y.
 // If either a or b is <= 0, GCD sets z = x = y = 0.
 func (z *Int) GCD(x, y, a, b *Int) *Int {
 	if a.Sign() <= 0 || b.Sign() <= 0 {
@@ -461,17 +486,14 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 		return z
 	}
 	if x == nil && y == nil {
-		return z.binaryGCD(a, b)
+		return z.lehmerGCD(a, b)
 	}
 
 	A := new(Int).Set(a)
 	B := new(Int).Set(b)
 
 	X := new(Int)
-	Y := new(Int).SetInt64(1)
-
 	lastX := new(Int).SetInt64(1)
-	lastY := new(Int)
 
 	q := new(Int)
 	temp := new(Int)
@@ -484,15 +506,8 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 
 		temp.Set(X)
 		X.Mul(X, q)
-		X.neg = !X.neg
-		X.Add(X, lastX)
+		X.Sub(lastX, X)
 		lastX.Set(temp)
-
-		temp.Set(Y)
-		Y.Mul(Y, q)
-		Y.neg = !Y.neg
-		Y.Add(Y, lastY)
-		lastY.Set(temp)
 	}
 
 	if x != nil {
@@ -500,74 +515,139 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 	}
 
 	if y != nil {
-		*y = *lastY
+		// y = (z - a*x)/b
+		y.Mul(a, lastX)
+		y.Sub(A, y)
+		y.Div(y, b)
 	}
 
 	*z = *A
 	return z
 }
 
-// binaryGCD sets z to the greatest common divisor of a and b, which both must
-// be > 0, and returns z.
-// See Knuth, The Art of Computer Programming, Vol. 2, Section 4.5.2, Algorithm B.
-func (z *Int) binaryGCD(a, b *Int) *Int {
-	u := z
-	v := new(Int)
-
-	// use one Euclidean iteration to ensure that u and v are approx. the same size
-	switch {
-	case len(a.abs) > len(b.abs):
-		// must set v before u since u may be alias for a or b (was issue #11284)
-		v.Rem(a, b)
-		u.Set(b)
-	case len(a.abs) < len(b.abs):
-		v.Rem(b, a)
-		u.Set(a)
-	default:
-		v.Set(b)
-		u.Set(a)
+// lehmerGCD sets z to the greatest common divisor of a and b,
+// which both must be > 0, and returns z.
+// See Knuth, The Art of Computer Programming, Vol. 2, Section 4.5.2, Algorithm L.
+// This implementation uses the improved condition by Collins requiring only one
+// quotient and avoiding the possibility of single Word overflow.
+// See Jebelean, "Improving the multiprecision Euclidean algorithm",
+// Design and Implementation of Symbolic Computation Systems, pp 45-58.
+func (z *Int) lehmerGCD(a, b *Int) *Int {
+	// ensure a >= b
+	if a.abs.cmp(b.abs) < 0 {
+		a, b = b, a
 	}
-	// a, b must not be used anymore (may be aliases with u)
 
-	// v might be 0 now
-	if len(v.abs) == 0 {
-		return u
-	}
-	// u > 0 && v > 0
+	// don't destroy incoming values of a and b
+	B := new(Int).Set(b) // must be set first in case b is an alias of z
+	A := z.Set(a)
 
-	// determine largest k such that u = u' << k, v = v' << k
-	k := u.abs.trailingZeroBits()
-	if vk := v.abs.trailingZeroBits(); vk < k {
-		k = vk
-	}
-	u.Rsh(u, k)
-	v.Rsh(v, k)
-
-	// determine t (we know that u > 0)
+	// temp variables for multiprecision update
 	t := new(Int)
-	if u.abs[0]&1 != 0 {
-		// u is odd
-		t.Neg(v)
-	} else {
-		t.Set(u)
-	}
+	r := new(Int)
+	s := new(Int)
+	w := new(Int)
 
-	for len(t.abs) > 0 {
-		// reduce t
-		t.Rsh(t, t.abs.trailingZeroBits())
-		if t.neg {
-			v, t = t, v
-			v.neg = len(v.abs) > 0 && !v.neg // 0 has no sign
-		} else {
-			u, t = t, u
+	// loop invariant A >= B
+	for len(B.abs) > 1 {
+		// initialize the digits
+		var a1, a2, u0, u1, u2, v0, v1, v2 Word
+
+		m := len(B.abs) // m >= 2
+		n := len(A.abs) // n >= m >= 2
+
+		// extract the top Word of bits from A and B
+		h := nlz(A.abs[n-1])
+		a1 = (A.abs[n-1] << h) | (A.abs[n-2] >> (_W - h))
+		// B may have implicit zero words in the high bits if the lengths differ
+		switch {
+		case n == m:
+			a2 = (B.abs[n-1] << h) | (B.abs[n-2] >> (_W - h))
+		case n == m+1:
+			a2 = (B.abs[n-2] >> (_W - h))
+		default:
+			a2 = 0
 		}
-		t.Sub(u, v)
+
+		// Since we are calculating with full words to avoid overflow,
+		// we use 'even' to track the sign of the cosequences.
+		// For even iterations: u0, v1 >= 0 && u1, v0 <= 0
+		// For odd  iterations: u0, v1 <= 0 && u1, v0 >= 0
+		// The first iteration starts with k=1 (odd).
+		even := false
+		// variables to track the cosequences
+		u0, u1, u2 = 0, 1, 0
+		v0, v1, v2 = 0, 0, 1
+
+		// Calculate the quotient and cosequences using Collins' stopping condition.
+		// Note that overflow of a Word is not possible when computing the remainder
+		// sequence and cosequences since the cosequence size is bounded by the input size.
+		// See section 4.2 of Jebelean for details.
+		for a2 >= v2 && a1-a2 >= v1+v2 {
+			q := a1 / a2
+			a1, a2 = a2, a1-q*a2
+			u0, u1, u2 = u1, u2, u1+q*u2
+			v0, v1, v2 = v1, v2, v1+q*v2
+			even = !even
+		}
+
+		// multiprecision step
+		if v0 != 0 {
+			// simulate the effect of the single precision steps using the cosequences
+			// A = u0*A + v0*B
+			// B = u1*A + v1*B
+
+			t.abs = t.abs.setWord(u0)
+			s.abs = s.abs.setWord(v0)
+			t.neg = !even
+			s.neg = even
+
+			t.Mul(A, t)
+			s.Mul(B, s)
+
+			r.abs = r.abs.setWord(u1)
+			w.abs = w.abs.setWord(v1)
+			r.neg = even
+			w.neg = !even
+
+			r.Mul(A, r)
+			w.Mul(B, w)
+
+			A.Add(t, s)
+			B.Add(r, w)
+
+		} else {
+			// single-digit calculations failed to simluate any quotients
+			// do a standard Euclidean step
+			t.Rem(A, B)
+			A, B, t = B, t, A
+		}
 	}
 
-	return z.Lsh(u, k)
+	if len(B.abs) > 0 {
+		// standard Euclidean algorithm base case for B a single Word
+		if len(A.abs) > 1 {
+			// A is longer than a single Word
+			t.Rem(A, B)
+			A, B, t = B, t, A
+		}
+		if len(B.abs) > 0 {
+			// A and B are both a single Word
+			a1, a2 := A.abs[0], B.abs[0]
+			for a2 != 0 {
+				a1, a2 = a2, a1%a2
+			}
+			A.abs[0] = a1
+		}
+	}
+	*z = *A
+	return z
 }
 
 // Rand sets z to a pseudo-random number in [0, n) and returns z.
+//
+// As this uses the math/rand package, it must not be used for
+// security-sensitive work. Use crypto/rand.Int instead.
 func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 	z.neg = false
 	if n.neg || len(n.abs) == 0 {
@@ -659,10 +739,9 @@ func Jacobi(x, y *Int) int {
 // to calculate the square root of any quadratic residue mod p quickly for 3
 // mod 4 primes.
 func (z *Int) modSqrt3Mod4Prime(x, p *Int) *Int {
-	z.Set(p)         // z = p
-	z.Add(z, intOne) // z = p + 1
-	z.Rsh(z, 2)      // z = (p + 1) / 4
-	z.Exp(x, z, p)   // z = x^z mod p
+	e := new(Int).Add(p, intOne) // e = p + 1
+	e.Rsh(e, 2)                  // e = (p + 1) / 4
+	z.Exp(x, e, p)               // z = x^e mod p
 	return z
 }
 

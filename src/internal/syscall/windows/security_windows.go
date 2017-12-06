@@ -6,6 +6,7 @@ package windows
 
 import (
 	"syscall"
+	"unsafe"
 )
 
 const (
@@ -55,3 +56,28 @@ func AdjustTokenPrivileges(token syscall.Token, disableAllPrivileges bool, newst
 	}
 	return err
 }
+
+//sys DuplicateTokenEx(hExistingToken syscall.Token, dwDesiredAccess uint32, lpTokenAttributes *syscall.SecurityAttributes, impersonationLevel uint32, tokenType TokenType, phNewToken *syscall.Token) (err error) = advapi32.DuplicateTokenEx
+//sys SetTokenInformation(tokenHandle syscall.Token, tokenInformationClass uint32, tokenInformation uintptr, tokenInformationLength uint32) (err error) = advapi32.SetTokenInformation
+
+type SID_AND_ATTRIBUTES struct {
+	Sid        *syscall.SID
+	Attributes uint32
+}
+
+type TOKEN_MANDATORY_LABEL struct {
+	Label SID_AND_ATTRIBUTES
+}
+
+func (tml *TOKEN_MANDATORY_LABEL) Size() uint32 {
+	return uint32(unsafe.Sizeof(TOKEN_MANDATORY_LABEL{})) + syscall.GetLengthSid(tml.Label.Sid)
+}
+
+const SE_GROUP_INTEGRITY = 0x00000020
+
+type TokenType uint32
+
+const (
+	TokenPrimary       TokenType = 1
+	TokenImpersonation TokenType = 2
+)

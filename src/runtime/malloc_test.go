@@ -46,9 +46,6 @@ func TestMemStats(t *testing.T) {
 	}
 	// Of the uint fields, HeapReleased, HeapIdle can be 0.
 	// PauseTotalNs can be 0 if timer resolution is poor.
-	//
-	// TODO: Test that GCCPUFraction is <= 0.99. This currently
-	// fails on windows/386. (Issue #19319)
 	fields := map[string][]func(interface{}) error{
 		"Alloc": {nz, le(1e10)}, "TotalAlloc": {nz, le(1e11)}, "Sys": {nz, le(1e10)},
 		"Lookups": {nz, le(1e10)}, "Mallocs": {nz, le(1e10)}, "Frees": {nz, le(1e10)},
@@ -61,7 +58,7 @@ func TestMemStats(t *testing.T) {
 		"NextGC": {nz, le(1e10)}, "LastGC": {nz},
 		"PauseTotalNs": {le(1e11)}, "PauseNs": nil, "PauseEnd": nil,
 		"NumGC": {nz, le(1e9)}, "NumForcedGC": {nz, le(1e9)},
-		"GCCPUFraction": nil, "EnableGC": {eq(true)}, "DebugGC": {eq(false)},
+		"GCCPUFraction": {le(0.99)}, "EnableGC": {eq(true)}, "DebugGC": {eq(false)},
 		"BySize": nil,
 	}
 

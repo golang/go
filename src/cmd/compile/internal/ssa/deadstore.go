@@ -131,3 +131,58 @@ func dse(f *Func) {
 		}
 	}
 }
+
+// elimUnreadAutos deletes stores (and associated bookkeeping ops VarDef and VarKill)
+// to autos that are never read from.
+func elimUnreadAutos(f *Func) {
+	// Loop over all ops that affect autos taking note of which
+	// autos we need and also stores that we might be able to
+	// eliminate.
+	seen := make(map[GCNode]bool)
+	var stores []*Value
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			n, ok := v.Aux.(GCNode)
+			if !ok {
+				continue
+			}
+			if n.StorageClass() != ClassAuto {
+				continue
+			}
+
+			effect := v.Op.SymEffect()
+			switch effect {
+			case SymNone, SymWrite:
+				// If we haven't seen the auto yet
+				// then this might be a store we can
+				// eliminate.
+				if !seen[n] {
+					stores = append(stores, v)
+				}
+			default:
+				// Assume the auto is needed (loaded,
+				// has its address taken, etc.).
+				// Note we have to check the uses
+				// because dead loads haven't been
+				// eliminated yet.
+				if v.Uses > 0 {
+					seen[n] = true
+				}
+			}
+		}
+	}
+
+	// Eliminate stores to unread autos.
+	for _, store := range stores {
+		n, _ := store.Aux.(GCNode)
+		if seen[n] {
+			continue
+		}
+
+		// replace store with OpCopy
+		store.SetArgs1(store.MemoryArg())
+		store.Aux = nil
+		store.AuxInt = 0
+		store.Op = OpCopy
+	}
+}

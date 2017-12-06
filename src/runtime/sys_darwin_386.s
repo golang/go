@@ -19,12 +19,38 @@ TEXT runtime·exit(SB),NOSPLIT,$0
 
 // Exit this OS thread (like pthread_exit, which eventually
 // calls __bsdthread_terminate).
-TEXT runtime·exit1(SB),NOSPLIT,$0
+TEXT exit1<>(SB),NOSPLIT,$16-0
+	// __bsdthread_terminate takes 4 word-size arguments.
+	// Set them all to 0. (None are an exit status.)
+	MOVL	$0, 0(SP)
+	MOVL	$0, 4(SP)
+	MOVL	$0, 8(SP)
+	MOVL	$0, 12(SP)
 	MOVL	$361, AX
 	INT	$0x80
 	JAE 2(PC)
 	MOVL	$0xf1, 0xf1  // crash
 	RET
+
+GLOBL exitStack<>(SB),RODATA,$(4*4)
+DATA exitStack<>+0x00(SB)/4, $0
+DATA exitStack<>+0x04(SB)/4, $0
+DATA exitStack<>+0x08(SB)/4, $0
+DATA exitStack<>+0x0c(SB)/4, $0
+
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+	MOVL	wait+0(FP), AX
+	// We're done using the stack.
+	MOVL	$0, (AX)
+	// __bsdthread_terminate takes 4 arguments, which it expects
+	// on the stack. They should all be 0, so switch over to a
+	// fake stack of 0s. It won't write to the stack.
+	MOVL	$exitStack<>(SB), SP
+	MOVL	$361, AX	// __bsdthread_terminate
+	INT	$0x80
+	MOVL	$0xf1, 0xf1  // crash
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	$5, AX
@@ -77,7 +103,13 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$16
 TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVL	$197, AX
 	INT	$0x80
-	MOVL	AX, ret+24(FP)
+	JAE	ok
+	MOVL	$0, p+24(FP)
+	MOVL	AX, err+28(FP)
+	RET
+ok:
+	MOVL	AX, p+24(FP)
+	MOVL	$0, err+28(FP)
 	RET
 
 TEXT runtime·madvise(SB),NOSPLIT,$0
@@ -394,7 +426,7 @@ TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 	MOVL	BX, m_procid(DX)	// m->procid = thread port (for debuggers)
 	CALL	runtime·stackcheck(SB)		// smashes AX
 	CALL	CX	// fn()
-	CALL	runtime·exit1(SB)
+	CALL	exit1<>(SB)
 	RET
 
 // func bsdthread_register() int32

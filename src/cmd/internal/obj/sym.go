@@ -45,8 +45,7 @@ func Linknew(arch *LinkArch) *Link {
 	ctxt.Arch = arch
 	ctxt.Pathname = objabi.WorkingDir()
 
-	ctxt.Headtype.Set(objabi.GOOS)
-	if ctxt.Headtype < 0 {
+	if err := ctxt.Headtype.Set(objabi.GOOS); err != nil {
 		log.Fatalf("unknown goos %s", objabi.GOOS)
 	}
 

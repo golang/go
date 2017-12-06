@@ -432,6 +432,10 @@ type BpfHdr struct {
 	Pad_cgo_0 [6]byte
 }
 
+const (
+	_AT_FDCWD = 0xfffafdcd
+)
+
 type Termios struct {
 	Iflag  uint32
 	Oflag  uint32

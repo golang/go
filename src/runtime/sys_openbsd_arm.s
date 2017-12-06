@@ -22,13 +22,22 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVW.CS	R8, (R8)
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$-4
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+	MOVW	wait+0(FP), R0
+	// We're done using the stack.
+	MOVW	$0, R2
+storeloop:
+	LDREX	(R0), R4          // loads R4
+	STREX	R2, (R0), R1      // stores R2
+	CMP	$0, R1
+	BNE	storeloop
 	MOVW	$0, R0			// arg 1 - notdead
 	MOVW	$302, R12		// sys___threxit
 	SWI	$0
 	MOVW.CS	$1, R8			// crash on syscall failure
 	MOVW.CS	R8, (R8)
-	RET
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVW	name+0(FP), R0		// arg 1 - path
@@ -120,7 +129,11 @@ TEXT runtime·mmap(SB),NOSPLIT,$16
 	MOVW	$197, R12		// sys_mmap
 	SWI	$0
 	SUB	$4, R13
-	MOVW	R0, ret+24(FP)
+	MOVW	$0, R1
+	MOVW.CS	R0, R1			// if error, move to R1
+	MOVW.CS $0, R0
+	MOVW	R0, p+24(FP)
+	MOVW	R1, err+28(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
@@ -269,7 +282,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$0
 	// Call fn.
 	BL	(R6)
 
-	BL	runtime·exit1(SB)
+	// fn should never return.
 	MOVW	$2, R8			// crash if reached
 	MOVW	R8, (R8)
 	RET

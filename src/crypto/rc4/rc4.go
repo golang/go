@@ -52,8 +52,7 @@ func (c *Cipher) Reset() {
 }
 
 // xorKeyStreamGeneric sets dst to the result of XORing src with the
-// key stream. Dst and src may be the same slice but otherwise should
-// not overlap.
+// key stream. Dst and src must overlap entirely or not at all.
 //
 // This is the pure Go version. rc4_{amd64,386,arm}* contain assembly
 // implementations. This is here for tests and to prevent bitrot.

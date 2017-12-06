@@ -273,10 +273,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		switch v.Aux.(type) {
 		default:
 			v.Fatalf("aux is of unknown type %T", v.Aux)
-		case *ssa.ExternSymbol:
+		case *obj.LSym:
 			wantreg = "SB"
 			gc.AddAux(&p.From, v)
-		case *ssa.ArgSymbol, *ssa.AutoSymbol:
+		case *gc.Node:
 			wantreg = "SP"
 			gc.AddAux(&p.From, v)
 		case nil:
@@ -324,6 +324,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
+	case ssa.OpARM64STP:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REGREG
+		p.From.Reg = v.Args[1].Reg()
+		p.From.Offset = int64(v.Args[2].Reg())
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		gc.AddAux(&p.To, v)
 	case ssa.OpARM64MOVBstorezero,
 		ssa.OpARM64MOVHstorezero,
 		ssa.OpARM64MOVWstorezero,
@@ -331,6 +339,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = arm64.REGZERO
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		gc.AddAux(&p.To, v)
+	case ssa.OpARM64MOVQstorezero:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REGREG
+		p.From.Reg = arm64.REGZERO
+		p.From.Offset = int64(arm64.REGZERO)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
@@ -555,34 +571,29 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
 		p.From.Reg = arm64.COND_LO
 		p.Reg = v.Args[0].Reg()
-		p.From3 = &obj.Addr{Type: obj.TYPE_REG, Reg: r1}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r1})
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpARM64DUFFZERO:
-		// runtime.duffzero expects start address - 8 in R16
-		p := s.Prog(arm64.ASUB)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 8
-		p.Reg = v.Args[0].Reg()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = arm64.REG_R16
-		p = s.Prog(obj.ADUFFZERO)
+		// runtime.duffzero expects start address in R16
+		p := s.Prog(obj.ADUFFZERO)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = gc.Duffzero
 		p.To.Offset = v.AuxInt
 	case ssa.OpARM64LoweredZero:
-		// MOVD.P	ZR, 8(R16)
+		// STP.P	(ZR,ZR), 16(R16)
 		// CMP	Rarg1, R16
 		// BLE	-2(PC)
-		// arg1 is the address of the last element to zero
-		p := s.Prog(arm64.AMOVD)
+		// arg1 is the address of the last 16-byte unit to zero
+		p := s.Prog(arm64.ASTP)
 		p.Scond = arm64.C_XPOST
-		p.From.Type = obj.TYPE_REG
+		p.From.Type = obj.TYPE_REGREG
 		p.From.Reg = arm64.REGZERO
+		p.From.Offset = int64(arm64.REGZERO)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = arm64.REG_R16
-		p.To.Offset = 8
+		p.To.Offset = 16
 		p2 := s.Prog(arm64.ACMP)
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = v.Args[1].Reg()
@@ -655,6 +666,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARM64LoweredGetClosurePtr:
 		// Closure pointer is R26 (arm64.REGCTXT).
 		gc.CheckLoweredGetClosurePtr(v)
+	case ssa.OpARM64LoweredGetCallerSP:
+		// caller's SP is FixedFrameSize below the address of the first arg
+		p := s.Prog(arm64.AMOVD)
+		p.From.Type = obj.TYPE_ADDR
+		p.From.Offset = -gc.Ctxt.FixedFrameSize()
+		p.From.Name = obj.NAME_PARAM
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	case ssa.OpARM64FlagEQ,
 		ssa.OpARM64FlagLT_ULT,
 		ssa.OpARM64FlagLT_UGT,
@@ -686,20 +705,22 @@ var condBits = map[ssa.Op]int16{
 var blockJump = map[ssa.BlockKind]struct {
 	asm, invasm obj.As
 }{
-	ssa.BlockARM64EQ:  {arm64.ABEQ, arm64.ABNE},
-	ssa.BlockARM64NE:  {arm64.ABNE, arm64.ABEQ},
-	ssa.BlockARM64LT:  {arm64.ABLT, arm64.ABGE},
-	ssa.BlockARM64GE:  {arm64.ABGE, arm64.ABLT},
-	ssa.BlockARM64LE:  {arm64.ABLE, arm64.ABGT},
-	ssa.BlockARM64GT:  {arm64.ABGT, arm64.ABLE},
-	ssa.BlockARM64ULT: {arm64.ABLO, arm64.ABHS},
-	ssa.BlockARM64UGE: {arm64.ABHS, arm64.ABLO},
-	ssa.BlockARM64UGT: {arm64.ABHI, arm64.ABLS},
-	ssa.BlockARM64ULE: {arm64.ABLS, arm64.ABHI},
-	ssa.BlockARM64Z:   {arm64.ACBZ, arm64.ACBNZ},
-	ssa.BlockARM64NZ:  {arm64.ACBNZ, arm64.ACBZ},
-	ssa.BlockARM64ZW:  {arm64.ACBZW, arm64.ACBNZW},
-	ssa.BlockARM64NZW: {arm64.ACBNZW, arm64.ACBZW},
+	ssa.BlockARM64EQ:   {arm64.ABEQ, arm64.ABNE},
+	ssa.BlockARM64NE:   {arm64.ABNE, arm64.ABEQ},
+	ssa.BlockARM64LT:   {arm64.ABLT, arm64.ABGE},
+	ssa.BlockARM64GE:   {arm64.ABGE, arm64.ABLT},
+	ssa.BlockARM64LE:   {arm64.ABLE, arm64.ABGT},
+	ssa.BlockARM64GT:   {arm64.ABGT, arm64.ABLE},
+	ssa.BlockARM64ULT:  {arm64.ABLO, arm64.ABHS},
+	ssa.BlockARM64UGE:  {arm64.ABHS, arm64.ABLO},
+	ssa.BlockARM64UGT:  {arm64.ABHI, arm64.ABLS},
+	ssa.BlockARM64ULE:  {arm64.ABLS, arm64.ABHI},
+	ssa.BlockARM64Z:    {arm64.ACBZ, arm64.ACBNZ},
+	ssa.BlockARM64NZ:   {arm64.ACBNZ, arm64.ACBZ},
+	ssa.BlockARM64ZW:   {arm64.ACBZW, arm64.ACBNZW},
+	ssa.BlockARM64NZW:  {arm64.ACBNZW, arm64.ACBZW},
+	ssa.BlockARM64TBZ:  {arm64.ATBZ, arm64.ATBNZ},
+	ssa.BlockARM64TBNZ: {arm64.ATBNZ, arm64.ATBZ},
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
@@ -769,6 +790,35 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		if !b.Control.Type.IsFlags() {
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = b.Control.Reg()
+		}
+	case ssa.BlockARM64TBZ, ssa.BlockARM64TBNZ:
+		jmp := blockJump[b.Kind]
+		var p *obj.Prog
+		switch next {
+		case b.Succs[0].Block():
+			p = s.Prog(jmp.invasm)
+			p.To.Type = obj.TYPE_BRANCH
+			p.From.Offset = b.Aux.(int64)
+			p.From.Type = obj.TYPE_CONST
+			p.Reg = b.Control.Reg()
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+		case b.Succs[1].Block():
+			p = s.Prog(jmp.asm)
+			p.To.Type = obj.TYPE_BRANCH
+			p.From.Offset = b.Aux.(int64)
+			p.From.Type = obj.TYPE_CONST
+			p.Reg = b.Control.Reg()
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+		default:
+			p = s.Prog(jmp.asm)
+			p.To.Type = obj.TYPE_BRANCH
+			p.From.Offset = b.Aux.(int64)
+			p.From.Type = obj.TYPE_CONST
+			p.Reg = b.Control.Reg()
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			q := s.Prog(obj.AJMP)
+			q.To.Type = obj.TYPE_BRANCH
+			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
 		}
 
 	default:

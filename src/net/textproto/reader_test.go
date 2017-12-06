@@ -211,6 +211,24 @@ func TestReadMIMEHeaderNonCompliant(t *testing.T) {
 	}
 }
 
+func TestReadMIMEHeaderMalformed(t *testing.T) {
+	inputs := []string{
+		"No colon first line\r\nFoo: foo\r\n\r\n",
+		" No colon first line with leading space\r\nFoo: foo\r\n\r\n",
+		"\tNo colon first line with leading tab\r\nFoo: foo\r\n\r\n",
+		" First: line with leading space\r\nFoo: foo\r\n\r\n",
+		"\tFirst: line with leading tab\r\nFoo: foo\r\n\r\n",
+		"Foo: foo\r\nNo colon second line\r\n\r\n",
+	}
+
+	for _, input := range inputs {
+		r := reader(input)
+		if m, err := r.ReadMIMEHeader(); err == nil {
+			t.Errorf("ReadMIMEHeader(%q) = %v, %v; want nil, err", input, m, err)
+		}
+	}
+}
+
 // Test that continued lines are properly trimmed. Issue 11204.
 func TestReadMIMEHeaderTrimContinued(t *testing.T) {
 	// In this header, \n and \r\n terminated lines are mixed on purpose.

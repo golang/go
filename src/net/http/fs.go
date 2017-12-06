@@ -98,12 +98,10 @@ type File interface {
 	Stat() (os.FileInfo, error)
 }
 
-func dirList(w ResponseWriter, f File) {
+func dirList(w ResponseWriter, r *Request, f File) {
 	dirs, err := f.Readdir(-1)
 	if err != nil {
-		// TODO: log err.Error() to the Server.ErrorLog, once it's possible
-		// for a handler to get at its Server via the ResponseWriter. See
-		// Issue 12438.
+		logf(r, "http: error reading directory: %v", err)
 		Error(w, "Error reading directory", StatusInternalServerError)
 		return
 	}
@@ -319,7 +317,7 @@ func scanETag(s string) (etag string, remain string) {
 		// Character values allowed in ETags.
 		case c == 0x21 || c >= 0x23 && c <= 0x7E || c >= 0x80:
 		case c == '"':
-			return string(s[:i+1]), s[i+1:]
+			return s[:i+1], s[i+1:]
 		default:
 			return "", ""
 		}
@@ -445,7 +443,7 @@ func checkIfModifiedSince(r *Request, modtime time.Time) condResult {
 }
 
 func checkIfRange(w ResponseWriter, r *Request, modtime time.Time) condResult {
-	if r.Method != "GET" {
+	if r.Method != "GET" && r.Method != "HEAD" {
 		return condNone
 	}
 	ir := r.Header.get("If-Range")
@@ -532,10 +530,8 @@ func checkPreconditions(w ResponseWriter, r *Request, modtime time.Time) (done b
 	}
 
 	rangeHeader = r.Header.get("Range")
-	if rangeHeader != "" {
-		if checkIfRange(w, r, modtime) == condFalse {
-			rangeHeader = ""
-		}
+	if rangeHeader != "" && checkIfRange(w, r, modtime) == condFalse {
+		rangeHeader = ""
 	}
 	return false, rangeHeader
 }
@@ -615,7 +611,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 			return
 		}
 		w.Header().Set("Last-Modified", d.ModTime().UTC().Format(TimeFormat))
-		dirList(w, f)
+		dirList(w, r, f)
 		return
 	}
 

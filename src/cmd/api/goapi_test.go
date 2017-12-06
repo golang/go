@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -163,7 +164,7 @@ func TestSkipInternal(t *testing.T) {
 }
 
 func BenchmarkAll(b *testing.B) {
-	stds, err := exec.Command("go", "list", "std").Output()
+	stds, err := exec.Command(testenv.GoToolPath(b), "list", "std").Output()
 	if err != nil {
 		b.Fatal(err)
 	}

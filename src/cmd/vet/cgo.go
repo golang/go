@@ -34,7 +34,12 @@ func checkCgoCall(f *File, node ast.Node) {
 		return
 	}
 	id, ok := sel.X.(*ast.Ident)
-	if !ok || id.Name != "C" {
+	if !ok {
+		return
+	}
+
+	pkgname, ok := f.pkg.uses[id].(*types.PkgName)
+	if !ok || pkgname.Imported().Path() != "C" {
 		return
 	}
 

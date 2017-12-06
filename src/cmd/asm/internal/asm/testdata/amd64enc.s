@@ -84,22 +84,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	ADCB (R11), DL                          // 411213
 	ADCB (BX), R11                          // 44121b
 	ADCB (R11), R11                         // 45121b
-	//TODO: ADCXL (BX), DX                  // 660f38f613
-	//TODO: ADCXL (R11), DX                 // 66410f38f613
-	//TODO: ADCXL DX, DX                    // 660f38f6d2
-	//TODO: ADCXL R11, DX                   // 66410f38f6d3
-	//TODO: ADCXL (BX), R11                 // 66440f38f61b
-	//TODO: ADCXL (R11), R11                // 66450f38f61b
-	//TODO: ADCXL DX, R11                   // 66440f38f6da
-	//TODO: ADCXL R11, R11                  // 66450f38f6db
-	//TODO: ADCXQ (BX), DX                  // 66480f38f613
-	//TODO: ADCXQ (R11), DX                 // 66490f38f613
-	//TODO: ADCXQ DX, DX                    // 66480f38f6d2
-	//TODO: ADCXQ R11, DX                   // 66490f38f6d3
-	//TODO: ADCXQ (BX), R11                 // 664c0f38f61b
-	//TODO: ADCXQ (R11), R11                // 664d0f38f61b
-	//TODO: ADCXQ DX, R11                   // 664c0f38f6da
-	//TODO: ADCXQ R11, R11                  // 664d0f38f6db
+	ADCXL (BX), DX                          // 660f38f613
+	ADCXL (R11), DX                         // 66410f38f613
+	ADCXL DX, DX                            // 660f38f6d2
+	ADCXL R11, DX                           // 66410f38f6d3
+	ADCXL (BX), R11                         // 66440f38f61b
+	ADCXL (R11), R11                        // 66450f38f61b
+	ADCXL DX, R11                           // 66440f38f6da
+	ADCXL R11, R11                          // 66450f38f6db
+	ADCXQ (BX), DX                          // 66480f38f613
+	ADCXQ (R11), DX                         // 66490f38f613
+	ADCXQ DX, DX                            // 66480f38f6d2
+	ADCXQ R11, DX                           // 66490f38f6d3
+	ADCXQ (BX), R11                         // 664c0f38f61b
+	ADCXQ (R11), R11                        // 664d0f38f61b
+	ADCXQ DX, R11                           // 664c0f38f6da
+	ADCXQ R11, R11                          // 664d0f38f6db
 	ADDB $7, AL                             // 0407
 	ADDW $61731, AX                         // 660523f1
 	ADDL $4045620583, AX                    // 05674523f1
@@ -212,38 +212,38 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	ADDSS (R11), X11                        // f3450f581b
 	ADDSS X2, X11                           // f3440f58da
 	ADDSS X11, X11                          // f3450f58db
-	//TODO: ADDSUBPD (BX), X2               // 660fd013
-	//TODO: ADDSUBPD (R11), X2              // 66410fd013
-	//TODO: ADDSUBPD X2, X2                 // 660fd0d2
-	//TODO: ADDSUBPD X11, X2                // 66410fd0d3
-	//TODO: ADDSUBPD (BX), X11              // 66440fd01b
-	//TODO: ADDSUBPD (R11), X11             // 66450fd01b
-	//TODO: ADDSUBPD X2, X11                // 66440fd0da
-	//TODO: ADDSUBPD X11, X11               // 66450fd0db
-	//TODO: ADDSUBPS (BX), X2               // f20fd013
-	//TODO: ADDSUBPS (R11), X2              // f2410fd013
-	//TODO: ADDSUBPS X2, X2                 // f20fd0d2
-	//TODO: ADDSUBPS X11, X2                // f2410fd0d3
-	//TODO: ADDSUBPS (BX), X11              // f2440fd01b
-	//TODO: ADDSUBPS (R11), X11             // f2450fd01b
-	//TODO: ADDSUBPS X2, X11                // f2440fd0da
-	//TODO: ADDSUBPS X11, X11               // f2450fd0db
-	//TODO: ADOXL (BX), DX                  // f30f38f613
-	//TODO: ADOXL (R11), DX                 // f3410f38f613
-	//TODO: ADOXL DX, DX                    // f30f38f6d2
-	//TODO: ADOXL R11, DX                   // f3410f38f6d3
-	//TODO: ADOXL (BX), R11                 // f3440f38f61b
-	//TODO: ADOXL (R11), R11                // f3450f38f61b
-	//TODO: ADOXL DX, R11                   // f3440f38f6da
-	//TODO: ADOXL R11, R11                  // f3450f38f6db
-	//TODO: ADOXQ (BX), DX                  // f3480f38f613
-	//TODO: ADOXQ (R11), DX                 // f3490f38f613
-	//TODO: ADOXQ DX, DX                    // f3480f38f6d2
-	//TODO: ADOXQ R11, DX                   // f3490f38f6d3
-	//TODO: ADOXQ (BX), R11                 // f34c0f38f61b
-	//TODO: ADOXQ (R11), R11                // f34d0f38f61b
-	//TODO: ADOXQ DX, R11                   // f34c0f38f6da
-	//TODO: ADOXQ R11, R11                  // f34d0f38f6db
+	ADDSUBPD (BX), X2                       // 660fd013
+	ADDSUBPD (R11), X2                      // 66410fd013
+	ADDSUBPD X2, X2                         // 660fd0d2
+	ADDSUBPD X11, X2                        // 66410fd0d3
+	ADDSUBPD (BX), X11                      // 66440fd01b
+	ADDSUBPD (R11), X11                     // 66450fd01b
+	ADDSUBPD X2, X11                        // 66440fd0da
+	ADDSUBPD X11, X11                       // 66450fd0db
+	ADDSUBPS (BX), X2                       // f20fd013
+	ADDSUBPS (R11), X2                      // f2410fd013
+	ADDSUBPS X2, X2                         // f20fd0d2
+	ADDSUBPS X11, X2                        // f2410fd0d3
+	ADDSUBPS (BX), X11                      // f2440fd01b
+	ADDSUBPS (R11), X11                     // f2450fd01b
+	ADDSUBPS X2, X11                        // f2440fd0da
+	ADDSUBPS X11, X11                       // f2450fd0db
+	ADOXL (BX), DX                          // f30f38f613
+	ADOXL (R11), DX                         // f3410f38f613
+	ADOXL DX, DX                            // f30f38f6d2
+	ADOXL R11, DX                           // f3410f38f6d3
+	ADOXL (BX), R11                         // f3440f38f61b
+	ADOXL (R11), R11                        // f3450f38f61b
+	ADOXL DX, R11                           // f3440f38f6da
+	ADOXL R11, R11                          // f3450f38f6db
+	ADOXQ (BX), DX                          // f3480f38f613
+	ADOXQ (R11), DX                         // f3490f38f613
+	ADOXQ DX, DX                            // f3480f38f6d2
+	ADOXQ R11, DX                           // f3490f38f6d3
+	ADOXQ (BX), R11                         // f34c0f38f61b
+	ADOXQ (R11), R11                        // f34d0f38f61b
+	ADOXQ DX, R11                           // f34c0f38f6da
+	ADOXQ R11, R11                          // f34d0f38f6db
 	AESDEC (BX), X2                         // 660f38de13
 	AESDEC (R11), X2                        // 66410f38de13
 	AESDEC X2, X2                           // 660f38ded2
@@ -436,22 +436,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	BEXTRQ R14, (R11), R11                  // c44288f71b
 	BEXTRQ R14, DX, R11                     // c46288f7da
 	BEXTRQ R14, R11, R11                    // c44288f7db
-	//TODO: BLENDPD $7, (BX), X2            // 660f3a0d1307
-	//TODO: BLENDPD $7, (R11), X2           // 66410f3a0d1307
-	//TODO: BLENDPD $7, X2, X2              // 660f3a0dd207
-	//TODO: BLENDPD $7, X11, X2             // 66410f3a0dd307
-	//TODO: BLENDPD $7, (BX), X11           // 66440f3a0d1b07
-	//TODO: BLENDPD $7, (R11), X11          // 66450f3a0d1b07
-	//TODO: BLENDPD $7, X2, X11             // 66440f3a0dda07
-	//TODO: BLENDPD $7, X11, X11            // 66450f3a0ddb07
-	//TODO: BLENDPS $7, (BX), X2            // 660f3a0c1307
-	//TODO: BLENDPS $7, (R11), X2           // 66410f3a0c1307
-	//TODO: BLENDPS $7, X2, X2              // 660f3a0cd207
-	//TODO: BLENDPS $7, X11, X2             // 66410f3a0cd307
-	//TODO: BLENDPS $7, (BX), X11           // 66440f3a0c1b07
-	//TODO: BLENDPS $7, (R11), X11          // 66450f3a0c1b07
-	//TODO: BLENDPS $7, X2, X11             // 66440f3a0cda07
-	//TODO: BLENDPS $7, X11, X11            // 66450f3a0cdb07
+	BLENDPD $7, (BX), X2                    // 660f3a0d1307
+	BLENDPD $7, (R11), X2                   // 66410f3a0d1307
+	BLENDPD $7, X2, X2                      // 660f3a0dd207
+	BLENDPD $7, X11, X2                     // 66410f3a0dd307
+	BLENDPD $7, (BX), X11                   // 66440f3a0d1b07
+	BLENDPD $7, (R11), X11                  // 66450f3a0d1b07
+	BLENDPD $7, X2, X11                     // 66440f3a0dda07
+	BLENDPD $7, X11, X11                    // 66450f3a0ddb07
+	BLENDPS $7, (BX), X2                    // 660f3a0c1307
+	BLENDPS $7, (R11), X2                   // 66410f3a0c1307
+	BLENDPS $7, X2, X2                      // 660f3a0cd207
+	BLENDPS $7, X11, X2                     // 66410f3a0cd307
+	BLENDPS $7, (BX), X11                   // 66440f3a0c1b07
+	BLENDPS $7, (R11), X11                  // 66450f3a0c1b07
+	BLENDPS $7, X2, X11                     // 66440f3a0cda07
+	BLENDPS $7, X11, X11                    // 66450f3a0cdb07
 	//TODO: BLENDVPD XMM0, (BX), X2         // 660f381513
 	//TODO: BLENDVPD XMM0, (R11), X2        // 66410f381513
 	//TODO: BLENDVPD XMM0, X2, X2           // 660f3815d2
@@ -468,30 +468,30 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: BLENDVPS XMM0, (R11), X11       // 66450f38141b
 	//TODO: BLENDVPS XMM0, X2, X11          // 66440f3814da
 	//TODO: BLENDVPS XMM0, X11, X11         // 66450f3814db
-	//TODO: BLSIL (BX), R9                  // c4e230f31b
-	//TODO: BLSIL (R11), R9                 // c4c230f31b
-	//TODO: BLSIL DX, R9                    // c4e230f3da
-	//TODO: BLSIL R11, R9                   // c4c230f3db
-	//TODO: BLSIQ (BX), R14                 // c4e288f31b
-	//TODO: BLSIQ (R11), R14                // c4c288f31b
-	//TODO: BLSIQ DX, R14                   // c4e288f3da
-	//TODO: BLSIQ R11, R14                  // c4c288f3db
-	//TODO: BLSMSKL (BX), R9                // c4e230f313
-	//TODO: BLSMSKL (R11), R9               // c4c230f313
-	//TODO: BLSMSKL DX, R9                  // c4e230f3d2
-	//TODO: BLSMSKL R11, R9                 // c4c230f3d3
-	//TODO: BLSMSKQ (BX), R14               // c4e288f313
-	//TODO: BLSMSKQ (R11), R14              // c4c288f313
-	//TODO: BLSMSKQ DX, R14                 // c4e288f3d2
-	//TODO: BLSMSKQ R11, R14                // c4c288f3d3
-	//TODO: BLSRL (BX), R9                  // c4e230f30b
-	//TODO: BLSRL (R11), R9                 // c4c230f30b
-	//TODO: BLSRL DX, R9                    // c4e230f3ca
-	//TODO: BLSRL R11, R9                   // c4c230f3cb
-	//TODO: BLSRQ (BX), R14                 // c4e288f30b
-	//TODO: BLSRQ (R11), R14                // c4c288f30b
-	//TODO: BLSRQ DX, R14                   // c4e288f3ca
-	//TODO: BLSRQ R11, R14                  // c4c288f3cb
+	BLSIL (BX), R9                          // c4e230f31b
+	BLSIL (R11), R9                         // c4c230f31b
+	BLSIL DX, R9                            // c4e230f3da
+	BLSIL R11, R9                           // c4c230f3db
+	BLSIQ (BX), R14                         // c4e288f31b
+	BLSIQ (R11), R14                        // c4c288f31b
+	BLSIQ DX, R14                           // c4e288f3da
+	BLSIQ R11, R14                          // c4c288f3db
+	BLSMSKL (BX), R9                        // c4e230f313
+	BLSMSKL (R11), R9                       // c4c230f313
+	BLSMSKL DX, R9                          // c4e230f3d2
+	BLSMSKL R11, R9                         // c4c230f3d3
+	BLSMSKQ (BX), R14                       // c4e288f313
+	BLSMSKQ (R11), R14                      // c4c288f313
+	BLSMSKQ DX, R14                         // c4e288f3d2
+	BLSMSKQ R11, R14                        // c4c288f3d3
+	BLSRL (BX), R9                          // c4e230f30b
+	BLSRL (R11), R9                         // c4c230f30b
+	BLSRL DX, R9                            // c4e230f3ca
+	BLSRL R11, R9                           // c4c230f3cb
+	BLSRQ (BX), R14                         // c4e288f30b
+	BLSRQ (R11), R14                        // c4c288f30b
+	BLSRQ DX, R14                           // c4e288f3ca
+	BLSRQ R11, R14                          // c4c288f3cb
 	//TODO: BNDCL (BX), BND2                // f30f1a13
 	//TODO: BNDCL (R11), BND2               // f3410f1a13
 	//TODO: BNDCL DX, BND2                  // f30f1ad2
@@ -771,8 +771,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: CLAC                            // 0f01ca
 	CLC                                     // f8
 	CLD                                     // fc
-	//TODO: CLFLUSH (BX)                    // 0fae3b
-	//TODO: CLFLUSH (R11)                   // 410fae3b
+	CLFLUSH (BX)                            // 0fae3b
+	CLFLUSH (R11)                           // 410fae3b
 	//TODO: CLFLUSHOPT (BX)                 // 660fae3b
 	//TODO: CLFLUSHOPT (R11)                // 66410fae3b
 	CLI                                     // fa
@@ -1622,32 +1622,32 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	DIVSS (R11), X11                        // f3450f5e1b
 	DIVSS X2, X11                           // f3440f5eda
 	DIVSS X11, X11                          // f3450f5edb
-	//TODO: DPPD $7, (BX), X2               // 660f3a411307
-	//TODO: DPPD $7, (R11), X2              // 66410f3a411307
-	//TODO: DPPD $7, X2, X2                 // 660f3a41d207
-	//TODO: DPPD $7, X11, X2                // 66410f3a41d307
-	//TODO: DPPD $7, (BX), X11              // 66440f3a411b07
-	//TODO: DPPD $7, (R11), X11             // 66450f3a411b07
-	//TODO: DPPD $7, X2, X11                // 66440f3a41da07
-	//TODO: DPPD $7, X11, X11               // 66450f3a41db07
-	//TODO: DPPS $7, (BX), X2               // 660f3a401307
-	//TODO: DPPS $7, (R11), X2              // 66410f3a401307
-	//TODO: DPPS $7, X2, X2                 // 660f3a40d207
-	//TODO: DPPS $7, X11, X2                // 66410f3a40d307
-	//TODO: DPPS $7, (BX), X11              // 66440f3a401b07
-	//TODO: DPPS $7, (R11), X11             // 66450f3a401b07
-	//TODO: DPPS $7, X2, X11                // 66440f3a40da07
-	//TODO: DPPS $7, X11, X11               // 66450f3a40db07
+	DPPD $7, (BX), X2                       // 660f3a411307
+	DPPD $7, (R11), X2                      // 66410f3a411307
+	DPPD $7, X2, X2                         // 660f3a41d207
+	DPPD $7, X11, X2                        // 66410f3a41d307
+	DPPD $7, (BX), X11                      // 66440f3a411b07
+	DPPD $7, (R11), X11                     // 66450f3a411b07
+	DPPD $7, X2, X11                        // 66440f3a41da07
+	DPPD $7, X11, X11                       // 66450f3a41db07
+	DPPS $7, (BX), X2                       // 660f3a401307
+	DPPS $7, (R11), X2                      // 66410f3a401307
+	DPPS $7, X2, X2                         // 660f3a40d207
+	DPPS $7, X11, X2                        // 66410f3a40d307
+	DPPS $7, (BX), X11                      // 66440f3a401b07
+	DPPS $7, (R11), X11                     // 66450f3a401b07
+	DPPS $7, X2, X11                        // 66440f3a40da07
+	DPPS $7, X11, X11                       // 66450f3a40db07
 	EMMS                                    // 0f77
 	//TODO: ENTERQ $0x12, $0xf123           // c823f112
-	//TODO: EXTRACTPS $7, X2, (BX)          // 660f3a171307
-	//TODO: EXTRACTPS $7, X11, (BX)         // 66440f3a171b07
-	//TODO: EXTRACTPS $7, X2, (R11)         // 66410f3a171307
-	//TODO: EXTRACTPS $7, X11, (R11)        // 66450f3a171b07
-	//TODO: EXTRACTPS $7, X2, DX            // 660f3a17d207
-	//TODO: EXTRACTPS $7, X11, DX           // 66440f3a17da07
-	//TODO: EXTRACTPS $7, X2, R11           // 66410f3a17d307
-	//TODO: EXTRACTPS $7, X11, R11          // 66450f3a17db07
+	EXTRACTPS $0, X2, (BX)                  // 660f3a171300
+	EXTRACTPS $1, X11, (BX)                 // 66440f3a171b01
+	EXTRACTPS $2, X2, (R11)                 // 66410f3a171302
+	EXTRACTPS $3, X11, (R11)                // 66450f3a171b03
+	EXTRACTPS $3, X2, DX                    // 660f3a17d203
+	EXTRACTPS $2, X11, DX                   // 66440f3a17da02
+	EXTRACTPS $1, X2, R11                   // 66410f3a17d301
+	EXTRACTPS $0, X11, R11                  // 66450f3a17db00
 	F2XM1                                   // d9f0
 	FABS                                    // d9e1
 	FADDD F2, F0                            // d8c2
@@ -2042,14 +2042,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	INCB R11                                // 41fec3
 	INSB                                    // 6c
 	INSL                                    // 6d
-	//TODO: INSERTPS $7, (BX), X2           // 660f3a211307
-	//TODO: INSERTPS $7, (R11), X2          // 66410f3a211307
-	//TODO: INSERTPS $7, X2, X2             // 660f3a21d207
-	//TODO: INSERTPS $7, X11, X2            // 66410f3a21d307
-	//TODO: INSERTPS $7, (BX), X11          // 66440f3a211b07
-	//TODO: INSERTPS $7, (R11), X11         // 66450f3a211b07
-	//TODO: INSERTPS $7, X2, X11            // 66440f3a21da07
-	//TODO: INSERTPS $7, X11, X11           // 66450f3a21db07
+	INSERTPS $7, (BX), X2                   // 660f3a211307
+	INSERTPS $7, (R11), X2                  // 66410f3a211307
+	INSERTPS $7, X2, X2                     // 660f3a21d207
+	INSERTPS $7, X11, X2                    // 66410f3a21d307
+	INSERTPS $7, (BX), X11                  // 66440f3a211b07
+	INSERTPS $7, (R11), X11                 // 66450f3a211b07
+	INSERTPS $7, X2, X11                    // 66440f3a21da07
+	INSERTPS $7, X11, X11                   // 66450f3a21db07
 	INSW                                    // 666d
 	//TODO: INT $3                          // cc
 	INT $7                                  // cd07
@@ -2641,10 +2641,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVNTO X11, (BX)                        // 66440fe71b
 	MOVNTO X2, (R11)                        // 66410fe713
 	MOVNTO X11, (R11)                       // 66450fe71b
-	//TODO: MOVNTDQA (BX), X2               // 660f382a13
-	//TODO: MOVNTDQA (R11), X2              // 66410f382a13
-	//TODO: MOVNTDQA (BX), X11              // 66440f382a1b
-	//TODO: MOVNTDQA (R11), X11             // 66450f382a1b
+	MOVNTDQA (BX), X2                       // 660f382a13
+	MOVNTDQA (R11), X2                      // 66410f382a13
+	MOVNTDQA (BX), X11                      // 66440f382a1b
+	MOVNTDQA (R11), X11                     // 66450f382a1b
 	MOVNTIL DX, (BX)                        // 0fc313
 	MOVNTIL R11, (BX)                       // 440fc31b
 	MOVNTIL DX, (R11)                       // 410fc313
@@ -2857,14 +2857,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: MOVBQZX (R11), R11              // 4d0fb61b
 	//TODO: MOVBQZX DL, R11                 // 4c0fb6da
 	//TODO: MOVBQZX R11, R11                // 4d0fb6db
-	//TODO: MPSADBW $7, (BX), X2            // 660f3a421307
-	//TODO: MPSADBW $7, (R11), X2           // 66410f3a421307
-	//TODO: MPSADBW $7, X2, X2              // 660f3a42d207
-	//TODO: MPSADBW $7, X11, X2             // 66410f3a42d307
-	//TODO: MPSADBW $7, (BX), X11           // 66440f3a421b07
-	//TODO: MPSADBW $7, (R11), X11          // 66450f3a421b07
-	//TODO: MPSADBW $7, X2, X11             // 66440f3a42da07
-	//TODO: MPSADBW $7, X11, X11            // 66450f3a42db07
+	MPSADBW $7, (BX), X2                    // 660f3a421307
+	MPSADBW $7, (R11), X2                   // 66410f3a421307
+	MPSADBW $7, X2, X2                      // 660f3a42d207
+	MPSADBW $7, X11, X2                     // 66410f3a42d307
+	MPSADBW $7, (BX), X11                   // 66440f3a421b07
+	MPSADBW $7, (R11), X11                  // 66450f3a421b07
+	MPSADBW $7, X2, X11                     // 66440f3a42da07
+	MPSADBW $7, X11, X11                    // 66450f3a42db07
 	MULW (BX)                               // 66f723
 	MULW (R11)                              // 6641f723
 	MULW DX                                 // 66f7e2
@@ -3083,14 +3083,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PABSB (R11), M3                 // 410f381c1b
 	//TODO: PABSB M2, M3                    // 0f381cda
 	//TODO: PABSB M3, M3                    // 0f381cdb
-	//TODO: PABSB (BX), X2                  // 660f381c13
-	//TODO: PABSB (R11), X2                 // 66410f381c13
-	//TODO: PABSB X2, X2                    // 660f381cd2
-	//TODO: PABSB X11, X2                   // 66410f381cd3
-	//TODO: PABSB (BX), X11                 // 66440f381c1b
-	//TODO: PABSB (R11), X11                // 66450f381c1b
-	//TODO: PABSB X2, X11                   // 66440f381cda
-	//TODO: PABSB X11, X11                  // 66450f381cdb
+	PABSB (BX), X2                          // 660f381c13
+	PABSB (R11), X2                         // 66410f381c13
+	PABSB X2, X2                            // 660f381cd2
+	PABSB X11, X2                           // 66410f381cd3
+	PABSB (BX), X11                         // 66440f381c1b
+	PABSB (R11), X11                        // 66450f381c1b
+	PABSB X2, X11                           // 66440f381cda
+	PABSB X11, X11                          // 66450f381cdb
 	//TODO: PABSD (BX), M2                  // 0f381e13
 	//TODO: PABSD (R11), M2                 // 410f381e13
 	//TODO: PABSD M2, M2                    // 0f381ed2
@@ -3099,14 +3099,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PABSD (R11), M3                 // 410f381e1b
 	//TODO: PABSD M2, M3                    // 0f381eda
 	//TODO: PABSD M3, M3                    // 0f381edb
-	//TODO: PABSD (BX), X2                  // 660f381e13
-	//TODO: PABSD (R11), X2                 // 66410f381e13
-	//TODO: PABSD X2, X2                    // 660f381ed2
-	//TODO: PABSD X11, X2                   // 66410f381ed3
-	//TODO: PABSD (BX), X11                 // 66440f381e1b
-	//TODO: PABSD (R11), X11                // 66450f381e1b
-	//TODO: PABSD X2, X11                   // 66440f381eda
-	//TODO: PABSD X11, X11                  // 66450f381edb
+	PABSD (BX), X2                          // 660f381e13
+	PABSD (R11), X2                         // 66410f381e13
+	PABSD X2, X2                            // 660f381ed2
+	PABSD X11, X2                           // 66410f381ed3
+	PABSD (BX), X11                         // 66440f381e1b
+	PABSD (R11), X11                        // 66450f381e1b
+	PABSD X2, X11                           // 66440f381eda
+	PABSD X11, X11                          // 66450f381edb
 	//TODO: PABSW (BX), M2                  // 0f381d13
 	//TODO: PABSW (R11), M2                 // 410f381d13
 	//TODO: PABSW M2, M2                    // 0f381dd2
@@ -3115,14 +3115,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PABSW (R11), M3                 // 410f381d1b
 	//TODO: PABSW M2, M3                    // 0f381dda
 	//TODO: PABSW M3, M3                    // 0f381ddb
-	//TODO: PABSW (BX), X2                  // 660f381d13
-	//TODO: PABSW (R11), X2                 // 66410f381d13
-	//TODO: PABSW X2, X2                    // 660f381dd2
-	//TODO: PABSW X11, X2                   // 66410f381dd3
-	//TODO: PABSW (BX), X11                 // 66440f381d1b
-	//TODO: PABSW (R11), X11                // 66450f381d1b
-	//TODO: PABSW X2, X11                   // 66440f381dda
-	//TODO: PABSW X11, X11                  // 66450f381ddb
+	PABSW (BX), X2                          // 660f381d13
+	PABSW (R11), X2                         // 66410f381d13
+	PABSW X2, X2                            // 660f381dd2
+	PABSW X11, X2                           // 66410f381dd3
+	PABSW (BX), X11                         // 66440f381d1b
+	PABSW (R11), X11                        // 66450f381d1b
+	PABSW X2, X11                           // 66440f381dda
+	PABSW X11, X11                          // 66450f381ddb
 	PACKSSLW (BX), M2                       // 0f6b13
 	PACKSSLW (R11), M2                      // 410f6b13
 	PACKSSLW M2, M2                         // 0f6bd2
@@ -3155,14 +3155,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	PACKSSWB (R11), X11                     // 66450f631b
 	PACKSSWB X2, X11                        // 66440f63da
 	PACKSSWB X11, X11                       // 66450f63db
-	//TODO: PACKUSDW (BX), X2               // 660f382b13
-	//TODO: PACKUSDW (R11), X2              // 66410f382b13
-	//TODO: PACKUSDW X2, X2                 // 660f382bd2
-	//TODO: PACKUSDW X11, X2                // 66410f382bd3
-	//TODO: PACKUSDW (BX), X11              // 66440f382b1b
-	//TODO: PACKUSDW (R11), X11             // 66450f382b1b
-	//TODO: PACKUSDW X2, X11                // 66440f382bda
-	//TODO: PACKUSDW X11, X11               // 66450f382bdb
+	PACKUSDW (BX), X2                       // 660f382b13
+	PACKUSDW (R11), X2                      // 66410f382b13
+	PACKUSDW X2, X2                         // 660f382bd2
+	PACKUSDW X11, X2                        // 66410f382bd3
+	PACKUSDW (BX), X11                      // 66440f382b1b
+	PACKUSDW (R11), X11                     // 66450f382b1b
+	PACKUSDW X2, X11                        // 66440f382bda
+	PACKUSDW X11, X11                       // 66450f382bdb
 	PACKUSWB (BX), M2                       // 0f6713
 	PACKUSWB (R11), M2                      // 410f6713
 	PACKUSWB M2, M2                         // 0f67d2
@@ -3315,14 +3315,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PALIGNR $7, (R11), M3           // 410f3a0f1b07
 	//TODO: PALIGNR $7, M2, M3              // 0f3a0fda07
 	//TODO: PALIGNR $7, M3, M3              // 0f3a0fdb07
-	//TODO: PALIGNR $7, (BX), X2            // 660f3a0f1307
-	//TODO: PALIGNR $7, (R11), X2           // 66410f3a0f1307
-	//TODO: PALIGNR $7, X2, X2              // 660f3a0fd207
-	//TODO: PALIGNR $7, X11, X2             // 66410f3a0fd307
-	//TODO: PALIGNR $7, (BX), X11           // 66440f3a0f1b07
-	//TODO: PALIGNR $7, (R11), X11          // 66450f3a0f1b07
-	//TODO: PALIGNR $7, X2, X11             // 66440f3a0fda07
-	//TODO: PALIGNR $7, X11, X11            // 66450f3a0fdb07
+	PALIGNR $7, (BX), X2                    // 660f3a0f1307
+	PALIGNR $7, (R11), X2                   // 66410f3a0f1307
+	PALIGNR $7, X2, X2                      // 660f3a0fd207
+	PALIGNR $7, X11, X2                     // 66410f3a0fd307
+	PALIGNR $7, (BX), X11                   // 66440f3a0f1b07
+	PALIGNR $7, (R11), X11                  // 66450f3a0f1b07
+	PALIGNR $7, X2, X11                     // 66440f3a0fda07
+	PALIGNR $7, X11, X11                    // 66450f3a0fdb07
 	PAND (BX), M2                           // 0fdb13
 	PAND (R11), M2                          // 410fdb13
 	PAND M2, M2                             // 0fdbd2
@@ -3395,14 +3395,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PBLENDVB XMM0, (R11), X11       // 66450f38101b
 	//TODO: PBLENDVB XMM0, X2, X11          // 66440f3810da
 	//TODO: PBLENDVB XMM0, X11, X11         // 66450f3810db
-	//TODO: PBLENDW $7, (BX), X2            // 660f3a0e1307
-	//TODO: PBLENDW $7, (R11), X2           // 66410f3a0e1307
-	//TODO: PBLENDW $7, X2, X2              // 660f3a0ed207
-	//TODO: PBLENDW $7, X11, X2             // 66410f3a0ed307
-	//TODO: PBLENDW $7, (BX), X11           // 66440f3a0e1b07
-	//TODO: PBLENDW $7, (R11), X11          // 66450f3a0e1b07
-	//TODO: PBLENDW $7, X2, X11             // 66440f3a0eda07
-	//TODO: PBLENDW $7, X11, X11            // 66450f3a0edb07
+	PBLENDW $7, (BX), X2                    // 660f3a0e1307
+	PBLENDW $7, (R11), X2                   // 66410f3a0e1307
+	PBLENDW $7, X2, X2                      // 660f3a0ed207
+	PBLENDW $7, X11, X2                     // 66410f3a0ed307
+	PBLENDW $7, (BX), X11                   // 66440f3a0e1b07
+	PBLENDW $7, (R11), X11                  // 66450f3a0e1b07
+	PBLENDW $7, X2, X11                     // 66440f3a0eda07
+	PBLENDW $7, X11, X11                    // 66450f3a0edb07
 	PCLMULQDQ $7, (BX), X2                  // 660f3a441307
 	PCLMULQDQ $7, (R11), X2                 // 66410f3a441307
 	PCLMULQDQ $7, X2, X2                    // 660f3a44d207
@@ -3443,14 +3443,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	PCMPEQL (R11), X11                      // 66450f761b
 	PCMPEQL X2, X11                         // 66440f76da
 	PCMPEQL X11, X11                        // 66450f76db
-	//TODO: PCMPEQQ (BX), X2                // 660f382913
-	//TODO: PCMPEQQ (R11), X2               // 66410f382913
-	//TODO: PCMPEQQ X2, X2                  // 660f3829d2
-	//TODO: PCMPEQQ X11, X2                 // 66410f3829d3
-	//TODO: PCMPEQQ (BX), X11               // 66440f38291b
-	//TODO: PCMPEQQ (R11), X11              // 66450f38291b
-	//TODO: PCMPEQQ X2, X11                 // 66440f3829da
-	//TODO: PCMPEQQ X11, X11                // 66450f3829db
+	PCMPEQQ (BX), X2                        // 660f382913
+	PCMPEQQ (R11), X2                       // 66410f382913
+	PCMPEQQ X2, X2                          // 660f3829d2
+	PCMPEQQ X11, X2                         // 66410f3829d3
+	PCMPEQQ (BX), X11                       // 66440f38291b
+	PCMPEQQ (R11), X11                      // 66450f38291b
+	PCMPEQQ X2, X11                         // 66440f3829da
+	PCMPEQQ X11, X11                        // 66450f3829db
 	PCMPEQW (BX), M2                        // 0f7513
 	PCMPEQW (R11), M2                       // 410f7513
 	PCMPEQW M2, M2                          // 0f75d2
@@ -3467,22 +3467,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	PCMPEQW (R11), X11                      // 66450f751b
 	PCMPEQW X2, X11                         // 66440f75da
 	PCMPEQW X11, X11                        // 66450f75db
-	//TODO: PCMPESTRI $7, (BX), X2          // 660f3a611307
-	//TODO: PCMPESTRI $7, (R11), X2         // 66410f3a611307
-	//TODO: PCMPESTRI $7, X2, X2            // 660f3a61d207
-	//TODO: PCMPESTRI $7, X11, X2           // 66410f3a61d307
-	//TODO: PCMPESTRI $7, (BX), X11         // 66440f3a611b07
-	//TODO: PCMPESTRI $7, (R11), X11        // 66450f3a611b07
-	//TODO: PCMPESTRI $7, X2, X11           // 66440f3a61da07
-	//TODO: PCMPESTRI $7, X11, X11          // 66450f3a61db07
-	//TODO: PCMPESTRM $7, (BX), X2          // 660f3a601307
-	//TODO: PCMPESTRM $7, (R11), X2         // 66410f3a601307
-	//TODO: PCMPESTRM $7, X2, X2            // 660f3a60d207
-	//TODO: PCMPESTRM $7, X11, X2           // 66410f3a60d307
-	//TODO: PCMPESTRM $7, (BX), X11         // 66440f3a601b07
-	//TODO: PCMPESTRM $7, (R11), X11        // 66450f3a601b07
-	//TODO: PCMPESTRM $7, X2, X11           // 66440f3a60da07
-	//TODO: PCMPESTRM $7, X11, X11          // 66450f3a60db07
+	PCMPESTRI $7, (BX), X2                  // 660f3a611307
+	PCMPESTRI $7, (R11), X2                 // 66410f3a611307
+	PCMPESTRI $7, X2, X2                    // 660f3a61d207
+	PCMPESTRI $7, X11, X2                   // 66410f3a61d307
+	PCMPESTRI $7, (BX), X11                 // 66440f3a611b07
+	PCMPESTRI $7, (R11), X11                // 66450f3a611b07
+	PCMPESTRI $7, X2, X11                   // 66440f3a61da07
+	PCMPESTRI $7, X11, X11                  // 66450f3a61db07
+	PCMPESTRM $7, (BX), X2                  // 660f3a601307
+	PCMPESTRM $7, (R11), X2                 // 66410f3a601307
+	PCMPESTRM $7, X2, X2                    // 660f3a60d207
+	PCMPESTRM $7, X11, X2                   // 66410f3a60d307
+	PCMPESTRM $7, (BX), X11                 // 66440f3a601b07
+	PCMPESTRM $7, (R11), X11                // 66450f3a601b07
+	PCMPESTRM $7, X2, X11                   // 66440f3a60da07
+	PCMPESTRM $7, X11, X11                  // 66450f3a60db07
 	PCMPGTB (BX), M2                        // 0f6413
 	PCMPGTB (R11), M2                       // 410f6413
 	PCMPGTB M2, M2                          // 0f64d2
@@ -3515,14 +3515,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	PCMPGTL (R11), X11                      // 66450f661b
 	PCMPGTL X2, X11                         // 66440f66da
 	PCMPGTL X11, X11                        // 66450f66db
-	//TODO: PCMPGTQ (BX), X2                // 660f383713
-	//TODO: PCMPGTQ (R11), X2               // 66410f383713
-	//TODO: PCMPGTQ X2, X2                  // 660f3837d2
-	//TODO: PCMPGTQ X11, X2                 // 66410f3837d3
-	//TODO: PCMPGTQ (BX), X11               // 66440f38371b
-	//TODO: PCMPGTQ (R11), X11              // 66450f38371b
-	//TODO: PCMPGTQ X2, X11                 // 66440f3837da
-	//TODO: PCMPGTQ X11, X11                // 66450f3837db
+	PCMPGTQ (BX), X2                        // 660f383713
+	PCMPGTQ (R11), X2                       // 66410f383713
+	PCMPGTQ X2, X2                          // 660f3837d2
+	PCMPGTQ X11, X2                         // 66410f3837d3
+	PCMPGTQ (BX), X11                       // 66440f38371b
+	PCMPGTQ (R11), X11                      // 66450f38371b
+	PCMPGTQ X2, X11                         // 66440f3837da
+	PCMPGTQ X11, X11                        // 66450f3837db
 	PCMPGTW (BX), M2                        // 0f6513
 	PCMPGTW (R11), M2                       // 410f6513
 	PCMPGTW M2, M2                          // 0f65d2
@@ -3539,22 +3539,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	PCMPGTW (R11), X11                      // 66450f651b
 	PCMPGTW X2, X11                         // 66440f65da
 	PCMPGTW X11, X11                        // 66450f65db
-	//TODO: PCMPISTRI $7, (BX), X2          // 660f3a631307
-	//TODO: PCMPISTRI $7, (R11), X2         // 66410f3a631307
-	//TODO: PCMPISTRI $7, X2, X2            // 660f3a63d207
-	//TODO: PCMPISTRI $7, X11, X2           // 66410f3a63d307
-	//TODO: PCMPISTRI $7, (BX), X11         // 66440f3a631b07
-	//TODO: PCMPISTRI $7, (R11), X11        // 66450f3a631b07
-	//TODO: PCMPISTRI $7, X2, X11           // 66440f3a63da07
-	//TODO: PCMPISTRI $7, X11, X11          // 66450f3a63db07
-	//TODO: PCMPISTRM $7, (BX), X2          // 660f3a621307
-	//TODO: PCMPISTRM $7, (R11), X2         // 66410f3a621307
-	//TODO: PCMPISTRM $7, X2, X2            // 660f3a62d207
-	//TODO: PCMPISTRM $7, X11, X2           // 66410f3a62d307
-	//TODO: PCMPISTRM $7, (BX), X11         // 66440f3a621b07
-	//TODO: PCMPISTRM $7, (R11), X11        // 66450f3a621b07
-	//TODO: PCMPISTRM $7, X2, X11           // 66440f3a62da07
-	//TODO: PCMPISTRM $7, X11, X11          // 66450f3a62db07
+	PCMPISTRI $7, (BX), X2                  // 660f3a631307
+	PCMPISTRI $7, (R11), X2                 // 66410f3a631307
+	PCMPISTRI $7, X2, X2                    // 660f3a63d207
+	PCMPISTRI $7, X11, X2                   // 66410f3a63d307
+	PCMPISTRI $7, (BX), X11                 // 66440f3a631b07
+	PCMPISTRI $7, (R11), X11                // 66450f3a631b07
+	PCMPISTRI $7, X2, X11                   // 66440f3a63da07
+	PCMPISTRI $7, X11, X11                  // 66450f3a63db07
+	PCMPISTRM $7, (BX), X2                  // 660f3a621307
+	PCMPISTRM $7, (R11), X2                 // 66410f3a621307
+	PCMPISTRM $7, X2, X2                    // 660f3a62d207
+	PCMPISTRM $7, X11, X2                   // 66410f3a62d307
+	PCMPISTRM $7, (BX), X11                 // 66440f3a621b07
+	PCMPISTRM $7, (R11), X11                // 66450f3a621b07
+	PCMPISTRM $7, X2, X11                   // 66440f3a62da07
+	PCMPISTRM $7, X11, X11                  // 66450f3a62db07
 	PDEPL (BX), R9, DX                      // c4e233f513
 	PDEPL (R11), R9, DX                     // c4c233f513
 	PDEPL DX, R9, DX                        // c4e233f5d2
@@ -3647,14 +3647,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PHADDSW (R11), M3               // 410f38031b
 	//TODO: PHADDSW M2, M3                  // 0f3803da
 	//TODO: PHADDSW M3, M3                  // 0f3803db
-	//TODO: PHADDSW (BX), X2                // 660f380313
-	//TODO: PHADDSW (R11), X2               // 66410f380313
-	//TODO: PHADDSW X2, X2                  // 660f3803d2
-	//TODO: PHADDSW X11, X2                 // 66410f3803d3
-	//TODO: PHADDSW (BX), X11               // 66440f38031b
-	//TODO: PHADDSW (R11), X11              // 66450f38031b
-	//TODO: PHADDSW X2, X11                 // 66440f3803da
-	//TODO: PHADDSW X11, X11                // 66450f3803db
+	PHADDSW (BX), X2                        // 660f380313
+	PHADDSW (R11), X2                       // 66410f380313
+	PHADDSW X2, X2                          // 660f3803d2
+	PHADDSW X11, X2                         // 66410f3803d3
+	PHADDSW (BX), X11                       // 66440f38031b
+	PHADDSW (R11), X11                      // 66450f38031b
+	PHADDSW X2, X11                         // 66440f3803da
+	PHADDSW X11, X11                        // 66450f3803db
 	//TODO: PHADDW (BX), M2                 // 0f380113
 	//TODO: PHADDW (R11), M2                // 410f380113
 	//TODO: PHADDW M2, M2                   // 0f3801d2
@@ -3663,22 +3663,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PHADDW (R11), M3                // 410f38011b
 	//TODO: PHADDW M2, M3                   // 0f3801da
 	//TODO: PHADDW M3, M3                   // 0f3801db
-	//TODO: PHADDW (BX), X2                 // 660f380113
-	//TODO: PHADDW (R11), X2                // 66410f380113
-	//TODO: PHADDW X2, X2                   // 660f3801d2
-	//TODO: PHADDW X11, X2                  // 66410f3801d3
-	//TODO: PHADDW (BX), X11                // 66440f38011b
-	//TODO: PHADDW (R11), X11               // 66450f38011b
-	//TODO: PHADDW X2, X11                  // 66440f3801da
-	//TODO: PHADDW X11, X11                 // 66450f3801db
-	//TODO: PHMINPOSUW (BX), X2             // 660f384113
-	//TODO: PHMINPOSUW (R11), X2            // 66410f384113
-	//TODO: PHMINPOSUW X2, X2               // 660f3841d2
-	//TODO: PHMINPOSUW X11, X2              // 66410f3841d3
-	//TODO: PHMINPOSUW (BX), X11            // 66440f38411b
-	//TODO: PHMINPOSUW (R11), X11           // 66450f38411b
-	//TODO: PHMINPOSUW X2, X11              // 66440f3841da
-	//TODO: PHMINPOSUW X11, X11             // 66450f3841db
+	PHADDW (BX), X2                         // 660f380113
+	PHADDW (R11), X2                        // 66410f380113
+	PHADDW X2, X2                           // 660f3801d2
+	PHADDW X11, X2                          // 66410f3801d3
+	PHADDW (BX), X11                        // 66440f38011b
+	PHADDW (R11), X11                       // 66450f38011b
+	PHADDW X2, X11                          // 66440f3801da
+	PHADDW X11, X11                         // 66450f3801db
+	PHMINPOSUW (BX), X2                     // 660f384113
+	PHMINPOSUW (R11), X2                    // 66410f384113
+	PHMINPOSUW X2, X2                       // 660f3841d2
+	PHMINPOSUW X11, X2                      // 66410f3841d3
+	PHMINPOSUW (BX), X11                    // 66440f38411b
+	PHMINPOSUW (R11), X11                   // 66450f38411b
+	PHMINPOSUW X2, X11                      // 66440f3841da
+	PHMINPOSUW X11, X11                     // 66450f3841db
 	//TODO: PHSUBD (BX), M2                 // 0f380613
 	//TODO: PHSUBD (R11), M2                // 410f380613
 	//TODO: PHSUBD M2, M2                   // 0f3806d2
@@ -3687,14 +3687,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PHSUBD (R11), M3                // 410f38061b
 	//TODO: PHSUBD M2, M3                   // 0f3806da
 	//TODO: PHSUBD M3, M3                   // 0f3806db
-	//TODO: PHSUBD (BX), X2                 // 660f380613
-	//TODO: PHSUBD (R11), X2                // 66410f380613
-	//TODO: PHSUBD X2, X2                   // 660f3806d2
-	//TODO: PHSUBD X11, X2                  // 66410f3806d3
-	//TODO: PHSUBD (BX), X11                // 66440f38061b
-	//TODO: PHSUBD (R11), X11               // 66450f38061b
-	//TODO: PHSUBD X2, X11                  // 66440f3806da
-	//TODO: PHSUBD X11, X11                 // 66450f3806db
+	PHSUBD (BX), X2                         // 660f380613
+	PHSUBD (R11), X2                        // 66410f380613
+	PHSUBD X2, X2                           // 660f3806d2
+	PHSUBD X11, X2                          // 66410f3806d3
+	PHSUBD (BX), X11                        // 66440f38061b
+	PHSUBD (R11), X11                       // 66450f38061b
+	PHSUBD X2, X11                          // 66440f3806da
+	PHSUBD X11, X11                         // 66450f3806db
 	//TODO: PHSUBSW (BX), M2                // 0f380713
 	//TODO: PHSUBSW (R11), M2               // 410f380713
 	//TODO: PHSUBSW M2, M2                  // 0f3807d2
@@ -3703,14 +3703,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PHSUBSW (R11), M3               // 410f38071b
 	//TODO: PHSUBSW M2, M3                  // 0f3807da
 	//TODO: PHSUBSW M3, M3                  // 0f3807db
-	//TODO: PHSUBSW (BX), X2                // 660f380713
-	//TODO: PHSUBSW (R11), X2               // 66410f380713
-	//TODO: PHSUBSW X2, X2                  // 660f3807d2
-	//TODO: PHSUBSW X11, X2                 // 66410f3807d3
-	//TODO: PHSUBSW (BX), X11               // 66440f38071b
-	//TODO: PHSUBSW (R11), X11              // 66450f38071b
-	//TODO: PHSUBSW X2, X11                 // 66440f3807da
-	//TODO: PHSUBSW X11, X11                // 66450f3807db
+	PHSUBSW (BX), X2                        // 660f380713
+	PHSUBSW (R11), X2                       // 66410f380713
+	PHSUBSW X2, X2                          // 660f3807d2
+	PHSUBSW X11, X2                         // 66410f3807d3
+	PHSUBSW (BX), X11                       // 66440f38071b
+	PHSUBSW (R11), X11                      // 66450f38071b
+	PHSUBSW X2, X11                         // 66440f3807da
+	PHSUBSW X11, X11                        // 66450f3807db
 	//TODO: PHSUBW (BX), M2                 // 0f380513
 	//TODO: PHSUBW (R11), M2                // 410f380513
 	//TODO: PHSUBW M2, M2                   // 0f3805d2
@@ -3719,14 +3719,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PHSUBW (R11), M3                // 410f38051b
 	//TODO: PHSUBW M2, M3                   // 0f3805da
 	//TODO: PHSUBW M3, M3                   // 0f3805db
-	//TODO: PHSUBW (BX), X2                 // 660f380513
-	//TODO: PHSUBW (R11), X2                // 66410f380513
-	//TODO: PHSUBW X2, X2                   // 660f3805d2
-	//TODO: PHSUBW X11, X2                  // 66410f3805d3
-	//TODO: PHSUBW (BX), X11                // 66440f38051b
-	//TODO: PHSUBW (R11), X11               // 66450f38051b
-	//TODO: PHSUBW X2, X11                  // 66440f3805da
-	//TODO: PHSUBW X11, X11                 // 66450f3805db
+	PHSUBW (BX), X2                         // 660f380513
+	PHSUBW (R11), X2                        // 66410f380513
+	PHSUBW X2, X2                           // 660f3805d2
+	PHSUBW X11, X2                          // 66410f3805d3
+	PHSUBW (BX), X11                        // 66440f38051b
+	PHSUBW (R11), X11                       // 66450f38051b
+	PHSUBW X2, X11                          // 66440f3805da
+	PHSUBW X11, X11                         // 66450f3805db
 	PINSRB $7, (BX), X2                     // 660f3a201307
 	PINSRB $7, (R11), X2                    // 66410f3a201307
 	PINSRB $7, DX, X2                       // 660f3a20d207
@@ -3775,14 +3775,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PMADDUBSW (R11), M3             // 410f38041b
 	//TODO: PMADDUBSW M2, M3                // 0f3804da
 	//TODO: PMADDUBSW M3, M3                // 0f3804db
-	//TODO: PMADDUBSW (BX), X2              // 660f380413
-	//TODO: PMADDUBSW (R11), X2             // 66410f380413
-	//TODO: PMADDUBSW X2, X2                // 660f3804d2
-	//TODO: PMADDUBSW X11, X2               // 66410f3804d3
-	//TODO: PMADDUBSW (BX), X11             // 66440f38041b
-	//TODO: PMADDUBSW (R11), X11            // 66450f38041b
-	//TODO: PMADDUBSW X2, X11               // 66440f3804da
-	//TODO: PMADDUBSW X11, X11              // 66450f3804db
+	PMADDUBSW (BX), X2                      // 660f380413
+	PMADDUBSW (R11), X2                     // 66410f380413
+	PMADDUBSW X2, X2                        // 660f3804d2
+	PMADDUBSW X11, X2                       // 66410f3804d3
+	PMADDUBSW (BX), X11                     // 66440f38041b
+	PMADDUBSW (R11), X11                    // 66450f38041b
+	PMADDUBSW X2, X11                       // 66440f3804da
+	PMADDUBSW X11, X11                      // 66450f3804db
 	PMADDWL (BX), M2                        // 0ff513
 	PMADDWL (R11), M2                       // 410ff513
 	PMADDWL M2, M2                          // 0ff5d2
@@ -3799,22 +3799,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	PMADDWL (R11), X11                      // 66450ff51b
 	PMADDWL X2, X11                         // 66440ff5da
 	PMADDWL X11, X11                        // 66450ff5db
-	//TODO: PMAXSB (BX), X2                 // 660f383c13
-	//TODO: PMAXSB (R11), X2                // 66410f383c13
-	//TODO: PMAXSB X2, X2                   // 660f383cd2
-	//TODO: PMAXSB X11, X2                  // 66410f383cd3
-	//TODO: PMAXSB (BX), X11                // 66440f383c1b
-	//TODO: PMAXSB (R11), X11               // 66450f383c1b
-	//TODO: PMAXSB X2, X11                  // 66440f383cda
-	//TODO: PMAXSB X11, X11                 // 66450f383cdb
-	//TODO: PMAXSD (BX), X2                 // 660f383d13
-	//TODO: PMAXSD (R11), X2                // 66410f383d13
-	//TODO: PMAXSD X2, X2                   // 660f383dd2
-	//TODO: PMAXSD X11, X2                  // 66410f383dd3
-	//TODO: PMAXSD (BX), X11                // 66440f383d1b
-	//TODO: PMAXSD (R11), X11               // 66450f383d1b
-	//TODO: PMAXSD X2, X11                  // 66440f383dda
-	//TODO: PMAXSD X11, X11                 // 66450f383ddb
+	PMAXSB (BX), X2                         // 660f383c13
+	PMAXSB (R11), X2                        // 66410f383c13
+	PMAXSB X2, X2                           // 660f383cd2
+	PMAXSB X11, X2                          // 66410f383cd3
+	PMAXSB (BX), X11                        // 66440f383c1b
+	PMAXSB (R11), X11                       // 66450f383c1b
+	PMAXSB X2, X11                          // 66440f383cda
+	PMAXSB X11, X11                         // 66450f383cdb
+	PMAXSD (BX), X2                         // 660f383d13
+	PMAXSD (R11), X2                        // 66410f383d13
+	PMAXSD X2, X2                           // 660f383dd2
+	PMAXSD X11, X2                          // 66410f383dd3
+	PMAXSD (BX), X11                        // 66440f383d1b
+	PMAXSD (R11), X11                       // 66450f383d1b
+	PMAXSD X2, X11                          // 66440f383dda
+	PMAXSD X11, X11                         // 66450f383ddb
 	//TODO: PMAXSW (BX), M2                 // 0fee13
 	//TODO: PMAXSW (R11), M2                // 410fee13
 	//TODO: PMAXSW M2, M2                   // 0feed2
@@ -3847,38 +3847,38 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	PMAXUB (R11), X11                       // 66450fde1b
 	PMAXUB X2, X11                          // 66440fdeda
 	PMAXUB X11, X11                         // 66450fdedb
-	//TODO: PMAXUD (BX), X2                 // 660f383f13
-	//TODO: PMAXUD (R11), X2                // 66410f383f13
-	//TODO: PMAXUD X2, X2                   // 660f383fd2
-	//TODO: PMAXUD X11, X2                  // 66410f383fd3
-	//TODO: PMAXUD (BX), X11                // 66440f383f1b
-	//TODO: PMAXUD (R11), X11               // 66450f383f1b
-	//TODO: PMAXUD X2, X11                  // 66440f383fda
-	//TODO: PMAXUD X11, X11                 // 66450f383fdb
-	//TODO: PMAXUW (BX), X2                 // 660f383e13
-	//TODO: PMAXUW (R11), X2                // 66410f383e13
-	//TODO: PMAXUW X2, X2                   // 660f383ed2
-	//TODO: PMAXUW X11, X2                  // 66410f383ed3
-	//TODO: PMAXUW (BX), X11                // 66440f383e1b
-	//TODO: PMAXUW (R11), X11               // 66450f383e1b
-	//TODO: PMAXUW X2, X11                  // 66440f383eda
-	//TODO: PMAXUW X11, X11                 // 66450f383edb
-	//TODO: PMINSB (BX), X2                 // 660f383813
-	//TODO: PMINSB (R11), X2                // 66410f383813
-	//TODO: PMINSB X2, X2                   // 660f3838d2
-	//TODO: PMINSB X11, X2                  // 66410f3838d3
-	//TODO: PMINSB (BX), X11                // 66440f38381b
-	//TODO: PMINSB (R11), X11               // 66450f38381b
-	//TODO: PMINSB X2, X11                  // 66440f3838da
-	//TODO: PMINSB X11, X11                 // 66450f3838db
-	//TODO: PMINSD (BX), X2                 // 660f383913
-	//TODO: PMINSD (R11), X2                // 66410f383913
-	//TODO: PMINSD X2, X2                   // 660f3839d2
-	//TODO: PMINSD X11, X2                  // 66410f3839d3
-	//TODO: PMINSD (BX), X11                // 66440f38391b
-	//TODO: PMINSD (R11), X11               // 66450f38391b
-	//TODO: PMINSD X2, X11                  // 66440f3839da
-	//TODO: PMINSD X11, X11                 // 66450f3839db
+	PMAXUD (BX), X2                         // 660f383f13
+	PMAXUD (R11), X2                        // 66410f383f13
+	PMAXUD X2, X2                           // 660f383fd2
+	PMAXUD X11, X2                          // 66410f383fd3
+	PMAXUD (BX), X11                        // 66440f383f1b
+	PMAXUD (R11), X11                       // 66450f383f1b
+	PMAXUD X2, X11                          // 66440f383fda
+	PMAXUD X11, X11                         // 66450f383fdb
+	PMAXUW (BX), X2                         // 660f383e13
+	PMAXUW (R11), X2                        // 66410f383e13
+	PMAXUW X2, X2                           // 660f383ed2
+	PMAXUW X11, X2                          // 66410f383ed3
+	PMAXUW (BX), X11                        // 66440f383e1b
+	PMAXUW (R11), X11                       // 66450f383e1b
+	PMAXUW X2, X11                          // 66440f383eda
+	PMAXUW X11, X11                         // 66450f383edb
+	PMINSB (BX), X2                         // 660f383813
+	PMINSB (R11), X2                        // 66410f383813
+	PMINSB X2, X2                           // 660f3838d2
+	PMINSB X11, X2                          // 66410f3838d3
+	PMINSB (BX), X11                        // 66440f38381b
+	PMINSB (R11), X11                       // 66450f38381b
+	PMINSB X2, X11                          // 66440f3838da
+	PMINSB X11, X11                         // 66450f3838db
+	PMINSD (BX), X2                         // 660f383913
+	PMINSD (R11), X2                        // 66410f383913
+	PMINSD X2, X2                           // 660f3839d2
+	PMINSD X11, X2                          // 66410f3839d3
+	PMINSD (BX), X11                        // 66440f38391b
+	PMINSD (R11), X11                       // 66450f38391b
+	PMINSD X2, X11                          // 66440f3839da
+	PMINSD X11, X11                         // 66450f3839db
 	//TODO: PMINSW (BX), M2                 // 0fea13
 	//TODO: PMINSW (R11), M2                // 410fea13
 	//TODO: PMINSW M2, M2                   // 0fead2
@@ -3911,22 +3911,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	PMINUB (R11), X11                       // 66450fda1b
 	PMINUB X2, X11                          // 66440fdada
 	PMINUB X11, X11                         // 66450fdadb
-	//TODO: PMINUD (BX), X2                 // 660f383b13
-	//TODO: PMINUD (R11), X2                // 66410f383b13
-	//TODO: PMINUD X2, X2                   // 660f383bd2
-	//TODO: PMINUD X11, X2                  // 66410f383bd3
-	//TODO: PMINUD (BX), X11                // 66440f383b1b
-	//TODO: PMINUD (R11), X11               // 66450f383b1b
-	//TODO: PMINUD X2, X11                  // 66440f383bda
-	//TODO: PMINUD X11, X11                 // 66450f383bdb
-	//TODO: PMINUW (BX), X2                 // 660f383a13
-	//TODO: PMINUW (R11), X2                // 66410f383a13
-	//TODO: PMINUW X2, X2                   // 660f383ad2
-	//TODO: PMINUW X11, X2                  // 66410f383ad3
-	//TODO: PMINUW (BX), X11                // 66440f383a1b
-	//TODO: PMINUW (R11), X11               // 66450f383a1b
-	//TODO: PMINUW X2, X11                  // 66440f383ada
-	//TODO: PMINUW X11, X11                 // 66450f383adb
+	PMINUD (BX), X2                         // 660f383b13
+	PMINUD (R11), X2                        // 66410f383b13
+	PMINUD X2, X2                           // 660f383bd2
+	PMINUD X11, X2                          // 66410f383bd3
+	PMINUD (BX), X11                        // 66440f383b1b
+	PMINUD (R11), X11                       // 66450f383b1b
+	PMINUD X2, X11                          // 66440f383bda
+	PMINUD X11, X11                         // 66450f383bdb
+	PMINUW (BX), X2                         // 660f383a13
+	PMINUW (R11), X2                        // 66410f383a13
+	PMINUW X2, X2                           // 660f383ad2
+	PMINUW X11, X2                          // 66410f383ad3
+	PMINUW (BX), X11                        // 66440f383a1b
+	PMINUW (R11), X11                       // 66450f383a1b
+	PMINUW X2, X11                          // 66440f383ada
+	PMINUW X11, X11                         // 66450f383adb
 	PMOVMSKB M2, DX                         // 0fd7d2
 	PMOVMSKB M3, DX                         // 0fd7d3
 	PMOVMSKB M2, R11                        // 440fd7da
@@ -4047,14 +4047,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PMULHRSW (R11), M3              // 410f380b1b
 	//TODO: PMULHRSW M2, M3                 // 0f380bda
 	//TODO: PMULHRSW M3, M3                 // 0f380bdb
-	//TODO: PMULHRSW (BX), X2               // 660f380b13
-	//TODO: PMULHRSW (R11), X2              // 66410f380b13
-	//TODO: PMULHRSW X2, X2                 // 660f380bd2
-	//TODO: PMULHRSW X11, X2                // 66410f380bd3
-	//TODO: PMULHRSW (BX), X11              // 66440f380b1b
-	//TODO: PMULHRSW (R11), X11             // 66450f380b1b
-	//TODO: PMULHRSW X2, X11                // 66440f380bda
-	//TODO: PMULHRSW X11, X11               // 66450f380bdb
+	PMULHRSW (BX), X2                       // 660f380b13
+	PMULHRSW (R11), X2                      // 66410f380b13
+	PMULHRSW X2, X2                         // 660f380bd2
+	PMULHRSW X11, X2                        // 66410f380bd3
+	PMULHRSW (BX), X11                      // 66440f380b1b
+	PMULHRSW (R11), X11                     // 66450f380b1b
+	PMULHRSW X2, X11                        // 66440f380bda
+	PMULHRSW X11, X11                       // 66450f380bdb
 	PMULHUW (BX), M2                        // 0fe413
 	PMULHUW (R11), M2                       // 410fe413
 	PMULHUW M2, M2                          // 0fe4d2
@@ -4283,14 +4283,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PSIGNB (R11), M3                // 410f38081b
 	//TODO: PSIGNB M2, M3                   // 0f3808da
 	//TODO: PSIGNB M3, M3                   // 0f3808db
-	//TODO: PSIGNB (BX), X2                 // 660f380813
-	//TODO: PSIGNB (R11), X2                // 66410f380813
-	//TODO: PSIGNB X2, X2                   // 660f3808d2
-	//TODO: PSIGNB X11, X2                  // 66410f3808d3
-	//TODO: PSIGNB (BX), X11                // 66440f38081b
-	//TODO: PSIGNB (R11), X11               // 66450f38081b
-	//TODO: PSIGNB X2, X11                  // 66440f3808da
-	//TODO: PSIGNB X11, X11                 // 66450f3808db
+	PSIGNB (BX), X2                         // 660f380813
+	PSIGNB (R11), X2                        // 66410f380813
+	PSIGNB X2, X2                           // 660f3808d2
+	PSIGNB X11, X2                          // 66410f3808d3
+	PSIGNB (BX), X11                        // 66440f38081b
+	PSIGNB (R11), X11                       // 66450f38081b
+	PSIGNB X2, X11                          // 66440f3808da
+	PSIGNB X11, X11                         // 66450f3808db
 	//TODO: PSIGND (BX), M2                 // 0f380a13
 	//TODO: PSIGND (R11), M2                // 410f380a13
 	//TODO: PSIGND M2, M2                   // 0f380ad2
@@ -4299,14 +4299,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PSIGND (R11), M3                // 410f380a1b
 	//TODO: PSIGND M2, M3                   // 0f380ada
 	//TODO: PSIGND M3, M3                   // 0f380adb
-	//TODO: PSIGND (BX), X2                 // 660f380a13
-	//TODO: PSIGND (R11), X2                // 66410f380a13
-	//TODO: PSIGND X2, X2                   // 660f380ad2
-	//TODO: PSIGND X11, X2                  // 66410f380ad3
-	//TODO: PSIGND (BX), X11                // 66440f380a1b
-	//TODO: PSIGND (R11), X11               // 66450f380a1b
-	//TODO: PSIGND X2, X11                  // 66440f380ada
-	//TODO: PSIGND X11, X11                 // 66450f380adb
+	PSIGND (BX), X2                         // 660f380a13
+	PSIGND (R11), X2                        // 66410f380a13
+	PSIGND X2, X2                           // 660f380ad2
+	PSIGND X11, X2                          // 66410f380ad3
+	PSIGND (BX), X11                        // 66440f380a1b
+	PSIGND (R11), X11                       // 66450f380a1b
+	PSIGND X2, X11                          // 66440f380ada
+	PSIGND X11, X11                         // 66450f380adb
 	//TODO: PSIGNW (BX), M2                 // 0f380913
 	//TODO: PSIGNW (R11), M2                // 410f380913
 	//TODO: PSIGNW M2, M2                   // 0f3809d2
@@ -4315,14 +4315,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//TODO: PSIGNW (R11), M3                // 410f38091b
 	//TODO: PSIGNW M2, M3                   // 0f3809da
 	//TODO: PSIGNW M3, M3                   // 0f3809db
-	//TODO: PSIGNW (BX), X2                 // 660f380913
-	//TODO: PSIGNW (R11), X2                // 66410f380913
-	//TODO: PSIGNW X2, X2                   // 660f3809d2
-	//TODO: PSIGNW X11, X2                  // 66410f3809d3
-	//TODO: PSIGNW (BX), X11                // 66440f38091b
-	//TODO: PSIGNW (R11), X11               // 66450f38091b
-	//TODO: PSIGNW X2, X11                  // 66440f3809da
-	//TODO: PSIGNW X11, X11                 // 66450f3809db
+	PSIGNW (BX), X2                         // 660f380913
+	PSIGNW (R11), X2                        // 66410f380913
+	PSIGNW X2, X2                           // 660f3809d2
+	PSIGNW X11, X2                          // 66410f3809d3
+	PSIGNW (BX), X11                        // 66440f38091b
+	PSIGNW (R11), X11                       // 66450f38091b
+	PSIGNW X2, X11                          // 66440f3809da
+	PSIGNW X11, X11                         // 66450f3809db
 	PSLLL (BX), M2                          // 0ff213
 	PSLLL (R11), M2                         // 410ff213
 	PSLLL M2, M2                            // 0ff2d2
@@ -4615,14 +4615,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	PSUBW (R11), X11                        // 66450ff91b
 	PSUBW X2, X11                           // 66440ff9da
 	PSUBW X11, X11                          // 66450ff9db
-	//TODO: PTEST (BX), X2                  // 660f381713
-	//TODO: PTEST (R11), X2                 // 66410f381713
-	//TODO: PTEST X2, X2                    // 660f3817d2
-	//TODO: PTEST X11, X2                   // 66410f3817d3
-	//TODO: PTEST (BX), X11                 // 66440f38171b
-	//TODO: PTEST (R11), X11                // 66450f38171b
-	//TODO: PTEST X2, X11                   // 66440f3817da
-	//TODO: PTEST X11, X11                  // 66450f3817db
+	PTEST (BX), X2                          // 660f381713
+	PTEST (R11), X2                         // 66410f381713
+	PTEST X2, X2                            // 660f3817d2
+	PTEST X11, X2                           // 66410f3817d3
+	PTEST (BX), X11                         // 66440f38171b
+	PTEST (R11), X11                        // 66450f38171b
+	PTEST X2, X11                           // 66440f3817da
+	PTEST X11, X11                          // 66450f3817db
 	PUNPCKHBW (BX), M2                      // 0f6813
 	PUNPCKHBW (R11), M2                     // 410f6813
 	PUNPCKHBW M2, M2                        // 0f68d2
@@ -5854,270 +5854,270 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	UNPCKLPS (R11), X11                     // 450f141b
 	UNPCKLPS X2, X11                        // 440f14da
 	UNPCKLPS X11, X11                       // 450f14db
-	//TODO: VADDPD (BX), X9, X2             // c4e1315813 or c5b15813
-	//TODO: VADDPD (R11), X9, X2            // c4c1315813
-	//TODO: VADDPD X2, X9, X2               // c4e13158d2 or c5b158d2
-	//TODO: VADDPD X11, X9, X2              // c4c13158d3
-	//TODO: VADDPD (BX), X9, X11            // c46131581b or c531581b
-	//TODO: VADDPD (R11), X9, X11           // c44131581b
-	//TODO: VADDPD X2, X9, X11              // c4613158da or c53158da
-	//TODO: VADDPD X11, X9, X11             // c4413158db
-	//TODO: VADDPD (BX), Y15, Y2            // c4e1055813 or c5855813
-	//TODO: VADDPD (R11), Y15, Y2           // c4c1055813
-	//TODO: VADDPD Y2, Y15, Y2              // c4e10558d2 or c58558d2
-	//TODO: VADDPD Y11, Y15, Y2             // c4c10558d3
-	//TODO: VADDPD (BX), Y15, Y11           // c46105581b or c505581b
-	//TODO: VADDPD (R11), Y15, Y11          // c44105581b
-	//TODO: VADDPD Y2, Y15, Y11             // c4610558da or c50558da
-	//TODO: VADDPD Y11, Y15, Y11            // c4410558db
-	//TODO: VADDPS (BX), X9, X2             // c4e1305813 or c5b05813
-	//TODO: VADDPS (R11), X9, X2            // c4c1305813
-	//TODO: VADDPS X2, X9, X2               // c4e13058d2 or c5b058d2
-	//TODO: VADDPS X11, X9, X2              // c4c13058d3
-	//TODO: VADDPS (BX), X9, X11            // c46130581b or c530581b
-	//TODO: VADDPS (R11), X9, X11           // c44130581b
-	//TODO: VADDPS X2, X9, X11              // c4613058da or c53058da
-	//TODO: VADDPS X11, X9, X11             // c4413058db
-	//TODO: VADDPS (BX), Y15, Y2            // c4e1045813 or c5845813
-	//TODO: VADDPS (R11), Y15, Y2           // c4c1045813
-	//TODO: VADDPS Y2, Y15, Y2              // c4e10458d2 or c58458d2
-	//TODO: VADDPS Y11, Y15, Y2             // c4c10458d3
-	//TODO: VADDPS (BX), Y15, Y11           // c46104581b or c504581b
-	//TODO: VADDPS (R11), Y15, Y11          // c44104581b
-	//TODO: VADDPS Y2, Y15, Y11             // c4610458da or c50458da
-	//TODO: VADDPS Y11, Y15, Y11            // c4410458db
-	//TODO: VADDSD (BX), X9, X2             // c4e1335813 or c5b35813
-	//TODO: VADDSD (R11), X9, X2            // c4c1335813
-	//TODO: VADDSD X2, X9, X2               // c4e13358d2 or c5b358d2
-	//TODO: VADDSD X11, X9, X2              // c4c13358d3
-	//TODO: VADDSD (BX), X9, X11            // c46133581b or c533581b
-	//TODO: VADDSD (R11), X9, X11           // c44133581b
-	//TODO: VADDSD X2, X9, X11              // c4613358da or c53358da
-	//TODO: VADDSD X11, X9, X11             // c4413358db
-	//TODO: VADDSS (BX), X9, X2             // c4e1325813 or c5b25813
-	//TODO: VADDSS (R11), X9, X2            // c4c1325813
-	//TODO: VADDSS X2, X9, X2               // c4e13258d2 or c5b258d2
-	//TODO: VADDSS X11, X9, X2              // c4c13258d3
-	//TODO: VADDSS (BX), X9, X11            // c46132581b or c532581b
-	//TODO: VADDSS (R11), X9, X11           // c44132581b
-	//TODO: VADDSS X2, X9, X11              // c4613258da or c53258da
-	//TODO: VADDSS X11, X9, X11             // c4413258db
-	//TODO: VADDSUBPD (BX), X9, X2          // c4e131d013 or c5b1d013
-	//TODO: VADDSUBPD (R11), X9, X2         // c4c131d013
-	//TODO: VADDSUBPD X2, X9, X2            // c4e131d0d2 or c5b1d0d2
-	//TODO: VADDSUBPD X11, X9, X2           // c4c131d0d3
-	//TODO: VADDSUBPD (BX), X9, X11         // c46131d01b or c531d01b
-	//TODO: VADDSUBPD (R11), X9, X11        // c44131d01b
-	//TODO: VADDSUBPD X2, X9, X11           // c46131d0da or c531d0da
-	//TODO: VADDSUBPD X11, X9, X11          // c44131d0db
-	//TODO: VADDSUBPD (BX), Y15, Y2         // c4e105d013 or c585d013
-	//TODO: VADDSUBPD (R11), Y15, Y2        // c4c105d013
-	//TODO: VADDSUBPD Y2, Y15, Y2           // c4e105d0d2 or c585d0d2
-	//TODO: VADDSUBPD Y11, Y15, Y2          // c4c105d0d3
-	//TODO: VADDSUBPD (BX), Y15, Y11        // c46105d01b or c505d01b
-	//TODO: VADDSUBPD (R11), Y15, Y11       // c44105d01b
-	//TODO: VADDSUBPD Y2, Y15, Y11          // c46105d0da or c505d0da
-	//TODO: VADDSUBPD Y11, Y15, Y11         // c44105d0db
-	//TODO: VADDSUBPS (BX), X9, X2          // c4e133d013 or c5b3d013
-	//TODO: VADDSUBPS (R11), X9, X2         // c4c133d013
-	//TODO: VADDSUBPS X2, X9, X2            // c4e133d0d2 or c5b3d0d2
-	//TODO: VADDSUBPS X11, X9, X2           // c4c133d0d3
-	//TODO: VADDSUBPS (BX), X9, X11         // c46133d01b or c533d01b
-	//TODO: VADDSUBPS (R11), X9, X11        // c44133d01b
-	//TODO: VADDSUBPS X2, X9, X11           // c46133d0da or c533d0da
-	//TODO: VADDSUBPS X11, X9, X11          // c44133d0db
-	//TODO: VADDSUBPS (BX), Y15, Y2         // c4e107d013 or c587d013
-	//TODO: VADDSUBPS (R11), Y15, Y2        // c4c107d013
-	//TODO: VADDSUBPS Y2, Y15, Y2           // c4e107d0d2 or c587d0d2
-	//TODO: VADDSUBPS Y11, Y15, Y2          // c4c107d0d3
-	//TODO: VADDSUBPS (BX), Y15, Y11        // c46107d01b or c507d01b
-	//TODO: VADDSUBPS (R11), Y15, Y11       // c44107d01b
-	//TODO: VADDSUBPS Y2, Y15, Y11          // c46107d0da or c507d0da
-	//TODO: VADDSUBPS Y11, Y15, Y11         // c44107d0db
-	//TODO: VAESDEC (BX), X9, X2            // c4e231de13
-	//TODO: VAESDEC (R11), X9, X2           // c4c231de13
-	//TODO: VAESDEC X2, X9, X2              // c4e231ded2
-	//TODO: VAESDEC X11, X9, X2             // c4c231ded3
-	//TODO: VAESDEC (BX), X9, X11           // c46231de1b
-	//TODO: VAESDEC (R11), X9, X11          // c44231de1b
-	//TODO: VAESDEC X2, X9, X11             // c46231deda
-	//TODO: VAESDEC X11, X9, X11            // c44231dedb
-	//TODO: VAESDECLAST (BX), X9, X2        // c4e231df13
-	//TODO: VAESDECLAST (R11), X9, X2       // c4c231df13
-	//TODO: VAESDECLAST X2, X9, X2          // c4e231dfd2
-	//TODO: VAESDECLAST X11, X9, X2         // c4c231dfd3
-	//TODO: VAESDECLAST (BX), X9, X11       // c46231df1b
-	//TODO: VAESDECLAST (R11), X9, X11      // c44231df1b
-	//TODO: VAESDECLAST X2, X9, X11         // c46231dfda
-	//TODO: VAESDECLAST X11, X9, X11        // c44231dfdb
-	//TODO: VAESENC (BX), X9, X2            // c4e231dc13
-	//TODO: VAESENC (R11), X9, X2           // c4c231dc13
-	//TODO: VAESENC X2, X9, X2              // c4e231dcd2
-	//TODO: VAESENC X11, X9, X2             // c4c231dcd3
-	//TODO: VAESENC (BX), X9, X11           // c46231dc1b
-	//TODO: VAESENC (R11), X9, X11          // c44231dc1b
-	//TODO: VAESENC X2, X9, X11             // c46231dcda
-	//TODO: VAESENC X11, X9, X11            // c44231dcdb
-	//TODO: VAESENCLAST (BX), X9, X2        // c4e231dd13
-	//TODO: VAESENCLAST (R11), X9, X2       // c4c231dd13
-	//TODO: VAESENCLAST X2, X9, X2          // c4e231ddd2
-	//TODO: VAESENCLAST X11, X9, X2         // c4c231ddd3
-	//TODO: VAESENCLAST (BX), X9, X11       // c46231dd1b
-	//TODO: VAESENCLAST (R11), X9, X11      // c44231dd1b
-	//TODO: VAESENCLAST X2, X9, X11         // c46231ddda
-	//TODO: VAESENCLAST X11, X9, X11        // c44231dddb
-	//TODO: VAESIMC (BX), X2                // c4e279db13
-	//TODO: VAESIMC (R11), X2               // c4c279db13
-	//TODO: VAESIMC X2, X2                  // c4e279dbd2
-	//TODO: VAESIMC X11, X2                 // c4c279dbd3
-	//TODO: VAESIMC (BX), X11               // c46279db1b
-	//TODO: VAESIMC (R11), X11              // c44279db1b
-	//TODO: VAESIMC X2, X11                 // c46279dbda
-	//TODO: VAESIMC X11, X11                // c44279dbdb
-	//TODO: VAESKEYGENASSIST $7, (BX), X2   // c4e379df1307
-	//TODO: VAESKEYGENASSIST $7, (R11), X2  // c4c379df1307
-	//TODO: VAESKEYGENASSIST $7, X2, X2     // c4e379dfd207
-	//TODO: VAESKEYGENASSIST $7, X11, X2    // c4c379dfd307
-	//TODO: VAESKEYGENASSIST $7, (BX), X11  // c46379df1b07
-	//TODO: VAESKEYGENASSIST $7, (R11), X11 // c44379df1b07
-	//TODO: VAESKEYGENASSIST $7, X2, X11    // c46379dfda07
-	//TODO: VAESKEYGENASSIST $7, X11, X11   // c44379dfdb07
-	//TODO: VANDNPD (BX), X9, X2            // c4e1315513 or c5b15513
-	//TODO: VANDNPD (R11), X9, X2           // c4c1315513
-	//TODO: VANDNPD X2, X9, X2              // c4e13155d2 or c5b155d2
-	//TODO: VANDNPD X11, X9, X2             // c4c13155d3
-	//TODO: VANDNPD (BX), X9, X11           // c46131551b or c531551b
-	//TODO: VANDNPD (R11), X9, X11          // c44131551b
-	//TODO: VANDNPD X2, X9, X11             // c4613155da or c53155da
-	//TODO: VANDNPD X11, X9, X11            // c4413155db
-	//TODO: VANDNPD (BX), Y15, Y2           // c4e1055513 or c5855513
-	//TODO: VANDNPD (R11), Y15, Y2          // c4c1055513
-	//TODO: VANDNPD Y2, Y15, Y2             // c4e10555d2 or c58555d2
-	//TODO: VANDNPD Y11, Y15, Y2            // c4c10555d3
-	//TODO: VANDNPD (BX), Y15, Y11          // c46105551b or c505551b
-	//TODO: VANDNPD (R11), Y15, Y11         // c44105551b
-	//TODO: VANDNPD Y2, Y15, Y11            // c4610555da or c50555da
-	//TODO: VANDNPD Y11, Y15, Y11           // c4410555db
-	//TODO: VANDNPS (BX), X9, X2            // c4e1305513 or c5b05513
-	//TODO: VANDNPS (R11), X9, X2           // c4c1305513
-	//TODO: VANDNPS X2, X9, X2              // c4e13055d2 or c5b055d2
-	//TODO: VANDNPS X11, X9, X2             // c4c13055d3
-	//TODO: VANDNPS (BX), X9, X11           // c46130551b or c530551b
-	//TODO: VANDNPS (R11), X9, X11          // c44130551b
-	//TODO: VANDNPS X2, X9, X11             // c4613055da or c53055da
-	//TODO: VANDNPS X11, X9, X11            // c4413055db
-	//TODO: VANDNPS (BX), Y15, Y2           // c4e1045513 or c5845513
-	//TODO: VANDNPS (R11), Y15, Y2          // c4c1045513
-	//TODO: VANDNPS Y2, Y15, Y2             // c4e10455d2 or c58455d2
-	//TODO: VANDNPS Y11, Y15, Y2            // c4c10455d3
-	//TODO: VANDNPS (BX), Y15, Y11          // c46104551b or c504551b
-	//TODO: VANDNPS (R11), Y15, Y11         // c44104551b
-	//TODO: VANDNPS Y2, Y15, Y11            // c4610455da or c50455da
-	//TODO: VANDNPS Y11, Y15, Y11           // c4410455db
-	//TODO: VANDPD (BX), X9, X2             // c4e1315413 or c5b15413
-	//TODO: VANDPD (R11), X9, X2            // c4c1315413
-	//TODO: VANDPD X2, X9, X2               // c4e13154d2 or c5b154d2
-	//TODO: VANDPD X11, X9, X2              // c4c13154d3
-	//TODO: VANDPD (BX), X9, X11            // c46131541b or c531541b
-	//TODO: VANDPD (R11), X9, X11           // c44131541b
-	//TODO: VANDPD X2, X9, X11              // c4613154da or c53154da
-	//TODO: VANDPD X11, X9, X11             // c4413154db
-	//TODO: VANDPD (BX), Y15, Y2            // c4e1055413 or c5855413
-	//TODO: VANDPD (R11), Y15, Y2           // c4c1055413
-	//TODO: VANDPD Y2, Y15, Y2              // c4e10554d2 or c58554d2
-	//TODO: VANDPD Y11, Y15, Y2             // c4c10554d3
-	//TODO: VANDPD (BX), Y15, Y11           // c46105541b or c505541b
-	//TODO: VANDPD (R11), Y15, Y11          // c44105541b
-	//TODO: VANDPD Y2, Y15, Y11             // c4610554da or c50554da
-	//TODO: VANDPD Y11, Y15, Y11            // c4410554db
-	//TODO: VANDPS (BX), X9, X2             // c4e1305413 or c5b05413
-	//TODO: VANDPS (R11), X9, X2            // c4c1305413
-	//TODO: VANDPS X2, X9, X2               // c4e13054d2 or c5b054d2
-	//TODO: VANDPS X11, X9, X2              // c4c13054d3
-	//TODO: VANDPS (BX), X9, X11            // c46130541b or c530541b
-	//TODO: VANDPS (R11), X9, X11           // c44130541b
-	//TODO: VANDPS X2, X9, X11              // c4613054da or c53054da
-	//TODO: VANDPS X11, X9, X11             // c4413054db
-	//TODO: VANDPS (BX), Y15, Y2            // c4e1045413 or c5845413
-	//TODO: VANDPS (R11), Y15, Y2           // c4c1045413
-	//TODO: VANDPS Y2, Y15, Y2              // c4e10454d2 or c58454d2
-	//TODO: VANDPS Y11, Y15, Y2             // c4c10454d3
-	//TODO: VANDPS (BX), Y15, Y11           // c46104541b or c504541b
-	//TODO: VANDPS (R11), Y15, Y11          // c44104541b
-	//TODO: VANDPS Y2, Y15, Y11             // c4610454da or c50454da
-	//TODO: VANDPS Y11, Y15, Y11            // c4410454db
-	//TODO: VBLENDPD $7, (BX), X9, X2       // c4e3310d1307
-	//TODO: VBLENDPD $7, (R11), X9, X2      // c4c3310d1307
-	//TODO: VBLENDPD $7, X2, X9, X2         // c4e3310dd207
-	//TODO: VBLENDPD $7, X11, X9, X2        // c4c3310dd307
-	//TODO: VBLENDPD $7, (BX), X9, X11      // c463310d1b07
-	//TODO: VBLENDPD $7, (R11), X9, X11     // c443310d1b07
-	//TODO: VBLENDPD $7, X2, X9, X11        // c463310dda07
-	//TODO: VBLENDPD $7, X11, X9, X11       // c443310ddb07
-	//TODO: VBLENDPD $7, (BX), Y15, Y2      // c4e3050d1307
-	//TODO: VBLENDPD $7, (R11), Y15, Y2     // c4c3050d1307
-	//TODO: VBLENDPD $7, Y2, Y15, Y2        // c4e3050dd207
-	//TODO: VBLENDPD $7, Y11, Y15, Y2       // c4c3050dd307
-	//TODO: VBLENDPD $7, (BX), Y15, Y11     // c463050d1b07
-	//TODO: VBLENDPD $7, (R11), Y15, Y11    // c443050d1b07
-	//TODO: VBLENDPD $7, Y2, Y15, Y11       // c463050dda07
-	//TODO: VBLENDPD $7, Y11, Y15, Y11      // c443050ddb07
-	//TODO: VBLENDPS $7, (BX), X9, X2       // c4e3310c1307
-	//TODO: VBLENDPS $7, (R11), X9, X2      // c4c3310c1307
-	//TODO: VBLENDPS $7, X2, X9, X2         // c4e3310cd207
-	//TODO: VBLENDPS $7, X11, X9, X2        // c4c3310cd307
-	//TODO: VBLENDPS $7, (BX), X9, X11      // c463310c1b07
-	//TODO: VBLENDPS $7, (R11), X9, X11     // c443310c1b07
-	//TODO: VBLENDPS $7, X2, X9, X11        // c463310cda07
-	//TODO: VBLENDPS $7, X11, X9, X11       // c443310cdb07
-	//TODO: VBLENDPS $7, (BX), Y15, Y2      // c4e3050c1307
-	//TODO: VBLENDPS $7, (R11), Y15, Y2     // c4c3050c1307
-	//TODO: VBLENDPS $7, Y2, Y15, Y2        // c4e3050cd207
-	//TODO: VBLENDPS $7, Y11, Y15, Y2       // c4c3050cd307
-	//TODO: VBLENDPS $7, (BX), Y15, Y11     // c463050c1b07
-	//TODO: VBLENDPS $7, (R11), Y15, Y11    // c443050c1b07
-	//TODO: VBLENDPS $7, Y2, Y15, Y11       // c463050cda07
-	//TODO: VBLENDPS $7, Y11, Y15, Y11      // c443050cdb07
-	//TODO: VBLENDVPD XMM12, (BX), X9, X2   // c4e3314b13c0
-	//TODO: VBLENDVPD XMM12, (R11), X9, X2  // c4c3314b13c0
-	//TODO: VBLENDVPD XMM12, X2, X9, X2     // c4e3314bd2c0
-	//TODO: VBLENDVPD XMM12, X11, X9, X2    // c4c3314bd3c0
-	//TODO: VBLENDVPD XMM12, (BX), X9, X11  // c463314b1bc0
-	//TODO: VBLENDVPD XMM12, (R11), X9, X11 // c443314b1bc0
-	//TODO: VBLENDVPD XMM12, X2, X9, X11    // c463314bdac0
-	//TODO: VBLENDVPD XMM12, X11, X9, X11   // c443314bdbc0
-	//TODO: VBLENDVPD YMM13, (BX), Y15, Y2  // c4e3054b13d0
-	//TODO: VBLENDVPD YMM13, (R11), Y15, Y2 // c4c3054b13d0
-	//TODO: VBLENDVPD YMM13, Y2, Y15, Y2    // c4e3054bd2d0
-	//TODO: VBLENDVPD YMM13, Y11, Y15, Y2   // c4c3054bd3d0
-	//TODO: VBLENDVPD YMM13, (BX), Y15, Y11 // c463054b1bd0
-	//TODO: VBLENDVPD YMM13, (R11), Y15, Y11 // c443054b1bd0
-	//TODO: VBLENDVPD YMM13, Y2, Y15, Y11   // c463054bdad0
-	//TODO: VBLENDVPD YMM13, Y11, Y15, Y11  // c443054bdbd0
-	//TODO: VBLENDVPS XMM12, (BX), X9, X2   // c4e3314a13c0
-	//TODO: VBLENDVPS XMM12, (R11), X9, X2  // c4c3314a13c0
-	//TODO: VBLENDVPS XMM12, X2, X9, X2     // c4e3314ad2c0
-	//TODO: VBLENDVPS XMM12, X11, X9, X2    // c4c3314ad3c0
-	//TODO: VBLENDVPS XMM12, (BX), X9, X11  // c463314a1bc0
-	//TODO: VBLENDVPS XMM12, (R11), X9, X11 // c443314a1bc0
-	//TODO: VBLENDVPS XMM12, X2, X9, X11    // c463314adac0
-	//TODO: VBLENDVPS XMM12, X11, X9, X11   // c443314adbc0
-	//TODO: VBLENDVPS YMM13, (BX), Y15, Y2  // c4e3054a13d0
-	//TODO: VBLENDVPS YMM13, (R11), Y15, Y2 // c4c3054a13d0
-	//TODO: VBLENDVPS YMM13, Y2, Y15, Y2    // c4e3054ad2d0
-	//TODO: VBLENDVPS YMM13, Y11, Y15, Y2   // c4c3054ad3d0
-	//TODO: VBLENDVPS YMM13, (BX), Y15, Y11 // c463054a1bd0
-	//TODO: VBLENDVPS YMM13, (R11), Y15, Y11 // c443054a1bd0
-	//TODO: VBLENDVPS YMM13, Y2, Y15, Y11   // c463054adad0
-	//TODO: VBLENDVPS YMM13, Y11, Y15, Y11  // c443054adbd0
-	//TODO: VBROADCASTF128 (BX), Y2         // c4e27d1a13
-	//TODO: VBROADCASTF128 (R11), Y2        // c4c27d1a13
-	//TODO: VBROADCASTF128 (BX), Y11        // c4627d1a1b
-	//TODO: VBROADCASTF128 (R11), Y11       // c4427d1a1b
-	//TODO: VBROADCASTI128 (BX), Y2         // c4e27d5a13
-	//TODO: VBROADCASTI128 (R11), Y2        // c4c27d5a13
-	//TODO: VBROADCASTI128 (BX), Y11        // c4627d5a1b
-	//TODO: VBROADCASTI128 (R11), Y11       // c4427d5a1b
+	VADDPD (BX), X9, X2                     // c4e1315813 or c5b15813
+	VADDPD (R11), X9, X2                    // c4c1315813
+	VADDPD X2, X9, X2                       // c4e13158d2 or c5b158d2
+	VADDPD X11, X9, X2                      // c4c13158d3
+	VADDPD (BX), X9, X11                    // c46131581b or c531581b
+	VADDPD (R11), X9, X11                   // c44131581b
+	VADDPD X2, X9, X11                      // c4613158da or c53158da
+	VADDPD X11, X9, X11                     // c4413158db
+	VADDPD (BX), Y15, Y2                    // c4e1055813 or c5855813
+	VADDPD (R11), Y15, Y2                   // c4c1055813
+	VADDPD Y2, Y15, Y2                      // c4e10558d2 or c58558d2
+	VADDPD Y11, Y15, Y2                     // c4c10558d3
+	VADDPD (BX), Y15, Y11                   // c46105581b or c505581b
+	VADDPD (R11), Y15, Y11                  // c44105581b
+	VADDPD Y2, Y15, Y11                     // c4610558da or c50558da
+	VADDPD Y11, Y15, Y11                    // c4410558db
+	VADDPS (BX), X9, X2                     // c4e1305813 or c5b05813
+	VADDPS (R11), X9, X2                    // c4c1305813
+	VADDPS X2, X9, X2                       // c4e13058d2 or c5b058d2
+	VADDPS X11, X9, X2                      // c4c13058d3
+	VADDPS (BX), X9, X11                    // c46130581b or c530581b
+	VADDPS (R11), X9, X11                   // c44130581b
+	VADDPS X2, X9, X11                      // c4613058da or c53058da
+	VADDPS X11, X9, X11                     // c4413058db
+	VADDPS (BX), Y15, Y2                    // c4e1045813 or c5845813
+	VADDPS (R11), Y15, Y2                   // c4c1045813
+	VADDPS Y2, Y15, Y2                      // c4e10458d2 or c58458d2
+	VADDPS Y11, Y15, Y2                     // c4c10458d3
+	VADDPS (BX), Y15, Y11                   // c46104581b or c504581b
+	VADDPS (R11), Y15, Y11                  // c44104581b
+	VADDPS Y2, Y15, Y11                     // c4610458da or c50458da
+	VADDPS Y11, Y15, Y11                    // c4410458db
+	VADDSD (BX), X9, X2                     // c4e1335813 or c5b35813
+	VADDSD (R11), X9, X2                    // c4c1335813
+	VADDSD X2, X9, X2                       // c4e13358d2 or c5b358d2
+	VADDSD X11, X9, X2                      // c4c13358d3
+	VADDSD (BX), X9, X11                    // c46133581b or c533581b
+	VADDSD (R11), X9, X11                   // c44133581b
+	VADDSD X2, X9, X11                      // c4613358da or c53358da
+	VADDSD X11, X9, X11                     // c4413358db
+	VADDSS (BX), X9, X2                     // c4e1325813 or c5b25813
+	VADDSS (R11), X9, X2                    // c4c1325813
+	VADDSS X2, X9, X2                       // c4e13258d2 or c5b258d2
+	VADDSS X11, X9, X2                      // c4c13258d3
+	VADDSS (BX), X9, X11                    // c46132581b or c532581b
+	VADDSS (R11), X9, X11                   // c44132581b
+	VADDSS X2, X9, X11                      // c4613258da or c53258da
+	VADDSS X11, X9, X11                     // c4413258db
+	VADDSUBPD (BX), X9, X2                  // c4e131d013 or c5b1d013
+	VADDSUBPD (R11), X9, X2                 // c4c131d013
+	VADDSUBPD X2, X9, X2                    // c4e131d0d2 or c5b1d0d2
+	VADDSUBPD X11, X9, X2                   // c4c131d0d3
+	VADDSUBPD (BX), X9, X11                 // c46131d01b or c531d01b
+	VADDSUBPD (R11), X9, X11                // c44131d01b
+	VADDSUBPD X2, X9, X11                   // c46131d0da or c531d0da
+	VADDSUBPD X11, X9, X11                  // c44131d0db
+	VADDSUBPD (BX), Y15, Y2                 // c4e105d013 or c585d013
+	VADDSUBPD (R11), Y15, Y2                // c4c105d013
+	VADDSUBPD Y2, Y15, Y2                   // c4e105d0d2 or c585d0d2
+	VADDSUBPD Y11, Y15, Y2                  // c4c105d0d3
+	VADDSUBPD (BX), Y15, Y11                // c46105d01b or c505d01b
+	VADDSUBPD (R11), Y15, Y11               // c44105d01b
+	VADDSUBPD Y2, Y15, Y11                  // c46105d0da or c505d0da
+	VADDSUBPD Y11, Y15, Y11                 // c44105d0db
+	VADDSUBPS (BX), X9, X2                  // c4e133d013 or c5b3d013
+	VADDSUBPS (R11), X9, X2                 // c4c133d013
+	VADDSUBPS X2, X9, X2                    // c4e133d0d2 or c5b3d0d2
+	VADDSUBPS X11, X9, X2                   // c4c133d0d3
+	VADDSUBPS (BX), X9, X11                 // c46133d01b or c533d01b
+	VADDSUBPS (R11), X9, X11                // c44133d01b
+	VADDSUBPS X2, X9, X11                   // c46133d0da or c533d0da
+	VADDSUBPS X11, X9, X11                  // c44133d0db
+	VADDSUBPS (BX), Y15, Y2                 // c4e107d013 or c587d013
+	VADDSUBPS (R11), Y15, Y2                // c4c107d013
+	VADDSUBPS Y2, Y15, Y2                   // c4e107d0d2 or c587d0d2
+	VADDSUBPS Y11, Y15, Y2                  // c4c107d0d3
+	VADDSUBPS (BX), Y15, Y11                // c46107d01b or c507d01b
+	VADDSUBPS (R11), Y15, Y11               // c44107d01b
+	VADDSUBPS Y2, Y15, Y11                  // c46107d0da or c507d0da
+	VADDSUBPS Y11, Y15, Y11                 // c44107d0db
+	VAESDEC (BX), X9, X2                    // c4e231de13
+	VAESDEC (R11), X9, X2                   // c4c231de13
+	VAESDEC X2, X9, X2                      // c4e231ded2
+	VAESDEC X11, X9, X2                     // c4c231ded3
+	VAESDEC (BX), X9, X11                   // c46231de1b
+	VAESDEC (R11), X9, X11                  // c44231de1b
+	VAESDEC X2, X9, X11                     // c46231deda
+	VAESDEC X11, X9, X11                    // c44231dedb
+	VAESDECLAST (BX), X9, X2                // c4e231df13
+	VAESDECLAST (R11), X9, X2               // c4c231df13
+	VAESDECLAST X2, X9, X2                  // c4e231dfd2
+	VAESDECLAST X11, X9, X2                 // c4c231dfd3
+	VAESDECLAST (BX), X9, X11               // c46231df1b
+	VAESDECLAST (R11), X9, X11              // c44231df1b
+	VAESDECLAST X2, X9, X11                 // c46231dfda
+	VAESDECLAST X11, X9, X11                // c44231dfdb
+	VAESENC (BX), X9, X2                    // c4e231dc13
+	VAESENC (R11), X9, X2                   // c4c231dc13
+	VAESENC X2, X9, X2                      // c4e231dcd2
+	VAESENC X11, X9, X2                     // c4c231dcd3
+	VAESENC (BX), X9, X11                   // c46231dc1b
+	VAESENC (R11), X9, X11                  // c44231dc1b
+	VAESENC X2, X9, X11                     // c46231dcda
+	VAESENC X11, X9, X11                    // c44231dcdb
+	VAESENCLAST (BX), X9, X2                // c4e231dd13
+	VAESENCLAST (R11), X9, X2               // c4c231dd13
+	VAESENCLAST X2, X9, X2                  // c4e231ddd2
+	VAESENCLAST X11, X9, X2                 // c4c231ddd3
+	VAESENCLAST (BX), X9, X11               // c46231dd1b
+	VAESENCLAST (R11), X9, X11              // c44231dd1b
+	VAESENCLAST X2, X9, X11                 // c46231ddda
+	VAESENCLAST X11, X9, X11                // c44231dddb
+	VAESIMC (BX), X2                        // c4e279db13
+	VAESIMC (R11), X2                       // c4c279db13
+	VAESIMC X2, X2                          // c4e279dbd2
+	VAESIMC X11, X2                         // c4c279dbd3
+	VAESIMC (BX), X11                       // c46279db1b
+	VAESIMC (R11), X11                      // c44279db1b
+	VAESIMC X2, X11                         // c46279dbda
+	VAESIMC X11, X11                        // c44279dbdb
+	VAESKEYGENASSIST $7, (BX), X2           // c4e379df1307
+	VAESKEYGENASSIST $7, (R11), X2          // c4c379df1307
+	VAESKEYGENASSIST $7, X2, X2             // c4e379dfd207
+	VAESKEYGENASSIST $7, X11, X2            // c4c379dfd307
+	VAESKEYGENASSIST $7, (BX), X11          // c46379df1b07
+	VAESKEYGENASSIST $7, (R11), X11         // c44379df1b07
+	VAESKEYGENASSIST $7, X2, X11            // c46379dfda07
+	VAESKEYGENASSIST $7, X11, X11           // c44379dfdb07
+	VANDNPD (BX), X9, X2                    // c4e1315513 or c5b15513
+	VANDNPD (R11), X9, X2                   // c4c1315513
+	VANDNPD X2, X9, X2                      // c4e13155d2 or c5b155d2
+	VANDNPD X11, X9, X2                     // c4c13155d3
+	VANDNPD (BX), X9, X11                   // c46131551b or c531551b
+	VANDNPD (R11), X9, X11                  // c44131551b
+	VANDNPD X2, X9, X11                     // c4613155da or c53155da
+	VANDNPD X11, X9, X11                    // c4413155db
+	VANDNPD (BX), Y15, Y2                   // c4e1055513 or c5855513
+	VANDNPD (R11), Y15, Y2                  // c4c1055513
+	VANDNPD Y2, Y15, Y2                     // c4e10555d2 or c58555d2
+	VANDNPD Y11, Y15, Y2                    // c4c10555d3
+	VANDNPD (BX), Y15, Y11                  // c46105551b or c505551b
+	VANDNPD (R11), Y15, Y11                 // c44105551b
+	VANDNPD Y2, Y15, Y11                    // c4610555da or c50555da
+	VANDNPD Y11, Y15, Y11                   // c4410555db
+	VANDNPS (BX), X9, X2                    // c4e1305513 or c5b05513
+	VANDNPS (R11), X9, X2                   // c4c1305513
+	VANDNPS X2, X9, X2                      // c4e13055d2 or c5b055d2
+	VANDNPS X11, X9, X2                     // c4c13055d3
+	VANDNPS (BX), X9, X11                   // c46130551b or c530551b
+	VANDNPS (R11), X9, X11                  // c44130551b
+	VANDNPS X2, X9, X11                     // c4613055da or c53055da
+	VANDNPS X11, X9, X11                    // c4413055db
+	VANDNPS (BX), Y15, Y2                   // c4e1045513 or c5845513
+	VANDNPS (R11), Y15, Y2                  // c4c1045513
+	VANDNPS Y2, Y15, Y2                     // c4e10455d2 or c58455d2
+	VANDNPS Y11, Y15, Y2                    // c4c10455d3
+	VANDNPS (BX), Y15, Y11                  // c46104551b or c504551b
+	VANDNPS (R11), Y15, Y11                 // c44104551b
+	VANDNPS Y2, Y15, Y11                    // c4610455da or c50455da
+	VANDNPS Y11, Y15, Y11                   // c4410455db
+	VANDPD (BX), X9, X2                     // c4e1315413 or c5b15413
+	VANDPD (R11), X9, X2                    // c4c1315413
+	VANDPD X2, X9, X2                       // c4e13154d2 or c5b154d2
+	VANDPD X11, X9, X2                      // c4c13154d3
+	VANDPD (BX), X9, X11                    // c46131541b or c531541b
+	VANDPD (R11), X9, X11                   // c44131541b
+	VANDPD X2, X9, X11                      // c4613154da or c53154da
+	VANDPD X11, X9, X11                     // c4413154db
+	VANDPD (BX), Y15, Y2                    // c4e1055413 or c5855413
+	VANDPD (R11), Y15, Y2                   // c4c1055413
+	VANDPD Y2, Y15, Y2                      // c4e10554d2 or c58554d2
+	VANDPD Y11, Y15, Y2                     // c4c10554d3
+	VANDPD (BX), Y15, Y11                   // c46105541b or c505541b
+	VANDPD (R11), Y15, Y11                  // c44105541b
+	VANDPD Y2, Y15, Y11                     // c4610554da or c50554da
+	VANDPD Y11, Y15, Y11                    // c4410554db
+	VANDPS (BX), X9, X2                     // c4e1305413 or c5b05413
+	VANDPS (R11), X9, X2                    // c4c1305413
+	VANDPS X2, X9, X2                       // c4e13054d2 or c5b054d2
+	VANDPS X11, X9, X2                      // c4c13054d3
+	VANDPS (BX), X9, X11                    // c46130541b or c530541b
+	VANDPS (R11), X9, X11                   // c44130541b
+	VANDPS X2, X9, X11                      // c4613054da or c53054da
+	VANDPS X11, X9, X11                     // c4413054db
+	VANDPS (BX), Y15, Y2                    // c4e1045413 or c5845413
+	VANDPS (R11), Y15, Y2                   // c4c1045413
+	VANDPS Y2, Y15, Y2                      // c4e10454d2 or c58454d2
+	VANDPS Y11, Y15, Y2                     // c4c10454d3
+	VANDPS (BX), Y15, Y11                   // c46104541b or c504541b
+	VANDPS (R11), Y15, Y11                  // c44104541b
+	VANDPS Y2, Y15, Y11                     // c4610454da or c50454da
+	VANDPS Y11, Y15, Y11                    // c4410454db
+	VBLENDPD $7, (BX), X9, X2               // c4e3310d1307
+	VBLENDPD $7, (R11), X9, X2              // c4c3310d1307
+	VBLENDPD $7, X2, X9, X2                 // c4e3310dd207
+	VBLENDPD $7, X11, X9, X2                // c4c3310dd307
+	VBLENDPD $7, (BX), X9, X11              // c463310d1b07
+	VBLENDPD $7, (R11), X9, X11             // c443310d1b07
+	VBLENDPD $7, X2, X9, X11                // c463310dda07
+	VBLENDPD $7, X11, X9, X11               // c443310ddb07
+	VBLENDPD $7, (BX), Y15, Y2              // c4e3050d1307
+	VBLENDPD $7, (R11), Y15, Y2             // c4c3050d1307
+	VBLENDPD $7, Y2, Y15, Y2                // c4e3050dd207
+	VBLENDPD $7, Y11, Y15, Y2               // c4c3050dd307
+	VBLENDPD $7, (BX), Y15, Y11             // c463050d1b07
+	VBLENDPD $7, (R11), Y15, Y11            // c443050d1b07
+	VBLENDPD $7, Y2, Y15, Y11               // c463050dda07
+	VBLENDPD $7, Y11, Y15, Y11              // c443050ddb07
+	VBLENDPS $7, (BX), X9, X2               // c4e3310c1307
+	VBLENDPS $7, (R11), X9, X2              // c4c3310c1307
+	VBLENDPS $7, X2, X9, X2                 // c4e3310cd207
+	VBLENDPS $7, X11, X9, X2                // c4c3310cd307
+	VBLENDPS $7, (BX), X9, X11              // c463310c1b07
+	VBLENDPS $7, (R11), X9, X11             // c443310c1b07
+	VBLENDPS $7, X2, X9, X11                // c463310cda07
+	VBLENDPS $7, X11, X9, X11               // c443310cdb07
+	VBLENDPS $7, (BX), Y15, Y2              // c4e3050c1307
+	VBLENDPS $7, (R11), Y15, Y2             // c4c3050c1307
+	VBLENDPS $7, Y2, Y15, Y2                // c4e3050cd207
+	VBLENDPS $7, Y11, Y15, Y2               // c4c3050cd307
+	VBLENDPS $7, (BX), Y15, Y11             // c463050c1b07
+	VBLENDPS $7, (R11), Y15, Y11            // c443050c1b07
+	VBLENDPS $7, Y2, Y15, Y11               // c463050cda07
+	VBLENDPS $7, Y11, Y15, Y11              // c443050cdb07
+	VBLENDVPD X12, (BX), X9, X2             // c4e3314b13c0
+	VBLENDVPD X12, (R11), X9, X2            // c4c3314b13c0
+	VBLENDVPD X12, X2, X9, X2               // c4e3314bd2c0
+	VBLENDVPD X12, X11, X9, X2              // c4c3314bd3c0
+	VBLENDVPD X12, (BX), X9, X11            // c463314b1bc0
+	VBLENDVPD X12, (R11), X9, X11           // c443314b1bc0
+	VBLENDVPD X12, X2, X9, X11              // c463314bdac0
+	VBLENDVPD X12, X11, X9, X11             // c443314bdbc0
+	VBLENDVPD Y13, (BX), Y15, Y2            // c4e3054b13d0
+	VBLENDVPD Y13, (R11), Y15, Y2           // c4c3054b13d0
+	VBLENDVPD Y13, Y2, Y15, Y2              // c4e3054bd2d0
+	VBLENDVPD Y13, Y11, Y15, Y2             // c4c3054bd3d0
+	VBLENDVPD Y13, (BX), Y15, Y11           // c463054b1bd0
+	VBLENDVPD Y13, (R11), Y15, Y11          // c443054b1bd0
+	VBLENDVPD Y13, Y2, Y15, Y11             // c463054bdad0
+	VBLENDVPD Y13, Y11, Y15, Y11            // c443054bdbd0
+	VBLENDVPS X12, (BX), X9, X2             // c4e3314a13c0
+	VBLENDVPS X12, (R11), X9, X2            // c4c3314a13c0
+	VBLENDVPS X12, X2, X9, X2               // c4e3314ad2c0
+	VBLENDVPS X12, X11, X9, X2              // c4c3314ad3c0
+	VBLENDVPS X12, (BX), X9, X11            // c463314a1bc0
+	VBLENDVPS X12, (R11), X9, X11           // c443314a1bc0
+	VBLENDVPS X12, X2, X9, X11              // c463314adac0
+	VBLENDVPS X12, X11, X9, X11             // c443314adbc0
+	VBLENDVPS Y13, (BX), Y15, Y2            // c4e3054a13d0
+	VBLENDVPS Y13, (R11), Y15, Y2           // c4c3054a13d0
+	VBLENDVPS Y13, Y2, Y15, Y2              // c4e3054ad2d0
+	VBLENDVPS Y13, Y11, Y15, Y2             // c4c3054ad3d0
+	VBLENDVPS Y13, (BX), Y15, Y11           // c463054a1bd0
+	VBLENDVPS Y13, (R11), Y15, Y11          // c443054a1bd0
+	VBLENDVPS Y13, Y2, Y15, Y11             // c463054adad0
+	VBLENDVPS Y13, Y11, Y15, Y11            // c443054adbd0
+	VBROADCASTF128 (BX), Y2                 // c4e27d1a13
+	VBROADCASTF128 (R11), Y2                // c4c27d1a13
+	VBROADCASTF128 (BX), Y11                // c4627d1a1b
+	VBROADCASTF128 (R11), Y11               // c4427d1a1b
+	VBROADCASTI128 (BX), Y2                 // c4e27d5a13
+	VBROADCASTI128 (R11), Y2                // c4c27d5a13
+	VBROADCASTI128 (BX), Y11                // c4627d5a1b
+	VBROADCASTI128 (R11), Y11               // c4427d5a1b
 	VBROADCASTSD (BX), Y2                   // c4e27d1913
 	VBROADCASTSD (R11), Y2                  // c4c27d1913
 	VBROADCASTSD (BX), Y11                  // c4627d191b
@@ -6142,414 +6142,414 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VBROADCASTSS X11, Y2                    // c4c27d18d3
 	VBROADCASTSS X2, Y11                    // c4627d18da
 	VBROADCASTSS X11, Y11                   // c4427d18db
-	//TODO: VCMPPD $7, (BX), X9, X2         // c4e131c21307 or c5b1c21307
-	//TODO: VCMPPD $7, (R11), X9, X2        // c4c131c21307
-	//TODO: VCMPPD $7, X2, X9, X2           // c4e131c2d207 or c5b1c2d207
-	//TODO: VCMPPD $7, X11, X9, X2          // c4c131c2d307
-	//TODO: VCMPPD $7, (BX), X9, X11        // c46131c21b07 or c531c21b07
-	//TODO: VCMPPD $7, (R11), X9, X11       // c44131c21b07
-	//TODO: VCMPPD $7, X2, X9, X11          // c46131c2da07 or c531c2da07
-	//TODO: VCMPPD $7, X11, X9, X11         // c44131c2db07
-	//TODO: VCMPPD $7, (BX), Y15, Y2        // c4e105c21307 or c585c21307
-	//TODO: VCMPPD $7, (R11), Y15, Y2       // c4c105c21307
-	//TODO: VCMPPD $7, Y2, Y15, Y2          // c4e105c2d207 or c585c2d207
-	//TODO: VCMPPD $7, Y11, Y15, Y2         // c4c105c2d307
-	//TODO: VCMPPD $7, (BX), Y15, Y11       // c46105c21b07 or c505c21b07
-	//TODO: VCMPPD $7, (R11), Y15, Y11      // c44105c21b07
-	//TODO: VCMPPD $7, Y2, Y15, Y11         // c46105c2da07 or c505c2da07
-	//TODO: VCMPPD $7, Y11, Y15, Y11        // c44105c2db07
-	//TODO: VCMPPS $7, (BX), X9, X2         // c4e130c21307 or c5b0c21307
-	//TODO: VCMPPS $7, (R11), X9, X2        // c4c130c21307
-	//TODO: VCMPPS $7, X2, X9, X2           // c4e130c2d207 or c5b0c2d207
-	//TODO: VCMPPS $7, X11, X9, X2          // c4c130c2d307
-	//TODO: VCMPPS $7, (BX), X9, X11        // c46130c21b07 or c530c21b07
-	//TODO: VCMPPS $7, (R11), X9, X11       // c44130c21b07
-	//TODO: VCMPPS $7, X2, X9, X11          // c46130c2da07 or c530c2da07
-	//TODO: VCMPPS $7, X11, X9, X11         // c44130c2db07
-	//TODO: VCMPPS $7, (BX), Y15, Y2        // c4e104c21307 or c584c21307
-	//TODO: VCMPPS $7, (R11), Y15, Y2       // c4c104c21307
-	//TODO: VCMPPS $7, Y2, Y15, Y2          // c4e104c2d207 or c584c2d207
-	//TODO: VCMPPS $7, Y11, Y15, Y2         // c4c104c2d307
-	//TODO: VCMPPS $7, (BX), Y15, Y11       // c46104c21b07 or c504c21b07
-	//TODO: VCMPPS $7, (R11), Y15, Y11      // c44104c21b07
-	//TODO: VCMPPS $7, Y2, Y15, Y11         // c46104c2da07 or c504c2da07
-	//TODO: VCMPPS $7, Y11, Y15, Y11        // c44104c2db07
-	//TODO: VCMPSD $7, (BX), X9, X2         // c4e133c21307 or c5b3c21307
-	//TODO: VCMPSD $7, (R11), X9, X2        // c4c133c21307
-	//TODO: VCMPSD $7, X2, X9, X2           // c4e133c2d207 or c5b3c2d207
-	//TODO: VCMPSD $7, X11, X9, X2          // c4c133c2d307
-	//TODO: VCMPSD $7, (BX), X9, X11        // c46133c21b07 or c533c21b07
-	//TODO: VCMPSD $7, (R11), X9, X11       // c44133c21b07
-	//TODO: VCMPSD $7, X2, X9, X11          // c46133c2da07 or c533c2da07
-	//TODO: VCMPSD $7, X11, X9, X11         // c44133c2db07
-	//TODO: VCMPSS $7, (BX), X9, X2         // c4e132c21307 or c5b2c21307
-	//TODO: VCMPSS $7, (R11), X9, X2        // c4c132c21307
-	//TODO: VCMPSS $7, X2, X9, X2           // c4e132c2d207 or c5b2c2d207
-	//TODO: VCMPSS $7, X11, X9, X2          // c4c132c2d307
-	//TODO: VCMPSS $7, (BX), X9, X11        // c46132c21b07 or c532c21b07
-	//TODO: VCMPSS $7, (R11), X9, X11       // c44132c21b07
-	//TODO: VCMPSS $7, X2, X9, X11          // c46132c2da07 or c532c2da07
-	//TODO: VCMPSS $7, X11, X9, X11         // c44132c2db07
-	//TODO: VCOMISD (BX), X2                // c4e1792f13 or c5f92f13
-	//TODO: VCOMISD (R11), X2               // c4c1792f13
-	//TODO: VCOMISD X2, X2                  // c4e1792fd2 or c5f92fd2
-	//TODO: VCOMISD X11, X2                 // c4c1792fd3
-	//TODO: VCOMISD (BX), X11               // c461792f1b or c5792f1b
-	//TODO: VCOMISD (R11), X11              // c441792f1b
-	//TODO: VCOMISD X2, X11                 // c461792fda or c5792fda
-	//TODO: VCOMISD X11, X11                // c441792fdb
-	//TODO: VCOMISS (BX), X2                // c4e1782f13 or c5f82f13
-	//TODO: VCOMISS (R11), X2               // c4c1782f13
-	//TODO: VCOMISS X2, X2                  // c4e1782fd2 or c5f82fd2
-	//TODO: VCOMISS X11, X2                 // c4c1782fd3
-	//TODO: VCOMISS (BX), X11               // c461782f1b or c5782f1b
-	//TODO: VCOMISS (R11), X11              // c441782f1b
-	//TODO: VCOMISS X2, X11                 // c461782fda or c5782fda
-	//TODO: VCOMISS X11, X11                // c441782fdb
-	//TODO: VCVTDQ2PD (BX), X2              // c4e17ae613 or c5fae613
-	//TODO: VCVTDQ2PD (R11), X2             // c4c17ae613
-	//TODO: VCVTDQ2PD X2, X2                // c4e17ae6d2 or c5fae6d2
-	//TODO: VCVTDQ2PD X11, X2               // c4c17ae6d3
-	//TODO: VCVTDQ2PD (BX), X11             // c4617ae61b or c57ae61b
-	//TODO: VCVTDQ2PD (R11), X11            // c4417ae61b
-	//TODO: VCVTDQ2PD X2, X11               // c4617ae6da or c57ae6da
-	//TODO: VCVTDQ2PD X11, X11              // c4417ae6db
-	//TODO: VCVTDQ2PD (BX), Y2              // c4e17ee613 or c5fee613
-	//TODO: VCVTDQ2PD (R11), Y2             // c4c17ee613
-	//TODO: VCVTDQ2PD X2, Y2                // c4e17ee6d2 or c5fee6d2
-	//TODO: VCVTDQ2PD X11, Y2               // c4c17ee6d3
-	//TODO: VCVTDQ2PD (BX), Y11             // c4617ee61b or c57ee61b
-	//TODO: VCVTDQ2PD (R11), Y11            // c4417ee61b
-	//TODO: VCVTDQ2PD X2, Y11               // c4617ee6da or c57ee6da
-	//TODO: VCVTDQ2PD X11, Y11              // c4417ee6db
-	//TODO: VCVTDQ2PS (BX), X2              // c4e1785b13 or c5f85b13
-	//TODO: VCVTDQ2PS (R11), X2             // c4c1785b13
-	//TODO: VCVTDQ2PS X2, X2                // c4e1785bd2 or c5f85bd2
-	//TODO: VCVTDQ2PS X11, X2               // c4c1785bd3
-	//TODO: VCVTDQ2PS (BX), X11             // c461785b1b or c5785b1b
-	//TODO: VCVTDQ2PS (R11), X11            // c441785b1b
-	//TODO: VCVTDQ2PS X2, X11               // c461785bda or c5785bda
-	//TODO: VCVTDQ2PS X11, X11              // c441785bdb
-	//TODO: VCVTDQ2PS (BX), Y2              // c4e17c5b13 or c5fc5b13
-	//TODO: VCVTDQ2PS (R11), Y2             // c4c17c5b13
-	//TODO: VCVTDQ2PS Y2, Y2                // c4e17c5bd2 or c5fc5bd2
-	//TODO: VCVTDQ2PS Y11, Y2               // c4c17c5bd3
-	//TODO: VCVTDQ2PS (BX), Y11             // c4617c5b1b or c57c5b1b
-	//TODO: VCVTDQ2PS (R11), Y11            // c4417c5b1b
-	//TODO: VCVTDQ2PS Y2, Y11               // c4617c5bda or c57c5bda
-	//TODO: VCVTDQ2PS Y11, Y11              // c4417c5bdb
-	//TODO: VCVTPD2DQX (BX), X2             // c4e17be613 or c5fbe613
-	//TODO: VCVTPD2DQX (R11), X2            // c4c17be613
-	//TODO: VCVTPD2DQX X2, X2               // c4e17be6d2 or c5fbe6d2
-	//TODO: VCVTPD2DQX X11, X2              // c4c17be6d3
-	//TODO: VCVTPD2DQX (BX), X11            // c4617be61b or c57be61b
-	//TODO: VCVTPD2DQX (R11), X11           // c4417be61b
-	//TODO: VCVTPD2DQX X2, X11              // c4617be6da or c57be6da
-	//TODO: VCVTPD2DQX X11, X11             // c4417be6db
-	//TODO: VCVTPD2DQY (BX), X2             // c4e17fe613 or c5ffe613
-	//TODO: VCVTPD2DQY (R11), X2            // c4c17fe613
-	//TODO: VCVTPD2DQY Y2, X2               // c4e17fe6d2 or c5ffe6d2
-	//TODO: VCVTPD2DQY Y11, X2              // c4c17fe6d3
-	//TODO: VCVTPD2DQY (BX), X11            // c4617fe61b or c57fe61b
-	//TODO: VCVTPD2DQY (R11), X11           // c4417fe61b
-	//TODO: VCVTPD2DQY Y2, X11              // c4617fe6da or c57fe6da
-	//TODO: VCVTPD2DQY Y11, X11             // c4417fe6db
-	//TODO: VCVTPD2PSX (BX), X2             // c4e1795a13 or c5f95a13
-	//TODO: VCVTPD2PSX (R11), X2            // c4c1795a13
-	//TODO: VCVTPD2PSX X2, X2               // c4e1795ad2 or c5f95ad2
-	//TODO: VCVTPD2PSX X11, X2              // c4c1795ad3
-	//TODO: VCVTPD2PSX (BX), X11            // c461795a1b or c5795a1b
-	//TODO: VCVTPD2PSX (R11), X11           // c441795a1b
-	//TODO: VCVTPD2PSX X2, X11              // c461795ada or c5795ada
-	//TODO: VCVTPD2PSX X11, X11             // c441795adb
-	//TODO: VCVTPD2PSY (BX), X2             // c4e17d5a13 or c5fd5a13
-	//TODO: VCVTPD2PSY (R11), X2            // c4c17d5a13
-	//TODO: VCVTPD2PSY Y2, X2               // c4e17d5ad2 or c5fd5ad2
-	//TODO: VCVTPD2PSY Y11, X2              // c4c17d5ad3
-	//TODO: VCVTPD2PSY (BX), X11            // c4617d5a1b or c57d5a1b
-	//TODO: VCVTPD2PSY (R11), X11           // c4417d5a1b
-	//TODO: VCVTPD2PSY Y2, X11              // c4617d5ada or c57d5ada
-	//TODO: VCVTPD2PSY Y11, X11             // c4417d5adb
-	//TODO: VCVTPH2PS (BX), X2              // c4e2791313
-	//TODO: VCVTPH2PS (R11), X2             // c4c2791313
-	//TODO: VCVTPH2PS X2, X2                // c4e27913d2
-	//TODO: VCVTPH2PS X11, X2               // c4c27913d3
-	//TODO: VCVTPH2PS (BX), X11             // c46279131b
-	//TODO: VCVTPH2PS (R11), X11            // c44279131b
-	//TODO: VCVTPH2PS X2, X11               // c4627913da
-	//TODO: VCVTPH2PS X11, X11              // c4427913db
-	//TODO: VCVTPH2PS (BX), Y2              // c4e27d1313
-	//TODO: VCVTPH2PS (R11), Y2             // c4c27d1313
-	//TODO: VCVTPH2PS X2, Y2                // c4e27d13d2
-	//TODO: VCVTPH2PS X11, Y2               // c4c27d13d3
-	//TODO: VCVTPH2PS (BX), Y11             // c4627d131b
-	//TODO: VCVTPH2PS (R11), Y11            // c4427d131b
-	//TODO: VCVTPH2PS X2, Y11               // c4627d13da
-	//TODO: VCVTPH2PS X11, Y11              // c4427d13db
-	//TODO: VCVTPS2DQ (BX), X2              // c4e1795b13 or c5f95b13
-	//TODO: VCVTPS2DQ (R11), X2             // c4c1795b13
-	//TODO: VCVTPS2DQ X2, X2                // c4e1795bd2 or c5f95bd2
-	//TODO: VCVTPS2DQ X11, X2               // c4c1795bd3
-	//TODO: VCVTPS2DQ (BX), X11             // c461795b1b or c5795b1b
-	//TODO: VCVTPS2DQ (R11), X11            // c441795b1b
-	//TODO: VCVTPS2DQ X2, X11               // c461795bda or c5795bda
-	//TODO: VCVTPS2DQ X11, X11              // c441795bdb
-	//TODO: VCVTPS2DQ (BX), Y2              // c4e17d5b13 or c5fd5b13
-	//TODO: VCVTPS2DQ (R11), Y2             // c4c17d5b13
-	//TODO: VCVTPS2DQ Y2, Y2                // c4e17d5bd2 or c5fd5bd2
-	//TODO: VCVTPS2DQ Y11, Y2               // c4c17d5bd3
-	//TODO: VCVTPS2DQ (BX), Y11             // c4617d5b1b or c57d5b1b
-	//TODO: VCVTPS2DQ (R11), Y11            // c4417d5b1b
-	//TODO: VCVTPS2DQ Y2, Y11               // c4617d5bda or c57d5bda
-	//TODO: VCVTPS2DQ Y11, Y11              // c4417d5bdb
-	//TODO: VCVTPS2PD (BX), X2              // c4e1785a13 or c5f85a13
-	//TODO: VCVTPS2PD (R11), X2             // c4c1785a13
-	//TODO: VCVTPS2PD X2, X2                // c4e1785ad2 or c5f85ad2
-	//TODO: VCVTPS2PD X11, X2               // c4c1785ad3
-	//TODO: VCVTPS2PD (BX), X11             // c461785a1b or c5785a1b
-	//TODO: VCVTPS2PD (R11), X11            // c441785a1b
-	//TODO: VCVTPS2PD X2, X11               // c461785ada or c5785ada
-	//TODO: VCVTPS2PD X11, X11              // c441785adb
-	//TODO: VCVTPS2PD (BX), Y2              // c4e17c5a13 or c5fc5a13
-	//TODO: VCVTPS2PD (R11), Y2             // c4c17c5a13
-	//TODO: VCVTPS2PD X2, Y2                // c4e17c5ad2 or c5fc5ad2
-	//TODO: VCVTPS2PD X11, Y2               // c4c17c5ad3
-	//TODO: VCVTPS2PD (BX), Y11             // c4617c5a1b or c57c5a1b
-	//TODO: VCVTPS2PD (R11), Y11            // c4417c5a1b
-	//TODO: VCVTPS2PD X2, Y11               // c4617c5ada or c57c5ada
-	//TODO: VCVTPS2PD X11, Y11              // c4417c5adb
-	//TODO: VCVTPS2PH $7, Y2, (BX)          // c4e37d1d1307
-	//TODO: VCVTPS2PH $7, Y11, (BX)         // c4637d1d1b07
-	//TODO: VCVTPS2PH $7, Y2, (R11)         // c4c37d1d1307
-	//TODO: VCVTPS2PH $7, Y11, (R11)        // c4437d1d1b07
-	//TODO: VCVTPS2PH $7, Y2, X2            // c4e37d1dd207
-	//TODO: VCVTPS2PH $7, Y11, X2           // c4637d1dda07
-	//TODO: VCVTPS2PH $7, Y2, X11           // c4c37d1dd307
-	//TODO: VCVTPS2PH $7, Y11, X11          // c4437d1ddb07
-	//TODO: VCVTPS2PH $7, X2, (BX)          // c4e3791d1307
-	//TODO: VCVTPS2PH $7, X11, (BX)         // c463791d1b07
-	//TODO: VCVTPS2PH $7, X2, (R11)         // c4c3791d1307
-	//TODO: VCVTPS2PH $7, X11, (R11)        // c443791d1b07
-	//TODO: VCVTPS2PH $7, X2, X2            // c4e3791dd207
-	//TODO: VCVTPS2PH $7, X11, X2           // c463791dda07
-	//TODO: VCVTPS2PH $7, X2, X11           // c4c3791dd307
-	//TODO: VCVTPS2PH $7, X11, X11          // c443791ddb07
-	//TODO: VCVTSD2SI (BX), DX              // c4e17b2d13 or c5fb2d13
-	//TODO: VCVTSD2SI (R11), DX             // c4c17b2d13
-	//TODO: VCVTSD2SI X2, DX                // c4e17b2dd2 or c5fb2dd2
-	//TODO: VCVTSD2SI X11, DX               // c4c17b2dd3
-	//TODO: VCVTSD2SI (BX), R11             // c4617b2d1b or c57b2d1b
-	//TODO: VCVTSD2SI (R11), R11            // c4417b2d1b
-	//TODO: VCVTSD2SI X2, R11               // c4617b2dda or c57b2dda
-	//TODO: VCVTSD2SI X11, R11              // c4417b2ddb
-	//TODO: VCVTSD2SIQ (BX), DX             // c4e1fb2d13
-	//TODO: VCVTSD2SIQ (R11), DX            // c4c1fb2d13
-	//TODO: VCVTSD2SIQ X2, DX               // c4e1fb2dd2
-	//TODO: VCVTSD2SIQ X11, DX              // c4c1fb2dd3
-	//TODO: VCVTSD2SIQ (BX), R11            // c461fb2d1b
-	//TODO: VCVTSD2SIQ (R11), R11           // c441fb2d1b
-	//TODO: VCVTSD2SIQ X2, R11              // c461fb2dda
-	//TODO: VCVTSD2SIQ X11, R11             // c441fb2ddb
-	//TODO: VCVTSD2SS (BX), X9, X2          // c4e1335a13 or c5b35a13
-	//TODO: VCVTSD2SS (R11), X9, X2         // c4c1335a13
-	//TODO: VCVTSD2SS X2, X9, X2            // c4e1335ad2 or c5b35ad2
-	//TODO: VCVTSD2SS X11, X9, X2           // c4c1335ad3
-	//TODO: VCVTSD2SS (BX), X9, X11         // c461335a1b or c5335a1b
-	//TODO: VCVTSD2SS (R11), X9, X11        // c441335a1b
-	//TODO: VCVTSD2SS X2, X9, X11           // c461335ada or c5335ada
-	//TODO: VCVTSD2SS X11, X9, X11          // c441335adb
-	//TODO: VCVTSI2SDL (BX), X9, X2         // c4e1332a13 or c5b32a13
-	//TODO: VCVTSI2SDL (R11), X9, X2        // c4c1332a13
-	//TODO: VCVTSI2SDL DX, X9, X2           // c4e1332ad2 or c5b32ad2
-	//TODO: VCVTSI2SDL R11, X9, X2          // c4c1332ad3
-	//TODO: VCVTSI2SDL (BX), X9, X11        // c461332a1b or c5332a1b
-	//TODO: VCVTSI2SDL (R11), X9, X11       // c441332a1b
-	//TODO: VCVTSI2SDL DX, X9, X11          // c461332ada or c5332ada
-	//TODO: VCVTSI2SDL R11, X9, X11         // c441332adb
-	//TODO: VCVTSI2SDQ (BX), X9, X2         // c4e1b32a13
-	//TODO: VCVTSI2SDQ (R11), X9, X2        // c4c1b32a13
-	//TODO: VCVTSI2SDQ DX, X9, X2           // c4e1b32ad2
-	//TODO: VCVTSI2SDQ R11, X9, X2          // c4c1b32ad3
-	//TODO: VCVTSI2SDQ (BX), X9, X11        // c461b32a1b
-	//TODO: VCVTSI2SDQ (R11), X9, X11       // c441b32a1b
-	//TODO: VCVTSI2SDQ DX, X9, X11          // c461b32ada
-	//TODO: VCVTSI2SDQ R11, X9, X11         // c441b32adb
-	//TODO: VCVTSI2SSL (BX), X9, X2         // c4e1322a13 or c5b22a13
-	//TODO: VCVTSI2SSL (R11), X9, X2        // c4c1322a13
-	//TODO: VCVTSI2SSL DX, X9, X2           // c4e1322ad2 or c5b22ad2
-	//TODO: VCVTSI2SSL R11, X9, X2          // c4c1322ad3
-	//TODO: VCVTSI2SSL (BX), X9, X11        // c461322a1b or c5322a1b
-	//TODO: VCVTSI2SSL (R11), X9, X11       // c441322a1b
-	//TODO: VCVTSI2SSL DX, X9, X11          // c461322ada or c5322ada
-	//TODO: VCVTSI2SSL R11, X9, X11         // c441322adb
-	//TODO: VCVTSI2SSQ (BX), X9, X2         // c4e1b22a13
-	//TODO: VCVTSI2SSQ (R11), X9, X2        // c4c1b22a13
-	//TODO: VCVTSI2SSQ DX, X9, X2           // c4e1b22ad2
-	//TODO: VCVTSI2SSQ R11, X9, X2          // c4c1b22ad3
-	//TODO: VCVTSI2SSQ (BX), X9, X11        // c461b22a1b
-	//TODO: VCVTSI2SSQ (R11), X9, X11       // c441b22a1b
-	//TODO: VCVTSI2SSQ DX, X9, X11          // c461b22ada
-	//TODO: VCVTSI2SSQ R11, X9, X11         // c441b22adb
-	//TODO: VCVTSS2SD (BX), X9, X2          // c4e1325a13 or c5b25a13
-	//TODO: VCVTSS2SD (R11), X9, X2         // c4c1325a13
-	//TODO: VCVTSS2SD X2, X9, X2            // c4e1325ad2 or c5b25ad2
-	//TODO: VCVTSS2SD X11, X9, X2           // c4c1325ad3
-	//TODO: VCVTSS2SD (BX), X9, X11         // c461325a1b or c5325a1b
-	//TODO: VCVTSS2SD (R11), X9, X11        // c441325a1b
-	//TODO: VCVTSS2SD X2, X9, X11           // c461325ada or c5325ada
-	//TODO: VCVTSS2SD X11, X9, X11          // c441325adb
-	//TODO: VCVTSS2SI (BX), DX              // c4e17a2d13 or c5fa2d13
-	//TODO: VCVTSS2SI (R11), DX             // c4c17a2d13
-	//TODO: VCVTSS2SI X2, DX                // c4e17a2dd2 or c5fa2dd2
-	//TODO: VCVTSS2SI X11, DX               // c4c17a2dd3
-	//TODO: VCVTSS2SI (BX), R11             // c4617a2d1b or c57a2d1b
-	//TODO: VCVTSS2SI (R11), R11            // c4417a2d1b
-	//TODO: VCVTSS2SI X2, R11               // c4617a2dda or c57a2dda
-	//TODO: VCVTSS2SI X11, R11              // c4417a2ddb
-	//TODO: VCVTSS2SIQ (BX), DX             // c4e1fa2d13
-	//TODO: VCVTSS2SIQ (R11), DX            // c4c1fa2d13
-	//TODO: VCVTSS2SIQ X2, DX               // c4e1fa2dd2
-	//TODO: VCVTSS2SIQ X11, DX              // c4c1fa2dd3
-	//TODO: VCVTSS2SIQ (BX), R11            // c461fa2d1b
-	//TODO: VCVTSS2SIQ (R11), R11           // c441fa2d1b
-	//TODO: VCVTSS2SIQ X2, R11              // c461fa2dda
-	//TODO: VCVTSS2SIQ X11, R11             // c441fa2ddb
-	//TODO: VCVTTPD2DQX (BX), X2            // c4e179e613 or c5f9e613
-	//TODO: VCVTTPD2DQX (R11), X2           // c4c179e613
-	//TODO: VCVTTPD2DQX X2, X2              // c4e179e6d2 or c5f9e6d2
-	//TODO: VCVTTPD2DQX X11, X2             // c4c179e6d3
-	//TODO: VCVTTPD2DQX (BX), X11           // c46179e61b or c579e61b
-	//TODO: VCVTTPD2DQX (R11), X11          // c44179e61b
-	//TODO: VCVTTPD2DQX X2, X11             // c46179e6da or c579e6da
-	//TODO: VCVTTPD2DQX X11, X11            // c44179e6db
-	//TODO: VCVTTPD2DQY (BX), X2            // c4e17de613 or c5fde613
-	//TODO: VCVTTPD2DQY (R11), X2           // c4c17de613
-	//TODO: VCVTTPD2DQY Y2, X2              // c4e17de6d2 or c5fde6d2
-	//TODO: VCVTTPD2DQY Y11, X2             // c4c17de6d3
-	//TODO: VCVTTPD2DQY (BX), X11           // c4617de61b or c57de61b
-	//TODO: VCVTTPD2DQY (R11), X11          // c4417de61b
-	//TODO: VCVTTPD2DQY Y2, X11             // c4617de6da or c57de6da
-	//TODO: VCVTTPD2DQY Y11, X11            // c4417de6db
-	//TODO: VCVTTPS2DQ (BX), X2             // c4e17a5b13 or c5fa5b13
-	//TODO: VCVTTPS2DQ (R11), X2            // c4c17a5b13
-	//TODO: VCVTTPS2DQ X2, X2               // c4e17a5bd2 or c5fa5bd2
-	//TODO: VCVTTPS2DQ X11, X2              // c4c17a5bd3
-	//TODO: VCVTTPS2DQ (BX), X11            // c4617a5b1b or c57a5b1b
-	//TODO: VCVTTPS2DQ (R11), X11           // c4417a5b1b
-	//TODO: VCVTTPS2DQ X2, X11              // c4617a5bda or c57a5bda
-	//TODO: VCVTTPS2DQ X11, X11             // c4417a5bdb
-	//TODO: VCVTTPS2DQ (BX), Y2             // c4e17e5b13 or c5fe5b13
-	//TODO: VCVTTPS2DQ (R11), Y2            // c4c17e5b13
-	//TODO: VCVTTPS2DQ Y2, Y2               // c4e17e5bd2 or c5fe5bd2
-	//TODO: VCVTTPS2DQ Y11, Y2              // c4c17e5bd3
-	//TODO: VCVTTPS2DQ (BX), Y11            // c4617e5b1b or c57e5b1b
-	//TODO: VCVTTPS2DQ (R11), Y11           // c4417e5b1b
-	//TODO: VCVTTPS2DQ Y2, Y11              // c4617e5bda or c57e5bda
-	//TODO: VCVTTPS2DQ Y11, Y11             // c4417e5bdb
-	//TODO: VCVTTSD2SI (BX), DX             // c4e17b2c13 or c5fb2c13
-	//TODO: VCVTTSD2SI (R11), DX            // c4c17b2c13
-	//TODO: VCVTTSD2SI X2, DX               // c4e17b2cd2 or c5fb2cd2
-	//TODO: VCVTTSD2SI X11, DX              // c4c17b2cd3
-	//TODO: VCVTTSD2SI (BX), R11            // c4617b2c1b or c57b2c1b
-	//TODO: VCVTTSD2SI (R11), R11           // c4417b2c1b
-	//TODO: VCVTTSD2SI X2, R11              // c4617b2cda or c57b2cda
-	//TODO: VCVTTSD2SI X11, R11             // c4417b2cdb
-	//TODO: VCVTTSD2SIQ (BX), DX            // c4e1fb2c13
-	//TODO: VCVTTSD2SIQ (R11), DX           // c4c1fb2c13
-	//TODO: VCVTTSD2SIQ X2, DX              // c4e1fb2cd2
-	//TODO: VCVTTSD2SIQ X11, DX             // c4c1fb2cd3
-	//TODO: VCVTTSD2SIQ (BX), R11           // c461fb2c1b
-	//TODO: VCVTTSD2SIQ (R11), R11          // c441fb2c1b
-	//TODO: VCVTTSD2SIQ X2, R11             // c461fb2cda
-	//TODO: VCVTTSD2SIQ X11, R11            // c441fb2cdb
-	//TODO: VCVTTSS2SI (BX), DX             // c4e17a2c13 or c5fa2c13
-	//TODO: VCVTTSS2SI (R11), DX            // c4c17a2c13
-	//TODO: VCVTTSS2SI X2, DX               // c4e17a2cd2 or c5fa2cd2
-	//TODO: VCVTTSS2SI X11, DX              // c4c17a2cd3
-	//TODO: VCVTTSS2SI (BX), R11            // c4617a2c1b or c57a2c1b
-	//TODO: VCVTTSS2SI (R11), R11           // c4417a2c1b
-	//TODO: VCVTTSS2SI X2, R11              // c4617a2cda or c57a2cda
-	//TODO: VCVTTSS2SI X11, R11             // c4417a2cdb
-	//TODO: VCVTTSS2SIQ (BX), DX            // c4e1fa2c13
-	//TODO: VCVTTSS2SIQ (R11), DX           // c4c1fa2c13
-	//TODO: VCVTTSS2SIQ X2, DX              // c4e1fa2cd2
-	//TODO: VCVTTSS2SIQ X11, DX             // c4c1fa2cd3
-	//TODO: VCVTTSS2SIQ (BX), R11           // c461fa2c1b
-	//TODO: VCVTTSS2SIQ (R11), R11          // c441fa2c1b
-	//TODO: VCVTTSS2SIQ X2, R11             // c461fa2cda
-	//TODO: VCVTTSS2SIQ X11, R11            // c441fa2cdb
-	//TODO: VDIVPD (BX), X9, X2             // c4e1315e13 or c5b15e13
-	//TODO: VDIVPD (R11), X9, X2            // c4c1315e13
-	//TODO: VDIVPD X2, X9, X2               // c4e1315ed2 or c5b15ed2
-	//TODO: VDIVPD X11, X9, X2              // c4c1315ed3
-	//TODO: VDIVPD (BX), X9, X11            // c461315e1b or c5315e1b
-	//TODO: VDIVPD (R11), X9, X11           // c441315e1b
-	//TODO: VDIVPD X2, X9, X11              // c461315eda or c5315eda
-	//TODO: VDIVPD X11, X9, X11             // c441315edb
-	//TODO: VDIVPD (BX), Y15, Y2            // c4e1055e13 or c5855e13
-	//TODO: VDIVPD (R11), Y15, Y2           // c4c1055e13
-	//TODO: VDIVPD Y2, Y15, Y2              // c4e1055ed2 or c5855ed2
-	//TODO: VDIVPD Y11, Y15, Y2             // c4c1055ed3
-	//TODO: VDIVPD (BX), Y15, Y11           // c461055e1b or c5055e1b
-	//TODO: VDIVPD (R11), Y15, Y11          // c441055e1b
-	//TODO: VDIVPD Y2, Y15, Y11             // c461055eda or c5055eda
-	//TODO: VDIVPD Y11, Y15, Y11            // c441055edb
-	//TODO: VDIVPS (BX), X9, X2             // c4e1305e13 or c5b05e13
-	//TODO: VDIVPS (R11), X9, X2            // c4c1305e13
-	//TODO: VDIVPS X2, X9, X2               // c4e1305ed2 or c5b05ed2
-	//TODO: VDIVPS X11, X9, X2              // c4c1305ed3
-	//TODO: VDIVPS (BX), X9, X11            // c461305e1b or c5305e1b
-	//TODO: VDIVPS (R11), X9, X11           // c441305e1b
-	//TODO: VDIVPS X2, X9, X11              // c461305eda or c5305eda
-	//TODO: VDIVPS X11, X9, X11             // c441305edb
-	//TODO: VDIVPS (BX), Y15, Y2            // c4e1045e13 or c5845e13
-	//TODO: VDIVPS (R11), Y15, Y2           // c4c1045e13
-	//TODO: VDIVPS Y2, Y15, Y2              // c4e1045ed2 or c5845ed2
-	//TODO: VDIVPS Y11, Y15, Y2             // c4c1045ed3
-	//TODO: VDIVPS (BX), Y15, Y11           // c461045e1b or c5045e1b
-	//TODO: VDIVPS (R11), Y15, Y11          // c441045e1b
-	//TODO: VDIVPS Y2, Y15, Y11             // c461045eda or c5045eda
-	//TODO: VDIVPS Y11, Y15, Y11            // c441045edb
-	//TODO: VDIVSD (BX), X9, X2             // c4e1335e13 or c5b35e13
-	//TODO: VDIVSD (R11), X9, X2            // c4c1335e13
-	//TODO: VDIVSD X2, X9, X2               // c4e1335ed2 or c5b35ed2
-	//TODO: VDIVSD X11, X9, X2              // c4c1335ed3
-	//TODO: VDIVSD (BX), X9, X11            // c461335e1b or c5335e1b
-	//TODO: VDIVSD (R11), X9, X11           // c441335e1b
-	//TODO: VDIVSD X2, X9, X11              // c461335eda or c5335eda
-	//TODO: VDIVSD X11, X9, X11             // c441335edb
-	//TODO: VDIVSS (BX), X9, X2             // c4e1325e13 or c5b25e13
-	//TODO: VDIVSS (R11), X9, X2            // c4c1325e13
-	//TODO: VDIVSS X2, X9, X2               // c4e1325ed2 or c5b25ed2
-	//TODO: VDIVSS X11, X9, X2              // c4c1325ed3
-	//TODO: VDIVSS (BX), X9, X11            // c461325e1b or c5325e1b
-	//TODO: VDIVSS (R11), X9, X11           // c441325e1b
-	//TODO: VDIVSS X2, X9, X11              // c461325eda or c5325eda
-	//TODO: VDIVSS X11, X9, X11             // c441325edb
-	//TODO: VDPPD $7, (BX), X9, X2          // c4e331411307
-	//TODO: VDPPD $7, (R11), X9, X2         // c4c331411307
-	//TODO: VDPPD $7, X2, X9, X2            // c4e33141d207
-	//TODO: VDPPD $7, X11, X9, X2           // c4c33141d307
-	//TODO: VDPPD $7, (BX), X9, X11         // c46331411b07
-	//TODO: VDPPD $7, (R11), X9, X11        // c44331411b07
-	//TODO: VDPPD $7, X2, X9, X11           // c4633141da07
-	//TODO: VDPPD $7, X11, X9, X11          // c4433141db07
-	//TODO: VDPPS $7, (BX), X9, X2          // c4e331401307
-	//TODO: VDPPS $7, (R11), X9, X2         // c4c331401307
-	//TODO: VDPPS $7, X2, X9, X2            // c4e33140d207
-	//TODO: VDPPS $7, X11, X9, X2           // c4c33140d307
-	//TODO: VDPPS $7, (BX), X9, X11         // c46331401b07
-	//TODO: VDPPS $7, (R11), X9, X11        // c44331401b07
-	//TODO: VDPPS $7, X2, X9, X11           // c4633140da07
-	//TODO: VDPPS $7, X11, X9, X11          // c4433140db07
-	//TODO: VDPPS $7, (BX), Y15, Y2         // c4e305401307
-	//TODO: VDPPS $7, (R11), Y15, Y2        // c4c305401307
-	//TODO: VDPPS $7, Y2, Y15, Y2           // c4e30540d207
-	//TODO: VDPPS $7, Y11, Y15, Y2          // c4c30540d307
-	//TODO: VDPPS $7, (BX), Y15, Y11        // c46305401b07
-	//TODO: VDPPS $7, (R11), Y15, Y11       // c44305401b07
-	//TODO: VDPPS $7, Y2, Y15, Y11          // c4630540da07
-	//TODO: VDPPS $7, Y11, Y15, Y11         // c4430540db07
+	VCMPPD $7, (BX), X9, X2                 // c4e131c21307 or c5b1c21307
+	VCMPPD $7, (R11), X9, X2                // c4c131c21307
+	VCMPPD $7, X2, X9, X2                   // c4e131c2d207 or c5b1c2d207
+	VCMPPD $7, X11, X9, X2                  // c4c131c2d307
+	VCMPPD $7, (BX), X9, X11                // c46131c21b07 or c531c21b07
+	VCMPPD $7, (R11), X9, X11               // c44131c21b07
+	VCMPPD $7, X2, X9, X11                  // c46131c2da07 or c531c2da07
+	VCMPPD $7, X11, X9, X11                 // c44131c2db07
+	VCMPPD $7, (BX), Y15, Y2                // c4e105c21307 or c585c21307
+	VCMPPD $7, (R11), Y15, Y2               // c4c105c21307
+	VCMPPD $7, Y2, Y15, Y2                  // c4e105c2d207 or c585c2d207
+	VCMPPD $7, Y11, Y15, Y2                 // c4c105c2d307
+	VCMPPD $7, (BX), Y15, Y11               // c46105c21b07 or c505c21b07
+	VCMPPD $7, (R11), Y15, Y11              // c44105c21b07
+	VCMPPD $7, Y2, Y15, Y11                 // c46105c2da07 or c505c2da07
+	VCMPPD $7, Y11, Y15, Y11                // c44105c2db07
+	VCMPPS $7, (BX), X9, X2                 // c4e130c21307 or c5b0c21307
+	VCMPPS $7, (R11), X9, X2                // c4c130c21307
+	VCMPPS $7, X2, X9, X2                   // c4e130c2d207 or c5b0c2d207
+	VCMPPS $7, X11, X9, X2                  // c4c130c2d307
+	VCMPPS $7, (BX), X9, X11                // c46130c21b07 or c530c21b07
+	VCMPPS $7, (R11), X9, X11               // c44130c21b07
+	VCMPPS $7, X2, X9, X11                  // c46130c2da07 or c530c2da07
+	VCMPPS $7, X11, X9, X11                 // c44130c2db07
+	VCMPPS $7, (BX), Y15, Y2                // c4e104c21307 or c584c21307
+	VCMPPS $7, (R11), Y15, Y2               // c4c104c21307
+	VCMPPS $7, Y2, Y15, Y2                  // c4e104c2d207 or c584c2d207
+	VCMPPS $7, Y11, Y15, Y2                 // c4c104c2d307
+	VCMPPS $7, (BX), Y15, Y11               // c46104c21b07 or c504c21b07
+	VCMPPS $7, (R11), Y15, Y11              // c44104c21b07
+	VCMPPS $7, Y2, Y15, Y11                 // c46104c2da07 or c504c2da07
+	VCMPPS $7, Y11, Y15, Y11                // c44104c2db07
+	VCMPSD $7, (BX), X9, X2                 // c4e133c21307 or c5b3c21307
+	VCMPSD $7, (R11), X9, X2                // c4c133c21307
+	VCMPSD $7, X2, X9, X2                   // c4e133c2d207 or c5b3c2d207
+	VCMPSD $7, X11, X9, X2                  // c4c133c2d307
+	VCMPSD $7, (BX), X9, X11                // c46133c21b07 or c533c21b07
+	VCMPSD $7, (R11), X9, X11               // c44133c21b07
+	VCMPSD $7, X2, X9, X11                  // c46133c2da07 or c533c2da07
+	VCMPSD $7, X11, X9, X11                 // c44133c2db07
+	VCMPSS $7, (BX), X9, X2                 // c4e132c21307 or c5b2c21307
+	VCMPSS $7, (R11), X9, X2                // c4c132c21307
+	VCMPSS $7, X2, X9, X2                   // c4e132c2d207 or c5b2c2d207
+	VCMPSS $7, X11, X9, X2                  // c4c132c2d307
+	VCMPSS $7, (BX), X9, X11                // c46132c21b07 or c532c21b07
+	VCMPSS $7, (R11), X9, X11               // c44132c21b07
+	VCMPSS $7, X2, X9, X11                  // c46132c2da07 or c532c2da07
+	VCMPSS $7, X11, X9, X11                 // c44132c2db07
+	VCOMISD (BX), X2                        // c4e1792f13 or c5f92f13
+	VCOMISD (R11), X2                       // c4c1792f13
+	VCOMISD X2, X2                          // c4e1792fd2 or c5f92fd2
+	VCOMISD X11, X2                         // c4c1792fd3
+	VCOMISD (BX), X11                       // c461792f1b or c5792f1b
+	VCOMISD (R11), X11                      // c441792f1b
+	VCOMISD X2, X11                         // c461792fda or c5792fda
+	VCOMISD X11, X11                        // c441792fdb
+	VCOMISS (BX), X2                        // c4e1782f13 or c5f82f13
+	VCOMISS (R11), X2                       // c4c1782f13
+	VCOMISS X2, X2                          // c4e1782fd2 or c5f82fd2
+	VCOMISS X11, X2                         // c4c1782fd3
+	VCOMISS (BX), X11                       // c461782f1b or c5782f1b
+	VCOMISS (R11), X11                      // c441782f1b
+	VCOMISS X2, X11                         // c461782fda or c5782fda
+	VCOMISS X11, X11                        // c441782fdb
+	VCVTDQ2PD (BX), X2                      // c4e17ae613 or c5fae613
+	VCVTDQ2PD (R11), X2                     // c4c17ae613
+	VCVTDQ2PD X2, X2                        // c4e17ae6d2 or c5fae6d2
+	VCVTDQ2PD X11, X2                       // c4c17ae6d3
+	VCVTDQ2PD (BX), X11                     // c4617ae61b or c57ae61b
+	VCVTDQ2PD (R11), X11                    // c4417ae61b
+	VCVTDQ2PD X2, X11                       // c4617ae6da or c57ae6da
+	VCVTDQ2PD X11, X11                      // c4417ae6db
+	VCVTDQ2PD (BX), Y2                      // c4e17ee613 or c5fee613
+	VCVTDQ2PD (R11), Y2                     // c4c17ee613
+	VCVTDQ2PD X2, Y2                        // c4e17ee6d2 or c5fee6d2
+	VCVTDQ2PD X11, Y2                       // c4c17ee6d3
+	VCVTDQ2PD (BX), Y11                     // c4617ee61b or c57ee61b
+	VCVTDQ2PD (R11), Y11                    // c4417ee61b
+	VCVTDQ2PD X2, Y11                       // c4617ee6da or c57ee6da
+	VCVTDQ2PD X11, Y11                      // c4417ee6db
+	VCVTDQ2PS (BX), X2                      // c4e1785b13 or c5f85b13
+	VCVTDQ2PS (R11), X2                     // c4c1785b13
+	VCVTDQ2PS X2, X2                        // c4e1785bd2 or c5f85bd2
+	VCVTDQ2PS X11, X2                       // c4c1785bd3
+	VCVTDQ2PS (BX), X11                     // c461785b1b or c5785b1b
+	VCVTDQ2PS (R11), X11                    // c441785b1b
+	VCVTDQ2PS X2, X11                       // c461785bda or c5785bda
+	VCVTDQ2PS X11, X11                      // c441785bdb
+	VCVTDQ2PS (BX), Y2                      // c4e17c5b13 or c5fc5b13
+	VCVTDQ2PS (R11), Y2                     // c4c17c5b13
+	VCVTDQ2PS Y2, Y2                        // c4e17c5bd2 or c5fc5bd2
+	VCVTDQ2PS Y11, Y2                       // c4c17c5bd3
+	VCVTDQ2PS (BX), Y11                     // c4617c5b1b or c57c5b1b
+	VCVTDQ2PS (R11), Y11                    // c4417c5b1b
+	VCVTDQ2PS Y2, Y11                       // c4617c5bda or c57c5bda
+	VCVTDQ2PS Y11, Y11                      // c4417c5bdb
+	VCVTPD2DQX (BX), X2                     // c4e17be613 or c5fbe613
+	VCVTPD2DQX (R11), X2                    // c4c17be613
+	VCVTPD2DQX X2, X2                       // c4e17be6d2 or c5fbe6d2
+	VCVTPD2DQX X11, X2                      // c4c17be6d3
+	VCVTPD2DQX (BX), X11                    // c4617be61b or c57be61b
+	VCVTPD2DQX (R11), X11                   // c4417be61b
+	VCVTPD2DQX X2, X11                      // c4617be6da or c57be6da
+	VCVTPD2DQX X11, X11                     // c4417be6db
+	VCVTPD2DQY (BX), X2                     // c4e17fe613 or c5ffe613
+	VCVTPD2DQY (R11), X2                    // c4c17fe613
+	VCVTPD2DQY Y2, X2                       // c4e17fe6d2 or c5ffe6d2
+	VCVTPD2DQY Y11, X2                      // c4c17fe6d3
+	VCVTPD2DQY (BX), X11                    // c4617fe61b or c57fe61b
+	VCVTPD2DQY (R11), X11                   // c4417fe61b
+	VCVTPD2DQY Y2, X11                      // c4617fe6da or c57fe6da
+	VCVTPD2DQY Y11, X11                     // c4417fe6db
+	VCVTPD2PSX (BX), X2                     // c4e1795a13 or c5f95a13
+	VCVTPD2PSX (R11), X2                    // c4c1795a13
+	VCVTPD2PSX X2, X2                       // c4e1795ad2 or c5f95ad2
+	VCVTPD2PSX X11, X2                      // c4c1795ad3
+	VCVTPD2PSX (BX), X11                    // c461795a1b or c5795a1b
+	VCVTPD2PSX (R11), X11                   // c441795a1b
+	VCVTPD2PSX X2, X11                      // c461795ada or c5795ada
+	VCVTPD2PSX X11, X11                     // c441795adb
+	VCVTPD2PSY (BX), X2                     // c4e17d5a13 or c5fd5a13
+	VCVTPD2PSY (R11), X2                    // c4c17d5a13
+	VCVTPD2PSY Y2, X2                       // c4e17d5ad2 or c5fd5ad2
+	VCVTPD2PSY Y11, X2                      // c4c17d5ad3
+	VCVTPD2PSY (BX), X11                    // c4617d5a1b or c57d5a1b
+	VCVTPD2PSY (R11), X11                   // c4417d5a1b
+	VCVTPD2PSY Y2, X11                      // c4617d5ada or c57d5ada
+	VCVTPD2PSY Y11, X11                     // c4417d5adb
+	VCVTPH2PS (BX), X2                      // c4e2791313
+	VCVTPH2PS (R11), X2                     // c4c2791313
+	VCVTPH2PS X2, X2                        // c4e27913d2
+	VCVTPH2PS X11, X2                       // c4c27913d3
+	VCVTPH2PS (BX), X11                     // c46279131b
+	VCVTPH2PS (R11), X11                    // c44279131b
+	VCVTPH2PS X2, X11                       // c4627913da
+	VCVTPH2PS X11, X11                      // c4427913db
+	VCVTPH2PS (BX), Y2                      // c4e27d1313
+	VCVTPH2PS (R11), Y2                     // c4c27d1313
+	VCVTPH2PS X2, Y2                        // c4e27d13d2
+	VCVTPH2PS X11, Y2                       // c4c27d13d3
+	VCVTPH2PS (BX), Y11                     // c4627d131b
+	VCVTPH2PS (R11), Y11                    // c4427d131b
+	VCVTPH2PS X2, Y11                       // c4627d13da
+	VCVTPH2PS X11, Y11                      // c4427d13db
+	VCVTPS2DQ (BX), X2                      // c4e1795b13 or c5f95b13
+	VCVTPS2DQ (R11), X2                     // c4c1795b13
+	VCVTPS2DQ X2, X2                        // c4e1795bd2 or c5f95bd2
+	VCVTPS2DQ X11, X2                       // c4c1795bd3
+	VCVTPS2DQ (BX), X11                     // c461795b1b or c5795b1b
+	VCVTPS2DQ (R11), X11                    // c441795b1b
+	VCVTPS2DQ X2, X11                       // c461795bda or c5795bda
+	VCVTPS2DQ X11, X11                      // c441795bdb
+	VCVTPS2DQ (BX), Y2                      // c4e17d5b13 or c5fd5b13
+	VCVTPS2DQ (R11), Y2                     // c4c17d5b13
+	VCVTPS2DQ Y2, Y2                        // c4e17d5bd2 or c5fd5bd2
+	VCVTPS2DQ Y11, Y2                       // c4c17d5bd3
+	VCVTPS2DQ (BX), Y11                     // c4617d5b1b or c57d5b1b
+	VCVTPS2DQ (R11), Y11                    // c4417d5b1b
+	VCVTPS2DQ Y2, Y11                       // c4617d5bda or c57d5bda
+	VCVTPS2DQ Y11, Y11                      // c4417d5bdb
+	VCVTPS2PD (BX), X2                      // c4e1785a13 or c5f85a13
+	VCVTPS2PD (R11), X2                     // c4c1785a13
+	VCVTPS2PD X2, X2                        // c4e1785ad2 or c5f85ad2
+	VCVTPS2PD X11, X2                       // c4c1785ad3
+	VCVTPS2PD (BX), X11                     // c461785a1b or c5785a1b
+	VCVTPS2PD (R11), X11                    // c441785a1b
+	VCVTPS2PD X2, X11                       // c461785ada or c5785ada
+	VCVTPS2PD X11, X11                      // c441785adb
+	VCVTPS2PD (BX), Y2                      // c4e17c5a13 or c5fc5a13
+	VCVTPS2PD (R11), Y2                     // c4c17c5a13
+	VCVTPS2PD X2, Y2                        // c4e17c5ad2 or c5fc5ad2
+	VCVTPS2PD X11, Y2                       // c4c17c5ad3
+	VCVTPS2PD (BX), Y11                     // c4617c5a1b or c57c5a1b
+	VCVTPS2PD (R11), Y11                    // c4417c5a1b
+	VCVTPS2PD X2, Y11                       // c4617c5ada or c57c5ada
+	VCVTPS2PD X11, Y11                      // c4417c5adb
+	VCVTPS2PH $7, Y2, (BX)                  // c4e37d1d1307
+	VCVTPS2PH $7, Y11, (BX)                 // c4637d1d1b07
+	VCVTPS2PH $7, Y2, (R11)                 // c4c37d1d1307
+	VCVTPS2PH $7, Y11, (R11)                // c4437d1d1b07
+	VCVTPS2PH $7, Y2, X2                    // c4e37d1dd207
+	VCVTPS2PH $7, Y11, X2                   // c4637d1dda07
+	VCVTPS2PH $7, Y2, X11                   // c4c37d1dd307
+	VCVTPS2PH $7, Y11, X11                  // c4437d1ddb07
+	VCVTPS2PH $7, X2, (BX)                  // c4e3791d1307
+	VCVTPS2PH $7, X11, (BX)                 // c463791d1b07
+	VCVTPS2PH $7, X2, (R11)                 // c4c3791d1307
+	VCVTPS2PH $7, X11, (R11)                // c443791d1b07
+	VCVTPS2PH $7, X2, X2                    // c4e3791dd207
+	VCVTPS2PH $7, X11, X2                   // c463791dda07
+	VCVTPS2PH $7, X2, X11                   // c4c3791dd307
+	VCVTPS2PH $7, X11, X11                  // c443791ddb07
+	VCVTSD2SI (BX), DX                      // c4e17b2d13 or c5fb2d13
+	VCVTSD2SI (R11), DX                     // c4c17b2d13
+	VCVTSD2SI X2, DX                        // c4e17b2dd2 or c5fb2dd2
+	VCVTSD2SI X11, DX                       // c4c17b2dd3
+	VCVTSD2SI (BX), R11                     // c4617b2d1b or c57b2d1b
+	VCVTSD2SI (R11), R11                    // c4417b2d1b
+	VCVTSD2SI X2, R11                       // c4617b2dda or c57b2dda
+	VCVTSD2SI X11, R11                      // c4417b2ddb
+	VCVTSD2SIQ (BX), DX                     // c4e1fb2d13
+	VCVTSD2SIQ (R11), DX                    // c4c1fb2d13
+	VCVTSD2SIQ X2, DX                       // c4e1fb2dd2
+	VCVTSD2SIQ X11, DX                      // c4c1fb2dd3
+	VCVTSD2SIQ (BX), R11                    // c461fb2d1b
+	VCVTSD2SIQ (R11), R11                   // c441fb2d1b
+	VCVTSD2SIQ X2, R11                      // c461fb2dda
+	VCVTSD2SIQ X11, R11                     // c441fb2ddb
+	VCVTSD2SS (BX), X9, X2                  // c4e1335a13 or c5b35a13
+	VCVTSD2SS (R11), X9, X2                 // c4c1335a13
+	VCVTSD2SS X2, X9, X2                    // c4e1335ad2 or c5b35ad2
+	VCVTSD2SS X11, X9, X2                   // c4c1335ad3
+	VCVTSD2SS (BX), X9, X11                 // c461335a1b or c5335a1b
+	VCVTSD2SS (R11), X9, X11                // c441335a1b
+	VCVTSD2SS X2, X9, X11                   // c461335ada or c5335ada
+	VCVTSD2SS X11, X9, X11                  // c441335adb
+	VCVTSI2SDL (BX), X9, X2                 // c4e1332a13 or c5b32a13
+	VCVTSI2SDL (R11), X9, X2                // c4c1332a13
+	VCVTSI2SDL DX, X9, X2                   // c4e1332ad2 or c5b32ad2
+	VCVTSI2SDL R11, X9, X2                  // c4c1332ad3
+	VCVTSI2SDL (BX), X9, X11                // c461332a1b or c5332a1b
+	VCVTSI2SDL (R11), X9, X11               // c441332a1b
+	VCVTSI2SDL DX, X9, X11                  // c461332ada or c5332ada
+	VCVTSI2SDL R11, X9, X11                 // c441332adb
+	VCVTSI2SDQ (BX), X9, X2                 // c4e1b32a13
+	VCVTSI2SDQ (R11), X9, X2                // c4c1b32a13
+	VCVTSI2SDQ DX, X9, X2                   // c4e1b32ad2
+	VCVTSI2SDQ R11, X9, X2                  // c4c1b32ad3
+	VCVTSI2SDQ (BX), X9, X11                // c461b32a1b
+	VCVTSI2SDQ (R11), X9, X11               // c441b32a1b
+	VCVTSI2SDQ DX, X9, X11                  // c461b32ada
+	VCVTSI2SDQ R11, X9, X11                 // c441b32adb
+	VCVTSI2SSL (BX), X9, X2                 // c4e1322a13 or c5b22a13
+	VCVTSI2SSL (R11), X9, X2                // c4c1322a13
+	VCVTSI2SSL DX, X9, X2                   // c4e1322ad2 or c5b22ad2
+	VCVTSI2SSL R11, X9, X2                  // c4c1322ad3
+	VCVTSI2SSL (BX), X9, X11                // c461322a1b or c5322a1b
+	VCVTSI2SSL (R11), X9, X11               // c441322a1b
+	VCVTSI2SSL DX, X9, X11                  // c461322ada or c5322ada
+	VCVTSI2SSL R11, X9, X11                 // c441322adb
+	VCVTSI2SSQ (BX), X9, X2                 // c4e1b22a13
+	VCVTSI2SSQ (R11), X9, X2                // c4c1b22a13
+	VCVTSI2SSQ DX, X9, X2                   // c4e1b22ad2
+	VCVTSI2SSQ R11, X9, X2                  // c4c1b22ad3
+	VCVTSI2SSQ (BX), X9, X11                // c461b22a1b
+	VCVTSI2SSQ (R11), X9, X11               // c441b22a1b
+	VCVTSI2SSQ DX, X9, X11                  // c461b22ada
+	VCVTSI2SSQ R11, X9, X11                 // c441b22adb
+	VCVTSS2SD (BX), X9, X2                  // c4e1325a13 or c5b25a13
+	VCVTSS2SD (R11), X9, X2                 // c4c1325a13
+	VCVTSS2SD X2, X9, X2                    // c4e1325ad2 or c5b25ad2
+	VCVTSS2SD X11, X9, X2                   // c4c1325ad3
+	VCVTSS2SD (BX), X9, X11                 // c461325a1b or c5325a1b
+	VCVTSS2SD (R11), X9, X11                // c441325a1b
+	VCVTSS2SD X2, X9, X11                   // c461325ada or c5325ada
+	VCVTSS2SD X11, X9, X11                  // c441325adb
+	VCVTSS2SI (BX), DX                      // c4e17a2d13 or c5fa2d13
+	VCVTSS2SI (R11), DX                     // c4c17a2d13
+	VCVTSS2SI X2, DX                        // c4e17a2dd2 or c5fa2dd2
+	VCVTSS2SI X11, DX                       // c4c17a2dd3
+	VCVTSS2SI (BX), R11                     // c4617a2d1b or c57a2d1b
+	VCVTSS2SI (R11), R11                    // c4417a2d1b
+	VCVTSS2SI X2, R11                       // c4617a2dda or c57a2dda
+	VCVTSS2SI X11, R11                      // c4417a2ddb
+	VCVTSS2SIQ (BX), DX                     // c4e1fa2d13
+	VCVTSS2SIQ (R11), DX                    // c4c1fa2d13
+	VCVTSS2SIQ X2, DX                       // c4e1fa2dd2
+	VCVTSS2SIQ X11, DX                      // c4c1fa2dd3
+	VCVTSS2SIQ (BX), R11                    // c461fa2d1b
+	VCVTSS2SIQ (R11), R11                   // c441fa2d1b
+	VCVTSS2SIQ X2, R11                      // c461fa2dda
+	VCVTSS2SIQ X11, R11                     // c441fa2ddb
+	VCVTTPD2DQX (BX), X2                    // c4e179e613 or c5f9e613
+	VCVTTPD2DQX (R11), X2                   // c4c179e613
+	VCVTTPD2DQX X2, X2                      // c4e179e6d2 or c5f9e6d2
+	VCVTTPD2DQX X11, X2                     // c4c179e6d3
+	VCVTTPD2DQX (BX), X11                   // c46179e61b or c579e61b
+	VCVTTPD2DQX (R11), X11                  // c44179e61b
+	VCVTTPD2DQX X2, X11                     // c46179e6da or c579e6da
+	VCVTTPD2DQX X11, X11                    // c44179e6db
+	VCVTTPD2DQY (BX), X2                    // c4e17de613 or c5fde613
+	VCVTTPD2DQY (R11), X2                   // c4c17de613
+	VCVTTPD2DQY Y2, X2                      // c4e17de6d2 or c5fde6d2
+	VCVTTPD2DQY Y11, X2                     // c4c17de6d3
+	VCVTTPD2DQY (BX), X11                   // c4617de61b or c57de61b
+	VCVTTPD2DQY (R11), X11                  // c4417de61b
+	VCVTTPD2DQY Y2, X11                     // c4617de6da or c57de6da
+	VCVTTPD2DQY Y11, X11                    // c4417de6db
+	VCVTTPS2DQ (BX), X2                     // c4e17a5b13 or c5fa5b13
+	VCVTTPS2DQ (R11), X2                    // c4c17a5b13
+	VCVTTPS2DQ X2, X2                       // c4e17a5bd2 or c5fa5bd2
+	VCVTTPS2DQ X11, X2                      // c4c17a5bd3
+	VCVTTPS2DQ (BX), X11                    // c4617a5b1b or c57a5b1b
+	VCVTTPS2DQ (R11), X11                   // c4417a5b1b
+	VCVTTPS2DQ X2, X11                      // c4617a5bda or c57a5bda
+	VCVTTPS2DQ X11, X11                     // c4417a5bdb
+	VCVTTPS2DQ (BX), Y2                     // c4e17e5b13 or c5fe5b13
+	VCVTTPS2DQ (R11), Y2                    // c4c17e5b13
+	VCVTTPS2DQ Y2, Y2                       // c4e17e5bd2 or c5fe5bd2
+	VCVTTPS2DQ Y11, Y2                      // c4c17e5bd3
+	VCVTTPS2DQ (BX), Y11                    // c4617e5b1b or c57e5b1b
+	VCVTTPS2DQ (R11), Y11                   // c4417e5b1b
+	VCVTTPS2DQ Y2, Y11                      // c4617e5bda or c57e5bda
+	VCVTTPS2DQ Y11, Y11                     // c4417e5bdb
+	VCVTTSD2SI (BX), DX                     // c4e17b2c13 or c5fb2c13
+	VCVTTSD2SI (R11), DX                    // c4c17b2c13
+	VCVTTSD2SI X2, DX                       // c4e17b2cd2 or c5fb2cd2
+	VCVTTSD2SI X11, DX                      // c4c17b2cd3
+	VCVTTSD2SI (BX), R11                    // c4617b2c1b or c57b2c1b
+	VCVTTSD2SI (R11), R11                   // c4417b2c1b
+	VCVTTSD2SI X2, R11                      // c4617b2cda or c57b2cda
+	VCVTTSD2SI X11, R11                     // c4417b2cdb
+	VCVTTSD2SIQ (BX), DX                    // c4e1fb2c13
+	VCVTTSD2SIQ (R11), DX                   // c4c1fb2c13
+	VCVTTSD2SIQ X2, DX                      // c4e1fb2cd2
+	VCVTTSD2SIQ X11, DX                     // c4c1fb2cd3
+	VCVTTSD2SIQ (BX), R11                   // c461fb2c1b
+	VCVTTSD2SIQ (R11), R11                  // c441fb2c1b
+	VCVTTSD2SIQ X2, R11                     // c461fb2cda
+	VCVTTSD2SIQ X11, R11                    // c441fb2cdb
+	VCVTTSS2SI (BX), DX                     // c4e17a2c13 or c5fa2c13
+	VCVTTSS2SI (R11), DX                    // c4c17a2c13
+	VCVTTSS2SI X2, DX                       // c4e17a2cd2 or c5fa2cd2
+	VCVTTSS2SI X11, DX                      // c4c17a2cd3
+	VCVTTSS2SI (BX), R11                    // c4617a2c1b or c57a2c1b
+	VCVTTSS2SI (R11), R11                   // c4417a2c1b
+	VCVTTSS2SI X2, R11                      // c4617a2cda or c57a2cda
+	VCVTTSS2SI X11, R11                     // c4417a2cdb
+	VCVTTSS2SIQ (BX), DX                    // c4e1fa2c13
+	VCVTTSS2SIQ (R11), DX                   // c4c1fa2c13
+	VCVTTSS2SIQ X2, DX                      // c4e1fa2cd2
+	VCVTTSS2SIQ X11, DX                     // c4c1fa2cd3
+	VCVTTSS2SIQ (BX), R11                   // c461fa2c1b
+	VCVTTSS2SIQ (R11), R11                  // c441fa2c1b
+	VCVTTSS2SIQ X2, R11                     // c461fa2cda
+	VCVTTSS2SIQ X11, R11                    // c441fa2cdb
+	VDIVPD (BX), X9, X2                     // c4e1315e13 or c5b15e13
+	VDIVPD (R11), X9, X2                    // c4c1315e13
+	VDIVPD X2, X9, X2                       // c4e1315ed2 or c5b15ed2
+	VDIVPD X11, X9, X2                      // c4c1315ed3
+	VDIVPD (BX), X9, X11                    // c461315e1b or c5315e1b
+	VDIVPD (R11), X9, X11                   // c441315e1b
+	VDIVPD X2, X9, X11                      // c461315eda or c5315eda
+	VDIVPD X11, X9, X11                     // c441315edb
+	VDIVPD (BX), Y15, Y2                    // c4e1055e13 or c5855e13
+	VDIVPD (R11), Y15, Y2                   // c4c1055e13
+	VDIVPD Y2, Y15, Y2                      // c4e1055ed2 or c5855ed2
+	VDIVPD Y11, Y15, Y2                     // c4c1055ed3
+	VDIVPD (BX), Y15, Y11                   // c461055e1b or c5055e1b
+	VDIVPD (R11), Y15, Y11                  // c441055e1b
+	VDIVPD Y2, Y15, Y11                     // c461055eda or c5055eda
+	VDIVPD Y11, Y15, Y11                    // c441055edb
+	VDIVPS (BX), X9, X2                     // c4e1305e13 or c5b05e13
+	VDIVPS (R11), X9, X2                    // c4c1305e13
+	VDIVPS X2, X9, X2                       // c4e1305ed2 or c5b05ed2
+	VDIVPS X11, X9, X2                      // c4c1305ed3
+	VDIVPS (BX), X9, X11                    // c461305e1b or c5305e1b
+	VDIVPS (R11), X9, X11                   // c441305e1b
+	VDIVPS X2, X9, X11                      // c461305eda or c5305eda
+	VDIVPS X11, X9, X11                     // c441305edb
+	VDIVPS (BX), Y15, Y2                    // c4e1045e13 or c5845e13
+	VDIVPS (R11), Y15, Y2                   // c4c1045e13
+	VDIVPS Y2, Y15, Y2                      // c4e1045ed2 or c5845ed2
+	VDIVPS Y11, Y15, Y2                     // c4c1045ed3
+	VDIVPS (BX), Y15, Y11                   // c461045e1b or c5045e1b
+	VDIVPS (R11), Y15, Y11                  // c441045e1b
+	VDIVPS Y2, Y15, Y11                     // c461045eda or c5045eda
+	VDIVPS Y11, Y15, Y11                    // c441045edb
+	VDIVSD (BX), X9, X2                     // c4e1335e13 or c5b35e13
+	VDIVSD (R11), X9, X2                    // c4c1335e13
+	VDIVSD X2, X9, X2                       // c4e1335ed2 or c5b35ed2
+	VDIVSD X11, X9, X2                      // c4c1335ed3
+	VDIVSD (BX), X9, X11                    // c461335e1b or c5335e1b
+	VDIVSD (R11), X9, X11                   // c441335e1b
+	VDIVSD X2, X9, X11                      // c461335eda or c5335eda
+	VDIVSD X11, X9, X11                     // c441335edb
+	VDIVSS (BX), X9, X2                     // c4e1325e13 or c5b25e13
+	VDIVSS (R11), X9, X2                    // c4c1325e13
+	VDIVSS X2, X9, X2                       // c4e1325ed2 or c5b25ed2
+	VDIVSS X11, X9, X2                      // c4c1325ed3
+	VDIVSS (BX), X9, X11                    // c461325e1b or c5325e1b
+	VDIVSS (R11), X9, X11                   // c441325e1b
+	VDIVSS X2, X9, X11                      // c461325eda or c5325eda
+	VDIVSS X11, X9, X11                     // c441325edb
+	VDPPD $7, (BX), X9, X2                  // c4e331411307
+	VDPPD $7, (R11), X9, X2                 // c4c331411307
+	VDPPD $7, X2, X9, X2                    // c4e33141d207
+	VDPPD $7, X11, X9, X2                   // c4c33141d307
+	VDPPD $7, (BX), X9, X11                 // c46331411b07
+	VDPPD $7, (R11), X9, X11                // c44331411b07
+	VDPPD $7, X2, X9, X11                   // c4633141da07
+	VDPPD $7, X11, X9, X11                  // c4433141db07
+	VDPPS $7, (BX), X9, X2                  // c4e331401307
+	VDPPS $7, (R11), X9, X2                 // c4c331401307
+	VDPPS $7, X2, X9, X2                    // c4e33140d207
+	VDPPS $7, X11, X9, X2                   // c4c33140d307
+	VDPPS $7, (BX), X9, X11                 // c46331401b07
+	VDPPS $7, (R11), X9, X11                // c44331401b07
+	VDPPS $7, X2, X9, X11                   // c4633140da07
+	VDPPS $7, X11, X9, X11                  // c4433140db07
+	VDPPS $7, (BX), Y15, Y2                 // c4e305401307
+	VDPPS $7, (R11), Y15, Y2                // c4c305401307
+	VDPPS $7, Y2, Y15, Y2                   // c4e30540d207
+	VDPPS $7, Y11, Y15, Y2                  // c4c30540d307
+	VDPPS $7, (BX), Y15, Y11                // c46305401b07
+	VDPPS $7, (R11), Y15, Y11               // c44305401b07
+	VDPPS $7, Y2, Y15, Y11                  // c4630540da07
+	VDPPS $7, Y11, Y15, Y11                 // c4430540db07
 	VERR (BX)                               // 0f0023
 	VERR (R11)                              // 410f0023
 	VERR DX                                 // 0f00e2
@@ -6558,870 +6558,870 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VERW (R11)                              // 410f002b
 	VERW DX                                 // 0f00ea
 	VERW R11                                // 410f00eb
-	//TODO: VEXTRACTF128 $7, Y2, (BX)       // c4e37d191307
-	//TODO: VEXTRACTF128 $7, Y11, (BX)      // c4637d191b07
-	//TODO: VEXTRACTF128 $7, Y2, (R11)      // c4c37d191307
-	//TODO: VEXTRACTF128 $7, Y11, (R11)     // c4437d191b07
-	//TODO: VEXTRACTF128 $7, Y2, X2         // c4e37d19d207
-	//TODO: VEXTRACTF128 $7, Y11, X2        // c4637d19da07
-	//TODO: VEXTRACTF128 $7, Y2, X11        // c4c37d19d307
-	//TODO: VEXTRACTF128 $7, Y11, X11       // c4437d19db07
-	//TODO: VEXTRACTI128 $7, Y2, (BX)       // c4e37d391307
-	//TODO: VEXTRACTI128 $7, Y11, (BX)      // c4637d391b07
-	//TODO: VEXTRACTI128 $7, Y2, (R11)      // c4c37d391307
-	//TODO: VEXTRACTI128 $7, Y11, (R11)     // c4437d391b07
-	//TODO: VEXTRACTI128 $7, Y2, X2         // c4e37d39d207
-	//TODO: VEXTRACTI128 $7, Y11, X2        // c4637d39da07
-	//TODO: VEXTRACTI128 $7, Y2, X11        // c4c37d39d307
-	//TODO: VEXTRACTI128 $7, Y11, X11       // c4437d39db07
-	//TODO: VEXTRACTPS $7, X2, (BX)         // c4e379171307
-	//TODO: VEXTRACTPS $7, X11, (BX)        // c46379171b07
-	//TODO: VEXTRACTPS $7, X2, (R11)        // c4c379171307
-	//TODO: VEXTRACTPS $7, X11, (R11)       // c44379171b07
-	//TODO: VEXTRACTPS $7, X2, DX           // c4e37917d207
-	//TODO: VEXTRACTPS $7, X11, DX          // c4637917da07
-	//TODO: VEXTRACTPS $7, X2, R11          // c4c37917d307
-	//TODO: VEXTRACTPS $7, X11, R11         // c4437917db07
-	//TODO: VFMADD132PD (BX), X9, X2        // c4e2b19813
-	//TODO: VFMADD132PD (R11), X9, X2       // c4c2b19813
-	//TODO: VFMADD132PD X2, X9, X2          // c4e2b198d2
-	//TODO: VFMADD132PD X11, X9, X2         // c4c2b198d3
-	//TODO: VFMADD132PD (BX), X9, X11       // c462b1981b
-	//TODO: VFMADD132PD (R11), X9, X11      // c442b1981b
-	//TODO: VFMADD132PD X2, X9, X11         // c462b198da
-	//TODO: VFMADD132PD X11, X9, X11        // c442b198db
-	//TODO: VFMADD132PD (BX), Y15, Y2       // c4e2859813
-	//TODO: VFMADD132PD (R11), Y15, Y2      // c4c2859813
-	//TODO: VFMADD132PD Y2, Y15, Y2         // c4e28598d2
-	//TODO: VFMADD132PD Y11, Y15, Y2        // c4c28598d3
-	//TODO: VFMADD132PD (BX), Y15, Y11      // c46285981b
-	//TODO: VFMADD132PD (R11), Y15, Y11     // c44285981b
-	//TODO: VFMADD132PD Y2, Y15, Y11        // c4628598da
-	//TODO: VFMADD132PD Y11, Y15, Y11       // c4428598db
-	//TODO: VFMADD132PS (BX), X9, X2        // c4e2319813
-	//TODO: VFMADD132PS (R11), X9, X2       // c4c2319813
-	//TODO: VFMADD132PS X2, X9, X2          // c4e23198d2
-	//TODO: VFMADD132PS X11, X9, X2         // c4c23198d3
-	//TODO: VFMADD132PS (BX), X9, X11       // c46231981b
-	//TODO: VFMADD132PS (R11), X9, X11      // c44231981b
-	//TODO: VFMADD132PS X2, X9, X11         // c4623198da
-	//TODO: VFMADD132PS X11, X9, X11        // c4423198db
-	//TODO: VFMADD132PS (BX), Y15, Y2       // c4e2059813
-	//TODO: VFMADD132PS (R11), Y15, Y2      // c4c2059813
-	//TODO: VFMADD132PS Y2, Y15, Y2         // c4e20598d2
-	//TODO: VFMADD132PS Y11, Y15, Y2        // c4c20598d3
-	//TODO: VFMADD132PS (BX), Y15, Y11      // c46205981b
-	//TODO: VFMADD132PS (R11), Y15, Y11     // c44205981b
-	//TODO: VFMADD132PS Y2, Y15, Y11        // c4620598da
-	//TODO: VFMADD132PS Y11, Y15, Y11       // c4420598db
-	//TODO: VFMADD132SD (BX), X9, X2        // c4e2b19913
-	//TODO: VFMADD132SD (R11), X9, X2       // c4c2b19913
-	//TODO: VFMADD132SD X2, X9, X2          // c4e2b199d2
-	//TODO: VFMADD132SD X11, X9, X2         // c4c2b199d3
-	//TODO: VFMADD132SD (BX), X9, X11       // c462b1991b
-	//TODO: VFMADD132SD (R11), X9, X11      // c442b1991b
-	//TODO: VFMADD132SD X2, X9, X11         // c462b199da
-	//TODO: VFMADD132SD X11, X9, X11        // c442b199db
-	//TODO: VFMADD132SS (BX), X9, X2        // c4e2319913
-	//TODO: VFMADD132SS (R11), X9, X2       // c4c2319913
-	//TODO: VFMADD132SS X2, X9, X2          // c4e23199d2
-	//TODO: VFMADD132SS X11, X9, X2         // c4c23199d3
-	//TODO: VFMADD132SS (BX), X9, X11       // c46231991b
-	//TODO: VFMADD132SS (R11), X9, X11      // c44231991b
-	//TODO: VFMADD132SS X2, X9, X11         // c4623199da
-	//TODO: VFMADD132SS X11, X9, X11        // c4423199db
-	//TODO: VFMADD213PD (BX), X9, X2        // c4e2b1a813
-	//TODO: VFMADD213PD (R11), X9, X2       // c4c2b1a813
-	//TODO: VFMADD213PD X2, X9, X2          // c4e2b1a8d2
-	//TODO: VFMADD213PD X11, X9, X2         // c4c2b1a8d3
-	//TODO: VFMADD213PD (BX), X9, X11       // c462b1a81b
-	//TODO: VFMADD213PD (R11), X9, X11      // c442b1a81b
-	//TODO: VFMADD213PD X2, X9, X11         // c462b1a8da
-	//TODO: VFMADD213PD X11, X9, X11        // c442b1a8db
-	//TODO: VFMADD213PD (BX), Y15, Y2       // c4e285a813
-	//TODO: VFMADD213PD (R11), Y15, Y2      // c4c285a813
-	//TODO: VFMADD213PD Y2, Y15, Y2         // c4e285a8d2
-	//TODO: VFMADD213PD Y11, Y15, Y2        // c4c285a8d3
-	//TODO: VFMADD213PD (BX), Y15, Y11      // c46285a81b
-	//TODO: VFMADD213PD (R11), Y15, Y11     // c44285a81b
-	//TODO: VFMADD213PD Y2, Y15, Y11        // c46285a8da
-	//TODO: VFMADD213PD Y11, Y15, Y11       // c44285a8db
-	//TODO: VFMADD213PS (BX), X9, X2        // c4e231a813
-	//TODO: VFMADD213PS (R11), X9, X2       // c4c231a813
-	//TODO: VFMADD213PS X2, X9, X2          // c4e231a8d2
-	//TODO: VFMADD213PS X11, X9, X2         // c4c231a8d3
-	//TODO: VFMADD213PS (BX), X9, X11       // c46231a81b
-	//TODO: VFMADD213PS (R11), X9, X11      // c44231a81b
-	//TODO: VFMADD213PS X2, X9, X11         // c46231a8da
-	//TODO: VFMADD213PS X11, X9, X11        // c44231a8db
-	//TODO: VFMADD213PS (BX), Y15, Y2       // c4e205a813
-	//TODO: VFMADD213PS (R11), Y15, Y2      // c4c205a813
-	//TODO: VFMADD213PS Y2, Y15, Y2         // c4e205a8d2
-	//TODO: VFMADD213PS Y11, Y15, Y2        // c4c205a8d3
-	//TODO: VFMADD213PS (BX), Y15, Y11      // c46205a81b
-	//TODO: VFMADD213PS (R11), Y15, Y11     // c44205a81b
-	//TODO: VFMADD213PS Y2, Y15, Y11        // c46205a8da
-	//TODO: VFMADD213PS Y11, Y15, Y11       // c44205a8db
-	//TODO: VFMADD213SD (BX), X9, X2        // c4e2b1a913
-	//TODO: VFMADD213SD (R11), X9, X2       // c4c2b1a913
-	//TODO: VFMADD213SD X2, X9, X2          // c4e2b1a9d2
-	//TODO: VFMADD213SD X11, X9, X2         // c4c2b1a9d3
-	//TODO: VFMADD213SD (BX), X9, X11       // c462b1a91b
-	//TODO: VFMADD213SD (R11), X9, X11      // c442b1a91b
-	//TODO: VFMADD213SD X2, X9, X11         // c462b1a9da
-	//TODO: VFMADD213SD X11, X9, X11        // c442b1a9db
-	//TODO: VFMADD213SS (BX), X9, X2        // c4e231a913
-	//TODO: VFMADD213SS (R11), X9, X2       // c4c231a913
-	//TODO: VFMADD213SS X2, X9, X2          // c4e231a9d2
-	//TODO: VFMADD213SS X11, X9, X2         // c4c231a9d3
-	//TODO: VFMADD213SS (BX), X9, X11       // c46231a91b
-	//TODO: VFMADD213SS (R11), X9, X11      // c44231a91b
-	//TODO: VFMADD213SS X2, X9, X11         // c46231a9da
-	//TODO: VFMADD213SS X11, X9, X11        // c44231a9db
-	//TODO: VFMADD231PD (BX), X9, X2        // c4e2b1b813
-	//TODO: VFMADD231PD (R11), X9, X2       // c4c2b1b813
-	//TODO: VFMADD231PD X2, X9, X2          // c4e2b1b8d2
-	//TODO: VFMADD231PD X11, X9, X2         // c4c2b1b8d3
-	//TODO: VFMADD231PD (BX), X9, X11       // c462b1b81b
-	//TODO: VFMADD231PD (R11), X9, X11      // c442b1b81b
-	//TODO: VFMADD231PD X2, X9, X11         // c462b1b8da
-	//TODO: VFMADD231PD X11, X9, X11        // c442b1b8db
-	//TODO: VFMADD231PD (BX), Y15, Y2       // c4e285b813
-	//TODO: VFMADD231PD (R11), Y15, Y2      // c4c285b813
-	//TODO: VFMADD231PD Y2, Y15, Y2         // c4e285b8d2
-	//TODO: VFMADD231PD Y11, Y15, Y2        // c4c285b8d3
-	//TODO: VFMADD231PD (BX), Y15, Y11      // c46285b81b
-	//TODO: VFMADD231PD (R11), Y15, Y11     // c44285b81b
-	//TODO: VFMADD231PD Y2, Y15, Y11        // c46285b8da
-	//TODO: VFMADD231PD Y11, Y15, Y11       // c44285b8db
-	//TODO: VFMADD231PS (BX), X9, X2        // c4e231b813
-	//TODO: VFMADD231PS (R11), X9, X2       // c4c231b813
-	//TODO: VFMADD231PS X2, X9, X2          // c4e231b8d2
-	//TODO: VFMADD231PS X11, X9, X2         // c4c231b8d3
-	//TODO: VFMADD231PS (BX), X9, X11       // c46231b81b
-	//TODO: VFMADD231PS (R11), X9, X11      // c44231b81b
-	//TODO: VFMADD231PS X2, X9, X11         // c46231b8da
-	//TODO: VFMADD231PS X11, X9, X11        // c44231b8db
-	//TODO: VFMADD231PS (BX), Y15, Y2       // c4e205b813
-	//TODO: VFMADD231PS (R11), Y15, Y2      // c4c205b813
-	//TODO: VFMADD231PS Y2, Y15, Y2         // c4e205b8d2
-	//TODO: VFMADD231PS Y11, Y15, Y2        // c4c205b8d3
-	//TODO: VFMADD231PS (BX), Y15, Y11      // c46205b81b
-	//TODO: VFMADD231PS (R11), Y15, Y11     // c44205b81b
-	//TODO: VFMADD231PS Y2, Y15, Y11        // c46205b8da
-	//TODO: VFMADD231PS Y11, Y15, Y11       // c44205b8db
-	//TODO: VFMADD231SD (BX), X9, X2        // c4e2b1b913
-	//TODO: VFMADD231SD (R11), X9, X2       // c4c2b1b913
-	//TODO: VFMADD231SD X2, X9, X2          // c4e2b1b9d2
-	//TODO: VFMADD231SD X11, X9, X2         // c4c2b1b9d3
-	//TODO: VFMADD231SD (BX), X9, X11       // c462b1b91b
-	//TODO: VFMADD231SD (R11), X9, X11      // c442b1b91b
-	//TODO: VFMADD231SD X2, X9, X11         // c462b1b9da
-	//TODO: VFMADD231SD X11, X9, X11        // c442b1b9db
-	//TODO: VFMADD231SS (BX), X9, X2        // c4e231b913
-	//TODO: VFMADD231SS (R11), X9, X2       // c4c231b913
-	//TODO: VFMADD231SS X2, X9, X2          // c4e231b9d2
-	//TODO: VFMADD231SS X11, X9, X2         // c4c231b9d3
-	//TODO: VFMADD231SS (BX), X9, X11       // c46231b91b
-	//TODO: VFMADD231SS (R11), X9, X11      // c44231b91b
-	//TODO: VFMADD231SS X2, X9, X11         // c46231b9da
-	//TODO: VFMADD231SS X11, X9, X11        // c44231b9db
-	//TODO: VFMADDSUB132PD (BX), X9, X2     // c4e2b19613
-	//TODO: VFMADDSUB132PD (R11), X9, X2    // c4c2b19613
-	//TODO: VFMADDSUB132PD X2, X9, X2       // c4e2b196d2
-	//TODO: VFMADDSUB132PD X11, X9, X2      // c4c2b196d3
-	//TODO: VFMADDSUB132PD (BX), X9, X11    // c462b1961b
-	//TODO: VFMADDSUB132PD (R11), X9, X11   // c442b1961b
-	//TODO: VFMADDSUB132PD X2, X9, X11      // c462b196da
-	//TODO: VFMADDSUB132PD X11, X9, X11     // c442b196db
-	//TODO: VFMADDSUB132PD (BX), Y15, Y2    // c4e2859613
-	//TODO: VFMADDSUB132PD (R11), Y15, Y2   // c4c2859613
-	//TODO: VFMADDSUB132PD Y2, Y15, Y2      // c4e28596d2
-	//TODO: VFMADDSUB132PD Y11, Y15, Y2     // c4c28596d3
-	//TODO: VFMADDSUB132PD (BX), Y15, Y11   // c46285961b
-	//TODO: VFMADDSUB132PD (R11), Y15, Y11  // c44285961b
-	//TODO: VFMADDSUB132PD Y2, Y15, Y11     // c4628596da
-	//TODO: VFMADDSUB132PD Y11, Y15, Y11    // c4428596db
-	//TODO: VFMADDSUB132PS (BX), X9, X2     // c4e2319613
-	//TODO: VFMADDSUB132PS (R11), X9, X2    // c4c2319613
-	//TODO: VFMADDSUB132PS X2, X9, X2       // c4e23196d2
-	//TODO: VFMADDSUB132PS X11, X9, X2      // c4c23196d3
-	//TODO: VFMADDSUB132PS (BX), X9, X11    // c46231961b
-	//TODO: VFMADDSUB132PS (R11), X9, X11   // c44231961b
-	//TODO: VFMADDSUB132PS X2, X9, X11      // c4623196da
-	//TODO: VFMADDSUB132PS X11, X9, X11     // c4423196db
-	//TODO: VFMADDSUB132PS (BX), Y15, Y2    // c4e2059613
-	//TODO: VFMADDSUB132PS (R11), Y15, Y2   // c4c2059613
-	//TODO: VFMADDSUB132PS Y2, Y15, Y2      // c4e20596d2
-	//TODO: VFMADDSUB132PS Y11, Y15, Y2     // c4c20596d3
-	//TODO: VFMADDSUB132PS (BX), Y15, Y11   // c46205961b
-	//TODO: VFMADDSUB132PS (R11), Y15, Y11  // c44205961b
-	//TODO: VFMADDSUB132PS Y2, Y15, Y11     // c4620596da
-	//TODO: VFMADDSUB132PS Y11, Y15, Y11    // c4420596db
-	//TODO: VFMADDSUB213PD (BX), X9, X2     // c4e2b1a613
-	//TODO: VFMADDSUB213PD (R11), X9, X2    // c4c2b1a613
-	//TODO: VFMADDSUB213PD X2, X9, X2       // c4e2b1a6d2
-	//TODO: VFMADDSUB213PD X11, X9, X2      // c4c2b1a6d3
-	//TODO: VFMADDSUB213PD (BX), X9, X11    // c462b1a61b
-	//TODO: VFMADDSUB213PD (R11), X9, X11   // c442b1a61b
-	//TODO: VFMADDSUB213PD X2, X9, X11      // c462b1a6da
-	//TODO: VFMADDSUB213PD X11, X9, X11     // c442b1a6db
-	//TODO: VFMADDSUB213PD (BX), Y15, Y2    // c4e285a613
-	//TODO: VFMADDSUB213PD (R11), Y15, Y2   // c4c285a613
-	//TODO: VFMADDSUB213PD Y2, Y15, Y2      // c4e285a6d2
-	//TODO: VFMADDSUB213PD Y11, Y15, Y2     // c4c285a6d3
-	//TODO: VFMADDSUB213PD (BX), Y15, Y11   // c46285a61b
-	//TODO: VFMADDSUB213PD (R11), Y15, Y11  // c44285a61b
-	//TODO: VFMADDSUB213PD Y2, Y15, Y11     // c46285a6da
-	//TODO: VFMADDSUB213PD Y11, Y15, Y11    // c44285a6db
-	//TODO: VFMADDSUB213PS (BX), X9, X2     // c4e231a613
-	//TODO: VFMADDSUB213PS (R11), X9, X2    // c4c231a613
-	//TODO: VFMADDSUB213PS X2, X9, X2       // c4e231a6d2
-	//TODO: VFMADDSUB213PS X11, X9, X2      // c4c231a6d3
-	//TODO: VFMADDSUB213PS (BX), X9, X11    // c46231a61b
-	//TODO: VFMADDSUB213PS (R11), X9, X11   // c44231a61b
-	//TODO: VFMADDSUB213PS X2, X9, X11      // c46231a6da
-	//TODO: VFMADDSUB213PS X11, X9, X11     // c44231a6db
-	//TODO: VFMADDSUB213PS (BX), Y15, Y2    // c4e205a613
-	//TODO: VFMADDSUB213PS (R11), Y15, Y2   // c4c205a613
-	//TODO: VFMADDSUB213PS Y2, Y15, Y2      // c4e205a6d2
-	//TODO: VFMADDSUB213PS Y11, Y15, Y2     // c4c205a6d3
-	//TODO: VFMADDSUB213PS (BX), Y15, Y11   // c46205a61b
-	//TODO: VFMADDSUB213PS (R11), Y15, Y11  // c44205a61b
-	//TODO: VFMADDSUB213PS Y2, Y15, Y11     // c46205a6da
-	//TODO: VFMADDSUB213PS Y11, Y15, Y11    // c44205a6db
-	//TODO: VFMADDSUB231PD (BX), X9, X2     // c4e2b1b613
-	//TODO: VFMADDSUB231PD (R11), X9, X2    // c4c2b1b613
-	//TODO: VFMADDSUB231PD X2, X9, X2       // c4e2b1b6d2
-	//TODO: VFMADDSUB231PD X11, X9, X2      // c4c2b1b6d3
-	//TODO: VFMADDSUB231PD (BX), X9, X11    // c462b1b61b
-	//TODO: VFMADDSUB231PD (R11), X9, X11   // c442b1b61b
-	//TODO: VFMADDSUB231PD X2, X9, X11      // c462b1b6da
-	//TODO: VFMADDSUB231PD X11, X9, X11     // c442b1b6db
-	//TODO: VFMADDSUB231PD (BX), Y15, Y2    // c4e285b613
-	//TODO: VFMADDSUB231PD (R11), Y15, Y2   // c4c285b613
-	//TODO: VFMADDSUB231PD Y2, Y15, Y2      // c4e285b6d2
-	//TODO: VFMADDSUB231PD Y11, Y15, Y2     // c4c285b6d3
-	//TODO: VFMADDSUB231PD (BX), Y15, Y11   // c46285b61b
-	//TODO: VFMADDSUB231PD (R11), Y15, Y11  // c44285b61b
-	//TODO: VFMADDSUB231PD Y2, Y15, Y11     // c46285b6da
-	//TODO: VFMADDSUB231PD Y11, Y15, Y11    // c44285b6db
-	//TODO: VFMADDSUB231PS (BX), X9, X2     // c4e231b613
-	//TODO: VFMADDSUB231PS (R11), X9, X2    // c4c231b613
-	//TODO: VFMADDSUB231PS X2, X9, X2       // c4e231b6d2
-	//TODO: VFMADDSUB231PS X11, X9, X2      // c4c231b6d3
-	//TODO: VFMADDSUB231PS (BX), X9, X11    // c46231b61b
-	//TODO: VFMADDSUB231PS (R11), X9, X11   // c44231b61b
-	//TODO: VFMADDSUB231PS X2, X9, X11      // c46231b6da
-	//TODO: VFMADDSUB231PS X11, X9, X11     // c44231b6db
-	//TODO: VFMADDSUB231PS (BX), Y15, Y2    // c4e205b613
-	//TODO: VFMADDSUB231PS (R11), Y15, Y2   // c4c205b613
-	//TODO: VFMADDSUB231PS Y2, Y15, Y2      // c4e205b6d2
-	//TODO: VFMADDSUB231PS Y11, Y15, Y2     // c4c205b6d3
-	//TODO: VFMADDSUB231PS (BX), Y15, Y11   // c46205b61b
-	//TODO: VFMADDSUB231PS (R11), Y15, Y11  // c44205b61b
-	//TODO: VFMADDSUB231PS Y2, Y15, Y11     // c46205b6da
-	//TODO: VFMADDSUB231PS Y11, Y15, Y11    // c44205b6db
-	//TODO: VFMSUB132PD (BX), X9, X2        // c4e2b19a13
-	//TODO: VFMSUB132PD (R11), X9, X2       // c4c2b19a13
-	//TODO: VFMSUB132PD X2, X9, X2          // c4e2b19ad2
-	//TODO: VFMSUB132PD X11, X9, X2         // c4c2b19ad3
-	//TODO: VFMSUB132PD (BX), X9, X11       // c462b19a1b
-	//TODO: VFMSUB132PD (R11), X9, X11      // c442b19a1b
-	//TODO: VFMSUB132PD X2, X9, X11         // c462b19ada
-	//TODO: VFMSUB132PD X11, X9, X11        // c442b19adb
-	//TODO: VFMSUB132PD (BX), Y15, Y2       // c4e2859a13
-	//TODO: VFMSUB132PD (R11), Y15, Y2      // c4c2859a13
-	//TODO: VFMSUB132PD Y2, Y15, Y2         // c4e2859ad2
-	//TODO: VFMSUB132PD Y11, Y15, Y2        // c4c2859ad3
-	//TODO: VFMSUB132PD (BX), Y15, Y11      // c462859a1b
-	//TODO: VFMSUB132PD (R11), Y15, Y11     // c442859a1b
-	//TODO: VFMSUB132PD Y2, Y15, Y11        // c462859ada
-	//TODO: VFMSUB132PD Y11, Y15, Y11       // c442859adb
-	//TODO: VFMSUB132PS (BX), X9, X2        // c4e2319a13
-	//TODO: VFMSUB132PS (R11), X9, X2       // c4c2319a13
-	//TODO: VFMSUB132PS X2, X9, X2          // c4e2319ad2
-	//TODO: VFMSUB132PS X11, X9, X2         // c4c2319ad3
-	//TODO: VFMSUB132PS (BX), X9, X11       // c462319a1b
-	//TODO: VFMSUB132PS (R11), X9, X11      // c442319a1b
-	//TODO: VFMSUB132PS X2, X9, X11         // c462319ada
-	//TODO: VFMSUB132PS X11, X9, X11        // c442319adb
-	//TODO: VFMSUB132PS (BX), Y15, Y2       // c4e2059a13
-	//TODO: VFMSUB132PS (R11), Y15, Y2      // c4c2059a13
-	//TODO: VFMSUB132PS Y2, Y15, Y2         // c4e2059ad2
-	//TODO: VFMSUB132PS Y11, Y15, Y2        // c4c2059ad3
-	//TODO: VFMSUB132PS (BX), Y15, Y11      // c462059a1b
-	//TODO: VFMSUB132PS (R11), Y15, Y11     // c442059a1b
-	//TODO: VFMSUB132PS Y2, Y15, Y11        // c462059ada
-	//TODO: VFMSUB132PS Y11, Y15, Y11       // c442059adb
-	//TODO: VFMSUB132SD (BX), X9, X2        // c4e2b19b13
-	//TODO: VFMSUB132SD (R11), X9, X2       // c4c2b19b13
-	//TODO: VFMSUB132SD X2, X9, X2          // c4e2b19bd2
-	//TODO: VFMSUB132SD X11, X9, X2         // c4c2b19bd3
-	//TODO: VFMSUB132SD (BX), X9, X11       // c462b19b1b
-	//TODO: VFMSUB132SD (R11), X9, X11      // c442b19b1b
-	//TODO: VFMSUB132SD X2, X9, X11         // c462b19bda
-	//TODO: VFMSUB132SD X11, X9, X11        // c442b19bdb
-	//TODO: VFMSUB132SS (BX), X9, X2        // c4e2319b13
-	//TODO: VFMSUB132SS (R11), X9, X2       // c4c2319b13
-	//TODO: VFMSUB132SS X2, X9, X2          // c4e2319bd2
-	//TODO: VFMSUB132SS X11, X9, X2         // c4c2319bd3
-	//TODO: VFMSUB132SS (BX), X9, X11       // c462319b1b
-	//TODO: VFMSUB132SS (R11), X9, X11      // c442319b1b
-	//TODO: VFMSUB132SS X2, X9, X11         // c462319bda
-	//TODO: VFMSUB132SS X11, X9, X11        // c442319bdb
-	//TODO: VFMSUB213PD (BX), X9, X2        // c4e2b1aa13
-	//TODO: VFMSUB213PD (R11), X9, X2       // c4c2b1aa13
-	//TODO: VFMSUB213PD X2, X9, X2          // c4e2b1aad2
-	//TODO: VFMSUB213PD X11, X9, X2         // c4c2b1aad3
-	//TODO: VFMSUB213PD (BX), X9, X11       // c462b1aa1b
-	//TODO: VFMSUB213PD (R11), X9, X11      // c442b1aa1b
-	//TODO: VFMSUB213PD X2, X9, X11         // c462b1aada
-	//TODO: VFMSUB213PD X11, X9, X11        // c442b1aadb
-	//TODO: VFMSUB213PD (BX), Y15, Y2       // c4e285aa13
-	//TODO: VFMSUB213PD (R11), Y15, Y2      // c4c285aa13
-	//TODO: VFMSUB213PD Y2, Y15, Y2         // c4e285aad2
-	//TODO: VFMSUB213PD Y11, Y15, Y2        // c4c285aad3
-	//TODO: VFMSUB213PD (BX), Y15, Y11      // c46285aa1b
-	//TODO: VFMSUB213PD (R11), Y15, Y11     // c44285aa1b
-	//TODO: VFMSUB213PD Y2, Y15, Y11        // c46285aada
-	//TODO: VFMSUB213PD Y11, Y15, Y11       // c44285aadb
-	//TODO: VFMSUB213PS (BX), X9, X2        // c4e231aa13
-	//TODO: VFMSUB213PS (R11), X9, X2       // c4c231aa13
-	//TODO: VFMSUB213PS X2, X9, X2          // c4e231aad2
-	//TODO: VFMSUB213PS X11, X9, X2         // c4c231aad3
-	//TODO: VFMSUB213PS (BX), X9, X11       // c46231aa1b
-	//TODO: VFMSUB213PS (R11), X9, X11      // c44231aa1b
-	//TODO: VFMSUB213PS X2, X9, X11         // c46231aada
-	//TODO: VFMSUB213PS X11, X9, X11        // c44231aadb
-	//TODO: VFMSUB213PS (BX), Y15, Y2       // c4e205aa13
-	//TODO: VFMSUB213PS (R11), Y15, Y2      // c4c205aa13
-	//TODO: VFMSUB213PS Y2, Y15, Y2         // c4e205aad2
-	//TODO: VFMSUB213PS Y11, Y15, Y2        // c4c205aad3
-	//TODO: VFMSUB213PS (BX), Y15, Y11      // c46205aa1b
-	//TODO: VFMSUB213PS (R11), Y15, Y11     // c44205aa1b
-	//TODO: VFMSUB213PS Y2, Y15, Y11        // c46205aada
-	//TODO: VFMSUB213PS Y11, Y15, Y11       // c44205aadb
-	//TODO: VFMSUB213SD (BX), X9, X2        // c4e2b1ab13
-	//TODO: VFMSUB213SD (R11), X9, X2       // c4c2b1ab13
-	//TODO: VFMSUB213SD X2, X9, X2          // c4e2b1abd2
-	//TODO: VFMSUB213SD X11, X9, X2         // c4c2b1abd3
-	//TODO: VFMSUB213SD (BX), X9, X11       // c462b1ab1b
-	//TODO: VFMSUB213SD (R11), X9, X11      // c442b1ab1b
-	//TODO: VFMSUB213SD X2, X9, X11         // c462b1abda
-	//TODO: VFMSUB213SD X11, X9, X11        // c442b1abdb
-	//TODO: VFMSUB213SS (BX), X9, X2        // c4e231ab13
-	//TODO: VFMSUB213SS (R11), X9, X2       // c4c231ab13
-	//TODO: VFMSUB213SS X2, X9, X2          // c4e231abd2
-	//TODO: VFMSUB213SS X11, X9, X2         // c4c231abd3
-	//TODO: VFMSUB213SS (BX), X9, X11       // c46231ab1b
-	//TODO: VFMSUB213SS (R11), X9, X11      // c44231ab1b
-	//TODO: VFMSUB213SS X2, X9, X11         // c46231abda
-	//TODO: VFMSUB213SS X11, X9, X11        // c44231abdb
-	//TODO: VFMSUB231PD (BX), X9, X2        // c4e2b1ba13
-	//TODO: VFMSUB231PD (R11), X9, X2       // c4c2b1ba13
-	//TODO: VFMSUB231PD X2, X9, X2          // c4e2b1bad2
-	//TODO: VFMSUB231PD X11, X9, X2         // c4c2b1bad3
-	//TODO: VFMSUB231PD (BX), X9, X11       // c462b1ba1b
-	//TODO: VFMSUB231PD (R11), X9, X11      // c442b1ba1b
-	//TODO: VFMSUB231PD X2, X9, X11         // c462b1bada
-	//TODO: VFMSUB231PD X11, X9, X11        // c442b1badb
-	//TODO: VFMSUB231PD (BX), Y15, Y2       // c4e285ba13
-	//TODO: VFMSUB231PD (R11), Y15, Y2      // c4c285ba13
-	//TODO: VFMSUB231PD Y2, Y15, Y2         // c4e285bad2
-	//TODO: VFMSUB231PD Y11, Y15, Y2        // c4c285bad3
-	//TODO: VFMSUB231PD (BX), Y15, Y11      // c46285ba1b
-	//TODO: VFMSUB231PD (R11), Y15, Y11     // c44285ba1b
-	//TODO: VFMSUB231PD Y2, Y15, Y11        // c46285bada
-	//TODO: VFMSUB231PD Y11, Y15, Y11       // c44285badb
-	//TODO: VFMSUB231PS (BX), X9, X2        // c4e231ba13
-	//TODO: VFMSUB231PS (R11), X9, X2       // c4c231ba13
-	//TODO: VFMSUB231PS X2, X9, X2          // c4e231bad2
-	//TODO: VFMSUB231PS X11, X9, X2         // c4c231bad3
-	//TODO: VFMSUB231PS (BX), X9, X11       // c46231ba1b
-	//TODO: VFMSUB231PS (R11), X9, X11      // c44231ba1b
-	//TODO: VFMSUB231PS X2, X9, X11         // c46231bada
-	//TODO: VFMSUB231PS X11, X9, X11        // c44231badb
-	//TODO: VFMSUB231PS (BX), Y15, Y2       // c4e205ba13
-	//TODO: VFMSUB231PS (R11), Y15, Y2      // c4c205ba13
-	//TODO: VFMSUB231PS Y2, Y15, Y2         // c4e205bad2
-	//TODO: VFMSUB231PS Y11, Y15, Y2        // c4c205bad3
-	//TODO: VFMSUB231PS (BX), Y15, Y11      // c46205ba1b
-	//TODO: VFMSUB231PS (R11), Y15, Y11     // c44205ba1b
-	//TODO: VFMSUB231PS Y2, Y15, Y11        // c46205bada
-	//TODO: VFMSUB231PS Y11, Y15, Y11       // c44205badb
-	//TODO: VFMSUB231SD (BX), X9, X2        // c4e2b1bb13
-	//TODO: VFMSUB231SD (R11), X9, X2       // c4c2b1bb13
-	//TODO: VFMSUB231SD X2, X9, X2          // c4e2b1bbd2
-	//TODO: VFMSUB231SD X11, X9, X2         // c4c2b1bbd3
-	//TODO: VFMSUB231SD (BX), X9, X11       // c462b1bb1b
-	//TODO: VFMSUB231SD (R11), X9, X11      // c442b1bb1b
-	//TODO: VFMSUB231SD X2, X9, X11         // c462b1bbda
-	//TODO: VFMSUB231SD X11, X9, X11        // c442b1bbdb
-	//TODO: VFMSUB231SS (BX), X9, X2        // c4e231bb13
-	//TODO: VFMSUB231SS (R11), X9, X2       // c4c231bb13
-	//TODO: VFMSUB231SS X2, X9, X2          // c4e231bbd2
-	//TODO: VFMSUB231SS X11, X9, X2         // c4c231bbd3
-	//TODO: VFMSUB231SS (BX), X9, X11       // c46231bb1b
-	//TODO: VFMSUB231SS (R11), X9, X11      // c44231bb1b
-	//TODO: VFMSUB231SS X2, X9, X11         // c46231bbda
-	//TODO: VFMSUB231SS X11, X9, X11        // c44231bbdb
-	//TODO: VFMSUBADD132PD (BX), X9, X2     // c4e2b19713
-	//TODO: VFMSUBADD132PD (R11), X9, X2    // c4c2b19713
-	//TODO: VFMSUBADD132PD X2, X9, X2       // c4e2b197d2
-	//TODO: VFMSUBADD132PD X11, X9, X2      // c4c2b197d3
-	//TODO: VFMSUBADD132PD (BX), X9, X11    // c462b1971b
-	//TODO: VFMSUBADD132PD (R11), X9, X11   // c442b1971b
-	//TODO: VFMSUBADD132PD X2, X9, X11      // c462b197da
-	//TODO: VFMSUBADD132PD X11, X9, X11     // c442b197db
-	//TODO: VFMSUBADD132PD (BX), Y15, Y2    // c4e2859713
-	//TODO: VFMSUBADD132PD (R11), Y15, Y2   // c4c2859713
-	//TODO: VFMSUBADD132PD Y2, Y15, Y2      // c4e28597d2
-	//TODO: VFMSUBADD132PD Y11, Y15, Y2     // c4c28597d3
-	//TODO: VFMSUBADD132PD (BX), Y15, Y11   // c46285971b
-	//TODO: VFMSUBADD132PD (R11), Y15, Y11  // c44285971b
-	//TODO: VFMSUBADD132PD Y2, Y15, Y11     // c4628597da
-	//TODO: VFMSUBADD132PD Y11, Y15, Y11    // c4428597db
-	//TODO: VFMSUBADD132PS (BX), X9, X2     // c4e2319713
-	//TODO: VFMSUBADD132PS (R11), X9, X2    // c4c2319713
-	//TODO: VFMSUBADD132PS X2, X9, X2       // c4e23197d2
-	//TODO: VFMSUBADD132PS X11, X9, X2      // c4c23197d3
-	//TODO: VFMSUBADD132PS (BX), X9, X11    // c46231971b
-	//TODO: VFMSUBADD132PS (R11), X9, X11   // c44231971b
-	//TODO: VFMSUBADD132PS X2, X9, X11      // c4623197da
-	//TODO: VFMSUBADD132PS X11, X9, X11     // c4423197db
-	//TODO: VFMSUBADD132PS (BX), Y15, Y2    // c4e2059713
-	//TODO: VFMSUBADD132PS (R11), Y15, Y2   // c4c2059713
-	//TODO: VFMSUBADD132PS Y2, Y15, Y2      // c4e20597d2
-	//TODO: VFMSUBADD132PS Y11, Y15, Y2     // c4c20597d3
-	//TODO: VFMSUBADD132PS (BX), Y15, Y11   // c46205971b
-	//TODO: VFMSUBADD132PS (R11), Y15, Y11  // c44205971b
-	//TODO: VFMSUBADD132PS Y2, Y15, Y11     // c4620597da
-	//TODO: VFMSUBADD132PS Y11, Y15, Y11    // c4420597db
-	//TODO: VFMSUBADD213PD (BX), X9, X2     // c4e2b1a713
-	//TODO: VFMSUBADD213PD (R11), X9, X2    // c4c2b1a713
-	//TODO: VFMSUBADD213PD X2, X9, X2       // c4e2b1a7d2
-	//TODO: VFMSUBADD213PD X11, X9, X2      // c4c2b1a7d3
-	//TODO: VFMSUBADD213PD (BX), X9, X11    // c462b1a71b
-	//TODO: VFMSUBADD213PD (R11), X9, X11   // c442b1a71b
-	//TODO: VFMSUBADD213PD X2, X9, X11      // c462b1a7da
-	//TODO: VFMSUBADD213PD X11, X9, X11     // c442b1a7db
-	//TODO: VFMSUBADD213PD (BX), Y15, Y2    // c4e285a713
-	//TODO: VFMSUBADD213PD (R11), Y15, Y2   // c4c285a713
-	//TODO: VFMSUBADD213PD Y2, Y15, Y2      // c4e285a7d2
-	//TODO: VFMSUBADD213PD Y11, Y15, Y2     // c4c285a7d3
-	//TODO: VFMSUBADD213PD (BX), Y15, Y11   // c46285a71b
-	//TODO: VFMSUBADD213PD (R11), Y15, Y11  // c44285a71b
-	//TODO: VFMSUBADD213PD Y2, Y15, Y11     // c46285a7da
-	//TODO: VFMSUBADD213PD Y11, Y15, Y11    // c44285a7db
-	//TODO: VFMSUBADD213PS (BX), X9, X2     // c4e231a713
-	//TODO: VFMSUBADD213PS (R11), X9, X2    // c4c231a713
-	//TODO: VFMSUBADD213PS X2, X9, X2       // c4e231a7d2
-	//TODO: VFMSUBADD213PS X11, X9, X2      // c4c231a7d3
-	//TODO: VFMSUBADD213PS (BX), X9, X11    // c46231a71b
-	//TODO: VFMSUBADD213PS (R11), X9, X11   // c44231a71b
-	//TODO: VFMSUBADD213PS X2, X9, X11      // c46231a7da
-	//TODO: VFMSUBADD213PS X11, X9, X11     // c44231a7db
-	//TODO: VFMSUBADD213PS (BX), Y15, Y2    // c4e205a713
-	//TODO: VFMSUBADD213PS (R11), Y15, Y2   // c4c205a713
-	//TODO: VFMSUBADD213PS Y2, Y15, Y2      // c4e205a7d2
-	//TODO: VFMSUBADD213PS Y11, Y15, Y2     // c4c205a7d3
-	//TODO: VFMSUBADD213PS (BX), Y15, Y11   // c46205a71b
-	//TODO: VFMSUBADD213PS (R11), Y15, Y11  // c44205a71b
-	//TODO: VFMSUBADD213PS Y2, Y15, Y11     // c46205a7da
-	//TODO: VFMSUBADD213PS Y11, Y15, Y11    // c44205a7db
-	//TODO: VFMSUBADD231PD (BX), X9, X2     // c4e2b1b713
-	//TODO: VFMSUBADD231PD (R11), X9, X2    // c4c2b1b713
-	//TODO: VFMSUBADD231PD X2, X9, X2       // c4e2b1b7d2
-	//TODO: VFMSUBADD231PD X11, X9, X2      // c4c2b1b7d3
-	//TODO: VFMSUBADD231PD (BX), X9, X11    // c462b1b71b
-	//TODO: VFMSUBADD231PD (R11), X9, X11   // c442b1b71b
-	//TODO: VFMSUBADD231PD X2, X9, X11      // c462b1b7da
-	//TODO: VFMSUBADD231PD X11, X9, X11     // c442b1b7db
-	//TODO: VFMSUBADD231PD (BX), Y15, Y2    // c4e285b713
-	//TODO: VFMSUBADD231PD (R11), Y15, Y2   // c4c285b713
-	//TODO: VFMSUBADD231PD Y2, Y15, Y2      // c4e285b7d2
-	//TODO: VFMSUBADD231PD Y11, Y15, Y2     // c4c285b7d3
-	//TODO: VFMSUBADD231PD (BX), Y15, Y11   // c46285b71b
-	//TODO: VFMSUBADD231PD (R11), Y15, Y11  // c44285b71b
-	//TODO: VFMSUBADD231PD Y2, Y15, Y11     // c46285b7da
-	//TODO: VFMSUBADD231PD Y11, Y15, Y11    // c44285b7db
-	//TODO: VFMSUBADD231PS (BX), X9, X2     // c4e231b713
-	//TODO: VFMSUBADD231PS (R11), X9, X2    // c4c231b713
-	//TODO: VFMSUBADD231PS X2, X9, X2       // c4e231b7d2
-	//TODO: VFMSUBADD231PS X11, X9, X2      // c4c231b7d3
-	//TODO: VFMSUBADD231PS (BX), X9, X11    // c46231b71b
-	//TODO: VFMSUBADD231PS (R11), X9, X11   // c44231b71b
-	//TODO: VFMSUBADD231PS X2, X9, X11      // c46231b7da
-	//TODO: VFMSUBADD231PS X11, X9, X11     // c44231b7db
-	//TODO: VFMSUBADD231PS (BX), Y15, Y2    // c4e205b713
-	//TODO: VFMSUBADD231PS (R11), Y15, Y2   // c4c205b713
-	//TODO: VFMSUBADD231PS Y2, Y15, Y2      // c4e205b7d2
-	//TODO: VFMSUBADD231PS Y11, Y15, Y2     // c4c205b7d3
-	//TODO: VFMSUBADD231PS (BX), Y15, Y11   // c46205b71b
-	//TODO: VFMSUBADD231PS (R11), Y15, Y11  // c44205b71b
-	//TODO: VFMSUBADD231PS Y2, Y15, Y11     // c46205b7da
-	//TODO: VFMSUBADD231PS Y11, Y15, Y11    // c44205b7db
-	//TODO: VFNMADD132PD (BX), X9, X2       // c4e2b19c13
-	//TODO: VFNMADD132PD (R11), X9, X2      // c4c2b19c13
-	//TODO: VFNMADD132PD X2, X9, X2         // c4e2b19cd2
-	//TODO: VFNMADD132PD X11, X9, X2        // c4c2b19cd3
-	//TODO: VFNMADD132PD (BX), X9, X11      // c462b19c1b
-	//TODO: VFNMADD132PD (R11), X9, X11     // c442b19c1b
-	//TODO: VFNMADD132PD X2, X9, X11        // c462b19cda
-	//TODO: VFNMADD132PD X11, X9, X11       // c442b19cdb
-	//TODO: VFNMADD132PD (BX), Y15, Y2      // c4e2859c13
-	//TODO: VFNMADD132PD (R11), Y15, Y2     // c4c2859c13
-	//TODO: VFNMADD132PD Y2, Y15, Y2        // c4e2859cd2
-	//TODO: VFNMADD132PD Y11, Y15, Y2       // c4c2859cd3
-	//TODO: VFNMADD132PD (BX), Y15, Y11     // c462859c1b
-	//TODO: VFNMADD132PD (R11), Y15, Y11    // c442859c1b
-	//TODO: VFNMADD132PD Y2, Y15, Y11       // c462859cda
-	//TODO: VFNMADD132PD Y11, Y15, Y11      // c442859cdb
-	//TODO: VFNMADD132PS (BX), X9, X2       // c4e2319c13
-	//TODO: VFNMADD132PS (R11), X9, X2      // c4c2319c13
-	//TODO: VFNMADD132PS X2, X9, X2         // c4e2319cd2
-	//TODO: VFNMADD132PS X11, X9, X2        // c4c2319cd3
-	//TODO: VFNMADD132PS (BX), X9, X11      // c462319c1b
-	//TODO: VFNMADD132PS (R11), X9, X11     // c442319c1b
-	//TODO: VFNMADD132PS X2, X9, X11        // c462319cda
-	//TODO: VFNMADD132PS X11, X9, X11       // c442319cdb
-	//TODO: VFNMADD132PS (BX), Y15, Y2      // c4e2059c13
-	//TODO: VFNMADD132PS (R11), Y15, Y2     // c4c2059c13
-	//TODO: VFNMADD132PS Y2, Y15, Y2        // c4e2059cd2
-	//TODO: VFNMADD132PS Y11, Y15, Y2       // c4c2059cd3
-	//TODO: VFNMADD132PS (BX), Y15, Y11     // c462059c1b
-	//TODO: VFNMADD132PS (R11), Y15, Y11    // c442059c1b
-	//TODO: VFNMADD132PS Y2, Y15, Y11       // c462059cda
-	//TODO: VFNMADD132PS Y11, Y15, Y11      // c442059cdb
-	//TODO: VFNMADD132SD (BX), X9, X2       // c4e2b19d13
-	//TODO: VFNMADD132SD (R11), X9, X2      // c4c2b19d13
-	//TODO: VFNMADD132SD X2, X9, X2         // c4e2b19dd2
-	//TODO: VFNMADD132SD X11, X9, X2        // c4c2b19dd3
-	//TODO: VFNMADD132SD (BX), X9, X11      // c462b19d1b
-	//TODO: VFNMADD132SD (R11), X9, X11     // c442b19d1b
-	//TODO: VFNMADD132SD X2, X9, X11        // c462b19dda
-	//TODO: VFNMADD132SD X11, X9, X11       // c442b19ddb
-	//TODO: VFNMADD132SS (BX), X9, X2       // c4e2319d13
-	//TODO: VFNMADD132SS (R11), X9, X2      // c4c2319d13
-	//TODO: VFNMADD132SS X2, X9, X2         // c4e2319dd2
-	//TODO: VFNMADD132SS X11, X9, X2        // c4c2319dd3
-	//TODO: VFNMADD132SS (BX), X9, X11      // c462319d1b
-	//TODO: VFNMADD132SS (R11), X9, X11     // c442319d1b
-	//TODO: VFNMADD132SS X2, X9, X11        // c462319dda
-	//TODO: VFNMADD132SS X11, X9, X11       // c442319ddb
-	//TODO: VFNMADD213PD (BX), X9, X2       // c4e2b1ac13
-	//TODO: VFNMADD213PD (R11), X9, X2      // c4c2b1ac13
-	//TODO: VFNMADD213PD X2, X9, X2         // c4e2b1acd2
-	//TODO: VFNMADD213PD X11, X9, X2        // c4c2b1acd3
-	//TODO: VFNMADD213PD (BX), X9, X11      // c462b1ac1b
-	//TODO: VFNMADD213PD (R11), X9, X11     // c442b1ac1b
-	//TODO: VFNMADD213PD X2, X9, X11        // c462b1acda
-	//TODO: VFNMADD213PD X11, X9, X11       // c442b1acdb
-	//TODO: VFNMADD213PD (BX), Y15, Y2      // c4e285ac13
-	//TODO: VFNMADD213PD (R11), Y15, Y2     // c4c285ac13
-	//TODO: VFNMADD213PD Y2, Y15, Y2        // c4e285acd2
-	//TODO: VFNMADD213PD Y11, Y15, Y2       // c4c285acd3
-	//TODO: VFNMADD213PD (BX), Y15, Y11     // c46285ac1b
-	//TODO: VFNMADD213PD (R11), Y15, Y11    // c44285ac1b
-	//TODO: VFNMADD213PD Y2, Y15, Y11       // c46285acda
-	//TODO: VFNMADD213PD Y11, Y15, Y11      // c44285acdb
-	//TODO: VFNMADD213PS (BX), X9, X2       // c4e231ac13
-	//TODO: VFNMADD213PS (R11), X9, X2      // c4c231ac13
-	//TODO: VFNMADD213PS X2, X9, X2         // c4e231acd2
-	//TODO: VFNMADD213PS X11, X9, X2        // c4c231acd3
-	//TODO: VFNMADD213PS (BX), X9, X11      // c46231ac1b
-	//TODO: VFNMADD213PS (R11), X9, X11     // c44231ac1b
-	//TODO: VFNMADD213PS X2, X9, X11        // c46231acda
-	//TODO: VFNMADD213PS X11, X9, X11       // c44231acdb
-	//TODO: VFNMADD213PS (BX), Y15, Y2      // c4e205ac13
-	//TODO: VFNMADD213PS (R11), Y15, Y2     // c4c205ac13
-	//TODO: VFNMADD213PS Y2, Y15, Y2        // c4e205acd2
-	//TODO: VFNMADD213PS Y11, Y15, Y2       // c4c205acd3
-	//TODO: VFNMADD213PS (BX), Y15, Y11     // c46205ac1b
-	//TODO: VFNMADD213PS (R11), Y15, Y11    // c44205ac1b
-	//TODO: VFNMADD213PS Y2, Y15, Y11       // c46205acda
-	//TODO: VFNMADD213PS Y11, Y15, Y11      // c44205acdb
-	//TODO: VFNMADD213SD (BX), X9, X2       // c4e2b1ad13
-	//TODO: VFNMADD213SD (R11), X9, X2      // c4c2b1ad13
-	//TODO: VFNMADD213SD X2, X9, X2         // c4e2b1add2
-	//TODO: VFNMADD213SD X11, X9, X2        // c4c2b1add3
-	//TODO: VFNMADD213SD (BX), X9, X11      // c462b1ad1b
-	//TODO: VFNMADD213SD (R11), X9, X11     // c442b1ad1b
-	//TODO: VFNMADD213SD X2, X9, X11        // c462b1adda
-	//TODO: VFNMADD213SD X11, X9, X11       // c442b1addb
-	//TODO: VFNMADD213SS (BX), X9, X2       // c4e231ad13
-	//TODO: VFNMADD213SS (R11), X9, X2      // c4c231ad13
-	//TODO: VFNMADD213SS X2, X9, X2         // c4e231add2
-	//TODO: VFNMADD213SS X11, X9, X2        // c4c231add3
-	//TODO: VFNMADD213SS (BX), X9, X11      // c46231ad1b
-	//TODO: VFNMADD213SS (R11), X9, X11     // c44231ad1b
-	//TODO: VFNMADD213SS X2, X9, X11        // c46231adda
-	//TODO: VFNMADD213SS X11, X9, X11       // c44231addb
-	//TODO: VFNMADD231PD (BX), X9, X2       // c4e2b1bc13
-	//TODO: VFNMADD231PD (R11), X9, X2      // c4c2b1bc13
-	//TODO: VFNMADD231PD X2, X9, X2         // c4e2b1bcd2
-	//TODO: VFNMADD231PD X11, X9, X2        // c4c2b1bcd3
-	//TODO: VFNMADD231PD (BX), X9, X11      // c462b1bc1b
-	//TODO: VFNMADD231PD (R11), X9, X11     // c442b1bc1b
-	//TODO: VFNMADD231PD X2, X9, X11        // c462b1bcda
-	//TODO: VFNMADD231PD X11, X9, X11       // c442b1bcdb
-	//TODO: VFNMADD231PD (BX), Y15, Y2      // c4e285bc13
-	//TODO: VFNMADD231PD (R11), Y15, Y2     // c4c285bc13
-	//TODO: VFNMADD231PD Y2, Y15, Y2        // c4e285bcd2
-	//TODO: VFNMADD231PD Y11, Y15, Y2       // c4c285bcd3
-	//TODO: VFNMADD231PD (BX), Y15, Y11     // c46285bc1b
-	//TODO: VFNMADD231PD (R11), Y15, Y11    // c44285bc1b
-	//TODO: VFNMADD231PD Y2, Y15, Y11       // c46285bcda
-	//TODO: VFNMADD231PD Y11, Y15, Y11      // c44285bcdb
-	//TODO: VFNMADD231PS (BX), X9, X2       // c4e231bc13
-	//TODO: VFNMADD231PS (R11), X9, X2      // c4c231bc13
-	//TODO: VFNMADD231PS X2, X9, X2         // c4e231bcd2
-	//TODO: VFNMADD231PS X11, X9, X2        // c4c231bcd3
-	//TODO: VFNMADD231PS (BX), X9, X11      // c46231bc1b
-	//TODO: VFNMADD231PS (R11), X9, X11     // c44231bc1b
-	//TODO: VFNMADD231PS X2, X9, X11        // c46231bcda
-	//TODO: VFNMADD231PS X11, X9, X11       // c44231bcdb
-	//TODO: VFNMADD231PS (BX), Y15, Y2      // c4e205bc13
-	//TODO: VFNMADD231PS (R11), Y15, Y2     // c4c205bc13
-	//TODO: VFNMADD231PS Y2, Y15, Y2        // c4e205bcd2
-	//TODO: VFNMADD231PS Y11, Y15, Y2       // c4c205bcd3
-	//TODO: VFNMADD231PS (BX), Y15, Y11     // c46205bc1b
-	//TODO: VFNMADD231PS (R11), Y15, Y11    // c44205bc1b
-	//TODO: VFNMADD231PS Y2, Y15, Y11       // c46205bcda
-	//TODO: VFNMADD231PS Y11, Y15, Y11      // c44205bcdb
-	//TODO: VFNMADD231SD (BX), X9, X2       // c4e2b1bd13
-	//TODO: VFNMADD231SD (R11), X9, X2      // c4c2b1bd13
-	//TODO: VFNMADD231SD X2, X9, X2         // c4e2b1bdd2
-	//TODO: VFNMADD231SD X11, X9, X2        // c4c2b1bdd3
-	//TODO: VFNMADD231SD (BX), X9, X11      // c462b1bd1b
-	//TODO: VFNMADD231SD (R11), X9, X11     // c442b1bd1b
-	//TODO: VFNMADD231SD X2, X9, X11        // c462b1bdda
-	//TODO: VFNMADD231SD X11, X9, X11       // c442b1bddb
-	//TODO: VFNMADD231SS (BX), X9, X2       // c4e231bd13
-	//TODO: VFNMADD231SS (R11), X9, X2      // c4c231bd13
-	//TODO: VFNMADD231SS X2, X9, X2         // c4e231bdd2
-	//TODO: VFNMADD231SS X11, X9, X2        // c4c231bdd3
-	//TODO: VFNMADD231SS (BX), X9, X11      // c46231bd1b
-	//TODO: VFNMADD231SS (R11), X9, X11     // c44231bd1b
-	//TODO: VFNMADD231SS X2, X9, X11        // c46231bdda
-	//TODO: VFNMADD231SS X11, X9, X11       // c44231bddb
-	//TODO: VFNMSUB132PD (BX), X9, X2       // c4e2b19e13
-	//TODO: VFNMSUB132PD (R11), X9, X2      // c4c2b19e13
-	//TODO: VFNMSUB132PD X2, X9, X2         // c4e2b19ed2
-	//TODO: VFNMSUB132PD X11, X9, X2        // c4c2b19ed3
-	//TODO: VFNMSUB132PD (BX), X9, X11      // c462b19e1b
-	//TODO: VFNMSUB132PD (R11), X9, X11     // c442b19e1b
-	//TODO: VFNMSUB132PD X2, X9, X11        // c462b19eda
-	//TODO: VFNMSUB132PD X11, X9, X11       // c442b19edb
-	//TODO: VFNMSUB132PD (BX), Y15, Y2      // c4e2859e13
-	//TODO: VFNMSUB132PD (R11), Y15, Y2     // c4c2859e13
-	//TODO: VFNMSUB132PD Y2, Y15, Y2        // c4e2859ed2
-	//TODO: VFNMSUB132PD Y11, Y15, Y2       // c4c2859ed3
-	//TODO: VFNMSUB132PD (BX), Y15, Y11     // c462859e1b
-	//TODO: VFNMSUB132PD (R11), Y15, Y11    // c442859e1b
-	//TODO: VFNMSUB132PD Y2, Y15, Y11       // c462859eda
-	//TODO: VFNMSUB132PD Y11, Y15, Y11      // c442859edb
-	//TODO: VFNMSUB132PS (BX), X9, X2       // c4e2319e13
-	//TODO: VFNMSUB132PS (R11), X9, X2      // c4c2319e13
-	//TODO: VFNMSUB132PS X2, X9, X2         // c4e2319ed2
-	//TODO: VFNMSUB132PS X11, X9, X2        // c4c2319ed3
-	//TODO: VFNMSUB132PS (BX), X9, X11      // c462319e1b
-	//TODO: VFNMSUB132PS (R11), X9, X11     // c442319e1b
-	//TODO: VFNMSUB132PS X2, X9, X11        // c462319eda
-	//TODO: VFNMSUB132PS X11, X9, X11       // c442319edb
-	//TODO: VFNMSUB132PS (BX), Y15, Y2      // c4e2059e13
-	//TODO: VFNMSUB132PS (R11), Y15, Y2     // c4c2059e13
-	//TODO: VFNMSUB132PS Y2, Y15, Y2        // c4e2059ed2
-	//TODO: VFNMSUB132PS Y11, Y15, Y2       // c4c2059ed3
-	//TODO: VFNMSUB132PS (BX), Y15, Y11     // c462059e1b
-	//TODO: VFNMSUB132PS (R11), Y15, Y11    // c442059e1b
-	//TODO: VFNMSUB132PS Y2, Y15, Y11       // c462059eda
-	//TODO: VFNMSUB132PS Y11, Y15, Y11      // c442059edb
-	//TODO: VFNMSUB132SD (BX), X9, X2       // c4e2b19f13
-	//TODO: VFNMSUB132SD (R11), X9, X2      // c4c2b19f13
-	//TODO: VFNMSUB132SD X2, X9, X2         // c4e2b19fd2
-	//TODO: VFNMSUB132SD X11, X9, X2        // c4c2b19fd3
-	//TODO: VFNMSUB132SD (BX), X9, X11      // c462b19f1b
-	//TODO: VFNMSUB132SD (R11), X9, X11     // c442b19f1b
-	//TODO: VFNMSUB132SD X2, X9, X11        // c462b19fda
-	//TODO: VFNMSUB132SD X11, X9, X11       // c442b19fdb
-	//TODO: VFNMSUB132SS (BX), X9, X2       // c4e2319f13
-	//TODO: VFNMSUB132SS (R11), X9, X2      // c4c2319f13
-	//TODO: VFNMSUB132SS X2, X9, X2         // c4e2319fd2
-	//TODO: VFNMSUB132SS X11, X9, X2        // c4c2319fd3
-	//TODO: VFNMSUB132SS (BX), X9, X11      // c462319f1b
-	//TODO: VFNMSUB132SS (R11), X9, X11     // c442319f1b
-	//TODO: VFNMSUB132SS X2, X9, X11        // c462319fda
-	//TODO: VFNMSUB132SS X11, X9, X11       // c442319fdb
-	//TODO: VFNMSUB213PD (BX), X9, X2       // c4e2b1ae13
-	//TODO: VFNMSUB213PD (R11), X9, X2      // c4c2b1ae13
-	//TODO: VFNMSUB213PD X2, X9, X2         // c4e2b1aed2
-	//TODO: VFNMSUB213PD X11, X9, X2        // c4c2b1aed3
-	//TODO: VFNMSUB213PD (BX), X9, X11      // c462b1ae1b
-	//TODO: VFNMSUB213PD (R11), X9, X11     // c442b1ae1b
-	//TODO: VFNMSUB213PD X2, X9, X11        // c462b1aeda
-	//TODO: VFNMSUB213PD X11, X9, X11       // c442b1aedb
-	//TODO: VFNMSUB213PD (BX), Y15, Y2      // c4e285ae13
-	//TODO: VFNMSUB213PD (R11), Y15, Y2     // c4c285ae13
-	//TODO: VFNMSUB213PD Y2, Y15, Y2        // c4e285aed2
-	//TODO: VFNMSUB213PD Y11, Y15, Y2       // c4c285aed3
-	//TODO: VFNMSUB213PD (BX), Y15, Y11     // c46285ae1b
-	//TODO: VFNMSUB213PD (R11), Y15, Y11    // c44285ae1b
-	//TODO: VFNMSUB213PD Y2, Y15, Y11       // c46285aeda
-	//TODO: VFNMSUB213PD Y11, Y15, Y11      // c44285aedb
-	//TODO: VFNMSUB213PS (BX), X9, X2       // c4e231ae13
-	//TODO: VFNMSUB213PS (R11), X9, X2      // c4c231ae13
-	//TODO: VFNMSUB213PS X2, X9, X2         // c4e231aed2
-	//TODO: VFNMSUB213PS X11, X9, X2        // c4c231aed3
-	//TODO: VFNMSUB213PS (BX), X9, X11      // c46231ae1b
-	//TODO: VFNMSUB213PS (R11), X9, X11     // c44231ae1b
-	//TODO: VFNMSUB213PS X2, X9, X11        // c46231aeda
-	//TODO: VFNMSUB213PS X11, X9, X11       // c44231aedb
-	//TODO: VFNMSUB213PS (BX), Y15, Y2      // c4e205ae13
-	//TODO: VFNMSUB213PS (R11), Y15, Y2     // c4c205ae13
-	//TODO: VFNMSUB213PS Y2, Y15, Y2        // c4e205aed2
-	//TODO: VFNMSUB213PS Y11, Y15, Y2       // c4c205aed3
-	//TODO: VFNMSUB213PS (BX), Y15, Y11     // c46205ae1b
-	//TODO: VFNMSUB213PS (R11), Y15, Y11    // c44205ae1b
-	//TODO: VFNMSUB213PS Y2, Y15, Y11       // c46205aeda
-	//TODO: VFNMSUB213PS Y11, Y15, Y11      // c44205aedb
-	//TODO: VFNMSUB213SD (BX), X9, X2       // c4e2b1af13
-	//TODO: VFNMSUB213SD (R11), X9, X2      // c4c2b1af13
-	//TODO: VFNMSUB213SD X2, X9, X2         // c4e2b1afd2
-	//TODO: VFNMSUB213SD X11, X9, X2        // c4c2b1afd3
-	//TODO: VFNMSUB213SD (BX), X9, X11      // c462b1af1b
-	//TODO: VFNMSUB213SD (R11), X9, X11     // c442b1af1b
-	//TODO: VFNMSUB213SD X2, X9, X11        // c462b1afda
-	//TODO: VFNMSUB213SD X11, X9, X11       // c442b1afdb
-	//TODO: VFNMSUB213SS (BX), X9, X2       // c4e231af13
-	//TODO: VFNMSUB213SS (R11), X9, X2      // c4c231af13
-	//TODO: VFNMSUB213SS X2, X9, X2         // c4e231afd2
-	//TODO: VFNMSUB213SS X11, X9, X2        // c4c231afd3
-	//TODO: VFNMSUB213SS (BX), X9, X11      // c46231af1b
-	//TODO: VFNMSUB213SS (R11), X9, X11     // c44231af1b
-	//TODO: VFNMSUB213SS X2, X9, X11        // c46231afda
-	//TODO: VFNMSUB213SS X11, X9, X11       // c44231afdb
-	//TODO: VFNMSUB231PD (BX), X9, X2       // c4e2b1be13
-	//TODO: VFNMSUB231PD (R11), X9, X2      // c4c2b1be13
-	//TODO: VFNMSUB231PD X2, X9, X2         // c4e2b1bed2
-	//TODO: VFNMSUB231PD X11, X9, X2        // c4c2b1bed3
-	//TODO: VFNMSUB231PD (BX), X9, X11      // c462b1be1b
-	//TODO: VFNMSUB231PD (R11), X9, X11     // c442b1be1b
-	//TODO: VFNMSUB231PD X2, X9, X11        // c462b1beda
-	//TODO: VFNMSUB231PD X11, X9, X11       // c442b1bedb
-	//TODO: VFNMSUB231PD (BX), Y15, Y2      // c4e285be13
-	//TODO: VFNMSUB231PD (R11), Y15, Y2     // c4c285be13
-	//TODO: VFNMSUB231PD Y2, Y15, Y2        // c4e285bed2
-	//TODO: VFNMSUB231PD Y11, Y15, Y2       // c4c285bed3
-	//TODO: VFNMSUB231PD (BX), Y15, Y11     // c46285be1b
-	//TODO: VFNMSUB231PD (R11), Y15, Y11    // c44285be1b
-	//TODO: VFNMSUB231PD Y2, Y15, Y11       // c46285beda
-	//TODO: VFNMSUB231PD Y11, Y15, Y11      // c44285bedb
-	//TODO: VFNMSUB231PS (BX), X9, X2       // c4e231be13
-	//TODO: VFNMSUB231PS (R11), X9, X2      // c4c231be13
-	//TODO: VFNMSUB231PS X2, X9, X2         // c4e231bed2
-	//TODO: VFNMSUB231PS X11, X9, X2        // c4c231bed3
-	//TODO: VFNMSUB231PS (BX), X9, X11      // c46231be1b
-	//TODO: VFNMSUB231PS (R11), X9, X11     // c44231be1b
-	//TODO: VFNMSUB231PS X2, X9, X11        // c46231beda
-	//TODO: VFNMSUB231PS X11, X9, X11       // c44231bedb
-	//TODO: VFNMSUB231PS (BX), Y15, Y2      // c4e205be13
-	//TODO: VFNMSUB231PS (R11), Y15, Y2     // c4c205be13
-	//TODO: VFNMSUB231PS Y2, Y15, Y2        // c4e205bed2
-	//TODO: VFNMSUB231PS Y11, Y15, Y2       // c4c205bed3
-	//TODO: VFNMSUB231PS (BX), Y15, Y11     // c46205be1b
-	//TODO: VFNMSUB231PS (R11), Y15, Y11    // c44205be1b
-	//TODO: VFNMSUB231PS Y2, Y15, Y11       // c46205beda
-	//TODO: VFNMSUB231PS Y11, Y15, Y11      // c44205bedb
-	//TODO: VFNMSUB231SD (BX), X9, X2       // c4e2b1bf13
-	//TODO: VFNMSUB231SD (R11), X9, X2      // c4c2b1bf13
-	//TODO: VFNMSUB231SD X2, X9, X2         // c4e2b1bfd2
-	//TODO: VFNMSUB231SD X11, X9, X2        // c4c2b1bfd3
-	//TODO: VFNMSUB231SD (BX), X9, X11      // c462b1bf1b
-	//TODO: VFNMSUB231SD (R11), X9, X11     // c442b1bf1b
-	//TODO: VFNMSUB231SD X2, X9, X11        // c462b1bfda
-	//TODO: VFNMSUB231SD X11, X9, X11       // c442b1bfdb
-	//TODO: VFNMSUB231SS (BX), X9, X2       // c4e231bf13
-	//TODO: VFNMSUB231SS (R11), X9, X2      // c4c231bf13
-	//TODO: VFNMSUB231SS X2, X9, X2         // c4e231bfd2
-	//TODO: VFNMSUB231SS X11, X9, X2        // c4c231bfd3
-	//TODO: VFNMSUB231SS (BX), X9, X11      // c46231bf1b
-	//TODO: VFNMSUB231SS (R11), X9, X11     // c44231bf1b
-	//TODO: VFNMSUB231SS X2, X9, X11        // c46231bfda
-	//TODO: VFNMSUB231SS X11, X9, X11       // c44231bfdb
-	//TODO: VHADDPD (BX), X9, X2            // c4e1317c13 or c5b17c13
-	//TODO: VHADDPD (R11), X9, X2           // c4c1317c13
-	//TODO: VHADDPD X2, X9, X2              // c4e1317cd2 or c5b17cd2
-	//TODO: VHADDPD X11, X9, X2             // c4c1317cd3
-	//TODO: VHADDPD (BX), X9, X11           // c461317c1b or c5317c1b
-	//TODO: VHADDPD (R11), X9, X11          // c441317c1b
-	//TODO: VHADDPD X2, X9, X11             // c461317cda or c5317cda
-	//TODO: VHADDPD X11, X9, X11            // c441317cdb
-	//TODO: VHADDPD (BX), Y15, Y2           // c4e1057c13 or c5857c13
-	//TODO: VHADDPD (R11), Y15, Y2          // c4c1057c13
-	//TODO: VHADDPD Y2, Y15, Y2             // c4e1057cd2 or c5857cd2
-	//TODO: VHADDPD Y11, Y15, Y2            // c4c1057cd3
-	//TODO: VHADDPD (BX), Y15, Y11          // c461057c1b or c5057c1b
-	//TODO: VHADDPD (R11), Y15, Y11         // c441057c1b
-	//TODO: VHADDPD Y2, Y15, Y11            // c461057cda or c5057cda
-	//TODO: VHADDPD Y11, Y15, Y11           // c441057cdb
-	//TODO: VHADDPS (BX), X9, X2            // c4e1337c13 or c5b37c13
-	//TODO: VHADDPS (R11), X9, X2           // c4c1337c13
-	//TODO: VHADDPS X2, X9, X2              // c4e1337cd2 or c5b37cd2
-	//TODO: VHADDPS X11, X9, X2             // c4c1337cd3
-	//TODO: VHADDPS (BX), X9, X11           // c461337c1b or c5337c1b
-	//TODO: VHADDPS (R11), X9, X11          // c441337c1b
-	//TODO: VHADDPS X2, X9, X11             // c461337cda or c5337cda
-	//TODO: VHADDPS X11, X9, X11            // c441337cdb
-	//TODO: VHADDPS (BX), Y15, Y2           // c4e1077c13 or c5877c13
-	//TODO: VHADDPS (R11), Y15, Y2          // c4c1077c13
-	//TODO: VHADDPS Y2, Y15, Y2             // c4e1077cd2 or c5877cd2
-	//TODO: VHADDPS Y11, Y15, Y2            // c4c1077cd3
-	//TODO: VHADDPS (BX), Y15, Y11          // c461077c1b or c5077c1b
-	//TODO: VHADDPS (R11), Y15, Y11         // c441077c1b
-	//TODO: VHADDPS Y2, Y15, Y11            // c461077cda or c5077cda
-	//TODO: VHADDPS Y11, Y15, Y11           // c441077cdb
-	//TODO: VHSUBPD (BX), X9, X2            // c4e1317d13 or c5b17d13
-	//TODO: VHSUBPD (R11), X9, X2           // c4c1317d13
-	//TODO: VHSUBPD X2, X9, X2              // c4e1317dd2 or c5b17dd2
-	//TODO: VHSUBPD X11, X9, X2             // c4c1317dd3
-	//TODO: VHSUBPD (BX), X9, X11           // c461317d1b or c5317d1b
-	//TODO: VHSUBPD (R11), X9, X11          // c441317d1b
-	//TODO: VHSUBPD X2, X9, X11             // c461317dda or c5317dda
-	//TODO: VHSUBPD X11, X9, X11            // c441317ddb
-	//TODO: VHSUBPD (BX), Y15, Y2           // c4e1057d13 or c5857d13
-	//TODO: VHSUBPD (R11), Y15, Y2          // c4c1057d13
-	//TODO: VHSUBPD Y2, Y15, Y2             // c4e1057dd2 or c5857dd2
-	//TODO: VHSUBPD Y11, Y15, Y2            // c4c1057dd3
-	//TODO: VHSUBPD (BX), Y15, Y11          // c461057d1b or c5057d1b
-	//TODO: VHSUBPD (R11), Y15, Y11         // c441057d1b
-	//TODO: VHSUBPD Y2, Y15, Y11            // c461057dda or c5057dda
-	//TODO: VHSUBPD Y11, Y15, Y11           // c441057ddb
-	//TODO: VHSUBPS (BX), X9, X2            // c4e1337d13 or c5b37d13
-	//TODO: VHSUBPS (R11), X9, X2           // c4c1337d13
-	//TODO: VHSUBPS X2, X9, X2              // c4e1337dd2 or c5b37dd2
-	//TODO: VHSUBPS X11, X9, X2             // c4c1337dd3
-	//TODO: VHSUBPS (BX), X9, X11           // c461337d1b or c5337d1b
-	//TODO: VHSUBPS (R11), X9, X11          // c441337d1b
-	//TODO: VHSUBPS X2, X9, X11             // c461337dda or c5337dda
-	//TODO: VHSUBPS X11, X9, X11            // c441337ddb
-	//TODO: VHSUBPS (BX), Y15, Y2           // c4e1077d13 or c5877d13
-	//TODO: VHSUBPS (R11), Y15, Y2          // c4c1077d13
-	//TODO: VHSUBPS Y2, Y15, Y2             // c4e1077dd2 or c5877dd2
-	//TODO: VHSUBPS Y11, Y15, Y2            // c4c1077dd3
-	//TODO: VHSUBPS (BX), Y15, Y11          // c461077d1b or c5077d1b
-	//TODO: VHSUBPS (R11), Y15, Y11         // c441077d1b
-	//TODO: VHSUBPS Y2, Y15, Y11            // c461077dda or c5077dda
-	//TODO: VHSUBPS Y11, Y15, Y11           // c441077ddb
-	//TODO: VINSERTF128 $7, (BX), Y15, Y2   // c4e305181307
-	//TODO: VINSERTF128 $7, (R11), Y15, Y2  // c4c305181307
-	//TODO: VINSERTF128 $7, X2, Y15, Y2     // c4e30518d207
-	//TODO: VINSERTF128 $7, X11, Y15, Y2    // c4c30518d307
-	//TODO: VINSERTF128 $7, (BX), Y15, Y11  // c46305181b07
-	//TODO: VINSERTF128 $7, (R11), Y15, Y11 // c44305181b07
-	//TODO: VINSERTF128 $7, X2, Y15, Y11    // c4630518da07
-	//TODO: VINSERTF128 $7, X11, Y15, Y11   // c4430518db07
+	VEXTRACTF128 $7, Y2, (BX)               // c4e37d191307
+	VEXTRACTF128 $7, Y11, (BX)              // c4637d191b07
+	VEXTRACTF128 $7, Y2, (R11)              // c4c37d191307
+	VEXTRACTF128 $7, Y11, (R11)             // c4437d191b07
+	VEXTRACTF128 $7, Y2, X2                 // c4e37d19d207
+	VEXTRACTF128 $7, Y11, X2                // c4637d19da07
+	VEXTRACTF128 $7, Y2, X11                // c4c37d19d307
+	VEXTRACTF128 $7, Y11, X11               // c4437d19db07
+	VEXTRACTI128 $7, Y2, (BX)               // c4e37d391307
+	VEXTRACTI128 $7, Y11, (BX)              // c4637d391b07
+	VEXTRACTI128 $7, Y2, (R11)              // c4c37d391307
+	VEXTRACTI128 $7, Y11, (R11)             // c4437d391b07
+	VEXTRACTI128 $7, Y2, X2                 // c4e37d39d207
+	VEXTRACTI128 $7, Y11, X2                // c4637d39da07
+	VEXTRACTI128 $7, Y2, X11                // c4c37d39d307
+	VEXTRACTI128 $7, Y11, X11               // c4437d39db07
+	VEXTRACTPS $7, X2, (BX)                 // c4e379171307
+	VEXTRACTPS $7, X11, (BX)                // c46379171b07
+	VEXTRACTPS $7, X2, (R11)                // c4c379171307
+	VEXTRACTPS $7, X11, (R11)               // c44379171b07
+	VEXTRACTPS $7, X2, DX                   // c4e37917d207
+	VEXTRACTPS $7, X11, DX                  // c4637917da07
+	VEXTRACTPS $7, X2, R11                  // c4c37917d307
+	VEXTRACTPS $7, X11, R11                 // c4437917db07
+	VFMADD132PD (BX), X9, X2                // c4e2b19813
+	VFMADD132PD (R11), X9, X2               // c4c2b19813
+	VFMADD132PD X2, X9, X2                  // c4e2b198d2
+	VFMADD132PD X11, X9, X2                 // c4c2b198d3
+	VFMADD132PD (BX), X9, X11               // c462b1981b
+	VFMADD132PD (R11), X9, X11              // c442b1981b
+	VFMADD132PD X2, X9, X11                 // c462b198da
+	VFMADD132PD X11, X9, X11                // c442b198db
+	VFMADD132PD (BX), Y15, Y2               // c4e2859813
+	VFMADD132PD (R11), Y15, Y2              // c4c2859813
+	VFMADD132PD Y2, Y15, Y2                 // c4e28598d2
+	VFMADD132PD Y11, Y15, Y2                // c4c28598d3
+	VFMADD132PD (BX), Y15, Y11              // c46285981b
+	VFMADD132PD (R11), Y15, Y11             // c44285981b
+	VFMADD132PD Y2, Y15, Y11                // c4628598da
+	VFMADD132PD Y11, Y15, Y11               // c4428598db
+	VFMADD132PS (BX), X9, X2                // c4e2319813
+	VFMADD132PS (R11), X9, X2               // c4c2319813
+	VFMADD132PS X2, X9, X2                  // c4e23198d2
+	VFMADD132PS X11, X9, X2                 // c4c23198d3
+	VFMADD132PS (BX), X9, X11               // c46231981b
+	VFMADD132PS (R11), X9, X11              // c44231981b
+	VFMADD132PS X2, X9, X11                 // c4623198da
+	VFMADD132PS X11, X9, X11                // c4423198db
+	VFMADD132PS (BX), Y15, Y2               // c4e2059813
+	VFMADD132PS (R11), Y15, Y2              // c4c2059813
+	VFMADD132PS Y2, Y15, Y2                 // c4e20598d2
+	VFMADD132PS Y11, Y15, Y2                // c4c20598d3
+	VFMADD132PS (BX), Y15, Y11              // c46205981b
+	VFMADD132PS (R11), Y15, Y11             // c44205981b
+	VFMADD132PS Y2, Y15, Y11                // c4620598da
+	VFMADD132PS Y11, Y15, Y11               // c4420598db
+	VFMADD132SD (BX), X9, X2                // c4e2b19913
+	VFMADD132SD (R11), X9, X2               // c4c2b19913
+	VFMADD132SD X2, X9, X2                  // c4e2b199d2
+	VFMADD132SD X11, X9, X2                 // c4c2b199d3
+	VFMADD132SD (BX), X9, X11               // c462b1991b
+	VFMADD132SD (R11), X9, X11              // c442b1991b
+	VFMADD132SD X2, X9, X11                 // c462b199da
+	VFMADD132SD X11, X9, X11                // c442b199db
+	VFMADD132SS (BX), X9, X2                // c4e2319913
+	VFMADD132SS (R11), X9, X2               // c4c2319913
+	VFMADD132SS X2, X9, X2                  // c4e23199d2
+	VFMADD132SS X11, X9, X2                 // c4c23199d3
+	VFMADD132SS (BX), X9, X11               // c46231991b
+	VFMADD132SS (R11), X9, X11              // c44231991b
+	VFMADD132SS X2, X9, X11                 // c4623199da
+	VFMADD132SS X11, X9, X11                // c4423199db
+	VFMADD213PD (BX), X9, X2                // c4e2b1a813
+	VFMADD213PD (R11), X9, X2               // c4c2b1a813
+	VFMADD213PD X2, X9, X2                  // c4e2b1a8d2
+	VFMADD213PD X11, X9, X2                 // c4c2b1a8d3
+	VFMADD213PD (BX), X9, X11               // c462b1a81b
+	VFMADD213PD (R11), X9, X11              // c442b1a81b
+	VFMADD213PD X2, X9, X11                 // c462b1a8da
+	VFMADD213PD X11, X9, X11                // c442b1a8db
+	VFMADD213PD (BX), Y15, Y2               // c4e285a813
+	VFMADD213PD (R11), Y15, Y2              // c4c285a813
+	VFMADD213PD Y2, Y15, Y2                 // c4e285a8d2
+	VFMADD213PD Y11, Y15, Y2                // c4c285a8d3
+	VFMADD213PD (BX), Y15, Y11              // c46285a81b
+	VFMADD213PD (R11), Y15, Y11             // c44285a81b
+	VFMADD213PD Y2, Y15, Y11                // c46285a8da
+	VFMADD213PD Y11, Y15, Y11               // c44285a8db
+	VFMADD213PS (BX), X9, X2                // c4e231a813
+	VFMADD213PS (R11), X9, X2               // c4c231a813
+	VFMADD213PS X2, X9, X2                  // c4e231a8d2
+	VFMADD213PS X11, X9, X2                 // c4c231a8d3
+	VFMADD213PS (BX), X9, X11               // c46231a81b
+	VFMADD213PS (R11), X9, X11              // c44231a81b
+	VFMADD213PS X2, X9, X11                 // c46231a8da
+	VFMADD213PS X11, X9, X11                // c44231a8db
+	VFMADD213PS (BX), Y15, Y2               // c4e205a813
+	VFMADD213PS (R11), Y15, Y2              // c4c205a813
+	VFMADD213PS Y2, Y15, Y2                 // c4e205a8d2
+	VFMADD213PS Y11, Y15, Y2                // c4c205a8d3
+	VFMADD213PS (BX), Y15, Y11              // c46205a81b
+	VFMADD213PS (R11), Y15, Y11             // c44205a81b
+	VFMADD213PS Y2, Y15, Y11                // c46205a8da
+	VFMADD213PS Y11, Y15, Y11               // c44205a8db
+	VFMADD213SD (BX), X9, X2                // c4e2b1a913
+	VFMADD213SD (R11), X9, X2               // c4c2b1a913
+	VFMADD213SD X2, X9, X2                  // c4e2b1a9d2
+	VFMADD213SD X11, X9, X2                 // c4c2b1a9d3
+	VFMADD213SD (BX), X9, X11               // c462b1a91b
+	VFMADD213SD (R11), X9, X11              // c442b1a91b
+	VFMADD213SD X2, X9, X11                 // c462b1a9da
+	VFMADD213SD X11, X9, X11                // c442b1a9db
+	VFMADD213SS (BX), X9, X2                // c4e231a913
+	VFMADD213SS (R11), X9, X2               // c4c231a913
+	VFMADD213SS X2, X9, X2                  // c4e231a9d2
+	VFMADD213SS X11, X9, X2                 // c4c231a9d3
+	VFMADD213SS (BX), X9, X11               // c46231a91b
+	VFMADD213SS (R11), X9, X11              // c44231a91b
+	VFMADD213SS X2, X9, X11                 // c46231a9da
+	VFMADD213SS X11, X9, X11                // c44231a9db
+	VFMADD231PD (BX), X9, X2                // c4e2b1b813
+	VFMADD231PD (R11), X9, X2               // c4c2b1b813
+	VFMADD231PD X2, X9, X2                  // c4e2b1b8d2
+	VFMADD231PD X11, X9, X2                 // c4c2b1b8d3
+	VFMADD231PD (BX), X9, X11               // c462b1b81b
+	VFMADD231PD (R11), X9, X11              // c442b1b81b
+	VFMADD231PD X2, X9, X11                 // c462b1b8da
+	VFMADD231PD X11, X9, X11                // c442b1b8db
+	VFMADD231PD (BX), Y15, Y2               // c4e285b813
+	VFMADD231PD (R11), Y15, Y2              // c4c285b813
+	VFMADD231PD Y2, Y15, Y2                 // c4e285b8d2
+	VFMADD231PD Y11, Y15, Y2                // c4c285b8d3
+	VFMADD231PD (BX), Y15, Y11              // c46285b81b
+	VFMADD231PD (R11), Y15, Y11             // c44285b81b
+	VFMADD231PD Y2, Y15, Y11                // c46285b8da
+	VFMADD231PD Y11, Y15, Y11               // c44285b8db
+	VFMADD231PS (BX), X9, X2                // c4e231b813
+	VFMADD231PS (R11), X9, X2               // c4c231b813
+	VFMADD231PS X2, X9, X2                  // c4e231b8d2
+	VFMADD231PS X11, X9, X2                 // c4c231b8d3
+	VFMADD231PS (BX), X9, X11               // c46231b81b
+	VFMADD231PS (R11), X9, X11              // c44231b81b
+	VFMADD231PS X2, X9, X11                 // c46231b8da
+	VFMADD231PS X11, X9, X11                // c44231b8db
+	VFMADD231PS (BX), Y15, Y2               // c4e205b813
+	VFMADD231PS (R11), Y15, Y2              // c4c205b813
+	VFMADD231PS Y2, Y15, Y2                 // c4e205b8d2
+	VFMADD231PS Y11, Y15, Y2                // c4c205b8d3
+	VFMADD231PS (BX), Y15, Y11              // c46205b81b
+	VFMADD231PS (R11), Y15, Y11             // c44205b81b
+	VFMADD231PS Y2, Y15, Y11                // c46205b8da
+	VFMADD231PS Y11, Y15, Y11               // c44205b8db
+	VFMADD231SD (BX), X9, X2                // c4e2b1b913
+	VFMADD231SD (R11), X9, X2               // c4c2b1b913
+	VFMADD231SD X2, X9, X2                  // c4e2b1b9d2
+	VFMADD231SD X11, X9, X2                 // c4c2b1b9d3
+	VFMADD231SD (BX), X9, X11               // c462b1b91b
+	VFMADD231SD (R11), X9, X11              // c442b1b91b
+	VFMADD231SD X2, X9, X11                 // c462b1b9da
+	VFMADD231SD X11, X9, X11                // c442b1b9db
+	VFMADD231SS (BX), X9, X2                // c4e231b913
+	VFMADD231SS (R11), X9, X2               // c4c231b913
+	VFMADD231SS X2, X9, X2                  // c4e231b9d2
+	VFMADD231SS X11, X9, X2                 // c4c231b9d3
+	VFMADD231SS (BX), X9, X11               // c46231b91b
+	VFMADD231SS (R11), X9, X11              // c44231b91b
+	VFMADD231SS X2, X9, X11                 // c46231b9da
+	VFMADD231SS X11, X9, X11                // c44231b9db
+	VFMADDSUB132PD (BX), X9, X2             // c4e2b19613
+	VFMADDSUB132PD (R11), X9, X2            // c4c2b19613
+	VFMADDSUB132PD X2, X9, X2               // c4e2b196d2
+	VFMADDSUB132PD X11, X9, X2              // c4c2b196d3
+	VFMADDSUB132PD (BX), X9, X11            // c462b1961b
+	VFMADDSUB132PD (R11), X9, X11           // c442b1961b
+	VFMADDSUB132PD X2, X9, X11              // c462b196da
+	VFMADDSUB132PD X11, X9, X11             // c442b196db
+	VFMADDSUB132PD (BX), Y15, Y2            // c4e2859613
+	VFMADDSUB132PD (R11), Y15, Y2           // c4c2859613
+	VFMADDSUB132PD Y2, Y15, Y2              // c4e28596d2
+	VFMADDSUB132PD Y11, Y15, Y2             // c4c28596d3
+	VFMADDSUB132PD (BX), Y15, Y11           // c46285961b
+	VFMADDSUB132PD (R11), Y15, Y11          // c44285961b
+	VFMADDSUB132PD Y2, Y15, Y11             // c4628596da
+	VFMADDSUB132PD Y11, Y15, Y11            // c4428596db
+	VFMADDSUB132PS (BX), X9, X2             // c4e2319613
+	VFMADDSUB132PS (R11), X9, X2            // c4c2319613
+	VFMADDSUB132PS X2, X9, X2               // c4e23196d2
+	VFMADDSUB132PS X11, X9, X2              // c4c23196d3
+	VFMADDSUB132PS (BX), X9, X11            // c46231961b
+	VFMADDSUB132PS (R11), X9, X11           // c44231961b
+	VFMADDSUB132PS X2, X9, X11              // c4623196da
+	VFMADDSUB132PS X11, X9, X11             // c4423196db
+	VFMADDSUB132PS (BX), Y15, Y2            // c4e2059613
+	VFMADDSUB132PS (R11), Y15, Y2           // c4c2059613
+	VFMADDSUB132PS Y2, Y15, Y2              // c4e20596d2
+	VFMADDSUB132PS Y11, Y15, Y2             // c4c20596d3
+	VFMADDSUB132PS (BX), Y15, Y11           // c46205961b
+	VFMADDSUB132PS (R11), Y15, Y11          // c44205961b
+	VFMADDSUB132PS Y2, Y15, Y11             // c4620596da
+	VFMADDSUB132PS Y11, Y15, Y11            // c4420596db
+	VFMADDSUB213PD (BX), X9, X2             // c4e2b1a613
+	VFMADDSUB213PD (R11), X9, X2            // c4c2b1a613
+	VFMADDSUB213PD X2, X9, X2               // c4e2b1a6d2
+	VFMADDSUB213PD X11, X9, X2              // c4c2b1a6d3
+	VFMADDSUB213PD (BX), X9, X11            // c462b1a61b
+	VFMADDSUB213PD (R11), X9, X11           // c442b1a61b
+	VFMADDSUB213PD X2, X9, X11              // c462b1a6da
+	VFMADDSUB213PD X11, X9, X11             // c442b1a6db
+	VFMADDSUB213PD (BX), Y15, Y2            // c4e285a613
+	VFMADDSUB213PD (R11), Y15, Y2           // c4c285a613
+	VFMADDSUB213PD Y2, Y15, Y2              // c4e285a6d2
+	VFMADDSUB213PD Y11, Y15, Y2             // c4c285a6d3
+	VFMADDSUB213PD (BX), Y15, Y11           // c46285a61b
+	VFMADDSUB213PD (R11), Y15, Y11          // c44285a61b
+	VFMADDSUB213PD Y2, Y15, Y11             // c46285a6da
+	VFMADDSUB213PD Y11, Y15, Y11            // c44285a6db
+	VFMADDSUB213PS (BX), X9, X2             // c4e231a613
+	VFMADDSUB213PS (R11), X9, X2            // c4c231a613
+	VFMADDSUB213PS X2, X9, X2               // c4e231a6d2
+	VFMADDSUB213PS X11, X9, X2              // c4c231a6d3
+	VFMADDSUB213PS (BX), X9, X11            // c46231a61b
+	VFMADDSUB213PS (R11), X9, X11           // c44231a61b
+	VFMADDSUB213PS X2, X9, X11              // c46231a6da
+	VFMADDSUB213PS X11, X9, X11             // c44231a6db
+	VFMADDSUB213PS (BX), Y15, Y2            // c4e205a613
+	VFMADDSUB213PS (R11), Y15, Y2           // c4c205a613
+	VFMADDSUB213PS Y2, Y15, Y2              // c4e205a6d2
+	VFMADDSUB213PS Y11, Y15, Y2             // c4c205a6d3
+	VFMADDSUB213PS (BX), Y15, Y11           // c46205a61b
+	VFMADDSUB213PS (R11), Y15, Y11          // c44205a61b
+	VFMADDSUB213PS Y2, Y15, Y11             // c46205a6da
+	VFMADDSUB213PS Y11, Y15, Y11            // c44205a6db
+	VFMADDSUB231PD (BX), X9, X2             // c4e2b1b613
+	VFMADDSUB231PD (R11), X9, X2            // c4c2b1b613
+	VFMADDSUB231PD X2, X9, X2               // c4e2b1b6d2
+	VFMADDSUB231PD X11, X9, X2              // c4c2b1b6d3
+	VFMADDSUB231PD (BX), X9, X11            // c462b1b61b
+	VFMADDSUB231PD (R11), X9, X11           // c442b1b61b
+	VFMADDSUB231PD X2, X9, X11              // c462b1b6da
+	VFMADDSUB231PD X11, X9, X11             // c442b1b6db
+	VFMADDSUB231PD (BX), Y15, Y2            // c4e285b613
+	VFMADDSUB231PD (R11), Y15, Y2           // c4c285b613
+	VFMADDSUB231PD Y2, Y15, Y2              // c4e285b6d2
+	VFMADDSUB231PD Y11, Y15, Y2             // c4c285b6d3
+	VFMADDSUB231PD (BX), Y15, Y11           // c46285b61b
+	VFMADDSUB231PD (R11), Y15, Y11          // c44285b61b
+	VFMADDSUB231PD Y2, Y15, Y11             // c46285b6da
+	VFMADDSUB231PD Y11, Y15, Y11            // c44285b6db
+	VFMADDSUB231PS (BX), X9, X2             // c4e231b613
+	VFMADDSUB231PS (R11), X9, X2            // c4c231b613
+	VFMADDSUB231PS X2, X9, X2               // c4e231b6d2
+	VFMADDSUB231PS X11, X9, X2              // c4c231b6d3
+	VFMADDSUB231PS (BX), X9, X11            // c46231b61b
+	VFMADDSUB231PS (R11), X9, X11           // c44231b61b
+	VFMADDSUB231PS X2, X9, X11              // c46231b6da
+	VFMADDSUB231PS X11, X9, X11             // c44231b6db
+	VFMADDSUB231PS (BX), Y15, Y2            // c4e205b613
+	VFMADDSUB231PS (R11), Y15, Y2           // c4c205b613
+	VFMADDSUB231PS Y2, Y15, Y2              // c4e205b6d2
+	VFMADDSUB231PS Y11, Y15, Y2             // c4c205b6d3
+	VFMADDSUB231PS (BX), Y15, Y11           // c46205b61b
+	VFMADDSUB231PS (R11), Y15, Y11          // c44205b61b
+	VFMADDSUB231PS Y2, Y15, Y11             // c46205b6da
+	VFMADDSUB231PS Y11, Y15, Y11            // c44205b6db
+	VFMSUB132PD (BX), X9, X2                // c4e2b19a13
+	VFMSUB132PD (R11), X9, X2               // c4c2b19a13
+	VFMSUB132PD X2, X9, X2                  // c4e2b19ad2
+	VFMSUB132PD X11, X9, X2                 // c4c2b19ad3
+	VFMSUB132PD (BX), X9, X11               // c462b19a1b
+	VFMSUB132PD (R11), X9, X11              // c442b19a1b
+	VFMSUB132PD X2, X9, X11                 // c462b19ada
+	VFMSUB132PD X11, X9, X11                // c442b19adb
+	VFMSUB132PD (BX), Y15, Y2               // c4e2859a13
+	VFMSUB132PD (R11), Y15, Y2              // c4c2859a13
+	VFMSUB132PD Y2, Y15, Y2                 // c4e2859ad2
+	VFMSUB132PD Y11, Y15, Y2                // c4c2859ad3
+	VFMSUB132PD (BX), Y15, Y11              // c462859a1b
+	VFMSUB132PD (R11), Y15, Y11             // c442859a1b
+	VFMSUB132PD Y2, Y15, Y11                // c462859ada
+	VFMSUB132PD Y11, Y15, Y11               // c442859adb
+	VFMSUB132PS (BX), X9, X2                // c4e2319a13
+	VFMSUB132PS (R11), X9, X2               // c4c2319a13
+	VFMSUB132PS X2, X9, X2                  // c4e2319ad2
+	VFMSUB132PS X11, X9, X2                 // c4c2319ad3
+	VFMSUB132PS (BX), X9, X11               // c462319a1b
+	VFMSUB132PS (R11), X9, X11              // c442319a1b
+	VFMSUB132PS X2, X9, X11                 // c462319ada
+	VFMSUB132PS X11, X9, X11                // c442319adb
+	VFMSUB132PS (BX), Y15, Y2               // c4e2059a13
+	VFMSUB132PS (R11), Y15, Y2              // c4c2059a13
+	VFMSUB132PS Y2, Y15, Y2                 // c4e2059ad2
+	VFMSUB132PS Y11, Y15, Y2                // c4c2059ad3
+	VFMSUB132PS (BX), Y15, Y11              // c462059a1b
+	VFMSUB132PS (R11), Y15, Y11             // c442059a1b
+	VFMSUB132PS Y2, Y15, Y11                // c462059ada
+	VFMSUB132PS Y11, Y15, Y11               // c442059adb
+	VFMSUB132SD (BX), X9, X2                // c4e2b19b13
+	VFMSUB132SD (R11), X9, X2               // c4c2b19b13
+	VFMSUB132SD X2, X9, X2                  // c4e2b19bd2
+	VFMSUB132SD X11, X9, X2                 // c4c2b19bd3
+	VFMSUB132SD (BX), X9, X11               // c462b19b1b
+	VFMSUB132SD (R11), X9, X11              // c442b19b1b
+	VFMSUB132SD X2, X9, X11                 // c462b19bda
+	VFMSUB132SD X11, X9, X11                // c442b19bdb
+	VFMSUB132SS (BX), X9, X2                // c4e2319b13
+	VFMSUB132SS (R11), X9, X2               // c4c2319b13
+	VFMSUB132SS X2, X9, X2                  // c4e2319bd2
+	VFMSUB132SS X11, X9, X2                 // c4c2319bd3
+	VFMSUB132SS (BX), X9, X11               // c462319b1b
+	VFMSUB132SS (R11), X9, X11              // c442319b1b
+	VFMSUB132SS X2, X9, X11                 // c462319bda
+	VFMSUB132SS X11, X9, X11                // c442319bdb
+	VFMSUB213PD (BX), X9, X2                // c4e2b1aa13
+	VFMSUB213PD (R11), X9, X2               // c4c2b1aa13
+	VFMSUB213PD X2, X9, X2                  // c4e2b1aad2
+	VFMSUB213PD X11, X9, X2                 // c4c2b1aad3
+	VFMSUB213PD (BX), X9, X11               // c462b1aa1b
+	VFMSUB213PD (R11), X9, X11              // c442b1aa1b
+	VFMSUB213PD X2, X9, X11                 // c462b1aada
+	VFMSUB213PD X11, X9, X11                // c442b1aadb
+	VFMSUB213PD (BX), Y15, Y2               // c4e285aa13
+	VFMSUB213PD (R11), Y15, Y2              // c4c285aa13
+	VFMSUB213PD Y2, Y15, Y2                 // c4e285aad2
+	VFMSUB213PD Y11, Y15, Y2                // c4c285aad3
+	VFMSUB213PD (BX), Y15, Y11              // c46285aa1b
+	VFMSUB213PD (R11), Y15, Y11             // c44285aa1b
+	VFMSUB213PD Y2, Y15, Y11                // c46285aada
+	VFMSUB213PD Y11, Y15, Y11               // c44285aadb
+	VFMSUB213PS (BX), X9, X2                // c4e231aa13
+	VFMSUB213PS (R11), X9, X2               // c4c231aa13
+	VFMSUB213PS X2, X9, X2                  // c4e231aad2
+	VFMSUB213PS X11, X9, X2                 // c4c231aad3
+	VFMSUB213PS (BX), X9, X11               // c46231aa1b
+	VFMSUB213PS (R11), X9, X11              // c44231aa1b
+	VFMSUB213PS X2, X9, X11                 // c46231aada
+	VFMSUB213PS X11, X9, X11                // c44231aadb
+	VFMSUB213PS (BX), Y15, Y2               // c4e205aa13
+	VFMSUB213PS (R11), Y15, Y2              // c4c205aa13
+	VFMSUB213PS Y2, Y15, Y2                 // c4e205aad2
+	VFMSUB213PS Y11, Y15, Y2                // c4c205aad3
+	VFMSUB213PS (BX), Y15, Y11              // c46205aa1b
+	VFMSUB213PS (R11), Y15, Y11             // c44205aa1b
+	VFMSUB213PS Y2, Y15, Y11                // c46205aada
+	VFMSUB213PS Y11, Y15, Y11               // c44205aadb
+	VFMSUB213SD (BX), X9, X2                // c4e2b1ab13
+	VFMSUB213SD (R11), X9, X2               // c4c2b1ab13
+	VFMSUB213SD X2, X9, X2                  // c4e2b1abd2
+	VFMSUB213SD X11, X9, X2                 // c4c2b1abd3
+	VFMSUB213SD (BX), X9, X11               // c462b1ab1b
+	VFMSUB213SD (R11), X9, X11              // c442b1ab1b
+	VFMSUB213SD X2, X9, X11                 // c462b1abda
+	VFMSUB213SD X11, X9, X11                // c442b1abdb
+	VFMSUB213SS (BX), X9, X2                // c4e231ab13
+	VFMSUB213SS (R11), X9, X2               // c4c231ab13
+	VFMSUB213SS X2, X9, X2                  // c4e231abd2
+	VFMSUB213SS X11, X9, X2                 // c4c231abd3
+	VFMSUB213SS (BX), X9, X11               // c46231ab1b
+	VFMSUB213SS (R11), X9, X11              // c44231ab1b
+	VFMSUB213SS X2, X9, X11                 // c46231abda
+	VFMSUB213SS X11, X9, X11                // c44231abdb
+	VFMSUB231PD (BX), X9, X2                // c4e2b1ba13
+	VFMSUB231PD (R11), X9, X2               // c4c2b1ba13
+	VFMSUB231PD X2, X9, X2                  // c4e2b1bad2
+	VFMSUB231PD X11, X9, X2                 // c4c2b1bad3
+	VFMSUB231PD (BX), X9, X11               // c462b1ba1b
+	VFMSUB231PD (R11), X9, X11              // c442b1ba1b
+	VFMSUB231PD X2, X9, X11                 // c462b1bada
+	VFMSUB231PD X11, X9, X11                // c442b1badb
+	VFMSUB231PD (BX), Y15, Y2               // c4e285ba13
+	VFMSUB231PD (R11), Y15, Y2              // c4c285ba13
+	VFMSUB231PD Y2, Y15, Y2                 // c4e285bad2
+	VFMSUB231PD Y11, Y15, Y2                // c4c285bad3
+	VFMSUB231PD (BX), Y15, Y11              // c46285ba1b
+	VFMSUB231PD (R11), Y15, Y11             // c44285ba1b
+	VFMSUB231PD Y2, Y15, Y11                // c46285bada
+	VFMSUB231PD Y11, Y15, Y11               // c44285badb
+	VFMSUB231PS (BX), X9, X2                // c4e231ba13
+	VFMSUB231PS (R11), X9, X2               // c4c231ba13
+	VFMSUB231PS X2, X9, X2                  // c4e231bad2
+	VFMSUB231PS X11, X9, X2                 // c4c231bad3
+	VFMSUB231PS (BX), X9, X11               // c46231ba1b
+	VFMSUB231PS (R11), X9, X11              // c44231ba1b
+	VFMSUB231PS X2, X9, X11                 // c46231bada
+	VFMSUB231PS X11, X9, X11                // c44231badb
+	VFMSUB231PS (BX), Y15, Y2               // c4e205ba13
+	VFMSUB231PS (R11), Y15, Y2              // c4c205ba13
+	VFMSUB231PS Y2, Y15, Y2                 // c4e205bad2
+	VFMSUB231PS Y11, Y15, Y2                // c4c205bad3
+	VFMSUB231PS (BX), Y15, Y11              // c46205ba1b
+	VFMSUB231PS (R11), Y15, Y11             // c44205ba1b
+	VFMSUB231PS Y2, Y15, Y11                // c46205bada
+	VFMSUB231PS Y11, Y15, Y11               // c44205badb
+	VFMSUB231SD (BX), X9, X2                // c4e2b1bb13
+	VFMSUB231SD (R11), X9, X2               // c4c2b1bb13
+	VFMSUB231SD X2, X9, X2                  // c4e2b1bbd2
+	VFMSUB231SD X11, X9, X2                 // c4c2b1bbd3
+	VFMSUB231SD (BX), X9, X11               // c462b1bb1b
+	VFMSUB231SD (R11), X9, X11              // c442b1bb1b
+	VFMSUB231SD X2, X9, X11                 // c462b1bbda
+	VFMSUB231SD X11, X9, X11                // c442b1bbdb
+	VFMSUB231SS (BX), X9, X2                // c4e231bb13
+	VFMSUB231SS (R11), X9, X2               // c4c231bb13
+	VFMSUB231SS X2, X9, X2                  // c4e231bbd2
+	VFMSUB231SS X11, X9, X2                 // c4c231bbd3
+	VFMSUB231SS (BX), X9, X11               // c46231bb1b
+	VFMSUB231SS (R11), X9, X11              // c44231bb1b
+	VFMSUB231SS X2, X9, X11                 // c46231bbda
+	VFMSUB231SS X11, X9, X11                // c44231bbdb
+	VFMSUBADD132PD (BX), X9, X2             // c4e2b19713
+	VFMSUBADD132PD (R11), X9, X2            // c4c2b19713
+	VFMSUBADD132PD X2, X9, X2               // c4e2b197d2
+	VFMSUBADD132PD X11, X9, X2              // c4c2b197d3
+	VFMSUBADD132PD (BX), X9, X11            // c462b1971b
+	VFMSUBADD132PD (R11), X9, X11           // c442b1971b
+	VFMSUBADD132PD X2, X9, X11              // c462b197da
+	VFMSUBADD132PD X11, X9, X11             // c442b197db
+	VFMSUBADD132PD (BX), Y15, Y2            // c4e2859713
+	VFMSUBADD132PD (R11), Y15, Y2           // c4c2859713
+	VFMSUBADD132PD Y2, Y15, Y2              // c4e28597d2
+	VFMSUBADD132PD Y11, Y15, Y2             // c4c28597d3
+	VFMSUBADD132PD (BX), Y15, Y11           // c46285971b
+	VFMSUBADD132PD (R11), Y15, Y11          // c44285971b
+	VFMSUBADD132PD Y2, Y15, Y11             // c4628597da
+	VFMSUBADD132PD Y11, Y15, Y11            // c4428597db
+	VFMSUBADD132PS (BX), X9, X2             // c4e2319713
+	VFMSUBADD132PS (R11), X9, X2            // c4c2319713
+	VFMSUBADD132PS X2, X9, X2               // c4e23197d2
+	VFMSUBADD132PS X11, X9, X2              // c4c23197d3
+	VFMSUBADD132PS (BX), X9, X11            // c46231971b
+	VFMSUBADD132PS (R11), X9, X11           // c44231971b
+	VFMSUBADD132PS X2, X9, X11              // c4623197da
+	VFMSUBADD132PS X11, X9, X11             // c4423197db
+	VFMSUBADD132PS (BX), Y15, Y2            // c4e2059713
+	VFMSUBADD132PS (R11), Y15, Y2           // c4c2059713
+	VFMSUBADD132PS Y2, Y15, Y2              // c4e20597d2
+	VFMSUBADD132PS Y11, Y15, Y2             // c4c20597d3
+	VFMSUBADD132PS (BX), Y15, Y11           // c46205971b
+	VFMSUBADD132PS (R11), Y15, Y11          // c44205971b
+	VFMSUBADD132PS Y2, Y15, Y11             // c4620597da
+	VFMSUBADD132PS Y11, Y15, Y11            // c4420597db
+	VFMSUBADD213PD (BX), X9, X2             // c4e2b1a713
+	VFMSUBADD213PD (R11), X9, X2            // c4c2b1a713
+	VFMSUBADD213PD X2, X9, X2               // c4e2b1a7d2
+	VFMSUBADD213PD X11, X9, X2              // c4c2b1a7d3
+	VFMSUBADD213PD (BX), X9, X11            // c462b1a71b
+	VFMSUBADD213PD (R11), X9, X11           // c442b1a71b
+	VFMSUBADD213PD X2, X9, X11              // c462b1a7da
+	VFMSUBADD213PD X11, X9, X11             // c442b1a7db
+	VFMSUBADD213PD (BX), Y15, Y2            // c4e285a713
+	VFMSUBADD213PD (R11), Y15, Y2           // c4c285a713
+	VFMSUBADD213PD Y2, Y15, Y2              // c4e285a7d2
+	VFMSUBADD213PD Y11, Y15, Y2             // c4c285a7d3
+	VFMSUBADD213PD (BX), Y15, Y11           // c46285a71b
+	VFMSUBADD213PD (R11), Y15, Y11          // c44285a71b
+	VFMSUBADD213PD Y2, Y15, Y11             // c46285a7da
+	VFMSUBADD213PD Y11, Y15, Y11            // c44285a7db
+	VFMSUBADD213PS (BX), X9, X2             // c4e231a713
+	VFMSUBADD213PS (R11), X9, X2            // c4c231a713
+	VFMSUBADD213PS X2, X9, X2               // c4e231a7d2
+	VFMSUBADD213PS X11, X9, X2              // c4c231a7d3
+	VFMSUBADD213PS (BX), X9, X11            // c46231a71b
+	VFMSUBADD213PS (R11), X9, X11           // c44231a71b
+	VFMSUBADD213PS X2, X9, X11              // c46231a7da
+	VFMSUBADD213PS X11, X9, X11             // c44231a7db
+	VFMSUBADD213PS (BX), Y15, Y2            // c4e205a713
+	VFMSUBADD213PS (R11), Y15, Y2           // c4c205a713
+	VFMSUBADD213PS Y2, Y15, Y2              // c4e205a7d2
+	VFMSUBADD213PS Y11, Y15, Y2             // c4c205a7d3
+	VFMSUBADD213PS (BX), Y15, Y11           // c46205a71b
+	VFMSUBADD213PS (R11), Y15, Y11          // c44205a71b
+	VFMSUBADD213PS Y2, Y15, Y11             // c46205a7da
+	VFMSUBADD213PS Y11, Y15, Y11            // c44205a7db
+	VFMSUBADD231PD (BX), X9, X2             // c4e2b1b713
+	VFMSUBADD231PD (R11), X9, X2            // c4c2b1b713
+	VFMSUBADD231PD X2, X9, X2               // c4e2b1b7d2
+	VFMSUBADD231PD X11, X9, X2              // c4c2b1b7d3
+	VFMSUBADD231PD (BX), X9, X11            // c462b1b71b
+	VFMSUBADD231PD (R11), X9, X11           // c442b1b71b
+	VFMSUBADD231PD X2, X9, X11              // c462b1b7da
+	VFMSUBADD231PD X11, X9, X11             // c442b1b7db
+	VFMSUBADD231PD (BX), Y15, Y2            // c4e285b713
+	VFMSUBADD231PD (R11), Y15, Y2           // c4c285b713
+	VFMSUBADD231PD Y2, Y15, Y2              // c4e285b7d2
+	VFMSUBADD231PD Y11, Y15, Y2             // c4c285b7d3
+	VFMSUBADD231PD (BX), Y15, Y11           // c46285b71b
+	VFMSUBADD231PD (R11), Y15, Y11          // c44285b71b
+	VFMSUBADD231PD Y2, Y15, Y11             // c46285b7da
+	VFMSUBADD231PD Y11, Y15, Y11            // c44285b7db
+	VFMSUBADD231PS (BX), X9, X2             // c4e231b713
+	VFMSUBADD231PS (R11), X9, X2            // c4c231b713
+	VFMSUBADD231PS X2, X9, X2               // c4e231b7d2
+	VFMSUBADD231PS X11, X9, X2              // c4c231b7d3
+	VFMSUBADD231PS (BX), X9, X11            // c46231b71b
+	VFMSUBADD231PS (R11), X9, X11           // c44231b71b
+	VFMSUBADD231PS X2, X9, X11              // c46231b7da
+	VFMSUBADD231PS X11, X9, X11             // c44231b7db
+	VFMSUBADD231PS (BX), Y15, Y2            // c4e205b713
+	VFMSUBADD231PS (R11), Y15, Y2           // c4c205b713
+	VFMSUBADD231PS Y2, Y15, Y2              // c4e205b7d2
+	VFMSUBADD231PS Y11, Y15, Y2             // c4c205b7d3
+	VFMSUBADD231PS (BX), Y15, Y11           // c46205b71b
+	VFMSUBADD231PS (R11), Y15, Y11          // c44205b71b
+	VFMSUBADD231PS Y2, Y15, Y11             // c46205b7da
+	VFMSUBADD231PS Y11, Y15, Y11            // c44205b7db
+	VFNMADD132PD (BX), X9, X2               // c4e2b19c13
+	VFNMADD132PD (R11), X9, X2              // c4c2b19c13
+	VFNMADD132PD X2, X9, X2                 // c4e2b19cd2
+	VFNMADD132PD X11, X9, X2                // c4c2b19cd3
+	VFNMADD132PD (BX), X9, X11              // c462b19c1b
+	VFNMADD132PD (R11), X9, X11             // c442b19c1b
+	VFNMADD132PD X2, X9, X11                // c462b19cda
+	VFNMADD132PD X11, X9, X11               // c442b19cdb
+	VFNMADD132PD (BX), Y15, Y2              // c4e2859c13
+	VFNMADD132PD (R11), Y15, Y2             // c4c2859c13
+	VFNMADD132PD Y2, Y15, Y2                // c4e2859cd2
+	VFNMADD132PD Y11, Y15, Y2               // c4c2859cd3
+	VFNMADD132PD (BX), Y15, Y11             // c462859c1b
+	VFNMADD132PD (R11), Y15, Y11            // c442859c1b
+	VFNMADD132PD Y2, Y15, Y11               // c462859cda
+	VFNMADD132PD Y11, Y15, Y11              // c442859cdb
+	VFNMADD132PS (BX), X9, X2               // c4e2319c13
+	VFNMADD132PS (R11), X9, X2              // c4c2319c13
+	VFNMADD132PS X2, X9, X2                 // c4e2319cd2
+	VFNMADD132PS X11, X9, X2                // c4c2319cd3
+	VFNMADD132PS (BX), X9, X11              // c462319c1b
+	VFNMADD132PS (R11), X9, X11             // c442319c1b
+	VFNMADD132PS X2, X9, X11                // c462319cda
+	VFNMADD132PS X11, X9, X11               // c442319cdb
+	VFNMADD132PS (BX), Y15, Y2              // c4e2059c13
+	VFNMADD132PS (R11), Y15, Y2             // c4c2059c13
+	VFNMADD132PS Y2, Y15, Y2                // c4e2059cd2
+	VFNMADD132PS Y11, Y15, Y2               // c4c2059cd3
+	VFNMADD132PS (BX), Y15, Y11             // c462059c1b
+	VFNMADD132PS (R11), Y15, Y11            // c442059c1b
+	VFNMADD132PS Y2, Y15, Y11               // c462059cda
+	VFNMADD132PS Y11, Y15, Y11              // c442059cdb
+	VFNMADD132SD (BX), X9, X2               // c4e2b19d13
+	VFNMADD132SD (R11), X9, X2              // c4c2b19d13
+	VFNMADD132SD X2, X9, X2                 // c4e2b19dd2
+	VFNMADD132SD X11, X9, X2                // c4c2b19dd3
+	VFNMADD132SD (BX), X9, X11              // c462b19d1b
+	VFNMADD132SD (R11), X9, X11             // c442b19d1b
+	VFNMADD132SD X2, X9, X11                // c462b19dda
+	VFNMADD132SD X11, X9, X11               // c442b19ddb
+	VFNMADD132SS (BX), X9, X2               // c4e2319d13
+	VFNMADD132SS (R11), X9, X2              // c4c2319d13
+	VFNMADD132SS X2, X9, X2                 // c4e2319dd2
+	VFNMADD132SS X11, X9, X2                // c4c2319dd3
+	VFNMADD132SS (BX), X9, X11              // c462319d1b
+	VFNMADD132SS (R11), X9, X11             // c442319d1b
+	VFNMADD132SS X2, X9, X11                // c462319dda
+	VFNMADD132SS X11, X9, X11               // c442319ddb
+	VFNMADD213PD (BX), X9, X2               // c4e2b1ac13
+	VFNMADD213PD (R11), X9, X2              // c4c2b1ac13
+	VFNMADD213PD X2, X9, X2                 // c4e2b1acd2
+	VFNMADD213PD X11, X9, X2                // c4c2b1acd3
+	VFNMADD213PD (BX), X9, X11              // c462b1ac1b
+	VFNMADD213PD (R11), X9, X11             // c442b1ac1b
+	VFNMADD213PD X2, X9, X11                // c462b1acda
+	VFNMADD213PD X11, X9, X11               // c442b1acdb
+	VFNMADD213PD (BX), Y15, Y2              // c4e285ac13
+	VFNMADD213PD (R11), Y15, Y2             // c4c285ac13
+	VFNMADD213PD Y2, Y15, Y2                // c4e285acd2
+	VFNMADD213PD Y11, Y15, Y2               // c4c285acd3
+	VFNMADD213PD (BX), Y15, Y11             // c46285ac1b
+	VFNMADD213PD (R11), Y15, Y11            // c44285ac1b
+	VFNMADD213PD Y2, Y15, Y11               // c46285acda
+	VFNMADD213PD Y11, Y15, Y11              // c44285acdb
+	VFNMADD213PS (BX), X9, X2               // c4e231ac13
+	VFNMADD213PS (R11), X9, X2              // c4c231ac13
+	VFNMADD213PS X2, X9, X2                 // c4e231acd2
+	VFNMADD213PS X11, X9, X2                // c4c231acd3
+	VFNMADD213PS (BX), X9, X11              // c46231ac1b
+	VFNMADD213PS (R11), X9, X11             // c44231ac1b
+	VFNMADD213PS X2, X9, X11                // c46231acda
+	VFNMADD213PS X11, X9, X11               // c44231acdb
+	VFNMADD213PS (BX), Y15, Y2              // c4e205ac13
+	VFNMADD213PS (R11), Y15, Y2             // c4c205ac13
+	VFNMADD213PS Y2, Y15, Y2                // c4e205acd2
+	VFNMADD213PS Y11, Y15, Y2               // c4c205acd3
+	VFNMADD213PS (BX), Y15, Y11             // c46205ac1b
+	VFNMADD213PS (R11), Y15, Y11            // c44205ac1b
+	VFNMADD213PS Y2, Y15, Y11               // c46205acda
+	VFNMADD213PS Y11, Y15, Y11              // c44205acdb
+	VFNMADD213SD (BX), X9, X2               // c4e2b1ad13
+	VFNMADD213SD (R11), X9, X2              // c4c2b1ad13
+	VFNMADD213SD X2, X9, X2                 // c4e2b1add2
+	VFNMADD213SD X11, X9, X2                // c4c2b1add3
+	VFNMADD213SD (BX), X9, X11              // c462b1ad1b
+	VFNMADD213SD (R11), X9, X11             // c442b1ad1b
+	VFNMADD213SD X2, X9, X11                // c462b1adda
+	VFNMADD213SD X11, X9, X11               // c442b1addb
+	VFNMADD213SS (BX), X9, X2               // c4e231ad13
+	VFNMADD213SS (R11), X9, X2              // c4c231ad13
+	VFNMADD213SS X2, X9, X2                 // c4e231add2
+	VFNMADD213SS X11, X9, X2                // c4c231add3
+	VFNMADD213SS (BX), X9, X11              // c46231ad1b
+	VFNMADD213SS (R11), X9, X11             // c44231ad1b
+	VFNMADD213SS X2, X9, X11                // c46231adda
+	VFNMADD213SS X11, X9, X11               // c44231addb
+	VFNMADD231PD (BX), X9, X2               // c4e2b1bc13
+	VFNMADD231PD (R11), X9, X2              // c4c2b1bc13
+	VFNMADD231PD X2, X9, X2                 // c4e2b1bcd2
+	VFNMADD231PD X11, X9, X2                // c4c2b1bcd3
+	VFNMADD231PD (BX), X9, X11              // c462b1bc1b
+	VFNMADD231PD (R11), X9, X11             // c442b1bc1b
+	VFNMADD231PD X2, X9, X11                // c462b1bcda
+	VFNMADD231PD X11, X9, X11               // c442b1bcdb
+	VFNMADD231PD (BX), Y15, Y2              // c4e285bc13
+	VFNMADD231PD (R11), Y15, Y2             // c4c285bc13
+	VFNMADD231PD Y2, Y15, Y2                // c4e285bcd2
+	VFNMADD231PD Y11, Y15, Y2               // c4c285bcd3
+	VFNMADD231PD (BX), Y15, Y11             // c46285bc1b
+	VFNMADD231PD (R11), Y15, Y11            // c44285bc1b
+	VFNMADD231PD Y2, Y15, Y11               // c46285bcda
+	VFNMADD231PD Y11, Y15, Y11              // c44285bcdb
+	VFNMADD231PS (BX), X9, X2               // c4e231bc13
+	VFNMADD231PS (R11), X9, X2              // c4c231bc13
+	VFNMADD231PS X2, X9, X2                 // c4e231bcd2
+	VFNMADD231PS X11, X9, X2                // c4c231bcd3
+	VFNMADD231PS (BX), X9, X11              // c46231bc1b
+	VFNMADD231PS (R11), X9, X11             // c44231bc1b
+	VFNMADD231PS X2, X9, X11                // c46231bcda
+	VFNMADD231PS X11, X9, X11               // c44231bcdb
+	VFNMADD231PS (BX), Y15, Y2              // c4e205bc13
+	VFNMADD231PS (R11), Y15, Y2             // c4c205bc13
+	VFNMADD231PS Y2, Y15, Y2                // c4e205bcd2
+	VFNMADD231PS Y11, Y15, Y2               // c4c205bcd3
+	VFNMADD231PS (BX), Y15, Y11             // c46205bc1b
+	VFNMADD231PS (R11), Y15, Y11            // c44205bc1b
+	VFNMADD231PS Y2, Y15, Y11               // c46205bcda
+	VFNMADD231PS Y11, Y15, Y11              // c44205bcdb
+	VFNMADD231SD (BX), X9, X2               // c4e2b1bd13
+	VFNMADD231SD (R11), X9, X2              // c4c2b1bd13
+	VFNMADD231SD X2, X9, X2                 // c4e2b1bdd2
+	VFNMADD231SD X11, X9, X2                // c4c2b1bdd3
+	VFNMADD231SD (BX), X9, X11              // c462b1bd1b
+	VFNMADD231SD (R11), X9, X11             // c442b1bd1b
+	VFNMADD231SD X2, X9, X11                // c462b1bdda
+	VFNMADD231SD X11, X9, X11               // c442b1bddb
+	VFNMADD231SS (BX), X9, X2               // c4e231bd13
+	VFNMADD231SS (R11), X9, X2              // c4c231bd13
+	VFNMADD231SS X2, X9, X2                 // c4e231bdd2
+	VFNMADD231SS X11, X9, X2                // c4c231bdd3
+	VFNMADD231SS (BX), X9, X11              // c46231bd1b
+	VFNMADD231SS (R11), X9, X11             // c44231bd1b
+	VFNMADD231SS X2, X9, X11                // c46231bdda
+	VFNMADD231SS X11, X9, X11               // c44231bddb
+	VFNMSUB132PD (BX), X9, X2               // c4e2b19e13
+	VFNMSUB132PD (R11), X9, X2              // c4c2b19e13
+	VFNMSUB132PD X2, X9, X2                 // c4e2b19ed2
+	VFNMSUB132PD X11, X9, X2                // c4c2b19ed3
+	VFNMSUB132PD (BX), X9, X11              // c462b19e1b
+	VFNMSUB132PD (R11), X9, X11             // c442b19e1b
+	VFNMSUB132PD X2, X9, X11                // c462b19eda
+	VFNMSUB132PD X11, X9, X11               // c442b19edb
+	VFNMSUB132PD (BX), Y15, Y2              // c4e2859e13
+	VFNMSUB132PD (R11), Y15, Y2             // c4c2859e13
+	VFNMSUB132PD Y2, Y15, Y2                // c4e2859ed2
+	VFNMSUB132PD Y11, Y15, Y2               // c4c2859ed3
+	VFNMSUB132PD (BX), Y15, Y11             // c462859e1b
+	VFNMSUB132PD (R11), Y15, Y11            // c442859e1b
+	VFNMSUB132PD Y2, Y15, Y11               // c462859eda
+	VFNMSUB132PD Y11, Y15, Y11              // c442859edb
+	VFNMSUB132PS (BX), X9, X2               // c4e2319e13
+	VFNMSUB132PS (R11), X9, X2              // c4c2319e13
+	VFNMSUB132PS X2, X9, X2                 // c4e2319ed2
+	VFNMSUB132PS X11, X9, X2                // c4c2319ed3
+	VFNMSUB132PS (BX), X9, X11              // c462319e1b
+	VFNMSUB132PS (R11), X9, X11             // c442319e1b
+	VFNMSUB132PS X2, X9, X11                // c462319eda
+	VFNMSUB132PS X11, X9, X11               // c442319edb
+	VFNMSUB132PS (BX), Y15, Y2              // c4e2059e13
+	VFNMSUB132PS (R11), Y15, Y2             // c4c2059e13
+	VFNMSUB132PS Y2, Y15, Y2                // c4e2059ed2
+	VFNMSUB132PS Y11, Y15, Y2               // c4c2059ed3
+	VFNMSUB132PS (BX), Y15, Y11             // c462059e1b
+	VFNMSUB132PS (R11), Y15, Y11            // c442059e1b
+	VFNMSUB132PS Y2, Y15, Y11               // c462059eda
+	VFNMSUB132PS Y11, Y15, Y11              // c442059edb
+	VFNMSUB132SD (BX), X9, X2               // c4e2b19f13
+	VFNMSUB132SD (R11), X9, X2              // c4c2b19f13
+	VFNMSUB132SD X2, X9, X2                 // c4e2b19fd2
+	VFNMSUB132SD X11, X9, X2                // c4c2b19fd3
+	VFNMSUB132SD (BX), X9, X11              // c462b19f1b
+	VFNMSUB132SD (R11), X9, X11             // c442b19f1b
+	VFNMSUB132SD X2, X9, X11                // c462b19fda
+	VFNMSUB132SD X11, X9, X11               // c442b19fdb
+	VFNMSUB132SS (BX), X9, X2               // c4e2319f13
+	VFNMSUB132SS (R11), X9, X2              // c4c2319f13
+	VFNMSUB132SS X2, X9, X2                 // c4e2319fd2
+	VFNMSUB132SS X11, X9, X2                // c4c2319fd3
+	VFNMSUB132SS (BX), X9, X11              // c462319f1b
+	VFNMSUB132SS (R11), X9, X11             // c442319f1b
+	VFNMSUB132SS X2, X9, X11                // c462319fda
+	VFNMSUB132SS X11, X9, X11               // c442319fdb
+	VFNMSUB213PD (BX), X9, X2               // c4e2b1ae13
+	VFNMSUB213PD (R11), X9, X2              // c4c2b1ae13
+	VFNMSUB213PD X2, X9, X2                 // c4e2b1aed2
+	VFNMSUB213PD X11, X9, X2                // c4c2b1aed3
+	VFNMSUB213PD (BX), X9, X11              // c462b1ae1b
+	VFNMSUB213PD (R11), X9, X11             // c442b1ae1b
+	VFNMSUB213PD X2, X9, X11                // c462b1aeda
+	VFNMSUB213PD X11, X9, X11               // c442b1aedb
+	VFNMSUB213PD (BX), Y15, Y2              // c4e285ae13
+	VFNMSUB213PD (R11), Y15, Y2             // c4c285ae13
+	VFNMSUB213PD Y2, Y15, Y2                // c4e285aed2
+	VFNMSUB213PD Y11, Y15, Y2               // c4c285aed3
+	VFNMSUB213PD (BX), Y15, Y11             // c46285ae1b
+	VFNMSUB213PD (R11), Y15, Y11            // c44285ae1b
+	VFNMSUB213PD Y2, Y15, Y11               // c46285aeda
+	VFNMSUB213PD Y11, Y15, Y11              // c44285aedb
+	VFNMSUB213PS (BX), X9, X2               // c4e231ae13
+	VFNMSUB213PS (R11), X9, X2              // c4c231ae13
+	VFNMSUB213PS X2, X9, X2                 // c4e231aed2
+	VFNMSUB213PS X11, X9, X2                // c4c231aed3
+	VFNMSUB213PS (BX), X9, X11              // c46231ae1b
+	VFNMSUB213PS (R11), X9, X11             // c44231ae1b
+	VFNMSUB213PS X2, X9, X11                // c46231aeda
+	VFNMSUB213PS X11, X9, X11               // c44231aedb
+	VFNMSUB213PS (BX), Y15, Y2              // c4e205ae13
+	VFNMSUB213PS (R11), Y15, Y2             // c4c205ae13
+	VFNMSUB213PS Y2, Y15, Y2                // c4e205aed2
+	VFNMSUB213PS Y11, Y15, Y2               // c4c205aed3
+	VFNMSUB213PS (BX), Y15, Y11             // c46205ae1b
+	VFNMSUB213PS (R11), Y15, Y11            // c44205ae1b
+	VFNMSUB213PS Y2, Y15, Y11               // c46205aeda
+	VFNMSUB213PS Y11, Y15, Y11              // c44205aedb
+	VFNMSUB213SD (BX), X9, X2               // c4e2b1af13
+	VFNMSUB213SD (R11), X9, X2              // c4c2b1af13
+	VFNMSUB213SD X2, X9, X2                 // c4e2b1afd2
+	VFNMSUB213SD X11, X9, X2                // c4c2b1afd3
+	VFNMSUB213SD (BX), X9, X11              // c462b1af1b
+	VFNMSUB213SD (R11), X9, X11             // c442b1af1b
+	VFNMSUB213SD X2, X9, X11                // c462b1afda
+	VFNMSUB213SD X11, X9, X11               // c442b1afdb
+	VFNMSUB213SS (BX), X9, X2               // c4e231af13
+	VFNMSUB213SS (R11), X9, X2              // c4c231af13
+	VFNMSUB213SS X2, X9, X2                 // c4e231afd2
+	VFNMSUB213SS X11, X9, X2                // c4c231afd3
+	VFNMSUB213SS (BX), X9, X11              // c46231af1b
+	VFNMSUB213SS (R11), X9, X11             // c44231af1b
+	VFNMSUB213SS X2, X9, X11                // c46231afda
+	VFNMSUB213SS X11, X9, X11               // c44231afdb
+	VFNMSUB231PD (BX), X9, X2               // c4e2b1be13
+	VFNMSUB231PD (R11), X9, X2              // c4c2b1be13
+	VFNMSUB231PD X2, X9, X2                 // c4e2b1bed2
+	VFNMSUB231PD X11, X9, X2                // c4c2b1bed3
+	VFNMSUB231PD (BX), X9, X11              // c462b1be1b
+	VFNMSUB231PD (R11), X9, X11             // c442b1be1b
+	VFNMSUB231PD X2, X9, X11                // c462b1beda
+	VFNMSUB231PD X11, X9, X11               // c442b1bedb
+	VFNMSUB231PD (BX), Y15, Y2              // c4e285be13
+	VFNMSUB231PD (R11), Y15, Y2             // c4c285be13
+	VFNMSUB231PD Y2, Y15, Y2                // c4e285bed2
+	VFNMSUB231PD Y11, Y15, Y2               // c4c285bed3
+	VFNMSUB231PD (BX), Y15, Y11             // c46285be1b
+	VFNMSUB231PD (R11), Y15, Y11            // c44285be1b
+	VFNMSUB231PD Y2, Y15, Y11               // c46285beda
+	VFNMSUB231PD Y11, Y15, Y11              // c44285bedb
+	VFNMSUB231PS (BX), X9, X2               // c4e231be13
+	VFNMSUB231PS (R11), X9, X2              // c4c231be13
+	VFNMSUB231PS X2, X9, X2                 // c4e231bed2
+	VFNMSUB231PS X11, X9, X2                // c4c231bed3
+	VFNMSUB231PS (BX), X9, X11              // c46231be1b
+	VFNMSUB231PS (R11), X9, X11             // c44231be1b
+	VFNMSUB231PS X2, X9, X11                // c46231beda
+	VFNMSUB231PS X11, X9, X11               // c44231bedb
+	VFNMSUB231PS (BX), Y15, Y2              // c4e205be13
+	VFNMSUB231PS (R11), Y15, Y2             // c4c205be13
+	VFNMSUB231PS Y2, Y15, Y2                // c4e205bed2
+	VFNMSUB231PS Y11, Y15, Y2               // c4c205bed3
+	VFNMSUB231PS (BX), Y15, Y11             // c46205be1b
+	VFNMSUB231PS (R11), Y15, Y11            // c44205be1b
+	VFNMSUB231PS Y2, Y15, Y11               // c46205beda
+	VFNMSUB231PS Y11, Y15, Y11              // c44205bedb
+	VFNMSUB231SD (BX), X9, X2               // c4e2b1bf13
+	VFNMSUB231SD (R11), X9, X2              // c4c2b1bf13
+	VFNMSUB231SD X2, X9, X2                 // c4e2b1bfd2
+	VFNMSUB231SD X11, X9, X2                // c4c2b1bfd3
+	VFNMSUB231SD (BX), X9, X11              // c462b1bf1b
+	VFNMSUB231SD (R11), X9, X11             // c442b1bf1b
+	VFNMSUB231SD X2, X9, X11                // c462b1bfda
+	VFNMSUB231SD X11, X9, X11               // c442b1bfdb
+	VFNMSUB231SS (BX), X9, X2               // c4e231bf13
+	VFNMSUB231SS (R11), X9, X2              // c4c231bf13
+	VFNMSUB231SS X2, X9, X2                 // c4e231bfd2
+	VFNMSUB231SS X11, X9, X2                // c4c231bfd3
+	VFNMSUB231SS (BX), X9, X11              // c46231bf1b
+	VFNMSUB231SS (R11), X9, X11             // c44231bf1b
+	VFNMSUB231SS X2, X9, X11                // c46231bfda
+	VFNMSUB231SS X11, X9, X11               // c44231bfdb
+	VHADDPD (BX), X9, X2                    // c4e1317c13 or c5b17c13
+	VHADDPD (R11), X9, X2                   // c4c1317c13
+	VHADDPD X2, X9, X2                      // c4e1317cd2 or c5b17cd2
+	VHADDPD X11, X9, X2                     // c4c1317cd3
+	VHADDPD (BX), X9, X11                   // c461317c1b or c5317c1b
+	VHADDPD (R11), X9, X11                  // c441317c1b
+	VHADDPD X2, X9, X11                     // c461317cda or c5317cda
+	VHADDPD X11, X9, X11                    // c441317cdb
+	VHADDPD (BX), Y15, Y2                   // c4e1057c13 or c5857c13
+	VHADDPD (R11), Y15, Y2                  // c4c1057c13
+	VHADDPD Y2, Y15, Y2                     // c4e1057cd2 or c5857cd2
+	VHADDPD Y11, Y15, Y2                    // c4c1057cd3
+	VHADDPD (BX), Y15, Y11                  // c461057c1b or c5057c1b
+	VHADDPD (R11), Y15, Y11                 // c441057c1b
+	VHADDPD Y2, Y15, Y11                    // c461057cda or c5057cda
+	VHADDPD Y11, Y15, Y11                   // c441057cdb
+	VHADDPS (BX), X9, X2                    // c4e1337c13 or c5b37c13
+	VHADDPS (R11), X9, X2                   // c4c1337c13
+	VHADDPS X2, X9, X2                      // c4e1337cd2 or c5b37cd2
+	VHADDPS X11, X9, X2                     // c4c1337cd3
+	VHADDPS (BX), X9, X11                   // c461337c1b or c5337c1b
+	VHADDPS (R11), X9, X11                  // c441337c1b
+	VHADDPS X2, X9, X11                     // c461337cda or c5337cda
+	VHADDPS X11, X9, X11                    // c441337cdb
+	VHADDPS (BX), Y15, Y2                   // c4e1077c13 or c5877c13
+	VHADDPS (R11), Y15, Y2                  // c4c1077c13
+	VHADDPS Y2, Y15, Y2                     // c4e1077cd2 or c5877cd2
+	VHADDPS Y11, Y15, Y2                    // c4c1077cd3
+	VHADDPS (BX), Y15, Y11                  // c461077c1b or c5077c1b
+	VHADDPS (R11), Y15, Y11                 // c441077c1b
+	VHADDPS Y2, Y15, Y11                    // c461077cda or c5077cda
+	VHADDPS Y11, Y15, Y11                   // c441077cdb
+	VHSUBPD (BX), X9, X2                    // c4e1317d13 or c5b17d13
+	VHSUBPD (R11), X9, X2                   // c4c1317d13
+	VHSUBPD X2, X9, X2                      // c4e1317dd2 or c5b17dd2
+	VHSUBPD X11, X9, X2                     // c4c1317dd3
+	VHSUBPD (BX), X9, X11                   // c461317d1b or c5317d1b
+	VHSUBPD (R11), X9, X11                  // c441317d1b
+	VHSUBPD X2, X9, X11                     // c461317dda or c5317dda
+	VHSUBPD X11, X9, X11                    // c441317ddb
+	VHSUBPD (BX), Y15, Y2                   // c4e1057d13 or c5857d13
+	VHSUBPD (R11), Y15, Y2                  // c4c1057d13
+	VHSUBPD Y2, Y15, Y2                     // c4e1057dd2 or c5857dd2
+	VHSUBPD Y11, Y15, Y2                    // c4c1057dd3
+	VHSUBPD (BX), Y15, Y11                  // c461057d1b or c5057d1b
+	VHSUBPD (R11), Y15, Y11                 // c441057d1b
+	VHSUBPD Y2, Y15, Y11                    // c461057dda or c5057dda
+	VHSUBPD Y11, Y15, Y11                   // c441057ddb
+	VHSUBPS (BX), X9, X2                    // c4e1337d13 or c5b37d13
+	VHSUBPS (R11), X9, X2                   // c4c1337d13
+	VHSUBPS X2, X9, X2                      // c4e1337dd2 or c5b37dd2
+	VHSUBPS X11, X9, X2                     // c4c1337dd3
+	VHSUBPS (BX), X9, X11                   // c461337d1b or c5337d1b
+	VHSUBPS (R11), X9, X11                  // c441337d1b
+	VHSUBPS X2, X9, X11                     // c461337dda or c5337dda
+	VHSUBPS X11, X9, X11                    // c441337ddb
+	VHSUBPS (BX), Y15, Y2                   // c4e1077d13 or c5877d13
+	VHSUBPS (R11), Y15, Y2                  // c4c1077d13
+	VHSUBPS Y2, Y15, Y2                     // c4e1077dd2 or c5877dd2
+	VHSUBPS Y11, Y15, Y2                    // c4c1077dd3
+	VHSUBPS (BX), Y15, Y11                  // c461077d1b or c5077d1b
+	VHSUBPS (R11), Y15, Y11                 // c441077d1b
+	VHSUBPS Y2, Y15, Y11                    // c461077dda or c5077dda
+	VHSUBPS Y11, Y15, Y11                   // c441077ddb
+	VINSERTF128 $7, (BX), Y15, Y2           // c4e305181307
+	VINSERTF128 $7, (R11), Y15, Y2          // c4c305181307
+	VINSERTF128 $7, X2, Y15, Y2             // c4e30518d207
+	VINSERTF128 $7, X11, Y15, Y2            // c4c30518d307
+	VINSERTF128 $7, (BX), Y15, Y11          // c46305181b07
+	VINSERTF128 $7, (R11), Y15, Y11         // c44305181b07
+	VINSERTF128 $7, X2, Y15, Y11            // c4630518da07
+	VINSERTF128 $7, X11, Y15, Y11           // c4430518db07
 	VINSERTI128 $7, (BX), Y15, Y2   // c4e305381307
 	VINSERTI128 $7, (R11), Y15, Y2  // c4c305381307
 	VINSERTI128 $7, X2, Y15, Y2     // c4e30538d207
@@ -7430,220 +7430,220 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VINSERTI128 $7, (R11), Y15, Y11 // c44305381b07
 	VINSERTI128 $7, X2, Y15, Y11    // c4630538da07
 	VINSERTI128 $7, X11, Y15, Y11   // c4430538db07
-	//TODO: VINSERTPS $7, (BX), X9, X2      // c4e331211307
-	//TODO: VINSERTPS $7, (R11), X9, X2     // c4c331211307
-	//TODO: VINSERTPS $7, X2, X9, X2        // c4e33121d207
-	//TODO: VINSERTPS $7, X11, X9, X2       // c4c33121d307
-	//TODO: VINSERTPS $7, (BX), X9, X11     // c46331211b07
-	//TODO: VINSERTPS $7, (R11), X9, X11    // c44331211b07
-	//TODO: VINSERTPS $7, X2, X9, X11       // c4633121da07
-	//TODO: VINSERTPS $7, X11, X9, X11      // c4433121db07
-	//TODO: VLDDQU (BX), X2                 // c4e17bf013 or c5fbf013
-	//TODO: VLDDQU (R11), X2                // c4c17bf013
-	//TODO: VLDDQU (BX), X11                // c4617bf01b or c57bf01b
-	//TODO: VLDDQU (R11), X11               // c4417bf01b
-	//TODO: VLDDQU (BX), Y2                 // c4e17ff013 or c5fff013
-	//TODO: VLDDQU (R11), Y2                // c4c17ff013
-	//TODO: VLDDQU (BX), Y11                // c4617ff01b or c57ff01b
-	//TODO: VLDDQU (R11), Y11               // c4417ff01b
-	//TODO: VLDMXCSR (BX)                   // c4e178ae13 or c5f8ae13
-	//TODO: VLDMXCSR (R11)                  // c4c178ae13
-	//TODO: VMASKMOVDQU X2, X2              // c4e179f7d2 or c5f9f7d2
-	//TODO: VMASKMOVDQU X11, X2             // c4c179f7d3
-	//TODO: VMASKMOVDQU X2, X11             // c46179f7da or c579f7da
-	//TODO: VMASKMOVDQU X11, X11            // c44179f7db
-	//TODO: VMASKMOVPD X2, X9, (BX)         // c4e2312f13
-	//TODO: VMASKMOVPD X11, X9, (BX)        // c462312f1b
-	//TODO: VMASKMOVPD X2, X9, (R11)        // c4c2312f13
-	//TODO: VMASKMOVPD X11, X9, (R11)       // c442312f1b
-	//TODO: VMASKMOVPD Y2, Y15, (BX)        // c4e2052f13
-	//TODO: VMASKMOVPD Y11, Y15, (BX)       // c462052f1b
-	//TODO: VMASKMOVPD Y2, Y15, (R11)       // c4c2052f13
-	//TODO: VMASKMOVPD Y11, Y15, (R11)      // c442052f1b
-	//TODO: VMASKMOVPD (BX), X9, X2         // c4e2312d13
-	//TODO: VMASKMOVPD (R11), X9, X2        // c4c2312d13
-	//TODO: VMASKMOVPD (BX), X9, X11        // c462312d1b
-	//TODO: VMASKMOVPD (R11), X9, X11       // c442312d1b
-	//TODO: VMASKMOVPD (BX), Y15, Y2        // c4e2052d13
-	//TODO: VMASKMOVPD (R11), Y15, Y2       // c4c2052d13
-	//TODO: VMASKMOVPD (BX), Y15, Y11       // c462052d1b
-	//TODO: VMASKMOVPD (R11), Y15, Y11      // c442052d1b
-	//TODO: VMASKMOVPS X2, X9, (BX)         // c4e2312e13
-	//TODO: VMASKMOVPS X11, X9, (BX)        // c462312e1b
-	//TODO: VMASKMOVPS X2, X9, (R11)        // c4c2312e13
-	//TODO: VMASKMOVPS X11, X9, (R11)       // c442312e1b
-	//TODO: VMASKMOVPS Y2, Y15, (BX)        // c4e2052e13
-	//TODO: VMASKMOVPS Y11, Y15, (BX)       // c462052e1b
-	//TODO: VMASKMOVPS Y2, Y15, (R11)       // c4c2052e13
-	//TODO: VMASKMOVPS Y11, Y15, (R11)      // c442052e1b
-	//TODO: VMASKMOVPS (BX), X9, X2         // c4e2312c13
-	//TODO: VMASKMOVPS (R11), X9, X2        // c4c2312c13
-	//TODO: VMASKMOVPS (BX), X9, X11        // c462312c1b
-	//TODO: VMASKMOVPS (R11), X9, X11       // c442312c1b
-	//TODO: VMASKMOVPS (BX), Y15, Y2        // c4e2052c13
-	//TODO: VMASKMOVPS (R11), Y15, Y2       // c4c2052c13
-	//TODO: VMASKMOVPS (BX), Y15, Y11       // c462052c1b
-	//TODO: VMASKMOVPS (R11), Y15, Y11      // c442052c1b
-	//TODO: VMAXPD (BX), X9, X2             // c4e1315f13 or c5b15f13
-	//TODO: VMAXPD (R11), X9, X2            // c4c1315f13
-	//TODO: VMAXPD X2, X9, X2               // c4e1315fd2 or c5b15fd2
-	//TODO: VMAXPD X11, X9, X2              // c4c1315fd3
-	//TODO: VMAXPD (BX), X9, X11            // c461315f1b or c5315f1b
-	//TODO: VMAXPD (R11), X9, X11           // c441315f1b
-	//TODO: VMAXPD X2, X9, X11              // c461315fda or c5315fda
-	//TODO: VMAXPD X11, X9, X11             // c441315fdb
-	//TODO: VMAXPD (BX), Y15, Y2            // c4e1055f13 or c5855f13
-	//TODO: VMAXPD (R11), Y15, Y2           // c4c1055f13
-	//TODO: VMAXPD Y2, Y15, Y2              // c4e1055fd2 or c5855fd2
-	//TODO: VMAXPD Y11, Y15, Y2             // c4c1055fd3
-	//TODO: VMAXPD (BX), Y15, Y11           // c461055f1b or c5055f1b
-	//TODO: VMAXPD (R11), Y15, Y11          // c441055f1b
-	//TODO: VMAXPD Y2, Y15, Y11             // c461055fda or c5055fda
-	//TODO: VMAXPD Y11, Y15, Y11            // c441055fdb
-	//TODO: VMAXPS (BX), X9, X2             // c4e1305f13 or c5b05f13
-	//TODO: VMAXPS (R11), X9, X2            // c4c1305f13
-	//TODO: VMAXPS X2, X9, X2               // c4e1305fd2 or c5b05fd2
-	//TODO: VMAXPS X11, X9, X2              // c4c1305fd3
-	//TODO: VMAXPS (BX), X9, X11            // c461305f1b or c5305f1b
-	//TODO: VMAXPS (R11), X9, X11           // c441305f1b
-	//TODO: VMAXPS X2, X9, X11              // c461305fda or c5305fda
-	//TODO: VMAXPS X11, X9, X11             // c441305fdb
-	//TODO: VMAXPS (BX), Y15, Y2            // c4e1045f13 or c5845f13
-	//TODO: VMAXPS (R11), Y15, Y2           // c4c1045f13
-	//TODO: VMAXPS Y2, Y15, Y2              // c4e1045fd2 or c5845fd2
-	//TODO: VMAXPS Y11, Y15, Y2             // c4c1045fd3
-	//TODO: VMAXPS (BX), Y15, Y11           // c461045f1b or c5045f1b
-	//TODO: VMAXPS (R11), Y15, Y11          // c441045f1b
-	//TODO: VMAXPS Y2, Y15, Y11             // c461045fda or c5045fda
-	//TODO: VMAXPS Y11, Y15, Y11            // c441045fdb
-	//TODO: VMAXSD (BX), X9, X2             // c4e1335f13 or c5b35f13
-	//TODO: VMAXSD (R11), X9, X2            // c4c1335f13
-	//TODO: VMAXSD X2, X9, X2               // c4e1335fd2 or c5b35fd2
-	//TODO: VMAXSD X11, X9, X2              // c4c1335fd3
-	//TODO: VMAXSD (BX), X9, X11            // c461335f1b or c5335f1b
-	//TODO: VMAXSD (R11), X9, X11           // c441335f1b
-	//TODO: VMAXSD X2, X9, X11              // c461335fda or c5335fda
-	//TODO: VMAXSD X11, X9, X11             // c441335fdb
-	//TODO: VMAXSS (BX), X9, X2             // c4e1325f13 or c5b25f13
-	//TODO: VMAXSS (R11), X9, X2            // c4c1325f13
-	//TODO: VMAXSS X2, X9, X2               // c4e1325fd2 or c5b25fd2
-	//TODO: VMAXSS X11, X9, X2              // c4c1325fd3
-	//TODO: VMAXSS (BX), X9, X11            // c461325f1b or c5325f1b
-	//TODO: VMAXSS (R11), X9, X11           // c441325f1b
-	//TODO: VMAXSS X2, X9, X11              // c461325fda or c5325fda
-	//TODO: VMAXSS X11, X9, X11             // c441325fdb
-	//TODO: VMINPD (BX), X9, X2             // c4e1315d13 or c5b15d13
-	//TODO: VMINPD (R11), X9, X2            // c4c1315d13
-	//TODO: VMINPD X2, X9, X2               // c4e1315dd2 or c5b15dd2
-	//TODO: VMINPD X11, X9, X2              // c4c1315dd3
-	//TODO: VMINPD (BX), X9, X11            // c461315d1b or c5315d1b
-	//TODO: VMINPD (R11), X9, X11           // c441315d1b
-	//TODO: VMINPD X2, X9, X11              // c461315dda or c5315dda
-	//TODO: VMINPD X11, X9, X11             // c441315ddb
-	//TODO: VMINPD (BX), Y15, Y2            // c4e1055d13 or c5855d13
-	//TODO: VMINPD (R11), Y15, Y2           // c4c1055d13
-	//TODO: VMINPD Y2, Y15, Y2              // c4e1055dd2 or c5855dd2
-	//TODO: VMINPD Y11, Y15, Y2             // c4c1055dd3
-	//TODO: VMINPD (BX), Y15, Y11           // c461055d1b or c5055d1b
-	//TODO: VMINPD (R11), Y15, Y11          // c441055d1b
-	//TODO: VMINPD Y2, Y15, Y11             // c461055dda or c5055dda
-	//TODO: VMINPD Y11, Y15, Y11            // c441055ddb
-	//TODO: VMINPS (BX), X9, X2             // c4e1305d13 or c5b05d13
-	//TODO: VMINPS (R11), X9, X2            // c4c1305d13
-	//TODO: VMINPS X2, X9, X2               // c4e1305dd2 or c5b05dd2
-	//TODO: VMINPS X11, X9, X2              // c4c1305dd3
-	//TODO: VMINPS (BX), X9, X11            // c461305d1b or c5305d1b
-	//TODO: VMINPS (R11), X9, X11           // c441305d1b
-	//TODO: VMINPS X2, X9, X11              // c461305dda or c5305dda
-	//TODO: VMINPS X11, X9, X11             // c441305ddb
-	//TODO: VMINPS (BX), Y15, Y2            // c4e1045d13 or c5845d13
-	//TODO: VMINPS (R11), Y15, Y2           // c4c1045d13
-	//TODO: VMINPS Y2, Y15, Y2              // c4e1045dd2 or c5845dd2
-	//TODO: VMINPS Y11, Y15, Y2             // c4c1045dd3
-	//TODO: VMINPS (BX), Y15, Y11           // c461045d1b or c5045d1b
-	//TODO: VMINPS (R11), Y15, Y11          // c441045d1b
-	//TODO: VMINPS Y2, Y15, Y11             // c461045dda or c5045dda
-	//TODO: VMINPS Y11, Y15, Y11            // c441045ddb
-	//TODO: VMINSD (BX), X9, X2             // c4e1335d13 or c5b35d13
-	//TODO: VMINSD (R11), X9, X2            // c4c1335d13
-	//TODO: VMINSD X2, X9, X2               // c4e1335dd2 or c5b35dd2
-	//TODO: VMINSD X11, X9, X2              // c4c1335dd3
-	//TODO: VMINSD (BX), X9, X11            // c461335d1b or c5335d1b
-	//TODO: VMINSD (R11), X9, X11           // c441335d1b
-	//TODO: VMINSD X2, X9, X11              // c461335dda or c5335dda
-	//TODO: VMINSD X11, X9, X11             // c441335ddb
-	//TODO: VMINSS (BX), X9, X2             // c4e1325d13 or c5b25d13
-	//TODO: VMINSS (R11), X9, X2            // c4c1325d13
-	//TODO: VMINSS X2, X9, X2               // c4e1325dd2 or c5b25dd2
-	//TODO: VMINSS X11, X9, X2              // c4c1325dd3
-	//TODO: VMINSS (BX), X9, X11            // c461325d1b or c5325d1b
-	//TODO: VMINSS (R11), X9, X11           // c441325d1b
-	//TODO: VMINSS X2, X9, X11              // c461325dda or c5325dda
-	//TODO: VMINSS X11, X9, X11             // c441325ddb
-	//TODO: VMOVAPD (BX), X2                // c4e1792813 or c5f92813
-	//TODO: VMOVAPD (R11), X2               // c4c1792813
-	//TODO: VMOVAPD X2, X2                  // c4e17928d2 or c5f928d2 or c4e17929d2 or c5f929d2
-	//TODO: VMOVAPD X11, X2                 // c4c17928d3 or c4617929da or c57929da
-	//TODO: VMOVAPD (BX), X11               // c46179281b or c579281b
-	//TODO: VMOVAPD (R11), X11              // c44179281b
-	//TODO: VMOVAPD X2, X11                 // c4617928da or c57928da or c4c17929d3
-	//TODO: VMOVAPD X11, X11                // c4417928db or c4417929db
-	//TODO: VMOVAPD X2, (BX)                // c4e1792913 or c5f92913
-	//TODO: VMOVAPD X11, (BX)               // c46179291b or c579291b
-	//TODO: VMOVAPD X2, (R11)               // c4c1792913
-	//TODO: VMOVAPD X11, (R11)              // c44179291b
-	//TODO: VMOVAPD (BX), Y2                // c4e17d2813 or c5fd2813
-	//TODO: VMOVAPD (R11), Y2               // c4c17d2813
-	//TODO: VMOVAPD Y2, Y2                  // c4e17d28d2 or c5fd28d2 or c4e17d29d2 or c5fd29d2
-	//TODO: VMOVAPD Y11, Y2                 // c4c17d28d3 or c4617d29da or c57d29da
-	//TODO: VMOVAPD (BX), Y11               // c4617d281b or c57d281b
-	//TODO: VMOVAPD (R11), Y11              // c4417d281b
-	//TODO: VMOVAPD Y2, Y11                 // c4617d28da or c57d28da or c4c17d29d3
-	//TODO: VMOVAPD Y11, Y11                // c4417d28db or c4417d29db
-	//TODO: VMOVAPD Y2, (BX)                // c4e17d2913 or c5fd2913
-	//TODO: VMOVAPD Y11, (BX)               // c4617d291b or c57d291b
-	//TODO: VMOVAPD Y2, (R11)               // c4c17d2913
-	//TODO: VMOVAPD Y11, (R11)              // c4417d291b
-	//TODO: VMOVAPS (BX), X2                // c4e1782813 or c5f82813
-	//TODO: VMOVAPS (R11), X2               // c4c1782813
-	//TODO: VMOVAPS X2, X2                  // c4e17828d2 or c5f828d2 or c4e17829d2 or c5f829d2
-	//TODO: VMOVAPS X11, X2                 // c4c17828d3 or c4617829da or c57829da
-	//TODO: VMOVAPS (BX), X11               // c46178281b or c578281b
-	//TODO: VMOVAPS (R11), X11              // c44178281b
-	//TODO: VMOVAPS X2, X11                 // c4617828da or c57828da or c4c17829d3
-	//TODO: VMOVAPS X11, X11                // c4417828db or c4417829db
-	//TODO: VMOVAPS X2, (BX)                // c4e1782913 or c5f82913
-	//TODO: VMOVAPS X11, (BX)               // c46178291b or c578291b
-	//TODO: VMOVAPS X2, (R11)               // c4c1782913
-	//TODO: VMOVAPS X11, (R11)              // c44178291b
-	//TODO: VMOVAPS (BX), Y2                // c4e17c2813 or c5fc2813
-	//TODO: VMOVAPS (R11), Y2               // c4c17c2813
-	//TODO: VMOVAPS Y2, Y2                  // c4e17c28d2 or c5fc28d2 or c4e17c29d2 or c5fc29d2
-	//TODO: VMOVAPS Y11, Y2                 // c4c17c28d3 or c4617c29da or c57c29da
-	//TODO: VMOVAPS (BX), Y11               // c4617c281b or c57c281b
-	//TODO: VMOVAPS (R11), Y11              // c4417c281b
-	//TODO: VMOVAPS Y2, Y11                 // c4617c28da or c57c28da or c4c17c29d3
-	//TODO: VMOVAPS Y11, Y11                // c4417c28db or c4417c29db
-	//TODO: VMOVAPS Y2, (BX)                // c4e17c2913 or c5fc2913
-	//TODO: VMOVAPS Y11, (BX)               // c4617c291b or c57c291b
-	//TODO: VMOVAPS Y2, (R11)               // c4c17c2913
-	//TODO: VMOVAPS Y11, (R11)              // c4417c291b
-	//TODO: VMOVD X2, (BX)                  // c4e1797e13 or c5f97e13
-	//TODO: VMOVD X11, (BX)                 // c461797e1b or c5797e1b
-	//TODO: VMOVD X2, (R11)                 // c4c1797e13
-	//TODO: VMOVD X11, (R11)                // c441797e1b
-	//TODO: VMOVD X2, DX                    // c4e1797ed2 or c5f97ed2
-	//TODO: VMOVD X11, DX                   // c461797eda or c5797eda
-	//TODO: VMOVD X2, R11                   // c4c1797ed3
-	//TODO: VMOVD X11, R11                  // c441797edb
-	//TODO: VMOVD (BX), X2                  // c4e1796e13 or c5f96e13
-	//TODO: VMOVD (R11), X2                 // c4c1796e13
-	//TODO: VMOVD DX, X2                    // c4e1796ed2 or c5f96ed2
-	//TODO: VMOVD R11, X2                   // c4c1796ed3
-	//TODO: VMOVD (BX), X11                 // c461796e1b or c5796e1b
-	//TODO: VMOVD (R11), X11                // c441796e1b
-	//TODO: VMOVD DX, X11                   // c461796eda or c5796eda
-	//TODO: VMOVD R11, X11                  // c441796edb
+	VINSERTPS $7, (BX), X9, X2              // c4e331211307
+	VINSERTPS $7, (R11), X9, X2             // c4c331211307
+	VINSERTPS $7, X2, X9, X2                // c4e33121d207
+	VINSERTPS $7, X11, X9, X2               // c4c33121d307
+	VINSERTPS $7, (BX), X9, X11             // c46331211b07
+	VINSERTPS $7, (R11), X9, X11            // c44331211b07
+	VINSERTPS $7, X2, X9, X11               // c4633121da07
+	VINSERTPS $7, X11, X9, X11              // c4433121db07
+	VLDDQU (BX), X2                         // c4e17bf013 or c5fbf013
+	VLDDQU (R11), X2                        // c4c17bf013
+	VLDDQU (BX), X11                        // c4617bf01b or c57bf01b
+	VLDDQU (R11), X11                       // c4417bf01b
+	VLDDQU (BX), Y2                         // c4e17ff013 or c5fff013
+	VLDDQU (R11), Y2                        // c4c17ff013
+	VLDDQU (BX), Y11                        // c4617ff01b or c57ff01b
+	VLDDQU (R11), Y11                       // c4417ff01b
+	VLDMXCSR (BX)                           // c4e178ae13 or c5f8ae13
+	VLDMXCSR (R11)                          // c4c178ae13
+	VMASKMOVDQU X2, X2                      // c4e179f7d2 or c5f9f7d2
+	VMASKMOVDQU X11, X2                     // c4c179f7d3
+	VMASKMOVDQU X2, X11                     // c46179f7da or c579f7da
+	VMASKMOVDQU X11, X11                    // c44179f7db
+	VMASKMOVPD X2, X9, (BX)                 // c4e2312f13
+	VMASKMOVPD X11, X9, (BX)                // c462312f1b
+	VMASKMOVPD X2, X9, (R11)                // c4c2312f13
+	VMASKMOVPD X11, X9, (R11)               // c442312f1b
+	VMASKMOVPD Y2, Y15, (BX)                // c4e2052f13
+	VMASKMOVPD Y11, Y15, (BX)               // c462052f1b
+	VMASKMOVPD Y2, Y15, (R11)               // c4c2052f13
+	VMASKMOVPD Y11, Y15, (R11)              // c442052f1b
+	VMASKMOVPD (BX), X9, X2                 // c4e2312d13
+	VMASKMOVPD (R11), X9, X2                // c4c2312d13
+	VMASKMOVPD (BX), X9, X11                // c462312d1b
+	VMASKMOVPD (R11), X9, X11               // c442312d1b
+	VMASKMOVPD (BX), Y15, Y2                // c4e2052d13
+	VMASKMOVPD (R11), Y15, Y2               // c4c2052d13
+	VMASKMOVPD (BX), Y15, Y11               // c462052d1b
+	VMASKMOVPD (R11), Y15, Y11              // c442052d1b
+	VMASKMOVPS X2, X9, (BX)                 // c4e2312e13
+	VMASKMOVPS X11, X9, (BX)                // c462312e1b
+	VMASKMOVPS X2, X9, (R11)                // c4c2312e13
+	VMASKMOVPS X11, X9, (R11)               // c442312e1b
+	VMASKMOVPS Y2, Y15, (BX)                // c4e2052e13
+	VMASKMOVPS Y11, Y15, (BX)               // c462052e1b
+	VMASKMOVPS Y2, Y15, (R11)               // c4c2052e13
+	VMASKMOVPS Y11, Y15, (R11)              // c442052e1b
+	VMASKMOVPS (BX), X9, X2                 // c4e2312c13
+	VMASKMOVPS (R11), X9, X2                // c4c2312c13
+	VMASKMOVPS (BX), X9, X11                // c462312c1b
+	VMASKMOVPS (R11), X9, X11               // c442312c1b
+	VMASKMOVPS (BX), Y15, Y2                // c4e2052c13
+	VMASKMOVPS (R11), Y15, Y2               // c4c2052c13
+	VMASKMOVPS (BX), Y15, Y11               // c462052c1b
+	VMASKMOVPS (R11), Y15, Y11              // c442052c1b
+	VMAXPD (BX), X9, X2                     // c4e1315f13 or c5b15f13
+	VMAXPD (R11), X9, X2                    // c4c1315f13
+	VMAXPD X2, X9, X2                       // c4e1315fd2 or c5b15fd2
+	VMAXPD X11, X9, X2                      // c4c1315fd3
+	VMAXPD (BX), X9, X11                    // c461315f1b or c5315f1b
+	VMAXPD (R11), X9, X11                   // c441315f1b
+	VMAXPD X2, X9, X11                      // c461315fda or c5315fda
+	VMAXPD X11, X9, X11                     // c441315fdb
+	VMAXPD (BX), Y15, Y2                    // c4e1055f13 or c5855f13
+	VMAXPD (R11), Y15, Y2                   // c4c1055f13
+	VMAXPD Y2, Y15, Y2                      // c4e1055fd2 or c5855fd2
+	VMAXPD Y11, Y15, Y2                     // c4c1055fd3
+	VMAXPD (BX), Y15, Y11                   // c461055f1b or c5055f1b
+	VMAXPD (R11), Y15, Y11                  // c441055f1b
+	VMAXPD Y2, Y15, Y11                     // c461055fda or c5055fda
+	VMAXPD Y11, Y15, Y11                    // c441055fdb
+	VMAXPS (BX), X9, X2                     // c4e1305f13 or c5b05f13
+	VMAXPS (R11), X9, X2                    // c4c1305f13
+	VMAXPS X2, X9, X2                       // c4e1305fd2 or c5b05fd2
+	VMAXPS X11, X9, X2                      // c4c1305fd3
+	VMAXPS (BX), X9, X11                    // c461305f1b or c5305f1b
+	VMAXPS (R11), X9, X11                   // c441305f1b
+	VMAXPS X2, X9, X11                      // c461305fda or c5305fda
+	VMAXPS X11, X9, X11                     // c441305fdb
+	VMAXPS (BX), Y15, Y2                    // c4e1045f13 or c5845f13
+	VMAXPS (R11), Y15, Y2                   // c4c1045f13
+	VMAXPS Y2, Y15, Y2                      // c4e1045fd2 or c5845fd2
+	VMAXPS Y11, Y15, Y2                     // c4c1045fd3
+	VMAXPS (BX), Y15, Y11                   // c461045f1b or c5045f1b
+	VMAXPS (R11), Y15, Y11                  // c441045f1b
+	VMAXPS Y2, Y15, Y11                     // c461045fda or c5045fda
+	VMAXPS Y11, Y15, Y11                    // c441045fdb
+	VMAXSD (BX), X9, X2                     // c4e1335f13 or c5b35f13
+	VMAXSD (R11), X9, X2                    // c4c1335f13
+	VMAXSD X2, X9, X2                       // c4e1335fd2 or c5b35fd2
+	VMAXSD X11, X9, X2                      // c4c1335fd3
+	VMAXSD (BX), X9, X11                    // c461335f1b or c5335f1b
+	VMAXSD (R11), X9, X11                   // c441335f1b
+	VMAXSD X2, X9, X11                      // c461335fda or c5335fda
+	VMAXSD X11, X9, X11                     // c441335fdb
+	VMAXSS (BX), X9, X2                     // c4e1325f13 or c5b25f13
+	VMAXSS (R11), X9, X2                    // c4c1325f13
+	VMAXSS X2, X9, X2                       // c4e1325fd2 or c5b25fd2
+	VMAXSS X11, X9, X2                      // c4c1325fd3
+	VMAXSS (BX), X9, X11                    // c461325f1b or c5325f1b
+	VMAXSS (R11), X9, X11                   // c441325f1b
+	VMAXSS X2, X9, X11                      // c461325fda or c5325fda
+	VMAXSS X11, X9, X11                     // c441325fdb
+	VMINPD (BX), X9, X2                     // c4e1315d13 or c5b15d13
+	VMINPD (R11), X9, X2                    // c4c1315d13
+	VMINPD X2, X9, X2                       // c4e1315dd2 or c5b15dd2
+	VMINPD X11, X9, X2                      // c4c1315dd3
+	VMINPD (BX), X9, X11                    // c461315d1b or c5315d1b
+	VMINPD (R11), X9, X11                   // c441315d1b
+	VMINPD X2, X9, X11                      // c461315dda or c5315dda
+	VMINPD X11, X9, X11                     // c441315ddb
+	VMINPD (BX), Y15, Y2                    // c4e1055d13 or c5855d13
+	VMINPD (R11), Y15, Y2                   // c4c1055d13
+	VMINPD Y2, Y15, Y2                      // c4e1055dd2 or c5855dd2
+	VMINPD Y11, Y15, Y2                     // c4c1055dd3
+	VMINPD (BX), Y15, Y11                   // c461055d1b or c5055d1b
+	VMINPD (R11), Y15, Y11                  // c441055d1b
+	VMINPD Y2, Y15, Y11                     // c461055dda or c5055dda
+	VMINPD Y11, Y15, Y11                    // c441055ddb
+	VMINPS (BX), X9, X2                     // c4e1305d13 or c5b05d13
+	VMINPS (R11), X9, X2                    // c4c1305d13
+	VMINPS X2, X9, X2                       // c4e1305dd2 or c5b05dd2
+	VMINPS X11, X9, X2                      // c4c1305dd3
+	VMINPS (BX), X9, X11                    // c461305d1b or c5305d1b
+	VMINPS (R11), X9, X11                   // c441305d1b
+	VMINPS X2, X9, X11                      // c461305dda or c5305dda
+	VMINPS X11, X9, X11                     // c441305ddb
+	VMINPS (BX), Y15, Y2                    // c4e1045d13 or c5845d13
+	VMINPS (R11), Y15, Y2                   // c4c1045d13
+	VMINPS Y2, Y15, Y2                      // c4e1045dd2 or c5845dd2
+	VMINPS Y11, Y15, Y2                     // c4c1045dd3
+	VMINPS (BX), Y15, Y11                   // c461045d1b or c5045d1b
+	VMINPS (R11), Y15, Y11                  // c441045d1b
+	VMINPS Y2, Y15, Y11                     // c461045dda or c5045dda
+	VMINPS Y11, Y15, Y11                    // c441045ddb
+	VMINSD (BX), X9, X2                     // c4e1335d13 or c5b35d13
+	VMINSD (R11), X9, X2                    // c4c1335d13
+	VMINSD X2, X9, X2                       // c4e1335dd2 or c5b35dd2
+	VMINSD X11, X9, X2                      // c4c1335dd3
+	VMINSD (BX), X9, X11                    // c461335d1b or c5335d1b
+	VMINSD (R11), X9, X11                   // c441335d1b
+	VMINSD X2, X9, X11                      // c461335dda or c5335dda
+	VMINSD X11, X9, X11                     // c441335ddb
+	VMINSS (BX), X9, X2                     // c4e1325d13 or c5b25d13
+	VMINSS (R11), X9, X2                    // c4c1325d13
+	VMINSS X2, X9, X2                       // c4e1325dd2 or c5b25dd2
+	VMINSS X11, X9, X2                      // c4c1325dd3
+	VMINSS (BX), X9, X11                    // c461325d1b or c5325d1b
+	VMINSS (R11), X9, X11                   // c441325d1b
+	VMINSS X2, X9, X11                      // c461325dda or c5325dda
+	VMINSS X11, X9, X11                     // c441325ddb
+	VMOVAPD (BX), X2                        // c4e1792813 or c5f92813
+	VMOVAPD (R11), X2                       // c4c1792813
+	VMOVAPD X2, X2                          // c4e17928d2 or c5f928d2 or c4e17929d2 or c5f929d2
+	VMOVAPD X11, X2                         // c4c17928d3 or c4617929da or c57929da
+	VMOVAPD (BX), X11                       // c46179281b or c579281b
+	VMOVAPD (R11), X11                      // c44179281b
+	VMOVAPD X2, X11                         // c4617928da or c57928da or c4c17929d3
+	VMOVAPD X11, X11                        // c4417928db or c4417929db
+	VMOVAPD X2, (BX)                        // c4e1792913 or c5f92913
+	VMOVAPD X11, (BX)                       // c46179291b or c579291b
+	VMOVAPD X2, (R11)                       // c4c1792913
+	VMOVAPD X11, (R11)                      // c44179291b
+	VMOVAPD (BX), Y2                        // c4e17d2813 or c5fd2813
+	VMOVAPD (R11), Y2                       // c4c17d2813
+	VMOVAPD Y2, Y2                          // c4e17d28d2 or c5fd28d2 or c4e17d29d2 or c5fd29d2
+	VMOVAPD Y11, Y2                         // c4c17d28d3 or c4617d29da or c57d29da
+	VMOVAPD (BX), Y11                       // c4617d281b or c57d281b
+	VMOVAPD (R11), Y11                      // c4417d281b
+	VMOVAPD Y2, Y11                         // c4617d28da or c57d28da or c4c17d29d3
+	VMOVAPD Y11, Y11                        // c4417d28db or c4417d29db
+	VMOVAPD Y2, (BX)                        // c4e17d2913 or c5fd2913
+	VMOVAPD Y11, (BX)                       // c4617d291b or c57d291b
+	VMOVAPD Y2, (R11)                       // c4c17d2913
+	VMOVAPD Y11, (R11)                      // c4417d291b
+	VMOVAPS (BX), X2                        // c4e1782813 or c5f82813
+	VMOVAPS (R11), X2                       // c4c1782813
+	VMOVAPS X2, X2                          // c4e17828d2 or c5f828d2 or c4e17829d2 or c5f829d2
+	VMOVAPS X11, X2                         // c4c17828d3 or c4617829da or c57829da
+	VMOVAPS (BX), X11                       // c46178281b or c578281b
+	VMOVAPS (R11), X11                      // c44178281b
+	VMOVAPS X2, X11                         // c4617828da or c57828da or c4c17829d3
+	VMOVAPS X11, X11                        // c4417828db or c4417829db
+	VMOVAPS X2, (BX)                        // c4e1782913 or c5f82913
+	VMOVAPS X11, (BX)                       // c46178291b or c578291b
+	VMOVAPS X2, (R11)                       // c4c1782913
+	VMOVAPS X11, (R11)                      // c44178291b
+	VMOVAPS (BX), Y2                        // c4e17c2813 or c5fc2813
+	VMOVAPS (R11), Y2                       // c4c17c2813
+	VMOVAPS Y2, Y2                          // c4e17c28d2 or c5fc28d2 or c4e17c29d2 or c5fc29d2
+	VMOVAPS Y11, Y2                         // c4c17c28d3 or c4617c29da or c57c29da
+	VMOVAPS (BX), Y11                       // c4617c281b or c57c281b
+	VMOVAPS (R11), Y11                      // c4417c281b
+	VMOVAPS Y2, Y11                         // c4617c28da or c57c28da or c4c17c29d3
+	VMOVAPS Y11, Y11                        // c4417c28db or c4417c29db
+	VMOVAPS Y2, (BX)                        // c4e17c2913 or c5fc2913
+	VMOVAPS Y11, (BX)                       // c4617c291b or c57c291b
+	VMOVAPS Y2, (R11)                       // c4c17c2913
+	VMOVAPS Y11, (R11)                      // c4417c291b
+	VMOVD X2, (BX)                          // c4e1797e13 or c5f97e13
+	VMOVD X11, (BX)                         // c461797e1b or c5797e1b
+	VMOVD X2, (R11)                         // c4c1797e13
+	VMOVD X11, (R11)                        // c441797e1b
+	VMOVD X2, DX                            // c4e1797ed2 or c5f97ed2
+	VMOVD X11, DX                           // c461797eda or c5797eda
+	VMOVD X2, R11                           // c4c1797ed3
+	VMOVD X11, R11                          // c441797edb
+	VMOVD (BX), X2                          // c4e1796e13 or c5f96e13
+	VMOVD (R11), X2                         // c4c1796e13
+	VMOVD DX, X2                            // c4e1796ed2 or c5f96ed2
+	VMOVD R11, X2                           // c4c1796ed3
+	VMOVD (BX), X11                         // c461796e1b or c5796e1b
+	VMOVD (R11), X11                        // c441796e1b
+	VMOVD DX, X11                           // c461796eda or c5796eda
+	VMOVD R11, X11                          // c441796edb
 	VMOVDDUP (BX), X2                       // c4e17b1213 or c5fb1213
 	VMOVDDUP (R11), X2                      // c4c17b1213
 	VMOVDDUP X2, X2                         // c4e17b12d2 or c5fb12d2
@@ -7708,62 +7708,62 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VMOVDQU Y11, (BX)                       // c4617e7f1b or c57e7f1b
 	VMOVDQU Y2, (R11)                       // c4c17e7f13
 	VMOVDQU Y11, (R11)                      // c4417e7f1b
-	//TODO: VMOVHLPS X2, X9, X2             // c4e13012d2 or c5b012d2
-	//TODO: VMOVHLPS X11, X9, X2            // c4c13012d3
-	//TODO: VMOVHLPS X2, X9, X11            // c4613012da or c53012da
-	//TODO: VMOVHLPS X11, X9, X11           // c4413012db
-	//TODO: VMOVHPD X2, (BX)                // c4e1791713 or c5f91713
-	//TODO: VMOVHPD X11, (BX)               // c46179171b or c579171b
-	//TODO: VMOVHPD X2, (R11)               // c4c1791713
-	//TODO: VMOVHPD X11, (R11)              // c44179171b
-	//TODO: VMOVHPD (BX), X9, X2            // c4e1311613 or c5b11613
-	//TODO: VMOVHPD (R11), X9, X2           // c4c1311613
-	//TODO: VMOVHPD (BX), X9, X11           // c46131161b or c531161b
-	//TODO: VMOVHPD (R11), X9, X11          // c44131161b
-	//TODO: VMOVHPS X2, (BX)                // c4e1781713 or c5f81713
-	//TODO: VMOVHPS X11, (BX)               // c46178171b or c578171b
-	//TODO: VMOVHPS X2, (R11)               // c4c1781713
-	//TODO: VMOVHPS X11, (R11)              // c44178171b
-	//TODO: VMOVHPS (BX), X9, X2            // c4e1301613 or c5b01613
-	//TODO: VMOVHPS (R11), X9, X2           // c4c1301613
-	//TODO: VMOVHPS (BX), X9, X11           // c46130161b or c530161b
-	//TODO: VMOVHPS (R11), X9, X11          // c44130161b
-	//TODO: VMOVLHPS X2, X9, X2             // c4e13016d2 or c5b016d2
-	//TODO: VMOVLHPS X11, X9, X2            // c4c13016d3
-	//TODO: VMOVLHPS X2, X9, X11            // c4613016da or c53016da
-	//TODO: VMOVLHPS X11, X9, X11           // c4413016db
-	//TODO: VMOVLPD X2, (BX)                // c4e1791313 or c5f91313
-	//TODO: VMOVLPD X11, (BX)               // c46179131b or c579131b
-	//TODO: VMOVLPD X2, (R11)               // c4c1791313
-	//TODO: VMOVLPD X11, (R11)              // c44179131b
-	//TODO: VMOVLPD (BX), X9, X2            // c4e1311213 or c5b11213
-	//TODO: VMOVLPD (R11), X9, X2           // c4c1311213
-	//TODO: VMOVLPD (BX), X9, X11           // c46131121b or c531121b
-	//TODO: VMOVLPD (R11), X9, X11          // c44131121b
-	//TODO: VMOVLPS X2, (BX)                // c4e1781313 or c5f81313
-	//TODO: VMOVLPS X11, (BX)               // c46178131b or c578131b
-	//TODO: VMOVLPS X2, (R11)               // c4c1781313
-	//TODO: VMOVLPS X11, (R11)              // c44178131b
-	//TODO: VMOVLPS (BX), X9, X2            // c4e1301213 or c5b01213
-	//TODO: VMOVLPS (R11), X9, X2           // c4c1301213
-	//TODO: VMOVLPS (BX), X9, X11           // c46130121b or c530121b
-	//TODO: VMOVLPS (R11), X9, X11          // c44130121b
-	//TODO: VMOVMSKPD X2, DX                // c4e17950d2 or c5f950d2
-	//TODO: VMOVMSKPD X11, DX               // c4c17950d3
-	//TODO: VMOVMSKPD X2, R11               // c4617950da or c57950da
-	//TODO: VMOVMSKPD X11, R11              // c4417950db
-	//TODO: VMOVMSKPD Y2, DX                // c4e17d50d2 or c5fd50d2
-	//TODO: VMOVMSKPD Y11, DX               // c4c17d50d3
-	//TODO: VMOVMSKPD Y2, R11               // c4617d50da or c57d50da
-	//TODO: VMOVMSKPD Y11, R11              // c4417d50db
-	//TODO: VMOVMSKPS X2, DX                // c4e17850d2 or c5f850d2
-	//TODO: VMOVMSKPS X11, DX               // c4c17850d3
-	//TODO: VMOVMSKPS X2, R11               // c4617850da or c57850da
-	//TODO: VMOVMSKPS X11, R11              // c4417850db
-	//TODO: VMOVMSKPS Y2, DX                // c4e17c50d2 or c5fc50d2
-	//TODO: VMOVMSKPS Y11, DX               // c4c17c50d3
-	//TODO: VMOVMSKPS Y2, R11               // c4617c50da or c57c50da
-	//TODO: VMOVMSKPS Y11, R11              // c4417c50db
+	VMOVHLPS X2, X9, X2                     // c4e13012d2 or c5b012d2
+	VMOVHLPS X11, X9, X2                    // c4c13012d3
+	VMOVHLPS X2, X9, X11                    // c4613012da or c53012da
+	VMOVHLPS X11, X9, X11                   // c4413012db
+	VMOVHPD X2, (BX)                        // c4e1791713 or c5f91713
+	VMOVHPD X11, (BX)                       // c46179171b or c579171b
+	VMOVHPD X2, (R11)                       // c4c1791713
+	VMOVHPD X11, (R11)                      // c44179171b
+	VMOVHPD (BX), X9, X2                    // c4e1311613 or c5b11613
+	VMOVHPD (R11), X9, X2                   // c4c1311613
+	VMOVHPD (BX), X9, X11                   // c46131161b or c531161b
+	VMOVHPD (R11), X9, X11                  // c44131161b
+	VMOVHPS X2, (BX)                        // c4e1781713 or c5f81713
+	VMOVHPS X11, (BX)                       // c46178171b or c578171b
+	VMOVHPS X2, (R11)                       // c4c1781713
+	VMOVHPS X11, (R11)                      // c44178171b
+	VMOVHPS (BX), X9, X2                    // c4e1301613 or c5b01613
+	VMOVHPS (R11), X9, X2                   // c4c1301613
+	VMOVHPS (BX), X9, X11                   // c46130161b or c530161b
+	VMOVHPS (R11), X9, X11                  // c44130161b
+	VMOVLHPS X2, X9, X2                     // c4e13016d2 or c5b016d2
+	VMOVLHPS X11, X9, X2                    // c4c13016d3
+	VMOVLHPS X2, X9, X11                    // c4613016da or c53016da
+	VMOVLHPS X11, X9, X11                   // c4413016db
+	VMOVLPD X2, (BX)                        // c4e1791313 or c5f91313
+	VMOVLPD X11, (BX)                       // c46179131b or c579131b
+	VMOVLPD X2, (R11)                       // c4c1791313
+	VMOVLPD X11, (R11)                      // c44179131b
+	VMOVLPD (BX), X9, X2                    // c4e1311213 or c5b11213
+	VMOVLPD (R11), X9, X2                   // c4c1311213
+	VMOVLPD (BX), X9, X11                   // c46131121b or c531121b
+	VMOVLPD (R11), X9, X11                  // c44131121b
+	VMOVLPS X2, (BX)                        // c4e1781313 or c5f81313
+	VMOVLPS X11, (BX)                       // c46178131b or c578131b
+	VMOVLPS X2, (R11)                       // c4c1781313
+	VMOVLPS X11, (R11)                      // c44178131b
+	VMOVLPS (BX), X9, X2                    // c4e1301213 or c5b01213
+	VMOVLPS (R11), X9, X2                   // c4c1301213
+	VMOVLPS (BX), X9, X11                   // c46130121b or c530121b
+	VMOVLPS (R11), X9, X11                  // c44130121b
+	VMOVMSKPD X2, DX                        // c4e17950d2 or c5f950d2
+	VMOVMSKPD X11, DX                       // c4c17950d3
+	VMOVMSKPD X2, R11                       // c4617950da or c57950da
+	VMOVMSKPD X11, R11                      // c4417950db
+	VMOVMSKPD Y2, DX                        // c4e17d50d2 or c5fd50d2
+	VMOVMSKPD Y11, DX                       // c4c17d50d3
+	VMOVMSKPD Y2, R11                       // c4617d50da or c57d50da
+	VMOVMSKPD Y11, R11                      // c4417d50db
+	VMOVMSKPS X2, DX                        // c4e17850d2 or c5f850d2
+	VMOVMSKPS X11, DX                       // c4c17850d3
+	VMOVMSKPS X2, R11                       // c4617850da or c57850da
+	VMOVMSKPS X11, R11                      // c4417850db
+	VMOVMSKPS Y2, DX                        // c4e17c50d2 or c5fc50d2
+	VMOVMSKPS Y11, DX                       // c4c17c50d3
+	VMOVMSKPS Y2, R11                       // c4617c50da or c57c50da
+	VMOVMSKPS Y11, R11                      // c4417c50db
 	VMOVNTDQ X2, (BX)                       // c4e179e713 or c5f9e713
 	VMOVNTDQ X11, (BX)                      // c46179e71b or c579e71b
 	VMOVNTDQ X2, (R11)                      // c4c179e713
@@ -7772,62 +7772,62 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VMOVNTDQ Y11, (BX)                      // c4617de71b or c57de71b
 	VMOVNTDQ Y2, (R11)                      // c4c17de713
 	VMOVNTDQ Y11, (R11)                     // c4417de71b
-	//TODO: VMOVNTDQA (BX), X2              // c4e2792a13
-	//TODO: VMOVNTDQA (R11), X2             // c4c2792a13
-	//TODO: VMOVNTDQA (BX), X11             // c462792a1b
-	//TODO: VMOVNTDQA (R11), X11            // c442792a1b
-	//TODO: VMOVNTDQA (BX), Y2              // c4e27d2a13
-	//TODO: VMOVNTDQA (R11), Y2             // c4c27d2a13
-	//TODO: VMOVNTDQA (BX), Y11             // c4627d2a1b
-	//TODO: VMOVNTDQA (R11), Y11            // c4427d2a1b
-	//TODO: VMOVNTPD X2, (BX)               // c4e1792b13 or c5f92b13
-	//TODO: VMOVNTPD X11, (BX)              // c461792b1b or c5792b1b
-	//TODO: VMOVNTPD X2, (R11)              // c4c1792b13
-	//TODO: VMOVNTPD X11, (R11)             // c441792b1b
-	//TODO: VMOVNTPD Y2, (BX)               // c4e17d2b13 or c5fd2b13
-	//TODO: VMOVNTPD Y11, (BX)              // c4617d2b1b or c57d2b1b
-	//TODO: VMOVNTPD Y2, (R11)              // c4c17d2b13
-	//TODO: VMOVNTPD Y11, (R11)             // c4417d2b1b
-	//TODO: VMOVNTPS X2, (BX)               // c4e1782b13 or c5f82b13
-	//TODO: VMOVNTPS X11, (BX)              // c461782b1b or c5782b1b
-	//TODO: VMOVNTPS X2, (R11)              // c4c1782b13
-	//TODO: VMOVNTPS X11, (R11)             // c441782b1b
-	//TODO: VMOVNTPS Y2, (BX)               // c4e17c2b13 or c5fc2b13
-	//TODO: VMOVNTPS Y11, (BX)              // c4617c2b1b or c57c2b1b
-	//TODO: VMOVNTPS Y2, (R11)              // c4c17c2b13
-	//TODO: VMOVNTPS Y11, (R11)             // c4417c2b1b
-	//TODO: VMOVQ X2, (BX)                  // c4e1f97e13 or c4e179d613 or c5f9d613
-	//TODO: VMOVQ X11, (BX)                 // c461f97e1b or c46179d61b or c579d61b
-	//TODO: VMOVQ X2, (R11)                 // c4c1f97e13 or c4c179d613
-	//TODO: VMOVQ X11, (R11)                // c441f97e1b or c44179d61b
-	//TODO: VMOVQ X2, DX                    // c4e1f97ed2
-	//TODO: VMOVQ X11, DX                   // c461f97eda
-	//TODO: VMOVQ X2, R11                   // c4c1f97ed3
-	//TODO: VMOVQ X11, R11                  // c441f97edb
-	//TODO: VMOVQ (BX), X2                  // c4e17a7e13 or c5fa7e13 or c4e1f96e13
-	//TODO: VMOVQ (R11), X2                 // c4c17a7e13 or c4c1f96e13
-	//TODO: VMOVQ (BX), X11                 // c4617a7e1b or c57a7e1b or c461f96e1b
-	//TODO: VMOVQ (R11), X11                // c4417a7e1b or c441f96e1b
-	//TODO: VMOVQ DX, X2                    // c4e1f96ed2
-	//TODO: VMOVQ R11, X2                   // c4c1f96ed3
-	//TODO: VMOVQ DX, X11                   // c461f96eda
-	//TODO: VMOVQ R11, X11                  // c441f96edb
-	//TODO: VMOVQ X2, X2                    // c4e17a7ed2 or c5fa7ed2 or c4e179d6d2 or c5f9d6d2
-	//TODO: VMOVQ X11, X2                   // c4c17a7ed3 or c46179d6da or c579d6da
-	//TODO: VMOVQ X2, X11                   // c4617a7eda or c57a7eda or c4c179d6d3
-	//TODO: VMOVQ X11, X11                  // c4417a7edb or c44179d6db
-	//TODO: VMOVSD X2, (BX)                 // c4e17b1113 or c5fb1113
-	//TODO: VMOVSD X11, (BX)                // c4617b111b or c57b111b
-	//TODO: VMOVSD X2, (R11)                // c4c17b1113
-	//TODO: VMOVSD X11, (R11)               // c4417b111b
-	//TODO: VMOVSD (BX), X2                 // c4e17b1013 or c5fb1013
-	//TODO: VMOVSD (R11), X2                // c4c17b1013
-	//TODO: VMOVSD (BX), X11                // c4617b101b or c57b101b
-	//TODO: VMOVSD (R11), X11               // c4417b101b
-	//TODO: VMOVSD X2, X9, X2               // c4e13310d2 or c5b310d2 or c4e13311d2 or c5b311d2
-	//TODO: VMOVSD X11, X9, X2              // c4c13310d3 or c4613311da or c53311da
-	//TODO: VMOVSD X2, X9, X11              // c4613310da or c53310da or c4c13311d3
-	//TODO: VMOVSD X11, X9, X11             // c4413310db or c4413311db
+	VMOVNTDQA (BX), X2                      // c4e2792a13
+	VMOVNTDQA (R11), X2                     // c4c2792a13
+	VMOVNTDQA (BX), X11                     // c462792a1b
+	VMOVNTDQA (R11), X11                    // c442792a1b
+	VMOVNTDQA (BX), Y2                      // c4e27d2a13
+	VMOVNTDQA (R11), Y2                     // c4c27d2a13
+	VMOVNTDQA (BX), Y11                     // c4627d2a1b
+	VMOVNTDQA (R11), Y11                    // c4427d2a1b
+	VMOVNTPD X2, (BX)                       // c4e1792b13 or c5f92b13
+	VMOVNTPD X11, (BX)                      // c461792b1b or c5792b1b
+	VMOVNTPD X2, (R11)                      // c4c1792b13
+	VMOVNTPD X11, (R11)                     // c441792b1b
+	VMOVNTPD Y2, (BX)                       // c4e17d2b13 or c5fd2b13
+	VMOVNTPD Y11, (BX)                      // c4617d2b1b or c57d2b1b
+	VMOVNTPD Y2, (R11)                      // c4c17d2b13
+	VMOVNTPD Y11, (R11)                     // c4417d2b1b
+	VMOVNTPS X2, (BX)                       // c4e1782b13 or c5f82b13
+	VMOVNTPS X11, (BX)                      // c461782b1b or c5782b1b
+	VMOVNTPS X2, (R11)                      // c4c1782b13
+	VMOVNTPS X11, (R11)                     // c441782b1b
+	VMOVNTPS Y2, (BX)                       // c4e17c2b13 or c5fc2b13
+	VMOVNTPS Y11, (BX)                      // c4617c2b1b or c57c2b1b
+	VMOVNTPS Y2, (R11)                      // c4c17c2b13
+	VMOVNTPS Y11, (R11)                     // c4417c2b1b
+	VMOVQ X2, (BX)                          // c4e1f97e13 or c4e179d613 or c5f9d613
+	VMOVQ X11, (BX)                         // c461f97e1b or c46179d61b or c579d61b
+	VMOVQ X2, (R11)                         // c4c1f97e13 or c4c179d613
+	VMOVQ X11, (R11)                        // c441f97e1b or c44179d61b
+	VMOVQ X2, DX                            // c4e1f97ed2
+	VMOVQ X11, DX                           // c461f97eda
+	VMOVQ X2, R11                           // c4c1f97ed3
+	VMOVQ X11, R11                          // c441f97edb
+	VMOVQ (BX), X2                          // c4e17a7e13 or c5fa7e13 or c4e1f96e13
+	VMOVQ (R11), X2                         // c4c17a7e13 or c4c1f96e13
+	VMOVQ (BX), X11                         // c4617a7e1b or c57a7e1b or c461f96e1b
+	VMOVQ (R11), X11                        // c4417a7e1b or c441f96e1b
+	VMOVQ DX, X2                            // c4e1f96ed2
+	VMOVQ R11, X2                           // c4c1f96ed3
+	VMOVQ DX, X11                           // c461f96eda
+	VMOVQ R11, X11                          // c441f96edb
+	VMOVQ X2, X2                            // c4e17a7ed2 or c5fa7ed2 or c4e179d6d2 or c5f9d6d2
+	VMOVQ X11, X2                           // c4c17a7ed3 or c46179d6da or c579d6da
+	VMOVQ X2, X11                           // c4617a7eda or c57a7eda or c4c179d6d3
+	VMOVQ X11, X11                          // c4417a7edb or c44179d6db
+	VMOVSD X2, (BX)                         // c4e17b1113 or c5fb1113
+	VMOVSD X11, (BX)                        // c4617b111b or c57b111b
+	VMOVSD X2, (R11)                        // c4c17b1113
+	VMOVSD X11, (R11)                       // c4417b111b
+	VMOVSD (BX), X2                         // c4e17b1013 or c5fb1013
+	VMOVSD (R11), X2                        // c4c17b1013
+	VMOVSD (BX), X11                        // c4617b101b or c57b101b
+	VMOVSD (R11), X11                       // c4417b101b
+	VMOVSD X2, X9, X2                       // c4e13310d2 or c5b310d2 or c4e13311d2 or c5b311d2
+	VMOVSD X11, X9, X2                      // c4c13310d3 or c4613311da or c53311da
+	VMOVSD X2, X9, X11                      // c4613310da or c53310da or c4c13311d3
+	VMOVSD X11, X9, X11                     // c4413310db or c4413311db
 	VMOVSHDUP (BX), X2                      // c4e17a1613 or c5fa1613
 	VMOVSHDUP (R11), X2                     // c4c17a1613
 	VMOVSHDUP X2, X2                        // c4e17a16d2 or c5fa16d2
@@ -7860,290 +7860,290 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VMOVSLDUP (R11), Y11                    // c4417e121b
 	VMOVSLDUP Y2, Y11                       // c4617e12da or c57e12da
 	VMOVSLDUP Y11, Y11                      // c4417e12db
-	//TODO: VMOVSS X2, (BX)                 // c4e17a1113 or c5fa1113
-	//TODO: VMOVSS X11, (BX)                // c4617a111b or c57a111b
-	//TODO: VMOVSS X2, (R11)                // c4c17a1113
-	//TODO: VMOVSS X11, (R11)               // c4417a111b
-	//TODO: VMOVSS (BX), X2                 // c4e17a1013 or c5fa1013
-	//TODO: VMOVSS (R11), X2                // c4c17a1013
-	//TODO: VMOVSS (BX), X11                // c4617a101b or c57a101b
-	//TODO: VMOVSS (R11), X11               // c4417a101b
-	//TODO: VMOVSS X2, X9, X2               // c4e13210d2 or c5b210d2 or c4e13211d2 or c5b211d2
-	//TODO: VMOVSS X11, X9, X2              // c4c13210d3 or c4613211da or c53211da
-	//TODO: VMOVSS X2, X9, X11              // c4613210da or c53210da or c4c13211d3
-	//TODO: VMOVSS X11, X9, X11             // c4413210db or c4413211db
-	//TODO: VMOVUPD (BX), X2                // c4e1791013 or c5f91013
-	//TODO: VMOVUPD (R11), X2               // c4c1791013
-	//TODO: VMOVUPD X2, X2                  // c4e17910d2 or c5f910d2 or c4e17911d2 or c5f911d2
-	//TODO: VMOVUPD X11, X2                 // c4c17910d3 or c4617911da or c57911da
-	//TODO: VMOVUPD (BX), X11               // c46179101b or c579101b
-	//TODO: VMOVUPD (R11), X11              // c44179101b
-	//TODO: VMOVUPD X2, X11                 // c4617910da or c57910da or c4c17911d3
-	//TODO: VMOVUPD X11, X11                // c4417910db or c4417911db
-	//TODO: VMOVUPD X2, (BX)                // c4e1791113 or c5f91113
-	//TODO: VMOVUPD X11, (BX)               // c46179111b or c579111b
-	//TODO: VMOVUPD X2, (R11)               // c4c1791113
-	//TODO: VMOVUPD X11, (R11)              // c44179111b
-	//TODO: VMOVUPD (BX), Y2                // c4e17d1013 or c5fd1013
-	//TODO: VMOVUPD (R11), Y2               // c4c17d1013
-	//TODO: VMOVUPD Y2, Y2                  // c4e17d10d2 or c5fd10d2 or c4e17d11d2 or c5fd11d2
-	//TODO: VMOVUPD Y11, Y2                 // c4c17d10d3 or c4617d11da or c57d11da
-	//TODO: VMOVUPD (BX), Y11               // c4617d101b or c57d101b
-	//TODO: VMOVUPD (R11), Y11              // c4417d101b
-	//TODO: VMOVUPD Y2, Y11                 // c4617d10da or c57d10da or c4c17d11d3
-	//TODO: VMOVUPD Y11, Y11                // c4417d10db or c4417d11db
-	//TODO: VMOVUPD Y2, (BX)                // c4e17d1113 or c5fd1113
-	//TODO: VMOVUPD Y11, (BX)               // c4617d111b or c57d111b
-	//TODO: VMOVUPD Y2, (R11)               // c4c17d1113
-	//TODO: VMOVUPD Y11, (R11)              // c4417d111b
-	//TODO: VMOVUPS (BX), X2                // c4e1781013 or c5f81013
-	//TODO: VMOVUPS (R11), X2               // c4c1781013
-	//TODO: VMOVUPS X2, X2                  // c4e17810d2 or c5f810d2 or c4e17811d2 or c5f811d2
-	//TODO: VMOVUPS X11, X2                 // c4c17810d3 or c4617811da or c57811da
-	//TODO: VMOVUPS (BX), X11               // c46178101b or c578101b
-	//TODO: VMOVUPS (R11), X11              // c44178101b
-	//TODO: VMOVUPS X2, X11                 // c4617810da or c57810da or c4c17811d3
-	//TODO: VMOVUPS X11, X11                // c4417810db or c4417811db
-	//TODO: VMOVUPS X2, (BX)                // c4e1781113 or c5f81113
-	//TODO: VMOVUPS X11, (BX)               // c46178111b or c578111b
-	//TODO: VMOVUPS X2, (R11)               // c4c1781113
-	//TODO: VMOVUPS X11, (R11)              // c44178111b
-	//TODO: VMOVUPS (BX), Y2                // c4e17c1013 or c5fc1013
-	//TODO: VMOVUPS (R11), Y2               // c4c17c1013
-	//TODO: VMOVUPS Y2, Y2                  // c4e17c10d2 or c5fc10d2 or c4e17c11d2 or c5fc11d2
-	//TODO: VMOVUPS Y11, Y2                 // c4c17c10d3 or c4617c11da or c57c11da
-	//TODO: VMOVUPS (BX), Y11               // c4617c101b or c57c101b
-	//TODO: VMOVUPS (R11), Y11              // c4417c101b
-	//TODO: VMOVUPS Y2, Y11                 // c4617c10da or c57c10da or c4c17c11d3
-	//TODO: VMOVUPS Y11, Y11                // c4417c10db or c4417c11db
-	//TODO: VMOVUPS Y2, (BX)                // c4e17c1113 or c5fc1113
-	//TODO: VMOVUPS Y11, (BX)               // c4617c111b or c57c111b
-	//TODO: VMOVUPS Y2, (R11)               // c4c17c1113
-	//TODO: VMOVUPS Y11, (R11)              // c4417c111b
-	//TODO: VMPSADBW $7, (BX), X9, X2       // c4e331421307
-	//TODO: VMPSADBW $7, (R11), X9, X2      // c4c331421307
-	//TODO: VMPSADBW $7, X2, X9, X2         // c4e33142d207
-	//TODO: VMPSADBW $7, X11, X9, X2        // c4c33142d307
-	//TODO: VMPSADBW $7, (BX), X9, X11      // c46331421b07
-	//TODO: VMPSADBW $7, (R11), X9, X11     // c44331421b07
-	//TODO: VMPSADBW $7, X2, X9, X11        // c4633142da07
-	//TODO: VMPSADBW $7, X11, X9, X11       // c4433142db07
-	//TODO: VMPSADBW $7, (BX), Y15, Y2      // c4e305421307
-	//TODO: VMPSADBW $7, (R11), Y15, Y2     // c4c305421307
-	//TODO: VMPSADBW $7, Y2, Y15, Y2        // c4e30542d207
-	//TODO: VMPSADBW $7, Y11, Y15, Y2       // c4c30542d307
-	//TODO: VMPSADBW $7, (BX), Y15, Y11     // c46305421b07
-	//TODO: VMPSADBW $7, (R11), Y15, Y11    // c44305421b07
-	//TODO: VMPSADBW $7, Y2, Y15, Y11       // c4630542da07
-	//TODO: VMPSADBW $7, Y11, Y15, Y11      // c4430542db07
-	//TODO: VMULPD (BX), X9, X2             // c4e1315913 or c5b15913
-	//TODO: VMULPD (R11), X9, X2            // c4c1315913
-	//TODO: VMULPD X2, X9, X2               // c4e13159d2 or c5b159d2
-	//TODO: VMULPD X11, X9, X2              // c4c13159d3
-	//TODO: VMULPD (BX), X9, X11            // c46131591b or c531591b
-	//TODO: VMULPD (R11), X9, X11           // c44131591b
-	//TODO: VMULPD X2, X9, X11              // c4613159da or c53159da
-	//TODO: VMULPD X11, X9, X11             // c4413159db
-	//TODO: VMULPD (BX), Y15, Y2            // c4e1055913 or c5855913
-	//TODO: VMULPD (R11), Y15, Y2           // c4c1055913
-	//TODO: VMULPD Y2, Y15, Y2              // c4e10559d2 or c58559d2
-	//TODO: VMULPD Y11, Y15, Y2             // c4c10559d3
-	//TODO: VMULPD (BX), Y15, Y11           // c46105591b or c505591b
-	//TODO: VMULPD (R11), Y15, Y11          // c44105591b
-	//TODO: VMULPD Y2, Y15, Y11             // c4610559da or c50559da
-	//TODO: VMULPD Y11, Y15, Y11            // c4410559db
-	//TODO: VMULPS (BX), X9, X2             // c4e1305913 or c5b05913
-	//TODO: VMULPS (R11), X9, X2            // c4c1305913
-	//TODO: VMULPS X2, X9, X2               // c4e13059d2 or c5b059d2
-	//TODO: VMULPS X11, X9, X2              // c4c13059d3
-	//TODO: VMULPS (BX), X9, X11            // c46130591b or c530591b
-	//TODO: VMULPS (R11), X9, X11           // c44130591b
-	//TODO: VMULPS X2, X9, X11              // c4613059da or c53059da
-	//TODO: VMULPS X11, X9, X11             // c4413059db
-	//TODO: VMULPS (BX), Y15, Y2            // c4e1045913 or c5845913
-	//TODO: VMULPS (R11), Y15, Y2           // c4c1045913
-	//TODO: VMULPS Y2, Y15, Y2              // c4e10459d2 or c58459d2
-	//TODO: VMULPS Y11, Y15, Y2             // c4c10459d3
-	//TODO: VMULPS (BX), Y15, Y11           // c46104591b or c504591b
-	//TODO: VMULPS (R11), Y15, Y11          // c44104591b
-	//TODO: VMULPS Y2, Y15, Y11             // c4610459da or c50459da
-	//TODO: VMULPS Y11, Y15, Y11            // c4410459db
-	//TODO: VMULSD (BX), X9, X2             // c4e1335913 or c5b35913
-	//TODO: VMULSD (R11), X9, X2            // c4c1335913
-	//TODO: VMULSD X2, X9, X2               // c4e13359d2 or c5b359d2
-	//TODO: VMULSD X11, X9, X2              // c4c13359d3
-	//TODO: VMULSD (BX), X9, X11            // c46133591b or c533591b
-	//TODO: VMULSD (R11), X9, X11           // c44133591b
-	//TODO: VMULSD X2, X9, X11              // c4613359da or c53359da
-	//TODO: VMULSD X11, X9, X11             // c4413359db
-	//TODO: VMULSS (BX), X9, X2             // c4e1325913 or c5b25913
-	//TODO: VMULSS (R11), X9, X2            // c4c1325913
-	//TODO: VMULSS X2, X9, X2               // c4e13259d2 or c5b259d2
-	//TODO: VMULSS X11, X9, X2              // c4c13259d3
-	//TODO: VMULSS (BX), X9, X11            // c46132591b or c532591b
-	//TODO: VMULSS (R11), X9, X11           // c44132591b
-	//TODO: VMULSS X2, X9, X11              // c4613259da or c53259da
-	//TODO: VMULSS X11, X9, X11             // c4413259db
-	//TODO: VORPD (BX), X9, X2              // c4e1315613 or c5b15613
-	//TODO: VORPD (R11), X9, X2             // c4c1315613
-	//TODO: VORPD X2, X9, X2                // c4e13156d2 or c5b156d2
-	//TODO: VORPD X11, X9, X2               // c4c13156d3
-	//TODO: VORPD (BX), X9, X11             // c46131561b or c531561b
-	//TODO: VORPD (R11), X9, X11            // c44131561b
-	//TODO: VORPD X2, X9, X11               // c4613156da or c53156da
-	//TODO: VORPD X11, X9, X11              // c4413156db
-	//TODO: VORPD (BX), Y15, Y2             // c4e1055613 or c5855613
-	//TODO: VORPD (R11), Y15, Y2            // c4c1055613
-	//TODO: VORPD Y2, Y15, Y2               // c4e10556d2 or c58556d2
-	//TODO: VORPD Y11, Y15, Y2              // c4c10556d3
-	//TODO: VORPD (BX), Y15, Y11            // c46105561b or c505561b
-	//TODO: VORPD (R11), Y15, Y11           // c44105561b
-	//TODO: VORPD Y2, Y15, Y11              // c4610556da or c50556da
-	//TODO: VORPD Y11, Y15, Y11             // c4410556db
-	//TODO: VORPS (BX), X9, X2              // c4e1305613 or c5b05613
-	//TODO: VORPS (R11), X9, X2             // c4c1305613
-	//TODO: VORPS X2, X9, X2                // c4e13056d2 or c5b056d2
-	//TODO: VORPS X11, X9, X2               // c4c13056d3
-	//TODO: VORPS (BX), X9, X11             // c46130561b or c530561b
-	//TODO: VORPS (R11), X9, X11            // c44130561b
-	//TODO: VORPS X2, X9, X11               // c4613056da or c53056da
-	//TODO: VORPS X11, X9, X11              // c4413056db
-	//TODO: VORPS (BX), Y15, Y2             // c4e1045613 or c5845613
-	//TODO: VORPS (R11), Y15, Y2            // c4c1045613
-	//TODO: VORPS Y2, Y15, Y2               // c4e10456d2 or c58456d2
-	//TODO: VORPS Y11, Y15, Y2              // c4c10456d3
-	//TODO: VORPS (BX), Y15, Y11            // c46104561b or c504561b
-	//TODO: VORPS (R11), Y15, Y11           // c44104561b
-	//TODO: VORPS Y2, Y15, Y11              // c4610456da or c50456da
-	//TODO: VORPS Y11, Y15, Y11             // c4410456db
-	//TODO: VPABSB (BX), X2                 // c4e2791c13
-	//TODO: VPABSB (R11), X2                // c4c2791c13
-	//TODO: VPABSB X2, X2                   // c4e2791cd2
-	//TODO: VPABSB X11, X2                  // c4c2791cd3
-	//TODO: VPABSB (BX), X11                // c462791c1b
-	//TODO: VPABSB (R11), X11               // c442791c1b
-	//TODO: VPABSB X2, X11                  // c462791cda
-	//TODO: VPABSB X11, X11                 // c442791cdb
-	//TODO: VPABSB (BX), Y2                 // c4e27d1c13
-	//TODO: VPABSB (R11), Y2                // c4c27d1c13
-	//TODO: VPABSB Y2, Y2                   // c4e27d1cd2
-	//TODO: VPABSB Y11, Y2                  // c4c27d1cd3
-	//TODO: VPABSB (BX), Y11                // c4627d1c1b
-	//TODO: VPABSB (R11), Y11               // c4427d1c1b
-	//TODO: VPABSB Y2, Y11                  // c4627d1cda
-	//TODO: VPABSB Y11, Y11                 // c4427d1cdb
-	//TODO: VPABSD (BX), X2                 // c4e2791e13
-	//TODO: VPABSD (R11), X2                // c4c2791e13
-	//TODO: VPABSD X2, X2                   // c4e2791ed2
-	//TODO: VPABSD X11, X2                  // c4c2791ed3
-	//TODO: VPABSD (BX), X11                // c462791e1b
-	//TODO: VPABSD (R11), X11               // c442791e1b
-	//TODO: VPABSD X2, X11                  // c462791eda
-	//TODO: VPABSD X11, X11                 // c442791edb
-	//TODO: VPABSD (BX), Y2                 // c4e27d1e13
-	//TODO: VPABSD (R11), Y2                // c4c27d1e13
-	//TODO: VPABSD Y2, Y2                   // c4e27d1ed2
-	//TODO: VPABSD Y11, Y2                  // c4c27d1ed3
-	//TODO: VPABSD (BX), Y11                // c4627d1e1b
-	//TODO: VPABSD (R11), Y11               // c4427d1e1b
-	//TODO: VPABSD Y2, Y11                  // c4627d1eda
-	//TODO: VPABSD Y11, Y11                 // c4427d1edb
-	//TODO: VPABSW (BX), X2                 // c4e2791d13
-	//TODO: VPABSW (R11), X2                // c4c2791d13
-	//TODO: VPABSW X2, X2                   // c4e2791dd2
-	//TODO: VPABSW X11, X2                  // c4c2791dd3
-	//TODO: VPABSW (BX), X11                // c462791d1b
-	//TODO: VPABSW (R11), X11               // c442791d1b
-	//TODO: VPABSW X2, X11                  // c462791dda
-	//TODO: VPABSW X11, X11                 // c442791ddb
-	//TODO: VPABSW (BX), Y2                 // c4e27d1d13
-	//TODO: VPABSW (R11), Y2                // c4c27d1d13
-	//TODO: VPABSW Y2, Y2                   // c4e27d1dd2
-	//TODO: VPABSW Y11, Y2                  // c4c27d1dd3
-	//TODO: VPABSW (BX), Y11                // c4627d1d1b
-	//TODO: VPABSW (R11), Y11               // c4427d1d1b
-	//TODO: VPABSW Y2, Y11                  // c4627d1dda
-	//TODO: VPABSW Y11, Y11                 // c4427d1ddb
-	//TODO: VPACKSSDW (BX), X9, X2          // c4e1316b13 or c5b16b13
-	//TODO: VPACKSSDW (R11), X9, X2         // c4c1316b13
-	//TODO: VPACKSSDW X2, X9, X2            // c4e1316bd2 or c5b16bd2
-	//TODO: VPACKSSDW X11, X9, X2           // c4c1316bd3
-	//TODO: VPACKSSDW (BX), X9, X11         // c461316b1b or c5316b1b
-	//TODO: VPACKSSDW (R11), X9, X11        // c441316b1b
-	//TODO: VPACKSSDW X2, X9, X11           // c461316bda or c5316bda
-	//TODO: VPACKSSDW X11, X9, X11          // c441316bdb
-	//TODO: VPACKSSDW (BX), Y15, Y2         // c4e1056b13 or c5856b13
-	//TODO: VPACKSSDW (R11), Y15, Y2        // c4c1056b13
-	//TODO: VPACKSSDW Y2, Y15, Y2           // c4e1056bd2 or c5856bd2
-	//TODO: VPACKSSDW Y11, Y15, Y2          // c4c1056bd3
-	//TODO: VPACKSSDW (BX), Y15, Y11        // c461056b1b or c5056b1b
-	//TODO: VPACKSSDW (R11), Y15, Y11       // c441056b1b
-	//TODO: VPACKSSDW Y2, Y15, Y11          // c461056bda or c5056bda
-	//TODO: VPACKSSDW Y11, Y15, Y11         // c441056bdb
-	//TODO: VPACKSSWB (BX), X9, X2          // c4e1316313 or c5b16313
-	//TODO: VPACKSSWB (R11), X9, X2         // c4c1316313
-	//TODO: VPACKSSWB X2, X9, X2            // c4e13163d2 or c5b163d2
-	//TODO: VPACKSSWB X11, X9, X2           // c4c13163d3
-	//TODO: VPACKSSWB (BX), X9, X11         // c46131631b or c531631b
-	//TODO: VPACKSSWB (R11), X9, X11        // c44131631b
-	//TODO: VPACKSSWB X2, X9, X11           // c4613163da or c53163da
-	//TODO: VPACKSSWB X11, X9, X11          // c4413163db
-	//TODO: VPACKSSWB (BX), Y15, Y2         // c4e1056313 or c5856313
-	//TODO: VPACKSSWB (R11), Y15, Y2        // c4c1056313
-	//TODO: VPACKSSWB Y2, Y15, Y2           // c4e10563d2 or c58563d2
-	//TODO: VPACKSSWB Y11, Y15, Y2          // c4c10563d3
-	//TODO: VPACKSSWB (BX), Y15, Y11        // c46105631b or c505631b
-	//TODO: VPACKSSWB (R11), Y15, Y11       // c44105631b
-	//TODO: VPACKSSWB Y2, Y15, Y11          // c4610563da or c50563da
-	//TODO: VPACKSSWB Y11, Y15, Y11         // c4410563db
-	//TODO: VPACKUSDW (BX), X9, X2          // c4e2312b13
-	//TODO: VPACKUSDW (R11), X9, X2         // c4c2312b13
-	//TODO: VPACKUSDW X2, X9, X2            // c4e2312bd2
-	//TODO: VPACKUSDW X11, X9, X2           // c4c2312bd3
-	//TODO: VPACKUSDW (BX), X9, X11         // c462312b1b
-	//TODO: VPACKUSDW (R11), X9, X11        // c442312b1b
-	//TODO: VPACKUSDW X2, X9, X11           // c462312bda
-	//TODO: VPACKUSDW X11, X9, X11          // c442312bdb
-	//TODO: VPACKUSDW (BX), Y15, Y2         // c4e2052b13
-	//TODO: VPACKUSDW (R11), Y15, Y2        // c4c2052b13
-	//TODO: VPACKUSDW Y2, Y15, Y2           // c4e2052bd2
-	//TODO: VPACKUSDW Y11, Y15, Y2          // c4c2052bd3
-	//TODO: VPACKUSDW (BX), Y15, Y11        // c462052b1b
-	//TODO: VPACKUSDW (R11), Y15, Y11       // c442052b1b
-	//TODO: VPACKUSDW Y2, Y15, Y11          // c462052bda
-	//TODO: VPACKUSDW Y11, Y15, Y11         // c442052bdb
-	//TODO: VPACKUSWB (BX), X9, X2          // c4e1316713 or c5b16713
-	//TODO: VPACKUSWB (R11), X9, X2         // c4c1316713
-	//TODO: VPACKUSWB X2, X9, X2            // c4e13167d2 or c5b167d2
-	//TODO: VPACKUSWB X11, X9, X2           // c4c13167d3
-	//TODO: VPACKUSWB (BX), X9, X11         // c46131671b or c531671b
-	//TODO: VPACKUSWB (R11), X9, X11        // c44131671b
-	//TODO: VPACKUSWB X2, X9, X11           // c4613167da or c53167da
-	//TODO: VPACKUSWB X11, X9, X11          // c4413167db
-	//TODO: VPACKUSWB (BX), Y15, Y2         // c4e1056713 or c5856713
-	//TODO: VPACKUSWB (R11), Y15, Y2        // c4c1056713
-	//TODO: VPACKUSWB Y2, Y15, Y2           // c4e10567d2 or c58567d2
-	//TODO: VPACKUSWB Y11, Y15, Y2          // c4c10567d3
-	//TODO: VPACKUSWB (BX), Y15, Y11        // c46105671b or c505671b
-	//TODO: VPACKUSWB (R11), Y15, Y11       // c44105671b
-	//TODO: VPACKUSWB Y2, Y15, Y11          // c4610567da or c50567da
-	//TODO: VPACKUSWB Y11, Y15, Y11         // c4410567db
-	//TODO: VPADDB (BX), X9, X2             // c4e131fc13 or c5b1fc13
-	//TODO: VPADDB (R11), X9, X2            // c4c131fc13
-	//TODO: VPADDB X2, X9, X2               // c4e131fcd2 or c5b1fcd2
-	//TODO: VPADDB X11, X9, X2              // c4c131fcd3
-	//TODO: VPADDB (BX), X9, X11            // c46131fc1b or c531fc1b
-	//TODO: VPADDB (R11), X9, X11           // c44131fc1b
-	//TODO: VPADDB X2, X9, X11              // c46131fcda or c531fcda
-	//TODO: VPADDB X11, X9, X11             // c44131fcdb
-	//TODO: VPADDB (BX), Y15, Y2            // c4e105fc13 or c585fc13
-	//TODO: VPADDB (R11), Y15, Y2           // c4c105fc13
-	//TODO: VPADDB Y2, Y15, Y2              // c4e105fcd2 or c585fcd2
-	//TODO: VPADDB Y11, Y15, Y2             // c4c105fcd3
-	//TODO: VPADDB (BX), Y15, Y11           // c46105fc1b or c505fc1b
-	//TODO: VPADDB (R11), Y15, Y11          // c44105fc1b
-	//TODO: VPADDB Y2, Y15, Y11             // c46105fcda or c505fcda
-	//TODO: VPADDB Y11, Y15, Y11            // c44105fcdb
+	VMOVSS X2, (BX)                         // c4e17a1113 or c5fa1113
+	VMOVSS X11, (BX)                        // c4617a111b or c57a111b
+	VMOVSS X2, (R11)                        // c4c17a1113
+	VMOVSS X11, (R11)                       // c4417a111b
+	VMOVSS (BX), X2                         // c4e17a1013 or c5fa1013
+	VMOVSS (R11), X2                        // c4c17a1013
+	VMOVSS (BX), X11                        // c4617a101b or c57a101b
+	VMOVSS (R11), X11                       // c4417a101b
+	VMOVSS X2, X9, X2                       // c4e13210d2 or c5b210d2 or c4e13211d2 or c5b211d2
+	VMOVSS X11, X9, X2                      // c4c13210d3 or c4613211da or c53211da
+	VMOVSS X2, X9, X11                      // c4613210da or c53210da or c4c13211d3
+	VMOVSS X11, X9, X11                     // c4413210db or c4413211db
+	VMOVUPD (BX), X2                        // c4e1791013 or c5f91013
+	VMOVUPD (R11), X2                       // c4c1791013
+	VMOVUPD X2, X2                          // c4e17910d2 or c5f910d2 or c4e17911d2 or c5f911d2
+	VMOVUPD X11, X2                         // c4c17910d3 or c4617911da or c57911da
+	VMOVUPD (BX), X11                       // c46179101b or c579101b
+	VMOVUPD (R11), X11                      // c44179101b
+	VMOVUPD X2, X11                         // c4617910da or c57910da or c4c17911d3
+	VMOVUPD X11, X11                        // c4417910db or c4417911db
+	VMOVUPD X2, (BX)                        // c4e1791113 or c5f91113
+	VMOVUPD X11, (BX)                       // c46179111b or c579111b
+	VMOVUPD X2, (R11)                       // c4c1791113
+	VMOVUPD X11, (R11)                      // c44179111b
+	VMOVUPD (BX), Y2                        // c4e17d1013 or c5fd1013
+	VMOVUPD (R11), Y2                       // c4c17d1013
+	VMOVUPD Y2, Y2                          // c4e17d10d2 or c5fd10d2 or c4e17d11d2 or c5fd11d2
+	VMOVUPD Y11, Y2                         // c4c17d10d3 or c4617d11da or c57d11da
+	VMOVUPD (BX), Y11                       // c4617d101b or c57d101b
+	VMOVUPD (R11), Y11                      // c4417d101b
+	VMOVUPD Y2, Y11                         // c4617d10da or c57d10da or c4c17d11d3
+	VMOVUPD Y11, Y11                        // c4417d10db or c4417d11db
+	VMOVUPD Y2, (BX)                        // c4e17d1113 or c5fd1113
+	VMOVUPD Y11, (BX)                       // c4617d111b or c57d111b
+	VMOVUPD Y2, (R11)                       // c4c17d1113
+	VMOVUPD Y11, (R11)                      // c4417d111b
+	VMOVUPS (BX), X2                        // c4e1781013 or c5f81013
+	VMOVUPS (R11), X2                       // c4c1781013
+	VMOVUPS X2, X2                          // c4e17810d2 or c5f810d2 or c4e17811d2 or c5f811d2
+	VMOVUPS X11, X2                         // c4c17810d3 or c4617811da or c57811da
+	VMOVUPS (BX), X11                       // c46178101b or c578101b
+	VMOVUPS (R11), X11                      // c44178101b
+	VMOVUPS X2, X11                         // c4617810da or c57810da or c4c17811d3
+	VMOVUPS X11, X11                        // c4417810db or c4417811db
+	VMOVUPS X2, (BX)                        // c4e1781113 or c5f81113
+	VMOVUPS X11, (BX)                       // c46178111b or c578111b
+	VMOVUPS X2, (R11)                       // c4c1781113
+	VMOVUPS X11, (R11)                      // c44178111b
+	VMOVUPS (BX), Y2                        // c4e17c1013 or c5fc1013
+	VMOVUPS (R11), Y2                       // c4c17c1013
+	VMOVUPS Y2, Y2                          // c4e17c10d2 or c5fc10d2 or c4e17c11d2 or c5fc11d2
+	VMOVUPS Y11, Y2                         // c4c17c10d3 or c4617c11da or c57c11da
+	VMOVUPS (BX), Y11                       // c4617c101b or c57c101b
+	VMOVUPS (R11), Y11                      // c4417c101b
+	VMOVUPS Y2, Y11                         // c4617c10da or c57c10da or c4c17c11d3
+	VMOVUPS Y11, Y11                        // c4417c10db or c4417c11db
+	VMOVUPS Y2, (BX)                        // c4e17c1113 or c5fc1113
+	VMOVUPS Y11, (BX)                       // c4617c111b or c57c111b
+	VMOVUPS Y2, (R11)                       // c4c17c1113
+	VMOVUPS Y11, (R11)                      // c4417c111b
+	VMPSADBW $7, (BX), X9, X2               // c4e331421307
+	VMPSADBW $7, (R11), X9, X2              // c4c331421307
+	VMPSADBW $7, X2, X9, X2                 // c4e33142d207
+	VMPSADBW $7, X11, X9, X2                // c4c33142d307
+	VMPSADBW $7, (BX), X9, X11              // c46331421b07
+	VMPSADBW $7, (R11), X9, X11             // c44331421b07
+	VMPSADBW $7, X2, X9, X11                // c4633142da07
+	VMPSADBW $7, X11, X9, X11               // c4433142db07
+	VMPSADBW $7, (BX), Y15, Y2              // c4e305421307
+	VMPSADBW $7, (R11), Y15, Y2             // c4c305421307
+	VMPSADBW $7, Y2, Y15, Y2                // c4e30542d207
+	VMPSADBW $7, Y11, Y15, Y2               // c4c30542d307
+	VMPSADBW $7, (BX), Y15, Y11             // c46305421b07
+	VMPSADBW $7, (R11), Y15, Y11            // c44305421b07
+	VMPSADBW $7, Y2, Y15, Y11               // c4630542da07
+	VMPSADBW $7, Y11, Y15, Y11              // c4430542db07
+	VMULPD (BX), X9, X2                     // c4e1315913 or c5b15913
+	VMULPD (R11), X9, X2                    // c4c1315913
+	VMULPD X2, X9, X2                       // c4e13159d2 or c5b159d2
+	VMULPD X11, X9, X2                      // c4c13159d3
+	VMULPD (BX), X9, X11                    // c46131591b or c531591b
+	VMULPD (R11), X9, X11                   // c44131591b
+	VMULPD X2, X9, X11                      // c4613159da or c53159da
+	VMULPD X11, X9, X11                     // c4413159db
+	VMULPD (BX), Y15, Y2                    // c4e1055913 or c5855913
+	VMULPD (R11), Y15, Y2                   // c4c1055913
+	VMULPD Y2, Y15, Y2                      // c4e10559d2 or c58559d2
+	VMULPD Y11, Y15, Y2                     // c4c10559d3
+	VMULPD (BX), Y15, Y11                   // c46105591b or c505591b
+	VMULPD (R11), Y15, Y11                  // c44105591b
+	VMULPD Y2, Y15, Y11                     // c4610559da or c50559da
+	VMULPD Y11, Y15, Y11                    // c4410559db
+	VMULPS (BX), X9, X2                     // c4e1305913 or c5b05913
+	VMULPS (R11), X9, X2                    // c4c1305913
+	VMULPS X2, X9, X2                       // c4e13059d2 or c5b059d2
+	VMULPS X11, X9, X2                      // c4c13059d3
+	VMULPS (BX), X9, X11                    // c46130591b or c530591b
+	VMULPS (R11), X9, X11                   // c44130591b
+	VMULPS X2, X9, X11                      // c4613059da or c53059da
+	VMULPS X11, X9, X11                     // c4413059db
+	VMULPS (BX), Y15, Y2                    // c4e1045913 or c5845913
+	VMULPS (R11), Y15, Y2                   // c4c1045913
+	VMULPS Y2, Y15, Y2                      // c4e10459d2 or c58459d2
+	VMULPS Y11, Y15, Y2                     // c4c10459d3
+	VMULPS (BX), Y15, Y11                   // c46104591b or c504591b
+	VMULPS (R11), Y15, Y11                  // c44104591b
+	VMULPS Y2, Y15, Y11                     // c4610459da or c50459da
+	VMULPS Y11, Y15, Y11                    // c4410459db
+	VMULSD (BX), X9, X2                     // c4e1335913 or c5b35913
+	VMULSD (R11), X9, X2                    // c4c1335913
+	VMULSD X2, X9, X2                       // c4e13359d2 or c5b359d2
+	VMULSD X11, X9, X2                      // c4c13359d3
+	VMULSD (BX), X9, X11                    // c46133591b or c533591b
+	VMULSD (R11), X9, X11                   // c44133591b
+	VMULSD X2, X9, X11                      // c4613359da or c53359da
+	VMULSD X11, X9, X11                     // c4413359db
+	VMULSS (BX), X9, X2                     // c4e1325913 or c5b25913
+	VMULSS (R11), X9, X2                    // c4c1325913
+	VMULSS X2, X9, X2                       // c4e13259d2 or c5b259d2
+	VMULSS X11, X9, X2                      // c4c13259d3
+	VMULSS (BX), X9, X11                    // c46132591b or c532591b
+	VMULSS (R11), X9, X11                   // c44132591b
+	VMULSS X2, X9, X11                      // c4613259da or c53259da
+	VMULSS X11, X9, X11                     // c4413259db
+	VORPD (BX), X9, X2                      // c4e1315613 or c5b15613
+	VORPD (R11), X9, X2                     // c4c1315613
+	VORPD X2, X9, X2                        // c4e13156d2 or c5b156d2
+	VORPD X11, X9, X2                       // c4c13156d3
+	VORPD (BX), X9, X11                     // c46131561b or c531561b
+	VORPD (R11), X9, X11                    // c44131561b
+	VORPD X2, X9, X11                       // c4613156da or c53156da
+	VORPD X11, X9, X11                      // c4413156db
+	VORPD (BX), Y15, Y2                     // c4e1055613 or c5855613
+	VORPD (R11), Y15, Y2                    // c4c1055613
+	VORPD Y2, Y15, Y2                       // c4e10556d2 or c58556d2
+	VORPD Y11, Y15, Y2                      // c4c10556d3
+	VORPD (BX), Y15, Y11                    // c46105561b or c505561b
+	VORPD (R11), Y15, Y11                   // c44105561b
+	VORPD Y2, Y15, Y11                      // c4610556da or c50556da
+	VORPD Y11, Y15, Y11                     // c4410556db
+	VORPS (BX), X9, X2                      // c4e1305613 or c5b05613
+	VORPS (R11), X9, X2                     // c4c1305613
+	VORPS X2, X9, X2                        // c4e13056d2 or c5b056d2
+	VORPS X11, X9, X2                       // c4c13056d3
+	VORPS (BX), X9, X11                     // c46130561b or c530561b
+	VORPS (R11), X9, X11                    // c44130561b
+	VORPS X2, X9, X11                       // c4613056da or c53056da
+	VORPS X11, X9, X11                      // c4413056db
+	VORPS (BX), Y15, Y2                     // c4e1045613 or c5845613
+	VORPS (R11), Y15, Y2                    // c4c1045613
+	VORPS Y2, Y15, Y2                       // c4e10456d2 or c58456d2
+	VORPS Y11, Y15, Y2                      // c4c10456d3
+	VORPS (BX), Y15, Y11                    // c46104561b or c504561b
+	VORPS (R11), Y15, Y11                   // c44104561b
+	VORPS Y2, Y15, Y11                      // c4610456da or c50456da
+	VORPS Y11, Y15, Y11                     // c4410456db
+	VPABSB (BX), X2                         // c4e2791c13
+	VPABSB (R11), X2                        // c4c2791c13
+	VPABSB X2, X2                           // c4e2791cd2
+	VPABSB X11, X2                          // c4c2791cd3
+	VPABSB (BX), X11                        // c462791c1b
+	VPABSB (R11), X11                       // c442791c1b
+	VPABSB X2, X11                          // c462791cda
+	VPABSB X11, X11                         // c442791cdb
+	VPABSB (BX), Y2                         // c4e27d1c13
+	VPABSB (R11), Y2                        // c4c27d1c13
+	VPABSB Y2, Y2                           // c4e27d1cd2
+	VPABSB Y11, Y2                          // c4c27d1cd3
+	VPABSB (BX), Y11                        // c4627d1c1b
+	VPABSB (R11), Y11                       // c4427d1c1b
+	VPABSB Y2, Y11                          // c4627d1cda
+	VPABSB Y11, Y11                         // c4427d1cdb
+	VPABSD (BX), X2                         // c4e2791e13
+	VPABSD (R11), X2                        // c4c2791e13
+	VPABSD X2, X2                           // c4e2791ed2
+	VPABSD X11, X2                          // c4c2791ed3
+	VPABSD (BX), X11                        // c462791e1b
+	VPABSD (R11), X11                       // c442791e1b
+	VPABSD X2, X11                          // c462791eda
+	VPABSD X11, X11                         // c442791edb
+	VPABSD (BX), Y2                         // c4e27d1e13
+	VPABSD (R11), Y2                        // c4c27d1e13
+	VPABSD Y2, Y2                           // c4e27d1ed2
+	VPABSD Y11, Y2                          // c4c27d1ed3
+	VPABSD (BX), Y11                        // c4627d1e1b
+	VPABSD (R11), Y11                       // c4427d1e1b
+	VPABSD Y2, Y11                          // c4627d1eda
+	VPABSD Y11, Y11                         // c4427d1edb
+	VPABSW (BX), X2                         // c4e2791d13
+	VPABSW (R11), X2                        // c4c2791d13
+	VPABSW X2, X2                           // c4e2791dd2
+	VPABSW X11, X2                          // c4c2791dd3
+	VPABSW (BX), X11                        // c462791d1b
+	VPABSW (R11), X11                       // c442791d1b
+	VPABSW X2, X11                          // c462791dda
+	VPABSW X11, X11                         // c442791ddb
+	VPABSW (BX), Y2                         // c4e27d1d13
+	VPABSW (R11), Y2                        // c4c27d1d13
+	VPABSW Y2, Y2                           // c4e27d1dd2
+	VPABSW Y11, Y2                          // c4c27d1dd3
+	VPABSW (BX), Y11                        // c4627d1d1b
+	VPABSW (R11), Y11                       // c4427d1d1b
+	VPABSW Y2, Y11                          // c4627d1dda
+	VPABSW Y11, Y11                         // c4427d1ddb
+	VPACKSSDW (BX), X9, X2                  // c4e1316b13 or c5b16b13
+	VPACKSSDW (R11), X9, X2                 // c4c1316b13
+	VPACKSSDW X2, X9, X2                    // c4e1316bd2 or c5b16bd2
+	VPACKSSDW X11, X9, X2                   // c4c1316bd3
+	VPACKSSDW (BX), X9, X11                 // c461316b1b or c5316b1b
+	VPACKSSDW (R11), X9, X11                // c441316b1b
+	VPACKSSDW X2, X9, X11                   // c461316bda or c5316bda
+	VPACKSSDW X11, X9, X11                  // c441316bdb
+	VPACKSSDW (BX), Y15, Y2                 // c4e1056b13 or c5856b13
+	VPACKSSDW (R11), Y15, Y2                // c4c1056b13
+	VPACKSSDW Y2, Y15, Y2                   // c4e1056bd2 or c5856bd2
+	VPACKSSDW Y11, Y15, Y2                  // c4c1056bd3
+	VPACKSSDW (BX), Y15, Y11                // c461056b1b or c5056b1b
+	VPACKSSDW (R11), Y15, Y11               // c441056b1b
+	VPACKSSDW Y2, Y15, Y11                  // c461056bda or c5056bda
+	VPACKSSDW Y11, Y15, Y11                 // c441056bdb
+	VPACKSSWB (BX), X9, X2                  // c4e1316313 or c5b16313
+	VPACKSSWB (R11), X9, X2                 // c4c1316313
+	VPACKSSWB X2, X9, X2                    // c4e13163d2 or c5b163d2
+	VPACKSSWB X11, X9, X2                   // c4c13163d3
+	VPACKSSWB (BX), X9, X11                 // c46131631b or c531631b
+	VPACKSSWB (R11), X9, X11                // c44131631b
+	VPACKSSWB X2, X9, X11                   // c4613163da or c53163da
+	VPACKSSWB X11, X9, X11                  // c4413163db
+	VPACKSSWB (BX), Y15, Y2                 // c4e1056313 or c5856313
+	VPACKSSWB (R11), Y15, Y2                // c4c1056313
+	VPACKSSWB Y2, Y15, Y2                   // c4e10563d2 or c58563d2
+	VPACKSSWB Y11, Y15, Y2                  // c4c10563d3
+	VPACKSSWB (BX), Y15, Y11                // c46105631b or c505631b
+	VPACKSSWB (R11), Y15, Y11               // c44105631b
+	VPACKSSWB Y2, Y15, Y11                  // c4610563da or c50563da
+	VPACKSSWB Y11, Y15, Y11                 // c4410563db
+	VPACKUSDW (BX), X9, X2                  // c4e2312b13
+	VPACKUSDW (R11), X9, X2                 // c4c2312b13
+	VPACKUSDW X2, X9, X2                    // c4e2312bd2
+	VPACKUSDW X11, X9, X2                   // c4c2312bd3
+	VPACKUSDW (BX), X9, X11                 // c462312b1b
+	VPACKUSDW (R11), X9, X11                // c442312b1b
+	VPACKUSDW X2, X9, X11                   // c462312bda
+	VPACKUSDW X11, X9, X11                  // c442312bdb
+	VPACKUSDW (BX), Y15, Y2                 // c4e2052b13
+	VPACKUSDW (R11), Y15, Y2                // c4c2052b13
+	VPACKUSDW Y2, Y15, Y2                   // c4e2052bd2
+	VPACKUSDW Y11, Y15, Y2                  // c4c2052bd3
+	VPACKUSDW (BX), Y15, Y11                // c462052b1b
+	VPACKUSDW (R11), Y15, Y11               // c442052b1b
+	VPACKUSDW Y2, Y15, Y11                  // c462052bda
+	VPACKUSDW Y11, Y15, Y11                 // c442052bdb
+	VPACKUSWB (BX), X9, X2                  // c4e1316713 or c5b16713
+	VPACKUSWB (R11), X9, X2                 // c4c1316713
+	VPACKUSWB X2, X9, X2                    // c4e13167d2 or c5b167d2
+	VPACKUSWB X11, X9, X2                   // c4c13167d3
+	VPACKUSWB (BX), X9, X11                 // c46131671b or c531671b
+	VPACKUSWB (R11), X9, X11                // c44131671b
+	VPACKUSWB X2, X9, X11                   // c4613167da or c53167da
+	VPACKUSWB X11, X9, X11                  // c4413167db
+	VPACKUSWB (BX), Y15, Y2                 // c4e1056713 or c5856713
+	VPACKUSWB (R11), Y15, Y2                // c4c1056713
+	VPACKUSWB Y2, Y15, Y2                   // c4e10567d2 or c58567d2
+	VPACKUSWB Y11, Y15, Y2                  // c4c10567d3
+	VPACKUSWB (BX), Y15, Y11                // c46105671b or c505671b
+	VPACKUSWB (R11), Y15, Y11               // c44105671b
+	VPACKUSWB Y2, Y15, Y11                  // c4610567da or c50567da
+	VPACKUSWB Y11, Y15, Y11                 // c4410567db
+	VPADDB (BX), X9, X2                     // c4e131fc13 or c5b1fc13
+	VPADDB (R11), X9, X2                    // c4c131fc13
+	VPADDB X2, X9, X2                       // c4e131fcd2 or c5b1fcd2
+	VPADDB X11, X9, X2                      // c4c131fcd3
+	VPADDB (BX), X9, X11                    // c46131fc1b or c531fc1b
+	VPADDB (R11), X9, X11                   // c44131fc1b
+	VPADDB X2, X9, X11                      // c46131fcda or c531fcda
+	VPADDB X11, X9, X11                     // c44131fcdb
+	VPADDB (BX), Y15, Y2                    // c4e105fc13 or c585fc13
+	VPADDB (R11), Y15, Y2                   // c4c105fc13
+	VPADDB Y2, Y15, Y2                      // c4e105fcd2 or c585fcd2
+	VPADDB Y11, Y15, Y2                     // c4c105fcd3
+	VPADDB (BX), Y15, Y11                   // c46105fc1b or c505fc1b
+	VPADDB (R11), Y15, Y11                  // c44105fc1b
+	VPADDB Y2, Y15, Y11                     // c46105fcda or c505fcda
+	VPADDB Y11, Y15, Y11                    // c44105fcdb
 	VPADDD (BX), X9, X2             // c4e131fe13 or c5b1fe13
 	VPADDD (R11), X9, X2            // c4c131fe13
 	VPADDD X2, X9, X2               // c4e131fed2 or c5b1fed2
@@ -8176,94 +8176,94 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPADDQ (R11), Y15, Y11          // c44105d41b
 	VPADDQ Y2, Y15, Y11             // c46105d4da or c505d4da
 	VPADDQ Y11, Y15, Y11            // c44105d4db
-	//TODO: VPADDSB (BX), X9, X2            // c4e131ec13 or c5b1ec13
-	//TODO: VPADDSB (R11), X9, X2           // c4c131ec13
-	//TODO: VPADDSB X2, X9, X2              // c4e131ecd2 or c5b1ecd2
-	//TODO: VPADDSB X11, X9, X2             // c4c131ecd3
-	//TODO: VPADDSB (BX), X9, X11           // c46131ec1b or c531ec1b
-	//TODO: VPADDSB (R11), X9, X11          // c44131ec1b
-	//TODO: VPADDSB X2, X9, X11             // c46131ecda or c531ecda
-	//TODO: VPADDSB X11, X9, X11            // c44131ecdb
-	//TODO: VPADDSB (BX), Y15, Y2           // c4e105ec13 or c585ec13
-	//TODO: VPADDSB (R11), Y15, Y2          // c4c105ec13
-	//TODO: VPADDSB Y2, Y15, Y2             // c4e105ecd2 or c585ecd2
-	//TODO: VPADDSB Y11, Y15, Y2            // c4c105ecd3
-	//TODO: VPADDSB (BX), Y15, Y11          // c46105ec1b or c505ec1b
-	//TODO: VPADDSB (R11), Y15, Y11         // c44105ec1b
-	//TODO: VPADDSB Y2, Y15, Y11            // c46105ecda or c505ecda
-	//TODO: VPADDSB Y11, Y15, Y11           // c44105ecdb
-	//TODO: VPADDSW (BX), X9, X2            // c4e131ed13 or c5b1ed13
-	//TODO: VPADDSW (R11), X9, X2           // c4c131ed13
-	//TODO: VPADDSW X2, X9, X2              // c4e131edd2 or c5b1edd2
-	//TODO: VPADDSW X11, X9, X2             // c4c131edd3
-	//TODO: VPADDSW (BX), X9, X11           // c46131ed1b or c531ed1b
-	//TODO: VPADDSW (R11), X9, X11          // c44131ed1b
-	//TODO: VPADDSW X2, X9, X11             // c46131edda or c531edda
-	//TODO: VPADDSW X11, X9, X11            // c44131eddb
-	//TODO: VPADDSW (BX), Y15, Y2           // c4e105ed13 or c585ed13
-	//TODO: VPADDSW (R11), Y15, Y2          // c4c105ed13
-	//TODO: VPADDSW Y2, Y15, Y2             // c4e105edd2 or c585edd2
-	//TODO: VPADDSW Y11, Y15, Y2            // c4c105edd3
-	//TODO: VPADDSW (BX), Y15, Y11          // c46105ed1b or c505ed1b
-	//TODO: VPADDSW (R11), Y15, Y11         // c44105ed1b
-	//TODO: VPADDSW Y2, Y15, Y11            // c46105edda or c505edda
-	//TODO: VPADDSW Y11, Y15, Y11           // c44105eddb
-	//TODO: VPADDUSB (BX), X9, X2           // c4e131dc13 or c5b1dc13
-	//TODO: VPADDUSB (R11), X9, X2          // c4c131dc13
-	//TODO: VPADDUSB X2, X9, X2             // c4e131dcd2 or c5b1dcd2
-	//TODO: VPADDUSB X11, X9, X2            // c4c131dcd3
-	//TODO: VPADDUSB (BX), X9, X11          // c46131dc1b or c531dc1b
-	//TODO: VPADDUSB (R11), X9, X11         // c44131dc1b
-	//TODO: VPADDUSB X2, X9, X11            // c46131dcda or c531dcda
-	//TODO: VPADDUSB X11, X9, X11           // c44131dcdb
-	//TODO: VPADDUSB (BX), Y15, Y2          // c4e105dc13 or c585dc13
-	//TODO: VPADDUSB (R11), Y15, Y2         // c4c105dc13
-	//TODO: VPADDUSB Y2, Y15, Y2            // c4e105dcd2 or c585dcd2
-	//TODO: VPADDUSB Y11, Y15, Y2           // c4c105dcd3
-	//TODO: VPADDUSB (BX), Y15, Y11         // c46105dc1b or c505dc1b
-	//TODO: VPADDUSB (R11), Y15, Y11        // c44105dc1b
-	//TODO: VPADDUSB Y2, Y15, Y11           // c46105dcda or c505dcda
-	//TODO: VPADDUSB Y11, Y15, Y11          // c44105dcdb
-	//TODO: VPADDUSW (BX), X9, X2           // c4e131dd13 or c5b1dd13
-	//TODO: VPADDUSW (R11), X9, X2          // c4c131dd13
-	//TODO: VPADDUSW X2, X9, X2             // c4e131ddd2 or c5b1ddd2
-	//TODO: VPADDUSW X11, X9, X2            // c4c131ddd3
-	//TODO: VPADDUSW (BX), X9, X11          // c46131dd1b or c531dd1b
-	//TODO: VPADDUSW (R11), X9, X11         // c44131dd1b
-	//TODO: VPADDUSW X2, X9, X11            // c46131ddda or c531ddda
-	//TODO: VPADDUSW X11, X9, X11           // c44131dddb
-	//TODO: VPADDUSW (BX), Y15, Y2          // c4e105dd13 or c585dd13
-	//TODO: VPADDUSW (R11), Y15, Y2         // c4c105dd13
-	//TODO: VPADDUSW Y2, Y15, Y2            // c4e105ddd2 or c585ddd2
-	//TODO: VPADDUSW Y11, Y15, Y2           // c4c105ddd3
-	//TODO: VPADDUSW (BX), Y15, Y11         // c46105dd1b or c505dd1b
-	//TODO: VPADDUSW (R11), Y15, Y11        // c44105dd1b
-	//TODO: VPADDUSW Y2, Y15, Y11           // c46105ddda or c505ddda
-	//TODO: VPADDUSW Y11, Y15, Y11          // c44105dddb
-	//TODO: VPADDW (BX), X9, X2             // c4e131fd13 or c5b1fd13
-	//TODO: VPADDW (R11), X9, X2            // c4c131fd13
-	//TODO: VPADDW X2, X9, X2               // c4e131fdd2 or c5b1fdd2
-	//TODO: VPADDW X11, X9, X2              // c4c131fdd3
-	//TODO: VPADDW (BX), X9, X11            // c46131fd1b or c531fd1b
-	//TODO: VPADDW (R11), X9, X11           // c44131fd1b
-	//TODO: VPADDW X2, X9, X11              // c46131fdda or c531fdda
-	//TODO: VPADDW X11, X9, X11             // c44131fddb
-	//TODO: VPADDW (BX), Y15, Y2            // c4e105fd13 or c585fd13
-	//TODO: VPADDW (R11), Y15, Y2           // c4c105fd13
-	//TODO: VPADDW Y2, Y15, Y2              // c4e105fdd2 or c585fdd2
-	//TODO: VPADDW Y11, Y15, Y2             // c4c105fdd3
-	//TODO: VPADDW (BX), Y15, Y11           // c46105fd1b or c505fd1b
-	//TODO: VPADDW (R11), Y15, Y11          // c44105fd1b
-	//TODO: VPADDW Y2, Y15, Y11             // c46105fdda or c505fdda
-	//TODO: VPADDW Y11, Y15, Y11            // c44105fddb
-	//TODO: VPALIGNR $7, (BX), X9, X2       // c4e3310f1307
-	//TODO: VPALIGNR $7, (R11), X9, X2      // c4c3310f1307
-	//TODO: VPALIGNR $7, X2, X9, X2         // c4e3310fd207
-	//TODO: VPALIGNR $7, X11, X9, X2        // c4c3310fd307
-	//TODO: VPALIGNR $7, (BX), X9, X11      // c463310f1b07
-	//TODO: VPALIGNR $7, (R11), X9, X11     // c443310f1b07
-	//TODO: VPALIGNR $7, X2, X9, X11        // c463310fda07
-	//TODO: VPALIGNR $7, X11, X9, X11       // c443310fdb07
+	VPADDSB (BX), X9, X2                    // c4e131ec13 or c5b1ec13
+	VPADDSB (R11), X9, X2                   // c4c131ec13
+	VPADDSB X2, X9, X2                      // c4e131ecd2 or c5b1ecd2
+	VPADDSB X11, X9, X2                     // c4c131ecd3
+	VPADDSB (BX), X9, X11                   // c46131ec1b or c531ec1b
+	VPADDSB (R11), X9, X11                  // c44131ec1b
+	VPADDSB X2, X9, X11                     // c46131ecda or c531ecda
+	VPADDSB X11, X9, X11                    // c44131ecdb
+	VPADDSB (BX), Y15, Y2                   // c4e105ec13 or c585ec13
+	VPADDSB (R11), Y15, Y2                  // c4c105ec13
+	VPADDSB Y2, Y15, Y2                     // c4e105ecd2 or c585ecd2
+	VPADDSB Y11, Y15, Y2                    // c4c105ecd3
+	VPADDSB (BX), Y15, Y11                  // c46105ec1b or c505ec1b
+	VPADDSB (R11), Y15, Y11                 // c44105ec1b
+	VPADDSB Y2, Y15, Y11                    // c46105ecda or c505ecda
+	VPADDSB Y11, Y15, Y11                   // c44105ecdb
+	VPADDSW (BX), X9, X2                    // c4e131ed13 or c5b1ed13
+	VPADDSW (R11), X9, X2                   // c4c131ed13
+	VPADDSW X2, X9, X2                      // c4e131edd2 or c5b1edd2
+	VPADDSW X11, X9, X2                     // c4c131edd3
+	VPADDSW (BX), X9, X11                   // c46131ed1b or c531ed1b
+	VPADDSW (R11), X9, X11                  // c44131ed1b
+	VPADDSW X2, X9, X11                     // c46131edda or c531edda
+	VPADDSW X11, X9, X11                    // c44131eddb
+	VPADDSW (BX), Y15, Y2                   // c4e105ed13 or c585ed13
+	VPADDSW (R11), Y15, Y2                  // c4c105ed13
+	VPADDSW Y2, Y15, Y2                     // c4e105edd2 or c585edd2
+	VPADDSW Y11, Y15, Y2                    // c4c105edd3
+	VPADDSW (BX), Y15, Y11                  // c46105ed1b or c505ed1b
+	VPADDSW (R11), Y15, Y11                 // c44105ed1b
+	VPADDSW Y2, Y15, Y11                    // c46105edda or c505edda
+	VPADDSW Y11, Y15, Y11                   // c44105eddb
+	VPADDUSB (BX), X9, X2                   // c4e131dc13 or c5b1dc13
+	VPADDUSB (R11), X9, X2                  // c4c131dc13
+	VPADDUSB X2, X9, X2                     // c4e131dcd2 or c5b1dcd2
+	VPADDUSB X11, X9, X2                    // c4c131dcd3
+	VPADDUSB (BX), X9, X11                  // c46131dc1b or c531dc1b
+	VPADDUSB (R11), X9, X11                 // c44131dc1b
+	VPADDUSB X2, X9, X11                    // c46131dcda or c531dcda
+	VPADDUSB X11, X9, X11                   // c44131dcdb
+	VPADDUSB (BX), Y15, Y2                  // c4e105dc13 or c585dc13
+	VPADDUSB (R11), Y15, Y2                 // c4c105dc13
+	VPADDUSB Y2, Y15, Y2                    // c4e105dcd2 or c585dcd2
+	VPADDUSB Y11, Y15, Y2                   // c4c105dcd3
+	VPADDUSB (BX), Y15, Y11                 // c46105dc1b or c505dc1b
+	VPADDUSB (R11), Y15, Y11                // c44105dc1b
+	VPADDUSB Y2, Y15, Y11                   // c46105dcda or c505dcda
+	VPADDUSB Y11, Y15, Y11                  // c44105dcdb
+	VPADDUSW (BX), X9, X2                   // c4e131dd13 or c5b1dd13
+	VPADDUSW (R11), X9, X2                  // c4c131dd13
+	VPADDUSW X2, X9, X2                     // c4e131ddd2 or c5b1ddd2
+	VPADDUSW X11, X9, X2                    // c4c131ddd3
+	VPADDUSW (BX), X9, X11                  // c46131dd1b or c531dd1b
+	VPADDUSW (R11), X9, X11                 // c44131dd1b
+	VPADDUSW X2, X9, X11                    // c46131ddda or c531ddda
+	VPADDUSW X11, X9, X11                   // c44131dddb
+	VPADDUSW (BX), Y15, Y2                  // c4e105dd13 or c585dd13
+	VPADDUSW (R11), Y15, Y2                 // c4c105dd13
+	VPADDUSW Y2, Y15, Y2                    // c4e105ddd2 or c585ddd2
+	VPADDUSW Y11, Y15, Y2                   // c4c105ddd3
+	VPADDUSW (BX), Y15, Y11                 // c46105dd1b or c505dd1b
+	VPADDUSW (R11), Y15, Y11                // c44105dd1b
+	VPADDUSW Y2, Y15, Y11                   // c46105ddda or c505ddda
+	VPADDUSW Y11, Y15, Y11                  // c44105dddb
+	VPADDW (BX), X9, X2                     // c4e131fd13 or c5b1fd13
+	VPADDW (R11), X9, X2                    // c4c131fd13
+	VPADDW X2, X9, X2                       // c4e131fdd2 or c5b1fdd2
+	VPADDW X11, X9, X2                      // c4c131fdd3
+	VPADDW (BX), X9, X11                    // c46131fd1b or c531fd1b
+	VPADDW (R11), X9, X11                   // c44131fd1b
+	VPADDW X2, X9, X11                      // c46131fdda or c531fdda
+	VPADDW X11, X9, X11                     // c44131fddb
+	VPADDW (BX), Y15, Y2                    // c4e105fd13 or c585fd13
+	VPADDW (R11), Y15, Y2                   // c4c105fd13
+	VPADDW Y2, Y15, Y2                      // c4e105fdd2 or c585fdd2
+	VPADDW Y11, Y15, Y2                     // c4c105fdd3
+	VPADDW (BX), Y15, Y11                   // c46105fd1b or c505fd1b
+	VPADDW (R11), Y15, Y11                  // c44105fd1b
+	VPADDW Y2, Y15, Y11                     // c46105fdda or c505fdda
+	VPADDW Y11, Y15, Y11                    // c44105fddb
+	VPALIGNR $7, (BX), X9, X2               // c4e3310f1307
+	VPALIGNR $7, (R11), X9, X2              // c4c3310f1307
+	VPALIGNR $7, X2, X9, X2                 // c4e3310fd207
+	VPALIGNR $7, X11, X9, X2                // c4c3310fd307
+	VPALIGNR $7, (BX), X9, X11              // c463310f1b07
+	VPALIGNR $7, (R11), X9, X11             // c443310f1b07
+	VPALIGNR $7, X2, X9, X11                // c463310fda07
+	VPALIGNR $7, X11, X9, X11               // c443310fdb07
 	VPALIGNR $7, (BX), Y15, Y2      // c4e3050f1307
 	VPALIGNR $7, (R11), Y15, Y2     // c4c3050f1307
 	VPALIGNR $7, Y2, Y15, Y2        // c4e3050fd207
@@ -8288,62 +8288,62 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPAND (R11), Y15, Y11                   // c44105db1b
 	VPAND Y2, Y15, Y11                      // c46105dbda or c505dbda
 	VPAND Y11, Y15, Y11                     // c44105dbdb
-	//TODO: VPANDN (BX), X9, X2             // c4e131df13 or c5b1df13
-	//TODO: VPANDN (R11), X9, X2            // c4c131df13
-	//TODO: VPANDN X2, X9, X2               // c4e131dfd2 or c5b1dfd2
-	//TODO: VPANDN X11, X9, X2              // c4c131dfd3
-	//TODO: VPANDN (BX), X9, X11            // c46131df1b or c531df1b
-	//TODO: VPANDN (R11), X9, X11           // c44131df1b
-	//TODO: VPANDN X2, X9, X11              // c46131dfda or c531dfda
-	//TODO: VPANDN X11, X9, X11             // c44131dfdb
-	//TODO: VPANDN (BX), Y15, Y2            // c4e105df13 or c585df13
-	//TODO: VPANDN (R11), Y15, Y2           // c4c105df13
-	//TODO: VPANDN Y2, Y15, Y2              // c4e105dfd2 or c585dfd2
-	//TODO: VPANDN Y11, Y15, Y2             // c4c105dfd3
-	//TODO: VPANDN (BX), Y15, Y11           // c46105df1b or c505df1b
-	//TODO: VPANDN (R11), Y15, Y11          // c44105df1b
-	//TODO: VPANDN Y2, Y15, Y11             // c46105dfda or c505dfda
-	//TODO: VPANDN Y11, Y15, Y11            // c44105dfdb
-	//TODO: VPAVGB (BX), X9, X2             // c4e131e013 or c5b1e013
-	//TODO: VPAVGB (R11), X9, X2            // c4c131e013
-	//TODO: VPAVGB X2, X9, X2               // c4e131e0d2 or c5b1e0d2
-	//TODO: VPAVGB X11, X9, X2              // c4c131e0d3
-	//TODO: VPAVGB (BX), X9, X11            // c46131e01b or c531e01b
-	//TODO: VPAVGB (R11), X9, X11           // c44131e01b
-	//TODO: VPAVGB X2, X9, X11              // c46131e0da or c531e0da
-	//TODO: VPAVGB X11, X9, X11             // c44131e0db
-	//TODO: VPAVGB (BX), Y15, Y2            // c4e105e013 or c585e013
-	//TODO: VPAVGB (R11), Y15, Y2           // c4c105e013
-	//TODO: VPAVGB Y2, Y15, Y2              // c4e105e0d2 or c585e0d2
-	//TODO: VPAVGB Y11, Y15, Y2             // c4c105e0d3
-	//TODO: VPAVGB (BX), Y15, Y11           // c46105e01b or c505e01b
-	//TODO: VPAVGB (R11), Y15, Y11          // c44105e01b
-	//TODO: VPAVGB Y2, Y15, Y11             // c46105e0da or c505e0da
-	//TODO: VPAVGB Y11, Y15, Y11            // c44105e0db
-	//TODO: VPAVGW (BX), X9, X2             // c4e131e313 or c5b1e313
-	//TODO: VPAVGW (R11), X9, X2            // c4c131e313
-	//TODO: VPAVGW X2, X9, X2               // c4e131e3d2 or c5b1e3d2
-	//TODO: VPAVGW X11, X9, X2              // c4c131e3d3
-	//TODO: VPAVGW (BX), X9, X11            // c46131e31b or c531e31b
-	//TODO: VPAVGW (R11), X9, X11           // c44131e31b
-	//TODO: VPAVGW X2, X9, X11              // c46131e3da or c531e3da
-	//TODO: VPAVGW X11, X9, X11             // c44131e3db
-	//TODO: VPAVGW (BX), Y15, Y2            // c4e105e313 or c585e313
-	//TODO: VPAVGW (R11), Y15, Y2           // c4c105e313
-	//TODO: VPAVGW Y2, Y15, Y2              // c4e105e3d2 or c585e3d2
-	//TODO: VPAVGW Y11, Y15, Y2             // c4c105e3d3
-	//TODO: VPAVGW (BX), Y15, Y11           // c46105e31b or c505e31b
-	//TODO: VPAVGW (R11), Y15, Y11          // c44105e31b
-	//TODO: VPAVGW Y2, Y15, Y11             // c46105e3da or c505e3da
-	//TODO: VPAVGW Y11, Y15, Y11            // c44105e3db
-	//TODO: VPBLENDD $7, (BX), X9, X2       // c4e331021307
-	//TODO: VPBLENDD $7, (R11), X9, X2      // c4c331021307
-	//TODO: VPBLENDD $7, X2, X9, X2         // c4e33102d207
-	//TODO: VPBLENDD $7, X11, X9, X2        // c4c33102d307
-	//TODO: VPBLENDD $7, (BX), X9, X11      // c46331021b07
-	//TODO: VPBLENDD $7, (R11), X9, X11     // c44331021b07
-	//TODO: VPBLENDD $7, X2, X9, X11        // c4633102da07
-	//TODO: VPBLENDD $7, X11, X9, X11       // c4433102db07
+	VPANDN (BX), X9, X2                     // c4e131df13 or c5b1df13
+	VPANDN (R11), X9, X2                    // c4c131df13
+	VPANDN X2, X9, X2                       // c4e131dfd2 or c5b1dfd2
+	VPANDN X11, X9, X2                      // c4c131dfd3
+	VPANDN (BX), X9, X11                    // c46131df1b or c531df1b
+	VPANDN (R11), X9, X11                   // c44131df1b
+	VPANDN X2, X9, X11                      // c46131dfda or c531dfda
+	VPANDN X11, X9, X11                     // c44131dfdb
+	VPANDN (BX), Y15, Y2                    // c4e105df13 or c585df13
+	VPANDN (R11), Y15, Y2                   // c4c105df13
+	VPANDN Y2, Y15, Y2                      // c4e105dfd2 or c585dfd2
+	VPANDN Y11, Y15, Y2                     // c4c105dfd3
+	VPANDN (BX), Y15, Y11                   // c46105df1b or c505df1b
+	VPANDN (R11), Y15, Y11                  // c44105df1b
+	VPANDN Y2, Y15, Y11                     // c46105dfda or c505dfda
+	VPANDN Y11, Y15, Y11                    // c44105dfdb
+	VPAVGB (BX), X9, X2                     // c4e131e013 or c5b1e013
+	VPAVGB (R11), X9, X2                    // c4c131e013
+	VPAVGB X2, X9, X2                       // c4e131e0d2 or c5b1e0d2
+	VPAVGB X11, X9, X2                      // c4c131e0d3
+	VPAVGB (BX), X9, X11                    // c46131e01b or c531e01b
+	VPAVGB (R11), X9, X11                   // c44131e01b
+	VPAVGB X2, X9, X11                      // c46131e0da or c531e0da
+	VPAVGB X11, X9, X11                     // c44131e0db
+	VPAVGB (BX), Y15, Y2                    // c4e105e013 or c585e013
+	VPAVGB (R11), Y15, Y2                   // c4c105e013
+	VPAVGB Y2, Y15, Y2                      // c4e105e0d2 or c585e0d2
+	VPAVGB Y11, Y15, Y2                     // c4c105e0d3
+	VPAVGB (BX), Y15, Y11                   // c46105e01b or c505e01b
+	VPAVGB (R11), Y15, Y11                  // c44105e01b
+	VPAVGB Y2, Y15, Y11                     // c46105e0da or c505e0da
+	VPAVGB Y11, Y15, Y11                    // c44105e0db
+	VPAVGW (BX), X9, X2                     // c4e131e313 or c5b1e313
+	VPAVGW (R11), X9, X2                    // c4c131e313
+	VPAVGW X2, X9, X2                       // c4e131e3d2 or c5b1e3d2
+	VPAVGW X11, X9, X2                      // c4c131e3d3
+	VPAVGW (BX), X9, X11                    // c46131e31b or c531e31b
+	VPAVGW (R11), X9, X11                   // c44131e31b
+	VPAVGW X2, X9, X11                      // c46131e3da or c531e3da
+	VPAVGW X11, X9, X11                     // c44131e3db
+	VPAVGW (BX), Y15, Y2                    // c4e105e313 or c585e313
+	VPAVGW (R11), Y15, Y2                   // c4c105e313
+	VPAVGW Y2, Y15, Y2                      // c4e105e3d2 or c585e3d2
+	VPAVGW Y11, Y15, Y2                     // c4c105e3d3
+	VPAVGW (BX), Y15, Y11                   // c46105e31b or c505e31b
+	VPAVGW (R11), Y15, Y11                  // c44105e31b
+	VPAVGW Y2, Y15, Y11                     // c46105e3da or c505e3da
+	VPAVGW Y11, Y15, Y11                    // c44105e3db
+	VPBLENDD $7, (BX), X9, X2               // c4e331021307
+	VPBLENDD $7, (R11), X9, X2              // c4c331021307
+	VPBLENDD $7, X2, X9, X2                 // c4e33102d207
+	VPBLENDD $7, X11, X9, X2                // c4c33102d307
+	VPBLENDD $7, (BX), X9, X11              // c46331021b07
+	VPBLENDD $7, (R11), X9, X11             // c44331021b07
+	VPBLENDD $7, X2, X9, X11                // c4633102da07
+	VPBLENDD $7, X11, X9, X11               // c4433102db07
 	VPBLENDD $7, (BX), Y15, Y2      // c4e305021307
 	VPBLENDD $7, (R11), Y15, Y2     // c4c305021307
 	VPBLENDD $7, Y2, Y15, Y2        // c4e30502d207
@@ -8352,38 +8352,38 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPBLENDD $7, (R11), Y15, Y11    // c44305021b07
 	VPBLENDD $7, Y2, Y15, Y11       // c4630502da07
 	VPBLENDD $7, Y11, Y15, Y11      // c4430502db07
-	//TODO: VPBLENDVB XMM12, (BX), X9, X2   // c4e3314c13c0
-	//TODO: VPBLENDVB XMM12, (R11), X9, X2  // c4c3314c13c0
-	//TODO: VPBLENDVB XMM12, X2, X9, X2     // c4e3314cd2c0
-	//TODO: VPBLENDVB XMM12, X11, X9, X2    // c4c3314cd3c0
-	//TODO: VPBLENDVB XMM12, (BX), X9, X11  // c463314c1bc0
-	//TODO: VPBLENDVB XMM12, (R11), X9, X11 // c443314c1bc0
-	//TODO: VPBLENDVB XMM12, X2, X9, X11    // c463314cdac0
-	//TODO: VPBLENDVB XMM12, X11, X9, X11   // c443314cdbc0
-	//TODO: VPBLENDVB YMM13, (BX), Y15, Y2  // c4e3054c13d0
-	//TODO: VPBLENDVB YMM13, (R11), Y15, Y2 // c4c3054c13d0
-	//TODO: VPBLENDVB YMM13, Y2, Y15, Y2    // c4e3054cd2d0
-	//TODO: VPBLENDVB YMM13, Y11, Y15, Y2   // c4c3054cd3d0
-	//TODO: VPBLENDVB YMM13, (BX), Y15, Y11 // c463054c1bd0
-	//TODO: VPBLENDVB YMM13, (R11), Y15, Y11 // c443054c1bd0
-	//TODO: VPBLENDVB YMM13, Y2, Y15, Y11   // c463054cdad0
-	//TODO: VPBLENDVB YMM13, Y11, Y15, Y11  // c443054cdbd0
-	//TODO: VPBLENDW $7, (BX), X9, X2       // c4e3310e1307
-	//TODO: VPBLENDW $7, (R11), X9, X2      // c4c3310e1307
-	//TODO: VPBLENDW $7, X2, X9, X2         // c4e3310ed207
-	//TODO: VPBLENDW $7, X11, X9, X2        // c4c3310ed307
-	//TODO: VPBLENDW $7, (BX), X9, X11      // c463310e1b07
-	//TODO: VPBLENDW $7, (R11), X9, X11     // c443310e1b07
-	//TODO: VPBLENDW $7, X2, X9, X11        // c463310eda07
-	//TODO: VPBLENDW $7, X11, X9, X11       // c443310edb07
-	//TODO: VPBLENDW $7, (BX), Y15, Y2      // c4e3050e1307
-	//TODO: VPBLENDW $7, (R11), Y15, Y2     // c4c3050e1307
-	//TODO: VPBLENDW $7, Y2, Y15, Y2        // c4e3050ed207
-	//TODO: VPBLENDW $7, Y11, Y15, Y2       // c4c3050ed307
-	//TODO: VPBLENDW $7, (BX), Y15, Y11     // c463050e1b07
-	//TODO: VPBLENDW $7, (R11), Y15, Y11    // c443050e1b07
-	//TODO: VPBLENDW $7, Y2, Y15, Y11       // c463050eda07
-	//TODO: VPBLENDW $7, Y11, Y15, Y11      // c443050edb07
+	VPBLENDVB X12, (BX), X9, X2             // c4e3314c13c0
+	VPBLENDVB X12, (R11), X9, X2            // c4c3314c13c0
+	VPBLENDVB X12, X2, X9, X2               // c4e3314cd2c0
+	VPBLENDVB X12, X11, X9, X2              // c4c3314cd3c0
+	VPBLENDVB X12, (BX), X9, X11            // c463314c1bc0
+	VPBLENDVB X12, (R11), X9, X11           // c443314c1bc0
+	VPBLENDVB X12, X2, X9, X11              // c463314cdac0
+	VPBLENDVB X12, X11, X9, X11             // c443314cdbc0
+	VPBLENDVB Y13, (BX), Y15, Y2            // c4e3054c13d0
+	VPBLENDVB Y13, (R11), Y15, Y2           // c4c3054c13d0
+	VPBLENDVB Y13, Y2, Y15, Y2              // c4e3054cd2d0
+	VPBLENDVB Y13, Y11, Y15, Y2             // c4c3054cd3d0
+	VPBLENDVB Y13, (BX), Y15, Y11           // c463054c1bd0
+	VPBLENDVB Y13, (R11), Y15, Y11          // c443054c1bd0
+	VPBLENDVB Y13, Y2, Y15, Y11             // c463054cdad0
+	VPBLENDVB Y13, Y11, Y15, Y11            // c443054cdbd0
+	VPBLENDW $7, (BX), X9, X2               // c4e3310e1307
+	VPBLENDW $7, (R11), X9, X2              // c4c3310e1307
+	VPBLENDW $7, X2, X9, X2                 // c4e3310ed207
+	VPBLENDW $7, X11, X9, X2                // c4c3310ed307
+	VPBLENDW $7, (BX), X9, X11              // c463310e1b07
+	VPBLENDW $7, (R11), X9, X11             // c443310e1b07
+	VPBLENDW $7, X2, X9, X11                // c463310eda07
+	VPBLENDW $7, X11, X9, X11               // c443310edb07
+	VPBLENDW $7, (BX), Y15, Y2              // c4e3050e1307
+	VPBLENDW $7, (R11), Y15, Y2             // c4c3050e1307
+	VPBLENDW $7, Y2, Y15, Y2                // c4e3050ed207
+	VPBLENDW $7, Y11, Y15, Y2               // c4c3050ed307
+	VPBLENDW $7, (BX), Y15, Y11             // c463050e1b07
+	VPBLENDW $7, (R11), Y15, Y11            // c443050e1b07
+	VPBLENDW $7, Y2, Y15, Y11               // c463050eda07
+	VPBLENDW $7, Y11, Y15, Y11              // c443050edb07
 	VPBROADCASTB (BX), X2                   // c4e2797813
 	VPBROADCASTB (R11), X2                  // c4c2797813
 	VPBROADCASTB X2, X2                     // c4e27978d2
@@ -8400,62 +8400,62 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPBROADCASTB (R11), Y11                 // c4427d781b
 	VPBROADCASTB X2, Y11                    // c4627d78da
 	VPBROADCASTB X11, Y11                   // c4427d78db
-	//TODO: VPBROADCASTD (BX), X2           // c4e2795813
-	//TODO: VPBROADCASTD (R11), X2          // c4c2795813
-	//TODO: VPBROADCASTD X2, X2             // c4e27958d2
-	//TODO: VPBROADCASTD X11, X2            // c4c27958d3
-	//TODO: VPBROADCASTD (BX), X11          // c46279581b
-	//TODO: VPBROADCASTD (R11), X11         // c44279581b
-	//TODO: VPBROADCASTD X2, X11            // c4627958da
-	//TODO: VPBROADCASTD X11, X11           // c4427958db
-	//TODO: VPBROADCASTD (BX), Y2           // c4e27d5813
-	//TODO: VPBROADCASTD (R11), Y2          // c4c27d5813
-	//TODO: VPBROADCASTD X2, Y2             // c4e27d58d2
-	//TODO: VPBROADCASTD X11, Y2            // c4c27d58d3
-	//TODO: VPBROADCASTD (BX), Y11          // c4627d581b
-	//TODO: VPBROADCASTD (R11), Y11         // c4427d581b
-	//TODO: VPBROADCASTD X2, Y11            // c4627d58da
-	//TODO: VPBROADCASTD X11, Y11           // c4427d58db
-	//TODO: VPBROADCASTQ (BX), X2           // c4e2795913
-	//TODO: VPBROADCASTQ (R11), X2          // c4c2795913
-	//TODO: VPBROADCASTQ X2, X2             // c4e27959d2
-	//TODO: VPBROADCASTQ X11, X2            // c4c27959d3
-	//TODO: VPBROADCASTQ (BX), X11          // c46279591b
-	//TODO: VPBROADCASTQ (R11), X11         // c44279591b
-	//TODO: VPBROADCASTQ X2, X11            // c4627959da
-	//TODO: VPBROADCASTQ X11, X11           // c4427959db
-	//TODO: VPBROADCASTQ (BX), Y2           // c4e27d5913
-	//TODO: VPBROADCASTQ (R11), Y2          // c4c27d5913
-	//TODO: VPBROADCASTQ X2, Y2             // c4e27d59d2
-	//TODO: VPBROADCASTQ X11, Y2            // c4c27d59d3
-	//TODO: VPBROADCASTQ (BX), Y11          // c4627d591b
-	//TODO: VPBROADCASTQ (R11), Y11         // c4427d591b
-	//TODO: VPBROADCASTQ X2, Y11            // c4627d59da
-	//TODO: VPBROADCASTQ X11, Y11           // c4427d59db
-	//TODO: VPBROADCASTW (BX), X2           // c4e2797913
-	//TODO: VPBROADCASTW (R11), X2          // c4c2797913
-	//TODO: VPBROADCASTW X2, X2             // c4e27979d2
-	//TODO: VPBROADCASTW X11, X2            // c4c27979d3
-	//TODO: VPBROADCASTW (BX), X11          // c46279791b
-	//TODO: VPBROADCASTW (R11), X11         // c44279791b
-	//TODO: VPBROADCASTW X2, X11            // c4627979da
-	//TODO: VPBROADCASTW X11, X11           // c4427979db
-	//TODO: VPBROADCASTW (BX), Y2           // c4e27d7913
-	//TODO: VPBROADCASTW (R11), Y2          // c4c27d7913
-	//TODO: VPBROADCASTW X2, Y2             // c4e27d79d2
-	//TODO: VPBROADCASTW X11, Y2            // c4c27d79d3
-	//TODO: VPBROADCASTW (BX), Y11          // c4627d791b
-	//TODO: VPBROADCASTW (R11), Y11         // c4427d791b
-	//TODO: VPBROADCASTW X2, Y11            // c4627d79da
-	//TODO: VPBROADCASTW X11, Y11           // c4427d79db
-	//TODO: VPCLMULQDQ $7, (BX), X9, X2     // c4e331441307
-	//TODO: VPCLMULQDQ $7, (R11), X9, X2    // c4c331441307
-	//TODO: VPCLMULQDQ $7, X2, X9, X2       // c4e33144d207
-	//TODO: VPCLMULQDQ $7, X11, X9, X2      // c4c33144d307
-	//TODO: VPCLMULQDQ $7, (BX), X9, X11    // c46331441b07
-	//TODO: VPCLMULQDQ $7, (R11), X9, X11   // c44331441b07
-	//TODO: VPCLMULQDQ $7, X2, X9, X11      // c4633144da07
-	//TODO: VPCLMULQDQ $7, X11, X9, X11     // c4433144db07
+	VPBROADCASTD (BX), X2                   // c4e2795813
+	VPBROADCASTD (R11), X2                  // c4c2795813
+	VPBROADCASTD X2, X2                     // c4e27958d2
+	VPBROADCASTD X11, X2                    // c4c27958d3
+	VPBROADCASTD (BX), X11                  // c46279581b
+	VPBROADCASTD (R11), X11                 // c44279581b
+	VPBROADCASTD X2, X11                    // c4627958da
+	VPBROADCASTD X11, X11                   // c4427958db
+	VPBROADCASTD (BX), Y2                   // c4e27d5813
+	VPBROADCASTD (R11), Y2                  // c4c27d5813
+	VPBROADCASTD X2, Y2                     // c4e27d58d2
+	VPBROADCASTD X11, Y2                    // c4c27d58d3
+	VPBROADCASTD (BX), Y11                  // c4627d581b
+	VPBROADCASTD (R11), Y11                 // c4427d581b
+	VPBROADCASTD X2, Y11                    // c4627d58da
+	VPBROADCASTD X11, Y11                   // c4427d58db
+	VPBROADCASTQ (BX), X2                   // c4e2795913
+	VPBROADCASTQ (R11), X2                  // c4c2795913
+	VPBROADCASTQ X2, X2                     // c4e27959d2
+	VPBROADCASTQ X11, X2                    // c4c27959d3
+	VPBROADCASTQ (BX), X11                  // c46279591b
+	VPBROADCASTQ (R11), X11                 // c44279591b
+	VPBROADCASTQ X2, X11                    // c4627959da
+	VPBROADCASTQ X11, X11                   // c4427959db
+	VPBROADCASTQ (BX), Y2                   // c4e27d5913
+	VPBROADCASTQ (R11), Y2                  // c4c27d5913
+	VPBROADCASTQ X2, Y2                     // c4e27d59d2
+	VPBROADCASTQ X11, Y2                    // c4c27d59d3
+	VPBROADCASTQ (BX), Y11                  // c4627d591b
+	VPBROADCASTQ (R11), Y11                 // c4427d591b
+	VPBROADCASTQ X2, Y11                    // c4627d59da
+	VPBROADCASTQ X11, Y11                   // c4427d59db
+	VPBROADCASTW (BX), X2                   // c4e2797913
+	VPBROADCASTW (R11), X2                  // c4c2797913
+	VPBROADCASTW X2, X2                     // c4e27979d2
+	VPBROADCASTW X11, X2                    // c4c27979d3
+	VPBROADCASTW (BX), X11                  // c46279791b
+	VPBROADCASTW (R11), X11                 // c44279791b
+	VPBROADCASTW X2, X11                    // c4627979da
+	VPBROADCASTW X11, X11                   // c4427979db
+	VPBROADCASTW (BX), Y2                   // c4e27d7913
+	VPBROADCASTW (R11), Y2                  // c4c27d7913
+	VPBROADCASTW X2, Y2                     // c4e27d79d2
+	VPBROADCASTW X11, Y2                    // c4c27d79d3
+	VPBROADCASTW (BX), Y11                  // c4627d791b
+	VPBROADCASTW (R11), Y11                 // c4427d791b
+	VPBROADCASTW X2, Y11                    // c4627d79da
+	VPBROADCASTW X11, Y11                   // c4427d79db
+	VPCLMULQDQ $7, (BX), X9, X2             // c4e331441307
+	VPCLMULQDQ $7, (R11), X9, X2            // c4c331441307
+	VPCLMULQDQ $7, X2, X9, X2               // c4e33144d207
+	VPCLMULQDQ $7, X11, X9, X2              // c4c33144d307
+	VPCLMULQDQ $7, (BX), X9, X11            // c46331441b07
+	VPCLMULQDQ $7, (R11), X9, X11           // c44331441b07
+	VPCLMULQDQ $7, X2, X9, X11              // c4633144da07
+	VPCLMULQDQ $7, X11, X9, X11             // c4433144db07
 	VPCMPEQB (BX), X9, X2                   // c4e1317413 or c5b17413
 	VPCMPEQB (R11), X9, X2                  // c4c1317413
 	VPCMPEQB X2, X9, X2                     // c4e13174d2 or c5b174d2
@@ -8472,150 +8472,150 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPCMPEQB (R11), Y15, Y11                // c44105741b
 	VPCMPEQB Y2, Y15, Y11                   // c4610574da or c50574da
 	VPCMPEQB Y11, Y15, Y11                  // c4410574db
-	//TODO: VPCMPEQD (BX), X9, X2           // c4e1317613 or c5b17613
-	//TODO: VPCMPEQD (R11), X9, X2          // c4c1317613
-	//TODO: VPCMPEQD X2, X9, X2             // c4e13176d2 or c5b176d2
-	//TODO: VPCMPEQD X11, X9, X2            // c4c13176d3
-	//TODO: VPCMPEQD (BX), X9, X11          // c46131761b or c531761b
-	//TODO: VPCMPEQD (R11), X9, X11         // c44131761b
-	//TODO: VPCMPEQD X2, X9, X11            // c4613176da or c53176da
-	//TODO: VPCMPEQD X11, X9, X11           // c4413176db
-	//TODO: VPCMPEQD (BX), Y15, Y2          // c4e1057613 or c5857613
-	//TODO: VPCMPEQD (R11), Y15, Y2         // c4c1057613
-	//TODO: VPCMPEQD Y2, Y15, Y2            // c4e10576d2 or c58576d2
-	//TODO: VPCMPEQD Y11, Y15, Y2           // c4c10576d3
-	//TODO: VPCMPEQD (BX), Y15, Y11         // c46105761b or c505761b
-	//TODO: VPCMPEQD (R11), Y15, Y11        // c44105761b
-	//TODO: VPCMPEQD Y2, Y15, Y11           // c4610576da or c50576da
-	//TODO: VPCMPEQD Y11, Y15, Y11          // c4410576db
-	//TODO: VPCMPEQQ (BX), X9, X2           // c4e2312913
-	//TODO: VPCMPEQQ (R11), X9, X2          // c4c2312913
-	//TODO: VPCMPEQQ X2, X9, X2             // c4e23129d2
-	//TODO: VPCMPEQQ X11, X9, X2            // c4c23129d3
-	//TODO: VPCMPEQQ (BX), X9, X11          // c46231291b
-	//TODO: VPCMPEQQ (R11), X9, X11         // c44231291b
-	//TODO: VPCMPEQQ X2, X9, X11            // c4623129da
-	//TODO: VPCMPEQQ X11, X9, X11           // c4423129db
-	//TODO: VPCMPEQQ (BX), Y15, Y2          // c4e2052913
-	//TODO: VPCMPEQQ (R11), Y15, Y2         // c4c2052913
-	//TODO: VPCMPEQQ Y2, Y15, Y2            // c4e20529d2
-	//TODO: VPCMPEQQ Y11, Y15, Y2           // c4c20529d3
-	//TODO: VPCMPEQQ (BX), Y15, Y11         // c46205291b
-	//TODO: VPCMPEQQ (R11), Y15, Y11        // c44205291b
-	//TODO: VPCMPEQQ Y2, Y15, Y11           // c4620529da
-	//TODO: VPCMPEQQ Y11, Y15, Y11          // c4420529db
-	//TODO: VPCMPEQW (BX), X9, X2           // c4e1317513 or c5b17513
-	//TODO: VPCMPEQW (R11), X9, X2          // c4c1317513
-	//TODO: VPCMPEQW X2, X9, X2             // c4e13175d2 or c5b175d2
-	//TODO: VPCMPEQW X11, X9, X2            // c4c13175d3
-	//TODO: VPCMPEQW (BX), X9, X11          // c46131751b or c531751b
-	//TODO: VPCMPEQW (R11), X9, X11         // c44131751b
-	//TODO: VPCMPEQW X2, X9, X11            // c4613175da or c53175da
-	//TODO: VPCMPEQW X11, X9, X11           // c4413175db
-	//TODO: VPCMPEQW (BX), Y15, Y2          // c4e1057513 or c5857513
-	//TODO: VPCMPEQW (R11), Y15, Y2         // c4c1057513
-	//TODO: VPCMPEQW Y2, Y15, Y2            // c4e10575d2 or c58575d2
-	//TODO: VPCMPEQW Y11, Y15, Y2           // c4c10575d3
-	//TODO: VPCMPEQW (BX), Y15, Y11         // c46105751b or c505751b
-	//TODO: VPCMPEQW (R11), Y15, Y11        // c44105751b
-	//TODO: VPCMPEQW Y2, Y15, Y11           // c4610575da or c50575da
-	//TODO: VPCMPEQW Y11, Y15, Y11          // c4410575db
-	//TODO: VPCMPESTRI $7, (BX), X2         // c4e379611307
-	//TODO: VPCMPESTRI $7, (R11), X2        // c4c379611307
-	//TODO: VPCMPESTRI $7, X2, X2           // c4e37961d207
-	//TODO: VPCMPESTRI $7, X11, X2          // c4c37961d307
-	//TODO: VPCMPESTRI $7, (BX), X11        // c46379611b07
-	//TODO: VPCMPESTRI $7, (R11), X11       // c44379611b07
-	//TODO: VPCMPESTRI $7, X2, X11          // c4637961da07
-	//TODO: VPCMPESTRI $7, X11, X11         // c4437961db07
-	//TODO: VPCMPESTRM $7, (BX), X2         // c4e379601307
-	//TODO: VPCMPESTRM $7, (R11), X2        // c4c379601307
-	//TODO: VPCMPESTRM $7, X2, X2           // c4e37960d207
-	//TODO: VPCMPESTRM $7, X11, X2          // c4c37960d307
-	//TODO: VPCMPESTRM $7, (BX), X11        // c46379601b07
-	//TODO: VPCMPESTRM $7, (R11), X11       // c44379601b07
-	//TODO: VPCMPESTRM $7, X2, X11          // c4637960da07
-	//TODO: VPCMPESTRM $7, X11, X11         // c4437960db07
-	//TODO: VPCMPGTB (BX), X9, X2           // c4e1316413 or c5b16413
-	//TODO: VPCMPGTB (R11), X9, X2          // c4c1316413
-	//TODO: VPCMPGTB X2, X9, X2             // c4e13164d2 or c5b164d2
-	//TODO: VPCMPGTB X11, X9, X2            // c4c13164d3
-	//TODO: VPCMPGTB (BX), X9, X11          // c46131641b or c531641b
-	//TODO: VPCMPGTB (R11), X9, X11         // c44131641b
-	//TODO: VPCMPGTB X2, X9, X11            // c4613164da or c53164da
-	//TODO: VPCMPGTB X11, X9, X11           // c4413164db
-	//TODO: VPCMPGTB (BX), Y15, Y2          // c4e1056413 or c5856413
-	//TODO: VPCMPGTB (R11), Y15, Y2         // c4c1056413
-	//TODO: VPCMPGTB Y2, Y15, Y2            // c4e10564d2 or c58564d2
-	//TODO: VPCMPGTB Y11, Y15, Y2           // c4c10564d3
-	//TODO: VPCMPGTB (BX), Y15, Y11         // c46105641b or c505641b
-	//TODO: VPCMPGTB (R11), Y15, Y11        // c44105641b
-	//TODO: VPCMPGTB Y2, Y15, Y11           // c4610564da or c50564da
-	//TODO: VPCMPGTB Y11, Y15, Y11          // c4410564db
-	//TODO: VPCMPGTD (BX), X9, X2           // c4e1316613 or c5b16613
-	//TODO: VPCMPGTD (R11), X9, X2          // c4c1316613
-	//TODO: VPCMPGTD X2, X9, X2             // c4e13166d2 or c5b166d2
-	//TODO: VPCMPGTD X11, X9, X2            // c4c13166d3
-	//TODO: VPCMPGTD (BX), X9, X11          // c46131661b or c531661b
-	//TODO: VPCMPGTD (R11), X9, X11         // c44131661b
-	//TODO: VPCMPGTD X2, X9, X11            // c4613166da or c53166da
-	//TODO: VPCMPGTD X11, X9, X11           // c4413166db
-	//TODO: VPCMPGTD (BX), Y15, Y2          // c4e1056613 or c5856613
-	//TODO: VPCMPGTD (R11), Y15, Y2         // c4c1056613
-	//TODO: VPCMPGTD Y2, Y15, Y2            // c4e10566d2 or c58566d2
-	//TODO: VPCMPGTD Y11, Y15, Y2           // c4c10566d3
-	//TODO: VPCMPGTD (BX), Y15, Y11         // c46105661b or c505661b
-	//TODO: VPCMPGTD (R11), Y15, Y11        // c44105661b
-	//TODO: VPCMPGTD Y2, Y15, Y11           // c4610566da or c50566da
-	//TODO: VPCMPGTD Y11, Y15, Y11          // c4410566db
-	//TODO: VPCMPGTQ (BX), X9, X2           // c4e2313713
-	//TODO: VPCMPGTQ (R11), X9, X2          // c4c2313713
-	//TODO: VPCMPGTQ X2, X9, X2             // c4e23137d2
-	//TODO: VPCMPGTQ X11, X9, X2            // c4c23137d3
-	//TODO: VPCMPGTQ (BX), X9, X11          // c46231371b
-	//TODO: VPCMPGTQ (R11), X9, X11         // c44231371b
-	//TODO: VPCMPGTQ X2, X9, X11            // c4623137da
-	//TODO: VPCMPGTQ X11, X9, X11           // c4423137db
-	//TODO: VPCMPGTQ (BX), Y15, Y2          // c4e2053713
-	//TODO: VPCMPGTQ (R11), Y15, Y2         // c4c2053713
-	//TODO: VPCMPGTQ Y2, Y15, Y2            // c4e20537d2
-	//TODO: VPCMPGTQ Y11, Y15, Y2           // c4c20537d3
-	//TODO: VPCMPGTQ (BX), Y15, Y11         // c46205371b
-	//TODO: VPCMPGTQ (R11), Y15, Y11        // c44205371b
-	//TODO: VPCMPGTQ Y2, Y15, Y11           // c4620537da
-	//TODO: VPCMPGTQ Y11, Y15, Y11          // c4420537db
-	//TODO: VPCMPGTW (BX), X9, X2           // c4e1316513 or c5b16513
-	//TODO: VPCMPGTW (R11), X9, X2          // c4c1316513
-	//TODO: VPCMPGTW X2, X9, X2             // c4e13165d2 or c5b165d2
-	//TODO: VPCMPGTW X11, X9, X2            // c4c13165d3
-	//TODO: VPCMPGTW (BX), X9, X11          // c46131651b or c531651b
-	//TODO: VPCMPGTW (R11), X9, X11         // c44131651b
-	//TODO: VPCMPGTW X2, X9, X11            // c4613165da or c53165da
-	//TODO: VPCMPGTW X11, X9, X11           // c4413165db
-	//TODO: VPCMPGTW (BX), Y15, Y2          // c4e1056513 or c5856513
-	//TODO: VPCMPGTW (R11), Y15, Y2         // c4c1056513
-	//TODO: VPCMPGTW Y2, Y15, Y2            // c4e10565d2 or c58565d2
-	//TODO: VPCMPGTW Y11, Y15, Y2           // c4c10565d3
-	//TODO: VPCMPGTW (BX), Y15, Y11         // c46105651b or c505651b
-	//TODO: VPCMPGTW (R11), Y15, Y11        // c44105651b
-	//TODO: VPCMPGTW Y2, Y15, Y11           // c4610565da or c50565da
-	//TODO: VPCMPGTW Y11, Y15, Y11          // c4410565db
-	//TODO: VPCMPISTRI $7, (BX), X2         // c4e379631307
-	//TODO: VPCMPISTRI $7, (R11), X2        // c4c379631307
-	//TODO: VPCMPISTRI $7, X2, X2           // c4e37963d207
-	//TODO: VPCMPISTRI $7, X11, X2          // c4c37963d307
-	//TODO: VPCMPISTRI $7, (BX), X11        // c46379631b07
-	//TODO: VPCMPISTRI $7, (R11), X11       // c44379631b07
-	//TODO: VPCMPISTRI $7, X2, X11          // c4637963da07
-	//TODO: VPCMPISTRI $7, X11, X11         // c4437963db07
-	//TODO: VPCMPISTRM $7, (BX), X2         // c4e379621307
-	//TODO: VPCMPISTRM $7, (R11), X2        // c4c379621307
-	//TODO: VPCMPISTRM $7, X2, X2           // c4e37962d207
-	//TODO: VPCMPISTRM $7, X11, X2          // c4c37962d307
-	//TODO: VPCMPISTRM $7, (BX), X11        // c46379621b07
-	//TODO: VPCMPISTRM $7, (R11), X11       // c44379621b07
-	//TODO: VPCMPISTRM $7, X2, X11          // c4637962da07
-	//TODO: VPCMPISTRM $7, X11, X11         // c4437962db07
+	VPCMPEQD (BX), X9, X2                   // c4e1317613 or c5b17613
+	VPCMPEQD (R11), X9, X2                  // c4c1317613
+	VPCMPEQD X2, X9, X2                     // c4e13176d2 or c5b176d2
+	VPCMPEQD X11, X9, X2                    // c4c13176d3
+	VPCMPEQD (BX), X9, X11                  // c46131761b or c531761b
+	VPCMPEQD (R11), X9, X11                 // c44131761b
+	VPCMPEQD X2, X9, X11                    // c4613176da or c53176da
+	VPCMPEQD X11, X9, X11                   // c4413176db
+	VPCMPEQD (BX), Y15, Y2                  // c4e1057613 or c5857613
+	VPCMPEQD (R11), Y15, Y2                 // c4c1057613
+	VPCMPEQD Y2, Y15, Y2                    // c4e10576d2 or c58576d2
+	VPCMPEQD Y11, Y15, Y2                   // c4c10576d3
+	VPCMPEQD (BX), Y15, Y11                 // c46105761b or c505761b
+	VPCMPEQD (R11), Y15, Y11                // c44105761b
+	VPCMPEQD Y2, Y15, Y11                   // c4610576da or c50576da
+	VPCMPEQD Y11, Y15, Y11                  // c4410576db
+	VPCMPEQQ (BX), X9, X2                   // c4e2312913
+	VPCMPEQQ (R11), X9, X2                  // c4c2312913
+	VPCMPEQQ X2, X9, X2                     // c4e23129d2
+	VPCMPEQQ X11, X9, X2                    // c4c23129d3
+	VPCMPEQQ (BX), X9, X11                  // c46231291b
+	VPCMPEQQ (R11), X9, X11                 // c44231291b
+	VPCMPEQQ X2, X9, X11                    // c4623129da
+	VPCMPEQQ X11, X9, X11                   // c4423129db
+	VPCMPEQQ (BX), Y15, Y2                  // c4e2052913
+	VPCMPEQQ (R11), Y15, Y2                 // c4c2052913
+	VPCMPEQQ Y2, Y15, Y2                    // c4e20529d2
+	VPCMPEQQ Y11, Y15, Y2                   // c4c20529d3
+	VPCMPEQQ (BX), Y15, Y11                 // c46205291b
+	VPCMPEQQ (R11), Y15, Y11                // c44205291b
+	VPCMPEQQ Y2, Y15, Y11                   // c4620529da
+	VPCMPEQQ Y11, Y15, Y11                  // c4420529db
+	VPCMPEQW (BX), X9, X2                   // c4e1317513 or c5b17513
+	VPCMPEQW (R11), X9, X2                  // c4c1317513
+	VPCMPEQW X2, X9, X2                     // c4e13175d2 or c5b175d2
+	VPCMPEQW X11, X9, X2                    // c4c13175d3
+	VPCMPEQW (BX), X9, X11                  // c46131751b or c531751b
+	VPCMPEQW (R11), X9, X11                 // c44131751b
+	VPCMPEQW X2, X9, X11                    // c4613175da or c53175da
+	VPCMPEQW X11, X9, X11                   // c4413175db
+	VPCMPEQW (BX), Y15, Y2                  // c4e1057513 or c5857513
+	VPCMPEQW (R11), Y15, Y2                 // c4c1057513
+	VPCMPEQW Y2, Y15, Y2                    // c4e10575d2 or c58575d2
+	VPCMPEQW Y11, Y15, Y2                   // c4c10575d3
+	VPCMPEQW (BX), Y15, Y11                 // c46105751b or c505751b
+	VPCMPEQW (R11), Y15, Y11                // c44105751b
+	VPCMPEQW Y2, Y15, Y11                   // c4610575da or c50575da
+	VPCMPEQW Y11, Y15, Y11                  // c4410575db
+	VPCMPESTRI $7, (BX), X2                 // c4e379611307
+	VPCMPESTRI $7, (R11), X2                // c4c379611307
+	VPCMPESTRI $7, X2, X2                   // c4e37961d207
+	VPCMPESTRI $7, X11, X2                  // c4c37961d307
+	VPCMPESTRI $7, (BX), X11                // c46379611b07
+	VPCMPESTRI $7, (R11), X11               // c44379611b07
+	VPCMPESTRI $7, X2, X11                  // c4637961da07
+	VPCMPESTRI $7, X11, X11                 // c4437961db07
+	VPCMPESTRM $7, (BX), X2                 // c4e379601307
+	VPCMPESTRM $7, (R11), X2                // c4c379601307
+	VPCMPESTRM $7, X2, X2                   // c4e37960d207
+	VPCMPESTRM $7, X11, X2                  // c4c37960d307
+	VPCMPESTRM $7, (BX), X11                // c46379601b07
+	VPCMPESTRM $7, (R11), X11               // c44379601b07
+	VPCMPESTRM $7, X2, X11                  // c4637960da07
+	VPCMPESTRM $7, X11, X11                 // c4437960db07
+	VPCMPGTB (BX), X9, X2                   // c4e1316413 or c5b16413
+	VPCMPGTB (R11), X9, X2                  // c4c1316413
+	VPCMPGTB X2, X9, X2                     // c4e13164d2 or c5b164d2
+	VPCMPGTB X11, X9, X2                    // c4c13164d3
+	VPCMPGTB (BX), X9, X11                  // c46131641b or c531641b
+	VPCMPGTB (R11), X9, X11                 // c44131641b
+	VPCMPGTB X2, X9, X11                    // c4613164da or c53164da
+	VPCMPGTB X11, X9, X11                   // c4413164db
+	VPCMPGTB (BX), Y15, Y2                  // c4e1056413 or c5856413
+	VPCMPGTB (R11), Y15, Y2                 // c4c1056413
+	VPCMPGTB Y2, Y15, Y2                    // c4e10564d2 or c58564d2
+	VPCMPGTB Y11, Y15, Y2                   // c4c10564d3
+	VPCMPGTB (BX), Y15, Y11                 // c46105641b or c505641b
+	VPCMPGTB (R11), Y15, Y11                // c44105641b
+	VPCMPGTB Y2, Y15, Y11                   // c4610564da or c50564da
+	VPCMPGTB Y11, Y15, Y11                  // c4410564db
+	VPCMPGTD (BX), X9, X2                   // c4e1316613 or c5b16613
+	VPCMPGTD (R11), X9, X2                  // c4c1316613
+	VPCMPGTD X2, X9, X2                     // c4e13166d2 or c5b166d2
+	VPCMPGTD X11, X9, X2                    // c4c13166d3
+	VPCMPGTD (BX), X9, X11                  // c46131661b or c531661b
+	VPCMPGTD (R11), X9, X11                 // c44131661b
+	VPCMPGTD X2, X9, X11                    // c4613166da or c53166da
+	VPCMPGTD X11, X9, X11                   // c4413166db
+	VPCMPGTD (BX), Y15, Y2                  // c4e1056613 or c5856613
+	VPCMPGTD (R11), Y15, Y2                 // c4c1056613
+	VPCMPGTD Y2, Y15, Y2                    // c4e10566d2 or c58566d2
+	VPCMPGTD Y11, Y15, Y2                   // c4c10566d3
+	VPCMPGTD (BX), Y15, Y11                 // c46105661b or c505661b
+	VPCMPGTD (R11), Y15, Y11                // c44105661b
+	VPCMPGTD Y2, Y15, Y11                   // c4610566da or c50566da
+	VPCMPGTD Y11, Y15, Y11                  // c4410566db
+	VPCMPGTQ (BX), X9, X2                   // c4e2313713
+	VPCMPGTQ (R11), X9, X2                  // c4c2313713
+	VPCMPGTQ X2, X9, X2                     // c4e23137d2
+	VPCMPGTQ X11, X9, X2                    // c4c23137d3
+	VPCMPGTQ (BX), X9, X11                  // c46231371b
+	VPCMPGTQ (R11), X9, X11                 // c44231371b
+	VPCMPGTQ X2, X9, X11                    // c4623137da
+	VPCMPGTQ X11, X9, X11                   // c4423137db
+	VPCMPGTQ (BX), Y15, Y2                  // c4e2053713
+	VPCMPGTQ (R11), Y15, Y2                 // c4c2053713
+	VPCMPGTQ Y2, Y15, Y2                    // c4e20537d2
+	VPCMPGTQ Y11, Y15, Y2                   // c4c20537d3
+	VPCMPGTQ (BX), Y15, Y11                 // c46205371b
+	VPCMPGTQ (R11), Y15, Y11                // c44205371b
+	VPCMPGTQ Y2, Y15, Y11                   // c4620537da
+	VPCMPGTQ Y11, Y15, Y11                  // c4420537db
+	VPCMPGTW (BX), X9, X2                   // c4e1316513 or c5b16513
+	VPCMPGTW (R11), X9, X2                  // c4c1316513
+	VPCMPGTW X2, X9, X2                     // c4e13165d2 or c5b165d2
+	VPCMPGTW X11, X9, X2                    // c4c13165d3
+	VPCMPGTW (BX), X9, X11                  // c46131651b or c531651b
+	VPCMPGTW (R11), X9, X11                 // c44131651b
+	VPCMPGTW X2, X9, X11                    // c4613165da or c53165da
+	VPCMPGTW X11, X9, X11                   // c4413165db
+	VPCMPGTW (BX), Y15, Y2                  // c4e1056513 or c5856513
+	VPCMPGTW (R11), Y15, Y2                 // c4c1056513
+	VPCMPGTW Y2, Y15, Y2                    // c4e10565d2 or c58565d2
+	VPCMPGTW Y11, Y15, Y2                   // c4c10565d3
+	VPCMPGTW (BX), Y15, Y11                 // c46105651b or c505651b
+	VPCMPGTW (R11), Y15, Y11                // c44105651b
+	VPCMPGTW Y2, Y15, Y11                   // c4610565da or c50565da
+	VPCMPGTW Y11, Y15, Y11                  // c4410565db
+	VPCMPISTRI $7, (BX), X2                 // c4e379631307
+	VPCMPISTRI $7, (R11), X2                // c4c379631307
+	VPCMPISTRI $7, X2, X2                   // c4e37963d207
+	VPCMPISTRI $7, X11, X2                  // c4c37963d307
+	VPCMPISTRI $7, (BX), X11                // c46379631b07
+	VPCMPISTRI $7, (R11), X11               // c44379631b07
+	VPCMPISTRI $7, X2, X11                  // c4637963da07
+	VPCMPISTRI $7, X11, X11                 // c4437963db07
+	VPCMPISTRM $7, (BX), X2                 // c4e379621307
+	VPCMPISTRM $7, (R11), X2                // c4c379621307
+	VPCMPISTRM $7, X2, X2                   // c4e37962d207
+	VPCMPISTRM $7, X11, X2                  // c4c37962d307
+	VPCMPISTRM $7, (BX), X11                // c46379621b07
+	VPCMPISTRM $7, (R11), X11               // c44379621b07
+	VPCMPISTRM $7, X2, X11                  // c4637962da07
+	VPCMPISTRM $7, X11, X11                 // c4437962db07
 	VPERM2F128 $7, (BX), Y15, Y2    // c4e305061307
 	VPERM2F128 $7, (R11), Y15, Y2   // c4c305061307
 	VPERM2F128 $7, Y2, Y15, Y2      // c4e30506d207
@@ -8632,526 +8632,526 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPERM2I128 $7, (R11), Y15, Y11  // c44305461b07
 	VPERM2I128 $7, Y2, Y15, Y11     // c4630546da07
 	VPERM2I128 $7, Y11, Y15, Y11    // c4430546db07
-	//TODO: VPERMD (BX), Y15, Y2            // c4e2053613
-	//TODO: VPERMD (R11), Y15, Y2           // c4c2053613
-	//TODO: VPERMD Y2, Y15, Y2              // c4e20536d2
-	//TODO: VPERMD Y11, Y15, Y2             // c4c20536d3
-	//TODO: VPERMD (BX), Y15, Y11           // c46205361b
-	//TODO: VPERMD (R11), Y15, Y11          // c44205361b
-	//TODO: VPERMD Y2, Y15, Y11             // c4620536da
-	//TODO: VPERMD Y11, Y15, Y11            // c4420536db
-	//TODO: VPERMILPD $7, (BX), X2          // c4e379051307
-	//TODO: VPERMILPD $7, (R11), X2         // c4c379051307
-	//TODO: VPERMILPD $7, X2, X2            // c4e37905d207
-	//TODO: VPERMILPD $7, X11, X2           // c4c37905d307
-	//TODO: VPERMILPD $7, (BX), X11         // c46379051b07
-	//TODO: VPERMILPD $7, (R11), X11        // c44379051b07
-	//TODO: VPERMILPD $7, X2, X11           // c4637905da07
-	//TODO: VPERMILPD $7, X11, X11          // c4437905db07
-	//TODO: VPERMILPD (BX), X9, X2          // c4e2310d13
-	//TODO: VPERMILPD (R11), X9, X2         // c4c2310d13
-	//TODO: VPERMILPD X2, X9, X2            // c4e2310dd2
-	//TODO: VPERMILPD X11, X9, X2           // c4c2310dd3
-	//TODO: VPERMILPD (BX), X9, X11         // c462310d1b
-	//TODO: VPERMILPD (R11), X9, X11        // c442310d1b
-	//TODO: VPERMILPD X2, X9, X11           // c462310dda
-	//TODO: VPERMILPD X11, X9, X11          // c442310ddb
-	//TODO: VPERMILPD $7, (BX), Y2          // c4e37d051307
-	//TODO: VPERMILPD $7, (R11), Y2         // c4c37d051307
-	//TODO: VPERMILPD $7, Y2, Y2            // c4e37d05d207
-	//TODO: VPERMILPD $7, Y11, Y2           // c4c37d05d307
-	//TODO: VPERMILPD $7, (BX), Y11         // c4637d051b07
-	//TODO: VPERMILPD $7, (R11), Y11        // c4437d051b07
-	//TODO: VPERMILPD $7, Y2, Y11           // c4637d05da07
-	//TODO: VPERMILPD $7, Y11, Y11          // c4437d05db07
-	//TODO: VPERMILPD (BX), Y15, Y2         // c4e2050d13
-	//TODO: VPERMILPD (R11), Y15, Y2        // c4c2050d13
-	//TODO: VPERMILPD Y2, Y15, Y2           // c4e2050dd2
-	//TODO: VPERMILPD Y11, Y15, Y2          // c4c2050dd3
-	//TODO: VPERMILPD (BX), Y15, Y11        // c462050d1b
-	//TODO: VPERMILPD (R11), Y15, Y11       // c442050d1b
-	//TODO: VPERMILPD Y2, Y15, Y11          // c462050dda
-	//TODO: VPERMILPD Y11, Y15, Y11         // c442050ddb
-	//TODO: VPERMILPS $7, (BX), X2          // c4e379041307
-	//TODO: VPERMILPS $7, (R11), X2         // c4c379041307
-	//TODO: VPERMILPS $7, X2, X2            // c4e37904d207
-	//TODO: VPERMILPS $7, X11, X2           // c4c37904d307
-	//TODO: VPERMILPS $7, (BX), X11         // c46379041b07
-	//TODO: VPERMILPS $7, (R11), X11        // c44379041b07
-	//TODO: VPERMILPS $7, X2, X11           // c4637904da07
-	//TODO: VPERMILPS $7, X11, X11          // c4437904db07
-	//TODO: VPERMILPS (BX), X9, X2          // c4e2310c13
-	//TODO: VPERMILPS (R11), X9, X2         // c4c2310c13
-	//TODO: VPERMILPS X2, X9, X2            // c4e2310cd2
-	//TODO: VPERMILPS X11, X9, X2           // c4c2310cd3
-	//TODO: VPERMILPS (BX), X9, X11         // c462310c1b
-	//TODO: VPERMILPS (R11), X9, X11        // c442310c1b
-	//TODO: VPERMILPS X2, X9, X11           // c462310cda
-	//TODO: VPERMILPS X11, X9, X11          // c442310cdb
-	//TODO: VPERMILPS $7, (BX), Y2          // c4e37d041307
-	//TODO: VPERMILPS $7, (R11), Y2         // c4c37d041307
-	//TODO: VPERMILPS $7, Y2, Y2            // c4e37d04d207
-	//TODO: VPERMILPS $7, Y11, Y2           // c4c37d04d307
-	//TODO: VPERMILPS $7, (BX), Y11         // c4637d041b07
-	//TODO: VPERMILPS $7, (R11), Y11        // c4437d041b07
-	//TODO: VPERMILPS $7, Y2, Y11           // c4637d04da07
-	//TODO: VPERMILPS $7, Y11, Y11          // c4437d04db07
-	//TODO: VPERMILPS (BX), Y15, Y2         // c4e2050c13
-	//TODO: VPERMILPS (R11), Y15, Y2        // c4c2050c13
-	//TODO: VPERMILPS Y2, Y15, Y2           // c4e2050cd2
-	//TODO: VPERMILPS Y11, Y15, Y2          // c4c2050cd3
-	//TODO: VPERMILPS (BX), Y15, Y11        // c462050c1b
-	//TODO: VPERMILPS (R11), Y15, Y11       // c442050c1b
-	//TODO: VPERMILPS Y2, Y15, Y11          // c462050cda
-	//TODO: VPERMILPS Y11, Y15, Y11         // c442050cdb
-	//TODO: VPERMPD $7, (BX), Y2            // c4e3fd011307
-	//TODO: VPERMPD $7, (R11), Y2           // c4c3fd011307
-	//TODO: VPERMPD $7, Y2, Y2              // c4e3fd01d207
-	//TODO: VPERMPD $7, Y11, Y2             // c4c3fd01d307
-	//TODO: VPERMPD $7, (BX), Y11           // c463fd011b07
-	//TODO: VPERMPD $7, (R11), Y11          // c443fd011b07
-	//TODO: VPERMPD $7, Y2, Y11             // c463fd01da07
-	//TODO: VPERMPD $7, Y11, Y11            // c443fd01db07
-	//TODO: VPERMPS (BX), Y15, Y2           // c4e2051613
-	//TODO: VPERMPS (R11), Y15, Y2          // c4c2051613
-	//TODO: VPERMPS Y2, Y15, Y2             // c4e20516d2
-	//TODO: VPERMPS Y11, Y15, Y2            // c4c20516d3
-	//TODO: VPERMPS (BX), Y15, Y11          // c46205161b
-	//TODO: VPERMPS (R11), Y15, Y11         // c44205161b
-	//TODO: VPERMPS Y2, Y15, Y11            // c4620516da
-	//TODO: VPERMPS Y11, Y15, Y11           // c4420516db
-	//TODO: VPERMQ $7, (BX), Y2             // c4e3fd001307
-	//TODO: VPERMQ $7, (R11), Y2            // c4c3fd001307
-	//TODO: VPERMQ $7, Y2, Y2               // c4e3fd00d207
-	//TODO: VPERMQ $7, Y11, Y2              // c4c3fd00d307
-	//TODO: VPERMQ $7, (BX), Y11            // c463fd001b07
-	//TODO: VPERMQ $7, (R11), Y11           // c443fd001b07
-	//TODO: VPERMQ $7, Y2, Y11              // c463fd00da07
-	//TODO: VPERMQ $7, Y11, Y11             // c443fd00db07
-	//TODO: VPEXTRB $7, X2, (BX)            // c4e379141307
-	//TODO: VPEXTRB $7, X11, (BX)           // c46379141b07
-	//TODO: VPEXTRB $7, X2, (R11)           // c4c379141307
-	//TODO: VPEXTRB $7, X11, (R11)          // c44379141b07
-	//TODO: VPEXTRB $7, X2, DX              // c4e37914d207
-	//TODO: VPEXTRB $7, X11, DX             // c4637914da07
-	//TODO: VPEXTRB $7, X2, R11             // c4c37914d307
-	//TODO: VPEXTRB $7, X11, R11            // c4437914db07
-	//TODO: VPEXTRD $7, X2, (BX)            // c4e379161307
-	//TODO: VPEXTRD $7, X11, (BX)           // c46379161b07
-	//TODO: VPEXTRD $7, X2, (R11)           // c4c379161307
-	//TODO: VPEXTRD $7, X11, (R11)          // c44379161b07
-	//TODO: VPEXTRD $7, X2, DX              // c4e37916d207
-	//TODO: VPEXTRD $7, X11, DX             // c4637916da07
-	//TODO: VPEXTRD $7, X2, R11             // c4c37916d307
-	//TODO: VPEXTRD $7, X11, R11            // c4437916db07
-	//TODO: VPEXTRQ $7, X2, (BX)            // c4e3f9161307
-	//TODO: VPEXTRQ $7, X11, (BX)           // c463f9161b07
-	//TODO: VPEXTRQ $7, X2, (R11)           // c4c3f9161307
-	//TODO: VPEXTRQ $7, X11, (R11)          // c443f9161b07
-	//TODO: VPEXTRQ $7, X2, DX              // c4e3f916d207
-	//TODO: VPEXTRQ $7, X11, DX             // c463f916da07
-	//TODO: VPEXTRQ $7, X2, R11             // c4c3f916d307
-	//TODO: VPEXTRQ $7, X11, R11            // c443f916db07
-	//TODO: VPEXTRW $7, X2, DX              // c4e179c5d207 or c5f9c5d207 or c4e37915d207
-	//TODO: VPEXTRW $7, X11, DX             // c4c179c5d307 or c4637915da07
-	//TODO: VPEXTRW $7, X2, R11             // c46179c5da07 or c579c5da07 or c4c37915d307
-	//TODO: VPEXTRW $7, X11, R11            // c44179c5db07 or c4437915db07
-	//TODO: VPEXTRW $7, X2, (BX)            // c4e379151307
-	//TODO: VPEXTRW $7, X11, (BX)           // c46379151b07
-	//TODO: VPEXTRW $7, X2, (R11)           // c4c379151307
-	//TODO: VPEXTRW $7, X11, (R11)          // c44379151b07
-	//TODO: VPHADDD (BX), X9, X2            // c4e2310213
-	//TODO: VPHADDD (R11), X9, X2           // c4c2310213
-	//TODO: VPHADDD X2, X9, X2              // c4e23102d2
-	//TODO: VPHADDD X11, X9, X2             // c4c23102d3
-	//TODO: VPHADDD (BX), X9, X11           // c46231021b
-	//TODO: VPHADDD (R11), X9, X11          // c44231021b
-	//TODO: VPHADDD X2, X9, X11             // c4623102da
-	//TODO: VPHADDD X11, X9, X11            // c4423102db
-	//TODO: VPHADDD (BX), Y15, Y2           // c4e2050213
-	//TODO: VPHADDD (R11), Y15, Y2          // c4c2050213
-	//TODO: VPHADDD Y2, Y15, Y2             // c4e20502d2
-	//TODO: VPHADDD Y11, Y15, Y2            // c4c20502d3
-	//TODO: VPHADDD (BX), Y15, Y11          // c46205021b
-	//TODO: VPHADDD (R11), Y15, Y11         // c44205021b
-	//TODO: VPHADDD Y2, Y15, Y11            // c4620502da
-	//TODO: VPHADDD Y11, Y15, Y11           // c4420502db
-	//TODO: VPHADDSW (BX), X9, X2           // c4e2310313
-	//TODO: VPHADDSW (R11), X9, X2          // c4c2310313
-	//TODO: VPHADDSW X2, X9, X2             // c4e23103d2
-	//TODO: VPHADDSW X11, X9, X2            // c4c23103d3
-	//TODO: VPHADDSW (BX), X9, X11          // c46231031b
-	//TODO: VPHADDSW (R11), X9, X11         // c44231031b
-	//TODO: VPHADDSW X2, X9, X11            // c4623103da
-	//TODO: VPHADDSW X11, X9, X11           // c4423103db
-	//TODO: VPHADDSW (BX), Y15, Y2          // c4e2050313
-	//TODO: VPHADDSW (R11), Y15, Y2         // c4c2050313
-	//TODO: VPHADDSW Y2, Y15, Y2            // c4e20503d2
-	//TODO: VPHADDSW Y11, Y15, Y2           // c4c20503d3
-	//TODO: VPHADDSW (BX), Y15, Y11         // c46205031b
-	//TODO: VPHADDSW (R11), Y15, Y11        // c44205031b
-	//TODO: VPHADDSW Y2, Y15, Y11           // c4620503da
-	//TODO: VPHADDSW Y11, Y15, Y11          // c4420503db
-	//TODO: VPHADDW (BX), X9, X2            // c4e2310113
-	//TODO: VPHADDW (R11), X9, X2           // c4c2310113
-	//TODO: VPHADDW X2, X9, X2              // c4e23101d2
-	//TODO: VPHADDW X11, X9, X2             // c4c23101d3
-	//TODO: VPHADDW (BX), X9, X11           // c46231011b
-	//TODO: VPHADDW (R11), X9, X11          // c44231011b
-	//TODO: VPHADDW X2, X9, X11             // c4623101da
-	//TODO: VPHADDW X11, X9, X11            // c4423101db
-	//TODO: VPHADDW (BX), Y15, Y2           // c4e2050113
-	//TODO: VPHADDW (R11), Y15, Y2          // c4c2050113
-	//TODO: VPHADDW Y2, Y15, Y2             // c4e20501d2
-	//TODO: VPHADDW Y11, Y15, Y2            // c4c20501d3
-	//TODO: VPHADDW (BX), Y15, Y11          // c46205011b
-	//TODO: VPHADDW (R11), Y15, Y11         // c44205011b
-	//TODO: VPHADDW Y2, Y15, Y11            // c4620501da
-	//TODO: VPHADDW Y11, Y15, Y11           // c4420501db
-	//TODO: VPHMINPOSUW (BX), X2            // c4e2794113
-	//TODO: VPHMINPOSUW (R11), X2           // c4c2794113
-	//TODO: VPHMINPOSUW X2, X2              // c4e27941d2
-	//TODO: VPHMINPOSUW X11, X2             // c4c27941d3
-	//TODO: VPHMINPOSUW (BX), X11           // c46279411b
-	//TODO: VPHMINPOSUW (R11), X11          // c44279411b
-	//TODO: VPHMINPOSUW X2, X11             // c4627941da
-	//TODO: VPHMINPOSUW X11, X11            // c4427941db
-	//TODO: VPHSUBD (BX), X9, X2            // c4e2310613
-	//TODO: VPHSUBD (R11), X9, X2           // c4c2310613
-	//TODO: VPHSUBD X2, X9, X2              // c4e23106d2
-	//TODO: VPHSUBD X11, X9, X2             // c4c23106d3
-	//TODO: VPHSUBD (BX), X9, X11           // c46231061b
-	//TODO: VPHSUBD (R11), X9, X11          // c44231061b
-	//TODO: VPHSUBD X2, X9, X11             // c4623106da
-	//TODO: VPHSUBD X11, X9, X11            // c4423106db
-	//TODO: VPHSUBD (BX), Y15, Y2           // c4e2050613
-	//TODO: VPHSUBD (R11), Y15, Y2          // c4c2050613
-	//TODO: VPHSUBD Y2, Y15, Y2             // c4e20506d2
-	//TODO: VPHSUBD Y11, Y15, Y2            // c4c20506d3
-	//TODO: VPHSUBD (BX), Y15, Y11          // c46205061b
-	//TODO: VPHSUBD (R11), Y15, Y11         // c44205061b
-	//TODO: VPHSUBD Y2, Y15, Y11            // c4620506da
-	//TODO: VPHSUBD Y11, Y15, Y11           // c4420506db
-	//TODO: VPHSUBSW (BX), X9, X2           // c4e2310713
-	//TODO: VPHSUBSW (R11), X9, X2          // c4c2310713
-	//TODO: VPHSUBSW X2, X9, X2             // c4e23107d2
-	//TODO: VPHSUBSW X11, X9, X2            // c4c23107d3
-	//TODO: VPHSUBSW (BX), X9, X11          // c46231071b
-	//TODO: VPHSUBSW (R11), X9, X11         // c44231071b
-	//TODO: VPHSUBSW X2, X9, X11            // c4623107da
-	//TODO: VPHSUBSW X11, X9, X11           // c4423107db
-	//TODO: VPHSUBSW (BX), Y15, Y2          // c4e2050713
-	//TODO: VPHSUBSW (R11), Y15, Y2         // c4c2050713
-	//TODO: VPHSUBSW Y2, Y15, Y2            // c4e20507d2
-	//TODO: VPHSUBSW Y11, Y15, Y2           // c4c20507d3
-	//TODO: VPHSUBSW (BX), Y15, Y11         // c46205071b
-	//TODO: VPHSUBSW (R11), Y15, Y11        // c44205071b
-	//TODO: VPHSUBSW Y2, Y15, Y11           // c4620507da
-	//TODO: VPHSUBSW Y11, Y15, Y11          // c4420507db
-	//TODO: VPHSUBW (BX), X9, X2            // c4e2310513
-	//TODO: VPHSUBW (R11), X9, X2           // c4c2310513
-	//TODO: VPHSUBW X2, X9, X2              // c4e23105d2
-	//TODO: VPHSUBW X11, X9, X2             // c4c23105d3
-	//TODO: VPHSUBW (BX), X9, X11           // c46231051b
-	//TODO: VPHSUBW (R11), X9, X11          // c44231051b
-	//TODO: VPHSUBW X2, X9, X11             // c4623105da
-	//TODO: VPHSUBW X11, X9, X11            // c4423105db
-	//TODO: VPHSUBW (BX), Y15, Y2           // c4e2050513
-	//TODO: VPHSUBW (R11), Y15, Y2          // c4c2050513
-	//TODO: VPHSUBW Y2, Y15, Y2             // c4e20505d2
-	//TODO: VPHSUBW Y11, Y15, Y2            // c4c20505d3
-	//TODO: VPHSUBW (BX), Y15, Y11          // c46205051b
-	//TODO: VPHSUBW (R11), Y15, Y11         // c44205051b
-	//TODO: VPHSUBW Y2, Y15, Y11            // c4620505da
-	//TODO: VPHSUBW Y11, Y15, Y11           // c4420505db
-	//TODO: VPINSRB $7, (BX), X9, X2        // c4e331201307
-	//TODO: VPINSRB $7, (R11), X9, X2       // c4c331201307
-	//TODO: VPINSRB $7, DX, X9, X2          // c4e33120d207
-	//TODO: VPINSRB $7, R11, X9, X2         // c4c33120d307
-	//TODO: VPINSRB $7, (BX), X9, X11       // c46331201b07
-	//TODO: VPINSRB $7, (R11), X9, X11      // c44331201b07
-	//TODO: VPINSRB $7, DX, X9, X11         // c4633120da07
-	//TODO: VPINSRB $7, R11, X9, X11        // c4433120db07
-	//TODO: VPINSRD $7, (BX), X9, X2        // c4e331221307
-	//TODO: VPINSRD $7, (R11), X9, X2       // c4c331221307
-	//TODO: VPINSRD $7, DX, X9, X2          // c4e33122d207
-	//TODO: VPINSRD $7, R11, X9, X2         // c4c33122d307
-	//TODO: VPINSRD $7, (BX), X9, X11       // c46331221b07
-	//TODO: VPINSRD $7, (R11), X9, X11      // c44331221b07
-	//TODO: VPINSRD $7, DX, X9, X11         // c4633122da07
-	//TODO: VPINSRD $7, R11, X9, X11        // c4433122db07
-	//TODO: VPINSRQ $7, (BX), X9, X2        // c4e3b1221307
-	//TODO: VPINSRQ $7, (R11), X9, X2       // c4c3b1221307
-	//TODO: VPINSRQ $7, DX, X9, X2          // c4e3b122d207
-	//TODO: VPINSRQ $7, R11, X9, X2         // c4c3b122d307
-	//TODO: VPINSRQ $7, (BX), X9, X11       // c463b1221b07
-	//TODO: VPINSRQ $7, (R11), X9, X11      // c443b1221b07
-	//TODO: VPINSRQ $7, DX, X9, X11         // c463b122da07
-	//TODO: VPINSRQ $7, R11, X9, X11        // c443b122db07
-	//TODO: VPINSRW $7, (BX), X9, X2        // c4e131c41307 or c5b1c41307
-	//TODO: VPINSRW $7, (R11), X9, X2       // c4c131c41307
-	//TODO: VPINSRW $7, DX, X9, X2          // c4e131c4d207 or c5b1c4d207
-	//TODO: VPINSRW $7, R11, X9, X2         // c4c131c4d307
-	//TODO: VPINSRW $7, (BX), X9, X11       // c46131c41b07 or c531c41b07
-	//TODO: VPINSRW $7, (R11), X9, X11      // c44131c41b07
-	//TODO: VPINSRW $7, DX, X9, X11         // c46131c4da07 or c531c4da07
-	//TODO: VPINSRW $7, R11, X9, X11        // c44131c4db07
-	//TODO: VPMADDUBSW (BX), X9, X2         // c4e2310413
-	//TODO: VPMADDUBSW (R11), X9, X2        // c4c2310413
-	//TODO: VPMADDUBSW X2, X9, X2           // c4e23104d2
-	//TODO: VPMADDUBSW X11, X9, X2          // c4c23104d3
-	//TODO: VPMADDUBSW (BX), X9, X11        // c46231041b
-	//TODO: VPMADDUBSW (R11), X9, X11       // c44231041b
-	//TODO: VPMADDUBSW X2, X9, X11          // c4623104da
-	//TODO: VPMADDUBSW X11, X9, X11         // c4423104db
-	//TODO: VPMADDUBSW (BX), Y15, Y2        // c4e2050413
-	//TODO: VPMADDUBSW (R11), Y15, Y2       // c4c2050413
-	//TODO: VPMADDUBSW Y2, Y15, Y2          // c4e20504d2
-	//TODO: VPMADDUBSW Y11, Y15, Y2         // c4c20504d3
-	//TODO: VPMADDUBSW (BX), Y15, Y11       // c46205041b
-	//TODO: VPMADDUBSW (R11), Y15, Y11      // c44205041b
-	//TODO: VPMADDUBSW Y2, Y15, Y11         // c4620504da
-	//TODO: VPMADDUBSW Y11, Y15, Y11        // c4420504db
-	//TODO: VPMADDWD (BX), X9, X2           // c4e131f513 or c5b1f513
-	//TODO: VPMADDWD (R11), X9, X2          // c4c131f513
-	//TODO: VPMADDWD X2, X9, X2             // c4e131f5d2 or c5b1f5d2
-	//TODO: VPMADDWD X11, X9, X2            // c4c131f5d3
-	//TODO: VPMADDWD (BX), X9, X11          // c46131f51b or c531f51b
-	//TODO: VPMADDWD (R11), X9, X11         // c44131f51b
-	//TODO: VPMADDWD X2, X9, X11            // c46131f5da or c531f5da
-	//TODO: VPMADDWD X11, X9, X11           // c44131f5db
-	//TODO: VPMADDWD (BX), Y15, Y2          // c4e105f513 or c585f513
-	//TODO: VPMADDWD (R11), Y15, Y2         // c4c105f513
-	//TODO: VPMADDWD Y2, Y15, Y2            // c4e105f5d2 or c585f5d2
-	//TODO: VPMADDWD Y11, Y15, Y2           // c4c105f5d3
-	//TODO: VPMADDWD (BX), Y15, Y11         // c46105f51b or c505f51b
-	//TODO: VPMADDWD (R11), Y15, Y11        // c44105f51b
-	//TODO: VPMADDWD Y2, Y15, Y11           // c46105f5da or c505f5da
-	//TODO: VPMADDWD Y11, Y15, Y11          // c44105f5db
-	//TODO: VPMASKMOVD X2, X9, (BX)         // c4e2318e13
-	//TODO: VPMASKMOVD X11, X9, (BX)        // c462318e1b
-	//TODO: VPMASKMOVD X2, X9, (R11)        // c4c2318e13
-	//TODO: VPMASKMOVD X11, X9, (R11)       // c442318e1b
-	//TODO: VPMASKMOVD Y2, Y15, (BX)        // c4e2058e13
-	//TODO: VPMASKMOVD Y11, Y15, (BX)       // c462058e1b
-	//TODO: VPMASKMOVD Y2, Y15, (R11)       // c4c2058e13
-	//TODO: VPMASKMOVD Y11, Y15, (R11)      // c442058e1b
-	//TODO: VPMASKMOVD (BX), X9, X2         // c4e2318c13
-	//TODO: VPMASKMOVD (R11), X9, X2        // c4c2318c13
-	//TODO: VPMASKMOVD (BX), X9, X11        // c462318c1b
-	//TODO: VPMASKMOVD (R11), X9, X11       // c442318c1b
-	//TODO: VPMASKMOVD (BX), Y15, Y2        // c4e2058c13
-	//TODO: VPMASKMOVD (R11), Y15, Y2       // c4c2058c13
-	//TODO: VPMASKMOVD (BX), Y15, Y11       // c462058c1b
-	//TODO: VPMASKMOVD (R11), Y15, Y11      // c442058c1b
-	//TODO: VPMASKMOVQ X2, X9, (BX)         // c4e2b18e13
-	//TODO: VPMASKMOVQ X11, X9, (BX)        // c462b18e1b
-	//TODO: VPMASKMOVQ X2, X9, (R11)        // c4c2b18e13
-	//TODO: VPMASKMOVQ X11, X9, (R11)       // c442b18e1b
-	//TODO: VPMASKMOVQ Y2, Y15, (BX)        // c4e2858e13
-	//TODO: VPMASKMOVQ Y11, Y15, (BX)       // c462858e1b
-	//TODO: VPMASKMOVQ Y2, Y15, (R11)       // c4c2858e13
-	//TODO: VPMASKMOVQ Y11, Y15, (R11)      // c442858e1b
-	//TODO: VPMASKMOVQ (BX), X9, X2         // c4e2b18c13
-	//TODO: VPMASKMOVQ (R11), X9, X2        // c4c2b18c13
-	//TODO: VPMASKMOVQ (BX), X9, X11        // c462b18c1b
-	//TODO: VPMASKMOVQ (R11), X9, X11       // c442b18c1b
-	//TODO: VPMASKMOVQ (BX), Y15, Y2        // c4e2858c13
-	//TODO: VPMASKMOVQ (R11), Y15, Y2       // c4c2858c13
-	//TODO: VPMASKMOVQ (BX), Y15, Y11       // c462858c1b
-	//TODO: VPMASKMOVQ (R11), Y15, Y11      // c442858c1b
-	//TODO: VPMAXSB (BX), X9, X2            // c4e2313c13
-	//TODO: VPMAXSB (R11), X9, X2           // c4c2313c13
-	//TODO: VPMAXSB X2, X9, X2              // c4e2313cd2
-	//TODO: VPMAXSB X11, X9, X2             // c4c2313cd3
-	//TODO: VPMAXSB (BX), X9, X11           // c462313c1b
-	//TODO: VPMAXSB (R11), X9, X11          // c442313c1b
-	//TODO: VPMAXSB X2, X9, X11             // c462313cda
-	//TODO: VPMAXSB X11, X9, X11            // c442313cdb
-	//TODO: VPMAXSB (BX), Y15, Y2           // c4e2053c13
-	//TODO: VPMAXSB (R11), Y15, Y2          // c4c2053c13
-	//TODO: VPMAXSB Y2, Y15, Y2             // c4e2053cd2
-	//TODO: VPMAXSB Y11, Y15, Y2            // c4c2053cd3
-	//TODO: VPMAXSB (BX), Y15, Y11          // c462053c1b
-	//TODO: VPMAXSB (R11), Y15, Y11         // c442053c1b
-	//TODO: VPMAXSB Y2, Y15, Y11            // c462053cda
-	//TODO: VPMAXSB Y11, Y15, Y11           // c442053cdb
-	//TODO: VPMAXSD (BX), X9, X2            // c4e2313d13
-	//TODO: VPMAXSD (R11), X9, X2           // c4c2313d13
-	//TODO: VPMAXSD X2, X9, X2              // c4e2313dd2
-	//TODO: VPMAXSD X11, X9, X2             // c4c2313dd3
-	//TODO: VPMAXSD (BX), X9, X11           // c462313d1b
-	//TODO: VPMAXSD (R11), X9, X11          // c442313d1b
-	//TODO: VPMAXSD X2, X9, X11             // c462313dda
-	//TODO: VPMAXSD X11, X9, X11            // c442313ddb
-	//TODO: VPMAXSD (BX), Y15, Y2           // c4e2053d13
-	//TODO: VPMAXSD (R11), Y15, Y2          // c4c2053d13
-	//TODO: VPMAXSD Y2, Y15, Y2             // c4e2053dd2
-	//TODO: VPMAXSD Y11, Y15, Y2            // c4c2053dd3
-	//TODO: VPMAXSD (BX), Y15, Y11          // c462053d1b
-	//TODO: VPMAXSD (R11), Y15, Y11         // c442053d1b
-	//TODO: VPMAXSD Y2, Y15, Y11            // c462053dda
-	//TODO: VPMAXSD Y11, Y15, Y11           // c442053ddb
-	//TODO: VPMAXSW (BX), X9, X2            // c4e131ee13 or c5b1ee13
-	//TODO: VPMAXSW (R11), X9, X2           // c4c131ee13
-	//TODO: VPMAXSW X2, X9, X2              // c4e131eed2 or c5b1eed2
-	//TODO: VPMAXSW X11, X9, X2             // c4c131eed3
-	//TODO: VPMAXSW (BX), X9, X11           // c46131ee1b or c531ee1b
-	//TODO: VPMAXSW (R11), X9, X11          // c44131ee1b
-	//TODO: VPMAXSW X2, X9, X11             // c46131eeda or c531eeda
-	//TODO: VPMAXSW X11, X9, X11            // c44131eedb
-	//TODO: VPMAXSW (BX), Y15, Y2           // c4e105ee13 or c585ee13
-	//TODO: VPMAXSW (R11), Y15, Y2          // c4c105ee13
-	//TODO: VPMAXSW Y2, Y15, Y2             // c4e105eed2 or c585eed2
-	//TODO: VPMAXSW Y11, Y15, Y2            // c4c105eed3
-	//TODO: VPMAXSW (BX), Y15, Y11          // c46105ee1b or c505ee1b
-	//TODO: VPMAXSW (R11), Y15, Y11         // c44105ee1b
-	//TODO: VPMAXSW Y2, Y15, Y11            // c46105eeda or c505eeda
-	//TODO: VPMAXSW Y11, Y15, Y11           // c44105eedb
-	//TODO: VPMAXUB (BX), X9, X2            // c4e131de13 or c5b1de13
-	//TODO: VPMAXUB (R11), X9, X2           // c4c131de13
-	//TODO: VPMAXUB X2, X9, X2              // c4e131ded2 or c5b1ded2
-	//TODO: VPMAXUB X11, X9, X2             // c4c131ded3
-	//TODO: VPMAXUB (BX), X9, X11           // c46131de1b or c531de1b
-	//TODO: VPMAXUB (R11), X9, X11          // c44131de1b
-	//TODO: VPMAXUB X2, X9, X11             // c46131deda or c531deda
-	//TODO: VPMAXUB X11, X9, X11            // c44131dedb
-	//TODO: VPMAXUB (BX), Y15, Y2           // c4e105de13 or c585de13
-	//TODO: VPMAXUB (R11), Y15, Y2          // c4c105de13
-	//TODO: VPMAXUB Y2, Y15, Y2             // c4e105ded2 or c585ded2
-	//TODO: VPMAXUB Y11, Y15, Y2            // c4c105ded3
-	//TODO: VPMAXUB (BX), Y15, Y11          // c46105de1b or c505de1b
-	//TODO: VPMAXUB (R11), Y15, Y11         // c44105de1b
-	//TODO: VPMAXUB Y2, Y15, Y11            // c46105deda or c505deda
-	//TODO: VPMAXUB Y11, Y15, Y11           // c44105dedb
-	//TODO: VPMAXUD (BX), X9, X2            // c4e2313f13
-	//TODO: VPMAXUD (R11), X9, X2           // c4c2313f13
-	//TODO: VPMAXUD X2, X9, X2              // c4e2313fd2
-	//TODO: VPMAXUD X11, X9, X2             // c4c2313fd3
-	//TODO: VPMAXUD (BX), X9, X11           // c462313f1b
-	//TODO: VPMAXUD (R11), X9, X11          // c442313f1b
-	//TODO: VPMAXUD X2, X9, X11             // c462313fda
-	//TODO: VPMAXUD X11, X9, X11            // c442313fdb
-	//TODO: VPMAXUD (BX), Y15, Y2           // c4e2053f13
-	//TODO: VPMAXUD (R11), Y15, Y2          // c4c2053f13
-	//TODO: VPMAXUD Y2, Y15, Y2             // c4e2053fd2
-	//TODO: VPMAXUD Y11, Y15, Y2            // c4c2053fd3
-	//TODO: VPMAXUD (BX), Y15, Y11          // c462053f1b
-	//TODO: VPMAXUD (R11), Y15, Y11         // c442053f1b
-	//TODO: VPMAXUD Y2, Y15, Y11            // c462053fda
-	//TODO: VPMAXUD Y11, Y15, Y11           // c442053fdb
-	//TODO: VPMAXUW (BX), X9, X2            // c4e2313e13
-	//TODO: VPMAXUW (R11), X9, X2           // c4c2313e13
-	//TODO: VPMAXUW X2, X9, X2              // c4e2313ed2
-	//TODO: VPMAXUW X11, X9, X2             // c4c2313ed3
-	//TODO: VPMAXUW (BX), X9, X11           // c462313e1b
-	//TODO: VPMAXUW (R11), X9, X11          // c442313e1b
-	//TODO: VPMAXUW X2, X9, X11             // c462313eda
-	//TODO: VPMAXUW X11, X9, X11            // c442313edb
-	//TODO: VPMAXUW (BX), Y15, Y2           // c4e2053e13
-	//TODO: VPMAXUW (R11), Y15, Y2          // c4c2053e13
-	//TODO: VPMAXUW Y2, Y15, Y2             // c4e2053ed2
-	//TODO: VPMAXUW Y11, Y15, Y2            // c4c2053ed3
-	//TODO: VPMAXUW (BX), Y15, Y11          // c462053e1b
-	//TODO: VPMAXUW (R11), Y15, Y11         // c442053e1b
-	//TODO: VPMAXUW Y2, Y15, Y11            // c462053eda
-	//TODO: VPMAXUW Y11, Y15, Y11           // c442053edb
-	//TODO: VPMINSB (BX), X9, X2            // c4e2313813
-	//TODO: VPMINSB (R11), X9, X2           // c4c2313813
-	//TODO: VPMINSB X2, X9, X2              // c4e23138d2
-	//TODO: VPMINSB X11, X9, X2             // c4c23138d3
-	//TODO: VPMINSB (BX), X9, X11           // c46231381b
-	//TODO: VPMINSB (R11), X9, X11          // c44231381b
-	//TODO: VPMINSB X2, X9, X11             // c4623138da
-	//TODO: VPMINSB X11, X9, X11            // c4423138db
-	//TODO: VPMINSB (BX), Y15, Y2           // c4e2053813
-	//TODO: VPMINSB (R11), Y15, Y2          // c4c2053813
-	//TODO: VPMINSB Y2, Y15, Y2             // c4e20538d2
-	//TODO: VPMINSB Y11, Y15, Y2            // c4c20538d3
-	//TODO: VPMINSB (BX), Y15, Y11          // c46205381b
-	//TODO: VPMINSB (R11), Y15, Y11         // c44205381b
-	//TODO: VPMINSB Y2, Y15, Y11            // c4620538da
-	//TODO: VPMINSB Y11, Y15, Y11           // c4420538db
-	//TODO: VPMINSD (BX), X9, X2            // c4e2313913
-	//TODO: VPMINSD (R11), X9, X2           // c4c2313913
-	//TODO: VPMINSD X2, X9, X2              // c4e23139d2
-	//TODO: VPMINSD X11, X9, X2             // c4c23139d3
-	//TODO: VPMINSD (BX), X9, X11           // c46231391b
-	//TODO: VPMINSD (R11), X9, X11          // c44231391b
-	//TODO: VPMINSD X2, X9, X11             // c4623139da
-	//TODO: VPMINSD X11, X9, X11            // c4423139db
-	//TODO: VPMINSD (BX), Y15, Y2           // c4e2053913
-	//TODO: VPMINSD (R11), Y15, Y2          // c4c2053913
-	//TODO: VPMINSD Y2, Y15, Y2             // c4e20539d2
-	//TODO: VPMINSD Y11, Y15, Y2            // c4c20539d3
-	//TODO: VPMINSD (BX), Y15, Y11          // c46205391b
-	//TODO: VPMINSD (R11), Y15, Y11         // c44205391b
-	//TODO: VPMINSD Y2, Y15, Y11            // c4620539da
-	//TODO: VPMINSD Y11, Y15, Y11           // c4420539db
-	//TODO: VPMINSW (BX), X9, X2            // c4e131ea13 or c5b1ea13
-	//TODO: VPMINSW (R11), X9, X2           // c4c131ea13
-	//TODO: VPMINSW X2, X9, X2              // c4e131ead2 or c5b1ead2
-	//TODO: VPMINSW X11, X9, X2             // c4c131ead3
-	//TODO: VPMINSW (BX), X9, X11           // c46131ea1b or c531ea1b
-	//TODO: VPMINSW (R11), X9, X11          // c44131ea1b
-	//TODO: VPMINSW X2, X9, X11             // c46131eada or c531eada
-	//TODO: VPMINSW X11, X9, X11            // c44131eadb
-	//TODO: VPMINSW (BX), Y15, Y2           // c4e105ea13 or c585ea13
-	//TODO: VPMINSW (R11), Y15, Y2          // c4c105ea13
-	//TODO: VPMINSW Y2, Y15, Y2             // c4e105ead2 or c585ead2
-	//TODO: VPMINSW Y11, Y15, Y2            // c4c105ead3
-	//TODO: VPMINSW (BX), Y15, Y11          // c46105ea1b or c505ea1b
-	//TODO: VPMINSW (R11), Y15, Y11         // c44105ea1b
-	//TODO: VPMINSW Y2, Y15, Y11            // c46105eada or c505eada
-	//TODO: VPMINSW Y11, Y15, Y11           // c44105eadb
-	//TODO: VPMINUB (BX), X9, X2            // c4e131da13 or c5b1da13
-	//TODO: VPMINUB (R11), X9, X2           // c4c131da13
-	//TODO: VPMINUB X2, X9, X2              // c4e131dad2 or c5b1dad2
-	//TODO: VPMINUB X11, X9, X2             // c4c131dad3
-	//TODO: VPMINUB (BX), X9, X11           // c46131da1b or c531da1b
-	//TODO: VPMINUB (R11), X9, X11          // c44131da1b
-	//TODO: VPMINUB X2, X9, X11             // c46131dada or c531dada
-	//TODO: VPMINUB X11, X9, X11            // c44131dadb
-	//TODO: VPMINUB (BX), Y15, Y2           // c4e105da13 or c585da13
-	//TODO: VPMINUB (R11), Y15, Y2          // c4c105da13
-	//TODO: VPMINUB Y2, Y15, Y2             // c4e105dad2 or c585dad2
-	//TODO: VPMINUB Y11, Y15, Y2            // c4c105dad3
-	//TODO: VPMINUB (BX), Y15, Y11          // c46105da1b or c505da1b
-	//TODO: VPMINUB (R11), Y15, Y11         // c44105da1b
-	//TODO: VPMINUB Y2, Y15, Y11            // c46105dada or c505dada
-	//TODO: VPMINUB Y11, Y15, Y11           // c44105dadb
-	//TODO: VPMINUD (BX), X9, X2            // c4e2313b13
-	//TODO: VPMINUD (R11), X9, X2           // c4c2313b13
-	//TODO: VPMINUD X2, X9, X2              // c4e2313bd2
-	//TODO: VPMINUD X11, X9, X2             // c4c2313bd3
-	//TODO: VPMINUD (BX), X9, X11           // c462313b1b
-	//TODO: VPMINUD (R11), X9, X11          // c442313b1b
-	//TODO: VPMINUD X2, X9, X11             // c462313bda
-	//TODO: VPMINUD X11, X9, X11            // c442313bdb
-	//TODO: VPMINUD (BX), Y15, Y2           // c4e2053b13
-	//TODO: VPMINUD (R11), Y15, Y2          // c4c2053b13
-	//TODO: VPMINUD Y2, Y15, Y2             // c4e2053bd2
-	//TODO: VPMINUD Y11, Y15, Y2            // c4c2053bd3
-	//TODO: VPMINUD (BX), Y15, Y11          // c462053b1b
-	//TODO: VPMINUD (R11), Y15, Y11         // c442053b1b
-	//TODO: VPMINUD Y2, Y15, Y11            // c462053bda
-	//TODO: VPMINUD Y11, Y15, Y11           // c442053bdb
-	//TODO: VPMINUW (BX), X9, X2            // c4e2313a13
-	//TODO: VPMINUW (R11), X9, X2           // c4c2313a13
-	//TODO: VPMINUW X2, X9, X2              // c4e2313ad2
-	//TODO: VPMINUW X11, X9, X2             // c4c2313ad3
-	//TODO: VPMINUW (BX), X9, X11           // c462313a1b
-	//TODO: VPMINUW (R11), X9, X11          // c442313a1b
-	//TODO: VPMINUW X2, X9, X11             // c462313ada
-	//TODO: VPMINUW X11, X9, X11            // c442313adb
-	//TODO: VPMINUW (BX), Y15, Y2           // c4e2053a13
-	//TODO: VPMINUW (R11), Y15, Y2          // c4c2053a13
-	//TODO: VPMINUW Y2, Y15, Y2             // c4e2053ad2
-	//TODO: VPMINUW Y11, Y15, Y2            // c4c2053ad3
-	//TODO: VPMINUW (BX), Y15, Y11          // c462053a1b
-	//TODO: VPMINUW (R11), Y15, Y11         // c442053a1b
-	//TODO: VPMINUW Y2, Y15, Y11            // c462053ada
-	//TODO: VPMINUW Y11, Y15, Y11           // c442053adb
+	VPERMD (BX), Y15, Y2                    // c4e2053613
+	VPERMD (R11), Y15, Y2                   // c4c2053613
+	VPERMD Y2, Y15, Y2                      // c4e20536d2
+	VPERMD Y11, Y15, Y2                     // c4c20536d3
+	VPERMD (BX), Y15, Y11                   // c46205361b
+	VPERMD (R11), Y15, Y11                  // c44205361b
+	VPERMD Y2, Y15, Y11                     // c4620536da
+	VPERMD Y11, Y15, Y11                    // c4420536db
+	VPERMILPD $7, (BX), X2                  // c4e379051307
+	VPERMILPD $7, (R11), X2                 // c4c379051307
+	VPERMILPD $7, X2, X2                    // c4e37905d207
+	VPERMILPD $7, X11, X2                   // c4c37905d307
+	VPERMILPD $7, (BX), X11                 // c46379051b07
+	VPERMILPD $7, (R11), X11                // c44379051b07
+	VPERMILPD $7, X2, X11                   // c4637905da07
+	VPERMILPD $7, X11, X11                  // c4437905db07
+	VPERMILPD (BX), X9, X2                  // c4e2310d13
+	VPERMILPD (R11), X9, X2                 // c4c2310d13
+	VPERMILPD X2, X9, X2                    // c4e2310dd2
+	VPERMILPD X11, X9, X2                   // c4c2310dd3
+	VPERMILPD (BX), X9, X11                 // c462310d1b
+	VPERMILPD (R11), X9, X11                // c442310d1b
+	VPERMILPD X2, X9, X11                   // c462310dda
+	VPERMILPD X11, X9, X11                  // c442310ddb
+	VPERMILPD $7, (BX), Y2                  // c4e37d051307
+	VPERMILPD $7, (R11), Y2                 // c4c37d051307
+	VPERMILPD $7, Y2, Y2                    // c4e37d05d207
+	VPERMILPD $7, Y11, Y2                   // c4c37d05d307
+	VPERMILPD $7, (BX), Y11                 // c4637d051b07
+	VPERMILPD $7, (R11), Y11                // c4437d051b07
+	VPERMILPD $7, Y2, Y11                   // c4637d05da07
+	VPERMILPD $7, Y11, Y11                  // c4437d05db07
+	VPERMILPD (BX), Y15, Y2                 // c4e2050d13
+	VPERMILPD (R11), Y15, Y2                // c4c2050d13
+	VPERMILPD Y2, Y15, Y2                   // c4e2050dd2
+	VPERMILPD Y11, Y15, Y2                  // c4c2050dd3
+	VPERMILPD (BX), Y15, Y11                // c462050d1b
+	VPERMILPD (R11), Y15, Y11               // c442050d1b
+	VPERMILPD Y2, Y15, Y11                  // c462050dda
+	VPERMILPD Y11, Y15, Y11                 // c442050ddb
+	VPERMILPS $7, (BX), X2                  // c4e379041307
+	VPERMILPS $7, (R11), X2                 // c4c379041307
+	VPERMILPS $7, X2, X2                    // c4e37904d207
+	VPERMILPS $7, X11, X2                   // c4c37904d307
+	VPERMILPS $7, (BX), X11                 // c46379041b07
+	VPERMILPS $7, (R11), X11                // c44379041b07
+	VPERMILPS $7, X2, X11                   // c4637904da07
+	VPERMILPS $7, X11, X11                  // c4437904db07
+	VPERMILPS (BX), X9, X2                  // c4e2310c13
+	VPERMILPS (R11), X9, X2                 // c4c2310c13
+	VPERMILPS X2, X9, X2                    // c4e2310cd2
+	VPERMILPS X11, X9, X2                   // c4c2310cd3
+	VPERMILPS (BX), X9, X11                 // c462310c1b
+	VPERMILPS (R11), X9, X11                // c442310c1b
+	VPERMILPS X2, X9, X11                   // c462310cda
+	VPERMILPS X11, X9, X11                  // c442310cdb
+	VPERMILPS $7, (BX), Y2                  // c4e37d041307
+	VPERMILPS $7, (R11), Y2                 // c4c37d041307
+	VPERMILPS $7, Y2, Y2                    // c4e37d04d207
+	VPERMILPS $7, Y11, Y2                   // c4c37d04d307
+	VPERMILPS $7, (BX), Y11                 // c4637d041b07
+	VPERMILPS $7, (R11), Y11                // c4437d041b07
+	VPERMILPS $7, Y2, Y11                   // c4637d04da07
+	VPERMILPS $7, Y11, Y11                  // c4437d04db07
+	VPERMILPS (BX), Y15, Y2                 // c4e2050c13
+	VPERMILPS (R11), Y15, Y2                // c4c2050c13
+	VPERMILPS Y2, Y15, Y2                   // c4e2050cd2
+	VPERMILPS Y11, Y15, Y2                  // c4c2050cd3
+	VPERMILPS (BX), Y15, Y11                // c462050c1b
+	VPERMILPS (R11), Y15, Y11               // c442050c1b
+	VPERMILPS Y2, Y15, Y11                  // c462050cda
+	VPERMILPS Y11, Y15, Y11                 // c442050cdb
+	VPERMPD $7, (BX), Y2                    // c4e3fd011307
+	VPERMPD $7, (R11), Y2                   // c4c3fd011307
+	VPERMPD $7, Y2, Y2                      // c4e3fd01d207
+	VPERMPD $7, Y11, Y2                     // c4c3fd01d307
+	VPERMPD $7, (BX), Y11                   // c463fd011b07
+	VPERMPD $7, (R11), Y11                  // c443fd011b07
+	VPERMPD $7, Y2, Y11                     // c463fd01da07
+	VPERMPD $7, Y11, Y11                    // c443fd01db07
+	VPERMPS (BX), Y15, Y2                   // c4e2051613
+	VPERMPS (R11), Y15, Y2                  // c4c2051613
+	VPERMPS Y2, Y15, Y2                     // c4e20516d2
+	VPERMPS Y11, Y15, Y2                    // c4c20516d3
+	VPERMPS (BX), Y15, Y11                  // c46205161b
+	VPERMPS (R11), Y15, Y11                 // c44205161b
+	VPERMPS Y2, Y15, Y11                    // c4620516da
+	VPERMPS Y11, Y15, Y11                   // c4420516db
+	VPERMQ $7, (BX), Y2                     // c4e3fd001307
+	VPERMQ $7, (R11), Y2                    // c4c3fd001307
+	VPERMQ $7, Y2, Y2                       // c4e3fd00d207
+	VPERMQ $7, Y11, Y2                      // c4c3fd00d307
+	VPERMQ $7, (BX), Y11                    // c463fd001b07
+	VPERMQ $7, (R11), Y11                   // c443fd001b07
+	VPERMQ $7, Y2, Y11                      // c463fd00da07
+	VPERMQ $7, Y11, Y11                     // c443fd00db07
+	VPEXTRB $7, X2, (BX)                    // c4e379141307
+	VPEXTRB $7, X11, (BX)                   // c46379141b07
+	VPEXTRB $7, X2, (R11)                   // c4c379141307
+	VPEXTRB $7, X11, (R11)                  // c44379141b07
+	VPEXTRB $7, X2, DX                      // c4e37914d207
+	VPEXTRB $7, X11, DX                     // c4637914da07
+	VPEXTRB $7, X2, R11                     // c4c37914d307
+	VPEXTRB $7, X11, R11                    // c4437914db07
+	VPEXTRD $7, X2, (BX)                    // c4e379161307
+	VPEXTRD $7, X11, (BX)                   // c46379161b07
+	VPEXTRD $7, X2, (R11)                   // c4c379161307
+	VPEXTRD $7, X11, (R11)                  // c44379161b07
+	VPEXTRD $7, X2, DX                      // c4e37916d207
+	VPEXTRD $7, X11, DX                     // c4637916da07
+	VPEXTRD $7, X2, R11                     // c4c37916d307
+	VPEXTRD $7, X11, R11                    // c4437916db07
+	VPEXTRQ $7, X2, (BX)                    // c4e3f9161307
+	VPEXTRQ $7, X11, (BX)                   // c463f9161b07
+	VPEXTRQ $7, X2, (R11)                   // c4c3f9161307
+	VPEXTRQ $7, X11, (R11)                  // c443f9161b07
+	VPEXTRQ $7, X2, DX                      // c4e3f916d207
+	VPEXTRQ $7, X11, DX                     // c463f916da07
+	VPEXTRQ $7, X2, R11                     // c4c3f916d307
+	VPEXTRQ $7, X11, R11                    // c443f916db07
+	VPEXTRW $7, X2, DX                      // c4e179c5d207 or c5f9c5d207 or c4e37915d207
+	VPEXTRW $7, X11, DX                     // c4c179c5d307 or c4637915da07
+	VPEXTRW $7, X2, R11                     // c46179c5da07 or c579c5da07 or c4c37915d307
+	VPEXTRW $7, X11, R11                    // c44179c5db07 or c4437915db07
+	VPEXTRW $7, X2, (BX)                    // c4e379151307
+	VPEXTRW $7, X11, (BX)                   // c46379151b07
+	VPEXTRW $7, X2, (R11)                   // c4c379151307
+	VPEXTRW $7, X11, (R11)                  // c44379151b07
+	VPHADDD (BX), X9, X2                    // c4e2310213
+	VPHADDD (R11), X9, X2                   // c4c2310213
+	VPHADDD X2, X9, X2                      // c4e23102d2
+	VPHADDD X11, X9, X2                     // c4c23102d3
+	VPHADDD (BX), X9, X11                   // c46231021b
+	VPHADDD (R11), X9, X11                  // c44231021b
+	VPHADDD X2, X9, X11                     // c4623102da
+	VPHADDD X11, X9, X11                    // c4423102db
+	VPHADDD (BX), Y15, Y2                   // c4e2050213
+	VPHADDD (R11), Y15, Y2                  // c4c2050213
+	VPHADDD Y2, Y15, Y2                     // c4e20502d2
+	VPHADDD Y11, Y15, Y2                    // c4c20502d3
+	VPHADDD (BX), Y15, Y11                  // c46205021b
+	VPHADDD (R11), Y15, Y11                 // c44205021b
+	VPHADDD Y2, Y15, Y11                    // c4620502da
+	VPHADDD Y11, Y15, Y11                   // c4420502db
+	VPHADDSW (BX), X9, X2                   // c4e2310313
+	VPHADDSW (R11), X9, X2                  // c4c2310313
+	VPHADDSW X2, X9, X2                     // c4e23103d2
+	VPHADDSW X11, X9, X2                    // c4c23103d3
+	VPHADDSW (BX), X9, X11                  // c46231031b
+	VPHADDSW (R11), X9, X11                 // c44231031b
+	VPHADDSW X2, X9, X11                    // c4623103da
+	VPHADDSW X11, X9, X11                   // c4423103db
+	VPHADDSW (BX), Y15, Y2                  // c4e2050313
+	VPHADDSW (R11), Y15, Y2                 // c4c2050313
+	VPHADDSW Y2, Y15, Y2                    // c4e20503d2
+	VPHADDSW Y11, Y15, Y2                   // c4c20503d3
+	VPHADDSW (BX), Y15, Y11                 // c46205031b
+	VPHADDSW (R11), Y15, Y11                // c44205031b
+	VPHADDSW Y2, Y15, Y11                   // c4620503da
+	VPHADDSW Y11, Y15, Y11                  // c4420503db
+	VPHADDW (BX), X9, X2                    // c4e2310113
+	VPHADDW (R11), X9, X2                   // c4c2310113
+	VPHADDW X2, X9, X2                      // c4e23101d2
+	VPHADDW X11, X9, X2                     // c4c23101d3
+	VPHADDW (BX), X9, X11                   // c46231011b
+	VPHADDW (R11), X9, X11                  // c44231011b
+	VPHADDW X2, X9, X11                     // c4623101da
+	VPHADDW X11, X9, X11                    // c4423101db
+	VPHADDW (BX), Y15, Y2                   // c4e2050113
+	VPHADDW (R11), Y15, Y2                  // c4c2050113
+	VPHADDW Y2, Y15, Y2                     // c4e20501d2
+	VPHADDW Y11, Y15, Y2                    // c4c20501d3
+	VPHADDW (BX), Y15, Y11                  // c46205011b
+	VPHADDW (R11), Y15, Y11                 // c44205011b
+	VPHADDW Y2, Y15, Y11                    // c4620501da
+	VPHADDW Y11, Y15, Y11                   // c4420501db
+	VPHMINPOSUW (BX), X2                    // c4e2794113
+	VPHMINPOSUW (R11), X2                   // c4c2794113
+	VPHMINPOSUW X2, X2                      // c4e27941d2
+	VPHMINPOSUW X11, X2                     // c4c27941d3
+	VPHMINPOSUW (BX), X11                   // c46279411b
+	VPHMINPOSUW (R11), X11                  // c44279411b
+	VPHMINPOSUW X2, X11                     // c4627941da
+	VPHMINPOSUW X11, X11                    // c4427941db
+	VPHSUBD (BX), X9, X2                    // c4e2310613
+	VPHSUBD (R11), X9, X2                   // c4c2310613
+	VPHSUBD X2, X9, X2                      // c4e23106d2
+	VPHSUBD X11, X9, X2                     // c4c23106d3
+	VPHSUBD (BX), X9, X11                   // c46231061b
+	VPHSUBD (R11), X9, X11                  // c44231061b
+	VPHSUBD X2, X9, X11                     // c4623106da
+	VPHSUBD X11, X9, X11                    // c4423106db
+	VPHSUBD (BX), Y15, Y2                   // c4e2050613
+	VPHSUBD (R11), Y15, Y2                  // c4c2050613
+	VPHSUBD Y2, Y15, Y2                     // c4e20506d2
+	VPHSUBD Y11, Y15, Y2                    // c4c20506d3
+	VPHSUBD (BX), Y15, Y11                  // c46205061b
+	VPHSUBD (R11), Y15, Y11                 // c44205061b
+	VPHSUBD Y2, Y15, Y11                    // c4620506da
+	VPHSUBD Y11, Y15, Y11                   // c4420506db
+	VPHSUBSW (BX), X9, X2                   // c4e2310713
+	VPHSUBSW (R11), X9, X2                  // c4c2310713
+	VPHSUBSW X2, X9, X2                     // c4e23107d2
+	VPHSUBSW X11, X9, X2                    // c4c23107d3
+	VPHSUBSW (BX), X9, X11                  // c46231071b
+	VPHSUBSW (R11), X9, X11                 // c44231071b
+	VPHSUBSW X2, X9, X11                    // c4623107da
+	VPHSUBSW X11, X9, X11                   // c4423107db
+	VPHSUBSW (BX), Y15, Y2                  // c4e2050713
+	VPHSUBSW (R11), Y15, Y2                 // c4c2050713
+	VPHSUBSW Y2, Y15, Y2                    // c4e20507d2
+	VPHSUBSW Y11, Y15, Y2                   // c4c20507d3
+	VPHSUBSW (BX), Y15, Y11                 // c46205071b
+	VPHSUBSW (R11), Y15, Y11                // c44205071b
+	VPHSUBSW Y2, Y15, Y11                   // c4620507da
+	VPHSUBSW Y11, Y15, Y11                  // c4420507db
+	VPHSUBW (BX), X9, X2                    // c4e2310513
+	VPHSUBW (R11), X9, X2                   // c4c2310513
+	VPHSUBW X2, X9, X2                      // c4e23105d2
+	VPHSUBW X11, X9, X2                     // c4c23105d3
+	VPHSUBW (BX), X9, X11                   // c46231051b
+	VPHSUBW (R11), X9, X11                  // c44231051b
+	VPHSUBW X2, X9, X11                     // c4623105da
+	VPHSUBW X11, X9, X11                    // c4423105db
+	VPHSUBW (BX), Y15, Y2                   // c4e2050513
+	VPHSUBW (R11), Y15, Y2                  // c4c2050513
+	VPHSUBW Y2, Y15, Y2                     // c4e20505d2
+	VPHSUBW Y11, Y15, Y2                    // c4c20505d3
+	VPHSUBW (BX), Y15, Y11                  // c46205051b
+	VPHSUBW (R11), Y15, Y11                 // c44205051b
+	VPHSUBW Y2, Y15, Y11                    // c4620505da
+	VPHSUBW Y11, Y15, Y11                   // c4420505db
+	VPINSRB $7, (BX), X9, X2                // c4e331201307
+	VPINSRB $7, (R11), X9, X2               // c4c331201307
+	VPINSRB $7, DX, X9, X2                  // c4e33120d207
+	VPINSRB $7, R11, X9, X2                 // c4c33120d307
+	VPINSRB $7, (BX), X9, X11               // c46331201b07
+	VPINSRB $7, (R11), X9, X11              // c44331201b07
+	VPINSRB $7, DX, X9, X11                 // c4633120da07
+	VPINSRB $7, R11, X9, X11                // c4433120db07
+	VPINSRD $7, (BX), X9, X2                // c4e331221307
+	VPINSRD $7, (R11), X9, X2               // c4c331221307
+	VPINSRD $7, DX, X9, X2                  // c4e33122d207
+	VPINSRD $7, R11, X9, X2                 // c4c33122d307
+	VPINSRD $7, (BX), X9, X11               // c46331221b07
+	VPINSRD $7, (R11), X9, X11              // c44331221b07
+	VPINSRD $7, DX, X9, X11                 // c4633122da07
+	VPINSRD $7, R11, X9, X11                // c4433122db07
+	VPINSRQ $7, (BX), X9, X2                // c4e3b1221307
+	VPINSRQ $7, (R11), X9, X2               // c4c3b1221307
+	VPINSRQ $7, DX, X9, X2                  // c4e3b122d207
+	VPINSRQ $7, R11, X9, X2                 // c4c3b122d307
+	VPINSRQ $7, (BX), X9, X11               // c463b1221b07
+	VPINSRQ $7, (R11), X9, X11              // c443b1221b07
+	VPINSRQ $7, DX, X9, X11                 // c463b122da07
+	VPINSRQ $7, R11, X9, X11                // c443b122db07
+	VPINSRW $7, (BX), X9, X2                // c4e131c41307 or c5b1c41307
+	VPINSRW $7, (R11), X9, X2               // c4c131c41307
+	VPINSRW $7, DX, X9, X2                  // c4e131c4d207 or c5b1c4d207
+	VPINSRW $7, R11, X9, X2                 // c4c131c4d307
+	VPINSRW $7, (BX), X9, X11               // c46131c41b07 or c531c41b07
+	VPINSRW $7, (R11), X9, X11              // c44131c41b07
+	VPINSRW $7, DX, X9, X11                 // c46131c4da07 or c531c4da07
+	VPINSRW $7, R11, X9, X11                // c44131c4db07
+	VPMADDUBSW (BX), X9, X2                 // c4e2310413
+	VPMADDUBSW (R11), X9, X2                // c4c2310413
+	VPMADDUBSW X2, X9, X2                   // c4e23104d2
+	VPMADDUBSW X11, X9, X2                  // c4c23104d3
+	VPMADDUBSW (BX), X9, X11                // c46231041b
+	VPMADDUBSW (R11), X9, X11               // c44231041b
+	VPMADDUBSW X2, X9, X11                  // c4623104da
+	VPMADDUBSW X11, X9, X11                 // c4423104db
+	VPMADDUBSW (BX), Y15, Y2                // c4e2050413
+	VPMADDUBSW (R11), Y15, Y2               // c4c2050413
+	VPMADDUBSW Y2, Y15, Y2                  // c4e20504d2
+	VPMADDUBSW Y11, Y15, Y2                 // c4c20504d3
+	VPMADDUBSW (BX), Y15, Y11               // c46205041b
+	VPMADDUBSW (R11), Y15, Y11              // c44205041b
+	VPMADDUBSW Y2, Y15, Y11                 // c4620504da
+	VPMADDUBSW Y11, Y15, Y11                // c4420504db
+	VPMADDWD (BX), X9, X2                   // c4e131f513 or c5b1f513
+	VPMADDWD (R11), X9, X2                  // c4c131f513
+	VPMADDWD X2, X9, X2                     // c4e131f5d2 or c5b1f5d2
+	VPMADDWD X11, X9, X2                    // c4c131f5d3
+	VPMADDWD (BX), X9, X11                  // c46131f51b or c531f51b
+	VPMADDWD (R11), X9, X11                 // c44131f51b
+	VPMADDWD X2, X9, X11                    // c46131f5da or c531f5da
+	VPMADDWD X11, X9, X11                   // c44131f5db
+	VPMADDWD (BX), Y15, Y2                  // c4e105f513 or c585f513
+	VPMADDWD (R11), Y15, Y2                 // c4c105f513
+	VPMADDWD Y2, Y15, Y2                    // c4e105f5d2 or c585f5d2
+	VPMADDWD Y11, Y15, Y2                   // c4c105f5d3
+	VPMADDWD (BX), Y15, Y11                 // c46105f51b or c505f51b
+	VPMADDWD (R11), Y15, Y11                // c44105f51b
+	VPMADDWD Y2, Y15, Y11                   // c46105f5da or c505f5da
+	VPMADDWD Y11, Y15, Y11                  // c44105f5db
+	VPMASKMOVD X2, X9, (BX)                 // c4e2318e13
+	VPMASKMOVD X11, X9, (BX)                // c462318e1b
+	VPMASKMOVD X2, X9, (R11)                // c4c2318e13
+	VPMASKMOVD X11, X9, (R11)               // c442318e1b
+	VPMASKMOVD Y2, Y15, (BX)                // c4e2058e13
+	VPMASKMOVD Y11, Y15, (BX)               // c462058e1b
+	VPMASKMOVD Y2, Y15, (R11)               // c4c2058e13
+	VPMASKMOVD Y11, Y15, (R11)              // c442058e1b
+	VPMASKMOVD (BX), X9, X2                 // c4e2318c13
+	VPMASKMOVD (R11), X9, X2                // c4c2318c13
+	VPMASKMOVD (BX), X9, X11                // c462318c1b
+	VPMASKMOVD (R11), X9, X11               // c442318c1b
+	VPMASKMOVD (BX), Y15, Y2                // c4e2058c13
+	VPMASKMOVD (R11), Y15, Y2               // c4c2058c13
+	VPMASKMOVD (BX), Y15, Y11               // c462058c1b
+	VPMASKMOVD (R11), Y15, Y11              // c442058c1b
+	VPMASKMOVQ X2, X9, (BX)                 // c4e2b18e13
+	VPMASKMOVQ X11, X9, (BX)                // c462b18e1b
+	VPMASKMOVQ X2, X9, (R11)                // c4c2b18e13
+	VPMASKMOVQ X11, X9, (R11)               // c442b18e1b
+	VPMASKMOVQ Y2, Y15, (BX)                // c4e2858e13
+	VPMASKMOVQ Y11, Y15, (BX)               // c462858e1b
+	VPMASKMOVQ Y2, Y15, (R11)               // c4c2858e13
+	VPMASKMOVQ Y11, Y15, (R11)              // c442858e1b
+	VPMASKMOVQ (BX), X9, X2                 // c4e2b18c13
+	VPMASKMOVQ (R11), X9, X2                // c4c2b18c13
+	VPMASKMOVQ (BX), X9, X11                // c462b18c1b
+	VPMASKMOVQ (R11), X9, X11               // c442b18c1b
+	VPMASKMOVQ (BX), Y15, Y2                // c4e2858c13
+	VPMASKMOVQ (R11), Y15, Y2               // c4c2858c13
+	VPMASKMOVQ (BX), Y15, Y11               // c462858c1b
+	VPMASKMOVQ (R11), Y15, Y11              // c442858c1b
+	VPMAXSB (BX), X9, X2                    // c4e2313c13
+	VPMAXSB (R11), X9, X2                   // c4c2313c13
+	VPMAXSB X2, X9, X2                      // c4e2313cd2
+	VPMAXSB X11, X9, X2                     // c4c2313cd3
+	VPMAXSB (BX), X9, X11                   // c462313c1b
+	VPMAXSB (R11), X9, X11                  // c442313c1b
+	VPMAXSB X2, X9, X11                     // c462313cda
+	VPMAXSB X11, X9, X11                    // c442313cdb
+	VPMAXSB (BX), Y15, Y2                   // c4e2053c13
+	VPMAXSB (R11), Y15, Y2                  // c4c2053c13
+	VPMAXSB Y2, Y15, Y2                     // c4e2053cd2
+	VPMAXSB Y11, Y15, Y2                    // c4c2053cd3
+	VPMAXSB (BX), Y15, Y11                  // c462053c1b
+	VPMAXSB (R11), Y15, Y11                 // c442053c1b
+	VPMAXSB Y2, Y15, Y11                    // c462053cda
+	VPMAXSB Y11, Y15, Y11                   // c442053cdb
+	VPMAXSD (BX), X9, X2                    // c4e2313d13
+	VPMAXSD (R11), X9, X2                   // c4c2313d13
+	VPMAXSD X2, X9, X2                      // c4e2313dd2
+	VPMAXSD X11, X9, X2                     // c4c2313dd3
+	VPMAXSD (BX), X9, X11                   // c462313d1b
+	VPMAXSD (R11), X9, X11                  // c442313d1b
+	VPMAXSD X2, X9, X11                     // c462313dda
+	VPMAXSD X11, X9, X11                    // c442313ddb
+	VPMAXSD (BX), Y15, Y2                   // c4e2053d13
+	VPMAXSD (R11), Y15, Y2                  // c4c2053d13
+	VPMAXSD Y2, Y15, Y2                     // c4e2053dd2
+	VPMAXSD Y11, Y15, Y2                    // c4c2053dd3
+	VPMAXSD (BX), Y15, Y11                  // c462053d1b
+	VPMAXSD (R11), Y15, Y11                 // c442053d1b
+	VPMAXSD Y2, Y15, Y11                    // c462053dda
+	VPMAXSD Y11, Y15, Y11                   // c442053ddb
+	VPMAXSW (BX), X9, X2                    // c4e131ee13 or c5b1ee13
+	VPMAXSW (R11), X9, X2                   // c4c131ee13
+	VPMAXSW X2, X9, X2                      // c4e131eed2 or c5b1eed2
+	VPMAXSW X11, X9, X2                     // c4c131eed3
+	VPMAXSW (BX), X9, X11                   // c46131ee1b or c531ee1b
+	VPMAXSW (R11), X9, X11                  // c44131ee1b
+	VPMAXSW X2, X9, X11                     // c46131eeda or c531eeda
+	VPMAXSW X11, X9, X11                    // c44131eedb
+	VPMAXSW (BX), Y15, Y2                   // c4e105ee13 or c585ee13
+	VPMAXSW (R11), Y15, Y2                  // c4c105ee13
+	VPMAXSW Y2, Y15, Y2                     // c4e105eed2 or c585eed2
+	VPMAXSW Y11, Y15, Y2                    // c4c105eed3
+	VPMAXSW (BX), Y15, Y11                  // c46105ee1b or c505ee1b
+	VPMAXSW (R11), Y15, Y11                 // c44105ee1b
+	VPMAXSW Y2, Y15, Y11                    // c46105eeda or c505eeda
+	VPMAXSW Y11, Y15, Y11                   // c44105eedb
+	VPMAXUB (BX), X9, X2                    // c4e131de13 or c5b1de13
+	VPMAXUB (R11), X9, X2                   // c4c131de13
+	VPMAXUB X2, X9, X2                      // c4e131ded2 or c5b1ded2
+	VPMAXUB X11, X9, X2                     // c4c131ded3
+	VPMAXUB (BX), X9, X11                   // c46131de1b or c531de1b
+	VPMAXUB (R11), X9, X11                  // c44131de1b
+	VPMAXUB X2, X9, X11                     // c46131deda or c531deda
+	VPMAXUB X11, X9, X11                    // c44131dedb
+	VPMAXUB (BX), Y15, Y2                   // c4e105de13 or c585de13
+	VPMAXUB (R11), Y15, Y2                  // c4c105de13
+	VPMAXUB Y2, Y15, Y2                     // c4e105ded2 or c585ded2
+	VPMAXUB Y11, Y15, Y2                    // c4c105ded3
+	VPMAXUB (BX), Y15, Y11                  // c46105de1b or c505de1b
+	VPMAXUB (R11), Y15, Y11                 // c44105de1b
+	VPMAXUB Y2, Y15, Y11                    // c46105deda or c505deda
+	VPMAXUB Y11, Y15, Y11                   // c44105dedb
+	VPMAXUD (BX), X9, X2                    // c4e2313f13
+	VPMAXUD (R11), X9, X2                   // c4c2313f13
+	VPMAXUD X2, X9, X2                      // c4e2313fd2
+	VPMAXUD X11, X9, X2                     // c4c2313fd3
+	VPMAXUD (BX), X9, X11                   // c462313f1b
+	VPMAXUD (R11), X9, X11                  // c442313f1b
+	VPMAXUD X2, X9, X11                     // c462313fda
+	VPMAXUD X11, X9, X11                    // c442313fdb
+	VPMAXUD (BX), Y15, Y2                   // c4e2053f13
+	VPMAXUD (R11), Y15, Y2                  // c4c2053f13
+	VPMAXUD Y2, Y15, Y2                     // c4e2053fd2
+	VPMAXUD Y11, Y15, Y2                    // c4c2053fd3
+	VPMAXUD (BX), Y15, Y11                  // c462053f1b
+	VPMAXUD (R11), Y15, Y11                 // c442053f1b
+	VPMAXUD Y2, Y15, Y11                    // c462053fda
+	VPMAXUD Y11, Y15, Y11                   // c442053fdb
+	VPMAXUW (BX), X9, X2                    // c4e2313e13
+	VPMAXUW (R11), X9, X2                   // c4c2313e13
+	VPMAXUW X2, X9, X2                      // c4e2313ed2
+	VPMAXUW X11, X9, X2                     // c4c2313ed3
+	VPMAXUW (BX), X9, X11                   // c462313e1b
+	VPMAXUW (R11), X9, X11                  // c442313e1b
+	VPMAXUW X2, X9, X11                     // c462313eda
+	VPMAXUW X11, X9, X11                    // c442313edb
+	VPMAXUW (BX), Y15, Y2                   // c4e2053e13
+	VPMAXUW (R11), Y15, Y2                  // c4c2053e13
+	VPMAXUW Y2, Y15, Y2                     // c4e2053ed2
+	VPMAXUW Y11, Y15, Y2                    // c4c2053ed3
+	VPMAXUW (BX), Y15, Y11                  // c462053e1b
+	VPMAXUW (R11), Y15, Y11                 // c442053e1b
+	VPMAXUW Y2, Y15, Y11                    // c462053eda
+	VPMAXUW Y11, Y15, Y11                   // c442053edb
+	VPMINSB (BX), X9, X2                    // c4e2313813
+	VPMINSB (R11), X9, X2                   // c4c2313813
+	VPMINSB X2, X9, X2                      // c4e23138d2
+	VPMINSB X11, X9, X2                     // c4c23138d3
+	VPMINSB (BX), X9, X11                   // c46231381b
+	VPMINSB (R11), X9, X11                  // c44231381b
+	VPMINSB X2, X9, X11                     // c4623138da
+	VPMINSB X11, X9, X11                    // c4423138db
+	VPMINSB (BX), Y15, Y2                   // c4e2053813
+	VPMINSB (R11), Y15, Y2                  // c4c2053813
+	VPMINSB Y2, Y15, Y2                     // c4e20538d2
+	VPMINSB Y11, Y15, Y2                    // c4c20538d3
+	VPMINSB (BX), Y15, Y11                  // c46205381b
+	VPMINSB (R11), Y15, Y11                 // c44205381b
+	VPMINSB Y2, Y15, Y11                    // c4620538da
+	VPMINSB Y11, Y15, Y11                   // c4420538db
+	VPMINSD (BX), X9, X2                    // c4e2313913
+	VPMINSD (R11), X9, X2                   // c4c2313913
+	VPMINSD X2, X9, X2                      // c4e23139d2
+	VPMINSD X11, X9, X2                     // c4c23139d3
+	VPMINSD (BX), X9, X11                   // c46231391b
+	VPMINSD (R11), X9, X11                  // c44231391b
+	VPMINSD X2, X9, X11                     // c4623139da
+	VPMINSD X11, X9, X11                    // c4423139db
+	VPMINSD (BX), Y15, Y2                   // c4e2053913
+	VPMINSD (R11), Y15, Y2                  // c4c2053913
+	VPMINSD Y2, Y15, Y2                     // c4e20539d2
+	VPMINSD Y11, Y15, Y2                    // c4c20539d3
+	VPMINSD (BX), Y15, Y11                  // c46205391b
+	VPMINSD (R11), Y15, Y11                 // c44205391b
+	VPMINSD Y2, Y15, Y11                    // c4620539da
+	VPMINSD Y11, Y15, Y11                   // c4420539db
+	VPMINSW (BX), X9, X2                    // c4e131ea13 or c5b1ea13
+	VPMINSW (R11), X9, X2                   // c4c131ea13
+	VPMINSW X2, X9, X2                      // c4e131ead2 or c5b1ead2
+	VPMINSW X11, X9, X2                     // c4c131ead3
+	VPMINSW (BX), X9, X11                   // c46131ea1b or c531ea1b
+	VPMINSW (R11), X9, X11                  // c44131ea1b
+	VPMINSW X2, X9, X11                     // c46131eada or c531eada
+	VPMINSW X11, X9, X11                    // c44131eadb
+	VPMINSW (BX), Y15, Y2                   // c4e105ea13 or c585ea13
+	VPMINSW (R11), Y15, Y2                  // c4c105ea13
+	VPMINSW Y2, Y15, Y2                     // c4e105ead2 or c585ead2
+	VPMINSW Y11, Y15, Y2                    // c4c105ead3
+	VPMINSW (BX), Y15, Y11                  // c46105ea1b or c505ea1b
+	VPMINSW (R11), Y15, Y11                 // c44105ea1b
+	VPMINSW Y2, Y15, Y11                    // c46105eada or c505eada
+	VPMINSW Y11, Y15, Y11                   // c44105eadb
+	VPMINUB (BX), X9, X2                    // c4e131da13 or c5b1da13
+	VPMINUB (R11), X9, X2                   // c4c131da13
+	VPMINUB X2, X9, X2                      // c4e131dad2 or c5b1dad2
+	VPMINUB X11, X9, X2                     // c4c131dad3
+	VPMINUB (BX), X9, X11                   // c46131da1b or c531da1b
+	VPMINUB (R11), X9, X11                  // c44131da1b
+	VPMINUB X2, X9, X11                     // c46131dada or c531dada
+	VPMINUB X11, X9, X11                    // c44131dadb
+	VPMINUB (BX), Y15, Y2                   // c4e105da13 or c585da13
+	VPMINUB (R11), Y15, Y2                  // c4c105da13
+	VPMINUB Y2, Y15, Y2                     // c4e105dad2 or c585dad2
+	VPMINUB Y11, Y15, Y2                    // c4c105dad3
+	VPMINUB (BX), Y15, Y11                  // c46105da1b or c505da1b
+	VPMINUB (R11), Y15, Y11                 // c44105da1b
+	VPMINUB Y2, Y15, Y11                    // c46105dada or c505dada
+	VPMINUB Y11, Y15, Y11                   // c44105dadb
+	VPMINUD (BX), X9, X2                    // c4e2313b13
+	VPMINUD (R11), X9, X2                   // c4c2313b13
+	VPMINUD X2, X9, X2                      // c4e2313bd2
+	VPMINUD X11, X9, X2                     // c4c2313bd3
+	VPMINUD (BX), X9, X11                   // c462313b1b
+	VPMINUD (R11), X9, X11                  // c442313b1b
+	VPMINUD X2, X9, X11                     // c462313bda
+	VPMINUD X11, X9, X11                    // c442313bdb
+	VPMINUD (BX), Y15, Y2                   // c4e2053b13
+	VPMINUD (R11), Y15, Y2                  // c4c2053b13
+	VPMINUD Y2, Y15, Y2                     // c4e2053bd2
+	VPMINUD Y11, Y15, Y2                    // c4c2053bd3
+	VPMINUD (BX), Y15, Y11                  // c462053b1b
+	VPMINUD (R11), Y15, Y11                 // c442053b1b
+	VPMINUD Y2, Y15, Y11                    // c462053bda
+	VPMINUD Y11, Y15, Y11                   // c442053bdb
+	VPMINUW (BX), X9, X2                    // c4e2313a13
+	VPMINUW (R11), X9, X2                   // c4c2313a13
+	VPMINUW X2, X9, X2                      // c4e2313ad2
+	VPMINUW X11, X9, X2                     // c4c2313ad3
+	VPMINUW (BX), X9, X11                   // c462313a1b
+	VPMINUW (R11), X9, X11                  // c442313a1b
+	VPMINUW X2, X9, X11                     // c462313ada
+	VPMINUW X11, X9, X11                    // c442313adb
+	VPMINUW (BX), Y15, Y2                   // c4e2053a13
+	VPMINUW (R11), Y15, Y2                  // c4c2053a13
+	VPMINUW Y2, Y15, Y2                     // c4e2053ad2
+	VPMINUW Y11, Y15, Y2                    // c4c2053ad3
+	VPMINUW (BX), Y15, Y11                  // c462053a1b
+	VPMINUW (R11), Y15, Y11                 // c442053a1b
+	VPMINUW Y2, Y15, Y11                    // c462053ada
+	VPMINUW Y11, Y15, Y11                   // c442053adb
 	VPMOVMSKB X2, DX                        // c4e179d7d2 or c5f9d7d2
 	VPMOVMSKB X11, DX                       // c4c179d7d3
 	VPMOVMSKB X2, R11                       // c46179d7da or c579d7da
@@ -9160,310 +9160,310 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPMOVMSKB Y11, DX                       // c4c17dd7d3
 	VPMOVMSKB Y2, R11                       // c4617dd7da or c57dd7da
 	VPMOVMSKB Y11, R11                      // c4417dd7db
-	//TODO: VPMOVSXBD (BX), X2              // c4e2792113
-	//TODO: VPMOVSXBD (R11), X2             // c4c2792113
-	//TODO: VPMOVSXBD X2, X2                // c4e27921d2
-	//TODO: VPMOVSXBD X11, X2               // c4c27921d3
-	//TODO: VPMOVSXBD (BX), X11             // c46279211b
-	//TODO: VPMOVSXBD (R11), X11            // c44279211b
-	//TODO: VPMOVSXBD X2, X11               // c4627921da
-	//TODO: VPMOVSXBD X11, X11              // c4427921db
-	//TODO: VPMOVSXBD (BX), Y2              // c4e27d2113
-	//TODO: VPMOVSXBD (R11), Y2             // c4c27d2113
-	//TODO: VPMOVSXBD X2, Y2                // c4e27d21d2
-	//TODO: VPMOVSXBD X11, Y2               // c4c27d21d3
-	//TODO: VPMOVSXBD (BX), Y11             // c4627d211b
-	//TODO: VPMOVSXBD (R11), Y11            // c4427d211b
-	//TODO: VPMOVSXBD X2, Y11               // c4627d21da
-	//TODO: VPMOVSXBD X11, Y11              // c4427d21db
-	//TODO: VPMOVSXBQ (BX), X2              // c4e2792213
-	//TODO: VPMOVSXBQ (R11), X2             // c4c2792213
-	//TODO: VPMOVSXBQ X2, X2                // c4e27922d2
-	//TODO: VPMOVSXBQ X11, X2               // c4c27922d3
-	//TODO: VPMOVSXBQ (BX), X11             // c46279221b
-	//TODO: VPMOVSXBQ (R11), X11            // c44279221b
-	//TODO: VPMOVSXBQ X2, X11               // c4627922da
-	//TODO: VPMOVSXBQ X11, X11              // c4427922db
-	//TODO: VPMOVSXBQ (BX), Y2              // c4e27d2213
-	//TODO: VPMOVSXBQ (R11), Y2             // c4c27d2213
-	//TODO: VPMOVSXBQ X2, Y2                // c4e27d22d2
-	//TODO: VPMOVSXBQ X11, Y2               // c4c27d22d3
-	//TODO: VPMOVSXBQ (BX), Y11             // c4627d221b
-	//TODO: VPMOVSXBQ (R11), Y11            // c4427d221b
-	//TODO: VPMOVSXBQ X2, Y11               // c4627d22da
-	//TODO: VPMOVSXBQ X11, Y11              // c4427d22db
-	//TODO: VPMOVSXBW (BX), X2              // c4e2792013
-	//TODO: VPMOVSXBW (R11), X2             // c4c2792013
-	//TODO: VPMOVSXBW X2, X2                // c4e27920d2
-	//TODO: VPMOVSXBW X11, X2               // c4c27920d3
-	//TODO: VPMOVSXBW (BX), X11             // c46279201b
-	//TODO: VPMOVSXBW (R11), X11            // c44279201b
-	//TODO: VPMOVSXBW X2, X11               // c4627920da
-	//TODO: VPMOVSXBW X11, X11              // c4427920db
-	//TODO: VPMOVSXBW (BX), Y2              // c4e27d2013
-	//TODO: VPMOVSXBW (R11), Y2             // c4c27d2013
-	//TODO: VPMOVSXBW X2, Y2                // c4e27d20d2
-	//TODO: VPMOVSXBW X11, Y2               // c4c27d20d3
-	//TODO: VPMOVSXBW (BX), Y11             // c4627d201b
-	//TODO: VPMOVSXBW (R11), Y11            // c4427d201b
-	//TODO: VPMOVSXBW X2, Y11               // c4627d20da
-	//TODO: VPMOVSXBW X11, Y11              // c4427d20db
-	//TODO: VPMOVSXDQ (BX), X2              // c4e2792513
-	//TODO: VPMOVSXDQ (R11), X2             // c4c2792513
-	//TODO: VPMOVSXDQ X2, X2                // c4e27925d2
-	//TODO: VPMOVSXDQ X11, X2               // c4c27925d3
-	//TODO: VPMOVSXDQ (BX), X11             // c46279251b
-	//TODO: VPMOVSXDQ (R11), X11            // c44279251b
-	//TODO: VPMOVSXDQ X2, X11               // c4627925da
-	//TODO: VPMOVSXDQ X11, X11              // c4427925db
-	//TODO: VPMOVSXDQ (BX), Y2              // c4e27d2513
-	//TODO: VPMOVSXDQ (R11), Y2             // c4c27d2513
-	//TODO: VPMOVSXDQ X2, Y2                // c4e27d25d2
-	//TODO: VPMOVSXDQ X11, Y2               // c4c27d25d3
-	//TODO: VPMOVSXDQ (BX), Y11             // c4627d251b
-	//TODO: VPMOVSXDQ (R11), Y11            // c4427d251b
-	//TODO: VPMOVSXDQ X2, Y11               // c4627d25da
-	//TODO: VPMOVSXDQ X11, Y11              // c4427d25db
-	//TODO: VPMOVSXWD (BX), X2              // c4e2792313
-	//TODO: VPMOVSXWD (R11), X2             // c4c2792313
-	//TODO: VPMOVSXWD X2, X2                // c4e27923d2
-	//TODO: VPMOVSXWD X11, X2               // c4c27923d3
-	//TODO: VPMOVSXWD (BX), X11             // c46279231b
-	//TODO: VPMOVSXWD (R11), X11            // c44279231b
-	//TODO: VPMOVSXWD X2, X11               // c4627923da
-	//TODO: VPMOVSXWD X11, X11              // c4427923db
-	//TODO: VPMOVSXWD (BX), Y2              // c4e27d2313
-	//TODO: VPMOVSXWD (R11), Y2             // c4c27d2313
-	//TODO: VPMOVSXWD X2, Y2                // c4e27d23d2
-	//TODO: VPMOVSXWD X11, Y2               // c4c27d23d3
-	//TODO: VPMOVSXWD (BX), Y11             // c4627d231b
-	//TODO: VPMOVSXWD (R11), Y11            // c4427d231b
-	//TODO: VPMOVSXWD X2, Y11               // c4627d23da
-	//TODO: VPMOVSXWD X11, Y11              // c4427d23db
-	//TODO: VPMOVSXWQ (BX), X2              // c4e2792413
-	//TODO: VPMOVSXWQ (R11), X2             // c4c2792413
-	//TODO: VPMOVSXWQ X2, X2                // c4e27924d2
-	//TODO: VPMOVSXWQ X11, X2               // c4c27924d3
-	//TODO: VPMOVSXWQ (BX), X11             // c46279241b
-	//TODO: VPMOVSXWQ (R11), X11            // c44279241b
-	//TODO: VPMOVSXWQ X2, X11               // c4627924da
-	//TODO: VPMOVSXWQ X11, X11              // c4427924db
-	//TODO: VPMOVSXWQ (BX), Y2              // c4e27d2413
-	//TODO: VPMOVSXWQ (R11), Y2             // c4c27d2413
-	//TODO: VPMOVSXWQ X2, Y2                // c4e27d24d2
-	//TODO: VPMOVSXWQ X11, Y2               // c4c27d24d3
-	//TODO: VPMOVSXWQ (BX), Y11             // c4627d241b
-	//TODO: VPMOVSXWQ (R11), Y11            // c4427d241b
-	//TODO: VPMOVSXWQ X2, Y11               // c4627d24da
-	//TODO: VPMOVSXWQ X11, Y11              // c4427d24db
-	//TODO: VPMOVZXBD (BX), X2              // c4e2793113
-	//TODO: VPMOVZXBD (R11), X2             // c4c2793113
-	//TODO: VPMOVZXBD X2, X2                // c4e27931d2
-	//TODO: VPMOVZXBD X11, X2               // c4c27931d3
-	//TODO: VPMOVZXBD (BX), X11             // c46279311b
-	//TODO: VPMOVZXBD (R11), X11            // c44279311b
-	//TODO: VPMOVZXBD X2, X11               // c4627931da
-	//TODO: VPMOVZXBD X11, X11              // c4427931db
-	//TODO: VPMOVZXBD (BX), Y2              // c4e27d3113
-	//TODO: VPMOVZXBD (R11), Y2             // c4c27d3113
-	//TODO: VPMOVZXBD X2, Y2                // c4e27d31d2
-	//TODO: VPMOVZXBD X11, Y2               // c4c27d31d3
-	//TODO: VPMOVZXBD (BX), Y11             // c4627d311b
-	//TODO: VPMOVZXBD (R11), Y11            // c4427d311b
-	//TODO: VPMOVZXBD X2, Y11               // c4627d31da
-	//TODO: VPMOVZXBD X11, Y11              // c4427d31db
-	//TODO: VPMOVZXBQ (BX), X2              // c4e2793213
-	//TODO: VPMOVZXBQ (R11), X2             // c4c2793213
-	//TODO: VPMOVZXBQ X2, X2                // c4e27932d2
-	//TODO: VPMOVZXBQ X11, X2               // c4c27932d3
-	//TODO: VPMOVZXBQ (BX), X11             // c46279321b
-	//TODO: VPMOVZXBQ (R11), X11            // c44279321b
-	//TODO: VPMOVZXBQ X2, X11               // c4627932da
-	//TODO: VPMOVZXBQ X11, X11              // c4427932db
-	//TODO: VPMOVZXBQ (BX), Y2              // c4e27d3213
-	//TODO: VPMOVZXBQ (R11), Y2             // c4c27d3213
-	//TODO: VPMOVZXBQ X2, Y2                // c4e27d32d2
-	//TODO: VPMOVZXBQ X11, Y2               // c4c27d32d3
-	//TODO: VPMOVZXBQ (BX), Y11             // c4627d321b
-	//TODO: VPMOVZXBQ (R11), Y11            // c4427d321b
-	//TODO: VPMOVZXBQ X2, Y11               // c4627d32da
-	//TODO: VPMOVZXBQ X11, Y11              // c4427d32db
-	//TODO: VPMOVZXBW (BX), X2              // c4e2793013
-	//TODO: VPMOVZXBW (R11), X2             // c4c2793013
-	//TODO: VPMOVZXBW X2, X2                // c4e27930d2
-	//TODO: VPMOVZXBW X11, X2               // c4c27930d3
-	//TODO: VPMOVZXBW (BX), X11             // c46279301b
-	//TODO: VPMOVZXBW (R11), X11            // c44279301b
-	//TODO: VPMOVZXBW X2, X11               // c4627930da
-	//TODO: VPMOVZXBW X11, X11              // c4427930db
-	//TODO: VPMOVZXBW (BX), Y2              // c4e27d3013
-	//TODO: VPMOVZXBW (R11), Y2             // c4c27d3013
-	//TODO: VPMOVZXBW X2, Y2                // c4e27d30d2
-	//TODO: VPMOVZXBW X11, Y2               // c4c27d30d3
-	//TODO: VPMOVZXBW (BX), Y11             // c4627d301b
-	//TODO: VPMOVZXBW (R11), Y11            // c4427d301b
-	//TODO: VPMOVZXBW X2, Y11               // c4627d30da
-	//TODO: VPMOVZXBW X11, Y11              // c4427d30db
-	//TODO: VPMOVZXDQ (BX), X2              // c4e2793513
-	//TODO: VPMOVZXDQ (R11), X2             // c4c2793513
-	//TODO: VPMOVZXDQ X2, X2                // c4e27935d2
-	//TODO: VPMOVZXDQ X11, X2               // c4c27935d3
-	//TODO: VPMOVZXDQ (BX), X11             // c46279351b
-	//TODO: VPMOVZXDQ (R11), X11            // c44279351b
-	//TODO: VPMOVZXDQ X2, X11               // c4627935da
-	//TODO: VPMOVZXDQ X11, X11              // c4427935db
-	//TODO: VPMOVZXDQ (BX), Y2              // c4e27d3513
-	//TODO: VPMOVZXDQ (R11), Y2             // c4c27d3513
-	//TODO: VPMOVZXDQ X2, Y2                // c4e27d35d2
-	//TODO: VPMOVZXDQ X11, Y2               // c4c27d35d3
-	//TODO: VPMOVZXDQ (BX), Y11             // c4627d351b
-	//TODO: VPMOVZXDQ (R11), Y11            // c4427d351b
-	//TODO: VPMOVZXDQ X2, Y11               // c4627d35da
-	//TODO: VPMOVZXDQ X11, Y11              // c4427d35db
-	//TODO: VPMOVZXWD (BX), X2              // c4e2793313
-	//TODO: VPMOVZXWD (R11), X2             // c4c2793313
-	//TODO: VPMOVZXWD X2, X2                // c4e27933d2
-	//TODO: VPMOVZXWD X11, X2               // c4c27933d3
-	//TODO: VPMOVZXWD (BX), X11             // c46279331b
-	//TODO: VPMOVZXWD (R11), X11            // c44279331b
-	//TODO: VPMOVZXWD X2, X11               // c4627933da
-	//TODO: VPMOVZXWD X11, X11              // c4427933db
-	//TODO: VPMOVZXWD (BX), Y2              // c4e27d3313
-	//TODO: VPMOVZXWD (R11), Y2             // c4c27d3313
-	//TODO: VPMOVZXWD X2, Y2                // c4e27d33d2
-	//TODO: VPMOVZXWD X11, Y2               // c4c27d33d3
-	//TODO: VPMOVZXWD (BX), Y11             // c4627d331b
-	//TODO: VPMOVZXWD (R11), Y11            // c4427d331b
-	//TODO: VPMOVZXWD X2, Y11               // c4627d33da
-	//TODO: VPMOVZXWD X11, Y11              // c4427d33db
-	//TODO: VPMOVZXWQ (BX), X2              // c4e2793413
-	//TODO: VPMOVZXWQ (R11), X2             // c4c2793413
-	//TODO: VPMOVZXWQ X2, X2                // c4e27934d2
-	//TODO: VPMOVZXWQ X11, X2               // c4c27934d3
-	//TODO: VPMOVZXWQ (BX), X11             // c46279341b
-	//TODO: VPMOVZXWQ (R11), X11            // c44279341b
-	//TODO: VPMOVZXWQ X2, X11               // c4627934da
-	//TODO: VPMOVZXWQ X11, X11              // c4427934db
-	//TODO: VPMOVZXWQ (BX), Y2              // c4e27d3413
-	//TODO: VPMOVZXWQ (R11), Y2             // c4c27d3413
-	//TODO: VPMOVZXWQ X2, Y2                // c4e27d34d2
-	//TODO: VPMOVZXWQ X11, Y2               // c4c27d34d3
-	//TODO: VPMOVZXWQ (BX), Y11             // c4627d341b
-	//TODO: VPMOVZXWQ (R11), Y11            // c4427d341b
-	//TODO: VPMOVZXWQ X2, Y11               // c4627d34da
-	//TODO: VPMOVZXWQ X11, Y11              // c4427d34db
-	//TODO: VPMULDQ (BX), X9, X2            // c4e2312813
-	//TODO: VPMULDQ (R11), X9, X2           // c4c2312813
-	//TODO: VPMULDQ X2, X9, X2              // c4e23128d2
-	//TODO: VPMULDQ X11, X9, X2             // c4c23128d3
-	//TODO: VPMULDQ (BX), X9, X11           // c46231281b
-	//TODO: VPMULDQ (R11), X9, X11          // c44231281b
-	//TODO: VPMULDQ X2, X9, X11             // c4623128da
-	//TODO: VPMULDQ X11, X9, X11            // c4423128db
-	//TODO: VPMULDQ (BX), Y15, Y2           // c4e2052813
-	//TODO: VPMULDQ (R11), Y15, Y2          // c4c2052813
-	//TODO: VPMULDQ Y2, Y15, Y2             // c4e20528d2
-	//TODO: VPMULDQ Y11, Y15, Y2            // c4c20528d3
-	//TODO: VPMULDQ (BX), Y15, Y11          // c46205281b
-	//TODO: VPMULDQ (R11), Y15, Y11         // c44205281b
-	//TODO: VPMULDQ Y2, Y15, Y11            // c4620528da
-	//TODO: VPMULDQ Y11, Y15, Y11           // c4420528db
-	//TODO: VPMULHRSW (BX), X9, X2          // c4e2310b13
-	//TODO: VPMULHRSW (R11), X9, X2         // c4c2310b13
-	//TODO: VPMULHRSW X2, X9, X2            // c4e2310bd2
-	//TODO: VPMULHRSW X11, X9, X2           // c4c2310bd3
-	//TODO: VPMULHRSW (BX), X9, X11         // c462310b1b
-	//TODO: VPMULHRSW (R11), X9, X11        // c442310b1b
-	//TODO: VPMULHRSW X2, X9, X11           // c462310bda
-	//TODO: VPMULHRSW X11, X9, X11          // c442310bdb
-	//TODO: VPMULHRSW (BX), Y15, Y2         // c4e2050b13
-	//TODO: VPMULHRSW (R11), Y15, Y2        // c4c2050b13
-	//TODO: VPMULHRSW Y2, Y15, Y2           // c4e2050bd2
-	//TODO: VPMULHRSW Y11, Y15, Y2          // c4c2050bd3
-	//TODO: VPMULHRSW (BX), Y15, Y11        // c462050b1b
-	//TODO: VPMULHRSW (R11), Y15, Y11       // c442050b1b
-	//TODO: VPMULHRSW Y2, Y15, Y11          // c462050bda
-	//TODO: VPMULHRSW Y11, Y15, Y11         // c442050bdb
-	//TODO: VPMULHUW (BX), X9, X2           // c4e131e413 or c5b1e413
-	//TODO: VPMULHUW (R11), X9, X2          // c4c131e413
-	//TODO: VPMULHUW X2, X9, X2             // c4e131e4d2 or c5b1e4d2
-	//TODO: VPMULHUW X11, X9, X2            // c4c131e4d3
-	//TODO: VPMULHUW (BX), X9, X11          // c46131e41b or c531e41b
-	//TODO: VPMULHUW (R11), X9, X11         // c44131e41b
-	//TODO: VPMULHUW X2, X9, X11            // c46131e4da or c531e4da
-	//TODO: VPMULHUW X11, X9, X11           // c44131e4db
-	//TODO: VPMULHUW (BX), Y15, Y2          // c4e105e413 or c585e413
-	//TODO: VPMULHUW (R11), Y15, Y2         // c4c105e413
-	//TODO: VPMULHUW Y2, Y15, Y2            // c4e105e4d2 or c585e4d2
-	//TODO: VPMULHUW Y11, Y15, Y2           // c4c105e4d3
-	//TODO: VPMULHUW (BX), Y15, Y11         // c46105e41b or c505e41b
-	//TODO: VPMULHUW (R11), Y15, Y11        // c44105e41b
-	//TODO: VPMULHUW Y2, Y15, Y11           // c46105e4da or c505e4da
-	//TODO: VPMULHUW Y11, Y15, Y11          // c44105e4db
-	//TODO: VPMULHW (BX), X9, X2            // c4e131e513 or c5b1e513
-	//TODO: VPMULHW (R11), X9, X2           // c4c131e513
-	//TODO: VPMULHW X2, X9, X2              // c4e131e5d2 or c5b1e5d2
-	//TODO: VPMULHW X11, X9, X2             // c4c131e5d3
-	//TODO: VPMULHW (BX), X9, X11           // c46131e51b or c531e51b
-	//TODO: VPMULHW (R11), X9, X11          // c44131e51b
-	//TODO: VPMULHW X2, X9, X11             // c46131e5da or c531e5da
-	//TODO: VPMULHW X11, X9, X11            // c44131e5db
-	//TODO: VPMULHW (BX), Y15, Y2           // c4e105e513 or c585e513
-	//TODO: VPMULHW (R11), Y15, Y2          // c4c105e513
-	//TODO: VPMULHW Y2, Y15, Y2             // c4e105e5d2 or c585e5d2
-	//TODO: VPMULHW Y11, Y15, Y2            // c4c105e5d3
-	//TODO: VPMULHW (BX), Y15, Y11          // c46105e51b or c505e51b
-	//TODO: VPMULHW (R11), Y15, Y11         // c44105e51b
-	//TODO: VPMULHW Y2, Y15, Y11            // c46105e5da or c505e5da
-	//TODO: VPMULHW Y11, Y15, Y11           // c44105e5db
-	//TODO: VPMULLD (BX), X9, X2            // c4e2314013
-	//TODO: VPMULLD (R11), X9, X2           // c4c2314013
-	//TODO: VPMULLD X2, X9, X2              // c4e23140d2
-	//TODO: VPMULLD X11, X9, X2             // c4c23140d3
-	//TODO: VPMULLD (BX), X9, X11           // c46231401b
-	//TODO: VPMULLD (R11), X9, X11          // c44231401b
-	//TODO: VPMULLD X2, X9, X11             // c4623140da
-	//TODO: VPMULLD X11, X9, X11            // c4423140db
-	//TODO: VPMULLD (BX), Y15, Y2           // c4e2054013
-	//TODO: VPMULLD (R11), Y15, Y2          // c4c2054013
-	//TODO: VPMULLD Y2, Y15, Y2             // c4e20540d2
-	//TODO: VPMULLD Y11, Y15, Y2            // c4c20540d3
-	//TODO: VPMULLD (BX), Y15, Y11          // c46205401b
-	//TODO: VPMULLD (R11), Y15, Y11         // c44205401b
-	//TODO: VPMULLD Y2, Y15, Y11            // c4620540da
-	//TODO: VPMULLD Y11, Y15, Y11           // c4420540db
-	//TODO: VPMULLW (BX), X9, X2            // c4e131d513 or c5b1d513
-	//TODO: VPMULLW (R11), X9, X2           // c4c131d513
-	//TODO: VPMULLW X2, X9, X2              // c4e131d5d2 or c5b1d5d2
-	//TODO: VPMULLW X11, X9, X2             // c4c131d5d3
-	//TODO: VPMULLW (BX), X9, X11           // c46131d51b or c531d51b
-	//TODO: VPMULLW (R11), X9, X11          // c44131d51b
-	//TODO: VPMULLW X2, X9, X11             // c46131d5da or c531d5da
-	//TODO: VPMULLW X11, X9, X11            // c44131d5db
-	//TODO: VPMULLW (BX), Y15, Y2           // c4e105d513 or c585d513
-	//TODO: VPMULLW (R11), Y15, Y2          // c4c105d513
-	//TODO: VPMULLW Y2, Y15, Y2             // c4e105d5d2 or c585d5d2
-	//TODO: VPMULLW Y11, Y15, Y2            // c4c105d5d3
-	//TODO: VPMULLW (BX), Y15, Y11          // c46105d51b or c505d51b
-	//TODO: VPMULLW (R11), Y15, Y11         // c44105d51b
-	//TODO: VPMULLW Y2, Y15, Y11            // c46105d5da or c505d5da
-	//TODO: VPMULLW Y11, Y15, Y11           // c44105d5db
-	//TODO: VPMULUDQ (BX), X9, X2           // c4e131f413 or c5b1f413
-	//TODO: VPMULUDQ (R11), X9, X2          // c4c131f413
-	//TODO: VPMULUDQ X2, X9, X2             // c4e131f4d2 or c5b1f4d2
-	//TODO: VPMULUDQ X11, X9, X2            // c4c131f4d3
-	//TODO: VPMULUDQ (BX), X9, X11          // c46131f41b or c531f41b
-	//TODO: VPMULUDQ (R11), X9, X11         // c44131f41b
-	//TODO: VPMULUDQ X2, X9, X11            // c46131f4da or c531f4da
-	//TODO: VPMULUDQ X11, X9, X11           // c44131f4db
-	//TODO: VPMULUDQ (BX), Y15, Y2          // c4e105f413 or c585f413
-	//TODO: VPMULUDQ (R11), Y15, Y2         // c4c105f413
-	//TODO: VPMULUDQ Y2, Y15, Y2            // c4e105f4d2 or c585f4d2
-	//TODO: VPMULUDQ Y11, Y15, Y2           // c4c105f4d3
-	//TODO: VPMULUDQ (BX), Y15, Y11         // c46105f41b or c505f41b
-	//TODO: VPMULUDQ (R11), Y15, Y11        // c44105f41b
-	//TODO: VPMULUDQ Y2, Y15, Y11           // c46105f4da or c505f4da
-	//TODO: VPMULUDQ Y11, Y15, Y11          // c44105f4db
+	VPMOVSXBD (BX), X2                      // c4e2792113
+	VPMOVSXBD (R11), X2                     // c4c2792113
+	VPMOVSXBD X2, X2                        // c4e27921d2
+	VPMOVSXBD X11, X2                       // c4c27921d3
+	VPMOVSXBD (BX), X11                     // c46279211b
+	VPMOVSXBD (R11), X11                    // c44279211b
+	VPMOVSXBD X2, X11                       // c4627921da
+	VPMOVSXBD X11, X11                      // c4427921db
+	VPMOVSXBD (BX), Y2                      // c4e27d2113
+	VPMOVSXBD (R11), Y2                     // c4c27d2113
+	VPMOVSXBD X2, Y2                        // c4e27d21d2
+	VPMOVSXBD X11, Y2                       // c4c27d21d3
+	VPMOVSXBD (BX), Y11                     // c4627d211b
+	VPMOVSXBD (R11), Y11                    // c4427d211b
+	VPMOVSXBD X2, Y11                       // c4627d21da
+	VPMOVSXBD X11, Y11                      // c4427d21db
+	VPMOVSXBQ (BX), X2                      // c4e2792213
+	VPMOVSXBQ (R11), X2                     // c4c2792213
+	VPMOVSXBQ X2, X2                        // c4e27922d2
+	VPMOVSXBQ X11, X2                       // c4c27922d3
+	VPMOVSXBQ (BX), X11                     // c46279221b
+	VPMOVSXBQ (R11), X11                    // c44279221b
+	VPMOVSXBQ X2, X11                       // c4627922da
+	VPMOVSXBQ X11, X11                      // c4427922db
+	VPMOVSXBQ (BX), Y2                      // c4e27d2213
+	VPMOVSXBQ (R11), Y2                     // c4c27d2213
+	VPMOVSXBQ X2, Y2                        // c4e27d22d2
+	VPMOVSXBQ X11, Y2                       // c4c27d22d3
+	VPMOVSXBQ (BX), Y11                     // c4627d221b
+	VPMOVSXBQ (R11), Y11                    // c4427d221b
+	VPMOVSXBQ X2, Y11                       // c4627d22da
+	VPMOVSXBQ X11, Y11                      // c4427d22db
+	VPMOVSXBW (BX), X2                      // c4e2792013
+	VPMOVSXBW (R11), X2                     // c4c2792013
+	VPMOVSXBW X2, X2                        // c4e27920d2
+	VPMOVSXBW X11, X2                       // c4c27920d3
+	VPMOVSXBW (BX), X11                     // c46279201b
+	VPMOVSXBW (R11), X11                    // c44279201b
+	VPMOVSXBW X2, X11                       // c4627920da
+	VPMOVSXBW X11, X11                      // c4427920db
+	VPMOVSXBW (BX), Y2                      // c4e27d2013
+	VPMOVSXBW (R11), Y2                     // c4c27d2013
+	VPMOVSXBW X2, Y2                        // c4e27d20d2
+	VPMOVSXBW X11, Y2                       // c4c27d20d3
+	VPMOVSXBW (BX), Y11                     // c4627d201b
+	VPMOVSXBW (R11), Y11                    // c4427d201b
+	VPMOVSXBW X2, Y11                       // c4627d20da
+	VPMOVSXBW X11, Y11                      // c4427d20db
+	VPMOVSXDQ (BX), X2                      // c4e2792513
+	VPMOVSXDQ (R11), X2                     // c4c2792513
+	VPMOVSXDQ X2, X2                        // c4e27925d2
+	VPMOVSXDQ X11, X2                       // c4c27925d3
+	VPMOVSXDQ (BX), X11                     // c46279251b
+	VPMOVSXDQ (R11), X11                    // c44279251b
+	VPMOVSXDQ X2, X11                       // c4627925da
+	VPMOVSXDQ X11, X11                      // c4427925db
+	VPMOVSXDQ (BX), Y2                      // c4e27d2513
+	VPMOVSXDQ (R11), Y2                     // c4c27d2513
+	VPMOVSXDQ X2, Y2                        // c4e27d25d2
+	VPMOVSXDQ X11, Y2                       // c4c27d25d3
+	VPMOVSXDQ (BX), Y11                     // c4627d251b
+	VPMOVSXDQ (R11), Y11                    // c4427d251b
+	VPMOVSXDQ X2, Y11                       // c4627d25da
+	VPMOVSXDQ X11, Y11                      // c4427d25db
+	VPMOVSXWD (BX), X2                      // c4e2792313
+	VPMOVSXWD (R11), X2                     // c4c2792313
+	VPMOVSXWD X2, X2                        // c4e27923d2
+	VPMOVSXWD X11, X2                       // c4c27923d3
+	VPMOVSXWD (BX), X11                     // c46279231b
+	VPMOVSXWD (R11), X11                    // c44279231b
+	VPMOVSXWD X2, X11                       // c4627923da
+	VPMOVSXWD X11, X11                      // c4427923db
+	VPMOVSXWD (BX), Y2                      // c4e27d2313
+	VPMOVSXWD (R11), Y2                     // c4c27d2313
+	VPMOVSXWD X2, Y2                        // c4e27d23d2
+	VPMOVSXWD X11, Y2                       // c4c27d23d3
+	VPMOVSXWD (BX), Y11                     // c4627d231b
+	VPMOVSXWD (R11), Y11                    // c4427d231b
+	VPMOVSXWD X2, Y11                       // c4627d23da
+	VPMOVSXWD X11, Y11                      // c4427d23db
+	VPMOVSXWQ (BX), X2                      // c4e2792413
+	VPMOVSXWQ (R11), X2                     // c4c2792413
+	VPMOVSXWQ X2, X2                        // c4e27924d2
+	VPMOVSXWQ X11, X2                       // c4c27924d3
+	VPMOVSXWQ (BX), X11                     // c46279241b
+	VPMOVSXWQ (R11), X11                    // c44279241b
+	VPMOVSXWQ X2, X11                       // c4627924da
+	VPMOVSXWQ X11, X11                      // c4427924db
+	VPMOVSXWQ (BX), Y2                      // c4e27d2413
+	VPMOVSXWQ (R11), Y2                     // c4c27d2413
+	VPMOVSXWQ X2, Y2                        // c4e27d24d2
+	VPMOVSXWQ X11, Y2                       // c4c27d24d3
+	VPMOVSXWQ (BX), Y11                     // c4627d241b
+	VPMOVSXWQ (R11), Y11                    // c4427d241b
+	VPMOVSXWQ X2, Y11                       // c4627d24da
+	VPMOVSXWQ X11, Y11                      // c4427d24db
+	VPMOVZXBD (BX), X2                      // c4e2793113
+	VPMOVZXBD (R11), X2                     // c4c2793113
+	VPMOVZXBD X2, X2                        // c4e27931d2
+	VPMOVZXBD X11, X2                       // c4c27931d3
+	VPMOVZXBD (BX), X11                     // c46279311b
+	VPMOVZXBD (R11), X11                    // c44279311b
+	VPMOVZXBD X2, X11                       // c4627931da
+	VPMOVZXBD X11, X11                      // c4427931db
+	VPMOVZXBD (BX), Y2                      // c4e27d3113
+	VPMOVZXBD (R11), Y2                     // c4c27d3113
+	VPMOVZXBD X2, Y2                        // c4e27d31d2
+	VPMOVZXBD X11, Y2                       // c4c27d31d3
+	VPMOVZXBD (BX), Y11                     // c4627d311b
+	VPMOVZXBD (R11), Y11                    // c4427d311b
+	VPMOVZXBD X2, Y11                       // c4627d31da
+	VPMOVZXBD X11, Y11                      // c4427d31db
+	VPMOVZXBQ (BX), X2                      // c4e2793213
+	VPMOVZXBQ (R11), X2                     // c4c2793213
+	VPMOVZXBQ X2, X2                        // c4e27932d2
+	VPMOVZXBQ X11, X2                       // c4c27932d3
+	VPMOVZXBQ (BX), X11                     // c46279321b
+	VPMOVZXBQ (R11), X11                    // c44279321b
+	VPMOVZXBQ X2, X11                       // c4627932da
+	VPMOVZXBQ X11, X11                      // c4427932db
+	VPMOVZXBQ (BX), Y2                      // c4e27d3213
+	VPMOVZXBQ (R11), Y2                     // c4c27d3213
+	VPMOVZXBQ X2, Y2                        // c4e27d32d2
+	VPMOVZXBQ X11, Y2                       // c4c27d32d3
+	VPMOVZXBQ (BX), Y11                     // c4627d321b
+	VPMOVZXBQ (R11), Y11                    // c4427d321b
+	VPMOVZXBQ X2, Y11                       // c4627d32da
+	VPMOVZXBQ X11, Y11                      // c4427d32db
+	VPMOVZXBW (BX), X2                      // c4e2793013
+	VPMOVZXBW (R11), X2                     // c4c2793013
+	VPMOVZXBW X2, X2                        // c4e27930d2
+	VPMOVZXBW X11, X2                       // c4c27930d3
+	VPMOVZXBW (BX), X11                     // c46279301b
+	VPMOVZXBW (R11), X11                    // c44279301b
+	VPMOVZXBW X2, X11                       // c4627930da
+	VPMOVZXBW X11, X11                      // c4427930db
+	VPMOVZXBW (BX), Y2                      // c4e27d3013
+	VPMOVZXBW (R11), Y2                     // c4c27d3013
+	VPMOVZXBW X2, Y2                        // c4e27d30d2
+	VPMOVZXBW X11, Y2                       // c4c27d30d3
+	VPMOVZXBW (BX), Y11                     // c4627d301b
+	VPMOVZXBW (R11), Y11                    // c4427d301b
+	VPMOVZXBW X2, Y11                       // c4627d30da
+	VPMOVZXBW X11, Y11                      // c4427d30db
+	VPMOVZXDQ (BX), X2                      // c4e2793513
+	VPMOVZXDQ (R11), X2                     // c4c2793513
+	VPMOVZXDQ X2, X2                        // c4e27935d2
+	VPMOVZXDQ X11, X2                       // c4c27935d3
+	VPMOVZXDQ (BX), X11                     // c46279351b
+	VPMOVZXDQ (R11), X11                    // c44279351b
+	VPMOVZXDQ X2, X11                       // c4627935da
+	VPMOVZXDQ X11, X11                      // c4427935db
+	VPMOVZXDQ (BX), Y2                      // c4e27d3513
+	VPMOVZXDQ (R11), Y2                     // c4c27d3513
+	VPMOVZXDQ X2, Y2                        // c4e27d35d2
+	VPMOVZXDQ X11, Y2                       // c4c27d35d3
+	VPMOVZXDQ (BX), Y11                     // c4627d351b
+	VPMOVZXDQ (R11), Y11                    // c4427d351b
+	VPMOVZXDQ X2, Y11                       // c4627d35da
+	VPMOVZXDQ X11, Y11                      // c4427d35db
+	VPMOVZXWD (BX), X2                      // c4e2793313
+	VPMOVZXWD (R11), X2                     // c4c2793313
+	VPMOVZXWD X2, X2                        // c4e27933d2
+	VPMOVZXWD X11, X2                       // c4c27933d3
+	VPMOVZXWD (BX), X11                     // c46279331b
+	VPMOVZXWD (R11), X11                    // c44279331b
+	VPMOVZXWD X2, X11                       // c4627933da
+	VPMOVZXWD X11, X11                      // c4427933db
+	VPMOVZXWD (BX), Y2                      // c4e27d3313
+	VPMOVZXWD (R11), Y2                     // c4c27d3313
+	VPMOVZXWD X2, Y2                        // c4e27d33d2
+	VPMOVZXWD X11, Y2                       // c4c27d33d3
+	VPMOVZXWD (BX), Y11                     // c4627d331b
+	VPMOVZXWD (R11), Y11                    // c4427d331b
+	VPMOVZXWD X2, Y11                       // c4627d33da
+	VPMOVZXWD X11, Y11                      // c4427d33db
+	VPMOVZXWQ (BX), X2                      // c4e2793413
+	VPMOVZXWQ (R11), X2                     // c4c2793413
+	VPMOVZXWQ X2, X2                        // c4e27934d2
+	VPMOVZXWQ X11, X2                       // c4c27934d3
+	VPMOVZXWQ (BX), X11                     // c46279341b
+	VPMOVZXWQ (R11), X11                    // c44279341b
+	VPMOVZXWQ X2, X11                       // c4627934da
+	VPMOVZXWQ X11, X11                      // c4427934db
+	VPMOVZXWQ (BX), Y2                      // c4e27d3413
+	VPMOVZXWQ (R11), Y2                     // c4c27d3413
+	VPMOVZXWQ X2, Y2                        // c4e27d34d2
+	VPMOVZXWQ X11, Y2                       // c4c27d34d3
+	VPMOVZXWQ (BX), Y11                     // c4627d341b
+	VPMOVZXWQ (R11), Y11                    // c4427d341b
+	VPMOVZXWQ X2, Y11                       // c4627d34da
+	VPMOVZXWQ X11, Y11                      // c4427d34db
+	VPMULDQ (BX), X9, X2                    // c4e2312813
+	VPMULDQ (R11), X9, X2                   // c4c2312813
+	VPMULDQ X2, X9, X2                      // c4e23128d2
+	VPMULDQ X11, X9, X2                     // c4c23128d3
+	VPMULDQ (BX), X9, X11                   // c46231281b
+	VPMULDQ (R11), X9, X11                  // c44231281b
+	VPMULDQ X2, X9, X11                     // c4623128da
+	VPMULDQ X11, X9, X11                    // c4423128db
+	VPMULDQ (BX), Y15, Y2                   // c4e2052813
+	VPMULDQ (R11), Y15, Y2                  // c4c2052813
+	VPMULDQ Y2, Y15, Y2                     // c4e20528d2
+	VPMULDQ Y11, Y15, Y2                    // c4c20528d3
+	VPMULDQ (BX), Y15, Y11                  // c46205281b
+	VPMULDQ (R11), Y15, Y11                 // c44205281b
+	VPMULDQ Y2, Y15, Y11                    // c4620528da
+	VPMULDQ Y11, Y15, Y11                   // c4420528db
+	VPMULHRSW (BX), X9, X2                  // c4e2310b13
+	VPMULHRSW (R11), X9, X2                 // c4c2310b13
+	VPMULHRSW X2, X9, X2                    // c4e2310bd2
+	VPMULHRSW X11, X9, X2                   // c4c2310bd3
+	VPMULHRSW (BX), X9, X11                 // c462310b1b
+	VPMULHRSW (R11), X9, X11                // c442310b1b
+	VPMULHRSW X2, X9, X11                   // c462310bda
+	VPMULHRSW X11, X9, X11                  // c442310bdb
+	VPMULHRSW (BX), Y15, Y2                 // c4e2050b13
+	VPMULHRSW (R11), Y15, Y2                // c4c2050b13
+	VPMULHRSW Y2, Y15, Y2                   // c4e2050bd2
+	VPMULHRSW Y11, Y15, Y2                  // c4c2050bd3
+	VPMULHRSW (BX), Y15, Y11                // c462050b1b
+	VPMULHRSW (R11), Y15, Y11               // c442050b1b
+	VPMULHRSW Y2, Y15, Y11                  // c462050bda
+	VPMULHRSW Y11, Y15, Y11                 // c442050bdb
+	VPMULHUW (BX), X9, X2                   // c4e131e413 or c5b1e413
+	VPMULHUW (R11), X9, X2                  // c4c131e413
+	VPMULHUW X2, X9, X2                     // c4e131e4d2 or c5b1e4d2
+	VPMULHUW X11, X9, X2                    // c4c131e4d3
+	VPMULHUW (BX), X9, X11                  // c46131e41b or c531e41b
+	VPMULHUW (R11), X9, X11                 // c44131e41b
+	VPMULHUW X2, X9, X11                    // c46131e4da or c531e4da
+	VPMULHUW X11, X9, X11                   // c44131e4db
+	VPMULHUW (BX), Y15, Y2                  // c4e105e413 or c585e413
+	VPMULHUW (R11), Y15, Y2                 // c4c105e413
+	VPMULHUW Y2, Y15, Y2                    // c4e105e4d2 or c585e4d2
+	VPMULHUW Y11, Y15, Y2                   // c4c105e4d3
+	VPMULHUW (BX), Y15, Y11                 // c46105e41b or c505e41b
+	VPMULHUW (R11), Y15, Y11                // c44105e41b
+	VPMULHUW Y2, Y15, Y11                   // c46105e4da or c505e4da
+	VPMULHUW Y11, Y15, Y11                  // c44105e4db
+	VPMULHW (BX), X9, X2                    // c4e131e513 or c5b1e513
+	VPMULHW (R11), X9, X2                   // c4c131e513
+	VPMULHW X2, X9, X2                      // c4e131e5d2 or c5b1e5d2
+	VPMULHW X11, X9, X2                     // c4c131e5d3
+	VPMULHW (BX), X9, X11                   // c46131e51b or c531e51b
+	VPMULHW (R11), X9, X11                  // c44131e51b
+	VPMULHW X2, X9, X11                     // c46131e5da or c531e5da
+	VPMULHW X11, X9, X11                    // c44131e5db
+	VPMULHW (BX), Y15, Y2                   // c4e105e513 or c585e513
+	VPMULHW (R11), Y15, Y2                  // c4c105e513
+	VPMULHW Y2, Y15, Y2                     // c4e105e5d2 or c585e5d2
+	VPMULHW Y11, Y15, Y2                    // c4c105e5d3
+	VPMULHW (BX), Y15, Y11                  // c46105e51b or c505e51b
+	VPMULHW (R11), Y15, Y11                 // c44105e51b
+	VPMULHW Y2, Y15, Y11                    // c46105e5da or c505e5da
+	VPMULHW Y11, Y15, Y11                   // c44105e5db
+	VPMULLD (BX), X9, X2                    // c4e2314013
+	VPMULLD (R11), X9, X2                   // c4c2314013
+	VPMULLD X2, X9, X2                      // c4e23140d2
+	VPMULLD X11, X9, X2                     // c4c23140d3
+	VPMULLD (BX), X9, X11                   // c46231401b
+	VPMULLD (R11), X9, X11                  // c44231401b
+	VPMULLD X2, X9, X11                     // c4623140da
+	VPMULLD X11, X9, X11                    // c4423140db
+	VPMULLD (BX), Y15, Y2                   // c4e2054013
+	VPMULLD (R11), Y15, Y2                  // c4c2054013
+	VPMULLD Y2, Y15, Y2                     // c4e20540d2
+	VPMULLD Y11, Y15, Y2                    // c4c20540d3
+	VPMULLD (BX), Y15, Y11                  // c46205401b
+	VPMULLD (R11), Y15, Y11                 // c44205401b
+	VPMULLD Y2, Y15, Y11                    // c4620540da
+	VPMULLD Y11, Y15, Y11                   // c4420540db
+	VPMULLW (BX), X9, X2                    // c4e131d513 or c5b1d513
+	VPMULLW (R11), X9, X2                   // c4c131d513
+	VPMULLW X2, X9, X2                      // c4e131d5d2 or c5b1d5d2
+	VPMULLW X11, X9, X2                     // c4c131d5d3
+	VPMULLW (BX), X9, X11                   // c46131d51b or c531d51b
+	VPMULLW (R11), X9, X11                  // c44131d51b
+	VPMULLW X2, X9, X11                     // c46131d5da or c531d5da
+	VPMULLW X11, X9, X11                    // c44131d5db
+	VPMULLW (BX), Y15, Y2                   // c4e105d513 or c585d513
+	VPMULLW (R11), Y15, Y2                  // c4c105d513
+	VPMULLW Y2, Y15, Y2                     // c4e105d5d2 or c585d5d2
+	VPMULLW Y11, Y15, Y2                    // c4c105d5d3
+	VPMULLW (BX), Y15, Y11                  // c46105d51b or c505d51b
+	VPMULLW (R11), Y15, Y11                 // c44105d51b
+	VPMULLW Y2, Y15, Y11                    // c46105d5da or c505d5da
+	VPMULLW Y11, Y15, Y11                   // c44105d5db
+	VPMULUDQ (BX), X9, X2                   // c4e131f413 or c5b1f413
+	VPMULUDQ (R11), X9, X2                  // c4c131f413
+	VPMULUDQ X2, X9, X2                     // c4e131f4d2 or c5b1f4d2
+	VPMULUDQ X11, X9, X2                    // c4c131f4d3
+	VPMULUDQ (BX), X9, X11                  // c46131f41b or c531f41b
+	VPMULUDQ (R11), X9, X11                 // c44131f41b
+	VPMULUDQ X2, X9, X11                    // c46131f4da or c531f4da
+	VPMULUDQ X11, X9, X11                   // c44131f4db
+	VPMULUDQ (BX), Y15, Y2                  // c4e105f413 or c585f413
+	VPMULUDQ (R11), Y15, Y2                 // c4c105f413
+	VPMULUDQ Y2, Y15, Y2                    // c4e105f4d2 or c585f4d2
+	VPMULUDQ Y11, Y15, Y2                   // c4c105f4d3
+	VPMULUDQ (BX), Y15, Y11                 // c46105f41b or c505f41b
+	VPMULUDQ (R11), Y15, Y11                // c44105f41b
+	VPMULUDQ Y2, Y15, Y11                   // c46105f4da or c505f4da
+	VPMULUDQ Y11, Y15, Y11                  // c44105f4db
 	VPOR (BX), X9, X2               // c4e131eb13 or c5b1eb13
 	VPOR (R11), X9, X2              // c4c131eb13
 	VPOR X2, X9, X2                 // c4e131ebd2 or c5b1ebd2
@@ -9480,22 +9480,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPOR (R11), Y15, Y11            // c44105eb1b
 	VPOR Y2, Y15, Y11               // c46105ebda or c505ebda
 	VPOR Y11, Y15, Y11              // c44105ebdb
-	//TODO: VPSADBW (BX), X9, X2            // c4e131f613 or c5b1f613
-	//TODO: VPSADBW (R11), X9, X2           // c4c131f613
-	//TODO: VPSADBW X2, X9, X2              // c4e131f6d2 or c5b1f6d2
-	//TODO: VPSADBW X11, X9, X2             // c4c131f6d3
-	//TODO: VPSADBW (BX), X9, X11           // c46131f61b or c531f61b
-	//TODO: VPSADBW (R11), X9, X11          // c44131f61b
-	//TODO: VPSADBW X2, X9, X11             // c46131f6da or c531f6da
-	//TODO: VPSADBW X11, X9, X11            // c44131f6db
-	//TODO: VPSADBW (BX), Y15, Y2           // c4e105f613 or c585f613
-	//TODO: VPSADBW (R11), Y15, Y2          // c4c105f613
-	//TODO: VPSADBW Y2, Y15, Y2             // c4e105f6d2 or c585f6d2
-	//TODO: VPSADBW Y11, Y15, Y2            // c4c105f6d3
-	//TODO: VPSADBW (BX), Y15, Y11          // c46105f61b or c505f61b
-	//TODO: VPSADBW (R11), Y15, Y11         // c44105f61b
-	//TODO: VPSADBW Y2, Y15, Y11            // c46105f6da or c505f6da
-	//TODO: VPSADBW Y11, Y15, Y11           // c44105f6db
+	VPSADBW (BX), X9, X2                    // c4e131f613 or c5b1f613
+	VPSADBW (R11), X9, X2                   // c4c131f613
+	VPSADBW X2, X9, X2                      // c4e131f6d2 or c5b1f6d2
+	VPSADBW X11, X9, X2                     // c4c131f6d3
+	VPSADBW (BX), X9, X11                   // c46131f61b or c531f61b
+	VPSADBW (R11), X9, X11                  // c44131f61b
+	VPSADBW X2, X9, X11                     // c46131f6da or c531f6da
+	VPSADBW X11, X9, X11                    // c44131f6db
+	VPSADBW (BX), Y15, Y2                   // c4e105f613 or c585f613
+	VPSADBW (R11), Y15, Y2                  // c4c105f613
+	VPSADBW Y2, Y15, Y2                     // c4e105f6d2 or c585f6d2
+	VPSADBW Y11, Y15, Y2                    // c4c105f6d3
+	VPSADBW (BX), Y15, Y11                  // c46105f61b or c505f61b
+	VPSADBW (R11), Y15, Y11                 // c44105f61b
+	VPSADBW Y2, Y15, Y11                    // c46105f6da or c505f6da
+	VPSADBW Y11, Y15, Y11                   // c44105f6db
 	VPSHUFB (BX), X9, X2            // c4e2310013
 	VPSHUFB (R11), X9, X2           // c4c2310013
 	VPSHUFB X2, X9, X2              // c4e23100d2
@@ -9528,86 +9528,86 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPSHUFD $7, (R11), Y11          // c4417d701b07
 	VPSHUFD $7, Y2, Y11             // c4617d70da07 or c57d70da07
 	VPSHUFD $7, Y11, Y11            // c4417d70db07
-	//TODO: VPSHUFHW $7, (BX), X2           // c4e17a701307 or c5fa701307
-	//TODO: VPSHUFHW $7, (R11), X2          // c4c17a701307
-	//TODO: VPSHUFHW $7, X2, X2             // c4e17a70d207 or c5fa70d207
-	//TODO: VPSHUFHW $7, X11, X2            // c4c17a70d307
-	//TODO: VPSHUFHW $7, (BX), X11          // c4617a701b07 or c57a701b07
-	//TODO: VPSHUFHW $7, (R11), X11         // c4417a701b07
-	//TODO: VPSHUFHW $7, X2, X11            // c4617a70da07 or c57a70da07
-	//TODO: VPSHUFHW $7, X11, X11           // c4417a70db07
-	//TODO: VPSHUFHW $7, (BX), Y2           // c4e17e701307 or c5fe701307
-	//TODO: VPSHUFHW $7, (R11), Y2          // c4c17e701307
-	//TODO: VPSHUFHW $7, Y2, Y2             // c4e17e70d207 or c5fe70d207
-	//TODO: VPSHUFHW $7, Y11, Y2            // c4c17e70d307
-	//TODO: VPSHUFHW $7, (BX), Y11          // c4617e701b07 or c57e701b07
-	//TODO: VPSHUFHW $7, (R11), Y11         // c4417e701b07
-	//TODO: VPSHUFHW $7, Y2, Y11            // c4617e70da07 or c57e70da07
-	//TODO: VPSHUFHW $7, Y11, Y11           // c4417e70db07
-	//TODO: VPSHUFLW $7, (BX), X2           // c4e17b701307 or c5fb701307
-	//TODO: VPSHUFLW $7, (R11), X2          // c4c17b701307
-	//TODO: VPSHUFLW $7, X2, X2             // c4e17b70d207 or c5fb70d207
-	//TODO: VPSHUFLW $7, X11, X2            // c4c17b70d307
-	//TODO: VPSHUFLW $7, (BX), X11          // c4617b701b07 or c57b701b07
-	//TODO: VPSHUFLW $7, (R11), X11         // c4417b701b07
-	//TODO: VPSHUFLW $7, X2, X11            // c4617b70da07 or c57b70da07
-	//TODO: VPSHUFLW $7, X11, X11           // c4417b70db07
-	//TODO: VPSHUFLW $7, (BX), Y2           // c4e17f701307 or c5ff701307
-	//TODO: VPSHUFLW $7, (R11), Y2          // c4c17f701307
-	//TODO: VPSHUFLW $7, Y2, Y2             // c4e17f70d207 or c5ff70d207
-	//TODO: VPSHUFLW $7, Y11, Y2            // c4c17f70d307
-	//TODO: VPSHUFLW $7, (BX), Y11          // c4617f701b07 or c57f701b07
-	//TODO: VPSHUFLW $7, (R11), Y11         // c4417f701b07
-	//TODO: VPSHUFLW $7, Y2, Y11            // c4617f70da07 or c57f70da07
-	//TODO: VPSHUFLW $7, Y11, Y11           // c4417f70db07
-	//TODO: VPSIGNB (BX), X9, X2            // c4e2310813
-	//TODO: VPSIGNB (R11), X9, X2           // c4c2310813
-	//TODO: VPSIGNB X2, X9, X2              // c4e23108d2
-	//TODO: VPSIGNB X11, X9, X2             // c4c23108d3
-	//TODO: VPSIGNB (BX), X9, X11           // c46231081b
-	//TODO: VPSIGNB (R11), X9, X11          // c44231081b
-	//TODO: VPSIGNB X2, X9, X11             // c4623108da
-	//TODO: VPSIGNB X11, X9, X11            // c4423108db
-	//TODO: VPSIGNB (BX), Y15, Y2           // c4e2050813
-	//TODO: VPSIGNB (R11), Y15, Y2          // c4c2050813
-	//TODO: VPSIGNB Y2, Y15, Y2             // c4e20508d2
-	//TODO: VPSIGNB Y11, Y15, Y2            // c4c20508d3
-	//TODO: VPSIGNB (BX), Y15, Y11          // c46205081b
-	//TODO: VPSIGNB (R11), Y15, Y11         // c44205081b
-	//TODO: VPSIGNB Y2, Y15, Y11            // c4620508da
-	//TODO: VPSIGNB Y11, Y15, Y11           // c4420508db
-	//TODO: VPSIGND (BX), X9, X2            // c4e2310a13
-	//TODO: VPSIGND (R11), X9, X2           // c4c2310a13
-	//TODO: VPSIGND X2, X9, X2              // c4e2310ad2
-	//TODO: VPSIGND X11, X9, X2             // c4c2310ad3
-	//TODO: VPSIGND (BX), X9, X11           // c462310a1b
-	//TODO: VPSIGND (R11), X9, X11          // c442310a1b
-	//TODO: VPSIGND X2, X9, X11             // c462310ada
-	//TODO: VPSIGND X11, X9, X11            // c442310adb
-	//TODO: VPSIGND (BX), Y15, Y2           // c4e2050a13
-	//TODO: VPSIGND (R11), Y15, Y2          // c4c2050a13
-	//TODO: VPSIGND Y2, Y15, Y2             // c4e2050ad2
-	//TODO: VPSIGND Y11, Y15, Y2            // c4c2050ad3
-	//TODO: VPSIGND (BX), Y15, Y11          // c462050a1b
-	//TODO: VPSIGND (R11), Y15, Y11         // c442050a1b
-	//TODO: VPSIGND Y2, Y15, Y11            // c462050ada
-	//TODO: VPSIGND Y11, Y15, Y11           // c442050adb
-	//TODO: VPSIGNW (BX), X9, X2            // c4e2310913
-	//TODO: VPSIGNW (R11), X9, X2           // c4c2310913
-	//TODO: VPSIGNW X2, X9, X2              // c4e23109d2
-	//TODO: VPSIGNW X11, X9, X2             // c4c23109d3
-	//TODO: VPSIGNW (BX), X9, X11           // c46231091b
-	//TODO: VPSIGNW (R11), X9, X11          // c44231091b
-	//TODO: VPSIGNW X2, X9, X11             // c4623109da
-	//TODO: VPSIGNW X11, X9, X11            // c4423109db
-	//TODO: VPSIGNW (BX), Y15, Y2           // c4e2050913
-	//TODO: VPSIGNW (R11), Y15, Y2          // c4c2050913
-	//TODO: VPSIGNW Y2, Y15, Y2             // c4e20509d2
-	//TODO: VPSIGNW Y11, Y15, Y2            // c4c20509d3
-	//TODO: VPSIGNW (BX), Y15, Y11          // c46205091b
-	//TODO: VPSIGNW (R11), Y15, Y11         // c44205091b
-	//TODO: VPSIGNW Y2, Y15, Y11            // c4620509da
-	//TODO: VPSIGNW Y11, Y15, Y11           // c4420509db
+	VPSHUFHW $7, (BX), X2                   // c4e17a701307 or c5fa701307
+	VPSHUFHW $7, (R11), X2                  // c4c17a701307
+	VPSHUFHW $7, X2, X2                     // c4e17a70d207 or c5fa70d207
+	VPSHUFHW $7, X11, X2                    // c4c17a70d307
+	VPSHUFHW $7, (BX), X11                  // c4617a701b07 or c57a701b07
+	VPSHUFHW $7, (R11), X11                 // c4417a701b07
+	VPSHUFHW $7, X2, X11                    // c4617a70da07 or c57a70da07
+	VPSHUFHW $7, X11, X11                   // c4417a70db07
+	VPSHUFHW $7, (BX), Y2                   // c4e17e701307 or c5fe701307
+	VPSHUFHW $7, (R11), Y2                  // c4c17e701307
+	VPSHUFHW $7, Y2, Y2                     // c4e17e70d207 or c5fe70d207
+	VPSHUFHW $7, Y11, Y2                    // c4c17e70d307
+	VPSHUFHW $7, (BX), Y11                  // c4617e701b07 or c57e701b07
+	VPSHUFHW $7, (R11), Y11                 // c4417e701b07
+	VPSHUFHW $7, Y2, Y11                    // c4617e70da07 or c57e70da07
+	VPSHUFHW $7, Y11, Y11                   // c4417e70db07
+	VPSHUFLW $7, (BX), X2                   // c4e17b701307 or c5fb701307
+	VPSHUFLW $7, (R11), X2                  // c4c17b701307
+	VPSHUFLW $7, X2, X2                     // c4e17b70d207 or c5fb70d207
+	VPSHUFLW $7, X11, X2                    // c4c17b70d307
+	VPSHUFLW $7, (BX), X11                  // c4617b701b07 or c57b701b07
+	VPSHUFLW $7, (R11), X11                 // c4417b701b07
+	VPSHUFLW $7, X2, X11                    // c4617b70da07 or c57b70da07
+	VPSHUFLW $7, X11, X11                   // c4417b70db07
+	VPSHUFLW $7, (BX), Y2                   // c4e17f701307 or c5ff701307
+	VPSHUFLW $7, (R11), Y2                  // c4c17f701307
+	VPSHUFLW $7, Y2, Y2                     // c4e17f70d207 or c5ff70d207
+	VPSHUFLW $7, Y11, Y2                    // c4c17f70d307
+	VPSHUFLW $7, (BX), Y11                  // c4617f701b07 or c57f701b07
+	VPSHUFLW $7, (R11), Y11                 // c4417f701b07
+	VPSHUFLW $7, Y2, Y11                    // c4617f70da07 or c57f70da07
+	VPSHUFLW $7, Y11, Y11                   // c4417f70db07
+	VPSIGNB (BX), X9, X2                    // c4e2310813
+	VPSIGNB (R11), X9, X2                   // c4c2310813
+	VPSIGNB X2, X9, X2                      // c4e23108d2
+	VPSIGNB X11, X9, X2                     // c4c23108d3
+	VPSIGNB (BX), X9, X11                   // c46231081b
+	VPSIGNB (R11), X9, X11                  // c44231081b
+	VPSIGNB X2, X9, X11                     // c4623108da
+	VPSIGNB X11, X9, X11                    // c4423108db
+	VPSIGNB (BX), Y15, Y2                   // c4e2050813
+	VPSIGNB (R11), Y15, Y2                  // c4c2050813
+	VPSIGNB Y2, Y15, Y2                     // c4e20508d2
+	VPSIGNB Y11, Y15, Y2                    // c4c20508d3
+	VPSIGNB (BX), Y15, Y11                  // c46205081b
+	VPSIGNB (R11), Y15, Y11                 // c44205081b
+	VPSIGNB Y2, Y15, Y11                    // c4620508da
+	VPSIGNB Y11, Y15, Y11                   // c4420508db
+	VPSIGND (BX), X9, X2                    // c4e2310a13
+	VPSIGND (R11), X9, X2                   // c4c2310a13
+	VPSIGND X2, X9, X2                      // c4e2310ad2
+	VPSIGND X11, X9, X2                     // c4c2310ad3
+	VPSIGND (BX), X9, X11                   // c462310a1b
+	VPSIGND (R11), X9, X11                  // c442310a1b
+	VPSIGND X2, X9, X11                     // c462310ada
+	VPSIGND X11, X9, X11                    // c442310adb
+	VPSIGND (BX), Y15, Y2                   // c4e2050a13
+	VPSIGND (R11), Y15, Y2                  // c4c2050a13
+	VPSIGND Y2, Y15, Y2                     // c4e2050ad2
+	VPSIGND Y11, Y15, Y2                    // c4c2050ad3
+	VPSIGND (BX), Y15, Y11                  // c462050a1b
+	VPSIGND (R11), Y15, Y11                 // c442050a1b
+	VPSIGND Y2, Y15, Y11                    // c462050ada
+	VPSIGND Y11, Y15, Y11                   // c442050adb
+	VPSIGNW (BX), X9, X2                    // c4e2310913
+	VPSIGNW (R11), X9, X2                   // c4c2310913
+	VPSIGNW X2, X9, X2                      // c4e23109d2
+	VPSIGNW X11, X9, X2                     // c4c23109d3
+	VPSIGNW (BX), X9, X11                   // c46231091b
+	VPSIGNW (R11), X9, X11                  // c44231091b
+	VPSIGNW X2, X9, X11                     // c4623109da
+	VPSIGNW X11, X9, X11                    // c4423109db
+	VPSIGNW (BX), Y15, Y2                   // c4e2050913
+	VPSIGNW (R11), Y15, Y2                  // c4c2050913
+	VPSIGNW Y2, Y15, Y2                     // c4e20509d2
+	VPSIGNW Y11, Y15, Y2                    // c4c20509d3
+	VPSIGNW (BX), Y15, Y11                  // c46205091b
+	VPSIGNW (R11), Y15, Y11                 // c44205091b
+	VPSIGNW Y2, Y15, Y11                    // c4620509da
+	VPSIGNW Y11, Y15, Y11                   // c4420509db
 	VPSLLD (BX), X9, X2             // c4e131f213 or c5b1f213
 	VPSLLD (R11), X9, X2            // c4c131f213
 	VPSLLD X2, X9, X2               // c4e131f2d2 or c5b1f2d2
@@ -9632,114 +9632,114 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPSLLQ X11, X9, X11             // c44131f3db
 	VPSLLQ $7, X2, X9               // c4e13173f207 or c5b173f207
 	VPSLLQ $7, X11, X9              // c4c13173f307
-	//TODO: VPSLLVD (BX), X9, X2            // c4e2314713
-	//TODO: VPSLLVD (R11), X9, X2           // c4c2314713
-	//TODO: VPSLLVD X2, X9, X2              // c4e23147d2
-	//TODO: VPSLLVD X11, X9, X2             // c4c23147d3
-	//TODO: VPSLLVD (BX), X9, X11           // c46231471b
-	//TODO: VPSLLVD (R11), X9, X11          // c44231471b
-	//TODO: VPSLLVD X2, X9, X11             // c4623147da
-	//TODO: VPSLLVD X11, X9, X11            // c4423147db
-	//TODO: VPSLLVD (BX), Y15, Y2           // c4e2054713
-	//TODO: VPSLLVD (R11), Y15, Y2          // c4c2054713
-	//TODO: VPSLLVD Y2, Y15, Y2             // c4e20547d2
-	//TODO: VPSLLVD Y11, Y15, Y2            // c4c20547d3
-	//TODO: VPSLLVD (BX), Y15, Y11          // c46205471b
-	//TODO: VPSLLVD (R11), Y15, Y11         // c44205471b
-	//TODO: VPSLLVD Y2, Y15, Y11            // c4620547da
-	//TODO: VPSLLVD Y11, Y15, Y11           // c4420547db
-	//TODO: VPSLLVQ (BX), X9, X2            // c4e2b14713
-	//TODO: VPSLLVQ (R11), X9, X2           // c4c2b14713
-	//TODO: VPSLLVQ X2, X9, X2              // c4e2b147d2
-	//TODO: VPSLLVQ X11, X9, X2             // c4c2b147d3
-	//TODO: VPSLLVQ (BX), X9, X11           // c462b1471b
-	//TODO: VPSLLVQ (R11), X9, X11          // c442b1471b
-	//TODO: VPSLLVQ X2, X9, X11             // c462b147da
-	//TODO: VPSLLVQ X11, X9, X11            // c442b147db
-	//TODO: VPSLLVQ (BX), Y15, Y2           // c4e2854713
-	//TODO: VPSLLVQ (R11), Y15, Y2          // c4c2854713
-	//TODO: VPSLLVQ Y2, Y15, Y2             // c4e28547d2
-	//TODO: VPSLLVQ Y11, Y15, Y2            // c4c28547d3
-	//TODO: VPSLLVQ (BX), Y15, Y11          // c46285471b
-	//TODO: VPSLLVQ (R11), Y15, Y11         // c44285471b
-	//TODO: VPSLLVQ Y2, Y15, Y11            // c4628547da
-	//TODO: VPSLLVQ Y11, Y15, Y11           // c4428547db
-	//TODO: VPSLLW (BX), X9, X2             // c4e131f113 or c5b1f113
-	//TODO: VPSLLW (R11), X9, X2            // c4c131f113
-	//TODO: VPSLLW X2, X9, X2               // c4e131f1d2 or c5b1f1d2
-	//TODO: VPSLLW X11, X9, X2              // c4c131f1d3
-	//TODO: VPSLLW (BX), X9, X11            // c46131f11b or c531f11b
-	//TODO: VPSLLW (R11), X9, X11           // c44131f11b
-	//TODO: VPSLLW X2, X9, X11              // c46131f1da or c531f1da
-	//TODO: VPSLLW X11, X9, X11             // c44131f1db
-	//TODO: VPSLLW $7, X2, X9               // c4e13171f207 or c5b171f207
-	//TODO: VPSLLW $7, X11, X9              // c4c13171f307
-	//TODO: VPSLLW (BX), Y15, Y2            // c4e105f113 or c585f113
-	//TODO: VPSLLW (R11), Y15, Y2           // c4c105f113
-	//TODO: VPSLLW X2, Y15, Y2              // c4e105f1d2 or c585f1d2
-	//TODO: VPSLLW X11, Y15, Y2             // c4c105f1d3
-	//TODO: VPSLLW (BX), Y15, Y11           // c46105f11b or c505f11b
-	//TODO: VPSLLW (R11), Y15, Y11          // c44105f11b
-	//TODO: VPSLLW X2, Y15, Y11             // c46105f1da or c505f1da
-	//TODO: VPSLLW X11, Y15, Y11            // c44105f1db
-	//TODO: VPSLLW $7, Y2, Y15              // c4e10571f207 or c58571f207
-	//TODO: VPSLLW $7, Y11, Y15             // c4c10571f307
-	//TODO: VPSRAD (BX), X9, X2             // c4e131e213 or c5b1e213
-	//TODO: VPSRAD (R11), X9, X2            // c4c131e213
-	//TODO: VPSRAD X2, X9, X2               // c4e131e2d2 or c5b1e2d2
-	//TODO: VPSRAD X11, X9, X2              // c4c131e2d3
-	//TODO: VPSRAD (BX), X9, X11            // c46131e21b or c531e21b
-	//TODO: VPSRAD (R11), X9, X11           // c44131e21b
-	//TODO: VPSRAD X2, X9, X11              // c46131e2da or c531e2da
-	//TODO: VPSRAD X11, X9, X11             // c44131e2db
-	//TODO: VPSRAD $7, X2, X9               // c4e13172e207 or c5b172e207
-	//TODO: VPSRAD $7, X11, X9              // c4c13172e307
-	//TODO: VPSRAD (BX), Y15, Y2            // c4e105e213 or c585e213
-	//TODO: VPSRAD (R11), Y15, Y2           // c4c105e213
-	//TODO: VPSRAD X2, Y15, Y2              // c4e105e2d2 or c585e2d2
-	//TODO: VPSRAD X11, Y15, Y2             // c4c105e2d3
-	//TODO: VPSRAD (BX), Y15, Y11           // c46105e21b or c505e21b
-	//TODO: VPSRAD (R11), Y15, Y11          // c44105e21b
-	//TODO: VPSRAD X2, Y15, Y11             // c46105e2da or c505e2da
-	//TODO: VPSRAD X11, Y15, Y11            // c44105e2db
-	//TODO: VPSRAD $7, Y2, Y15              // c4e10572e207 or c58572e207
-	//TODO: VPSRAD $7, Y11, Y15             // c4c10572e307
-	//TODO: VPSRAVD (BX), X9, X2            // c4e2314613
-	//TODO: VPSRAVD (R11), X9, X2           // c4c2314613
-	//TODO: VPSRAVD X2, X9, X2              // c4e23146d2
-	//TODO: VPSRAVD X11, X9, X2             // c4c23146d3
-	//TODO: VPSRAVD (BX), X9, X11           // c46231461b
-	//TODO: VPSRAVD (R11), X9, X11          // c44231461b
-	//TODO: VPSRAVD X2, X9, X11             // c4623146da
-	//TODO: VPSRAVD X11, X9, X11            // c4423146db
-	//TODO: VPSRAVD (BX), Y15, Y2           // c4e2054613
-	//TODO: VPSRAVD (R11), Y15, Y2          // c4c2054613
-	//TODO: VPSRAVD Y2, Y15, Y2             // c4e20546d2
-	//TODO: VPSRAVD Y11, Y15, Y2            // c4c20546d3
-	//TODO: VPSRAVD (BX), Y15, Y11          // c46205461b
-	//TODO: VPSRAVD (R11), Y15, Y11         // c44205461b
-	//TODO: VPSRAVD Y2, Y15, Y11            // c4620546da
-	//TODO: VPSRAVD Y11, Y15, Y11           // c4420546db
-	//TODO: VPSRAW (BX), X9, X2             // c4e131e113 or c5b1e113
-	//TODO: VPSRAW (R11), X9, X2            // c4c131e113
-	//TODO: VPSRAW X2, X9, X2               // c4e131e1d2 or c5b1e1d2
-	//TODO: VPSRAW X11, X9, X2              // c4c131e1d3
-	//TODO: VPSRAW (BX), X9, X11            // c46131e11b or c531e11b
-	//TODO: VPSRAW (R11), X9, X11           // c44131e11b
-	//TODO: VPSRAW X2, X9, X11              // c46131e1da or c531e1da
-	//TODO: VPSRAW X11, X9, X11             // c44131e1db
-	//TODO: VPSRAW $7, X2, X9               // c4e13171e207 or c5b171e207
-	//TODO: VPSRAW $7, X11, X9              // c4c13171e307
-	//TODO: VPSRAW (BX), Y15, Y2            // c4e105e113 or c585e113
-	//TODO: VPSRAW (R11), Y15, Y2           // c4c105e113
-	//TODO: VPSRAW X2, Y15, Y2              // c4e105e1d2 or c585e1d2
-	//TODO: VPSRAW X11, Y15, Y2             // c4c105e1d3
-	//TODO: VPSRAW (BX), Y15, Y11           // c46105e11b or c505e11b
-	//TODO: VPSRAW (R11), Y15, Y11          // c44105e11b
-	//TODO: VPSRAW X2, Y15, Y11             // c46105e1da or c505e1da
-	//TODO: VPSRAW X11, Y15, Y11            // c44105e1db
-	//TODO: VPSRAW $7, Y2, Y15              // c4e10571e207 or c58571e207
-	//TODO: VPSRAW $7, Y11, Y15             // c4c10571e307
+	VPSLLVD (BX), X9, X2                    // c4e2314713
+	VPSLLVD (R11), X9, X2                   // c4c2314713
+	VPSLLVD X2, X9, X2                      // c4e23147d2
+	VPSLLVD X11, X9, X2                     // c4c23147d3
+	VPSLLVD (BX), X9, X11                   // c46231471b
+	VPSLLVD (R11), X9, X11                  // c44231471b
+	VPSLLVD X2, X9, X11                     // c4623147da
+	VPSLLVD X11, X9, X11                    // c4423147db
+	VPSLLVD (BX), Y15, Y2                   // c4e2054713
+	VPSLLVD (R11), Y15, Y2                  // c4c2054713
+	VPSLLVD Y2, Y15, Y2                     // c4e20547d2
+	VPSLLVD Y11, Y15, Y2                    // c4c20547d3
+	VPSLLVD (BX), Y15, Y11                  // c46205471b
+	VPSLLVD (R11), Y15, Y11                 // c44205471b
+	VPSLLVD Y2, Y15, Y11                    // c4620547da
+	VPSLLVD Y11, Y15, Y11                   // c4420547db
+	VPSLLVQ (BX), X9, X2                    // c4e2b14713
+	VPSLLVQ (R11), X9, X2                   // c4c2b14713
+	VPSLLVQ X2, X9, X2                      // c4e2b147d2
+	VPSLLVQ X11, X9, X2                     // c4c2b147d3
+	VPSLLVQ (BX), X9, X11                   // c462b1471b
+	VPSLLVQ (R11), X9, X11                  // c442b1471b
+	VPSLLVQ X2, X9, X11                     // c462b147da
+	VPSLLVQ X11, X9, X11                    // c442b147db
+	VPSLLVQ (BX), Y15, Y2                   // c4e2854713
+	VPSLLVQ (R11), Y15, Y2                  // c4c2854713
+	VPSLLVQ Y2, Y15, Y2                     // c4e28547d2
+	VPSLLVQ Y11, Y15, Y2                    // c4c28547d3
+	VPSLLVQ (BX), Y15, Y11                  // c46285471b
+	VPSLLVQ (R11), Y15, Y11                 // c44285471b
+	VPSLLVQ Y2, Y15, Y11                    // c4628547da
+	VPSLLVQ Y11, Y15, Y11                   // c4428547db
+	VPSLLW (BX), X9, X2                     // c4e131f113 or c5b1f113
+	VPSLLW (R11), X9, X2                    // c4c131f113
+	VPSLLW X2, X9, X2                       // c4e131f1d2 or c5b1f1d2
+	VPSLLW X11, X9, X2                      // c4c131f1d3
+	VPSLLW (BX), X9, X11                    // c46131f11b or c531f11b
+	VPSLLW (R11), X9, X11                   // c44131f11b
+	VPSLLW X2, X9, X11                      // c46131f1da or c531f1da
+	VPSLLW X11, X9, X11                     // c44131f1db
+	VPSLLW $7, X2, X9                       // c4e13171f207 or c5b171f207
+	VPSLLW $7, X11, X9                      // c4c13171f307
+	VPSLLW (BX), Y15, Y2                    // c4e105f113 or c585f113
+	VPSLLW (R11), Y15, Y2                   // c4c105f113
+	VPSLLW X2, Y15, Y2                      // c4e105f1d2 or c585f1d2
+	VPSLLW X11, Y15, Y2                     // c4c105f1d3
+	VPSLLW (BX), Y15, Y11                   // c46105f11b or c505f11b
+	VPSLLW (R11), Y15, Y11                  // c44105f11b
+	VPSLLW X2, Y15, Y11                     // c46105f1da or c505f1da
+	VPSLLW X11, Y15, Y11                    // c44105f1db
+	VPSLLW $7, Y2, Y15                      // c4e10571f207 or c58571f207
+	VPSLLW $7, Y11, Y15                     // c4c10571f307
+	VPSRAD (BX), X9, X2                     // c4e131e213 or c5b1e213
+	VPSRAD (R11), X9, X2                    // c4c131e213
+	VPSRAD X2, X9, X2                       // c4e131e2d2 or c5b1e2d2
+	VPSRAD X11, X9, X2                      // c4c131e2d3
+	VPSRAD (BX), X9, X11                    // c46131e21b or c531e21b
+	VPSRAD (R11), X9, X11                   // c44131e21b
+	VPSRAD X2, X9, X11                      // c46131e2da or c531e2da
+	VPSRAD X11, X9, X11                     // c44131e2db
+	VPSRAD $7, X2, X9                       // c4e13172e207 or c5b172e207
+	VPSRAD $7, X11, X9                      // c4c13172e307
+	VPSRAD (BX), Y15, Y2                    // c4e105e213 or c585e213
+	VPSRAD (R11), Y15, Y2                   // c4c105e213
+	VPSRAD X2, Y15, Y2                      // c4e105e2d2 or c585e2d2
+	VPSRAD X11, Y15, Y2                     // c4c105e2d3
+	VPSRAD (BX), Y15, Y11                   // c46105e21b or c505e21b
+	VPSRAD (R11), Y15, Y11                  // c44105e21b
+	VPSRAD X2, Y15, Y11                     // c46105e2da or c505e2da
+	VPSRAD X11, Y15, Y11                    // c44105e2db
+	VPSRAD $7, Y2, Y15                      // c4e10572e207 or c58572e207
+	VPSRAD $7, Y11, Y15                     // c4c10572e307
+	VPSRAVD (BX), X9, X2                    // c4e2314613
+	VPSRAVD (R11), X9, X2                   // c4c2314613
+	VPSRAVD X2, X9, X2                      // c4e23146d2
+	VPSRAVD X11, X9, X2                     // c4c23146d3
+	VPSRAVD (BX), X9, X11                   // c46231461b
+	VPSRAVD (R11), X9, X11                  // c44231461b
+	VPSRAVD X2, X9, X11                     // c4623146da
+	VPSRAVD X11, X9, X11                    // c4423146db
+	VPSRAVD (BX), Y15, Y2                   // c4e2054613
+	VPSRAVD (R11), Y15, Y2                  // c4c2054613
+	VPSRAVD Y2, Y15, Y2                     // c4e20546d2
+	VPSRAVD Y11, Y15, Y2                    // c4c20546d3
+	VPSRAVD (BX), Y15, Y11                  // c46205461b
+	VPSRAVD (R11), Y15, Y11                 // c44205461b
+	VPSRAVD Y2, Y15, Y11                    // c4620546da
+	VPSRAVD Y11, Y15, Y11                   // c4420546db
+	VPSRAW (BX), X9, X2                     // c4e131e113 or c5b1e113
+	VPSRAW (R11), X9, X2                    // c4c131e113
+	VPSRAW X2, X9, X2                       // c4e131e1d2 or c5b1e1d2
+	VPSRAW X11, X9, X2                      // c4c131e1d3
+	VPSRAW (BX), X9, X11                    // c46131e11b or c531e11b
+	VPSRAW (R11), X9, X11                   // c44131e11b
+	VPSRAW X2, X9, X11                      // c46131e1da or c531e1da
+	VPSRAW X11, X9, X11                     // c44131e1db
+	VPSRAW $7, X2, X9                       // c4e13171e207 or c5b171e207
+	VPSRAW $7, X11, X9                      // c4c13171e307
+	VPSRAW (BX), Y15, Y2                    // c4e105e113 or c585e113
+	VPSRAW (R11), Y15, Y2                   // c4c105e113
+	VPSRAW X2, Y15, Y2                      // c4e105e1d2 or c585e1d2
+	VPSRAW X11, Y15, Y2                     // c4c105e1d3
+	VPSRAW (BX), Y15, Y11                   // c46105e11b or c505e11b
+	VPSRAW (R11), Y15, Y11                  // c44105e11b
+	VPSRAW X2, Y15, Y11                     // c46105e1da or c505e1da
+	VPSRAW X11, Y15, Y11                    // c44105e1db
+	VPSRAW $7, Y2, Y15                      // c4e10571e207 or c58571e207
+	VPSRAW $7, Y11, Y15                     // c4c10571e307
 	VPSRLD (BX), X9, X2             // c4e131d213 or c5b1d213
 	VPSRLD (R11), X9, X2            // c4c131d213
 	VPSRLD X2, X9, X2               // c4e131d2d2 or c5b1d2d2
@@ -9764,186 +9764,186 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPSRLQ X11, X9, X11             // c44131d3db
 	VPSRLQ $7, X2, X9               // c4e13173d207 or c5b173d207
 	VPSRLQ $7, X11, X9              // c4c13173d307
-	//TODO: VPSRLVD (BX), X9, X2            // c4e2314513
-	//TODO: VPSRLVD (R11), X9, X2           // c4c2314513
-	//TODO: VPSRLVD X2, X9, X2              // c4e23145d2
-	//TODO: VPSRLVD X11, X9, X2             // c4c23145d3
-	//TODO: VPSRLVD (BX), X9, X11           // c46231451b
-	//TODO: VPSRLVD (R11), X9, X11          // c44231451b
-	//TODO: VPSRLVD X2, X9, X11             // c4623145da
-	//TODO: VPSRLVD X11, X9, X11            // c4423145db
-	//TODO: VPSRLVD (BX), Y15, Y2           // c4e2054513
-	//TODO: VPSRLVD (R11), Y15, Y2          // c4c2054513
-	//TODO: VPSRLVD Y2, Y15, Y2             // c4e20545d2
-	//TODO: VPSRLVD Y11, Y15, Y2            // c4c20545d3
-	//TODO: VPSRLVD (BX), Y15, Y11          // c46205451b
-	//TODO: VPSRLVD (R11), Y15, Y11         // c44205451b
-	//TODO: VPSRLVD Y2, Y15, Y11            // c4620545da
-	//TODO: VPSRLVD Y11, Y15, Y11           // c4420545db
-	//TODO: VPSRLVQ (BX), X9, X2            // c4e2b14513
-	//TODO: VPSRLVQ (R11), X9, X2           // c4c2b14513
-	//TODO: VPSRLVQ X2, X9, X2              // c4e2b145d2
-	//TODO: VPSRLVQ X11, X9, X2             // c4c2b145d3
-	//TODO: VPSRLVQ (BX), X9, X11           // c462b1451b
-	//TODO: VPSRLVQ (R11), X9, X11          // c442b1451b
-	//TODO: VPSRLVQ X2, X9, X11             // c462b145da
-	//TODO: VPSRLVQ X11, X9, X11            // c442b145db
-	//TODO: VPSRLVQ (BX), Y15, Y2           // c4e2854513
-	//TODO: VPSRLVQ (R11), Y15, Y2          // c4c2854513
-	//TODO: VPSRLVQ Y2, Y15, Y2             // c4e28545d2
-	//TODO: VPSRLVQ Y11, Y15, Y2            // c4c28545d3
-	//TODO: VPSRLVQ (BX), Y15, Y11          // c46285451b
-	//TODO: VPSRLVQ (R11), Y15, Y11         // c44285451b
-	//TODO: VPSRLVQ Y2, Y15, Y11            // c4628545da
-	//TODO: VPSRLVQ Y11, Y15, Y11           // c4428545db
-	//TODO: VPSRLW (BX), X9, X2             // c4e131d113 or c5b1d113
-	//TODO: VPSRLW (R11), X9, X2            // c4c131d113
-	//TODO: VPSRLW X2, X9, X2               // c4e131d1d2 or c5b1d1d2
-	//TODO: VPSRLW X11, X9, X2              // c4c131d1d3
-	//TODO: VPSRLW (BX), X9, X11            // c46131d11b or c531d11b
-	//TODO: VPSRLW (R11), X9, X11           // c44131d11b
-	//TODO: VPSRLW X2, X9, X11              // c46131d1da or c531d1da
-	//TODO: VPSRLW X11, X9, X11             // c44131d1db
-	//TODO: VPSRLW $7, X2, X9               // c4e13171d207 or c5b171d207
-	//TODO: VPSRLW $7, X11, X9              // c4c13171d307
-	//TODO: VPSRLW (BX), Y15, Y2            // c4e105d113 or c585d113
-	//TODO: VPSRLW (R11), Y15, Y2           // c4c105d113
-	//TODO: VPSRLW X2, Y15, Y2              // c4e105d1d2 or c585d1d2
-	//TODO: VPSRLW X11, Y15, Y2             // c4c105d1d3
-	//TODO: VPSRLW (BX), Y15, Y11           // c46105d11b or c505d11b
-	//TODO: VPSRLW (R11), Y15, Y11          // c44105d11b
-	//TODO: VPSRLW X2, Y15, Y11             // c46105d1da or c505d1da
-	//TODO: VPSRLW X11, Y15, Y11            // c44105d1db
-	//TODO: VPSRLW $7, Y2, Y15              // c4e10571d207 or c58571d207
-	//TODO: VPSRLW $7, Y11, Y15             // c4c10571d307
-	//TODO: VPSUBB (BX), X9, X2             // c4e131f813 or c5b1f813
-	//TODO: VPSUBB (R11), X9, X2            // c4c131f813
-	//TODO: VPSUBB X2, X9, X2               // c4e131f8d2 or c5b1f8d2
-	//TODO: VPSUBB X11, X9, X2              // c4c131f8d3
-	//TODO: VPSUBB (BX), X9, X11            // c46131f81b or c531f81b
-	//TODO: VPSUBB (R11), X9, X11           // c44131f81b
-	//TODO: VPSUBB X2, X9, X11              // c46131f8da or c531f8da
-	//TODO: VPSUBB X11, X9, X11             // c44131f8db
-	//TODO: VPSUBB (BX), Y15, Y2            // c4e105f813 or c585f813
-	//TODO: VPSUBB (R11), Y15, Y2           // c4c105f813
-	//TODO: VPSUBB Y2, Y15, Y2              // c4e105f8d2 or c585f8d2
-	//TODO: VPSUBB Y11, Y15, Y2             // c4c105f8d3
-	//TODO: VPSUBB (BX), Y15, Y11           // c46105f81b or c505f81b
-	//TODO: VPSUBB (R11), Y15, Y11          // c44105f81b
-	//TODO: VPSUBB Y2, Y15, Y11             // c46105f8da or c505f8da
-	//TODO: VPSUBB Y11, Y15, Y11            // c44105f8db
-	//TODO: VPSUBD (BX), X9, X2             // c4e131fa13 or c5b1fa13
-	//TODO: VPSUBD (R11), X9, X2            // c4c131fa13
-	//TODO: VPSUBD X2, X9, X2               // c4e131fad2 or c5b1fad2
-	//TODO: VPSUBD X11, X9, X2              // c4c131fad3
-	//TODO: VPSUBD (BX), X9, X11            // c46131fa1b or c531fa1b
-	//TODO: VPSUBD (R11), X9, X11           // c44131fa1b
-	//TODO: VPSUBD X2, X9, X11              // c46131fada or c531fada
-	//TODO: VPSUBD X11, X9, X11             // c44131fadb
-	//TODO: VPSUBD (BX), Y15, Y2            // c4e105fa13 or c585fa13
-	//TODO: VPSUBD (R11), Y15, Y2           // c4c105fa13
-	//TODO: VPSUBD Y2, Y15, Y2              // c4e105fad2 or c585fad2
-	//TODO: VPSUBD Y11, Y15, Y2             // c4c105fad3
-	//TODO: VPSUBD (BX), Y15, Y11           // c46105fa1b or c505fa1b
-	//TODO: VPSUBD (R11), Y15, Y11          // c44105fa1b
-	//TODO: VPSUBD Y2, Y15, Y11             // c46105fada or c505fada
-	//TODO: VPSUBD Y11, Y15, Y11            // c44105fadb
-	//TODO: VPSUBQ (BX), X9, X2             // c4e131fb13 or c5b1fb13
-	//TODO: VPSUBQ (R11), X9, X2            // c4c131fb13
-	//TODO: VPSUBQ X2, X9, X2               // c4e131fbd2 or c5b1fbd2
-	//TODO: VPSUBQ X11, X9, X2              // c4c131fbd3
-	//TODO: VPSUBQ (BX), X9, X11            // c46131fb1b or c531fb1b
-	//TODO: VPSUBQ (R11), X9, X11           // c44131fb1b
-	//TODO: VPSUBQ X2, X9, X11              // c46131fbda or c531fbda
-	//TODO: VPSUBQ X11, X9, X11             // c44131fbdb
-	//TODO: VPSUBQ (BX), Y15, Y2            // c4e105fb13 or c585fb13
-	//TODO: VPSUBQ (R11), Y15, Y2           // c4c105fb13
-	//TODO: VPSUBQ Y2, Y15, Y2              // c4e105fbd2 or c585fbd2
-	//TODO: VPSUBQ Y11, Y15, Y2             // c4c105fbd3
-	//TODO: VPSUBQ (BX), Y15, Y11           // c46105fb1b or c505fb1b
-	//TODO: VPSUBQ (R11), Y15, Y11          // c44105fb1b
-	//TODO: VPSUBQ Y2, Y15, Y11             // c46105fbda or c505fbda
-	//TODO: VPSUBQ Y11, Y15, Y11            // c44105fbdb
-	//TODO: VPSUBSB (BX), X9, X2            // c4e131e813 or c5b1e813
-	//TODO: VPSUBSB (R11), X9, X2           // c4c131e813
-	//TODO: VPSUBSB X2, X9, X2              // c4e131e8d2 or c5b1e8d2
-	//TODO: VPSUBSB X11, X9, X2             // c4c131e8d3
-	//TODO: VPSUBSB (BX), X9, X11           // c46131e81b or c531e81b
-	//TODO: VPSUBSB (R11), X9, X11          // c44131e81b
-	//TODO: VPSUBSB X2, X9, X11             // c46131e8da or c531e8da
-	//TODO: VPSUBSB X11, X9, X11            // c44131e8db
-	//TODO: VPSUBSB (BX), Y15, Y2           // c4e105e813 or c585e813
-	//TODO: VPSUBSB (R11), Y15, Y2          // c4c105e813
-	//TODO: VPSUBSB Y2, Y15, Y2             // c4e105e8d2 or c585e8d2
-	//TODO: VPSUBSB Y11, Y15, Y2            // c4c105e8d3
-	//TODO: VPSUBSB (BX), Y15, Y11          // c46105e81b or c505e81b
-	//TODO: VPSUBSB (R11), Y15, Y11         // c44105e81b
-	//TODO: VPSUBSB Y2, Y15, Y11            // c46105e8da or c505e8da
-	//TODO: VPSUBSB Y11, Y15, Y11           // c44105e8db
-	//TODO: VPSUBSW (BX), X9, X2            // c4e131e913 or c5b1e913
-	//TODO: VPSUBSW (R11), X9, X2           // c4c131e913
-	//TODO: VPSUBSW X2, X9, X2              // c4e131e9d2 or c5b1e9d2
-	//TODO: VPSUBSW X11, X9, X2             // c4c131e9d3
-	//TODO: VPSUBSW (BX), X9, X11           // c46131e91b or c531e91b
-	//TODO: VPSUBSW (R11), X9, X11          // c44131e91b
-	//TODO: VPSUBSW X2, X9, X11             // c46131e9da or c531e9da
-	//TODO: VPSUBSW X11, X9, X11            // c44131e9db
-	//TODO: VPSUBSW (BX), Y15, Y2           // c4e105e913 or c585e913
-	//TODO: VPSUBSW (R11), Y15, Y2          // c4c105e913
-	//TODO: VPSUBSW Y2, Y15, Y2             // c4e105e9d2 or c585e9d2
-	//TODO: VPSUBSW Y11, Y15, Y2            // c4c105e9d3
-	//TODO: VPSUBSW (BX), Y15, Y11          // c46105e91b or c505e91b
-	//TODO: VPSUBSW (R11), Y15, Y11         // c44105e91b
-	//TODO: VPSUBSW Y2, Y15, Y11            // c46105e9da or c505e9da
-	//TODO: VPSUBSW Y11, Y15, Y11           // c44105e9db
-	//TODO: VPSUBUSB (BX), X9, X2           // c4e131d813 or c5b1d813
-	//TODO: VPSUBUSB (R11), X9, X2          // c4c131d813
-	//TODO: VPSUBUSB X2, X9, X2             // c4e131d8d2 or c5b1d8d2
-	//TODO: VPSUBUSB X11, X9, X2            // c4c131d8d3
-	//TODO: VPSUBUSB (BX), X9, X11          // c46131d81b or c531d81b
-	//TODO: VPSUBUSB (R11), X9, X11         // c44131d81b
-	//TODO: VPSUBUSB X2, X9, X11            // c46131d8da or c531d8da
-	//TODO: VPSUBUSB X11, X9, X11           // c44131d8db
-	//TODO: VPSUBUSB (BX), Y15, Y2          // c4e105d813 or c585d813
-	//TODO: VPSUBUSB (R11), Y15, Y2         // c4c105d813
-	//TODO: VPSUBUSB Y2, Y15, Y2            // c4e105d8d2 or c585d8d2
-	//TODO: VPSUBUSB Y11, Y15, Y2           // c4c105d8d3
-	//TODO: VPSUBUSB (BX), Y15, Y11         // c46105d81b or c505d81b
-	//TODO: VPSUBUSB (R11), Y15, Y11        // c44105d81b
-	//TODO: VPSUBUSB Y2, Y15, Y11           // c46105d8da or c505d8da
-	//TODO: VPSUBUSB Y11, Y15, Y11          // c44105d8db
-	//TODO: VPSUBUSW (BX), X9, X2           // c4e131d913 or c5b1d913
-	//TODO: VPSUBUSW (R11), X9, X2          // c4c131d913
-	//TODO: VPSUBUSW X2, X9, X2             // c4e131d9d2 or c5b1d9d2
-	//TODO: VPSUBUSW X11, X9, X2            // c4c131d9d3
-	//TODO: VPSUBUSW (BX), X9, X11          // c46131d91b or c531d91b
-	//TODO: VPSUBUSW (R11), X9, X11         // c44131d91b
-	//TODO: VPSUBUSW X2, X9, X11            // c46131d9da or c531d9da
-	//TODO: VPSUBUSW X11, X9, X11           // c44131d9db
-	//TODO: VPSUBUSW (BX), Y15, Y2          // c4e105d913 or c585d913
-	//TODO: VPSUBUSW (R11), Y15, Y2         // c4c105d913
-	//TODO: VPSUBUSW Y2, Y15, Y2            // c4e105d9d2 or c585d9d2
-	//TODO: VPSUBUSW Y11, Y15, Y2           // c4c105d9d3
-	//TODO: VPSUBUSW (BX), Y15, Y11         // c46105d91b or c505d91b
-	//TODO: VPSUBUSW (R11), Y15, Y11        // c44105d91b
-	//TODO: VPSUBUSW Y2, Y15, Y11           // c46105d9da or c505d9da
-	//TODO: VPSUBUSW Y11, Y15, Y11          // c44105d9db
-	//TODO: VPSUBW (BX), X9, X2             // c4e131f913 or c5b1f913
-	//TODO: VPSUBW (R11), X9, X2            // c4c131f913
-	//TODO: VPSUBW X2, X9, X2               // c4e131f9d2 or c5b1f9d2
-	//TODO: VPSUBW X11, X9, X2              // c4c131f9d3
-	//TODO: VPSUBW (BX), X9, X11            // c46131f91b or c531f91b
-	//TODO: VPSUBW (R11), X9, X11           // c44131f91b
-	//TODO: VPSUBW X2, X9, X11              // c46131f9da or c531f9da
-	//TODO: VPSUBW X11, X9, X11             // c44131f9db
-	//TODO: VPSUBW (BX), Y15, Y2            // c4e105f913 or c585f913
-	//TODO: VPSUBW (R11), Y15, Y2           // c4c105f913
-	//TODO: VPSUBW Y2, Y15, Y2              // c4e105f9d2 or c585f9d2
-	//TODO: VPSUBW Y11, Y15, Y2             // c4c105f9d3
-	//TODO: VPSUBW (BX), Y15, Y11           // c46105f91b or c505f91b
-	//TODO: VPSUBW (R11), Y15, Y11          // c44105f91b
-	//TODO: VPSUBW Y2, Y15, Y11             // c46105f9da or c505f9da
-	//TODO: VPSUBW Y11, Y15, Y11            // c44105f9db
+	VPSRLVD (BX), X9, X2                    // c4e2314513
+	VPSRLVD (R11), X9, X2                   // c4c2314513
+	VPSRLVD X2, X9, X2                      // c4e23145d2
+	VPSRLVD X11, X9, X2                     // c4c23145d3
+	VPSRLVD (BX), X9, X11                   // c46231451b
+	VPSRLVD (R11), X9, X11                  // c44231451b
+	VPSRLVD X2, X9, X11                     // c4623145da
+	VPSRLVD X11, X9, X11                    // c4423145db
+	VPSRLVD (BX), Y15, Y2                   // c4e2054513
+	VPSRLVD (R11), Y15, Y2                  // c4c2054513
+	VPSRLVD Y2, Y15, Y2                     // c4e20545d2
+	VPSRLVD Y11, Y15, Y2                    // c4c20545d3
+	VPSRLVD (BX), Y15, Y11                  // c46205451b
+	VPSRLVD (R11), Y15, Y11                 // c44205451b
+	VPSRLVD Y2, Y15, Y11                    // c4620545da
+	VPSRLVD Y11, Y15, Y11                   // c4420545db
+	VPSRLVQ (BX), X9, X2                    // c4e2b14513
+	VPSRLVQ (R11), X9, X2                   // c4c2b14513
+	VPSRLVQ X2, X9, X2                      // c4e2b145d2
+	VPSRLVQ X11, X9, X2                     // c4c2b145d3
+	VPSRLVQ (BX), X9, X11                   // c462b1451b
+	VPSRLVQ (R11), X9, X11                  // c442b1451b
+	VPSRLVQ X2, X9, X11                     // c462b145da
+	VPSRLVQ X11, X9, X11                    // c442b145db
+	VPSRLVQ (BX), Y15, Y2                   // c4e2854513
+	VPSRLVQ (R11), Y15, Y2                  // c4c2854513
+	VPSRLVQ Y2, Y15, Y2                     // c4e28545d2
+	VPSRLVQ Y11, Y15, Y2                    // c4c28545d3
+	VPSRLVQ (BX), Y15, Y11                  // c46285451b
+	VPSRLVQ (R11), Y15, Y11                 // c44285451b
+	VPSRLVQ Y2, Y15, Y11                    // c4628545da
+	VPSRLVQ Y11, Y15, Y11                   // c4428545db
+	VPSRLW (BX), X9, X2                     // c4e131d113 or c5b1d113
+	VPSRLW (R11), X9, X2                    // c4c131d113
+	VPSRLW X2, X9, X2                       // c4e131d1d2 or c5b1d1d2
+	VPSRLW X11, X9, X2                      // c4c131d1d3
+	VPSRLW (BX), X9, X11                    // c46131d11b or c531d11b
+	VPSRLW (R11), X9, X11                   // c44131d11b
+	VPSRLW X2, X9, X11                      // c46131d1da or c531d1da
+	VPSRLW X11, X9, X11                     // c44131d1db
+	VPSRLW $7, X2, X9                       // c4e13171d207 or c5b171d207
+	VPSRLW $7, X11, X9                      // c4c13171d307
+	VPSRLW (BX), Y15, Y2                    // c4e105d113 or c585d113
+	VPSRLW (R11), Y15, Y2                   // c4c105d113
+	VPSRLW X2, Y15, Y2                      // c4e105d1d2 or c585d1d2
+	VPSRLW X11, Y15, Y2                     // c4c105d1d3
+	VPSRLW (BX), Y15, Y11                   // c46105d11b or c505d11b
+	VPSRLW (R11), Y15, Y11                  // c44105d11b
+	VPSRLW X2, Y15, Y11                     // c46105d1da or c505d1da
+	VPSRLW X11, Y15, Y11                    // c44105d1db
+	VPSRLW $7, Y2, Y15                      // c4e10571d207 or c58571d207
+	VPSRLW $7, Y11, Y15                     // c4c10571d307
+	VPSUBB (BX), X9, X2                     // c4e131f813 or c5b1f813
+	VPSUBB (R11), X9, X2                    // c4c131f813
+	VPSUBB X2, X9, X2                       // c4e131f8d2 or c5b1f8d2
+	VPSUBB X11, X9, X2                      // c4c131f8d3
+	VPSUBB (BX), X9, X11                    // c46131f81b or c531f81b
+	VPSUBB (R11), X9, X11                   // c44131f81b
+	VPSUBB X2, X9, X11                      // c46131f8da or c531f8da
+	VPSUBB X11, X9, X11                     // c44131f8db
+	VPSUBB (BX), Y15, Y2                    // c4e105f813 or c585f813
+	VPSUBB (R11), Y15, Y2                   // c4c105f813
+	VPSUBB Y2, Y15, Y2                      // c4e105f8d2 or c585f8d2
+	VPSUBB Y11, Y15, Y2                     // c4c105f8d3
+	VPSUBB (BX), Y15, Y11                   // c46105f81b or c505f81b
+	VPSUBB (R11), Y15, Y11                  // c44105f81b
+	VPSUBB Y2, Y15, Y11                     // c46105f8da or c505f8da
+	VPSUBB Y11, Y15, Y11                    // c44105f8db
+	VPSUBD (BX), X9, X2                     // c4e131fa13 or c5b1fa13
+	VPSUBD (R11), X9, X2                    // c4c131fa13
+	VPSUBD X2, X9, X2                       // c4e131fad2 or c5b1fad2
+	VPSUBD X11, X9, X2                      // c4c131fad3
+	VPSUBD (BX), X9, X11                    // c46131fa1b or c531fa1b
+	VPSUBD (R11), X9, X11                   // c44131fa1b
+	VPSUBD X2, X9, X11                      // c46131fada or c531fada
+	VPSUBD X11, X9, X11                     // c44131fadb
+	VPSUBD (BX), Y15, Y2                    // c4e105fa13 or c585fa13
+	VPSUBD (R11), Y15, Y2                   // c4c105fa13
+	VPSUBD Y2, Y15, Y2                      // c4e105fad2 or c585fad2
+	VPSUBD Y11, Y15, Y2                     // c4c105fad3
+	VPSUBD (BX), Y15, Y11                   // c46105fa1b or c505fa1b
+	VPSUBD (R11), Y15, Y11                  // c44105fa1b
+	VPSUBD Y2, Y15, Y11                     // c46105fada or c505fada
+	VPSUBD Y11, Y15, Y11                    // c44105fadb
+	VPSUBQ (BX), X9, X2                     // c4e131fb13 or c5b1fb13
+	VPSUBQ (R11), X9, X2                    // c4c131fb13
+	VPSUBQ X2, X9, X2                       // c4e131fbd2 or c5b1fbd2
+	VPSUBQ X11, X9, X2                      // c4c131fbd3
+	VPSUBQ (BX), X9, X11                    // c46131fb1b or c531fb1b
+	VPSUBQ (R11), X9, X11                   // c44131fb1b
+	VPSUBQ X2, X9, X11                      // c46131fbda or c531fbda
+	VPSUBQ X11, X9, X11                     // c44131fbdb
+	VPSUBQ (BX), Y15, Y2                    // c4e105fb13 or c585fb13
+	VPSUBQ (R11), Y15, Y2                   // c4c105fb13
+	VPSUBQ Y2, Y15, Y2                      // c4e105fbd2 or c585fbd2
+	VPSUBQ Y11, Y15, Y2                     // c4c105fbd3
+	VPSUBQ (BX), Y15, Y11                   // c46105fb1b or c505fb1b
+	VPSUBQ (R11), Y15, Y11                  // c44105fb1b
+	VPSUBQ Y2, Y15, Y11                     // c46105fbda or c505fbda
+	VPSUBQ Y11, Y15, Y11                    // c44105fbdb
+	VPSUBSB (BX), X9, X2                    // c4e131e813 or c5b1e813
+	VPSUBSB (R11), X9, X2                   // c4c131e813
+	VPSUBSB X2, X9, X2                      // c4e131e8d2 or c5b1e8d2
+	VPSUBSB X11, X9, X2                     // c4c131e8d3
+	VPSUBSB (BX), X9, X11                   // c46131e81b or c531e81b
+	VPSUBSB (R11), X9, X11                  // c44131e81b
+	VPSUBSB X2, X9, X11                     // c46131e8da or c531e8da
+	VPSUBSB X11, X9, X11                    // c44131e8db
+	VPSUBSB (BX), Y15, Y2                   // c4e105e813 or c585e813
+	VPSUBSB (R11), Y15, Y2                  // c4c105e813
+	VPSUBSB Y2, Y15, Y2                     // c4e105e8d2 or c585e8d2
+	VPSUBSB Y11, Y15, Y2                    // c4c105e8d3
+	VPSUBSB (BX), Y15, Y11                  // c46105e81b or c505e81b
+	VPSUBSB (R11), Y15, Y11                 // c44105e81b
+	VPSUBSB Y2, Y15, Y11                    // c46105e8da or c505e8da
+	VPSUBSB Y11, Y15, Y11                   // c44105e8db
+	VPSUBSW (BX), X9, X2                    // c4e131e913 or c5b1e913
+	VPSUBSW (R11), X9, X2                   // c4c131e913
+	VPSUBSW X2, X9, X2                      // c4e131e9d2 or c5b1e9d2
+	VPSUBSW X11, X9, X2                     // c4c131e9d3
+	VPSUBSW (BX), X9, X11                   // c46131e91b or c531e91b
+	VPSUBSW (R11), X9, X11                  // c44131e91b
+	VPSUBSW X2, X9, X11                     // c46131e9da or c531e9da
+	VPSUBSW X11, X9, X11                    // c44131e9db
+	VPSUBSW (BX), Y15, Y2                   // c4e105e913 or c585e913
+	VPSUBSW (R11), Y15, Y2                  // c4c105e913
+	VPSUBSW Y2, Y15, Y2                     // c4e105e9d2 or c585e9d2
+	VPSUBSW Y11, Y15, Y2                    // c4c105e9d3
+	VPSUBSW (BX), Y15, Y11                  // c46105e91b or c505e91b
+	VPSUBSW (R11), Y15, Y11                 // c44105e91b
+	VPSUBSW Y2, Y15, Y11                    // c46105e9da or c505e9da
+	VPSUBSW Y11, Y15, Y11                   // c44105e9db
+	VPSUBUSB (BX), X9, X2                   // c4e131d813 or c5b1d813
+	VPSUBUSB (R11), X9, X2                  // c4c131d813
+	VPSUBUSB X2, X9, X2                     // c4e131d8d2 or c5b1d8d2
+	VPSUBUSB X11, X9, X2                    // c4c131d8d3
+	VPSUBUSB (BX), X9, X11                  // c46131d81b or c531d81b
+	VPSUBUSB (R11), X9, X11                 // c44131d81b
+	VPSUBUSB X2, X9, X11                    // c46131d8da or c531d8da
+	VPSUBUSB X11, X9, X11                   // c44131d8db
+	VPSUBUSB (BX), Y15, Y2                  // c4e105d813 or c585d813
+	VPSUBUSB (R11), Y15, Y2                 // c4c105d813
+	VPSUBUSB Y2, Y15, Y2                    // c4e105d8d2 or c585d8d2
+	VPSUBUSB Y11, Y15, Y2                   // c4c105d8d3
+	VPSUBUSB (BX), Y15, Y11                 // c46105d81b or c505d81b
+	VPSUBUSB (R11), Y15, Y11                // c44105d81b
+	VPSUBUSB Y2, Y15, Y11                   // c46105d8da or c505d8da
+	VPSUBUSB Y11, Y15, Y11                  // c44105d8db
+	VPSUBUSW (BX), X9, X2                   // c4e131d913 or c5b1d913
+	VPSUBUSW (R11), X9, X2                  // c4c131d913
+	VPSUBUSW X2, X9, X2                     // c4e131d9d2 or c5b1d9d2
+	VPSUBUSW X11, X9, X2                    // c4c131d9d3
+	VPSUBUSW (BX), X9, X11                  // c46131d91b or c531d91b
+	VPSUBUSW (R11), X9, X11                 // c44131d91b
+	VPSUBUSW X2, X9, X11                    // c46131d9da or c531d9da
+	VPSUBUSW X11, X9, X11                   // c44131d9db
+	VPSUBUSW (BX), Y15, Y2                  // c4e105d913 or c585d913
+	VPSUBUSW (R11), Y15, Y2                 // c4c105d913
+	VPSUBUSW Y2, Y15, Y2                    // c4e105d9d2 or c585d9d2
+	VPSUBUSW Y11, Y15, Y2                   // c4c105d9d3
+	VPSUBUSW (BX), Y15, Y11                 // c46105d91b or c505d91b
+	VPSUBUSW (R11), Y15, Y11                // c44105d91b
+	VPSUBUSW Y2, Y15, Y11                   // c46105d9da or c505d9da
+	VPSUBUSW Y11, Y15, Y11                  // c44105d9db
+	VPSUBW (BX), X9, X2                     // c4e131f913 or c5b1f913
+	VPSUBW (R11), X9, X2                    // c4c131f913
+	VPSUBW X2, X9, X2                       // c4e131f9d2 or c5b1f9d2
+	VPSUBW X11, X9, X2                      // c4c131f9d3
+	VPSUBW (BX), X9, X11                    // c46131f91b or c531f91b
+	VPSUBW (R11), X9, X11                   // c44131f91b
+	VPSUBW X2, X9, X11                      // c46131f9da or c531f9da
+	VPSUBW X11, X9, X11                     // c44131f9db
+	VPSUBW (BX), Y15, Y2                    // c4e105f913 or c585f913
+	VPSUBW (R11), Y15, Y2                   // c4c105f913
+	VPSUBW Y2, Y15, Y2                      // c4e105f9d2 or c585f9d2
+	VPSUBW Y11, Y15, Y2                     // c4c105f9d3
+	VPSUBW (BX), Y15, Y11                   // c46105f91b or c505f91b
+	VPSUBW (R11), Y15, Y11                  // c44105f91b
+	VPSUBW Y2, Y15, Y11                     // c46105f9da or c505f9da
+	VPSUBW Y11, Y15, Y11                    // c44105f9db
 	VPTEST (BX), X2                         // c4e2791713
 	VPTEST (R11), X2                        // c4c2791713
 	VPTEST X2, X2                           // c4e27917d2
@@ -9960,134 +9960,134 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPTEST (R11), Y11                       // c4427d171b
 	VPTEST Y2, Y11                          // c4627d17da
 	VPTEST Y11, Y11                         // c4427d17db
-	//TODO: VPUNPCKHBW (BX), X9, X2         // c4e1316813 or c5b16813
-	//TODO: VPUNPCKHBW (R11), X9, X2        // c4c1316813
-	//TODO: VPUNPCKHBW X2, X9, X2           // c4e13168d2 or c5b168d2
-	//TODO: VPUNPCKHBW X11, X9, X2          // c4c13168d3
-	//TODO: VPUNPCKHBW (BX), X9, X11        // c46131681b or c531681b
-	//TODO: VPUNPCKHBW (R11), X9, X11       // c44131681b
-	//TODO: VPUNPCKHBW X2, X9, X11          // c4613168da or c53168da
-	//TODO: VPUNPCKHBW X11, X9, X11         // c4413168db
-	//TODO: VPUNPCKHBW (BX), Y15, Y2        // c4e1056813 or c5856813
-	//TODO: VPUNPCKHBW (R11), Y15, Y2       // c4c1056813
-	//TODO: VPUNPCKHBW Y2, Y15, Y2          // c4e10568d2 or c58568d2
-	//TODO: VPUNPCKHBW Y11, Y15, Y2         // c4c10568d3
-	//TODO: VPUNPCKHBW (BX), Y15, Y11       // c46105681b or c505681b
-	//TODO: VPUNPCKHBW (R11), Y15, Y11      // c44105681b
-	//TODO: VPUNPCKHBW Y2, Y15, Y11         // c4610568da or c50568da
-	//TODO: VPUNPCKHBW Y11, Y15, Y11        // c4410568db
-	//TODO: VPUNPCKHDQ (BX), X9, X2         // c4e1316a13 or c5b16a13
-	//TODO: VPUNPCKHDQ (R11), X9, X2        // c4c1316a13
-	//TODO: VPUNPCKHDQ X2, X9, X2           // c4e1316ad2 or c5b16ad2
-	//TODO: VPUNPCKHDQ X11, X9, X2          // c4c1316ad3
-	//TODO: VPUNPCKHDQ (BX), X9, X11        // c461316a1b or c5316a1b
-	//TODO: VPUNPCKHDQ (R11), X9, X11       // c441316a1b
-	//TODO: VPUNPCKHDQ X2, X9, X11          // c461316ada or c5316ada
-	//TODO: VPUNPCKHDQ X11, X9, X11         // c441316adb
-	//TODO: VPUNPCKHDQ (BX), Y15, Y2        // c4e1056a13 or c5856a13
-	//TODO: VPUNPCKHDQ (R11), Y15, Y2       // c4c1056a13
-	//TODO: VPUNPCKHDQ Y2, Y15, Y2          // c4e1056ad2 or c5856ad2
-	//TODO: VPUNPCKHDQ Y11, Y15, Y2         // c4c1056ad3
-	//TODO: VPUNPCKHDQ (BX), Y15, Y11       // c461056a1b or c5056a1b
-	//TODO: VPUNPCKHDQ (R11), Y15, Y11      // c441056a1b
-	//TODO: VPUNPCKHDQ Y2, Y15, Y11         // c461056ada or c5056ada
-	//TODO: VPUNPCKHDQ Y11, Y15, Y11        // c441056adb
-	//TODO: VPUNPCKHQDQ (BX), X9, X2        // c4e1316d13 or c5b16d13
-	//TODO: VPUNPCKHQDQ (R11), X9, X2       // c4c1316d13
-	//TODO: VPUNPCKHQDQ X2, X9, X2          // c4e1316dd2 or c5b16dd2
-	//TODO: VPUNPCKHQDQ X11, X9, X2         // c4c1316dd3
-	//TODO: VPUNPCKHQDQ (BX), X9, X11       // c461316d1b or c5316d1b
-	//TODO: VPUNPCKHQDQ (R11), X9, X11      // c441316d1b
-	//TODO: VPUNPCKHQDQ X2, X9, X11         // c461316dda or c5316dda
-	//TODO: VPUNPCKHQDQ X11, X9, X11        // c441316ddb
-	//TODO: VPUNPCKHQDQ (BX), Y15, Y2       // c4e1056d13 or c5856d13
-	//TODO: VPUNPCKHQDQ (R11), Y15, Y2      // c4c1056d13
-	//TODO: VPUNPCKHQDQ Y2, Y15, Y2         // c4e1056dd2 or c5856dd2
-	//TODO: VPUNPCKHQDQ Y11, Y15, Y2        // c4c1056dd3
-	//TODO: VPUNPCKHQDQ (BX), Y15, Y11      // c461056d1b or c5056d1b
-	//TODO: VPUNPCKHQDQ (R11), Y15, Y11     // c441056d1b
-	//TODO: VPUNPCKHQDQ Y2, Y15, Y11        // c461056dda or c5056dda
-	//TODO: VPUNPCKHQDQ Y11, Y15, Y11       // c441056ddb
-	//TODO: VPUNPCKHWD (BX), X9, X2         // c4e1316913 or c5b16913
-	//TODO: VPUNPCKHWD (R11), X9, X2        // c4c1316913
-	//TODO: VPUNPCKHWD X2, X9, X2           // c4e13169d2 or c5b169d2
-	//TODO: VPUNPCKHWD X11, X9, X2          // c4c13169d3
-	//TODO: VPUNPCKHWD (BX), X9, X11        // c46131691b or c531691b
-	//TODO: VPUNPCKHWD (R11), X9, X11       // c44131691b
-	//TODO: VPUNPCKHWD X2, X9, X11          // c4613169da or c53169da
-	//TODO: VPUNPCKHWD X11, X9, X11         // c4413169db
-	//TODO: VPUNPCKHWD (BX), Y15, Y2        // c4e1056913 or c5856913
-	//TODO: VPUNPCKHWD (R11), Y15, Y2       // c4c1056913
-	//TODO: VPUNPCKHWD Y2, Y15, Y2          // c4e10569d2 or c58569d2
-	//TODO: VPUNPCKHWD Y11, Y15, Y2         // c4c10569d3
-	//TODO: VPUNPCKHWD (BX), Y15, Y11       // c46105691b or c505691b
-	//TODO: VPUNPCKHWD (R11), Y15, Y11      // c44105691b
-	//TODO: VPUNPCKHWD Y2, Y15, Y11         // c4610569da or c50569da
-	//TODO: VPUNPCKHWD Y11, Y15, Y11        // c4410569db
-	//TODO: VPUNPCKLBW (BX), X9, X2         // c4e1316013 or c5b16013
-	//TODO: VPUNPCKLBW (R11), X9, X2        // c4c1316013
-	//TODO: VPUNPCKLBW X2, X9, X2           // c4e13160d2 or c5b160d2
-	//TODO: VPUNPCKLBW X11, X9, X2          // c4c13160d3
-	//TODO: VPUNPCKLBW (BX), X9, X11        // c46131601b or c531601b
-	//TODO: VPUNPCKLBW (R11), X9, X11       // c44131601b
-	//TODO: VPUNPCKLBW X2, X9, X11          // c4613160da or c53160da
-	//TODO: VPUNPCKLBW X11, X9, X11         // c4413160db
-	//TODO: VPUNPCKLBW (BX), Y15, Y2        // c4e1056013 or c5856013
-	//TODO: VPUNPCKLBW (R11), Y15, Y2       // c4c1056013
-	//TODO: VPUNPCKLBW Y2, Y15, Y2          // c4e10560d2 or c58560d2
-	//TODO: VPUNPCKLBW Y11, Y15, Y2         // c4c10560d3
-	//TODO: VPUNPCKLBW (BX), Y15, Y11       // c46105601b or c505601b
-	//TODO: VPUNPCKLBW (R11), Y15, Y11      // c44105601b
-	//TODO: VPUNPCKLBW Y2, Y15, Y11         // c4610560da or c50560da
-	//TODO: VPUNPCKLBW Y11, Y15, Y11        // c4410560db
-	//TODO: VPUNPCKLDQ (BX), X9, X2         // c4e1316213 or c5b16213
-	//TODO: VPUNPCKLDQ (R11), X9, X2        // c4c1316213
-	//TODO: VPUNPCKLDQ X2, X9, X2           // c4e13162d2 or c5b162d2
-	//TODO: VPUNPCKLDQ X11, X9, X2          // c4c13162d3
-	//TODO: VPUNPCKLDQ (BX), X9, X11        // c46131621b or c531621b
-	//TODO: VPUNPCKLDQ (R11), X9, X11       // c44131621b
-	//TODO: VPUNPCKLDQ X2, X9, X11          // c4613162da or c53162da
-	//TODO: VPUNPCKLDQ X11, X9, X11         // c4413162db
-	//TODO: VPUNPCKLDQ (BX), Y15, Y2        // c4e1056213 or c5856213
-	//TODO: VPUNPCKLDQ (R11), Y15, Y2       // c4c1056213
-	//TODO: VPUNPCKLDQ Y2, Y15, Y2          // c4e10562d2 or c58562d2
-	//TODO: VPUNPCKLDQ Y11, Y15, Y2         // c4c10562d3
-	//TODO: VPUNPCKLDQ (BX), Y15, Y11       // c46105621b or c505621b
-	//TODO: VPUNPCKLDQ (R11), Y15, Y11      // c44105621b
-	//TODO: VPUNPCKLDQ Y2, Y15, Y11         // c4610562da or c50562da
-	//TODO: VPUNPCKLDQ Y11, Y15, Y11        // c4410562db
-	//TODO: VPUNPCKLQDQ (BX), X9, X2        // c4e1316c13 or c5b16c13
-	//TODO: VPUNPCKLQDQ (R11), X9, X2       // c4c1316c13
-	//TODO: VPUNPCKLQDQ X2, X9, X2          // c4e1316cd2 or c5b16cd2
-	//TODO: VPUNPCKLQDQ X11, X9, X2         // c4c1316cd3
-	//TODO: VPUNPCKLQDQ (BX), X9, X11       // c461316c1b or c5316c1b
-	//TODO: VPUNPCKLQDQ (R11), X9, X11      // c441316c1b
-	//TODO: VPUNPCKLQDQ X2, X9, X11         // c461316cda or c5316cda
-	//TODO: VPUNPCKLQDQ X11, X9, X11        // c441316cdb
-	//TODO: VPUNPCKLQDQ (BX), Y15, Y2       // c4e1056c13 or c5856c13
-	//TODO: VPUNPCKLQDQ (R11), Y15, Y2      // c4c1056c13
-	//TODO: VPUNPCKLQDQ Y2, Y15, Y2         // c4e1056cd2 or c5856cd2
-	//TODO: VPUNPCKLQDQ Y11, Y15, Y2        // c4c1056cd3
-	//TODO: VPUNPCKLQDQ (BX), Y15, Y11      // c461056c1b or c5056c1b
-	//TODO: VPUNPCKLQDQ (R11), Y15, Y11     // c441056c1b
-	//TODO: VPUNPCKLQDQ Y2, Y15, Y11        // c461056cda or c5056cda
-	//TODO: VPUNPCKLQDQ Y11, Y15, Y11       // c441056cdb
-	//TODO: VPUNPCKLWD (BX), X9, X2         // c4e1316113 or c5b16113
-	//TODO: VPUNPCKLWD (R11), X9, X2        // c4c1316113
-	//TODO: VPUNPCKLWD X2, X9, X2           // c4e13161d2 or c5b161d2
-	//TODO: VPUNPCKLWD X11, X9, X2          // c4c13161d3
-	//TODO: VPUNPCKLWD (BX), X9, X11        // c46131611b or c531611b
-	//TODO: VPUNPCKLWD (R11), X9, X11       // c44131611b
-	//TODO: VPUNPCKLWD X2, X9, X11          // c4613161da or c53161da
-	//TODO: VPUNPCKLWD X11, X9, X11         // c4413161db
-	//TODO: VPUNPCKLWD (BX), Y15, Y2        // c4e1056113 or c5856113
-	//TODO: VPUNPCKLWD (R11), Y15, Y2       // c4c1056113
-	//TODO: VPUNPCKLWD Y2, Y15, Y2          // c4e10561d2 or c58561d2
-	//TODO: VPUNPCKLWD Y11, Y15, Y2         // c4c10561d3
-	//TODO: VPUNPCKLWD (BX), Y15, Y11       // c46105611b or c505611b
-	//TODO: VPUNPCKLWD (R11), Y15, Y11      // c44105611b
-	//TODO: VPUNPCKLWD Y2, Y15, Y11         // c4610561da or c50561da
-	//TODO: VPUNPCKLWD Y11, Y15, Y11        // c4410561db
+	VPUNPCKHBW (BX), X9, X2                 // c4e1316813 or c5b16813
+	VPUNPCKHBW (R11), X9, X2                // c4c1316813
+	VPUNPCKHBW X2, X9, X2                   // c4e13168d2 or c5b168d2
+	VPUNPCKHBW X11, X9, X2                  // c4c13168d3
+	VPUNPCKHBW (BX), X9, X11                // c46131681b or c531681b
+	VPUNPCKHBW (R11), X9, X11               // c44131681b
+	VPUNPCKHBW X2, X9, X11                  // c4613168da or c53168da
+	VPUNPCKHBW X11, X9, X11                 // c4413168db
+	VPUNPCKHBW (BX), Y15, Y2                // c4e1056813 or c5856813
+	VPUNPCKHBW (R11), Y15, Y2               // c4c1056813
+	VPUNPCKHBW Y2, Y15, Y2                  // c4e10568d2 or c58568d2
+	VPUNPCKHBW Y11, Y15, Y2                 // c4c10568d3
+	VPUNPCKHBW (BX), Y15, Y11               // c46105681b or c505681b
+	VPUNPCKHBW (R11), Y15, Y11              // c44105681b
+	VPUNPCKHBW Y2, Y15, Y11                 // c4610568da or c50568da
+	VPUNPCKHBW Y11, Y15, Y11                // c4410568db
+	VPUNPCKHDQ (BX), X9, X2                 // c4e1316a13 or c5b16a13
+	VPUNPCKHDQ (R11), X9, X2                // c4c1316a13
+	VPUNPCKHDQ X2, X9, X2                   // c4e1316ad2 or c5b16ad2
+	VPUNPCKHDQ X11, X9, X2                  // c4c1316ad3
+	VPUNPCKHDQ (BX), X9, X11                // c461316a1b or c5316a1b
+	VPUNPCKHDQ (R11), X9, X11               // c441316a1b
+	VPUNPCKHDQ X2, X9, X11                  // c461316ada or c5316ada
+	VPUNPCKHDQ X11, X9, X11                 // c441316adb
+	VPUNPCKHDQ (BX), Y15, Y2                // c4e1056a13 or c5856a13
+	VPUNPCKHDQ (R11), Y15, Y2               // c4c1056a13
+	VPUNPCKHDQ Y2, Y15, Y2                  // c4e1056ad2 or c5856ad2
+	VPUNPCKHDQ Y11, Y15, Y2                 // c4c1056ad3
+	VPUNPCKHDQ (BX), Y15, Y11               // c461056a1b or c5056a1b
+	VPUNPCKHDQ (R11), Y15, Y11              // c441056a1b
+	VPUNPCKHDQ Y2, Y15, Y11                 // c461056ada or c5056ada
+	VPUNPCKHDQ Y11, Y15, Y11                // c441056adb
+	VPUNPCKHQDQ (BX), X9, X2                // c4e1316d13 or c5b16d13
+	VPUNPCKHQDQ (R11), X9, X2               // c4c1316d13
+	VPUNPCKHQDQ X2, X9, X2                  // c4e1316dd2 or c5b16dd2
+	VPUNPCKHQDQ X11, X9, X2                 // c4c1316dd3
+	VPUNPCKHQDQ (BX), X9, X11               // c461316d1b or c5316d1b
+	VPUNPCKHQDQ (R11), X9, X11              // c441316d1b
+	VPUNPCKHQDQ X2, X9, X11                 // c461316dda or c5316dda
+	VPUNPCKHQDQ X11, X9, X11                // c441316ddb
+	VPUNPCKHQDQ (BX), Y15, Y2               // c4e1056d13 or c5856d13
+	VPUNPCKHQDQ (R11), Y15, Y2              // c4c1056d13
+	VPUNPCKHQDQ Y2, Y15, Y2                 // c4e1056dd2 or c5856dd2
+	VPUNPCKHQDQ Y11, Y15, Y2                // c4c1056dd3
+	VPUNPCKHQDQ (BX), Y15, Y11              // c461056d1b or c5056d1b
+	VPUNPCKHQDQ (R11), Y15, Y11             // c441056d1b
+	VPUNPCKHQDQ Y2, Y15, Y11                // c461056dda or c5056dda
+	VPUNPCKHQDQ Y11, Y15, Y11               // c441056ddb
+	VPUNPCKHWD (BX), X9, X2                 // c4e1316913 or c5b16913
+	VPUNPCKHWD (R11), X9, X2                // c4c1316913
+	VPUNPCKHWD X2, X9, X2                   // c4e13169d2 or c5b169d2
+	VPUNPCKHWD X11, X9, X2                  // c4c13169d3
+	VPUNPCKHWD (BX), X9, X11                // c46131691b or c531691b
+	VPUNPCKHWD (R11), X9, X11               // c44131691b
+	VPUNPCKHWD X2, X9, X11                  // c4613169da or c53169da
+	VPUNPCKHWD X11, X9, X11                 // c4413169db
+	VPUNPCKHWD (BX), Y15, Y2                // c4e1056913 or c5856913
+	VPUNPCKHWD (R11), Y15, Y2               // c4c1056913
+	VPUNPCKHWD Y2, Y15, Y2                  // c4e10569d2 or c58569d2
+	VPUNPCKHWD Y11, Y15, Y2                 // c4c10569d3
+	VPUNPCKHWD (BX), Y15, Y11               // c46105691b or c505691b
+	VPUNPCKHWD (R11), Y15, Y11              // c44105691b
+	VPUNPCKHWD Y2, Y15, Y11                 // c4610569da or c50569da
+	VPUNPCKHWD Y11, Y15, Y11                // c4410569db
+	VPUNPCKLBW (BX), X9, X2                 // c4e1316013 or c5b16013
+	VPUNPCKLBW (R11), X9, X2                // c4c1316013
+	VPUNPCKLBW X2, X9, X2                   // c4e13160d2 or c5b160d2
+	VPUNPCKLBW X11, X9, X2                  // c4c13160d3
+	VPUNPCKLBW (BX), X9, X11                // c46131601b or c531601b
+	VPUNPCKLBW (R11), X9, X11               // c44131601b
+	VPUNPCKLBW X2, X9, X11                  // c4613160da or c53160da
+	VPUNPCKLBW X11, X9, X11                 // c4413160db
+	VPUNPCKLBW (BX), Y15, Y2                // c4e1056013 or c5856013
+	VPUNPCKLBW (R11), Y15, Y2               // c4c1056013
+	VPUNPCKLBW Y2, Y15, Y2                  // c4e10560d2 or c58560d2
+	VPUNPCKLBW Y11, Y15, Y2                 // c4c10560d3
+	VPUNPCKLBW (BX), Y15, Y11               // c46105601b or c505601b
+	VPUNPCKLBW (R11), Y15, Y11              // c44105601b
+	VPUNPCKLBW Y2, Y15, Y11                 // c4610560da or c50560da
+	VPUNPCKLBW Y11, Y15, Y11                // c4410560db
+	VPUNPCKLDQ (BX), X9, X2                 // c4e1316213 or c5b16213
+	VPUNPCKLDQ (R11), X9, X2                // c4c1316213
+	VPUNPCKLDQ X2, X9, X2                   // c4e13162d2 or c5b162d2
+	VPUNPCKLDQ X11, X9, X2                  // c4c13162d3
+	VPUNPCKLDQ (BX), X9, X11                // c46131621b or c531621b
+	VPUNPCKLDQ (R11), X9, X11               // c44131621b
+	VPUNPCKLDQ X2, X9, X11                  // c4613162da or c53162da
+	VPUNPCKLDQ X11, X9, X11                 // c4413162db
+	VPUNPCKLDQ (BX), Y15, Y2                // c4e1056213 or c5856213
+	VPUNPCKLDQ (R11), Y15, Y2               // c4c1056213
+	VPUNPCKLDQ Y2, Y15, Y2                  // c4e10562d2 or c58562d2
+	VPUNPCKLDQ Y11, Y15, Y2                 // c4c10562d3
+	VPUNPCKLDQ (BX), Y15, Y11               // c46105621b or c505621b
+	VPUNPCKLDQ (R11), Y15, Y11              // c44105621b
+	VPUNPCKLDQ Y2, Y15, Y11                 // c4610562da or c50562da
+	VPUNPCKLDQ Y11, Y15, Y11                // c4410562db
+	VPUNPCKLQDQ (BX), X9, X2                // c4e1316c13 or c5b16c13
+	VPUNPCKLQDQ (R11), X9, X2               // c4c1316c13
+	VPUNPCKLQDQ X2, X9, X2                  // c4e1316cd2 or c5b16cd2
+	VPUNPCKLQDQ X11, X9, X2                 // c4c1316cd3
+	VPUNPCKLQDQ (BX), X9, X11               // c461316c1b or c5316c1b
+	VPUNPCKLQDQ (R11), X9, X11              // c441316c1b
+	VPUNPCKLQDQ X2, X9, X11                 // c461316cda or c5316cda
+	VPUNPCKLQDQ X11, X9, X11                // c441316cdb
+	VPUNPCKLQDQ (BX), Y15, Y2               // c4e1056c13 or c5856c13
+	VPUNPCKLQDQ (R11), Y15, Y2              // c4c1056c13
+	VPUNPCKLQDQ Y2, Y15, Y2                 // c4e1056cd2 or c5856cd2
+	VPUNPCKLQDQ Y11, Y15, Y2                // c4c1056cd3
+	VPUNPCKLQDQ (BX), Y15, Y11              // c461056c1b or c5056c1b
+	VPUNPCKLQDQ (R11), Y15, Y11             // c441056c1b
+	VPUNPCKLQDQ Y2, Y15, Y11                // c461056cda or c5056cda
+	VPUNPCKLQDQ Y11, Y15, Y11               // c441056cdb
+	VPUNPCKLWD (BX), X9, X2                 // c4e1316113 or c5b16113
+	VPUNPCKLWD (R11), X9, X2                // c4c1316113
+	VPUNPCKLWD X2, X9, X2                   // c4e13161d2 or c5b161d2
+	VPUNPCKLWD X11, X9, X2                  // c4c13161d3
+	VPUNPCKLWD (BX), X9, X11                // c46131611b or c531611b
+	VPUNPCKLWD (R11), X9, X11               // c44131611b
+	VPUNPCKLWD X2, X9, X11                  // c4613161da or c53161da
+	VPUNPCKLWD X11, X9, X11                 // c4413161db
+	VPUNPCKLWD (BX), Y15, Y2                // c4e1056113 or c5856113
+	VPUNPCKLWD (R11), Y15, Y2               // c4c1056113
+	VPUNPCKLWD Y2, Y15, Y2                  // c4e10561d2 or c58561d2
+	VPUNPCKLWD Y11, Y15, Y2                 // c4c10561d3
+	VPUNPCKLWD (BX), Y15, Y11               // c46105611b or c505611b
+	VPUNPCKLWD (R11), Y15, Y11              // c44105611b
+	VPUNPCKLWD Y2, Y15, Y11                 // c4610561da or c50561da
+	VPUNPCKLWD Y11, Y15, Y11                // c4410561db
 	VPXOR (BX), X9, X2                      // c4e131ef13 or c5b1ef13
 	VPXOR (R11), X9, X2                     // c4c131ef13
 	VPXOR X2, X9, X2                        // c4e131efd2 or c5b1efd2
@@ -10104,377 +10104,377 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPXOR (R11), Y15, Y11                   // c44105ef1b
 	VPXOR Y2, Y15, Y11                      // c46105efda or c505efda
 	VPXOR Y11, Y15, Y11                     // c44105efdb
-	//TODO: VRCPPS (BX), X2                 // c4e1785313 or c5f85313
-	//TODO: VRCPPS (R11), X2                // c4c1785313
-	//TODO: VRCPPS X2, X2                   // c4e17853d2 or c5f853d2
-	//TODO: VRCPPS X11, X2                  // c4c17853d3
-	//TODO: VRCPPS (BX), X11                // c46178531b or c578531b
-	//TODO: VRCPPS (R11), X11               // c44178531b
-	//TODO: VRCPPS X2, X11                  // c4617853da or c57853da
-	//TODO: VRCPPS X11, X11                 // c4417853db
-	//TODO: VRCPPS (BX), Y2                 // c4e17c5313 or c5fc5313
-	//TODO: VRCPPS (R11), Y2                // c4c17c5313
-	//TODO: VRCPPS Y2, Y2                   // c4e17c53d2 or c5fc53d2
-	//TODO: VRCPPS Y11, Y2                  // c4c17c53d3
-	//TODO: VRCPPS (BX), Y11                // c4617c531b or c57c531b
-	//TODO: VRCPPS (R11), Y11               // c4417c531b
-	//TODO: VRCPPS Y2, Y11                  // c4617c53da or c57c53da
-	//TODO: VRCPPS Y11, Y11                 // c4417c53db
-	//TODO: VRCPSS (BX), X9, X2             // c4e1325313 or c5b25313
-	//TODO: VRCPSS (R11), X9, X2            // c4c1325313
-	//TODO: VRCPSS X2, X9, X2               // c4e13253d2 or c5b253d2
-	//TODO: VRCPSS X11, X9, X2              // c4c13253d3
-	//TODO: VRCPSS (BX), X9, X11            // c46132531b or c532531b
-	//TODO: VRCPSS (R11), X9, X11           // c44132531b
-	//TODO: VRCPSS X2, X9, X11              // c4613253da or c53253da
-	//TODO: VRCPSS X11, X9, X11             // c4413253db
-	//TODO: VROUNDPD $7, (BX), X2           // c4e379091307
-	//TODO: VROUNDPD $7, (R11), X2          // c4c379091307
-	//TODO: VROUNDPD $7, X2, X2             // c4e37909d207
-	//TODO: VROUNDPD $7, X11, X2            // c4c37909d307
-	//TODO: VROUNDPD $7, (BX), X11          // c46379091b07
-	//TODO: VROUNDPD $7, (R11), X11         // c44379091b07
-	//TODO: VROUNDPD $7, X2, X11            // c4637909da07
-	//TODO: VROUNDPD $7, X11, X11           // c4437909db07
-	//TODO: VROUNDPD $7, (BX), Y2           // c4e37d091307
-	//TODO: VROUNDPD $7, (R11), Y2          // c4c37d091307
-	//TODO: VROUNDPD $7, Y2, Y2             // c4e37d09d207
-	//TODO: VROUNDPD $7, Y11, Y2            // c4c37d09d307
-	//TODO: VROUNDPD $7, (BX), Y11          // c4637d091b07
-	//TODO: VROUNDPD $7, (R11), Y11         // c4437d091b07
-	//TODO: VROUNDPD $7, Y2, Y11            // c4637d09da07
-	//TODO: VROUNDPD $7, Y11, Y11           // c4437d09db07
-	//TODO: VROUNDPS $7, (BX), X2           // c4e379081307
-	//TODO: VROUNDPS $7, (R11), X2          // c4c379081307
-	//TODO: VROUNDPS $7, X2, X2             // c4e37908d207
-	//TODO: VROUNDPS $7, X11, X2            // c4c37908d307
-	//TODO: VROUNDPS $7, (BX), X11          // c46379081b07
-	//TODO: VROUNDPS $7, (R11), X11         // c44379081b07
-	//TODO: VROUNDPS $7, X2, X11            // c4637908da07
-	//TODO: VROUNDPS $7, X11, X11           // c4437908db07
-	//TODO: VROUNDPS $7, (BX), Y2           // c4e37d081307
-	//TODO: VROUNDPS $7, (R11), Y2          // c4c37d081307
-	//TODO: VROUNDPS $7, Y2, Y2             // c4e37d08d207
-	//TODO: VROUNDPS $7, Y11, Y2            // c4c37d08d307
-	//TODO: VROUNDPS $7, (BX), Y11          // c4637d081b07
-	//TODO: VROUNDPS $7, (R11), Y11         // c4437d081b07
-	//TODO: VROUNDPS $7, Y2, Y11            // c4637d08da07
-	//TODO: VROUNDPS $7, Y11, Y11           // c4437d08db07
-	//TODO: VROUNDSD $7, (BX), X9, X2       // c4e3310b1307
-	//TODO: VROUNDSD $7, (R11), X9, X2      // c4c3310b1307
-	//TODO: VROUNDSD $7, X2, X9, X2         // c4e3310bd207
-	//TODO: VROUNDSD $7, X11, X9, X2        // c4c3310bd307
-	//TODO: VROUNDSD $7, (BX), X9, X11      // c463310b1b07
-	//TODO: VROUNDSD $7, (R11), X9, X11     // c443310b1b07
-	//TODO: VROUNDSD $7, X2, X9, X11        // c463310bda07
-	//TODO: VROUNDSD $7, X11, X9, X11       // c443310bdb07
-	//TODO: VROUNDSS $7, (BX), X9, X2       // c4e3310a1307
-	//TODO: VROUNDSS $7, (R11), X9, X2      // c4c3310a1307
-	//TODO: VROUNDSS $7, X2, X9, X2         // c4e3310ad207
-	//TODO: VROUNDSS $7, X11, X9, X2        // c4c3310ad307
-	//TODO: VROUNDSS $7, (BX), X9, X11      // c463310a1b07
-	//TODO: VROUNDSS $7, (R11), X9, X11     // c443310a1b07
-	//TODO: VROUNDSS $7, X2, X9, X11        // c463310ada07
-	//TODO: VROUNDSS $7, X11, X9, X11       // c443310adb07
-	//TODO: VRSQRTPS (BX), X2               // c4e1785213 or c5f85213
-	//TODO: VRSQRTPS (R11), X2              // c4c1785213
-	//TODO: VRSQRTPS X2, X2                 // c4e17852d2 or c5f852d2
-	//TODO: VRSQRTPS X11, X2                // c4c17852d3
-	//TODO: VRSQRTPS (BX), X11              // c46178521b or c578521b
-	//TODO: VRSQRTPS (R11), X11             // c44178521b
-	//TODO: VRSQRTPS X2, X11                // c4617852da or c57852da
-	//TODO: VRSQRTPS X11, X11               // c4417852db
-	//TODO: VRSQRTPS (BX), Y2               // c4e17c5213 or c5fc5213
-	//TODO: VRSQRTPS (R11), Y2              // c4c17c5213
-	//TODO: VRSQRTPS Y2, Y2                 // c4e17c52d2 or c5fc52d2
-	//TODO: VRSQRTPS Y11, Y2                // c4c17c52d3
-	//TODO: VRSQRTPS (BX), Y11              // c4617c521b or c57c521b
-	//TODO: VRSQRTPS (R11), Y11             // c4417c521b
-	//TODO: VRSQRTPS Y2, Y11                // c4617c52da or c57c52da
-	//TODO: VRSQRTPS Y11, Y11               // c4417c52db
-	//TODO: VRSQRTSS (BX), X9, X2           // c4e1325213 or c5b25213
-	//TODO: VRSQRTSS (R11), X9, X2          // c4c1325213
-	//TODO: VRSQRTSS X2, X9, X2             // c4e13252d2 or c5b252d2
-	//TODO: VRSQRTSS X11, X9, X2            // c4c13252d3
-	//TODO: VRSQRTSS (BX), X9, X11          // c46132521b or c532521b
-	//TODO: VRSQRTSS (R11), X9, X11         // c44132521b
-	//TODO: VRSQRTSS X2, X9, X11            // c4613252da or c53252da
-	//TODO: VRSQRTSS X11, X9, X11           // c4413252db
-	//TODO: VSHUFPD $7, (BX), X9, X2        // c4e131c61307 or c5b1c61307
-	//TODO: VSHUFPD $7, (R11), X9, X2       // c4c131c61307
-	//TODO: VSHUFPD $7, X2, X9, X2          // c4e131c6d207 or c5b1c6d207
-	//TODO: VSHUFPD $7, X11, X9, X2         // c4c131c6d307
-	//TODO: VSHUFPD $7, (BX), X9, X11       // c46131c61b07 or c531c61b07
-	//TODO: VSHUFPD $7, (R11), X9, X11      // c44131c61b07
-	//TODO: VSHUFPD $7, X2, X9, X11         // c46131c6da07 or c531c6da07
-	//TODO: VSHUFPD $7, X11, X9, X11        // c44131c6db07
-	//TODO: VSHUFPD $7, (BX), Y15, Y2       // c4e105c61307 or c585c61307
-	//TODO: VSHUFPD $7, (R11), Y15, Y2      // c4c105c61307
-	//TODO: VSHUFPD $7, Y2, Y15, Y2         // c4e105c6d207 or c585c6d207
-	//TODO: VSHUFPD $7, Y11, Y15, Y2        // c4c105c6d307
-	//TODO: VSHUFPD $7, (BX), Y15, Y11      // c46105c61b07 or c505c61b07
-	//TODO: VSHUFPD $7, (R11), Y15, Y11     // c44105c61b07
-	//TODO: VSHUFPD $7, Y2, Y15, Y11        // c46105c6da07 or c505c6da07
-	//TODO: VSHUFPD $7, Y11, Y15, Y11       // c44105c6db07
-	//TODO: VSHUFPS $7, (BX), X9, X2        // c4e130c61307 or c5b0c61307
-	//TODO: VSHUFPS $7, (R11), X9, X2       // c4c130c61307
-	//TODO: VSHUFPS $7, X2, X9, X2          // c4e130c6d207 or c5b0c6d207
-	//TODO: VSHUFPS $7, X11, X9, X2         // c4c130c6d307
-	//TODO: VSHUFPS $7, (BX), X9, X11       // c46130c61b07 or c530c61b07
-	//TODO: VSHUFPS $7, (R11), X9, X11      // c44130c61b07
-	//TODO: VSHUFPS $7, X2, X9, X11         // c46130c6da07 or c530c6da07
-	//TODO: VSHUFPS $7, X11, X9, X11        // c44130c6db07
-	//TODO: VSHUFPS $7, (BX), Y15, Y2       // c4e104c61307 or c584c61307
-	//TODO: VSHUFPS $7, (R11), Y15, Y2      // c4c104c61307
-	//TODO: VSHUFPS $7, Y2, Y15, Y2         // c4e104c6d207 or c584c6d207
-	//TODO: VSHUFPS $7, Y11, Y15, Y2        // c4c104c6d307
-	//TODO: VSHUFPS $7, (BX), Y15, Y11      // c46104c61b07 or c504c61b07
-	//TODO: VSHUFPS $7, (R11), Y15, Y11     // c44104c61b07
-	//TODO: VSHUFPS $7, Y2, Y15, Y11        // c46104c6da07 or c504c6da07
-	//TODO: VSHUFPS $7, Y11, Y15, Y11       // c44104c6db07
-	//TODO: VSQRTPD (BX), X2                // c4e1795113 or c5f95113
-	//TODO: VSQRTPD (R11), X2               // c4c1795113
-	//TODO: VSQRTPD X2, X2                  // c4e17951d2 or c5f951d2
-	//TODO: VSQRTPD X11, X2                 // c4c17951d3
-	//TODO: VSQRTPD (BX), X11               // c46179511b or c579511b
-	//TODO: VSQRTPD (R11), X11              // c44179511b
-	//TODO: VSQRTPD X2, X11                 // c4617951da or c57951da
-	//TODO: VSQRTPD X11, X11                // c4417951db
-	//TODO: VSQRTPD (BX), Y2                // c4e17d5113 or c5fd5113
-	//TODO: VSQRTPD (R11), Y2               // c4c17d5113
-	//TODO: VSQRTPD Y2, Y2                  // c4e17d51d2 or c5fd51d2
-	//TODO: VSQRTPD Y11, Y2                 // c4c17d51d3
-	//TODO: VSQRTPD (BX), Y11               // c4617d511b or c57d511b
-	//TODO: VSQRTPD (R11), Y11              // c4417d511b
-	//TODO: VSQRTPD Y2, Y11                 // c4617d51da or c57d51da
-	//TODO: VSQRTPD Y11, Y11                // c4417d51db
-	//TODO: VSQRTPS (BX), X2                // c4e1785113 or c5f85113
-	//TODO: VSQRTPS (R11), X2               // c4c1785113
-	//TODO: VSQRTPS X2, X2                  // c4e17851d2 or c5f851d2
-	//TODO: VSQRTPS X11, X2                 // c4c17851d3
-	//TODO: VSQRTPS (BX), X11               // c46178511b or c578511b
-	//TODO: VSQRTPS (R11), X11              // c44178511b
-	//TODO: VSQRTPS X2, X11                 // c4617851da or c57851da
-	//TODO: VSQRTPS X11, X11                // c4417851db
-	//TODO: VSQRTPS (BX), Y2                // c4e17c5113 or c5fc5113
-	//TODO: VSQRTPS (R11), Y2               // c4c17c5113
-	//TODO: VSQRTPS Y2, Y2                  // c4e17c51d2 or c5fc51d2
-	//TODO: VSQRTPS Y11, Y2                 // c4c17c51d3
-	//TODO: VSQRTPS (BX), Y11               // c4617c511b or c57c511b
-	//TODO: VSQRTPS (R11), Y11              // c4417c511b
-	//TODO: VSQRTPS Y2, Y11                 // c4617c51da or c57c51da
-	//TODO: VSQRTPS Y11, Y11                // c4417c51db
-	//TODO: VSQRTSD (BX), X9, X2            // c4e1335113 or c5b35113
-	//TODO: VSQRTSD (R11), X9, X2           // c4c1335113
-	//TODO: VSQRTSD X2, X9, X2              // c4e13351d2 or c5b351d2
-	//TODO: VSQRTSD X11, X9, X2             // c4c13351d3
-	//TODO: VSQRTSD (BX), X9, X11           // c46133511b or c533511b
-	//TODO: VSQRTSD (R11), X9, X11          // c44133511b
-	//TODO: VSQRTSD X2, X9, X11             // c4613351da or c53351da
-	//TODO: VSQRTSD X11, X9, X11            // c4413351db
-	//TODO: VSQRTSS (BX), X9, X2            // c4e1325113 or c5b25113
-	//TODO: VSQRTSS (R11), X9, X2           // c4c1325113
-	//TODO: VSQRTSS X2, X9, X2              // c4e13251d2 or c5b251d2
-	//TODO: VSQRTSS X11, X9, X2             // c4c13251d3
-	//TODO: VSQRTSS (BX), X9, X11           // c46132511b or c532511b
-	//TODO: VSQRTSS (R11), X9, X11          // c44132511b
-	//TODO: VSQRTSS X2, X9, X11             // c4613251da or c53251da
-	//TODO: VSQRTSS X11, X9, X11            // c4413251db
-	//TODO: VSTMXCSR (BX)                   // c4e178ae1b or c5f8ae1b
-	//TODO: VSTMXCSR (R11)                  // c4c178ae1b
-	//TODO: VSUBPD (BX), X9, X2             // c4e1315c13 or c5b15c13
-	//TODO: VSUBPD (R11), X9, X2            // c4c1315c13
-	//TODO: VSUBPD X2, X9, X2               // c4e1315cd2 or c5b15cd2
-	//TODO: VSUBPD X11, X9, X2              // c4c1315cd3
-	//TODO: VSUBPD (BX), X9, X11            // c461315c1b or c5315c1b
-	//TODO: VSUBPD (R11), X9, X11           // c441315c1b
-	//TODO: VSUBPD X2, X9, X11              // c461315cda or c5315cda
-	//TODO: VSUBPD X11, X9, X11             // c441315cdb
-	//TODO: VSUBPD (BX), Y15, Y2            // c4e1055c13 or c5855c13
-	//TODO: VSUBPD (R11), Y15, Y2           // c4c1055c13
-	//TODO: VSUBPD Y2, Y15, Y2              // c4e1055cd2 or c5855cd2
-	//TODO: VSUBPD Y11, Y15, Y2             // c4c1055cd3
-	//TODO: VSUBPD (BX), Y15, Y11           // c461055c1b or c5055c1b
-	//TODO: VSUBPD (R11), Y15, Y11          // c441055c1b
-	//TODO: VSUBPD Y2, Y15, Y11             // c461055cda or c5055cda
-	//TODO: VSUBPD Y11, Y15, Y11            // c441055cdb
-	//TODO: VSUBPS (BX), X9, X2             // c4e1305c13 or c5b05c13
-	//TODO: VSUBPS (R11), X9, X2            // c4c1305c13
-	//TODO: VSUBPS X2, X9, X2               // c4e1305cd2 or c5b05cd2
-	//TODO: VSUBPS X11, X9, X2              // c4c1305cd3
-	//TODO: VSUBPS (BX), X9, X11            // c461305c1b or c5305c1b
-	//TODO: VSUBPS (R11), X9, X11           // c441305c1b
-	//TODO: VSUBPS X2, X9, X11              // c461305cda or c5305cda
-	//TODO: VSUBPS X11, X9, X11             // c441305cdb
-	//TODO: VSUBPS (BX), Y15, Y2            // c4e1045c13 or c5845c13
-	//TODO: VSUBPS (R11), Y15, Y2           // c4c1045c13
-	//TODO: VSUBPS Y2, Y15, Y2              // c4e1045cd2 or c5845cd2
-	//TODO: VSUBPS Y11, Y15, Y2             // c4c1045cd3
-	//TODO: VSUBPS (BX), Y15, Y11           // c461045c1b or c5045c1b
-	//TODO: VSUBPS (R11), Y15, Y11          // c441045c1b
-	//TODO: VSUBPS Y2, Y15, Y11             // c461045cda or c5045cda
-	//TODO: VSUBPS Y11, Y15, Y11            // c441045cdb
-	//TODO: VSUBSD (BX), X9, X2             // c4e1335c13 or c5b35c13
-	//TODO: VSUBSD (R11), X9, X2            // c4c1335c13
-	//TODO: VSUBSD X2, X9, X2               // c4e1335cd2 or c5b35cd2
-	//TODO: VSUBSD X11, X9, X2              // c4c1335cd3
-	//TODO: VSUBSD (BX), X9, X11            // c461335c1b or c5335c1b
-	//TODO: VSUBSD (R11), X9, X11           // c441335c1b
-	//TODO: VSUBSD X2, X9, X11              // c461335cda or c5335cda
-	//TODO: VSUBSD X11, X9, X11             // c441335cdb
-	//TODO: VSUBSS (BX), X9, X2             // c4e1325c13 or c5b25c13
-	//TODO: VSUBSS (R11), X9, X2            // c4c1325c13
-	//TODO: VSUBSS X2, X9, X2               // c4e1325cd2 or c5b25cd2
-	//TODO: VSUBSS X11, X9, X2              // c4c1325cd3
-	//TODO: VSUBSS (BX), X9, X11            // c461325c1b or c5325c1b
-	//TODO: VSUBSS (R11), X9, X11           // c441325c1b
-	//TODO: VSUBSS X2, X9, X11              // c461325cda or c5325cda
-	//TODO: VSUBSS X11, X9, X11             // c441325cdb
-	//TODO: VTESTPD (BX), X2                // c4e2790f13
-	//TODO: VTESTPD (R11), X2               // c4c2790f13
-	//TODO: VTESTPD X2, X2                  // c4e2790fd2
-	//TODO: VTESTPD X11, X2                 // c4c2790fd3
-	//TODO: VTESTPD (BX), X11               // c462790f1b
-	//TODO: VTESTPD (R11), X11              // c442790f1b
-	//TODO: VTESTPD X2, X11                 // c462790fda
-	//TODO: VTESTPD X11, X11                // c442790fdb
-	//TODO: VTESTPD (BX), Y2                // c4e27d0f13
-	//TODO: VTESTPD (R11), Y2               // c4c27d0f13
-	//TODO: VTESTPD Y2, Y2                  // c4e27d0fd2
-	//TODO: VTESTPD Y11, Y2                 // c4c27d0fd3
-	//TODO: VTESTPD (BX), Y11               // c4627d0f1b
-	//TODO: VTESTPD (R11), Y11              // c4427d0f1b
-	//TODO: VTESTPD Y2, Y11                 // c4627d0fda
-	//TODO: VTESTPD Y11, Y11                // c4427d0fdb
-	//TODO: VTESTPS (BX), X2                // c4e2790e13
-	//TODO: VTESTPS (R11), X2               // c4c2790e13
-	//TODO: VTESTPS X2, X2                  // c4e2790ed2
-	//TODO: VTESTPS X11, X2                 // c4c2790ed3
-	//TODO: VTESTPS (BX), X11               // c462790e1b
-	//TODO: VTESTPS (R11), X11              // c442790e1b
-	//TODO: VTESTPS X2, X11                 // c462790eda
-	//TODO: VTESTPS X11, X11                // c442790edb
-	//TODO: VTESTPS (BX), Y2                // c4e27d0e13
-	//TODO: VTESTPS (R11), Y2               // c4c27d0e13
-	//TODO: VTESTPS Y2, Y2                  // c4e27d0ed2
-	//TODO: VTESTPS Y11, Y2                 // c4c27d0ed3
-	//TODO: VTESTPS (BX), Y11               // c4627d0e1b
-	//TODO: VTESTPS (R11), Y11              // c4427d0e1b
-	//TODO: VTESTPS Y2, Y11                 // c4627d0eda
-	//TODO: VTESTPS Y11, Y11                // c4427d0edb
-	//TODO: VUCOMISD (BX), X2               // c4e1792e13 or c5f92e13
-	//TODO: VUCOMISD (R11), X2              // c4c1792e13
-	//TODO: VUCOMISD X2, X2                 // c4e1792ed2 or c5f92ed2
-	//TODO: VUCOMISD X11, X2                // c4c1792ed3
-	//TODO: VUCOMISD (BX), X11              // c461792e1b or c5792e1b
-	//TODO: VUCOMISD (R11), X11             // c441792e1b
-	//TODO: VUCOMISD X2, X11                // c461792eda or c5792eda
-	//TODO: VUCOMISD X11, X11               // c441792edb
-	//TODO: VUCOMISS (BX), X2               // c4e1782e13 or c5f82e13
-	//TODO: VUCOMISS (R11), X2              // c4c1782e13
-	//TODO: VUCOMISS X2, X2                 // c4e1782ed2 or c5f82ed2
-	//TODO: VUCOMISS X11, X2                // c4c1782ed3
-	//TODO: VUCOMISS (BX), X11              // c461782e1b or c5782e1b
-	//TODO: VUCOMISS (R11), X11             // c441782e1b
-	//TODO: VUCOMISS X2, X11                // c461782eda or c5782eda
-	//TODO: VUCOMISS X11, X11               // c441782edb
-	//TODO: VUNPCKHPD (BX), X9, X2          // c4e1311513 or c5b11513
-	//TODO: VUNPCKHPD (R11), X9, X2         // c4c1311513
-	//TODO: VUNPCKHPD X2, X9, X2            // c4e13115d2 or c5b115d2
-	//TODO: VUNPCKHPD X11, X9, X2           // c4c13115d3
-	//TODO: VUNPCKHPD (BX), X9, X11         // c46131151b or c531151b
-	//TODO: VUNPCKHPD (R11), X9, X11        // c44131151b
-	//TODO: VUNPCKHPD X2, X9, X11           // c4613115da or c53115da
-	//TODO: VUNPCKHPD X11, X9, X11          // c4413115db
-	//TODO: VUNPCKHPD (BX), Y15, Y2         // c4e1051513 or c5851513
-	//TODO: VUNPCKHPD (R11), Y15, Y2        // c4c1051513
-	//TODO: VUNPCKHPD Y2, Y15, Y2           // c4e10515d2 or c58515d2
-	//TODO: VUNPCKHPD Y11, Y15, Y2          // c4c10515d3
-	//TODO: VUNPCKHPD (BX), Y15, Y11        // c46105151b or c505151b
-	//TODO: VUNPCKHPD (R11), Y15, Y11       // c44105151b
-	//TODO: VUNPCKHPD Y2, Y15, Y11          // c4610515da or c50515da
-	//TODO: VUNPCKHPD Y11, Y15, Y11         // c4410515db
-	//TODO: VUNPCKHPS (BX), X9, X2          // c4e1301513 or c5b01513
-	//TODO: VUNPCKHPS (R11), X9, X2         // c4c1301513
-	//TODO: VUNPCKHPS X2, X9, X2            // c4e13015d2 or c5b015d2
-	//TODO: VUNPCKHPS X11, X9, X2           // c4c13015d3
-	//TODO: VUNPCKHPS (BX), X9, X11         // c46130151b or c530151b
-	//TODO: VUNPCKHPS (R11), X9, X11        // c44130151b
-	//TODO: VUNPCKHPS X2, X9, X11           // c4613015da or c53015da
-	//TODO: VUNPCKHPS X11, X9, X11          // c4413015db
-	//TODO: VUNPCKHPS (BX), Y15, Y2         // c4e1041513 or c5841513
-	//TODO: VUNPCKHPS (R11), Y15, Y2        // c4c1041513
-	//TODO: VUNPCKHPS Y2, Y15, Y2           // c4e10415d2 or c58415d2
-	//TODO: VUNPCKHPS Y11, Y15, Y2          // c4c10415d3
-	//TODO: VUNPCKHPS (BX), Y15, Y11        // c46104151b or c504151b
-	//TODO: VUNPCKHPS (R11), Y15, Y11       // c44104151b
-	//TODO: VUNPCKHPS Y2, Y15, Y11          // c4610415da or c50415da
-	//TODO: VUNPCKHPS Y11, Y15, Y11         // c4410415db
-	//TODO: VUNPCKLPD (BX), X9, X2          // c4e1311413 or c5b11413
-	//TODO: VUNPCKLPD (R11), X9, X2         // c4c1311413
-	//TODO: VUNPCKLPD X2, X9, X2            // c4e13114d2 or c5b114d2
-	//TODO: VUNPCKLPD X11, X9, X2           // c4c13114d3
-	//TODO: VUNPCKLPD (BX), X9, X11         // c46131141b or c531141b
-	//TODO: VUNPCKLPD (R11), X9, X11        // c44131141b
-	//TODO: VUNPCKLPD X2, X9, X11           // c4613114da or c53114da
-	//TODO: VUNPCKLPD X11, X9, X11          // c4413114db
-	//TODO: VUNPCKLPD (BX), Y15, Y2         // c4e1051413 or c5851413
-	//TODO: VUNPCKLPD (R11), Y15, Y2        // c4c1051413
-	//TODO: VUNPCKLPD Y2, Y15, Y2           // c4e10514d2 or c58514d2
-	//TODO: VUNPCKLPD Y11, Y15, Y2          // c4c10514d3
-	//TODO: VUNPCKLPD (BX), Y15, Y11        // c46105141b or c505141b
-	//TODO: VUNPCKLPD (R11), Y15, Y11       // c44105141b
-	//TODO: VUNPCKLPD Y2, Y15, Y11          // c4610514da or c50514da
-	//TODO: VUNPCKLPD Y11, Y15, Y11         // c4410514db
-	//TODO: VUNPCKLPS (BX), X9, X2          // c4e1301413 or c5b01413
-	//TODO: VUNPCKLPS (R11), X9, X2         // c4c1301413
-	//TODO: VUNPCKLPS X2, X9, X2            // c4e13014d2 or c5b014d2
-	//TODO: VUNPCKLPS X11, X9, X2           // c4c13014d3
-	//TODO: VUNPCKLPS (BX), X9, X11         // c46130141b or c530141b
-	//TODO: VUNPCKLPS (R11), X9, X11        // c44130141b
-	//TODO: VUNPCKLPS X2, X9, X11           // c4613014da or c53014da
-	//TODO: VUNPCKLPS X11, X9, X11          // c4413014db
-	//TODO: VUNPCKLPS (BX), Y15, Y2         // c4e1041413 or c5841413
-	//TODO: VUNPCKLPS (R11), Y15, Y2        // c4c1041413
-	//TODO: VUNPCKLPS Y2, Y15, Y2           // c4e10414d2 or c58414d2
-	//TODO: VUNPCKLPS Y11, Y15, Y2          // c4c10414d3
-	//TODO: VUNPCKLPS (BX), Y15, Y11        // c46104141b or c504141b
-	//TODO: VUNPCKLPS (R11), Y15, Y11       // c44104141b
-	//TODO: VUNPCKLPS Y2, Y15, Y11          // c4610414da or c50414da
-	//TODO: VUNPCKLPS Y11, Y15, Y11         // c4410414db
-	//TODO: VXORPD (BX), X9, X2             // c4e1315713 or c5b15713
-	//TODO: VXORPD (R11), X9, X2            // c4c1315713
-	//TODO: VXORPD X2, X9, X2               // c4e13157d2 or c5b157d2
-	//TODO: VXORPD X11, X9, X2              // c4c13157d3
-	//TODO: VXORPD (BX), X9, X11            // c46131571b or c531571b
-	//TODO: VXORPD (R11), X9, X11           // c44131571b
-	//TODO: VXORPD X2, X9, X11              // c4613157da or c53157da
-	//TODO: VXORPD X11, X9, X11             // c4413157db
-	//TODO: VXORPD (BX), Y15, Y2            // c4e1055713 or c5855713
-	//TODO: VXORPD (R11), Y15, Y2           // c4c1055713
-	//TODO: VXORPD Y2, Y15, Y2              // c4e10557d2 or c58557d2
-	//TODO: VXORPD Y11, Y15, Y2             // c4c10557d3
-	//TODO: VXORPD (BX), Y15, Y11           // c46105571b or c505571b
-	//TODO: VXORPD (R11), Y15, Y11          // c44105571b
-	//TODO: VXORPD Y2, Y15, Y11             // c4610557da or c50557da
-	//TODO: VXORPD Y11, Y15, Y11            // c4410557db
-	//TODO: VXORPS (BX), X9, X2             // c4e1305713 or c5b05713
-	//TODO: VXORPS (R11), X9, X2            // c4c1305713
-	//TODO: VXORPS X2, X9, X2               // c4e13057d2 or c5b057d2
-	//TODO: VXORPS X11, X9, X2              // c4c13057d3
-	//TODO: VXORPS (BX), X9, X11            // c46130571b or c530571b
-	//TODO: VXORPS (R11), X9, X11           // c44130571b
-	//TODO: VXORPS X2, X9, X11              // c4613057da or c53057da
-	//TODO: VXORPS X11, X9, X11             // c4413057db
-	//TODO: VXORPS (BX), Y15, Y2            // c4e1045713 or c5845713
-	//TODO: VXORPS (R11), Y15, Y2           // c4c1045713
-	//TODO: VXORPS Y2, Y15, Y2              // c4e10457d2 or c58457d2
-	//TODO: VXORPS Y11, Y15, Y2             // c4c10457d3
-	//TODO: VXORPS (BX), Y15, Y11           // c46104571b or c504571b
-	//TODO: VXORPS (R11), Y15, Y11          // c44104571b
-	//TODO: VXORPS Y2, Y15, Y11             // c4610457da or c50457da
-	//TODO: VXORPS Y11, Y15, Y11            // c4410457db
-	//TODO: VZEROALL                        // c4e17c77 or c5fc77
+	VRCPPS (BX), X2                         // c4e1785313 or c5f85313
+	VRCPPS (R11), X2                        // c4c1785313
+	VRCPPS X2, X2                           // c4e17853d2 or c5f853d2
+	VRCPPS X11, X2                          // c4c17853d3
+	VRCPPS (BX), X11                        // c46178531b or c578531b
+	VRCPPS (R11), X11                       // c44178531b
+	VRCPPS X2, X11                          // c4617853da or c57853da
+	VRCPPS X11, X11                         // c4417853db
+	VRCPPS (BX), Y2                         // c4e17c5313 or c5fc5313
+	VRCPPS (R11), Y2                        // c4c17c5313
+	VRCPPS Y2, Y2                           // c4e17c53d2 or c5fc53d2
+	VRCPPS Y11, Y2                          // c4c17c53d3
+	VRCPPS (BX), Y11                        // c4617c531b or c57c531b
+	VRCPPS (R11), Y11                       // c4417c531b
+	VRCPPS Y2, Y11                          // c4617c53da or c57c53da
+	VRCPPS Y11, Y11                         // c4417c53db
+	VRCPSS (BX), X9, X2                     // c4e1325313 or c5b25313
+	VRCPSS (R11), X9, X2                    // c4c1325313
+	VRCPSS X2, X9, X2                       // c4e13253d2 or c5b253d2
+	VRCPSS X11, X9, X2                      // c4c13253d3
+	VRCPSS (BX), X9, X11                    // c46132531b or c532531b
+	VRCPSS (R11), X9, X11                   // c44132531b
+	VRCPSS X2, X9, X11                      // c4613253da or c53253da
+	VRCPSS X11, X9, X11                     // c4413253db
+	VROUNDPD $7, (BX), X2                   // c4e379091307
+	VROUNDPD $7, (R11), X2                  // c4c379091307
+	VROUNDPD $7, X2, X2                     // c4e37909d207
+	VROUNDPD $7, X11, X2                    // c4c37909d307
+	VROUNDPD $7, (BX), X11                  // c46379091b07
+	VROUNDPD $7, (R11), X11                 // c44379091b07
+	VROUNDPD $7, X2, X11                    // c4637909da07
+	VROUNDPD $7, X11, X11                   // c4437909db07
+	VROUNDPD $7, (BX), Y2                   // c4e37d091307
+	VROUNDPD $7, (R11), Y2                  // c4c37d091307
+	VROUNDPD $7, Y2, Y2                     // c4e37d09d207
+	VROUNDPD $7, Y11, Y2                    // c4c37d09d307
+	VROUNDPD $7, (BX), Y11                  // c4637d091b07
+	VROUNDPD $7, (R11), Y11                 // c4437d091b07
+	VROUNDPD $7, Y2, Y11                    // c4637d09da07
+	VROUNDPD $7, Y11, Y11                   // c4437d09db07
+	VROUNDPS $7, (BX), X2                   // c4e379081307
+	VROUNDPS $7, (R11), X2                  // c4c379081307
+	VROUNDPS $7, X2, X2                     // c4e37908d207
+	VROUNDPS $7, X11, X2                    // c4c37908d307
+	VROUNDPS $7, (BX), X11                  // c46379081b07
+	VROUNDPS $7, (R11), X11                 // c44379081b07
+	VROUNDPS $7, X2, X11                    // c4637908da07
+	VROUNDPS $7, X11, X11                   // c4437908db07
+	VROUNDPS $7, (BX), Y2                   // c4e37d081307
+	VROUNDPS $7, (R11), Y2                  // c4c37d081307
+	VROUNDPS $7, Y2, Y2                     // c4e37d08d207
+	VROUNDPS $7, Y11, Y2                    // c4c37d08d307
+	VROUNDPS $7, (BX), Y11                  // c4637d081b07
+	VROUNDPS $7, (R11), Y11                 // c4437d081b07
+	VROUNDPS $7, Y2, Y11                    // c4637d08da07
+	VROUNDPS $7, Y11, Y11                   // c4437d08db07
+	VROUNDSD $7, (BX), X9, X2               // c4e3310b1307
+	VROUNDSD $7, (R11), X9, X2              // c4c3310b1307
+	VROUNDSD $7, X2, X9, X2                 // c4e3310bd207
+	VROUNDSD $7, X11, X9, X2                // c4c3310bd307
+	VROUNDSD $7, (BX), X9, X11              // c463310b1b07
+	VROUNDSD $7, (R11), X9, X11             // c443310b1b07
+	VROUNDSD $7, X2, X9, X11                // c463310bda07
+	VROUNDSD $7, X11, X9, X11               // c443310bdb07
+	VROUNDSS $7, (BX), X9, X2               // c4e3310a1307
+	VROUNDSS $7, (R11), X9, X2              // c4c3310a1307
+	VROUNDSS $7, X2, X9, X2                 // c4e3310ad207
+	VROUNDSS $7, X11, X9, X2                // c4c3310ad307
+	VROUNDSS $7, (BX), X9, X11              // c463310a1b07
+	VROUNDSS $7, (R11), X9, X11             // c443310a1b07
+	VROUNDSS $7, X2, X9, X11                // c463310ada07
+	VROUNDSS $7, X11, X9, X11               // c443310adb07
+	VRSQRTPS (BX), X2                       // c4e1785213 or c5f85213
+	VRSQRTPS (R11), X2                      // c4c1785213
+	VRSQRTPS X2, X2                         // c4e17852d2 or c5f852d2
+	VRSQRTPS X11, X2                        // c4c17852d3
+	VRSQRTPS (BX), X11                      // c46178521b or c578521b
+	VRSQRTPS (R11), X11                     // c44178521b
+	VRSQRTPS X2, X11                        // c4617852da or c57852da
+	VRSQRTPS X11, X11                       // c4417852db
+	VRSQRTPS (BX), Y2                       // c4e17c5213 or c5fc5213
+	VRSQRTPS (R11), Y2                      // c4c17c5213
+	VRSQRTPS Y2, Y2                         // c4e17c52d2 or c5fc52d2
+	VRSQRTPS Y11, Y2                        // c4c17c52d3
+	VRSQRTPS (BX), Y11                      // c4617c521b or c57c521b
+	VRSQRTPS (R11), Y11                     // c4417c521b
+	VRSQRTPS Y2, Y11                        // c4617c52da or c57c52da
+	VRSQRTPS Y11, Y11                       // c4417c52db
+	VRSQRTSS (BX), X9, X2                   // c4e1325213 or c5b25213
+	VRSQRTSS (R11), X9, X2                  // c4c1325213
+	VRSQRTSS X2, X9, X2                     // c4e13252d2 or c5b252d2
+	VRSQRTSS X11, X9, X2                    // c4c13252d3
+	VRSQRTSS (BX), X9, X11                  // c46132521b or c532521b
+	VRSQRTSS (R11), X9, X11                 // c44132521b
+	VRSQRTSS X2, X9, X11                    // c4613252da or c53252da
+	VRSQRTSS X11, X9, X11                   // c4413252db
+	VSHUFPD $7, (BX), X9, X2                // c4e131c61307 or c5b1c61307
+	VSHUFPD $7, (R11), X9, X2               // c4c131c61307
+	VSHUFPD $7, X2, X9, X2                  // c4e131c6d207 or c5b1c6d207
+	VSHUFPD $7, X11, X9, X2                 // c4c131c6d307
+	VSHUFPD $7, (BX), X9, X11               // c46131c61b07 or c531c61b07
+	VSHUFPD $7, (R11), X9, X11              // c44131c61b07
+	VSHUFPD $7, X2, X9, X11                 // c46131c6da07 or c531c6da07
+	VSHUFPD $7, X11, X9, X11                // c44131c6db07
+	VSHUFPD $7, (BX), Y15, Y2               // c4e105c61307 or c585c61307
+	VSHUFPD $7, (R11), Y15, Y2              // c4c105c61307
+	VSHUFPD $7, Y2, Y15, Y2                 // c4e105c6d207 or c585c6d207
+	VSHUFPD $7, Y11, Y15, Y2                // c4c105c6d307
+	VSHUFPD $7, (BX), Y15, Y11              // c46105c61b07 or c505c61b07
+	VSHUFPD $7, (R11), Y15, Y11             // c44105c61b07
+	VSHUFPD $7, Y2, Y15, Y11                // c46105c6da07 or c505c6da07
+	VSHUFPD $7, Y11, Y15, Y11               // c44105c6db07
+	VSHUFPS $7, (BX), X9, X2                // c4e130c61307 or c5b0c61307
+	VSHUFPS $7, (R11), X9, X2               // c4c130c61307
+	VSHUFPS $7, X2, X9, X2                  // c4e130c6d207 or c5b0c6d207
+	VSHUFPS $7, X11, X9, X2                 // c4c130c6d307
+	VSHUFPS $7, (BX), X9, X11               // c46130c61b07 or c530c61b07
+	VSHUFPS $7, (R11), X9, X11              // c44130c61b07
+	VSHUFPS $7, X2, X9, X11                 // c46130c6da07 or c530c6da07
+	VSHUFPS $7, X11, X9, X11                // c44130c6db07
+	VSHUFPS $7, (BX), Y15, Y2               // c4e104c61307 or c584c61307
+	VSHUFPS $7, (R11), Y15, Y2              // c4c104c61307
+	VSHUFPS $7, Y2, Y15, Y2                 // c4e104c6d207 or c584c6d207
+	VSHUFPS $7, Y11, Y15, Y2                // c4c104c6d307
+	VSHUFPS $7, (BX), Y15, Y11              // c46104c61b07 or c504c61b07
+	VSHUFPS $7, (R11), Y15, Y11             // c44104c61b07
+	VSHUFPS $7, Y2, Y15, Y11                // c46104c6da07 or c504c6da07
+	VSHUFPS $7, Y11, Y15, Y11               // c44104c6db07
+	VSQRTPD (BX), X2                        // c4e1795113 or c5f95113
+	VSQRTPD (R11), X2                       // c4c1795113
+	VSQRTPD X2, X2                          // c4e17951d2 or c5f951d2
+	VSQRTPD X11, X2                         // c4c17951d3
+	VSQRTPD (BX), X11                       // c46179511b or c579511b
+	VSQRTPD (R11), X11                      // c44179511b
+	VSQRTPD X2, X11                         // c4617951da or c57951da
+	VSQRTPD X11, X11                        // c4417951db
+	VSQRTPD (BX), Y2                        // c4e17d5113 or c5fd5113
+	VSQRTPD (R11), Y2                       // c4c17d5113
+	VSQRTPD Y2, Y2                          // c4e17d51d2 or c5fd51d2
+	VSQRTPD Y11, Y2                         // c4c17d51d3
+	VSQRTPD (BX), Y11                       // c4617d511b or c57d511b
+	VSQRTPD (R11), Y11                      // c4417d511b
+	VSQRTPD Y2, Y11                         // c4617d51da or c57d51da
+	VSQRTPD Y11, Y11                        // c4417d51db
+	VSQRTPS (BX), X2                        // c4e1785113 or c5f85113
+	VSQRTPS (R11), X2                       // c4c1785113
+	VSQRTPS X2, X2                          // c4e17851d2 or c5f851d2
+	VSQRTPS X11, X2                         // c4c17851d3
+	VSQRTPS (BX), X11                       // c46178511b or c578511b
+	VSQRTPS (R11), X11                      // c44178511b
+	VSQRTPS X2, X11                         // c4617851da or c57851da
+	VSQRTPS X11, X11                        // c4417851db
+	VSQRTPS (BX), Y2                        // c4e17c5113 or c5fc5113
+	VSQRTPS (R11), Y2                       // c4c17c5113
+	VSQRTPS Y2, Y2                          // c4e17c51d2 or c5fc51d2
+	VSQRTPS Y11, Y2                         // c4c17c51d3
+	VSQRTPS (BX), Y11                       // c4617c511b or c57c511b
+	VSQRTPS (R11), Y11                      // c4417c511b
+	VSQRTPS Y2, Y11                         // c4617c51da or c57c51da
+	VSQRTPS Y11, Y11                        // c4417c51db
+	VSQRTSD (BX), X9, X2                    // c4e1335113 or c5b35113
+	VSQRTSD (R11), X9, X2                   // c4c1335113
+	VSQRTSD X2, X9, X2                      // c4e13351d2 or c5b351d2
+	VSQRTSD X11, X9, X2                     // c4c13351d3
+	VSQRTSD (BX), X9, X11                   // c46133511b or c533511b
+	VSQRTSD (R11), X9, X11                  // c44133511b
+	VSQRTSD X2, X9, X11                     // c4613351da or c53351da
+	VSQRTSD X11, X9, X11                    // c4413351db
+	VSQRTSS (BX), X9, X2                    // c4e1325113 or c5b25113
+	VSQRTSS (R11), X9, X2                   // c4c1325113
+	VSQRTSS X2, X9, X2                      // c4e13251d2 or c5b251d2
+	VSQRTSS X11, X9, X2                     // c4c13251d3
+	VSQRTSS (BX), X9, X11                   // c46132511b or c532511b
+	VSQRTSS (R11), X9, X11                  // c44132511b
+	VSQRTSS X2, X9, X11                     // c4613251da or c53251da
+	VSQRTSS X11, X9, X11                    // c4413251db
+	VSTMXCSR (BX)                           // c4e178ae1b or c5f8ae1b
+	VSTMXCSR (R11)                          // c4c178ae1b
+	VSUBPD (BX), X9, X2                     // c4e1315c13 or c5b15c13
+	VSUBPD (R11), X9, X2                    // c4c1315c13
+	VSUBPD X2, X9, X2                       // c4e1315cd2 or c5b15cd2
+	VSUBPD X11, X9, X2                      // c4c1315cd3
+	VSUBPD (BX), X9, X11                    // c461315c1b or c5315c1b
+	VSUBPD (R11), X9, X11                   // c441315c1b
+	VSUBPD X2, X9, X11                      // c461315cda or c5315cda
+	VSUBPD X11, X9, X11                     // c441315cdb
+	VSUBPD (BX), Y15, Y2                    // c4e1055c13 or c5855c13
+	VSUBPD (R11), Y15, Y2                   // c4c1055c13
+	VSUBPD Y2, Y15, Y2                      // c4e1055cd2 or c5855cd2
+	VSUBPD Y11, Y15, Y2                     // c4c1055cd3
+	VSUBPD (BX), Y15, Y11                   // c461055c1b or c5055c1b
+	VSUBPD (R11), Y15, Y11                  // c441055c1b
+	VSUBPD Y2, Y15, Y11                     // c461055cda or c5055cda
+	VSUBPD Y11, Y15, Y11                    // c441055cdb
+	VSUBPS (BX), X9, X2                     // c4e1305c13 or c5b05c13
+	VSUBPS (R11), X9, X2                    // c4c1305c13
+	VSUBPS X2, X9, X2                       // c4e1305cd2 or c5b05cd2
+	VSUBPS X11, X9, X2                      // c4c1305cd3
+	VSUBPS (BX), X9, X11                    // c461305c1b or c5305c1b
+	VSUBPS (R11), X9, X11                   // c441305c1b
+	VSUBPS X2, X9, X11                      // c461305cda or c5305cda
+	VSUBPS X11, X9, X11                     // c441305cdb
+	VSUBPS (BX), Y15, Y2                    // c4e1045c13 or c5845c13
+	VSUBPS (R11), Y15, Y2                   // c4c1045c13
+	VSUBPS Y2, Y15, Y2                      // c4e1045cd2 or c5845cd2
+	VSUBPS Y11, Y15, Y2                     // c4c1045cd3
+	VSUBPS (BX), Y15, Y11                   // c461045c1b or c5045c1b
+	VSUBPS (R11), Y15, Y11                  // c441045c1b
+	VSUBPS Y2, Y15, Y11                     // c461045cda or c5045cda
+	VSUBPS Y11, Y15, Y11                    // c441045cdb
+	VSUBSD (BX), X9, X2                     // c4e1335c13 or c5b35c13
+	VSUBSD (R11), X9, X2                    // c4c1335c13
+	VSUBSD X2, X9, X2                       // c4e1335cd2 or c5b35cd2
+	VSUBSD X11, X9, X2                      // c4c1335cd3
+	VSUBSD (BX), X9, X11                    // c461335c1b or c5335c1b
+	VSUBSD (R11), X9, X11                   // c441335c1b
+	VSUBSD X2, X9, X11                      // c461335cda or c5335cda
+	VSUBSD X11, X9, X11                     // c441335cdb
+	VSUBSS (BX), X9, X2                     // c4e1325c13 or c5b25c13
+	VSUBSS (R11), X9, X2                    // c4c1325c13
+	VSUBSS X2, X9, X2                       // c4e1325cd2 or c5b25cd2
+	VSUBSS X11, X9, X2                      // c4c1325cd3
+	VSUBSS (BX), X9, X11                    // c461325c1b or c5325c1b
+	VSUBSS (R11), X9, X11                   // c441325c1b
+	VSUBSS X2, X9, X11                      // c461325cda or c5325cda
+	VSUBSS X11, X9, X11                     // c441325cdb
+	VTESTPD (BX), X2                        // c4e2790f13
+	VTESTPD (R11), X2                       // c4c2790f13
+	VTESTPD X2, X2                          // c4e2790fd2
+	VTESTPD X11, X2                         // c4c2790fd3
+	VTESTPD (BX), X11                       // c462790f1b
+	VTESTPD (R11), X11                      // c442790f1b
+	VTESTPD X2, X11                         // c462790fda
+	VTESTPD X11, X11                        // c442790fdb
+	VTESTPD (BX), Y2                        // c4e27d0f13
+	VTESTPD (R11), Y2                       // c4c27d0f13
+	VTESTPD Y2, Y2                          // c4e27d0fd2
+	VTESTPD Y11, Y2                         // c4c27d0fd3
+	VTESTPD (BX), Y11                       // c4627d0f1b
+	VTESTPD (R11), Y11                      // c4427d0f1b
+	VTESTPD Y2, Y11                         // c4627d0fda
+	VTESTPD Y11, Y11                        // c4427d0fdb
+	VTESTPS (BX), X2                        // c4e2790e13
+	VTESTPS (R11), X2                       // c4c2790e13
+	VTESTPS X2, X2                          // c4e2790ed2
+	VTESTPS X11, X2                         // c4c2790ed3
+	VTESTPS (BX), X11                       // c462790e1b
+	VTESTPS (R11), X11                      // c442790e1b
+	VTESTPS X2, X11                         // c462790eda
+	VTESTPS X11, X11                        // c442790edb
+	VTESTPS (BX), Y2                        // c4e27d0e13
+	VTESTPS (R11), Y2                       // c4c27d0e13
+	VTESTPS Y2, Y2                          // c4e27d0ed2
+	VTESTPS Y11, Y2                         // c4c27d0ed3
+	VTESTPS (BX), Y11                       // c4627d0e1b
+	VTESTPS (R11), Y11                      // c4427d0e1b
+	VTESTPS Y2, Y11                         // c4627d0eda
+	VTESTPS Y11, Y11                        // c4427d0edb
+	VUCOMISD (BX), X2                       // c4e1792e13 or c5f92e13
+	VUCOMISD (R11), X2                      // c4c1792e13
+	VUCOMISD X2, X2                         // c4e1792ed2 or c5f92ed2
+	VUCOMISD X11, X2                        // c4c1792ed3
+	VUCOMISD (BX), X11                      // c461792e1b or c5792e1b
+	VUCOMISD (R11), X11                     // c441792e1b
+	VUCOMISD X2, X11                        // c461792eda or c5792eda
+	VUCOMISD X11, X11                       // c441792edb
+	VUCOMISS (BX), X2                       // c4e1782e13 or c5f82e13
+	VUCOMISS (R11), X2                      // c4c1782e13
+	VUCOMISS X2, X2                         // c4e1782ed2 or c5f82ed2
+	VUCOMISS X11, X2                        // c4c1782ed3
+	VUCOMISS (BX), X11                      // c461782e1b or c5782e1b
+	VUCOMISS (R11), X11                     // c441782e1b
+	VUCOMISS X2, X11                        // c461782eda or c5782eda
+	VUCOMISS X11, X11                       // c441782edb
+	VUNPCKHPD (BX), X9, X2                  // c4e1311513 or c5b11513
+	VUNPCKHPD (R11), X9, X2                 // c4c1311513
+	VUNPCKHPD X2, X9, X2                    // c4e13115d2 or c5b115d2
+	VUNPCKHPD X11, X9, X2                   // c4c13115d3
+	VUNPCKHPD (BX), X9, X11                 // c46131151b or c531151b
+	VUNPCKHPD (R11), X9, X11                // c44131151b
+	VUNPCKHPD X2, X9, X11                   // c4613115da or c53115da
+	VUNPCKHPD X11, X9, X11                  // c4413115db
+	VUNPCKHPD (BX), Y15, Y2                 // c4e1051513 or c5851513
+	VUNPCKHPD (R11), Y15, Y2                // c4c1051513
+	VUNPCKHPD Y2, Y15, Y2                   // c4e10515d2 or c58515d2
+	VUNPCKHPD Y11, Y15, Y2                  // c4c10515d3
+	VUNPCKHPD (BX), Y15, Y11                // c46105151b or c505151b
+	VUNPCKHPD (R11), Y15, Y11               // c44105151b
+	VUNPCKHPD Y2, Y15, Y11                  // c4610515da or c50515da
+	VUNPCKHPD Y11, Y15, Y11                 // c4410515db
+	VUNPCKHPS (BX), X9, X2                  // c4e1301513 or c5b01513
+	VUNPCKHPS (R11), X9, X2                 // c4c1301513
+	VUNPCKHPS X2, X9, X2                    // c4e13015d2 or c5b015d2
+	VUNPCKHPS X11, X9, X2                   // c4c13015d3
+	VUNPCKHPS (BX), X9, X11                 // c46130151b or c530151b
+	VUNPCKHPS (R11), X9, X11                // c44130151b
+	VUNPCKHPS X2, X9, X11                   // c4613015da or c53015da
+	VUNPCKHPS X11, X9, X11                  // c4413015db
+	VUNPCKHPS (BX), Y15, Y2                 // c4e1041513 or c5841513
+	VUNPCKHPS (R11), Y15, Y2                // c4c1041513
+	VUNPCKHPS Y2, Y15, Y2                   // c4e10415d2 or c58415d2
+	VUNPCKHPS Y11, Y15, Y2                  // c4c10415d3
+	VUNPCKHPS (BX), Y15, Y11                // c46104151b or c504151b
+	VUNPCKHPS (R11), Y15, Y11               // c44104151b
+	VUNPCKHPS Y2, Y15, Y11                  // c4610415da or c50415da
+	VUNPCKHPS Y11, Y15, Y11                 // c4410415db
+	VUNPCKLPD (BX), X9, X2                  // c4e1311413 or c5b11413
+	VUNPCKLPD (R11), X9, X2                 // c4c1311413
+	VUNPCKLPD X2, X9, X2                    // c4e13114d2 or c5b114d2
+	VUNPCKLPD X11, X9, X2                   // c4c13114d3
+	VUNPCKLPD (BX), X9, X11                 // c46131141b or c531141b
+	VUNPCKLPD (R11), X9, X11                // c44131141b
+	VUNPCKLPD X2, X9, X11                   // c4613114da or c53114da
+	VUNPCKLPD X11, X9, X11                  // c4413114db
+	VUNPCKLPD (BX), Y15, Y2                 // c4e1051413 or c5851413
+	VUNPCKLPD (R11), Y15, Y2                // c4c1051413
+	VUNPCKLPD Y2, Y15, Y2                   // c4e10514d2 or c58514d2
+	VUNPCKLPD Y11, Y15, Y2                  // c4c10514d3
+	VUNPCKLPD (BX), Y15, Y11                // c46105141b or c505141b
+	VUNPCKLPD (R11), Y15, Y11               // c44105141b
+	VUNPCKLPD Y2, Y15, Y11                  // c4610514da or c50514da
+	VUNPCKLPD Y11, Y15, Y11                 // c4410514db
+	VUNPCKLPS (BX), X9, X2                  // c4e1301413 or c5b01413
+	VUNPCKLPS (R11), X9, X2                 // c4c1301413
+	VUNPCKLPS X2, X9, X2                    // c4e13014d2 or c5b014d2
+	VUNPCKLPS X11, X9, X2                   // c4c13014d3
+	VUNPCKLPS (BX), X9, X11                 // c46130141b or c530141b
+	VUNPCKLPS (R11), X9, X11                // c44130141b
+	VUNPCKLPS X2, X9, X11                   // c4613014da or c53014da
+	VUNPCKLPS X11, X9, X11                  // c4413014db
+	VUNPCKLPS (BX), Y15, Y2                 // c4e1041413 or c5841413
+	VUNPCKLPS (R11), Y15, Y2                // c4c1041413
+	VUNPCKLPS Y2, Y15, Y2                   // c4e10414d2 or c58414d2
+	VUNPCKLPS Y11, Y15, Y2                  // c4c10414d3
+	VUNPCKLPS (BX), Y15, Y11                // c46104141b or c504141b
+	VUNPCKLPS (R11), Y15, Y11               // c44104141b
+	VUNPCKLPS Y2, Y15, Y11                  // c4610414da or c50414da
+	VUNPCKLPS Y11, Y15, Y11                 // c4410414db
+	VXORPD (BX), X9, X2                     // c4e1315713 or c5b15713
+	VXORPD (R11), X9, X2                    // c4c1315713
+	VXORPD X2, X9, X2                       // c4e13157d2 or c5b157d2
+	VXORPD X11, X9, X2                      // c4c13157d3
+	VXORPD (BX), X9, X11                    // c46131571b or c531571b
+	VXORPD (R11), X9, X11                   // c44131571b
+	VXORPD X2, X9, X11                      // c4613157da or c53157da
+	VXORPD X11, X9, X11                     // c4413157db
+	VXORPD (BX), Y15, Y2                    // c4e1055713 or c5855713
+	VXORPD (R11), Y15, Y2                   // c4c1055713
+	VXORPD Y2, Y15, Y2                      // c4e10557d2 or c58557d2
+	VXORPD Y11, Y15, Y2                     // c4c10557d3
+	VXORPD (BX), Y15, Y11                   // c46105571b or c505571b
+	VXORPD (R11), Y15, Y11                  // c44105571b
+	VXORPD Y2, Y15, Y11                     // c4610557da or c50557da
+	VXORPD Y11, Y15, Y11                    // c4410557db
+	VXORPS (BX), X9, X2                     // c4e1305713 or c5b05713
+	VXORPS (R11), X9, X2                    // c4c1305713
+	VXORPS X2, X9, X2                       // c4e13057d2 or c5b057d2
+	VXORPS X11, X9, X2                      // c4c13057d3
+	VXORPS (BX), X9, X11                    // c46130571b or c530571b
+	VXORPS (R11), X9, X11                   // c44130571b
+	VXORPS X2, X9, X11                      // c4613057da or c53057da
+	VXORPS X11, X9, X11                     // c4413057db
+	VXORPS (BX), Y15, Y2                    // c4e1045713 or c5845713
+	VXORPS (R11), Y15, Y2                   // c4c1045713
+	VXORPS Y2, Y15, Y2                      // c4e10457d2 or c58457d2
+	VXORPS Y11, Y15, Y2                     // c4c10457d3
+	VXORPS (BX), Y15, Y11                   // c46104571b or c504571b
+	VXORPS (R11), Y15, Y11                  // c44104571b
+	VXORPS Y2, Y15, Y11                     // c4610457da or c50457da
+	VXORPS Y11, Y15, Y11                    // c4410457db
+	VZEROALL                                // c4e17c77 or c5fc77
 	VZEROUPPER                              // c4e17877 or c5f877
 	WBINVD                                  // 0f09
 	//TODO: WRFSBASE DX                     // f30faed2 or f3480faed2

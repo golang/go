@@ -39,7 +39,7 @@ func explode(s []byte, n int) [][]byte {
 			break
 		}
 		_, size = utf8.DecodeRune(s)
-		a[na] = s[0:size]
+		a[na] = s[0:size:size]
 		s = s[size:]
 		na++
 	}
@@ -68,12 +68,12 @@ func Contains(b, subslice []byte) bool {
 	return Index(b, subslice) != -1
 }
 
-// ContainsAny reports whether any of the UTF-8-encoded Unicode code points in chars are within b.
+// ContainsAny reports whether any of the UTF-8-encoded code points in chars are within b.
 func ContainsAny(b []byte, chars string) bool {
 	return IndexAny(b, chars) >= 0
 }
 
-// ContainsRune reports whether the Unicode code point r is within b.
+// ContainsRune reports whether the rune is contained in the UTF-8-encoded byte slice b.
 func ContainsRune(b []byte, r rune) bool {
 	return IndexRune(b, r) >= 0
 }
@@ -112,7 +112,7 @@ func LastIndexByte(s []byte, c byte) int {
 	return -1
 }
 
-// IndexRune interprets s as a sequence of UTF-8-encoded Unicode code points.
+// IndexRune interprets s as a sequence of UTF-8-encoded code points.
 // It returns the byte index of the first occurrence in s of the given rune.
 // It returns -1 if rune is not present in s.
 // If r is utf8.RuneError, it returns the first instance of any
@@ -144,29 +144,31 @@ func IndexRune(s []byte, r rune) int {
 // code points in chars. It returns -1 if chars is empty or if there is no code
 // point in common.
 func IndexAny(s []byte, chars string) int {
-	if len(chars) > 0 {
-		if len(s) > 8 {
-			if as, isASCII := makeASCIISet(chars); isASCII {
-				for i, c := range s {
-					if as.contains(c) {
-						return i
-					}
-				}
-				return -1
-			}
-		}
-		var width int
-		for i := 0; i < len(s); i += width {
-			r := rune(s[i])
-			if r < utf8.RuneSelf {
-				width = 1
-			} else {
-				r, width = utf8.DecodeRune(s[i:])
-			}
-			for _, ch := range chars {
-				if r == ch {
+	if chars == "" {
+		// Avoid scanning all of s.
+		return -1
+	}
+	if len(s) > 8 {
+		if as, isASCII := makeASCIISet(chars); isASCII {
+			for i, c := range s {
+				if as.contains(c) {
 					return i
 				}
+			}
+			return -1
+		}
+	}
+	var width int
+	for i := 0; i < len(s); i += width {
+		r := rune(s[i])
+		if r < utf8.RuneSelf {
+			width = 1
+		} else {
+			r, width = utf8.DecodeRune(s[i:])
+		}
+		for _, ch := range chars {
+			if r == ch {
+				return i
 			}
 		}
 	}
@@ -178,24 +180,26 @@ func IndexAny(s []byte, chars string) int {
 // the Unicode code points in chars. It returns -1 if chars is empty or if
 // there is no code point in common.
 func LastIndexAny(s []byte, chars string) int {
-	if len(chars) > 0 {
-		if len(s) > 8 {
-			if as, isASCII := makeASCIISet(chars); isASCII {
-				for i := len(s) - 1; i >= 0; i-- {
-					if as.contains(s[i]) {
-						return i
-					}
-				}
-				return -1
-			}
-		}
-		for i := len(s); i > 0; {
-			r, size := utf8.DecodeLastRune(s[:i])
-			i -= size
-			for _, c := range chars {
-				if r == c {
+	if chars == "" {
+		// Avoid scanning all of s.
+		return -1
+	}
+	if len(s) > 8 {
+		if as, isASCII := makeASCIISet(chars); isASCII {
+			for i := len(s) - 1; i >= 0; i-- {
+				if as.contains(s[i]) {
 					return i
 				}
+			}
+			return -1
+		}
+	}
+	for i := len(s); i > 0; {
+		r, size := utf8.DecodeLastRune(s[:i])
+		i -= size
+		for _, c := range chars {
+			if r == c {
+				return i
 			}
 		}
 	}
@@ -223,7 +227,7 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 		if m < 0 {
 			break
 		}
-		a[i] = s[:m+sepSave]
+		a[i] = s[: m+sepSave : m+sepSave]
 		s = s[m+len(sep):]
 		i++
 	}
@@ -265,52 +269,112 @@ func SplitAfter(s, sep []byte) [][]byte {
 	return genSplit(s, sep, len(sep), -1)
 }
 
-// Fields splits the slice s around each instance of one or more consecutive white space
-// characters, returning a slice of subslices of s or an empty list if s contains only white space.
+var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
+
+// Fields interprets s as a sequence of UTF-8-encoded code points.
+// It splits the slice s around each instance of one or more consecutive white space
+// characters, as defined by unicode.IsSpace, returning a slice of subslices of s or an
+// empty slice if s contains only white space.
 func Fields(s []byte) [][]byte {
-	return FieldsFunc(s, unicode.IsSpace)
+	// First count the fields.
+	// This is an exact count if s is ASCII, otherwise it is an approximation.
+	n := 0
+	wasSpace := 1
+	// setBits is used to track which bits are set in the bytes of s.
+	setBits := uint8(0)
+	for i := 0; i < len(s); i++ {
+		r := s[i]
+		setBits |= r
+		isSpace := int(asciiSpace[r])
+		n += wasSpace & ^isSpace
+		wasSpace = isSpace
+	}
+
+	if setBits >= utf8.RuneSelf {
+		// Some runes in the input slice are not ASCII.
+		return FieldsFunc(s, unicode.IsSpace)
+	}
+
+	// ASCII fast path
+	a := make([][]byte, n)
+	na := 0
+	fieldStart := 0
+	i := 0
+	// Skip spaces in the front of the input.
+	for i < len(s) && asciiSpace[s[i]] != 0 {
+		i++
+	}
+	fieldStart = i
+	for i < len(s) {
+		if asciiSpace[s[i]] == 0 {
+			i++
+			continue
+		}
+		a[na] = s[fieldStart:i:i]
+		na++
+		i++
+		// Skip spaces in between fields.
+		for i < len(s) && asciiSpace[s[i]] != 0 {
+			i++
+		}
+		fieldStart = i
+	}
+	if fieldStart < len(s) { // Last field might end at EOF.
+		a[na] = s[fieldStart:len(s):len(s)]
+	}
+	return a
 }
 
-// FieldsFunc interprets s as a sequence of UTF-8-encoded Unicode code points.
+// FieldsFunc interprets s as a sequence of UTF-8-encoded code points.
 // It splits the slice s at each run of code points c satisfying f(c) and
 // returns a slice of subslices of s. If all code points in s satisfy f(c), or
 // len(s) == 0, an empty slice is returned.
 // FieldsFunc makes no guarantees about the order in which it calls f(c).
 // If f does not return consistent results for a given c, FieldsFunc may crash.
 func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
-	n := 0
-	inField := false
+	// A span is used to record a slice of s of the form s[start:end].
+	// The start index is inclusive and the end index is exclusive.
+	type span struct {
+		start int
+		end   int
+	}
+	spans := make([]span, 0, 32)
+
+	// Find the field start and end indices.
+	wasField := false
+	fromIndex := 0
 	for i := 0; i < len(s); {
-		r, size := utf8.DecodeRune(s[i:])
-		wasInField := inField
-		inField = !f(r)
-		if inField && !wasInField {
-			n++
+		size := 1
+		r := rune(s[i])
+		if r >= utf8.RuneSelf {
+			r, size = utf8.DecodeRune(s[i:])
+		}
+		if f(r) {
+			if wasField {
+				spans = append(spans, span{start: fromIndex, end: i})
+				wasField = false
+			}
+		} else {
+			if !wasField {
+				fromIndex = i
+				wasField = true
+			}
 		}
 		i += size
 	}
 
-	a := make([][]byte, n)
-	na := 0
-	fieldStart := -1
-	for i := 0; i <= len(s) && na < n; {
-		r, size := utf8.DecodeRune(s[i:])
-		if fieldStart < 0 && size > 0 && !f(r) {
-			fieldStart = i
-			i += size
-			continue
-		}
-		if fieldStart >= 0 && (size == 0 || f(r)) {
-			a[na] = s[fieldStart:i]
-			na++
-			fieldStart = -1
-		}
-		if size == 0 {
-			break
-		}
-		i += size
+	// Last field might end at EOF.
+	if wasField {
+		spans = append(spans, span{fromIndex, len(s)})
 	}
-	return a[0:na]
+
+	// Create subslices from recorded field indices.
+	a := make([][]byte, len(spans))
+	for i, span := range spans {
+		a[i] = s[span.start:span.end:span.end]
+	}
+
+	return a
 }
 
 // Join concatenates the elements of s to create a new byte slice. The separator
@@ -349,8 +413,8 @@ func HasSuffix(s, suffix []byte) bool {
 
 // Map returns a copy of the byte slice s with all its characters modified
 // according to the mapping function. If mapping returns a negative value, the character is
-// dropped from the string with no replacement. The characters in s and the
-// output are interpreted as UTF-8-encoded Unicode code points.
+// dropped from the byte slice with no replacement. The characters in s and the
+// output are interpreted as UTF-8-encoded code points.
 func Map(mapping func(r rune) rune, s []byte) []byte {
 	// In the worst case, the slice can grow when mapped, making
 	// things unpleasant. But it's so rare we barge in assuming it's
@@ -408,28 +472,28 @@ func Repeat(b []byte, count int) []byte {
 	return nb
 }
 
-// ToUpper returns a copy of the byte slice s with all Unicode letters mapped to their upper case.
+// ToUpper treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters within it mapped to their upper case.
 func ToUpper(s []byte) []byte { return Map(unicode.ToUpper, s) }
 
-// ToLower returns a copy of the byte slice s with all Unicode letters mapped to their lower case.
+// ToLower treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their lower case.
 func ToLower(s []byte) []byte { return Map(unicode.ToLower, s) }
 
-// ToTitle returns a copy of the byte slice s with all Unicode letters mapped to their title case.
+// ToTitle treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their title case.
 func ToTitle(s []byte) []byte { return Map(unicode.ToTitle, s) }
 
-// ToUpperSpecial returns a copy of the byte slice s with all Unicode letters mapped to their
+// ToUpperSpecial treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their
 // upper case, giving priority to the special casing rules.
 func ToUpperSpecial(c unicode.SpecialCase, s []byte) []byte {
 	return Map(func(r rune) rune { return c.ToUpper(r) }, s)
 }
 
-// ToLowerSpecial returns a copy of the byte slice s with all Unicode letters mapped to their
+// ToLowerSpecial treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their
 // lower case, giving priority to the special casing rules.
 func ToLowerSpecial(c unicode.SpecialCase, s []byte) []byte {
 	return Map(func(r rune) rune { return c.ToLower(r) }, s)
 }
 
-// ToTitleSpecial returns a copy of the byte slice s with all Unicode letters mapped to their
+// ToTitleSpecial treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their
 // title case, giving priority to the special casing rules.
 func ToTitleSpecial(c unicode.SpecialCase, s []byte) []byte {
 	return Map(func(r rune) rune { return c.ToTitle(r) }, s)
@@ -460,8 +524,8 @@ func isSeparator(r rune) bool {
 	return unicode.IsSpace(r)
 }
 
-// Title returns a copy of s with all Unicode letters that begin words
-// mapped to their title case.
+// Title treats s as UTF-8-encoded bytes and returns a copy with all Unicode letters that begin
+// words mapped to their title case.
 //
 // BUG(rsc): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
 func Title(s []byte) []byte {
@@ -481,8 +545,8 @@ func Title(s []byte) []byte {
 		s)
 }
 
-// TrimLeftFunc returns a subslice of s by slicing off all leading UTF-8-encoded
-// Unicode code points c that satisfy f(c).
+// TrimLeftFunc treats s as UTF-8-encoded bytes and returns a subslice of s by slicing off
+// all leading UTF-8-encoded code points c that satisfy f(c).
 func TrimLeftFunc(s []byte, f func(r rune) bool) []byte {
 	i := indexFunc(s, f, false)
 	if i == -1 {
@@ -491,8 +555,8 @@ func TrimLeftFunc(s []byte, f func(r rune) bool) []byte {
 	return s[i:]
 }
 
-// TrimRightFunc returns a subslice of s by slicing off all trailing UTF-8
-// encoded Unicode code points c that satisfy f(c).
+// TrimRightFunc returns a subslice of s by slicing off all trailing
+// UTF-8-encoded code points c that satisfy f(c).
 func TrimRightFunc(s []byte, f func(r rune) bool) []byte {
 	i := lastIndexFunc(s, f, false)
 	if i >= 0 && s[i] >= utf8.RuneSelf {
@@ -505,7 +569,7 @@ func TrimRightFunc(s []byte, f func(r rune) bool) []byte {
 }
 
 // TrimFunc returns a subslice of s by slicing off all leading and trailing
-// UTF-8-encoded Unicode code points c that satisfy f(c).
+// UTF-8-encoded code points c that satisfy f(c).
 func TrimFunc(s []byte, f func(r rune) bool) []byte {
 	return TrimRightFunc(TrimLeftFunc(s, f), f)
 }
@@ -528,14 +592,14 @@ func TrimSuffix(s, suffix []byte) []byte {
 	return s
 }
 
-// IndexFunc interprets s as a sequence of UTF-8-encoded Unicode code points.
+// IndexFunc interprets s as a sequence of UTF-8-encoded code points.
 // It returns the byte index in s of the first Unicode
 // code point satisfying f(c), or -1 if none do.
 func IndexFunc(s []byte, f func(r rune) bool) int {
 	return indexFunc(s, f, true)
 }
 
-// LastIndexFunc interprets s as a sequence of UTF-8-encoded Unicode code points.
+// LastIndexFunc interprets s as a sequence of UTF-8-encoded code points.
 // It returns the byte index in s of the last Unicode
 // code point satisfying f(c), or -1 if none do.
 func LastIndexFunc(s []byte, f func(r rune) bool) int {
@@ -626,19 +690,19 @@ func makeCutsetFunc(cutset string) func(r rune) bool {
 }
 
 // Trim returns a subslice of s by slicing off all leading and
-// trailing UTF-8-encoded Unicode code points contained in cutset.
+// trailing UTF-8-encoded code points contained in cutset.
 func Trim(s []byte, cutset string) []byte {
 	return TrimFunc(s, makeCutsetFunc(cutset))
 }
 
 // TrimLeft returns a subslice of s by slicing off all leading
-// UTF-8-encoded Unicode code points contained in cutset.
+// UTF-8-encoded code points contained in cutset.
 func TrimLeft(s []byte, cutset string) []byte {
 	return TrimLeftFunc(s, makeCutsetFunc(cutset))
 }
 
 // TrimRight returns a subslice of s by slicing off all trailing
-// UTF-8-encoded Unicode code points that are contained in cutset.
+// UTF-8-encoded code points that are contained in cutset.
 func TrimRight(s []byte, cutset string) []byte {
 	return TrimRightFunc(s, makeCutsetFunc(cutset))
 }
@@ -649,7 +713,8 @@ func TrimSpace(s []byte) []byte {
 	return TrimFunc(s, unicode.IsSpace)
 }
 
-// Runes returns a slice of runes (Unicode code points) equivalent to s.
+// Runes interprets s as a sequence of UTF-8-encoded code points.
+// It returns a slice of runes (Unicode code points) equivalent to s.
 func Runes(s []byte) []rune {
 	t := make([]rune, utf8.RuneCount(s))
 	i := 0
@@ -757,4 +822,47 @@ func EqualFold(s, t []byte) bool {
 
 	// One string is empty. Are both?
 	return len(s) == len(t)
+}
+
+func indexRabinKarp(s, sep []byte) int {
+	// Rabin-Karp search
+	hashsep, pow := hashStr(sep)
+	n := len(sep)
+	var h uint32
+	for i := 0; i < n; i++ {
+		h = h*primeRK + uint32(s[i])
+	}
+	if h == hashsep && Equal(s[:n], sep) {
+		return 0
+	}
+	for i := n; i < len(s); {
+		h *= primeRK
+		h += uint32(s[i])
+		h -= pow * uint32(s[i-n])
+		i++
+		if h == hashsep && Equal(s[i-n:i], sep) {
+			return i - n
+		}
+	}
+	return -1
+}
+
+// primeRK is the prime base used in Rabin-Karp algorithm.
+const primeRK = 16777619
+
+// hashStr returns the hash and the appropriate multiplicative
+// factor for use in Rabin-Karp algorithm.
+func hashStr(sep []byte) (uint32, uint32) {
+	hash := uint32(0)
+	for i := 0; i < len(sep); i++ {
+		hash = hash*primeRK + uint32(sep[i])
+	}
+	var pow, sq uint32 = 1, primeRK
+	for i := len(sep); i > 0; i >>= 1 {
+		if i&1 != 0 {
+			pow *= sq
+		}
+		sq *= sq
+	}
+	return hash, pow
 }

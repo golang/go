@@ -48,7 +48,6 @@ func concatstring5(*[32]byte, string, string, string, string, string) string
 func concatstrings(*[32]byte, []string) string
 
 func cmpstring(string, string) int
-func eqstring(string, string) bool
 func intstring(*[4]byte, int64) string
 func slicebytetostring(*[32]byte, []byte) string
 func slicebytetostringtmp([]byte) string
@@ -78,7 +77,7 @@ func convT2Istring(tab *byte, elem *any) (ret any)
 func convT2Islice(tab *byte, elem *any) (ret any)
 func convT2Inoptr(tab *byte, elem *any) (ret any)
 
-// interface type assertions  x.(T)
+// interface type assertions x.(T)
 func assertE2I(typ *byte, iface any) (ret any)
 func assertE2I2(typ *byte, iface any) (ret any, b bool)
 func assertI2I(typ *byte, iface any) (ret any)
@@ -92,8 +91,12 @@ func panicnildottype(want *byte)
 func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
 func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
 
+func fastrand() uint32
+
 // *byte is really *runtime.Type
-func makemap(mapType *byte, hint int64, mapbuf *any, bucketbuf *any) (hmap map[any]any)
+func makemap64(mapType *byte, hint int64, mapbuf *any) (hmap map[any]any)
+func makemap(mapType *byte, hint int, mapbuf *any) (hmap map[any]any)
+func makemap_small() (hmap map[any]any)
 func mapaccess1(mapType *byte, hmap map[any]any, key *any) (val *any)
 func mapaccess1_fast32(mapType *byte, hmap map[any]any, key any) (val *any)
 func mapaccess1_fast64(mapType *byte, hmap map[any]any, key any) (val *any)
@@ -106,7 +109,9 @@ func mapaccess2_faststr(mapType *byte, hmap map[any]any, key any) (val *any, pre
 func mapaccess2_fat(mapType *byte, hmap map[any]any, key *any, zero *byte) (val *any, pres bool)
 func mapassign(mapType *byte, hmap map[any]any, key *any) (val *any)
 func mapassign_fast32(mapType *byte, hmap map[any]any, key any) (val *any)
+func mapassign_fast32ptr(mapType *byte, hmap map[any]any, key any) (val *any)
 func mapassign_fast64(mapType *byte, hmap map[any]any, key any) (val *any)
+func mapassign_fast64ptr(mapType *byte, hmap map[any]any, key any) (val *any)
 func mapassign_faststr(mapType *byte, hmap map[any]any, key any) (val *any)
 func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)
 func mapdelete(mapType *byte, hmap map[any]any, key *any)
@@ -116,7 +121,8 @@ func mapdelete_faststr(mapType *byte, hmap map[any]any, key any)
 func mapiternext(hiter *any)
 
 // *byte is really *runtime.Type
-func makechan(chanType *byte, hint int64) (hchan chan any)
+func makechan64(chanType *byte, size int64) (hchan chan any)
+func makechan(chanType *byte, size int) (hchan chan any)
 func chanrecv1(hchan <-chan any, elem *any)
 func chanrecv2(hchan <-chan any, elem *any) bool
 func chansend1(hchan chan<- any, elem *any)
@@ -190,3 +196,4 @@ func msanwrite(addr, size uintptr)
 
 // architecture variants
 var support_popcnt bool
+var support_sse41 bool

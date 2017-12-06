@@ -178,11 +178,11 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	// We asked for one extra, so skip that one. If this is sigpanic,
 	// stepping over this frame will set up state in Frames so the
 	// next frame is correct.
-	callers, _, ok = stackExpander.next(callers)
+	callers, _, ok = stackExpander.next(callers, true)
 	if !ok {
 		return
 	}
-	_, frame, _ := stackExpander.next(callers)
+	_, frame, _ := stackExpander.next(callers, true)
 	pc = frame.PC
 	file = frame.File
 	line = frame.Line
@@ -212,8 +212,8 @@ func Callers(skip int, pc []uintptr) int {
 	return callers(skip, pc)
 }
 
-// GOROOT returns the root of the Go tree.
-// It uses the GOROOT environment variable, if set,
+// GOROOT returns the root of the Go tree. It uses the
+// GOROOT environment variable, if set at process start,
 // or else the root used during the Go build.
 func GOROOT() string {
 	s := gogetenv("GOROOT")

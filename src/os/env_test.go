@@ -134,7 +134,7 @@ func TestLookupEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to release smallpox virus")
 	}
-	value, ok = LookupEnv(smallpox)
+	_, ok = LookupEnv(smallpox)
 	if !ok {
 		t.Errorf("smallpox release failed; world remains safe but LookupEnv is broken")
 	}

@@ -85,6 +85,13 @@ type gcWork struct {
 	scanWork int64
 }
 
+// Most of the methods of gcWork are go:nowritebarrierrec because the
+// write barrier itself can invoke gcWork methods but the methods are
+// not generally re-entrant. Hence, if a gcWork method invoked the
+// write barrier while the gcWork was in an inconsistent state, and
+// the write barrier in turn invoked a gcWork method, it could
+// permanently corrupt the gcWork.
+
 func (w *gcWork) init() {
 	w.wbuf1 = getempty()
 	wbuf2 := trygetfull()
@@ -96,7 +103,7 @@ func (w *gcWork) init() {
 
 // put enqueues a pointer for the garbage collector to trace.
 // obj must point to the beginning of a heap object or an oblet.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func (w *gcWork) put(obj uintptr) {
 	flushed := false
 	wbuf := w.wbuf1
@@ -129,7 +136,7 @@ func (w *gcWork) put(obj uintptr) {
 
 // putFast does a put and returns true if it can be done quickly
 // otherwise it returns false and the caller needs to call put.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func (w *gcWork) putFast(obj uintptr) bool {
 	wbuf := w.wbuf1
 	if wbuf == nil {
@@ -143,12 +150,45 @@ func (w *gcWork) putFast(obj uintptr) bool {
 	return true
 }
 
+// putBatch performs a put on every pointer in obj. See put for
+// constraints on these pointers.
+//
+//go:nowritebarrierrec
+func (w *gcWork) putBatch(obj []uintptr) {
+	if len(obj) == 0 {
+		return
+	}
+
+	flushed := false
+	wbuf := w.wbuf1
+	if wbuf == nil {
+		w.init()
+		wbuf = w.wbuf1
+	}
+
+	for len(obj) > 0 {
+		for wbuf.nobj == len(wbuf.obj) {
+			putfull(wbuf)
+			w.wbuf1, w.wbuf2 = w.wbuf2, getempty()
+			wbuf = w.wbuf1
+			flushed = true
+		}
+		n := copy(wbuf.obj[wbuf.nobj:], obj)
+		wbuf.nobj += n
+		obj = obj[n:]
+	}
+
+	if flushed && gcphase == _GCmark {
+		gcController.enlistWorker()
+	}
+}
+
 // tryGet dequeues a pointer for the garbage collector to trace.
 //
 // If there are no pointers remaining in this gcWork or in the global
 // queue, tryGet returns 0.  Note that there may still be pointers in
 // other gcWork instances or other caches.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func (w *gcWork) tryGet() uintptr {
 	wbuf := w.wbuf1
 	if wbuf == nil {
@@ -177,7 +217,7 @@ func (w *gcWork) tryGet() uintptr {
 // tryGetFast dequeues a pointer for the garbage collector to trace
 // if one is readily available. Otherwise it returns 0 and
 // the caller is expected to call tryGet().
-//go:nowritebarrier
+//go:nowritebarrierrec
 func (w *gcWork) tryGetFast() uintptr {
 	wbuf := w.wbuf1
 	if wbuf == nil {
@@ -194,7 +234,7 @@ func (w *gcWork) tryGetFast() uintptr {
 // get dequeues a pointer for the garbage collector to trace, blocking
 // if necessary to ensure all pointers from all queues and caches have
 // been retrieved.  get returns 0 if there are no pointers remaining.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func (w *gcWork) get() uintptr {
 	wbuf := w.wbuf1
 	if wbuf == nil {
@@ -228,7 +268,7 @@ func (w *gcWork) get() uintptr {
 // GC can inspect them. This helps reduce the mutator's
 // ability to hide pointers during the concurrent mark phase.
 //
-//go:nowritebarrier
+//go:nowritebarrierrec
 func (w *gcWork) dispose() {
 	if wbuf := w.wbuf1; wbuf != nil {
 		if wbuf.nobj == 0 {
@@ -262,7 +302,7 @@ func (w *gcWork) dispose() {
 
 // balance moves some work that's cached in this gcWork back on the
 // global queue.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func (w *gcWork) balance() {
 	if w.wbuf1 == nil {
 		return
@@ -282,7 +322,7 @@ func (w *gcWork) balance() {
 }
 
 // empty returns true if w has no mark work available.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func (w *gcWork) empty() bool {
 	return w.wbuf1 == nil || (w.wbuf1.nobj == 0 && w.wbuf2.nobj == 0)
 }

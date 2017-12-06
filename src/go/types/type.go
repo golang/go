@@ -191,6 +191,7 @@ func (t *Tuple) Len() int {
 func (t *Tuple) At(i int) *Var { return t.vars[i] }
 
 // A Signature represents a (non-builtin) function or method type.
+// The receiver is ignored when comparing signatures for identity.
 type Signature struct {
 	// We need to keep the scope in Signature (rather than passing it around
 	// and store it in the Func Object) because when type-checking a function
@@ -221,7 +222,7 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 }
 
 // Recv returns the receiver of signature s (if a method), or nil if a
-// function.
+// function. It is ignored when comparing signatures for identity.
 //
 // For an abstract method, Recv returns the enclosing interface either
 // as a *Named or an *Interface. Due to embedding, an interface may
@@ -245,9 +246,21 @@ type Interface struct {
 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
 }
 
-// NewInterface returns a new interface for the given methods and embedded types.
+// emptyInterface represents the empty (completed) interface
+var emptyInterface = Interface{allMethods: markComplete}
+
+// markComplete is used to mark an empty interface as completely
+// set up by setting the allMethods field to a non-nil empty slice.
+var markComplete = make([]*Func, 0)
+
+// NewInterface returns a new (incomplete) interface for the given methods and embedded types.
+// To compute the method set of the interface, Complete must be called.
 func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 	typ := new(Interface)
+
+	if len(methods) == 0 && len(embeddeds) == 0 {
+		return typ
+	}
 
 	var mset objset
 	for _, m := range methods {
@@ -261,7 +274,7 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 	}
 	sort.Sort(byUniqueMethodName(methods))
 
-	if embeddeds == nil {
+	if embeddeds != nil {
 		sort.Sort(byUniqueTypeName(embeddeds))
 	}
 
@@ -382,6 +395,7 @@ type Named struct {
 }
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
+// If the given type name obj doesn't have a type yet, its type is set to the returned named type.
 // The underlying type must not be a *Named.
 func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {

@@ -33,20 +33,23 @@ var testFlagDefn = []*cmdflag.Defn{
 	{Name: "covermode"},
 	{Name: "coverpkg"},
 	{Name: "exec"},
+	{Name: "json", BoolVar: &testJSON},
+	{Name: "vet"},
 
 	// Passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
 	{Name: "bench", PassToTest: true},
 	{Name: "benchmem", BoolVar: new(bool), PassToTest: true},
 	{Name: "benchtime", PassToTest: true},
+	{Name: "blockprofile", PassToTest: true},
+	{Name: "blockprofilerate", PassToTest: true},
 	{Name: "count", PassToTest: true},
 	{Name: "coverprofile", PassToTest: true},
 	{Name: "cpu", PassToTest: true},
 	{Name: "cpuprofile", PassToTest: true},
+	{Name: "failfast", BoolVar: new(bool), PassToTest: true},
 	{Name: "list", PassToTest: true},
 	{Name: "memprofile", PassToTest: true},
 	{Name: "memprofilerate", PassToTest: true},
-	{Name: "blockprofile", PassToTest: true},
-	{Name: "blockprofilerate", PassToTest: true},
 	{Name: "mutexprofile", PassToTest: true},
 	{Name: "mutexprofilefraction", PassToTest: true},
 	{Name: "outputdir", PassToTest: true},
@@ -85,7 +88,6 @@ func init() {
 //	go test -x math
 func testFlags(args []string) (packageNames, passToTest []string) {
 	inPkg := false
-	outputDir := ""
 	var explicitArgs []string
 	for i := 0; i < len(args); i++ {
 		if !strings.HasPrefix(args[i], "-") {
@@ -132,8 +134,11 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			// Arguably should be handled by f.Value, but aren't.
 			switch f.Name {
 			// bool flags.
-			case "c", "i", "v", "cover":
+			case "c", "i", "v", "cover", "json":
 				cmdflag.SetBool(cmd, f.BoolVar, value)
+				if f.Name == "json" && testJSON {
+					passToTest = append(passToTest, "-test.v")
+				}
 			case "o":
 				testO = value
 				testNeedBinary = true
@@ -151,10 +156,10 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			case "timeout":
 				testTimeout = value
 			case "blockprofile", "cpuprofile", "memprofile", "mutexprofile":
-				testProfile = true
+				testProfile = "-" + f.Name
 				testNeedBinary = true
 			case "trace":
-				testProfile = true
+				testProfile = "-trace"
 			case "coverpkg":
 				testCover = true
 				if value == "" {
@@ -164,7 +169,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 				}
 			case "coverprofile":
 				testCover = true
-				testProfile = true
+				testCoverProfile = value
 			case "covermode":
 				switch value {
 				case "set", "count", "atomic":
@@ -174,7 +179,9 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 				}
 				testCover = true
 			case "outputdir":
-				outputDir = value
+				testOutputDir = value
+			case "vet":
+				testVetList = value
 			}
 		}
 		if extraWord {
@@ -193,12 +200,26 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		}
 	}
 
+	if testVetList != "" && testVetList != "off" {
+		if strings.Contains(testVetList, "=") {
+			base.Fatalf("-vet argument cannot contain equal signs")
+		}
+		if strings.Contains(testVetList, " ") {
+			base.Fatalf("-vet argument is comma-separated list, cannot contain spaces")
+		}
+		list := strings.Split(testVetList, ",")
+		for i, arg := range list {
+			list[i] = "-" + arg
+		}
+		testVetFlags = list
+	}
+
 	if cfg.BuildRace && testCoverMode != "atomic" {
 		base.Fatalf(`-covermode must be "atomic", not %q, when -race is enabled`, testCoverMode)
 	}
 
 	// Tell the test what directory we're running in, so it can write the profiles there.
-	if testProfile && outputDir == "" {
+	if testProfile != "" && testOutputDir == "" {
 		dir, err := os.Getwd()
 		if err != nil {
 			base.Fatalf("error from os.Getwd: %s", err)

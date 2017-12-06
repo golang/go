@@ -12,7 +12,7 @@ import (
 )
 
 // Ctype describes the constant kind of an "ideal" (untyped) constant.
-type Ctype int8
+type Ctype uint8
 
 const (
 	CTxxx Ctype = iota
@@ -247,7 +247,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 
 		return n
 
-		// target is invalid type for a constant?  leave alone.
+		// target is invalid type for a constant? leave alone.
 	case OLITERAL:
 		if !okforconst[t.Etype] && n.Type.Etype != TNIL {
 			return defaultlitreuse(n, nil, reuse)
@@ -297,7 +297,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 
 	ct := consttype(n)
 	var et types.EType
-	if ct < 0 {
+	if ct == 0 {
 		goto bad
 	}
 
@@ -408,7 +408,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 bad:
 	if !n.Diag() {
 		if !t.Broke() {
-			yyerror("cannot convert %v to type %v", n, t)
+			yyerror("cannot convert %L to type %v", n, t)
 		}
 		n.SetDiag(true)
 	}
@@ -591,7 +591,7 @@ func tostr(v Val) Val {
 
 func consttype(n *Node) Ctype {
 	if n == nil || n.Op != OLITERAL {
-		return -1
+		return 0
 	}
 	return n.Val().Ctype()
 }
@@ -693,7 +693,7 @@ func evconst(n *Node) {
 	if nl == nil || nl.Type == nil {
 		return
 	}
-	if consttype(nl) < 0 {
+	if consttype(nl) == 0 {
 		return
 	}
 	wl := nl.Type.Etype
@@ -840,7 +840,7 @@ func evconst(n *Node) {
 	if nr.Type == nil {
 		return
 	}
-	if consttype(nr) < 0 {
+	if consttype(nr) == 0 {
 		return
 	}
 	wr = nr.Type.Etype
@@ -1195,8 +1195,6 @@ func evconst(n *Node) {
 		goto setfalse
 	}
 
-	goto ret
-
 ret:
 	norig = saveorig(n)
 	*n = *nl
@@ -1375,7 +1373,8 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
 			return convlit(n, t)
 		}
 
-		if n.Val().Ctype() == CTNIL {
+		switch n.Val().Ctype() {
+		case CTNIL:
 			lineno = lno
 			if !n.Diag() {
 				yyerror("use of untyped nil")
@@ -1383,16 +1382,12 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
 			}
 
 			n.Type = nil
-			break
-		}
-
-		if n.Val().Ctype() == CTSTR {
+		case CTSTR:
 			t1 := types.Types[TSTRING]
 			n = convlit1(n, t1, false, reuse)
-			break
+		default:
+			yyerror("defaultlit: unknown literal: %v", n)
 		}
-
-		yyerror("defaultlit: unknown literal: %v", n)
 
 	case CTxxx:
 		Fatalf("defaultlit: idealkind is CTxxx: %+v", n)

@@ -54,7 +54,7 @@ func TestTCPListenerSpecificMethods(t *testing.T) {
 	}
 
 	if f, err := ln.File(); err != nil {
-		condFatalf(t, "%v", err)
+		condFatalf(t, "file+net", "%v", err)
 	} else {
 		f.Close()
 	}
@@ -139,14 +139,14 @@ func TestUDPConnSpecificMethods(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, _, err := c.WriteMsgUDP(wb, nil, c.LocalAddr().(*UDPAddr)); err != nil {
-		condFatalf(t, "%v", err)
+		condFatalf(t, c.LocalAddr().Network(), "%v", err)
 	}
 	if _, _, _, _, err := c.ReadMsgUDP(rb, nil); err != nil {
-		condFatalf(t, "%v", err)
+		condFatalf(t, c.LocalAddr().Network(), "%v", err)
 	}
 
 	if f, err := c.File(); err != nil {
-		condFatalf(t, "%v", err)
+		condFatalf(t, "file+net", "%v", err)
 	} else {
 		f.Close()
 	}
@@ -184,7 +184,7 @@ func TestIPConnSpecificMethods(t *testing.T) {
 	c.SetWriteBuffer(2048)
 
 	if f, err := c.File(); err != nil {
-		condFatalf(t, "%v", err)
+		condFatalf(t, "file+net", "%v", err)
 	} else {
 		f.Close()
 	}

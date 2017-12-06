@@ -11,6 +11,7 @@ import (
 	"html"
 	"io"
 	"os"
+	"strings"
 )
 
 type HTMLWriter struct {
@@ -63,6 +64,11 @@ th, td {
     width: 400px;
     vertical-align: top;
     padding: 5px;
+}
+
+td.ssa-prog {
+    width: 600px;
+    word-wrap: break-word;
 }
 
 li {
@@ -118,6 +124,11 @@ dd.ssa-prog {
 
 .depcycle {
     font-style: italic;
+}
+
+.line-number {
+    font-style: italic;
+    font-size: 11px;
 }
 
 .highlight-yellow         { background-color: yellow; }
@@ -309,17 +320,21 @@ func (w *HTMLWriter) WriteFunc(title string, f *Func) {
 	if w == nil {
 		return // avoid generating HTML just to discard it
 	}
-	w.WriteColumn(title, f.HTML())
+	w.WriteColumn(title, "", f.HTML())
 	// TODO: Add visual representation of f's CFG.
 }
 
 // WriteColumn writes raw HTML in a column headed by title.
 // It is intended for pre- and post-compilation log output.
-func (w *HTMLWriter) WriteColumn(title string, html string) {
+func (w *HTMLWriter) WriteColumn(title, class, html string) {
 	if w == nil {
 		return
 	}
-	w.WriteString("<td>")
+	if class == "" {
+		w.WriteString("<td>")
+	} else {
+		w.WriteString("<td class=\"" + class + "\">")
+	}
 	w.WriteString("<h2>" + title + "</h2>")
 	w.WriteString(html)
 	w.WriteString("</td>")
@@ -352,7 +367,14 @@ func (v *Value) LongHTML() string {
 	// We already have visual noise in the form of punctuation
 	// maybe we could replace some of that with formatting.
 	s := fmt.Sprintf("<span class=\"%s ssa-long-value\">", v.String())
-	s += fmt.Sprintf("%s = %s", v.HTML(), v.Op.String())
+
+	linenumber := "<span class=\"line-number\">(?)</span>"
+	if v.Pos.IsKnown() {
+		linenumber = fmt.Sprintf("<span class=\"line-number\">(%d)</span>", v.Pos.Line())
+	}
+
+	s += fmt.Sprintf("%s %s = %s", v.HTML(), linenumber, v.Op.String())
+
 	s += " &lt;" + html.EscapeString(v.Type.String()) + "&gt;"
 	s += html.EscapeString(v.auxString())
 	for _, a := range v.Args {
@@ -360,8 +382,21 @@ func (v *Value) LongHTML() string {
 	}
 	r := v.Block.Func.RegAlloc
 	if int(v.ID) < len(r) && r[v.ID] != nil {
-		s += " : " + html.EscapeString(r[v.ID].Name())
+		s += " : " + html.EscapeString(r[v.ID].String())
 	}
+	var names []string
+	for name, values := range v.Block.Func.NamedValues {
+		for _, value := range values {
+			if value == v {
+				names = append(names, name.String())
+				break // drop duplicates.
+			}
+		}
+	}
+	if len(names) != 0 {
+		s += " (" + strings.Join(names, ", ") + ")"
+	}
+
 	s += "</span>"
 	return s
 }
@@ -395,6 +430,11 @@ func (b *Block) LongHTML() string {
 		s += " (unlikely)"
 	case BranchLikely:
 		s += " (likely)"
+	}
+	if b.Pos.IsKnown() {
+		// TODO does not begin to deal with the full complexity of line numbers.
+		// Maybe we want a string/slice instead, of outer-inner when inlining.
+		s += fmt.Sprintf(" (line %d)", b.Pos.Line())
 	}
 	return s
 }
@@ -469,7 +509,7 @@ func (p htmlFuncPrinter) endDepCycle() {
 }
 
 func (p htmlFuncPrinter) named(n LocalSlot, vals []*Value) {
-	fmt.Fprintf(p.w, "<li>name %s: ", n.Name())
+	fmt.Fprintf(p.w, "<li>name %s: ", n)
 	for _, val := range vals {
 		fmt.Fprintf(p.w, "%s ", val.HTML())
 	}

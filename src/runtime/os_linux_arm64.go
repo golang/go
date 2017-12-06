@@ -2,14 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build arm64
+
 package runtime
 
-const (
-	_ARM64_FEATURE_HAS_CRC32 = 0x80
-)
+// For go:linkname
+import _ "unsafe"
 
 var randomNumber uint32
-var supportCRC32 bool
+
+// arm64 doesn't have a 'cpuid' instruction equivalent and relies on
+// HWCAP/HWCAP2 bits for hardware capabilities.
+
+//go:linkname cpu_hwcap internal/cpu.arm64_hwcap
+//go:linkname cpu_hwcap2 internal/cpu.arm64_hwcap2
+var cpu_hwcap uint
+var cpu_hwcap2 uint
 
 func archauxv(tag, val uintptr) {
 	switch tag {
@@ -20,7 +28,9 @@ func archauxv(tag, val uintptr) {
 		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
 			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
 	case _AT_HWCAP:
-		supportCRC32 = val&_ARM64_FEATURE_HAS_CRC32 != 0
+		cpu_hwcap = uint(val)
+	case _AT_HWCAP2:
+		cpu_hwcap2 = uint(val)
 	}
 }
 

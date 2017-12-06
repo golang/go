@@ -44,6 +44,6 @@ func sysinit() {
 	case PROCESSOR_ARCHITECTURE_INTEL:
 		gohostarch = "386"
 	default:
-		fatal("unknown processor architecture")
+		fatalf("unknown processor architecture")
 	}
 }

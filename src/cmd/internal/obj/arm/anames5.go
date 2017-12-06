@@ -11,6 +11,7 @@ var cnames5 = []string{
 	"REGREG2",
 	"REGLIST",
 	"SHIFT",
+	"SHIFTADDR",
 	"FREG",
 	"PSR",
 	"FCR",

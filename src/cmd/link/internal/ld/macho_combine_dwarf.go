@@ -17,31 +17,10 @@ import (
 
 var realdwarf, linkseg *macho.Segment
 var dwarfstart, linkstart int64
-var dwarfaddr, linkaddr int64
+var dwarfaddr int64
 var linkoffset uint32
 
 const (
-	LC_ID_DYLIB             = 0xd
-	LC_LOAD_DYLINKER        = 0xe
-	LC_PREBOUND_DYLIB       = 0x10
-	LC_LOAD_WEAK_DYLIB      = 0x18
-	LC_UUID                 = 0x1b
-	LC_RPATH                = 0x8000001c
-	LC_CODE_SIGNATURE       = 0x1d
-	LC_SEGMENT_SPLIT_INFO   = 0x1e
-	LC_REEXPORT_DYLIB       = 0x8000001f
-	LC_ENCRYPTION_INFO      = 0x21
-	LC_DYLD_INFO            = 0x22
-	LC_DYLD_INFO_ONLY       = 0x80000022
-	LC_VERSION_MIN_MACOSX   = 0x24
-	LC_VERSION_MIN_IPHONEOS = 0x25
-	LC_FUNCTION_STARTS      = 0x26
-	LC_MAIN                 = 0x80000028
-	LC_DATA_IN_CODE         = 0x29
-	LC_SOURCE_VERSION       = 0x2A
-	LC_DYLIB_CODE_SIGN_DRS  = 0x2B
-	LC_ENCRYPTION_INFO_64   = 0x2C
-
 	pageAlign = 12 // 4096 = 1 << 12
 )
 
@@ -112,7 +91,7 @@ func (r loadCmdReader) WriteAt(offset int64, data interface{}) error {
 // header to add the DWARF sections. (Use ld's -headerpad option)
 // dsym is the path to the macho file containing DWARF from dsymutil.
 // outexe is the path where the combined executable should be saved.
-func machoCombineDwarf(inexe, dsym, outexe string) error {
+func machoCombineDwarf(inexe, dsym, outexe string, buildmode BuildMode) error {
 	exef, err := os.Open(inexe)
 	if err != nil {
 		return err
@@ -251,7 +230,7 @@ func machoCombineDwarf(inexe, dsym, outexe string) error {
 			return err
 		}
 	}
-	return machoUpdateDwarfHeader(&reader)
+	return machoUpdateDwarfHeader(&reader, buildmode)
 }
 
 // machoUpdateSegment updates the load command for a moved segment.
@@ -312,7 +291,7 @@ func machoUpdateSections(r loadCmdReader, seg, sect reflect.Value, deltaOffset, 
 }
 
 // machoUpdateDwarfHeader updates the DWARF segment load command.
-func machoUpdateDwarfHeader(r *loadCmdReader) error {
+func machoUpdateDwarfHeader(r *loadCmdReader, buildmode BuildMode) error {
 	var seg, sect interface{}
 	cmd, err := r.Next()
 	if err != nil {
@@ -342,7 +321,7 @@ func machoUpdateDwarfHeader(r *loadCmdReader) error {
 	// We don't need the DWARF information actually available in memory.
 	// But if we do this for buildmode=c-shared then the user-space
 	// dynamic loader complains about memsz < filesz. Sigh.
-	if Buildmode != BuildmodeCShared {
+	if buildmode != BuildModeCShared {
 		segv.FieldByName("Addr").SetUint(0)
 		segv.FieldByName("Memsz").SetUint(0)
 		deltaAddr = 0

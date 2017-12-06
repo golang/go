@@ -139,10 +139,10 @@ var pprofVariables = variables{
 	// Comparisons.
 	"positive_percentages": &variable{boolKind, "f", "", helpText(
 		"Ignore negative samples when computing percentages",
-		" Do not count negative samples when computing the total value",
-		" of the profile, used to compute percentages. If set, and the -base",
-		" option is used, percentages reported will be computed against the",
-		" main profile, ignoring the base profile.")},
+		"Do not count negative samples when computing the total value",
+		"of the profile, used to compute percentages. If set, and the -base",
+		"option is used, percentages reported will be computed against the",
+		"main profile, ignoring the base profile.")},
 
 	// Graph handling options.
 	"call_tree": &variable{boolKind, "f", "", helpText(
@@ -157,9 +157,9 @@ var pprofVariables = variables{
 	"unit": &variable{stringKind, "minimum", "", helpText(
 		"Measurement units to display",
 		"Scale the sample values to this unit.",
-		" For time-based profiles, use seconds, milliseconds, nanoseconds, etc.",
-		" For memory profiles, use megabytes, kilobytes, bytes, etc.",
-		" auto will scale each value independently to the most natural unit.")},
+		"For time-based profiles, use seconds, milliseconds, nanoseconds, etc.",
+		"For memory profiles, use megabytes, kilobytes, bytes, etc.",
+		"Using auto will scale each value independently to the most natural unit.")},
 	"compact_labels": &variable{boolKind, "f", "", "Show minimal headers"},
 	"source_path":    &variable{stringKind, "", "", "Search path for source files"},
 
@@ -195,11 +195,15 @@ var pprofVariables = variables{
 		"If set, only show nodes that match this location.",
 		"Matching includes the function name, filename or object name.")},
 	"tagfocus": &variable{stringKind, "", "", helpText(
-		"Restrict to samples with tags in range or matched by regexp",
-		"Discard samples that do not include a node with a tag matching this regexp.")},
+		"Restricts to samples with tags in range or matched by regexp",
+		"Use name=value syntax to limit the matching to a specific tag.",
+		"Numeric tag filter examples: 1kb, 1kb:10kb, memory=32mb:",
+		"String tag filter examples: foo, foo.*bar, mytag=foo.*bar")},
 	"tagignore": &variable{stringKind, "", "", helpText(
 		"Discard samples with tags in range or matched by regexp",
-		"Discard samples that do include a node with a tag matching this regexp.")},
+		"Use name=value syntax to limit the matching to a specific tag.",
+		"Numeric tag filter examples: 1kb, 1kb:10kb, memory=32mb:",
+		"String tag filter examples: foo, foo.*bar, mytag=foo.*bar")},
 	"tagshow": &variable{stringKind, "", "", helpText(
 		"Only consider tags matching this regexp",
 		"Discard tags that do not match this regexp")},
@@ -218,6 +222,8 @@ var pprofVariables = variables{
 		"Sample value to report (0-based index or name)",
 		"Profiles contain multiple values per sample.",
 		"Use sample_index=i to select the ith value (starting at 0).")},
+	"normalize": &variable{boolKind, "f", "", helpText(
+		"Scales profile based on the base profile.")},
 
 	// Data sorting criteria
 	"flat": &variable{boolKind, "t", "cumulative", helpText("Sort entries based on own weight")},
@@ -227,9 +233,6 @@ var pprofVariables = variables{
 	"functions": &variable{boolKind, "t", "granularity", helpText(
 		"Aggregate at the function level.",
 		"Takes into account the filename/lineno where the function was defined.")},
-	"functionnameonly": &variable{boolKind, "f", "granularity", helpText(
-		"Aggregate at the function level.",
-		"Ignores the filename/lineno where the function was defined.")},
 	"files": &variable{boolKind, "f", "granularity", "Aggregate at the file level."},
 	"lines": &variable{boolKind, "f", "granularity", "Aggregate at the source code line level."},
 	"addresses": &variable{boolKind, "f", "granularity", helpText(
@@ -266,7 +269,7 @@ func usage(commandLine bool) string {
 
 	var help string
 	if commandLine {
-		help = "  Output formats (select only one):\n"
+		help = "  Output formats (select at most one):\n"
 	} else {
 		help = "  Commands:\n"
 		commands = append(commands, fmtHelp("o/options", "List options and their current values"))
@@ -471,7 +474,7 @@ func (vars variables) set(name, value string) error {
 	case boolKind:
 		var b bool
 		if b, err = stringToBool(value); err == nil {
-			if v.group != "" && b == false {
+			if v.group != "" && !b {
 				err = fmt.Errorf("%q can only be set to true", name)
 			}
 		}

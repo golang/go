@@ -53,7 +53,7 @@ func (this *statsResults) checkSimilarDistribution(expected *statsResults) error
 		fmt.Println(s)
 		return errors.New(s)
 	}
-	if !nearEqual(this.stddev, expected.stddev, 0, expected.maxError) {
+	if !nearEqual(this.stddev, expected.stddev, expected.closeEnough, expected.maxError) {
 		s := fmt.Sprintf("stddev %v != %v (allowed error %v, %v)", this.stddev, expected.stddev, expected.closeEnough, expected.maxError)
 		fmt.Println(s)
 		return errors.New(s)
@@ -74,6 +74,7 @@ func getStatsResults(samples []float64) *statsResults {
 }
 
 func checkSampleDistribution(t *testing.T, samples []float64, expected *statsResults) {
+	t.Helper()
 	actual := getStatsResults(samples)
 	err := actual.checkSimilarDistribution(expected)
 	if err != nil {
@@ -82,6 +83,7 @@ func checkSampleDistribution(t *testing.T, samples []float64, expected *statsRes
 }
 
 func checkSampleSliceDistributions(t *testing.T, samples []float64, nslices int, expected *statsResults) {
+	t.Helper()
 	chunk := len(samples) / nslices
 	for i := 0; i < nslices; i++ {
 		low := i * chunk
@@ -374,7 +376,7 @@ func testReadUniformity(t *testing.T, n int, seed int64) {
 	// Expect a uniform distribution of byte values, which lie in [0, 255].
 	var (
 		mean       = 255.0 / 2
-		stddev     = math.Sqrt(255.0 * 255.0 / 12.0)
+		stddev     = 256.0 / math.Sqrt(12.0)
 		errorScale = stddev / math.Sqrt(float64(n))
 	)
 
@@ -448,6 +450,113 @@ func TestReadSeedReset(t *testing.T) {
 	}
 }
 
+func TestShuffleSmall(t *testing.T) {
+	// Check that Shuffle allows n=0 and n=1, but that swap is never called for them.
+	r := New(NewSource(1))
+	for n := 0; n <= 1; n++ {
+		r.Shuffle(n, func(i, j int) { t.Fatalf("swap called, n=%d i=%d j=%d", n, i, j) })
+	}
+}
+
+// encodePerm converts from a permuted slice of length n, such as Perm generates, to an int in [0, n!).
+// See https://en.wikipedia.org/wiki/Lehmer_code.
+// encodePerm modifies the input slice.
+func encodePerm(s []int) int {
+	// Convert to Lehmer code.
+	for i, x := range s {
+		r := s[i+1:]
+		for j, y := range r {
+			if y > x {
+				r[j]--
+			}
+		}
+	}
+	// Convert to int in [0, n!).
+	m := 0
+	fact := 1
+	for i := len(s) - 1; i >= 0; i-- {
+		m += s[i] * fact
+		fact *= len(s) - i
+	}
+	return m
+}
+
+// TestUniformFactorial tests several ways of generating a uniform value in [0, n!).
+func TestUniformFactorial(t *testing.T) {
+	r := New(NewSource(testSeeds[0]))
+	top := 6
+	if testing.Short() {
+		top = 4
+	}
+	for n := 3; n <= top; n++ {
+		t.Run(fmt.Sprintf("n=%d", n), func(t *testing.T) {
+			// Calculate n!.
+			nfact := 1
+			for i := 2; i <= n; i++ {
+				nfact *= i
+			}
+
+			// Test a few different ways to generate a uniform distribution.
+			p := make([]int, n) // re-usable slice for Shuffle generator
+			tests := [...]struct {
+				name string
+				fn   func() int
+			}{
+				{name: "Int31n", fn: func() int { return int(r.Int31n(int32(nfact))) }},
+				{name: "int31n", fn: func() int { return int(r.int31n(int32(nfact))) }},
+				{name: "Perm", fn: func() int { return encodePerm(r.Perm(n)) }},
+				{name: "Shuffle", fn: func() int {
+					// Generate permutation using Shuffle.
+					for i := range p {
+						p[i] = i
+					}
+					r.Shuffle(n, func(i, j int) { p[i], p[j] = p[j], p[i] })
+					return encodePerm(p)
+				}},
+			}
+
+			for _, test := range tests {
+				t.Run(test.name, func(t *testing.T) {
+					// Gather chi-squared values and check that they follow
+					// the expected normal distribution given n!-1 degrees of freedom.
+					// See https://en.wikipedia.org/wiki/Pearson%27s_chi-squared_test and
+					// https://www.johndcook.com/Beautiful_Testing_ch10.pdf.
+					nsamples := 10 * nfact
+					if nsamples < 200 {
+						nsamples = 200
+					}
+					samples := make([]float64, nsamples)
+					for i := range samples {
+						// Generate some uniformly distributed values and count their occurrences.
+						const iters = 1000
+						counts := make([]int, nfact)
+						for i := 0; i < iters; i++ {
+							counts[test.fn()]++
+						}
+						// Calculate chi-squared and add to samples.
+						want := iters / float64(nfact)
+						var χ2 float64
+						for _, have := range counts {
+							err := float64(have) - want
+							χ2 += err * err
+						}
+						χ2 /= want
+						samples[i] = χ2
+					}
+
+					// Check that our samples approximate the appropriate normal distribution.
+					dof := float64(nfact - 1)
+					expected := &statsResults{mean: dof, stddev: math.Sqrt(2 * dof)}
+					errorScale := max(1.0, expected.stddev)
+					expected.closeEnough = 0.10 * errorScale
+					expected.maxError = 0.08 // TODO: What is the right value here? See issue 21211.
+					checkSampleDistribution(t, samples, expected)
+				})
+			}
+		})
+	}
+}
+
 // Benchmarks
 
 func BenchmarkInt63Threadsafe(b *testing.B) {
@@ -509,6 +618,30 @@ func BenchmarkPerm30(b *testing.B) {
 	r := New(NewSource(1))
 	for n := b.N; n > 0; n-- {
 		r.Perm(30)
+	}
+}
+
+func BenchmarkPerm30ViaShuffle(b *testing.B) {
+	r := New(NewSource(1))
+	for n := b.N; n > 0; n-- {
+		p := make([]int, 30)
+		for i := range p {
+			p[i] = i
+		}
+		r.Shuffle(30, func(i, j int) { p[i], p[j] = p[j], p[i] })
+	}
+}
+
+// BenchmarkShuffleOverhead uses a minimal swap function
+// to measure just the shuffling overhead.
+func BenchmarkShuffleOverhead(b *testing.B) {
+	r := New(NewSource(1))
+	for n := b.N; n > 0; n-- {
+		r.Shuffle(52, func(i, j int) {
+			if i < 0 || i >= 52 || j < 0 || j >= 52 {
+				b.Fatalf("bad swap(%d, %d)", i, j)
+			}
+		})
 	}
 }
 

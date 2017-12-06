@@ -719,6 +719,11 @@ version of gccgo.
         header when matching handlers. The host is matched unmodified for <code>CONNECT</code> requests.
       </li>
 
+      <li><!-- CL 44074 -->
+        The new <a href="/pkg/net/http/#Server.ServeTLS"><code>Server.ServeTLS</code></a> method wraps
+        <a href="/pkg/net/http/#Server.Serve"><code>Server.Serve</code></a> with added TLS support.
+      </li>
+
       <li><!-- CL 34727 -->
         <a href="/pkg/net/http/#Server.WriteTimeout"><code>Server.WriteTimeout</code></a>
         now applies to HTTP/2 connections and is enforced per-stream.

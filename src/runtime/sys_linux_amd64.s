@@ -10,23 +10,65 @@
 #include "go_tls.h"
 #include "textflag.h"
 
+#define SYS_read		0
+#define SYS_write		1
+#define SYS_open		2
+#define SYS_close		3
+#define SYS_mmap		9
+#define SYS_munmap		11
+#define SYS_brk 		12
+#define SYS_rt_sigaction	13
+#define SYS_rt_sigprocmask	14
+#define SYS_rt_sigreturn	15
+#define SYS_access		21
+#define SYS_sched_yield 	24
+#define SYS_mincore		27
+#define SYS_madvise		28
+#define SYS_setittimer		38
+#define SYS_getpid		39
+#define SYS_socket		41
+#define SYS_connect		42
+#define SYS_clone		56
+#define SYS_exit		60
+#define SYS_kill		62
+#define SYS_fcntl		72
+#define SYS_getrlimit		97
+#define SYS_sigaltstack 	131
+#define SYS_arch_prctl		158
+#define SYS_gettid		186
+#define SYS_tkill		200
+#define SYS_futex		202
+#define SYS_sched_getaffinity	204
+#define SYS_epoll_create	213
+#define SYS_exit_group		231
+#define SYS_epoll_wait		232
+#define SYS_epoll_ctl		233
+#define SYS_pselect6		270
+#define SYS_epoll_create1	291
+
 TEXT runtime·exit(SB),NOSPLIT,$0-4
 	MOVL	code+0(FP), DI
-	MOVL	$231, AX	// exitgroup - force all os threads to exit
+	MOVL	$SYS_exit_group, AX
 	SYSCALL
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$0-4
-	MOVL	code+0(FP), DI
-	MOVL	$60, AX	// exit - exit the current os thread
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+	MOVQ	wait+0(FP), AX
+	// We're done using the stack.
+	MOVL	$0, (AX)
+	MOVL	$0, DI	// exit code
+	MOVL	$SYS_exit, AX
 	SYSCALL
-	RET
+	// We may not even have a stack any more.
+	INT	$3
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$0-20
 	MOVQ	name+0(FP), DI
 	MOVL	mode+8(FP), SI
 	MOVL	perm+12(FP), DX
-	MOVL	$2, AX			// syscall entry
+	MOVL	$SYS_open, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	2(PC)
@@ -36,7 +78,7 @@ TEXT runtime·open(SB),NOSPLIT,$0-20
 
 TEXT runtime·closefd(SB),NOSPLIT,$0-12
 	MOVL	fd+0(FP), DI
-	MOVL	$3, AX			// syscall entry
+	MOVL	$SYS_close, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	2(PC)
@@ -48,7 +90,7 @@ TEXT runtime·write(SB),NOSPLIT,$0-28
 	MOVQ	fd+0(FP), DI
 	MOVQ	p+8(FP), SI
 	MOVL	n+16(FP), DX
-	MOVL	$1, AX			// syscall entry
+	MOVL	$SYS_write, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	2(PC)
@@ -60,7 +102,7 @@ TEXT runtime·read(SB),NOSPLIT,$0-28
 	MOVL	fd+0(FP), DI
 	MOVQ	p+8(FP), SI
 	MOVL	n+16(FP), DX
-	MOVL	$0, AX			// syscall entry
+	MOVL	$SYS_read, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	2(PC)
@@ -71,7 +113,7 @@ TEXT runtime·read(SB),NOSPLIT,$0-28
 TEXT runtime·getrlimit(SB),NOSPLIT,$0-20
 	MOVL	kind+0(FP), DI
 	MOVQ	limit+8(FP), SI
-	MOVL	$97, AX			// syscall entry
+	MOVL	$SYS_getrlimit, AX
 	SYSCALL
 	MOVL	AX, ret+16(FP)
 	RET
@@ -93,31 +135,31 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	MOVL	$0, R10
 	MOVQ	SP, R8
 	MOVL	$0, R9
-	MOVL	$270, AX
+	MOVL	$SYS_pselect6, AX
 	SYSCALL
 	RET
 
 TEXT runtime·gettid(SB),NOSPLIT,$0-4
-	MOVL	$186, AX	// syscall - gettid
+	MOVL	$SYS_gettid, AX
 	SYSCALL
 	MOVL	AX, ret+0(FP)
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$0
-	MOVL	$186, AX	// syscall - gettid
+	MOVL	$SYS_gettid, AX
 	SYSCALL
 	MOVL	AX, DI	// arg 1 tid
 	MOVL	sig+0(FP), SI	// arg 2
-	MOVL	$200, AX	// syscall - tkill
+	MOVL	$SYS_tkill, AX
 	SYSCALL
 	RET
 
 TEXT runtime·raiseproc(SB),NOSPLIT,$0
-	MOVL	$39, AX	// syscall - getpid
+	MOVL	$SYS_getpid, AX
 	SYSCALL
 	MOVL	AX, DI	// arg 1 pid
 	MOVL	sig+0(FP), SI	// arg 2
-	MOVL	$62, AX	// syscall - kill
+	MOVL	$SYS_kill, AX
 	SYSCALL
 	RET
 
@@ -125,7 +167,7 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0-24
 	MOVL	mode+0(FP), DI
 	MOVQ	new+8(FP), SI
 	MOVQ	old+16(FP), DX
-	MOVL	$38, AX			// syscall entry
+	MOVL	$SYS_setittimer, AX
 	SYSCALL
 	RET
 
@@ -133,17 +175,37 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-28
 	MOVQ	addr+0(FP), DI
 	MOVQ	n+8(FP), SI
 	MOVQ	dst+16(FP), DX
-	MOVL	$27, AX			// syscall entry
+	MOVL	$SYS_mincore, AX
 	SYSCALL
 	MOVL	AX, ret+24(FP)
 	RET
 
 // func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$16
-	// Be careful. We're calling a function with gcc calling convention here.
-	// We're guaranteed 128 bytes on entry, and we've taken 16, and the
-	// call uses another 8.
-	// That leaves 104 for the gettime code to use. Hope that's enough!
+TEXT runtime·walltime(SB),NOSPLIT,$0-12
+	// We don't know how much stack space the VDSO code will need,
+	// so switch to g0.
+	// In particular, a kernel configured with CONFIG_OPTIMIZE_INLINING=n
+	// and hardening can use a full page of stack space in gettime_sym
+	// due to stack probes inserted to avoid stack/heap collisions.
+	// See issue #20427.
+
+	MOVQ	SP, BP	// Save old SP; BP unchanged by C code.
+
+	get_tls(CX)
+	MOVQ	g(CX), AX
+	MOVQ	g_m(AX), CX
+	MOVQ	m_curg(CX), DX
+
+	CMPQ	AX, DX		// Only switch if on curg.
+	JNE	noswitch
+
+	MOVQ	m_g0(CX), DX
+	MOVQ	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
+
+noswitch:
+	SUBQ	$16, SP		// Space for results
+	ANDQ	$~15, SP	// Align for C code
+
 	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
 	CMPQ	AX, $0
 	JEQ	fallback
@@ -152,6 +214,7 @@ TEXT runtime·walltime(SB),NOSPLIT,$16
 	CALL	AX
 	MOVQ	0(SP), AX	// sec
 	MOVQ	8(SP), DX	// nsec
+	MOVQ	BP, SP		// Restore real SP
 	MOVQ	AX, sec+0(FP)
 	MOVL	DX, nsec+8(FP)
 	RET
@@ -163,13 +226,31 @@ fallback:
 	MOVQ	0(SP), AX	// sec
 	MOVL	8(SP), DX	// usec
 	IMULQ	$1000, DX
+	MOVQ	BP, SP		// Restore real SP
 	MOVQ	AX, sec+0(FP)
 	MOVL	DX, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB),NOSPLIT,$16
-	// Duplicate time.now here to avoid using up precious stack space.
-	// See comment above in time.now.
+TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+	// Switch to g0 stack. See comment above in runtime·walltime.
+
+	MOVQ	SP, BP	// Save old SP; BX unchanged by C code.
+
+	get_tls(CX)
+	MOVQ	g(CX), AX
+	MOVQ	g_m(AX), CX
+	MOVQ	m_curg(CX), DX
+
+	CMPQ	AX, DX		// Only switch if on curg.
+	JNE	noswitch
+
+	MOVQ	m_g0(CX), DX
+	MOVQ	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
+
+noswitch:
+	SUBQ	$16, SP		// Space for results
+	ANDQ	$~15, SP	// Align for C code
+
 	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
 	CMPQ	AX, $0
 	JEQ	fallback
@@ -178,6 +259,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
 	CALL	AX
 	MOVQ	0(SP), AX	// sec
 	MOVQ	8(SP), DX	// nsec
+	MOVQ	BP, SP		// Restore real SP
 	// sec is in AX, nsec in DX
 	// return nsec in AX
 	IMULQ	$1000000000, AX
@@ -191,6 +273,7 @@ fallback:
 	CALL	AX
 	MOVQ	0(SP), AX	// sec
 	MOVL	8(SP), DX	// usec
+	MOVQ	BP, SP		// Restore real SP
 	IMULQ	$1000, DX
 	// sec is in AX, nsec in DX
 	// return nsec in AX
@@ -204,7 +287,7 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-28
 	MOVQ	new+8(FP), SI
 	MOVQ	old+16(FP), DX
 	MOVL	size+24(FP), R10
-	MOVL	$14, AX			// syscall entry
+	MOVL	$SYS_rt_sigprocmask, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	2(PC)
@@ -216,7 +299,7 @@ TEXT runtime·sysSigaction(SB),NOSPLIT,$0-36
 	MOVQ	new+8(FP), SI
 	MOVQ	old+16(FP), DX
 	MOVQ	size+24(FP), R10
-	MOVL	$13, AX			// syscall entry
+	MOVL	$SYS_rt_sigaction, AX
 	SYSCALL
 	MOVL	AX, ret+32(FP)
 	RET
@@ -354,7 +437,7 @@ sigtrampnog:
 // The code that cares about the precise instructions used is:
 // https://gcc.gnu.org/viewcvs/gcc/trunk/libgcc/config/i386/linux-unwind.h?revision=219188&view=markup
 TEXT runtime·sigreturn(SB),NOSPLIT,$0
-	MOVQ	$15, AX	// rt_sigreturn
+	MOVQ	$SYS_rt_sigreturn, AX
 	SYSCALL
 	INT $3	// not reached
 
@@ -366,13 +449,18 @@ TEXT runtime·sysMmap(SB),NOSPLIT,$0
 	MOVL	fd+24(FP), R8
 	MOVL	off+28(FP), R9
 
-	MOVL	$9, AX			// mmap
+	MOVL	$SYS_mmap, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
-	JLS	3(PC)
+	JLS	ok
 	NOTQ	AX
 	INCQ	AX
-	MOVQ	AX, ret+32(FP)
+	MOVQ	$0, p+32(FP)
+	MOVQ	AX, err+40(FP)
+	RET
+ok:
+	MOVQ	AX, p+32(FP)
+	MOVQ	$0, err+40(FP)
 	RET
 
 // Call the function stored in _cgo_mmap using the GCC calling convention.
@@ -396,7 +484,7 @@ TEXT runtime·callCgoMmap(SB),NOSPLIT,$16
 TEXT runtime·sysMunmap(SB),NOSPLIT,$0
 	MOVQ	addr+0(FP), DI
 	MOVQ	n+8(FP), SI
-	MOVQ	$11, AX	// munmap
+	MOVQ	$SYS_munmap, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	2(PC)
@@ -420,7 +508,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVQ	addr+0(FP), DI
 	MOVQ	n+8(FP), SI
 	MOVL	flags+16(FP), DX
-	MOVQ	$28, AX	// madvise
+	MOVQ	$SYS_madvise, AX
 	SYSCALL
 	// ignore failure - maybe pages are locked
 	RET
@@ -434,7 +522,7 @@ TEXT runtime·futex(SB),NOSPLIT,$0
 	MOVQ	ts+16(FP), R10
 	MOVQ	addr2+24(FP), R8
 	MOVL	val3+32(FP), R9
-	MOVL	$202, AX
+	MOVL	$SYS_futex, AX
 	SYSCALL
 	MOVL	AX, ret+40(FP)
 	RET
@@ -452,7 +540,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVQ	gp+24(FP), R9
 	MOVQ	fn+32(FP), R12
 
-	MOVL	$56, AX
+	MOVL	$SYS_clone, AX
 	SYSCALL
 
 	// In parent, return.
@@ -471,7 +559,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	JEQ	nog
 
 	// Initialize m->procid to Linux tid
-	MOVL	$186, AX	// gettid
+	MOVL	$SYS_gettid, AX
 	SYSCALL
 	MOVQ	AX, m_procid(R8)
 
@@ -491,14 +579,14 @@ nog:
 
 	// It shouldn't return. If it does, exit that thread.
 	MOVL	$111, DI
-	MOVL	$60, AX
+	MOVL	$SYS_exit, AX
 	SYSCALL
 	JMP	-3(PC)	// keep exiting
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVQ	new+0(FP), DI
 	MOVQ	old+8(FP), SI
-	MOVQ	$131, AX
+	MOVQ	$SYS_sigaltstack, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	2(PC)
@@ -517,7 +605,7 @@ TEXT runtime·settls(SB),NOSPLIT,$32
 #endif
 	MOVQ	DI, SI
 	MOVQ	$0x1002, DI	// ARCH_SET_FS
-	MOVQ	$158, AX	// arch_prctl
+	MOVQ	$SYS_arch_prctl, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	2(PC)
@@ -525,7 +613,7 @@ TEXT runtime·settls(SB),NOSPLIT,$32
 	RET
 
 TEXT runtime·osyield(SB),NOSPLIT,$0
-	MOVL	$24, AX
+	MOVL	$SYS_sched_yield, AX
 	SYSCALL
 	RET
 
@@ -533,7 +621,7 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 	MOVQ	pid+0(FP), DI
 	MOVQ	len+8(FP), SI
 	MOVQ	buf+16(FP), DX
-	MOVL	$204, AX			// syscall entry
+	MOVL	$SYS_sched_getaffinity, AX
 	SYSCALL
 	MOVL	AX, ret+24(FP)
 	RET
@@ -541,7 +629,7 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 // int32 runtime·epollcreate(int32 size);
 TEXT runtime·epollcreate(SB),NOSPLIT,$0
 	MOVL    size+0(FP), DI
-	MOVL    $213, AX                        // syscall entry
+	MOVL    $SYS_epoll_create, AX
 	SYSCALL
 	MOVL	AX, ret+8(FP)
 	RET
@@ -549,7 +637,7 @@ TEXT runtime·epollcreate(SB),NOSPLIT,$0
 // int32 runtime·epollcreate1(int32 flags);
 TEXT runtime·epollcreate1(SB),NOSPLIT,$0
 	MOVL	flags+0(FP), DI
-	MOVL	$291, AX			// syscall entry
+	MOVL	$SYS_epoll_create1, AX
 	SYSCALL
 	MOVL	AX, ret+8(FP)
 	RET
@@ -560,7 +648,7 @@ TEXT runtime·epollctl(SB),NOSPLIT,$0
 	MOVL	op+4(FP), SI
 	MOVL	fd+8(FP), DX
 	MOVQ	ev+16(FP), R10
-	MOVL	$233, AX			// syscall entry
+	MOVL	$SYS_epoll_ctl, AX
 	SYSCALL
 	MOVL	AX, ret+24(FP)
 	RET
@@ -571,7 +659,7 @@ TEXT runtime·epollwait(SB),NOSPLIT,$0
 	MOVQ	ev+8(FP), SI
 	MOVL	nev+16(FP), DX
 	MOVL	timeout+20(FP), R10
-	MOVL	$232, AX			// syscall entry
+	MOVL	$SYS_epoll_wait, AX
 	SYSCALL
 	MOVL	AX, ret+24(FP)
 	RET
@@ -581,7 +669,7 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL    fd+0(FP), DI  // fd
 	MOVQ    $2, SI  // F_SETFD
 	MOVQ    $1, DX  // FD_CLOEXEC
-	MOVL	$72, AX  // fcntl
+	MOVL	$SYS_fcntl, AX
 	SYSCALL
 	RET
 
@@ -590,7 +678,7 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 TEXT runtime·access(SB),NOSPLIT,$0
 	MOVQ	name+0(FP), DI
 	MOVL	mode+8(FP), SI
-	MOVL	$21, AX  // syscall entry
+	MOVL	$SYS_access, AX
 	SYSCALL
 	MOVL	AX, ret+16(FP)
 	RET
@@ -600,7 +688,7 @@ TEXT runtime·connect(SB),NOSPLIT,$0-28
 	MOVL	fd+0(FP), DI
 	MOVQ	addr+8(FP), SI
 	MOVL	len+16(FP), DX
-	MOVL	$42, AX  // syscall entry
+	MOVL	$SYS_connect, AX
 	SYSCALL
 	MOVL	AX, ret+24(FP)
 	RET
@@ -610,7 +698,7 @@ TEXT runtime·socket(SB),NOSPLIT,$0-20
 	MOVL	domain+0(FP), DI
 	MOVL	typ+4(FP), SI
 	MOVL	prot+8(FP), DX
-	MOVL	$41, AX  // syscall entry
+	MOVL	$SYS_socket, AX
 	SYSCALL
 	MOVL	AX, ret+16(FP)
 	RET
@@ -619,7 +707,7 @@ TEXT runtime·socket(SB),NOSPLIT,$0-20
 TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
 	// Implemented as brk(NULL).
 	MOVQ	$0, DI
-	MOVL	$12, AX  // syscall entry
+	MOVL	$SYS_brk, AX
 	SYSCALL
 	MOVQ	AX, ret+0(FP)
 	RET

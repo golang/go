@@ -12,12 +12,13 @@ import (
 
 // A Decoder reads and decodes JSON values from an input stream.
 type Decoder struct {
-	r     io.Reader
-	buf   []byte
-	d     decodeState
-	scanp int // start of unread data in buf
-	scan  scanner
-	err   error
+	r       io.Reader
+	buf     []byte
+	d       decodeState
+	scanp   int   // start of unread data in buf
+	scanned int64 // amount of data already scanned
+	scan    scanner
+	err     error
 
 	tokenState int
 	tokenStack []int
@@ -35,6 +36,11 @@ func NewDecoder(r io.Reader) *Decoder {
 // Number instead of as a float64.
 func (dec *Decoder) UseNumber() { dec.d.useNumber = true }
 
+// DisallowUnknownFields causes the Decoder to return an error when the destination
+// is a struct and the input contains object keys which do not match any
+// non-ignored, exported fields in the destination.
+func (dec *Decoder) DisallowUnknownFields() { dec.d.disallowUnknownFields = true }
+
 // Decode reads the next JSON-encoded value from its
 // input and stores it in the value pointed to by v.
 //
@@ -50,7 +56,7 @@ func (dec *Decoder) Decode(v interface{}) error {
 	}
 
 	if !dec.tokenValueAllowed() {
-		return &SyntaxError{msg: "not at beginning of value"}
+		return &SyntaxError{msg: "not at beginning of value", Offset: dec.offset()}
 	}
 
 	// Read whole value into buffer.
@@ -135,6 +141,7 @@ func (dec *Decoder) refill() error {
 	// Make room to read more into the buffer.
 	// First slide down data already consumed.
 	if dec.scanp > 0 {
+		dec.scanned += int64(dec.scanp)
 		n := copy(dec.buf, dec.buf[dec.scanp:])
 		dec.buf = dec.buf[:n]
 		dec.scanp = 0
@@ -301,7 +308,7 @@ func (dec *Decoder) tokenPrepareForDecode() error {
 			return err
 		}
 		if c != ',' {
-			return &SyntaxError{"expected comma after array element", 0}
+			return &SyntaxError{"expected comma after array element", dec.offset()}
 		}
 		dec.scanp++
 		dec.tokenState = tokenArrayValue
@@ -311,7 +318,7 @@ func (dec *Decoder) tokenPrepareForDecode() error {
 			return err
 		}
 		if c != ':' {
-			return &SyntaxError{"expected colon after object key", 0}
+			return &SyntaxError{"expected colon after object key", dec.offset()}
 		}
 		dec.scanp++
 		dec.tokenState = tokenObjectValue
@@ -428,7 +435,6 @@ func (dec *Decoder) Token() (Token, error) {
 				err := dec.Decode(&x)
 				dec.tokenState = old
 				if err != nil {
-					clearOffset(err)
 					return nil, err
 				}
 				dec.tokenState = tokenObjectColon
@@ -442,17 +448,10 @@ func (dec *Decoder) Token() (Token, error) {
 			}
 			var x interface{}
 			if err := dec.Decode(&x); err != nil {
-				clearOffset(err)
 				return nil, err
 			}
 			return x, nil
 		}
-	}
-}
-
-func clearOffset(err error) {
-	if s, ok := err.(*SyntaxError); ok {
-		s.Offset = 0
 	}
 }
 
@@ -472,7 +471,7 @@ func (dec *Decoder) tokenError(c byte) (Token, error) {
 	case tokenObjectComma:
 		context = " after object key:value pair"
 	}
-	return nil, &SyntaxError{"invalid character " + quoteChar(c) + " " + context, 0}
+	return nil, &SyntaxError{"invalid character " + quoteChar(c) + " " + context, dec.offset()}
 }
 
 // More reports whether there is another element in the
@@ -501,19 +500,6 @@ func (dec *Decoder) peek() (byte, error) {
 	}
 }
 
-/*
-TODO
-
-// EncodeToken writes the given JSON token to the stream.
-// It returns an error if the delimiters [ ] { } are not properly used.
-//
-// EncodeToken does not call Flush, because usually it is part of
-// a larger operation such as Encode, and those will call Flush when finished.
-// Callers that create an Encoder and then invoke EncodeToken directly,
-// without using Encode, need to call Flush when finished to ensure that
-// the JSON is written to the underlying writer.
-func (e *Encoder) EncodeToken(t Token) error  {
-	...
+func (dec *Decoder) offset() int64 {
+	return dec.scanned + int64(dec.scanp)
 }
-
-*/

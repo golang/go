@@ -356,8 +356,8 @@ type (
 	}
 )
 
-// The direction of a channel type is indicated by one
-// of the following constants.
+// The direction of a channel type is indicated by a bit
+// mask including one or both of the following constants.
 //
 type ChanDir int
 

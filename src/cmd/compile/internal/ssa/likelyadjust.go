@@ -12,7 +12,7 @@ type loop struct {
 	header *Block // The header node of this (reducible) loop
 	outer  *loop  // loop containing this loop
 
-	// By default, children exits, and depth are not initialized.
+	// By default, children, exits, and depth are not initialized.
 	children []*loop  // loops nested directly within this loop. Initialized by assembleChildren().
 	exits    []*Block // exits records blocks reached by exits from this loop. Initialized by findExits().
 
@@ -23,7 +23,7 @@ type loop struct {
 	isInner bool  // True if never discovered to contain a loop
 
 	// register allocation uses this.
-	containsCall bool // if any block in this loop or any loop it contains has a call
+	containsCall bool // if any block in this loop or any loop within it contains has a call
 }
 
 // outerinner records that outer contains inner
@@ -72,11 +72,12 @@ func (l *loop) checkContainsCall(bb *Block) {
 }
 
 type loopnest struct {
-	f     *Func
-	b2l   []*loop
-	po    []*Block
-	sdom  SparseTree
-	loops []*loop
+	f              *Func
+	b2l            []*loop
+	po             []*Block
+	sdom           SparseTree
+	loops          []*loop
+	hasIrreducible bool // TODO current treatment of irreducible loops is very flaky, if accurate loops are needed, must punt at function level.
 
 	// Record which of the lazily initialized fields have actually been initialized.
 	initializedChildren, initializedDepth, initializedExits bool
@@ -104,7 +105,7 @@ const (
 	blEXIT    = 3
 )
 
-var bllikelies [4]string = [4]string{"default", "call", "ret", "exit"}
+var bllikelies = [4]string{"default", "call", "ret", "exit"}
 
 func describePredictionAgrees(b *Block, prediction BranchPrediction) string {
 	s := ""
@@ -285,6 +286,12 @@ func loopnestfor(f *Func) *loopnest {
 	sdom := f.sdom()
 	b2l := make([]*loop, f.NumBlocks())
 	loops := make([]*loop, 0)
+	visited := make([]bool, f.NumBlocks())
+	sawIrred := false
+
+	if f.pass.debug > 2 {
+		fmt.Printf("loop finding in %s\n", f.Name)
+	}
 
 	// Reducible-loop-nest-finding.
 	for _, b := range po {
@@ -318,10 +325,17 @@ func loopnestfor(f *Func) *loopnest {
 					b2l[bb.ID] = l
 					l.checkContainsCall(bb)
 				}
-			} else { // Perhaps a loop header is inherited.
+			} else if !visited[bb.ID] { // Found an irreducible loop
+				sawIrred = true
+				if f.pass != nil && f.pass.debug > 4 {
+					fmt.Printf("loop finding    succ %s of %s is IRRED, in %s\n", bb.String(), b.String(), f.Name)
+				}
+			} else if l != nil {
+				// TODO handle case where l is irreducible.
+				// Perhaps a loop header is inherited.
 				// is there any loop containing our successor whose
 				// header dominates b?
-				if l != nil && !sdom.isAncestorEq(l.header, b) {
+				if !sdom.isAncestorEq(l.header, b) {
 					l = l.nearestOuterLoop(sdom, b)
 				}
 				if f.pass != nil && f.pass.debug > 4 {
@@ -331,6 +345,11 @@ func loopnestfor(f *Func) *loopnest {
 						fmt.Printf("loop finding    succ %s of %s provides loop with header %s\n", bb.String(), b.String(), l.header.String())
 					}
 				}
+			} else { // No loop
+				if f.pass != nil && f.pass.debug > 4 {
+					fmt.Printf("loop finding    succ %s of %s has no loop\n", bb.String(), b.String())
+				}
+
 			}
 
 			if l == nil || innermost == l {
@@ -355,9 +374,10 @@ func loopnestfor(f *Func) *loopnest {
 			innermost.checkContainsCall(b)
 			innermost.nBlocks++
 		}
+		visited[b.ID] = true
 	}
 
-	ln := &loopnest{f: f, b2l: b2l, po: po, sdom: sdom, loops: loops}
+	ln := &loopnest{f: f, b2l: b2l, po: po, sdom: sdom, loops: loops, hasIrreducible: sawIrred}
 
 	// Curious about the loopiness? "-d=ssa/likelyadjust/stats"
 	if f.pass != nil && f.pass.stats > 0 && len(loops) > 0 {

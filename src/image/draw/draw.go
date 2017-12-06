@@ -564,12 +564,10 @@ func clamp(i int32) int32 {
 //
 // x and y are both assumed to be in the range [0, 0xffff].
 func sqDiff(x, y int32) uint32 {
-	var d uint32
-	if x > y {
-		d = uint32(x - y)
-	} else {
-		d = uint32(y - x)
-	}
+	// This is an optimized code relying on the overflow/wrap around
+	// properties of unsigned integers operations guaranteed by the language
+	// spec. See sqDiff from the image/color package for more details.
+	d := uint32(x - y)
 	return (d * d) >> 2
 }
 
@@ -603,6 +601,18 @@ func drawPaletted(dst Image, r image.Rectangle, src image.Image, sp image.Point,
 		quantErrorCurr = make([][4]int32, r.Dx()+2)
 		quantErrorNext = make([][4]int32, r.Dx()+2)
 	}
+	pxRGBA := func(x, y int) (r, g, b, a uint32) { return src.At(x, y).RGBA() }
+	// Fast paths for special cases to avoid excessive use of the color.Color
+	// interface which escapes to the heap but need to be discovered for
+	// each pixel on r. See also https://golang.org/issues/15759.
+	switch src0 := src.(type) {
+	case *image.RGBA:
+		pxRGBA = func(x, y int) (r, g, b, a uint32) { return src0.RGBAAt(x, y).RGBA() }
+	case *image.NRGBA:
+		pxRGBA = func(x, y int) (r, g, b, a uint32) { return src0.NRGBAAt(x, y).RGBA() }
+	case *image.YCbCr:
+		pxRGBA = func(x, y int) (r, g, b, a uint32) { return src0.YCbCrAt(x, y).RGBA() }
+	}
 
 	// Loop over each source pixel.
 	out := color.RGBA64{A: 0xffff}
@@ -610,7 +620,7 @@ func drawPaletted(dst Image, r image.Rectangle, src image.Image, sp image.Point,
 		for x := 0; x != r.Dx(); x++ {
 			// er, eg and eb are the pixel's R,G,B values plus the
 			// optional Floyd-Steinberg error.
-			sr, sg, sb, sa := src.At(sp.X+x, sp.Y+y).RGBA()
+			sr, sg, sb, sa := pxRGBA(sp.X+x, sp.Y+y)
 			er, eg, eb, ea := int32(sr), int32(sg), int32(sb), int32(sa)
 			if floydSteinberg {
 				er = clamp(er + quantErrorCurr[x+1][0]/16)

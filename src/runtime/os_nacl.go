@@ -33,7 +33,7 @@ func nacl_thread_create(fn uintptr, stk, tls, xx unsafe.Pointer) int32
 //go:noescape
 func nacl_nanosleep(ts, extra *timespec) int32
 func nanotime() int64
-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
+func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int)
 func exit(code int32)
 func osyield()
 
@@ -168,6 +168,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	}
 }
 
+//go:noescape
+func exitThread(wait *uint32)
+
 //go:nosplit
 func semacreate(mp *m) {
 	if mp.waitsema != 0 {
@@ -284,6 +287,9 @@ func sigdisable(uint32)                                   {}
 func sigenable(uint32)                                    {}
 func sigignore(uint32)                                    {}
 func closeonexec(int32)                                   {}
+
+// gsignalStack is unused on nacl.
+type gsignalStack struct{}
 
 var writelock uint32 // test-and-set spin lock for write
 

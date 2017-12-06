@@ -94,6 +94,10 @@ type Conn struct {
 	bytesSent   int64
 	packetsSent int64
 
+	// warnCount counts the number of consecutive warning alerts received
+	// by Conn.readRecord. Protected by in.Mutex.
+	warnCount int
+
 	// activeCall is an atomic int32; the low bit is whether Close has
 	// been called. the rest of the bits are the number of goroutines
 	// in Conn.Write.
@@ -213,10 +217,11 @@ func extractPadding(payload []byte) (toRemove int, good byte) {
 	// if len(payload) >= (paddingLen - 1) then the MSB of t is zero
 	good = byte(int32(^t) >> 31)
 
-	toCheck := 255 // the maximum possible padding length
+	// The maximum possible padding length plus the actual length field
+	toCheck := 256
 	// The length of the padded data is public, so we can use an if here
-	if toCheck+1 > len(payload) {
-		toCheck = len(payload) - 1
+	if toCheck > len(payload) {
+		toCheck = len(payload)
 	}
 
 	for i := 0; i < toCheck; i++ {
@@ -657,6 +662,11 @@ Again:
 		return c.in.setErrorLocked(err)
 	}
 
+	if typ != recordTypeAlert && len(data) > 0 {
+		// this is a valid non-alert message: reset the count of alerts
+		c.warnCount = 0
+	}
+
 	switch typ {
 	default:
 		c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
@@ -674,6 +684,13 @@ Again:
 		case alertLevelWarning:
 			// drop on the floor
 			c.in.freeBlock(b)
+
+			c.warnCount++
+			if c.warnCount > maxWarnAlertCount {
+				c.sendAlert(alertUnexpectedMessage)
+				return c.in.setErrorLocked(errors.New("tls: too many warn alerts"))
+			}
+
 			goto Again
 		case alertLevelError:
 			c.in.setErrorLocked(&net.OpError{Op: "remote error", Err: alert(data[1])})
@@ -683,6 +700,11 @@ Again:
 
 	case recordTypeChangeCipherSpec:
 		if typ != want || len(data) != 1 || data[0] != 1 {
+			c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
+			break
+		}
+		// Handshake messages are not allowed to fragment across the CCS
+		if c.hand.Len() > 0 {
 			c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
 			break
 		}

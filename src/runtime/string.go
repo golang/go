@@ -80,7 +80,7 @@ func slicebytetostring(buf *tmpBuf, b []byte) (str string) {
 	if raceenabled {
 		racereadrangepc(unsafe.Pointer(&b[0]),
 			uintptr(l),
-			getcallerpc(unsafe.Pointer(&buf)),
+			getcallerpc(),
 			funcPC(slicebytetostring))
 	}
 	if msanenabled {
@@ -134,7 +134,7 @@ func slicebytetostringtmp(b []byte) string {
 	if raceenabled && len(b) > 0 {
 		racereadrangepc(unsafe.Pointer(&b[0]),
 			uintptr(len(b)),
-			getcallerpc(unsafe.Pointer(&b)),
+			getcallerpc(),
 			funcPC(slicebytetostringtmp))
 	}
 	if msanenabled && len(b) > 0 {
@@ -183,7 +183,7 @@ func slicerunetostring(buf *tmpBuf, a []rune) string {
 	if raceenabled && len(a) > 0 {
 		racereadrangepc(unsafe.Pointer(&a[0]),
 			uintptr(len(a))*unsafe.Sizeof(a[0]),
-			getcallerpc(unsafe.Pointer(&buf)),
+			getcallerpc(),
 			funcPC(slicerunetostring))
 	}
 	if msanenabled && len(a) > 0 {

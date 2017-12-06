@@ -18,12 +18,21 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVW.CS R8, (R8)
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$-4
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+	MOVW wait+0(FP), R0
+	// We're done using the stack.
+	MOVW $0, R2
+storeloop:
+	LDREX (R0), R4          // loads R4
+	STREX R2, (R0), R1      // stores R2
+	CMP $0, R1
+	BNE storeloop
 	SWI $0xa00136	// sys__lwp_exit
 	MOVW $1, R8	// crash
 	MOVW R8, (R8)
-	RET
-	
+	JMP 0(PC)
+
 TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVW name+0(FP), R0
 	MOVW mode+4(FP), R1
@@ -71,13 +80,17 @@ TEXT runtime·osyield(SB),NOSPLIT,$0
 	SWI $0xa0015e	// sys_sched_yield
 	RET
 
-TEXT runtime·lwp_park(SB),NOSPLIT,$0
-	MOVW abstime+0(FP), R0	// arg 1 - abstime
-	MOVW unpark+4(FP), R1	// arg 2 - unpark
-	MOVW hint+8(FP), R2	// arg 3 - hint
-	MOVW unparkhint+12(FP), R3	// arg 4 - unparkhint
-	SWI $0xa001b2	// sys__lwp_park
-	MOVW	R0, ret+16(FP)
+TEXT runtime·lwp_park(SB),NOSPLIT,$8
+	MOVW clockid+0(FP), R0		// arg 1 - clock_id
+	MOVW flags+4(FP), R1		// arg 2 - flags
+	MOVW ts+8(FP), R2		// arg 3 - ts
+	MOVW unpark+12(FP), R3		// arg 4 - unpark
+	MOVW hint+16(FP), R4		// arg 5 - hint
+	MOVW R4, 4(R13)
+	MOVW unparkhint+20(FP), R5	// arg 6 - unparkhint
+	MOVW R5, 8(R13)
+	SWI $0xa001de			// sys__lwp_park
+	MOVW	R0, ret+24(FP)
 	RET
 
 TEXT runtime·lwp_unpark(SB),NOSPLIT,$0
@@ -155,7 +168,7 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB), NOSPLIT, $32
-	MOVW $0, R0 // CLOCK_REALTIME
+	MOVW $3, R0 // CLOCK_MONOTONIC
 	MOVW $8(R13), R1
 	SWI $0xa001ab	// clock_gettime
 
@@ -255,7 +268,11 @@ TEXT runtime·mmap(SB),NOSPLIT,$12
 	ADD $4, R13 // pass arg 5 and arg 6 on stack
 	SWI $0xa000c5	// sys_mmap
 	SUB $4, R13
-	MOVW	R0, ret+24(FP)
+	MOVW	$0, R1
+	MOVW.CS R0, R1	// if error, move to R1
+	MOVW.CS $0, R0
+	MOVW	R0, p+24(FP)
+	MOVW	R1, err+28(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0

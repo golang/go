@@ -9,7 +9,10 @@
 
 package time
 
-import "errors"
+import (
+	"errors"
+	"syscall"
+)
 
 // maxFileSize is the max permitted size of files read by readFile.
 // As reference, the zoneinfo.zip distributed by Go is ~350 KB,
@@ -30,12 +33,12 @@ const (
 )
 
 // Simple I/O interface to binary blob of data.
-type data struct {
+type dataIO struct {
 	p     []byte
 	error bool
 }
 
-func (d *data) read(n int) []byte {
+func (d *dataIO) read(n int) []byte {
 	if len(d.p) < n {
 		d.p = nil
 		d.error = true
@@ -46,7 +49,7 @@ func (d *data) read(n int) []byte {
 	return p
 }
 
-func (d *data) big4() (n uint32, ok bool) {
+func (d *dataIO) big4() (n uint32, ok bool) {
 	p := d.read(4)
 	if len(p) < 4 {
 		d.error = true
@@ -55,7 +58,7 @@ func (d *data) big4() (n uint32, ok bool) {
 	return uint32(p[0])<<24 | uint32(p[1])<<16 | uint32(p[2])<<8 | uint32(p[3]), true
 }
 
-func (d *data) byte() (n byte, ok bool) {
+func (d *dataIO) byte() (n byte, ok bool) {
 	p := d.read(1)
 	if len(p) < 1 {
 		d.error = true
@@ -76,8 +79,12 @@ func byteString(p []byte) string {
 
 var badData = errors.New("malformed time zone information")
 
-func loadZoneData(bytes []byte) (l *Location, err error) {
-	d := data{bytes, false}
+// LoadLocationFromTZData returns a Location with the given name
+// initialized from the IANA Time Zone database-formatted data.
+// The data should be in the format of a standard IANA time zone file
+// (for example, the content of /etc/localtime on Unix systems).
+func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
+	d := dataIO{data, false}
 
 	// 4-byte magic "TZif"
 	if magic := d.read(4); string(magic) != "TZif" {
@@ -115,13 +122,13 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
 	}
 
 	// Transition times.
-	txtimes := data{d.read(n[NTime] * 4), false}
+	txtimes := dataIO{d.read(n[NTime] * 4), false}
 
 	// Time zone indices for transition times.
 	txzones := d.read(n[NTime])
 
 	// Zone info structures
-	zonedata := data{d.read(n[NZone] * 6), false}
+	zonedata := dataIO{d.read(n[NZone] * 6), false}
 
 	// Time zone abbreviations.
 	abbrev := d.read(n[NChar])
@@ -195,7 +202,7 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
 	}
 
 	// Committed to succeed.
-	l = &Location{zone: zone, tx: tx}
+	l := &Location{zone: zone, tx: tx, name: name}
 
 	// Fill in the cache with information about right now,
 	// since that will be the most common lookup.
@@ -214,18 +221,16 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
 	return l, nil
 }
 
-func loadZoneFile(dir, name string) (l *Location, err error) {
+// loadTzinfoFromDirOrZip returns the contents of the file with the given name
+// in dir. dir can either be an uncompressed zip file, or a directory.
+func loadTzinfoFromDirOrZip(dir, name string) ([]byte, error) {
 	if len(dir) > 4 && dir[len(dir)-4:] == ".zip" {
-		return loadZoneZip(dir, name)
+		return loadTzinfoFromZip(dir, name)
 	}
 	if dir != "" {
 		name = dir + "/" + name
 	}
-	buf, err := readFile(name)
-	if err != nil {
-		return
-	}
-	return loadZoneData(buf)
+	return readFile(name)
 }
 
 // There are 500+ zoneinfo files. Rather than distribute them all
@@ -252,7 +257,9 @@ func get2(b []byte) int {
 	return int(b[0]) | int(b[1])<<8
 }
 
-func loadZoneZip(zipfile, name string) (l *Location, err error) {
+// loadTzinfoFromZip returns the contents of the file with the given name
+// in the given uncompressed zip file.
+func loadTzinfoFromZip(zipfile, name string) ([]byte, error) {
 	fd, err := open(zipfile)
 	if err != nil {
 		return nil, errors.New("open " + zipfile + ": " + err.Error())
@@ -354,8 +361,76 @@ func loadZoneZip(zipfile, name string) (l *Location, err error) {
 			return nil, errors.New("corrupt zip file " + zipfile)
 		}
 
-		return loadZoneData(buf)
+		return buf, nil
 	}
 
 	return nil, errors.New("cannot find " + name + " in zip file " + zipfile)
+}
+
+// loadTzinfoFromTzdata returns the time zone information of the time zone
+// with the given name, from a tzdata database file as they are typically
+// found on android.
+var loadTzinfoFromTzdata func(file, name string) ([]byte, error)
+
+// loadTzinfo returns the time zone information of the time zone
+// with the given name, from a given source. A source may be a
+// timezone database directory, tzdata database file or an uncompressed
+// zip file, containing the contents of such a directory.
+func loadTzinfo(name string, source string) ([]byte, error) {
+	if len(source) >= 6 && source[len(source)-6:] == "tzdata" {
+		return loadTzinfoFromTzdata(source, name)
+	}
+	return loadTzinfoFromDirOrZip(source, name)
+}
+
+// loadLocation returns the Location with the given name from one of
+// the specified sources. See loadTzinfo for a list of supported sources.
+// The first timezone data matching the given name that is successfully loaded
+// and parsed is returned as a Location.
+func loadLocation(name string, sources []string) (z *Location, firstErr error) {
+	for _, source := range sources {
+		var zoneData, err = loadTzinfo(name, source)
+		if err == nil {
+			if z, err = LoadLocationFromTZData(name, zoneData); err == nil {
+				return z, nil
+			}
+		}
+		if firstErr == nil && err != syscall.ENOENT {
+			firstErr = err
+		}
+	}
+	if firstErr != nil {
+		return nil, firstErr
+	}
+	return nil, errors.New("unknown time zone " + name)
+}
+
+// readFile reads and returns the content of the named file.
+// It is a trivial implementation of ioutil.ReadFile, reimplemented
+// here to avoid depending on io/ioutil or os.
+// It returns an error if name exceeds maxFileSize bytes.
+func readFile(name string) ([]byte, error) {
+	f, err := open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer closefd(f)
+	var (
+		buf [4096]byte
+		ret []byte
+		n   int
+	)
+	for {
+		n, err = read(f, buf[:])
+		if n > 0 {
+			ret = append(ret, buf[:n]...)
+		}
+		if n == 0 || err != nil {
+			break
+		}
+		if len(ret) > maxFileSize {
+			return nil, fileSizeError(name)
+		}
+	}
+	return ret, err
 }

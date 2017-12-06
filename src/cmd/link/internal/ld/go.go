@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
+	"cmd/link/internal/sym"
 	"fmt"
 	"io"
 	"os"
@@ -29,8 +30,6 @@ func expandpkg(t0 string, pkg string) string {
 //		libmach, so that other linkers and ar can share.
 
 func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string, whence int) {
-	var p0, p1 int
-
 	if *flagG {
 		return
 	}
@@ -95,7 +94,8 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
 	}
 
 	// look for cgo section
-	p0 = strings.Index(data, "\n$$  // cgo")
+	p0 := strings.Index(data, "\n$$  // cgo")
+	var p1 int
 	if p0 >= 0 {
 		p0 += p1
 		i := strings.IndexByte(data[p0+1:], '\n')
@@ -128,11 +128,8 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
 func loadcgo(ctxt *Link, file string, pkg string, p string) {
 	var next string
 	var q string
-	var f []string
-	var local string
-	var remote string
 	var lib string
-	var s *Symbol
+	var s *sym.Symbol
 
 	p0 := ""
 	for ; p != ""; p = next {
@@ -143,7 +140,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 		}
 
 		p0 = p // save for error message
-		f = tokenize(p)
+		f := tokenize(p)
 		if len(f) == 0 {
 			continue
 		}
@@ -153,8 +150,8 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				goto err
 			}
 
-			local = f[1]
-			remote = local
+			local := f[1]
+			remote := local
 			if len(f) > 2 {
 				remote = f[2]
 			}
@@ -174,8 +171,8 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				// to force a link of foo.so.
 				havedynamic = 1
 
-				if Headtype == objabi.Hdarwin {
-					Machoadddynlib(lib)
+				if ctxt.HeadType == objabi.Hdarwin {
+					machoadddynlib(lib, ctxt.LinkMode)
 				} else {
 					dynlib = append(dynlib, lib)
 				}
@@ -188,14 +185,12 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				remote, q = remote[:i], remote[i+1:]
 			}
 			s = ctxt.Syms.Lookup(local, 0)
-			if local != f[1] {
-			}
-			if s.Type == 0 || s.Type == SXREF || s.Type == SHOSTOBJ {
+			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SHOSTOBJ {
 				s.Dynimplib = lib
 				s.Extname = remote
 				s.Dynimpvers = q
-				if s.Type != SHOSTOBJ {
-					s.Type = SDYNIMPORT
+				if s.Type != sym.SHOSTOBJ {
+					s.Type = sym.SDYNIMPORT
 				}
 				havedynamic = 1
 			}
@@ -207,9 +202,9 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			if len(f) != 2 {
 				goto err
 			}
-			local = f[1]
+			local := f[1]
 			s = ctxt.Syms.Lookup(local, 0)
-			s.Type = SHOSTOBJ
+			s.Type = sym.SHOSTOBJ
 			s.Size = 0
 			continue
 		}
@@ -218,7 +213,8 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			if len(f) < 2 || len(f) > 3 {
 				goto err
 			}
-			local = f[1]
+			local := f[1]
+			var remote string
 			if len(f) > 2 {
 				remote = f[2]
 			} else {
@@ -227,8 +223,8 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			local = expandpkg(local, pkg)
 			s = ctxt.Syms.Lookup(local, 0)
 
-			switch Buildmode {
-			case BuildmodeCShared, BuildmodeCArchive, BuildmodePlugin:
+			switch ctxt.BuildMode {
+			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
 				if s == ctxt.Syms.Lookup("main", 0) {
 					continue
 				}
@@ -253,11 +249,9 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			}
 
 			if f[0] == "cgo_export_static" {
-				s.Attr |= AttrCgoExportStatic
+				s.Attr |= sym.AttrCgoExportStatic
 			} else {
-				s.Attr |= AttrCgoExportDynamic
-			}
-			if local != f[1] {
+				s.Attr |= sym.AttrCgoExportDynamic
 			}
 			continue
 		}
@@ -299,12 +293,12 @@ err:
 var seenlib = make(map[string]bool)
 
 func adddynlib(ctxt *Link, lib string) {
-	if seenlib[lib] || Linkmode == LinkExternal {
+	if seenlib[lib] || ctxt.LinkMode == LinkExternal {
 		return
 	}
 	seenlib[lib] = true
 
-	if Iself {
+	if ctxt.IsELF {
 		s := ctxt.Syms.Lookup(".dynstr", 0)
 		if s.Size == 0 {
 			Addstring(s, "")
@@ -315,16 +309,16 @@ func adddynlib(ctxt *Link, lib string) {
 	}
 }
 
-func Adddynsym(ctxt *Link, s *Symbol) {
-	if s.Dynid >= 0 || Linkmode == LinkExternal {
+func Adddynsym(ctxt *Link, s *sym.Symbol) {
+	if s.Dynid >= 0 || ctxt.LinkMode == LinkExternal {
 		return
 	}
 
-	if Iself {
-		Elfadddynsym(ctxt, s)
-	} else if Headtype == objabi.Hdarwin {
+	if ctxt.IsELF {
+		elfadddynsym(ctxt, s)
+	} else if ctxt.HeadType == objabi.Hdarwin {
 		Errorf(s, "adddynsym: missed symbol (Extname=%s)", s.Extname)
-	} else if Headtype == objabi.Hwindows {
+	} else if ctxt.HeadType == objabi.Hwindows {
 		// already taken care of
 	} else {
 		Errorf(s, "adddynsym: unsupported binary format")
@@ -336,8 +330,8 @@ func fieldtrack(ctxt *Link) {
 	var buf bytes.Buffer
 	for _, s := range ctxt.Syms.Allsym {
 		if strings.HasPrefix(s.Name, "go.track.") {
-			s.Attr |= AttrSpecial // do not lay out in data segment
-			s.Attr |= AttrNotInSymbolTable
+			s.Attr |= sym.AttrSpecial // do not lay out in data segment
+			s.Attr |= sym.AttrNotInSymbolTable
 			if s.Attr.Reachable() {
 				buf.WriteString(s.Name[9:])
 				for p := s.Reachparent; p != nil; p = p.Reachparent {
@@ -347,7 +341,7 @@ func fieldtrack(ctxt *Link) {
 				buf.WriteString("\n")
 			}
 
-			s.Type = SCONST
+			s.Type = sym.SCONST
 			s.Value = 0
 		}
 	}
@@ -360,11 +354,11 @@ func fieldtrack(ctxt *Link) {
 		return
 	}
 	addstrdata(ctxt, *flagFieldTrack, buf.String())
-	s.Type = SDATA
+	s.Type = sym.SDATA
 }
 
 func (ctxt *Link) addexport() {
-	if Headtype == objabi.Hdarwin {
+	if ctxt.HeadType == objabi.Hdarwin {
 		return
 	}
 

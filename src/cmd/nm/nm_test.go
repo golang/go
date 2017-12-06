@@ -54,7 +54,7 @@ func testMain(m *testing.M) int {
 	return m.Run()
 }
 
-func TestNonGoFiles(t *testing.T) {
+func TestNonGoExecs(t *testing.T) {
 	testfiles := []string{
 		"elf/testdata/gcc-386-freebsd-exec",
 		"elf/testdata/gcc-amd64-linux-exec",
@@ -75,8 +75,8 @@ func TestNonGoFiles(t *testing.T) {
 	}
 }
 
-func testGoFile(t *testing.T, iscgo, isexternallinker bool) {
-	tmpdir, err := ioutil.TempDir("", "TestGoFile")
+func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
+	tmpdir, err := ioutil.TempDir("", "TestGoExec")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,12 +87,13 @@ func testGoFile(t *testing.T, iscgo, isexternallinker bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = template.Must(template.New("main").Parse(testprog)).Execute(file, iscgo)
+	err = template.Must(template.New("main").Parse(testexec)).Execute(file, iscgo)
+	if e := file.Close(); err == nil {
+		err = e
+	}
 	if err != nil {
-		file.Close()
 		t.Fatal(err)
 	}
-	file.Close()
 
 	exe := filepath.Join(tmpdir, "a.exe")
 	args := []string{"build", "-o", exe}
@@ -156,11 +157,124 @@ func testGoFile(t *testing.T, iscgo, isexternallinker bool) {
 	}
 }
 
-func TestGoFile(t *testing.T) {
-	testGoFile(t, false, false)
+func TestGoExec(t *testing.T) {
+	testGoExec(t, false, false)
 }
 
-const testprog = `
+func testGoLib(t *testing.T, iscgo bool) {
+	tmpdir, err := ioutil.TempDir("", "TestGoLib")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	gopath := filepath.Join(tmpdir, "gopath")
+	libpath := filepath.Join(gopath, "src", "mylib")
+
+	err = os.MkdirAll(libpath, 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(libpath, "a.go")
+	file, err := os.Create(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = template.Must(template.New("mylib").Parse(testlib)).Execute(file, iscgo)
+	if e := file.Close(); err == nil {
+		err = e
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	args := []string{"install", "mylib"}
+	cmd := exec.Command(testenv.GoToolPath(t), args...)
+	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("building test lib failed: %s %s", err, out)
+	}
+	pat := filepath.Join(gopath, "pkg", "*", "mylib.a")
+	ms, err := filepath.Glob(pat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ms) == 0 {
+		t.Fatalf("cannot found paths for pattern %s", pat)
+	}
+	mylib := ms[0]
+
+	out, err = exec.Command(testnmpath, mylib).CombinedOutput()
+	if err != nil {
+		t.Fatalf("go tool nm: %v\n%s", err, string(out))
+	}
+	type symType struct {
+		Type  string
+		Name  string
+		CSym  bool
+		Found bool
+	}
+	var syms = []symType{
+		{"B", "%22%22.Testdata", false, false},
+		{"T", "%22%22.Testfunc", false, false},
+	}
+	if iscgo {
+		syms = append(syms, symType{"B", "%22%22.TestCgodata", false, false})
+		syms = append(syms, symType{"T", "%22%22.TestCgofunc", false, false})
+		if runtime.GOOS == "darwin" || (runtime.GOOS == "windows" && runtime.GOARCH == "386") {
+			syms = append(syms, symType{"D", "_cgodata", true, false})
+			syms = append(syms, symType{"T", "_cgofunc", true, false})
+		} else {
+			syms = append(syms, symType{"D", "cgodata", true, false})
+			syms = append(syms, symType{"T", "cgofunc", true, false})
+		}
+	}
+	scanner := bufio.NewScanner(bytes.NewBuffer(out))
+	for scanner.Scan() {
+		f := strings.Fields(scanner.Text())
+		var typ, name string
+		var csym bool
+		if iscgo {
+			if len(f) < 4 {
+				continue
+			}
+			csym = !strings.Contains(f[0], "_go_.o")
+			typ = f[2]
+			name = f[3]
+		} else {
+			if len(f) < 3 {
+				continue
+			}
+			typ = f[1]
+			name = f[2]
+		}
+		for i := range syms {
+			sym := &syms[i]
+			if sym.Type == typ && sym.Name == name && sym.CSym == csym {
+				if sym.Found {
+					t.Fatalf("duplicate symbol %s %s", sym.Type, sym.Name)
+				}
+				sym.Found = true
+			}
+		}
+	}
+	err = scanner.Err()
+	if err != nil {
+		t.Fatalf("error reading nm output: %v", err)
+	}
+	for _, sym := range syms {
+		if !sym.Found {
+			t.Errorf("cannot found symbol %s %s", sym.Type, sym.Name)
+		}
+	}
+}
+
+func TestGoLib(t *testing.T) {
+	testGoLib(t, false)
+}
+
+const testexec = `
 package main
 
 import "fmt"
@@ -178,4 +292,24 @@ func testfunc() {
 	fmt.Printf("testfunc=%p\n", testfunc)
 	fmt.Printf("testdata=%p\n", &testdata)
 }
+`
+
+const testlib = `
+package mylib
+
+{{if .}}
+// int cgodata = 5;
+// void cgofunc(void) {}
+import "C"
+
+var TestCgodata = C.cgodata
+
+func TestCgofunc() {
+	C.cgofunc()
+}
+{{end}}
+
+var Testdata uint32
+
+func Testfunc() {}
 `

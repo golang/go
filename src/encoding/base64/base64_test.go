@@ -152,12 +152,9 @@ func TestDecode(t *testing.T) {
 		for _, tt := range encodingTests {
 			encoded := tt.conv(p.encoded)
 			dbuf := make([]byte, tt.enc.DecodedLen(len(encoded)))
-			count, end, err := tt.enc.decode(dbuf, []byte(encoded))
+			count, err := tt.enc.Decode(dbuf, []byte(encoded))
 			testEqual(t, "Decode(%q) = error %v, want %v", encoded, err, error(nil))
 			testEqual(t, "Decode(%q) = length %v, want %v", encoded, count, len(p.decoded))
-			if len(encoded) > 0 {
-				testEqual(t, "Decode(%q) = end %v, want %v", encoded, end, len(p.decoded)%3 != 0)
-			}
 			testEqual(t, "Decode(%q) = %q, want %q", encoded, string(dbuf[0:count]), p.decoded)
 
 			dbuf, err = tt.enc.DecodeString(encoded)

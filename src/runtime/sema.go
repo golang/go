@@ -275,7 +275,10 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 	// on the ticket: s.ticket <= both s.prev.ticket and s.next.ticket.
 	// https://en.wikipedia.org/wiki/Treap
 	// http://faculty.washington.edu/aragon/pubs/rst89.pdf
-	s.ticket = fastrand()
+	//
+	// s.ticket compared with zero in couple of places, therefore set lowest bit.
+	// It will not affect treap's quality noticeably.
+	s.ticket = fastrand() | 1
 	s.parent = last
 	*pt = s
 

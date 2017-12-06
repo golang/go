@@ -351,23 +351,23 @@ type WalkFunc func(path string, info os.FileInfo, err error) error
 
 var lstat = os.Lstat // for testing
 
-// walk recursively descends path, calling w.
+// walk recursively descends path, calling walkFn.
 func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
-	err := walkFn(path, info, nil)
-	if err != nil {
-		if info.IsDir() && err == SkipDir {
-			return nil
-		}
-		return err
-	}
-
 	if !info.IsDir() {
-		return nil
+		return walkFn(path, info, nil)
 	}
 
 	names, err := readDirNames(path)
-	if err != nil {
-		return walkFn(path, info, err)
+	err1 := walkFn(path, info, err)
+	// If err != nil, walk can't walk into this directory.
+	// err1 != nil means walkFn want walk to skip this directory or stop walking.
+	// Therefore, if one of err and err1 isn't nil, walk will return.
+	if err != nil || err1 != nil {
+		// The caller's behavior is controlled by the return value, which is decided
+		// by walkFn. walkFn may ignore err and return nil.
+		// If walkFn returns SkipDir, it will be handled by the caller.
+		// So walk should return whatever walkFn returns.
+		return err1
 	}
 
 	for _, name := range names {

@@ -125,6 +125,9 @@ var indexTests = []IndexTest{
 	{"xx012345678901234567890123456789012345678901234567890123456789012"[:41], "0123456789012345678901234567890123456789", -1},
 	{"xx012345678901234567890123456789012345678901234567890123456789012", "0123456789012345678901234567890123456xxx", -1},
 	{"xx0123456789012345678901234567890123456789012345678901234567890120123456789012345678901234567890123456xxx", "0123456789012345678901234567890123456xxx", 65},
+	// test fallback to Rabin-Karp.
+	{"oxoxoxoxoxoxoxoxoxoxoxoy", "oy", 22},
+	{"oxoxoxoxoxoxoxoxoxoxoxox", "oy", -1},
 }
 
 var lastIndexTests = []IndexTest{
@@ -518,9 +521,12 @@ func runStringTests(t *testing.T, f func(string) string, funcName string, testCa
 
 var upperTests = []StringTest{
 	{"", ""},
+	{"ONLYUPPER", "ONLYUPPER"},
 	{"abc", "ABC"},
 	{"AbC123", "ABC123"},
 	{"azAZ09_", "AZAZ09_"},
+	{"longStrinGwitHmixofsmaLLandcAps", "LONGSTRINGWITHMIXOFSMALLANDCAPS"},
+	{"long\u0250string\u0250with\u0250nonascii\u2C6Fchars", "LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS"},
 	{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"}, // grows one byte per char
 }
 
@@ -529,6 +535,8 @@ var lowerTests = []StringTest{
 	{"abc", "abc"},
 	{"AbC123", "abc123"},
 	{"azAZ09_", "azaz09_"},
+	{"longStrinGwitHmixofsmaLLandcAps", "longstringwithmixofsmallandcaps"},
+	{"LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS", "long\u0250string\u0250with\u0250nonascii\u0250chars"},
 	{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"}, // shrinks one byte per char
 }
 
@@ -647,6 +655,32 @@ func TestMap(t *testing.T) {
 func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTests) }
 
 func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTests) }
+
+func BenchmarkToUpper(b *testing.B) {
+	for _, tc := range upperTests {
+		b.Run(tc.in, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				actual := ToUpper(tc.in)
+				if actual != tc.out {
+					b.Errorf("ToUpper(%q) = %q; want %q", tc.in, actual, tc.out)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkToLower(b *testing.B) {
+	for _, tc := range lowerTests {
+		b.Run(tc.in, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				actual := ToLower(tc.in)
+				if actual != tc.out {
+					b.Errorf("ToLower(%q) = %q; want %q", tc.in, actual, tc.out)
+				}
+			}
+		})
+	}
+}
 
 func BenchmarkMapNoChanges(b *testing.B) {
 	identity := func(r rune) rune {
@@ -1608,5 +1642,17 @@ func BenchmarkTrimASCII(b *testing.B) {
 				}
 			})
 		}
+	}
+}
+
+func BenchmarkIndexPeriodic(b *testing.B) {
+	key := "aa"
+	for _, skip := range [...]int{2, 4, 8, 16, 32, 64} {
+		b.Run(fmt.Sprintf("IndexPeriodic%d", skip), func(b *testing.B) {
+			s := Repeat("a"+Repeat(" ", skip-1), 1<<16/skip)
+			for i := 0; i < b.N; i++ {
+				Index(s, key)
+			}
+		})
 	}
 }

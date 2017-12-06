@@ -49,11 +49,16 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	SYSCALL
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	code+0(FP), R2
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
+	MOVD	wait+0(FP), R1
+	// We're done using the stack.
+	MOVW	$0, R2
+	MOVW	R2, (R1)
+	MOVW	$0, R2	// exit code
 	MOVW	$SYS_exit, R1
 	SYSCALL
-	RET
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT|NOFRAME,$0-20
 	MOVD	name+0(FP), R2
@@ -246,7 +251,7 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 	BR	runtime·sigtramp(SB)
 
 // func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
-TEXT runtime·mmap(SB),NOSPLIT,$48-40
+TEXT runtime·mmap(SB),NOSPLIT,$48-48
 	MOVD	addr+0(FP), R2
 	MOVD	n+8(FP), R3
 	MOVW	prot+16(FP), R4
@@ -267,9 +272,14 @@ TEXT runtime·mmap(SB),NOSPLIT,$48-40
 	MOVW	$SYS_mmap, R1
 	SYSCALL
 	MOVD	$-4095, R3
-	CMPUBLT	R2, R3, 2(PC)
+	CMPUBLT	R2, R3, ok
 	NEG	R2
-	MOVD	R2, ret+32(FP)
+	MOVD	$0, p+32(FP)
+	MOVD	R2, err+40(FP)
+	RET
+ok:
+	MOVD	R2, p+32(FP)
+	MOVD	$0, err+40(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0

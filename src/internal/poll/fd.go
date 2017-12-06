@@ -21,6 +21,10 @@ var ErrNetClosing = errors.New("use of closed network connection")
 // has been closed.
 var ErrFileClosing = errors.New("use of closed file")
 
+// ErrNoDeadline is returned when a request is made to set a deadline
+// on a file type that does not use the poller.
+var ErrNoDeadline = errors.New("file type does not support deadline")
+
 // Return the appropriate closing error based on isFile.
 func errClosing(isFile bool) error {
 	if isFile {

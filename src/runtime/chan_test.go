@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"internal/testenv"
 	"math"
 	"runtime"
 	"sync"
@@ -433,6 +434,9 @@ func TestSelectStress(t *testing.T) {
 
 func TestSelectFairness(t *testing.T) {
 	const trials = 10000
+	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64le" {
+		testenv.SkipFlaky(t, 22047)
+	}
 	c1 := make(chan byte, trials+1)
 	c2 := make(chan byte, trials+1)
 	for i := 0; i < trials+1; i++ {
@@ -724,6 +728,55 @@ done:
 	close(d)
 	<-ready1
 	<-ready2
+}
+
+type struct0 struct{}
+
+func BenchmarkMakeChan(b *testing.B) {
+	b.Run("Byte", func(b *testing.B) {
+		var x chan byte
+		for i := 0; i < b.N; i++ {
+			x = make(chan byte, 8)
+		}
+		close(x)
+	})
+	b.Run("Int", func(b *testing.B) {
+		var x chan int
+		for i := 0; i < b.N; i++ {
+			x = make(chan int, 8)
+		}
+		close(x)
+	})
+	b.Run("Ptr", func(b *testing.B) {
+		var x chan *byte
+		for i := 0; i < b.N; i++ {
+			x = make(chan *byte, 8)
+		}
+		close(x)
+	})
+	b.Run("Struct", func(b *testing.B) {
+		b.Run("0", func(b *testing.B) {
+			var x chan struct0
+			for i := 0; i < b.N; i++ {
+				x = make(chan struct0, 8)
+			}
+			close(x)
+		})
+		b.Run("32", func(b *testing.B) {
+			var x chan struct32
+			for i := 0; i < b.N; i++ {
+				x = make(chan struct32, 8)
+			}
+			close(x)
+		})
+		b.Run("40", func(b *testing.B) {
+			var x chan struct40
+			for i := 0; i < b.N; i++ {
+				x = make(chan struct40, 8)
+			}
+			close(x)
+		})
+	})
 }
 
 func BenchmarkChanNonblocking(b *testing.B) {

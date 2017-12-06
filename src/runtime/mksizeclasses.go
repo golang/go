@@ -24,8 +24,8 @@
 // In practice, only one of the wastes comes into play for a
 // given size (sizes < 512 waste mainly on the round-up,
 // sizes > 512 waste mainly on the page chopping).
-//
-// TODO(rsc): Compute max waste for any given size.
+// For really small sizes, alignment constraints force the
+// overhead higher.
 
 package main
 
@@ -242,15 +242,18 @@ nextk:
 }
 
 func printComment(w io.Writer, classes []class) {
-	fmt.Fprintf(w, "// %-5s  %-9s  %-10s  %-7s  %-11s\n", "class", "bytes/obj", "bytes/span", "objects", "waste bytes")
+	fmt.Fprintf(w, "// %-5s  %-9s  %-10s  %-7s  %-10s  %-9s\n", "class", "bytes/obj", "bytes/span", "objects", "tail waste", "max waste")
+	prevSize := 0
 	for i, c := range classes {
 		if i == 0 {
 			continue
 		}
 		spanSize := c.npages * pageSize
 		objects := spanSize / c.size
-		waste := spanSize - c.size*(spanSize/c.size)
-		fmt.Fprintf(w, "// %5d  %9d  %10d  %7d  %11d\n", i, c.size, spanSize, objects, waste)
+		tailWaste := spanSize - c.size*(spanSize/c.size)
+		maxWaste := float64((c.size-prevSize-1)*objects+tailWaste) / float64(spanSize)
+		prevSize = c.size
+		fmt.Fprintf(w, "// %5d  %9d  %10d  %7d  %10d  %8.2f%%\n", i, c.size, spanSize, objects, tailWaste, 100*maxWaste)
 	}
 	fmt.Fprintf(w, "\n")
 }

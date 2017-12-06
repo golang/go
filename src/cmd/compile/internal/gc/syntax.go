@@ -7,6 +7,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -44,7 +45,6 @@ type Node struct {
 	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
 	// - ODOT, ODOTPTR, and OINDREGSP use it to indicate offset relative to their base address.
 	// - OSTRUCTKEY uses it to store the named field's offset.
-	// - OXCASE and OXFALL use it to validate the use of fallthrough.
 	// - Named OLITERALs use it to to store their ambient iota value.
 	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
@@ -85,19 +85,20 @@ const (
 	_, nodeAssigned  // is the variable ever assigned to
 	_, nodeAddrtaken // address taken, even if not moved to heap
 	_, nodeImplicit
-	_, nodeIsddd    // is the argument variadic
-	_, nodeLocal    // type created in this file (see also Type.Local)
-	_, nodeDiag     // already printed error about this
-	_, nodeColas    // OAS resulting from :=
-	_, nodeNonNil   // guaranteed to be non-nil
-	_, nodeNoescape // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
-	_, nodeBounded  // bounds check unnecessary
-	_, nodeAddable  // addressable
-	_, nodeHasCall  // expression contains a function call
-	_, nodeLikely   // if statement condition likely
-	_, nodeHasVal   // node.E contains a Val
-	_, nodeHasOpt   // node.E contains an Opt
-	_, nodeEmbedded // ODCLFIELD embedded type
+	_, nodeIsddd     // is the argument variadic
+	_, nodeDiag      // already printed error about this
+	_, nodeColas     // OAS resulting from :=
+	_, nodeNonNil    // guaranteed to be non-nil
+	_, nodeNoescape  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+	_, nodeBounded   // bounds check unnecessary
+	_, nodeAddable   // addressable
+	_, nodeHasCall   // expression contains a function call
+	_, nodeLikely    // if statement condition likely
+	_, nodeHasVal    // node.E contains a Val
+	_, nodeHasOpt    // node.E contains an Opt
+	_, nodeEmbedded  // ODCLFIELD embedded type
+	_, nodeInlFormal // OPAUTO created by inliner, derived from callee formal
+	_, nodeInlLocal  // OPAUTO created by inliner, derived from callee local
 )
 
 func (n *Node) Class() Class     { return Class(n.flags.get3(nodeClass)) }
@@ -113,7 +114,6 @@ func (n *Node) Assigned() bool              { return n.flags&nodeAssigned != 0 }
 func (n *Node) Addrtaken() bool             { return n.flags&nodeAddrtaken != 0 }
 func (n *Node) Implicit() bool              { return n.flags&nodeImplicit != 0 }
 func (n *Node) Isddd() bool                 { return n.flags&nodeIsddd != 0 }
-func (n *Node) Local() bool                 { return n.flags&nodeLocal != 0 }
 func (n *Node) Diag() bool                  { return n.flags&nodeDiag != 0 }
 func (n *Node) Colas() bool                 { return n.flags&nodeColas != 0 }
 func (n *Node) NonNil() bool                { return n.flags&nodeNonNil != 0 }
@@ -125,6 +125,8 @@ func (n *Node) Likely() bool                { return n.flags&nodeLikely != 0 }
 func (n *Node) HasVal() bool                { return n.flags&nodeHasVal != 0 }
 func (n *Node) HasOpt() bool                { return n.flags&nodeHasOpt != 0 }
 func (n *Node) Embedded() bool              { return n.flags&nodeEmbedded != 0 }
+func (n *Node) InlFormal() bool             { return n.flags&nodeInlFormal != 0 }
+func (n *Node) InlLocal() bool              { return n.flags&nodeInlLocal != 0 }
 
 func (n *Node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
 func (n *Node) SetWalkdef(b uint8)   { n.flags.set2(nodeWalkdef, b) }
@@ -139,7 +141,6 @@ func (n *Node) SetAssigned(b bool)              { n.flags.set(nodeAssigned, b) }
 func (n *Node) SetAddrtaken(b bool)             { n.flags.set(nodeAddrtaken, b) }
 func (n *Node) SetImplicit(b bool)              { n.flags.set(nodeImplicit, b) }
 func (n *Node) SetIsddd(b bool)                 { n.flags.set(nodeIsddd, b) }
-func (n *Node) SetLocal(b bool)                 { n.flags.set(nodeLocal, b) }
 func (n *Node) SetDiag(b bool)                  { n.flags.set(nodeDiag, b) }
 func (n *Node) SetColas(b bool)                 { n.flags.set(nodeColas, b) }
 func (n *Node) SetNonNil(b bool)                { n.flags.set(nodeNonNil, b) }
@@ -151,6 +152,8 @@ func (n *Node) SetLikely(b bool)                { n.flags.set(nodeLikely, b) }
 func (n *Node) SetHasVal(b bool)                { n.flags.set(nodeHasVal, b) }
 func (n *Node) SetHasOpt(b bool)                { n.flags.set(nodeHasOpt, b) }
 func (n *Node) SetEmbedded(b bool)              { n.flags.set(nodeEmbedded, b) }
+func (n *Node) SetInlFormal(b bool)             { n.flags.set(nodeInlFormal, b) }
+func (n *Node) SetInlLocal(b bool)              { n.flags.set(nodeInlLocal, b) }
 
 // Val returns the Val for the node.
 func (n *Node) Val() Val {
@@ -210,6 +213,11 @@ func (n *Node) mayBeShared() bool {
 		return true
 	}
 	return false
+}
+
+// isMethodExpression reports whether n represents a method expression T.M.
+func (n *Node) isMethodExpression() bool {
+	return n.Op == ONAME && n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME
 }
 
 // funcname returns the name of the function n.
@@ -349,6 +357,48 @@ type Param struct {
 	Alias  bool // node is alias for Ntype (only used when type-checking ODCLTYPE)
 }
 
+// Functions
+//
+// A simple function declaration is represented as an ODCLFUNC node f
+// and an ONAME node n. They're linked to one another through
+// f.Func.Nname == n and n.Name.Defn == f. When functions are
+// referenced by name in an expression, the function's ONAME node is
+// used directly.
+//
+// Function names have n.Class() == PFUNC. This distinguishes them
+// from variables of function type.
+//
+// Confusingly, n.Func and f.Func both exist, but commonly point to
+// different Funcs. (Exception: an OCALLPART's Func does point to its
+// ODCLFUNC's Func.)
+//
+// A method declaration is represented like functions, except n.Sym
+// will be the qualified method name (e.g., "T.m") and
+// f.Func.Shortname is the bare method name (e.g., "m").
+//
+// Method expressions are represented as ONAME/PFUNC nodes like
+// function names, but their Left and Right fields still point to the
+// type and method, respectively. They can be distinguished from
+// normal functions with isMethodExpression. Also, unlike function
+// name nodes, method expression nodes exist for each method
+// expression. The declaration ONAME can be accessed with
+// x.Type.Nname(), where x is the method expression ONAME node.
+//
+// Method values are represented by ODOTMETH/ODOTINTER when called
+// immediately, and OCALLPART otherwise. They are like method
+// expressions, except that for ODOTMETH/ODOTINTER the method name is
+// stored in Sym instead of Right.
+//
+// Closures are represented by OCLOSURE node c. They link back and
+// forth with the ODCLFUNC via Func.Closure; that is, c.Func.Closure
+// == f and f.Func.Closure == c.
+//
+// Function bodies are stored in f.Nbody, and inline function bodies
+// are stored in n.Func.Inl. Pragmas are stored in f.Func.Pragma.
+//
+// Imported functions skip the ODCLFUNC, so n.Name.Defn is nil. They
+// also use Dcl instead of Inldcl.
+
 // Func holds Node fields used only with function-like nodes.
 type Func struct {
 	Shortname *types.Sym
@@ -369,6 +419,7 @@ type Func struct {
 	Closgen    int
 	Outerfunc  *Node // outer function (for closure)
 	FieldTrack map[*types.Sym]struct{}
+	DebugInfo  *ssa.FuncDebug
 	Ntype      *Node // signature
 	Top        int   // top context (Ecall, Eproc, etc)
 	Closure    *Node // OCLOSURE <-> ODCLFUNC
@@ -382,11 +433,16 @@ type Func struct {
 	Label int32 // largest auto-generated label in this function
 
 	Endlineno src.XPos
-	WBPos     src.XPos // position of first write barrier
+	WBPos     src.XPos // position of first write barrier; see SetWBPos
 
 	Pragma syntax.Pragma // go:xxx function annotations
 
-	flags bitset8
+	flags bitset16
+
+	// nwbrCalls records the LSyms of functions called by this
+	// function for go:nowritebarrierrec analysis. Only filled in
+	// if nowritebarrierrecCheck != nil.
+	nwbrCalls *[]nowritebarrierrecCallSym
 }
 
 // A Mark represents a scope boundary.
@@ -408,34 +464,51 @@ const (
 	funcNeedctxt                  // function uses context register (has closure variables)
 	funcReflectMethod             // function calls reflect.Type.Method or MethodByName
 	funcIsHiddenClosure
-	funcNoFramePointer   // Must not use a frame pointer for this function
-	funcHasDefer         // contains a defer statement
-	funcNilCheckDisabled // disable nil checks when compiling this function
+	funcNoFramePointer      // Must not use a frame pointer for this function
+	funcHasDefer            // contains a defer statement
+	funcNilCheckDisabled    // disable nil checks when compiling this function
+	funcInlinabilityChecked // inliner has already determined whether the function is inlinable
+	funcExportInline        // include inline body in export data
 )
 
-func (f *Func) Dupok() bool            { return f.flags&funcDupok != 0 }
-func (f *Func) Wrapper() bool          { return f.flags&funcWrapper != 0 }
-func (f *Func) Needctxt() bool         { return f.flags&funcNeedctxt != 0 }
-func (f *Func) ReflectMethod() bool    { return f.flags&funcReflectMethod != 0 }
-func (f *Func) IsHiddenClosure() bool  { return f.flags&funcIsHiddenClosure != 0 }
-func (f *Func) NoFramePointer() bool   { return f.flags&funcNoFramePointer != 0 }
-func (f *Func) HasDefer() bool         { return f.flags&funcHasDefer != 0 }
-func (f *Func) NilCheckDisabled() bool { return f.flags&funcNilCheckDisabled != 0 }
+func (f *Func) Dupok() bool               { return f.flags&funcDupok != 0 }
+func (f *Func) Wrapper() bool             { return f.flags&funcWrapper != 0 }
+func (f *Func) Needctxt() bool            { return f.flags&funcNeedctxt != 0 }
+func (f *Func) ReflectMethod() bool       { return f.flags&funcReflectMethod != 0 }
+func (f *Func) IsHiddenClosure() bool     { return f.flags&funcIsHiddenClosure != 0 }
+func (f *Func) NoFramePointer() bool      { return f.flags&funcNoFramePointer != 0 }
+func (f *Func) HasDefer() bool            { return f.flags&funcHasDefer != 0 }
+func (f *Func) NilCheckDisabled() bool    { return f.flags&funcNilCheckDisabled != 0 }
+func (f *Func) InlinabilityChecked() bool { return f.flags&funcInlinabilityChecked != 0 }
+func (f *Func) ExportInline() bool        { return f.flags&funcExportInline != 0 }
 
-func (f *Func) SetDupok(b bool)            { f.flags.set(funcDupok, b) }
-func (f *Func) SetWrapper(b bool)          { f.flags.set(funcWrapper, b) }
-func (f *Func) SetNeedctxt(b bool)         { f.flags.set(funcNeedctxt, b) }
-func (f *Func) SetReflectMethod(b bool)    { f.flags.set(funcReflectMethod, b) }
-func (f *Func) SetIsHiddenClosure(b bool)  { f.flags.set(funcIsHiddenClosure, b) }
-func (f *Func) SetNoFramePointer(b bool)   { f.flags.set(funcNoFramePointer, b) }
-func (f *Func) SetHasDefer(b bool)         { f.flags.set(funcHasDefer, b) }
-func (f *Func) SetNilCheckDisabled(b bool) { f.flags.set(funcNilCheckDisabled, b) }
+func (f *Func) SetDupok(b bool)               { f.flags.set(funcDupok, b) }
+func (f *Func) SetWrapper(b bool)             { f.flags.set(funcWrapper, b) }
+func (f *Func) SetNeedctxt(b bool)            { f.flags.set(funcNeedctxt, b) }
+func (f *Func) SetReflectMethod(b bool)       { f.flags.set(funcReflectMethod, b) }
+func (f *Func) SetIsHiddenClosure(b bool)     { f.flags.set(funcIsHiddenClosure, b) }
+func (f *Func) SetNoFramePointer(b bool)      { f.flags.set(funcNoFramePointer, b) }
+func (f *Func) SetHasDefer(b bool)            { f.flags.set(funcHasDefer, b) }
+func (f *Func) SetNilCheckDisabled(b bool)    { f.flags.set(funcNilCheckDisabled, b) }
+func (f *Func) SetInlinabilityChecked(b bool) { f.flags.set(funcInlinabilityChecked, b) }
+func (f *Func) SetExportInline(b bool)        { f.flags.set(funcExportInline, b) }
+
+func (f *Func) setWBPos(pos src.XPos) {
+	if Debug_wb != 0 {
+		Warnl(pos, "write barrier")
+	}
+	if !f.WBPos.IsKnown() {
+		f.WBPos = pos
+	}
+}
+
+//go:generate stringer -type=Op -trimprefix=O
 
 type Op uint8
 
 // Node ops.
 const (
-	OXXX = Op(iota)
+	OXXX Op = iota
 
 	// names
 	ONAME    // var, const or func name
@@ -562,8 +635,7 @@ const (
 	OCONTINUE // continue
 	ODEFER    // defer Left (Left must be call)
 	OEMPTY    // no-op (empty statement)
-	OFALL     // fallthrough (after processing)
-	OXFALL    // fallthrough (before processing)
+	OFALL     // fallthrough
 	OFOR      // for Ninit; Left; Right { Nbody }
 	OFORUNTIL // for Ninit; Left; Right { Nbody } ; test applied after executing body, not before
 	OGOTO     // goto Left
@@ -574,7 +646,7 @@ const (
 	ORETURN   // return List
 	OSELECT   // select { List } (List is list of OXCASE or OCASE)
 	OSWITCH   // switch Ninit; Left { List } (List is a list of OXCASE or OCASE)
-	OTYPESW   // List = Left.(type) (appears as .Left of OSWITCH)
+	OTYPESW   // Left = Right.(type) (appears as .Left of OSWITCH)
 
 	// types
 	OTCHAN   // chan int
@@ -743,4 +815,70 @@ func (n *Nodes) AppendNodes(n2 *Nodes) {
 		*n.slice = append(*n.slice, *n2.slice...)
 	}
 	n2.slice = nil
+}
+
+// inspect invokes f on each node in an AST in depth-first order.
+// If f(n) returns false, inspect skips visiting n's children.
+func inspect(n *Node, f func(*Node) bool) {
+	if n == nil || !f(n) {
+		return
+	}
+	inspectList(n.Ninit, f)
+	inspect(n.Left, f)
+	inspect(n.Right, f)
+	inspectList(n.List, f)
+	inspectList(n.Nbody, f)
+	inspectList(n.Rlist, f)
+}
+
+func inspectList(l Nodes, f func(*Node) bool) {
+	for _, n := range l.Slice() {
+		inspect(n, f)
+	}
+}
+
+// nodeQueue is a FIFO queue of *Node. The zero value of nodeQueue is
+// a ready-to-use empty queue.
+type nodeQueue struct {
+	ring       []*Node
+	head, tail int
+}
+
+// empty returns true if q contains no Nodes.
+func (q *nodeQueue) empty() bool {
+	return q.head == q.tail
+}
+
+// pushRight appends n to the right of the queue.
+func (q *nodeQueue) pushRight(n *Node) {
+	if len(q.ring) == 0 {
+		q.ring = make([]*Node, 16)
+	} else if q.head+len(q.ring) == q.tail {
+		// Grow the ring.
+		nring := make([]*Node, len(q.ring)*2)
+		// Copy the old elements.
+		part := q.ring[q.head%len(q.ring):]
+		if q.tail-q.head <= len(part) {
+			part = part[:q.tail-q.head]
+			copy(nring, part)
+		} else {
+			pos := copy(nring, part)
+			copy(nring[pos:], q.ring[:q.tail%len(q.ring)])
+		}
+		q.ring, q.head, q.tail = nring, 0, q.tail-q.head
+	}
+
+	q.ring[q.tail%len(q.ring)] = n
+	q.tail++
+}
+
+// popLeft pops a node from the left of the queue. It panics if q is
+// empty.
+func (q *nodeQueue) popLeft() *Node {
+	if q.empty() {
+		panic("dequeue empty")
+	}
+	n := q.ring[q.head%len(q.ring)]
+	q.head++
+	return n
 }

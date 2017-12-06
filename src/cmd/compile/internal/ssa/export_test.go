@@ -75,6 +75,10 @@ func (d *DummyAuto) String() string {
 	return d.s
 }
 
+func (d *DummyAuto) StorageClass() StorageClass {
+	return ClassAuto
+}
+
 func (DummyFrontend) StringData(s string) interface{} {
 	return nil
 }
@@ -82,33 +86,33 @@ func (DummyFrontend) Auto(pos src.XPos, t *types.Type) GCNode {
 	return &DummyAuto{t: t, s: "aDummyAuto"}
 }
 func (d DummyFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {
-	return LocalSlot{s.N, dummyTypes.BytePtr, s.Off}, LocalSlot{s.N, dummyTypes.Int, s.Off + 8}
+	return LocalSlot{N: s.N, Type: dummyTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: dummyTypes.Int, Off: s.Off + 8}
 }
 func (d DummyFrontend) SplitInterface(s LocalSlot) (LocalSlot, LocalSlot) {
-	return LocalSlot{s.N, dummyTypes.BytePtr, s.Off}, LocalSlot{s.N, dummyTypes.BytePtr, s.Off + 8}
+	return LocalSlot{N: s.N, Type: dummyTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: dummyTypes.BytePtr, Off: s.Off + 8}
 }
 func (d DummyFrontend) SplitSlice(s LocalSlot) (LocalSlot, LocalSlot, LocalSlot) {
-	return LocalSlot{s.N, s.Type.ElemType().PtrTo(), s.Off},
-		LocalSlot{s.N, dummyTypes.Int, s.Off + 8},
-		LocalSlot{s.N, dummyTypes.Int, s.Off + 16}
+	return LocalSlot{N: s.N, Type: s.Type.ElemType().PtrTo(), Off: s.Off},
+		LocalSlot{N: s.N, Type: dummyTypes.Int, Off: s.Off + 8},
+		LocalSlot{N: s.N, Type: dummyTypes.Int, Off: s.Off + 16}
 }
 func (d DummyFrontend) SplitComplex(s LocalSlot) (LocalSlot, LocalSlot) {
 	if s.Type.Size() == 16 {
-		return LocalSlot{s.N, dummyTypes.Float64, s.Off}, LocalSlot{s.N, dummyTypes.Float64, s.Off + 8}
+		return LocalSlot{N: s.N, Type: dummyTypes.Float64, Off: s.Off}, LocalSlot{N: s.N, Type: dummyTypes.Float64, Off: s.Off + 8}
 	}
-	return LocalSlot{s.N, dummyTypes.Float32, s.Off}, LocalSlot{s.N, dummyTypes.Float32, s.Off + 4}
+	return LocalSlot{N: s.N, Type: dummyTypes.Float32, Off: s.Off}, LocalSlot{N: s.N, Type: dummyTypes.Float32, Off: s.Off + 4}
 }
 func (d DummyFrontend) SplitInt64(s LocalSlot) (LocalSlot, LocalSlot) {
 	if s.Type.IsSigned() {
-		return LocalSlot{s.N, dummyTypes.Int32, s.Off + 4}, LocalSlot{s.N, dummyTypes.UInt32, s.Off}
+		return LocalSlot{N: s.N, Type: dummyTypes.Int32, Off: s.Off + 4}, LocalSlot{N: s.N, Type: dummyTypes.UInt32, Off: s.Off}
 	}
-	return LocalSlot{s.N, dummyTypes.UInt32, s.Off + 4}, LocalSlot{s.N, dummyTypes.UInt32, s.Off}
+	return LocalSlot{N: s.N, Type: dummyTypes.UInt32, Off: s.Off + 4}, LocalSlot{N: s.N, Type: dummyTypes.UInt32, Off: s.Off}
 }
 func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
-	return LocalSlot{s.N, s.Type.FieldType(i), s.Off + s.Type.FieldOff(i)}
+	return LocalSlot{N: s.N, Type: s.Type.FieldType(i), Off: s.Off + s.Type.FieldOff(i)}
 }
 func (d DummyFrontend) SplitArray(s LocalSlot) LocalSlot {
-	return LocalSlot{s.N, s.Type.ElemType(), s.Off}
+	return LocalSlot{N: s.N, Type: s.Type.ElemType(), Off: s.Off}
 }
 func (DummyFrontend) Line(_ src.XPos) string {
 	return "unknown.go:0"
@@ -121,6 +125,8 @@ func (d DummyFrontend) Syslook(s string) *obj.LSym {
 func (DummyFrontend) UseWriteBarrier() bool {
 	return true // only writebarrier_test cares
 }
+func (DummyFrontend) SetWBPos(pos src.XPos) {
+}
 
 func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
 func (d DummyFrontend) Log() bool                            { return true }
@@ -128,7 +134,7 @@ func (d DummyFrontend) Log() bool                            { return true }
 func (d DummyFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
 func (d DummyFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
 func (d DummyFrontend) Debug_checknil() bool                               { return false }
-func (d DummyFrontend) Debug_wb() bool                                     { return false }
+func (d DummyFrontend) Debug_eagerwb() bool                                { return false }
 
 var dummyTypes Types
 

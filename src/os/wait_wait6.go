@@ -30,11 +30,6 @@ func (p *Process) blockUntilWaitable() (bool, error) {
 	}
 	runtime.KeepAlive(p)
 	if errno != 0 {
-		// The wait6 system call is supported only on FreeBSD
-		// 9.3 and above, so it may return an ENOSYS error.
-		if errno == syscall.ENOSYS {
-			return false, nil
-		}
 		return false, NewSyscallError("wait6", errno)
 	}
 	return true, nil

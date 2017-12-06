@@ -19,7 +19,6 @@
 #define	SYS_mmap           197
 #define	SYS_munmap         73
 #define	SYS_madvise        75
-#define	SYS_mincore        78
 #define	SYS_gettimeofday   116
 #define	SYS_kill           37
 #define	SYS_getpid         20
@@ -90,12 +89,27 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
 
 // Exit this OS thread (like pthread_exit, which eventually
 // calls __bsdthread_terminate).
-TEXT runtime·exit1(SB),NOSPLIT,$0
+TEXT exit1<>(SB),NOSPLIT,$0
+	// Because of exitThread below, this must not use the stack.
+	// __bsdthread_terminate takes 4 word-size arguments.
+	// Set them all to 0. (None are an exit status.)
+	MOVW	$0, R0
+	MOVW	$0, R1
+	MOVW	$0, R2
+	MOVW	$0, R3
 	MOVW	$SYS_bsdthread_terminate, R16
 	SVC	$0x80
 	MOVD	$1234, R0
 	MOVD	$1003, R1
 	MOVD	R0, (R1)	// fail hard
+
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+	MOVD	wait+0(FP), R0
+	// We're done using the stack.
+	MOVW	$0, R1
+	STLRW	R1, (R0)
+	JMP	exit1<>(SB)
 
 TEXT runtime·raise(SB),NOSPLIT,$0
 	// Ideally we'd send the signal to the current thread,
@@ -121,7 +135,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVW	off+28(FP), R5
 	MOVW	$SYS_mmap, R16
 	SVC	$0x80
-	MOVD	R0, ret+32(FP)
+	BCC	ok
+	MOVD	$0, p+32(FP)
+	MOVD	R0, err+40(FP)
+	RET
+ok:
+	MOVD	R0, p+32(FP)
+	MOVD	$0, err+40(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0

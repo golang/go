@@ -78,19 +78,16 @@ func isECDSA(id uint16) bool {
 	panic(fmt.Sprintf("unknown cipher suite %#x", id))
 }
 
-func isBoringSignatureAndHash(sigHash signatureAndHash) bool {
-	switch sigHash.signature {
+func isBoringSignatureScheme(alg SignatureScheme) bool {
+	switch alg {
 	default:
 		return false
-	case signatureRSA,
-		signatureECDSA:
-		// ok
-	}
-	switch sigHash.hash {
-	default:
-		return false
-	case hashSHA256,
-		hashSHA384:
+	case PKCS1WithSHA256,
+		ECDSAWithP256AndSHA256,
+		PKCS1WithSHA384,
+		ECDSAWithP384AndSHA384,
+		PKCS1WithSHA512,
+		ECDSAWithP521AndSHA512:
 		// ok
 	}
 	return true
@@ -186,14 +183,14 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
 	serverConfig.Certificates = make([]Certificate, 1)
 
 	defer func() {
-		testingOnlyForceClientHelloSignatureAndHashes = nil
+		testingOnlyForceClientHelloSignatureAlgorithms = nil
 	}()
 
 	for _, sigHash := range defaultSupportedSignatureAlgorithms {
-		testingOnlyForceClientHelloSignatureAndHashes = []signatureAndHash{sigHash}
+		testingOnlyForceClientHelloSignatureAlgorithms = []SignatureScheme{sigHash}
 
 		t.Run(fmt.Sprintf("%v", sigHash), func(t *testing.T) {
-			if sigHash.signature == signatureRSA {
+			if sigHash == PKCS1WithSHA1 || sigHash == PKCS1WithSHA256 || sigHash == PKCS1WithSHA384 || sigHash == PKCS1WithSHA512 {
 				serverConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
 				serverConfig.Certificates[0].Certificate = [][]byte{testRSACertificate}
 				serverConfig.Certificates[0].PrivateKey = testRSAPrivateKey
@@ -215,7 +212,7 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
 				fipstls.Force()
 				defer fipstls.Abandon()
 				clientErr, _ := boringHandshake(t, testConfig, serverConfig)
-				if isBoringSignatureAndHash(sigHash) {
+				if isBoringSignatureScheme(sigHash) {
 					if clientErr != nil {
 						t.Fatalf("expected handshake with %v to succeed; err=%v", sigHash, clientErr)
 					}
@@ -269,8 +266,8 @@ func TestBoringClientHello(t *testing.T) {
 			t.Errorf("client offered disallowed curve %d", id)
 		}
 	}
-	for _, sigHash := range hello.signatureAndHashes {
-		if !isBoringSignatureAndHash(sigHash) {
+	for _, sigHash := range hello.supportedSignatureAlgorithms {
+		if !isBoringSignatureScheme(sigHash) {
 			t.Errorf("client offered disallowed signature-and-hash %v", sigHash)
 		}
 	}

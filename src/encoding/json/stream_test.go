@@ -342,11 +342,18 @@ var tokenStreamCases []tokenStreamCase = []tokenStreamCase{
 	{json: ` [{"a": 1} {"a": 2}] `, expTokens: []interface{}{
 		Delim('['),
 		decodeThis{map[string]interface{}{"a": float64(1)}},
-		decodeThis{&SyntaxError{"expected comma after array element", 0}},
+		decodeThis{&SyntaxError{"expected comma after array element", 11}},
 	}},
-	{json: `{ "a" 1 }`, expTokens: []interface{}{
-		Delim('{'), "a",
-		decodeThis{&SyntaxError{"expected colon after object key", 0}},
+	{json: `{ "` + strings.Repeat("a", 513) + `" 1 }`, expTokens: []interface{}{
+		Delim('{'), strings.Repeat("a", 513),
+		decodeThis{&SyntaxError{"expected colon after object key", 518}},
+	}},
+	{json: `{ "\a" }`, expTokens: []interface{}{
+		Delim('{'),
+		&SyntaxError{"invalid character 'a' in string escape code", 3},
+	}},
+	{json: ` \a`, expTokens: []interface{}{
+		&SyntaxError{"invalid character '\\\\' looking for beginning of value", 1},
 	}},
 }
 
@@ -367,15 +374,15 @@ func TestDecodeInStream(t *testing.T) {
 				tk, err = dec.Token()
 			}
 			if experr, ok := etk.(error); ok {
-				if err == nil || err.Error() != experr.Error() {
-					t.Errorf("case %v: Expected error %v in %q, but was %v", ci, experr, tcase.json, err)
+				if err == nil || !reflect.DeepEqual(err, experr) {
+					t.Errorf("case %v: Expected error %#v in %q, but was %#v", ci, experr, tcase.json, err)
 				}
 				break
 			} else if err == io.EOF {
 				t.Errorf("case %v: Unexpected EOF in %q", ci, tcase.json)
 				break
 			} else if err != nil {
-				t.Errorf("case %v: Unexpected error '%v' in %q", ci, err, tcase.json)
+				t.Errorf("case %v: Unexpected error '%#v' in %q", ci, err, tcase.json)
 				break
 			}
 			if !reflect.DeepEqual(tk, etk) {

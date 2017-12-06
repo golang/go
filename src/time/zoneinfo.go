@@ -223,7 +223,7 @@ func (l *Location) firstZoneUsed() bool {
 // lookupName returns information about the time zone with
 // the given name (such as "EST") at the given pseudo-Unix time
 // (what the given time of day would be in UTC).
-func (l *Location) lookupName(name string, unix int64) (offset int, isDST bool, ok bool) {
+func (l *Location) lookupName(name string, unix int64) (offset int, ok bool) {
 	l = l.get()
 
 	// First try for a zone with the right name that was actually
@@ -235,9 +235,9 @@ func (l *Location) lookupName(name string, unix int64) (offset int, isDST bool, 
 	for i := range l.zone {
 		zone := &l.zone[i]
 		if zone.name == name {
-			nam, offset, isDST, _, _ := l.lookup(unix - int64(zone.offset))
+			nam, offset, _, _, _ := l.lookup(unix - int64(zone.offset))
 			if nam == zone.name {
-				return offset, isDST, true
+				return offset, true
 			}
 		}
 	}
@@ -246,7 +246,7 @@ func (l *Location) lookupName(name string, unix int64) (offset int, isDST bool, 
 	for i := range l.zone {
 		zone := &l.zone[i]
 		if zone.name == name {
-			return zone.offset, zone.isDST, true
+			return zone.offset, true
 		}
 	}
 
@@ -292,13 +292,14 @@ func LoadLocation(name string) (*Location, error) {
 		env, _ := syscall.Getenv("ZONEINFO")
 		zoneinfo = &env
 	})
-	if zoneinfo != nil && *zoneinfo != "" {
-		if z, err := loadZoneFile(*zoneinfo, name); err == nil {
-			z.name = name
-			return z, nil
+	if *zoneinfo != "" {
+		if zoneData, err := loadTzinfoFromDirOrZip(*zoneinfo, name); err == nil {
+			if z, err := LoadLocationFromTZData(name, zoneData); err == nil {
+				return z, nil
+			}
 		}
 	}
-	return loadLocation(name)
+	return loadLocation(name, zoneSources)
 }
 
 // containsDotDot reports whether s contains "..".

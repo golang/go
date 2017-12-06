@@ -264,3 +264,24 @@ func TestFunctionMap(t *testing.T) {
 		}
 	}
 }
+
+func TestLegendActiveFilters(t *testing.T) {
+	activeFilterInput := []string{
+		"focus=123|456|789|101112|131415|161718|192021|222324|252627|282930|313233|343536|363738|acbdefghijklmnop",
+		"show=short filter",
+	}
+	expectedLegendActiveFilter := []string{
+		"Active filters:",
+		"   focus=123|456|789|101112|131415|161718|192021|222324|252627|282930|313233|343536…",
+		"   show=short filter",
+	}
+	legendActiveFilter := legendActiveFilters(activeFilterInput)
+	if len(legendActiveFilter) != len(expectedLegendActiveFilter) {
+		t.Errorf("wanted length %v got length %v", len(expectedLegendActiveFilter), len(legendActiveFilter))
+	}
+	for i := range legendActiveFilter {
+		if legendActiveFilter[i] != expectedLegendActiveFilter[i] {
+			t.Errorf("%d: want \"%v\", got \"%v\"", i, expectedLegendActiveFilter[i], legendActiveFilter[i])
+		}
+	}
+}

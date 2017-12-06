@@ -75,52 +75,14 @@ func Index(s, sep []byte) int {
 		}
 		return -1
 	}
-	// Rabin-Karp search
-	hashsep, pow := hashStr(sep)
-	var h uint32
-	for i := 0; i < n; i++ {
-		h = h*primeRK + uint32(s[i])
-	}
-	if h == hashsep && Equal(s[:n], sep) {
-		return 0
-	}
-	for i := n; i < len(s); {
-		h *= primeRK
-		h += uint32(s[i])
-		h -= pow * uint32(s[i-n])
-		i++
-		if h == hashsep && Equal(s[i-n:i], sep) {
-			return i - n
-		}
-	}
-	return -1
+	return indexRabinKarp(s, sep)
 }
 
 // Count counts the number of non-overlapping instances of sep in s.
-// If sep is an empty slice, Count returns 1 + the number of Unicode code points in s.
+// If sep is an empty slice, Count returns 1 + the number of UTF-8-encoded code points in s.
 func Count(s, sep []byte) int {
 	if len(sep) == 1 && cpu.X86.HasPOPCNT {
 		return countByte(s, sep[0])
 	}
 	return countGeneric(s, sep)
-}
-
-// primeRK is the prime base used in Rabin-Karp algorithm.
-const primeRK = 16777619
-
-// hashStr returns the hash and the appropriate multiplicative
-// factor for use in Rabin-Karp algorithm.
-func hashStr(sep []byte) (uint32, uint32) {
-	hash := uint32(0)
-	for i := 0; i < len(sep); i++ {
-		hash = hash*primeRK + uint32(sep[i])
-	}
-	var pow, sq uint32 = 1, primeRK
-	for i := len(sep); i > 0; i >>= 1 {
-		if i&1 != 0 {
-			pow *= sq
-		}
-		sq *= sq
-	}
-	return hash, pow
 }

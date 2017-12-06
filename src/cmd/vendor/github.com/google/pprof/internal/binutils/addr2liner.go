@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/google/pprof/internal/plugin"
 )
@@ -36,6 +37,7 @@ const (
 // addr2Liner is a connection to an addr2line command for obtaining
 // address and line number information from a binary.
 type addr2Liner struct {
+	mu   sync.Mutex
 	rw   lineReaderWriter
 	base uint64
 
@@ -170,9 +172,10 @@ func (d *addr2Liner) readFrame() (plugin.Frame, bool) {
 		Line: linenumber}, false
 }
 
-// addrInfo returns the stack frame information for a specific program
-// address. It returns nil if the address could not be identified.
-func (d *addr2Liner) addrInfo(addr uint64) ([]plugin.Frame, error) {
+func (d *addr2Liner) rawAddrInfo(addr uint64) ([]plugin.Frame, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if err := d.rw.write(fmt.Sprintf("%x", addr-d.base)); err != nil {
 		return nil, err
 	}
@@ -200,6 +203,16 @@ func (d *addr2Liner) addrInfo(addr uint64) ([]plugin.Frame, error) {
 		if frame != (plugin.Frame{}) {
 			stack = append(stack, frame)
 		}
+	}
+	return stack, err
+}
+
+// addrInfo returns the stack frame information for a specific program
+// address. It returns nil if the address could not be identified.
+func (d *addr2Liner) addrInfo(addr uint64) ([]plugin.Frame, error) {
+	stack, err := d.rawAddrInfo(addr)
+	if err != nil {
+		return nil, err
 	}
 
 	// Get better name from nm if possible.

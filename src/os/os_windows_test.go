@@ -520,9 +520,16 @@ func TestNetworkSymbolicLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if got != target {
 		t.Errorf(`os.Readlink("%s"): got %v, want %v`, link, got, target)
+	}
+
+	got, err = filepath.EvalSymlinks(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != target {
+		t.Errorf(`filepath.EvalSymlinks("%s"): got %v, want %v`, link, got, target)
 	}
 }
 
@@ -811,7 +818,7 @@ func main() {
 	}
 
 	exe := filepath.Join(tmpdir, "main.exe")
-	cmd := osexec.Command("go", "build", "-o", exe, src)
+	cmd := osexec.Command(testenv.GoToolPath(t), "build", "-o", exe, src)
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

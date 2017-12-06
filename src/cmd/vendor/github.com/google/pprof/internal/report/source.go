@@ -62,6 +62,7 @@ func printSource(w io.Writer, rpt *Report) error {
 		}
 		sourcePath = wd
 	}
+	reader := newSourceReader(sourcePath)
 
 	fmt.Fprintf(w, "Total: %s\n", rpt.formatValue(rpt.total))
 	for _, fn := range functions {
@@ -94,7 +95,7 @@ func printSource(w io.Writer, rpt *Report) error {
 			fns := fileNodes[filename]
 			flatSum, cumSum := fns.Sum()
 
-			fnodes, _, err := getSourceFromFile(filename, sourcePath, fns, 0, 0)
+			fnodes, _, err := getSourceFromFile(filename, reader, fns, 0, 0)
 			fmt.Fprintf(w, "ROUTINE ======================== %s in %s\n", name, filename)
 			fmt.Fprintf(w, "%10s %10s (flat, cum) %s of Total\n",
 				rpt.formatValue(flatSum), rpt.formatValue(cumSum),
@@ -116,6 +117,16 @@ func printSource(w io.Writer, rpt *Report) error {
 // printWebSource prints an annotated source listing, include all
 // functions with samples that match the regexp rpt.options.symbol.
 func printWebSource(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
+	printHeader(w, rpt)
+	if err := PrintWebList(w, rpt, obj, -1); err != nil {
+		return err
+	}
+	printPageClosing(w)
+	return nil
+}
+
+// PrintWebList prints annotated source listing of rpt to w.
+func PrintWebList(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFiles int) error {
 	o := rpt.options
 	g := rpt.newGraph(nil)
 
@@ -134,6 +145,7 @@ func printWebSource(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
 		}
 		sourcePath = wd
 	}
+	reader := newSourceReader(sourcePath)
 
 	type fileFunction struct {
 		fileName, functionName string
@@ -167,7 +179,7 @@ func printWebSource(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
 	}
 
 	if len(fileNodes) == 0 {
-		return fmt.Errorf("No source information for %s\n", o.Symbol.String())
+		return fmt.Errorf("No source information for %s", o.Symbol.String())
 	}
 
 	sourceFiles := make(graph.Nodes, 0, len(fileNodes))
@@ -176,10 +188,18 @@ func printWebSource(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
 		sNode.Flat, sNode.Cum = nodes.Sum()
 		sourceFiles = append(sourceFiles, &sNode)
 	}
-	sourceFiles.Sort(graph.FileOrder)
+
+	// Limit number of files printed?
+	if maxFiles < 0 {
+		sourceFiles.Sort(graph.FileOrder)
+	} else {
+		sourceFiles.Sort(graph.FlatNameOrder)
+		if maxFiles < len(sourceFiles) {
+			sourceFiles = sourceFiles[:maxFiles]
+		}
+	}
 
 	// Print each file associated with this function.
-	printHeader(w, rpt)
 	for _, n := range sourceFiles {
 		ff := fileFunction{n.Info.File, n.Info.Name}
 		fns := fileNodes[ff]
@@ -187,18 +207,17 @@ func printWebSource(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
 		asm := assemblyPerSourceLine(symbols, fns, ff.fileName, obj)
 		start, end := sourceCoordinates(asm)
 
-		fnodes, path, err := getSourceFromFile(ff.fileName, sourcePath, fns, start, end)
+		fnodes, path, err := getSourceFromFile(ff.fileName, reader, fns, start, end)
 		if err != nil {
 			fnodes, path = getMissingFunctionSource(ff.fileName, asm, start, end)
 		}
 
 		printFunctionHeader(w, ff.functionName, path, n.Flat, n.Cum, rpt)
 		for _, fn := range fnodes {
-			printFunctionSourceLine(w, fn, asm[fn.Info.Lineno], rpt)
+			printFunctionSourceLine(w, fn, asm[fn.Info.Lineno], reader, rpt)
 		}
 		printFunctionClosing(w)
 	}
-	printPageClosing(w)
 	return nil
 }
 
@@ -236,11 +255,41 @@ func assemblyPerSourceLine(objSyms []*objSymbol, rs graph.Nodes, src string, obj
 	srcBase := filepath.Base(src)
 	anodes := annotateAssembly(insts, rs, o.base)
 	var lineno = 0
+	var prevline = 0
 	for _, an := range anodes {
-		if filepath.Base(an.file) == srcBase {
+		// Do not rely solely on the line number produced by Disasm
+		// since it is not what we want in the presence of inlining.
+		//
+		// E.g., suppose we are printing source code for F and this
+		// instruction is from H where F called G called H and both
+		// of those calls were inlined.  We want to use the line
+		// number from F, not from H (which is what Disasm gives us).
+		//
+		// So find the outer-most linenumber in the source file.
+		found := false
+		if frames, err := o.file.SourceLine(an.address + o.base); err == nil {
+			for i := len(frames) - 1; i >= 0; i-- {
+				if filepath.Base(frames[i].File) == srcBase {
+					for j := i - 1; j >= 0; j-- {
+						an.inlineCalls = append(an.inlineCalls, callID{frames[j].File, frames[j].Line})
+					}
+					lineno = frames[i].Line
+					found = true
+					break
+				}
+			}
+		}
+		if !found && filepath.Base(an.file) == srcBase {
 			lineno = an.line
 		}
+
 		if lineno != 0 {
+			if lineno != prevline {
+				// This instruction starts a new block
+				// of contiguous instructions on this line.
+				an.startsBlock = true
+			}
+			prevline = lineno
 			assembly[lineno] = append(assembly[lineno], an)
 		}
 	}
@@ -265,7 +314,15 @@ func findMatchingSymbol(objSyms []*objSymbol, ns graph.Nodes) *objSymbol {
 
 // printHeader prints the page header for a weblist report.
 func printHeader(w io.Writer, rpt *Report) {
-	fmt.Fprintln(w, weblistPageHeader)
+	fmt.Fprintln(w, `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Pprof listing</title>`)
+	fmt.Fprintln(w, weblistPageCSS)
+	fmt.Fprintln(w, weblistPageScript)
+	fmt.Fprint(w, "</head>\n<body>\n\n")
 
 	var labels []string
 	for _, l := range ProfileLabels(rpt) {
@@ -290,30 +347,33 @@ func printFunctionHeader(w io.Writer, name, path string, flatSum, cumSum int64, 
 }
 
 // printFunctionSourceLine prints a source line and the corresponding assembly.
-func printFunctionSourceLine(w io.Writer, fn *graph.Node, assembly []assemblyInstruction, rpt *Report) {
+func printFunctionSourceLine(w io.Writer, fn *graph.Node, assembly []assemblyInstruction, reader *sourceReader, rpt *Report) {
 	if len(assembly) == 0 {
 		fmt.Fprintf(w,
-			"<span class=line> %6d</span> <span class=nop>  %10s %10s %s </span>\n",
+			"<span class=line> %6d</span> <span class=nop>  %10s %10s %8s  %s </span>\n",
 			fn.Info.Lineno,
 			valueOrDot(fn.Flat, rpt), valueOrDot(fn.Cum, rpt),
-			template.HTMLEscapeString(fn.Info.Name))
+			"", template.HTMLEscapeString(fn.Info.Name))
 		return
 	}
 
 	fmt.Fprintf(w,
-		"<span class=line> %6d</span> <span class=deadsrc>  %10s %10s %s </span>",
+		"<span class=line> %6d</span> <span class=deadsrc>  %10s %10s %8s  %s </span>",
 		fn.Info.Lineno,
 		valueOrDot(fn.Flat, rpt), valueOrDot(fn.Cum, rpt),
-		template.HTMLEscapeString(fn.Info.Name))
+		"", template.HTMLEscapeString(fn.Info.Name))
+	srcIndent := indentation(fn.Info.Name)
 	fmt.Fprint(w, "<span class=asm>")
-	for _, an := range assembly {
+	var curCalls []callID
+	for i, an := range assembly {
+		if an.startsBlock && i != 0 {
+			// Insert a separator between discontiguous blocks.
+			fmt.Fprintf(w, " %8s %28s\n", "", "⋮")
+		}
+
 		var fileline string
-		class := "disasmloc"
 		if an.file != "" {
 			fileline = fmt.Sprintf("%s:%d", template.HTMLEscapeString(an.file), an.line)
-			if an.line != fn.Info.Lineno {
-				class = "unimportant"
-			}
 		}
 		flat, cum := an.flat, an.cum
 		if an.flatDiv != 0 {
@@ -322,11 +382,30 @@ func printFunctionSourceLine(w io.Writer, fn *graph.Node, assembly []assemblyIns
 		if an.cumDiv != 0 {
 			cum = cum / an.cumDiv
 		}
-		fmt.Fprintf(w, " %8s %10s %10s %8x: %-48s <span class=%s>%s</span>\n", "",
-			valueOrDot(flat, rpt), valueOrDot(cum, rpt),
-			an.address,
-			template.HTMLEscapeString(an.instruction),
-			class,
+
+		// Print inlined call context.
+		for j, c := range an.inlineCalls {
+			if j < len(curCalls) && curCalls[j] == c {
+				// Skip if same as previous instruction.
+				continue
+			}
+			curCalls = nil
+			fname := trimPath(c.file)
+			fline, ok := reader.line(fname, c.line)
+			if !ok {
+				fline = ""
+			}
+			text := strings.Repeat(" ", srcIndent+4+4*j) + strings.TrimSpace(fline)
+			fmt.Fprintf(w, " %8s %10s %10s %8s  <span class=inlinesrc>%s</span> <span class=unimportant>%s:%d</span>\n",
+				"", "", "", "",
+				template.HTMLEscapeString(fmt.Sprintf("%-80s", text)),
+				template.HTMLEscapeString(filepath.Base(fname)), c.line)
+		}
+		curCalls = an.inlineCalls
+		text := strings.Repeat(" ", srcIndent+4+4*len(curCalls)) + an.instruction
+		fmt.Fprintf(w, " %8s %10s %10s %8x: %s <span class=unimportant>%s</span>\n",
+			"", valueOrDot(flat, rpt), valueOrDot(cum, rpt), an.address,
+			template.HTMLEscapeString(fmt.Sprintf("%-80s", text)),
 			template.HTMLEscapeString(fileline))
 	}
 	fmt.Fprintln(w, "</span>")
@@ -345,14 +424,10 @@ func printPageClosing(w io.Writer) {
 // getSourceFromFile collects the sources of a function from a source
 // file and annotates it with the samples in fns. Returns the sources
 // as nodes, using the info.name field to hold the source code.
-func getSourceFromFile(file, sourcePath string, fns graph.Nodes, start, end int) (graph.Nodes, string, error) {
+func getSourceFromFile(file string, reader *sourceReader, fns graph.Nodes, start, end int) (graph.Nodes, string, error) {
 	file = trimPath(file)
-	f, err := openSourceFile(file, sourcePath)
-	if err != nil {
-		return nil, file, err
-	}
-
 	lineNodes := make(map[int]graph.Nodes)
+
 	// Collect source coordinates from profile.
 	const margin = 5 // Lines before first/after last sample.
 	if start == 0 {
@@ -382,36 +457,28 @@ func getSourceFromFile(file, sourcePath string, fns graph.Nodes, start, end int)
 		}
 		lineNodes[lineno] = append(lineNodes[lineno], n)
 	}
+	if start < 1 {
+		start = 1
+	}
 
 	var src graph.Nodes
-	buf := bufio.NewReader(f)
-	lineno := 1
-	for {
-		line, err := buf.ReadString('\n')
-		if err != nil {
-			if err != io.EOF {
-				return nil, file, err
-			}
-			if line == "" {
-				break
-			}
-		}
-		if lineno >= start {
-			flat, cum := lineNodes[lineno].Sum()
-
-			src = append(src, &graph.Node{
-				Info: graph.NodeInfo{
-					Name:   strings.TrimRight(line, "\n"),
-					Lineno: lineno,
-				},
-				Flat: flat,
-				Cum:  cum,
-			})
-		}
-		lineno++
-		if lineno > end {
+	for lineno := start; lineno <= end; lineno++ {
+		line, ok := reader.line(file, lineno)
+		if !ok {
 			break
 		}
+		flat, cum := lineNodes[lineno].Sum()
+		src = append(src, &graph.Node{
+			Info: graph.NodeInfo{
+				Name:   strings.TrimRight(line, "\n"),
+				Lineno: lineno,
+			},
+			Flat: flat,
+			Cum:  cum,
+		})
+	}
+	if err := reader.fileError(file); err != nil {
+		return nil, file, err
 	}
 	return src, file, nil
 }
@@ -444,6 +511,57 @@ func getMissingFunctionSource(filename string, asm map[int][]assemblyInstruction
 		})
 	}
 	return fnodes, filename
+}
+
+// sourceReader provides access to source code with caching of file contents.
+type sourceReader struct {
+	searchPath string
+
+	// files maps from path name to a list of lines.
+	// files[*][0] is unused since line numbering starts at 1.
+	files map[string][]string
+
+	// errors collects errors encountered per file.  These errors are
+	// consulted before returning out of these module.
+	errors map[string]error
+}
+
+func newSourceReader(searchPath string) *sourceReader {
+	return &sourceReader{
+		searchPath,
+		make(map[string][]string),
+		make(map[string]error),
+	}
+}
+
+func (reader *sourceReader) fileError(path string) error {
+	return reader.errors[path]
+}
+
+func (reader *sourceReader) line(path string, lineno int) (string, bool) {
+	lines, ok := reader.files[path]
+	if !ok {
+		// Read and cache file contents.
+		lines = []string{""} // Skip 0th line
+		f, err := openSourceFile(path, reader.searchPath)
+		if err != nil {
+			reader.errors[path] = err
+		} else {
+			s := bufio.NewScanner(f)
+			for s.Scan() {
+				lines = append(lines, s.Text())
+			}
+			f.Close()
+			if s.Err() != nil {
+				reader.errors[path] = err
+			}
+		}
+		reader.files[path] = lines
+	}
+	if lineno <= 0 || lineno >= len(lines) {
+		return "", false
+	}
+	return lines[lineno], true
 }
 
 // openSourceFile opens a source file from a name encoded in a
@@ -491,4 +609,21 @@ func trimPath(path string) string {
 		}
 	}
 	return path
+}
+
+func indentation(line string) int {
+	column := 0
+	for _, c := range line {
+		if c == ' ' {
+			column++
+		} else if c == '\t' {
+			column++
+			for column%8 != 0 {
+				column++
+			}
+		} else {
+			break
+		}
+	}
+	return column
 }

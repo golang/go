@@ -385,8 +385,16 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 	if rt, ok := dst.(ReaderFrom); ok {
 		return rt.ReadFrom(src)
 	}
+	size := 32 * 1024
+	if l, ok := src.(*LimitedReader); ok && int64(size) > l.N {
+		if l.N < 1 {
+			size = 1
+		} else {
+			size = int(l.N)
+		}
+	}
 	if buf == nil {
-		buf = make([]byte, 32*1024)
+		buf = make([]byte, size)
 	}
 	for {
 		nr, er := src.Read(buf)

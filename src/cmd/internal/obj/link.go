@@ -138,10 +138,13 @@ import (
 //			offset = second register
 //
 //	[reg, reg, reg-reg]
-//		Register list for ARM.
+//		Register list for ARM and ARM64.
 //		Encoding:
 //			type = TYPE_REGLIST
+//		On ARM:
 //			offset = bit mask of registers in list; R0 is low bit.
+//		On ARM64:
+//			offset = register count (Q:size) | arrangement (opcode) | first register
 //
 //	reg, reg
 //		Register pair for ARM.
@@ -155,6 +158,27 @@ import (
 //			index = second register
 //			scale = 1
 //
+//	reg.[US]XT[BHWX]
+//		Register extension for ARM64
+//		Encoding:
+//			type = TYPE_REG
+//			reg = REG_[US]XT[BHWX] + register + shift amount
+//			offset = ((reg&31) << 16) | (exttype << 13) | (amount<<10)
+//
+//	reg.<T>
+//		Register arrangement for ARM64 SIMD register
+//		e.g.: V1.S4, V2.S2, V7.D2, V2.H4, V6.B16
+//		Encoding:
+//			type = TYPE_REG
+//			reg = REG_ARNG + register + arrangement
+//
+//	reg.<T>[index]
+//		Register element for ARM64
+//		Encoding:
+//			type = TYPE_REG
+//			reg = REG_ELEM + register + arrangement
+//			index = element index
+
 type Addr struct {
 	Reg    int16
 	Index  int16
@@ -184,6 +208,9 @@ const (
 	// A reference to name@GOT(SB) is a reference to the entry in the global offset
 	// table for 'name'.
 	NAME_GOTREF
+	// Indicates auto that was optimized away, but whose type
+	// we want to preserve in the DWARF debug info.
+	NAME_DELETED_AUTO
 )
 
 type AddrType uint8
@@ -209,14 +236,19 @@ const (
 //
 // The general instruction form is:
 //
-//	As.Scond From, Reg, From3, To, RegTo2
+//	(1) As.Scond From [, ...RestArgs], To
+//	(2) As.Scond From, Reg [, ...RestArgs], To, RegTo2
 //
 // where As is an opcode and the others are arguments:
-// From, Reg, From3 are sources, and To, RegTo2 are destinations.
+// From, Reg are sources, and To, RegTo2 are destinations.
+// RestArgs can hold additional sources and destinations.
 // Usually, not all arguments are present.
 // For example, MOVL R1, R2 encodes using only As=MOVL, From=R1, To=R2.
 // The Scond field holds additional condition bits for systems (like arm)
 // that have generalized conditional execution.
+// (2) form is present for compatibility with older code,
+// to avoid too much changes in a single swing.
+// (1) scheme is enough to express any kind of operand combination.
 //
 // Jump instructions use the Pcond field to point to the target instruction,
 // which must be in the same linked list as the jump instruction.
@@ -232,35 +264,62 @@ const (
 // The other fields not yet mentioned are for use by the back ends and should
 // be left zeroed by creators of Prog lists.
 type Prog struct {
-	Ctxt   *Link    // linker context
-	Link   *Prog    // next Prog in linked list
-	From   Addr     // first source operand
-	From3  *Addr    // third source operand (second is Reg below)
-	To     Addr     // destination operand (second is RegTo2 below)
-	Pcond  *Prog    // target of conditional jump
-	Forwd  *Prog    // for x86 back end
-	Rel    *Prog    // for x86, arm back ends
-	Pc     int64    // for back ends or assembler: virtual or actual program counter, depending on phase
-	Pos    src.XPos // source position of this instruction
-	Spadj  int32    // effect of instruction on stack pointer (increment or decrement amount)
-	As     As       // assembler opcode
-	Reg    int16    // 2nd source operand
-	RegTo2 int16    // 2nd destination operand
-	Mark   uint16   // bitmask of arch-specific items
-	Optab  uint16   // arch-specific opcode index
-	Scond  uint8    // condition bits for conditional instruction (e.g., on ARM)
-	Back   uint8    // for x86 back end: backwards branch state
-	Ft     uint8    // for x86 back end: type index of Prog.From
-	Tt     uint8    // for x86 back end: type index of Prog.To
-	Isize  uint8    // for x86 back end: size of the instruction in bytes
+	Ctxt     *Link    // linker context
+	Link     *Prog    // next Prog in linked list
+	From     Addr     // first source operand
+	RestArgs []Addr   // can pack any operands that not fit into {Prog.From, Prog.To}
+	To       Addr     // destination operand (second is RegTo2 below)
+	Pcond    *Prog    // target of conditional jump
+	Forwd    *Prog    // for x86 back end
+	Rel      *Prog    // for x86, arm back ends
+	Pc       int64    // for back ends or assembler: virtual or actual program counter, depending on phase
+	Pos      src.XPos // source position of this instruction
+	Spadj    int32    // effect of instruction on stack pointer (increment or decrement amount)
+	As       As       // assembler opcode
+	Reg      int16    // 2nd source operand
+	RegTo2   int16    // 2nd destination operand
+	Mark     uint16   // bitmask of arch-specific items
+	Optab    uint16   // arch-specific opcode index
+	Scond    uint8    // condition bits for conditional instruction (e.g., on ARM)
+	Back     uint8    // for x86 back end: backwards branch state
+	Ft       uint8    // for x86 back end: type index of Prog.From
+	Tt       uint8    // for x86 back end: type index of Prog.To
+	Isize    uint8    // for x86 back end: size of the instruction in bytes
 }
 
-// From3Type returns From3.Type, or TYPE_NONE when From3 is nil.
+// From3Type returns p.GetFrom3().Type, or TYPE_NONE when
+// p.GetFrom3() returns nil.
+//
+// Deprecated: for the same reasons as Prog.GetFrom3.
 func (p *Prog) From3Type() AddrType {
-	if p.From3 == nil {
+	if p.RestArgs == nil {
 		return TYPE_NONE
 	}
-	return p.From3.Type
+	return p.RestArgs[0].Type
+}
+
+// GetFrom3 returns second source operand (the first is Prog.From).
+// In combination with Prog.From and Prog.To it makes common 3 operand
+// case easier to use.
+//
+// Should be used only when RestArgs is set with SetFrom3.
+//
+// Deprecated: better use RestArgs directly or define backend-specific getters.
+// Introduced to simplify transition to []Addr.
+// Usage of this is discouraged due to fragility and lack of guarantees.
+func (p *Prog) GetFrom3() *Addr {
+	if p.RestArgs == nil {
+		return nil
+	}
+	return &p.RestArgs[0]
+}
+
+// SetFrom3 assigns []Addr{a} to p.RestArgs.
+// In pair with Prog.GetFrom3 it can help in emulation of Prog.From3.
+//
+// Deprecated: for the same reasons as Prog.GetFrom3.
+func (p *Prog) SetFrom3(a Addr) {
+	p.RestArgs = []Addr{a}
 }
 
 // An As denotes an assembler opcode.
@@ -295,7 +354,7 @@ const (
 // Subspaces are aligned to a power of two so opcodes can be masked
 // with AMask and used as compact array indices.
 const (
-	ABase386 = (1 + iota) << 10
+	ABase386 = (1 + iota) << 11
 	ABaseARM
 	ABaseAMD64
 	ABasePPC64
@@ -303,7 +362,7 @@ const (
 	ABaseMIPS
 	ABaseS390X
 
-	AllowedOpCodes = 1 << 10            // The number of opcodes available for any given architecture.
+	AllowedOpCodes = 1 << 11            // The number of opcodes available for any given architecture.
 	AMask          = AllowedOpCodes - 1 // AND with this to use the opcode as an array index.
 )
 
@@ -330,8 +389,10 @@ type FuncInfo struct {
 	Autom  []*Auto
 	Pcln   Pcln
 
-	dwarfSym       *LSym
+	dwarfInfoSym   *LSym
+	dwarfLocSym    *LSym
 	dwarfRangesSym *LSym
+	dwarfAbsFnSym  *LSym
 
 	GCArgs   LSym
 	GCLocals LSym
@@ -370,6 +431,10 @@ const (
 	// definition. (When not compiling to support Go shared libraries, all symbols are
 	// local in this sense unless there is a cgo_export_* directive).
 	AttrLocal
+
+	// For function symbols; indicates that the specified function was the
+	// target of an inline during compilation
+	AttrWasInlined
 )
 
 func (a Attribute) DuplicateOK() bool   { return a&AttrDuplicateOK != 0 }
@@ -385,6 +450,7 @@ func (a Attribute) Wrapper() bool       { return a&AttrWrapper != 0 }
 func (a Attribute) NeedCtxt() bool      { return a&AttrNeedCtxt != 0 }
 func (a Attribute) NoFrame() bool       { return a&AttrNoFrame != 0 }
 func (a Attribute) Static() bool        { return a&AttrStatic != 0 }
+func (a Attribute) WasInlined() bool    { return a&AttrWasInlined != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	if value {
@@ -411,6 +477,7 @@ var textAttrStrings = [...]struct {
 	{bit: AttrNeedCtxt, s: "NEEDCTXT"},
 	{bit: AttrNoFrame, s: "NOFRAME"},
 	{bit: AttrStatic, s: "STATIC"},
+	{bit: AttrWasInlined, s: ""},
 }
 
 // TextAttrString formats a for printing in as part of a TEXT prog.
@@ -476,26 +543,31 @@ type Pcdata struct {
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 type Link struct {
-	Headtype      objabi.HeadType
-	Arch          *LinkArch
-	Debugasm      bool
-	Debugvlog     bool
-	Debugpcln     string
-	Flag_shared   bool
-	Flag_dynlink  bool
-	Flag_optimize bool
-	Bso           *bufio.Writer
-	Pathname      string
-	hashmu        sync.Mutex       // protects hash
-	hash          map[string]*LSym // name -> sym mapping
-	statichash    map[string]*LSym // name -> sym mapping for static syms
-	PosTable      src.PosTable
-	InlTree       InlTree // global inlining tree used by gc/inl.go
-	Imports       []string
-	DiagFunc      func(string, ...interface{})
-	DebugInfo     func(fn *LSym, curfn interface{}) []dwarf.Scope // if non-nil, curfn is a *gc.Node
-	Errors        int
+	Headtype           objabi.HeadType
+	Arch               *LinkArch
+	Debugasm           bool
+	Debugvlog          bool
+	Debugpcln          string
+	Flag_shared        bool
+	Flag_dynlink       bool
+	Flag_optimize      bool
+	Flag_locationlists bool
+	Bso                *bufio.Writer
+	Pathname           string
+	hashmu             sync.Mutex       // protects hash
+	hash               map[string]*LSym // name -> sym mapping
+	statichash         map[string]*LSym // name -> sym mapping for static syms
+	PosTable           src.PosTable
+	InlTree            InlTree // global inlining tree used by gc/inl.go
+	DwFixups           *DwarfFixupTable
+	Imports            []string
+	DiagFunc           func(string, ...interface{})
+	DiagFlush          func()
+	DebugInfo          func(fn *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
+	GenAbstractFunc    func(fn *LSym)
+	Errors             int
 
+	InParallel           bool // parallel backend phase in effect
 	Framepointer_enabled bool
 
 	// state for writing objects
@@ -533,9 +605,10 @@ func (ctxt *Link) FixedFrameSize() int64 {
 // LinkArch is the definition of a single architecture.
 type LinkArch struct {
 	*sys.Arch
-	Init       func(*Link)
-	Preprocess func(*Link, *LSym, ProgAlloc)
-	Assemble   func(*Link, *LSym, ProgAlloc)
-	Progedit   func(*Link, *Prog, ProgAlloc)
-	UnaryDst   map[As]bool // Instruction takes one operand, a destination.
+	Init           func(*Link)
+	Preprocess     func(*Link, *LSym, ProgAlloc)
+	Assemble       func(*Link, *LSym, ProgAlloc)
+	Progedit       func(*Link, *Prog, ProgAlloc)
+	UnaryDst       map[As]bool // Instruction takes one operand, a destination.
+	DWARFRegisters map[int16]int16
 }

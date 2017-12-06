@@ -6,13 +6,13 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -51,18 +51,6 @@ func uniq(list []string) []string {
 	return keep
 }
 
-// splitlines returns a slice with the result of splitting
-// the input p after each \n.
-func splitlines(p string) []string {
-	return strings.SplitAfter(p, "\n")
-}
-
-// splitfields replaces the vector v with the result of splitting
-// the input p into non-empty fields containing no spaces.
-func splitfields(p string) []string {
-	return strings.Fields(p)
-}
-
 const (
 	CheckExit = 1 << iota
 	ShowOutput
@@ -74,7 +62,7 @@ var outputLock sync.Mutex
 // run runs the command line cmd in dir.
 // If mode has ShowOutput set and Background unset, run passes cmd's output to
 // stdout/stderr directly. Otherwise, run returns cmd's output as a string.
-// If mode has CheckExit set and the command fails, run calls fatal.
+// If mode has CheckExit set and the command fails, run calls fatalf.
 // If mode has Background set, this command is being run as a
 // Background job. Only bgrun should use the Background mode,
 // not other callers.
@@ -109,11 +97,11 @@ func run(dir string, mode int, cmd ...string) string {
 		}
 		outputLock.Unlock()
 		if mode&Background != 0 {
-			// Prevent fatal from waiting on our own goroutine's
+			// Prevent fatalf from waiting on our own goroutine's
 			// bghelper to exit:
 			bghelpers.Done()
 		}
-		fatal("FAILED: %v: %v", strings.Join(cmd, " "), err)
+		fatalf("FAILED: %v: %v", strings.Join(cmd, " "), err)
 	}
 	if mode&ShowOutput != 0 {
 		outputLock.Lock()
@@ -191,7 +179,7 @@ func bgwait(wg *sync.WaitGroup) {
 func xgetwd() string {
 	wd, err := os.Getwd()
 	if err != nil {
-		fatal("%s", err)
+		fatalf("%s", err)
 	}
 	return wd
 }
@@ -201,11 +189,11 @@ func xgetwd() string {
 func xrealwd(path string) string {
 	old := xgetwd()
 	if err := os.Chdir(path); err != nil {
-		fatal("chdir %s: %v", path, err)
+		fatalf("chdir %s: %v", path, err)
 	}
 	real := xgetwd()
 	if err := os.Chdir(old); err != nil {
-		fatal("chdir %s: %v", old, err)
+		fatalf("chdir %s: %v", old, err)
 	}
 	return real
 }
@@ -231,16 +219,11 @@ func mtime(p string) time.Time {
 	return fi.ModTime()
 }
 
-// isabs reports whether p is an absolute path.
-func isabs(p string) bool {
-	return filepath.IsAbs(p)
-}
-
 // readfile returns the content of the named file.
 func readfile(file string) string {
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 	return string(data)
 }
@@ -250,12 +233,12 @@ const (
 	writeSkipSame
 )
 
-// writefile writes b to the named file, creating it if needed.
+// writefile writes text to the named file, creating it if needed.
 // if exec is non-zero, marks the file as executable.
 // If the file already exists and has the expected content,
 // it is not rewritten, to avoid changing the time stamp.
-func writefile(b, file string, flag int) {
-	new := []byte(b)
+func writefile(text, file string, flag int) {
+	new := []byte(text)
 	if flag&writeSkipSame != 0 {
 		old, err := ioutil.ReadFile(file)
 		if err == nil && bytes.Equal(old, new) {
@@ -268,7 +251,7 @@ func writefile(b, file string, flag int) {
 	}
 	err := ioutil.WriteFile(file, new, mode)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 }
 
@@ -276,7 +259,7 @@ func writefile(b, file string, flag int) {
 func xmkdir(p string) {
 	err := os.Mkdir(p, 0777)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 }
 
@@ -284,7 +267,7 @@ func xmkdir(p string) {
 func xmkdirall(p string) {
 	err := os.MkdirAll(p, 0777)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 }
 
@@ -309,12 +292,12 @@ func xremoveall(p string) {
 func xreaddir(dir string) []string {
 	f, err := os.Open(dir)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 	defer f.Close()
 	names, err := f.Readdirnames(-1)
 	if err != nil {
-		fatal("reading %s: %v", dir, err)
+		fatalf("reading %s: %v", dir, err)
 	}
 	return names
 }
@@ -324,12 +307,12 @@ func xreaddir(dir string) []string {
 func xreaddirfiles(dir string) []string {
 	f, err := os.Open(dir)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 	defer f.Close()
 	infos, err := f.Readdir(-1)
 	if err != nil {
-		fatal("reading %s: %v", dir, err)
+		fatalf("reading %s: %v", dir, err)
 	}
 	var names []string
 	for _, fi := range infos {
@@ -343,15 +326,15 @@ func xreaddirfiles(dir string) []string {
 // xworkdir creates a new temporary directory to hold object files
 // and returns the name of that directory.
 func xworkdir() string {
-	name, err := ioutil.TempDir("", "go-tool-dist-")
+	name, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-tool-dist-")
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 	return name
 }
 
-// fatal prints an error message to standard error and exits.
-func fatal(format string, args ...interface{}) {
+// fatalf prints an error message to standard error and exits.
+func fatalf(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "go tool dist: %s\n", fmt.Sprintf(format, args...))
 
 	dieOnce.Do(func() { close(dying) })
@@ -387,127 +370,6 @@ func xprintf(format string, args ...interface{}) {
 // errprintf prints a message to standard output.
 func errprintf(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, args...)
-}
-
-// main takes care of OS-specific startup and dispatches to xmain.
-func main() {
-	os.Setenv("TERM", "dumb") // disable escape codes in clang errors
-
-	// provide -check-armv6k first, before checking for $GOROOT so that
-	// it is possible to run this check without having $GOROOT available.
-	if len(os.Args) > 1 && os.Args[1] == "-check-armv6k" {
-		useARMv6K() // might fail with SIGILL
-		println("ARMv6K supported.")
-		os.Exit(0)
-	}
-
-	slash = string(filepath.Separator)
-
-	gohostos = runtime.GOOS
-	switch gohostos {
-	case "darwin":
-		// Even on 64-bit platform, darwin uname -m prints i386.
-		// We don't support any of the OS X versions that run on 32-bit-only hardware anymore.
-		gohostarch = "amd64"
-	case "freebsd":
-		// Since FreeBSD 10 gcc is no longer part of the base system.
-		defaultclang = true
-	case "solaris":
-		// Even on 64-bit platform, solaris uname -m prints i86pc.
-		out := run("", CheckExit, "isainfo", "-n")
-		if strings.Contains(out, "amd64") {
-			gohostarch = "amd64"
-		}
-		if strings.Contains(out, "i386") {
-			gohostarch = "386"
-		}
-	case "plan9":
-		gohostarch = os.Getenv("objtype")
-		if gohostarch == "" {
-			fatal("$objtype is unset")
-		}
-	case "windows":
-		exe = ".exe"
-	}
-
-	sysinit()
-
-	if gohostarch == "" {
-		// Default Unix system.
-		out := run("", CheckExit, "uname", "-m")
-		switch {
-		case strings.Contains(out, "x86_64"), strings.Contains(out, "amd64"):
-			gohostarch = "amd64"
-		case strings.Contains(out, "86"):
-			gohostarch = "386"
-		case strings.Contains(out, "arm"):
-			gohostarch = "arm"
-		case strings.Contains(out, "aarch64"):
-			gohostarch = "arm64"
-		case strings.Contains(out, "ppc64le"):
-			gohostarch = "ppc64le"
-		case strings.Contains(out, "ppc64"):
-			gohostarch = "ppc64"
-		case strings.Contains(out, "mips64"):
-			gohostarch = "mips64"
-			if elfIsLittleEndian(os.Args[0]) {
-				gohostarch = "mips64le"
-			}
-		case strings.Contains(out, "mips"):
-			gohostarch = "mips"
-			if elfIsLittleEndian(os.Args[0]) {
-				gohostarch = "mipsle"
-			}
-		case strings.Contains(out, "s390x"):
-			gohostarch = "s390x"
-		case gohostos == "darwin":
-			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM_") {
-				gohostarch = "arm"
-			}
-		default:
-			fatal("unknown architecture: %s", out)
-		}
-	}
-
-	if gohostarch == "arm" || gohostarch == "mips64" || gohostarch == "mips64le" {
-		maxbg = min(maxbg, runtime.NumCPU())
-	}
-	bginit()
-
-	// The OS X 10.6 linker does not support external linking mode.
-	// See golang.org/issue/5130.
-	//
-	// OS X 10.6 does not work with clang either, but OS X 10.9 requires it.
-	// It seems to work with OS X 10.8, so we default to clang for 10.8 and later.
-	// See golang.org/issue/5822.
-	//
-	// Roughly, OS X 10.N shows up as uname release (N+4),
-	// so OS X 10.6 is uname version 10 and OS X 10.8 is uname version 12.
-	if gohostos == "darwin" {
-		rel := run("", CheckExit, "uname", "-r")
-		if i := strings.Index(rel, "."); i >= 0 {
-			rel = rel[:i]
-		}
-		osx, _ := strconv.Atoi(rel)
-		if osx <= 6+4 {
-			goextlinkenabled = "0"
-		}
-		if osx >= 8+4 {
-			defaultclang = true
-		}
-	}
-
-	if len(os.Args) > 1 && os.Args[1] == "-check-goarm" {
-		useVFPv1() // might fail with SIGILL
-		println("VFPv1 OK.")
-		useVFPv3() // might fail with SIGILL
-		println("VFPv3 OK.")
-		os.Exit(0)
-	}
-
-	xinit()
-	xmain()
-	xexit(0)
 }
 
 // xsamefile reports whether f1 and f2 are the same file (or dir)
@@ -570,21 +432,58 @@ func elfIsLittleEndian(fn string) bool {
 	// debug/elf package.
 	file, err := os.Open(fn)
 	if err != nil {
-		fatal("failed to open file to determine endianness: %v", err)
+		fatalf("failed to open file to determine endianness: %v", err)
 	}
 	defer file.Close()
 	var hdr [16]byte
 	if _, err := io.ReadFull(file, hdr[:]); err != nil {
-		fatal("failed to read ELF header to determine endianness: %v", err)
+		fatalf("failed to read ELF header to determine endianness: %v", err)
 	}
 	// hdr[5] is EI_DATA byte, 1 is ELFDATA2LSB and 2 is ELFDATA2MSB
 	switch hdr[5] {
 	default:
-		fatal("unknown ELF endianness of %s: EI_DATA = %d", fn, hdr[5])
+		fatalf("unknown ELF endianness of %s: EI_DATA = %d", fn, hdr[5])
 	case 1:
 		return true
 	case 2:
 		return false
 	}
 	panic("unreachable")
+}
+
+// count is a flag.Value that is like a flag.Bool and a flag.Int.
+// If used as -name, it increments the count, but -name=x sets the count.
+// Used for verbose flag -v.
+type count int
+
+func (c *count) String() string {
+	return fmt.Sprint(int(*c))
+}
+
+func (c *count) Set(s string) error {
+	switch s {
+	case "true":
+		*c++
+	case "false":
+		*c = 0
+	default:
+		n, err := strconv.Atoi(s)
+		if err != nil {
+			return fmt.Errorf("invalid count %q", s)
+		}
+		*c = count(n)
+	}
+	return nil
+}
+
+func (c *count) IsBoolFlag() bool {
+	return true
+}
+
+func xflagparse(maxargs int) {
+	flag.Var((*count)(&vflag), "v", "verbosity")
+	flag.Parse()
+	if maxargs >= 0 && flag.NArg() > maxargs {
+		flag.Usage()
+	}
 }

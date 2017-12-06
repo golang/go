@@ -7,14 +7,112 @@
 #include "funcdata.h"
 #include "textflag.h"
 
+// _rt0_arm is common startup code for most ARM systems when using
+// internal linking. This is the entry point for the program from the
+// kernel for an ordinary -buildmode=exe program. The stack holds the
+// number of arguments and the C-style argv.
+TEXT _rt0_arm(SB),NOSPLIT,$-4
+	MOVW	(R13), R0	// argc
+	MOVW	$4(R13), R1		// argv
+	B	runtime·rt0_go(SB)
+
+// main is common startup code for most ARM systems when using
+// external linking. The C startup code will call the symbol "main"
+// passing argc and argv in the usual C ABI registers R0 and R1.
+TEXT main(SB),NOSPLIT,$-4
+	B	runtime·rt0_go(SB)
+
+// _rt0_arm_lib is common startup code for most ARM systems when
+// using -buildmode=c-archive or -buildmode=c-shared. The linker will
+// arrange to invoke this function as a global constructor (for
+// c-archive) or when the shared library is loaded (for c-shared).
+// We expect argc and argv to be passed in the usual C ABI registers
+// R0 and R1.
+TEXT _rt0_arm_lib(SB),NOSPLIT,$104
+	// Preserve callee-save registers. Raspberry Pi's dlopen(), for example,
+	// actually cares that R11 is preserved.
+	MOVW	R4, 12(R13)
+	MOVW	R5, 16(R13)
+	MOVW	R6, 20(R13)
+	MOVW	R7, 24(R13)
+	MOVW	R8, 28(R13)
+	MOVW	R11, 32(R13)
+
+	// Skip floating point registers on GOARM < 6.
+	MOVB    runtime·goarm(SB), R11
+	CMP	$6, R11
+	BLT	skipfpsave
+	MOVD	F8, (32+8*1)(R13)
+	MOVD	F9, (32+8*2)(R13)
+	MOVD	F10, (32+8*3)(R13)
+	MOVD	F11, (32+8*4)(R13)
+	MOVD	F12, (32+8*5)(R13)
+	MOVD	F13, (32+8*6)(R13)
+	MOVD	F14, (32+8*7)(R13)
+	MOVD	F15, (32+8*8)(R13)
+skipfpsave:
+	// Save argc/argv.
+	MOVW	R0, _rt0_arm_lib_argc<>(SB)
+	MOVW	R1, _rt0_arm_lib_argv<>(SB)
+
+	// Synchronous initialization.
+	CALL	runtime·libpreinit(SB)
+
+	// Create a new thread to do the runtime initialization.
+	MOVW	_cgo_sys_thread_create(SB), R2
+	CMP	$0, R2
+	BEQ	nocgo
+	MOVW	$_rt0_arm_lib_go<>(SB), R0
+	MOVW	$0, R1
+	BL	(R2)
+	B	rr
+nocgo:
+	MOVW	$0x800000, R0                     // stacksize = 8192KB
+	MOVW	$_rt0_arm_lib_go<>(SB), R1  // fn
+	MOVW	R0, 4(R13)
+	MOVW	R1, 8(R13)
+	BL	runtime·newosproc0(SB)
+rr:
+	// Restore callee-save registers and return.
+	MOVB    runtime·goarm(SB), R11
+	CMP	$6, R11
+	BLT	skipfprest
+	MOVD	(32+8*1)(R13), F8
+	MOVD	(32+8*2)(R13), F9
+	MOVD	(32+8*3)(R13), F10
+	MOVD	(32+8*4)(R13), F11
+	MOVD	(32+8*5)(R13), F12
+	MOVD	(32+8*6)(R13), F13
+	MOVD	(32+8*7)(R13), F14
+	MOVD	(32+8*8)(R13), F15
+skipfprest:
+	MOVW	12(R13), R4
+	MOVW	16(R13), R5
+	MOVW	20(R13), R6
+	MOVW	24(R13), R7
+	MOVW	28(R13), R8
+	MOVW	32(R13), R11
+	RET
+
+// _rt0_arm_lib_go initializes the Go runtime.
+// This is started in a separate thread by _rt0_arm_lib.
+TEXT _rt0_arm_lib_go<>(SB),NOSPLIT,$8
+	MOVW	_rt0_arm_lib_argc<>(SB), R0
+	MOVW	_rt0_arm_lib_argv<>(SB), R1
+	B	runtime·rt0_go(SB)
+
+DATA _rt0_arm_lib_argc<>(SB)/4,$0
+GLOBL _rt0_arm_lib_argc<>(SB),NOPTR,$4
+DATA _rt0_arm_lib_argv<>(SB)/4,$0
+GLOBL _rt0_arm_lib_argv<>(SB),NOPTR,$4
+
 // using frame size $-4 means do not save LR on stack.
+// argc is in R0, argv is in R1.
 TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 	MOVW	$0xcafebabe, R12
 
 	// copy arguments forward on an even stack
 	// use R13 instead of SP to avoid linker rewriting the offsets
-	MOVW	0(R13), R0		// argc
-	MOVW	4(R13), R1		// argv
 	SUB	$64, R13		// plenty of scratch
 	AND	$~7, R13
 	MOVW	R0, 60(R13)		// save argc, argv away
@@ -129,19 +227,6 @@ TEXT runtime·gosave(SB),NOSPLIT,$-4-4
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB),NOSPLIT,$8-4
 	MOVW	buf+0(FP), R1
-
-	// If ctxt is not nil, invoke deletion barrier before overwriting.
-	MOVW	gobuf_ctxt(R1), R0
-	CMP	$0, R0
-	B.EQ	nilctxt
-	MOVW	$gobuf_ctxt(R1), R0
-	MOVW	R0, 4(R13)
-	MOVW	$0, R0
-	MOVW	R0, 8(R13)
-	BL	runtime·writebarrierptr_prewrite(SB)
-	MOVW	buf+0(FP), R1
-
-nilctxt:
 	MOVW	gobuf_g(R1), R0
 	BL	setg<>(SB)
 
@@ -273,10 +358,12 @@ switch:
 	RET
 
 noswitch:
+	// Using a tail call here cleans up tracebacks since we won't stop
+	// at an intermediate systemstack.
 	MOVW	R0, R7
 	MOVW	0(R0), R0
-	BL	(R0)
-	RET
+	MOVW.P	4(R13), R14	// restore LR
+	B	(R0)
 
 /*
  * support for morestack
@@ -314,7 +401,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	MOVW	R13, (g_sched+gobuf_sp)(g)
 	MOVW	LR, (g_sched+gobuf_pc)(g)
 	MOVW	R3, (g_sched+gobuf_lr)(g)
-	// newstack will fill gobuf.ctxt.
+	MOVW	R7, (g_sched+gobuf_ctxt)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
@@ -328,8 +415,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	BL	setg<>(SB)
 	MOVW	(g_sched+gobuf_sp)(g), R13
 	MOVW	$0, R0
-	MOVW.W	R0, -8(R13)	// create a call frame on g0
-	MOVW	R7, 4(R13)	// ctxt argument
+	MOVW.W  R0, -4(R13)	// create a call frame on g0 (saved LR)
 	BL	runtime·newstack(SB)
 
 	// Not reached, but make sure the return PC from the call to newstack
@@ -677,9 +763,9 @@ TEXT setg<>(SB),NOSPLIT,$-4-0
 	MOVW	g, R0
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$4-8
-	MOVW	8(R13), R0		// LR saved by caller
-	MOVW	R0, ret+4(FP)
+TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
+	MOVW	0(R13), R0		// LR saved by caller
+	MOVW	R0, ret+0(FP)
 	RET
 
 TEXT runtime·emptyfunc(SB),0,$0-0
@@ -718,23 +804,6 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$-4-0
 TEXT runtime·aeshashstr(SB),NOSPLIT,$-4-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
-
-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
-// redirects to memhash(p, h, size) using the size
-// stored in the closure.
-TEXT runtime·memhash_varlen(SB),NOSPLIT,$16-12
-	GO_ARGS
-	NO_LOCAL_POINTERS
-	MOVW	p+0(FP), R0
-	MOVW	h+4(FP), R1
-	MOVW	4(R7), R2
-	MOVW	R0, 4(R13)
-	MOVW	R1, 8(R13)
-	MOVW	R2, 12(R13)
-	BL	runtime·memhash(SB)
-	MOVW	16(R13), R0
-	MOVW	R0, ret+8(FP)
-	RET
 
 // memequal(p, q unsafe.Pointer, size uintptr) bool
 TEXT runtime·memequal(SB),NOSPLIT,$-4-13
@@ -828,31 +897,6 @@ samebytes:
 	MOVW.GT	$-1, R0
 	MOVW.EQ	$0, R0
 	MOVW	R0, (R7)
-	RET
-
-// eqstring tests whether two strings are equal.
-// The compiler guarantees that strings passed
-// to eqstring have equal length.
-// See runtime_test.go:eqstring_generic for
-// equivalent Go code.
-TEXT runtime·eqstring(SB),NOSPLIT,$-4-17
-	MOVW	s1_base+0(FP), R2
-	MOVW	s2_base+8(FP), R3
-	MOVW	$1, R8
-	MOVB	R8, ret+16(FP)
-	CMP	R2, R3
-	RET.EQ
-	MOVW	s1_len+4(FP), R0
-	ADD	R2, R0, R6
-loop:
-	CMP	R2, R6
-	RET.EQ
-	MOVBU.P	1(R2), R4
-	MOVBU.P	1(R3), R5
-	CMP	R4, R5
-	BEQ	loop
-	MOVW	$0, R8
-	MOVB	R8, ret+16(FP)
 	RET
 
 // TODO: share code with memequal?
@@ -972,18 +1016,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$-4-0
 	BL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
 	MOVW	R0, R0	// NOP
-
-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
-	RET
-
-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-4
-	RET
-
-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
-	RET
-
-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
-	RET
 
 // x -> x/1000000, x%1000000, called from Go with args, results on stack.
 TEXT runtime·usplit(SB),NOSPLIT,$0-12

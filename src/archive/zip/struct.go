@@ -27,8 +27,8 @@ import (
 
 // Compression methods.
 const (
-	Store   uint16 = 0
-	Deflate uint16 = 8
+	Store   uint16 = 0 // no compression
+	Deflate uint16 = 8 // DEFLATE compressed
 )
 
 const (
@@ -46,40 +46,79 @@ const (
 	directory64LocLen        = 20         //
 	directory64EndLen        = 56         // + extra
 
-	// Constants for the first byte in CreatorVersion
+	// Constants for the first byte in CreatorVersion.
 	creatorFAT    = 0
 	creatorUnix   = 3
 	creatorNTFS   = 11
 	creatorVFAT   = 14
 	creatorMacOSX = 19
 
-	// version numbers
+	// Version numbers.
 	zipVersion20 = 20 // 2.0
 	zipVersion45 = 45 // 4.5 (reads and writes zip64 archives)
 
-	// limits for non zip64 files
+	// Limits for non zip64 files.
 	uint16max = (1 << 16) - 1
 	uint32max = (1 << 32) - 1
 
-	// extra header id's
-	zip64ExtraId = 0x0001 // zip64 Extended Information Extra Field
+	// Extra header IDs.
+	//
+	// IDs 0..31 are reserved for official use by PKWARE.
+	// IDs above that range are defined by third-party vendors.
+	// Since ZIP lacked high precision timestamps (nor a official specification
+	// of the timezone used for the date fields), many competing extra fields
+	// have been invented. Pervasive use effectively makes them "official".
+	//
+	// See http://mdfs.net/Docs/Comp/Archiving/Zip/ExtraField
+	zip64ExtraID       = 0x0001 // Zip64 extended information
+	ntfsExtraID        = 0x000a // NTFS
+	unixExtraID        = 0x000d // UNIX
+	extTimeExtraID     = 0x5455 // Extended timestamp
+	infoZipUnixExtraID = 0x5855 // Info-ZIP Unix extension
 )
 
 // FileHeader describes a file within a zip file.
 // See the zip spec for details.
 type FileHeader struct {
 	// Name is the name of the file.
-	// It must be a relative path: it must not start with a drive
-	// letter (e.g. C:) or leading slash, and only forward slashes
-	// are allowed.
+	// It must be a relative path, not start with a drive letter (e.g. C:),
+	// and must use forward slashes instead of back slashes.
 	Name string
 
-	CreatorVersion     uint16
-	ReaderVersion      uint16
-	Flags              uint16
-	Method             uint16
-	ModifiedTime       uint16 // MS-DOS time
-	ModifiedDate       uint16 // MS-DOS date
+	// Comment is any arbitrary user-defined string shorter than 64KiB.
+	Comment string
+
+	// NonUTF8 indicates that Name and Comment are not encoded in UTF-8.
+	//
+	// By specification, the only other encoding permitted should be CP-437,
+	// but historically many ZIP readers interpret Name and Comment as whatever
+	// the system's local character encoding happens to be.
+	//
+	// This flag should only be set if the user intends to encode a non-portable
+	// ZIP file for a specific localized region. Otherwise, the Writer
+	// automatically sets the ZIP format's UTF-8 flag for valid UTF-8 strings.
+	NonUTF8 bool
+
+	CreatorVersion uint16
+	ReaderVersion  uint16
+	Flags          uint16
+
+	// Method is the compression method. If zero, Store is used.
+	Method uint16
+
+	// Modified is the modified time of the file.
+	//
+	// When reading, an extended timestamp is preferred over the legacy MS-DOS
+	// date field, and the offset between the times is used as the timezone.
+	// If only the MS-DOS date is present, the timezone is assumed to be UTC.
+	//
+	// When writing, an extended timestamp (which is timezone-agnostic) is
+	// always emitted. The legacy MS-DOS date field is encoded according to the
+	// location of the Modified time.
+	Modified     time.Time
+	ModifiedTime uint16 // Deprecated: Legacy MS-DOS date; use Modified instead.
+	ModifiedDate uint16 // Deprecated: Legacy MS-DOS time; use Modified instead.
+
 	CRC32              uint32
 	CompressedSize     uint32 // Deprecated: Use CompressedSize64 instead.
 	UncompressedSize   uint32 // Deprecated: Use UncompressedSize64 instead.
@@ -87,7 +126,6 @@ type FileHeader struct {
 	UncompressedSize64 uint64
 	Extra              []byte
 	ExternalAttrs      uint32 // Meaning depends on CreatorVersion
-	Comment            string
 }
 
 // FileInfo returns an os.FileInfo for the FileHeader.
@@ -117,6 +155,8 @@ func (fi headerFileInfo) Sys() interface{}   { return fi.fh }
 // Because os.FileInfo's Name method returns only the base name of
 // the file it describes, it may be necessary to modify the Name field
 // of the returned header to provide the full path name of the file.
+// If compression is desired, callers should set the FileHeader.Method
+// field; it is unset by default.
 func FileInfoHeader(fi os.FileInfo) (*FileHeader, error) {
 	size := fi.Size()
 	fh := &FileHeader{
@@ -144,6 +184,21 @@ type directoryEnd struct {
 	comment            string
 }
 
+// timeZone returns a *time.Location based on the provided offset.
+// If the offset is non-sensible, then this uses an offset of zero.
+func timeZone(offset time.Duration) *time.Location {
+	const (
+		minOffset   = -12 * time.Hour  // E.g., Baker island at -12:00
+		maxOffset   = +14 * time.Hour  // E.g., Line island at +14:00
+		offsetAlias = 15 * time.Minute // E.g., Nepal at +5:45
+	)
+	offset = offset.Round(offsetAlias)
+	if offset < minOffset || maxOffset < offset {
+		offset = 0
+	}
+	return time.FixedZone("", int(offset/time.Second))
+}
+
 // msDosTimeToTime converts an MS-DOS date and time into a time.Time.
 // The resolution is 2s.
 // See: http://msdn.microsoft.com/en-us/library/ms724247(v=VS.85).aspx
@@ -168,21 +223,26 @@ func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
 // The resolution is 2s.
 // See: http://msdn.microsoft.com/en-us/library/ms724274(v=VS.85).aspx
 func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
-	t = t.In(time.UTC)
 	fDate = uint16(t.Day() + int(t.Month())<<5 + (t.Year()-1980)<<9)
 	fTime = uint16(t.Second()/2 + t.Minute()<<5 + t.Hour()<<11)
 	return
 }
 
-// ModTime returns the modification time in UTC.
-// The resolution is 2s.
+// ModTime returns the modification time in UTC using the legacy
+// ModifiedDate and ModifiedTime fields.
+//
+// Deprecated: Use Modified instead.
 func (h *FileHeader) ModTime() time.Time {
 	return msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
 }
 
-// SetModTime sets the ModifiedTime and ModifiedDate fields to the given time in UTC.
-// The resolution is 2s.
+// SetModTime sets the Modified, ModifiedTime, and ModifiedDate fields
+// to the given time in UTC.
+//
+// Deprecated: Use Modified instead.
 func (h *FileHeader) SetModTime(t time.Time) {
+	t = t.UTC() // Convert to UTC for compatibility
+	h.Modified = t
 	h.ModifiedDate, h.ModifiedTime = timeToMsDosTime(t)
 }
 

@@ -159,6 +159,30 @@ func (f *File) Chdir() error {
 	return nil
 }
 
+// setDeadline sets the read and write deadline.
+func (f *File) setDeadline(t time.Time) error {
+	if err := f.checkValid("SetDeadline"); err != nil {
+		return err
+	}
+	return f.pfd.SetDeadline(t)
+}
+
+// setReadDeadline sets the read deadline.
+func (f *File) setReadDeadline(t time.Time) error {
+	if err := f.checkValid("SetReadDeadline"); err != nil {
+		return err
+	}
+	return f.pfd.SetReadDeadline(t)
+}
+
+// setWriteDeadline sets the write deadline.
+func (f *File) setWriteDeadline(t time.Time) error {
+	if err := f.checkValid("SetWriteDeadline"); err != nil {
+		return err
+	}
+	return f.pfd.SetWriteDeadline(t)
+}
+
 // checkValid checks whether f is valid for use.
 // If not, it returns an appropriate error, perhaps incorporating the operation name op.
 func (f *File) checkValid(op string) error {

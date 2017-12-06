@@ -194,6 +194,9 @@ func TestBasic(t *testing.T) {
 	if err := c.Verify("user1@gmail.com"); err == nil {
 		t.Fatalf("First VRFY: expected no verification")
 	}
+	if err := c.Verify("user2@gmail.com>\r\nDATA\r\nAnother injected message body\r\n.\r\nQUIT\r\n"); err == nil {
+		t.Fatalf("VRFY should have failed due to a message injection attempt")
+	}
 	if err := c.Verify("user2@gmail.com"); err != nil {
 		t.Fatalf("Second VRFY: expected verification, got %s", err)
 	}
@@ -205,6 +208,12 @@ func TestBasic(t *testing.T) {
 		t.Fatalf("AUTH failed: %s", err)
 	}
 
+	if err := c.Rcpt("golang-nuts@googlegroups.com>\r\nDATA\r\nInjected message body\r\n.\r\nQUIT\r\n"); err == nil {
+		t.Fatalf("RCPT should have failed due to a message injection attempt")
+	}
+	if err := c.Mail("user@gmail.com>\r\nDATA\r\nAnother injected message body\r\n.\r\nQUIT\r\n"); err == nil {
+		t.Fatalf("MAIL should have failed due to a message injection attempt")
+	}
 	if err := c.Mail("user@gmail.com"); err != nil {
 		t.Fatalf("MAIL failed: %s", err)
 	}
@@ -376,21 +385,21 @@ func TestNewClientWithTLS(t *testing.T) {
 	if err != nil {
 		ln, err = tls.Listen("tcp", "[::1]:0", &config)
 		if err != nil {
-			t.Fatalf("server: listen: %s", err)
+			t.Fatalf("server: listen: %v", err)
 		}
 	}
 
 	go func() {
 		conn, err := ln.Accept()
 		if err != nil {
-			t.Fatalf("server: accept: %s", err)
+			t.Errorf("server: accept: %v", err)
 			return
 		}
 		defer conn.Close()
 
 		_, err = conn.Write([]byte("220 SIGNS\r\n"))
 		if err != nil {
-			t.Fatalf("server: write: %s", err)
+			t.Errorf("server: write: %v", err)
 			return
 		}
 	}()
@@ -398,13 +407,13 @@ func TestNewClientWithTLS(t *testing.T) {
 	config.InsecureSkipVerify = true
 	conn, err := tls.Dial("tcp", ln.Addr().String(), &config)
 	if err != nil {
-		t.Fatalf("client: dial: %s", err)
+		t.Fatalf("client: dial: %v", err)
 	}
 	defer conn.Close()
 
 	client, err := NewClient(conn, ln.Addr().String())
 	if err != nil {
-		t.Fatalf("smtp: newclient: %s", err)
+		t.Fatalf("smtp: newclient: %v", err)
 	}
 	if !client.tls {
 		t.Errorf("client.tls Got: %t Expected: %t", client.tls, true)
@@ -434,6 +443,10 @@ func TestHello(t *testing.T) {
 
 		switch i {
 		case 0:
+			err = c.Hello("hostinjection>\n\rDATA\r\nInjected message body\r\n.\r\nQUIT\r\n")
+			if err == nil {
+				t.Errorf("Expected Hello to be rejected due to a message injection attempt")
+			}
 			err = c.Hello("customhost")
 		case 1:
 			err = c.StartTLS(nil)
@@ -465,6 +478,8 @@ func TestHello(t *testing.T) {
 					t.Errorf("Want error, got none")
 				}
 			}
+		case 9:
+			err = c.Noop()
 		default:
 			t.Fatalf("Unhandled command")
 		}
@@ -497,6 +512,7 @@ var helloServer = []string{
 	"250 Reset ok\n",
 	"221 Goodbye\n",
 	"250 Sender ok\n",
+	"250 ok\n",
 }
 
 var baseHelloClient = `EHLO customhost
@@ -513,6 +529,7 @@ var helloClient = []string{
 	"RSET\n",
 	"QUIT\n",
 	"VRFY test@example.com\n",
+	"NOOP\n",
 }
 
 func TestSendMail(t *testing.T) {
@@ -564,6 +581,16 @@ func TestSendMail(t *testing.T) {
 			}
 		}
 	}(strings.Split(server, "\r\n"))
+
+	err = SendMail(l.Addr().String(), nil, "test@example.com", []string{"other@example.com>\n\rDATA\r\nInjected message body\r\n.\r\nQUIT\r\n"}, []byte(strings.Replace(`From: test@example.com
+To: other@example.com
+Subject: SendMail test
+
+SendMail is working for me.
+`, "\n", "\r\n", -1)))
+	if err == nil {
+		t.Errorf("Expected SendMail to be rejected due to a message injection attempt")
+	}
 
 	err = SendMail(l.Addr().String(), nil, "test@example.com", []string{"other@example.com"}, []byte(strings.Replace(`From: test@example.com
 To: other@example.com

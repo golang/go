@@ -41,10 +41,11 @@ func (p *Profile) FilterSamplesByName(focus, ignore, hide, show *regexp.Regexp) 
 			}
 		}
 		if show != nil {
-			hnm = true
 			l.Line = l.matchedLines(show)
 			if len(l.Line) == 0 {
 				hidden[l.ID] = true
+			} else {
+				hnm = true
 			}
 		}
 	}

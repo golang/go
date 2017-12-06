@@ -8,6 +8,7 @@ import (
 	. "runtime"
 	"syscall"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -21,6 +22,17 @@ func init() {
 	// for how it is used in init (must be on main thread).
 	pid, tid = syscall.Getpid(), syscall.Gettid()
 	LockOSThread()
+
+	sysNanosleep = func(d time.Duration) {
+		// Invoke a blocking syscall directly; calling time.Sleep()
+		// would deschedule the goroutine instead.
+		ts := syscall.NsecToTimespec(d.Nanoseconds())
+		for {
+			if err := syscall.Nanosleep(&ts, &ts); err != syscall.EINTR {
+				return
+			}
+		}
+	}
 }
 
 func TestLockOSThread(t *testing.T) {

@@ -122,18 +122,6 @@ TEXT runtime·gosave(SB), NOSPLIT, $-8-8
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB), NOSPLIT, $24-8
 	MOVD	buf+0(FP), R5
-
-	// If ctxt is not nil, invoke deletion barrier before overwriting.
-	MOVD	gobuf_ctxt(R5), R0
-	CMP	$0, R0
-	BEQ	nilctxt
-	MOVD	$gobuf_ctxt(R5), R0
-	MOVD	R0, 8(RSP)
-	MOVD	ZR, 16(RSP)
-	BL	runtime·writebarrierptr_prewrite(SB)
-	MOVD	buf+0(FP), R5
-
-nilctxt:
 	MOVD	gobuf_g(R5), g
 	BL	runtime·save_g(SB)
 
@@ -251,9 +239,11 @@ switch:
 
 noswitch:
 	// already on m stack, just call directly
+	// Using a tail call here cleans up tracebacks since we won't stop
+	// at an intermediate systemstack.
 	MOVD	0(R26), R3	// code pointer
-	BL	(R3)
-	RET
+	MOVD.P	16(RSP), R30	// restore LR
+	B	(R3)
 
 /*
  * support for morestack
@@ -289,7 +279,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
 	MOVD	R0, (g_sched+gobuf_sp)(g)
 	MOVD	LR, (g_sched+gobuf_pc)(g)
 	MOVD	R3, (g_sched+gobuf_lr)(g)
-	// newstack will fill gobuf.ctxt.
+	MOVD	R26, (g_sched+gobuf_ctxt)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's callers.
@@ -303,8 +293,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R0
 	MOVD	R0, RSP
-	MOVD.W	$0, -16(RSP)	// create a call frame on g0
-	MOVD	R26, 8(RSP)	// ctxt argument
+	MOVD.W	$0, -16(RSP)	// create a call frame on g0 (saved LR; keep 16-aligned)
 	BL	runtime·newstack(SB)
 
 	// Not reached, but make sure the return PC from the call to newstack
@@ -368,16 +357,26 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
 	MOVD	arg+16(FP), R3;			\
-	MOVWU	argsize+24(FP), R4;			\
-	MOVD	RSP, R5;				\
-	ADD	$(8-1), R5;			\
-	SUB	$1, R3;				\
-	ADD	R5, R4;				\
-	CMP	R5, R4;				\
-	BEQ	4(PC);				\
-	MOVBU.W	1(R3), R6;			\
-	MOVBU.W	R6, 1(R5);			\
-	B	-4(PC);				\
+	MOVWU	argsize+24(FP), R4;		\
+	ADD	$8, RSP, R5;			\
+	BIC	$0xf, R4, R6;			\
+	CBZ	R6, 6(PC);			\
+	/* if R6=(argsize&~15) != 0 */		\
+	ADD	R6, R5, R6;			\
+	/* copy 16 bytes a time */		\
+	LDP.P	16(R3), (R7, R8);		\
+	STP.P	(R7, R8), 16(R5);		\
+	CMP	R5, R6;				\
+	BNE	-3(PC);				\
+	AND	$0xf, R4, R6;			\
+	CBZ	R6, 6(PC);			\
+	/* if R6=(argsize&15) != 0 */		\
+	ADD	R6, R5, R6;			\
+	/* copy 1 byte a time for the rest */	\
+	MOVBU.P	1(R3), R7;			\
+	MOVBU.P	R7, 1(R5);			\
+	CMP	R5, R6;				\
+	BNE	-3(PC);				\
 	/* call function */			\
 	MOVD	f+8(FP), R26;			\
 	MOVD	(R26), R0;			\
@@ -704,52 +703,27 @@ TEXT setg_gcc<>(SB),NOSPLIT,$8
 	MOVD	savedR27-8(SP), R27
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
-	MOVD	16(RSP), R0		// LR saved by caller
-	MOVD	R0, ret+8(FP)
+TEXT runtime·getcallerpc(SB),NOSPLIT,$-8-8
+	MOVD	0(RSP), R0		// LR saved by caller
+	MOVD	R0, ret+0(FP)
 	RET
 
 TEXT runtime·abort(SB),NOSPLIT,$-8-0
 	B	(ZR)
 	UNDEF
 
-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
-// redirects to memhash(p, h, size) using the size
-// stored in the closure.
-TEXT runtime·memhash_varlen(SB),NOSPLIT,$40-24
-	GO_ARGS
-	NO_LOCAL_POINTERS
-	MOVD	p+0(FP), R3
-	MOVD	h+8(FP), R4
-	MOVD	8(R26), R5
-	MOVD	R3, 8(RSP)
-	MOVD	R4, 16(RSP)
-	MOVD	R5, 24(RSP)
-	BL	runtime·memhash(SB)
-	MOVD	32(RSP), R3
-	MOVD	R3, ret+16(FP)
-	RET
-
-// memequal(p, q unsafe.Pointer, size uintptr) bool
+// memequal(a, b unsafe.Pointer, size uintptr) bool
 TEXT runtime·memequal(SB),NOSPLIT,$-8-25
-	MOVD	a+0(FP), R1
+	MOVD	size+16(FP), R1
+	// short path to handle 0-byte case
+	CBZ	R1, equal
+	MOVD	a+0(FP), R0
 	MOVD	b+8(FP), R2
-	MOVD	size+16(FP), R3
-	ADD	R1, R3, R6
+	MOVD	$ret+24(FP), R8
+	B	runtime·memeqbody<>(SB)
+equal:
 	MOVD	$1, R0
 	MOVB	R0, ret+24(FP)
-	CMP	R1, R2
-	BEQ	done
-loop:
-	CMP	R1, R6
-	BEQ	done
-	MOVBU.P	1(R1), R4
-	MOVBU.P	1(R2), R5
-	CMP	R4, R5
-	BEQ	loop
-
-	MOVB	$0, ret+24(FP)
-done:
 	RET
 
 // memequal_varlen(a, b unsafe.Pointer) bool
@@ -823,102 +797,234 @@ samebytes:
 	MOVD	R4, (R7)
 	RET
 
-// eqstring tests whether two strings are equal.
-// The compiler guarantees that strings passed
-// to eqstring have equal length.
-// See runtime_test.go:eqstring_generic for
-// equivalent Go code.
-TEXT runtime·eqstring(SB),NOSPLIT,$0-33
-	MOVD	s1_base+0(FP), R0
-	MOVD	s1_len+8(FP), R1
-	MOVD	s2_base+16(FP), R2
-	ADD	R0, R1		// end
-loop:
-	CMP	R0, R1
-	BEQ	equal		// reaches the end
-	MOVBU.P	1(R0), R4
-	MOVBU.P	1(R2), R5
-	CMP	R4, R5
-	BEQ	loop
-notequal:
-	MOVB	ZR, ret+32(FP)
-	RET
-equal:
-	MOVD	$1, R0
-	MOVB	R0, ret+32(FP)
-	RET
-
 //
 // functions for other packages
 //
 TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
 	MOVD	b+0(FP), R0
-	MOVD	b_len+8(FP), R1
-	MOVBU	c+24(FP), R2	// byte to find
-	MOVD	R0, R4		// store base for later
-	ADD	R0, R1		// end
-loop:
-	CMP	R0, R1
-	BEQ	notfound
-	MOVBU.P	1(R0), R3
-	CMP	R2, R3
-	BNE	loop
-
-	SUB	$1, R0		// R0 will be one beyond the position we want
-	SUB	R4, R0		// remove base
-	MOVD	R0, ret+32(FP)
-	RET
-
-notfound:
-	MOVD	$-1, R0
-	MOVD	R0, ret+32(FP)
-	RET
+	MOVD	b_len+8(FP), R2
+	MOVBU	c+24(FP), R1
+	MOVD	$ret+32(FP), R8
+	B	runtime·indexbytebody<>(SB)
 
 TEXT strings·IndexByte(SB),NOSPLIT,$0-32
 	MOVD	s+0(FP), R0
-	MOVD	s_len+8(FP), R1
-	MOVBU	c+16(FP), R2	// byte to find
-	MOVD	R0, R4		// store base for later
-	ADD	R0, R1		// end
+	MOVD	s_len+8(FP), R2
+	MOVBU	c+16(FP), R1
+	MOVD	$ret+24(FP), R8
+	B	runtime·indexbytebody<>(SB)
+
+// input:
+//   R0: data
+//   R1: byte to search
+//   R2: data len
+//   R8: address to put result
+TEXT runtime·indexbytebody<>(SB),NOSPLIT,$0
+	// Core algorithm:
+	// For each 32-byte chunk we calculate a 64-bit syndrome value,
+	// with two bits per byte. For each tuple, bit 0 is set if the
+	// relevant byte matched the requested character and bit 1 is
+	// not used (faster than using a 32bit syndrome). Since the bits
+	// in the syndrome reflect exactly the order in which things occur
+	// in the original string, counting trailing zeros allows to
+	// identify exactly which byte has matched.
+
+	CBZ	R2, fail
+	MOVD	R0, R11
+	// Magic constant 0x40100401 allows us to identify
+	// which lane matches the requested byte.
+	// 0x40100401 = ((1<<0) + (4<<8) + (16<<16) + (64<<24))
+	// Different bytes have different bit masks (i.e: 1, 4, 16, 64)
+	MOVD	$0x40100401, R5
+	VMOV	R1, V0.B16
+	// Work with aligned 32-byte chunks
+	BIC	$0x1f, R0, R3
+	VMOV	R5, V5.S4
+	ANDS	$0x1f, R0, R9
+	AND	$0x1f, R2, R10
+	BEQ	loop
+
+	// Input string is not 32-byte aligned. We calculate the
+	// syndrome value for the aligned 32 bytes block containing
+	// the first bytes and mask off the irrelevant part.
+	VLD1.P	(R3), [V1.B16, V2.B16]
+	SUB	$0x20, R9, R4
+	ADDS	R4, R2, R2
+	VCMEQ	V0.B16, V1.B16, V3.B16
+	VCMEQ	V0.B16, V2.B16, V4.B16
+	VAND	V5.B16, V3.B16, V3.B16
+	VAND	V5.B16, V4.B16, V4.B16
+	VADDP	V4.B16, V3.B16, V6.B16 // 256->128
+	VADDP	V6.B16, V6.B16, V6.B16 // 128->64
+	VMOV	V6.D[0], R6
+	// Clear the irrelevant lower bits
+	LSL	$1, R9, R4
+	LSR	R4, R6, R6
+	LSL	R4, R6, R6
+	// The first block can also be the last
+	BLS	masklast
+	// Have we found something already?
+	CBNZ	R6, tail
+
 loop:
-	CMP	R0, R1
-	BEQ	notfound
-	MOVBU.P	1(R0), R3
-	CMP	R2, R3
-	BNE	loop
+	VLD1.P	(R3), [V1.B16, V2.B16]
+	SUBS	$0x20, R2, R2
+	VCMEQ	V0.B16, V1.B16, V3.B16
+	VCMEQ	V0.B16, V2.B16, V4.B16
+	// If we're out of data we finish regardless of the result
+	BLS	end
+	// Use a fast check for the termination condition
+	VORR	V4.B16, V3.B16, V6.B16
+	VADDP	V6.D2, V6.D2, V6.D2
+	VMOV	V6.D[0], R6
+	// We're not out of data, loop if we haven't found the character
+	CBZ	R6, loop
 
-	SUB	$1, R0		// R0 will be one beyond the position we want
-	SUB	R4, R0		// remove base
-	MOVD	R0, ret+24(FP)
+end:
+	// Termination condition found, let's calculate the syndrome value
+	VAND	V5.B16, V3.B16, V3.B16
+	VAND	V5.B16, V4.B16, V4.B16
+	VADDP	V4.B16, V3.B16, V6.B16
+	VADDP	V6.B16, V6.B16, V6.B16
+	VMOV	V6.D[0], R6
+	// Only do the clear for the last possible block with less than 32 bytes
+	// Condition flags come from SUBS in the loop
+	BHS	tail
+
+masklast:
+	// Clear the irrelevant upper bits
+	ADD	R9, R10, R4
+	AND	$0x1f, R4, R4
+	SUB	$0x20, R4, R4
+	NEG	R4<<1, R4
+	LSL	R4, R6, R6
+	LSR	R4, R6, R6
+
+tail:
+	// Check that we have found a character
+	CBZ	R6, fail
+	// Count the trailing zeros using bit reversing
+	RBIT	R6, R6
+	// Compensate the last post-increment
+	SUB	$0x20, R3, R3
+	// And count the leading zeros
+	CLZ	R6, R6
+	// R6 is twice the offset into the fragment
+	ADD	R6>>1, R3, R0
+	// Compute the offset result
+	SUB	R11, R0, R0
+	MOVD	R0, (R8)
 	RET
 
-notfound:
+fail:
 	MOVD	$-1, R0
-	MOVD	R0, ret+24(FP)
+	MOVD	R0, (R8)
 	RET
 
-// TODO: share code with memequal?
+// Equal(a, b []byte) bool
 TEXT bytes·Equal(SB),NOSPLIT,$0-49
 	MOVD	a_len+8(FP), R1
 	MOVD	b_len+32(FP), R3
-	CMP	R1, R3		// unequal lengths are not equal
-	BNE	notequal
+	CMP	R1, R3
+	// unequal lengths are not equal
+	BNE	not_equal
+	// short path to handle 0-byte case
+	CBZ	R1, equal
 	MOVD	a+0(FP), R0
 	MOVD	b+24(FP), R2
-	ADD	R0, R1		// end
-loop:
-	CMP	R0, R1
-	BEQ	equal		// reaches the end
-	MOVBU.P	1(R0), R4
-	MOVBU.P	1(R2), R5
-	CMP	R4, R5
-	BEQ	loop
-notequal:
-	MOVB	ZR, ret+48(FP)
-	RET
+	MOVD	$ret+48(FP), R8
+	B	runtime·memeqbody<>(SB)
 equal:
 	MOVD	$1, R0
 	MOVB	R0, ret+48(FP)
+	RET
+not_equal:
+	MOVB	ZR, ret+48(FP)
+	RET
+
+// input:
+// R0: pointer a
+// R1: data len
+// R2: pointer b
+// R8: address to put result
+TEXT runtime·memeqbody<>(SB),NOSPLIT,$0
+	CMP	$1, R1
+	// handle 1-byte special case for better performance
+	BEQ	one
+	CMP	$16, R1
+	// handle specially if length < 16
+	BLO	tail
+	BIC	$0x3f, R1, R3
+	CBZ	R3, chunk16
+	// work with 64-byte chunks
+	ADD	R3, R0, R6	// end of chunks
+chunk64_loop:
+	VLD1.P	(R0), [V0.D2, V1.D2, V2.D2, V3.D2]
+	VLD1.P	(R2), [V4.D2, V5.D2, V6.D2, V7.D2]
+	VCMEQ	V0.D2, V4.D2, V8.D2
+	VCMEQ	V1.D2, V5.D2, V9.D2
+	VCMEQ	V2.D2, V6.D2, V10.D2
+	VCMEQ	V3.D2, V7.D2, V11.D2
+	VAND	V8.B16, V9.B16, V8.B16
+	VAND	V8.B16, V10.B16, V8.B16
+	VAND	V8.B16, V11.B16, V8.B16
+	CMP	R0, R6
+	VMOV	V8.D[0], R4
+	VMOV	V8.D[1], R5
+	CBZ	R4, not_equal
+	CBZ	R5, not_equal
+	BNE	chunk64_loop
+	AND	$0x3f, R1, R1
+	CBZ	R1, equal
+chunk16:
+	// work with 16-byte chunks
+	BIC	$0xf, R1, R3
+	CBZ	R3, tail
+	ADD	R3, R0, R6	// end of chunks
+chunk16_loop:
+	VLD1.P	(R0), [V0.D2]
+	VLD1.P	(R2), [V1.D2]
+	VCMEQ	V0.D2, V1.D2, V2.D2
+	CMP	R0, R6
+	VMOV	V2.D[0], R4
+	VMOV	V2.D[1], R5
+	CBZ	R4, not_equal
+	CBZ	R5, not_equal
+	BNE	chunk16_loop
+	AND	$0xf, R1, R1
+	CBZ	R1, equal
+tail:
+	// special compare of tail with length < 16
+	TBZ	$3, R1, lt_8
+	MOVD.P	8(R0), R4
+	MOVD.P	8(R2), R5
+	CMP	R4, R5
+	BNE	not_equal
+lt_8:
+	TBZ	$2, R1, lt_4
+	MOVWU.P	4(R0), R4
+	MOVWU.P	4(R2), R5
+	CMP	R4, R5
+	BNE	not_equal
+lt_4:
+	TBZ	$1, R1, lt_2
+	MOVHU.P	2(R0), R4
+	MOVHU.P	2(R2), R5
+	CMP	R4, R5
+	BNE	not_equal
+lt_2:
+	TBZ     $0, R1, equal
+one:
+	MOVBU	(R0), R4
+	MOVBU	(R2), R5
+	CMP	R4, R5
+	BNE	not_equal
+equal:
+	MOVD	$1, R0
+	MOVB	R0, (R8)
+	RET
+not_equal:
+	MOVB	ZR, (R8)
 	RET
 
 TEXT runtime·return0(SB), NOSPLIT, $0
@@ -930,19 +1036,6 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 TEXT runtime·goexit(SB),NOSPLIT,$-8-0
 	MOVD	R0, R0	// NOP
 	BL	runtime·goexit1(SB)	// does not return
-
-// TODO(aram): use PRFM here.
-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
-	RET
-
-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
-	RET
-
-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
-	RET
-
-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
-	RET
 
 TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
 	RET

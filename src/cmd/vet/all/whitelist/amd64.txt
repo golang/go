@@ -5,8 +5,6 @@
 
 
 // reflect trampolines intentionally omit arg size. Same for morestack.
-reflect/asm_amd64.s: [amd64] makeFuncStub: use of 8(SP) points beyond argument frame
-reflect/asm_amd64.s: [amd64] methodValueCall: use of 8(SP) points beyond argument frame
 runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument frame
 runtime/asm_amd64.s: [amd64] morestack: use of 16(SP) points beyond argument frame
 runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument frame
@@ -33,3 +31,4 @@ runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
 runtime/asm_amd64.s: [amd64] stackcheck: function stackcheck missing Go declaration
 runtime/asm_amd64.s: [amd64] indexShortStr: function indexShortStr missing Go declaration
 runtime/asm_amd64.s: [amd64] countByte: function countByte missing Go declaration
+runtime/asm_amd64.s: [amd64] gcWriteBarrier: function gcWriteBarrier missing Go declaration

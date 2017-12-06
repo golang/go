@@ -69,15 +69,19 @@ func sysctlnametomib(name []byte, mib *[_CTL_MAXNAME]uint32) uint32 {
 }
 
 const (
-	_CPU_SETSIZE_MAX = 32 // Limited by _MaxGomaxprocs(256) in runtime2.go.
 	_CPU_CURRENT_PID = -1 // Current process ID.
 )
 
 //go:noescape
 func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
 
+//go:systemstack
 func getncpu() int32 {
-	var mask [_CPU_SETSIZE_MAX]byte
+	// Use a large buffer for the CPU mask. We're on the system
+	// stack, so this is fine, and we can't allocate memory for a
+	// dynamically-sized buffer at this point.
+	const maxCPUs = 64 * 1024
+	var mask [maxCPUs / 8]byte
 	var mib [_CTL_MAXNAME]uint32
 
 	// According to FreeBSD's /usr/src/sys/kern/kern_cpuset.c,
@@ -99,21 +103,20 @@ func getncpu() int32 {
 		return 1
 	}
 
-	size := maxcpus / _NBBY
-	ptrsize := uint32(unsafe.Sizeof(uintptr(0)))
-	if size < ptrsize {
-		size = ptrsize
+	maskSize := int(maxcpus+7) / 8
+	if maskSize < sys.PtrSize {
+		maskSize = sys.PtrSize
 	}
-	if size > _CPU_SETSIZE_MAX {
-		return 1
+	if maskSize > len(mask) {
+		maskSize = len(mask)
 	}
 
 	if cpuset_getaffinity(_CPU_LEVEL_WHICH, _CPU_WHICH_PID, _CPU_CURRENT_PID,
-		int(size), (*byte)(unsafe.Pointer(&mask[0]))) != 0 {
+		maskSize, (*byte)(unsafe.Pointer(&mask[0]))) != 0 {
 		return 1
 	}
 	n := int32(0)
-	for _, v := range mask[:size] {
+	for _, v := range mask[:maskSize] {
 		for v != 0 {
 			n += int32(v & 1)
 			v >>= 1

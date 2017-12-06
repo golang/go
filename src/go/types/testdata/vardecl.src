@@ -151,6 +151,13 @@ func (r T) _(a, b, c int) (u, v, w int) {
 	return
 }
 
+// Unused variables in closures must lead to only one error (issue #22524).
+func _() {
+	_ = func() {
+		var x /* ERROR declared but not used */ int
+	}
+}
+
 // Invalid (unused) expressions must not lead to spurious "declared but not used errors"
 func _() {
 	var a, b, c int

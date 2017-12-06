@@ -385,10 +385,7 @@ func lexinit1() {
 	s := builtinpkg.Lookup("error")
 	types.Errortype = makeErrorInterface()
 	types.Errortype.Sym = s
-	// TODO: If we can prove that it's safe to set errortype.Orig here
-	// than we don't need the special errortype/errorInterface case in
-	// bexport.go. See also issue #15920.
-	// errortype.Orig = makeErrorInterface()
+	types.Errortype.Orig = makeErrorInterface()
 	s.Def = asTypesNode(typenod(types.Errortype))
 
 	// We create separate byte and rune types for better error messages

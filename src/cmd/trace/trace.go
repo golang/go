@@ -42,12 +42,30 @@ func httpTrace(w http.ResponseWriter, r *http.Request) {
 // See https://github.com/catapult-project/catapult/blob/master/tracing/docs/embedding-trace-viewer.md
 // This is almost verbatim copy of:
 // https://github.com/catapult-project/catapult/blob/master/tracing/bin/index.html
-// on revision 623a005a3ffa9de13c4b92bc72290e7bcd1ca591.
+// on revision 5f9e4c3eaa555bdef18218a89f38c768303b7b6e.
 var templTrace = `
 <html>
 <head>
 <link href="/trace_viewer_html" rel="import">
+<style type="text/css">
+  html, body {
+    box-sizing: border-box;
+    overflow: hidden;
+    margin: 0px;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+  }
+  #trace-viewer {
+    width: 100%;
+    height: 100%;
+  }
+  #trace-viewer:focus {
+    outline: none;
+  }
+</style>
 <script>
+'use strict';
 (function() {
   var viewer;
   var url;
@@ -84,7 +102,9 @@ var templTrace = `
 
   function onResult(result) {
     model = new tr.Model();
-    var i = new tr.importer.Import(model);
+    var opts = new tr.importer.ImportOptions();
+    opts.shiftWorldToZero = false;
+    var i = new tr.importer.Import(model, opts);
     var p = i.importTracesWithProgressDialog([result]);
     p.then(onModelLoaded, onImportFail);
   }
@@ -94,7 +114,7 @@ var templTrace = `
     viewer.viewTitle = "trace";
   }
 
-  function onImportFail() {
+  function onImportFail(err) {
     var overlay = new tr.ui.b.Overlay();
     overlay.textContent = tr.b.normalizeException(err).message;
     overlay.title = 'Import error';
@@ -127,7 +147,7 @@ var templTrace = `
 // httpTraceViewerHTML serves static part of trace-viewer.
 // This URL is queried from templTrace HTML.
 func httpTraceViewerHTML(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, filepath.Join(runtime.GOROOT(), "misc", "trace", "trace_viewer_lean.html"))
+	http.ServeFile(w, r, filepath.Join(runtime.GOROOT(), "misc", "trace", "trace_viewer_full.html"))
 }
 
 // httpJsonTrace serves json trace, requested from within templTrace HTML.
@@ -258,7 +278,7 @@ type traceContext struct {
 
 	heapStats, prevHeapStats     heapStats
 	threadStats, prevThreadStats threadStats
-	gstates, prevGstates         [gStateCount]uint64
+	gstates, prevGstates         [gStateCount]int64
 }
 
 type heapStats struct {
@@ -267,8 +287,9 @@ type heapStats struct {
 }
 
 type threadStats struct {
-	insyscall uint64
-	prunning  uint64
+	insyscallRuntime uint64 // system goroutine in syscall
+	insyscall        uint64 // user goroutine in syscall
+	prunning         uint64 // thread running P
 }
 
 type frameNode struct {
@@ -289,8 +310,9 @@ const (
 )
 
 type gInfo struct {
-	state      gState       // current state
-	name       string       // name chosen for this goroutine at first EvGoStart
+	state      gState // current state
+	name       string // name chosen for this goroutine at first EvGoStart
+	isSystemG  bool
 	start      *trace.Event // most recent EvGoStart
 	markAssist *trace.Event // if non-nil, the mark assist currently running.
 }
@@ -371,6 +393,7 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 		ctx.gstates[newState]++
 		info.state = newState
 	}
+
 	for _, ev := range ctx.events {
 		// Handle state transitions before we filter out events.
 		switch ev.Type {
@@ -378,10 +401,12 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 			setGState(ev, ev.G, gRunnable, gRunning)
 			info := getGInfo(ev.G)
 			if info.name == "" {
-				if len(ev.Stk) > 0 {
-					info.name = fmt.Sprintf("G%v %s", ev.G, ev.Stk[0].Fn)
-				} else {
+				if len(ev.Stk) == 0 {
 					info.name = fmt.Sprintf("G%v", ev.G)
+				} else {
+					fname := ev.Stk[0].Fn
+					info.name = fmt.Sprintf("G%v %s", ev.G, fname)
+					info.isSystemG = strings.HasPrefix(fname, "runtime.") && fname != "runtime.main"
 				}
 			}
 			info.start = ev
@@ -399,10 +424,18 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 			setGState(ev, ev.Args[0], gWaiting, gRunnable)
 		case trace.EvGoSysExit:
 			setGState(ev, ev.G, gWaiting, gRunnable)
-			ctx.threadStats.insyscall--
+			if getGInfo(ev.G).isSystemG {
+				ctx.threadStats.insyscallRuntime--
+			} else {
+				ctx.threadStats.insyscall--
+			}
 		case trace.EvGoSysBlock:
 			setGState(ev, ev.G, gRunning, gWaiting)
-			ctx.threadStats.insyscall++
+			if getGInfo(ev.G).isSystemG {
+				ctx.threadStats.insyscallRuntime++
+			} else {
+				ctx.threadStats.insyscall++
+			}
 		case trace.EvGoSched, trace.EvGoPreempt:
 			setGState(ev, ev.G, gRunning, gRunnable)
 		case trace.EvGoStop,
@@ -420,7 +453,11 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 		case trace.EvGoInSyscall:
 			// Cancel out the effect of EvGoCreate at the beginning.
 			setGState(ev, ev.G, gRunnable, gWaiting)
-			ctx.threadStats.insyscall++
+			if getGInfo(ev.G).isSystemG {
+				ctx.threadStats.insyscallRuntime++
+			} else {
+				ctx.threadStats.insyscall++
+			}
 		case trace.EvHeapAlloc:
 			ctx.heapStats.heapAlloc = ev.Args[0]
 		case trace.EvNextGC:
@@ -429,8 +466,8 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 		if setGStateErr != nil {
 			return ctx.data, setGStateErr
 		}
-		if ctx.gstates[gRunnable] < 0 || ctx.gstates[gRunning] < 0 || ctx.threadStats.insyscall < 0 {
-			return ctx.data, fmt.Errorf("invalid state after processing %v: runnable=%d running=%d insyscall=%d", ev, ctx.gstates[gRunnable], ctx.gstates[gRunning], ctx.threadStats.insyscall)
+		if ctx.gstates[gRunnable] < 0 || ctx.gstates[gRunning] < 0 || ctx.threadStats.insyscall < 0 || ctx.threadStats.insyscallRuntime < 0 {
+			return ctx.data, fmt.Errorf("invalid state after processing %v: runnable=%d running=%d insyscall=%d insyscallRuntime=%d", ev, ctx.gstates[gRunnable], ctx.gstates[gRunning], ctx.threadStats.insyscall, ctx.threadStats.insyscallRuntime)
 		}
 
 		// Ignore events that are from uninteresting goroutines
@@ -461,12 +498,12 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 		case trace.EvGCStart:
 			ctx.emitSlice(ev, "GC")
 		case trace.EvGCDone:
-		case trace.EvGCScanStart:
+		case trace.EvGCSTWStart:
 			if ctx.gtrace {
 				continue
 			}
-			ctx.emitSlice(ev, "MARK TERMINATION")
-		case trace.EvGCScanDone:
+			ctx.emitSlice(ev, fmt.Sprintf("STW (%s)", ev.SArgs[0]))
+		case trace.EvGCSTWDone:
 		case trace.EvGCMarkAssistStart:
 			// Mark assists can continue past preemptions, so truncate to the
 			// whichever comes first. We'll synthesize another slice if
@@ -627,7 +664,7 @@ func (ctx *traceContext) emitGoroutineCounters(ev *trace.Event) {
 	if ctx.prevGstates == ctx.gstates {
 		return
 	}
-	ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{ctx.gstates[gRunning], ctx.gstates[gRunnable], ctx.gstates[gWaitingGC]}})
+	ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{uint64(ctx.gstates[gRunning]), uint64(ctx.gstates[gRunnable]), uint64(ctx.gstates[gWaitingGC])}})
 	ctx.prevGstates = ctx.gstates
 }
 
@@ -643,7 +680,9 @@ func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
 	if ctx.prevThreadStats == ctx.threadStats {
 		return
 	}
-	ctx.emit(&ViewerEvent{Name: "Threads", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &threadCountersArg{ctx.threadStats.prunning, ctx.threadStats.insyscall}})
+	ctx.emit(&ViewerEvent{Name: "Threads", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &threadCountersArg{
+		Running:   ctx.threadStats.prunning,
+		InSyscall: ctx.threadStats.insyscall}})
 	ctx.prevThreadStats = ctx.threadStats
 }
 

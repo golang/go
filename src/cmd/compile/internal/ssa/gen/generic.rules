@@ -38,14 +38,22 @@
 // For now, the generated successors must be a permutation of the matched successors.
 
 // constant folding
-(Trunc16to8  (Const16 [c]))  -> (Const8   [int64(int8(c))])
-(Trunc32to8  (Const32 [c]))  -> (Const8   [int64(int8(c))])
-(Trunc32to16 (Const32 [c]))  -> (Const16  [int64(int16(c))])
-(Trunc64to8  (Const64 [c]))  -> (Const8   [int64(int8(c))])
-(Trunc64to16 (Const64 [c]))  -> (Const16  [int64(int16(c))])
-(Trunc64to32 (Const64 [c]))  -> (Const32  [int64(int32(c))])
+(Trunc16to8  (Const16  [c])) -> (Const8   [int64(int8(c))])
+(Trunc32to8  (Const32  [c])) -> (Const8   [int64(int8(c))])
+(Trunc32to16 (Const32  [c])) -> (Const16  [int64(int16(c))])
+(Trunc64to8  (Const64  [c])) -> (Const8   [int64(int8(c))])
+(Trunc64to16 (Const64  [c])) -> (Const16  [int64(int16(c))])
+(Trunc64to32 (Const64  [c])) -> (Const32  [int64(int32(c))])
 (Cvt64Fto32F (Const64F [c])) -> (Const32F [f2i(float64(i2f32(c)))])
 (Cvt32Fto64F (Const32F [c])) -> (Const64F [c]) // c is already a 64 bit float
+(Cvt32to32F  (Const32  [c])) -> (Const32F [f2i(float64(float32(int32(c))))])
+(Cvt32to64F  (Const32  [c])) -> (Const64F [f2i(float64(int32(c)))])
+(Cvt64to32F  (Const64  [c])) -> (Const32F [f2i(float64(float32(c)))])
+(Cvt64to64F  (Const64  [c])) -> (Const64F [f2i(float64(c))])
+(Cvt32Fto32  (Const32F [c])) -> (Const32  [int64(int32(i2f(c)))])
+(Cvt32Fto64  (Const32F [c])) -> (Const64  [int64(i2f(c))])
+(Cvt64Fto32  (Const64F [c])) -> (Const32  [int64(int32(i2f(c)))])
+(Cvt64Fto64  (Const64F [c])) -> (Const64  [int64(i2f(c))])
 (Round32F x:(Const32F)) -> x
 (Round64F x:(Const64F)) -> x
 
@@ -208,6 +216,17 @@
 // (Mod64u x y) is always between 0 (inclusive) and y (exclusive).
 (IsInBounds (Mod32u _ y) y) -> (ConstBool [1])
 (IsInBounds (Mod64u _ y) y) -> (ConstBool [1])
+// Right shifting a unsigned number limits its value.
+(IsInBounds (ZeroExt8to64  (Rsh8Ux64  _ (Const64 [c]))) (Const64 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d -> (ConstBool [1])
+(IsInBounds (ZeroExt8to32  (Rsh8Ux64  _ (Const64 [c]))) (Const32 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d -> (ConstBool [1])
+(IsInBounds (ZeroExt8to16  (Rsh8Ux64  _ (Const64 [c]))) (Const16 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d -> (ConstBool [1])
+(IsInBounds                (Rsh8Ux64  _ (Const64 [c]))  (Const64 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d -> (ConstBool [1])
+(IsInBounds (ZeroExt16to64 (Rsh16Ux64 _ (Const64 [c]))) (Const64 [d])) && 0 < c && c < 16 && 1<<uint(16-c)-1 < d -> (ConstBool [1])
+(IsInBounds (ZeroExt16to32 (Rsh16Ux64 _ (Const64 [c]))) (Const64 [d])) && 0 < c && c < 16 && 1<<uint(16-c)-1 < d -> (ConstBool [1])
+(IsInBounds                (Rsh16Ux64 _ (Const64 [c]))  (Const64 [d])) && 0 < c && c < 16 && 1<<uint(16-c)-1 < d -> (ConstBool [1])
+(IsInBounds (ZeroExt32to64 (Rsh32Ux64 _ (Const64 [c]))) (Const64 [d])) && 0 < c && c < 32 && 1<<uint(32-c)-1 < d -> (ConstBool [1])
+(IsInBounds                (Rsh32Ux64 _ (Const64 [c]))  (Const64 [d])) && 0 < c && c < 32 && 1<<uint(32-c)-1 < d -> (ConstBool [1])
+(IsInBounds                (Rsh64Ux64 _ (Const64 [c]))  (Const64 [d])) && 0 < c && c < 64 && 1<<uint(64-c)-1 < d -> (ConstBool [1])
 
 (IsSliceInBounds x x) -> (ConstBool [1])
 (IsSliceInBounds (And32 (Const32 [c]) _) (Const32 [d])) && 0 <= c && c <= d -> (ConstBool [1])
@@ -310,6 +329,18 @@
   (Add64 (Const64 <t> [c*d]) (Mul64 <t> (Const64 <t> [c]) x))
 (Mul32 (Const32 <t> [c]) (Add32 <t> (Const32 <t> [d]) x)) ->
   (Add32 (Const32 <t> [int64(int32(c*d))]) (Mul32 <t> (Const32 <t> [c]) x))
+
+// Rewrite x*y + x*z  to  x*(y+z)
+(Add64 <t> (Mul64 x y) (Mul64 x z)) -> (Mul64 x (Add64 <t> y z))
+(Add32 <t> (Mul32 x y) (Mul32 x z)) -> (Mul32 x (Add32 <t> y z))
+(Add16 <t> (Mul16 x y) (Mul16 x z)) -> (Mul16 x (Add16 <t> y z))
+(Add8  <t> (Mul8  x y) (Mul8  x z)) -> (Mul8  x (Add8  <t> y z))
+
+// Rewrite x*y - x*z  to  x*(y-z)
+(Sub64 <t> (Mul64 x y) (Mul64 x z)) -> (Mul64 x (Sub64 <t> y z))
+(Sub32 <t> (Mul32 x y) (Mul32 x z)) -> (Mul32 x (Sub32 <t> y z))
+(Sub16 <t> (Mul16 x y) (Mul16 x z)) -> (Mul16 x (Sub16 <t> y z))
+(Sub8  <t> (Mul8  x y) (Mul8  x z)) -> (Mul8  x (Sub8  <t> y z))
 
 // rewrite shifts of 8/16/32 bit consts into 64 bit consts to reduce
 // the number of the other rewrite rules for const shifts
@@ -538,6 +569,25 @@
 (Leq16U (Const16 [c]) (Const16 [d])) -> (ConstBool [b2i(uint16(c) <= uint16(d))])
 (Leq8U  (Const8  [c]) (Const8  [d])) -> (ConstBool [b2i(uint8(c)  <= uint8(d))])
 
+// constant floating point comparisons
+(Eq64F (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(i2f(c) == i2f(d))])
+(Eq32F (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(i2f(c) == i2f(d))])
+
+(Neq64F (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(i2f(c) != i2f(d))])
+(Neq32F (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(i2f(c) != i2f(d))])
+
+(Greater64F (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(i2f(c) > i2f(d))])
+(Greater32F (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(i2f(c) > i2f(d))])
+
+(Geq64F (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(i2f(c) >= i2f(d))])
+(Geq32F (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(i2f(c) >= i2f(d))])
+
+(Less64F (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(i2f(c) < i2f(d))])
+(Less32F (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(i2f(c) < i2f(d))])
+
+(Leq64F (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(i2f(c) <= i2f(d))])
+(Leq32F (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(i2f(c) <= i2f(d))])
+
 // simplifications
 (Or64 x x) -> x
 (Or32 x x) -> x
@@ -691,6 +741,12 @@
 // Load of store of same address, with compatibly typed value and same size
 (Load <t1> p1 (Store {t2} p2 x _)) && isSamePtr(p1,p2) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.(*types.Type).Size() -> x
 
+// Pass constants through math.Float{32,64}bits and math.Float{32,64}frombits
+(Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && isSamePtr(p1,p2) && t2.(*types.Type).Size() == 8 && is64BitFloat(t1) -> (Const64F [x])
+(Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && isSamePtr(p1,p2) && t2.(*types.Type).Size() == 4 && is32BitFloat(t1) -> (Const32F [f2i(float64(math.Float32frombits(uint32(x))))])
+(Load <t1> p1 (Store {t2} p2 (Const64F [x]) _)) && isSamePtr(p1,p2) && t2.(*types.Type).Size() == 8 && is64BitInt(t1)   -> (Const64  [x])
+(Load <t1> p1 (Store {t2} p2 (Const32F [x]) _)) && isSamePtr(p1,p2) && t2.(*types.Type).Size() == 4 && is32BitInt(t1)   -> (Const32  [int64(int32(math.Float32bits(float32(i2f(x)))))])
+
 // Eliminate stores of values that have just been loaded from the same location.
 // We also handle the common case where there are some intermediate stores to non-overlapping struct fields.
 (Store {t1} p1 (Load <t2> p2 mem) mem) &&
@@ -819,8 +875,6 @@
 (Store _ (ArrayMake0) mem) -> mem
 (Store dst (ArrayMake1 e) mem) -> (Store {e.Type} dst e mem)
 
-(ArraySelect [0] (Load ptr mem)) -> (Load ptr mem)
-
 // Putting [1]{*byte} and similar into direct interfaces.
 (IMake typ (ArrayMake1 val)) -> (IMake typ val)
 (ArraySelect [0] x:(IData _)) -> x
@@ -946,6 +1000,13 @@
 (Div32u n (Const32 [c])) && isPowerOfTwo(c&0xffffffff) -> (Rsh32Ux64 n (Const64 <typ.UInt64> [log2(c&0xffffffff)]))
 (Div64u n (Const64 [c])) && isPowerOfTwo(c)            -> (Rsh64Ux64 n (Const64 <typ.UInt64> [log2(c)]))
 (Div64u n (Const64 [-1<<63]))                          -> (Rsh64Ux64 n (Const64 <typ.UInt64> [63]))
+
+// Signed non-negative divide by power of 2.
+(Div8  n (Const8  [c])) && isNonNegative(n) && isPowerOfTwo(c&0xff)       -> (Rsh8Ux64 n  (Const64 <typ.UInt64> [log2(c&0xff)]))
+(Div16 n (Const16 [c])) && isNonNegative(n) && isPowerOfTwo(c&0xffff)     -> (Rsh16Ux64 n (Const64 <typ.UInt64> [log2(c&0xffff)]))
+(Div32 n (Const32 [c])) && isNonNegative(n) && isPowerOfTwo(c&0xffffffff) -> (Rsh32Ux64 n (Const64 <typ.UInt64> [log2(c&0xffffffff)]))
+(Div64 n (Const64 [c])) && isNonNegative(n) && isPowerOfTwo(c)            -> (Rsh64Ux64 n (Const64 <typ.UInt64> [log2(c)]))
+(Div64 n (Const64 [-1<<63])) && isNonNegative(n)                          -> (Const64 [0])
 
 // Unsigned divide, not a power of 2.  Strength reduce to a multiply.
 // For 8-bit divides, we just do a direct 9-bit by 8-bit multiply.
@@ -1180,6 +1241,13 @@
 (Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c)            -> (And64 n (Const64 <t> [c-1]))
 (Mod64u <t> n (Const64 [-1<<63]))                          -> (And64 n (Const64 <t> [1<<63-1]))
 
+// Signed non-negative mod by power of 2 constant.
+(Mod8  <t> n (Const8  [c])) && isNonNegative(n) && isPowerOfTwo(c&0xff)       -> (And8 n (Const8 <t> [(c&0xff)-1]))
+(Mod16 <t> n (Const16 [c])) && isNonNegative(n) && isPowerOfTwo(c&0xffff)     -> (And16 n (Const16 <t> [(c&0xffff)-1]))
+(Mod32 <t> n (Const32 [c])) && isNonNegative(n) && isPowerOfTwo(c&0xffffffff) -> (And32 n (Const32 <t> [(c&0xffffffff)-1]))
+(Mod64 <t> n (Const64 [c])) && isNonNegative(n) && isPowerOfTwo(c)            -> (And64 n (Const64 <t> [c-1]))
+(Mod64 n (Const64 [-1<<63])) && isNonNegative(n)                              -> n
+
 // Signed mod by negative constant.
 (Mod8  <t> n (Const8  [c])) && c < 0 && c != -1<<7  -> (Mod8  <t> n (Const8  <t> [-c]))
 (Mod16 <t> n (Const16 [c])) && c < 0 && c != -1<<15 -> (Mod16 <t> n (Const16 <t> [-c]))
@@ -1360,15 +1428,13 @@
 	-> mem
 // nil checks just need to rewrite to something useless.
 // they will be deadcode eliminated soon afterwards.
-(NilCheck (Load (OffPtr [c] (SP)) mem) mem)
-	&& mem.Op == OpStaticCall
-	&& isSameSym(mem.Aux, "runtime.newobject")
+(NilCheck (Load (OffPtr [c] (SP)) (StaticCall {sym} _)) _)
+	&& isSameSym(sym, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
 	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
 	-> (Invalid)
-(NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem)) mem)
-	&& mem.Op == OpStaticCall
-	&& isSameSym(mem.Aux, "runtime.newobject")
+(NilCheck (OffPtr (Load (OffPtr [c] (SP)) (StaticCall {sym} _))) _)
+	&& isSameSym(sym, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
 	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
 	-> (Invalid)
@@ -1376,6 +1442,14 @@
 // Address comparison shows up in type assertions.
 (EqPtr x x) -> (ConstBool [1])
 (EqPtr (Addr {a} x) (Addr {b} x)) -> (ConstBool [b2i(a == b)])
+
+// Inline small runtime.memmove calls with constant length.
+(StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
+     && isSameSym(sym,"runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmoveSize(sz,config)
+     -> (Move {t.(*types.Type).Elem()} [sz] dst src mem)
+(StaticCall {sym} s1:(Store _ (Const32 [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
+     && isSameSym(sym,"runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmoveSize(sz,config)
+     -> (Move {t.(*types.Type).Elem()} [sz] dst src mem)
 
 // De-virtualize interface calls into static calls.
 // Note that (ITab (IMake)) doesn't get

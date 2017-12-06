@@ -23,6 +23,24 @@ import (
 	"unsafe"
 )
 
+func isDocker() bool {
+	_, err := os.Stat("/.dockerenv")
+	return err == nil
+}
+
+func isLXC() bool {
+	return os.Getenv("container") == "lxc"
+}
+
+func skipInContainer(t *testing.T) {
+	if isDocker() {
+		t.Skip("skip this test in Docker container")
+	}
+	if isLXC() {
+		t.Skip("skip this test in LXC container")
+	}
+}
+
 // Check if we are in a chroot by checking if the inode of / is
 // different from 2 (there is no better test available to non-root on
 // linux).
@@ -35,6 +53,7 @@ func isChrooted(t *testing.T) bool {
 }
 
 func checkUserNS(t *testing.T) {
+	skipInContainer(t)
 	if _, err := os.Stat("/proc/self/ns/user"); err != nil {
 		if os.IsNotExist(err) {
 			t.Skip("kernel doesn't support user namespaces")
@@ -114,7 +133,7 @@ func TestCloneNEWUSERAndRemapRootEnableSetgroups(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("skipping root only test")
 	}
-	testNEWUSERRemap(t, 0, 0, false)
+	testNEWUSERRemap(t, 0, 0, true)
 }
 
 func TestCloneNEWUSERAndRemapNoRootDisableSetgroups(t *testing.T) {
@@ -147,6 +166,7 @@ func TestEmptyCredGroupsDisableSetgroups(t *testing.T) {
 }
 
 func TestUnshare(t *testing.T) {
+	skipInContainer(t)
 	// Make sure we are running as root so we have permissions to use unshare
 	// and create a network namespace.
 	if os.Getuid() != 0 {
@@ -293,6 +313,7 @@ func TestUnshareMountNameSpaceHelper(*testing.T) {
 
 // Test for Issue 38471: unshare fails because systemd has forced / to be shared
 func TestUnshareMountNameSpace(t *testing.T) {
+	skipInContainer(t)
 	// Make sure we are running as root so we have permissions to use unshare
 	// and create a network namespace.
 	if os.Getuid() != 0 {
@@ -342,6 +363,7 @@ func TestUnshareMountNameSpace(t *testing.T) {
 
 // Test for Issue 20103: unshare fails when chroot is used
 func TestUnshareMountNameSpaceChroot(t *testing.T) {
+	skipInContainer(t)
 	// Make sure we are running as root so we have permissions to use unshare
 	// and create a network namespace.
 	if os.Getuid() != 0 {
@@ -477,6 +499,7 @@ func TestAmbientCapsHelper(*testing.T) {
 }
 
 func TestAmbientCaps(t *testing.T) {
+	skipInContainer(t)
 	// Make sure we are running as root so we have permissions to use unshare
 	// and create a network namespace.
 	if os.Getuid() != 0 {

@@ -113,6 +113,10 @@ type FuncVisitor struct {
 func (v *FuncVisitor) Visit(node ast.Node) ast.Visitor {
 	switch n := node.(type) {
 	case *ast.FuncDecl:
+		if n.Body == nil {
+			// Do not count declarations of assembly functions.
+			break
+		}
 		start := v.fset.Position(n.Pos())
 		end := v.fset.Position(n.End())
 		fe := &FuncExtent{

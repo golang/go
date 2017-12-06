@@ -129,20 +129,17 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 	min = v.visitcodelist(n.Nbody, min)
 	min = v.visitcodelist(n.Rlist, min)
 
-	if n.Op == OCALLFUNC || n.Op == OCALLMETH {
-		fn := n.Left
-		if n.Op == OCALLMETH {
-			fn = asNode(n.Left.Sym.Def)
-		}
+	switch n.Op {
+	case OCALLFUNC, OCALLMETH:
+		fn := asNode(n.Left.Type.Nname())
 		if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC && fn.Name.Defn != nil {
 			m := v.visit(fn.Name.Defn)
 			if m < min {
 				min = m
 			}
 		}
-	}
 
-	if n.Op == OCLOSURE {
+	case OCLOSURE:
 		m := v.visit(n.Func.Closure)
 		if m < min {
 			min = m
@@ -176,12 +173,6 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 // then the value can stay on the stack. If the value new(T) does
 // not escape, then new(T) can be rewritten into a stack allocation.
 // The same is true of slice literals.
-//
-// If optimizations are disabled (-N), this code is not used.
-// Instead, the compiler assumes that any value whose address
-// is taken without being immediately dereferenced
-// needs to be moved to the heap, and new(T) and slice
-// literals are always real allocations.
 
 func escapes(all []*Node) {
 	visitBottomUp(all, escAnalyze)
@@ -205,9 +196,7 @@ const (
 // allowed level when a loop is encountered. Using -2 suffices to
 // pass all the tests we have written so far, which we assume matches
 // the level of complexity we want the escape analysis code to handle.
-const (
-	MinLevel = -2
-)
+const MinLevel = -2
 
 // A Level encodes the reference state and context applied to
 // (stack, heap) allocated memory.
@@ -679,7 +668,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 	// Big stuff escapes unconditionally
 	// "Big" conditions that were scattered around in walk have been gathered here
 	if n.Esc != EscHeap && n.Type != nil &&
-		(n.Type.Width > MaxStackVarSize ||
+		(n.Type.Width > maxStackVarSize ||
 			(n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= 1<<16 ||
 			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
 		if Debug['m'] > 2 {
@@ -691,7 +680,18 @@ func (e *EscState) esc(n *Node, parent *Node) {
 	}
 
 	e.esc(n.Left, n)
+
+	if n.Op == ORANGE {
+		// ORANGE node's Right is evaluated before the loop
+		e.loopdepth--
+	}
+
 	e.esc(n.Right, n)
+
+	if n.Op == ORANGE {
+		e.loopdepth++
+	}
+
 	e.esclist(n.Nbody, n)
 	e.esclist(n.List, n)
 	e.esclist(n.Rlist, n)
@@ -848,7 +848,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 
 	case ORETURN:
 		retList := n.List
-		if retList.Len() == 1 && Curfn.Type.Results().NumFields() > 1 {
+		if retList.Len() == 1 && Curfn.Type.NumResults() > 1 {
 			// OAS2FUNC in disguise
 			// esccall already done on n.List.First()
 			// tie e.nodeEscState(n.List.First()).Retval to Curfn.Func.Dcl PPARAMOUT's
@@ -1279,16 +1279,14 @@ func parsetag(note string) uint16 {
 // to the second output (and if there are more than two outputs, there is no flow to those.)
 func describeEscape(em uint16) string {
 	var s string
-	if em&EscMask == EscUnknown {
+	switch em & EscMask {
+	case EscUnknown:
 		s = "EscUnknown"
-	}
-	if em&EscMask == EscNone {
+	case EscNone:
 		s = "EscNone"
-	}
-	if em&EscMask == EscHeap {
+	case EscHeap:
 		s = "EscHeap"
-	}
-	if em&EscMask == EscReturn {
+	case EscReturn:
 		s = "EscReturn"
 	}
 	if em&EscContentEscapes != 0 {
@@ -1554,20 +1552,20 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 					call.Right = arg
 				}
 				e.escassignWhyWhere(n, arg, "arg to recursive call", call) // TODO this message needs help.
-				if arg != args[0] {
-					// "..." arguments are untracked
-					for _, a := range args {
-						if Debug['m'] > 3 {
-							fmt.Printf("%v::esccall:: ... <- %S, untracked\n", linestr(lineno), a)
-						}
-						e.escassignSinkWhyWhere(arg, a, "... arg to recursive call", call)
-					}
-					// No more PPARAM processing, but keep
-					// going for PPARAMOUT.
-					args = nil
+				if arg == args[0] {
+					args = args[1:]
 					continue
 				}
-				args = args[1:]
+				// "..." arguments are untracked
+				for _, a := range args {
+					if Debug['m'] > 3 {
+						fmt.Printf("%v::esccall:: ... <- %S, untracked\n", linestr(lineno), a)
+					}
+					e.escassignSinkWhyWhere(arg, a, "... arg to recursive call", call)
+				}
+				// No more PPARAM processing, but keep
+				// going for PPARAMOUT.
+				args = nil
 
 			case PPARAMOUT:
 				cE.Retval.Append(n)

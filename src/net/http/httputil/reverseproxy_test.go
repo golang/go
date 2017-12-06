@@ -631,6 +631,35 @@ func TestReverseProxyModifyResponse(t *testing.T) {
 	}
 }
 
+// Issue 21255. Test ModifyResponse when an error from transport.RoundTrip
+// occurs, and that the proxy returns StatusOK.
+func TestReverseProxyModifyResponse_OnError(t *testing.T) {
+	// Always returns an error
+	errBackend := httptest.NewUnstartedServer(nil)
+	errBackend.Config.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+	defer errBackend.Close()
+
+	rpURL, _ := url.Parse(errBackend.URL)
+	rproxy := NewSingleHostReverseProxy(rpURL)
+	rproxy.ModifyResponse = func(resp *http.Response) error {
+		// Will be set for a non-nil error
+		resp.StatusCode = http.StatusOK
+		return nil
+	}
+
+	frontend := httptest.NewServer(rproxy)
+	defer frontend.Close()
+
+	resp, err := http.Get(frontend.URL)
+	if err != nil {
+		t.Fatalf("failed to reach proxy: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("err != nil: got res.StatusCode %d; expected %d", resp.StatusCode, http.StatusOK)
+	}
+	resp.Body.Close()
+}
+
 // Issue 16659: log errors from short read
 func TestReverseProxy_CopyBuffer(t *testing.T) {
 	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -768,4 +797,48 @@ type roundTripperFunc func(req *http.Request) (*http.Response, error)
 
 func (fn roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return fn(req)
+}
+
+func TestModifyResponseClosesBody(t *testing.T) {
+	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
+	req.RemoteAddr = "1.2.3.4:56789"
+	closeCheck := new(checkCloser)
+	logBuf := new(bytes.Buffer)
+	outErr := errors.New("ModifyResponse error")
+	rp := &ReverseProxy{
+		Director: func(req *http.Request) {},
+		Transport: &staticTransport{&http.Response{
+			StatusCode: 200,
+			Body:       closeCheck,
+		}},
+		ErrorLog: log.New(logBuf, "", 0),
+		ModifyResponse: func(*http.Response) error {
+			return outErr
+		},
+	}
+	rec := httptest.NewRecorder()
+	rp.ServeHTTP(rec, req)
+	res := rec.Result()
+	if g, e := res.StatusCode, http.StatusBadGateway; g != e {
+		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+	}
+	if !closeCheck.closed {
+		t.Errorf("body should have been closed")
+	}
+	if g, e := logBuf.String(), outErr.Error(); !strings.Contains(g, e) {
+		t.Errorf("ErrorLog %q does not contain %q", g, e)
+	}
+}
+
+type checkCloser struct {
+	closed bool
+}
+
+func (cc *checkCloser) Close() error {
+	cc.closed = true
+	return nil
+}
+
+func (cc *checkCloser) Read(b []byte) (int, error) {
+	return len(b), nil
 }

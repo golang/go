@@ -46,22 +46,35 @@ func (check *Checker) conversion(x *operand, T Type) {
 	// The conversion argument types are final. For untyped values the
 	// conversion provides the type, per the spec: "A constant may be
 	// given a type explicitly by a constant declaration or conversion,...".
-	final := x.typ
 	if isUntyped(x.typ) {
-		final = T
+		final := T
 		// - For conversions to interfaces, use the argument's default type.
 		// - For conversions of untyped constants to non-constant types, also
 		//   use the default type (e.g., []byte("foo") should report string
 		//   not []byte as type for the constant "foo").
 		// - Keep untyped nil for untyped nil arguments.
+		// - For integer to string conversions, keep the argument type.
+		//   (See also the TODO below.)
 		if IsInterface(T) || constArg && !isConstType(T) {
 			final = Default(x.typ)
+		} else if isInteger(x.typ) && isString(T) {
+			final = x.typ
 		}
 		check.updateExprType(x.expr, final, true)
 	}
 
 	x.typ = T
 }
+
+// TODO(gri) convertibleTo checks if T(x) is valid. It assumes that the type
+// of x is fully known, but that's not the case for say string(1<<s + 1.0):
+// Here, the type of 1<<s + 1.0 will be UntypedFloat which will lead to the
+// (correct!) refusal of the conversion. But the reported error is essentially
+// "cannot convert untyped float value to string", yet the correct error (per
+// the spec) is that we cannot shift a floating-point value: 1 in 1<<s should
+// be converted to UntypedFloat because of the addition of 1.0. Fixing this
+// is tricky because we'd have to run updateExprType on the argument first.
+// (Issue #21982.)
 
 func (x *operand) convertibleTo(conf *Config, T Type) bool {
 	// "x is assignable to T"

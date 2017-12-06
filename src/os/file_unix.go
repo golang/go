@@ -45,14 +45,16 @@ func rename(oldname, newname string) error {
 // can overwrite this data, which could cause the finalizer
 // to close the wrong file descriptor.
 type file struct {
-	pfd      poll.FD
-	name     string
-	dirinfo  *dirInfo // nil unless directory being read
-	nonblock bool     // whether we set nonblocking mode
+	pfd         poll.FD
+	name        string
+	dirinfo     *dirInfo // nil unless directory being read
+	nonblock    bool     // whether we set nonblocking mode
+	stdoutOrErr bool     // whether this is stdout or stderr
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
 // The file descriptor is valid only until f.Close is called or f is garbage collected.
+// On Unix systems this will cause the SetDeadline methods to stop working.
 func (f *File) Fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
@@ -74,12 +76,22 @@ func (f *File) Fd() uintptr {
 // name. The returned value will be nil if fd is not a valid file
 // descriptor.
 func NewFile(fd uintptr, name string) *File {
-	return newFile(fd, name, false)
+	return newFile(fd, name, kindNewFile)
 }
 
-// newFile is like NewFile, but if pollable is true it tries to add the
-// file to the runtime poller.
-func newFile(fd uintptr, name string, pollable bool) *File {
+// newFileKind describes the kind of file to newFile.
+type newFileKind int
+
+const (
+	kindNewFile newFileKind = iota
+	kindOpenFile
+	kindPipe
+)
+
+// newFile is like NewFile, but if called from OpenFile or Pipe
+// (as passed in the kind parameter) it tries to add the file to
+// the runtime poller.
+func newFile(fd uintptr, name string, kind newFileKind) *File {
 	fdi := int(fd)
 	if fdi < 0 {
 		return nil
@@ -90,16 +102,18 @@ func newFile(fd uintptr, name string, pollable bool) *File {
 			IsStream:      true,
 			ZeroReadIsEOF: true,
 		},
-		name: name,
+		name:        name,
+		stdoutOrErr: fdi == 1 || fdi == 2,
 	}}
 
 	// Don't try to use kqueue with regular files on FreeBSD.
 	// It crashes the system unpredictably while running all.bash.
 	// Issue 19093.
-	if runtime.GOOS == "freebsd" {
-		pollable = false
+	if runtime.GOOS == "freebsd" && kind == kindOpenFile {
+		kind = kindNewFile
 	}
 
+	pollable := kind == kindOpenFile || kind == kindPipe
 	if err := f.pfd.Init("file", pollable); err != nil {
 		// An error here indicates a failure to register
 		// with the netpoll system. That can happen for
@@ -130,7 +144,7 @@ type dirInfo struct {
 // output or standard error. See the SIGPIPE docs in os/signal, and
 // issue 11845.
 func epipecheck(file *File, e error) {
-	if e == syscall.EPIPE && (file.pfd.Sysfd == 1 || file.pfd.Sysfd == 2) {
+	if e == syscall.EPIPE && file.stdoutOrErr {
 		sigpipe()
 	}
 }
@@ -181,7 +195,7 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 		syscall.CloseOnExec(r)
 	}
 
-	return newFile(uintptr(r), name, true), nil
+	return newFile(uintptr(r), name, kindOpenFile), nil
 }
 
 // Close closes the File, rendering it unusable for I/O.

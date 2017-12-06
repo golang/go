@@ -7,6 +7,7 @@ package big
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -674,6 +675,37 @@ func checkGcd(aBytes, bBytes []byte) bool {
 	return x.Cmp(d) == 0
 }
 
+// euclidGCD is a reference implementation of Euclid's GCD
+// algorithm for testing against optimized algorithms.
+// Requirements: a, b > 0
+func euclidGCD(a, b *Int) *Int {
+
+	A := new(Int).Set(a)
+	B := new(Int).Set(b)
+	t := new(Int)
+
+	for len(B.abs) > 0 {
+		// A, B = B, A % B
+		t.Rem(A, B)
+		A, B, t = B, t, A
+	}
+	return A
+}
+
+func checkLehmerGcd(aBytes, bBytes []byte) bool {
+	a := new(Int).SetBytes(aBytes)
+	b := new(Int).SetBytes(bBytes)
+
+	if a.Sign() <= 0 || b.Sign() <= 0 {
+		return true // can only test positive arguments
+	}
+
+	d := new(Int).lehmerGCD(a, b)
+	d0 := euclidGCD(a, b)
+
+	return d.Cmp(d0) == 0
+}
+
 var gcdTests = []struct {
 	d, x, y, a, b string
 }{
@@ -707,38 +739,28 @@ func testGcd(t *testing.T, d, x, y, a, b *Int) {
 
 	D := new(Int).GCD(X, Y, a, b)
 	if D.Cmp(d) != 0 {
-		t.Errorf("GCD(%s, %s): got d = %s, want %s", a, b, D, d)
+		t.Errorf("GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, D, d)
 	}
 	if x != nil && X.Cmp(x) != 0 {
-		t.Errorf("GCD(%s, %s): got x = %s, want %s", a, b, X, x)
+		t.Errorf("GCD(%s, %s, %s, %s): got x = %s, want %s", x, y, a, b, X, x)
 	}
 	if y != nil && Y.Cmp(y) != 0 {
-		t.Errorf("GCD(%s, %s): got y = %s, want %s", a, b, Y, y)
-	}
-
-	// binaryGCD requires a > 0 && b > 0
-	if a.Sign() <= 0 || b.Sign() <= 0 {
-		return
-	}
-
-	D.binaryGCD(a, b)
-	if D.Cmp(d) != 0 {
-		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, D, d)
+		t.Errorf("GCD(%s, %s, %s, %s): got y = %s, want %s", x, y, a, b, Y, y)
 	}
 
 	// check results in presence of aliasing (issue #11284)
 	a2 := new(Int).Set(a)
 	b2 := new(Int).Set(b)
-	a2.binaryGCD(a2, b2) // result is same as 1st argument
+	a2.GCD(X, Y, a2, b2) // result is same as 1st argument
 	if a2.Cmp(d) != 0 {
-		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, a2, d)
+		t.Errorf("aliased z = a GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, a2, d)
 	}
 
 	a2 = new(Int).Set(a)
 	b2 = new(Int).Set(b)
-	b2.binaryGCD(a2, b2) // result is same as 2nd argument
+	b2.GCD(X, Y, a2, b2) // result is same as 2nd argument
 	if b2.Cmp(d) != 0 {
-		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, b2, d)
+		t.Errorf("aliased z = b GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, b2, d)
 	}
 }
 
@@ -757,6 +779,10 @@ func TestGcd(t *testing.T) {
 	}
 
 	if err := quick.Check(checkGcd, nil); err != nil {
+		t.Error(err)
+	}
+
+	if err := quick.Check(checkLehmerGcd, nil); err != nil {
 		t.Error(err)
 	}
 }
@@ -899,6 +925,63 @@ func TestLshRsh(t *testing.T) {
 		}
 		if in.Cmp(out) != 0 {
 			t.Errorf("#%d: got %s want %s", i, out, in)
+		}
+	}
+}
+
+// Entries must be sorted by value in ascending order.
+var cmpAbsTests = []string{
+	"0",
+	"1",
+	"2",
+	"10",
+	"10000000",
+	"2783678367462374683678456387645876387564783686583485",
+	"2783678367462374683678456387645876387564783686583486",
+	"32957394867987420967976567076075976570670947609750670956097509670576075067076027578341538",
+}
+
+func TestCmpAbs(t *testing.T) {
+	values := make([]*Int, len(cmpAbsTests))
+	var prev *Int
+	for i, s := range cmpAbsTests {
+		x, ok := new(Int).SetString(s, 0)
+		if !ok {
+			t.Fatalf("SetString(%s, 0) failed", s)
+		}
+		if prev != nil && prev.Cmp(x) >= 0 {
+			t.Fatal("cmpAbsTests entries not sorted in ascending order")
+		}
+		values[i] = x
+		prev = x
+	}
+
+	for i, x := range values {
+		for j, y := range values {
+			// try all combinations of signs for x, y
+			for k := 0; k < 4; k++ {
+				var a, b Int
+				a.Set(x)
+				b.Set(y)
+				if k&1 != 0 {
+					a.Neg(&a)
+				}
+				if k&2 != 0 {
+					b.Neg(&b)
+				}
+
+				got := a.CmpAbs(&b)
+				want := 0
+				switch {
+				case i > j:
+					want = 1
+				case i < j:
+					want = -1
+				}
+				if got != want {
+					t.Errorf("absCmp |%s|, |%s|: got %d; want %d", &a, &b, got, want)
+				}
+			}
 		}
 	}
 }
@@ -1383,6 +1466,12 @@ func testModSqrt(t *testing.T, elt, mod, sq, sqrt *Int) bool {
 		t.Errorf("ModSqrt returned inconsistent value %s", z)
 	}
 
+	// test x aliasing z
+	z = sqrtChk.ModSqrt(sqrtChk.Set(sq), mod)
+	if z != &sqrtChk || z.Cmp(sqrt) != 0 {
+		t.Errorf("ModSqrt returned inconsistent value %s", z)
+	}
+
 	// make sure we actually got a square root
 	if sqrt.Cmp(elt) == 0 {
 		return true // we found the "desired" square root
@@ -1536,11 +1625,52 @@ func TestSqrt(t *testing.T) {
 	}
 }
 
+// We can't test this together with the other Exp tests above because
+// it requires a different receiver setup.
+func TestIssue22830(t *testing.T) {
+	one := new(Int).SetInt64(1)
+	base, _ := new(Int).SetString("84555555300000000000", 10)
+	mod, _ := new(Int).SetString("66666670001111111111", 10)
+	want, _ := new(Int).SetString("17888885298888888889", 10)
+
+	var tests = []int64{
+		0, 1, -1,
+	}
+
+	for _, n := range tests {
+		m := NewInt(n)
+		if got := m.Exp(base, one, mod); got.Cmp(want) != 0 {
+			t.Errorf("(%v).Exp(%s, 1, %s) = %s, want %s", n, base, mod, got, want)
+		}
+	}
+}
+
 func BenchmarkSqrt(b *testing.B) {
 	n, _ := new(Int).SetString("1"+strings.Repeat("0", 1001), 10)
 	b.ResetTimer()
 	t := new(Int)
 	for i := 0; i < b.N; i++ {
 		t.Sqrt(n)
+	}
+}
+
+func benchmarkIntSqr(b *testing.B, nwords int) {
+	x := new(Int)
+	x.abs = rndNat(nwords)
+	t := new(Int)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		t.Mul(x, x)
+	}
+}
+
+func BenchmarkIntSqr(b *testing.B) {
+	for _, n := range sqrBenchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+			benchmarkIntSqr(b, n)
+		})
 	}
 }

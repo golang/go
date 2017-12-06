@@ -239,15 +239,6 @@ func f14() {
 
 func g14() string
 
-func f15() {
-	var x string
-	_ = &x
-	x = g15()      // ERROR "live at call to g15: x$"
-	printstring(x) // ERROR "live at call to printstring: x$"
-}
-
-func g15() string
-
 // Checking that various temporaries do not persist or cause
 // ambiguously live values that must be zeroed.
 // The exact temporary names are inconsequential but we are
@@ -384,10 +375,9 @@ func f25(b bool) {
 		return
 	}
 	var x string
-	_ = &x
-	x = g15()      // ERROR "live at call to g15: x$"
-	printstring(x) // ERROR "live at call to printstring: x$"
-} // ERROR "live at call to deferreturn: x$"
+	x = g14()
+	printstring(x)
+}
 
 func g25()
 
@@ -473,22 +463,30 @@ func f29(b bool) {
 }
 
 // copy of array of pointers should die at end of range loop
+var pstructarr [10]pstruct
 
-var ptrarr [10]*int
+// Struct size choosen to make pointer to element in pstructarr
+// not computable by strength reduction.
+type pstruct struct {
+	intp *int
+	_    [8]byte
+}
 
 func f30(b bool) {
-	// two live temps during print(p):
-	// the copy of ptrarr and the internal iterator pointer.
+	// two live temps during printintpointer(p):
+	// in the copy of p.intp and
+	// the internal iterator pointer if a pointer to pstruct in pstructarr
+	// can not be easily computed by strength reduction.
 	if b {
-		for _, p := range ptrarr {
-			printintpointer(p) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
+		for _, p := range pstructarr {
+			printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
 		}
 	}
-	for _, p := range ptrarr {
-		printintpointer(p) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
+	for _, p := range pstructarr {
+		printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
 	}
-	for _, p := range ptrarr {
-		printintpointer(p) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
+	for _, p := range pstructarr {
+		printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
 	}
 }
 
@@ -641,9 +639,12 @@ type T40 struct {
 	m map[int]int
 }
 
+//go:noescape
+func useT40(*T40)
+
 func newT40() *T40 {
 	ret := T40{}
-	ret.m = make(map[int]int) // ERROR "live at call to makemap: &ret$"
+	ret.m = make(map[int]int, 42) // ERROR "live at call to makemap: &ret$"
 	return &ret
 }
 
@@ -655,10 +656,10 @@ func bad40() {
 
 func good40() {
 	ret := T40{}
-	ret.m = make(map[int]int) // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
+	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+ ret$"
 	t := &ret
 	printnl() // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
-	_ = t
+	useT40(t) // ERROR "live at call to useT40: .autotmp_[0-9]+ ret$"
 }
 
 func ddd1(x, y *int) { // ERROR "live at entry to ddd1: x y$"

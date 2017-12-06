@@ -15,7 +15,7 @@ import (
 var CmdFix = &base.Command{
 	Run:       runFix,
 	UsageLine: "fix [packages]",
-	Short:     "run go tool fix on packages",
+	Short:     "update packages to use new APIs",
 	Long: `
 Fix runs the Go fix command on the packages named by the import paths.
 
@@ -33,7 +33,7 @@ func runFix(cmd *base.Command, args []string) {
 		// Use pkg.gofiles instead of pkg.Dir so that
 		// the command only applies to this package,
 		// not to packages in subdirectories.
-		files := base.FilterDotUnderscoreFiles(base.RelPaths(pkg.Internal.AllGoFiles))
+		files := base.RelPaths(pkg.InternalAllGoFiles())
 		base.Run(str.StringList(cfg.BuildToolexec, base.Tool("fix"), files))
 	}
 }

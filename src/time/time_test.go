@@ -575,6 +575,7 @@ var dateTests = []struct {
 	{2011, 3, 13, 1, 59, 59, 0, Local, 1300010399}, // 1:59:59 PST
 	{2011, 3, 13, 3, 0, 0, 0, Local, 1300010400},   // 3:00:00 PDT
 	{2011, 3, 13, 2, 30, 0, 0, Local, 1300008600},  // 2:30:00 PDT ≡ 1:30 PST
+	{2012, 12, 24, 0, 0, 0, 0, Local, 1356336000},  // Leap year
 
 	// Many names for Fri Nov 18 7:56:35 PST 2011
 	{2011, 11, 18, 7, 56, 35, 0, Local, 1321631795},                 // Nov 18 7:56:35
@@ -1202,8 +1203,8 @@ var defaultLocTests = []struct {
 }
 
 func TestDefaultLoc(t *testing.T) {
-	//This test verifyes that all Time's methods behaves identical if loc is set
-	//as nil or UTC
+	// Verify that all of Time's methods behave identically if loc is set to
+	// nil or UTC.
 	for _, tt := range defaultLocTests {
 		t1 := Time{}
 		t2 := Time{}.UTC()

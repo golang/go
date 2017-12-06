@@ -76,25 +76,7 @@ func Index(s, substr string) int {
 		}
 		return -1
 	}
-	// Rabin-Karp search
-	hashss, pow := hashStr(substr)
-	var h uint32
-	for i := 0; i < n; i++ {
-		h = h*primeRK + uint32(s[i])
-	}
-	if h == hashss && s[:n] == substr {
-		return 0
-	}
-	for i := n; i < len(s); {
-		h *= primeRK
-		h += uint32(s[i])
-		h -= pow * uint32(s[i-n])
-		i++
-		if h == hashss && s[i-n:i] == substr {
-			return i - n
-		}
-	}
-	return -1
+	return indexRabinKarp(s, substr)
 }
 
 // Count counts the number of non-overlapping instances of substr in s.

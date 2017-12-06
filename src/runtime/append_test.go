@@ -18,42 +18,52 @@ func BenchmarkMakeSlice(b *testing.B) {
 	}
 }
 
-func BenchmarkGrowSliceBytes(b *testing.B) {
-	b.StopTimer()
-	var x = make([]byte, 9)
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		_ = append([]byte(nil), x...)
-	}
-}
+type (
+	struct24 struct{ a, b, c int64 }
+	struct32 struct{ a, b, c, d int64 }
+	struct40 struct{ a, b, c, d, e int64 }
+)
 
-func BenchmarkGrowSliceInts(b *testing.B) {
-	b.StopTimer()
-	var x = make([]int, 9)
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		_ = append([]int(nil), x...)
-	}
-}
+func BenchmarkGrowSlice(b *testing.B) {
+	b.Run("Byte", func(b *testing.B) {
+		x := make([]byte, 9)
+		for i := 0; i < b.N; i++ {
+			_ = append([]byte(nil), x...)
+		}
+	})
+	b.Run("Int", func(b *testing.B) {
+		x := make([]int, 9)
+		for i := 0; i < b.N; i++ {
+			_ = append([]int(nil), x...)
+		}
+	})
+	b.Run("Ptr", func(b *testing.B) {
+		x := make([]*byte, 9)
+		for i := 0; i < b.N; i++ {
+			_ = append([]*byte(nil), x...)
+		}
+	})
+	b.Run("Struct", func(b *testing.B) {
+		b.Run("24", func(b *testing.B) {
+			x := make([]struct24, 9)
+			for i := 0; i < b.N; i++ {
+				_ = append([]struct24(nil), x...)
+			}
+		})
+		b.Run("32", func(b *testing.B) {
+			x := make([]struct32, 9)
+			for i := 0; i < b.N; i++ {
+				_ = append([]struct32(nil), x...)
+			}
+		})
+		b.Run("40", func(b *testing.B) {
+			x := make([]struct40, 9)
+			for i := 0; i < b.N; i++ {
+				_ = append([]struct40(nil), x...)
+			}
+		})
 
-func BenchmarkGrowSlicePtr(b *testing.B) {
-	b.StopTimer()
-	var x = make([]*byte, 9)
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		_ = append([]*byte(nil), x...)
-	}
-}
-
-type struct24 struct{ a, b, c int64 }
-
-func BenchmarkGrowSliceStruct24Bytes(b *testing.B) {
-	b.StopTimer()
-	var x = make([]struct24, 9)
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		_ = append([]struct24(nil), x...)
-	}
+	})
 }
 
 func BenchmarkAppend(b *testing.B) {

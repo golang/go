@@ -22,6 +22,9 @@ go	src=..
 				internal
 					syntax
 						parser.go
+			cover
+				testdata
+					+
 			doc
 				main.go
 				pkg.go
@@ -31,6 +34,9 @@ go	src=..
 			internal
 				objfile
 					objfile.go
+				buildid
+					testdata
+						+
 			gofmt
 				gofmt.go
 				gofmt_test.go
@@ -62,6 +68,10 @@ go	src=..
 						arch
 							arm
 								armasm
+									testdata
+										+
+							arm64
+								arm64asm
 									testdata
 										+
 							x86

@@ -382,3 +382,16 @@ func TestImportVendorParentFailure(t *testing.T) {
 		t.Fatalf("error on failed import does not mention GOROOT/src/vendor directory:\n%s", e)
 	}
 }
+
+func TestImportDirTarget(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // really must just have source
+	ctxt := Default
+	ctxt.GOPATH = ""
+	p, err := ctxt.ImportDir(filepath.Join(ctxt.GOROOT, "src/path"), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.PkgTargetRoot == "" || p.PkgObj == "" {
+		t.Errorf("p.PkgTargetRoot == %q, p.PkgObj == %q, want non-empty", p.PkgTargetRoot, p.PkgObj)
+	}
+}

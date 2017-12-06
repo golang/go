@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/google/pprof/internal/plugin"
 )
@@ -32,6 +33,7 @@ const (
 // llvmSymbolizer is a connection to an llvm-symbolizer command for
 // obtaining address and line number information from a binary.
 type llvmSymbolizer struct {
+	sync.Mutex
 	filename string
 	rw       lineReaderWriter
 	base     uint64
@@ -150,6 +152,9 @@ func (d *llvmSymbolizer) readFrame() (plugin.Frame, bool) {
 // addrInfo returns the stack frame information for a specific program
 // address. It returns nil if the address could not be identified.
 func (d *llvmSymbolizer) addrInfo(addr uint64) ([]plugin.Frame, error) {
+	d.Lock()
+	defer d.Unlock()
+
 	if err := d.rw.write(fmt.Sprintf("%s 0x%x", d.filename, addr-d.base)); err != nil {
 		return nil, err
 	}

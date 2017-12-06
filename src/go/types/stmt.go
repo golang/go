@@ -11,6 +11,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
+	"sort"
 )
 
 func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt) {
@@ -57,13 +58,25 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 }
 
 func (check *Checker) usage(scope *Scope) {
-	for _, obj := range scope.elems {
-		if v, _ := obj.(*Var); v != nil && !v.used {
-			check.softErrorf(v.pos, "%s declared but not used", v.name)
+	var unused []*Var
+	for _, elem := range scope.elems {
+		if v, _ := elem.(*Var); v != nil && !v.used {
+			unused = append(unused, v)
 		}
 	}
+	sort.Slice(unused, func(i, j int) bool {
+		return unused[i].pos < unused[j].pos
+	})
+	for _, v := range unused {
+		check.softErrorf(v.pos, "%s declared but not used", v.name)
+	}
+
 	for _, scope := range scope.children {
-		check.usage(scope)
+		// Don't go inside closure scopes a second time;
+		// they are handled explicitly by funcBody.
+		if !scope.isFunc {
+			check.usage(scope)
+		}
 	}
 }
 
@@ -236,15 +249,13 @@ L:
 		}
 		// look for duplicate values
 		if val := goVal(v.val); val != nil {
-			if list := seen[val]; list != nil {
-				// look for duplicate types for a given value
-				// (quadratic algorithm, but these lists tend to be very short)
-				for _, vt := range list {
-					if Identical(v.typ, vt.typ) {
-						check.errorf(v.pos(), "duplicate case %s in expression switch", &v)
-						check.error(vt.pos, "\tprevious case") // secondary error, \t indented
-						continue L
-					}
+			// look for duplicate types for a given value
+			// (quadratic algorithm, but these lists tend to be very short)
+			for _, vt := range seen[val] {
+				if Identical(v.typ, vt.typ) {
+					check.errorf(v.pos(), "duplicate case %s in expression switch", &v)
+					check.error(vt.pos, "\tprevious case") // secondary error, \t indented
+					continue L
 				}
 			}
 			seen[val] = append(seen[val], valueType{v.pos(), v.typ})

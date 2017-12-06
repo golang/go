@@ -17,6 +17,17 @@ import (
 	"strings"
 )
 
+// seekStart, seekCurrent, seekEnd are copies of
+// io.SeekStart, io.SeekCurrent, and io.SeekEnd.
+// We can't use the ones from package io because
+// we want this code to build with Go 1.4 during
+// cmd/dist bootstrap.
+const (
+	seekStart   int = 0
+	seekCurrent int = 1
+	seekEnd     int = 2
+)
+
 // TODO: error reporting detail
 
 /*
@@ -269,7 +280,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	switch f.Class {
 	case ELFCLASS32:
 		hdr := new(Header32)
-		sr.Seek(0, io.SeekStart)
+		sr.Seek(0, seekStart)
 		if err := binary.Read(sr, f.ByteOrder, hdr); err != nil {
 			return nil, err
 		}
@@ -288,7 +299,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		shstrndx = int(hdr.Shstrndx)
 	case ELFCLASS64:
 		hdr := new(Header64)
-		sr.Seek(0, io.SeekStart)
+		sr.Seek(0, seekStart)
 		if err := binary.Read(sr, f.ByteOrder, hdr); err != nil {
 			return nil, err
 		}
@@ -315,7 +326,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	f.Progs = make([]*Prog, phnum)
 	for i := 0; i < phnum; i++ {
 		off := phoff + int64(i)*int64(phentsize)
-		sr.Seek(off, io.SeekStart)
+		sr.Seek(off, seekStart)
 		p := new(Prog)
 		switch f.Class {
 		case ELFCLASS32:
@@ -359,7 +370,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	names := make([]uint32, shnum)
 	for i := 0; i < shnum; i++ {
 		off := shoff + int64(i)*int64(shentsize)
-		sr.Seek(off, io.SeekStart)
+		sr.Seek(off, seekStart)
 		s := new(Section)
 		switch f.Class {
 		case ELFCLASS32:

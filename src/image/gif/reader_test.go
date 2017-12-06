@@ -9,7 +9,12 @@ import (
 	"compress/lzw"
 	"image"
 	"image/color"
+	"image/color/palette"
+	"io"
+	"io/ioutil"
 	"reflect"
+	"runtime"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
@@ -22,6 +27,9 @@ const (
 	paletteStr = "\x10\x20\x30\x40\x50\x60" // the color table, also known as a palette
 	trailerStr = "\x3b"
 )
+
+// lzw.NewReader wants a io.ByteReader, this ensures we're compatible.
+var _ io.ByteReader = (*blockReader)(nil)
 
 // lzwEncode returns an LZW encoding (with 2-bit literals) of in.
 func lzwEncode(in []byte) []byte {
@@ -66,6 +74,9 @@ func TestDecode(t *testing.T) {
 		{2, 1, 0, nil},
 		// Two extra bytes after LZW data, but inside the same data sub-block.
 		{2, 2, 0, nil},
+		// Extra data exists in the final sub-block with LZW data, AND there is
+		// a bogus sub-block following.
+		{2, 1, 1, errTooMuch},
 	}
 	for _, tc := range testCases {
 		b := &bytes.Buffer{}
@@ -340,5 +351,52 @@ func TestUnexpectedEOF(t *testing.T) {
 		if !strings.HasPrefix(text, "gif:") || !strings.HasSuffix(text, ": unexpected EOF") {
 			t.Errorf("Decode(testGIF[:%d]) = %v, want gif: ...: unexpected EOF", i, err)
 		}
+	}
+}
+
+// See golang.org/issue/22237
+func TestDecodeMemoryConsumption(t *testing.T) {
+	const frames = 3000
+	img := image.NewPaletted(image.Rectangle{Max: image.Point{1, 1}}, palette.WebSafe)
+	hugeGIF := &GIF{
+		Image:    make([]*image.Paletted, frames),
+		Delay:    make([]int, frames),
+		Disposal: make([]byte, frames),
+	}
+	for i := 0; i < frames; i++ {
+		hugeGIF.Image[i] = img
+		hugeGIF.Delay[i] = 60
+	}
+	buf := new(bytes.Buffer)
+	if err := EncodeAll(buf, hugeGIF); err != nil {
+		t.Fatal("EncodeAll:", err)
+	}
+	s0, s1 := new(runtime.MemStats), new(runtime.MemStats)
+	runtime.GC()
+	defer debug.SetGCPercent(debug.SetGCPercent(5))
+	runtime.ReadMemStats(s0)
+	if _, err := Decode(buf); err != nil {
+		t.Fatal("Decode:", err)
+	}
+	runtime.ReadMemStats(s1)
+	if heapDiff := int64(s1.HeapAlloc - s0.HeapAlloc); heapDiff > 30<<20 {
+		t.Fatalf("Decode of %d frames increased heap by %dMB", frames, heapDiff>>20)
+	}
+}
+
+func BenchmarkDecode(b *testing.B) {
+	data, err := ioutil.ReadFile("../testdata/video-001.gif")
+	if err != nil {
+		b.Fatal(err)
+	}
+	cfg, err := DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.SetBytes(int64(cfg.Width * cfg.Height))
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Decode(bytes.NewReader(data))
 	}
 }

@@ -88,7 +88,7 @@ script as *nix.)
 </p>
 
 <p>
-Your secret authentication token is now in a <code>.gitcookie</code> file
+Your secret authentication token is now in a <code>.gitcookies</code> file
 and Git is configured to use this file.
 </p>
 
@@ -158,7 +158,7 @@ completed and update the <code>AUTHORS</code> file.
 Changes to Go must be reviewed before they are accepted, no matter who makes the change.
 A custom git command called <code>git-codereview</code>, discussed below,
 helps manage the code review process through a Google-hosted
-<a href="https://go-review.googlesource.com/">instance</a> Gerrit.
+<a href="https://go-review.googlesource.com/">instance</a> of Gerrit.
 </p>
 
 <h3 id="git-codereview_install">Install the git-codereview command</h3>
@@ -206,12 +206,6 @@ files have been formatted with gofmt.
 Even if you intend to use plain Git for
 daily work, install the hooks in a new Git checkout by running
 <code>git-codereview</code> <code>hooks</code>.
-</p>
-
-<p>
-The workflow described below assumes a single change per branch.
-It is also possible to prepare a sequence of (usually related) changes in a single branch.
-See the <a href="https://golang.org/x/review/git-codereview">git-codereview documentation</a> for details.
 </p>
 
 <h3 id="git-config">Set up git aliases</h3>
@@ -303,6 +297,15 @@ href="https://golang.org/wiki/Go-Release-Cycle">six-month development cycle</a>.
 The latter half of each cycle is a three-month feature freeze during
 which only bug fixes and doc updates are accepted. New contributions can be
 sent during a feature freeze but will not be accepted until the freeze thaws.
+</p>
+
+<h3 id="scratch">Not sure what change to make?</h3>
+
+<p>
+If you want to become familiar with Gerrit and the contribution process,
+but aren't sure what you'd like to contribute just yet, you can use the <a
+href="https://go.googlesource.com/scratch">scratch repository</a> to practice
+making a change.
 </p>
 
 <h2 id="making_a_change">Making a change</h2>
@@ -418,6 +421,12 @@ Once you have the changes queued up, you will want to commit them.
 In the Go contribution workflow this is done with a <code>git</code>
 <code>change</code> command, which creates a local branch and commits the changes
 directly to that local branch.
+</p>
+
+<p>
+The workflow described here assumes a single change per branch.
+It is also possible to prepare a sequence of (usually related) changes in a single branch.
+See the <a href="https://golang.org/x/review/git-codereview">git-codereview documentation</a> for details.
 </p>
 
 <pre>
@@ -681,8 +690,8 @@ reviewers asking them to visit the issue's URL and make comments on the change.
 When done, the reviewer adds comments through the Gerrit user interface
 and clicks "Reply" to send comments back.
 You will receive a mail notification when this happens.
-You must reply through the web interface.
-(Unlike with the old Rietveld review system, replying by mail has no effect.)
+You may reply through the web interface or
+<a href="https://gerrit-review.googlesource.com/Documentation/intro-user.html#reply-by-email">via email</a>.
 </p>
 
 <h3 id="revise">Revise and resend</h3>
@@ -696,8 +705,8 @@ all the changes and comments made in the single URL.
 </p>
 
 <p>
-You must respond to review comments through the web interface.
-(Unlike with the old Rietveld review system, responding by mail has no effect.)
+You may respond to review comments through the web interface or
+<a href="https://gerrit-review.googlesource.com/Documentation/intro-user.html#reply-by-email">via email</a>.
 </p>
 
 <p>

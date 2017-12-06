@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func (ln *TCPListener) port() string {
@@ -695,4 +696,36 @@ func multicastRIBContains(ip IP) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+// Issue 21856.
+func TestClosingListener(t *testing.T) {
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := ln.Addr()
+
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			c.Close()
+		}
+	}()
+
+	// Let the goroutine start. We don't sleep long: if the
+	// goroutine doesn't start, the test will pass without really
+	// testing anything, which is OK.
+	time.Sleep(time.Millisecond)
+
+	ln.Close()
+
+	ln2, err := Listen("tcp", addr.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln2.Close()
 }

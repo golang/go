@@ -52,12 +52,23 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$-4
-	MOVL	$431, AX
+GLOBL exitStack<>(SB),RODATA,$8
+DATA exitStack<>+0x00(SB)/4, $0
+DATA exitStack<>+0x04(SB)/4, $0
+
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+	MOVL	wait+0(FP), AX
+	// We're done using the stack.
+	MOVL	$0, (AX)
+	// thr_exit takes a single pointer argument, which it expects
+	// on the stack. We want to pass 0, so switch over to a fake
+	// stack of 0s. It won't write to the stack.
+	MOVL	$exitStack<>(SB), SP
+	MOVL	$431, AX	// thr_exit
 	INT	$0x80
-	JAE	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
-	RET
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVL	$5, AX
@@ -138,7 +149,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$32
 	STOSL
 	MOVL	$477, AX
 	INT	$0x80
-	MOVL	AX, ret+24(FP)
+	JAE	ok
+	MOVL	$0, p+24(FP)
+	MOVL	AX, err+28(FP)
+	RET
+ok:
+	MOVL	AX, p+24(FP)
+	MOVL	$0, err+28(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$-4

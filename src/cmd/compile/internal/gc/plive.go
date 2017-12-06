@@ -306,12 +306,10 @@ func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
 
 	var n *Node
 	switch a := v.Aux.(type) {
-	case nil, *ssa.ExternSymbol:
+	case nil, *obj.LSym:
 		// ok, but no node
-	case *ssa.ArgSymbol:
-		n = a.Node.(*Node)
-	case *ssa.AutoSymbol:
-		n = a.Node.(*Node)
+	case *Node:
+		n = a
 	default:
 		Fatalf("weird aux: %s", v.LongString())
 	}
@@ -353,110 +351,85 @@ func (lv *Liveness) blockEffects(b *ssa.Block) *BlockEffects {
 	return &lv.be[b.ID]
 }
 
-// NOTE: The bitmap for a specific type t should be cached in t after the first run
-// and then simply copied into bv at the correct offset on future calls with
-// the same type t. On https://rsc.googlecode.com/hg/testdata/slow.go, onebitwalktype1
-// accounts for 40% of the 6g execution time.
-func onebitwalktype1(t *types.Type, xoffset *int64, bv bvec) {
-	if t.Align > 0 && *xoffset&int64(t.Align-1) != 0 {
+// NOTE: The bitmap for a specific type t could be cached in t after
+// the first run and then simply copied into bv at the correct offset
+// on future calls with the same type t.
+func onebitwalktype1(t *types.Type, off int64, bv bvec) {
+	if t.Align > 0 && off&int64(t.Align-1) != 0 {
 		Fatalf("onebitwalktype1: invalid initial alignment, %v", t)
 	}
 
 	switch t.Etype {
-	case TINT8,
-		TUINT8,
-		TINT16,
-		TUINT16,
-		TINT32,
-		TUINT32,
-		TINT64,
-		TUINT64,
-		TINT,
-		TUINT,
-		TUINTPTR,
-		TBOOL,
-		TFLOAT32,
-		TFLOAT64,
-		TCOMPLEX64,
-		TCOMPLEX128:
-		*xoffset += t.Width
+	case TINT8, TUINT8, TINT16, TUINT16,
+		TINT32, TUINT32, TINT64, TUINT64,
+		TINT, TUINT, TUINTPTR, TBOOL,
+		TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128:
 
-	case TPTR32,
-		TPTR64,
-		TUNSAFEPTR,
-		TFUNC,
-		TCHAN,
-		TMAP:
-		if *xoffset&int64(Widthptr-1) != 0 {
+	case TPTR32, TPTR64, TUNSAFEPTR, TFUNC, TCHAN, TMAP:
+		if off&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
-		bv.Set(int32(*xoffset / int64(Widthptr))) // pointer
-		*xoffset += t.Width
+		bv.Set(int32(off / int64(Widthptr))) // pointer
 
 	case TSTRING:
 		// struct { byte *str; intgo len; }
-		if *xoffset&int64(Widthptr-1) != 0 {
+		if off&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
-		bv.Set(int32(*xoffset / int64(Widthptr))) //pointer in first slot
-		*xoffset += t.Width
+		bv.Set(int32(off / int64(Widthptr))) //pointer in first slot
 
 	case TINTER:
 		// struct { Itab *tab;	void *data; }
 		// or, when isnilinter(t)==true:
 		// struct { Type *type; void *data; }
-		if *xoffset&int64(Widthptr-1) != 0 {
+		if off&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
-		bv.Set(int32(*xoffset / int64(Widthptr)))   // pointer in first slot
-		bv.Set(int32(*xoffset/int64(Widthptr) + 1)) // pointer in second slot
-		*xoffset += t.Width
+		bv.Set(int32(off / int64(Widthptr)))   // pointer in first slot
+		bv.Set(int32(off/int64(Widthptr) + 1)) // pointer in second slot
 
 	case TSLICE:
 		// struct { byte *array; uintgo len; uintgo cap; }
-		if *xoffset&int64(Widthptr-1) != 0 {
+		if off&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)
 		}
-		bv.Set(int32(*xoffset / int64(Widthptr))) // pointer in first slot (BitsPointer)
-		*xoffset += t.Width
+		bv.Set(int32(off / int64(Widthptr))) // pointer in first slot (BitsPointer)
 
 	case TARRAY:
+		elt := t.Elem()
+		if elt.Width == 0 {
+			// Short-circuit for #20739.
+			break
+		}
 		for i := int64(0); i < t.NumElem(); i++ {
-			onebitwalktype1(t.Elem(), xoffset, bv)
+			onebitwalktype1(elt, off, bv)
+			off += elt.Width
 		}
 
 	case TSTRUCT:
-		var o int64
-		for _, t1 := range t.Fields().Slice() {
-			fieldoffset := t1.Offset
-			*xoffset += fieldoffset - o
-			onebitwalktype1(t1.Type, xoffset, bv)
-			o = fieldoffset + t1.Type.Width
+		for _, f := range t.Fields().Slice() {
+			onebitwalktype1(f.Type, off+f.Offset, bv)
 		}
-
-		*xoffset += t.Width - o
 
 	default:
 		Fatalf("onebitwalktype1: unexpected type, %v", t)
 	}
 }
 
-// Returns the number of words of local variables.
-func localswords(lv *Liveness) int32 {
+// localWords returns the number of words of local variables.
+func (lv *Liveness) localWords() int32 {
 	return int32(lv.stkptrsize / int64(Widthptr))
 }
 
-// Returns the number of words of in and out arguments.
-func argswords(lv *Liveness) int32 {
+// argWords returns the number of words of in and out arguments.
+func (lv *Liveness) argWords() int32 {
 	return int32(lv.fn.Type.ArgWidth() / int64(Widthptr))
 }
 
 // Generates live pointer value maps for arguments and local variables. The
 // this argument and the in arguments are always assumed live. The vars
 // argument is a slice of *Nodes.
-func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, locals bvec) {
-	var xoffset int64
-
+func (lv *Liveness) pointerMap(liveout bvec, vars []*Node, args, locals bvec) {
 	for i := int32(0); ; i++ {
 		i = liveout.Next(i)
 		if i < 0 {
@@ -465,12 +438,10 @@ func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, l
 		node := vars[i]
 		switch node.Class() {
 		case PAUTO:
-			xoffset = node.Xoffset + lv.stkptrsize
-			onebitwalktype1(node.Type, &xoffset, locals)
+			onebitwalktype1(node.Type, node.Xoffset+lv.stkptrsize, locals)
 
 		case PPARAM, PPARAMOUT:
-			xoffset = node.Xoffset
-			onebitwalktype1(node.Type, &xoffset, args)
+			onebitwalktype1(node.Type, node.Xoffset, args)
 		}
 	}
 }
@@ -484,7 +455,7 @@ func issafepoint(v *ssa.Value) bool {
 // Initializes the sets for solving the live variables. Visits all the
 // instructions in each basic block to summarizes the information at each basic
 // block
-func livenessprologue(lv *Liveness) {
+func (lv *Liveness) prologue() {
 	lv.initcache()
 
 	for _, b := range lv.f.Blocks {
@@ -518,7 +489,7 @@ func livenessprologue(lv *Liveness) {
 }
 
 // Solve the liveness dataflow equations.
-func livenesssolve(lv *Liveness) {
+func (lv *Liveness) solve() {
 	// These temporary bitvectors exist to avoid successive allocations and
 	// frees within the loop.
 	newlivein := bvalloc(int32(len(lv.vars)))
@@ -618,7 +589,7 @@ func livenesssolve(lv *Liveness) {
 
 // Visits all instructions in a basic block and computes a bit vector of live
 // variables at each safe point locations.
-func livenessepilogue(lv *Liveness) {
+func (lv *Liveness) epilogue() {
 	nvars := int32(len(lv.vars))
 	liveout := bvalloc(nvars)
 	any := bvalloc(nvars)
@@ -721,7 +692,7 @@ func livenessepilogue(lv *Liveness) {
 	for _, b := range lv.f.Blocks {
 		be := lv.blockEffects(b)
 
-		// walk backward, emit pcdata and populate the maps
+		// walk backward, construct maps at each safe point
 		index := int32(be.lastbitmapindex)
 		if index < 0 {
 			// the first block we encounter should have the ATEXT so
@@ -924,13 +895,7 @@ func clobberWalk(b *ssa.Block, v *Node, offset int64, t *types.Type) {
 // clobberPtr generates a clobber of the pointer at offset offset in v.
 // The clobber instruction is added at the end of b.
 func clobberPtr(b *ssa.Block, v *Node, offset int64) {
-	var aux interface{}
-	if v.Class() == PAUTO {
-		aux = &ssa.AutoSymbol{Node: v}
-	} else {
-		aux = &ssa.ArgSymbol{Node: v}
-	}
-	b.NewValue0IA(src.NoXPos, ssa.OpClobber, types.TypeVoid, offset, aux)
+	b.NewValue0IA(src.NoXPos, ssa.OpClobber, types.TypeVoid, offset, v)
 }
 
 func (lv *Liveness) avarinitanyall(b *ssa.Block, any, all bvec) {
@@ -988,7 +953,7 @@ func hashbitmap(h uint32, bv bvec) uint32 {
 // is actually a net loss: we save about 50k of argument bitmaps but the new
 // PCDATA tables cost about 100k. So for now we keep using a single index for
 // both bitmap lists.
-func livenesscompact(lv *Liveness) {
+func (lv *Liveness) compact() {
 	// Linear probing hash table of bitmaps seen so far.
 	// The hash table has 4n entries to keep the linear
 	// scan short. An entry of -1 indicates an empty slot.
@@ -1047,7 +1012,8 @@ Outer:
 	}
 	lv.livevars = lv.livevars[:uniq]
 
-	// Rewrite PCDATA instructions to use new numbering.
+	// Record compacted stack map indexes for each value.
+	// These will later become PCDATA instructions.
 	lv.showlive(nil, lv.livevars[0])
 	pos := 1
 	lv.stackMapIndex = make(map[*ssa.Value]int)
@@ -1138,7 +1104,7 @@ func (lv *Liveness) printeffect(printed bool, name string, pos int32, x bool) bo
 // Prints the computed liveness information and inputs, for debugging.
 // This format synthesizes the information used during the multiple passes
 // into a single presentation.
-func livenessprintdebug(lv *Liveness) {
+func (lv *Liveness) printDebug() {
 	fmt.Printf("liveness: %s\n", lv.fn.funcname())
 
 	pcdata := 0
@@ -1250,12 +1216,12 @@ func livenessprintdebug(lv *Liveness) {
 // first word dumped is the total number of bitmaps. The second word is the
 // length of the bitmaps. All bitmaps are assumed to be of equal length. The
 // remaining bytes are the raw bitmaps.
-func livenessemit(lv *Liveness, argssym, livesym *obj.LSym) {
-	args := bvalloc(argswords(lv))
+func (lv *Liveness) emit(argssym, livesym *obj.LSym) {
+	args := bvalloc(lv.argWords())
 	aoff := duint32(argssym, 0, uint32(len(lv.livevars))) // number of bitmaps
 	aoff = duint32(argssym, aoff, uint32(args.n))         // number of bits in each bitmap
 
-	locals := bvalloc(localswords(lv))
+	locals := bvalloc(lv.localWords())
 	loff := duint32(livesym, 0, uint32(len(lv.livevars))) // number of bitmaps
 	loff = duint32(livesym, loff, uint32(locals.n))       // number of bits in each bitmap
 
@@ -1263,7 +1229,7 @@ func livenessemit(lv *Liveness, argssym, livesym *obj.LSym) {
 		args.Clear()
 		locals.Clear()
 
-		onebitlivepointermap(lv, live, lv.vars, args, locals)
+		lv.pointerMap(live, lv.vars, args, locals)
 
 		aoff = dbvec(argssym, aoff, args)
 		loff = dbvec(livesym, loff, locals)
@@ -1288,18 +1254,18 @@ func liveness(e *ssafn, f *ssa.Func) map[*ssa.Value]int {
 	lv := newliveness(e.curfn, f, vars, idx, e.stkptrsize)
 
 	// Run the dataflow framework.
-	livenessprologue(lv)
-	livenesssolve(lv)
-	livenessepilogue(lv)
-	livenesscompact(lv)
+	lv.prologue()
+	lv.solve()
+	lv.epilogue()
+	lv.compact()
 	lv.clobber()
 	if debuglive >= 2 {
-		livenessprintdebug(lv)
+		lv.printDebug()
 	}
 
 	// Emit the live pointer map data structures
 	if ls := e.curfn.Func.lsym; ls != nil {
-		livenessemit(lv, &ls.Func.GCArgs, &ls.Func.GCLocals)
+		lv.emit(&ls.Func.GCArgs, &ls.Func.GCLocals)
 	}
 	return lv.stackMapIndex
 }

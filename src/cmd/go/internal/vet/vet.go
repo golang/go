@@ -6,19 +6,16 @@
 package vet
 
 import (
-	"path/filepath"
-
 	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
-	"cmd/go/internal/str"
+	"cmd/go/internal/work"
 )
 
 var CmdVet = &base.Command{
 	Run:         runVet,
 	CustomFlags: true,
 	UsageLine:   "vet [-n] [-x] [build flags] [vet flags] [packages]",
-	Short:       "run go tool vet on packages",
+	Short:       "report likely mistakes in packages",
 	Long: `
 Vet runs the Go vet command on the packages named by the import paths.
 
@@ -28,29 +25,31 @@ For more about specifying packages, see 'go help packages'.
 The -n flag prints commands that would be executed.
 The -x flag prints commands as they are executed.
 
-For more about build flags, see 'go help build'.
+The build flags supported by go vet are those that control package resolution
+and execution, such as -n, -x, -v, -tags, and -toolexec.
+For more about these flags, see 'go help build'.
 
 See also: go fmt, go fix.
 	`,
 }
 
 func runVet(cmd *base.Command, args []string) {
-	vetFlags, packages := vetFlags(args)
-	for _, p := range load.Packages(packages) {
-		// Vet expects to be given a set of files all from the same package.
-		// Run once for package p and once for package p_test.
-		if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles) > 0 {
-			runVetFiles(p, vetFlags, str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.SFiles))
-		}
-		if len(p.XTestGoFiles) > 0 {
-			runVetFiles(p, vetFlags, str.StringList(p.XTestGoFiles))
-		}
-	}
-}
+	vetFlags, pkgArgs := vetFlags(args)
 
-func runVetFiles(p *load.Package, flags, files []string) {
-	for i := range files {
-		files[i] = filepath.Join(p.Dir, files[i])
+	work.BuildInit()
+	work.VetFlags = vetFlags
+
+	pkgs := load.PackagesForBuild(pkgArgs)
+	if len(pkgs) == 0 {
+		base.Fatalf("no packages to vet")
 	}
-	base.Run(cfg.BuildToolexec, base.Tool("vet"), flags, base.RelPaths(files))
+
+	var b work.Builder
+	b.Init()
+
+	root := &work.Action{Mode: "go vet"}
+	for _, p := range pkgs {
+		root.Deps = append(root.Deps, b.VetAction(work.ModeBuild, work.ModeBuild, p))
+	}
+	b.Do(root)
 }

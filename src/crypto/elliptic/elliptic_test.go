@@ -455,15 +455,81 @@ func TestInfinity(t *testing.T) {
 	}
 }
 
+type synthCombinedMult struct {
+	Curve
+}
+
+func (s synthCombinedMult) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
+	x1, y1 := s.ScalarBaseMult(baseScalar)
+	x2, y2 := s.ScalarMult(bigX, bigY, scalar)
+	return s.Add(x1, y1, x2, y2)
+}
+
+func TestCombinedMult(t *testing.T) {
+	type combinedMult interface {
+		Curve
+		CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int)
+	}
+
+	p256, ok := P256().(combinedMult)
+	if !ok {
+		p256 = &synthCombinedMult{P256()}
+	}
+
+	gx := p256.Params().Gx
+	gy := p256.Params().Gy
+
+	zero := make([]byte, 32)
+	one := make([]byte, 32)
+	one[31] = 1
+	two := make([]byte, 32)
+	two[31] = 2
+
+	// 0×G + 0×G = ∞
+	x, y := p256.CombinedMult(gx, gy, zero, zero)
+	if x.Sign() != 0 || y.Sign() != 0 {
+		t.Errorf("0×G + 0×G = (%d, %d), should be ∞", x, y)
+	}
+
+	// 1×G + 0×G = G
+	x, y = p256.CombinedMult(gx, gy, one, zero)
+	if x.Cmp(gx) != 0 || y.Cmp(gy) != 0 {
+		t.Errorf("1×G + 0×G = (%d, %d), should be (%d, %d)", x, y, gx, gy)
+	}
+
+	// 0×G + 1×G = G
+	x, y = p256.CombinedMult(gx, gy, zero, one)
+	if x.Cmp(gx) != 0 || y.Cmp(gy) != 0 {
+		t.Errorf("0×G + 1×G = (%d, %d), should be (%d, %d)", x, y, gx, gy)
+	}
+
+	// 1×G + 1×G = 2×G
+	x, y = p256.CombinedMult(gx, gy, one, one)
+	ggx, ggy := p256.ScalarBaseMult(two)
+	if x.Cmp(ggx) != 0 || y.Cmp(ggy) != 0 {
+		t.Errorf("1×G + 1×G = (%d, %d), should be (%d, %d)", x, y, ggx, ggy)
+	}
+
+	minusOne := new(big.Int).Sub(p256.Params().N, big.NewInt(1))
+	// 1×G + (-1)×G = ∞
+	x, y = p256.CombinedMult(gx, gy, one, minusOne.Bytes())
+	if x.Sign() != 0 || y.Sign() != 0 {
+		t.Errorf("1×G + (-1)×G = (%d, %d), should be ∞", x, y)
+	}
+}
+
 func BenchmarkBaseMult(b *testing.B) {
 	b.ResetTimer()
 	p224 := P224()
 	e := p224BaseMultTests[25]
 	k, _ := new(big.Int).SetString(e.k, 10)
+	b.ReportAllocs()
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		p224.ScalarBaseMult(k.Bytes())
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			p224.ScalarBaseMult(k.Bytes())
+		}
+	})
 }
 
 func BenchmarkBaseMultP256(b *testing.B) {
@@ -471,10 +537,13 @@ func BenchmarkBaseMultP256(b *testing.B) {
 	p256 := P256()
 	e := p224BaseMultTests[25]
 	k, _ := new(big.Int).SetString(e.k, 10)
+	b.ReportAllocs()
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		p256.ScalarBaseMult(k.Bytes())
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			p256.ScalarBaseMult(k.Bytes())
+		}
+	})
 }
 
 func BenchmarkScalarMultP256(b *testing.B) {
@@ -483,10 +552,13 @@ func BenchmarkScalarMultP256(b *testing.B) {
 	_, x, y, _ := GenerateKey(p256, rand.Reader)
 	priv, _, _, _ := GenerateKey(p256, rand.Reader)
 
+	b.ReportAllocs()
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		p256.ScalarMult(x, y, priv)
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			p256.ScalarMult(x, y, priv)
+		}
+	})
 }
 
 func TestMarshal(t *testing.T) {
@@ -515,5 +587,44 @@ func TestP224Overflow(t *testing.T) {
 	x, y := Unmarshal(p224, pointData)
 	if !p224.IsOnCurve(x, y) {
 		t.Error("P224 failed to validate a correct point")
+	}
+}
+
+// See https://golang.org/issues/20482
+func TestUnmarshalToLargeCoordinates(t *testing.T) {
+	curve := P256()
+	p := curve.Params().P
+
+	invalidX, invalidY := make([]byte, 65), make([]byte, 65)
+	invalidX[0], invalidY[0] = 4, 4 // uncompressed encoding
+
+	// Set x to be greater than curve's parameter P – specifically, to P+5.
+	// Set y to mod_sqrt(x^3 - 3x + B)) so that (x mod P = 5 , y) is on the
+	// curve.
+	x := new(big.Int).Add(p, big.NewInt(5))
+	y, _ := new(big.Int).SetString("31468013646237722594854082025316614106172411895747863909393730389177298123724", 10)
+
+	copy(invalidX[1:], x.Bytes())
+	copy(invalidX[33:], y.Bytes())
+
+	if X, Y := Unmarshal(curve, invalidX); X != nil || Y != nil {
+		t.Errorf("Unmarshal accpets invalid X coordinate")
+	}
+
+	// This is a point on the curve with a small y value, small enough that we can add p and still be within 32 bytes.
+	x, _ = new(big.Int).SetString("31931927535157963707678568152204072984517581467226068221761862915403492091210", 10)
+	y, _ = new(big.Int).SetString("5208467867388784005506817585327037698770365050895731383201516607147", 10)
+	y.Add(y, p)
+
+	if p.Cmp(y) > 0 || y.BitLen() != 256 {
+		t.Fatal("y not within expected range")
+	}
+
+	// marshal
+	copy(invalidY[1:], x.Bytes())
+	copy(invalidY[33:], y.Bytes())
+
+	if X, Y := Unmarshal(curve, invalidY); X != nil || Y != nil {
+		t.Errorf("Unmarshal accpets invalid Y coordinate")
 	}
 }

@@ -47,26 +47,25 @@ type typeAlg struct {
 func memhash0(p unsafe.Pointer, h uintptr) uintptr {
 	return h
 }
+
 func memhash8(p unsafe.Pointer, h uintptr) uintptr {
 	return memhash(p, h, 1)
 }
+
 func memhash16(p unsafe.Pointer, h uintptr) uintptr {
 	return memhash(p, h, 2)
 }
-func memhash32(p unsafe.Pointer, h uintptr) uintptr {
-	return memhash(p, h, 4)
-}
-func memhash64(p unsafe.Pointer, h uintptr) uintptr {
-	return memhash(p, h, 8)
-}
+
 func memhash128(p unsafe.Pointer, h uintptr) uintptr {
 	return memhash(p, h, 16)
 }
 
-// memhash_varlen is defined in assembly because it needs access
-// to the closure. It appears here to provide an argument
-// signature for the assembly routine.
-func memhash_varlen(p unsafe.Pointer, h uintptr) uintptr
+//go:nosplit
+func memhash_varlen(p unsafe.Pointer, h uintptr) uintptr {
+	ptr := getclosureptr()
+	size := *(*uintptr)(unsafe.Pointer(ptr + unsafe.Sizeof(h)))
+	return memhash(p, h, size)
+}
 
 var algarray = [alg_max]typeAlg{
 	alg_NOEQ:     {nil, nil},

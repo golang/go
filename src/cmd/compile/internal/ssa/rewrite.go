@@ -117,10 +117,6 @@ func isSigned(t *types.Type) bool {
 	return t.IsSigned()
 }
 
-func typeSize(t *types.Type) int64 {
-	return t.Size()
-}
-
 // mergeSym merges two symbolic offsets. There is no real merging of
 // offsets, we just pick the non-nil one.
 func mergeSym(x, y interface{}) interface{} {
@@ -276,18 +272,6 @@ search:
 	return true
 }
 
-// isArg returns whether s is an arg symbol
-func isArg(s interface{}) bool {
-	_, ok := s.(*ArgSymbol)
-	return ok
-}
-
-// isAuto returns whether s is an auto symbol
-func isAuto(s interface{}) bool {
-	_, ok := s.(*AutoSymbol)
-	return ok
-}
-
 // isSameSym returns whether sym is the same as the given named symbol
 func isSameSym(sym interface{}, name string) bool {
 	s, ok := sym.(fmt.Stringer)
@@ -303,6 +287,10 @@ func nlz(x int64) int64 {
 // ntz returns the number of trailing zeros.
 func ntz(x int64) int64 {
 	return 64 - nlz(^x&(x-1))
+}
+
+func oneBit(x int64) bool {
+	return nlz(x)+ntz(x) == 63
 }
 
 // nlo returns the number of leading ones.
@@ -408,11 +396,11 @@ func uaddOvf(a, b int64) bool {
 // 'sym' is the symbol for the itab
 func devirt(v *Value, sym interface{}, offset int64) *obj.LSym {
 	f := v.Block.Func
-	ext, ok := sym.(*ExternSymbol)
+	n, ok := sym.(*obj.LSym)
 	if !ok {
 		return nil
 	}
-	lsym := f.fe.DerefItab(ext.Sym, offset)
+	lsym := f.fe.DerefItab(n, offset)
 	if f.pass.debug > 0 {
 		if lsym != nil {
 			f.Warnl(v.Pos, "de-virtualizing call")
@@ -641,6 +629,53 @@ func overlap(offset1, size1, offset2, size2 int64) bool {
 	}
 	if offset2 >= offset1 && offset1+size1 > offset2 {
 		return true
+	}
+	return false
+}
+
+// check if value zeroes out upper 32-bit of 64-bit register.
+// depth limits recursion depth. In AMD64.rules 3 is used as limit,
+// because it catches same amount of cases as 4.
+func zeroUpper32Bits(x *Value, depth int) bool {
+	switch x.Op {
+	case OpAMD64MOVLconst, OpAMD64MOVLload, OpAMD64MOVLQZX, OpAMD64MOVLloadidx1,
+		OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVBload, OpAMD64MOVBloadidx1,
+		OpAMD64MOVLloadidx4, OpAMD64ADDLmem, OpAMD64SUBLmem, OpAMD64ANDLmem,
+		OpAMD64ORLmem, OpAMD64XORLmem, OpAMD64CVTTSD2SL,
+		OpAMD64ADDL, OpAMD64ADDLconst, OpAMD64SUBL, OpAMD64SUBLconst,
+		OpAMD64ANDL, OpAMD64ANDLconst, OpAMD64ORL, OpAMD64ORLconst,
+		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL:
+		return true
+	case OpArg, OpSelect0, OpSelect1:
+		return x.Type.Width == 4
+	case OpPhi:
+		// Phis can use each-other as an arguments, instead of tracking visited values,
+		// just limit recursion depth.
+		if depth <= 0 {
+			return false
+		}
+		for i := range x.Args {
+			if !zeroUpper32Bits(x.Args[i], depth-1) {
+				return false
+			}
+		}
+		return true
+
+	}
+	return false
+}
+
+// inlineablememmovesize reports whether the given arch performs OpMove of the given size
+// faster than memmove and in a safe way when src and dst overlap.
+// This is used as a check for replacing memmove with OpMove.
+func isInlinableMemmoveSize(sz int64, c *Config) bool {
+	switch c.arch {
+	case "amd64", "amd64p32":
+		return sz <= 16
+	case "386", "ppc64", "s390x", "ppc64le":
+		return sz <= 8
+	case "arm", "mips", "mips64", "mipsle", "mips64le":
+		return sz <= 4
 	}
 	return false
 }

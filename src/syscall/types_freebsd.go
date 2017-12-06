@@ -337,6 +337,12 @@ type BpfHdr C.struct_bpf_hdr
 
 type BpfZbufHeader C.struct_bpf_zbuf_header
 
+// Misc
+
+const (
+	_AT_FDCWD = C.AT_FDCWD
+)
+
 // Terminal handling
 
 type Termios C.struct_termios

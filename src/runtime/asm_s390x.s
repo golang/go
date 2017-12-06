@@ -7,6 +7,83 @@
 #include "funcdata.h"
 #include "textflag.h"
 
+// _rt0_s390x_lib is common startup code for s390x systems when
+// using -buildmode=c-archive or -buildmode=c-shared. The linker will
+// arrange to invoke this function as a global constructor (for
+// c-archive) or when the shared library is loaded (for c-shared).
+// We expect argc and argv to be passed in the usual C ABI registers
+// R2 and R3.
+TEXT _rt0_s390x_lib(SB), NOSPLIT|NOFRAME, $0
+	STMG	R6, R15, 48(R15)
+	MOVD	R2, _rt0_s390x_lib_argc<>(SB)
+	MOVD	R3, _rt0_s390x_lib_argv<>(SB)
+
+	// Save R6-R15 in the register save area of the calling function.
+	STMG	R6, R15, 48(R15)
+
+	// Allocate 80 bytes on the stack.
+	MOVD	$-80(R15), R15
+
+	// Save F8-F15 in our stack frame.
+	FMOVD	F8, 16(R15)
+	FMOVD	F9, 24(R15)
+	FMOVD	F10, 32(R15)
+	FMOVD	F11, 40(R15)
+	FMOVD	F12, 48(R15)
+	FMOVD	F13, 56(R15)
+	FMOVD	F14, 64(R15)
+	FMOVD	F15, 72(R15)
+
+	// Synchronous initialization.
+	MOVD	$runtime·libpreinit(SB), R1
+	BL	R1
+
+	// Create a new thread to finish Go runtime initialization.
+	MOVD	_cgo_sys_thread_create(SB), R1
+	CMP	R1, $0
+	BEQ	nocgo
+	MOVD	$_rt0_s390x_lib_go(SB), R2
+	MOVD	$0, R3
+	BL	R1
+	BR	restore
+
+nocgo:
+	MOVD	$0x800000, R1              // stacksize
+	MOVD	R1, 0(R15)
+	MOVD	$_rt0_s390x_lib_go(SB), R1
+	MOVD	R1, 8(R15)                 // fn
+	MOVD	$runtime·newosproc(SB), R1
+	BL	R1
+
+restore:
+	// Restore F8-F15 from our stack frame.
+	FMOVD	16(R15), F8
+	FMOVD	24(R15), F9
+	FMOVD	32(R15), F10
+	FMOVD	40(R15), F11
+	FMOVD	48(R15), F12
+	FMOVD	56(R15), F13
+	FMOVD	64(R15), F14
+	FMOVD	72(R15), F15
+	MOVD	$80(R15), R15
+
+	// Restore R6-R15.
+	LMG	48(R15), R6, R15
+	RET
+
+// _rt0_s390x_lib_go initializes the Go runtime.
+// This is started in a separate thread by _rt0_s390x_lib.
+TEXT _rt0_s390x_lib_go(SB), NOSPLIT|NOFRAME, $0
+	MOVD	_rt0_s390x_lib_argc<>(SB), R2
+	MOVD	_rt0_s390x_lib_argv<>(SB), R3
+	MOVD	$runtime·rt0_go(SB), R1
+	BR	R1
+
+DATA _rt0_s390x_lib_argc<>(SB)/8, $0
+GLOBL _rt0_s390x_lib_argc<>(SB), NOPTR, $8
+DATA _rt0_s90x_lib_argv<>(SB)/8, $0
+GLOBL _rt0_s390x_lib_argv<>(SB), NOPTR, $8
+
 TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// R2 = argc; R3 = argv; R11 = temp; R13 = g; R15 = stack pointer
 	// C TLS base pointer in AR0:AR1
@@ -116,17 +193,6 @@ TEXT runtime·gosave(SB), NOSPLIT, $-8-8
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB), NOSPLIT, $16-8
 	MOVD	buf+0(FP), R5
-
-	// If ctxt is not nil, invoke deletion barrier before overwriting.
-	MOVD	gobuf_ctxt(R5), R1
-	CMPBEQ	R1, $0, nilctxt
-	MOVD	$gobuf_ctxt(R5), R1
-	MOVD	R1, 8(R15)
-	MOVD	R0, 16(R15)
-	BL	runtime·writebarrierptr_prewrite(SB)
-	MOVD	buf+0(FP), R5
-
-nilctxt:
 	MOVD	gobuf_g(R5), g	// make sure g is not nil
 	BL	runtime·save_g(SB)
 
@@ -235,9 +301,12 @@ switch:
 
 noswitch:
 	// already on m stack, just call directly
+	// Using a tail call here cleans up tracebacks since we won't stop
+	// at an intermediate systemstack.
 	MOVD	0(R12), R3	// code pointer
-	BL	(R3)
-	RET
+	MOVD	0(R15), LR	// restore LR
+	ADD	$8, R15
+	BR	(R3)
 
 /*
  * support for morestack
@@ -272,7 +341,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	LR, R8
 	MOVD	R8, (g_sched+gobuf_pc)(g)
 	MOVD	R5, (g_sched+gobuf_lr)(g)
-	// newstack will fill gobuf.ctxt.
+	MOVD	R12, (g_sched+gobuf_ctxt)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
@@ -285,9 +354,8 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R15
 	// Create a stack frame on g0 to call newstack.
-	MOVD	$0, -16(R15)	// Zero saved LR in frame
-	SUB	$16, R15
-	MOVD	R12, 8(R15)	// ctxt argument
+	MOVD	$0, -8(R15)	// Zero saved LR in frame
+	SUB	$8, R15
 	BL	runtime·newstack(SB)
 
 	// Not reached, but make sure the return PC from the call to newstack
@@ -656,9 +724,9 @@ TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R1, LR
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
-	MOVD	16(R15), R3		// LR saved by caller
-	MOVD	R3, ret+8(FP)
+TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
+	MOVD	0(R15), R3		// LR saved by caller
+	MOVD	R3, ret+0(FP)
 	RET
 
 TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
@@ -676,23 +744,6 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	SLD	$1, R3
 	SRD	$1, R3
 	MOVD	R3, ret+0(FP)
-	RET
-
-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
-// redirects to memhash(p, h, size) using the size
-// stored in the closure.
-TEXT runtime·memhash_varlen(SB),NOSPLIT,$40-24
-	GO_ARGS
-	NO_LOCAL_POINTERS
-	MOVD	p+0(FP), R3
-	MOVD	h+8(FP), R4
-	MOVD	8(R12), R5
-	MOVD	R3, 8(R15)
-	MOVD	R4, 16(R15)
-	MOVD	R5, 24(R15)
-	BL	runtime·memhash(SB)
-	MOVD	32(R15), R3
-	MOVD	R3, ret+16(FP)
 	RET
 
 // AES hashing not implemented for s390x
@@ -719,18 +770,6 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT|NOFRAME,$0-17
 	MOVD	b+8(FP), R5
 	MOVD	8(R12), R6    // compiler stores size at offset 8 in the closure
 	LA	ret+16(FP), R7
-	BR	runtime·memeqbody(SB)
-
-// eqstring tests whether two strings are equal.
-// The compiler guarantees that strings passed
-// to eqstring have equal length.
-// See runtime_test.go:eqstring_generic for
-// equivalent Go code.
-TEXT runtime·eqstring(SB),NOSPLIT|NOFRAME,$0-33
-	MOVD	s1_base+0(FP), R3
-	MOVD	s1_len+8(FP), R6
-	MOVD	s2_base+16(FP), R5
-	LA	ret+32(FP), R7
 	BR	runtime·memeqbody(SB)
 
 TEXT bytes·Equal(SB),NOSPLIT|NOFRAME,$0-49
@@ -949,23 +988,12 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
 	// traceback from goexit1 must hit code range of goexit
 	BYTE $0x07; BYTE $0x00; // 2-byte nop
 
-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
-	RET
-
-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
-	RET
-
-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
-	RET
-
-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
-	RET
-
 TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
 	RET
 
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
-	SYNC
+        // Stores are already ordered on s390x, so this is just a
+        // compile barrier.
 	RET
 
 TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40

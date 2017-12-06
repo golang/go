@@ -1,4 +1,5 @@
 pkg encoding/json, method (*RawMessage) MarshalJSON() ([]uint8, error)
+pkg math/big, const MaxBase = 36
 pkg math/big, type Word uintptr
 pkg net, func ListenUnixgram(string, *UnixAddr) (*UDPConn, error)
 pkg os (linux-arm), const O_SYNC = 4096
@@ -343,3 +344,4 @@ pkg syscall (openbsd-386), const SYS_KILL = 37
 pkg syscall (openbsd-386-cgo), const SYS_KILL = 37
 pkg syscall (openbsd-amd64), const SYS_KILL = 37
 pkg syscall (openbsd-amd64-cgo), const SYS_KILL = 37
+pkg unicode, const Version = "9.0.0"

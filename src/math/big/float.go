@@ -415,8 +415,9 @@ func (z *Float) round(sbit uint) {
 	// bits > z.prec: mantissa too large => round
 	r := uint(bits - z.prec - 1) // rounding bit position; r >= 0
 	rbit := z.mant.bit(r) & 1    // rounding bit; be safe and ensure it's a single bit
-	if sbit == 0 {
-		// TODO(gri) if rbit != 0 we don't need to compute sbit for some rounding modes (optimization)
+	// The sticky bit is only needed for rounding ToNearestEven
+	// or when the rounding bit is zero. Avoid computation otherwise.
+	if sbit == 0 && (rbit == 0 || z.mode == ToNearestEven) {
 		sbit = z.mant.sticky(r)
 	}
 	sbit &= 1 // be safe and ensure it's a single bit
@@ -1310,8 +1311,11 @@ func (z *Float) umul(x, y *Float) {
 	// TODO(gri) Optimize this for the common case.
 
 	e := int64(x.exp) + int64(y.exp)
-	z.mant = z.mant.mul(x.mant, y.mant)
-
+	if x == y {
+		z.mant = z.mant.sqr(x.mant)
+	} else {
+		z.mant = z.mant.mul(x.mant, y.mant)
+	}
 	z.setExpAndRound(e-fnorm(z.mant), 0)
 }
 

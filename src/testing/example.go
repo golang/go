@@ -87,7 +87,7 @@ func runExample(eg InternalExample) (ok bool) {
 
 	// Clean up in a deferred call so we can recover if the example panics.
 	defer func() {
-		dstr := fmtDuration(time.Now().Sub(start))
+		dstr := fmtDuration(time.Since(start))
 
 		// Close pipe, restore stdout, get output.
 		w.Close()

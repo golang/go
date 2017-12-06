@@ -15,9 +15,12 @@ import (
 )
 
 func ExampleNewGCM_encrypt() {
-	// The key argument should be the AES key, either 16 or 32 bytes
-	// to select AES-128 or AES-256.
-	key := []byte("AES256Key-32Characters1234567890")
+	// Load your secret key from a safe place and reuse it across multiple
+	// Seal/Open calls. (Obviously don't use this example key for anything
+	// real.) If you want to convert a passphrase to a key, use a suitable
+	// package like bcrypt or scrypt.
+	// When decoded the key should be 16 bytes (AES-128) or 32 (AES-256).
+	key, _ := hex.DecodeString("6368616e676520746869732070617373776f726420746f206120736563726574")
 	plaintext := []byte("exampleplaintext")
 
 	block, err := aes.NewCipher(key)
@@ -41,12 +44,14 @@ func ExampleNewGCM_encrypt() {
 }
 
 func ExampleNewGCM_decrypt() {
-	// The key argument should be the AES key, either 16 or 32 bytes
-	// to select AES-128 or AES-256.
-	key := []byte("AES256Key-32Characters1234567890")
-	ciphertext, _ := hex.DecodeString("1019aa66cd7c024f9efd0038899dae1973ee69427f5a6579eba292ffe1b5a260")
-
-	nonce, _ := hex.DecodeString("37b8e8a308c354048d245f6d")
+	// Load your secret key from a safe place and reuse it across multiple
+	// Seal/Open calls. (Obviously don't use this example key for anything
+	// real.) If you want to convert a passphrase to a key, use a suitable
+	// package like bcrypt or scrypt.
+	// When decoded the key should be 16 bytes (AES-128) or 32 (AES-256).
+	key, _ := hex.DecodeString("6368616e676520746869732070617373776f726420746f206120736563726574")
+	ciphertext, _ := hex.DecodeString("c3aaa29f002ca75870806e44086700f62ce4d43e902b3888e23ceff797a7a471")
+	nonce, _ := hex.DecodeString("64a9433eae7ccceee2fc0eda")
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -68,8 +73,12 @@ func ExampleNewGCM_decrypt() {
 }
 
 func ExampleNewCBCDecrypter() {
-	key := []byte("example key 1234")
-	ciphertext, _ := hex.DecodeString("f363f3ccdcb12bb883abf484ba77d9cd7d32b5baecb3d4b1b3e0e4beffdb3ded")
+	// Load your secret key from a safe place and reuse it across multiple
+	// NewCipher calls. (Obviously don't use this example key for anything
+	// real.) If you want to convert a passphrase to a key, use a suitable
+	// package like bcrypt or scrypt.
+	key, _ := hex.DecodeString("6368616e676520746869732070617373")
+	ciphertext, _ := hex.DecodeString("73c86d43a9d700a253a96c85b0f6b03ac9792e0e757f869cca306bd3cba1c62b")
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -107,7 +116,11 @@ func ExampleNewCBCDecrypter() {
 }
 
 func ExampleNewCBCEncrypter() {
-	key := []byte("example key 1234")
+	// Load your secret key from a safe place and reuse it across multiple
+	// NewCipher calls. (Obviously don't use this example key for anything
+	// real.) If you want to convert a passphrase to a key, use a suitable
+	// package like bcrypt or scrypt.
+	key, _ := hex.DecodeString("6368616e676520746869732070617373")
 	plaintext := []byte("exampleplaintext")
 
 	// CBC mode works on blocks so plaintexts may need to be padded to the
@@ -142,8 +155,12 @@ func ExampleNewCBCEncrypter() {
 }
 
 func ExampleNewCFBDecrypter() {
-	key := []byte("example key 1234")
-	ciphertext, _ := hex.DecodeString("22277966616d9bc47177bd02603d08c9a67d5380d0fe8cf3b44438dff7b9")
+	// Load your secret key from a safe place and reuse it across multiple
+	// NewCipher calls. (Obviously don't use this example key for anything
+	// real.) If you want to convert a passphrase to a key, use a suitable
+	// package like bcrypt or scrypt.
+	key, _ := hex.DecodeString("6368616e676520746869732070617373")
+	ciphertext, _ := hex.DecodeString("7dd015f06bec7f1b8f6559dad89f4131da62261786845100056b353194ad")
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -167,7 +184,11 @@ func ExampleNewCFBDecrypter() {
 }
 
 func ExampleNewCFBEncrypter() {
-	key := []byte("example key 1234")
+	// Load your secret key from a safe place and reuse it across multiple
+	// NewCipher calls. (Obviously don't use this example key for anything
+	// real.) If you want to convert a passphrase to a key, use a suitable
+	// package like bcrypt or scrypt.
+	key, _ := hex.DecodeString("6368616e676520746869732070617373")
 	plaintext := []byte("some plaintext")
 
 	block, err := aes.NewCipher(key)
@@ -189,10 +210,15 @@ func ExampleNewCFBEncrypter() {
 	// It's important to remember that ciphertexts must be authenticated
 	// (i.e. by using crypto/hmac) as well as being encrypted in order to
 	// be secure.
+	fmt.Printf("%x\n", ciphertext)
 }
 
 func ExampleNewCTR() {
-	key := []byte("example key 1234")
+	// Load your secret key from a safe place and reuse it across multiple
+	// NewCipher calls. (Obviously don't use this example key for anything
+	// real.) If you want to convert a passphrase to a key, use a suitable
+	// package like bcrypt or scrypt.
+	key, _ := hex.DecodeString("6368616e676520746869732070617373")
 	plaintext := []byte("some plaintext")
 
 	block, err := aes.NewCipher(key)
@@ -227,7 +253,11 @@ func ExampleNewCTR() {
 }
 
 func ExampleNewOFB() {
-	key := []byte("example key 1234")
+	// Load your secret key from a safe place and reuse it across multiple
+	// NewCipher calls. (Obviously don't use this example key for anything
+	// real.) If you want to convert a passphrase to a key, use a suitable
+	// package like bcrypt or scrypt.
+	key, _ := hex.DecodeString("6368616e676520746869732070617373")
 	plaintext := []byte("some plaintext")
 
 	block, err := aes.NewCipher(key)
@@ -262,7 +292,11 @@ func ExampleNewOFB() {
 }
 
 func ExampleStreamReader() {
-	key := []byte("example key 1234")
+	// Load your secret key from a safe place and reuse it across multiple
+	// NewCipher calls. (Obviously don't use this example key for anything
+	// real.) If you want to convert a passphrase to a key, use a suitable
+	// package like bcrypt or scrypt.
+	key, _ := hex.DecodeString("6368616e676520746869732070617373")
 
 	inFile, err := os.Open("encrypted-file")
 	if err != nil {
@@ -299,7 +333,11 @@ func ExampleStreamReader() {
 }
 
 func ExampleStreamWriter() {
-	key := []byte("example key 1234")
+	// Load your secret key from a safe place and reuse it across multiple
+	// NewCipher calls. (Obviously don't use this example key for anything
+	// real.) If you want to convert a passphrase to a key, use a suitable
+	// package like bcrypt or scrypt.
+	key, _ := hex.DecodeString("6368616e676520746869732070617373")
 
 	inFile, err := os.Open("plaintext-file")
 	if err != nil {

@@ -30,6 +30,7 @@ const (
 	TagUTF8String      = 12
 	TagSequence        = 16
 	TagSet             = 17
+	TagNumericString   = 18
 	TagPrintableString = 19
 	TagT61String       = 20
 	TagIA5String       = 22
@@ -106,6 +107,8 @@ func parseFieldParameters(str string) (ret fieldParameters) {
 			ret.stringType = TagIA5String
 		case part == "printable":
 			ret.stringType = TagPrintableString
+		case part == "numeric":
+			ret.stringType = TagNumericString
 		case part == "utf8":
 			ret.stringType = TagUTF8String
 		case strings.HasPrefix(part, "default:"):
@@ -136,36 +139,38 @@ func parseFieldParameters(str string) (ret fieldParameters) {
 
 // Given a reflected Go type, getUniversalType returns the default tag number
 // and expected compound flag.
-func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
+func getUniversalType(t reflect.Type) (matchAny bool, tagNumber int, isCompound, ok bool) {
 	switch t {
+	case rawValueType:
+		return true, -1, false, true
 	case objectIdentifierType:
-		return TagOID, false, true
+		return false, TagOID, false, true
 	case bitStringType:
-		return TagBitString, false, true
+		return false, TagBitString, false, true
 	case timeType:
-		return TagUTCTime, false, true
+		return false, TagUTCTime, false, true
 	case enumeratedType:
-		return TagEnum, false, true
+		return false, TagEnum, false, true
 	case bigIntType:
-		return TagInteger, false, true
+		return false, TagInteger, false, true
 	}
 	switch t.Kind() {
 	case reflect.Bool:
-		return TagBoolean, false, true
+		return false, TagBoolean, false, true
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return TagInteger, false, true
+		return false, TagInteger, false, true
 	case reflect.Struct:
-		return TagSequence, true, true
+		return false, TagSequence, true, true
 	case reflect.Slice:
 		if t.Elem().Kind() == reflect.Uint8 {
-			return TagOctetString, false, true
+			return false, TagOctetString, false, true
 		}
 		if strings.HasSuffix(t.Name(), "SET") {
-			return TagSet, true, true
+			return false, TagSet, true, true
 		}
-		return TagSequence, true, true
+		return false, TagSequence, true, true
 	case reflect.String:
-		return TagPrintableString, false, true
+		return false, TagPrintableString, false, true
 	}
-	return 0, false, false
+	return false, 0, false, false
 }

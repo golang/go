@@ -437,6 +437,7 @@
 
 // pseudo-ops
 (GetClosurePtr) -> (LoweredGetClosurePtr)
+(GetCallerSP) -> (LoweredGetCallerSP)
 (Convert x mem) -> (MOVWconvert x mem)
 
 (If cond yes no) -> (NE cond yes no)

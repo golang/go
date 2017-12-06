@@ -1,5 +1,3 @@
-reflect/asm_s390x.s: [s390x] makeFuncStub: use of 16(R15) points beyond argument frame
-reflect/asm_s390x.s: [s390x] methodValueCall: use of 16(R15) points beyond argument frame
 runtime/asm_s390x.s: [s390x] abort: function abort missing Go declaration
 runtime/asm_s390x.s: [s390x] memeqbody: function memeqbody missing Go declaration
 runtime/asm_s390x.s: [s390x] memeqbodyclc: function memeqbodyclc missing Go declaration

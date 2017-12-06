@@ -169,6 +169,9 @@ func genOp() {
 				if v.reg.clobbers != 0 {
 					log.Fatalf("%s is rematerializeable and clobbers registers", v.name)
 				}
+				if v.clobberFlags {
+					log.Fatalf("%s is rematerializeable and clobbers flags", v.name)
+				}
 				fmt.Fprintln(w, "rematerializeable: true,")
 			}
 			if v.commutative {
@@ -177,10 +180,10 @@ func genOp() {
 			if v.resultInArg0 {
 				fmt.Fprintln(w, "resultInArg0: true,")
 				if v.reg.inputs[0] != v.reg.outputs[0] {
-					log.Fatalf("input[0] and output[0] must use the same registers for %s", v.name)
+					log.Fatalf("%s: input[0] and output[0] must use the same registers for %s", a.name, v.name)
 				}
 				if v.commutative && v.reg.inputs[1] != v.reg.outputs[0] {
-					log.Fatalf("input[1] and output[0] must use the same registers for %s", v.name)
+					log.Fatalf("%s: input[1] and output[0] must use the same registers for %s", a.name, v.name)
 				}
 			}
 			if v.resultNotInArgs {

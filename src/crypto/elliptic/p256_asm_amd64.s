@@ -81,17 +81,23 @@ TEXT ·p256MovCond(SB),NOSPLIT,$0
 	PCMPEQL X13, X12
 
 	MOVOU X12, X0
-	PANDN (16*0)(x_ptr), X0
+	MOVOU (16*0)(x_ptr), X6
+	PANDN X6, X0
 	MOVOU X12, X1
-	PANDN (16*1)(x_ptr), X1
+	MOVOU (16*1)(x_ptr), X7
+	PANDN X7, X1
 	MOVOU X12, X2
-	PANDN (16*2)(x_ptr), X2
+	MOVOU (16*2)(x_ptr), X8
+	PANDN X8, X2
 	MOVOU X12, X3
-	PANDN (16*3)(x_ptr), X3
+	MOVOU (16*3)(x_ptr), X9
+	PANDN X9, X3
 	MOVOU X12, X4
-	PANDN (16*4)(x_ptr), X4
+	MOVOU (16*4)(x_ptr), X10
+	PANDN X10, X4
 	MOVOU X12, X5
-	PANDN (16*5)(x_ptr), X5
+	MOVOU (16*5)(x_ptr), X11
+	PANDN X11, X5
 
 	MOVOU (16*0)(y_ptr), X6
 	MOVOU (16*1)(y_ptr), X7
@@ -1972,6 +1978,36 @@ TEXT ·p256PointAddAffineAsm(SB),0,$512-96
 #undef rptr
 #undef sel_save
 #undef zero_save
+
+// p256IsZero returns 1 in AX if [acc4..acc7] represents zero and zero
+// otherwise. It writes to [acc4..acc7], t0 and t1.
+TEXT p256IsZero(SB),NOSPLIT,$0
+	// AX contains a flag that is set if the input is zero.
+	XORQ AX, AX
+	MOVQ $1, t1
+
+	// Check whether [acc4..acc7] are all zero.
+	MOVQ acc4, t0
+	ORQ acc5, t0
+	ORQ acc6, t0
+	ORQ acc7, t0
+
+	// Set the zero flag if so. (CMOV of a constant to a register doesn't
+	// appear to be supported in Go. Thus t1 = 1.)
+	CMOVQEQ t1, AX
+
+	// XOR [acc4..acc7] with P and compare with zero again.
+	XORQ $-1, acc4
+	XORQ p256const0<>(SB), acc5
+	XORQ p256const1<>(SB), acc7
+	ORQ acc5, acc4
+	ORQ acc6, acc4
+	ORQ acc7, acc4
+
+	// Set the zero flag if so.
+	CMOVQEQ t1, AX
+	RET
+
 /* ---------------------------------------*/
 #define x1in(off) (32*0 + off)(SP)
 #define y1in(off) (32*1 + off)(SP)
@@ -1996,9 +2032,11 @@ TEXT ·p256PointAddAffineAsm(SB),0,$512-96
 #define rsqr(off)  (32*18 + off)(SP)
 #define hcub(off)  (32*19 + off)(SP)
 #define rptr       (32*20)(SP)
+#define points_eq  (32*20+8)(SP)
 
-//func p256PointAddAsm(res, in1, in2 []uint64)
-TEXT ·p256PointAddAsm(SB),0,$672-72
+//func p256PointAddAsm(res, in1, in2 []uint64) int
+TEXT ·p256PointAddAsm(SB),0,$680-80
+	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
 	// Move input to stack in order to free registers
 	MOVQ res+0(FP), AX
 	MOVQ in1+24(FP), BX
@@ -2055,6 +2093,8 @@ TEXT ·p256PointAddAsm(SB),0,$672-72
 	LDt (s1)
 	CALL p256SubInternal(SB)	// r = s2 - s1
 	ST (r)
+	CALL p256IsZero(SB)
+	MOVQ AX, points_eq
 
 	LDacc (z2sqr)
 	LDt (x1in)
@@ -2068,6 +2108,9 @@ TEXT ·p256PointAddAsm(SB),0,$672-72
 	LDt (u1)
 	CALL p256SubInternal(SB)	// h = u2 - u1
 	ST (h)
+	CALL p256IsZero(SB)
+	ANDQ points_eq, AX
+	MOVQ AX, points_eq
 
 	LDacc (r)
 	CALL p256SqrInternal(SB)	// rsqr = rˆ2
@@ -2134,6 +2177,9 @@ TEXT ·p256PointAddAsm(SB),0,$672-72
 	MOVOU X3, (16*3)(AX)
 	MOVOU X4, (16*4)(AX)
 	MOVOU X5, (16*5)(AX)
+
+	MOVQ points_eq, AX
+	MOVQ AX, ret+72(FP)
 
 	RET
 #undef x1in

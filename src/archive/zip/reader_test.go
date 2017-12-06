@@ -27,9 +27,11 @@ type ZipTest struct {
 }
 
 type ZipTestFile struct {
-	Name  string
-	Mode  os.FileMode
-	Mtime string // optional, modified time in format "mm-dd-yy hh:mm:ss"
+	Name     string
+	Mode     os.FileMode
+	NonUTF8  bool
+	ModTime  time.Time
+	Modified time.Time
 
 	// Information describing expected zip file content.
 	// First, reading the entire content should produce the error ContentErr.
@@ -47,32 +49,22 @@ type ZipTestFile struct {
 	Size       uint64
 }
 
-// Caution: The Mtime values found for the test files should correspond to
-//          the values listed with unzip -l <zipfile>. However, the values
-//          listed by unzip appear to be off by some hours. When creating
-//          fresh test files and testing them, this issue is not present.
-//          The test files were created in Sydney, so there might be a time
-//          zone issue. The time zone information does have to be encoded
-//          somewhere, because otherwise unzip -l could not provide a different
-//          time from what the archive/zip package provides, but there appears
-//          to be no documentation about this.
-
 var tests = []ZipTest{
 	{
 		Name:    "test.zip",
 		Comment: "This is a zipfile comment.",
 		File: []ZipTestFile{
 			{
-				Name:    "test.txt",
-				Content: []byte("This is a test text file.\n"),
-				Mtime:   "09-05-10 12:12:02",
-				Mode:    0644,
+				Name:     "test.txt",
+				Content:  []byte("This is a test text file.\n"),
+				Modified: time.Date(2010, 9, 5, 12, 12, 1, 0, timeZone(+10*time.Hour)),
+				Mode:     0644,
 			},
 			{
-				Name:  "gophercolor16x16.png",
-				File:  "gophercolor16x16.png",
-				Mtime: "09-05-10 15:52:58",
-				Mode:  0644,
+				Name:     "gophercolor16x16.png",
+				File:     "gophercolor16x16.png",
+				Modified: time.Date(2010, 9, 5, 15, 52, 58, 0, timeZone(+10*time.Hour)),
+				Mode:     0644,
 			},
 		},
 	},
@@ -81,16 +73,16 @@ var tests = []ZipTest{
 		Comment: "This is a zipfile comment.",
 		File: []ZipTestFile{
 			{
-				Name:    "test.txt",
-				Content: []byte("This is a test text file.\n"),
-				Mtime:   "09-05-10 12:12:02",
-				Mode:    0644,
+				Name:     "test.txt",
+				Content:  []byte("This is a test text file.\n"),
+				Modified: time.Date(2010, 9, 5, 12, 12, 1, 0, timeZone(+10*time.Hour)),
+				Mode:     0644,
 			},
 			{
-				Name:  "gophercolor16x16.png",
-				File:  "gophercolor16x16.png",
-				Mtime: "09-05-10 15:52:58",
-				Mode:  0644,
+				Name:     "gophercolor16x16.png",
+				File:     "gophercolor16x16.png",
+				Modified: time.Date(2010, 9, 5, 15, 52, 58, 0, timeZone(+10*time.Hour)),
+				Mode:     0644,
 			},
 		},
 	},
@@ -99,10 +91,10 @@ var tests = []ZipTest{
 		Source: returnRecursiveZip,
 		File: []ZipTestFile{
 			{
-				Name:    "r/r.zip",
-				Content: rZipBytes(),
-				Mtime:   "03-04-10 00:24:16",
-				Mode:    0666,
+				Name:     "r/r.zip",
+				Content:  rZipBytes(),
+				Modified: time.Date(2010, 3, 4, 0, 24, 16, 0, time.UTC),
+				Mode:     0666,
 			},
 		},
 	},
@@ -110,9 +102,10 @@ var tests = []ZipTest{
 		Name: "symlink.zip",
 		File: []ZipTestFile{
 			{
-				Name:    "symlink",
-				Content: []byte("../target"),
-				Mode:    0777 | os.ModeSymlink,
+				Name:     "symlink",
+				Content:  []byte("../target"),
+				Modified: time.Date(2012, 2, 3, 19, 56, 48, 0, timeZone(-2*time.Hour)),
+				Mode:     0777 | os.ModeSymlink,
 			},
 		},
 	},
@@ -127,22 +120,72 @@ var tests = []ZipTest{
 		Name: "dd.zip",
 		File: []ZipTestFile{
 			{
-				Name:    "filename",
-				Content: []byte("This is a test textfile.\n"),
-				Mtime:   "02-02-11 13:06:20",
-				Mode:    0666,
+				Name:     "filename",
+				Content:  []byte("This is a test textfile.\n"),
+				Modified: time.Date(2011, 2, 2, 13, 6, 20, 0, time.UTC),
+				Mode:     0666,
 			},
 		},
 	},
 	{
 		// created in windows XP file manager.
 		Name: "winxp.zip",
-		File: crossPlatform,
+		File: []ZipTestFile{
+			{
+				Name:     "hello",
+				Content:  []byte("world \r\n"),
+				Modified: time.Date(2011, 12, 8, 10, 4, 24, 0, time.UTC),
+				Mode:     0666,
+			},
+			{
+				Name:     "dir/bar",
+				Content:  []byte("foo \r\n"),
+				Modified: time.Date(2011, 12, 8, 10, 4, 50, 0, time.UTC),
+				Mode:     0666,
+			},
+			{
+				Name:     "dir/empty/",
+				Content:  []byte{},
+				Modified: time.Date(2011, 12, 8, 10, 8, 6, 0, time.UTC),
+				Mode:     os.ModeDir | 0777,
+			},
+			{
+				Name:     "readonly",
+				Content:  []byte("important \r\n"),
+				Modified: time.Date(2011, 12, 8, 10, 6, 8, 0, time.UTC),
+				Mode:     0444,
+			},
+		},
 	},
 	{
 		// created by Zip 3.0 under Linux
 		Name: "unix.zip",
-		File: crossPlatform,
+		File: []ZipTestFile{
+			{
+				Name:     "hello",
+				Content:  []byte("world \r\n"),
+				Modified: time.Date(2011, 12, 8, 10, 4, 24, 0, timeZone(0)),
+				Mode:     0666,
+			},
+			{
+				Name:     "dir/bar",
+				Content:  []byte("foo \r\n"),
+				Modified: time.Date(2011, 12, 8, 10, 4, 50, 0, timeZone(0)),
+				Mode:     0666,
+			},
+			{
+				Name:     "dir/empty/",
+				Content:  []byte{},
+				Modified: time.Date(2011, 12, 8, 10, 8, 6, 0, timeZone(0)),
+				Mode:     os.ModeDir | 0777,
+			},
+			{
+				Name:     "readonly",
+				Content:  []byte("important \r\n"),
+				Modified: time.Date(2011, 12, 8, 10, 6, 8, 0, timeZone(0)),
+				Mode:     0444,
+			},
+		},
 	},
 	{
 		// created by Go, before we wrote the "optional" data
@@ -150,16 +193,16 @@ var tests = []ZipTest{
 		Name: "go-no-datadesc-sig.zip",
 		File: []ZipTestFile{
 			{
-				Name:    "foo.txt",
-				Content: []byte("foo\n"),
-				Mtime:   "03-08-12 16:59:10",
-				Mode:    0644,
+				Name:     "foo.txt",
+				Content:  []byte("foo\n"),
+				Modified: time.Date(2012, 3, 8, 16, 59, 10, 0, timeZone(-8*time.Hour)),
+				Mode:     0644,
 			},
 			{
-				Name:    "bar.txt",
-				Content: []byte("bar\n"),
-				Mtime:   "03-08-12 16:59:12",
-				Mode:    0644,
+				Name:     "bar.txt",
+				Content:  []byte("bar\n"),
+				Modified: time.Date(2012, 3, 8, 16, 59, 12, 0, timeZone(-8*time.Hour)),
+				Mode:     0644,
 			},
 		},
 	},
@@ -169,14 +212,16 @@ var tests = []ZipTest{
 		Name: "go-with-datadesc-sig.zip",
 		File: []ZipTestFile{
 			{
-				Name:    "foo.txt",
-				Content: []byte("foo\n"),
-				Mode:    0666,
+				Name:     "foo.txt",
+				Content:  []byte("foo\n"),
+				Modified: time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
+				Mode:     0666,
 			},
 			{
-				Name:    "bar.txt",
-				Content: []byte("bar\n"),
-				Mode:    0666,
+				Name:     "bar.txt",
+				Content:  []byte("bar\n"),
+				Modified: time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
+				Mode:     0666,
 			},
 		},
 	},
@@ -187,13 +232,15 @@ var tests = []ZipTest{
 			{
 				Name:       "foo.txt",
 				Content:    []byte("foo\n"),
+				Modified:   time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
 				Mode:       0666,
 				ContentErr: ErrChecksum,
 			},
 			{
-				Name:    "bar.txt",
-				Content: []byte("bar\n"),
-				Mode:    0666,
+				Name:     "bar.txt",
+				Content:  []byte("bar\n"),
+				Modified: time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
+				Mode:     0666,
 			},
 		},
 	},
@@ -203,16 +250,16 @@ var tests = []ZipTest{
 		Name: "crc32-not-streamed.zip",
 		File: []ZipTestFile{
 			{
-				Name:    "foo.txt",
-				Content: []byte("foo\n"),
-				Mtime:   "03-08-12 16:59:10",
-				Mode:    0644,
+				Name:     "foo.txt",
+				Content:  []byte("foo\n"),
+				Modified: time.Date(2012, 3, 8, 16, 59, 10, 0, timeZone(-8*time.Hour)),
+				Mode:     0644,
 			},
 			{
-				Name:    "bar.txt",
-				Content: []byte("bar\n"),
-				Mtime:   "03-08-12 16:59:12",
-				Mode:    0644,
+				Name:     "bar.txt",
+				Content:  []byte("bar\n"),
+				Modified: time.Date(2012, 3, 8, 16, 59, 12, 0, timeZone(-8*time.Hour)),
+				Mode:     0644,
 			},
 		},
 	},
@@ -225,15 +272,15 @@ var tests = []ZipTest{
 			{
 				Name:       "foo.txt",
 				Content:    []byte("foo\n"),
-				Mtime:      "03-08-12 16:59:10",
+				Modified:   time.Date(2012, 3, 8, 16, 59, 10, 0, timeZone(-8*time.Hour)),
 				Mode:       0644,
 				ContentErr: ErrChecksum,
 			},
 			{
-				Name:    "bar.txt",
-				Content: []byte("bar\n"),
-				Mtime:   "03-08-12 16:59:12",
-				Mode:    0644,
+				Name:     "bar.txt",
+				Content:  []byte("bar\n"),
+				Modified: time.Date(2012, 3, 8, 16, 59, 12, 0, timeZone(-8*time.Hour)),
+				Mode:     0644,
 			},
 		},
 	},
@@ -241,10 +288,10 @@ var tests = []ZipTest{
 		Name: "zip64.zip",
 		File: []ZipTestFile{
 			{
-				Name:    "README",
-				Content: []byte("This small file is in ZIP64 format.\n"),
-				Mtime:   "08-10-12 14:33:32",
-				Mode:    0644,
+				Name:     "README",
+				Content:  []byte("This small file is in ZIP64 format.\n"),
+				Modified: time.Date(2012, 8, 10, 14, 33, 32, 0, time.UTC),
+				Mode:     0644,
 			},
 		},
 	},
@@ -253,10 +300,10 @@ var tests = []ZipTest{
 		Name: "zip64-2.zip",
 		File: []ZipTestFile{
 			{
-				Name:    "README",
-				Content: []byte("This small file is in ZIP64 format.\n"),
-				Mtime:   "08-10-12 14:33:32",
-				Mode:    0644,
+				Name:     "README",
+				Content:  []byte("This small file is in ZIP64 format.\n"),
+				Modified: time.Date(2012, 8, 10, 14, 33, 32, 0, timeZone(-4*time.Hour)),
+				Mode:     0644,
 			},
 		},
 	},
@@ -266,41 +313,179 @@ var tests = []ZipTest{
 		Source: returnBigZipBytes,
 		File: []ZipTestFile{
 			{
-				Name:    "big.file",
-				Content: nil,
-				Size:    1<<32 - 1,
-				Mode:    0666,
+				Name:     "big.file",
+				Content:  nil,
+				Size:     1<<32 - 1,
+				Modified: time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
+				Mode:     0666,
+			},
+		},
+	},
+	{
+		Name: "utf8-7zip.zip",
+		File: []ZipTestFile{
+			{
+				Name:     "世界",
+				Content:  []byte{},
+				Mode:     0666,
+				Modified: time.Date(2017, 11, 6, 13, 9, 27, 867862500, timeZone(-8*time.Hour)),
+			},
+		},
+	},
+	{
+		Name: "utf8-infozip.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "世界",
+				Content: []byte{},
+				Mode:    0644,
+				// Name is valid UTF-8, but format does not have UTF-8 flag set.
+				// We don't do UTF-8 detection for multi-byte runes due to
+				// false-positives with other encodings (e.g., Shift-JIS).
+				// Format says encoding is not UTF-8, so we trust it.
+				NonUTF8:  true,
+				Modified: time.Date(2017, 11, 6, 13, 9, 27, 0, timeZone(-8*time.Hour)),
+			},
+		},
+	},
+	{
+		Name: "utf8-osx.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "世界",
+				Content: []byte{},
+				Mode:    0644,
+				// Name is valid UTF-8, but format does not have UTF-8 set.
+				NonUTF8:  true,
+				Modified: time.Date(2017, 11, 6, 13, 9, 27, 0, timeZone(-8*time.Hour)),
+			},
+		},
+	},
+	{
+		Name: "utf8-winrar.zip",
+		File: []ZipTestFile{
+			{
+				Name:     "世界",
+				Content:  []byte{},
+				Mode:     0666,
+				Modified: time.Date(2017, 11, 6, 13, 9, 27, 867862500, timeZone(-8*time.Hour)),
+			},
+		},
+	},
+	{
+		Name: "utf8-winzip.zip",
+		File: []ZipTestFile{
+			{
+				Name:     "世界",
+				Content:  []byte{},
+				Mode:     0666,
+				Modified: time.Date(2017, 11, 6, 13, 9, 27, 867000000, timeZone(-8*time.Hour)),
+			},
+		},
+	},
+	{
+		Name: "time-7zip.zip",
+		File: []ZipTestFile{
+			{
+				Name:     "test.txt",
+				Content:  []byte{},
+				Size:     1<<32 - 1,
+				Modified: time.Date(2017, 10, 31, 21, 11, 57, 244817900, timeZone(-7*time.Hour)),
+				Mode:     0666,
+			},
+		},
+	},
+	{
+		Name: "time-infozip.zip",
+		File: []ZipTestFile{
+			{
+				Name:     "test.txt",
+				Content:  []byte{},
+				Size:     1<<32 - 1,
+				Modified: time.Date(2017, 10, 31, 21, 11, 57, 0, timeZone(-7*time.Hour)),
+				Mode:     0644,
+			},
+		},
+	},
+	{
+		Name: "time-osx.zip",
+		File: []ZipTestFile{
+			{
+				Name:     "test.txt",
+				Content:  []byte{},
+				Size:     1<<32 - 1,
+				Modified: time.Date(2017, 10, 31, 21, 17, 27, 0, timeZone(-7*time.Hour)),
+				Mode:     0644,
+			},
+		},
+	},
+	{
+		Name: "time-win7.zip",
+		File: []ZipTestFile{
+			{
+				Name:     "test.txt",
+				Content:  []byte{},
+				Size:     1<<32 - 1,
+				Modified: time.Date(2017, 10, 31, 21, 11, 58, 0, time.UTC),
+				Mode:     0666,
+			},
+		},
+	},
+	{
+		Name: "time-winrar.zip",
+		File: []ZipTestFile{
+			{
+				Name:     "test.txt",
+				Content:  []byte{},
+				Size:     1<<32 - 1,
+				Modified: time.Date(2017, 10, 31, 21, 11, 57, 244817900, timeZone(-7*time.Hour)),
+				Mode:     0666,
+			},
+		},
+	},
+	{
+		Name: "time-winzip.zip",
+		File: []ZipTestFile{
+			{
+				Name:     "test.txt",
+				Content:  []byte{},
+				Size:     1<<32 - 1,
+				Modified: time.Date(2017, 10, 31, 21, 11, 57, 244000000, timeZone(-7*time.Hour)),
+				Mode:     0666,
+			},
+		},
+	},
+	{
+		Name: "time-go.zip",
+		File: []ZipTestFile{
+			{
+				Name:     "test.txt",
+				Content:  []byte{},
+				Size:     1<<32 - 1,
+				Modified: time.Date(2017, 10, 31, 21, 11, 57, 0, timeZone(-7*time.Hour)),
+				Mode:     0666,
+			},
+		},
+	},
+	{
+		Name: "time-22738.zip",
+		File: []ZipTestFile{
+			{
+				Name:     "file",
+				Content:  []byte{},
+				Mode:     0666,
+				Modified: time.Date(1999, 12, 31, 19, 0, 0, 0, timeZone(-5*time.Hour)),
+				ModTime:  time.Date(1999, 12, 31, 19, 0, 0, 0, time.UTC),
 			},
 		},
 	},
 }
 
-var crossPlatform = []ZipTestFile{
-	{
-		Name:    "hello",
-		Content: []byte("world \r\n"),
-		Mode:    0666,
-	},
-	{
-		Name:    "dir/bar",
-		Content: []byte("foo \r\n"),
-		Mode:    0666,
-	},
-	{
-		Name:    "dir/empty/",
-		Content: []byte{},
-		Mode:    os.ModeDir | 0777,
-	},
-	{
-		Name:    "readonly",
-		Content: []byte("important \r\n"),
-		Mode:    0444,
-	},
-}
-
 func TestReader(t *testing.T) {
 	for _, zt := range tests {
-		readTestZip(t, zt)
+		t.Run(zt.Name, func(t *testing.T) {
+			readTestZip(t, zt)
+		})
 	}
 }
 
@@ -319,7 +504,7 @@ func readTestZip(t *testing.T, zt ZipTest) {
 		}
 	}
 	if err != zt.Error {
-		t.Errorf("%s: error=%v, want %v", zt.Name, err, zt.Error)
+		t.Errorf("error=%v, want %v", err, zt.Error)
 		return
 	}
 
@@ -335,15 +520,18 @@ func readTestZip(t *testing.T, zt ZipTest) {
 	}
 
 	if z.Comment != zt.Comment {
-		t.Errorf("%s: comment=%q, want %q", zt.Name, z.Comment, zt.Comment)
+		t.Errorf("comment=%q, want %q", z.Comment, zt.Comment)
 	}
 	if len(z.File) != len(zt.File) {
-		t.Fatalf("%s: file count=%d, want %d", zt.Name, len(z.File), len(zt.File))
+		t.Fatalf("file count=%d, want %d", len(z.File), len(zt.File))
 	}
 
 	// test read of each file
 	for i, ft := range zt.File {
 		readTestFile(t, zt, ft, z.File[i])
+	}
+	if t.Failed() {
+		return
 	}
 
 	// test simultaneous reads
@@ -363,23 +551,24 @@ func readTestZip(t *testing.T, zt ZipTest) {
 	}
 }
 
+func equalTimeAndZone(t1, t2 time.Time) bool {
+	name1, offset1 := t1.Zone()
+	name2, offset2 := t2.Zone()
+	return t1.Equal(t2) && name1 == name2 && offset1 == offset2
+}
+
 func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 	if f.Name != ft.Name {
-		t.Errorf("%s: name=%q, want %q", zt.Name, f.Name, ft.Name)
+		t.Errorf("name=%q, want %q", f.Name, ft.Name)
+	}
+	if !ft.Modified.IsZero() && !equalTimeAndZone(f.Modified, ft.Modified) {
+		t.Errorf("%s: Modified=%s, want %s", f.Name, f.Modified, ft.Modified)
+	}
+	if !ft.ModTime.IsZero() && !equalTimeAndZone(f.ModTime(), ft.ModTime) {
+		t.Errorf("%s: ModTime=%s, want %s", f.Name, f.ModTime(), ft.ModTime)
 	}
 
-	if ft.Mtime != "" {
-		mtime, err := time.Parse("01-02-06 15:04:05", ft.Mtime)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		if ft := f.ModTime(); !ft.Equal(mtime) {
-			t.Errorf("%s: %s: mtime=%s, want %s", zt.Name, f.Name, ft, mtime)
-		}
-	}
-
-	testFileMode(t, zt.Name, f, ft.Mode)
+	testFileMode(t, f, ft.Mode)
 
 	size := uint64(f.UncompressedSize)
 	if size == uint32max {
@@ -390,7 +579,7 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 
 	r, err := f.Open()
 	if err != nil {
-		t.Errorf("%s: %v", zt.Name, err)
+		t.Errorf("%v", err)
 		return
 	}
 
@@ -408,7 +597,7 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 	var b bytes.Buffer
 	_, err = io.Copy(&b, r)
 	if err != ft.ContentErr {
-		t.Errorf("%s: copying contents: %v (want %v)", zt.Name, err, ft.ContentErr)
+		t.Errorf("copying contents: %v (want %v)", err, ft.ContentErr)
 	}
 	if err != nil {
 		return
@@ -440,12 +629,12 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 	}
 }
 
-func testFileMode(t *testing.T, zipName string, f *File, want os.FileMode) {
+func testFileMode(t *testing.T, f *File, want os.FileMode) {
 	mode := f.Mode()
 	if want == 0 {
-		t.Errorf("%s: %s mode: got %v, want none", zipName, f.Name, mode)
+		t.Errorf("%s mode: got %v, want none", f.Name, mode)
 	} else if mode != want {
-		t.Errorf("%s: %s mode: want %v, got %v", zipName, f.Name, want, mode)
+		t.Errorf("%s mode: want %v, got %v", f.Name, want, mode)
 	}
 }
 

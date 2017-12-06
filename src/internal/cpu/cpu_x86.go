@@ -15,9 +15,9 @@ func cpuid(eaxArg, ecxArg uint32) (eax, ebx, ecx, edx uint32)
 func xgetbv() (eax, edx uint32)
 
 func init() {
-	maxId, _, _, _ := cpuid(0, 0)
+	maxID, _, _, _ := cpuid(0, 0)
 
-	if maxId < 1 {
+	if maxID < 1 {
 		return
 	}
 
@@ -27,6 +27,7 @@ func init() {
 	X86.HasSSE3 = isSet(0, ecx1)
 	X86.HasPCLMULQDQ = isSet(1, ecx1)
 	X86.HasSSSE3 = isSet(9, ecx1)
+	X86.HasFMA = isSet(12, ecx1)
 	X86.HasSSE41 = isSet(19, ecx1)
 	X86.HasSSE42 = isSet(20, ecx1)
 	X86.HasPOPCNT = isSet(23, ecx1)
@@ -43,7 +44,7 @@ func init() {
 
 	X86.HasAVX = isSet(28, ecx1) && osSupportsAVX
 
-	if maxId < 7 {
+	if maxID < 7 {
 		return
 	}
 
@@ -52,6 +53,7 @@ func init() {
 	X86.HasAVX2 = isSet(5, ebx7) && osSupportsAVX
 	X86.HasBMI2 = isSet(8, ebx7)
 	X86.HasERMS = isSet(9, ebx7)
+	X86.HasADX = isSet(19, ebx7)
 }
 
 func isSet(bitpos uint, value uint32) bool {

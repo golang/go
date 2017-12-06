@@ -497,7 +497,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	// or close connection when finished, since multipart is not supported yet
 	switch {
 	case chunked(t.TransferEncoding):
-		if noResponseBodyExpected(t.RequestMethod) {
+		if noResponseBodyExpected(t.RequestMethod) || !bodyAllowedForStatus(t.StatusCode) {
 			t.Body = NoBody
 		} else {
 			t.Body = &body{src: internal.NewChunkedReader(r), hdr: msg, r: r, closing: t.Close}
@@ -663,9 +663,8 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 			return -1, err
 		}
 		return n, nil
-	} else {
-		header.Del("Content-Length")
 	}
+	header.Del("Content-Length")
 
 	if isRequest {
 		// RFC 2616 neither explicitly permits nor forbids an

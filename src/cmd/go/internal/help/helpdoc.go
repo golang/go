@@ -471,6 +471,12 @@ General-purpose environment variables:
 		See https://golang.org/doc/articles/race_detector.html.
 	GOROOT
 		The root of the go tree.
+	GOTMPDIR
+		The directory where the go command will write
+		temporary source files, packages, and binaries.
+	GOCACHE
+		The directory where the go command will store
+		cached information for reuse in future builds.
 
 Environment variables for use with cgo:
 
@@ -505,6 +511,9 @@ Architecture-specific environment variables:
 	GO386
 		For GOARCH=386, the floating point instruction set.
 		Valid values are 387, sse2.
+	GOMIPS
+		For GOARCH=mips{,le}, whether to use floating point instructions.
+		Valid values are hardfloat (default), softfloat.
 
 Special-purpose environment variables:
 
@@ -565,8 +574,10 @@ Non-test Go source files can also include a //go:binary-only-package
 comment, indicating that the package sources are included
 for documentation only and must not be used to build the
 package binary. This enables distribution of Go packages in
-their compiled form alone. See the go/build package documentation
-for more details.
+their compiled form alone. Even binary-only packages require
+accurate import blocks listing required dependencies, so that
+those dependencies can be supplied when linking the resulting
+command.
 	`,
 }
 

@@ -140,9 +140,9 @@ func TestReaderWriteTo(t *testing.T) {
 	for i := 0; i < 30; i += 3 {
 		var l int
 		if i > 0 {
-			l = len(data) / i
+			l = len(testString) / i
 		}
-		s := data[:l]
+		s := testString[:l]
 		r := NewReader(testBytes[:l])
 		var b Buffer
 		n, err := r.WriteTo(&b)

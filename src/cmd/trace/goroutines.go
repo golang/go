@@ -121,13 +121,16 @@ func httpGoroutine(w http.ResponseWriter, r *http.Request) {
 	analyzeGoroutines(events)
 	var glist gdescList
 	for _, g := range gs {
-		if g.PC != pc || g.ExecTime == 0 {
+		if g.PC != pc {
 			continue
 		}
 		glist = append(glist, g)
 	}
 	sort.Sort(glist)
-	err = templGoroutine.Execute(w, glist)
+	err = templGoroutine.Execute(w, struct {
+		PC    uint64
+		GList gdescList
+	}{pc, glist})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
 		return
@@ -142,14 +145,14 @@ var templGoroutine = template.Must(template.New("").Parse(`
 <th> Goroutine </th>
 <th> Total time, ns </th>
 <th> Execution time, ns </th>
-<th> Network wait time, ns </th>
-<th> Sync block time, ns </th>
-<th> Blocking syscall time, ns </th>
-<th> Scheduler wait time, ns </th>
+<th> <a href="/io?id={{.PC}}">Network wait time, ns</a><a href="/io?id={{.PC}}&raw=1" download="io.profile">⬇</a> </th>
+<th> <a href="/block?id={{.PC}}">Sync block time, ns</a><a href="/block?id={{.PC}}&raw=1" download="block.profile">⬇</a> </th>
+<th> <a href="/syscall?id={{.PC}}">Blocking syscall time, ns</a><a href="/syscall?id={{.PC}}&raw=1" download="syscall.profile">⬇</a> </th>
+<th> <a href="/sched?id={{.PC}}">Scheduler wait time, ns</a><a href="/sched?id={{.PC}}&raw=1" download="sched.profile">⬇</a> </th>
 <th> GC sweeping time, ns </th>
 <th> GC pause time, ns </th>
 </tr>
-{{range $}}
+{{range .GList}}
   <tr>
     <td> <a href="/trace?goid={{.ID}}">{{.ID}}</a> </td>
     <td> {{.TotalTime}} </td>

@@ -9,6 +9,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -16,9 +17,7 @@ import (
 )
 
 // architecture-independent object file output
-const (
-	ArhdrSize = 60
-)
+const ArhdrSize = 60
 
 func formathdr(arhdr []byte, name string, size int64) {
 	copy(arhdr[:], fmt.Sprintf("%-16s%-12d%-6d%-6d%-8o%-10d`\n", name, 0, 0, 0, 0644, size))
@@ -56,13 +55,13 @@ func dumpobj() {
 }
 
 func dumpobj1(outfile string, mode int) {
-	var err error
-	bout, err = bio.Create(outfile)
+	bout, err := bio.Create(outfile)
 	if err != nil {
 		flusherrors()
 		fmt.Printf("can't create %s: %v\n", outfile, err)
 		errorexit()
 	}
+	defer bout.Close()
 
 	startobj := int64(0)
 	var arhdr [ArhdrSize]byte
@@ -92,7 +91,7 @@ func dumpobj1(outfile string, mode int) {
 	printheader()
 
 	if mode&modeCompilerObj != 0 {
-		dumpexport()
+		dumpexport(bout)
 	}
 
 	if writearchive {
@@ -109,7 +108,6 @@ func dumpobj1(outfile string, mode int) {
 	}
 
 	if mode&modeLinkerObj == 0 {
-		bout.Close()
 		return
 	}
 
@@ -171,8 +169,6 @@ func dumpobj1(outfile string, mode int) {
 		formathdr(arhdr[:], "_go_.o", size)
 		bout.Write(arhdr[:])
 	}
-
-	bout.Close()
 }
 
 func addptabs() {
@@ -204,24 +200,68 @@ func addptabs() {
 	}
 }
 
+func dumpGlobal(n *Node) {
+	if n.Type == nil {
+		Fatalf("external %v nil type\n", n)
+	}
+	if n.Class() == PFUNC {
+		return
+	}
+	if n.Sym.Pkg != localpkg {
+		return
+	}
+	dowidth(n.Type)
+	ggloblnod(n)
+}
+
+func dumpGlobalConst(n *Node) {
+	// only export typed constants
+	t := n.Type
+	if t == nil {
+		return
+	}
+	if n.Sym.Pkg != localpkg {
+		return
+	}
+	// only export integer constants for now
+	switch t.Etype {
+	case TINT8:
+	case TINT16:
+	case TINT32:
+	case TINT64:
+	case TINT:
+	case TUINT8:
+	case TUINT16:
+	case TUINT32:
+	case TUINT64:
+	case TUINT:
+	case TUINTPTR:
+		// ok
+	case TIDEAL:
+		if !Isconst(n, CTINT) {
+			return
+		}
+		x := n.Val().U.(*Mpint)
+		if x.Cmp(minintval[TINT]) < 0 || x.Cmp(maxintval[TINT]) > 0 {
+			return
+		}
+		// Ideal integers we export as int (if they fit).
+		t = types.Types[TINT]
+	default:
+		return
+	}
+	Ctxt.DwarfIntConst(myimportpath, n.Sym.Name, typesymname(t), n.Int64())
+}
+
 func dumpglobls() {
 	// add globals
 	for _, n := range externdcl {
-		if n.Op != ONAME {
-			continue
+		switch n.Op {
+		case ONAME:
+			dumpGlobal(n)
+		case OLITERAL:
+			dumpGlobalConst(n)
 		}
-
-		if n.Type == nil {
-			Fatalf("external %v nil type\n", n)
-		}
-		if n.Class() == PFUNC {
-			continue
-		}
-		if n.Sym.Pkg != localpkg {
-			continue
-		}
-		dowidth(n.Type)
-		ggloblnod(n)
 	}
 
 	obj.SortSlice(funcsyms, func(i, j int) bool {
@@ -291,7 +331,7 @@ func dbvec(s *obj.LSym, off int, bv bvec) int {
 	return off
 }
 
-func stringsym(s string) (data *obj.LSym) {
+func stringsym(pos src.XPos, s string) (data *obj.LSym) {
 	var symname string
 	if len(s) > 100 {
 		// Huge strings are hashed to avoid long names in object files.
@@ -312,7 +352,7 @@ func stringsym(s string) (data *obj.LSym) {
 
 	if !symdata.SeenGlobl() {
 		// string data
-		off := dsname(symdata, 0, s)
+		off := dsname(symdata, 0, s, pos, "string")
 		ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
 	}
 
@@ -328,7 +368,7 @@ func slicebytes(nam *Node, s string, len int) {
 	sym.Def = asTypesNode(newname(sym))
 
 	lsym := sym.Linksym()
-	off := dsname(lsym, 0, s)
+	off := dsname(lsym, 0, s, nam.Pos, "slice")
 	ggloblsym(lsym, int32(off), obj.NOPTR|obj.LOCAL)
 
 	if nam.Op != ONAME {
@@ -341,7 +381,15 @@ func slicebytes(nam *Node, s string, len int) {
 	duintptr(nsym, off, uint64(len))
 }
 
-func dsname(s *obj.LSym, off int, t string) int {
+func dsname(s *obj.LSym, off int, t string, pos src.XPos, what string) int {
+	// Objects that are too large will cause the data section to overflow right away,
+	// causing a cryptic error message by the linker. Check for oversize objects here
+	// and provide a useful error message instead.
+	if int64(len(t)) > 2e9 {
+		yyerrorl(pos, "%v with length %v is too big", what, len(t))
+		return 0
+	}
+
 	s.WriteString(Ctxt, int64(off), len(t), t)
 	return off + len(t)
 }
@@ -406,7 +454,7 @@ func gdata(nam *Node, nr *Node, wid int) {
 			}
 
 		case string:
-			symdata := stringsym(u)
+			symdata := stringsym(nam.Pos, u)
 			s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, symdata, 0)
 			s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthptr, int64(len(u)))
 

@@ -255,7 +255,28 @@ var genericOps = []opData{
 	{name: "PopCount32", argLength: 1}, // Count bits in arg[0]
 	{name: "PopCount64", argLength: 1}, // Count bits in arg[0]
 
-	{name: "Sqrt", argLength: 1}, // sqrt(arg0), float64 only
+	// Square root, float64 only.
+	// Special cases:
+	//   +∞  → +∞
+	//   ±0  → ±0 (sign preserved)
+	//   x<0 → NaN
+	//   NaN → NaN
+	{name: "Sqrt", argLength: 1}, // √arg0
+
+	// Round to integer, float64 only.
+	// Special cases:
+	//   ±∞  → ±∞ (sign preserved)
+	//   ±0  → ±0 (sign preserved)
+	//   NaN → NaN
+	{name: "Floor", argLength: 1},       // round arg0 toward -∞
+	{name: "Ceil", argLength: 1},        // round arg0 toward +∞
+	{name: "Trunc", argLength: 1},       // round arg0 toward 0
+	{name: "Round", argLength: 1},       // round arg0 to nearest, ties away from 0
+	{name: "RoundToEven", argLength: 1}, // round arg0 to nearest, ties to even
+
+	// Modify the sign bit
+	{name: "Abs", argLength: 1},      // absolute value arg0
+	{name: "Copysign", argLength: 2}, // copy sign from arg0 to arg1
 
 	// Data movement, max argument length for Phi is indefinite so just pick
 	// a really large number
@@ -286,12 +307,13 @@ var genericOps = []opData{
 
 	// Constant-like things
 	{name: "InitMem"},                               // memory input to the function.
-	{name: "Arg", aux: "SymOff", symEffect: "None"}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
+	{name: "Arg", aux: "SymOff", symEffect: "Read"}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
 
-	// The address of a variable.  arg0 is the base pointer (SB or SP, depending
-	// on whether it is a global or stack variable).  The Aux field identifies the
-	// variable. It will be either an *ExternSymbol (with arg0=SB), *ArgSymbol (arg0=SP),
-	// or *AutoSymbol (arg0=SP).
+	// The address of a variable.  arg0 is the base pointer.
+	// If the variable is a global, the base pointer will be SB and
+	// the Aux field will be a *obj.LSym.
+	// If the variable is a local, the base pointer will be SP and
+	// the Aux field will be a *gc.Node.
 	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
 
 	{name: "SP"},                 // stack pointer
@@ -299,8 +321,11 @@ var genericOps = []opData{
 	{name: "Invalid"},            // unused value
 
 	// Memory operations
-	{name: "Load", argLength: 2},                             // Load from arg0.  arg1=memory
-	{name: "Store", argLength: 3, typ: "Mem", aux: "Typ"},    // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	{name: "Load", argLength: 2},                          // Load from arg0.  arg1=memory
+	{name: "Store", argLength: 3, typ: "Mem", aux: "Typ"}, // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	// The source and destination of Move may overlap in some cases. See e.g.
+	// memmove inlining in generic.rules. When inlineablememmovesize (in ../rewrite.go)
+	// returns true, we must do all loads before all stores, when lowering Move.
 	{name: "Move", argLength: 3, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size, aux=type.  Returns memory.
 	{name: "Zero", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
 
@@ -309,6 +334,12 @@ var genericOps = []opData{
 	{name: "StoreWB", argLength: 3, typ: "Mem", aux: "Typ"},    // Store arg1 to arg0. arg2=memory, aux=type.  Returns memory.
 	{name: "MoveWB", argLength: 3, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size, aux=type.  Returns memory.
 	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
+
+	// WB invokes runtime.gcWriteBarrier. This is not a normal
+	// call: it takes arguments in registers, doesn't clobber
+	// general-purpose registers (the exact clobber set is
+	// arch-dependent), and is not a safe-point.
+	{name: "WB", argLength: 3, typ: "Mem", aux: "Sym", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 
 	// Function calls. Arguments to the call have already been written to the stack.
 	// Return values appear on the stack. The method receiver, if any, is treated
@@ -361,6 +392,8 @@ var genericOps = []opData{
 	// Pseudo-ops
 	{name: "GetG", argLength: 1}, // runtime.getg() (read g pointer). arg0=mem
 	{name: "GetClosurePtr"},      // get closure pointer from dedicated register
+	{name: "GetCallerPC"},        // for getcallerpc intrinsic
+	{name: "GetCallerSP"},        // for getcallersp intrinsic
 
 	// Indexing operations
 	{name: "PtrIndex", argLength: 2},             // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
@@ -415,8 +448,9 @@ var genericOps = []opData{
 
 	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
 	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
-	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "None"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
 	{name: "KeepAlive", argLength: 2, typ: "Mem"},                             // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+	{name: "RegKill"},                                                         // regalloc has determined that the value in this register is dead
 
 	// Ops for breaking 64-bit operations on 32-bit architectures
 	{name: "Int64Make", argLength: 2, typ: "UInt64"}, // arg0=hi, arg1=lo

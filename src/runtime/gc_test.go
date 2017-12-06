@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"runtime"
 	"runtime/debug"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unsafe"
@@ -514,4 +515,127 @@ func TestUserForcedGC(t *testing.T) {
 	if ms1.NumForcedGC == ms2.NumForcedGC {
 		t.Fatalf("runtime.GC() was not accounted in NumForcedGC")
 	}
+}
+
+func writeBarrierBenchmark(b *testing.B, f func()) {
+	runtime.GC()
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	//b.Logf("heap size: %d MB", ms.HeapAlloc>>20)
+
+	// Keep GC running continuously during the benchmark, which in
+	// turn keeps the write barrier on continuously.
+	var stop uint32
+	done := make(chan bool)
+	go func() {
+		for atomic.LoadUint32(&stop) == 0 {
+			runtime.GC()
+		}
+		close(done)
+	}()
+	defer func() {
+		atomic.StoreUint32(&stop, 1)
+		<-done
+	}()
+
+	b.ResetTimer()
+	f()
+	b.StopTimer()
+}
+
+func BenchmarkWriteBarrier(b *testing.B) {
+	if runtime.GOMAXPROCS(-1) < 2 {
+		// We don't want GC to take our time.
+		b.Skip("need GOMAXPROCS >= 2")
+	}
+
+	// Construct a large tree both so the GC runs for a while and
+	// so we have a data structure to manipulate the pointers of.
+	type node struct {
+		l, r *node
+	}
+	var wbRoots []*node
+	var mkTree func(level int) *node
+	mkTree = func(level int) *node {
+		if level == 0 {
+			return nil
+		}
+		n := &node{mkTree(level - 1), mkTree(level - 1)}
+		if level == 10 {
+			// Seed GC with enough early pointers so it
+			// doesn't accidentally switch to mark 2 when
+			// it only has the top of the tree.
+			wbRoots = append(wbRoots, n)
+		}
+		return n
+	}
+	const depth = 22 // 64 MB
+	root := mkTree(22)
+
+	writeBarrierBenchmark(b, func() {
+		var stack [depth]*node
+		tos := -1
+
+		// There are two write barriers per iteration, so i+=2.
+		for i := 0; i < b.N; i += 2 {
+			if tos == -1 {
+				stack[0] = root
+				tos = 0
+			}
+
+			// Perform one step of reversing the tree.
+			n := stack[tos]
+			if n.l == nil {
+				tos--
+			} else {
+				n.l, n.r = n.r, n.l
+				stack[tos] = n.l
+				stack[tos+1] = n.r
+				tos++
+			}
+
+			if i%(1<<12) == 0 {
+				// Avoid non-preemptible loops (see issue #10958).
+				runtime.Gosched()
+			}
+		}
+	})
+
+	runtime.KeepAlive(wbRoots)
+}
+
+func BenchmarkBulkWriteBarrier(b *testing.B) {
+	if runtime.GOMAXPROCS(-1) < 2 {
+		// We don't want GC to take our time.
+		b.Skip("need GOMAXPROCS >= 2")
+	}
+
+	// Construct a large set of objects we can copy around.
+	const heapSize = 64 << 20
+	type obj [16]*byte
+	ptrs := make([]*obj, heapSize/unsafe.Sizeof(obj{}))
+	for i := range ptrs {
+		ptrs[i] = new(obj)
+	}
+
+	writeBarrierBenchmark(b, func() {
+		const blockSize = 1024
+		var pos int
+		for i := 0; i < b.N; i += blockSize {
+			// Rotate block.
+			block := ptrs[pos : pos+blockSize]
+			first := block[0]
+			copy(block, block[1:])
+			block[blockSize-1] = first
+
+			pos += blockSize
+			if pos+blockSize > len(ptrs) {
+				pos = 0
+			}
+
+			runtime.Gosched()
+		}
+	})
+
+	runtime.KeepAlive(ptrs)
 }

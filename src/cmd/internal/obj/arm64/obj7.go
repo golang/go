@@ -382,7 +382,7 @@ func (c *ctxt7) rewriteToUseGot(p *obj.Prog) {
 			p.From.Offset = 0
 		}
 	}
-	if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
+	if p.GetFrom3() != nil && p.GetFrom3().Name == obj.NAME_EXTERN {
 		c.ctxt.Diag("don't know how to handle %v with -dynlink", p)
 	}
 	var source *obj.Addr
@@ -515,7 +515,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		q = p
 	}
 
-	var q2 *obj.Prog
 	var retjmp *obj.LSym
 	for p := c.cursym.Func.Text; p != nil; p = p.Link {
 		o := p.As
@@ -618,22 +617,25 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if c.cursym.Func.Text.From.Sym.Wrapper() {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
-				//	MOV g_panic(g), R1
-				//	CMP ZR, R1
-				//	BEQ end
-				//	MOV panic_argp(R1), R2
-				//	ADD $(autosize+8), RSP, R3
-				//	CMP R2, R3
-				//	BNE end
-				//	ADD $8, RSP, R4
-				//	MOVD R4, panic_argp(R1)
+				//	MOV  g_panic(g), R1
+				//	CBNZ checkargp
 				// end:
 				//	NOP
+				// ... function body ...
+				// checkargp:
+				//	MOV  panic_argp(R1), R2
+				//	ADD  $(autosize+8), RSP, R3
+				//	CMP  R2, R3
+				//	BNE  end
+				//	ADD  $8, RSP, R4
+				//	MOVD R4, panic_argp(R1)
+				//	B    end
 				//
 				// The NOP is needed to give the jumps somewhere to land.
-				// It is a liblink NOP, not a ARM64 NOP: it encodes to 0 instruction bytes.
+				// It is a liblink NOP, not an ARM64 NOP: it encodes to 0 instruction bytes.
 				q = q1
 
+				// MOV g_panic(g), R1
 				q = obj.Appendp(q, c.newprog)
 				q.As = AMOVD
 				q.From.Type = obj.TYPE_MEM
@@ -642,26 +644,36 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R1
 
-				q = obj.Appendp(q, c.newprog)
-				q.As = ACMP
-				q.From.Type = obj.TYPE_REG
-				q.From.Reg = REGZERO
-				q.Reg = REG_R1
+				// CBNZ R1, checkargp
+				cbnz := obj.Appendp(q, c.newprog)
+				cbnz.As = ACBNZ
+				cbnz.From.Type = obj.TYPE_REG
+				cbnz.From.Reg = REG_R1
+				cbnz.To.Type = obj.TYPE_BRANCH
 
-				q = obj.Appendp(q, c.newprog)
-				q.As = ABEQ
-				q.To.Type = obj.TYPE_BRANCH
-				q1 = q
+				// Empty branch target at the top of the function body
+				end := obj.Appendp(cbnz, c.newprog)
+				end.As = obj.ANOP
 
-				q = obj.Appendp(q, c.newprog)
-				q.As = AMOVD
-				q.From.Type = obj.TYPE_MEM
-				q.From.Reg = REG_R1
-				q.From.Offset = 0 // Panic.argp
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R2
+				// find the end of the function
+				var last *obj.Prog
+				for last = end; last.Link != nil; last = last.Link {
+				}
 
-				q = obj.Appendp(q, c.newprog)
+				// MOV panic_argp(R1), R2
+				mov := obj.Appendp(last, c.newprog)
+				mov.As = AMOVD
+				mov.From.Type = obj.TYPE_MEM
+				mov.From.Reg = REG_R1
+				mov.From.Offset = 0 // Panic.argp
+				mov.To.Type = obj.TYPE_REG
+				mov.To.Reg = REG_R2
+
+				// CBNZ branches to the MOV above
+				cbnz.Pcond = mov
+
+				// ADD $(autosize+8), SP, R3
+				q = obj.Appendp(mov, c.newprog)
 				q.As = AADD
 				q.From.Type = obj.TYPE_CONST
 				q.From.Offset = int64(c.autosize) + 8
@@ -669,17 +681,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R3
 
+				// CMP R2, R3
 				q = obj.Appendp(q, c.newprog)
 				q.As = ACMP
 				q.From.Type = obj.TYPE_REG
 				q.From.Reg = REG_R2
 				q.Reg = REG_R3
 
+				// BNE end
 				q = obj.Appendp(q, c.newprog)
 				q.As = ABNE
 				q.To.Type = obj.TYPE_BRANCH
-				q2 = q
+				q.Pcond = end
 
+				// ADD $8, SP, R4
 				q = obj.Appendp(q, c.newprog)
 				q.As = AADD
 				q.From.Type = obj.TYPE_CONST
@@ -688,6 +703,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R4
 
+				// MOV R4, panic_argp(R1)
 				q = obj.Appendp(q, c.newprog)
 				q.As = AMOVD
 				q.From.Type = obj.TYPE_REG
@@ -696,11 +712,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.To.Reg = REG_R1
 				q.To.Offset = 0 // Panic.argp
 
+				// B end
 				q = obj.Appendp(q, c.newprog)
-
-				q.As = obj.ANOP
-				q1.Pcond = q
-				q2.Pcond = q
+				q.As = AB
+				q.To.Type = obj.TYPE_BRANCH
+				q.Pcond = end
 			}
 
 		case obj.ARET:
@@ -797,7 +813,7 @@ var unaryDst = map[obj.As]bool{
 	ADWORD: true,
 	ABL:    true,
 	AB:     true,
-	ASVC:   true,
+	ACLREX: true,
 }
 
 var Linkarm64 = obj.LinkArch{

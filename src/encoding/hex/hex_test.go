@@ -7,6 +7,9 @@ package hex
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"strings"
 	"testing"
 )
 
@@ -75,37 +78,86 @@ func TestDecodeString(t *testing.T) {
 	}
 }
 
-type errTest struct {
+var errTests = []struct {
 	in  string
-	err string
+	out string
+	err error
+}{
+	{"", "", nil},
+	{"0", "", ErrLength},
+	{"zd4aa", "", InvalidByteError('z')},
+	{"d4aaz", "\xd4\xaa", InvalidByteError('z')},
+	{"30313", "01", ErrLength},
+	{"0g", "", InvalidByteError('g')},
+	{"00gg", "\x00", InvalidByteError('g')},
+	{"0\x01", "", InvalidByteError('\x01')},
+	{"ffeed", "\xff\xee", ErrLength},
 }
 
-var errTests = []errTest{
-	{"0", "encoding/hex: odd length hex string"},
-	{"0g", "encoding/hex: invalid byte: U+0067 'g'"},
-	{"00gg", "encoding/hex: invalid byte: U+0067 'g'"},
-	{"0\x01", "encoding/hex: invalid byte: U+0001"},
-}
-
-func TestInvalidErr(t *testing.T) {
-	for i, test := range errTests {
-		dst := make([]byte, DecodedLen(len(test.in)))
-		_, err := Decode(dst, []byte(test.in))
-		if err == nil {
-			t.Errorf("#%d: expected error; got none", i)
-		} else if err.Error() != test.err {
-			t.Errorf("#%d: got: %v want: %v", i, err, test.err)
+func TestDecodeErr(t *testing.T) {
+	for _, tt := range errTests {
+		out := make([]byte, len(tt.in)+10)
+		n, err := Decode(out, []byte(tt.in))
+		if string(out[:n]) != tt.out || err != tt.err {
+			t.Errorf("Decode(%q) = %q, %v, want %q, %v", tt.in, string(out[:n]), err, tt.out, tt.err)
 		}
 	}
 }
 
-func TestInvalidStringErr(t *testing.T) {
-	for i, test := range errTests {
-		_, err := DecodeString(test.in)
-		if err == nil {
-			t.Errorf("#%d: expected error; got none", i)
-		} else if err.Error() != test.err {
-			t.Errorf("#%d: got: %v want: %v", i, err, test.err)
+func TestDecodeStringErr(t *testing.T) {
+	for _, tt := range errTests {
+		out, err := DecodeString(tt.in)
+		if string(out) != tt.out || err != tt.err {
+			t.Errorf("DecodeString(%q) = %q, %v, want %q, %v", tt.in, out, err, tt.out, tt.err)
+		}
+	}
+}
+
+func TestEncoderDecoder(t *testing.T) {
+	for _, multiplier := range []int{1, 128, 192} {
+		for _, test := range encDecTests {
+			input := bytes.Repeat(test.dec, multiplier)
+			output := strings.Repeat(test.enc, multiplier)
+
+			var buf bytes.Buffer
+			enc := NewEncoder(&buf)
+			r := struct{ io.Reader }{bytes.NewReader(input)} // io.Reader only; not io.WriterTo
+			if n, err := io.CopyBuffer(enc, r, make([]byte, 7)); n != int64(len(input)) || err != nil {
+				t.Errorf("encoder.Write(%q*%d) = (%d, %v), want (%d, nil)", test.dec, multiplier, n, err, len(input))
+				continue
+			}
+
+			if encDst := buf.String(); encDst != output {
+				t.Errorf("buf(%q*%d) = %v, want %v", test.dec, multiplier, encDst, output)
+				continue
+			}
+
+			dec := NewDecoder(&buf)
+			var decBuf bytes.Buffer
+			w := struct{ io.Writer }{&decBuf} // io.Writer only; not io.ReaderFrom
+			if _, err := io.CopyBuffer(w, dec, make([]byte, 7)); err != nil || decBuf.Len() != len(input) {
+				t.Errorf("decoder.Read(%q*%d) = (%d, %v), want (%d, nil)", test.enc, multiplier, decBuf.Len(), err, len(input))
+			}
+
+			if !bytes.Equal(decBuf.Bytes(), input) {
+				t.Errorf("decBuf(%q*%d) = %v, want %v", test.dec, multiplier, decBuf.Bytes(), input)
+				continue
+			}
+		}
+	}
+}
+
+func TestDecoderErr(t *testing.T) {
+	for _, tt := range errTests {
+		dec := NewDecoder(strings.NewReader(tt.in))
+		out, err := ioutil.ReadAll(dec)
+		wantErr := tt.err
+		// Decoder is reading from stream, so it reports io.ErrUnexpectedEOF instead of ErrLength.
+		if wantErr == ErrLength {
+			wantErr = io.ErrUnexpectedEOF
+		}
+		if string(out) != tt.out || err != wantErr {
+			t.Errorf("NewDecoder(%q) = %q, %v, want %q, %v", tt.in, out, err, tt.out, wantErr)
 		}
 	}
 }

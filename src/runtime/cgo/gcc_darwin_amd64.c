@@ -28,14 +28,14 @@ inittls(void)
 	 *
 	 * The linker and runtime hard-code this constant offset
 	 * from %gs where we expect to find g.
-	 * Known to ../../../liblink/sym.c:/8a0
-	 * and to ../sys_darwin_amd64.s:/8a0
+	 * Known to src/cmd/link/internal/ld/sym.go:/0x8a0
+	 * and to src/runtime/sys_darwin_amd64.s:/0x8a0
 	 *
 	 * As disgusting as on the 386; same justification.
 	 */
 	ntofree = 0;
 	for(;;) {
-		if(pthread_key_create(&k, nil) < 0) {
+		if(pthread_key_create(&k, nil) != 0) {
 			fprintf(stderr, "runtime/cgo: pthread_key_create failed\n");
 			abort();
 		}
@@ -113,7 +113,10 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
-	pthread_setspecific(k1, (void*)ts.g);
+	if (pthread_setspecific(k1, (void*)ts.g) != 0) {
+		fprintf(stderr, "runtime/cgo: pthread_setspecific failed\n");
+		abort();
+	}
 
 	crosscall_amd64(ts.fn);
 	return nil;

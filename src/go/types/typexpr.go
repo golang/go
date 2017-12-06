@@ -143,6 +143,7 @@ func (check *Checker) typ(e ast.Expr) Type {
 // funcType type-checks a function or method type.
 func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
 	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function")
+	scope.isFunc = true
 	check.recordScope(ftyp, scope)
 
 	recvList, _ := check.collectParams(scope, recvPar, false)
@@ -539,6 +540,9 @@ func (check *Checker) interfaceType(iface *Interface, ityp *ast.InterfaceType, d
 		}
 		iface.embeddeds = append(iface.embeddeds, named)
 		// collect embedded methods
+		if embed.allMethods == nil {
+			check.errorf(pos, "internal error: incomplete embedded interface %s (issue #18395)", named)
+		}
 		for _, m := range embed.allMethods {
 			if check.declareInSet(&mset, pos, m) {
 				iface.allMethods = append(iface.allMethods, m)
@@ -578,7 +582,11 @@ func (check *Checker) interfaceType(iface *Interface, ityp *ast.InterfaceType, d
 	// claim source order in the future. Revisit.
 	sort.Sort(byUniqueTypeName(iface.embeddeds))
 
-	sort.Sort(byUniqueMethodName(iface.allMethods))
+	if iface.allMethods == nil {
+		iface.allMethods = make([]*Func, 0) // mark interface as complete
+	} else {
+		sort.Sort(byUniqueMethodName(iface.allMethods))
+	}
 }
 
 // byUniqueTypeName named type lists can be sorted by their unique type names.

@@ -6,7 +6,10 @@
 
 package route
 
-import "syscall"
+import (
+	"runtime"
+	"syscall"
+)
 
 func (m *RouteMessage) marshal() ([]byte, error) {
 	w, ok := wireFormats[m.Type]
@@ -14,6 +17,11 @@ func (m *RouteMessage) marshal() ([]byte, error) {
 		return nil, errUnsupportedMessage
 	}
 	l := w.bodyOff + addrsSpace(m.Addrs)
+	if runtime.GOOS == "darwin" {
+		// Fix stray pointer writes on macOS.
+		// See golang.org/issue/22456.
+		l += 1024
+	}
 	b := make([]byte, l)
 	nativeEndian.PutUint16(b[:2], uint16(l))
 	if m.Version == 0 {

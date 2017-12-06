@@ -10,6 +10,7 @@ import (
 	"debug/elf"
 	"encoding/binary"
 	"errors"
+	"flag"
 	"fmt"
 	"go/build"
 	"io"
@@ -46,7 +47,7 @@ func run(t *testing.T, msg string, args ...string) {
 func goCmd(t *testing.T, args ...string) {
 	newargs := []string{args[0], "-installsuffix=" + suffix}
 	if testing.Verbose() {
-		newargs = append(newargs, "-v")
+		newargs = append(newargs, "-x")
 	}
 	newargs = append(newargs, args[1:]...)
 	c := exec.Command("go", newargs...)
@@ -57,6 +58,7 @@ func goCmd(t *testing.T, args ...string) {
 		c.Stdout = os.Stdout
 		c.Stderr = os.Stderr
 		err = c.Run()
+		output = []byte("(output above)")
 	} else {
 		output, err = c.CombinedOutput()
 	}
@@ -161,6 +163,8 @@ func testMain(m *testing.M) (int, error) {
 }
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+
 	// Some of the tests install binaries into a custom GOPATH.
 	// That won't work if GOBIN is set.
 	os.Unsetenv("GOBIN")
@@ -461,13 +465,13 @@ func TestGopathShlib(t *testing.T) {
 // that is not mapped into memory.
 func testPkgListNote(t *testing.T, f *elf.File, note *note) {
 	if note.section.Flags != 0 {
-		t.Errorf("package list section has flags %v", note.section.Flags)
+		t.Errorf("package list section has flags %v, want 0", note.section.Flags)
 	}
 	if isOffsetLoaded(f, note.section.Offset) {
 		t.Errorf("package list section contained in PT_LOAD segment")
 	}
 	if note.desc != "depBase\n" {
-		t.Errorf("incorrect package list %q", note.desc)
+		t.Errorf("incorrect package list %q, want %q", note.desc, "depBase\n")
 	}
 }
 
@@ -476,7 +480,7 @@ func testPkgListNote(t *testing.T, f *elf.File, note *note) {
 // bytes into it.
 func testABIHashNote(t *testing.T, f *elf.File, note *note) {
 	if note.section.Flags != elf.SHF_ALLOC {
-		t.Errorf("abi hash section has flags %v", note.section.Flags)
+		t.Errorf("abi hash section has flags %v, want SHF_ALLOC", note.section.Flags)
 	}
 	if !isOffsetLoaded(f, note.section.Offset) {
 		t.Errorf("abihash section not contained in PT_LOAD segment")
@@ -497,13 +501,13 @@ func testABIHashNote(t *testing.T, f *elf.File, note *note) {
 		return
 	}
 	if elf.ST_BIND(hashbytes.Info) != elf.STB_LOCAL {
-		t.Errorf("%s has incorrect binding %v", hashbytes.Name, elf.ST_BIND(hashbytes.Info))
+		t.Errorf("%s has incorrect binding %v, want STB_LOCAL", hashbytes.Name, elf.ST_BIND(hashbytes.Info))
 	}
 	if f.Sections[hashbytes.Section] != note.section {
-		t.Errorf("%s has incorrect section %v", hashbytes.Name, f.Sections[hashbytes.Section].Name)
+		t.Errorf("%s has incorrect section %v, want %s", hashbytes.Name, f.Sections[hashbytes.Section].Name, note.section.Name)
 	}
 	if hashbytes.Value-note.section.Addr != 16 {
-		t.Errorf("%s has incorrect offset into section %d", hashbytes.Name, hashbytes.Value-note.section.Addr)
+		t.Errorf("%s has incorrect offset into section %d, want 16", hashbytes.Name, hashbytes.Value-note.section.Addr)
 	}
 }
 
@@ -511,14 +515,14 @@ func testABIHashNote(t *testing.T, f *elf.File, note *note) {
 // was linked against in an unmapped section.
 func testDepsNote(t *testing.T, f *elf.File, note *note) {
 	if note.section.Flags != 0 {
-		t.Errorf("package list section has flags %v", note.section.Flags)
+		t.Errorf("package list section has flags %v, want 0", note.section.Flags)
 	}
 	if isOffsetLoaded(f, note.section.Offset) {
 		t.Errorf("package list section contained in PT_LOAD segment")
 	}
 	// libdepBase.so just links against the lib containing the runtime.
 	if note.desc != soname {
-		t.Errorf("incorrect dependency list %q", note.desc)
+		t.Errorf("incorrect dependency list %q, want %q", note.desc, soname)
 	}
 }
 
@@ -556,7 +560,7 @@ func TestNotes(t *testing.T) {
 			abiHashNoteFound = true
 		case 3: // ELF_NOTE_GODEPS_TAG
 			if depsNoteFound {
-				t.Error("multiple abi hash notes")
+				t.Error("multiple depedency list notes")
 			}
 			testDepsNote(t, f, note)
 			depsNoteFound = true
@@ -594,6 +598,7 @@ func TestThreeGopathShlibs(t *testing.T) {
 // If gccgo is not available or not new enough call t.Skip. Otherwise,
 // return a build.Context that is set up for gccgo.
 func prepGccgo(t *testing.T) build.Context {
+	t.Skip("golang.org/issue/22472")
 	gccgoName := os.Getenv("GCCGO")
 	if gccgoName == "" {
 		gccgoName = "gccgo"
@@ -643,6 +648,8 @@ func TestGoPathShlibGccgo(t *testing.T) {
 // library with gccgo, another GOPATH package that depends on the first and an
 // executable that links the second library.
 func TestTwoGopathShlibsGccgo(t *testing.T) {
+	t.Skip("golang.org/issue/22224")
+
 	gccgoContext := prepGccgo(t)
 
 	libgoRE := regexp.MustCompile("libgo.so.[0-9]+")
@@ -696,18 +703,55 @@ func resetFileStamps() {
 	reset(gorootInstallDir)
 }
 
-// touch makes path newer than the "old" time stamp used by resetFileStamps.
-func touch(path string) {
+// touch changes path and returns a function that changes it back.
+// It also sets the time of the file, so that we can see if it is rewritten.
+func touch(t *testing.T, path string) (cleanup func()) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := make([]byte, len(data))
+	copy(old, data)
+	if bytes.HasPrefix(data, []byte("!<arch>\n")) {
+		// Change last digit of build ID.
+		// (Content ID in the new content-based build IDs.)
+		const marker = `build id "`
+		i := bytes.Index(data, []byte(marker))
+		if i < 0 {
+			t.Fatal("cannot find build id in archive")
+		}
+		j := bytes.IndexByte(data[i+len(marker):], '"')
+		if j < 0 {
+			t.Fatal("cannot find build id in archive")
+		}
+		i += len(marker) + j - 1
+		if data[i] == 'a' {
+			data[i] = 'b'
+		} else {
+			data[i] = 'a'
+		}
+	} else {
+		// assume it's a text file
+		data = append(data, '\n')
+	}
+	if err := ioutil.WriteFile(path, data, 0666); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Chtimes(path, nearlyNew, nearlyNew); err != nil {
-		log.Fatalf("os.Chtimes failed: %v", err)
+		t.Fatal(err)
+	}
+	return func() {
+		if err := ioutil.WriteFile(path, old, 0666); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
 // isNew returns if the path is newer than the time stamp used by touch.
-func isNew(path string) bool {
+func isNew(t *testing.T, path string) bool {
 	fi, err := os.Stat(path)
 	if err != nil {
-		log.Fatalf("os.Stat failed: %v", err)
+		t.Fatal(err)
 	}
 	return fi.ModTime().After(stampTime)
 }
@@ -715,14 +759,16 @@ func isNew(path string) bool {
 // Fail unless path has been rebuilt (i.e. is newer than the time stamp used by
 // isNew)
 func AssertRebuilt(t *testing.T, msg, path string) {
-	if !isNew(path) {
+	t.Helper()
+	if !isNew(t, path) {
 		t.Errorf("%s was not rebuilt (%s)", msg, path)
 	}
 }
 
 // Fail if path has been rebuilt (i.e. is newer than the time stamp used by isNew)
 func AssertNotRebuilt(t *testing.T, msg, path string) {
-	if isNew(path) {
+	t.Helper()
+	if isNew(t, path) {
 		t.Errorf("%s was rebuilt (%s)", msg, path)
 	}
 }
@@ -732,41 +778,55 @@ func TestRebuilding(t *testing.T) {
 	goCmd(t, "install", "-linkshared", "exe")
 
 	// If the source is newer than both the .a file and the .so, both are rebuilt.
-	resetFileStamps()
-	touch("src/depBase/dep.go")
-	goCmd(t, "install", "-linkshared", "exe")
-	AssertRebuilt(t, "new source", filepath.Join(gopathInstallDir, "depBase.a"))
-	AssertRebuilt(t, "new source", filepath.Join(gopathInstallDir, "libdepBase.so"))
+	t.Run("newsource", func(t *testing.T) {
+		resetFileStamps()
+		cleanup := touch(t, "src/depBase/dep.go")
+		defer func() {
+			cleanup()
+			goCmd(t, "install", "-linkshared", "exe")
+		}()
+		goCmd(t, "install", "-linkshared", "exe")
+		AssertRebuilt(t, "new source", filepath.Join(gopathInstallDir, "depBase.a"))
+		AssertRebuilt(t, "new source", filepath.Join(gopathInstallDir, "libdepBase.so"))
+	})
 
 	// If the .a file is newer than the .so, the .so is rebuilt (but not the .a)
-	resetFileStamps()
-	touch(filepath.Join(gopathInstallDir, "depBase.a"))
-	goCmd(t, "install", "-linkshared", "exe")
-	AssertNotRebuilt(t, "new .a file", filepath.Join(gopathInstallDir, "depBase.a"))
-	AssertRebuilt(t, "new .a file", filepath.Join(gopathInstallDir, "libdepBase.so"))
+	t.Run("newarchive", func(t *testing.T) {
+		resetFileStamps()
+		goCmd(t, "list", "-linkshared", "-f={{.ImportPath}} {{.Stale}} {{.StaleReason}} {{.Target}}", "depBase")
+		AssertNotRebuilt(t, "new .a file before build", filepath.Join(gopathInstallDir, "depBase.a"))
+		cleanup := touch(t, filepath.Join(gopathInstallDir, "depBase.a"))
+		defer func() {
+			cleanup()
+			goCmd(t, "install", "-v", "-linkshared", "exe")
+		}()
+		goCmd(t, "install", "-v", "-linkshared", "exe")
+		AssertNotRebuilt(t, "new .a file", filepath.Join(gopathInstallDir, "depBase.a"))
+		AssertRebuilt(t, "new .a file", filepath.Join(gopathInstallDir, "libdepBase.so"))
+	})
 }
 
-func appendFile(path, content string) {
+func appendFile(t *testing.T, path, content string) {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0660)
 	if err != nil {
-		log.Fatalf("os.OpenFile failed: %v", err)
+		t.Fatalf("os.OpenFile failed: %v", err)
 	}
 	defer func() {
 		err := f.Close()
 		if err != nil {
-			log.Fatalf("f.Close failed: %v", err)
+			t.Fatalf("f.Close failed: %v", err)
 		}
 	}()
 	_, err = f.WriteString(content)
 	if err != nil {
-		log.Fatalf("f.WriteString failed: %v", err)
+		t.Fatalf("f.WriteString failed: %v", err)
 	}
 }
 
-func writeFile(path, content string) {
+func writeFile(t *testing.T, path, content string) {
 	err := ioutil.WriteFile(path, []byte(content), 0644)
 	if err != nil {
-		log.Fatalf("ioutil.WriteFile failed: %v", err)
+		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
 }
 
@@ -780,7 +840,7 @@ func TestABIChecking(t *testing.T) {
 	// some senses but suffices for the narrow definition of ABI compatibility the
 	// toolchain uses today.
 	resetFileStamps()
-	appendFile("src/depBase/dep.go", "func ABIBreak() {}\n")
+	appendFile(t, "src/depBase/dep.go", "func ABIBreak() {}\n")
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "depBase")
 	c := exec.Command("./bin/exe")
 	output, err := c.CombinedOutput()
@@ -811,7 +871,7 @@ func TestABIChecking(t *testing.T) {
 	// function) and rebuild libdepBase.so, exe still works, even if new function
 	// is in a file by itself.
 	resetFileStamps()
-	writeFile("src/depBase/dep2.go", "package depBase\nfunc noABIBreak() {}\n")
+	writeFile(t, "src/depBase/dep2.go", "package depBase\nfunc noABIBreak() {}\n")
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "depBase")
 	run(t, "after non-ABI breaking change", "./bin/exe")
 }
@@ -837,4 +897,13 @@ func TestInterface(t *testing.T) {
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "iface_b")
 	goCmd(t, "install", "-linkshared", "iface")
 	run(t, "running type/itab uniqueness tester", "./bin/iface")
+}
+
+// Access a global variable from a library.
+func TestGlobal(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "globallib")
+	goCmd(t, "install", "-linkshared", "global")
+	run(t, "global executable", "./bin/global")
+	AssertIsLinkedTo(t, "./bin/global", soname)
+	AssertHasRPath(t, "./bin/global", gorootInstallDir)
 }

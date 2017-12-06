@@ -6,11 +6,14 @@ package zip
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"strings"
 	"testing"
+	"time"
 )
 
 // TODO(adg): a more sophisticated test suite
@@ -57,8 +60,8 @@ var writeTests = []WriteTest{
 
 func TestWriter(t *testing.T) {
 	largeData := make([]byte, 1<<17)
-	for i := range largeData {
-		largeData[i] = byte(rand.Int())
+	if _, err := rand.Read(largeData); err != nil {
+		t.Fatal("rand.Read failed:", err)
 	}
 	writeTests[1].Data = largeData
 	defer func() {
@@ -87,31 +90,100 @@ func TestWriter(t *testing.T) {
 	}
 }
 
+// TestWriterComment is test for EOCD comment read/write.
+func TestWriterComment(t *testing.T) {
+	var tests = []struct {
+		comment string
+		ok      bool
+	}{
+		{"hi, hello", true},
+		{"hi, こんにちわ", true},
+		{strings.Repeat("a", uint16max), true},
+		{strings.Repeat("a", uint16max+1), false},
+	}
+
+	for _, test := range tests {
+		// write a zip file
+		buf := new(bytes.Buffer)
+		w := NewWriter(buf)
+		if err := w.SetComment(test.comment); err != nil {
+			if test.ok {
+				t.Fatalf("SetComment: unexpected error %v", err)
+			}
+			continue
+		} else {
+			if !test.ok {
+				t.Fatalf("SetComment: unexpected success, want error")
+			}
+		}
+
+		if err := w.Close(); test.ok == (err != nil) {
+			t.Fatal(err)
+		}
+
+		if w.closed != test.ok {
+			t.Fatalf("Writer.closed: got %v, want %v", w.closed, test.ok)
+		}
+
+		// skip read test in failure cases
+		if !test.ok {
+			continue
+		}
+
+		// read it back
+		r, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if r.Comment != test.comment {
+			t.Fatalf("Reader.Comment: got %v, want %v", r.Comment, test.comment)
+		}
+	}
+}
+
 func TestWriterUTF8(t *testing.T) {
 	var utf8Tests = []struct {
 		name    string
 		comment string
-		expect  uint16
+		nonUTF8 bool
+		flags   uint16
 	}{
 		{
 			name:    "hi, hello",
 			comment: "in the world",
-			expect:  0x8,
+			flags:   0x8,
 		},
 		{
 			name:    "hi, こんにちわ",
 			comment: "in the world",
-			expect:  0x808,
+			flags:   0x808,
+		},
+		{
+			name:    "hi, こんにちわ",
+			comment: "in the world",
+			nonUTF8: true,
+			flags:   0x8,
 		},
 		{
 			name:    "hi, hello",
 			comment: "in the 世界",
-			expect:  0x808,
+			flags:   0x808,
 		},
 		{
 			name:    "hi, こんにちわ",
 			comment: "in the 世界",
-			expect:  0x808,
+			flags:   0x808,
+		},
+		{
+			name:    "the replacement rune is �",
+			comment: "the replacement rune is �",
+			flags:   0x808,
+		},
+		{
+			// Name is Japanese encoded in Shift JIS.
+			name:    "\x93\xfa\x96{\x8c\xea.txt",
+			comment: "in the 世界",
+			flags:   0x008, // UTF-8 must not be set
 		},
 	}
 
@@ -123,6 +195,7 @@ func TestWriterUTF8(t *testing.T) {
 		h := &FileHeader{
 			Name:    test.name,
 			Comment: test.comment,
+			NonUTF8: test.nonUTF8,
 			Method:  Deflate,
 		}
 		w, err := w.CreateHeader(h)
@@ -142,18 +215,41 @@ func TestWriterUTF8(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, test := range utf8Tests {
-		got := r.File[i].Flags
-		t.Logf("name %v, comment %v", test.name, test.comment)
-		if got != test.expect {
-			t.Fatalf("Flags: got %v, want %v", got, test.expect)
+		flags := r.File[i].Flags
+		if flags != test.flags {
+			t.Errorf("CreateHeader(name=%q comment=%q nonUTF8=%v): flags=%#x, want %#x", test.name, test.comment, test.nonUTF8, flags, test.flags)
 		}
+	}
+}
+
+func TestWriterTime(t *testing.T) {
+	var buf bytes.Buffer
+	h := &FileHeader{
+		Name:     "test.txt",
+		Modified: time.Date(2017, 10, 31, 21, 11, 57, 0, timeZone(-7*time.Hour)),
+	}
+	w := NewWriter(&buf)
+	if _, err := w.CreateHeader(h); err != nil {
+		t.Fatalf("unexpected CreateHeader error: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("unexpected Close error: %v", err)
+	}
+
+	want, err := ioutil.ReadFile("testdata/time-go.zip")
+	if err != nil {
+		t.Fatalf("unexpected ReadFile error: %v", err)
+	}
+	if got := buf.Bytes(); !bytes.Equal(got, want) {
+		fmt.Printf("%x\n%x\n", got, want)
+		t.Error("contents of time-go.zip differ")
 	}
 }
 
 func TestWriterOffset(t *testing.T) {
 	largeData := make([]byte, 1<<17)
-	for i := range largeData {
-		largeData[i] = byte(rand.Int())
+	if _, err := rand.Read(largeData); err != nil {
+		t.Fatal("rand.Read failed:", err)
 	}
 	writeTests[1].Data = largeData
 	defer func() {
@@ -225,7 +321,7 @@ func testReadFile(t *testing.T, f *File, wt *WriteTest) {
 	if f.Name != wt.Name {
 		t.Fatalf("File name: got %q, want %q", f.Name, wt.Name)
 	}
-	testFileMode(t, wt.Name, f, wt.Mode)
+	testFileMode(t, f, wt.Mode)
 	rc, err := f.Open()
 	if err != nil {
 		t.Fatal("opening:", err)

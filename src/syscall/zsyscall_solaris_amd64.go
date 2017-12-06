@@ -21,7 +21,6 @@ import "unsafe"
 //go:cgo_import_dynamic libc_Chroot chroot "libc.so"
 //go:cgo_import_dynamic libc_Close close "libc.so"
 //go:cgo_import_dynamic libc_Dup dup "libc.so"
-//go:cgo_import_dynamic libc_Exit exit "libc.so"
 //go:cgo_import_dynamic libc_Fchdir fchdir "libc.so"
 //go:cgo_import_dynamic libc_Fchmod fchmod "libc.so"
 //go:cgo_import_dynamic libc_Fchown fchown "libc.so"
@@ -90,6 +89,7 @@ import "unsafe"
 //go:cgo_import_dynamic libc_recvfrom recvfrom "libsocket.so"
 //go:cgo_import_dynamic libc___xnet_recvmsg __xnet_recvmsg "libsocket.so"
 //go:cgo_import_dynamic libc_getexecname getexecname "libc.so"
+//go:cgo_import_dynamic libc_utimensat utimensat "libc.so"
 
 //go:linkname libc_Getcwd libc_Getcwd
 //go:linkname libc_getgroups libc_getgroups
@@ -105,7 +105,6 @@ import "unsafe"
 //go:linkname libc_Chroot libc_Chroot
 //go:linkname libc_Close libc_Close
 //go:linkname libc_Dup libc_Dup
-//go:linkname libc_Exit libc_Exit
 //go:linkname libc_Fchdir libc_Fchdir
 //go:linkname libc_Fchmod libc_Fchmod
 //go:linkname libc_Fchown libc_Fchown
@@ -174,6 +173,7 @@ import "unsafe"
 //go:linkname libc_recvfrom libc_recvfrom
 //go:linkname libc___xnet_recvmsg libc___xnet_recvmsg
 //go:linkname libc_getexecname libc_getexecname
+//go:linkname libc_utimensat libc_utimensat
 
 type libcFunc uintptr
 
@@ -192,7 +192,6 @@ var (
 	libc_Chroot,
 	libc_Close,
 	libc_Dup,
-	libc_Exit,
 	libc_Fchdir,
 	libc_Fchmod,
 	libc_Fchown,
@@ -260,7 +259,8 @@ var (
 	libc_setsockopt,
 	libc_recvfrom,
 	libc___xnet_recvmsg,
-	libc_getexecname libcFunc
+	libc_getexecname,
+	libc_utimensat libcFunc
 )
 
 func Getcwd(buf []byte) (n int, err error) {
@@ -407,11 +407,6 @@ func Dup(fd int) (nfd int, err error) {
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
-	return
-}
-
-func Exit(code int) {
-	sysvicall6(uintptr(unsafe.Pointer(&libc_Exit)), 1, uintptr(code), 0, 0, 0, 0, 0)
 	return
 }
 
@@ -1079,6 +1074,19 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
 func getexecname() (path unsafe.Pointer, err error) {
 	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_getexecname)), 0, 0, 0, 0, 0, 0, 0)
 	path = unsafe.Pointer(r0)
+	if e1 != 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+	var _p0 *byte
+	_p0, err = BytePtrFromString(path)
+	if err != nil {
+		return
+	}
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_utimensat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}

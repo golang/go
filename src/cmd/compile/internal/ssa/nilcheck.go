@@ -126,7 +126,7 @@ func nilcheckelim(f *Func) {
 							f.Warnl(v.Pos, "removed nil check")
 						}
 						v.reset(OpUnknown)
-						// TODO: f.freeValue(v)
+						f.freeValue(v)
 						i--
 						continue
 					}
@@ -168,6 +168,8 @@ func nilcheckelim2(f *Func) {
 		// input pointer is nil. Remove nil checks on those pointers, as the
 		// faulting instruction effectively does the nil check for free.
 		unnecessary.clear()
+		// Optimization: keep track of removed nilcheck with smallest index
+		firstToRemove := len(b.Values)
 		for i := len(b.Values) - 1; i >= 0; i-- {
 			v := b.Values[i]
 			if opcodeTable[v.Op].nilCheck && unnecessary.contains(v.Args[0].ID) {
@@ -175,6 +177,7 @@ func nilcheckelim2(f *Func) {
 					f.Warnl(v.Pos, "removed nil check")
 				}
 				v.reset(OpUnknown)
+				firstToRemove = i
 				continue
 			}
 			if v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
@@ -224,8 +227,9 @@ func nilcheckelim2(f *Func) {
 			}
 		}
 		// Remove values we've clobbered with OpUnknown.
-		i := 0
-		for _, v := range b.Values {
+		i := firstToRemove
+		for j := i; j < len(b.Values); j++ {
+			v := b.Values[j]
 			if v.Op != OpUnknown {
 				b.Values[i] = v
 				i++

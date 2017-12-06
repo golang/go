@@ -15,10 +15,12 @@ TEXT runtime·exit(SB),NOSPLIT,$0
 	NACL_SYSCALL(SYS_exit)
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$0
-	MOVW	code+0(FP), R0
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$4-4
+	MOVW wait+0(FP), R0
+	// SYS_thread_exit will clear *wait when the stack is free.
 	NACL_SYSCALL(SYS_thread_exit)
-	RET
+	JMP 0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVW	name+0(FP), R0
@@ -192,8 +194,12 @@ TEXT runtime·mmap(SB),NOSPLIT,$8
 	NACL_SYSCALL(SYS_mmap)
 	MOVM.IA.W (R13), [R4, R5]
 	CMP	$-4095, R0
+	MOVW	$0, R1
 	RSB.HI	$0, R0
-	MOVW	R0, ret+24(FP)
+	MOVW.HI	R0, R1		// if error, put in R1
+	MOVW.HI	$0, R0
+	MOVW	R0, p+24(FP)
+	MOVW	R1, err+28(FP)
 	RET
 
 TEXT runtime·walltime(SB),NOSPLIT,$16

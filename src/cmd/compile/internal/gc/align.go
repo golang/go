@@ -176,6 +176,7 @@ func dowidth(t *types.Type) {
 		}
 
 		t.Width = 0
+		t.Align = 1
 		return
 	}
 
@@ -290,6 +291,7 @@ func dowidth(t *types.Type) {
 
 	case TFORW: // should have been filled in
 		if !t.Broke() {
+			t.SetBroke(true)
 			yyerror("invalid recursive type %v", t)
 		}
 		w = 1 // anything will do

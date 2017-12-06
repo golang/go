@@ -13,6 +13,12 @@ import (
 	"testing"
 )
 
+func TestMaxBase(t *testing.T) {
+	if MaxBase != len(digits) {
+		t.Fatalf("%d != %d", MaxBase, len(digits))
+	}
+}
+
 // log2 computes the integer binary logarithm of x.
 // The result is the integer n for which 2^n <= x < 2^(n+1).
 // If x == 0, the result is -1.
@@ -61,6 +67,7 @@ var strTests = []struct {
 	{nat{0xdeadbeef}, 16, "deadbeef"},
 	{nat{0x229be7}, 17, "1a2b3c"},
 	{nat{0x309663e6}, 32, "o9cov6"},
+	{nat{0x309663e6}, 62, "TakXI"},
 }
 
 func TestString(t *testing.T) {
@@ -110,6 +117,7 @@ var natScanTests = []struct {
 	{s: "?"},
 	{base: 10},
 	{base: 36},
+	{base: 62},
 	{s: "?", base: 10},
 	{s: "0x"},
 	{s: "345", base: 2},
@@ -124,6 +132,7 @@ var natScanTests = []struct {
 	{"0", 0, false, nil, 10, 1, true, 0},
 	{"0", 10, false, nil, 10, 1, true, 0},
 	{"0", 36, false, nil, 36, 1, true, 0},
+	{"0", 62, false, nil, 62, 1, true, 0},
 	{"1", 0, false, nat{1}, 10, 1, true, 0},
 	{"1", 10, false, nat{1}, 10, 1, true, 0},
 	{"0 ", 0, false, nil, 10, 1, true, ' '},
@@ -135,8 +144,11 @@ var natScanTests = []struct {
 	{"03271", 0, false, nat{03271}, 8, 4, true, 0},
 	{"10ab", 0, false, nat{10}, 10, 2, true, 'a'},
 	{"1234567890", 0, false, nat{1234567890}, 10, 10, true, 0},
+	{"A", 36, false, nat{10}, 36, 1, true, 0},
+	{"A", 37, false, nat{36}, 37, 1, true, 0},
 	{"xyz", 36, false, nat{(33*36+34)*36 + 35}, 36, 3, true, 0},
-	{"xyz?", 36, false, nat{(33*36+34)*36 + 35}, 36, 3, true, '?'},
+	{"XYZ?", 36, false, nat{(33*36+34)*36 + 35}, 36, 3, true, '?'},
+	{"XYZ?", 62, false, nat{(59*62+60)*62 + 61}, 62, 3, true, '?'},
 	{"0x", 16, false, nil, 16, 1, true, 'x'},
 	{"0xdeadbeef", 0, false, nat{0xdeadbeef}, 16, 8, true, 0},
 	{"0XDEADBEEF", 0, false, nat{0xdeadbeef}, 16, 8, true, 0},

@@ -566,6 +566,58 @@ func TestConnCloseWrite(t *testing.T) {
 	}
 }
 
+func TestWarningAlertFlood(t *testing.T) {
+	ln := newLocalListener(t)
+	defer ln.Close()
+
+	server := func() error {
+		sconn, err := ln.Accept()
+		if err != nil {
+			return fmt.Errorf("accept: %v", err)
+		}
+		defer sconn.Close()
+
+		serverConfig := testConfig.Clone()
+		srv := Server(sconn, serverConfig)
+		if err := srv.Handshake(); err != nil {
+			return fmt.Errorf("handshake: %v", err)
+		}
+		defer srv.Close()
+
+		_, err = ioutil.ReadAll(srv)
+		if err == nil {
+			return errors.New("unexpected lack of error from server")
+		}
+		const expected = "too many warn"
+		if str := err.Error(); !strings.Contains(str, expected) {
+			return fmt.Errorf("expected error containing %q, but saw: %s", expected, str)
+		}
+
+		return nil
+	}
+
+	errChan := make(chan error, 1)
+	go func() { errChan <- server() }()
+
+	clientConfig := testConfig.Clone()
+	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if err := conn.Handshake(); err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < maxWarnAlertCount+1; i++ {
+		conn.sendAlert(alertNoRenegotiation)
+	}
+
+	if err := <-errChan; err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestCloneFuncFields(t *testing.T) {
 	const expectedCount = 5
 	called := 0

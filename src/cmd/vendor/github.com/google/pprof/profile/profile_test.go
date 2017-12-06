@@ -19,8 +19,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/pprof/internal/proftest"
@@ -91,7 +93,6 @@ func TestParse(t *testing.T) {
 }
 
 func TestParseError(t *testing.T) {
-
 	testcases := []string{
 		"",
 		"garbage text",
@@ -104,6 +105,63 @@ func TestParseError(t *testing.T) {
 		if err == nil {
 			t.Errorf("got nil, want error for input #%d", i)
 		}
+	}
+}
+
+func TestCheckValid(t *testing.T) {
+	const path = "testdata/java.cpu"
+
+	inbytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read profile file %q: %v", path, err)
+	}
+	p, err := Parse(bytes.NewBuffer(inbytes))
+	if err != nil {
+		t.Fatalf("failed to parse profile %q: %s", path, err)
+	}
+
+	for _, tc := range []struct {
+		mutateFn func(*Profile)
+		wantErr  string
+	}{
+		{
+			mutateFn: func(p *Profile) { p.SampleType = nil },
+			wantErr:  "missing sample type information",
+		},
+		{
+			mutateFn: func(p *Profile) { p.Sample[0] = nil },
+			wantErr:  "profile has nil sample",
+		},
+		{
+			mutateFn: func(p *Profile) { p.Sample[0].Value = append(p.Sample[0].Value, 0) },
+			wantErr:  "sample has 3 values vs. 2 types",
+		},
+		{
+			mutateFn: func(p *Profile) { p.Sample[0].Location[0] = nil },
+			wantErr:  "sample has nil location",
+		},
+		{
+			mutateFn: func(p *Profile) { p.Location[0] = nil },
+			wantErr:  "profile has nil location",
+		},
+		{
+			mutateFn: func(p *Profile) { p.Mapping = append(p.Mapping, nil) },
+			wantErr:  "profile has nil mapping",
+		},
+		{
+			mutateFn: func(p *Profile) { p.Function[0] = nil },
+			wantErr:  "profile has nil function",
+		},
+	} {
+		t.Run(tc.wantErr, func(t *testing.T) {
+			p := p.Copy()
+			tc.mutateFn(p)
+			if err := p.CheckValid(); err == nil {
+				t.Errorf("CheckValid(): got no error, want error %q", tc.wantErr)
+			} else if !strings.Contains(err.Error(), tc.wantErr) {
+				t.Errorf("CheckValid(): got error %v, want error %q", err, tc.wantErr)
+			}
+		})
 	}
 }
 
@@ -217,7 +275,7 @@ var cpuL = []*Location{
 	},
 }
 
-var testProfile = &Profile{
+var testProfile1 = &Profile{
 	PeriodType:    &ValueType{Type: "cpu", Unit: "milliseconds"},
 	Period:        1,
 	DurationNanos: 10e9,
@@ -230,40 +288,181 @@ var testProfile = &Profile{
 			Location: []*Location{cpuL[0]},
 			Value:    []int64{1000, 1000},
 			Label: map[string][]string{
-				"key1": []string{"tag1"},
-				"key2": []string{"tag1"},
+				"key1": {"tag1"},
+				"key2": {"tag1"},
 			},
 		},
 		{
 			Location: []*Location{cpuL[1], cpuL[0]},
 			Value:    []int64{100, 100},
 			Label: map[string][]string{
-				"key1": []string{"tag2"},
-				"key3": []string{"tag2"},
+				"key1": {"tag2"},
+				"key3": {"tag2"},
 			},
 		},
 		{
 			Location: []*Location{cpuL[2], cpuL[0]},
 			Value:    []int64{10, 10},
 			Label: map[string][]string{
-				"key1": []string{"tag3"},
-				"key2": []string{"tag2"},
+				"key1": {"tag3"},
+				"key2": {"tag2"},
 			},
 		},
 		{
 			Location: []*Location{cpuL[3], cpuL[0]},
 			Value:    []int64{10000, 10000},
 			Label: map[string][]string{
-				"key1": []string{"tag4"},
-				"key2": []string{"tag1"},
+				"key1": {"tag4"},
+				"key2": {"tag1"},
 			},
 		},
 		{
 			Location: []*Location{cpuL[4], cpuL[0]},
 			Value:    []int64{1, 1},
 			Label: map[string][]string{
-				"key1": []string{"tag4"},
-				"key2": []string{"tag1"},
+				"key1": {"tag4"},
+				"key2": {"tag1"},
+			},
+		},
+	},
+	Location: cpuL,
+	Function: cpuF,
+	Mapping:  cpuM,
+}
+
+var testProfile2 = &Profile{
+	PeriodType:    &ValueType{Type: "cpu", Unit: "milliseconds"},
+	Period:        1,
+	DurationNanos: 10e9,
+	SampleType: []*ValueType{
+		{Type: "samples", Unit: "count"},
+		{Type: "cpu", Unit: "milliseconds"},
+	},
+	Sample: []*Sample{
+		{
+			Location: []*Location{cpuL[0]},
+			Value:    []int64{70, 1000},
+			Label: map[string][]string{
+				"key1": {"tag1"},
+				"key2": {"tag1"},
+			},
+		},
+		{
+			Location: []*Location{cpuL[1], cpuL[0]},
+			Value:    []int64{60, 100},
+			Label: map[string][]string{
+				"key1": {"tag2"},
+				"key3": {"tag2"},
+			},
+		},
+		{
+			Location: []*Location{cpuL[2], cpuL[0]},
+			Value:    []int64{50, 10},
+			Label: map[string][]string{
+				"key1": {"tag3"},
+				"key2": {"tag2"},
+			},
+		},
+		{
+			Location: []*Location{cpuL[3], cpuL[0]},
+			Value:    []int64{40, 10000},
+			Label: map[string][]string{
+				"key1": {"tag4"},
+				"key2": {"tag1"},
+			},
+		},
+		{
+			Location: []*Location{cpuL[4], cpuL[0]},
+			Value:    []int64{1, 1},
+			Label: map[string][]string{
+				"key1": {"tag4"},
+				"key2": {"tag1"},
+			},
+		},
+	},
+	Location: cpuL,
+	Function: cpuF,
+	Mapping:  cpuM,
+}
+
+var testProfile3 = &Profile{
+	PeriodType:    &ValueType{Type: "cpu", Unit: "milliseconds"},
+	Period:        1,
+	DurationNanos: 10e9,
+	SampleType: []*ValueType{
+		{Type: "samples", Unit: "count"},
+	},
+	Sample: []*Sample{
+		{
+			Location: []*Location{cpuL[0]},
+			Value:    []int64{1000},
+			Label: map[string][]string{
+				"key1": {"tag1"},
+				"key2": {"tag1"},
+			},
+		},
+	},
+	Location: cpuL,
+	Function: cpuF,
+	Mapping:  cpuM,
+}
+
+var testProfile4 = &Profile{
+	PeriodType:    &ValueType{Type: "cpu", Unit: "milliseconds"},
+	Period:        1,
+	DurationNanos: 10e9,
+	SampleType: []*ValueType{
+		{Type: "samples", Unit: "count"},
+	},
+	Sample: []*Sample{
+		{
+			Location: []*Location{cpuL[0]},
+			Value:    []int64{1000},
+			NumLabel: map[string][]int64{
+				"key1": {10},
+				"key2": {30},
+			},
+			NumUnit: map[string][]string{
+				"key1": {"bytes"},
+				"key2": {"bytes"},
+			},
+		},
+	},
+	Location: cpuL,
+	Function: cpuF,
+	Mapping:  cpuM,
+}
+
+var testProfile5 = &Profile{
+	PeriodType:    &ValueType{Type: "cpu", Unit: "milliseconds"},
+	Period:        1,
+	DurationNanos: 10e9,
+	SampleType: []*ValueType{
+		{Type: "samples", Unit: "count"},
+	},
+	Sample: []*Sample{
+		{
+			Location: []*Location{cpuL[0]},
+			Value:    []int64{1000},
+			NumLabel: map[string][]int64{
+				"key1": {10},
+				"key2": {30},
+			},
+			NumUnit: map[string][]string{
+				"key1": {"bytes"},
+				"key2": {"bytes"},
+			},
+		},
+		{
+			Location: []*Location{cpuL[0]},
+			Value:    []int64{1000},
+			NumLabel: map[string][]int64{
+				"key1": {10},
+				"key2": {30},
+			},
+			NumUnit: map[string][]string{
+				"key1": {"kilobytes"},
+				"key2": {"kilobytes"},
 			},
 		},
 	},
@@ -273,10 +472,10 @@ var testProfile = &Profile{
 }
 
 var aggTests = map[string]aggTest{
-	"precise":         aggTest{true, true, true, true, 5},
-	"fileline":        aggTest{false, true, true, true, 4},
-	"inline_function": aggTest{false, true, false, true, 3},
-	"function":        aggTest{false, true, false, false, 2},
+	"precise":         {true, true, true, true, 5},
+	"fileline":        {false, true, true, true, 4},
+	"inline_function": {false, true, false, true, 3},
+	"function":        {false, true, false, false, 2},
 }
 
 type aggTest struct {
@@ -287,7 +486,7 @@ type aggTest struct {
 const totalSamples = int64(11111)
 
 func TestAggregation(t *testing.T) {
-	prof := testProfile.Copy()
+	prof := testProfile1.Copy()
 	for _, resolution := range []string{"precise", "fileline", "inline_function", "function"} {
 		a := aggTests[resolution]
 		if !a.precise {
@@ -362,7 +561,7 @@ func checkAggregation(prof *Profile, a *aggTest) error {
 
 // Test merge leaves the main binary in place.
 func TestMergeMain(t *testing.T) {
-	prof := testProfile.Copy()
+	prof := testProfile1.Copy()
 	p1, err := Merge([]*Profile{prof})
 	if err != nil {
 		t.Fatalf("merge error: %v", err)
@@ -377,7 +576,7 @@ func TestMerge(t *testing.T) {
 	// -2. Should end up with an empty profile (all samples for a
 	// location should add up to 0).
 
-	prof := testProfile.Copy()
+	prof := testProfile1.Copy()
 	p1, err := Merge([]*Profile{prof, prof})
 	if err != nil {
 		t.Errorf("merge error: %v", err)
@@ -409,7 +608,7 @@ func TestMergeAll(t *testing.T) {
 	// Aggregate 10 copies of the profile.
 	profs := make([]*Profile, 10)
 	for i := 0; i < 10; i++ {
-		profs[i] = testProfile.Copy()
+		profs[i] = testProfile1.Copy()
 	}
 	prof, err := Merge(profs)
 	if err != nil {
@@ -420,11 +619,145 @@ func TestMergeAll(t *testing.T) {
 		tb := locationHash(s)
 		samples[tb] = samples[tb] + s.Value[0]
 	}
-	for _, s := range testProfile.Sample {
+	for _, s := range testProfile1.Sample {
 		tb := locationHash(s)
 		if samples[tb] != s.Value[0]*10 {
 			t.Errorf("merge got wrong value at %s : %d instead of %d", tb, samples[tb], s.Value[0]*10)
 		}
+	}
+}
+
+func TestNumLabelMerge(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		profs         []*Profile
+		wantNumLabels []map[string][]int64
+		wantNumUnits  []map[string][]string
+	}{
+		{
+			name:  "different tag units not merged",
+			profs: []*Profile{testProfile4.Copy(), testProfile5.Copy()},
+			wantNumLabels: []map[string][]int64{
+				{
+					"key1": {10},
+					"key2": {30},
+				},
+				{
+					"key1": {10},
+					"key2": {30},
+				},
+			},
+			wantNumUnits: []map[string][]string{
+				{
+					"key1": {"bytes"},
+					"key2": {"bytes"},
+				},
+				{
+					"key1": {"kilobytes"},
+					"key2": {"kilobytes"},
+				},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			prof, err := Merge(tc.profs)
+			if err != nil {
+				t.Errorf("merge error: %v", err)
+			}
+
+			if want, got := len(tc.wantNumLabels), len(prof.Sample); want != got {
+				t.Fatalf("got %d samples, want %d samples", got, want)
+			}
+			for i, wantLabels := range tc.wantNumLabels {
+				numLabels := prof.Sample[i].NumLabel
+				if !reflect.DeepEqual(wantLabels, numLabels) {
+					t.Errorf("got numeric labels %v, want %v", numLabels, wantLabels)
+				}
+
+				wantUnits := tc.wantNumUnits[i]
+				numUnits := prof.Sample[i].NumUnit
+				if !reflect.DeepEqual(wantUnits, numUnits) {
+					t.Errorf("got numeric labels %v, want %v", numUnits, wantUnits)
+				}
+			}
+		})
+	}
+}
+
+func TestNormalizeBySameProfile(t *testing.T) {
+	pb := testProfile1.Copy()
+	p := testProfile1.Copy()
+
+	if err := p.Normalize(pb); err != nil {
+		t.Fatal(err)
+	}
+
+	for i, s := range p.Sample {
+		for j, v := range s.Value {
+			expectedSampleValue := testProfile1.Sample[i].Value[j]
+			if v != expectedSampleValue {
+				t.Errorf("For sample %d, value %d want %d got %d", i, j, expectedSampleValue, v)
+			}
+		}
+	}
+}
+
+func TestNormalizeByDifferentProfile(t *testing.T) {
+	p := testProfile1.Copy()
+	pb := testProfile2.Copy()
+
+	if err := p.Normalize(pb); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedSampleValues := [][]int64{
+		{19, 1000},
+		{1, 100},
+		{0, 10},
+		{198, 10000},
+		{0, 1},
+	}
+
+	for i, s := range p.Sample {
+		for j, v := range s.Value {
+			if v != expectedSampleValues[i][j] {
+				t.Errorf("For sample %d, value %d want %d got %d", i, j, expectedSampleValues[i][j], v)
+			}
+		}
+	}
+}
+
+func TestNormalizeByMultipleOfSameProfile(t *testing.T) {
+	pb := testProfile1.Copy()
+	for i, s := range pb.Sample {
+		for j, v := range s.Value {
+			pb.Sample[i].Value[j] = 10 * v
+		}
+	}
+
+	p := testProfile1.Copy()
+
+	err := p.Normalize(pb)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i, s := range p.Sample {
+		for j, v := range s.Value {
+			expectedSampleValue := 10 * testProfile1.Sample[i].Value[j]
+			if v != expectedSampleValue {
+				t.Errorf("For sample %d, value %d, want %d got %d", i, j, expectedSampleValue, v)
+			}
+		}
+	}
+}
+
+func TestNormalizeIncompatibleProfiles(t *testing.T) {
+	p := testProfile1.Copy()
+	pb := testProfile3.Copy()
+
+	if err := p.Normalize(pb); err == nil {
+		t.Errorf("Expected an error")
 	}
 }
 
@@ -437,12 +770,33 @@ func TestFilter(t *testing.T) {
 	}
 
 	for tx, tc := range []filterTestcase{
-		{nil, nil, nil, nil, true, false, false, false},
-		{regexp.MustCompile("notfound"), nil, nil, nil, false, false, false, false},
-		{nil, regexp.MustCompile("foo.c"), nil, nil, true, true, false, false},
-		{nil, nil, regexp.MustCompile("lib.so"), nil, true, false, true, false},
+		{
+			fm: true, // nil focus matches every sample
+		},
+		{
+			focus: regexp.MustCompile("notfound"),
+		},
+		{
+			ignore: regexp.MustCompile("foo.c"),
+			fm:     true,
+			im:     true,
+		},
+		{
+			hide: regexp.MustCompile("lib.so"),
+			fm:   true,
+			hm:   true,
+		},
+		{
+			show: regexp.MustCompile("foo.c"),
+			fm:   true,
+			hnm:  true,
+		},
+		{
+			show: regexp.MustCompile("notfound"),
+			fm:   true,
+		},
 	} {
-		prof := *testProfile.Copy()
+		prof := *testProfile1.Copy()
 		gf, gi, gh, gnh := prof.FilterSamplesByName(tc.focus, tc.ignore, tc.hide, tc.show)
 		if gf != tc.fm {
 			t.Errorf("Filter #%d, got fm=%v, want %v", tx, gf, tc.fm)
@@ -488,7 +842,7 @@ func TestTagFilter(t *testing.T) {
 		{regexp.MustCompile("key1"), nil, true, false, 1},
 		{nil, regexp.MustCompile("key[12]"), true, true, 1},
 	} {
-		prof := testProfile.Copy()
+		prof := testProfile1.Copy()
 		gim, gem := prof.FilterTagsByName(tc.include, tc.exclude)
 		if gim != tc.im {
 			t.Errorf("Filter #%d, got include match=%v, want %v", tx, gim, tc.im)
@@ -513,9 +867,152 @@ func locationHash(s *Sample) string {
 	return tb
 }
 
-func TestSetMain(t *testing.T) {
-	testProfile.massageMappings()
-	if testProfile.Mapping[0].File != mainBinary {
-		t.Errorf("got %s for main", testProfile.Mapping[0].File)
+func TestNumLabelUnits(t *testing.T) {
+	var tagFilterTests = []struct {
+		desc             string
+		tagVals          []map[string][]int64
+		tagUnits         []map[string][]string
+		wantUnits        map[string]string
+		wantIgnoredUnits map[string][]string
+	}{
+		{
+			"One sample, multiple keys, different specified units",
+			[]map[string][]int64{{"key1": {131072}, "key2": {128}}},
+			[]map[string][]string{{"key1": {"bytes"}, "key2": {"kilobytes"}}},
+			map[string]string{"key1": "bytes", "key2": "kilobytes"},
+			map[string][]string{},
+		},
+		{
+			"One sample, one key with one value, unit specified",
+			[]map[string][]int64{{"key1": {8}}},
+			[]map[string][]string{{"key1": {"bytes"}}},
+			map[string]string{"key1": "bytes"},
+			map[string][]string{},
+		},
+		{
+			"One sample, one key with one value, empty unit specified",
+			[]map[string][]int64{{"key1": {8}}},
+			[]map[string][]string{{"key1": {""}}},
+			map[string]string{"key1": "key1"},
+			map[string][]string{},
+		},
+		{
+			"Key bytes, unit not specified",
+			[]map[string][]int64{{"bytes": {8}}},
+			[]map[string][]string{nil},
+			map[string]string{"bytes": "bytes"},
+			map[string][]string{},
+		},
+		{
+			"One sample, one key with one value, unit not specified",
+			[]map[string][]int64{{"kilobytes": {8}}},
+			[]map[string][]string{nil},
+			map[string]string{"kilobytes": "kilobytes"},
+			map[string][]string{},
+		},
+		{
+			"Key request, unit not specified",
+			[]map[string][]int64{{"request": {8}}},
+			[]map[string][]string{nil},
+			map[string]string{"request": "bytes"},
+			map[string][]string{},
+		},
+		{
+			"Key alignment, unit not specified",
+			[]map[string][]int64{{"alignment": {8}}},
+			[]map[string][]string{nil},
+			map[string]string{"alignment": "bytes"},
+			map[string][]string{},
+		},
+		{
+			"One sample, one key with multiple values and two different units",
+			[]map[string][]int64{{"key1": {8, 8}}},
+			[]map[string][]string{{"key1": {"bytes", "kilobytes"}}},
+			map[string]string{"key1": "bytes"},
+			map[string][]string{"key1": {"kilobytes"}},
+		},
+		{
+			"One sample, one key with multiple values and three different units",
+			[]map[string][]int64{{"key1": {8, 8}}},
+			[]map[string][]string{{"key1": {"bytes", "megabytes", "kilobytes"}}},
+			map[string]string{"key1": "bytes"},
+			map[string][]string{"key1": {"kilobytes", "megabytes"}},
+		},
+		{
+			"Two samples, one key, different units specified",
+			[]map[string][]int64{{"key1": {8}}, {"key1": {8}}},
+			[]map[string][]string{{"key1": {"bytes"}}, {"key1": {"kilobytes"}}},
+			map[string]string{"key1": "bytes"},
+			map[string][]string{"key1": {"kilobytes"}},
+		},
+		{
+			"Keys alignment, request, and bytes have units specified",
+			[]map[string][]int64{{
+				"alignment": {8},
+				"request":   {8},
+				"bytes":     {8},
+			}},
+			[]map[string][]string{{
+				"alignment": {"seconds"},
+				"request":   {"minutes"},
+				"bytes":     {"hours"},
+			}},
+			map[string]string{
+				"alignment": "seconds",
+				"request":   "minutes",
+				"bytes":     "hours",
+			},
+			map[string][]string{},
+		},
 	}
+	for _, test := range tagFilterTests {
+		p := &Profile{Sample: make([]*Sample, len(test.tagVals))}
+		for i, numLabel := range test.tagVals {
+			s := Sample{
+				NumLabel: numLabel,
+				NumUnit:  test.tagUnits[i],
+			}
+			p.Sample[i] = &s
+		}
+		units, ignoredUnits := p.NumLabelUnits()
+		if !reflect.DeepEqual(test.wantUnits, units) {
+			t.Errorf("%s: got %v units, want %v", test.desc, units, test.wantUnits)
+		}
+		if !reflect.DeepEqual(test.wantIgnoredUnits, ignoredUnits) {
+			t.Errorf("%s: got %v ignored units, want %v", test.desc, ignoredUnits, test.wantIgnoredUnits)
+		}
+	}
+}
+
+func TestSetMain(t *testing.T) {
+	testProfile1.massageMappings()
+	if testProfile1.Mapping[0].File != mainBinary {
+		t.Errorf("got %s for main", testProfile1.Mapping[0].File)
+	}
+}
+
+// parallel runs n copies of fn in parallel.
+func parallel(n int, fn func()) {
+	var wg sync.WaitGroup
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func() {
+			fn()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
+
+func TestThreadSafety(t *testing.T) {
+	src := testProfile1.Copy()
+	parallel(4, func() { src.Copy() })
+	parallel(4, func() {
+		var b bytes.Buffer
+		src.WriteUncompressed(&b)
+	})
+	parallel(4, func() {
+		var b bytes.Buffer
+		src.Write(&b)
+	})
 }

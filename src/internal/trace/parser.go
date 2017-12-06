@@ -12,10 +12,24 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	_ "unsafe"
 )
+
+func goCmd() string {
+	var exeSuffix string
+	if runtime.GOOS == "windows" {
+		exeSuffix = ".exe"
+	}
+	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
+	if _, err := os.Stat(path); err == nil {
+		return path
+	}
+	return "go"
+}
 
 // Event describes one event in the trace.
 type Event struct {
@@ -31,7 +45,7 @@ type Event struct {
 	SArgs []string  // event-type-specific string args
 	// linked event (can be nil), depends on event type:
 	// for GCStart: the GCStop
-	// for GCScanStart: the GCScanDone
+	// for GCSTWStart: the GCSTWDone
 	// for GCSweepStart: the GCSweepDone
 	// for GoCreate: first GoStart of the created goroutine
 	// for GoStart/GoStartLabel: the associated GoEnd, GoBlock or other blocking event
@@ -128,7 +142,7 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
 		return
 	}
 	switch ver {
-	case 1005, 1007, 1008, 1009:
+	case 1005, 1007, 1008, 1009, 1010:
 		// Note: When adding a new version, add canned traces
 		// from the old version to the test suite using mkcanned.bash.
 		break
@@ -270,8 +284,9 @@ func parseHeader(buf []byte) (int, error) {
 // It does analyze and verify per-event-type arguments.
 func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (events []*Event, stacks map[uint64][]*Frame, err error) {
 	var ticksPerSec, lastSeq, lastTs int64
-	var lastG, timerGoid uint64
+	var lastG uint64
 	var lastP int
+	timerGoids := make(map[uint64]bool)
 	lastGs := make(map[int]uint64) // last goroutine running on P
 	stacks = make(map[uint64][]*Frame)
 	batches := make(map[int][]*Event) // events by P
@@ -308,7 +323,7 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 				return
 			}
 		case EvTimerGoroutine:
-			timerGoid = raw.args[0]
+			timerGoids[raw.args[0]] = true
 		case EvStack:
 			if len(raw.args) < 2 {
 				err = fmt.Errorf("EvStack has wrong number of arguments at offset 0x%x: want at least 2, got %v",
@@ -373,7 +388,18 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 				if raw.typ == EvGoStartLabel {
 					e.SArgs = []string{strings[e.Args[2]]}
 				}
-			case EvGCStart, EvGCDone, EvGCScanStart, EvGCScanDone:
+			case EvGCSTWStart:
+				e.G = 0
+				switch e.Args[0] {
+				case 0:
+					e.SArgs = []string{"mark termination"}
+				case 1:
+					e.SArgs = []string{"sweep termination"}
+				default:
+					err = fmt.Errorf("unknown STW kind %d", e.Args[0])
+					return
+				}
+			case EvGCStart, EvGCDone, EvGCSTWDone:
 				e.G = 0
 			case EvGoEnd, EvGoStop, EvGoSched, EvGoPreempt,
 				EvGoSleep, EvGoBlock, EvGoBlockSend, EvGoBlockRecv,
@@ -420,7 +446,7 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 	for _, ev := range events {
 		ev.Ts = int64(float64(ev.Ts-minTs) * freq)
 		// Move timers and syscalls to separate fake Ps.
-		if timerGoid != 0 && ev.G == timerGoid && ev.Type == EvGoUnblock {
+		if timerGoids[ev.G] && ev.Type == EvGoUnblock {
 			ev.P = TimerP
 		}
 		if ev.Type == EvGoSysExit {
@@ -511,14 +537,14 @@ func postProcessTrace(ver int, events []*Event) error {
 	type pdesc struct {
 		running bool
 		g       uint64
-		evScan  *Event
+		evSTW   *Event
 		evSweep *Event
 	}
 
 	gs := make(map[uint64]gdesc)
 	ps := make(map[int]pdesc)
 	gs[0] = gdesc{state: gRunning}
-	var evGC *Event
+	var evGC, evSTW *Event
 
 	checkRunning := func(p pdesc, g gdesc, ev *Event, allowG0 bool) error {
 		name := EventDescriptions[ev.Type].Name
@@ -565,17 +591,27 @@ func postProcessTrace(ver int, events []*Event) error {
 			}
 			evGC.Link = ev
 			evGC = nil
-		case EvGCScanStart:
-			if p.evScan != nil {
-				return fmt.Errorf("previous scanning is not ended before a new one (offset %v, time %v)", ev.Off, ev.Ts)
+		case EvGCSTWStart:
+			evp := &evSTW
+			if ver < 1010 {
+				// Before 1.10, EvGCSTWStart was per-P.
+				evp = &p.evSTW
 			}
-			p.evScan = ev
-		case EvGCScanDone:
-			if p.evScan == nil {
-				return fmt.Errorf("bogus scanning end (offset %v, time %v)", ev.Off, ev.Ts)
+			if *evp != nil {
+				return fmt.Errorf("previous STW is not ended before a new one (offset %v, time %v)", ev.Off, ev.Ts)
 			}
-			p.evScan.Link = ev
-			p.evScan = nil
+			*evp = ev
+		case EvGCSTWDone:
+			evp := &evSTW
+			if ver < 1010 {
+				// Before 1.10, EvGCSTWDone was per-P.
+				evp = &p.evSTW
+			}
+			if *evp == nil {
+				return fmt.Errorf("bogus STW end (offset %v, time %v)", ev.Off, ev.Ts)
+			}
+			(*evp).Link = ev
+			*evp = nil
 		case EvGCSweepStart:
 			if p.evSweep != nil {
 				return fmt.Errorf("previous sweeping is not ended before a new one (offset %v, time %v)", ev.Off, ev.Ts)
@@ -735,7 +771,7 @@ func symbolize(events []*Event, bin string) error {
 	}
 
 	// Start addr2line.
-	cmd := exec.Command("go", "tool", "addr2line", bin)
+	cmd := exec.Command(goCmd(), "tool", "addr2line", bin)
 	in, err := cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("failed to pipe addr2line stdin: %v", err)
@@ -864,6 +900,10 @@ func argNum(raw rawEvent, ver int) int {
 		if ver < 1007 {
 			narg-- // 1.7 added an additional seq arg
 		}
+	case EvGCSTWStart:
+		if ver < 1010 {
+			narg-- // 1.10 added an argument
+		}
 	}
 	return narg
 }
@@ -883,8 +923,8 @@ const (
 	EvProcStop          = 6  // stop of P [timestamp]
 	EvGCStart           = 7  // GC start [timestamp, seq, stack id]
 	EvGCDone            = 8  // GC done [timestamp]
-	EvGCScanStart       = 9  // GC mark termination start [timestamp]
-	EvGCScanDone        = 10 // GC mark termination done [timestamp]
+	EvGCSTWStart        = 9  // GC mark termination start [timestamp, kind]
+	EvGCSTWDone         = 10 // GC mark termination done [timestamp]
 	EvGCSweepStart      = 11 // GC sweep start [timestamp, stack id]
 	EvGCSweepDone       = 12 // GC sweep done [timestamp, swept, reclaimed]
 	EvGoCreate          = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
@@ -937,8 +977,8 @@ var EventDescriptions = [EvCount]struct {
 	EvProcStop:          {"ProcStop", 1005, false, []string{}},
 	EvGCStart:           {"GCStart", 1005, true, []string{"seq"}}, // in 1.5 format it was {}
 	EvGCDone:            {"GCDone", 1005, false, []string{}},
-	EvGCScanStart:       {"GCScanStart", 1005, false, []string{}},
-	EvGCScanDone:        {"GCScanDone", 1005, false, []string{}},
+	EvGCSTWStart:        {"GCSTWStart", 1005, false, []string{"kind"}}, // <= 1.9, args was {} (implicitly {0})
+	EvGCSTWDone:         {"GCSTWDone", 1005, false, []string{}},
 	EvGCSweepStart:      {"GCSweepStart", 1005, true, []string{}},
 	EvGCSweepDone:       {"GCSweepDone", 1005, false, []string{"swept", "reclaimed"}}, // before 1.9, format was {}
 	EvGoCreate:          {"GoCreate", 1005, true, []string{"g", "stack"}},
