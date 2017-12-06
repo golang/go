@@ -187,10 +187,28 @@ func TestMarshalRSAPublicKey(t *testing.T) {
 	derBytes := MarshalPKCS1PublicKey(pub)
 	pub2, err := ParsePKCS1PublicKey(derBytes)
 	if err != nil {
-		t.Errorf("error parsing serialized key: %s", err)
+		t.Errorf("ParsePKCS1PublicKey: %s", err)
 	}
 	if pub.N.Cmp(pub2.N) != 0 || pub.E != pub2.E {
-		t.Errorf("got:%+v want:%+v", pub, pub2)
+		t.Errorf("ParsePKCS1PublicKey = %+v, want %+v", pub, pub2)
+	}
+
+	// It's never been documented that asn1.Marshal/Unmarshal on rsa.PublicKey works,
+	// but it does, and we know of code that depends on it.
+	// Lock that in, even though we'd prefer that people use MarshalPKCS1PublicKey and ParsePKCS1PublicKey.
+	derBytes2, err := asn1.Marshal(*pub)
+	if err != nil {
+		t.Errorf("Marshal(rsa.PublicKey): %v", err)
+	} else if !bytes.Equal(derBytes, derBytes2) {
+		t.Errorf("Marshal(rsa.PublicKey) = %x, want %x", derBytes2, derBytes)
+	}
+	pub3 := new(rsa.PublicKey)
+	rest, err := asn1.Unmarshal(derBytes, pub3)
+	if err != nil {
+		t.Errorf("Unmarshal(rsa.PublicKey): %v", err)
+	}
+	if len(rest) != 0 || pub.N.Cmp(pub3.N) != 0 || pub.E != pub3.E {
+		t.Errorf("Unmarshal(rsa.PublicKey) = %+v, %q want %+v, %q", pub, rest, pub2, []byte(nil))
 	}
 
 	publicKeys := []struct {
