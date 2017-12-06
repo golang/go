@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"runtime"
 	"strconv"
 	"unicode"
 	"unicode/utf16"
@@ -168,13 +167,19 @@ func (e *InvalidUnmarshalError) Error() string {
 	return "json: Unmarshal(nil " + e.Type.String() + ")"
 }
 
+// jsonError is an error wrapper type for internal use only.
+// Panics with errors are wrapped in jsonError so that the top-level recover
+// can distinguish intentional panics from this package.
+type jsonError struct{ error }
+
 func (d *decodeState) unmarshal(v interface{}) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if _, ok := r.(runtime.Error); ok {
+			if je, ok := r.(jsonError); ok {
+				err = je.error
+			} else {
 				panic(r)
 			}
-			err = r.(error)
 		}
 	}()
 
@@ -295,9 +300,9 @@ func (d *decodeState) init(data []byte) *decodeState {
 	return d
 }
 
-// error aborts the decoding by panicking with err.
+// error aborts the decoding by panicking with err wrapped in jsonError.
 func (d *decodeState) error(err error) {
-	panic(d.addErrorContext(err))
+	panic(jsonError{d.addErrorContext(err)})
 }
 
 // saveError saves the first err it is called with,
