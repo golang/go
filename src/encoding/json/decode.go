@@ -707,6 +707,19 @@ func (d *decodeState) object(v reflect.Value) {
 				for _, i := range f.index {
 					if subv.Kind() == reflect.Ptr {
 						if subv.IsNil() {
+							// If a struct embeds a pointer to an unexported type,
+							// it is not possible to set a newly allocated value
+							// since the field is unexported.
+							//
+							// See https://golang.org/issue/21357
+							if !subv.CanSet() {
+								d.saveError(fmt.Errorf("json: cannot set embedded pointer to unexported struct: %v", subv.Type().Elem()))
+								// Invalidate subv to ensure d.value(subv) skips over
+								// the JSON value without assigning it to subv.
+								subv = reflect.Value{}
+								destring = false
+								break
+							}
 							subv.Set(reflect.New(subv.Type().Elem()))
 						}
 						subv = subv.Elem()
