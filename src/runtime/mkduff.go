@@ -70,7 +70,7 @@ func zeroAMD64(w io.Writer) {
 		fmt.Fprintln(w, "\tMOVUPS\tX0,16(DI)")
 		fmt.Fprintln(w, "\tMOVUPS\tX0,32(DI)")
 		fmt.Fprintln(w, "\tMOVUPS\tX0,48(DI)")
-		fmt.Fprintln(w, "\tADDQ\t$64,DI")
+		fmt.Fprintln(w, "\tLEAQ\t64(DI),DI") // We use lea instead of add, to avoid clobbering flags
 		fmt.Fprintln(w)
 	}
 	fmt.Fprintln(w, "\tRET")
@@ -151,12 +151,13 @@ func copyARM(w io.Writer) {
 
 func zeroARM64(w io.Writer) {
 	// ZR: always zero
-	// R16 (aka REGRT1): ptr to memory to be zeroed - 8
+	// R16 (aka REGRT1): ptr to memory to be zeroed
 	// On return, R16 points to the last zeroed dword.
 	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $-8-0")
-	for i := 0; i < 128; i++ {
-		fmt.Fprintln(w, "\tMOVD.W\tZR, 8(R16)")
+	for i := 0; i < 63; i++ {
+		fmt.Fprintln(w, "\tSTP.P\t(ZR, ZR), 16(R16)")
 	}
+	fmt.Fprintln(w, "\tSTP\t(ZR, ZR), (R16)")
 	fmt.Fprintln(w, "\tRET")
 }
 

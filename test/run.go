@@ -417,6 +417,14 @@ func (ctxt *context) match(name string) bool {
 
 func init() { checkShouldTest() }
 
+// goGcflags returns the -gcflags argument to use with go build / go run.
+// This must match the flags used for building the standard libary,
+// or else the commands will rebuild any needed packages (like runtime)
+// over and over.
+func goGcflags() string {
+	return "-gcflags=" + os.Getenv("GO_GCFLAGS")
+}
+
 // run runs a test.
 func (t *test) run() {
 	start := time.Now()
@@ -701,7 +709,7 @@ func (t *test) run() {
 		}
 
 	case "build":
-		_, err := runcmd("go", "build", "-o", "a.exe", long)
+		_, err := runcmd("go", "build", goGcflags(), "-o", "a.exe", long)
 		if err != nil {
 			t.err = err
 		}
@@ -728,6 +736,9 @@ func (t *test) run() {
 		}
 		var objs []string
 		cmd := []string{"go", "tool", "compile", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
+		if len(asms) > 0 {
+			cmd = append(cmd, "-asmhdr", "go_asm.h")
+		}
 		for _, file := range gos {
 			cmd = append(cmd, filepath.Join(longdir, file.Name()))
 		}
@@ -766,7 +777,7 @@ func (t *test) run() {
 	case "buildrun": // build binary, then run binary, instead of go run. Useful for timeout tests where failure mode is infinite loop.
 		// TODO: not supported on NaCl
 		useTmp = true
-		cmd := []string{"go", "build", "-o", "a.exe"}
+		cmd := []string{"go", "build", goGcflags(), "-o", "a.exe"}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -791,13 +802,38 @@ func (t *test) run() {
 
 	case "run":
 		useTmp = false
-		cmd := []string{"go", "run"}
-		if *linkshared {
-			cmd = append(cmd, "-linkshared")
+		var out []byte
+		var err error
+		if len(flags)+len(args) == 0 && goGcflags() == "" && !*linkshared {
+			// If we're not using special go command flags,
+			// skip all the go command machinery.
+			// This avoids any time the go command would
+			// spend checking whether, for example, the installed
+			// package runtime is up to date.
+			// Because we run lots of trivial test programs,
+			// the time adds up.
+			pkg := filepath.Join(t.tempDir, "pkg.a")
+			if _, err := runcmd("go", "tool", "compile", "-o", pkg, t.goFileName()); err != nil {
+				t.err = err
+				return
+			}
+			exe := filepath.Join(t.tempDir, "test.exe")
+			cmd := []string{"go", "tool", "link", "-s", "-w"}
+			cmd = append(cmd, "-o", exe, pkg)
+			if _, err := runcmd(cmd...); err != nil {
+				t.err = err
+				return
+			}
+			out, err = runcmd(append([]string{exe}, args...)...)
+		} else {
+			cmd := []string{"go", "run", goGcflags()}
+			if *linkshared {
+				cmd = append(cmd, "-linkshared")
+			}
+			cmd = append(cmd, flags...)
+			cmd = append(cmd, t.goFileName())
+			out, err = runcmd(append(cmd, args...)...)
 		}
-		cmd = append(cmd, flags...)
-		cmd = append(cmd, t.goFileName())
-		out, err := runcmd(append(cmd, args...)...)
 		if err != nil {
 			t.err = err
 			return
@@ -812,7 +848,7 @@ func (t *test) run() {
 			<-rungatec
 		}()
 		useTmp = false
-		cmd := []string{"go", "run"}
+		cmd := []string{"go", "run", goGcflags()}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -827,7 +863,7 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
-		cmd = []string{"go", "run"}
+		cmd = []string{"go", "run", goGcflags()}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -843,7 +879,7 @@ func (t *test) run() {
 
 	case "errorcheckoutput":
 		useTmp = false
-		cmd := []string{"go", "run"}
+		cmd := []string{"go", "run", goGcflags()}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}

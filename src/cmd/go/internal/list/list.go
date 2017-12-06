@@ -152,7 +152,7 @@ var listJson = CmdList.Flag.Bool("json", false, "")
 var nl = []byte{'\n'}
 
 func runList(cmd *base.Command, args []string) {
-	work.BuildModeInit()
+	work.BuildInit()
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
 
@@ -194,12 +194,29 @@ func runList(cmd *base.Command, args []string) {
 		}
 	}
 
-	loadpkgs := load.Packages
+	var pkgs []*load.Package
 	if *listE {
-		loadpkgs = load.PackagesAndErrors
+		pkgs = load.PackagesAndErrors(args)
+	} else {
+		pkgs = load.Packages(args)
 	}
 
-	for _, pkg := range loadpkgs(args) {
+	// Estimate whether staleness information is needed,
+	// since it's a little bit of work to compute.
+	needStale := *listJson || strings.Contains(*listFmt, ".Stale")
+	if needStale {
+		var b work.Builder
+		b.Init()
+		b.ComputeStaleOnly = true
+		a := &work.Action{}
+		// TODO: Use pkgsFilter?
+		for _, p := range pkgs {
+			a.Deps = append(a.Deps, b.AutoAction(work.ModeInstall, work.ModeInstall, p))
+		}
+		b.Do(a)
+	}
+
+	for _, pkg := range pkgs {
 		// Show vendor-expanded paths in listing
 		pkg.TestImports = pkg.Vendored(pkg.TestImports)
 		pkg.XTestImports = pkg.Vendored(pkg.XTestImports)

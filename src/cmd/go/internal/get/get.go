@@ -90,8 +90,7 @@ func init() {
 }
 
 func runGet(cmd *base.Command, args []string) {
-	work.InstrumentInit()
-	work.BuildModeInit()
+	work.BuildInit()
 
 	if *getF && !*getU {
 		base.Fatalf("go get: cannot use -f flag without -u")
@@ -301,7 +300,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 	// due to wildcard expansion.
 	for _, p := range pkgs {
 		if *getFix {
-			files := base.FilterDotUnderscoreFiles(base.RelPaths(p.Internal.AllGoFiles))
+			files := base.RelPaths(p.InternalAllGoFiles())
 			base.Run(cfg.BuildToolexec, str.StringList(base.Tool("fix"), files))
 
 			// The imports might have changed, so reload again.
@@ -457,12 +456,8 @@ func downloadPackage(p *load.Package) error {
 	// Check that this is an appropriate place for the repo to be checked out.
 	// The target directory must either not exist or have a repo checked out already.
 	meta := filepath.Join(root, "."+vcs.cmd)
-	st, err := os.Stat(meta)
-	if err == nil && !st.IsDir() {
-		return fmt.Errorf("%s exists but is not a directory", meta)
-	}
-	if err != nil {
-		// Metadata directory does not exist. Prepare to checkout new copy.
+	if _, err := os.Stat(meta); err != nil {
+		// Metadata file or directory does not exist. Prepare to checkout new copy.
 		// Some version control tools require the target directory not to exist.
 		// We require that too, just to avoid stepping on existing work.
 		if _, err := os.Stat(root); err == nil {

@@ -123,8 +123,9 @@ var ErrFinalToken = errors.New("final token")
 // After Scan returns false, the Err method will return any error that
 // occurred during scanning, except that if it was io.EOF, Err
 // will return nil.
-// Scan panics if the split function returns 100 empty tokens without
-// advancing the input. This is a common error mode for scanners.
+// Scan panics if the split function returns too many empty
+// tokens without advancing the input. This is a common error mode for
+// scanners.
 func (s *Scanner) Scan() bool {
 	if s.done {
 		return false
@@ -156,8 +157,8 @@ func (s *Scanner) Scan() bool {
 				} else {
 					// Returning tokens not advancing input at EOF.
 					s.empties++
-					if s.empties > 100 {
-						panic("bufio.Scan: 100 empty tokens without progressing")
+					if s.empties > maxConsecutiveEmptyReads {
+						panic("bufio.Scan: too many empty tokens without progressing")
 					}
 				}
 				return true

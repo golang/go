@@ -589,12 +589,13 @@ func updatememstats() {
 	memstats.heap_objects = memstats.nmalloc - memstats.nfree
 }
 
+// cachestats flushes all mcache stats.
+//
+// The world must be stopped.
+//
 //go:nowritebarrier
 func cachestats() {
-	for _, p := range &allp {
-		if p == nil {
-			break
-		}
+	for _, p := range allp {
 		c := p.mcache
 		if c == nil {
 			continue
@@ -610,9 +611,6 @@ func cachestats() {
 //go:nowritebarrier
 func flushmcache(i int) {
 	p := allp[i]
-	if p == nil {
-		return
-	}
 	c := p.mcache
 	if c == nil {
 		return
@@ -666,7 +664,7 @@ func purgecachedstats(c *mcache) {
 // overflow errors.
 //go:nosplit
 func mSysStatInc(sysStat *uint64, n uintptr) {
-	if sys.BigEndian != 0 {
+	if sys.BigEndian {
 		atomic.Xadd64(sysStat, int64(n))
 		return
 	}
@@ -680,7 +678,7 @@ func mSysStatInc(sysStat *uint64, n uintptr) {
 // mSysStatInc apply.
 //go:nosplit
 func mSysStatDec(sysStat *uint64, n uintptr) {
-	if sys.BigEndian != 0 {
+	if sys.BigEndian {
 		atomic.Xadd64(sysStat, -int64(n))
 		return
 	}

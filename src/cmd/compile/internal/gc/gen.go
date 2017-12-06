@@ -11,7 +11,7 @@ import (
 	"strconv"
 )
 
-func Sysfunc(name string) *obj.LSym {
+func sysfunc(name string) *obj.LSym {
 	return Runtimepkg.Lookup(name).Linksym()
 }
 
@@ -39,7 +39,7 @@ func autotmpname(n int) string {
 }
 
 // make a new Node off the books
-func tempnamel(pos src.XPos, curfn *Node, nn *Node, t *types.Type) {
+func tempAt(pos src.XPos, curfn *Node, t *types.Type) *Node {
 	if curfn == nil {
 		Fatalf("no curfn for tempname")
 	}
@@ -61,23 +61,15 @@ func tempnamel(pos src.XPos, curfn *Node, nn *Node, t *types.Type) {
 	n.SetClass(PAUTO)
 	n.Esc = EscNever
 	n.Name.Curfn = curfn
+	n.Name.SetUsed(true)
 	n.Name.SetAutoTemp(true)
 	curfn.Func.Dcl = append(curfn.Func.Dcl, n)
 
 	dowidth(t)
-	*nn = *n
+
+	return n.Orig
 }
 
 func temp(t *types.Type) *Node {
-	var n Node
-	tempnamel(lineno, Curfn, &n, t)
-	asNode(n.Sym.Def).Name.SetUsed(true)
-	return n.Orig
-}
-
-func tempAt(pos src.XPos, curfn *Node, t *types.Type) *Node {
-	var n Node
-	tempnamel(pos, curfn, &n, t)
-	asNode(n.Sym.Def).Name.SetUsed(true)
-	return n.Orig
+	return tempAt(lineno, Curfn, t)
 }

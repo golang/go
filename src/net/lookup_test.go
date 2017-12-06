@@ -9,7 +9,9 @@ import (
 	"context"
 	"fmt"
 	"internal/testenv"
+	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -300,6 +302,28 @@ func TestLookupGoogleHost(t *testing.T) {
 				t.Errorf("got %q; want a literal IP address", addr)
 			}
 		}
+	}
+}
+
+func TestLookupLongTXT(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; see https://golang.org/issue/22857")
+	}
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
+	}
+
+	txts, err := LookupTXT("golang.rsc.io")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(txts)
+	want := []string{
+		strings.Repeat("abcdefghijklmnopqrstuvwxyABCDEFGHJIKLMNOPQRSTUVWXY", 10),
+		"gophers rule",
+	}
+	if !reflect.DeepEqual(txts, want) {
+		t.Fatalf("LookupTXT golang.rsc.io incorrect\nhave %q\nwant %q", txts, want)
 	}
 }
 

@@ -12,8 +12,6 @@ import (
 	"go/token"
 )
 
-// TODO(gri) Document factory, accessor methods, and fields. General clean-up.
-
 // An Object describes a named language entity such as a package,
 // constant, type, variable, function (incl. methods), or label.
 // All objects implement the Object interface.
@@ -21,7 +19,7 @@ import (
 type Object interface {
 	Parent() *Scope // scope in which this object is declared; nil for methods and struct fields
 	Pos() token.Pos // position of object identifier in declaration
-	Pkg() *Package  // nil for objects in the Universe scope and labels
+	Pkg() *Package  // package to which this object belongs; nil for labels and objects in the Universe scope
 	Name() string   // package local object name
 	Type() Type     // object type
 	Exported() bool // reports whether the name starts with a capital letter
@@ -121,12 +119,15 @@ func (obj *object) sameId(pkg *Package, name string) bool {
 }
 
 // A PkgName represents an imported Go package.
+// PkgNames don't have a type.
 type PkgName struct {
 	object
 	imported *Package
 	used     bool // set if the package was used
 }
 
+// NewPkgName returns a new PkgName object representing an imported package.
+// The remaining arguments set the attributes found with all Objects.
 func NewPkgName(pos token.Pos, pkg *Package, name string, imported *Package) *PkgName {
 	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, token.NoPos}, imported, false}
 }
@@ -142,6 +143,8 @@ type Const struct {
 	visited bool // for initialization cycle detection
 }
 
+// NewConst returns a new constant with value val.
+// The remaining arguments set the attributes found with all Objects.
 func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.Value) *Const {
 	return &Const{object{nil, pos, pkg, name, typ, 0, token.NoPos}, val, false}
 }
@@ -154,6 +157,13 @@ type TypeName struct {
 	object
 }
 
+// NewTypeName returns a new type name denoting the given typ.
+// The remaining arguments set the attributes found with all Objects.
+//
+// The typ argument may be a defined (Named) type or an alias type.
+// It may also be nil such that the returned TypeName can be used as
+// argument for NewNamed, which will set the TypeName's type as a side-
+// effect.
 func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
 	return &TypeName{object{nil, pos, pkg, name, typ, 0, token.NoPos}}
 }
@@ -191,21 +201,31 @@ type Var struct {
 	used      bool // set if the variable was used
 }
 
+// NewVar returns a new variable.
+// The arguments set the attributes found with all Objects.
 func NewVar(pos token.Pos, pkg *Package, name string, typ Type) *Var {
 	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}}
 }
 
+// NewParam returns a new variable representing a function parameter.
 func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
 	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, used: true} // parameters are always 'used'
 }
 
+// NewField returns a new variable representing a struct field.
+// For anonymous (embedded) fields, the name is the unqualified
+// type name under which the field is accessible.
 func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool) *Var {
 	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, anonymous: anonymous, isField: true}
 }
 
+// Anonymous reports whether the variable is an anonymous field.
 func (obj *Var) Anonymous() bool { return obj.anonymous }
-func (obj *Var) IsField() bool   { return obj.isField }
-func (*Var) isDependency()       {} // a variable may be a dependency of an initialization expression
+
+// IsField reports whether the variable is a struct field.
+func (obj *Var) IsField() bool { return obj.isField }
+
+func (*Var) isDependency() {} // a variable may be a dependency of an initialization expression
 
 // A Func represents a declared function, concrete method, or abstract
 // (interface) method. Its Type() is always a *Signature.
@@ -214,6 +234,8 @@ type Func struct {
 	object
 }
 
+// NewFunc returns a new function with the given signature, representing
+// the function's type.
 func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
 	// don't store a nil signature
 	var typ Type
@@ -231,15 +253,19 @@ func (obj *Func) FullName() string {
 	return buf.String()
 }
 
+// Scope returns the scope of the function's body block.
 func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
-func (*Func) isDependency()     {} // a function may be a dependency of an initialization expression
+
+func (*Func) isDependency() {} // a function may be a dependency of an initialization expression
 
 // A Label represents a declared label.
+// Labels don't have a type.
 type Label struct {
 	object
 	used bool // set if the label was used
 }
 
+// NewLabel returns a new label.
 func NewLabel(pos token.Pos, pkg *Package, name string) *Label {
 	return &Label{object{pos: pos, pkg: pkg, name: name, typ: Typ[Invalid]}, false}
 }

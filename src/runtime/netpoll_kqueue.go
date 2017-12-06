@@ -88,10 +88,23 @@ retry:
 	for i := 0; i < int(n); i++ {
 		ev := &events[i]
 		var mode int32
-		if ev.filter == _EVFILT_READ {
+		switch ev.filter {
+		case _EVFILT_READ:
 			mode += 'r'
-		}
-		if ev.filter == _EVFILT_WRITE {
+
+			// On some systems when the read end of a pipe
+			// is closed the write end will not get a
+			// _EVFILT_WRITE event, but will get a
+			// _EVFILT_READ event with EV_EOF set.
+			// Note that setting 'w' here just means that we
+			// will wake up a goroutine waiting to write;
+			// that goroutine will try the write again,
+			// and the appropriate thing will happen based
+			// on what that write returns (success, EPIPE, EAGAIN).
+			if ev.flags&_EV_EOF != 0 {
+				mode += 'w'
+			}
+		case _EVFILT_WRITE:
 			mode += 'w'
 		}
 		if mode != 0 {

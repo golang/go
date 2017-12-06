@@ -219,12 +219,5 @@ func fixcgo() {
 		// cgo1 and cgo2 don't run on netbsd, srandom has a different signature
 		skipTest("cgo1")
 		skipTest("cgo2")
-		// cgo3 and cgo4 don't run on netbsd, since cgo cannot handle stdout correctly, see issue #10715.
-		skipTest("cgo3")
-		skipTest("cgo4")
-	case "openbsd", "solaris":
-		// cgo3 and cgo4 don't run on openbsd and solaris, since cgo cannot handle stdout correctly, see issue #10715.
-		skipTest("cgo3")
-		skipTest("cgo4")
 	}
 }

@@ -11,7 +11,7 @@
 
 #include "libcgo.h"
 
-void *
+uintptr_t
 x_cgo_mmap(void *addr, uintptr_t length, int32_t prot, int32_t flags, int32_t fd, uint32_t offset) {
 	void *p;
 
@@ -20,9 +20,9 @@ x_cgo_mmap(void *addr, uintptr_t length, int32_t prot, int32_t flags, int32_t fd
 	_cgo_tsan_release();
 	if (p == MAP_FAILED) {
 		/* This is what the Go code expects on failure.  */
-		p = (void *) (uintptr_t) errno;
+		return (uintptr_t)errno;
 	}
-	return p;
+	return (uintptr_t)p;
 }
 
 void

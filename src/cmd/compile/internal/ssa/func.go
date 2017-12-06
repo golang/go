@@ -44,8 +44,6 @@ type Func struct {
 	scheduled bool // Values in Blocks are in final order
 	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.
 
-	WBPos src.XPos // line number of first write barrier
-
 	// when register allocation is done, maps value ids to locations
 	RegAlloc []Location
 
@@ -175,13 +173,16 @@ func (f *Func) LogStat(key string, args ...interface{}) {
 	f.Warnl(f.Entry.Pos, "\t%s\t%s%s\t%s", n, key, value, f.Name)
 }
 
-// freeValue frees a value. It must no longer be referenced.
+// freeValue frees a value. It must no longer be referenced or have any args.
 func (f *Func) freeValue(v *Value) {
 	if v.Block == nil {
 		f.Fatalf("trying to free an already freed value")
 	}
 	if v.Uses != 0 {
 		f.Fatalf("value %s still has %d uses", v, v.Uses)
+	}
+	if len(v.Args) != 0 {
+		f.Fatalf("value %s still has %d args", v, len(v.Args))
 	}
 	// Clear everything but ID (which we reuse).
 	id := v.ID
@@ -406,6 +407,7 @@ func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2, 
 
 // constVal returns a constant value for c.
 func (f *Func) constVal(pos src.XPos, op Op, t *types.Type, c int64, setAuxInt bool) *Value {
+	// TODO remove unused pos parameter, both here and in *func.ConstXXX callers.
 	if f.constants == nil {
 		f.constants = make(map[int64][]*Value)
 	}
@@ -420,9 +422,9 @@ func (f *Func) constVal(pos src.XPos, op Op, t *types.Type, c int64, setAuxInt b
 	}
 	var v *Value
 	if setAuxInt {
-		v = f.Entry.NewValue0I(pos, op, t, c)
+		v = f.Entry.NewValue0I(src.NoXPos, op, t, c)
 	} else {
-		v = f.Entry.NewValue0(pos, op, t)
+		v = f.Entry.NewValue0(src.NoXPos, op, t)
 	}
 	f.constants[c] = append(vv, v)
 	return v

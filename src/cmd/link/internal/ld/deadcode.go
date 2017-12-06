@@ -7,6 +7,7 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/sym"
 	"fmt"
 	"strings"
 	"unicode"
@@ -107,20 +108,27 @@ func deadcode(ctxt *Link) {
 		}
 	}
 
-	if Buildmode != BuildmodeShared {
+	if ctxt.BuildMode != BuildModeShared {
 		// Keep a itablink if the symbol it points at is being kept.
-		// (When BuildmodeShared, always keep itablinks.)
+		// (When BuildModeShared, always keep itablinks.)
 		for _, s := range ctxt.Syms.Allsym {
 			if strings.HasPrefix(s.Name, "go.itablink.") {
-				s.Attr.Set(AttrReachable, len(s.R) == 1 && s.R[0].Sym.Attr.Reachable())
+				s.Attr.Set(sym.AttrReachable, len(s.R) == 1 && s.R[0].Sym.Attr.Reachable())
 			}
 		}
 	}
 
+	for _, lib := range ctxt.Library {
+		lib.Textp = lib.Textp[:0]
+	}
+
 	// Remove dead text but keep file information (z symbols).
-	textp := make([]*Symbol, 0, len(ctxt.Textp))
+	textp := make([]*sym.Symbol, 0, len(ctxt.Textp))
 	for _, s := range ctxt.Textp {
 		if s.Attr.Reachable() {
+			if s.Lib != nil {
+				s.Lib.Textp = append(s.Lib.Textp, s)
+			}
 			textp = append(textp, s)
 		}
 	}
@@ -132,11 +140,11 @@ func deadcode(ctxt *Link) {
 // the reflect.method struct: mtyp, ifn, and tfn.
 type methodref struct {
 	m   methodsig
-	src *Symbol   // receiver type symbol
-	r   [3]*Reloc // R_METHODOFF relocations to fields of runtime.method
+	src *sym.Symbol   // receiver type symbol
+	r   [3]*sym.Reloc // R_METHODOFF relocations to fields of runtime.method
 }
 
-func (m methodref) ifn() *Symbol { return m.r[1].Sym }
+func (m methodref) ifn() *sym.Symbol { return m.r[1].Sym }
 
 func (m methodref) isExported() bool {
 	for _, r := range m.m {
@@ -148,13 +156,13 @@ func (m methodref) isExported() bool {
 // deadcodepass holds state for the deadcode flood fill.
 type deadcodepass struct {
 	ctxt            *Link
-	markQueue       []*Symbol          // symbols to flood fill in next pass
+	markQueue       []*sym.Symbol      // symbols to flood fill in next pass
 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
 	markableMethods []methodref        // methods of reached types
 	reflectMethod   bool
 }
 
-func (d *deadcodepass) cleanupReloc(r *Reloc) {
+func (d *deadcodepass) cleanupReloc(r *sym.Reloc) {
 	if r.Sym.Attr.Reachable() {
 		r.Type = objabi.R_ADDROFF
 	} else {
@@ -167,7 +175,7 @@ func (d *deadcodepass) cleanupReloc(r *Reloc) {
 }
 
 // mark appends a symbol to the mark queue for flood filling.
-func (d *deadcodepass) mark(s, parent *Symbol) {
+func (d *deadcodepass) mark(s, parent *sym.Symbol) {
 	if s == nil || s.Attr.Reachable() {
 		return
 	}
@@ -181,7 +189,7 @@ func (d *deadcodepass) mark(s, parent *Symbol) {
 		}
 		fmt.Printf("%s -> %s\n", p, s.Name)
 	}
-	s.Attr |= AttrReachable
+	s.Attr |= sym.AttrReachable
 	s.Reachparent = parent
 	d.markQueue = append(d.markQueue, s)
 }
@@ -199,34 +207,45 @@ func (d *deadcodepass) markMethod(m methodref) {
 func (d *deadcodepass) init() {
 	var names []string
 
-	if SysArch.Family == sys.ARM {
+	if d.ctxt.Arch.Family == sys.ARM {
 		// mark some functions that are only referenced after linker code editing
 		names = append(names, "runtime.read_tls_fallback")
 	}
 
-	if Buildmode == BuildmodeShared {
+	if d.ctxt.BuildMode == BuildModeShared {
 		// Mark all symbols defined in this library as reachable when
 		// building a shared library.
 		for _, s := range d.ctxt.Syms.Allsym {
-			if s.Type != 0 && s.Type != SDYNIMPORT {
+			if s.Type != 0 && s.Type != sym.SDYNIMPORT {
 				d.mark(s, nil)
 			}
 		}
 	} else {
 		// In a normal binary, start at main.main and the init
 		// functions and mark what is reachable from there.
-		names = append(names, *flagEntrySymbol)
-		if *FlagLinkshared && (Buildmode == BuildmodeExe || Buildmode == BuildmodePIE) {
-			names = append(names, "main.main", "main.init")
-		} else if Buildmode == BuildmodePlugin {
-			names = append(names, *flagPluginPath+".init", *flagPluginPath+".main", "go.plugin.tabs")
 
-			// We don't keep the go.plugin.exports symbol,
-			// but we do keep the symbols it refers to.
-			exports := d.ctxt.Syms.ROLookup("go.plugin.exports", 0)
-			if exports != nil {
-				for _, r := range exports.R {
-					d.mark(r.Sym, nil)
+		if d.ctxt.linkShared && (d.ctxt.BuildMode == BuildModeExe || d.ctxt.BuildMode == BuildModePIE) {
+			names = append(names, "main.main", "main.init")
+		} else {
+			// The external linker refers main symbol directly.
+			if d.ctxt.LinkMode == LinkExternal && (d.ctxt.BuildMode == BuildModeExe || d.ctxt.BuildMode == BuildModePIE) {
+				if d.ctxt.HeadType == objabi.Hwindows && d.ctxt.Arch.Family == sys.I386 {
+					*flagEntrySymbol = "_main"
+				} else {
+					*flagEntrySymbol = "main"
+				}
+			}
+			names = append(names, *flagEntrySymbol)
+			if d.ctxt.BuildMode == BuildModePlugin {
+				names = append(names, objabi.PathToPrefix(*flagPluginPath)+".init", objabi.PathToPrefix(*flagPluginPath)+".main", "go.plugin.tabs")
+
+				// We don't keep the go.plugin.exports symbol,
+				// but we do keep the symbols it refers to.
+				exports := d.ctxt.Syms.ROLookup("go.plugin.exports", 0)
+				if exports != nil {
+					for _, r := range exports.R {
+						d.mark(r.Sym, nil)
+					}
 				}
 			}
 		}
@@ -240,13 +259,13 @@ func (d *deadcodepass) init() {
 	}
 }
 
-// flood flood fills symbols reachable from the markQueue symbols.
+// flood fills symbols reachable from the markQueue symbols.
 // As it goes, it collects methodref and interface method declarations.
 func (d *deadcodepass) flood() {
 	for len(d.markQueue) > 0 {
 		s := d.markQueue[0]
 		d.markQueue = d.markQueue[1:]
-		if s.Type == STEXT {
+		if s.Type == sym.STEXT {
 			if d.ctxt.Debugvlog > 1 {
 				d.ctxt.Logf("marktext %s\n", s.Name)
 			}
@@ -264,7 +283,7 @@ func (d *deadcodepass) flood() {
 				// later will give a better error than deadcode.
 				continue
 			}
-			if decodetypeKind(s)&kindMask == kindInterface {
+			if decodetypeKind(d.ctxt.Arch, s)&kindMask == kindInterface {
 				for _, sig := range decodeIfaceMethods(d.ctxt.Arch, s) {
 					if d.ctxt.Debugvlog > 1 {
 						d.ctxt.Logf("reached iface method: %s\n", sig)

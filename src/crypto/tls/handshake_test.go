@@ -32,10 +32,10 @@ import (
 // implementation.
 //
 // Tests can be updated by running them with the -update flag. This will cause
-// the test files. Generally one should combine the -update flag with -test.run
-// to updated a specific test. Since the reference implementation will always
-// generate fresh random numbers, large parts of the reference connection will
-// always change.
+// the test files to be regenerated. Generally one should combine the -update
+// flag with -test.run to updated a specific test. Since the reference
+// implementation will always generate fresh random numbers, large parts of
+// the reference connection will always change.
 
 var (
 	update = flag.Bool("update", false, "update golden files on disk")

@@ -219,6 +219,18 @@ type UnixListener struct {
 
 func (ln *UnixListener) ok() bool { return ln != nil && ln.fd != nil }
 
+// SyscallConn returns a raw network connection.
+// This implements the syscall.Conn interface.
+//
+// The returned RawConn only supports calling Control. Read and
+// Write return an error.
+func (l *UnixListener) SyscallConn() (syscall.RawConn, error) {
+	if !l.ok() {
+		return nil, syscall.EINVAL
+	}
+	return newRawListener(l.fd)
+}
+
 // AcceptUnix accepts the next incoming call and returns the new
 // connection.
 func (l *UnixListener) AcceptUnix() (*UnixConn, error) {

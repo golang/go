@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"internal/race"
+	"internal/testenv"
 	. "runtime"
 	"testing"
 )
@@ -88,6 +89,10 @@ func TestMemmoveAlias(t *testing.T) {
 }
 
 func TestMemmoveLarge0x180000(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("-short")
+	}
+
 	t.Parallel()
 	if race.Enabled {
 		t.Skip("skipping large memmove test under race detector")
@@ -96,6 +101,10 @@ func TestMemmoveLarge0x180000(t *testing.T) {
 }
 
 func TestMemmoveOverlapLarge0x120000(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("-short")
+	}
+
 	t.Parallel()
 	if race.Enabled {
 		t.Skip("skipping large memmove test under race detector")

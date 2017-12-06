@@ -4,13 +4,8 @@
 
 #include "textflag.h"
 
-TEXT _rt0_386_windows(SB),NOSPLIT,$12
-	MOVL	12(SP), AX
-	LEAL	16(SP), BX
-	MOVL	AX, 4(SP)
-	MOVL	BX, 8(SP)
-	MOVL	$-1, 0(SP) // return PC for main
-	JMP	_main(SB)
+TEXT _rt0_386_windows(SB),NOSPLIT,$0
+	JMP	_rt0_386(SB)
 
 // When building with -buildmode=(c-shared or c-archive), this
 // symbol is called. For dynamic libraries it is called when the
@@ -41,10 +36,12 @@ TEXT _rt0_386_windows_lib(SB),NOSPLIT,$0x1C
 	RET
 
 TEXT _rt0_386_windows_lib_go(SB),NOSPLIT,$0
-	MOVL  $0, DI
-	MOVL	$0, SI
-	MOVL	$runtime·rt0_go(SB), AX
-	JMP	AX
+	PUSHL	$0
+	PUSHL	$0
+	JMP	runtime·rt0_go(SB)
 
 TEXT _main(SB),NOSPLIT,$0
+	// Remove the return address from the stack.
+	// rt0_go doesn't expect it to be there.
+	ADDL	$4, SP
 	JMP	runtime·rt0_go(SB)

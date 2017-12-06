@@ -11,7 +11,7 @@ import (
 
 func (typ RIBType) parseable() bool { return true }
 
-// A RouteMetrics represents route metrics.
+// RouteMetrics represents route metrics.
 type RouteMetrics struct {
 	PathMTU int // path maximum transmission unit
 }
@@ -35,7 +35,7 @@ func (m *RouteMessage) Sys() []Sys {
 	}
 }
 
-// A InterfaceMetrics represents interface metrics.
+// InterfaceMetrics represents interface metrics.
 type InterfaceMetrics struct {
 	Type int // interface type
 	MTU  int // maximum transmission unit

@@ -62,8 +62,8 @@ func (c *Command) Name() string {
 }
 
 func (c *Command) Usage() {
-	fmt.Fprintf(os.Stderr, "usage: %s\n\n", c.UsageLine)
-	fmt.Fprintf(os.Stderr, "%s\n", strings.TrimSpace(c.Long))
+	fmt.Fprintf(os.Stderr, "usage: %s\n", c.UsageLine)
+	fmt.Fprintf(os.Stderr, "Run 'go help %s' for details.\n", c.Name())
 	os.Exit(2)
 }
 

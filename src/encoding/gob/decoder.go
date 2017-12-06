@@ -55,7 +55,7 @@ func NewDecoder(r io.Reader) *Decoder {
 
 // recvType loads the definition of a type.
 func (dec *Decoder) recvType(id typeId) {
-	// Have we already seen this type?  That's an error
+	// Have we already seen this type? That's an error
 	if id < firstUserId || dec.wireType[id] != nil {
 		dec.err = errors.New("gob: duplicate type received")
 		return
@@ -99,10 +99,8 @@ func (dec *Decoder) readMessage(nbytes int) {
 	// Read the data
 	dec.buf.Size(nbytes)
 	_, dec.err = io.ReadFull(dec.r, dec.buf.Bytes())
-	if dec.err != nil {
-		if dec.err == io.EOF {
-			dec.err = io.ErrUnexpectedEOF
-		}
+	if dec.err == io.EOF {
+		dec.err = io.ErrUnexpectedEOF
 	}
 }
 

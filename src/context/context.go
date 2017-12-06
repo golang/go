@@ -136,7 +136,7 @@ type Context interface {
 	// 	// userKey is the key for user.User values in Contexts. It is
 	// 	// unexported; clients use user.NewContext and user.FromContext
 	// 	// instead of using this key directly.
-	// 	var userKey key = 0
+	// 	var userKey key
 	//
 	// 	// NewContext returns a new Context that carries value u.
 	// 	func NewContext(ctx context.Context, u *User) context.Context {
@@ -380,25 +380,25 @@ func (c *cancelCtx) cancel(removeFromParent bool, err error) {
 //
 // Canceling this context releases resources associated with it, so code should
 // call cancel as soon as the operations running in this Context complete.
-func WithDeadline(parent Context, deadline time.Time) (Context, CancelFunc) {
-	if cur, ok := parent.Deadline(); ok && cur.Before(deadline) {
+func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {
+	if cur, ok := parent.Deadline(); ok && cur.Before(d) {
 		// The current deadline is already sooner than the new one.
 		return WithCancel(parent)
 	}
 	c := &timerCtx{
 		cancelCtx: newCancelCtx(parent),
-		deadline:  deadline,
+		deadline:  d,
 	}
 	propagateCancel(parent, c)
-	d := time.Until(deadline)
-	if d <= 0 {
+	dur := time.Until(d)
+	if dur <= 0 {
 		c.cancel(true, DeadlineExceeded) // deadline has already passed
 		return c, func() { c.cancel(true, Canceled) }
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.err == nil {
-		c.timer = time.AfterFunc(d, func() {
+		c.timer = time.AfterFunc(dur, func() {
 			c.cancel(true, DeadlineExceeded)
 		})
 	}

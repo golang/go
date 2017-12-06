@@ -138,6 +138,26 @@ func TestTypeString(t *testing.T) {
 	}
 }
 
+func TestIncompleteInterfaces(t *testing.T) {
+	sig := NewSignature(nil, nil, nil, false)
+	for _, test := range []struct {
+		typ  *Interface
+		want string
+	}{
+		{new(Interface), "interface{/* incomplete */}"},
+		{new(Interface).Complete(), "interface{}"},
+		{NewInterface(nil, nil), "interface{/* incomplete */}"},
+		{NewInterface(nil, nil).Complete(), "interface{}"},
+		{NewInterface([]*Func{NewFunc(token.NoPos, nil, "m", sig)}, nil), "interface{m() /* incomplete */}"},
+		{NewInterface([]*Func{NewFunc(token.NoPos, nil, "m", sig)}, nil).Complete(), "interface{m()}"},
+	} {
+		got := test.typ.String()
+		if got != test.want {
+			t.Errorf("got: %s, want: %s", got, test.want)
+		}
+	}
+}
+
 func TestQualifiedTypeString(t *testing.T) {
 	p, _ := pkgFor("p.go", "package p; type T int", nil)
 	q, _ := pkgFor("q.go", "package q", nil)

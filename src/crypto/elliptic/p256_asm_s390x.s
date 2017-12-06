@@ -1944,10 +1944,12 @@ TEXT ·p256PointDoubleAsm(SB), NOSPLIT, $0
 #undef CAR2
 
 // p256PointAddAsm(P3, P1, P2 *p256Point)
-#define P3ptr   R1
-#define P1ptr   R2
-#define P2ptr   R3
-#define CPOOL   R4
+#define P3ptr  R1
+#define P1ptr  R2
+#define P2ptr  R3
+#define CPOOL  R4
+#define ISZERO R5
+#define TRUE   R6
 
 // Temporaries in REGs
 #define T1L   V16
@@ -2102,6 +2104,21 @@ TEXT ·p256PointAddAsm(SB), NOSPLIT, $0
 	// SUB(H<H-T)            // H  = H-U1
 	p256SubInternal(HH,HL,HH,HL,T1,T0)
 
+	// if H == 0 or H^P == 0 then ret=1 else ret=0
+	// clobbers T1H and T1L
+	MOVD   $0, ISZERO
+	MOVD   $1, TRUE
+	VZERO  ZER
+	VO     HL, HH, T1H
+	VCEQGS ZER, T1H, T1H
+	MOVDEQ TRUE, ISZERO
+	VX     HL, PL, T1L
+	VX     HH, PH, T1H
+	VO     T1L, T1H, T1H
+	VCEQGS ZER, T1H, T1H
+	MOVDEQ TRUE, ISZERO
+	MOVD   ISZERO, ret+24(FP)
+
 	// X=Z1; Y=Z2; MUL; T-   // Z3 = Z1*Z2
 	VL   64(P1ptr), X1       // Z1H
 	VL   80(P1ptr), X0       // Z1L
@@ -2136,6 +2153,22 @@ TEXT ·p256PointAddAsm(SB), NOSPLIT, $0
 
 	// SUB(R<T-S1)           // R  = T-S1
 	p256SubInternal(RH,RL,T1,T0,S1H,S1L)
+
+	// if R == 0 or R^P == 0 then ret=ret else ret=0
+	// clobbers T1H and T1L
+	MOVD   $0, ISZERO
+	MOVD   $1, TRUE
+	VZERO  ZER
+	VO     RL, RH, T1H
+	VCEQGS ZER, T1H, T1H
+	MOVDEQ TRUE, ISZERO
+	VX     RL, PL, T1L
+	VX     RH, PH, T1H
+	VO     T1L, T1H, T1H
+	VCEQGS ZER, T1H, T1H
+	MOVDEQ TRUE, ISZERO
+	AND    ret+24(FP), ISZERO
+	MOVD   ISZERO, ret+24(FP)
 
 	// X=H ; Y=H ; MUL; T-   // T1 = H*H
 	VLR  HL, X0

@@ -121,9 +121,8 @@ func trimmableBlock(b *Block) bool {
 }
 
 // mergePhi adjusts the number of `v`s arguments to account for merge
-// of `b`, which was `i`th predecessor of the `v`s block. Returns
-// `v`.
-func mergePhi(v *Value, i int, b *Block) *Value {
+// of `b`, which was `i`th predecessor of the `v`s block.
+func mergePhi(v *Value, i int, b *Block) {
 	u := v.Args[i]
 	if u.Block == b {
 		if u.Op != OpPhi {
@@ -147,5 +146,4 @@ func mergePhi(v *Value, i int, b *Block) *Value {
 			v.AddArg(v.Args[i])
 		}
 	}
-	return v
 }

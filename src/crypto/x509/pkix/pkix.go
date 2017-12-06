@@ -8,6 +8,8 @@ package pkix
 
 import (
 	"encoding/asn1"
+	"encoding/hex"
+	"fmt"
 	"math/big"
 	"time"
 )
@@ -20,6 +22,75 @@ type AlgorithmIdentifier struct {
 }
 
 type RDNSequence []RelativeDistinguishedNameSET
+
+var attributeTypeNames = map[string]string{
+	"2.5.4.6":  "C",
+	"2.5.4.10": "O",
+	"2.5.4.11": "OU",
+	"2.5.4.3":  "CN",
+	"2.5.4.5":  "SERIALNUMBER",
+	"2.5.4.7":  "L",
+	"2.5.4.8":  "ST",
+	"2.5.4.9":  "STREET",
+	"2.5.4.17": "POSTALCODE",
+}
+
+// String returns a string representation of the sequence r,
+// roughly following the RFC 2253 Distinguished Names syntax.
+func (r RDNSequence) String() string {
+	s := ""
+	for i := 0; i < len(r); i++ {
+		rdn := r[len(r)-1-i]
+		if i > 0 {
+			s += ","
+		}
+		for j, tv := range rdn {
+			if j > 0 {
+				s += "+"
+			}
+
+			oidString := tv.Type.String()
+			typeName, ok := attributeTypeNames[oidString]
+			if !ok {
+				derBytes, err := asn1.Marshal(tv.Value)
+				if err == nil {
+					s += oidString + "=#" + hex.EncodeToString(derBytes)
+					continue // No value escaping necessary.
+				}
+
+				typeName = oidString
+			}
+
+			valueString := fmt.Sprint(tv.Value)
+			escaped := make([]rune, 0, len(valueString))
+
+			for k, c := range valueString {
+				escape := false
+
+				switch c {
+				case ',', '+', '"', '\\', '<', '>', ';':
+					escape = true
+
+				case ' ':
+					escape = k == 0 || k == len(valueString)-1
+
+				case '#':
+					escape = k == 0
+				}
+
+				if escape {
+					escaped = append(escaped, '\\', c)
+				} else {
+					escaped = append(escaped, c)
+				}
+			}
+
+			s += typeName + "=" + string(escaped)
+		}
+	}
+
+	return s
+}
 
 type RelativeDistinguishedNameSET []AttributeTypeAndValue
 
@@ -150,6 +221,12 @@ func (n Name) ToRDNSequence() (ret RDNSequence) {
 	return ret
 }
 
+// String returns the string form of n, roughly following
+// the RFC 2253 Distinguished Names syntax.
+func (n Name) String() string {
+	return n.ToRDNSequence().String()
+}
+
 // oidInAttributeTypeAndValue returns whether a type with the given OID exists
 // in atv.
 func oidInAttributeTypeAndValue(oid asn1.ObjectIdentifier, atv []AttributeTypeAndValue) bool {
@@ -170,9 +247,9 @@ type CertificateList struct {
 	SignatureValue     asn1.BitString
 }
 
-// HasExpired reports whether now is past the expiry time of certList.
+// HasExpired reports whether certList should have been updated by now.
 func (certList *CertificateList) HasExpired(now time.Time) bool {
-	return now.After(certList.TBSCertList.NextUpdate)
+	return !now.Before(certList.TBSCertList.NextUpdate)
 }
 
 // TBSCertificateList represents the ASN.1 structure of the same name. See RFC

@@ -22,12 +22,33 @@ type goobjFile struct {
 	f     *os.File // the underlying .o or .a file
 }
 
-func openGoobj(r *os.File) (rawFile, error) {
+func openGoFile(r *os.File) (*File, error) {
 	f, err := goobj.Parse(r, `""`)
 	if err != nil {
 		return nil, err
 	}
-	return &goobjFile{goobj: f, f: r}, nil
+	rf := &goobjFile{goobj: f, f: r}
+	if len(f.Native) == 0 {
+		return &File{r, []*Entry{&Entry{raw: rf}}}, nil
+	}
+	entries := make([]*Entry, len(f.Native)+1)
+	entries[0] = &Entry{
+		raw: rf,
+	}
+L:
+	for i, nr := range f.Native {
+		for _, try := range openers {
+			if raw, err := try(nr); err == nil {
+				entries[i+1] = &Entry{
+					name: nr.Name,
+					raw:  raw,
+				}
+				continue L
+			}
+		}
+		return nil, fmt.Errorf("open %s: unrecognized archive member %s", r.Name(), nr.Name)
+	}
+	return &File{r, entries}, nil
 }
 
 func goobjName(id goobj.SymID) string {
@@ -81,7 +102,7 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 }
 
 func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
-	// Should never be called.  We implement Liner below, callers
+	// Should never be called. We implement Liner below, callers
 	// should use that instead.
 	return 0, nil, nil, fmt.Errorf("pcln not available in go object file")
 }
@@ -90,7 +111,7 @@ func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error)
 // Returns "",0,nil if unknown.
 // This function implements the Liner interface in preference to pcln() above.
 func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
-	// TODO: this is really inefficient.  Binary search?  Memoize last result?
+	// TODO: this is really inefficient. Binary search? Memoize last result?
 	var arch *sys.Arch
 	for _, a := range sys.Archs {
 		if a.Name == f.goobj.Arch {

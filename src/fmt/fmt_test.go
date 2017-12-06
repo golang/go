@@ -131,6 +131,19 @@ func (byteFormatter) Format(f State, _ rune) {
 
 var byteFormatterSlice = []byteFormatter{'h', 'e', 'l', 'l', 'o'}
 
+// Copy of io.stringWriter interface used by writeStringFormatter for type assertion.
+type stringWriter interface {
+	WriteString(s string) (n int, err error)
+}
+
+type writeStringFormatter string
+
+func (sf writeStringFormatter) Format(f State, c rune) {
+	if sw, ok := f.(stringWriter); ok {
+		sw.WriteString("***" + string(sf) + "***")
+	}
+}
+
 var fmtTests = []struct {
 	fmt string
 	val interface{}
@@ -977,6 +990,11 @@ var fmtTests = []struct {
 	// This next case seems wrong, but the docs say the Formatter wins here.
 	{"%#v", byteFormatterSlice, "[]fmt_test.byteFormatter{X, X, X, X, X}"},
 
+	// pp.WriteString
+	{"%s", writeStringFormatter(""), "******"},
+	{"%s", writeStringFormatter("xyz"), "***xyz***"},
+	{"%s", writeStringFormatter("⌘/⌘"), "***⌘/⌘***"},
+
 	// reflect.Value handled specially in Go 1.5, making it possible to
 	// see inside non-exported fields (which cannot be accessed with Interface()).
 	// Issue 8965.
@@ -1197,6 +1215,14 @@ func BenchmarkSprintfTruncateString(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			Sprintf("%.3s", "日本語日本語日本語")
+		}
+	})
+}
+
+func BenchmarkSprintfSlowParsingPath(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%.v", nil)
 		}
 	})
 }
@@ -1707,12 +1733,14 @@ func TestIsSpace(t *testing.T) {
 	}
 }
 
+func hideFromVet(s string) string { return s }
+
 func TestNilDoesNotBecomeTyped(t *testing.T) {
 	type A struct{}
 	type B struct{}
 	var a *A = nil
 	var b B = B{}
-	got := Sprintf("%s %s %s %s %s", nil, a, nil, b, nil) // go vet should complain about this line.
+	got := Sprintf(hideFromVet("%s %s %s %s %s"), nil, a, nil, b, nil)
 	const expect = "%!s(<nil>) %!s(*fmt_test.A=<nil>) %!s(<nil>) {} %!s(<nil>)"
 	if got != expect {
 		t.Errorf("expected:\n\t%q\ngot:\n\t%q", expect, got)

@@ -6,6 +6,7 @@
 package flags
 
 import (
+	"cmd/internal/objabi"
 	"flag"
 	"fmt"
 	"os"
@@ -31,6 +32,7 @@ var (
 func init() {
 	flag.Var(&D, "D", "predefined symbol with optional simple value -D=identifier=value; can be set multiple times")
 	flag.Var(&I, "I", "include directory; can be set multiple times")
+	objabi.AddVersionFlag() // -V
 }
 
 // MultiFlag allows setting a value multiple times to collect a list, as in -I=dir1 -I=dir2.

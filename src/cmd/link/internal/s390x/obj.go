@@ -37,45 +37,43 @@ import (
 	"fmt"
 )
 
-func Init() {
-	ld.SysArch = sys.ArchS390X
+func Init() (*sys.Arch, ld.Arch) {
+	arch := sys.ArchS390X
 
-	ld.Thearch.Funcalign = funcAlign
-	ld.Thearch.Maxalign = maxAlign
-	ld.Thearch.Minalign = minAlign
-	ld.Thearch.Dwarfregsp = dwarfRegSP
-	ld.Thearch.Dwarfreglr = dwarfRegLR
+	theArch := ld.Arch{
+		Funcalign:  funcAlign,
+		Maxalign:   maxAlign,
+		Minalign:   minAlign,
+		Dwarfregsp: dwarfRegSP,
+		Dwarfreglr: dwarfRegLR,
 
-	ld.Thearch.Adddynrel = adddynrel
-	ld.Thearch.Archinit = archinit
-	ld.Thearch.Archreloc = archreloc
-	ld.Thearch.Archrelocvariant = archrelocvariant
-	ld.Thearch.Asmb = asmb // in asm.go
-	ld.Thearch.Elfreloc1 = elfreloc1
-	ld.Thearch.Elfsetupplt = elfsetupplt
-	ld.Thearch.Gentext = gentext
-	ld.Thearch.Machoreloc1 = machoreloc1
-	ld.Thearch.Lput = ld.Lputb
-	ld.Thearch.Wput = ld.Wputb
-	ld.Thearch.Vput = ld.Vputb
-	ld.Thearch.Append16 = ld.Append16b
-	ld.Thearch.Append32 = ld.Append32b
-	ld.Thearch.Append64 = ld.Append64b
+		Adddynrel:        adddynrel,
+		Archinit:         archinit,
+		Archreloc:        archreloc,
+		Archrelocvariant: archrelocvariant,
+		Asmb:             asmb, // in asm.go
+		Elfreloc1:        elfreloc1,
+		Elfsetupplt:      elfsetupplt,
+		Gentext:          gentext,
+		Machoreloc1:      machoreloc1,
 
-	ld.Thearch.Linuxdynld = "/lib64/ld64.so.1"
+		Linuxdynld: "/lib64/ld64.so.1",
 
-	// not relevant for s390x
-	ld.Thearch.Freebsddynld = "XXX"
-	ld.Thearch.Openbsddynld = "XXX"
-	ld.Thearch.Netbsddynld = "XXX"
-	ld.Thearch.Dragonflydynld = "XXX"
-	ld.Thearch.Solarisdynld = "XXX"
+		// not relevant for s390x
+		Freebsddynld:   "XXX",
+		Openbsddynld:   "XXX",
+		Netbsddynld:    "XXX",
+		Dragonflydynld: "XXX",
+		Solarisdynld:   "XXX",
+	}
+
+	return arch, theArch
 }
 
 func archinit(ctxt *ld.Link) {
-	switch ld.Headtype {
+	switch ctxt.HeadType {
 	default:
-		ld.Exitf("unknown -H option: %v", ld.Headtype)
+		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
 
 	case objabi.Hlinux: // s390x ELF
 		ld.Elfinit(ctxt)

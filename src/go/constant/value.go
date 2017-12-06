@@ -10,7 +10,7 @@
 // values produce unknown values unless specified
 // otherwise.
 //
-package constant // import "go/constant"
+package constant
 
 import (
 	"fmt"

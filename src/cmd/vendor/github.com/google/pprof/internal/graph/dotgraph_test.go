@@ -16,8 +16,10 @@ package graph
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -26,7 +28,7 @@ import (
 	"github.com/google/pprof/internal/proftest"
 )
 
-const path = "testdata/"
+var updateFlag = flag.Bool("update", false, "Update the golden files")
 
 func TestComposeWithStandardGraph(t *testing.T) {
 	g := baseGraph()
@@ -35,12 +37,7 @@ func TestComposeWithStandardGraph(t *testing.T) {
 	var buf bytes.Buffer
 	ComposeDot(&buf, g, a, c)
 
-	want, err := ioutil.ReadFile(path + "compose1.dot")
-	if err != nil {
-		t.Fatalf("error reading test file: %v", err)
-	}
-
-	compareGraphs(t, buf.Bytes(), want)
+	compareGraphs(t, buf.Bytes(), "compose1.dot")
 }
 
 func TestComposeWithNodeAttributesAndZeroFlat(t *testing.T) {
@@ -64,12 +61,7 @@ func TestComposeWithNodeAttributesAndZeroFlat(t *testing.T) {
 	var buf bytes.Buffer
 	ComposeDot(&buf, g, a, c)
 
-	want, err := ioutil.ReadFile(path + "compose2.dot")
-	if err != nil {
-		t.Fatalf("error reading test file: %v", err)
-	}
-
-	compareGraphs(t, buf.Bytes(), want)
+	compareGraphs(t, buf.Bytes(), "compose2.dot")
 }
 
 func TestComposeWithTagsAndResidualEdge(t *testing.T) {
@@ -97,12 +89,7 @@ func TestComposeWithTagsAndResidualEdge(t *testing.T) {
 	var buf bytes.Buffer
 	ComposeDot(&buf, g, a, c)
 
-	want, err := ioutil.ReadFile(path + "compose3.dot")
-	if err != nil {
-		t.Fatalf("error reading test file: %v", err)
-	}
-
-	compareGraphs(t, buf.Bytes(), want)
+	compareGraphs(t, buf.Bytes(), "compose3.dot")
 }
 
 func TestComposeWithNestedTags(t *testing.T) {
@@ -127,12 +114,7 @@ func TestComposeWithNestedTags(t *testing.T) {
 	var buf bytes.Buffer
 	ComposeDot(&buf, g, a, c)
 
-	want, err := ioutil.ReadFile(path + "compose5.dot")
-	if err != nil {
-		t.Fatalf("error reading test file: %v", err)
-	}
-
-	compareGraphs(t, buf.Bytes(), want)
+	compareGraphs(t, buf.Bytes(), "compose5.dot")
 }
 
 func TestComposeWithEmptyGraph(t *testing.T) {
@@ -142,12 +124,18 @@ func TestComposeWithEmptyGraph(t *testing.T) {
 	var buf bytes.Buffer
 	ComposeDot(&buf, g, a, c)
 
-	want, err := ioutil.ReadFile(path + "compose4.dot")
-	if err != nil {
-		t.Fatalf("error reading test file: %v", err)
-	}
+	compareGraphs(t, buf.Bytes(), "compose4.dot")
+}
 
-	compareGraphs(t, buf.Bytes(), want)
+func TestComposeWithStandardGraphAndURL(t *testing.T) {
+	g := baseGraph()
+	a, c := baseAttrsAndConfig()
+	c.LegendURL = "http://example.com"
+
+	var buf bytes.Buffer
+	ComposeDot(&buf, g, a, c)
+
+	compareGraphs(t, buf.Bytes(), "compose6.dot")
 }
 
 func baseGraph() *Graph {
@@ -199,13 +187,78 @@ func baseAttrsAndConfig() (*DotAttributes, *DotConfig) {
 	return a, c
 }
 
-func compareGraphs(t *testing.T, got, want []byte) {
+func compareGraphs(t *testing.T, got []byte, wantFile string) {
+	wantFile = filepath.Join("testdata", wantFile)
+	want, err := ioutil.ReadFile(wantFile)
+	if err != nil {
+		t.Fatalf("error reading test file %s: %v", wantFile, err)
+	}
+
 	if string(got) != string(want) {
 		d, err := proftest.Diff(got, want)
 		if err != nil {
 			t.Fatalf("error finding diff: %v", err)
 		}
 		t.Errorf("Compose incorrectly wrote %s", string(d))
+		if *updateFlag {
+			err := ioutil.WriteFile(wantFile, got, 0644)
+			if err != nil {
+				t.Errorf("failed to update the golden file %q: %v", wantFile, err)
+			}
+		}
+	}
+}
+
+func TestNodeletCountCapping(t *testing.T) {
+	labelTags := make(TagMap)
+	for i := 0; i < 10; i++ {
+		name := fmt.Sprintf("tag-%d", i)
+		labelTags[name] = &Tag{
+			Name: name,
+			Flat: 10,
+			Cum:  10,
+		}
+	}
+	numTags := make(TagMap)
+	for i := 0; i < 10; i++ {
+		name := fmt.Sprintf("num-tag-%d", i)
+		numTags[name] = &Tag{
+			Name:  name,
+			Unit:  "mb",
+			Value: 16,
+			Flat:  10,
+			Cum:   10,
+		}
+	}
+	node1 := &Node{
+		Info:        NodeInfo{Name: "node1-with-tags"},
+		Flat:        10,
+		Cum:         10,
+		NumericTags: map[string]TagMap{"": numTags},
+		LabelTags:   labelTags,
+	}
+	node2 := &Node{
+		Info: NodeInfo{Name: "node2"},
+		Flat: 15,
+		Cum:  15,
+	}
+	node3 := &Node{
+		Info: NodeInfo{Name: "node3"},
+		Flat: 15,
+		Cum:  15,
+	}
+	g := &Graph{
+		Nodes: Nodes{
+			node1,
+			node2,
+			node3,
+		},
+	}
+	for n := 1; n <= 3; n++ {
+		input := maxNodelets + n
+		if got, want := len(g.SelectTopNodes(input, true)), n; got != want {
+			t.Errorf("SelectTopNodes(%d): got %d nodes, want %d", input, got, want)
+		}
 	}
 }
 
@@ -240,19 +293,19 @@ func TestTagCollapse(t *testing.T) {
 	}
 
 	tagWant := [][]*Tag{
-		[]*Tag{
+		{
 			makeTag("1B..2GB", "", 0, 2401, 2401),
 		},
-		[]*Tag{
+		{
 			makeTag("2GB", "", 0, 1000, 1000),
 			makeTag("1B..12MB", "", 0, 1401, 1401),
 		},
-		[]*Tag{
+		{
 			makeTag("2GB", "", 0, 1000, 1000),
 			makeTag("12MB", "", 0, 100, 100),
 			makeTag("1B..1MB", "", 0, 1301, 1301),
 		},
-		[]*Tag{
+		{
 			makeTag("2GB", "", 0, 1000, 1000),
 			makeTag("1MB", "", 0, 1000, 1000),
 			makeTag("2B..1kB", "", 0, 201, 201),

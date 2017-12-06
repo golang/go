@@ -147,11 +147,11 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 	if err := fd.incref(); err != nil {
 		return err
 	}
+	defer fd.decref()
 	if fd.pd.runtimeCtx == 0 {
-		return errors.New("file type does not support deadlines")
+		return ErrNoDeadline
 	}
 	runtime_pollSetDeadline(fd.pd.runtimeCtx, d, mode)
-	fd.decref()
 	return nil
 }
 

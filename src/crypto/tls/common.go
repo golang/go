@@ -29,10 +29,11 @@ const (
 )
 
 const (
-	maxPlaintext    = 16384        // maximum plaintext payload length
-	maxCiphertext   = 16384 + 2048 // maximum ciphertext payload length
-	recordHeaderLen = 5            // record header length
-	maxHandshake    = 65536        // maximum handshake we support (protocol max is 16 MB)
+	maxPlaintext      = 16384        // maximum plaintext payload length
+	maxCiphertext     = 16384 + 2048 // maximum ciphertext payload length
+	recordHeaderLen   = 5            // record header length
+	maxHandshake      = 65536        // maximum handshake we support (protocol max is 16 MB)
+	maxWarnAlertCount = 5            // maximum number of consecutive warning alerts
 
 	minVersion = VersionTLS10
 	maxVersion = VersionTLS12
@@ -126,35 +127,25 @@ const (
 	// Rest of these are reserved by the TLS spec
 )
 
-// Hash functions for TLS 1.2 (See RFC 5246, section A.4.1)
-const (
-	hashSHA1   uint8 = 2
-	hashSHA256 uint8 = 4
-	hashSHA384 uint8 = 5
-)
-
 // Signature algorithms for TLS 1.2 (See RFC 5246, section A.4.1)
 const (
 	signatureRSA   uint8 = 1
 	signatureECDSA uint8 = 3
 )
 
-// signatureAndHash mirrors the TLS 1.2, SignatureAndHashAlgorithm struct. See
-// RFC 5246, section A.4.1.
-type signatureAndHash struct {
-	hash, signature uint8
-}
-
 // defaultSupportedSignatureAlgorithms contains the signature and hash algorithms that
 // the code advertises as supported in a TLS 1.2 ClientHello and in a TLS 1.2
-// CertificateRequest.
-var defaultSupportedSignatureAlgorithms = []signatureAndHash{
-	{hashSHA256, signatureRSA},
-	{hashSHA256, signatureECDSA},
-	{hashSHA384, signatureRSA},
-	{hashSHA384, signatureECDSA},
-	{hashSHA1, signatureRSA},
-	{hashSHA1, signatureECDSA},
+// CertificateRequest. The two fields are merged to match with TLS 1.3.
+// Note that in TLS 1.2, the ECDSA algorithms are not constrained to P-256, etc.
+var defaultSupportedSignatureAlgorithms = []SignatureScheme{
+	PKCS1WithSHA256,
+	ECDSAWithP256AndSHA256,
+	PKCS1WithSHA384,
+	ECDSAWithP384AndSHA384,
+	PKCS1WithSHA512,
+	ECDSAWithP521AndSHA512,
+	PKCS1WithSHA1,
+	ECDSAWithSHA1,
 }
 
 // ConnectionState records basic TLS details about the connection.
@@ -234,6 +225,9 @@ const (
 	ECDSAWithP256AndSHA256 SignatureScheme = 0x0403
 	ECDSAWithP384AndSHA384 SignatureScheme = 0x0503
 	ECDSAWithP521AndSHA512 SignatureScheme = 0x0603
+
+	// Legacy signature and hash algorithms for TLS 1.2.
+	ECDSAWithSHA1 SignatureScheme = 0x0203
 )
 
 // ClientHelloInfo contains information from a ClientHello message in order to
@@ -471,8 +465,8 @@ type Config struct {
 	// connections using that key are compromised.
 	SessionTicketKey [32]byte
 
-	// SessionCache is a cache of ClientSessionState entries for TLS session
-	// resumption.
+	// ClientSessionCache is a cache of ClientSessionState entries for TLS
+	// session resumption.
 	ClientSessionCache ClientSessionCache
 
 	// MinVersion contains the minimum SSL/TLS version that is acceptable.
@@ -973,11 +967,24 @@ func unexpectedMessageError(wanted, got interface{}) error {
 	return fmt.Errorf("tls: received unexpected handshake message of type %T when waiting for %T", got, wanted)
 }
 
-func isSupportedSignatureAndHash(sigHash signatureAndHash, sigHashes []signatureAndHash) bool {
-	for _, s := range sigHashes {
-		if s == sigHash {
+func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlgorithms []SignatureScheme) bool {
+	for _, s := range supportedSignatureAlgorithms {
+		if s == sigAlg {
 			return true
 		}
 	}
 	return false
+}
+
+// signatureFromSignatureScheme maps a signature algorithm to the underlying
+// signature method (without hash function).
+func signatureFromSignatureScheme(signatureAlgorithm SignatureScheme) uint8 {
+	switch signatureAlgorithm {
+	case PKCS1WithSHA1, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512:
+		return signatureRSA
+	case ECDSAWithSHA1, ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512:
+		return signatureECDSA
+	default:
+		return 0
+	}
 }

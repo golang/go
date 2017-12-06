@@ -103,98 +103,68 @@
 (NeqB x y) -> (XOR x y)
 (Not x) -> (XOR (MOVDconst [1]) x)
 
-// constant shifts
-(Lsh64x64  x (MOVDconst [c])) && uint64(c) < 64 -> (SLLconst x [c])
-(Rsh64x64  x (MOVDconst [c])) && uint64(c) < 64 -> (SRAconst x [c])
-(Rsh64Ux64 x (MOVDconst [c])) && uint64(c) < 64 -> (SRLconst x [c])
-(Lsh32x64  x (MOVDconst [c])) && uint64(c) < 32 -> (SLLconst x [c])
-(Rsh32x64  x (MOVDconst [c])) && uint64(c) < 32 -> (SRAconst (SignExt32to64 x) [c])
-(Rsh32Ux64 x (MOVDconst [c])) && uint64(c) < 32 -> (SRLconst (ZeroExt32to64 x) [c])
-(Lsh16x64  x (MOVDconst [c])) && uint64(c) < 16 -> (SLLconst x [c])
-(Rsh16x64  x (MOVDconst [c])) && uint64(c) < 16 -> (SRAconst (SignExt16to64 x) [c])
-(Rsh16Ux64 x (MOVDconst [c])) && uint64(c) < 16 -> (SRLconst (ZeroExt16to64 x) [c])
-(Lsh8x64   x (MOVDconst [c])) && uint64(c) < 8  -> (SLLconst x [c])
-(Rsh8x64   x (MOVDconst [c])) && uint64(c) < 8  -> (SRAconst (SignExt8to64  x) [c])
-(Rsh8Ux64  x (MOVDconst [c])) && uint64(c) < 8  -> (SRLconst (ZeroExt8to64  x) [c])
-
-// large constant shifts
-(Lsh64x64  _ (MOVDconst [c])) && uint64(c) >= 64 -> (MOVDconst [0])
-(Rsh64Ux64 _ (MOVDconst [c])) && uint64(c) >= 64 -> (MOVDconst [0])
-(Lsh32x64  _ (MOVDconst [c])) && uint64(c) >= 32 -> (MOVDconst [0])
-(Rsh32Ux64 _ (MOVDconst [c])) && uint64(c) >= 32 -> (MOVDconst [0])
-(Lsh16x64  _ (MOVDconst [c])) && uint64(c) >= 16 -> (MOVDconst [0])
-(Rsh16Ux64 _ (MOVDconst [c])) && uint64(c) >= 16 -> (MOVDconst [0])
-(Lsh8x64   _ (MOVDconst [c])) && uint64(c) >= 8  -> (MOVDconst [0])
-(Rsh8Ux64  _ (MOVDconst [c])) && uint64(c) >= 8  -> (MOVDconst [0])
-
-// large constant signed right shift, we leave the sign bit
-(Rsh64x64 x (MOVDconst [c])) && uint64(c) >= 64 -> (SRAconst x [63])
-(Rsh32x64 x (MOVDconst [c])) && uint64(c) >= 32 -> (SRAconst (SignExt32to64 x) [63])
-(Rsh16x64 x (MOVDconst [c])) && uint64(c) >= 16 -> (SRAconst (SignExt16to64 x) [63])
-(Rsh8x64  x (MOVDconst [c])) && uint64(c) >= 8  -> (SRAconst (SignExt8to64  x) [63])
-
 // shifts
 // hardware instruction uses only the low 6 bits of the shift
 // we compare to 64 to ensure Go semantics for large shifts
-(Lsh64x64 <t> x y) -> (CSELULT (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
-(Lsh64x32 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Lsh64x16 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Lsh64x8  <t> x y) -> (CSELULT (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+(Lsh64x64 <t> x y) -> (CSELULT (SLL <t> x y) (MOVDconst <t> [0]) (CMPconst [64] y))
+(Lsh64x32 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Lsh64x16 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Lsh64x8  <t> x y) -> (CSELULT (SLL <t> x (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Lsh32x64 <t> x y) -> (CSELULT (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
-(Lsh32x32 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Lsh32x16 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Lsh32x8  <t> x y) -> (CSELULT (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+(Lsh32x64 <t> x y) -> (CSELULT (SLL <t> x y) (MOVDconst <t> [0]) (CMPconst [64] y))
+(Lsh32x32 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Lsh32x16 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Lsh32x8  <t> x y) -> (CSELULT (SLL <t> x (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Lsh16x64 <t> x y) -> (CSELULT (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
-(Lsh16x32 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Lsh16x16 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Lsh16x8  <t> x y) -> (CSELULT (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+(Lsh16x64 <t> x y) -> (CSELULT (SLL <t> x y) (MOVDconst <t> [0]) (CMPconst [64] y))
+(Lsh16x32 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Lsh16x16 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Lsh16x8  <t> x y) -> (CSELULT (SLL <t> x (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Lsh8x64 <t> x y) -> (CSELULT (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
-(Lsh8x32 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Lsh8x16 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Lsh8x8  <t> x y) -> (CSELULT (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+(Lsh8x64 <t> x y) -> (CSELULT (SLL <t> x y) (MOVDconst <t> [0]) (CMPconst [64] y))
+(Lsh8x32 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Lsh8x16 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Lsh8x8  <t> x y) -> (CSELULT (SLL <t> x (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Rsh64Ux64 <t> x y) -> (CSELULT (SRL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
-(Rsh64Ux32 <t> x y) -> (CSELULT (SRL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Rsh64Ux16 <t> x y) -> (CSELULT (SRL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Rsh64Ux8  <t> x y) -> (CSELULT (SRL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+(Rsh64Ux64 <t> x y) -> (CSELULT (SRL <t> x y) (MOVDconst <t> [0]) (CMPconst [64] y))
+(Rsh64Ux32 <t> x y) -> (CSELULT (SRL <t> x (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Rsh64Ux16 <t> x y) -> (CSELULT (SRL <t> x (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Rsh64Ux8  <t> x y) -> (CSELULT (SRL <t> x (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Rsh32Ux64 <t> x y) -> (CSELULT (SRL <t> (ZeroExt32to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
-(Rsh32Ux32 <t> x y) -> (CSELULT (SRL <t> (ZeroExt32to64 x) (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Rsh32Ux16 <t> x y) -> (CSELULT (SRL <t> (ZeroExt32to64 x) (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Rsh32Ux8  <t> x y) -> (CSELULT (SRL <t> (ZeroExt32to64 x) (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+(Rsh32Ux64 <t> x y) -> (CSELULT (SRL <t> (ZeroExt32to64 x) y) (MOVDconst <t> [0]) (CMPconst [64] y))
+(Rsh32Ux32 <t> x y) -> (CSELULT (SRL <t> (ZeroExt32to64 x) (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Rsh32Ux16 <t> x y) -> (CSELULT (SRL <t> (ZeroExt32to64 x) (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Rsh32Ux8  <t> x y) -> (CSELULT (SRL <t> (ZeroExt32to64 x) (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Rsh16Ux64 <t> x y) -> (CSELULT (SRL <t> (ZeroExt16to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
-(Rsh16Ux32 <t> x y) -> (CSELULT (SRL <t> (ZeroExt16to64 x) (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Rsh16Ux16 <t> x y) -> (CSELULT (SRL <t> (ZeroExt16to64 x) (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Rsh16Ux8  <t> x y) -> (CSELULT (SRL <t> (ZeroExt16to64 x) (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+(Rsh16Ux64 <t> x y) -> (CSELULT (SRL <t> (ZeroExt16to64 x) y) (MOVDconst <t> [0]) (CMPconst [64] y))
+(Rsh16Ux32 <t> x y) -> (CSELULT (SRL <t> (ZeroExt16to64 x) (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Rsh16Ux16 <t> x y) -> (CSELULT (SRL <t> (ZeroExt16to64 x) (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Rsh16Ux8  <t> x y) -> (CSELULT (SRL <t> (ZeroExt16to64 x) (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Rsh8Ux64 <t> x y) -> (CSELULT (SRL <t> (ZeroExt8to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
-(Rsh8Ux32 <t> x y) -> (CSELULT (SRL <t> (ZeroExt8to64 x) (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Rsh8Ux16 <t> x y) -> (CSELULT (SRL <t> (ZeroExt8to64 x) (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Rsh8Ux8  <t> x y) -> (CSELULT (SRL <t> (ZeroExt8to64 x) (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+(Rsh8Ux64 <t> x y) -> (CSELULT (SRL <t> (ZeroExt8to64 x) y) (MOVDconst <t> [0]) (CMPconst [64] y))
+(Rsh8Ux32 <t> x y) -> (CSELULT (SRL <t> (ZeroExt8to64 x) (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Rsh8Ux16 <t> x y) -> (CSELULT (SRL <t> (ZeroExt8to64 x) (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Rsh8Ux8  <t> x y) -> (CSELULT (SRL <t> (ZeroExt8to64 x) (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Rsh64x64 x y) -> (SRA x (CSELULT <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
-(Rsh64x32 x y) -> (SRA x (CSELULT <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
-(Rsh64x16 x y) -> (SRA x (CSELULT <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
-(Rsh64x8  x y) -> (SRA x (CSELULT <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+(Rsh64x64 x y) -> (SRA x (CSELULT <y.Type> y (MOVDconst <y.Type> [63]) (CMPconst [64] y)))
+(Rsh64x32 x y) -> (SRA x (CSELULT <y.Type> (ZeroExt32to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+(Rsh64x16 x y) -> (SRA x (CSELULT <y.Type> (ZeroExt16to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+(Rsh64x8  x y) -> (SRA x (CSELULT <y.Type> (ZeroExt8to64  y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
 
-(Rsh32x64 x y) -> (SRA (SignExt32to64 x) (CSELULT <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
-(Rsh32x32 x y) -> (SRA (SignExt32to64 x) (CSELULT <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
-(Rsh32x16 x y) -> (SRA (SignExt32to64 x) (CSELULT <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
-(Rsh32x8  x y) -> (SRA (SignExt32to64 x) (CSELULT <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+(Rsh32x64 x y) -> (SRA (SignExt32to64 x) (CSELULT <y.Type> y (MOVDconst <y.Type> [63]) (CMPconst [64] y)))
+(Rsh32x32 x y) -> (SRA (SignExt32to64 x) (CSELULT <y.Type> (ZeroExt32to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+(Rsh32x16 x y) -> (SRA (SignExt32to64 x) (CSELULT <y.Type> (ZeroExt16to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+(Rsh32x8  x y) -> (SRA (SignExt32to64 x) (CSELULT <y.Type> (ZeroExt8to64  y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
 
-(Rsh16x64 x y) -> (SRA (SignExt16to64 x) (CSELULT <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
-(Rsh16x32 x y) -> (SRA (SignExt16to64 x) (CSELULT <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
-(Rsh16x16 x y) -> (SRA (SignExt16to64 x) (CSELULT <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
-(Rsh16x8  x y) -> (SRA (SignExt16to64 x) (CSELULT <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+(Rsh16x64 x y) -> (SRA (SignExt16to64 x) (CSELULT <y.Type> y (MOVDconst <y.Type> [63]) (CMPconst [64] y)))
+(Rsh16x32 x y) -> (SRA (SignExt16to64 x) (CSELULT <y.Type> (ZeroExt32to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+(Rsh16x16 x y) -> (SRA (SignExt16to64 x) (CSELULT <y.Type> (ZeroExt16to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+(Rsh16x8  x y) -> (SRA (SignExt16to64 x) (CSELULT <y.Type> (ZeroExt8to64  y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
 
-(Rsh8x64 x y) -> (SRA (SignExt8to64 x) (CSELULT <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
-(Rsh8x32 x y) -> (SRA (SignExt8to64 x) (CSELULT <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
-(Rsh8x16 x y) -> (SRA (SignExt8to64 x) (CSELULT <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
-(Rsh8x8  x y) -> (SRA (SignExt8to64 x) (CSELULT <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+(Rsh8x64 x y) -> (SRA (SignExt8to64 x) (CSELULT <y.Type> y (MOVDconst <y.Type> [63]) (CMPconst [64] y)))
+(Rsh8x32 x y) -> (SRA (SignExt8to64 x) (CSELULT <y.Type> (ZeroExt32to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+(Rsh8x16 x y) -> (SRA (SignExt8to64 x) (CSELULT <y.Type> (ZeroExt16to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+(Rsh8x8  x y) -> (SRA (SignExt8to64 x) (CSELULT <y.Type> (ZeroExt8to64  y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
 
 // constants
 (Const64 [val]) -> (MOVDconst [val])
@@ -365,36 +335,69 @@
 	(MOVBstore [6] ptr (MOVDconst [0])
 		(MOVHstore [4] ptr (MOVDconst [0])
 			(MOVWstore ptr (MOVDconst [0]) mem)))
+(Zero [9] ptr mem) ->
+	(MOVBstore [8] ptr (MOVDconst [0])
+		(MOVDstore ptr (MOVDconst [0]) mem))
+(Zero [10] ptr mem) ->
+	(MOVHstore [8] ptr (MOVDconst [0])
+		(MOVDstore ptr (MOVDconst [0]) mem))
+(Zero [11] ptr mem) ->
+	(MOVBstore [10] ptr (MOVDconst [0])
+		(MOVHstore [8] ptr (MOVDconst [0])
+			(MOVDstore ptr (MOVDconst [0]) mem)))
 (Zero [12] ptr mem) ->
 	(MOVWstore [8] ptr (MOVDconst [0])
 		(MOVDstore ptr (MOVDconst [0]) mem))
-(Zero [16] ptr mem) ->
-	(MOVDstore [8] ptr (MOVDconst [0])
-		(MOVDstore ptr (MOVDconst [0]) mem))
-(Zero [24] ptr mem) ->
-	(MOVDstore [16] ptr (MOVDconst [0])
-		(MOVDstore [8] ptr (MOVDconst [0])
+(Zero [13] ptr mem) ->
+	(MOVBstore [12] ptr (MOVDconst [0])
+		(MOVWstore [8] ptr (MOVDconst [0])
 			(MOVDstore ptr (MOVDconst [0]) mem)))
+(Zero [14] ptr mem) ->
+	(MOVHstore [12] ptr (MOVDconst [0])
+		(MOVWstore [8] ptr (MOVDconst [0])
+			(MOVDstore ptr (MOVDconst [0]) mem)))
+(Zero [15] ptr mem) ->
+	(MOVBstore [14] ptr (MOVDconst [0])
+		(MOVHstore [12] ptr (MOVDconst [0])
+			(MOVWstore [8] ptr (MOVDconst [0])
+				(MOVDstore ptr (MOVDconst [0]) mem))))
+(Zero [16] ptr mem) ->
+	(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem)
+
+(Zero [32] ptr mem) ->
+	(STP [16] ptr (MOVDconst [0]) (MOVDconst [0])
+		(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem))
+
+(Zero [48] ptr mem) ->
+	(STP [32] ptr (MOVDconst [0]) (MOVDconst [0])
+		(STP [16] ptr (MOVDconst [0]) (MOVDconst [0])
+			(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem)))
+
+(Zero [64] ptr mem) ->
+	(STP [48] ptr (MOVDconst [0]) (MOVDconst [0])
+		(STP [32] ptr (MOVDconst [0]) (MOVDconst [0])
+			(STP [16] ptr (MOVDconst [0]) (MOVDconst [0])
+				(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem))))
 
 // strip off fractional word zeroing
-(Zero [s] ptr mem) && s%8 != 0 && s > 8 ->
-	(Zero [s%8]
-		(OffPtr <ptr.Type> ptr [s-s%8])
-		(Zero [s-s%8] ptr mem))
+(Zero [s] ptr mem) && s%16 != 0 && s > 16 ->
+	(Zero [s-s%16]
+		(OffPtr <ptr.Type> ptr [s%16])
+		(Zero [s%16] ptr mem))
 
 // medium zeroing uses a duff device
-// 4, 8, and 128 are magic constants, see runtime/mkduff.go
+// 4, 16, and 64 are magic constants, see runtime/mkduff.go
 (Zero [s] ptr mem)
-	&& s%8 == 0 && s > 24 && s <= 8*128
+	&& s%16 == 0 && s > 64 && s <= 16*64
 	&& !config.noDuffDevice ->
-	(DUFFZERO [4 * (128 - int64(s/8))] ptr mem)
+	(DUFFZERO [4 * (64 - int64(s/16))] ptr mem)
 
 // large zeroing uses a loop
 (Zero [s] ptr mem)
-	&& s%8 == 0 && (s > 8*128 || config.noDuffDevice) ->
+	&& s%16 == 0 && (s > 16*64 || config.noDuffDevice) ->
 	(LoweredZero
 		ptr
-		(ADDconst <ptr.Type> [s-8] ptr)
+		(ADDconst <ptr.Type> [s-16] ptr)
 		mem)
 
 // moves
@@ -464,6 +467,7 @@
 
 // pseudo-ops
 (GetClosurePtr) -> (LoweredGetClosurePtr)
+(GetCallerSP) -> (LoweredGetCallerSP)
 (Convert x mem) -> (MOVDconvert x mem)
 
 // Absorb pseudo-ops into blocks.
@@ -521,6 +525,12 @@
 (EQ (CMPWconst [0] x) yes no) -> (ZW x yes no)
 (NE (CMPWconst [0] x) yes no) -> (NZW x yes no)
 
+// Absorb bit-tests into block
+(Z  (ANDconst [c] x) yes no) && oneBit(c) -> (TBZ  {ntz(c)} x yes no)
+(NZ (ANDconst [c] x) yes no) && oneBit(c) -> (TBNZ {ntz(c)} x yes no)
+(ZW  (ANDconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBZ  {ntz(int64(uint32(c)))} x yes no)
+(NZW (ANDconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBNZ {ntz(int64(uint32(c)))} x yes no)
+
 // fold offset into address
 (ADDconst [off1] (MOVDaddr [off2] {sym} ptr)) -> (MOVDaddr [off1+off2] {sym} ptr)
 
@@ -565,6 +575,9 @@
 (MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(off1+off2)
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
 	(MOVDstore [off1+off2] {sym} ptr val mem)
+(STP [off1] {sym} (ADDconst [off2] ptr) val1 val2 mem) && is32Bit(off1+off2)
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+	(STP [off1+off2] {sym} ptr val1 val2 mem)
 (FMOVSstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(off1+off2)
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
 	(FMOVSstore [off1+off2] {sym} ptr val mem)
@@ -583,6 +596,9 @@
 (MOVDstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2)
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
 	(MOVDstorezero [off1+off2] {sym} ptr mem)
+(MOVQstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2)
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+	(MOVQstorezero [off1+off2] {sym} ptr mem)
 
 (MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
@@ -637,6 +653,10 @@
 	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
 	(MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(STP [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val1 val2 mem)
+	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+	(STP [off1+off2] {mergeSym(sym1,sym2)} ptr val1 val2 mem)
 (FMOVSstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
 	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
@@ -661,12 +681,17 @@
 	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
 	(MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVQstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+	(MOVQstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 
 // store zero
 (MOVBstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVBstorezero [off] {sym} ptr mem)
 (MOVHstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVHstorezero [off] {sym} ptr mem)
 (MOVWstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVWstorezero [off] {sym} ptr mem)
 (MOVDstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVDstorezero [off] {sym} ptr mem)
+(STP [off] {sym} ptr (MOVDconst [0]) (MOVDconst [0]) mem) -> (MOVQstorezero [off] {sym} ptr mem)
 
 // replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
 // these seem to have bad interaction with other rules, resulting in slower code
@@ -1026,6 +1051,10 @@
 (LessEqualU (InvertFlags x)) -> (GreaterEqualU x)
 (GreaterEqual (InvertFlags x)) -> (LessEqual x)
 (GreaterEqualU (InvertFlags x)) -> (LessEqualU x)
+
+// Boolean-generating instructions always
+// zero upper bit of the register; no need to zero-extend
+(MOVBUreg x) && x.Type.IsBoolean() -> (MOVDreg x)
 
 // absorb flag constants into conditional instructions
 (CSELULT _ y (FlagEQ)) -> y

@@ -54,12 +54,16 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$-8
-	MOVL	code+0(FP), DI		// arg 1 exit status
-	MOVL	$431, AX
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+	MOVQ	wait+0(FP), AX
+	// We're done using the stack.
+	MOVL	$0, (AX)
+	MOVL	$0, DI		// arg 1 long *state
+	MOVL	$431, AX	// thr_exit
 	SYSCALL
 	MOVL	$0xf1, 0xf1  // crash
-	RET
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVQ	name+0(FP), DI		// arg 1 pathname
@@ -229,7 +233,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVL	off+28(FP), R9		// arg 6 offset
 	MOVL	$477, AX
 	SYSCALL
-	MOVQ	AX, ret+32(FP)
+	JCC	ok
+	MOVQ	$0, p+32(FP)
+	MOVQ	AX, err+40(FP)
+	RET
+ok:
+	MOVQ	AX, p+32(FP)
+	MOVQ	$0, err+40(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0

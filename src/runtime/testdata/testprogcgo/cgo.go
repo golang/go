@@ -52,7 +52,11 @@ func CgoSignalDeadlock() {
 	time.Sleep(time.Millisecond)
 	start := time.Now()
 	var times []time.Duration
-	for i := 0; i < 64; i++ {
+	n := 64
+	if os.Getenv("RUNTIME_TEST_SHORT") != "" {
+		n = 16
+	}
+	for i := 0; i < n; i++ {
 		go func() {
 			runtime.LockOSThread()
 			select {}

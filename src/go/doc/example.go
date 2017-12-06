@@ -94,7 +94,10 @@ func Examples(files ...*ast.File) []*Example {
 		}
 		list = append(list, flist...)
 	}
-	sort.Sort(exampleByName(list))
+	// sort by name
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].Name < list[j].Name
+	})
 	return list
 }
 
@@ -134,12 +137,6 @@ func isTest(name, prefix string) bool {
 	rune, _ := utf8.DecodeRuneInString(name[len(prefix):])
 	return !unicode.IsLower(rune)
 }
-
-type exampleByName []*Example
-
-func (s exampleByName) Len() int           { return len(s) }
-func (s exampleByName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s exampleByName) Less(i, j int) bool { return s[i].Name < s[j].Name }
 
 // playExample synthesizes a new *ast.File based on the provided
 // file with the provided function body as the body of main.

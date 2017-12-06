@@ -8,6 +8,7 @@ package poll
 
 import (
 	"io"
+	"runtime"
 	"syscall"
 )
 
@@ -25,6 +26,9 @@ type FD struct {
 
 	// Writev cache.
 	iovecs *[]syscall.Iovec
+
+	// Semaphore signaled when file is closed.
+	csema uint32
 
 	// Whether this is a streaming descriptor, as opposed to a
 	// packet-based descriptor like a UDP socket. Immutable.
@@ -62,6 +66,7 @@ func (fd *FD) destroy() error {
 	fd.pd.close()
 	err := CloseFunc(fd.Sysfd)
 	fd.Sysfd = -1
+	runtime_Semrelease(&fd.csema)
 	return err
 }
 
@@ -79,7 +84,11 @@ func (fd *FD) Close() error {
 	fd.pd.evict()
 	// The call to decref will call destroy if there are no other
 	// references.
-	return fd.decref()
+	err := fd.decref()
+	// Wait until the descriptor is closed. If this was the only
+	// reference, it is already closed.
+	runtime_Semacquire(&fd.csema)
+	return err
 }
 
 // Shutdown wraps the shutdown network call.
@@ -126,6 +135,12 @@ func (fd *FD) Read(p []byte) (int, error) {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
 					continue
 				}
+			}
+
+			// On MacOS we can see EINTR here if the user
+			// pressed ^Z.  See issue #22838.
+			if runtime.GOOS == "darwin" && err == syscall.EINTR {
+				continue
 			}
 		}
 		err = fd.eofError(n, err)
@@ -401,6 +416,15 @@ func (fd *FD) Fstat(s *syscall.Stat_t) error {
 // WaitWrite waits until data can be read from fd.
 func (fd *FD) WaitWrite() error {
 	return fd.pd.waitWrite(fd.isFile)
+}
+
+// WriteOnce is for testing only. It makes a single write call.
+func (fd *FD) WriteOnce(p []byte) (int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, err
+	}
+	defer fd.writeUnlock()
+	return syscall.Write(fd.Sysfd, p)
 }
 
 // RawControl invokes the user-defined function f for a non-IO

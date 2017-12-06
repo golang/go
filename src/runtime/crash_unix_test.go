@@ -65,13 +65,13 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
 	cmd.Dir = dir
-	out, err := testEnv(cmd).CombinedOutput()
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
 		t.Fatalf("building source: %v\n%s", err, out)
 	}
 
 	cmd = exec.Command(filepath.Join(dir, "a.exe"))
-	cmd = testEnv(cmd)
+	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
 
 	// Set GOGC=off. Because of golang.org/issue/10958, the tight
@@ -184,7 +184,7 @@ func TestPanicSystemstack(t *testing.T) {
 
 	t.Parallel()
 	cmd := exec.Command(os.Args[0], "testPanicSystemstackInternal")
-	cmd = testEnv(cmd)
+	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
 	pr, pw, err := os.Pipe()
 	if err != nil {
@@ -249,7 +249,7 @@ func TestSignalExitStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = testEnv(exec.Command(exe, "SignalExitStatus")).Run()
+	err = testenv.CleanCmdEnv(exec.Command(exe, "SignalExitStatus")).Run()
 	if err == nil {
 		t.Error("test program succeeded unexpectedly")
 	} else if ee, ok := err.(*exec.ExitError); !ok {

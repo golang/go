@@ -3,6 +3,9 @@ package testdata
 import (
 	"sync"
 	"sync/atomic"
+	"unsafe"
+	. "unsafe"
+	unsafe1 "unsafe"
 )
 
 func OkFunc() {
@@ -102,6 +105,17 @@ func LenAndCapOnLockArrays() {
 	cap(a) // ERROR "call of cap copies lock value: sync.Mutex"
 }
 
+func SizeofMutex() {
+	var mu sync.Mutex
+	unsafe.Sizeof(mu)  // OK
+	unsafe1.Sizeof(mu) // OK
+	Sizeof(mu)         // OK
+	unsafe := struct{ Sizeof func(interface{}) }{}
+	unsafe.Sizeof(mu) // ERROR "call of unsafe.Sizeof copies lock value: sync.Mutex"
+	Sizeof := func(interface{}) {}
+	Sizeof(mu) // ERROR "call of Sizeof copies lock value: sync.Mutex"
+}
+
 // SyncTypesCheck checks copying of sync.* types except sync.Mutex
 func SyncTypesCheck() {
 	// sync.RWMutex copying
@@ -164,9 +178,11 @@ func AtomicTypesCheck() {
 	var vX atomic.Value
 	var vXX = atomic.Value{}
 	vX1 := new(atomic.Value)
-	vY := vX     // ERROR "assignment copies lock value to vY: sync/atomic.Value contains sync/atomic.noCopy"
-	vY = vX      // ERROR "assignment copies lock value to vY: sync/atomic.Value contains sync/atomic.noCopy"
-	var vYY = vX // ERROR "variable declaration copies lock value to vYY: sync/atomic.Value contains sync/atomic.noCopy"
+	// These are OK because the value has not been used yet.
+	// (And vet can't tell whether it has been used, so they're always OK.)
+	vY := vX
+	vY = vX
+	var vYY = vX
 	vP := &vX
 	vZ := &atomic.Value{}
 }

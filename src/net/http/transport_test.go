@@ -124,6 +124,34 @@ func (tcs *testConnSet) check(t *testing.T) {
 	}
 }
 
+func TestReuseRequest(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Write([]byte("{}"))
+	}))
+	defer ts.Close()
+
+	c := ts.Client()
+	req, _ := NewRequest("GET", ts.URL, nil)
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err = c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Two subsequent requests and verify their response is the same.
 // The response from the server is our own IP:port
 func TestTransportKeepAlives(t *testing.T) {
@@ -933,14 +961,10 @@ func TestTransportExpect100Continue(t *testing.T) {
 func TestSocks5Proxy(t *testing.T) {
 	defer afterTest(t)
 	ch := make(chan string, 1)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		ch <- "real server"
-	}))
-	defer ts.Close()
 	l := newLocalListener(t)
 	defer l.Close()
-	go func() {
-		defer close(ch)
+	defer close(ch)
+	proxy := func(t *testing.T) {
 		s, err := l.Accept()
 		if err != nil {
 			t.Errorf("socks5 proxy Accept(): %v", err)
@@ -975,7 +999,8 @@ func TestSocks5Proxy(t *testing.T) {
 		case 4:
 			ipLen = 16
 		default:
-			t.Fatalf("socks5 proxy second read: unexpected address type %v", buf[4])
+			t.Errorf("socks5 proxy second read: unexpected address type %v", buf[4])
+			return
 		}
 		if _, err := io.ReadFull(s, buf[4:ipLen+6]); err != nil {
 			t.Errorf("socks5 proxy address read: %v", err)
@@ -988,71 +1013,196 @@ func TestSocks5Proxy(t *testing.T) {
 			t.Errorf("socks5 proxy connect write: %v", err)
 			return
 		}
-		done := make(chan struct{})
-		srv := &Server{Handler: HandlerFunc(func(w ResponseWriter, r *Request) {
-			done <- struct{}{}
-		})}
-		srv.Serve(&oneConnListener{conn: s})
-		<-done
-		srv.Shutdown(context.Background())
 		ch <- fmt.Sprintf("proxy for %s:%d", ip, port)
-	}()
+
+		// Implement proxying.
+		targetHost := net.JoinHostPort(ip.String(), strconv.Itoa(int(port)))
+		targetConn, err := net.Dial("tcp", targetHost)
+		if err != nil {
+			t.Errorf("net.Dial failed")
+			return
+		}
+		go io.Copy(targetConn, s)
+		io.Copy(s, targetConn) // Wait for the client to close the socket.
+		targetConn.Close()
+	}
 
 	pu, err := url.Parse("socks5://" + l.Addr().String())
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := ts.Client()
-	c.Transport.(*Transport).Proxy = ProxyURL(pu)
-	if _, err := c.Head(ts.URL); err != nil {
-		t.Error(err)
-	}
-	var got string
-	select {
-	case got = <-ch:
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout connecting to socks5 proxy")
-	}
-	tsu, err := url.Parse(ts.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := "proxy for " + tsu.Host
-	if got != want {
-		t.Errorf("got %q, want %q", got, want)
+
+	sentinelHeader := "X-Sentinel"
+	sentinelValue := "12345"
+	h := HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set(sentinelHeader, sentinelValue)
+	})
+	for _, useTLS := range []bool{false, true} {
+		t.Run(fmt.Sprintf("useTLS=%v", useTLS), func(t *testing.T) {
+			var ts *httptest.Server
+			if useTLS {
+				ts = httptest.NewTLSServer(h)
+			} else {
+				ts = httptest.NewServer(h)
+			}
+			go proxy(t)
+			c := ts.Client()
+			c.Transport.(*Transport).Proxy = ProxyURL(pu)
+			r, err := c.Head(ts.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if r.Header.Get(sentinelHeader) != sentinelValue {
+				t.Errorf("Failed to retrieve sentinel value")
+			}
+			var got string
+			select {
+			case got = <-ch:
+			case <-time.After(5 * time.Second):
+				t.Fatal("timeout connecting to socks5 proxy")
+			}
+			ts.Close()
+			tsu, err := url.Parse(ts.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := "proxy for " + tsu.Host
+			if got != want {
+				t.Errorf("got %q, want %q", got, want)
+			}
+		})
 	}
 }
 
 func TestTransportProxy(t *testing.T) {
 	defer afterTest(t)
-	ch := make(chan string, 1)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		ch <- "real server"
-	}))
-	defer ts.Close()
-	proxy := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		ch <- "proxy for " + r.URL.String()
-	}))
-	defer proxy.Close()
+	testCases := []struct{ httpsSite, httpsProxy bool }{
+		{false, false},
+		{false, true},
+		{true, false},
+		{true, true},
+	}
+	for _, testCase := range testCases {
+		httpsSite := testCase.httpsSite
+		httpsProxy := testCase.httpsProxy
+		t.Run(fmt.Sprintf("httpsSite=%v, httpsProxy=%v", httpsSite, httpsProxy), func(t *testing.T) {
+			siteCh := make(chan *Request, 1)
+			h1 := HandlerFunc(func(w ResponseWriter, r *Request) {
+				siteCh <- r
+			})
+			proxyCh := make(chan *Request, 1)
+			h2 := HandlerFunc(func(w ResponseWriter, r *Request) {
+				proxyCh <- r
+				// Implement an entire CONNECT proxy
+				if r.Method == "CONNECT" {
+					hijacker, ok := w.(Hijacker)
+					if !ok {
+						t.Errorf("hijack not allowed")
+						return
+					}
+					clientConn, _, err := hijacker.Hijack()
+					if err != nil {
+						t.Errorf("hijacking failed")
+						return
+					}
+					res := &Response{
+						StatusCode: StatusOK,
+						Proto:      "HTTP/1.1",
+						ProtoMajor: 1,
+						ProtoMinor: 1,
+						Header:     make(Header),
+					}
 
-	pu, err := url.Parse(proxy.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	c := ts.Client()
-	c.Transport.(*Transport).Proxy = ProxyURL(pu)
-	if _, err := c.Head(ts.URL); err != nil {
-		t.Error(err)
-	}
-	var got string
-	select {
-	case got = <-ch:
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout connecting to http proxy")
-	}
-	want := "proxy for " + ts.URL + "/"
-	if got != want {
-		t.Errorf("got %q, want %q", got, want)
+					targetConn, err := net.Dial("tcp", r.URL.Host)
+					if err != nil {
+						t.Errorf("net.Dial(%q) failed: %v", r.URL.Host, err)
+						return
+					}
+
+					if err := res.Write(clientConn); err != nil {
+						t.Errorf("Writing 200 OK failed: %v", err)
+						return
+					}
+
+					go io.Copy(targetConn, clientConn)
+					go func() {
+						io.Copy(clientConn, targetConn)
+						targetConn.Close()
+					}()
+				}
+			})
+			var ts *httptest.Server
+			if httpsSite {
+				ts = httptest.NewTLSServer(h1)
+			} else {
+				ts = httptest.NewServer(h1)
+			}
+			var proxy *httptest.Server
+			if httpsProxy {
+				proxy = httptest.NewTLSServer(h2)
+			} else {
+				proxy = httptest.NewServer(h2)
+			}
+
+			pu, err := url.Parse(proxy.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// If neither server is HTTPS or both are, then c may be derived from either.
+			// If only one server is HTTPS, c must be derived from that server in order
+			// to ensure that it is configured to use the fake root CA from testcert.go.
+			c := proxy.Client()
+			if httpsSite {
+				c = ts.Client()
+			}
+
+			c.Transport.(*Transport).Proxy = ProxyURL(pu)
+			if _, err := c.Head(ts.URL); err != nil {
+				t.Error(err)
+			}
+			var got *Request
+			select {
+			case got = <-proxyCh:
+			case <-time.After(5 * time.Second):
+				t.Fatal("timeout connecting to http proxy")
+			}
+			c.Transport.(*Transport).CloseIdleConnections()
+			ts.Close()
+			proxy.Close()
+			if httpsSite {
+				// First message should be a CONNECT, asking for a socket to the real server,
+				if got.Method != "CONNECT" {
+					t.Errorf("Wrong method for secure proxying: %q", got.Method)
+				}
+				gotHost := got.URL.Host
+				pu, err := url.Parse(ts.URL)
+				if err != nil {
+					t.Fatal("Invalid site URL")
+				}
+				if wantHost := pu.Host; gotHost != wantHost {
+					t.Errorf("Got CONNECT host %q, want %q", gotHost, wantHost)
+				}
+
+				// The next message on the channel should be from the site's server.
+				next := <-siteCh
+				if next.Method != "HEAD" {
+					t.Errorf("Wrong method at destination: %s", next.Method)
+				}
+				if nextURL := next.URL.String(); nextURL != "/" {
+					t.Errorf("Wrong URL at destination: %s", nextURL)
+				}
+			} else {
+				if got.Method != "HEAD" {
+					t.Errorf("Wrong method for destination: %q", got.Method)
+				}
+				gotURL := got.URL.String()
+				wantURL := ts.URL + "/"
+				if gotURL != wantURL {
+					t.Errorf("Got URL %q, want %q", gotURL, wantURL)
+				}
+			}
+		})
 	}
 }
 
@@ -4117,4 +4267,101 @@ var rgz = []byte{
 	0xf7, 0xff, 0x3d, 0xb1, 0x20, 0x85, 0xfa, 0x00,
 	0x00, 0x00, 0x3d, 0xb1, 0x20, 0x85, 0xfa, 0x00,
 	0x00, 0x00,
+}
+
+// Ensure that a missing status doesn't make the server panic
+// See Issue https://golang.org/issues/21701
+func TestMissingStatusNoPanic(t *testing.T) {
+	t.Parallel()
+
+	const want = "unknown status code"
+
+	ln := newLocalListener(t)
+	addr := ln.Addr().String()
+	shutdown := make(chan bool, 1)
+	done := make(chan bool)
+	fullAddrURL := fmt.Sprintf("http://%s", addr)
+	raw := "HTTP/1.1 400\r\n" +
+		"Date: Wed, 30 Aug 2017 19:09:27 GMT\r\n" +
+		"Content-Type: text/html; charset=utf-8\r\n" +
+		"Content-Length: 10\r\n" +
+		"Last-Modified: Wed, 30 Aug 2017 19:02:02 GMT\r\n" +
+		"Vary: Accept-Encoding\r\n\r\n" +
+		"Aloha Olaa"
+
+	go func() {
+		defer func() {
+			ln.Close()
+			close(done)
+		}()
+
+		conn, _ := ln.Accept()
+		if conn != nil {
+			io.WriteString(conn, raw)
+			ioutil.ReadAll(conn)
+			conn.Close()
+		}
+	}()
+
+	proxyURL, err := url.Parse(fullAddrURL)
+	if err != nil {
+		t.Fatalf("proxyURL: %v", err)
+	}
+
+	tr := &Transport{Proxy: ProxyURL(proxyURL)}
+
+	req, _ := NewRequest("GET", "https://golang.org/", nil)
+	res, err, panicked := doFetchCheckPanic(tr, req)
+	if panicked {
+		t.Error("panicked, expecting an error")
+	}
+	if res != nil && res.Body != nil {
+		io.Copy(ioutil.Discard, res.Body)
+		res.Body.Close()
+	}
+
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Errorf("got=%v want=%q", err, want)
+	}
+
+	close(shutdown)
+	<-done
+}
+
+func doFetchCheckPanic(tr *Transport, req *Request) (res *Response, err error, panicked bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			panicked = true
+		}
+	}()
+	res, err = tr.RoundTrip(req)
+	return
+}
+
+// Issue 22330: do not allow the response body to be read when the status code
+// forbids a response body.
+func TestNoBodyOnChunked304Response(t *testing.T) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		conn, buf, _ := w.(Hijacker).Hijack()
+		buf.Write([]byte("HTTP/1.1 304 NOT MODIFIED\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n"))
+		buf.Flush()
+		conn.Close()
+	}))
+	defer cst.close()
+
+	// Our test server above is sending back bogus data after the
+	// response (the "0\r\n\r\n" part), which causes the Transport
+	// code to log spam. Disable keep-alives so we never even try
+	// to reuse the connection.
+	cst.tr.DisableKeepAlives = true
+
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.Body != NoBody {
+		t.Errorf("Unexpected body on 304 response")
+	}
 }

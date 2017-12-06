@@ -182,6 +182,8 @@ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 func writebarrierptr_prewrite1(dst *uintptr, src uintptr) {
 	mp := acquirem()
 	if mp.inwb || mp.dying > 0 {
+		// We explicitly allow write barriers in startpanic_m,
+		// since we're going down anyway. Ignore them here.
 		releasem(mp)
 		return
 	}
@@ -237,6 +239,10 @@ func writebarrierptr_prewrite(dst *uintptr, src uintptr) {
 
 // typedmemmove copies a value of type t to dst from src.
 // Must be nosplit, see #16026.
+//
+// TODO: Perfect for go:nosplitrec since we can't have a safe point
+// anywhere in the bulk barrier or memmove.
+//
 //go:nosplit
 func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	if typ.kind&kindNoPointers == 0 {
@@ -258,8 +264,8 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 //go:linkname reflect_typedmemmove reflect.typedmemmove
 func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	if raceenabled {
-		raceWriteObjectPC(typ, dst, getcallerpc(unsafe.Pointer(&typ)), funcPC(reflect_typedmemmove))
-		raceReadObjectPC(typ, src, getcallerpc(unsafe.Pointer(&typ)), funcPC(reflect_typedmemmove))
+		raceWriteObjectPC(typ, dst, getcallerpc(), funcPC(reflect_typedmemmove))
+		raceReadObjectPC(typ, src, getcallerpc(), funcPC(reflect_typedmemmove))
 	}
 	if msanenabled {
 		msanwrite(dst, typ.size)
@@ -320,8 +326,12 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 	dstp := dst.array
 	srcp := src.array
 
+	// The compiler emits calls to typedslicecopy before
+	// instrumentation runs, so unlike the other copying and
+	// assignment operations, it's not instrumented in the calling
+	// code and needs its own instrumentation.
 	if raceenabled {
-		callerpc := getcallerpc(unsafe.Pointer(&typ))
+		callerpc := getcallerpc()
 		pc := funcPC(slicecopy)
 		racewriterangepc(dstp, uintptr(n)*typ.size, callerpc, pc)
 		racereadrangepc(srcp, uintptr(n)*typ.size, callerpc, pc)
@@ -339,41 +349,13 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 	// compiler only emits calls to typedslicecopy for types with pointers,
 	// and growslice and reflect_typedslicecopy check for pointers
 	// before calling typedslicecopy.
-	if !writeBarrier.needed {
-		memmove(dstp, srcp, uintptr(n)*typ.size)
-		return n
+	size := uintptr(n) * typ.size
+	if writeBarrier.needed {
+		bulkBarrierPreWrite(uintptr(dstp), uintptr(srcp), size)
 	}
-
-	systemstack(func() {
-		if uintptr(srcp) < uintptr(dstp) && uintptr(srcp)+uintptr(n)*typ.size > uintptr(dstp) {
-			// Overlap with src before dst.
-			// Copy backward, being careful not to move dstp/srcp
-			// out of the array they point into.
-			dstp = add(dstp, uintptr(n-1)*typ.size)
-			srcp = add(srcp, uintptr(n-1)*typ.size)
-			i := 0
-			for {
-				typedmemmove(typ, dstp, srcp)
-				if i++; i >= n {
-					break
-				}
-				dstp = add(dstp, -typ.size)
-				srcp = add(srcp, -typ.size)
-			}
-		} else {
-			// Copy forward, being careful not to move dstp/srcp
-			// out of the array they point into.
-			i := 0
-			for {
-				typedmemmove(typ, dstp, srcp)
-				if i++; i >= n {
-					break
-				}
-				dstp = add(dstp, typ.size)
-				srcp = add(srcp, typ.size)
-			}
-		}
-	})
+	// See typedmemmove for a discussion of the race between the
+	// barrier and memmove.
+	memmove(dstp, srcp, size)
 	return n
 }
 
@@ -390,7 +372,7 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 
 		size := uintptr(n) * elemType.size
 		if raceenabled {
-			callerpc := getcallerpc(unsafe.Pointer(&elemType))
+			callerpc := getcallerpc()
 			pc := funcPC(reflect_typedslicecopy)
 			racewriterangepc(dst.array, size, callerpc, pc)
 			racereadrangepc(src.array, size, callerpc, pc)

@@ -166,22 +166,24 @@ func IndexRune(s string, r rune) int {
 // IndexAny returns the index of the first instance of any Unicode code point
 // from chars in s, or -1 if no Unicode code point from chars is present in s.
 func IndexAny(s, chars string) int {
-	if len(chars) > 0 {
-		if len(s) > 8 {
-			if as, isASCII := makeASCIISet(chars); isASCII {
-				for i := 0; i < len(s); i++ {
-					if as.contains(s[i]) {
-						return i
-					}
-				}
-				return -1
-			}
-		}
-		for i, c := range s {
-			for _, m := range chars {
-				if c == m {
+	if chars == "" {
+		// Avoid scanning all of s.
+		return -1
+	}
+	if len(s) > 8 {
+		if as, isASCII := makeASCIISet(chars); isASCII {
+			for i := 0; i < len(s); i++ {
+				if as.contains(s[i]) {
 					return i
 				}
+			}
+			return -1
+		}
+	}
+	for i, c := range s {
+		for _, m := range chars {
+			if c == m {
+				return i
 			}
 		}
 	}
@@ -192,24 +194,26 @@ func IndexAny(s, chars string) int {
 // point from chars in s, or -1 if no Unicode code point from chars is
 // present in s.
 func LastIndexAny(s, chars string) int {
-	if len(chars) > 0 {
-		if len(s) > 8 {
-			if as, isASCII := makeASCIISet(chars); isASCII {
-				for i := len(s) - 1; i >= 0; i-- {
-					if as.contains(s[i]) {
-						return i
-					}
-				}
-				return -1
-			}
-		}
-		for i := len(s); i > 0; {
-			r, size := utf8.DecodeLastRuneInString(s[:i])
-			i -= size
-			for _, c := range chars {
-				if r == c {
+	if chars == "" {
+		// Avoid scanning all of s.
+		return -1
+	}
+	if len(s) > 8 {
+		if as, isASCII := makeASCIISet(chars); isASCII {
+			for i := len(s) - 1; i >= 0; i-- {
+				if as.contains(s[i]) {
 					return i
 				}
+			}
+			return -1
+		}
+	}
+	for i := len(s); i > 0; {
+		r, size := utf8.DecodeLastRuneInString(s[:i])
+		i -= size
+		for _, c := range chars {
+			if r == c {
+				return i
 			}
 		}
 	}
@@ -310,8 +314,8 @@ func SplitAfter(s, sep string) []string {
 var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
 // Fields splits the string s around each instance of one or more consecutive white space
-// characters, as defined by unicode.IsSpace, returning an array of substrings of s or an
-// empty list if s contains only white space.
+// characters, as defined by unicode.IsSpace, returning a slice of substrings of s or an
+// empty slice if s contains only white space.
 func Fields(s string) []string {
 	// First count the fields.
 	// This is an exact count if s is ASCII, otherwise it is an approximation.
@@ -358,67 +362,7 @@ func Fields(s string) []string {
 	}
 
 	// Some runes in the input string are not ASCII.
-	// Same general approach as in the ASCII path but
-	// uses DecodeRuneInString and unicode.IsSpace if
-	// a non-ASCII rune needs to be decoded and checked
-	// if it corresponds to a space.
-	a := make([]string, 0, n)
-	fieldStart := 0
-	i := 0
-	// Skip spaces in the front of the input.
-	for i < len(s) {
-		if c := s[i]; c < utf8.RuneSelf {
-			if asciiSpace[c] == 0 {
-				break
-			}
-			i++
-		} else {
-			r, w := utf8.DecodeRuneInString(s[i:])
-			if !unicode.IsSpace(r) {
-				break
-			}
-			i += w
-		}
-	}
-	fieldStart = i
-	for i < len(s) {
-		if c := s[i]; c < utf8.RuneSelf {
-			if asciiSpace[c] == 0 {
-				i++
-				continue
-			}
-			a = append(a, s[fieldStart:i])
-			i++
-		} else {
-			r, w := utf8.DecodeRuneInString(s[i:])
-			if !unicode.IsSpace(r) {
-				i += w
-				continue
-			}
-			a = append(a, s[fieldStart:i])
-			i += w
-		}
-		// Skip spaces in between fields.
-		for i < len(s) {
-			if c := s[i]; c < utf8.RuneSelf {
-				if asciiSpace[c] == 0 {
-					break
-				}
-				i++
-			} else {
-				r, w := utf8.DecodeRuneInString(s[i:])
-				if !unicode.IsSpace(r) {
-					break
-				}
-				i += w
-			}
-		}
-		fieldStart = i
-	}
-	if fieldStart < len(s) { // Last field might end at EOF.
-		a = append(a, s[fieldStart:])
-	}
-	return a
+	return FieldsFunc(s, unicode.IsSpace)
 }
 
 // FieldsFunc splits the string s at each run of Unicode code points c satisfying f(c)
@@ -427,35 +371,42 @@ func Fields(s string) []string {
 // FieldsFunc makes no guarantees about the order in which it calls f(c).
 // If f does not return consistent results for a given c, FieldsFunc may crash.
 func FieldsFunc(s string, f func(rune) bool) []string {
-	// First count the fields.
-	n := 0
-	inField := false
-	for _, rune := range s {
-		wasInField := inField
-		inField = !f(rune)
-		if inField && !wasInField {
-			n++
+	// A span is used to record a slice of s of the form s[start:end].
+	// The start index is inclusive and the end index is exclusive.
+	type span struct {
+		start int
+		end   int
+	}
+	spans := make([]span, 0, 32)
+
+	// Find the field start and end indices.
+	wasField := false
+	fromIndex := 0
+	for i, rune := range s {
+		if f(rune) {
+			if wasField {
+				spans = append(spans, span{start: fromIndex, end: i})
+				wasField = false
+			}
+		} else {
+			if !wasField {
+				fromIndex = i
+				wasField = true
+			}
 		}
 	}
 
-	// Now create them.
-	a := make([]string, n)
-	na := 0
-	fieldStart := -1 // Set to -1 when looking for start of field.
-	for i, rune := range s {
-		if f(rune) {
-			if fieldStart >= 0 {
-				a[na] = s[fieldStart:i]
-				na++
-				fieldStart = -1
-			}
-		} else if fieldStart == -1 {
-			fieldStart = i
-		}
+	// Last field might end at EOF.
+	if wasField {
+		spans = append(spans, span{fromIndex, len(s)})
 	}
-	if fieldStart >= 0 { // Last field might end at EOF.
-		a[na] = s[fieldStart:]
+
+	// Create strings from recorded field indices.
+	a := make([]string, len(spans))
+	for i, span := range spans {
+		a[i] = s[span.start:span.end]
 	}
+
 	return a
 }
 
@@ -599,10 +550,62 @@ func Repeat(s string, count int) string {
 }
 
 // ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
-func ToUpper(s string) string { return Map(unicode.ToUpper, s) }
+func ToUpper(s string) string {
+	isASCII, hasLower := true, false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= utf8.RuneSelf {
+			isASCII = false
+			break
+		}
+		hasLower = hasLower || (c >= 'a' && c <= 'z')
+	}
+
+	if isASCII { // optimize for ASCII-only strings.
+		if !hasLower {
+			return s
+		}
+		b := make([]byte, len(s))
+		for i := 0; i < len(s); i++ {
+			c := s[i]
+			if c >= 'a' && c <= 'z' {
+				c -= 'a' - 'A'
+			}
+			b[i] = c
+		}
+		return string(b)
+	}
+	return Map(unicode.ToUpper, s)
+}
 
 // ToLower returns a copy of the string s with all Unicode letters mapped to their lower case.
-func ToLower(s string) string { return Map(unicode.ToLower, s) }
+func ToLower(s string) string {
+	isASCII, hasUpper := true, false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= utf8.RuneSelf {
+			isASCII = false
+			break
+		}
+		hasUpper = hasUpper || (c >= 'A' && c <= 'Z')
+	}
+
+	if isASCII { // optimize for ASCII-only strings.
+		if !hasUpper {
+			return s
+		}
+		b := make([]byte, len(s))
+		for i := 0; i < len(s); i++ {
+			c := s[i]
+			if c >= 'A' && c <= 'Z' {
+				c += 'a' - 'A'
+			}
+			b[i] = c
+		}
+		return string(b)
+	}
+	return Map(unicode.ToLower, s)
+}
 
 // ToTitle returns a copy of the string s with all Unicode letters mapped to their title case.
 func ToTitle(s string) string { return Map(unicode.ToTitle, s) }
@@ -922,4 +925,28 @@ func EqualFold(s, t string) bool {
 
 	// One string is empty. Are both?
 	return s == t
+}
+
+func indexRabinKarp(s, substr string) int {
+	// Rabin-Karp search
+	hashss, pow := hashStr(substr)
+	n := len(substr)
+	var h uint32
+	for i := 0; i < n; i++ {
+		h = h*primeRK + uint32(s[i])
+	}
+	if h == hashss && s[:n] == substr {
+		return 0
+	}
+	for i := n; i < len(s); {
+		h *= primeRK
+		h += uint32(s[i])
+		h -= pow * uint32(s[i-n])
+		i++
+		if h == hashss && s[i-n:i] == substr {
+			return i - n
+		}
+	}
+	return -1
+
 }

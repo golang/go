@@ -37,7 +37,7 @@ TEXT	·Syscall(SB),NOSPLIT,$0-64
 	JMP	copyresult3
 	
 ok3:
-	LEAQ	runtime·emptystring(SB), SI	
+	LEAQ	·emptystring(SB), SI
 	
 copyresult3:
 	LEAQ	err+48(FP), DI
@@ -75,7 +75,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-88
 	JMP	copyresult4
 	
 ok4:
-	LEAQ	runtime·emptystring(SB), SI
+	LEAQ	·emptystring(SB), SI
 	
 copyresult4:
 	LEAQ	err+72(FP), DI
@@ -141,7 +141,7 @@ TEXT ·seek(SB),NOSPLIT,$0-56
 	JMP	copyresult6
 	
 ok6:
-	LEAQ	runtime·emptystring(SB), SI
+	LEAQ	·emptystring(SB), SI
 	
 copyresult6:
 	LEAQ	err+40(FP), DI
@@ -149,13 +149,4 @@ copyresult6:
 	CLD
 	MOVSQ
 	MOVSQ
-	RET
-
-//func exit(code int)
-// Import runtime·exit for cleanly exiting.
-TEXT ·exit(SB),NOSPLIT,$8-8
-	NO_LOCAL_POINTERS
-	MOVQ	code+0(FP), AX
-	MOVQ	AX, 0(SP)
-	CALL	runtime·exit(SB)
 	RET

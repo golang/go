@@ -11,14 +11,14 @@ import (
 	"debug/elf"
 	"encoding/binary"
 	"fmt"
-	"os"
+	"io"
 )
 
 type elfFile struct {
 	elf *elf.File
 }
 
-func openElf(r *os.File) (rawFile, error) {
+func openElf(r io.ReaderAt) (rawFile, error) {
 	f, err := elf.NewFile(r)
 	if err != nil {
 		return nil, err
@@ -99,6 +99,8 @@ func (f *elfFile) goarch() string {
 		return "amd64"
 	case elf.EM_ARM:
 		return "arm"
+	case elf.EM_AARCH64:
+		return "arm64"
 	case elf.EM_PPC64:
 		if f.elf.ByteOrder == binary.LittleEndian {
 			return "ppc64le"

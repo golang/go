@@ -104,7 +104,7 @@ func freemcache(c *mcache) {
 
 // Gets a span that has a free object in it and assigns it
 // to be the cached span for the given sizeclass. Returns this span.
-func (c *mcache) refill(spc spanClass) *mspan {
+func (c *mcache) refill(spc spanClass) {
 	_g_ := getg()
 
 	_g_.m.locks++
@@ -131,7 +131,6 @@ func (c *mcache) refill(spc spanClass) *mspan {
 
 	c.alloc[spc] = s
 	_g_.m.locks--
-	return s
 }
 
 func (c *mcache) releaseAll() {

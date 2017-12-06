@@ -67,7 +67,7 @@ const (
 	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
 	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
 	auxString               // aux is a string
-	auxSym                  // aux is a symbol
+	auxSym                  // aux is a symbol (a *gc.Node for locals or an *obj.LSym for globals)
 	auxSymOff               // aux is a symbol, auxInt is an offset
 	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
 	auxTyp                  // aux is a type

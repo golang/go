@@ -143,12 +143,13 @@ packaged Go distribution.
 <p>
 To build a bootstrap tool chain from source, use
 either the git branch <code>release-branch.go1.4</code> or
-<a href="https://storage.googleapis.com/golang/go1.4-bootstrap-20170531.tar.gz">go1.4-bootstrap-20170531.tar.gz</a>,
+<a href="https://dl.google.com/go/go1.4-bootstrap-20171003.tar.gz">go1.4-bootstrap-20171003.tar.gz</a>,
 which contains the Go 1.4 source code plus accumulated fixes
 to keep the tools running on newer operating systems.
 (Go 1.4 was the last distribution in which the tool chain was written in C.)
 After unpacking the Go 1.4 source, <code>cd</code> to
-the <code>src</code> subdirectory and run <code>make.bash</code> (or,
+the <code>src</code> subdirectory, set <code>CGO_ENABLED=0</code> in
+the environment, and run <code>make.bash</code> (or,
 on Windows, <code>make.bat</code>).
 </p>
 
@@ -471,8 +472,9 @@ Choices for <code>$GOARCH</code> are
 <code>amd64</code> (64-bit x86, the most mature port),
 <code>386</code> (32-bit x86), <code>arm</code> (32-bit ARM), <code>arm64</code> (64-bit ARM),
 <code>ppc64le</code> (PowerPC 64-bit, little-endian), <code>ppc64</code> (PowerPC 64-bit, big-endian),
-<code>mips64le</code> (MIPS 64-bit, little-endian), and <code>mips64</code> (MIPS 64-bit, big-endian).
-<code>mipsle</code> (MIPS 32-bit, little-endian), and <code>mips</code> (MIPS 32-bit, big-endian).
+<code>mips64le</code> (MIPS 64-bit, little-endian), <code>mips64</code> (MIPS 64-bit, big-endian),
+<code>mipsle</code> (MIPS 32-bit, little-endian), <code>mips</code> (MIPS 32-bit, big-endian), and
+<code>s390x</code> (IBM System z 64-bit, big-endian).
 The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <table cellpadding="0">
 <tr>
@@ -534,6 +536,9 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 </tr>
 <tr>
 <td></td><td><code>linux</code></td> <td><code>mips64le</code></td>
+</tr>
+<tr>
+<td></td><td><code>linux</code></td> <td><code>s390x</code></td>
 </tr>
 <tr>
 <td></td><td><code>netbsd</code></td> <td><code>386</code></td>

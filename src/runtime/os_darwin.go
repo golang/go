@@ -135,7 +135,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 // not safe to use after initialization as it does not pass an M as fnarg.
 //
 //go:nosplit
-func newosproc0(stacksize uintptr, fn unsafe.Pointer, fnarg uintptr) {
+func newosproc0(stacksize uintptr, fn uintptr) {
 	stack := sysAlloc(stacksize, &memstats.stacks_sys)
 	if stack == nil {
 		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
@@ -145,7 +145,7 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer, fnarg uintptr) {
 
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	errno := bsdthread_create(stk, fn, fnarg)
+	errno := bsdthread_create(stk, nil, fn)
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 
 	if errno < 0 {
@@ -188,7 +188,11 @@ func minit() {
 // Called from dropm to undo the effect of an minit.
 //go:nosplit
 func unminit() {
-	unminitSignals()
+	// The alternate signal stack is buggy on arm and arm64.
+	// See minit.
+	if GOARCH != "arm" && GOARCH != "arm64" {
+		unminitSignals()
+	}
 }
 
 // Mach IPC, to get at semaphores

@@ -83,7 +83,7 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 	// Until the copy completes, we can only call nosplit routines.
 	sp := getcallersp(unsafe.Pointer(&siz))
 	argp := uintptr(unsafe.Pointer(&fn)) + unsafe.Sizeof(fn)
-	callerpc := getcallerpc(unsafe.Pointer(&siz))
+	callerpc := getcallerpc()
 
 	d := newdefer(siz)
 	if d._panic != nil {
@@ -244,36 +244,47 @@ func freedefer(d *_defer) {
 		freedeferfn()
 	}
 	sc := deferclass(uintptr(d.siz))
-	if sc < uintptr(len(p{}.deferpool)) {
-		pp := getg().m.p.ptr()
-		if len(pp.deferpool[sc]) == cap(pp.deferpool[sc]) {
-			// Transfer half of local cache to the central cache.
-			//
-			// Take this slow path on the system stack so
-			// we don't grow freedefer's stack.
-			systemstack(func() {
-				var first, last *_defer
-				for len(pp.deferpool[sc]) > cap(pp.deferpool[sc])/2 {
-					n := len(pp.deferpool[sc])
-					d := pp.deferpool[sc][n-1]
-					pp.deferpool[sc][n-1] = nil
-					pp.deferpool[sc] = pp.deferpool[sc][:n-1]
-					if first == nil {
-						first = d
-					} else {
-						last.link = d
-					}
-					last = d
-				}
-				lock(&sched.deferlock)
-				last.link = sched.deferpool[sc]
-				sched.deferpool[sc] = first
-				unlock(&sched.deferlock)
-			})
-		}
-		*d = _defer{}
-		pp.deferpool[sc] = append(pp.deferpool[sc], d)
+	if sc >= uintptr(len(p{}.deferpool)) {
+		return
 	}
+	pp := getg().m.p.ptr()
+	if len(pp.deferpool[sc]) == cap(pp.deferpool[sc]) {
+		// Transfer half of local cache to the central cache.
+		//
+		// Take this slow path on the system stack so
+		// we don't grow freedefer's stack.
+		systemstack(func() {
+			var first, last *_defer
+			for len(pp.deferpool[sc]) > cap(pp.deferpool[sc])/2 {
+				n := len(pp.deferpool[sc])
+				d := pp.deferpool[sc][n-1]
+				pp.deferpool[sc][n-1] = nil
+				pp.deferpool[sc] = pp.deferpool[sc][:n-1]
+				if first == nil {
+					first = d
+				} else {
+					last.link = d
+				}
+				last = d
+			}
+			lock(&sched.deferlock)
+			last.link = sched.deferpool[sc]
+			sched.deferpool[sc] = first
+			unlock(&sched.deferlock)
+		})
+	}
+
+	// These lines used to be simply `*d = _defer{}` but that
+	// started causing a nosplit stack overflow via typedmemmove.
+	d.siz = 0
+	d.started = false
+	d.sp = 0
+	d.pc = 0
+	d.fn = nil
+	d._panic = nil
+	d.link = nil
+
+	pp.deferpool[sc] = append(pp.deferpool[sc], d)
 }
 
 // Separate function so that it can split stack.
@@ -336,7 +347,7 @@ func deferreturn(arg0 uintptr) {
 
 // Goexit terminates the goroutine that calls it. No other goroutine is affected.
 // Goexit runs all deferred calls before terminating the goroutine. Because Goexit
-// is not panic, however, any recover calls in those deferred functions will return nil.
+// is not a panic, any recover calls in those deferred functions will return nil.
 //
 // Calling Goexit from the main goroutine terminates that goroutine
 // without func main returning. Since func main has not returned,
@@ -580,7 +591,7 @@ func startpanic() {
 
 //go:nosplit
 func dopanic(unused int) {
-	pc := getcallerpc(unsafe.Pointer(&unused))
+	pc := getcallerpc()
 	sp := getcallersp(unsafe.Pointer(&unused))
 	gp := getg()
 	systemstack(func() {
@@ -643,6 +654,12 @@ func recovery(gp *g) {
 	gogo(&gp.sched)
 }
 
+// startpanic_m implements unrecoverable panic.
+//
+// It can have write barriers because the write barrier explicitly
+// ignores writes once dying > 0.
+//
+//go:yeswritebarrierrec
 func startpanic_m() {
 	_g_ := getg()
 	if mheap_.cachealloc.size == 0 { // very early
@@ -679,7 +696,7 @@ func startpanic_m() {
 		exit(4)
 		fallthrough
 	default:
-		// Can't even print!  Just exit.
+		// Can't even print! Just exit.
 		exit(5)
 	}
 }

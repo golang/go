@@ -187,7 +187,8 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
 		// them only for functions with inlineable bodies. funchdr does
 		// parameter renaming which doesn't matter if we don't have a body.
 
-		if f := p.funcList[i]; f != nil {
+		inlCost := p.int()
+		if f := p.funcList[i]; f != nil && f.Func.Inl.Len() == 0 {
 			// function not yet imported - read body and set it
 			funchdr(f)
 			body := p.stmtList()
@@ -200,7 +201,15 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
 				body = []*Node{nod(OEMPTY, nil, nil)}
 			}
 			f.Func.Inl.Set(body)
-			funcbody(f)
+			f.Func.InlCost = int32(inlCost)
+			if Debug['E'] > 0 && Debug['m'] > 2 && f.Func.Inl.Len() != 0 {
+				if Debug['m'] > 3 {
+					fmt.Printf("inl body for %v: %+v\n", f, f.Func.Inl)
+				} else {
+					fmt.Printf("inl body for %v: %v\n", f, f.Func.Inl)
+				}
+			}
+			funcbody()
 		} else {
 			// function already imported - read body but discard declarations
 			dclcontext = PDISCARD // throw away any declarations
@@ -326,55 +335,59 @@ func idealType(typ *types.Type) *types.Type {
 func (p *importer) obj(tag int) {
 	switch tag {
 	case constTag:
-		p.pos()
+		pos := p.pos()
 		sym := p.qualifiedName()
 		typ := p.typ()
 		val := p.value(typ)
-		importconst(p.imp, sym, idealType(typ), nodlit(val))
+		importconst(p.imp, sym, idealType(typ), npos(pos, nodlit(val)))
 
 	case aliasTag:
-		p.pos()
+		pos := p.pos()
 		sym := p.qualifiedName()
 		typ := p.typ()
-		importalias(p.imp, sym, typ)
+		importalias(pos, p.imp, sym, typ)
 
 	case typeTag:
 		p.typ()
 
 	case varTag:
-		p.pos()
+		pos := p.pos()
 		sym := p.qualifiedName()
 		typ := p.typ()
-		importvar(p.imp, sym, typ)
+		importvar(pos, p.imp, sym, typ)
 
 	case funcTag:
-		p.pos()
+		pos := p.pos()
 		sym := p.qualifiedName()
 		params := p.paramList()
 		result := p.paramList()
 
 		sig := functypefield(nil, params, result)
 		importsym(p.imp, sym, ONAME)
-		if asNode(sym.Def) != nil && asNode(sym.Def).Op == ONAME {
+		if old := asNode(sym.Def); old != nil && old.Op == ONAME {
 			// function was imported before (via another import)
-			if !eqtype(sig, asNode(sym.Def).Type) {
-				p.formatErrorf("inconsistent definition for func %v during import\n\t%v\n\t%v", sym, asNode(sym.Def).Type, sig)
+			if !eqtype(sig, old.Type) {
+				p.formatErrorf("inconsistent definition for func %v during import\n\t%v\n\t%v", sym, old.Type, sig)
 			}
-			p.funcList = append(p.funcList, nil)
+			n := asNode(old.Type.Nname())
+			p.funcList = append(p.funcList, n)
 			break
 		}
 
-		n := newfuncname(sym)
+		n := newfuncnamel(pos, sym)
 		n.Type = sig
+		// TODO(mdempsky): Stop clobbering n.Pos in declare.
+		savedlineno := lineno
+		lineno = pos
 		declare(n, PFUNC)
+		lineno = savedlineno
 		p.funcList = append(p.funcList, n)
 		importlist = append(importlist, n)
 
+		sig.SetNname(asTypesNode(n))
+
 		if Debug['E'] > 0 {
 			fmt.Printf("import [%q] func %v \n", p.imp.Path, n)
-			if Debug['m'] > 2 && n.Func.Inl.Len() != 0 {
-				fmt.Printf("inl body: %v\n", n.Func.Inl)
-			}
 		}
 
 	default:
@@ -479,15 +492,20 @@ func (p *importer) typ() *types.Type {
 	var t *types.Type
 	switch i {
 	case namedTag:
-		p.pos()
+		pos := p.pos()
 		tsym := p.qualifiedName()
 
-		t = pkgtype(p.imp, tsym)
+		t = pkgtype(pos, p.imp, tsym)
 		p.typList = append(p.typList, t)
+		dup := !t.IsKind(types.TFORW) // type already imported
 
 		// read underlying type
 		t0 := p.typ()
+		// TODO(mdempsky): Stop clobbering n.Pos in declare.
+		savedlineno := lineno
+		lineno = pos
 		p.importtype(t, t0)
+		lineno = savedlineno
 
 		// interfaces don't have associated methods
 		if t0.IsInterface() {
@@ -501,7 +519,7 @@ func (p *importer) typ() *types.Type {
 
 		// read associated methods
 		for i := p.int(); i > 0; i-- {
-			p.pos()
+			mpos := p.pos()
 			sym := p.fieldSym()
 
 			// during import unexported method names should be in the type's package
@@ -514,10 +532,21 @@ func (p *importer) typ() *types.Type {
 			result := p.paramList()
 			nointerface := p.bool()
 
-			n := newfuncname(methodname(sym, recv[0].Type))
-			n.Type = functypefield(recv[0], params, result)
+			mt := functypefield(recv[0], params, result)
+			oldm := addmethod(sym, mt, false, nointerface)
+
+			if dup {
+				// An earlier import already declared this type and its methods.
+				// Discard the duplicate method declaration.
+				n := asNode(oldm.Type.Nname())
+				p.funcList = append(p.funcList, n)
+				continue
+			}
+
+			n := newfuncnamel(mpos, methodname(sym, recv[0].Type))
+			n.Type = mt
+			n.SetClass(PFUNC)
 			checkwidth(n.Type)
-			addmethod(sym, n.Type, false, nointerface)
 			p.funcList = append(p.funcList, n)
 			importlist = append(importlist, n)
 
@@ -526,13 +555,10 @@ func (p *importer) typ() *types.Type {
 			// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
 			// out by typecheck's lookdot as this $$.ttype. So by providing
 			// this back link here we avoid special casing there.
-			n.Type.FuncType().Nname = asTypesNode(n)
+			mt.SetNname(asTypesNode(n))
 
 			if Debug['E'] > 0 {
 				fmt.Printf("import [%q] meth %v \n", p.imp.Path, n)
-				if Debug['m'] > 2 && n.Func.Inl.Len() != 0 {
-					fmt.Printf("inl body: %v\n", n.Func.Inl)
-				}
 			}
 		}
 
@@ -616,7 +642,7 @@ func (p *importer) fieldList() (fields []*types.Field) {
 }
 
 func (p *importer) field() *types.Field {
-	p.pos()
+	pos := p.pos()
 	sym, alias := p.fieldName()
 	typ := p.typ()
 	note := p.string()
@@ -636,7 +662,7 @@ func (p *importer) field() *types.Field {
 	}
 
 	f.Sym = sym
-	f.Nname = asTypesNode(newname(sym))
+	f.Nname = asTypesNode(newnamel(pos, sym))
 	f.Type = typ
 	f.Note = note
 
@@ -660,14 +686,14 @@ func (p *importer) methodList() (methods []*types.Field) {
 }
 
 func (p *importer) method() *types.Field {
-	p.pos()
+	pos := p.pos()
 	sym := p.methodName()
 	params := p.paramList()
 	result := p.paramList()
 
 	f := types.NewField()
 	f.Sym = sym
-	f.Nname = asTypesNode(newname(sym))
+	f.Nname = asTypesNode(newnamel(pos, sym))
 	f.Type = functypefield(fakeRecvField(), params, result)
 	return f
 }
@@ -922,10 +948,10 @@ func (p *importer) node() *Node {
 			// again. Re-introduce explicit uintptr(c) conversion.
 			// (issue 16317).
 			if typ.IsUnsafePtr() {
-				n = nod(OCONV, n, nil)
+				n = nodl(pos, OCONV, n, nil)
 				n.Type = types.Types[TUINTPTR]
 			}
-			n = nod(OCONV, n, nil)
+			n = nodl(pos, OCONV, n, nil)
 			n.Type = typ
 		}
 		return n
@@ -937,11 +963,7 @@ func (p *importer) node() *Node {
 	// 	unreachable - should have been resolved by typechecking
 
 	case OTYPE:
-		pos := p.pos()
-		if p.bool() {
-			return npos(pos, mkname(p.sym()))
-		}
-		return npos(pos, typenod(p.typ()))
+		return npos(p.pos(), typenod(p.typ()))
 
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
 	//      unreachable - should have been resolved by typechecking
@@ -950,21 +972,26 @@ func (p *importer) node() *Node {
 	//	unimplemented
 
 	case OPTRLIT:
-		n := npos(p.pos(), p.expr())
+		pos := p.pos()
+		n := npos(pos, p.expr())
 		if !p.bool() /* !implicit, i.e. '&' operator */ {
 			if n.Op == OCOMPLIT {
 				// Special case for &T{...}: turn into (*T){...}.
-				n.Right = nod(OIND, n.Right, nil)
+				n.Right = nodl(pos, OIND, n.Right, nil)
 				n.Right.SetImplicit(true)
 			} else {
-				n = nod(OADDR, n, nil)
+				n = nodl(pos, OADDR, n, nil)
 			}
 		}
 		return n
 
 	case OSTRUCTLIT:
-		n := nodl(p.pos(), OCOMPLIT, nil, typenod(p.typ()))
+		// TODO(mdempsky): Export position information for OSTRUCTKEY nodes.
+		savedlineno := lineno
+		lineno = p.pos()
+		n := nodl(lineno, OCOMPLIT, nil, typenod(p.typ()))
 		n.List.Set(p.elemList()) // special handling of field names
+		lineno = savedlineno
 		return n
 
 	// case OARRAYLIT, OSLICELIT, OMAPLIT:
@@ -1128,62 +1155,50 @@ func (p *importer) node() *Node {
 		return nodl(p.pos(), op, p.expr(), nil)
 
 	case OIF:
-		types.Markdcl()
 		n := nodl(p.pos(), OIF, nil, nil)
 		n.Ninit.Set(p.stmtList())
 		n.Left = p.expr()
 		n.Nbody.Set(p.stmtList())
 		n.Rlist.Set(p.stmtList())
-		types.Popdcl()
 		return n
 
 	case OFOR:
-		types.Markdcl()
 		n := nodl(p.pos(), OFOR, nil, nil)
 		n.Ninit.Set(p.stmtList())
 		n.Left, n.Right = p.exprsOrNil()
 		n.Nbody.Set(p.stmtList())
-		types.Popdcl()
 		return n
 
 	case ORANGE:
-		types.Markdcl()
 		n := nodl(p.pos(), ORANGE, nil, nil)
 		n.List.Set(p.stmtList())
 		n.Right = p.expr()
 		n.Nbody.Set(p.stmtList())
-		types.Popdcl()
 		return n
 
 	case OSELECT, OSWITCH:
-		types.Markdcl()
 		n := nodl(p.pos(), op, nil, nil)
 		n.Ninit.Set(p.stmtList())
 		n.Left, _ = p.exprsOrNil()
 		n.List.Set(p.stmtList())
-		types.Popdcl()
 		return n
 
 	// case OCASE, OXCASE:
 	// 	unreachable - mapped to OXCASE case below by exporter
 
 	case OXCASE:
-		types.Markdcl()
 		n := nodl(p.pos(), OXCASE, nil, nil)
-		n.Xoffset = int64(types.Block)
 		n.List.Set(p.exprList())
 		// TODO(gri) eventually we must declare variables for type switch
 		// statements (type switch statements are not yet exported)
 		n.Nbody.Set(p.stmtList())
-		types.Popdcl()
 		return n
 
 	// case OFALL:
 	// 	unreachable - mapped to OXFALL case below by exporter
 
-	case OXFALL:
-		n := nodl(p.pos(), OXFALL, nil, nil)
-		n.Xoffset = int64(types.Block)
+	case OFALL:
+		n := nodl(p.pos(), OFALL, nil, nil)
 		return n
 
 	case OBREAK, OCONTINUE:

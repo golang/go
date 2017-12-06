@@ -54,11 +54,16 @@ TEXT runtime·exit(SB),NOSPLIT,$-8-4
 	SVC
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$-8-4
-	MOVW	code+0(FP), R0
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$-8-8
+	MOVD	wait+0(FP), R0
+	// We're done using the stack.
+	MOVW	$0, R1
+	STLRW	R1, (R0)
+	MOVW	$0, R0	// exit code
 	MOVD	$SYS_exit, R8
 	SVC
-	RET
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$-8-20
 	MOVD	$AT_FDCWD, R0
@@ -273,9 +278,14 @@ TEXT runtime·mmap(SB),NOSPLIT,$-8
 	MOVD	$SYS_mmap, R8
 	SVC
 	CMN	$4095, R0
-	BCC	2(PC)
+	BCC	ok
 	NEG	R0,R0
-	MOVD	R0, ret+32(FP)
+	MOVD	$0, p+32(FP)
+	MOVD	R0, err+40(FP)
+	RET
+ok:
+	MOVD	R0, p+32(FP)
+	MOVD	$0, err+40(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$-8

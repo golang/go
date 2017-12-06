@@ -7,6 +7,7 @@
 package elliptic
 
 import (
+	"crypto/subtle"
 	"math/big"
 )
 
@@ -49,6 +50,8 @@ func (curve p256CurveFast) Params() *CurveParams {
 
 // Functions implemented in p256_asm_s390x.s
 // Montgomery multiplication modulo P256
+//
+//go:noescape
 func p256MulAsm(res, in1, in2 []byte)
 
 // Montgomery square modulo P256
@@ -57,19 +60,31 @@ func p256Sqr(res, in []byte) {
 }
 
 // Montgomery multiplication by 1
+//
+//go:noescape
 func p256FromMont(res, in []byte)
 
 // iff cond == 1  val <- -val
+//
+//go:noescape
 func p256NegCond(val *p256Point, cond int)
 
 // if cond == 0 res <- b; else res <- a
+//
+//go:noescape
 func p256MovCond(res, a, b *p256Point, cond int)
 
 // Constant time table access
+//
+//go:noescape
 func p256Select(point *p256Point, table []p256Point, idx int)
+
+//go:noescape
 func p256SelectBase(point *p256Point, table []p256Point, idx int)
 
 // Montgomery multiplication modulo Ord(G)
+//
+//go:noescape
 func p256OrdMul(res, in1, in2 []byte)
 
 // Montgomery square modulo Ord(G), repeated n times
@@ -84,10 +99,16 @@ func p256OrdSqr(res, in []byte, n int) {
 // If sign == 1 -> P2 = -P2
 // If sel == 0 -> P3 = P1
 // if zero == 0 -> P3 = P2
+//
+//go:noescape
 func p256PointAddAffineAsm(P3, P1, P2 *p256Point, sign, sel, zero int)
 
 // Point add
-func p256PointAddAsm(P3, P1, P2 *p256Point)
+//
+//go:noescape
+func p256PointAddAsm(P3, P1, P2 *p256Point) int
+
+//go:noescape
 func p256PointDoubleAsm(P3, P1 *p256Point)
 
 func (curve p256CurveFast) Inverse(k *big.Int) *big.Int {
@@ -202,7 +223,9 @@ func maybeReduceModP(in *big.Int) *big.Int {
 
 func (curve p256CurveFast) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
 	var r1, r2 p256Point
-	r1.p256BaseMult(p256GetMultiplier(baseScalar))
+	scalarReduced := p256GetMultiplier(baseScalar)
+	r1IsInfinity := scalarIsZero(scalarReduced)
+	r1.p256BaseMult(scalarReduced)
 
 	copy(r2.x[:], fromBig(maybeReduceModP(bigX)))
 	copy(r2.y[:], fromBig(maybeReduceModP(bigY)))
@@ -210,9 +233,17 @@ func (curve p256CurveFast) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar 
 	p256MulAsm(r2.x[:], r2.x[:], rr[:])
 	p256MulAsm(r2.y[:], r2.y[:], rr[:])
 
+	scalarReduced = p256GetMultiplier(scalar)
+	r2IsInfinity := scalarIsZero(scalarReduced)
 	r2.p256ScalarMult(p256GetMultiplier(scalar))
-	p256PointAddAsm(&r1, &r1, &r2)
-	return r1.p256PointToAffine()
+
+	var sum, double p256Point
+	pointsEqual := p256PointAddAsm(&sum, &r1, &r2)
+	p256PointDoubleAsm(&double, &r1)
+	p256MovCond(&sum, &double, &sum, pointsEqual)
+	p256MovCond(&sum, &r1, &sum, r2IsInfinity)
+	p256MovCond(&sum, &r2, &sum, r1IsInfinity)
+	return sum.p256PointToAffine()
 }
 
 func (curve p256CurveFast) ScalarBaseMult(scalar []byte) (x, y *big.Int) {
@@ -230,6 +261,16 @@ func (curve p256CurveFast) ScalarMult(bigX, bigY *big.Int, scalar []byte) (x, y 
 	p256MulAsm(r.y[:], r.y[:], rr[:])
 	r.p256ScalarMult(p256GetMultiplier(scalar))
 	return r.p256PointToAffine()
+}
+
+// scalarIsZero returns 1 if scalar represents the zero value, and zero
+// otherwise.
+func scalarIsZero(scalar []byte) int {
+	b := byte(0)
+	for _, s := range scalar {
+		b |= s
+	}
+	return subtle.ConstantTimeByteEq(b, 0)
 }
 
 func (p *p256Point) p256PointToAffine() (x, y *big.Int) {

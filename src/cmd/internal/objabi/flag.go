@@ -9,28 +9,11 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
-
-func Flagfn2(string, string, func(string, string)) { panic("flag") }
 
 func Flagcount(name, usage string, val *int) {
 	flag.Var((*count)(val), name, usage)
-}
-
-func Flagint32(name, usage string, val *int32) {
-	flag.Var((*int32Value)(val), name, usage)
-}
-
-func Flagint64(name, usage string, val *int64) {
-	flag.Int64Var(val, name, *val, usage)
-}
-
-func Flagstr(name, usage string, val *string) {
-	flag.StringVar(val, name, *val, usage)
-}
-
-func Flagfn0(name, usage string, f func()) {
-	flag.Var(fn0(f), name, usage)
 }
 
 func Flagfn1(name, usage string, f func(string)) {
@@ -47,6 +30,44 @@ func Flagprint(fd int) {
 func Flagparse(usage func()) {
 	flag.Usage = usage
 	flag.Parse()
+}
+
+func AddVersionFlag() {
+	flag.Var(versionFlag{}, "V", "print version and exit")
+}
+
+var buildID string // filled in by linker
+
+type versionFlag struct{}
+
+func (versionFlag) IsBoolFlag() bool { return true }
+func (versionFlag) Get() interface{} { return nil }
+func (versionFlag) String() string   { return "" }
+func (versionFlag) Set(s string) error {
+	name := os.Args[0]
+	name = name[strings.LastIndex(name, `/`)+1:]
+	name = name[strings.LastIndex(name, `\`)+1:]
+	name = strings.TrimSuffix(name, ".exe")
+	p := Expstring()
+	if p == DefaultExpstring() {
+		p = ""
+	}
+	sep := ""
+	if p != "" {
+		sep = " "
+	}
+
+	// The go command invokes -V=full to get a unique identifier
+	// for this tool. It is assumed that the release version is sufficient
+	// for releases, but during development we include the full
+	// build ID of the binary, so that if the compiler is changed and
+	// rebuilt, we notice and rebuild all packages.
+	if s == "full" && strings.HasPrefix(Version, "devel") {
+		p += " buildID=" + buildID
+	}
+	fmt.Printf("%s version %s%s%s\n", name, Version, sep, p)
+	os.Exit(0)
+	return nil
 }
 
 // count is a flag.Value that is like a flag.Bool and a flag.Int.
@@ -74,21 +95,17 @@ func (c *count) Set(s string) error {
 	return nil
 }
 
+func (c *count) Get() interface{} {
+	return int(*c)
+}
+
 func (c *count) IsBoolFlag() bool {
 	return true
 }
 
-type int32Value int32
-
-func (i *int32Value) Set(s string) error {
-	v, err := strconv.ParseInt(s, 0, 64)
-	*i = int32Value(v)
-	return err
+func (c *count) IsCountFlag() bool {
+	return true
 }
-
-func (i *int32Value) Get() interface{} { return int32(*i) }
-
-func (i *int32Value) String() string { return fmt.Sprint(*i) }
 
 type fn0 func()
 

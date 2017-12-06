@@ -49,74 +49,49 @@ func lastIndexByte(s string, c byte) int {
 	return -1
 }
 
-// pathToPrefix converts raw string to the prefix that will be used in the symbol
-// table. If modifying, modify the version in internal/obj/sym.go as well.
-func pathToPrefix(s string) string {
-	slash := lastIndexByte(s, '/')
-	// check for chars that need escaping
-	n := 0
-	for r := 0; r < len(s); r++ {
-		if c := s[r]; c <= ' ' || (c == '.' && r > slash) || c == '%' || c == '"' || c >= 0x7F {
-			n++
-		}
-	}
-
-	// quick exit
-	if n == 0 {
-		return s
-	}
-
-	// escape
-	const hex = "0123456789abcdef"
-	p := make([]byte, 0, len(s)+2*n)
-	for r := 0; r < len(s); r++ {
-		if c := s[r]; c <= ' ' || (c == '.' && r > slash) || c == '%' || c == '"' || c >= 0x7F {
-			p = append(p, '%', hex[c>>4], hex[c&0xF])
-		} else {
-			p = append(p, c)
-		}
-	}
-
-	return string(p)
-}
-
 func open(name string) (*Plugin, error) {
-	cPath := (*C.char)(C.malloc(C.PATH_MAX + 1))
-	defer C.free(unsafe.Pointer(cPath))
-
-	cRelName := C.CString(name)
-	defer C.free(unsafe.Pointer(cRelName))
-	if C.realpath(cRelName, cPath) == nil {
-		return nil, errors.New("plugin.Open(" + name + "): realpath failed")
+	cPath := make([]byte, C.PATH_MAX+1)
+	cRelName := make([]byte, len(name)+1)
+	copy(cRelName, name)
+	if C.realpath(
+		(*C.char)(unsafe.Pointer(&cRelName[0])),
+		(*C.char)(unsafe.Pointer(&cPath[0]))) == nil {
+		return nil, errors.New(`plugin.Open("` + name + `"): realpath failed`)
 	}
 
-	filepath := C.GoString(cPath)
+	filepath := C.GoString((*C.char)(unsafe.Pointer(&cPath[0])))
 
 	pluginsMu.Lock()
 	if p := plugins[filepath]; p != nil {
 		pluginsMu.Unlock()
+		if p.err != "" {
+			return nil, errors.New(`plugin.Open("` + name + `"): ` + p.err + ` (previous failure)`)
+		}
 		<-p.loaded
 		return p, nil
 	}
 	var cErr *C.char
-	h := C.pluginOpen(cPath, &cErr)
+	h := C.pluginOpen((*C.char)(unsafe.Pointer(&cPath[0])), &cErr)
 	if h == 0 {
 		pluginsMu.Unlock()
-		return nil, errors.New("plugin.Open: " + C.GoString(cErr))
+		return nil, errors.New(`plugin.Open("` + name + `"): ` + C.GoString(cErr))
 	}
 	// TODO(crawshaw): look for plugin note, confirm it is a Go plugin
 	// and it was built with the correct toolchain.
 	if len(name) > 3 && name[len(name)-3:] == ".so" {
 		name = name[:len(name)-3]
 	}
-
-	pluginpath, syms, mismatchpkg := lastmoduleinit()
-	if mismatchpkg != "" {
-		pluginsMu.Unlock()
-		return nil, errors.New("plugin.Open: plugin was built with a different version of package " + mismatchpkg)
-	}
 	if plugins == nil {
 		plugins = make(map[string]*Plugin)
+	}
+	pluginpath, syms, errstr := lastmoduleinit()
+	if errstr != "" {
+		plugins[filepath] = &Plugin{
+			pluginpath: pluginpath,
+			err:        errstr,
+		}
+		pluginsMu.Unlock()
+		return nil, errors.New(`plugin.Open("` + name + `"): ` + errstr)
 	}
 	// This function can be called from the init function of a plugin.
 	// Drop a placeholder in the map so subsequent opens can wait on it.
@@ -127,9 +102,11 @@ func open(name string) (*Plugin, error) {
 	plugins[filepath] = p
 	pluginsMu.Unlock()
 
-	initStr := C.CString(pluginpath + ".init")
-	initFuncPC := C.pluginLookup(h, initStr, &cErr)
-	C.free(unsafe.Pointer(initStr))
+	initStr := make([]byte, len(pluginpath)+6)
+	copy(initStr, pluginpath)
+	copy(initStr[len(pluginpath):], ".init")
+
+	initFuncPC := C.pluginLookup(h, (*C.char)(unsafe.Pointer(&initStr[0])), &cErr)
 	if initFuncPC != nil {
 		initFuncP := &initFuncPC
 		initFunc := *(*func())(unsafe.Pointer(&initFuncP))
@@ -144,11 +121,14 @@ func open(name string) (*Plugin, error) {
 			delete(syms, symName)
 			symName = symName[1:]
 		}
-		cname := C.CString(pathToPrefix(pluginpath) + "." + symName)
-		p := C.pluginLookup(h, cname, &cErr)
-		C.free(unsafe.Pointer(cname))
+
+		fullName := pluginpath + "." + symName
+		cname := make([]byte, len(fullName)+1)
+		copy(cname, fullName)
+
+		p := C.pluginLookup(h, (*C.char)(unsafe.Pointer(&cname[0])), &cErr)
 		if p == nil {
-			return nil, errors.New("plugin.Open: could not find symbol " + symName + ": " + C.GoString(cErr))
+			return nil, errors.New(`plugin.Open("` + name + `"): could not find symbol ` + symName + `: ` + C.GoString(cErr))
 		}
 		valp := (*[2]unsafe.Pointer)(unsafe.Pointer(&sym))
 		if isFunc {
@@ -179,4 +159,4 @@ var (
 )
 
 // lastmoduleinit is defined in package runtime
-func lastmoduleinit() (pluginpath string, syms map[string]interface{}, mismatchpkg string)
+func lastmoduleinit() (pluginpath string, syms map[string]interface{}, errstr string)

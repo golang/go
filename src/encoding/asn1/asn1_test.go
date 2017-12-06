@@ -424,6 +424,7 @@ var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParame
 	{"generalized", fieldParameters{timeType: TagGeneralizedTime}},
 	{"utc", fieldParameters{timeType: TagUTCTime}},
 	{"printable", fieldParameters{stringType: TagPrintableString}},
+	{"numeric", fieldParameters{stringType: TagNumericString}},
 	{"optional", fieldParameters{optional: true}},
 	{"explicit", fieldParameters{explicit: true, tag: new(int)}},
 	{"application", fieldParameters{application: true, tag: new(int)}},
@@ -486,6 +487,8 @@ var unmarshalTestData = []struct {
 	{[]byte{0x02, 0x01, 0x10}, newInt(16)},
 	{[]byte{0x13, 0x04, 't', 'e', 's', 't'}, newString("test")},
 	{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, newString("test")},
+	// Ampersand is allowed in PrintableString due to mistakes by major CAs.
+	{[]byte{0x13, 0x05, 't', 'e', 's', 't', '&'}, newString("test&")},
 	{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, &RawValue{0, 22, false, []byte("test"), []byte("\x16\x04test")}},
 	{[]byte{0x04, 0x04, 1, 2, 3, 4}, &RawValue{0, 4, false, []byte{1, 2, 3, 4}, []byte{4, 4, 1, 2, 3, 4}}},
 	{[]byte{0x30, 0x03, 0x81, 0x01, 0x01}, &TestContextSpecificTags{1}},
@@ -496,6 +499,7 @@ var unmarshalTestData = []struct {
 	{[]byte{0x30, 0x0b, 0x13, 0x03, 0x66, 0x6f, 0x6f, 0x02, 0x01, 0x22, 0x02, 0x01, 0x33}, &TestElementsAfterString{"foo", 0x22, 0x33}},
 	{[]byte{0x30, 0x05, 0x02, 0x03, 0x12, 0x34, 0x56}, &TestBigInt{big.NewInt(0x123456)}},
 	{[]byte{0x30, 0x0b, 0x31, 0x09, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x01, 0x03}, &TestSet{Ints: []int{1, 2, 3}}},
+	{[]byte{0x12, 0x0b, '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ' '}, newString("0123456789 ")},
 }
 
 func TestUnmarshal(t *testing.T) {
@@ -1015,7 +1019,7 @@ func TestNull(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(NullBytes, marshaled) {
-		t.Errorf("Expected Marshal of NullRawValue to yeild %x, got %x", NullBytes, marshaled)
+		t.Errorf("Expected Marshal of NullRawValue to yield %x, got %x", NullBytes, marshaled)
 	}
 
 	unmarshaled := RawValue{}
@@ -1031,5 +1035,62 @@ func TestNull(t *testing.T) {
 
 	if !reflect.DeepEqual(NullRawValue, unmarshaled) {
 		t.Errorf("Expected Unmarshal of NullBytes to yield %v, got %v", NullRawValue, unmarshaled)
+	}
+}
+
+func TestExplicitTagRawValueStruct(t *testing.T) {
+	type foo struct {
+		A RawValue `asn1:"optional,explicit,tag:5"`
+		B []byte   `asn1:"optional,explicit,tag:6"`
+	}
+	before := foo{B: []byte{1, 2, 3}}
+	derBytes, err := Marshal(before)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var after foo
+	if rest, err := Unmarshal(derBytes, &after); err != nil || len(rest) != 0 {
+		t.Fatal(err)
+	}
+
+	got := fmt.Sprintf("%#v", after)
+	want := fmt.Sprintf("%#v", before)
+	if got != want {
+		t.Errorf("got %s, want %s (DER: %x)", got, want, derBytes)
+	}
+}
+
+func TestTaggedRawValue(t *testing.T) {
+	type taggedRawValue struct {
+		A RawValue `asn1:"tag:5"`
+	}
+	type untaggedRawValue struct {
+		A RawValue
+	}
+	const isCompound = 0x20
+	const tag = 5
+
+	tests := []struct {
+		shouldMatch bool
+		derBytes    []byte
+	}{
+		{false, []byte{0x30, 3, TagInteger, 1, 1}},
+		{true, []byte{0x30, 3, (ClassContextSpecific << 6) | tag, 1, 1}},
+		{true, []byte{0x30, 3, (ClassContextSpecific << 6) | tag | isCompound, 1, 1}},
+		{false, []byte{0x30, 3, (ClassApplication << 6) | tag | isCompound, 1, 1}},
+	}
+
+	for i, test := range tests {
+		var tagged taggedRawValue
+		if _, err := Unmarshal(test.derBytes, &tagged); (err == nil) != test.shouldMatch {
+			t.Errorf("#%d: unexpected result parsing %x: %s", i, test.derBytes, err)
+		}
+
+		// An untagged RawValue should accept anything.
+		var untagged untaggedRawValue
+		if _, err := Unmarshal(test.derBytes, &untagged); err != nil {
+			t.Errorf("#%d: unexpected failure parsing %x with untagged RawValue: %s", i, test.derBytes, err)
+		}
 	}
 }

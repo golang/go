@@ -16,11 +16,13 @@ TEXT runtime·exit(SB),NOSPLIT,$4
 	NACL_SYSCALL(SYS_exit)
 	JMP 0(PC)
 
-TEXT runtime·exit1(SB),NOSPLIT,$4
-	MOVL code+0(FP), AX
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$4-4
+	MOVL wait+0(FP), AX
+	// SYS_thread_exit will clear *wait when the stack is free.
 	MOVL AX, 0(SP)
 	NACL_SYSCALL(SYS_thread_exit)
-	RET
+	JMP 0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$12
 	MOVL name+0(FP), AX
@@ -228,9 +230,14 @@ TEXT runtime·mmap(SB),NOSPLIT,$32
 	MOVL	AX, 20(SP)
 	NACL_SYSCALL(SYS_mmap)
 	CMPL	AX, $-4095
-	JNA	2(PC)
+	JNA	ok
 	NEGL	AX
-	MOVL	AX, ret+24(FP)
+	MOVL	$0, p+24(FP)
+	MOVL	AX, err+28(FP)
+	RET
+ok:
+	MOVL	AX, p+24(FP)
+	MOVL	$0, err+28(FP)
 	RET
 
 TEXT runtime·walltime(SB),NOSPLIT,$20

@@ -19,11 +19,9 @@ import (
 var stdImporter types.Importer
 
 var (
-	errorType        *types.Interface
-	stringerType     *types.Interface // possibly nil
-	formatterType    *types.Interface // possibly nil
-	httpResponseType types.Type       // possibly nil
-	httpClientType   types.Type       // possibly nil
+	errorType     *types.Interface
+	stringerType  *types.Interface // possibly nil
+	formatterType *types.Interface // possibly nil
 )
 
 func inittypes() {
@@ -35,12 +33,16 @@ func inittypes() {
 	if typ := importType("fmt", "Formatter"); typ != nil {
 		formatterType = typ.Underlying().(*types.Interface)
 	}
-	if typ := importType("net/http", "Response"); typ != nil {
-		httpResponseType = typ
+}
+
+// isNamedType reports whether t is the named type path.name.
+func isNamedType(t types.Type, path, name string) bool {
+	n, ok := t.(*types.Named)
+	if !ok {
+		return false
 	}
-	if typ := importType("net/http", "Client"); typ != nil {
-		httpClientType = typ
-	}
+	obj := n.Obj()
+	return obj.Name() == name && obj.Pkg() != nil && obj.Pkg().Path() == path
 }
 
 // importType returns the type denoted by the qualified identifier
@@ -60,7 +62,7 @@ func importType(path, name string) types.Type {
 	return nil
 }
 
-func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
+func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) []error {
 	if stdImporter == nil {
 		if *source {
 			stdImporter = importer.For("source", nil)
@@ -74,13 +76,17 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 	pkg.selectors = make(map[*ast.SelectorExpr]*types.Selection)
 	pkg.spans = make(map[types.Object]Span)
 	pkg.types = make(map[ast.Expr]types.TypeAndValue)
+
+	var allErrors []error
 	config := types.Config{
 		// We use the same importer for all imports to ensure that
 		// everybody sees identical packages for the given paths.
 		Importer: stdImporter,
 		// By providing a Config with our own error function, it will continue
-		// past the first error. There is no need for that function to do anything.
-		Error: func(error) {},
+		// past the first error. We collect them all for printing later.
+		Error: func(e error) {
+			allErrors = append(allErrors, e)
+		},
 
 		Sizes: archSizes,
 	}
@@ -91,6 +97,9 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 		Uses:       pkg.uses,
 	}
 	typesPkg, err := config.Check(pkg.path, fs, astFiles, info)
+	if len(allErrors) == 0 && err != nil {
+		allErrors = append(allErrors, err)
+	}
 	pkg.typesPkg = typesPkg
 	// update spans
 	for id, obj := range pkg.defs {
@@ -99,7 +108,7 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 	for id, obj := range pkg.uses {
 		pkg.growSpan(id, obj)
 	}
-	return err
+	return allErrors
 }
 
 // matchArgType reports an error if printf verb t is not appropriate
@@ -134,10 +143,8 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 		return true
 	}
 	// If we can use a string, might arg (dynamically) implement the Stringer or Error interface?
-	if t&argString != 0 {
-		if types.AssertableTo(errorType, typ) || stringerType != nil && types.AssertableTo(stringerType, typ) {
-			return true
-		}
+	if t&argString != 0 && isConvertibleToString(typ) {
+		return true
 	}
 
 	typ = typ.Underlying()
@@ -261,6 +268,10 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 	return false
 }
 
+func isConvertibleToString(typ types.Type) bool {
+	return types.AssertableTo(errorType, typ) || stringerType != nil && types.AssertableTo(stringerType, typ)
+}
+
 // hasBasicType reports whether x's type is a types.Basic with the given kind.
 func (f *File) hasBasicType(x ast.Expr, kind types.BasicKind) bool {
 	t := f.pkg.types[x].Type
@@ -275,7 +286,12 @@ func (f *File) hasBasicType(x ast.Expr, kind types.BasicKind) bool {
 // type. For instance, with "%d" all the elements must be printable with the "%d" format.
 func (f *File) matchStructArgType(t printfArgType, typ *types.Struct, arg ast.Expr, inProgress map[types.Type]bool) bool {
 	for i := 0; i < typ.NumFields(); i++ {
-		if !f.matchArgTypeInternal(t, typ.Field(i).Type(), arg, inProgress) {
+		typf := typ.Field(i)
+		if !f.matchArgTypeInternal(t, typf.Type(), arg, inProgress) {
+			return false
+		}
+		if t&argString != 0 && !typf.Exported() && isConvertibleToString(typf.Type()) {
+			// Issue #17798: unexported Stringer or error cannot be properly fomatted.
 			return false
 		}
 	}

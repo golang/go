@@ -41,21 +41,45 @@ rm -f ./runtime/runtime_defs.go
 # Determine the host compiler toolchain.
 eval `{grep '^(CC|LD|O)=' /$objtype/mkfile}
 
-echo '##### Building Go bootstrap tool.'
-echo cmd/dist
+vflag=()
+if(~ $1 -v) {
+	vflag=(-v)
+	shift
+}
+
+
 GOROOT = `{cd .. && pwd}
 if(! ~ $#GOROOT_BOOTSTRAP 1)
 	GOROOT_BOOTSTRAP = $home/go1.4
+for(p in $path){
+	if(! test -x $GOROOT_BOOTSTRAP/bin/go){
+		if(go_exe = `{path=$p whatis go}){
+			goroot = `{GOROOT='' $go_exe env GOROOT}
+			if(! ~ $goroot $GOROOT){
+				GOROOT_BOOTSTRAP = $goroot
+			}
+		}
+	}
+}
 if(! test -x $GOROOT_BOOTSTRAP/bin/go){
 	echo 'ERROR: Cannot find '$GOROOT_BOOTSTRAP'/bin/go.' >[1=2]
 	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4.' >[1=2]
 	exit bootstrap
 }
-rm -f cmd/dist/dist
+if(~ $GOROOT_BOOTSTRAP $GOROOT){
+	echo 'ERROR: $GOROOT_BOOTSTRAP must not be set to $GOROOT' >[1=2]
+	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4.' >[1=2]
+	exit bootstrap
+}
+
+echo 'Building Go cmd/dist using '^$GOROOT_BOOTSTRAP
+if(~ $#vflag 1)
+	echo cmd/dist
 GOROOT=$GOROOT_BOOTSTRAP GOOS='' GOARCH='' $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
 
 eval `{./cmd/dist/dist env -9}
-echo
+if(~ $#vflag 1)
+	echo
 
 if(~ $1 --dist-tool){
 	# Stop after building dist tool.
@@ -67,31 +91,18 @@ if(~ $1 --dist-tool){
 }
 
 buildall = -a
-if(~ $1 --no-clean)
+if(~ $1 --no-clean) {
 	buildall = ()
-./cmd/dist/dist bootstrap $buildall -v # builds go_bootstrap
-# Delay move of dist tool to now, because bootstrap may clear tool directory.
-mv cmd/dist/dist $GOTOOLDIR/dist
-echo
-
-# Run only one process at a time on 9vx.
-if(~ $sysname vx32)
-	pflag = (-p 1)
-
-if(! ~ $GOHOSTARCH $GOARCH || ! ~ $GOHOSTOS $GOOS){
-	echo '##### Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
-	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN=() \
-		$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
-	echo
+	shift
 }
+# Run dist bootstrap to complete make.bash.
+# Bootstrap installs a proper cmd/dist, built with the new toolchain.
+# Throw ours, built with Go 1.4, away after bootstrap.
+./cmd/dist/dist bootstrap $vflag $buildall $*
+rm -f ./cmd/dist/dist
 
-echo '##### Building packages and commands for' $GOOS/$GOARCH^.
-$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
-echo
-
-rm -f $GOTOOLDIR/go_bootstrap
-
-if(! ~ $1 --no-banner)
-	$GOTOOLDIR/dist banner
-
-status=''
+# DO NOT ADD ANY NEW CODE HERE.
+# The bootstrap+rm above are the final step of make.rc.
+# If something must be added, add it to cmd/dist's cmdbootstrap,
+# to avoid needing three copies in three different shell languages
+# (make.bash, make.bat, make.rc).

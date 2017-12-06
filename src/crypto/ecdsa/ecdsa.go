@@ -53,7 +53,7 @@ type PublicKey struct {
 	boring unsafe.Pointer
 }
 
-// PrivateKey represents a ECDSA private key.
+// PrivateKey represents an ECDSA private key.
 type PrivateKey struct {
 	PublicKey
 	D *big.Int
@@ -70,21 +70,24 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
 	return &priv.PublicKey
 }
 
-// Sign signs msg with priv, reading randomness from rand. This method is
-// intended to support keys where the private part is kept in, for example, a
-// hardware module. Common uses should use the Sign function in this package
-// directly.
-func (priv *PrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
+// Sign signs digest with priv, reading randomness from rand. The opts argument
+// is not currently used but, in keeping with the crypto.Signer interface,
+// should be the hash function used to digest the message.
+//
+// This method implements crypto.Signer, which is an interface to support keys
+// where the private part is kept in, for example, a hardware module. Common
+// uses should use the Sign function in this package directly.
+func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
 	if boring.Enabled && rand == boring.RandReader {
 		b, err := boringPrivateKey(priv)
 		if err != nil {
 			return nil, err
 		}
-		return boring.SignMarshalECDSA(b, msg)
+		return boring.SignMarshalECDSA(b, digest)
 	}
 	boring.UnreachableExceptTests()
 
-	r, s, err := Sign(rand, priv, msg)
+	r, s, err := Sign(rand, priv, digest)
 	if err != nil {
 		return nil, err
 	}

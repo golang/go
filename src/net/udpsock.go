@@ -9,7 +9,7 @@ import (
 	"syscall"
 )
 
-// BUG(mikio): On NaCl, Plan 9 and Windows, the ReadMsgUDP and
+// BUG(mikio): On NaCl and Plan 9, the ReadMsgUDP and
 // WriteMsgUDP methods of UDPConn are not implemented.
 
 // BUG(mikio): On Windows, the File method of UDPConn is not

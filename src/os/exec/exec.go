@@ -77,9 +77,12 @@ type Cmd struct {
 	Dir string
 
 	// Stdin specifies the process's standard input.
+	//
 	// If Stdin is nil, the process reads from the null device (os.DevNull).
+	//
 	// If Stdin is an *os.File, the process's standard input is connected
 	// directly to that file.
+	//
 	// Otherwise, during the execution of the command a separate
 	// goroutine reads from Stdin and delivers that data to the command
 	// over a pipe. In this case, Wait does not complete until the goroutine
@@ -92,8 +95,16 @@ type Cmd struct {
 	// If either is nil, Run connects the corresponding file descriptor
 	// to the null device (os.DevNull).
 	//
-	// If Stdout and Stderr are the same writer, and have a type that can be compared with ==,
-	// at most one goroutine at a time will call Write.
+	// If either is an *os.File, the corresponding output from the process
+	// is connected directly to that file.
+	//
+	// Otherwise, during the execution of the command a separate goroutine
+	// reads from the process over a pipe and delivers that data to the
+	// corresponding Writer. In this case, Wait does not complete until the
+	// goroutine reaches EOF or encounters an error.
+	//
+	// If Stdout and Stderr are the same writer, and have a type that can
+	// be compared with ==, at most one goroutine at a time will call Write.
 	Stdout io.Writer
 	Stderr io.Writer
 
@@ -190,7 +201,7 @@ func (c *Cmd) argv() []string {
 }
 
 // skipStdinCopyError optionally specifies a function which reports
-// whether the provided the stdin copy error should be ignored.
+// whether the provided stdin copy error should be ignored.
 // It is non-nil everywhere but Plan 9, which lacks EPIPE. See exec_posix.go.
 var skipStdinCopyError func(error) bool
 
@@ -429,9 +440,8 @@ func (e *ExitError) Error() string {
 // error is of type *ExitError. Other error types may be
 // returned for I/O problems.
 //
-// If c.Stdin is not an *os.File, Wait also waits for the I/O loop
-// copying from c.Stdin into the process's standard input
-// to complete.
+// If any of c.Stdin, c.Stdout or c.Stderr are not an *os.File, Wait also waits
+// for the respective I/O loop copying to or from the process to complete.
 //
 // Wait releases any resources associated with the Cmd.
 func (c *Cmd) Wait() error {
@@ -527,16 +537,15 @@ func (c *Cmd) StdinPipe() (io.WriteCloser, error) {
 	c.Stdin = pr
 	c.closeAfterStart = append(c.closeAfterStart, pr)
 	wc := &closeOnce{File: pw}
-	c.closeAfterWait = append(c.closeAfterWait, closerFunc(wc.safeClose))
+	c.closeAfterWait = append(c.closeAfterWait, wc)
 	return wc, nil
 }
 
 type closeOnce struct {
 	*os.File
 
-	writers sync.RWMutex // coordinate safeClose and Write
-	once    sync.Once
-	err     error
+	once sync.Once
+	err  error
 }
 
 func (c *closeOnce) Close() error {
@@ -546,55 +555,6 @@ func (c *closeOnce) Close() error {
 
 func (c *closeOnce) close() {
 	c.err = c.File.Close()
-}
-
-type closerFunc func() error
-
-func (f closerFunc) Close() error { return f() }
-
-// safeClose closes c being careful not to race with any calls to c.Write.
-// See golang.org/issue/9307 and TestEchoFileRace in exec_test.go.
-// In theory other calls could also be excluded (by writing appropriate
-// wrappers like c.Write's implementation below), but since c is most
-// commonly used as a WriteCloser, Write is the main one to worry about.
-// See also #7970, for which this is a partial fix for this specific instance.
-// The idea is that we return a WriteCloser, and so the caller can be
-// relied upon not to call Write and Close simultaneously, but it's less
-// obvious that cmd.Wait calls Close and that the caller must not call
-// Write and cmd.Wait simultaneously. In fact that seems too onerous.
-// So we change the use of Close in cmd.Wait to use safeClose, which will
-// synchronize with any Write.
-//
-// It's important that we know this won't block forever waiting for the
-// operations being excluded. At the point where this is called,
-// the invoked command has exited and the parent copy of the read side
-// of the pipe has also been closed, so there should really be no read side
-// of the pipe left. Any active writes should return very shortly with an EPIPE,
-// making it reasonable to wait for them.
-// Technically it is possible that the child forked a sub-process or otherwise
-// handed off the read side of the pipe before exiting and the current holder
-// is not reading from the pipe, and the pipe is full, in which case the close here
-// might block waiting for the write to complete. That's probably OK.
-// It's a small enough problem to be outweighed by eliminating the race here.
-func (c *closeOnce) safeClose() error {
-	c.writers.Lock()
-	err := c.Close()
-	c.writers.Unlock()
-	return err
-}
-
-func (c *closeOnce) Write(b []byte) (int, error) {
-	c.writers.RLock()
-	n, err := c.File.Write(b)
-	c.writers.RUnlock()
-	return n, err
-}
-
-func (c *closeOnce) WriteString(s string) (int, error) {
-	c.writers.RLock()
-	n, err := c.File.WriteString(s)
-	c.writers.RUnlock()
-	return n, err
 }
 
 // StdoutPipe returns a pipe that will be connected to the command's

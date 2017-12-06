@@ -18,7 +18,7 @@
 // To add equivalent profiling support to a standalone program, add
 // code like the following to your main function:
 //
-//    var cpuprofile = flag.String("cpuprofile", "", "write cpu profile `file`")
+//    var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 //    var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 //
 //    func main() {
@@ -319,7 +319,15 @@ func (p *Profile) WriteTo(w io.Writer, debug int) error {
 	p.mu.Unlock()
 
 	// Map order is non-deterministic; make output deterministic.
-	sort.Sort(stackProfile(all))
+	sort.Slice(all, func(i, j int) bool {
+		t, u := all[i], all[j]
+		for k := 0; k < len(t) && k < len(u); k++ {
+			if t[k] != u[k] {
+				return t[k] < u[k]
+			}
+		}
+		return len(t) < len(u)
+	})
 
 	return printCountProfile(w, debug, p.name, stackProfile(all))
 }
@@ -328,16 +336,6 @@ type stackProfile [][]uintptr
 
 func (x stackProfile) Len() int              { return len(x) }
 func (x stackProfile) Stack(i int) []uintptr { return x[i] }
-func (x stackProfile) Swap(i, j int)         { x[i], x[j] = x[j], x[i] }
-func (x stackProfile) Less(i, j int) bool {
-	t, u := x[i], x[j]
-	for k := 0; k < len(t) && k < len(u); k++ {
-		if t[k] != u[k] {
-			return t[k] < u[k]
-		}
-	}
-	return len(t) < len(u)
-}
 
 // A countProfile is a set of stack traces to be printed as counts
 // grouped by stack trace. There are multiple implementations:
@@ -346,6 +344,41 @@ func (x stackProfile) Less(i, j int) bool {
 type countProfile interface {
 	Len() int
 	Stack(i int) []uintptr
+}
+
+// printCountCycleProfile outputs block profile records (for block or mutex profiles)
+// as the pprof-proto format output. Translations from cycle count to time duration
+// are done because The proto expects count and time (nanoseconds) instead of count
+// and the number of cycles for block, contention profiles.
+func printCountCycleProfile(w io.Writer, countName, cycleName string, records []runtime.BlockProfileRecord) error {
+	// Output profile in protobuf form.
+	b := newProfileBuilder(w)
+	b.pbValueType(tagProfile_PeriodType, countName, "count")
+	b.pb.int64Opt(tagProfile_Period, 1)
+	b.pbValueType(tagProfile_SampleType, countName, "count")
+	b.pbValueType(tagProfile_SampleType, cycleName, "nanoseconds")
+
+	cpuGHz := float64(runtime_cyclesPerSecond()) / 1e9
+
+	values := []int64{0, 0}
+	var locs []uint64
+	for _, r := range records {
+		values[0] = int64(r.Count)
+		values[1] = int64(float64(r.Cycles) / cpuGHz) // to nanoseconds
+		locs = locs[:0]
+		for _, addr := range r.Stack() {
+			// For count profiles, all stack addresses are
+			// return PCs, which is what locForPC expects.
+			l := b.locForPC(addr)
+			if l == 0 { // runtime.goexit
+				continue
+			}
+			locs = append(locs, l)
+		}
+		b.pbSample(values, locs, nil)
+	}
+	b.build()
+	return nil
 }
 
 // printCountProfile prints a countProfile at the specified debug level.
@@ -476,6 +509,14 @@ func countHeap() int {
 
 // writeHeap writes the current runtime heap profile to w.
 func writeHeap(w io.Writer, debug int) error {
+	var memStats *runtime.MemStats
+	if debug != 0 {
+		// Read mem stats first, so that our other allocations
+		// do not appear in the statistics.
+		memStats = new(runtime.MemStats)
+		runtime.ReadMemStats(memStats)
+	}
+
 	// Find out how many records there are (MemProfile(nil, true)),
 	// allocate that many records, and get the data.
 	// There's a race—more records might be added between
@@ -538,8 +579,7 @@ func writeHeap(w io.Writer, debug int) error {
 
 	// Print memstats information too.
 	// Pprof will ignore, but useful for people
-	s := new(runtime.MemStats)
-	runtime.ReadMemStats(s)
+	s := memStats
 	fmt.Fprintf(w, "\n# runtime.MemStats\n")
 	fmt.Fprintf(w, "# Alloc = %d\n", s.Alloc)
 	fmt.Fprintf(w, "# TotalAlloc = %d\n", s.TotalAlloc)
@@ -765,13 +805,13 @@ func writeBlock(w io.Writer, debug int) error {
 
 	sort.Slice(p, func(i, j int) bool { return p[i].Cycles > p[j].Cycles })
 
-	b := bufio.NewWriter(w)
-	var tw *tabwriter.Writer
-	w = b
-	if debug > 0 {
-		tw = tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
-		w = tw
+	if debug <= 0 {
+		return printCountCycleProfile(w, "contentions", "delay", p)
 	}
+
+	b := bufio.NewWriter(w)
+	tw := tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
+	w = tw
 
 	fmt.Fprintf(w, "--- contention:\n")
 	fmt.Fprintf(w, "cycles/second=%v\n", runtime_cyclesPerSecond())
@@ -809,13 +849,13 @@ func writeMutex(w io.Writer, debug int) error {
 
 	sort.Slice(p, func(i, j int) bool { return p[i].Cycles > p[j].Cycles })
 
-	b := bufio.NewWriter(w)
-	var tw *tabwriter.Writer
-	w = b
-	if debug > 0 {
-		tw = tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
-		w = tw
+	if debug <= 0 {
+		return printCountCycleProfile(w, "contentions", "delay", p)
 	}
+
+	b := bufio.NewWriter(w)
+	tw := tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
+	w = tw
 
 	fmt.Fprintf(w, "--- mutex:\n")
 	fmt.Fprintf(w, "cycles/second=%v\n", runtime_cyclesPerSecond())

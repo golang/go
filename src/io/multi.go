@@ -95,8 +95,18 @@ func (t *multiWriter) WriteString(s string) (n int, err error) {
 
 // MultiWriter creates a writer that duplicates its writes to all the
 // provided writers, similar to the Unix tee(1) command.
+//
+// Each write is written to each listed writer, one at a time.
+// If a listed writer returns an error, that overall write operation
+// stops and returns the error; it does not continue down the list.
 func MultiWriter(writers ...Writer) Writer {
-	w := make([]Writer, len(writers))
-	copy(w, writers)
-	return &multiWriter{w}
+	allWriters := make([]Writer, 0, len(writers))
+	for _, w := range writers {
+		if mw, ok := w.(*multiWriter); ok {
+			allWriters = append(allWriters, mw.writers...)
+		} else {
+			allWriters = append(allWriters, w)
+		}
+	}
+	return &multiWriter{allWriters}
 }

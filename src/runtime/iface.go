@@ -10,21 +10,24 @@ import (
 	"unsafe"
 )
 
-const (
-	hashSize = 1009
-)
+const itabInitSize = 512
 
 var (
-	ifaceLock mutex // lock for accessing hash
-	hash      [hashSize]*itab
+	itabLock      mutex                               // lock for accessing itab table
+	itabTable     = &itabTableInit                    // pointer to current table
+	itabTableInit = itabTableType{size: itabInitSize} // starter table
 )
 
-func itabhash(inter *interfacetype, typ *_type) uint32 {
+//Note: change the formula in the mallocgc call in itabAdd if you change these fields.
+type itabTableType struct {
+	size    uintptr             // length of entries array. Always a power of 2.
+	count   uintptr             // current number of filled entries.
+	entries [itabInitSize]*itab // really [size] large
+}
+
+func itabHashFunc(inter *interfacetype, typ *_type) uintptr {
 	// compiler has provided some good hash codes for us.
-	h := inter.typ.hash
-	h += 17 * typ.hash
-	// TODO(rsc): h += 23 * x.mhash ?
-	return h % hashSize
+	return uintptr(inter.typ.hash ^ typ.hash)
 }
 
 func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
@@ -41,50 +44,137 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		panic(&TypeAssertionError{"", typ.string(), inter.typ.string(), name.name()})
 	}
 
-	h := itabhash(inter, typ)
-
-	// look twice - once without lock, once with.
-	// common case will be no lock contention.
 	var m *itab
-	var locked int
-	for locked = 0; locked < 2; locked++ {
-		if locked != 0 {
-			lock(&ifaceLock)
-		}
-		for m = (*itab)(atomic.Loadp(unsafe.Pointer(&hash[h]))); m != nil; m = m.link {
-			if m.inter == inter && m._type == typ {
-				if m.bad {
-					if !canfail {
-						// this can only happen if the conversion
-						// was already done once using the , ok form
-						// and we have a cached negative result.
-						// the cached result doesn't record which
-						// interface function was missing, so try
-						// adding the itab again, which will throw an error.
-						additab(m, locked != 0, false)
-					}
-					m = nil
-				}
-				if locked != 0 {
-					unlock(&ifaceLock)
-				}
-				return m
-			}
-		}
+
+	// First, look in the existing table to see if we can find the itab we need.
+	// This is by far the most common case, so do it without locks.
+	// Use atomic to ensure we see any previous writes done by the thread
+	// that updates the itabTable field (with atomic.Storep in itabAdd).
+	t := (*itabTableType)(atomic.Loadp(unsafe.Pointer(&itabTable)))
+	if m = t.find(inter, typ); m != nil {
+		goto finish
 	}
 
+	// Not found.  Grab the lock and try again.
+	lock(&itabLock)
+	if m = itabTable.find(inter, typ); m != nil {
+		unlock(&itabLock)
+		goto finish
+	}
+
+	// Entry doesn't exist yet. Make a new entry & add it.
 	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*sys.PtrSize, 0, &memstats.other_sys))
 	m.inter = inter
 	m._type = typ
-	additab(m, true, canfail)
-	unlock(&ifaceLock)
-	if m.bad {
+	m.init()
+	itabAdd(m)
+	unlock(&itabLock)
+finish:
+	if m.fun[0] != 0 {
+		return m
+	}
+	if canfail {
 		return nil
 	}
-	return m
+	// this can only happen if the conversion
+	// was already done once using the , ok form
+	// and we have a cached negative result.
+	// The cached result doesn't record which
+	// interface function was missing, so initialize
+	// the itab again to get the missing function name.
+	panic(&TypeAssertionError{concreteString: typ.string(), assertedString: inter.typ.string(), missingMethod: m.init()})
 }
 
-func additab(m *itab, locked, canfail bool) {
+// find finds the given interface/type pair in t.
+// Returns nil if the given interface/type pair isn't present.
+func (t *itabTableType) find(inter *interfacetype, typ *_type) *itab {
+	// Implemented using quadratic probing.
+	// Probe sequence is h(i) = h0 + i*(i+1)/2 mod 2^k.
+	// We're guaranteed to hit all table entries using this probe sequence.
+	mask := t.size - 1
+	h := itabHashFunc(inter, typ) & mask
+	for i := uintptr(1); ; i++ {
+		p := (**itab)(add(unsafe.Pointer(&t.entries), h*sys.PtrSize))
+		// Use atomic read here so if we see m != nil, we also see
+		// the initializations of the fields of m.
+		// m := *p
+		m := (*itab)(atomic.Loadp(unsafe.Pointer(p)))
+		if m == nil {
+			return nil
+		}
+		if m.inter == inter && m._type == typ {
+			return m
+		}
+		h += i
+		h &= mask
+	}
+}
+
+// itabAdd adds the given itab to the itab hash table.
+// itabLock must be held.
+func itabAdd(m *itab) {
+	t := itabTable
+	if t.count >= 3*(t.size/4) { // 75% load factor
+		// Grow hash table.
+		// t2 = new(itabTableType) + some additional entries
+		// We lie and tell malloc we want pointer-free memory because
+		// all the pointed-to values are not in the heap.
+		t2 := (*itabTableType)(mallocgc((2+2*t.size)*sys.PtrSize, nil, true))
+		t2.size = t.size * 2
+
+		// Copy over entries.
+		// Note: while copying, other threads may look for an itab and
+		// fail to find it. That's ok, they will then try to get the itab lock
+		// and as a consequence wait until this copying is complete.
+		iterate_itabs(t2.add)
+		if t2.count != t.count {
+			throw("mismatched count during itab table copy")
+		}
+		// Publish new hash table. Use an atomic write: see comment in getitab.
+		atomicstorep(unsafe.Pointer(&itabTable), unsafe.Pointer(t2))
+		// Adopt the new table as our own.
+		t = itabTable
+		// Note: the old table can be GC'ed here.
+	}
+	t.add(m)
+}
+
+// add adds the given itab to itab table t.
+// itabLock must be held.
+func (t *itabTableType) add(m *itab) {
+	// See comment in find about the probe sequence.
+	// Insert new itab in the first empty spot in the probe sequence.
+	mask := t.size - 1
+	h := itabHashFunc(m.inter, m._type) & mask
+	for i := uintptr(1); ; i++ {
+		p := (**itab)(add(unsafe.Pointer(&t.entries), h*sys.PtrSize))
+		m2 := *p
+		if m2 == m {
+			// A given itab may be used in more than one module
+			// and thanks to the way global symbol resolution works, the
+			// pointed-to itab may already have been inserted into the
+			// global 'hash'.
+			return
+		}
+		if m2 == nil {
+			// Use atomic write here so if a reader sees m, it also
+			// sees the correctly initialized fields of m.
+			// NoWB is ok because m is not in heap memory.
+			// *p = m
+			atomic.StorepNoWB(unsafe.Pointer(p), unsafe.Pointer(m))
+			t.count++
+			return
+		}
+		h += i
+		h &= mask
+	}
+}
+
+// init fills in the m.fun array with all the code pointers for
+// the m.inter/m._type pair. If the type does not implement the interface,
+// it sets m.fun[0] to 0 and returns the name of an interface function that is missing.
+// It is ok to call this multiple times on the same m, even concurrently.
+func (m *itab) init() string {
 	inter := m.inter
 	typ := m._type
 	x := typ.uncommon()
@@ -97,6 +187,7 @@ func additab(m *itab, locked, canfail bool) {
 	nt := int(x.mcount)
 	xmhdr := (*[1 << 16]method)(add(unsafe.Pointer(x), uintptr(x.moff)))[:nt:nt]
 	j := 0
+imethods:
 	for k := 0; k < ni; k++ {
 		i := &inter.mhdr[k]
 		itype := inter.typ.typeOff(i.ityp)
@@ -119,45 +210,26 @@ func additab(m *itab, locked, canfail bool) {
 						ifn := typ.textOff(t.ifn)
 						*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = ifn
 					}
-					goto nextimethod
+					continue imethods
 				}
 			}
 		}
 		// didn't find method
-		if !canfail {
-			if locked {
-				unlock(&ifaceLock)
-			}
-			panic(&TypeAssertionError{"", typ.string(), inter.typ.string(), iname})
-		}
-		m.bad = true
-		break
-	nextimethod:
+		m.fun[0] = 0
+		return iname
 	}
-	if !locked {
-		throw("invalid itab locking")
-	}
-	h := itabhash(inter, typ)
-	m.link = hash[h]
-	m.inhash = true
-	atomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
+	m.hash = typ.hash
+	return ""
 }
 
 func itabsinit() {
-	lock(&ifaceLock)
+	lock(&itabLock)
 	for _, md := range activeModules() {
 		for _, i := range md.itablinks {
-			// itablinks is a slice of pointers to the itabs used in this
-			// module. A given itab may be used in more than one module
-			// and thanks to the way global symbol resolution works, the
-			// pointed-to itab may already have been inserted into the
-			// global 'hash'.
-			if !i.inhash {
-				additab(i, true, false)
-			}
+			itabAdd(i)
 		}
 	}
-	unlock(&ifaceLock)
+	unlock(&itabLock)
 }
 
 // panicdottypeE is called when doing an e.(T) conversion and the conversion fails.
@@ -200,7 +272,7 @@ func panicnildottype(want *_type) {
 
 func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2E))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -216,7 +288,7 @@ func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
 
 func convT2E16(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E16))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2E16))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -235,7 +307,7 @@ func convT2E16(t *_type, elem unsafe.Pointer) (e eface) {
 
 func convT2E32(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E32))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2E32))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -254,7 +326,7 @@ func convT2E32(t *_type, elem unsafe.Pointer) (e eface) {
 
 func convT2E64(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E64))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2E64))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -273,7 +345,7 @@ func convT2E64(t *_type, elem unsafe.Pointer) (e eface) {
 
 func convT2Estring(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2Estring))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Estring))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -292,7 +364,7 @@ func convT2Estring(t *_type, elem unsafe.Pointer) (e eface) {
 
 func convT2Eslice(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2Eslice))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Eslice))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -311,7 +383,7 @@ func convT2Eslice(t *_type, elem unsafe.Pointer) (e eface) {
 
 func convT2Enoptr(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2Enoptr))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Enoptr))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -326,7 +398,7 @@ func convT2Enoptr(t *_type, elem unsafe.Pointer) (e eface) {
 func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2I))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -341,7 +413,7 @@ func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
 func convT2I16(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I16))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2I16))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -361,7 +433,7 @@ func convT2I16(tab *itab, elem unsafe.Pointer) (i iface) {
 func convT2I32(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I32))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2I32))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -381,7 +453,7 @@ func convT2I32(tab *itab, elem unsafe.Pointer) (i iface) {
 func convT2I64(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I64))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2I64))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -401,7 +473,7 @@ func convT2I64(tab *itab, elem unsafe.Pointer) (i iface) {
 func convT2Istring(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2Istring))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Istring))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -421,7 +493,7 @@ func convT2Istring(tab *itab, elem unsafe.Pointer) (i iface) {
 func convT2Islice(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2Islice))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Islice))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -441,7 +513,7 @@ func convT2Islice(tab *itab, elem unsafe.Pointer) (i iface) {
 func convT2Inoptr(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2Inoptr))
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Inoptr))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -533,9 +605,13 @@ func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
 }
 
 func iterate_itabs(fn func(*itab)) {
-	for _, h := range &hash {
-		for ; h != nil; h = h.link {
-			fn(h)
+	// Note: only runs during stop the world or with itabLock held,
+	// so no other locks/atomics needed.
+	t := itabTable
+	for i := uintptr(0); i < t.size; i++ {
+		m := *(**itab)(add(unsafe.Pointer(&t.entries), i*sys.PtrSize))
+		if m != nil {
+			fn(m)
 		}
 	}
 }

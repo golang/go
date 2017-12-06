@@ -64,6 +64,10 @@ func (c *aesctr) refill() {
 }
 
 func (c *aesctr) XORKeyStream(dst, src []byte) {
+	if len(src) > 0 {
+		// Assert len(dst) >= len(src)
+		_ = dst[len(src)-1]
+	}
 	for len(src) > 0 {
 		if len(c.buffer) == 0 {
 			c.refill()

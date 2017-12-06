@@ -124,7 +124,7 @@ func ssaGenISEL(s *gc.SSAGenState, v *ssa.Value, cr int64, r1, r2 int16) {
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = r
 	p.Reg = r1
-	p.From3 = &obj.Addr{Type: obj.TYPE_REG, Reg: r2}
+	p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r2})
 	p.From.Type = obj.TYPE_CONST
 	p.From.Offset = cr
 }
@@ -149,29 +149,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.From.Type = rt
 			p.From.Reg = x
 			p.To.Type = rt
-			p.To.Reg = y
-		}
-
-	case ssa.OpPPC64Xf2i64:
-		{
-			x := v.Args[0].Reg()
-			y := v.Reg()
-
-			p := s.Prog(ppc64.AMFVSRD)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = y
-		}
-	case ssa.OpPPC64Xi2f64:
-		{
-			x := v.Args[0].Reg()
-			y := v.Reg()
-
-			p := s.Prog(ppc64.AMTVSRD)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
 			p.To.Reg = y
 		}
 
@@ -445,6 +422,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// Closure pointer is R11 (already)
 		gc.CheckLoweredGetClosurePtr(v)
 
+	case ssa.OpPPC64LoweredGetCallerSP:
+		// caller's SP is FixedFrameSize below the address of the first arg
+		p := s.Prog(ppc64.AMOVD)
+		p.From.Type = obj.TYPE_ADDR
+		p.From.Offset = -gc.Ctxt.FixedFrameSize()
+		p.From.Name = obj.NAME_PARAM
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
 	case ssa.OpPPC64LoweredRound32F, ssa.OpPPC64LoweredRound64F:
 		// input is already rounded
 
@@ -542,8 +528,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpPPC64ADD, ssa.OpPPC64FADD, ssa.OpPPC64FADDS, ssa.OpPPC64SUB, ssa.OpPPC64FSUB, ssa.OpPPC64FSUBS,
 		ssa.OpPPC64MULLD, ssa.OpPPC64MULLW, ssa.OpPPC64DIVDU, ssa.OpPPC64DIVWU,
 		ssa.OpPPC64SRAD, ssa.OpPPC64SRAW, ssa.OpPPC64SRD, ssa.OpPPC64SRW, ssa.OpPPC64SLD, ssa.OpPPC64SLW,
+		ssa.OpPPC64ROTL, ssa.OpPPC64ROTLW,
 		ssa.OpPPC64MULHD, ssa.OpPPC64MULHW, ssa.OpPPC64MULHDU, ssa.OpPPC64MULHWU,
-		ssa.OpPPC64FMUL, ssa.OpPPC64FMULS, ssa.OpPPC64FDIV, ssa.OpPPC64FDIVS,
+		ssa.OpPPC64FMUL, ssa.OpPPC64FMULS, ssa.OpPPC64FDIV, ssa.OpPPC64FDIVS, ssa.OpPPC64FCPSGN,
 		ssa.OpPPC64AND, ssa.OpPPC64OR, ssa.OpPPC64ANDN, ssa.OpPPC64ORN, ssa.OpPPC64NOR, ssa.OpPPC64XOR, ssa.OpPPC64EQV:
 		r := v.Reg()
 		r1 := v.Args[0].Reg()
@@ -573,9 +560,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r1
 		p.Reg = r3
-		p.From3 = new(obj.Addr)
-		p.From3.Type = obj.TYPE_REG
-		p.From3.Reg = r2
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r2})
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
@@ -596,7 +581,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = ppc64.REGTMP // Ignored; this is for the carry effect.
 
-	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB:
+	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FCFIDS, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB, ssa.OpPPC64MFVSRD, ssa.OpPPC64MTVSRD, ssa.OpPPC64FABS, ssa.OpPPC64FNABS:
 		r := v.Reg()
 		p := s.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
@@ -608,15 +593,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpPPC64SRADconst, ssa.OpPPC64SRAWconst, ssa.OpPPC64SRDconst, ssa.OpPPC64SRWconst, ssa.OpPPC64SLDconst, ssa.OpPPC64SLWconst:
 		p := s.Prog(v.Op.Asm())
 		p.Reg = v.Args[0].Reg()
-
-		if v.Aux != nil {
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = gc.AuxOffset(v)
-		} else {
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = v.AuxInt
-		}
-
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
@@ -652,10 +630,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		switch v.Aux.(type) {
 		default:
 			v.Fatalf("aux is of unknown type %T", v.Aux)
-		case *ssa.ExternSymbol:
+		case *obj.LSym:
 			wantreg = "SB"
 			gc.AddAux(&p.From, v)
-		case *ssa.ArgSymbol, *ssa.AutoSymbol:
+		case *gc.Node:
 			wantreg = "SP"
 			gc.AddAux(&p.From, v)
 		case nil:
@@ -1088,17 +1066,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = ppc64.REG_CTR
 
-		if gc.Ctxt.Flag_shared && p.From.Reg != ppc64.REG_R12 {
-			// Make sure function pointer is in R12 as well when
-			// compiling Go into PIC.
-			// TODO(mwhudson): it would obviously be better to
-			// change the register allocation to put the value in
-			// R12 already, but I don't know how to do that.
-			// TODO: We have the technology now to implement TODO above.
-			q := s.Prog(ppc64.AMOVD)
-			q.From = p.From
-			q.To.Type = obj.TYPE_REG
-			q.To.Reg = ppc64.REG_R12
+		if v.Args[0].Reg() != ppc64.REG_R12 {
+			v.Fatalf("Function address for %v should be in R12 %d but is in %d", v.LongString(), ppc64.REG_R12, p.From.Reg)
 		}
 
 		pp := s.Call(v)

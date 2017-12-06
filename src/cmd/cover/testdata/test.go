@@ -282,7 +282,7 @@ loop:
 	}
 }
 
-// This comment shouldn't appear in generated go code.
+// This comment didn't appear in generated go code.
 func haha() {
 	// Needed for cover to add counter increment here.
 	_ = 42

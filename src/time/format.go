@@ -6,7 +6,7 @@ package time
 
 import "errors"
 
-// These are predefined layouts for use in Time.Format and Time.Parse.
+// These are predefined layouts for use in Time.Format and time.Parse.
 // The reference time used in the layouts is the specific time:
 //	Mon Jan 2 15:04:05 MST 2006
 // which is Unix time 1136239445. Since MST is GMT-0700,
@@ -17,6 +17,9 @@ import "errors"
 // StampMicro or Kitchen for examples. The model is to demonstrate what the
 // reference time looks like so that the Format and Parse methods can apply
 // the same transformation to a general time value.
+//
+// Some valid layouts are invalid time values for time.Parse, due to formats
+// such as _ for space padding and Z for zone information.
 //
 // Within the format string, an underscore _ represents a space that may be
 // replaced by a digit if the following number (a day) has two digits; for
@@ -49,7 +52,7 @@ import "errors"
 // time is echoed verbatim during Format and expected to appear verbatim
 // in the input to Parse.
 //
-// The executable example for time.Format demonstrates the working
+// The executable example for Time.Format demonstrates the working
 // of the layout string in detail and is a good reference.
 //
 // Note that the RFC822, RFC850, and RFC1123 formats should be applied
@@ -58,7 +61,7 @@ import "errors"
 // use of "GMT" in that case.
 // In general RFC1123Z should be used instead of RFC1123 for servers
 // that insist on that format, and RFC3339 should be preferred for new protocols.
-// RFC822, RFC822Z, RFC1123, and RFC1123Z are useful for formatting;
+// RFC3339, RFC822, RFC822Z, RFC1123, and RFC1123Z are useful for formatting;
 // when used with time.Parse they do not accept all the time formats
 // permitted by the RFCs.
 // The RFC3339Nano format removes trailing zeros from the seconds field
@@ -289,7 +292,6 @@ var shortDayNames = []string{
 }
 
 var shortMonthNames = []string{
-	"---",
 	"Jan",
 	"Feb",
 	"Mar",
@@ -305,7 +307,6 @@ var shortMonthNames = []string{
 }
 
 var longMonthNames = []string{
-	"---",
 	"January",
 	"February",
 	"March",
@@ -732,7 +733,7 @@ func skip(value, prefix string) (string, error) {
 }
 
 // Parse parses a formatted string and returns the time value it represents.
-// The layout  defines the format by showing how the reference time,
+// The layout defines the format by showing how the reference time,
 // defined to be
 //	Mon Jan 2 15:04:05 -0700 MST 2006
 // would be interpreted if it were the value; it serves as an example of
@@ -743,7 +744,7 @@ func skip(value, prefix string) (string, error) {
 // and convenient representations of the reference time. For more information
 // about the formats and the definition of the reference time, see the
 // documentation for ANSIC and the other constants defined by this package.
-// Also, the executable example for time.Format demonstrates the working
+// Also, the executable example for Time.Format demonstrates the working
 // of the layout string in detail and is a good reference.
 //
 // Elements omitted from the value are assumed to be zero or, when
@@ -841,8 +842,10 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			year, err = atoi(p)
 		case stdMonth:
 			month, value, err = lookup(shortMonthNames, value)
+			month++
 		case stdLongMonth:
 			month, value, err = lookup(longMonthNames, value)
+			month++
 		case stdNumMonth, stdZeroMonth:
 			month, value, err = getnum(value, std == stdZeroMonth)
 			if month <= 0 || 12 < month {
@@ -1071,7 +1074,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		offset, _, ok := local.lookupName(zoneName, t.unixSec())
+		offset, ok := local.lookupName(zoneName, t.unixSec())
 		if ok {
 			t.addSec(-int64(offset))
 			t.setLoc(local)

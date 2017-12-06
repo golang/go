@@ -619,3 +619,49 @@ func TestSticky(t *testing.T) {
 		}
 	}
 }
+
+func testBasicSqr(t *testing.T, x nat) {
+	got := make(nat, 2*len(x))
+	want := make(nat, 2*len(x))
+	basicSqr(got, x)
+	basicMul(want, x, x)
+	if got.cmp(want) != 0 {
+		t.Errorf("basicSqr(%v), got %v, want %v", x, got, want)
+	}
+}
+
+func TestBasicSqr(t *testing.T) {
+	for _, a := range prodNN {
+		if a.x != nil {
+			testBasicSqr(t, a.x)
+		}
+		if a.y != nil {
+			testBasicSqr(t, a.y)
+		}
+		if a.z != nil {
+			testBasicSqr(t, a.z)
+		}
+	}
+}
+
+func benchmarkNatSqr(b *testing.B, nwords int) {
+	x := rndNat(nwords)
+	var z nat
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		z.sqr(x)
+	}
+}
+
+var sqrBenchSizes = []int{1, 2, 3, 5, 8, 10, 20, 30, 50, 80, 100, 200, 300, 500, 800, 1000}
+
+func BenchmarkNatSqr(b *testing.B) {
+	for _, n := range sqrBenchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+			benchmarkNatSqr(b, n)
+		})
+	}
+}

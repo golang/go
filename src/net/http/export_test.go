@@ -63,9 +63,14 @@ func SetPendingDialHooks(before, after func()) {
 func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }
 
 func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-ch
+		cancel()
+	}()
 	return &timeoutHandler{
 		handler:     handler,
-		testTimeout: ch,
+		testContext: ctx,
 		// (no body)
 	}
 }
@@ -205,4 +210,10 @@ func (s *Server) ExportAllConnsIdle() bool {
 
 func (r *Request) WithT(t *testing.T) *Request {
 	return r.WithContext(context.WithValue(r.Context(), tLogKey{}, t.Logf))
+}
+
+func ExportSetH2GoawayTimeout(d time.Duration) (restore func()) {
+	old := http2goAwayTimeout
+	http2goAwayTimeout = d
+	return func() { http2goAwayTimeout = old }
 }

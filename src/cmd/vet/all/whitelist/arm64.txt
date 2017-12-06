@@ -2,12 +2,6 @@
 
 runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
 
-// False positives.
-
-// reflect trampolines intentionally omit arg size. Same for morestack.
-reflect/asm_arm64.s: [arm64] makeFuncStub: use of 16(RSP) points beyond argument frame
-reflect/asm_arm64.s: [arm64] methodValueCall: use of 16(RSP) points beyond argument frame
-
 // Intentionally missing declarations.
 runtime/asm_arm64.s: [arm64] abort: function abort missing Go declaration
 runtime/asm_arm64.s: [arm64] addmoduledata: function addmoduledata missing Go declaration

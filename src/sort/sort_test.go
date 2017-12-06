@@ -458,49 +458,69 @@ func TestStableBM(t *testing.T) {
 // This is based on the "antiquicksort" implementation by M. Douglas McIlroy.
 // See http://www.cs.dartmouth.edu/~doug/mdmspe.pdf for more info.
 type adversaryTestingData struct {
-	data      []int
-	keys      map[int]int
-	candidate int
+	t         *testing.T
+	data      []int // item values, initialized to special gas value and changed by Less
+	maxcmp    int   // number of comparisons allowed
+	ncmp      int   // number of comparisons (calls to Less)
+	nsolid    int   // number of elements that have been set to non-gas values
+	candidate int   // guess at current pivot
+	gas       int   // special value for unset elements, higher than everything else
 }
 
 func (d *adversaryTestingData) Len() int { return len(d.data) }
 
 func (d *adversaryTestingData) Less(i, j int) bool {
-	if _, present := d.keys[i]; !present {
-		if _, present := d.keys[j]; !present {
-			if i == d.candidate {
-				d.keys[i] = len(d.keys)
-			} else {
-				d.keys[j] = len(d.keys)
-			}
+	if d.ncmp >= d.maxcmp {
+		d.t.Fatalf("used %d comparisons sorting adversary data with size %d", d.ncmp, len(d.data))
+	}
+	d.ncmp++
+
+	if d.data[i] == d.gas && d.data[j] == d.gas {
+		if i == d.candidate {
+			// freeze i
+			d.data[i] = d.nsolid
+			d.nsolid++
+		} else {
+			// freeze j
+			d.data[j] = d.nsolid
+			d.nsolid++
 		}
 	}
 
-	if _, present := d.keys[i]; !present {
+	if d.data[i] == d.gas {
 		d.candidate = i
-		return false
-	}
-	if _, present := d.keys[j]; !present {
+	} else if d.data[j] == d.gas {
 		d.candidate = j
-		return true
 	}
 
-	return d.keys[i] >= d.keys[j]
+	return d.data[i] < d.data[j]
 }
 
 func (d *adversaryTestingData) Swap(i, j int) {
 	d.data[i], d.data[j] = d.data[j], d.data[i]
 }
 
-func TestAdversary(t *testing.T) {
-	const size = 100
+func newAdversaryTestingData(t *testing.T, size int, maxcmp int) *adversaryTestingData {
+	gas := size - 1
 	data := make([]int, size)
 	for i := 0; i < size; i++ {
-		data[i] = i
+		data[i] = gas
 	}
+	return &adversaryTestingData{t: t, data: data, maxcmp: maxcmp, gas: gas}
+}
 
-	d := &adversaryTestingData{data, make(map[int]int), 0}
+func TestAdversary(t *testing.T) {
+	const size = 10000            // large enough to distinguish between O(n^2) and O(n*log(n))
+	maxcmp := size * lg(size) * 4 // the factor 4 was found by trial and error
+	d := newAdversaryTestingData(t, size, maxcmp)
 	Sort(d) // This should degenerate to heapsort.
+	// Check data is fully populated and sorted.
+	for i, v := range d.data {
+		if v != i {
+			t.Errorf("adversary data not fully sorted")
+			t.FailNow()
+		}
+	}
 }
 
 func TestStableInts(t *testing.T) {

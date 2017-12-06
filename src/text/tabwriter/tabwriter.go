@@ -333,52 +333,52 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int) {
 	for this := line0; this < line1; this++ {
 		line := b.lines[this]
 
-		if column < len(line)-1 {
-			// cell exists in this column => this line
-			// has more cells than the previous line
-			// (the last cell per line is ignored because cells are
-			// tab-terminated; the last cell per line describes the
-			// text before the newline/formfeed and does not belong
-			// to a column)
-
-			// print unprinted lines until beginning of block
-			pos = b.writeLines(pos, line0, this)
-			line0 = this
-
-			// column block begin
-			width := b.minwidth // minimal column width
-			discardable := true // true if all cells in this column are empty and "soft"
-			for ; this < line1; this++ {
-				line = b.lines[this]
-				if column < len(line)-1 {
-					// cell exists in this column
-					c := line[column]
-					// update width
-					if w := c.width + b.padding; w > width {
-						width = w
-					}
-					// update discardable
-					if c.width > 0 || c.htab {
-						discardable = false
-					}
-				} else {
-					break
-				}
-			}
-			// column block end
-
-			// discard empty columns if necessary
-			if discardable && b.flags&DiscardEmptyColumns != 0 {
-				width = 0
-			}
-
-			// format and print all columns to the right of this column
-			// (we know the widths of this column and all columns to the left)
-			b.widths = append(b.widths, width) // push width
-			pos = b.format(pos, line0, this)
-			b.widths = b.widths[0 : len(b.widths)-1] // pop width
-			line0 = this
+		if column >= len(line)-1 {
+			continue
 		}
+		// cell exists in this column => this line
+		// has more cells than the previous line
+		// (the last cell per line is ignored because cells are
+		// tab-terminated; the last cell per line describes the
+		// text before the newline/formfeed and does not belong
+		// to a column)
+
+		// print unprinted lines until beginning of block
+		pos = b.writeLines(pos, line0, this)
+		line0 = this
+
+		// column block begin
+		width := b.minwidth // minimal column width
+		discardable := true // true if all cells in this column are empty and "soft"
+		for ; this < line1; this++ {
+			line = b.lines[this]
+			if column >= len(line)-1 {
+				break
+			}
+			// cell exists in this column
+			c := line[column]
+			// update width
+			if w := c.width + b.padding; w > width {
+				width = w
+			}
+			// update discardable
+			if c.width > 0 || c.htab {
+				discardable = false
+			}
+		}
+		// column block end
+
+		// discard empty columns if necessary
+		if discardable && b.flags&DiscardEmptyColumns != 0 {
+			width = 0
+		}
+
+		// format and print all columns to the right of this column
+		// (we know the widths of this column and all columns to the left)
+		b.widths = append(b.widths, width) // push width
+		pos = b.format(pos, line0, this)
+		b.widths = b.widths[0 : len(b.widths)-1] // pop width
+		line0 = this
 	}
 
 	// print unprinted lines until end

@@ -83,7 +83,7 @@ not being used from outside intra_region_diff.py.
 type Feed struct {
 	XMLName Name      `xml:"http://www.w3.org/2005/Atom feed"`
 	Title   string    `xml:"title"`
-	Id      string    `xml:"id"`
+	ID      string    `xml:"id"`
 	Link    []Link    `xml:"link"`
 	Updated time.Time `xml:"updated,attr"`
 	Author  Person    `xml:"author"`
@@ -92,7 +92,7 @@ type Feed struct {
 
 type Entry struct {
 	Title   string    `xml:"title"`
-	Id      string    `xml:"id"`
+	ID      string    `xml:"id"`
 	Link    []Link    `xml:"link"`
 	Updated time.Time `xml:"updated"`
 	Author  Person    `xml:"author"`
@@ -123,7 +123,7 @@ var atomFeed = Feed{
 		{Rel: "alternate", Href: "http://codereview.appspot.com/"},
 		{Rel: "self", Href: "http://codereview.appspot.com/rss/mine/rsc"},
 	},
-	Id:      "http://codereview.appspot.com/",
+	ID:      "http://codereview.appspot.com/",
 	Updated: ParseTime("2009-10-04T01:35:58+00:00"),
 	Author: Person{
 		Name:     "rietveld<>",
@@ -140,7 +140,7 @@ var atomFeed = Feed{
 				Name:     "email-address-removed",
 				InnerXML: "<name>email-address-removed</name>",
 			},
-			Id: "urn:md5:134d9179c41f806be79b3a5f7877d19a",
+			ID: "urn:md5:134d9179c41f806be79b3a5f7877d19a",
 			Summary: Text{
 				Type: "html",
 				Body: `
@@ -187,7 +187,7 @@ the top of feeds.py marked NOTE(rsc).
 				Name:     "email-address-removed",
 				InnerXML: "<name>email-address-removed</name>",
 			},
-			Id: "urn:md5:0a2a4f19bb815101f0ba2904aed7c35a",
+			ID: "urn:md5:0a2a4f19bb815101f0ba2904aed7c35a",
 			Summary: Text{
 				Type: "html",
 				Body: `
@@ -819,7 +819,7 @@ const (
 `
 )
 
-// github.com/golang/go/issues/13417
+// golang.org/issues/13417
 func TestUnmarshalEmptyValues(t *testing.T) {
 	// Test first with a zero-valued dst.
 	v := new(Parent)
@@ -906,5 +906,176 @@ func TestUnmarshalEmptyValues(t *testing.T) {
 	}
 	if !reflect.DeepEqual(v, want) {
 		t.Fatalf("populated: Unmarshal:\nhave:  %#+v\nwant: %#+v", v, want)
+	}
+}
+
+type WhitespaceValuesParent struct {
+	BFalse bool
+	BTrue  bool
+	I      int
+	INeg   int
+	I8     int8
+	I8Neg  int8
+	I16    int16
+	I16Neg int16
+	I32    int32
+	I32Neg int32
+	I64    int64
+	I64Neg int64
+	UI     uint
+	UI8    uint8
+	UI16   uint16
+	UI32   uint32
+	UI64   uint64
+	F32    float32
+	F32Neg float32
+	F64    float64
+	F64Neg float64
+}
+
+const whitespaceValuesXML = `
+<WhitespaceValuesParent>
+    <BFalse>   false   </BFalse>
+    <BTrue>   true   </BTrue>
+    <I>   266703   </I>
+    <INeg>   -266703   </INeg>
+    <I8>  112  </I8>
+    <I8Neg>  -112  </I8Neg>
+    <I16>  6703  </I16>
+    <I16Neg>  -6703  </I16Neg>
+    <I32>  266703  </I32>
+    <I32Neg>  -266703  </I32Neg>
+    <I64>  266703  </I64>
+    <I64Neg>  -266703  </I64Neg>
+    <UI>   266703   </UI>
+    <UI8>  112  </UI8>
+    <UI16>  6703  </UI16>
+    <UI32>  266703  </UI32>
+    <UI64>  266703  </UI64>
+    <F32>  266.703  </F32>
+    <F32Neg>  -266.703  </F32Neg>
+    <F64>  266.703  </F64>
+    <F64Neg>  -266.703  </F64Neg>
+</WhitespaceValuesParent>
+`
+
+// golang.org/issues/22146
+func TestUnmarshalWhitespaceValues(t *testing.T) {
+	v := WhitespaceValuesParent{}
+	if err := Unmarshal([]byte(whitespaceValuesXML), &v); err != nil {
+		t.Fatalf("whitespace values: Unmarshal failed: got %v", err)
+	}
+
+	want := WhitespaceValuesParent{
+		BFalse: false,
+		BTrue:  true,
+		I:      266703,
+		INeg:   -266703,
+		I8:     112,
+		I8Neg:  -112,
+		I16:    6703,
+		I16Neg: -6703,
+		I32:    266703,
+		I32Neg: -266703,
+		I64:    266703,
+		I64Neg: -266703,
+		UI:     266703,
+		UI8:    112,
+		UI16:   6703,
+		UI32:   266703,
+		UI64:   266703,
+		F32:    266.703,
+		F32Neg: -266.703,
+		F64:    266.703,
+		F64Neg: -266.703,
+	}
+	if v != want {
+		t.Fatalf("whitespace values: Unmarshal:\nhave: %#+v\nwant: %#+v", v, want)
+	}
+}
+
+type WhitespaceAttrsParent struct {
+	BFalse bool    `xml:",attr"`
+	BTrue  bool    `xml:",attr"`
+	I      int     `xml:",attr"`
+	INeg   int     `xml:",attr"`
+	I8     int8    `xml:",attr"`
+	I8Neg  int8    `xml:",attr"`
+	I16    int16   `xml:",attr"`
+	I16Neg int16   `xml:",attr"`
+	I32    int32   `xml:",attr"`
+	I32Neg int32   `xml:",attr"`
+	I64    int64   `xml:",attr"`
+	I64Neg int64   `xml:",attr"`
+	UI     uint    `xml:",attr"`
+	UI8    uint8   `xml:",attr"`
+	UI16   uint16  `xml:",attr"`
+	UI32   uint32  `xml:",attr"`
+	UI64   uint64  `xml:",attr"`
+	F32    float32 `xml:",attr"`
+	F32Neg float32 `xml:",attr"`
+	F64    float64 `xml:",attr"`
+	F64Neg float64 `xml:",attr"`
+}
+
+const whitespaceAttrsXML = `
+<WhitespaceAttrsParent
+    BFalse="  false  "
+    BTrue="  true  "
+    I="  266703  "
+    INeg="  -266703  "
+    I8="  112  "
+    I8Neg="  -112  "
+    I16="  6703  "
+    I16Neg="  -6703  "
+    I32="  266703  "
+    I32Neg="  -266703  "
+    I64="  266703  "
+    I64Neg="  -266703  "
+    UI="  266703  "
+    UI8="  112  "
+    UI16="  6703  "
+    UI32="  266703  "
+    UI64="  266703  "
+    F32="  266.703  "
+    F32Neg="  -266.703  "
+    F64="  266.703  "
+    F64Neg="  -266.703  "
+>
+</WhitespaceAttrsParent>
+`
+
+// golang.org/issues/22146
+func TestUnmarshalWhitespaceAttrs(t *testing.T) {
+	v := WhitespaceAttrsParent{}
+	if err := Unmarshal([]byte(whitespaceAttrsXML), &v); err != nil {
+		t.Fatalf("whitespace attrs: Unmarshal failed: got %v", err)
+	}
+
+	want := WhitespaceAttrsParent{
+		BFalse: false,
+		BTrue:  true,
+		I:      266703,
+		INeg:   -266703,
+		I8:     112,
+		I8Neg:  -112,
+		I16:    6703,
+		I16Neg: -6703,
+		I32:    266703,
+		I32Neg: -266703,
+		I64:    266703,
+		I64Neg: -266703,
+		UI:     266703,
+		UI8:    112,
+		UI16:   6703,
+		UI32:   266703,
+		UI64:   266703,
+		F32:    266.703,
+		F32Neg: -266.703,
+		F64:    266.703,
+		F64Neg: -266.703,
+	}
+	if v != want {
+		t.Fatalf("whitespace attrs: Unmarshal:\nhave: %#+v\nwant: %#+v", v, want)
 	}
 }

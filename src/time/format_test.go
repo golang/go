@@ -465,6 +465,9 @@ var parseErrorTests = []ParseErrorTest{
 	{RFC3339, "2006-01-02T15:04:05Z_abc", `parsing time "2006-01-02T15:04:05Z_abc": extra text: _abc`},
 	// invalid second followed by optional fractional seconds
 	{RFC3339, "2010-02-04T21:00:67.012345678-08:00", "second out of range"},
+	// issue 21113
+	{"_2 Jan 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},
+	{"_2 January 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},
 }
 
 func TestParseErrors(t *testing.T) {

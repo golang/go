@@ -36,9 +36,9 @@ func ExampleMarshal() {
 
 func ExampleUnmarshal() {
 	var jsonBlob = []byte(`[
-		{"Name": "Platypus", "Order": "Monotremata"},
-		{"Name": "Quoll",    "Order": "Dasyuromorphia"}
-	]`)
+	{"Name": "Platypus", "Order": "Monotremata"},
+	{"Name": "Quoll",    "Order": "Dasyuromorphia"}
+]`)
 	type Animal struct {
 		Name  string
 		Order string
@@ -56,12 +56,12 @@ func ExampleUnmarshal() {
 // This example uses a Decoder to decode a stream of distinct JSON values.
 func ExampleDecoder() {
 	const jsonStream = `
-		{"Name": "Ed", "Text": "Knock knock."}
-		{"Name": "Sam", "Text": "Who's there?"}
-		{"Name": "Ed", "Text": "Go fmt."}
-		{"Name": "Sam", "Text": "Go fmt who?"}
-		{"Name": "Ed", "Text": "Go fmt yourself!"}
-	`
+	{"Name": "Ed", "Text": "Knock knock."}
+	{"Name": "Sam", "Text": "Who's there?"}
+	{"Name": "Ed", "Text": "Go fmt."}
+	{"Name": "Sam", "Text": "Go fmt who?"}
+	{"Name": "Ed", "Text": "Go fmt yourself!"}
+`
 	type Message struct {
 		Name, Text string
 	}
@@ -86,8 +86,8 @@ func ExampleDecoder() {
 // This example uses a Decoder to decode a stream of distinct JSON values.
 func ExampleDecoder_Token() {
 	const jsonStream = `
-		{"Message": "Hello", "Array": [1, 2, 3], "Null": null, "Number": 1.234}
-	`
+	{"Message": "Hello", "Array": [1, 2, 3], "Null": null, "Number": 1.234}
+`
 	dec := json.NewDecoder(strings.NewReader(jsonStream))
 	for {
 		t, err := dec.Token()
@@ -191,9 +191,9 @@ func ExampleRawMessage_unmarshal() {
 	}
 
 	var j = []byte(`[
-		{"Space": "YCbCr", "Point": {"Y": 255, "Cb": 0, "Cr": -10}},
-		{"Space": "RGB",   "Point": {"R": 98, "G": 218, "B": 255}}
-	]`)
+	{"Space": "YCbCr", "Point": {"Y": 255, "Cb": 0, "Cr": -10}},
+	{"Space": "RGB",   "Point": {"R": 98, "G": 218, "B": 255}}
+]`)
 	var colors []Color
 	err := json.Unmarshal(j, &colors)
 	if err != nil {
@@ -272,4 +272,23 @@ func ExampleIndent() {
 	// =		"Number": 51
 	// =	}
 	// =]
+}
+
+func ExampleMarshalIndent() {
+	data := map[string]int{
+		"a": 1,
+		"b": 2,
+	}
+
+	json, err := json.MarshalIndent(data, "<prefix>", "<indent>")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(json))
+	// Output:
+	// {
+	// <prefix><indent>"a": 1,
+	// <prefix><indent>"b": 2
+	// <prefix>}
 }

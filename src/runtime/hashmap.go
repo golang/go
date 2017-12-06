@@ -64,8 +64,10 @@ const (
 	bucketCntBits = 3
 	bucketCnt     = 1 << bucketCntBits
 
-	// Maximum average load of a bucket that triggers growth.
-	loadFactor = 6.5
+	// Maximum average load of a bucket that triggers growth is 6.5.
+	// Represent as loadFactorNum/loadFactDen, to allow integer math.
+	loadFactorNum = 13
+	loadFactorDen = 2
 
 	// Maximum key or value size to keep inline (instead of mallocing per element).
 	// Must fit in a uint8.
@@ -124,12 +126,13 @@ type mapextra struct {
 	// If both key and value do not contain pointers and are inline, then we mark bucket
 	// type as containing no pointers. This avoids scanning such maps.
 	// However, bmap.overflow is a pointer. In order to keep overflow buckets
-	// alive, we store pointers to all overflow buckets in hmap.overflow.
-	// Overflow is used only if key and value do not contain pointers.
-	// overflow[0] contains overflow buckets for hmap.buckets.
-	// overflow[1] contains overflow buckets for hmap.oldbuckets.
+	// alive, we store pointers to all overflow buckets in hmap.overflow and h.map.oldoverflow.
+	// overflow and oldoverflow are only used if key and value do not contain pointers.
+	// overflow contains overflow buckets for hmap.buckets.
+	// oldoverflow contains overflow buckets for hmap.oldbuckets.
 	// The indirection allows to store a pointer to the slice in hiter.
-	overflow [2]*[]*bmap
+	overflow    *[]*bmap
+	oldoverflow *[]*bmap
 
 	// nextOverflow holds a pointer to a free overflow bucket.
 	nextOverflow *bmap
@@ -158,7 +161,8 @@ type hiter struct {
 	h           *hmap
 	buckets     unsafe.Pointer // bucket ptr at hash_iter initialization time
 	bptr        *bmap          // current bucket
-	overflow    [2]*[]*bmap    // keeps overflow buckets alive
+	overflow    *[]*bmap       // keeps overflow buckets of hmap.buckets alive
+	oldoverflow *[]*bmap       // keeps overflow buckets of hmap.oldbuckets alive
 	startBucket uintptr        // bucket iteration started at
 	offset      uint8          // intra-bucket offset to start from during iteration (should be big enough to hold bucketCnt-1)
 	wrapped     bool           // already wrapped around from end of bucket array to beginning
@@ -166,6 +170,28 @@ type hiter struct {
 	i           uint8
 	bucket      uintptr
 	checkBucket uintptr
+}
+
+// bucketShift returns 1<<b, optimized for code generation.
+func bucketShift(b uint8) uintptr {
+	if sys.GoarchAmd64|sys.GoarchAmd64p32|sys.Goarch386 != 0 {
+		b &= sys.PtrSize*8 - 1 // help x86 archs remove shift overflow checks
+	}
+	return uintptr(1) << b
+}
+
+// bucketMask returns 1<<b - 1, optimized for code generation.
+func bucketMask(b uint8) uintptr {
+	return bucketShift(b) - 1
+}
+
+// tophash calculates the tophash value for hash.
+func tophash(hash uintptr) uint8 {
+	top := uint8(hash >> (sys.PtrSize*8 - 8))
+	if top < minTopHash {
+		top += minTopHash
+	}
+	return top
 }
 
 func evacuated(b *bmap) bool {
@@ -179,6 +205,10 @@ func (b *bmap) overflow(t *maptype) *bmap {
 
 func (b *bmap) setoverflow(t *maptype, ovf *bmap) {
 	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-sys.PtrSize)) = ovf
+}
+
+func (b *bmap) keys() unsafe.Pointer {
+	return add(unsafe.Pointer(b), dataOffset)
 }
 
 // incrnoverflow increments h.noverflow.
@@ -229,7 +259,7 @@ func (h *hmap) newoverflow(t *maptype, b *bmap) *bmap {
 	h.incrnoverflow()
 	if t.bucket.kind&kindNoPointers != 0 {
 		h.createOverflow()
-		*h.extra.overflow[0] = append(*h.extra.overflow[0], ovf)
+		*h.extra.overflow = append(*h.extra.overflow, ovf)
 	}
 	b.setoverflow(t, ovf)
 	return ovf
@@ -239,96 +269,68 @@ func (h *hmap) createOverflow() {
 	if h.extra == nil {
 		h.extra = new(mapextra)
 	}
-	if h.extra.overflow[0] == nil {
-		h.extra.overflow[0] = new([]*bmap)
+	if h.extra.overflow == nil {
+		h.extra.overflow = new([]*bmap)
 	}
 }
 
-// makemap implements a Go map creation make(map[k]v, hint)
+func makemap64(t *maptype, hint int64, h *hmap) *hmap {
+	if int64(int(hint)) != hint {
+		hint = 0
+	}
+	return makemap(t, int(hint), h)
+}
+
+// makehmap_small implements Go map creation for make(map[k]v) and
+// make(map[k]v, hint) when hint is known to be at most bucketCnt
+// at compile time and the map needs to be allocated on the heap.
+func makemap_small() *hmap {
+	h := new(hmap)
+	h.hash0 = fastrand()
+	return h
+}
+
+// makemap implements Go map creation for make(map[k]v, hint).
 // If the compiler has determined that the map or the first bucket
 // can be created on the stack, h and/or bucket may be non-nil.
 // If h != nil, the map can be created directly in h.
-// If bucket != nil, bucket can be used as the first bucket.
-func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
-	if sz := unsafe.Sizeof(hmap{}); sz > 48 || sz != t.hmap.size {
+// If h.buckets != nil, bucket pointed to can be used as the first bucket.
+func makemap(t *maptype, hint int, h *hmap) *hmap {
+	// The size of hmap should be 48 bytes on 64 bit
+	// and 28 bytes on 32 bit platforms.
+	if sz := unsafe.Sizeof(hmap{}); sz != 8+5*sys.PtrSize {
 		println("runtime: sizeof(hmap) =", sz, ", t.hmap.size =", t.hmap.size)
 		throw("bad hmap size")
 	}
 
-	if hint < 0 || hint > int64(maxSliceCap(t.bucket.size)) {
+	if hint < 0 || hint > int(maxSliceCap(t.bucket.size)) {
 		hint = 0
-	}
-
-	if !ismapkey(t.key) {
-		throw("runtime.makemap: unsupported map key type")
-	}
-
-	// check compiler's and reflect's math
-	if t.key.size > maxKeySize && (!t.indirectkey || t.keysize != uint8(sys.PtrSize)) ||
-		t.key.size <= maxKeySize && (t.indirectkey || t.keysize != uint8(t.key.size)) {
-		throw("key size wrong")
-	}
-	if t.elem.size > maxValueSize && (!t.indirectvalue || t.valuesize != uint8(sys.PtrSize)) ||
-		t.elem.size <= maxValueSize && (t.indirectvalue || t.valuesize != uint8(t.elem.size)) {
-		throw("value size wrong")
-	}
-
-	// invariants we depend on. We should probably check these at compile time
-	// somewhere, but for now we'll do it here.
-	if t.key.align > bucketCnt {
-		throw("key align too big")
-	}
-	if t.elem.align > bucketCnt {
-		throw("value align too big")
-	}
-	if t.key.size%uintptr(t.key.align) != 0 {
-		throw("key size not a multiple of key align")
-	}
-	if t.elem.size%uintptr(t.elem.align) != 0 {
-		throw("value size not a multiple of value align")
-	}
-	if bucketCnt < 8 {
-		throw("bucketsize too small for proper alignment")
-	}
-	if dataOffset%uintptr(t.key.align) != 0 {
-		throw("need padding in bucket (key)")
-	}
-	if dataOffset%uintptr(t.elem.align) != 0 {
-		throw("need padding in bucket (value)")
-	}
-
-	// find size parameter which will hold the requested # of elements
-	B := uint8(0)
-	for ; overLoadFactor(hint, B); B++ {
-	}
-
-	// allocate initial hash table
-	// if B == 0, the buckets field is allocated lazily later (in mapassign)
-	// If hint is large zeroing this memory could take a while.
-	buckets := bucket
-	var extra *mapextra
-	if B != 0 {
-		var nextOverflow *bmap
-		buckets, nextOverflow = makeBucketArray(t, B)
-		if nextOverflow != nil {
-			extra = new(mapextra)
-			extra.nextOverflow = nextOverflow
-		}
 	}
 
 	// initialize Hmap
 	if h == nil {
 		h = (*hmap)(newobject(t.hmap))
 	}
-	h.count = 0
-	h.B = B
-	h.extra = extra
-	h.flags = 0
 	h.hash0 = fastrand()
-	h.buckets = buckets
-	h.oldbuckets = nil
-	h.nevacuate = 0
-	h.noverflow = 0
+
+	// find size parameter which will hold the requested # of elements
+	B := uint8(0)
+	for overLoadFactor(hint, B) {
+		B++
+	}
+	h.B = B
+
+	// allocate initial hash table
+	// if B == 0, the buckets field is allocated lazily later (in mapassign)
+	// If hint is large zeroing this memory could take a while.
+	if h.B != 0 {
+		var nextOverflow *bmap
+		h.buckets, nextOverflow = makeBucketArray(t, h.B)
+		if nextOverflow != nil {
+			h.extra = new(mapextra)
+			h.extra.nextOverflow = nextOverflow
+		}
+	}
 
 	return h
 }
@@ -340,7 +342,7 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 // hold onto it for very long.
 func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		pc := funcPC(mapaccess1)
 		racereadpc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
@@ -356,7 +358,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	}
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
-	m := uintptr(1)<<h.B - 1
+	m := bucketMask(h.B)
 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
 		if !h.sameSizeGrow() {
@@ -368,11 +370,8 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 			b = oldb
 		}
 	}
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
-	for {
+	top := tophash(hash)
+	for ; b != nil; b = b.overflow(t) {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
 				continue
@@ -389,16 +388,13 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 				return v
 			}
 		}
-		b = b.overflow(t)
-		if b == nil {
-			return unsafe.Pointer(&zeroVal[0])
-		}
 	}
+	return unsafe.Pointer(&zeroVal[0])
 }
 
 func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		pc := funcPC(mapaccess2)
 		racereadpc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
@@ -414,7 +410,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 	}
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
-	m := uintptr(1)<<h.B - 1
+	m := bucketMask(h.B)
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
 		if !h.sameSizeGrow() {
@@ -426,11 +422,8 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 			b = oldb
 		}
 	}
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
-	for {
+	top := tophash(hash)
+	for ; b != nil; b = b.overflow(t) {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
 				continue
@@ -447,11 +440,8 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 				return v, true
 			}
 		}
-		b = b.overflow(t)
-		if b == nil {
-			return unsafe.Pointer(&zeroVal[0]), false
-		}
 	}
+	return unsafe.Pointer(&zeroVal[0]), false
 }
 
 // returns both key and value. Used by map iterator
@@ -461,7 +451,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 	}
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
-	m := uintptr(1)<<h.B - 1
+	m := bucketMask(h.B)
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
 		if !h.sameSizeGrow() {
@@ -473,11 +463,8 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 			b = oldb
 		}
 	}
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
-	for {
+	top := tophash(hash)
+	for ; b != nil; b = b.overflow(t) {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
 				continue
@@ -494,11 +481,8 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 				return k, v
 			}
 		}
-		b = b.overflow(t)
-		if b == nil {
-			return nil, nil
-		}
 	}
+	return nil, nil
 }
 
 func mapaccess1_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) unsafe.Pointer {
@@ -523,7 +507,7 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		panic(plainError("assignment to entry in nil map"))
 	}
 	if raceenabled {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		pc := funcPC(mapassign)
 		racewritepc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
@@ -542,19 +526,16 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	h.flags |= hashWriting
 
 	if h.buckets == nil {
-		h.buckets = newarray(t.bucket, 1)
+		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
 	}
 
 again:
-	bucket := hash & (uintptr(1)<<h.B - 1)
+	bucket := hash & bucketMask(h.B)
 	if h.growing() {
 		growWork(t, h, bucket)
 	}
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
+	top := tophash(hash)
 
 	var inserti *uint8
 	var insertk unsafe.Pointer
@@ -594,7 +575,7 @@ again:
 
 	// If we hit the max load factor or we have too many overflow buckets,
 	// and we're not already in the middle of growing, start growing.
-	if !h.growing() && (overLoadFactor(int64(h.count), h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+	if !h.growing() && (overLoadFactor(h.count+1, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
 		hashGrow(t, h)
 		goto again // Growing the table invalidates everything, so try again
 	}
@@ -634,7 +615,7 @@ done:
 
 func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		pc := funcPC(mapdelete)
 		racewritepc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
@@ -656,16 +637,14 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	// in which case we have not actually done a write (delete).
 	h.flags |= hashWriting
 
-	bucket := hash & (uintptr(1)<<h.B - 1)
+	bucket := hash & bucketMask(h.B)
 	if h.growing() {
 		growWork(t, h, bucket)
 	}
-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
-	top := uint8(hash >> (sys.PtrSize*8 - 8))
-	if top < minTopHash {
-		top += minTopHash
-	}
-	for {
+	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+	top := tophash(hash)
+search:
+	for ; b != nil; b = b.overflow(t) {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
 				continue
@@ -678,53 +657,44 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 			if !alg.equal(key, k2) {
 				continue
 			}
+			// Only clear key if there are pointers in it.
 			if t.indirectkey {
 				*(*unsafe.Pointer)(k) = nil
-			} else {
-				typedmemclr(t.key, k)
+			} else if t.key.kind&kindNoPointers == 0 {
+				memclrHasPointers(k, t.key.size)
 			}
-			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*uintptr(t.keysize) + i*uintptr(t.valuesize))
-			if t.indirectvalue {
-				*(*unsafe.Pointer)(v) = nil
-			} else {
-				typedmemclr(t.elem, v)
+			// Only clear value if there are pointers in it.
+			if t.indirectvalue || t.elem.kind&kindNoPointers == 0 {
+				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+				if t.indirectvalue {
+					*(*unsafe.Pointer)(v) = nil
+				} else {
+					memclrHasPointers(v, t.elem.size)
+				}
 			}
 			b.tophash[i] = empty
 			h.count--
-			goto done
-		}
-		b = b.overflow(t)
-		if b == nil {
-			goto done
+			break search
 		}
 	}
 
-done:
 	if h.flags&hashWriting == 0 {
 		throw("concurrent map writes")
 	}
 	h.flags &^= hashWriting
 }
 
+// mapiterinit initializes the hiter struct used for ranging over maps.
+// The hiter struct pointed to by 'it' is allocated on the stack
+// by the compilers order pass or on the heap by reflect_mapiterinit.
+// Both need to have zeroed hiter since the struct contains pointers.
 func mapiterinit(t *maptype, h *hmap, it *hiter) {
-	// Clear pointer fields so garbage collector does not complain.
-	it.key = nil
-	it.value = nil
-	it.t = nil
-	it.h = nil
-	it.buckets = nil
-	it.bptr = nil
-	it.overflow[0] = nil
-	it.overflow[1] = nil
-
 	if raceenabled && h != nil {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
+		callerpc := getcallerpc()
 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapiterinit))
 	}
 
 	if h == nil || h.count == 0 {
-		it.key = nil
-		it.value = nil
 		return
 	}
 
@@ -744,6 +714,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 		// while we are iterating.
 		h.createOverflow()
 		it.overflow = h.extra.overflow
+		it.oldoverflow = h.extra.oldoverflow
 	}
 
 	// decide where to start
@@ -751,16 +722,14 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	if h.B > 31-bucketCntBits {
 		r += uintptr(fastrand()) << 31
 	}
-	it.startBucket = r & (uintptr(1)<<h.B - 1)
+	it.startBucket = r & bucketMask(h.B)
 	it.offset = uint8(r >> h.B & (bucketCnt - 1))
 
 	// iterator state
 	it.bucket = it.startBucket
-	it.wrapped = false
-	it.bptr = nil
 
 	// Remember we have an iterator.
-	// Can run concurrently with another hash_iter_init().
+	// Can run concurrently with another mapiterinit().
 	if old := h.flags; old&(iterator|oldIterator) != iterator|oldIterator {
 		atomic.Or8(&h.flags, iterator|oldIterator)
 	}
@@ -771,7 +740,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 func mapiternext(it *hiter) {
 	h := it.h
 	if raceenabled {
-		callerpc := getcallerpc(unsafe.Pointer(&it))
+		callerpc := getcallerpc()
 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapiternext))
 	}
 	if h.flags&hashWriting != 0 {
@@ -810,7 +779,7 @@ next:
 			checkBucket = noCheck
 		}
 		bucket++
-		if bucket == uintptr(1)<<it.B {
+		if bucket == bucketShift(it.B) {
 			bucket = 0
 			it.wrapped = true
 		}
@@ -818,90 +787,75 @@ next:
 	}
 	for ; i < bucketCnt; i++ {
 		offi := (i + it.offset) & (bucketCnt - 1)
-		k := add(unsafe.Pointer(b), dataOffset+uintptr(offi)*uintptr(t.keysize))
-		v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+uintptr(offi)*uintptr(t.valuesize))
-		if b.tophash[offi] != empty && b.tophash[offi] != evacuatedEmpty {
-			if checkBucket != noCheck && !h.sameSizeGrow() {
-				// Special case: iterator was started during a grow to a larger size
-				// and the grow is not done yet. We're working on a bucket whose
-				// oldbucket has not been evacuated yet. Or at least, it wasn't
-				// evacuated when we started the bucket. So we're iterating
-				// through the oldbucket, skipping any keys that will go
-				// to the other new bucket (each oldbucket expands to two
-				// buckets during a grow).
-				k2 := k
-				if t.indirectkey {
-					k2 = *((*unsafe.Pointer)(k2))
-				}
-				if t.reflexivekey || alg.equal(k2, k2) {
-					// If the item in the oldbucket is not destined for
-					// the current new bucket in the iteration, skip it.
-					hash := alg.hash(k2, uintptr(h.hash0))
-					if hash&(uintptr(1)<<it.B-1) != checkBucket {
-						continue
-					}
-				} else {
-					// Hash isn't repeatable if k != k (NaNs).  We need a
-					// repeatable and randomish choice of which direction
-					// to send NaNs during evacuation. We'll use the low
-					// bit of tophash to decide which way NaNs go.
-					// NOTE: this case is why we need two evacuate tophash
-					// values, evacuatedX and evacuatedY, that differ in
-					// their low bit.
-					if checkBucket>>(it.B-1) != uintptr(b.tophash[offi]&1) {
-						continue
-					}
-				}
-			}
-			if b.tophash[offi] != evacuatedX && b.tophash[offi] != evacuatedY {
-				// this is the golden data, we can return it.
-				if t.indirectkey {
-					k = *((*unsafe.Pointer)(k))
-				}
-				it.key = k
-				if t.indirectvalue {
-					v = *((*unsafe.Pointer)(v))
-				}
-				it.value = v
-			} else {
-				// The hash table has grown since the iterator was started.
-				// The golden data for this key is now somewhere else.
-				k2 := k
-				if t.indirectkey {
-					k2 = *((*unsafe.Pointer)(k2))
-				}
-				if t.reflexivekey || alg.equal(k2, k2) {
-					// Check the current hash table for the data.
-					// This code handles the case where the key
-					// has been deleted, updated, or deleted and reinserted.
-					// NOTE: we need to regrab the key as it has potentially been
-					// updated to an equal() but not identical key (e.g. +0.0 vs -0.0).
-					rk, rv := mapaccessK(t, h, k2)
-					if rk == nil {
-						continue // key has been deleted
-					}
-					it.key = rk
-					it.value = rv
-				} else {
-					// if key!=key then the entry can't be deleted or
-					// updated, so we can just return it. That's lucky for
-					// us because when key!=key we can't look it up
-					// successfully in the current table.
-					it.key = k2
-					if t.indirectvalue {
-						v = *((*unsafe.Pointer)(v))
-					}
-					it.value = v
-				}
-			}
-			it.bucket = bucket
-			if it.bptr != b { // avoid unnecessary write barrier; see issue 14921
-				it.bptr = b
-			}
-			it.i = i + 1
-			it.checkBucket = checkBucket
-			return
+		if b.tophash[offi] == empty || b.tophash[offi] == evacuatedEmpty {
+			continue
 		}
+		k := add(unsafe.Pointer(b), dataOffset+uintptr(offi)*uintptr(t.keysize))
+		if t.indirectkey {
+			k = *((*unsafe.Pointer)(k))
+		}
+		v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+uintptr(offi)*uintptr(t.valuesize))
+		if checkBucket != noCheck && !h.sameSizeGrow() {
+			// Special case: iterator was started during a grow to a larger size
+			// and the grow is not done yet. We're working on a bucket whose
+			// oldbucket has not been evacuated yet. Or at least, it wasn't
+			// evacuated when we started the bucket. So we're iterating
+			// through the oldbucket, skipping any keys that will go
+			// to the other new bucket (each oldbucket expands to two
+			// buckets during a grow).
+			if t.reflexivekey || alg.equal(k, k) {
+				// If the item in the oldbucket is not destined for
+				// the current new bucket in the iteration, skip it.
+				hash := alg.hash(k, uintptr(h.hash0))
+				if hash&bucketMask(it.B) != checkBucket {
+					continue
+				}
+			} else {
+				// Hash isn't repeatable if k != k (NaNs).  We need a
+				// repeatable and randomish choice of which direction
+				// to send NaNs during evacuation. We'll use the low
+				// bit of tophash to decide which way NaNs go.
+				// NOTE: this case is why we need two evacuate tophash
+				// values, evacuatedX and evacuatedY, that differ in
+				// their low bit.
+				if checkBucket>>(it.B-1) != uintptr(b.tophash[offi]&1) {
+					continue
+				}
+			}
+		}
+		if (b.tophash[offi] != evacuatedX && b.tophash[offi] != evacuatedY) ||
+			!(t.reflexivekey || alg.equal(k, k)) {
+			// This is the golden data, we can return it.
+			// OR
+			// key!=key, so the entry can't be deleted or updated, so we can just return it.
+			// That's lucky for us because when key!=key we can't look it up successfully.
+			it.key = k
+			if t.indirectvalue {
+				v = *((*unsafe.Pointer)(v))
+			}
+			it.value = v
+		} else {
+			// The hash table has grown since the iterator was started.
+			// The golden data for this key is now somewhere else.
+			// Check the current hash table for the data.
+			// This code handles the case where the key
+			// has been deleted, updated, or deleted and reinserted.
+			// NOTE: we need to regrab the key as it has potentially been
+			// updated to an equal() but not identical key (e.g. +0.0 vs -0.0).
+			rk, rv := mapaccessK(t, h, k)
+			if rk == nil {
+				continue // key has been deleted
+			}
+			it.key = rk
+			it.value = rv
+		}
+		it.bucket = bucket
+		if it.bptr != b { // avoid unnecessary write barrier; see issue 14921
+			it.bptr = b
+		}
+		it.i = i + 1
+		it.checkBucket = checkBucket
+		return
 	}
 	b = b.overflow(t)
 	i = 0
@@ -909,7 +863,7 @@ next:
 }
 
 func makeBucketArray(t *maptype, b uint8) (buckets unsafe.Pointer, nextOverflow *bmap) {
-	base := uintptr(1 << b)
+	base := bucketShift(b)
 	nbuckets := base
 	// For small b, overflow buckets are unlikely.
 	// Avoid the overhead of the calculation.
@@ -917,7 +871,7 @@ func makeBucketArray(t *maptype, b uint8) (buckets unsafe.Pointer, nextOverflow 
 		// Add on the estimated number of overflow buckets
 		// required to insert the median number of elements
 		// used with this value of b.
-		nbuckets += 1 << (b - 4)
+		nbuckets += bucketShift(b - 4)
 		sz := t.bucket.size * nbuckets
 		up := roundupsize(sz)
 		if up != sz {
@@ -943,7 +897,7 @@ func hashGrow(t *maptype, h *hmap) {
 	// Otherwise, there are too many overflow buckets,
 	// so keep the same number of buckets and "grow" laterally.
 	bigger := uint8(1)
-	if !overLoadFactor(int64(h.count), h.B) {
+	if !overLoadFactor(h.count+1, h.B) {
 		bigger = 0
 		h.flags |= sameSizeGrow
 	}
@@ -962,13 +916,13 @@ func hashGrow(t *maptype, h *hmap) {
 	h.nevacuate = 0
 	h.noverflow = 0
 
-	if h.extra != nil && h.extra.overflow[0] != nil {
+	if h.extra != nil && h.extra.overflow != nil {
 		// Promote current overflow buckets to the old generation.
-		if h.extra.overflow[1] != nil {
-			throw("overflow is not nil")
+		if h.extra.oldoverflow != nil {
+			throw("oldoverflow is not nil")
 		}
-		h.extra.overflow[1] = h.extra.overflow[0]
-		h.extra.overflow[0] = nil
+		h.extra.oldoverflow = h.extra.overflow
+		h.extra.overflow = nil
 	}
 	if nextOverflow != nil {
 		if h.extra == nil {
@@ -982,9 +936,8 @@ func hashGrow(t *maptype, h *hmap) {
 }
 
 // overLoadFactor reports whether count items placed in 1<<B buckets is over loadFactor.
-func overLoadFactor(count int64, B uint8) bool {
-	// TODO: rewrite to use integer math and comparison?
-	return count >= bucketCnt && float32(count) >= loadFactor*float32((uint64(1)<<B))
+func overLoadFactor(count int, B uint8) bool {
+	return count > bucketCnt && uintptr(count) > loadFactorNum*(bucketShift(B)/loadFactorDen)
 }
 
 // tooManyOverflowBuckets reports whether noverflow buckets is too many for a map with 1<<B buckets.
@@ -995,10 +948,11 @@ func tooManyOverflowBuckets(noverflow uint16, B uint8) bool {
 	// If the threshold is too high, maps that grow and shrink can hold on to lots of unused memory.
 	// "too many" means (approximately) as many overflow buckets as regular buckets.
 	// See incrnoverflow for more details.
-	if B < 16 {
-		return noverflow >= uint16(1)<<B
+	if B > 15 {
+		B = 15
 	}
-	return noverflow >= 1<<15
+	// The compiler doesn't see here that B < 16; mask B to generate shorter shift code.
+	return noverflow >= uint16(1)<<(B&15)
 }
 
 // growing reports whether h is growing. The growth may be to the same size or bigger.
@@ -1017,7 +971,7 @@ func (h *hmap) noldbuckets() uintptr {
 	if !h.sameSizeGrow() {
 		oldB--
 	}
-	return uintptr(1) << oldB
+	return bucketShift(oldB)
 }
 
 // oldbucketmask provides a mask that can be applied to calculate n % noldbuckets().
@@ -1041,32 +995,37 @@ func bucketEvacuated(t *maptype, h *hmap, bucket uintptr) bool {
 	return evacuated(b)
 }
 
+// evacDst is an evacuation destination.
+type evacDst struct {
+	b *bmap          // current destination bucket
+	i int            // key/val index into b
+	k unsafe.Pointer // pointer to current key storage
+	v unsafe.Pointer // pointer to current value storage
+}
+
 func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 	b := (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
 	newbit := h.noldbuckets()
-	alg := t.key.alg
 	if !evacuated(b) {
 		// TODO: reuse overflow buckets instead of using new ones, if there
 		// is no iterator using the old buckets.  (If !oldIterator.)
 
-		var (
-			x, y   *bmap          // current low/high buckets in new map
-			xi, yi int            // key/val indices into x and y
-			xk, yk unsafe.Pointer // pointers to current x and y key storage
-			xv, yv unsafe.Pointer // pointers to current x and y value storage
-		)
-		x = (*bmap)(add(h.buckets, oldbucket*uintptr(t.bucketsize)))
-		xi = 0
-		xk = add(unsafe.Pointer(x), dataOffset)
-		xv = add(xk, bucketCnt*uintptr(t.keysize))
+		// xy contains the x and y (low and high) evacuation destinations.
+		var xy [2]evacDst
+		x := &xy[0]
+		x.b = (*bmap)(add(h.buckets, oldbucket*uintptr(t.bucketsize)))
+		x.k = add(unsafe.Pointer(x.b), dataOffset)
+		x.v = add(x.k, bucketCnt*uintptr(t.keysize))
+
 		if !h.sameSizeGrow() {
 			// Only calculate y pointers if we're growing bigger.
 			// Otherwise GC can see bad pointers.
-			y = (*bmap)(add(h.buckets, (oldbucket+newbit)*uintptr(t.bucketsize)))
-			yi = 0
-			yk = add(unsafe.Pointer(y), dataOffset)
-			yv = add(yk, bucketCnt*uintptr(t.keysize))
+			y := &xy[1]
+			y.b = (*bmap)(add(h.buckets, (oldbucket+newbit)*uintptr(t.bucketsize)))
+			y.k = add(unsafe.Pointer(y.b), dataOffset)
+			y.v = add(y.k, bucketCnt*uintptr(t.keysize))
 		}
+
 		for ; b != nil; b = b.overflow(t) {
 			k := add(unsafe.Pointer(b), dataOffset)
 			v := add(k, bucketCnt*uintptr(t.keysize))
@@ -1083,122 +1042,102 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 				if t.indirectkey {
 					k2 = *((*unsafe.Pointer)(k2))
 				}
-				useX := true
+				var useY uint8
 				if !h.sameSizeGrow() {
 					// Compute hash to make our evacuation decision (whether we need
 					// to send this key/value to bucket x or bucket y).
-					hash := alg.hash(k2, uintptr(h.hash0))
-					if h.flags&iterator != 0 {
-						if !t.reflexivekey && !alg.equal(k2, k2) {
-							// If key != key (NaNs), then the hash could be (and probably
-							// will be) entirely different from the old hash. Moreover,
-							// it isn't reproducible. Reproducibility is required in the
-							// presence of iterators, as our evacuation decision must
-							// match whatever decision the iterator made.
-							// Fortunately, we have the freedom to send these keys either
-							// way. Also, tophash is meaningless for these kinds of keys.
-							// We let the low bit of tophash drive the evacuation decision.
-							// We recompute a new random tophash for the next level so
-							// these keys will get evenly distributed across all buckets
-							// after multiple grows.
-							if top&1 != 0 {
-								hash |= newbit
-							} else {
-								hash &^= newbit
-							}
-							top = uint8(hash >> (sys.PtrSize*8 - 8))
-							if top < minTopHash {
-								top += minTopHash
-							}
+					hash := t.key.alg.hash(k2, uintptr(h.hash0))
+					if h.flags&iterator != 0 && !t.reflexivekey && !t.key.alg.equal(k2, k2) {
+						// If key != key (NaNs), then the hash could be (and probably
+						// will be) entirely different from the old hash. Moreover,
+						// it isn't reproducible. Reproducibility is required in the
+						// presence of iterators, as our evacuation decision must
+						// match whatever decision the iterator made.
+						// Fortunately, we have the freedom to send these keys either
+						// way. Also, tophash is meaningless for these kinds of keys.
+						// We let the low bit of tophash drive the evacuation decision.
+						// We recompute a new random tophash for the next level so
+						// these keys will get evenly distributed across all buckets
+						// after multiple grows.
+						useY = top & 1
+						top = tophash(hash)
+					} else {
+						if hash&newbit != 0 {
+							useY = 1
 						}
 					}
-					useX = hash&newbit == 0
 				}
-				if useX {
-					b.tophash[i] = evacuatedX
-					if xi == bucketCnt {
-						newx := h.newoverflow(t, x)
-						x = newx
-						xi = 0
-						xk = add(unsafe.Pointer(x), dataOffset)
-						xv = add(xk, bucketCnt*uintptr(t.keysize))
-					}
-					x.tophash[xi] = top
-					if t.indirectkey {
-						*(*unsafe.Pointer)(xk) = k2 // copy pointer
-					} else {
-						typedmemmove(t.key, xk, k) // copy value
-					}
-					if t.indirectvalue {
-						*(*unsafe.Pointer)(xv) = *(*unsafe.Pointer)(v)
-					} else {
-						typedmemmove(t.elem, xv, v)
-					}
-					xi++
-					xk = add(xk, uintptr(t.keysize))
-					xv = add(xv, uintptr(t.valuesize))
+
+				if evacuatedX+1 != evacuatedY {
+					throw("bad evacuatedN")
+				}
+
+				b.tophash[i] = evacuatedX + useY // evacuatedX + 1 == evacuatedY
+				dst := &xy[useY]                 // evacuation destination
+
+				if dst.i == bucketCnt {
+					dst.b = h.newoverflow(t, dst.b)
+					dst.i = 0
+					dst.k = add(unsafe.Pointer(dst.b), dataOffset)
+					dst.v = add(dst.k, bucketCnt*uintptr(t.keysize))
+				}
+				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
+				if t.indirectkey {
+					*(*unsafe.Pointer)(dst.k) = k2 // copy pointer
 				} else {
-					b.tophash[i] = evacuatedY
-					if yi == bucketCnt {
-						newy := h.newoverflow(t, y)
-						y = newy
-						yi = 0
-						yk = add(unsafe.Pointer(y), dataOffset)
-						yv = add(yk, bucketCnt*uintptr(t.keysize))
-					}
-					y.tophash[yi] = top
-					if t.indirectkey {
-						*(*unsafe.Pointer)(yk) = k2
-					} else {
-						typedmemmove(t.key, yk, k)
-					}
-					if t.indirectvalue {
-						*(*unsafe.Pointer)(yv) = *(*unsafe.Pointer)(v)
-					} else {
-						typedmemmove(t.elem, yv, v)
-					}
-					yi++
-					yk = add(yk, uintptr(t.keysize))
-					yv = add(yv, uintptr(t.valuesize))
+					typedmemmove(t.key, dst.k, k) // copy value
 				}
+				if t.indirectvalue {
+					*(*unsafe.Pointer)(dst.v) = *(*unsafe.Pointer)(v)
+				} else {
+					typedmemmove(t.elem, dst.v, v)
+				}
+				dst.i++
+				// These updates might push these pointers past the end of the
+				// key or value arrays.  That's ok, as we have the overflow pointer
+				// at the end of the bucket to protect against pointing past the
+				// end of the bucket.
+				dst.k = add(dst.k, uintptr(t.keysize))
+				dst.v = add(dst.v, uintptr(t.valuesize))
 			}
 		}
 		// Unlink the overflow buckets & clear key/value to help GC.
-		if h.flags&oldIterator == 0 {
-			b = (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
+		if h.flags&oldIterator == 0 && t.bucket.kind&kindNoPointers == 0 {
+			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
 			// Preserve b.tophash because the evacuation
 			// state is maintained there.
-			if t.bucket.kind&kindNoPointers == 0 {
-				memclrHasPointers(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
-			} else {
-				memclrNoHeapPointers(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
-			}
+			ptr := add(b, dataOffset)
+			n := uintptr(t.bucketsize) - dataOffset
+			memclrHasPointers(ptr, n)
 		}
 	}
 
-	// Advance evacuation mark
 	if oldbucket == h.nevacuate {
-		h.nevacuate = oldbucket + 1
-		// Experiments suggest that 1024 is overkill by at least an order of magnitude.
-		// Put it in there as a safeguard anyway, to ensure O(1) behavior.
-		stop := h.nevacuate + 1024
-		if stop > newbit {
-			stop = newbit
+		advanceEvacuationMark(h, t, newbit)
+	}
+}
+
+func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
+	h.nevacuate++
+	// Experiments suggest that 1024 is overkill by at least an order of magnitude.
+	// Put it in there as a safeguard anyway, to ensure O(1) behavior.
+	stop := h.nevacuate + 1024
+	if stop > newbit {
+		stop = newbit
+	}
+	for h.nevacuate != stop && bucketEvacuated(t, h, h.nevacuate) {
+		h.nevacuate++
+	}
+	if h.nevacuate == newbit { // newbit == # of oldbuckets
+		// Growing is all done. Free old main bucket array.
+		h.oldbuckets = nil
+		// Can discard old overflow buckets as well.
+		// If they are still referenced by an iterator,
+		// then the iterator holds a pointers to the slice.
+		if h.extra != nil {
+			h.extra.oldoverflow = nil
 		}
-		for h.nevacuate != stop && bucketEvacuated(t, h, h.nevacuate) {
-			h.nevacuate++
-		}
-		if h.nevacuate == newbit { // newbit == # of oldbuckets
-			// Growing is all done. Free old main bucket array.
-			h.oldbuckets = nil
-			// Can discard old overflow buckets as well.
-			// If they are still referenced by an iterator,
-			// then the iterator holds a pointers to the slice.
-			if h.extra != nil {
-				h.extra.overflow[1] = nil
-			}
-			h.flags &^= sameSizeGrow
-		}
+		h.flags &^= sameSizeGrow
 	}
 }
 
@@ -1210,7 +1149,45 @@ func ismapkey(t *_type) bool {
 
 //go:linkname reflect_makemap reflect.makemap
 func reflect_makemap(t *maptype, cap int) *hmap {
-	return makemap(t, int64(cap), nil, nil)
+	// Check invariants and reflects math.
+	if sz := unsafe.Sizeof(hmap{}); sz != t.hmap.size {
+		println("runtime: sizeof(hmap) =", sz, ", t.hmap.size =", t.hmap.size)
+		throw("bad hmap size")
+	}
+	if !ismapkey(t.key) {
+		throw("runtime.reflect_makemap: unsupported map key type")
+	}
+	if t.key.size > maxKeySize && (!t.indirectkey || t.keysize != uint8(sys.PtrSize)) ||
+		t.key.size <= maxKeySize && (t.indirectkey || t.keysize != uint8(t.key.size)) {
+		throw("key size wrong")
+	}
+	if t.elem.size > maxValueSize && (!t.indirectvalue || t.valuesize != uint8(sys.PtrSize)) ||
+		t.elem.size <= maxValueSize && (t.indirectvalue || t.valuesize != uint8(t.elem.size)) {
+		throw("value size wrong")
+	}
+	if t.key.align > bucketCnt {
+		throw("key align too big")
+	}
+	if t.elem.align > bucketCnt {
+		throw("value align too big")
+	}
+	if t.key.size%uintptr(t.key.align) != 0 {
+		throw("key size not a multiple of key align")
+	}
+	if t.elem.size%uintptr(t.elem.align) != 0 {
+		throw("value size not a multiple of value align")
+	}
+	if bucketCnt < 8 {
+		throw("bucketsize too small for proper alignment")
+	}
+	if dataOffset%uintptr(t.key.align) != 0 {
+		throw("need padding in bucket (key)")
+	}
+	if dataOffset%uintptr(t.elem.align) != 0 {
+		throw("need padding in bucket (value)")
+	}
+
+	return makemap(t, cap, nil)
 }
 
 //go:linkname reflect_mapaccess reflect.mapaccess
@@ -1257,7 +1234,7 @@ func reflect_maplen(h *hmap) int {
 		return 0
 	}
 	if raceenabled {
-		callerpc := getcallerpc(unsafe.Pointer(&h))
+		callerpc := getcallerpc()
 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(reflect_maplen))
 	}
 	return h.count

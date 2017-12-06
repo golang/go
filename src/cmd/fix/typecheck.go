@@ -498,6 +498,50 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 			// T{...} has type T.
 			typeof[n] = gofmt(n.Type)
 
+			// Propagate types down to values used in the composite literal.
+			t := expand(typeof[n])
+			if strings.HasPrefix(t, "[") { // array or slice
+				// Lazy: assume there are no nested [] in the array length.
+				if i := strings.Index(t, "]"); i >= 0 {
+					et := t[i+1:]
+					for _, e := range n.Elts {
+						if kv, ok := e.(*ast.KeyValueExpr); ok {
+							e = kv.Value
+						}
+						if typeof[e] == "" {
+							typeof[e] = et
+						}
+					}
+				}
+			}
+			if strings.HasPrefix(t, "map[") { // map
+				// Lazy: assume there are no nested [] in the map key type.
+				if i := strings.Index(t, "]"); i >= 0 {
+					kt, vt := t[4:i], t[i+1:]
+					for _, e := range n.Elts {
+						if kv, ok := e.(*ast.KeyValueExpr); ok {
+							if typeof[kv.Key] == "" {
+								typeof[kv.Key] = kt
+							}
+							if typeof[kv.Value] == "" {
+								typeof[kv.Value] = vt
+							}
+						}
+					}
+				}
+			}
+			if typ := cfg.Type[t]; typ != nil && len(typ.Field) > 0 { // struct
+				for _, e := range n.Elts {
+					if kv, ok := e.(*ast.KeyValueExpr); ok {
+						if ft := typ.Field[fmt.Sprintf("%s", kv.Key)]; ft != "" {
+							if typeof[kv.Value] == "" {
+								typeof[kv.Value] = ft
+							}
+						}
+					}
+				}
+			}
+
 		case *ast.ParenExpr:
 			// (x) has type of x.
 			typeof[n] = typeof[n.X]
@@ -577,6 +621,18 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 				t := split(typeof[f.Results])
 				for i := 0; i < len(res) && i < len(t); i++ {
 					set(res[i], t[i], false)
+				}
+			}
+
+		case *ast.BinaryExpr:
+			// Propagate types across binary ops that require two args of the same type.
+			switch n.Op {
+			case token.EQL, token.NEQ: // TODO: more cases. This is enough for the cftype fix.
+				if typeof[n.X] != "" && typeof[n.Y] == "" {
+					typeof[n.Y] = typeof[n.X]
+				}
+				if typeof[n.X] == "" && typeof[n.Y] != "" {
+					typeof[n.X] = typeof[n.Y]
 				}
 			}
 		}

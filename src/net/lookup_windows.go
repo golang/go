@@ -279,10 +279,11 @@ func (*Resolver) lookupTXT(ctx context.Context, name string) ([]string, error) {
 	txts := make([]string, 0, 10)
 	for _, p := range validRecs(r, syscall.DNS_TYPE_TEXT, name) {
 		d := (*syscall.DNSTXTData)(unsafe.Pointer(&p.Data[0]))
+		s := ""
 		for _, v := range (*[1 << 10]*uint16)(unsafe.Pointer(&(d.StringArray[0])))[:d.StringCount] {
-			s := syscall.UTF16ToString((*[1 << 20]uint16)(unsafe.Pointer(v))[:])
-			txts = append(txts, s)
+			s += syscall.UTF16ToString((*[1 << 20]uint16)(unsafe.Pointer(v))[:])
 		}
+		txts = append(txts, s)
 	}
 	return txts, nil
 }

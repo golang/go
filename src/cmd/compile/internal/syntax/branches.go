@@ -131,7 +131,7 @@ type targets struct {
 // blockBranches processes a block's body starting at start and returns the
 // list of unresolved (forward) gotos. parent is the immediately enclosing
 // block (or nil), ctxt provides information about the enclosing statements,
-// and lstmt is the labeled statement asociated with this block, or nil.
+// and lstmt is the labeled statement associated with this block, or nil.
 func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledStmt, start src.Pos, body []Stmt) []*BranchStmt {
 	b := &block{parent: parent, start: start, lstmt: lstmt}
 

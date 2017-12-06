@@ -6,6 +6,7 @@ package ld
 
 import (
 	"cmd/internal/objabi"
+	"cmd/link/internal/sym"
 	"sort"
 )
 
@@ -13,7 +14,7 @@ type byTypeStr []typelinkSortKey
 
 type typelinkSortKey struct {
 	TypeStr string
-	Type    *Symbol
+	Type    *sym.Symbol
 }
 
 func (s byTypeStr) Less(i, j int) bool { return s[i].TypeStr < s[j].TypeStr }
@@ -27,17 +28,17 @@ func (ctxt *Link) typelink() {
 	typelinks := byTypeStr{}
 	for _, s := range ctxt.Syms.Allsym {
 		if s.Attr.Reachable() && s.Attr.MakeTypelink() {
-			typelinks = append(typelinks, typelinkSortKey{decodetypeStr(s), s})
+			typelinks = append(typelinks, typelinkSortKey{decodetypeStr(ctxt.Arch, s), s})
 		}
 	}
 	sort.Sort(typelinks)
 
 	tl := ctxt.Syms.Lookup("runtime.typelink", 0)
-	tl.Type = STYPELINK
-	tl.Attr |= AttrReachable | AttrLocal
+	tl.Type = sym.STYPELINK
+	tl.Attr |= sym.AttrReachable | sym.AttrLocal
 	tl.Size = int64(4 * len(typelinks))
 	tl.P = make([]byte, tl.Size)
-	tl.R = make([]Reloc, len(typelinks))
+	tl.R = make([]sym.Reloc, len(typelinks))
 	for i, s := range typelinks {
 		r := &tl.R[i]
 		r.Sym = s.Type

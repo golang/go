@@ -479,15 +479,15 @@ func TestAllScalars(t *testing.T) {
 }
 
 type item struct {
-	Field_a string
+	FieldA string
 }
 
 func TestIssue569(t *testing.T) {
-	data := `<item><Field_a>abcd</Field_a></item>`
+	data := `<item><FieldA>abcd</FieldA></item>`
 	var i item
 	err := Unmarshal([]byte(data), &i)
 
-	if err != nil || i.Field_a != "abcd" {
+	if err != nil || i.FieldA != "abcd" {
 		t.Fatal("Expecting abcd")
 	}
 }
@@ -796,4 +796,91 @@ func TestIssue12417(t *testing.T) {
 			t.Errorf("%q: Encoding charset: expected error, got nil", tc.s)
 		}
 	}
+}
+
+func tokenMap(mapping func(t Token) Token) func(TokenReader) TokenReader {
+	return func(src TokenReader) TokenReader {
+		return mapper{
+			t: src,
+			f: mapping,
+		}
+	}
+}
+
+type mapper struct {
+	t TokenReader
+	f func(Token) Token
+}
+
+func (m mapper) Token() (Token, error) {
+	tok, err := m.t.Token()
+	if err != nil {
+		return nil, err
+	}
+	return m.f(tok), nil
+}
+
+func TestNewTokenDecoderIdempotent(t *testing.T) {
+	d := NewDecoder(strings.NewReader(`<br/>`))
+	d2 := NewTokenDecoder(d)
+	if d != d2 {
+		t.Error("NewTokenDecoder did not detect underlying Decoder")
+	}
+}
+
+func TestWrapDecoder(t *testing.T) {
+	d := NewDecoder(strings.NewReader(`<quote>[Re-enter Clown with a letter, and FABIAN]</quote>`))
+	m := tokenMap(func(t Token) Token {
+		switch tok := t.(type) {
+		case StartElement:
+			if tok.Name.Local == "quote" {
+				tok.Name.Local = "blocking"
+				return tok
+			}
+		case EndElement:
+			if tok.Name.Local == "quote" {
+				tok.Name.Local = "blocking"
+				return tok
+			}
+		}
+		return t
+	})
+
+	d = NewTokenDecoder(m(d))
+
+	o := struct {
+		XMLName  Name   `xml:"blocking"`
+		Chardata string `xml:",chardata"`
+	}{}
+
+	if err := d.Decode(&o); err != nil {
+		t.Fatal("Got unexpected error while decoding:", err)
+	}
+
+	if o.Chardata != "[Re-enter Clown with a letter, and FABIAN]" {
+		t.Fatalf("Got unexpected chardata: `%s`\n", o.Chardata)
+	}
+}
+
+type tokReader struct{}
+
+func (tokReader) Token() (Token, error) {
+	return StartElement{}, nil
+}
+
+type Failure struct{}
+
+func (Failure) UnmarshalXML(*Decoder, StartElement) error {
+	return nil
+}
+
+func TestTokenUnmarshaler(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error("Unexpected panic using custom token unmarshaler")
+		}
+	}()
+
+	d := NewTokenDecoder(tokReader{})
+	d.Decode(&Failure{})
 }

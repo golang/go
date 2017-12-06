@@ -568,6 +568,28 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// test we can roundtrip magnet url
+	// fix issue https://golang.org/issue/20054
+	{
+		"magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a&dn",
+		&URL{
+			Scheme:   "magnet",
+			Host:     "",
+			Path:     "",
+			RawQuery: "xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a&dn",
+		},
+		"magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a&dn",
+	},
+	{
+		"mailto:?subject=hi",
+		&URL{
+			Scheme:   "mailto",
+			Host:     "",
+			Path:     "",
+			RawQuery: "subject=hi",
+		},
+		"mailto:?subject=hi",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -1009,6 +1031,10 @@ var resolveReferenceTests = []struct {
 	{"http://foo.com/bar?a=b#f", "/baz", "http://foo.com/baz"},
 	{"http://foo.com/bar?a=b", "/baz?", "http://foo.com/baz?"},
 	{"http://foo.com/bar?a=b", "/baz?c=d", "http://foo.com/baz?c=d"},
+
+	// Multiple slashes
+	{"http://foo.com/bar", "http://foo.com//baz", "http://foo.com//baz"},
+	{"http://foo.com/bar", "http://foo.com///baz/quux", "http://foo.com///baz/quux"},
 
 	// Scheme-relative
 	{"https://foo.com/bar?a=b", "//bar.com/quux", "https://bar.com/quux"},
@@ -1681,5 +1707,31 @@ func TestGob(t *testing.T) {
 	}
 	if u1.String() != u.String() {
 		t.Errorf("json decoded to: %s\nwant: %s\n", u1, u)
+	}
+}
+
+func TestNilUser(t *testing.T) {
+	defer func() {
+		if v := recover(); v != nil {
+			t.Fatalf("unexpected panic: %v", v)
+		}
+	}()
+
+	u, err := Parse("http://foo.com/")
+
+	if err != nil {
+		t.Fatalf("parse err: %v", err)
+	}
+
+	if v := u.User.Username(); v != "" {
+		t.Fatalf("expected empty username, got %s", v)
+	}
+
+	if v, ok := u.User.Password(); v != "" || ok {
+		t.Fatalf("expected empty password, got %s (%v)", v, ok)
+	}
+
+	if v := u.User.String(); v != "" {
+		t.Fatalf("expected empty string, got %s", v)
 	}
 }

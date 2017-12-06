@@ -24,14 +24,21 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/google/pprof/internal/elfexec"
 	"github.com/google/pprof/internal/plugin"
 )
 
 // A Binutils implements plugin.ObjTool by invoking the GNU binutils.
-// SetConfig must be called before any of the other methods.
 type Binutils struct {
+	mu  sync.Mutex
+	rep *binrep
+}
+
+// binrep is an immutable representation for Binutils.  It is atomically
+// replaced on every mutation to provide thread-safe access.
+type binrep struct {
 	// Commands to invoke.
 	llvmSymbolizer      string
 	llvmSymbolizerFound bool
@@ -47,11 +54,38 @@ type Binutils struct {
 	fast bool
 }
 
+// get returns the current representation for bu, initializing it if necessary.
+func (bu *Binutils) get() *binrep {
+	bu.mu.Lock()
+	r := bu.rep
+	if r == nil {
+		r = &binrep{}
+		initTools(r, "")
+		bu.rep = r
+	}
+	bu.mu.Unlock()
+	return r
+}
+
+// update modifies the rep for bu via the supplied function.
+func (bu *Binutils) update(fn func(r *binrep)) {
+	r := &binrep{}
+	bu.mu.Lock()
+	defer bu.mu.Unlock()
+	if bu.rep == nil {
+		initTools(r, "")
+	} else {
+		*r = *bu.rep
+	}
+	fn(r)
+	bu.rep = r
+}
+
 // SetFastSymbolization sets a toggle that makes binutils use fast
 // symbolization (using nm), which is much faster than addr2line but
 // provides only symbol name information (no file/line).
-func (b *Binutils) SetFastSymbolization(fast bool) {
-	b.fast = fast
+func (bu *Binutils) SetFastSymbolization(fast bool) {
+	bu.update(func(r *binrep) { r.fast = fast })
 }
 
 // SetTools processes the contents of the tools option. It
@@ -59,7 +93,11 @@ func (b *Binutils) SetFastSymbolization(fast bool) {
 // of the form t:path, where cmd will be used to look only for the
 // tool named t. If t is not specified, the path is searched for all
 // tools.
-func (b *Binutils) SetTools(config string) {
+func (bu *Binutils) SetTools(config string) {
+	bu.update(func(r *binrep) { initTools(r, config) })
+}
+
+func initTools(b *binrep, config string) {
 	// paths collect paths per tool; Key "" contains the default.
 	paths := make(map[string][]string)
 	for _, t := range strings.Split(config, ",") {
@@ -91,11 +129,8 @@ func findExe(cmd string, paths []string) (string, bool) {
 
 // Disasm returns the assembly instructions for the specified address range
 // of a binary.
-func (b *Binutils) Disasm(file string, start, end uint64) ([]plugin.Inst, error) {
-	if b.addr2line == "" {
-		// Update the command invocations if not initialized.
-		b.SetTools("")
-	}
+func (bu *Binutils) Disasm(file string, start, end uint64) ([]plugin.Inst, error) {
+	b := bu.get()
 	cmd := exec.Command(b.objdump, "-d", "-C", "--no-show-raw-insn", "-l",
 		fmt.Sprintf("--start-address=%#x", start),
 		fmt.Sprintf("--stop-address=%#x", end),
@@ -109,11 +144,8 @@ func (b *Binutils) Disasm(file string, start, end uint64) ([]plugin.Inst, error)
 }
 
 // Open satisfies the plugin.ObjTool interface.
-func (b *Binutils) Open(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
-	if b.addr2line == "" {
-		// Update the command invocations if not initialized.
-		b.SetTools("")
-	}
+func (bu *Binutils) Open(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
+	b := bu.get()
 
 	// Make sure file is a supported executable.
 	// The pprof driver uses Open to sniff the difference
@@ -140,7 +172,7 @@ func (b *Binutils) Open(name string, start, limit, offset uint64) (plugin.ObjFil
 	return nil, fmt.Errorf("unrecognized binary: %s", name)
 }
 
-func (b *Binutils) openMachO(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
+func (b *binrep) openMachO(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
 	of, err := macho.Open(name)
 	if err != nil {
 		return nil, fmt.Errorf("Parsing %s: %v", name, err)
@@ -153,7 +185,7 @@ func (b *Binutils) openMachO(name string, start, limit, offset uint64) (plugin.O
 	return &fileAddr2Line{file: file{b: b, name: name}}, nil
 }
 
-func (b *Binutils) openELF(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
+func (b *binrep) openELF(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
 	ef, err := elf.Open(name)
 	if err != nil {
 		return nil, fmt.Errorf("Parsing %s: %v", name, err)
@@ -202,7 +234,7 @@ func (b *Binutils) openELF(name string, start, limit, offset uint64) (plugin.Obj
 
 // file implements the binutils.ObjFile interface.
 type file struct {
-	b       *Binutils
+	b       *binrep
 	name    string
 	base    uint64
 	buildID string
@@ -263,22 +295,27 @@ func (f *fileNM) SourceLine(addr uint64) ([]plugin.Frame, error) {
 // information). It can be slow for large binaries with debug
 // information.
 type fileAddr2Line struct {
+	once sync.Once
 	file
 	addr2liner     *addr2Liner
 	llvmSymbolizer *llvmSymbolizer
 }
 
 func (f *fileAddr2Line) SourceLine(addr uint64) ([]plugin.Frame, error) {
+	f.once.Do(f.init)
 	if f.llvmSymbolizer != nil {
 		return f.llvmSymbolizer.addrInfo(addr)
 	}
 	if f.addr2liner != nil {
 		return f.addr2liner.addrInfo(addr)
 	}
+	return nil, fmt.Errorf("could not find local addr2liner")
+}
 
+func (f *fileAddr2Line) init() {
 	if llvmSymbolizer, err := newLLVMSymbolizer(f.b.llvmSymbolizer, f.name, f.base); err == nil {
 		f.llvmSymbolizer = llvmSymbolizer
-		return f.llvmSymbolizer.addrInfo(addr)
+		return
 	}
 
 	if addr2liner, err := newAddr2Liner(f.b.addr2line, f.name, f.base); err == nil {
@@ -290,13 +327,14 @@ func (f *fileAddr2Line) SourceLine(addr uint64) ([]plugin.Frame, error) {
 		if nm, err := newAddr2LinerNM(f.b.nm, f.name, f.base); err == nil {
 			f.addr2liner.nm = nm
 		}
-		return f.addr2liner.addrInfo(addr)
 	}
-
-	return nil, fmt.Errorf("could not find local addr2liner")
 }
 
 func (f *fileAddr2Line) Close() error {
+	if f.llvmSymbolizer != nil {
+		f.llvmSymbolizer.rw.close()
+		f.llvmSymbolizer = nil
+	}
 	if f.addr2liner != nil {
 		f.addr2liner.rw.close()
 		f.addr2liner = nil

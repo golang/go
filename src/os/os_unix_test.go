@@ -36,11 +36,6 @@ func checkUidGid(t *testing.T, path string, uid, gid int) {
 }
 
 func TestChown(t *testing.T) {
-	// Chown is not supported under windows or Plan 9.
-	// Plan9 provides a native ChownPlan9 version instead.
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		t.Skipf("%s does not support syscall.Chown", runtime.GOOS)
-	}
 	// Use TempDir() to make sure we're on a local file system,
 	// so that the group ids returned by Getgroups will be allowed
 	// on the file. On NFS, the Getgroups groups are
@@ -84,10 +79,6 @@ func TestChown(t *testing.T) {
 }
 
 func TestFileChown(t *testing.T) {
-	// Fchown is not supported under windows or Plan 9.
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		t.Skipf("%s does not support syscall.Fchown", runtime.GOOS)
-	}
 	// Use TempDir() to make sure we're on a local file system,
 	// so that the group ids returned by Getgroups will be allowed
 	// on the file. On NFS, the Getgroups groups are
@@ -131,10 +122,6 @@ func TestFileChown(t *testing.T) {
 }
 
 func TestLchown(t *testing.T) {
-	// Lchown is not supported under windows or Plan 9.
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		t.Skipf("%s does not support syscall.Lchown", runtime.GOOS)
-	}
 	// Use TempDir() to make sure we're on a local file system,
 	// so that the group ids returned by Getgroups will be allowed
 	// on the file. On NFS, the Getgroups groups are

@@ -166,6 +166,14 @@ const (
 	REG_RSP = REG_V31 + 32 // to differentiate ZR/SP, REG_RSP&0x1f = 31
 )
 
+// bits 0-4 indicates register: Vn
+// bits 5-8 indicates arrangement: <T>
+const (
+	REG_ARNG = obj.RBaseARM64 + 1<<10 + iota<<9 // Vn.<T>
+	REG_ELEM                                    // Vn.<T>[index]
+	REG_ELEM_END
+)
+
 // Not registers, but flags that can be combined with regular register
 // constants to indicate extended register conversion. When checking,
 // you should subtract obj.RBaseARM64 first. From this difference, bit 11
@@ -264,9 +272,12 @@ const (
 	C_VREG   // V0..V31
 	C_PAIR   // (Rn, Rm)
 	C_SHIFT  // Rn<<2
-	C_EXTREG // Rn.UXTB<<3
+	C_EXTREG // Rn.UXTB[<<3]
 	C_SPR    // REG_NZCV
 	C_COND   // EQ, NE, etc
+	C_ARNG   // Vn.<T>
+	C_ELEM   // Vn.<T>[index]
+	C_LIST   // [V1, V2, V3]
 
 	C_ZCON     // $0 or ZR
 	C_ABCON0   // could be C_ADDCON0 or C_BITCON
@@ -291,6 +302,7 @@ const (
 
 	C_NPAUTO     // -512 <= x < 0, 0 mod 8
 	C_NSAUTO     // -256 <= x < 0
+	C_PSAUTO_8   // 0 to 255, 0 mod 8
 	C_PSAUTO     // 0 to 255
 	C_PPAUTO     // 0 to 504, 0 mod 8
 	C_UAUTO4K_8  // 0 to 4095, 0 mod 8
@@ -315,6 +327,7 @@ const (
 	C_ZOREG  // 0(R)
 	C_NPOREG // must mirror NPAUTO, etc
 	C_NSOREG
+	C_PSOREG_8
 	C_PSOREG
 	C_PPOREG
 	C_UOREG4K_8
@@ -718,6 +731,22 @@ const (
 	ASHA256H2
 	ASHA256SU0
 	ASHA256SU1
+	AVADD
+	AVADDP
+	AVAND
+	AVCMEQ
+	AVEOR
+	AVMOV
+	AVLD1
+	AVORR
+	AVREV32
+	AVST1
+	AVDUP
+	AVMOVS
+	AVADDV
+	AVMOVI
+	AVUADDLV
+	AVSUB
 	ALAST
 	AB  = obj.AJMP
 	ABL = obj.ACALL
@@ -728,4 +757,21 @@ const (
 	SHIFT_LL = 0 << 22
 	SHIFT_LR = 1 << 22
 	SHIFT_AR = 2 << 22
+)
+
+// Arrangement for ARM64 SIMD instructions
+const (
+	// arrangement types
+	ARNG_8B = iota
+	ARNG_16B
+	ARNG_1D
+	ARNG_4H
+	ARNG_8H
+	ARNG_2S
+	ARNG_4S
+	ARNG_2D
+	ARNG_B
+	ARNG_H
+	ARNG_S
+	ARNG_D
 )

@@ -6,9 +6,11 @@ package tls
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rsa"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
@@ -996,6 +998,87 @@ func TestFallbackSCSV(t *testing.T) {
 	runServerTestTLS11(t, test)
 }
 
+func benchmarkHandshakeServer(b *testing.B, cipherSuite uint16, curve CurveID, cert []byte, key crypto.PrivateKey) {
+	config := testConfig.Clone()
+	config.CipherSuites = []uint16{cipherSuite}
+	config.CurvePreferences = []CurveID{curve}
+	config.Certificates = make([]Certificate, 1)
+	config.Certificates[0].Certificate = [][]byte{cert}
+	config.Certificates[0].PrivateKey = key
+	config.BuildNameToCertificate()
+
+	clientConn, serverConn := net.Pipe()
+	serverConn = &recordingConn{Conn: serverConn}
+	go func() {
+		client := Client(clientConn, testConfig)
+		client.Handshake()
+	}()
+	server := Server(serverConn, config)
+	if err := server.Handshake(); err != nil {
+		b.Fatalf("handshake failed: %v", err)
+	}
+	serverConn.Close()
+	flows := serverConn.(*recordingConn).flows
+
+	feeder := make(chan struct{})
+	clientConn, serverConn = net.Pipe()
+
+	go func() {
+		for range feeder {
+			for i, f := range flows {
+				if i%2 == 0 {
+					clientConn.Write(f)
+					continue
+				}
+				ff := make([]byte, len(f))
+				n, err := io.ReadFull(clientConn, ff)
+				if err != nil {
+					b.Fatalf("#%d: %s\nRead %d, wanted %d, got %x, wanted %x\n", i+1, err, n, len(ff), ff[:n], f)
+				}
+				if !bytes.Equal(f, ff) {
+					b.Fatalf("#%d: mismatch on read: got:%x want:%x", i+1, ff, f)
+				}
+			}
+		}
+	}()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		feeder <- struct{}{}
+		server := Server(serverConn, config)
+		if err := server.Handshake(); err != nil {
+			b.Fatalf("handshake failed: %v", err)
+		}
+	}
+	close(feeder)
+}
+
+func BenchmarkHandshakeServer(b *testing.B) {
+	b.Run("RSA", func(b *testing.B) {
+		benchmarkHandshakeServer(b, TLS_RSA_WITH_AES_128_GCM_SHA256,
+			0, testRSACertificate, testRSAPrivateKey)
+	})
+	b.Run("ECDHE-P256-RSA", func(b *testing.B) {
+		benchmarkHandshakeServer(b, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+			CurveP256, testRSACertificate, testRSAPrivateKey)
+	})
+	b.Run("ECDHE-P256-ECDSA-P256", func(b *testing.B) {
+		benchmarkHandshakeServer(b, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+			CurveP256, testP256Certificate, testP256PrivateKey)
+	})
+	b.Run("ECDHE-X25519-ECDSA-P256", func(b *testing.B) {
+		benchmarkHandshakeServer(b, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+			X25519, testP256Certificate, testP256PrivateKey)
+	})
+	b.Run("ECDHE-P521-ECDSA-P521", func(b *testing.B) {
+		if testECDSAPrivateKey.PublicKey.Curve != elliptic.P521() {
+			b.Fatal("test ECDSA key doesn't use curve P-521")
+		}
+		benchmarkHandshakeServer(b, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+			CurveP521, testECDSACertificate, testECDSAPrivateKey)
+	})
+}
+
 // clientCertificatePEM and clientKeyPEM were generated with generate_cert.go
 // Thus, they have no ExtKeyUsage fields and trigger an error when verification
 // is turned on.
@@ -1296,6 +1379,8 @@ var testECDSACertificate = fromHex("3082020030820162020900b8bf2d47a0d2ebf4300906
 
 var testSNICertificate = fromHex("0441883421114c81480804c430820237308201a0a003020102020900e8f09d3fe25beaa6300d06092a864886f70d01010b0500301f310b3009060355040a1302476f3110300e06035504031307476f20526f6f74301e170d3136303130313030303030305a170d3235303130313030303030305a3023310b3009060355040a1302476f311430120603550403130b736e69746573742e636f6d30819f300d06092a864886f70d010101050003818d0030818902818100db467d932e12270648bc062821ab7ec4b6a25dfe1e5245887a3647a5080d92425bc281c0be97799840fb4f6d14fd2b138bc2a52e67d8d4099ed62238b74a0b74732bc234f1d193e596d9747bf3589f6c613cc0b041d4d92b2b2423775b1c3bbd755dce2054cfa163871d1e24c4f31d1a508baab61443ed97a77562f414c852d70203010001a3773075300e0603551d0f0101ff0404030205a0301d0603551d250416301406082b0601050507030106082b06010505070302300c0603551d130101ff0402300030190603551d0e041204109f91161f43433e49a6de6db680d79f60301b0603551d230414301280104813494d137e1631bba301d5acab6e7b300d06092a864886f70d01010b0500038181007beeecff0230dbb2e7a334af65430b7116e09f327c3bbf918107fc9c66cb497493207ae9b4dbb045cb63d605ec1b5dd485bb69124d68fa298dc776699b47632fd6d73cab57042acb26f083c4087459bc5a3bb3ca4d878d7fe31016b7bc9a627438666566e3389bfaeebe6becc9a0093ceed18d0f9ac79d56f3a73f18188988ed")
 
+var testP256Certificate = fromHex("308201693082010ea00302010202105012dc24e1124ade4f3e153326ff27bf300a06082a8648ce3d04030230123110300e060355040a130741636d6520436f301e170d3137303533313232343934375a170d3138303533313232343934375a30123110300e060355040a130741636d6520436f3059301306072a8648ce3d020106082a8648ce3d03010703420004c02c61c9b16283bbcc14956d886d79b358aa614596975f78cece787146abf74c2d5dc578c0992b4f3c631373479ebf3892efe53d21c4f4f1cc9a11c3536b7f75a3463044300e0603551d0f0101ff0404030205a030130603551d25040c300a06082b06010505070301300c0603551d130101ff04023000300f0603551d1104083006820474657374300a06082a8648ce3d0403020349003046022100963712d6226c7b2bef41512d47e1434131aaca3ba585d666c924df71ac0448b3022100f4d05c725064741aef125f243cdbccaa2a5d485927831f221c43023bd5ae471a")
+
 var testRSAPrivateKey = &rsa.PrivateKey{
 	PublicKey: rsa.PublicKey{
 		N: bigFromString("153980389784927331788354528594524332344709972855165340650588877572729725338415474372475094155672066328274535240275856844648695200875763869073572078279316458648124537905600131008790701752441155668003033945258023841165089852359980273279085783159654751552359397986180318708491098942831252291841441726305535546071"),
@@ -1316,3 +1401,5 @@ var testECDSAPrivateKey = &ecdsa.PrivateKey{
 	},
 	D: bigFromString("5477294338614160138026852784385529180817726002953041720191098180813046231640184669647735805135001309477695746518160084669446643325196003346204701381388769751"),
 }
+
+var testP256PrivateKey, _ = x509.ParseECPrivateKey(fromHex("30770201010420012f3b52bc54c36ba3577ad45034e2e8efe1e6999851284cb848725cfe029991a00a06082a8648ce3d030107a14403420004c02c61c9b16283bbcc14956d886d79b358aa614596975f78cece787146abf74c2d5dc578c0992b4f3c631373479ebf3892efe53d21c4f4f1cc9a11c3536b7f75"))

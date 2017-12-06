@@ -12,16 +12,11 @@ import (
 	"io"
 )
 
-// TODO(gri) Should rename itoa to utoa (there's no sign). That
-// would permit the introduction of itoa which is like utoa but
-// reserves a byte for a possible sign that's passed in. That
-// would permit Int.Text to be implemented w/o the need for
-// string copy if the number is negative.
-
 // Text returns the string representation of x in the given base.
-// Base must be between 2 and 36, inclusive. The result uses the
-// lower-case letters 'a' to 'z' for digit values >= 10. No base
-// prefix (such as "0x") is added to the string.
+// Base must be between 2 and 62, inclusive. The result uses the
+// lower-case letters 'a' to 'z' for digit values 10 to 35, and
+// the upper-case letters 'A' to 'Z' for digit values 36 to 61.
+// No prefix (such as "0x") is added to the string.
 func (x *Int) Text(base int) string {
 	if x == nil {
 		return "<nil>"

@@ -93,6 +93,8 @@ func PtraceDetach(pid int) (err error) { return ptrace(PT_DETACH, pid, 0, 0) }
 
 const (
 	attrBitMapCount = 5
+	attrCmnModtime  = 0x00000400
+	attrCmnAcctime  = 0x00001000
 	attrCmnFullpath = 0x08000000
 )
 
@@ -186,6 +188,39 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 	return
 }
 
+func setattrlistTimes(path string, times []Timespec) error {
+	_p0, err := BytePtrFromString(path)
+	if err != nil {
+		return err
+	}
+
+	var attrList attrList
+	attrList.bitmapCount = attrBitMapCount
+	attrList.CommonAttr = attrCmnModtime | attrCmnAcctime
+
+	// order is mtime, atime: the opposite of Chtimes
+	attributes := [2]Timespec{times[1], times[0]}
+	const options = 0
+	_, _, e1 := Syscall6(
+		SYS_SETATTRLIST,
+		uintptr(unsafe.Pointer(_p0)),
+		uintptr(unsafe.Pointer(&attrList)),
+		uintptr(unsafe.Pointer(&attributes)),
+		uintptr(unsafe.Sizeof(attributes)),
+		uintptr(options),
+		0,
+	)
+	if e1 != 0 {
+		return e1
+	}
+	return nil
+}
+
+func utimensat(dirfd int, path string, times *[2]Timespec, flag int) error {
+	// Darwin doesn't support SYS_UTIMENSAT
+	return ENOSYS
+}
+
 /*
  * Wrapped
  */
@@ -208,7 +243,6 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Dup(fd int) (nfd int, err error)
 //sys	Dup2(from int, to int) (err error)
 //sys	Exchangedata(path1 string, path2 string, options int) (err error)
-//sys	Exit(code int)
 //sys	Fchdir(fd int) (err error)
 //sys	Fchflags(fd int, flags int) (err error)
 //sys	Fchmod(fd int, mode uint32) (err error)

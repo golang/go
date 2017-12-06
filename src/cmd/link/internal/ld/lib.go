@@ -36,8 +36,14 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loadelf"
+	"cmd/link/internal/loadmacho"
+	"cmd/link/internal/loadpe"
+	"cmd/link/internal/objfile"
+	"cmd/link/internal/sym"
 	"crypto/sha1"
 	"debug/elf"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -96,23 +102,17 @@ type Arch struct {
 	Openbsddynld     string
 	Dragonflydynld   string
 	Solarisdynld     string
-	Adddynrel        func(*Link, *Symbol, *Reloc) bool
+	Adddynrel        func(*Link, *sym.Symbol, *sym.Reloc) bool
 	Archinit         func(*Link)
-	Archreloc        func(*Link, *Reloc, *Symbol, *int64) int
-	Archrelocvariant func(*Link, *Reloc, *Symbol, int64) int64
-	Trampoline       func(*Link, *Reloc, *Symbol)
+	Archreloc        func(*Link, *sym.Reloc, *sym.Symbol, *int64) bool
+	Archrelocvariant func(*Link, *sym.Reloc, *sym.Symbol, int64) int64
+	Trampoline       func(*Link, *sym.Reloc, *sym.Symbol)
 	Asmb             func(*Link)
-	Elfreloc1        func(*Link, *Reloc, int64) int
+	Elfreloc1        func(*Link, *sym.Reloc, int64) bool
 	Elfsetupplt      func(*Link)
 	Gentext          func(*Link)
-	Machoreloc1      func(*Symbol, *Reloc, int64) int
-	PEreloc1         func(*Symbol, *Reloc, int64) bool
-	Wput             func(uint16)
-	Lput             func(uint32)
-	Vput             func(uint64)
-	Append16         func(b []byte, v uint16) []byte
-	Append32         func(b []byte, v uint32) []byte
-	Append64         func(b []byte, v uint64) []byte
+	Machoreloc1      func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
+	PEreloc1         func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
 
 	// TLSIEtoLE converts a TLS Initial Executable relocation to
 	// a TLS Local Executable relocation.
@@ -120,7 +120,7 @@ type Arch struct {
 	// This is possible when a TLS IE relocation refers to a local
 	// symbol in an executable, which is typical when internally
 	// linking PIE binaries.
-	TLSIEtoLE func(s *Symbol, off, size int)
+	TLSIEtoLE func(s *sym.Symbol, off, size int)
 }
 
 var (
@@ -131,36 +131,9 @@ var (
 	Symsize int32
 )
 
-// Terrible but standard terminology.
-// A segment describes a block of file to load into memory.
-// A section further describes the pieces of that block for
-// use in debuggers and such.
-
 const (
 	MINFUNC = 16 // minimum size for a function
 )
-
-type Segment struct {
-	Rwx      uint8  // permission as usual unix bits (5 = r-x etc)
-	Vaddr    uint64 // virtual address
-	Length   uint64 // length in memory
-	Fileoff  uint64 // file offset
-	Filelen  uint64 // length on disk
-	Sections []*Section
-}
-
-type Section struct {
-	Rwx     uint8
-	Extnum  int16
-	Align   int32
-	Name    string
-	Vaddr   uint64
-	Length  uint64
-	Seg     *Segment
-	Elfsect *ElfShdr
-	Reloff  uint64
-	Rellen  uint64
-}
 
 // DynlinkingGo returns whether we are producing Go code that can live
 // in separate shared libraries linked together at runtime.
@@ -168,24 +141,27 @@ func (ctxt *Link) DynlinkingGo() bool {
 	if !ctxt.Loaded {
 		panic("DynlinkingGo called before all symbols loaded")
 	}
-	canUsePlugins := ctxt.Syms.ROLookup("plugin.Open", 0) != nil
-	return Buildmode == BuildmodeShared || *FlagLinkshared || Buildmode == BuildmodePlugin || canUsePlugins
+	return ctxt.BuildMode == BuildModeShared || ctxt.linkShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins()
+}
+
+// CanUsePlugins returns whether a plugins can be used
+func (ctxt *Link) CanUsePlugins() bool {
+	return ctxt.Syms.ROLookup("plugin.Open", 0) != nil
 }
 
 // UseRelro returns whether to make use of "read only relocations" aka
 // relro.
-func UseRelro() bool {
-	switch Buildmode {
-	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared, BuildmodePIE, BuildmodePlugin:
-		return Iself
+func (ctxt *Link) UseRelro() bool {
+	switch ctxt.BuildMode {
+	case BuildModeCArchive, BuildModeCShared, BuildModeShared, BuildModePIE, BuildModePlugin:
+		return ctxt.IsELF
 	default:
-		return *FlagLinkshared
+		return ctxt.linkShared
 	}
 }
 
 var (
-	SysArch         *sys.Arch
-	dynexp          []*Symbol
+	dynexp          []*sym.Symbol
 	dynlib          []string
 	ldflag          []string
 	havedynamic     int
@@ -194,20 +170,19 @@ var (
 	elfglobalsymndx int
 	interpreter     string
 
-	debug_s  bool // backup old value of debug['s']
-	HEADR    int32
-	Headtype objabi.HeadType
+	debug_s bool // backup old value of debug['s']
+	HEADR   int32
 
 	nerrors  int
 	liveness int64
 )
 
 var (
-	Segtext      Segment
-	Segrodata    Segment
-	Segrelrodata Segment
-	Segdata      Segment
-	Segdwarf     Segment
+	Segtext      sym.Segment
+	Segrodata    sym.Segment
+	Segrelrodata sym.Segment
+	Segdata      sym.Segment
+	Segdwarf     sym.Segment
 )
 
 /* whence for ldpkg */
@@ -217,32 +192,7 @@ const (
 	Pkgdef
 )
 
-// TODO(dfc) outBuf duplicates bio.Writer
-type outBuf struct {
-	w   *bufio.Writer
-	f   *os.File
-	off int64
-}
-
-func (w *outBuf) Write(p []byte) (n int, err error) {
-	n, err = w.w.Write(p)
-	w.off += int64(n)
-	return n, err
-}
-
-func (w *outBuf) WriteString(s string) (n int, err error) {
-	n, err = coutbuf.w.WriteString(s)
-	w.off += int64(n)
-	return n, err
-}
-
-func (w *outBuf) Offset() int64 {
-	return w.off
-}
-
-var coutbuf outBuf
-
-const pkgname = "__.PKGDEF"
+const pkgdef = "__.PKGDEF"
 
 var (
 	// Set if we see an object compiled by the host compiler that is not
@@ -294,48 +244,34 @@ func libinit(ctxt *Link) {
 		Exitf("cannot create %s: %v", *flagOutfile, err)
 	}
 
-	coutbuf.w = bufio.NewWriter(f)
-	coutbuf.f = f
+	ctxt.Out.w = bufio.NewWriter(f)
+	ctxt.Out.f = f
 
 	if *flagEntrySymbol == "" {
-		switch Buildmode {
-		case BuildmodeCShared, BuildmodeCArchive:
+		switch ctxt.BuildMode {
+		case BuildModeCShared, BuildModeCArchive:
 			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s_lib", objabi.GOARCH, objabi.GOOS)
-		case BuildmodeExe, BuildmodePIE:
+		case BuildModeExe, BuildModePIE:
 			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s", objabi.GOARCH, objabi.GOOS)
-		case BuildmodeShared, BuildmodePlugin:
+		case BuildModeShared, BuildModePlugin:
 			// No *flagEntrySymbol for -buildmode=shared and plugin
 		default:
-			Errorf(nil, "unknown *flagEntrySymbol for buildmode %v", Buildmode)
+			Errorf(nil, "unknown *flagEntrySymbol for buildmode %v", ctxt.BuildMode)
 		}
 	}
 }
 
 func errorexit() {
-	if coutbuf.f != nil {
-		if nerrors != 0 {
-			Cflush()
-		}
-		// For rmtemp run at atexit time on Windows.
-		if err := coutbuf.f.Close(); err != nil {
-			Exitf("close: %v", err)
-		}
-	}
-
 	if nerrors != 0 {
-		if coutbuf.f != nil {
-			mayberemoveoutfile()
-		}
 		Exit(2)
 	}
-
 	Exit(0)
 }
 
-func loadinternal(ctxt *Link, name string) *Library {
-	if *FlagLinkshared && ctxt.PackageShlib != nil {
-		if shlibname := ctxt.PackageShlib[name]; shlibname != "" {
-			return addlibpath(ctxt, "internal", "internal", "", name, shlibname)
+func loadinternal(ctxt *Link, name string) *sym.Library {
+	if ctxt.linkShared && ctxt.PackageShlib != nil {
+		if shlib := ctxt.PackageShlib[name]; shlib != "" {
+			return addlibpath(ctxt, "internal", "internal", "", name, shlib)
 		}
 	}
 	if ctxt.PackageFile != nil {
@@ -347,7 +283,7 @@ func loadinternal(ctxt *Link, name string) *Library {
 	}
 
 	for i := 0; i < len(ctxt.Libdir); i++ {
-		if *FlagLinkshared {
+		if ctxt.linkShared {
 			shlibname := filepath.Join(ctxt.Libdir[i], name+".shlibname")
 			if ctxt.Debugvlog != 0 {
 				ctxt.Logf("searching for %s.a in %s\n", name, shlibname)
@@ -375,7 +311,7 @@ func (ctxt *Link) findLibPathCmd(cmd, libname string) string {
 	if *flagExtld == "" {
 		*flagExtld = "gcc"
 	}
-	args := hostlinkArchArgs()
+	args := hostlinkArchArgs(ctxt.Arch)
 	args = append(args, cmd)
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%s %v\n", *flagExtld, args)
@@ -397,19 +333,19 @@ func (ctxt *Link) findLibPath(libname string) string {
 }
 
 func (ctxt *Link) loadlib() {
-	switch Buildmode {
-	case BuildmodeCShared, BuildmodePlugin:
+	switch ctxt.BuildMode {
+	case BuildModeCShared, BuildModePlugin:
 		s := ctxt.Syms.Lookup("runtime.islibrary", 0)
-		s.Attr |= AttrDuplicateOK
-		Adduint8(ctxt, s, 1)
-	case BuildmodeCArchive:
+		s.Attr |= sym.AttrDuplicateOK
+		s.AddUint8(1)
+	case BuildModeCArchive:
 		s := ctxt.Syms.Lookup("runtime.isarchive", 0)
-		s.Attr |= AttrDuplicateOK
-		Adduint8(ctxt, s, 1)
+		s.Attr |= sym.AttrDuplicateOK
+		s.AddUint8(1)
 	}
 
 	loadinternal(ctxt, "runtime")
-	if SysArch.Family == sys.ARM {
+	if ctxt.Arch.Family == sys.ARM {
 		loadinternal(ctxt, "math")
 	}
 	if *flagRace {
@@ -419,73 +355,73 @@ func (ctxt *Link) loadlib() {
 		loadinternal(ctxt, "runtime/msan")
 	}
 
-	var i int
-	for i = 0; i < len(ctxt.Library); i++ {
-		iscgo = iscgo || ctxt.Library[i].Pkg == "runtime/cgo"
-		if ctxt.Library[i].Shlib == "" {
+	// ctxt.Library grows during the loop, so not a range loop.
+	for i := 0; i < len(ctxt.Library); i++ {
+		lib := ctxt.Library[i]
+		if lib.Shlib == "" {
 			if ctxt.Debugvlog > 1 {
-				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), ctxt.Library[i].File, ctxt.Library[i].Objref)
+				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), lib.File, lib.Objref)
 			}
-			objfile(ctxt, ctxt.Library[i])
+			loadobjfile(ctxt, lib)
 		}
 	}
 
-	for i = 0; i < len(ctxt.Library); i++ {
-		if ctxt.Library[i].Shlib != "" {
+	for _, lib := range ctxt.Library {
+		if lib.Shlib != "" {
 			if ctxt.Debugvlog > 1 {
-				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), ctxt.Library[i].Shlib, ctxt.Library[i].Objref)
+				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), lib.Shlib, lib.Objref)
 			}
-			ldshlibsyms(ctxt, ctxt.Library[i].Shlib)
+			ldshlibsyms(ctxt, lib.Shlib)
 		}
 	}
+
+	iscgo = ctxt.Syms.ROLookup("x_cgo_init", 0) != nil
 
 	// We now have enough information to determine the link mode.
 	determineLinkMode(ctxt)
 
-	// Recalculate pe parameters now that we have Linkmode set.
-	if Headtype == objabi.Hwindows {
+	// Recalculate pe parameters now that we have ctxt.LinkMode set.
+	if ctxt.HeadType == objabi.Hwindows {
 		Peinit(ctxt)
 	}
 
-	if Headtype == objabi.Hdarwin && Linkmode == LinkExternal {
+	if ctxt.HeadType == objabi.Hdarwin && ctxt.LinkMode == LinkExternal {
 		*FlagTextAddr = 0
 	}
 
-	if Linkmode == LinkExternal && SysArch.Family == sys.PPC64 {
+	if ctxt.LinkMode == LinkExternal && ctxt.Arch.Family == sys.PPC64 {
 		toc := ctxt.Syms.Lookup(".TOC.", 0)
-		toc.Type = SDYNIMPORT
+		toc.Type = sym.SDYNIMPORT
 	}
 
-	if Linkmode == LinkExternal && !iscgo {
+	if ctxt.LinkMode == LinkExternal && !iscgo && ctxt.LibraryByPkg["runtime/cgo"] == nil {
 		// This indicates a user requested -linkmode=external.
 		// The startup code uses an import of runtime/cgo to decide
 		// whether to initialize the TLS.  So give it one. This could
 		// be handled differently but it's an unusual case.
-		loadinternal(ctxt, "runtime/cgo")
-
-		if i < len(ctxt.Library) {
-			if ctxt.Library[i].Shlib != "" {
-				ldshlibsyms(ctxt, ctxt.Library[i].Shlib)
+		if lib := loadinternal(ctxt, "runtime/cgo"); lib != nil {
+			if lib.Shlib != "" {
+				ldshlibsyms(ctxt, lib.Shlib)
 			} else {
-				if Buildmode == BuildmodeShared || *FlagLinkshared {
+				if ctxt.BuildMode == BuildModeShared || ctxt.linkShared {
 					Exitf("cannot implicitly include runtime/cgo in a shared library")
 				}
-				objfile(ctxt, ctxt.Library[i])
+				loadobjfile(ctxt, lib)
 			}
 		}
 	}
 
-	if Linkmode == LinkInternal {
+	if ctxt.LinkMode == LinkInternal {
 		// Drop all the cgo_import_static declarations.
 		// Turns out we won't be needing them.
 		for _, s := range ctxt.Syms.Allsym {
-			if s.Type == SHOSTOBJ {
+			if s.Type == sym.SHOSTOBJ {
 				// If a symbol was marked both
 				// cgo_import_static and cgo_import_dynamic,
 				// then we want to make it cgo_import_dynamic
 				// now.
 				if s.Extname != "" && s.Dynimplib != "" && !s.Attr.CgoExport() {
-					s.Type = SDYNIMPORT
+					s.Type = sym.SDYNIMPORT
 				} else {
 					s.Type = 0
 				}
@@ -498,22 +434,22 @@ func (ctxt *Link) loadlib() {
 	// runtime.tlsg is used for external linking on platforms that do not define
 	// a variable to hold g in assembly (currently only intel).
 	if tlsg.Type == 0 {
-		tlsg.Type = STLSBSS
-		tlsg.Size = int64(SysArch.PtrSize)
-	} else if tlsg.Type != SDYNIMPORT {
+		tlsg.Type = sym.STLSBSS
+		tlsg.Size = int64(ctxt.Arch.PtrSize)
+	} else if tlsg.Type != sym.SDYNIMPORT {
 		Errorf(nil, "runtime declared tlsg variable %v", tlsg.Type)
 	}
-	tlsg.Attr |= AttrReachable
+	tlsg.Attr |= sym.AttrReachable
 	ctxt.Tlsg = tlsg
 
-	var moduledata *Symbol
-	if Buildmode == BuildmodePlugin {
+	var moduledata *sym.Symbol
+	if ctxt.BuildMode == BuildModePlugin {
 		moduledata = ctxt.Syms.Lookup("local.pluginmoduledata", 0)
-		moduledata.Attr |= AttrLocal
+		moduledata.Attr |= sym.AttrLocal
 	} else {
 		moduledata = ctxt.Syms.Lookup("runtime.firstmoduledata", 0)
 	}
-	if moduledata.Type != 0 && moduledata.Type != SDYNIMPORT {
+	if moduledata.Type != 0 && moduledata.Type != sym.SDYNIMPORT {
 		// If the module (toolchain-speak for "executable or shared
 		// library") we are linking contains the runtime package, it
 		// will define the runtime.firstmoduledata symbol and we
@@ -523,36 +459,36 @@ func (ctxt *Link) loadlib() {
 
 		// In addition, on ARM, the runtime depends on the linker
 		// recording the value of GOARM.
-		if SysArch.Family == sys.ARM {
+		if ctxt.Arch.Family == sys.ARM {
 			s := ctxt.Syms.Lookup("runtime.goarm", 0)
-			s.Type = SRODATA
+			s.Type = sym.SRODATA
 			s.Size = 0
-			Adduint8(ctxt, s, uint8(objabi.GOARM))
+			s.AddUint8(uint8(objabi.GOARM))
 		}
 
 		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
 			s := ctxt.Syms.Lookup("runtime.framepointer_enabled", 0)
-			s.Type = SRODATA
+			s.Type = sym.SRODATA
 			s.Size = 0
-			Adduint8(ctxt, s, 1)
+			s.AddUint8(1)
 		}
 	} else {
 		// If OTOH the module does not contain the runtime package,
 		// create a local symbol for the moduledata.
 		moduledata = ctxt.Syms.Lookup("local.moduledata", 0)
-		moduledata.Attr |= AttrLocal
+		moduledata.Attr |= sym.AttrLocal
 	}
 	// In all cases way we mark the moduledata as noptrdata to hide it from
 	// the GC.
-	moduledata.Type = SNOPTRDATA
-	moduledata.Attr |= AttrReachable
+	moduledata.Type = sym.SNOPTRDATA
+	moduledata.Attr |= sym.AttrReachable
 	ctxt.Moduledata = moduledata
 
 	// Now that we know the link mode, trim the dynexp list.
-	x := AttrCgoExportDynamic
+	x := sym.AttrCgoExportDynamic
 
-	if Linkmode == LinkExternal {
-		x = AttrCgoExportStatic
+	if ctxt.LinkMode == LinkExternal {
+		x = sym.AttrCgoExportStatic
 	}
 	w := 0
 	for i := 0; i < len(dynexp); i++ {
@@ -564,7 +500,7 @@ func (ctxt *Link) loadlib() {
 	dynexp = dynexp[:w]
 
 	// In internal link mode, read the host object files.
-	if Linkmode == LinkInternal {
+	if ctxt.LinkMode == LinkInternal {
 		hostobjs(ctxt)
 
 		// If we have any undefined symbols in external
@@ -572,7 +508,7 @@ func (ctxt *Link) loadlib() {
 		any := false
 		for _, s := range ctxt.Syms.Allsym {
 			for _, r := range s.R {
-				if r.Sym != nil && r.Sym.Type&SMASK == SXREF && r.Sym.Name != ".got" {
+				if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
 					any = true
 					break
 				}
@@ -585,7 +521,7 @@ func (ctxt *Link) loadlib() {
 			if *flagLibGCC != "none" {
 				hostArchive(ctxt, *flagLibGCC)
 			}
-			if Headtype == objabi.Hwindows {
+			if ctxt.HeadType == objabi.Hwindows {
 				if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
 					hostArchive(ctxt, p)
 				}
@@ -603,7 +539,7 @@ func (ctxt *Link) loadlib() {
 			}
 		}
 	} else {
-		hostlinksetup()
+		hostlinksetup(ctxt)
 	}
 
 	// We've loaded all the code now.
@@ -619,27 +555,48 @@ func (ctxt *Link) loadlib() {
 	// binaries, so leave it enabled on OS X (Mach-O) binaries.
 	// Also leave it enabled on Solaris which doesn't support
 	// statically linked binaries.
-	if Buildmode == BuildmodeExe {
-		if havedynamic == 0 && Headtype != objabi.Hdarwin && Headtype != objabi.Hsolaris {
+	if ctxt.BuildMode == BuildModeExe {
+		if havedynamic == 0 && ctxt.HeadType != objabi.Hdarwin && ctxt.HeadType != objabi.Hsolaris {
 			*FlagD = true
+		}
+	}
+
+	// If type. symbols are visible in the symbol table, rename them
+	// using a SHA-1 prefix. This reduces binary size (the full
+	// string of a type symbol can be multiple kilobytes) and removes
+	// characters that upset external linkers.
+	//
+	// Keep the type.. prefix, which parts of the linker (like the
+	// DWARF generator) know means the symbol is not decodable.
+	//
+	// Leave type.runtime. symbols alone, because other parts of
+	// the linker manipulates them, and also symbols whose names
+	// would not be shortened by this process.
+	if typeSymbolMangling(ctxt) {
+		*FlagW = true // disable DWARF generation
+		for _, s := range ctxt.Syms.Allsym {
+			newName := typeSymbolMangle(s.Name)
+			if newName != s.Name {
+				ctxt.Syms.Rename(s.Name, newName, int(s.Version))
+			}
 		}
 	}
 
 	// If package versioning is required, generate a hash of the
 	// the packages used in the link.
-	if Buildmode == BuildmodeShared || Buildmode == BuildmodePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
-		for i = 0; i < len(ctxt.Library); i++ {
-			if ctxt.Library[i].Shlib == "" {
-				genhash(ctxt, ctxt.Library[i])
+	if ctxt.BuildMode == BuildModeShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
+		for _, lib := range ctxt.Library {
+			if lib.Shlib == "" {
+				genhash(ctxt, lib)
 			}
 		}
 	}
 
-	if SysArch == sys.Arch386 {
-		if (Buildmode == BuildmodeCArchive && Iself) || Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE || ctxt.DynlinkingGo() {
+	if ctxt.Arch == sys.Arch386 {
+		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || (ctxt.BuildMode == BuildModeCShared && ctxt.HeadType != objabi.Hwindows) || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
 			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
-			got.Type = SDYNIMPORT
-			got.Attr |= AttrReachable
+			got.Type = sym.SDYNIMPORT
+			got.Attr |= sym.AttrReachable
 		}
 	}
 
@@ -654,11 +611,11 @@ func (ctxt *Link) loadlib() {
 			if isRuntimeDepPkg(lib.Pkg) != doInternal {
 				continue
 			}
-			ctxt.Textp = append(ctxt.Textp, lib.textp...)
-			for _, s := range lib.dupTextSyms {
+			ctxt.Textp = append(ctxt.Textp, lib.Textp...)
+			for _, s := range lib.DupTextSyms {
 				if !s.Attr.OnList() {
 					ctxt.Textp = append(ctxt.Textp, s)
-					s.Attr |= AttrOnList
+					s.Attr |= sym.AttrOnList
 					// dupok symbols may be defined in multiple packages. its
 					// associated package is chosen sort of arbitrarily (the
 					// first containing package that the linker loads). canonicalize
@@ -674,14 +631,49 @@ func (ctxt *Link) loadlib() {
 		// We might have overwritten some functions above (this tends to happen for the
 		// autogenerated type equality/hashing functions) and we don't want to generated
 		// pcln table entries for these any more so remove them from Textp.
-		textp := make([]*Symbol, 0, len(ctxt.Textp))
+		textp := make([]*sym.Symbol, 0, len(ctxt.Textp))
 		for _, s := range ctxt.Textp {
-			if s.Type != SDYNIMPORT {
+			if s.Type != sym.SDYNIMPORT {
 				textp = append(textp, s)
 			}
 		}
 		ctxt.Textp = textp
 	}
+}
+
+// typeSymbolMangling reports whether the linker should shorten the
+// names of symbols that represent Go types.
+//
+// As the names of these symbols are derived from the string of
+// the type, they can run to many kilobytes long. So we shorten
+// them using a SHA-1 when the name appears in the final binary.
+//
+// These are the symbols that begin with the prefix 'type.' and
+// contain run-time type information used by the runtime and reflect
+// packages. All Go binaries contain these symbols, but only only
+// those programs loaded dynamically in multiple parts need these
+// symbols to have entries in the symbol table.
+func typeSymbolMangling(ctxt *Link) bool {
+	return ctxt.BuildMode == BuildModeShared || ctxt.linkShared || ctxt.BuildMode == BuildModePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil
+}
+
+// typeSymbolMangle mangles the given symbol name into something shorter.
+func typeSymbolMangle(name string) string {
+	if !strings.HasPrefix(name, "type.") {
+		return name
+	}
+	if strings.HasPrefix(name, "type.runtime.") {
+		return name
+	}
+	if len(name) <= 14 && !strings.Contains(name, "@") { // Issue 19529
+		return name
+	}
+	hash := sha1.Sum([]byte(name))
+	prefix := "type."
+	if name[5] == '.' {
+		prefix = "type.."
+	}
+	return prefix + base64.StdEncoding.EncodeToString(hash[:6])
 }
 
 /*
@@ -716,7 +708,7 @@ func nextar(bp *bio.Reader, off int64, a *ArHdr) int64 {
 	return arsize + SAR_HDR
 }
 
-func genhash(ctxt *Link, lib *Library) {
+func genhash(ctxt *Link, lib *sym.Library) {
 	f, err := bio.Open(lib.File)
 	if err != nil {
 		Errorf(nil, "cannot open file %s for hash generation: %v", lib.File, err)
@@ -724,8 +716,17 @@ func genhash(ctxt *Link, lib *Library) {
 	}
 	defer f.Close()
 
+	var magbuf [len(ARMAG)]byte
+	if _, err := io.ReadFull(f, magbuf[:]); err != nil {
+		Exitf("file %s too short", lib.File)
+	}
+
+	if string(magbuf[:]) != ARMAG {
+		Exitf("%s is not an archive file", lib.File)
+	}
+
 	var arhdr ArHdr
-	l := nextar(f, int64(len(ARMAG)), &arhdr)
+	l := nextar(f, f.Offset(), &arhdr)
 	if l <= 0 {
 		Errorf(nil, "%s: short read on archive file symbol header", lib.File)
 		return
@@ -736,7 +737,7 @@ func genhash(ctxt *Link, lib *Library) {
 	// To compute the hash of a package, we hash the first line of
 	// __.PKGDEF (which contains the toolchain version and any
 	// GOEXPERIMENT flags) and the export data (which is between
-	// the first two occurences of "\n$$").
+	// the first two occurrences of "\n$$").
 
 	pkgDefBytes := make([]byte, atolwhex(arhdr.size))
 	_, err = io.ReadFull(f, pkgDefBytes)
@@ -744,7 +745,7 @@ func genhash(ctxt *Link, lib *Library) {
 		Errorf(nil, "%s: error reading package data: %v", lib.File, err)
 		return
 	}
-	firstEOL := bytes.Index(pkgDefBytes, []byte("\n"))
+	firstEOL := bytes.IndexByte(pkgDefBytes, '\n')
 	if firstEOL < 0 {
 		Errorf(nil, "cannot parse package data of %s for hash generation, no newline found", lib.File)
 		return
@@ -761,10 +762,10 @@ func genhash(ctxt *Link, lib *Library) {
 	}
 	h.Write(pkgDefBytes[0:firstEOL])
 	h.Write(pkgDefBytes[firstDoubleDollar : firstDoubleDollar+secondDoubleDollar])
-	lib.hash = hex.EncodeToString(h.Sum(nil))
+	lib.Hash = hex.EncodeToString(h.Sum(nil))
 }
 
-func objfile(ctxt *Link, lib *Library) {
+func loadobjfile(ctxt *Link, lib *sym.Library) {
 	pkg := objabi.PathToPrefix(lib.Pkg)
 
 	if ctxt.Debugvlog > 1 {
@@ -801,7 +802,7 @@ func objfile(ctxt *Link, lib *Library) {
 		goto out
 	}
 
-	if !strings.HasPrefix(arhdr.name, pkgname) {
+	if !strings.HasPrefix(arhdr.name, pkgdef) {
 		Errorf(nil, "%s: cannot find package header", lib.File)
 		goto out
 	}
@@ -865,7 +866,7 @@ var internalpkg = []string{
 	"runtime/msan",
 }
 
-func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), f *bio.Reader, pkg string, length int64, pn string, file string) *Hostobj {
+func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), headType objabi.HeadType, f *bio.Reader, pkg string, length int64, pn string, file string) *Hostobj {
 	isinternal := false
 	for i := 0; i < len(internalpkg); i++ {
 		if pkg == internalpkg[i] {
@@ -880,7 +881,7 @@ func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), f *bio.Reader
 	// force external linking for any libraries that link in code that
 	// uses errno. This can be removed if the Go linker ever supports
 	// these relocation types.
-	if Headtype == objabi.Hdragonfly {
+	if headType == objabi.Hdragonfly {
 		if pkg == "net" || pkg == "os/user" {
 			isinternal = false
 		}
@@ -923,8 +924,8 @@ func rmtemp() {
 	os.RemoveAll(*flagTmpdir)
 }
 
-func hostlinksetup() {
-	if Linkmode != LinkExternal {
+func hostlinksetup(ctxt *Link) {
+	if ctxt.LinkMode != LinkExternal {
 		return
 	}
 
@@ -945,7 +946,7 @@ func hostlinksetup() {
 	}
 
 	// change our output to temporary object file
-	coutbuf.f.Close()
+	ctxt.Out.f.Close()
 	mayberemoveoutfile()
 
 	p := filepath.Join(*flagTmpdir, "go.o")
@@ -955,8 +956,9 @@ func hostlinksetup() {
 		Exitf("cannot create %s: %v", p, err)
 	}
 
-	coutbuf.w = bufio.NewWriter(f)
-	coutbuf.f = f
+	ctxt.Out.w = bufio.NewWriter(f)
+	ctxt.Out.f = f
+	ctxt.Out.off = 0
 }
 
 // hostobjCopy creates a copy of the object files in hostobj in a
@@ -1025,7 +1027,7 @@ INSERT AFTER .debug_types;
 
 // archive builds a .a archive from the hostobj object files.
 func (ctxt *Link) archive() {
-	if Buildmode != BuildmodeCArchive {
+	if ctxt.BuildMode != BuildModeCArchive {
 		return
 	}
 
@@ -1037,11 +1039,11 @@ func (ctxt *Link) archive() {
 
 	// Force the buffer to flush here so that external
 	// tools will see a complete file.
-	Cflush()
-	if err := coutbuf.f.Close(); err != nil {
+	ctxt.Out.Flush()
+	if err := ctxt.Out.f.Close(); err != nil {
 		Exitf("close: %v", err)
 	}
-	coutbuf.f = nil
+	ctxt.Out.f = nil
 
 	argv := []string{*flagExtar, "-q", "-c", "-s", *flagOutfile}
 	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
@@ -1056,11 +1058,11 @@ func (ctxt *Link) archive() {
 	}
 }
 
-func (l *Link) hostlink() {
-	if Linkmode != LinkExternal || nerrors > 0 {
+func (ctxt *Link) hostlink() {
+	if ctxt.LinkMode != LinkExternal || nerrors > 0 {
 		return
 	}
-	if Buildmode == BuildmodeCArchive {
+	if ctxt.BuildMode == BuildModeCArchive {
 		return
 	}
 
@@ -1070,24 +1072,25 @@ func (l *Link) hostlink() {
 
 	var argv []string
 	argv = append(argv, *flagExtld)
-	argv = append(argv, hostlinkArchArgs()...)
+	argv = append(argv, hostlinkArchArgs(ctxt.Arch)...)
 
-	if !*FlagS && !debug_s {
-		argv = append(argv, "-gdwarf-2")
-	} else if Headtype == objabi.Hdarwin {
-		// Recent versions of macOS print
-		//	ld: warning: option -s is obsolete and being ignored
-		// so do not pass any arguments.
-	} else {
-		argv = append(argv, "-s")
+	if *FlagS || debug_s {
+		if ctxt.HeadType == objabi.Hdarwin {
+			// Recent versions of macOS print
+			//	ld: warning: option -s is obsolete and being ignored
+			// so do not pass any arguments.
+		} else {
+			argv = append(argv, "-s")
+		}
 	}
 
-	switch Headtype {
+	switch ctxt.HeadType {
 	case objabi.Hdarwin:
 		argv = append(argv, "-Wl,-headerpad,1144")
-		if l.DynlinkingGo() {
+		if ctxt.DynlinkingGo() {
 			argv = append(argv, "-Wl,-flat_namespace")
-		} else if !SysArch.InFamily(sys.ARM64) {
+		}
+		if ctxt.BuildMode == BuildModeExe && !ctxt.Arch.InFamily(sys.ARM64) {
 			argv = append(argv, "-Wl,-no_pie")
 		}
 	case objabi.Hopenbsd:
@@ -1100,49 +1103,61 @@ func (l *Link) hostlink() {
 		}
 	}
 
-	switch Buildmode {
-	case BuildmodeExe:
-		if Headtype == objabi.Hdarwin {
-			argv = append(argv, "-Wl,-pagezero_size,4000000")
+	switch ctxt.BuildMode {
+	case BuildModeExe:
+		if ctxt.HeadType == objabi.Hdarwin {
+			if ctxt.Arch.Family == sys.ARM64 {
+				// __PAGEZERO segment size determined empirically.
+				// XCode 9.0.1 successfully uploads an iOS app with this value.
+				argv = append(argv, "-Wl,-pagezero_size,100000000")
+			} else {
+				argv = append(argv, "-Wl,-pagezero_size,4000000")
+			}
 		}
-	case BuildmodePIE:
-		if UseRelro() {
-			argv = append(argv, "-Wl,-z,relro")
+	case BuildModePIE:
+		// ELF.
+		if ctxt.HeadType != objabi.Hdarwin {
+			if ctxt.UseRelro() {
+				argv = append(argv, "-Wl,-z,relro")
+			}
+			argv = append(argv, "-pie")
 		}
-		argv = append(argv, "-pie")
-	case BuildmodeCShared:
-		if Headtype == objabi.Hdarwin {
+	case BuildModeCShared:
+		if ctxt.HeadType == objabi.Hdarwin {
 			argv = append(argv, "-dynamiclib")
-			if SysArch.Family != sys.AMD64 {
+			if ctxt.Arch.Family != sys.AMD64 {
 				argv = append(argv, "-Wl,-read_only_relocs,suppress")
 			}
 		} else {
 			// ELF.
 			argv = append(argv, "-Wl,-Bsymbolic")
-			if UseRelro() {
+			if ctxt.UseRelro() {
 				argv = append(argv, "-Wl,-z,relro")
 			}
-			// Pass -z nodelete to mark the shared library as
-			// non-closeable: a dlclose will do nothing.
-			argv = append(argv, "-shared", "-Wl,-z,nodelete")
+			argv = append(argv, "-shared")
+			if ctxt.HeadType != objabi.Hwindows {
+				// Pass -z nodelete to mark the shared library as
+				// non-closeable: a dlclose will do nothing.
+				argv = append(argv, "-Wl,-z,nodelete")
+			}
 		}
-	case BuildmodeShared:
-		if UseRelro() {
+	case BuildModeShared:
+		if ctxt.UseRelro() {
 			argv = append(argv, "-Wl,-z,relro")
 		}
 		argv = append(argv, "-shared")
-	case BuildmodePlugin:
-		if Headtype == objabi.Hdarwin {
+	case BuildModePlugin:
+		if ctxt.HeadType == objabi.Hdarwin {
 			argv = append(argv, "-dynamiclib")
 		} else {
-			if UseRelro() {
+			if ctxt.UseRelro() {
 				argv = append(argv, "-Wl,-z,relro")
 			}
 			argv = append(argv, "-shared")
 		}
 	}
 
-	if Iself && l.DynlinkingGo() {
+	if ctxt.IsELF && ctxt.DynlinkingGo() {
 		// We force all symbol resolution to be done at program startup
 		// because lazy PLT resolution can use large amounts of stack at
 		// times we cannot allow it to do so.
@@ -1150,10 +1165,10 @@ func (l *Link) hostlink() {
 
 		// Do not let the host linker generate COPY relocations. These
 		// can move symbols out of sections that rely on stable offsets
-		// from the beginning of the section (like STYPE).
+		// from the beginning of the section (like sym.STYPE).
 		argv = append(argv, "-Wl,-znocopyreloc")
 
-		if SysArch.InFamily(sys.ARM, sys.ARM64) {
+		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
 			// On ARM, the GNU linker will generate COPY relocations
 			// even with -znocopyreloc set.
 			// https://sourceware.org/bugzilla/show_bug.cgi?id=19962
@@ -1176,7 +1191,7 @@ func (l *Link) hostlink() {
 		}
 	}
 
-	if Iself && len(buildinfo) > 0 {
+	if ctxt.IsELF && len(buildinfo) > 0 {
 		argv = append(argv, fmt.Sprintf("-Wl,--build-id=0x%x", buildinfo))
 	}
 
@@ -1198,7 +1213,7 @@ func (l *Link) hostlink() {
 	}
 
 	// Force global symbols to be exported for dlopen, etc.
-	if Iself {
+	if ctxt.IsELF {
 		argv = append(argv, "-rdynamic")
 	}
 
@@ -1209,7 +1224,7 @@ func (l *Link) hostlink() {
 	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
 	argv = append(argv, hostobjCopy()...)
 
-	if *FlagLinkshared {
+	if ctxt.linkShared {
 		seenDirs := make(map[string]bool)
 		seenLibs := make(map[string]bool)
 		addshlib := func(path string) {
@@ -1228,13 +1243,13 @@ func (l *Link) hostlink() {
 				seenLibs[base] = true
 			}
 		}
-		for _, shlib := range l.Shlibs {
+		for _, shlib := range ctxt.Shlibs {
 			addshlib(shlib.Path)
 			for _, dep := range shlib.Deps {
 				if dep == "" {
 					continue
 				}
-				libpath := findshlib(l, dep)
+				libpath := findshlib(ctxt, dep)
 				if libpath != "" {
 					addshlib(libpath)
 				}
@@ -1251,7 +1266,7 @@ func (l *Link) hostlink() {
 	// does not work, the resulting programs will not run. See
 	// issue #17847. To avoid this problem pass -no-pie to the
 	// toolchain if it is supported.
-	if Buildmode == BuildmodeExe {
+	if ctxt.BuildMode == BuildModeExe {
 		src := filepath.Join(*flagTmpdir, "trivial.c")
 		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
 			Errorf(nil, "WriteFile trivial.c failed: %v", err)
@@ -1282,7 +1297,7 @@ func (l *Link) hostlink() {
 		// we added it. We do it in this order, rather than
 		// only adding -rdynamic later, so that -*extldflags
 		// can override -rdynamic without using -static.
-		if Iself && p == "-static" {
+		if ctxt.IsELF && p == "-static" {
 			for i := range argv {
 				if argv[i] == "-rdynamic" {
 					argv[i] = "-static"
@@ -1290,7 +1305,7 @@ func (l *Link) hostlink() {
 			}
 		}
 	}
-	if Headtype == objabi.Hwindows {
+	if ctxt.HeadType == objabi.Hwindows {
 		// use gcc linker script to work around gcc bug
 		// (see https://golang.org/issue/20183 for details).
 		p := writeGDBLinkerScript()
@@ -1301,12 +1316,12 @@ func (l *Link) hostlink() {
 		argv = append(argv, peimporteddlls()...)
 	}
 
-	if l.Debugvlog != 0 {
-		l.Logf("%5.2f host link:", Cputime())
+	if ctxt.Debugvlog != 0 {
+		ctxt.Logf("%5.2f host link:", Cputime())
 		for _, v := range argv {
-			l.Logf(" %q", v)
+			ctxt.Logf(" %q", v)
 		}
-		l.Logf("\n")
+		ctxt.Logf("\n")
 	}
 
 	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
@@ -1314,12 +1329,12 @@ func (l *Link) hostlink() {
 	} else if len(out) > 0 {
 		// always print external output even if the command is successful, so that we don't
 		// swallow linker warnings (see https://golang.org/issue/17935).
-		l.Logf("%s", out)
+		ctxt.Logf("%s", out)
 	}
 
-	if !*FlagS && !*FlagW && !debug_s && Headtype == objabi.Hdarwin {
+	if !*FlagS && !*FlagW && !debug_s && ctxt.HeadType == objabi.Hdarwin {
 		// Skip combining dwarf on arm.
-		if !SysArch.InFamily(sys.ARM, sys.ARM64) {
+		if !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
 			dsym := filepath.Join(*flagTmpdir, "go.dwarf")
 			if out, err := exec.Command("dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
 				Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
@@ -1330,7 +1345,7 @@ func (l *Link) hostlink() {
 			}
 			// For os.Rename to work reliably, must be in same directory as outfile.
 			combinedOutput := *flagOutfile + "~"
-			if err := machoCombineDwarf(*flagOutfile, dsym, combinedOutput); err != nil {
+			if err := machoCombineDwarf(*flagOutfile, dsym, combinedOutput, ctxt.BuildMode); err != nil {
 				Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
 			}
 			os.Remove(*flagOutfile)
@@ -1343,8 +1358,8 @@ func (l *Link) hostlink() {
 
 // hostlinkArchArgs returns arguments to pass to the external linker
 // based on the architecture.
-func hostlinkArchArgs() []string {
-	switch SysArch.Family {
+func hostlinkArchArgs(arch *sys.Arch) []string {
+	switch arch.Family {
 	case sys.I386:
 		return []string{"-m32"}
 	case sys.AMD64, sys.PPC64, sys.S390X:
@@ -1364,7 +1379,7 @@ func hostlinkArchArgs() []string {
 // ldobj loads an input object. If it is a host object (an object
 // compiled by a non-Go compiler) it returns the Hostobj pointer. If
 // it is a Go object, it returns nil.
-func ldobj(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string, file string, whence int) *Hostobj {
+func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string, file string, whence int) *Hostobj {
 	pkg := objabi.PathToPrefix(lib.Pkg)
 
 	eof := f.Offset() + length
@@ -1377,15 +1392,43 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string, fil
 
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
-		return ldhostobj(ldelf, f, pkg, length, pn, file)
+		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+			textp, flags, err := loadelf.Load(ctxt.Arch, ctxt.Syms, f, pkg, length, pn, ehdr.flags)
+			if err != nil {
+				Errorf(nil, "%v", err)
+				return
+			}
+			ehdr.flags = flags
+			ctxt.Textp = append(ctxt.Textp, textp...)
+		}
+		return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
-		return ldhostobj(ldmacho, f, pkg, length, pn, file)
+		ldmacho := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+			textp, err := loadmacho.Load(ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
+			if err != nil {
+				Errorf(nil, "%v", err)
+				return
+			}
+			ctxt.Textp = append(ctxt.Textp, textp...)
+		}
+		return ldhostobj(ldmacho, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
 	if c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86 {
-		return ldhostobj(ldpe, f, pkg, length, pn, file)
+		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+			textp, rsrc, err := loadpe.Load(ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
+			if err != nil {
+				Errorf(nil, "%v", err)
+				return
+			}
+			if rsrc != nil {
+				setpersrc(ctxt, rsrc)
+			}
+			ctxt.Textp = append(ctxt.Textp, textp...)
+		}
+		return ldhostobj(ldpe, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
 	/* check the header */
@@ -1401,7 +1444,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string, fil
 			return nil
 		}
 
-		if line == SysArch.Name {
+		if line == ctxt.Arch.Name {
 			// old header format: just $GOOS
 			Errorf(nil, "%s: stale object file", pn)
 			return nil
@@ -1432,13 +1475,29 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string, fil
 		}
 	}
 
-	/* skip over exports and other info -- ends with \n!\n */
+	// Skip over exports and other info -- ends with \n!\n.
+	//
+	// Note: It's possible for "\n!\n" to appear within the binary
+	// package export data format. To avoid truncating the package
+	// definition prematurely (issue 21703), we keep keep track of
+	// how many "$$" delimiters we've seen.
+
 	import0 := f.Offset()
 
 	c1 = '\n' // the last line ended in \n
 	c2 = bgetc(f)
 	c3 = bgetc(f)
-	for c1 != '\n' || c2 != '!' || c3 != '\n' {
+	markers := 0
+	for {
+		if c1 == '\n' {
+			if markers%2 == 0 && c2 == '!' && c3 == '\n' {
+				break
+			}
+			if c2 == '$' && c3 == '$' {
+				markers++
+			}
+		}
+
 		c1 = c2
 		c2 = c3
 		c3 = bgetc(f)
@@ -1454,7 +1513,8 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string, fil
 	ldpkg(ctxt, f, pkg, import1-import0-2, pn, whence) // -2 for !\n
 	f.Seek(import1, 0)
 
-	LoadObjFile(ctxt, f, lib, eof-f.Offset(), pn)
+	objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn)
+	addImports(ctxt, lib, pn)
 	return nil
 }
 
@@ -1521,6 +1581,9 @@ func readnote(f *elf.File, name []byte, typ int32) ([]byte, error) {
 }
 
 func findshlib(ctxt *Link, shlib string) string {
+	if filepath.IsAbs(shlib) {
+		return shlib
+	}
 	for _, libdir := range ctxt.Libdir {
 		libpath := filepath.Join(libdir, shlib)
 		if _, err := os.Stat(libpath); err == nil {
@@ -1532,9 +1595,15 @@ func findshlib(ctxt *Link, shlib string) string {
 }
 
 func ldshlibsyms(ctxt *Link, shlib string) {
-	libpath := findshlib(ctxt, shlib)
-	if libpath == "" {
-		return
+	var libpath string
+	if filepath.IsAbs(shlib) {
+		libpath = shlib
+		shlib = filepath.Base(shlib)
+	} else {
+		libpath = findshlib(ctxt, shlib)
+		if libpath == "" {
+			return
+		}
 	}
 	for _, processedlib := range ctxt.Shlibs {
 		if processedlib.Path == libpath {
@@ -1550,6 +1619,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		Errorf(nil, "cannot open shared library: %s", libpath)
 		return
 	}
+	defer f.Close()
 
 	hash, err := readnote(f, ELF_NOTE_GO_NAME, ELF_NOTE_GOABIHASH_TAG)
 	if err != nil {
@@ -1562,14 +1632,29 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		Errorf(nil, "cannot read dep list from shared library %s: %v", libpath, err)
 		return
 	}
-	deps := strings.Split(string(depsbytes), "\n")
+	var deps []string
+	for _, dep := range strings.Split(string(depsbytes), "\n") {
+		if dep == "" {
+			continue
+		}
+		if !filepath.IsAbs(dep) {
+			// If the dep can be interpreted as a path relative to the shlib
+			// in which it was found, do that. Otherwise, we will leave it
+			// to be resolved by libdir lookup.
+			abs := filepath.Join(filepath.Dir(libpath), dep)
+			if _, err := os.Stat(abs); err == nil {
+				dep = abs
+			}
+		}
+		deps = append(deps, dep)
+	}
 
 	syms, err := f.DynamicSymbols()
 	if err != nil {
 		Errorf(nil, "cannot read symbols from shared library: %s", libpath)
 		return
 	}
-	gcdataLocations := make(map[uint64]*Symbol)
+	gcdataLocations := make(map[uint64]*sym.Symbol)
 	for _, elfsym := range syms {
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
 			continue
@@ -1579,10 +1664,10 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		// libraries, any non-dynimport symbols we find that duplicate symbols
 		// already loaded should be ignored (the symbols from the .a files
 		// "win").
-		if lsym.Type != 0 && lsym.Type != SDYNIMPORT {
+		if lsym.Type != 0 && lsym.Type != sym.SDYNIMPORT {
 			continue
 		}
-		lsym.Type = SDYNIMPORT
+		lsym.Type = sym.SDYNIMPORT
 		lsym.ElfType = elf.ST_TYPE(elfsym.Info)
 		lsym.Size = int64(elfsym.Size)
 		if elfsym.Section != elf.SHN_UNDEF {
@@ -1592,12 +1677,12 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			// the type data.
 			if strings.HasPrefix(lsym.Name, "type.") && !strings.HasPrefix(lsym.Name, "type..") {
 				lsym.P = readelfsymboldata(ctxt, f, &elfsym)
-				gcdataLocations[elfsym.Value+2*uint64(SysArch.PtrSize)+8+1*uint64(SysArch.PtrSize)] = lsym
+				gcdataLocations[elfsym.Value+2*uint64(ctxt.Arch.PtrSize)+8+1*uint64(ctxt.Arch.PtrSize)] = lsym
 			}
 		}
 	}
-	gcdataAddresses := make(map[*Symbol]uint64)
-	if SysArch.Family == sys.ARM64 {
+	gcdataAddresses := make(map[*sym.Symbol]uint64)
+	if ctxt.Arch.Family == sys.ARM64 {
 		for _, sect := range f.Sections {
 			if sect.Type == elf.SHT_RELA {
 				var rela elf.Rela64
@@ -1625,12 +1710,12 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdataAddresses: gcdataAddresses})
 }
 
-func addsection(seg *Segment, name string, rwx int) *Section {
-	sect := new(Section)
+func addsection(arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Section {
+	sect := new(sym.Section)
 	sect.Rwx = uint8(rwx)
 	sect.Name = name
 	sect.Seg = seg
-	sect.Align = int32(SysArch.PtrSize) // everything is at least pointer-aligned
+	sect.Align = int32(arch.PtrSize) // everything is at least pointer-aligned
 	seg.Sections = append(seg.Sections, sect)
 	return sect
 }
@@ -1656,12 +1741,12 @@ func Be32(b []byte) uint32 {
 }
 
 type chain struct {
-	sym   *Symbol
+	sym   *sym.Symbol
 	up    *chain
 	limit int // limit on entry to sym
 }
 
-var morestack *Symbol
+var morestack *sym.Symbol
 
 // TODO: Record enough information in new object files to
 // allow stack checks here.
@@ -1674,7 +1759,7 @@ func callsize(ctxt *Link) int {
 	if haslinkregister(ctxt) {
 		return 0
 	}
-	return SysArch.RegSize
+	return ctxt.Arch.RegSize
 }
 
 func (ctxt *Link) dostkcheck() {
@@ -1728,7 +1813,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 		if s.Attr.StackCheck() {
 			return 0
 		}
-		s.Attr |= AttrStackCheck
+		s.Attr |= sym.AttrStackCheck
 	}
 
 	if depth > 100 {
@@ -1742,8 +1827,8 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 		// should never be called directly.
 		// onlyctxt.Diagnose the direct caller.
 		// TODO(mwhudson): actually think about this.
-		if depth == 1 && s.Type != SXREF && !ctxt.DynlinkingGo() &&
-			Buildmode != BuildmodeCArchive && Buildmode != BuildmodePIE && Buildmode != BuildmodeCShared && Buildmode != BuildmodePlugin {
+		if depth == 1 && s.Type != sym.SXREF && !ctxt.DynlinkingGo() &&
+			ctxt.BuildMode != BuildModeCArchive && ctxt.BuildMode != BuildModePIE && ctxt.BuildMode != BuildModeCShared && ctxt.BuildMode != BuildModePlugin {
 
 			Errorf(s, "call to external function")
 		}
@@ -1788,7 +1873,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 	endr := len(s.R)
 	var ch1 chain
 	var pcsp Pciter
-	var r *Reloc
+	var r *sym.Reloc
 	for pciterinit(ctxt, &pcsp, &s.FuncInfo.Pcsp); pcsp.done == 0; pciternext(&pcsp) {
 		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
 
@@ -1867,36 +1952,6 @@ func stkprint(ctxt *Link, ch *chain, limit int) {
 	}
 }
 
-func Cflush() {
-	if err := coutbuf.w.Flush(); err != nil {
-		Exitf("flushing %s: %v", coutbuf.f.Name(), err)
-	}
-}
-
-func Cseek(p int64) {
-	if p == coutbuf.off {
-		return
-	}
-	Cflush()
-	if _, err := coutbuf.f.Seek(p, 0); err != nil {
-		Exitf("seeking in output [0, 1]: %v", err)
-	}
-	coutbuf.off = p
-}
-
-func Cwritestring(s string) {
-	coutbuf.WriteString(s)
-}
-
-func Cwrite(p []byte) {
-	coutbuf.Write(p)
-}
-
-func Cput(c uint8) {
-	coutbuf.w.WriteByte(c)
-	coutbuf.off++
-}
-
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: link [options] main.o\n")
 	objabi.Flagprint(2)
@@ -1910,23 +1965,31 @@ func doversion() {
 type SymbolType int8
 
 const (
+	// see also http://9p.io/magic/man2html/1/nm
 	TextSym      SymbolType = 'T'
 	DataSym                 = 'D'
 	BSSSym                  = 'B'
 	UndefinedSym            = 'U'
 	TLSSym                  = 't'
-	FileSym                 = 'f'
 	FrameSym                = 'm'
 	ParamSym                = 'p'
 	AutoSym                 = 'a'
+
+	// Deleted auto (not a real sym, just placeholder for type)
+	DeletedAutoSym = 'x'
 )
 
-func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *Symbol)) {
+func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int64, *sym.Symbol)) {
 	// These symbols won't show up in the first loop below because we
-	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
+	// skip sym.STEXT symbols. Normal sym.STEXT symbols are emitted by walking textp.
 	s := ctxt.Syms.Lookup("runtime.text", 0)
-	if s.Type == STEXT {
-		put(ctxt, s, s.Name, TextSym, s.Value, nil)
+	if s.Type == sym.STEXT {
+		// We've already included this symbol in ctxt.Textp
+		// if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin.
+		// See data.go:/textaddress
+		if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) {
+			put(ctxt, s, s.Name, TextSym, s.Value, nil)
+		}
 	}
 
 	n := 0
@@ -1944,15 +2007,20 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 		if s == nil {
 			break
 		}
-		if s.Type == STEXT {
+		if s.Type == sym.STEXT {
 			put(ctxt, s, s.Name, TextSym, s.Value, nil)
 		}
 		n++
 	}
 
 	s = ctxt.Syms.Lookup("runtime.etext", 0)
-	if s.Type == STEXT {
-		put(ctxt, s, s.Name, TextSym, s.Value, nil)
+	if s.Type == sym.STEXT {
+		// We've already included this symbol in ctxt.Textp
+		// if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin.
+		// See data.go:/textaddress
+		if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) {
+			put(ctxt, s, s.Name, TextSym, s.Value, nil)
+		}
 	}
 
 	for _, s := range ctxt.Syms.Allsym {
@@ -1962,36 +2030,36 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 		if (s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole" && s.Name != ".TOC." {
 			continue
 		}
-		switch s.Type & SMASK {
-		case SCONST,
-			SRODATA,
-			SSYMTAB,
-			SPCLNTAB,
-			SINITARR,
-			SDATA,
-			SNOPTRDATA,
-			SELFROSECT,
-			SMACHOGOT,
-			STYPE,
-			SSTRING,
-			SGOSTRING,
-			SGOFUNC,
-			SGCBITS,
-			STYPERELRO,
-			SSTRINGRELRO,
-			SGOSTRINGRELRO,
-			SGOFUNCRELRO,
-			SGCBITSRELRO,
-			SRODATARELRO,
-			STYPELINK,
-			SITABLINK,
-			SWINDOWS:
+		switch s.Type {
+		case sym.SCONST,
+			sym.SRODATA,
+			sym.SSYMTAB,
+			sym.SPCLNTAB,
+			sym.SINITARR,
+			sym.SDATA,
+			sym.SNOPTRDATA,
+			sym.SELFROSECT,
+			sym.SMACHOGOT,
+			sym.STYPE,
+			sym.SSTRING,
+			sym.SGOSTRING,
+			sym.SGOFUNC,
+			sym.SGCBITS,
+			sym.STYPERELRO,
+			sym.SSTRINGRELRO,
+			sym.SGOSTRINGRELRO,
+			sym.SGOFUNCRELRO,
+			sym.SGCBITSRELRO,
+			sym.SRODATARELRO,
+			sym.STYPELINK,
+			sym.SITABLINK,
+			sym.SWINDOWS:
 			if !s.Attr.Reachable() {
 				continue
 			}
 			put(ctxt, s, s.Name, DataSym, Symaddr(s), s.Gotype)
 
-		case SBSS, SNOPTRBSS:
+		case sym.SBSS, sym.SNOPTRBSS:
 			if !s.Attr.Reachable() {
 				continue
 			}
@@ -2000,22 +2068,19 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 			}
 			put(ctxt, s, s.Name, BSSSym, Symaddr(s), s.Gotype)
 
-		case SFILE:
-			put(ctxt, nil, s.Name, FileSym, s.Value, nil)
-
-		case SHOSTOBJ:
-			if Headtype == objabi.Hwindows || Iself {
+		case sym.SHOSTOBJ:
+			if ctxt.HeadType == objabi.Hwindows || ctxt.IsELF {
 				put(ctxt, s, s.Name, UndefinedSym, s.Value, nil)
 			}
 
-		case SDYNIMPORT:
+		case sym.SDYNIMPORT:
 			if !s.Attr.Reachable() {
 				continue
 			}
 			put(ctxt, s, s.Extname, UndefinedSym, 0, nil)
 
-		case STLSBSS:
-			if Linkmode == LinkExternal {
+		case sym.STLSBSS:
+			if ctxt.LinkMode == LinkExternal {
 				put(ctxt, s, s.Name, TLSSym, Symaddr(s), s.Gotype)
 			}
 		}
@@ -2030,12 +2095,17 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 			locals = s.FuncInfo.Locals
 		}
 		// NOTE(ality): acid can't produce a stack trace without .frame symbols
-		put(ctxt, nil, ".frame", FrameSym, int64(locals)+int64(SysArch.PtrSize), nil)
+		put(ctxt, nil, ".frame", FrameSym, int64(locals)+int64(ctxt.Arch.PtrSize), nil)
 
 		if s.FuncInfo == nil {
 			continue
 		}
 		for _, a := range s.FuncInfo.Autom {
+			if a.Name == objabi.A_DELETED_AUTO {
+				put(ctxt, nil, "", DeletedAutoSym, 0, a.Gotype)
+				continue
+			}
+
 			// Emit a or p according to actual offset, even if label is wrong.
 			// This avoids negative offsets, which cannot be encoded.
 			if a.Name != objabi.A_AUTO && a.Name != objabi.A_PARAM {
@@ -2046,7 +2116,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 			if a.Name == objabi.A_PARAM {
 				off = a.Aoffset
 			} else {
-				off = a.Aoffset - int32(SysArch.PtrSize)
+				off = a.Aoffset - int32(ctxt.Arch.PtrSize)
 			}
 
 			// FP
@@ -2056,8 +2126,8 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 			}
 
 			// SP
-			if off <= int32(-SysArch.PtrSize) {
-				put(ctxt, nil, a.Asym.Name, AutoSym, -(int64(off) + int64(SysArch.PtrSize)), a.Gotype)
+			if off <= int32(-ctxt.Arch.PtrSize) {
+				put(ctxt, nil, a.Asym.Name, AutoSym, -(int64(off) + int64(ctxt.Arch.PtrSize)), a.Gotype)
 				continue
 			}
 			// Otherwise, off is addressing the saved program counter.
@@ -2070,23 +2140,23 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 	}
 }
 
-func Symaddr(s *Symbol) int64 {
+func Symaddr(s *sym.Symbol) int64 {
 	if !s.Attr.Reachable() {
 		Errorf(s, "unreachable symbol in symaddr")
 	}
 	return s.Value
 }
 
-func (ctxt *Link) xdefine(p string, t SymKind, v int64) {
+func (ctxt *Link) xdefine(p string, t sym.SymKind, v int64) {
 	s := ctxt.Syms.Lookup(p, 0)
 	s.Type = t
 	s.Value = v
-	s.Attr |= AttrReachable
-	s.Attr |= AttrSpecial
-	s.Attr |= AttrLocal
+	s.Attr |= sym.AttrReachable
+	s.Attr |= sym.AttrSpecial
+	s.Attr |= sym.AttrLocal
 }
 
-func datoff(s *Symbol, addr int64) int64 {
+func datoff(s *sym.Symbol, addr int64) int64 {
 	if uint64(addr) >= Segdata.Vaddr {
 		return int64(uint64(addr) - Segdata.Vaddr + Segdata.Fileoff)
 	}
@@ -2106,21 +2176,23 @@ func Entryvalue(ctxt *Link) int64 {
 	if s.Type == 0 {
 		return *FlagTextAddr
 	}
-	if s.Type != STEXT {
+	if s.Type != sym.STEXT {
 		Errorf(s, "entry not text")
 	}
 	return s.Value
 }
 
-func undefsym(ctxt *Link, s *Symbol) {
-	var r *Reloc
+func undefsym(ctxt *Link, s *sym.Symbol) {
+	var r *sym.Reloc
 
 	for i := 0; i < len(s.R); i++ {
 		r = &s.R[i]
 		if r.Sym == nil { // happens for some external ARM relocs
 			continue
 		}
-		if r.Sym.Type == Sxxx || r.Sym.Type == SXREF {
+		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
+		// sense and should be removed when someone has thought about it properly.
+		if (r.Sym.Type == sym.Sxxx || r.Sym.Type == sym.SXREF) && !r.Sym.Attr.VisibilityHidden() {
 			Errorf(s, "undefined: %q", r.Sym.Name)
 		}
 		if !r.Sym.Attr.Reachable() && r.Type != objabi.R_WEAKADDROFF {
@@ -2147,14 +2219,14 @@ func (ctxt *Link) callgraph() {
 	}
 
 	var i int
-	var r *Reloc
+	var r *sym.Reloc
 	for _, s := range ctxt.Textp {
 		for i = 0; i < len(s.R); i++ {
 			r = &s.R[i]
 			if r.Sym == nil {
 				continue
 			}
-			if (r.Type == objabi.R_CALL || r.Type == objabi.R_CALLARM || r.Type == objabi.R_CALLPOWER || r.Type == objabi.R_CALLMIPS) && r.Sym.Type == STEXT {
+			if (r.Type == objabi.R_CALL || r.Type == objabi.R_CALLARM || r.Type == objabi.R_CALLPOWER || r.Type == objabi.R_CALLMIPS) && r.Sym.Type == sym.STEXT {
 				ctxt.Logf("%s calls %s\n", s.Name, r.Sym.Name)
 			}
 		}
@@ -2192,16 +2264,16 @@ const (
 	visited
 )
 
-func postorder(libs []*Library) []*Library {
-	order := make([]*Library, 0, len(libs)) // hold the result
-	mark := make(map[*Library]markKind, len(libs))
+func postorder(libs []*sym.Library) []*sym.Library {
+	order := make([]*sym.Library, 0, len(libs)) // hold the result
+	mark := make(map[*sym.Library]markKind, len(libs))
 	for _, lib := range libs {
 		dfs(lib, mark, &order)
 	}
 	return order
 }
 
-func dfs(lib *Library, mark map[*Library]markKind, order *[]*Library) {
+func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library) {
 	if mark[lib] == visited {
 		return
 	}
@@ -2209,7 +2281,7 @@ func dfs(lib *Library, mark map[*Library]markKind, order *[]*Library) {
 		panic("found import cycle while visiting " + lib.Pkg)
 	}
 	mark[lib] = visiting
-	for _, i := range lib.imports {
+	for _, i := range lib.Imports {
 		dfs(i, mark, order)
 	}
 	mark[lib] = visited

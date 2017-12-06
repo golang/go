@@ -12,16 +12,16 @@ import (
 func TestPos(t *testing.T) {
 	f0 := NewFileBase("", "")
 	f1 := NewFileBase("f1", "f1")
-	f2 := NewLinePragmaBase(Pos{}, "f2", 10)
-	f3 := NewLinePragmaBase(MakePos(f1, 10, 1), "f3", 100)
-	f4 := NewLinePragmaBase(MakePos(f3, 10, 1), "f4", 100)
+	f2 := NewLinePragmaBase(Pos{}, "f2", "f2", 10)
+	f3 := NewLinePragmaBase(MakePos(f1, 10, 1), "f3", "f3", 100)
+	f4 := NewLinePragmaBase(MakePos(f3, 10, 1), "f4", "f4", 100)
 
 	// line directives from issue #19392
 	fp := NewFileBase("p.go", "p.go")
-	fc := NewLinePragmaBase(MakePos(fp, 3, 0), "c.go", 10)
-	ft := NewLinePragmaBase(MakePos(fp, 6, 0), "t.go", 20)
-	fv := NewLinePragmaBase(MakePos(fp, 9, 0), "v.go", 30)
-	ff := NewLinePragmaBase(MakePos(fp, 12, 0), "f.go", 40)
+	fc := NewLinePragmaBase(MakePos(fp, 3, 0), "c.go", "c.go", 10)
+	ft := NewLinePragmaBase(MakePos(fp, 6, 0), "t.go", "t.go", 20)
+	fv := NewLinePragmaBase(MakePos(fp, 9, 0), "v.go", "v.go", 30)
+	ff := NewLinePragmaBase(MakePos(fp, 12, 0), "f.go", "f.go", 40)
 
 	for _, test := range []struct {
 		pos    Pos

@@ -13,22 +13,8 @@ func Pipe() (r *File, w *File, err error) {
 
 	e := syscall.Pipe2(p[0:], syscall.O_CLOEXEC)
 	if e != nil {
-		// Fallback support for FreeBSD 9, which lacks Pipe2.
-		//
-		// TODO: remove this for Go 1.10 when FreeBSD 9
-		// is removed (Issue 19072).
-
-		// See ../syscall/exec.go for description of lock.
-		syscall.ForkLock.RLock()
-		e := syscall.Pipe(p[0:])
-		if e != nil {
-			syscall.ForkLock.RUnlock()
-			return nil, nil, NewSyscallError("pipe", e)
-		}
-		syscall.CloseOnExec(p[0])
-		syscall.CloseOnExec(p[1])
-		syscall.ForkLock.RUnlock()
+		return nil, nil, NewSyscallError("pipe", e)
 	}
 
-	return newFile(uintptr(p[0]), "|0", true), newFile(uintptr(p[1]), "|1", true), nil
+	return newFile(uintptr(p[0]), "|0", kindPipe), newFile(uintptr(p[1]), "|1", kindPipe), nil
 }

@@ -36,12 +36,13 @@ var (
 
 // Symbolize symbolizes profile p by parsing data returned by a
 // symbolz handler. syms receives the symbolz query (hex addresses
-// separated by '+') and returns the symbolz output in a string. It
-// symbolizes all locations based on their addresses, regardless of
-// mapping.
-func Symbolize(sources plugin.MappingSources, syms func(string, string) ([]byte, error), p *profile.Profile, ui plugin.UI) error {
+// separated by '+') and returns the symbolz output in a string. If
+// force is false, it will only symbolize locations from mappings
+// not already marked as HasFunctions.
+func Symbolize(p *profile.Profile, force bool, sources plugin.MappingSources, syms func(string, string) ([]byte, error), ui plugin.UI) error {
 	for _, m := range p.Mapping {
-		if m.HasFunctions {
+		if !force && m.HasFunctions {
+			// Only check for HasFunctions as symbolz only populates function names.
 			continue
 		}
 		mappingSources := sources[m.File]
@@ -65,16 +66,13 @@ func Symbolize(sources plugin.MappingSources, syms func(string, string) ([]byte,
 // symbolz returns the corresponding symbolz source for a profile URL.
 func symbolz(source string) string {
 	if url, err := url.Parse(source); err == nil && url.Host != "" {
-		if strings.Contains(url.Path, "/") {
-			if dir := path.Dir(url.Path); dir == "/debug/pprof" {
-				// For Go language profile handlers in net/http/pprof package.
-				url.Path = "/debug/pprof/symbol"
-			} else {
-				url.Path = "/symbolz"
-			}
-			url.RawQuery = ""
-			return url.String()
+		if strings.Contains(url.Path, "/debug/pprof/") {
+			url.Path = path.Clean(url.Path + "/../symbol")
+		} else {
+			url.Path = "/symbolz"
 		}
+		url.RawQuery = ""
+		return url.String()
 	}
 
 	return ""
@@ -82,7 +80,7 @@ func symbolz(source string) string {
 
 // symbolizeMapping symbolizes locations belonging to a Mapping by querying
 // a symbolz handler. An offset is applied to all addresses to take care of
-// normalization occured for merged Mappings.
+// normalization occurred for merged Mappings.
 func symbolizeMapping(source string, offset int64, syms func(string, string) ([]byte, error), m *profile.Mapping, p *profile.Profile) error {
 	// Construct query of addresses to symbolize.
 	var a []string

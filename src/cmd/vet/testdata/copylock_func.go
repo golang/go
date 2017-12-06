@@ -11,12 +11,14 @@ import "sync"
 
 func OkFunc(*sync.Mutex) {}
 func BadFunc(sync.Mutex) {} // ERROR "BadFunc passes lock by value: sync.Mutex"
+func BadFunc2(sync.Map)  {} // ERROR "BadFunc2 passes lock by value: sync.Map contains sync.Mutex"
 func OkRet() *sync.Mutex {}
 func BadRet() sync.Mutex {} // Don't warn about results
 
 var (
-	OkClosure  = func(*sync.Mutex) {}
-	BadClosure = func(sync.Mutex) {} // ERROR "func passes lock by value: sync.Mutex"
+	OkClosure   = func(*sync.Mutex) {}
+	BadClosure  = func(sync.Mutex) {} // ERROR "func passes lock by value: sync.Mutex"
+	BadClosure2 = func(sync.Map) {}   // ERROR "func passes lock by value: sync.Map contains sync.Mutex"
 )
 
 type EmbeddedRWMutex struct {

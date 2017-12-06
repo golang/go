@@ -57,7 +57,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    CALL -1(PC)                                // ffffff97
    CALL (R15)                                 // e0013fd6
    JMP  (R29)                                 // a0031fd6
-   // BRK $35943                              // e08c31d4
+   BRK $35943                                 // e08c31d4
    CBNZW R2, -1(PC)                           // e2ffff35
    CBNZ R7, -1(PC)                            // e7ffffb5
    CBZW R15, -1(PC)                           // efffff34
@@ -81,8 +81,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    CINVW EQ, R2, R17                          // 5110825a
    CINV VS, R12, R7                           // 87718cda
    CINV VS, R30, R30                          // de739eda
-   // CLREX $4                                // 5f3403d5
-   // CLREX $0                                // 5f3003d5
+   CLREX $4                                   // 5f3403d5
+   CLREX $0                                   // 5f3003d5
    CLSW R15, R6                               // e615c05a
    CLS R15, ZR                                // ff15c0da
    CLZW R1, R14                               // 2e10c05a
@@ -128,9 +128,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    CSNEGW HS, R16, R29, R10                   // 0a269d5a
    CSNEG NE, R21, R18, R11                    // ab1692da
    //TODO DC
-   // DCPS1 $11378                            // 418ea5d4
-   // DCPS2 $10699                            // 6239a5d4
-   // DCPS3 $24415                            // e3ebabd4
+   DCPS1 $11378                               // 418ea5d4
+   DCPS2 $10699                               // 6239a5d4
+   DCPS3 $24415                               // e3ebabd4
    DMB $1                                     // bf3103d5
    DMB $0                                     // bf3003d5
    DRPS                                       // e003bfd6
@@ -145,8 +145,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    EXTR $35, R22, R12, R8                     // 888dd693
    SEVL                                       // bf2003d5
    HINT $6                                    // df2003d5
-   // HLT $65509                              // a0fc5fd4
-   // HVC $61428                              // 82fe1dd4
+   HLT $65509                                 // a0fc5fd4
+   HVC $61428                                 // 82fe1dd4
    ISB $1                                     // df3103d5
    ISB $15                                    // df3f03d5
    LDARW (R12), R29                           // 9dfddf88
@@ -242,15 +242,15 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    ORRW $16252928, ZR, R21                    // f5130d32
    MOVD $-4260607558625, R11                  // eb6b16b2
    MOVD R30, R7                               // e7031eaa
-   // MOVKW $(3905<<0), R21                   // MOVKW $3905, R21              // 35e88172
-   // MOVKW $(3905<<16), R21                  // MOVKW $255918080, R21         // 35e8a172
-   // MOVK $(3905<<32), R21                   // MOVK $16771847290880, R21     // 35e8c1f2
+   MOVKW $(3905<<0), R21                      // MOVKW $3905, R21              // 35e88172
+   MOVKW $(3905<<16), R21                     // MOVKW $255918080, R21         // 35e8a172
+   MOVK $(3905<<32), R21                      // MOVK $16771847290880, R21     // 35e8c1f2
    MOVD $0, R5                                // 050080d2
-   // MRS $4567, R16                          // f03a32d5
-   // MRS $32345, R6                          // 26cb3fd5
-   // MSR R25, $3452                          // 99af11d5
-   // MSR R25, $16896                         // 194018d5
-   // MSR $6, DAIFClr                         // ff4603d5
+   MSR $1, SPSel                              // bf4100d5
+   MSR $9, DAIFSet                            // df4903d5
+   MSR $6, DAIFClr                            // ff4603d5
+   MRS ELR_EL1, R8                            // 284038d5
+   MSR R16, ELR_EL1                           // 304018d5
    MSUBW R1, R1, R12, R5                      // 8585011b
    MSUB R19, R16, R26, R2                     // 42c3139b
    MULW R26, R5, R22                          // b67c1a1b
@@ -304,7 +304,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    SMNEGL R26, R3, R15                        // 6ffc3a9b
    SMULH R17, R21, R21                        // b57e519b
    SMULL R0, R5, R0                           // a07c209b
-   // SMC $37977                              // 238b12d4
+   SMC $37977                                 // 238b12d4
    STLRW R16, (R22)                           // d0fe9f88
    STLR R3, (R24)                             // 03ff9fc8
    //TODO STLRB R11, (R22)                    // cbfe9f08
@@ -345,10 +345,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    //TODO STTRH 9(R10), R18                   // 52990078
    //TODO STXP (R20), R18, R5, ZR             // 854a3f88
    //TODO STXP (R22), R9, R17, R0             // d12620c8
-   // STXRW R2, (R19), R18                    // 627e1288
-   // STXR R15, (R21), R13                    // af7e0dc8
-   // STXRB R7, (R9), R24                     // 277d1808
-   // STXRH R12, (R3), R8                     // 6c7c0848
+   STXRW R2, (R19), R18                       // 627e1288
+   STXR R15, (R21), R13                       // af7e0dc8
+   STXRB R7, (R9), R24                        // 277d1808
+   STXRH R12, (R3), R8                        // 6c7c0848
    //TODO SUBW R20.UXTW<<7, R23, R18          // f25e344b
    //TODO SUB R5.SXTW<<2, R1, R26             // 3ac825cb
    SUB $(1923<<12), R4, R27                   // SUB $7876608, R4, R27         // 9b0c5ed1
@@ -398,16 +398,16 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    FCCMPD HI, F11, F15, $15                   // ef856b1e
    FCCMPES HS, F28, F13, $13                  // bd253c1e
    FCCMPED LT, F20, F4, $9                    // 99b4741e
-   // FCMPS F3, F17                           // 2022231e
-   // FCMPS $(0.0), F8                        // 0821201e
-   // FCMPD F11, F27                          // 60236b1e
-   // FCMPD $(0.0), F25                       // 2823601e
-   // FCMPES F16, F30                         // d023301e
-   // FCMPES $(0.0), F29                      // b823201e
-   // FCMPED F13, F10                         // 50216d1e
-   // FCMPED $(0.0), F25                      // 3823601e
-   // FCSELS EQ, F26, F27, F25                // 590f3b1e
-   // FCSELD PL, F8, F22, F7                  // 075d761e
+   FCMPS F3, F17                              // 2022231e
+   FCMPS $(0.0), F8                           // 0821201e
+   FCMPD F11, F27                             // 60236b1e
+   FCMPD $(0.0), F25                          // 2823601e
+   FCMPES F16, F30                            // d023301e
+   FCMPES $(0.0), F29                         // b823201e
+   FCMPED F13, F10                            // 50216d1e
+   FCMPED $(0.0), F25                         // 3823601e
+   FCSELS EQ, F26, F27, F25                   // 590f3b1e
+   FCSELD PL, F8, F22, F7                     // 075d761e
    //TODO FCVTASW F21, R15                    // af02241e
    //TODO FCVTAS F20, ZR                      // 9f02249e
    //TODO FCVTASW F6, R11                     // cb00641e

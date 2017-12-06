@@ -43,9 +43,12 @@ func testableNetwork(network string) bool {
 	case "unixpacket":
 		switch runtime.GOOS {
 		case "android", "darwin", "nacl", "plan9", "windows":
-			fallthrough
-		case "freebsd": // FreeBSD 8 and below don't support unixpacket
 			return false
+		case "netbsd":
+			// It passes on amd64 at least. 386 fails (Issue 22927). arm is unknown.
+			if runtime.GOARCH == "386" {
+				return false
+			}
 		}
 	}
 	switch ss[0] {
@@ -149,12 +152,19 @@ func testableListenArgs(network, address, client string) bool {
 	return true
 }
 
-var condFatalf = func() func(*testing.T, string, ...interface{}) {
-	// A few APIs, File, Read/WriteMsg{UDP,IP}, are not
-	// implemented yet on both Plan 9 and Windows.
+func condFatalf(t *testing.T, network string, format string, args ...interface{}) {
+	t.Helper()
+	// A few APIs like File and Read/WriteMsg{UDP,IP} are not
+	// fully implemented yet on Plan 9 and Windows.
 	switch runtime.GOOS {
-	case "plan9", "windows":
-		return (*testing.T).Logf
+	case "windows":
+		if network == "file+net" {
+			t.Logf(format, args...)
+			return
+		}
+	case "plan9":
+		t.Logf(format, args...)
+		return
 	}
-	return (*testing.T).Fatalf
-}()
+	t.Fatalf(format, args...)
+}

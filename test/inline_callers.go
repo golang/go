@@ -1,4 +1,4 @@
-// run -gcflags -l=4
+// run -gcflags=-l=4
 
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -7,7 +7,7 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"runtime"
 )
 
@@ -83,13 +83,13 @@ func main() {
 		frames := testCallers(i)
 		expected := expectedFrames[i]
 		if !same(frames, expected) {
-			log.Fatalf("testCallers(%d):\n got %v\n want %v", i, frames, expected)
+			fmt.Printf("testCallers(%d):\n got %v\n want %v\n", i, frames, expected)
 		}
 
 		frames = testCallersFrames(i)
 		expected = allFrames[i:]
 		if !same(frames, expected) {
-			log.Fatalf("testCallersFrames(%d):\n got %v\n want %v", i, frames, expected)
+			fmt.Printf("testCallersFrames(%d):\n got %v\n want %v\n", i, frames, expected)
 		}
 	}
 }

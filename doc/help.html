@@ -1,6 +1,7 @@
 <!--{
 	"Title": "Help",
-	"Path": "/help/"
+	"Path": "/help/",
+	"Template": true
 }-->
 
 <div id="manual-nav"></div>
@@ -9,6 +10,7 @@
 
 <img class="gopher" src="/doc/gopher/help.png"/>
 
+{{if not $.GoogleCN}}
 <h3 id="mailinglist"><a href="https://groups.google.com/group/golang-nuts">Go Nuts Mailing List</a></h3>
 <p>
 Get help from Go users, and share your work on the official mailing list.
@@ -31,10 +33,12 @@ forum for Go programmers.
 <h3 id="irc"><a href="irc:irc.freenode.net/go-nuts">Go IRC Channel</a></h3>
 <p>Get live support at <b>#go-nuts</b> on <b>irc.freenode.net</b>, the official
 Go IRC channel.</p>
+{{end}}
 
 <h3 id="faq"><a href="/doc/faq">Frequently Asked Questions (FAQ)</a></h3>
 <p>Answers to common questions about Go.</p>
 
+{{if not $.GoogleCN}}
 <h2 id="inform">Stay informed</h2>
 
 <h3 id="announce"><a href="https://groups.google.com/group/golang-announce">Go Announcements Mailing List</a></h3>
@@ -64,6 +68,7 @@ for Go news and discussion.
 The <a href="https://changelog.com/gotime">Go Time podcast</a> is a panel of Go experts and special guests
 discussing the Go programming language, the community, and everything in between.
 </p>
+{{end}}
 
 <h2 id="community">Community resources</h2>
 
@@ -73,11 +78,13 @@ Each month in places around the world, groups of Go programmers ("gophers")
 meet to talk about Go. Find a chapter near you.
 </p>
 
+{{if not $.GoogleCN}}
 <h3 id="playground"><a href="/play">Go Playground</a></h3>
 <p>A place to write, run, and share Go code.</p>
 
 <h3 id="wiki"><a href="/wiki">Go Wiki</a></h3>
 <p>A wiki maintained by the Go community.</p>
+{{end}}
 
 <h3 id="conduct"><a href="/conduct">Code of Conduct</a></h3>
 <p>

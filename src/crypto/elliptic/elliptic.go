@@ -301,7 +301,7 @@ func GenerateKey(curve Curve, rand io.Reader) (priv []byte, x, y *big.Int, err e
 	return
 }
 
-// Marshal converts a point into the form specified in section 4.3.6 of ANSI X9.62.
+// Marshal converts a point into the uncompressed form specified in section 4.3.6 of ANSI X9.62.
 func Marshal(curve Curve, x, y *big.Int) []byte {
 	byteLen := (curve.Params().BitSize + 7) >> 3
 
@@ -316,7 +316,8 @@ func Marshal(curve Curve, x, y *big.Int) []byte {
 }
 
 // Unmarshal converts a point, serialized by Marshal, into an x, y pair.
-// It is an error if the point is not on the curve. On error, x = nil.
+// It is an error if the point is not in uncompressed form or is not on the curve.
+// On error, x = nil.
 func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
 	byteLen := (curve.Params().BitSize + 7) >> 3
 	if len(data) != 1+2*byteLen {
@@ -325,10 +326,14 @@ func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
 	if data[0] != 4 { // uncompressed form
 		return
 	}
+	p := curve.Params().P
 	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
 	y = new(big.Int).SetBytes(data[1+byteLen:])
+	if x.Cmp(p) >= 0 || y.Cmp(p) >= 0 {
+		return nil, nil
+	}
 	if !curve.IsOnCurve(x, y) {
-		x, y = nil, nil
+		return nil, nil
 	}
 	return
 }

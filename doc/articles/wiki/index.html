@@ -179,7 +179,7 @@ You can compile and run the program like this:
 <pre>
 $ go build wiki.go
 $ ./wiki
-This is a sample page.
+This is a sample Page.
 </pre>
 
 <p>
@@ -211,6 +211,12 @@ It then calls <code>http.ListenAndServe</code>, specifying that it should
 listen on port 8080 on any interface (<code>":8080"</code>). (Don't
 worry about its second parameter, <code>nil</code>, for now.)
 This function will block until the program is terminated.
+</p>
+
+<p>
+<code>ListenAndServe</code> always returns an error, since it only returns when an
+unexpected error occurs.
+In order to log that error we wrap the function call with <code>log.Fatal</code>.
 </p>
 
 <p>

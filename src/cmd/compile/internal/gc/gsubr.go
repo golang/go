@@ -37,7 +37,7 @@ import (
 	"cmd/internal/src"
 )
 
-var sharedProgArray *[10000]obj.Prog = new([10000]obj.Prog) // *T instead of T to work around issue 19839
+var sharedProgArray = new([10000]obj.Prog) // *T instead of T to work around issue 19839
 
 // Progs accumulates Progs for a function and converts them into machine code.
 type Progs struct {
@@ -70,13 +70,13 @@ func newProgs(fn *Node, worker int) *Progs {
 }
 
 func (pp *Progs) NewProg() *obj.Prog {
+	var p *obj.Prog
 	if pp.cacheidx < len(pp.progcache) {
-		p := &pp.progcache[pp.cacheidx]
-		p.Ctxt = Ctxt
+		p = &pp.progcache[pp.cacheidx]
 		pp.cacheidx++
-		return p
+	} else {
+		p = new(obj.Prog)
 	}
-	p := new(obj.Prog)
 	p.Ctxt = Ctxt
 	return p
 }
@@ -84,7 +84,7 @@ func (pp *Progs) NewProg() *obj.Prog {
 // Flush converts from pp to machine code.
 func (pp *Progs) Flush() {
 	plist := &obj.Plist{Firstpc: pp.Text, Curfn: pp.curfn}
-	obj.Flushplist(Ctxt, plist, pp.NewProg)
+	obj.Flushplist(Ctxt, plist, pp.NewProg, myimportpath)
 }
 
 // Free clears pp and any associated resources.

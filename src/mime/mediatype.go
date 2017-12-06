@@ -171,8 +171,9 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 	for key, pieceMap := range continuation {
 		singlePartKey := key + "*"
 		if v, ok := pieceMap[singlePartKey]; ok {
-			decv := decode2231Enc(v)
-			params[key] = decv
+			if decv, ok := decode2231Enc(v); ok {
+				params[key] = decv
+			}
 			continue
 		}
 
@@ -186,16 +187,18 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 				continue
 			}
 			encodedPart := simplePart + "*"
-			if v, ok := pieceMap[encodedPart]; ok {
-				valid = true
-				if n == 0 {
-					buf.WriteString(decode2231Enc(v))
-				} else {
-					decv, _ := percentHexUnescape(v)
+			v, ok := pieceMap[encodedPart]
+			if !ok {
+				break
+			}
+			valid = true
+			if n == 0 {
+				if decv, ok := decode2231Enc(v); ok {
 					buf.WriteString(decv)
 				}
 			} else {
-				break
+				decv, _ := percentHexUnescape(v)
+				buf.WriteString(decv)
 			}
 		}
 		if valid {
@@ -206,21 +209,27 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 	return
 }
 
-func decode2231Enc(v string) string {
+func decode2231Enc(v string) (string, bool) {
 	sv := strings.SplitN(v, "'", 3)
 	if len(sv) != 3 {
-		return ""
+		return "", false
 	}
 	// TODO: ignoring lang in sv[1] for now. If anybody needs it we'll
 	// need to decide how to expose it in the API. But I'm not sure
 	// anybody uses it in practice.
 	charset := strings.ToLower(sv[0])
+	if len(charset) == 0 {
+		return "", false
+	}
 	if charset != "us-ascii" && charset != "utf-8" {
 		// TODO: unsupported encoding
-		return ""
+		return "", false
 	}
-	encv, _ := percentHexUnescape(sv[2])
-	return encv
+	encv, err := percentHexUnescape(sv[2])
+	if err != nil {
+		return "", false
+	}
+	return encv, true
 }
 
 func isNotTokenChar(r rune) bool {

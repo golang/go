@@ -14,14 +14,14 @@ import (
 // no floating point in note handlers on Plan 9
 var isPlan9 = objabi.GOOS == "plan9"
 
-// DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
+// DUFFZERO consists of repeated blocks of 4 MOVUPSs + LEAQ,
 // See runtime/mkduff.go.
 const (
 	dzBlocks    = 16 // number of MOV/ADD blocks
 	dzBlockLen  = 4  // number of clears per block
 	dzBlockSize = 19 // size of instructions in a single block
 	dzMovSize   = 4  // size of single MOV instruction w/ offset
-	dzAddSize   = 4  // size of single ADD instruction
+	dzLeaqSize  = 4  // size of single LEAQ instruction
 	dzClearStep = 16 // number of bytes cleared by each MOV instruction
 
 	dzClearLen = dzClearStep * dzBlockLen // bytes cleared by one block
@@ -35,7 +35,7 @@ func dzOff(b int64) int64 {
 	off -= b / dzClearLen * dzBlockSize
 	tailLen := b % dzClearLen
 	if tailLen >= dzClearStep {
-		off -= dzAddSize + dzMovSize*(tailLen/dzClearStep)
+		off -= dzLeaqSize + dzMovSize*(tailLen/dzClearStep)
 	}
 	return off
 }

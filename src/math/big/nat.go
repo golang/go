@@ -249,7 +249,7 @@ func karatsubaSub(z, x nat, n int) {
 // Operands that are shorter than karatsubaThreshold are multiplied using
 // "grade school" multiplication; for longer operands the Karatsuba algorithm
 // is used.
-var karatsubaThreshold int = 40 // computed by calibrate.go
+var karatsubaThreshold = 40 // computed by calibrate_test.go
 
 // karatsuba multiplies x and y and leaves the result in z.
 // Both x and y must have the same length n and n must be a
@@ -473,6 +473,61 @@ func (z nat) mul(x, y nat) nat {
 	return z.norm()
 }
 
+// basicSqr sets z = x*x and is asymptotically faster than basicMul
+// by about a factor of 2, but slower for small arguments due to overhead.
+// Requirements: len(x) > 0, len(z) >= 2*len(x)
+// The (non-normalized) result is placed in z[0 : 2 * len(x)].
+func basicSqr(z, x nat) {
+	n := len(x)
+	t := make(nat, 2*n)            // temporary variable to hold the products
+	z[1], z[0] = mulWW(x[0], x[0]) // the initial square
+	for i := 1; i < n; i++ {
+		d := x[i]
+		// z collects the squares x[i] * x[i]
+		z[2*i+1], z[2*i] = mulWW(d, d)
+		// t collects the products x[i] * x[j] where j < i
+		t[2*i] = addMulVVW(t[i:2*i], x[0:i], d)
+	}
+	t[2*n-1] = shlVU(t[1:2*n-1], t[1:2*n-1], 1) // double the j < i products
+	addVV(z, z, t)                              // combine the result
+}
+
+// Operands that are shorter than basicSqrThreshold are squared using
+// "grade school" multiplication; for operands longer than karatsubaSqrThreshold
+// the Karatsuba algorithm is used.
+var basicSqrThreshold = 20      // computed by calibrate_test.go
+var karatsubaSqrThreshold = 400 // computed by calibrate_test.go
+
+// z = x*x
+func (z nat) sqr(x nat) nat {
+	n := len(x)
+	switch {
+	case n == 0:
+		return z[:0]
+	case n == 1:
+		d := x[0]
+		z = z.make(2)
+		z[1], z[0] = mulWW(d, d)
+		return z.norm()
+	}
+
+	if alias(z, x) {
+		z = nil // z is an alias for x - cannot reuse
+	}
+	z = z.make(2 * n)
+
+	if n < basicSqrThreshold {
+		basicMul(z, x, x)
+		return z.norm()
+	}
+	if n < karatsubaSqrThreshold {
+		basicSqr(z, x)
+		return z.norm()
+	}
+
+	return z.mul(x, x)
+}
+
 // mulRange computes the product of all the unsigned integers in the
 // range [a, b] inclusively. If a > b (empty range), the result is 1.
 func (z nat) mulRange(a, b uint64) nat {
@@ -566,8 +621,8 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	// determine if z can be reused
 	// TODO(gri) should find a better solution - this if statement
 	//           is very costly (see e.g. time pidigits -s -n 10000)
-	if alias(z, uIn) || alias(z, v) {
-		z = nil // z is an alias for uIn or v - cannot reuse
+	if alias(z, u) || alias(z, uIn) || alias(z, v) {
+		z = nil // z is an alias for u or uIn or v - cannot reuse
 	}
 	q = z.make(m + 1)
 
@@ -936,7 +991,7 @@ func (z nat) expNN(x, y, m nat) nat {
 	// otherwise the arguments would alias.
 	var zz, r nat
 	for j := 0; j < w; j++ {
-		zz = zz.mul(z, z)
+		zz = zz.sqr(z)
 		zz, z = z, zz
 
 		if v&mask != 0 {
@@ -956,7 +1011,7 @@ func (z nat) expNN(x, y, m nat) nat {
 		v = y[i]
 
 		for j := 0; j < _W; j++ {
-			zz = zz.mul(z, z)
+			zz = zz.sqr(z)
 			zz, z = z, zz
 
 			if v&mask != 0 {
@@ -989,7 +1044,7 @@ func (z nat) expNNWindowed(x, y, m nat) nat {
 	powers[1] = x
 	for i := 2; i < 1<<n; i += 2 {
 		p2, p, p1 := &powers[i/2], &powers[i], &powers[i+1]
-		*p = p.mul(*p2, *p2)
+		*p = p.sqr(*p2)
 		zz, r = zz.div(r, *p, m)
 		*p, r = r, *p
 		*p1 = p1.mul(*p, x)
@@ -1006,22 +1061,22 @@ func (z nat) expNNWindowed(x, y, m nat) nat {
 				// Unrolled loop for significant performance
 				// gain. Use go test -bench=".*" in crypto/rsa
 				// to check performance before making changes.
-				zz = zz.mul(z, z)
+				zz = zz.sqr(z)
 				zz, z = z, zz
 				zz, r = zz.div(r, z, m)
 				z, r = r, z
 
-				zz = zz.mul(z, z)
+				zz = zz.sqr(z)
 				zz, z = z, zz
 				zz, r = zz.div(r, z, m)
 				z, r = r, z
 
-				zz = zz.mul(z, z)
+				zz = zz.sqr(z)
 				zz, z = z, zz
 				zz, r = zz.div(r, z, m)
 				z, r = r, z
 
-				zz = zz.mul(z, z)
+				zz = zz.sqr(z)
 				zz, z = z, zz
 				zz, r = zz.div(r, z, m)
 				z, r = r, z

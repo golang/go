@@ -7,22 +7,29 @@ package runtime
 import "unsafe"
 
 //go:linkname plugin_lastmoduleinit plugin.lastmoduleinit
-func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatchpkg string) {
-	md := firstmoduledata.next
+func plugin_lastmoduleinit() (path string, syms map[string]interface{}, errstr string) {
+	var md *moduledata
+	for pmd := firstmoduledata.next; pmd != nil; pmd = pmd.next {
+		if pmd.bad {
+			md = nil // we only want the last module
+			continue
+		}
+		md = pmd
+	}
 	if md == nil {
 		throw("runtime: no plugin module data")
 	}
-	for md.next != nil {
-		md = md.next
+	if md.pluginpath == "" {
+		throw("runtime: plugin has empty pluginpath")
 	}
 	if md.typemap != nil {
-		throw("runtime: plugin already initialized")
+		return "", nil, "plugin already loaded"
 	}
 
 	for _, pmd := range activeModules() {
 		if pmd.pluginpath == md.pluginpath {
-			println("plugin: plugin", md.pluginpath, "already loaded")
-			throw("plugin: plugin already loaded")
+			md.bad = true
+			return "", nil, "plugin already loaded"
 		}
 
 		if inRange(pmd.text, pmd.etext, md.text, md.etext) ||
@@ -43,7 +50,8 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatch
 	}
 	for _, pkghash := range md.pkghashes {
 		if pkghash.linktimehash != *pkghash.runtimehash {
-			return "", nil, pkghash.modulename
+			md.bad = true
+			return "", nil, "plugin was built with a different version of package " + pkghash.modulename
 		}
 	}
 
@@ -54,13 +62,11 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatch
 	pluginftabverify(md)
 	moduledataverify1(md)
 
-	lock(&ifaceLock)
+	lock(&itabLock)
 	for _, i := range md.itablinks {
-		if !i.inhash {
-			additab(i, true, false)
-		}
+		itabAdd(i)
 	}
-	unlock(&ifaceLock)
+	unlock(&itabLock)
 
 	// Build a map of symbol names to symbols. Here in the runtime
 	// we fill out the first word of the interface, the type. We

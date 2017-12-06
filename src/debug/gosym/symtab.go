@@ -79,8 +79,8 @@ type Func struct {
 	Entry uint64
 	*Sym
 	End       uint64
-	Params    []*Sym
-	Locals    []*Sym
+	Params    []*Sym // nil for Go 1.3 and later binaries
+	Locals    []*Sym // nil for Go 1.3 and later binaries
 	FrameSize int
 	LineTable *LineTable
 	Obj       *Obj
@@ -116,7 +116,7 @@ type Obj struct {
 // symbols decoded from the program and provides methods to translate
 // between symbols, names, and addresses.
 type Table struct {
-	Syms  []Sym
+	Syms  []Sym // nil for Go 1.3 and later binaries
 	Funcs []Func
 	Files map[string]*Obj // nil for Go 1.2 and later binaries
 	Objs  []Obj           // nil for Go 1.2 and later binaries
@@ -277,8 +277,9 @@ func walksymtab(data []byte, fn func(sym) error) error {
 	return nil
 }
 
-// NewTable decodes the Go symbol table in data,
+// NewTable decodes the Go symbol table (the ".gosymtab" section in ELF),
 // returning an in-memory representation.
+// Starting with Go 1.3, the Go symbol table no longer includes symbol data.
 func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 	var n int
 	err := walksymtab(symtab, func(s sym) error {

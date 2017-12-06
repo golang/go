@@ -24,8 +24,8 @@ const parserMode = parser.ParseComments
 // The node type must be *ast.File, *printer.CommentedNode, []ast.Decl,
 // []ast.Stmt, or assignment-compatible to ast.Expr, ast.Decl, ast.Spec,
 // or ast.Stmt. Node does not modify node. Imports are not sorted for
-// nodes representing partial source files (i.e., if the node is not an
-// *ast.File or a *printer.CommentedNode not wrapping an *ast.File).
+// nodes representing partial source files (for instance, if the node is
+// not an *ast.File or a *printer.CommentedNode not wrapping an *ast.File).
 //
 // The function may return early (before the entire result is written)
 // and return a formatting error, for instance due to an incorrect AST.
@@ -78,6 +78,10 @@ func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
 // is applied to the result (such that it has the same leading and trailing
 // space as src), and the result is indented by the same amount as the first
 // line of src containing code. Imports are not sorted for partial source files.
+//
+// Caution: Tools relying on consistent formatting based on the installed
+// version of gofmt (for instance, such as for presubmit checks) should
+// execute that gofmt binary instead of calling Source.
 //
 func Source(src []byte) ([]byte, error) {
 	fset := token.NewFileSet()

@@ -33,13 +33,13 @@ type abbrevTable map[uint32]abbrev
 
 // ParseAbbrev returns the abbreviation table that starts at byte off
 // in the .debug_abbrev section.
-func (d *Data) parseAbbrev(off uint32, vers int) (abbrevTable, error) {
+func (d *Data) parseAbbrev(off uint64, vers int) (abbrevTable, error) {
 	if m, ok := d.abbrevCache[off]; ok {
 		return m, nil
 	}
 
 	data := d.abbrev
-	if off > uint32(len(data)) {
+	if off > uint64(len(data)) {
 		data = nil
 	} else {
 		data = data[off:]

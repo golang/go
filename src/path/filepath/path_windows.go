@@ -100,9 +100,7 @@ func splitList(path string) []string {
 
 	// Remove quotes.
 	for i, s := range list {
-		if strings.Contains(s, `"`) {
-			list[i] = strings.Replace(s, `"`, ``, -1)
-		}
+		list[i] = strings.Replace(s, `"`, ``, -1)
 	}
 
 	return list

@@ -166,6 +166,26 @@ func ExampleLastIndexAny() {
 	// -1
 }
 
+func ExampleLastIndexByte() {
+	fmt.Println(strings.LastIndexByte("Hello, world", 'l'))
+	fmt.Println(strings.LastIndexByte("Hello, world", 'o'))
+	fmt.Println(strings.LastIndexByte("Hello, world", 'x'))
+	// Output:
+	// 10
+	// 8
+	// -1
+}
+
+func ExampleLastIndexFunc() {
+	fmt.Println(strings.LastIndexFunc("go 123", unicode.IsNumber))
+	fmt.Println(strings.LastIndexFunc("123 go", unicode.IsNumber))
+	fmt.Println(strings.LastIndexFunc("go", unicode.IsNumber))
+	// Output:
+	// 5
+	// 2
+	// -1
+}
+
 func ExampleJoin() {
 	s := []string{"foo", "bar", "baz"}
 	fmt.Println(strings.Join(s, ", "))
@@ -229,17 +249,10 @@ func ExampleToTitle() {
 	// ХЛЕБ
 }
 
-func ExampleTrim() {
-	fmt.Printf("[%q]", strings.Trim(" !!! Achtung! Achtung! !!! ", "! "))
-	// Output: ["Achtung! Achtung"]
-}
-
-func ExampleTrimFunc() {
-	f := func(c rune) bool {
-		return !unicode.IsLetter(c) && !unicode.IsNumber(c)
-	}
-	fmt.Printf("[%q]", strings.TrimFunc("  Achtung1! Achtung2,...", f))
-	// Output: ["Achtung1! Achtung2"]
+func ExampleToTitleSpecial() {
+	fmt.Println(strings.ToTitleSpecial(unicode.TurkishCase, "dünyanın ilk borsa yapısı Aizonai kabul edilir"))
+	// Output:
+	// DÜNYANIN İLK BORSA YAPISI AİZONAİ KABUL EDİLİR
 }
 
 func ExampleMap() {
@@ -256,11 +269,6 @@ func ExampleMap() {
 	// Output: 'Gjnf oevyyvt naq gur fyvgul tbcure...
 }
 
-func ExampleTrimSpace() {
-	fmt.Println(strings.TrimSpace(" \t\n a lone gopher \n\t\r\n"))
-	// Output: a lone gopher
-}
-
 func ExampleNewReplacer() {
 	r := strings.NewReplacer("<", "&lt;", ">", "&gt;")
 	fmt.Println(r.Replace("This is <b>HTML</b>!"))
@@ -272,23 +280,85 @@ func ExampleToUpper() {
 	// Output: GOPHER
 }
 
+func ExampleToUpperSpecial() {
+	fmt.Println(strings.ToUpperSpecial(unicode.TurkishCase, "örnek iş"))
+	// Output: ÖRNEK İŞ
+}
+
 func ExampleToLower() {
 	fmt.Println(strings.ToLower("Gopher"))
 	// Output: gopher
 }
 
-func ExampleTrimSuffix() {
-	var s = "Hello, goodbye, etc!"
-	s = strings.TrimSuffix(s, "goodbye, etc!")
-	s = strings.TrimSuffix(s, "planet")
-	fmt.Print(s, "world!")
-	// Output: Hello, world!
+func ExampleToLowerSpecial() {
+	fmt.Println(strings.ToLowerSpecial(unicode.TurkishCase, "Önnek İş"))
+	// Output: önnek iş
+}
+
+func ExampleTrim() {
+	fmt.Print(strings.Trim("¡¡¡Hello, Gophers!!!", "!¡"))
+	// Output: Hello, Gophers
+}
+
+func ExampleTrimSpace() {
+	fmt.Println(strings.TrimSpace(" \t\n Hello, Gophers \n\t\r\n"))
+	// Output: Hello, Gophers
 }
 
 func ExampleTrimPrefix() {
-	var s = "Goodbye,, world!"
-	s = strings.TrimPrefix(s, "Goodbye,")
-	s = strings.TrimPrefix(s, "Howdy,")
-	fmt.Print("Hello" + s)
-	// Output: Hello, world!
+	var s = "¡¡¡Hello, Gophers!!!"
+	s = strings.TrimPrefix(s, "¡¡¡Hello, ")
+	s = strings.TrimPrefix(s, "¡¡¡Howdy, ")
+	fmt.Print(s)
+	// Output: Gophers!!!
+}
+
+func ExampleTrimSuffix() {
+	var s = "¡¡¡Hello, Gophers!!!"
+	s = strings.TrimSuffix(s, ", Gophers!!!")
+	s = strings.TrimSuffix(s, ", Marmots!!!")
+	fmt.Print(s)
+	// Output: ¡¡¡Hello
+}
+
+func ExampleTrimFunc() {
+	fmt.Print(strings.TrimFunc("¡¡¡Hello, Gophers!!!", func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}))
+	// Output: Hello, Gophers
+}
+
+func ExampleTrimLeft() {
+	fmt.Print(strings.TrimLeft("¡¡¡Hello, Gophers!!!", "!¡"))
+	// Output: Hello, Gophers!!!
+}
+
+func ExampleTrimLeftFunc() {
+	fmt.Print(strings.TrimLeftFunc("¡¡¡Hello, Gophers!!!", func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}))
+	// Output: Hello, Gophers!!!
+}
+
+func ExampleTrimRight() {
+	fmt.Print(strings.TrimRight("¡¡¡Hello, Gophers!!!", "!¡"))
+	// Output: ¡¡¡Hello, Gophers
+}
+
+func ExampleTrimRightFunc() {
+	fmt.Print(strings.TrimRightFunc("¡¡¡Hello, Gophers!!!", func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}))
+	// Output: ¡¡¡Hello, Gophers
+}
+
+func ExampleBuilder() {
+	var b strings.Builder
+	for i := 3; i >= 1; i-- {
+		fmt.Fprintf(&b, "%d...", i)
+	}
+	b.WriteString("ignition")
+	fmt.Println(b.String())
+
+	// Output: 3...2...1...ignition
 }

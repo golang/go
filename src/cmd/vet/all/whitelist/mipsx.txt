@@ -1,7 +1,5 @@
 // mips64-specific vet whitelist. See readme.txt for details.
 
-reflect/asm_mipsx.s: [GOARCH] makeFuncStub: use of 8(R29) points beyond argument frame
-reflect/asm_mipsx.s: [GOARCH] methodValueCall: use of 8(R29) points beyond argument frame
 runtime/asm_mipsx.s: [GOARCH] abort: function abort missing Go declaration
 runtime/tls_mipsx.s: [GOARCH] save_g: function save_g missing Go declaration
 runtime/tls_mipsx.s: [GOARCH] load_g: function load_g missing Go declaration

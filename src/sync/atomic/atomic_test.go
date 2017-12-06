@@ -30,7 +30,7 @@ const (
 	magic64 = 0xdeddeadbeefbeef
 )
 
-// Do the 64-bit functions panic?  If so, don't bother testing.
+// Do the 64-bit functions panic? If so, don't bother testing.
 var test64err = func() (err interface{}) {
 	defer func() {
 		err = recover()
@@ -772,10 +772,8 @@ func init() {
 	if uintptr(v) != 0 {
 		// 64-bit system; clear uintptr tests
 		delete(hammer32, "SwapUintptr")
-		delete(hammer32, "SwapPointer")
 		delete(hammer32, "AddUintptr")
 		delete(hammer32, "CompareAndSwapUintptr")
-		delete(hammer32, "CompareAndSwapPointer")
 	}
 }
 
@@ -923,10 +921,8 @@ func init() {
 	if uintptr(v) == 0 {
 		// 32-bit system; clear uintptr tests
 		delete(hammer64, "SwapUintptr")
-		delete(hammer64, "SwapPointer")
 		delete(hammer64, "AddUintptr")
 		delete(hammer64, "CompareAndSwapUintptr")
-		delete(hammer64, "CompareAndSwapPointer")
 	}
 }
 

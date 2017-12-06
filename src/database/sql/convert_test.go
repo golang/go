@@ -106,6 +106,7 @@ var conversionTests = []conversionTest{
 	// To RawBytes
 	{s: nil, d: &scanraw, wantraw: nil},
 	{s: []byte("byteslice"), d: &scanraw, wantraw: RawBytes("byteslice")},
+	{s: "string", d: &scanraw, wantraw: RawBytes("string")},
 	{s: 123, d: &scanraw, wantraw: RawBytes("123")},
 	{s: int8(123), d: &scanraw, wantraw: RawBytes("123")},
 	{s: int64(123), d: &scanraw, wantraw: RawBytes("123")},
@@ -114,6 +115,9 @@ var conversionTests = []conversionTest{
 	{s: uint32(123), d: &scanraw, wantraw: RawBytes("123")},
 	{s: uint64(123), d: &scanraw, wantraw: RawBytes("123")},
 	{s: 1.5, d: &scanraw, wantraw: RawBytes("1.5")},
+	// time.Time has been placed here to check that the RawBytes slice gets
+	// correctly reset when calling time.Time.AppendFormat.
+	{s: time.Unix(2, 5).UTC(), d: &scanraw, wantraw: RawBytes("1970-01-01T00:00:02.000000005Z")},
 
 	// Strings to integers
 	{s: "255", d: &scanuint8, wantuint: 255},
@@ -221,6 +225,12 @@ func TestConversions(t *testing.T) {
 		}
 		if ct.wantstr != "" && ct.wantstr != scanstr {
 			errf("want string %q, got %q", ct.wantstr, scanstr)
+		}
+		if ct.wantbytes != nil && string(ct.wantbytes) != string(scanbytes) {
+			errf("want byte %q, got %q", ct.wantbytes, scanbytes)
+		}
+		if ct.wantraw != nil && string(ct.wantraw) != string(scanraw) {
+			errf("want RawBytes %q, got %q", ct.wantraw, scanraw)
 		}
 		if ct.wantint != 0 && ct.wantint != intValue(ct.d) {
 			errf("want int %d, got %d", ct.wantint, intValue(ct.d))
@@ -341,6 +351,7 @@ func TestRawBytesAllocs(t *testing.T) {
 		{"float32", float32(1.5), "1.5"},
 		{"float64", float64(64), "64"},
 		{"bool", false, "false"},
+		{"time", time.Unix(2, 5).UTC(), "1970-01-01T00:00:02.000000005Z"},
 	}
 
 	buf := make(RawBytes, 10)
@@ -387,7 +398,7 @@ func TestRawBytesAllocs(t *testing.T) {
 	}
 }
 
-// https://github.com/golang/go/issues/13905
+// https://golang.org/issues/13905
 func TestUserDefinedBytes(t *testing.T) {
 	type userDefinedBytes []byte
 	var u userDefinedBytes
@@ -470,7 +481,7 @@ func TestDriverArgs(t *testing.T) {
 	}
 	for i, tt := range tests {
 		ds := &driverStmt{Locker: &sync.Mutex{}, si: stubDriverStmt{nil}}
-		got, err := driverArgs(nil, ds, tt.args)
+		got, err := driverArgsConnLocked(nil, ds, tt.args)
 		if err != nil {
 			t.Errorf("test[%d]: %v", i, err)
 			continue

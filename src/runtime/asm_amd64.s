@@ -7,6 +7,83 @@
 #include "funcdata.h"
 #include "textflag.h"
 
+// _rt0_amd64 is common startup code for most amd64 systems when using
+// internal linking. This is the entry point for the program from the
+// kernel for an ordinary -buildmode=exe program. The stack holds the
+// number of arguments and the C-style argv.
+TEXT _rt0_amd64(SB),NOSPLIT,$-8
+	MOVQ	0(SP), DI	// argc
+	LEAQ	8(SP), SI	// argv
+	JMP	runtime·rt0_go(SB)
+
+// main is common startup code for most amd64 systems when using
+// external linking. The C startup code will call the symbol "main"
+// passing argc and argv in the usual C ABI registers DI and SI.
+TEXT main(SB),NOSPLIT,$-8
+	JMP	runtime·rt0_go(SB)
+
+// _rt0_amd64_lib is common startup code for most amd64 systems when
+// using -buildmode=c-archive or -buildmode=c-shared. The linker will
+// arrange to invoke this function as a global constructor (for
+// c-archive) or when the shared library is loaded (for c-shared).
+// We expect argc and argv to be passed in the usual C ABI registers
+// DI and SI.
+TEXT _rt0_amd64_lib(SB),NOSPLIT,$0x50
+	// Align stack per ELF ABI requirements.
+	MOVQ	SP, AX
+	ANDQ	$~15, SP
+	// Save C ABI callee-saved registers, as caller may need them.
+	MOVQ	BX, 0x10(SP)
+	MOVQ	BP, 0x18(SP)
+	MOVQ	R12, 0x20(SP)
+	MOVQ	R13, 0x28(SP)
+	MOVQ	R14, 0x30(SP)
+	MOVQ	R15, 0x38(SP)
+	MOVQ	AX, 0x40(SP)
+
+	MOVQ	DI, _rt0_amd64_lib_argc<>(SB)
+	MOVQ	SI, _rt0_amd64_lib_argv<>(SB)
+
+	// Synchronous initialization.
+	CALL	runtime·libpreinit(SB)
+
+	// Create a new thread to finish Go runtime initialization.
+	MOVQ	_cgo_sys_thread_create(SB), AX
+	TESTQ	AX, AX
+	JZ	nocgo
+	MOVQ	$_rt0_amd64_lib_go(SB), DI
+	MOVQ	$0, SI
+	CALL	AX
+	JMP	restore
+
+nocgo:
+	MOVQ	$0x800000, 0(SP)		// stacksize
+	MOVQ	$_rt0_amd64_lib_go(SB), AX
+	MOVQ	AX, 8(SP)			// fn
+	CALL	runtime·newosproc0(SB)
+
+restore:
+	MOVQ	0x10(SP), BX
+	MOVQ	0x18(SP), BP
+	MOVQ	0x20(SP), R12
+	MOVQ	0x28(SP), R13
+	MOVQ	0x30(SP), R14
+	MOVQ	0x38(SP), R15
+	MOVQ	0x40(SP), SP
+	RET
+
+// _rt0_amd64_lib_go initializes the Go runtime.
+// This is started in a separate thread by _rt0_amd64_lib.
+TEXT _rt0_amd64_lib_go(SB),NOSPLIT,$0
+	MOVQ	_rt0_amd64_lib_argc<>(SB), DI
+	MOVQ	_rt0_amd64_lib_argv<>(SB), SI
+	JMP	runtime·rt0_go(SB)
+
+DATA _rt0_amd64_lib_argc<>(SB)/8, $0
+GLOBL _rt0_amd64_lib_argc<>(SB),NOPTR, $8
+DATA _rt0_amd64_lib_argv<>(SB)/8, $0
+GLOBL _rt0_amd64_lib_argv<>(SB),NOPTR, $8
+
 TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// copy arguments forward on an even stack
 	MOVQ	DI, AX		// argc
@@ -227,18 +304,6 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-8
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB), NOSPLIT, $16-8
 	MOVQ	buf+0(FP), BX		// gobuf
-
-	// If ctxt is not nil, invoke deletion barrier before overwriting.
-	MOVQ	gobuf_ctxt(BX), AX
-	TESTQ	AX, AX
-	JZ	nilctxt
-	LEAQ	gobuf_ctxt(BX), AX
-	MOVQ	AX, 0(SP)
-	MOVQ	$0, 8(SP)
-	CALL	runtime·writebarrierptr_prewrite(SB)
-	MOVQ	buf+0(FP), BX
-
-nilctxt:
 	MOVQ	gobuf_g(BX), DX
 	MOVQ	0(DX), CX		// make sure g != nil
 	get_tls(CX)
@@ -354,11 +419,12 @@ switch:
 	RET
 
 noswitch:
-	// already on m stack, just call directly
+	// already on m stack; tail call the function
+	// Using a tail call here cleans up tracebacks since we won't stop
+	// at an intermediate systemstack.
 	MOVQ	DI, DX
 	MOVQ	0(DI), DI
-	CALL	DI
-	RET
+	JMP	DI
 
 /*
  * support for morestack
@@ -405,16 +471,14 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	LEAQ	8(SP), AX // f's SP
 	MOVQ	AX, (g_sched+gobuf_sp)(SI)
 	MOVQ	BP, (g_sched+gobuf_bp)(SI)
-	// newstack will fill gobuf.ctxt.
+	MOVQ	DX, (g_sched+gobuf_ctxt)(SI)
 
 	// Call newstack on m->g0's stack.
 	MOVQ	m_g0(BX), BX
 	MOVQ	BX, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(BX), SP
-	PUSHQ	DX	// ctxt argument
 	CALL	runtime·newstack(SB)
 	MOVQ	$0, 0x1003	// crash if newstack returns
-	POPQ	DX	// keep balance check happy
 	RET
 
 // morestack but not preserving ctxt.
@@ -833,12 +897,6 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 	INT	$3
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
-	MOVQ	argp+0(FP),AX		// addr of first arg
-	MOVQ	-8(AX),AX		// get calling pc
-	MOVQ	AX, ret+8(FP)
-	RET
-
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
@@ -852,23 +910,6 @@ done:
 	SHLQ	$32, DX
 	ADDQ	DX, AX
 	MOVQ	AX, ret+0(FP)
-	RET
-
-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
-// redirects to memhash(p, h, size) using the size
-// stored in the closure.
-TEXT runtime·memhash_varlen(SB),NOSPLIT,$32-24
-	GO_ARGS
-	NO_LOCAL_POINTERS
-	MOVQ	p+0(FP), AX
-	MOVQ	h+8(FP), BX
-	MOVQ	8(DX), CX
-	MOVQ	AX, 0(SP)
-	MOVQ	BX, 8(SP)
-	MOVQ	CX, 16(SP)
-	CALL	runtime·memhash(SB)
-	MOVQ	24(SP), AX
-	MOVQ	AX, ret+16(FP)
 	RET
 
 // hash function using AES hardware instructions
@@ -1341,23 +1382,6 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-17
 	JMP	runtime·memeqbody(SB)
 eq:
 	MOVB	$1, ret+16(FP)
-	RET
-
-// eqstring tests whether two strings are equal.
-// The compiler guarantees that strings passed
-// to eqstring have equal length.
-// See runtime_test.go:eqstring_generic for
-// equivalent Go code.
-TEXT runtime·eqstring(SB),NOSPLIT,$0-33
-	MOVQ	s1_base+0(FP), SI
-	MOVQ	s2_base+16(FP), DI
-	CMPQ	SI, DI
-	JEQ	eq
-	MOVQ	s1_len+8(FP), BX
-	LEAQ	ret+32(FP), AX
-	JMP	runtime·memeqbody(SB)
-eq:
-	MOVB	$1, ret+32(FP)
 	RET
 
 // a in SI
@@ -2339,26 +2363,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$0-0
 	// traceback from goexit1 must hit code range of goexit
 	BYTE	$0x90	// NOP
 
-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
-	MOVQ	addr+0(FP), AX
-	PREFETCHT0	(AX)
-	RET
-
-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
-	MOVQ	addr+0(FP), AX
-	PREFETCHT1	(AX)
-	RET
-
-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
-	MOVQ	addr+0(FP), AX
-	PREFETCHT2	(AX)
-	RET
-
-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
-	MOVQ	addr+0(FP), AX
-	PREFETCHNTA	(AX)
-	RET
-
 // This is called from .init_array and follows the platform, not Go, ABI.
 TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 	PUSHQ	R15 // The access to global variables below implicitly uses R15, which is callee-save
@@ -2367,3 +2371,87 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 	MOVQ	DI, runtime·lastmoduledatap(SB)
 	POPQ	R15
 	RET
+
+// gcWriteBarrier performs a heap pointer write and informs the GC.
+//
+// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+// - DI is the destination of the write
+// - AX is the value being written at DI
+// It clobbers FLAGS. It does not clobber any general-purpose registers,
+// but may clobber others (e.g., SSE registers).
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$120
+	// Save the registers clobbered by the fast path. This is slightly
+	// faster than having the caller spill these.
+	MOVQ	R14, 104(SP)
+	MOVQ	R13, 112(SP)
+	// TODO: Consider passing g.m.p in as an argument so they can be shared
+	// across a sequence of write barriers.
+	get_tls(R13)
+	MOVQ	g(R13), R13
+	MOVQ	g_m(R13), R13
+	MOVQ	m_p(R13), R13
+	MOVQ	(p_wbBuf+wbBuf_next)(R13), R14
+	// Increment wbBuf.next position.
+	LEAQ	16(R14), R14
+	MOVQ	R14, (p_wbBuf+wbBuf_next)(R13)
+	CMPQ	R14, (p_wbBuf+wbBuf_end)(R13)
+	// Record the write.
+	MOVQ	AX, -16(R14)	// Record value
+	MOVQ	(DI), R13	// TODO: This turns bad writes into bad reads.
+	MOVQ	R13, -8(R14)	// Record *slot
+	// Is the buffer full? (flags set in CMPQ above)
+	JEQ	flush
+ret:
+	MOVQ	104(SP), R14
+	MOVQ	112(SP), R13
+	// Do the write.
+	MOVQ	AX, (DI)
+	RET
+
+flush:
+	// Save all general purpose registers since these could be
+	// clobbered by wbBufFlush and were not saved by the caller.
+	// It is possible for wbBufFlush to clobber other registers
+	// (e.g., SSE registers), but the compiler takes care of saving
+	// those in the caller if necessary. This strikes a balance
+	// with registers that are likely to be used.
+	//
+	// We don't have type information for these, but all code under
+	// here is NOSPLIT, so nothing will observe these.
+	//
+	// TODO: We could strike a different balance; e.g., saving X0
+	// and not saving GP registers that are less likely to be used.
+	MOVQ	DI, 0(SP)	// Also first argument to wbBufFlush
+	MOVQ	AX, 8(SP)	// Also second argument to wbBufFlush
+	MOVQ	BX, 16(SP)
+	MOVQ	CX, 24(SP)
+	MOVQ	DX, 32(SP)
+	// DI already saved
+	MOVQ	SI, 40(SP)
+	MOVQ	BP, 48(SP)
+	MOVQ	R8, 56(SP)
+	MOVQ	R9, 64(SP)
+	MOVQ	R10, 72(SP)
+	MOVQ	R11, 80(SP)
+	MOVQ	R12, 88(SP)
+	// R13 already saved
+	// R14 already saved
+	MOVQ	R15, 96(SP)
+
+	// This takes arguments DI and AX
+	CALL	runtime·wbBufFlush(SB)
+
+	MOVQ	0(SP), DI
+	MOVQ	8(SP), AX
+	MOVQ	16(SP), BX
+	MOVQ	24(SP), CX
+	MOVQ	32(SP), DX
+	MOVQ	40(SP), SI
+	MOVQ	48(SP), BP
+	MOVQ	56(SP), R8
+	MOVQ	64(SP), R9
+	MOVQ	72(SP), R10
+	MOVQ	80(SP), R11
+	MOVQ	88(SP), R12
+	MOVQ	96(SP), R15
+	JMP	ret

@@ -96,13 +96,13 @@ func Utimes(path string, tv []Timeval) (err error) {
 	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
 
-//sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
+//sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
 
 func UtimesNano(path string, ts []Timespec) (err error) {
 	if len(ts) != 2 {
 		return EINVAL
 	}
-	err = utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])))
+	err = utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
 	if err != ENOSYS {
 		return err
 	}
@@ -126,8 +126,7 @@ func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
 	if err != nil {
 		return err
 	}
-	err = futimesat(dirfd, pathp, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
-	return err
+	return futimesat(dirfd, pathp, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
 
 func Futimes(fd int, tv []Timeval) (err error) {
@@ -295,7 +294,10 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) {
 func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	name := sa.Name
 	n := len(name)
-	if n >= len(sa.raw.Path) {
+	if n > len(sa.raw.Path) {
+		return nil, 0, EINVAL
+	}
+	if n == len(sa.raw.Path) && name[0] != '@' {
 		return nil, 0, EINVAL
 	}
 	sa.raw.Family = AF_UNIX
@@ -532,17 +534,22 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 	msg.Namelen = uint32(SizeofSockaddrAny)
 	var iov Iovec
 	if len(p) > 0 {
-		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
+		iov.Base = &p[0]
 		iov.SetLen(len(p))
 	}
 	var dummy byte
 	if len(oob) > 0 {
+		var sockType int
+		sockType, err = GetsockoptInt(fd, SOL_SOCKET, SO_TYPE)
+		if err != nil {
+			return
+		}
 		// receive at least one normal byte
-		if len(p) == 0 {
+		if sockType != SOCK_DGRAM && len(p) == 0 {
 			iov.Base = &dummy
 			iov.SetLen(1)
 		}
-		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
+		msg.Control = &oob[0]
 		msg.SetControllen(len(oob))
 	}
 	msg.Iov = &iov
@@ -575,21 +582,26 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) 
 		}
 	}
 	var msg Msghdr
-	msg.Name = (*byte)(unsafe.Pointer(ptr))
+	msg.Name = (*byte)(ptr)
 	msg.Namelen = uint32(salen)
 	var iov Iovec
 	if len(p) > 0 {
-		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
+		iov.Base = &p[0]
 		iov.SetLen(len(p))
 	}
 	var dummy byte
 	if len(oob) > 0 {
+		var sockType int
+		sockType, err = GetsockoptInt(fd, SOL_SOCKET, SO_TYPE)
+		if err != nil {
+			return 0, err
+		}
 		// send at least one normal byte
-		if len(p) == 0 {
+		if sockType != SOCK_DGRAM && len(p) == 0 {
 			iov.Base = &dummy
 			iov.SetLen(1)
 		}
-		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
+		msg.Control = &oob[0]
 		msg.SetControllen(len(oob))
 	}
 	msg.Iov = &iov
@@ -788,8 +800,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 	if err != nil {
 		return err
 	}
-	err = mount(source, target, fstype, flags, datap)
-	return err
+	return mount(source, target, fstype, flags, datap)
 }
 
 // Sendto
@@ -810,7 +821,6 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sysnb	EpollCreate1(flag int) (fd int, err error)
 //sysnb	EpollCtl(epfd int, op int, fd int, event *EpollEvent) (err error)
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
-//sys	Exit(code int) = SYS_EXIT_GROUP
 //sys	Faccessat(dirfd int, path string, mode uint32, flags int) (err error)
 //sys	Fallocate(fd int, mode uint32, off int64, len int64) (err error)
 //sys	Fchdir(fd int) (err error)

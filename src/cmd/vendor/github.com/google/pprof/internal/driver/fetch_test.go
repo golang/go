@@ -15,8 +15,15 @@
 package driver
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"net/url"
 	"os"
@@ -24,11 +31,14 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/pprof/internal/binutils"
 	"github.com/google/pprof/internal/plugin"
 	"github.com/google/pprof/internal/proftest"
+	"github.com/google/pprof/internal/symbolizer"
 	"github.com/google/pprof/profile"
 )
 
@@ -165,6 +175,8 @@ func TestFetch(t *testing.T) {
 	const path = "testdata/"
 
 	// Intercept http.Get calls from HTTPFetcher.
+	savedHTTPGet := httpGet
+	defer func() { httpGet = savedHTTPGet }()
 	httpGet = stubHTTPGet
 
 	type testcase struct {
@@ -176,7 +188,7 @@ func TestFetch(t *testing.T) {
 		{path + "go.nomappings.crash", "/bin/gotest.exe"},
 		{"http://localhost/profile?file=cppbench.cpu", ""},
 	} {
-		p, _, _, err := grabProfile(&source{ExecName: tc.execName}, tc.source, 0, nil, testObj{}, &proftest.TestUI{T: t})
+		p, _, _, err := grabProfile(&source{ExecName: tc.execName}, tc.source, nil, testObj{}, &proftest.TestUI{T: t})
 		if err != nil {
 			t.Fatalf("%s: %s", tc.source, err)
 		}
@@ -191,6 +203,117 @@ func TestFetch(t *testing.T) {
 				t.Errorf("%s: want mapping[0].execName == %s, got %s", tc.source, e, p.Mapping[0].File)
 			}
 		}
+	}
+}
+
+func TestFetchWithBase(t *testing.T) {
+	baseVars := pprofVariables
+	defer func() { pprofVariables = baseVars }()
+
+	const path = "testdata/"
+	type testcase struct {
+		desc            string
+		sources         []string
+		bases           []string
+		normalize       bool
+		expectedSamples [][]int64
+	}
+
+	testcases := []testcase{
+		{
+			"not normalized base is same as source",
+			[]string{path + "cppbench.contention"},
+			[]string{path + "cppbench.contention"},
+			false,
+			[][]int64{},
+		},
+		{
+			"not normalized single source, multiple base (all profiles same)",
+			[]string{path + "cppbench.contention"},
+			[]string{path + "cppbench.contention", path + "cppbench.contention"},
+			false,
+			[][]int64{{-2700, -608881724}, {-100, -23992}, {-200, -179943}, {-100, -17778444}, {-100, -75976}, {-300, -63568134}},
+		},
+		{
+			"not normalized, different base and source",
+			[]string{path + "cppbench.contention"},
+			[]string{path + "cppbench.small.contention"},
+			false,
+			[][]int64{{1700, 608878600}, {100, 23992}, {200, 179943}, {100, 17778444}, {100, 75976}, {300, 63568134}},
+		},
+		{
+			"normalized base is same as source",
+			[]string{path + "cppbench.contention"},
+			[]string{path + "cppbench.contention"},
+			true,
+			[][]int64{},
+		},
+		{
+			"normalized single source, multiple base (all profiles same)",
+			[]string{path + "cppbench.contention"},
+			[]string{path + "cppbench.contention", path + "cppbench.contention"},
+			true,
+			[][]int64{},
+		},
+		{
+			"normalized different base and source",
+			[]string{path + "cppbench.contention"},
+			[]string{path + "cppbench.small.contention"},
+			true,
+			[][]int64{{-229, -370}, {28, 0}, {57, 0}, {28, 80}, {28, 0}, {85, 287}},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.desc, func(t *testing.T) {
+			pprofVariables = baseVars.makeCopy()
+
+			base := make([]*string, len(tc.bases))
+			for i, s := range tc.bases {
+				base[i] = &s
+			}
+
+			f := testFlags{
+				stringLists: map[string][]*string{
+					"base": base,
+				},
+				bools: map[string]bool{
+					"normalize": tc.normalize,
+				},
+			}
+			f.args = tc.sources
+
+			o := setDefaults(nil)
+			o.Flagset = f
+			src, _, err := parseFlags(o)
+
+			if err != nil {
+				t.Fatalf("%s: %v", tc.desc, err)
+			}
+
+			p, err := fetchProfiles(src, o)
+			pprofVariables = baseVars
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if want, got := len(tc.expectedSamples), len(p.Sample); want != got {
+				t.Fatalf("want %d samples got %d", want, got)
+			}
+
+			if len(p.Sample) > 0 {
+				for i, sample := range p.Sample {
+					if want, got := len(tc.expectedSamples[i]), len(sample.Value); want != got {
+						t.Errorf("want %d values for sample %d, got %d", want, i, got)
+					}
+					for j, value := range sample.Value {
+						if want, got := tc.expectedSamples[i][j], value; want != got {
+							t.Errorf("want value of %d for value %d of sample %d, got %d", want, j, i, got)
+						}
+					}
+				}
+			}
+		})
 	}
 }
 
@@ -226,4 +349,145 @@ func stubHTTPGet(source string, _ time.Duration) (*http.Response, error) {
 
 	c := &http.Client{Transport: t}
 	return c.Get("file:///" + file)
+}
+
+func closedError() string {
+	if runtime.GOOS == "plan9" {
+		return "listen hungup"
+	}
+	return "use of closed"
+}
+
+func TestHttpsInsecure(t *testing.T) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("test assumes tcp available")
+	}
+
+	baseVars := pprofVariables
+	pprofVariables = baseVars.makeCopy()
+	defer func() { pprofVariables = baseVars }()
+
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{selfSignedCert(t)}}
+
+	l, err := tls.Listen("tcp", "localhost:0", tlsConfig)
+	if err != nil {
+		t.Fatalf("net.Listen: got error %v, want no error", err)
+	}
+
+	donec := make(chan error, 1)
+	go func(donec chan<- error) {
+		donec <- http.Serve(l, nil)
+	}(donec)
+	defer func() {
+		if got, want := <-donec, closedError(); !strings.Contains(got.Error(), want) {
+			t.Fatalf("Serve got error %v, want %q", got, want)
+		}
+	}()
+	defer l.Close()
+
+	go func() {
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			// Simulate a hotspot function. Spin in the inner loop for 100M iterations
+			// to ensure we get most of the samples landed here rather than in the
+			// library calls. We assume Go compiler won't elide the empty loop.
+			for i := 0; i < 1e8; i++ {
+			}
+			runtime.Gosched()
+		}
+	}()
+
+	outputTempFile, err := ioutil.TempFile("", "profile_output")
+	if err != nil {
+		t.Fatalf("Failed to create tempfile: %v", err)
+	}
+	defer os.Remove(outputTempFile.Name())
+	defer outputTempFile.Close()
+
+	address := "https+insecure://" + l.Addr().String() + "/debug/pprof/profile"
+	s := &source{
+		Sources:   []string{address},
+		Seconds:   10,
+		Timeout:   10,
+		Symbolize: "remote",
+	}
+	rx := "Saved profile in"
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		// On iOS, $HOME points to the app root directory and is not writable.
+		rx += "|Could not use temp dir"
+	}
+	o := &plugin.Options{
+		Obj: &binutils.Binutils{},
+		UI:  &proftest.TestUI{T: t, AllowRx: rx},
+	}
+	o.Sym = &symbolizer.Symbolizer{Obj: o.Obj, UI: o.UI}
+	p, err := fetchProfiles(s, o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.SampleType) == 0 {
+		t.Fatalf("fetchProfiles(%s) got empty profile: len(p.SampleType)==0", address)
+	}
+	switch runtime.GOOS {
+	case "plan9":
+		// CPU profiling is not supported on Plan9; see golang.org/issues/22564.
+		return
+	case "darwin":
+		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+			// CPU profiling on iOS os not symbolized; see golang.org/issues/22612.
+			return
+		}
+	}
+	if len(p.Function) == 0 {
+		t.Fatalf("fetchProfiles(%s) got non-symbolized profile: len(p.Function)==0", address)
+	}
+	if err := checkProfileHasFunction(p, "TestHttpsInsecure"); !badSigprofOS[runtime.GOOS] && err != nil {
+		t.Fatalf("fetchProfiles(%s) %v", address, err)
+	}
+}
+
+// Some operating systems don't trigger the profiling signal right.
+// See https://github.com/golang/go/issues/13841.
+var badSigprofOS = map[string]bool{
+	"darwin": true,
+	"netbsd": true,
+}
+
+func checkProfileHasFunction(p *profile.Profile, fname string) error {
+	for _, f := range p.Function {
+		if strings.Contains(f.Name, fname) {
+			return nil
+		}
+	}
+	return fmt.Errorf("got %s, want function %q", p.String(), fname)
+}
+
+func selfSignedCert(t *testing.T) tls.Certificate {
+	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate private key: %v", err)
+	}
+	b, err := x509.MarshalECPrivateKey(privKey)
+	if err != nil {
+		t.Fatalf("failed to marshal private key: %v", err)
+	}
+	bk := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: b})
+
+	tmpl := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().Add(10 * time.Minute),
+	}
+
+	b, err = x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, privKey.Public(), privKey)
+	if err != nil {
+		t.Fatalf("failed to create cert: %v", err)
+	}
+	bc := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: b})
+
+	cert, err := tls.X509KeyPair(bc, bk)
+	if err != nil {
+		t.Fatalf("failed to create TLS key pair: %v", err)
+	}
+	return cert
 }

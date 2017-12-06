@@ -1,6 +1,6 @@
 Vet is a tool that checks correctness of Go programs. It runs a suite of tests,
 each tailored to check for a particular class of errors. Examples include incorrect
-Printf format verbs or malformed build tags.
+Printf format verbs and malformed build tags.
 
 Over time many checks have been added to vet's suite, but many more have been
 rejected as not appropriate for the tool. The criteria applied when selecting which
@@ -8,7 +8,7 @@ checks to add are:
 
 Correctness:
 
-Vet's tools are about correctness, not style. A vet check must identify real or
+Vet's checks are about correctness, not style. A vet check must identify real or
 potential bugs that could cause incorrect compilation or execution. A check that
 only identifies stylistic points or alternative correct approaches to a situation
 is not acceptable.

@@ -31,6 +31,7 @@ func checkStructFieldTags(f *File, node ast.Node) {
 }
 
 var checkTagDups = []string{"json", "xml"}
+var checkTagSpaces = map[string]bool{"json": true, "xml": true, "asn1": true}
 
 // checkCanonicalFieldTag checks a single struct field tag.
 func checkCanonicalFieldTag(f *File, field *ast.Field, seen *map[[2]string]token.Pos) {
@@ -114,6 +115,7 @@ var (
 	errTagSyntax      = errors.New("bad syntax for struct tag pair")
 	errTagKeySyntax   = errors.New("bad syntax for struct tag key")
 	errTagValueSyntax = errors.New("bad syntax for struct tag value")
+	errTagValueSpace  = errors.New("suspicious space in struct tag value")
 	errTagSpace       = errors.New("key:\"value\" pairs not separated by spaces")
 )
 
@@ -157,6 +159,7 @@ func validateStructTag(tag string) error {
 		if tag[i+1] != '"' {
 			return errTagValueSyntax
 		}
+		key := tag[:i]
 		tag = tag[i+1:]
 
 		// Scan quoted string to find value.
@@ -173,8 +176,50 @@ func validateStructTag(tag string) error {
 		qvalue := tag[:i+1]
 		tag = tag[i+1:]
 
-		if _, err := strconv.Unquote(qvalue); err != nil {
+		value, err := strconv.Unquote(qvalue)
+		if err != nil {
 			return errTagValueSyntax
+		}
+
+		if !checkTagSpaces[key] {
+			continue
+		}
+
+		switch key {
+		case "xml":
+			// If the first or last character in the XML tag is a space, it is
+			// suspicious.
+			if strings.Trim(value, " ") != value {
+				return errTagValueSpace
+			}
+
+			// If there are multiple spaces, they are suspicious.
+			if strings.Count(value, " ") > 1 {
+				return errTagValueSpace
+			}
+
+			// If there is no comma, skip the rest of the checks.
+			comma := strings.IndexRune(value, ',')
+			if comma < 0 {
+				continue
+			}
+
+			// If the character before a comma is a space, this is suspicious.
+			if comma > 0 && value[comma-1] == ' ' {
+				return errTagValueSpace
+			}
+			value = value[comma+1:]
+		case "json":
+			// JSON allows using spaces in the name, so skip it.
+			comma := strings.IndexRune(value, ',')
+			if comma < 0 {
+				continue
+			}
+			value = value[comma+1:]
+		}
+
+		if strings.IndexByte(value, ' ') >= 0 {
+			return errTagValueSpace
 		}
 	}
 	return nil

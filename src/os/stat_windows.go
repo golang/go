@@ -69,7 +69,7 @@ func Stat(name string) (FileInfo, error) {
 	if err != nil {
 		return nil, &PathError{"Stat", name, err}
 	}
-	// Apparently (see https://github.com/golang/go/issues/19922#issuecomment-300031421)
+	// Apparently (see https://golang.org/issues/19922#issuecomment-300031421)
 	// GetFileAttributesEx is fastest approach to get file info.
 	// It does not work for symlinks. But symlinks are rare,
 	// so try GetFileAttributesEx first.

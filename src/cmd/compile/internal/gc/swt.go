@@ -257,7 +257,7 @@ func (s *exprSwitch) walk(sw *Node) {
 	var cas []*Node
 	if s.kind == switchKindTrue || s.kind == switchKindFalse {
 		s.exprname = nodbool(s.kind == switchKindTrue)
-	} else if consttype(cond) >= 0 {
+	} else if consttype(cond) > 0 {
 		// leave constants to enable dead code elimination (issue 9608)
 		s.exprname = cond
 	} else {
@@ -273,21 +273,15 @@ func (s *exprSwitch) walk(sw *Node) {
 
 	// handle the cases in order
 	for len(cc) > 0 {
-		// deal with expressions one at a time
-		if !okforcmp[t.Etype] || !cc[0].isconst {
-			a := s.walkCases(cc[:1])
-			cas = append(cas, a)
-			cc = cc[1:]
-			continue
+		run := 1
+		if okforcmp[t.Etype] && cc[0].isconst {
+			// do binary search on runs of constants
+			for ; run < len(cc) && cc[run].isconst; run++ {
+			}
+			// sort and compile constants
+			sort.Sort(caseClauseByConstVal(cc[:run]))
 		}
 
-		// do binary search on runs of constants
-		var run int
-		for run = 1; run < len(cc) && cc[run].isconst; run++ {
-		}
-
-		// sort and compile constants
-		sort.Sort(caseClauseByConstVal(cc[:run]))
 		a := s.walkCases(cc[:run])
 		cas = append(cas, a)
 		cc = cc[run:]
@@ -380,7 +374,7 @@ func casebody(sw *Node, typeswvar *Node) {
 	var def *Node    // defaults
 	br := nod(OBREAK, nil, nil)
 
-	for i, n := range sw.List.Slice() {
+	for _, n := range sw.List.Slice() {
 		setlineno(n)
 		if n.Op != OXCASE {
 			Fatalf("casebody %v", n.Op)
@@ -393,7 +387,7 @@ func casebody(sw *Node, typeswvar *Node) {
 		case 0:
 			// default
 			if def != nil {
-				yyerror("more than one default case")
+				yyerrorl(n.Pos, "more than one default case")
 			}
 			// reuse original default case
 			n.Right = jmp
@@ -474,21 +468,7 @@ func casebody(sw *Node, typeswvar *Node) {
 			fallIndex--
 		}
 		last := stat[fallIndex]
-
-		// botch - shouldn't fall through declaration
-		if last.Xoffset == n.Xoffset && last.Op == OXFALL {
-			if typeswvar != nil {
-				setlineno(last)
-				yyerror("cannot fallthrough in type switch")
-			}
-
-			if i+1 >= sw.List.Len() {
-				setlineno(last)
-				yyerror("cannot fallthrough final case in switch")
-			}
-
-			last.Op = OFALL
-		} else {
+		if last.Op != OFALL {
 			stat = append(stat, br)
 		}
 	}
@@ -588,7 +568,7 @@ Outer:
 		if !ok {
 			// First entry for this hash.
 			nn = append(nn, c.node)
-			seen[c.hash] = nn[len(nn)-1 : len(nn):len(nn)]
+			seen[c.hash] = nn[len(nn)-1 : len(nn) : len(nn)]
 			continue
 		}
 		for _, n := range prev {
@@ -621,7 +601,7 @@ func checkDupExprCases(exprname *Node, clauses []*Node) {
 				//       case GOARCH == "arm" && GOARM == "5":
 				//       case GOARCH == "arm":
 				//     which would both evaluate to false for non-ARM compiles.
-				if ct := consttype(n); ct < 0 || ct == CTBOOL {
+				if ct := consttype(n); ct == 0 || ct == CTBOOL {
 					continue
 				}
 
@@ -646,7 +626,7 @@ func checkDupExprCases(exprname *Node, clauses []*Node) {
 	seen := make(map[typeVal]*Node)
 	for _, ncase := range clauses {
 		for _, n := range ncase.List.Slice() {
-			if ct := consttype(n); ct < 0 || ct == CTBOOL {
+			if ct := consttype(n); ct == 0 || ct == CTBOOL {
 				continue
 			}
 			tv := typeVal{
@@ -687,14 +667,13 @@ func (s *typeSwitch) walk(sw *Node) {
 		return
 	}
 	if cond.Right == nil {
-		setlineno(sw)
-		yyerror("type switch must have an assignment")
+		yyerrorl(sw.Pos, "type switch must have an assignment")
 		return
 	}
 
 	cond.Right = walkexpr(cond.Right, &sw.Ninit)
 	if !cond.Right.Type.IsInterface() {
-		yyerror("type switch must be on an interface")
+		yyerrorl(sw.Pos, "type switch must be on an interface")
 		return
 	}
 
@@ -757,7 +736,7 @@ func (s *typeSwitch) walk(sw *Node) {
 	if cond.Right.Type.IsEmptyInterface() {
 		h.Xoffset = int64(2 * Widthptr) // offset of hash in runtime._type
 	} else {
-		h.Xoffset = int64(3 * Widthptr) // offset of hash in runtime.itab
+		h.Xoffset = int64(2 * Widthptr) // offset of hash in runtime.itab
 	}
 	h.SetBounded(true) // guaranteed not to fault
 	a = nod(OAS, s.hashname, h)

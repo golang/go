@@ -42,6 +42,7 @@ Supported profile types are:
 Flags:
 	-http=addr: HTTP service address (e.g., ':6060')
 	-pprof=type: print a pprof-like profile instead
+	-d: print debug info such as parsed events
 
 Note that while the various profiles available when launching
 'go tool trace' work on every browser, the trace viewer itself
@@ -52,6 +53,7 @@ and is only actively tested on that browser.
 var (
 	httpFlag  = flag.String("http", "localhost:0", "HTTP service address (e.g., ':6060')")
 	pprofFlag = flag.String("pprof", "", "print a pprof-like profile instead")
+	debugFlag = flag.Bool("d", false, "print debug information such as parsed events list")
 
 	// The binary file name, left here for serveSVGProfile.
 	programBinary string
@@ -77,7 +79,7 @@ func main() {
 		flag.Usage()
 	}
 
-	var pprofFunc func(io.Writer) error
+	var pprofFunc func(io.Writer, string) error
 	switch *pprofFlag {
 	case "net":
 		pprofFunc = pprofIO
@@ -89,7 +91,7 @@ func main() {
 		pprofFunc = pprofSched
 	}
 	if pprofFunc != nil {
-		if err := pprofFunc(os.Stdout); err != nil {
+		if err := pprofFunc(os.Stdout, ""); err != nil {
 			dief("failed to generate pprof: %v\n", err)
 		}
 		os.Exit(0)
@@ -103,13 +105,18 @@ func main() {
 		dief("failed to create server socket: %v\n", err)
 	}
 
-	log.Printf("Parsing trace...")
+	log.Print("Parsing trace...")
 	events, err := parseEvents()
 	if err != nil {
 		dief("%v\n", err)
 	}
 
-	log.Printf("Serializing trace...")
+	if *debugFlag {
+		trace.Print(events)
+		os.Exit(0)
+	}
+
+	log.Print("Serializing trace...")
 	params := &traceParams{
 		events:  events,
 		endTime: int64(1<<63 - 1),
@@ -119,13 +126,12 @@ func main() {
 		dief("%v\n", err)
 	}
 
-	log.Printf("Splitting trace...")
+	log.Print("Splitting trace...")
 	ranges = splitTrace(data)
 
-	log.Printf("Opening browser")
-	if !browser.Open("http://" + ln.Addr().String()) {
-		fmt.Fprintf(os.Stderr, "Trace viewer is listening on http://%s\n", ln.Addr().String())
-	}
+	addr := "http://" + ln.Addr().String()
+	log.Printf("Opening browser. Trace viewer is listening on %s", addr)
+	browser.Open(addr)
 
 	// Start http server.
 	http.HandleFunc("/", httpMain)
@@ -181,10 +187,10 @@ var templMain = template.Must(template.New("").Parse(`
 	<a href="/trace">View trace</a><br>
 {{end}}
 <a href="/goroutines">Goroutine analysis</a><br>
-<a href="/io">Network blocking profile</a><br>
-<a href="/block">Synchronization blocking profile</a><br>
-<a href="/syscall">Syscall blocking profile</a><br>
-<a href="/sched">Scheduler latency profile</a><br>
+<a href="/io">Network blocking profile</a> (<a href="/io?raw=1" download="io.profile">⬇</a>)<br>
+<a href="/block">Synchronization blocking profile</a> (<a href="/block?raw=1" download="block.profile">⬇</a>)<br>
+<a href="/syscall">Syscall blocking profile</a> (<a href="/syscall?raw=1" download="syscall.profile">⬇</a>)<br>
+<a href="/sched">Scheduler latency profile</a> (<a href="/sche?raw=1" download="sched.profile">⬇</a>)<br>
 </body>
 </html>
 `))

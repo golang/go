@@ -393,7 +393,7 @@ func postnote(pid uint64, msg []byte) int {
 }
 
 //go:nosplit
-func exit(e int) {
+func exit(e int32) {
 	var status []byte
 	if e == 0 {
 		status = emptystatus
@@ -419,6 +419,12 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	if pid == 0 {
 		tstart_plan9(mp)
 	}
+}
+
+func exitThread(wait *uint32) {
+	// We should never reach exitThread on Plan 9 because we let
+	// the OS clean up threads.
+	throw("exitThread")
 }
 
 //go:nosplit

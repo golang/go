@@ -73,7 +73,7 @@ func TestFindSymbols(t *testing.T) {
 
 func checkSymbol(got []*plugin.Sym, want []plugin.Sym) error {
 	if len(got) != len(want) {
-		return fmt.Errorf("unexpected number of symbols %d (want %d)\n", len(got), len(want))
+		return fmt.Errorf("unexpected number of symbols %d (want %d)", len(got), len(want))
 	}
 
 	for i, g := range got {
@@ -133,8 +133,6 @@ func TestFunctionAssembly(t *testing.T) {
 			},
 		},
 	}
-
-	const objdump = "testdata/wrapper/objdump"
 
 	for _, tc := range testcases {
 		insts, err := disassemble([]byte(tc.asm))

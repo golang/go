@@ -8,11 +8,12 @@
 
 package crc32
 
-func supportsCRC32() bool
+import "internal/cpu"
+
 func castagnoliUpdate(crc uint32, p []byte) uint32
 func ieeeUpdate(crc uint32, p []byte) uint32
 
-var hasCRC32 = supportsCRC32()
+var hasCRC32 = cpu.ARM64.HasCRC32
 
 func archAvailableCastagnoli() bool {
 	return hasCRC32

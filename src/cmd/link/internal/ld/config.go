@@ -11,11 +11,6 @@ import (
 	"log"
 )
 
-var (
-	Linkmode  LinkMode
-	Buildmode BuildMode
-)
-
 // A BuildMode indicates the sort of object we are building.
 //
 // Possible build modes are the same as those for the -buildmode flag
@@ -23,13 +18,13 @@ var (
 type BuildMode uint8
 
 const (
-	BuildmodeUnset BuildMode = iota
-	BuildmodeExe
-	BuildmodePIE
-	BuildmodeCArchive
-	BuildmodeCShared
-	BuildmodeShared
-	BuildmodePlugin
+	BuildModeUnset BuildMode = iota
+	BuildModeExe
+	BuildModePIE
+	BuildModeCArchive
+	BuildModeCShared
+	BuildModeShared
+	BuildModePlugin
 )
 
 func (mode *BuildMode) Set(s string) error {
@@ -40,14 +35,20 @@ func (mode *BuildMode) Set(s string) error {
 	default:
 		return fmt.Errorf("invalid buildmode: %q", s)
 	case "exe":
-		*mode = BuildmodeExe
+		*mode = BuildModeExe
 	case "pie":
 		switch objabi.GOOS {
 		case "android", "linux":
+		case "darwin":
+			switch objabi.GOARCH {
+			case "amd64":
+			default:
+				return badmode()
+			}
 		default:
 			return badmode()
 		}
-		*mode = BuildmodePIE
+		*mode = BuildModePIE
 	case "c-archive":
 		switch objabi.GOOS {
 		case "darwin", "linux":
@@ -60,14 +61,14 @@ func (mode *BuildMode) Set(s string) error {
 		default:
 			return badmode()
 		}
-		*mode = BuildmodeCArchive
+		*mode = BuildModeCArchive
 	case "c-shared":
 		switch objabi.GOARCH {
-		case "386", "amd64", "arm", "arm64":
+		case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
 		default:
 			return badmode()
 		}
-		*mode = BuildmodeCShared
+		*mode = BuildModeCShared
 	case "shared":
 		switch objabi.GOOS {
 		case "linux":
@@ -79,12 +80,12 @@ func (mode *BuildMode) Set(s string) error {
 		default:
 			return badmode()
 		}
-		*mode = BuildmodeShared
+		*mode = BuildModeShared
 	case "plugin":
 		switch objabi.GOOS {
 		case "linux":
 			switch objabi.GOARCH {
-			case "386", "amd64", "arm", "arm64", "s390x":
+			case "386", "amd64", "arm", "arm64", "s390x", "ppc64le":
 			default:
 				return badmode()
 			}
@@ -97,26 +98,26 @@ func (mode *BuildMode) Set(s string) error {
 		default:
 			return badmode()
 		}
-		*mode = BuildmodePlugin
+		*mode = BuildModePlugin
 	}
 	return nil
 }
 
 func (mode *BuildMode) String() string {
 	switch *mode {
-	case BuildmodeUnset:
+	case BuildModeUnset:
 		return "" // avoid showing a default in usage message
-	case BuildmodeExe:
+	case BuildModeExe:
 		return "exe"
-	case BuildmodePIE:
+	case BuildModePIE:
 		return "pie"
-	case BuildmodeCArchive:
+	case BuildModeCArchive:
 		return "c-archive"
-	case BuildmodeCShared:
+	case BuildModeCShared:
 		return "c-shared"
-	case BuildmodeShared:
+	case BuildModeShared:
 		return "shared"
-	case BuildmodePlugin:
+	case BuildModePlugin:
 		return "plugin"
 	}
 	return fmt.Sprintf("BuildMode(%d)", uint8(*mode))
@@ -172,7 +173,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	case "android":
 		return true, "android"
 	case "darwin":
-		if SysArch.InFamily(sys.ARM, sys.ARM64) {
+		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
 			return true, "iOS"
 		}
 	}
@@ -184,42 +185,43 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	// Internally linking cgo is incomplete on some architectures.
 	// https://golang.org/issue/10373
 	// https://golang.org/issue/14449
-	if iscgo && SysArch.InFamily(sys.ARM64, sys.MIPS64, sys.MIPS) {
+	// https://golang.org/issue/21961
+	if iscgo && ctxt.Arch.InFamily(sys.ARM64, sys.MIPS64, sys.MIPS, sys.PPC64) {
 		return true, objabi.GOARCH + " does not support internal cgo"
 	}
 
 	// Some build modes require work the internal linker cannot do (yet).
-	switch Buildmode {
-	case BuildmodeCArchive:
+	switch ctxt.BuildMode {
+	case BuildModeCArchive:
 		return true, "buildmode=c-archive"
-	case BuildmodeCShared:
+	case BuildModeCShared:
 		return true, "buildmode=c-shared"
-	case BuildmodePIE:
+	case BuildModePIE:
 		switch objabi.GOOS + "/" + objabi.GOARCH {
 		case "linux/amd64":
 		default:
 			// Internal linking does not support TLS_IE.
 			return true, "buildmode=pie"
 		}
-	case BuildmodePlugin:
+	case BuildModePlugin:
 		return true, "buildmode=plugin"
-	case BuildmodeShared:
+	case BuildModeShared:
 		return true, "buildmode=shared"
 	}
-	if *FlagLinkshared {
+	if ctxt.linkShared {
 		return true, "dynamically linking with a shared library"
 	}
 
 	return false, ""
 }
 
-// determineLinkMode sets Linkmode.
+// determineLinkMode sets ctxt.LinkMode.
 //
 // It is called after flags are processed and inputs are processed,
-// so the Linkmode variable has an initial value from the -linkmode
+// so the ctxt.LinkMode variable has an initial value from the -linkmode
 // flag and the iscgo externalobj variables are set.
 func determineLinkMode(ctxt *Link) {
-	switch Linkmode {
+	switch ctxt.LinkMode {
 	case LinkAuto:
 		// The environment variable GO_EXTLINK_ENABLED controls the
 		// default value of -linkmode. If it is not set when the
@@ -230,18 +232,18 @@ func determineLinkMode(ctxt *Link) {
 			if needed, reason := mustLinkExternal(ctxt); needed {
 				Exitf("internal linking requested via GO_EXTLINK_ENABLED, but external linking required: %s", reason)
 			}
-			Linkmode = LinkInternal
+			ctxt.LinkMode = LinkInternal
 		case "1":
-			Linkmode = LinkExternal
+			ctxt.LinkMode = LinkExternal
 		default:
 			if needed, _ := mustLinkExternal(ctxt); needed {
-				Linkmode = LinkExternal
+				ctxt.LinkMode = LinkExternal
 			} else if iscgo && externalobj {
-				Linkmode = LinkExternal
-			} else if Buildmode == BuildmodePIE {
-				Linkmode = LinkExternal // https://golang.org/issue/18968
+				ctxt.LinkMode = LinkExternal
+			} else if ctxt.BuildMode == BuildModePIE {
+				ctxt.LinkMode = LinkExternal // https://golang.org/issue/18968
 			} else {
-				Linkmode = LinkInternal
+				ctxt.LinkMode = LinkInternal
 			}
 		}
 	case LinkInternal:

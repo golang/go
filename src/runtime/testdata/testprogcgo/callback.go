@@ -29,6 +29,7 @@ import "C"
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 )
 
@@ -63,7 +64,10 @@ func grow1(x, sum *int) int {
 }
 
 func CgoCallbackGC() {
-	const P = 100
+	P := 100
+	if os.Getenv("RUNTIME_TESTING_SHORT") != "" {
+		P = 10
+	}
 	done := make(chan bool)
 	// allocate a bunch of stack frames and spray them with pointers
 	for i := 0; i < P; i++ {

@@ -17,12 +17,15 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$-4
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+	MOVL	wait+0(FP), AX
+	// We're done using the stack.
+	MOVL	$0, (AX)
 	MOVL	$310, AX		// sys__lwp_exit
 	INT	$0x80
-	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
-	RET
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVL	$5, AX
@@ -113,7 +116,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$36
 	STOSL
 	MOVL	$197, AX		// sys_mmap
 	INT	$0x80
-	MOVL	AX, ret+24(FP)
+	JAE	ok
+	MOVL	$0, p+24(FP)
+	MOVL	AX, err+28(FP)
+	RET
+ok:
+	MOVL	AX, p+24(FP)
+	MOVL	$0, err+28(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$-4
@@ -155,7 +164,7 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB),NOSPLIT,$32
 	LEAL	12(SP), BX
-	MOVL	$0, 4(SP)		// arg 1 - clock_id
+	MOVL	$3, 4(SP)		// arg 1 - clock_id CLOCK_MONOTONIC
 	MOVL	BX, 8(SP)		// arg 2 - tp
 	MOVL	$427, AX		// sys_clock_gettime
 	INT	$0x80
@@ -298,7 +307,7 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
 	// Call fn
 	CALL	SI
 
-	CALL	runtime·exit1(SB)
+	// fn should never return
 	MOVL	$0x1234, 0x1005
 	RET
 
@@ -337,9 +346,9 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·lwp_park(SB),NOSPLIT,$-4
-	MOVL	$434, AX		// sys__lwp_park
+	MOVL	$478, AX		// sys__lwp_park
 	INT	$0x80
-	MOVL	AX, ret+16(FP)
+	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT runtime·lwp_unpark(SB),NOSPLIT,$-4
@@ -366,10 +375,12 @@ TEXT runtime·sysctl(SB),NOSPLIT,$28
 	MOVSL				// arg 6 - newlen
 	MOVL	$202, AX		// sys___sysctl
 	INT	$0x80
-	JCC	3(PC)
+	JAE	4(PC)
 	NEGL	AX
+	MOVL	AX, ret+24(FP)
 	RET
 	MOVL	$0, AX
+	MOVL	AX, ret+24(FP)
 	RET
 
 GLOBL runtime·tlsoffset(SB),NOPTR,$4

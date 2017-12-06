@@ -33,6 +33,7 @@ package ld
 import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
+	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -82,6 +83,10 @@ func hostArchive(ctxt *Link, name string) {
 		Exitf("file %s too short", name)
 	}
 
+	if string(magbuf[:]) != ARMAG {
+		Exitf("%s is not an archive file", name)
+	}
+
 	var arhdr ArHdr
 	l := nextar(f, f.Offset(), &arhdr)
 	if l <= 0 {
@@ -101,7 +106,7 @@ func hostArchive(ctxt *Link, name string) {
 		var load []uint64
 		for _, s := range ctxt.Syms.Allsym {
 			for _, r := range s.R {
-				if r.Sym != nil && r.Sym.Type&SMASK == SXREF {
+				if r.Sym != nil && r.Sym.Type == sym.SXREF {
 					if off := armap[r.Sym.Name]; off != 0 && !loaded[off] {
 						load = append(load, off)
 						loaded[off] = true
@@ -118,7 +123,7 @@ func hostArchive(ctxt *Link, name string) {
 			pname := fmt.Sprintf("%s(%s)", name, arhdr.name)
 			l = atolwhex(arhdr.size)
 
-			libgcc := Library{Pkg: "libgcc"}
+			libgcc := sym.Library{Pkg: "libgcc"}
 			h := ldobj(ctxt, f, &libgcc, l, pname, name, ArchiveObj)
 			f.Seek(h.off, 0)
 			h.ld(ctxt, f, h.pkg, h.length, h.pn)

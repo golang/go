@@ -169,21 +169,8 @@ func (p *Package) Translate(f *File) {
 		p.loadDWARF(f, needType)
 	}
 	if p.rewriteCalls(f) {
-		// Add `import _cgo_unsafe "unsafe"` as the first decl
-		// after the package statement.
-		imp := &ast.GenDecl{
-			Tok: token.IMPORT,
-			Specs: []ast.Spec{
-				&ast.ImportSpec{
-					Name: ast.NewIdent("_cgo_unsafe"),
-					Path: &ast.BasicLit{
-						Kind:  token.STRING,
-						Value: `"unsafe"`,
-					},
-				},
-			},
-		}
-		f.AST.Decls = append([]ast.Decl{imp}, f.AST.Decls...)
+		// Add `import _cgo_unsafe "unsafe"` after the package statement.
+		f.Edit.Insert(f.offset(f.AST.Name.End()), "; import _cgo_unsafe \"unsafe\"")
 	}
 	p.rewriteRef(f)
 }
@@ -192,8 +179,8 @@ func (p *Package) Translate(f *File) {
 // in the file f and saves relevant renamings in f.Name[name].Define.
 func (p *Package) loadDefines(f *File) {
 	var b bytes.Buffer
-	b.WriteString(f.Preamble)
 	b.WriteString(builtinProlog)
+	b.WriteString(f.Preamble)
 	stdout := p.gccDefines(b.Bytes())
 
 	for _, line := range strings.Split(stdout, "\n") {
@@ -264,10 +251,6 @@ func (p *Package) guessKinds(f *File) []*Name {
 			if n.IsConst() {
 				continue
 			}
-
-			if isName(n.Define) {
-				n.C = n.Define
-			}
 		}
 
 		// If this is a struct, union, or enum type name, no need to guess the kind.
@@ -316,8 +299,8 @@ func (p *Package) guessKinds(f *File) []*Name {
 	// whether name denotes a type or an expression.
 
 	var b bytes.Buffer
-	b.WriteString(f.Preamble)
 	b.WriteString(builtinProlog)
+	b.WriteString(f.Preamble)
 
 	for i, n := range names {
 		fmt.Fprintf(&b, "#line %d \"not-declared\"\n"+
@@ -423,14 +406,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 	for i, n := range names {
 		switch sniff[i] {
 		default:
-			var tpos token.Pos
-			for _, ref := range f.Ref {
-				if ref.Name == n {
-					tpos = ref.Pos()
-					break
-				}
-			}
-			error_(tpos, "could not determine kind of name for C.%s", fixGo(n.Go))
+			error_(f.NamePos[n], "could not determine kind of name for C.%s", fixGo(n.Go))
 		case notStrLiteral | notType:
 			n.Kind = "iconst"
 		case notIntConst | notStrLiteral | notType:
@@ -472,8 +448,8 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 	// for each entry in names and then dereference the type we
 	// learn for __cgo__i.
 	var b bytes.Buffer
-	b.WriteString(f.Preamble)
 	b.WriteString(builtinProlog)
+	b.WriteString(f.Preamble)
 	b.WriteString("#line 1 \"cgo-dwarf-inference\"\n")
 	for i, n := range names {
 		fmt.Fprintf(&b, "__typeof__(%s) *__cgo__%d;\n", n.C, i)
@@ -524,14 +500,6 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 
 	// Scan DWARF info for top-level TagVariable entries with AttrName __cgo__i.
 	types := make([]dwarf.Type, len(names))
-	nameToIndex := make(map[*Name]int)
-	for i, n := range names {
-		nameToIndex[n] = i
-	}
-	nameToRef := make(map[*Name]*Ref)
-	for _, ref := range f.Ref {
-		nameToRef[ref.Name] = ref
-	}
 	r := d.Reader()
 	for {
 		e, err := r.Next()
@@ -582,10 +550,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 		if types[i] == nil {
 			continue
 		}
-		pos := token.NoPos
-		if ref, ok := nameToRef[n]; ok {
-			pos = ref.Pos()
-		}
+		pos := f.NamePos[n]
 		f, fok := types[i].(*dwarf.FuncType)
 		if n.Kind != "type" && fok {
 			n.Kind = "func"
@@ -740,8 +705,9 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 		stmts = append(stmts, stmt)
 	}
 
+	const cgoMarker = "__cgo__###__marker__"
 	fcall := &ast.CallExpr{
-		Fun:  call.Call.Fun,
+		Fun:  ast.NewIdent(cgoMarker),
 		Args: nargs,
 	}
 	ftype := &ast.FuncType{
@@ -763,31 +729,26 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 		}
 	}
 
-	// There is a Ref pointing to the old call.Call.Fun.
+	// If this call expects two results, we have to
+	// adjust the results of the function we generated.
 	for _, ref := range f.Ref {
-		if ref.Expr == &call.Call.Fun {
-			ref.Expr = &fcall.Fun
-
-			// If this call expects two results, we have to
-			// adjust the results of the function we generated.
-			if ref.Context == "call2" {
-				if ftype.Results == nil {
-					// An explicit void argument
-					// looks odd but it seems to
-					// be how cgo has worked historically.
-					ftype.Results = &ast.FieldList{
-						List: []*ast.Field{
-							&ast.Field{
-								Type: ast.NewIdent("_Ctype_void"),
-							},
+		if ref.Expr == &call.Call.Fun && ref.Context == ctxCall2 {
+			if ftype.Results == nil {
+				// An explicit void argument
+				// looks odd but it seems to
+				// be how cgo has worked historically.
+				ftype.Results = &ast.FieldList{
+					List: []*ast.Field{
+						&ast.Field{
+							Type: ast.NewIdent("_Ctype_void"),
 						},
-					}
+					},
 				}
-				ftype.Results.List = append(ftype.Results.List,
-					&ast.Field{
-						Type: ast.NewIdent("error"),
-					})
 			}
+			ftype.Results.List = append(ftype.Results.List,
+				&ast.Field{
+					Type: ast.NewIdent("error"),
+				})
 		}
 	}
 
@@ -801,14 +762,16 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 			Results: []ast.Expr{fcall},
 		}
 	}
-	call.Call.Fun = &ast.FuncLit{
+	lit := &ast.FuncLit{
 		Type: ftype,
 		Body: &ast.BlockStmt{
 			List: append(stmts, fbody),
 		},
 	}
-	call.Call.Lparen = token.NoPos
-	call.Call.Rparen = token.NoPos
+	text := strings.Replace(gofmt(lit), "\n", ";", -1)
+	repl := strings.Split(text, cgoMarker)
+	f.Edit.Insert(f.offset(call.Call.Fun.Pos()), repl[0])
+	f.Edit.Insert(f.offset(call.Call.Fun.End()), repl[1])
 
 	return needsUnsafe
 }
@@ -962,8 +925,8 @@ func (p *Package) checkAddrArgs(f *File, args []ast.Expr, x ast.Expr) []ast.Expr
 // effect is a function call.
 func (p *Package) hasSideEffects(f *File, x ast.Expr) bool {
 	found := false
-	f.walk(x, "expr",
-		func(f *File, x interface{}, context string) {
+	f.walk(x, ctxExpr,
+		func(f *File, x interface{}, context astContext) {
 			switch x.(type) {
 			case *ast.CallExpr:
 				found = true
@@ -1072,7 +1035,17 @@ func (p *Package) rewriteRef(f *File) {
 	// Assign mangled names.
 	for _, n := range f.Name {
 		if n.Kind == "not-type" {
-			n.Kind = "var"
+			if n.Define == "" {
+				n.Kind = "var"
+			} else {
+				n.Kind = "macro"
+				n.FuncType = &FuncType{
+					Result: n.Type,
+					Go: &ast.FuncType{
+						Results: &ast.FieldList{List: []*ast.Field{{Type: n.Type.Go}}},
+					},
+				}
+			}
 		}
 		if n.Mangle == "" {
 			p.mangleName(n)
@@ -1092,10 +1065,10 @@ func (p *Package) rewriteRef(f *File) {
 		}
 		var expr ast.Expr = ast.NewIdent(r.Name.Mangle) // default
 		switch r.Context {
-		case "call", "call2":
+		case ctxCall, ctxCall2:
 			if r.Name.Kind != "func" {
 				if r.Name.Kind == "type" {
-					r.Context = "type"
+					r.Context = ctxType
 					if r.Name.Type == nil {
 						error_(r.Pos(), "invalid conversion to C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
 						break
@@ -1107,7 +1080,7 @@ func (p *Package) rewriteRef(f *File) {
 				break
 			}
 			functions[r.Name.Go] = true
-			if r.Context == "call2" {
+			if r.Context == ctxCall2 {
 				if r.Name.Go == "_CMalloc" {
 					error_(r.Pos(), "no two-result form for C.malloc")
 					break
@@ -1125,8 +1098,9 @@ func (p *Package) rewriteRef(f *File) {
 				r.Name = n
 				break
 			}
-		case "expr":
-			if r.Name.Kind == "func" {
+		case ctxExpr:
+			switch r.Name.Kind {
+			case "func":
 				if builtinDefs[r.Name.C] != "" {
 					error_(r.Pos(), "use of builtin '%s' not in function call", fixGo(r.Name.C))
 				}
@@ -1153,25 +1127,25 @@ func (p *Package) rewriteRef(f *File) {
 					Fun:  &ast.Ident{NamePos: (*r.Expr).Pos(), Name: "_Cgo_ptr"},
 					Args: []ast.Expr{ast.NewIdent(name.Mangle)},
 				}
-			} else if r.Name.Kind == "type" {
+			case "type":
 				// Okay - might be new(T)
 				if r.Name.Type == nil {
 					error_(r.Pos(), "expression C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
 					break
 				}
 				expr = r.Name.Type.Go
-			} else if r.Name.Kind == "var" {
+			case "var":
 				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
+			case "macro":
+				expr = &ast.CallExpr{Fun: expr}
 			}
-
-		case "selector":
+		case ctxSelector:
 			if r.Name.Kind == "var" {
 				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
 			} else {
 				error_(r.Pos(), "only C variables allowed in selector expression %s", fixGo(r.Name.Go))
 			}
-
-		case "type":
+		case ctxType:
 			if r.Name.Kind != "type" {
 				error_(r.Pos(), "expression C.%s used as type", fixGo(r.Name.Go))
 			} else if r.Name.Type == nil {
@@ -1186,6 +1160,7 @@ func (p *Package) rewriteRef(f *File) {
 				error_(r.Pos(), "must call C.%s", fixGo(r.Name.Go))
 			}
 		}
+
 		if *godefs {
 			// Substitute definition for mangled type name.
 			if id, ok := expr.(*ast.Ident); ok {
@@ -1207,7 +1182,17 @@ func (p *Package) rewriteRef(f *File) {
 			expr = &ast.Ident{NamePos: pos, Name: x.Name}
 		}
 
+		// Change AST, because some later processing depends on it,
+		// and also because -godefs mode still prints the AST.
+		old := *r.Expr
 		*r.Expr = expr
+
+		// Record source-level edit for cgo output.
+		repl := gofmt(expr)
+		if r.Name.Kind != "type" {
+			repl = "(" + repl + ")"
+		}
+		f.Edit.Replace(f.offset(old.Pos()), f.offset(old.End()), repl)
 	}
 
 	// Remove functions only used as expressions, so their respective
@@ -1232,7 +1217,7 @@ func (p *Package) gccBaseCmd() []string {
 	if ret := strings.Fields(os.Getenv("GCC")); len(ret) > 0 {
 		return ret
 	}
-	return strings.Fields(defaultCC)
+	return strings.Fields(defaultCC(goos, goarch))
 }
 
 // gccMachine returns the gcc -m flag to use, either "-m32", "-m64" or "-marm".
@@ -2072,6 +2057,12 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		name := c.Ident("_Ctype_" + dt.Name)
 		goIdent[name.Name] = name
 		sub := c.Type(dt.Type, pos)
+		if badPointerTypedef(dt.Name) {
+			// Treat this typedef as a uintptr.
+			s := *sub
+			s.Go = c.uintptr
+			sub = &s
+		}
 		t.Go = name
 		if unionWithPointer[sub.Go] {
 			unionWithPointer[t.Go] = true
@@ -2152,7 +2143,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			if ss, ok := dwarfToName[s]; ok {
 				s = ss
 			}
-			s = strings.Join(strings.Split(s, " "), "") // strip spaces
+			s = strings.Replace(s, " ", "", -1)
 			name := c.Ident("_Ctype_" + s)
 			tt := *t
 			typedef[name.Name] = &tt
@@ -2228,6 +2219,17 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
 			// Unless the typedef happens to point to void* since
 			// Go has special rules around using unsafe.Pointer.
 			if _, void := base(ptr.Type).(*dwarf.VoidType); void {
+				break
+			}
+			// ...or the typedef is one in which we expect bad pointers.
+			// It will be a uintptr instead of *X.
+			if badPointerTypedef(dt.Name) {
+				break
+			}
+
+			// If we already know the typedef for t just use that.
+			// See issue 19832.
+			if def := typedef[t.Go.(*ast.Ident).Name]; def != nil {
 				break
 			}
 
@@ -2386,7 +2388,9 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 		size := t.Size
 		talign := t.Align
 		if f.BitSize > 0 {
-			if f.BitSize%8 != 0 {
+			switch f.BitSize {
+			case 8, 16, 32, 64:
+			default:
 				continue
 			}
 			size = f.BitSize / 8
@@ -2562,3 +2566,51 @@ func fieldPrefix(fld []*ast.Field) string {
 	}
 	return prefix
 }
+
+// badPointerTypedef reports whether t is a C typedef that should not be considered a pointer in Go.
+// A typedef is bad if C code sometimes stores non-pointers in this type.
+// TODO: Currently our best solution is to find these manually and list them as
+// they come up. A better solution is desired.
+func badPointerTypedef(t string) bool {
+	// The real bad types are CFNumberRef and CFTypeRef.
+	// Sometimes non-pointers are stored in these types.
+	// CFTypeRef is a supertype of those, so it can have bad pointers in it as well.
+	// We return true for the other CF*Ref types just so casting between them is easier.
+	// See comment below for details about the bad pointers.
+	return goos == "darwin" && strings.HasPrefix(t, "CF") && strings.HasSuffix(t, "Ref")
+}
+
+// Comment from Darwin's CFInternal.h
+/*
+// Tagged pointer support
+// Low-bit set means tagged object, next 3 bits (currently)
+// define the tagged object class, next 4 bits are for type
+// information for the specific tagged object class.  Thus,
+// the low byte is for type info, and the rest of a pointer
+// (32 or 64-bit) is for payload, whatever the tagged class.
+//
+// Note that the specific integers used to identify the
+// specific tagged classes can and will change from release
+// to release (that's why this stuff is in CF*Internal*.h),
+// as can the definition of type info vs payload above.
+//
+#if __LP64__
+#define CF_IS_TAGGED_OBJ(PTR)	((uintptr_t)(PTR) & 0x1)
+#define CF_TAGGED_OBJ_TYPE(PTR)	((uintptr_t)(PTR) & 0xF)
+#else
+#define CF_IS_TAGGED_OBJ(PTR)	0
+#define CF_TAGGED_OBJ_TYPE(PTR)	0
+#endif
+
+enum {
+    kCFTaggedObjectID_Invalid = 0,
+    kCFTaggedObjectID_Atom = (0 << 1) + 1,
+    kCFTaggedObjectID_Undefined3 = (1 << 1) + 1,
+    kCFTaggedObjectID_Undefined2 = (2 << 1) + 1,
+    kCFTaggedObjectID_Integer = (3 << 1) + 1,
+    kCFTaggedObjectID_DateTS = (4 << 1) + 1,
+    kCFTaggedObjectID_ManagedObjectID = (5 << 1) + 1, // Core Data
+    kCFTaggedObjectID_Date = (6 << 1) + 1,
+    kCFTaggedObjectID_Undefined7 = (7 << 1) + 1,
+};
+*/

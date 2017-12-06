@@ -5,11 +5,7 @@
 package runtime_test
 
 import (
-	"debug/elf"
-	"debug/macho"
-	"encoding/binary"
 	"internal/testenv"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -158,7 +154,7 @@ func TestLldbPython(t *testing.T) {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags", "-N -l", "-o", "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-o", "a.exe")
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -180,83 +176,5 @@ func TestLldbPython(t *testing.T) {
 			t.Skip("Timeout launching")
 		}
 		t.Fatalf("Unexpected lldb output:\n%s", got)
-	}
-}
-
-// Check that aranges are valid even when lldb isn't installed.
-func TestDwarfAranges(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatalf("failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
-
-	src := filepath.Join(dir, "main.go")
-	err = ioutil.WriteFile(src, []byte(lldbHelloSource), 0644)
-	if err != nil {
-		t.Fatalf("failed to create file: %v", err)
-	}
-
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("building source %v\n%s", err, out)
-	}
-
-	filename := filepath.Join(dir, "a.exe")
-	if f, err := elf.Open(filename); err == nil {
-		sect := f.Section(".debug_aranges")
-		if sect == nil {
-			t.Fatal("Missing aranges section")
-		}
-		verifyAranges(t, f.ByteOrder, sect.Open())
-	} else if f, err := macho.Open(filename); err == nil {
-		sect := f.Section("__debug_aranges")
-		if sect == nil {
-			t.Fatal("Missing aranges section")
-		}
-		verifyAranges(t, f.ByteOrder, sect.Open())
-	} else {
-		t.Skip("Not an elf or macho binary.")
-	}
-}
-
-func verifyAranges(t *testing.T, byteorder binary.ByteOrder, data io.ReadSeeker) {
-	var header struct {
-		UnitLength  uint32 // does not include the UnitLength field
-		Version     uint16
-		Offset      uint32
-		AddressSize uint8
-		SegmentSize uint8
-	}
-	for {
-		offset, err := data.Seek(0, io.SeekCurrent)
-		if err != nil {
-			t.Fatalf("Seek error: %v", err)
-		}
-		if err = binary.Read(data, byteorder, &header); err == io.EOF {
-			return
-		} else if err != nil {
-			t.Fatalf("Error reading arange header: %v", err)
-		}
-		tupleSize := int64(header.SegmentSize) + 2*int64(header.AddressSize)
-		lastTupleOffset := offset + int64(header.UnitLength) + 4 - tupleSize
-		if lastTupleOffset%tupleSize != 0 {
-			t.Fatalf("Invalid arange length %d, (addr %d, seg %d)", header.UnitLength, header.AddressSize, header.SegmentSize)
-		}
-		if _, err = data.Seek(lastTupleOffset, io.SeekStart); err != nil {
-			t.Fatalf("Seek error: %v", err)
-		}
-		buf := make([]byte, tupleSize)
-		if n, err := data.Read(buf); err != nil || int64(n) < tupleSize {
-			t.Fatalf("Read error: %v", err)
-		}
-		for _, val := range buf {
-			if val != 0 {
-				t.Fatalf("Invalid terminator")
-			}
-		}
 	}
 }

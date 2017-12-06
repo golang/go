@@ -175,8 +175,13 @@ func pkgImportPath(pkgpath string) *load.Package {
 // directory.
 // See https://golang.org/issue/18878.
 func TestRespectSetgidDir(t *testing.T) {
-	if runtime.GOOS == "nacl" {
+	switch runtime.GOOS {
+	case "nacl":
 		t.Skip("can't set SetGID bit with chmod on nacl")
+	case "darwin":
+		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+			t.Skip("can't set SetGID bit with chmod on iOS")
+		}
 	}
 
 	var b Builder

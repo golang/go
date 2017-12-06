@@ -169,15 +169,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	p.Director(outreq)
 	outreq.Close = false
 
-	// Remove hop-by-hop headers listed in the "Connection" header.
-	// See RFC 2616, section 14.10.
-	if c := outreq.Header.Get("Connection"); c != "" {
-		for _, f := range strings.Split(c, ",") {
-			if f = strings.TrimSpace(f); f != "" {
-				outreq.Header.Del(f)
-			}
-		}
-	}
+	removeConnectionHeaders(outreq.Header)
 
 	// Remove hop-by-hop headers to the backend. Especially
 	// important is "Connection" because we want a persistent
@@ -199,32 +191,30 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	res, err := transport.RoundTrip(outreq)
-	if err != nil {
-		p.logf("http: proxy error: %v", err)
-		rw.WriteHeader(http.StatusBadGateway)
-		return
-	}
-
-	// Remove hop-by-hop headers listed in the
-	// "Connection" header of the response.
-	if c := res.Header.Get("Connection"); c != "" {
-		for _, f := range strings.Split(c, ",") {
-			if f = strings.TrimSpace(f); f != "" {
-				res.Header.Del(f)
-			}
+	if res == nil {
+		res = &http.Response{
+			StatusCode: http.StatusBadGateway,
+			Body:       http.NoBody,
 		}
 	}
+
+	removeConnectionHeaders(res.Header)
 
 	for _, h := range hopHeaders {
 		res.Header.Del(h)
 	}
 
 	if p.ModifyResponse != nil {
-		if err := p.ModifyResponse(res); err != nil {
+		if err != nil {
 			p.logf("http: proxy error: %v", err)
-			rw.WriteHeader(http.StatusBadGateway)
-			return
 		}
+		err = p.ModifyResponse(res)
+	}
+	if err != nil {
+		p.logf("http: proxy error: %v", err)
+		rw.WriteHeader(http.StatusBadGateway)
+		res.Body.Close()
+		return
 	}
 
 	copyHeader(rw.Header(), res.Header)
@@ -261,6 +251,18 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		k = http.TrailerPrefix + k
 		for _, v := range vv {
 			rw.Header().Add(k, v)
+		}
+	}
+}
+
+// removeConnectionHeaders removes hop-by-hop headers listed in the "Connection" header of h.
+// See RFC 2616, section 14.10.
+func removeConnectionHeaders(h http.Header) {
+	if c := h.Get("Connection"); c != "" {
+		for _, f := range strings.Split(c, ",") {
+			if f = strings.TrimSpace(f); f != "" {
+				h.Del(f)
+			}
 		}
 	}
 }

@@ -32,6 +32,7 @@
 package ld
 
 import (
+	"cmd/link/internal/sym"
 	"io/ioutil"
 	"log"
 	"os"
@@ -86,39 +87,49 @@ func (ctxt *Link) readImportCfg(file string) {
 	}
 }
 
-func addlib(ctxt *Link, src string, obj string, pathname string) *Library {
-	name := path.Clean(pathname)
-
+func pkgname(lib string) string {
+	name := path.Clean(lib)
 	// runtime.a -> runtime, runtime.6 -> runtime
 	pkg := name
 	if len(pkg) >= 2 && pkg[len(pkg)-2] == '.' {
 		pkg = pkg[:len(pkg)-2]
 	}
+	return pkg
+}
 
-	// already loaded?
-	if l := ctxt.LibraryByPkg[pkg]; l != nil {
-		return l
-	}
+func findlib(ctxt *Link, lib string) (string, bool) {
+	name := path.Clean(lib)
 
 	var pname string
 	isshlib := false
 
-	if *FlagLinkshared && ctxt.PackageShlib[name] != "" {
+	if ctxt.linkShared && ctxt.PackageShlib[name] != "" {
 		pname = ctxt.PackageShlib[name]
 		isshlib = true
 	} else if ctxt.PackageFile != nil {
 		pname = ctxt.PackageFile[name]
 		if pname == "" {
 			ctxt.Logf("cannot find package %s (using -importcfg)\n", name)
-			return nil
+			return "", false
 		}
 	} else {
 		if filepath.IsAbs(name) {
 			pname = name
 		} else {
+			pkg := pkgname(lib)
+			// Add .a if needed; the new -importcfg modes
+			// do not put .a into the package name anymore.
+			// This only matters when people try to mix
+			// compiles using -importcfg with links not using -importcfg,
+			// such as when running quick things like
+			// 'go tool compile x.go && go tool link x.o'
+			// by hand against a standard library built using -importcfg.
+			if !strings.HasSuffix(name, ".a") && !strings.HasSuffix(name, ".o") {
+				name += ".a"
+			}
 			// try dot, -L "libdir", and then goroot.
 			for _, dir := range ctxt.Libdir {
-				if *FlagLinkshared {
+				if ctxt.linkShared {
 					pname = dir + "/" + pkg + ".shlibname"
 					if _, err := os.Stat(pname); err == nil {
 						isshlib = true
@@ -133,6 +144,19 @@ func addlib(ctxt *Link, src string, obj string, pathname string) *Library {
 		}
 		pname = path.Clean(pname)
 	}
+
+	return pname, isshlib
+}
+
+func addlib(ctxt *Link, src string, obj string, lib string) *sym.Library {
+	pkg := pkgname(lib)
+
+	// already loaded?
+	if l := ctxt.LibraryByPkg[pkg]; l != nil {
+		return l
+	}
+
+	pname, isshlib := findlib(ctxt, lib)
 
 	if ctxt.Debugvlog > 1 {
 		ctxt.Logf("%5.2f addlib: %s %s pulls in %s isshlib %v\n", elapsed(), obj, src, pname, isshlib)
@@ -150,29 +174,33 @@ func addlib(ctxt *Link, src string, obj string, pathname string) *Library {
  *	objref: object file referring to package
  *	file: object file, e.g., /home/rsc/go/pkg/container/vector.a
  *	pkg: package import path, e.g. container/vector
+ *	shlib: path to shared library, or .shlibname file holding path
  */
-func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlibnamefile string) *Library {
+func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlib string) *sym.Library {
 	if l := ctxt.LibraryByPkg[pkg]; l != nil {
 		return l
 	}
 
 	if ctxt.Debugvlog > 1 {
-		ctxt.Logf("%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s shlibnamefile: %s\n", Cputime(), srcref, objref, file, pkg, shlibnamefile)
+		ctxt.Logf("%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s shlib: %s\n", Cputime(), srcref, objref, file, pkg, shlib)
 	}
 
-	l := &Library{}
+	l := &sym.Library{}
 	ctxt.LibraryByPkg[pkg] = l
 	ctxt.Library = append(ctxt.Library, l)
 	l.Objref = objref
 	l.Srcref = srcref
 	l.File = file
 	l.Pkg = pkg
-	if shlibnamefile != "" {
-		shlibbytes, err := ioutil.ReadFile(shlibnamefile)
-		if err != nil {
-			Errorf(nil, "cannot read %s: %v", shlibnamefile, err)
+	if shlib != "" {
+		if strings.HasSuffix(shlib, ".shlibname") {
+			data, err := ioutil.ReadFile(shlib)
+			if err != nil {
+				Errorf(nil, "cannot read %s: %v", shlib, err)
+			}
+			shlib = strings.TrimSpace(string(data))
 		}
-		l.Shlib = strings.TrimSpace(string(shlibbytes))
+		l.Shlib = shlib
 	}
 	return l
 }

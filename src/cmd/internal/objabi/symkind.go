@@ -52,9 +52,10 @@ const (
 	SBSS
 	// Statically data that is initially all 0s and does not contain pointers
 	SNOPTRBSS
-	// Thread-local data that is initally all 0s
+	// Thread-local data that is initially all 0s
 	STLSBSS
 	// Debugging data
 	SDWARFINFO
 	SDWARFRANGE
+	SDWARFLOC
 )

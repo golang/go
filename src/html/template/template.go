@@ -219,6 +219,11 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
 
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
+	for _, tmpl := range t.set {
+		if tmpl.Tree == tree {
+			return nil, fmt.Errorf("html/template: cannot add parse tree that template %q already references", tmpl.Name())
+		}
+	}
 	text, err := t.text.AddParseTree(name, tree)
 	if err != nil {
 		return nil, err

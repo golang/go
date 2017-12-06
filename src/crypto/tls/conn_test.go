@@ -21,6 +21,12 @@ func TestRoundUp(t *testing.T) {
 	}
 }
 
+// will be initialized with {0, 255, 255, ..., 255}
+var padding255Bad = [256]byte{}
+
+// will be initialized with {255, 255, 255, ..., 255}
+var padding255Good = [256]byte{255}
+
 var paddingTests = []struct {
 	in          []byte
 	good        bool
@@ -36,9 +42,15 @@ var paddingTests = []struct {
 	{[]byte{1, 4, 4, 4, 4, 4}, true, 1},
 	{[]byte{5, 5, 5, 5, 5, 5}, true, 0},
 	{[]byte{6, 6, 6, 6, 6, 6}, false, 0},
+	{padding255Bad[:], false, 0},
+	{padding255Good[:], true, 0},
 }
 
 func TestRemovePadding(t *testing.T) {
+	for i := 1; i < len(padding255Bad); i++ {
+		padding255Bad[i] = 255
+		padding255Good[i] = 255
+	}
 	for i, test := range paddingTests {
 		paddingLen, good := extractPadding(test.in)
 		expectedGood := byte(255)

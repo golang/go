@@ -138,7 +138,7 @@ func typeFlatten(l []*ast.Field) []ast.Expr {
 			t = append(t, f.Type)
 			continue
 		}
-		for _ = range f.Names {
+		for range f.Names {
 			t = append(t, f.Type)
 		}
 	}

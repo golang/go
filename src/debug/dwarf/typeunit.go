@@ -38,16 +38,11 @@ func (d *Data) parseTypes(name string, types []byte) error {
 			b.error("unsupported DWARF version " + strconv.Itoa(vers))
 			return b.err
 		}
-		var ao uint32
+		var ao uint64
 		if !dwarf64 {
-			ao = b.uint32()
+			ao = uint64(b.uint32())
 		} else {
-			ao64 := b.uint64()
-			if ao64 != uint64(uint32(ao64)) {
-				b.error("type unit abbrev offset overflow")
-				return b.err
-			}
-			ao = uint32(ao64)
+			ao = b.uint64()
 		}
 		atable, err := d.parseAbbrev(ao, vers)
 		if err != nil {

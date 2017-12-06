@@ -2,9 +2,11 @@
 
 runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
 
+// startup code uses non-standard calling convention and intentionally
+// omits args.
+runtime/asm_386.s: [386] rt0_go: use of 4(SP) points beyond argument frame
+
 // reflect trampolines intentionally omit arg size. Same for morestack.
-reflect/asm_386.s: [386] makeFuncStub: use of 4(SP) points beyond argument frame
-reflect/asm_386.s: [386] methodValueCall: use of 4(SP) points beyond argument frame
 runtime/asm_386.s: [386] morestack: use of 4(SP) points beyond argument frame
 runtime/asm_386.s: [386] morestack: use of 8(SP) points beyond argument frame
 runtime/asm_386.s: [386] morestack: use of 4(SP) points beyond argument frame
@@ -23,7 +25,3 @@ runtime/asm_386.s: [386] uint32tofloat64: function uint32tofloat64 missing Go de
 runtime/asm_386.s: [386] float64touint32: function float64touint32 missing Go declaration
 
 runtime/asm_386.s: [386] stackcheck: function stackcheck missing Go declaration
-
-// Clearer using FP than SP, but that requires named offsets.
-runtime/asm_386.s: [386] rt0_go: unknown variable argc
-runtime/asm_386.s: [386] rt0_go: unknown variable argv

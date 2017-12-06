@@ -187,7 +187,7 @@ func isaddrokay(n *Node) bool {
 // The result of orderaddrtemp MUST be assigned back to n, e.g.
 // 	n.Left = orderaddrtemp(n.Left, order)
 func orderaddrtemp(n *Node, order *Order) *Node {
-	if consttype(n) >= 0 {
+	if consttype(n) > 0 {
 		// TODO: expand this to all static composite literal nodes?
 		n = defaultlit(n, nil)
 		dowidth(n.Type)
@@ -235,18 +235,16 @@ func poptemp(mark ordermarker, order *Order) {
 // above the mark on the temporary stack, but it does not pop them
 // from the stack.
 func cleantempnopop(mark ordermarker, order *Order, out *[]*Node) {
-	var kill *Node
-
 	for i := len(order.temp) - 1; i >= int(mark); i-- {
 		n := order.temp[i]
 		if n.Name.Keepalive() {
 			n.Name.SetKeepalive(false)
 			n.SetAddrtaken(true) // ensure SSA keeps the n variable
-			kill = nod(OVARLIVE, n, nil)
+			kill := nod(OVARLIVE, n, nil)
 			kill = typecheck(kill, Etop)
 			*out = append(*out, kill)
 		}
-		kill = nod(OVARKILL, n, nil)
+		kill := nod(OVARKILL, n, nil)
 		kill = typecheck(kill, Etop)
 		*out = append(*out, kill)
 	}
@@ -346,14 +344,14 @@ func ismulticall(l Nodes) bool {
 	}
 
 	// call must return multiple values
-	return n.Left.Type.Results().NumFields() > 1
+	return n.Left.Type.NumResults() > 1
 }
 
 // Copyret emits t1, t2, ... = n, where n is a function call,
 // and then returns the list t1, t2, ....
 func copyret(n *Node, order *Order) []*Node {
 	if !n.Type.IsFuncArgStruct() {
-		Fatalf("copyret %v %d", n.Type, n.Left.Type.Results().NumFields())
+		Fatalf("copyret %v %d", n.Type, n.Left.Type.NumResults())
 	}
 
 	var l1 []*Node
@@ -429,10 +427,10 @@ func ordercall(n *Node, order *Order) {
 // to make sure that all map assignments have the form m[k] = x.
 // (Note: orderexpr has already been called on n, so we know k is addressable.)
 //
-// If n is the multiple assignment form ..., m[k], ... = ..., the rewrite is
+// If n is the multiple assignment form ..., m[k], ... = ..., x, ..., the rewrite is
 //	t1 = m
 //	t2 = k
-//	...., t3, ... = x
+//	...., t3, ... = ..., x, ...
 //	t1[t2] = t3
 //
 // The temporaries t1, t2 are needed in case the ... being assigned
@@ -446,30 +444,29 @@ func ordermapassign(n *Node, order *Order) {
 		Fatalf("ordermapassign %v", n.Op)
 
 	case OAS:
+		if n.Left.Op == OINDEXMAP {
+			// Make sure we evaluate the RHS before starting the map insert.
+			// We need to make sure the RHS won't panic.  See issue 22881.
+			n.Right = ordercheapexpr(n.Right, order)
+		}
 		order.out = append(order.out, n)
 
 	case OAS2, OAS2DOTTYPE, OAS2MAPR, OAS2FUNC:
 		var post []*Node
-		var m *Node
-		var a *Node
-		for i1, n1 := range n.List.Slice() {
-			if n1.Op == OINDEXMAP {
-				m = n1
+		for i, m := range n.List.Slice() {
+			switch {
+			case m.Op == OINDEXMAP:
 				if !m.Left.IsAutoTmp() {
 					m.Left = ordercopyexpr(m.Left, m.Left.Type, order, 0)
 				}
 				if !m.Right.IsAutoTmp() {
 					m.Right = ordercopyexpr(m.Right, m.Right.Type, order, 0)
 				}
-				n.List.SetIndex(i1, ordertemp(m.Type, order, false))
-				a = nod(OAS, m, n.List.Index(i1))
-				a = typecheck(a, Etop)
-				post = append(post, a)
-			} else if instrumenting && n.Op == OAS2FUNC && !isblank(n.List.Index(i1)) {
-				m = n.List.Index(i1)
+				fallthrough
+			case instrumenting && n.Op == OAS2FUNC && !isblank(m):
 				t := ordertemp(m.Type, order, false)
-				n.List.SetIndex(i1, t)
-				a = nod(OAS, m, t)
+				n.List.SetIndex(i, t)
+				a := nod(OAS, m, t)
 				a = typecheck(a, Etop)
 				post = append(post, a)
 			}
@@ -533,8 +530,9 @@ func orderstmt(n *Node, order *Order) {
 		// out map read from map write when l is
 		// a map index expression.
 		t := marktemp(order)
-
 		n.Left = orderexpr(n.Left, order, nil)
+		n.Right = orderexpr(n.Right, order, nil)
+
 		n.Left = ordersafeexpr(n.Left, order)
 		tmp1 := treecopy(n.Left, src.NoXPos)
 		if tmp1.Op == OINDEXMAP {
@@ -619,7 +617,6 @@ func orderstmt(n *Node, order *Order) {
 		ODCLCONST,
 		ODCLTYPE,
 		OFALL,
-		OXFALL,
 		OGOTO,
 		OLABEL,
 		ORETJMP:
@@ -761,11 +758,12 @@ func orderstmt(n *Node, order *Order) {
 			r := n.Right
 			n.Right = ordercopyexpr(r, r.Type, order, 0)
 
-			// n->alloc is the temp for the iterator.
-			prealloc[n] = ordertemp(types.Types[TUINT8], order, true)
+			// prealloc[n] is the temp for the iterator.
+			// hiter contains pointers and needs to be zeroed.
+			prealloc[n] = ordertemp(hiter(n.Type), order, true)
 		}
-		for i := range n.List.Slice() {
-			n.List.SetIndex(i, orderexprinplace(n.List.Index(i), order))
+		for i, n1 := range n.List.Slice() {
+			n.List.SetIndex(i, orderexprinplace(n1, order))
 		}
 		orderblockNodes(&n.Nbody)
 		order.out = append(order.out, n)
@@ -787,14 +785,11 @@ func orderstmt(n *Node, order *Order) {
 	case OSELECT:
 		t := marktemp(order)
 
-		var tmp1 *Node
-		var tmp2 *Node
-		var r *Node
 		for _, n2 := range n.List.Slice() {
 			if n2.Op != OXCASE {
 				Fatalf("order select case %v", n2.Op)
 			}
-			r = n2.Left
+			r := n2.Left
 			setlineno(n2)
 
 			// Append any new body prologue to ninit.
@@ -855,16 +850,16 @@ func orderstmt(n *Node, order *Order) {
 						// use channel element type for temporary to avoid conversions,
 						// such as in case interfacevalue = <-intchan.
 						// the conversion happens in the OAS instead.
-						tmp1 = r.Left
+						tmp1 := r.Left
 
 						if r.Colas() {
-							tmp2 = nod(ODCL, tmp1, nil)
+							tmp2 := nod(ODCL, tmp1, nil)
 							tmp2 = typecheck(tmp2, Etop)
 							n2.Ninit.Append(tmp2)
 						}
 
 						r.Left = ordertemp(r.Right.Left.Type.Elem(), order, types.Haspointers(r.Right.Left.Type.Elem()))
-						tmp2 = nod(OAS, tmp1, r.Left)
+						tmp2 := nod(OAS, tmp1, r.Left)
 						tmp2 = typecheck(tmp2, Etop)
 						n2.Ninit.Append(tmp2)
 					}
@@ -873,15 +868,15 @@ func orderstmt(n *Node, order *Order) {
 						r.List.Set(nil)
 					}
 					if r.List.Len() != 0 {
-						tmp1 = r.List.First()
+						tmp1 := r.List.First()
 						if r.Colas() {
-							tmp2 = nod(ODCL, tmp1, nil)
+							tmp2 := nod(ODCL, tmp1, nil)
 							tmp2 = typecheck(tmp2, Etop)
 							n2.Ninit.Append(tmp2)
 						}
 
 						r.List.Set1(ordertemp(types.Types[TBOOL], order, false))
-						tmp2 = okas(tmp1, r.List.First())
+						tmp2 := okas(tmp1, r.List.First())
 						tmp2 = typecheck(tmp2, Etop)
 						n2.Ninit.Append(tmp2)
 					}

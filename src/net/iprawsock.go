@@ -21,7 +21,7 @@ import (
 // change the behavior of these methods; use Read or ReadMsgIP
 // instead.
 
-// BUG(mikio): On NaCl, Plan 9 and Windows, the ReadMsgIP and
+// BUG(mikio): On NaCl and Plan 9, the ReadMsgIP and
 // WriteMsgIP methods of IPConn are not implemented.
 
 // BUG(mikio): On Windows, the File method of IPConn is not

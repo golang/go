@@ -347,4 +347,5 @@ const (
 	SYS_ACCEPT4                  = 541 // { int accept4(int s, \
 	SYS_PIPE2                    = 542 // { int pipe2(int *fildes, int flags); }
 	SYS_PROCCTL                  = 544 // { int procctl(idtype_t idtype, id_t id, \
+	SYS_UTIMENSAT                = 547 // { int utimensat(int fd, \
 )

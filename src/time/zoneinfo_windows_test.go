@@ -31,14 +31,14 @@ func testZoneAbbr(t *testing.T) {
 	}
 }
 
-func TestLocalZoneAbbr(t *testing.T) {
-	ResetLocalOnceForTest() // reset the Once to trigger the race
+func TestUSPacificZoneAbbr(t *testing.T) {
+	ForceUSPacificFromTZIForTesting() // reset the Once to trigger the race
 	defer ForceUSPacificForTesting()
 	testZoneAbbr(t)
 }
 
 func TestAusZoneAbbr(t *testing.T) {
-	ForceAusForTesting()
+	ForceAusFromTZIForTesting()
 	defer ForceUSPacificForTesting()
 	testZoneAbbr(t)
 }

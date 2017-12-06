@@ -12,6 +12,7 @@ package runtime_test
 import (
 	"fmt"
 	. "runtime"
+	"runtime/debug"
 	"sync/atomic"
 	"testing"
 )
@@ -47,6 +48,10 @@ func doTestParallelReaders(numReaders int) {
 
 func TestParallelRWMutexReaders(t *testing.T) {
 	defer GOMAXPROCS(GOMAXPROCS(-1))
+	// If runtime triggers a forced GC during this test then it will deadlock,
+	// since the goroutines can't be stopped/preempted.
+	// Disable GC for this test (see issue #10958).
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
 	doTestParallelReaders(1)
 	doTestParallelReaders(3)
 	doTestParallelReaders(4)

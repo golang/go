@@ -89,13 +89,13 @@ func getproccount() int32 {
 	// buffers, but we don't have a dynamic memory allocator at the
 	// moment, so that's a bit tricky and seems like overkill.
 	const maxCPUs = 64 * 1024
-	var buf [maxCPUs / (sys.PtrSize * 8)]uintptr
+	var buf [maxCPUs / 8]byte
 	r := sched_getaffinity(0, unsafe.Sizeof(buf), &buf[0])
 	if r < 0 {
 		return 1
 	}
 	n := int32(0)
-	for _, v := range buf[:r/sys.PtrSize] {
+	for _, v := range buf[:r] {
 		for v != 0 {
 			n += int32(v & 1)
 			v >>= 1
@@ -193,6 +193,8 @@ const (
 
 var procAuxv = []byte("/proc/self/auxv\x00")
 
+func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
+
 func sysargs(argc int32, argv **byte) {
 	n := argc + 1
 
@@ -206,45 +208,46 @@ func sysargs(argc int32, argv **byte) {
 
 	// now argv+n is auxv
 	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
-	if sysauxv(auxv[:]) == 0 {
-		// In some situations we don't get a loader-provided
-		// auxv, such as when loaded as a library on Android.
-		// Fall back to /proc/self/auxv.
-		fd := open(&procAuxv[0], 0 /* O_RDONLY */, 0)
-		if fd < 0 {
-			// On Android, /proc/self/auxv might be unreadable (issue 9229), so we fallback to
-			// try using mincore to detect the physical page size.
-			// mincore should return EINVAL when address is not a multiple of system page size.
-			const size = 256 << 10 // size of memory region to allocate
-			p := mmap(nil, size, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
-			if uintptr(p) < 4096 {
-				return
-			}
-			var n uintptr
-			for n = 4 << 10; n < size; n <<= 1 {
-				err := mincore(unsafe.Pointer(uintptr(p)+n), 1, &addrspace_vec[0])
-				if err == 0 {
-					physPageSize = n
-					break
-				}
-			}
-			if physPageSize == 0 {
-				physPageSize = size
-			}
-			munmap(p, size)
-			return
-		}
-		var buf [128]uintptr
-		n := read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
-		closefd(fd)
-		if n < 0 {
-			return
-		}
-		// Make sure buf is terminated, even if we didn't read
-		// the whole file.
-		buf[len(buf)-2] = _AT_NULL
-		sysauxv(buf[:])
+	if sysauxv(auxv[:]) != 0 {
+		return
 	}
+	// In some situations we don't get a loader-provided
+	// auxv, such as when loaded as a library on Android.
+	// Fall back to /proc/self/auxv.
+	fd := open(&procAuxv[0], 0 /* O_RDONLY */, 0)
+	if fd < 0 {
+		// On Android, /proc/self/auxv might be unreadable (issue 9229), so we fallback to
+		// try using mincore to detect the physical page size.
+		// mincore should return EINVAL when address is not a multiple of system page size.
+		const size = 256 << 10 // size of memory region to allocate
+		p, err := mmap(nil, size, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+		if err != 0 {
+			return
+		}
+		var n uintptr
+		for n = 4 << 10; n < size; n <<= 1 {
+			err := mincore(unsafe.Pointer(uintptr(p)+n), 1, &addrspace_vec[0])
+			if err == 0 {
+				physPageSize = n
+				break
+			}
+		}
+		if physPageSize == 0 {
+			physPageSize = size
+		}
+		munmap(p, size)
+		return
+	}
+	var buf [128]uintptr
+	n = read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
+	closefd(fd)
+	if n < 0 {
+		return
+	}
+	// Make sure buf is terminated, even if we didn't read
+	// the whole file.
+	buf[len(buf)-2] = _AT_NULL
+	sysauxv(buf[:])
 }
 
 func sysauxv(auxv []uintptr) int {
@@ -382,7 +385,7 @@ func raise(sig uint32)
 func raiseproc(sig uint32)
 
 //go:noescape
-func sched_getaffinity(pid, len uintptr, buf *uintptr) int32
+func sched_getaffinity(pid, len uintptr, buf *byte) int32
 func osyield()
 
 //go:nosplit

@@ -52,12 +52,6 @@ type zone struct {
 	DSTime   string
 }
 
-type zones []*zone
-
-func (zs zones) Len() int           { return len(zs) }
-func (zs zones) Swap(i, j int)      { zs[i], zs[j] = zs[j], zs[i] }
-func (zs zones) Less(i, j int) bool { return zs[i].UnixName < zs[j].UnixName }
-
 const wzURL = "http://unicode.org/cldr/data/common/supplemental/windowsZones.xml"
 
 type MapZone struct {
@@ -70,7 +64,7 @@ type SupplementalData struct {
 	Zones []MapZone `xml:"windowsZones>mapTimezones>mapZone"`
 }
 
-func readWindowsZones() (zones, error) {
+func readWindowsZones() ([]*zone, error) {
 	r, err := http.Get(wzURL)
 	if err != nil {
 		return nil, err
@@ -87,7 +81,7 @@ func readWindowsZones() (zones, error) {
 	if err != nil {
 		return nil, err
 	}
-	zs := make(zones, 0)
+	zs := make([]*zone, 0)
 	for _, z := range sd.Zones {
 		if z.Territory != "001" {
 			// to avoid dups. I don't know why.
@@ -114,10 +108,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	sort.Sort(zs)
+	sort.Slice(zs, func(i, j int) bool {
+		return zs[i].UnixName < zs[j].UnixName
+	})
 	var v = struct {
 		URL string
-		Zs  zones
+		Zs  []*zone
 	}{
 		wzURL,
 		zs,

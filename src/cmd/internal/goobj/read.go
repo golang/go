@@ -6,7 +6,6 @@
 //
 // TODO(rsc): Decide where this package should live. (golang.org/issue/6932)
 // TODO(rsc): Decide the appropriate integer types for various fields.
-// TODO(rsc): Write tests. (File format still up in the air a little.)
 package goobj
 
 import (
@@ -16,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -25,7 +25,7 @@ type Sym struct {
 	SymID                // symbol identifier (name and version)
 	Kind  objabi.SymKind // kind of symbol
 	DupOK bool           // are duplicate definitions okay?
-	Size  int            // size of corresponding data
+	Size  int64          // size of corresponding data
 	Type  SymID          // symbol for Go type information
 	Data  Data           // memory image of symbol
 	Reloc []Reloc        // relocations to apply to Data
@@ -43,7 +43,7 @@ type SymID struct {
 	// declarations in C) have a non-zero version distinguishing
 	// a symbol in one file from a symbol of the same name
 	// in another file
-	Version int
+	Version int64
 }
 
 func (s SymID) String() string {
@@ -67,10 +67,10 @@ type Reloc struct {
 	// The bytes at [Offset, Offset+Size) within the containing Sym
 	// should be updated to refer to the address Add bytes after the start
 	// of the symbol Sym.
-	Offset int
-	Size   int
+	Offset int64
+	Size   int64
 	Sym    SymID
-	Add    int
+	Add    int64
 
 	// The Type records the form of address expected in the bytes
 	// described by the previous fields: absolute, PC-relative, and so on.
@@ -85,16 +85,16 @@ type Var struct {
 	// identifies a variable in a function stack frame.
 	// Using fewer of these - in particular, using only Name - does not.
 	Name   string // Name of variable.
-	Kind   int    // TODO(rsc): Define meaning.
-	Offset int    // Frame offset. TODO(rsc): Define meaning.
+	Kind   int64  // TODO(rsc): Define meaning.
+	Offset int64  // Frame offset. TODO(rsc): Define meaning.
 
 	Type SymID // Go type for variable.
 }
 
 // Func contains additional per-symbol information specific to functions.
 type Func struct {
-	Args     int        // size in bytes of argument frame: inputs and outputs
-	Frame    int        // size in bytes of local variable frame
+	Args     int64      // size in bytes of argument frame: inputs and outputs
+	Frame    int64      // size in bytes of local variable frame
 	Leaf     bool       // function omits save of link register (ARM)
 	NoSplit  bool       // function omits stack split prologue
 	Var      []Var      // detail about local variables
@@ -119,20 +119,26 @@ type FuncData struct {
 // An InlinedCall is a node in an InlTree.
 // See cmd/internal/obj.InlTree for details.
 type InlinedCall struct {
-	Parent int
+	Parent int64
 	File   string
-	Line   int
+	Line   int64
 	Func   SymID
 }
 
 // A Package is a parsed Go object file or archive defining a Go package.
 type Package struct {
-	ImportPath string   // import path denoting this package
-	Imports    []string // packages imported by this package
-	SymRefs    []SymID  // list of symbol names and versions referred to by this pack
-	Syms       []*Sym   // symbols defined by this package
-	MaxVersion int      // maximum Version in any SymID in Syms
-	Arch       string   // architecture
+	ImportPath string          // import path denoting this package
+	Imports    []string        // packages imported by this package
+	SymRefs    []SymID         // list of symbol names and versions referred to by this pack
+	Syms       []*Sym          // symbols defined by this package
+	MaxVersion int64           // maximum Version in any SymID in Syms
+	Arch       string          // architecture
+	Native     []*NativeReader // native object data (e.g. ELF)
+}
+
+type NativeReader struct {
+	Name string
+	io.ReaderAt
 }
 
 var (
@@ -150,7 +156,7 @@ var (
 type objReader struct {
 	p          *Package
 	b          *bufio.Reader
-	f          io.ReadSeeker
+	f          *os.File
 	err        error
 	offset     int64
 	dataOffset int64
@@ -160,7 +166,7 @@ type objReader struct {
 }
 
 // init initializes r to read package p from f.
-func (r *objReader) init(f io.ReadSeeker, p *Package) {
+func (r *objReader) init(f *os.File, p *Package) {
 	r.f = f
 	r.p = p
 	r.offset, _ = f.Seek(0, io.SeekCurrent)
@@ -183,6 +189,24 @@ func (r *objReader) error(err error) error {
 	}
 	// panic("corrupt") // useful for debugging
 	return r.err
+}
+
+// peek returns the next n bytes without advancing the reader.
+func (r *objReader) peek(n int) ([]byte, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	if r.offset >= r.limit {
+		r.error(io.ErrUnexpectedEOF)
+		return nil, r.err
+	}
+	b, err := r.b.Peek(n)
+	if err != nil {
+		if err != bufio.ErrBufferFull {
+			r.error(err)
+		}
+	}
+	return b, err
 }
 
 // readByte reads and returns a byte from the input file.
@@ -231,7 +255,7 @@ func (r *objReader) readFull(b []byte) error {
 }
 
 // readInt reads a zigzag varint from the input file.
-func (r *objReader) readInt() int {
+func (r *objReader) readInt() int64 {
 	var u uint64
 
 	for shift := uint(0); ; shift += 7 {
@@ -246,12 +270,7 @@ func (r *objReader) readInt() int {
 		}
 	}
 
-	v := int64(u>>1) ^ (int64(u) << 63 >> 63)
-	if int64(int(v)) != v {
-		r.error(errCorruptObject) // TODO
-		return 0
-	}
-	return int(v)
+	return int64(u>>1) ^ (int64(u) << 63 >> 63)
 }
 
 // readString reads a length-delimited string from the input file.
@@ -289,8 +308,8 @@ func (r *objReader) readRef() {
 // readData reads a data reference from the input file.
 func (r *objReader) readData() Data {
 	n := r.readInt()
-	d := Data{Offset: r.dataOffset, Size: int64(n)}
-	r.dataOffset += int64(n)
+	d := Data{Offset: r.dataOffset, Size: n}
+	r.dataOffset += n
 	return d
 }
 
@@ -322,9 +341,9 @@ func (r *objReader) skip(n int64) {
 	}
 }
 
-// Parse parses an object file or archive from r,
+// Parse parses an object file or archive from f,
 // assuming that its import path is pkgpath.
-func Parse(r io.ReadSeeker, pkgpath string) (*Package, error) {
+func Parse(f *os.File, pkgpath string) (*Package, error) {
 	if pkgpath == "" {
 		pkgpath = `""`
 	}
@@ -332,7 +351,7 @@ func Parse(r io.ReadSeeker, pkgpath string) (*Package, error) {
 	p.ImportPath = pkgpath
 
 	var rd objReader
-	rd.init(r, p)
+	rd.init(f, p)
 	err := rd.readFull(rd.tmp[:8])
 	if err != nil {
 		if err == io.EOF {
@@ -365,9 +384,6 @@ func trimSpace(b []byte) string {
 }
 
 // parseArchive parses a Unix archive of Go object files.
-// TODO(rsc): Need to skip non-Go object files.
-// TODO(rsc): Maybe record table of contents in r.p so that
-// linker can avoid having code to parse archives too.
 func (r *objReader) parseArchive() error {
 	for r.offset < r.limit {
 		if err := r.readFull(r.tmp[:60]); err != nil {
@@ -413,9 +429,22 @@ func (r *objReader) parseArchive() error {
 		default:
 			oldLimit := r.limit
 			r.limit = r.offset + size
-			if err := r.parseObject(nil); err != nil {
-				return fmt.Errorf("parsing archive member %q: %v", name, err)
+
+			p, err := r.peek(8)
+			if err != nil {
+				return err
 			}
+			if bytes.Equal(p, goobjHeader) {
+				if err := r.parseObject(nil); err != nil {
+					return fmt.Errorf("parsing archive member %q: %v", name, err)
+				}
+			} else {
+				r.p.Native = append(r.p.Native, &NativeReader{
+					Name:     name,
+					ReaderAt: io.NewSectionReader(r.f, r.offset, size),
+				})
+			}
+
 			r.skip(r.limit - r.offset)
 			r.limit = oldLimit
 		}
@@ -496,7 +525,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 	r.readInt() // n files - ignore
 
 	r.dataOffset = r.offset
-	r.skip(int64(dataLength))
+	r.skip(dataLength)
 
 	// Symbols.
 	for {
@@ -581,7 +610,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 }
 
 func (r *Reloc) String(insnOffset uint64) string {
-	delta := r.Offset - int(insnOffset)
+	delta := r.Offset - int64(insnOffset)
 	s := fmt.Sprintf("[%d:%d]%s", delta, delta+r.Size, r.Type)
 	if r.Sym.Name != "" {
 		if r.Add != 0 {

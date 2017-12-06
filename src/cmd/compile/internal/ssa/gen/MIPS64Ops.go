@@ -147,6 +147,8 @@ func init() {
 		gpload   = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
 		gpstore  = regInfo{inputs: []regMask{gpspsbg, gpg}}
 		gpstore0 = regInfo{inputs: []regMask{gpspsbg}}
+		gpxchg   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+		gpcas    = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
 		fp01     = regInfo{inputs: nil, outputs: []regMask{fp}}
 		fp11     = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		//fp1flags  = regInfo{inputs: []regMask{fp}}
@@ -161,7 +163,7 @@ func init() {
 	ops := []opData{
 		// binary ops
 		{name: "ADDV", argLength: 2, reg: gp21, asm: "ADDVU", commutative: true},                             // arg0 + arg1
-		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64"},                           // arg0 + auxInt
+		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64"},                           // arg0 + auxInt. auxInt is 32-bit, also in other *const ops.
 		{name: "SUBV", argLength: 2, reg: gp21, asm: "SUBVU"},                                                // arg0 - arg1
 		{name: "SUBVconst", argLength: 1, reg: gp11, asm: "SUBVU", aux: "Int64"},                             // arg0 - auxInt
 		{name: "MULV", argLength: 2, reg: gp2hilo, asm: "MULV", commutative: true, typ: "(Int64,Int64)"},     // arg0 * arg1, signed, results hi,lo
@@ -333,6 +335,65 @@ func init() {
 			faultOnNilArg1: true,
 		},
 
+		// atomic loads.
+		// load from arg0. arg1=mem.
+		// returns <value,memory> so they can be properly ordered with other loads.
+		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, faultOnNilArg0: true},
+		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, faultOnNilArg0: true},
+
+		// atomic stores.
+		// store arg1 to arg0. arg2=mem. returns memory.
+		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+		// store zero to arg0. arg1=mem. returns memory.
+		{name: "LoweredAtomicStorezero32", argLength: 2, reg: gpstore0, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicStorezero64", argLength: 2, reg: gpstore0, faultOnNilArg0: true, hasSideEffects: true},
+
+		// atomic exchange.
+		// store arg1 to arg0. arg2=mem. returns <old content of *arg0, memory>.
+		// SYNC
+		// LL	(Rarg0), Rout
+		// MOVV Rarg1, Rtmp
+		// SC	Rtmp, (Rarg0)
+		// BEQ	Rtmp, -3(PC)
+		// SYNC
+		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+
+		// atomic add.
+		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>.
+		// SYNC
+		// LL	(Rarg0), Rout
+		// ADDV Rarg1, Rout, Rtmp
+		// SC	Rtmp, (Rarg0)
+		// BEQ	Rtmp, -3(PC)
+		// SYNC
+		// ADDV Rarg1, Rout
+		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		// *arg0 += auxint. arg1=mem. returns <new content of *arg0, memory>. auxint is 32-bit.
+		{name: "LoweredAtomicAddconst32", argLength: 2, reg: regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}, aux: "Int32", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicAddconst64", argLength: 2, reg: regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}, aux: "Int64", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+
+		// atomic compare and swap.
+		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
+		// if *arg0 == arg1 {
+		//   *arg0 = arg2
+		//   return (true, memory)
+		// } else {
+		//   return (false, memory)
+		// }
+		// SYNC
+		// MOVV $0, Rout
+		// LL	(Rarg0), Rtmp
+		// BNE	Rtmp, Rarg1, 4(PC)
+		// MOVV Rarg2, Rout
+		// SC	Rout, (Rarg0)
+		// BEQ	Rout, -4(PC)
+		// SYNC
+		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+
 		// pseudo-ops
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil.  arg1=mem.
 
@@ -343,6 +404,9 @@ func init() {
 		// and sorts it to the very beginning of the block to prevent other
 		// use of R22 (mips.REGCTXT, the closure pointer)
 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R22")}}},
+
+		// LoweredGetCallerSP returns the SP of the caller of the current function.
+		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
 
 		// MOVDconvert converts between pointers and integers.
 		// We have a special op for this so as to not confuse GC

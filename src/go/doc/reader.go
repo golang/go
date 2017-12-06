@@ -154,6 +154,7 @@ type reader struct {
 	imports   map[string]int
 	hasDotImp bool     // if set, package contains a dot import
 	values    []*Value // consts and vars
+	order     int      // sort order of const and var declarations (when we can't use a name)
 	types     map[string]*namedType
 	funcs     methodSet
 
@@ -256,11 +257,9 @@ func (r *reader) readValue(decl *ast.GenDecl) {
 			if n, imp := baseTypeName(s.Type); !imp {
 				name = n
 			}
-		case decl.Tok == token.CONST:
-			// no type is present but we have a constant declaration;
-			// use the previous type name (w/o more type information
-			// we cannot handle the case of unnamed variables with
-			// initializer expressions except for some trivial cases)
+		case decl.Tok == token.CONST && len(s.Values) == 0:
+			// no type or value is present but we have a constant declaration;
+			// use the previous type name (possibly the empty string)
 			name = prev
 		}
 		if name != "" {
@@ -297,9 +296,15 @@ func (r *reader) readValue(decl *ast.GenDecl) {
 		Doc:   decl.Doc.Text(),
 		Names: specNames(decl.Specs),
 		Decl:  decl,
-		order: len(*values),
+		order: r.order,
 	})
 	decl.Doc = nil // doc consumed - remove from AST
+
+	// Note: It's important that the order used here is global because the cleanupTypes
+	// methods may move values associated with types back into the global list. If the
+	// order is list-specific, sorting is not deterministic because the same order value
+	// may appear multiple times (was bug, found when fixing #16153).
+	r.order++
 }
 
 // fields returns a struct's fields or an interface's methods.
@@ -391,7 +396,13 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 			// exactly one (named or anonymous) result associated
 			// with the first type in result signature (there may
 			// be more than one result)
-			if n, imp := baseTypeName(res.Type); !imp && r.isVisible(n) {
+			factoryType := res.Type
+			if t, ok := factoryType.(*ast.ArrayType); ok && t.Len == nil {
+				// We consider functions that return slices of type T (or
+				// pointers to T) as factory functions of T.
+				factoryType = t.Elt
+			}
+			if n, imp := baseTypeName(factoryType); !imp && r.isVisible(n) {
 				if typ := r.lookupType(n); typ != nil {
 					// associate function with typ
 					typ.funcs.set(fun)

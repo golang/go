@@ -25,27 +25,55 @@ import "go/ast"
 
 func init() {
 	register("rangeloops",
-		"check that range loop variables are used correctly",
-		checkRangeLoop,
-		rangeStmt)
+		"check that loop variables are used correctly",
+		checkLoop,
+		rangeStmt, forStmt)
 }
 
-// checkRangeLoop walks the body of the provided range statement, checking if
+// checkLoop walks the body of the provided loop statement, checking whether
 // its index or value variables are used unsafely inside goroutines or deferred
 // function literals.
-func checkRangeLoop(f *File, node ast.Node) {
-	n := node.(*ast.RangeStmt)
-	key, _ := n.Key.(*ast.Ident)
-	val, _ := n.Value.(*ast.Ident)
-	if key == nil && val == nil {
+func checkLoop(f *File, node ast.Node) {
+	// Find the variables updated by the loop statement.
+	var vars []*ast.Ident
+	addVar := func(expr ast.Expr) {
+		if id, ok := expr.(*ast.Ident); ok {
+			vars = append(vars, id)
+		}
+	}
+	var body *ast.BlockStmt
+	switch n := node.(type) {
+	case *ast.RangeStmt:
+		body = n.Body
+		addVar(n.Key)
+		addVar(n.Value)
+	case *ast.ForStmt:
+		body = n.Body
+		switch post := n.Post.(type) {
+		case *ast.AssignStmt:
+			// e.g. for p = head; p != nil; p = p.next
+			for _, lhs := range post.Lhs {
+				addVar(lhs)
+			}
+		case *ast.IncDecStmt:
+			// e.g. for i := 0; i < n; i++
+			addVar(post.X)
+		}
+	}
+	if vars == nil {
 		return
 	}
-	sl := n.Body.List
-	if len(sl) == 0 {
+
+	// Inspect a go or defer statement
+	// if it's the last one in the loop body.
+	// (We give up if there are following statements,
+	// because it's hard to prove go isn't followed by wait,
+	// or defer by return.)
+	if len(body.List) == 0 {
 		return
 	}
 	var last *ast.CallExpr
-	switch s := sl[len(sl)-1].(type) {
+	switch s := body.List[len(body.List)-1].(type) {
 	case *ast.GoStmt:
 		last = s.Call
 	case *ast.DeferStmt:
@@ -63,11 +91,14 @@ func checkRangeLoop(f *File, node ast.Node) {
 			return true
 		}
 		if f.pkg.types[id].Type == nil {
-			// Not referring to a variable
+			// Not referring to a variable (e.g. struct field name)
 			return true
 		}
-		if key != nil && id.Obj == key.Obj || val != nil && id.Obj == val.Obj {
-			f.Bad(id.Pos(), "range variable", id.Name, "captured by func literal")
+		for _, v := range vars {
+			if v.Obj == id.Obj {
+				f.Badf(id.Pos(), "loop variable %s captured by func literal",
+					id.Name)
+			}
 		}
 		return true
 	})

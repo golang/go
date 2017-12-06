@@ -14,6 +14,11 @@ import (
 	"unicode/utf8"
 )
 
+var (
+	errLongName  = errors.New("zip: FileHeader.Name too long")
+	errLongExtra = errors.New("zip: FileHeader.Extra too long")
+)
+
 // Writer implements a zip file writer.
 type Writer struct {
 	cw          *countWriter
@@ -21,6 +26,7 @@ type Writer struct {
 	last        *fileWriter
 	closed      bool
 	compressors map[uint16]Compressor
+	comment     string
 
 	// testHookCloseSizeOffset if non-nil is called with the size
 	// of offset of the central directory at Close.
@@ -52,6 +58,16 @@ func (w *Writer) SetOffset(n int64) {
 // Calling Flush is not normally necessary; calling Close is sufficient.
 func (w *Writer) Flush() error {
 	return w.cw.w.(*bufio.Writer).Flush()
+}
+
+// SetComment sets the end-of-central-directory comment field.
+// It can only be called before Close.
+func (w *Writer) SetComment(comment string) error {
+	if len(comment) > uint16max {
+		return errors.New("zip: Writer.Comment too long")
+	}
+	w.comment = comment
+	return nil
 }
 
 // Close finishes writing the zip file by writing the central directory.
@@ -91,7 +107,7 @@ func (w *Writer) Close() error {
 			// append a zip64 extra block to Extra
 			var buf [28]byte // 2x uint16 + 3x uint64
 			eb := writeBuf(buf[:])
-			eb.uint16(zip64ExtraId)
+			eb.uint16(zip64ExtraID)
 			eb.uint16(24) // size = 3x uint64
 			eb.uint64(h.UncompressedSize64)
 			eb.uint64(h.CompressedSize64)
@@ -172,13 +188,16 @@ func (w *Writer) Close() error {
 	var buf [directoryEndLen]byte
 	b := writeBuf(buf[:])
 	b.uint32(uint32(directoryEndSignature))
-	b = b[4:]                 // skip over disk number and first disk number (2x uint16)
-	b.uint16(uint16(records)) // number of entries this disk
-	b.uint16(uint16(records)) // number of entries total
-	b.uint32(uint32(size))    // size of directory
-	b.uint32(uint32(offset))  // start of directory
-	// skipped size of comment (always zero)
+	b = b[4:]                        // skip over disk number and first disk number (2x uint16)
+	b.uint16(uint16(records))        // number of entries this disk
+	b.uint16(uint16(records))        // number of entries total
+	b.uint32(uint32(size))           // size of directory
+	b.uint32(uint32(offset))         // start of directory
+	b.uint16(uint16(len(w.comment))) // byte size of EOCD comment
 	if _, err := w.cw.Write(buf[:]); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(w.cw, w.comment); err != nil {
 		return err
 	}
 
@@ -187,6 +206,7 @@ func (w *Writer) Close() error {
 
 // Create adds a file to the zip file using the provided name.
 // It returns a Writer to which the file contents should be written.
+// The file contents will be compressed using the Deflate method.
 // The name must be a relative path: it must not start with a drive
 // letter (e.g. C:) or leading slash, and only forward slashes are
 // allowed.
@@ -200,27 +220,36 @@ func (w *Writer) Create(name string) (io.Writer, error) {
 	return w.CreateHeader(header)
 }
 
-func hasValidUTF8(s string) bool {
-	n := 0
-	for _, r := range s {
-		// By default, ZIP uses CP437, which is only identical to ASCII for the printable characters.
-		if r < 0x20 || r >= 0x7f {
-			if !utf8.ValidRune(r) {
-				return false
+// detectUTF8 reports whether s is a valid UTF-8 string, and whether the string
+// must be considered UTF-8 encoding (i.e., not compatible with CP-437, ASCII,
+// or any other common encoding).
+func detectUTF8(s string) (valid, require bool) {
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		i += size
+		// Officially, ZIP uses CP-437, but many readers use the system's
+		// local character encoding. Most encoding are compatible with a large
+		// subset of CP-437, which itself is ASCII-like.
+		//
+		// Forbid 0x7e and 0x5c since EUC-KR and Shift-JIS replace those
+		// characters with localized currency and overline characters.
+		if r < 0x20 || r > 0x7d || r == 0x5c {
+			if !utf8.ValidRune(r) || (r == utf8.RuneError && size == 1) {
+				return false, false
 			}
-			n++
+			require = true
 		}
 	}
-	return n > 0
+	return true, require
 }
 
-// CreateHeader adds a file to the zip file using the provided FileHeader
-// for the file metadata.
-// It returns a Writer to which the file contents should be written.
+// CreateHeader adds a file to the zip archive using the provided FileHeader
+// for the file metadata. Writer takes ownership of fh and may mutate
+// its fields. The caller must not modify fh after calling CreateHeader.
 //
+// This returns a Writer to which the file contents should be written.
 // The file's contents must be written to the io.Writer before the next
-// call to Create, CreateHeader, or Close. The provided FileHeader fh
-// must not be modified after a call to CreateHeader.
+// call to Create, CreateHeader, or Close.
 func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 	if w.last != nil && !w.last.closed {
 		if err := w.last.close(); err != nil {
@@ -234,12 +263,61 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 
 	fh.Flags |= 0x8 // we will write a data descriptor
 
-	if hasValidUTF8(fh.Name) || hasValidUTF8(fh.Comment) {
-		fh.Flags |= 0x800 // filename or comment have valid utf-8 string
+	// The ZIP format has a sad state of affairs regarding character encoding.
+	// Officially, the name and comment fields are supposed to be encoded
+	// in CP-437 (which is mostly compatible with ASCII), unless the UTF-8
+	// flag bit is set. However, there are several problems:
+	//
+	//	* Many ZIP readers still do not support UTF-8.
+	//	* If the UTF-8 flag is cleared, several readers simply interpret the
+	//	name and comment fields as whatever the local system encoding is.
+	//
+	// In order to avoid breaking readers without UTF-8 support,
+	// we avoid setting the UTF-8 flag if the strings are CP-437 compatible.
+	// However, if the strings require multibyte UTF-8 encoding and is a
+	// valid UTF-8 string, then we set the UTF-8 bit.
+	//
+	// For the case, where the user explicitly wants to specify the encoding
+	// as UTF-8, they will need to set the flag bit themselves.
+	utf8Valid1, utf8Require1 := detectUTF8(fh.Name)
+	utf8Valid2, utf8Require2 := detectUTF8(fh.Comment)
+	switch {
+	case fh.NonUTF8:
+		fh.Flags &^= 0x800
+	case (utf8Require1 || utf8Require2) && (utf8Valid1 && utf8Valid2):
+		fh.Flags |= 0x800
 	}
 
 	fh.CreatorVersion = fh.CreatorVersion&0xff00 | zipVersion20 // preserve compatibility byte
 	fh.ReaderVersion = zipVersion20
+
+	// If Modified is set, this takes precedence over MS-DOS timestamp fields.
+	if !fh.Modified.IsZero() {
+		// Contrary to the FileHeader.SetModTime method, we intentionally
+		// do not convert to UTC, because we assume the user intends to encode
+		// the date using the specified timezone. A user may want this control
+		// because many legacy ZIP readers interpret the timestamp according
+		// to the local timezone.
+		//
+		// The timezone is only non-UTC if a user directly sets the Modified
+		// field directly themselves. All other approaches sets UTC.
+		fh.ModifiedDate, fh.ModifiedTime = timeToMsDosTime(fh.Modified)
+
+		// Use "extended timestamp" format since this is what Info-ZIP uses.
+		// Nearly every major ZIP implementation uses a different format,
+		// but at least most seem to be able to understand the other formats.
+		//
+		// This format happens to be identical for both local and central header
+		// if modification time is the only timestamp being encoded.
+		var mbuf [9]byte // 2*SizeOf(uint16) + SizeOf(uint8) + SizeOf(uint32)
+		mt := uint32(fh.Modified.Unix())
+		eb := writeBuf(mbuf[:])
+		eb.uint16(extTimeExtraID)
+		eb.uint16(5)  // Size: SizeOf(uint8) + SizeOf(uint32)
+		eb.uint8(1)   // Flags: ModTime
+		eb.uint32(mt) // ModTime
+		fh.Extra = append(fh.Extra, mbuf[:]...)
+	}
 
 	fw := &fileWriter{
 		zipw:      w.cw,
@@ -273,6 +351,14 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 }
 
 func writeHeader(w io.Writer, h *FileHeader) error {
+	const maxUint16 = 1<<16 - 1
+	if len(h.Name) > maxUint16 {
+		return errLongName
+	}
+	if len(h.Extra) > maxUint16 {
+		return errLongExtra
+	}
+
 	var buf [fileHeaderLen]byte
 	b := writeBuf(buf[:])
 	b.uint32(uint32(fileHeaderSignature))
@@ -401,6 +487,11 @@ func (w nopCloser) Close() error {
 }
 
 type writeBuf []byte
+
+func (b *writeBuf) uint8(v uint8) {
+	(*b)[0] = v
+	*b = (*b)[1:]
+}
 
 func (b *writeBuf) uint16(v uint16) {
 	binary.LittleEndian.PutUint16(*b, v)

@@ -93,6 +93,7 @@ var vcsList = []*vcsCmd{
 	vcsGit,
 	vcsSvn,
 	vcsBzr,
+	vcsFossil,
 }
 
 // vcsByCmd returns the version control system for the given
@@ -324,6 +325,34 @@ func svnRemoteRepo(vcsSvn *vcsCmd, rootDir string) (remoteRepo string, err error
 	return strings.TrimSpace(out), nil
 }
 
+// fossilRepoName is the name go get associates with a fossil repository. In the
+// real world the file can be named anything.
+const fossilRepoName = ".fossil"
+
+// vcsFossil describes how to use Fossil (fossil-scm.org)
+var vcsFossil = &vcsCmd{
+	name: "Fossil",
+	cmd:  "fossil",
+
+	createCmd:   []string{"-go-internal-mkdir {dir} clone {repo} " + filepath.Join("{dir}", fossilRepoName), "-go-internal-cd {dir} open .fossil"},
+	downloadCmd: []string{"up"},
+
+	tagCmd:         []tagCmd{{"tag ls", `(.*)`}},
+	tagSyncCmd:     []string{"up tag:{tag}"},
+	tagSyncDefault: []string{"up trunk"},
+
+	scheme:     []string{"https", "http"},
+	remoteRepo: fossilRemoteRepo,
+}
+
+func fossilRemoteRepo(vcsFossil *vcsCmd, rootDir string) (remoteRepo string, err error) {
+	out, err := vcsFossil.runOutput(rootDir, "remote-url")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 func (v *vcsCmd) String() string {
 	return v.name
 }
@@ -360,6 +389,19 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 	args := strings.Fields(cmdline)
 	for i, arg := range args {
 		args[i] = expand(m, arg)
+	}
+
+	if len(args) >= 2 && args[0] == "-go-internal-mkdir" {
+		var err error
+		if filepath.IsAbs(args[1]) {
+			err = os.Mkdir(args[1], os.ModePerm)
+		} else {
+			err = os.Mkdir(filepath.Join(dir, args[1]), os.ModePerm)
+		}
+		if err != nil {
+			return nil, err
+		}
+		args = args[2:]
 	}
 
 	if len(args) >= 2 && args[0] == "-go-internal-cd" {
@@ -928,7 +970,7 @@ var vcsPaths = []*vcsPath{
 
 	// IBM DevOps Services (JazzHub)
 	{
-		prefix: "hub.jazz.net/git",
+		prefix: "hub.jazz.net/git/",
 		re:     `^(?P<root>hub.jazz.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`,
 		vcs:    "git",
 		repo:   "https://{root}",
@@ -937,7 +979,7 @@ var vcsPaths = []*vcsPath{
 
 	// Git at Apache
 	{
-		prefix: "git.apache.org",
+		prefix: "git.apache.org/",
 		re:     `^(?P<root>git.apache.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`,
 		vcs:    "git",
 		repo:   "https://{root}",
@@ -945,16 +987,24 @@ var vcsPaths = []*vcsPath{
 
 	// Git at OpenStack
 	{
-		prefix: "git.openstack.org",
+		prefix: "git.openstack.org/",
 		re:     `^(?P<root>git\.openstack\.org/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(\.git)?(/[A-Za-z0-9_.\-]+)*$`,
 		vcs:    "git",
+		repo:   "https://{root}",
+	},
+
+	// chiselapp.com for fossil
+	{
+		prefix: "chiselapp.com/",
+		re:     `^(?P<root>chiselapp\.com/user/[A-Za-z0-9]+/repository/[A-Za-z0-9_.\-]+)$`,
+		vcs:    "fossil",
 		repo:   "https://{root}",
 	},
 
 	// General syntax for any server.
 	// Must be last.
 	{
-		re:   `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?(/~?[A-Za-z0-9_.\-]+)+?)\.(?P<vcs>bzr|git|hg|svn))(/~?[A-Za-z0-9_.\-]+)*$`,
+		re:   `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?(/~?[A-Za-z0-9_.\-]+)+?)\.(?P<vcs>bzr|fossil|git|hg|svn))(/~?[A-Za-z0-9_.\-]+)*$`,
 		ping: true,
 	},
 }

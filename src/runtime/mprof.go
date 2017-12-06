@@ -596,7 +596,7 @@ func record(r *MemProfileRecord, b *bucket) {
 	r.AllocObjects = int64(mp.active.allocs)
 	r.FreeObjects = int64(mp.active.frees)
 	if raceenabled {
-		racewriterangepc(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0), getcallerpc(unsafe.Pointer(&r)), funcPC(MemProfile))
+		racewriterangepc(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0), getcallerpc(), funcPC(MemProfile))
 	}
 	if msanenabled {
 		msanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
@@ -644,7 +644,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 			r.Count = bp.count
 			r.Cycles = bp.cycles
 			if raceenabled {
-				racewriterangepc(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0), getcallerpc(unsafe.Pointer(&p)), funcPC(BlockProfile))
+				racewriterangepc(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0), getcallerpc(), funcPC(BlockProfile))
 			}
 			if msanenabled {
 				msanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
@@ -741,7 +741,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 
 		// Save current goroutine.
 		sp := getcallersp(unsafe.Pointer(&p))
-		pc := getcallerpc(unsafe.Pointer(&p))
+		pc := getcallerpc()
 		systemstack(func() {
 			saveg(pc, sp, gp, &r[0])
 		})
@@ -786,7 +786,7 @@ func Stack(buf []byte, all bool) int {
 	if len(buf) > 0 {
 		gp := getg()
 		sp := getcallersp(unsafe.Pointer(&buf))
-		pc := getcallerpc(unsafe.Pointer(&buf))
+		pc := getcallerpc()
 		systemstack(func() {
 			g0 := getg()
 			// Force traceback=1 to override GOTRACEBACK setting,
@@ -826,7 +826,7 @@ func tracealloc(p unsafe.Pointer, size uintptr, typ *_type) {
 	}
 	if gp.m.curg == nil || gp == gp.m.curg {
 		goroutineheader(gp)
-		pc := getcallerpc(unsafe.Pointer(&p))
+		pc := getcallerpc()
 		sp := getcallersp(unsafe.Pointer(&p))
 		systemstack(func() {
 			traceback(pc, sp, 0, gp)
@@ -846,7 +846,7 @@ func tracefree(p unsafe.Pointer, size uintptr) {
 	gp.m.traceback = 2
 	print("tracefree(", p, ", ", hex(size), ")\n")
 	goroutineheader(gp)
-	pc := getcallerpc(unsafe.Pointer(&p))
+	pc := getcallerpc()
 	sp := getcallersp(unsafe.Pointer(&p))
 	systemstack(func() {
 		traceback(pc, sp, 0, gp)
