@@ -981,3 +981,17 @@ func TestMarshalRawMessageValue(t *testing.T) {
 		}
 	}
 }
+
+type marshalPanic struct{}
+
+func (marshalPanic) MarshalJSON() ([]byte, error) { panic(0xdead) }
+
+func TestMarshalPanic(t *testing.T) {
+	defer func() {
+		if got := recover(); !reflect.DeepEqual(got, 0xdead) {
+			t.Errorf("panic() = (%T)(%v), want 0xdead", got, got)
+		}
+	}()
+	Marshal(&marshalPanic{})
+	t.Error("Marshal should have panicked")
+}

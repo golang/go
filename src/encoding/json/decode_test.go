@@ -2166,3 +2166,17 @@ func TestUnmarshalEmbeddedPointerUnexported(t *testing.T) {
 		}
 	}
 }
+
+type unmarshalPanic struct{}
+
+func (unmarshalPanic) UnmarshalJSON([]byte) error { panic(0xdead) }
+
+func TestUnmarshalPanic(t *testing.T) {
+	defer func() {
+		if got := recover(); !reflect.DeepEqual(got, 0xdead) {
+			t.Errorf("panic() = (%T)(%v), want 0xdead", got, got)
+		}
+	}()
+	Unmarshal([]byte("{}"), &unmarshalPanic{})
+	t.Fatalf("Unmarshal should have panicked")
+}
