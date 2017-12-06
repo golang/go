@@ -356,23 +356,21 @@ func ExampleParseInLocation() {
 }
 
 func ExampleTime_Unix() {
-	// Create a date.
-	const nsecs = 0
-	orig := time.Date(2009, time.January, 1, 1, 9, 30, nsecs, time.UTC)
-	fmt.Printf("orig = %v\n", orig)
+	// 1 billion seconds of Unix, three ways.
+	fmt.Println(time.Unix(1e9, 0).UTC())     // 1e9 seconds
+	fmt.Println(time.Unix(0, 1e18).UTC())    // 1e18 nanoseconds
+	fmt.Println(time.Unix(2e9, -1e18).UTC()) // 2e9 seconds - 1e18 nanoseconds
 
-	// Get the Unix timestamp of the date.
-	unix := orig.Unix()
-	fmt.Printf("orig.Unix() = %v\n", unix)
-
-	// Convert the Unix date back to a time.Time.
-	parsed := time.Unix(unix, nsecs).UTC()
-	fmt.Printf("parsed = %v\n", parsed)
+	t := time.Date(2001, time.September, 9, 1, 46, 40, 0, time.UTC)
+	fmt.Println(t.Unix())     // seconds since 1970
+	fmt.Println(t.UnixNano()) // nanoseconds since 1970
 
 	// Output:
-	// orig = 2009-01-01 01:09:30 +0000 UTC
-	// orig.Unix() = 1230772170
-	// parsed = 2009-01-01 01:09:30 +0000 UTC
+	// 2001-09-09 01:46:40 +0000 UTC
+	// 2001-09-09 01:46:40 +0000 UTC
+	// 2001-09-09 01:46:40 +0000 UTC
+	// 1000000000
+	// 1000000000000000000
 }
 
 func ExampleTime_Round() {
