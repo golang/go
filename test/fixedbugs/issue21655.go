@@ -38,3 +38,25 @@ func f6(a []float32, i int64) float32 {
 // like 0x80000000 and silently using them as
 // signed 32 bit offsets.)
 // f4 was ok, but testing it can't hurt.
+
+func f7(ss []*string, i int) string {
+	const offset = 3 << 29 // 3<<29 * 4 = 3<<31 = 1<<31 mod 1<<32.
+	if i > offset {
+		return *ss[i-offset]
+	}
+	return ""
+}
+func f8(ss []*string, i int) string {
+	const offset = 3<<29 + 10
+	if i > offset {
+		return *ss[i-offset]
+	}
+	return ""
+}
+func f9(ss []*string, i int) string {
+	const offset = 3<<29 - 10
+	if i > offset {
+		return *ss[i-offset]
+	}
+	return ""
+}
