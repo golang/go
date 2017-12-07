@@ -429,7 +429,7 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 
 func validUser(user string) bool {
 	switch user {
-	case "adg", "bradfitz", "cbro":
+	case "adg", "bradfitz", "cbro", "andybons":
 		return true
 	}
 	return false
