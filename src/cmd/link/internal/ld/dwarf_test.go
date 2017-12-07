@@ -522,8 +522,13 @@ package main
 
 var G int
 
+func noinline(x int) int {
+	defer func() { G += x }()
+	return x
+}
+
 func cand(x, y int) int {
-    return (x + y) ^ (y - x)
+	return noinline(x+y) ^ (y - x)
 }
 
 func main() {
@@ -599,6 +604,24 @@ func main() {
 				}
 			}
 			exCount++
+
+			omap := make(map[dwarf.Offset]bool)
+
+			// Walk the child variables of the inlined routine. Each
+			// of them should have a distinct abstract origin-- if two
+			// vars point to the same origin things are definitely broken.
+			inlIdx := ex.idxFromOffset(child.Offset)
+			inlChildDies := ex.Children(inlIdx)
+			for _, k := range inlChildDies {
+				ooff, originOK := k.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+				if !originOK {
+					t.Fatalf("no abstract origin attr for child of inlined subroutine at offset %v", k.Offset)
+				}
+				if _, found := omap[ooff]; found {
+					t.Fatalf("duplicate abstract origin at child of inlined subroutine at offset %v", k.Offset)
+				}
+				omap[ooff] = true
+			}
 		}
 	}
 	if exCount != len(expectedInl) {
