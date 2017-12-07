@@ -5478,32 +5478,54 @@ func testServerKeepAlivesEnabled(t *testing.T, h2 bool) {
 func TestServerCancelsReadTimeoutWhenIdle(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
-	const timeout = 250 * time.Millisecond
-	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		select {
-		case <-time.After(2 * timeout):
-			fmt.Fprint(w, "ok")
-		case <-r.Context().Done():
-			fmt.Fprint(w, r.Context().Err())
+	runTimeSensitiveTest(t, []time.Duration{
+		10 * time.Millisecond,
+		50 * time.Millisecond,
+		250 * time.Millisecond,
+		time.Second,
+		2 * time.Second,
+	}, func(t *testing.T, timeout time.Duration) error {
+		ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+			select {
+			case <-time.After(2 * timeout):
+				fmt.Fprint(w, "ok")
+			case <-r.Context().Done():
+				fmt.Fprint(w, r.Context().Err())
+			}
+		}))
+		ts.Config.ReadTimeout = timeout
+		ts.Start()
+		defer ts.Close()
+
+		c := ts.Client()
+
+		res, err := c.Get(ts.URL)
+		if err != nil {
+			return fmt.Errorf("Get: %v", err)
 		}
-	}))
-	ts.Config.ReadTimeout = timeout
-	ts.Start()
-	defer ts.Close()
+		slurp, err := ioutil.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			return fmt.Errorf("Body ReadAll: %v", err)
+		}
+		if string(slurp) != "ok" {
+			return fmt.Errorf("got: %q, want ok", slurp)
+		}
+		return nil
+	})
+}
 
-	c := ts.Client()
-
-	res, err := c.Get(ts.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	slurp, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(slurp) != "ok" {
-		t.Fatalf("Got: %q, want ok", slurp)
+// runTimeSensitiveTest runs test with the provided durations until one passes.
+// If they all fail, t.Fatal is called with the last one's duration and error value.
+func runTimeSensitiveTest(t *testing.T, durations []time.Duration, test func(t *testing.T, d time.Duration) error) {
+	for i, d := range durations {
+		err := test(t, d)
+		if err == nil {
+			return
+		}
+		if i == len(durations)-1 {
+			t.Fatalf("failed with duration %v: %v", d, err)
+		}
 	}
 }
 
