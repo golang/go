@@ -14,6 +14,7 @@ import (
 
 // To identify variables by original source position.
 type varPos struct {
+	DeclName string
 	DeclFile string
 	DeclLine uint
 	DeclCol  uint
@@ -96,14 +97,19 @@ func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCa
 				n := dcl[i]
 				pos := Ctxt.InnermostPos(n.Pos)
 				vp := varPos{
+					DeclName: n.Sym.Name,
 					DeclFile: pos.Base().SymFilename(),
 					DeclLine: pos.Line(),
 					DeclCol:  pos.Col(),
+				}
+				if _, found := m[vp]; found {
+					Fatalf("child dcl collision on symbol %s within %v\n", n.Sym.Name, fnsym.Name)
 				}
 				m[vp] = i
 			}
 			for j := 0; j < len(sl); j++ {
 				vp := varPos{
+					DeclName: sl[j].Name,
 					DeclFile: sl[j].DeclFile,
 					DeclLine: sl[j].DeclLine,
 					DeclCol:  sl[j].DeclCol,
