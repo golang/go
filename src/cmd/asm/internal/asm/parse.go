@@ -322,6 +322,7 @@ func (p *Parser) operand(a *obj.Addr) {
 				p.get(')')
 			}
 		} else if p.atRegisterExtension() {
+			a.Type = obj.TYPE_REG
 			p.registerExtension(a, tok.String(), prefix)
 			p.expectOperandEnd()
 			return
@@ -604,12 +605,20 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
 		return
 	}
 
-	p.get('.')
-	tok := p.next()
-	ext := tok.String()
 	isIndex := false
 	num := int16(0)
 	isAmount := true // Amount is zero by default
+	ext := ""
+	if p.peek() == lex.LSH {
+		// (Rn)(Rm<<2), the shifted offset register.
+		ext = "LSL"
+	} else {
+		// (Rn)(Rm.UXTW<1), the extended offset register.
+		// Rm.UXTW<<3, the extended register.
+		p.get('.')
+		tok := p.next()
+		ext = tok.String()
+	}
 	if p.peek() == lex.LSH {
 		// parses left shift amount applied after extension: <<Amount
 		p.get(lex.LSH)
@@ -714,8 +723,8 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg string, isStatic bool, pr
 }
 
 // registerIndirect parses the general form of a register indirection.
-// It is can be (R1), (R2*scale), or (R1)(R2*scale) where R1 may be a simple
-// register or register pair R:R or (R, R) or (R+R).
+// It is can be (R1), (R2*scale), (R1)(R2*scale), (R1)(R2.SXTX<<3) or (R1)(R2<<3)
+// where R1 may be a simple register or register pair R:R or (R, R) or (R+R).
 // Or it might be a pseudo-indirection like (FP).
 // We are sitting on the opening parenthesis.
 func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
@@ -783,19 +792,26 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 		// General form (R)(R*scale).
 		p.next()
 		tok := p.next()
-		r1, r2, scale, ok = p.register(tok.String(), 0)
-		if !ok {
-			p.errorf("indirect through non-register %s", tok)
-		}
-		if r2 != 0 {
-			p.errorf("unimplemented two-register form")
-		}
-		a.Index = r1
-		if scale == 0 && p.arch.Family == sys.ARM64 {
-			// scale is 1 by default for ARM64
-			a.Scale = 1
+		if p.atRegisterExtension() {
+			p.registerExtension(a, tok.String(), prefix)
+		} else if p.atRegisterShift() {
+			// (R1)(R2<<3)
+			p.registerExtension(a, tok.String(), prefix)
 		} else {
-			a.Scale = int16(scale)
+			r1, r2, scale, ok = p.register(tok.String(), 0)
+			if !ok {
+				p.errorf("indirect through non-register %s", tok)
+			}
+			if r2 != 0 {
+				p.errorf("unimplemented two-register form")
+			}
+			a.Index = r1
+			if scale == 0 && p.arch.Family == sys.ARM64 {
+				// scale is 1 by default for ARM64
+				a.Scale = 1
+			} else {
+				a.Scale = int16(scale)
+			}
 		}
 		p.get(')')
 	} else if scale != 0 {
