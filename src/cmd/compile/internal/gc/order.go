@@ -395,11 +395,11 @@ func ordercall(n *Node, order *Order) {
 			// by copying it into a temp and marking that temp
 			// still alive when we pop the temp stack.
 			xp := n.List.Addr(i)
-			for (*xp).Op == OCONVNOP && !(*xp).Type.IsPtr() {
+			for (*xp).Op == OCONVNOP && !(*xp).Type.IsUnsafePtr() {
 				xp = &(*xp).Left
 			}
 			x := *xp
-			if x.Type.IsPtr() {
+			if x.Type.IsUnsafePtr() {
 				x = ordercopyexpr(x, x.Type, order, 0)
 				x.Name.SetKeepalive(true)
 				*xp = x
