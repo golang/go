@@ -28,8 +28,6 @@ func (b *Builder) Len() int { return len(b.buf) }
 // Reset resets the Builder to be empty.
 func (b *Builder) Reset() { b.buf = nil }
 
-const maxInt = int(^uint(0) >> 1)
-
 // grow copies the buffer to a new, larger buffer so that there are at least n
 // bytes of capacity beyond len(b.buf).
 func (b *Builder) grow(n int) {
