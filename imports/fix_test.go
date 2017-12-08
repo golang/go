@@ -1609,14 +1609,18 @@ func TestSiblingImports(t *testing.T) {
 	const provide = `package siblingimporttest
 
 import "local/log"
+import "my/bytes"
 
 func LogSomething() {
 	log.Print("Something")
+	bytes.SomeFunc()
 }
 `
 
 	// need is the file being tested that needs the import.
 	const need = `package siblingimporttest
+
+var _ = bytes.Buffer{}
 
 func LogSomethingElse() {
 	log.Print("Something else")
@@ -1626,7 +1630,12 @@ func LogSomethingElse() {
 	// want is the expected result file
 	const want = `package siblingimporttest
 
-import "local/log"
+import (
+	"bytes"
+	"local/log"
+)
+
+var _ = bytes.Buffer{}
 
 func LogSomethingElse() {
 	log.Print("Something else")
