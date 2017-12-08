@@ -26,3 +26,15 @@ func h() {
 	var v int
 	syscall.Syscall(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to Syscall: .?autotmp" "h &v does not escape"
 }
+
+func i() {
+	var t int
+	p := unsafe.Pointer(&t) // ERROR "i &t does not escape"
+	f(uintptr(p))           // ERROR "live at call to f: .?autotmp"
+}
+
+func j() {
+	var v int
+	p := unsafe.Pointer(&v)              // ERROR "j &v does not escape"
+	syscall.Syscall(0, 1, uintptr(p), 2) // ERROR "live at call to Syscall: .?autotmp"
+}
