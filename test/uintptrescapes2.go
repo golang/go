@@ -20,12 +20,24 @@ func F1(a uintptr) {} // ERROR "escaping uintptr"
 //go:noinline
 func F2(a ...uintptr) {} // ERROR "escaping ...uintptr" "a does not escape"
 
+//go:uintptrescapes
+//go:noinline
+func F3(uintptr) {} // ERROR "escaping uintptr"
+
+//go:uintptrescapes
+//go:noinline
+func F4(...uintptr) {} // ERROR "escaping ...uintptr"
+
 func G() {
-	var t int                       // ERROR "moved to heap"
-	F1(uintptr(unsafe.Pointer(&t))) // ERROR "live at call to F1: .?autotmp" "&t escapes to heap"
+	var t int                        // ERROR "moved to heap"
+	F1(uintptr(unsafe.Pointer(&t)))  // ERROR "live at call to F1: .?autotmp" "&t escapes to heap"
+	var t2 int                       // ERROR "moved to heap"
+	F3(uintptr(unsafe.Pointer(&t2))) // ERROR "live at call to F3: .?autotmp" "&t2 escapes to heap"
 }
 
 func H() {
-	var v int                                // ERROR "moved to heap"
-	F2(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to newobject: .?autotmp" "live at call to F2: .?autotmp" "escapes to heap"
+	var v int                                 // ERROR "moved to heap"
+	F2(0, 1, uintptr(unsafe.Pointer(&v)), 2)  // ERROR "live at call to newobject: .?autotmp" "live at call to F2: .?autotmp" "escapes to heap"
+	var v2 int                                // ERROR "moved to heap"
+	F4(0, 1, uintptr(unsafe.Pointer(&v2)), 2) // ERROR "live at call to newobject: .?autotmp" "live at call to F4: .?autotmp" "escapes to heap"
 }

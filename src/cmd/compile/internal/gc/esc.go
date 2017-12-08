@@ -2260,6 +2260,13 @@ func (e *EscState) esctag(fn *Node) {
 	// (Unnamed parameters are not in the Dcl list in the loop above
 	// so we need to mark them separately.)
 	for _, f := range fn.Type.Params().Fields().Slice() {
+		if !types.Haspointers(f.Type) { // don't bother tagging for scalars
+			continue
+		}
+		if f.Note == uintptrEscapesTag {
+			// Note is already set in the loop above.
+			continue
+		}
 		if f.Sym == nil || f.Sym.IsBlank() {
 			f.Note = mktag(EscNone)
 		}
