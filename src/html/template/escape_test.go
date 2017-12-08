@@ -1918,7 +1918,7 @@ func TestOrphanedTemplate(t *testing.T) {
 	}
 	b.Reset()
 	if err := t2.Execute(&b, nil); err != nil {
-		t.Fatalf("error executing t1: %s", err)
+		t.Fatalf("error executing t2: %s", err)
 	}
 	const want = "bar"
 	if got := b.String(); got != want {
