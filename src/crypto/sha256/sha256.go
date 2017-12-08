@@ -104,27 +104,35 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
+func putUint32(x []byte, s uint32) {
+	_ = x[3]
+	x[0] = byte(s >> 24)
+	x[1] = byte(s >> 16)
+	x[2] = byte(s >> 8)
+	x[3] = byte(s)
+}
+
+func putUint64(x []byte, s uint64) {
+	_ = x[7]
+	x[0] = byte(s >> 56)
+	x[1] = byte(s >> 48)
+	x[2] = byte(s >> 40)
+	x[3] = byte(s >> 32)
+	x[4] = byte(s >> 24)
+	x[5] = byte(s >> 16)
+	x[6] = byte(s >> 8)
+	x[7] = byte(s)
+}
+
 func appendUint64(b []byte, x uint64) []byte {
-	a := [8]byte{
-		byte(x >> 56),
-		byte(x >> 48),
-		byte(x >> 40),
-		byte(x >> 32),
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
-		byte(x),
-	}
+	var a [8]byte
+	putUint64(a[:], x)
 	return append(b, a[:]...)
 }
 
 func appendUint32(b []byte, x uint32) []byte {
-	a := [4]byte{
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
-		byte(x),
-	}
+	var a [4]byte
+	putUint32(a[:], x)
 	return append(b, a[:]...)
 }
 
@@ -238,26 +246,24 @@ func (d *digest) checkSum() [Size]byte {
 
 	// Length in bits.
 	len <<= 3
-	for i := uint(0); i < 8; i++ {
-		tmp[i] = byte(len >> (56 - 8*i))
-	}
+	putUint64(tmp[:], len)
 	d.Write(tmp[0:8])
 
 	if d.nx != 0 {
 		panic("d.nx != 0")
 	}
 
-	h := d.h[:]
-	if d.is224 {
-		h = d.h[:7]
-	}
-
 	var digest [Size]byte
-	for i, s := range h {
-		digest[i*4] = byte(s >> 24)
-		digest[i*4+1] = byte(s >> 16)
-		digest[i*4+2] = byte(s >> 8)
-		digest[i*4+3] = byte(s)
+
+	putUint32(digest[0:], d.h[0])
+	putUint32(digest[4:], d.h[1])
+	putUint32(digest[8:], d.h[2])
+	putUint32(digest[12:], d.h[3])
+	putUint32(digest[16:], d.h[4])
+	putUint32(digest[20:], d.h[5])
+	putUint32(digest[24:], d.h[6])
+	if !d.is224 {
+		putUint32(digest[28:], d.h[7])
 	}
 
 	return digest
