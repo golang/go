@@ -95,6 +95,15 @@ func (b *wbBuf) reset() {
 	}
 }
 
+// discard resets b's next pointer, but not its end pointer.
+//
+// This must be nosplit because it's called by wbBufFlush.
+//
+//go:nosplit
+func (b *wbBuf) discard() {
+	b.next = uintptr(unsafe.Pointer(&b.buf[0]))
+}
+
 // putFast adds old and new to the write barrier buffer and returns
 // false if a flush is necessary. Callers should use this as:
 //
@@ -143,10 +152,14 @@ func (b *wbBuf) putFast(old, new uintptr) bool {
 //go:nowritebarrierrec
 //go:nosplit
 func wbBufFlush(dst *uintptr, src uintptr) {
+	// Note: Every possible return from this function must reset
+	// the buffer's next pointer to prevent buffer overflow.
+
 	if getg().m.dying > 0 {
 		// We're going down. Not much point in write barriers
 		// and this way we can allow write barriers in the
 		// panic path.
+		getg().m.p.ptr().wbBuf.discard()
 		return
 	}
 
@@ -156,8 +169,7 @@ func wbBufFlush(dst *uintptr, src uintptr) {
 		cgoCheckWriteBarrier(dst, src)
 		if !writeBarrier.needed {
 			// We were only called for cgocheck.
-			b := &getg().m.p.ptr().wbBuf
-			b.next = uintptr(unsafe.Pointer(&b.buf[0]))
+			getg().m.p.ptr().wbBuf.discard()
 			return
 		}
 	}
