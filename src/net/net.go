@@ -288,6 +288,8 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 // The returned os.File's file descriptor is different from the connection's.
 // Attempting to change properties of the original using this duplicate
 // may or may not have the desired effect.
+//
+// On Unix systems this will cause the SetDeadline methods to stop working.
 func (c *conn) File() (f *os.File, err error) {
 	f, err = c.fd.dup()
 	if err != nil {
