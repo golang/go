@@ -85,11 +85,6 @@ func TestDialerDualStackFDLeak(t *testing.T) {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
-	closedPortDelay, expectClosedPortDelay := dialClosedPort()
-	if closedPortDelay > expectClosedPortDelay {
-		t.Errorf("got %v; want <= %v", closedPortDelay, expectClosedPortDelay)
-	}
-
 	before := sw.Sockets()
 	origTestHookLookupIP := testHookLookupIP
 	defer func() { testHookLookupIP = origTestHookLookupIP }()
@@ -115,7 +110,7 @@ func TestDialerDualStackFDLeak(t *testing.T) {
 	const N = 10
 	var wg sync.WaitGroup
 	wg.Add(N)
-	d := &Dialer{DualStack: true, Timeout: 100*time.Millisecond + closedPortDelay}
+	d := &Dialer{DualStack: true, Timeout: 5 * time.Second}
 	for i := 0; i < N; i++ {
 		go func() {
 			defer wg.Done()
