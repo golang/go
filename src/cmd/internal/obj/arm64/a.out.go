@@ -178,6 +178,8 @@ const (
 // constants to indicate extended register conversion. When checking,
 // you should subtract obj.RBaseARM64 first. From this difference, bit 11
 // indicates extended register, bits 8-10 select the conversion mode.
+// REG_LSL is the index shift specifier, bit 9 indicates shifted offset register.
+const REG_LSL = obj.RBaseARM64 + 1<<9
 const REG_EXT = obj.RBaseARM64 + 1<<11
 
 const (

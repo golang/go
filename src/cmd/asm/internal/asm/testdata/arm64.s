@@ -100,7 +100,13 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VSHL	$8, V1.H8, V2.H8                // 2254184f
 	VSHL	$2, V1.B8, V2.B8                // 22540a0f
 	VSHL	$2, V1.B16, V2.B16              // 22540a4f
-
+	MOVD	(R2)(R6.SXTW), R4               // 44c866f8
+	MOVD	(R3)(R6), R5                    // MOVD	(R3)(R6*1), R5                  // 656866f8
+	MOVD	(R2)(R6), R4                    // MOVD	(R2)(R6*1), R4                  // 446866f8
+	MOVWU	(R19)(R18<<2), R18              // 727a72b8
+	MOVD	(R2)(R6<<3), R4                 // 447866f8
+	MOVD	(R3)(R7.SXTX<<3), R8            // 68f867f8
+	MOVWU	(R5)(R4.UXTW), R10              // aa4864b8
 //	LTYPE1 imsr ',' spreg ','
 //	{
 //		outcode($1, &$2, $4, &nullgen);

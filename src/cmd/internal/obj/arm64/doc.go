@@ -10,14 +10,6 @@ Go Assembly for ARM64 Reference Manual
 
 1. Alphabetical list of basic instructions
     // TODO
-    PRFM: Prefetch Memory (immediate)
-     PRFM	imm(Rn), <prfop>
-      prfop is the prefetch operation and can have the following values:
-      PLDL1KEEP, PLDL1STRM, PLDL2KEEP, PLDL2STRM, PLDL3KEEP, PLDL3STRM,
-      PLIL1KEEP, PLIL1STRM, PLIL2KEEP, PLIL2STRM, PLIL3KEEP, PLIL3STRM,
-      PSTL1KEEP, PSTL1STRM, PSTL2KEEP, PSTL2STRM, PSTL3KEEP, PSTL3STRM.
-     PRFM	imm(Rn), $imm
-      $imm prefetch operation is encoded as an immediate.
 
     LDARB: Load-Acquire Register Byte
       LDARB	(<Rn>), <Rd>
@@ -42,6 +34,20 @@ Go Assembly for ARM64 Reference Manual
     LDXPW: 32-bit Load Exclusive Pair of Registers
       LDXPW	(<Rn>), (<Rt1>, <Rt2>)
         Loads two 32-bit words from memory, and writes them to Rt1 and Rt2.
+
+    MOVD|MOVW: Load Register (register offset)
+      MOVD	(Rn)(Rm.UXTW<<3), Rt
+      MOVD	(Rn)(Rm.SXTX), Rt
+      MOVD	(Rn)(Rm), Rt
+
+    PRFM: Prefetch Memory (immediate)
+      PRFM	imm(Rn), <prfop>
+        prfop is the prefetch operation and can have the following values:
+        PLDL1KEEP, PLDL1STRM, PLDL2KEEP, PLDL2STRM, PLDL3KEEP, PLDL3STRM,
+        PLIL1KEEP, PLIL1STRM, PLIL2KEEP, PLIL2STRM, PLIL3KEEP, PLIL3STRM,
+        PSTL1KEEP, PSTL1STRM, PSTL2KEEP, PSTL2STRM, PSTL3KEEP, PSTL3STRM.
+      PRFM	imm(Rn), $imm
+        $imm prefetch operation is encoded as an immediate.
 
     STLRB: Store-Release Register Byte
       STLRB	<Rd>, (<Rn>)
