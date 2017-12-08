@@ -262,8 +262,6 @@ Go structs and Go arrays are not supported in the type signatures of cgo-exporte
 
 <p>
 TODO: CL 70890 "permit passing string values directly between Go and C."
-<br>
-TODO: CL 66332 "special case C ptr types to use uintptr."
 </p>
 
 <p>
@@ -277,6 +275,31 @@ Note that these variables only apply during toolchain bootstrap,
 to set the defaults used by the resulting toolchain.
 Later <code>go</code> <code>build</code> commands refer to the <code>CC</code> environment
 variable or else the built-in default.
+</p>
+
+<p>
+Cgo now translates some C types that would normally map to a pointer
+type in Go, to a <code>uintptr</code> instead. These types include
+the <code>CFTypeRef</code> hierarchy in Darwin's CoreFoundation
+framework and the <code>jobject</code> hierarchy in Java's JNI
+interface.
+</p>
+
+<p>
+These types must be <code>uintptr</code> on the Go side because they
+would otherwise confuse the Go garbage collector; they are sometimes
+not really pointers but data structures encoded in a pointer type.
+</p>
+
+<p>
+Because of this change, values of the affected types need to be
+zero-initialized with the constant <code>0</code> instead of the
+constant <code>nil</code>. Go 1.10 provides <code>gofix</code>
+modules to help with that rewrite:
+<pre>
+	go tool fix -r cftype <pkg>
+	go tool fix -r jni <pkg>
+</pre>
 </p>
 
 <p>
