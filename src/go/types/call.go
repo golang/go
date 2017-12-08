@@ -314,7 +314,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 	// can only appear in qualified identifiers which are mapped to
 	// selector expressions.
 	if ident, ok := e.X.(*ast.Ident); ok {
-		_, obj := check.scope.LookupParent(ident.Name, check.pos)
+		obj := check.lookup(ident.Name)
 		if pname, _ := obj.(*PkgName); pname != nil {
 			assert(pname.pkg == check.pkg)
 			check.recordUse(ident, pname)
