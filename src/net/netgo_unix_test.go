@@ -13,6 +13,7 @@ import (
 )
 
 func TestGoLookupIP(t *testing.T) {
+	defer dnsWaitGroup.Wait()
 	host := "localhost"
 	ctx := context.Background()
 	_, err, ok := cgoLookupIP(ctx, host)

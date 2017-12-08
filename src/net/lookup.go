@@ -8,6 +8,7 @@ import (
 	"context"
 	"internal/nettrace"
 	"internal/singleflight"
+	"sync"
 )
 
 // protocols contains minimal mappings between internet protocol
@@ -52,6 +53,10 @@ var services = map[string]map[string]int{
 		"telnet": 23,
 	},
 }
+
+// dnsWaitGroup can be used by tests to wait for all DNS goroutines to
+// complete. This avoids races on the test hooks.
+var dnsWaitGroup sync.WaitGroup
 
 const maxProtoLength = len("RSVP-E2E-IGNORE") + 10 // with room to grow
 
@@ -189,9 +194,14 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
 		resolverFunc = alt
 	}
 
-	ch := lookupGroup.DoChan(host, func() (interface{}, error) {
+	dnsWaitGroup.Add(1)
+	ch, called := lookupGroup.DoChan(host, func() (interface{}, error) {
+		defer dnsWaitGroup.Done()
 		return testHookLookupIP(ctx, resolverFunc, host)
 	})
+	if !called {
+		dnsWaitGroup.Done()
+	}
 
 	select {
 	case <-ctx.Done():
