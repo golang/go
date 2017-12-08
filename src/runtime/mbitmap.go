@@ -475,6 +475,9 @@ func (h heapBits) forward(n uintptr) heapBits {
 // The caller can test morePointers and isPointer by &-ing with bitScan and bitPointer.
 // The result includes in its higher bits the bits for subsequent words
 // described by the same bitmap byte.
+//
+// nosplit because it is used during write barriers and must not be preempted.
+//go:nosplit
 func (h heapBits) bits() uint32 {
 	// The (shift & 31) eliminates a test and conditional branch
 	// from the generated code.
