@@ -163,6 +163,11 @@ func testWriteToConn(t *testing.T, raddr string) {
 	switch runtime.GOOS {
 	case "nacl": // see golang.org/issue/9252
 		t.Skipf("not implemented yet on %s", runtime.GOOS)
+	case "windows":
+		if testenv.IsWindowsXP() {
+			t.Log("skipping broken test on Windows XP (see golang.org/issue/23072)")
+			return
+		}
 	default:
 		if err != nil {
 			t.Fatal(err)
@@ -206,6 +211,11 @@ func testWriteToPacketConn(t *testing.T, raddr string) {
 	switch runtime.GOOS {
 	case "nacl": // see golang.org/issue/9252
 		t.Skipf("not implemented yet on %s", runtime.GOOS)
+	case "windows":
+		if testenv.IsWindowsXP() {
+			t.Log("skipping broken test on Windows XP (see golang.org/issue/23072)")
+			return
+		}
 	default:
 		if err != nil {
 			t.Fatal(err)

@@ -8,6 +8,7 @@
 package net
 
 import (
+	"internal/testenv"
 	"os"
 	"runtime"
 	"testing"
@@ -138,11 +139,15 @@ func TestUDPConnSpecificMethods(t *testing.T) {
 	if _, _, err := c.ReadFromUDP(rb); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := c.WriteMsgUDP(wb, nil, c.LocalAddr().(*UDPAddr)); err != nil {
-		condFatalf(t, c.LocalAddr().Network(), "%v", err)
-	}
-	if _, _, _, _, err := c.ReadMsgUDP(rb, nil); err != nil {
-		condFatalf(t, c.LocalAddr().Network(), "%v", err)
+	if testenv.IsWindowsXP() {
+		t.Log("skipping broken test on Windows XP (see golang.org/issue/23072)")
+	} else {
+		if _, _, err := c.WriteMsgUDP(wb, nil, c.LocalAddr().(*UDPAddr)); err != nil {
+			condFatalf(t, c.LocalAddr().Network(), "%v", err)
+		}
+		if _, _, _, _, err := c.ReadMsgUDP(rb, nil); err != nil {
+			condFatalf(t, c.LocalAddr().Network(), "%v", err)
+		}
 	}
 
 	if f, err := c.File(); err != nil {
