@@ -86,8 +86,9 @@ const (
 	bitPointer = 1 << 0
 	bitScan    = 1 << 4
 
-	heapBitsShift   = 1                     // shift offset between successive bitPointer or bitScan entries
-	heapBitmapScale = sys.PtrSize * (8 / 2) // number of data bytes described by one heap bitmap byte
+	heapBitsShift      = 1                     // shift offset between successive bitPointer or bitScan entries
+	heapBitmapScale    = sys.PtrSize * (8 / 2) // number of data bytes described by one heap bitmap byte
+	wordsPerBitmapByte = 8 / 2                 // heap words described by one bitmap byte
 
 	// all scan/pointer bits in a byte
 	bitScanAll    = bitScan | bitScan<<heapBitsShift | bitScan<<(2*heapBitsShift) | bitScan<<(3*heapBitsShift)
@@ -460,6 +461,14 @@ func (h heapBits) forward(n uintptr) heapBits {
 	return heapBits{addb(h.bitp, n/4), uint32(n%4) * heapBitsShift}
 }
 
+// forwardOrBoundary is like forward, but stops at boundaries between
+// contiguous sections of the bitmap. It returns the number of words
+// advanced over, which will be <= n.
+func (h heapBits) forwardOrBoundary(n uintptr) (heapBits, uintptr) {
+	// The bitmap is contiguous right now, so this is just forward.
+	return h.forward(n), n
+}
+
 // The caller can test morePointers and isPointer by &-ing with bitScan and bitPointer.
 // The result includes in its higher bits the bits for subsequent words
 // described by the same bitmap byte.
@@ -717,23 +726,28 @@ func (h heapBits) initSpan(s *mspan) {
 	s.allocBits = newAllocBits(s.nelems)
 
 	// Clear bits corresponding to objects.
-	if total%heapBitmapScale != 0 {
+	nw := total / sys.PtrSize
+	if nw%wordsPerBitmapByte != 0 {
 		throw("initSpan: unaligned length")
 	}
 	if h.shift != 0 {
 		throw("initSpan: unaligned base")
 	}
-	nbyte := total / heapBitmapScale
-	if sys.PtrSize == 8 && size == sys.PtrSize {
-		bitp := h.bitp
-		end := addb(bitp, nbyte)
-		for bitp != end {
-			*bitp = bitPointerAll | bitScanAll
-			bitp = add1(bitp)
+	for nw > 0 {
+		hNext, anw := h.forwardOrBoundary(nw)
+		nbyte := anw / wordsPerBitmapByte
+		if sys.PtrSize == 8 && size == sys.PtrSize {
+			bitp := h.bitp
+			for i := uintptr(0); i < nbyte; i++ {
+				*bitp = bitPointerAll | bitScanAll
+				bitp = add1(bitp)
+			}
+		} else {
+			memclrNoHeapPointers(unsafe.Pointer(h.bitp), nbyte)
 		}
-		return
+		h = hNext
+		nw -= anw
 	}
-	memclrNoHeapPointers(unsafe.Pointer(h.bitp), nbyte)
 }
 
 // initCheckmarkSpan initializes a span for being checkmarked.
@@ -745,10 +759,9 @@ func (h heapBits) initCheckmarkSpan(size, n, total uintptr) {
 		// Only possible on 64-bit system, since minimum size is 8.
 		// Must clear type bit (checkmark bit) of every word.
 		// The type bit is the lower of every two-bit pair.
-		bitp := h.bitp
-		for i := uintptr(0); i < n; i += 4 {
-			*bitp &^= bitPointerAll
-			bitp = add1(bitp)
+		for i := uintptr(0); i < n; i += wordsPerBitmapByte {
+			*h.bitp &^= bitPointerAll
+			h = h.forward(wordsPerBitmapByte)
 		}
 		return
 	}
@@ -769,10 +782,9 @@ func (h heapBits) clearCheckmarkSpan(size, n, total uintptr) {
 		// Only possible on 64-bit system, since minimum size is 8.
 		// Must clear type bit (checkmark bit) of every word.
 		// The type bit is the lower of every two-bit pair.
-		bitp := h.bitp
-		for i := uintptr(0); i < n; i += 4 {
-			*bitp |= bitPointerAll
-			bitp = add1(bitp)
+		for i := uintptr(0); i < n; i += wordsPerBitmapByte {
+			*h.bitp |= bitPointerAll
+			h = h.forward(wordsPerBitmapByte)
 		}
 	}
 }
