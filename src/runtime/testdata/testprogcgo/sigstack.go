@@ -17,15 +17,11 @@ package main
 #include <stdlib.h>
 #include <sys/mman.h>
 
-#ifndef MAP_STACK
-#define MAP_STACK 0
-#endif
-
 extern void SigStackCallback();
 
 static void* WithSigStack(void* arg __attribute__((unused))) {
 	// Set up an alternate system stack.
-	void* base = mmap(0, SIGSTKSZ, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON|MAP_STACK, -1, 0);
+	void* base = mmap(0, SIGSTKSZ, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
 	if (base == MAP_FAILED) {
 		perror("mmap failed");
 		abort();
