@@ -114,9 +114,6 @@ type mheap struct {
 	nsmallfree  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
 
 	// range of addresses we might see in the heap
-	bitmap_start  uintptr // Points to first byte of bitmap
-	bitmap_mapped uintptr
-	bitmap_delta  uintptr // Used to map heap address to bitmap address
 
 	// The arena_* fields indicate the addresses of the Go heap.
 	//
@@ -143,6 +140,21 @@ type mheap struct {
 	// here and *must* clobber it to use it.
 	arena_reserved bool
 
+	// arenas is the heap arena index. arenas[va/heapArenaBytes]
+	// points to the metadata for the heap arena containing va.
+	//
+	// For regions of the address space that are not backed by the
+	// Go heap, the arena index contains nil.
+	//
+	// Modifications are protected by mheap_.lock. Reads can be
+	// performed without locking; however, a given entry can
+	// transition from nil to non-nil at any time when the lock
+	// isn't held. (Entries never transitions back to nil.)
+	//
+	// This structure is fully mapped by mallocinit, so it's safe
+	// to probe any index.
+	arenas *[memLimit / heapArenaBytes]*heapArena
+
 	//_ uint32 // ensure 64-bit alignment
 
 	// central free lists for small size classes.
@@ -166,6 +178,23 @@ type mheap struct {
 }
 
 var mheap_ mheap
+
+// A heapArena stores metadata for a heap arena. heapArenas are stored
+// outside of the Go heap and accessed via the mheap_.arenas index.
+//
+// This gets allocated directly from the OS, so ideally it should be a
+// multiple of the system page size. For example, avoid adding small
+// fields.
+//
+//go:notinheap
+type heapArena struct {
+	// bitmap stores the pointer/scalar bitmap for the words in
+	// this arena. See mbitmap.go for a description. Use the
+	// heapBits type to access this.
+	bitmap [heapArenaBitmapBytes]byte
+
+	// TODO: Also store the spans map here.
+}
 
 // An MSpan is a run of pages.
 //
@@ -507,8 +536,21 @@ func (h *mheap) setArenaUsed(arena_used uintptr, racemap bool) {
 	// avoids faults when other threads try access these regions immediately
 	// after observing the change to arena_used.
 
-	// Map the bitmap.
-	h.mapBits(arena_used)
+	// Allocate heap arena metadata.
+	for ri := h.arena_used / heapArenaBytes; ri < (arena_used+heapArenaBytes-1)/heapArenaBytes; ri++ {
+		if h.arenas[ri] != nil {
+			continue
+		}
+		r := (*heapArena)(persistentalloc(unsafe.Sizeof(heapArena{}), sys.PtrSize, &memstats.gc_sys))
+		if r == nil {
+			throw("runtime: out of memory allocating heap arena metadata")
+		}
+		// Store atomically just in case an object from the
+		// new heap arena becomes visible before the heap lock
+		// is released (which shouldn't happen, but there's
+		// little downside to this).
+		atomic.StorepNoWB(unsafe.Pointer(&h.arenas[ri]), unsafe.Pointer(r))
+	}
 
 	// Map spans array.
 	h.mapSpans(arena_used)

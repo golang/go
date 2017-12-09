@@ -154,6 +154,39 @@ const (
 	// since the arena starts at address 0.
 	_MaxMem = 1<<_MHeapMap_TotalBits - 1
 
+	// memLimitBits is the maximum number of bits in a heap address.
+	//
+	// On 64-bit platforms, we limit this to 48 bits because that
+	// is the maximum supported by Linux across all 64-bit
+	// architectures, with the exception of s390x.
+	// s390x supports full 64-bit addresses, but the allocator
+	// will panic in the unlikely event we exceed 48 bits.
+	//
+	// On 32-bit platforms, we accept the full 32-bit address
+	// space because doing so is cheap.
+	// mips32 only has access to the low 2GB of virtual memory, so
+	// we further limit it to 31 bits.
+	//
+	// The size of the arena index is proportional to
+	// 1<<memLimitBits, so it's important that this not be too
+	// large. 48 bits is about the threshold; above that we would
+	// need to go to a two level arena index.
+	memLimitBits = _64bit*48 + (1-_64bit)*(32-(sys.GoarchMips+sys.GoarchMipsle))
+
+	// memLimit is one past the highest possible heap pointer value.
+	memLimit = 1 << memLimitBits
+
+	// heapArenaBytes is the size of a heap arena. The heap
+	// consists of mappings of size heapArenaBytes, aligned to
+	// heapArenaBytes. The initial heap mapping is one arena.
+	//
+	// TODO: Right now only the bitmap is divided into separate
+	// arenas, but shortly all of the heap will be.
+	heapArenaBytes = (64<<20)*_64bit + (4<<20)*(1-_64bit)
+
+	// heapArenaBitmapBytes is the size of each heap arena's bitmap.
+	heapArenaBitmapBytes = heapArenaBytes / (sys.PtrSize * 8 / 2)
+
 	// Max number of threads to run garbage collection.
 	// 2, 3, and 4 are all plausible maximums depending
 	// on the hardware details of the machine. The garbage
@@ -221,6 +254,12 @@ func mallocinit() {
 
 	testdefersizes()
 
+	if heapArenaBitmapBytes&(heapArenaBitmapBytes-1) != 0 {
+		// heapBits expects modular arithmetic on bitmap
+		// addresses to work.
+		throw("heapArenaBitmapBytes not a power of 2")
+	}
+
 	// Copy class sizes out for statistics table.
 	for i := range class_to_size {
 		memstats.by_size[i].size = uint32(class_to_size[i])
@@ -248,9 +287,6 @@ func mallocinit() {
 	// The spans array holds one *mspan per _PageSize of arena.
 	var spansSize uintptr = (_MaxMem + 1) / _PageSize * sys.PtrSize
 	spansSize = round(spansSize, _PageSize)
-	// The bitmap holds 2 bits per word of arena.
-	var bitmapSize uintptr = (_MaxMem + 1) / (sys.PtrSize * 8 / 2)
-	bitmapSize = round(bitmapSize, _PageSize)
 
 	// Set up the allocation arena, a contiguous area of memory where
 	// allocated data will be found.
@@ -275,9 +311,6 @@ func mallocinit() {
 		// not collecting memory because some non-pointer block of memory
 		// had a bit pattern that matched a memory address.
 		//
-		// Actually we reserve 544 GB (because the bitmap ends up being 32 GB)
-		// but it hardly matters: e0 00 is not valid UTF-8 either.
-		//
 		// If this fails we fall back to the 32 bit memory mechanism
 		//
 		// However, on arm64, we ignore all this advice above and slam the
@@ -285,7 +318,7 @@ func mallocinit() {
 		// translation buffers, the user address space is limited to 39 bits
 		// On darwin/arm64, the address space is even smaller.
 		arenaSize := round(_MaxMem, _PageSize)
-		pSize = bitmapSize + spansSize + arenaSize + _PageSize
+		pSize = spansSize + arenaSize + _PageSize
 		for i := 0; i <= 0x7f; i++ {
 			switch {
 			case GOARCH == "arm64" && GOOS == "darwin":
@@ -344,7 +377,7 @@ func mallocinit() {
 			// away from the running binary image and then round up
 			// to a MB boundary.
 			p = round(firstmoduledata.end+(1<<18), 1<<20)
-			pSize = bitmapSize + spansSize + arenaSize + _PageSize
+			pSize = spansSize + arenaSize + _PageSize
 			if p <= procBrk && procBrk < p+pSize {
 				// Move the start above the brk,
 				// leaving some room for future brk
@@ -369,8 +402,6 @@ func mallocinit() {
 
 	spansStart := p1
 	p1 += spansSize
-	mheap_.bitmap_start = p1
-	p1 += bitmapSize
 	if sys.PtrSize == 4 {
 		// Set arena_start such that we can accept memory
 		// reservations located anywhere in the 4GB virtual space.
@@ -383,22 +414,16 @@ func mallocinit() {
 	mheap_.arena_alloc = p1
 	mheap_.arena_reserved = reserved
 
-	// Pre-compute the value heapBitsForAddr can use to directly
-	// map a heap address to a bitmap address. The obvious
-	// computation is:
-	//
-	//   bitp = bitmap_start + (addr - arena_start)/ptrSize/4
-	//
-	// We can shuffle this to
-	//
-	//   bitp = (bitmap_start - arena_start/ptrSize/4) + addr/ptrSize/4
-	//
-	// bitmap_delta is the value of the first term.
-	mheap_.bitmap_delta = mheap_.bitmap_start - mheap_.arena_start/heapBitmapScale
-
 	if mheap_.arena_start&(_PageSize-1) != 0 {
-		println("bad pagesize", hex(p), hex(p1), hex(spansSize), hex(bitmapSize), hex(_PageSize), "start", hex(mheap_.arena_start))
+		println("bad pagesize", hex(p), hex(p1), hex(spansSize), hex(_PageSize), "start", hex(mheap_.arena_start))
 		throw("misrounded allocation in mallocinit")
+	}
+
+	// Map the arena index. Most of this will never be touched.
+	var untracked uint64
+	mheap_.arenas = (*[memLimit / heapArenaBytes]*heapArena)(persistentalloc(unsafe.Sizeof(*mheap_.arenas), sys.PtrSize, &untracked))
+	if mheap_.arenas == nil {
+		throw("failed to allocate arena index")
 	}
 
 	// Initialize the rest of the allocator.
