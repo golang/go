@@ -91,6 +91,29 @@ func ParseProfiles(fileName string) ([]*Profile, error) {
 	}
 	for _, p := range files {
 		sort.Sort(blocksByStart(p.Blocks))
+		// Merge samples from the same location.
+		j := 1
+		for i := 1; i < len(p.Blocks); i++ {
+			b := p.Blocks[i]
+			last := p.Blocks[j-1]
+			if b.StartLine == last.StartLine &&
+				b.StartCol == last.StartCol &&
+				b.EndLine == last.EndLine &&
+				b.EndCol == last.EndCol {
+				if b.NumStmt != last.NumStmt {
+					return nil, fmt.Errorf("inconsistent NumStmt: changed from %d to %d", last.NumStmt, b.NumStmt)
+				}
+				if mode == "set" {
+					p.Blocks[j-1].Count |= b.Count
+				} else {
+					p.Blocks[j-1].Count += b.Count
+				}
+				continue
+			}
+			p.Blocks[j] = b
+			j++
+		}
+		p.Blocks = p.Blocks[:j]
 	}
 	// Generate a sorted slice.
 	profiles := make([]*Profile, 0, len(files))
