@@ -306,7 +306,9 @@ input#search + button {
 	background-color: #375EAB;
 	color: white;
 	border: 1px solid #375EAB;
+	border-top-left-radius: 0;
 	border-top-right-radius: 5px;
+	border-bottom-left-radius: 0;
 	border-bottom-right-radius: 5px;
 	margin-left: 0;
 	cursor: pointer;
