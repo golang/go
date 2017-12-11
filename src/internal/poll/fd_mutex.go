@@ -65,7 +65,7 @@ func (mu *fdMutex) incref() bool {
 }
 
 // increfAndClose sets the state of mu to closed.
-// It reports whether there is no remaining reference.
+// It returns false if the file was already closed.
 func (mu *fdMutex) increfAndClose() bool {
 	for {
 		old := atomic.LoadUint64(&mu.state)
