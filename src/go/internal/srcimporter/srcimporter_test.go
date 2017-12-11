@@ -10,6 +10,7 @@ import (
 	"go/types"
 	"internal/testenv"
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -161,4 +162,35 @@ func TestIssue20855(t *testing.T) {
 	if pkg == nil {
 		t.Error("got no package despite no hard errors")
 	}
+}
+
+func testImportPath(t *testing.T, pkgPath string) {
+	if !testenv.HasSrc() {
+		t.Skip("no source code available")
+	}
+
+	pkgName := path.Base(pkgPath)
+
+	pkg, err := importer.Import(pkgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pkg.Name() != pkgName {
+		t.Errorf("got %q; want %q", pkg.Name(), pkgName)
+	}
+
+	if pkg.Path() != pkgPath {
+		t.Errorf("got %q; want %q", pkg.Path(), pkgPath)
+	}
+}
+
+// TestIssue23092 tests relative imports.
+func TestIssue23092(t *testing.T) {
+	testImportPath(t, "./testdata/issue23092")
+}
+
+// TestIssue24392 tests imports against a path containing 'testdata'.
+func TestIssue24392(t *testing.T) {
+	testImportPath(t, "go/internal/srcimporter/testdata/issue24392")
 }
