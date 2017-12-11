@@ -1266,7 +1266,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	}
 
 	testlogArg := []string{}
-	if !c.disableCache {
+	if !c.disableCache && cfg.Goos != "nacl" {
 		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
 	}
 	args := str.StringList(work.FindExecCmd(), a.Deps[0].Target, testlogArg, testArgs)
