@@ -317,7 +317,7 @@ func (check *Checker) typExprInternal(e ast.Expr, def *Named, path []*TypeName) 
 		//
 		// Delay this check because it requires fully setup types;
 		// it is safe to continue in any case (was issue 6667).
-		check.delay(func() {
+		check.later(func() {
 			if !Comparable(typ.key) {
 				check.errorf(e.Key.Pos(), "invalid map key type %s", typ.key)
 			}
@@ -478,8 +478,8 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	// collect embedded interfaces
 	// Only needed for printing and API. Delay collection
 	// to end of type-checking when all types are complete.
-	interfaceScope := check.scope // capture for use in delayed function
-	check.delay(func() {
+	interfaceScope := check.scope // capture for use in closure below
+	check.later(func() {
 		check.scope = interfaceScope
 		if trace {
 			check.trace(iface.Pos(), "-- delayed checking embedded interfaces of %s", iface)

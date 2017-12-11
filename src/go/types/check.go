@@ -39,14 +39,6 @@ type exprInfo struct {
 	val   constant.Value // constant value; or nil (if not a constant)
 }
 
-// funcInfo stores the information required for type-checking a function.
-type funcInfo struct {
-	name string    // for debugging/tracing only
-	decl *declInfo // for cycle detection
-	sig  *Signature
-	body *ast.BlockStmt
-}
-
 // A context represents the context within which an object is type-checked.
 type context struct {
 	decl          *declInfo      // package-level declaration whose init expression/function body is checked
@@ -96,8 +88,7 @@ type Checker struct {
 	methods    map[string][]*Func       // maps package scope type names to associated non-blank, non-interface methods
 	interfaces map[*TypeName]*ifaceInfo // maps interface type names to corresponding interface infos
 	untyped    map[ast.Expr]exprInfo    // map of expressions without final type
-	funcs      []funcInfo               // list of functions to type-check
-	delayed    []func()                 // delayed checks requiring fully setup types
+	delayed    []func()                 // stack of delayed actions
 
 	// context within which the current object is type-checked
 	// (valid only for the duration of type-checking a specific object)
@@ -153,11 +144,11 @@ func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, ty
 	m[e] = exprInfo{lhs, mode, typ, val}
 }
 
-func (check *Checker) later(name string, decl *declInfo, sig *Signature, body *ast.BlockStmt) {
-	check.funcs = append(check.funcs, funcInfo{name, decl, sig, body})
-}
-
-func (check *Checker) delay(f func()) {
+// later pushes f on to the stack of actions that will be processed later;
+// either at the end of the current statement, or in case of a local constant
+// or variable declaration, before the constant or variable is in scope
+// (so that f still sees the scope before any new declarations).
+func (check *Checker) later(f func()) {
 	check.delayed = append(check.delayed, f)
 }
 
@@ -195,7 +186,6 @@ func (check *Checker) initFiles(files []*ast.File) {
 	check.methods = nil
 	check.interfaces = nil
 	check.untyped = nil
-	check.funcs = nil
 	check.delayed = nil
 
 	// determine package name and collect valid files
@@ -246,16 +236,9 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 
 	check.packageObjects()
 
-	check.functionBodies()
+	check.processDelayed(0) // incl. all functions
 
 	check.initOrder()
-
-	// perform delayed checks
-	// (cannot use range - delayed checks may add more delayed checks;
-	// e.g., when type-checking delayed embedded interfaces)
-	for i := 0; i < len(check.delayed); i++ {
-		check.delayed[i]()
-	}
 
 	if !check.conf.DisableUnusedImportCheck {
 		check.unusedImports()

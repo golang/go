@@ -355,7 +355,9 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	// function body must be type-checked after global declarations
 	// (functions implemented elsewhere have no body)
 	if !check.conf.IgnoreFuncBodies && fdecl.Body != nil {
-		check.later(obj.name, decl, sig, fdecl.Body)
+		check.later(func() {
+			check.funcBody(decl, obj.name, sig, fdecl.Body)
+		})
 	}
 }
 
@@ -373,6 +375,8 @@ func (check *Checker) declStmt(decl ast.Decl) {
 			case *ast.ValueSpec:
 				switch d.Tok {
 				case token.CONST:
+					top := len(check.delayed)
+
 					// determine which init exprs to use
 					switch {
 					case s.Type != nil || len(s.Values) > 0:
@@ -397,6 +401,9 @@ func (check *Checker) declStmt(decl ast.Decl) {
 
 					check.arityMatch(s, last)
 
+					// process function literals in init expressions before scope changes
+					check.processDelayed(top)
+
 					// spec: "The scope of a constant or variable identifier declared
 					// inside a function begins at the end of the ConstSpec or VarSpec
 					// (ShortVarDecl for short variable declarations) and ends at the
@@ -407,6 +414,8 @@ func (check *Checker) declStmt(decl ast.Decl) {
 					}
 
 				case token.VAR:
+					top := len(check.delayed)
+
 					lhs0 := make([]*Var, len(s.Names))
 					for i, name := range s.Names {
 						lhs0[i] = NewVar(name.Pos(), pkg, name.Name, nil)
@@ -446,6 +455,9 @@ func (check *Checker) declStmt(decl ast.Decl) {
 					}
 
 					check.arityMatch(s, nil)
+
+					// process function literals in init expressions before scope changes
+					check.processDelayed(top)
 
 					// declare all variables
 					// (only at this point are the variable scopes (parents) set)

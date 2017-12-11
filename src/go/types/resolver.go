@@ -493,10 +493,13 @@ func (a inSourceOrder) Len() int           { return len(a) }
 func (a inSourceOrder) Less(i, j int) bool { return a[i].order() < a[j].order() }
 func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
-// functionBodies typechecks all function bodies.
-func (check *Checker) functionBodies() {
-	for _, f := range check.funcs {
-		check.funcBody(f.decl, f.name, f.sig, f.body)
+// processDelayed processes all delayed actions pushed after top.
+func (check *Checker) processDelayed(top int) {
+	for len(check.delayed) > top {
+		i := len(check.delayed) - 1
+		f := check.delayed[i]
+		check.delayed = check.delayed[:i]
+		f() // may append to check.delayed
 	}
 }
 

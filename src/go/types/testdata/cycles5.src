@@ -112,6 +112,8 @@ type (
 
 // arbitrary code may appear inside an interface
 
+const n = unsafe.Sizeof(func(){})
+
 type I interface {
-	m([unsafe.Sizeof(func() { I.m(nil) })]byte) // should report an error (see #22992)
+	m([unsafe.Sizeof(func() { I.m(nil, [n]byte{}) })]byte)
 }
