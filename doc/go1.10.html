@@ -36,7 +36,7 @@ OVERVIEW HERE
 <h2 id="language">Changes to the language</h2>
 
 <p>
-There are no substantive changes to the language.
+There are no substantial changes to the language.
 </p>
 
 <p><!-- CL 60230 -->
@@ -116,7 +116,7 @@ The <code>go</code>&nbsp;<code>build</code> command now detects out-of-date pack
 purely based on the content of source files, specified build flags, and metadata stored in the compiled packages.
 Modification times are no longer consulted or relevant.
 The old advice to add <code>-a</code> to force a rebuild in cases where
-the modification times were misleading for one reason or another 
+the modification times were misleading for one reason or another
 (for example, changes in build flags) is no longer necessary:
 builds now always detect when packages must be rebuilt.
 (If you observe otherwise, please file a bug.)
@@ -155,7 +155,7 @@ For example, <code>go</code> <code>install</code> <code>cmd/gofmt</code>
 installs the gofmt program but not any of the packages on which it depends.
 The new build cache makes future commands still run as quickly as if the
 dependencies had been installed.
-To force the installation of dependencies, use the new 
+To force the installation of dependencies, use the new
 <code>go</code> <code>install</code> <code>-i</code> flag.
 Installing dependency packages should not be necessary in general,
 and the very concept of installed packages may disappear in a future release.
@@ -318,7 +318,7 @@ $ go doc mail.Address
 package mail // import "net/mail"
 
 type Address struct {
-	Name    string 
+	Name    string
 	Address string
 }
     Address represents a single mail address.
@@ -390,7 +390,7 @@ First, certain complex three-index slice expressions previously formatted like
 <code>x[i+1</code>&nbsp;<code>:</code>&nbsp;<code>j:k]</code> and now
 format with more consistent spacing: <code>x[i+1</code>&nbsp;<code>:</code>&nbsp;<code>j</code>&nbsp;<code>:</code>&nbsp;<code>k]</code>.
 Second, single-method interface literals written on a single line,
-which are sometimes used in type assertions, 
+which are sometimes used in type assertions,
 are no longer split onto multiple lines.
 </p>
 
@@ -499,7 +499,7 @@ instructions.
 </p>
 
 <p>
-For the PowerPC 64-bit port, the assembler now supports the POWER9 instructions 
+For the PowerPC 64-bit port, the assembler now supports the POWER9 instructions
 <code><small>ADDEX</small></code>,
 <code><small>CMPEQB</small></code>,
 <code><small>COPY</small></code>,
@@ -519,7 +519,7 @@ and
 </p>
 
 <p>
-For the S390X port, the assembler now supports the 
+For the S390X port, the assembler now supports the
 <code><small>TMHH</small></code>,
 <code><small>TMHL</small></code>,
 <code><small>TMLH</small></code>,
@@ -841,8 +841,8 @@ types and associated constants.
 </p>
 <p>
 Go 1.10 also adds support for the <code>LC_RPATH</code> load command,
-represented by the types 
-<a href="/pkg/debug/macho/#RpathCmd"><code>RpathCmd</code></a> and 
+represented by the types
+<a href="/pkg/debug/macho/#RpathCmd"><code>RpathCmd</code></a> and
 <a href="/pkg/debug/macho/#Rpath"><code>Rpath</code></a>,
 and new <a href="/pkg/debug/macho/#pkg-constants">named constants</a>
 for the various flag bits found in headers.
@@ -882,7 +882,7 @@ such as NUL, carriage return, newline, invalid runes, and the Unicode replacemen
 or setting <code>Comma</code> and <code>Comment</code> equal to each other.
 </p>
 <p>
-In the case of a syntax error in a CSV record that spans multiple input lines, <code>Reader</code> 
+In the case of a syntax error in a CSV record that spans multiple input lines, <code>Reader</code>
 now reports the line on which the record started in the <a href="/pkg/encoding/csv/#ParseError"><code>ParseError</code></a>'s new <code>StartLine</code> field.
 </p>
 </dl>
@@ -892,17 +892,17 @@ now reports the line on which the record started in the <a href="/pkg/encoding/c
 <p>
 The new functions
 <a href="/pkg/encoding/hex/#NewEncoder"><code>NewEncoder</code></a>
-and 
+and
 <a href="/pkg/encoding/hex/#NewDecoder"><code>NewDecoder</code></a>
 provide streaming conversions to and from hexadecimal,
-analogous to equivalent functions already in 
+analogous to equivalent functions already in
 <a href="/pkg/encoding/base32/">encoding/base32</a>
 and
 <a href="/pkg/encoding/base64/">encoding/base64</a>.
 </p>
 
 <p>
-When the functions 
+When the functions
 <a href="/pkg/encoding/hex/#Decode"><code>Decode</code></a>
 and
 <a href="/pkg/encoding/hex/#DecodeString"><code>DecodeString</code></a>
@@ -950,7 +950,7 @@ block that is impossible to encode as PEM data.
 <p>
 The new function
 <a href="/pkg/encoding/xml/#NewTokenDecoder"><code>NewTokenDecoder</code></a>
-is like 
+is like
 <a href="/pkg/encoding/xml/#NewDecoder"><code>NewDecoder</code></a>
 but creates a decoder reading from a <a href="/pkg/encoding/xml/#TokenReader"><code>TokenReader</code></a>
 instead of an XML-formatted byte stream.
@@ -963,7 +963,7 @@ This is meant to enable the construction of XML stream transformers in client li
 <p>
 The default
 <a href="/pkg/flag/#Usage"><code>Usage</code></a> function now prints
-its first line of output to 
+its first line of output to
 <code>CommandLine.Output()</code>
 instead of assuming <code>os.Stderr</code>,
 so that the usage message is properly redirected for
@@ -1048,9 +1048,9 @@ in its <a href="/pkg/math/big/#Int.SetString"><code>SetString</code></a> and <a 
 The value of the constant <code>MaxBase</code> has been updated.
 </p>
 <p>
-<a href="/pkg/math/big/#Int"><code>Int</code></a> adds a new 
+<a href="/pkg/math/big/#Int"><code>Int</code></a> adds a new
 <a href="/pkg/math/big/#CmpAbs"><code>CmpAbs</code></a> method
-that is like <a href="/pkg/math/big/#Cmp"><code>Cmp</code></a> but 
+that is like <a href="/pkg/math/big/#Cmp"><code>Cmp</code></a> but
 compares only the absolute values (not the signs) of its arguments.
 </p>
 <p>
@@ -1135,7 +1135,7 @@ goroutines shortly after <code>Close</code> returned.)
 <p>
 <a href="/pkg/net/#TCPListener"><code>TCPListener</code></a> and
 <a href="/pkg/net/#UnixListener"><code>UnixListener</code></a>
-now implement 
+now implement
 <a href="/pkg/syscall/#Conn"><code>syscall.Conn</code></a>,
 to allow setting options on the underlying file descriptor
 using <a href="/pkg/syscall/#RawConn"><code>syscall.RawConn.Control</code></a>.
@@ -1275,7 +1275,7 @@ The definition of these methods matches those in <a href="/pkg/net/#Conn"><code>
 
 <p>
 Also matching <code>net.Conn</code>,
-<code>File</code>'s 
+<code>File</code>'s
 <a href="/pkg/os/#File.Close"><code>Close</code></a> method
 now guarantee that when <code>Close</code> returns,
 the underlying file descriptor has been closed.
@@ -1286,7 +1286,7 @@ goroutines shortly after <code>Close</code> returned.)
 </p>
 
 <p>
-On BSD, macOS, and Solaris systems, 
+On BSD, macOS, and Solaris systems,
 <a href="/pkg/os/#Chtimes"><code>Chtimes</code></a>
 now supports setting file times with nanosecond precision
 (assuming the underlying file system can represent them).
@@ -1334,7 +1334,7 @@ the binary that generated them.
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
 <dd>
 <p>
-<a href="/pkg/strconv/#ParseUint"><code>ParseUint</code></a> now returns 
+<a href="/pkg/strconv/#ParseUint"><code>ParseUint</code></a> now returns
 the maximum magnitude integer of the appropriate size
 with any <code>ErrRange</code> error, as it was already documented to do.
 Previously it returned 0 with <code>ErrRange</code> errors.
