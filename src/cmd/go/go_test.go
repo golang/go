@@ -5150,6 +5150,7 @@ func TestTestCacheInputs(t *testing.T) {
 	tg.setenv("GOCACHE", tg.path("cache"))
 
 	defer os.Remove(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"))
+	defer os.Remove(filepath.Join(tg.pwd(), "testdata/src/testcache/script.sh"))
 	tg.must(ioutil.WriteFile(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), []byte("x"), 0644))
 	old := time.Now().Add(-1 * time.Minute)
 	tg.must(os.Chtimes(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), old, old))
