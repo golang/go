@@ -34,7 +34,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
-	"sort"
 	"strings"
 )
 
@@ -883,9 +882,9 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 
 		if genDwarfInline > 0 {
 			// Don't update the src.Pos on a return variable if it
-			// was manufactured by the inliner (e.g. "~r2"); such vars
+			// was manufactured by the inliner (e.g. "~R2"); such vars
 			// were not part of the original callee.
-			if !strings.HasPrefix(m.Sym.Name, "~r") {
+			if !strings.HasPrefix(m.Sym.Name, "~R") {
 				m.SetInlFormal(true)
 				m.Pos = mpos
 				inlfvars = append(inlfvars, m)
@@ -986,7 +985,6 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 	if b := Ctxt.PosTable.Pos(n.Pos).Base(); b != nil {
 		parent = b.InliningIndex()
 	}
-	sort.Sort(byNodeName(dcl))
 	newIndex := Ctxt.InlTree.Add(parent, n.Pos, fn.Sym.Linksym())
 
 	if genDwarfInline > 0 {
@@ -1067,7 +1065,7 @@ func inlvar(var_ *Node) *Node {
 
 // Synthesize a variable to store the inlined function's results in.
 func retvar(t *types.Field, i int) *Node {
-	n := newname(lookupN("~r", i))
+	n := newname(lookupN("~R", i))
 	n.Type = t.Type
 	n.SetClass(PAUTO)
 	n.Name.SetUsed(true)
@@ -1216,28 +1214,3 @@ func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
 	pos.SetBase(newbase)
 	return Ctxt.PosTable.XPos(pos)
 }
-
-func cmpNodeName(a, b *Node) bool {
-	// named before artificial
-	aart := 0
-	if strings.HasPrefix(a.Sym.Name, "~r") {
-		aart = 1
-	}
-	bart := 0
-	if strings.HasPrefix(b.Sym.Name, "~r") {
-		bart = 1
-	}
-	if aart != bart {
-		return aart < bart
-	}
-
-	// otherwise sort by name
-	return a.Sym.Name < b.Sym.Name
-}
-
-// byNodeName implements sort.Interface for []*Node using cmpNodeName.
-type byNodeName []*Node
-
-func (s byNodeName) Len() int           { return len(s) }
-func (s byNodeName) Less(i, j int) bool { return cmpNodeName(s[i], s[j]) }
-func (s byNodeName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
