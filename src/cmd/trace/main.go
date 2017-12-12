@@ -106,19 +106,19 @@ func main() {
 	}
 
 	log.Print("Parsing trace...")
-	events, err := parseEvents()
+	res, err := parseTrace()
 	if err != nil {
 		dief("%v\n", err)
 	}
 
 	if *debugFlag {
-		trace.Print(events)
+		trace.Print(res.Events)
 		os.Exit(0)
 	}
 
 	log.Print("Serializing trace...")
 	params := &traceParams{
-		events:  events,
+		parsed:  res,
 		endTime: int64(1<<63 - 1),
 	}
 	data, err := generateTrace(params)
@@ -142,12 +142,22 @@ func main() {
 var ranges []Range
 
 var loader struct {
-	once   sync.Once
-	events []*trace.Event
-	err    error
+	once sync.Once
+	res  trace.ParseResult
+	err  error
 }
 
+// parseEvents is a compatibility wrapper that returns only
+// the Events part of trace.ParseResult returned by parseTrace.
 func parseEvents() ([]*trace.Event, error) {
+	res, err := parseTrace()
+	if err != nil {
+		return nil, err
+	}
+	return res.Events, err
+}
+
+func parseTrace() (trace.ParseResult, error) {
 	loader.once.Do(func() {
 		tracef, err := os.Open(traceFile)
 		if err != nil {
@@ -157,14 +167,14 @@ func parseEvents() ([]*trace.Event, error) {
 		defer tracef.Close()
 
 		// Parse and symbolize.
-		events, err := trace.Parse(bufio.NewReader(tracef), programBinary)
+		res, err := trace.Parse(bufio.NewReader(tracef), programBinary)
 		if err != nil {
 			loader.err = fmt.Errorf("failed to parse trace: %v", err)
 			return
 		}
-		loader.events = events
+		loader.res = res
 	})
-	return loader.events, loader.err
+	return loader.res, loader.err
 }
 
 // httpMain serves the starting page.

@@ -75,36 +75,44 @@ const (
 	GCP      // depicts GC state
 )
 
+// ParseResult is the result of Parse.
+type ParseResult struct {
+	// Events is the sorted list of Events in the trace.
+	Events []*Event
+	// Stacks is the stack traces keyed by stack IDs from the trace.
+	Stacks map[uint64][]*Frame
+}
+
 // Parse parses, post-processes and verifies the trace.
-func Parse(r io.Reader, bin string) ([]*Event, error) {
-	ver, events, err := parse(r, bin)
+func Parse(r io.Reader, bin string) (ParseResult, error) {
+	ver, res, err := parse(r, bin)
 	if err != nil {
-		return nil, err
+		return ParseResult{}, err
 	}
 	if ver < 1007 && bin == "" {
-		return nil, fmt.Errorf("for traces produced by go 1.6 or below, the binary argument must be provided")
+		return ParseResult{}, fmt.Errorf("for traces produced by go 1.6 or below, the binary argument must be provided")
 	}
-	return events, nil
+	return res, nil
 }
 
 // parse parses, post-processes and verifies the trace. It returns the
 // trace version and the list of events.
-func parse(r io.Reader, bin string) (int, []*Event, error) {
+func parse(r io.Reader, bin string) (int, ParseResult, error) {
 	ver, rawEvents, strings, err := readTrace(r)
 	if err != nil {
-		return 0, nil, err
+		return 0, ParseResult{}, err
 	}
 	events, stacks, err := parseEvents(ver, rawEvents, strings)
 	if err != nil {
-		return 0, nil, err
+		return 0, ParseResult{}, err
 	}
 	events, err = removeFutile(events)
 	if err != nil {
-		return 0, nil, err
+		return 0, ParseResult{}, err
 	}
 	err = postProcessTrace(ver, events)
 	if err != nil {
-		return 0, nil, err
+		return 0, ParseResult{}, err
 	}
 	// Attach stack traces.
 	for _, ev := range events {
@@ -114,10 +122,10 @@ func parse(r io.Reader, bin string) (int, []*Event, error) {
 	}
 	if ver < 1007 && bin != "" {
 		if err := symbolize(events, bin); err != nil {
-			return 0, nil, err
+			return 0, ParseResult{}, err
 		}
 	}
-	return ver, events, nil
+	return ver, ParseResult{Events: events, Stacks: stacks}, nil
 }
 
 // rawEvent is a helper type used during parsing.
