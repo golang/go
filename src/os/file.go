@@ -258,6 +258,16 @@ func Create(name string) (*File, error) {
 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
 }
 
+// OpenFile is the generalized open call; most users will use Open
+// or Create instead. It opens the named file with specified flag
+// (O_RDONLY etc.) and perm, (0666 etc.) if applicable. If successful,
+// methods on the returned File can be used for I/O.
+// If there is an error, it will be of type *PathError.
+func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+	testlog.Open(name)
+	return openFileNolog(name, flag, perm)
+}
+
 // lstat is overridden in tests.
 var lstat = Lstat
 
