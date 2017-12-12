@@ -243,11 +243,7 @@ func wbBufFlush1(_p_ *p) {
 			// path to reduce the rate of flushes?
 			continue
 		}
-		// TODO: This doesn't use hbits, so calling
-		// heapBitsForObject seems a little silly. We could
-		// easily separate this out since heapBitsForObject
-		// just calls heapBitsForAddr(obj) to get hbits.
-		obj, _, span, objIndex := heapBitsForObject(ptr, 0, 0)
+		obj, span, objIndex := findObject(ptr, 0, 0)
 		if obj == 0 {
 			continue
 		}

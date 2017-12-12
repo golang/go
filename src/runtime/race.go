@@ -187,7 +187,7 @@ type symbolizeDataContext struct {
 }
 
 func raceSymbolizeData(ctx *symbolizeDataContext) {
-	if base, _, span, _ := heapBitsForObject(ctx.addr, 0, 0); base != 0 {
+	if base, span, _ := findObject(ctx.addr, 0, 0); base != 0 {
 		ctx.heap = 1
 		ctx.start = base
 		ctx.size = span.elemsize

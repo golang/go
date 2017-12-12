@@ -370,17 +370,17 @@ func heapBitsForSpan(base uintptr) (hbits heapBits) {
 	return heapBitsForAddr(base)
 }
 
-// heapBitsForObject returns the base address for the heap object
-// containing the address p, the heapBits for base,
-// the object's span, and of the index of the object in s.
-// If p does not point into a heap object,
-// return base == 0
-// otherwise return the base of the object.
+// findObject returns the base address for the heap object containing
+// the address p, the object's span, and the index of the object in s.
+// If p does not point into a heap object, it returns base == 0.
+//
+// If p points is an invalid heap pointer and debug.invalidptr != 0,
+// findObject panics.
 //
 // refBase and refOff optionally give the base address of the object
 // in which the pointer p was found and the byte offset at which it
 // was found. These are used for error reporting.
-func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits, s *mspan, objIndex uintptr) {
+func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex uintptr) {
 	arenaStart := mheap_.arena_start
 	if p < arenaStart || p >= mheap_.arena_used {
 		return
@@ -444,8 +444,6 @@ func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits
 			base += objIndex * s.elemsize
 		}
 	}
-	// Now that we know the actual base, compute heapBits to return to caller.
-	hbits = heapBitsForAddr(base)
 	return
 }
 
@@ -1852,7 +1850,8 @@ func getgcmask(ep interface{}) (mask []byte) {
 	}
 
 	// heap
-	if base, hbits, s, _ := heapBitsForObject(uintptr(p), 0, 0); base != 0 {
+	if base, s, _ := findObject(uintptr(p), 0, 0); base != 0 {
+		hbits := heapBitsForAddr(base)
 		n := s.elemsize
 		mask = make([]byte, n/sys.PtrSize)
 		for i := uintptr(0); i < n; i += sys.PtrSize {

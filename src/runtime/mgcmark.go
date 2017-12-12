@@ -1100,8 +1100,8 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 				// Same work as in scanobject; see comments there.
 				obj := *(*uintptr)(unsafe.Pointer(b + i))
 				if obj != 0 && arena_start <= obj && obj < arena_used {
-					if obj, hbits, span, objIndex := heapBitsForObject(obj, b, i); obj != 0 {
-						greyobject(obj, b, i, hbits, span, gcw, objIndex)
+					if obj, span, objIndex := findObject(obj, b, i); obj != 0 {
+						greyobject(obj, b, i, span, gcw, objIndex)
 					}
 				}
 			}
@@ -1206,8 +1206,8 @@ func scanobject(b uintptr, gcw *gcWork) {
 		// Check if it points into heap and not back at the current object.
 		if obj != 0 && arena_start <= obj && obj < arena_used && obj-b >= n {
 			// Mark the object.
-			if obj, hbits, span, objIndex := heapBitsForObject(obj, b, i); obj != 0 {
-				greyobject(obj, b, i, hbits, span, gcw, objIndex)
+			if obj, span, objIndex := findObject(obj, b, i); obj != 0 {
+				greyobject(obj, b, i, span, gcw, objIndex)
 			}
 		}
 	}
@@ -1220,9 +1220,9 @@ func scanobject(b uintptr, gcw *gcWork) {
 // Preemption must be disabled.
 //go:nowritebarrier
 func shade(b uintptr) {
-	if obj, hbits, span, objIndex := heapBitsForObject(b, 0, 0); obj != 0 {
+	if obj, span, objIndex := findObject(b, 0, 0); obj != 0 {
 		gcw := &getg().m.p.ptr().gcw
-		greyobject(obj, 0, 0, hbits, span, gcw, objIndex)
+		greyobject(obj, 0, 0, span, gcw, objIndex)
 		if gcphase == _GCmarktermination || gcBlackenPromptly {
 			// Ps aren't allowed to cache work during mark
 			// termination.
@@ -1238,7 +1238,7 @@ func shade(b uintptr) {
 // See also wbBufFlush1, which partially duplicates this logic.
 //
 //go:nowritebarrierrec
-func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork, objIndex uintptr) {
+func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintptr) {
 	// obj should be start of allocation, and so must be at least pointer-aligned.
 	if obj&(sys.PtrSize-1) != 0 {
 		throw("greyobject: obj not pointer-aligned")
@@ -1260,6 +1260,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
 			getg().m.traceback = 2
 			throw("checkmark found unmarked object")
 		}
+		hbits := heapBitsForAddr(obj)
 		if hbits.isCheckmarked(span.elemsize) {
 			return
 		}
@@ -1386,9 +1387,9 @@ func gcMarkTinyAllocs() {
 		if c == nil || c.tiny == 0 {
 			continue
 		}
-		_, hbits, span, objIndex := heapBitsForObject(c.tiny, 0, 0)
+		_, span, objIndex := findObject(c.tiny, 0, 0)
 		gcw := &p.gcw
-		greyobject(c.tiny, 0, 0, hbits, span, gcw, objIndex)
+		greyobject(c.tiny, 0, 0, span, gcw, objIndex)
 		if gcBlackenPromptly {
 			gcw.dispose()
 		}

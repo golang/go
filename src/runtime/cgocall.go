@@ -583,11 +583,12 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 			return
 		}
 
-		b, hbits, span, _ := heapBitsForObject(uintptr(p), 0, 0)
+		b, span, _ := findObject(uintptr(p), 0, 0)
 		base = b
 		if base == 0 {
 			return
 		}
+		hbits := heapBitsForAddr(base)
 		n := span.elemsize
 		for i = uintptr(0); i < n; i += sys.PtrSize {
 			if i != 1*sys.PtrSize && !hbits.morePointers() {
