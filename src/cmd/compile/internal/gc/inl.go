@@ -283,33 +283,14 @@ func (v *hairyVisitor) visit(n *Node) bool {
 			v.budget -= fn.InlCost
 			break
 		}
-		if n.Left.Op == OCLOSURE {
-			if fn := inlinableClosure(n.Left); fn != nil {
-				v.budget -= fn.Func.InlCost
-				break
-			}
-		} else if n.Left.Op == ONAME && n.Left.Name != nil && n.Left.Name.Defn != nil {
-			// NB: this case currently cannot trigger since closure definition
-			// prevents inlining
-			// NB: ideally we would also handle captured variables defined as
-			// closures in the outer scope this brings us back to the idea of
-			// function value propagation, which if available would both avoid
-			// the "reassigned" check and neatly handle multiple use cases in a
-			// single code path
-			if d := n.Left.Name.Defn; d.Op == OAS && d.Right.Op == OCLOSURE {
-				if fn := inlinableClosure(d.Right); fn != nil {
-					v.budget -= fn.Func.InlCost
-					break
-				}
-			}
-		}
-
 		if n.Left.isMethodExpression() {
 			if d := asNode(n.Left.Sym.Def); d != nil && d.Func.Inl.Len() != 0 {
 				v.budget -= d.Func.InlCost
 				break
 			}
 		}
+		// TODO(mdempsky): Budget for OCLOSURE calls if we
+		// ever allow that. See #15561 and #23093.
 		if Debug['l'] < 4 {
 			v.reason = "non-leaf function"
 			return true
