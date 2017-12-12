@@ -127,20 +127,20 @@ func TestTrace(t *testing.T) {
 }
 
 func parseTrace(t *testing.T, r io.Reader) ([]*trace.Event, map[uint64]*trace.GDesc) {
-	events, err := trace.Parse(r, "")
+	res, err := trace.Parse(r, "")
 	if err == trace.ErrTimeOrder {
 		t.Skipf("skipping trace: %v", err)
 	}
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}
-	gs := trace.GoroutineStats(events)
+	gs := trace.GoroutineStats(res.Events)
 	for goid := range gs {
 		// We don't do any particular checks on the result at the moment.
 		// But still check that RelatedGoroutines does not crash, hang, etc.
-		_ = trace.RelatedGoroutines(events, goid)
+		_ = trace.RelatedGoroutines(res.Events, goid)
 	}
-	return events, gs
+	return res.Events, gs
 }
 
 func testBrokenTimestamps(t *testing.T, data []byte) {
