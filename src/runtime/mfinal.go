@@ -326,7 +326,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 	}
 
 	// find the containing object
-	base, _, _, _ := heapBitsForObject(uintptr(e.data), 0, 0)
+	base, _, _ := findObject(uintptr(e.data), 0, 0)
 
 	if base == 0 {
 		// 0-length objects are okay.
