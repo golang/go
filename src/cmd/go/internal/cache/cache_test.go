@@ -5,7 +5,9 @@
 package cache
 
 import (
+	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -195,4 +197,123 @@ func dummyID(x int) [HashSize]byte {
 	var out [HashSize]byte
 	binary.LittleEndian.PutUint64(out[:], uint64(x))
 	return out
+}
+
+func TestCacheTrim(t *testing.T) {
+	dir, err := ioutil.TempDir("", "cachetest-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	c, err := Open(dir)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	const start = 1000000000
+	now := int64(start)
+	c.now = func() time.Time { return time.Unix(now, 0) }
+
+	checkTime := func(name string, mtime int64) {
+		t.Helper()
+		file := filepath.Join(c.dir, name[:2], name)
+		info, err := os.Stat(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.ModTime().Unix() != mtime {
+			t.Fatalf("%s mtime = %d, want %d", name, info.ModTime().Unix(), mtime)
+		}
+	}
+
+	id := ActionID(dummyID(1))
+	c.PutBytes(id, []byte("abc"))
+	entry, _ := c.Get(id)
+	c.PutBytes(ActionID(dummyID(2)), []byte("def"))
+	mtime := now
+	checkTime(fmt.Sprintf("%x-a", id), mtime)
+	checkTime(fmt.Sprintf("%x-d", entry.OutputID), mtime)
+
+	// Get should not change recent mtimes.
+	now = start + 10
+	c.Get(id)
+	checkTime(fmt.Sprintf("%x-a", id), mtime)
+	checkTime(fmt.Sprintf("%x-d", entry.OutputID), mtime)
+
+	// Get should change distant mtimes.
+	now = start + 5000
+	mtime2 := now
+	if _, err := c.Get(id); err != nil {
+		t.Fatal(err)
+	}
+	c.OutputFile(entry.OutputID)
+	checkTime(fmt.Sprintf("%x-a", id), mtime2)
+	checkTime(fmt.Sprintf("%x-d", entry.OutputID), mtime2)
+
+	// Trim should leave everything alone: it's all too new.
+	c.Trim()
+	if _, err := c.Get(id); err != nil {
+		t.Fatal(err)
+	}
+	c.OutputFile(entry.OutputID)
+	data, err := ioutil.ReadFile(filepath.Join(dir, "trim.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkTime(fmt.Sprintf("%x-a", dummyID(2)), start)
+
+	// Trim less than a day later should not do any work at all.
+	now = start + 80000
+	c.Trim()
+	if _, err := c.Get(id); err != nil {
+		t.Fatal(err)
+	}
+	c.OutputFile(entry.OutputID)
+	data2, err := ioutil.ReadFile(filepath.Join(dir, "trim.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(data, data2) {
+		t.Fatalf("second trim did work: %q -> %q", data, data2)
+	}
+
+	// Fast forward and do another trim just before the 5 day cutoff.
+	// Note that because of usedQuantum the cutoff is actually 5 days + 1 hour.
+	// We used c.Get(id) just now, so 5 days later it should still be kept.
+	// On the other hand almost a full day has gone by since we wrote dummyID(2)
+	// and we haven't looked at it since, so 5 days later it should be gone.
+	now += 5 * 86400
+	checkTime(fmt.Sprintf("%x-a", dummyID(2)), start)
+	c.Trim()
+	if _, err := c.Get(id); err != nil {
+		t.Fatal(err)
+	}
+	c.OutputFile(entry.OutputID)
+	mtime3 := now
+	if _, err := c.Get(dummyID(2)); err == nil { // haven't done a Get for this since original write above
+		t.Fatalf("Trim did not remove dummyID(2)")
+	}
+
+	// The c.Get(id) refreshed id's mtime again.
+	// Check that another 5 days later it is still not gone,
+	// but check by using checkTime, which doesn't bring mtime forward.
+	now += 5 * 86400
+	c.Trim()
+	checkTime(fmt.Sprintf("%x-a", id), mtime3)
+	checkTime(fmt.Sprintf("%x-d", entry.OutputID), mtime3)
+
+	// Half a day later Trim should still be a no-op, because there was a Trim recently.
+	// Even though the entry for id is now old enough to be trimmed,
+	// it gets a reprieve until the time comes for a new Trim scan.
+	now += 86400 / 2
+	c.Trim()
+	checkTime(fmt.Sprintf("%x-a", id), mtime3)
+	checkTime(fmt.Sprintf("%x-d", entry.OutputID), mtime3)
+
+	// Another half a day later, Trim should actually run, and it should remove id.
+	now += 86400/2 + 1
+	c.Trim()
+	if _, err := c.Get(dummyID(1)); err == nil {
+		t.Fatal("Trim did not remove dummyID(1)")
+	}
 }

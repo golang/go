@@ -364,9 +364,8 @@ func TestAnonymousFields(t *testing.T) {
 		want: `{"X":2,"Y":4}`,
 	}, {
 		// Exported fields of pointers to embedded structs should have their
-		// exported fields be serialized only for exported struct types.
-		// Pointers to unexported structs are not allowed since the decoder
-		// is unable to allocate a struct for that field
+		// exported fields be serialized regardless of whether the struct types
+		// themselves are exported.
 		label: "EmbeddedStructPointer",
 		makeInput: func() interface{} {
 			type (
@@ -379,7 +378,7 @@ func TestAnonymousFields(t *testing.T) {
 			)
 			return S{&s1{1, 2}, &S2{3, 4}}
 		},
-		want: `{"Y":4}`,
+		want: `{"X":2,"Y":4}`,
 	}, {
 		// Exported fields on embedded unexported structs at multiple levels
 		// of nesting should still be serialized.

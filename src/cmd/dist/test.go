@@ -583,7 +583,7 @@ func (t *tester) registerTests() {
 				},
 			})
 		}
-		if swig, _ := exec.LookPath("swig"); swig != "" && goos != "android" {
+		if t.hasSwig() && goos != "android" {
 			t.tests = append(t.tests, distTest{
 				name:    "swig_stdio",
 				heading: "../misc/swig/stdio",
@@ -1194,6 +1194,63 @@ func (t *tester) hasBash() bool {
 	case "windows", "plan9":
 		return false
 	}
+	return true
+}
+
+func (t *tester) hasSwig() bool {
+	swig, err := exec.LookPath("swig")
+	if err != nil {
+		return false
+	}
+	out, err := exec.Command(swig, "-version").CombinedOutput()
+	if err != nil {
+		return false
+	}
+
+	re := regexp.MustCompile(`[vV]ersion +([\d]+)([.][\d]+)?([.][\d]+)?`)
+	matches := re.FindSubmatch(out)
+	if matches == nil {
+		// Can't find version number; hope for the best.
+		return true
+	}
+
+	major, err := strconv.Atoi(string(matches[1]))
+	if err != nil {
+		// Can't find version number; hope for the best.
+		return true
+	}
+	if major < 3 {
+		return false
+	}
+	if major > 3 {
+		// 4.0 or later
+		return true
+	}
+
+	// We have SWIG version 3.x.
+	if len(matches[2]) > 0 {
+		minor, err := strconv.Atoi(string(matches[2][1:]))
+		if err != nil {
+			return true
+		}
+		if minor > 0 {
+			// 3.1 or later
+			return true
+		}
+	}
+
+	// We have SWIG version 3.0.x.
+	if len(matches[3]) > 0 {
+		patch, err := strconv.Atoi(string(matches[3][1:]))
+		if err != nil {
+			return true
+		}
+		if patch < 6 {
+			// Before 3.0.6.
+			return false
+		}
+	}
+
 	return true
 }
 

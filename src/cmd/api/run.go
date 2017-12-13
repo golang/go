@@ -39,7 +39,7 @@ func main() {
 	}
 
 	out, err := exec.Command(goCmd(), "tool", "api",
-		"-c", file("go1", "go1.1", "go1.2", "go1.3", "go1.4", "go1.5", "go1.6", "go1.7", "go1.8", "go1.9"),
+		"-c", file("go1", "go1.1", "go1.2", "go1.3", "go1.4", "go1.5", "go1.6", "go1.7", "go1.8", "go1.9", "go1.10"),
 		"-next", file("next"),
 		"-except", file("except")).CombinedOutput()
 	if err != nil {

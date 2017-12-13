@@ -2441,3 +2441,22 @@ func TestIssue16158(t *testing.T) {
 		t.Errorf("Unmarshal: expected error, got nil")
 	}
 }
+
+// Issue 20953. Crash on invalid XMLName attribute.
+
+type InvalidXMLName struct {
+	XMLName Name `xml:"error"`
+	Type    struct {
+		XMLName Name `xml:"type,attr"`
+	}
+}
+
+func TestInvalidXMLName(t *testing.T) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	if err := enc.Encode(InvalidXMLName{}); err == nil {
+		t.Error("unexpected success")
+	} else if want := "invalid tag"; !strings.Contains(err.Error(), want) {
+		t.Errorf("error %q does not contain %q", err, want)
+	}
+}
