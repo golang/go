@@ -1094,18 +1094,11 @@ func typeFields(t reflect.Type) []field {
 				isUnexported := sf.PkgPath != ""
 				if sf.Anonymous {
 					t := sf.Type
-					isPointer := t.Kind() == reflect.Ptr
-					if isPointer {
+					if t.Kind() == reflect.Ptr {
 						t = t.Elem()
 					}
-					isStruct := t.Kind() == reflect.Struct
-					if isUnexported && (!isStruct || isPointer) {
-						// Ignore embedded fields of unexported non-struct types
-						// or pointers to unexported struct types.
-						//
-						// The latter is forbidden because unmarshal is unable
-						// to assign a new struct to the unexported field.
-						// See https://golang.org/issue/21357
+					if isUnexported && t.Kind() != reflect.Struct {
+						// Ignore embedded fields of unexported non-struct types.
 						continue
 					}
 					// Do not ignore embedded fields of unexported struct types

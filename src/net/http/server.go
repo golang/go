@@ -2778,7 +2778,7 @@ func (srv *Server) Serve(l net.Listener) error {
 // server's certificate, any intermediates, and the CA's certificate.
 //
 // For HTTP/2 support, srv.TLSConfig should be initialized to the
-// provided listener's TLS Config before calling Serve. If
+// provided listener's TLS Config before calling ServeTLS. If
 // srv.TLSConfig is non-nil and doesn't include the string "h2" in
 // Config.NextProtos, HTTP/2 support is not enabled.
 //

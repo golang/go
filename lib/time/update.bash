@@ -8,8 +8,8 @@
 # Consult http://www.iana.org/time-zones for the latest versions.
 
 # Versions to use.
-CODE=2017b
-DATA=2017b
+CODE=2017c
+DATA=2017c
 
 set -e
 rm -rf work

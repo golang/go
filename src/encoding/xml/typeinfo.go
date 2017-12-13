@@ -241,7 +241,7 @@ func lookupXMLName(typ reflect.Type) (xmlname *fieldInfo) {
 			continue
 		}
 		finfo, err := structFieldInfo(typ, &f)
-		if finfo.name != "" && err == nil {
+		if err == nil && finfo.name != "" {
 			return finfo
 		}
 		// Also consider errors as a non-existent field tag
