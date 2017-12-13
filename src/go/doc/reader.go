@@ -104,6 +104,8 @@ func baseTypeName(x ast.Expr) (name string, imported bool) {
 			// assume type is imported
 			return t.Sel.Name, true
 		}
+	case *ast.ParenExpr:
+		return baseTypeName(t.X)
 	case *ast.StarExpr:
 		return baseTypeName(t.X)
 	}
