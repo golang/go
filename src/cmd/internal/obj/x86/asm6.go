@@ -1118,7 +1118,7 @@ var yextractps = []ytab{
  */
 var optab =
 /*	as, ytab, andproto, opcode */
-[]Optab{
+[...]Optab{
 	{obj.AXXX, nil, 0, [23]uint8{}},
 	{AAAA, ynone, P32, [23]uint8{0x37}},
 	{AAAD, ynone, P32, [23]uint8{0xd5, 0x0a}},
@@ -2822,9 +2822,9 @@ type AsmBuf struct {
 	buf     [100]byte
 	off     int
 	rexflag int
-	vexflag int
-	rep     int
-	repn    int
+	vexflag bool
+	rep     bool
+	repn    bool
 	lock    bool
 }
 
@@ -3559,7 +3559,7 @@ var bpduff2 = []byte{
 // For details about vex prefix see:
 // https://en.wikipedia.org/wiki/VEX_prefix#Technical_description
 func (asmbuf *AsmBuf) asmvex(ctxt *obj.Link, rm, v, r *obj.Addr, vex, opcode uint8) {
-	asmbuf.vexflag = 1
+	asmbuf.vexflag = true
 	rexR := 0
 	if r != nil {
 		rexR = regrex[r.Reg] & Rxr
@@ -4814,12 +4814,12 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 
 	if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
 		if p.As == AREP {
-			asmbuf.rep++
+			asmbuf.rep = true
 			return
 		}
 
 		if p.As == AREPN {
-			asmbuf.repn++
+			asmbuf.repn = true
 			return
 		}
 
@@ -4876,14 +4876,14 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 			asmbuf.Put(naclmovs)
 		}
 
-		if asmbuf.rep != 0 {
+		if asmbuf.rep {
 			asmbuf.Put1(0xf3)
-			asmbuf.rep = 0
+			asmbuf.rep = false
 		}
 
-		if asmbuf.repn != 0 {
+		if asmbuf.repn {
 			asmbuf.Put1(0xf2)
-			asmbuf.repn = 0
+			asmbuf.repn = false
 		}
 
 		if asmbuf.lock {
@@ -4893,10 +4893,10 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 	}
 
 	asmbuf.rexflag = 0
-	asmbuf.vexflag = 0
+	asmbuf.vexflag = false
 	mark := asmbuf.Len()
 	asmbuf.doasm(ctxt, cursym, p)
-	if asmbuf.rexflag != 0 && asmbuf.vexflag == 0 {
+	if asmbuf.rexflag != 0 && !asmbuf.vexflag {
 		/*
 		 * as befits the whole approach of the architecture,
 		 * the rex prefix must appear before the first opcode byte
@@ -4924,7 +4924,7 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 		if int64(r.Off) < p.Pc {
 			break
 		}
-		if asmbuf.rexflag != 0 && asmbuf.vexflag == 0 {
+		if asmbuf.rexflag != 0 && !asmbuf.vexflag {
 			r.Off++
 		}
 		if r.Type == objabi.R_PCREL {
