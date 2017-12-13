@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -219,4 +220,71 @@ func TestReadNonblockingFd(t *testing.T) {
 	if err != nil {
 		t.Errorf("child process failed: %v", err)
 	}
+}
+
+// Test that we don't let a blocking read prevent a close.
+func TestCloseWithBlockingRead(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	c1, c2 := make(chan bool), make(chan bool)
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func(c chan bool) {
+		defer wg.Done()
+		// Give the other goroutine a chance to enter the Read
+		// or Write call. This is sloppy but the test will
+		// pass even if we close before the read/write.
+		time.Sleep(20 * time.Millisecond)
+
+		if err := r.Close(); err != nil {
+			t.Error(err)
+		}
+		close(c)
+	}(c1)
+
+	// Calling Fd will put the file into blocking mode.
+	_ = r.Fd()
+
+	wg.Add(1)
+	go func(c chan bool) {
+		defer wg.Done()
+		var b [1]byte
+		_, err = r.Read(b[:])
+		close(c)
+		if err == nil {
+			t.Error("I/O on closed pipe unexpectedly succeeded")
+		}
+	}(c2)
+
+	for c1 != nil || c2 != nil {
+		select {
+		case <-c1:
+			c1 = nil
+			// r.Close has completed, but the blocking Read
+			// is hanging. Close the writer to unblock it.
+			w.Close()
+		case <-c2:
+			c2 = nil
+		case <-time.After(1 * time.Second):
+			switch {
+			case c1 != nil && c2 != nil:
+				t.Error("timed out waiting for Read and Close")
+				w.Close()
+			case c1 != nil:
+				t.Error("timed out waiting for Close")
+			case c2 != nil:
+				t.Error("timed out waiting for Read")
+			default:
+				t.Error("impossible case")
+			}
+		}
+	}
+
+	wg.Wait()
 }

@@ -66,7 +66,7 @@ func (f *File) Fd() uintptr {
 	// opened in blocking mode. The File will continue to work,
 	// but any blocking operation will tie up a thread.
 	if f.nonblock {
-		syscall.SetNonblock(f.pfd.Sysfd, false)
+		f.pfd.SetBlocking()
 	}
 
 	return uintptr(f.pfd.Sysfd)
