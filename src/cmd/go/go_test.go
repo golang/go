@@ -224,7 +224,7 @@ func testgo(t *testing.T) *testgoData {
 	testenv.MustHaveGoBuild(t)
 
 	if skipExternal {
-		t.Skip("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
+		t.Skipf("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 
 	return &testgoData{t: t}
@@ -2284,7 +2284,7 @@ func TestSymlinkWarning(t *testing.T) {
 	tg.tempDir("yy/zz")
 	tg.tempFile("yy/zz/zz.go", "package zz\n")
 	if err := os.Symlink(tg.path("yy"), tg.path("src/example/xx/yy")); err != nil {
-		t.Skip("symlink failed: %v", err)
+		t.Skipf("symlink failed: %v", err)
 	}
 	tg.run("list", "example/xx/z...")
 	tg.grepStdoutNot(".", "list should not have matched anything")

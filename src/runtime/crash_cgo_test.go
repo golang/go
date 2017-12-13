@@ -472,7 +472,7 @@ func TestWindowsStackMemoryCgo(t *testing.T) {
 func TestSigStackSwapping(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
-		t.Skip("no sigaltstack on %s", runtime.GOOS)
+		t.Skipf("no sigaltstack on %s", runtime.GOOS)
 	}
 	t.Parallel()
 	got := runTestProg(t, "testprogcgo", "SigStack")
