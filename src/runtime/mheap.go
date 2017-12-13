@@ -50,23 +50,6 @@ type mheap struct {
 	// access (since that may free the backing store).
 	allspans []*mspan // all spans out there
 
-	// spans is a lookup table to map virtual address page IDs to *mspan.
-	// For allocated spans, their pages map to the span itself.
-	// For free spans, only the lowest and highest pages map to the span itself.
-	// Internal pages map to an arbitrary span.
-	// For pages that have never been allocated, spans entries are nil.
-	//
-	// Modifications are protected by mheap.lock. Reads can be
-	// performed without locking, but ONLY from indexes that are
-	// known to contain in-use or stack spans. This means there
-	// must not be a safe-point between establishing that an
-	// address is live and looking it up in the spans array.
-	//
-	// This is backed by a reserved region of the address space so
-	// it can grow without moving. The memory up to len(spans) is
-	// mapped. cap(spans) indicates the total reserved memory.
-	spans []*mspan
-
 	// sweepSpans contains two mspan stacks: one of swept in-use
 	// spans, and one of unswept in-use spans. These two trade
 	// roles on each GC cycle. Since the sweepgen increases by 2
@@ -78,7 +61,7 @@ type mheap struct {
 	// on the swept stack.
 	sweepSpans [2]gcSweepBuf
 
-	_ uint32 // align uint64 fields on 32-bit for atomics
+	//_ uint32 // align uint64 fields on 32-bit for atomics
 
 	// Proportional sweep
 	//
@@ -155,7 +138,7 @@ type mheap struct {
 	// to probe any index.
 	arenas *[memLimit / heapArenaBytes]*heapArena
 
-	//_ uint32 // ensure 64-bit alignment
+	//_ uint32 // ensure 64-bit alignment of central
 
 	// central free lists for small size classes.
 	// the padding makes sure that the MCentrals are
@@ -193,7 +176,18 @@ type heapArena struct {
 	// heapBits type to access this.
 	bitmap [heapArenaBitmapBytes]byte
 
-	// TODO: Also store the spans map here.
+	// spans maps from virtual address page ID within this arena to *mspan.
+	// For allocated spans, their pages map to the span itself.
+	// For free spans, only the lowest and highest pages map to the span itself.
+	// Internal pages map to an arbitrary span.
+	// For pages that have never been allocated, spans entries are nil.
+	//
+	// Modifications are protected by mheap.lock. Reads can be
+	// performed without locking, but ONLY from indexes that are
+	// known to contain in-use or stack spans. This means there
+	// must not be a safe-point between establishing that an
+	// address is live and looking it up in the spans array.
+	spans [pagesPerArena]*mspan
 }
 
 // An MSpan is a run of pages.
@@ -453,10 +447,14 @@ func inHeapOrStack(b uintptr) bool {
 //
 //go:nosplit
 func spanOf(p uintptr) *mspan {
-	if p == 0 || p < mheap_.arena_start || p >= mheap_.arena_used {
+	if p < minLegalPointer || p/heapArenaBytes >= uintptr(len(mheap_.arenas)) {
 		return nil
 	}
-	return spanOfUnchecked(p)
+	ha := mheap_.arenas[p/heapArenaBytes]
+	if ha == nil {
+		return nil
+	}
+	return ha.spans[(p/pageSize)%pagesPerArena]
 }
 
 // spanOfUnchecked is equivalent to spanOf, but the caller must ensure
@@ -467,7 +465,7 @@ func spanOf(p uintptr) *mspan {
 //
 //go:nosplit
 func spanOfUnchecked(p uintptr) *mspan {
-	return mheap_.spans[(p-mheap_.arena_start)>>_PageShift]
+	return mheap_.arenas[p/heapArenaBytes].spans[(p/pageSize)%pagesPerArena]
 }
 
 // spanOfHeap is like spanOf, but returns nil if p does not point to a
@@ -487,7 +485,7 @@ func spanOfHeap(p uintptr) *mspan {
 }
 
 // Initialize the heap.
-func (h *mheap) init(spansStart, spansBytes uintptr) {
+func (h *mheap) init() {
 	h.treapalloc.init(unsafe.Sizeof(treapNode{}), nil, nil, &memstats.other_sys)
 	h.spanalloc.init(unsafe.Sizeof(mspan{}), recordspan, unsafe.Pointer(h), &memstats.mspan_sys)
 	h.cachealloc.init(unsafe.Sizeof(mcache{}), nil, nil, &memstats.mcache_sys)
@@ -513,11 +511,6 @@ func (h *mheap) init(spansStart, spansBytes uintptr) {
 	for i := range h.central {
 		h.central[i].mcentral.init(spanClass(i))
 	}
-
-	sp := (*slice)(unsafe.Pointer(&h.spans))
-	sp.array = unsafe.Pointer(spansStart)
-	sp.len = 0
-	sp.cap = int(spansBytes / sys.PtrSize)
 
 	// Map metadata structures. But don't map race detector memory
 	// since we're not actually growing the arena here (and TSAN
@@ -552,34 +545,12 @@ func (h *mheap) setArenaUsed(arena_used uintptr, racemap bool) {
 		atomic.StorepNoWB(unsafe.Pointer(&h.arenas[ri]), unsafe.Pointer(r))
 	}
 
-	// Map spans array.
-	h.mapSpans(arena_used)
-
 	// Tell the race detector about the new heap memory.
 	if racemap && raceenabled {
 		racemapshadow(unsafe.Pointer(h.arena_used), arena_used-h.arena_used)
 	}
 
 	h.arena_used = arena_used
-}
-
-// mapSpans makes sure that the spans are mapped
-// up to the new value of arena_used.
-//
-// Don't call this directly. Call mheap.setArenaUsed.
-func (h *mheap) mapSpans(arena_used uintptr) {
-	// Map spans array, PageSize at a time.
-	n := arena_used
-	n -= h.arena_start
-	n = n / _PageSize * sys.PtrSize
-	n = round(n, physPageSize)
-	need := n / unsafe.Sizeof(h.spans[0])
-	have := uintptr(len(h.spans))
-	if have >= need {
-		return
-	}
-	h.spans = h.spans[:need]
-	sysMap(unsafe.Pointer(&h.spans[have]), (need-have)*unsafe.Sizeof(h.spans[0]), h.arena_reserved, &memstats.other_sys)
 }
 
 // Sweeps spans in list until reclaims at least npages into heap.
@@ -808,15 +779,20 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
 
 // setSpan modifies the span map so spanOf(base) is s.
 func (h *mheap) setSpan(base uintptr, s *mspan) {
-	h.spans[(base-h.arena_start)>>_PageShift] = s
+	h.arenas[base/heapArenaBytes].spans[(base/pageSize)%pagesPerArena] = s
 }
 
 // setSpans modifies the span map so [spanOf(base), spanOf(base+npage*pageSize))
 // is s.
 func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
-	p := (base - h.arena_start) >> _PageShift
+	p := base / pageSize
+	ha := h.arenas[p/pagesPerArena]
 	for n := uintptr(0); n < npage; n++ {
-		h.spans[p+n] = s
+		i := (p + n) % pagesPerArena
+		if i == 0 {
+			ha = h.arenas[(p+n)/pagesPerArena]
+		}
+		ha.spans[i] = s
 	}
 }
 
