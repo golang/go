@@ -1265,11 +1265,12 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 		return nil
 	}
 
+	execCmd := work.FindExecCmd()
 	testlogArg := []string{}
-	if !c.disableCache && cfg.Goos != "nacl" {
+	if !c.disableCache && len(execCmd) == 0 {
 		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
 	}
-	args := str.StringList(work.FindExecCmd(), a.Deps[0].Target, testlogArg, testArgs)
+	args := str.StringList(execCmd, a.Deps[0].Target, testlogArg, testArgs)
 
 	if testCoverProfile != "" {
 		// Write coverage to temporary profile, for merging later.
