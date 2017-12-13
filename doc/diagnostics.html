@@ -185,9 +185,19 @@ handler on :7777 at /custom_debug_path/profile:
 
 <p>
 <pre>
-mux := http.NewServeMux()
-mux.HandleFunc("/custom_debug_path/profile", pprof.Profile)
-http.ListenAndServe(":7777", mux)
+package main
+
+import (
+	"log"
+	"net/http"
+	"net/http/pprof"
+)
+
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/custom_debug_path/profile", pprof.Profile)
+	log.Fatal(http.ListenAndServe(":7777", mux))
+}
 </pre>
 </p>
 
