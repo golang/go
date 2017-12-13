@@ -9,6 +9,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/load"
 	"cmd/go/internal/work"
+	"path/filepath"
 )
 
 var CmdVet = &base.Command{
@@ -38,6 +39,13 @@ func runVet(cmd *base.Command, args []string) {
 
 	work.BuildInit()
 	work.VetFlags = vetFlags
+	if vetTool != "" {
+		var err error
+		work.VetTool, err = filepath.Abs(vetTool)
+		if err != nil {
+			base.Fatalf("%v", err)
+		}
+	}
 
 	pkgs := load.PackagesForBuild(pkgArgs)
 	if len(pkgs) == 0 {
