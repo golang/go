@@ -13,7 +13,7 @@ import (
 	"sort"
 )
 
-func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt) {
+func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt, iota constant.Value) {
 	if trace {
 		check.trace(body.Pos(), "--- %s: %s", name, sig)
 		defer func() {
@@ -34,6 +34,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 	check.context = context{
 		decl:  decl,
 		scope: sig.scope,
+		iota:  iota,
 		sig:   sig,
 	}
 	check.indent = 0
@@ -290,10 +291,6 @@ L:
 
 // stmt typechecks statement s.
 func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
-	// statements cannot use iota in general
-	// (constant declarations set it explicitly)
-	assert(check.iota == nil)
-
 	// statements must end with the same top scope as they started with
 	if debug {
 		defer func(scope *Scope) {

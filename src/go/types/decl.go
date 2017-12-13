@@ -112,7 +112,6 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 	obj.visited = true
 
 	// use the correct value of iota
-	assert(check.iota == nil)
 	check.iota = obj.val
 	defer func() { check.iota = nil }()
 
@@ -150,9 +149,6 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 		return
 	}
 	obj.visited = true
-
-	// var declarations cannot use iota
-	assert(check.iota == nil)
 
 	// determine type, if any
 	if typ != nil {
@@ -233,9 +229,6 @@ func (n *Named) setUnderlying(typ Type) {
 
 func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*TypeName, alias bool) {
 	assert(obj.typ == nil)
-
-	// type declarations cannot use iota
-	assert(check.iota == nil)
 
 	if alias {
 
@@ -356,7 +349,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	// (functions implemented elsewhere have no body)
 	if !check.conf.IgnoreFuncBodies && fdecl.Body != nil {
 		check.later(func() {
-			check.funcBody(decl, obj.name, sig, fdecl.Body)
+			check.funcBody(decl, obj.name, sig, fdecl.Body, nil)
 		})
 	}
 }

@@ -6,6 +6,8 @@
 
 package const0
 
+import "unsafe"
+
 // constants declarations must be initialized by constants
 var x = 0
 const c0 = x /* ERROR "not constant" */
@@ -280,6 +282,45 @@ func _() {
 	var y = iota
 	_ = y
 }
+
+// iotas are usable inside closures in constant declarations (#22345)
+const (
+	_ = iota
+	_ = len([iota]byte{})
+	_ = unsafe.Sizeof(iota)
+	_ = unsafe.Sizeof(func() { _ = iota })
+	_ = unsafe.Sizeof(func() { var _ = iota })
+	_ = unsafe.Sizeof(func() { const _ = iota })
+	_ = unsafe.Sizeof(func() { type _ [iota]byte })
+	_ = unsafe.Sizeof(func() { func() int { return iota }() })
+)
+
+// verify inner and outer const declarations have distinct iotas
+const (
+	zero = iota
+	one  = iota
+	_    = unsafe.Sizeof(func() {
+		var x [iota]int // [2]int
+		const (
+			Zero = iota
+			One
+			Two
+			_ = unsafe.Sizeof([iota-1]int{} == x) // assert types are equal
+			_ = unsafe.Sizeof([Two]int{} == x)    // assert types are equal
+		)
+	})
+	three = iota // the sequence continues
+)
+var _ [three]int = [3]int{} // assert 'three' has correct value
+
+var (
+	_ = iota /* ERROR "iota outside constant decl" */
+	_ = unsafe.Sizeof(iota  /* ERROR "iota outside constant decl" */ )
+	_ = unsafe.Sizeof(func() { _ = iota /* ERROR "iota outside constant decl" */ })
+	_ = unsafe.Sizeof(func() { var _ = iota /* ERROR "iota outside constant decl" */ })
+	_ = unsafe.Sizeof(func() { type _ [iota /* ERROR "iota outside constant decl" */ ]byte })
+	_ = unsafe.Sizeof(func() { func() int { return iota /* ERROR "iota outside constant decl" */ }() })
+)
 
 // constant arithmetic precision and rounding must lead to expected (integer) results
 var _ = []int64{
