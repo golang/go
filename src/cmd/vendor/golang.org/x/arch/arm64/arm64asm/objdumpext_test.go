@@ -35,7 +35,7 @@ func testObjdumpArch(t *testing.T, generate func(func([]byte)), arch Mode) {
 func checkObjdumpAarch64(t *testing.T) {
 	out, err := exec.Command(objdumpPath, "-i").Output()
 	if err != nil {
-		t.Skip("cannot run objdump: %v\n%s", err, out)
+		t.Skipf("cannot run objdump: %v\n%s", err, out)
 	}
 	if !strings.Contains(string(out), "aarch64") {
 		t.Skip("objdump does not have aarch64 support")
