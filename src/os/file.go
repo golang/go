@@ -208,7 +208,8 @@ func (f *File) WriteString(s string) (n int, err error) {
 	return f.Write([]byte(s))
 }
 
-// Mkdir creates a new directory with the specified name and permission bits.
+// Mkdir creates a new directory with the specified name and permission
+// bits (before umask).
 // If there is an error, it will be of type *PathError.
 func Mkdir(name string, perm FileMode) error {
 	e := syscall.Mkdir(fixLongPath(name), syscallMode(perm))
@@ -260,7 +261,7 @@ func Create(name string) (*File, error) {
 
 // OpenFile is the generalized open call; most users will use Open
 // or Create instead. It opens the named file with specified flag
-// (O_RDONLY etc.) and perm, (0666 etc.) if applicable. If successful,
+// (O_RDONLY etc.) and perm (before umask), if applicable. If successful,
 // methods on the returned File can be used for I/O.
 // If there is an error, it will be of type *PathError.
 func OpenFile(name string, flag int, perm FileMode) (*File, error) {
