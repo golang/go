@@ -119,7 +119,7 @@ so it is recommended to collect only a single profile at a time.
 
 <p>
 The Go tools provide text, graph, and <a href="http://valgrind.org/docs/manual/cl-manual.html">callgrind</a>
-visualization of the profile data via
+visualization of the profile data using
 <code><a href="https://github.com/google/pprof/blob/master/doc/pprof.md">go tool pprof</a></code>.
 Read <a href="https://blog.golang.org/profiling-go-programs">Profiling Go programs</a>
 to see them in action.
@@ -149,9 +149,11 @@ in the listing.</p>
 </p>
 
 <p>
-Another way to visualize profile data is a <a href="https://github.com/uber/go-torch">flame graph</a>.
+Another way to visualize profile data is a <a href="http://www.brendangregg.com/flamegraphs.html">flame graph</a>.
 Flame graphs allow you to move in a specific ancestry path, so you can zoom
-in/out specific sections of code more easily.
+in/out of specific sections of code.
+The <a href="https://github.com/google/pprof">upstream pprof</a>
+has support for flame graphs.
 </p>
 
 <p>
