@@ -495,6 +495,7 @@ func (b *Builder) build(a *Action) (err error) {
 			Compiler:    cfg.BuildToolchainName,
 			Dir:         a.Package.Dir,
 			GoFiles:     mkAbsFiles(a.Package.Dir, gofiles),
+			ImportPath:  a.Package.ImportPath,
 			ImportMap:   make(map[string]string),
 			PackageFile: make(map[string]string),
 		}
@@ -643,9 +644,14 @@ type vetConfig struct {
 	GoFiles     []string
 	ImportMap   map[string]string
 	PackageFile map[string]string
+	ImportPath  string
 
 	SucceedOnTypecheckFailure bool
 }
+
+// VetTool is the path to an alternate vet tool binary.
+// The caller is expected to set it (if needed) before executing any vet actions.
+var VetTool string
 
 // VetFlags are the flags to pass to vet.
 // The caller is expected to set them before executing any vet actions.
@@ -687,7 +693,11 @@ func (b *Builder) vet(a *Action) error {
 	}
 
 	p := a.Package
-	return b.run(a, p.Dir, p.ImportPath, nil, cfg.BuildToolexec, base.Tool("vet"), VetFlags, a.Objdir+"vet.cfg")
+	tool := VetTool
+	if tool == "" {
+		tool = base.Tool("vet")
+	}
+	return b.run(a, p.Dir, p.ImportPath, nil, cfg.BuildToolexec, tool, VetFlags, a.Objdir+"vet.cfg")
 }
 
 // linkActionID computes the action ID for a link action.
