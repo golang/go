@@ -806,6 +806,20 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
 	return s
 }
 
+// setSpan modifies the span map so spanOf(base) is s.
+func (h *mheap) setSpan(base uintptr, s *mspan) {
+	h.spans[(base-h.arena_start)>>_PageShift] = s
+}
+
+// setSpans modifies the span map so [spanOf(base), spanOf(base+npage*pageSize))
+// is s.
+func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
+	p := (base - h.arena_start) >> _PageShift
+	for n := uintptr(0); n < npage; n++ {
+		h.spans[p+n] = s
+	}
+}
+
 // Allocates a span of the given size.  h must be locked.
 // The returned span has been removed from the
 // free list, but its state is still MSpanFree.
@@ -853,12 +867,9 @@ HaveSpan:
 		t := (*mspan)(h.spanalloc.alloc())
 		t.init(s.base()+npage<<_PageShift, s.npages-npage)
 		s.npages = npage
-		p := (t.base() - h.arena_start) >> _PageShift
-		if p > 0 {
-			h.spans[p-1] = s
-		}
-		h.spans[p] = t
-		h.spans[p+t.npages-1] = t
+		h.setSpan(t.base()-1, s)
+		h.setSpan(t.base(), t)
+		h.setSpan(t.base()+t.npages*pageSize-1, t)
 		t.needzero = s.needzero
 		s.state = _MSpanManual // prevent coalescing with s
 		t.state = _MSpanManual
@@ -867,10 +878,7 @@ HaveSpan:
 	}
 	s.unusedsince = 0
 
-	p := (s.base() - h.arena_start) >> _PageShift
-	for n := uintptr(0); n < npage; n++ {
-		h.spans[p+n] = s
-	}
+	h.setSpans(s.base(), npage, s)
 
 	*stat += uint64(npage << _PageShift)
 	memstats.heap_idle -= uint64(npage << _PageShift)
@@ -928,10 +936,7 @@ func (h *mheap) grow(npage uintptr) bool {
 	// right coalescing happens.
 	s := (*mspan)(h.spanalloc.alloc())
 	s.init(uintptr(v), ask>>_PageShift)
-	p := (s.base() - h.arena_start) >> _PageShift
-	for i := p; i < p+s.npages; i++ {
-		h.spans[i] = s
-	}
+	h.setSpans(s.base(), s.npages, s)
 	atomic.Store(&s.sweepgen, h.sweepgen)
 	s.state = _MSpanInUse
 	h.pagesInUse += uint64(s.npages)
@@ -1023,46 +1028,38 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 	s.npreleased = 0
 
 	// Coalesce with earlier, later spans.
-	p := (s.base() - h.arena_start) >> _PageShift
-	if p > 0 {
-		before := h.spans[p-1]
-		if before != nil && before.state == _MSpanFree {
-			// Now adjust s.
-			s.startAddr = before.startAddr
-			s.npages += before.npages
-			s.npreleased = before.npreleased // absorb released pages
-			s.needzero |= before.needzero
-			p -= before.npages
-			h.spans[p] = s
-			// The size is potentially changing so the treap needs to delete adjacent nodes and
-			// insert back as a combined node.
-			if h.isLargeSpan(before.npages) {
-				// We have a t, it is large so it has to be in the treap so we can remove it.
-				h.freelarge.removeSpan(before)
-			} else {
-				h.freeList(before.npages).remove(before)
-			}
-			before.state = _MSpanDead
-			h.spanalloc.free(unsafe.Pointer(before))
+	if before := spanOf(s.base() - 1); before != nil && before.state == _MSpanFree {
+		// Now adjust s.
+		s.startAddr = before.startAddr
+		s.npages += before.npages
+		s.npreleased = before.npreleased // absorb released pages
+		s.needzero |= before.needzero
+		h.setSpan(before.base(), s)
+		// The size is potentially changing so the treap needs to delete adjacent nodes and
+		// insert back as a combined node.
+		if h.isLargeSpan(before.npages) {
+			// We have a t, it is large so it has to be in the treap so we can remove it.
+			h.freelarge.removeSpan(before)
+		} else {
+			h.freeList(before.npages).remove(before)
 		}
+		before.state = _MSpanDead
+		h.spanalloc.free(unsafe.Pointer(before))
 	}
 
 	// Now check to see if next (greater addresses) span is free and can be coalesced.
-	if (p + s.npages) < uintptr(len(h.spans)) {
-		after := h.spans[p+s.npages]
-		if after != nil && after.state == _MSpanFree {
-			s.npages += after.npages
-			s.npreleased += after.npreleased
-			s.needzero |= after.needzero
-			h.spans[p+s.npages-1] = s
-			if h.isLargeSpan(after.npages) {
-				h.freelarge.removeSpan(after)
-			} else {
-				h.freeList(after.npages).remove(after)
-			}
-			after.state = _MSpanDead
-			h.spanalloc.free(unsafe.Pointer(after))
+	if after := spanOf(s.base() + s.npages*pageSize); after != nil && after.state == _MSpanFree {
+		s.npages += after.npages
+		s.npreleased += after.npreleased
+		s.needzero |= after.needzero
+		h.setSpan(s.base()+s.npages*pageSize-1, s)
+		if h.isLargeSpan(after.npages) {
+			h.freelarge.removeSpan(after)
+		} else {
+			h.freeList(after.npages).remove(after)
 		}
+		after.state = _MSpanDead
+		h.spanalloc.free(unsafe.Pointer(after))
 	}
 
 	// Insert s into appropriate list or treap.
