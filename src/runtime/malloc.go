@@ -187,6 +187,8 @@ const (
 	// heapArenaBitmapBytes is the size of each heap arena's bitmap.
 	heapArenaBitmapBytes = heapArenaBytes / (sys.PtrSize * 8 / 2)
 
+	pagesPerArena = heapArenaBytes / pageSize
+
 	// Max number of threads to run garbage collection.
 	// 2, 3, and 4 are all plausible maximums depending
 	// on the hardware details of the machine. The garbage
@@ -284,10 +286,6 @@ func mallocinit() {
 	var p, pSize uintptr
 	var reserved bool
 
-	// The spans array holds one *mspan per _PageSize of arena.
-	var spansSize uintptr = (_MaxMem + 1) / _PageSize * sys.PtrSize
-	spansSize = round(spansSize, _PageSize)
-
 	// Set up the allocation arena, a contiguous area of memory where
 	// allocated data will be found.
 	if sys.PtrSize == 8 {
@@ -318,7 +316,7 @@ func mallocinit() {
 		// translation buffers, the user address space is limited to 39 bits
 		// On darwin/arm64, the address space is even smaller.
 		arenaSize := round(_MaxMem, _PageSize)
-		pSize = spansSize + arenaSize + _PageSize
+		pSize = arenaSize + _PageSize
 		for i := 0; i <= 0x7f; i++ {
 			switch {
 			case GOARCH == "arm64" && GOOS == "darwin":
@@ -377,7 +375,7 @@ func mallocinit() {
 			// away from the running binary image and then round up
 			// to a MB boundary.
 			p = round(firstmoduledata.end+(1<<18), 1<<20)
-			pSize = spansSize + arenaSize + _PageSize
+			pSize = arenaSize + _PageSize
 			if p <= procBrk && procBrk < p+pSize {
 				// Move the start above the brk,
 				// leaving some room for future brk
@@ -400,8 +398,6 @@ func mallocinit() {
 	p1 := round(p, _PageSize)
 	pSize -= p1 - p
 
-	spansStart := p1
-	p1 += spansSize
 	if sys.PtrSize == 4 {
 		// Set arena_start such that we can accept memory
 		// reservations located anywhere in the 4GB virtual space.
@@ -415,7 +411,7 @@ func mallocinit() {
 	mheap_.arena_reserved = reserved
 
 	if mheap_.arena_start&(_PageSize-1) != 0 {
-		println("bad pagesize", hex(p), hex(p1), hex(spansSize), hex(_PageSize), "start", hex(mheap_.arena_start))
+		println("bad pagesize", hex(p), hex(p1), hex(_PageSize), "start", hex(mheap_.arena_start))
 		throw("misrounded allocation in mallocinit")
 	}
 
@@ -427,7 +423,7 @@ func mallocinit() {
 	}
 
 	// Initialize the rest of the allocator.
-	mheap_.init(spansStart, spansSize)
+	mheap_.init()
 	_g_ := getg()
 	_g_.m.mcache = allocmcache()
 }
