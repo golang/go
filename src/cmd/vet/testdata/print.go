@@ -4,17 +4,22 @@
 
 // This file contains tests for the printf checker.
 
+// TODO(rsc): The user-defined wrapper tests are commented out
+// because they produced too many false positives when vet was
+// enabled during go test. See the TODO in ../print.go for a plan
+// to fix that; when it's fixed, uncomment the user-defined wrapper tests.
+
 package testdata
 
 import (
 	"fmt"
-	"io"
+	. "fmt"
 	"math"
 	"os"
+	"testing"
 	"unsafe" // just for test case printing unsafe.Pointer
-
 	// For testing printf-like functions from external package.
-	"github.com/foobar/externalprintf"
+	// "github.com/foobar/externalprintf"
 )
 
 func UnsafePointerPrintfTest() {
@@ -134,7 +139,7 @@ func PrintfTests() {
 	fmt.Printf("%t", stringerarrayv)            // ERROR "Printf format %t has arg stringerarrayv of wrong type testdata.stringerarray"
 	fmt.Printf("%t", notstringerarrayv)         // ERROR "Printf format %t has arg notstringerarrayv of wrong type testdata.notstringerarray"
 	fmt.Printf("%q", notstringerarrayv)         // ERROR "Printf format %q has arg notstringerarrayv of wrong type testdata.notstringerarray"
-	fmt.Printf("%d", Formatter(true))           // ERROR "Printf format %d has arg Formatter\(true\) of wrong type testdata.Formatter"
+	fmt.Printf("%d", BoolFormatter(true))       // ERROR "Printf format %d has arg BoolFormatter\(true\) of wrong type testdata.BoolFormatter"
 	fmt.Printf("%z", FormatterVal(true))        // correct (the type is responsible for formatting)
 	fmt.Printf("%d", FormatterVal(true))        // correct (the type is responsible for formatting)
 	fmt.Printf("%s", nonemptyinterface)         // correct (the type is responsible for formatting)
@@ -156,9 +161,9 @@ func PrintfTests() {
 	fmt.Printf("%*% x", 0.22)                   // ERROR "Printf format %\*% uses non-int 0.22 as argument of \*"
 	fmt.Printf("%q %q", multi()...)             // ok
 	fmt.Printf("%#q", `blah`)                   // ok
-	printf("now is the time", "buddy")          // ERROR "printf call has arguments but no formatting directives"
-	Printf("now is the time", "buddy")          // ERROR "Printf call has arguments but no formatting directives"
-	Printf("hi")                                // ok
+	// printf("now is the time", "buddy")          // no error "printf call has arguments but no formatting directives"
+	Printf("now is the time", "buddy") // ERROR "Printf call has arguments but no formatting directives"
+	Printf("hi")                       // ok
 	const format = "%s %s\n"
 	Printf(format, "hi", "there")
 	Printf(format, "hi")              // ERROR "Printf format %s reads arg #2, but call has only 1 arg$"
@@ -196,14 +201,10 @@ func PrintfTests() {
 	fmt.Println(e.Error()) // ok
 	// Something that looks like an error interface but isn't, such as the (*T).Error method
 	// in the testing package.
-	var et1 errorTest1
-	fmt.Println(et1.Error())        // ok
-	fmt.Println(et1.Error("hi"))    // ok
-	fmt.Println(et1.Error("%d", 3)) // ERROR "Error call has possible formatting directive %d"
-	var et2 errorTest2
-	et2.Error()        // ok
-	et2.Error("hi")    // ok, not an error method.
-	et2.Error("%d", 3) // ERROR "Error call has possible formatting directive %d"
+	var et1 *testing.T
+	et1.Error()        // ok
+	et1.Error("hi")    // ok
+	et1.Error("%d", 3) // ERROR "Error call has possible formatting directive %d"
 	var et3 errorTest3
 	et3.Error() // ok, not an error method.
 	var et4 errorTest4
@@ -227,30 +228,30 @@ func PrintfTests() {
 	Printf("%p %x", recursiveSliceV, recursiveSliceV)
 	Printf("%p %x", recursiveMapV, recursiveMapV)
 	// Special handling for Log.
-	math.Log(3)  // OK
-	Log(3)       // OK
-	Log("%d", 3) // ERROR "Log call has possible formatting directive %d"
-	Logf("%d", 3)
-	Logf("%d", "hi") // ERROR "Logf format %d has arg \x22hi\x22 of wrong type string"
+	math.Log(3) // OK
+	var t *testing.T
+	t.Log("%d", 3) // ERROR "Log call has possible formatting directive %d"
+	t.Logf("%d", 3)
+	t.Logf("%d", "hi") // ERROR "Logf format %d has arg \x22hi\x22 of wrong type string"
 
-	Errorf(1, "%d", 3)    // OK
-	Errorf(1, "%d", "hi") // ERROR "Errorf format %d has arg \x22hi\x22 of wrong type string"
+	// Errorf(1, "%d", 3)    // OK
+	// Errorf(1, "%d", "hi") // no error "Errorf format %d has arg \x22hi\x22 of wrong type string"
 
 	// Multiple string arguments before variadic args
-	errorf("WARNING", "foobar")            // OK
-	errorf("INFO", "s=%s, n=%d", "foo", 1) // OK
-	errorf("ERROR", "%d")                  // ERROR "errorf format %d reads arg #1, but call has only 0 args"
+	// errorf("WARNING", "foobar")            // OK
+	// errorf("INFO", "s=%s, n=%d", "foo", 1) // OK
+	// errorf("ERROR", "%d")                  // no error "errorf format %d reads arg #1, but call has only 0 args"
 
 	// Printf from external package
-	externalprintf.Printf("%d", 42) // OK
-	externalprintf.Printf("foobar") // OK
-	level := 123
-	externalprintf.Logf(level, "%d", 42)                        // OK
-	externalprintf.Errorf(level, level, "foo %q bar", "foobar") // OK
-	externalprintf.Logf(level, "%d")                            // ERROR "Logf format %d reads arg #1, but call has only 0 args"
-	var formatStr = "%s %s"
-	externalprintf.Sprintf(formatStr, "a", "b")     // OK
-	externalprintf.Logf(level, formatStr, "a", "b") // OK
+	// externalprintf.Printf("%d", 42) // OK
+	// externalprintf.Printf("foobar") // OK
+	// level := 123
+	// externalprintf.Logf(level, "%d", 42)                        // OK
+	// externalprintf.Errorf(level, level, "foo %q bar", "foobar") // OK
+	// externalprintf.Logf(level, "%d")                            // no error "Logf format %d reads arg #1, but call has only 0 args"
+	// var formatStr = "%s %s"
+	// externalprintf.Sprintf(formatStr, "a", "b")     // OK
+	// externalprintf.Logf(level, formatStr, "a", "b") // OK
 
 	// user-defined Println-like functions
 	ss := &someStruct{}
@@ -258,10 +259,10 @@ func PrintfTests() {
 	ss.Error(someFunction, someFunction) // OK
 	ss.Println()                         // OK
 	ss.Println(1.234, "foo")             // OK
-	ss.Println(1, someFunction)          // ERROR "Println arg someFunction is a func value, not called"
+	ss.Println(1, someFunction)          // no error "Println arg someFunction is a func value, not called"
 	ss.log(someFunction)                 // OK
 	ss.log(someFunction, "bar", 1.33)    // OK
-	ss.log(someFunction, someFunction)   // ERROR "log arg someFunction is a func value, not called"
+	ss.log(someFunction, someFunction)   // no error "log arg someFunction is a func value, not called"
 
 	// indexed arguments
 	Printf("%d %[3]d %d %[2]d x", 1, 2, 3, 4)             // OK
@@ -280,7 +281,7 @@ func PrintfTests() {
 
 }
 
-func someString() string
+func someString() string { return "X" }
 
 type someStruct struct{}
 
@@ -305,6 +306,7 @@ func (ss *someStruct) log(f func(), args ...interface{}) {}
 // A function we use as a function value; it has no other purpose.
 func someFunction() {}
 
+/*
 // Printf is used by the test so we must declare it.
 func Printf(format string, args ...interface{}) {
 	panic("don't call - testing only")
@@ -324,12 +326,14 @@ func Logf(format string, args ...interface{}) {
 func Log(args ...interface{}) {
 	panic("don't call - testing only")
 }
+*/
 
 // printf is used by the test so we must declare it.
 func printf(format string, args ...interface{}) {
 	panic("don't call - testing only")
 }
 
+/*
 // Errorf is used by the test for a case in which the first parameter
 // is not a format string.
 func Errorf(i int, format string, args ...interface{}) {
@@ -341,6 +345,7 @@ func Errorf(i int, format string, args ...interface{}) {
 func errorf(level, format string, args ...interface{}) {
 	panic("don't call - testing only")
 }
+*/
 
 // multi is used by the test.
 func multi() []interface{} {
@@ -438,9 +443,9 @@ func (p *recursivePtrStringer) String() string {
 	return fmt.Sprintln(p) // ERROR "Sprintln arg p causes recursive call to String method"
 }
 
-type Formatter bool
+type BoolFormatter bool
 
-func (*Formatter) Format(fmt.State, rune) {
+func (*BoolFormatter) Format(fmt.State, rune) {
 }
 
 // Formatter with value receiver
@@ -464,26 +469,14 @@ type RecursiveStruct struct {
 var recursiveStructV = &RecursiveStruct{}
 
 type RecursiveStruct1 struct {
-	next *Recursive2Struct
+	next *RecursiveStruct2
 }
 
 type RecursiveStruct2 struct {
-	next *Recursive1Struct
+	next *RecursiveStruct1
 }
 
 var recursiveStruct1V = &RecursiveStruct1{}
-
-// Fix for issue 7149: Missing return type on String method caused fault.
-func (int) String() {
-	return ""
-}
-
-func (s *unknownStruct) Fprintln(w io.Writer, s string) {}
-
-func UnknownStructFprintln() {
-	s := unknownStruct{}
-	s.Fprintln(os.Stdout, "hello, world!") // OK
-}
 
 // Issue 17798: unexported stringer cannot be formatted.
 type unexportedStringer struct {

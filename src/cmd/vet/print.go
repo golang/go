@@ -44,41 +44,73 @@ func initPrintFlags() {
 			name = name[:colon]
 		}
 
-		name = strings.ToLower(name)
-		if name[len(name)-1] == 'f' {
-			isFormattedPrint[name] = true
-		} else {
-			isPrint[name] = true
-		}
+		isPrint[strings.ToLower(name)] = true
 	}
 }
 
-// isFormattedPrint records the formatted-print functions. Names are
-// lower-cased so the lookup is case insensitive.
-var isFormattedPrint = map[string]bool{
-	"errorf":  true,
-	"fatalf":  true,
-	"fprintf": true,
-	"logf":    true,
-	"panicf":  true,
-	"printf":  true,
-	"sprintf": true,
-}
+// TODO(rsc): Incorporate user-defined printf wrappers again.
+// The general plan is to allow vet of one package P to output
+// additional information to supply to later vets of packages
+// importing P. Then vet of P can record a list of printf wrappers
+// and the later vet using P.Printf will find it in the list and check it.
+// That's not ready for Go 1.10.
+// When that does happen, uncomment the user-defined printf
+// wrapper tests in testdata/print.go.
 
-// isPrint records the unformatted-print functions. Names are lower-cased
-// so the lookup is case insensitive.
+// isPrint records the print functions.
+// If a key ends in 'f' then it is assumed to be a formatted print.
 var isPrint = map[string]bool{
-	"error":    true,
-	"fatal":    true,
-	"fprint":   true,
-	"fprintln": true,
-	"log":      true,
-	"panic":    true,
-	"panicln":  true,
-	"print":    true,
-	"println":  true,
-	"sprint":   true,
-	"sprintln": true,
+	"fmt.Errorf":         true,
+	"fmt.Fprint":         true,
+	"fmt.Fprintf":        true,
+	"fmt.Fprintln":       true,
+	"fmt.Print":          true,
+	"fmt.Printf":         true,
+	"fmt.Println":        true,
+	"fmt.Sprint":         true,
+	"fmt.Sprintf":        true,
+	"fmt.Sprintln":       true,
+	"log.Fatal":          true,
+	"log.Fatalf":         true,
+	"log.Fatalln":        true,
+	"log.Logger.Fatal":   true,
+	"log.Logger.Fatalf":  true,
+	"log.Logger.Fatalln": true,
+	"log.Logger.Panic":   true,
+	"log.Logger.Panicf":  true,
+	"log.Logger.Panicln": true,
+	"log.Logger.Printf":  true,
+	"log.Logger.Println": true,
+	"log.Panic":          true,
+	"log.Panicf":         true,
+	"log.Panicln":        true,
+	"log.Print":          true,
+	"log.Printf":         true,
+	"log.Println":        true,
+	"testing.B.Error":    true,
+	"testing.B.Errorf":   true,
+	"testing.B.Fatal":    true,
+	"testing.B.Fatalf":   true,
+	"testing.B.Log":      true,
+	"testing.B.Logf":     true,
+	"testing.B.Skip":     true,
+	"testing.B.Skipf":    true,
+	"testing.T.Error":    true,
+	"testing.T.Errorf":   true,
+	"testing.T.Fatal":    true,
+	"testing.T.Fatalf":   true,
+	"testing.T.Log":      true,
+	"testing.T.Logf":     true,
+	"testing.T.Skip":     true,
+	"testing.T.Skipf":    true,
+	"testing.TB.Error":   true,
+	"testing.TB.Errorf":  true,
+	"testing.TB.Fatal":   true,
+	"testing.TB.Fatalf":  true,
+	"testing.TB.Log":     true,
+	"testing.TB.Logf":    true,
+	"testing.TB.Skip":    true,
+	"testing.TB.Skipf":   true,
 }
 
 // formatString returns the format string argument and its index within
@@ -148,6 +180,11 @@ func stringConstantArg(f *File, call *ast.CallExpr, idx int) (string, bool) {
 
 // checkCall triggers the print-specific checks if the call invokes a print function.
 func checkFmtPrintfCall(f *File, node ast.Node) {
+	if f.pkg.typesPkg == nil {
+		// This check now requires type information.
+		return
+	}
+
 	if d, ok := node.(*ast.FuncDecl); ok && isStringer(f, d) {
 		// Remember we saw this.
 		if f.stringers == nil {
@@ -165,24 +202,67 @@ func checkFmtPrintfCall(f *File, node ast.Node) {
 	if !ok {
 		return
 	}
-	var Name string
+
+	// Construct name like pkg.Printf or pkg.Type.Printf for lookup.
+	var name string
 	switch x := call.Fun.(type) {
 	case *ast.Ident:
-		Name = x.Name
+		if fn, ok := f.pkg.uses[x].(*types.Func); ok {
+			var pkg string
+			if fn.Pkg() == nil || fn.Pkg() == f.pkg.typesPkg {
+				pkg = vcfg.ImportPath
+			} else {
+				pkg = fn.Pkg().Path()
+			}
+			name = pkg + "." + x.Name
+			break
+		}
+
 	case *ast.SelectorExpr:
-		Name = x.Sel.Name
-	default:
+		// Check for "fmt.Printf".
+		if id, ok := x.X.(*ast.Ident); ok {
+			if pkgName, ok := f.pkg.uses[id].(*types.PkgName); ok {
+				name = pkgName.Imported().Path() + "." + x.Sel.Name
+				break
+			}
+		}
+
+		// Check for t.Logf where t is a *testing.T.
+		if sel := f.pkg.selectors[x]; sel != nil {
+			recv := sel.Recv()
+			if p, ok := recv.(*types.Pointer); ok {
+				recv = p.Elem()
+			}
+			if named, ok := recv.(*types.Named); ok {
+				obj := named.Obj()
+				var pkg string
+				if obj.Pkg() == nil || obj.Pkg() == f.pkg.typesPkg {
+					pkg = vcfg.ImportPath
+				} else {
+					pkg = obj.Pkg().Path()
+				}
+				name = pkg + "." + obj.Name() + "." + x.Sel.Name
+				break
+			}
+		}
+	}
+	if name == "" {
 		return
 	}
 
-	name := strings.ToLower(Name)
-	if _, ok := isFormattedPrint[name]; ok {
-		f.checkPrintf(call, Name)
-		return
+	shortName := name[strings.LastIndex(name, ".")+1:]
+
+	_, ok = isPrint[name]
+	if !ok {
+		// Next look up just "printf", for use with -printfuncs.
+		_, ok = isPrint[strings.ToLower(shortName)]
 	}
-	if _, ok := isPrint[name]; ok {
-		f.checkPrint(call, Name)
-		return
+	if ok {
+		if strings.HasSuffix(name, "f") {
+			f.checkPrintf(call, shortName)
+		} else {
+			f.checkPrint(call, shortName)
+		}
 	}
 }
 
