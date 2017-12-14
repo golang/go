@@ -23,7 +23,7 @@ type loop struct {
 	isInner bool  // True if never discovered to contain a loop
 
 	// register allocation uses this.
-	containsCall bool // if any block in this loop or any loop within it contains has a call
+	containsUnavoidableCall bool // True if all paths through the loop have a call
 }
 
 // outerinner records that outer contains inner
@@ -47,28 +47,18 @@ func (sdom SparseTree) outerinner(outer, inner *loop) {
 
 	inner.outer = outer
 	outer.isInner = false
-	if inner.containsCall {
-		outer.setContainsCall()
-	}
 }
 
-func (l *loop) setContainsCall() {
-	for ; l != nil && !l.containsCall; l = l.outer {
-		l.containsCall = true
-	}
-
-}
-func (l *loop) checkContainsCall(bb *Block) {
+func checkContainsCall(bb *Block) bool {
 	if bb.Kind == BlockDefer {
-		l.setContainsCall()
-		return
+		return true
 	}
 	for _, v := range bb.Values {
 		if opcodeTable[v.Op].call {
-			l.setContainsCall()
-			return
+			return true
 		}
 	}
+	return false
 }
 
 type loopnest struct {
@@ -323,7 +313,6 @@ func loopnestfor(f *Func) *loopnest {
 					l = &loop{header: bb, isInner: true}
 					loops = append(loops, l)
 					b2l[bb.ID] = l
-					l.checkContainsCall(bb)
 				}
 			} else if !visited[bb.ID] { // Found an irreducible loop
 				sawIrred = true
@@ -371,13 +360,71 @@ func loopnestfor(f *Func) *loopnest {
 
 		if innermost != nil {
 			b2l[b.ID] = innermost
-			innermost.checkContainsCall(b)
 			innermost.nBlocks++
 		}
 		visited[b.ID] = true
 	}
 
 	ln := &loopnest{f: f, b2l: b2l, po: po, sdom: sdom, loops: loops, hasIrreducible: sawIrred}
+
+	// Calculate containsUnavoidableCall for regalloc
+	dominatedByCall := make([]bool, f.NumBlocks())
+	for _, b := range po {
+		if checkContainsCall(b) {
+			dominatedByCall[b.ID] = true
+		}
+	}
+	// Run dfs to find path through the loop that avoids all calls.
+	// Such path either escapes loop or return back to header.
+	// It isn't enough to have exit not dominated by any call, for example:
+	// ... some loop
+	// call1   call2
+	//   \      /
+	//     exit
+	// ...
+	// exit is not dominated by any call, but we don't have call-free path to it.
+	for _, l := range loops {
+		// Header contains call.
+		if dominatedByCall[l.header.ID] {
+			l.containsUnavoidableCall = true
+			continue
+		}
+		callfreepath := false
+		tovisit := make([]*Block, 0, len(l.header.Succs))
+		// Push all non-loop non-exit successors of header onto toVisit.
+		for _, s := range l.header.Succs {
+			nb := s.Block()
+			// This corresponds to loop with zero iterations.
+			if !l.iterationEnd(nb, b2l) {
+				tovisit = append(tovisit, nb)
+			}
+		}
+		for len(tovisit) > 0 {
+			cur := tovisit[len(tovisit)-1]
+			tovisit = tovisit[:len(tovisit)-1]
+			if dominatedByCall[cur.ID] {
+				continue
+			}
+			// Record visited in dominatedByCall.
+			dominatedByCall[cur.ID] = true
+			for _, s := range cur.Succs {
+				nb := s.Block()
+				if l.iterationEnd(nb, b2l) {
+					callfreepath = true
+				}
+				if !dominatedByCall[nb.ID] {
+					tovisit = append(tovisit, nb)
+				}
+
+			}
+			if callfreepath {
+				break
+			}
+		}
+		if !callfreepath {
+			l.containsUnavoidableCall = true
+		}
+	}
 
 	// Curious about the loopiness? "-d=ssa/likelyadjust/stats"
 	if f.pass != nil && f.pass.stats > 0 && len(loops) > 0 {
@@ -391,7 +438,7 @@ func loopnestfor(f *Func) *loopnest {
 		for _, l := range loops {
 			x := len(l.exits)
 			cf := 0
-			if !l.containsCall {
+			if !l.containsUnavoidableCall {
 				cf = 1
 			}
 			inner := 0
@@ -401,7 +448,7 @@ func loopnestfor(f *Func) *loopnest {
 
 			f.LogStat("loopstats:",
 				l.depth, "depth", x, "exits",
-				inner, "is_inner", cf, "is_callfree", l.nBlocks, "n_blocks")
+				inner, "is_inner", cf, "always_calls", l.nBlocks, "n_blocks")
 		}
 	}
 
@@ -518,4 +565,11 @@ func (l *loop) setDepth(d int16) {
 	for _, c := range l.children {
 		c.setDepth(d + 1)
 	}
+}
+
+// iterationEnd checks if block b ends iteration of loop l.
+// Ending iteration means either escaping to outer loop/code or
+// going back to header
+func (l *loop) iterationEnd(b *Block, b2l []*loop) bool {
+	return b == l.header || b2l[b.ID] == nil || (b2l[b.ID] != l && b2l[b.ID].depth <= l.depth)
 }
