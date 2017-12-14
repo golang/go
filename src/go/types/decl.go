@@ -57,7 +57,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 	}
 
 	if trace {
-		check.trace(obj.Pos(), "-- declaring %s (path = %s)", obj.Name(), pathString(path))
+		check.trace(obj.Pos(), "-- checking %s (path = %s)", obj, pathString(path))
 		check.indent++
 		defer func() {
 			check.indent--
@@ -67,7 +67,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 
 	d := check.objMap[obj]
 	if d == nil {
-		check.dump("%s: %s should have been declared", obj.Pos(), obj.Name())
+		check.dump("%s: %s should have been declared", obj.Pos(), obj)
 		unreachable()
 	}
 
@@ -271,18 +271,22 @@ func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*
 
 func (check *Checker) addMethodDecls(obj *TypeName) {
 	// get associated methods
-	methods := check.methods[obj.name]
-	if len(methods) == 0 {
-		return // no methods
+	// (Checker.collectObjects only collects methods with non-blank names;
+	// Checker.resolveBaseTypeName ensures that obj is not an alias name
+	// if it has attached methods.)
+	methods := check.methods[obj]
+	if methods == nil {
+		return
 	}
-	delete(check.methods, obj.name)
+	delete(check.methods, obj)
+	assert(!obj.IsAlias())
 
 	// use an objset to check for name conflicts
 	var mset objset
 
 	// spec: "If the base type is a struct type, the non-blank method
 	// and field names must be distinct."
-	base, _ := obj.typ.(*Named) // nil if receiver base type is type alias
+	base, _ := obj.typ.(*Named) // shouldn't fail but be conservative
 	if base != nil {
 		if t, _ := base.underlying.(*Struct); t != nil {
 			for _, fld := range t.fields {
@@ -305,26 +309,24 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 	for _, m := range methods {
 		// spec: "For a base type, the non-blank names of methods bound
 		// to it must be unique."
-		if m.name != "_" {
-			if alt := mset.insert(m); alt != nil {
-				switch alt.(type) {
-				case *Var:
-					check.errorf(m.pos, "field and method with the same name %s", m.name)
-				case *Func:
-					check.errorf(m.pos, "method %s already declared for %s", m.name, obj)
-				default:
-					unreachable()
-				}
-				check.reportAltDecl(alt)
-				continue
+		assert(m.name != "_")
+		if alt := mset.insert(m); alt != nil {
+			switch alt.(type) {
+			case *Var:
+				check.errorf(m.pos, "field and method with the same name %s", m.name)
+			case *Func:
+				check.errorf(m.pos, "method %s already declared for %s", m.name, obj)
+			default:
+				unreachable()
 			}
+			check.reportAltDecl(alt)
+			continue
 		}
 
 		// type-check
 		check.objDecl(m, nil, nil)
 
-		// methods with blank _ names cannot be found - don't keep them
-		if base != nil && m.name != "_" {
+		if base != nil {
 			base.methods = append(base.methods, m)
 		}
 	}

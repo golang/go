@@ -85,7 +85,7 @@ type Checker struct {
 	unusedDotImports map[*Scope]map[*Package]token.Pos // positions of unused dot-imported packages for each file scope
 
 	firstErr   error                    // first error encountered
-	methods    map[string][]*Func       // maps package scope type names to associated non-blank, non-interface methods
+	methods    map[*TypeName][]*Func    // maps package scope type names to associated non-blank, non-interface methods
 	interfaces map[*TypeName]*ifaceInfo // maps interface type names to corresponding interface infos
 	untyped    map[ast.Expr]exprInfo    // map of expressions without final type
 	delayed    []func()                 // stack of delayed actions
@@ -124,15 +124,6 @@ func (check *Checker) addDeclDep(to Object) {
 		return // to is not a package-level object
 	}
 	from.addDep(to)
-}
-
-func (check *Checker) assocMethod(tname string, meth *Func) {
-	m := check.methods
-	if m == nil {
-		m = make(map[string][]*Func)
-		check.methods = m
-	}
-	m[tname] = append(m[tname], meth)
 }
 
 func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
