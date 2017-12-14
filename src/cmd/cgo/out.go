@@ -1652,9 +1652,7 @@ const builtinExportProlog = `
 #ifndef GO_CGO_EXPORT_PROLOGUE_H
 #define GO_CGO_EXPORT_PROLOGUE_H
 
-typedef ptrdiff_t intgo;
-
-typedef struct { const char *p; intgo n; } _GoString_;
+typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 
 #endif
 `
