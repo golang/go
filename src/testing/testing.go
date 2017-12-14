@@ -520,7 +520,8 @@ func (c *common) Failed() bool {
 }
 
 // FailNow marks the function as having failed and stops its execution
-// by calling runtime.Goexit.
+// by calling runtime.Goexit (which then runs all deferred calls in the
+// current goroutine).
 // Execution will continue at the next test or benchmark.
 // FailNow must be called from the goroutine running the
 // test or benchmark function, not from other goroutines
