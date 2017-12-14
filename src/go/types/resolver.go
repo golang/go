@@ -417,9 +417,9 @@ func (check *Checker) collectObjects() {
 					// receiver name. They will be type-checked later, with regular
 					// functions.
 					if list := d.Recv.List; len(list) > 0 {
-						typ := list[0].Type
+						typ := unparen(list[0].Type)
 						if ptr, _ := typ.(*ast.StarExpr); ptr != nil {
-							typ = ptr.X
+							typ = unparen(ptr.X)
 						}
 						if base, _ := typ.(*ast.Ident); base != nil && base.Name != "_" {
 							check.assocMethod(base.Name, obj)
