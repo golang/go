@@ -216,6 +216,7 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
 //sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+//sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
 
 /*
  * Unimplemented
