@@ -1846,7 +1846,7 @@ func TestErrorOnUndefined(t *testing.T) {
 
 	err := tmpl.Execute(nil, nil)
 	if err == nil {
-		t.Fatal("expected error")
+		t.Error("expected error")
 	}
 	if !strings.Contains(err.Error(), "incomplete") {
 		t.Errorf("expected error about incomplete template; got %s", err)
@@ -1866,10 +1866,10 @@ func TestIdempotentExecute(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		err = tmpl.ExecuteTemplate(got, "hello", nil)
 		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
+			t.Errorf("unexpected error: %s", err)
 		}
 		if got.String() != want {
-			t.Fatalf("after executing template \"hello\", got:\n\t%q\nwant:\n\t%q\n", got.String(), want)
+			t.Errorf("after executing template \"hello\", got:\n\t%q\nwant:\n\t%q\n", got.String(), want)
 		}
 		got.Reset()
 	}
@@ -1877,26 +1877,13 @@ func TestIdempotentExecute(t *testing.T) {
 	// "main" does not cause the output of "hello" to change.
 	err = tmpl.ExecuteTemplate(got, "main", nil)
 	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Errorf("unexpected error: %s", err)
 	}
 	// If the HTML escaper is added again to the action {{"Ladies & Gentlemen!"}},
 	// we would expected to see the ampersand overescaped to "&amp;amp;".
 	want = "<body>Hello, Ladies &amp; Gentlemen!</body>"
 	if got.String() != want {
 		t.Errorf("after executing template \"main\", got:\n\t%q\nwant:\n\t%q\n", got.String(), want)
-	}
-}
-
-// This covers issue #21844.
-func TestAddExistingTreeError(t *testing.T) {
-	tmpl := Must(New("foo").Parse(`<p>{{.}}</p>`))
-	tmpl, err := tmpl.AddParseTree("bar", tmpl.Tree)
-	if err == nil {
-		t.Fatalf("expected error after AddParseTree")
-	}
-	const want = `html/template: cannot add parse tree that template "foo" already references`
-	if got := err.Error(); got != want {
-		t.Errorf("got error:\n\t%q\nwant:\n\t%q\n", got, want)
 	}
 }
 
