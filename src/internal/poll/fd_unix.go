@@ -56,6 +56,7 @@ func (fd *FD) Init(net string, pollable bool) error {
 		fd.isFile = true
 	}
 	if !pollable {
+		fd.isBlocking = true
 		return nil
 	}
 	return fd.pd.init(fd)

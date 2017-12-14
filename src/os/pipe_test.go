@@ -10,6 +10,7 @@ package os_test
 import (
 	"fmt"
 	"internal/testenv"
+	"io"
 	"io/ioutil"
 	"os"
 	osexec "os/exec"
@@ -222,12 +223,28 @@ func TestReadNonblockingFd(t *testing.T) {
 	}
 }
 
-// Test that we don't let a blocking read prevent a close.
-func TestCloseWithBlockingRead(t *testing.T) {
+func TestCloseWithBlockingReadByNewFile(t *testing.T) {
+	var p [2]int
+	err := syscall.Pipe(p[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	// os.NewFile returns a blocking mode file.
+	testCloseWithBlockingRead(t, os.NewFile(uintptr(p[0]), "reader"), os.NewFile(uintptr(p[1]), "writer"))
+}
+
+func TestCloseWithBlockingReadByFd(t *testing.T) {
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Calling Fd will put the file into blocking mode.
+	_ = r.Fd()
+	testCloseWithBlockingRead(t, r, w)
+}
+
+// Test that we don't let a blocking read prevent a close.
+func testCloseWithBlockingRead(t *testing.T, r, w *os.File) {
 	defer r.Close()
 	defer w.Close()
 
@@ -248,17 +265,17 @@ func TestCloseWithBlockingRead(t *testing.T) {
 		close(c)
 	}(c1)
 
-	// Calling Fd will put the file into blocking mode.
-	_ = r.Fd()
-
 	wg.Add(1)
 	go func(c chan bool) {
 		defer wg.Done()
 		var b [1]byte
-		_, err = r.Read(b[:])
+		_, err := r.Read(b[:])
 		close(c)
 		if err == nil {
 			t.Error("I/O on closed pipe unexpectedly succeeded")
+		}
+		if err != io.EOF {
+			t.Errorf("got %v, expected io.EOF", err)
 		}
 	}(c2)
 
