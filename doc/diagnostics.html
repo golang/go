@@ -254,7 +254,8 @@ trace spans. You need to manually instrument your code to create, end, and annot
 <p><strong>How should I propagate trace headers in Go libraries?</strong></p>
 
 <p>
-You can propagate trace identifiers and tags in the <code>context.Context</code>.
+You can propagate trace identifiers and tags in the
+<a href="/pkg/context#Context"><code>context.Context</code></a>.
 There is no canonical trace key or common representation of trace headers
 in the industry yet. Each tracing provider is responsible for providing propagation
 utilities in their Go libraries.
@@ -267,7 +268,8 @@ runtime can be included in a trace?</strong>
 
 <p>
 The standard library and runtime are trying to expose several additional APIs
-to notify on low level internal events. For example, httptrace.ClientTrace
+to notify on low level internal events. For example,
+<a href="/pkg/net/http/httptrace#ClientTrace"><code>httptrace.ClientTrace</code></a>
 provides APIs to follow low-level events in the life cycle of an outgoing request.
 There is an ongoing effort to retrieve low-level runtime events from
 the runtime execution tracer and allow users to define and record their user events.
