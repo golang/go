@@ -938,7 +938,14 @@ func newstack() {
 		morebuf := thisg.m.morebuf
 		gp.syscallsp = morebuf.sp
 		gp.syscallpc = morebuf.pc
-		print("runtime: newstack sp=", hex(gp.sched.sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n",
+		pcname, pcoff := "(unknown)", uintptr(0)
+		f := findfunc(gp.sched.pc)
+		if f.valid() {
+			pcname = funcname(f)
+			pcoff = gp.sched.pc - f.entry
+		}
+		print("runtime: newstack at ", pcname, "+", hex(pcoff),
+			" sp=", hex(gp.sched.sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n",
 			"\tmorebuf={pc:", hex(morebuf.pc), " sp:", hex(morebuf.sp), " lr:", hex(morebuf.lr), "}\n",
 			"\tsched={pc:", hex(gp.sched.pc), " sp:", hex(gp.sched.sp), " lr:", hex(gp.sched.lr), " ctxt:", gp.sched.ctxt, "}\n")
 
