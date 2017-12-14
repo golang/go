@@ -1415,7 +1415,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			// For this to be worthwhile, the loop must have no calls in it.
 			top := b.Succs[0].b
 			loop := s.loopnest.b2l[top.ID]
-			if loop == nil || loop.header != top || loop.containsCall {
+			if loop == nil || loop.header != top || loop.containsUnavoidableCall {
 				goto badloop
 			}
 
