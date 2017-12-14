@@ -30,6 +30,8 @@ done
 
 [ -z "$unformatted" ] && exit 0
 
+rm -rf $tempdir
+
 # Some files are not gofmt'd. Print message and fail.
 
 echo >&2 "Go files must be formatted with gofmt. Please run:"
