@@ -87,6 +87,10 @@ var debugger = "gdb" // For naming files, etc.
 // go test debug_test.go -args -u -d
 
 func TestNexting(t *testing.T) {
+	gogcflags := os.Getenv("GO_GCFLAGS")
+	// optimizedLibs usually means "not running in a noopt test builder".
+	optimizedLibs := (!strings.Contains(gogcflags, "-N") && !strings.Contains(gogcflags, "-l"))
+
 	skipReasons := "" // Many possible skip reasons, list all that apply
 	if testing.Short() {
 		skipReasons = "not run in short mode; "
@@ -100,7 +104,7 @@ func TestNexting(t *testing.T) {
 		// Various architectures tend to differ slightly sometimes, and keeping them
 		// all in sync is a pain for people who don't have them all at hand,
 		// so limit testing to amd64 (for now)
-		skipReasons += "not run unless linux-amd64 or -d or -f; "
+		skipReasons += "not run unless linux-amd64 or -d (delve) or -f (force); "
 	}
 
 	if *useDelve {
@@ -115,6 +119,7 @@ func TestNexting(t *testing.T) {
 			if runtime.GOOS != "darwin" {
 				skipReasons += "not run because gdb not on path; "
 			} else {
+				// On Darwin, MacPorts installs gdb as "ggdb".
 				_, err = exec.LookPath("ggdb")
 				if err != nil {
 					skipReasons += "not run because gdb (and also ggdb) not on path; "
@@ -129,6 +134,12 @@ func TestNexting(t *testing.T) {
 		t.Skip(skipReasons[:len(skipReasons)-2])
 	}
 
+	optFlags := "-dwarflocationlists"
+	if !*useDelve && !*inlines {
+		// For gdb (default), disable inlining so that a compiler test does not depend on library code.
+		optFlags += " -l"
+	}
+
 	t.Run("dbg-"+debugger, func(t *testing.T) {
 		testNexting(t, "hist", "dbg", "-N -l")
 	})
@@ -138,18 +149,14 @@ func TestNexting(t *testing.T) {
 	t.Run("dbg-22558-"+debugger, func(t *testing.T) {
 		testNexting(t, "i22558", "dbg-22558", "-N -l")
 	})
+
 	t.Run("opt-"+debugger, func(t *testing.T) {
-		// If this is test is run with a runtime compiled with -N -l, it is very likely to fail.
+		// If optimized test is run with unoptimized libraries (compiled with -N -l), it is very likely to fail.
 		// This occurs in the noopt builders (for example).
-		if gogcflags := os.Getenv("GO_GCFLAGS"); *force || (!strings.Contains(gogcflags, "-N") && !strings.Contains(gogcflags, "-l")) {
-			if *useDelve || *inlines {
-				testNexting(t, "hist", "opt", "-dwarflocationlists")
-			} else {
-				// For gdb, disable inlining so that a compiler test does not depend on library code.
-				testNexting(t, "hist", "opt", "-l -dwarflocationlists")
-			}
+		if *force || optimizedLibs {
+			testNexting(t, "hist", "opt", optFlags)
 		} else {
-			t.Skip("skipping for unoptimized runtime")
+			t.Skip("skipping for unoptimized stdlib/runtime")
 		}
 	})
 }
@@ -183,16 +190,17 @@ func testNexting(t *testing.T, base, tag, gcflags string, moreArgs ...string) {
 
 	runGo(t, "", runGoArgs...)
 
-	var h1 *nextHist
 	nextlog := logbase + "-" + debugger + ".nexts"
 	tmplog := tmpbase + "-" + debugger + ".nexts"
+	var dbg dbgr
 	if *useDelve {
-		h1 = dlvTest(tag, exe, 1000)
+		dbg = newDelve(tag, exe)
 	} else {
-		h1 = gdbTest(tag, exe, 1000)
+		dbg = newGdb(tag, exe)
 	}
+	h1 := runDbgr(dbg, 1000)
 	if *dryrun {
-		fmt.Printf("# Tag for above is %s\n", tag)
+		fmt.Printf("# Tag for above is %s\n", dbg.tag())
 		return
 	}
 	if *update {
@@ -219,27 +227,10 @@ type dbgr interface {
 	stepnext(s string) bool // step or next, possible with parameter, gets line etc.  returns true for success, false for unsure response
 	quit()
 	hist() *nextHist
+	tag() string
 }
 
-// gdbTest runs the debugger test with gdb and returns the history
-func gdbTest(tag, executable string, maxNext int, args ...string) *nextHist {
-	dbg := newGdb(tag, executable, args...)
-	dbg.start()
-	if *dryrun {
-		return nil
-	}
-	for i := 0; i < maxNext; i++ {
-		if !dbg.stepnext("n") {
-			break
-		}
-	}
-	h := dbg.hist()
-	return h
-}
-
-// dlvTest runs the debugger test with dlv and returns the history
-func dlvTest(tag, executable string, maxNext int, args ...string) *nextHist {
-	dbg := newDelve(tag, executable, args...)
+func runDbgr(dbg dbgr, maxNext int) *nextHist {
 	dbg.start()
 	if *dryrun {
 		return nil
@@ -445,8 +436,8 @@ func canonFileName(f string) string {
 /* Delve */
 
 type delveState struct {
-	cmd *exec.Cmd
-	tag string
+	cmd  *exec.Cmd
+	tagg string
 	*ioState
 	atLineRe         *regexp.Regexp // "\n =>"
 	funcFileLinePCre *regexp.Regexp // "^> ([^ ]+) ([^:]+):([0-9]+) .*[(]PC: (0x[a-z0-9]+)"
@@ -462,13 +453,17 @@ func newDelve(tag, executable string, args ...string) dbgr {
 		cmd.Args = append(cmd.Args, "--")
 		cmd.Args = append(cmd.Args, args...)
 	}
-	s := &delveState{tag: tag, cmd: cmd}
+	s := &delveState{tagg: tag, cmd: cmd}
 	// HAHA Delve has control characters embedded to change the color of the => and the line number
 	// that would be '(\\x1b\\[[0-9;]+m)?' OR TERM=dumb
 	s.atLineRe = regexp.MustCompile("\n=>[[:space:]]+[0-9]+:(.*)")
 	s.funcFileLinePCre = regexp.MustCompile("> ([^ ]+) ([^:]+):([0-9]+) .*[(]PC: (0x[a-z0-9]+)[)]\n")
 	s.ioState = newIoState(s.cmd)
 	return s
+}
+
+func (s *delveState) tag() string {
+	return "dlv-" + s.tagg
 }
 
 func (s *delveState) stepnext(ss string) bool {
@@ -526,7 +521,7 @@ func (s *delveState) quit() {
 
 type gdbState struct {
 	cmd  *exec.Cmd
-	tag  string
+	tagg string
 	args []string
 	*ioState
 	atLineRe         *regexp.Regexp
@@ -540,7 +535,7 @@ func newGdb(tag, executable string, args ...string) dbgr {
 	// Turn off shell, necessary for Darwin apparently
 	cmd := exec.Command(gdb, "-ex", "set startup-with-shell off", executable)
 	cmd.Env = replaceEnv(cmd.Env, "TERM", "dumb")
-	s := &gdbState{tag: tag, cmd: cmd, args: args}
+	s := &gdbState{tagg: tag, cmd: cmd, args: args}
 	s.atLineRe = regexp.MustCompile("(^|\n)([0-9]+)(.*)")
 	s.funcFileLinePCre = regexp.MustCompile(
 		"([^ ]+) [(][^)]*[)][ \\t\\n]+at ([^:]+):([0-9]+)")
@@ -549,6 +544,10 @@ func newGdb(tag, executable string, args ...string) dbgr {
 	// Thread 2 hit Breakpoint 1, main.main () at /Users/drchase/GoogleDrive/work/debug/hist.go:18
 	s.ioState = newIoState(s.cmd)
 	return s
+}
+
+func (s *gdbState) tag() string {
+	return "gdb-" + s.tagg
 }
 
 func (s *gdbState) start() {
@@ -614,7 +613,7 @@ func (s *gdbState) stepnext(ss string) bool {
 		return true
 	}
 	// Look for //gdb-<tag>=(v1,v2,v3) and print v1, v2, v3
-	vars := varsToPrint(excerpt, "//gdb-"+s.tag+"=(")
+	vars := varsToPrint(excerpt, "//"+s.tag()+"=(")
 	for _, v := range vars {
 		slashIndex := strings.Index(v, "/")
 		substitutions := ""
