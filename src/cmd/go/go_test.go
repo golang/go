@@ -5343,11 +5343,13 @@ func TestGcflagsPatterns(t *testing.T) {
 	tg.grepStderr("compile.* -N .*-p reflect", "did not build reflect with -N flag")
 	tg.grepStderrNot("compile.* -N .*-p fmt", "incorrectly built fmt with -N flag")
 
-	tg.run("test", "-c", "-n", "-gcflags=-N", "strings")
-	tg.grepStderr("compile.* -N .*compare_test.go", "did not build strings_test package with -N flag")
+	tg.run("test", "-c", "-n", "-gcflags=-N", "-ldflags=-X=x.y=z", "strings")
+	tg.grepStderr("compile.* -N .*compare_test.go", "did not compile strings_test package with -N flag")
+	tg.grepStderr("link.* -X=x.y=z", "did not link strings.test binary with -X flag")
 
-	tg.run("test", "-c", "-n", "-gcflags=strings=-N", "strings")
-	tg.grepStderr("compile.* -N .*compare_test.go", "did not build strings_test package with -N flag")
+	tg.run("test", "-c", "-n", "-gcflags=strings=-N", "-ldflags=strings=-X=x.y=z", "strings")
+	tg.grepStderr("compile.* -N .*compare_test.go", "did not compile strings_test package with -N flag")
+	tg.grepStderr("link.* -X=x.y=z", "did not link strings.test binary with -X flag")
 }
 
 func TestGoTestMinusN(t *testing.T) {
