@@ -63,8 +63,9 @@ func (TestDeps) ImportPath() string {
 
 // testLog implements testlog.Interface, logging actions by package os.
 type testLog struct {
-	mu sync.Mutex
-	w  *bufio.Writer
+	mu  sync.Mutex
+	w   *bufio.Writer
+	set bool
 }
 
 func (l *testLog) Getenv(key string) {
@@ -101,14 +102,21 @@ func (l *testLog) add(op, name string) {
 }
 
 var log testLog
+var didSetLogger bool
 
 func (TestDeps) StartTestLog(w io.Writer) {
 	log.mu.Lock()
 	log.w = bufio.NewWriter(w)
-	log.w.WriteString("# test log\n") // known to cmd/go/internal/test/test.go
+	if !log.set {
+		// Tests that define TestMain and then run m.Run multiple times
+		// will call StartTestLog/StopTestLog multiple times.
+		// Checking log.set avoids calling testlog.SetLogger multiple times
+		// (which will panic) and also avoids writing the header multiple times.
+		log.set = true
+		testlog.SetLogger(&log)
+		log.w.WriteString("# test log\n") // known to cmd/go/internal/test/test.go
+	}
 	log.mu.Unlock()
-
-	testlog.SetLogger(&log)
 }
 
 func (TestDeps) StopTestLog() error {
