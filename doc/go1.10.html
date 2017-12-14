@@ -296,8 +296,8 @@ zero-initialized with the constant <code>0</code> instead of the
 constant <code>nil</code>. Go 1.10 provides <code>gofix</code>
 modules to help with that rewrite:
 <pre>
-	go tool fix -r cftype <pkg>
-	go tool fix -r jni <pkg>
+go tool fix -r cftype &lt;pkg&gt;
+go tool fix -r jni &lt;pkg&gt;
 </pre>
 </p>
 
@@ -1318,7 +1318,6 @@ This may affect reflection-based unmarshalers
 that could previously unmarshal into such fields
 but no longer can.
 For example, see the <a href="#encoding/json"><code>encoding/json</code> notes</a>.
-</p>
 </p>
 </dl>
 
