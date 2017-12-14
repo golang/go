@@ -673,6 +673,7 @@ var knownFormats = map[string]string{
 	"int %-12d":                                       "",
 	"int %-6d":                                        "",
 	"int %-8o":                                        "",
+	"int %02d":                                        "",
 	"int %6d":                                         "",
 	"int %c":                                          "",
 	"int %d":                                          "",
