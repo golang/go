@@ -1918,3 +1918,31 @@ func TestOrphanedTemplate(t *testing.T) {
 		t.Fatalf("t2 rendered %q, want %q", got, want)
 	}
 }
+
+// Covers issue 21844.
+func TestAliasedParseTreeDoesNotOverescape(t *testing.T) {
+	const (
+		tmplText = `{{.}}`
+		data     = `<baz>`
+		want     = `&lt;baz&gt;`
+	)
+	// Templates "foo" and "bar" both alias the same underlying parse tree.
+	tpl := Must(New("foo").Parse(tmplText))
+	if _, err := tpl.AddParseTree("bar", tpl.Tree); err != nil {
+		t.Fatalf("AddParseTree error: %v", err)
+	}
+	var b1, b2 bytes.Buffer
+	if err := tpl.ExecuteTemplate(&b1, "foo", data); err != nil {
+		t.Fatalf(`ExecuteTemplate failed for "foo": %v`, err)
+	}
+	if err := tpl.ExecuteTemplate(&b2, "bar", data); err != nil {
+		t.Fatalf(`ExecuteTemplate failed for "foo": %v`, err)
+	}
+	got1, got2 := b1.String(), b2.String()
+	if got1 != want {
+		t.Fatalf(`Template "foo" rendered %q, want %q`, got1, want)
+	}
+	if got1 != got2 {
+		t.Fatalf(`Template "foo" and "bar" rendered %q and %q respectively, expected equal values`, got1, got2)
+	}
+}
