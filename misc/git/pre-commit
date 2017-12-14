@@ -13,7 +13,21 @@
 gofiles=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$')
 [ -z "$gofiles" ] && exit 0
 
-unformatted=$(gofmt -l $gofiles)
+tempdir=$(mktemp -d "${TMPDIR}go_precommit.XXXXX")
+unformatted=""
+
+for file in $gofiles; do
+    tempname="$tempdir/$file"
+    relative_dir=$(dirname "$file")
+
+    mkdir -p "$tempdir/$relative_dir"
+    git show ":$file" > "$tempname"
+
+    output=$(gofmt -l "$tempname")
+
+    [ -n "$output" ] && unformatted="$unformatted $file"
+done
+
 [ -z "$unformatted" ] && exit 0
 
 # Some files are not gofmt'd. Print message and fail.
