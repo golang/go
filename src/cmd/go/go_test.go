@@ -5275,6 +5275,10 @@ func TestTestVet(t *testing.T) {
 
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.run("test", "vetcycle") // must not fail; #22890
+
+	tg.runFail("test", "vetfail/...")
+	tg.grepStderr(`Printf format %d`, "did not diagnose bad Printf")
+	tg.grepStdout(`ok\s+vetfail/p2`, "did not run vetfail/p2")
 }
 
 func TestInstallDeps(t *testing.T) {
