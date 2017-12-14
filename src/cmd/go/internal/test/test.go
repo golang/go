@@ -929,6 +929,11 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		Internal: load.PackageInternal{
 			Build:     &build.Package{Name: "main"},
 			OmitDebug: !testC && !testNeedBinary,
+
+			Asmflags:   p.Internal.Asmflags,
+			Gcflags:    p.Internal.Gcflags,
+			Ldflags:    p.Internal.Ldflags,
+			Gccgoflags: p.Internal.Gccgoflags,
 		},
 	}
 
