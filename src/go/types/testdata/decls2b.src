@@ -63,3 +63,13 @@ func ((*T7)) m3() {}
 func (x *(T7),) m4() {}
 func (x (*(T7)),) m5() {}
 func (x ((*((T7)))),) m6() {}
+
+// Check that methods with parenthesized receiver are actually present (issue #23130).
+var (
+	_ = T7.m1
+	_ = T7.m2
+	_ = (*T7).m3
+	_ = (*T7).m4
+	_ = (*T7).m5
+	_ = (*T7).m6
+)
