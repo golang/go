@@ -123,7 +123,7 @@ var dumpFileSeq int
 // output.
 func (f *Func) dumpFile(phaseName string) {
 	dumpFileSeq++
-	fname := fmt.Sprintf("%s__%s_%d.dump", phaseName, f.Name, dumpFileSeq)
+	fname := fmt.Sprintf("%s_%02d__%s.dump", f.Name, dumpFileSeq, phaseName)
 	fname = strings.Replace(fname, " ", "_", -1)
 	fname = strings.Replace(fname, "/", "_", -1)
 	fname = strings.Replace(fname, ":", "_", -1)
