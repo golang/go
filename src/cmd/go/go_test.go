@@ -5423,6 +5423,9 @@ func TestGoTestJSON(t *testing.T) {
 	tg.grepStdout(`"Action":"output","Package":"skipper","Test":"Test","Output":"--- SKIP:`, "did not see SKIP output")
 	tg.grepStdout(`"Action":"skip","Package":"skipper","Test":"Test"`, "did not see skip result for Test")
 
+	tg.run("test", "-json", "-short", "-v", "errors")
+	tg.grepStdout(`"Action":"output","Package":"errors","Output":".*\(cached\)`, "did not see no cached output")
+
 	tg.run("test", "-json", "-bench=NONE", "-short", "-v", "errors")
 	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
 	tg.grepStdout(`"Action":"run"`, "did not see JSON output")

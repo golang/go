@@ -1249,6 +1249,52 @@ func (lockedStdout) Write(b []byte) (int, error) {
 
 // builderRunTest is the action for running a test binary.
 func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+	if a.Failed {
+		// We were unable to build the binary.
+		a.Failed = false
+		a.TestOutput = new(bytes.Buffer)
+		fmt.Fprintf(a.TestOutput, "FAIL\t%s [build failed]\n", a.Package.ImportPath)
+		base.SetExitStatus(1)
+		return nil
+	}
+
+	var stdout io.Writer = os.Stdout
+	if testJSON {
+		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
+		defer json.Close()
+		stdout = json
+	}
+
+	var buf bytes.Buffer
+	if len(pkgArgs) == 0 || testBench {
+		// Stream test output (no buffering) when no package has
+		// been given on the command line (implicit current directory)
+		// or when benchmarking.
+		// No change to stdout.
+	} else {
+		// If we're only running a single package under test or if parallelism is
+		// set to 1, and if we're displaying all output (testShowPass), we can
+		// hurry the output along, echoing it as soon as it comes in.
+		// We still have to copy to &buf for caching the result. This special
+		// case was introduced in Go 1.5 and is intentionally undocumented:
+		// the exact details of output buffering are up to the go command and
+		// subject to change. It would be nice to remove this special case
+		// entirely, but it is surely very helpful to see progress being made
+		// when tests are run on slow single-CPU ARM systems.
+		//
+		// If we're showing JSON output, then display output as soon as
+		// possible even when multiple tests are being run: the JSON output
+		// events are attributed to specific package tests, so interlacing them
+		// is OK.
+		if testShowPass && (len(pkgs) == 1 || cfg.BuildP == 1) || testJSON {
+			// Write both to stdout and buf, for possible saving
+			// to cache, and for looking for the "no tests to run" message.
+			stdout = io.MultiWriter(stdout, &buf)
+		} else {
+			stdout = &buf
+		}
+	}
+
 	if c.buf == nil {
 		// We did not find a cached result using the link step action ID,
 		// so we ran the link step. Try again now with the link output
@@ -1262,16 +1308,11 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 		c.tryCacheWithID(b, a, a.Deps[0].BuildContentID())
 	}
 	if c.buf != nil {
+		if stdout != &buf {
+			stdout.Write(c.buf.Bytes())
+			c.buf.Reset()
+		}
 		a.TestOutput = c.buf
-		return nil
-	}
-
-	if a.Failed {
-		// We were unable to build the binary.
-		a.Failed = false
-		a.TestOutput = new(bytes.Buffer)
-		fmt.Fprintf(a.TestOutput, "FAIL\t%s [build failed]\n", a.Package.ImportPath)
-		base.SetExitStatus(1)
 		return nil
 	}
 
@@ -1301,42 +1342,8 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = a.Package.Dir
 	cmd.Env = base.EnvForDir(cmd.Dir, cfg.OrigEnv)
-	var buf bytes.Buffer
-	var stdout io.Writer = os.Stdout
-	if testJSON {
-		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
-		defer json.Close()
-		stdout = json
-	}
-	if len(pkgArgs) == 0 || testBench {
-		// Stream test output (no buffering) when no package has
-		// been given on the command line (implicit current directory)
-		// or when benchmarking.
-		cmd.Stdout = stdout
-	} else {
-		// If we're only running a single package under test or if parallelism is
-		// set to 1, and if we're displaying all output (testShowPass), we can
-		// hurry the output along, echoing it as soon as it comes in.
-		// We still have to copy to &buf for caching the result. This special
-		// case was introduced in Go 1.5 and is intentionally undocumented:
-		// the exact details of output buffering are up to the go command and
-		// subject to change. It would be nice to remove this special case
-		// entirely, but it is surely very helpful to see progress being made
-		// when tests are run on slow single-CPU ARM systems.
-		//
-		// If we're showing JSON output, then display output as soon as
-		// possible even when multiple tests are being run: the JSON output
-		// events are attributed to specific package tests, so interlacing them
-		// is OK.
-		if testShowPass && (len(pkgs) == 1 || cfg.BuildP == 1) || testJSON {
-			// Write both to stdout and buf, for possible saving
-			// to cache, and for looking for the "no tests to run" message.
-			cmd.Stdout = io.MultiWriter(stdout, &buf)
-		} else {
-			cmd.Stdout = &buf
-		}
-	}
-	cmd.Stderr = cmd.Stdout
+	cmd.Stdout = stdout
+	cmd.Stderr = stdout
 
 	// If there are any local SWIG dependencies, we want to load
 	// the shared library from the build directory.
@@ -1401,7 +1408,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 
 	if err == nil {
 		norun := ""
-		if !testShowPass {
+		if !testShowPass && !testJSON {
 			buf.Reset()
 		}
 		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
@@ -1436,6 +1443,9 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 	if len(pkgArgs) == 0 {
 		// Caching does not apply to "go test",
 		// only to "go test foo" (including "go test .").
+		if cache.DebugTest {
+			fmt.Fprintf(os.Stderr, "testcache: caching disabled in local directory mode\n")
+		}
 		c.disableCache = true
 		return false
 	}
@@ -1444,6 +1454,9 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 	for _, arg := range testArgs {
 		i := strings.Index(arg, "=")
 		if i < 0 || !strings.HasPrefix(arg, "-test.") {
+			if cache.DebugTest {
+				fmt.Fprintf(os.Stderr, "testcache: caching disabled for test argument: %s\n", arg)
+			}
 			c.disableCache = true
 			return false
 		}
@@ -1465,12 +1478,18 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 
 		default:
 			// nothing else is cacheable
+			if cache.DebugTest {
+				fmt.Fprintf(os.Stderr, "testcache: caching disabled for test argument: %s\n", arg)
+			}
 			c.disableCache = true
 			return false
 		}
 	}
 
 	if cache.Default() == nil {
+		if cache.DebugTest {
+			fmt.Fprintf(os.Stderr, "testcache: GOCACHE=off\n")
+		}
 		c.disableCache = true
 		return false
 	}
@@ -1712,6 +1731,10 @@ func testAndInputKey(testID, testInputsID cache.ActionID) cache.ActionID {
 }
 
 func (c *runCache) saveOutput(a *work.Action) {
+	if c.id1 == (cache.ActionID{}) && c.id2 == (cache.ActionID{}) {
+		return
+	}
+
 	// See comment about two-level lookup in tryCacheWithID above.
 	testlog, err := ioutil.ReadFile(a.Objdir + "testlog.txt")
 	if err != nil || !bytes.HasPrefix(testlog, testlogMagic) || testlog[len(testlog)-1] != '\n' {
