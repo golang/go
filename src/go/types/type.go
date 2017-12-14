@@ -418,7 +418,6 @@ func (t *Named) NumMethods() int { return len(t.methods) }
 func (t *Named) Method(i int) *Func { return t.methods[i] }
 
 // SetUnderlying sets the underlying type and marks t as complete.
-// TODO(gri) determine if there's a better solution rather than providing this function
 func (t *Named) SetUnderlying(underlying Type) {
 	if underlying == nil {
 		panic("types.Named.SetUnderlying: underlying type must not be nil")
@@ -430,7 +429,6 @@ func (t *Named) SetUnderlying(underlying Type) {
 }
 
 // AddMethod adds method m unless it is already in the method list.
-// TODO(gri) find a better solution instead of providing this function
 func (t *Named) AddMethod(m *Func) {
 	if i, _ := lookupMethod(t.methods, m.pkg, m.name); i < 0 {
 		t.methods = append(t.methods, m)
