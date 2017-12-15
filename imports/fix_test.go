@@ -5,6 +5,7 @@
 package imports
 
 import (
+	"bufio"
 	"bytes"
 	"flag"
 	"go/build"
@@ -1956,4 +1957,96 @@ var _ = &bytes.Buffer{}
 			t.Errorf("Process = got %q; want %q", got, want)
 		}
 	})
+}
+
+// A happy path test for Process
+func TestProcess(t *testing.T) {
+	in := `package testimports
+
+	var s = fmt.Sprintf("%s", "value")
+`
+	out, err := Process("foo", []byte(in), nil)
+
+	if err != nil {
+		t.Errorf("Process returned error.\n got:\n%v\nwant:\nnil", err)
+	}
+
+	want := `package testimports
+
+import "fmt"
+
+var s = fmt.Sprintf("%s", "value")
+`
+	if got := string(out); got != want {
+		t.Errorf("Process returned unexpected result.\ngot:\n%v\nwant:\n%v", got, want)
+	}
+}
+
+// Ensures a token as large as 500000 bytes can be handled
+// https://golang.org/issues/18201
+func TestProcessLargeToken(t *testing.T) {
+	largeString := strings.Repeat("x", 500000)
+
+	in := `package testimports
+
+import (
+	"fmt"
+	"mydomain.mystuff/mypkg"
+)
+
+const s = fmt.Sprintf("%s", "` + largeString + `")
+const x = mypkg.Sprintf("%s", "my package")
+
+// end
+`
+
+	out, err := Process("foo", []byte(in), nil)
+
+	if err != nil {
+		t.Errorf("Process returned error.\n got:\n%v\nwant:\nnil", err)
+	}
+
+	want := `package testimports
+
+import (
+	"fmt"
+
+	"mydomain.mystuff/mypkg"
+)
+
+const s = fmt.Sprintf("%s", "` + largeString + `")
+const x = mypkg.Sprintf("%s", "my package")
+
+// end
+`
+
+	if got := string(out); got != want {
+		t.Errorf("Process returned unexpected result.\ngot:\n%v\nwant:\n%v", got, want)
+	}
+}
+
+// Ensures a token that is larger that
+// https://golang.org/issues/18201
+func TestProcessTokenTooLarge(t *testing.T) {
+	const largeSize = maxScanTokenSize + 1
+	largeString := strings.Repeat("x", largeSize)
+
+	in := `package testimports
+
+import (
+	"fmt"
+	"mydomain.mystuff/mypkg"
+)
+
+const s = fmt.Sprintf("%s", "` + largeString + `")
+const x = mypkg.Sprintf("%s", "my package")
+
+// end
+`
+
+	_, err := Process("foo", []byte(in), nil)
+
+	if err != bufio.ErrTooLong {
+		t.Errorf("Process did not returned expected error.\n got:\n%v\nwant:\n%v", err, bufio.ErrTooLong)
+	}
 }
