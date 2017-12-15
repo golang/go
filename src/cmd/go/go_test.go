@@ -5590,3 +5590,24 @@ func init() {}
 	tg.run("build", "-o", tg.path("a.exe"), "a")
 	tg.run("test", "a")
 }
+
+// Issue 23150.
+func TestCpuprofileTwice(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("prof/src/x/x_test.go", `
+		package x_test
+		import (
+			"testing"
+			"time"
+		)
+		func TestSleep(t *testing.T) { time.Sleep(10 * time.Millisecond) }`)
+	tg.setenv("GOPATH", tg.path("prof"))
+	bin := tg.path("x.test")
+	out := tg.path("cpu.out")
+	tg.run("test", "-o="+bin, "-cpuprofile="+out, "x")
+	tg.must(os.Remove(out))
+	tg.run("test", "-o="+bin, "-cpuprofile="+out, "x")
+	tg.mustExist(out)
+}
