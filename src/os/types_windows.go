@@ -48,7 +48,7 @@ func (fs *fileStat) Mode() (m FileMode) {
 	case syscall.FILE_TYPE_PIPE:
 		m |= ModeNamedPipe
 	case syscall.FILE_TYPE_CHAR:
-		m |= ModeCharDevice
+		m |= ModeDevice | ModeCharDevice
 	}
 	return m
 }
