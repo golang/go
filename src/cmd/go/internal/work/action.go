@@ -98,6 +98,10 @@ func (a *Action) BuildContentID() string { return contentID(a.buildID) }
 // BuildID returns a's build ID.
 func (a *Action) BuildID() string { return a.buildID }
 
+// BuiltTarget returns the actual file that was built. This differs
+// from Target when the result was cached.
+func (a *Action) BuiltTarget() string { return a.built }
+
 // An actionQueue is a priority queue of actions.
 type actionQueue []*Action
 
