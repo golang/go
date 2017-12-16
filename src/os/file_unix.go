@@ -155,10 +155,10 @@ const DevNull = "/dev/null"
 
 // openFileNolog is the Unix implementation of OpenFile.
 func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
-	chmod := false
+	setSticky := false
 	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
 		if _, err := Stat(name); IsNotExist(err) {
-			chmod = true
+			setSticky = true
 		}
 	}
 
@@ -181,8 +181,8 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	}
 
 	// open(2) itself won't handle the sticky bit on *BSD and Solaris
-	if chmod {
-		Chmod(name, perm)
+	if setSticky {
+		setStickyBit(name)
 	}
 
 	// There's a race here with fork/exec, which we are
