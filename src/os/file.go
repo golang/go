@@ -221,10 +221,19 @@ func Mkdir(name string, perm FileMode) error {
 
 	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
 	if !supportsCreateWithStickyBit && perm&ModeSticky != 0 {
-		Chmod(name, perm)
+		setStickyBit(name)
 	}
 
 	return nil
+}
+
+// setStickyBit adds ModeSticky to the permision bits of path, non atomic.
+func setStickyBit(name string) error {
+	fi, err := Stat(name)
+	if err != nil {
+		return err
+	}
+	return Chmod(name, fi.Mode()|ModeSticky)
 }
 
 // Chdir changes the current working directory to the named directory.

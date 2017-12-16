@@ -204,3 +204,23 @@ func TestReaddirRemoveRace(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+// Issue 23120: respect umask when doing Mkdir with the sticky bit
+func TestMkdirStickyUmask(t *testing.T) {
+	const umask = 0077
+	dir := newDir("TestMkdirStickyUmask", t)
+	defer RemoveAll(dir)
+	oldUmask := syscall.Umask(umask)
+	defer syscall.Umask(oldUmask)
+	p := filepath.Join(dir, "dir1")
+	if err := Mkdir(p, ModeSticky|0755); err != nil {
+		t.Fatal(err)
+	}
+	fi, err := Stat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mode := fi.Mode(); (mode&umask) != 0 || (mode&^ModePerm) != (ModeDir|ModeSticky) {
+		t.Errorf("unexpected mode %s", mode)
+	}
+}
