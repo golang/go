@@ -406,8 +406,9 @@ type Config struct {
 	//
 	// If normal verification fails then the handshake will abort before
 	// considering this callback. If normal verification is disabled by
-	// setting InsecureSkipVerify then this callback will be considered but
-	// the verifiedChains argument will always be nil.
+	// setting InsecureSkipVerify, or (for a server) when ClientAuth is
+	// RequestClientCert or RequireAnyClientCert, then this callback will
+	// be considered but the verifiedChains argument will always be nil.
 	VerifyPeerCertificate func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error
 
 	// RootCAs defines the set of root certificate authorities
