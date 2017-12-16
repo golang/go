@@ -60,14 +60,15 @@ func internalFunc(a int) bool
 // Comment about exported type.
 type ExportedType struct {
 	// Comment before exported field.
-	ExportedField         int // Comment on line with exported field.
-	unexportedField       int // Comment on line with unexported field.
-	ExportedEmbeddedType      // Comment on line with exported embedded field.
-	*ExportedEmbeddedType     // Comment on line with exported embedded *field.
-	unexportedType            // Comment on line with unexported embedded field.
-	*unexportedType           // Comment on line with unexported embedded *field.
-	io.Reader                 // Comment on line with embedded Reader.
-	error                     // Comment on line with embedded error.
+	ExportedField                   int // Comment on line with exported field.
+	unexportedField                 int // Comment on line with unexported field.
+	ExportedEmbeddedType                // Comment on line with exported embedded field.
+	*ExportedEmbeddedType               // Comment on line with exported embedded *field.
+	*qualified.ExportedEmbeddedType     // Comment on line with exported embedded *selector.field.
+	unexportedType                      // Comment on line with unexported embedded field.
+	*unexportedType                     // Comment on line with unexported embedded *field.
+	io.Reader                           // Comment on line with embedded Reader.
+	error                               // Comment on line with embedded error.
 }
 
 // Comment about exported method.

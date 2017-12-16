@@ -702,9 +702,16 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
 	for _, field := range fields.List {
 		names := field.Names
 		if len(names) == 0 {
-			// Embedded type. Use the name of the type. It must be of type ident or *ident.
+			// Embedded type. Use the name of the type. It must be of the form ident or
+			// pkg.ident (for structs and interfaces), or *ident or *pkg.ident (structs only).
 			// Nothing else is allowed.
-			switch ident := field.Type.(type) {
+			ty := field.Type
+			if se, ok := field.Type.(*ast.StarExpr); !isInterface && ok {
+				// The form *ident or *pkg.ident is only valid on
+				// embedded types in structs.
+				ty = se.X
+			}
+			switch ident := ty.(type) {
 			case *ast.Ident:
 				if isInterface && ident.Name == "error" && ident.Obj == nil {
 					// For documentation purposes, we consider the builtin error
@@ -714,12 +721,6 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
 					continue
 				}
 				names = []*ast.Ident{ident}
-			case *ast.StarExpr:
-				// Must have the form *identifier.
-				// This is only valid on embedded types in structs.
-				if ident, ok := ident.X.(*ast.Ident); ok && !isInterface {
-					names = []*ast.Ident{ident}
-				}
 			case *ast.SelectorExpr:
 				// An embedded type may refer to a type in another package.
 				names = []*ast.Ident{ident.Sel}
