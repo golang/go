@@ -330,6 +330,10 @@ var execTests = []execTest{
 	{"empty with struct", "{{.Empty4}}", "{UinEmpty}", tVal, true},
 	{"empty with struct, field", "{{.Empty4.V}}", "UinEmpty", tVal, true},
 
+	// Edge cases with <no value> with an interface value
+	{"field on interface", "{{.foo}}", "<no value>", nil, true},
+	{"field on parenthesized interface", "{{(.).foo}}", "<no value>", nil, true},
+
 	// Method calls.
 	{".Method0", "-{{.Method0}}-", "-M0-", tVal, true},
 	{".Method1(1234)", "-{{.Method1 1234}}-", "-1234-", tVal, true},
