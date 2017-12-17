@@ -304,6 +304,13 @@ var execTests = []execTest{
 	{"$.I", "{{$.I}}", "17", tVal, true},
 	{"$.U.V", "{{$.U.V}}", "v", tVal, true},
 	{"declare in action", "{{$x := $.U.V}}{{$x}}", "v", tVal, true},
+	{"simple assignment", "{{$x := 2}}{{$x = 3}}{{$x}}", "3", tVal, true},
+	{"nested assignment",
+		"{{$x := 2}}{{if true}}{{$x = 3}}{{end}}{{$x}}",
+		"3", tVal, true},
+	{"nested assignment changes the last declaration",
+		"{{$x := 1}}{{if true}}{{$x := 2}}{{if true}}{{$x = 3}}{{end}}{{end}}{{$x}}",
+		"1", tVal, true},
 
 	// Type with String method.
 	{"V{6666}.String()", "-{{.V0}}-", "-<6666>-", tVal, true},
