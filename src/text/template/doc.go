@@ -241,6 +241,10 @@ The initialization has syntax
 where $variable is the name of the variable. An action that declares a
 variable produces no output.
 
+Variables previously declared can also be assigned, using the syntax
+
+	$variable = pipeline
+
 If a "range" action initializes a variable, the variable is set to the
 successive elements of the iteration. Also, a "range" may declare two
 variables, separated by a comma:
