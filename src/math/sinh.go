@@ -71,9 +71,7 @@ func sinh(x float64) float64 {
 func Cosh(x float64) float64
 
 func cosh(x float64) float64 {
-	if x < 0 {
-		x = -x
-	}
+	x = Abs(x)
 	if x > 21 {
 		return Exp(x) / 2
 	}
