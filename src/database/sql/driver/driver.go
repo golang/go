@@ -15,7 +15,8 @@ import (
 )
 
 // Value is a value that drivers must be able to handle.
-// It is either nil or an instance of one of these types:
+// It is either nil, a type handled by a database driver's NamedValueChecker
+// interface, or an instance of one of these types:
 //
 //   int64
 //   float64
