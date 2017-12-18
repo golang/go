@@ -9,12 +9,12 @@
 // System calls for AMD64, Linux
 //
 
-// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+// func Syscall(trap int64, a1, a2, a3 uintptr) (r1, r2, err uintptr);
 // Trap # in AX, args in DI SI DX R10 R8 R9, return in AX DX
 // Note that this differs from "standard" ABI convention, which
 // would pass 4th arg in CX, not R10.
 
-TEXT	·Syscall(SB),NOSPLIT,$0-56
+TEXT ·Syscall(SB),NOSPLIT,$0-56
 	CALL	runtime·entersyscall(SB)
 	MOVQ	a1+8(FP), DI
 	MOVQ	a2+16(FP), SI
@@ -132,6 +132,20 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-32
 ok2:
 	MOVQ	AX, r1+16(FP)
 	MOVQ	$0, err+24(FP)
+	RET
+
+// func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
+TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
+	MOVQ	a1+8(FP), DI
+	MOVQ	a2+16(FP), SI
+	MOVQ	a3+24(FP), DX
+	MOVQ	$0, R10
+	MOVQ	$0, R8
+	MOVQ	$0, R9
+	MOVQ	trap+0(FP), AX	// syscall entry
+	SYSCALL
+	MOVQ	AX, r1+32(FP)
+	MOVQ	DX, r2+40(FP)
 	RET
 
 // func gettimeofday(tv *Timeval) (err uintptr)
