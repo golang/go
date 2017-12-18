@@ -531,6 +531,9 @@ func TestInlinedRoutineRecords(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
+	if runtime.GOOS == "solaris" {
+		t.Skip("skipping on solaris, pending resolution of issue #23168")
+	}
 
 	const prog = `
 package main
@@ -748,6 +751,9 @@ func TestAbstractOriginSanity(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
+	if runtime.GOOS == "solaris" {
+		t.Skip("skipping on solaris, pending resolution of issue #23168")
+	}
 
 	abstractOriginSanity(t, OptInl4)
 }
@@ -757,6 +763,9 @@ func TestAbstractOriginSanityWithLocationLists(t *testing.T) {
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+	if runtime.GOOS == "solaris" {
+		t.Skip("skipping on solaris, pending resolution of issue #23168")
 	}
 	if runtime.GOARCH != "amd64" && runtime.GOARCH != "x86" {
 		t.Skip("skipping on not-amd64 not-x86; location lists not supported")
