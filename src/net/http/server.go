@@ -2220,8 +2220,8 @@ func (mux *ServeMux) match(path string) (h Handler, pattern string) {
 // This occurs when a handler for path + "/" was already registered, but
 // not for path itself. If the path needs appending to, it creates a new
 // URL, setting the path to u.Path + "/" and returning true to indicate so.
-func (mux *ServeMux) redirectToPathSlash(path string, u *url.URL) (*url.URL, bool) {
-	if !mux.shouldRedirect(path) {
+func (mux *ServeMux) redirectToPathSlash(host, path string, u *url.URL) (*url.URL, bool) {
+	if !mux.shouldRedirect(host, path) {
 		return u, false
 	}
 	path = path + "/"
@@ -2229,16 +2229,26 @@ func (mux *ServeMux) redirectToPathSlash(path string, u *url.URL) (*url.URL, boo
 	return u, true
 }
 
-// shouldRedirect reports whether the given path should be redirected to
+// shouldRedirect reports whether the given path and host should be redirected to
 // path+"/". This should happen if a handler is registered for path+"/" but
 // not path -- see comments at ServeMux.
-func (mux *ServeMux) shouldRedirect(path string) bool {
-	if _, exist := mux.m[path]; exist {
-		return false
+func (mux *ServeMux) shouldRedirect(host, path string) bool {
+	p := []string{path, host + path}
+
+	for _, c := range p {
+		if _, exist := mux.m[c]; exist {
+			return false
+		}
 	}
+
 	n := len(path)
-	_, exist := mux.m[path+"/"]
-	return n > 0 && path[n-1] != '/' && exist
+	for _, c := range p {
+		if _, exist := mux.m[c+"/"]; exist {
+			return n > 0 && path[n-1] != '/'
+		}
+	}
+
+	return false
 }
 
 // Handler returns the handler to use for the given request,
@@ -2263,7 +2273,7 @@ func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
 		// If r.URL.Path is /tree and its handler is not registered,
 		// the /tree -> /tree/ redirect applies to CONNECT requests
 		// but the path canonicalization does not.
-		if u, ok := mux.redirectToPathSlash(r.URL.Path, r.URL); ok {
+		if u, ok := mux.redirectToPathSlash(r.URL.Host, r.URL.Path, r.URL); ok {
 			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path
 		}
 
@@ -2277,7 +2287,7 @@ func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
 
 	// If the given path is /tree and its handler is not registered,
 	// redirect for /tree/.
-	if u, ok := mux.redirectToPathSlash(path, r.URL); ok {
+	if u, ok := mux.redirectToPathSlash(host, path, r.URL); ok {
 		return RedirectHandler(u.String(), StatusMovedPermanently), u.Path
 	}
 
