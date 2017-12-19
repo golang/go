@@ -308,9 +308,6 @@ func (m markBits) clearMarked() {
 
 // markBitsForSpan returns the markBits for the span base address base.
 func markBitsForSpan(base uintptr) (mbits markBits) {
-	if base < mheap_.arena_start || base >= mheap_.arena_used {
-		throw("markBitsForSpan: base out of range")
-	}
 	mbits = markBitsForAddr(base)
 	if mbits.mask != 1 {
 		throw("markBitsForSpan: unaligned start")
@@ -350,15 +347,6 @@ func heapBitsForAddr(addr uintptr) heapBits {
 	bitp := &ha.bitmap[(off/4)%heapArenaBitmapBytes]
 	last := &ha.bitmap[len(ha.bitmap)-1]
 	return heapBits{bitp, uint32(off & 3), uint32(arena), last}
-}
-
-// heapBitsForSpan returns the heapBits for the span base address base.
-func heapBitsForSpan(base uintptr) (hbits heapBits) {
-	if base < mheap_.arena_start || base >= mheap_.arena_used {
-		print("runtime: base ", hex(base), " not in range [", hex(mheap_.arena_start), ",", hex(mheap_.arena_used), ")\n")
-		throw("heapBitsForSpan: base out of range")
-	}
-	return heapBitsForAddr(base)
 }
 
 // findObject returns the base address for the heap object containing

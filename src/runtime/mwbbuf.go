@@ -232,9 +232,8 @@ func wbBufFlush1(_p_ *p) {
 	// un-shaded stacks and flush after each stack scan.
 	gcw := &_p_.gcw
 	pos := 0
-	arenaStart := mheap_.arena_start
 	for _, ptr := range ptrs {
-		if ptr < arenaStart {
+		if ptr < minLegalPointer {
 			// nil pointers are very common, especially
 			// for the "old" values. Filter out these and
 			// other "obvious" non-heap pointers ASAP.

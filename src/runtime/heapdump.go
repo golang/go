@@ -488,8 +488,17 @@ func dumpparams() {
 		dumpbool(true) // big-endian ptrs
 	}
 	dumpint(sys.PtrSize)
-	dumpint(uint64(mheap_.arena_start))
-	dumpint(uint64(mheap_.arena_used))
+	var arenaStart, arenaEnd uintptr
+	for i, ha := range mheap_.arenas {
+		if ha != nil {
+			if arenaStart == 0 {
+				arenaStart = uintptr(i) * heapArenaBytes
+			}
+			arenaEnd = uintptr(i+1) * heapArenaBytes
+		}
+	}
+	dumpint(uint64(arenaStart))
+	dumpint(uint64(arenaEnd))
 	dumpstr(sys.GOARCH)
 	dumpstr(sys.Goexperiment)
 	dumpint(uint64(ncpu))
