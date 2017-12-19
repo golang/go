@@ -408,6 +408,8 @@ func (b *Builder) flushOutput(a *Action) {
 // a.buildID to record as the build ID in the resulting package or binary.
 // updateBuildID computes the final content ID and updates the build IDs
 // in the binary.
+//
+// Keep in sync with src/cmd/buildid/buildid.go
 func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 	if cfg.BuildX || cfg.BuildN {
 		if rewrite {
