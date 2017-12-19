@@ -155,12 +155,18 @@ import (
 // an infinite recursion.
 //
 func Marshal(v interface{}) ([]byte, error) {
-	e := &encodeState{}
+	e := newEncodeState()
+
 	err := e.marshal(v, encOpts{escapeHTML: true})
 	if err != nil {
 		return nil, err
 	}
-	return e.Bytes(), nil
+	buf := append([]byte(nil), e.Bytes()...)
+
+	e.Reset()
+	encodeStatePool.Put(e)
+
+	return buf, nil
 }
 
 // MarshalIndent is like Marshal but applies Indent to format the output.
