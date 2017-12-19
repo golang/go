@@ -862,7 +862,7 @@ func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
 		throw("out of memory")
 	}
 	s.limit = s.base() + size
-	heapBitsForSpan(s.base()).initSpan(s)
+	heapBitsForAddr(s.base()).initSpan(s)
 	return s
 }
 

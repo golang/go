@@ -1085,9 +1085,6 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 	b := b0
 	n := n0
 
-	arena_start := mheap_.arena_start
-	arena_used := mheap_.arena_used
-
 	for i := uintptr(0); i < n; {
 		// Find bits for the next word.
 		bits := uint32(*addb(ptrmask, i/(sys.PtrSize*8)))
@@ -1099,7 +1096,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 			if bits&1 != 0 {
 				// Same work as in scanobject; see comments there.
 				obj := *(*uintptr)(unsafe.Pointer(b + i))
-				if obj != 0 && arena_start <= obj && obj < arena_used {
+				if obj != 0 {
 					if obj, span, objIndex := findObject(obj, b, i); obj != 0 {
 						greyobject(obj, b, i, span, gcw, objIndex)
 					}
@@ -1118,18 +1115,6 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 //
 //go:nowritebarrier
 func scanobject(b uintptr, gcw *gcWork) {
-	// Note that arena_used may change concurrently during
-	// scanobject and hence scanobject may encounter a pointer to
-	// a newly allocated heap object that is *not* in
-	// [start,used). It will not mark this object; however, we
-	// know that it was just installed by a mutator, which means
-	// that mutator will execute a write barrier and take care of
-	// marking it. This is even more pronounced on relaxed memory
-	// architectures since we access arena_used without barriers
-	// or synchronization, but the same logic applies.
-	arena_start := mheap_.arena_start
-	arena_used := mheap_.arena_used
-
 	// Find the bits for b and the size of the object at b.
 	//
 	// b is either the beginning of an object, in which case this
@@ -1203,9 +1188,17 @@ func scanobject(b uintptr, gcw *gcWork) {
 		obj := *(*uintptr)(unsafe.Pointer(b + i))
 
 		// At this point we have extracted the next potential pointer.
-		// Check if it points into heap and not back at the current object.
-		if obj != 0 && arena_start <= obj && obj < arena_used && obj-b >= n {
-			// Mark the object.
+		// Quickly filter out nil and pointers back to the current object.
+		if obj != 0 && obj-b >= n {
+			// Test if obj points into the Go heap and, if so,
+			// mark the object.
+			//
+			// Note that it's possible for findObject to
+			// fail if obj points to a just-allocated heap
+			// object because of a race with growing the
+			// heap. In this case, we know the object was
+			// just allocated and hence will be marked by
+			// allocation itself.
 			if obj, span, objIndex := findObject(obj, b, i); obj != 0 {
 				greyobject(obj, b, i, span, gcw, objIndex)
 			}
@@ -1305,10 +1298,6 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
 // gcDumpObject dumps the contents of obj for debugging and marks the
 // field at byte offset off in obj.
 func gcDumpObject(label string, obj, off uintptr) {
-	if obj < mheap_.arena_start || obj >= mheap_.arena_used {
-		print(label, "=", hex(obj), " is not in the Go heap\n")
-		return
-	}
 	s := spanOf(obj)
 	print(label, "=", hex(obj))
 	if s == nil {
@@ -1421,7 +1410,7 @@ func initCheckmarks() {
 	useCheckmark = true
 	for _, s := range mheap_.allspans {
 		if s.state == _MSpanInUse {
-			heapBitsForSpan(s.base()).initCheckmarkSpan(s.layout())
+			heapBitsForAddr(s.base()).initCheckmarkSpan(s.layout())
 		}
 	}
 }
@@ -1430,7 +1419,7 @@ func clearCheckmarks() {
 	useCheckmark = false
 	for _, s := range mheap_.allspans {
 		if s.state == _MSpanInUse {
-			heapBitsForSpan(s.base()).clearCheckmarkSpan(s.layout())
+			heapBitsForAddr(s.base()).clearCheckmarkSpan(s.layout())
 		}
 	}
 }
