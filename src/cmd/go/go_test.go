@@ -4773,12 +4773,14 @@ func TestExecBuildX(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 
+	tg.setenv("GOCACHE", "off")
+
 	tg.tempFile("main.go", `package main; import "C"; func main() { print("hello") }`)
 	src := tg.path("main.go")
 	obj := tg.path("main")
 	tg.run("build", "-x", "-o", obj, src)
 	sh := tg.path("test.sh")
-	err := ioutil.WriteFile(sh, []byte(tg.getStderr()), 0666)
+	err := ioutil.WriteFile(sh, []byte("set -e\n"+tg.getStderr()), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
