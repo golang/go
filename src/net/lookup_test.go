@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -923,5 +924,61 @@ func TestLookupHostCancel(t *testing.T) {
 	_, err = LookupHost(google)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+type lookupCustomResolver struct {
+	*Resolver
+	mu     sync.RWMutex
+	dialed bool
+}
+
+func (lcr *lookupCustomResolver) dial() func(ctx context.Context, network, address string) (Conn, error) {
+	return func(ctx context.Context, network, address string) (Conn, error) {
+		lcr.mu.Lock()
+		lcr.dialed = true
+		lcr.mu.Unlock()
+		return Dial(network, address)
+	}
+}
+
+// TestConcurrentPreferGoResolversDial tests that multiple resolvers with the
+// PreferGo option used concurrently are all dialed properly.
+func TestConcurrentPreferGoResolversDial(t *testing.T) {
+	// The windows implementation of the resolver does not use the Dial
+	// function.
+	if runtime.GOOS == "windows" {
+		t.Skip("skip on windows")
+	}
+
+	testenv.MustHaveExternalNetwork(t)
+	testenv.SkipFlakyNet(t)
+
+	defer dnsWaitGroup.Wait()
+
+	resolvers := make([]*lookupCustomResolver, 2)
+	for i := range resolvers {
+		cs := lookupCustomResolver{Resolver: &Resolver{PreferGo: true}}
+		cs.Dial = cs.dial()
+		resolvers[i] = &cs
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(resolvers))
+	for i, resolver := range resolvers {
+		go func(r *Resolver, index int) {
+			defer wg.Done()
+			_, err := r.LookupIPAddr(context.Background(), "google.com")
+			if err != nil {
+				t.Fatalf("lookup failed for resolver %d: %q", index, err)
+			}
+		}(resolver.Resolver, i)
+	}
+	wg.Wait()
+
+	for i, resolver := range resolvers {
+		if !resolver.dialed {
+			t.Errorf("custom resolver %d not dialed during lookup", i)
+		}
 	}
 }

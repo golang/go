@@ -133,12 +133,24 @@ type Resolver struct {
 	// If nil, the default dialer is used.
 	Dial func(ctx context.Context, network, address string) (Conn, error)
 
+	// lookupGroup merges LookupIPAddr calls together for lookups for the same
+	// host. The lookupGroup key is the LookupIPAddr.host argument.
+	// The return values are ([]IPAddr, error).
+	lookupGroup singleflight.Group
+
 	// TODO(bradfitz): optional interface impl override hook
 	// TODO(bradfitz): Timeout time.Duration?
 }
 
 func (r *Resolver) preferGo() bool     { return r != nil && r.PreferGo }
 func (r *Resolver) strictErrors() bool { return r != nil && r.StrictErrors }
+
+func (r *Resolver) getLookupGroup() *singleflight.Group {
+	if r == nil {
+		return &DefaultResolver.lookupGroup
+	}
+	return &r.lookupGroup
+}
 
 // LookupHost looks up the given host using the local resolver.
 // It returns a slice of that host's addresses.
@@ -204,7 +216,7 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
 	lookupGroupCtx, lookupGroupCancel := context.WithCancel(context.Background())
 
 	dnsWaitGroup.Add(1)
-	ch, called := lookupGroup.DoChan(host, func() (interface{}, error) {
+	ch, called := r.getLookupGroup().DoChan(host, func() (interface{}, error) {
 		defer dnsWaitGroup.Done()
 		return testHookLookupIP(lookupGroupCtx, resolverFunc, host)
 	})
@@ -221,7 +233,7 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
 		// let the lookup continue uncanceled, and let later
 		// lookups with the same key share the result.
 		// See issues 8602, 20703, 22724.
-		if lookupGroup.ForgetUnshared(host) {
+		if r.getLookupGroup().ForgetUnshared(host) {
 			lookupGroupCancel()
 		} else {
 			go func() {
@@ -243,12 +255,6 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
 		return lookupIPReturn(r.Val, r.Err, r.Shared)
 	}
 }
-
-// lookupGroup merges LookupIPAddr calls together for lookups
-// for the same host. The lookupGroup key is is the LookupIPAddr.host
-// argument.
-// The return values are ([]IPAddr, error).
-var lookupGroup singleflight.Group
 
 // lookupIPReturn turns the return values from singleflight.Do into
 // the return values from LookupIP.
