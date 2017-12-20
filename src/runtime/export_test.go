@@ -413,3 +413,35 @@ func TracebackSystemstack(stk []uintptr, i int) int {
 	})
 	return n
 }
+
+func KeepNArenaHints(n int) {
+	hint := mheap_.arenaHints
+	for i := 1; i < n; i++ {
+		hint = hint.next
+		if hint == nil {
+			return
+		}
+	}
+	hint.next = nil
+}
+
+// MapNextArenaHint reserves a page at the next arena growth hint,
+// preventing the arena from growing there, and returns the range of
+// addresses that are no longer viable.
+func MapNextArenaHint() (start, end uintptr) {
+	hint := mheap_.arenaHints
+	addr := hint.addr
+	if hint.down {
+		start, end = addr-heapArenaBytes, addr
+		addr -= physPageSize
+	} else {
+		start, end = addr, addr+heapArenaBytes
+	}
+	var reserved bool
+	sysReserve(unsafe.Pointer(addr), physPageSize, &reserved)
+	return
+}
+
+func GetNextArenaHint() uintptr {
+	return mheap_.arenaHints.addr
+}

@@ -96,31 +96,13 @@ type mheap struct {
 	nlargefree  uint64                  // number of frees for large objects (>maxsmallsize)
 	nsmallfree  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
 
-	// range of addresses we might see in the heap
-
-	// The arena_* fields indicate the addresses of the Go heap.
-	//
-	// The maximum range of the Go heap is
-	// [arena_start, arena_start+_MaxMem+1).
-	//
-	// The range of the current Go heap is
-	// [arena_start, arena_used). Parts of this range may not be
-	// mapped, but the metadata structures are always mapped for
-	// the full range.
-	arena_start uintptr
-	arena_used  uintptr // Set with setArenaUsed.
-
-	// The heap is grown using a linear allocator that allocates
-	// from the block [arena_alloc, arena_end). arena_alloc is
-	// often, but *not always* equal to arena_used.
-	arena_alloc uintptr
-	arena_end   uintptr
-
 	// arena_reserved indicates that the memory [arena_alloc,
 	// arena_end) is reserved (e.g., mapped PROT_NONE). If this is
 	// false, we have to be careful not to clobber existing
 	// mappings here. If this is true, then we own the mapping
 	// here and *must* clobber it to use it.
+	//
+	// TODO(austin): Remove.
 	arena_reserved bool
 
 	// arenas is the heap arena index. arenas[va/heapArenaBytes]
@@ -138,7 +120,22 @@ type mheap struct {
 	// to probe any index.
 	arenas *[memLimit / heapArenaBytes]*heapArena
 
-	//_ uint32 // ensure 64-bit alignment of central
+	// heapArenaAlloc is pre-reserved space for allocating heapArena
+	// objects. This is only used on 32-bit, where we pre-reserve
+	// this space to avoid interleaving it with the heap itself.
+	heapArenaAlloc linearAlloc
+
+	// arenaHints is a list of addresses at which to attempt to
+	// add more heap arenas. This is initially populated with a
+	// set of general hint addresses, and grown with the bounds of
+	// actual heap arena ranges.
+	arenaHints *arenaHint
+
+	// arena is a pre-reserved space for allocating heap arenas
+	// (the actual arenas). This is only used on 32-bit.
+	arena linearAlloc
+
+	_ uint32 // ensure 64-bit alignment of central
 
 	// central free lists for small size classes.
 	// the padding makes sure that the MCentrals are
@@ -156,6 +153,7 @@ type mheap struct {
 	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
 	specialprofilealloc   fixalloc // allocator for specialprofile*
 	speciallock           mutex    // lock for special record allocators.
+	arenaHintAlloc        fixalloc // allocator for arenaHints
 
 	unused *specialfinalizer // never set, just here to force the specialfinalizer type into DWARF
 }
@@ -188,6 +186,16 @@ type heapArena struct {
 	// must not be a safe-point between establishing that an
 	// address is live and looking it up in the spans array.
 	spans [pagesPerArena]*mspan
+}
+
+// arenaHint is a hint for where to grow the heap arenas. See
+// mheap_.arenaHints.
+//
+//go:notinheap
+type arenaHint struct {
+	addr uintptr
+	down bool
+	next *arenaHint
 }
 
 // An MSpan is a run of pages.
@@ -458,8 +466,7 @@ func spanOf(p uintptr) *mspan {
 }
 
 // spanOfUnchecked is equivalent to spanOf, but the caller must ensure
-// that p points into the heap (that is, mheap_.arena_start <= p <
-// mheap_.arena_used).
+// that p points into an allocated heap arena.
 //
 // Must be nosplit because it has callers that are nosplit.
 //
@@ -491,6 +498,7 @@ func (h *mheap) init() {
 	h.cachealloc.init(unsafe.Sizeof(mcache{}), nil, nil, &memstats.mcache_sys)
 	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
 	h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
+	h.arenaHintAlloc.init(unsafe.Sizeof(arenaHint{}), nil, nil, &memstats.other_sys)
 
 	// Don't zero mspan allocations. Background sweeping can
 	// inspect a span concurrently with allocating it, so it's
@@ -511,46 +519,6 @@ func (h *mheap) init() {
 	for i := range h.central {
 		h.central[i].mcentral.init(spanClass(i))
 	}
-
-	// Map metadata structures. But don't map race detector memory
-	// since we're not actually growing the arena here (and TSAN
-	// gets mad if you map 0 bytes).
-	h.setArenaUsed(h.arena_used, false)
-}
-
-// setArenaUsed extends the usable arena to address arena_used and
-// maps auxiliary VM regions for any newly usable arena space.
-//
-// racemap indicates that this memory should be managed by the race
-// detector. racemap should be true unless this is covering a VM hole.
-func (h *mheap) setArenaUsed(arena_used uintptr, racemap bool) {
-	// Map auxiliary structures *before* h.arena_used is updated.
-	// Waiting to update arena_used until after the memory has been mapped
-	// avoids faults when other threads try access these regions immediately
-	// after observing the change to arena_used.
-
-	// Allocate heap arena metadata.
-	for ri := h.arena_used / heapArenaBytes; ri < (arena_used+heapArenaBytes-1)/heapArenaBytes; ri++ {
-		if h.arenas[ri] != nil {
-			continue
-		}
-		r := (*heapArena)(persistentalloc(unsafe.Sizeof(heapArena{}), sys.PtrSize, &memstats.gc_sys))
-		if r == nil {
-			throw("runtime: out of memory allocating heap arena metadata")
-		}
-		// Store atomically just in case an object from the
-		// new heap arena becomes visible before the heap lock
-		// is released (which shouldn't happen, but there's
-		// little downside to this).
-		atomic.StorepNoWB(unsafe.Pointer(&h.arenas[ri]), unsafe.Pointer(r))
-	}
-
-	// Tell the race detector about the new heap memory.
-	if racemap && raceenabled {
-		racemapshadow(unsafe.Pointer(h.arena_used), arena_used-h.arena_used)
-	}
-
-	h.arena_used = arena_used
 }
 
 // Sweeps spans in list until reclaims at least npages into heap.
@@ -886,32 +854,17 @@ func (h *mheap) allocLarge(npage uintptr) *mspan {
 //
 // h must be locked.
 func (h *mheap) grow(npage uintptr) bool {
-	// Ask for a big chunk, to reduce the number of mappings
-	// the operating system needs to track; also amortizes
-	// the overhead of an operating system mapping.
-	// Allocate a multiple of 64kB.
-	npage = round(npage, (64<<10)/_PageSize)
 	ask := npage << _PageShift
-	if ask < _HeapAllocChunk {
-		ask = _HeapAllocChunk
-	}
-
-	v := h.sysAlloc(ask)
+	v, size := h.sysAlloc(ask)
 	if v == nil {
-		if ask > npage<<_PageShift {
-			ask = npage << _PageShift
-			v = h.sysAlloc(ask)
-		}
-		if v == nil {
-			print("runtime: out of memory: cannot allocate ", ask, "-byte block (", memstats.heap_sys, " in use)\n")
-			return false
-		}
+		print("runtime: out of memory: cannot allocate ", ask, "-byte block (", memstats.heap_sys, " in use)\n")
+		return false
 	}
 
 	// Create a fake "in use" span and free it, so that the
 	// right coalescing happens.
 	s := (*mspan)(h.spanalloc.alloc())
-	s.init(uintptr(v), ask>>_PageShift)
+	s.init(uintptr(v), size/pageSize)
 	h.setSpans(s.base(), s.npages, s)
 	atomic.Store(&s.sweepgen, h.sweepgen)
 	s.state = _MSpanInUse

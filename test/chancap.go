@@ -42,11 +42,10 @@ func main() {
 	shouldPanic("makechan: size out of range", func() { _ = make(T, n) })
 	shouldPanic("makechan: size out of range", func() { _ = make(T, int64(n)) })
 	if ptrSize == 8 {
-		n = 1 << 20
-		n <<= 20
-		shouldPanic("makechan: size out of range", func() { _ = make(T, n) })
-		n <<= 20
-		shouldPanic("makechan: size out of range", func() { _ = make(T, n) })
+		var n2 int64 = 1 << 50
+		shouldPanic("makechan: size out of range", func() { _ = make(T, int(n2)) })
+		n2 = 1<<63 - 1
+		shouldPanic("makechan: size out of range", func() { _ = make(T, int(n2)) })
 	} else {
 		n = 1<<31 - 1
 		shouldPanic("makechan: size out of range", func() { _ = make(T, n) })

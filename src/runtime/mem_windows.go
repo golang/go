@@ -102,6 +102,7 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
 	*reserved = true
 	// v is just a hint.
 	// First try at v.
+	// This will fail if any of [v, v+n) is already reserved.
 	v = unsafe.Pointer(stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_RESERVE, _PAGE_READWRITE))
 	if v != nil {
 		return v
