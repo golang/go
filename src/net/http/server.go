@@ -1691,7 +1691,6 @@ func isCommonNetReadError(err error) bool {
 
 // Serve a new connection.
 func (c *conn) serve(ctx context.Context) {
-	c.remoteAddr = c.rwc.RemoteAddr().String()
 	ctx = context.WithValue(ctx, LocalAddrContextKey, c.rwc.LocalAddr())
 	defer func() {
 		if err := recover(); err != nil && err != ErrAbortHandler {
@@ -1705,6 +1704,8 @@ func (c *conn) serve(ctx context.Context) {
 			c.setState(c.rwc, StateClosed)
 		}
 	}()
+
+	c.remoteAddr = c.rwc.RemoteAddr().String()
 
 	if tlsConn, ok := c.rwc.(*tls.Conn); ok {
 		if d := c.server.ReadTimeout; d != 0 {
