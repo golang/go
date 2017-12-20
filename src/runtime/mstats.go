@@ -662,6 +662,9 @@ func purgecachedstats(c *mcache) {
 // overflow errors.
 //go:nosplit
 func mSysStatInc(sysStat *uint64, n uintptr) {
+	if sysStat == nil {
+		return
+	}
 	if sys.BigEndian {
 		atomic.Xadd64(sysStat, int64(n))
 		return
@@ -676,6 +679,9 @@ func mSysStatInc(sysStat *uint64, n uintptr) {
 // mSysStatInc apply.
 //go:nosplit
 func mSysStatDec(sysStat *uint64, n uintptr) {
+	if sysStat == nil {
+		return
+	}
 	if sys.BigEndian {
 		atomic.Xadd64(sysStat, -int64(n))
 		return

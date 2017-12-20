@@ -7,8 +7,12 @@ package runtime_test
 import (
 	"flag"
 	"fmt"
+	"internal/testenv"
+	"os"
+	"os/exec"
 	"reflect"
 	. "runtime"
+	"strings"
 	"testing"
 	"time"
 	"unsafe"
@@ -149,6 +153,55 @@ func TestTinyAlloc(t *testing.T) {
 
 	if len(chunks) == N {
 		t.Fatal("no bytes allocated within the same 8-byte chunk")
+	}
+}
+
+type acLink struct {
+	x [1 << 20]byte
+}
+
+var arenaCollisionSink []*acLink
+
+func TestArenaCollision(t *testing.T) {
+	if GOOS == "nacl" {
+		t.Skip("nacl can't self-exec a test")
+	}
+	// Test that mheap.sysAlloc handles collisions with other
+	// memory mappings.
+	if os.Getenv("TEST_ARENA_COLLISION") != "1" {
+		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestArenaCollision", "-test.v"))
+		cmd.Env = append(cmd.Env, "TEST_ARENA_COLLISION=1")
+		if out, err := cmd.CombinedOutput(); !strings.Contains(string(out), "PASS\n") || err != nil {
+			t.Fatalf("%s\n(exit status %v)", string(out), err)
+		}
+		return
+	}
+	disallowed := [][2]uintptr{}
+	// Drop all but the next 3 hints. 64-bit has a lot of hints,
+	// so it would take a lot of memory to go through all of them.
+	KeepNArenaHints(3)
+	// Consume these 3 hints and force the runtime to find some
+	// fallback hints.
+	for i := 0; i < 5; i++ {
+		// Reserve memory at the next hint so it can't be used
+		// for the heap.
+		start, end := MapNextArenaHint()
+		disallowed = append(disallowed, [2]uintptr{start, end})
+		// Allocate until the runtime tries to use the hint we
+		// just mapped over.
+		hint := GetNextArenaHint()
+		for GetNextArenaHint() == hint {
+			ac := new(acLink)
+			arenaCollisionSink = append(arenaCollisionSink, ac)
+			// The allocation must not have fallen into
+			// one of the reserved regions.
+			p := uintptr(unsafe.Pointer(ac))
+			for _, d := range disallowed {
+				if d[0] <= p && p < d[1] {
+					t.Fatalf("allocation %#x in reserved region [%#x, %#x)", p, d[0], d[1])
+				}
+			}
+		}
 	}
 }
 
