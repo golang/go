@@ -129,10 +129,10 @@ func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCa
 				DeclLine: sl[j].DeclLine,
 				DeclCol:  sl[j].DeclCol,
 			}
-			returnTmp := strings.HasPrefix(sl[j].Name, "~r")
+			synthesized := strings.HasPrefix(sl[j].Name, "~r") || canonName == "_"
 			if idx, found := m[vp]; found {
 				sl[j].ChildIndex = int32(idx)
-				sl[j].IsInAbstract = !returnTmp
+				sl[j].IsInAbstract = !synthesized
 				sl[j].Name = canonName
 			} else {
 				// Variable can't be found in the pre-inline dcl list.
@@ -140,10 +140,7 @@ func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCa
 				// because a composite variable was split into pieces,
 				// and we're looking at a piece. We can also see
 				// return temps (~r%d) that were created during
-				// lowering.
-				if ii != 0 && !returnTmp {
-					Fatalf("unexpected: can't find var %s in preInliningDcls for %v\n", sl[j].Name, Ctxt.InlTree.InlinedFunction(int(ii-1)))
-				}
+				// lowering, or unnamed params ("_").
 				sl[j].ChildIndex = int32(synthCount)
 				synthCount += 1
 			}
