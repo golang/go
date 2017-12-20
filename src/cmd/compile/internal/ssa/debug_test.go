@@ -41,6 +41,11 @@ var numberColonRe = regexp.MustCompile("^ *[0-9]+:")
 var gdb = "gdb"      // Might be "ggdb" on Darwin, because gdb no longer part of XCode
 var debugger = "gdb" // For naming files, etc.
 
+var gogcflags = os.Getenv("GO_GCFLAGS")
+
+// optimizedLibs usually means "not running in a noopt test builder".
+var optimizedLibs = (!strings.Contains(gogcflags, "-N") && !strings.Contains(gogcflags, "-l"))
+
 // TestNexting go-builds a file, then uses a debugger (default gdb, optionally delve)
 // to next through the generated executable, recording each line landed at, and
 // then compares those lines with reference file(s).
@@ -87,10 +92,6 @@ var debugger = "gdb" // For naming files, etc.
 // go test debug_test.go -args -u -d
 
 func TestNexting(t *testing.T) {
-	gogcflags := os.Getenv("GO_GCFLAGS")
-	// optimizedLibs usually means "not running in a noopt test builder".
-	optimizedLibs := (!strings.Contains(gogcflags, "-N") && !strings.Contains(gogcflags, "-l"))
-
 	skipReasons := "" // Many possible skip reasons, list all that apply
 	if testing.Short() {
 		skipReasons = "not run in short mode; "
@@ -100,7 +101,7 @@ func TestNexting(t *testing.T) {
 	if !*useDelve && !*force && !(runtime.GOOS == "linux" && runtime.GOARCH == "amd64") {
 		// Running gdb on OSX/darwin is very flaky.
 		// Sometimes it is called ggdb, depending on how it is installed.
-		// It also probably requires an admin password typed into a dialog box.
+		// It also sometimes requires an admin password typed into a dialog box.
 		// Various architectures tend to differ slightly sometimes, and keeping them
 		// all in sync is a pain for people who don't have them all at hand,
 		// so limit testing to amd64 (for now)
@@ -137,24 +138,32 @@ func TestNexting(t *testing.T) {
 	optFlags := "-dwarflocationlists"
 	if !*useDelve && !*inlines {
 		// For gdb (default), disable inlining so that a compiler test does not depend on library code.
+		// TODO: This may not be necessary with 1.10 and later.
 		optFlags += " -l"
 	}
 
-	t.Run("dbg-"+debugger, func(t *testing.T) {
-		testNexting(t, "hist", "dbg", "-N -l")
-	})
-	t.Run("dbg-race-"+debugger, func(t *testing.T) {
-		testNexting(t, "i22600", "dbg-race", "-N -l", "-race")
-	})
-	t.Run("dbg-22558-"+debugger, func(t *testing.T) {
-		testNexting(t, "i22558", "dbg-22558", "-N -l")
-	})
+	subTest(t, debugger+"-dbg", "hist", "-N -l")
+	subTest(t, debugger+"-dbg-race", "i22600", "-N -l", "-race")
+	subTest(t, debugger+"-dbg-22558", "i22558", "-N -l")
+	optSubTest(t, debugger+"-opt", "hist", optFlags)
+}
 
-	t.Run("opt-"+debugger, func(t *testing.T) {
-		// If optimized test is run with unoptimized libraries (compiled with -N -l), it is very likely to fail.
-		// This occurs in the noopt builders (for example).
+// subTest creates a subtest that compiles basename.go with the specified gcflags and additional compiler arguments,
+// then runs the debugger on the resulting binary, with any comment-specified actions matching tag triggered.
+func subTest(t *testing.T, tag string, basename string, gcflags string, moreargs ...string) {
+	t.Run(tag, func(t *testing.T) {
+		testNexting(t, basename, tag, gcflags, moreargs...)
+	})
+}
+
+// optSubTest is the same as subTest except that it skips the test if the runtime and libraries
+// were not compiled with optimization turned on.  (The skip may not be necessary with Go 1.10 and later)
+func optSubTest(t *testing.T, tag string, basename string, gcflags string, moreargs ...string) {
+	// If optimized test is run with unoptimized libraries (compiled with -N -l), it is very likely to fail.
+	// This occurs in the noopt builders (for example).
+	t.Run(tag, func(t *testing.T) {
 		if *force || optimizedLibs {
-			testNexting(t, "hist", "opt", optFlags)
+			testNexting(t, basename, tag, gcflags, moreargs...)
 		} else {
 			t.Skip("skipping for unoptimized stdlib/runtime")
 		}
@@ -162,27 +171,27 @@ func TestNexting(t *testing.T) {
 }
 
 func testNexting(t *testing.T, base, tag, gcflags string, moreArgs ...string) {
-	// (1) In testdata, build sample.go into sample
+	// (1) In testdata, build sample.go into test-sample.<tag>
 	// (2) Run debugger gathering a history
-	// (3) Read expected history from testdata/sample.<variant>.nexts
-	// optionally, write out testdata/sample.<variant>.nexts
+	// (3) Read expected history from testdata/sample.<tag>.nexts
+	// optionally, write out testdata/sample.<tag>.nexts
 
-	exe := filepath.Join("testdata", base)
-	logbase := exe + "." + tag
+	testbase := filepath.Join("testdata", base) + "." + tag
 	tmpbase := filepath.Join("testdata", "test-"+base+"."+tag)
 
+	// Use a temporary directory unless -f is specified
 	if !*force {
 		tmpdir, err := ioutil.TempDir("", "debug_test")
 		if err != nil {
 			panic(fmt.Sprintf("Problem creating TempDir, error %v\n", err))
 		}
-		exe = filepath.Join(tmpdir, base)
-		tmpbase = exe + "-" + tag + "-test"
+		tmpbase = filepath.Join(tmpdir, "test-"+base+"."+tag)
 		if *verbose {
 			fmt.Printf("Tempdir is %s\n", tmpdir)
 		}
 		defer os.RemoveAll(tmpdir)
 	}
+	exe := tmpbase
 
 	runGoArgs := []string{"build", "-o", exe, "-gcflags=all=" + gcflags}
 	runGoArgs = append(runGoArgs, moreArgs...)
@@ -190,8 +199,8 @@ func testNexting(t *testing.T, base, tag, gcflags string, moreArgs ...string) {
 
 	runGo(t, "", runGoArgs...)
 
-	nextlog := logbase + "-" + debugger + ".nexts"
-	tmplog := tmpbase + "-" + debugger + ".nexts"
+	nextlog := testbase + ".nexts"
+	tmplog := tmpbase + ".nexts"
 	var dbg dbgr
 	if *useDelve {
 		dbg = newDelve(tag, exe)
@@ -339,6 +348,10 @@ func (h *nextHist) read(filename string) {
 	}
 }
 
+// add appends file (name), line (number) and text (string) to the history,
+// provided that the file+line combo does not repeat the previous position,
+// and provided that the file is within the testdata directory.  The return
+// value indicates whether the append occurred.
 func (h *nextHist) add(file, line, text string) bool {
 	// Only record source code in testdata unless the inlines flag is set
 	if !*inlines && !strings.Contains(file, "/testdata/") {
@@ -422,7 +435,7 @@ func (h *nextHist) equals(k *nextHist) bool {
 	return true
 }
 
-// canonFileName strips everything before "src/" from a filename.
+// canonFileName strips everything before "/src/" from a filename.
 // This makes file names portable across different machines,
 // home directories, and temporary directories.
 func canonFileName(f string) string {
@@ -463,7 +476,7 @@ func newDelve(tag, executable string, args ...string) dbgr {
 }
 
 func (s *delveState) tag() string {
-	return "dlv-" + s.tagg
+	return s.tagg
 }
 
 func (s *delveState) stepnext(ss string) bool {
@@ -547,7 +560,7 @@ func newGdb(tag, executable string, args ...string) dbgr {
 }
 
 func (s *gdbState) tag() string {
-	return "gdb-" + s.tagg
+	return s.tagg
 }
 
 func (s *gdbState) start() {
@@ -615,50 +628,60 @@ func (s *gdbState) stepnext(ss string) bool {
 	// Look for //gdb-<tag>=(v1,v2,v3) and print v1, v2, v3
 	vars := varsToPrint(excerpt, "//"+s.tag()+"=(")
 	for _, v := range vars {
-		slashIndex := strings.Index(v, "/")
-		substitutions := ""
-		if slashIndex != -1 {
-			substitutions = v[slashIndex:]
-			v = v[:slashIndex]
-		}
-		response := s.ioState.writeReadExpect("p "+v+"\n", "[(]gdb[)] ").String()
-		// expect something like "$1 = ..."
-		dollar := strings.Index(response, "$")
-		cr := strings.Index(response, "\n")
-		if dollar == -1 {
-			if cr == -1 {
-				response = strings.TrimSpace(response) // discards trailing newline
-				response = strings.Replace(response, "\n", "<BR>", -1)
-				s.ioState.history.addVar("$ Malformed response " + response)
-				continue
-			}
-			response = strings.TrimSpace(response[:cr])
-			s.ioState.history.addVar("$ " + response)
-			continue
-		}
-		if cr == -1 {
-			cr = len(response)
-		}
-		// Convert the leading $<number> into $<N> to limit scope of diffs
-		// when a new print-this-variable comment is added.
-		response = strings.TrimSpace(response[dollar:cr])
-		response = leadingDollarNumberRe.ReplaceAllString(response, v)
-
-		if strings.Contains(substitutions, "A") {
-			response = hexRe.ReplaceAllString(response, "<A>")
-		}
-		if strings.Contains(substitutions, "N") {
-			response = numRe.ReplaceAllString(response, "<N>")
-		}
-		if strings.Contains(substitutions, "S") {
-			response = stringRe.ReplaceAllString(response, "<S>")
-		}
-		if strings.Contains(substitutions, "O") {
-			response = optOutGdbRe.ReplaceAllString(response, "<Optimized out, as expected>")
-		}
+		response := printVariableAndNormalize(v, func(v string) string {
+			return s.ioState.writeReadExpect("p "+v+"\n", "[(]gdb[)] ").String()
+		})
 		s.ioState.history.addVar(response)
 	}
 	return true
+}
+
+// printVariableAndNormalize extracts any slash-indicated normalizing requests from the variable
+// name, then uses printer to get the value of the variable from the debugger, and then
+// normalizes and returns the response.
+func printVariableAndNormalize(v string, printer func(v string) string) string {
+	slashIndex := strings.Index(v, "/")
+	substitutions := ""
+	if slashIndex != -1 {
+		substitutions = v[slashIndex:]
+		v = v[:slashIndex]
+	}
+	response := printer(v)
+	// expect something like "$1 = ..."
+	dollar := strings.Index(response, "$")
+	cr := strings.Index(response, "\n")
+
+	if dollar == -1 { // some not entirely expected response, whine and carry on.
+		if cr == -1 {
+			response = strings.TrimSpace(response) // discards trailing newline
+			response = strings.Replace(response, "\n", "<BR>", -1)
+			return "$ Malformed response " + response
+		}
+		response = strings.TrimSpace(response[:cr])
+		return "$ " + response
+	}
+	if cr == -1 {
+		cr = len(response)
+	}
+	// Convert the leading $<number> into the variable name to enhance readability
+	// and reduce scope of diffs if an earlier print-variable is added.
+	response = strings.TrimSpace(response[dollar:cr])
+	response = leadingDollarNumberRe.ReplaceAllString(response, v)
+
+	// Normalize value as requested.
+	if strings.Contains(substitutions, "A") {
+		response = hexRe.ReplaceAllString(response, "<A>")
+	}
+	if strings.Contains(substitutions, "N") {
+		response = numRe.ReplaceAllString(response, "<N>")
+	}
+	if strings.Contains(substitutions, "S") {
+		response = stringRe.ReplaceAllString(response, "<S>")
+	}
+	if strings.Contains(substitutions, "O") {
+		response = optOutGdbRe.ReplaceAllString(response, "<Optimized out, as expected>")
+	}
+	return response
 }
 
 // varsToPrint takes a source code line, and extracts the comma-separated variable names
