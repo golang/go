@@ -20,6 +20,12 @@ var (
 	universeRune *Basic // int32 alias, but has name "rune"
 )
 
+// Typ contains the predeclared *Basic types indexed by their
+// corresponding BasicKind.
+//
+// The *Basic type for Typ[Byte] will have the name "uint8".
+// Use Universe.Lookup("byte").Type() to obtain the specific
+// alias basic type named "byte" (and analogous for "rune").
 var Typ = []*Basic{
 	Invalid: {Invalid, 0, "invalid type"},
 
