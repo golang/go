@@ -2940,13 +2940,13 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
 	case AMULSF:
 		return o | 0xe<<24 | 0xa<<8 | 0x4<<4
 	case ANMULAD:
-		return o | 0xe<<24 | 0x1<<20 | 0xb<<8
-	case ANMULAF:
-		return o | 0xe<<24 | 0x1<<20 | 0xa<<8
-	case ANMULSD:
 		return o | 0xe<<24 | 0x1<<20 | 0xb<<8 | 0x4<<4
-	case ANMULSF:
+	case ANMULAF:
 		return o | 0xe<<24 | 0x1<<20 | 0xa<<8 | 0x4<<4
+	case ANMULSD:
+		return o | 0xe<<24 | 0x1<<20 | 0xb<<8
+	case ANMULSF:
+		return o | 0xe<<24 | 0x1<<20 | 0xa<<8
 	case AFMULAD:
 		return o | 0xe<<24 | 0xa<<20 | 0xb<<8
 	case AFMULAF:

@@ -26,10 +26,10 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
 	MULAD	F5, F6, F7    // 057b06ee
 	MULSF	F5, F6, F7    // 457a06ee
 	MULSD	F5, F6, F7    // 457b06ee
-	NMULAF	F5, F6, F7    // 057a16ee
-	NMULAD	F5, F6, F7    // 057b16ee
-	NMULSF	F5, F6, F7    // 457a16ee
-	NMULSD	F5, F6, F7    // 457b16ee
+	NMULAF	F5, F6, F7    // 457a16ee
+	NMULAD	F5, F6, F7    // 457b16ee
+	NMULSF	F5, F6, F7    // 057a16ee
+	NMULSD	F5, F6, F7    // 057b16ee
 	FMULAF  F5, F6, F7    // 057aa6ee
 	FMULAD  F5, F6, F7    // 057ba6ee
 	FMULSF  F5, F6, F7    // 457aa6ee
