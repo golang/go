@@ -103,6 +103,8 @@ func (c *Conn) serverHandshake() error {
 			return err
 		}
 	}
+
+	c.ekm = ekmFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.clientHello.random, hs.hello.random)
 	c.handshakeComplete = true
 
 	return nil

@@ -265,6 +265,7 @@ func (hs *clientHandshakeState) handshake() error {
 		}
 	}
 
+	c.ekm = ekmFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.hello.random, hs.serverHello.random)
 	c.didResume = isResume
 	c.handshakeComplete = true
 

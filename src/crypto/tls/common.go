@@ -162,6 +162,12 @@ type ConnectionState struct {
 	SignedCertificateTimestamps [][]byte              // SCTs from the server, if any
 	OCSPResponse                []byte                // stapled OCSP response from server, if any
 
+	// ExportKeyMaterial returns length bytes of exported key material as
+	// defined in https://tools.ietf.org/html/rfc5705. If context is nil, it is
+	// not used as part of the seed. If Config.Renegotiation was set to allow
+	// renegotiation, this function will always return nil, false.
+	ExportKeyingMaterial func(label string, context []byte, length int) ([]byte, bool)
+
 	// TLSUnique contains the "tls-unique" channel binding value (see RFC
 	// 5929, section 3). For resumed sessions this value will be nil
 	// because resumption does not include enough context (see
