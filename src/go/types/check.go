@@ -41,13 +41,14 @@ type exprInfo struct {
 
 // A context represents the context within which an object is type-checked.
 type context struct {
-	decl          *declInfo      // package-level declaration whose init expression/function body is checked
-	scope         *Scope         // top-most scope for lookups
-	pos           token.Pos      // if valid, identifiers are looked up as if at position pos (used by Eval)
-	iota          constant.Value // value of iota in a constant declaration; nil otherwise
-	sig           *Signature     // function signature if inside a function; nil otherwise
-	hasLabel      bool           // set if a function makes use of labels (only ~1% of functions); unused outside functions
-	hasCallOrRecv bool           // set if an expression contains a function call or channel receive operation
+	decl          *declInfo              // package-level declaration whose init expression/function body is checked
+	scope         *Scope                 // top-most scope for lookups
+	pos           token.Pos              // if valid, identifiers are looked up as if at position pos (used by Eval)
+	iota          constant.Value         // value of iota in a constant declaration; nil otherwise
+	sig           *Signature             // function signature if inside a function; nil otherwise
+	isPanic       map[*ast.CallExpr]bool // set of panic call expressions (used for termination check)
+	hasLabel      bool                   // set if a function makes use of labels (only ~1% of functions); unused outside functions
+	hasCallOrRecv bool                   // set if an expression contains a function call or channel receive operation
 }
 
 // lookup looks up name in the current context and returns the matching object, or nil.
