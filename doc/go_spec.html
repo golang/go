@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 25, 2017",
+	"Subtitle": "Version of December 21, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -4356,7 +4356,9 @@ SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | S
 <h3 id="Terminating_statements">Terminating statements</h3>
 
 <p>
-A terminating statement is one of the following:
+A <i>terminating statement</i> prevents execution of all statements that lexically
+appear after it in the same <a href="#Blocks">block</a>. The following statements
+are terminating:
 </p>
 
 <ol>
