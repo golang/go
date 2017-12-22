@@ -254,7 +254,8 @@ var emptyInterface = Interface{allMethods: markComplete}
 var markComplete = make([]*Func, 0)
 
 // NewInterface returns a new (incomplete) interface for the given methods and embedded types.
-// To compute the method set of the interface, Complete must be called.
+// NewInterface takes ownership of the provided methods and may modify their types by setting
+// missing receivers. To compute the method set of the interface, Complete must be called.
 func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 	typ := new(Interface)
 
@@ -267,10 +268,10 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 		if mset.insert(m) != nil {
 			panic("multiple methods with the same name")
 		}
-		// set receiver
-		// TODO(gri) Ideally, we should use a named type here instead of
-		// typ, for less verbose printing of interface method signatures.
-		m.typ.(*Signature).recv = NewVar(m.pos, m.pkg, "", typ)
+		// set receiver if we don't have one
+		if sig := m.typ.(*Signature); sig.recv == nil {
+			sig.recv = NewVar(m.pos, m.pkg, "", typ)
+		}
 	}
 	sort.Sort(byUniqueMethodName(methods))
 

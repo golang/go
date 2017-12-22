@@ -257,7 +257,7 @@ func (p *importer) obj(tag int) {
 	case constTag:
 		pos := p.pos()
 		pkg, name := p.qualifiedName()
-		typ := p.typ(nil)
+		typ := p.typ(nil, nil)
 		val := p.value()
 		p.declare(types.NewConst(pos, pkg, name, typ, val))
 
@@ -265,16 +265,16 @@ func (p *importer) obj(tag int) {
 		// TODO(gri) verify type alias hookup is correct
 		pos := p.pos()
 		pkg, name := p.qualifiedName()
-		typ := p.typ(nil)
+		typ := p.typ(nil, nil)
 		p.declare(types.NewTypeName(pos, pkg, name, typ))
 
 	case typeTag:
-		p.typ(nil)
+		p.typ(nil, nil)
 
 	case varTag:
 		pos := p.pos()
 		pkg, name := p.qualifiedName()
-		typ := p.typ(nil)
+		typ := p.typ(nil, nil)
 		p.declare(types.NewVar(pos, pkg, name, typ))
 
 	case funcTag:
@@ -379,7 +379,11 @@ func (t *dddSlice) String() string         { return "..." + t.elem.String() }
 // the package currently imported. The parent package is needed for
 // exported struct fields and interface methods which don't contain
 // explicit package information in the export data.
-func (p *importer) typ(parent *types.Package) types.Type {
+//
+// A non-nil tname is used as the "owner" of the result type; i.e.,
+// the result type is the underlying type of tname. tname is used
+// to give interface methods a named receiver type where possible.
+func (p *importer) typ(parent *types.Package, tname *types.Named) types.Type {
 	// if the type was seen before, i is its index (>= 0)
 	i := p.tagOrIndex()
 	if i >= 0 {
@@ -409,15 +413,15 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		t0 := types.NewNamed(obj.(*types.TypeName), nil, nil)
 
 		// but record the existing type, if any
-		t := obj.Type().(*types.Named)
-		p.record(t)
+		tname := obj.Type().(*types.Named) // tname is either t0 or the existing type
+		p.record(tname)
 
 		// read underlying type
-		t0.SetUnderlying(p.typ(parent))
+		t0.SetUnderlying(p.typ(parent, t0))
 
 		// interfaces don't have associated methods
 		if types.IsInterface(t0) {
-			return t
+			return tname
 		}
 
 		// read associated methods
@@ -438,7 +442,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 			t0.AddMethod(types.NewFunc(pos, parent, name, sig))
 		}
 
-		return t
+		return tname
 
 	case arrayTag:
 		t := new(types.Array)
@@ -447,7 +451,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		}
 
 		n := p.int64()
-		*t = *types.NewArray(p.typ(parent), n)
+		*t = *types.NewArray(p.typ(parent, nil), n)
 		return t
 
 	case sliceTag:
@@ -456,7 +460,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 			p.record(t)
 		}
 
-		*t = *types.NewSlice(p.typ(parent))
+		*t = *types.NewSlice(p.typ(parent, nil))
 		return t
 
 	case dddTag:
@@ -465,7 +469,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 			p.record(t)
 		}
 
-		t.elem = p.typ(parent)
+		t.elem = p.typ(parent, nil)
 		return t
 
 	case structTag:
@@ -483,7 +487,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 			p.record(t)
 		}
 
-		*t = *types.NewPointer(p.typ(parent))
+		*t = *types.NewPointer(p.typ(parent, nil))
 		return t
 
 	case signatureTag:
@@ -502,6 +506,8 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		// cannot expect the interface type to appear in a cycle, as any
 		// such cycle must contain a named type which would have been
 		// first defined earlier.
+		// TODO(gri) Is this still true now that we have type aliases?
+		// See issue #23225.
 		n := len(p.typList)
 		if p.trackAllTypes {
 			p.record(nil)
@@ -510,10 +516,10 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		var embeddeds []*types.Named
 		for n := p.int(); n > 0; n-- {
 			p.pos()
-			embeddeds = append(embeddeds, p.typ(parent).(*types.Named))
+			embeddeds = append(embeddeds, p.typ(parent, nil).(*types.Named))
 		}
 
-		t := types.NewInterface(p.methodList(parent), embeddeds)
+		t := types.NewInterface(p.methodList(parent, tname), embeddeds)
 		p.interfaceList = append(p.interfaceList, t)
 		if p.trackAllTypes {
 			p.typList[n] = t
@@ -526,8 +532,8 @@ func (p *importer) typ(parent *types.Package) types.Type {
 			p.record(t)
 		}
 
-		key := p.typ(parent)
-		val := p.typ(parent)
+		key := p.typ(parent, nil)
+		val := p.typ(parent, nil)
 		*t = *types.NewMap(key, val)
 		return t
 
@@ -549,7 +555,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		default:
 			errorf("unexpected channel dir %d", d)
 		}
-		val := p.typ(parent)
+		val := p.typ(parent, nil)
 		*t = *types.NewChan(dir, val)
 		return t
 
@@ -573,7 +579,7 @@ func (p *importer) fieldList(parent *types.Package) (fields []*types.Var, tags [
 func (p *importer) field(parent *types.Package) (*types.Var, string) {
 	pos := p.pos()
 	pkg, name, alias := p.fieldName(parent)
-	typ := p.typ(parent)
+	typ := p.typ(parent, nil)
 	tag := p.string()
 
 	anonymous := false
@@ -597,22 +603,30 @@ func (p *importer) field(parent *types.Package) (*types.Var, string) {
 	return types.NewField(pos, pkg, name, typ, anonymous), tag
 }
 
-func (p *importer) methodList(parent *types.Package) (methods []*types.Func) {
+func (p *importer) methodList(parent *types.Package, baseType *types.Named) (methods []*types.Func) {
 	if n := p.int(); n > 0 {
 		methods = make([]*types.Func, n)
 		for i := range methods {
-			methods[i] = p.method(parent)
+			methods[i] = p.method(parent, baseType)
 		}
 	}
 	return
 }
 
-func (p *importer) method(parent *types.Package) *types.Func {
+func (p *importer) method(parent *types.Package, baseType *types.Named) *types.Func {
 	pos := p.pos()
 	pkg, name, _ := p.fieldName(parent)
+	// If we don't have a baseType, use a nil receiver.
+	// A receiver using the actual interface type (which
+	// we don't know yet) will be filled in when we call
+	// types.Interface.Complete.
+	var recv *types.Var
+	if baseType != nil {
+		recv = types.NewVar(token.NoPos, parent, "", baseType)
+	}
 	params, isddd := p.paramList()
 	result, _ := p.paramList()
-	sig := types.NewSignature(nil, params, result, isddd)
+	sig := types.NewSignature(recv, params, result, isddd)
 	return types.NewFunc(pos, pkg, name, sig)
 }
 
@@ -668,7 +682,7 @@ func (p *importer) paramList() (*types.Tuple, bool) {
 }
 
 func (p *importer) param(named bool) (*types.Var, bool) {
-	t := p.typ(nil)
+	t := p.typ(nil, nil)
 	td, isddd := t.(*dddSlice)
 	if isddd {
 		t = types.NewSlice(td.elem)

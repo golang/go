@@ -200,11 +200,22 @@ var importedObjectTests = []struct {
 	name string
 	want string
 }{
+	// non-interfaces
+	{"crypto.Hash", "type Hash uint"},
+	{"go/ast.ObjKind", "type ObjKind int"},
+	{"go/types.Qualifier", "type Qualifier func(*Package) string"},
+	{"go/types.Comparable", "func Comparable(T Type) bool"},
 	{"math.Pi", "const Pi untyped float"},
+	{"math.Sin", "func Sin(x float64) float64"},
+
+	// interfaces
+	{"context.Context", "type Context interface{Deadline() (deadline time.Time, ok bool); Done() <-chan struct{}; Err() error; Value(key interface{}) interface{}}"},
+	{"crypto.Decrypter", "type Decrypter interface{Decrypt(rand io.Reader, msg []byte, opts DecrypterOpts) (plaintext []byte, err error); Public() PublicKey}"},
+	{"encoding.BinaryMarshaler", "type BinaryMarshaler interface{MarshalBinary() (data []byte, err error)}"},
 	{"io.Reader", "type Reader interface{Read(p []byte) (n int, err error)}"},
 	{"io.ReadWriter", "type ReadWriter interface{Reader; Writer}"},
-	{"math.Sin", "func Sin(x float64) float64"},
-	// TODO(gri) add more tests
+	{"go/ast.Node", "type Node interface{End() go/token.Pos; Pos() go/token.Pos}"},
+	{"go/types.Type", "type Type interface{String() string; Underlying() Type}"},
 }
 
 func TestImportedTypes(t *testing.T) {
@@ -239,6 +250,44 @@ func TestImportedTypes(t *testing.T) {
 		if got != test.want {
 			t.Errorf("%s: got %q; want %q", test.name, got, test.want)
 		}
+
+		if named, _ := obj.Type().(*types.Named); named != nil {
+			verifyInterfaceMethodRecvs(t, named, 0)
+		}
+	}
+}
+
+// verifyInterfaceMethodRecvs verifies that method receiver types
+// are named if the methods belong to a named interface type.
+func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
+	// avoid endless recursion in case of an embedding bug that lead to a cycle
+	if level > 10 {
+		t.Errorf("%s: embeds itself", named)
+		return
+	}
+
+	iface, _ := named.Underlying().(*types.Interface)
+	if iface == nil {
+		return // not an interface
+	}
+
+	// check explicitly declared methods
+	for i := 0; i < iface.NumExplicitMethods(); i++ {
+		m := iface.ExplicitMethod(i)
+		recv := m.Type().(*types.Signature).Recv()
+		if recv == nil {
+			t.Errorf("%s: missing receiver type", m)
+			continue
+		}
+		if recv.Type() != named {
+			t.Errorf("%s: got recv type %s; want %s", m, recv.Type(), named)
+		}
+	}
+
+	// check embedded interfaces (they are named, too)
+	for i := 0; i < iface.NumEmbeddeds(); i++ {
+		// embedding of interfaces cannot have cycles; recursion will terminate
+		verifyInterfaceMethodRecvs(t, iface.Embedded(i), level+1)
 	}
 }
 
