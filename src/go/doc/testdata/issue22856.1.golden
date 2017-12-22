@@ -1,19 +1,13 @@
 // 
-PACKAGE issue18063
+PACKAGE issue22856
 
 IMPORTPATH
-	testdata/issue18063
+	testdata/issue22856
 
 FILENAMES
-	testdata/issue18063.go
+	testdata/issue22856.go
 
 FUNCTIONS
-	// NewArray is not a factory function because arrays of type T are ...
-	func NewArray() [1]T
-
-	// NewPointerArray is not a factory function because arrays of ...
-	func NewPointerArray() [1]*T
-
 	// NewPointerSliceOfSlice is not a factory function because slices ...
 	func NewPointerSliceOfSlice() [][]*T
 
@@ -32,7 +26,13 @@ TYPES
 	func New() T
 
 	// 
+	func NewArray() [1]T
+
+	// 
 	func NewPointer() *T
+
+	// 
+	func NewPointerArray() [1]*T
 
 	// 
 	func NewPointerOfPointer() **T

@@ -399,9 +399,9 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 			// with the first type in result signature (there may
 			// be more than one result)
 			factoryType := res.Type
-			if t, ok := factoryType.(*ast.ArrayType); ok && t.Len == nil {
-				// We consider functions that return slices of type T (or
-				// pointers to T) as factory functions of T.
+			if t, ok := factoryType.(*ast.ArrayType); ok {
+				// We consider functions that return slices or arrays of type
+				// T (or pointers to T) as factory functions of T.
 				factoryType = t.Elt
 			}
 			if n, imp := baseTypeName(factoryType); !imp && r.isVisible(n) {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package issue18063
+package issue22856
 
 type T struct{}
 
@@ -11,14 +11,8 @@ func NewPointer() *T           { return &T{} }
 func NewPointerSlice() []*T    { return []*T{&T{}} }
 func NewSlice() []T            { return []T{T{}} }
 func NewPointerOfPointer() **T { x := &T{}; return &x }
-
-// NewArray is not a factory function because arrays of type T are not
-// factory functions of type T.
-func NewArray() [1]T { return [1]T{T{}} }
-
-// NewPointerArray is not a factory function because arrays of type *T are not
-// factory functions of type T.
-func NewPointerArray() [1]*T { return [1]*T{&T{}} }
+func NewArray() [1]T           { return [1]T{T{}} }
+func NewPointerArray() [1]*T   { return [1]*T{&T{}} }
 
 // NewSliceOfSlice is not a factory function because slices of a slice of
 // type *T are not factory functions of type T.
