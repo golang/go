@@ -84,6 +84,7 @@ func init() {
 		"math.Log":                         ext۰math۰Log,
 		"math.Min":                         ext۰math۰Min,
 		"math.hasSSE4":                     ext۰math۰hasSSE4,
+		"math.hasVectorFacility":           ext۰math۰hasVectorFacility,
 		"os.runtime_args":                  ext۰os۰runtime_args,
 		"os.runtime_beforeExit":            ext۰nop,
 		"os/signal.init":                   ext۰nop,
@@ -226,6 +227,10 @@ func ext۰math۰Min(fr *frame, args []value) value {
 }
 
 func ext۰math۰hasSSE4(fr *frame, args []value) value {
+	return false
+}
+
+func ext۰math۰hasVectorFacility(fr *frame, args []value) value {
 	return false
 }
 
