@@ -250,6 +250,10 @@ func main() {
 		}
 	}
 
+	// Initialize the version info before readTemplates, which saves
+	// the map value in a method value.
+	corpus.InitVersionInfo()
+
 	pres = godoc.NewPresentation(corpus)
 	pres.TabWidth = *tabWidth
 	pres.ShowTimestamps = *showTimestamps

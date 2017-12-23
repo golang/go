@@ -108,6 +108,10 @@ type Corpus struct {
 	// flag to check whether a corpus is initialized or not
 	initMu   sync.RWMutex
 	initDone bool
+
+	// pkgAPIInfo contains the information about which package API
+	// features were added in which version of Go.
+	pkgAPIInfo apiVersions
 }
 
 // NewCorpus returns a new Corpus from a filesystem.

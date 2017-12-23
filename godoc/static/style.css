@@ -103,12 +103,17 @@ h2 {
 	padding: 0.5rem;
 	line-height: 1.25;
 	font-weight: normal;
+	overflow: auto;
+	overflow-wrap: break-word;
 }
 h2 a {
 	font-weight: bold;
 }
 h3 {
 	font-size: 1.25rem;
+	line-height: 1.25;
+	overflow: auto;
+	overflow-wrap: break-word;
 }
 h3,
 h4 {
@@ -120,6 +125,14 @@ h4 {
 .rootHeading {
 	font-size: 1.25rem;
 	margin: 0;
+}
+
+h2 > span,
+h3 > span {
+	float: right;
+	margin: 0 25px 0 0;
+	font-weight: normal;
+	color: #5279C7;
 }
 
 dl {

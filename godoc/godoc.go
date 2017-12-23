@@ -61,6 +61,7 @@ func (p *Presentation) initFuncMap() {
 		// various helpers
 		"filename": filenameFunc,
 		"repeat":   strings.Repeat,
+		"since":    p.Corpus.pkgAPIInfo.sinceVersionFunc,
 
 		// access to FileInfos (directory listings)
 		"fileInfoName": fileInfoNameFunc,

@@ -320,6 +320,12 @@ func testWeb(t *testing.T, withIndex bool) {
 				`href="/src/cmd/compile/internal/amd64/ssa.go"`,
 			},
 		},
+		{
+			path: "/pkg/math/bits/",
+			match: []string{
+				`Added in Go 1.9`,
+			},
+		},
 	}
 	for _, test := range tests {
 		if test.needIndex && !withIndex {
