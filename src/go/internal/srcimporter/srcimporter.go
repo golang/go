@@ -13,6 +13,8 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io"
+	"os"
 	"path/filepath"
 	"sync"
 )
@@ -162,7 +164,11 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 }
 
 func (p *Importer) parseFiles(dir string, filenames []string) ([]*ast.File, error) {
-	open := p.ctxt.OpenFile // possibly nil
+	// use build.Context's OpenFile if there is one
+	open := p.ctxt.OpenFile
+	if open == nil {
+		open = func(name string) (io.ReadCloser, error) { return os.Open(name) }
+	}
 
 	files := make([]*ast.File, len(filenames))
 	errors := make([]error, len(filenames))
@@ -172,22 +178,13 @@ func (p *Importer) parseFiles(dir string, filenames []string) ([]*ast.File, erro
 	for i, filename := range filenames {
 		go func(i int, filepath string) {
 			defer wg.Done()
-			if open != nil {
-				src, err := open(filepath)
-				if err != nil {
-					errors[i] = fmt.Errorf("opening package file %s failed (%v)", filepath, err)
-					return
-				}
-				files[i], errors[i] = parser.ParseFile(p.fset, filepath, src, 0)
-				src.Close() // ignore Close error - parsing may have succeeded which is all we need
-			} else {
-				// Special-case when ctxt doesn't provide a custom OpenFile and use the
-				// parser's file reading mechanism directly. This appears to be quite a
-				// bit faster than opening the file and providing an io.ReaderCloser in
-				// both cases.
-				// TODO(gri) investigate performance difference (issue #19281)
-				files[i], errors[i] = parser.ParseFile(p.fset, filepath, nil, 0)
+			src, err := open(filepath)
+			if err != nil {
+				errors[i] = err // open provides operation and filename in error
+				return
 			}
+			files[i], errors[i] = parser.ParseFile(p.fset, filepath, src, 0)
+			src.Close() // ignore Close error - parsing may have succeeded which is all we need
 		}(i, p.joinPath(dir, filename))
 	}
 	wg.Wait()
