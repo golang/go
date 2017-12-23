@@ -32,16 +32,26 @@ var (
 	testMu  sync.RWMutex // guards globals reset by tests; used only if inTests
 )
 
-// LocalPrefix, if set, instructs Process to sort import paths with the given
-// prefix into another group after 3rd-party packages.
+// LocalPrefix is a comma-separated string of import path prefixes, which, if
+// set, instructs Process to sort the import paths with the given prefixes
+// into another group after 3rd-party packages.
 var LocalPrefix string
+
+func localPrefixes() []string {
+	if LocalPrefix != "" {
+		return strings.Split(LocalPrefix, ",")
+	}
+	return nil
+}
 
 // importToGroup is a list of functions which map from an import path to
 // a group number.
 var importToGroup = []func(importPath string) (num int, ok bool){
 	func(importPath string) (num int, ok bool) {
-		if LocalPrefix != "" && strings.HasPrefix(importPath, LocalPrefix) {
-			return 3, true
+		for _, p := range localPrefixes() {
+			if strings.HasPrefix(importPath, p) {
+				return 3, true
+			}
 		}
 		return
 	},

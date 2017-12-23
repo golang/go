@@ -1420,19 +1420,21 @@ const Y = bar.X
 // Tests that the LocalPrefix option causes imports
 // to be added into a later group (num=3).
 func TestLocalPrefix(t *testing.T) {
-	defer func(s string) { LocalPrefix = s }(LocalPrefix)
-	LocalPrefix = "foo/"
-
-	testConfig{
-		gopathFiles: map[string]string{
-			"foo/bar/bar.go": "package bar \n const X = 1",
-		},
-	}.test(t, func(t *goimportTest) {
-		buf, err := Process(t.gopath+"/src/test/t.go", []byte("package main \n const Y = bar.X \n const _ = runtime.GOOS"), &Options{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		const want = `package main
+	tests := []struct {
+		config      testConfig
+		localPrefix string
+		src         string
+		want        string
+	}{
+		{
+			config: testConfig{
+				gopathFiles: map[string]string{
+					"foo/bar/bar.go": "package bar \n const X = 1",
+				},
+			},
+			localPrefix: "foo/",
+			src:         "package main \n const Y = bar.X \n const _ = runtime.GOOS",
+			want: `package main
 
 import (
 	"runtime"
@@ -1442,11 +1444,49 @@ import (
 
 const Y = bar.X
 const _ = runtime.GOOS
-`
-		if string(buf) != want {
-			t.Errorf("Got:\n%s\nWant:\n%s", buf, want)
-		}
-	})
+`,
+		},
+		{
+			config: testConfig{
+				gopathFiles: map[string]string{
+					"example.org/pkg/pkg.go":          "package pkg \n const A = 1",
+					"foo/bar/bar.go":                  "package bar \n const B = 1",
+					"code.org/r/p/expproj/expproj.go": "package expproj \n const C = 1",
+				},
+			},
+			localPrefix: "example.org/pkg,foo/,code.org",
+			src:         "package main \n const X = pkg.A \n const Y = bar.B \n const Z = expproj.C \n const _ = runtime.GOOS",
+			want: `package main
+
+import (
+	"runtime"
+
+	"code.org/r/p/expproj"
+	"example.org/pkg"
+	"foo/bar"
+)
+
+const X = pkg.A
+const Y = bar.B
+const Z = expproj.C
+const _ = runtime.GOOS
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		tt.config.test(t, func(t *goimportTest) {
+			defer func(s string) { LocalPrefix = s }(LocalPrefix)
+			LocalPrefix = tt.localPrefix
+			buf, err := Process(t.gopath+"/src/test/t.go", []byte(tt.src), &Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(buf) != tt.want {
+				t.Errorf("Got:\n%s\nWant:\n%s", buf, tt.want)
+			}
+		})
+	}
 }
 
 // Tests that running goimport on files in GOROOT (for people hacking
