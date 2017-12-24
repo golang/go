@@ -7,6 +7,7 @@ package objabi
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -20,10 +21,8 @@ func Flagfn1(name, usage string, f func(string)) {
 	flag.Var(fn1(f), name, usage)
 }
 
-func Flagprint(fd int) {
-	if fd == 1 {
-		flag.CommandLine.SetOutput(os.Stdout)
-	}
+func Flagprint(w io.Writer) {
+	flag.CommandLine.SetOutput(w)
 	flag.PrintDefaults()
 }
 
