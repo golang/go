@@ -1953,7 +1953,7 @@ func stkprint(ctxt *Link, ch *chain, limit int) {
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: link [options] main.o\n")
-	objabi.Flagprint(2)
+	objabi.Flagprint(os.Stderr)
 	Exit(2)
 }
 
