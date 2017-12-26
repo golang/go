@@ -117,7 +117,7 @@ a file name followed by an optional address that specifies what
 section of the file to display. The address syntax is similar in
 its simplest form to that of ed, but comes from sam and is more
 general. See
-	http://plan9.bell-labs.com/sys/doc/sam/sam.html Table II
+	https://plan9.io/sys/doc/sam/sam.html Table II
 for full details. The displayed block is always rounded out to a
 full line at both ends.
 
