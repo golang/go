@@ -172,6 +172,7 @@ func objdump(ext *ExtDis) error {
 var (
 	undefined     = []byte("undefined")
 	unpredictable = []byte("unpredictable")
+	slashslash    = []byte("//")
 )
 
 func parseLine(line []byte, encstart []byte) (addr uint64, enc []byte, text string) {
@@ -204,7 +205,14 @@ func parseLine(line []byte, encstart []byte) (addr uint64, enc []byte, text stri
 		text = "unpredictable"
 		return
 	}
+	// Strip trailing comment starting with ';'
+	//   e.g: "csinv x23, x2, x19, cc ; xxx"
 	if i := bytes.IndexByte(line, ';'); i >= 0 {
+		line = bytes.TrimSpace(line[:i])
+	}
+	// Strip trailing comment starting with "//"
+	//   e.g:  "fccmpe s2, s9, #0x7, ne // xxx"
+	if i := bytes.Index(line, slashslash); i >= 0 {
 		line = bytes.TrimSpace(line[:i])
 	}
 	text = string(fixSpace(line))
