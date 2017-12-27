@@ -154,7 +154,8 @@ func (tools gccgoToolchain) asm(b *Builder, a *Action, sfiles []string) ([]strin
 	p := a.Package
 	var ofiles []string
 	for _, sfile := range sfiles {
-		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
+		base := filepath.Base(sfile)
+		ofile := a.Objdir + base[:len(base)-len(".s")] + ".o"
 		ofiles = append(ofiles, ofile)
 		sfile = mkAbs(p.Dir, sfile)
 		defs := []string{"-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch}
@@ -285,7 +286,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 			// doesn't work.
 			if !apackagePathsSeen[a.Package.ImportPath] {
 				apackagePathsSeen[a.Package.ImportPath] = true
-				target := a.Target
+				target := a.built
 				if len(a.Package.CgoFiles) > 0 || a.Package.UsesSwig() {
 					target, err = readAndRemoveCgoFlags(target)
 					if err != nil {
@@ -353,6 +354,15 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 
 	ldflags = str.StringList("-Wl,-(", ldflags, "-Wl,-)")
 
+	if root.buildID != "" {
+		// On systems that normally use gold or the GNU linker,
+		// use the --build-id option to write a GNU build ID note.
+		switch cfg.Goos {
+		case "android", "dragonfly", "linux", "netbsd":
+			ldflags = append(ldflags, fmt.Sprintf("-Wl,--build-id=0x%x", root.buildID))
+		}
+	}
+
 	for _, shlib := range shlibs {
 		ldflags = append(
 			ldflags,
@@ -392,7 +402,9 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 		}
 
 		// We are creating an object file, so we don't want a build ID.
-		ldflags = b.disableBuildID(ldflags)
+		if root.buildID == "" {
+			ldflags = b.disableBuildID(ldflags)
+		}
 
 		realOut = out
 		out = out + ".o"

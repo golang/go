@@ -252,6 +252,20 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 			// essentially unfindable.
 			fmt.Fprintf(h, "nocache %d\n", time.Now().UnixNano())
 		}
+
+	case "gccgo":
+		id, err := b.gccgoToolID(BuildToolchain.compiler(), "go")
+		if err != nil {
+			base.Fatalf("%v", err)
+		}
+		fmt.Fprintf(h, "compile %s %q %q\n", id, forcedGccgoflags, p.Internal.Gccgoflags)
+		fmt.Fprintf(h, "pkgpath %s\n", gccgoPkgpath(p))
+		if len(p.SFiles) > 0 {
+			id, err = b.gccgoToolID(BuildToolchain.compiler(), "assembler-with-cpp")
+			// Ignore error; different assembler versions
+			// are unlikely to make any difference anyhow.
+			fmt.Fprintf(h, "asm %q\n", id)
+		}
 	}
 
 	// Input files.
@@ -608,6 +622,24 @@ func (b *Builder) build(a *Action) (err error) {
 		objects = append(objects, ofiles...)
 	}
 
+	// For gccgo on ELF systems, we write the build ID as an assembler file.
+	// This lets us set the the SHF_EXCLUDE flag.
+	// This is read by readGccgoArchive in cmd/internal/buildid/buildid.go.
+	if a.buildID != "" && cfg.BuildToolchainName == "gccgo" {
+		switch cfg.Goos {
+		case "android", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+			asmfile, err := b.gccgoBuildIDELFFile(a)
+			if err != nil {
+				return err
+			}
+			ofiles, err := BuildToolchain.asm(b, a, []string{asmfile})
+			if err != nil {
+				return err
+			}
+			objects = append(objects, ofiles...)
+		}
+	}
+
 	// NOTE(rsc): On Windows, it is critically important that the
 	// gcc-compiled objects (cgoObjects) be listed after the ordinary
 	// objects in the archive. I do not know why this is.
@@ -692,12 +724,17 @@ func (b *Builder) vet(a *Action) error {
 		return err
 	}
 
+	var env []string
+	if cfg.BuildToolchainName == "gccgo" {
+		env = append(env, "GCCGO="+BuildToolchain.compiler())
+	}
+
 	p := a.Package
 	tool := VetTool
 	if tool == "" {
 		tool = base.Tool("vet")
 	}
-	return b.run(a, p.Dir, p.ImportPath, nil, cfg.BuildToolexec, tool, VetFlags, a.Objdir+"vet.cfg")
+	return b.run(a, p.Dir, p.ImportPath, env, cfg.BuildToolexec, tool, VetFlags, a.Objdir+"vet.cfg")
 }
 
 // linkActionID computes the action ID for a link action.
@@ -776,6 +813,14 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 
 		// TODO(rsc): Do cgo settings and flags need to be included?
 		// Or external linker settings and flags?
+
+	case "gccgo":
+		id, err := b.gccgoToolID(BuildToolchain.linker(), "go")
+		if err != nil {
+			base.Fatalf("%v", err)
+		}
+		fmt.Fprintf(h, "link %s %s\n", id, ldBuildmode)
+		// TODO(iant): Should probably include cgo flags here.
 	}
 }
 
