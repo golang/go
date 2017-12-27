@@ -69,6 +69,7 @@ func ReadELFNote(filename, name string, typ int32) ([]byte, error) {
 }
 
 var elfGoNote = []byte("Go\x00\x00")
+var elfGNUNote = []byte("GNU\x00")
 
 // The Go build ID is stored in a note described by an ELF PT_NOTE prog
 // header. The caller has already opened filename, to get f, and read
@@ -90,11 +91,13 @@ func readELF(name string, f *os.File, data []byte) (buildid string, err error) {
 	}
 
 	const elfGoBuildIDTag = 4
+	const gnuBuildIDTag = 3
 
 	ef, err := elf.NewFile(bytes.NewReader(data))
 	if err != nil {
 		return "", &os.PathError{Path: name, Op: "parse", Err: err}
 	}
+	var gnu string
 	for _, p := range ef.Progs {
 		if p.Type != elf.PT_NOTE || p.Filesz < 16 {
 			continue
@@ -123,13 +126,18 @@ func readELF(name string, f *os.File, data []byte) (buildid string, err error) {
 		}
 
 		filesz := p.Filesz
+		off := p.Off
 		for filesz >= 16 {
 			nameSize := ef.ByteOrder.Uint32(note)
 			valSize := ef.ByteOrder.Uint32(note[4:])
 			tag := ef.ByteOrder.Uint32(note[8:])
-			name := note[12:16]
-			if nameSize == 4 && 16+valSize <= uint32(len(note)) && tag == elfGoBuildIDTag && bytes.Equal(name, elfGoNote) {
+			nname := note[12:16]
+			if nameSize == 4 && 16+valSize <= uint32(len(note)) && tag == elfGoBuildIDTag && bytes.Equal(nname, elfGoNote) {
 				return string(note[16 : 16+valSize]), nil
+			}
+
+			if nameSize == 4 && 16+valSize <= uint32(len(note)) && tag == gnuBuildIDTag && bytes.Equal(nname, elfGNUNote) {
+				gnu = string(note[16 : 16+valSize])
 			}
 
 			nameSize = (nameSize + 3) &^ 3
@@ -138,9 +146,20 @@ func readELF(name string, f *os.File, data []byte) (buildid string, err error) {
 			if filesz <= notesz {
 				break
 			}
+			off += notesz
+			align := uint64(p.Align)
+			alignedOff := (off + align - 1) &^ (align - 1)
+			notesz += alignedOff - off
+			off = alignedOff
 			filesz -= notesz
 			note = note[notesz:]
 		}
+	}
+
+	// If we didn't find a Go note, use a GNU note if available.
+	// This is what gccgo uses.
+	if gnu != "" {
+		return gnu, nil
 	}
 
 	// No note. Treat as successful but build ID empty.
