@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-// A Client is an HTTP client. Its zero value (DefaultClient) is a
+// A Client is a HTTP client. Its zero value (DefaultClient) is a
 // usable client that uses DefaultTransport.
 //
 // The Client's Transport typically has internal state (cached TCP
