@@ -431,7 +431,7 @@ Structs
   Field offsets are logical field offsets (plus one for the identity
   node), so the sizes of the fields can be ignored by the analysis.
 
-  (The identity node is non-traditional but enables the distiction
+  (The identity node is non-traditional but enables the distinction
   described above, which is valuable for code comprehension tools.
   Typical pointer analyses for C, whose purpose is compiler
   optimization, must soundly model unsafe.Pointer (void*) conversions,
