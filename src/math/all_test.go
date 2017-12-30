@@ -1589,6 +1589,7 @@ var vfpowSC = [][2]float64{
 	{Inf(-1), 1},
 	{Inf(-1), 3},
 	{Inf(-1), Pi},
+	{Inf(-1), 0.5},
 	{Inf(-1), NaN()},
 
 	{-Pi, Inf(-1)},
@@ -1607,9 +1608,11 @@ var vfpowSC = [][2]float64{
 	{-1 / 2, Inf(1)},
 	{Copysign(0, -1), Inf(-1)},
 	{Copysign(0, -1), -Pi},
+	{Copysign(0, -1), -0.5},
 	{Copysign(0, -1), -3},
 	{Copysign(0, -1), 3},
 	{Copysign(0, -1), Pi},
+	{Copysign(0, -1), 0.5},
 	{Copysign(0, -1), Inf(1)},
 
 	{0, Inf(-1)},
@@ -1666,6 +1669,7 @@ var powSC = []float64{
 	Inf(-1),         // pow(-Inf, 1)
 	Inf(-1),         // pow(-Inf, 3)
 	Inf(1),          // pow(-Inf, Pi)
+	Inf(1),          // pow(-Inf, 0.5)
 	NaN(),           // pow(-Inf, NaN)
 	0,               // pow(-Pi, -Inf)
 	NaN(),           // pow(-Pi, -Pi)
@@ -1682,9 +1686,11 @@ var powSC = []float64{
 	0,               // pow(-1/2, +Inf)
 	Inf(1),          // pow(-0, -Inf)
 	Inf(1),          // pow(-0, -Pi)
+	Inf(1),          // pow(-0, -0.5)
 	Inf(-1),         // pow(-0, -3) IEEE 754-2008
 	Copysign(0, -1), // pow(-0, 3) IEEE 754-2008
 	0,               // pow(-0, +Pi)
+	0,               // pow(-0, 0.5)
 	0,               // pow(-0, +Inf)
 	Inf(1),          // pow(+0, -Inf)
 	Inf(1),          // pow(+0, -Pi)
