@@ -437,8 +437,7 @@ func MapNextArenaHint() (start, end uintptr) {
 	} else {
 		start, end = addr, addr+heapArenaBytes
 	}
-	var reserved bool
-	sysReserve(unsafe.Pointer(addr), physPageSize, &reserved)
+	sysReserve(unsafe.Pointer(addr), physPageSize)
 	return
 }
 

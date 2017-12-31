@@ -160,7 +160,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 func sysUsed(v unsafe.Pointer, n uintptr) {
 }
 
-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
+func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 	// sysReserve has already allocated all heap memory,
 	// but has not adjusted stats.
 	mSysStatInc(sysStat, n)
@@ -169,8 +169,7 @@ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
 func sysFault(v unsafe.Pointer, n uintptr) {
 }
 
-func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
-	*reserved = true
+func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	lock(&memlock)
 	p := memAlloc(n)
 	memCheck()
