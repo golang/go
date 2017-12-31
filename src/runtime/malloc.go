@@ -235,18 +235,12 @@ var physPageSize uintptr
 // SysReserve reserves address space without allocating memory.
 // If the pointer passed to it is non-nil, the caller wants the
 // reservation there, but SysReserve can still choose another
-// location if that one is unavailable. On some systems and in some
-// cases SysReserve will simply check that the address space is
-// available and not actually reserve it. If SysReserve returns
-// non-nil, it sets *reserved to true if the address space is
-// reserved, false if it has merely been checked.
+// location if that one is unavailable.
 // NOTE: SysReserve returns OS-aligned memory, but the heap allocator
 // may use larger alignment, so the caller must be careful to realign the
 // memory obtained by sysAlloc.
 //
 // SysMap maps previously reserved address space for use.
-// The reserved argument is true if the address space was really
-// reserved, not merely checked.
 //
 // SysFault marks a (already sysAlloc'd) region to fault
 // if accessed. Used only for debugging the runtime.
@@ -361,8 +355,7 @@ func mallocinit() {
 		// heap reservation.
 
 		const arenaMetaSize = unsafe.Sizeof(heapArena{}) * uintptr(len(*mheap_.arenas))
-		var reserved bool
-		meta := uintptr(sysReserve(nil, arenaMetaSize, &reserved))
+		meta := uintptr(sysReserve(nil, arenaMetaSize))
 		if meta != 0 {
 			mheap_.heapArenaAlloc.init(meta, arenaMetaSize)
 		}
@@ -399,7 +392,7 @@ func mallocinit() {
 			128 << 20,
 		}
 		for _, arenaSize := range arenaSizes {
-			a, size := sysReserveAligned(unsafe.Pointer(p), arenaSize, heapArenaBytes, &reserved)
+			a, size := sysReserveAligned(unsafe.Pointer(p), arenaSize, heapArenaBytes)
 			if a != nil {
 				mheap_.arena.init(uintptr(a), size)
 				p = uintptr(a) + size // For hint below
@@ -440,7 +433,7 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 			// We can't use this, so don't ask.
 			v = nil
 		} else {
-			v = sysReserve(unsafe.Pointer(p), n, &h.arena_reserved)
+			v = sysReserve(unsafe.Pointer(p), n)
 		}
 		if p == uintptr(v) {
 			// Success. Update the hint.
@@ -468,7 +461,7 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 		// All of the hints failed, so we'll take any
 		// (sufficiently aligned) address the kernel will give
 		// us.
-		v, size = sysReserveAligned(nil, n, heapArenaBytes, &h.arena_reserved)
+		v, size = sysReserveAligned(nil, n, heapArenaBytes)
 		if v == nil {
 			return nil, 0
 		}
@@ -494,7 +487,7 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 	}
 
 	// Back the reservation.
-	sysMap(v, size, h.arena_reserved, &memstats.heap_sys)
+	sysMap(v, size, &memstats.heap_sys)
 
 mapped:
 	// Create arena metadata.
@@ -529,13 +522,13 @@ mapped:
 // sysReserveAligned is like sysReserve, but the returned pointer is
 // aligned to align bytes. It may reserve either n or n+align bytes,
 // so it returns the size that was reserved.
-func sysReserveAligned(v unsafe.Pointer, size, align uintptr, reserved *bool) (unsafe.Pointer, uintptr) {
+func sysReserveAligned(v unsafe.Pointer, size, align uintptr) (unsafe.Pointer, uintptr) {
 	// Since the alignment is rather large in uses of this
 	// function, we're not likely to get it by chance, so we ask
 	// for a larger region and remove the parts we don't need.
 	retries := 0
 retry:
-	p := uintptr(sysReserve(v, size+align, reserved))
+	p := uintptr(sysReserve(v, size+align))
 	switch {
 	case p == 0:
 		return nil, 0
@@ -550,7 +543,7 @@ retry:
 		// so we may have to try again.
 		sysFree(unsafe.Pointer(p), size+align, nil)
 		p = round(p, align)
-		p2 := sysReserve(unsafe.Pointer(p), size, reserved)
+		p2 := sysReserve(unsafe.Pointer(p), size)
 		if p != uintptr(p2) {
 			// Must have raced. Try again.
 			sysFree(p2, size, nil)
@@ -1095,7 +1088,7 @@ func (l *linearAlloc) alloc(size, align uintptr, sysStat *uint64) unsafe.Pointer
 	l.next = p + size
 	if pEnd := round(l.next-1, physPageSize); pEnd > l.mapped {
 		// We need to map more of the reserved space.
-		sysMap(unsafe.Pointer(l.mapped), pEnd-l.mapped, true, sysStat)
+		sysMap(unsafe.Pointer(l.mapped), pEnd-l.mapped, sysStat)
 		l.mapped = pEnd
 	}
 	return unsafe.Pointer(p)

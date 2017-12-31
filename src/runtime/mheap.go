@@ -96,15 +96,6 @@ type mheap struct {
 	nlargefree  uint64                  // number of frees for large objects (>maxsmallsize)
 	nsmallfree  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
 
-	// arena_reserved indicates that the memory [arena_alloc,
-	// arena_end) is reserved (e.g., mapped PROT_NONE). If this is
-	// false, we have to be careful not to clobber existing
-	// mappings here. If this is true, then we own the mapping
-	// here and *must* clobber it to use it.
-	//
-	// TODO(austin): Remove.
-	arena_reserved bool
-
 	// arenas is the heap arena index. arenas[va/heapArenaBytes]
 	// points to the metadata for the heap arena containing va.
 	//
@@ -135,7 +126,7 @@ type mheap struct {
 	// (the actual arenas). This is only used on 32-bit.
 	arena linearAlloc
 
-	_ uint32 // ensure 64-bit alignment of central
+	//_ uint32 // ensure 64-bit alignment of central
 
 	// central free lists for small size classes.
 	// the padding makes sure that the MCentrals are
