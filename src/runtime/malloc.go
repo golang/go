@@ -160,7 +160,24 @@ const (
 	//
 	// On 64-bit platforms, we limit this to 48 bits because that
 	// is the maximum supported by Linux across all 64-bit
-	// architectures, with the exception of s390x.
+	// architectures, with the exception of s390x. Based on
+	// processor.h:
+	//
+	// Architecture  Name              Maximum Value (exclusive)
+	// ---------------------------------------------------------------------
+	// amd64         TASK_SIZE_MAX     0x007ffffffff000 (47 bit addresses)
+	// arm64         TASK_SIZE_64      0x01000000000000 (48 bit addresses)
+	// ppc64{,le}    TASK_SIZE_USER64  0x00400000000000 (46 bit addresses)
+	// mips64{,le}   TASK_SIZE64       0x00010000000000 (40 bit addresses)
+	// s390x         TASK_SIZE         1<<64 (64 bit addresses)
+	//
+	// These values may increase over time. In particular, ppc64
+	// and mips64 support arbitrary 64-bit addresses in hardware,
+	// but Linux imposes the above limits. amd64 has hardware
+	// support for 57 bit addresses as of 2017 (56 bits for user
+	// space), but Linux only uses addresses above 1<<47 for
+	// mappings that explicitly pass a high hint address.
+	//
 	// s390x supports full 64-bit addresses, but the allocator
 	// will panic in the unlikely event we exceed 48 bits.
 	//
