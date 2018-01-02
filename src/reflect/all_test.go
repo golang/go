@@ -4733,17 +4733,14 @@ func TestStructOfExportRules(t *testing.T) {
 			mustPanic: true,
 		},
 		{
-			field:     StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
-			mustPanic: true,
+			field: StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
 		},
 		{
-			field:     StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
-			mustPanic: true,
+			field: StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
 		},
 		{
-			field:     StructField{Name: "S", Type: TypeOf(S1{})},
-			mustPanic: false,
-			exported:  true,
+			field:    StructField{Name: "S", Type: TypeOf(S1{})},
+			exported: true,
 		},
 		{
 			field:    StructField{Name: "S", Type: TypeOf((*S1)(nil))},
@@ -4774,20 +4771,16 @@ func TestStructOfExportRules(t *testing.T) {
 			mustPanic: true,
 		},
 		{
-			field:     StructField{Name: "s", Type: TypeOf(S1{}), PkgPath: "other/pkg"},
-			mustPanic: true, // TODO(sbinet): creating a name with a package path
+			field: StructField{Name: "s", Type: TypeOf(S1{}), PkgPath: "other/pkg"},
 		},
 		{
-			field:     StructField{Name: "s", Type: TypeOf((*S1)(nil)), PkgPath: "other/pkg"},
-			mustPanic: true, // TODO(sbinet): creating a name with a package path
+			field: StructField{Name: "s", Type: TypeOf((*S1)(nil)), PkgPath: "other/pkg"},
 		},
 		{
-			field:     StructField{Name: "s", Type: TypeOf(s2{}), PkgPath: "other/pkg"},
-			mustPanic: true, // TODO(sbinet): creating a name with a package path
+			field: StructField{Name: "s", Type: TypeOf(s2{}), PkgPath: "other/pkg"},
 		},
 		{
-			field:     StructField{Name: "s", Type: TypeOf((*s2)(nil)), PkgPath: "other/pkg"},
-			mustPanic: true, // TODO(sbinet): creating a name with a package path
+			field: StructField{Name: "s", Type: TypeOf((*s2)(nil)), PkgPath: "other/pkg"},
 		},
 		{
 			field:     StructField{Name: "", Type: TypeOf(ΦType{})},
