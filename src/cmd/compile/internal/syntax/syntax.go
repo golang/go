@@ -57,12 +57,11 @@ type FilenameHandler func(name string) string
 // process as much source as possible. If errh is nil, Parse will terminate
 // immediately upon encountering an error.
 //
-// If a PragmaHandler is provided, it is called with each pragma encountered.
+// If pragh != nil, it is called with each pragma encountered.
 //
-// If a FilenameHandler is provided, it is called to process each filename
+// If fileh != nil, it is called to process each filename
 // encountered in //line directives.
 //
-// The Mode argument is currently ignored.
 func Parse(base *src.PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHandler, fileh FilenameHandler, mode Mode) (_ *File, first error) {
 	defer func() {
 		if p := recover(); p != nil {
@@ -78,24 +77,6 @@ func Parse(base *src.PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHand
 	p.init(base, src, errh, pragh, fileh, mode)
 	p.next()
 	return p.fileOrNil(), p.first
-}
-
-// ParseBytes behaves like Parse but it reads the source from the []byte slice provided.
-func ParseBytes(base *src.PosBase, src []byte, errh ErrorHandler, pragh PragmaHandler, fileh FilenameHandler, mode Mode) (*File, error) {
-	return Parse(base, &bytesReader{src}, errh, pragh, fileh, mode)
-}
-
-type bytesReader struct {
-	data []byte
-}
-
-func (r *bytesReader) Read(p []byte) (int, error) {
-	if len(r.data) > 0 {
-		n := copy(p, r.data)
-		r.data = r.data[n:]
-		return n, nil
-	}
-	return 0, io.EOF
 }
 
 // ParseFile behaves like Parse but it reads the source from the named file.
