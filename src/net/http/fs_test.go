@@ -1140,7 +1140,7 @@ func TestLinuxSendfile(t *testing.T) {
 	Post(fmt.Sprintf("http://%s/quit", ln.Addr()), "", nil)
 	child.Wait()
 
-	rx := regexp.MustCompile(`sendfile(64)?\(\d+,\s*\d+,\s*NULL,\s*\d+`)
+	rx := regexp.MustCompile(`sendfile(64)?\(`)
 	out := buf.String()
 	if !rx.MatchString(out) {
 		t.Errorf("no sendfile system call found in:\n%s", out)
