@@ -7,6 +7,7 @@ package syntax
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -29,7 +30,7 @@ func TestPrintString(t *testing.T) {
 		"package p; type _ = int; type T1 = struct{}; type ( _ = *struct{}; T2 = float32 )",
 		// TODO(gri) expand
 	} {
-		ast, err := ParseBytes(nil, []byte(want), nil, nil, nil, 0)
+		ast, err := Parse(nil, strings.NewReader(want), nil, nil, nil, 0)
 		if err != nil {
 			t.Error(err)
 			continue

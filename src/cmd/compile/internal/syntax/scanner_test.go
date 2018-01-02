@@ -5,6 +5,7 @@
 package syntax
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -42,17 +43,17 @@ func TestScanner(t *testing.T) {
 
 func TestTokens(t *testing.T) {
 	// make source
-	var buf []byte
+	var buf bytes.Buffer
 	for i, s := range sampleTokens {
-		buf = append(buf, "\t\t\t\t"[:i&3]...)     // leading indentation
-		buf = append(buf, s.src...)                // token
-		buf = append(buf, "        "[:i&7]...)     // trailing spaces
-		buf = append(buf, "/* foo */ // bar\n"...) // comments
+		buf.WriteString("\t\t\t\t"[:i&3])     // leading indentation
+		buf.WriteString(s.src)                // token
+		buf.WriteString("        "[:i&7])     // trailing spaces
+		buf.WriteString("/* foo */ // bar\n") // comments
 	}
 
 	// scan source
 	var got scanner
-	got.init(&bytesReader{buf}, nil, nil)
+	got.init(&buf, nil, nil)
 	got.next()
 	for i, want := range sampleTokens {
 		nlsemi := false
@@ -337,7 +338,7 @@ func TestScanErrors(t *testing.T) {
 	} {
 		var s scanner
 		nerrors := 0
-		s.init(&bytesReader{[]byte(test.src)}, func(line, col uint, msg string) {
+		s.init(strings.NewReader(test.src), func(line, col uint, msg string) {
 			nerrors++
 			// only check the first error
 			if nerrors == 1 {
