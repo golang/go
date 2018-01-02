@@ -266,7 +266,7 @@ func rawbyteslice(size int) (b []byte) {
 
 // rawruneslice allocates a new rune slice. The rune slice is not zeroed.
 func rawruneslice(size int) (b []rune) {
-	if uintptr(size) > _MaxMem/4 {
+	if uintptr(size) > maxAlloc/4 {
 		throw("out of memory")
 	}
 	mem := roundupsize(uintptr(size) * 4)
@@ -395,7 +395,7 @@ func findnull(s *byte) int {
 	if s == nil {
 		return 0
 	}
-	p := (*[_MaxMem/2 - 1]byte)(unsafe.Pointer(s))
+	p := (*[maxAlloc/2 - 1]byte)(unsafe.Pointer(s))
 	l := 0
 	for p[l] != 0 {
 		l++
@@ -407,7 +407,7 @@ func findnullw(s *uint16) int {
 	if s == nil {
 		return 0
 	}
-	p := (*[_MaxMem/2/2 - 1]uint16)(unsafe.Pointer(s))
+	p := (*[maxAlloc/2/2 - 1]uint16)(unsafe.Pointer(s))
 	l := 0
 	for p[l] != 0 {
 		l++
@@ -424,7 +424,7 @@ func gostringnocopy(str *byte) string {
 
 func gostringw(strw *uint16) string {
 	var buf [8]byte
-	str := (*[_MaxMem/2/2 - 1]uint16)(unsafe.Pointer(strw))
+	str := (*[maxAlloc/2/2 - 1]uint16)(unsafe.Pointer(strw))
 	n1 := 0
 	for i := 0; str[i] != 0; i++ {
 		n1 += encoderune(buf[:], rune(str[i]))

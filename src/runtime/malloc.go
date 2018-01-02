@@ -196,7 +196,13 @@ const (
 	//
 	// This is also the maximum heap pointer value.
 	memLimit = 1 << memLimitBits
-	_MaxMem  = memLimit - 1
+
+	// maxAlloc is the maximum size of an allocation. On 64-bit,
+	// it's theoretically possible to allocate memLimit bytes. On
+	// 32-bit, however, this is one less than memLimit because the
+	// number of bytes in the address space doesn't actually fit
+	// in a uintptr.
+	maxAlloc = memLimit - (1-_64bit)*1
 
 	// heapArenaBytes is the size of a heap arena. The heap
 	// consists of mappings of size heapArenaBytes, aligned to

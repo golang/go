@@ -25,14 +25,14 @@ type notInHeapSlice struct {
 // The index is the size of the slice element.
 var maxElems = [...]uintptr{
 	^uintptr(0),
-	_MaxMem / 1, _MaxMem / 2, _MaxMem / 3, _MaxMem / 4,
-	_MaxMem / 5, _MaxMem / 6, _MaxMem / 7, _MaxMem / 8,
-	_MaxMem / 9, _MaxMem / 10, _MaxMem / 11, _MaxMem / 12,
-	_MaxMem / 13, _MaxMem / 14, _MaxMem / 15, _MaxMem / 16,
-	_MaxMem / 17, _MaxMem / 18, _MaxMem / 19, _MaxMem / 20,
-	_MaxMem / 21, _MaxMem / 22, _MaxMem / 23, _MaxMem / 24,
-	_MaxMem / 25, _MaxMem / 26, _MaxMem / 27, _MaxMem / 28,
-	_MaxMem / 29, _MaxMem / 30, _MaxMem / 31, _MaxMem / 32,
+	maxAlloc / 1, maxAlloc / 2, maxAlloc / 3, maxAlloc / 4,
+	maxAlloc / 5, maxAlloc / 6, maxAlloc / 7, maxAlloc / 8,
+	maxAlloc / 9, maxAlloc / 10, maxAlloc / 11, maxAlloc / 12,
+	maxAlloc / 13, maxAlloc / 14, maxAlloc / 15, maxAlloc / 16,
+	maxAlloc / 17, maxAlloc / 18, maxAlloc / 19, maxAlloc / 20,
+	maxAlloc / 21, maxAlloc / 22, maxAlloc / 23, maxAlloc / 24,
+	maxAlloc / 25, maxAlloc / 26, maxAlloc / 27, maxAlloc / 28,
+	maxAlloc / 29, maxAlloc / 30, maxAlloc / 31, maxAlloc / 32,
 }
 
 // maxSliceCap returns the maximum capacity for a slice.
@@ -40,7 +40,7 @@ func maxSliceCap(elemsize uintptr) uintptr {
 	if elemsize < uintptr(len(maxElems)) {
 		return maxElems[elemsize]
 	}
-	return _MaxMem / elemsize
+	return maxAlloc / elemsize
 }
 
 func makeslice(et *_type, len, cap int) slice {
@@ -133,13 +133,13 @@ func growslice(et *_type, old slice, cap int) slice {
 		lenmem = uintptr(old.len)
 		newlenmem = uintptr(cap)
 		capmem = roundupsize(uintptr(newcap))
-		overflow = uintptr(newcap) > _MaxMem
+		overflow = uintptr(newcap) > maxAlloc
 		newcap = int(capmem)
 	case ptrSize:
 		lenmem = uintptr(old.len) * ptrSize
 		newlenmem = uintptr(cap) * ptrSize
 		capmem = roundupsize(uintptr(newcap) * ptrSize)
-		overflow = uintptr(newcap) > _MaxMem/ptrSize
+		overflow = uintptr(newcap) > maxAlloc/ptrSize
 		newcap = int(capmem / ptrSize)
 	default:
 		lenmem = uintptr(old.len) * et.size
@@ -163,7 +163,7 @@ func growslice(et *_type, old slice, cap int) slice {
 	//   s = append(s, d, d, d, d)
 	//   print(len(s), "\n")
 	// }
-	if cap < old.cap || overflow || capmem > _MaxMem {
+	if cap < old.cap || overflow || capmem > maxAlloc {
 		panic(errorString("growslice: cap out of range"))
 	}
 
