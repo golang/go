@@ -2731,15 +2731,18 @@ func StructOf(fields []StructField) Type {
 }
 
 func runtimeStructField(field StructField) structField {
-	if field.PkgPath != "" {
-		panic("reflect.StructOf: StructOf does not allow unexported fields")
+	if field.Anonymous && field.PkgPath != "" {
+		panic("reflect.StructOf: field \"" + field.Name + "\" is anonymous but has PkgPath set")
 	}
 
-	// Best-effort check for misuse.
-	// Since PkgPath is empty, not much harm done if Unicode lowercase slips through.
-	c := field.Name[0]
-	if 'a' <= c && c <= 'z' || c == '_' {
-		panic("reflect.StructOf: field \"" + field.Name + "\" is unexported but missing PkgPath")
+	exported := field.PkgPath == ""
+	if exported {
+		// Best-effort check for misuse.
+		// Since this field will be treated as exported, not much harm done if Unicode lowercase slips through.
+		c := field.Name[0]
+		if 'a' <= c && c <= 'z' || c == '_' {
+			panic("reflect.StructOf: field \"" + field.Name + "\" is unexported but missing PkgPath")
+		}
 	}
 
 	offsetEmbed := uintptr(0)
@@ -2749,7 +2752,7 @@ func runtimeStructField(field StructField) structField {
 
 	resolveReflectType(field.Type.common()) // install in runtime
 	return structField{
-		name:        newName(field.Name, string(field.Tag), true),
+		name:        newName(field.Name, string(field.Tag), exported),
 		typ:         field.Type.common(),
 		offsetEmbed: offsetEmbed,
 	}
