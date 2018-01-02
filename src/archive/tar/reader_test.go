@@ -189,7 +189,7 @@ func TestReader(t *testing.T) {
 			Gid:      5000,
 			Size:     5,
 			ModTime:  time.Unix(1244593104, 0),
-			Typeflag: '\x00',
+			Typeflag: '0',
 		}, {
 			Name:     "small2.txt",
 			Mode:     0444,
@@ -197,7 +197,7 @@ func TestReader(t *testing.T) {
 			Gid:      5000,
 			Size:     11,
 			ModTime:  time.Unix(1244593104, 0),
-			Typeflag: '\x00',
+			Typeflag: '0',
 		}},
 	}, {
 		file: "testdata/pax.tar",
@@ -534,9 +534,10 @@ func TestReader(t *testing.T) {
 		// a buggy pre-Go1.8 tar.Writer.
 		file: "testdata/invalid-go17.tar",
 		headers: []*Header{{
-			Name:    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/foo",
-			Uid:     010000000,
-			ModTime: time.Unix(0, 0),
+			Name:     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/foo",
+			Uid:      010000000,
+			ModTime:  time.Unix(0, 0),
+			Typeflag: '0',
 		}},
 	}, {
 		// USTAR archive with a regular entry with non-zero device numbers.

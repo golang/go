@@ -306,6 +306,7 @@ func TestRoundTrip(t *testing.T) {
 		ModTime:    time.Now().Round(time.Second),
 		PAXRecords: map[string]string{"uid": "2097152"},
 		Format:     FormatPAX,
+		Typeflag:   TypeReg,
 	}
 	if err := tw.WriteHeader(hdr); err != nil {
 		t.Fatalf("tw.WriteHeader: %v", err)

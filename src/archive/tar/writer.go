@@ -71,6 +71,16 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
 	}
 	tw.hdr = *hdr // Shallow copy of Header
 
+	// Avoid usage of the legacy TypeRegA flag, and automatically promote
+	// it to use TypeReg or TypeDir.
+	if tw.hdr.Typeflag == TypeRegA {
+		if strings.HasSuffix(tw.hdr.Name, "/") {
+			tw.hdr.Typeflag = TypeDir
+		} else {
+			tw.hdr.Typeflag = TypeReg
+		}
+	}
+
 	// Round ModTime and ignore AccessTime and ChangeTime unless
 	// the format is explicitly chosen.
 	// This ensures nominal usage of WriteHeader (without specifying the format)
