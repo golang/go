@@ -1123,6 +1123,24 @@ label1:
 //	addex RT, RA, RB, CY
 	ADDEX R1, R2, $0, R3
 
+// Immediate-shifted operations
+//	ADDIS SI, RA, RT produces
+//	addis RT, RA, SI
+	ADDIS $8, R3, R4
+	ADDIS $-1, R3, R4
+
+//	ANDISCC UI, RS, RA produces
+//	andis. RA, RS, UI
+	ANDISCC $7, R4, R5
+
+//	ORIS UI, RS, RA produces
+//	oris RA, RS, UI
+	ORIS $4, R2, R3
+
+//	XORIS UI, RS, RA produces
+//	xoris RA, RS, UI
+	XORIS $1, R1, R2
+
 //
 // NOP
 //

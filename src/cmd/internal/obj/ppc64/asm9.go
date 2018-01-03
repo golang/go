@@ -88,6 +88,8 @@ var optab = []Optab{
 	{AADD, C_ADDCON, C_NONE, C_NONE, C_REG, 4, 4, 0},
 	{AADD, C_UCON, C_REG, C_NONE, C_REG, 20, 4, 0},
 	{AADD, C_UCON, C_NONE, C_NONE, C_REG, 20, 4, 0},
+	{AADDIS, C_ADDCON, C_REG, C_NONE, C_REG, 20, 4, 0},
+	{AADDIS, C_ADDCON, C_NONE, C_NONE, C_REG, 20, 4, 0},
 	{AADD, C_LCON, C_REG, C_NONE, C_REG, 22, 12, 0},
 	{AADD, C_LCON, C_NONE, C_NONE, C_REG, 22, 12, 0},
 	{AADDC, C_REG, C_REG, C_NONE, C_REG, 2, 4, 0},
@@ -104,6 +106,8 @@ var optab = []Optab{
 	{AANDCC, C_ANDCON, C_REG, C_NONE, C_REG, 58, 4, 0},
 	{AANDCC, C_UCON, C_NONE, C_NONE, C_REG, 59, 4, 0},
 	{AANDCC, C_UCON, C_REG, C_NONE, C_REG, 59, 4, 0},
+	{AANDISCC, C_ANDCON, C_NONE, C_NONE, C_REG, 59, 4, 0},
+	{AANDISCC, C_ANDCON, C_REG, C_NONE, C_REG, 59, 4, 0},
 	{AANDCC, C_LCON, C_NONE, C_NONE, C_REG, 23, 12, 0},
 	{AANDCC, C_LCON, C_REG, C_NONE, C_REG, 23, 12, 0},
 	{AMULLW, C_REG, C_REG, C_NONE, C_REG, 2, 4, 0},
@@ -124,6 +128,8 @@ var optab = []Optab{
 	{AOR, C_ANDCON, C_REG, C_NONE, C_REG, 58, 4, 0},
 	{AOR, C_UCON, C_NONE, C_NONE, C_REG, 59, 4, 0},
 	{AOR, C_UCON, C_REG, C_NONE, C_REG, 59, 4, 0},
+	{AORIS, C_ANDCON, C_NONE, C_NONE, C_REG, 59, 4, 0},
+	{AORIS, C_ANDCON, C_REG, C_NONE, C_REG, 59, 4, 0},
 	{AOR, C_LCON, C_NONE, C_NONE, C_REG, 23, 12, 0},
 	{AOR, C_LCON, C_REG, C_NONE, C_REG, 23, 12, 0},
 	{ADIVW, C_REG, C_REG, C_NONE, C_REG, 2, 4, 0}, /* op r1[,r2],r3 */
@@ -1522,7 +1528,6 @@ func buildop(ctxt *obj.Link) {
 
 		case AAND: /* logical op Rb,Rs,Ra; no literal */
 			opset(AANDN, r0)
-
 			opset(AANDNCC, r0)
 			opset(AEQV, r0)
 			opset(AEQVCC, r0)
@@ -1677,8 +1682,11 @@ func buildop(ctxt *obj.Link) {
 			opset(ANEGV, r0)
 			opset(ANEGVCC, r0)
 
-		case AOR: /* or/xor Rb,Rs,Ra; ori/xori $uimm,Rs,Ra; oris/xoris $uimm,Rs,Ra */
+		case AOR: /* or/xor Rb,Rs,Ra; ori/xori $uimm,Rs,R */
 			opset(AXOR, r0)
+
+		case AORIS: /* oris/xoris $uimm,Rs,Ra */
+			opset(AXORIS, r0)
 
 		case ASLW:
 			opset(ASLWCC, r0)
@@ -1792,7 +1800,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AFTSQRT, r0)
 
 		case AADD,
-			AANDCC, /* and. Rb,Rs,Ra; andi. $uimm,Rs,Ra; andis. $uimm,Rs,Ra */
+			AADDIS,
+			AANDCC, /* and. Rb,Rs,Ra; andi. $uimm,Rs,Ra */
+			AANDISCC,
 			AFMOVSX,
 			AFMOVSZ,
 			ALSW,
@@ -2624,7 +2634,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	//if(dlm) reloc(&p->from, p->pc, 0);
 
-	case 20: /* add $ucon,,r */
+	case 20: /* add $ucon,,r | addis $addcon,r,r */
 		v := c.regoff(&p.From)
 
 		r := int(p.Reg)
@@ -2634,7 +2644,11 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.As == AADD && (r0iszero == 0 /*TypeKind(100016)*/ && p.Reg == 0 || r0iszero != 0 /*TypeKind(100016)*/ && p.To.Reg == 0) {
 			c.ctxt.Diag("literal operation on R0\n%v", p)
 		}
-		o1 = AOP_IRR(c.opirr(-p.As), uint32(p.To.Reg), uint32(r), uint32(v)>>16)
+		if p.As == AADDIS {
+			o1 = AOP_IRR(c.opirr(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
+		} else {
+			o1 = AOP_IRR(c.opirr(AADDIS), uint32(p.To.Reg), uint32(r), uint32(v)>>16)
+		}
 
 	case 22: /* add $lcon,r1,r2 ==> cau+or+add */ /* could do add/sub more efficiently */
 		if p.To.Reg == REGTMP || p.Reg == REGTMP {
@@ -3063,14 +3077,23 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 = LOP_IRR(c.opirr(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
 
-	case 59: /* or/and $ucon,,r */
+	case 59: /* or/xor/and $ucon,,r | oris/xoris/andis $addcon,r,r */
 		v := c.regoff(&p.From)
 
 		r := int(p.Reg)
 		if r == 0 {
 			r = int(p.To.Reg)
 		}
-		o1 = LOP_IRR(c.opirr(-p.As), uint32(p.To.Reg), uint32(r), uint32(v)>>16) /* oris, xoris, andis */
+		switch p.As {
+		case AOR:
+			o1 = LOP_IRR(c.opirr(AORIS), uint32(p.To.Reg), uint32(r), uint32(v)>>16) /* oris, xoris, andis. */
+		case AXOR:
+			o1 = LOP_IRR(c.opirr(AXORIS), uint32(p.To.Reg), uint32(r), uint32(v)>>16)
+		case AANDCC:
+			o1 = LOP_IRR(c.opirr(AANDCC), uint32(p.To.Reg), uint32(r), uint32(v)>>16)
+		default:
+			o1 = LOP_IRR(c.opirr(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
+		}
 
 	case 60: /* tw to,a,b */
 		r := int(c.regoff(&p.From) & 31)
@@ -4442,13 +4465,13 @@ func (c *ctxt9) opirr(a obj.As) uint32 {
 		return OPVCC(12, 0, 0, 0)
 	case AADDCCC:
 		return OPVCC(13, 0, 0, 0)
-	case -AADD:
-		return OPVCC(15, 0, 0, 0) /* ADDIS/CAU */
+	case AADDIS:
+		return OPVCC(15, 0, 0, 0) /* ADDIS */
 
 	case AANDCC:
 		return OPVCC(28, 0, 0, 0)
-	case -AANDCC:
-		return OPVCC(29, 0, 0, 0) /* ANDIS./ANDIU. */
+	case AANDISCC:
+		return OPVCC(29, 0, 0, 0) /* ANDIS. */
 
 	case ABR:
 		return OPVCC(18, 0, 0, 0)
@@ -4506,8 +4529,8 @@ func (c *ctxt9) opirr(a obj.As) uint32 {
 
 	case AOR:
 		return OPVCC(24, 0, 0, 0)
-	case -AOR:
-		return OPVCC(25, 0, 0, 0) /* ORIS/ORIU */
+	case AORIS:
+		return OPVCC(25, 0, 0, 0) /* ORIS */
 
 	case ARLWMI:
 		return OPVCC(20, 0, 0, 0) /* rlwimi */
@@ -4584,8 +4607,8 @@ func (c *ctxt9) opirr(a obj.As) uint32 {
 
 	case AXOR:
 		return OPVCC(26, 0, 0, 0) /* XORIL */
-	case -AXOR:
-		return OPVCC(27, 0, 0, 0) /* XORIU */
+	case AXORIS:
+		return OPVCC(27, 0, 0, 0) /* XORIS */
 	}
 
 	c.ctxt.Diag("bad opcode i/r or i/r/r %v", a)
