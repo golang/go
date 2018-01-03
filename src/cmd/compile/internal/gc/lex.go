@@ -105,7 +105,7 @@ func pragmaValue(verb string) syntax.Pragma {
 }
 
 // pragcgo is called concurrently if files are parsed concurrently.
-func (p *noder) pragcgo(pos src.Pos, text string) string {
+func (p *noder) pragcgo(pos syntax.Pos, text string) string {
 	f := pragmaFields(text)
 
 	verb := f[0][3:] // skip "go:"
