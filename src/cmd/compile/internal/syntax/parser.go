@@ -47,8 +47,9 @@ func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh P
 			p.error_at(p.pos_at(line, col), msg)
 		},
 		func(line, col uint, text string) {
-			if strings.HasPrefix(text, "line ") {
-				p.updateBase(line, col+5, text[5:])
+			const prefix = "line "
+			if strings.HasPrefix(text, prefix) {
+				p.updateBase(line, col+uint(len(prefix)), text[len(prefix):])
 				return
 			}
 			if pragh != nil {
@@ -69,23 +70,54 @@ func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh P
 const lineMax = 1<<24 - 1 // TODO(gri) this limit is defined for src.Pos - fix
 
 func (p *parser) updateBase(line, col uint, text string) {
-	// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
-	i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
-	if i < 0 {
+	i, n, ok := trailingDigits(text)
+	if i == 0 {
 		return // ignore (not a line directive)
 	}
-	nstr := text[i+1:]
-	n, err := strconv.Atoi(nstr)
-	if err != nil || n <= 0 || n > lineMax {
-		p.error_at(p.pos_at(line, col+uint(i+1)), "invalid line number: "+nstr)
+	// i > 0
+
+	if !ok {
+		// text has a suffix :xxx but xxx is not a number
+		p.error_at(p.pos_at(line, col+i), "invalid line number: "+text[i:])
 		return
 	}
-	filename := text[:i]
+
+	i2, n2, ok2 := trailingDigits(text[:i-1])
+	if ok2 {
+		//line filename:line:col
+		i, i2 = i2, i
+		n, n2 = n2, n
+		if n2 == 0 {
+			p.error_at(p.pos_at(line, col+i2), "invalid column number: "+text[i2:])
+			return
+		}
+		text = text[:i2-1] // lop off :col
+	}
+
+	if n == 0 || n > lineMax {
+		p.error_at(p.pos_at(line, col+i), "invalid line number: "+text[i:])
+		return
+	}
+
+	filename := text[:i-1] // lop off :line
 	absFilename := filename
 	if p.fileh != nil {
 		absFilename = p.fileh(filename)
 	}
-	p.base = src.NewLinePragmaBase(src.MakePos(p.base.Pos().Base(), line, col), filename, absFilename, uint(n))
+
+	// TODO(gri) pass column n2 to NewLinePragmaBase
+	p.base = src.NewLinePragmaBase(src.MakePos(p.base.Pos().Base(), line, col), filename, absFilename, uint(n) /*uint(n2)*/)
+}
+
+func trailingDigits(text string) (uint, uint, bool) {
+	// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
+	i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
+	if i < 0 {
+		return 0, 0, false // no ":"
+	}
+	// i >= 0
+	n, err := strconv.ParseUint(text[i+1:], 10, 0)
+	return uint(i + 1), uint(n), err == nil
 }
 
 func (p *parser) got(tok token) bool {
