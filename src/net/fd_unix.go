@@ -173,7 +173,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
 				return rsa, nil
 			}
 		default:
-			return nil, os.NewSyscallError("getsockopt", err)
+			return nil, os.NewSyscallError("connect", err)
 		}
 		runtime.KeepAlive(fd)
 	}
