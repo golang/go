@@ -53,7 +53,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 
 	body := p.stmts(expr.Body.List)
 
-	lineno = Ctxt.PosTable.XPos(expr.Body.Rbrace)
+	lineno = p.makeXPos(expr.Body.Rbrace)
 	if len(body) == 0 {
 		body = []*Node{nod(OEMPTY, nil, nil)}
 	}

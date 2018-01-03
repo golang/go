@@ -5,7 +5,7 @@
 package gc
 
 import (
-	"cmd/internal/src"
+	"cmd/compile/internal/syntax"
 	"testing"
 )
 
@@ -22,7 +22,6 @@ func eq(a, b []string) bool {
 }
 
 func TestPragmaFields(t *testing.T) {
-
 	var tests = []struct {
 		in   string
 		want []string
@@ -49,7 +48,6 @@ func TestPragmaFields(t *testing.T) {
 }
 
 func TestPragcgo(t *testing.T) {
-
 	var tests = []struct {
 		in   string
 		want string
@@ -73,8 +71,9 @@ func TestPragcgo(t *testing.T) {
 	}
 
 	var p noder
+	var nopos syntax.Pos
 	for _, tt := range tests {
-		got := p.pragcgo(src.NoPos, tt.in)
+		got := p.pragcgo(nopos, tt.in)
 		if got != tt.want {
 			t.Errorf("pragcgo(%q) = %q; want %q", tt.in, got, tt.want)
 			continue
