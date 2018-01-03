@@ -577,6 +577,7 @@ func (s *scanner) skipLine(r rune) {
 
 func (s *scanner) lineComment() {
 	r := s.getr()
+
 	// directives must start at the beginning of the line (s.col == colbase)
 	if s.col != colbase || s.pragh == nil || (r != 'g' && r != 'l') {
 		s.skipLine(r)
@@ -608,20 +609,47 @@ func (s *scanner) lineComment() {
 	s.pragh(s.line, s.col+2, prefix+string(text)) // +2 since directive text starts after //
 }
 
-func (s *scanner) fullComment() {
-	for {
-		r := s.getr()
+func (s *scanner) skipComment(r rune) {
+	for r >= 0 {
 		for r == '*' {
 			r = s.getr()
 			if r == '/' {
 				return
 			}
 		}
-		if r < 0 {
-			s.errh(s.line, s.col, "comment not terminated")
+		r = s.getr()
+	}
+	s.errh(s.line, s.col, "comment not terminated")
+}
+
+func (s *scanner) fullComment() {
+	r := s.getr()
+
+	if s.pragh == nil || r != 'l' {
+		s.skipComment(r)
+		return
+	}
+	// s.pragh != nil && r == 'l'
+
+	// recognize line directive
+	const prefix = "line "
+	for _, m := range prefix {
+		if r != m {
+			s.skipComment(r)
 			return
 		}
+		r = s.getr()
 	}
+
+	// directive text without comment ending
+	s.startLit()
+	s.skipComment(r)
+	text := s.stopLit()
+	if i := len(text) - 2; i >= 0 && text[i] == '*' && text[i+1] == '/' {
+		text = text[:i]
+	}
+
+	s.pragh(s.line, s.col+2, prefix+string(text)) // +2 since directive text starts after /*
 }
 
 func (s *scanner) escape(quote rune) bool {

@@ -45,10 +45,10 @@ func TestTokens(t *testing.T) {
 	// make source
 	var buf bytes.Buffer
 	for i, s := range sampleTokens {
-		buf.WriteString("\t\t\t\t"[:i&3])     // leading indentation
-		buf.WriteString(s.src)                // token
-		buf.WriteString("        "[:i&7])     // trailing spaces
-		buf.WriteString("/* foo */ // bar\n") // comments
+		buf.WriteString("\t\t\t\t"[:i&3])           // leading indentation
+		buf.WriteString(s.src)                      // token
+		buf.WriteString("        "[:i&7])           // trailing spaces
+		buf.WriteString("/*line foo:1 */ // bar\n") // comments (don't crash w/o directive handler)
 	}
 
 	// scan source
@@ -313,7 +313,6 @@ func TestScanErrors(t *testing.T) {
 		{"`", "string not terminated", 0, 0},
 		{"`foo", "string not terminated", 0, 0},
 		{"/*/", "comment not terminated", 0, 0},
-		{"/*\n\nfoo", "comment not terminated", 0, 0},
 		{"/*\n\nfoo", "comment not terminated", 0, 0},
 		{`"\`, "string not terminated", 0, 0},
 		{`"\"`, "string not terminated", 0, 0},

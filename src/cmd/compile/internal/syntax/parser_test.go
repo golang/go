@@ -182,25 +182,99 @@ func TestParseFile(t *testing.T) {
 }
 
 func TestLineDirectives(t *testing.T) {
+	// valid line directives lead to a syntax error after them
+	const valid = "syntax error: package statement must be first"
+
 	for _, test := range []struct {
 		src, msg  string
 		filename  string
 		line, col uint // 0-based
 	}{
-		// test validity of //line directive
-		{`//line :`, "invalid line number: ", "", 0, 8},
-		{`//line :x`, "invalid line number: x", "", 0, 8},
-		{`//line foo :`, "invalid line number: ", "", 0, 12},
-		{`//line foo:123abc`, "invalid line number: 123abc", "", 0, 11},
-		{`/**///line foo:x`, "syntax error: package statement must be first", "", 0, 16}, //line directive not at start of line - ignored
-		{`//line foo:0`, "invalid line number: 0", "", 0, 11},
-		{fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), "", 0, 11},
+		// ignored //line directives
+		{"//\n", valid, "", 2 - linebase, 0},            // no directive
+		{"//line\n", valid, "", 2 - linebase, 0},        // missing colon
+		{"//line foo\n", valid, "", 2 - linebase, 0},    // missing colon
+		{"  //line foo:\n", valid, "", 2 - linebase, 0}, // not a line start
+		{"//  line foo:\n", valid, "", 2 - linebase, 0}, // space between // and line
 
-		// test effect of //line directive on (relative) position information
-		{"//line foo:123\n   foo", "syntax error: package statement must be first", "foo", 123 - linebase, 3},
-		{"//line foo:123\n//line bar:345\nfoo", "syntax error: package statement must be first", "bar", 345 - linebase, 0},
+		// invalid //line directives with one colon
+		{"//line :\n", "invalid line number: ", "", 0, 8},
+		{"//line :x\n", "invalid line number: x", "", 0, 8},
+		{"//line foo :\n", "invalid line number: ", "", 0, 12},
+		{"//line foo:x\n", "invalid line number: x", "", 0, 11},
+		{"//line foo:0\n", "invalid line number: 0", "", 0, 11},
+		{"//line foo:1 \n", "invalid line number: 1 ", "", 0, 11},
+		{"//line foo:-12\n", "invalid line number: -12", "", 0, 11},
+		{"//line C:foo:0\n", "invalid line number: 0", "", 0, 13},
+		{fmt.Sprintf("//line foo:%d\n", lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), "", 0, 11},
 
-		{"//line " + runtime.GOROOT() + "/src/a/a.go:123\n   foo", "syntax error: package statement must be first", "$GOROOT/src/a/a.go", 123 - linebase, 3},
+		// invalid //line directives with two colons
+		{"//line ::\n", "invalid line number: ", "", 0, 9},
+		{"//line ::x\n", "invalid line number: x", "", 0, 9},
+		{"//line foo::123abc\n", "invalid line number: 123abc", "", 0, 12},
+		{"//line foo::0\n", "invalid line number: 0", "", 0, 12},
+		{"//line foo:0:1\n", "invalid line number: 0", "", 0, 11},
+
+		{"//line :123:0\n", "invalid column number: 0", "", 0, 12},
+		{"//line foo:123:0\n", "invalid column number: 0", "", 0, 15},
+
+		// effect of valid //line directives on positions
+		{"//line foo:123\n   foo", valid, "foo", 123 - linebase, 3},
+		{"//line  foo:123\n   foo", valid, " foo", 123 - linebase, 3},
+		{"//line foo:123\n//line bar:345\nfoo", valid, "bar", 345 - linebase, 0},
+		{"//line C:foo:123\n", valid, "C:foo", 123 - linebase, 0},
+		{"//line " + runtime.GOROOT() + "/src/a/a.go:123\n   foo", valid, "$GOROOT/src/a/a.go", 123 - linebase, 3},
+		{"//line :x:1\n", valid, ":x", 0, 0},
+		{"//line foo ::1\n", valid, "foo :", 0, 0},
+		{"//line foo:123abc:1\n", valid, "foo:123abc", 0, 0},
+		{"//line foo :123:1\n", valid, "foo ", 123 - linebase, 0},
+		{"//line ::123\n", valid, ":", 123 - linebase, 0},
+
+		// TODO(gri) add tests to verify correct column changes, once implemented
+
+		// ignored /*line directives
+		{"/**/", valid, "", 1 - linebase, 4},             // no directive
+		{"/*line*/", valid, "", 1 - linebase, 8},         // missing colon
+		{"/*line foo*/", valid, "", 1 - linebase, 12},    // missing colon
+		{"  //line foo:*/", valid, "", 1 - linebase, 15}, // not a line start
+		{"/*  line foo:*/", valid, "", 1 - linebase, 15}, // space between // and line
+
+		// invalid /*line directives with one colon
+		{"/*line :*/", "invalid line number: ", "", 0, 8},
+		{"/*line :x*/", "invalid line number: x", "", 0, 8},
+		{"/*line foo :*/", "invalid line number: ", "", 0, 12},
+		{"/*line foo:x*/", "invalid line number: x", "", 0, 11},
+		{"/*line foo:0*/", "invalid line number: 0", "", 0, 11},
+		{"/*line foo:1 */", "invalid line number: 1 ", "", 0, 11},
+		{"/*line C:foo:0*/", "invalid line number: 0", "", 0, 13},
+		{fmt.Sprintf("/*line foo:%d*/", lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), "", 0, 11},
+
+		// invalid /*line directives with two colons
+		{"/*line ::*/", "invalid line number: ", "", 0, 9},
+		{"/*line ::x*/", "invalid line number: x", "", 0, 9},
+		{"/*line foo::123abc*/", "invalid line number: 123abc", "", 0, 12},
+		{"/*line foo::0*/", "invalid line number: 0", "", 0, 12},
+		{"/*line foo:0:1*/", "invalid line number: 0", "", 0, 11},
+
+		{"/*line :123:0*/", "invalid column number: 0", "", 0, 12},
+		{"/*line foo:123:0*/", "invalid column number: 0", "", 0, 15},
+
+		// effect of valid /*line directives on positions
+		// TODO(gri) remove \n after directives once line number is computed correctly
+		{"/*line foo:123*/\n   foo", valid, "foo", 123 - linebase, 3},
+		{"/*line foo:123*/\n//line bar:345\nfoo", valid, "bar", 345 - linebase, 0},
+		{"/*line C:foo:123*/\n", valid, "C:foo", 123 - linebase, 0},
+		{"/*line " + runtime.GOROOT() + "/src/a/a.go:123*/\n   foo", valid, "$GOROOT/src/a/a.go", 123 - linebase, 3},
+		{"/*line :x:1*/\n", valid, ":x", 1 - linebase, 0},
+		{"/*line foo ::1*/\n", valid, "foo :", 1 - linebase, 0},
+		{"/*line foo:123abc:1*/\n", valid, "foo:123abc", 1 - linebase, 0},
+		{"/*line foo :123:1*/\n", valid, "foo ", 123 - linebase, 0},
+		{"/*line ::123*/\n", valid, ":", 123 - linebase, 0},
+
+		// test effect of /*line directive on (relative) position information for this line
+		// TODO(gri) add these tests
+
+		// TODO(gri) add tests to verify correct column changes, once implemented
 	} {
 		fileh := func(name string) string {
 			if strings.HasPrefix(name, runtime.GOROOT()) {
@@ -224,11 +298,11 @@ func TestLineDirectives(t *testing.T) {
 		if filename := perr.Pos.AbsFilename(); filename != test.filename {
 			t.Errorf("%s: got filename = %q; want %q", test.src, filename, test.filename)
 		}
-		if line := perr.Pos.RelLine(); line != test.line+linebase {
-			t.Errorf("%s: got line = %d; want %d", test.src, line, test.line+linebase)
+		if line := perr.Pos.RelLine(); line-linebase != test.line {
+			t.Errorf("%s: got line = %d; want %d", test.src, line-linebase, test.line)
 		}
-		if col := perr.Pos.Col(); col != test.col+colbase {
-			t.Errorf("%s: got col = %d; want %d", test.src, col, test.col+colbase)
+		if col := perr.Pos.Col(); col-colbase != test.col {
+			t.Errorf("%s: got col = %d; want %d", test.src, col-colbase, test.col)
 		}
 	}
 }
