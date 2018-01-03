@@ -10,6 +10,7 @@ import (
 	"internal/poll"
 	"internal/testenv"
 	"io"
+	"os"
 	"runtime"
 	"sync"
 	"testing"
@@ -634,7 +635,13 @@ func TestDialerLocalAddr(t *testing.T) {
 		}
 		c, err := d.Dial(tt.network, addr)
 		if err == nil && tt.error != nil || err != nil && tt.error == nil {
-			t.Errorf("%s %v->%s: got %v; want %v", tt.network, tt.laddr, tt.raddr, err, tt.error)
+			// On Darwin this occasionally times out.
+			// We don't know why. Issue #22019.
+			if runtime.GOOS == "darwin" && tt.error == nil && os.IsTimeout(err) {
+				t.Logf("ignoring timeout error on Darwin; see https://golang.org/issue/22019")
+			} else {
+				t.Errorf("%s %v->%s: got %v; want %v", tt.network, tt.laddr, tt.raddr, err, tt.error)
+			}
 		}
 		if err != nil {
 			if perr := parseDialError(err); perr != nil {
