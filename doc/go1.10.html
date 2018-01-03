@@ -1271,6 +1271,10 @@ and
 that allow setting I/O deadlines when the
 underlying file descriptor supports non-blocking I/O operations.
 The definition of these methods matches those in <a href="/pkg/net/#Conn"><code>net.Conn</code></a>.
+If an I/O method fails due to missing a deadline, it will return a
+timeout error; the
+new <a href="/pkg/os/#IsTimeout"><code>IsTimeout</code></a> function
+reports whether an error represents a timeout.
 </p>
 
 <p>
