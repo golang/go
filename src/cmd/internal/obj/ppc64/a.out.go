@@ -378,6 +378,7 @@ const (
 const (
 	AADD = obj.ABasePPC64 + obj.A_ARCHSPECIFIC + iota
 	AADDCC
+	AADDIS
 	AADDV
 	AADDVCC
 	AADDC
@@ -401,6 +402,7 @@ const (
 	AANDCC
 	AANDN
 	AANDNCC
+	AANDISCC
 	ABC
 	ABCL
 	ABEQ
@@ -536,6 +538,7 @@ const (
 	AORCC
 	AORN
 	AORNCC
+	AORIS
 	AREM
 	AREMCC
 	AREMV
@@ -581,6 +584,7 @@ const (
 	ASYNC
 	AXOR
 	AXORCC
+	AXORIS
 
 	ADCBF
 	ADCBI
