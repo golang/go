@@ -21,11 +21,13 @@ func (p *Prog) Line() string {
 // InnermostLineNumber returns a string containing the line number for the
 // innermost inlined function (if any inlining) at p's position
 func (p *Prog) InnermostLineNumber() string {
-	pos := p.Ctxt.InnermostPos(p.Pos)
-	if !pos.IsKnown() {
-		return "?"
-	}
-	return fmt.Sprintf("%d", pos.Line())
+	return p.Ctxt.InnermostPos(p.Pos).LineNumber()
+}
+
+// InnermostLineNumberHTML returns a string containing the line number for the
+// innermost inlined function (if any inlining) at p's position
+func (p *Prog) InnermostLineNumberHTML() string {
+	return p.Ctxt.InnermostPos(p.Pos).LineNumberHTML()
 }
 
 // InnermostFilename returns a string containing the innermost
