@@ -37,6 +37,38 @@ func (p XPos) After(q XPos) bool {
 	return n > m || n == m && p.lico > q.lico
 }
 
+// WithNotStmt returns the same location to be marked with DWARF is_stmt=0
+func (p XPos) WithNotStmt() XPos {
+	p.lico = p.lico.withNotStmt()
+	return p
+}
+
+// WithDefaultStmt returns the same location with undetermined is_stmt
+func (p XPos) WithDefaultStmt() XPos {
+	p.lico = p.lico.withDefaultStmt()
+	return p
+}
+
+// WithIsStmt returns the same location to be marked with DWARF is_stmt=1
+func (p XPos) WithIsStmt() XPos {
+	p.lico = p.lico.withIsStmt()
+	return p
+}
+
+func (p XPos) LineNumber() string {
+	if !p.IsKnown() {
+		return "?"
+	}
+	return p.lico.lineNumber()
+}
+
+func (p XPos) LineNumberHTML() string {
+	if !p.IsKnown() {
+		return "?"
+	}
+	return p.lico.lineNumberHTML()
+}
+
 // A PosTable tracks Pos -> XPos conversions and vice versa.
 // Its zero value is a ready-to-use PosTable.
 type PosTable struct {
