@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of December 21, 2017",
+	"Subtitle": "Version of January 3, 2018",
 	"Path": "/ref/spec"
 }-->
 
@@ -1453,9 +1453,9 @@ components have identical types. In detail:
 	    <a href="#Exported_identifiers">Non-exported</a> method names from different
 	    packages are always different. The order of the methods is irrelevant.</li>
 
-	<li>Two map types are identical if they have identical key and value types.</li>
+	<li>Two map types are identical if they have identical key and element types.</li>
 
-	<li>Two channel types are identical if they have identical value types and
+	<li>Two channel types are identical if they have identical element types and
 	    the same direction.</li>
 </ul>
 
@@ -3033,11 +3033,11 @@ For <code>a</code> of <a href="#Map_types">map type</a> <code>M</code>:
 	    <a href="#Assignability">assignable</a>
 	    to the key type of <code>M</code></li>
 	<li>if the map contains an entry with key <code>x</code>,
-	    <code>a[x]</code> is the map value with key <code>x</code>
-	    and the type of <code>a[x]</code> is the value type of <code>M</code></li>
+	    <code>a[x]</code> is the map element with key <code>x</code>
+	    and the type of <code>a[x]</code> is the element type of <code>M</code></li>
 	<li>if the map is <code>nil</code> or does not contain such an entry,
 	    <code>a[x]</code> is the <a href="#The_zero_value">zero value</a>
-	    for the value type of <code>M</code></li>
+	    for the element type of <code>M</code></li>
 </ul>
 
 <p>
@@ -5122,7 +5122,7 @@ for i, s := range a {
 }
 
 var key string
-var val interface {}  // value type of m is assignable to val
+var val interface {}  // element type of m is assignable to val
 m := map[string]int{"mon":0, "tue":1, "wed":2, "thu":3, "fri":4, "sat":5, "sun":6}
 for key, val = range m {
 	h(key, val)
