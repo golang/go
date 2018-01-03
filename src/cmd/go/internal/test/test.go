@@ -406,14 +406,14 @@ var HelpTestfunc = &base.Command{
 The 'go test' command expects to find test, benchmark, and example functions
 in the "*_test.go" files corresponding to the package under test.
 
-A test function is one named TestXXX (where XXX is any alphanumeric string
-not starting with a lower case letter) and should have the signature,
+A test function is one named TestXxx (where Xxx does not start with a
+lower case letter) and should have the signature,
 
-	func TestXXX(t *testing.T) { ... }
+	func TestXxx(t *testing.T) { ... }
 
-A benchmark function is one named BenchmarkXXX and should have the signature,
+A benchmark function is one named BenchmarkXxx and should have the signature,
 
-	func BenchmarkXXX(b *testing.B) { ... }
+	func BenchmarkXxx(b *testing.B) { ... }
 
 An example function is similar to a test function but, instead of using
 *testing.T to report success or failure, prints output to os.Stdout.
@@ -424,8 +424,8 @@ comment, however the order of the lines is ignored. An example with no such
 comment is compiled but not executed. An example with no text after
 "Output:" is compiled, executed, and expected to produce no output.
 
-Godoc displays the body of ExampleXXX to demonstrate the use
-of the function, constant, or variable XXX. An example of a method M with
+Godoc displays the body of ExampleXxx to demonstrate the use
+of the function, constant, or variable Xxx. An example of a method M with
 receiver type T or *T is named ExampleT_M. There may be multiple examples
 for a given function, constant, or variable, distinguished by a trailing _xxx,
 where xxx is a suffix not beginning with an upper case letter.

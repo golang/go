@@ -6,8 +6,8 @@
 // It is intended to be used in concert with the ``go test'' command, which automates
 // execution of any function of the form
 //     func TestXxx(*testing.T)
-// where Xxx can be any alphanumeric string (but the first letter must not be in
-// [a-z]) and serves to identify the test routine.
+// where Xxx does not start with a lowercase letter. The function name
+// serves to identify the test routine.
 //
 // Within these functions, use the Error, Fail or related methods to signal failure.
 //
