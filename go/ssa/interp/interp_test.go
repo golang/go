@@ -13,6 +13,7 @@ import (
 	"go/types"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -155,6 +156,9 @@ var testdataTests = []string{
 type successPredicate func(exitcode int, output string) error
 
 func run(t *testing.T, dir, input string, success successPredicate) bool {
+	if runtime.GOOS == "darwin" {
+		t.Skip("skipping on darwin until golang.org/issue/23166 is fixed")
+	}
 	fmt.Printf("Input: %s\n", input)
 
 	start := time.Now()
