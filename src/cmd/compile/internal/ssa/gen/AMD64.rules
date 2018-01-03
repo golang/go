@@ -2284,3 +2284,26 @@
 // LEAQ is rematerializeable, so this helps to avoid register spill.
 // See isuue 22947 for details
 (ADDQconst [off] x:(SP)) -> (LEAQ [off] x)
+
+// Fold loads into compares
+// Note: these may be undone by the flagalloc pass.
+(CMP(Q|L|W|B) l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l, x) && clobber(l) -> (CMP(Q|L|W|B)mem {sym} [off] ptr x mem)
+(CMP(Q|L|W|B) x l:(MOV(Q|L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> (InvertFlags (CMP(Q|L|W|B)mem {sym} [off] ptr x mem))
+
+(CMP(Q|L|W|B)const l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) [c])
+	&& l.Uses == 1
+	&& validValAndOff(c, off)
+	&& clobber(l) ->
+  @l.Block (CMP(Q|L|W|B)constmem {sym} [makeValAndOff(c,off)] ptr mem)
+
+(CMPQmem {sym} [off] ptr (MOVQconst [c]) mem) && validValAndOff(c,off) -> (CMPQconstmem {sym} [makeValAndOff(c,off)] ptr mem)
+(CMPLmem {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(c,off) -> (CMPLconstmem {sym} [makeValAndOff(c,off)] ptr mem)
+(CMPWmem {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int16(c)),off) -> (CMPWconstmem {sym} [makeValAndOff(int64(int16(c)),off)] ptr mem)
+(CMPBmem {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int8(c)),off) -> (CMPBconstmem {sym} [makeValAndOff(int64(int8(c)),off)] ptr mem)
+
+(TEST(Q|L|W|B)  l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) l2)
+        && l == l2
+	&& l.Uses == 2
+	&& validValAndOff(0,off)
+	&& clobber(l) ->
+  @l.Block (CMP(Q|L|W|B)constmem {sym} [makeValAndOff(0,off)] ptr mem)
