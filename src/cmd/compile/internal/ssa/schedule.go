@@ -264,7 +264,7 @@ func schedule(f *Func) {
 			}
 		}
 		if len(order) != len(b.Values) {
-			f.Fatalf("schedule does not include all values")
+			f.Fatalf("schedule does not include all values in block %s", b)
 		}
 		for i := 0; i < len(b.Values); i++ {
 			b.Values[i] = order[len(b.Values)-1-i]
