@@ -57,10 +57,9 @@ type Response struct {
 	// The http Client and Transport guarantee that Body is always
 	// non-nil, even on responses without a body or responses with
 	// a zero-length body. It is the caller's responsibility to
-	// close Body. The default HTTP client's Transport does not
-	// attempt to reuse HTTP/1.0 or HTTP/1.1 TCP connections
-	// ("keep-alive") unless the Body is read to completion and is
-	// closed.
+	// close Body. The default HTTP client's Transport may not
+	// reuse HTTP/1.x "keep-alive" TCP connections if the Body is
+	// not read to completion and closed.
 	//
 	// The Body is automatically dechunked if the server replied
 	// with a "chunked" Transfer-Encoding.
