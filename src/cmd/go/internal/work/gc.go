@@ -49,7 +49,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 	pkgpath := p.ImportPath
 	if cfg.BuildBuildmode == "plugin" {
 		pkgpath = pluginPath(a)
-	} else if p.Name == "main" {
+	} else if p.Name == "main" && !p.Internal.ForceLibrary {
 		pkgpath = "main"
 	}
 	gcargs := []string{"-p", pkgpath}

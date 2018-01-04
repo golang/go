@@ -1589,6 +1589,19 @@ func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
 	tg.run("test", "main_test")
 }
 
+func TestPackageMainTestCompilerFlags(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	tg.tempFile("src/p1/p1.go", "package main\n")
+	tg.tempFile("src/p1/p1_test.go", "package main\nimport \"testing\"\nfunc Test(t *testing.T){}\n")
+	tg.run("test", "-c", "-n", "p1")
+	tg.grepBothNot(`[\\/]compile.* -p main.*p1\.go`, "should not have run compile -p main p1.go")
+	tg.grepStderr(`[\\/]compile.* -p p1.*p1\.go`, "should have run compile -p p1 p1.go")
+}
+
 // The runtime version string takes one of two forms:
 // "go1.X[.Y]" for Go releases, and "devel +hash" at tip.
 // Determine whether we are in a released copy by
