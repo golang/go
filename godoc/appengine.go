@@ -6,7 +6,7 @@
 
 package godoc
 
-import "appengine"
+import "google.golang.org/appengine"
 
 func init() {
 	onAppengine = !appengine.IsDevAppServer()

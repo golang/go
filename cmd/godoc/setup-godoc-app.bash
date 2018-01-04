@@ -76,7 +76,7 @@ makeAppYaml() {
 application: godoc
 version: 1
 runtime: go
-api_version: go1.4beta
+api_version: go1
 
 handlers:
 - url: /.*
