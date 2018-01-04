@@ -2471,6 +2471,17 @@ func TestCoverageSyncAtomicImport(t *testing.T) {
 	tg.run("test", "-short", "-cover", "-covermode=atomic", "-coverpkg=coverdep/p1", "coverdep")
 }
 
+func TestCoverageDepLoop(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	// coverdep2/p1's xtest imports coverdep2/p2 which imports coverdep2/p1.
+	// Make sure that coverage on coverdep2/p2 recompiles coverdep2/p2.
+	tg.run("test", "-short", "-cover", "coverdep2/p1")
+	tg.grepStdout("coverage: 100.0% of statements", "expected 100.0% coverage")
+}
+
 func TestCoverageImportMainLoop(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()

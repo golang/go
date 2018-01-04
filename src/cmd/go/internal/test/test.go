@@ -1003,7 +1003,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		// This will cause extra compilation, so for now we only do it
 		// when testCover is set. The conditions are more general, though,
 		// and we may find that we need to do it always in the future.
-		recompileForTest(pmain, p, ptest)
+		recompileForTest(pmain, p, ptest, pxtest)
 	}
 
 	for _, cp := range pmain.Internal.Imports {
@@ -1159,14 +1159,17 @@ Search:
 	return stk
 }
 
-func recompileForTest(pmain, preal, ptest *load.Package) {
+func recompileForTest(pmain, preal, ptest, pxtest *load.Package) {
 	// The "test copy" of preal is ptest.
 	// For each package that depends on preal, make a "test copy"
 	// that depends on ptest. And so on, up the dependency tree.
 	testCopy := map[*load.Package]*load.Package{preal: ptest}
 	for _, p := range load.PackageList([]*load.Package{pmain}) {
+		if p == preal {
+			continue
+		}
 		// Copy on write.
-		didSplit := false
+		didSplit := p == pmain || p == pxtest
 		split := func() {
 			if didSplit {
 				return
