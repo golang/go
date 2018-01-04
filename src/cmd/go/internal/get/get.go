@@ -22,7 +22,7 @@ import (
 )
 
 var CmdGet = &base.Command{
-	UsageLine: "get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]",
+	UsageLine: "get [-d] [-f] [-fix] [-insecure] [-t] [-u] [-v] [build flags] [packages]",
 	Short:     "download and install packages and dependencies",
 	Long: `
 Get downloads the packages named by the import paths, along with their

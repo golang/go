@@ -505,7 +505,7 @@
 //
 // Usage:
 //
-// 	go get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]
+// 	go get [-d] [-f] [-fix] [-insecure] [-t] [-u] [-v] [build flags] [packages]
 //
 // Get downloads the packages named by the import paths, along with their
 // dependencies. It then installs the named packages, like 'go install'.
