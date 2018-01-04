@@ -1072,7 +1072,6 @@ func checkWriteHeaderCode(code int) {
 }
 
 func (w *response) WriteHeader(code int) {
-	checkWriteHeaderCode(code)
 	if w.conn.hijacked() {
 		w.conn.server.logf("http: response.WriteHeader on hijacked connection")
 		return
@@ -1081,6 +1080,7 @@ func (w *response) WriteHeader(code int) {
 		w.conn.server.logf("http: multiple response.WriteHeader calls")
 		return
 	}
+	checkWriteHeaderCode(code)
 	w.wroteHeader = true
 	w.status = code
 

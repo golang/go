@@ -6204,7 +6204,6 @@ func http2checkWriteHeaderCode(code int) {
 }
 
 func (w *http2responseWriter) WriteHeader(code int) {
-	http2checkWriteHeaderCode(code)
 	rws := w.rws
 	if rws == nil {
 		panic("WriteHeader called after Handler finished")
@@ -6214,6 +6213,7 @@ func (w *http2responseWriter) WriteHeader(code int) {
 
 func (rws *http2responseWriterState) writeHeader(code int) {
 	if !rws.wroteHeader {
+		http2checkWriteHeaderCode(code)
 		rws.wroteHeader = true
 		rws.status = code
 		if len(rws.handlerHeader) > 0 {
