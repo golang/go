@@ -1038,6 +1038,8 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId, inProgress map[re
 
 // typeString returns a human-readable description of the type identified by remoteId.
 func (dec *Decoder) typeString(remoteId typeId) string {
+	typeLock.Lock()
+	defer typeLock.Unlock()
 	if t := idToType[remoteId]; t != nil {
 		// globally known type.
 		return t.string()
