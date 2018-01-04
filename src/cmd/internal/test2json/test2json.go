@@ -226,6 +226,7 @@ func (c *converter) handleInputLine(line []byte) {
 		if len(c.report) < indent {
 			// Nested deeper than expected.
 			// Treat this line as plain output.
+			c.output.write(origLine)
 			return
 		}
 		// Flush reports at this indentation level or deeper.
