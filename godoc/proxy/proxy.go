@@ -10,10 +10,8 @@ package proxy
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
@@ -119,12 +117,6 @@ func flatten(seq []Event) string {
 		buf.WriteString(e.Message)
 	}
 	return buf.String()
-}
-
-func cacheKey(body string) string {
-	h := sha1.New()
-	io.WriteString(h, body)
-	return fmt.Sprintf("prog-%x", h.Sum(nil))
 }
 
 func share(w http.ResponseWriter, r *http.Request) {
