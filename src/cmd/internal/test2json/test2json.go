@@ -140,6 +140,7 @@ var (
 		[]byte("--- PASS: "),
 		[]byte("--- FAIL: "),
 		[]byte("--- SKIP: "),
+		[]byte("--- BENCH: "),
 	}
 
 	fourSpace = []byte("    ")
@@ -186,6 +187,7 @@ func (c *converter) handleInputLine(line []byte) {
 		// "--- PASS: "
 		// "--- FAIL: "
 		// "--- SKIP: "
+		// "--- BENCH: "
 		// but possibly indented.
 		for bytes.HasPrefix(line, fourSpace) {
 			line = line[4:]
@@ -206,8 +208,12 @@ func (c *converter) handleInputLine(line []byte) {
 	}
 
 	// Parse out action and test name.
-	action := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(string(line[4:4+6])), ":"))
-	name := strings.TrimSpace(string(line[4+6:]))
+	i := bytes.IndexByte(line, ':') + 1
+	if i == 0 {
+		i = len(updates[0])
+	}
+	action := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(string(line[4:i])), ":"))
+	name := strings.TrimSpace(string(line[i:]))
 
 	e := &event{Action: action}
 	if line[0] == '-' { // PASS or FAIL report
