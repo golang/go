@@ -900,36 +900,64 @@ func (b *Builder) PkgconfigCmd() string {
 }
 
 // splitPkgConfigOutput parses the pkg-config output into a slice of
-// flags. pkg-config always uses \ to escape special characters.
-func splitPkgConfigOutput(out []byte) []string {
+// flags. This implements the algorithm from pkgconf/libpkgconf/argvsplit.c.
+func splitPkgConfigOutput(out []byte) ([]string, error) {
 	if len(out) == 0 {
-		return nil
+		return nil, nil
 	}
 	var flags []string
-	flag := make([]byte, len(out))
-	r, w := 0, 0
-	for r < len(out) {
-		switch out[r] {
-		case ' ', '\t', '\r', '\n':
-			if w > 0 {
-				flags = append(flags, string(flag[:w]))
+	flag := make([]byte, 0, len(out))
+	escaped := false
+	quote := byte(0)
+
+	for _, c := range out {
+		if escaped {
+			if quote != 0 {
+				switch c {
+				case '$', '`', '"', '\\':
+				default:
+					flag = append(flag, '\\')
+				}
+				flag = append(flag, c)
+			} else {
+				flag = append(flag, c)
 			}
-			w = 0
-		case '\\':
-			r++
-			fallthrough
-		default:
-			if r < len(out) {
-				flag[w] = out[r]
-				w++
+			escaped = false
+		} else if quote != 0 {
+			if c == quote {
+				quote = 0
+			} else {
+				switch c {
+				case '\\':
+					escaped = true
+				default:
+					flag = append(flag, c)
+				}
 			}
+		} else if strings.IndexByte(" \t\n\v\f\r", c) < 0 {
+			switch c {
+			case '\\':
+				escaped = true
+			case '\'', '"':
+				quote = c
+			default:
+				flag = append(flag, c)
+			}
+		} else if len(flag) != 0 {
+			flags = append(flags, string(flag))
+			flag = flag[:0]
 		}
-		r++
 	}
-	if w > 0 {
-		flags = append(flags, string(flag[:w]))
+	if escaped {
+		return nil, errors.New("broken character escaping in pkgconf output ")
 	}
-	return flags
+	if quote != 0 {
+		return nil, errors.New("unterminated quoted string in pkgconf output ")
+	} else if len(flag) != 0 {
+		flags = append(flags, string(flag))
+	}
+
+	return flags, nil
 }
 
 // Calls pkg-config if needed and returns the cflags/ldflags needed to build the package.
@@ -961,7 +989,10 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 			return nil, nil, errPrintedOutput
 		}
 		if len(out) > 0 {
-			cflags = splitPkgConfigOutput(out)
+			cflags, err = splitPkgConfigOutput(out)
+			if err != nil {
+				return nil, nil, err
+			}
 			if err := checkCompilerFlags("CFLAGS", "pkg-config --cflags", cflags); err != nil {
 				return nil, nil, err
 			}
