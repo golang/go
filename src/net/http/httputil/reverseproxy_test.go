@@ -631,35 +631,6 @@ func TestReverseProxyModifyResponse(t *testing.T) {
 	}
 }
 
-// Issue 21255. Test ModifyResponse when an error from transport.RoundTrip
-// occurs, and that the proxy returns StatusOK.
-func TestReverseProxyModifyResponse_OnError(t *testing.T) {
-	// Always returns an error
-	errBackend := httptest.NewUnstartedServer(nil)
-	errBackend.Config.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
-	defer errBackend.Close()
-
-	rpURL, _ := url.Parse(errBackend.URL)
-	rproxy := NewSingleHostReverseProxy(rpURL)
-	rproxy.ModifyResponse = func(resp *http.Response) error {
-		// Will be set for a non-nil error
-		resp.StatusCode = http.StatusOK
-		return nil
-	}
-
-	frontend := httptest.NewServer(rproxy)
-	defer frontend.Close()
-
-	resp, err := http.Get(frontend.URL)
-	if err != nil {
-		t.Fatalf("failed to reach proxy: %v", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("err != nil: got res.StatusCode %d; expected %d", resp.StatusCode, http.StatusOK)
-	}
-	resp.Body.Close()
-}
-
 // Issue 16659: log errors from short read
 func TestReverseProxy_CopyBuffer(t *testing.T) {
 	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
