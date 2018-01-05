@@ -403,6 +403,7 @@ function PlaygroundOutput(el) {
         processData: false,
         data: sharingData,
         type: "POST",
+        contentType: "text/plain; charset=utf-8",
         complete: function(xhr) {
           sharing = false;
           if (xhr.status != 200) {
