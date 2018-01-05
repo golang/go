@@ -367,6 +367,10 @@ func map_literals() {
 	_ = map[interface{}]int{"a": 1, "a" /* ERROR "duplicate key" */ : 1}
 	_ = map[interface{}]int{"a": 1, S("a"): 1}
 	_ = map[interface{}]int{S("a"): 1, S /* ERROR "duplicate key" */ ("a"): 1}
+	_ = map[interface{}]int{1.0: 1, 1.0 /* ERROR "duplicate key" */: 1}
+	_ = map[interface{}]int{int64(-1): 1, int64 /* ERROR "duplicate key" */ (-1) : 1}
+	_ = map[interface{}]int{^uint64(0): 1, ^ /* ERROR "duplicate key" */ uint64(0): 1}
+	_ = map[interface{}]int{complex(1,2): 1, complex /* ERROR "duplicate key" */ (1,2) : 1}
 
 	type I interface {
 		f()
