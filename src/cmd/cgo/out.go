@@ -609,14 +609,14 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	// We're trying to write a gcc struct that matches gc's layout.
 	// Use packed attribute to force no padding in this struct in case
 	// gcc has different packing requirements.
-	fmt.Fprintf(fgcc, "\t%s %v *a = v;\n", ctype, p.packedAttribute())
+	fmt.Fprintf(fgcc, "\t%s %v *_cgo_a = v;\n", ctype, p.packedAttribute())
 	if n.FuncType.Result != nil {
 		// Save the stack top for use below.
-		fmt.Fprintf(fgcc, "\tchar *stktop = _cgo_topofstack();\n")
+		fmt.Fprintf(fgcc, "\tchar *_cgo_stktop = _cgo_topofstack();\n")
 	}
 	tr := n.FuncType.Result
 	if tr != nil {
-		fmt.Fprintf(fgcc, "\t__typeof__(a->r) r;\n")
+		fmt.Fprintf(fgcc, "\t__typeof__(_cgo_a->r) _cgo_r;\n")
 	}
 	fmt.Fprintf(fgcc, "\t_cgo_tsan_acquire();\n")
 	if n.AddError {
@@ -624,9 +624,9 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	}
 	fmt.Fprintf(fgcc, "\t")
 	if tr != nil {
-		fmt.Fprintf(fgcc, "r = ")
+		fmt.Fprintf(fgcc, "_cgo_r = ")
 		if c := tr.C.String(); c[len(c)-1] == '*' {
-			fmt.Fprint(fgcc, "(__typeof__(a->r)) ")
+			fmt.Fprint(fgcc, "(__typeof__(_cgo_a->r)) ")
 		}
 	}
 	if n.Kind == "macro" {
@@ -637,7 +637,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 			if i > 0 {
 				fmt.Fprintf(fgcc, ", ")
 			}
-			fmt.Fprintf(fgcc, "a->p%d", i)
+			fmt.Fprintf(fgcc, "_cgo_a->p%d", i)
 		}
 		fmt.Fprintf(fgcc, ");\n")
 	}
@@ -648,9 +648,9 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	if n.FuncType.Result != nil {
 		// The cgo call may have caused a stack copy (via a callback).
 		// Adjust the return value pointer appropriately.
-		fmt.Fprintf(fgcc, "\ta = (void*)((char*)a + (_cgo_topofstack() - stktop));\n")
+		fmt.Fprintf(fgcc, "\t_cgo_a = (void*)((char*)_cgo_a + (_cgo_topofstack() - _cgo_stktop));\n")
 		// Save the return value.
-		fmt.Fprintf(fgcc, "\ta->r = r;\n")
+		fmt.Fprintf(fgcc, "\t_cgo_a->r = _cgo_r;\n")
 	}
 	if n.AddError {
 		fmt.Fprintf(fgcc, "\treturn _cgo_errno;\n")
@@ -685,12 +685,12 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
 	fmt.Fprintf(fgcc, ")\n")
 	fmt.Fprintf(fgcc, "{\n")
 	if t := n.FuncType.Result; t != nil {
-		fmt.Fprintf(fgcc, "\t%s r;\n", t.C.String())
+		fmt.Fprintf(fgcc, "\t%s _cgo_r;\n", t.C.String())
 	}
 	fmt.Fprintf(fgcc, "\t_cgo_tsan_acquire();\n")
 	fmt.Fprintf(fgcc, "\t")
 	if t := n.FuncType.Result; t != nil {
-		fmt.Fprintf(fgcc, "r = ")
+		fmt.Fprintf(fgcc, "_cgo_r = ")
 		// Cast to void* to avoid warnings due to omitted qualifiers.
 		if c := t.C.String(); c[len(c)-1] == '*' {
 			fmt.Fprintf(fgcc, "(void*)")
@@ -716,7 +716,7 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
 		if c := t.C.String(); c[len(c)-1] == '*' {
 			fmt.Fprintf(fgcc, "(void*)")
 		}
-		fmt.Fprintf(fgcc, "r;\n")
+		fmt.Fprintf(fgcc, "_cgo_r;\n")
 	}
 	fmt.Fprintf(fgcc, "}\n")
 	fmt.Fprintf(fgcc, "\n")
