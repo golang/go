@@ -695,14 +695,18 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
 			fmt.Fprintf(fgcc, "(void*)")
 		}
 	}
-	fmt.Fprintf(fgcc, "%s(", n.C)
-	for i := range n.FuncType.Params {
-		if i > 0 {
-			fmt.Fprintf(fgcc, ", ")
+	if n.Kind == "macro" {
+		fmt.Fprintf(fgcc, "%s;\n", n.C)
+	} else {
+		fmt.Fprintf(fgcc, "%s(", n.C)
+		for i := range n.FuncType.Params {
+			if i > 0 {
+				fmt.Fprintf(fgcc, ", ")
+			}
+			fmt.Fprintf(fgcc, "p%d", i)
 		}
-		fmt.Fprintf(fgcc, "p%d", i)
+		fmt.Fprintf(fgcc, ");\n")
 	}
-	fmt.Fprintf(fgcc, ");\n")
 	fmt.Fprintf(fgcc, "\t_cgo_tsan_release();\n")
 	if t := n.FuncType.Result; t != nil {
 		fmt.Fprintf(fgcc, "\treturn ")
