@@ -1359,6 +1359,22 @@ func TestImportCommentConflict(t *testing.T) {
 	tg.grepStderr("found import comments", "go build did not mention comment conflict")
 }
 
+func TestImportCycle(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/importcycle"))
+	tg.runFail("build", "selfimport")
+
+	count := tg.grepCountBoth("import cycle not allowed")
+	if count == 0 {
+		t.Fatal("go build did not mention cyclical import")
+	}
+	if count > 1 {
+		t.Fatal("go build mentioned import cycle more than once")
+	}
+}
+
 // cmd/go: custom import path checking should not apply to Go packages without import comment.
 func TestIssue10952(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
