@@ -2885,7 +2885,7 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 	for i, sv := range rs.lastcols {
 		err := convertAssign(dest[i], sv)
 		if err != nil {
-			return fmt.Errorf("sql: Scan error on column index %d: %v", i, err)
+			return fmt.Errorf(`sql: Scan error on column index %d, name %q: %v`, i, rs.rowsi.Columns()[i], err)
 		}
 	}
 	return nil
