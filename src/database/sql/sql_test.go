@@ -1338,6 +1338,57 @@ func TestConnQuery(t *testing.T) {
 	}
 }
 
+func TestInvalidNilValues(t *testing.T) {
+	var date1 time.Time
+	var date2 int
+
+	tests := []struct {
+		name          string
+		input         interface{}
+		expectedError string
+	}{
+		{
+			name:          "time.Time",
+			input:         &date1,
+			expectedError: `sql: Scan error on column index 0, name "bdate": unsupported Scan, storing driver.Value type <nil> into type *time.Time`,
+		},
+		{
+			name:          "int",
+			input:         &date2,
+			expectedError: `sql: Scan error on column index 0, name "bdate": converting driver.Value type <nil> ("<nil>") to a int: invalid syntax`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := newTestDB(t, "people")
+			defer closeDB(t, db)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			conn, err := db.Conn(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			conn.dc.ci.(*fakeConn).skipDirtySession = true
+			defer conn.Close()
+
+			err = conn.QueryRowContext(ctx, "SELECT|people|bdate|age=?", 1).Scan(tt.input)
+			if err == nil {
+				t.Fatal("expected error when querying nil column, but suceeded")
+			}
+			if err.Error() != tt.expectedError {
+				t.Fatalf("Expected error: %s\nReceived: %s", tt.expectedError, err.Error())
+			}
+
+			err = conn.PingContext(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func TestConnTx(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
@@ -1659,7 +1710,7 @@ func TestQueryRowNilScanDest(t *testing.T) {
 	defer closeDB(t, db)
 	var name *string // nil pointer
 	err := db.QueryRow("SELECT|people|name|").Scan(name)
-	want := "sql: Scan error on column index 0: destination pointer is nil"
+	want := `sql: Scan error on column index 0, name "name": destination pointer is nil`
 	if err == nil || err.Error() != want {
 		t.Errorf("error = %q; want %q", err.Error(), want)
 	}
