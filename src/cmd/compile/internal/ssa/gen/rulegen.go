@@ -119,16 +119,18 @@ func genRules(arch arch) {
 		}
 
 		loc := fmt.Sprintf("%s.rules:%d", arch.name, ruleLineno)
-		for _, crule := range commute(rule, arch) {
-			r := Rule{rule: crule, loc: loc}
-			if rawop := strings.Split(crule, " ")[0][1:]; isBlock(rawop, arch) {
-				blockrules[rawop] = append(blockrules[rawop], r)
-			} else {
-				// Do fancier value op matching.
-				match, _, _ := r.parse()
-				op, oparch, _, _, _, _ := parseValue(match, arch, loc)
-				opname := fmt.Sprintf("Op%s%s", oparch, op.name)
-				oprules[opname] = append(oprules[opname], r)
+		for _, rule2 := range expandOr(rule) {
+			for _, rule3 := range commute(rule2, arch) {
+				r := Rule{rule: rule3, loc: loc}
+				if rawop := strings.Split(rule3, " ")[0][1:]; isBlock(rawop, arch) {
+					blockrules[rawop] = append(blockrules[rawop], r)
+				} else {
+					// Do fancier value op matching.
+					match, _, _ := r.parse()
+					op, oparch, _, _, _, _ := parseValue(match, arch, loc)
+					opname := fmt.Sprintf("Op%s%s", oparch, op.name)
+					oprules[opname] = append(oprules[opname], r)
+				}
 			}
 		}
 		rule = ""
@@ -659,7 +661,6 @@ func extract(val string) (op string, typ string, auxint string, aux string, args
 // It returns the op and unparsed strings for typ, auxint, and aux restrictions and for all args.
 // oparch is the architecture that op is located in, or "" for generic.
 func parseValue(val string, arch arch, loc string) (op opData, oparch string, typ string, auxint string, aux string, args []string) {
-
 	// Resolve the op.
 	var s string
 	s, typ, auxint, aux, args = extract(val)
@@ -782,6 +783,48 @@ func isVariable(s string) bool {
 		panic("bad variable regexp")
 	}
 	return b
+}
+
+// opRegexp is a regular expression to find the opcode portion of s-expressions.
+var opRegexp = regexp.MustCompile(`[(]\w*[(](\w+[|])+\w+[)]\w* `)
+
+// expandOr converts a rule into multiple rules by expanding | ops.
+func expandOr(r string) []string {
+	// Find every occurrence of |-separated things at the opcode position.
+	// They look like (MOV(B|W|L|Q|SS|SD)load
+	// Note: there might be false positives in parts of rules that are Go code
+	// (e.g. && conditions, AuxInt expressions, etc.).  There are currently no
+	// such false positives, so I'm not too worried about it.
+	// Generate rules selecting one case from each |-form.
+
+	// Count width of |-forms.  They must match.
+	n := 1
+	for _, s := range opRegexp.FindAllString(r, -1) {
+		c := strings.Count(s, "|") + 1
+		if c == 1 {
+			continue
+		}
+		if n > 1 && n != c {
+			log.Fatalf("'|' count doesn't match in %s: both %d and %d\n", r, n, c)
+		}
+		n = c
+	}
+	if n == 1 {
+		// No |-form in this rule.
+		return []string{r}
+	}
+	res := make([]string, n)
+	for i := 0; i < n; i++ {
+		res[i] = opRegexp.ReplaceAllStringFunc(r, func(s string) string {
+			if strings.Count(s, "|") == 0 {
+				return s
+			}
+			s = s[1 : len(s)-1] // remove leading "(" and trailing " "
+			x, y := strings.Index(s, "("), strings.Index(s, ")")
+			return "(" + s[:x] + strings.Split(s[x+1:y], "|")[i] + s[y+1:] + " "
+		})
+	}
+	return res
 }
 
 // commute returns all equivalent rules to r after applying all possible
