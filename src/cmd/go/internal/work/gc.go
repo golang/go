@@ -418,11 +418,6 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 		ldflags = append(ldflags, "-pluginpath", pluginPath(root))
 	}
 
-	// TODO(rsc): This is probably wrong - see golang.org/issue/22155.
-	if cfg.GOROOT != runtime.GOROOT() {
-		ldflags = append(ldflags, "-X=runtime/internal/sys.DefaultGoroot="+cfg.GOROOT)
-	}
-
 	// Store BuildID inside toolchain binaries as a unique identifier of the
 	// tool being run, for use by content-based staleness determination.
 	if root.Package.Goroot && strings.HasPrefix(root.Package.ImportPath, "cmd/") {

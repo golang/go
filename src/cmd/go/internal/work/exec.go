@@ -790,15 +790,8 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		}
 		fmt.Fprintf(h, "GO$GOARCH=%s\n", os.Getenv("GO"+strings.ToUpper(cfg.BuildContext.GOARCH))) // GO386, GOARM, etc
 
-		/*
-			// TODO(rsc): Enable this code.
-			// golang.org/issue/22475.
-			goroot := cfg.BuildContext.GOROOT
-			if final := os.Getenv("GOROOT_FINAL"); final != "" {
-				goroot = final
-			}
-			fmt.Fprintf(h, "GOROOT=%s\n", goroot)
-		*/
+		// The linker writes source file paths that say GOROOT_FINAL.
+		fmt.Fprintf(h, "GOROOT=%s\n", cfg.GOROOT_FINAL)
 
 		// TODO(rsc): Convince linker team not to add more magic environment variables,
 		// or perhaps restrict the environment variables passed to subprocesses.

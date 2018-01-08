@@ -102,6 +102,7 @@ func TestMain(m *testing.M) {
 		fmt.Printf("SKIP\n")
 		return
 	}
+	os.Unsetenv("GOROOT_FINAL")
 
 	if canRun {
 		args := []string{"build", "-tags", "testgo", "-o", "testgo" + exeSuffix}
@@ -4511,19 +4512,9 @@ func TestExecutableGOROOT(t *testing.T) {
 	newRoot := tg.path("new")
 
 	t.Run("RelocatedExe", func(t *testing.T) {
-		t.Skip("TODO: skipping known broken test; see golang.org/issue/20284")
-
-		// Should fall back to default location in binary.
-		// No way to dig out other than look at source code.
-		data, err := ioutil.ReadFile("../../runtime/internal/sys/zversion.go")
-		if err != nil {
-			t.Fatal(err)
-		}
-		m := regexp.MustCompile("var DefaultGoroot = `([^`]+)`").FindStringSubmatch(string(data))
-		if m == nil {
-			t.Fatal("cannot find DefaultGoroot in ../../runtime/internal/sys/zversion.go")
-		}
-		check(t, newGoTool, m[1])
+		// Should fall back to default location in binary,
+		// which is the GOROOT we used when building testgo.exe.
+		check(t, newGoTool, testGOROOT)
 	})
 
 	// If the binary is sitting in a bin dir next to ../pkg/tool, that counts as a GOROOT,
@@ -4548,9 +4539,7 @@ func TestExecutableGOROOT(t *testing.T) {
 	tg.must(os.RemoveAll(tg.path("new/pkg")))
 
 	// Binaries built in the new tree should report the
-	// new tree when they call runtime.GOROOT().
-	// This is implemented by having the go tool pass a -X option
-	// to the linker setting runtime/internal/sys.DefaultGoroot.
+	// new tree when they call runtime.GOROOT.
 	t.Run("RuntimeGoroot", func(t *testing.T) {
 		// Build a working GOROOT the easy way, with symlinks.
 		testenv.MustHaveSymlink(t)

@@ -19,6 +19,8 @@ func envOr(key, value string) string {
 }
 
 var (
+	defaultGOROOT string // set by linker
+
 	GOROOT  = envOr("GOROOT", defaultGOROOT)
 	GOARCH  = envOr("GOARCH", defaultGOARCH)
 	GOOS    = envOr("GOOS", defaultGOOS)
