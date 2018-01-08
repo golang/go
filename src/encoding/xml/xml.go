@@ -806,18 +806,7 @@ func (d *Decoder) rawToken() (Token, error) {
 		}
 		d.ungetc(b)
 
-		n := len(attr)
-		if n >= cap(attr) {
-			nCap := 2 * cap(attr)
-			if nCap == 0 {
-				nCap = 4
-			}
-			nattr := make([]Attr, n, nCap)
-			copy(nattr, attr)
-			attr = nattr
-		}
-		attr = attr[0 : n+1]
-		a := &attr[n]
+		a := Attr{}
 		if a.Name, ok = d.nsname(); !ok {
 			if d.err == nil {
 				d.err = d.syntaxError("expected attribute name in element")
@@ -843,6 +832,7 @@ func (d *Decoder) rawToken() (Token, error) {
 			}
 			a.Value = string(data)
 		}
+		attr = append(attr, a)
 	}
 	if empty {
 		d.needClose = true
