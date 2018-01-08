@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -349,6 +350,15 @@ func (l *lineBuffer) write(b []byte) {
 		for i < len(l.b) {
 			j := bytes.IndexByte(l.b[i:], '\n')
 			if j < 0 {
+				if !l.mid {
+					if j := bytes.IndexByte(l.b[i:], '\t'); j >= 0 {
+						if isBenchmarkName(bytes.TrimRight(l.b[i:i+j], " ")) {
+							l.part(l.b[i : i+j+1])
+							l.mid = true
+							i += j + 1
+						}
+					}
+				}
 				break
 			}
 			e := i + j + 1
@@ -388,6 +398,21 @@ func (l *lineBuffer) flush() {
 		l.part(l.b)
 		l.b = l.b[:0]
 	}
+}
+
+var benchmark = []byte("Benchmark")
+
+// isBenchmarkName reports whether b is a valid benchmark name
+// that might appear as the first field in a benchmark result line.
+func isBenchmarkName(b []byte) bool {
+	if !bytes.HasPrefix(b, benchmark) {
+		return false
+	}
+	if len(b) == len(benchmark) { // just "Benchmark"
+		return true
+	}
+	r, _ := utf8.DecodeRune(b[len(benchmark):])
+	return !unicode.IsLower(r)
 }
 
 // trimUTF8 returns a length t as close to len(b) as possible such that b[:t]
