@@ -56,6 +56,7 @@ func init() {
 
 		help.HelpC,
 		help.HelpBuildmode,
+		help.HelpCache,
 		help.HelpFileType,
 		help.HelpGopath,
 		help.HelpEnvironment,

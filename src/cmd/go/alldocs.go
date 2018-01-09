@@ -35,14 +35,15 @@
 // Additional help topics:
 //
 // 	c           calling between Go and C
-// 	buildmode   description of build modes
+// 	buildmode   build modes
+// 	cache       build and test caching
 // 	filetype    file types
 // 	gopath      GOPATH environment variable
 // 	environment environment variables
 // 	importpath  import path syntax
-// 	packages    description of package lists
-// 	testflag    description of testing flags
-// 	testfunc    description of testing functions
+// 	packages    package lists
+// 	testflag    testing flags
+// 	testfunc    testing functions
 //
 // Use "go help [topic]" for more information about that topic.
 //
@@ -902,7 +903,7 @@
 // the C or C++ compiler, respectively, to use.
 //
 //
-// Description of build modes
+// Build modes
 //
 // The 'go build' and 'go install' commands take a -buildmode argument which
 // indicates which kind of object file is to be built. Currently supported values
@@ -946,6 +947,45 @@
 // 	-buildmode=plugin
 // 		Build the listed main packages, plus all packages that they
 // 		import, into a Go plugin. Packages not named main are ignored.
+//
+//
+// Build and test caching
+//
+// The go command caches build outputs for reuse in future builds.
+// The default location for cache data is a subdirectory named go-build
+// in the standard user cache directory for the current operating system.
+// Setting the GOCACHE environment variable overrides this default,
+// and running 'go env GOCACHE' prints the current cache directory.
+//
+// The go command periodically deletes cached data that has not been
+// used recently. Running 'go clean -cache' deletes all cached data.
+//
+// The build cache correctly accounts for changes to Go source files,
+// compilers, compiler options, and so on: cleaning the cache explicitly
+// should not be necessary in typical use. However, the build cache
+// does not detect changes to C libraries imported with cgo.
+// If you have made changes to the C libraries on your system, you
+// will need to clean the cache explicitly or else use the -a build flag
+// (see 'go help build') to force rebuilding of packages that
+// depend on the updated C libraries.
+//
+// The go command also caches successful package test results.
+// See 'go help test' for details. Running 'go clean -testcache' removes
+// all cached test results (but not cached build results).
+//
+// The GODEBUG environment variable can enable printing of debugging
+// information about the state of the cache:
+//
+// GODEBUG=gocacheverify=1 causes the go command to bypass the
+// use of any cache entries and instead rebuild everything and check
+// that the results match existing cache entries.
+//
+// GODEBUG=gocachehash=1 causes the go command to print the inputs
+// for all of the content hashes it uses to construct cache lookup keys.
+// The output is voluminous but can be useful for debugging the cache.
+//
+// GODEBUG=gocachetest=1 causes the go command to print details of its
+// decisions about whether to reuse a cached test result.
 //
 //
 // File types
@@ -1402,7 +1442,7 @@
 // See https://golang.org/s/go14customimport for details.
 //
 //
-// Description of package lists
+// Package lists
 //
 // Many commands apply to a set of packages:
 //
@@ -1484,7 +1524,7 @@
 // by the go tool, as are directories named "testdata".
 //
 //
-// Description of testing flags
+// Testing flags
 //
 // The 'go test' command takes both flags that apply to 'go test' itself
 // and flags that apply to the resulting test binary.
@@ -1711,7 +1751,7 @@
 // binary, instead of being interpreted as the package list.
 //
 //
-// Description of testing functions
+// Testing functions
 //
 // The 'go test' command expects to find test, benchmark, and example functions
 // in the "*_test.go" files corresponding to the package under test.
