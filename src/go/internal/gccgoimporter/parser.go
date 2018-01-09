@@ -226,6 +226,14 @@ func (p *parser) parseField(pkg *types.Package) (field *types.Var, tag string) {
 // Param = Name ["..."] Type .
 func (p *parser) parseParam(pkg *types.Package) (param *types.Var, isVariadic bool) {
 	name := p.parseName()
+	if p.tok == '<' && p.scanner.Peek() == 'e' {
+		// EscInfo = "<esc:" int ">" . (optional and ignored)
+		p.next()
+		p.expectKeyword("esc")
+		p.expect(':')
+		p.expect(scanner.Int)
+		p.expect('>')
+	}
 	if p.tok == '.' {
 		p.next()
 		p.expect('.')
