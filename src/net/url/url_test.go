@@ -1735,3 +1735,10 @@ func TestNilUser(t *testing.T) {
 		t.Fatalf("expected empty string, got %s", v)
 	}
 }
+
+func TestInvalidUserPassword(t *testing.T) {
+	_, err := Parse("http://us\ner:pass\nword@foo.com/")
+	if got, wantsub := fmt.Sprint(err), "net/url: invalid userinfo"; !strings.Contains(got, wantsub) {
+		t.Errorf("error = %q; want substring %q", got, wantsub)
+	}
+}
