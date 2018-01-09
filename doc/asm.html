@@ -29,7 +29,7 @@ Instead, the compiler operates on a kind of semi-abstract instruction set,
 and instruction selection occurs partly after code generation.
 The assembler works on the semi-abstract form, so
 when you see an instruction like <code>MOV</code>
-what the tool chain actually generates for that operation might
+what the toolchain actually generates for that operation might
 not be a move instruction at all, perhaps a clear or load.
 Or it might correspond exactly to the machine instruction with that name.
 In general, machine-specific operations tend to appear as themselves, while more general concepts like
@@ -139,7 +139,7 @@ The exact set depends on the architecture.
 <p>
 There are four predeclared symbols that refer to pseudo-registers.
 These are not real registers, but rather virtual registers maintained by
-the tool chain, such as a frame pointer.
+the toolchain, such as a frame pointer.
 The set of pseudo-registers is the same for all architectures:
 </p>
 
