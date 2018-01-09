@@ -1014,6 +1014,8 @@ var vfexpSC = []float64{
 	1,
 	// near zero
 	3.725290298461915e-09,
+	// denormal
+	-740,
 }
 var expSC = []float64{
 	0,
@@ -1026,6 +1028,7 @@ var expSC = []float64{
 	Inf(1),
 	2.718281828459045,
 	1.0000000037252903,
+	4.2e-322,
 }
 
 var vfexp2SC = []float64{
