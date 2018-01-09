@@ -3,6 +3,13 @@
 	"Template": true
 }-->
 
+<!--
+NOTE: In this document and others in this directory, the convention is to
+set fixed-width phrases with non-fixed-width spaces, as in
+<code>hello</code> <code>world</code>.
+Do not send CLs removing the interior tags from such phrases.
+-->
+
 <h2 id="introduction">Introduction</h2>
 
 <p>
@@ -45,7 +52,7 @@ of code. The Go runtime provides <a href="https://golang.org/pkg/runtime/pprof/"
 profiling data</a> in the format expected by the
 <a href="https://github.com/google/pprof/blob/master/doc/pprof.md">pprof visualization tool</a>.
 The profiling data can be collected during testing
-via <code>go test</code> or endpoints made available from the <a href="/pkg/net/http/pprof/">
+via <code>go</code> <code>test</code> or endpoints made available from the <a href="/pkg/net/http/pprof/">
 net/http/pprof</a> package. Users need to collect the profiling data and use pprof tools to filter
 and visualize the top code paths.
 </p>
@@ -435,7 +442,7 @@ Use profiling tools instead first to address them.</p>
 fine, and then it became serialized. It suggests that there might
 be lock contention for a shared resource that creates a bottleneck.</p>
 
-<p>See <a href="https://golang.org/cmd/trace/"><code>go tool trace</code></a>
+<p>See <a href="https://golang.org/cmd/trace/"><code>go</code> <code>tool</code> <code>trace</code></a>
 to collect and analyze runtime traces.
 </p>
 

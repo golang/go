@@ -3,6 +3,13 @@
 	"Path": "/doc/gdb"
 }-->
 
+<!--
+NOTE: In this document and others in this directory, the convention is to
+set fixed-width phrases with non-fixed-width spaces, as in
+<code>hello</code> <code>world</code>.
+Do not send CLs removing the interior tags from such phrases.
+-->
+
 <i>
 <p>
 The following instructions apply to the standard toolchain
@@ -57,7 +64,7 @@ use to inspect a live process or a core dump.
 
 <p>
 Pass the <code>'-w'</code> flag to the linker to omit the debug information
-(for example, <code>go build -ldflags "-w" prog.go</code>).
+(for example, <code>go</code> <code>build</code> <code>-ldflags=-w</code> <code>prog.go</code>).
 </p>
 
 <p>
@@ -157,7 +164,7 @@ the DWARF code.
 
 <p>
 If you're interested in what the debugging information looks like, run
-'<code>objdump -W a.out</code>' and browse through the <code>.debug_*</code>
+<code>objdump</code> <code>-W</code> <code>a.out</code> and browse through the <code>.debug_*</code>
 sections.
 </p>
 
@@ -180,7 +187,7 @@ the form <code>pkg.(*MyType).Meth</code>.
 <p>
 In this tutorial we will inspect the binary of the
 <a href="/pkg/regexp/">regexp</a> package's unit tests. To build the binary,
-change to <code>$GOROOT/src/regexp</code> and run <code>go test -c</code>.
+change to <code>$GOROOT/src/regexp</code> and run <code>go</code> <code>test</code> <code>-c</code>.
 This should produce an executable file named <code>regexp.test</code>.
 </p>
 
@@ -206,7 +213,7 @@ Loading Go Runtime support.
 </pre>
 
 <p>
-The message <code>"Loading Go Runtime support"</code> means that GDB loaded the
+The message "Loading Go Runtime support" means that GDB loaded the
 extension from <code>$GOROOT/src/runtime/runtime-gdb.py</code>.
 </p>
 
@@ -371,7 +378,7 @@ Stack level 0, frame at 0x7ffff7f9ff88:
 </pre>
 
 <p>
-The command <code>info locals</code> lists all variables local to the function and their values, but is a bit
+The command <code>info</code> <code>locals</code> lists all variables local to the function and their values, but is a bit
 dangerous to use, since it will also try to print uninitialized variables. Uninitialized slices may cause gdb to try
 to print arbitrary large arrays.
 </p>
@@ -404,7 +411,7 @@ $3 = struct hchan&lt;*testing.T&gt;
 </pre>
 
 <p>
-That <code>struct hchan&lt;*testing.T&gt;</code> is the
+That <code>struct</code> <code>hchan&lt;*testing.T&gt;</code> is the
 runtime-internal representation of a channel. It is currently empty,
 or gdb would have pretty-printed its contents.
 </p>
