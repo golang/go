@@ -28,7 +28,7 @@ type Func struct {
 	Cache  *Cache      // re-usable cache
 	fe     Frontend    // frontend state associated with this Func, callbacks into compiler frontend
 	pass   *pass       // current pass information (name, options, etc.)
-	Name   string      // e.g. bytes·Compare
+	Name   string      // e.g. NewFunc or (*Func).NumBlocks (no package prefix)
 	Type   *types.Type // type signature of the function.
 	Blocks []*Block    // unordered set of all basic blocks (note: not indexable by ID)
 	Entry  *Block      // the entry basic block
