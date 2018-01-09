@@ -98,8 +98,14 @@ hardware instructions or software emulation for floating-point computations.
 <h3 id="goroot">Default GOROOT &amp; GOTMPDIR</h3>
 
 <p>
-TODO: default GOROOT changes in cmd/go
-TODO: computed GOROOT change
+If the environment variable <code>$GOROOT</code> is unset,
+the go tool previously used the default <code>GOROOT</code>
+set during toolchain compilation.
+Now, before falling back to that default, the go tool attempts to
+deduce <code>GOROOT</code> from its own executable path.
+This allows binary distributions to be unpacked anywhere in the
+file system and then be used without setting <code>GOROOT</code>
+explicitly.
 </p>
 
 <p>
@@ -145,7 +151,7 @@ back and forth between different branches in a version control system).
 The old advice to add the <code>-i</code> flag for speed, as in <code>go</code> <code>build</code> <code>-i</code>
 or <code>go</code> <code>test</code> <code>-i</code>,
 is no longer necessary: builds run just as fast without <code>-i</code>.
-For more details, see <a href="TODO"><code>go</code> <code>help</code> <code>cache</code></a>.
+For more details, see <a href="/cmd/go/#hdr-Build_and_test_caching"><code>go</code> <code>help</code> <code>cache</code></a>.
 </p>
 
 <p>
@@ -406,17 +412,10 @@ a repository is not “properly formatted” is inherently fragile and not recom
 <p>
 If multiple programs must agree about which version of gofmt is used to format a source file,
 we recommend that they do this by arranging to invoke the same gofmt binary.
-For example, in the Go open source repository, we arrange for goimports and
-our Git pre-commit hook to agree about source code formatting by having both
-invoke the gofmt binary found in the current path.
-TODO: Make goimports actually do that. #22695.
-As another example, inside Google we arrange that source code presubmit
-checks run a gofmt binary maintained at a fixed path in a shared, distributed file system;
-that on engineering workstations <code>/usr/bin/gofmt</code>
-is a symbolic link to that same path;
-and that all editor integrations used for Google development
-explicitly invoke /usr/bin/gofmt.
-TODO: TMI?
+For example, in the Go open source repository, our Git pre-commit hook is written in Go
+and could import <code>go/format</code> directly but instead invokes the <code>gofmt</code>
+binary found in the current path, so that the pre-commit hook need not be recompiled
+each time <code>gofmt</code> changes.
 </p>
 
 <h3 id="compiler">Compiler Toolchain</h3>
@@ -578,12 +577,23 @@ optimization decisions and implementation details.
 </p>
 
 <p>
-There is no longer a limit on the <a href="/pkg/runtime/#GOMAXPROCS"><code>GOMAXPROCS</code></a> setting.
-(In Go 1.9 the limit was 1024.)
+The garbage collector has been modified to reduce its impact on allocation latency.
+It now uses a smaller fraction of the overall CPU when running, but it may run more of the time.
+The total CPU consumed by the garbage collector has not changed significantly.
 </p>
 
 <p>
-TODO: Anything about CL 59970: "runtime: separate soft and hard heap limits"?
+The <a href="/pkg/runtime/#GOROOT"><code>GOROOT</code></a> function
+now defaults (when the <code>$GOROOT</code> environment variable is not set)
+to the <code>GOROOT</code> or <code>GOROOT_FINAL</code> in effect
+at the time the calling program was compiled.
+Previously it used the <code>GOROOT</code> or <code>GOROOT_FINAL</code> in effect
+at the time the toolchain that compiled the calling program was compiled.
+</p>
+
+<p>
+There is no longer a limit on the <a href="/pkg/runtime/#GOMAXPROCS"><code>GOMAXPROCS</code></a> setting.
+(In Go 1.9 the limit was 1024.)
 </p>
 
 <h2 id="performance">Performance</h2>
@@ -1034,9 +1044,6 @@ now implement those interfaces.
 The new actions <code>{{"{{break}}"}}</code> and <code>{{"{{continue}}"}}</code>
 break out of the innermost <code>{{"{{range"}}</code>&nbsp;...<code>}}</code> loop,
 like the corresponding Go statements.
-</p>
-<p>
-TODO: something about the AddParseTree problem (#21844).
 </p>
 </dl>
 
