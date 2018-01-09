@@ -295,11 +295,12 @@ Because of this change, values of the affected types need to be
 zero-initialized with the constant <code>0</code> instead of the
 constant <code>nil</code>. Go 1.10 provides <code>gofix</code>
 modules to help with that rewrite:
+</p>
+
 <pre>
 go tool fix -r cftype &lt;pkg&gt;
 go tool fix -r jni &lt;pkg&gt;
 </pre>
-</p>
 
 <p>
 For more details, see the <a href="/cmd/cgo/">cgo documentation</a>.
