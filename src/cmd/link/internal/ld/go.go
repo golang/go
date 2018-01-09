@@ -349,12 +349,12 @@ func fieldtrack(ctxt *Link) {
 	if *flagFieldTrack == "" {
 		return
 	}
-	s := ctxt.Syms.Lookup(*flagFieldTrack, 0)
-	if !s.Attr.Reachable() {
+	s := ctxt.Syms.ROLookup(*flagFieldTrack, 0)
+	if s == nil || !s.Attr.Reachable() {
 		return
 	}
-	addstrdata(ctxt, *flagFieldTrack, buf.String())
 	s.Type = sym.SDATA
+	addstrdata(ctxt, *flagFieldTrack, buf.String())
 }
 
 func (ctxt *Link) addexport() {
