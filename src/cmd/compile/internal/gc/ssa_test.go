@@ -82,7 +82,7 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
 
 	stdout.Reset()
 	stderr.Reset()
-	cmd = exec.Command("go", "run", "-gcflags=-d=ssa/check/on", rungo)
+	cmd = exec.Command(gotool, "run", "-gcflags=-d=ssa/check/on", rungo)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	cmd.Env = append(cmd.Env, ev...)
