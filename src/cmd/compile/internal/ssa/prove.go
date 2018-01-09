@@ -45,6 +45,18 @@ const (
 	gt
 )
 
+var relationStrings = [...]string{
+	0: "none", lt: "<", eq: "==", lt | eq: "<=",
+	gt: ">", gt | lt: "!=", gt | eq: ">=", gt | eq | lt: "any",
+}
+
+func (r relation) String() string {
+	if r < relation(len(relationStrings)) {
+		return relationStrings[r]
+	}
+	return fmt.Sprintf("relation(%d)", uint(r))
+}
+
 // domain represents the domain of a variable pair in which a set
 // of relations is known.  For example, relations learned for unsigned
 // pairs cannot be transferred to signed pairs because the same bit
@@ -57,6 +69,30 @@ const (
 	pointer
 	boolean
 )
+
+var domainStrings = [...]string{
+	"signed", "unsigned", "pointer", "boolean",
+}
+
+func (d domain) String() string {
+	s := ""
+	for i, ds := range domainStrings {
+		if d&(1<<uint(i)) != 0 {
+			if len(s) != 0 {
+				s += "|"
+			}
+			s += ds
+			d &^= 1 << uint(i)
+		}
+	}
+	if d != 0 {
+		if len(s) != 0 {
+			s += "|"
+		}
+		s += fmt.Sprintf("0x%x", uint(d))
+	}
+	return s
+}
 
 type pair struct {
 	v, w *Value // a pair of values, ordered by ID.
