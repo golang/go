@@ -5307,6 +5307,30 @@ func TestTestCacheInputs(t *testing.T) {
 	tg.run("test", "testcache", "-run=DirList")
 	tg.grepStdout(`\(cached\)`, "did not cache")
 
+	tg.tempFile("file.txt", "")
+	tg.must(ioutil.WriteFile(filepath.Join(tg.pwd(), "testdata/src/testcache/testcachetmp_test.go"), []byte(`package testcache
+
+		import (
+			"os"
+			"testing"
+		)
+
+		func TestExternalFile(t *testing.T) {
+			os.Open(`+fmt.Sprintf("%q", tg.path("file.txt"))+`)
+			_, err := os.Stat(`+fmt.Sprintf("%q", tg.path("file.txt"))+`)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+	`), 0666))
+	defer os.Remove(filepath.Join(tg.pwd(), "testdata/src/testcache/testcachetmp_test.go"))
+	tg.run("test", "testcache", "-run=ExternalFile")
+	tg.run("test", "testcache", "-run=ExternalFile")
+	tg.grepStdout(`\(cached\)`, "did not cache")
+	tg.must(os.Remove(filepath.Join(tg.tempdir, "file.txt")))
+	tg.run("test", "testcache", "-run=ExternalFile")
+	tg.grepStdout(`\(cached\)`, "did not cache")
+
 	switch runtime.GOOS {
 	case "nacl", "plan9", "windows":
 		// no shell scripts

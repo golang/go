@@ -1637,10 +1637,18 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 			if !filepath.IsAbs(name) {
 				name = filepath.Join(pwd, name)
 			}
+			if !inDir(name, a.Package.Root) {
+				// Do not recheck files outside the GOPATH or GOROOT root.
+				break
+			}
 			fmt.Fprintf(h, "stat %s %x\n", name, hashStat(name))
 		case "open":
 			if !filepath.IsAbs(name) {
 				name = filepath.Join(pwd, name)
+			}
+			if !inDir(name, a.Package.Root) {
+				// Do not recheck files outside the GOPATH or GOROOT root.
+				break
 			}
 			fh, err := hashOpen(name)
 			if err != nil {
@@ -1654,6 +1662,18 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 	}
 	sum := h.Sum()
 	return sum, nil
+}
+
+func inDir(path, dir string) bool {
+	if str.HasFilePathPrefix(path, dir) {
+		return true
+	}
+	xpath, err1 := filepath.EvalSymlinks(path)
+	xdir, err2 := filepath.EvalSymlinks(dir)
+	if err1 == nil && err2 == nil && str.HasFilePathPrefix(xpath, xdir) {
+		return true
+	}
+	return false
 }
 
 func hashGetenv(name string) cache.ActionID {
