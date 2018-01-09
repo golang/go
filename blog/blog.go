@@ -73,10 +73,17 @@ type Server struct {
 func NewServer(cfg Config) (*Server, error) {
 	present.PlayEnabled = cfg.PlayEnabled
 
+	if notExist(cfg.TemplatePath) {
+		return nil, fmt.Errorf("template directory not found: %s", cfg.TemplatePath)
+	}
 	root := filepath.Join(cfg.TemplatePath, "root.tmpl")
 	parse := func(name string) (*template.Template, error) {
+		path := filepath.Join(cfg.TemplatePath, name)
+		if notExist(path) {
+			return nil, fmt.Errorf("template %s was not found in %s", name, cfg.TemplatePath)
+		}
 		t := template.New("").Funcs(funcMap)
-		return t.ParseFiles(root, filepath.Join(cfg.TemplatePath, name))
+		return t.ParseFiles(root, path)
 	}
 
 	s := &Server{cfg: cfg}
@@ -422,3 +429,9 @@ type docsByTime []*Doc
 func (s docsByTime) Len() int           { return len(s) }
 func (s docsByTime) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s docsByTime) Less(i, j int) bool { return s[i].Time.After(s[j].Time) }
+
+// notExist reports whether the path exists or not.
+func notExist(path string) bool {
+	_, err := os.Stat(path)
+	return os.IsNotExist(err)
+}
