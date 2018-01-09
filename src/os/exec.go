@@ -86,7 +86,7 @@ func FindProcess(pid int) (*Process, error) {
 
 // StartProcess starts a new process with the program, arguments and attributes
 // specified by name, argv and attr. The argv slice will become os.Args in the
-// new process, and normally starts with the program name.
+// new process, so it normally starts with the program name.
 //
 // StartProcess is a low-level interface. The os/exec package provides
 // higher-level interfaces.
