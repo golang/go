@@ -180,6 +180,18 @@ func TestBuilderAllocs(t *testing.T) {
 	if allocs > 0 {
 		t.Fatalf("got %d alloc(s); want 0", allocs)
 	}
+
+	// Issue 23382; verify that copyCheck doesn't force the
+	// Builder to escape and be heap allocated.
+	n := testing.AllocsPerRun(10000, func() {
+		var b Builder
+		b.Grow(5)
+		b.WriteString("abcde")
+		_ = b.String()
+	})
+	if n != 1 {
+		t.Errorf("Builder allocs = %v; want 1", n)
+	}
 }
 
 func numAllocs(fn func()) uint64 {
