@@ -176,7 +176,7 @@ func Usage() {
 
 var HelpTestflag = &base.Command{
 	UsageLine: "testflag",
-	Short:     "description of testing flags",
+	Short:     "testing flags",
 	Long: `
 The 'go test' command takes both flags that apply to 'go test' itself
 and flags that apply to the resulting test binary.
@@ -410,7 +410,7 @@ binary, instead of being interpreted as the package list.
 
 var HelpTestfunc = &base.Command{
 	UsageLine: "testfunc",
-	Short:     "description of testing functions",
+	Short:     "testing functions",
 	Long: `
 The 'go test' command expects to find test, benchmark, and example functions
 in the "*_test.go" files corresponding to the package under test.
