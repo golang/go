@@ -90,6 +90,12 @@ type limitFact struct {
 }
 
 // factsTable keeps track of relations between pairs of values.
+//
+// The fact table logic is sound, but incomplete. Outside of a few
+// special cases, it performs no deduction or arithmetic. While there
+// are known decision procedures for this, the ad hoc approach taken
+// by the facts table is effective for real code while remaining very
+// efficient.
 type factsTable struct {
 	facts map[pair]relation // current known set of relation
 	stack []fact            // previous sets of relations
@@ -433,8 +439,8 @@ var (
 		// TODO: OpIsInBounds actually test 0 <= a < b. This means
 		// that the positive branch learns signed/LT and unsigned/LT
 		// but the negative branch only learns unsigned/GE.
-		OpIsInBounds:      {unsigned, lt},
-		OpIsSliceInBounds: {unsigned, lt | eq},
+		OpIsInBounds:      {unsigned, lt},      // 0 <= arg0 < arg1
+		OpIsSliceInBounds: {unsigned, lt | eq}, // 0 <= arg0 <= arg1
 	}
 )
 
@@ -625,6 +631,7 @@ func updateRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r 
 // simplifyBlock simplifies block known the restrictions in ft.
 // Returns which branch must always be taken.
 func simplifyBlock(ft *factsTable, b *Block) branch {
+	// Replace OpSlicemask operations in b with constants where possible.
 	for _, v := range b.Values {
 		if v.Op != OpSlicemask {
 			continue
