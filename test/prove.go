@@ -11,11 +11,11 @@ import "math"
 
 func f0(a []int) int {
 	a[0] = 1
-	a[0] = 1 // ERROR "Proved boolean IsInBounds$"
+	a[0] = 1 // ERROR "Proved IsInBounds$"
 	a[6] = 1
-	a[6] = 1 // ERROR "Proved boolean IsInBounds$"
+	a[6] = 1 // ERROR "Proved IsInBounds$"
 	a[5] = 1 // ERROR "Proved IsInBounds$"
-	a[5] = 1 // ERROR "Proved boolean IsInBounds$"
+	a[5] = 1 // ERROR "Proved IsInBounds$"
 	return 13
 }
 
@@ -23,24 +23,24 @@ func f1(a []int) int {
 	if len(a) <= 5 {
 		return 18
 	}
-	a[0] = 1 // ERROR "Proved non-negative bounds IsInBounds$"
-	a[0] = 1 // ERROR "Proved boolean IsInBounds$"
+	a[0] = 1 // ERROR "Proved IsInBounds$"
+	a[0] = 1 // ERROR "Proved IsInBounds$"
 	a[6] = 1
-	a[6] = 1 // ERROR "Proved boolean IsInBounds$"
+	a[6] = 1 // ERROR "Proved IsInBounds$"
 	a[5] = 1 // ERROR "Proved IsInBounds$"
-	a[5] = 1 // ERROR "Proved boolean IsInBounds$"
+	a[5] = 1 // ERROR "Proved IsInBounds$"
 	return 26
 }
 
 func f1b(a []int, i int, j uint) int {
 	if i >= 0 && i < len(a) {
-		return a[i] // ERROR "Proved non-negative bounds IsInBounds$"
+		return a[i] // ERROR "Proved IsInBounds$"
 	}
 	if i >= 10 && i < len(a) {
-		return a[i] // ERROR "Proved non-negative bounds IsInBounds$"
+		return a[i] // ERROR "Proved IsInBounds$"
 	}
 	if i >= 10 && i < len(a) {
-		return a[i] // ERROR "Proved non-negative bounds IsInBounds$"
+		return a[i] // ERROR "Proved IsInBounds$"
 	}
 	if i >= 10 && i < len(a) { // todo: handle this case
 		return a[i-10]
@@ -64,7 +64,7 @@ func f1c(a []int, i int64) int {
 func f2(a []int) int {
 	for i := range a {
 		a[i+1] = i
-		a[i+1] = i // ERROR "Proved boolean IsInBounds$"
+		a[i+1] = i // ERROR "Proved IsInBounds$"
 	}
 	return 34
 }
@@ -84,14 +84,13 @@ func f4a(a, b, c int) int {
 		if a > b { // ERROR "Disproved Greater64$"
 			return 50
 		}
-		if a < b { // ERROR "Proved boolean Less64$"
+		if a < b { // ERROR "Proved Less64$"
 			return 53
 		}
-		if a == b { // ERROR "Disproved boolean Eq64$"
+		// We can't get to this point and prove knows that, so
+		// there's no message for the next (obvious) branch.
+		if a != a {
 			return 56
-		}
-		if a > b { // ERROR "Disproved boolean Greater64$"
-			return 59
 		}
 		return 61
 	}
@@ -127,8 +126,8 @@ func f4c(a, b, c int) int {
 func f4d(a, b, c int) int {
 	if a < b {
 		if a < c {
-			if a < b { // ERROR "Proved boolean Less64$"
-				if a < c { // ERROR "Proved boolean Less64$"
+			if a < b { // ERROR "Proved Less64$"
+				if a < c { // ERROR "Proved Less64$"
 					return 87
 				}
 				return 89
@@ -218,8 +217,8 @@ func f6e(a uint8) int {
 func f7(a []int, b int) int {
 	if b < len(a) {
 		a[b] = 3
-		if b < len(a) { // ERROR "Proved boolean Less64$"
-			a[b] = 5 // ERROR "Proved boolean IsInBounds$"
+		if b < len(a) { // ERROR "Proved Less64$"
+			a[b] = 5 // ERROR "Proved IsInBounds$"
 		}
 	}
 	return 161
@@ -242,7 +241,7 @@ func f9(a, b bool) int {
 	if a {
 		return 1
 	}
-	if a || b { // ERROR "Disproved boolean Arg$"
+	if a || b { // ERROR "Disproved Arg$"
 		return 2
 	}
 	return 3
@@ -260,22 +259,22 @@ func f10(a string) int {
 
 func f11a(a []int, i int) {
 	useInt(a[i])
-	useInt(a[i]) // ERROR "Proved boolean IsInBounds$"
+	useInt(a[i]) // ERROR "Proved IsInBounds$"
 }
 
 func f11b(a []int, i int) {
 	useSlice(a[i:])
-	useSlice(a[i:]) // ERROR "Proved boolean IsSliceInBounds$"
+	useSlice(a[i:]) // ERROR "Proved IsSliceInBounds$"
 }
 
 func f11c(a []int, i int) {
 	useSlice(a[:i])
-	useSlice(a[:i]) // ERROR "Proved boolean IsSliceInBounds$"
+	useSlice(a[:i]) // ERROR "Proved IsSliceInBounds$"
 }
 
 func f11d(a []int, i int) {
 	useInt(a[2*i+7])
-	useInt(a[2*i+7]) // ERROR "Proved boolean IsInBounds$"
+	useInt(a[2*i+7]) // ERROR "Proved IsInBounds$"
 }
 
 func f12(a []int, b int) {
@@ -305,7 +304,7 @@ func f13a(a, b, c int, x bool) int {
 			}
 		}
 		if x {
-			if a > 12 { // ERROR "Proved boolean Greater64$"
+			if a > 12 { // ERROR "Proved Greater64$"
 				return 5
 			}
 		}
@@ -327,7 +326,7 @@ func f13b(a int, x bool) int {
 			}
 		}
 		if x {
-			if a == -9 { // ERROR "Proved boolean Eq64$"
+			if a == -9 { // ERROR "Proved Eq64$"
 				return 9
 			}
 		}
@@ -349,7 +348,7 @@ func f13b(a int, x bool) int {
 func f13c(a int, x bool) int {
 	if a < 90 {
 		if x {
-			if a < 90 { // ERROR "Proved boolean Less64$"
+			if a < 90 { // ERROR "Proved Less64$"
 				return 13
 			}
 		}
@@ -450,7 +449,7 @@ func f14(p, q *int, a []int) {
 	j := *q
 	i2 := *p
 	useInt(a[i1+j])
-	useInt(a[i2+j]) // ERROR "Proved boolean IsInBounds$"
+	useInt(a[i2+j]) // ERROR "Proved IsInBounds$"
 }
 
 func f15(s []int, x int) {
@@ -460,9 +459,30 @@ func f15(s []int, x int) {
 
 func f16(s []int) []int {
 	if len(s) >= 10 {
-		return s[:10] // ERROR "Proved non-negative bounds IsSliceInBounds$"
+		return s[:10] // ERROR "Proved IsSliceInBounds$"
 	}
 	return nil
+}
+
+func f17(b []int) {
+	for i := 0; i < len(b); i++ {
+		useSlice(b[i:]) // Learns i <= len
+		// This tests for i <= cap, which we can only prove
+		// using the derived relation between len and cap.
+		// This depends on finding the contradiction, since we
+		// don't query this condition directly.
+		useSlice(b[:i]) // ERROR "Proved IsSliceInBounds$"
+	}
+}
+
+func sm1(b []int, x int) {
+	// Test constant argument to slicemask.
+	useSlice(b[2:8]) // ERROR "Proved slicemask not needed$"
+	// Test non-constant argument with known limits.
+	// Right now prove only uses the unsigned limit.
+	if uint(cap(b)) > 10 {
+		useSlice(b[2:]) // ERROR "Proved slicemask not needed$"
+	}
 }
 
 //go:noinline
