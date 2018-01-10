@@ -989,7 +989,7 @@ type http2noDialH2RoundTripper struct{ t *http2Transport }
 
 func (rt http2noDialH2RoundTripper) RoundTrip(req *Request) (*Response, error) {
 	res, err := rt.t.RoundTrip(req)
-	if err == http2ErrNoCachedConn {
+	if http2isNoCachedConnError(err) {
 		return nil, ErrSkipAltProtocol
 	}
 	return res, err
@@ -6856,7 +6856,27 @@ func (sew http2stickyErrWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-var http2ErrNoCachedConn = errors.New("http2: no cached connection was available")
+// noCachedConnError is the concrete type of ErrNoCachedConn, needs to be detected
+// by net/http regardless of whether it's its bundled version (in h2_bundle.go with a rewritten type name)
+// or from a user's x/net/http2. As such, as it has a unique method name (IsHTTP2NoCachedConnError) that
+// net/http sniffs for via func isNoCachedConnError.
+type http2noCachedConnError struct{}
+
+func (http2noCachedConnError) IsHTTP2NoCachedConnError() {}
+
+func (http2noCachedConnError) Error() string { return "http2: no cached connection was available" }
+
+// isNoCachedConnError reports whether err is of type noCachedConnError
+// or its equivalent renamed type in net/http2's h2_bundle.go. Both types
+// may coexist in the same running program.
+func http2isNoCachedConnError(err error) bool {
+	_, ok := err.(interface {
+		IsHTTP2NoCachedConnError()
+	})
+	return ok
+}
+
+var http2ErrNoCachedConn error = http2noCachedConnError{}
 
 // RoundTripOpt are options for the Transport.RoundTripOpt method.
 type http2RoundTripOpt struct {
