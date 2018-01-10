@@ -551,7 +551,6 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_variable_parameter, DW_FORM_flag},
-			{DW_AT_decl_line, DW_FORM_udata},
 			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
@@ -1429,7 +1428,10 @@ func putAbstractVar(ctxt Context, info Sym, v *Var) {
 	}
 
 	// Line
-	putattr(ctxt, info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
+	if abbrev != DW_ABRV_PARAM_ABSTRACT {
+		// See issue 23374 for more on why decl line is skipped for abs params.
+		putattr(ctxt, info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
+	}
 
 	// Type
 	putattr(ctxt, info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
