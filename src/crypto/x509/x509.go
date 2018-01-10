@@ -984,7 +984,7 @@ type distributionPoint struct {
 }
 
 type distributionPointName struct {
-	FullName     asn1.RawValue    `asn1:"optional,tag:0"`
+	FullName     []asn1.RawValue  `asn1:"optional,tag:0"`
 	RelativeName pkix.RDNSequence `asn1:"optional,tag:1"`
 }
 
@@ -1466,20 +1466,14 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 
 				for _, dp := range cdp {
 					// Per RFC 5280, 4.2.1.13, one of distributionPoint or cRLIssuer may be empty.
-					if len(dp.DistributionPoint.FullName.Bytes) == 0 {
+					if len(dp.DistributionPoint.FullName) == 0 {
 						continue
 					}
 
-					var n asn1.RawValue
-					if _, err := asn1.Unmarshal(dp.DistributionPoint.FullName.Bytes, &n); err != nil {
-						return nil, err
-					}
-					// Trailing data after the fullName is
-					// allowed because other elements of
-					// the SEQUENCE can appear.
-
-					if n.Tag == 6 {
-						out.CRLDistributionPoints = append(out.CRLDistributionPoints, string(n.Bytes))
+					for _, fullName := range dp.DistributionPoint.FullName {
+						if fullName.Tag == 6 {
+							out.CRLDistributionPoints = append(out.CRLDistributionPoints, string(fullName.Bytes))
+						}
 					}
 				}
 
@@ -1946,11 +1940,11 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId 
 
 		var crlDp []distributionPoint
 		for _, name := range template.CRLDistributionPoints {
-			rawFullName, _ := asn1.Marshal(asn1.RawValue{Tag: 6, Class: 2, Bytes: []byte(name)})
-
 			dp := distributionPoint{
 				DistributionPoint: distributionPointName{
-					FullName: asn1.RawValue{Tag: 0, Class: 2, IsCompound: true, Bytes: rawFullName},
+					FullName: []asn1.RawValue{
+						asn1.RawValue{Tag: 6, Class: 2, Bytes: []byte(name)},
+					},
 				},
 			}
 			crlDp = append(crlDp, dp)
