@@ -117,6 +117,22 @@ func (l limit) String() string {
 	return fmt.Sprintf("sm,SM,um,UM=%d,%d,%d,%d", l.min, l.max, l.umin, l.umax)
 }
 
+func (l limit) intersect(l2 limit) limit {
+	if l.min < l2.min {
+		l.min = l2.min
+	}
+	if l.umin < l2.umin {
+		l.umin = l2.umin
+	}
+	if l.max > l2.max {
+		l.max = l2.max
+	}
+	if l.umax > l2.umax {
+		l.umax = l2.umax
+	}
+	return l
+}
+
 var noLimit = limit{math.MinInt64, math.MaxInt64, 0, math.MaxUint64}
 
 // a limitFact is a limit known for a particular value.
@@ -273,28 +289,20 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		if !ok {
 			old = noLimit
 		}
-		lim := old
-		// Update lim with the new information we know.
+		lim := noLimit
 		switch d {
 		case signed:
 			switch r {
 			case lt:
-				if c-1 < lim.max {
-					lim.max = c - 1
-				}
+				lim.max = c - 1
 			case lt | eq:
-				if c < lim.max {
-					lim.max = c
-				}
+				lim.max = c
 			case gt | eq:
-				if c > lim.min {
-					lim.min = c
-				}
+				lim.min = c
 			case gt:
-				if c+1 > lim.min {
-					lim.min = c + 1
-				}
+				lim.min = c + 1
 			case lt | gt:
+				lim = old
 				if c == lim.min {
 					lim.min++
 				}
@@ -319,22 +327,15 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 			}
 			switch r {
 			case lt:
-				if uc-1 < lim.umax {
-					lim.umax = uc - 1
-				}
+				lim.umax = uc - 1
 			case lt | eq:
-				if uc < lim.umax {
-					lim.umax = uc
-				}
+				lim.umax = uc
 			case gt | eq:
-				if uc > lim.umin {
-					lim.umin = uc
-				}
+				lim.umin = uc
 			case gt:
-				if uc+1 > lim.umin {
-					lim.umin = uc + 1
-				}
+				lim.umin = uc + 1
 			case lt | gt:
+				lim = old
 				if uc == lim.umin {
 					lim.umin++
 				}
@@ -347,6 +348,7 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 			}
 		}
 		ft.limitStack = append(ft.limitStack, limitFact{v.ID, old})
+		lim = old.intersect(lim)
 		ft.limits[v.ID] = lim
 		if v.Block.Func.pass.debug > 2 {
 			v.Block.Func.Warnl(parent.Pos, "parent=%s, new limits %s %s %s", parent, v, w, lim.String())
