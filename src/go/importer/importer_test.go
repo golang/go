@@ -17,7 +17,7 @@ func TestFor(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	const thePackage = "math/big"
-	out, err := exec.Command("go", "list", "-f={{context.Compiler}}:{{.Target}}", thePackage).CombinedOutput()
+	out, err := exec.Command(testenv.GoToolPath(t), "list", "-f={{context.Compiler}}:{{.Target}}", thePackage).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go list %s: %v\n%s", thePackage, err, out)
 	}
