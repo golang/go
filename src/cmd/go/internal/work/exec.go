@@ -1849,9 +1849,11 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	// GCC says "unrecognized command line option".
 	// clang says "unknown argument".
 	// Older versions of GCC say "unrecognised debug output level".
+	// For -fsplit-stack GCC says "'-fsplit-stack' is not supported".
 	supported := !bytes.Contains(out, []byte("unrecognized")) &&
 		!bytes.Contains(out, []byte("unknown")) &&
-		!bytes.Contains(out, []byte("unrecognised"))
+		!bytes.Contains(out, []byte("unrecognised")) &&
+		!bytes.Contains(out, []byte("is not supported"))
 	b.flagCache[key] = supported
 	return supported
 }
