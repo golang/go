@@ -47,7 +47,7 @@ func (rw *RWMutex) RLock() {
 	}
 	if atomic.AddInt32(&rw.readerCount, 1) < 0 {
 		// A writer is pending, wait for it.
-		runtime_Semacquire(&rw.readerSem)
+		runtime_SemacquireMutex(&rw.readerSem, false)
 	}
 	if race.Enabled {
 		race.Enable()
@@ -95,7 +95,7 @@ func (rw *RWMutex) Lock() {
 	r := atomic.AddInt32(&rw.readerCount, -rwmutexMaxReaders) + rwmutexMaxReaders
 	// Wait for active readers.
 	if r != 0 && atomic.AddInt32(&rw.readerWait, r) != 0 {
-		runtime_Semacquire(&rw.writerSem)
+		runtime_SemacquireMutex(&rw.writerSem, false)
 	}
 	if race.Enabled {
 		race.Enable()
