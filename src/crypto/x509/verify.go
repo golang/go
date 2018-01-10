@@ -781,7 +781,17 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // If opts.Roots is nil and system roots are unavailable the returned error
 // will be of type SystemRootsError.
 //
-// WARNING: this doesn't do any revocation checking.
+// Name constraints in the intermediates will be applied to all names claimed
+// in the chain, not just opts.DNSName. Thus it is invalid for a leaf to claim
+// example.com if an intermediate doesn't permit it, even if example.com is not
+// the name being validated. Note that DirectoryName constraints are not
+// supported.
+//
+// Extended Key Usage values are enforced down a chain, so an intermediate or
+// root that enumerates EKUs prevents a leaf from asserting an EKU not in that
+// list.
+//
+// WARNING: this function doesn't do any revocation checking.
 func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
 	// Platform-specific verification needs the ASN.1 contents so
 	// this makes the behavior consistent across platforms.
