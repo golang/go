@@ -248,6 +248,16 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 				lim.min = c
 				lim.max = c
 			}
+			if lim.min >= 0 {
+				// int(x) >= 0 && int(x) >= N  ⇒  uint(x) >= N
+				lim.umin = uint64(lim.min)
+			}
+			if lim.max != noLimit.max && old.min >= 0 && lim.max >= 0 {
+				// 0 <= int(x) <= N  ⇒  0 <= uint(x) <= N
+				// This is for a max update, so the lower bound
+				// comes from what we already know (old).
+				lim.umax = uint64(lim.max)
+			}
 		case unsigned:
 			var uc uint64
 			switch w.Op {
@@ -281,6 +291,9 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 				lim.umin = uc
 				lim.umax = uc
 			}
+			// We could use the contrapositives of the
+			// signed implications to derive signed facts,
+			// but it turns out not to matter.
 		}
 		ft.limitStack = append(ft.limitStack, limitFact{v.ID, old})
 		lim = old.intersect(lim)

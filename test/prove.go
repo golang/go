@@ -479,9 +479,30 @@ func sm1(b []int, x int) {
 	// Test constant argument to slicemask.
 	useSlice(b[2:8]) // ERROR "Proved slicemask not needed$"
 	// Test non-constant argument with known limits.
-	// Right now prove only uses the unsigned limit.
-	if uint(cap(b)) > 10 {
+	if cap(b) > 10 {
 		useSlice(b[2:]) // ERROR "Proved slicemask not needed$"
+	}
+}
+
+func lim1(x, y, z int) {
+	// Test relations between signed and unsigned limits.
+	if x > 5 {
+		if uint(x) > 5 { // ERROR "Proved Greater64U$"
+			return
+		}
+	}
+	if y >= 0 && y < 4 {
+		if uint(y) > 4 { // ERROR "Disproved Greater64U$"
+			return
+		}
+		if uint(y) < 5 { // ERROR "Proved Less64U$"
+			return
+		}
+	}
+	if z < 4 {
+		if uint(z) > 4 { // Not provable without disjunctions.
+			return
+		}
 	}
 }
 
