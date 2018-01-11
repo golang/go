@@ -2242,9 +2242,12 @@ func (mux *ServeMux) shouldRedirect(host, path string) bool {
 	}
 
 	n := len(path)
+	if n == 0 {
+		return false
+	}
 	for _, c := range p {
 		if _, exist := mux.m[c+"/"]; exist {
-			return n > 0 && path[n-1] != '/'
+			return path[n-1] != '/'
 		}
 	}
 
