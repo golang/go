@@ -7,6 +7,7 @@ package cshared_test
 import (
 	"debug/elf"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -475,5 +476,101 @@ func TestPIE(t *testing.T) {
 		if tag == elf.DT_TEXTREL {
 			t.Fatalf("%s has DT_TEXTREL flag", libgoname)
 		}
+	}
+}
+
+// Test that installing a second time recreates the header files.
+func TestCachedInstall(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "cshared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// defer os.RemoveAll(tmpdir)
+
+	copyFile(t, filepath.Join(tmpdir, "src", "libgo", "libgo.go"), filepath.Join("src", "libgo", "libgo.go"))
+	copyFile(t, filepath.Join(tmpdir, "src", "p", "p.go"), filepath.Join("src", "p", "p.go"))
+
+	env := append(os.Environ(), "GOPATH="+tmpdir)
+
+	buildcmd := []string{"go", "install", "-x", "-i", "-buildmode=c-shared", "-installsuffix", "testcshared", "libgo"}
+
+	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
+	cmd.Env = env
+	t.Log(buildcmd)
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var libgoh, ph string
+
+	walker := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			t.Fatal(err)
+		}
+		var ps *string
+		switch filepath.Base(path) {
+		case "libgo.h":
+			ps = &libgoh
+		case "p.h":
+			ps = &ph
+		}
+		if ps != nil {
+			if *ps != "" {
+				t.Fatalf("%s found again", *ps)
+			}
+			*ps = path
+		}
+		return nil
+	}
+
+	if err := filepath.Walk(tmpdir, walker); err != nil {
+		t.Fatal(err)
+	}
+
+	if libgoh == "" {
+		t.Fatal("libgo.h not installed")
+	}
+	if ph == "" {
+		t.Fatal("p.h not installed")
+	}
+
+	if err := os.Remove(libgoh); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(ph); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(buildcmd[0], buildcmd[1:]...)
+	cmd.Env = env
+	t.Log(buildcmd)
+	out, err = cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(libgoh); err != nil {
+		t.Errorf("libgo.h not installed in second run: %v", err)
+	}
+	if _, err := os.Stat(ph); err != nil {
+		t.Errorf("p.h not installed in second run: %v", err)
+	}
+}
+
+// copyFile copies src to dst.
+func copyFile(t *testing.T, dst, src string) {
+	t.Helper()
+	data, err := ioutil.ReadFile(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0777); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(dst, data, 0666); err != nil {
+		t.Fatal(err)
 	}
 }
