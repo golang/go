@@ -1967,6 +1967,8 @@ var vfldexpBC = []fi{
 	{-1, -1075},
 	{1, 1024},
 	{-1, 1024},
+	{1.0000000000000002, -1075},
+	{1, -1075},
 }
 var ldexpBC = []float64{
 	SmallestNonzeroFloat64,
@@ -1977,6 +1979,8 @@ var ldexpBC = []float64{
 	Copysign(0, -1),
 	Inf(1),
 	Inf(-1),
+	SmallestNonzeroFloat64,
+	0,
 }
 
 var logbBC = []float64{
