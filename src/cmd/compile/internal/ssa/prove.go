@@ -305,6 +305,53 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 			v.Block.Func.Warnl(parent.Pos, "parent=%s, new limits %s %s %s", parent, v, w, lim.String())
 		}
 	}
+
+	// Process fence-post implications.
+	//
+	// First, make the condition > or >=.
+	if r == lt || r == lt|eq {
+		v, w = w, v
+		r = reverseBits[r]
+	}
+	switch r {
+	case gt:
+		if x, delta := isConstDelta(v); x != nil && delta == 1 {
+			// x+1 > w  ⇒  x >= w
+			//
+			// This is useful for eliminating the
+			// growslice branch of append.
+			ft.update(parent, x, w, d, gt|eq)
+		} else if x, delta := isConstDelta(w); x != nil && delta == -1 {
+			// v > x-1  ⇒  v >= x
+			ft.update(parent, v, x, d, gt|eq)
+		}
+	case gt | eq:
+		if x, delta := isConstDelta(v); x != nil && delta == -1 {
+			// x-1 >= w && x > min  ⇒  x > w
+			//
+			// Useful for i > 0; s[i-1].
+			lim, ok := ft.limits[x.ID]
+			if ok && lim.min > opMin[v.Op] {
+				ft.update(parent, x, w, d, gt)
+			}
+		} else if x, delta := isConstDelta(w); x != nil && delta == 1 {
+			// v >= x+1 && x < max  ⇒  v > x
+			lim, ok := ft.limits[x.ID]
+			if ok && lim.max < opMax[w.Op] {
+				ft.update(parent, v, x, d, gt)
+			}
+		}
+	}
+}
+
+var opMin = map[Op]int64{
+	OpAdd64: math.MinInt64, OpSub64: math.MinInt64,
+	OpAdd32: math.MinInt32, OpSub32: math.MinInt32,
+}
+
+var opMax = map[Op]int64{
+	OpAdd64: math.MaxInt64, OpSub64: math.MaxInt64,
+	OpAdd32: math.MaxInt32, OpSub32: math.MaxInt32,
 }
 
 // isNonNegative returns true if v is known to be non-negative.
@@ -802,4 +849,30 @@ func isNonNegative(v *Value) bool {
 		return isNonNegative(v.Args[0])
 	}
 	return false
+}
+
+// isConstDelta returns non-nil if v is equivalent to w+delta (signed).
+func isConstDelta(v *Value) (w *Value, delta int64) {
+	cop := OpConst64
+	switch v.Op {
+	case OpAdd32, OpSub32:
+		cop = OpConst32
+	}
+	switch v.Op {
+	case OpAdd64, OpAdd32:
+		if v.Args[0].Op == cop {
+			return v.Args[1], v.Args[0].AuxInt
+		}
+		if v.Args[1].Op == cop {
+			return v.Args[0], v.Args[1].AuxInt
+		}
+	case OpSub64, OpSub32:
+		if v.Args[1].Op == cop {
+			aux := v.Args[1].AuxInt
+			if aux != -aux { // Overflow; too bad
+				return v.Args[0], -aux
+			}
+		}
+	}
+	return nil, 0
 }

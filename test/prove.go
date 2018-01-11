@@ -506,6 +506,60 @@ func lim1(x, y, z int) {
 	}
 }
 
+// fence1–4 correspond to the four fence-post implications.
+
+func fence1(b []int, x, y int) {
+	// Test proofs that rely on fence-post implications.
+	if x+1 > y {
+		if x < y { // ERROR "Disproved Less64$"
+			return
+		}
+	}
+	if len(b) < cap(b) {
+		// This eliminates the growslice path.
+		b = append(b, 1) // ERROR "Disproved Greater64$"
+	}
+}
+
+func fence2(x, y int) {
+	if x-1 < y {
+		if x > y { // ERROR "Disproved Greater64$"
+			return
+		}
+	}
+}
+
+func fence3(b []int, x, y int64) {
+	if x-1 >= y {
+		if x <= y { // Can't prove because x may have wrapped.
+			return
+		}
+	}
+
+	if x != math.MinInt64 && x-1 >= y {
+		if x <= y { // ERROR "Disproved Leq64$"
+			return
+		}
+	}
+
+	if n := len(b); n > 0 {
+		b[n-1] = 0 // ERROR "Proved IsInBounds$"
+	}
+}
+
+func fence4(x, y int64) {
+	if x >= y+1 {
+		if x <= y {
+			return
+		}
+	}
+	if y != math.MaxInt64 && x >= y+1 {
+		if x <= y { // ERROR "Disproved Leq64$"
+			return
+		}
+	}
+}
+
 //go:noinline
 func useInt(a int) {
 }
