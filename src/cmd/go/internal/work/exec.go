@@ -308,7 +308,7 @@ func (b *Builder) build(a *Action) (err error) {
 			// Need to look for install header actions depending on this action,
 			// or depending on a link that depends on this action.
 			needHeader := false
-			if (a.Package.UsesCgo() || a.Package.UsesSwig()) && (cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-header") {
+			if (a.Package.UsesCgo() || a.Package.UsesSwig()) && (cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-shared") {
 				for _, t1 := range a.triggers {
 					if t1.Mode == "install header" {
 						needHeader = true
