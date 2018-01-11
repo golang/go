@@ -573,6 +573,7 @@ pkg encoding/xml, type TokenReader interface, Token() (Token, error)
 pkg flag, method (*FlagSet) ErrorHandling() ErrorHandling
 pkg flag, method (*FlagSet) Name() string
 pkg flag, method (*FlagSet) Output() io.Writer
+pkg html/template, type Srcset string
 pkg math, func Erfcinv(float64) float64
 pkg math, func Erfinv(float64) float64
 pkg math, func Round(float64) float64
