@@ -748,19 +748,8 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 		if v.Op != OpSlicemask {
 			continue
 		}
-		add := v.Args[0]
-		if add.Op != OpAdd64 && add.Op != OpAdd32 {
-			continue
-		}
-		// Note that the arg of slicemask was originally a sub, but
-		// was rewritten to an add by generic.rules (if the thing
-		// being subtracted was a constant).
-		x := add.Args[0]
-		y := add.Args[1]
-		if x.Op == OpConst64 || x.Op == OpConst32 {
-			x, y = y, x
-		}
-		if y.Op != OpConst64 && y.Op != OpConst32 {
+		x, delta := isConstDelta(v.Args[0])
+		if x == nil {
 			continue
 		}
 		// slicemask(x + y)
@@ -769,7 +758,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 		if !ok {
 			continue
 		}
-		if lim.umin > uint64(-y.AuxInt) {
+		if lim.umin > uint64(-delta) {
 			if v.Args[0].Op == OpAdd64 {
 				v.reset(OpConst64)
 			} else {
