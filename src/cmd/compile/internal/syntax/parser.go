@@ -170,9 +170,9 @@ func (p *parser) syntax_error_at(pos src.Pos, msg string) {
 	switch {
 	case msg == "":
 		// nothing to do
-	case strings.HasPrefix(msg, "in"), strings.HasPrefix(msg, "at"), strings.HasPrefix(msg, "after"):
+	case strings.HasPrefix(msg, "in "), strings.HasPrefix(msg, "at "), strings.HasPrefix(msg, "after "):
 		msg = " " + msg
-	case strings.HasPrefix(msg, "expecting"):
+	case strings.HasPrefix(msg, "expecting "):
 		msg = ", " + msg
 	default:
 		// plain error - we don't care about current token
@@ -1844,7 +1844,15 @@ done:
 	case *ExprStmt:
 		cond = s.X
 	default:
-		p.syntax_error(fmt.Sprintf("%s used as value", String(s)))
+		// A common syntax error is to write '=' instead of '==',
+		// which turns an expression into an assignment. Provide
+		// a more explicit error message in that case to prevent
+		// further confusion.
+		str := String(s)
+		if as, ok := s.(*AssignStmt); ok && as.Op == 0 {
+			str = "assignment " + str
+		}
+		p.syntax_error(fmt.Sprintf("%s used as value", str))
 	}
 
 	p.xnest = outer
