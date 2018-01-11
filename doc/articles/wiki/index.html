@@ -269,6 +269,12 @@ view a wiki page. It will handle URLs prefixed with "/view/".
 {{code "doc/articles/wiki/part2.go" `/^func viewHandler/` `/^}/`}}
 
 <p>
+Again, note the use of <code>_</code> to ignore the <code>error</code>
+return value from <code>loadPage</code>. This is done here for simplicity
+and generally considered bad practice. We will attend to this later.
+</p>
+
+<p>
 First, this function extracts the page title from <code>r.URL.Path</code>,
 the path component of the request URL.
 The <code>Path</code> is re-sliced with <code>[len("/view/"):]</code> to drop
@@ -280,12 +286,6 @@ which is not part of the page's title.
 <p>
 The function then loads the page data, formats the page with a string of simple
 HTML, and writes it to <code>w</code>, the <code>http.ResponseWriter</code>.
-</p>
-
-<p>
-Again, note the use of <code>_</code> to ignore the <code>error</code>
-return value from <code>loadPage</code>. This is done here for simplicity
-and generally considered bad practice. We will attend to this later.
 </p>
 
 <p>
