@@ -1808,15 +1808,76 @@ func (p *parser) parseBranchStmt(tok token.Token) *ast.BranchStmt {
 	return &ast.BranchStmt{TokPos: pos, Tok: tok, Label: label}
 }
 
-func (p *parser) makeExpr(s ast.Stmt, kind string) ast.Expr {
+func (p *parser) makeExpr(s ast.Stmt, want string) ast.Expr {
 	if s == nil {
 		return nil
 	}
 	if es, isExpr := s.(*ast.ExprStmt); isExpr {
 		return p.checkExpr(es.X)
 	}
-	p.error(s.Pos(), fmt.Sprintf("expected %s, found simple statement (missing parentheses around composite literal?)", kind))
+	found := "simple statement"
+	if _, isAss := s.(*ast.AssignStmt); isAss {
+		found = "assignment"
+	}
+	p.error(s.Pos(), fmt.Sprintf("expected %s, found %s (missing parentheses around composite literal?)", want, found))
 	return &ast.BadExpr{From: s.Pos(), To: p.safePos(s.End())}
+}
+
+// parseIfHeader is an adjusted version of parser.header
+// in cmd/compile/internal/syntax/parser.go, which has
+// been tuned for better error handling.
+func (p *parser) parseIfHeader() (init ast.Stmt, cond ast.Expr) {
+	if p.tok == token.LBRACE {
+		p.error(p.pos, "missing condition in if statement")
+		return
+	}
+	// p.tok != token.LBRACE
+
+	outer := p.exprLev
+	p.exprLev = -1
+
+	if p.tok != token.SEMICOLON {
+		// accept potential variable declaration but complain
+		if p.tok == token.VAR {
+			p.next()
+			p.error(p.pos, fmt.Sprintf("var declaration not allowed in 'IF' initializer"))
+		}
+		init, _ = p.parseSimpleStmt(basic)
+	}
+
+	var condStmt ast.Stmt
+	var semi struct {
+		pos token.Pos
+		lit string // ";" or "\n"; valid if pos.IsValid()
+	}
+	if p.tok != token.LBRACE {
+		if p.tok == token.SEMICOLON {
+			semi.pos = p.pos
+			semi.lit = p.lit
+			p.next()
+		} else {
+			p.expect(token.SEMICOLON)
+		}
+		if p.tok != token.LBRACE {
+			condStmt, _ = p.parseSimpleStmt(basic)
+		}
+	} else {
+		condStmt = init
+		init = nil
+	}
+
+	if condStmt != nil {
+		cond = p.makeExpr(condStmt, "boolean expression")
+	} else if semi.pos.IsValid() {
+		if semi.lit == "\n" {
+			p.error(semi.pos, "unexpected newline, expecting { after if clause")
+		} else {
+			p.error(semi.pos, "missing condition in if statement")
+		}
+	}
+
+	p.exprLev = outer
+	return
 }
 
 func (p *parser) parseIfStmt() *ast.IfStmt {
@@ -1828,28 +1889,9 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 	p.openScope()
 	defer p.closeScope()
 
-	var s ast.Stmt
-	var x ast.Expr
-	{
-		prevLev := p.exprLev
-		p.exprLev = -1
-		if p.tok == token.SEMICOLON {
-			p.next()
-			x = p.parseRhs()
-		} else {
-			s, _ = p.parseSimpleStmt(basic)
-			if p.tok == token.SEMICOLON {
-				p.next()
-				x = p.parseRhs()
-			} else {
-				x = p.makeExpr(s, "boolean expression")
-				s = nil
-			}
-		}
-		p.exprLev = prevLev
-	}
-
+	init, cond := p.parseIfHeader()
 	body := p.parseBlockStmt()
+
 	var else_ ast.Stmt
 	if p.tok == token.ELSE {
 		p.next()
@@ -1867,7 +1909,7 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 		p.expectSemi()
 	}
 
-	return &ast.IfStmt{If: pos, Init: s, Cond: x, Body: body, Else: else_}
+	return &ast.IfStmt{If: pos, Init: init, Cond: cond, Body: body, Else: else_}
 }
 
 func (p *parser) parseTypeList() (list []ast.Expr) {
