@@ -710,3 +710,26 @@ type bar int	// comment2
 		t.Errorf("got %q, want %q", buf.String(), bar)
 	}
 }
+
+func TestIssue11151(t *testing.T) {
+	const src = "package p\t/*\r/1\r*\r/2*\r\r\r\r/3*\r\r+\r\r/4*/\n"
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	Fprint(&buf, fset, f)
+	got := buf.String()
+	const want = "package p\t/*/1*\r/2*\r/3*+/4*/\n" // \r following opening /* should be stripped
+	if got != want {
+		t.Errorf("\ngot : %q\nwant: %q", got, want)
+	}
+
+	// the resulting program must be valid
+	_, err = parser.ParseFile(fset, "", got, 0)
+	if err != nil {
+		t.Errorf("%v\norig: %q\ngot : %q", err, src, got)
+	}
+}
