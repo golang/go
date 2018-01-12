@@ -1974,6 +1974,11 @@ func addinit(n *Node, init []*Node) *Node {
 	return n
 }
 
+// The linker uses the magic symbol prefixes "go." and "type."
+// Avoid potential confusion between import paths and symbols
+// by rejecting these reserved imports for now. Also, people
+// "can do weird things in GOPATH and we'd prefer they didn't
+// do _that_ weird thing" (per rsc). See also #4257.
 var reservedimports = []string{
 	"go",
 	"type",
