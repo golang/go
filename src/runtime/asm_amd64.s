@@ -424,6 +424,7 @@ bad:
 	// Bad: g is not gsignal, not g0, not curg. What is it?
 	MOVQ	$runtime·badsystemstack(SB), AX
 	CALL	AX
+	INT	$3
 
 
 /*
