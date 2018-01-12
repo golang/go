@@ -777,56 +777,12 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	//	pmain - pkg.test binary
 	var ptest, pxtest, pmain *load.Package
 
-	var imports, ximports []*load.Package
-	var stk load.ImportStack
-	stk.Push(p.ImportPath + " (test)")
-	rawTestImports := str.StringList(p.TestImports)
-	for i, path := range p.TestImports {
-		p1 := load.LoadImport(path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], load.UseVendor)
-		if p1.Error != nil {
-			return nil, nil, nil, p1.Error
-		}
-		if len(p1.DepsErrors) > 0 {
-			err := p1.DepsErrors[0]
-			err.Pos = "" // show full import stack
-			return nil, nil, nil, err
-		}
-		if str.Contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
-			// Same error that loadPackage returns (via reusePackage) in pkg.go.
-			// Can't change that code, because that code is only for loading the
-			// non-test copy of a package.
-			err := &load.PackageError{
-				ImportStack:   testImportStack(stk[0], p1, p.ImportPath),
-				Err:           "import cycle not allowed in test",
-				IsImportCycle: true,
-			}
-			return nil, nil, nil, err
-		}
-		p.TestImports[i] = p1.ImportPath
-		imports = append(imports, p1)
+	localCover := testCover && testCoverPaths == nil
+
+	ptest, pxtest, err = load.TestPackagesFor(p, localCover || p.Name == "main")
+	if err != nil {
+		return nil, nil, nil, err
 	}
-	stk.Pop()
-	stk.Push(p.ImportPath + "_test")
-	pxtestNeedsPtest := false
-	rawXTestImports := str.StringList(p.XTestImports)
-	for i, path := range p.XTestImports {
-		p1 := load.LoadImport(path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], load.UseVendor)
-		if p1.Error != nil {
-			return nil, nil, nil, p1.Error
-		}
-		if len(p1.DepsErrors) > 0 {
-			err := p1.DepsErrors[0]
-			err.Pos = "" // show full import stack
-			return nil, nil, nil, err
-		}
-		if p1.ImportPath == p.ImportPath {
-			pxtestNeedsPtest = true
-		} else {
-			ximports = append(ximports, p1)
-		}
-		p.XTestImports[i] = p1.ImportPath
-	}
-	stk.Pop()
 
 	// Use last element of import path, not package name.
 	// They differ when package name is "main".
@@ -844,81 +800,12 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	// only for this package and only for this test?
 	// Yes, if -cover is on but -coverpkg has not specified
 	// a list of packages for global coverage.
-	localCover := testCover && testCoverPaths == nil
-
-	// Test package.
-	if len(p.TestGoFiles) > 0 || localCover || p.Name == "main" {
-		ptest = new(load.Package)
-		*ptest = *p
-		ptest.GoFiles = nil
-		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
-		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
-		ptest.Target = ""
-		// Note: The preparation of the vet config requires that common
-		// indexes in ptest.Imports, ptest.Internal.Imports, and ptest.Internal.RawImports
-		// all line up (but RawImports can be shorter than the others).
-		// That is, for 0 ≤ i < len(RawImports),
-		// RawImports[i] is the import string in the program text,
-		// Imports[i] is the expanded import string (vendoring applied or relative path expanded away),
-		// and Internal.Imports[i] is the corresponding *Package.
-		// Any implicitly added imports appear in Imports and Internal.Imports
-		// but not RawImports (because they were not in the source code).
-		// We insert TestImports, imports, and rawTestImports at the start of
-		// these lists to preserve the alignment.
-		ptest.Imports = str.StringList(p.TestImports, p.Imports)
-		ptest.Internal.Imports = append(imports, p.Internal.Imports...)
-		ptest.Internal.RawImports = str.StringList(rawTestImports, p.Internal.RawImports)
-		ptest.Internal.ForceLibrary = true
-		ptest.Internal.Build = new(build.Package)
-		*ptest.Internal.Build = *p.Internal.Build
-		m := map[string][]token.Position{}
-		for k, v := range p.Internal.Build.ImportPos {
-			m[k] = append(m[k], v...)
-		}
-		for k, v := range p.Internal.Build.TestImportPos {
-			m[k] = append(m[k], v...)
-		}
-		ptest.Internal.Build.ImportPos = m
-
-		if localCover {
-			ptest.Internal.CoverMode = testCoverMode
-			var coverFiles []string
-			coverFiles = append(coverFiles, ptest.GoFiles...)
-			coverFiles = append(coverFiles, ptest.CgoFiles...)
-			ptest.Internal.CoverVars = declareCoverVars(ptest.ImportPath, coverFiles...)
-		}
-	} else {
-		ptest = p
-	}
-
-	// External test package.
-	if len(p.XTestGoFiles) > 0 {
-		pxtest = &load.Package{
-			PackagePublic: load.PackagePublic{
-				Name:       p.Name + "_test",
-				ImportPath: p.ImportPath + "_test",
-				Root:       p.Root,
-				Dir:        p.Dir,
-				GoFiles:    p.XTestGoFiles,
-				Imports:    p.XTestImports,
-			},
-			Internal: load.PackageInternal{
-				LocalPrefix: p.Internal.LocalPrefix,
-				Build: &build.Package{
-					ImportPos: p.Internal.Build.XTestImportPos,
-				},
-				Imports:    ximports,
-				RawImports: rawXTestImports,
-
-				Asmflags:   p.Internal.Asmflags,
-				Gcflags:    p.Internal.Gcflags,
-				Ldflags:    p.Internal.Ldflags,
-				Gccgoflags: p.Internal.Gccgoflags,
-			},
-		}
-		if pxtestNeedsPtest {
-			pxtest.Internal.Imports = append(pxtest.Internal.Imports, ptest)
-		}
+	if localCover {
+		ptest.Internal.CoverMode = testCoverMode
+		var coverFiles []string
+		coverFiles = append(coverFiles, ptest.GoFiles...)
+		coverFiles = append(coverFiles, ptest.CgoFiles...)
+		ptest.Internal.CoverVars = declareCoverVars(ptest.ImportPath, coverFiles...)
 	}
 
 	testDir := b.NewObjdir()
@@ -948,6 +835,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 
 	// The generated main also imports testing, regexp, and os.
 	// Also the linker introduces implicit dependencies reported by LinkerDeps.
+	var stk load.ImportStack
 	stk.Push("testmain")
 	deps := testMainDeps // cap==len, so safe for append
 	for _, d := range load.LinkerDeps(p) {
@@ -1148,24 +1036,6 @@ func addTestVet(b *work.Builder, p *load.Package, runAction, installAction *work
 	if installAction != nil {
 		installAction.Deps = append(installAction.Deps, vet)
 	}
-}
-
-func testImportStack(top string, p *load.Package, target string) []string {
-	stk := []string{top, p.ImportPath}
-Search:
-	for p.ImportPath != target {
-		for _, p1 := range p.Internal.Imports {
-			if p1.ImportPath == target || str.Contains(p1.Deps, target) {
-				stk = append(stk, p1.ImportPath)
-				p = p1
-				continue Search
-			}
-		}
-		// Can't happen, but in case it does...
-		stk = append(stk, "<lost path to cycle>")
-		break
-	}
-	return stk
 }
 
 func recompileForTest(pmain, preal, ptest, pxtest *load.Package) {
