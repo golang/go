@@ -204,7 +204,7 @@ func (s *Scanner) scanComment() string {
 exit:
 	lit := s.src[offs:s.offset]
 	if hasCR {
-		lit = stripCR(lit)
+		lit = stripCR(lit, lit[1] == '*')
 	}
 
 	return string(lit)
@@ -480,11 +480,16 @@ func (s *Scanner) scanString() string {
 	return string(s.src[offs:s.offset])
 }
 
-func stripCR(b []byte) []byte {
+func stripCR(b []byte, comment bool) []byte {
 	c := make([]byte, len(b))
 	i := 0
-	for _, ch := range b {
-		if ch != '\r' {
+	for j, ch := range b {
+		// In a /*-style comment, don't strip \r from *\r/ (incl.
+		// sequences of \r from *\r\r...\r/) since the resulting
+		// */ would terminate the comment too early unless the \r
+		// is immediately following the opening /* in which case
+		// it's ok because /*/ is not closed yet (issue #11151).
+		if ch != '\r' || comment && i > len("/*") && c[i-1] == '*' && j+1 < len(b) && b[j+1] == '/' {
 			c[i] = ch
 			i++
 		}
@@ -514,7 +519,7 @@ func (s *Scanner) scanRawString() string {
 
 	lit := s.src[offs:s.offset]
 	if hasCR {
-		lit = stripCR(lit)
+		lit = stripCR(lit, false)
 	}
 
 	return string(lit)

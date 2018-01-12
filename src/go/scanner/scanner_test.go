@@ -45,6 +45,8 @@ var tokens = [...]elt{
 	{token.COMMENT, "/* a comment */", special},
 	{token.COMMENT, "// a comment \n", special},
 	{token.COMMENT, "/*\r*/", special},
+	{token.COMMENT, "/**\r/*/", special}, // issue 11151
+	{token.COMMENT, "/**\r\r/*/", special},
 	{token.COMMENT, "//\r\n", special},
 
 	// Identifiers and basic type literals
@@ -270,7 +272,7 @@ func TestScan(t *testing.T) {
 		switch e.tok {
 		case token.COMMENT:
 			// no CRs in comments
-			elit = string(stripCR([]byte(e.lit)))
+			elit = string(stripCR([]byte(e.lit), e.lit[1] == '*'))
 			//-style comment literal doesn't contain newline
 			if elit[1] == '/' {
 				elit = elit[0 : len(elit)-1]
@@ -284,7 +286,7 @@ func TestScan(t *testing.T) {
 				// no CRs in raw string literals
 				elit = e.lit
 				if elit[0] == '`' {
-					elit = string(stripCR([]byte(elit)))
+					elit = string(stripCR([]byte(elit), false))
 				}
 			} else if e.tok.IsKeyword() {
 				elit = e.lit
@@ -306,6 +308,26 @@ func TestScan(t *testing.T) {
 
 	if s.ErrorCount != 0 {
 		t.Errorf("found %d errors", s.ErrorCount)
+	}
+}
+
+func TestStripCR(t *testing.T) {
+	for _, test := range []struct{ have, want string }{
+		{"//\n", "//\n"},
+		{"//\r\n", "//\n"},
+		{"//\r\r\r\n", "//\n"},
+		{"//\r*\r/\r\n", "//*/\n"},
+		{"/**/", "/**/"},
+		{"/*\r/*/", "/*/*/"},
+		{"/*\r*/", "/**/"},
+		{"/**\r/*/", "/**\r/*/"},
+		{"/*\r/\r*\r/*/", "/*/*\r/*/"},
+		{"/*\r\r\r\r*/", "/**/"},
+	} {
+		got := string(stripCR([]byte(test.have), len(test.have) >= 2 && test.have[1] == '*'))
+		if got != test.want {
+			t.Errorf("stripCR(%q) = %q; want %q", test.have, got, test.want)
+		}
 	}
 }
 
