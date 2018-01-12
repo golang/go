@@ -752,6 +752,9 @@ func dopanic_m(gp *g, pc, sp uintptr) {
 	exit(2)
 }
 
+// canpanic returns false if a signal should throw instead of
+// panicking.
+//
 //go:nosplit
 func canpanic(gp *g) bool {
 	// Note that g is m->gsignal, different from gp.
