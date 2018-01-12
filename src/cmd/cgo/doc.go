@@ -341,69 +341,11 @@ in unexpected and unpredictable ways.
 Special cases
 
 A few special C types which would normally be represented by a pointer
-type in Go are instead represented by a uintptr. Those types are
-the CF*Ref types from the CoreFoundation library on Darwin, including:
+type in Go are instead represented by a uintptr. Those include:
 
-	CFAllocatorRef
-	CFArrayRef
-	CFAttributedStringRef
-	CFBagRef
-	CFBinaryHeapRef
-	CFBitVectorRef
-	CFBooleanRef
-	CFBundleRef
-	CFCalendarRef
-	CFCharacterSetRef
-	CFDataRef
-	CFDateFormatterRef
-	CFDateRef
-	CFDictionaryRef
-	CFErrorRef
-	CFFileDescriptorRef
-	CFFileSecurityRef
-	CFLocaleRef
-	CFMachPortRef
-	CFMessagePortRef
-	CFMutableArrayRef
-	CFMutableAttributedStringRef
-	CFMutableBagRef
-	CFMutableBitVectorRef
-	CFMutableCharacterSetRef
-	CFMutableDataRef
-	CFMutableDictionaryRef
-	CFMutableSetRef
-	CFMutableStringRef
-	CFNotificationCenterRef
-	CFNullRef
-	CFNumberFormatterRef
-	CFNumberRef
-	CFPlugInInstanceRef
-	CFPlugInRef
-	CFPropertyListRef
-	CFReadStreamRef
-	CFRunLoopObserverRef
-	CFRunLoopRef
-	CFRunLoopSourceRef
-	CFRunLoopTimerRef
-	CFSetRef
-	CFSocketRef
-	CFStringRef
-	CFStringTokenizerRef
-	CFTimeZoneRef
-	CFTreeRef
-	CFTypeRef
-	CFURLCreateFromFSRef
-	CFURLEnumeratorRef
-	CFURLGetFSRef
-	CFURLRef
-	CFUUIDRef
-	CFUserNotificationRef
-	CFWriteStreamRef
-	CFXMLNodeRef
-	CFXMLParserRef
-	CFXMLTreeRef
+1. The *Ref types on Darwin, rooted at CoreFoundation's CFTypeRef type.
 
-Also the object types from Java's JNI interface:
+2. The object types from Java's JNI interface:
 
 	jobject
 	jclass

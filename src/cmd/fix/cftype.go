@@ -19,7 +19,7 @@ var cftypeFix = fix{
 	name:     "cftype",
 	date:     "2017-09-27",
 	f:        cftypefix,
-	desc:     `Fixes initializers of C.CF*Ptr types`,
+	desc:     `Fixes initializers of C.*Ref types`,
 	disabled: false,
 }
 
@@ -27,11 +27,11 @@ var cftypeFix = fix{
 //   type CFTypeRef unsafe.Pointer
 // New state:
 //   type CFTypeRef uintptr
-// and similar for other CF*Ref types.
+// and similar for other *Ref types.
 // This fix finds nils initializing these types and replaces the nils with 0s.
 func cftypefix(f *ast.File) bool {
 	return typefix(f, func(s string) bool {
-		return strings.HasPrefix(s, "C.CF") && strings.HasSuffix(s, "Ref")
+		return strings.HasPrefix(s, "C.") && strings.HasSuffix(s, "Ref")
 	})
 }
 
