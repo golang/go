@@ -71,6 +71,12 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
 		return _EXCEPTION_CONTINUE_SEARCH
 	}
 
+	if gp.throwsplit {
+		// We can't safely sigpanic because it may grow the
+		// stack. Let it fall through.
+		return _EXCEPTION_CONTINUE_SEARCH
+	}
+
 	// Make it look like a call to the signal func.
 	// Have to pass arguments out of band since
 	// augmenting the stack frame would break

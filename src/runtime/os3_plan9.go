@@ -45,6 +45,11 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 			break
 		}
 	}
+	if flags&_SigPanic != 0 && gp.throwsplit {
+		// We can't safely sigpanic because it may grow the
+		// stack. Abort in the signal handler instead.
+		flags = (flags &^ _SigPanic) | _SigThrow
+	}
 	if flags&_SigGoExit != 0 {
 		exits((*byte)(add(unsafe.Pointer(note), 9))) // Strip "go: exit " prefix.
 	}
