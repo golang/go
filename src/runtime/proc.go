@@ -796,9 +796,7 @@ func casgstatus(gp *g, oldval, newval uint32) {
 	// GC time to finish and change the state to oldval.
 	for i := 0; !atomic.Cas(&gp.atomicstatus, oldval, newval); i++ {
 		if oldval == _Gwaiting && gp.atomicstatus == _Grunnable {
-			systemstack(func() {
-				throw("casgstatus: waiting for Gwaiting but is Grunnable")
-			})
+			throw("casgstatus: waiting for Gwaiting but is Grunnable")
 		}
 		// Help GC if needed.
 		// if gp.preemptscan && !gp.gcworkdone && (oldval == _Grunning || oldval == _Gsyscall) {
@@ -2925,21 +2923,14 @@ func exitsyscall(dummy int32) {
 
 	_g_.m.locks++ // see comment in entersyscall
 	if getcallersp(unsafe.Pointer(&dummy)) > _g_.syscallsp {
-		// throw calls print which may try to grow the stack,
-		// but throwsplit == true so the stack can not be grown;
-		// use systemstack to avoid that possible problem.
-		systemstack(func() {
-			throw("exitsyscall: syscall frame is no longer valid")
-		})
+		throw("exitsyscall: syscall frame is no longer valid")
 	}
 
 	_g_.waitsince = 0
 	oldp := _g_.m.p.ptr()
 	if exitsyscallfast() {
 		if _g_.m.mcache == nil {
-			systemstack(func() {
-				throw("lost mcache")
-			})
+			throw("lost mcache")
 		}
 		if trace.enabled {
 			if oldp != _g_.m.p.ptr() || _g_.m.syscalltick != _g_.m.p.ptr().syscalltick {
@@ -2986,9 +2977,7 @@ func exitsyscall(dummy int32) {
 	mcall(exitsyscall0)
 
 	if _g_.m.mcache == nil {
-		systemstack(func() {
-			throw("lost mcache")
-		})
+		throw("lost mcache")
 	}
 
 	// Scheduler returned, so we're allowed to run now.

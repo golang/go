@@ -201,6 +201,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	// Hide call from linker nosplit analysis.
 	MOVD	$runtime·badsystemstack(SB), R3
 	BL	(R3)
+	B	runtime·abort(SB)
 
 switch:
 	// save our state in g->sched. Pretend to

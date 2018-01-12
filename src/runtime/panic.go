@@ -586,7 +586,11 @@ func sync_throw(s string) {
 
 //go:nosplit
 func throw(s string) {
-	print("fatal error: ", s, "\n")
+	// Everything throw does should be recursively nosplit so it
+	// can be called even when it's unsafe to grow the stack.
+	systemstack(func() {
+		print("fatal error: ", s, "\n")
+	})
 	gp := getg()
 	if gp.m.throwing == 0 {
 		gp.m.throwing = 1

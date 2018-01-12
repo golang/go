@@ -310,6 +310,7 @@ bad:
 	// Hide call from linker nosplit analysis.
 	MOVL	$runtime·badsystemstack(SB), AX
 	CALL	AX
+	INT	$3
 
 /*
  * support for morestack
