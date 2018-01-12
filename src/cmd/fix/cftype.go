@@ -30,17 +30,19 @@ var cftypeFix = fix{
 // and similar for other *Ref types.
 // This fix finds nils initializing these types and replaces the nils with 0s.
 func cftypefix(f *ast.File) bool {
-	return typefix(f, func(s string) bool {
-		return strings.HasPrefix(s, "C.") && strings.HasSuffix(s, "Ref")
+	var tc TypeConfig
+	return typefix(f, &tc, func(s string) bool {
+		return strings.HasPrefix(s, "C.") && strings.HasSuffix(s, "Ref") &&
+			(s == "C.CFTypeRef" || tc.External[s[:len(s)-3]+"GetTypeID"] == "func() C.CFTypeID")
 	})
 }
 
 // typefix replaces nil with 0 for all nils whose type, when passed to badType, returns true.
-func typefix(f *ast.File, badType func(string) bool) bool {
+func typefix(f *ast.File, tc *TypeConfig, badType func(string) bool) bool {
 	if !imports(f, "C") {
 		return false
 	}
-	typeof, _ := typecheck(&TypeConfig{}, f)
+	typeof, _ := typecheck(tc, f)
 
 	// step 1: Find all the nils with the offending types.
 	// Compute their replacement.
