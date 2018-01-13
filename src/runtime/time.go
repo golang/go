@@ -59,6 +59,7 @@ func (t *timer) assignBucket() *timersBucket {
 	return t.tb
 }
 
+//go:notinheap
 type timersBucket struct {
 	lock         mutex
 	gp           *g
