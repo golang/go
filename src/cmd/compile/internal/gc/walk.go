@@ -1665,7 +1665,7 @@ opswitch:
 			a = nod(OADDR, temp(t), nil)
 		}
 
-		n = mkcall("stringtoslicerune", n.Type, init, a, n.Left)
+		n = mkcall("stringtoslicerune", n.Type, init, a, conv(n.Left, types.Types[TSTRING]))
 
 		// ifaceeq(i1 any-1, i2 any-2) (ret bool);
 	case OCMPIFACE:
