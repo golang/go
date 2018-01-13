@@ -122,36 +122,34 @@ TEXT runtime·madvise(SB), NOSPLIT, $0
 // OS X comm page time offsets
 // https://opensource.apple.com/source/xnu/xnu-4570.1.46/osfmk/i386/cpu_capabilities.h
 
-#define	commpage_version	0x1e
+#define	nt_tsc_base	0x50
+#define	nt_scale	0x58
+#define	nt_shift	0x5c
+#define	nt_ns_base	0x60
+#define	nt_generation	0x68
+#define	gtod_generation	0x6c  // obsolete since Darwin v17 (High Sierra)
+#define	gtod_ns_base	0x70  // obsolete since Darwin v17 (High Sierra)
+#define	gtod_sec_base	0x78  // obsolete since Darwin v17 (High Sierra)
 
-#define	v12_nt_tsc_base	0x50
-#define	v12_nt_scale	0x58
-#define	v12_nt_shift	0x5c
-#define	v12_nt_ns_base	0x60
-#define	v12_nt_generation	0x68
-#define	v12_gtod_generation	0x6c  // obsolete since High Sierra (v13)
-#define	v12_gtod_ns_base	0x70  // obsolete since High Sierra (v13)
-#define	v12_gtod_sec_base	0x78  // obsolete since High Sierra (v13)
-
-#define	v13_gtod_ns_base	0xd0
-#define	v13_gtod_sec_ofs	0xd8
-#define	v13_gtod_frac_ofs	0xe0
-#define	v13_gtod_scale		0xe8
-#define	v13_gtod_tkspersec	0xf0
+#define	v17_gtod_ns_base	0xd0
+#define	v17_gtod_sec_ofs	0xd8
+#define	v17_gtod_frac_ofs	0xe0
+#define	v17_gtod_scale		0xe8
+#define	v17_gtod_tkspersec	0xf0
 
 TEXT runtime·nanotime(SB),NOSPLIT,$0-8
 	MOVQ	$0x7fffffe00000, BP	/* comm page base */
 	// Loop trying to take a consistent snapshot
 	// of the time parameters.
 timeloop:
-	MOVL	v12_nt_generation(BP), R9
+	MOVL	nt_generation(BP), R9
 	TESTL	R9, R9
 	JZ	timeloop
 	RDTSC
-	MOVQ	v12_nt_tsc_base(BP), R10
-	MOVL	v12_nt_scale(BP), R11
-	MOVQ	v12_nt_ns_base(BP), R12
-	CMPL	v12_nt_generation(BP), R9
+	MOVQ	nt_tsc_base(BP), R10
+	MOVL	nt_scale(BP), R11
+	MOVQ	nt_ns_base(BP), R12
+	CMPL	nt_generation(BP), R9
 	JNE	timeloop
 
 	// Gathered all the data we need. Compute monotonic time:
@@ -173,32 +171,32 @@ TEXT time·now(SB), NOSPLIT, $32-24
 	// are used in the systime fallback, as the timeval address
 	// filled in by the system call.
 	MOVQ	$0x7fffffe00000, BP	/* comm page base */
-	CMPW	commpage_version(BP), $13
-	JB		v12 /* sierra and older */
+	CMPQ	runtime·darwinVersion(SB), $17
+	JB		legacy /* sierra and older */
 
-	// This is the new code, for macOS High Sierra (v13) and newer.
-v13:
+	// This is the new code, for macOS High Sierra (Darwin v17) and newer.
+v17:
 	// Loop trying to take a consistent snapshot
 	// of the time parameters.
-timeloop13:
-	MOVQ 	v13_gtod_ns_base(BP), R12
+timeloop17:
+	MOVQ 	v17_gtod_ns_base(BP), R12
 
-	MOVL	v12_nt_generation(BP), CX
+	MOVL	nt_generation(BP), CX
 	TESTL	CX, CX
-	JZ		timeloop13
+	JZ		timeloop17
 	RDTSC
-	MOVQ	v12_nt_tsc_base(BP), SI
-	MOVL	v12_nt_scale(BP), DI
-	MOVQ	v12_nt_ns_base(BP), BX
-	CMPL	v12_nt_generation(BP), CX
-	JNE		timeloop13
+	MOVQ	nt_tsc_base(BP), SI
+	MOVL	nt_scale(BP), DI
+	MOVQ	nt_ns_base(BP), BX
+	CMPL	nt_generation(BP), CX
+	JNE		timeloop17
 
-	MOVQ 	v13_gtod_sec_ofs(BP), R8
-	MOVQ 	v13_gtod_frac_ofs(BP), R9
-	MOVQ 	v13_gtod_scale(BP), R10
-	MOVQ 	v13_gtod_tkspersec(BP), R11
-	CMPQ 	v13_gtod_ns_base(BP), R12
-	JNE 	timeloop13
+	MOVQ 	v17_gtod_sec_ofs(BP), R8
+	MOVQ 	v17_gtod_frac_ofs(BP), R9
+	MOVQ 	v17_gtod_scale(BP), R10
+	MOVQ 	v17_gtod_tkspersec(BP), R11
+	CMPQ 	v17_gtod_ns_base(BP), R12
+	JNE 	timeloop17
 
 	// Compute monotonic time
 	//	mono = ((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base
@@ -240,24 +238,24 @@ timeloop13:
 	MOVQ	DX, nsec+8(FP)
 	RET
 
-	// This is the legacy code needed for macOS Sierra (v12) and older.
-v12:
+	// This is the legacy code needed for macOS Sierra (Darwin v16) and older.
+legacy:
 	// Loop trying to take a consistent snapshot
 	// of the time parameters.
 timeloop:
-	MOVL	v12_gtod_generation(BP), R8
-	MOVL	v12_nt_generation(BP), R9
+	MOVL	gtod_generation(BP), R8
+	MOVL	nt_generation(BP), R9
 	TESTL	R9, R9
 	JZ	timeloop
 	RDTSC
-	MOVQ	v12_nt_tsc_base(BP), R10
-	MOVL	v12_nt_scale(BP), R11
-	MOVQ	v12_nt_ns_base(BP), R12
-	CMPL	v12_nt_generation(BP), R9
+	MOVQ	nt_tsc_base(BP), R10
+	MOVL	nt_scale(BP), R11
+	MOVQ	nt_ns_base(BP), R12
+	CMPL	nt_generation(BP), R9
 	JNE	timeloop
-	MOVQ	v12_gtod_ns_base(BP), R13
-	MOVQ	v12_gtod_sec_base(BP), R14
-	CMPL	v12_gtod_generation(BP), R8
+	MOVQ	gtod_ns_base(BP), R13
+	MOVQ	gtod_sec_base(BP), R14
+	CMPL	gtod_generation(BP), R8
 	JNE	timeloop
 
 	// Gathered all the data we need. Compute:
