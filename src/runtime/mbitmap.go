@@ -550,6 +550,8 @@ func (h heapBits) setCheckmarked(size uintptr) {
 // make sure the underlying allocation contains pointers, usually
 // by checking typ.kind&kindNoPointers.
 //
+// Callers must perform cgo checks if writeBarrier.cgo.
+//
 //go:nosplit
 func bulkBarrierPreWrite(dst, src, size uintptr) {
 	if (dst|src|size)&(sys.PtrSize-1) != 0 {
@@ -649,7 +651,7 @@ func bulkBarrierBitmap(dst, src, size, maskOffset uintptr, bits *uint8) {
 	}
 }
 
-// typeBitsBulkBarrier executes writebarrierptr_prewrite for every
+// typeBitsBulkBarrier executes a write barrier for every
 // pointer that would be copied from [src, src+size) to [dst,
 // dst+size) by a memmove using the type bitmap to locate those
 // pointer slots.
@@ -662,6 +664,8 @@ func bulkBarrierBitmap(dst, src, size, maskOffset uintptr, bits *uint8) {
 //
 // Must not be preempted because it typically runs right before memmove,
 // and the GC must observe them as an atomic action.
+//
+// Callers must perform cgo checks if writeBarrier.cgo.
 //
 //go:nosplit
 func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
@@ -680,6 +684,7 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
 		return
 	}
 	ptrmask := typ.gcdata
+	buf := &getg().m.p.ptr().wbBuf
 	var bits uint32
 	for i := uintptr(0); i < typ.ptrdata; i += sys.PtrSize {
 		if i&(sys.PtrSize*8-1) == 0 {
@@ -691,7 +696,9 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
 		if bits&1 != 0 {
 			dstx := (*uintptr)(unsafe.Pointer(dst + i))
 			srcx := (*uintptr)(unsafe.Pointer(src + i))
-			writebarrierptr_prewrite(dstx, *srcx)
+			if !buf.putFast(*dstx, *srcx) {
+				wbBufFlush(nil, 0)
+			}
 		}
 	}
 }

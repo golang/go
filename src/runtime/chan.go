@@ -310,6 +310,8 @@ func sendDirect(t *_type, sg *sudog, src unsafe.Pointer) {
 	// So make sure that no preemption points can happen between read & use.
 	dst := sg.elem
 	typeBitsBulkBarrier(t, uintptr(dst), uintptr(src), t.size)
+	// No need for cgo write barrier checks because dst is always
+	// Go memory.
 	memmove(dst, src, t.size)
 }
 

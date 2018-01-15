@@ -1002,7 +1002,8 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
 
 				// Copy key.
 				if sys.PtrSize == 4 && t.key.kind&kindNoPointers == 0 && writeBarrier.enabled {
-					writebarrierptr((*uintptr)(dst.k), *(*uintptr)(k))
+					// Write with a write barrier.
+					*(*unsafe.Pointer)(dst.k) = *(*unsafe.Pointer)(k)
 				} else {
 					*(*uint32)(dst.k) = *(*uint32)(k)
 				}
@@ -1103,7 +1104,8 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
 				// Copy key.
 				if t.key.kind&kindNoPointers == 0 && writeBarrier.enabled {
 					if sys.PtrSize == 8 {
-						writebarrierptr((*uintptr)(dst.k), *(*uintptr)(k))
+						// Write with a write barrier.
+						*(*unsafe.Pointer)(dst.k) = *(*unsafe.Pointer)(k)
 					} else {
 						// There are three ways to squeeze at least one 32 bit pointer into 64 bits.
 						// Give up and call typedmemmove.
