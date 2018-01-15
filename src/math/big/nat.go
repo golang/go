@@ -728,8 +728,21 @@ func (x nat) trailingZeroBits() uint {
 	return i*_W + uint(bits.TrailingZeros(uint(x[i])))
 }
 
+func same(x, y nat) bool {
+	return len(x) == len(y) && len(x) > 0 && &x[0] == &y[0]
+}
+
 // z = x << s
 func (z nat) shl(x nat, s uint) nat {
+	if s == 0 {
+		if same(z, x) {
+			return z
+		}
+		if !alias(z, x) {
+			return z.set(x)
+		}
+	}
+
 	m := len(x)
 	if m == 0 {
 		return z[:0]
@@ -746,6 +759,15 @@ func (z nat) shl(x nat, s uint) nat {
 
 // z = x >> s
 func (z nat) shr(x nat, s uint) nat {
+	if s == 0 {
+		if same(z, x) {
+			return z
+		}
+		if !alias(z, x) {
+			return z.set(x)
+		}
+	}
+
 	m := len(x)
 	n := m - int(s/_W)
 	if n <= 0 {
