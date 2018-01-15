@@ -15,6 +15,9 @@ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: E
 runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package bytes
 runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package strings
 
+// The write barrier is called directly by the compiler, so no Go def
+runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+
 // Legitimate vet complaints in which we are testing for correct runtime behavior
 // in bad situations that vet can also detect statically.
 encoding/json/decode_test.go: struct field m has json tag but is not exported

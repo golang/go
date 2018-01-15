@@ -7,5 +7,3 @@ runtime/asm_mipsx.s: [GOARCH] cannot check cross-package assembly function: Comp
 runtime/sys_linux_mipsx.s: [GOARCH] clone: 12(R29) should be mp+8(FP)
 runtime/sys_linux_mipsx.s: [GOARCH] clone: 4(R29) should be flags+0(FP)
 runtime/sys_linux_mipsx.s: [GOARCH] clone: 8(R29) should be stk+4(FP)
-
-runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration

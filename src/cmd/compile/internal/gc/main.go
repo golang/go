@@ -44,7 +44,6 @@ var (
 	Debug_slice        int
 	Debug_vlog         bool
 	Debug_wb           int
-	Debug_eagerwb      int
 	Debug_pctab        string
 	Debug_locationlist int
 	Debug_typecheckinl int
@@ -73,7 +72,6 @@ var debugtab = []struct {
 	{"slice", "print information about slice compilation", &Debug_slice},
 	{"typeassert", "print information about type assertion inlining", &Debug_typeassert},
 	{"wb", "print information about write barriers", &Debug_wb},
-	{"eagerwb", "use unbuffered write barrier", &Debug_eagerwb},
 	{"export", "print export data", &Debug_export},
 	{"pctab", "print named pc-value table", &Debug_pctab},
 	{"locationlists", "print information about DWARF location list creation", &Debug_locationlist},
@@ -405,14 +403,6 @@ func Main(archInit func(*Arch)) {
 	//	-l=2, -l=3: inlining on again, with extra debugging (debug['l'] > 1)
 	if Debug['l'] <= 1 {
 		Debug['l'] = 1 - Debug['l']
-	}
-
-	switch objabi.GOARCH {
-	case "amd64", "amd64p32", "386", "arm", "arm64", "ppc64", "ppc64le", "mips64", "mips64le", "mips", "mipsle", "s390x":
-	default:
-		// Other architectures don't support the buffered
-		// write barrier yet.
-		Debug_eagerwb = 1
 	}
 
 	trackScopes = flagDWARF && ((Debug['l'] == 0 && Debug['N'] != 0) || Ctxt.Flag_locationlists)

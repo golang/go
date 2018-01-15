@@ -15,5 +15,3 @@ runtime/memclr_s390x.s: [s390x] memclr_s390x_exrl_xc: function memclr_s390x_exrl
 runtime/memmove_s390x.s: [s390x] memmove_s390x_exrl_mvc: function memmove_s390x_exrl_mvc missing Go declaration
 runtime/tls_s390x.s: [s390x] save_g: function save_g missing Go declaration
 runtime/tls_s390x.s: [s390x] load_g: function load_g missing Go declaration
-
-runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration

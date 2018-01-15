@@ -136,8 +136,6 @@ var writeBarrier struct {
 	alignme uint64
 }
 
-func writebarrierptr(dst *any, src any)
-
 // *byte is really *runtime.Type
 func typedmemmove(typ *byte, dst *any, src *any)
 func typedmemclr(typ *byte, dst *any)

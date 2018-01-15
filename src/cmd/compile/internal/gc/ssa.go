@@ -95,7 +95,6 @@ func initssaconfig() {
 	assertI2I2 = sysfunc("assertI2I2")
 	goschedguarded = sysfunc("goschedguarded")
 	writeBarrier = sysfunc("writeBarrier")
-	writebarrierptr = sysfunc("writebarrierptr")
 	gcWriteBarrier = sysfunc("gcWriteBarrier")
 	typedmemmove = sysfunc("typedmemmove")
 	typedmemclr = sysfunc("typedmemclr")
@@ -5380,10 +5379,6 @@ func (e *ssafn) Debug_checknil() bool {
 	return Debug_checknil != 0
 }
 
-func (e *ssafn) Debug_eagerwb() bool {
-	return Debug_eagerwb != 0
-}
-
 func (e *ssafn) UseWriteBarrier() bool {
 	return use_writebarrier
 }
@@ -5394,8 +5389,6 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
 		return goschedguarded
 	case "writeBarrier":
 		return writeBarrier
-	case "writebarrierptr":
-		return writebarrierptr
 	case "gcWriteBarrier":
 		return gcWriteBarrier
 	case "typedmemmove":

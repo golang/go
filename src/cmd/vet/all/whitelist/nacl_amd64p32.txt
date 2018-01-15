@@ -27,5 +27,3 @@ runtime/asm_amd64p32.s: [amd64p32] indexbytebody: function indexbytebody missing
 runtime/asm_amd64p32.s: [amd64p32] asmcgocall: RET without writing to 4-byte ret+8(FP)
 
 runtime/asm_amd64p32.s: [amd64p32] stackcheck: function stackcheck missing Go declaration
-
-runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration

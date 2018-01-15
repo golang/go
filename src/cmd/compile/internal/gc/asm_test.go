@@ -468,7 +468,7 @@ var linuxAMD64Tests = []*asmTest{
 			*t = T2{}
 		}
 		`,
-		pos: []string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.(writebarrierptr|gcWriteBarrier)\\(SB\\)"},
+		pos: []string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.gcWriteBarrier\\(SB\\)"},
 	},
 	// Rotate tests
 	{

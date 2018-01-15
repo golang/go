@@ -16,5 +16,3 @@ runtime/tls_arm.s: [arm] load_g: function load_g missing Go declaration
 runtime/tls_arm.s: [arm] _initcgo: function _initcgo missing Go declaration
 
 runtime/internal/atomic/asm_arm.s: [arm] cas: function cas missing Go declaration
-
-runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
