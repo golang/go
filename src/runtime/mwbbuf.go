@@ -5,6 +5,9 @@
 // This implements the write barrier buffer. The write barrier itself
 // is gcWriteBarrier and is implemented in assembly.
 //
+// See mbarrier.go for algorithmic details on the write barrier. This
+// file deals only with the buffer.
+//
 // The write barrier has a fast path and a slow path. The fast path
 // simply enqueues to a per-P write barrier buffer. It's written in
 // assembly and doesn't clobber any general purpose registers, so it
@@ -111,16 +114,21 @@ func (b *wbBuf) discard() {
 //     if !buf.putFast(old, new) {
 //         wbBufFlush(...)
 //     }
+//     ... actual memory write ...
 //
 // The arguments to wbBufFlush depend on whether the caller is doing
 // its own cgo pointer checks. If it is, then this can be
 // wbBufFlush(nil, 0). Otherwise, it must pass the slot address and
 // new.
 //
-// Since buf is a per-P resource, the caller must ensure there are no
-// preemption points while buf is in use.
+// The caller must ensure there are no preemption points during the
+// above sequence. There must be no preemption points while buf is in
+// use because it is a per-P resource. There must be no preemption
+// points between the buffer put and the write to memory because this
+// could allow a GC phase change, which could result in missed write
+// barriers.
 //
-// It must be nowritebarrierrec to because write barriers here would
+// putFast must be nowritebarrierrec to because write barriers here would
 // corrupt the write barrier buffer. It (and everything it calls, if
 // it called anything) has to be nosplit to avoid scheduling on to a
 // different P and a different buffer.
@@ -214,6 +222,14 @@ func wbBufFlush1(_p_ *p) {
 	//
 	// TODO: Should scanobject/scanblock just stuff pointers into
 	// the wbBuf? Then this would become the sole greying path.
+	//
+	// TODO: We could avoid shading any of the "new" pointers in
+	// the buffer if the stack has been shaded, or even avoid
+	// putting them in the buffer at all (which would double its
+	// capacity). This is slightly complicated with the buffer; we
+	// could track whether any un-shaded goroutine has used the
+	// buffer, or just track globally whether there are any
+	// un-shaded stacks and flush after each stack scan.
 	gcw := &_p_.gcw
 	pos := 0
 	arenaStart := mheap_.arena_start

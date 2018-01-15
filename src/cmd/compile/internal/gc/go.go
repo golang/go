@@ -292,7 +292,6 @@ var (
 	assertI2I2,
 	goschedguarded,
 	writeBarrier,
-	writebarrierptr,
 	gcWriteBarrier,
 	typedmemmove,
 	typedmemclr,

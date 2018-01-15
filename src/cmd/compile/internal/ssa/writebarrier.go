@@ -31,7 +31,7 @@ func needwb(v *Value) bool {
 // and runtime calls, like
 //
 // if writeBarrier.enabled {
-//   writebarrierptr(ptr, val)
+//   gcWriteBarrier(ptr, val)	// Not a regular Go call
 // } else {
 //   *ptr = val
 // }
@@ -44,7 +44,7 @@ func writebarrier(f *Func) {
 	}
 
 	var sb, sp, wbaddr, const0 *Value
-	var writebarrierptr, typedmemmove, typedmemclr, gcWriteBarrier *obj.LSym
+	var typedmemmove, typedmemclr, gcWriteBarrier *obj.LSym
 	var stores, after []*Value
 	var sset *sparseSet
 	var storeNumber []int32
@@ -96,10 +96,7 @@ func writebarrier(f *Func) {
 			}
 			wbsym := f.fe.Syslook("writeBarrier")
 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
-			writebarrierptr = f.fe.Syslook("writebarrierptr")
-			if !f.fe.Debug_eagerwb() {
-				gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
-			}
+			gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
 			typedmemmove = f.fe.Syslook("typedmemmove")
 			typedmemclr = f.fe.Syslook("typedmemclr")
 			const0 = f.ConstInt32(initpos, f.Config.Types.UInt32, 0)
@@ -198,7 +195,6 @@ func writebarrier(f *Func) {
 			var val *Value
 			switch w.Op {
 			case OpStoreWB:
-				fn = writebarrierptr
 				val = w.Args[1]
 				nWBops--
 			case OpMoveWB:
@@ -217,11 +213,13 @@ func writebarrier(f *Func) {
 			switch w.Op {
 			case OpStoreWB, OpMoveWB, OpZeroWB:
 				volatile := w.Op == OpMoveWB && isVolatile(val)
-				if w.Op == OpStoreWB && !f.fe.Debug_eagerwb() {
+				if w.Op == OpStoreWB {
 					memThen = bThen.NewValue3A(pos, OpWB, types.TypeMem, gcWriteBarrier, ptr, val, memThen)
 				} else {
 					memThen = wbcall(pos, bThen, fn, typ, ptr, val, memThen, sp, sb, volatile)
 				}
+				// Note that we set up a writebarrier function call.
+				f.fe.SetWBPos(pos)
 			case OpVarDef, OpVarLive, OpVarKill:
 				memThen = bThen.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, memThen)
 			}
@@ -238,11 +236,6 @@ func writebarrier(f *Func) {
 				memElse.Aux = w.Aux
 			case OpVarDef, OpVarLive, OpVarKill:
 				memElse = bElse.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, memElse)
-			}
-
-			if fn != nil {
-				// Note that we set up a writebarrier function call.
-				f.fe.SetWBPos(pos)
 			}
 		}
 

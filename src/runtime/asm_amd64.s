@@ -2397,7 +2397,13 @@ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$120
 	CMPQ	R14, (p_wbBuf+wbBuf_end)(R13)
 	// Record the write.
 	MOVQ	AX, -16(R14)	// Record value
-	MOVQ	(DI), R13	// TODO: This turns bad writes into bad reads.
+	// Note: This turns bad pointer writes into bad
+	// pointer reads, which could be confusing. We could avoid
+	// reading from obviously bad pointers, which would
+	// take care of the vast majority of these. We could
+	// patch this up in the signal handler, or use XCHG to
+	// combine the read and the write.
+	MOVQ	(DI), R13
 	MOVQ	R13, -8(R14)	// Record *slot
 	// Is the buffer full? (flags set in CMPQ above)
 	JEQ	flush
