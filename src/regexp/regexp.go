@@ -235,9 +235,9 @@ func (re *Regexp) put(z *machine) {
 // It simplifies safe initialization of global variables holding compiled regular
 // expressions.
 func MustCompile(str string) *Regexp {
-	regexp, error := Compile(str)
-	if error != nil {
-		panic(`regexp: Compile(` + quote(str) + `): ` + error.Error())
+	regexp, err := Compile(str)
+	if err != nil {
+		panic(`regexp: Compile(` + quote(str) + `): ` + err.Error())
 	}
 	return regexp
 }
@@ -246,9 +246,9 @@ func MustCompile(str string) *Regexp {
 // It simplifies safe initialization of global variables holding compiled regular
 // expressions.
 func MustCompilePOSIX(str string) *Regexp {
-	regexp, error := CompilePOSIX(str)
-	if error != nil {
-		panic(`regexp: CompilePOSIX(` + quote(str) + `): ` + error.Error())
+	regexp, err := CompilePOSIX(str)
+	if err != nil {
+		panic(`regexp: CompilePOSIX(` + quote(str) + `): ` + err.Error())
 	}
 	return regexp
 }
