@@ -79,40 +79,49 @@ finds any problems, go test reports those and does not run the test binary.
 Only a high-confidence subset of the default go vet checks are used.
 To disable the running of go vet, use the -vet=off flag.
 
-Go test runs in two different modes: local directory mode when invoked with
-no package arguments (for example, 'go test'), and package list mode when
-invoked with package arguments (for example 'go test math', 'go test ./...',
-and even 'go test .').
+All test output and summary lines are printed to the go command's
+standard output, even if the test printed them to its own standard
+error. (The go command's standard error is reserved for printing
+errors building the tests.)
 
-In local directory mode, go test compiles and tests the package sources
-found in the current directory and then runs the resulting test binary.
-In this mode, caching (discussed below) is disabled. After the package test
-finishes, go test prints a summary line showing the test status ('ok' or 'FAIL'),
-package name, and elapsed time.
+Go test runs in two different modes:
 
-In package list mode, go test compiles and tests each of the packages
-listed on the command line. If a package test passes, go test prints only
-the final 'ok' summary line. If a package test fails, go test prints the
-full test output. If invoked with the -bench or -v flag, go test prints
-the full output even for passing package tests, in order to display the
+The first, called local directory mode, occurs when go test is
+invoked with no package arguments (for example, 'go test' or 'go
+test -v'). In this mode, go test compiles the package sources and
+tests found in the current directory and then runs the resulting
+test binary. In this mode, caching (discussed below) is disabled.
+After the package test finishes, go test prints a summary line
+showing the test status ('ok' or 'FAIL'), package name, and elapsed
+time.
+
+The second, called package list mode, occurs when go test is invoked
+with explicit package arguments (for example 'go test math', 'go
+test ./...', and even 'go test .'). In this mode, go test compiles
+and tests each of the packages listed on the command line. If a
+package test passes, go test prints only the final 'ok' summary
+line. If a package test fails, go test prints the full test output.
+If invoked with the -bench or -v flag, go test prints the full
+output even for passing package tests, in order to display the
 requested benchmark results or verbose logging.
 
-All test output and summary lines are printed to the go command's standard
-output, even if the test printed them to its own standard error.
-(The go command's standard error is reserved for printing errors building
-the tests.)
+In package list mode only, go test caches successful package test
+results to avoid unnecessary repeated running of tests. When the
+result of a test can be recovered from the cache, go test will
+redisplay the previous output instead of running the test binary
+again. When this happens, go test prints '(cached)' in place of the
+elapsed time in the summary line.
 
-In package list mode, go test also caches successful package test results.
-If go test has cached a previous test run using the same test binary and
-the same command line consisting entirely of cacheable test flags
-(defined as -cpu, -list, -parallel, -run, -short, and -v),
-go test will redisplay the previous output instead of running the test
-binary again. In the summary line, go test prints '(cached)' in place of
-the elapsed time. To disable test caching, use any test flag or argument
-other than the cacheable flags. The idiomatic way to disable test caching
-explicitly is to use -count=1. A cached result is treated as executing in
-no time at all, so a successful package test result will be cached and reused
-regardless of -timeout setting.
+The rule for a match in the cache is that the run involves the same
+test binary and the flags on the command line come entirely from a
+restricted set of 'cacheable' test flags, defined as -cpu, -list,
+-parallel, -run, -short, and -v. If a run of go test has any test
+or non-test flags outside this set, the result is not cached. To
+disable test caching, use any test flag or argument other than the
+cacheable flags. The idiomatic way to disable test caching explicitly
+is to use -count=1. A cached result is treated as executing in no
+time at all, so a successful package test result will be cached and
+reused regardless of -timeout setting.
 
 ` + strings.TrimSpace(testFlag1) + ` See 'go help testflag' for details.
 
