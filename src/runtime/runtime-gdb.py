@@ -27,6 +27,48 @@ if sys.version > '3':
 goobjfile = gdb.current_objfile() or gdb.objfiles()[0]
 goobjfile.pretty_printers = []
 
+# G state (runtime2.go)
+
+def read_runtime_const(varname, default):
+  try:
+    return int(gdb.parse_and_eval(varname))
+  except Exception:
+    return int(default)
+
+
+G_IDLE = read_runtime_const("'runtime._Gidle'", 0)
+G_RUNNABLE = read_runtime_const("'runtime._Grunnable'", 1)
+G_RUNNING = read_runtime_const("'runtime._Grunning'", 2)
+G_SYSCALL = read_runtime_const("'runtime._Gsyscall'", 3)
+G_WAITING = read_runtime_const("'runtime._Gwaiting'", 4)
+G_MORIBUND_UNUSED = read_runtime_const("'runtime._Gmoribund_unused'", 5)
+G_DEAD = read_runtime_const("'runtime._Gdead'", 6)
+G_ENQUEUE_UNUSED = read_runtime_const("'runtime._Genqueue_unused'", 7)
+G_COPYSTACK = read_runtime_const("'runtime._Gcopystack'", 8)
+G_SCAN = read_runtime_const("'runtime._Gscan'", 0x1000)
+G_SCANRUNNABLE = G_SCAN+G_RUNNABLE
+G_SCANRUNNING = G_SCAN+G_RUNNING
+G_SCANSYSCALL = G_SCAN+G_SYSCALL
+G_SCANWAITING = G_SCAN+G_WAITING
+
+sts = {
+    G_IDLE: 'idle',
+    G_RUNNABLE: 'runnable',
+    G_RUNNING: 'running',
+    G_SYSCALL: 'syscall',
+    G_WAITING: 'waiting',
+    G_MORIBUND_UNUSED: 'moribund',
+    G_DEAD: 'dead',
+    G_ENQUEUE_UNUSED: 'enqueue',
+    G_COPYSTACK: 'copystack',
+    G_SCAN: 'scan',
+    G_SCANRUNNABLE: 'runnable+s',
+    G_SCANRUNNING: 'running+s',
+    G_SCANSYSCALL: 'syscall+s',
+    G_SCANWAITING: 'waiting+s',
+}
+
+
 #
 #  Value wrappers
 #
@@ -360,9 +402,6 @@ class DTypeFunc(gdb.Function):
 #  Commands
 #
 
-sts = ('idle', 'runnable', 'running', 'syscall', 'waiting', 'moribund', 'dead', 'recovery')
-
-
 def linked_list(ptr, linkfield):
 	while ptr:
 		yield ptr
@@ -379,7 +418,7 @@ class GoroutinesCmd(gdb.Command):
 		# args = gdb.string_to_argv(arg)
 		vp = gdb.lookup_type('void').pointer()
 		for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
-			if ptr['atomicstatus'] == 6:  # 'gdead'
+			if ptr['atomicstatus'] == G_DEAD:
 				continue
 			s = ' '
 			if ptr['m']:
@@ -398,7 +437,9 @@ class GoroutinesCmd(gdb.Command):
 				# chop at first space.
 				pc = int(str(pc).split(None, 1)[0], 16)
 			blk = gdb.block_for_pc(pc)
-			print(s, ptr['goid'], "{0:8s}".format(sts[int(ptr['atomicstatus'])]), blk.function)
+			status = int(ptr['atomicstatus'])
+			st = sts.get(status, "unknown(%d)" % status)
+			print(s, ptr['goid'], "{0:8s}".format(st), blk.function)
 
 
 def find_goroutine(goid):
@@ -413,7 +454,7 @@ def find_goroutine(goid):
 	"""
 	vp = gdb.lookup_type('void').pointer()
 	for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
-		if ptr['atomicstatus'] == 6:  # 'gdead'
+		if ptr['atomicstatus'] == G_DEAD:
 			continue
 		if ptr['goid'] == goid:
 			break
