@@ -12,7 +12,7 @@ import "unsafe"
 // Look up symbols in the Linux vDSO.
 
 // This code was originally based on the sample Linux vDSO parser at
-// https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documentation/vDSO/parse_vdso.c
+// https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/tools/testing/selftests/vDSO/parse_vdso.c
 
 // This implements the ELF dynamic linking spec at
 // http://sco.com/developers/gabi/latest/ch5.dynamic.html
