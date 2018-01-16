@@ -13,7 +13,7 @@ import (
 	"unicode/utf8"
 )
 
-// ErrBadPattern indicates a globbing pattern was malformed.
+// ErrBadPattern indicates a pattern was malformed.
 var ErrBadPattern = errors.New("syntax error in pattern")
 
 // Match reports whether name matches the shell file name pattern.
