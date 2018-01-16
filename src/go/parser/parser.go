@@ -419,7 +419,7 @@ func (p *parser) expectSemi() {
 			p.next()
 		default:
 			p.errorExpected(p.pos, "';'")
-			syncStmt(p)
+			p.syncStmt()
 		}
 	}
 }
@@ -445,10 +445,12 @@ func assert(cond bool, msg string) {
 	}
 }
 
+// TODO(gri) The syncX methods below all use the same pattern. Factor.
+
 // syncStmt advances to the next statement.
 // Used for synchronization after an error.
 //
-func syncStmt(p *parser) {
+func (p *parser) syncStmt() {
 	for {
 		switch p.tok {
 		case token.BREAK, token.CONST, token.CONTINUE, token.DEFER,
@@ -486,10 +488,34 @@ func syncStmt(p *parser) {
 // syncDecl advances to the next declaration.
 // Used for synchronization after an error.
 //
-func syncDecl(p *parser) {
+func (p *parser) syncDecl() {
 	for {
 		switch p.tok {
 		case token.CONST, token.TYPE, token.VAR:
+			// see comments in syncStmt
+			if p.pos == p.syncPos && p.syncCnt < 10 {
+				p.syncCnt++
+				return
+			}
+			if p.pos > p.syncPos {
+				p.syncPos = p.pos
+				p.syncCnt = 0
+				return
+			}
+		case token.EOF:
+			return
+		}
+		p.next()
+	}
+}
+
+// syncExprEnd advances to the likely end of an expression.
+// Used for synchronization after an error.
+//
+func (p *parser) syncExprEnd() {
+	for {
+		switch p.tok {
+		case token.COMMA, token.COLON, token.SEMICOLON, token.RPAREN, token.RBRACK, token.RBRACE:
 			// see comments in syncStmt
 			if p.pos == p.syncPos && p.syncCnt < 10 {
 				p.syncCnt++
@@ -623,7 +649,7 @@ func (p *parser) parseType() ast.Expr {
 	if typ == nil {
 		pos := p.pos
 		p.errorExpected(pos, "type")
-		p.next() // make progress
+		p.syncExprEnd()
 		return &ast.BadExpr{From: pos, To: p.pos}
 	}
 
@@ -1166,7 +1192,7 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
 	// we have an error
 	pos := p.pos
 	p.errorExpected(pos, "operand")
-	syncStmt(p)
+	p.syncStmt()
 	return &ast.BadExpr{From: pos, To: p.pos}
 }
 
@@ -2202,7 +2228,7 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 
 	switch p.tok {
 	case token.CONST, token.TYPE, token.VAR:
-		s = &ast.DeclStmt{Decl: p.parseDecl(syncStmt)}
+		s = &ast.DeclStmt{Decl: p.parseDecl((*parser).syncStmt)}
 	case
 		// tokens that may start an expression
 		token.IDENT, token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING, token.FUNC, token.LPAREN, // operands
@@ -2247,7 +2273,7 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 		// no statement found
 		pos := p.pos
 		p.errorExpected(pos, "statement")
-		syncStmt(p)
+		p.syncStmt()
 		s = &ast.BadStmt{From: pos, To: p.pos}
 	}
 
@@ -2530,7 +2556,7 @@ func (p *parser) parseFile() *ast.File {
 		if p.mode&ImportsOnly == 0 {
 			// rest of package body
 			for p.tok != token.EOF {
-				decls = append(decls, p.parseDecl(syncDecl))
+				decls = append(decls, p.parseDecl((*parser).syncDecl))
 			}
 		}
 	}
