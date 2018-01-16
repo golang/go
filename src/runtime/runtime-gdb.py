@@ -462,9 +462,11 @@ def find_goroutine(goid):
 		return None, None
 	# Get the goroutine's saved state.
 	pc, sp = ptr['sched']['pc'], ptr['sched']['sp']
-	# If the goroutine is stopped, sched.sp will be non-0.
-	if sp != 0:
+	status = ptr['atomicstatus']&~G_SCAN
+	# Goroutine is not running nor in syscall, so use the info in goroutine
+	if status != G_RUNNING and status != G_SYSCALL:
 		return pc.cast(vp), sp.cast(vp)
+
 	# If the goroutine is in a syscall, use syscallpc/sp.
 	pc, sp = ptr['syscallpc'], ptr['syscallsp']
 	if sp != 0:

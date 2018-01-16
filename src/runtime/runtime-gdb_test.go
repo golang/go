@@ -87,12 +87,23 @@ func main() {
 	ptrvar := &strvar
 	slicevar := make([]string, 0, 16)
 	slicevar = append(slicevar, mapvar["abc"])
-	fmt.Println("hi") // line 13
+	fmt.Println("hi")
 	runtime.KeepAlive(ptrvar)
+	_ = ptrvar
 	gslice = slicevar
 	runtime.KeepAlive(mapvar)
-}
+}  // END_OF_PROGRAM
 `
+
+func lastLine(src []byte) int {
+	eop := []byte("END_OF_PROGRAM")
+	for i, l := range bytes.Split(src, []byte("\n")) {
+		if bytes.Contains(l, eop) {
+			return i
+		}
+	}
+	return 0
+}
 
 func TestGdbPython(t *testing.T) {
 	testGdbPython(t, false)
@@ -128,11 +139,13 @@ func testGdbPython(t *testing.T, cgo bool) {
 	}
 	buf.WriteString(helloSource)
 
-	src := filepath.Join(dir, "main.go")
-	err = ioutil.WriteFile(src, buf.Bytes(), 0644)
+	src := buf.Bytes()
+
+	err = ioutil.WriteFile(filepath.Join(dir, "main.go"), src, 0644)
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
+	nLines := lastLine(src)
 
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
 	cmd.Dir = dir
@@ -168,9 +181,16 @@ func testGdbPython(t *testing.T, cgo bool) {
 		"-ex", "echo BEGIN goroutine 2 bt\n",
 		"-ex", "goroutine 2 bt",
 		"-ex", "echo END\n",
+		"-ex", "clear fmt.Println", // clear the previous break point
+		"-ex", fmt.Sprintf("br main.go:%d", nLines), // new break point at the end of main
+		"-ex", "c",
+		"-ex", "echo BEGIN goroutine 1 bt at the end\n",
+		"-ex", "goroutine 1 bt",
+		"-ex", "echo END\n",
 		filepath.Join(dir, "a.exe"),
 	}
 	got, _ := exec.Command("gdb", args...).CombinedOutput()
+	t.Logf("gdb output: %s\n", got)
 
 	firstLine := bytes.SplitN(got, []byte("\n"), 2)[0]
 	if string(firstLine) != "Loading Go Runtime support." {
@@ -231,6 +251,10 @@ func testGdbPython(t *testing.T, cgo bool) {
 	btGoroutine2Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?runtime.+at`)
 	if bl := blocks["goroutine 2 bt"]; !btGoroutine2Re.MatchString(bl) {
 		t.Fatalf("goroutine 2 bt failed: %s", bl)
+	}
+	btGoroutine1AtTheEndRe := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)
+	if bl := blocks["goroutine 1 bt at the end"]; !btGoroutine1AtTheEndRe.MatchString(bl) {
+		t.Fatalf("goroutine 1 bt at the end failed: %s", bl)
 	}
 }
 
