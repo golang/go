@@ -14,11 +14,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -220,7 +222,7 @@ func writeInst(generate func(func([]byte))) (file string, f *os.File, size int, 
 
 	file = f.Name()
 
-	f.Seek(start, 0)
+	f.Seek(start, io.SeekStart)
 	w := bufio.NewWriter(f)
 	defer w.Flush()
 	size = 0
@@ -565,9 +567,10 @@ func hexCases(t *testing.T, encoded string) func(func([]byte)) {
 
 // testdataCases generates the test cases recorded in testdata/cases.txt.
 // It only uses the inputs; it ignores the answers recorded in that file.
-func testdataCases(t *testing.T) func(func([]byte)) {
+func testdataCases(t *testing.T, syntax string) func(func([]byte)) {
 	var codes [][]byte
-	data, err := ioutil.ReadFile("testdata/cases.txt")
+	input := filepath.Join("testdata", syntax+"cases.txt")
+	data, err := ioutil.ReadFile(input)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -53,7 +53,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 	// Move addressing mode into opcode suffix.
 	suffix := ""
 	switch inst.Op {
-	case LDR, LDRB, LDRH, LDRSB, LDRSH, LDRSW, STR, STRB, STRH, STUR, STURB, STURH, LD1:
+	case LDR, LDRB, LDRH, LDRSB, LDRSH, LDRSW, STR, STRB, STRH, STUR, STURB, STURH, LD1, ST1:
 		switch mem := inst.Args[1].(type) {
 		case MemImmediate:
 			switch mem.Mode {
@@ -114,6 +114,8 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 			rno = int(a)
 		case RegisterWithArrangementAndIndex:
 			op = "VMOV"
+		case RegisterWithArrangement:
+			op = "VMOV"
 		}
 		if rno >= 0 && rno <= int(WZR) {
 			op = "MOVW"
@@ -133,6 +135,12 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		}
 		if rno <= uint16(WZR) {
 			op = "MOVWU" + suffix
+		} else if rno >= uint16(S0) && rno <= uint16(S31) {
+			op = "FMOVS" + suffix
+			args[0] = fmt.Sprintf("F%d", rno&31)
+		} else if rno >= uint16(D0) && rno <= uint16(D31) {
+			op = "FMOVD" + suffix
+			args[0] = fmt.Sprintf("F%d", rno&31)
 		} else {
 			op = "MOVD" + suffix
 		}
@@ -173,6 +181,12 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		}
 		if rno <= uint16(WZR) {
 			op = "MOVW" + suffix
+		} else if rno >= uint16(S0) && rno <= uint16(S31) {
+			op = "FMOVS" + suffix
+			args[0] = fmt.Sprintf("F%d", rno&31)
+		} else if rno >= uint16(D0) && rno <= uint16(D31) {
+			op = "FMOVD" + suffix
+			args[0] = fmt.Sprintf("F%d", rno&31)
 		} else {
 			op = "MOVD" + suffix
 		}
@@ -230,6 +244,15 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		}
 		args[1], args[2], args[3] = args[3], args[1], args[2]
 
+	case LDAXP, LDXP:
+		if r, ok := inst.Args[0].(Reg); ok {
+			rno := uint16(r)
+			if rno <= uint16(WZR) {
+				op += "W"
+			}
+		}
+		fallthrough
+
 	case STP, LDP:
 		args[0] = fmt.Sprintf("(%s, %s)", args[0], args[1])
 		args[1] = args[2]
@@ -239,7 +262,20 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		} else if op == "LDP" {
 			op = op + suffix
 			return op + " " + args[1] + ", " + args[0]
+		} else if op == "LDAXP" || op == "LDXP" || op == "LDAXPW" || op == "LDXPW" {
+			return op + " " + args[1] + ", " + args[0]
 		}
+
+	case STLXP, STXP:
+		if r, ok := inst.Args[1].(Reg); ok {
+			rno := uint16(r)
+			if rno <= uint16(WZR) {
+				op += "W"
+			}
+		}
+		args[1] = fmt.Sprintf("(%s, %s)", args[1], args[2])
+		args[2] = args[3]
+		return op + " " + args[1] + ", " + args[2] + ", " + args[0]
 
 	case FCCMP, FCCMPE:
 		args[0], args[1] = args[1], args[0]
@@ -251,7 +287,10 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		}
 		fallthrough
 
-	case FADD, FSUB, FMUL, FNMUL, FDIV, FMAX, FMIN, FMAXNM, FMINNM, FCSEL:
+	case FADD, FSUB, FMUL, FNMUL, FDIV, FMAX, FMIN, FMAXNM, FMINNM, FCSEL, FMADD, FMSUB, FNMADD, FNMSUB:
+		if strings.HasSuffix(op, "MADD") || strings.HasSuffix(op, "MSUB") {
+			args[2], args[3] = args[3], args[2]
+		}
 		if r, ok := inst.Args[0].(Reg); ok {
 			rno := uint16(r)
 			if rno >= uint16(S0) && rno <= uint16(S31) {
@@ -337,6 +376,19 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		addr := int64(inst.Args[1].(PCRel))
 		args[1] = fmt.Sprintf("%d(PC)", addr)
 
+	case MSR:
+		args[0] = inst.Args[0].String()
+
+	case ST1:
+		op = fmt.Sprintf("V%s", op) + suffix
+		args[0], args[1] = args[1], args[0]
+
+	case LD1:
+		op = fmt.Sprintf("V%s", op) + suffix
+
+	case UMOV:
+		op = "VMOV"
+
 	default:
 		index := sort.SearchStrings(noSuffixOpSet, op)
 		if !(index < len(noSuffixOpSet) && noSuffixOpSet[index] == op) {
@@ -350,6 +402,9 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 				op = fmt.Sprintf("V%s", op)
 			}
 
+			if rno >= int(B0) && rno <= int(Q31) && !strings.HasPrefix(op, "F") {
+				op = fmt.Sprintf("V%s", op)
+			}
 			if rno >= 0 && rno <= int(WZR) {
 				// Add "w" to opcode suffix.
 				op += "W"
@@ -381,6 +436,10 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 // No need add "W" to opcode suffix.
 // Opcode must be inserted in ascending order.
 var noSuffixOpSet = strings.Fields(`
+AESD
+AESE
+AESIMC
+AESMC
 CRC32B
 CRC32CB
 CRC32CH
@@ -393,8 +452,19 @@ LDARB
 LDARH
 LDAXRB
 LDAXRH
+LDTRH
 LDXRB
 LDXRH
+SHA1C
+SHA1H
+SHA1M
+SHA1P
+SHA1SU0
+SHA1SU1
+SHA256H
+SHA256H2
+SHA256SU0
+SHA256SU1
 `)
 
 func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg Arg) string {
@@ -423,9 +493,14 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 		regno := uint16(a) & 31
 
 		if regenum >= uint16(B0) && regenum <= uint16(D31) {
-			// FP registers are the same ones as SIMD registers
-			// Print Fn for scalar variant to align with assembler (e.g., FCVT)
-			return fmt.Sprintf("F%d", regno)
+			if strings.HasPrefix(inst.Op.String(), "F") || strings.HasSuffix(inst.Op.String(), "CVTF") {
+				// FP registers are the same ones as SIMD registers
+				// Print Fn for scalar variant to align with assembler (e.g., FCVT, SCVTF, UCVTF, etc.)
+				return fmt.Sprintf("F%d", regno)
+			} else {
+				return fmt.Sprintf("V%d", regno)
+			}
+
 		} else if regenum >= uint16(Q0) && regenum <= uint16(Q31) {
 			// Print Vn to align with assembler (e.g., SHA256H)
 			return fmt.Sprintf("V%d", regno)
@@ -503,7 +578,6 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 	case MemExtend:
 		base := ""
 		index := ""
-		extend := ""
 		indexreg := ""
 		regno := uint16(a.Base) & 31
 		if regno == 31 {
@@ -517,15 +591,28 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 		} else {
 			indexreg = fmt.Sprintf("R%d", regno)
 		}
+
 		if a.Extend == lsl {
-			if a.Amount != 0 {
-				extend = fmt.Sprintf("<<%d", a.Amount)
+			// a.Amount indicates the index shift amount, encoded in "S" field.
+			// a.ShiftMustBeZero is set true when the index shift amount must be 0,
+			// even if the a.Amount field is not 0.
+			// When a.ShiftMustBeZero is ture, GNU syntax prints #0 shift amount if
+			// "S" equals to 1, or does not print #0 shift amount if "S" equals to 0.
+			// Go syntax should never print a zero index shift amount.
+			if a.Amount != 0 && !a.ShiftMustBeZero {
+				index = fmt.Sprintf("(%s<<%d)", indexreg, a.Amount)
+			} else {
+				index = fmt.Sprintf("(%s)", indexreg)
 			}
 		} else {
-			extend = "unimplemented!"
+			if a.Amount != 0 && !a.ShiftMustBeZero {
+				index = fmt.Sprintf("(%s.%s<<%d)", indexreg, a.Extend.String(), a.Amount)
+			} else {
+				index = fmt.Sprintf("(%s.%s)", indexreg, a.Extend.String())
+			}
 		}
-		index = indexreg + extend
-		return index + base
+
+		return base + index
 
 	case Cond:
 		switch arg.String() {
@@ -592,7 +679,7 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 		result := a.r.String()
 		arrange := a.a.String()
 		result += arrange
-		if a.cnt > 0 {
+		if a.cnt > 1 {
 			result = "[" + result
 			for i := 1; i < int(a.cnt); i++ {
 				cur := V0 + Reg((uint16(a.r)-uint16(V0)+uint16(i))&31)
@@ -605,6 +692,10 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 	case Systemreg:
 		return fmt.Sprintf("$%d", uint32(a.op0&1)<<14|uint32(a.op1&7)<<11|uint32(a.cn&15)<<7|uint32(a.cm&15)<<3|uint32(a.op2)&7)
 
+	case Imm_prfop:
+		if strings.Contains(a.String(), "#") {
+			return fmt.Sprintf("$%d", a)
+		}
 	}
 
 	return strings.ToUpper(arg.String())
