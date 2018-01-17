@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of January 11, 2018",
+	"Subtitle": "Version of January 17, 2018",
 	"Path": "/ref/spec"
 }-->
 
@@ -3558,9 +3558,10 @@ with <code>x / y</code> truncated towards zero
 </pre>
 
 <p>
-As an exception to this rule, if the dividend <code>x</code> is the most
-negative value for the int type of <code>x</code>, the quotient
-<code>q = x / -1</code> is equal to <code>x</code> (and <code>r = 0</code>).
+The one exception to this rule is that if the dividend <code>x</code> is
+the most negative value for the int type of <code>x</code>, the quotient
+<code>q = x / -1</code> is equal to <code>x</code> (and <code>r = 0</code>)
+due to two's-complement <a href="#Integer_overflow">integer overflow</a>:
 </p>
 
 <pre>
@@ -3623,11 +3624,11 @@ discard high bits upon overflow, and programs may rely on "wrap around".
 </p>
 <p>
 For signed integers, the operations <code>+</code>,
-<code>-</code>, <code>*</code>, and <code>&lt;&lt;</code> may legally
+<code>-</code>, <code>*</code>, <code>/</code>, and <code>&lt;&lt;</code> may legally
 overflow and the resulting value exists and is deterministically defined
 by the signed integer representation, the operation, and its operands.
-No exception is raised as a result of overflow. A
-compiler may not optimize code under the assumption that overflow does
+No exception is raised as a result of overflow.
+A compiler may not optimize code under the assumption that overflow does
 not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is always true.
 </p>
 
