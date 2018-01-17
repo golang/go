@@ -2487,22 +2487,6 @@
   && clobber(mem2)
   -> (MOVQstore [i-4] {s} p (MOVQload [j-4] {s2} p2 mem) mem)
 
-// This is somewhat tricky. There may be pointers in SSE registers due to rule below.
-// However those register shouldn't live across GC safepoint.
-(MOVQstore [i] {s} p
-  x1:(MOVQload [j] {s2} p2 mem)
-    mem2:(MOVQstore [i-8] {s} p
-      x2:(MOVQload [j-8] {s2} p2 mem) mem))
-  && x1.Uses == 1
-  && x2.Uses == 1
-  && mem2.Uses == 1
-  && config.useSSE
-  && clobber(x1)
-  && clobber(x2)
-  && clobber(mem2)
-  -> (MOVOstore [i-8] {s} p (MOVOload [j-8] {s2} p2 mem) mem)
-
-
 // amd64p32 rules
 // same as the rules above, but with 32 instead of 64 bit pointer arithmetic.
 // LEAQ,ADDQ -> LEAL,ADDL

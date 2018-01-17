@@ -1051,14 +1051,6 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		pos: []string{"\tMOVQ\t"},
 	},
-	{
-		fn: `
-		func f76(a, b uint64) (uint64,uint64) {
-		    return f76(f76(a,b))
-		}
-		`,
-		pos: []string{"\tMOVUPS\t"},
-	},
 	// Make sure we don't put pointers in SSE registers across safe points.
 	{
 		fn: `
