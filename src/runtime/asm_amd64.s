@@ -227,7 +227,7 @@ needtls:
 	MOVQ	runtime·m0+m_tls(SB), AX
 	CMPQ	AX, $0x123
 	JEQ 2(PC)
-	MOVL	AX, 0	// abort
+	CALL	runtime·abort(SB)
 ok:
 	// set the per-goroutine and per-mach "registers"
 	get_tls(BX)
@@ -262,7 +262,7 @@ ok:
 	// start this M
 	CALL	runtime·mstart(SB)
 
-	MOVL	$0xf1, 0xf1  // crash
+	CALL	runtime·abort(SB)	// mstart should never return
 	RET
 
 DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
@@ -446,14 +446,14 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	CMPQ	g(CX), SI
 	JNE	3(PC)
 	CALL	runtime·badmorestackg0(SB)
-	INT	$3
+	CALL	runtime·abort(SB)
 
 	// Cannot grow signal stack (m->gsignal).
 	MOVQ	m_gsignal(BX), SI
 	CMPQ	g(CX), SI
 	JNE	3(PC)
 	CALL	runtime·badmorestackgsignal(SB)
-	INT	$3
+	CALL	runtime·abort(SB)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
@@ -479,7 +479,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	MOVQ	BX, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(BX), SP
 	CALL	runtime·newstack(SB)
-	MOVQ	$0, 0x1003	// crash if newstack returns
+	CALL	runtime·abort(SB)	// crash if newstack returns
 	RET
 
 // morestack but not preserving ctxt.
@@ -886,16 +886,21 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0
 	MOVQ	DI, g(AX)
 	RET
 
+TEXT runtime·abort(SB),NOSPLIT,$0-0
+	INT	$3
+loop:
+	JMP	loop
+
 // check that SP is in range [g->stack.lo, g->stack.hi)
 TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 	get_tls(CX)
 	MOVQ	g(CX), AX
 	CMPQ	(g_stack+stack_hi)(AX), SP
 	JHI	2(PC)
-	INT	$3
+	CALL	runtime·abort(SB)
 	CMPQ	SP, (g_stack+stack_lo)(AX)
 	JHI	2(PC)
-	INT	$3
+	CALL	runtime·abort(SB)
 	RET
 
 // func cputicks() int64
