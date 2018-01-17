@@ -375,13 +375,14 @@ func (p *parser) errorExpected(pos token.Pos, msg string) {
 	if pos == p.pos {
 		// the error happened at the current position;
 		// make the error message more specific
-		if p.tok == token.SEMICOLON && p.lit == "\n" {
+		switch {
+		case p.tok == token.SEMICOLON && p.lit == "\n":
 			msg += ", found newline"
-		} else {
+		case p.tok.IsLiteral():
+			// print 123 rather than 'INT', etc.
+			msg += ", found " + p.lit
+		default:
 			msg += ", found '" + p.tok.String() + "'"
-			if p.tok.IsLiteral() {
-				msg += " " + p.lit
-			}
 		}
 	}
 	p.error(pos, msg)
