@@ -27,8 +27,7 @@ var jniFix = fix{
 // and similar for subtypes of jobject.
 // This fix finds nils initializing these types and replaces the nils with 0s.
 func jnifix(f *ast.File) bool {
-	var tc TypeConfig
-	return typefix(f, &tc, func(s string) bool {
+	return typefix(f, func(s string) bool {
 		switch s {
 		case "C.jobject":
 			return true

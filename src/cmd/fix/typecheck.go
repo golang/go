@@ -152,6 +152,7 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
 
 	// If we import "C", add types of cgo objects.
 	cfg.External = map[string]string{}
+	cfg1.External = cfg.External
 	if imports(f, "C") {
 		// Run cgo on gofmtFile(f)
 		// Parse, extract decls from _cgo_gotypes.go
