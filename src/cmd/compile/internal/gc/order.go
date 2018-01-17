@@ -762,9 +762,7 @@ func orderstmt(n *Node, order *Order) {
 			// hiter contains pointers and needs to be zeroed.
 			prealloc[n] = ordertemp(hiter(n.Type), order, true)
 		}
-		for i, n1 := range n.List.Slice() {
-			n.List.SetIndex(i, orderexprinplace(n1, order))
-		}
+		orderexprlistinplace(n.List, order)
 		orderblockNodes(&n.Nbody)
 		order.out = append(order.out, n)
 		cleantemp(t, order)
