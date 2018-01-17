@@ -84,8 +84,8 @@ func ordertemp(t *types.Type, order *Order, clear bool) *Node {
 // (The other candidate would be map access, but map access
 // returns a pointer to the result data instead of taking a pointer
 // to be filled in.)
-func ordercopyexpr(n *Node, t *types.Type, order *Order, clear int) *Node {
-	var_ := ordertemp(t, order, clear != 0)
+func ordercopyexpr(n *Node, t *types.Type, order *Order, clear bool) *Node {
+	var_ := ordertemp(t, order, clear)
 	a := nod(OAS, var_, n)
 	a = typecheck(a, Etop)
 	order.out = append(order.out, a)
@@ -114,7 +114,7 @@ func ordercheapexpr(n *Node, order *Order) *Node {
 		return typecheck(&a, Erv)
 	}
 
-	return ordercopyexpr(n, n.Type, order, 0)
+	return ordercopyexpr(n, n.Type, order, false)
 }
 
 // Ordersafeexpr returns a safe version of n.
@@ -204,7 +204,7 @@ func orderaddrtemp(n *Node, order *Order) *Node {
 	if isaddrokay(n) {
 		return n
 	}
-	return ordercopyexpr(n, n.Type, order, 0)
+	return ordercopyexpr(n, n.Type, order, false)
 }
 
 // ordermapkeytemp prepares n to be a key in a map runtime call and returns n.
@@ -400,7 +400,7 @@ func ordercall(n *Node, order *Order) {
 			}
 			x := *xp
 			if x.Type.IsUnsafePtr() {
-				x = ordercopyexpr(x, x.Type, order, 0)
+				x = ordercopyexpr(x, x.Type, order, false)
 				x.Name.SetKeepalive(true)
 				*xp = x
 			}
@@ -457,10 +457,10 @@ func ordermapassign(n *Node, order *Order) {
 			switch {
 			case m.Op == OINDEXMAP:
 				if !m.Left.IsAutoTmp() {
-					m.Left = ordercopyexpr(m.Left, m.Left.Type, order, 0)
+					m.Left = ordercopyexpr(m.Left, m.Left.Type, order, false)
 				}
 				if !m.Right.IsAutoTmp() {
-					m.Right = ordercopyexpr(m.Right, m.Right.Type, order, 0)
+					m.Right = ordercopyexpr(m.Right, m.Right.Type, order, false)
 				}
 				fallthrough
 			case instrumenting && n.Op == OAS2FUNC && !isblank(m):
@@ -538,7 +538,7 @@ func orderstmt(n *Node, order *Order) {
 		if tmp1.Op == OINDEXMAP {
 			tmp1.Etype = 0 // now an rvalue not an lvalue
 		}
-		tmp1 = ordercopyexpr(tmp1, n.Left.Type, order, 0)
+		tmp1 = ordercopyexpr(tmp1, n.Left.Type, order, false)
 		// TODO(marvin): Fix Node.EType type union.
 		n.Right = nod(Op(n.Etype), tmp1, n.Right)
 		n.Right = typecheck(n.Right, Erv)
@@ -644,7 +644,7 @@ func orderstmt(n *Node, order *Order) {
 			if mapfast(n.Left.List.First().Type) == mapslow {
 				t1 := marktemp(order)
 				np := n.Left.List.Addr(1) // map key
-				*np = ordercopyexpr(*np, (*np).Type, order, 0)
+				*np = ordercopyexpr(*np, (*np).Type, order, false)
 				poptemp(t1, order)
 			}
 
@@ -749,14 +749,14 @@ func orderstmt(n *Node, order *Order) {
 				r = typecheck(r, Erv)
 			}
 
-			n.Right = ordercopyexpr(r, r.Type, order, 0)
+			n.Right = ordercopyexpr(r, r.Type, order, false)
 
 		case TMAP:
 			// copy the map value in case it is a map literal.
 			// TODO(rsc): Make tmp = literal expressions reuse tmp.
 			// For maps tmp is just one word so it hardly matters.
 			r := n.Right
-			n.Right = ordercopyexpr(r, r.Type, order, 0)
+			n.Right = ordercopyexpr(r, r.Type, order, false)
 
 			// prealloc[n] is the temp for the iterator.
 			// hiter contains pointers and needs to be zeroed.
@@ -834,7 +834,7 @@ func orderstmt(n *Node, order *Order) {
 					r.Right.Left = orderexpr(r.Right.Left, order, nil)
 
 					if r.Right.Left.Op != ONAME {
-						r.Right.Left = ordercopyexpr(r.Right.Left, r.Right.Left.Type, order, 0)
+						r.Right.Left = ordercopyexpr(r.Right.Left, r.Right.Left.Type, order, false)
 					}
 
 					// Introduce temporary for receive and move actual copy into case body.
@@ -893,11 +893,11 @@ func orderstmt(n *Node, order *Order) {
 					r.Left = orderexpr(r.Left, order, nil)
 
 					if !r.Left.IsAutoTmp() {
-						r.Left = ordercopyexpr(r.Left, r.Left.Type, order, 0)
+						r.Left = ordercopyexpr(r.Left, r.Left.Type, order, false)
 					}
 					r.Right = orderexpr(r.Right, order, nil)
 					if !r.Right.IsAutoTmp() {
-						r.Right = ordercopyexpr(r.Right, r.Right.Type, order, 0)
+						r.Right = ordercopyexpr(r.Right, r.Right.Type, order, false)
 					}
 				}
 			}
@@ -926,7 +926,7 @@ func orderstmt(n *Node, order *Order) {
 		if instrumenting {
 			// Force copying to the stack so that (chan T)(nil) <- x
 			// is still instrumented as a read of x.
-			n.Right = ordercopyexpr(n.Right, n.Right.Type, order, 0)
+			n.Right = ordercopyexpr(n.Right, n.Right.Type, order, false)
 		} else {
 			n.Right = orderaddrtemp(n.Right, order)
 		}
@@ -1078,7 +1078,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 
 		n.Right = ordermapkeytemp(n.Left.Type, n.Right, order)
 		if needCopy {
-			n = ordercopyexpr(n, n.Type, order, 0)
+			n = ordercopyexpr(n, n.Type, order, false)
 		}
 
 	// concrete type (not interface) argument must be addressable
@@ -1098,7 +1098,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 			orderinit(n.Left, order)
 			ordercall(n.Left, order)
 			if lhs == nil || lhs.Op != ONAME || instrumenting {
-				n = ordercopyexpr(n, n.Type, order, 0)
+				n = ordercopyexpr(n, n.Type, order, false)
 			}
 		} else {
 			n.Left = orderexpr(n.Left, order, nil)
@@ -1136,13 +1136,13 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 		OSTRARRAYRUNE:
 		ordercall(n, order)
 		if lhs == nil || lhs.Op != ONAME || instrumenting {
-			n = ordercopyexpr(n, n.Type, order, 0)
+			n = ordercopyexpr(n, n.Type, order, false)
 		}
 
 	case OAPPEND:
 		ordercallargs(&n.List, order)
 		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.List.First()) {
-			n = ordercopyexpr(n, n.Type, order, 0)
+			n = ordercopyexpr(n, n.Type, order, false)
 		}
 
 	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
@@ -1156,7 +1156,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 		max = ordercheapexpr(max, order)
 		n.SetSliceBounds(low, high, max)
 		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.Left) {
-			n = ordercopyexpr(n, n.Type, order, 0)
+			n = ordercopyexpr(n, n.Type, order, false)
 		}
 
 	case OCLOSURE:
@@ -1188,12 +1188,12 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 		// It needs to be removed in all three places.
 		// That would allow inlining x.(struct{*int}) the same as x.(*int).
 		if !isdirectiface(n.Type) || isfat(n.Type) || instrumenting {
-			n = ordercopyexpr(n, n.Type, order, 1)
+			n = ordercopyexpr(n, n.Type, order, true)
 		}
 
 	case ORECV:
 		n.Left = orderexpr(n.Left, order, nil)
-		n = ordercopyexpr(n, n.Type, order, 1)
+		n = ordercopyexpr(n, n.Type, order, true)
 
 	case OEQ, ONE:
 		n.Left = orderexpr(n.Left, order, nil)
