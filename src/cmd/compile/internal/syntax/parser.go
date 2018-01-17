@@ -1036,7 +1036,7 @@ func (p *parser) type_() Expr {
 	if typ == nil {
 		typ = p.bad()
 		p.syntax_error("expecting type")
-		p.advance()
+		p.advance(_Comma, _Colon, _Semi, _Rparen, _Rbrack, _Rbrace)
 	}
 
 	return typ
