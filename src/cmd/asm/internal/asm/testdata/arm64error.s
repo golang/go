@@ -10,4 +10,6 @@ TEXT errors(SB),$0
 	VST1	[V1.B16], (R8)(R13)    // ERROR "illegal combination"
 	VST1	[V1.B16], 9(R2)        // ERROR "illegal combination"
 	VLD1	8(R8)(R13), [V2.B16]   // ERROR "illegal combination"
+	ADD	R1.UXTB<<5, R2, R3     // ERROR "shift amount out of range 0 to 4"
+	ADDS	R1.UXTX<<7, R2, R3     // ERROR "shift amount out of range 0 to 4"
 	RET
