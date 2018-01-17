@@ -214,12 +214,14 @@ import p {{printf "%q" .Pkg.Pkg.Path}}
 {{if .Go18}}
 type deps struct{}
 
+func (deps) ImportPath() string { return "" }
 func (deps) MatchString(pat, str string) (bool, error) { return true, nil }
 func (deps) StartCPUProfile(io.Writer) error { return nil }
+func (deps) StartTestLog(io.Writer) {}
 func (deps) StopCPUProfile() {}
+func (deps) StopTestLog() error { return nil }
 func (deps) WriteHeapProfile(io.Writer) error { return nil }
 func (deps) WriteProfileTo(string, io.Writer, int) error { return nil }
-func (deps) ImportPath() string { return "" }
 
 var match deps
 {{else}}

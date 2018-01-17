@@ -139,6 +139,8 @@ func init() {
 		"sync/atomic.LoadUint64":           ext۰atomic۰LoadUint64,
 		"sync/atomic.StoreInt64":           ext۰atomic۰StoreInt64,
 		"sync/atomic.StoreUint64":          ext۰atomic۰StoreUint64,
+		"(*sync/atomic.Value).Load":        ext۰atomic۰ValueLoad,
+		"(*sync/atomic.Value).Store":       ext۰atomic۰ValueStore,
 		"testing.MainStart":                ext۰testing۰MainStart,
 		"time.Sleep":                       ext۰time۰Sleep,
 		"time.now":                         ext۰time۰now,
@@ -479,6 +481,19 @@ func ext۰atomic۰AddUint64(fr *frame, args []value) value {
 	newv := (*p).(uint64) + args[1].(uint64)
 	*p = newv
 	return newv
+}
+
+func ext۰atomic۰ValueLoad(fr *frame, args []value) value {
+	// TODO(adonovan): fix: not atomic!
+	// Receiver is *struct{v interface{}}.
+	return (*args[0].(*value)).(structure)[0]
+}
+
+func ext۰atomic۰ValueStore(fr *frame, args []value) value {
+	// TODO(adonovan): fix: not atomic!
+	// Receiver is *struct{v interface{}}.
+	(*args[0].(*value)).(structure)[0] = args[1]
+	return nil
 }
 
 func ext۰cpu۰cpuid(fr *frame, args []value) value {
