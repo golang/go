@@ -30,7 +30,11 @@ We expect almost all Go programs to continue to compile and run as before.
 </p>
 
 <p>
-OVERVIEW HERE
+This release improves <a href="#build">caching of built packages</a>,
+adds <a href="#test">caching of successful test results</a>,
+runs <a href="#test-vet">vet automatically during tests</a>,
+and
+permits <a href="#cgo">passing string values directly between Go and C using cgo</a>.
 </p>
 
 <h2 id="language">Changes to the language</h2>
@@ -271,7 +275,13 @@ Go structs and Go arrays are not supported in the type signatures of cgo-exporte
 </p>
 
 <p>
-TODO: CL 70890 "permit passing string values directly between Go and C."
+Cgo now supports direct access to Go string values from C.
+Functions in the C preamble may use the type <code>_GoString_</code>
+to accept a Go string as an argument. 
+C code may call <code>_GoStringLen</code> and <code>_GoStringPtr</code>
+for direct access to the contents of the string. 
+A value of type <code>_GoString_</code>
+may be passed in a call to an exported Go function that takes an argument of Go type <code>string</code>.
 </p>
 
 <p>
@@ -545,7 +555,11 @@ to avoid clearing the condition flags unexpectedly.
 <h3 id="gccgo">Gccgo</h3>
 
 <p>
-TODO: Words about GCC 8 and Go 1.10.
+Due to the alignment of Go's semiannual release schedule with GCC's
+annual release schedule,
+GCC release 7 contains the Go 1.8.3 version of gccgo.
+We expect that the next release, GCC 8, will contain the Go 1.10
+version of gccgo.
 </p>
 
 <h2 id="runtime">Runtime</h2>
@@ -756,13 +770,13 @@ them unless explicitly advertised.
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
 <dd>
 <p>
-Leaf certificate validation now enforces the name constraints for all
+<a href="/pkg/crypto/x509/#Certificate.Verify"><code>Certificate.Verify</code></a>
+now enforces the name constraints for all
 names contained in the certificate, not just the one name that a client has asked about.
 Extended key usage restrictions are similarly now checked all at once.
 As a result, after a certificate has been validated, now it can be trusted in its entirety.
 It is no longer necessary to revalidate the certificate for each additional name
 or key usage.
-TODO: Link to docs that may not exist yet.
 </p>
 
 <p>
