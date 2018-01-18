@@ -72,8 +72,7 @@ func typestring(x interface{}) string {
 	return e._type.string()
 }
 
-// For calling from C.
-// Prints an argument passed to panic.
+// printany prints an argument passed to panic.
 func printany(i interface{}) {
 	switch v := i.(type) {
 	case nil:

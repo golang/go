@@ -408,12 +408,15 @@ func preprintpanics(p *_panic) {
 }
 
 // Print all currently active panics. Used when crashing.
+// Should only be called after preprintpanics.
 func printpanics(p *_panic) {
 	if p.link != nil {
 		printpanics(p.link)
 		print("\t")
 	}
 	print("panic: ")
+	// Because of preprintpanics, p.arg cannot be an error or
+	// stringer, so this won't call into user code.
 	printany(p.arg)
 	if p.recovered {
 		print(" [recovered]")
@@ -654,7 +657,7 @@ func recovery(gp *g) {
 	gogo(&gp.sched)
 }
 
-// startpanic_m implements unrecoverable panic.
+// startpanic_m prepares for an unrecoverable panic.
 //
 // It can have write barriers because the write barrier explicitly
 // ignores writes once dying > 0.
@@ -664,10 +667,12 @@ func startpanic_m() {
 	_g_ := getg()
 	if mheap_.cachealloc.size == 0 { // very early
 		print("runtime: panic before malloc heap initialized\n")
-		_g_.m.mallocing = 1 // tell rest of panic not to try to malloc
-	} else if _g_.m.mcache == nil { // can happen if called from signal handler or throw
-		_g_.m.mcache = allocmcache()
 	}
+	// Disallow malloc during an unrecoverable panic. A panic
+	// could happen in a signal handler, or in a throw, or inside
+	// malloc itself. We want to catch if an allocation ever does
+	// happen (even if we're not in one of these situations).
+	_g_.m.mallocing++
 
 	switch _g_.m.dying {
 	case 0:
