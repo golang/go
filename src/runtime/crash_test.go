@@ -637,3 +637,20 @@ func TestTimePprof(t *testing.T) {
 		t.Error("profiler refers to ExternalCode")
 	}
 }
+
+// Test that runtime.abort does so.
+func TestAbort(t *testing.T) {
+	output := runTestProg(t, "testprog", "Abort")
+	if want := "runtime.abort"; !strings.Contains(output, want) {
+		t.Errorf("output does not contain %q:\n%s", want, output)
+	}
+	if strings.Contains(output, "BAD") {
+		t.Errorf("output contains BAD:\n%s", output)
+	}
+	// Check that it's a signal-style traceback.
+	if runtime.GOOS != "windows" {
+		if want := "PC="; !strings.Contains(output, want) {
+			t.Errorf("output does not contain %q:\n%s", want, output)
+		}
+	}
+}

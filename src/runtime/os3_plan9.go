@@ -35,6 +35,10 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 		print("sighandler: note is longer than ERRMAX\n")
 		goto Throw
 	}
+	if c.pc() == funcPC(abort) || (GOARCH == "arm" && c.pc() == funcPC(abort)+4) {
+		// Never turn abort into a panic.
+		goto Throw
+	}
 	// See if the note matches one of the patterns in sigtab.
 	// Notes that do not match any pattern can be handled at a higher
 	// level by the program but will otherwise be ignored.
