@@ -38,24 +38,31 @@ func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh P
 	p.mode = mode
 	p.scanner.init(
 		r,
-		// Error and pragma handlers for scanner.
-		// Because the (line, col) positions passed to these
-		// handlers are always at or after the current reading
-		// position, it is save to use the most recent position
+		// Error and directive handler for scanner.
+		// Because the (line, col) positions passed to the
+		// handler is always at or after the current reading
+		// position, it is safe to use the most recent position
 		// base to compute the corresponding Pos value.
 		func(line, col uint, msg string) {
-			p.error_at(p.pos_at(line, col), msg)
-		},
-		func(line, col uint, text string) {
-			const prefix = "line "
-			if strings.HasPrefix(text, prefix) {
-				p.updateBase(line, col+uint(len(prefix)), text[len(prefix):])
+			if msg[0] != '/' {
+				p.error_at(p.pos_at(line, col), msg)
 				return
 			}
-			if pragh != nil {
+
+			// otherwise it must be a comment containing a line or go: directive
+			text := commentText(msg)
+			col += 2 // text starts after // or /*
+			if strings.HasPrefix(text, "line ") {
+				p.updateBase(line, col+5, text[5:])
+				return
+			}
+
+			// go: directive (but be conservative and test)
+			if pragh != nil && strings.HasPrefix(text, "go:") {
 				p.pragma |= pragh(p.pos_at(line, col), text)
 			}
 		},
+		directives,
 	)
 
 	p.first = nil
@@ -107,6 +114,20 @@ func (p *parser) updateBase(line, col uint, text string) {
 
 	// TODO(gri) pass column n2 to NewLinePragmaBase
 	p.base = src.NewLinePragmaBase(src.MakePos(p.base.Pos().Base(), line, col), filename, absFilename, uint(n) /*uint(n2)*/)
+}
+
+func commentText(s string) string {
+	if s[:2] == "/*" {
+		return s[2 : len(s)-2] // lop off /* and */
+	}
+
+	// line comment (does not include newline)
+	// (on Windows, the line comment may end in \r\n)
+	i := len(s)
+	if s[i-1] == '\r' {
+		i--
+	}
+	return s[2:i] // lop off // and \r at end, if any
 }
 
 func trailingDigits(text string) (uint, uint, bool) {
