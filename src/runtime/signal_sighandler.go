@@ -83,7 +83,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	_g_.m.caughtsig.set(gp)
 
 	if crashing == 0 {
-		startpanic()
+		startpanic_m()
 	}
 
 	if sig < uint32(len(sigtable)) {

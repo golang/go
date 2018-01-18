@@ -121,7 +121,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 Throw:
 	_g_.m.throwing = 1
 	_g_.m.caughtsig.set(gp)
-	startpanic()
+	startpanic_m()
 	print(notestr, "\n")
 	print("PC=", hex(c.pc()), "\n")
 	print("\n")
