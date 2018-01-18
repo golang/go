@@ -46,6 +46,11 @@ func isgoexception(info *exceptionrecord, r *context) bool {
 		return false
 	}
 
+	if r.ip() == funcPC(abort) || (GOARCH == "arm" && r.ip() == funcPC(abort)+4) {
+		// Never turn abort into a panic.
+		return false
+	}
+
 	// Go will only handle some exceptions.
 	switch info.exceptioncode {
 	default:
