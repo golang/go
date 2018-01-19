@@ -1210,6 +1210,23 @@ func (t *tester) hasSwig() bool {
 	if err != nil {
 		return false
 	}
+
+	// Check that swig was installed with Go support by checking
+	// that a go directory exists inside the swiglib directory.
+	// See https://golang.org/issue/23469.
+	output, err := exec.Command(swig, "-go", "-swiglib").Output()
+	if err != nil {
+		return false
+	}
+	swigDir := strings.TrimSpace(string(output))
+
+	_, err = os.Stat(filepath.Join(swigDir, "go"))
+	if err != nil {
+		return false
+	}
+
+	// Check that swig has a new enough version.
+	// See https://golang.org/issue/22858.
 	out, err := exec.Command(swig, "-version").CombinedOutput()
 	if err != nil {
 		return false
