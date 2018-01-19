@@ -8,3 +8,28 @@ import "C"
 import _ /* ERROR cannot rename import "C" */ "C"
 import foo /* ERROR cannot rename import "C" */ "C"
 import . /* ERROR cannot rename import "C" */ "C"
+
+// Test cases extracted from issue #22090.
+
+import "unsafe"
+
+const _ C.int = 0xff // no error due to invalid constant type
+
+type T struct {
+	Name    string
+	Ordinal int
+}
+
+func f(args []T) {
+	var s string
+	for i, v := range args {
+		cname := C.CString(v.Name)
+		args[i].Ordinal = int(C.sqlite3_bind_parameter_index(s, cname)) // no error due to i not being "used"
+		C.free(unsafe.Pointer(cname))
+	}
+}
+
+type CType C.Type
+
+const _ CType = C.X // no error due to invalid constant type
+const _ = C.X
