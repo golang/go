@@ -7,6 +7,7 @@ package godoc
 import (
 	"errors"
 	pathpkg "path"
+	"sync"
 	"time"
 
 	"golang.org/x/tools/godoc/analysis"
@@ -103,6 +104,10 @@ type Corpus struct {
 
 	// Analysis is the result of type and pointer analysis.
 	Analysis analysis.Result
+
+	// flag to check whether a corpus is initialized or not
+	initMu   sync.RWMutex
+	initDone bool
 }
 
 // NewCorpus returns a new Corpus from a filesystem.
@@ -136,13 +141,15 @@ func (c *Corpus) FSModifiedTime() time.Time {
 // Init initializes Corpus, once options on Corpus are set.
 // It must be called before any subsequent method calls.
 func (c *Corpus) Init() error {
-	// TODO(bradfitz): do this in a goroutine because newDirectory might block for a long time?
-	// It used to be sometimes done in a goroutine before, at least in HTTP server mode.
 	if err := c.initFSTree(); err != nil {
 		return err
 	}
 	c.updateMetadata()
 	go c.refreshMetadataLoop()
+
+	c.initMu.Lock()
+	c.initDone = true
+	c.initMu.Unlock()
 	return nil
 }
 
