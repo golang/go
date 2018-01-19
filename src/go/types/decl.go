@@ -111,7 +111,11 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 	if typ != nil {
 		t := check.typ(typ)
 		if !isConstType(t) {
-			check.errorf(typ.Pos(), "invalid constant type %s", t)
+			// don't report an error if the type is an invalid C (defined) type
+			// (issue #22090)
+			if t.Underlying() != Typ[Invalid] {
+				check.errorf(typ.Pos(), "invalid constant type %s", t)
+			}
 			obj.typ = Typ[Invalid]
 			return
 		}
