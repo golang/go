@@ -77,8 +77,8 @@ cp -a "${GOROOT}/lib" "${FAKE_GOROOT}/"
 cp -a "${pkgdir}" "${FAKE_GOROOT}/pkg/"
 
 echo '# Syncing test files to android device'
-adb shell mkdir -p /data/local/tmp/goroot
-time adb sync data &> /dev/null
+adb $GOANDROID_ADB_FLAGS shell mkdir -p /data/local/tmp/goroot
+time adb $GOANDROID_ADB_FLAGS sync data &> /dev/null
 
 export CLEANER=${ANDROID_TEST_DIR}/androidcleaner-$$
 cp ../misc/android/cleaner.go $CLEANER.go
@@ -86,8 +86,8 @@ echo 'var files = `' >> $CLEANER.go
 (cd $ANDROID_PRODUCT_OUT/data/local/tmp/goroot; find . >> $CLEANER.go)
 echo '`' >> $CLEANER.go
 go build -o $CLEANER $CLEANER.go
-adb push $CLEANER /data/local/tmp/cleaner
-adb shell /data/local/tmp/cleaner
+adb $GOANDROID_ADB_FLAGS push $CLEANER /data/local/tmp/cleaner
+adb $GOANDROID_ADB_FLAGS shell /data/local/tmp/cleaner
 
 echo ''
 

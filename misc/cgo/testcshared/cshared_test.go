@@ -56,7 +56,8 @@ func TestMain(m *testing.M) {
 
 	androiddir = fmt.Sprintf("/data/local/tmp/testcshared-%d", os.Getpid())
 	if GOOS == "android" {
-		cmd := exec.Command("adb", "shell", "mkdir", "-p", androiddir)
+		args := append(adbCmd(), "shell", "mkdir", "-p", androiddir)
+		cmd := exec.Command(args[0], args[1:]...)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			log.Fatalf("setupAndroid failed: %v\n%s\n", err, out)
@@ -155,11 +156,19 @@ func cmdToRun(name string) string {
 	return "./" + name + exeSuffix
 }
 
+func adbCmd() []string {
+	cmd := []string{"adb"}
+	if flags := os.Getenv("GOANDROID_ADB_FLAGS"); flags != "" {
+		cmd = append(cmd, strings.Split(flags, " ")...)
+	}
+	return cmd
+}
+
 func adbPush(t *testing.T, filename string) {
 	if GOOS != "android" {
 		return
 	}
-	args := []string{"adb", "push", filename, fmt.Sprintf("%s/%s", androiddir, filename)}
+	args := append(adbCmd(), "push", filename, fmt.Sprintf("%s/%s", androiddir, filename))
 	cmd := exec.Command(args[0], args[1:]...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("adb command failed: %v\n%s\n", err, out)
@@ -170,7 +179,7 @@ func adbRun(t *testing.T, env []string, adbargs ...string) string {
 	if GOOS != "android" {
 		t.Fatalf("trying to run adb command when operating system is not android.")
 	}
-	args := []string{"adb", "shell"}
+	args := append(adbCmd(), "shell")
 	// Propagate LD_LIBRARY_PATH to the adb shell invocation.
 	for _, e := range env {
 		if strings.Index(e, "LD_LIBRARY_PATH=") != -1 {
@@ -238,7 +247,7 @@ func createHeaders() error {
 	}
 
 	if GOOS == "android" {
-		args = []string{"adb", "push", libgoname, fmt.Sprintf("%s/%s", androiddir, libgoname)}
+		args = append(adbCmd(), "push", libgoname, fmt.Sprintf("%s/%s", androiddir, libgoname))
 		cmd = exec.Command(args[0], args[1:]...)
 		out, err = cmd.CombinedOutput()
 		if err != nil {
@@ -271,7 +280,8 @@ func cleanupAndroid() {
 	if GOOS != "android" {
 		return
 	}
-	cmd := exec.Command("adb", "shell", "rm", "-rf", androiddir)
+	args := append(adbCmd(), "shell", "rm", "-rf", androiddir)
+	cmd := exec.Command(args[0], args[1:]...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("cleanupAndroid failed: %v\n%s\n", err, out)
