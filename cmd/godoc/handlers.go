@@ -34,7 +34,8 @@ var enforceHosts = false // set true in production on app engine
 
 // hostEnforcerHandler redirects requests to "http://foo.golang.org/bar"
 // to "https://golang.org/bar".
-// It permits requests to the host "godoc-test.golang.org" for testing.
+// It permits requests to the host "godoc-test.golang.org" for testing and
+// golang.google.cn for Chinese users.
 type hostEnforcerHandler struct {
 	h http.Handler
 }
@@ -60,7 +61,7 @@ func (h hostEnforcerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h hostEnforcerHandler) validHost(host string) bool {
 	switch strings.ToLower(host) {
-	case "golang.org", "godoc-test.golang.org":
+	case "golang.org", "godoc-test.golang.org", "golang.google.cn":
 		return true
 	}
 	return false
