@@ -231,18 +231,18 @@ func poptemp(mark ordermarker, order *Order) {
 	order.temp = order.temp[:mark]
 }
 
-// Cleantempnopop emits to *out VARKILL instructions for each temporary
-// above the mark on the temporary stack, but it does not pop them
-// from the stack.
+// Cleantempnopop emits VARKILL and if needed VARLIVE instructions
+// to *out for each temporary above the mark on the temporary stack.
+// It does not pop the temporaries from the stack.
 func cleantempnopop(mark ordermarker, order *Order, out *[]*Node) {
 	for i := len(order.temp) - 1; i >= int(mark); i-- {
 		n := order.temp[i]
 		if n.Name.Keepalive() {
 			n.Name.SetKeepalive(false)
 			n.SetAddrtaken(true) // ensure SSA keeps the n variable
-			kill := nod(OVARLIVE, n, nil)
-			kill = typecheck(kill, Etop)
-			*out = append(*out, kill)
+			live := nod(OVARLIVE, n, nil)
+			live = typecheck(live, Etop)
+			*out = append(*out, live)
 		}
 		kill := nod(OVARKILL, n, nil)
 		kill = typecheck(kill, Etop)
