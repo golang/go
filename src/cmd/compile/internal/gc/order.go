@@ -1253,9 +1253,10 @@ func okas(ok, val *Node) *Node {
 func (o *Order) as2(n *Node) {
 	tmplist := []*Node{}
 	left := []*Node{}
-	for _, l := range n.List.Slice() {
+	for ni, l := range n.List.Slice() {
 		if !l.isBlank() {
 			tmp := o.newTemp(l.Type, types.Haspointers(l.Type))
+			n.List.SetIndex(ni, tmp)
 			tmplist = append(tmplist, tmp)
 			left = append(left, l)
 		}
@@ -1268,14 +1269,6 @@ func (o *Order) as2(n *Node) {
 	as.Rlist.Set(tmplist)
 	as = typecheck(as, Etop)
 	o.stmt(as)
-
-	ti := 0
-	for ni, l := range n.List.Slice() {
-		if !l.isBlank() {
-			n.List.SetIndex(ni, tmplist[ti])
-			ti++
-		}
-	}
 }
 
 // okAs2 orders OAS2 with ok.
