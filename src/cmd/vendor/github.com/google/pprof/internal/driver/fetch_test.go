@@ -412,8 +412,10 @@ func TestHttpsInsecure(t *testing.T) {
 		Symbolize: "remote",
 	}
 	rx := "Saved profile in"
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") ||
+		runtime.GOOS == "android" {
 		// On iOS, $HOME points to the app root directory and is not writable.
+		// On Android, $HOME points to / which is not writable.
 		rx += "|Could not use temp dir"
 	}
 	o := &plugin.Options{
