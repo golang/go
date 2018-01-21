@@ -406,11 +406,13 @@ func (o *Order) copyRet(n *Node) []*Node {
 		Fatalf("copyret %v %d", n.Type, n.Left.Type.NumResults())
 	}
 
-	var l1, l2 []*Node
-	for _, f := range n.Type.Fields().Slice() {
-		tmp := temp(f.Type)
-		l1 = append(l1, tmp)
-		l2 = append(l2, tmp)
+	slice := n.Type.Fields().Slice()
+	l1 := make([]*Node, len(slice))
+	l2 := make([]*Node, len(slice))
+	for i, t := range slice {
+		tmp := temp(t.Type)
+		l1[i] = tmp
+		l2[i] = tmp
 	}
 
 	as := nod(OAS2, nil, nil)
