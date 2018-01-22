@@ -17715,6 +17715,19 @@ func rewriteValuegeneric_OpNilCheck_0(v *Value) bool {
 	return false
 }
 func rewriteValuegeneric_OpNot_0(v *Value) bool {
+	// match: (Not (ConstBool [c]))
+	// cond:
+	// result: (ConstBool [1-c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConstBool {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpConstBool)
+		v.AuxInt = 1 - c
+		return true
+	}
 	// match: (Not (Eq64 x y))
 	// cond:
 	// result: (Neq64 x y)
@@ -17859,6 +17872,9 @@ func rewriteValuegeneric_OpNot_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpNot_10(v *Value) bool {
 	// match: (Not (NeqB x y))
 	// cond:
 	// result: (EqB  x y)
@@ -17875,9 +17891,6 @@ func rewriteValuegeneric_OpNot_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpNot_10(v *Value) bool {
 	// match: (Not (Greater64 x y))
 	// cond:
 	// result: (Leq64 x y)
@@ -18022,6 +18035,9 @@ func rewriteValuegeneric_OpNot_10(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpNot_20(v *Value) bool {
 	// match: (Not (Geq32 x y))
 	// cond:
 	// result: (Less32 x y)
@@ -18038,9 +18054,6 @@ func rewriteValuegeneric_OpNot_10(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpNot_20(v *Value) bool {
 	// match: (Not (Geq16 x y))
 	// cond:
 	// result: (Less16 x y)
@@ -18185,6 +18198,9 @@ func rewriteValuegeneric_OpNot_20(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpNot_30(v *Value) bool {
 	// match: (Not (Less8 x y))
 	// cond:
 	// result: (Geq8  x y)
@@ -18201,9 +18217,6 @@ func rewriteValuegeneric_OpNot_20(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpNot_30(v *Value) bool {
 	// match: (Not (Less64U x y))
 	// cond:
 	// result: (Geq64U x y)
@@ -18348,6 +18361,9 @@ func rewriteValuegeneric_OpNot_30(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpNot_40(v *Value) bool {
 	// match: (Not (Leq32U x y))
 	// cond:
 	// result: (Greater32U x y)
@@ -18364,9 +18380,6 @@ func rewriteValuegeneric_OpNot_30(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpNot_40(v *Value) bool {
 	// match: (Not (Leq16U x y))
 	// cond:
 	// result: (Greater16U x y)
