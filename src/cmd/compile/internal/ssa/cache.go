@@ -20,6 +20,16 @@ type Cache struct {
 
 	domblockstore []ID         // scratch space for computing dominators
 	scrSparse     []*sparseSet // scratch sparse sets to be re-used.
+
+	blockDebug      []BlockDebug
+	valueNames      [][]SlotID
+	slotLocs        []VarLoc
+	regContents     [][]SlotID
+	pendingEntries  []pendingEntry
+	pendingSlotLocs []VarLoc
+
+	liveSlotSliceBegin int
+	liveSlots          []liveSlot
 }
 
 func (c *Cache) Reset() {
@@ -38,4 +48,17 @@ func (c *Cache) Reset() {
 	for i := range xl {
 		xl[i] = nil
 	}
+
+	c.liveSlots = c.liveSlots[:0]
+	c.liveSlotSliceBegin = 0
+}
+
+func (c *Cache) AppendLiveSlot(ls liveSlot) {
+	c.liveSlots = append(c.liveSlots, ls)
+}
+
+func (c *Cache) GetLiveSlotSlice() []liveSlot {
+	s := c.liveSlots[c.liveSlotSliceBegin:]
+	c.liveSlotSliceBegin = len(c.liveSlots)
+	return s
 }
