@@ -102,7 +102,7 @@ func checkFunc(f *Func) {
 				f.Fatalf("plain/dead block %s has a control value", b)
 			}
 		}
-		if len(b.Succs) > 2 && b.Likely != BranchUnknown {
+		if len(b.Succs) != 2 && b.Likely != BranchUnknown {
 			f.Fatalf("likeliness prediction %d for block %s with %d successors", b.Likely, b, len(b.Succs))
 		}
 
