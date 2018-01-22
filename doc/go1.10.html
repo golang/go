@@ -23,7 +23,7 @@ ul li { margin: 0.5em 0; }
 </strong></p>
 
 <p>
-The latest Go release, version 1.10, arrives six months after <a href="go1.9">go1.9</a>.
+The latest Go release, version 1.10, arrives six months after <a href="go1.9">Go 1.9</a>.
 Most of its changes are in the implementation of the toolchain, runtime, and libraries.
 As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
 We expect almost all Go programs to continue to compile and run as before.
@@ -40,7 +40,7 @@ permits <a href="#cgo">passing string values directly between Go and C using cgo
 <h2 id="language">Changes to the language</h2>
 
 <p>
-There are no significant changes to the language.
+There are no significant changes to the language specification.
 </p>
 
 <p><!-- CL 60230 -->
@@ -202,7 +202,7 @@ only to command lines using a subset of the
 The idiomatic way to bypass test caching is to use <code>-count=1</code>.
 </p>
 
-<p>
+<p id="test-vet">
 The <code>go</code>&nbsp;<code>test</code> command now automatically runs
 <code>go</code> <code>vet</code> on the package being tested,
 to identify significant problems before running the test.
@@ -267,7 +267,7 @@ and the <a href="/cmd/test2json/">test2json documentation</a>.
 <h3 id="cgo">Cgo</h3>
 
 <p>
-Cgo now implements a C typedef like “<code>typedef</code> <code>X</code> <code>Y</code>;” using a Go type alias,
+Cgo now implements a C typedef like “<code>typedef</code> <code>X</code> <code>Y</code>” using a Go type alias,
 so that Go code may use the types <code>C.X</code> and <code>C.Y</code> interchangeably.
 It also now supports the use of niladic function-like macros.
 Also, the documentation has been updated to clarify that
@@ -293,7 +293,7 @@ The new set of environment variables <code>CC_FOR_<i>goos</i>_<i>goarch</i></cod
 allows specifying a different default C compiler for each target.
 Note that these variables only apply during toolchain bootstrap,
 to set the defaults used by the resulting toolchain.
-Later <code>go</code> <code>build</code> commands refer to the <code>CC</code> environment
+Later <code>go</code> <code>build</code> commands use the <code>CC</code> environment
 variable or else the built-in default.
 </p>
 
@@ -308,7 +308,8 @@ interface.
 <p>
 These types must be <code>uintptr</code> on the Go side because they
 would otherwise confuse the Go garbage collector; they are sometimes
-not really pointers but data structures encoded in a pointer type.
+not really pointers but data structures encoded in a pointer-sized integer.
+Pointers to Go memory must not be stored in these <code>uintptr</code> values.
 </p>
 
 <p>
@@ -429,7 +430,7 @@ a repository is not “properly formatted” is inherently fragile and not recom
 If multiple programs must agree about which version of gofmt is used to format a source file,
 we recommend that they do this by arranging to invoke the same gofmt binary.
 For example, in the Go open source repository, our Git pre-commit hook is written in Go
-and could import <code>go/format</code> directly but instead invokes the <code>gofmt</code>
+and could import <code>go/format</code> directly, but instead it invokes the <code>gofmt</code>
 binary found in the current path, so that the pre-commit hook need not be recompiled
 each time <code>gofmt</code> changes.
 </p>
@@ -450,7 +451,7 @@ and each package is now presented as its own DWARF compilation unit.
 
 <p>
 The various <a href="https://docs.google.com/document/d/1nr-TQHw_er6GOQRsF6T43GGhFDelrAP0NqSS_00RgZQ/edit">build modes</a>
-has been ported to more systems.
+have been ported to more systems.
 Specifically, <code>c-shared</code> now works on <code>linux/ppc64le</code>, <code>windows/386</code>, and <code>windows/amd64</code>;
 <code>pie</code> now works on <code>darwin/amd64</code> and also forces the use of external linking on all systems;
 and <code>plugin</code> now works on <code>linux/ppc64le</code> and <code>darwin/amd64</code>.
@@ -579,7 +580,7 @@ Now, the calls nest: if <code>LockOSThread</code> is called multiple times,
 in order to unlock the thread.
 Existing code that was careful not to nest these calls will remain correct.
 Existing code that incorrectly assumed the calls nested will become correct.
-Most uses of these functions in public Go source falls into the second category.
+Most uses of these functions in public Go source code falls into the second category.
 </p>
 
 <p>
@@ -742,9 +743,9 @@ The
 <a href="/pkg/bytes/#Split"><code>Split</code></a>,
 and
 <a href="/pkg/bytes/#SplitAfter"><code>SplitAfter</code></a>
-each already returned slices pointing into the same underlying array as its input.
-Go 1.10 changes each of the returned subslices to have capacity equal to its length,
-so that appending to a subslice will not overwrite adjacent data in the original input.
+functions have always returned subslices of their inputs.
+Go 1.10 changes each returned subslice to have capacity equal to its length,
+so that appending to one cannot overwrite adjacent data in the original input.
 </p>
 </dl>
 
@@ -1310,7 +1311,7 @@ Also matching <code>net.Conn</code>,
 <a href="/pkg/os/#File.Close"><code>Close</code></a> method
 now guarantee that when <code>Close</code> returns,
 the underlying file descriptor has been closed.
-(In earlier releases, like for <code>net.Conn</code>'s,
+(In earlier releases,
 if the <code>Close</code> stopped pending I/O
 in other goroutines, the closing of the file descriptor could happen in one of those
 goroutines shortly after <code>Close</code> returned.)
@@ -1430,7 +1431,7 @@ allows conversion of IANA time zone file data to a <a href="/pkg/time/#Location"
 <dd>
 <p>
 The <a href="/pkg/unicode/"><code>unicode</code></a> package and associated
-support throughout the system has been upgraded from version 9.0 to
+support throughout the system has been upgraded from Unicode 9.0 to
 <a href="http://www.unicode.org/versions/Unicode10.0.0/">Unicode 10.0</a>,
 which adds 8,518 new characters, including four new scripts, one new property,
 a Bitcoin currency symbol, and 56 new emoji.
