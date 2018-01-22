@@ -607,3 +607,17 @@ retry:
 	}
 	t.Errorf("test ran %d times without producing expected output", tries)
 }
+
+func TestBadTraceback(t *testing.T) {
+	output := runTestProg(t, "testprog", "BadTraceback")
+	for _, want := range []string{
+		"runtime: unexpected return pc",
+		"called from 0xbad",
+		"00000bad",    // Smashed LR in hex dump
+		"<main.badLR", // Symbolization in hex dump (badLR1 or badLR2)
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("output does not contain %q:\n%s", want, output)
+		}
+	}
+}
