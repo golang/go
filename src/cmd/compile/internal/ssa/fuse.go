@@ -92,6 +92,7 @@ func fuseBlockIf(b *Block) bool {
 		b.removeEdge(1)
 	}
 	b.Kind = BlockPlain
+	b.Likely = BranchUnknown
 	b.SetControl(nil)
 
 	// Trash the empty blocks s0 & s1.
