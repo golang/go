@@ -150,6 +150,8 @@
 (Div32F (Const32F [c]) (Const32F [d])) -> (Const32F [f2i(float64(i2f32(c) / i2f32(d)))])
 (Div64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) / i2f(d))])
 
+(Not (ConstBool [c])) -> (ConstBool [1-c])
+
 // Convert x * 1 to x.
 (Mul8  (Const8  [1]) x) -> x
 (Mul16 (Const16 [1]) x) -> x
