@@ -201,6 +201,7 @@ var templMain = template.Must(template.New("").Parse(`
 <a href="/block">Synchronization blocking profile</a> (<a href="/block?raw=1" download="block.profile">⬇</a>)<br>
 <a href="/syscall">Syscall blocking profile</a> (<a href="/syscall?raw=1" download="syscall.profile">⬇</a>)<br>
 <a href="/sched">Scheduler latency profile</a> (<a href="/sche?raw=1" download="sched.profile">⬇</a>)<br>
+<a href="/usertasks">User-defined tasks</a><br>
 </body>
 </html>
 `))

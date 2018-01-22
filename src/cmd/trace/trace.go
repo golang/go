@@ -759,3 +759,21 @@ func (ctx *traceContext) buildBranch(parent frameNode, stk []*trace.Frame) int {
 	}
 	return ctx.buildBranch(node, stk)
 }
+
+// firstTimestamp returns the timestamp of the first event record.
+func firstTimestamp() int64 {
+	res, _ := parseTrace()
+	if len(res.Events) > 0 {
+		return res.Events[0].Ts
+	}
+	return 0
+}
+
+// lastTimestamp returns the timestamp of the last event record.
+func lastTimestamp() int64 {
+	res, _ := parseTrace()
+	if n := len(res.Events); n > 1 {
+		return res.Events[n-1].Ts
+	}
+	return 0
+}
