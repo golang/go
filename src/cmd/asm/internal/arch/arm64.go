@@ -71,7 +71,8 @@ func IsARM64CMP(op obj.As) bool {
 func IsARM64STLXR(op obj.As) bool {
 	switch op {
 	case arm64.ASTLXRB, arm64.ASTLXRH, arm64.ASTLXRW, arm64.ASTLXR,
-		arm64.ASTXRB, arm64.ASTXRH, arm64.ASTXRW, arm64.ASTXR:
+		arm64.ASTXRB, arm64.ASTXRH, arm64.ASTXRW, arm64.ASTXR,
+		arm64.ASTXP, arm64.ASTXPW, arm64.ASTLXP, arm64.ASTLXPW:
 		return true
 	}
 	return false
