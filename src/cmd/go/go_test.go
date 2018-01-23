@@ -2437,6 +2437,16 @@ func TestCoverageRuns(t *testing.T) {
 	checkCoverage(tg, data)
 }
 
+func TestCoverageDotImport(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.run("test", "-coverpkg=coverdot1,coverdot2", "coverdot2")
+	data := tg.getStdout() + tg.getStderr()
+	checkCoverage(tg, data)
+}
+
 // Check that coverage analysis uses set mode.
 // Also check that coverage profiles merge correctly.
 func TestCoverageUsesSetMode(t *testing.T) {

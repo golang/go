@@ -6,6 +6,7 @@ package test
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -1091,13 +1092,21 @@ func isTestFile(file string) bool {
 func declareCoverVars(importPath string, files ...string) map[string]*load.CoverVar {
 	coverVars := make(map[string]*load.CoverVar)
 	coverIndex := 0
+	// We create the cover counters as new top-level variables in the package.
+	// We need to avoid collisions with user variables (GoCover_0 is unlikely but still)
+	// and more importantly with dot imports of other covered packages,
+	// so we append 12 hex digits from the SHA-256 of the import path.
+	// The point is only to avoid accidents, not to defeat users determined to
+	// break things.
+	sum := sha256.Sum256([]byte(importPath))
+	h := fmt.Sprintf("%x", sum[:6])
 	for _, file := range files {
 		if isTestFile(file) {
 			continue
 		}
 		coverVars[file] = &load.CoverVar{
 			File: filepath.Join(importPath, file),
-			Var:  fmt.Sprintf("GoCover_%d", coverIndex),
+			Var:  fmt.Sprintf("GoCover_%d_%x", coverIndex, h),
 		}
 		coverIndex++
 	}
