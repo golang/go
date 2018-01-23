@@ -3553,6 +3553,23 @@ func TestHeaderToWire(t *testing.T) {
 				return nil
 			},
 		},
+		{
+			name: "Nosniff without Content-type",
+			handler: func(rw ResponseWriter, r *Request) {
+				rw.Header().Set("X-Content-Type-Options", "nosniff")
+				rw.WriteHeader(200)
+				rw.Write([]byte("<!doctype html>\n<html><head></head><body>some html</body></html>"))
+			},
+			check: func(got string) error {
+				if !strings.Contains(got, "Content-Type: application/octet-stream\r\n") {
+					return errors.New("Output should have an innocuous content-type")
+				}
+				if strings.Contains(got, "text/html") {
+					return errors.New("Output should not have a guess")
+				}
+				return nil
+			},
+		},
 	}
 	for _, tc := range tests {
 		ht := newHandlerTest(HandlerFunc(tc.handler))
