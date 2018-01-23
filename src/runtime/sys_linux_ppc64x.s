@@ -496,6 +496,7 @@ TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
 	MOVW	fd+8(FP), R5
 	MOVD	ev+16(FP), R6
 	SYSCALL	$SYS_epoll_ctl
+	NEG	R3	// caller expects negative errno
 	MOVW	R3, ret+24(FP)
 	RET
 
