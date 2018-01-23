@@ -350,7 +350,8 @@ type countProfile interface {
 // as the pprof-proto format output. Translations from cycle count to time duration
 // are done because The proto expects count and time (nanoseconds) instead of count
 // and the number of cycles for block, contention profiles.
-func printCountCycleProfile(w io.Writer, countName, cycleName string, records []runtime.BlockProfileRecord) error {
+// Possible 'scaler' functions are scaleBlockProfile and scaleMutexProfile.
+func printCountCycleProfile(w io.Writer, countName, cycleName string, scaler func(int64, float64) (int64, float64), records []runtime.BlockProfileRecord) error {
 	// Output profile in protobuf form.
 	b := newProfileBuilder(w)
 	b.pbValueType(tagProfile_PeriodType, countName, "count")
@@ -363,8 +364,9 @@ func printCountCycleProfile(w io.Writer, countName, cycleName string, records []
 	values := []int64{0, 0}
 	var locs []uint64
 	for _, r := range records {
-		values[0] = int64(r.Count)
-		values[1] = int64(float64(r.Cycles) / cpuGHz) // to nanoseconds
+		count, nanosec := scaler(r.Count, float64(r.Cycles)/cpuGHz)
+		values[0] = count
+		values[1] = int64(nanosec)
 		locs = locs[:0]
 		for _, addr := range r.Stack() {
 			// For count profiles, all stack addresses are
@@ -806,7 +808,7 @@ func writeBlock(w io.Writer, debug int) error {
 	sort.Slice(p, func(i, j int) bool { return p[i].Cycles > p[j].Cycles })
 
 	if debug <= 0 {
-		return printCountCycleProfile(w, "contentions", "delay", p)
+		return printCountCycleProfile(w, "contentions", "delay", scaleBlockProfile, p)
 	}
 
 	b := bufio.NewWriter(w)
@@ -833,6 +835,14 @@ func writeBlock(w io.Writer, debug int) error {
 	return b.Flush()
 }
 
+func scaleBlockProfile(cnt int64, ns float64) (int64, float64) {
+	// Do nothing.
+	// The current way of block profile sampling makes it
+	// hard to compute the unsampled number. The legacy block
+	// profile parse doesn't attempt to scale or unsample.
+	return cnt, ns
+}
+
 // writeMutex writes the current mutex profile to w.
 func writeMutex(w io.Writer, debug int) error {
 	// TODO(pjw): too much common code with writeBlock. FIX!
@@ -850,7 +860,7 @@ func writeMutex(w io.Writer, debug int) error {
 	sort.Slice(p, func(i, j int) bool { return p[i].Cycles > p[j].Cycles })
 
 	if debug <= 0 {
-		return printCountCycleProfile(w, "contentions", "delay", p)
+		return printCountCycleProfile(w, "contentions", "delay", scaleMutexProfile, p)
 	}
 
 	b := bufio.NewWriter(w)
@@ -876,6 +886,11 @@ func writeMutex(w io.Writer, debug int) error {
 		tw.Flush()
 	}
 	return b.Flush()
+}
+
+func scaleMutexProfile(cnt int64, ns float64) (int64, float64) {
+	period := runtime.SetMutexProfileFraction(-1)
+	return cnt * int64(period), ns * float64(period)
 }
 
 func runtime_cyclesPerSecond() int64
