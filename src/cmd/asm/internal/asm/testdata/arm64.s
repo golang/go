@@ -401,8 +401,22 @@ again:
 //	{
 //		outcode($1, &$2, &$4, &$6);
 //	}
-	LDAXRW	(R0), R2
-	STLXRW	R1, (R0), R3
+	LDARB	(R25), R2                            // 22ffdf08
+	LDARH	(R5), R7                             // a7fcdf48
+	LDAXPW	(R10), (R20, R16)                    // 54c17f88
+	LDAXP	(R25), (R30, R11)                    // 3eaf7fc8
+	LDAXRW	(R0), R2                             // 02fc5f88
+	LDXPW	(R24), (R23, R11)                    // 172f7f88
+	LDXP	(R0), (R16, R13)                     // 10347fc8
+	STLRB	R11, (R22)                           // cbfe9f08
+	STLRH	R16, (R23)                           // f0fe9f48
+	STLXP	(R6, R3), (R10), R2                  // 468d22c8
+	STLXPW	(R6, R11), (R22), R21                // c6ae3588
+	STLXRW	R1, (R0), R3                         // 01fc0388
+	STXP	(R1, R2), (R3), R10                  // 61082ac8
+	STXP	(R1, R2), (RSP), R10                 // e10b2ac8
+	STXPW	(R1, R2), (R3), R10                  // 61082a88
+	STXPW	(R1, R2), (RSP), R10                 // e10b2a88
 
 // RET
 //

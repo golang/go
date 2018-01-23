@@ -571,13 +571,11 @@ var optab = []Optab{
 	{ALDAR, C_ZOREG, C_NONE, C_REG, 58, 4, 0, 0, 0},
 	{ALDXR, C_ZOREG, C_NONE, C_REG, 58, 4, 0, 0, 0},
 	{ALDAXR, C_ZOREG, C_NONE, C_REG, 58, 4, 0, 0, 0},
-	{ALDXP, C_ZOREG, C_REG, C_REG, 58, 4, 0, 0, 0},
+	{ALDXP, C_ZOREG, C_NONE, C_PAIR, 58, 4, 0, 0, 0},
 	{ASTLR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},  // to3=C_NONE
 	{ASTXR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},  // to3=C_REG
 	{ASTLXR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0}, // to3=C_REG
-
-	//	{ ASTXP,		C_REG, C_NONE,	C_ZOREG,		59, 4, 0 , 0}, // TODO(aram):
-
+	{ASTXP, C_PAIR, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},
 	{AAESD, C_VREG, C_NONE, C_VREG, 29, 4, 0, 0, 0}, // for compatibility with old code
 	{AAESD, C_ARNG, C_NONE, C_ARNG, 29, 4, 0, 0, 0}, // recommend using the new one for better readability
 	{ASHA1C, C_VREG, C_REG, C_VREG, 1, 4, 0, 0, 0},
@@ -2082,6 +2080,8 @@ func buildop(ctxt *obj.Link) {
 
 		case ALDAR:
 			oprangeset(ALDARW, t)
+			oprangeset(ALDARB, t)
+			oprangeset(ALDARH, t)
 			fallthrough
 
 		case ALDXR:
@@ -2096,8 +2096,12 @@ func buildop(ctxt *obj.Link) {
 
 		case ALDXP:
 			oprangeset(ALDXPW, t)
+			oprangeset(ALDAXP, t)
+			oprangeset(ALDAXPW, t)
 
 		case ASTLR:
+			oprangeset(ASTLRB, t)
+			oprangeset(ASTLRH, t)
 			oprangeset(ASTLRW, t)
 
 		case ASTXR:
@@ -2111,6 +2115,8 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(ASTLXRW, t)
 
 		case ASTXP:
+			oprangeset(ASTLXP, t)
+			oprangeset(ASTLXPW, t)
 			oprangeset(ASTXPW, t)
 
 		case AVADDP:
@@ -3131,19 +3137,19 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int(p.GetFrom3().Reg)
 		o1 |= uint32(rf&31)<<16 | uint32(cond&15)<<12 | uint32(rt&31)<<5 | uint32(nzcv)
 
-	case 58: /* ldar/ldxr/ldaxr */
+	case 58: /* ldar/ldarb/ldarh/ldaxp/ldxp/ldaxr/ldxr */
 		o1 = c.opload(p, p.As)
 
 		o1 |= 0x1F << 16
 		o1 |= uint32(p.From.Reg&31) << 5
-		if p.Reg != 0 {
-			o1 |= uint32(p.Reg&31) << 10
+		if p.As == ALDXP || p.As == ALDXPW || p.As == ALDAXP || p.As == ALDAXPW {
+			o1 |= uint32(p.To.Offset&31) << 10
 		} else {
 			o1 |= 0x1F << 10
 		}
 		o1 |= uint32(p.To.Reg & 31)
 
-	case 59: /* stxr/stlxr */
+	case 59: /* stxr/stlxr/stxp/stlxp */
 		o1 = c.opstore(p, p.As)
 
 		if p.RegTo2 != obj.REG_NONE {
@@ -3151,11 +3157,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		} else {
 			o1 |= 0x1F << 16
 		}
-
-		// TODO(aram): add support for STXP
-		o1 |= uint32(p.To.Reg&31) << 5
-
-		o1 |= uint32(p.From.Reg & 31)
+		if p.As == ASTXP || p.As == ASTXPW || p.As == ASTLXP || p.As == ASTLXPW {
+			o1 |= uint32(p.From.Offset&31) << 10
+		}
+		o1 |= uint32(p.To.Reg&31) << 5 | uint32(p.From.Reg & 31)
 
 	case 60: /* adrp label,r */
 		d := c.brdist(p, 12, 21, 0)
@@ -5002,10 +5007,10 @@ func (c *ctxt7) opstore(p *obj.Prog, a obj.As) uint32 {
 		return LDSTX(2, 1, 0, 0, 1) | 0x1F<<10
 
 	case ASTLXP:
-		return LDSTX(2, 0, 0, 1, 1)
+		return LDSTX(3, 0, 0, 1, 1)
 
 	case ASTLXPW:
-		return LDSTX(3, 0, 0, 1, 1)
+		return LDSTX(2, 0, 0, 1, 1)
 
 	case ASTLXR:
 		return LDSTX(3, 0, 0, 0, 1) | 0x1F<<10
