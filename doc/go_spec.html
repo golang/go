@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of January 17, 2018",
+	"Subtitle": "Version of January 23, 2018",
 	"Path": "/ref/spec"
 }-->
 
@@ -694,9 +694,8 @@ TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType 
 </pre>
 
 <p>
-Named instances of the boolean, numeric, and string types are
-<a href="#Predeclared_identifiers">predeclared</a>.
-Other named types are introduced with <a href="#Type_declarations">type declarations</a>.
+The language <a href="#Predeclared_identifiers">predeclares</a> certain type names.
+Others are introduced with <a href="#Type_declarations">type declarations</a>.
 <i>Composite types</i>&mdash;array, struct, pointer, function,
 interface, slice, map, and channel types&mdash;may be constructed using
 type literals.
@@ -1025,8 +1024,8 @@ of a struct except that they cannot be used as field names in
 </p>
 
 <p>
-Given a struct type <code>S</code> and a type named <code>T</code>,
-promoted methods are included in the method set of the struct as follows:
+Given a struct type <code>S</code> and a <a href="#Type_definitions">defined type</a>
+<code>T</code>, promoted methods are included in the method set of the struct as follows:
 </p>
 <ul>
 	<li>
@@ -2643,8 +2642,8 @@ expression is illegal.
 </li>
 
 <li>
-As an exception, if the type of <code>x</code> is a named pointer type
-and <code>(*x).f</code> is a valid selector expression denoting a field
+As an exception, if the type of <code>x</code> is a <a href="#Type_definitions">defined</a>
+pointer type and <code>(*x).f</code> is a valid selector expression denoting a field
 (but not a method), <code>x.f</code> is shorthand for <code>(*x).f</code>.
 </li>
 
