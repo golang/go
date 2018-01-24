@@ -139,6 +139,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	p := c.cursym.Func.Text
 	textstksiz := p.To.Offset
+	if textstksiz == -ctxt.FixedFrameSize() {
+		// Historical way to mark NOFRAME.
+		p.From.Sym.Set(obj.AttrNoFrame, true)
+		textstksiz = 0
+	}
+	if textstksiz < 0 {
+		c.ctxt.Diag("negative frame size %d - did you mean NOFRAME?", textstksiz)
+	}
+	if p.From.Sym.NoFrame() {
+		if textstksiz != 0 {
+			c.ctxt.Diag("NOFRAME functions must have a frame size of 0, not %d", textstksiz)
+		}
+	}
 
 	c.cursym.Func.Args = p.To.Val.(int32)
 	c.cursym.Func.Locals = int32(textstksiz)
@@ -278,14 +291,41 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		o := p.As
 		switch o {
 		case obj.ATEXT:
-			autosize = int32(textstksiz + ctxt.FixedFrameSize())
-			if (p.Mark&LEAF != 0) && autosize <= int32(ctxt.FixedFrameSize()) {
-				autosize = 0
-			} else if autosize&4 != 0 && c.ctxt.Arch.Family == sys.MIPS64 {
+			autosize = int32(textstksiz)
+
+			if p.Mark&LEAF != 0 && autosize == 0 {
+				// A leaf function with no locals has no frame.
+				p.From.Sym.Set(obj.AttrNoFrame, true)
+			}
+
+			if !p.From.Sym.NoFrame() {
+				// If there is a stack frame at all, it includes
+				// space to save the LR.
+				autosize += int32(c.ctxt.FixedFrameSize())
+			}
+
+			if autosize&4 != 0 && c.ctxt.Arch.Family == sys.MIPS64 {
 				autosize += 4
 			}
 
+			if autosize == 0 && c.cursym.Func.Text.Mark&LEAF == 0 {
+				if c.cursym.Func.Text.From.Sym.NoSplit() {
+					if ctxt.Debugvlog {
+						ctxt.Logf("save suppressed in: %s\n", c.cursym.Name)
+					}
+
+					c.cursym.Func.Text.Mark |= LEAF
+				}
+			}
+
 			p.To.Offset = int64(autosize) - ctxt.FixedFrameSize()
+
+			if c.cursym.Func.Text.Mark&LEAF != 0 {
+				c.cursym.Set(obj.AttrLeaf, true)
+				if p.From.Sym.NoFrame() {
+					break
+				}
+			}
 
 			if !p.From.Sym.NoSplit() {
 				p = c.stacksplit(p, autosize) // emit split check
@@ -316,22 +356,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REGSP
 				q.Spadj = +autosize
-			} else if c.cursym.Func.Text.Mark&LEAF == 0 {
-				if c.cursym.Func.Text.From.Sym.NoSplit() {
-					if ctxt.Debugvlog {
-						ctxt.Logf("save suppressed in: %s\n", c.cursym.Name)
-					}
-
-					c.cursym.Func.Text.Mark |= LEAF
-				}
 			}
 
-			if c.cursym.Func.Text.Mark&LEAF != 0 {
-				c.cursym.Set(obj.AttrLeaf, true)
-				break
-			}
-
-			if c.cursym.Func.Text.From.Sym.Wrapper() {
+			if c.cursym.Func.Text.From.Sym.Wrapper() && c.cursym.Func.Text.Mark&LEAF == 0 {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
 				//	MOV	g_panic(g), R1
@@ -346,6 +373,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				//
 				// The NOP is needed to give the jumps somewhere to land.
 				// It is a liblink NOP, not an mips NOP: it encodes to 0 instruction bytes.
+				//
+				// We don't generate this for leafs because that means the wrapped
+				// function was inlined into the wrapper.
 
 				q = obj.Appendp(q, newprog)
 
@@ -604,11 +634,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 }
 
 func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
-	// Leaf function with no frame is effectively NOSPLIT.
-	if framesize == 0 {
-		return p
-	}
-
 	var mov, add, sub obj.As
 
 	if c.ctxt.Arch.Family == sys.MIPS64 {
