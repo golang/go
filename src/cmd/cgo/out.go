@@ -272,10 +272,7 @@ func dynimport(obj string) {
 				}
 			}
 		}
-		sym, err := f.ImportedSymbols()
-		if err != nil {
-			fatalf("cannot load imported symbols from ELF file %s: %v", obj, err)
-		}
+		sym, _ := f.ImportedSymbols()
 		for _, s := range sym {
 			targ := s.Name
 			if s.Version != "" {
@@ -283,10 +280,7 @@ func dynimport(obj string) {
 			}
 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s.Name, targ, s.Library)
 		}
-		lib, err := f.ImportedLibraries()
-		if err != nil {
-			fatalf("cannot load imported libraries from ELF file %s: %v", obj, err)
-		}
+		lib, _ := f.ImportedLibraries()
 		for _, l := range lib {
 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic _ _ %q\n", l)
 		}
@@ -294,20 +288,14 @@ func dynimport(obj string) {
 	}
 
 	if f, err := macho.Open(obj); err == nil {
-		sym, err := f.ImportedSymbols()
-		if err != nil {
-			fatalf("cannot load imported symbols from Mach-O file %s: %v", obj, err)
-		}
+		sym, _ := f.ImportedSymbols()
 		for _, s := range sym {
 			if len(s) > 0 && s[0] == '_' {
 				s = s[1:]
 			}
 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s, s, "")
 		}
-		lib, err := f.ImportedLibraries()
-		if err != nil {
-			fatalf("cannot load imported libraries from Mach-O file %s: %v", obj, err)
-		}
+		lib, _ := f.ImportedLibraries()
 		for _, l := range lib {
 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic _ _ %q\n", l)
 		}
@@ -315,10 +303,7 @@ func dynimport(obj string) {
 	}
 
 	if f, err := pe.Open(obj); err == nil {
-		sym, err := f.ImportedSymbols()
-		if err != nil {
-			fatalf("cannot load imported symbols from PE file %s: %v", obj, err)
-		}
+		sym, _ := f.ImportedSymbols()
 		for _, s := range sym {
 			ss := strings.Split(s, ":")
 			name := strings.Split(ss[0], "@")[0]
