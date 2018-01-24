@@ -173,7 +173,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
 // times.
 //
 // The reference implementation in localtime.c from
-// http://www.iana.org/time-zones/repository/releases/tzcode2013g.tar.gz
+// https://www.iana.org/time-zones/repository/releases/tzcode2013g.tar.gz
 // implements the following algorithm for these cases:
 // 1) If the first zone is unused by the transitions, use it.
 // 2) Otherwise, if there are transition times, and the first

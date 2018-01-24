@@ -15,7 +15,7 @@ import (
 // names and numbers for platforms that don't have a complete list of
 // protocol numbers.
 //
-// See http://www.iana.org/assignments/protocol-numbers
+// See https://www.iana.org/assignments/protocol-numbers
 //
 // On Unix, this map is augmented by readProtocols via lookupProtocol.
 var protocols = map[string]int{

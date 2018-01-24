@@ -5,7 +5,7 @@
 package http
 
 // HTTP status codes as registered with IANA.
-// See: http://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
+// See: https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
 const (
 	StatusContinue           = 100 // RFC 7231, 6.2.1
 	StatusSwitchingProtocols = 101 // RFC 7231, 6.2.2
