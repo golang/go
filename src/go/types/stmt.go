@@ -732,7 +732,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if s, _ := s.Post.(*ast.AssignStmt); s != nil && s.Tok == token.DEFINE {
 			check.softErrorf(s.Pos(), "cannot declare in post statement")
 			// Don't call useLHS here because we want to use the lhs in
-			// this errroneous statement so that we don't get errors about
+			// this erroneous statement so that we don't get errors about
 			// these lhs variables being declared but not used.
 			check.use(s.Lhs...) // avoid follow-up errors
 		}
