@@ -91,7 +91,7 @@ const (
 )
 
 // CurveID is the type of a TLS identifier for an elliptic curve. See
-// http://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-8
+// https://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-8
 type CurveID uint16
 
 const (
@@ -102,7 +102,7 @@ const (
 )
 
 // TLS Elliptic Curve Point Formats
-// http://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-9
+// https://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-9
 const (
 	pointFormatUncompressed uint8 = 0
 )
