@@ -1065,6 +1065,12 @@ func (t *tester) cgoTest(dt *distTest) error {
 				t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-ldflags", `-linkmode=external`)
 				if goos != "android" {
 					t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=static", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+					// -static in CGO_LDFLAGS triggers a different code path
+					// than -static in -extldflags, so test both.
+					// See issue #16651.
+					cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=static")
+					cmd.Env = append(os.Environ(), "CGO_LDFLAGS=-static -pthread")
 				}
 			}
 
