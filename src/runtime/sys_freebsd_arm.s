@@ -74,7 +74,7 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
 	RET
 
 // Exit the entire program (like C exit)
-TEXT runtime·exit(SB),NOSPLIT,$-8
+TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVW code+0(FP), R0	// arg 1 exit status
 	MOVW $SYS_exit, R7
 	SWI $0
@@ -99,7 +99,7 @@ storeloop:
 	MOVW.CS	R8, (R8)
 	JMP	0(PC)
 
-TEXT runtime·open(SB),NOSPLIT,$-8
+TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVW name+0(FP), R0	// arg 1 name
 	MOVW mode+4(FP), R1	// arg 2 mode
 	MOVW perm+8(FP), R2	// arg 3 perm
@@ -109,7 +109,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·read(SB),NOSPLIT,$-8
+TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVW fd+0(FP), R0	// arg 1 fd
 	MOVW p+4(FP), R1	// arg 2 buf
 	MOVW n+8(FP), R2	// arg 3 count
@@ -119,7 +119,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$-8
+TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVW fd+0(FP), R0	// arg 1 fd
 	MOVW p+4(FP), R1	// arg 2 buf
 	MOVW n+8(FP), R2	// arg 3 count
@@ -129,7 +129,7 @@ TEXT runtime·write(SB),NOSPLIT,$-8
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·closefd(SB),NOSPLIT,$-8
+TEXT runtime·closefd(SB),NOSPLIT,$-4
 	MOVW fd+0(FP), R0	// arg 1 fd
 	MOVW $SYS_close, R7
 	SWI $0
@@ -137,7 +137,7 @@ TEXT runtime·closefd(SB),NOSPLIT,$-8
 	MOVW	R0, ret+4(FP)
 	RET
 
-TEXT runtime·getrlimit(SB),NOSPLIT,$-8
+TEXT runtime·getrlimit(SB),NOSPLIT,$-4
 	MOVW kind+0(FP), R0
 	MOVW limit+4(FP), R1
 	MOVW $SYS_getrlimit, R7
@@ -168,7 +168,7 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$0
 	SWI $0
 	RET
 
-TEXT runtime·setitimer(SB), NOSPLIT, $-8
+TEXT runtime·setitimer(SB), NOSPLIT, $-4
 	MOVW mode+0(FP), R0
 	MOVW new+4(FP), R1
 	MOVW old+8(FP), R2
@@ -216,7 +216,7 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
 	MOVW R1, ret_hi+4(FP)
 	RET
 
-TEXT runtime·sigaction(SB),NOSPLIT,$-8
+TEXT runtime·sigaction(SB),NOSPLIT,$-4
 	MOVW sig+0(FP), R0		// arg 1 sig
 	MOVW new+4(FP), R1		// arg 2 act
 	MOVW old+8(FP), R2		// arg 3 oact
@@ -283,7 +283,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	// ignore failure - maybe pages are locked
 	RET
 	
-TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+TEXT runtime·sigaltstack(SB),NOSPLIT,$-4
 	MOVW new+0(FP), R0
 	MOVW old+4(FP), R1
 	MOVW $SYS_sigaltstack, R7

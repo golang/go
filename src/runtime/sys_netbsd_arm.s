@@ -33,7 +33,7 @@ storeloop:
 	MOVW R8, (R8)
 	JMP 0(PC)
 
-TEXT runtime·open(SB),NOSPLIT,$-8
+TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVW name+0(FP), R0
 	MOVW mode+4(FP), R1
 	MOVW perm+8(FP), R2
@@ -42,14 +42,14 @@ TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·closefd(SB),NOSPLIT,$-8
+TEXT runtime·closefd(SB),NOSPLIT,$-4
 	MOVW fd+0(FP), R0
 	SWI $0xa00006
 	MOVW.CS	$-1, R0
 	MOVW	R0, ret+4(FP)
 	RET
 
-TEXT runtime·read(SB),NOSPLIT,$-8
+TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVW fd+0(FP), R0
 	MOVW p+4(FP), R1
 	MOVW n+8(FP), R2
