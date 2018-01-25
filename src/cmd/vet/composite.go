@@ -38,7 +38,15 @@ func checkUnkeyedLiteral(f *File, node ast.Node) {
 		// skip whitelisted types
 		return
 	}
-	if _, ok := typ.Underlying().(*types.Struct); !ok {
+	under := typ.Underlying()
+	for {
+		ptr, ok := under.(*types.Pointer)
+		if !ok {
+			break
+		}
+		under = ptr.Elem().Underlying()
+	}
+	if _, ok := under.(*types.Struct); !ok {
 		// skip non-struct composite literals
 		return
 	}
@@ -68,6 +76,10 @@ func isLocalType(f *File, typeName string) bool {
 		// struct literals are local types
 		return true
 	}
+
+	// make *foo.bar, **foo.bar, etc match with the "foo." prefix
+	// below
+	typeName = strings.TrimLeft(typeName, "*")
 
 	pkgname := f.pkg.path
 	if strings.HasPrefix(typeName, pkgname+".") {
