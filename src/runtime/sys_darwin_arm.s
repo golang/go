@@ -79,7 +79,7 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·exit(SB),NOSPLIT,$-4
+TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	MOVW	code+0(FP), R0
 	MOVW	$SYS_exit, R12
 	SWI	$0x80
@@ -334,7 +334,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$12
 	SWI	$0x80
 	RET
 
-TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	B	runtime·armPublicationBarrier(SB)
 
 TEXT runtime·sysctl(SB),NOSPLIT,$0

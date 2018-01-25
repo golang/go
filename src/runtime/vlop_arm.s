@@ -84,7 +84,7 @@ TEXT runtime·_sfloat(SB), NOSPLIT, $68-0 // 4 arg + 14*4 saved regs + cpsr + re
 // load the signal fault address into LR, and jump
 // to the real sigpanic.
 // This simulates what sighandler does for a memory fault.
-TEXT runtime·_sfloatpanic(SB),NOSPLIT,$-4
+TEXT runtime·_sfloatpanic(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$0, R0
 	MOVW.W	R0, -4(R13)
 	MOVW	g_sigpc(g), LR
@@ -102,7 +102,7 @@ TEXT runtime·_sfloatpanic(SB),NOSPLIT,$-4
 #define Ra	R11
 
 // Be careful: Ra == R11 will be used by the linker for synthesized instructions.
-TEXT runtime·udiv(SB),NOSPLIT,$-4
+TEXT runtime·udiv(SB),NOSPLIT|NOFRAME,$0
 	MOVBU	runtime·hardDiv(SB), Ra
 	CMP	$0, Ra
 	BNE	udiv_hardware

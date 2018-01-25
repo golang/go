@@ -4,7 +4,7 @@
 
 #include "textflag.h"
 
-TEXT _rt0_arm_linux(SB),NOSPLIT,$-4
+TEXT _rt0_arm_linux(SB),NOSPLIT|NOFRAME,$0
 	MOVW	(R13), R0	// argc
 	MOVW	$4(R13), R1		// argv
 	MOVW	$_rt0_arm_linux1(SB), R4
@@ -15,7 +15,7 @@ TEXT _rt0_arm_linux(SB),NOSPLIT,$-4
 TEXT _rt0_arm_linux_lib(SB),NOSPLIT,$0
 	B	_rt0_arm_lib(SB)
 
-TEXT _rt0_arm_linux1(SB),NOSPLIT,$-4
+TEXT _rt0_arm_linux1(SB),NOSPLIT|NOFRAME,$0
 	// We first need to detect the kernel ABI, and warn the user
 	// if the system only supports OABI.
 	// The strategy here is to call some EABI syscall to see if

@@ -9,7 +9,7 @@
 TEXT cas<>(SB),NOSPLIT,$0
 	MOVW	$0xffff0fc0, R15 // R15 is PC
 
-TEXT ·RewindAndSetgid(SB),NOSPLIT,$-4-0
+TEXT ·RewindAndSetgid(SB),NOSPLIT|NOFRAME,$0-0
 	// Save link register
 	MOVW	R14, R4
 

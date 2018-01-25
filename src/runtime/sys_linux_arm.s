@@ -106,7 +106,7 @@ TEXT runtime·getrlimit(SB),NOSPLIT,$0
 	MOVW	R0, ret+8(FP)
 	RET
 
-TEXT runtime·exit(SB),NOSPLIT,$-4
+TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	MOVW	code+0(FP), R0
 	MOVW	$SYS_exit_group, R7
 	SWI	$0
@@ -114,7 +114,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVW	$1002, R1
 	MOVW	R0, (R1)	// fail hard
 
-TEXT exit1<>(SB),NOSPLIT,$-4
+TEXT exit1<>(SB),NOSPLIT|NOFRAME,$0
 	MOVW	code+0(FP), R0
 	MOVW	$SYS_exit, R7
 	SWI	$0
@@ -123,7 +123,7 @@ TEXT exit1<>(SB),NOSPLIT,$-4
 	MOVW	R0, (R1)	// fail hard
 
 // func exitThread(wait *uint32)
-TEXT runtime·exitThread(SB),NOSPLIT,$-4-4
+TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	wait+0(FP), R0
 	// We're done using the stack.
 	// Alas, there's no reliable way to make this write atomic
@@ -144,7 +144,7 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	MOVW	R0, ret+0(FP)
 	RET
 
-TEXT	runtime·raise(SB),NOSPLIT,$-4
+TEXT	runtime·raise(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$SYS_gettid, R7
 	SWI	$0
 	// arg 1 tid already in R0 from gettid
@@ -153,7 +153,7 @@ TEXT	runtime·raise(SB),NOSPLIT,$-4
 	SWI	$0
 	RET
 
-TEXT	runtime·raiseproc(SB),NOSPLIT,$-4
+TEXT	runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$SYS_getpid, R7
 	SWI	$0
 	// arg 1 tid already in R0 from getpid
@@ -499,7 +499,7 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	RET
 
 // b __kuser_get_tls @ 0xffff0fe0
-TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$0xffff0fe0, R0
 	B	(R0)
 

@@ -14,7 +14,7 @@
 #define	CLOCK_MONOTONIC	$3
 
 // Exit the entire program (like C exit)
-TEXT runtime·exit(SB),NOSPLIT,$-4
+TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	MOVW	code+0(FP), R0	// arg 1 - status
 	MOVW	$1, R12			// sys_exit
 	SWI	$0
@@ -39,7 +39,7 @@ storeloop:
 	MOVW.CS	R8, (R8)
 	JMP	0(PC)
 
-TEXT runtime·open(SB),NOSPLIT,$-4
+TEXT runtime·open(SB),NOSPLIT|NOFRAME,$0
 	MOVW	name+0(FP), R0		// arg 1 - path
 	MOVW	mode+4(FP), R1		// arg 2 - mode
 	MOVW	perm+8(FP), R2		// arg 3 - perm
@@ -49,7 +49,7 @@ TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·closefd(SB),NOSPLIT,$-4
+TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0
 	MOVW	fd+0(FP), R0		// arg 1 - fd
 	MOVW	$6, R12			// sys_close
 	SWI	$0
@@ -57,7 +57,7 @@ TEXT runtime·closefd(SB),NOSPLIT,$-4
 	MOVW	R0, ret+4(FP)
 	RET
 
-TEXT runtime·read(SB),NOSPLIT,$-4
+TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 	MOVW	fd+0(FP), R0		// arg 1 - fd
 	MOVW	p+4(FP), R1		// arg 2 - buf
 	MOVW	n+8(FP), R2		// arg 3 - nbyte
@@ -67,7 +67,7 @@ TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$-4
+TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0
 	MOVW	fd+0(FP), R0		// arg 1 - fd
 	MOVW	p+4(FP), R1		// arg 2 - buf
 	MOVW	n+8(FP), R2		// arg 3 - nbyte
@@ -376,11 +376,11 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	SWI	$0
 	RET
 
-TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	B	runtime·armPublicationBarrier(SB)
 
 // TODO(jsing): Implement.
-TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$5, R0
 	MOVW	R0, (R0)
 	RET

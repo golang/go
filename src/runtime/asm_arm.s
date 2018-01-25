@@ -11,7 +11,7 @@
 // internal linking. This is the entry point for the program from the
 // kernel for an ordinary -buildmode=exe program. The stack holds the
 // number of arguments and the C-style argv.
-TEXT _rt0_arm(SB),NOSPLIT,$-4
+TEXT _rt0_arm(SB),NOSPLIT|NOFRAME,$0
 	MOVW	(R13), R0	// argc
 	MOVW	$4(R13), R1		// argv
 	B	runtime·rt0_go(SB)
@@ -19,7 +19,7 @@ TEXT _rt0_arm(SB),NOSPLIT,$-4
 // main is common startup code for most ARM systems when using
 // external linking. The C startup code will call the symbol "main"
 // passing argc and argv in the usual C ABI registers R0 and R1.
-TEXT main(SB),NOSPLIT,$-4
+TEXT main(SB),NOSPLIT|NOFRAME,$0
 	B	runtime·rt0_go(SB)
 
 // _rt0_arm_lib is common startup code for most ARM systems when
@@ -106,9 +106,9 @@ GLOBL _rt0_arm_lib_argc<>(SB),NOPTR,$4
 DATA _rt0_arm_lib_argv<>(SB)/4,$0
 GLOBL _rt0_arm_lib_argv<>(SB),NOPTR,$4
 
-// using frame size $-4 means do not save LR on stack.
+// using NOFRAME means do not save LR on stack.
 // argc is in R0, argv is in R1.
-TEXT runtime·rt0_go(SB),NOSPLIT,$-4
+TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$0xcafebabe, R12
 
 	// copy arguments forward on an even stack
@@ -208,7 +208,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 
 // void gosave(Gobuf*)
 // save state in Gobuf; setjmp
-TEXT runtime·gosave(SB),NOSPLIT,$-4-4
+TEXT runtime·gosave(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	buf+0(FP), R0
 	MOVW	R13, gobuf_sp(R0)
 	MOVW	LR, gobuf_pc(R0)
@@ -257,7 +257,7 @@ TEXT runtime·gogo(SB),NOSPLIT,$8-4
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
-TEXT runtime·mcall(SB),NOSPLIT,$-4-4
+TEXT runtime·mcall(SB),NOSPLIT|NOFRAME,$0-4
 	// Save caller state in g->sched.
 	MOVW	R13, (g_sched+gobuf_sp)(g)
 	MOVW	LR, (g_sched+gobuf_pc)(g)
@@ -374,13 +374,13 @@ noswitch:
 // R3 prolog's LR
 // NB. we do not save R0 because we've forced 5c to pass all arguments
 // on the stack.
-// using frame size $-4 means do not save LR on stack.
+// using NOFRAME means do not save LR on stack.
 //
 // The traceback routines see morestack on a g0 as being
 // the top of a stack (for example, morestack calling newstack
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
-TEXT runtime·morestack(SB),NOSPLIT,$-4-0
+TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Cannot grow scheduler stack (m->g0).
 	MOVW	g_m(g), R8
 	MOVW	m_g0(R8), R4
@@ -422,7 +422,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	// is still in this function, and not the beginning of the next.
 	RET
 
-TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
+TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$0, R7
 	B runtime·morestack(SB)
 
@@ -441,7 +441,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
 TEXT reflect·call(SB), NOSPLIT, $0-0
 	B	·reflectcall(SB)
 
-TEXT ·reflectcall(SB),NOSPLIT,$-4-20
+TEXT ·reflectcall(SB),NOSPLIT|NOFRAME,$0-20
 	MOVW	argsize+12(FP), R0
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
@@ -562,7 +562,7 @@ TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
 	B	(R1)
 
 // Save state of caller into g->sched. Smashes R11.
-TEXT gosave<>(SB),NOSPLIT,$-4
+TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
 	MOVW	LR, (g_sched+gobuf_pc)(g)
 	MOVW	R13, (g_sched+gobuf_sp)(g)
 	MOVW	$0, R11
@@ -747,11 +747,11 @@ havem:
 	RET
 
 // void setg(G*); set g. for use by needm.
-TEXT runtime·setg(SB),NOSPLIT,$-4-4
+TEXT runtime·setg(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	gg+0(FP), R0
 	B	setg<>(SB)
 
-TEXT setg<>(SB),NOSPLIT,$-4-0
+TEXT setg<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	R0, g
 
 	// Save g to thread-local storage.
@@ -763,7 +763,7 @@ TEXT setg<>(SB),NOSPLIT,$-4-0
 	MOVW	g, R0
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
+TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	0(R13), R0		// LR saved by caller
 	MOVW	R0, ret+0(FP)
 	RET
@@ -771,7 +771,7 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
 TEXT runtime·emptyfunc(SB),0,$0-0
 	RET
 
-TEXT runtime·abort(SB),NOSPLIT,$-4-0
+TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
 
@@ -781,10 +781,10 @@ TEXT runtime·abort(SB),NOSPLIT,$-4-0
 // To implement publicationBarrier in sys_$GOOS_arm.s using the native
 // instructions, use:
 //
-//	TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+//	TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 //		B	runtime·armPublicationBarrier(SB)
 //
-TEXT runtime·armPublicationBarrier(SB),NOSPLIT,$-4-0
+TEXT runtime·armPublicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	MOVB	runtime·goarm(SB), R11
 	CMP	$7, R11
 	BLT	2(PC)
@@ -792,21 +792,21 @@ TEXT runtime·armPublicationBarrier(SB),NOSPLIT,$-4-0
 	RET
 
 // AES hashing not implemented for ARM
-TEXT runtime·aeshash(SB),NOSPLIT,$-4-0
+TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
-TEXT runtime·aeshash32(SB),NOSPLIT,$-4-0
+TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
-TEXT runtime·aeshash64(SB),NOSPLIT,$-4-0
+TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
-TEXT runtime·aeshashstr(SB),NOSPLIT,$-4-0
+TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
 
 // memequal(p, q unsafe.Pointer, size uintptr) bool
-TEXT runtime·memequal(SB),NOSPLIT,$-4-13
+TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-13
 	MOVW	a+0(FP), R1
 	MOVW	b+4(FP), R2
 	MOVW	size+8(FP), R3
@@ -846,7 +846,7 @@ eq:
 	MOVB	R0, ret+8(FP)
 	RET
 
-TEXT runtime·cmpstring(SB),NOSPLIT,$-4-20
+TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-20
 	MOVW	s1_base+0(FP), R2
 	MOVW	s1_len+4(FP), R0
 	MOVW	s2_base+8(FP), R3
@@ -854,7 +854,7 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$-4-20
 	ADD	$20, R13, R7
 	B	runtime·cmpbody(SB)
 
-TEXT bytes·Compare(SB),NOSPLIT,$-4-28
+TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	s1+0(FP), R2
 	MOVW	s1+4(FP), R0
 	MOVW	s2+12(FP), R3
@@ -871,7 +871,7 @@ TEXT bytes·Compare(SB),NOSPLIT,$-4-28
 //
 // On exit:
 // R4, R5, and R6 are clobbered
-TEXT runtime·cmpbody(SB),NOSPLIT,$-4-0
+TEXT runtime·cmpbody(SB),NOSPLIT|NOFRAME,$0-0
 	CMP	R2, R3
 	BEQ	samebytes
 	CMP 	R0, R1
@@ -981,7 +981,7 @@ TEXT runtime·return0(SB),NOSPLIT,$0
 	MOVW	$0, R0
 	RET
 
-TEXT runtime·procyield(SB),NOSPLIT,$-4
+TEXT runtime·procyield(SB),NOSPLIT|NOFRAME,$0
 	MOVW	cycles+0(FP), R1
 	MOVW	$0, R0
 yieldloop:
@@ -1011,7 +1011,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$8
 
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
-TEXT runtime·goexit(SB),NOSPLIT,$-4-0
+TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	R0, R0	// NOP
 	BL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
