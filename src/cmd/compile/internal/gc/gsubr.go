@@ -188,9 +188,6 @@ func (f *Func) initLSym() {
 	if f.Wrapper() {
 		flag |= obj.WRAPPER
 	}
-	if f.NoFramePointer() {
-		flag |= obj.NOFRAME
-	}
 	if f.Needctxt() {
 		flag |= obj.NEEDCTXT
 	}
