@@ -10,7 +10,7 @@
  * void crosscall2(void (*fn)(void*, int32, uintptr), void*, int32, uintptr)
  * Save registers and call fn with two arguments.
  */
-TEXT crosscall2(SB),NOSPLIT,$-4
+TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	/*
 	 * We still need to save all callee save register as before, and then
 	 *  push 3 args for fn (R5, R6, R7).
