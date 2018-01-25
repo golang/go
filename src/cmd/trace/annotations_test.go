@@ -63,10 +63,12 @@ func TestAnalyzeAnnotations(t *testing.T) {
 	// Run prog0 and capture the execution trace.
 	traceProgram(prog0, "TestAnalyzeAnnotations")
 
-	tasks, err := analyzeAnnotations()
+	res, err := analyzeAnnotations()
 	if err != nil {
 		t.Fatalf("failed to analyzeAnnotations: %v", err)
 	}
+	tasks := res.tasks
+
 	// For prog0, we expect
 	//   - task with name = "task0", with three spans.
 	//   - task with name = "task1", with no span.
@@ -103,6 +105,78 @@ func TestAnalyzeAnnotations(t *testing.T) {
 	}
 }
 
+// prog1 creates a task hierarchy consisting of three tasks.
+func prog1() {
+	ctx := context.Background()
+	ctx1, done1 := trace.NewContext(ctx, "task1")
+	defer done1()
+	trace.WithSpan(ctx1, "task1.span", func(ctx context.Context) {
+		ctx2, done2 := trace.NewContext(ctx, "task2")
+		defer done2()
+		trace.WithSpan(ctx2, "task2.span", func(ctx context.Context) {
+			ctx3, done3 := trace.NewContext(ctx, "task3")
+			defer done3()
+			trace.WithSpan(ctx3, "task3.span", func(ctx context.Context) {
+			})
+		})
+	})
+}
+
+func TestAnalyzeAnnotationTaskTree(t *testing.T) {
+	// Run prog1 and capture the execution trace.
+	traceProgram(prog1, "TestAnalyzeAnnotationTaskTree")
+
+	res, err := analyzeAnnotations()
+	if err != nil {
+		t.Fatalf("failed to analyzeAnnotation: %v", err)
+	}
+	tasks := res.tasks
+
+	// For prog0, we expect
+	//   - task with name = "", with taskless.span in spans.
+	//   - task with name = "task0", with three spans.
+	wantTasks := map[string]struct {
+		parent   string
+		children []string
+		spans    []string
+	}{
+		"task1": {
+			parent:   "",
+			children: []string{"task2"},
+			spans:    []string{"task1.span"},
+		},
+		"task2": {
+			parent:   "task1",
+			children: []string{"task3"},
+			spans:    []string{"task2.span"},
+		},
+		"task3": {
+			parent:   "task2",
+			children: nil,
+			spans:    []string{"task3.span"},
+		},
+	}
+
+	for _, task := range tasks {
+		want, ok := wantTasks[task.name]
+		if !ok {
+			t.Errorf("unexpected task: %s", task)
+			continue
+		}
+		delete(wantTasks, task.name)
+
+		if parentName(task) != want.parent ||
+			!reflect.DeepEqual(childrenNames(task), want.children) ||
+			!reflect.DeepEqual(spanNames(task), want.spans) {
+			t.Errorf("got %v; want %+v", task, want)
+		}
+	}
+
+	if len(wantTasks) > 0 {
+		t.Errorf("no more tasks; want %+v", wantTasks)
+	}
+}
+
 // traceProgram runs the provided function while tracing is enabled,
 // parses the captured trace, and sets the global trace loader to
 // point to the parsed trace.
@@ -128,6 +202,20 @@ func traceProgram(f func(), name string) error {
 
 func spanNames(task *taskDesc) (ret []string) {
 	for _, s := range task.spans {
+		ret = append(ret, s.name)
+	}
+	return ret
+}
+
+func parentName(task *taskDesc) string {
+	if task.parent != nil {
+		return task.parent.name
+	}
+	return ""
+}
+
+func childrenNames(task *taskDesc) (ret []string) {
+	for _, s := range task.children {
 		ret = append(ret, s.name)
 	}
 	return ret
