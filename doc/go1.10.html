@@ -814,6 +814,13 @@ formats the X.509 distinguished name in the standard RFC 2253 format.
 <dl id="database/sql/driver"><dt><a href="/pkg/database/sql/driver/">database/sql/driver</a></dt>
 <dd>
 <p>
+Drivers that currently hold on to the destination buffer provdied by
+<a href="/pkg/database/sql/driver/#Rows.Next"><code>driver.Rows.Next</code></a> should ensure they no longer
+write to a buffer assignedd to the destination array outside of that call.
+Drivers must be careful that underlying buffers are not modified when closing
+<a href="/pkg/database/sql/driver/#Rows"><code>driver.Rows</code></a>.
+</p>
+<p>
 Drivers that want to construct a <a href="/pkg/database/sql/#DB"><code>sql.DB</code></a> for
 their clients can now implement the <a href="/pkg/database/sql/driver/#Connector"><code>Connector</code></a> interface
 and call the new <a href="/pkg/database/sql/#OpenDB"><code>sql.OpenDB</code></a> function,
