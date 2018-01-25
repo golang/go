@@ -300,7 +300,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
 	// is still in this function, and not the beginning of the next.
 	UNDEF
 
-TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
+TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
 	MOVW	$0, R26
 	B runtime·morestack(SB)
 
@@ -745,7 +745,7 @@ eq:
 	MOVB	R3, ret+16(FP)
 	RET
 
-TEXT runtime·cmpstring(SB),NOSPLIT,$-4-40
+TEXT runtime·cmpstring(SB),NOSPLIT,$-8-40
 	MOVD	s1_base+0(FP), R2
 	MOVD	s1_len+8(FP), R0
 	MOVD	s2_base+16(FP), R3
@@ -753,7 +753,7 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$-4-40
 	ADD	$40, RSP, R7
 	B	runtime·cmpbody<>(SB)
 
-TEXT bytes·Compare(SB),NOSPLIT,$-4-56
+TEXT bytes·Compare(SB),NOSPLIT,$-8-56
 	MOVD	s1+0(FP), R2
 	MOVD	s1+8(FP), R0
 	MOVD	s2+24(FP), R3
@@ -770,7 +770,7 @@ TEXT bytes·Compare(SB),NOSPLIT,$-4-56
 //
 // On exit:
 // R4, R5, and R6 are clobbered
-TEXT runtime·cmpbody<>(SB),NOSPLIT,$-4-0
+TEXT runtime·cmpbody<>(SB),NOSPLIT,$-8-0
 	CMP	R2, R3
 	BEQ	samebytes // same starting pointers; compare lengths
 	CMP	R0, R1
