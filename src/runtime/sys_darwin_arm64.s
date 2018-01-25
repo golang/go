@@ -79,7 +79,7 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVW	R0, ret+24(FP)
 	RET
 
-TEXT runtime·exit(SB),NOSPLIT,$-8
+TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	MOVW	code+0(FP), R0
 	MOVW	$SYS_exit, R16
 	SVC	$0x80

@@ -90,11 +90,11 @@ nocgo:
 DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$8
 
-TEXT runtime·breakpoint(SB),NOSPLIT,$-8-0
+TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
 	BRK
 	RET
 
-TEXT runtime·asminit(SB),NOSPLIT,$-8-0
+TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 	RET
 
 /*
@@ -103,7 +103,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$-8-0
 
 // void gosave(Gobuf*)
 // save state in Gobuf; setjmp
-TEXT runtime·gosave(SB), NOSPLIT, $-8-8
+TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
 	MOVD	buf+0(FP), R3
 	MOVD	RSP, R0
 	MOVD	R0, gobuf_sp(R3)
@@ -143,7 +143,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $24-8
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
-TEXT runtime·mcall(SB), NOSPLIT, $-8-8
+TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
 	// Save caller state in g->sched
 	MOVD	RSP, R0
 	MOVD	R0, (g_sched+gobuf_sp)(g)
@@ -257,7 +257,7 @@ noswitch:
 // the top of a stack (for example, morestack calling newstack
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
-TEXT runtime·morestack(SB),NOSPLIT,$-8-0
+TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Cannot grow scheduler stack (m->g0).
 	MOVD	g_m(g), R8
 	MOVD	m_g0(R8), R4
@@ -300,7 +300,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
 	// is still in this function, and not the beginning of the next.
 	UNDEF
 
-TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
+TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$0, R26
 	B runtime·morestack(SB)
 
@@ -321,7 +321,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
 TEXT reflect·call(SB), NOSPLIT, $0-0
 	B	·reflectcall(SB)
 
-TEXT ·reflectcall(SB), NOSPLIT, $-8-32
+TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	MOVWU argsize+24(FP), R16
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
@@ -436,16 +436,16 @@ CALLFN(·call536870912, 536870920 )
 CALLFN(·call1073741824, 1073741832 )
 
 // AES hashing not implemented for ARM64, issue #10109.
-TEXT runtime·aeshash(SB),NOSPLIT,$-8-0
+TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
-TEXT runtime·aeshash32(SB),NOSPLIT,$-8-0
+TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
-TEXT runtime·aeshash64(SB),NOSPLIT,$-8-0
+TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
-TEXT runtime·aeshashstr(SB),NOSPLIT,$-8-0
+TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
 	
@@ -462,7 +462,7 @@ again:
 // 1. grab stored LR for caller
 // 2. sub 4 bytes to get back to BL deferreturn
 // 3. BR to fn
-TEXT runtime·jmpdefer(SB), NOSPLIT, $-8-16
+TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
 	MOVD	0(RSP), R0
 	SUB	$4, R0
 	MOVD	R0, LR
@@ -475,7 +475,7 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $-8-16
 	B	(R3)
 
 // Save state of caller into g->sched. Smashes R0.
-TEXT gosave<>(SB),NOSPLIT,$-8
+TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	LR, (g_sched+gobuf_pc)(g)
 	MOVD RSP, R0
 	MOVD	R0, (g_sched+gobuf_sp)(g)
@@ -703,17 +703,17 @@ TEXT setg_gcc<>(SB),NOSPLIT,$8
 	MOVD	savedR27-8(SP), R27
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$-8-8
+TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
 	MOVD	0(RSP), R0		// LR saved by caller
 	MOVD	R0, ret+0(FP)
 	RET
 
-TEXT runtime·abort(SB),NOSPLIT,$-8-0
+TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
 	B	(ZR)
 	UNDEF
 
 // memequal(a, b unsafe.Pointer, size uintptr) bool
-TEXT runtime·memequal(SB),NOSPLIT,$-8-25
+TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
 	MOVD	size+16(FP), R1
 	// short path to handle 0-byte case
 	CBZ	R1, equal
@@ -745,7 +745,7 @@ eq:
 	MOVB	R3, ret+16(FP)
 	RET
 
-TEXT runtime·cmpstring(SB),NOSPLIT,$-8-40
+TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
 	MOVD	s1_base+0(FP), R2
 	MOVD	s1_len+8(FP), R0
 	MOVD	s2_base+16(FP), R3
@@ -753,7 +753,7 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$-8-40
 	ADD	$40, RSP, R7
 	B	runtime·cmpbody<>(SB)
 
-TEXT bytes·Compare(SB),NOSPLIT,$-8-56
+TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
 	MOVD	s1+0(FP), R2
 	MOVD	s1+8(FP), R0
 	MOVD	s2+24(FP), R3
@@ -770,7 +770,7 @@ TEXT bytes·Compare(SB),NOSPLIT,$-8-56
 //
 // On exit:
 // R4, R5, and R6 are clobbered
-TEXT runtime·cmpbody<>(SB),NOSPLIT,$-8-0
+TEXT runtime·cmpbody<>(SB),NOSPLIT|NOFRAME,$0-0
 	CMP	R2, R3
 	BEQ	samebytes // same starting pointers; compare lengths
 	CMP	R0, R1
@@ -1033,7 +1033,7 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
-TEXT runtime·goexit(SB),NOSPLIT,$-8-0
+TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R0, R0	// NOP
 	BL	runtime·goexit1(SB)	// does not return
 

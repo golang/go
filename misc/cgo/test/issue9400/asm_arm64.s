@@ -6,7 +6,7 @@
 
 #include "textflag.h"
 
-TEXT ·RewindAndSetgid(SB),NOSPLIT,$-8-0
+TEXT ·RewindAndSetgid(SB),NOSPLIT|NOFRAME,$0-0
 	// Save link register
 	MOVD	R30, R9
 

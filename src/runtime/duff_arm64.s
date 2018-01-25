@@ -4,7 +4,7 @@
 
 #include "textflag.h"
 
-TEXT runtime·duffzero(SB), NOSPLIT, $-8-0
+TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
 	STP.P	(ZR, ZR), 16(R16)
 	STP.P	(ZR, ZR), 16(R16)
 	STP.P	(ZR, ZR), 16(R16)

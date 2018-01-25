@@ -48,14 +48,14 @@
 #define SYS_connect		203
 #define SYS_brk			214
 
-TEXT runtime·exit(SB),NOSPLIT,$-8-4
+TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	code+0(FP), R0
 	MOVD	$SYS_exit_group, R8
 	SVC
 	RET
 
 // func exitThread(wait *uint32)
-TEXT runtime·exitThread(SB),NOSPLIT,$-8-8
+TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
 	MOVD	wait+0(FP), R0
 	// We're done using the stack.
 	MOVW	$0, R1
@@ -65,7 +65,7 @@ TEXT runtime·exitThread(SB),NOSPLIT,$-8-8
 	SVC
 	JMP	0(PC)
 
-TEXT runtime·open(SB),NOSPLIT,$-8-20
+TEXT runtime·open(SB),NOSPLIT|NOFRAME,$0-20
 	MOVD	$AT_FDCWD, R0
 	MOVD	name+0(FP), R1
 	MOVW	mode+8(FP), R2
@@ -79,7 +79,7 @@ done:
 	MOVW	R0, ret+16(FP)
 	RET
 
-TEXT runtime·closefd(SB),NOSPLIT,$-8-12
+TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0-12
 	MOVW	fd+0(FP), R0
 	MOVD	$SYS_close, R8
 	SVC
@@ -90,7 +90,7 @@ done:
 	MOVW	R0, ret+8(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$-8-28
+TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0-28
 	MOVD	fd+0(FP), R0
 	MOVD	p+8(FP), R1
 	MOVW	n+16(FP), R2
@@ -103,7 +103,7 @@ done:
 	MOVW	R0, ret+24(FP)
 	RET
 
-TEXT runtime·read(SB),NOSPLIT,$-8-28
+TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	fd+0(FP), R0
 	MOVD	p+8(FP), R1
 	MOVW	n+16(FP), R2
@@ -116,7 +116,7 @@ done:
 	MOVW	R0, ret+24(FP)
 	RET
 
-TEXT runtime·getrlimit(SB),NOSPLIT,$-8-20
+TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0-20
 	MOVW	kind+0(FP), R0
 	MOVD	limit+8(FP), R1
 	MOVD	$SYS_getrlimit, R8
@@ -153,7 +153,7 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	MOVW	R0, ret+0(FP)
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$-8
+TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$SYS_gettid, R8
 	SVC
 	MOVW	R0, R0	// arg 1 tid
@@ -162,7 +162,7 @@ TEXT runtime·raise(SB),NOSPLIT,$-8
 	SVC
 	RET
 
-TEXT runtime·raiseproc(SB),NOSPLIT,$-8
+TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$SYS_getpid, R8
 	SVC
 	MOVW	R0, R0		// arg 1 pid
@@ -171,7 +171,7 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$-8
 	SVC
 	RET
 
-TEXT runtime·setitimer(SB),NOSPLIT,$-8-24
+TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	MOVW	mode+0(FP), R0
 	MOVD	new+8(FP), R1
 	MOVD	old+16(FP), R2
@@ -179,7 +179,7 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8-24
 	SVC
 	RET
 
-TEXT runtime·mincore(SB),NOSPLIT,$-8-28
+TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVD	addr+0(FP), R0
 	MOVD	n+8(FP), R1
 	MOVD	dst+16(FP), R2
@@ -215,7 +215,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$24-8
 	MOVD	R3, ret+0(FP)
 	RET
 
-TEXT runtime·rtsigprocmask(SB),NOSPLIT,$-8-28
+TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	how+0(FP), R0
 	MOVD	new+8(FP), R1
 	MOVD	old+16(FP), R2
@@ -229,7 +229,7 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$-8-28
 done:
 	RET
 
-TEXT runtime·rt_sigaction(SB),NOSPLIT,$-8-36
+TEXT runtime·rt_sigaction(SB),NOSPLIT|NOFRAME,$0-36
 	MOVD	sig+0(FP), R0
 	MOVD	new+8(FP), R1
 	MOVD	old+16(FP), R2
@@ -267,7 +267,7 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 	MOVD	$runtime·sigtramp(SB), R3
 	B	(R3)
 
-TEXT runtime·mmap(SB),NOSPLIT,$-8
+TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0
 	MOVD	addr+0(FP), R0
 	MOVD	n+8(FP), R1
 	MOVW	prot+16(FP), R2
@@ -288,7 +288,7 @@ ok:
 	MOVD	$0, err+40(FP)
 	RET
 
-TEXT runtime·munmap(SB),NOSPLIT,$-8
+TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
 	MOVD	addr+0(FP), R0
 	MOVD	n+8(FP), R1
 	MOVD	$SYS_munmap, R8
@@ -299,7 +299,7 @@ TEXT runtime·munmap(SB),NOSPLIT,$-8
 cool:
 	RET
 
-TEXT runtime·madvise(SB),NOSPLIT,$-8
+TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
 	MOVD	addr+0(FP), R0
 	MOVD	n+8(FP), R1
 	MOVW	flags+16(FP), R2
@@ -310,7 +310,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$-8
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,
 //	struct timespec *timeout, int32 *uaddr2, int32 val2);
-TEXT runtime·futex(SB),NOSPLIT,$-8
+TEXT runtime·futex(SB),NOSPLIT|NOFRAME,$0
 	MOVD	addr+0(FP), R0
 	MOVW	op+8(FP), R1
 	MOVW	val+12(FP), R2
@@ -323,7 +323,7 @@ TEXT runtime·futex(SB),NOSPLIT,$-8
 	RET
 
 // int64 clone(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
-TEXT runtime·clone(SB),NOSPLIT,$-8
+TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0
 	MOVW	flags+0(FP), R0
 	MOVD	stk+8(FP), R1
 
@@ -391,7 +391,7 @@ again:
 	SVC
 	B	again	// keep exiting
 
-TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+TEXT runtime·sigaltstack(SB),NOSPLIT|NOFRAME,$0
 	MOVD	new+0(FP), R0
 	MOVD	old+8(FP), R1
 	MOVD	$SYS_sigaltstack, R8
@@ -403,12 +403,12 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 ok:
 	RET
 
-TEXT runtime·osyield(SB),NOSPLIT,$-8
+TEXT runtime·osyield(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$SYS_sched_yield, R8
 	SVC
 	RET
 
-TEXT runtime·sched_getaffinity(SB),NOSPLIT,$-8
+TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
 	MOVD	pid+0(FP), R0
 	MOVD	len+8(FP), R1
 	MOVD	buf+16(FP), R2
@@ -418,7 +418,7 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$-8
 	RET
 
 // int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),NOSPLIT,$-8
+TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$0, R0
 	MOVD	$SYS_epoll_create1, R8
 	SVC
@@ -426,7 +426,7 @@ TEXT runtime·epollcreate(SB),NOSPLIT,$-8
 	RET
 
 // int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),NOSPLIT,$-8
+TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
 	MOVW	flags+0(FP), R0
 	MOVD	$SYS_epoll_create1, R8
 	SVC
@@ -434,7 +434,7 @@ TEXT runtime·epollcreate1(SB),NOSPLIT,$-8
 	RET
 
 // func epollctl(epfd, op, fd int32, ev *epollEvent) int
-TEXT runtime·epollctl(SB),NOSPLIT,$-8
+TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
 	MOVW	epfd+0(FP), R0
 	MOVW	op+4(FP), R1
 	MOVW	fd+8(FP), R2
@@ -445,7 +445,7 @@ TEXT runtime·epollctl(SB),NOSPLIT,$-8
 	RET
 
 // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),NOSPLIT,$-8
+TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
 	MOVW	epfd+0(FP), R0
 	MOVD	ev+8(FP), R1
 	MOVW	nev+16(FP), R2
@@ -457,7 +457,7 @@ TEXT runtime·epollwait(SB),NOSPLIT,$-8
 	RET
 
 // void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT,$-8
+TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
 	MOVW	fd+0(FP), R0  // fd
 	MOVD	$2, R1	// F_SETFD
 	MOVD	$1, R2	// FD_CLOEXEC
