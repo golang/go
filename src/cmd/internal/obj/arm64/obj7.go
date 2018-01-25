@@ -552,6 +552,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				c.cursym.Func.Text.Mark |= LEAF
 			}
 
+			if c.cursym.Func.Text.Mark&LEAF != 0 {
+				c.cursym.Set(obj.AttrLeaf, true)
+				if c.autosize == 0 {
+					break
+				}
+			}
+
 			if !p.From.Sym.NoSplit() {
 				p = c.stacksplit(p, c.autosize) // emit split check
 			}
@@ -559,12 +566,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			aoffset = c.autosize
 			if aoffset > 0xF0 {
 				aoffset = 0xF0
-			}
-			if c.cursym.Func.Text.Mark&LEAF != 0 {
-				c.cursym.Set(obj.AttrLeaf, true)
-				if c.autosize == 0 {
-					break
-				}
 			}
 
 			// Frame is non-empty. Make sure to save link register, even if
