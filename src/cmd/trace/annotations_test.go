@@ -8,9 +8,11 @@ import (
 	traceparser "internal/trace"
 	"io/ioutil"
 	"reflect"
+	"runtime/debug"
 	"runtime/trace"
 	"sync"
 	"testing"
+	"time"
 )
 
 var saveTraces = flag.Bool("savetraces", false, "save traces collected by tests")
@@ -128,7 +130,7 @@ func TestAnalyzeAnnotationTaskTree(t *testing.T) {
 
 	res, err := analyzeAnnotations()
 	if err != nil {
-		t.Fatalf("failed to analyzeAnnotation: %v", err)
+		t.Fatalf("failed to analyzeAnnotations: %v", err)
 	}
 	tasks := res.tasks
 
@@ -174,6 +176,77 @@ func TestAnalyzeAnnotationTaskTree(t *testing.T) {
 
 	if len(wantTasks) > 0 {
 		t.Errorf("no more tasks; want %+v", wantTasks)
+	}
+}
+
+// prog2 starts two tasks; "taskWithGC" that overlaps with GC
+// and "taskWithoutGC" that doesn't. In order to run this reliably,
+// the caller needs to set up to prevent GC from running automatically.
+// prog2 returns the upper-bound gc time that overlaps with the first task.
+func prog2() (gcTime time.Duration) {
+	ch := make(chan bool)
+	ctx1, done := trace.NewContext(context.Background(), "taskWithGC")
+	trace.WithSpan(ctx1, "taskWithGC.span1", func(ctx context.Context) {
+		go func() {
+			defer trace.StartSpan(ctx, "taskWithGC.span2")()
+			<-ch
+		}()
+		s := time.Now()
+		debug.FreeOSMemory() // task1 affected by gc
+		gcTime = time.Since(s)
+		close(ch)
+	})
+	done()
+
+	ctx2, done2 := trace.NewContext(context.Background(), "taskWithoutGC")
+	trace.WithSpan(ctx2, "taskWithoutGC.span1", func(ctx context.Context) {
+		// do nothing.
+	})
+	done2()
+	return gcTime
+}
+
+func TestAnalyzeAnnotationGC(t *testing.T) {
+	var gcTime time.Duration
+	traceProgram(func() {
+		oldGC := debug.SetGCPercent(10000) // gc, and effectively disable GC
+		defer debug.SetGCPercent(oldGC)
+
+		gcTime = prog2()
+	}, "TestAnalyzeAnnotationGC")
+
+	res, err := analyzeAnnotations()
+	if err != nil {
+		t.Fatalf("failed to analyzeAnnotations: %v", err)
+	}
+
+	// Check collected GC Start events are all sorted and non-overlapping.
+	lastTS := int64(0)
+	for i, ev := range res.gcEvents {
+		if ev.Type != traceparser.EvGCStart {
+			t.Errorf("unwanted event in gcEvents: %v", ev)
+		}
+		if i > 0 && lastTS > ev.Ts {
+			t.Errorf("overlapping GC events:\n%d: %v\n%d: %v", i-1, res.gcEvents[i-1], i, res.gcEvents[i])
+		}
+		if ev.Link != nil {
+			lastTS = ev.Link.Ts
+		}
+	}
+
+	// Check whether only taskWithGC reports overlapping duration.
+	for _, task := range res.tasks {
+		got := task.overlappingGCDuration(res.gcEvents)
+		switch task.name {
+		case "taskWithGC":
+			if got <= 0 || got >= gcTime {
+				t.Errorf("%s reported %v as overlapping GC time; want (0, %v): %v", task.name, got, gcTime, task)
+			}
+		case "taskWithoutGC":
+			if got != 0 {
+				t.Errorf("%s reported %v as overlapping GC time; want 0: %v", task.name, got, task)
+			}
+		}
 	}
 }
 

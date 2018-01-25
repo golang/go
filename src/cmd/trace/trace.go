@@ -710,6 +710,19 @@ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
 		Stack:    ctx.stack(ev.Stk),
 		EndStack: ctx.stack(ev.Link.Stk),
 	}
+	// grey out non-overlapping events if the event is not a global event (ev.G == 0)
+	if ctx.mode == taskTraceview && ev.G != 0 {
+		overlapping := false
+		for _, task := range ctx.tasks {
+			if _, overlapped := task.overlappingDuration(ev); overlapped {
+				overlapping = true
+				break
+			}
+		}
+		if !overlapping {
+			sl.Cname = "grey"
+		}
+	}
 	ctx.emit(sl)
 	return sl
 }
