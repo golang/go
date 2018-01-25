@@ -917,6 +917,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		if autoffset != 0 {
+			to := p.To // Keep To attached to RET for retjmp below
+			p.To = obj.Addr{}
 			if bpsize > 0 {
 				// Restore caller's BP
 				p.As = AMOVQ
@@ -936,6 +938,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.Spadj = -autoffset
 			p = obj.Appendp(p, newprog)
 			p.As = obj.ARET
+			p.To = to
 
 			// If there are instructions following
 			// this ARET, they come from a branch
