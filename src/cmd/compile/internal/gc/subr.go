@@ -1759,8 +1759,6 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 		as.Right.Type = rcvr
 		fn.Nbody.Append(as)
 		fn.Nbody.Append(nodSym(ORETJMP, nil, methodsym(method.Sym, methodrcvr, false)))
-		// When tail-calling, we can't use a frame pointer.
-		fn.Func.SetNoFramePointer(true)
 	} else {
 		fn.Func.SetWrapper(true) // ignore frame for panic+recover matching
 		call := nod(OCALL, dot, nil)
