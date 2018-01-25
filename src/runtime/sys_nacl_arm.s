@@ -315,8 +315,8 @@ TEXT runtime·getRandomData(SB),NOSPLIT,$0-12
 	RET
 
 // Likewise, this is only valid for ARMv7+, but that's okay.
-TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	B	runtime·armPublicationBarrier(SB)
 
-TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
 	WORD $0xe7fedef0 // NACL_INSTR_ARM_ABORT_NOW (UDF #0xEDE0)
