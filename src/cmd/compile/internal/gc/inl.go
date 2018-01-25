@@ -314,11 +314,17 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		}
 
 	// Things that are too hairy, irrespective of the budget
-	case OCALL, OCALLINTER, OPANIC, ORECOVER:
+	case OCALL, OCALLINTER, OPANIC:
 		if Debug['l'] < 4 {
 			v.reason = "non-leaf op " + n.Op.String()
 			return true
 		}
+
+	case ORECOVER:
+		// recover matches the argument frame pointer to find
+		// the right panic value, so it needs an argument frame.
+		v.reason = "call to recover"
+		return true
 
 	case OCLOSURE,
 		OCALLPART,
