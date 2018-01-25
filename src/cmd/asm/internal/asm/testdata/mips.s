@@ -423,6 +423,8 @@ label4:
 	JMP	foo(SB)
 	CALL	foo(SB)
 
+	NEGW	R1, R2 // 00011023
+
 	// END
 	//
 	//	LEND	comma // asm doesn't support the trailing comma.

@@ -92,6 +92,8 @@ var optab = []Optab{
 	{AADDV, C_REG, C_NONE, C_REG, 2, 4, 0, sys.MIPS64},
 	{AAND, C_REG, C_NONE, C_REG, 2, 4, 0, 0},
 	{ACMOVN, C_REG, C_REG, C_REG, 2, 4, 0, 0},
+	{ANEGW, C_REG, C_NONE, C_REG, 2, 4, 0, 0},
+	{ANEGV, C_REG, C_NONE, C_REG, 2, 4, 0, sys.MIPS64},
 
 	{ASLL, C_REG, C_NONE, C_REG, 9, 4, 0, 0},
 	{ASLL, C_REG, C_REG, C_REG, 9, 4, 0, 0},
@@ -740,7 +742,8 @@ func (c *ctxt0) oplook(p *obj.Prog) *Optab {
 	if ops == nil {
 		ops = optab
 	}
-	return &ops[0]
+	// Turn illegal instruction into an UNDEF, avoid crashing in asmout.
+	return &Optab{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0}
 }
 
 func cmp(a int, b int) bool {
@@ -1021,6 +1024,8 @@ func buildop(ctxt *obj.Link) {
 			ALLV,
 			ASC,
 			ASCV,
+			ANEGW,
+			ANEGV,
 			AWORD,
 			obj.ANOP,
 			obj.ATEXT,
@@ -1126,7 +1131,9 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 2: /* add/sub r1,[r2],r3 */
 		r := int(p.Reg)
-
+		if p.As == ANEGW || p.As == ANEGV {
+			r = REGZERO
+		}
 		if r == 0 {
 			r = int(p.To.Reg)
 		}
@@ -1626,7 +1633,7 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return OP(4, 6)
 	case ASUB:
 		return OP(4, 2)
-	case ASUBU:
+	case ASUBU, ANEGW:
 		return OP(4, 3)
 	case ANOR:
 		return OP(4, 7)
@@ -1648,7 +1655,7 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return OP(5, 5)
 	case ASUBV:
 		return OP(5, 6)
-	case ASUBVU:
+	case ASUBVU, ANEGV:
 		return OP(5, 7)
 	case AREM,
 		ADIV:

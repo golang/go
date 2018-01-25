@@ -324,6 +324,7 @@ const (
 	ANEGD
 	ANEGF
 	ANEGW
+	ANEGV
 	ANOOP // hardware nop
 	ANOR
 	AOR
