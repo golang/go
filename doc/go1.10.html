@@ -277,9 +277,9 @@ Go structs and Go arrays are not supported in the type signatures of cgo-exporte
 <p>
 Cgo now supports direct access to Go string values from C.
 Functions in the C preamble may use the type <code>_GoString_</code>
-to accept a Go string as an argument. 
+to accept a Go string as an argument.
 C code may call <code>_GoStringLen</code> and <code>_GoStringPtr</code>
-for direct access to the contents of the string. 
+for direct access to the contents of the string.
 A value of type <code>_GoString_</code>
 may be passed in a call to an exported Go function that takes an argument of Go type <code>string</code>.
 </p>
@@ -816,7 +816,7 @@ formats the X.509 distinguished name in the standard RFC 2253 format.
 <p>
 Drivers that currently hold on to the destination buffer provdied by
 <a href="/pkg/database/sql/driver/#Rows.Next"><code>driver.Rows.Next</code></a> should ensure they no longer
-write to a buffer assignedd to the destination array outside of that call.
+write to a buffer assigned to the destination array outside of that call.
 Drivers must be careful that underlying buffers are not modified when closing
 <a href="/pkg/database/sql/driver/#Rows"><code>driver.Rows</code></a>.
 </p>
