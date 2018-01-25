@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	base             = "https://storage.googleapis.com/golang/getgo/"
+	base             = "https://dl.google.com/go/getgo/"
 	windowsInstaller = base + "installer.exe"
 	linuxInstaller   = base + "installer_linux"
 	macInstaller     = base + "installer_darwin"
