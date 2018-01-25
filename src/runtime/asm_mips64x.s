@@ -78,11 +78,11 @@ nocgo:
 DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$8
 
-TEXT runtime·breakpoint(SB),NOSPLIT,$-8-0
+TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
 	MOVV	R0, 2(R0) // TODO: TD
 	RET
 
-TEXT runtime·asminit(SB),NOSPLIT,$-8-0
+TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 	RET
 
 /*
@@ -91,7 +91,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$-8-0
 
 // void gosave(Gobuf*)
 // save state in Gobuf; setjmp
-TEXT runtime·gosave(SB), NOSPLIT, $-8-8
+TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
 	MOVV	buf+0(FP), R1
 	MOVV	R29, gobuf_sp(R1)
 	MOVV	R31, gobuf_pc(R1)
@@ -127,7 +127,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $16-8
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
-TEXT runtime·mcall(SB), NOSPLIT, $-8-8
+TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
 	// Save caller state in g->sched
 	MOVV	R29, (g_sched+gobuf_sp)(g)
 	MOVV	R31, (g_sched+gobuf_pc)(g)
@@ -233,7 +233,7 @@ noswitch:
 // the top of a stack (for example, morestack calling newstack
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
-TEXT runtime·morestack(SB),NOSPLIT,$-8-0
+TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Cannot grow scheduler stack (m->g0).
 	MOVV	g_m(g), R7
 	MOVV	m_g0(R7), R8
@@ -273,7 +273,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
 	// is still in this function, and not the beginning of the next.
 	UNDEF
 
-TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
+TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVV	R0, REGCTXT
 	JMP	runtime·morestack(SB)
 
@@ -294,7 +294,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
 TEXT reflect·call(SB), NOSPLIT, $0-0
 	JMP	·reflectcall(SB)
 
-TEXT ·reflectcall(SB), NOSPLIT, $-8-32
+TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	MOVWU argsize+24(FP), R1
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
@@ -405,7 +405,7 @@ TEXT runtime·procyield(SB),NOSPLIT,$0-0
 // 1. grab stored LR for caller
 // 2. sub 8 bytes to get back to JAL deferreturn
 // 3. JMP to fn
-TEXT runtime·jmpdefer(SB), NOSPLIT, $-8-16
+TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
 	MOVV	0(R29), R31
 	ADDV	$-8, R31
 
@@ -417,7 +417,7 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $-8-16
 	JMP	(R4)
 
 // Save state of caller into g->sched. Smashes R1.
-TEXT gosave<>(SB),NOSPLIT,$-8
+TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
 	MOVV	R31, (g_sched+gobuf_pc)(g)
 	MOVV	R29, (g_sched+gobuf_sp)(g)
 	MOVV	R0, (g_sched+gobuf_lr)(g)
@@ -607,27 +607,27 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
 	JAL	runtime·save_g(SB)
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$-8-8
+TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
 	MOVV	0(R29), R1		// LR saved by caller
 	MOVV	R1, ret+0(FP)
 	RET
 
-TEXT runtime·abort(SB),NOSPLIT,$-8-0
+TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R0
 	UNDEF
 
 // AES hashing not implemented for mips64
-TEXT runtime·aeshash(SB),NOSPLIT,$-8-0
+TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R1
-TEXT runtime·aeshash32(SB),NOSPLIT,$-8-0
+TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R1
-TEXT runtime·aeshash64(SB),NOSPLIT,$-8-0
+TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R1
-TEXT runtime·aeshashstr(SB),NOSPLIT,$-8-0
+TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R1
 
 // memequal(p, q unsafe.Pointer, size uintptr) bool
-TEXT runtime·memequal(SB),NOSPLIT,$-8-25
+TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
 	MOVV	a+0(FP), R1
 	MOVV	b+8(FP), R2
 	BEQ	R1, R2, eq
@@ -766,7 +766,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$16
 
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
-TEXT runtime·goexit(SB),NOSPLIT,$-8-0
+TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
 	NOR	R0, R0	// NOP
 	JAL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit

@@ -92,7 +92,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 
 // void gosave(Gobuf*)
 // save state in Gobuf; setjmp
-TEXT runtime·gosave(SB),NOSPLIT,$-4-4
+TEXT runtime·gosave(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	buf+0(FP), R1
 	MOVW	R29, gobuf_sp(R1)
 	MOVW	R31, gobuf_pc(R1)
@@ -128,7 +128,7 @@ TEXT runtime·gogo(SB),NOSPLIT,$8-4
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
-TEXT runtime·mcall(SB),NOSPLIT,$-4-4
+TEXT runtime·mcall(SB),NOSPLIT|NOFRAME,$0-4
 	// Save caller state in g->sched
 	MOVW	R29, (g_sched+gobuf_sp)(g)
 	MOVW	R31, (g_sched+gobuf_pc)(g)
@@ -234,7 +234,7 @@ noswitch:
 // the top of a stack (for example, morestack calling newstack
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
-TEXT runtime·morestack(SB),NOSPLIT,$-4-0
+TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Cannot grow scheduler stack (m->g0).
 	MOVW	g_m(g), R7
 	MOVW	m_g0(R7), R8
@@ -293,7 +293,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
 TEXT reflect·call(SB),NOSPLIT,$0-20
 	JMP	·reflectcall(SB)
 
-TEXT ·reflectcall(SB),NOSPLIT,$-4-20
+TEXT ·reflectcall(SB),NOSPLIT|NOFRAME,$0-20
 	MOVW	argsize+12(FP), R1
 
 	DISPATCH(runtime·call16, 16)
@@ -418,7 +418,7 @@ TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
 	JMP	(R4)
 
 // Save state of caller into g->sched. Smashes R1.
-TEXT gosave<>(SB),NOSPLIT,$-4
+TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R31, (g_sched+gobuf_pc)(g)
 	MOVW	R29, (g_sched+gobuf_sp)(g)
 	MOVW	R0, (g_sched+gobuf_lr)(g)
@@ -610,7 +610,7 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0
 	JAL	runtime·save_g(SB)
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
+TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	0(R29), R1	// LR saved by caller
 	MOVW	R1, ret+0(FP)
 	RET
@@ -826,7 +826,7 @@ TEXT runtime·return0(SB),NOSPLIT,$0
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
-TEXT _cgo_topofstack(SB),NOSPLIT,$-4
+TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
 	// g (R30), R3 and REGTMP (R23) might be clobbered by load_g. R30 and R23
 	// are callee-save in the gcc calling convention, so save them.
 	MOVW	R23, R8
@@ -846,7 +846,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$-4
 
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
-TEXT runtime·goexit(SB),NOSPLIT,$-4-0
+TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
 	NOR	R0, R0	// NOP
 	JAL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit

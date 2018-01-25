@@ -338,7 +338,7 @@ TEXT runtime·futex(SB),NOSPLIT,$20-28
 
 
 // int32 clone(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
-TEXT runtime·clone(SB),NOSPLIT,$-4-24
+TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0-24
 	MOVW	flags+0(FP), R4
 	MOVW	stk+4(FP), R5
 	MOVW	R0, R6	// ptid

@@ -206,7 +206,7 @@ func zeroMIPS64x(w io.Writer) {
 	// R0: always zero
 	// R1 (aka REGRT1): ptr to memory to be zeroed - 8
 	// On return, R1 points to the last zeroed dword.
-	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $-8-0")
+	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 128; i++ {
 		fmt.Fprintln(w, "\tMOVV\tR0, 8(R1)")
 		fmt.Fprintln(w, "\tADDV\t$8, R1")
