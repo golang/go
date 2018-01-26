@@ -726,8 +726,17 @@ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
 		Stack:    ctx.stack(ev.Stk),
 		EndStack: ctx.stack(ev.Link.Stk),
 	}
+
 	// grey out non-overlapping events if the event is not a global event (ev.G == 0)
 	if ctx.mode == taskTraceview && ev.G != 0 {
+		// include P information.
+		if t := ev.Type; t == trace.EvGoStart || t == trace.EvGoStartLabel {
+			type Arg struct {
+				P int
+			}
+			sl.Arg = &Arg{P: ev.P}
+		}
+		// grey out non-overlapping events.
 		overlapping := false
 		for _, task := range ctx.tasks {
 			if _, overlapped := task.overlappingDuration(ev); overlapped {
