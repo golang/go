@@ -41,6 +41,35 @@ const (
 )
 
 func doinit() {
+	options = []option{
+		{"evtstrm", &ARM64.HasEVTSTRM},
+		{"aes", &ARM64.HasAES},
+		{"pmull", &ARM64.HasPMULL},
+		{"sha1", &ARM64.HasSHA1},
+		{"sha2", &ARM64.HasSHA2},
+		{"crc32", &ARM64.HasCRC32},
+		{"atomics", &ARM64.HasATOMICS},
+		{"fphp", &ARM64.HasFPHP},
+		{"asimdhp", &ARM64.HasASIMDHP},
+		{"cpuid", &ARM64.HasCPUID},
+		{"asimdrdm", &ARM64.HasASIMDRDM},
+		{"jscvt", &ARM64.HasJSCVT},
+		{"fcma", &ARM64.HasFCMA},
+		{"lrcpc", &ARM64.HasLRCPC},
+		{"dcpop", &ARM64.HasDCPOP},
+		{"sha3", &ARM64.HasSHA3},
+		{"sm3", &ARM64.HasSM3},
+		{"sm4", &ARM64.HasSM4},
+		{"asimddp", &ARM64.HasASIMDDP},
+		{"sha512", &ARM64.HasSHA512},
+		{"sve", &ARM64.HasSVE},
+		{"asimdfhm", &ARM64.HasASIMDFHM},
+
+		// These capabilities should always be enabled on arm64:
+		//  {"fp", &ARM64.HasFP},
+		//  {"asimd", &ARM64.HasASIMD},
+	}
+
 	// HWCAP feature bits
 	ARM64.HasFP = isSet(hwcap, hwcap_FP)
 	ARM64.HasASIMD = isSet(hwcap, hwcap_ASIMD)

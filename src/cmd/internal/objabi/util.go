@@ -105,6 +105,7 @@ var (
 	Fieldtrack_enabled       int
 	Preemptibleloops_enabled int
 	Clobberdead_enabled      int
+	DebugCPU_enabled         int
 )
 
 // Toolchain experiments.
@@ -119,6 +120,7 @@ var exper = []struct {
 	{"framepointer", &framepointer_enabled},
 	{"preemptibleloops", &Preemptibleloops_enabled},
 	{"clobberdead", &Clobberdead_enabled},
+	{"debugcpu", &DebugCPU_enabled},
 }
 
 var defaultExpstring = Expstring()
