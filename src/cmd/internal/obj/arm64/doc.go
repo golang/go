@@ -22,6 +22,46 @@ Go Assembly for ARM64 Reference Manual
 2. Alphabetical list of float-point instructions
     // TODO
 
+    FMADDD: 64-bit floating-point fused Multiply-Add
+      FMADDD	<Fm>, <Fa>, <Fn>, <Fd>
+        Multiplies the values of <Fm> and <Fn>,
+        adds the product to <Fa>, and writes the result to <Fd>.
+
+    FMADDS: 32-bit floating-point fused Multiply-Add
+      FMADDS	<Fm>, <Fa>, <Fn>, <Fd>
+        Multiplies the values of <Fm> and <Fn>,
+        adds the product to <Fa>, and writes the result to <Fd>.
+
+    FMSUBD: 64-bit floating-point fused Multiply-Subtract
+      FMSUBD	<Fm>, <Fa>, <Fn>, <Fd>
+        Multiplies the values of <Fm> and <Fn>, negates the product,
+        adds the product to <Fa>, and writes the result to <Fd>.
+
+    FMSUBS: 32-bit floating-point fused Multiply-Subtract
+      FMSUBS	<Fm>, <Fa>, <Fn>, <Fd>
+        Multiplies the values of <Fm> and <Fn>, negates the product,
+        adds the product to <Fa>, and writes the result to <Fd>.
+
+    FNMADDD: 64-bit floating-point negated fused Multiply-Add
+      FNMADDD	<Fm>, <Fa>, <Fn>, <Fd>
+        Multiplies the values of <Fm> and <Fn>, negates the product,
+        subtracts the value of <Fa>, and writes the result to <Fd>.
+
+    FNMADDS: 32-bit floating-point negated fused Multiply-Add
+      FNMADDS	<Fm>, <Fa>, <Fn>, <Fd>
+        Multiplies the values of <Fm> and <Fn>, negates the product,
+        subtracts the value of <Fa>, and writes the result to <Fd>.
+
+    FNMSUBD: 64-bit floating-point negated fused Multiply-Subtract
+      FNMSUBD	<Fm>, <Fa>, <Fn>, <Fd>
+        Multiplies the values of <Fm> and <Fn>,
+        subtracts the value of <Fa>, and writes the result to <Fd>.
+
+    FNMSUBS: 32-bit floating-point negated fused Multiply-Subtract
+      FNMSUBS	<Fm>, <Fa>, <Fn>, <Fd>
+        Multiplies the values of <Fm> and <Fn>,
+        subtracts the value of <Fa>, and writes the result to <Fd>.
+
 3. Alphabetical list of SIMD instructions
     VADD: Add (scalar)
       VADD	<Vm>, <Vn>, <Vd>
@@ -65,6 +105,16 @@ Go Assembly for ARM64 Reference Manual
         <T> Is an arrangement specifier and can have the following values:
         B8, B16
 
+    VFMLA: Floating-point fused Multiply-Add to accumulator (vector)
+      VFMLA	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
+        <T> Is an arrangement specifier and can have the following values:
+        S2, S4, D2
+
+    VFMLS: Floating-point fused Multiply-Subtract from accumulator (vector)
+      VFMLS	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
+        <T> Is an arrangement specifier and can have the following values:
+        S2, S4, D2
+
     VLD1: Load multiple single-element structures
       VLD1	(Rn), [<Vt>.<T>, <Vt2>.<T> ...]     // no offset
       VLD1.P	imm(Rn), [<Vt>.<T>, <Vt2>.<T> ...]  // immediate offset variant
@@ -93,6 +143,10 @@ Go Assembly for ARM64 Reference Manual
         D (Xd)
 
       VMOV	<Vn>.<T>[index], Vn  // Move vector element to scalar.
+        <T> Is an element size specifier and can have the following values:
+        B, H, S, D
+
+      VMOV	<Vn>.<T>[index], <Vd>.<T>[index] // Move vector element to another vector element.
         <T> Is an element size specifier and can have the following values:
         B, H, S, D
 
