@@ -1403,3 +1403,21 @@ var testECDSAPrivateKey = &ecdsa.PrivateKey{
 }
 
 var testP256PrivateKey, _ = x509.ParseECPrivateKey(fromHex("30770201010420012f3b52bc54c36ba3577ad45034e2e8efe1e6999851284cb848725cfe029991a00a06082a8648ce3d030107a14403420004c02c61c9b16283bbcc14956d886d79b358aa614596975f78cece787146abf74c2d5dc578c0992b4f3c631373479ebf3892efe53d21c4f4f1cc9a11c3536b7f75"))
+
+func TestCloseServerConnectionOnIdleClient(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	server := Server(serverConn, testConfig.Clone())
+	go func() {
+		clientConn.Write([]byte{'0'})
+		server.Close()
+	}()
+	server.SetReadDeadline(time.Now().Add(time.Second))
+	err := server.Handshake()
+	if err != nil {
+		if !strings.Contains(err.Error(), "read/write on closed pipe") {
+			t.Errorf("Error expected containing 'read/write on closed pipe' but got '%s'", err.Error())
+		}
+	} else {
+		t.Errorf("Error expected, but no error returned")
+	}
+}

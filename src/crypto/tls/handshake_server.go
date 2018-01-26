@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
 )
 
 // serverHandshakeState contains details of a server handshake in progress.
@@ -103,7 +104,7 @@ func (c *Conn) serverHandshake() error {
 	}
 
 	c.ekm = ekmFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.clientHello.random, hs.hello.random)
-	c.handshakeComplete = true
+	atomic.StoreUint32(&c.handshakeStatus, 1)
 
 	return nil
 }
