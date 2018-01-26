@@ -850,6 +850,17 @@ func asMillisecond(d time.Duration) float64 {
 	return float64(d.Nanoseconds()) / 1e6
 }
 
+func formatUserLog(ev *trace.Event) string {
+	k, v := ev.SArgs[0], ev.SArgs[1]
+	if k == "" {
+		return v
+	}
+	if v == "" {
+		return k
+	}
+	return fmt.Sprintf("%v=%v", k, v)
+}
+
 func describeEvent(ev *trace.Event) string {
 	switch ev.Type {
 	case trace.EvGoCreate:
@@ -857,11 +868,7 @@ func describeEvent(ev *trace.Event) string {
 	case trace.EvGoEnd, trace.EvGoStop:
 		return "goroutine stopped"
 	case trace.EvUserLog:
-		if k, v := ev.SArgs[0], ev.SArgs[1]; k == "" {
-			return v
-		} else {
-			return fmt.Sprintf("%v=%v", k, v)
-		}
+		return formatUserLog(ev)
 	case trace.EvUserSpan:
 		if ev.Args[1] == 0 {
 			duration := "unknown"
