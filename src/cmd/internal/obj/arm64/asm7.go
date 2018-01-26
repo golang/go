@@ -146,6 +146,10 @@ func FPOP2S(m uint32, s uint32, type_ uint32, op uint32) uint32 {
 	return m<<31 | s<<29 | 0x1E<<24 | type_<<22 | 1<<21 | op<<12 | 2<<10
 }
 
+func FPOP3S(m uint32, s uint32, type_ uint32, op uint32, op2 uint32) uint32 {
+	return m<<31 | s<<29 | 0x1F<<24 | type_<<22 | op<<21 | op2<<15
+}
+
 func FPCVTI(sf uint32, s uint32, type_ uint32, rmode uint32, op uint32) uint32 {
 	return sf<<31 | s<<29 | 0x1E<<24 | type_<<22 | 1<<21 | rmode<<19 | op<<16 | 0<<10
 }
@@ -539,6 +543,7 @@ var optab = []Optab{
 	{AFADDS, C_FREG, C_FREG, C_FREG, 54, 4, 0, 0, 0},
 	{AFADDS, C_FCON, C_NONE, C_FREG, 54, 4, 0, 0, 0},
 	{AFADDS, C_FCON, C_FREG, C_FREG, 54, 4, 0, 0, 0},
+	{AFMSUBD, C_FREG, C_FREG, C_FREG, 15, 4, 0, 0, 0},
 	{AFMOVS, C_FCON, C_NONE, C_FREG, 54, 4, 0, 0, 0},
 	{AFMOVS, C_FREG, C_NONE, C_FREG, 54, 4, 0, 0, 0},
 	{AFMOVD, C_FCON, C_NONE, C_FREG, 54, 4, 0, 0, 0},
@@ -589,6 +594,7 @@ var optab = []Optab{
 	{AVLD1, C_ROFF, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
 	{AVMOV, C_ELEM, C_NONE, C_REG, 73, 4, 0, 0, 0},
 	{AVMOV, C_REG, C_NONE, C_ARNG, 82, 4, 0, 0, 0},
+	{AVMOV, C_ELEM, C_NONE, C_ELEM, 92, 4, 0, 0, 0},
 	{AVMOV, C_ARNG, C_NONE, C_ARNG, 83, 4, 0, 0, 0},
 	{AVMOV, C_REG, C_NONE, C_ELEM, 78, 4, 0, 0, 0},
 	{AVMOV, C_ELEM, C_NONE, C_VREG, 80, 4, 0, 0, 0},
@@ -600,6 +606,7 @@ var optab = []Optab{
 	{AVADDV, C_ARNG, C_NONE, C_VREG, 85, 4, 0, 0, 0},
 	{AVCNT, C_ARNG, C_NONE, C_ARNG, 29, 4, 0, 0, 0},
 	{AVMOVI, C_ADDCON, C_NONE, C_ARNG, 86, 4, 0, 0, 0},
+	{AVFMLA, C_ARNG, C_ARNG, C_ARNG, 72, 4, 0, 0, 0},
 
 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 90, 4, 0, 0, 0},
 	{obj.APCDATA, C_VCON, C_NONE, C_VCON, 0, 0, 0, 0, 0},
@@ -1987,6 +1994,15 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AFMINNMS, t)
 			oprangeset(AFDIVD, t)
 
+		case AFMSUBD:
+			oprangeset(AFMSUBS, t)
+			oprangeset(AFMADDS, t)
+			oprangeset(AFMADDD, t)
+			oprangeset(AFNMSUBS, t)
+			oprangeset(AFNMSUBD, t)
+			oprangeset(AFNMADDS, t)
+			oprangeset(AFNMADDD, t)
+
 		case AFCVTSD:
 			oprangeset(AFCVTDS, t)
 			oprangeset(AFABSD, t)
@@ -2126,6 +2142,9 @@ func buildop(ctxt *obj.Link) {
 		case AVADDV:
 			oprangeset(AVUADDLV, t)
 
+		case AVFMLA:
+			oprangeset(AVFMLS, t)
+
 		case ASHA1H,
 			AVCNT,
 			AVMOV,
@@ -2187,6 +2206,13 @@ func SYSARG5(op0 int, op1 int, Cn int, Cm int, op2 int) int {
 
 func SYSARG4(op1 int, Cn int, Cm int, op2 int) int {
 	return SYSARG5(0, op1, Cn, Cm, op2)
+}
+
+/* checkindex checks if index >= 0 && index <= maxindex */
+func (c *ctxt7) checkindex(p *obj.Prog, index, maxindex int) {
+	if index < 0 || index > maxindex {
+		c.ctxt.Diag("register element index out of range 0 to %d: %v", maxindex, p)
+	}
 }
 
 func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
@@ -2420,7 +2446,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 = 0
 		}
 
-	case 15: /* mul/mneg/umulh/umull r,[r,]r; madd/msub Rm,Ra,Rn,Rd */
+	case 15: /* mul/mneg/umulh/umull r,[r,]r; madd/msub/fmadd/fmsub/fnmadd/fnmsub Rm,Ra,Rn,Rd */
 		o1 = c.oprrr(p, p.As)
 
 		rf := int(p.From.Reg)
@@ -3283,12 +3309,13 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Add = 0
 		rel.Type = objabi.R_ARM64_GOTPCREL
 
-	case 72: /* vaddp/vand/vcmeq/vorr/vadd/veor Vm.<T>, Vn.<T>, Vd.<T> */
+	case 72: /* vaddp/vand/vcmeq/vorr/vadd/veor/vfmla/vfmls Vm.<T>, Vn.<T>, Vd.<T> */
 		af := int((p.From.Reg >> 5) & 15)
 		af3 := int((p.Reg >> 5) & 15)
 		at := int((p.To.Reg >> 5) & 15)
 		if af != af3 || af != at {
-			c.ctxt.Diag("invalid arrangement: %v\n", p)
+			c.ctxt.Diag("operand mismatch: %v", p)
+			break
 		}
 		o1 = c.oprrr(p, p.As)
 		rf := int((p.From.Reg) & 31)
@@ -3320,16 +3347,25 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			Q = 1
 			size = 1
 		default:
-			c.ctxt.Diag("invalid arrangement: %v\n", p)
+			c.ctxt.Diag("invalid arrangement: %v", p)
 		}
 
 		if (p.As == AVORR || p.As == AVAND || p.As == AVEOR) &&
 			(af != ARNG_16B && af != ARNG_8B) {
-			c.ctxt.Diag("invalid arrangement on op %v", p.As)
+			c.ctxt.Diag("invalid arrangement: %v", p)
+		} else if (p.As == AVFMLA || p.As == AVFMLS) &&
+			(af != ARNG_2D && af != ARNG_2S && af != ARNG_4S) {
+			c.ctxt.Diag("invalid arrangement: %v", p)
 		} else if p.As == AVORR {
 			size = 2
 		} else if p.As == AVAND || p.As == AVEOR {
 			size = 0
+		} else if (p.As == AVFMLA || p.As == AVFMLS) {
+			if af == ARNG_2D {
+				size = 1
+			} else {
+				size = 0
+			}
 		}
 
 		o1 |= (uint32(Q&1) << 30) | (uint32(size&3) << 22) | (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
@@ -3339,22 +3375,27 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int(p.To.Reg)
 		imm5 := 0
 		o1 = 7<<25 | 0xf<<10
+		index := int(p.From.Index)
 		switch (p.From.Reg >> 5) & 15 {
 		case ARNG_B:
+			c.checkindex(p, index, 15)
 			imm5 |= 1
-			imm5 |= int(p.From.Index) << 1
+			imm5 |= index << 1
 		case ARNG_H:
+			c.checkindex(p, index, 7)
 			imm5 |= 2
-			imm5 |= int(p.From.Index) << 2
+			imm5 |= index << 2
 		case ARNG_S:
+			c.checkindex(p, index, 3)
 			imm5 |= 4
-			imm5 |= int(p.From.Index) << 3
+			imm5 |= index << 3
 		case ARNG_D:
+			c.checkindex(p, index, 1)
 			imm5 |= 8
-			imm5 |= int(p.From.Index) << 4
+			imm5 |= index << 4
 			o1 |= 1 << 30
 		default:
-			c.ctxt.Diag("invalid arrangement on op V.<T>[index], R: %v\n", p)
+			c.ctxt.Diag("invalid arrangement: %v", p)
 		}
 		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
 
@@ -3471,21 +3512,26 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int(p.To.Reg)
 		imm5 := 0
 		o1 = 1<<30 | 7<<25 | 7<<10
+		index :=int(p.From.Index)
 		switch (p.To.Reg >> 5) & 15 {
 		case ARNG_B:
+			c.checkindex(p, index, 15)
 			imm5 |= 1
-			imm5 |= int(p.From.Index) << 1
+			imm5 |= index << 1
 		case ARNG_H:
+			c.checkindex(p, index, 7)
 			imm5 |= 2
-			imm5 |= int(p.From.Index) << 2
+			imm5 |= index << 2
 		case ARNG_S:
+			c.checkindex(p, index, 3)
 			imm5 |= 4
-			imm5 |= int(p.From.Index) << 3
+			imm5 |= index << 3
 		case ARNG_D:
+			c.checkindex(p, index, 1)
 			imm5 |= 8
-			imm5 |= int(p.From.Index) << 4
+			imm5 |= index << 4
 		default:
-			c.ctxt.Diag("invalid arrangement on op R, V.<T>[index]: %v\n", p)
+			c.ctxt.Diag("invalid arrangement: %v", p)
 		}
 		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
 
@@ -3493,38 +3539,46 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rf := int(p.From.Reg)
 		rt := int(p.To.Reg)
 		o1 = 7<<25 | 1<<10
-		var imm5, Q uint32
+		var imm5, Q int
+		index := int(p.From.Index)
 		switch (p.To.Reg >> 5) & 15 {
 		case ARNG_16B:
+			c.checkindex(p, index, 15)
 			Q = 1
 			imm5 = 1
-			imm5 |= uint32(p.From.Index) << 1
+			imm5 |= index << 1
 		case ARNG_2D:
+			c.checkindex(p, index, 1)
 			Q = 1
 			imm5 = 8
-			imm5 |= uint32(p.From.Index) << 4
+			imm5 |= index << 4
 		case ARNG_2S:
+			c.checkindex(p, index, 3)
 			Q = 0
 			imm5 = 4
-			imm5 |= uint32(p.From.Index) << 3
+			imm5 |= index << 3
 		case ARNG_4H:
+			c.checkindex(p, index, 7)
 			Q = 0
 			imm5 = 2
-			imm5 |= uint32(p.From.Index) << 2
+			imm5 |= index << 2
 		case ARNG_4S:
+			c.checkindex(p, index, 3)
 			Q = 1
 			imm5 = 4
-			imm5 |= uint32(p.From.Index) << 3
+			imm5 |= index << 3
 		case ARNG_8B:
+			c.checkindex(p, index, 15)
 			Q = 0
 			imm5 = 1
-			imm5 |= uint32(p.From.Index) << 1
+			imm5 |= index << 1
 		case ARNG_8H:
+			c.checkindex(p, index, 7)
 			Q = 1
 			imm5 = 2
-			imm5 |= uint32(p.From.Index) << 2
+			imm5 |= index << 2
 		default:
-			c.ctxt.Diag("invalid arrangement on VDUP Vn.<T>[index], Vd.<T>: %v\n", p)
+			c.ctxt.Diag("invalid arrangement: %v", p)
 		}
 		o1 |= (uint32(Q&1) << 30) | (uint32(imm5&0x1f) << 16)
 		o1 |= (uint32(rf&31) << 5) | uint32(rt&31)
@@ -3533,24 +3587,29 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rf := int(p.From.Reg)
 		rt := int(p.To.Reg)
 		imm5 := 0
+		index := int(p.From.Index)
 		switch p.As {
 		case AVMOV:
 			o1 = 1<<30 | 15<<25 | 1<<10
 			switch (p.From.Reg >> 5) & 15 {
 			case ARNG_B:
+				c.checkindex(p, index, 15)
 				imm5 |= 1
-				imm5 |= int(p.From.Index) << 1
+				imm5 |= index << 1
 			case ARNG_H:
+				c.checkindex(p, index, 7)
 				imm5 |= 2
-				imm5 |= int(p.From.Index) << 2
+				imm5 |= index << 2
 			case ARNG_S:
+				c.checkindex(p, index, 3)
 				imm5 |= 4
-				imm5 |= int(p.From.Index) << 3
+				imm5 |= index << 3
 			case ARNG_D:
+				c.checkindex(p, index, 1)
 				imm5 |= 8
-				imm5 |= int(p.From.Index) << 4
+				imm5 |= index << 4
 			default:
-				c.ctxt.Diag("invalid arrangement on op V.<T>[index], Vn: %v\n", p)
+				c.ctxt.Diag("invalid arrangement: %v", p)
 			}
 		default:
 			c.ctxt.Diag("unsupported op %v", p.As)
@@ -3758,6 +3817,47 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	// exception.
 	case 90:
 		o1 = 0xbea71700
+
+	case 92: /* vmov Vn.<T>[index], Vd.<T>[index] */
+		rf := int(p.From.Reg)
+		rt := int(p.To.Reg)
+		imm4 := 0
+		imm5 := 0
+		o1 = 3<<29 | 7<<25 | 1<<10
+		index1 := int(p.To.Index)
+		index2 := int(p.From.Index)
+		if ((p.To.Reg >> 5) & 15) != ((p.From.Reg >> 5) & 15) {
+			c.ctxt.Diag("operand mismatch: %v", p)
+		}
+		switch (p.To.Reg >> 5) & 15 {
+		case ARNG_B:
+			c.checkindex(p, index1, 15)
+			c.checkindex(p, index2, 15)
+			imm5 |= 1
+			imm5 |= index1 << 1
+			imm4 |= index2
+		case ARNG_H:
+			c.checkindex(p, index1, 7)
+			c.checkindex(p, index2, 7)
+			imm5 |= 2
+			imm5 |= index1 << 2
+			imm4 |= index2 << 1
+		case ARNG_S:
+			c.checkindex(p, index1, 3)
+			c.checkindex(p, index2, 3)
+			imm5 |= 4
+			imm5 |= index1 << 3
+			imm4 |= index2 << 2
+		case ARNG_D:
+			c.checkindex(p, index1, 1)
+			c.checkindex(p, index2, 1)
+			imm5 |= 8
+			imm5 |= index1 << 4
+			imm4 |= index2 << 3
+		default:
+			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(imm4&0xf) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
 
 		break
 
@@ -4157,6 +4257,30 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 	case AFSUBD:
 		return FPOP2S(0, 0, 1, 3)
 
+	case AFMADDD:
+		return FPOP3S(0, 0, 1, 0, 0)
+
+	case AFMADDS:
+		return FPOP3S(0, 0, 0, 0, 0)
+
+	case AFMSUBD:
+		return FPOP3S(0, 0, 1, 0, 1)
+
+	case AFMSUBS:
+		return FPOP3S(0, 0, 0, 0, 1)
+
+	case AFNMADDD:
+		return FPOP3S(0, 0, 1, 1, 0)
+
+	case AFNMADDS:
+		return FPOP3S(0, 0, 0, 1, 0)
+
+	case AFNMSUBD:
+		return FPOP3S(0, 0, 1, 1, 1)
+
+	case AFNMSUBS:
+		return FPOP3S(0, 0, 0, 1, 1)
+
 	case AFMULS:
 		return FPOP2S(0, 0, 0, 0)
 
@@ -4345,6 +4469,12 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 
 	case AVUADDLV:
 		return 1<<29 | 7<<25 | 3<<20 | 7<<11
+
+	case AVFMLA:
+		return 7<<25 | 0<<23 | 1<<21 | 3<<14 | 3<<10
+
+	case AVFMLS:
+		return 7<<25 | 1<<23 | 1<<21 | 3<<14 | 3<<10
 	}
 
 	c.ctxt.Diag("%v: bad rrr %d %v", p, a, a)
