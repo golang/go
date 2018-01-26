@@ -107,6 +107,34 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVD	(R2)(R6<<3), R4                 // 447866f8
 	MOVD	(R3)(R7.SXTX<<3), R8            // 68f867f8
 	MOVWU	(R5)(R4.UXTW), R10              // aa4864b8
+	MOVBU	(R3)(R9.UXTW), R8               // 68486938
+	MOVBU	(R5)(R8), R10                   // MOVBU	(R5)(R8*1), R10         // aa686838
+	MOVHU	(R2)(R7.SXTW<<1), R11           // 4bd86778
+	MOVHU	(R1)(R2<<1), R5                 // 25786278
+	MOVB	(R9)(R3.UXTW), R6               // 2649a338
+	MOVB	(R10)(R6), R15                  // MOVB	(R10)(R6*1), R15                // 4f69a638
+	MOVH	(R5)(R7.SXTX<<1), R18           // b2f8a778
+	MOVH	(R8)(R4<<1), R10                // 0a79a478
+	MOVW	(R9)(R8.SXTW<<2), R19           // 33d9a8b8
+	MOVW	(R1)(R4.SXTX), R11              // 2be8a4b8
+	MOVW	(R1)(R4.SXTX), ZR               // 3fe8a4b8
+	MOVW	(R2)(R5), R12                   // MOVW	(R2)(R5*1), R12                  // 4c68a5b8
+	MOVD	R5, (R2)(R6<<3)                 // 457826f8
+	MOVD	R9, (R6)(R7.SXTX<<3)            // c9f827f8
+	MOVD	ZR, (R6)(R7.SXTX<<3)            // dff827f8
+	MOVW	R8, (R2)(R3.UXTW<<2)            // 485823b8
+	MOVW	R7, (R3)(R4.SXTW)               // 67c824b8
+	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
+	MOVB	R8, (R3)(R9.UXTW)               // 68482938
+	MOVB	R10, (R5)(R8)                   // MOVB	R10, (R5)(R8*1)                  // aa682838
+	MOVH	R11, (R2)(R7.SXTW<<1)           // 4bd82778
+	MOVH	R5, (R1)(R2<<1)                 // 25782278
+	MOVH	R7, (R2)(R5.SXTX<<1)            // 47f82578
+	MOVH	R8, (R3)(R6.UXTW)               // 68482678
+	MOVB	(R29)(R30<<0), R14              // ae7bbe38
+	MOVB	(R29)(R30), R14                 // MOVB	(R29)(R30*1), R14                // ae6bbe38
+	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
+
 //	LTYPE1 imsr ',' spreg ','
 //	{
 //		outcode($1, &$2, $4, &nullgen);

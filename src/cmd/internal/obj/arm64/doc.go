@@ -35,10 +35,17 @@ Go Assembly for ARM64 Reference Manual
       LDXPW	(<Rn>), (<Rt1>, <Rt2>)
         Loads two 32-bit words from memory, and writes them to Rt1 and Rt2.
 
-    MOVD|MOVW: Load Register (register offset)
+    MOVD|MOVW|MOVH|MOVHU|MOVB|MOVBU: Load Register (register offset)
       MOVD	(Rn)(Rm.UXTW<<3), Rt
       MOVD	(Rn)(Rm.SXTX), Rt
+      MOVD	(Rn)(Rm<<3), Rt
       MOVD	(Rn)(Rm), Rt
+      MOVB|MOVBU	(Rn)(Rm.UXTW), Rt
+
+    MOVD|MOVW|MOVH|MOVB: Stote Register (register offset)
+      MOVD	Rt, (Rn)(Rm.UXTW<<3)
+      MOVD	Rt, (Rn)(Rm.SXTX)
+      MOVD	Rt, (Rn)(Rm)
 
     PRFM: Prefetch Memory (immediate)
       PRFM	imm(Rn), <prfop>

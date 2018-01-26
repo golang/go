@@ -448,6 +448,15 @@ var optab = []Optab{
 	/* load with shifted or extended register offset */
 	{AMOVD, C_ROFF, C_NONE, C_REG, 98, 4, 0, 0, 0},
 	{AMOVW, C_ROFF, C_NONE, C_REG, 98, 4, 0, 0, 0},
+	{AMOVH, C_ROFF, C_NONE, C_REG, 98, 4, 0, 0, 0},
+	{AMOVB, C_ROFF, C_NONE, C_REG, 98, 4, 0, 0, 0},
+	{AMOVBU, C_ROFF, C_NONE, C_REG, 98, 4, 0, 0, 0},
+
+	/* store with extended register offset */
+	{AMOVD, C_REG, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
+	{AMOVW, C_REG, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
+	{AMOVH, C_REG, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
+	{AMOVB, C_REG, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
 
 	/* pre/post-indexed/signed-offset load/store register pair
 	   (unscaled, signed 10-bit quad-aligned and long offset) */
@@ -2367,10 +2376,19 @@ func (c *ctxt7) checkoffset(p *obj.Prog, as obj.As) {
 
 /* checkShiftAmount checks whether the index shift amount is valid */
 /* for load with register offset instructions */
-func (c *ctxt7) checkShiftAmount(p *obj.Prog, as obj.As) {
-	amount := (p.From.Index >> 5) & 7
-	switch as {
-	case AMOVWU:
+func (c *ctxt7) checkShiftAmount(p *obj.Prog, a *obj.Addr) {
+	var amount int16
+	amount = (a.Index >> 5) & 7
+	switch p.As {
+	case AMOVB, AMOVBU:
+		if amount != 0 {
+			c.ctxt.Diag("invalid index shift amount: %v", p)
+		}
+	case AMOVH, AMOVHU:
+		if amount != 1 && amount != 0 {
+			c.ctxt.Diag("invalid index shift amount: %v", p)
+		}
+	case AMOVW, AMOVWU:
 		if amount != 2 && amount != 0 {
 			c.ctxt.Diag("invalid index shift amount: %v", p)
 		}
@@ -2914,7 +2932,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("REGTMP used in large offset store: %v", p)
 		}
 		o1 = c.omovlit(AMOVD, p, &p.To, REGTMP)
-		o2 = c.olsxrr(p, int32(c.opstrr(p, p.As)), int(p.From.Reg), r, REGTMP)
+		o2 = c.olsxrr(p, int32(c.opstrr(p, p.As, false)), int(p.From.Reg), r, REGTMP)
 
 	case 31: /* movT L(R), R -> ldrT */
 		// if offset L can be split into hi+lo, and both fit into instructions, do
@@ -4293,7 +4311,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 98: /* MOVD (Rn)(Rm.SXTW[<<amount]),Rd */
 		if p.From.Offset != 0 {
 			// extended or shifted offset register.
-			c.checkShiftAmount(p, p.As)
+			c.checkShiftAmount(p, &p.From)
 			o1 = c.opldrr(p, p.As, true)
 			o1 |= uint32(p.From.Offset) /* includes reg, op, etc */
 		} else {
@@ -4303,10 +4321,23 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 |= uint32(p.From.Reg&31) << 5
 		rt := int(p.To.Reg)
-		if p.To.Type == obj.TYPE_NONE {
-			rt = REGZERO
-		}
 		o1 |= uint32(rt & 31)
+
+	case 99: /* MOVD Rt, (Rn)(Rm.SXTW[<<amount]) */
+		if p.To.Offset != 0 {
+			// extended or shifted offset register.
+			c.checkShiftAmount(p, &p.To)
+			o1 = c.opstrr(p, p.As, true)
+			o1 |= uint32(p.To.Offset) /* includes reg, op, etc */
+		} else {
+			// (Rn)(Rm), no extension or shift.
+			o1 = c.opstrr(p, p.As, false)
+			o1 |= uint32(p.To.Index&31) << 16
+		}
+		o1 |= uint32(p.To.Reg&31) << 5
+		rf := int(p.From.Reg)
+		o1 |= uint32(rf & 31)
+
 	}
 	out[0] = o1
 	out[1] = o2
@@ -5668,20 +5699,25 @@ func (c *ctxt7) opldrr(p *obj.Prog, a obj.As, extension bool) uint32 {
 
 // opstrr returns the ARM64 opcode encoding corresponding to the obj.As opcode
 // for store instruction with register offset.
-func (c *ctxt7) opstrr(p *obj.Prog, a obj.As) uint32 {
+// The offset register can be (Rn)(Rm.UXTW<<2) or (Rn)(Rm<<2) or (Rn)(Rm).
+func (c *ctxt7) opstrr(p *obj.Prog, a obj.As, extension bool) uint32 {
+	OptionS := uint32(0x1a)
+	if extension {
+		OptionS = uint32(0) // option value and S value have been encoded into p.To.Offset.
+	}
 	switch a {
 	case AMOVD:
-		return 0x1a<<10 | 0x1<<21 | 0x1f<<27
+		return OptionS<<10 | 0x1<<21 | 0x1f<<27
 	case AMOVW, AMOVWU:
-		return 0x1a<<10 | 0x1<<21 | 0x17<<27
+		return OptionS<<10 | 0x1<<21 | 0x17<<27
 	case AMOVH, AMOVHU:
-		return 0x1a<<10 | 0x1<<21 | 0x0f<<27
+		return OptionS<<10 | 0x1<<21 | 0x0f<<27
 	case AMOVB, AMOVBU:
-		return 0x1a<<10 | 0x1<<21 | 0x07<<27
+		return OptionS<<10 | 0x1<<21 | 0x07<<27
 	case AFMOVS:
-		return 0x1a<<10 | 0x1<<21 | 0x17<<27 | 1<<26
+		return OptionS<<10 | 0x1<<21 | 0x17<<27 | 1<<26
 	case AFMOVD:
-		return 0x1a<<10 | 0x1<<21 | 0x1f<<27 | 1<<26
+		return OptionS<<10 | 0x1<<21 | 0x1f<<27 | 1<<26
 	}
 	c.ctxt.Diag("bad opstrr %v\n%v", a, p)
 	return 0

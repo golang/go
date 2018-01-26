@@ -14,6 +14,8 @@ TEXT errors(SB),$0
 	MOVD	(R3)(R7.SXTX<<2), R8                             // ERROR "invalid index shift amount"
 	MOVWU	(R5)(R4.UXTW<<3), R10                            // ERROR "invalid index shift amount"
 	MOVWU	(R5)(R4<<1), R10                                 // ERROR "invalid index shift amount"
+	MOVB	(R5)(R4.SXTW<<5), R10                            // ERROR "invalid index shift amount"
+	MOVH	R5, (R6)(R2<<3)                                  // ERROR "invalid index shift amount"
 	VLD1	(R8)(R13), [V2.B16]                              // ERROR "illegal combination"
 	VLD1	8(R9), [V2.B16]                                  // ERROR "illegal combination"
 	VST1	[V1.B16], (R8)(R13)                              // ERROR "illegal combination"
