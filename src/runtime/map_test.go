@@ -620,7 +620,7 @@ func TestMapBuckets(t *testing.T) {
 	// have a nil bucket pointer due to starting with preallocated buckets
 	// on the stack. Escaping maps start with a non-nil bucket pointer if
 	// hint size is above bucketCnt and thereby have more than one bucket.
-	// These tests depend on bucketCnt and loadFactor* in hashmap.go.
+	// These tests depend on bucketCnt and loadFactor* in map.go.
 	t.Run("mapliteral", func(t *testing.T) {
 		for _, tt := range mapBucketTests {
 			localMap := map[int]int{}

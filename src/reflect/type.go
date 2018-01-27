@@ -2154,7 +2154,7 @@ func needKeyUpdate(t *rtype) bool {
 	}
 }
 
-// Make sure these routines stay in sync with ../../runtime/hashmap.go!
+// Make sure these routines stay in sync with ../../runtime/map.go!
 // These types exist only for GC, so we only fill out GC relevant info.
 // Currently, that's just size and the GC program. We also fill in string
 // for possible debugging use.
@@ -2165,7 +2165,7 @@ const (
 )
 
 func bucketOf(ktyp, etyp *rtype) *rtype {
-	// See comment on hmap.overflow in ../runtime/hashmap.go.
+	// See comment on hmap.overflow in ../runtime/map.go.
 	var kind uint8
 	if ktyp.kind&kindNoPointers != 0 && etyp.kind&kindNoPointers != 0 &&
 		ktyp.size <= maxKeySize && etyp.size <= maxValSize {
