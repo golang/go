@@ -96,6 +96,9 @@ func TestIntendedInlining(t *testing.T) {
 			"(*puintptr).set",
 		},
 		"runtime/internal/sys": {},
+		"runtime/internal/math": {
+			"MulUintptr",
+		},
 		"bytes": {
 			"(*Buffer).Bytes",
 			"(*Buffer).Cap",
