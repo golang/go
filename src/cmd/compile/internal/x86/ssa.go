@@ -278,6 +278,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			m.To.Reg = x86.REG_DX
 		}
 
+	case ssa.Op386MULLU:
+		// Arg[0] is already in AX as it's the only register we allow
+		// results lo in AX
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+
 	case ssa.Op386MULLQU:
 		// AX * args[1], high 32 bits in DX (result[0]), low 32 bits in AX (result[1]).
 		p := s.Prog(v.Op.Asm())
@@ -770,7 +777,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.Op386SETGF, ssa.Op386SETGEF,
 		ssa.Op386SETB, ssa.Op386SETBE,
 		ssa.Op386SETORD, ssa.Op386SETNAN,
-		ssa.Op386SETA, ssa.Op386SETAE:
+		ssa.Op386SETA, ssa.Op386SETAE,
+		ssa.Op386SETO:
 		p := s.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -842,6 +850,8 @@ var blockJump = [...]struct {
 	ssa.Block386GE:  {x86.AJGE, x86.AJLT},
 	ssa.Block386LE:  {x86.AJLE, x86.AJGT},
 	ssa.Block386GT:  {x86.AJGT, x86.AJLE},
+	ssa.Block386OS:  {x86.AJOS, x86.AJOC},
+	ssa.Block386OC:  {x86.AJOC, x86.AJOS},
 	ssa.Block386ULT: {x86.AJCS, x86.AJCC},
 	ssa.Block386UGE: {x86.AJCC, x86.AJCS},
 	ssa.Block386UGT: {x86.AJHI, x86.AJLS},
@@ -903,6 +913,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	case ssa.Block386EQ, ssa.Block386NE,
 		ssa.Block386LT, ssa.Block386GE,
 		ssa.Block386LE, ssa.Block386GT,
+		ssa.Block386OS, ssa.Block386OC,
 		ssa.Block386ULT, ssa.Block386UGT,
 		ssa.Block386ULE, ssa.Block386UGE:
 		jmp := blockJump[b.Kind]

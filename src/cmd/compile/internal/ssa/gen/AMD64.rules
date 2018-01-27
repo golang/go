@@ -16,6 +16,10 @@
 (Mul(64|32|16|8)  x y) -> (MUL(Q|L|L|L)  x y)
 (Mul(32|64)F x y) -> (MULS(S|D) x y)
 
+(Select0 (Mul64uover x y)) -> (Select0 <typ.UInt64> (MULQU x y))
+(Select0 (Mul32uover x y)) -> (Select0 <typ.UInt32> (MULLU x y))
+(Select1 (Mul(64|32)uover x y)) -> (SETO (Select1 <types.TypeFlags> (MUL(Q|L)U x y)))
+
 (Hmul(64|32)  x y) -> (HMUL(Q|L)  x y)
 (Hmul(64|32)u x y) -> (HMUL(Q|L)U x y)
 
@@ -480,6 +484,7 @@
 (If (SETBE cmp) yes no) -> (ULE cmp yes no)
 (If (SETA  cmp) yes no) -> (UGT cmp yes no)
 (If (SETAE cmp) yes no) -> (UGE cmp yes no)
+(If (SETO cmp) yes no) -> (OS cmp yes no)
 
 // Special case for floating point - LF/LEF not generated
 (If (SETGF  cmp) yes no) -> (UGT  cmp yes no)
@@ -542,6 +547,7 @@
 (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no) -> (ULE cmp yes no)
 (NE (TESTB (SETA  cmp) (SETA  cmp)) yes no) -> (UGT cmp yes no)
 (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no) -> (UGE cmp yes no)
+(NE (TESTB (SETO cmp) (SETO cmp)) yes no) -> (OS cmp yes no)
 
 // Recognize bit tests: a&(1<<b) != 0 for b suitably bounded
 // Note that BTx instructions use the carry bit, so we need to convert tests for zero flag
