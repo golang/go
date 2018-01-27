@@ -315,6 +315,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			m.To.Reg = x86.REG_DX
 		}
 
+	case ssa.OpAMD64MULQU, ssa.OpAMD64MULLU:
+		// Arg[0] is already in AX as it's the only register we allow
+		// results lo in AX
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+
 	case ssa.OpAMD64MULQU2:
 		// Arg[0] is already in AX as it's the only register we allow
 		// results hi in DX, lo in AX
@@ -979,7 +986,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpAMD64SETGF, ssa.OpAMD64SETGEF,
 		ssa.OpAMD64SETB, ssa.OpAMD64SETBE,
 		ssa.OpAMD64SETORD, ssa.OpAMD64SETNAN,
-		ssa.OpAMD64SETA, ssa.OpAMD64SETAE:
+		ssa.OpAMD64SETA, ssa.OpAMD64SETAE,
+		ssa.OpAMD64SETO:
 		p := s.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -1122,6 +1130,8 @@ var blockJump = [...]struct {
 	ssa.BlockAMD64GE:  {x86.AJGE, x86.AJLT},
 	ssa.BlockAMD64LE:  {x86.AJLE, x86.AJGT},
 	ssa.BlockAMD64GT:  {x86.AJGT, x86.AJLE},
+	ssa.BlockAMD64OS:  {x86.AJOS, x86.AJOC},
+	ssa.BlockAMD64OC:  {x86.AJOC, x86.AJOS},
 	ssa.BlockAMD64ULT: {x86.AJCS, x86.AJCC},
 	ssa.BlockAMD64UGE: {x86.AJCC, x86.AJCS},
 	ssa.BlockAMD64UGT: {x86.AJHI, x86.AJLS},
@@ -1183,6 +1193,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	case ssa.BlockAMD64EQ, ssa.BlockAMD64NE,
 		ssa.BlockAMD64LT, ssa.BlockAMD64GE,
 		ssa.BlockAMD64LE, ssa.BlockAMD64GT,
+		ssa.BlockAMD64OS, ssa.BlockAMD64OC,
 		ssa.BlockAMD64ULT, ssa.BlockAMD64UGT,
 		ssa.BlockAMD64ULE, ssa.BlockAMD64UGE:
 		jmp := blockJump[b.Kind]

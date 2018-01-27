@@ -17,6 +17,9 @@
 (Mul(32|64)F x y) -> (MULS(S|D) x y)
 (Mul32uhilo x y) -> (MULLQU x y)
 
+(Select0 (Mul32uover x y)) -> (Select0 <typ.UInt32> (MULLU x y))
+(Select1 (Mul32uover x y)) -> (SETO (Select1 <types.TypeFlags> (MULLU x y)))
+
 (Avg32u x y) -> (AVGLU x y)
 
 (Div32F x y) -> (DIVSS x y)
@@ -369,6 +372,7 @@
 (If (SETBE cmp) yes no) -> (ULE cmp yes no)
 (If (SETA  cmp) yes no) -> (UGT cmp yes no)
 (If (SETAE cmp) yes no) -> (UGE cmp yes no)
+(If (SETO  cmp) yes no) -> (OS cmp yes no)
 
 // Special case for floating point - LF/LEF not generated
 (If (SETGF  cmp) yes no) -> (UGT  cmp yes no)
@@ -398,6 +402,7 @@
 (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no) -> (ULE cmp yes no)
 (NE (TESTB (SETA  cmp) (SETA  cmp)) yes no) -> (UGT cmp yes no)
 (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no) -> (UGE cmp yes no)
+(NE (TESTB (SETO cmp) (SETO cmp)) yes no) -> (OS cmp yes no)
 
 // Special case for floating point - LF/LEF not generated
 (NE (TESTB (SETGF  cmp) (SETGF  cmp)) yes no) -> (UGT  cmp yes no)

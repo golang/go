@@ -637,6 +637,10 @@ func rewriteValue386(v *Value) bool {
 		return rewriteValue386_OpRsh8x64_0(v)
 	case OpRsh8x8:
 		return rewriteValue386_OpRsh8x8_0(v)
+	case OpSelect0:
+		return rewriteValue386_OpSelect0_0(v)
+	case OpSelect1:
+		return rewriteValue386_OpSelect1_0(v)
 	case OpSignExt16to32:
 		return rewriteValue386_OpSignExt16to32_0(v)
 	case OpSignExt8to16:
@@ -23707,6 +23711,59 @@ func rewriteValue386_OpRsh8x8_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValue386_OpSelect0_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (Select0 (Mul32uover x y))
+	// cond:
+	// result: (Select0 <typ.UInt32> (MULLU x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32uover {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v.reset(OpSelect0)
+		v.Type = typ.UInt32
+		v0 := b.NewValue0(v.Pos, Op386MULLU, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpSelect1_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (Select1 (Mul32uover x y))
+	// cond:
+	// result: (SETO (Select1 <types.TypeFlags> (MULLU x y)))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32uover {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v.reset(Op386SETO)
+		v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, Op386MULLU, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v1.AddArg(x)
+		v1.AddArg(y)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
 func rewriteValue386_OpSignExt16to32_0(v *Value) bool {
 	// match: (SignExt16to32 x)
 	// cond:
@@ -24845,6 +24902,20 @@ func rewriteBlock386(b *Block) bool {
 			b.Aux = nil
 			return true
 		}
+		// match: (If (SETO cmp) yes no)
+		// cond:
+		// result: (OS cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != Op386SETO {
+				break
+			}
+			cmp := v.Args[0]
+			b.Kind = Block386OS
+			b.SetControl(cmp)
+			b.Aux = nil
+			return true
+		}
 		// match: (If (SETGF cmp) yes no)
 		// cond:
 		// result: (UGT cmp yes no)
@@ -25598,6 +25669,58 @@ func rewriteBlock386(b *Block) bool {
 				break
 			}
 			b.Kind = Block386UGE
+			b.SetControl(cmp)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
+		// cond:
+		// result: (OS cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != Op386TESTB {
+				break
+			}
+			_ = v.Args[1]
+			v_0 := v.Args[0]
+			if v_0.Op != Op386SETO {
+				break
+			}
+			cmp := v_0.Args[0]
+			v_1 := v.Args[1]
+			if v_1.Op != Op386SETO {
+				break
+			}
+			if cmp != v_1.Args[0] {
+				break
+			}
+			b.Kind = Block386OS
+			b.SetControl(cmp)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
+		// cond:
+		// result: (OS cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != Op386TESTB {
+				break
+			}
+			_ = v.Args[1]
+			v_0 := v.Args[0]
+			if v_0.Op != Op386SETO {
+				break
+			}
+			cmp := v_0.Args[0]
+			v_1 := v.Args[1]
+			if v_1.Op != Op386SETO {
+				break
+			}
+			if cmp != v_1.Args[0] {
+				break
+			}
+			b.Kind = Block386OS
 			b.SetControl(cmp)
 			b.Aux = nil
 			return true

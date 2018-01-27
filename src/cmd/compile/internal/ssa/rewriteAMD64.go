@@ -64552,6 +64552,46 @@ func rewriteValueAMD64_OpRsh8x8_0(v *Value) bool {
 func rewriteValueAMD64_OpSelect0_0(v *Value) bool {
 	b := v.Block
 	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (Select0 (Mul64uover x y))
+	// cond:
+	// result: (Select0 <typ.UInt64> (MULQU x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64uover {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v.reset(OpSelect0)
+		v.Type = typ.UInt64
+		v0 := b.NewValue0(v.Pos, OpAMD64MULQU, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Select0 (Mul32uover x y))
+	// cond:
+	// result: (Select0 <typ.UInt32> (MULLU x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32uover {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v.reset(OpSelect0)
+		v.Type = typ.UInt32
+		v0 := b.NewValue0(v.Pos, OpAMD64MULLU, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Select0 <t> (AddTupleFirst32 val tuple))
 	// cond:
 	// result: (ADDL val (Select0 <t> tuple))
@@ -64593,6 +64633,50 @@ func rewriteValueAMD64_OpSelect0_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpSelect1_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (Select1 (Mul64uover x y))
+	// cond:
+	// result: (SETO (Select1 <types.TypeFlags> (MULQU x y)))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64uover {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v.reset(OpAMD64SETO)
+		v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpAMD64MULQU, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v1.AddArg(x)
+		v1.AddArg(y)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Select1 (Mul32uover x y))
+	// cond:
+	// result: (SETO (Select1 <types.TypeFlags> (MULLU x y)))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32uover {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v.reset(OpAMD64SETO)
+		v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpAMD64MULLU, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v1.AddArg(x)
+		v1.AddArg(y)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Select1 (AddTupleFirst32 _ tuple))
 	// cond:
 	// result: (Select1 tuple)
@@ -66757,6 +66841,20 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Aux = nil
 			return true
 		}
+		// match: (If (SETO cmp) yes no)
+		// cond:
+		// result: (OS cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != OpAMD64SETO {
+				break
+			}
+			cmp := v.Args[0]
+			b.Kind = BlockAMD64OS
+			b.SetControl(cmp)
+			b.Aux = nil
+			return true
+		}
 		// match: (If (SETGF cmp) yes no)
 		// cond:
 		// result: (UGT cmp yes no)
@@ -67510,6 +67608,58 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			b.Kind = BlockAMD64UGE
+			b.SetControl(cmp)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
+		// cond:
+		// result: (OS cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != OpAMD64TESTB {
+				break
+			}
+			_ = v.Args[1]
+			v_0 := v.Args[0]
+			if v_0.Op != OpAMD64SETO {
+				break
+			}
+			cmp := v_0.Args[0]
+			v_1 := v.Args[1]
+			if v_1.Op != OpAMD64SETO {
+				break
+			}
+			if cmp != v_1.Args[0] {
+				break
+			}
+			b.Kind = BlockAMD64OS
+			b.SetControl(cmp)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
+		// cond:
+		// result: (OS cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != OpAMD64TESTB {
+				break
+			}
+			_ = v.Args[1]
+			v_0 := v.Args[0]
+			if v_0.Op != OpAMD64SETO {
+				break
+			}
+			cmp := v_0.Args[0]
+			v_1 := v.Args[1]
+			if v_1.Op != OpAMD64SETO {
+				break
+			}
+			if cmp != v_1.Args[0] {
+				break
+			}
+			b.Kind = BlockAMD64OS
 			b.SetControl(cmp)
 			b.Aux = nil
 			return true
