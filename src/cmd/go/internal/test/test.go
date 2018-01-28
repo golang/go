@@ -1805,11 +1805,7 @@ func writeTestmain(out string, t *testFuncs) error {
 	}
 	defer f.Close()
 
-	if err := testmainTmpl.Execute(f, t); err != nil {
-		return err
-	}
-
-	return nil
+	return testmainTmpl.Execute(f, t)
 }
 
 type testFuncs struct {
