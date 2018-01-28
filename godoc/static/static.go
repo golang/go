@@ -1869,59 +1869,124 @@ function cgAddChild(tree, ul, cgn) {
 		<div id="manual-nav">
 			<dl>
 				<dt><a href="#stdlib">Standard library</a></dt>
+				{{if hasThirdParty .List }}
+				<dt><a href="#thirdparty">Third party</a></dt>
+				{{end}}
 				<dt><a href="#other">Other packages</a></dt>
 				<dd><a href="#subrepo">Sub-repositories</a></dd>
 				<dd><a href="#community">Community</a></dd>
 			</dl>
 		</div>
-		<h2 id="stdlib">Standard library</h2>
-		<img alt="" class="gopher" src="/doc/gopher/pkg.png"/>
+
+		<div id="stdlib" class="toggleVisible">
+		<div class="collapsed">
+			<h2 class="toggleButton" title="Click to show Standard library section">Standard library ▹</h2>
+		</div>
+		<div class="expanded">
+			<h2 class="toggleButton" title="Click to hide Standard library section">Standard library ▾</h2>
+			<img alt="" class="gopher" src="/doc/gopher/pkg.png"/>
 	{{end}}
+		<div class="pkg-dir">
+			<table>
+				<tr>
+					<th class="pkg-name">Name</th>
+					<th class="pkg-synopsis">Synopsis</th>
+				</tr>
 
+				{{if not (or (eq $.Dirname "/src") (eq $.Dirname "/src/cmd") $.DirFlat)}}
+				<tr>
+					<td colspan="2"><a href="..">..</a></td>
+				</tr>
+				{{end}}
 
-	<div class="pkg-dir">
-		<table>
-			<tr>
-				<th class="pkg-name">Name</th>
-				<th class="pkg-synopsis">Synopsis</th>
-			</tr>
-
-			{{if not (or (eq $.Dirname "/src") (eq $.Dirname "/src/cmd") $.DirFlat)}}
-			<tr>
-				<td colspan="2"><a href="..">..</a></td>
-			</tr>
-			{{end}}
-
-			{{range .List}}
-				{{if $.DirFlat}}
-					{{if .HasPkg}}
+				{{if eq $.Dirname "/src"}}
+					{{range .List}}
 						<tr>
-							<td class="pkg-name">
-								<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Path}}</a>
+						{{if eq .FsRootType "GOROOT"}}
+						{{if $.DirFlat}}
+							{{if .HasPkg}}
+									<td class="pkg-name">
+										<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Path}}</a>
+									</td>
+							{{end}}
+						{{else}}
+								<td class="pkg-name" style="padding-left: {{multiply .Depth 20}}px;">
+									<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Name}}</a>
+								</td>
+						{{end}}
+							<td class="pkg-synopsis">
+								{{html .Synopsis}}
 							</td>
+						{{end}}
+						</tr>
+					{{end}}
+				{{else}}
+					{{range .List}}
+						<tr>
+						{{if $.DirFlat}}
+							{{if .HasPkg}}
+									<td class="pkg-name">
+										<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Path}}</a>
+									</td>
+							{{end}}
+						{{else}}
+								<td class="pkg-name" style="padding-left: {{multiply .Depth 20}}px;">
+									<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Name}}</a>
+								</td>
+						{{end}}
 							<td class="pkg-synopsis">
 								{{html .Synopsis}}
 							</td>
 						</tr>
 					{{end}}
-				{{else}}
-					<tr>
-						<td class="pkg-name" style="padding-left: {{multiply .Depth 20}}px;">
-							<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Name}}</a>
-						</td>
-						<td class="pkg-synopsis">
-							{{html .Synopsis}}
-						</td>
-					</tr>
 				{{end}}
-			{{end}}
-		</table>
+			</table>
+		</div>
+	{{if eq $.Dirname "/src"}}
+		</div>
 	</div>
 
+	{{if hasThirdParty .List }}
+	<div id="thirdparty" class="toggleVisible">
+		<div class="collapsed">
+			<h2 class="toggleButton" title="Click to show Third party section">Third party ▹</h2>
+		</div>
+		<div class="expanded">
+			<h2 class="toggleButton" title="Click to hide Third party section">Third party ▾</h2>
+			<div class="pkg-dir">
+				<table>
+					<tr>
+						<th class="pkg-name">Name</th>
+						<th class="pkg-synopsis">Synopsis</th>
+					</tr>
 
-	{{if eq $.Dirname "/src"}}
+					{{range .List}}
+						<tr>
+							{{if eq .FsRootType "GOPATH"}}
+							{{if $.DirFlat}}
+								{{if .HasPkg}}
+										<td class="pkg-name">
+											<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Path}}</a>
+										</td>
+								{{end}}
+							{{else}}
+									<td class="pkg-name" style="padding-left: {{multiply .Depth 20}}px;">
+										<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Name}}</a>
+									</td>
+							{{end}}
+								<td class="pkg-synopsis">
+									{{html .Synopsis}}
+								</td>
+							{{end}}
+						</tr>
+					{{end}}
+				</table>
+			</div>
+		</div>
+	</div>
+	{{end}}
+
 	<h2 id="other">Other packages</h2>
-
 	<h3 id="subrepo">Sub-repositories</h3>
 	<p>
 	These packages are part of the Go Project but outside the main Go tree.

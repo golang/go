@@ -381,6 +381,20 @@ func (ns NameSpace) ReadDir(path string) ([]os.FileInfo, error) {
 	return all, nil
 }
 
+// RootType returns the RootType for the given path in the namespace.
+func (ns NameSpace) RootType(path string) RootType {
+	// We resolve the given path to a list of mountedFS and then return
+	// the root type for the filesystem which contains the path.
+	for _, m := range ns.resolve(path) {
+		_, err := m.fs.ReadDir(m.translate(path))
+		// Found a match, return the filesystem's root type
+		if err == nil {
+			return m.fs.RootType(path)
+		}
+	}
+	return RootTypeStandAlone
+}
+
 // byName implements sort.Interface.
 type byName []os.FileInfo
 

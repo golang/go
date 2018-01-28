@@ -106,6 +106,9 @@ func (p *Presentation) initFuncMap() {
 
 		// formatting of PageInfoMode query string
 		"modeQueryString": modeQueryString,
+
+		// check whether to display third party section or not
+		"hasThirdParty": hasThirdParty,
 	}
 	if p.URLForSrc != nil {
 		p.funcMap["srcLink"] = p.URLForSrc

@@ -57,6 +57,10 @@ func (e *emptyVFS) String() string {
 	return "emptyVFS(/)"
 }
 
+func (e *emptyVFS) RootType(path string) RootType {
+	return RootTypeStandAlone
+}
+
 // These functions below implement os.FileInfo for the single
 // empty emulated directory.
 
