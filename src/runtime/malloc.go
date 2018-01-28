@@ -918,7 +918,7 @@ func newobject(typ *_type) unsafe.Pointer {
 
 //go:linkname reflect_unsafe_New reflect.unsafe_New
 func reflect_unsafe_New(typ *_type) unsafe.Pointer {
-	return newobject(typ)
+	return mallocgc(typ.size, typ, true)
 }
 
 // newarray allocates an array of n elements of type typ.
