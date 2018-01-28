@@ -81,6 +81,13 @@ func init() {
 			skipExternal = true
 			canRun = false
 		}
+	case "plan9":
+		switch runtime.GOARCH {
+		case "arm":
+			// many plan9/arm machines are too slow to run
+			// the full set of external tests.
+			skipExternal = true
+		}
 	case "windows":
 		exeSuffix = ".exe"
 	}
