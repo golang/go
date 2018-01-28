@@ -5,8 +5,10 @@
 package os_test
 
 import (
+	"io/ioutil"
 	"os"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -42,5 +44,33 @@ func TestFixLongPath(t *testing.T) {
 			got = strings.Replace(got, veryLong, "long", -1)
 			t.Errorf("fixLongPath(%q) = %q; want %q", test.in, got, test.want)
 		}
+	}
+}
+
+func TestMkdirAllExtendedLength(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "TestMkdirAllExtendedLength")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	const prefix = `\\?\`
+	if len(tmpDir) < 4 || tmpDir[:4] != prefix {
+		fullPath, err := syscall.FullPath(tmpDir)
+		if err != nil {
+			t.Fatalf("FullPath(%q) fails: %v", tmpDir, err)
+		}
+		tmpDir = prefix + fullPath
+	}
+	path := tmpDir + `\dir\`
+	err = os.MkdirAll(path, 0777)
+	if err != nil {
+		t.Fatalf("MkdirAll(%q) failed: %v", path, err)
+	}
+
+	path = path + `.\dir2`
+	err = os.MkdirAll(path, 0777)
+	if err == nil {
+		t.Fatalf("MkdirAll(%q) should have failed, but did not", path)
 	}
 }

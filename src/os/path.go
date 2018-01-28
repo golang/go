@@ -39,8 +39,10 @@ func MkdirAll(path string, perm FileMode) error {
 	}
 
 	if j > 1 {
-		// Create parent
-		err = MkdirAll(path[0:j-1], perm)
+		// Create parent.
+		// Pass trailing path separator to MkdirAll, so our
+		// algorithm works for paths, like \\?\c:\
+		err = MkdirAll(path[0:j], perm)
 		if err != nil {
 			return err
 		}
