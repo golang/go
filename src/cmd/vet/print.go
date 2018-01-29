@@ -187,12 +187,14 @@ func checkFmtPrintfCall(f *File, node ast.Node) {
 
 	if d, ok := node.(*ast.FuncDecl); ok && isStringer(f, d) {
 		// Remember we saw this.
-		if f.stringers == nil {
-			f.stringers = make(map[*ast.Object]bool)
+		if f.stringerPtrs == nil {
+			f.stringerPtrs = make(map[*ast.Object]bool)
 		}
 		if l := d.Recv.List; len(l) == 1 {
 			if n := l[0].Names; len(n) == 1 {
-				f.stringers[n[0].Obj] = true
+				typ := f.pkg.types[l[0].Type]
+				_, ptrRecv := typ.Type.(*types.Pointer)
+				f.stringerPtrs[n[0].Obj] = ptrRecv
 			}
 		}
 		return
@@ -628,9 +630,10 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 // recursiveStringer reports whether the provided argument is r or &r for the
 // fmt.Stringer receiver identifier r.
 func (f *File) recursiveStringer(e ast.Expr) bool {
-	if len(f.stringers) == 0 {
+	if len(f.stringerPtrs) == 0 {
 		return false
 	}
+	ptr := false
 	var obj *ast.Object
 	switch e := e.(type) {
 	case *ast.Ident:
@@ -638,6 +641,7 @@ func (f *File) recursiveStringer(e ast.Expr) bool {
 	case *ast.UnaryExpr:
 		if id, ok := e.X.(*ast.Ident); ok && e.Op == token.AND {
 			obj = id.Obj
+			ptr = true
 		}
 	}
 
@@ -652,7 +656,16 @@ func (f *File) recursiveStringer(e ast.Expr) bool {
 	// We compare the underlying Object, which checks that the identifier
 	// is the one we declared as the receiver for the String method in
 	// which this printf appears.
-	return f.stringers[obj]
+	ptrRecv, exist := f.stringerPtrs[obj]
+	if !exist {
+		return false
+	}
+	// We also need to check that using &t when we declared String
+	// on (t *T) is ok; in such a case, the address is printed.
+	if ptr && ptrRecv {
+		return false
+	}
+	return true
 }
 
 // isFunctionValue reports whether the expression is a function as opposed to a function call.
