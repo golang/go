@@ -4653,7 +4653,13 @@ func genssa(f *ssa.Func, pp *Progs) {
 	s.ScratchFpMem = e.scratchFpMem
 
 	if Ctxt.Flag_locationlists {
-		valueToProgAfter = make([]*obj.Prog, f.NumValues())
+		if cap(f.Cache.ValueToProgAfter) < f.NumValues() {
+			f.Cache.ValueToProgAfter = make([]*obj.Prog, f.NumValues())
+		}
+		valueToProgAfter = f.Cache.ValueToProgAfter[:f.NumValues()]
+		for i := range valueToProgAfter {
+			valueToProgAfter[i] = nil
+		}
 	}
 
 	// Emit basic blocks
