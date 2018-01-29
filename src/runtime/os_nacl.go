@@ -246,10 +246,6 @@ func semawakeup(mp *m) {
 	})
 }
 
-func memlimit() uintptr {
-	return 0
-}
-
 // This runs on a foreign stack, without an m or a g. No stack split.
 //go:nosplit
 //go:norace

@@ -483,14 +483,6 @@ func osyield() {
 	usleep(1)
 }
 
-func memlimit() uintptr {
-	// NOTE(rsc): Could use getrlimit here,
-	// like on FreeBSD or Linux, but Darwin doesn't enforce
-	// ulimit -v, so it's unclear why we'd try to stay within
-	// the limit.
-	return 0
-}
-
 const (
 	_NSIG        = 32
 	_SI_USER     = 0 /* empirically true, but not what headers say */

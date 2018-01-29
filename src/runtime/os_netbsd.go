@@ -272,10 +272,6 @@ func unminit() {
 	unminitSignals()
 }
 
-func memlimit() uintptr {
-	return 0
-}
-
 func sigtramp()
 
 type sigactiont struct {

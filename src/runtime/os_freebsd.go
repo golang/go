@@ -266,37 +266,6 @@ func unminit() {
 	unminitSignals()
 }
 
-func memlimit() uintptr {
-	/*
-		TODO: Convert to Go when something actually uses the result.
-		Rlimit rl;
-		extern byte runtime·text[], runtime·end[];
-		uintptr used;
-
-		if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
-			return 0;
-		if(rl.rlim_cur >= 0x7fffffff)
-			return 0;
-
-		// Estimate our VM footprint excluding the heap.
-		// Not an exact science: use size of binary plus
-		// some room for thread stacks.
-		used = runtime·end - runtime·text + (64<<20);
-		if(used >= rl.rlim_cur)
-			return 0;
-
-		// If there's not at least 16 MB left, we're probably
-		// not going to be able to do much. Treat as no limit.
-		rl.rlim_cur -= used;
-		if(rl.rlim_cur < (16<<20))
-			return 0;
-
-		return rl.rlim_cur - used;
-	*/
-
-	return 0
-}
-
 func sigtramp()
 
 type sigactiont struct {
