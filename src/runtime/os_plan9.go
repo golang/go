@@ -466,10 +466,6 @@ func write(fd uintptr, buf unsafe.Pointer, n int32) int64 {
 	return int64(pwrite(int32(fd), buf, n, -1))
 }
 
-func memlimit() uint64 {
-	return 0
-}
-
 var _badsignal = []byte("runtime: signal received on thread not created by Go.\n")
 
 // This runs on a foreign stack, without an m or a g. No stack split.
