@@ -71,7 +71,7 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 
 // validSymbol checks that addr represents a valid name for a pseudo-op.
 func (p *Parser) validSymbol(pseudo string, addr *obj.Addr, offsetOk bool) bool {
-	if addr.Name != obj.NAME_EXTERN && addr.Name != obj.NAME_STATIC || addr.Scale != 0 || addr.Reg != 0 {
+	if addr.Sym == nil || addr.Name != obj.NAME_EXTERN && addr.Name != obj.NAME_STATIC || addr.Scale != 0 || addr.Reg != 0 {
 		p.errorf("%s symbol %q must be a symbol(SB)", pseudo, symbolName(addr))
 		return false
 	}
