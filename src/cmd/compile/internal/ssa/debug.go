@@ -70,10 +70,16 @@ func (state *stateAtPC) reset(live []liveSlot) {
 		if live.loc.Registers == 0 {
 			continue
 		}
-		for reg, regMask := 0, 1; reg < len(registers); reg, regMask = reg+1, regMask<<1 {
-			if live.loc.Registers&RegisterSet(regMask) != 0 {
-				registers[reg] = append(registers[reg], SlotID(live.slot))
+
+		mask := uint64(live.loc.Registers)
+		for {
+			if mask == 0 {
+				break
 			}
+			reg := uint8(TrailingZeros64(mask))
+			mask &^= 1 << reg
+
+			registers[reg] = append(registers[reg], SlotID(live.slot))
 		}
 	}
 	state.slots, state.registers = slots, registers
@@ -90,10 +96,14 @@ func (b *BlockDebug) LocString(loc VarLoc) string {
 		storage = append(storage, "stack")
 	}
 
-	for reg := 0; reg < 64; reg++ {
-		if loc.Registers&(1<<uint8(reg)) == 0 {
-			continue
+	mask := uint64(loc.Registers)
+	for {
+		if mask == 0 {
+			break
 		}
+		reg := uint8(TrailingZeros64(mask))
+		mask &^= 1 << reg
+
 		if registers != nil {
 			storage = append(storage, registers[reg].String())
 		} else {
@@ -513,10 +523,15 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) *B
 		if slotLoc.Registers == 0 {
 			continue
 		}
-		for reg, regMask := 0, 1; reg < len(state.registers); reg, regMask = reg+1, regMask<<1 {
-			if slotLoc.Registers&RegisterSet(regMask) != 0 {
-				state.currentState.registers[reg] = append(state.currentState.registers[reg], SlotID(slotID))
+		mask := uint64(slotLoc.Registers)
+		for {
+			if mask == 0 {
+				break
 			}
+			reg := uint8(TrailingZeros64(mask))
+			mask &^= 1 << reg
+
+			state.currentState.registers[reg] = append(state.currentState.registers[reg], SlotID(slotID))
 		}
 	}
 	result.startState = state.cache.GetLiveSlotSlice()
@@ -539,28 +554,29 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 	// Handle any register clobbering. Call operations, for example,
 	// clobber all registers even though they don't explicitly write to
 	// them.
-	if clobbers := opcodeTable[v.Op].reg.clobbers; clobbers != 0 {
-		for reg := 0; reg < len(state.registers); reg++ {
-			if clobbers&(1<<uint8(reg)) == 0 {
+	clobbers := uint64(opcodeTable[v.Op].reg.clobbers)
+	for {
+		if clobbers == 0 {
+			break
+		}
+		reg := uint8(TrailingZeros64(clobbers))
+		clobbers &^= 1 << reg
+
+		for _, slot := range locs.registers[reg] {
+			if state.loggingEnabled {
+				state.logf("at %v: %v clobbered out of %v\n", v.ID, state.slots[slot], &state.registers[reg])
+			}
+
+			last := locs.slots[slot]
+			if last.absent() {
+				state.f.Fatalf("at %v: slot %v in register %v with no location entry", v, state.slots[slot], &state.registers[reg])
 				continue
 			}
-
-			for _, slot := range locs.registers[reg] {
-				if state.loggingEnabled {
-					state.logf("at %v: %v clobbered out of %v\n", v.ID, state.slots[slot], &state.registers[reg])
-				}
-
-				last := locs.slots[slot]
-				if last.absent() {
-					state.f.Fatalf("at %v: slot %v in register %v with no location entry", v, state.slots[slot], &state.registers[reg])
-					continue
-				}
-				regs := last.Registers &^ (1 << uint8(reg))
-				setSlot(slot, VarLoc{regs, last.OnStack, last.StackOffset})
-			}
-
-			locs.registers[reg] = locs.registers[reg][:0]
+			regs := last.Registers &^ (1 << uint8(reg))
+			setSlot(slot, VarLoc{regs, last.OnStack, last.StackOffset})
 		}
+
+		locs.registers[reg] = locs.registers[reg][:0]
 	}
 
 	switch {
@@ -692,14 +708,12 @@ func canMerge(pending, new VarLoc) bool {
 
 // firstReg returns the first register in set that is present.
 func firstReg(set RegisterSet) uint8 {
-	for reg := 0; reg < 64; reg++ {
-		if set&(1<<uint8(reg)) != 0 {
-			return uint8(reg)
-		}
+	if set == 0 {
+		// This is wrong, but there seem to be some situations where we
+		// produce locations with no storage.
+		return 0
 	}
-	// This is wrong, but there seem to be some situations where we
-	// produce locations with no storage.
-	return 0
+	return uint8(TrailingZeros64(uint64(set)))
 }
 
 // buildLocationLists builds location lists for all the user variables in
