@@ -295,6 +295,7 @@ type formatState struct {
 	file         *File
 	call         *ast.CallExpr
 	argNum       int  // Which argument we're expecting to format now.
+	hasIndex     bool // Whether the argument is indexed.
 	indexPending bool // Whether we have an indexed argument that has not resolved.
 	nbytes       int  // number of bytes of the format string consumed.
 }
@@ -319,6 +320,7 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string) {
 	// Hard part: check formats against args.
 	argNum := firstArg
 	maxArgNum := firstArg
+	anyIndex := false
 	for i, w := 0, 0; i < len(format); i += w {
 		w = 1
 		if format[i] != '%' {
@@ -332,6 +334,9 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string) {
 		if !f.okPrintfArg(call, state) { // One error per format is enough.
 			return
 		}
+		if state.hasIndex {
+			anyIndex = true
+		}
 		if len(state.argNums) > 0 {
 			// Continue with the next sequential argument.
 			argNum = state.argNums[len(state.argNums)-1] + 1
@@ -344,6 +349,10 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string) {
 	}
 	// Dotdotdot is hard.
 	if call.Ellipsis.IsValid() && maxArgNum >= len(call.Args)-1 {
+		return
+	}
+	// If any formats are indexed, extra arguments are ignored.
+	if anyIndex {
 		return
 	}
 	// There should be no leftover arguments.
@@ -404,6 +413,7 @@ func (s *formatState) parseIndex() bool {
 	arg := int(arg32)
 	arg += s.firstArg - 1 // We want to zero-index the actual arguments.
 	s.argNum = arg
+	s.hasIndex = true
 	s.indexPending = true
 	return true
 }

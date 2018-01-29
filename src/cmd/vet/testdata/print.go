@@ -270,8 +270,9 @@ func PrintfTests() {
 	Printf("%d %[3]d %d %[-2]d x", 1, 2, 3, 4)            // ERROR "Printf format has invalid argument index \[-2\]"
 	Printf("%d %[3]d %d %[2234234234234]d x", 1, 2, 3, 4) // ERROR "Printf format has invalid argument index \[2234234234234\]"
 	Printf("%d %[3]d %-10d %[2]d x", 1, 2, 3)             // ERROR "Printf format %-10d reads arg #4, but call has only 3 args"
-	Printf("%d %[3]d %d %[2]d x", 1, 2, 3, 4, 5)          // ERROR "Printf call needs 4 args but has 5 args"
 	Printf("%[1][3]d x", 1, 2)                            // ERROR "Printf format %\[1\]\[ has unknown verb \["
+	Printf("%[1]d x", 1, 2)                               // OK
+	Printf("%d %[3]d %d %[2]d x", 1, 2, 3, 4, 5)          // OK
 
 	// wrote Println but meant Fprintln
 	Printf("%p\n", os.Stdout)   // OK
