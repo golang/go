@@ -484,6 +484,10 @@ type RecursiveStruct2 struct {
 
 var recursiveStruct1V = &RecursiveStruct1{}
 
+type unexportedInterface struct {
+	f interface{}
+}
+
 // Issue 17798: unexported ptrStringer cannot be formatted.
 type unexportedStringer struct {
 	t ptrStringer
@@ -508,7 +512,23 @@ type errorer struct{}
 
 func (e errorer) Error() string { return "errorer" }
 
+type unexportedCustomError struct {
+	e errorer
+}
+
+type errorInterface interface {
+	error
+	ExtraMethod()
+}
+
+type unexportedErrorInterface struct {
+	e errorInterface
+}
+
 func UnexportedStringerOrError() {
+	fmt.Printf("%s", unexportedInterface{"foo"}) // ok; prints {foo}
+	fmt.Printf("%s", unexportedInterface{3})     // ok; we can't see the problem
+
 	us := unexportedStringer{}
 	fmt.Printf("%s", us)  // ERROR "Printf format %s has arg us of wrong type testdata.unexportedStringer"
 	fmt.Printf("%s", &us) // ERROR "Printf format %s has arg &us of wrong type [*]testdata.unexportedStringer"
@@ -534,10 +554,18 @@ func UnexportedStringerOrError() {
 	fmt.Printf("%s", uef)  // ERROR "Printf format %s has arg uef of wrong type testdata.unexportedErrorOtherFields"
 	fmt.Printf("%s", &uef) // ERROR "Printf format %s has arg &uef of wrong type [*]testdata.unexportedErrorOtherFields"
 
+	uce := unexportedCustomError{
+		e: errorer{},
+	}
+	fmt.Printf("%s", uce) // ERROR "Printf format %s has arg uce of wrong type testdata.unexportedCustomError"
+
+	uei := unexportedErrorInterface{}
+	fmt.Printf("%s", uei)       // ERROR "Printf format %s has arg uei of wrong type testdata.unexportedErrorInterface"
 	fmt.Println("foo\n", "bar") // not an error
-	fmt.Println("foo\n")        // ERROR "Println arg list ends with redundant newline"
-	fmt.Println("foo\\n")       // not an error
-	fmt.Println(`foo\n`)        // not an error
+
+	fmt.Println("foo\n")  // ERROR "Println arg list ends with redundant newline"
+	fmt.Println("foo\\n") // not an error
+	fmt.Println(`foo\n`)  // not an error
 
 	intSlice := []int{3, 4}
 	fmt.Printf("%s", intSlice) // ERROR "Printf format %s has arg intSlice of wrong type \[\]int"
