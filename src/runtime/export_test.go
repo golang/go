@@ -376,6 +376,8 @@ func (rw *RWMutex) Unlock() {
 	rw.rw.unlock()
 }
 
+const RuntimeHmapSize = unsafe.Sizeof(hmap{})
+
 func MapBucketsCount(m map[int]int) int {
 	h := *(**hmap)(unsafe.Pointer(&m))
 	return 1 << h.B

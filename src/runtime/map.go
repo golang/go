@@ -296,13 +296,6 @@ func makemap_small() *hmap {
 // If h != nil, the map can be created directly in h.
 // If h.buckets != nil, bucket pointed to can be used as the first bucket.
 func makemap(t *maptype, hint int, h *hmap) *hmap {
-	// The size of hmap should be 48 bytes on 64 bit
-	// and 28 bytes on 32 bit platforms.
-	if sz := unsafe.Sizeof(hmap{}); sz != 8+5*sys.PtrSize {
-		println("runtime: sizeof(hmap) =", sz, ", t.hmap.size =", t.hmap.size)
-		throw("bad hmap size")
-	}
-
 	if hint < 0 || hint > int(maxSliceCap(t.bucket.size)) {
 		hint = 0
 	}
@@ -1150,10 +1143,6 @@ func ismapkey(t *_type) bool {
 //go:linkname reflect_makemap reflect.makemap
 func reflect_makemap(t *maptype, cap int) *hmap {
 	// Check invariants and reflects math.
-	if sz := unsafe.Sizeof(hmap{}); sz != t.hmap.size {
-		println("runtime: sizeof(hmap) =", sz, ", t.hmap.size =", t.hmap.size)
-		throw("bad hmap size")
-	}
 	if !ismapkey(t.key) {
 		throw("runtime.reflect_makemap: unsupported map key type")
 	}
