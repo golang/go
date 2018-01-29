@@ -814,7 +814,7 @@ formats the X.509 distinguished name in the standard RFC 2253 format.
 <dl id="database/sql/driver"><dt><a href="/pkg/database/sql/driver/">database/sql/driver</a></dt>
 <dd>
 <p>
-Drivers that currently hold on to the destination buffer provdied by
+Drivers that currently hold on to the destination buffer provided by
 <a href="/pkg/database/sql/driver/#Rows.Next"><code>driver.Rows.Next</code></a> should ensure they no longer
 write to a buffer assigned to the destination array outside of that call.
 Drivers must be careful that underlying buffers are not modified when closing
@@ -1347,7 +1347,7 @@ in the corresponding <a href="/pkg/reflect/#StructField">StructField</a>,
 with the result that for those fields,
 and <a href="/pkg/reflect/#Value.CanSet"><code>Value.CanSet</code></a>
 incorrectly returned true and
-and <a href="/pkg/reflect/#Value.Set"><code>Value.Set</code></a>
+<a href="/pkg/reflect/#Value.Set"><code>Value.Set</code></a>
 incorrectly succeeded.
 The underlying metadata has been corrected;
 for those fields,
