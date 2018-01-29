@@ -172,7 +172,7 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 			return true // %s matches []byte
 		}
 		// Recur: []int matches %d.
-		return t&argPointer != 0 || f.matchArgTypeInternal(t, typ.Elem().Underlying(), arg, inProgress)
+		return t&argPointer != 0 || f.matchArgTypeInternal(t, typ.Elem(), arg, inProgress)
 
 	case *types.Slice:
 		// Same as array.
