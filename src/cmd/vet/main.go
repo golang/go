@@ -195,9 +195,11 @@ type File struct {
 	// Parsed package "foo" when checking package "foo_test"
 	basePkg *Package
 
-	// The objects that are receivers of a "String() string" method.
+	// The keys are the objects that are receivers of a "String()
+	// string" method. The value reports whether the method has a
+	// pointer receiver.
 	// This is used by the recursiveStringer method in print.go.
-	stringers map[*ast.Object]bool
+	stringerPtrs map[*ast.Object]bool
 
 	// Registered checkers to run.
 	checkers map[ast.Node][]func(*File, ast.Node)

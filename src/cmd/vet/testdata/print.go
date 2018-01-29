@@ -440,6 +440,7 @@ type recursivePtrStringer int
 
 func (p *recursivePtrStringer) String() string {
 	_ = fmt.Sprintf("%v", *p)
+	_ = fmt.Sprint(&p)     // ok; prints address
 	return fmt.Sprintln(p) // ERROR "Sprintln arg p causes recursive call to String method"
 }
 
