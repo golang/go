@@ -362,6 +362,18 @@ func TestHttpsInsecure(t *testing.T) {
 	if runtime.GOOS == "nacl" {
 		t.Skip("test assumes tcp available")
 	}
+	saveHome := os.Getenv(homeEnv())
+	tempdir, err := ioutil.TempDir("", "home")
+	if err != nil {
+		t.Fatal("creating temp dir: ", err)
+	}
+	defer os.RemoveAll(tempdir)
+
+	// pprof writes to $HOME/pprof by default which is not necessarily
+	// writeable (e.g. on a Debian buildd) so set $HOME to something we
+	// know we can write to for the duration of the test.
+	os.Setenv(homeEnv(), tempdir)
+	defer os.Setenv(homeEnv(), saveHome)
 
 	baseVars := pprofVariables
 	pprofVariables = baseVars.makeCopy()
