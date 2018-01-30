@@ -569,6 +569,11 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 			return false
 		}
 		for _, flag := range state.flags {
+			// TODO: Disable complaint about '0' for Go 1.10. To be fixed properly in 1.11.
+			// See issues 23598 and 23605.
+			if flag == '0' {
+				continue
+			}
 			if !strings.ContainsRune(v.flags, rune(flag)) {
 				f.Badf(call.Pos(), "%s format %s has unrecognized flag %c", state.name, state.format, flag)
 				return false

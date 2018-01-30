@@ -533,3 +533,9 @@ func UnexportedStringerOrError() {
 	fmt.Println("foo\\n")       // not an error
 	fmt.Println(`foo\n`)        // not an error
 }
+
+// TODO: Disable complaint about '0' for Go 1.10. To be fixed properly in 1.11.
+// See issues 23598 and 23605.
+func DisableErrorForFlag0() {
+	fmt.Printf("%0t", true)
+}
