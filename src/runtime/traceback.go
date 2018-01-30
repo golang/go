@@ -286,7 +286,15 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				// In that context it is okay to stop early.
 				// But if callback is set, we're doing a garbage collection and must
 				// get everything, so crash loudly.
-				if callback != nil || printing {
+				doPrint := printing
+				if doPrint && gp.m.incgo && f.entry == sigpanicPC {
+					// We can inject sigpanic
+					// calls directly into C code,
+					// in which case we'll see a C
+					// return PC. Don't complain.
+					doPrint = false
+				}
+				if callback != nil || doPrint {
 					print("runtime: unexpected return pc for ", funcname(f), " called from ", hex(frame.lr), "\n")
 					tracebackHexdump(gp.stack, &frame, lrPtr)
 				}

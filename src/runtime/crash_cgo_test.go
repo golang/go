@@ -481,3 +481,24 @@ func TestSigStackSwapping(t *testing.T) {
 		t.Errorf("expected %q got %v", want, got)
 	}
 }
+
+func TestCgoTracebackSigpanic(t *testing.T) {
+	// Test unwinding over a sigpanic in C code without a C
+	// symbolizer. See issue #23576.
+	if runtime.GOOS == "windows" {
+		// On Windows if we get an exception in C code, we let
+		// the Windows exception handler unwind it, rather
+		// than injecting a sigpanic.
+		t.Skip("no sigpanic in C on windows")
+	}
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "TracebackSigpanic")
+	want := "runtime.sigpanic"
+	if !strings.Contains(got, want) {
+		t.Fatalf("want failure containing %q. output:\n%s\n", want, got)
+	}
+	nowant := "unexpected return pc"
+	if strings.Contains(got, nowant) {
+		t.Fatalf("failure incorrectly contains %q. output:\n%s\n", nowant, got)
+	}
+}
