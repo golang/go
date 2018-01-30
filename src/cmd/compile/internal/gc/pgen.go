@@ -596,7 +596,7 @@ func (s byNodeName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 // stackOffset returns the stack location of a LocalSlot relative to the
 // stack pointer, suitable for use in a DWARF location entry. This has nothing
 // to do with its offset in the user variable.
-func stackOffset(slot *ssa.LocalSlot) int32 {
+func stackOffset(slot ssa.LocalSlot) int32 {
 	n := slot.N.(*Node)
 	var base int64
 	switch n.Class() {
@@ -650,7 +650,7 @@ func createComplexVar(fn *Func, varID ssa.VarID) *dwarf.Var {
 		// variables just give it the first one. It's not used otherwise.
 		// This won't work well if the first slot hasn't been assigned a stack
 		// location, but it's not obvious how to do better.
-		StackOffset: stackOffset(debug.Slots[debug.VarSlots[varID][0]]),
+		StackOffset: stackOffset(*debug.Slots[debug.VarSlots[varID][0]]),
 		DeclFile:    declpos.Base().SymFilename(),
 		DeclLine:    declpos.Line(),
 		DeclCol:     declpos.Col(),

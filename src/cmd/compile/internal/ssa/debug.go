@@ -170,7 +170,7 @@ type debugState struct {
 	loggingEnabled bool
 	cache          *Cache
 	registers      []Register
-	stackOffset    func(*LocalSlot) int32
+	stackOffset    func(LocalSlot) int32
 
 	// The names (slots) associated with each value, indexed by Value ID.
 	valueNames [][]SlotID
@@ -280,7 +280,7 @@ func (s *debugState) stateString(b *BlockDebug, state stateAtPC) string {
 // BuildFuncDebug returns debug information for f.
 // f must be fully processed, so that each Value is where it will be when
 // machine code is emitted.
-func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset func(*LocalSlot) int32) *FuncDebug {
+func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset func(LocalSlot) int32) *FuncDebug {
 	if f.RegAlloc == nil {
 		f.Fatalf("BuildFuncDebug on func %v that has not been fully processed", f)
 	}
@@ -336,7 +336,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
 	}
 
 	blockLocs := state.liveness()
-	lists := state.buildLocationLists(ctxt, stackOffset, blockLocs)
+	lists := state.buildLocationLists(ctxt, blockLocs)
 
 	return &FuncDebug{
 		Slots:         state.slots,
@@ -582,7 +582,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 	switch {
 	case v.Op == OpArg:
 		home := state.f.getHome(v.ID).(LocalSlot)
-		stackOffset := state.stackOffset(&home)
+		stackOffset := state.stackOffset(home)
 		for _, slot := range vSlots {
 			if state.loggingEnabled {
 				state.logf("at %v: arg %v now on stack in location %v\n", v.ID, state.slots[slot], home)
@@ -596,7 +596,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 
 	case v.Op == OpStoreReg:
 		home := state.f.getHome(v.ID).(LocalSlot)
-		stackOffset := state.stackOffset(&home)
+		stackOffset := state.stackOffset(home)
 		for _, slot := range vSlots {
 			last := locs.slots[slot]
 			if last.absent() {
@@ -721,7 +721,7 @@ func firstReg(set RegisterSet) uint8 {
 // The returned location lists are not fully complete. They are in terms of
 // SSA values rather than PCs, and have no base address/end entries. They will
 // be finished by PutLocationList.
-func (state *debugState) buildLocationLists(Ctxt *obj.Link, stackOffset func(*LocalSlot) int32, blockLocs []*BlockDebug) [][]byte {
+func (state *debugState) buildLocationLists(Ctxt *obj.Link, blockLocs []*BlockDebug) [][]byte {
 	lists := make([][]byte, len(state.vars))
 	pendingEntries := state.cache.pendingEntries
 
