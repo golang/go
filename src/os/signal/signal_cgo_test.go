@@ -72,6 +72,10 @@ func TestTerminalSignal(t *testing.T) {
 
 	master, sname, err := pty.Open()
 	if err != nil {
+		ptyErr := err.(*pty.PtyError)
+		if ptyErr.FuncName == "posix_openpt" && ptyErr.Errno == syscall.EACCES {
+			t.Skip("posix_openpt failed with EACCES, assuming chroot and skipping")
+		}
 		t.Fatal(err)
 	}
 	defer master.Close()
