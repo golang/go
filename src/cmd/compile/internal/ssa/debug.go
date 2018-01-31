@@ -33,12 +33,7 @@ type FuncDebug struct {
 }
 
 type BlockDebug struct {
-	// The SSA block that this tracks. For debug logging only.
-	Block *Block
-	// State at entry to the block. Both this and endState are immutable
-	// once initialized.
-	startState []liveSlot
-	// State at the end of the block if it's fully processed.
+	// State at the end of the block if it's fully processed. Immutable once initialized.
 	endState []liveSlot
 }
 
@@ -85,11 +80,10 @@ func (state *stateAtPC) reset(live []liveSlot) {
 	state.slots, state.registers = slots, registers
 }
 
-func (b *BlockDebug) LocString(loc VarLoc) string {
+func (s *debugState) LocString(loc VarLoc) string {
 	if loc.absent() {
 		return "<nil>"
 	}
-	registers := b.Block.Func.Config.registers
 
 	var storage []string
 	if loc.OnStack {
@@ -104,11 +98,7 @@ func (b *BlockDebug) LocString(loc VarLoc) string {
 		reg := uint8(TrailingZeros64(mask))
 		mask &^= 1 << reg
 
-		if registers != nil {
-			storage = append(storage, registers[reg].String())
-		} else {
-			storage = append(storage, fmt.Sprintf("reg%d", reg))
-		}
+		storage = append(storage, s.registers[reg].String())
 	}
 	if len(storage) == 0 {
 		storage = append(storage, "!!!no storage!!!")
@@ -249,14 +239,14 @@ func (state *debugState) allocBlock(b *Block) *BlockDebug {
 func (s *debugState) blockEndStateString(b *BlockDebug) string {
 	endState := stateAtPC{slots: make([]VarLoc, len(s.slots)), registers: make([][]SlotID, len(s.slots))}
 	endState.reset(b.endState)
-	return s.stateString(b, endState)
+	return s.stateString(endState)
 }
 
-func (s *debugState) stateString(b *BlockDebug, state stateAtPC) string {
+func (s *debugState) stateString(state stateAtPC) string {
 	var strs []string
 	for slotID, loc := range state.slots {
 		if !loc.absent() {
-			strs = append(strs, fmt.Sprintf("\t%v = %v\n", s.slots[slotID], b.LocString(loc)))
+			strs = append(strs, fmt.Sprintf("\t%v = %v\n", s.slots[slotID], s.LocString(loc)))
 		}
 	}
 
@@ -366,10 +356,10 @@ func (state *debugState) liveness() []*BlockDebug {
 
 		// Build the starting state for the block from the final
 		// state of its predecessors.
-		locs := state.mergePredecessors(b, blockLocs)
+		startState, startValid := state.mergePredecessors(b, blockLocs)
 		changed := false
 		if state.loggingEnabled {
-			state.logf("Processing %v, initial state:\n%v", b, state.stateString(locs, state.currentState))
+			state.logf("Processing %v, initial state:\n%v", b, state.stateString(state.currentState))
 		}
 
 		// Update locs/registers with the effects of each Value.
@@ -404,11 +394,12 @@ func (state *debugState) liveness() []*BlockDebug {
 		}
 
 		if state.loggingEnabled {
-			state.f.Logf("Block %v done, locs:\n%v", b, state.stateString(locs, state.currentState))
+			state.f.Logf("Block %v done, locs:\n%v", b, state.stateString(state.currentState))
 		}
 
-		if !changed {
-			locs.endState = locs.startState
+		locs := state.allocBlock(b)
+		if !changed && startValid {
+			locs.endState = startState
 		} else {
 			for slotID, slotLoc := range state.currentState.slots {
 				if slotLoc.absent() {
@@ -426,14 +417,10 @@ func (state *debugState) liveness() []*BlockDebug {
 // mergePredecessors takes the end state of each of b's predecessors and
 // intersects them to form the starting state for b. It returns that state in
 // the BlockDebug, and fills state.currentState with it.
-func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) *BlockDebug {
-	result := state.allocBlock(b)
-	if state.loggingEnabled {
-		result.Block = b
-	}
-
+func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) ([]liveSlot, bool) {
 	// Filter out back branches.
-	var preds []*Block
+	var predsBuf [10]*Block
+	preds := predsBuf[:0]
 	for _, pred := range b.Preds {
 		if blockLocs[pred.b.ID] != nil {
 			preds = append(preds, pred.b)
@@ -441,21 +428,24 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) *B
 	}
 
 	if state.loggingEnabled {
-		state.logf("Merging %v into %v\n", preds, b)
+		// The logf below would cause preds to be heap-allocated if
+		// it were passed directly.
+		preds2 := make([]*Block, len(preds))
+		copy(preds2, preds)
+		state.logf("Merging %v into %v\n", preds2, b)
 	}
 
 	if len(preds) == 0 {
 		if state.loggingEnabled {
 		}
 		state.currentState.reset(nil)
-		return result
+		return nil, true
 	}
 
 	p0 := blockLocs[preds[0].ID].endState
 	if len(preds) == 1 {
-		result.startState = p0
 		state.currentState.reset(p0)
-		return result
+		return p0, true
 	}
 
 	if state.loggingEnabled {
@@ -497,9 +487,8 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) *B
 		if state.loggingEnabled {
 			state.logf("After merge, %v matches %v exactly.\n", b, preds[0])
 		}
-		result.startState = p0
 		state.currentState.reset(p0)
-		return result
+		return p0, true
 	}
 
 	for reg := range state.currentState.registers {
@@ -519,10 +508,6 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) *B
 			continue
 		}
 		// Present in all predecessors.
-		state.cache.AppendLiveSlot(liveSlot{SlotID(slotID), slotLoc})
-		if slotLoc.Registers == 0 {
-			continue
-		}
 		mask := uint64(slotLoc.Registers)
 		for {
 			if mask == 0 {
@@ -534,8 +519,7 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) *B
 			state.currentState.registers[reg] = append(state.currentState.registers[reg], SlotID(slotID))
 		}
 	}
-	result.startState = state.cache.GetLiveSlotSlice()
-	return result
+	return nil, false
 }
 
 // processValue updates locs and state.registerContents to reflect v, a value with
@@ -753,7 +737,7 @@ func (state *debugState) buildLocationLists(Ctxt *obj.Link, blockLocs []*BlockDe
 		if state.loggingEnabled {
 			var partStrs []string
 			for _, slot := range state.varSlots[varID] {
-				partStrs = append(partStrs, fmt.Sprintf("%v@%v", state.slots[slot], blockLocs[endBlock].LocString(pending.pieces[slot])))
+				partStrs = append(partStrs, fmt.Sprintf("%v@%v", state.slots[slot], state.LocString(pending.pieces[slot])))
 			}
 			state.logf("Add entry for %v: \tb%vv%v-b%vv%v = \t%v\n", state.vars[varID], pending.startBlock, pending.startValue, endBlock, endValue, strings.Join(partStrs, " "))
 		}
@@ -834,7 +818,7 @@ func (state *debugState) buildLocationLists(Ctxt *obj.Link, blockLocs []*BlockDe
 	// Run through the function in program text order, building up location
 	// lists as we go. The heavy lifting has mostly already been done.
 	for _, b := range state.f.Blocks {
-		state.currentState.reset(blockLocs[b.ID].startState)
+		state.mergePredecessors(b, blockLocs)
 
 		phisPending := false
 		for _, v := range b.Values {
