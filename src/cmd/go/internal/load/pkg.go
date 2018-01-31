@@ -416,6 +416,9 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 		var err error
 		if debugDeprecatedImportcfgDir != "" {
 			bp, err = cfg.BuildContext.ImportDir(debugDeprecatedImportcfgDir, 0)
+		} else if DebugDeprecatedImportcfg.enabled {
+			bp = new(build.Package)
+			err = fmt.Errorf("unknown import path %q: not in import cfg", importPath)
 		} else {
 			buildMode := build.ImportComment
 			if mode&UseVendor == 0 || path != origPath {
@@ -514,6 +517,13 @@ func isDir(path string) bool {
 // x/vendor/path, vendor/path, or else stay path if none of those exist.
 // VendoredImportPath returns the expanded path or, if no expansion is found, the original.
 func VendoredImportPath(parent *Package, path string) (found string) {
+	if DebugDeprecatedImportcfg.enabled {
+		if d, i := DebugDeprecatedImportcfg.lookup(parent, path); d != "" {
+			return i
+		}
+		return path
+	}
+
 	if parent == nil || parent.Root == "" {
 		return path
 	}
