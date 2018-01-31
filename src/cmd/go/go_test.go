@@ -5373,6 +5373,26 @@ func TestTestCacheInputs(t *testing.T) {
 	}
 }
 
+func TestNoCache(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows":
+		t.Skipf("no unwritable directories on %s", runtime.GOOS)
+	}
+	if os.Getuid() == 0 {
+		t.Skip("skipping test because running as root")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("triv.go", `package main; func main() {}`)
+	tg.must(os.MkdirAll(tg.path("unwritable"), 0555))
+	tg.setenv("HOME", tg.path(filepath.Join("unwritable", "home")))
+	tg.unsetenv("GOCACHE")
+	tg.run("build", "-o", tg.path("triv"), tg.path("triv.go"))
+	tg.grepStderr("disabling cache", "did not disable cache")
+}
+
 func TestTestVet(t *testing.T) {
 	tooSlow(t)
 	tg := testgo(t)
