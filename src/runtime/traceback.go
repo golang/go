@@ -287,7 +287,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				// But if callback is set, we're doing a garbage collection and must
 				// get everything, so crash loudly.
 				doPrint := printing
-				if doPrint && gp.m.incgo && f.entry == sigpanicPC {
+				if doPrint && gp.m.incgo {
 					// We can inject sigpanic
 					// calls directly into C code,
 					// in which case we'll see a C
