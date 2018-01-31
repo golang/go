@@ -310,15 +310,4 @@ func (f *File) matchStructArgType(t printfArgType, typ *types.Struct, arg ast.Ex
 	return true
 }
 
-// hasMethod reports whether the type contains a method with the given name.
-// It is part of the workaround for Formatters and should be deleted when
-// that workaround is no longer necessary.
-// TODO: This could be better once issue 6259 is fixed.
-func (f *File) hasMethod(typ types.Type, name string) bool {
-	// assume we have an addressable variable of type typ
-	obj, _, _ := types.LookupFieldOrMethod(typ, true, f.pkg.typesPkg, name)
-	_, ok := obj.(*types.Func)
-	return ok
-}
-
 var archSizes = types.SizesFor("gc", build.Default.GOARCH)

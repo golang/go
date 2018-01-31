@@ -657,8 +657,7 @@ func (f *File) recursiveStringer(e ast.Expr) bool {
 
 	// It's unlikely to be a recursive stringer if it has a Format method.
 	if typ := f.pkg.types[e].Type; typ != nil {
-		// Not a perfect match; see issue 6259.
-		if f.hasMethod(typ, "Format") {
+		if f.isFormatter(typ) {
 			return false
 		}
 	}
