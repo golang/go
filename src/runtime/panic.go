@@ -805,7 +805,12 @@ func shouldPushSigpanic(gp *g, pc, lr uintptr) bool {
 	// the link register as code, then this assumes the panic was
 	// caused by a call to non-code. In this case, we want to
 	// ignore this call to make unwinding show the context.
-	if findfunc(pc).valid() {
+	//
+	// If we running C code, we're not going to recognize pc as a
+	// Go function, so just assume it's good. Otherwise, traceback
+	// may try to read a stale LR that looks like a Go code
+	// pointer and wander into the woods.
+	if gp.m.incgo || findfunc(pc).valid() {
 		// This wasn't a bad call, so use PC as sigpanic's
 		// return PC.
 		return true
