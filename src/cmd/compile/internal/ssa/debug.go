@@ -39,8 +39,27 @@ type BlockDebug struct {
 
 // A liveSlot is a slot that's live in loc at entry/exit of a block.
 type liveSlot struct {
+	// An inlined VarLoc, so it packs into 16 bytes instead of 20.
+	Registers RegisterSet
+	StackOffset
+
 	slot SlotID
-	loc  VarLoc
+}
+
+func (loc liveSlot) absent() bool {
+	return loc.Registers == 0 && !loc.onStack()
+}
+
+// StackOffset encodes whether a value is on the stack and if so, where. It is
+// a 31-bit integer followed by a presence flag at the low-order bit.
+type StackOffset int32
+
+func (s StackOffset) onStack() bool {
+	return s != 0
+}
+
+func (s StackOffset) stackOffsetValue() int32 {
+	return int32(s) >> 1
 }
 
 // stateAtPC is the current state of all variables at some point.
@@ -61,12 +80,12 @@ func (state *stateAtPC) reset(live []liveSlot) {
 		registers[i] = registers[i][:0]
 	}
 	for _, live := range live {
-		slots[live.slot] = live.loc
-		if live.loc.Registers == 0 {
+		slots[live.slot] = VarLoc{live.Registers, live.StackOffset}
+		if live.Registers == 0 {
 			continue
 		}
 
-		mask := uint64(live.loc.Registers)
+		mask := uint64(live.Registers)
 		for {
 			if mask == 0 {
 				break
@@ -86,7 +105,7 @@ func (s *debugState) LocString(loc VarLoc) string {
 	}
 
 	var storage []string
-	if loc.OnStack {
+	if loc.onStack() {
 		storage = append(storage, "stack")
 	}
 
@@ -100,9 +119,6 @@ func (s *debugState) LocString(loc VarLoc) string {
 
 		storage = append(storage, s.registers[reg].String())
 	}
-	if len(storage) == 0 {
-		storage = append(storage, "!!!no storage!!!")
-	}
 	return strings.Join(storage, ",")
 }
 
@@ -111,13 +127,12 @@ type VarLoc struct {
 	// The registers this variable is available in. There can be more than
 	// one in various situations, e.g. it's being moved between registers.
 	Registers RegisterSet
-	// OnStack indicates that the variable is on the stack at StackOffset.
-	OnStack     bool
-	StackOffset int32
+
+	StackOffset
 }
 
-func (loc *VarLoc) absent() bool {
-	return loc.Registers == 0 && !loc.OnStack
+func (loc VarLoc) absent() bool {
+	return loc.Registers == 0 && !loc.onStack()
 }
 
 var BlockStart = &Value{
@@ -243,7 +258,7 @@ func (state *debugState) allocBlock(b *Block) *BlockDebug {
 }
 
 func (s *debugState) blockEndStateString(b *BlockDebug) string {
-	endState := stateAtPC{slots: make([]VarLoc, len(s.slots)), registers: make([][]SlotID, len(s.slots))}
+	endState := stateAtPC{slots: make([]VarLoc, len(s.slots)), registers: make([][]SlotID, len(s.registers))}
 	endState.reset(b.endState)
 	return s.stateString(endState)
 }
@@ -411,7 +426,7 @@ func (state *debugState) liveness() []*BlockDebug {
 				if slotLoc.absent() {
 					continue
 				}
-				state.cache.AppendLiveSlot(liveSlot{SlotID(slotID), slotLoc})
+				state.cache.AppendLiveSlot(liveSlot{slot: SlotID(slotID), Registers: slotLoc.Registers, StackOffset: slotLoc.StackOffset})
 			}
 			locs.endState = state.cache.GetLiveSlotSlice()
 		}
@@ -460,7 +475,7 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) ([
 
 	slotLocs := state.currentState.slots
 	for _, predSlot := range p0 {
-		slotLocs[predSlot.slot] = predSlot.loc
+		slotLocs[predSlot.slot] = VarLoc{predSlot.Registers, predSlot.StackOffset}
 		state.liveCount[predSlot.slot] = 1
 	}
 	for i := 1; i < len(preds); i++ {
@@ -470,11 +485,10 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) ([
 		for _, predSlot := range blockLocs[preds[i].ID].endState {
 			state.liveCount[predSlot.slot]++
 			liveLoc := slotLocs[predSlot.slot]
-			if !liveLoc.OnStack || !predSlot.loc.OnStack || liveLoc.StackOffset != predSlot.loc.StackOffset {
-				liveLoc.OnStack = false
+			if !liveLoc.onStack() || !predSlot.onStack() || liveLoc.StackOffset != predSlot.StackOffset {
 				liveLoc.StackOffset = 0
 			}
-			liveLoc.Registers &= predSlot.loc.Registers
+			liveLoc.Registers &= predSlot.Registers
 			slotLocs[predSlot.slot] = liveLoc
 		}
 	}
@@ -484,7 +498,9 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) ([
 	// but it's probably not worth checking more than the first.
 	unchanged := true
 	for _, predSlot := range p0 {
-		if state.liveCount[predSlot.slot] != len(preds) || slotLocs[predSlot.slot] != predSlot.loc {
+		if state.liveCount[predSlot.slot] != len(preds) ||
+			slotLocs[predSlot.slot].Registers != predSlot.Registers ||
+			slotLocs[predSlot.slot].StackOffset != predSlot.StackOffset {
 			unchanged = false
 			break
 		}
@@ -563,7 +579,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 				continue
 			}
 			regs := last.Registers &^ (1 << uint8(reg))
-			setSlot(slot, VarLoc{regs, last.OnStack, last.StackOffset})
+			setSlot(slot, VarLoc{regs, last.StackOffset})
 		}
 
 		locs.registers[reg] = locs.registers[reg][:0]
@@ -572,7 +588,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 	switch {
 	case v.Op == OpArg:
 		home := state.f.getHome(v.ID).(LocalSlot)
-		stackOffset := state.stackOffset(home)
+		stackOffset := state.stackOffset(home)<<1 | 1
 		for _, slot := range vSlots {
 			if state.loggingEnabled {
 				state.logf("at %v: arg %v now on stack in location %v\n", v.ID, state.slots[slot], home)
@@ -581,12 +597,12 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 				}
 			}
 
-			setSlot(slot, VarLoc{0, true, stackOffset})
+			setSlot(slot, VarLoc{0, StackOffset(stackOffset)})
 		}
 
 	case v.Op == OpStoreReg:
 		home := state.f.getHome(v.ID).(LocalSlot)
-		stackOffset := state.stackOffset(home)
+		stackOffset := state.stackOffset(home)<<1 | 1
 		for _, slot := range vSlots {
 			last := locs.slots[slot]
 			if last.absent() {
@@ -594,7 +610,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 				break
 			}
 
-			setSlot(slot, VarLoc{last.Registers, true, stackOffset})
+			setSlot(slot, VarLoc{last.Registers, StackOffset(stackOffset)})
 			if state.loggingEnabled {
 				state.logf("at %v: %v spilled to stack location %v\n", v.ID, state.slots[slot], home)
 			}
@@ -616,7 +632,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 
 		for _, slot := range locs.registers[vReg.num] {
 			last := locs.slots[slot]
-			setSlot(slot, VarLoc{last.Registers &^ (1 << uint8(vReg.num)), last.OnStack, last.StackOffset})
+			setSlot(slot, VarLoc{last.Registers &^ (1 << uint8(vReg.num)), last.StackOffset})
 		}
 		locs.registers[vReg.num] = locs.registers[vReg.num][:0]
 		locs.registers[vReg.num] = append(locs.registers[vReg.num], vSlots...)
@@ -627,7 +643,6 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 			var loc VarLoc
 			loc.Registers |= 1 << uint8(vReg.num)
 			if last := locs.slots[slot]; !last.absent() {
-				loc.OnStack = last.OnStack
 				loc.StackOffset = last.StackOffset
 				loc.Registers |= last.Registers
 			}
@@ -686,8 +701,8 @@ func canMerge(pending, new VarLoc) bool {
 	if pending.absent() || new.absent() {
 		return false
 	}
-	if pending.OnStack {
-		return new.OnStack && pending.StackOffset == new.StackOffset
+	if pending.onStack() {
+		return pending.StackOffset == new.StackOffset
 	}
 	if pending.Registers != 0 && new.Registers != 0 {
 		return firstReg(pending.Registers) == firstReg(new.Registers)
@@ -752,12 +767,12 @@ func (state *debugState) buildLocationLists(Ctxt *obj.Link, blockLocs []*BlockDe
 			slot := state.slots[slotID]
 
 			if !loc.absent() {
-				if loc.OnStack {
-					if loc.StackOffset == 0 {
+				if loc.onStack() {
+					if loc.stackOffsetValue() == 0 {
 						list = append(list, dwarf.DW_OP_call_frame_cfa)
 					} else {
 						list = append(list, dwarf.DW_OP_fbreg)
-						list = dwarf.AppendSleb128(list, int64(loc.StackOffset))
+						list = dwarf.AppendSleb128(list, int64(loc.stackOffsetValue()))
 					}
 				} else {
 					regnum := Ctxt.Arch.DWARFRegisters[state.registers[firstReg(loc.Registers)].ObjNum()]
@@ -933,8 +948,8 @@ func decodeValue(ctxt *obj.Link, word uint64) (ID, ID) {
 
 // Append a pointer-sized uint to buf.
 func appendPtr(ctxt *obj.Link, buf []byte, word uint64) []byte {
-	if cap(buf) < len(buf)+100 {
-		b := make([]byte, len(buf), 100+cap(buf)*2)
+	if cap(buf) < len(buf)+20 {
+		b := make([]byte, len(buf), 20+cap(buf)*2)
 		copy(b, buf)
 		buf = b
 	}
