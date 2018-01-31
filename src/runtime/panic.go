@@ -786,3 +786,36 @@ func canpanic(gp *g) bool {
 	}
 	return true
 }
+
+// shouldPushSigpanic returns true if pc should be used as sigpanic's
+// return PC (pushing a frame for the call). Otherwise, it should be
+// left alone so that LR is used as sigpanic's return PC, effectively
+// replacing the top-most frame with sigpanic. This is used by
+// preparePanic.
+func shouldPushSigpanic(gp *g, pc, lr uintptr) bool {
+	if pc == 0 {
+		// Probably a call to a nil func. The old LR is more
+		// useful in the stack trace. Not pushing the frame
+		// will make the trace look like a call to sigpanic
+		// instead. (Otherwise the trace will end at sigpanic
+		// and we won't get to see who faulted.)
+		return false
+	}
+	// If we don't recognize the PC as code, but we do recognize
+	// the link register as code, then this assumes the panic was
+	// caused by a call to non-code. In this case, we want to
+	// ignore this call to make unwinding show the context.
+	if findfunc(pc).valid() {
+		// This wasn't a bad call, so use PC as sigpanic's
+		// return PC.
+		return true
+	}
+	if findfunc(lr).valid() {
+		// This was a bad call, but the LR is good, so use the
+		// LR as sigpanic's return PC.
+		return false
+	}
+	// Neither the PC or LR is good. Hopefully pushing a frame
+	// will work.
+	return true
+}
