@@ -8,14 +8,7 @@
 package syscall
 
 const (
-	_SYS_dup = SYS_DUP2
-
-	// Linux introduced getdents64 syscall for N64 ABI only in 3.10
-	// (May 21 2013, rev dec33abaafc89bcbd78f85fad0513170415a26d5),
-	// to support older kernels, we have to use getdents for mips64.
-	// Also note that struct dirent is different for these two.
-	// Lookup linux_dirent{,64} in kernel source code for details.
-	_SYS_getdents  = SYS_GETDENTS
+	_SYS_dup       = SYS_DUP2
 	_SYS_setgroups = SYS_SETGROUPS
 )
 

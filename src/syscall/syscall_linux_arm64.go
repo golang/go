@@ -6,7 +6,6 @@ package syscall
 
 const (
 	_SYS_dup       = SYS_DUP3
-	_SYS_getdents  = SYS_GETDENTS64
 	_SYS_setgroups = SYS_SETGROUPS
 )
 
