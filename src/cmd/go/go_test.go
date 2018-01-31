@@ -5387,7 +5387,11 @@ func TestNoCache(t *testing.T) {
 	tg.parallel()
 	tg.tempFile("triv.go", `package main; func main() {}`)
 	tg.must(os.MkdirAll(tg.path("unwritable"), 0555))
-	tg.setenv("HOME", tg.path(filepath.Join("unwritable", "home")))
+	home := "HOME"
+	if runtime.GOOS == "plan9" {
+		home = "home"
+	}
+	tg.setenv(home, tg.path(filepath.Join("unwritable", "home")))
 	tg.unsetenv("GOCACHE")
 	tg.run("build", "-o", tg.path("triv"), tg.path("triv.go"))
 	tg.grepStderr("disabling cache", "did not disable cache")
