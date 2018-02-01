@@ -113,7 +113,12 @@ func findEnv(env []cfg.EnvVar, name string) string {
 func ExtraEnvVars() []cfg.EnvVar {
 	var b work.Builder
 	b.Init()
-	cppflags, cflags, cxxflags, fflags, ldflags := b.CFlags(&load.Package{})
+	cppflags, cflags, cxxflags, fflags, ldflags, err := b.CFlags(&load.Package{})
+	if err != nil {
+		// Should not happen - b.CFlags was given an empty package.
+		fmt.Fprintf(os.Stderr, "go: invalid cflags: %v\n", err)
+		return nil
+	}
 	cmd := b.GccCmd(".", "")
 	return []cfg.EnvVar{
 		// Note: Update the switch in runEnv below when adding to this list.
