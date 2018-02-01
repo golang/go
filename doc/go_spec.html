@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of January 23, 2018",
+	"Subtitle": "Version of February 1, 2018",
 	"Path": "/ref/spec"
 }-->
 
@@ -2148,9 +2148,8 @@ to a function.
 </p>
 
 <pre class="ebnf">
-FunctionDecl = "func" FunctionName ( Function | Signature ) .
+FunctionDecl = "func" FunctionName Signature [ FunctionBody ] .
 FunctionName = identifier .
-Function     = Signature FunctionBody .
 FunctionBody = Block .
 </pre>
 
@@ -2196,7 +2195,7 @@ and associates the method with the receiver's <i>base type</i>.
 </p>
 
 <pre class="ebnf">
-MethodDecl = "func" Receiver MethodName ( Function | Signature ) .
+MethodDecl = "func" Receiver MethodName Signature [ FunctionBody ] .
 Receiver   = Parameters .
 </pre>
 
@@ -2518,7 +2517,7 @@ A function literal represents an anonymous <a href="#Function_declarations">func
 </p>
 
 <pre class="ebnf">
-FunctionLit = "func" Function .
+FunctionLit = "func" Signature FunctionBody .
 </pre>
 
 <pre>
