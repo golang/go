@@ -4,9 +4,15 @@
 
 VERSION=v2
 
+.PHONY: usage
+
+usage:
+	echo "See Makefile"
+	exit 1
+
 update-deps:
 	go install golang.org/x/build/cmd/gitlock
-	gitlock --update=Dockerfile --ignore=NONE golang.org/x/tools/cmd/tip
+	gitlock --update=Dockerfile --ignore=NONE --tags=autocert golang.org/x/tools/cmd/tip
 
 docker-prod: Dockerfile
 	docker build -f Dockerfile --tag=gcr.io/symbolic-datum-552/tip:$(VERSION) .

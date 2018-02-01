@@ -25,9 +25,13 @@ import (
 
 func init() {
 	runHTTPS = runHTTPSAutocert
+	certInit = certInitAutocert
+	wrapHTTPMux = wrapHTTPMuxAutocert
 }
 
-func runHTTPSAutocert(h http.Handler) error {
+var autocertManager *autocert.Manager
+
+func certInitAutocert() {
 	var cache autocert.Cache
 	if b := *autoCertCacheBucket; b != "" {
 		sc, err := storage.NewClient(context.Background())
@@ -36,15 +40,24 @@ func runHTTPSAutocert(h http.Handler) error {
 		}
 		cache = autocertcache.NewGoogleCloudStorageCache(sc, b)
 	}
-	m := autocert.Manager{
+	autocertManager = &autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(*autoCertDomain),
 		Cache:      cache,
 	}
+}
+
+func runHTTPSAutocert(h http.Handler) error {
 	s := &http.Server{
-		Addr:      ":https",
-		Handler:   h,
-		TLSConfig: &tls.Config{GetCertificate: m.GetCertificate},
+		Addr:    ":https",
+		Handler: h,
+		TLSConfig: &tls.Config{
+			GetCertificate: autocertManager.GetCertificate,
+		},
 	}
 	return s.ListenAndServeTLS("", "")
+}
+
+func wrapHTTPMuxAutocert(h http.Handler) http.Handler {
+	return autocertManager.HTTPHandler(h)
 }
