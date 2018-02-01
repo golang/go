@@ -200,11 +200,12 @@ func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode, 
 		timestamp = ts
 	}
 	if dir == nil {
-		// no directory tree present (too early after startup or
-		// command-line mode); compute one level for this page
+		// no directory tree present (happens in command-line mode);
+		// compute 2 levels for this page. The second level is to
+		// get the synopses of sub-directories.
 		// note: cannot use path filter here because in general
-		//       it doesn't contain the FSTree path
-		dir = h.c.newDirectory(abspath, 1)
+		// it doesn't contain the FSTree path
+		dir = h.c.newDirectory(abspath, 2)
 		timestamp = time.Now()
 	}
 	info.Dirs = dir.listing(true, func(path string) bool { return h.includePath(path, mode) })
