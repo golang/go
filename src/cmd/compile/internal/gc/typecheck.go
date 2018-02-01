@@ -3926,24 +3926,45 @@ func deadcode(fn *Node) {
 }
 
 func deadcodeslice(nn Nodes) {
-	for _, n := range nn.Slice() {
+	for i, n := range nn.Slice() {
+		// Cut is set to true when all nodes after i'th position
+		// should be removed.
+		// In other words, it marks whole slice "tail" as dead.
+		cut := false
 		if n == nil {
 			continue
 		}
 		if n.Op == OIF {
 			n.Left = deadcodeexpr(n.Left)
 			if Isconst(n.Left, CTBOOL) {
+				var body Nodes
 				if n.Left.Bool() {
 					n.Rlist = Nodes{}
+					body = n.Nbody
 				} else {
 					n.Nbody = Nodes{}
+					body = n.Rlist
+				}
+				// If "then" or "else" branch ends with panic or return statement,
+				// it is safe to remove all statements after this node.
+				// isterminating is not used to avoid goto-related complications.
+				if body := body.Slice(); len(body) != 0 {
+					switch body[(len(body) - 1)].Op {
+					case ORETURN, ORETJMP, OPANIC:
+						cut = true
+					}
 				}
 			}
 		}
+
 		deadcodeslice(n.Ninit)
 		deadcodeslice(n.Nbody)
 		deadcodeslice(n.List)
 		deadcodeslice(n.Rlist)
+		if cut {
+			*nn.slice = nn.Slice()[:i+1]
+			break
+		}
 	}
 }
 
