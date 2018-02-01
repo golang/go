@@ -170,6 +170,14 @@ var typeTests = []pair{
 	}{},
 		"interface { reflect_test.a(func(func(int) int) func(func(int)) int); reflect_test.b() }",
 	},
+	{struct {
+		x struct {
+			int32
+			int64
+		}
+	}{},
+		"struct { int32; int64 }",
+	},
 }
 
 var valueTests = []pair{
