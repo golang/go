@@ -285,6 +285,9 @@ func sigenable(uint32)                                    {}
 func sigignore(uint32)                                    {}
 func closeonexec(int32)                                   {}
 
+// gsignalStack is unused on nacl.
+type gsignalStack struct{}
+
 var writelock uint32 // test-and-set spin lock for write
 
 /*

@@ -2785,21 +2785,23 @@ func mapfndel(name string, t *types.Type) *Node {
 const (
 	mapslow = iota
 	mapfast32
+	mapfast32ptr
 	mapfast64
+	mapfast64ptr
 	mapfaststr
 	nmapfast
 )
 
 type mapnames [nmapfast]string
 
-func mkmapnames(base string) mapnames {
-	return mapnames{base, base + "_fast32", base + "_fast64", base + "_faststr"}
+func mkmapnames(base string, ptr string) mapnames {
+	return mapnames{base, base + "_fast32", base + "_fast32" + ptr, base + "_fast64", base + "_fast64" + ptr, base + "_faststr"}
 }
 
-var mapaccess1 mapnames = mkmapnames("mapaccess1")
-var mapaccess2 mapnames = mkmapnames("mapaccess2")
-var mapassign mapnames = mkmapnames("mapassign")
-var mapdelete mapnames = mkmapnames("mapdelete")
+var mapaccess1 mapnames = mkmapnames("mapaccess1", "")
+var mapaccess2 mapnames = mkmapnames("mapaccess2", "")
+var mapassign mapnames = mkmapnames("mapassign", "ptr")
+var mapdelete mapnames = mkmapnames("mapdelete", "")
 
 func mapfast(t *types.Type) int {
 	// Check ../../runtime/hashmap.go:maxValueSize before changing.
@@ -2808,9 +2810,22 @@ func mapfast(t *types.Type) int {
 	}
 	switch algtype(t.Key()) {
 	case AMEM32:
-		return mapfast32
+		if !t.Key().HasPointer() {
+			return mapfast32
+		}
+		if Widthptr == 4 {
+			return mapfast32ptr
+		}
+		Fatalf("small pointer %v", t.Key())
 	case AMEM64:
-		return mapfast64
+		if !t.Key().HasPointer() {
+			return mapfast64
+		}
+		if Widthptr == 8 {
+			return mapfast64ptr
+		}
+		// Two-word object, at least one of which is a pointer.
+		// Use the slow path.
 	case ASTRING:
 		return mapfaststr
 	}

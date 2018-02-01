@@ -1683,3 +1683,10 @@ func TestGob(t *testing.T) {
 		t.Errorf("json decoded to: %s\nwant: %s\n", u1, u)
 	}
 }
+
+func TestInvalidUserPassword(t *testing.T) {
+	_, err := Parse("http://us\ner:pass\nword@foo.com/")
+	if got, wantsub := fmt.Sprint(err), "net/url: invalid userinfo"; !strings.Contains(got, wantsub) {
+		t.Errorf("error = %q; want substring %q", got, wantsub)
+	}
+}

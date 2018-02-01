@@ -139,11 +139,31 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-28
 	RET
 
 // func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$16
-	// Be careful. We're calling a function with gcc calling convention here.
-	// We're guaranteed 128 bytes on entry, and we've taken 16, and the
-	// call uses another 8.
-	// That leaves 104 for the gettime code to use. Hope that's enough!
+TEXT runtime·walltime(SB),NOSPLIT,$0-12
+	// We don't know how much stack space the VDSO code will need,
+	// so switch to g0.
+	// In particular, a kernel configured with CONFIG_OPTIMIZE_INLINING=n
+	// and hardening can use a full page of stack space in gettime_sym
+	// due to stack probes inserted to avoid stack/heap collisions.
+	// See issue #20427.
+
+	MOVQ	SP, BP	// Save old SP; BP unchanged by C code.
+
+	get_tls(CX)
+	MOVQ	g(CX), AX
+	MOVQ	g_m(AX), CX
+	MOVQ	m_curg(CX), DX
+
+	CMPQ	AX, DX		// Only switch if on curg.
+	JNE	noswitch
+
+	MOVQ	m_g0(CX), DX
+	MOVQ	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
+
+noswitch:
+	SUBQ	$16, SP		// Space for results
+	ANDQ	$~15, SP	// Align for C code
+
 	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
 	CMPQ	AX, $0
 	JEQ	fallback
@@ -152,6 +172,7 @@ TEXT runtime·walltime(SB),NOSPLIT,$16
 	CALL	AX
 	MOVQ	0(SP), AX	// sec
 	MOVQ	8(SP), DX	// nsec
+	MOVQ	BP, SP		// Restore real SP
 	MOVQ	AX, sec+0(FP)
 	MOVL	DX, nsec+8(FP)
 	RET
@@ -163,13 +184,31 @@ fallback:
 	MOVQ	0(SP), AX	// sec
 	MOVL	8(SP), DX	// usec
 	IMULQ	$1000, DX
+	MOVQ	BP, SP		// Restore real SP
 	MOVQ	AX, sec+0(FP)
 	MOVL	DX, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB),NOSPLIT,$16
-	// Duplicate time.now here to avoid using up precious stack space.
-	// See comment above in time.now.
+TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+	// Switch to g0 stack. See comment above in runtime·walltime.
+
+	MOVQ	SP, BP	// Save old SP; BX unchanged by C code.
+
+	get_tls(CX)
+	MOVQ	g(CX), AX
+	MOVQ	g_m(AX), CX
+	MOVQ	m_curg(CX), DX
+
+	CMPQ	AX, DX		// Only switch if on curg.
+	JNE	noswitch
+
+	MOVQ	m_g0(CX), DX
+	MOVQ	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
+
+noswitch:
+	SUBQ	$16, SP		// Space for results
+	ANDQ	$~15, SP	// Align for C code
+
 	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
 	CMPQ	AX, $0
 	JEQ	fallback
@@ -178,6 +217,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
 	CALL	AX
 	MOVQ	0(SP), AX	// sec
 	MOVQ	8(SP), DX	// nsec
+	MOVQ	BP, SP		// Restore real SP
 	// sec is in AX, nsec in DX
 	// return nsec in AX
 	IMULQ	$1000000000, AX
@@ -191,6 +231,7 @@ fallback:
 	CALL	AX
 	MOVQ	0(SP), AX	// sec
 	MOVL	8(SP), DX	// usec
+	MOVQ	BP, SP		// Restore real SP
 	IMULQ	$1000, DX
 	// sec is in AX, nsec in DX
 	// return nsec in AX

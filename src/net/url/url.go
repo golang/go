@@ -545,6 +545,9 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 		return nil, host, nil
 	}
 	userinfo := authority[:i]
+	if !validUserinfo(userinfo) {
+		return nil, "", errors.New("net/url: invalid userinfo")
+	}
 	if !strings.Contains(userinfo, ":") {
 		if userinfo, err = unescape(userinfo, encodeUserPassword); err != nil {
 			return nil, "", err
@@ -1050,4 +1053,34 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 	}
 	*u = *u1
 	return nil
+}
+
+// validUserinfo reports whether s is a valid userinfo string per RFC 3986
+// Section 3.2.1:
+//     userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
+//     unreserved  = ALPHA / DIGIT / "-" / "." / "_" / "~"
+//     sub-delims  = "!" / "$" / "&" / "'" / "(" / ")"
+//                   / "*" / "+" / "," / ";" / "="
+//
+// It doesn't validate pct-encoded. The caller does that via func unescape.
+func validUserinfo(s string) bool {
+	for _, r := range s {
+		if 'A' <= r && r <= 'Z' {
+			continue
+		}
+		if 'a' <= r && r <= 'z' {
+			continue
+		}
+		if '0' <= r && r <= '9' {
+			continue
+		}
+		switch r {
+		case '-', '.', '_', ':', '~', '!', '$', '&', '\'',
+			'(', ')', '*', '+', ',', ';', '=', '%', '@':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }

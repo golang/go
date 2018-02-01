@@ -1251,7 +1251,12 @@ func gcStart(mode gcMode, trigger gcTrigger) {
 
 	gcResetMarkState()
 
-	work.stwprocs, work.maxprocs = gcprocs(), gomaxprocs
+	work.stwprocs, work.maxprocs = gomaxprocs, gomaxprocs
+	if work.stwprocs > ncpu {
+		// This is used to compute CPU time of the STW phases,
+		// so it can't be more than ncpu, even if GOMAXPROCS is.
+		work.stwprocs = ncpu
+	}
 	work.heap0 = atomic.Load64(&memstats.heap_live)
 	work.pauseNS = 0
 	work.mode = mode

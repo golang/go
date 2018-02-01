@@ -702,7 +702,7 @@ func minitSignalStack() {
 		signalstack(&_g_.m.gsignal.stack)
 		_g_.m.newSigstack = true
 	} else {
-		setGsignalStack(&st, nil)
+		setGsignalStack(&st, &_g_.m.goSigStack)
 		_g_.m.newSigstack = false
 	}
 }
@@ -732,6 +732,14 @@ func unminitSignals() {
 	if getg().m.newSigstack {
 		st := stackt{ss_flags: _SS_DISABLE}
 		sigaltstack(&st, nil)
+	} else {
+		// We got the signal stack from someone else. Restore
+		// the Go-allocated stack in case this M gets reused
+		// for another thread (e.g., it's an extram). Also, on
+		// Android, libc allocates a signal stack for all
+		// threads, so it's important to restore the Go stack
+		// even on Go-created threads so we can free it.
+		restoreGsignalStack(&getg().m.goSigStack)
 	}
 }
 
