@@ -142,6 +142,7 @@ type Frontend interface {
 type GCNode interface {
 	Typ() *types.Type
 	String() string
+	IsSynthetic() bool
 	StorageClass() StorageClass
 }
 
