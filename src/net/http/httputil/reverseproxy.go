@@ -237,7 +237,14 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			fl.Flush()
 		}
 	}
-	p.copyResponse(rw, res.Body)
+	err = p.copyResponse(rw, res.Body)
+	if err != nil {
+		defer res.Body.Close()
+		// Since we're streaming the response, if we run into an error all we can do
+		// is abort the request. Issue 23643: ReverseProxy should use ErrAbortHandler
+		// on read error while copying body
+		panic(http.ErrAbortHandler)
+	}
 	res.Body.Close() // close now, instead of defer, to populate res.Trailer
 
 	if len(res.Trailer) == announcedTrailers {
@@ -265,7 +272,7 @@ func removeConnectionHeaders(h http.Header) {
 	}
 }
 
-func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader) {
+func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader) error {
 	if p.FlushInterval != 0 {
 		if wf, ok := dst.(writeFlusher); ok {
 			mlw := &maxLatencyWriter{
@@ -282,13 +289,14 @@ func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader) {
 	var buf []byte
 	if p.BufferPool != nil {
 		buf = p.BufferPool.Get()
+		defer p.BufferPool.Put(buf)
 	}
-	p.copyBuffer(dst, src, buf)
-	if p.BufferPool != nil {
-		p.BufferPool.Put(buf)
-	}
+	_, err := p.copyBuffer(dst, src, buf)
+	return err
 }
 
+// copyBuffer returns any write errors or non-EOF read errors, and the amount
+// of bytes written.
 func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, error) {
 	if len(buf) == 0 {
 		buf = make([]byte, 32*1024)
@@ -312,6 +320,9 @@ func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int
 			}
 		}
 		if rerr != nil {
+			if rerr == io.EOF {
+				rerr = nil
+			}
 			return written, rerr
 		}
 	}
