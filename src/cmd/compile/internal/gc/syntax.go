@@ -59,6 +59,11 @@ type Node struct {
 	Etype types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
 }
 
+func (n *Node) IsSynthetic() bool {
+	name := n.Sym.Name
+	return name[0] == '.' || name[0] == '~'
+}
+
 // IsAutoTmp indicates if n was created by the compiler as a temporary,
 // based on the setting of the .AutoTemp flag in n's Name.
 func (n *Node) IsAutoTmp() bool {

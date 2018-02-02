@@ -79,6 +79,10 @@ func (d *DummyAuto) StorageClass() StorageClass {
 	return ClassAuto
 }
 
+func (d *DummyAuto) IsSynthetic() bool {
+	return false
+}
+
 func (DummyFrontend) StringData(s string) interface{} {
 	return nil
 }
