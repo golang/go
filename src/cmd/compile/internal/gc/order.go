@@ -14,7 +14,7 @@ import (
 // order of evaluation. Makes walk easier, because it
 // can (after this runs) reorder at will within an expression.
 //
-// Rewrite x op= y into x = x op y.
+// Rewrite m[k] op= r into m[k] = m[k] op r if op is / or %.
 //
 // Introduce temporaries as needed by runtime routines.
 // For example, the map runtime routines take the map key
@@ -434,7 +434,7 @@ func (o *Order) mapAssign(n *Node) {
 	default:
 		Fatalf("ordermapassign %v", n.Op)
 
-	case OAS:
+	case OAS, OASOP:
 		if n.Left.Op == OINDEXMAP {
 			// Make sure we evaluate the RHS before starting the map insert.
 			// We need to make sure the RHS won't panic.  See issue 22881.
@@ -514,26 +514,31 @@ func (o *Order) stmt(n *Node) {
 		o.cleanTemp(t)
 
 	case OASOP:
-		// Special: rewrite l op= r into l = l op r.
-		// This simplifies quite a few operations;
-		// most important is that it lets us separate
-		// out map read from map write when l is
-		// a map index expression.
 		t := o.markTemp()
 		n.Left = o.expr(n.Left, nil)
 		n.Right = o.expr(n.Right, nil)
 
-		n.Left = o.safeExpr(n.Left)
-		tmp1 := treecopy(n.Left, src.NoXPos)
-		if tmp1.Op == OINDEXMAP {
-			tmp1.SetIndexMapLValue(false)
+		if instrumenting || n.Left.Op == OINDEXMAP && (n.SubOp() == ODIV || n.SubOp() == OMOD) {
+			// Rewrite m[k] op= r into m[k] = m[k] op r so
+			// that we can ensure that if op panics
+			// because r is zero, the panic happens before
+			// the map assignment.
+
+			n.Left = o.safeExpr(n.Left)
+
+			l := treecopy(n.Left, src.NoXPos)
+			if l.Op == OINDEXMAP {
+				l.SetIndexMapLValue(false)
+			}
+			l = o.copyExpr(l, n.Left.Type, false)
+			n.Right = nod(n.SubOp(), l, n.Right)
+			n.Right = typecheck(n.Right, Erv)
+			n.Right = o.expr(n.Right, nil)
+
+			n.Op = OAS
+			n.ResetAux()
 		}
-		tmp1 = o.copyExpr(tmp1, n.Left.Type, false)
-		n.Right = nod(n.SubOp(), tmp1, n.Right)
-		n.Right = typecheck(n.Right, Erv)
-		n.Right = o.expr(n.Right, nil)
-		n.Op = OAS
-		n.ResetAux()
+
 		o.mapAssign(n)
 		o.cleanTemp(t)
 

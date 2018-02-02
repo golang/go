@@ -667,11 +667,20 @@ opswitch:
 		updateHasCall(n.Left)
 		n.List.Set(reorder1(ll))
 
-	case OAS:
+	case OAS, OASOP:
 		init.AppendNodes(&n.Ninit)
 
 		n.Left = walkexpr(n.Left, init)
 		n.Left = safeexpr(n.Left, init)
+
+		if n.Op == OASOP {
+			// Rewrite x op= y into x = x op y.
+			n.Right = nod(n.SubOp(), n.Left, n.Right)
+			n.Right = typecheck(n.Right, Erv)
+
+			n.Op = OAS
+			n.ResetAux()
+		}
 
 		if oaslit(n, init) {
 			break

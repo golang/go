@@ -13,7 +13,7 @@ import "fmt"
 
 func main() {
 	for i, f := range []func(map[int]int){
-		f0, f1, f2, f3, f4, f5, f6, f7,
+		f0, f1, f2, f3, f4, f5, f6, f7, f8,
 	} {
 		m := map[int]int{}
 		func() { // wrapper to scope the defer.
@@ -67,6 +67,11 @@ func f6(m map[int]int) {
 func f7(m map[int]int) {
 	var a []int
 	m[0] = a[0]
+}
+
+func f8(m map[int]int) {
+	var z int
+	m[0] %= z
 }
 
 var sink bool
