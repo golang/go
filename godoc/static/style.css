@@ -1,17 +1,18 @@
 body {
 	margin: 0;
 	font-family: Arial, sans-serif;
-	font-size: 16px;
 	background-color: #fff;
-	line-height: 1.3em;
+	line-height: 1.3;
+	text-align: center;
+	color: #222;
 }
 pre,
 code {
 	font-family: Menlo, monospace;
-	font-size: 14px;
+	font-size: 0.875rem;
 }
 pre {
-	line-height: 1.4em;
+	line-height: 1.4;
 	overflow-x: auto;
 }
 pre .comment {
@@ -38,9 +39,6 @@ pre .ln {
 	user-select: none;
 }
 
-body {
-	color: #222;
-}
 a,
 .exampleHeading .text {
 	color: #375EAB;
@@ -65,22 +63,22 @@ a:hover,
 }
 
 p, li {
-	max-width: 800px;
+	max-width: 50rem;
 	word-wrap: break-word;
 }
 p,
 pre,
 ul,
 ol {
-	margin: 20px;
+	margin: 1.25rem;
 }
 pre {
 	background: #EFEFEF;
-	padding: 10px;
+	padding: 0.625rem;
 
-	-webkit-border-radius: 5px;
-	-moz-border-radius: 5px;
-	border-radius: 5px;
+	-webkit-border-radius: 0.3125rem;
+	-moz-border-radius: 0.3125rem;
+	border-radius: 0.3125rem;
 }
 
 h1,
@@ -88,22 +86,22 @@ h2,
 h3,
 h4,
 .rootHeading {
-	margin: 20px 0 20px;
+	margin: 1.25rem 0 1.25rem;
 	padding: 0;
 	color: #375EAB;
 	font-weight: bold;
 }
 h1 {
-	font-size: 28px;
+	font-size: 1.75rem;
 	line-height: 1;
 }
 h1 .text-muted {
 	color:#777;
 }
 h2 {
-	font-size: 20px;
+	font-size: 1.25rem;
 	background: #E0EBF5;
-	padding: 8px;
+	padding: 0.5rem;
 	line-height: 1.25;
 	font-weight: normal;
 }
@@ -111,47 +109,46 @@ h2 a {
 	font-weight: bold;
 }
 h3 {
-	font-size: 20px;
+	font-size: 1.25rem;
 }
 h3,
 h4 {
-	margin: 20px 5px;
+	margin: 1.25rem 0.3125rem;
 }
 h4 {
-	font-size: 16px;
+	font-size: 1rem;
 }
 .rootHeading {
-	font-size: 20px;
+	font-size: 1.25rem;
 	margin: 0;
 }
 
 dl {
-	margin: 20px;
+	margin: 1.25rem;
 }
 dd {
-	margin: 0 0 0 20px;
+	margin: 0 0 0 1.25rem;
 }
 dl,
 dd {
-	font-size: 14px;
+	font-size: 0.875rem;
 }
 div#nav table td {
 	vertical-align: top;
 }
 
-
 #pkg-index h3 {
-	font-size: 16px;
+	font-size: 1rem;
 }
 .pkg-dir {
-	padding: 0 10px;
+	padding: 0 0.625rem;
 }
 .pkg-dir table {
 	border-collapse: collapse;
 	border-spacing: 0;
 }
 .pkg-name {
-	padding-right: 10px;
+	padding-right: 0.625rem;
 }
 .alert {
 	color: #AA0000;
@@ -159,8 +156,8 @@ div#nav table td {
 
 .top-heading {
 	float: left;
-	padding: 21px 0;
-	font-size: 20px;
+	padding: 1.313rem 0;
+	font-size: 1.25rem;
 	font-weight: normal;
 }
 .top-heading a {
@@ -170,13 +167,10 @@ div#nav table td {
 
 div#topbar {
 	background: #E0EBF5;
-	height: 64px;
+	height: 4rem;
 	overflow: hidden;
 }
 
-body {
-	text-align: center;
-}
 div#page {
 	width: 100%;
 }
@@ -185,11 +179,11 @@ div#topbar > .container {
 	text-align: left;
 	margin-left: auto;
 	margin-right: auto;
-	padding: 0 20px;
+	padding: 0 1.25rem;
 }
 div#topbar > .container,
 div#page > .container {
-	max-width: 950px;
+	max-width: 59.38rem;
 }
 div#page.wide > .container,
 div#topbar.wide > .container {
@@ -198,14 +192,14 @@ div#topbar.wide > .container {
 div#plusone {
 	float: right;
 	clear: right;
-	margin-top: 5px;
+	margin-top: 0.3125rem;
 }
 
 div#footer {
 	text-align: center;
 	color: #666;
-	font-size: 14px;
-	margin: 40px 0;
+	font-size: 0.875rem;
+	margin: 2.5rem 0;
 }
 
 div#menu > a,
@@ -214,20 +208,20 @@ div#learn .buttons a,
 div.play .buttons a,
 div#blog .read a,
 #menu-button {
-	padding: 10px;
+	padding: 0.625rem;
 
 	text-decoration: none;
-	font-size: 16px;
+	font-size: 1rem;
 
-	-webkit-border-radius: 5px;
-	-moz-border-radius: 5px;
-	border-radius: 5px;
+	-webkit-border-radius: 0.3125rem;
+	-moz-border-radius: 0.3125rem;
+	border-radius: 0.3125rem;
 }
 div#playground .buttons a,
 div#menu > a,
 input#search,
 #menu-button {
-	border: 1px solid #375EAB;
+	border: 0.0625rem solid #375EAB;
 }
 div#playground .buttons a,
 div#menu > a,
@@ -244,16 +238,16 @@ div#learn .buttons a,
 div.play .buttons a,
 div#blog .read a {
 	color: #222;
-	border: 1px solid #375EAB;
+	border: 0.0625rem solid #375EAB;
 	background: #E0EBF5;
 }
 .download {
-	width: 150px;
+	width: 9.375rem;
 }
 
 div#menu {
 	text-align: right;
-	padding: 10px;
+	padding: 0.625rem;
 	white-space: nowrap;
 	max-height: 0;
 	-moz-transition: max-height .25s linear;
@@ -261,12 +255,12 @@ div#menu {
 	width: 100%;
 }
 div#menu.menu-visible {
-	max-height: 500px;
+	max-height: 31.25rem;
 }
 div#menu > a,
 #menu-button {
-	margin: 10px 2px;
-	padding: 10px;
+	margin: 0.625rem 0.125rem;
+	padding: 0.625rem;
 }
 ::-webkit-input-placeholder {
 	color: #7f7f7f;
@@ -278,7 +272,7 @@ div#menu > a,
 }
 #menu .search-box {
 	display: inline-flex;
-	width: 140px;
+	width: 8.75rem;
 }
 input#search {
 	background: white;
@@ -291,7 +285,7 @@ input#search {
 	margin-right: 0;
 	flex-grow: 1;
 	max-width: 100%;
-	min-width: 90px;
+	min-width: 5.625rem;
 }
 input#search:-moz-ui-invalid {
 	box-shadow: unset;
@@ -301,11 +295,11 @@ input#search + button {
 	font-size: 1em;
 	background-color: #375EAB;
 	color: white;
-	border: 1px solid #375EAB;
+	border: 0.0625rem solid #375EAB;
 	border-top-left-radius: 0;
-	border-top-right-radius: 5px;
+	border-top-right-radius: 0.3125rem;
 	border-bottom-left-radius: 0;
-	border-bottom-right-radius: 5px;
+	border-bottom-right-radius: 0.3125rem;
 	margin-left: 0;
 	cursor: pointer;
 }
@@ -319,9 +313,9 @@ input#search + button svg {
 #menu-button {
 	display: none;
 	position: absolute;
-	right: 5px;
+	right: 0.3125rem;
 	top: 0;
-	margin-right: 5px;
+	margin-right: 0.3125rem;
 }
 #menu-button-arrow {
 	display: inline-block;
@@ -347,71 +341,72 @@ div.right {
 
 div#learn,
 div#about {
-	padding-top: 20px;
+	padding-top: 1.25rem;
 }
 div#learn h2,
 div#about {
 	margin: 0;
 }
 div#about {
-	font-size: 20px;
-	margin: 0 auto 30px;
+	font-size: 1.25rem;
+	margin: 0 auto 1.875rem;
 }
 div#gopher {
 	background: url(/doc/gopher/frontpage.png) no-repeat;
 	background-position: center top;
-	height: 155px;
+	height: 9.688rem;
+	max-height: 200px; /* Setting in px to prevent the gopher from blowing up in very high default font-sizes */
 }
 a#start {
 	display: block;
-	padding: 10px;
+	padding: 0.625rem;
 
 	text-align: center;
 	text-decoration: none;
 
-	-webkit-border-radius: 5px;
-	-moz-border-radius: 5px;
-	border-radius: 5px;
+	-webkit-border-radius: 0.3125rem;
+	-moz-border-radius: 0.3125rem;
+	border-radius: 0.3125rem;
 }
 a#start .big {
 	display: block;
 	font-weight: bold;
-	font-size: 20px;
+	font-size: 1.25rem;
 }
 a#start .desc {
 	display: block;
-	font-size: 14px;
+	font-size: 0.875rem;
 	font-weight: normal;
-	margin-top: 5px;
+	margin-top: 0.3125rem;
 }
 
 div#learn .popout {
 	float: right;
 	display: block;
 	cursor: pointer;
-	font-size: 12px;
+	font-size: 0.75rem;
 	background: url(/doc/share.png) no-repeat;
-	background-position: right top;
-	padding: 5px 27px;
+	background-position: right center;
+	padding: 0.375rem 1.688rem;
 }
 div#learn pre,
 div#learn textarea {
 	padding: 0;
 	margin: 0;
 	font-family: Menlo, monospace;
-	font-size: 14px;
+	font-size: 0.875rem;
 }
 div#learn .input {
-	padding: 10px;
-	margin-top: 10px;
-	height: 150px;
+	padding: 0.625rem;
+	margin-top: 0.625rem;
+	height: 9.375rem;
 
-	-webkit-border-top-left-radius: 5px;
-	-webkit-border-top-right-radius: 5px;
-	-moz-border-radius-topleft: 5px;
-	-moz-border-radius-topright: 5px;
-	border-top-left-radius: 5px;
-	border-top-right-radius: 5px;
+	-webkit-border-top-left-radius: 0.3125rem;
+	-webkit-border-top-right-radius: 0.3125rem;
+	-moz-border-radius-topleft: 0.3125rem;
+	-moz-border-radius-topright: 0.3125rem;
+	border-top-left-radius: 0.3125rem;
+	border-top-right-radius: 0.3125rem;
 }
 div#learn .input textarea {
 	width: 100%;
@@ -423,16 +418,16 @@ div#learn .input textarea {
 div#learn .output {
 	border-top: none !important;
 
-	padding: 10px;
-	height: 59px;
+	padding: 0.625rem;
+	height: 3.688rem;
 	overflow: auto;
 
-	-webkit-border-bottom-right-radius: 5px;
-	-webkit-border-bottom-left-radius: 5px;
-	-moz-border-radius-bottomright: 5px;
-	-moz-border-radius-bottomleft: 5px;
-	border-bottom-right-radius: 5px;
-	border-bottom-left-radius: 5px;
+	-webkit-border-bottom-right-radius: 0.3125rem;
+	-webkit-border-bottom-left-radius: 0.3125rem;
+	-moz-border-radius-bottomright: 0.3125rem;
+	-moz-border-radius-bottomleft: 0.3125rem;
+	border-bottom-right-radius: 0.3125rem;
+	border-bottom-left-radius: 0.3125rem;
 }
 div#learn .output pre {
 	padding: 0;
@@ -449,23 +444,24 @@ div#learn .output pre {
 }
 div#learn .input,
 div#learn .output {
-	border: 1px solid #375EAB;
+	border: 0.0625rem solid #375EAB;
 }
 div#learn .buttons {
 	float: right;
-	padding: 20px 0 10px 0;
+	padding: 1.25rem 0 0.625rem 0;
 	text-align: right;
 }
 div#learn .buttons a {
-	height: 16px;
-	margin-left: 5px;
-	padding: 10px;
+	height: 1rem;
+	margin-left: 0.3125rem;
+	padding: 0.625rem;
 }
 div#learn .toys {
-	margin-top: 8px;
+	margin-top: 0.5rem;
 }
 div#learn .toys select {
-	border: 1px solid #375EAB;
+	font-size: 0.875rem;
+	border: 0.0625rem solid #375EAB;
 	margin: 0;
 }
 div#learn .output .exit {
@@ -477,7 +473,7 @@ div#video {
 }
 div#blog,
 div#video {
-	margin-top: 40px;
+	margin-top: 2.5rem;
 }
 div#blog > a,
 div#blog > div,
@@ -485,16 +481,16 @@ div#blog > h2,
 div#video > a,
 div#video > div,
 div#video > h2 {
-	margin-bottom: 10px;
+	margin-bottom: 0.625rem;
 }
 div#blog .title,
 div#video .title {
 	display: block;
-	font-size: 20px;
+	font-size: 1.25rem;
 }
 div#blog .when {
 	color: #666;
-	font-size: 14px;
+	font-size: 0.875rem;
 }
 div#blog .read {
 	text-align: right;
@@ -507,20 +503,20 @@ div#blog .read {
 .toggleVisible > .expanded { display: block; }
 
 table.codetable { margin-left: auto; margin-right: auto; border-style: none; }
-table.codetable td { padding-right: 10px; }
-hr { border-style: none; border-top: 1px solid black; }
+table.codetable td { padding-right: 0.625rem; }
+hr { border-style: none; border-top: 0.0625rem solid black; }
 
 img.gopher {
 	float: right;
-	margin-left: 10px;
-	margin-bottom: 10px;
+	margin-left: 0.625rem;
+	margin-bottom: 0.625rem;
 	z-index: -1;
 }
 h2 { clear: right; }
 
 /* example and drop-down playground */
 div.play {
-	padding: 0 20px 40px 20px;
+	padding: 0 1.25rem 2.5rem 1.25rem;
 }
 div.play pre,
 div.play textarea,
@@ -528,18 +524,18 @@ div.play .lines {
 	padding: 0;
 	margin: 0;
 	font-family: Menlo, monospace;
-	font-size: 14px;
+	font-size: 0.875rem;
 }
 div.play .input {
-	padding: 10px;
-	margin-top: 10px;
+	padding: 0.625rem;
+	margin-top: 0.625rem;
 
-	-webkit-border-top-left-radius: 5px;
-	-webkit-border-top-right-radius: 5px;
-	-moz-border-radius-topleft: 5px;
-	-moz-border-radius-topright: 5px;
-	border-top-left-radius: 5px;
-	border-top-right-radius: 5px;
+	-webkit-border-top-left-radius: 0.3125rem;
+	-webkit-border-top-right-radius: 0.3125rem;
+	-moz-border-radius-topleft: 0.3125rem;
+	-moz-border-radius-topright: 0.3125rem;
+	border-top-left-radius: 0.3125rem;
+	border-top-right-radius: 0.3125rem;
 
 	overflow: hidden;
 }
@@ -559,16 +555,16 @@ div#playground .input textarea {
 div.play .output {
 	border-top: none !important;
 
-	padding: 10px;
-	max-height: 200px;
+	padding: 0.625rem;
+	max-height: 12.5rem;
 	overflow: auto;
 
-	-webkit-border-bottom-right-radius: 5px;
-	-webkit-border-bottom-left-radius: 5px;
-	-moz-border-radius-bottomright: 5px;
-	-moz-border-radius-bottomleft: 5px;
-	border-bottom-right-radius: 5px;
-	border-bottom-left-radius: 5px;
+	-webkit-border-bottom-right-radius: 0.3125rem;
+	-webkit-border-bottom-left-radius: 0.3125rem;
+	-moz-border-radius-bottomright: 0.3125rem;
+	-moz-border-radius-bottomleft: 0.3125rem;
+	border-bottom-right-radius: 0.3125rem;
+	border-bottom-left-radius: 0.3125rem;
 }
 div.play .output pre {
 	padding: 0;
@@ -585,17 +581,17 @@ div.play .output pre {
 }
 div.play .input,
 div.play .output {
-	border: 1px solid #375EAB;
+	border: 0.0625rem solid #375EAB;
 }
 div.play .buttons {
 	float: right;
-	padding: 20px 0 10px 0;
+	padding: 1.25rem 0 0.625rem 0;
 	text-align: right;
 }
 div.play .buttons a {
-	height: 16px;
-	margin-left: 5px;
-	padding: 10px;
+	height: 1rem;
+	margin-left: 0.3125rem;
+	padding: 0.625rem;
 	cursor: pointer;
 }
 .output .stderr {
@@ -613,29 +609,29 @@ div#playground {
 }
 div#playground {
 	position: absolute;
-	top: 63px;
-	right: 20px;
-	padding: 0 10px 10px 10px;
+	top: 3.938rem;
+	right: 1.25rem;
+	padding: 0 0.625rem 0.625rem 0.625rem;
 	z-index: 1;
 	text-align: left;
 	background: #E0EBF5;
 
-	border: 1px solid #B0BBC5;
+	border: 0.0625rem solid #B0BBC5;
 	border-top: none;
 
-	-webkit-border-bottom-left-radius: 5px;
-	-webkit-border-bottom-right-radius: 5px;
-	-moz-border-radius-bottomleft: 5px;
-	-moz-border-radius-bottomright: 5px;
-	border-bottom-left-radius: 5px;
-	border-bottom-right-radius: 5px;
+	-webkit-border-bottom-left-radius: 0.3125rem;
+	-webkit-border-bottom-right-radius: 0.3125rem;
+	-moz-border-radius-bottomleft: 0.3125rem;
+	-moz-border-radius-bottomright: 0.3125rem;
+	border-bottom-left-radius: 0.3125rem;
+	border-bottom-right-radius: 0.3125rem;
 }
 div#playground .code {
-	width: 520px;
-	height: 200px;
+	width: 32.5rem;
+	height: 12.5rem;
 }
 div#playground .output {
-	height: 100px;
+	height: 6.25rem;
 }
 
 /* Inline runnable snippets (play.js/initPlayground) */
@@ -644,7 +640,7 @@ div#playground .output {
         padding: 0;
         background: none;
         border: none;
-	outline: 0px solid transparent;
+	outline: 0 solid transparent;
         overflow: auto;
 }
 #content .playground .number, #content .code .number {
@@ -652,11 +648,11 @@ div#playground .output {
 }
 #content .code, #content .playground, #content .output {
 	width: auto;
-        margin: 20px;
-        padding: 10px;
-        -webkit-border-radius: 5px;
-        -moz-border-radius: 5px;
-        border-radius: 5px;
+        margin: 1.25rem;
+        padding: 0.625rem;
+        -webkit-border-radius: 0.3125rem;
+        -moz-border-radius: 0.3125rem;
+        border-radius: 0.3125rem;
 }
 #content .code, #content .playground {
         background: #e9e9e9;
@@ -676,11 +672,11 @@ div#playground .output {
 #content .buttons {
         position: relative;
         float: right;
-        top: -50px;
-        right: 30px;
+        top: -3.125rem;
+        right: 1.875rem;
 }
 #content .output .buttons {
-        top: -60px;
+        top: -3.75rem;
         right: 0;
         height: 0;
 }
@@ -692,11 +688,11 @@ a.error {
 	font-weight: bold;
         color: white;
 	background-color: darkred;
-        border-bottom-left-radius: 4px;
-        border-bottom-right-radius: 4px;
-        border-top-left-radius: 4px;
-        border-top-right-radius: 4px;
-        padding: 2px 4px 2px 4px; /* TRBL */
+        border-bottom-left-radius: 0.25rem;
+        border-bottom-right-radius: 0.25rem;
+        border-top-left-radius: 0.25rem;
+        border-top-right-radius: 0.25rem;
+        padding: 0.125rem 0.25rem 0.125rem 0.25rem; /* TRBL */
 }
 
 
@@ -706,12 +702,12 @@ a.error {
 
 .downloading {
 	background: #F9F9BE;
-	padding: 10px;
+	padding: 0.625rem;
 	text-align: center;
-	border-radius: 5px;
+	border-radius: 0.3125rem;
 }
 
-@media (max-width: 930px) {
+@media (max-width: 58.125em) {
 	#heading-wide {
 		display: none;
 	}
@@ -720,8 +716,7 @@ a.error {
 	}
 }
 
-
-@media (max-width: 760px) {
+@media (max-width: 47.5em) {
 	.container .left,
 	.container .right {
 		width: auto;
@@ -729,39 +724,39 @@ a.error {
 	}
 
 	div#about {
-		max-width: 500px;
+		max-width: 31.25rem;
 		text-align: center;
 	}
 }
 
-@media (min-width: 700px) and (max-width: 1000px) {
+@media (min-width: 43.75em) and (max-width: 62.5em) {
 	div#menu > a {
-		margin: 5px 0;
-		font-size: 14px;
+		margin: 0.3125rem 0;
+		font-size: 0.875rem;
 	}
 
 	input#search {
-		font-size: 14px;
+		font-size: 0.875rem;
 	}
 }
 
-@media (max-width: 700px) {
+@media (max-width: 43.75em) {
 	body {
-		font-size: 15px;
+		font-size: 0.9375rem;
 	}
 
 	pre,
 	code {
-		font-size: 13px;
+		font-size: 0.866rem;
 	}
 
 	div#page > .container {
-		padding: 0 10px;
+		padding: 0 0.625rem;
 	}
 
 	div#topbar {
 		height: auto;
-		padding: 10px;
+		padding: 0.625rem;
 	}
 
 	div#topbar > .container {
@@ -778,7 +773,7 @@ a.error {
 	.top-heading {
 		float: none;
 		display: inline-block;
-		padding: 12px;
+		padding: 0.75rem;
 	}
 
 	div#menu {
@@ -807,7 +802,7 @@ a.error {
 	pre,
 	ul,
 	ol {
-		margin: 10px;
+		margin: 0.625rem;
 	}
 
 	.pkg-synopsis {
@@ -819,7 +814,7 @@ a.error {
 	}
 }
 
-@media (max-width: 480px) {
+@media (max-width: 30em) {
 	#heading-wide {
 		display: none;
 	}
@@ -831,7 +826,7 @@ a.error {
 @media print {
 	pre {
 		background: #FFF;
-		border: 1px solid #BBB;
+		border: 0.0625rem solid #BBB;
 		white-space: pre-wrap;
 	}
 }
