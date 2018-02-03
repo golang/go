@@ -309,7 +309,7 @@ func makemap(t *maptype, hint int, h *hmap) *hmap {
 
 	// initialize Hmap
 	if h == nil {
-		h = (*hmap)(newobject(t.hmap))
+		h = new(hmap)
 	}
 	h.hash0 = fastrand()
 
