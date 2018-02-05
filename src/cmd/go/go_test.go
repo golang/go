@@ -5696,6 +5696,8 @@ func TestAtomicCoverpkgAll(t *testing.T) {
 	tg.tempFile("src/x/x.go", `package x; import _ "sync/atomic"; func F() {}`)
 	tg.tempFile("src/x/x_test.go", `package x; import "testing"; func TestF(t *testing.T) { F() }`)
 	tg.setenv("GOPATH", tg.path("."))
-	tg.run("test", "-coverpkg=all", "-race", "x")
 	tg.run("test", "-coverpkg=all", "-covermode=atomic", "x")
+	if canRace {
+		tg.run("test", "-coverpkg=all", "-race", "x")
+	}
 }
