@@ -572,7 +572,6 @@ var knownFormats = map[string]string{
 	"*cmd/compile/internal/ssa.Block %v":              "",
 	"*cmd/compile/internal/ssa.Func %s":               "",
 	"*cmd/compile/internal/ssa.Func %v":               "",
-	"*cmd/compile/internal/ssa.LocalSlot %v":          "",
 	"*cmd/compile/internal/ssa.Register %s":           "",
 	"*cmd/compile/internal/ssa.Register %v":           "",
 	"*cmd/compile/internal/ssa.SparseTreeNode %v":     "",
