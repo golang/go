@@ -659,6 +659,15 @@ func runTest(cmd *base.Command, args []string) {
 					haveMatch = true
 				}
 			}
+
+			// Silently ignore attempts to run coverage on
+			// sync/atomic when using atomic coverage mode.
+			// Atomic coverage mode uses sync/atomic, so
+			// we can't also do coverage on it.
+			if testCoverMode == "atomic" && p.Standard && p.ImportPath == "sync/atomic" {
+				continue
+			}
+
 			if haveMatch {
 				testCoverPkgs = append(testCoverPkgs, p)
 			}
