@@ -650,7 +650,7 @@ func createComplexVar(fn *Func, varID ssa.VarID) *dwarf.Var {
 		// variables just give it the first one. It's not used otherwise.
 		// This won't work well if the first slot hasn't been assigned a stack
 		// location, but it's not obvious how to do better.
-		StackOffset: stackOffset(*debug.Slots[debug.VarSlots[varID][0]]),
+		StackOffset: stackOffset(debug.Slots[debug.VarSlots[varID][0]]),
 		DeclFile:    declpos.RelFilename(),
 		DeclLine:    declpos.RelLine(),
 		DeclCol:     declpos.Col(),
