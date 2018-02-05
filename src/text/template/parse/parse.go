@@ -23,13 +23,12 @@ type Tree struct {
 	Root      *ListNode // top-level root of the tree.
 	text      string    // text parsed to create the template (or its parent)
 	// Parsing only; cleared after parse.
-	funcs      []map[string]interface{}
-	lex        *lexer
-	token      [3]item // three-token lookahead for parser.
-	peekCount  int
-	vars       []string // variables defined at the moment.
-	treeSet    map[string]*Tree
-	rangeDepth int // nesting level of range loops.
+	funcs     []map[string]interface{}
+	lex       *lexer
+	token     [3]item // three-token lookahead for parser.
+	peekCount int
+	vars      []string // variables defined at the moment.
+	treeSet   map[string]*Tree
 }
 
 // Copy returns a copy of the Tree. Any parsing state is discarded.
@@ -220,7 +219,6 @@ func (t *Tree) stopParse() {
 	t.vars = nil
 	t.funcs = nil
 	t.treeSet = nil
-	t.rangeDepth = 0
 }
 
 // Parse parses the template definition string to construct a representation of
@@ -375,10 +373,6 @@ func (t *Tree) action() (n Node) {
 		return t.templateControl()
 	case itemWith:
 		return t.withControl()
-	case itemBreak:
-		return t.breakControl()
-	case itemContinue:
-		return t.continueControl()
 	}
 	t.backup()
 	token := t.peek()
@@ -459,13 +453,7 @@ func (t *Tree) parseControl(allowElseIf bool, context string) (pos Pos, line int
 	defer t.popVars(len(t.vars))
 	pipe = t.pipeline(context)
 	var next Node
-	if context == "range" {
-		t.rangeDepth++
-	}
 	list, next = t.itemList()
-	if context == "range" {
-		t.rangeDepth--
-	}
 	switch next.Type() {
 	case nodeEnd: //done
 	case nodeElse:
@@ -508,26 +496,6 @@ func (t *Tree) ifControl() Node {
 // Range keyword is past.
 func (t *Tree) rangeControl() Node {
 	return t.newRange(t.parseControl(false, "range"))
-}
-
-// Break:
-//	{{break}}
-// Break keyword is past.
-func (t *Tree) breakControl() Node {
-	if t.rangeDepth == 0 {
-		t.errorf("unexpected break outside of range")
-	}
-	return t.newBreak(t.expect(itemRightDelim, "break").pos)
-}
-
-// Continue:
-//	{{continue}}
-// Continue keyword is past.
-func (t *Tree) continueControl() Node {
-	if t.rangeDepth == 0 {
-		t.errorf("unexpected continue outside of range")
-	}
-	return t.newContinue(t.expect(itemRightDelim, "continue").pos)
 }
 
 // With:
