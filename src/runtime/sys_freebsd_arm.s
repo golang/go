@@ -168,8 +168,8 @@ TEXT runtime·setitimer(SB), NOSPLIT|NOFRAME, $0
 	SWI $0
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $32
+// func fallback_walltime() (sec int64, nsec int32)
+TEXT runtime·fallback_walltime(SB), NOSPLIT, $32-12
 	MOVW $0, R0 // CLOCK_REALTIME
 	MOVW $8(R13), R1
 	MOVW $SYS_clock_gettime, R7
@@ -184,11 +184,8 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVW R2, nsec+8(FP)
 	RET
 
-// int64 nanotime(void) so really
-// void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB), NOSPLIT, $32
-	// We can use CLOCK_MONOTONIC_FAST here when we drop
-	// support for FreeBSD 8-STABLE.
+// func fallback_nanotime() int64
+TEXT runtime·fallback_nanotime(SB), NOSPLIT, $32
 	MOVW $4, R0 // CLOCK_MONOTONIC
 	MOVW $8(R13), R1
 	MOVW $SYS_clock_gettime, R7
@@ -394,4 +391,27 @@ TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0-28
 	RSB.CS	$0, R0
 	SUB	$20, R13
 	MOVW	R0, ret+24(FP)
+	RET
+
+// func getCntxct(physical bool) uint32
+TEXT runtime·getCntxct(SB),NOSPLIT|NOFRAME,$0-8
+	MOVB	runtime·goarm(SB), R11
+	CMP	$7, R11
+	BLT	2(PC)
+	DMB
+
+	MOVB	physical+0(FP), R0
+	CMP	$1, R0
+	B.NE	3(PC)
+
+	// get CNTPCT (Physical Count Register) into R0(low) R1(high)
+	// mrrc    15, 0, r0, r1, cr14
+	WORD	$0xec510f0e
+	B	2(PC)
+
+	// get CNTVCT (Virtual Count Register) into R0(low) R1(high)
+	// mrrc    15, 1, r0, r1, cr14
+	WORD	$0xec510f1e
+
+	MOVW	R0, ret+4(FP)
 	RET
