@@ -5686,3 +5686,16 @@ func TestCpuprofileTwice(t *testing.T) {
 	tg.run("test", "-o="+bin, "-cpuprofile="+out, "x")
 	tg.mustExist(out)
 }
+
+// Issue 23694.
+func TestAtomicCoverpkgAll(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	tg.tempFile("src/x/x.go", `package x; import _ "sync/atomic"; func F() {}`)
+	tg.tempFile("src/x/x_test.go", `package x; import "testing"; func TestF(t *testing.T) { F() }`)
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("test", "-coverpkg=all", "-race", "x")
+	tg.run("test", "-coverpkg=all", "-covermode=atomic", "x")
+}
