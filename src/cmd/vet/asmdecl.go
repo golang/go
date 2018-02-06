@@ -240,17 +240,17 @@ Files:
 						continue
 					}
 				}
+				flag := m[3]
 				fn = knownFunc[fnName][arch]
 				if fn != nil {
 					size, _ := strconv.Atoi(m[5])
-					flag := m[3]
 					if size != fn.size && (flag != "7" && !strings.Contains(flag, "NOSPLIT") || size != 0) {
 						badf("wrong argument size %d; expected $...-%d", size, fn.size)
 					}
 				}
 				localSize, _ = strconv.Atoi(m[4])
 				localSize += archDef.intSize
-				if archDef.lr {
+				if archDef.lr && !strings.Contains(flag, "NOFRAME") {
 					// Account for caller's saved LR
 					localSize += archDef.intSize
 				}
