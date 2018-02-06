@@ -16,7 +16,10 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"sync"
+
+	_ "net/http/pprof" // Required to use pprof
 )
 
 const usageMessage = "" +
@@ -115,6 +118,7 @@ func main() {
 		trace.Print(res.Events)
 		os.Exit(0)
 	}
+	reportMemoryUsage("after parsing trace")
 
 	log.Print("Serializing trace...")
 	params := &traceParams{
@@ -125,9 +129,11 @@ func main() {
 	if err != nil {
 		dief("%v\n", err)
 	}
+	reportMemoryUsage("after generating trace")
 
 	log.Print("Splitting trace...")
 	ranges = splitTrace(data)
+	reportMemoryUsage("after spliting trace")
 
 	addr := "http://" + ln.Addr().String()
 	log.Printf("Opening browser. Trace viewer is listening on %s", addr)
@@ -209,4 +215,30 @@ var templMain = template.Must(template.New("").Parse(`
 func dief(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg, args...)
 	os.Exit(1)
+}
+
+var debugMemoryUsage bool
+
+func init() {
+	v := os.Getenv("DEBUG_MEMORY_USAGE")
+	debugMemoryUsage = v != ""
+}
+
+func reportMemoryUsage(msg string) {
+	if !debugMemoryUsage {
+		return
+	}
+	var s runtime.MemStats
+	runtime.ReadMemStats(&s)
+	w := os.Stderr
+	fmt.Fprintf(w, "%s\n", msg)
+	fmt.Fprintf(w, " Alloc:\t%d Bytes\n", s.Alloc)
+	fmt.Fprintf(w, " Sys:\t%d Bytes\n", s.Sys)
+	fmt.Fprintf(w, " HeapReleased:\t%d Bytes\n", s.HeapReleased)
+	fmt.Fprintf(w, " HeapSys:\t%d Bytes\n", s.HeapSys)
+	fmt.Fprintf(w, " HeapInUse:\t%d Bytes\n", s.HeapInuse)
+	fmt.Fprintf(w, " HeapAlloc:\t%d Bytes\n", s.HeapAlloc)
+	var dummy string
+	fmt.Printf("Enter to continue...")
+	fmt.Scanf("%s", &dummy)
 }
