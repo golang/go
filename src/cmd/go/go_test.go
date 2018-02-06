@@ -2449,7 +2449,7 @@ func TestCgoHandlesWlORIGIN(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.tempFile("src/origin/origin.go", `package origin
-		// #cgo !darwin LDFLAGS: -Wl,-rpath -Wl,$ORIGIN
+		// #cgo !darwin LDFLAGS: -Wl,-rpath,$ORIGIN
 		// void f(void) {}
 		import "C"
 		func f() { C.f() }`)
@@ -4348,4 +4348,151 @@ func TestListTests(t *testing.T) {
 	t.Run("Bench", testWith("Benchmark", "BenchmarkSimple"))
 	t.Run("Example1", testWith("Example", "ExampleSimple"))
 	t.Run("Example2", testWith("Example", "ExampleWithEmptyOutput"))
+}
+
+func TestBadCommandLines(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.tempFile("src/x/x.go", "package x\n")
+	tg.setenv("GOPATH", tg.path("."))
+
+	tg.run("build", "x")
+
+	tg.tempFile("src/x/@y.go", "package x\n")
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid input file name \"@y.go\"", "did not reject @y.go")
+	tg.must(os.Remove(tg.path("src/x/@y.go")))
+
+	tg.tempFile("src/x/-y.go", "package x\n")
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid input file name \"-y.go\"", "did not reject -y.go")
+	tg.must(os.Remove(tg.path("src/x/-y.go")))
+
+	tg.runFail("build", "-gcflags=@x", "x")
+	tg.grepStderr("invalid command-line argument @x in command", "did not reject @x during exec")
+
+	tg.tempFile("src/@x/x.go", "package x\n")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.runFail("build", "@x")
+	tg.grepStderr("invalid input directory name \"@x\"", "did not reject @x directory")
+
+	tg.tempFile("src/@x/y/y.go", "package y\n")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.runFail("build", "@x/y")
+	tg.grepStderr("invalid import path \"@x/y\"", "did not reject @x/y import path")
+
+	tg.tempFile("src/-x/x.go", "package x\n")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.runFail("build", "--", "-x")
+	tg.grepStderr("invalid input directory name \"-x\"", "did not reject -x directory")
+
+	tg.tempFile("src/-x/y/y.go", "package y\n")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.runFail("build", "--", "-x/y")
+	tg.grepStderr("invalid import path \"-x/y\"", "did not reject -x/y import path")
+}
+
+func TestBadCgoDirectives(t *testing.T) {
+	if !canCgo {
+		t.Skip("no cgo")
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.tempFile("src/x/x.go", "package x\n")
+	tg.setenv("GOPATH", tg.path("."))
+
+	tg.tempFile("src/x/x.go", `package x
+
+		//go:cgo_ldflag "-fplugin=foo.so"
+
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("//go:cgo_ldflag .* only allowed in cgo-generated code", "did not reject //go:cgo_ldflag directive")
+
+	tg.must(os.Remove(tg.path("src/x/x.go")))
+	tg.runFail("build", "x")
+	tg.grepStderr("no Go files", "did not report missing source code")
+	tg.tempFile("src/x/_cgo_yy.go", `package x
+
+		//go:cgo_ldflag "-fplugin=foo.so"
+
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("no Go files", "did not report missing source code") // _* files are ignored...
+
+	tg.runFail("build", tg.path("src/x/_cgo_yy.go")) // ... but if forced, the comment is rejected
+	// Actually, today there is a separate issue that _ files named
+	// on the command-line are ignored. Once that is fixed,
+	// we want to see the cgo_ldflag error.
+	tg.grepStderr("//go:cgo_ldflag only allowed in cgo-generated code|no Go files", "did not reject //go:cgo_ldflag directive")
+	tg.must(os.Remove(tg.path("src/x/_cgo_yy.go")))
+
+	tg.tempFile("src/x/x.go", "package x\n")
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo CFLAGS: -fplugin=foo.so
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid flag in #cgo CFLAGS: -fplugin=foo.so", "did not reject -fplugin")
+
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo CFLAGS: -Ibar -fplugin=foo.so
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid flag in #cgo CFLAGS: -fplugin=foo.so", "did not reject -fplugin")
+
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo pkg-config: -foo
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid pkg-config package name: -foo", "did not reject pkg-config: -foo")
+
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo pkg-config: @foo
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid pkg-config package name: @foo", "did not reject pkg-config: -foo")
+
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo CFLAGS: @foo
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid flag in #cgo CFLAGS: @foo", "did not reject @foo flag")
+
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo CFLAGS: -D
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid flag in #cgo CFLAGS: -D without argument", "did not reject trailing -I flag")
+
+	// Note that -I @foo is allowed because we rewrite it into -I /path/to/src/@foo
+	// before the check is applied. There's no such rewrite for -D.
+
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo CFLAGS: -D @foo
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid flag in #cgo CFLAGS: -D @foo", "did not reject -D @foo flag")
+
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo CFLAGS: -D@foo
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid flag in #cgo CFLAGS: -D@foo", "did not reject -D@foo flag")
+
+	tg.setenv("CGO_CFLAGS", "-D@foo")
+	tg.tempFile("src/x/y.go", `package x
+		import "C"
+	`)
+	tg.run("build", "-n", "x")
+	tg.grepStderr("-D@foo", "did not find -D@foo in commands")
 }

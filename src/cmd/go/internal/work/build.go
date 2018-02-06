@@ -1526,26 +1526,35 @@ func splitPkgConfigOutput(out []byte) []string {
 // Calls pkg-config if needed and returns the cflags/ldflags needed to build the package.
 func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, err error) {
 	if pkgs := p.CgoPkgConfig; len(pkgs) > 0 {
+		for _, pkg := range pkgs {
+			if !load.SafeArg(pkg) {
+				return nil, nil, fmt.Errorf("invalid pkg-config package name: %s", pkg)
+			}
+		}
 		var out []byte
-		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.PkgconfigCmd(), "--cflags", pkgs)
+		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.PkgconfigCmd(), "--cflags", "--", pkgs)
 		if err != nil {
 			b.showOutput(p.Dir, b.PkgconfigCmd()+" --cflags "+strings.Join(pkgs, " "), string(out))
 			b.Print(err.Error() + "\n")
-			err = errPrintedOutput
-			return
+			return nil, nil, errPrintedOutput
 		}
 		if len(out) > 0 {
 			cflags = splitPkgConfigOutput(out)
+			if err := checkCompilerFlags("CFLAGS", "pkg-config --cflags", cflags); err != nil {
+				return nil, nil, err
+			}
 		}
-		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.PkgconfigCmd(), "--libs", pkgs)
+		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.PkgconfigCmd(), "--libs", "--", pkgs)
 		if err != nil {
 			b.showOutput(p.Dir, b.PkgconfigCmd()+" --libs "+strings.Join(pkgs, " "), string(out))
 			b.Print(err.Error() + "\n")
-			err = errPrintedOutput
-			return
+			return nil, nil, errPrintedOutput
 		}
 		if len(out) > 0 {
 			ldflags = strings.Fields(string(out))
+			if err := checkLinkerFlags("CFLAGS", "pkg-config --cflags", ldflags); err != nil {
+				return nil, nil, err
+			}
 		}
 	}
 	return
@@ -1959,6 +1968,17 @@ func (b *Builder) processOutput(out []byte) string {
 // It returns the command output and any errors that occurred.
 func (b *Builder) runOut(dir string, desc string, env []string, cmdargs ...interface{}) ([]byte, error) {
 	cmdline := str.StringList(cmdargs...)
+
+	for _, arg := range cmdline {
+		// GNU binutils commands, including gcc and gccgo, interpret an argument
+		// @foo anywhere in the command line (even following --) as meaning
+		// "read and insert arguments from the file named foo."
+		// Don't say anything that might be misinterpreted that way.
+		if strings.HasPrefix(arg, "@") {
+			return nil, fmt.Errorf("invalid command-line argument %s in command: %s", arg, joinUnambiguously(cmdline))
+		}
+	}
+
 	if cfg.BuildN || cfg.BuildX {
 		var envcmdline string
 		for i := range env {
@@ -3270,22 +3290,44 @@ func envList(key, def string) []string {
 }
 
 // CFlags returns the flags to use when invoking the C, C++ or Fortran compilers, or cgo.
-func (b *Builder) CFlags(p *load.Package) (cppflags, cflags, cxxflags, fflags, ldflags []string) {
+func (b *Builder) CFlags(p *load.Package) (cppflags, cflags, cxxflags, fflags, ldflags []string, err error) {
 	defaults := "-g -O2"
 
-	cppflags = str.StringList(envList("CGO_CPPFLAGS", ""), p.CgoCPPFLAGS)
-	cflags = str.StringList(envList("CGO_CFLAGS", defaults), p.CgoCFLAGS)
-	cxxflags = str.StringList(envList("CGO_CXXFLAGS", defaults), p.CgoCXXFLAGS)
-	fflags = str.StringList(envList("CGO_FFLAGS", defaults), p.CgoFFLAGS)
-	ldflags = str.StringList(envList("CGO_LDFLAGS", defaults), p.CgoLDFLAGS)
+	if cppflags, err = buildFlags("CPPFLAGS", "", p.CgoCPPFLAGS, checkCompilerFlags); err != nil {
+		return
+	}
+	if cflags, err = buildFlags("CFLAGS", defaults, p.CgoCFLAGS, checkCompilerFlags); err != nil {
+		return
+	}
+	if cxxflags, err = buildFlags("CXXFLAGS", defaults, p.CgoCXXFLAGS, checkCompilerFlags); err != nil {
+		return
+	}
+	if fflags, err = buildFlags("FFLAGS", defaults, p.CgoFFLAGS, checkCompilerFlags); err != nil {
+		return
+	}
+	if ldflags, err = buildFlags("LDFLAGS", defaults, p.CgoLDFLAGS, checkLinkerFlags); err != nil {
+		return
+	}
+
 	return
+}
+
+func buildFlags(name, defaults string, fromPackage []string, check func(string, string, []string) error) ([]string, error) {
+	if err := check(name, "#cgo "+name, fromPackage); err != nil {
+		return nil, err
+	}
+	return str.StringList(envList("CGO_"+name, defaults), fromPackage), nil
 }
 
 var cgoRe = regexp.MustCompile(`[/\\:]`)
 
 func (b *Builder) cgo(a *Action, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofiles, objdirCgofiles, gccfiles, gxxfiles, mfiles, ffiles []string) (outGo, outObj []string, err error) {
 	p := a.Package
-	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, cgoFFLAGS, cgoLDFLAGS := b.CFlags(p)
+	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, cgoFFLAGS, cgoLDFLAGS, err := b.CFlags(p)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	cgoCPPFLAGS = append(cgoCPPFLAGS, pcCFLAGS...)
 	cgoLDFLAGS = append(cgoLDFLAGS, pcLDFLAGS...)
 	// If we are compiling Objective-C code, then we need to link against libobjc
@@ -3349,6 +3391,12 @@ func (b *Builder) cgo(a *Action, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofil
 	}
 
 	// Update $CGO_LDFLAGS with p.CgoLDFLAGS.
+	// These flags are recorded in the generated _cgo_gotypes.go file
+	// using //go:cgo_ldflag directives, the compiler records them in the
+	// object file for the package, and then the Go linker passes them
+	// along to the host linker. At this point in the code, cgoLDFLAGS
+	// consists of the original $CGO_LDFLAGS (unchecked) and all the
+	// flags put together from source code (checked).
 	var cgoenv []string
 	if len(cgoLDFLAGS) > 0 {
 		flags := make([]string, len(cgoLDFLAGS))
@@ -3698,7 +3746,11 @@ func (b *Builder) swigIntSize(obj string) (intsize string, err error) {
 
 // Run SWIG on one SWIG input file.
 func (b *Builder) swigOne(p *load.Package, file, obj string, pcCFLAGS []string, cxx bool, intgosize string) (outGo, outC string, err error) {
-	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, _, _ := b.CFlags(p)
+	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, _, _, err := b.CFlags(p)
+	if err != nil {
+		return "", "", err
+	}
+
 	var cflags []string
 	if cxx {
 		cflags = str.StringList(cgoCPPFLAGS, pcCFLAGS, cgoCXXFLAGS)
