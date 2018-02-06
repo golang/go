@@ -909,6 +909,20 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		[]string{"b\\+40\\(SP\\)"},
 	},
+	{
+		`
+		func f73(a,b [3]int16) bool {
+		    return a == b
+		}`,
+		[]string{"\tCMPL\t[A-Z]"},
+	},
+	{
+		`
+		func f74(a,b [12]int8) bool {
+		    return a == b
+		}`,
+		[]string{"\tCMPQ\t[A-Z]", "\tCMPL\t[A-Z]"},
+	},
 }
 
 var linux386Tests = []*asmTest{
