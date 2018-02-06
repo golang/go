@@ -163,6 +163,7 @@ func httpTraceViewerHTML(w http.ResponseWriter, r *http.Request) {
 
 // httpJsonTrace serves json trace, requested from within templTrace HTML.
 func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+	defer reportMemoryUsage("after httpJsonTrace")
 	// This is an AJAX handler, so instead of http.Error we use log.Printf to log errors.
 	res, err := parseTrace()
 	if err != nil {
