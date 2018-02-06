@@ -897,7 +897,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		t.ImportXtest = true
 	}
 
-	if ptest != p && localCover {
+	if ptest != p {
 		// We have made modifications to the package p being tested
 		// and are rebuilding p (as ptest).
 		// Arrange to rebuild all packages q such that
@@ -906,13 +906,6 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		// Strictly speaking, the rebuild is only necessary if the
 		// modifications to p change its export metadata, but
 		// determining that is a bit tricky, so we rebuild always.
-		// TODO(rsc): Once we get export metadata changes
-		// handled properly, look into the expense of dropping
-		// "&& localCover" above.
-		//
-		// This will cause extra compilation, so for now we only do it
-		// when testCover is set. The conditions are more general, though,
-		// and we may find that we need to do it always in the future.
 		recompileForTest(pmain, p, ptest, pxtest)
 	}
 

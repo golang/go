@@ -5439,6 +5439,44 @@ func TestTestVet(t *testing.T) {
 	tg.grepStdout(`ok\s+vetfail/p2`, "did not run vetfail/p2")
 }
 
+func TestTestRebuild(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	// golang.org/issue/23701.
+	// b_test imports b with augmented method from export_test.go.
+	// b_test also imports a, which imports b.
+	// Must not accidentally see un-augmented b propagate through a to b_test.
+	tg.tempFile("src/a/a.go", `package a
+		import "b"
+		type Type struct{}
+		func (*Type) M() b.T {return 0}
+	`)
+	tg.tempFile("src/b/b.go", `package b
+		type T int
+		type I interface {M() T}
+	`)
+	tg.tempFile("src/b/export_test.go", `package b
+		func (*T) Method() *T { return nil }
+	`)
+	tg.tempFile("src/b/b_test.go", `package b_test
+		import (
+			"testing"
+			"a"
+			. "b"
+		)
+		func TestBroken(t *testing.T) {
+			x := new(T)
+			x.Method()
+			_ = new(a.Type)
+		}
+	`)
+
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("test", "b")
+}
+
 func TestInstallDeps(t *testing.T) {
 	tooSlow(t)
 	tg := testgo(t)
