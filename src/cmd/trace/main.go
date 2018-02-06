@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"sync"
 
 	_ "net/http/pprof" // Required to use pprof
@@ -119,10 +120,12 @@ func main() {
 		os.Exit(0)
 	}
 	reportMemoryUsage("after parsing trace")
+	debug.FreeOSMemory()
 
 	log.Print("Splitting trace...")
 	ranges = splitTrace(res)
 	reportMemoryUsage("after spliting trace")
+	debug.FreeOSMemory()
 
 	addr := "http://" + ln.Addr().String()
 	log.Printf("Opening browser. Trace viewer is listening on %s", addr)

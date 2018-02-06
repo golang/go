@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -165,6 +166,7 @@ func httpTraceViewerHTML(w http.ResponseWriter, r *http.Request) {
 
 // httpJsonTrace serves json trace, requested from within templTrace HTML.
 func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+	defer debug.FreeOSMemory()
 	defer reportMemoryUsage("after httpJsonTrace")
 	// This is an AJAX handler, so instead of http.Error we use log.Printf to log errors.
 	res, err := parseTrace()
@@ -293,6 +295,7 @@ func splittingTraceConsumer(max int) (*splitter, traceConsumer) {
 				// so flush can include them in the required
 				// part of the trace.
 				data.Events = append(data.Events, v)
+				return
 			}
 			enc := json.NewEncoder(&cw)
 			enc.Encode(v)
@@ -1025,6 +1028,8 @@ func viewerDataTraceConsumer(w io.Writer, start, end int64) traceConsumer {
 				io.WriteString(w, ",")
 			}
 			enc.Encode(v)
+			// TODO: get rid of the extra \n inserted by enc.Encode.
+			// Same should be applied to splittingTraceConsumer.
 			written++
 		},
 		consumeViewerFrame: func(k string, v ViewerFrame) {
