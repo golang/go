@@ -370,10 +370,7 @@ noswitch:
  */
 
 // Called during function prolog when more stack is needed.
-// R1 frame size
 // R3 prolog's LR
-// NB. we do not save R0 because we've forced 5c to pass all arguments
-// on the stack.
 // using NOFRAME means do not save LR on stack.
 //
 // The traceback routines see morestack on a g0 as being
@@ -407,7 +404,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Set m->morebuf to f's caller.
 	MOVW	R3, (m_morebuf+gobuf_pc)(R8)	// f's caller's PC
 	MOVW	R13, (m_morebuf+gobuf_sp)(R8)	// f's caller's SP
-	MOVW	$4(R13), R3			// f's argument pointer
 	MOVW	g, (m_morebuf+gobuf_g)(R8)
 
 	// Call newstack on m->g0's stack.
