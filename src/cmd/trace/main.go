@@ -120,19 +120,8 @@ func main() {
 	}
 	reportMemoryUsage("after parsing trace")
 
-	log.Print("Serializing trace...")
-	params := &traceParams{
-		parsed:  res,
-		endTime: int64(1<<63 - 1),
-	}
-	data, err := generateTrace(params)
-	if err != nil {
-		dief("%v\n", err)
-	}
-	reportMemoryUsage("after generating trace")
-
 	log.Print("Splitting trace...")
-	ranges = splitTrace(data)
+	ranges = splitTrace(res)
 	reportMemoryUsage("after spliting trace")
 
 	addr := "http://" + ln.Addr().String()
