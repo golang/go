@@ -248,6 +248,7 @@ var nblank *Node
 var typecheckok bool
 
 var compiling_runtime bool
+var compiling_std bool
 
 var compiling_wrappers int
 

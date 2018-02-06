@@ -154,6 +154,7 @@ func Main() {
 	}
 
 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
+	flag.BoolVar(&compiling_std, "std", false, "compiling standard library")
 	obj.Flagcount("%", "debug non-static initializers", &Debug['%'])
 	obj.Flagcount("B", "disable bounds checking", &Debug['B'])
 	flag.StringVar(&localimport, "D", "", "set relative `path` for local imports")
