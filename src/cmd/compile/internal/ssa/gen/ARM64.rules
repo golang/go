@@ -534,6 +534,12 @@
 (ZW  (ANDconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBZ  {ntz(int64(uint32(c)))} x yes no)
 (NZW (ANDconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBNZ {ntz(int64(uint32(c)))} x yes no)
 
+// Test sign-bit for signed comparisons against zero
+(GE (CMPWconst [0] x) yes no) -> (TBZ  {int64(31)} x yes no)
+(GE (CMPconst [0] x) yes no) -> (TBZ  {int64(63)} x yes no)
+(LT (CMPWconst [0] x) yes no) -> (TBNZ  {int64(31)} x yes no)
+(LT (CMPconst [0] x) yes no) -> (TBNZ  {int64(63)} x yes no)
+
 // fold offset into address
 (ADDconst [off1] (MOVDaddr [off2] {sym} ptr)) -> (MOVDaddr [off1+off2] {sym} ptr)
 
