@@ -16802,6 +16802,40 @@ func rewriteBlockARM64(b *Block) bool {
 			return true
 		}
 	case BlockARM64GE:
+		// match: (GE (CMPWconst [0] x) yes no)
+		// cond:
+		// result: (TBZ  {int64(31)} x yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64CMPWconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			x := v.Args[0]
+			b.Kind = BlockARM64TBZ
+			b.SetControl(x)
+			b.Aux = int64(31)
+			return true
+		}
+		// match: (GE (CMPconst [0] x) yes no)
+		// cond:
+		// result: (TBZ  {int64(63)} x yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			x := v.Args[0]
+			b.Kind = BlockARM64TBZ
+			b.SetControl(x)
+			b.Aux = int64(63)
+			return true
+		}
 		// match: (GE (FlagEQ) yes no)
 		// cond:
 		// result: (First nil yes no)
@@ -17202,6 +17236,40 @@ func rewriteBlockARM64(b *Block) bool {
 			return true
 		}
 	case BlockARM64LT:
+		// match: (LT (CMPWconst [0] x) yes no)
+		// cond:
+		// result: (TBNZ  {int64(31)} x yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64CMPWconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			x := v.Args[0]
+			b.Kind = BlockARM64TBNZ
+			b.SetControl(x)
+			b.Aux = int64(31)
+			return true
+		}
+		// match: (LT (CMPconst [0] x) yes no)
+		// cond:
+		// result: (TBNZ  {int64(63)} x yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			x := v.Args[0]
+			b.Kind = BlockARM64TBNZ
+			b.SetControl(x)
+			b.Aux = int64(63)
+			return true
+		}
 		// match: (LT (FlagEQ) yes no)
 		// cond:
 		// result: (First nil no yes)
