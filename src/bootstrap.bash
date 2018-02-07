@@ -77,7 +77,11 @@ else
 	rm -rf "pkg/${gohostos}_${gohostarch}" "pkg/tool/${gohostos}_${gohostarch}"
 fi
 
-GITREV=$(git rev-parse --short HEAD)
+if [ "$BOOTSTRAP_FORMAT" = "mintgz" ]; then
+	# Fetch git revision before rm -rf .git.
+	GITREV=$(git rev-parse --short HEAD)
+fi
+
 rm -rf pkg/bootstrap pkg/obj .git
 
 # Support for building minimal tar.gz for the builders.

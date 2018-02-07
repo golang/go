@@ -81,6 +81,13 @@ func init() {
 			skipExternal = true
 			canRun = false
 		}
+	case "plan9":
+		switch runtime.GOARCH {
+		case "arm":
+			// many plan9/arm machines are too slow to run
+			// the full set of external tests.
+			skipExternal = true
+		}
 	case "windows":
 		exeSuffix = ".exe"
 	}
@@ -5366,6 +5373,30 @@ func TestTestCacheInputs(t *testing.T) {
 	}
 }
 
+func TestNoCache(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows":
+		t.Skipf("no unwritable directories on %s", runtime.GOOS)
+	}
+	if os.Getuid() == 0 {
+		t.Skip("skipping test because running as root")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("triv.go", `package main; func main() {}`)
+	tg.must(os.MkdirAll(tg.path("unwritable"), 0555))
+	home := "HOME"
+	if runtime.GOOS == "plan9" {
+		home = "home"
+	}
+	tg.setenv(home, tg.path(filepath.Join("unwritable", "home")))
+	tg.unsetenv("GOCACHE")
+	tg.run("build", "-o", tg.path("triv"), tg.path("triv.go"))
+	tg.grepStderr("disabling cache", "did not disable cache")
+}
+
 func TestTestVet(t *testing.T) {
 	tooSlow(t)
 	tg := testgo(t)
@@ -5406,6 +5437,44 @@ func TestTestVet(t *testing.T) {
 	tg.runFail("test", "vetfail/...")
 	tg.grepStderr(`Printf format %d`, "did not diagnose bad Printf")
 	tg.grepStdout(`ok\s+vetfail/p2`, "did not run vetfail/p2")
+}
+
+func TestTestRebuild(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	// golang.org/issue/23701.
+	// b_test imports b with augmented method from export_test.go.
+	// b_test also imports a, which imports b.
+	// Must not accidentally see un-augmented b propagate through a to b_test.
+	tg.tempFile("src/a/a.go", `package a
+		import "b"
+		type Type struct{}
+		func (*Type) M() b.T {return 0}
+	`)
+	tg.tempFile("src/b/b.go", `package b
+		type T int
+		type I interface {M() T}
+	`)
+	tg.tempFile("src/b/export_test.go", `package b
+		func (*T) Method() *T { return nil }
+	`)
+	tg.tempFile("src/b/b_test.go", `package b_test
+		import (
+			"testing"
+			"a"
+			. "b"
+		)
+		func TestBroken(t *testing.T) {
+			x := new(T)
+			x.Method()
+			_ = new(a.Type)
+		}
+	`)
+
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("test", "b")
 }
 
 func TestInstallDeps(t *testing.T) {
@@ -5654,4 +5723,19 @@ func TestCpuprofileTwice(t *testing.T) {
 	tg.must(os.Remove(out))
 	tg.run("test", "-o="+bin, "-cpuprofile="+out, "x")
 	tg.mustExist(out)
+}
+
+// Issue 23694.
+func TestAtomicCoverpkgAll(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	tg.tempFile("src/x/x.go", `package x; import _ "sync/atomic"; func F() {}`)
+	tg.tempFile("src/x/x_test.go", `package x; import "testing"; func TestF(t *testing.T) { F() }`)
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("test", "-coverpkg=all", "-covermode=atomic", "x")
+	if canRace {
+		tg.run("test", "-coverpkg=all", "-race", "x")
+	}
 }

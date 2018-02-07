@@ -123,6 +123,11 @@ func arm64RegisterNumber(name string, n int16) (int16, bool) {
 // ARM64RegisterExtension parses an ARM64 register with extension or arrangment.
 func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
 	rm := uint32(reg)
+	if isAmount {
+		if num < 0 || num > 7 {
+			return errors.New("shift amount out of range")
+		}
+	}
 	switch ext {
 	case "UXTB":
 		if !isAmount {
@@ -134,7 +139,7 @@ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, i
 		if !isAmount {
 			return errors.New("invalid register extension")
 		}
-		a.Reg = arm64.REG_UXTH + (num & 31) + int16(num<<5)
+		a.Reg = arm64.REG_UXTH + (reg & 31) + int16(num<<5)
 		a.Offset = int64(((rm & 31) << 16) | (1 << 13) | (uint32(num) << 10))
 	case "UXTW":
 		if !isAmount {

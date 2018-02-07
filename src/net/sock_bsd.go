@@ -20,7 +20,7 @@ func maxListenerBacklog() int {
 	case "darwin":
 		n, err = syscall.SysctlUint32("kern.ipc.somaxconn")
 	case "freebsd":
-		n, err = syscall.SysctlUint32("kern.ipc.acceptqueue")
+		n, err = syscall.SysctlUint32("kern.ipc.soacceptqueue")
 	case "netbsd":
 		// NOTE: NetBSD has no somaxconn-like kernel state so far
 	case "openbsd":

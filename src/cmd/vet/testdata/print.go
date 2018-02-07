@@ -130,8 +130,8 @@ func PrintfTests() {
 	fmt.Printf("%U", x)                         // ERROR "Printf format %U has arg x of wrong type float64"
 	fmt.Printf("%x", nil)                       // ERROR "Printf format %x has arg nil of wrong type untyped nil"
 	fmt.Printf("%X", 2.3)                       // ERROR "Printf format %X has arg 2.3 of wrong type float64"
-	fmt.Printf("%s", stringerv)                 // ERROR "Printf format %s has arg stringerv of wrong type testdata.stringer"
-	fmt.Printf("%t", stringerv)                 // ERROR "Printf format %t has arg stringerv of wrong type testdata.stringer"
+	fmt.Printf("%s", stringerv)                 // ERROR "Printf format %s has arg stringerv of wrong type testdata.ptrStringer"
+	fmt.Printf("%t", stringerv)                 // ERROR "Printf format %t has arg stringerv of wrong type testdata.ptrStringer"
 	fmt.Printf("%s", embeddedStringerv)         // ERROR "Printf format %s has arg embeddedStringerv of wrong type testdata.embeddedStringer"
 	fmt.Printf("%t", embeddedStringerv)         // ERROR "Printf format %t has arg embeddedStringerv of wrong type testdata.embeddedStringer"
 	fmt.Printf("%q", notstringerv)              // ERROR "Printf format %q has arg notstringerv of wrong type testdata.notstringer"
@@ -168,7 +168,7 @@ func PrintfTests() {
 	Printf(format, "hi", "there")
 	Printf(format, "hi")              // ERROR "Printf format %s reads arg #2, but call has only 1 arg$"
 	Printf("%s %d %.3v %q", "str", 4) // ERROR "Printf format %.3v reads arg #3, but call has only 2 args"
-	f := new(stringer)
+	f := new(ptrStringer)
 	f.Warn(0, "%s", "hello", 3)           // ERROR "Warn call has possible formatting directive %s"
 	f.Warnf(0, "%s", "hello", 3)          // ERROR "Warnf call needs 1 arg but has 2 args"
 	f.Warnf(0, "%r", "hello")             // ERROR "Warnf format %r has unknown verb r"
@@ -270,8 +270,9 @@ func PrintfTests() {
 	Printf("%d %[3]d %d %[-2]d x", 1, 2, 3, 4)            // ERROR "Printf format has invalid argument index \[-2\]"
 	Printf("%d %[3]d %d %[2234234234234]d x", 1, 2, 3, 4) // ERROR "Printf format has invalid argument index \[2234234234234\]"
 	Printf("%d %[3]d %-10d %[2]d x", 1, 2, 3)             // ERROR "Printf format %-10d reads arg #4, but call has only 3 args"
-	Printf("%d %[3]d %d %[2]d x", 1, 2, 3, 4, 5)          // ERROR "Printf call needs 4 args but has 5 args"
 	Printf("%[1][3]d x", 1, 2)                            // ERROR "Printf format %\[1\]\[ has unknown verb \["
+	Printf("%[1]d x", 1, 2)                               // OK
+	Printf("%d %[3]d %d %[2]d x", 1, 2, 3, 4, 5)          // OK
 
 	// wrote Println but meant Fprintln
 	Printf("%p\n", os.Stdout)   // OK
@@ -352,25 +353,29 @@ func multi() []interface{} {
 	panic("don't call - testing only")
 }
 
-type stringer float64
+type stringer int
 
-var stringerv stringer
+func (stringer) String() string { return "string" }
 
-func (*stringer) String() string {
+type ptrStringer float64
+
+var stringerv ptrStringer
+
+func (*ptrStringer) String() string {
 	return "string"
 }
 
-func (*stringer) Warn(int, ...interface{}) string {
+func (*ptrStringer) Warn(int, ...interface{}) string {
 	return "warn"
 }
 
-func (*stringer) Warnf(int, string, ...interface{}) string {
+func (*ptrStringer) Warnf(int, string, ...interface{}) string {
 	return "warnf"
 }
 
 type embeddedStringer struct {
 	foo string
-	stringer
+	ptrStringer
 	bar int
 }
 
@@ -440,6 +445,7 @@ type recursivePtrStringer int
 
 func (p *recursivePtrStringer) String() string {
 	_ = fmt.Sprintf("%v", *p)
+	_ = fmt.Sprint(&p)     // ok; prints address
 	return fmt.Sprintln(p) // ERROR "Sprintln arg p causes recursive call to String method"
 }
 
@@ -478,13 +484,17 @@ type RecursiveStruct2 struct {
 
 var recursiveStruct1V = &RecursiveStruct1{}
 
-// Issue 17798: unexported stringer cannot be formatted.
+type unexportedInterface struct {
+	f interface{}
+}
+
+// Issue 17798: unexported ptrStringer cannot be formatted.
 type unexportedStringer struct {
-	t stringer
+	t ptrStringer
 }
 type unexportedStringerOtherFields struct {
 	s string
-	t stringer
+	t ptrStringer
 	S string
 }
 
@@ -502,7 +512,23 @@ type errorer struct{}
 
 func (e errorer) Error() string { return "errorer" }
 
+type unexportedCustomError struct {
+	e errorer
+}
+
+type errorInterface interface {
+	error
+	ExtraMethod()
+}
+
+type unexportedErrorInterface struct {
+	e errorInterface
+}
+
 func UnexportedStringerOrError() {
+	fmt.Printf("%s", unexportedInterface{"foo"}) // ok; prints {foo}
+	fmt.Printf("%s", unexportedInterface{3})     // ok; we can't see the problem
+
 	us := unexportedStringer{}
 	fmt.Printf("%s", us)  // ERROR "Printf format %s has arg us of wrong type testdata.unexportedStringer"
 	fmt.Printf("%s", &us) // ERROR "Printf format %s has arg &us of wrong type [*]testdata.unexportedStringer"
@@ -528,8 +554,29 @@ func UnexportedStringerOrError() {
 	fmt.Printf("%s", uef)  // ERROR "Printf format %s has arg uef of wrong type testdata.unexportedErrorOtherFields"
 	fmt.Printf("%s", &uef) // ERROR "Printf format %s has arg &uef of wrong type [*]testdata.unexportedErrorOtherFields"
 
+	uce := unexportedCustomError{
+		e: errorer{},
+	}
+	fmt.Printf("%s", uce) // ERROR "Printf format %s has arg uce of wrong type testdata.unexportedCustomError"
+
+	uei := unexportedErrorInterface{}
+	fmt.Printf("%s", uei)       // ERROR "Printf format %s has arg uei of wrong type testdata.unexportedErrorInterface"
 	fmt.Println("foo\n", "bar") // not an error
-	fmt.Println("foo\n")        // ERROR "Println arg list ends with redundant newline"
-	fmt.Println("foo\\n")       // not an error
-	fmt.Println(`foo\n`)        // not an error
+
+	fmt.Println("foo\n")  // ERROR "Println arg list ends with redundant newline"
+	fmt.Println("foo\\n") // not an error
+	fmt.Println(`foo\n`)  // not an error
+
+	intSlice := []int{3, 4}
+	fmt.Printf("%s", intSlice) // ERROR "Printf format %s has arg intSlice of wrong type \[\]int"
+	nonStringerArray := [1]unexportedStringer{{}}
+	fmt.Printf("%s", nonStringerArray)  // ERROR "Printf format %s has arg nonStringerArray of wrong type \[1\]testdata.unexportedStringer"
+	fmt.Printf("%s", []stringer{3, 4})  // not an error
+	fmt.Printf("%s", [2]stringer{3, 4}) // not an error
+}
+
+// TODO: Disable complaint about '0' for Go 1.10. To be fixed properly in 1.11.
+// See issues 23598 and 23605.
+func DisableErrorForFlag0() {
+	fmt.Printf("%0t", true)
 }
