@@ -1373,3 +1373,13 @@
 	&& clobber(o0) && clobber(o1) && clobber(o2) && clobber(o3)
 	&& clobber(o4) && clobber(o5) && clobber(s0)
 	-> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (REV <t> (MOVDload <t> {s} (OffPtr <p.Type> [i0] p) mem))
+
+// FP simplification
+(FNEGS (FMULS x y)) -> (FNMULS x y)
+(FNEGD (FMULD x y)) -> (FNMULD x y)
+(FMULS (FNEGS x) y) -> (FNMULS x y)
+(FMULD (FNEGD x) y) -> (FNMULD x y)
+(FNEGS (FNMULS x y)) -> (FMULS x y)
+(FNEGD (FNMULD x y)) -> (FMULD x y)
+(FNMULS (FNEGS x) y) -> (FMULS x y)
+(FNMULD (FNEGD x) y) -> (FMULD x y)
