@@ -225,6 +225,10 @@ func (s *ioSrv) ExecIO(o *operation, submit func(o *operation) error) (int, erro
 		// All is good. Extract our IO results and return.
 		if o.errno != 0 {
 			err = syscall.Errno(o.errno)
+			// More data available. Return back the size of received data.
+			if err == syscall.ERROR_MORE_DATA || err == syscall.WSAEMSGSIZE {
+				return int(o.qty), err
+			}
 			return 0, err
 		}
 		return int(o.qty), nil
