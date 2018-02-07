@@ -785,7 +785,8 @@ Parsed certificates also now report URI names and IP, email, and URI constraints
 <a href="/pkg/crypto/x509/#Certificate"><code>Certificate</code></a> fields
 <code>URIs</code>, <code>PermittedIPRanges</code>, <code>ExcludedIPRanges</code>,
 <code>PermittedEmailAddresses</code>, <code>ExcludedEmailAddresses</code>,
-<code>PermittedURIDomains</code>, and <code>ExcludedURIDomains</code>.
+<code>PermittedURIDomains</code>, and <code>ExcludedURIDomains</code>. Certificates with
+invalid values for those fields are now rejected.
 </p>
 
 <p>
