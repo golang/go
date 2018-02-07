@@ -166,7 +166,7 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
 			if err != nil {
 				return err
 			}
-			defer os.Remove(dir)
+			defer os.RemoveAll(dir)
 			err = ioutil.WriteFile(filepath.Join(dir, "in.go"), txt, 0600)
 			if err != nil {
 				return err

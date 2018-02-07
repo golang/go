@@ -277,9 +277,9 @@ Go structs and Go arrays are not supported in the type signatures of cgo-exporte
 <p>
 Cgo now supports direct access to Go string values from C.
 Functions in the C preamble may use the type <code>_GoString_</code>
-to accept a Go string as an argument. 
+to accept a Go string as an argument.
 C code may call <code>_GoStringLen</code> and <code>_GoStringPtr</code>
-for direct access to the contents of the string. 
+for direct access to the contents of the string.
 A value of type <code>_GoString_</code>
 may be passed in a call to an exported Go function that takes an argument of Go type <code>string</code>.
 </p>
@@ -814,6 +814,13 @@ formats the X.509 distinguished name in the standard RFC 2253 format.
 <dl id="database/sql/driver"><dt><a href="/pkg/database/sql/driver/">database/sql/driver</a></dt>
 <dd>
 <p>
+Drivers that currently hold on to the destination buffer provided by
+<a href="/pkg/database/sql/driver/#Rows.Next"><code>driver.Rows.Next</code></a> should ensure they no longer
+write to a buffer assigned to the destination array outside of that call.
+Drivers must be careful that underlying buffers are not modified when closing
+<a href="/pkg/database/sql/driver/#Rows"><code>driver.Rows</code></a>.
+</p>
+<p>
 Drivers that want to construct a <a href="/pkg/database/sql/#DB"><code>sql.DB</code></a> for
 their clients can now implement the <a href="/pkg/database/sql/driver/#Connector"><code>Connector</code></a> interface
 and call the new <a href="/pkg/database/sql/#OpenDB"><code>sql.OpenDB</code></a> function,
@@ -1061,11 +1068,6 @@ now implement those interfaces.
 
 <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
 <dd>
-<p>
-The new actions <code>{{"{{break}}"}}</code> and <code>{{"{{continue}}"}}</code>
-break out of the innermost <code>{{"{{range"}}</code>&nbsp;...<code>}}</code> loop,
-like the corresponding Go statements.
-</p>
 <p>
 The new <a href="/pkg/html/template#Srcset"><code>Srcset</code></a> content
 type allows for proper handling of values within the
@@ -1340,7 +1342,7 @@ in the corresponding <a href="/pkg/reflect/#StructField">StructField</a>,
 with the result that for those fields,
 and <a href="/pkg/reflect/#Value.CanSet"><code>Value.CanSet</code></a>
 incorrectly returned true and
-and <a href="/pkg/reflect/#Value.Set"><code>Value.Set</code></a>
+<a href="/pkg/reflect/#Value.Set"><code>Value.Set</code></a>
 incorrectly succeeded.
 The underlying metadata has been corrected;
 for those fields,
@@ -1401,15 +1403,6 @@ gives access to the underlying system call.
 <p>
 On BSD, macOS, and Solaris systems, <a href="/pkg/syscall/#UtimesNano"><code>UtimesNano</code></a>
 is now implemented.
-</p>
-</dl>
-
-<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
-<dd>
-<p>
-The new actions <code>{{"{{break}}"}}</code> and <code>{{"{{continue}}"}}</code>
-break out of the innermost <code>{{"{{range"}}</code>&nbsp;...<code>}}</code> loop,
-like the corresponding Go statements.
 </p>
 </dl>
 

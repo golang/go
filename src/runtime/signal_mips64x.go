@@ -89,6 +89,8 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	}
 
 	// In case we are panicking from external C code
+	sigpanicPC := uint64(funcPC(sigpanic))
+	c.set_r28(sigpanicPC >> 32 << 32) // RSB register
 	c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
-	c.set_pc(uint64(funcPC(sigpanic)))
+	c.set_pc(sigpanicPC)
 }

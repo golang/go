@@ -1020,11 +1020,6 @@ func (rc *rowsCursor) touchMem() {
 }
 
 func (rc *rowsCursor) Close() error {
-	if !rc.closed {
-		for _, bs := range rc.bytesClone {
-			bs[0] = 255 // first byte corrupted
-		}
-	}
 	rc.touchMem()
 	rc.parentMem.touchMem()
 	rc.closed = true

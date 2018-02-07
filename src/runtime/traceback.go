@@ -43,6 +43,7 @@ var (
 	morestackPC          uintptr
 	mstartPC             uintptr
 	rt0_goPC             uintptr
+	asmcgocallPC         uintptr
 	sigpanicPC           uintptr
 	runfinqPC            uintptr
 	bgsweepPC            uintptr
@@ -70,6 +71,7 @@ func tracebackinit() {
 	morestackPC = funcPC(morestack)
 	mstartPC = funcPC(mstart)
 	rt0_goPC = funcPC(rt0_go)
+	asmcgocallPC = funcPC(asmcgocall)
 	sigpanicPC = funcPC(sigpanic)
 	runfinqPC = funcPC(runfinq)
 	bgsweepPC = funcPC(bgsweep)
@@ -251,7 +253,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			}
 		}
 		var flr funcInfo
-		if topofstack(f) {
+		if topofstack(f, gp.m != nil && gp == gp.m.g0) {
 			frame.lr = 0
 			flr = funcInfo{}
 		} else if usesLR && f.entry == jmpdeferPC {
@@ -284,7 +286,15 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				// In that context it is okay to stop early.
 				// But if callback is set, we're doing a garbage collection and must
 				// get everything, so crash loudly.
-				if callback != nil || printing {
+				doPrint := printing
+				if doPrint && gp.m.incgo {
+					// We can inject sigpanic
+					// calls directly into C code,
+					// in which case we'll see a C
+					// return PC. Don't complain.
+					doPrint = false
+				}
+				if callback != nil || doPrint {
 					print("runtime: unexpected return pc for ", funcname(f), " called from ", hex(frame.lr), "\n")
 					tracebackHexdump(gp.stack, &frame, lrPtr)
 				}
@@ -920,14 +930,20 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
 }
 
 // Does f mark the top of a goroutine stack?
-func topofstack(f funcInfo) bool {
+func topofstack(f funcInfo, g0 bool) bool {
 	pc := f.entry
 	return pc == goexitPC ||
 		pc == mstartPC ||
 		pc == mcallPC ||
 		pc == morestackPC ||
 		pc == rt0_goPC ||
-		externalthreadhandlerp != 0 && pc == externalthreadhandlerp
+		externalthreadhandlerp != 0 && pc == externalthreadhandlerp ||
+		// asmcgocall is TOS on the system stack because it
+		// switches to the system stack, but in this case we
+		// can come back to the regular stack and still want
+		// to be able to unwind through the call that appeared
+		// on the regular stack.
+		(g0 && pc == asmcgocallPC)
 }
 
 // isSystemGoroutine reports whether the goroutine g must be omitted in

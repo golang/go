@@ -2362,7 +2362,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = rt
 		}
 		if p.To.Type != obj.TYPE_NONE && (p.To.Reg == REGSP || r == REGSP) {
-			o2 = c.opxrrr(p, p.As)
+			o2 = c.opxrrr(p, p.As, false)
 			o2 |= REGTMP & 31 << 16
 			o2 |= LSL0_64
 		} else {
@@ -2591,11 +2591,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (REGZERO & 31 << 5) | uint32(rt&31)
 
 	case 27: /* op Rm<<n[,Rn],Rd (extended register) */
-		o1 = c.opxrrr(p, p.As)
 
 		if (p.From.Reg-obj.RBaseARM64)&REG_EXT != 0 {
+			amount := (p.From.Reg >> 5) & 7
+			if amount > 4 {
+				c.ctxt.Diag("shift amount out of range 0 to 4: %v", p)
+			}
+			o1 = c.opxrrr(p, p.As, true)
 			o1 |= uint32(p.From.Offset) /* includes reg, op, etc */
 		} else {
+			o1 = c.opxrrr(p, p.As, false)
 			o1 |= uint32(p.From.Reg&31) << 16
 		}
 		rt := int(p.To.Reg)
@@ -2755,7 +2760,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if !(o1 != 0) {
 			break
 		}
-		o2 = c.opxrrr(p, AADD)
+		o2 = c.opxrrr(p, AADD, false)
 		o2 |= REGTMP & 31 << 16
 		o2 |= LSL0_64
 		r := int(p.From.Reg)
@@ -3122,7 +3127,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = rt
 		}
 		if p.To.Type != obj.TYPE_NONE && (p.To.Reg == REGSP || r == REGSP) {
-			o2 = c.opxrrr(p, p.As)
+			o2 = c.opxrrr(p, p.As, false)
 			o2 |= REGTMP & 31 << 16
 			o2 |= LSL0_64
 		} else {
@@ -3373,7 +3378,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
-		o2 = c.opxrrr(p, AADD)
+		o2 = c.opxrrr(p, AADD, false)
 		o2 |= (REGTMP & 31) << 16
 		o2 |= uint32(r&31) << 5
 		o2 |= uint32(REGTMP & 31)
@@ -3426,7 +3431,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o3 |= 2 << 23
 		}
 		o1 = c.omovlit(AMOVD, p, &p.To, REGTMP)
-		o2 = c.opxrrr(p, AADD)
+		o2 = c.opxrrr(p, AADD, false)
 		o2 |= REGTMP & 31 << 16
 		o2 |= uint32(r&31) << 5
 		o2 |= uint32(REGTMP & 31)
@@ -4518,33 +4523,44 @@ func (c *ctxt7) opbit(p *obj.Prog, a obj.As) uint32 {
 }
 
 /*
- * add/subtract extended register
+ * add/subtract sign or zero-extended register
  */
-func (c *ctxt7) opxrrr(p *obj.Prog, a obj.As) uint32 {
+func (c *ctxt7) opxrrr(p *obj.Prog, a obj.As, extend bool) uint32 {
+	extension := uint32(0)
+	if !extend {
+		switch a {
+		case AADD, ACMN, AADDS, ASUB, ACMP, ASUBS:
+			extension = LSL0_64
+
+		case AADDW, ACMNW, AADDSW, ASUBW, ACMPW, ASUBSW:
+			extension = LSL0_32
+		}
+	}
+
 	switch a {
 	case AADD:
-		return S64 | 0<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_64
+		return S64 | 0<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
 
 	case AADDW:
-		return S32 | 0<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
+		return S32 | 0<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
 
 	case ACMN, AADDS:
-		return S64 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_64
+		return S64 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
 
 	case ACMNW, AADDSW:
-		return S32 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
+		return S32 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
 
 	case ASUB:
-		return S64 | 1<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_64
+		return S64 | 1<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
 
 	case ASUBW:
-		return S32 | 1<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
+		return S32 | 1<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
 
 	case ACMP, ASUBS:
-		return S64 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_64
+		return S64 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
 
 	case ACMPW, ASUBSW:
-		return S32 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
+		return S32 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
 	}
 
 	c.ctxt.Diag("bad opxrrr %v\n%v", a, p)

@@ -301,7 +301,7 @@ var pkgDeps = map[string][]string{
 	"os/user": {"L4", "CGO", "io/ioutil", "os", "syscall"},
 
 	// Internal package used only for testing.
-	"os/signal/internal/pty": {"CGO", "fmt", "os"},
+	"os/signal/internal/pty": {"CGO", "fmt", "os", "syscall"},
 
 	// Basic networking.
 	// Because net must be used by any package that wants to

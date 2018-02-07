@@ -513,10 +513,6 @@ var execTests = []execTest{
 	{"declare in range", "{{range $x := .PSI}}<{{$foo:=$x}}{{$x}}>{{end}}", "<21><22><23>", tVal, true},
 	{"range count", `{{range $i, $x := count 5}}[{{$i}}]{{$x}}{{end}}`, "[0]a[1]b[2]c[3]d[4]e", tVal, true},
 	{"range nil count", `{{range $i, $x := count 0}}{{else}}empty{{end}}`, "empty", tVal, true},
-	{"range quick break", `{{range .SI}}{{break}}{{.}}{{end}}`, "", tVal, true},
-	{"range break after two", `{{range $i, $x := .SI}}{{if ge $i 2}}{{break}}{{end}}{{.}}{{end}}`, "34", tVal, true},
-	{"range continue", `{{range .SI}}{{continue}}{{.}}{{end}}`, "", tVal, true},
-	{"range continue condition", `{{range .SI}}{{if eq . 3 }}{{continue}}{{end}}{{.}}{{end}}`, "45", tVal, true},
 
 	// Cute examples.
 	{"or as if true", `{{or .SI "slice is empty"}}`, "[3 4 5]", tVal, true},

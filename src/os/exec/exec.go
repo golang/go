@@ -293,6 +293,11 @@ func (c *Cmd) closeDescriptors(closers []io.Closer) {
 //
 // If the command starts but does not complete successfully, the error is of
 // type *ExitError. Other error types may be returned for other situations.
+//
+// If the calling goroutine has locked the operating system thread
+// with runtime.LockOSThread and modified any inheritable OS-level
+// thread state (for example, Linux or Plan 9 name spaces), the new
+// process will inherit the caller's thread state.
 func (c *Cmd) Run() error {
 	if err := c.Start(); err != nil {
 		return err
