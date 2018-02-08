@@ -12,7 +12,6 @@
 
 #define SYS_read		0
 #define SYS_write		1
-#define SYS_open		2
 #define SYS_close		3
 #define SYS_mmap		9
 #define SYS_munmap		11
@@ -41,9 +40,10 @@
 #define SYS_sched_getaffinity	204
 #define SYS_epoll_create	213
 #define SYS_exit_group		231
-#define SYS_epoll_wait		232
 #define SYS_epoll_ctl		233
+#define SYS_openat		257
 #define SYS_pselect6		270
+#define SYS_epoll_pwait		281
 #define SYS_epoll_create1	291
 
 TEXT runtime·exit(SB),NOSPLIT,$0-4
@@ -65,10 +65,12 @@ TEXT runtime·exitThread(SB),NOSPLIT,$0-8
 	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$0-20
-	MOVQ	name+0(FP), DI
-	MOVL	mode+8(FP), SI
-	MOVL	perm+12(FP), DX
-	MOVL	$SYS_open, AX
+	// This uses openat instead of open, because Android O blocks open.
+	MOVL	$-100, DI // AT_FDCWD, so this acts like open
+	MOVQ	name+0(FP), SI
+	MOVL	mode+8(FP), DX
+	MOVL	perm+12(FP), R10
+	MOVL	$SYS_openat, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	2(PC)
@@ -655,11 +657,13 @@ TEXT runtime·epollctl(SB),NOSPLIT,$0
 
 // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
 TEXT runtime·epollwait(SB),NOSPLIT,$0
+	// This uses pwait instead of wait, because Android O blocks wait.
 	MOVL	epfd+0(FP), DI
 	MOVQ	ev+8(FP), SI
 	MOVL	nev+16(FP), DX
 	MOVL	timeout+20(FP), R10
-	MOVL	$SYS_epoll_wait, AX
+	MOVQ	$0, R8
+	MOVL	$SYS_epoll_pwait, AX
 	SYSCALL
 	MOVL	AX, ret+24(FP)
 	RET
