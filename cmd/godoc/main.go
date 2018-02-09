@@ -153,13 +153,6 @@ func handleURLFlag() {
 	log.Fatalf("too many redirects")
 }
 
-func initCorpus(corpus *godoc.Corpus) {
-	err := corpus.Init()
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
 func main() {
 	flag.Usage = usage
 	flag.Parse()
@@ -238,10 +231,8 @@ func main() {
 		corpus.IndexEnabled = true
 	}
 	if *writeIndex || httpMode || *urlFlag != "" {
-		if httpMode {
-			go initCorpus(corpus)
-		} else {
-			initCorpus(corpus)
+		if err := corpus.Init(); err != nil {
+			log.Fatal(err)
 		}
 	}
 
@@ -332,9 +323,6 @@ func main() {
 		}
 
 		// Start http server.
-		if *verbose {
-			log.Println("starting http server")
-		}
 		if err := http.ListenAndServe(*httpAddr, handler); err != nil {
 			log.Fatalf("ListenAndServe %s: %v", *httpAddr, err)
 		}
