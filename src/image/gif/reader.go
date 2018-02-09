@@ -570,10 +570,11 @@ func Decode(r io.Reader) (image.Image, error) {
 type GIF struct {
 	Image []*image.Paletted // The successive images.
 	Delay []int             // The successive delay times, one per frame, in 100ths of a second.
-	// LoopCount is the number of times an animation will be restarted
-	// during display. This means for LoopCount=N, each frame will be
-	// displayed N+1 times. Use 0 for infinite looping, -1 to show each
-	// frame once.
+	// LoopCount controls the number of times an animation will be
+	// restarted during display.
+	// A LoopCount of 0 means to loop forever.
+	// A LoopCount of -1 means to show each frame only once.
+	// Otherwise, the animation is looped LoopCount+1 times.
 	LoopCount int
 	// Disposal is the successive disposal methods, one per frame. For
 	// backwards compatibility, a nil Disposal is valid to pass to EncodeAll,
