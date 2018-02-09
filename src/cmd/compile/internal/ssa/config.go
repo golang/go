@@ -291,9 +291,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 	if c.nacl {
 		c.noDuffDevice = true // Don't use Duff's device on NaCl
 
-		// runtime call clobber R12 on nacl
-		opcodeTable[OpARMCALLudiv].reg.clobbers |= 1 << 12 // R12
-
 		// Returns clobber BP on nacl/386, so the write
 		// barrier does.
 		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 5 // BP
