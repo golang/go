@@ -55,6 +55,7 @@ var (
 	output  = flag.String("o", "", "file for output; default: stdout")
 	htmlOut = flag.String("html", "", "generate HTML representation of coverage profile")
 	funcOut = flag.String("func", "", "output coverage profile information for each function")
+	fileOut = flag.String("file", "", "output coverage profile information for each file")
 )
 
 var profile string // The profile to read; the value of -html or -func
@@ -92,8 +93,10 @@ func main() {
 	// Output HTML or function coverage information.
 	if *htmlOut != "" {
 		err = htmlOutput(profile, *output)
-	} else {
+	} else if *funcOut != "" {
 		err = funcOutput(profile, *output)
+	} else {
+		err = fileOutput(profile, *output)
 	}
 
 	if err != nil {
@@ -106,10 +109,17 @@ func main() {
 func parseFlags() error {
 	profile = *htmlOut
 	if *funcOut != "" {
-		if profile != "" {
+		if profile != "" || *fileOut != "" {
 			return fmt.Errorf("too many options")
 		}
 		profile = *funcOut
+	}
+
+	if *fileOut != "" {
+		if profile != "" {
+			return fmt.Errorf("too many options")
+		}
+		profile = *fileOut
 	}
 
 	// Must either display a profile or rewrite Go source.
