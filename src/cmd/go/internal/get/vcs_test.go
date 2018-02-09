@@ -60,6 +60,10 @@ func TestRepoRootForImportPath(t *testing.T) {
 			nil,
 		},
 		{
+			"hubajazz.net",
+			nil,
+		},
+		{
 			"hub2.jazz.net",
 			nil,
 		},
@@ -138,6 +142,10 @@ func TestRepoRootForImportPath(t *testing.T) {
 		// Should have ".git" suffix
 		{
 			"git.apache.org/package-name/path/to/lib",
+			nil,
+		},
+		{
+			"gitbapache.org",
 			nil,
 		},
 		{
