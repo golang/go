@@ -701,7 +701,7 @@ func install(dir string) {
 	} else {
 		archive = b
 	}
-	compile := []string{pathf("%s/compile", tooldir), "-pack", "-o", b, "-p", pkg}
+	compile := []string{pathf("%s/compile", tooldir), "-std", "-pack", "-o", b, "-p", pkg}
 	if gogcflags != "" {
 		compile = append(compile, strings.Fields(gogcflags)...)
 	}

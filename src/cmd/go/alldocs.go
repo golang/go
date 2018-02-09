@@ -1106,17 +1106,26 @@
 // 	CGO_CFLAGS
 // 		Flags that cgo will pass to the compiler when compiling
 // 		C code.
-// 	CGO_CPPFLAGS
-// 		Flags that cgo will pass to the compiler when compiling
-// 		C or C++ code.
-// 	CGO_CXXFLAGS
-// 		Flags that cgo will pass to the compiler when compiling
-// 		C++ code.
-// 	CGO_FFLAGS
-// 		Flags that cgo will pass to the compiler when compiling
-// 		Fortran code.
-// 	CGO_LDFLAGS
-// 		Flags that cgo will pass to the compiler when linking.
+// 	CGO_CFLAGS_ALLOW
+// 		A regular expression specifying additional flags to allow
+// 		to appear in #cgo CFLAGS source code directives.
+// 		Does not apply to the CGO_CFLAGS environment variable.
+// 	CGO_CFLAGS_DISALLOW
+// 		A regular expression specifying flags that must be disallowed
+// 		from appearing in #cgo CFLAGS source code directives.
+// 		Does not apply to the CGO_CFLAGS environment variable.
+// 	CGO_CPPFLAGS, CGO_CPPFLAGS_ALLOW, CGO_CPPFLAGS_DISALLOW
+// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+// 		but for the C preprocessor.
+// 	CGO_CXXFLAGS, CGO_CXXFLAGS_ALLOW, CGO_CXXFLAGS_DISALLOW
+// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+// 		but for the C++ compiler.
+// 	CGO_FFLAGS, CGO_FFLAGS_ALLOW, CGO_FFLAGS_DISALLOW
+// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+// 		but for the Fortran compiler.
+// 	CGO_LDFLAGS, CGO_LDFLAGS_ALLOW, CGO_LDFLAGS_DISALLOW
+// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+// 		but for the linker.
 // 	CXX
 // 		The command to use to compile C++ code.
 // 	PKG_CONFIG
