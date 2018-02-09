@@ -5,7 +5,7 @@
 package os
 
 func isExist(err error) bool {
-	return checkErrMessageContent(err, " exists")
+	return checkErrMessageContent(err, "exists", "is a directory")
 }
 
 func isNotExist(err error) bool {

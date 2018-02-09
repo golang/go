@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -248,4 +249,56 @@ func printeface(e eface) {
 
 func printiface(i iface) {
 	print("(", i.tab, ",", i.data, ")")
+}
+
+// hexdumpWords prints a word-oriented hex dump of [p, end).
+//
+// If mark != nil, it will be called with each printed word's address
+// and should return a character mark to appear just before that
+// word's value. It can return 0 to indicate no mark.
+func hexdumpWords(p, end uintptr, mark func(uintptr) byte) {
+	p1 := func(x uintptr) {
+		var buf [2 * sys.PtrSize]byte
+		for i := len(buf) - 1; i >= 0; i-- {
+			if x&0xF < 10 {
+				buf[i] = byte(x&0xF) + '0'
+			} else {
+				buf[i] = byte(x&0xF) - 10 + 'a'
+			}
+			x >>= 4
+		}
+		gwrite(buf[:])
+	}
+
+	printlock()
+	var markbuf [1]byte
+	markbuf[0] = ' '
+	for i := uintptr(0); p+i < end; i += sys.PtrSize {
+		if i%16 == 0 {
+			if i != 0 {
+				println()
+			}
+			p1(p + i)
+			print(": ")
+		}
+
+		if mark != nil {
+			markbuf[0] = mark(p + i)
+			if markbuf[0] == 0 {
+				markbuf[0] = ' '
+			}
+		}
+		gwrite(markbuf[:])
+		val := *(*uintptr)(unsafe.Pointer(p + i))
+		p1(val)
+		print(" ")
+
+		// Can we symbolize val?
+		fn := findfunc(val)
+		if fn.valid() {
+			print("<", funcname(fn), "+", val-fn.entry, "> ")
+		}
+	}
+	println()
+	printunlock()
 }

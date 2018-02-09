@@ -35,14 +35,15 @@
 // Additional help topics:
 //
 // 	c           calling between Go and C
-// 	buildmode   description of build modes
+// 	buildmode   build modes
+// 	cache       build and test caching
 // 	filetype    file types
 // 	gopath      GOPATH environment variable
 // 	environment environment variables
 // 	importpath  import path syntax
-// 	packages    description of package lists
-// 	testflag    description of testing flags
-// 	testfunc    description of testing functions
+// 	packages    package lists
+// 	testflag    testing flags
+// 	testfunc    testing functions
 //
 // Use "go help [topic]" for more information about that topic.
 //
@@ -505,7 +506,7 @@
 //
 // Usage:
 //
-// 	go get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]
+// 	go get [-d] [-f] [-fix] [-insecure] [-t] [-u] [-v] [build flags] [packages]
 //
 // Get downloads the packages named by the import paths, along with their
 // dependencies. It then installs the named packages, like 'go install'.
@@ -756,39 +757,51 @@
 // Only a high-confidence subset of the default go vet checks are used.
 // To disable the running of go vet, use the -vet=off flag.
 //
-// Go test runs in two different modes: local directory mode when invoked with
-// no package arguments (for example, 'go test'), and package list mode when
-// invoked with package arguments (for example 'go test math', 'go test ./...',
-// and even 'go test .').
+// All test output and summary lines are printed to the go command's
+// standard output, even if the test printed them to its own standard
+// error. (The go command's standard error is reserved for printing
+// errors building the tests.)
 //
-// In local directory mode, go test compiles and tests the package sources
-// found in the current directory and then runs the resulting test binary.
-// In this mode, caching (discussed below) is disabled. After the package test
-// finishes, go test prints a summary line showing the test status ('ok' or 'FAIL'),
-// package name, and elapsed time.
+// Go test runs in two different modes:
 //
-// In package list mode, go test compiles and tests each of the packages
-// listed on the command line. If a package test passes, go test prints only
-// the final 'ok' summary line. If a package test fails, go test prints the
-// full test output. If invoked with the -bench or -v flag, go test prints
-// the full output even for passing package tests, in order to display the
+// The first, called local directory mode, occurs when go test is
+// invoked with no package arguments (for example, 'go test' or 'go
+// test -v'). In this mode, go test compiles the package sources and
+// tests found in the current directory and then runs the resulting
+// test binary. In this mode, caching (discussed below) is disabled.
+// After the package test finishes, go test prints a summary line
+// showing the test status ('ok' or 'FAIL'), package name, and elapsed
+// time.
+//
+// The second, called package list mode, occurs when go test is invoked
+// with explicit package arguments (for example 'go test math', 'go
+// test ./...', and even 'go test .'). In this mode, go test compiles
+// and tests each of the packages listed on the command line. If a
+// package test passes, go test prints only the final 'ok' summary
+// line. If a package test fails, go test prints the full test output.
+// If invoked with the -bench or -v flag, go test prints the full
+// output even for passing package tests, in order to display the
 // requested benchmark results or verbose logging.
 //
-// All test output and summary lines are printed to the go command's standard
-// output, even if the test printed them to its own standard error.
-// (The go command's standard error is reserved for printing errors building
-// the tests.)
+// In package list mode only, go test caches successful package test
+// results to avoid unnecessary repeated running of tests. When the
+// result of a test can be recovered from the cache, go test will
+// redisplay the previous output instead of running the test binary
+// again. When this happens, go test prints '(cached)' in place of the
+// elapsed time in the summary line.
 //
-// In package list mode, go test also caches successful package test results.
-// If go test has cached a previous test run using the same test binary and
-// the same command line consisting entirely of cacheable test flags
-// (defined as -cpu, -list, -parallel, -run, -short, and -v),
-// go test will redisplay the previous output instead of running the test
-// binary again. In the summary line, go test prints '(cached)' in place of
-// the elapsed time. To disable test caching, use any test flag or argument
-// other than the cacheable flags. The idiomatic way to disable test caching
-// explicitly is to use -count=1. A cached result is treated as executing in
-// no time at all, so a successful package test result will be cached and reused
+// The rule for a match in the cache is that the run involves the same
+// test binary and the flags on the command line come entirely from a
+// restricted set of 'cacheable' test flags, defined as -cpu, -list,
+// -parallel, -run, -short, and -v. If a run of go test has any test
+// or non-test flags outside this set, the result is not cached. To
+// disable test caching, use any test flag or argument other than the
+// cacheable flags. The idiomatic way to disable test caching explicitly
+// is to use -count=1. Tests that open files within the package's source
+// root (usually $GOPATH) or that consult environment variables only
+// match future runs in which the files and environment variables are unchanged.
+// A cached test result is treated as executing in no time at all,
+// so a successful package test result will be cached and reused
 // regardless of -timeout setting.
 //
 // In addition to the build flags, the flags handled by 'go test' itself are:
@@ -893,7 +906,7 @@
 // the C or C++ compiler, respectively, to use.
 //
 //
-// Description of build modes
+// Build modes
 //
 // The 'go build' and 'go install' commands take a -buildmode argument which
 // indicates which kind of object file is to be built. Currently supported values
@@ -937,6 +950,45 @@
 // 	-buildmode=plugin
 // 		Build the listed main packages, plus all packages that they
 // 		import, into a Go plugin. Packages not named main are ignored.
+//
+//
+// Build and test caching
+//
+// The go command caches build outputs for reuse in future builds.
+// The default location for cache data is a subdirectory named go-build
+// in the standard user cache directory for the current operating system.
+// Setting the GOCACHE environment variable overrides this default,
+// and running 'go env GOCACHE' prints the current cache directory.
+//
+// The go command periodically deletes cached data that has not been
+// used recently. Running 'go clean -cache' deletes all cached data.
+//
+// The build cache correctly accounts for changes to Go source files,
+// compilers, compiler options, and so on: cleaning the cache explicitly
+// should not be necessary in typical use. However, the build cache
+// does not detect changes to C libraries imported with cgo.
+// If you have made changes to the C libraries on your system, you
+// will need to clean the cache explicitly or else use the -a build flag
+// (see 'go help build') to force rebuilding of packages that
+// depend on the updated C libraries.
+//
+// The go command also caches successful package test results.
+// See 'go help test' for details. Running 'go clean -testcache' removes
+// all cached test results (but not cached build results).
+//
+// The GODEBUG environment variable can enable printing of debugging
+// information about the state of the cache:
+//
+// GODEBUG=gocacheverify=1 causes the go command to bypass the
+// use of any cache entries and instead rebuild everything and check
+// that the results match existing cache entries.
+//
+// GODEBUG=gocachehash=1 causes the go command to print the inputs
+// for all of the content hashes it uses to construct cache lookup keys.
+// The output is voluminous but can be useful for debugging the cache.
+//
+// GODEBUG=gocachetest=1 causes the go command to print details of its
+// decisions about whether to reuse a cached test result.
 //
 //
 // File types
@@ -1175,17 +1227,26 @@
 // 	CGO_CFLAGS
 // 		Flags that cgo will pass to the compiler when compiling
 // 		C code.
-// 	CGO_CPPFLAGS
-// 		Flags that cgo will pass to the compiler when compiling
-// 		C or C++ code.
-// 	CGO_CXXFLAGS
-// 		Flags that cgo will pass to the compiler when compiling
-// 		C++ code.
-// 	CGO_FFLAGS
-// 		Flags that cgo will pass to the compiler when compiling
-// 		Fortran code.
-// 	CGO_LDFLAGS
-// 		Flags that cgo will pass to the compiler when linking.
+// 	CGO_CFLAGS_ALLOW
+// 		A regular expression specifying additional flags to allow
+// 		to appear in #cgo CFLAGS source code directives.
+// 		Does not apply to the CGO_CFLAGS environment variable.
+// 	CGO_CFLAGS_DISALLOW
+// 		A regular expression specifying flags that must be disallowed
+// 		from appearing in #cgo CFLAGS source code directives.
+// 		Does not apply to the CGO_CFLAGS environment variable.
+// 	CGO_CPPFLAGS, CGO_CPPFLAGS_ALLOW, CGO_CPPFLAGS_DISALLOW
+// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+// 		but for the C preprocessor.
+// 	CGO_CXXFLAGS, CGO_CXXFLAGS_ALLOW, CGO_CXXFLAGS_DISALLOW
+// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+// 		but for the C++ compiler.
+// 	CGO_FFLAGS, CGO_FFLAGS_ALLOW, CGO_FFLAGS_DISALLOW
+// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+// 		but for the Fortran compiler.
+// 	CGO_LDFLAGS, CGO_LDFLAGS_ALLOW, CGO_LDFLAGS_DISALLOW
+// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+// 		but for the linker.
 // 	CXX
 // 		The command to use to compile C++ code.
 // 	PKG_CONFIG
@@ -1393,7 +1454,7 @@
 // See https://golang.org/s/go14customimport for details.
 //
 //
-// Description of package lists
+// Package lists
 //
 // Many commands apply to a set of packages:
 //
@@ -1475,7 +1536,7 @@
 // by the go tool, as are directories named "testdata".
 //
 //
-// Description of testing flags
+// Testing flags
 //
 // The 'go test' command takes both flags that apply to 'go test' itself
 // and flags that apply to the resulting test binary.
@@ -1702,19 +1763,19 @@
 // binary, instead of being interpreted as the package list.
 //
 //
-// Description of testing functions
+// Testing functions
 //
 // The 'go test' command expects to find test, benchmark, and example functions
 // in the "*_test.go" files corresponding to the package under test.
 //
-// A test function is one named TestXXX (where XXX is any alphanumeric string
-// not starting with a lower case letter) and should have the signature,
+// A test function is one named TestXxx (where Xxx does not start with a
+// lower case letter) and should have the signature,
 //
-// 	func TestXXX(t *testing.T) { ... }
+// 	func TestXxx(t *testing.T) { ... }
 //
-// A benchmark function is one named BenchmarkXXX and should have the signature,
+// A benchmark function is one named BenchmarkXxx and should have the signature,
 //
-// 	func BenchmarkXXX(b *testing.B) { ... }
+// 	func BenchmarkXxx(b *testing.B) { ... }
 //
 // An example function is similar to a test function but, instead of using
 // *testing.T to report success or failure, prints output to os.Stdout.
@@ -1725,8 +1786,8 @@
 // comment is compiled but not executed. An example with no text after
 // "Output:" is compiled, executed, and expected to produce no output.
 //
-// Godoc displays the body of ExampleXXX to demonstrate the use
-// of the function, constant, or variable XXX. An example of a method M with
+// Godoc displays the body of ExampleXxx to demonstrate the use
+// of the function, constant, or variable Xxx. An example of a method M with
 // receiver type T or *T is named ExampleT_M. There may be multiple examples
 // for a given function, constant, or variable, distinguished by a trailing _xxx,
 // where xxx is a suffix not beginning with an upper case letter.

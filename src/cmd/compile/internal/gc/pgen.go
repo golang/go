@@ -414,6 +414,9 @@ func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool
 		if genDwarfInline > 1 {
 			if n.InlFormal() || n.InlLocal() {
 				inlIndex = posInlIndex(n.Pos) + 1
+				if n.InlFormal() {
+					abbrev = dwarf.DW_ABRV_PARAM
+				}
 			}
 		}
 		declpos := Ctxt.InnermostPos(n.Pos)
@@ -513,9 +516,8 @@ func createDwarfVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*No
 	}
 
 	var dcl []*Node
-	var chopVersion bool
 	if fnsym.WasInlined() {
-		dcl, chopVersion = preInliningDcls(fnsym)
+		dcl = preInliningDcls(fnsym)
 	} else {
 		dcl = automDecls
 	}
@@ -534,7 +536,7 @@ func createDwarfVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*No
 			continue
 		}
 		c := n.Sym.Name[0]
-		if c == '~' || c == '.' || n.Type.IsUntyped() {
+		if c == '.' || n.Type.IsUntyped() {
 			continue
 		}
 		typename := dwarf.InfoPrefix + typesymname(n.Type)
@@ -547,6 +549,9 @@ func createDwarfVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*No
 		if genDwarfInline > 1 {
 			if n.InlFormal() || n.InlLocal() {
 				inlIndex = posInlIndex(n.Pos) + 1
+				if n.InlFormal() {
+					abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+				}
 			}
 		}
 		declpos := Ctxt.InnermostPos(n.Pos)
@@ -575,48 +580,60 @@ func createDwarfVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*No
 
 	}
 
-	// Parameter and local variable names are given middle dot
-	// version numbers as part of the writing them out to export
-	// data (see issue 4326).  If DWARF inlined routine generation
-	// is turned on, undo this versioning, since DWARF variables
-	// in question will be parented by the inlined routine and
-	// not the top-level caller.
-	if genDwarfInline > 1 && chopVersion {
-		for _, v := range vars {
-			if v.InlIndex != -1 {
-				if i := strings.Index(v.Name, "·"); i > 0 {
-					v.Name = v.Name[:i] // cut off Vargen
-				}
-			}
-		}
-	}
-
 	return decls, vars
 }
 
-// Given a function that was inlined at some point during the compilation,
-// return a list of nodes corresponding to the autos/locals in that
-// function prior to inlining. Untyped and compiler-synthesized vars are
-// stripped out along the way.
-func preInliningDcls(fnsym *obj.LSym) ([]*Node, bool) {
+// Given a function that was inlined at some point during the
+// compilation, return a sorted list of nodes corresponding to the
+// autos/locals in that function prior to inlining. If this is a
+// function that is not local to the package being compiled, then the
+// names of the variables may have been "versioned" to avoid conflicts
+// with local vars; disregard this versioning when sorting.
+func preInliningDcls(fnsym *obj.LSym) []*Node {
 	fn := Ctxt.DwFixups.GetPrecursorFunc(fnsym).(*Node)
-	imported := false
 	var dcl, rdcl []*Node
 	if fn.Name.Defn != nil {
 		dcl = fn.Func.Inldcl.Slice() // local function
 	} else {
 		dcl = fn.Func.Dcl // imported function
-		imported = true
 	}
 	for _, n := range dcl {
 		c := n.Sym.Name[0]
-		if c == '~' || c == '.' || n.Type.IsUntyped() {
+		// Avoid reporting "_" parameters, since if there are more than
+		// one, it can result in a collision later on, as in #23179.
+		if unversion(n.Sym.Name) == "_" || c == '.' || n.Type.IsUntyped() {
 			continue
 		}
 		rdcl = append(rdcl, n)
 	}
-	return rdcl, imported
+	sort.Sort(byNodeName(rdcl))
+	return rdcl
 }
+
+func cmpNodeName(a, b *Node) bool {
+	aart := 0
+	if strings.HasPrefix(a.Sym.Name, "~") {
+		aart = 1
+	}
+	bart := 0
+	if strings.HasPrefix(b.Sym.Name, "~") {
+		bart = 1
+	}
+	if aart != bart {
+		return aart < bart
+	}
+
+	aname := unversion(a.Sym.Name)
+	bname := unversion(b.Sym.Name)
+	return aname < bname
+}
+
+// byNodeName implements sort.Interface for []*Node using cmpNodeName.
+type byNodeName []*Node
+
+func (s byNodeName) Len() int           { return len(s) }
+func (s byNodeName) Less(i, j int) bool { return cmpNodeName(s[i], s[j]) }
+func (s byNodeName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // varOffset returns the offset of slot within the user variable it was
 // decomposed from. This has nothing to do with its stack offset.
@@ -682,6 +699,9 @@ func createComplexVar(debugInfo *ssa.FuncDebug, n *Node, parts []varPart) *dwarf
 	if genDwarfInline > 1 {
 		if n.InlFormal() || n.InlLocal() {
 			inlIndex = posInlIndex(n.Pos) + 1
+			if n.InlFormal() {
+				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+			}
 		}
 	}
 	declpos := Ctxt.InnermostPos(n.Pos)

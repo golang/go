@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/testlog"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -84,13 +85,20 @@ func FindProcess(pid int) (*Process, error) {
 }
 
 // StartProcess starts a new process with the program, arguments and attributes
-// specified by name, argv and attr.
+// specified by name, argv and attr. The argv slice will become os.Args in the
+// new process, so it normally starts with the program name.
+//
+// If the calling goroutine has locked the operating system thread
+// with runtime.LockOSThread and modified any inheritable OS-level
+// thread state (for example, Linux or Plan 9 name spaces), the new
+// process will inherit the caller's thread state.
 //
 // StartProcess is a low-level interface. The os/exec package provides
 // higher-level interfaces.
 //
 // If there is an error, it will be of type *PathError.
 func StartProcess(name string, argv []string, attr *ProcAttr) (*Process, error) {
+	testlog.Open(name)
 	return startProcess(name, argv, attr)
 }
 

@@ -49,7 +49,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 	pkgpath := p.ImportPath
 	if cfg.BuildBuildmode == "plugin" {
 		pkgpath = pluginPath(a)
-	} else if p.Name == "main" {
+	} else if p.Name == "main" && !p.Internal.ForceLibrary {
 		pkgpath = "main"
 	}
 	gcargs := []string{"-p", pkgpath}
@@ -416,11 +416,6 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 	}
 	if cfg.BuildBuildmode == "plugin" {
 		ldflags = append(ldflags, "-pluginpath", pluginPath(root))
-	}
-
-	// TODO(rsc): This is probably wrong - see golang.org/issue/22155.
-	if cfg.GOROOT != runtime.GOROOT() {
-		ldflags = append(ldflags, "-X=runtime/internal/sys.DefaultGoroot="+cfg.GOROOT)
 	}
 
 	// Store BuildID inside toolchain binaries as a unique identifier of the

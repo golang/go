@@ -174,19 +174,9 @@ func syscall_pipe() (r, w, err uintptr) {
 }
 
 // This is syscall.RawSyscall, it exists to satisfy some build dependency,
-// but it doesn't work correctly.
-//
-// DO NOT USE!
-//
-// TODO(aram): make this panic once we stop calling fcntl(2) in net using it.
+// but it doesn't work.
 func syscall_rawsyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	call := libcall{
-		fn:   uintptr(unsafe.Pointer(&libc_syscall)),
-		n:    4,
-		args: uintptr(unsafe.Pointer(&trap)),
-	}
-	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
-	return call.r1, call.r2, call.err
+	panic("RawSyscall not available on Solaris")
 }
 
 //go:nosplit

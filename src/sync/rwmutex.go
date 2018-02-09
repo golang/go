@@ -13,11 +13,11 @@ import (
 // There is a modified copy of this file in runtime/rwmutex.go.
 // If you make any changes here, see if you should make them there.
 
-// An RWMutex is a reader/writer mutual exclusion lock.
+// A RWMutex is a reader/writer mutual exclusion lock.
 // The lock can be held by an arbitrary number of readers or a single writer.
 // The zero value for a RWMutex is an unlocked mutex.
 //
-// An RWMutex must not be copied after first use.
+// A RWMutex must not be copied after first use.
 //
 // If a goroutine holds a RWMutex for reading and another goroutine might
 // call Lock, no goroutine should expect to be able to acquire a read lock
@@ -108,7 +108,7 @@ func (rw *RWMutex) Lock() {
 // not locked for writing on entry to Unlock.
 //
 // As with Mutexes, a locked RWMutex is not associated with a particular
-// goroutine. One goroutine may RLock (Lock) an RWMutex and then
+// goroutine. One goroutine may RLock (Lock) a RWMutex and then
 // arrange for another goroutine to RUnlock (Unlock) it.
 func (rw *RWMutex) Unlock() {
 	if race.Enabled {

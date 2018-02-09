@@ -34,7 +34,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
-	"sort"
 	"strings"
 )
 
@@ -283,33 +282,14 @@ func (v *hairyVisitor) visit(n *Node) bool {
 			v.budget -= fn.InlCost
 			break
 		}
-		if n.Left.Op == OCLOSURE {
-			if fn := inlinableClosure(n.Left); fn != nil {
-				v.budget -= fn.Func.InlCost
-				break
-			}
-		} else if n.Left.Op == ONAME && n.Left.Name != nil && n.Left.Name.Defn != nil {
-			// NB: this case currently cannot trigger since closure definition
-			// prevents inlining
-			// NB: ideally we would also handle captured variables defined as
-			// closures in the outer scope this brings us back to the idea of
-			// function value propagation, which if available would both avoid
-			// the "reassigned" check and neatly handle multiple use cases in a
-			// single code path
-			if d := n.Left.Name.Defn; d.Op == OAS && d.Right.Op == OCLOSURE {
-				if fn := inlinableClosure(d.Right); fn != nil {
-					v.budget -= fn.Func.InlCost
-					break
-				}
-			}
-		}
-
 		if n.Left.isMethodExpression() {
 			if d := asNode(n.Left.Sym.Def); d != nil && d.Func.Inl.Len() != 0 {
 				v.budget -= d.Func.InlCost
 				break
 			}
 		}
+		// TODO(mdempsky): Budget for OCLOSURE calls if we
+		// ever allow that. See #15561 and #23093.
 		if Debug['l'] < 4 {
 			v.reason = "non-leaf function"
 			return true
@@ -334,11 +314,17 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		}
 
 	// Things that are too hairy, irrespective of the budget
-	case OCALL, OCALLINTER, OPANIC, ORECOVER:
+	case OCALL, OCALLINTER, OPANIC:
 		if Debug['l'] < 4 {
 			v.reason = "non-leaf op " + n.Op.String()
 			return true
 		}
+
+	case ORECOVER:
+		// recover matches the argument frame pointer to find
+		// the right panic value, so it needs an argument frame.
+		v.reason = "call to recover"
+		return true
 
 	case OCLOSURE,
 		OCALLPART,
@@ -902,9 +888,9 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 
 		if genDwarfInline > 0 {
 			// Don't update the src.Pos on a return variable if it
-			// was manufactured by the inliner (e.g. "~r2"); such vars
+			// was manufactured by the inliner (e.g. "~R2"); such vars
 			// were not part of the original callee.
-			if !strings.HasPrefix(m.Sym.Name, "~r") {
+			if !strings.HasPrefix(m.Sym.Name, "~R") {
 				m.SetInlFormal(true)
 				m.Pos = mpos
 				inlfvars = append(inlfvars, m)
@@ -1005,7 +991,6 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 	if b := Ctxt.PosTable.Pos(n.Pos).Base(); b != nil {
 		parent = b.InliningIndex()
 	}
-	sort.Sort(byNodeName(dcl))
 	newIndex := Ctxt.InlTree.Add(parent, n.Pos, fn.Sym.Linksym())
 
 	if genDwarfInline > 0 {
@@ -1086,7 +1071,7 @@ func inlvar(var_ *Node) *Node {
 
 // Synthesize a variable to store the inlined function's results in.
 func retvar(t *types.Field, i int) *Node {
-	n := newname(lookupN("~r", i))
+	n := newname(lookupN("~R", i))
 	n.Type = t.Type
 	n.SetClass(PAUTO)
 	n.Name.SetUsed(true)
@@ -1235,28 +1220,3 @@ func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
 	pos.SetBase(newbase)
 	return Ctxt.PosTable.XPos(pos)
 }
-
-func cmpNodeName(a, b *Node) bool {
-	// named before artificial
-	aart := 0
-	if strings.HasPrefix(a.Sym.Name, "~r") {
-		aart = 1
-	}
-	bart := 0
-	if strings.HasPrefix(b.Sym.Name, "~r") {
-		bart = 1
-	}
-	if aart != bart {
-		return aart < bart
-	}
-
-	// otherwise sort by name
-	return a.Sym.Name < b.Sym.Name
-}
-
-// byNodeName implements sort.Interface for []*Node using cmpNodeName.
-type byNodeName []*Node
-
-func (s byNodeName) Len() int           { return len(s) }
-func (s byNodeName) Less(i, j int) bool { return cmpNodeName(s[i], s[j]) }
-func (s byNodeName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

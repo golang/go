@@ -29,8 +29,20 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	ADD	R1<<22, R2, R3
 	ADD	R1->33, R2, R3
 	AND	R1@>33, R2, R3
-	ADD	R1.UXTB, R2, R3                 // 4360218b
-	ADD	R1.UXTB<<4, R2, R3              // 4370218b
+	ADD	R1.UXTB, R2, R3                 // 4300218b
+	ADD	R1.UXTB<<4, R2, R3              // 4310218b
+	ADDW	R2.SXTW, R10, R12               // 4cc1220b
+	ADD	R18.UXTX, R14, R17              // d161328b
+	ADDSW	R18.UXTW, R14, R17              // d141322b
+	ADDS	R12.SXTX, R3, R1                // 61e02cab
+	SUB	R19.UXTH<<4, R2, R21            // 553033cb
+	SUBW	R1.UXTX<<1, R3, R2              // 6264214b
+	SUBS	R3.UXTX, R8, R9                 // 096123eb
+	SUBSW	R17.UXTH, R15, R21              // f521316b
+	CMP	R2.SXTH, R13                    // bfa122eb
+	CMN	R1.SXTX<<2, R10                 // 5fe921ab
+	CMPW	R2.UXTH<<3, R11                 // 7f2d226b
+	CMNW	R1.SXTB, R9                     // 3f81212b
 	VADDP	V1.B16, V2.B16, V3.B16          // 43bc214e
 	VADDP	V1.S4, V2.S4, V3.S4             // 43bca14e
 	VADDP	V1.D2, V2.D2, V3.D2             // 43bce14e

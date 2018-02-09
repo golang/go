@@ -172,9 +172,13 @@ func (t *tester) run() {
 		return
 	}
 
-	// we must unset GOROOT_FINAL before tests, because runtime/debug requires
+	// We must unset GOROOT_FINAL before tests, because runtime/debug requires
 	// correct access to source code, so if we have GOROOT_FINAL in effect,
 	// at least runtime/debug test will fail.
+	// If GOROOT_FINAL was set before, then now all the commands will appear stale.
+	// Nothing we can do about that other than not checking them below.
+	// (We call checkNotStale but only with "std" not "cmd".)
+	os.Setenv("GOROOT_FINAL_OLD", os.Getenv("GOROOT_FINAL")) // for cmd/link test
 	os.Unsetenv("GOROOT_FINAL")
 
 	for _, name := range t.runNames {
@@ -265,6 +269,10 @@ func (t *tester) registerStdTest(pkg string) {
 	if t.runRx == nil || t.runRx.MatchString(testName) == t.runRxWant {
 		stdMatches = append(stdMatches, pkg)
 	}
+	timeoutSec := 180
+	if pkg == "cmd/go" {
+		timeoutSec *= 2
+	}
 	t.tests = append(t.tests, distTest{
 		name:    testName,
 		heading: "Testing packages.",
@@ -280,7 +288,7 @@ func (t *tester) registerStdTest(pkg string) {
 				"test",
 				"-short",
 				t.tags(),
-				t.timeout(180),
+				t.timeout(timeoutSec),
 				"-gcflags=all=" + gogcflags,
 			}
 			if t.race {
@@ -644,7 +652,7 @@ func (t *tester) registerTests() {
 			t.registerHostTest("testcshared", "../misc/cgo/testcshared", "misc/cgo/testcshared", "cshared_test.go")
 		}
 		if t.supportedBuildmode("shared") {
-			t.registerTest("testshared", "../misc/cgo/testshared", t.goTest())
+			t.registerTest("testshared", "../misc/cgo/testshared", t.goTest(), t.timeout(600))
 		}
 		if t.supportedBuildmode("plugin") {
 			t.registerTest("testplugin", "../misc/cgo/testplugin", "./test.bash")
@@ -1040,7 +1048,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 // running in parallel with earlier tests, or if it has some other reason
 // for needing the earlier tests to be done.
 func (t *tester) runPending(nextTest *distTest) {
-	checkNotStale("go", "std", "cmd")
+	checkNotStale("go", "std")
 	worklist := t.worklist
 	t.worklist = nil
 	for _, w := range worklist {
@@ -1093,7 +1101,7 @@ func (t *tester) runPending(nextTest *distTest) {
 			log.Printf("Failed: %v", w.err)
 			t.failed = true
 		}
-		checkNotStale("go", "std", "cmd")
+		checkNotStale("go", "std")
 	}
 	if t.failed && !t.keepGoing {
 		log.Fatal("FAILED")
@@ -1202,6 +1210,23 @@ func (t *tester) hasSwig() bool {
 	if err != nil {
 		return false
 	}
+
+	// Check that swig was installed with Go support by checking
+	// that a go directory exists inside the swiglib directory.
+	// See https://golang.org/issue/23469.
+	output, err := exec.Command(swig, "-go", "-swiglib").Output()
+	if err != nil {
+		return false
+	}
+	swigDir := strings.TrimSpace(string(output))
+
+	_, err = os.Stat(filepath.Join(swigDir, "go"))
+	if err != nil {
+		return false
+	}
+
+	// Check that swig has a new enough version.
+	// See https://golang.org/issue/22858.
 	out, err := exec.Command(swig, "-version").CombinedOutput()
 	if err != nil {
 		return false
@@ -1282,7 +1307,7 @@ func (t *tester) runFlag(rx string) string {
 func (t *tester) raceTest(dt *distTest) error {
 	t.addCmd(dt, "src", t.goTest(), "-race", "-i", "runtime/race", "flag", "os", "os/exec")
 	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("Output"), "runtime/race")
-	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace"), "flag", "os", "os/exec")
+	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace"), "flag", "os", "os/exec", "encoding/gob")
 	// We don't want the following line, because it
 	// slows down all.bash (by 10 seconds on my laptop).
 	// The race builder should catch any error here, but doesn't.

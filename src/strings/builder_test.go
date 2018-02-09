@@ -6,12 +6,9 @@ package strings_test
 
 import (
 	"bytes"
-	"errors"
-	"io"
 	"runtime"
 	. "strings"
 	"testing"
-	"testing/iotest"
 )
 
 func check(t *testing.T, b *Builder, want string) {
@@ -169,93 +166,6 @@ func TestBuilderWriteByte(t *testing.T) {
 	check(t, &b, "a\x00")
 }
 
-func TestBuilderReadFrom(t *testing.T) {
-	for _, tt := range []struct {
-		name string
-		fn   func(io.Reader) io.Reader
-	}{
-		{"Reader", func(r io.Reader) io.Reader { return r }},
-		{"DataErrReader", iotest.DataErrReader},
-		{"OneByteReader", iotest.OneByteReader},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			var b Builder
-
-			r := tt.fn(NewReader("hello"))
-			n, err := b.ReadFrom(r)
-			if err != nil {
-				t.Fatalf("first call: got %s", err)
-			}
-			if n != 5 {
-				t.Errorf("first call: got n=%d; want 5", n)
-			}
-			check(t, &b, "hello")
-
-			r = tt.fn(NewReader(" world"))
-			n, err = b.ReadFrom(r)
-			if err != nil {
-				t.Fatalf("first call: got %s", err)
-			}
-			if n != 6 {
-				t.Errorf("first call: got n=%d; want 6", n)
-			}
-			check(t, &b, "hello world")
-		})
-	}
-}
-
-var errRead = errors.New("boom")
-
-// errorReader sends reads to the underlying reader
-// but returns errRead instead of io.EOF.
-type errorReader struct {
-	r io.Reader
-}
-
-func (r errorReader) Read(b []byte) (int, error) {
-	n, err := r.r.Read(b)
-	if err == io.EOF {
-		err = errRead
-	}
-	return n, err
-}
-
-func TestBuilderReadFromError(t *testing.T) {
-	var b Builder
-	r := errorReader{NewReader("hello")}
-	n, err := b.ReadFrom(r)
-	if n != 5 {
-		t.Errorf("got n=%d; want 5", n)
-	}
-	if err != errRead {
-		t.Errorf("got err=%q; want %q", err, errRead)
-	}
-	check(t, &b, "hello")
-}
-
-type negativeReader struct{}
-
-func (r negativeReader) Read([]byte) (int, error) { return -1, nil }
-
-func TestBuilderReadFromNegativeReader(t *testing.T) {
-	var b Builder
-	defer func() {
-		switch err := recover().(type) {
-		case nil:
-			t.Fatal("ReadFrom didn't panic")
-		case error:
-			wantErr := "strings.Builder: reader returned negative count from Read"
-			if err.Error() != wantErr {
-				t.Fatalf("recovered panic: got %v; want %v", err.Error(), wantErr)
-			}
-		default:
-			t.Fatalf("unexpected panic value: %#v", err)
-		}
-	}()
-
-	b.ReadFrom(negativeReader{})
-}
-
 func TestBuilderAllocs(t *testing.T) {
 	var b Builder
 	b.Grow(5)
@@ -270,6 +180,18 @@ func TestBuilderAllocs(t *testing.T) {
 	if allocs > 0 {
 		t.Fatalf("got %d alloc(s); want 0", allocs)
 	}
+
+	// Issue 23382; verify that copyCheck doesn't force the
+	// Builder to escape and be heap allocated.
+	n := testing.AllocsPerRun(10000, func() {
+		var b Builder
+		b.Grow(5)
+		b.WriteString("abcde")
+		_ = b.String()
+	})
+	if n != 1 {
+		t.Errorf("Builder allocs = %v; want 1", n)
+	}
 }
 
 func numAllocs(fn func()) uint64 {
@@ -279,4 +201,104 @@ func numAllocs(fn func()) uint64 {
 	fn()
 	runtime.ReadMemStats(&m2)
 	return m2.Mallocs - m1.Mallocs
+}
+
+func TestBuilderCopyPanic(t *testing.T) {
+	tests := []struct {
+		name      string
+		fn        func()
+		wantPanic bool
+	}{
+		{
+			name:      "String",
+			wantPanic: false,
+			fn: func() {
+				var a Builder
+				a.WriteByte('x')
+				b := a
+				_ = b.String() // appease vet
+			},
+		},
+		{
+			name:      "Len",
+			wantPanic: false,
+			fn: func() {
+				var a Builder
+				a.WriteByte('x')
+				b := a
+				b.Len()
+			},
+		},
+		{
+			name:      "Reset",
+			wantPanic: false,
+			fn: func() {
+				var a Builder
+				a.WriteByte('x')
+				b := a
+				b.Reset()
+				b.WriteByte('y')
+			},
+		},
+		{
+			name:      "Write",
+			wantPanic: true,
+			fn: func() {
+				var a Builder
+				a.Write([]byte("x"))
+				b := a
+				b.Write([]byte("y"))
+			},
+		},
+		{
+			name:      "WriteByte",
+			wantPanic: true,
+			fn: func() {
+				var a Builder
+				a.WriteByte('x')
+				b := a
+				b.WriteByte('y')
+			},
+		},
+		{
+			name:      "WriteString",
+			wantPanic: true,
+			fn: func() {
+				var a Builder
+				a.WriteString("x")
+				b := a
+				b.WriteString("y")
+			},
+		},
+		{
+			name:      "WriteRune",
+			wantPanic: true,
+			fn: func() {
+				var a Builder
+				a.WriteRune('x')
+				b := a
+				b.WriteRune('y')
+			},
+		},
+		{
+			name:      "Grow",
+			wantPanic: true,
+			fn: func() {
+				var a Builder
+				a.Grow(1)
+				b := a
+				b.Grow(2)
+			},
+		},
+	}
+	for _, tt := range tests {
+		didPanic := make(chan bool)
+		go func() {
+			defer func() { didPanic <- recover() != nil }()
+			tt.fn()
+		}()
+		if got := <-didPanic; got != tt.wantPanic {
+			t.Errorf("%s: panicked = %v; want %v", tt.name, got, tt.wantPanic)
+		}
+	}
 }

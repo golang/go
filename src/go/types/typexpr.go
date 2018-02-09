@@ -86,6 +86,9 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 		}
 
 	case *Var:
+		// It's ok to mark non-local variables, but ignore variables
+		// from other packages to avoid potential race conditions with
+		// dot-imported variables.
 		if obj.pkg == check.pkg {
 			obj.used = true
 		}

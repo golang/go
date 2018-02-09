@@ -219,11 +219,6 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
 
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
-	for _, tmpl := range t.set {
-		if tmpl.Tree == tree {
-			return nil, fmt.Errorf("html/template: cannot add parse tree that template %q already references", tmpl.Name())
-		}
-	}
 	text, err := t.text.AddParseTree(name, tree)
 	if err != nil {
 		return nil, err
@@ -300,6 +295,10 @@ func New(name string) *Template {
 // New allocates a new HTML template associated with the given one
 // and with the same delimiters. The association, which is transitive,
 // allows one template to invoke another with a {{template}} action.
+//
+// If a template with the given name already exists, the new HTML template
+// will replace it. The existing template will be reset and disassociated with
+// t.
 func (t *Template) New(name string) *Template {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
@@ -313,6 +312,10 @@ func (t *Template) new(name string) *Template {
 		t.text.New(name),
 		nil,
 		t.nameSpace,
+	}
+	if existing, ok := tmpl.set[name]; ok {
+		emptyTmpl := New(existing.Name())
+		*existing = *emptyTmpl
 	}
 	tmpl.set[name] = tmpl
 	return tmpl

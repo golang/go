@@ -25,7 +25,7 @@ func init() {
 
 // httpTrace serves either whole trace (goid==0) or trace for goid goroutine.
 func httpTrace(w http.ResponseWriter, r *http.Request) {
-	_, err := parseEvents()
+	_, err := parseTrace()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -153,14 +153,14 @@ func httpTraceViewerHTML(w http.ResponseWriter, r *http.Request) {
 // httpJsonTrace serves json trace, requested from within templTrace HTML.
 func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 	// This is an AJAX handler, so instead of http.Error we use log.Printf to log errors.
-	events, err := parseEvents()
+	res, err := parseTrace()
 	if err != nil {
 		log.Printf("failed to parse trace: %v", err)
 		return
 	}
 
 	params := &traceParams{
-		events:  events,
+		parsed:  res,
 		endTime: int64(1<<63 - 1),
 	}
 
@@ -171,13 +171,13 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 			log.Printf("failed to parse goid parameter '%v': %v", goids, err)
 			return
 		}
-		analyzeGoroutines(events)
+		analyzeGoroutines(res.Events)
 		g := gs[goid]
 		params.gtrace = true
 		params.startTime = g.StartTime
 		params.endTime = g.EndTime
 		params.maing = goid
-		params.gs = trace.RelatedGoroutines(events, goid)
+		params.gs = trace.RelatedGoroutines(res.Events, goid)
 	}
 
 	data, err := generateTrace(params)
@@ -260,7 +260,7 @@ func (cw *countingWriter) Write(data []byte) (int, error) {
 }
 
 type traceParams struct {
-	events    []*trace.Event
+	parsed    trace.ParseResult
 	gtrace    bool
 	startTime int64
 	endTime   int64
@@ -367,6 +367,7 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 	ctx.data.TimeUnit = "ns"
 	maxProc := 0
 	ginfos := make(map[uint64]*gInfo)
+	stacks := params.parsed.Stacks
 
 	getGInfo := func(g uint64) *gInfo {
 		info, ok := ginfos[g]
@@ -394,29 +395,35 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 		info.state = newState
 	}
 
-	for _, ev := range ctx.events {
+	for _, ev := range ctx.parsed.Events {
 		// Handle state transitions before we filter out events.
 		switch ev.Type {
 		case trace.EvGoStart, trace.EvGoStartLabel:
 			setGState(ev, ev.G, gRunnable, gRunning)
 			info := getGInfo(ev.G)
-			if info.name == "" {
-				if len(ev.Stk) == 0 {
-					info.name = fmt.Sprintf("G%v", ev.G)
-				} else {
-					fname := ev.Stk[0].Fn
-					info.name = fmt.Sprintf("G%v %s", ev.G, fname)
-					info.isSystemG = strings.HasPrefix(fname, "runtime.") && fname != "runtime.main"
-				}
-			}
 			info.start = ev
 		case trace.EvProcStart:
 			ctx.threadStats.prunning++
 		case trace.EvProcStop:
 			ctx.threadStats.prunning--
 		case trace.EvGoCreate:
+			newG := ev.Args[0]
+			info := getGInfo(newG)
+			if info.name != "" {
+				return ctx.data, fmt.Errorf("duplicate go create event for go id=%d detected at offset %d", newG, ev.Off)
+			}
+
+			stk, ok := stacks[ev.Args[1]]
+			if !ok || len(stk) == 0 {
+				return ctx.data, fmt.Errorf("invalid go create event: missing stack information for go id=%d at offset %d", newG, ev.Off)
+			}
+
+			fname := stk[0].Fn
+			info.name = fmt.Sprintf("G%v %s", newG, fname)
+			info.isSystemG = strings.HasPrefix(fname, "runtime.") && fname != "runtime.main"
+
 			ctx.gcount++
-			setGState(ev, ev.Args[0], gDead, gRunnable)
+			setGState(ev, newG, gDead, gRunnable)
 		case trace.EvGoEnd:
 			ctx.gcount--
 			setGState(ev, ev.G, gRunning, gDead)

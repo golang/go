@@ -1194,17 +1194,18 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				if x.mode == constant_ {
 					duplicate := false
 					// if the key is of interface type, the type is also significant when checking for duplicates
+					xkey := keyVal(x.val)
 					if _, ok := utyp.key.Underlying().(*Interface); ok {
-						for _, vtyp := range visited[x.val] {
+						for _, vtyp := range visited[xkey] {
 							if Identical(vtyp, x.typ) {
 								duplicate = true
 								break
 							}
 						}
-						visited[x.val] = append(visited[x.val], x.typ)
+						visited[xkey] = append(visited[xkey], x.typ)
 					} else {
-						_, duplicate = visited[x.val]
-						visited[x.val] = nil
+						_, duplicate = visited[xkey]
+						visited[xkey] = nil
 					}
 					if duplicate {
 						check.errorf(x.pos(), "duplicate key %s in map literal", x.val)
@@ -1506,6 +1507,30 @@ Error:
 	x.mode = invalid
 	x.expr = e
 	return statement // avoid follow-up errors
+}
+
+func keyVal(x constant.Value) interface{} {
+	switch x.Kind() {
+	case constant.Bool:
+		return constant.BoolVal(x)
+	case constant.String:
+		return constant.StringVal(x)
+	case constant.Int:
+		if v, ok := constant.Int64Val(x); ok {
+			return v
+		}
+		if v, ok := constant.Uint64Val(x); ok {
+			return v
+		}
+	case constant.Float:
+		v, _ := constant.Float64Val(x)
+		return v
+	case constant.Complex:
+		r, _ := constant.Float64Val(constant.Real(x))
+		i, _ := constant.Float64Val(constant.Imag(x))
+		return complex(r, i)
+	}
+	return x
 }
 
 // typeAssertion checks that x.(T) is legal; xtyp must be the type of x.

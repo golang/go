@@ -173,7 +173,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
 				return rsa, nil
 			}
 		default:
-			return nil, os.NewSyscallError("getsockopt", err)
+			return nil, os.NewSyscallError("connect", err)
 		}
 		runtime.KeepAlive(fd)
 	}
@@ -313,7 +313,7 @@ func (fd *netFD) dup() (f *os.File, err error) {
 	// This also puts the old fd into blocking mode, meaning that
 	// I/O will block the thread instead of letting us use the epoll server.
 	// Everything will still work, just with more threads.
-	if err = syscall.SetNonblock(ns, false); err != nil {
+	if err = fd.pfd.SetBlocking(); err != nil {
 		return nil, os.NewSyscallError("setnonblock", err)
 	}
 

@@ -19,6 +19,13 @@ import (
 	"testing"
 )
 
+const (
+	NoOpt        = "-gcflags=-l -N"
+	Opt          = ""
+	OptInl4      = "-gcflags=all=-l=4"
+	OptInl4DwLoc = "-gcflags=all=-l=4 -dwarflocationlists"
+)
+
 func TestRuntimeTypeDIEs(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
@@ -32,7 +39,7 @@ func TestRuntimeTypeDIEs(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	f := gobuild(t, dir, `package main; func main() { }`, false)
+	f := gobuild(t, dir, `package main; func main() { }`, NoOpt)
 	defer f.Close()
 
 	dwarf, err := f.DWARF()
@@ -77,7 +84,7 @@ func findTypes(t *testing.T, dw *dwarf.Data, want map[string]bool) (found map[st
 	return
 }
 
-func gobuild(t *testing.T, dir string, testfile string, opt bool) *objfilepkg.File {
+func gobuild(t *testing.T, dir string, testfile string, gcflags string) *objfilepkg.File {
 	src := filepath.Join(dir, "test.go")
 	dst := filepath.Join(dir, "out")
 
@@ -85,10 +92,6 @@ func gobuild(t *testing.T, dir string, testfile string, opt bool) *objfilepkg.Fi
 		t.Fatal(err)
 	}
 
-	gcflags := "-gcflags=-N -l"
-	if opt {
-		gcflags = "-gcflags=-l=4"
-	}
 	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, src)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("build: %s\n", b)
@@ -142,7 +145,7 @@ func main() {
 	}
 	defer os.RemoveAll(dir)
 
-	f := gobuild(t, dir, prog, false)
+	f := gobuild(t, dir, prog, NoOpt)
 
 	defer f.Close()
 
@@ -220,7 +223,7 @@ func main() {
 		t.Fatalf("could not create directory: %v", err)
 	}
 	defer os.RemoveAll(dir)
-	f := gobuild(t, dir, prog, false)
+	f := gobuild(t, dir, prog, NoOpt)
 	defer f.Close()
 	d, err := f.DWARF()
 	if err != nil {
@@ -268,7 +271,7 @@ func main() {
 	}
 	defer os.RemoveAll(dir)
 
-	f := gobuild(t, dir, prog, false)
+	f := gobuild(t, dir, prog, NoOpt)
 	defer f.Close()
 
 	d, err := f.DWARF()
@@ -326,7 +329,7 @@ func main() {
 	}
 	defer os.RemoveAll(dir)
 
-	f := gobuild(t, dir, prog, false)
+	f := gobuild(t, dir, prog, NoOpt)
 
 	d, err := f.DWARF()
 	if err != nil {
@@ -391,6 +394,7 @@ type examiner struct {
 	dies        []*dwarf.Entry
 	idxByOffset map[dwarf.Offset]int
 	kids        map[int][]int
+	parent      map[int]int
 	byname      map[string][]int
 }
 
@@ -398,6 +402,7 @@ type examiner struct {
 func (ex *examiner) populate(rdr *dwarf.Reader) error {
 	ex.idxByOffset = make(map[dwarf.Offset]int)
 	ex.kids = make(map[int][]int)
+	ex.parent = make(map[int]int)
 	ex.byname = make(map[string][]int)
 	var nesting []int
 	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
@@ -424,6 +429,7 @@ func (ex *examiner) populate(rdr *dwarf.Reader) error {
 		if len(nesting) > 0 {
 			parent := nesting[len(nesting)-1]
 			ex.kids[parent] = append(ex.kids[parent], idx)
+			ex.parent[idx] = parent
 		}
 		if entry.Children {
 			nesting = append(nesting, idx)
@@ -449,10 +455,10 @@ func (ex *examiner) dumpEntry(idx int, dumpKids bool, ilevel int) error {
 	}
 	entry := ex.dies[idx]
 	indent(ilevel)
-	fmt.Printf("%d: %v\n", idx, entry.Tag)
+	fmt.Printf("0x%x: %v\n", idx, entry.Tag)
 	for _, f := range entry.Field {
 		indent(ilevel)
-		fmt.Printf("at=%v val=%v\n", f.Attr, f.Val)
+		fmt.Printf("at=%v val=0x%x\n", f.Attr, f.Val)
 	}
 	if dumpKids {
 		ksl := ex.kids[idx]
@@ -481,7 +487,7 @@ func (ex *examiner) idxFromOffset(off dwarf.Offset) int {
 
 // Return the dwarf.Entry pointer for the DIE with id 'idx'
 func (ex *examiner) entryFromIdx(idx int) *dwarf.Entry {
-	if idx >= len(ex.dies) {
+	if idx >= len(ex.dies) || idx < 0 {
 		return nil
 	}
 	return ex.dies[idx]
@@ -495,6 +501,15 @@ func (ex *examiner) Children(idx int) []*dwarf.Entry {
 		ret[i] = ex.entryFromIdx(k)
 	}
 	return ret
+}
+
+// Returns parent DIE for DIE 'idx', or nil if the DIE is top level
+func (ex *examiner) Parent(idx int) *dwarf.Entry {
+	p, found := ex.parent[idx]
+	if !found {
+		return nil
+	}
+	return ex.entryFromIdx(p)
 }
 
 // Return a list of all DIEs with name 'name'. When searching for DIEs
@@ -515,6 +530,9 @@ func TestInlinedRoutineRecords(t *testing.T) {
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+	if runtime.GOOS == "solaris" {
+		t.Skip("skipping on solaris, pending resolution of issue #23168")
 	}
 
 	const prog = `
@@ -542,10 +560,10 @@ func main() {
 	}
 	defer os.RemoveAll(dir)
 
-	// Note: this is a regular go build here, without "-l -N". The
-	// test is intended to verify DWARF that is only generated when the
-	// inliner is active.
-	f := gobuild(t, dir, prog, true)
+	// Note: this is a build with "-l=4", as opposed to "-l -N". The
+	// test is intended to verify DWARF that is only generated when
+	// the inliner is active.
+	f := gobuild(t, dir, prog, OptInl4)
 
 	d, err := f.DWARF()
 	if err != nil {
@@ -627,4 +645,131 @@ func main() {
 	if exCount != len(expectedInl) {
 		t.Fatalf("not enough inlined subroutines found in main.main")
 	}
+}
+
+func abstractOriginSanity(t *testing.T, flags string) {
+
+	// Nothing special about net/http here, this is just a convenient
+	// way to pull in a lot of code.
+	const prog = `
+package main
+
+import (
+	"net/http"
+	"net/http/httptest"
+)
+
+type statusHandler int
+
+func (h *statusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(int(*h))
+}
+
+func main() {
+	status := statusHandler(http.StatusNotFound)
+	s := httptest.NewServer(&status)
+	defer s.Close()
+}
+`
+	dir, err := ioutil.TempDir("", "TestAbstractOriginSanity")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// Build with inlining, to exercise DWARF inlining support.
+	f := gobuild(t, dir, prog, flags)
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+	rdr := d.Reader()
+	ex := examiner{}
+	if err := ex.populate(rdr); err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	// Make a pass through all DIEs looking for abstract origin
+	// references.
+	abscount := 0
+	for i, die := range ex.dies {
+
+		// Does it have an abstract origin?
+		ooff, originOK := die.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+		if !originOK {
+			continue
+		}
+
+		// All abstract origin references should be resolvable.
+		abscount += 1
+		originDIE := ex.entryFromOffset(ooff)
+		if originDIE == nil {
+			ex.dumpEntry(i, false, 0)
+			t.Fatalf("unresolved abstract origin ref in DIE at offset 0x%x\n", die.Offset)
+		}
+
+		// Suppose that DIE X has parameter/variable children {K1,
+		// K2, ... KN}. If X has an abstract origin of A, then for
+		// each KJ, the abstract origin of KJ should be a child of A.
+		// Note that this same rule doesn't hold for non-variable DIEs.
+		pidx := ex.idxFromOffset(die.Offset)
+		if pidx < 0 {
+			t.Fatalf("can't locate DIE id")
+		}
+		kids := ex.Children(pidx)
+		for _, kid := range kids {
+			if kid.Tag != dwarf.TagVariable &&
+				kid.Tag != dwarf.TagFormalParameter {
+				continue
+			}
+			kooff, originOK := kid.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+			if !originOK {
+				continue
+			}
+			childOriginDIE := ex.entryFromOffset(kooff)
+			if childOriginDIE == nil {
+				ex.dumpEntry(i, false, 0)
+				t.Fatalf("unresolved abstract origin ref in DIE at offset %x", kid.Offset)
+			}
+			coidx := ex.idxFromOffset(childOriginDIE.Offset)
+			childOriginParent := ex.Parent(coidx)
+			if childOriginParent != originDIE {
+				ex.dumpEntry(i, false, 0)
+				t.Fatalf("unexpected parent of abstract origin DIE at offset %v", childOriginDIE.Offset)
+			}
+		}
+	}
+	if abscount == 0 {
+		t.Fatalf("no abstract origin refs found, something is wrong")
+	}
+}
+
+func TestAbstractOriginSanity(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+	if runtime.GOOS == "solaris" {
+		t.Skip("skipping on solaris, pending resolution of issue #23168")
+	}
+
+	abstractOriginSanity(t, OptInl4)
+}
+
+func TestAbstractOriginSanityWithLocationLists(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+	if runtime.GOOS == "solaris" {
+		t.Skip("skipping on solaris, pending resolution of issue #23168")
+	}
+	if runtime.GOARCH != "amd64" && runtime.GOARCH != "x86" {
+		t.Skip("skipping on not-amd64 not-x86; location lists not supported")
+	}
+
+	abstractOriginSanity(t, OptInl4DwLoc)
 }

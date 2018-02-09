@@ -407,7 +407,7 @@ func (d *tempDir) RemoveAll(t *testing.T) {
 		return
 	}
 	if err := os.RemoveAll(d.base); err != nil {
-		t.Fatal("Failed to remove temp dir: %v", err)
+		t.Fatalf("Failed to remove temp dir: %v", err)
 	}
 }
 

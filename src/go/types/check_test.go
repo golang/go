@@ -42,7 +42,7 @@ import (
 )
 
 var (
-	listErrors = flag.Bool("list", false, "list errors")
+	listErrors = flag.Bool("errlist", false, "list errors")
 	testFiles  = flag.String("files", "", "space-separated list of test files")
 )
 

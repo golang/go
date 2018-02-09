@@ -76,6 +76,7 @@ type Var struct {
 	DeclCol       uint
 	InlIndex      int32 // subtract 1 to form real index into InlTree
 	ChildIndex    int32 // child DIE index in abstract function
+	IsInAbstract  bool  // variable exists in abstract function
 }
 
 // A Scope represents a lexical scope. All variables declared within a
@@ -550,7 +551,6 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_variable_parameter, DW_FORM_flag},
-			{DW_AT_decl_line, DW_FORM_udata},
 			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
@@ -1121,13 +1121,22 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
 		for _, scope := range s.Scopes {
 			for i := 0; i < len(scope.Vars); i++ {
 				_, found := pvars[scope.Vars[i]]
-				if !found {
-					flattened = append(flattened, scope.Vars[i])
+				if found || !scope.Vars[i].IsInAbstract {
+					continue
 				}
+				flattened = append(flattened, scope.Vars[i])
 			}
 		}
 		if len(flattened) > 0 {
 			sort.Sort(byChildIndex(flattened))
+
+			if logDwarf {
+				ctxt.Logf("putAbstractScope(%v): vars:", s.Info)
+				for i, v := range flattened {
+					ctxt.Logf(" %d:%s", i, v.Name)
+				}
+				ctxt.Logf("\n")
+			}
 
 			// This slice will hold the offset in bytes for each child
 			// variable DIE with respect to the start of the parent
@@ -1186,6 +1195,9 @@ func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error 
 	inlIndex := ic.InlIndex
 	var encbuf [20]byte
 	for _, v := range vars {
+		if !v.IsInAbstract {
+			continue
+		}
 		putvar(ctxt, s, v, callee, abbrev, inlIndex, encbuf[:0])
 	}
 
@@ -1324,6 +1336,22 @@ func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev
 	return curscope
 }
 
+// Given a default var abbrev code, select corresponding concrete code.
+func concreteVarAbbrev(varAbbrev int) int {
+	switch varAbbrev {
+	case DW_ABRV_AUTO:
+		return DW_ABRV_AUTO_CONCRETE
+	case DW_ABRV_PARAM:
+		return DW_ABRV_PARAM_CONCRETE
+	case DW_ABRV_AUTO_LOCLIST:
+		return DW_ABRV_AUTO_CONCRETE_LOCLIST
+	case DW_ABRV_PARAM_LOCLIST:
+		return DW_ABRV_PARAM_CONCRETE_LOCLIST
+	default:
+		panic("should never happen")
+	}
+}
+
 // Pick the correct abbrev code for variable or parameter DIE.
 func determineVarAbbrev(v *Var, fnabbrev int) (int, bool, bool) {
 	abbrev := v.Abbrev
@@ -1340,33 +1368,27 @@ func determineVarAbbrev(v *Var, fnabbrev int) (int, bool, bool) {
 		abbrev = DW_ABRV_PARAM
 	}
 
+	// Determine whether to use a concrete variable or regular variable DIE.
 	concrete := true
 	switch fnabbrev {
 	case DW_ABRV_FUNCTION:
 		concrete = false
 		break
-	case DW_ABRV_FUNCTION_CONCRETE, DW_ABRV_INLINED_SUBROUTINE, DW_ABRV_INLINED_SUBROUTINE_RANGES:
-		switch abbrev {
-		case DW_ABRV_AUTO:
-			if v.IsInlFormal {
-				abbrev = DW_ABRV_PARAM_CONCRETE
-			} else {
-				abbrev = DW_ABRV_AUTO_CONCRETE
-			}
-			concrete = true
-		case DW_ABRV_AUTO_LOCLIST:
-			if v.IsInlFormal {
-				abbrev = DW_ABRV_PARAM_CONCRETE_LOCLIST
-			} else {
-				abbrev = DW_ABRV_AUTO_CONCRETE_LOCLIST
-			}
-		case DW_ABRV_PARAM:
-			abbrev = DW_ABRV_PARAM_CONCRETE
-		case DW_ABRV_PARAM_LOCLIST:
-			abbrev = DW_ABRV_PARAM_CONCRETE_LOCLIST
+	case DW_ABRV_FUNCTION_CONCRETE:
+		// If we're emitting a concrete subprogram DIE and the variable
+		// in question is not part of the corresponding abstract function DIE,
+		// then use the default (non-concrete) abbrev for this param.
+		if !v.IsInAbstract {
+			concrete = false
 		}
+	case DW_ABRV_INLINED_SUBROUTINE, DW_ABRV_INLINED_SUBROUTINE_RANGES:
 	default:
 		panic("should never happen")
+	}
+
+	// Select proper abbrev based on concrete/non-concrete
+	if concrete {
+		abbrev = concreteVarAbbrev(abbrev)
 	}
 
 	return abbrev, missing, concrete
@@ -1406,7 +1428,10 @@ func putAbstractVar(ctxt Context, info Sym, v *Var) {
 	}
 
 	// Line
-	putattr(ctxt, info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
+	if abbrev != DW_ABRV_PARAM_ABSTRACT {
+		// See issue 23374 for more on why decl line is skipped for abs params.
+		putattr(ctxt, info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
+	}
 
 	// Type
 	putattr(ctxt, info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)

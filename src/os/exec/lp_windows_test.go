@@ -2,13 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package exec
+// Use an external test to avoid os/exec -> internal/testenv -> os/exec
+// circular dependency.
+
+package exec_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -63,7 +68,7 @@ type lookPathTest struct {
 }
 
 func (test lookPathTest) runProg(t *testing.T, env []string, args ...string) (string, error) {
-	cmd := Command(args[0], args[1:]...)
+	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = env
 	cmd.Dir = test.rootDir
 	args[0] = filepath.Base(args[0])
@@ -346,7 +351,7 @@ func (test commandTest) isSuccess(rootDir, output string, err error) error {
 }
 
 func (test commandTest) runOne(rootDir string, env []string, dir, arg0 string) error {
-	cmd := Command(os.Args[0], "-test.run=TestHelperProcess", "--", "exec", dir, arg0)
+	cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcess", "--", "exec", dir, arg0)
 	cmd.Dir = rootDir
 	cmd.Env = env
 	output, err := cmd.CombinedOutput()
@@ -532,7 +537,7 @@ func buildPrintPathExe(t *testing.T, dir string) string {
 		t.Fatalf("failed to execute template: %v", err)
 	}
 	outname := name + ".exe"
-	cmd := Command("go", "build", "-o", outname, srcname)
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", outname, srcname)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

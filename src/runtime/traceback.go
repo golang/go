@@ -43,6 +43,7 @@ var (
 	morestackPC          uintptr
 	mstartPC             uintptr
 	rt0_goPC             uintptr
+	asmcgocallPC         uintptr
 	sigpanicPC           uintptr
 	runfinqPC            uintptr
 	bgsweepPC            uintptr
@@ -70,6 +71,7 @@ func tracebackinit() {
 	morestackPC = funcPC(morestack)
 	mstartPC = funcPC(mstart)
 	rt0_goPC = funcPC(rt0_go)
+	asmcgocallPC = funcPC(asmcgocall)
 	sigpanicPC = funcPC(sigpanic)
 	runfinqPC = funcPC(runfinq)
 	bgsweepPC = funcPC(bgsweep)
@@ -204,8 +206,11 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 
 	f := findfunc(frame.pc)
 	if !f.valid() {
-		if callback != nil {
+		if callback != nil || printing {
 			print("runtime: unknown pc ", hex(frame.pc), "\n")
+			tracebackHexdump(gp.stack, &frame, 0)
+		}
+		if callback != nil {
 			throw("unknown pc")
 		}
 		return 0
@@ -248,7 +253,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			}
 		}
 		var flr funcInfo
-		if topofstack(f) {
+		if topofstack(f, gp.m != nil && gp == gp.m.g0) {
 			frame.lr = 0
 			flr = funcInfo{}
 		} else if usesLR && f.entry == jmpdeferPC {
@@ -281,8 +286,19 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				// In that context it is okay to stop early.
 				// But if callback is set, we're doing a garbage collection and must
 				// get everything, so crash loudly.
-				if callback != nil {
+				doPrint := printing
+				if doPrint && gp.m.incgo {
+					// We can inject sigpanic
+					// calls directly into C code,
+					// in which case we'll see a C
+					// return PC. Don't complain.
+					doPrint = false
+				}
+				if callback != nil || doPrint {
 					print("runtime: unexpected return pc for ", funcname(f), " called from ", hex(frame.lr), "\n")
+					tracebackHexdump(gp.stack, &frame, lrPtr)
+				}
+				if callback != nil {
 					throw("unknown caller pc")
 				}
 			}
@@ -866,15 +882,68 @@ func tracebackothers(me *g) {
 	unlock(&allglock)
 }
 
+// tracebackHexdump hexdumps part of stk around frame.sp and frame.fp
+// for debugging purposes. If the address bad is included in the
+// hexdumped range, it will mark it as well.
+func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
+	const expand = 32 * sys.PtrSize
+	const maxExpand = 256 * sys.PtrSize
+	// Start around frame.sp.
+	lo, hi := frame.sp, frame.sp
+	// Expand to include frame.fp.
+	if frame.fp != 0 && frame.fp < lo {
+		lo = frame.fp
+	}
+	if frame.fp != 0 && frame.fp > hi {
+		hi = frame.fp
+	}
+	// Expand a bit more.
+	lo, hi = lo-expand, hi+expand
+	// But don't go too far from frame.sp.
+	if lo < frame.sp-maxExpand {
+		lo = frame.sp - maxExpand
+	}
+	if hi > frame.sp+maxExpand {
+		hi = frame.sp + maxExpand
+	}
+	// And don't go outside the stack bounds.
+	if lo < stk.lo {
+		lo = stk.lo
+	}
+	if hi > stk.hi {
+		hi = stk.hi
+	}
+
+	// Print the hex dump.
+	print("stack: frame={sp:", hex(frame.sp), ", fp:", hex(frame.fp), "} stack=[", hex(stk.lo), ",", hex(stk.hi), ")\n")
+	hexdumpWords(lo, hi, func(p uintptr) byte {
+		switch p {
+		case frame.fp:
+			return '>'
+		case frame.sp:
+			return '<'
+		case bad:
+			return '!'
+		}
+		return 0
+	})
+}
+
 // Does f mark the top of a goroutine stack?
-func topofstack(f funcInfo) bool {
+func topofstack(f funcInfo, g0 bool) bool {
 	pc := f.entry
 	return pc == goexitPC ||
 		pc == mstartPC ||
 		pc == mcallPC ||
 		pc == morestackPC ||
 		pc == rt0_goPC ||
-		externalthreadhandlerp != 0 && pc == externalthreadhandlerp
+		externalthreadhandlerp != 0 && pc == externalthreadhandlerp ||
+		// asmcgocall is TOS on the system stack because it
+		// switches to the system stack, but in this case we
+		// can come back to the regular stack and still want
+		// to be able to unwind through the call that appeared
+		// on the regular stack.
+		(g0 && pc == asmcgocallPC)
 }
 
 // isSystemGoroutine reports whether the goroutine g must be omitted in

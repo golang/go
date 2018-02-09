@@ -1004,6 +1004,20 @@ var linuxAMD64Tests = []*asmTest{
 	},
 	{
 		fn: `
+		func $(a,b [3]int16) bool {
+		    return a == b
+		}`,
+		pos: []string{"\tCMPL\t[A-Z]"},
+	},
+	{
+		fn: `
+		func $(a,b [12]int8) bool {
+		    return a == b
+		}`,
+		pos: []string{"\tCMPQ\t[A-Z]", "\tCMPL\t[A-Z]"},
+	},
+	{
+		fn: `
 		func f70(a,b [15]byte) bool {
 		    return a == b
 		}`,
@@ -1050,14 +1064,6 @@ var linuxAMD64Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tMOVQ\t"},
-	},
-	{
-		fn: `
-		func f76(a, b uint64) (uint64,uint64) {
-		    return f76(f76(a,b))
-		}
-		`,
-		pos: []string{"\tMOVUPS\t"},
 	},
 	// Make sure we don't put pointers in SSE registers across safe points.
 	{

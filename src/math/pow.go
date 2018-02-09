@@ -43,10 +43,6 @@ func pow(x, y float64) float64 {
 		return 1
 	case y == 1:
 		return x
-	case y == 0.5:
-		return Sqrt(x)
-	case y == -0.5:
-		return 1 / Sqrt(x)
 	case IsNaN(x) || IsNaN(y):
 		return NaN()
 	case x == 0:
@@ -81,6 +77,10 @@ func pow(x, y float64) float64 {
 		case y > 0:
 			return Inf(1)
 		}
+	case y == 0.5:
+		return Sqrt(x)
+	case y == -0.5:
+		return 1 / Sqrt(x)
 	}
 
 	absy := y

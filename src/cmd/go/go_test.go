@@ -36,6 +36,16 @@ var (
 	skipExternal = false // skip external tests
 )
 
+func tooSlow(t *testing.T) {
+	if testing.Short() {
+		// In -short mode; skip test, except run it on the {darwin,linux,windows}/amd64 builders.
+		if testenv.Builder() != "" && runtime.GOARCH == "amd64" && (runtime.GOOS == "linux" || runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+			return
+		}
+		t.Skip("skipping test in -short mode")
+	}
+}
+
 func init() {
 	switch runtime.GOOS {
 	case "android", "nacl":
@@ -71,6 +81,13 @@ func init() {
 			skipExternal = true
 			canRun = false
 		}
+	case "plan9":
+		switch runtime.GOARCH {
+		case "arm":
+			// many plan9/arm machines are too slow to run
+			// the full set of external tests.
+			skipExternal = true
+		}
 	case "windows":
 		exeSuffix = ".exe"
 	}
@@ -92,6 +109,7 @@ func TestMain(m *testing.M) {
 		fmt.Printf("SKIP\n")
 		return
 	}
+	os.Unsetenv("GOROOT_FINAL")
 
 	if canRun {
 		args := []string{"build", "-tags", "testgo", "-o", "testgo" + exeSuffix}
@@ -224,7 +242,7 @@ func testgo(t *testing.T) *testgoData {
 	testenv.MustHaveGoBuild(t)
 
 	if skipExternal {
-		t.Skip("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
+		t.Skipf("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 
 	return &testgoData{t: t}
@@ -907,6 +925,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 }
 
 func TestGoListStandard(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	// TODO: tg.parallel()
@@ -932,6 +951,7 @@ func TestGoListStandard(t *testing.T) {
 }
 
 func TestGoInstallCleansUpAfterGoBuild(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	// TODO: tg.parallel()
@@ -974,6 +994,7 @@ func TestGoInstallCleansUpAfterGoBuild(t *testing.T) {
 }
 
 func TestGoInstallRebuildsStalePackagesInOtherGOPATH(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1073,6 +1094,7 @@ func TestGoInstallErrorOnCrossCompileToBin(t *testing.T) {
 }
 
 func TestGoInstallDetectsRemovedFilesInPackageMain(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1574,6 +1596,7 @@ func TestBuildOutputToDevNull(t *testing.T) {
 }
 
 func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1587,6 +1610,19 @@ func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
 	tg.run("install", "main_test")
 	tg.wantNotStale("main_test", "", "after go install, main listed as stale")
 	tg.run("test", "main_test")
+}
+
+func TestPackageMainTestCompilerFlags(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	tg.tempFile("src/p1/p1.go", "package main\n")
+	tg.tempFile("src/p1/p1_test.go", "package main\nimport \"testing\"\nfunc Test(t *testing.T){}\n")
+	tg.run("test", "-c", "-n", "p1")
+	tg.grepBothNot(`[\\/]compile.* -p main.*p1\.go`, "should not have run compile -p main p1.go")
+	tg.grepStderr(`[\\/]compile.* -p p1.*p1\.go`, "should have run compile -p p1 p1.go")
 }
 
 // The runtime version string takes one of two forms:
@@ -1775,6 +1811,7 @@ func TestIgnoreEmptyPathsInGOPATH(t *testing.T) {
 
 // Issue 4104.
 func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1785,6 +1822,7 @@ func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
 }
 
 func TestGoListHasAConsistentOrder(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1797,6 +1835,7 @@ func TestGoListHasAConsistentOrder(t *testing.T) {
 }
 
 func TestGoListStdDoesNotIncludeCommands(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1805,6 +1844,7 @@ func TestGoListStdDoesNotIncludeCommands(t *testing.T) {
 }
 
 func TestGoListCmdOnlyShowsCommands(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2023,6 +2063,7 @@ func TestGoGetIntoGOROOT(t *testing.T) {
 }
 
 func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2036,6 +2077,7 @@ func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
 }
 
 func TestGoTestCpuprofileLeavesBinaryBehind(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	// TODO: tg.parallel()
@@ -2046,6 +2088,7 @@ func TestGoTestCpuprofileLeavesBinaryBehind(t *testing.T) {
 }
 
 func TestGoTestCpuprofileDashOControlsBinaryLocation(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	// TODO: tg.parallel()
@@ -2056,6 +2099,7 @@ func TestGoTestCpuprofileDashOControlsBinaryLocation(t *testing.T) {
 }
 
 func TestGoTestMutexprofileLeavesBinaryBehind(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	// TODO: tg.parallel()
@@ -2066,6 +2110,7 @@ func TestGoTestMutexprofileLeavesBinaryBehind(t *testing.T) {
 }
 
 func TestGoTestMutexprofileDashOControlsBinaryLocation(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	// TODO: tg.parallel()
@@ -2086,6 +2131,7 @@ func TestGoBuildNonMain(t *testing.T) {
 }
 
 func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2095,6 +2141,7 @@ func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {
 }
 
 func TestGoTestDashOWritesBinary(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2104,6 +2151,7 @@ func TestGoTestDashOWritesBinary(t *testing.T) {
 }
 
 func TestGoTestDashIDashOWritesBinary(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2201,6 +2249,7 @@ func TestSymlinksInternal(t *testing.T) {
 
 // Issue 4515.
 func TestInstallWithTags(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2284,7 +2333,7 @@ func TestSymlinkWarning(t *testing.T) {
 	tg.tempDir("yy/zz")
 	tg.tempFile("yy/zz/zz.go", "package zz\n")
 	if err := os.Symlink(tg.path("yy"), tg.path("src/example/xx/yy")); err != nil {
-		t.Skip("symlink failed: %v", err)
+		t.Skipf("symlink failed: %v", err)
 	}
 	tg.run("list", "example/xx/z...")
 	tg.grepStdoutNot(".", "list should not have matched anything")
@@ -2385,9 +2434,7 @@ func checkCoverage(tg *testgoData, data string) {
 }
 
 func TestCoverageRuns(t *testing.T) {
-	if testing.Short() {
-		t.Skip("don't build libraries for coverage in short mode")
-	}
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.run("test", "-short", "-coverpkg=strings", "strings", "regexp")
@@ -2397,12 +2444,20 @@ func TestCoverageRuns(t *testing.T) {
 	checkCoverage(tg, data)
 }
 
+func TestCoverageDotImport(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.run("test", "-coverpkg=coverdot1,coverdot2", "coverdot2")
+	data := tg.getStdout() + tg.getStderr()
+	checkCoverage(tg, data)
+}
+
 // Check that coverage analysis uses set mode.
 // Also check that coverage profiles merge correctly.
 func TestCoverageUsesSetMode(t *testing.T) {
-	if testing.Short() {
-		t.Skip("don't build libraries for coverage in short mode")
-	}
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.creatingTemp("testdata/cover.out")
@@ -2428,9 +2483,7 @@ func TestCoverageUsesSetMode(t *testing.T) {
 }
 
 func TestCoverageUsesAtomicModeForRace(t *testing.T) {
-	if testing.Short() {
-		t.Skip("don't build libraries for coverage in short mode")
-	}
+	tooSlow(t)
 	if !canRace {
 		t.Skip("skipping because race detector not supported")
 	}
@@ -2451,11 +2504,24 @@ func TestCoverageUsesAtomicModeForRace(t *testing.T) {
 }
 
 func TestCoverageSyncAtomicImport(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.run("test", "-short", "-cover", "-covermode=atomic", "-coverpkg=coverdep/p1", "coverdep")
+}
+
+func TestCoverageDepLoop(t *testing.T) {
+	tooSlow(t)
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	// coverdep2/p1's xtest imports coverdep2/p2 which imports coverdep2/p1.
+	// Make sure that coverage on coverdep2/p2 recompiles coverdep2/p2.
+	tg.run("test", "-short", "-cover", "coverdep2/p1")
+	tg.grepStdout("coverage: 100.0% of statements", "expected 100.0% coverage")
 }
 
 func TestCoverageImportMainLoop(t *testing.T) {
@@ -2469,6 +2535,7 @@ func TestCoverageImportMainLoop(t *testing.T) {
 }
 
 func TestCoveragePattern(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2479,10 +2546,11 @@ func TestCoveragePattern(t *testing.T) {
 	// (as opposed to pattern matching on deps)
 	// then it will try to load sleepybad, which does not compile,
 	// and the test command will fail.
-	tg.run("test", "-coverprofile="+filepath.Join(tg.tempdir, "cover.out"), "-coverpkg=sleepy...", "-run=^$", "sleepy1")
+	tg.run("test", "-coverprofile="+tg.path("cover.out"), "-coverpkg=sleepy...", "-run=^$", "sleepy1")
 }
 
 func TestCoverageErrorLine(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2512,6 +2580,8 @@ func TestCoverageErrorLine(t *testing.T) {
 }
 
 func TestTestBuildFailureOutput(t *testing.T) {
+	tooSlow(t)
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2523,6 +2593,7 @@ func TestTestBuildFailureOutput(t *testing.T) {
 }
 
 func TestCoverageFunc(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2530,7 +2601,7 @@ func TestCoverageFunc(t *testing.T) {
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 
 	tg.run("test", "-outputdir="+tg.tempdir, "-coverprofile=cover.out", "coverasm")
-	tg.run("tool", "cover", "-func="+filepath.Join(tg.tempdir, "cover.out"))
+	tg.run("tool", "cover", "-func="+tg.path("cover.out"))
 	tg.grepStdout(`\tg\t*100.0%`, "did not find g 100% covered")
 	tg.grepStdoutNot(`\tf\t*[0-9]`, "reported coverage for assembly function f")
 }
@@ -2597,9 +2668,7 @@ func TestTestRaceInstall(t *testing.T) {
 	if !canRace {
 		t.Skip("no race detector")
 	}
-	if testing.Short() && testenv.Builder() == "" {
-		t.Skip("don't rebuild the standard library in short mode")
-	}
+	tooSlow(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2636,6 +2705,7 @@ func main() {
 }
 
 func TestCoverageWithCgo(t *testing.T) {
+	tooSlow(t)
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
@@ -2710,6 +2780,7 @@ func TestCgoShowsFullPathNames(t *testing.T) {
 }
 
 func TestCgoHandlesWlORIGIN(t *testing.T) {
+	tooSlow(t)
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
@@ -2718,7 +2789,7 @@ func TestCgoHandlesWlORIGIN(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.tempFile("src/origin/origin.go", `package origin
-		// #cgo !darwin LDFLAGS: -Wl,-rpath -Wl,$ORIGIN
+		// #cgo !darwin LDFLAGS: -Wl,-rpath,$ORIGIN
 		// void f(void) {}
 		import "C"
 		func f() { C.f() }`)
@@ -2727,6 +2798,7 @@ func TestCgoHandlesWlORIGIN(t *testing.T) {
 }
 
 func TestCgoPkgConfig(t *testing.T) {
+	tooSlow(t)
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
@@ -2777,6 +2849,7 @@ func main() {
 // "go test -c" should also appear to write a new binary every time,
 // even if it's really just updating the mtime on an existing up-to-date binary.
 func TestIssue6480(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	// TODO: tg.parallel()
@@ -2912,6 +2985,8 @@ func TestIssue6844(t *testing.T) {
 }
 
 func TestBuildDashIInstallsDependencies(t *testing.T) {
+	tooSlow(t)
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2982,7 +3057,20 @@ func TestGoTestMainAsNormalTest(t *testing.T) {
 	tg.grepBoth(okPattern, "go test did not say ok")
 }
 
+func TestGoTestMainTwice(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOCACHE", tg.tempdir)
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.run("test", "-v", "multimain")
+	if strings.Count(tg.getStdout(), "notwithstanding") != 2 {
+		t.Fatal("tests did not run twice")
+	}
+}
+
 func TestGoTestFlagsAfterPackage(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.run("test", "testdata/flag_test.go", "-v", "-args", "-v=7") // Two distinct -v flags.
@@ -3135,6 +3223,16 @@ func TestGoVetWithFlagsOff(t *testing.T) {
 	tg.run("vet", "-printf=false", "vetpkg")
 }
 
+// Issue 23395.
+func TestGoVetWithOnlyTestFiles(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("src/p/p_test.go", "package p; import \"testing\"; func TestMe(*testing.T) {}")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("vet", "p")
+}
+
 // Issue 9767, 19769.
 func TestGoGetDotSlashDownload(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
@@ -3166,6 +3264,8 @@ func TestGoGetHTTPS404(t *testing.T) {
 // Test that you cannot import a main package.
 // See golang.org/issue/4210 and golang.org/issue/17475.
 func TestImportMain(t *testing.T) {
+	tooSlow(t)
+
 	tg := testgo(t)
 	tg.parallel()
 	defer tg.cleanup()
@@ -3254,6 +3354,8 @@ func TestImportMain(t *testing.T) {
 // accessed by a non-local import (found in a GOPATH/GOROOT).
 // See golang.org/issue/17475.
 func TestImportLocal(t *testing.T) {
+	tooSlow(t)
+
 	tg := testgo(t)
 	tg.parallel()
 	defer tg.cleanup()
@@ -3471,6 +3573,8 @@ func TestGoRunDirs(t *testing.T) {
 }
 
 func TestGoInstallPkgdir(t *testing.T) {
+	tooSlow(t)
+
 	tg := testgo(t)
 	tg.parallel()
 	defer tg.cleanup()
@@ -3506,6 +3610,8 @@ func TestGoTestRaceInstallCgo(t *testing.T) {
 }
 
 func TestGoTestRaceFailures(t *testing.T) {
+	tooSlow(t)
+
 	if !canRace {
 		t.Skip("skipping because race detector not supported")
 	}
@@ -3714,6 +3820,7 @@ func TestIssue12096(t *testing.T) {
 }
 
 func TestGoBuildOutput(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 
@@ -3794,6 +3901,7 @@ func TestGoBuildARM(t *testing.T) {
 
 // For issue 14337.
 func TestParallelTest(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	tg.parallel()
 	defer tg.cleanup()
@@ -3813,6 +3921,7 @@ func TestParallelTest(t *testing.T) {
 }
 
 func TestCgoConsistentResults(t *testing.T) {
+	tooSlow(t)
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
@@ -3879,6 +3988,8 @@ func TestFatalInBenchmarkCauseNonZeroExitStatus(t *testing.T) {
 }
 
 func TestBinaryOnlyPackages(t *testing.T) {
+	tooSlow(t)
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -4197,6 +4308,7 @@ func TestMatchesOnlySubtestParallelIsOK(t *testing.T) {
 
 // Issue 18845
 func TestBenchTimeout(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.run("test", "-bench", ".", "-timeout", "750ms", "testdata/timeoutbench_test.go")
@@ -4204,6 +4316,7 @@ func TestBenchTimeout(t *testing.T) {
 
 // Issue 19394
 func TestWriteProfilesOnTimeout(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.tempDir("profiling")
@@ -4316,6 +4429,7 @@ func TestFFLAGS(t *testing.T) {
 // Issue 19198.
 // This is really a cmd/link issue but this is a convenient place to test it.
 func TestDuplicateGlobalAsmSymbols(t *testing.T) {
+	tooSlow(t)
 	if runtime.GOARCH != "386" && runtime.GOARCH != "amd64" {
 		t.Skipf("skipping test on %s", runtime.GOARCH)
 	}
@@ -4352,7 +4466,7 @@ func main() {
 }
 `)
 	tg.setenv("GOPATH", tg.path("go"))
-	exe := filepath.Join(tg.tempdir, "p.exe")
+	exe := tg.path("p.exe")
 	tg.creatingTemp(exe)
 	tg.run("build", "-o", exe, "p")
 }
@@ -4433,19 +4547,9 @@ func TestExecutableGOROOT(t *testing.T) {
 	newRoot := tg.path("new")
 
 	t.Run("RelocatedExe", func(t *testing.T) {
-		t.Skip("TODO: skipping known broken test; see golang.org/issue/20284")
-
-		// Should fall back to default location in binary.
-		// No way to dig out other than look at source code.
-		data, err := ioutil.ReadFile("../../runtime/internal/sys/zversion.go")
-		if err != nil {
-			t.Fatal(err)
-		}
-		m := regexp.MustCompile("var DefaultGoroot = `([^`]+)`").FindStringSubmatch(string(data))
-		if m == nil {
-			t.Fatal("cannot find DefaultGoroot in ../../runtime/internal/sys/zversion.go")
-		}
-		check(t, newGoTool, m[1])
+		// Should fall back to default location in binary,
+		// which is the GOROOT we used when building testgo.exe.
+		check(t, newGoTool, testGOROOT)
 	})
 
 	// If the binary is sitting in a bin dir next to ../pkg/tool, that counts as a GOROOT,
@@ -4470,9 +4574,7 @@ func TestExecutableGOROOT(t *testing.T) {
 	tg.must(os.RemoveAll(tg.path("new/pkg")))
 
 	// Binaries built in the new tree should report the
-	// new tree when they call runtime.GOROOT().
-	// This is implemented by having the go tool pass a -X option
-	// to the linker setting runtime/internal/sys.DefaultGoroot.
+	// new tree when they call runtime.GOROOT.
 	t.Run("RuntimeGoroot", func(t *testing.T) {
 		// Build a working GOROOT the easy way, with symlinks.
 		testenv.MustHaveSymlink(t)
@@ -4546,6 +4648,7 @@ func main() {}`)
 }
 
 func TestCgoFlagContainsSpace(t *testing.T) {
+	tooSlow(t)
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
@@ -4569,6 +4672,7 @@ func TestCgoFlagContainsSpace(t *testing.T) {
 
 // Issue #20435.
 func TestGoTestRaceCoverModeFailures(t *testing.T) {
+	tooSlow(t)
 	if !canRace {
 		t.Skip("skipping because race detector not supported")
 	}
@@ -4683,6 +4787,7 @@ func TestTestRegexps(t *testing.T) {
 }
 
 func TestListTests(t *testing.T) {
+	tooSlow(t)
 	var tg *testgoData
 	testWith := func(listName, expected string) func(*testing.T) {
 		return func(t *testing.T) {
@@ -4700,6 +4805,9 @@ func TestListTests(t *testing.T) {
 }
 
 func TestBuildmodePIE(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skipf("skipping in -short mode on non-builder")
+	}
 	if runtime.Compiler == "gccgo" {
 		t.Skipf("skipping test because buildmode=pie is not supported on gccgo")
 	}
@@ -4758,6 +4866,7 @@ func TestBuildmodePIE(t *testing.T) {
 }
 
 func TestExecBuildX(t *testing.T) {
+	tooSlow(t)
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
@@ -4769,12 +4878,14 @@ func TestExecBuildX(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 
+	tg.setenv("GOCACHE", "off")
+
 	tg.tempFile("main.go", `package main; import "C"; func main() { print("hello") }`)
 	src := tg.path("main.go")
 	obj := tg.path("main")
 	tg.run("build", "-x", "-o", obj, src)
 	sh := tg.path("test.sh")
-	err := ioutil.WriteFile(sh, []byte(tg.getStderr()), 0666)
+	err := ioutil.WriteFile(sh, []byte("set -e\n"+tg.getStderr()), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4808,6 +4919,7 @@ func TestExecBuildX(t *testing.T) {
 }
 
 func TestParallelNumber(t *testing.T) {
+	tooSlow(t)
 	for _, n := range [...]string{"-1", "0"} {
 		t.Run(n, func(t *testing.T) {
 			tg := testgo(t)
@@ -4896,6 +5008,7 @@ func TestGOTMPDIR(t *testing.T) {
 }
 
 func TestBuildCache(t *testing.T) {
+	tooSlow(t)
 	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
 		t.Skip("GODEBUG gocacheverify")
 	}
@@ -4956,6 +5069,8 @@ func TestCacheOutput(t *testing.T) {
 }
 
 func TestCacheCoverage(t *testing.T) {
+	tooSlow(t)
+
 	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
 		t.Skip("GODEBUG gocacheverify")
 	}
@@ -4966,9 +5081,9 @@ func TestCacheCoverage(t *testing.T) {
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.makeTempdir()
 
-	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "c1"))
-	tg.run("test", "-cover", "strings")
-	tg.run("test", "-cover", "math", "strings")
+	tg.setenv("GOCACHE", tg.path("c1"))
+	tg.run("test", "-cover", "-short", "strings")
+	tg.run("test", "-cover", "-short", "math", "strings")
 }
 
 func TestIssue22588(t *testing.T) {
@@ -4987,6 +5102,7 @@ func TestIssue22588(t *testing.T) {
 }
 
 func TestIssue22531(t *testing.T) {
+	tooSlow(t)
 	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
 		t.Skip("GODEBUG gocacheverify")
 	}
@@ -4995,12 +5111,12 @@ func TestIssue22531(t *testing.T) {
 	tg.parallel()
 	tg.makeTempdir()
 	tg.setenv("GOPATH", tg.tempdir)
-	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "cache"))
+	tg.setenv("GOCACHE", tg.path("cache"))
 	tg.tempFile("src/m/main.go", "package main /* c1 */; func main() {}\n")
 	tg.run("install", "-x", "m")
 	tg.run("list", "-f", "{{.Stale}}", "m")
 	tg.grepStdout("false", "reported m as stale after install")
-	tg.run("tool", "buildid", filepath.Join(tg.tempdir, "bin/m"+exeSuffix))
+	tg.run("tool", "buildid", tg.path("bin/m"+exeSuffix))
 
 	// The link action ID did not include the full main build ID,
 	// even though the full main build ID is written into the
@@ -5011,10 +5127,11 @@ func TestIssue22531(t *testing.T) {
 	tg.run("install", "-x", "m")
 	tg.run("list", "-f", "{{.Stale}}", "m")
 	tg.grepStdout("false", "reported m as stale after reinstall")
-	tg.run("tool", "buildid", filepath.Join(tg.tempdir, "bin/m"+exeSuffix))
+	tg.run("tool", "buildid", tg.path("bin/m"+exeSuffix))
 }
 
 func TestIssue22596(t *testing.T) {
+	tooSlow(t)
 	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
 		t.Skip("GODEBUG gocacheverify")
 	}
@@ -5022,17 +5139,17 @@ func TestIssue22596(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.makeTempdir()
-	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "cache"))
+	tg.setenv("GOCACHE", tg.path("cache"))
 	tg.tempFile("gopath1/src/p/p.go", "package p; func F(){}\n")
 	tg.tempFile("gopath2/src/p/p.go", "package p; func F(){}\n")
 
-	tg.setenv("GOPATH", filepath.Join(tg.tempdir, "gopath1"))
+	tg.setenv("GOPATH", tg.path("gopath1"))
 	tg.run("list", "-f={{.Target}}", "p")
 	target1 := strings.TrimSpace(tg.getStdout())
 	tg.run("install", "p")
 	tg.wantNotStale("p", "", "p stale after install")
 
-	tg.setenv("GOPATH", filepath.Join(tg.tempdir, "gopath2"))
+	tg.setenv("GOPATH", tg.path("gopath2"))
 	tg.run("list", "-f={{.Target}}", "p")
 	target2 := strings.TrimSpace(tg.getStdout())
 	tg.must(os.MkdirAll(filepath.Dir(target2), 0777))
@@ -5043,6 +5160,8 @@ func TestIssue22596(t *testing.T) {
 }
 
 func TestTestCache(t *testing.T) {
+	tooSlow(t)
+
 	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
 		t.Skip("GODEBUG gocacheverify")
 	}
@@ -5051,7 +5170,7 @@ func TestTestCache(t *testing.T) {
 	tg.parallel()
 	tg.makeTempdir()
 	tg.setenv("GOPATH", tg.tempdir)
-	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "cache"))
+	tg.setenv("GOCACHE", tg.path("cache"))
 
 	// timeout here should not affect result being cached
 	// or being retrieved later.
@@ -5146,7 +5265,148 @@ func TestTestCache(t *testing.T) {
 	tg.grepStdout(`ok  \tt/t4\t\(cached\)`, "did not cache t/t4")
 }
 
+func TestTestCacheInputs(t *testing.T) {
+	tooSlow(t)
+
+	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+		t.Skip("GODEBUG gocacheverify")
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.setenv("GOCACHE", tg.path("cache"))
+
+	defer os.Remove(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"))
+	defer os.Remove(filepath.Join(tg.pwd(), "testdata/src/testcache/script.sh"))
+	tg.must(ioutil.WriteFile(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), []byte("x"), 0644))
+	old := time.Now().Add(-1 * time.Minute)
+	tg.must(os.Chtimes(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), old, old))
+	info, err := os.Stat(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("file.txt: old=%v, info.ModTime=%v", old, info.ModTime()) // help debug when Chtimes lies about succeeding
+	tg.setenv("TESTKEY", "x")
+
+	tg.must(ioutil.WriteFile(filepath.Join(tg.pwd(), "testdata/src/testcache/script.sh"), []byte("#!/bin/sh\nexit 0\n"), 0755))
+	tg.must(os.Chtimes(filepath.Join(tg.pwd(), "testdata/src/testcache/script.sh"), old, old))
+
+	tg.run("test", "testcache")
+	tg.run("test", "testcache")
+	tg.grepStdout(`\(cached\)`, "did not cache")
+
+	tg.setenv("TESTKEY", "y")
+	tg.run("test", "testcache")
+	tg.grepStdoutNot(`\(cached\)`, "did not notice env var change")
+	tg.run("test", "testcache")
+	tg.grepStdout(`\(cached\)`, "did not cache")
+
+	tg.run("test", "testcache", "-run=FileSize")
+	tg.run("test", "testcache", "-run=FileSize")
+	tg.grepStdout(`\(cached\)`, "did not cache")
+	tg.must(ioutil.WriteFile(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), []byte("xxx"), 0644))
+	tg.run("test", "testcache", "-run=FileSize")
+	tg.grepStdoutNot(`\(cached\)`, "did not notice file size change")
+	tg.run("test", "testcache", "-run=FileSize")
+	tg.grepStdout(`\(cached\)`, "did not cache")
+
+	tg.run("test", "testcache", "-run=Chdir")
+	tg.run("test", "testcache", "-run=Chdir")
+	tg.grepStdout(`\(cached\)`, "did not cache")
+	tg.must(ioutil.WriteFile(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), []byte("xxxxx"), 0644))
+	tg.run("test", "testcache", "-run=Chdir")
+	tg.grepStdoutNot(`\(cached\)`, "did not notice file size change")
+	tg.run("test", "testcache", "-run=Chdir")
+	tg.grepStdout(`\(cached\)`, "did not cache")
+
+	tg.must(os.Chtimes(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), old, old))
+	tg.run("test", "testcache", "-run=FileContent")
+	tg.run("test", "testcache", "-run=FileContent")
+	tg.grepStdout(`\(cached\)`, "did not cache")
+	tg.must(ioutil.WriteFile(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), []byte("yyy"), 0644))
+	old2 := old.Add(10 * time.Second)
+	tg.must(os.Chtimes(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), old2, old2))
+	tg.run("test", "testcache", "-run=FileContent")
+	tg.grepStdoutNot(`\(cached\)`, "did not notice file content change")
+	tg.run("test", "testcache", "-run=FileContent")
+	tg.grepStdout(`\(cached\)`, "did not cache")
+
+	tg.run("test", "testcache", "-run=DirList")
+	tg.run("test", "testcache", "-run=DirList")
+	tg.grepStdout(`\(cached\)`, "did not cache")
+	tg.must(os.Remove(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt")))
+	tg.run("test", "testcache", "-run=DirList")
+	tg.grepStdoutNot(`\(cached\)`, "did not notice directory change")
+	tg.run("test", "testcache", "-run=DirList")
+	tg.grepStdout(`\(cached\)`, "did not cache")
+
+	tg.tempFile("file.txt", "")
+	tg.must(ioutil.WriteFile(filepath.Join(tg.pwd(), "testdata/src/testcache/testcachetmp_test.go"), []byte(`package testcache
+
+		import (
+			"os"
+			"testing"
+		)
+
+		func TestExternalFile(t *testing.T) {
+			os.Open(`+fmt.Sprintf("%q", tg.path("file.txt"))+`)
+			_, err := os.Stat(`+fmt.Sprintf("%q", tg.path("file.txt"))+`)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+	`), 0666))
+	defer os.Remove(filepath.Join(tg.pwd(), "testdata/src/testcache/testcachetmp_test.go"))
+	tg.run("test", "testcache", "-run=ExternalFile")
+	tg.run("test", "testcache", "-run=ExternalFile")
+	tg.grepStdout(`\(cached\)`, "did not cache")
+	tg.must(os.Remove(filepath.Join(tg.tempdir, "file.txt")))
+	tg.run("test", "testcache", "-run=ExternalFile")
+	tg.grepStdout(`\(cached\)`, "did not cache")
+
+	switch runtime.GOOS {
+	case "nacl", "plan9", "windows":
+		// no shell scripts
+	default:
+		tg.run("test", "testcache", "-run=Exec")
+		tg.run("test", "testcache", "-run=Exec")
+		tg.grepStdout(`\(cached\)`, "did not cache")
+		tg.must(os.Chtimes(filepath.Join(tg.pwd(), "testdata/src/testcache/script.sh"), old2, old2))
+		tg.run("test", "testcache", "-run=Exec")
+		tg.grepStdoutNot(`\(cached\)`, "did not notice script change")
+		tg.run("test", "testcache", "-run=Exec")
+		tg.grepStdout(`\(cached\)`, "did not cache")
+	}
+}
+
+func TestNoCache(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows":
+		t.Skipf("no unwritable directories on %s", runtime.GOOS)
+	}
+	if os.Getuid() == 0 {
+		t.Skip("skipping test because running as root")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("triv.go", `package main; func main() {}`)
+	tg.must(os.MkdirAll(tg.path("unwritable"), 0555))
+	home := "HOME"
+	if runtime.GOOS == "plan9" {
+		home = "home"
+	}
+	tg.setenv(home, tg.path(filepath.Join("unwritable", "home")))
+	tg.unsetenv("GOCACHE")
+	tg.run("build", "-o", tg.path("triv"), tg.path("triv.go"))
+	tg.grepStderr("disabling cache", "did not disable cache")
+}
+
 func TestTestVet(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -5159,9 +5419,9 @@ func TestTestVet(t *testing.T) {
 		}
 	`)
 
-	tg.runFail("test", filepath.Join(tg.tempdir, "p1_test.go"))
+	tg.runFail("test", tg.path("p1_test.go"))
 	tg.grepStderr(`Logf format %d`, "did not diagnose bad Logf")
-	tg.run("test", "-vet=off", filepath.Join(tg.tempdir, "p1_test.go"))
+	tg.run("test", "-vet=off", tg.path("p1_test.go"))
 	tg.grepStdout(`^ok`, "did not print test summary")
 
 	tg.tempFile("p1.go", `
@@ -5171,19 +5431,62 @@ func TestTestVet(t *testing.T) {
 			fmt.Printf("%d") // oops
 		}
 	`)
-	tg.runFail("test", filepath.Join(tg.tempdir, "p1.go"))
+	tg.runFail("test", tg.path("p1.go"))
 	tg.grepStderr(`Printf format %d`, "did not diagnose bad Printf")
-	tg.run("test", "-x", "-vet=shift", filepath.Join(tg.tempdir, "p1.go"))
+	tg.run("test", "-x", "-vet=shift", tg.path("p1.go"))
 	tg.grepStderr(`[\\/]vet.*-shift`, "did not run vet with -shift")
 	tg.grepStdout(`\[no test files\]`, "did not print test summary")
-	tg.run("test", "-vet=off", filepath.Join(tg.tempdir, "p1.go"))
+	tg.run("test", "-vet=off", tg.path("p1.go"))
 	tg.grepStdout(`\[no test files\]`, "did not print test summary")
 
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.run("test", "vetcycle") // must not fail; #22890
+
+	tg.runFail("test", "vetfail/...")
+	tg.grepStderr(`Printf format %d`, "did not diagnose bad Printf")
+	tg.grepStdout(`ok\s+vetfail/p2`, "did not run vetfail/p2")
+}
+
+func TestTestRebuild(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	// golang.org/issue/23701.
+	// b_test imports b with augmented method from export_test.go.
+	// b_test also imports a, which imports b.
+	// Must not accidentally see un-augmented b propagate through a to b_test.
+	tg.tempFile("src/a/a.go", `package a
+		import "b"
+		type Type struct{}
+		func (*Type) M() b.T {return 0}
+	`)
+	tg.tempFile("src/b/b.go", `package b
+		type T int
+		type I interface {M() T}
+	`)
+	tg.tempFile("src/b/export_test.go", `package b
+		func (*T) Method() *T { return nil }
+	`)
+	tg.tempFile("src/b/b_test.go", `package b_test
+		import (
+			"testing"
+			"a"
+			. "b"
+		)
+		func TestBroken(t *testing.T) {
+			x := new(T)
+			x.Method()
+			_ = new(a.Type)
+		}
+	`)
+
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("test", "b")
 }
 
 func TestInstallDeps(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -5231,6 +5534,7 @@ func TestFmtLoadErrors(t *testing.T) {
 }
 
 func TestRelativePkgdir(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.makeTempdir()
@@ -5246,26 +5550,28 @@ func TestGcflagsPatterns(t *testing.T) {
 	tg.setenv("GOPATH", "")
 	tg.setenv("GOCACHE", "off")
 
-	tg.run("build", "-v", "-gcflags= \t\r\n -e", "fmt")
-	tg.grepStderr("fmt", "did not rebuild fmt")
-	tg.grepStderrNot("reflect", "incorrectly rebuilt reflect")
+	tg.run("build", "-n", "-v", "-gcflags= \t\r\n -e", "fmt")
+	tg.grepStderr("^# fmt", "did not rebuild fmt")
+	tg.grepStderrNot("^# reflect", "incorrectly rebuilt reflect")
 
-	tg.run("build", "-v", "-gcflags=-e", "fmt", "reflect")
-	tg.grepStderr("fmt", "did not rebuild fmt")
-	tg.grepStderr("reflect", "did not rebuild reflect")
-	tg.grepStderrNot("runtime", "incorrectly rebuilt runtime")
+	tg.run("build", "-n", "-v", "-gcflags=-e", "fmt", "reflect")
+	tg.grepStderr("^# fmt", "did not rebuild fmt")
+	tg.grepStderr("^# reflect", "did not rebuild reflect")
+	tg.grepStderrNot("^# runtime", "incorrectly rebuilt runtime")
 
-	tg.run("build", "-x", "-v", "-gcflags= \t\r\n reflect \t\r\n = \t\r\n -N", "fmt")
-	tg.grepStderr("fmt", "did not rebuild fmt")
-	tg.grepStderr("reflect", "did not rebuild reflect")
+	tg.run("build", "-n", "-x", "-v", "-gcflags= \t\r\n reflect \t\r\n = \t\r\n -N", "fmt")
+	tg.grepStderr("^# fmt", "did not rebuild fmt")
+	tg.grepStderr("^# reflect", "did not rebuild reflect")
 	tg.grepStderr("compile.* -N .*-p reflect", "did not build reflect with -N flag")
 	tg.grepStderrNot("compile.* -N .*-p fmt", "incorrectly built fmt with -N flag")
 
-	tg.run("test", "-c", "-n", "-gcflags=-N", "strings")
-	tg.grepStderr("compile.* -N .*compare_test.go", "did not build strings_test package with -N flag")
+	tg.run("test", "-c", "-n", "-gcflags=-N", "-ldflags=-X=x.y=z", "strings")
+	tg.grepStderr("compile.* -N .*compare_test.go", "did not compile strings_test package with -N flag")
+	tg.grepStderr("link.* -X=x.y=z", "did not link strings.test binary with -X flag")
 
-	tg.run("test", "-c", "-n", "-gcflags=strings=-N", "strings")
-	tg.grepStderr("compile.* -N .*compare_test.go", "did not build strings_test package with -N flag")
+	tg.run("test", "-c", "-n", "-gcflags=strings=-N", "-ldflags=strings=-X=x.y=z", "strings")
+	tg.grepStderr("compile.* -N .*compare_test.go", "did not compile strings_test package with -N flag")
+	tg.grepStderr("link.* -X=x.y=z", "did not link strings.test binary with -X flag")
 }
 
 func TestGoTestMinusN(t *testing.T) {
@@ -5277,6 +5583,8 @@ func TestGoTestMinusN(t *testing.T) {
 }
 
 func TestGoTestJSON(t *testing.T) {
+	tooSlow(t)
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -5297,18 +5605,22 @@ func TestGoTestJSON(t *testing.T) {
 	tg.grepStdout(`"Action":"output","Package":"skipper","Test":"Test","Output":"--- SKIP:`, "did not see SKIP output")
 	tg.grepStdout(`"Action":"skip","Package":"skipper","Test":"Test"`, "did not see skip result for Test")
 
+	tg.run("test", "-json", "-short", "-v", "errors")
+	tg.grepStdout(`"Action":"output","Package":"errors","Output":".*\(cached\)`, "did not see no cached output")
+
 	tg.run("test", "-json", "-bench=NONE", "-short", "-v", "errors")
 	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
 	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
 
-	tg.run("test", "-o", filepath.Join(tg.tempdir, "errors.test.exe"), "-c", "errors")
-	tg.run("tool", "test2json", "-p", "errors", filepath.Join(tg.tempdir, "errors.test.exe"), "-test.v", "-test.short")
+	tg.run("test", "-o", tg.path("errors.test.exe"), "-c", "errors")
+	tg.run("tool", "test2json", "-p", "errors", tg.path("errors.test.exe"), "-test.v", "-test.short")
 	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
 	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
 	tg.grepStdout(`\{"Action":"pass","Package":"errors"\}`, "did not see final pass")
 }
 
 func TestFailFast(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 
@@ -5350,4 +5662,237 @@ func TestFailFast(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Issue 22986.
+func TestImportPath(t *testing.T) {
+	tooSlow(t)
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	tg.tempFile("src/a/a.go", `
+package main
+
+import (
+	"log"
+	p "a/p-1.0"
+)
+
+func main() {
+	if !p.V {
+		log.Fatal("false")
+	}
+}`)
+
+	tg.tempFile("src/a/a_test.go", `
+package main_test
+
+import (
+	p "a/p-1.0"
+	"testing"
+)
+
+func TestV(t *testing.T) {
+	if !p.V {
+		t.Fatal("false")
+	}
+}`)
+
+	tg.tempFile("src/a/p-1.0/p.go", `
+package p
+
+var V = true
+
+func init() {}
+`)
+
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("build", "-o", tg.path("a.exe"), "a")
+	tg.run("test", "a")
+}
+
+// Issue 23150.
+func TestCpuprofileTwice(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("prof/src/x/x_test.go", `
+		package x_test
+		import (
+			"testing"
+			"time"
+		)
+		func TestSleep(t *testing.T) { time.Sleep(10 * time.Millisecond) }`)
+	tg.setenv("GOPATH", tg.path("prof"))
+	bin := tg.path("x.test")
+	out := tg.path("cpu.out")
+	tg.run("test", "-o="+bin, "-cpuprofile="+out, "x")
+	tg.must(os.Remove(out))
+	tg.run("test", "-o="+bin, "-cpuprofile="+out, "x")
+	tg.mustExist(out)
+}
+
+// Issue 23694.
+func TestAtomicCoverpkgAll(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	tg.tempFile("src/x/x.go", `package x; import _ "sync/atomic"; func F() {}`)
+	tg.tempFile("src/x/x_test.go", `package x; import "testing"; func TestF(t *testing.T) { F() }`)
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("test", "-coverpkg=all", "-covermode=atomic", "x")
+	if canRace {
+		tg.run("test", "-coverpkg=all", "-race", "x")
+	}
+}
+
+func TestBadCommandLines(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.tempFile("src/x/x.go", "package x\n")
+	tg.setenv("GOPATH", tg.path("."))
+
+	tg.run("build", "x")
+
+	tg.tempFile("src/x/@y.go", "package x\n")
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid input file name \"@y.go\"", "did not reject @y.go")
+	tg.must(os.Remove(tg.path("src/x/@y.go")))
+
+	tg.tempFile("src/x/-y.go", "package x\n")
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid input file name \"-y.go\"", "did not reject -y.go")
+	tg.must(os.Remove(tg.path("src/x/-y.go")))
+
+	tg.runFail("build", "-gcflags=all=@x", "x")
+	tg.grepStderr("invalid command-line argument @x in command", "did not reject @x during exec")
+
+	tg.tempFile("src/@x/x.go", "package x\n")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.runFail("build", "@x")
+	tg.grepStderr("invalid input directory name \"@x\"", "did not reject @x directory")
+
+	tg.tempFile("src/@x/y/y.go", "package y\n")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.runFail("build", "@x/y")
+	tg.grepStderr("invalid import path \"@x/y\"", "did not reject @x/y import path")
+
+	tg.tempFile("src/-x/x.go", "package x\n")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.runFail("build", "--", "-x")
+	tg.grepStderr("invalid input directory name \"-x\"", "did not reject -x directory")
+
+	tg.tempFile("src/-x/y/y.go", "package y\n")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.runFail("build", "--", "-x/y")
+	tg.grepStderr("invalid import path \"-x/y\"", "did not reject -x/y import path")
+}
+
+func TestBadCgoDirectives(t *testing.T) {
+	if !canCgo {
+		t.Skip("no cgo")
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.tempFile("src/x/x.go", "package x\n")
+	tg.setenv("GOPATH", tg.path("."))
+
+	tg.tempFile("src/x/x.go", `package x
+
+		//go:cgo_ldflag "-fplugin=foo.so"
+
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("//go:cgo_ldflag .* only allowed in cgo-generated code", "did not reject //go:cgo_ldflag directive")
+
+	tg.must(os.Remove(tg.path("src/x/x.go")))
+	tg.runFail("build", "x")
+	tg.grepStderr("no Go files", "did not report missing source code")
+	tg.tempFile("src/x/_cgo_yy.go", `package x
+
+		//go:cgo_ldflag "-fplugin=foo.so"
+
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("no Go files", "did not report missing source code") // _* files are ignored...
+
+	tg.runFail("build", tg.path("src/x/_cgo_yy.go")) // ... but if forced, the comment is rejected
+	// Actually, today there is a separate issue that _ files named
+	// on the command-line are ignored. Once that is fixed,
+	// we want to see the cgo_ldflag error.
+	tg.grepStderr("//go:cgo_ldflag only allowed in cgo-generated code|no Go files", "did not reject //go:cgo_ldflag directive")
+	tg.must(os.Remove(tg.path("src/x/_cgo_yy.go")))
+
+	tg.tempFile("src/x/x.go", "package x\n")
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo CFLAGS: -fplugin=foo.so
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid flag in #cgo CFLAGS: -fplugin=foo.so", "did not reject -fplugin")
+
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo CFLAGS: -Ibar -fplugin=foo.so
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid flag in #cgo CFLAGS: -fplugin=foo.so", "did not reject -fplugin")
+
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo pkg-config: -foo
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid pkg-config package name: -foo", "did not reject pkg-config: -foo")
+
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo pkg-config: @foo
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid pkg-config package name: @foo", "did not reject pkg-config: -foo")
+
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo CFLAGS: @foo
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid flag in #cgo CFLAGS: @foo", "did not reject @foo flag")
+
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo CFLAGS: -D
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid flag in #cgo CFLAGS: -D without argument", "did not reject trailing -I flag")
+
+	// Note that -I @foo is allowed because we rewrite it into -I /path/to/src/@foo
+	// before the check is applied. There's no such rewrite for -D.
+
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo CFLAGS: -D @foo
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid flag in #cgo CFLAGS: -D @foo", "did not reject -D @foo flag")
+
+	tg.tempFile("src/x/y.go", `package x
+		// #cgo CFLAGS: -D@foo
+		import "C"
+	`)
+	tg.runFail("build", "x")
+	tg.grepStderr("invalid flag in #cgo CFLAGS: -D@foo", "did not reject -D@foo flag")
+
+	tg.setenv("CGO_CFLAGS", "-D@foo")
+	tg.tempFile("src/x/y.go", `package x
+		import "C"
+	`)
+	tg.run("build", "-n", "x")
+	tg.grepStderr("-D@foo", "did not find -D@foo in commands")
 }

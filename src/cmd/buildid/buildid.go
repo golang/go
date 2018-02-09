@@ -22,6 +22,21 @@ func usage() {
 
 var wflag = flag.Bool("w", false, "write build ID")
 
+// taken from cmd/go/internal/work/buildid.go
+func hashToString(h [32]byte) string {
+	const b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+	const chunks = 5
+	var dst [chunks * 4]byte
+	for i := 0; i < chunks; i++ {
+		v := uint32(h[3*i])<<16 | uint32(h[3*i+1])<<8 | uint32(h[3*i+2])
+		dst[4*i+0] = b64[(v>>18)&0x3F]
+		dst[4*i+1] = b64[(v>>12)&0x3F]
+		dst[4*i+2] = b64[(v>>6)&0x3F]
+		dst[4*i+3] = b64[v&0x3F]
+	}
+	return string(dst[:])
+}
+
 func main() {
 	log.SetPrefix("buildid: ")
 	log.SetFlags(0)
@@ -41,6 +56,8 @@ func main() {
 		return
 	}
 
+	// Keep in sync with src/cmd/go/internal/work/buildid.go:updateBuildID
+
 	f, err := os.Open(file)
 	if err != nil {
 		log.Fatal(err)
@@ -51,14 +68,14 @@ func main() {
 	}
 	f.Close()
 
-	tail := id
-	if i := strings.LastIndex(id, "."); i >= 0 {
-		tail = tail[i+1:]
+	newID := id[:strings.LastIndex(id, "/")] + "/" + hashToString(hash)
+	if len(newID) != len(id) {
+		log.Fatalf("%s: build ID length mismatch %q vs %q", file, id, newID)
 	}
-	if len(tail) != len(hash)*2 {
-		log.Fatalf("%s: cannot find %d-byte hash in id %s", file, len(hash), id)
+
+	if len(matches) == 0 {
+		return
 	}
-	newID := id[:len(id)-len(tail)] + fmt.Sprintf("%x", hash)
 
 	f, err = os.OpenFile(file, os.O_WRONLY, 0)
 	if err != nil {

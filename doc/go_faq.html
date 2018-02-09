@@ -479,6 +479,15 @@ as when hosting an untrusted program, the implementation could interlock
 map access.
 </p>
 
+<p>
+Map access is unsafe only when updates are occurring.
+As long as all goroutines are only reading—looking up elements in the map,
+including iterating through it using a
+<code>for</code> <code>range</code> loop—and not changing the map
+by assigning to elements or doing deletions,
+it is safe for them to access the map concurrently without synchronization.
+</p>
+
 <h3 id="language_changes">
 Will you accept my language change?</h3>
 
@@ -1842,7 +1851,7 @@ supported by recent modifications to the gold linker.
 Why is my trivial program such a large binary?</h3>
 
 <p>
-The linker in the <code>gc</code> tool chain
+The linker in the <code>gc</code> toolchain
 creates statically-linked binaries by default.  All Go binaries therefore include the Go
 run-time, along with the run-time type information necessary to support dynamic
 type checks, reflection, and even panic-time stack traces.

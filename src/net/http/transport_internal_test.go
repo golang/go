@@ -96,6 +96,12 @@ func dummyRequestWithBodyNoGetBody(method string) *Request {
 	return req
 }
 
+// issue22091Error acts like a golang.org/x/net/http2.ErrNoCachedConn.
+type issue22091Error struct{}
+
+func (issue22091Error) IsHTTP2NoCachedConnError() {}
+func (issue22091Error) Error() string             { return "issue22091Error" }
+
 func TestTransportShouldRetryRequest(t *testing.T) {
 	tests := []struct {
 		pc  *persistConn
@@ -123,36 +129,42 @@ func TestTransportShouldRetryRequest(t *testing.T) {
 			want: true,
 		},
 		3: {
+			pc:   nil,
+			req:  nil,
+			err:  issue22091Error{}, // like an external http2ErrNoCachedConn
+			want: true,
+		},
+		4: {
 			pc:   &persistConn{reused: true},
 			req:  dummyRequest("POST"),
 			err:  errMissingHost,
 			want: false,
 		},
-		4: {
+		5: {
 			pc:   &persistConn{reused: true},
 			req:  dummyRequest("POST"),
 			err:  transportReadFromServerError{},
 			want: false,
 		},
-		5: {
+		6: {
 			pc:   &persistConn{reused: true},
 			req:  dummyRequest("GET"),
 			err:  transportReadFromServerError{},
 			want: true,
 		},
-		6: {
+		7: {
 			pc:   &persistConn{reused: true},
 			req:  dummyRequest("GET"),
 			err:  errServerClosedIdle,
 			want: true,
 		},
-		7: {
+		8: {
 			pc:   &persistConn{reused: true},
 			req:  dummyRequestWithBody("POST"),
 			err:  nothingWrittenError{},
 			want: true,
 		},
-		8: {
+		9: {
 			pc:   &persistConn{reused: true},
 			req:  dummyRequestWithBodyNoGetBody("POST"),
 			err:  nothingWrittenError{},

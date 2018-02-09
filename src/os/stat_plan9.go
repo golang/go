@@ -86,9 +86,8 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 	return nil, &PathError{"stat", name, err}
 }
 
-// Stat returns a FileInfo describing the named file.
-// If there is an error, it will be of type *PathError.
-func Stat(name string) (FileInfo, error) {
+// statNolog implements Stat for Plan 9.
+func statNolog(name string) (FileInfo, error) {
 	d, err := dirstat(name)
 	if err != nil {
 		return nil, err
@@ -96,12 +95,9 @@ func Stat(name string) (FileInfo, error) {
 	return fileInfoFromStat(d), nil
 }
 
-// Lstat returns a FileInfo describing the named file.
-// If the file is a symbolic link, the returned FileInfo
-// describes the symbolic link. Lstat makes no attempt to follow the link.
-// If there is an error, it will be of type *PathError.
-func Lstat(name string) (FileInfo, error) {
-	return Stat(name)
+// lstatNolog implements Lstat for Plan 9.
+func lstatNolog(name string) (FileInfo, error) {
+	return statNolog(name)
 }
 
 // For testing.

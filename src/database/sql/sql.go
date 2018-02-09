@@ -2055,14 +2055,14 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 		stmt.mu.Unlock()
 
 		if si == nil {
+			var ds *driverStmt
 			withLock(dc, func() {
-				var ds *driverStmt
 				ds, err = stmt.prepareOnConnLocked(ctx, dc)
-				si = ds.si
 			})
 			if err != nil {
 				return &Stmt{stickyErr: err}
 			}
+			si = ds.si
 		}
 		parentStmt = stmt
 	}

@@ -663,43 +663,6 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 	}
 }
 
-func TestByteOwnership(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-	rows, err := db.Query("SELECT|people|name,photo|")
-	if err != nil {
-		t.Fatalf("Query: %v", err)
-	}
-	type row struct {
-		name  []byte
-		photo RawBytes
-	}
-	got := []row{}
-	for rows.Next() {
-		var r row
-		err = rows.Scan(&r.name, &r.photo)
-		if err != nil {
-			t.Fatalf("Scan: %v", err)
-		}
-		got = append(got, r)
-	}
-	corruptMemory := []byte("\xffPHOTO")
-	want := []row{
-		{name: []byte("Alice"), photo: corruptMemory},
-		{name: []byte("Bob"), photo: corruptMemory},
-		{name: []byte("Chris"), photo: corruptMemory},
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("mismatch.\n got: %#v\nwant: %#v", got, want)
-	}
-
-	var photo RawBytes
-	err = db.QueryRow("SELECT|people|photo|name=?", "Alice").Scan(&photo)
-	if err == nil {
-		t.Error("want error scanning into RawBytes from QueryRow")
-	}
-}
-
 func TestRowsColumns(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
@@ -3192,8 +3155,11 @@ func TestIssue18429(t *testing.T) {
 			// reported.
 			rows, _ := tx.QueryContext(ctx, "WAIT|"+qwait+"|SELECT|people|name|")
 			if rows != nil {
+				var name string
 				// Call Next to test Issue 21117 and check for races.
 				for rows.Next() {
+					// Scan the buffer so it is read and checked for races.
+					rows.Scan(&name)
 				}
 				rows.Close()
 			}

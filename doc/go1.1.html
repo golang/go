@@ -166,7 +166,7 @@ providing a complete Go 1.1 implementation.
 <h3 id="gc_flag">Command-line flag parsing</h3>
 
 <p>
-In the gc tool chain, the compilers and linkers now use the
+In the gc toolchain, the compilers and linkers now use the
 same command-line flag parsing rules as the Go flag package, a departure
 from the traditional Unix flag parsing. This may affect scripts that invoke
 the tool directly.
@@ -305,7 +305,7 @@ The race detector is documented in <a href="/doc/articles/race_detector.html">a 
 <p>
 Due to the change of the <a href="#int"><code>int</code></a> to 64 bits and
 a new internal <a href="//golang.org/s/go11func">representation of functions</a>,
-the arrangement of function arguments on the stack has changed in the gc tool chain.
+the arrangement of function arguments on the stack has changed in the gc toolchain.
 Functions written in assembly will need to be revised at least
 to adjust frame pointer offsets.
 </p>
@@ -395,7 +395,7 @@ Run <code>go help test</code> for more information.
 The <a href="/cmd/fix/"><code>fix</code></a> command, usually run as
 <code>go fix</code>, no longer applies fixes to update code from
 before Go 1 to use Go 1 APIs.
-To update pre-Go 1 code to Go 1.1, use a Go 1.0 tool chain
+To update pre-Go 1 code to Go 1.1, use a Go 1.0 toolchain
 to convert the code to Go 1.0 first.
 </p>
 
@@ -427,7 +427,7 @@ To build a file only with Go 1.0.x, use the converse constraint:
 <h3 id="platforms">Additional platforms</h3>
 
 <p>
-The Go 1.1 tool chain adds experimental support for <code>freebsd/arm</code>,
+The Go 1.1 toolchain adds experimental support for <code>freebsd/arm</code>,
 <code>netbsd/386</code>, <code>netbsd/amd64</code>, <code>netbsd/arm</code>,
 <code>openbsd/386</code> and <code>openbsd/amd64</code> platforms.
 </p>

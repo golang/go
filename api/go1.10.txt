@@ -573,6 +573,7 @@ pkg encoding/xml, type TokenReader interface, Token() (Token, error)
 pkg flag, method (*FlagSet) ErrorHandling() ErrorHandling
 pkg flag, method (*FlagSet) Name() string
 pkg flag, method (*FlagSet) Output() io.Writer
+pkg html/template, type Srcset string
 pkg math, func Erfcinv(float64) float64
 pkg math, func Erfinv(float64) float64
 pkg math, func Round(float64) float64
@@ -594,7 +595,6 @@ pkg os, method (*SyscallError) Timeout() bool
 pkg os, var ErrNoDeadline error
 pkg strings, method (*Builder) Grow(int)
 pkg strings, method (*Builder) Len() int
-pkg strings, method (*Builder) ReadFrom(io.Reader) (int64, error)
 pkg strings, method (*Builder) Reset()
 pkg strings, method (*Builder) String() string
 pkg strings, method (*Builder) Write([]uint8) (int, error)
@@ -618,24 +618,6 @@ pkg syscall (windows-386), func CreateProcessAsUser(Token, *uint16, *uint16, *Se
 pkg syscall (windows-386), type SysProcAttr struct, Token Token
 pkg syscall (windows-amd64), func CreateProcessAsUser(Token, *uint16, *uint16, *SecurityAttributes, *SecurityAttributes, bool, uint32, *uint16, *uint16, *StartupInfo, *ProcessInformation) error
 pkg syscall (windows-amd64), type SysProcAttr struct, Token Token
-pkg text/template/parse, const NodeBreak = 20
-pkg text/template/parse, const NodeBreak NodeType
-pkg text/template/parse, const NodeContinue = 21
-pkg text/template/parse, const NodeContinue NodeType
-pkg text/template/parse, method (*BreakNode) Copy() Node
-pkg text/template/parse, method (*BreakNode) Position() Pos
-pkg text/template/parse, method (*BreakNode) String() string
-pkg text/template/parse, method (*BreakNode) Type() NodeType
-pkg text/template/parse, method (*ContinueNode) Copy() Node
-pkg text/template/parse, method (*ContinueNode) Position() Pos
-pkg text/template/parse, method (*ContinueNode) String() string
-pkg text/template/parse, method (*ContinueNode) Type() NodeType
-pkg text/template/parse, type BreakNode struct
-pkg text/template/parse, type BreakNode struct, embedded NodeType
-pkg text/template/parse, type BreakNode struct, embedded Pos
-pkg text/template/parse, type ContinueNode struct
-pkg text/template/parse, type ContinueNode struct, embedded NodeType
-pkg text/template/parse, type ContinueNode struct, embedded Pos
 pkg time, func LoadLocationFromTZData(string, []uint8) (*Location, error)
 pkg unicode, const Version = "10.0.0"
 pkg unicode, var Masaram_Gondi *RangeTable

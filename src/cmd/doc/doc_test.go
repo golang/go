@@ -292,6 +292,7 @@ var tests = []test{
 			`unexportedField.*int.*Comment on line with unexported field.`,
 			`ExportedEmbeddedType.*Comment on line with exported embedded field.`,
 			`\*ExportedEmbeddedType.*Comment on line with exported embedded \*field.`,
+			`\*qualified.ExportedEmbeddedType.*Comment on line with exported embedded \*selector.field.`,
 			`unexportedType.*Comment on line with unexported embedded field.`,
 			`\*unexportedType.*Comment on line with unexported embedded \*field.`,
 			`io.Reader.*Comment on line with embedded Reader.`,

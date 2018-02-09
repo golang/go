@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 25, 2017",
+	"Subtitle": "Version of February 1, 2018",
 	"Path": "/ref/spec"
 }-->
 
@@ -694,9 +694,8 @@ TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType 
 </pre>
 
 <p>
-Named instances of the boolean, numeric, and string types are
-<a href="#Predeclared_identifiers">predeclared</a>.
-Other named types are introduced with <a href="#Type_declarations">type declarations</a>.
+The language <a href="#Predeclared_identifiers">predeclares</a> certain type names.
+Others are introduced with <a href="#Type_declarations">type declarations</a>.
 <i>Composite types</i>&mdash;array, struct, pointer, function,
 interface, slice, map, and channel types&mdash;may be constructed using
 type literals.
@@ -1025,8 +1024,8 @@ of a struct except that they cannot be used as field names in
 </p>
 
 <p>
-Given a struct type <code>S</code> and a type named <code>T</code>,
-promoted methods are included in the method set of the struct as follows:
+Given a struct type <code>S</code> and a <a href="#Type_definitions">defined type</a>
+<code>T</code>, promoted methods are included in the method set of the struct as follows:
 </p>
 <ul>
 	<li>
@@ -1453,9 +1452,9 @@ components have identical types. In detail:
 	    <a href="#Exported_identifiers">Non-exported</a> method names from different
 	    packages are always different. The order of the methods is irrelevant.</li>
 
-	<li>Two map types are identical if they have identical key and value types.</li>
+	<li>Two map types are identical if they have identical key and element types.</li>
 
-	<li>Two channel types are identical if they have identical value types and
+	<li>Two channel types are identical if they have identical element types and
 	    the same direction.</li>
 </ul>
 
@@ -1495,7 +1494,7 @@ A2 and struct{ a, b int }
 A3 and int
 A4, func(int, float64) *[]string, and A5
 
-B0, B0, and C0
+B0 and C0
 []int and []int
 struct{ a, b *T5 } and struct{ a, b *T5 }
 func(x int, y float64) *[]string, func(int, float64) (result *[]string), and A5
@@ -2149,9 +2148,8 @@ to a function.
 </p>
 
 <pre class="ebnf">
-FunctionDecl = "func" FunctionName ( Function | Signature ) .
+FunctionDecl = "func" FunctionName Signature [ FunctionBody ] .
 FunctionName = identifier .
-Function     = Signature FunctionBody .
 FunctionBody = Block .
 </pre>
 
@@ -2197,7 +2195,7 @@ and associates the method with the receiver's <i>base type</i>.
 </p>
 
 <pre class="ebnf">
-MethodDecl = "func" Receiver MethodName ( Function | Signature ) .
+MethodDecl = "func" Receiver MethodName Signature [ FunctionBody ] .
 Receiver   = Parameters .
 </pre>
 
@@ -2519,7 +2517,7 @@ A function literal represents an anonymous <a href="#Function_declarations">func
 </p>
 
 <pre class="ebnf">
-FunctionLit = "func" Function .
+FunctionLit = "func" Signature FunctionBody .
 </pre>
 
 <pre>
@@ -2643,8 +2641,8 @@ expression is illegal.
 </li>
 
 <li>
-As an exception, if the type of <code>x</code> is a named pointer type
-and <code>(*x).f</code> is a valid selector expression denoting a field
+As an exception, if the type of <code>x</code> is a <a href="#Type_definitions">defined</a>
+pointer type and <code>(*x).f</code> is a valid selector expression denoting a field
 (but not a method), <code>x.f</code> is shorthand for <code>(*x).f</code>.
 </li>
 
@@ -3033,11 +3031,11 @@ For <code>a</code> of <a href="#Map_types">map type</a> <code>M</code>:
 	    <a href="#Assignability">assignable</a>
 	    to the key type of <code>M</code></li>
 	<li>if the map contains an entry with key <code>x</code>,
-	    <code>a[x]</code> is the map value with key <code>x</code>
-	    and the type of <code>a[x]</code> is the value type of <code>M</code></li>
+	    <code>a[x]</code> is the map element with key <code>x</code>
+	    and the type of <code>a[x]</code> is the element type of <code>M</code></li>
 	<li>if the map is <code>nil</code> or does not contain such an entry,
 	    <code>a[x]</code> is the <a href="#The_zero_value">zero value</a>
-	    for the value type of <code>M</code></li>
+	    for the element type of <code>M</code></li>
 </ul>
 
 <p>
@@ -3558,9 +3556,10 @@ with <code>x / y</code> truncated towards zero
 </pre>
 
 <p>
-As an exception to this rule, if the dividend <code>x</code> is the most
-negative value for the int type of <code>x</code>, the quotient
-<code>q = x / -1</code> is equal to <code>x</code> (and <code>r = 0</code>).
+The one exception to this rule is that if the dividend <code>x</code> is
+the most negative value for the int type of <code>x</code>, the quotient
+<code>q = x / -1</code> is equal to <code>x</code> (and <code>r = 0</code>)
+due to two's-complement <a href="#Integer_overflow">integer overflow</a>:
 </p>
 
 <pre>
@@ -3619,15 +3618,15 @@ For unsigned integer values, the operations <code>+</code>,
 computed modulo 2<sup><i>n</i></sup>, where <i>n</i> is the bit width of
 the <a href="#Numeric_types">unsigned integer</a>'s type.
 Loosely speaking, these unsigned integer operations
-discard high bits upon overflow, and programs may rely on ``wrap around''.
+discard high bits upon overflow, and programs may rely on "wrap around".
 </p>
 <p>
 For signed integers, the operations <code>+</code>,
-<code>-</code>, <code>*</code>, and <code>&lt;&lt;</code> may legally
+<code>-</code>, <code>*</code>, <code>/</code>, and <code>&lt;&lt;</code> may legally
 overflow and the resulting value exists and is deterministically defined
 by the signed integer representation, the operation, and its operands.
-No exception is raised as a result of overflow. A
-compiler may not optimize code under the assumption that overflow does
+No exception is raised as a result of overflow.
+A compiler may not optimize code under the assumption that overflow does
 not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is always true.
 </p>
 
@@ -4356,7 +4355,9 @@ SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | S
 <h3 id="Terminating_statements">Terminating statements</h3>
 
 <p>
-A terminating statement is one of the following:
+A <i>terminating statement</i> prevents execution of all statements that lexically
+appear after it in the same <a href="#Blocks">block</a>. The following statements
+are terminating:
 </p>
 
 <ol>
@@ -5120,7 +5121,7 @@ for i, s := range a {
 }
 
 var key string
-var val interface {}  // value type of m is assignable to val
+var val interface {}  // element type of m is assignable to val
 m := map[string]int{"mon":0, "tue":1, "wed":2, "thu":3, "fri":4, "sat":5, "sun":6}
 for key, val = range m {
 	h(key, val)

@@ -76,11 +76,12 @@ func init() {
 }
 
 var (
-	GOROOT    = findGOROOT()
-	GOBIN     = os.Getenv("GOBIN")
-	GOROOTbin = filepath.Join(GOROOT, "bin")
-	GOROOTpkg = filepath.Join(GOROOT, "pkg")
-	GOROOTsrc = filepath.Join(GOROOT, "src")
+	GOROOT       = findGOROOT()
+	GOBIN        = os.Getenv("GOBIN")
+	GOROOTbin    = filepath.Join(GOROOT, "bin")
+	GOROOTpkg    = filepath.Join(GOROOT, "pkg")
+	GOROOTsrc    = filepath.Join(GOROOT, "src")
+	GOROOT_FINAL = findGOROOT_FINAL()
 
 	// Used in envcmd.MkEnv and build ID computations.
 	GOARM  = fmt.Sprint(objabi.GOARM)
@@ -125,6 +126,14 @@ func findGOROOT() string {
 				}
 			}
 		}
+	}
+	return def
+}
+
+func findGOROOT_FINAL() string {
+	def := GOROOT
+	if env := os.Getenv("GOROOT_FINAL"); env != "" {
+		def = filepath.Clean(env)
 	}
 	return def
 }

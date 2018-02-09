@@ -191,11 +191,10 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	res, err := transport.RoundTrip(outreq)
-	if res == nil {
-		res = &http.Response{
-			StatusCode: http.StatusBadGateway,
-			Body:       http.NoBody,
-		}
+	if err != nil {
+		p.logf("http: proxy error: %v", err)
+		rw.WriteHeader(http.StatusBadGateway)
+		return
 	}
 
 	removeConnectionHeaders(res.Header)
@@ -205,16 +204,12 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if p.ModifyResponse != nil {
-		if err != nil {
+		if err := p.ModifyResponse(res); err != nil {
 			p.logf("http: proxy error: %v", err)
+			rw.WriteHeader(http.StatusBadGateway)
+			res.Body.Close()
+			return
 		}
-		err = p.ModifyResponse(res)
-	}
-	if err != nil {
-		p.logf("http: proxy error: %v", err)
-		rw.WriteHeader(http.StatusBadGateway)
-		res.Body.Close()
-		return
 	}
 
 	copyHeader(rw.Header(), res.Header)

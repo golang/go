@@ -11,9 +11,13 @@
 package testdeps
 
 import (
+	"bufio"
+	"internal/testlog"
 	"io"
 	"regexp"
 	"runtime/pprof"
+	"strings"
+	"sync"
 )
 
 // TestDeps is an implementation of the testing.testDeps interface,
@@ -55,4 +59,70 @@ var ImportPath string
 
 func (TestDeps) ImportPath() string {
 	return ImportPath
+}
+
+// testLog implements testlog.Interface, logging actions by package os.
+type testLog struct {
+	mu  sync.Mutex
+	w   *bufio.Writer
+	set bool
+}
+
+func (l *testLog) Getenv(key string) {
+	l.add("getenv", key)
+}
+
+func (l *testLog) Open(name string) {
+	l.add("open", name)
+}
+
+func (l *testLog) Stat(name string) {
+	l.add("stat", name)
+}
+
+func (l *testLog) Chdir(name string) {
+	l.add("chdir", name)
+}
+
+// add adds the (op, name) pair to the test log.
+func (l *testLog) add(op, name string) {
+	if strings.Contains(name, "\n") || name == "" {
+		return
+	}
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.w == nil {
+		return
+	}
+	l.w.WriteString(op)
+	l.w.WriteByte(' ')
+	l.w.WriteString(name)
+	l.w.WriteByte('\n')
+}
+
+var log testLog
+var didSetLogger bool
+
+func (TestDeps) StartTestLog(w io.Writer) {
+	log.mu.Lock()
+	log.w = bufio.NewWriter(w)
+	if !log.set {
+		// Tests that define TestMain and then run m.Run multiple times
+		// will call StartTestLog/StopTestLog multiple times.
+		// Checking log.set avoids calling testlog.SetLogger multiple times
+		// (which will panic) and also avoids writing the header multiple times.
+		log.set = true
+		testlog.SetLogger(&log)
+		log.w.WriteString("# test log\n") // known to cmd/go/internal/test/test.go
+	}
+	log.mu.Unlock()
+}
+
+func (TestDeps) StopTestLog() error {
+	log.mu.Lock()
+	defer log.mu.Unlock()
+	err := log.w.Flush()
+	log.w = nil
+	return err
 }

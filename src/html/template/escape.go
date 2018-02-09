@@ -71,6 +71,7 @@ var funcMap = template.FuncMap{
 	"_html_template_jsvalescaper":    jsValEscaper,
 	"_html_template_nospaceescaper":  htmlNospaceEscaper,
 	"_html_template_rcdataescaper":   rcdataEscaper,
+	"_html_template_srcsetescaper":   srcsetFilterAndEscaper,
 	"_html_template_urlescaper":      urlEscaper,
 	"_html_template_urlfilter":       urlFilter,
 	"_html_template_urlnormalizer":   urlNormalizer,
@@ -215,6 +216,8 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	case stateAttrName, stateTag:
 		c.state = stateAttrName
 		s = append(s, "_html_template_htmlnamefilter")
+	case stateSrcset:
+		s = append(s, "_html_template_srcsetescaper")
 	default:
 		if isComment(c.state) {
 			s = append(s, "_html_template_commentescaper")
@@ -280,9 +283,22 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 	}
 	// Rewrite the pipeline, creating the escapers in s at the end of the pipeline.
 	newCmds := make([]*parse.CommandNode, pipelineLen, pipelineLen+len(s))
-	copy(newCmds, p.Cmds)
+	insertedIdents := make(map[string]bool)
+	for i := 0; i < pipelineLen; i++ {
+		cmd := p.Cmds[i]
+		newCmds[i] = cmd
+		if idNode, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
+			insertedIdents[normalizeEscFn(idNode.Ident)] = true
+		}
+	}
 	for _, name := range s {
-		newCmds = appendCmd(newCmds, newIdentCmd(name, p.Position()))
+		if !insertedIdents[normalizeEscFn(name)] {
+			// When two templates share an underlying parse tree via the use of
+			// AddParseTree and one template is executed after the other, this check
+			// ensures that escapers that were already inserted into the pipeline on
+			// the first escaping pass do not get inserted again.
+			newCmds = appendCmd(newCmds, newIdentCmd(name, p.Position()))
+		}
 	}
 	p.Cmds = newCmds
 }
@@ -317,13 +333,16 @@ var equivEscapers = map[string]string{
 
 // escFnsEq reports whether the two escaping functions are equivalent.
 func escFnsEq(a, b string) bool {
-	if e := equivEscapers[a]; e != "" {
-		a = e
+	return normalizeEscFn(a) == normalizeEscFn(b)
+}
+
+// normalizeEscFn(a) is equal to normalizeEscFn(b) for any pair of names of
+// escaper functions a and b that are equivalent.
+func normalizeEscFn(e string) string {
+	if norm := equivEscapers[e]; norm != "" {
+		return norm
 	}
-	if e := equivEscapers[b]; e != "" {
-		b = e
-	}
-	return a == b
+	return e
 }
 
 // redundantFuncs[a][b] implies that funcMap[b](funcMap[a](x)) == funcMap[a](x)
