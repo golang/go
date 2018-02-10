@@ -154,19 +154,32 @@ func waitForServerReady(t *testing.T, addr string) {
 	waitForServer(t,
 		fmt.Sprintf("http://%v/", addr),
 		"The Go Programming Language",
-		15*time.Second)
+		15*time.Second,
+		false)
 }
 
 func waitForSearchReady(t *testing.T, addr string) {
 	waitForServer(t,
 		fmt.Sprintf("http://%v/search?q=FALLTHROUGH", addr),
 		"The list of tokens.",
-		2*time.Minute)
+		2*time.Minute,
+		false)
+}
+
+func waitUntilScanComplete(t *testing.T, addr string) {
+	waitForServer(t,
+		fmt.Sprintf("http://%v/pkg", addr),
+		"Scan is not yet complete",
+		2*time.Minute,
+		true,
+	)
+	// setting reverse as true, which means this waits
+	// until the string is not returned in the response anymore
 }
 
 const pollInterval = 200 * time.Millisecond
 
-func waitForServer(t *testing.T, url, match string, timeout time.Duration) {
+func waitForServer(t *testing.T, url, match string, timeout time.Duration, reverse bool) {
 	// "health check" duplicated from x/tools/cmd/tipgodoc/tip.go
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -177,9 +190,13 @@ func waitForServer(t *testing.T, url, match string, timeout time.Duration) {
 		}
 		rbody, err := ioutil.ReadAll(res.Body)
 		res.Body.Close()
-		if err == nil && res.StatusCode == http.StatusOK &&
-			bytes.Contains(rbody, []byte(match)) {
-			return
+		if err == nil && res.StatusCode == http.StatusOK {
+			if bytes.Contains(rbody, []byte(match)) && !reverse {
+				return
+			}
+			if !bytes.Contains(rbody, []byte(match)) && reverse {
+				return
+			}
 		}
 	}
 	t.Fatalf("Server failed to respond in %v", timeout)
@@ -229,6 +246,7 @@ func testWeb(t *testing.T, withIndex bool) {
 		waitForSearchReady(t, addr)
 	} else {
 		waitForServerReady(t, addr)
+		waitUntilScanComplete(t, addr)
 	}
 
 	tests := []struct {
