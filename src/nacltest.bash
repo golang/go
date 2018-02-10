@@ -13,7 +13,7 @@
 set -e
 ulimit -c 0
 
-. ./naclmake.bash
+. ./naclmake.bash "$@"
 
 # Check GOARCH.
 case "$naclGOARCH" in

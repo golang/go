@@ -45,4 +45,4 @@ gobin=$GOROOT_BOOTSTRAP/bin
 GOROOT=$GOROOT_BOOTSTRAP $gobin/go run ../misc/nacl/mkzip.go -p syscall -r .. ../misc/nacl/testzip.proto syscall/fstest_nacl.go
 
 # Run standard build and tests.
-GOOS=nacl GOARCH=$naclGOARCH ./make.bash
+GOOS=nacl GOARCH=$naclGOARCH ./make.bash "$@"
