@@ -866,6 +866,29 @@ func main() {
 }
 `,
 	},
+
+	{
+		name: "issue #12097",
+		in: `// a
+// b
+// c
+
+func main() {
+    _ = fmt.Println
+}`,
+		out: `package main
+
+import "fmt"
+
+// a
+// b
+// c
+
+func main() {
+	_ = fmt.Println
+}
+`,
+	},
 }
 
 func TestFixImports(t *testing.T) {
