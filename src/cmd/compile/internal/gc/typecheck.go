@@ -3030,7 +3030,7 @@ func typecheckcomplit(n *Node) *Node {
 				ls[i] = n1
 				if i >= t.NumFields() {
 					if !errored {
-						yyerror("too many values in struct initializer")
+						yyerror("too many values in %v", n)
 						errored = true
 					}
 					continue
@@ -3048,7 +3048,7 @@ func typecheckcomplit(n *Node) *Node {
 				ls[i] = n1
 			}
 			if len(ls) < t.NumFields() {
-				yyerror("too few values in struct initializer")
+				yyerror("too few values in %v", n)
 			}
 		} else {
 			hash := make(map[string]bool)
