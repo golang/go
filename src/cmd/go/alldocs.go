@@ -13,8 +13,8 @@
 //
 // The commands are:
 //
-// 	build       compile packages and dependencies
 // 	bug         start a bug report
+// 	build       compile packages and dependencies
 // 	clean       remove object files and cached files
 // 	doc         show documentation for package or symbol
 // 	env         print Go environment information
@@ -46,6 +46,16 @@
 // 	testfunc    testing functions
 //
 // Use "go help [topic]" for more information about that topic.
+//
+//
+// Start a bug report
+//
+// Usage:
+//
+// 	go bug
+//
+// Bug opens the default browser and starts a new bug report.
+// The report includes useful system information.
 //
 //
 // Compile packages and dependencies
@@ -169,16 +179,6 @@
 // some of the overheads and design decisions of the build tool.
 //
 // See also: go install, go get, go clean.
-//
-//
-// Start a bug report
-//
-// Usage:
-//
-// 	go bug
-//
-// Bug opens the default browser and starts a new bug report.
-// The report includes useful system information.
 //
 //
 // Remove object files and cached files
