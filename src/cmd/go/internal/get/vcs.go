@@ -809,7 +809,7 @@ func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*re
 		}
 	}
 
-	if err := validateRepoRootScheme(mmi.RepoRoot); err != nil {
+	if err := validateRepoRoot(mmi.RepoRoot); err != nil {
 		return nil, fmt.Errorf("%s: invalid repo root %q: %v", urlStr, mmi.RepoRoot, err)
 	}
 	rr := &repoRoot{
@@ -824,33 +824,16 @@ func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*re
 	return rr, nil
 }
 
-// validateRepoRootScheme returns an error if repoRoot does not seem
-// to have a valid URL scheme. At this point we permit things that
-// aren't valid URLs, although later, if not using -insecure, we will
-// restrict repoRoots to be valid URLs. This is only because we've
-// historically permitted them, and people may depend on that.
-func validateRepoRootScheme(repoRoot string) error {
-	end := strings.Index(repoRoot, "://")
-	if end <= 0 {
+// validateRepoRoot returns an error if repoRoot does not seem to be
+// a valid URL with scheme.
+func validateRepoRoot(repoRoot string) error {
+	url, err := url.Parse(repoRoot)
+	if err != nil {
+		return err
+	}
+	if url.Scheme == "" {
 		return errors.New("no scheme")
 	}
-
-	// RFC 3986 section 3.1.
-	for i := 0; i < end; i++ {
-		c := repoRoot[i]
-		switch {
-		case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z':
-			// OK.
-		case '0' <= c && c <= '9' || c == '+' || c == '-' || c == '.':
-			// OK except at start.
-			if i == 0 {
-				return errors.New("invalid scheme")
-			}
-		default:
-			return errors.New("invalid scheme")
-		}
-	}
-
 	return nil
 }
 
