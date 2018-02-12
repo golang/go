@@ -1599,7 +1599,7 @@ func allocm(_p_ *p, fn func()) *m {
 // the following strategy: there is a stack of available m's
 // that can be stolen. Using compare-and-swap
 // to pop from the stack has ABA races, so we simulate
-// a lock by doing an exchange (via casp) to steal the stack
+// a lock by doing an exchange (via Casuintptr) to steal the stack
 // head and replace the top pointer with MLOCKED (1).
 // This serves as a simple spin lock that we can use even
 // without an m. The thread that locks the stack in this way
