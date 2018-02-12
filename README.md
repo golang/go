@@ -36,10 +36,9 @@ Go is the work of hundreds of contributors. We appreciate your help!
 To contribute, please read the contribution guidelines:
 	https://golang.org/doc/contribute.html
 
-Note that the Go project does not use GitHub pull requests, and that
-we use the issue tracker for bug reports and proposals only. See
-https://golang.org/wiki/Questions for a list of places to ask
-questions about the Go language.
+Note that the Go project uses the issue tracker for bug reports and
+proposals only. See https://golang.org/wiki/Questions for a list of
+places to ask questions about the Go language.
 
 [rf]: https://reneefrench.blogspot.com/
 [cc3-by]: https://creativecommons.org/licenses/by/3.0/
