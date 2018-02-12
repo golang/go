@@ -417,45 +417,46 @@ func TestMatchGoImport(t *testing.T) {
 	}
 }
 
-func TestValidateRepoRootScheme(t *testing.T) {
+func TestValidateRepoRoot(t *testing.T) {
 	tests := []struct {
 		root string
-		err  string
+		ok   bool
 	}{
 		{
 			root: "",
-			err:  "no scheme",
+			ok:   false,
 		},
 		{
 			root: "http://",
-			err:  "",
+			ok:   true,
 		},
 		{
-			root: "a://",
-			err:  "",
+			root: "git+ssh://",
+			ok:   true,
 		},
 		{
-			root: "a#://",
-			err:  "invalid scheme",
+			root: "http#://",
+			ok:   false,
+		},
+		{
+			root: "-config",
+			ok:   false,
 		},
 		{
 			root: "-config://",
-			err:  "invalid scheme",
+			ok:   false,
 		},
 	}
 
 	for _, test := range tests {
-		err := validateRepoRootScheme(test.root)
-		if err == nil {
-			if test.err != "" {
-				t.Errorf("validateRepoRootScheme(%q) = nil, want %q", test.root, test.err)
+		err := validateRepoRoot(test.root)
+		ok := err == nil
+		if ok != test.ok {
+			want := "error"
+			if test.ok {
+				want = "nil"
 			}
-		} else if test.err == "" {
-			if err != nil {
-				t.Errorf("validateRepoRootScheme(%q) = %q, want nil", test.root, test.err)
-			}
-		} else if err.Error() != test.err {
-			t.Errorf("validateRepoRootScheme(%q) = %q, want %q", test.root, err, test.err)
+			t.Errorf("validateRepoRoot(%q) = %q, want %s", test.root, err, want)
 		}
 	}
 }
