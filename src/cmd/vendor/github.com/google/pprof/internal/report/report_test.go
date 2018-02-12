@@ -68,8 +68,8 @@ func TestSource(t *testing.T) {
 			want: path + "source.dot",
 		},
 	} {
-		b := bytes.NewBuffer(nil)
-		if err := Generate(b, tc.rpt, &binutils.Binutils{}); err != nil {
+		var b bytes.Buffer
+		if err := Generate(&b, tc.rpt, &binutils.Binutils{}); err != nil {
 			t.Fatalf("%s: %v", tc.want, err)
 		}
 

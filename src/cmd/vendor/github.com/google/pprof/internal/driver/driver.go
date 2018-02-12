@@ -54,7 +54,7 @@ func PProf(eo *plugin.Options) error {
 	}
 
 	if src.HTTPHostport != "" {
-		return serveWebInterface(src.HTTPHostport, p, o)
+		return serveWebInterface(src.HTTPHostport, p, o, true)
 	}
 	return interactive(p, o)
 }

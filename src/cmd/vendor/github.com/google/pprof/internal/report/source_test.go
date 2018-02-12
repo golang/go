@@ -25,8 +25,8 @@ func TestWebList(t *testing.T) {
 		SampleValue:  func(v []int64) int64 { return v[1] },
 		SampleUnit:   cpu.SampleType[1].Unit,
 	})
-	buf := bytes.NewBuffer(nil)
-	if err := Generate(buf, rpt, &binutils.Binutils{}); err != nil {
+	var buf bytes.Buffer
+	if err := Generate(&buf, rpt, &binutils.Binutils{}); err != nil {
 		t.Fatalf("could not generate weblist: %v", err)
 	}
 	output := buf.String()

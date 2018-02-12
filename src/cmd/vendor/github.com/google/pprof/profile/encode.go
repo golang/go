@@ -214,7 +214,12 @@ var profileDecoder = []decoder{
 	// int64 keep_frames = 8
 	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Profile).keepFramesX) },
 	// int64 time_nanos = 9
-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Profile).TimeNanos) },
+	func(b *buffer, m message) error {
+		if m.(*Profile).TimeNanos != 0 {
+			return errConcatProfile
+		}
+		return decodeInt64(b, &m.(*Profile).TimeNanos)
+	},
 	// int64 duration_nanos = 10
 	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Profile).DurationNanos) },
 	// ValueType period_type = 11
@@ -480,6 +485,7 @@ func (p *Location) encode(b *buffer) {
 	for i := range p.Line {
 		encodeMessage(b, 4, &p.Line[i])
 	}
+	encodeBoolOpt(b, 5, p.IsFolded)
 }
 
 var locationDecoder = []decoder{
@@ -493,6 +499,7 @@ var locationDecoder = []decoder{
 		pp.Line = append(pp.Line, Line{})
 		return decodeMessage(b, &pp.Line[n])
 	},
+	func(b *buffer, m message) error { return decodeBool(b, &m.(*Location).IsFolded) }, // optional bool is_folded = 5;
 }
 
 func (p *Line) decoder() []decoder {

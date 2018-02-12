@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	"github.com/google/pprof/internal/graph"
+	"github.com/google/pprof/internal/measurement"
 	"github.com/google/pprof/internal/plugin"
 )
 
@@ -99,7 +100,7 @@ func printSource(w io.Writer, rpt *Report) error {
 			fmt.Fprintf(w, "ROUTINE ======================== %s in %s\n", name, filename)
 			fmt.Fprintf(w, "%10s %10s (flat, cum) %s of Total\n",
 				rpt.formatValue(flatSum), rpt.formatValue(cumSum),
-				percentage(cumSum, rpt.total))
+				measurement.Percentage(cumSum, rpt.total))
 
 			if err != nil {
 				fmt.Fprintf(w, " Error: %v\n", err)
@@ -337,13 +338,13 @@ func printHeader(w io.Writer, rpt *Report) {
 
 // printFunctionHeader prints a function header for a weblist report.
 func printFunctionHeader(w io.Writer, name, path string, flatSum, cumSum int64, rpt *Report) {
-	fmt.Fprintf(w, `<h1>%s</h1>%s
+	fmt.Fprintf(w, `<h2>%s</h2><p class="filename">%s</p>
 <pre onClick="pprof_toggle_asm(event)">
   Total:  %10s %10s (flat, cum) %s
 `,
 		template.HTMLEscapeString(name), template.HTMLEscapeString(path),
 		rpt.formatValue(flatSum), rpt.formatValue(cumSum),
-		percentage(cumSum, rpt.total))
+		measurement.Percentage(cumSum, rpt.total))
 }
 
 // printFunctionSourceLine prints a source line and the corresponding assembly.

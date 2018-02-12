@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package svg provides tools related to handling of SVG files
-package svg
+package driver
 
 import (
 	"regexp"
 	"strings"
+
+	"github.com/google/pprof/third_party/svgpan"
 )
 
 var (
@@ -26,15 +27,15 @@ var (
 	svgClose = regexp.MustCompile(`</svg>`)
 )
 
-// Massage enhances the SVG output from DOT to provide better
-// panning inside a web browser. It uses the SVGPan library, which is
-// embedded into the svgPanJS variable.
-func Massage(svg string) string {
+// massageSVG enhances the SVG output from DOT to provide better
+// panning inside a web browser. It uses the svgpan library, which is
+// embedded into the svgpan.JSSource variable.
+func massageSVG(svg string) string {
 	// Work around for dot bug which misses quoting some ampersands,
 	// resulting on unparsable SVG.
 	svg = strings.Replace(svg, "&;", "&amp;;", -1)
 
-	//Dot's SVG output is
+	// Dot's SVG output is
 	//
 	//    <svg width="___" height="___"
 	//     viewBox="___" xmlns=...>
@@ -48,7 +49,7 @@ func Massage(svg string) string {
 	//    <svg width="100%" height="100%"
 	//     xmlns=...>
 
-	//    <script type="text/ecmascript"><![CDATA[` ..$(svgPanJS)... `]]></script>`
+	//    <script type="text/ecmascript"><![CDATA[` ..$(svgpan.JSSource)... `]]></script>`
 	//    <g id="viewport" transform="translate(0,0)">
 	//    <g id="graph0" transform="...">
 	//    ...
@@ -64,7 +65,7 @@ func Massage(svg string) string {
 
 	if loc := graphID.FindStringIndex(svg); loc != nil {
 		svg = svg[:loc[0]] +
-			`<script type="text/ecmascript"><![CDATA[` + string(svgPanJS) + `]]></script>` +
+			`<script type="text/ecmascript"><![CDATA[` + string(svgpan.JSSource) + `]]></script>` +
 			`<g id="viewport" transform="scale(0.5,0.5) translate(0,0)">` +
 			svg[loc[0]:]
 	}

@@ -423,16 +423,9 @@ func TestHttpsInsecure(t *testing.T) {
 		Timeout:   10,
 		Symbolize: "remote",
 	}
-	rx := "Saved profile in"
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") ||
-		runtime.GOOS == "android" {
-		// On iOS, $HOME points to the app root directory and is not writable.
-		// On Android, $HOME points to / which is not writable.
-		rx += "|Could not use temp dir"
-	}
 	o := &plugin.Options{
 		Obj: &binutils.Binutils{},
-		UI:  &proftest.TestUI{T: t, AllowRx: rx},
+		UI:  &proftest.TestUI{T: t, AllowRx: "Saved profile in"},
 	}
 	o.Sym = &symbolizer.Symbolizer{Obj: o.Obj, UI: o.UI}
 	p, err := fetchProfiles(s, o)
