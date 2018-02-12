@@ -11,6 +11,9 @@ TEXT cas<>(SB),NOSPLIT,$0
 
 TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0
 	MOVW	ptr+0(FP), R2
+	// trigger potential paging fault here,
+	// because we don't know how to traceback through __kuser_cmpxchg
+	MOVW    (R2), R0
 	MOVW	old+4(FP), R0
 loop:
 	MOVW	new+8(FP), R1
