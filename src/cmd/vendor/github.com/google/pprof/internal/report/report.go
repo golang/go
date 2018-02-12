@@ -19,7 +19,6 @@ package report
 import (
 	"fmt"
 	"io"
-	"math"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -425,7 +424,7 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
 		}
 		fmt.Fprintf(w, "%10s %10s (flat, cum) %s of Total\n",
 			rpt.formatValue(flatSum), rpt.formatValue(cumSum),
-			percentage(cumSum, rpt.total))
+			measurement.Percentage(cumSum, rpt.total))
 
 		function, file, line := "", "", 0
 		for _, n := range ns {
@@ -704,7 +703,7 @@ func printTags(w io.Writer, rpt *Report) error {
 		for _, t := range graph.SortTags(tags, true) {
 			f, u := measurement.Scale(t.FlatValue(), o.SampleUnit, o.OutputUnit)
 			if total > 0 {
-				fmt.Fprintf(tabw, " \t%.1f%s (%s):\t %s\n", f, u, percentage(t.FlatValue(), total), t.Name)
+				fmt.Fprintf(tabw, " \t%.1f%s (%s):\t %s\n", f, u, measurement.Percentage(t.FlatValue(), total), t.Name)
 			} else {
 				fmt.Fprintf(tabw, " \t%.1f%s:\t %s\n", f, u, t.Name)
 			}
@@ -789,9 +788,9 @@ func printText(w io.Writer, rpt *Report) error {
 		}
 		flatSum += item.Flat
 		fmt.Fprintf(w, "%10s %s %s %10s %s  %s%s\n",
-			item.FlatFormat, percentage(item.Flat, rpt.total),
-			percentage(flatSum, rpt.total),
-			item.CumFormat, percentage(item.Cum, rpt.total),
+			item.FlatFormat, measurement.Percentage(item.Flat, rpt.total),
+			measurement.Percentage(flatSum, rpt.total),
+			item.CumFormat, measurement.Percentage(item.Cum, rpt.total),
 			item.Name, inl)
 	}
 	return nil
@@ -1030,17 +1029,17 @@ func printTree(w io.Writer, rpt *Report) error {
 				inline = " (inline)"
 			}
 			fmt.Fprintf(w, "%50s %s |   %s%s\n", rpt.formatValue(in.Weight),
-				percentage(in.Weight, cum), in.Src.Info.PrintableName(), inline)
+				measurement.Percentage(in.Weight, cum), in.Src.Info.PrintableName(), inline)
 		}
 
 		// Print current node.
 		flatSum += flat
 		fmt.Fprintf(w, "%10s %s %s %10s %s                | %s\n",
 			rpt.formatValue(flat),
-			percentage(flat, rpt.total),
-			percentage(flatSum, rpt.total),
+			measurement.Percentage(flat, rpt.total),
+			measurement.Percentage(flatSum, rpt.total),
 			rpt.formatValue(cum),
-			percentage(cum, rpt.total),
+			measurement.Percentage(cum, rpt.total),
 			name)
 
 		// Print outgoing edges.
@@ -1051,7 +1050,7 @@ func printTree(w io.Writer, rpt *Report) error {
 				inline = " (inline)"
 			}
 			fmt.Fprintf(w, "%50s %s |   %s%s\n", rpt.formatValue(out.Weight),
-				percentage(out.Weight, cum), out.Dest.Info.PrintableName(), inline)
+				measurement.Percentage(out.Weight, cum), out.Dest.Info.PrintableName(), inline)
 		}
 	}
 	if len(g.Nodes) > 0 {
@@ -1081,23 +1080,6 @@ func printDOT(w io.Writer, rpt *Report) error {
 	g, c := GetDOT(rpt)
 	graph.ComposeDot(w, g, &graph.DotAttributes{}, c)
 	return nil
-}
-
-// percentage computes the percentage of total of a value, and encodes
-// it as a string. At least two digits of precision are printed.
-func percentage(value, total int64) string {
-	var ratio float64
-	if total != 0 {
-		ratio = math.Abs(float64(value)/float64(total)) * 100
-	}
-	switch {
-	case math.Abs(ratio) >= 99.95 && math.Abs(ratio) <= 100.05:
-		return "  100%"
-	case math.Abs(ratio) >= 1.0:
-		return fmt.Sprintf("%5.2f%%", ratio)
-	default:
-		return fmt.Sprintf("%5.2g%%", ratio)
-	}
 }
 
 // ProfileLabels returns printable labels for a profile.
@@ -1131,7 +1113,7 @@ func ProfileLabels(rpt *Report) []string {
 		totalNanos, totalUnit := measurement.Scale(rpt.total, o.SampleUnit, "nanoseconds")
 		var ratio string
 		if totalUnit == "ns" && totalNanos != 0 {
-			ratio = "(" + percentage(int64(totalNanos), prof.DurationNanos) + ")"
+			ratio = "(" + measurement.Percentage(int64(totalNanos), prof.DurationNanos) + ")"
 		}
 		label = append(label, fmt.Sprintf("Duration: %s, Total samples = %s %s", duration, rpt.formatValue(rpt.total), ratio))
 	}
@@ -1162,7 +1144,7 @@ func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedE
 		label = append(label, activeFilters...)
 	}
 
-	label = append(label, fmt.Sprintf("Showing nodes accounting for %s, %s of %s total", rpt.formatValue(flatSum), strings.TrimSpace(percentage(flatSum, rpt.total)), rpt.formatValue(rpt.total)))
+	label = append(label, fmt.Sprintf("Showing nodes accounting for %s, %s of %s total", rpt.formatValue(flatSum), strings.TrimSpace(measurement.Percentage(flatSum, rpt.total)), rpt.formatValue(rpt.total)))
 
 	if rpt.total != 0 {
 		if droppedNodes > 0 {

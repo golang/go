@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 
 set -e
+set -x
 MODE=atomic
 echo "mode: $MODE" > coverage.txt
 
-PKG=$(go list ./... | grep -v /vendor/)
+# All packages.
+PKG=$(go list ./...)
 
 staticcheck $PKG
 unused $PKG
+
+# Packages that have any tests.
+PKG=$(go list -f '{{if .TestGoFiles}} {{.ImportPath}} {{end}}' ./...)
+
 go test -v $PKG
 
 for d in $PKG; do
@@ -17,3 +23,4 @@ for d in $PKG; do
     rm profile.out
   fi
 done
+

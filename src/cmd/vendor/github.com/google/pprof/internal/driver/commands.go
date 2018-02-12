@@ -28,7 +28,6 @@ import (
 
 	"github.com/google/pprof/internal/plugin"
 	"github.com/google/pprof/internal/report"
-	"github.com/google/pprof/third_party/svg"
 )
 
 // commands describes the commands accepted by pprof.
@@ -398,7 +397,7 @@ func massageDotSVG() PostProcessor {
 		if err := generateSVG(input, baseSVG, ui); err != nil {
 			return err
 		}
-		_, err := output.Write([]byte(svg.Massage(baseSVG.String())))
+		_, err := output.Write([]byte(massageSVG(baseSVG.String())))
 		return err
 	}
 }

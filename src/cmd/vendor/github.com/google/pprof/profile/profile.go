@@ -109,10 +109,11 @@ type Mapping struct {
 
 // Location corresponds to Profile.Location
 type Location struct {
-	ID      uint64
-	Mapping *Mapping
-	Address uint64
-	Line    []Line
+	ID       uint64
+	Mapping  *Mapping
+	Address  uint64
+	Line     []Line
+	IsFolded bool
 
 	mappingIDX uint64
 }
@@ -163,7 +164,7 @@ func ParseData(data []byte) (*Profile, error) {
 			return nil, fmt.Errorf("decompressing profile: %v", err)
 		}
 	}
-	if p, err = ParseUncompressed(data); err != nil && err != errNoData {
+	if p, err = ParseUncompressed(data); err != nil && err != errNoData && err != errConcatProfile {
 		p, err = parseLegacy(data)
 	}
 
@@ -180,6 +181,7 @@ func ParseData(data []byte) (*Profile, error) {
 var errUnrecognized = fmt.Errorf("unrecognized profile format")
 var errMalformed = fmt.Errorf("malformed profile format")
 var errNoData = fmt.Errorf("empty input file")
+var errConcatProfile = fmt.Errorf("concatenated profiles detected")
 
 func parseLegacy(data []byte) (*Profile, error) {
 	parsers := []func([]byte) (*Profile, error){
@@ -590,6 +592,9 @@ func (l *Location) string() string {
 	locStr := fmt.Sprintf("%6d: %#x ", l.ID, l.Address)
 	if m := l.Mapping; m != nil {
 		locStr = locStr + fmt.Sprintf("M=%d ", m.ID)
+	}
+	if l.IsFolded {
+		locStr = locStr + "[F] "
 	}
 	if len(l.Line) == 0 {
 		ss = append(ss, locStr)

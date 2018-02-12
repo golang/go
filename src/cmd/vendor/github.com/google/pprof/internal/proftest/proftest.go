@@ -19,6 +19,7 @@ package proftest
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -80,11 +81,21 @@ type TestUI struct {
 	Ignore            int
 	AllowRx           string
 	NumAllowRxMatches int
+	Input             []string
+	index             int
 }
 
 // ReadLine returns no input, as no input is expected during testing.
 func (ui *TestUI) ReadLine(_ string) (string, error) {
-	return "", fmt.Errorf("no input")
+	if ui.index >= len(ui.Input) {
+		return "", io.EOF
+	}
+	input := ui.Input[ui.index]
+	ui.index++
+	if input == "**error**" {
+		return "", fmt.Errorf("Error: %s", input)
+	}
+	return input, nil
 }
 
 // Print messages are discarded by the test UI.

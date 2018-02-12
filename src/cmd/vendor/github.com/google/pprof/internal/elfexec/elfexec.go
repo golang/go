@@ -259,3 +259,19 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
 	}
 	return 0, fmt.Errorf("Don't know how to handle FileHeader.Type %v", fh.Type)
 }
+
+// FindTextProgHeader finds the program segment header containing the .text
+// section or nil if the segment cannot be found.
+func FindTextProgHeader(f *elf.File) *elf.ProgHeader {
+	for _, s := range f.Sections {
+		if s.Name == ".text" {
+			// Find the LOAD segment containing the .text section.
+			for _, p := range f.Progs {
+				if p.Type == elf.PT_LOAD && p.Flags&elf.PF_X != 0 && s.Addr >= p.Vaddr && s.Addr < p.Vaddr+p.Memsz {
+					return &p.ProgHeader
+				}
+			}
+		}
+	}
+	return nil
+}

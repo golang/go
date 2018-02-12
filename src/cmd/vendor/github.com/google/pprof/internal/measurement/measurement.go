@@ -17,6 +17,7 @@ package measurement
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -152,6 +153,23 @@ func ScaledLabel(value int64, fromUnit, toUnit string) string {
 		return "0"
 	}
 	return sv + u
+}
+
+// Percentage computes the percentage of total of a value, and encodes
+// it as a string. At least two digits of precision are printed.
+func Percentage(value, total int64) string {
+	var ratio float64
+	if total != 0 {
+		ratio = math.Abs(float64(value)/float64(total)) * 100
+	}
+	switch {
+	case math.Abs(ratio) >= 99.95 && math.Abs(ratio) <= 100.05:
+		return "  100%"
+	case math.Abs(ratio) >= 1.0:
+		return fmt.Sprintf("%5.2f%%", ratio)
+	default:
+		return fmt.Sprintf("%5.2g%%", ratio)
+	}
 }
 
 // isMemoryUnit returns whether a name is recognized as a memory size

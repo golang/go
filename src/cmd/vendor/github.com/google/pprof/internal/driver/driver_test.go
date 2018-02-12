@@ -1487,8 +1487,14 @@ func (m *mockFile) Symbols(r *regexp.Regexp, addr uint64) ([]*plugin.Sym, error)
 	switch r.String() {
 	case "line[13]":
 		return []*plugin.Sym{
-			{[]string{"line1000"}, m.name, 0x1000, 0x1003},
-			{[]string{"line3000"}, m.name, 0x3000, 0x3004},
+			{
+				Name: []string{"line1000"}, File: m.name,
+				Start: 0x1000, End: 0x1003,
+			},
+			{
+				Name: []string{"line3000"}, File: m.name,
+				Start: 0x3000, End: 0x3004,
+			},
 		}, nil
 	}
 	return nil, fmt.Errorf("unimplemented")

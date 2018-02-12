@@ -69,31 +69,24 @@ func (ec *errorCatcher) PrintErr(args ...interface{}) {
 
 // webArgs contains arguments passed to templates in webhtml.go.
 type webArgs struct {
-	BaseURL  string
-	Title    string
-	Errors   []string
-	Total    int64
-	Legend   []string
-	Help     map[string]string
-	Nodes    []string
-	HTMLBody template.HTML
-	TextBody string
-	Top      []report.TextItem
+	BaseURL    string
+	Title      string
+	Errors     []string
+	Total      int64
+	Legend     []string
+	Help       map[string]string
+	Nodes      []string
+	HTMLBody   template.HTML
+	TextBody   string
+	Top        []report.TextItem
+	FlameGraph template.JS
 }
 
-func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options) error {
-	host, portStr, err := net.SplitHostPort(hostport)
+func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, wantBrowser bool) error {
+	host, port, err := getHostAndPort(hostport)
 	if err != nil {
-		return fmt.Errorf("could not split http address: %v", err)
+		return err
 	}
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		return fmt.Errorf("invalid port number: %v", err)
-	}
-	if host == "" {
-		host = "localhost"
-	}
-
 	interactiveMode = true
 	ui := makeWebInterface(p, o)
 	for n, c := range pprofCommands {
@@ -111,22 +104,52 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options) e
 		server = defaultWebServer
 	}
 	args := &plugin.HTTPServerArgs{
-		Hostport: net.JoinHostPort(host, portStr),
+		Hostport: net.JoinHostPort(host, strconv.Itoa(port)),
 		Host:     host,
 		Port:     port,
 		Handlers: map[string]http.Handler{
-			"/":       http.HandlerFunc(ui.dot),
-			"/top":    http.HandlerFunc(ui.top),
-			"/disasm": http.HandlerFunc(ui.disasm),
-			"/source": http.HandlerFunc(ui.source),
-			"/peek":   http.HandlerFunc(ui.peek),
+			"/":           http.HandlerFunc(ui.dot),
+			"/top":        http.HandlerFunc(ui.top),
+			"/disasm":     http.HandlerFunc(ui.disasm),
+			"/source":     http.HandlerFunc(ui.source),
+			"/peek":       http.HandlerFunc(ui.peek),
+			"/flamegraph": http.HandlerFunc(ui.flamegraph),
 		},
 	}
 
-	go openBrowser("http://"+args.Hostport, o)
+	if wantBrowser {
+		go openBrowser("http://"+args.Hostport, o)
+	}
 	return server(args)
 }
 
+func getHostAndPort(hostport string) (string, int, error) {
+	host, portStr, err := net.SplitHostPort(hostport)
+	if err != nil {
+		return "", 0, fmt.Errorf("could not split http address: %v", err)
+	}
+	if host == "" {
+		host = "localhost"
+	}
+	var port int
+	if portStr == "" {
+		ln, err := net.Listen("tcp", net.JoinHostPort(host, "0"))
+		if err != nil {
+			return "", 0, fmt.Errorf("could not generate random port: %v", err)
+		}
+		port = ln.Addr().(*net.TCPAddr).Port
+		err = ln.Close()
+		if err != nil {
+			return "", 0, fmt.Errorf("could not generate random port: %v", err)
+		}
+	} else {
+		port, err = strconv.Atoi(portStr)
+		if err != nil {
+			return "", 0, fmt.Errorf("invalid port number: %v", err)
+		}
+	}
+	return host, port, nil
+}
 func defaultWebServer(args *plugin.HTTPServerArgs) error {
 	ln, err := net.Listen("tcp", args.Hostport)
 	if err != nil {
