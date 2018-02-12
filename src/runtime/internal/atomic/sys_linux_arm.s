@@ -4,8 +4,23 @@
 
 #include "textflag.h"
 
-// Use kernel version instead of native armcas in asm_arm.s.
-// See ../../../sync/atomic/asm_linux_arm.s for details.
+// Linux/ARM atomic operations.
+
+// Because there is so much variation in ARM devices,
+// the Linux kernel provides an appropriate compare-and-swap
+// implementation at address 0xffff0fc0.  Caller sets:
+//	R0 = old value
+//	R1 = new value
+//	R2 = addr
+//	LR = return address
+// The function returns with CS true if the swap happened.
+// http://lxr.linux.no/linux+v2.6.37.2/arch/arm/kernel/entry-armv.S#L850
+// On older kernels (before 2.6.24) the function can incorrectly
+// report a conflict, so we have to double-check the compare ourselves
+// and retry if necessary.
+//
+// http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b49c0f24cf6744a3f4fd09289fe7cade349dead5
+//
 TEXT cas<>(SB),NOSPLIT,$0
 	MOVW	$0xffff0fc0, R15 // R15 is hardware PC.
 
