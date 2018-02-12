@@ -38,10 +38,10 @@ import (
 func init() {
 	base.Commands = []*base.Command{
 		work.CmdBuild,
+		bug.CmdBug,
 		clean.CmdClean,
 		doc.CmdDoc,
 		envcmd.CmdEnv,
-		bug.CmdBug,
 		fix.CmdFix,
 		fmtcmd.CmdFmt,
 		generate.CmdGenerate,
@@ -54,12 +54,12 @@ func init() {
 		version.CmdVersion,
 		vet.CmdVet,
 
-		help.HelpC,
 		help.HelpBuildmode,
+		help.HelpC,
 		help.HelpCache,
+		help.HelpEnvironment,
 		help.HelpFileType,
 		help.HelpGopath,
-		help.HelpEnvironment,
 		help.HelpImportPath,
 		help.HelpPackages,
 		test.HelpTestflag,

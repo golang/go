@@ -14,10 +14,10 @@
 // The commands are:
 //
 // 	build       compile packages and dependencies
+// 	bug         start a bug report
 // 	clean       remove object files and cached files
 // 	doc         show documentation for package or symbol
 // 	env         print Go environment information
-// 	bug         start a bug report
 // 	fix         update packages to use new APIs
 // 	fmt         gofmt (reformat) package sources
 // 	generate    generate Go files by processing source
@@ -34,12 +34,12 @@
 //
 // Additional help topics:
 //
-// 	c           calling between Go and C
 // 	buildmode   build modes
+// 	c           calling between Go and C
 // 	cache       build and test caching
+// 	environment environment variables
 // 	filetype    file types
 // 	gopath      GOPATH environment variable
-// 	environment environment variables
 // 	importpath  import path syntax
 // 	packages    package lists
 // 	testflag    testing flags
@@ -169,6 +169,16 @@
 // some of the overheads and design decisions of the build tool.
 //
 // See also: go install, go get, go clean.
+//
+//
+// Start a bug report
+//
+// Usage:
+//
+// 	go bug
+//
+// Bug opens the default browser and starts a new bug report.
+// The report includes useful system information.
 //
 //
 // Remove object files and cached files
@@ -347,16 +357,6 @@
 // instead of as a shell script.
 //
 // For more about environment variables, see 'go help environment'.
-//
-//
-// Start a bug report
-//
-// Usage:
-//
-// 	go bug
-//
-// Bug opens the default browser and starts a new bug report.
-// The report includes useful system information.
 //
 //
 // Update packages to use new APIs
@@ -887,25 +887,6 @@
 // See also: go fmt, go fix.
 //
 //
-// Calling between Go and C
-//
-// There are two different ways to call between Go and C/C++ code.
-//
-// The first is the cgo tool, which is part of the Go distribution. For
-// information on how to use it see the cgo documentation (go doc cmd/cgo).
-//
-// The second is the SWIG program, which is a general tool for
-// interfacing between languages. For information on SWIG see
-// http://swig.org/. When running go build, any file with a .swig
-// extension will be passed to SWIG. Any file with a .swigcxx extension
-// will be passed to SWIG with the -c++ option.
-//
-// When either cgo or SWIG is used, go build will pass any .c, .m, .s,
-// or .S files to the C compiler, and any .cc, .cpp, .cxx files to the C++
-// compiler. The CC or CXX environment variables may be set to determine
-// the C or C++ compiler, respectively, to use.
-//
-//
 // Build modes
 //
 // The 'go build' and 'go install' commands take a -buildmode argument which
@@ -952,6 +933,25 @@
 // 		import, into a Go plugin. Packages not named main are ignored.
 //
 //
+// Calling between Go and C
+//
+// There are two different ways to call between Go and C/C++ code.
+//
+// The first is the cgo tool, which is part of the Go distribution. For
+// information on how to use it see the cgo documentation (go doc cmd/cgo).
+//
+// The second is the SWIG program, which is a general tool for
+// interfacing between languages. For information on SWIG see
+// http://swig.org/. When running go build, any file with a .swig
+// extension will be passed to SWIG. Any file with a .swigcxx extension
+// will be passed to SWIG with the -c++ option.
+//
+// When either cgo or SWIG is used, go build will pass any .c, .m, .s,
+// or .S files to the C compiler, and any .cc, .cpp, .cxx files to the C++
+// compiler. The CC or CXX environment variables may be set to determine
+// the C or C++ compiler, respectively, to use.
+//
+//
 // Build and test caching
 //
 // The go command caches build outputs for reuse in future builds.
@@ -989,6 +989,102 @@
 //
 // GODEBUG=gocachetest=1 causes the go command to print details of its
 // decisions about whether to reuse a cached test result.
+//
+//
+// Environment variables
+//
+// The go command, and the tools it invokes, examine a few different
+// environment variables. For many of these, you can see the default
+// value of on your system by running 'go env NAME', where NAME is the
+// name of the variable.
+//
+// General-purpose environment variables:
+//
+// 	GCCGO
+// 		The gccgo command to run for 'go build -compiler=gccgo'.
+// 	GOARCH
+// 		The architecture, or processor, for which to compile code.
+// 		Examples are amd64, 386, arm, ppc64.
+// 	GOBIN
+// 		The directory where 'go install' will install a command.
+// 	GOOS
+// 		The operating system for which to compile code.
+// 		Examples are linux, darwin, windows, netbsd.
+// 	GOPATH
+// 		For more details see: 'go help gopath'.
+// 	GORACE
+// 		Options for the race detector.
+// 		See https://golang.org/doc/articles/race_detector.html.
+// 	GOROOT
+// 		The root of the go tree.
+// 	GOTMPDIR
+// 		The directory where the go command will write
+// 		temporary source files, packages, and binaries.
+// 	GOCACHE
+// 		The directory where the go command will store
+// 		cached information for reuse in future builds.
+//
+// Environment variables for use with cgo:
+//
+// 	CC
+// 		The command to use to compile C code.
+// 	CGO_ENABLED
+// 		Whether the cgo command is supported. Either 0 or 1.
+// 	CGO_CFLAGS
+// 		Flags that cgo will pass to the compiler when compiling
+// 		C code.
+// 	CGO_CFLAGS_ALLOW
+// 		A regular expression specifying additional flags to allow
+// 		to appear in #cgo CFLAGS source code directives.
+// 		Does not apply to the CGO_CFLAGS environment variable.
+// 	CGO_CFLAGS_DISALLOW
+// 		A regular expression specifying flags that must be disallowed
+// 		from appearing in #cgo CFLAGS source code directives.
+// 		Does not apply to the CGO_CFLAGS environment variable.
+// 	CGO_CPPFLAGS, CGO_CPPFLAGS_ALLOW, CGO_CPPFLAGS_DISALLOW
+// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+// 		but for the C preprocessor.
+// 	CGO_CXXFLAGS, CGO_CXXFLAGS_ALLOW, CGO_CXXFLAGS_DISALLOW
+// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+// 		but for the C++ compiler.
+// 	CGO_FFLAGS, CGO_FFLAGS_ALLOW, CGO_FFLAGS_DISALLOW
+// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+// 		but for the Fortran compiler.
+// 	CGO_LDFLAGS, CGO_LDFLAGS_ALLOW, CGO_LDFLAGS_DISALLOW
+// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+// 		but for the linker.
+// 	CXX
+// 		The command to use to compile C++ code.
+// 	PKG_CONFIG
+// 		Path to pkg-config tool.
+//
+// Architecture-specific environment variables:
+//
+// 	GOARM
+// 		For GOARCH=arm, the ARM architecture for which to compile.
+// 		Valid values are 5, 6, 7.
+// 	GO386
+// 		For GOARCH=386, the floating point instruction set.
+// 		Valid values are 387, sse2.
+// 	GOMIPS
+// 		For GOARCH=mips{,le}, whether to use floating point instructions.
+// 		Valid values are hardfloat (default), softfloat.
+//
+// Special-purpose environment variables:
+//
+// 	GOROOT_FINAL
+// 		The root of the installed Go tree, when it is
+// 		installed in a location other than where it is built.
+// 		File names in stack traces are rewritten from GOROOT to
+// 		GOROOT_FINAL.
+// 	GO_EXTLINK_ENABLED
+// 		Whether the linker should use external linking mode
+// 		when using -linkmode=auto with code that uses cgo.
+// 		Set to 0 to disable external linking mode, 1 to enable it.
+// 	GIT_ALLOW_PROTOCOL
+// 		Defined by Git. A colon-separated list of schemes that are allowed to be used
+// 		with git fetch/clone. If set, any scheme not explicitly mentioned will be
+// 		considered insecure by 'go get'.
 //
 //
 // File types
@@ -1183,102 +1279,6 @@
 // placed in the main GOPATH, never in a vendor subtree.
 //
 // See https://golang.org/s/go15vendor for details.
-//
-//
-// Environment variables
-//
-// The go command, and the tools it invokes, examine a few different
-// environment variables. For many of these, you can see the default
-// value of on your system by running 'go env NAME', where NAME is the
-// name of the variable.
-//
-// General-purpose environment variables:
-//
-// 	GCCGO
-// 		The gccgo command to run for 'go build -compiler=gccgo'.
-// 	GOARCH
-// 		The architecture, or processor, for which to compile code.
-// 		Examples are amd64, 386, arm, ppc64.
-// 	GOBIN
-// 		The directory where 'go install' will install a command.
-// 	GOOS
-// 		The operating system for which to compile code.
-// 		Examples are linux, darwin, windows, netbsd.
-// 	GOPATH
-// 		For more details see: 'go help gopath'.
-// 	GORACE
-// 		Options for the race detector.
-// 		See https://golang.org/doc/articles/race_detector.html.
-// 	GOROOT
-// 		The root of the go tree.
-// 	GOTMPDIR
-// 		The directory where the go command will write
-// 		temporary source files, packages, and binaries.
-// 	GOCACHE
-// 		The directory where the go command will store
-// 		cached information for reuse in future builds.
-//
-// Environment variables for use with cgo:
-//
-// 	CC
-// 		The command to use to compile C code.
-// 	CGO_ENABLED
-// 		Whether the cgo command is supported. Either 0 or 1.
-// 	CGO_CFLAGS
-// 		Flags that cgo will pass to the compiler when compiling
-// 		C code.
-// 	CGO_CFLAGS_ALLOW
-// 		A regular expression specifying additional flags to allow
-// 		to appear in #cgo CFLAGS source code directives.
-// 		Does not apply to the CGO_CFLAGS environment variable.
-// 	CGO_CFLAGS_DISALLOW
-// 		A regular expression specifying flags that must be disallowed
-// 		from appearing in #cgo CFLAGS source code directives.
-// 		Does not apply to the CGO_CFLAGS environment variable.
-// 	CGO_CPPFLAGS, CGO_CPPFLAGS_ALLOW, CGO_CPPFLAGS_DISALLOW
-// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
-// 		but for the C preprocessor.
-// 	CGO_CXXFLAGS, CGO_CXXFLAGS_ALLOW, CGO_CXXFLAGS_DISALLOW
-// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
-// 		but for the C++ compiler.
-// 	CGO_FFLAGS, CGO_FFLAGS_ALLOW, CGO_FFLAGS_DISALLOW
-// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
-// 		but for the Fortran compiler.
-// 	CGO_LDFLAGS, CGO_LDFLAGS_ALLOW, CGO_LDFLAGS_DISALLOW
-// 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
-// 		but for the linker.
-// 	CXX
-// 		The command to use to compile C++ code.
-// 	PKG_CONFIG
-// 		Path to pkg-config tool.
-//
-// Architecture-specific environment variables:
-//
-// 	GOARM
-// 		For GOARCH=arm, the ARM architecture for which to compile.
-// 		Valid values are 5, 6, 7.
-// 	GO386
-// 		For GOARCH=386, the floating point instruction set.
-// 		Valid values are 387, sse2.
-// 	GOMIPS
-// 		For GOARCH=mips{,le}, whether to use floating point instructions.
-// 		Valid values are hardfloat (default), softfloat.
-//
-// Special-purpose environment variables:
-//
-// 	GOROOT_FINAL
-// 		The root of the installed Go tree, when it is
-// 		installed in a location other than where it is built.
-// 		File names in stack traces are rewritten from GOROOT to
-// 		GOROOT_FINAL.
-// 	GO_EXTLINK_ENABLED
-// 		Whether the linker should use external linking mode
-// 		when using -linkmode=auto with code that uses cgo.
-// 		Set to 0 to disable external linking mode, 1 to enable it.
-// 	GIT_ALLOW_PROTOCOL
-// 		Defined by Git. A colon-separated list of schemes that are allowed to be used
-// 		with git fetch/clone. If set, any scheme not explicitly mentioned will be
-// 		considered insecure by 'go get'.
 //
 //
 // Import path syntax
