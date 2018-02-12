@@ -37,8 +37,8 @@ import (
 
 func init() {
 	base.Commands = []*base.Command{
-		work.CmdBuild,
 		bug.CmdBug,
+		work.CmdBuild,
 		clean.CmdClean,
 		doc.CmdDoc,
 		envcmd.CmdEnv,
