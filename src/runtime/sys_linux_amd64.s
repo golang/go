@@ -10,6 +10,8 @@
 #include "go_tls.h"
 #include "textflag.h"
 
+#define AT_FDCWD -100
+
 #define SYS_read		0
 #define SYS_write		1
 #define SYS_close		3
@@ -66,7 +68,7 @@ TEXT runtime·exitThread(SB),NOSPLIT,$0-8
 
 TEXT runtime·open(SB),NOSPLIT,$0-20
 	// This uses openat instead of open, because Android O blocks open.
-	MOVL	$-100, DI // AT_FDCWD, so this acts like open
+	MOVL	$AT_FDCWD, DI // AT_FDCWD, so this acts like open
 	MOVQ	name+0(FP), SI
 	MOVL	mode+8(FP), DX
 	MOVL	perm+12(FP), R10
