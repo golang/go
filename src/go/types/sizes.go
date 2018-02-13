@@ -132,9 +132,10 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 		}
 	case *Array:
 		n := t.len
-		if n == 0 {
+		if n <= 0 {
 			return 0
 		}
+		// n > 0
 		a := s.Alignof(t.elem)
 		z := s.Sizeof(t.elem)
 		return align(z, a)*(n-1) + z

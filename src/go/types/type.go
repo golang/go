@@ -97,9 +97,11 @@ type Array struct {
 }
 
 // NewArray returns a new array type for the given element type and length.
+// A negative length indicates an unknown length.
 func NewArray(elem Type, len int64) *Array { return &Array{len, elem} }
 
 // Len returns the length of array a.
+// A negative result indicates an unknown length.
 func (a *Array) Len() int64 { return a.len }
 
 // Elem returns element type of array a.

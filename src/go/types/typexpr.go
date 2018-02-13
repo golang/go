@@ -380,6 +380,9 @@ func (check *Checker) typOrNil(e ast.Expr) Type {
 	return Typ[Invalid]
 }
 
+// arrayLength type-checks the array length expression e
+// and returns the constant length >= 0, or a value < 0
+// to indicate an error (and thus an unknown length).
 func (check *Checker) arrayLength(e ast.Expr) int64 {
 	var x operand
 	check.expr(&x, e)
@@ -387,7 +390,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 		if x.mode != invalid {
 			check.errorf(x.pos(), "array length %s must be constant", &x)
 		}
-		return 0
+		return -1
 	}
 	if isUntyped(x.typ) || isInteger(x.typ) {
 		if val := constant.ToInt(x.val); val.Kind() == constant.Int {
@@ -396,12 +399,12 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 					return n
 				}
 				check.errorf(x.pos(), "invalid array length %s", &x)
-				return 0
+				return -1
 			}
 		}
 	}
 	check.errorf(x.pos(), "array length %s must be integer", &x)
-	return 0
+	return -1
 }
 
 func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {

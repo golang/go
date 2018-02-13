@@ -150,7 +150,9 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// Two array types are identical if they have identical element types
 		// and the same array length.
 		if y, ok := y.(*Array); ok {
-			return x.len == y.len && identical(x.elem, y.elem, cmpTags, p)
+			// If one or both array lengths are unknown (< 0) due to some error,
+			// assume they are the same to avoid spurious follow-on errors.
+			return (x.len < 0 || y.len < 0 || x.len == y.len) && identical(x.elem, y.elem, cmpTags, p)
 		}
 
 	case *Slice:
