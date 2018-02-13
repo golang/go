@@ -158,7 +158,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			// function calls; in this case s is not evaluated."
 			if !check.hasCallOrRecv {
 				mode = constant_
-				val = constant.MakeInt64(t.len)
+				if t.len >= 0 {
+					val = constant.MakeInt64(t.len)
+				} else {
+					val = constant.MakeUnknown()
+				}
 			}
 
 		case *Slice, *Chan:
