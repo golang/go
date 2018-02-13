@@ -55,6 +55,9 @@ type Event struct {
 	// for blocking GoSysCall: the associated GoSysExit
 	// for GoSysExit: the next GoStart
 	// for GCMarkAssistStart: the associated GCMarkAssistDone
+	// for UserTaskCreate: the UserTaskEnd
+	// for UsetTaskEnd: the UserTaskCreate
+	// for UserSpan: the corresponding span start or end event
 	Link *Event
 }
 
@@ -584,7 +587,8 @@ func postProcessTrace(ver int, events []*Event) error {
 
 	gs := make(map[uint64]gdesc)
 	ps := make(map[int]pdesc)
-	tasks := make(map[uint64]*Event) // task id to task events
+	tasks := make(map[uint64]*Event)         // task id to task creation events
+	activeSpans := make(map[uint64][]*Event) // goroutine id to stack of spans
 	gs[0] = gdesc{state: gRunning}
 	var evGC, evSTW *Event
 
@@ -729,6 +733,15 @@ func postProcessTrace(ver int, events []*Event) error {
 			g.evStart = nil
 			g.state = gDead
 			p.g = 0
+
+			if ev.Type == EvGoEnd { // flush all active spans
+				spans := activeSpans[ev.G]
+				for _, s := range spans {
+					s.Link = ev
+				}
+				delete(activeSpans, ev.G)
+			}
+
 		case EvGoSched, EvGoPreempt:
 			if err := checkRunning(p, g, ev, false); err != nil {
 				return err
@@ -799,6 +812,32 @@ func postProcessTrace(ver int, events []*Event) error {
 		case EvUserTaskEnd:
 			if prevEv, ok := tasks[ev.Args[0]]; ok {
 				prevEv.Link = ev
+				ev.Link = prevEv
+			}
+		case EvUserSpan:
+			mode := ev.Args[1]
+			spans := activeSpans[ev.G]
+			if mode == 0 { // span start
+				activeSpans[ev.G] = append(spans, ev) // push
+			} else if mode == 1 { // span end
+				n := len(spans)
+				if n > 0 { // matching span start event is in the trace.
+					s := spans[n-1]
+					if s.Args[0] != ev.Args[0] || s.SArgs[0] != ev.SArgs[0] { // task id, span name mismatch
+						return fmt.Errorf("misuse of span in goroutine %d: span end %q when the inner-most active span start event is %q", ev.G, ev, s)
+					}
+					// Link span start event with span end event
+					s.Link = ev
+					ev.Link = s
+
+					if n > 1 {
+						activeSpans[ev.G] = spans[:n-1]
+					} else {
+						delete(activeSpans, ev.G)
+					}
+				}
+			} else {
+				return fmt.Errorf("invalid user span mode: %q", ev)
 			}
 		}
 
