@@ -192,6 +192,7 @@ func (rw *ResponseRecorder) Result() *http.Response {
 			switch k {
 			case "Transfer-Encoding", "Content-Length", "Trailer":
 				// Ignore since forbidden by RFC 2616 14.40.
+				// TODO: inconsistent with RFC 7230, section 4.1.2.
 				continue
 			}
 			k = http.CanonicalHeaderKey(k)

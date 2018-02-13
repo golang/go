@@ -235,17 +235,17 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 		}
 		switch {
 		case len(ranges) == 1:
-			// RFC 2616, Section 14.16:
-			// "When an HTTP message includes the content of a single
-			// range (for example, a response to a request for a
-			// single range, or to a request for a set of ranges
-			// that overlap without any holes), this content is
-			// transmitted with a Content-Range header, and a
-			// Content-Length header showing the number of bytes
-			// actually transferred.
+			// RFC 7233, Section 4.1:
+			// "If a single part is being transferred, the server
+			// generating the 206 response MUST generate a
+			// Content-Range header field, describing what range
+			// of the selected representation is enclosed, and a
+			// payload consisting of the range.
 			// ...
-			// A response to a request for a single range MUST NOT
-			// be sent using the multipart/byteranges media type."
+			// A server MUST NOT generate a multipart response to
+			// a request for a single range, since a client that
+			// does not request multiple parts might not support
+			// multipart responses."
 			ra := ranges[0]
 			if _, err := content.Seek(ra.start, io.SeekStart); err != nil {
 				Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
@@ -731,7 +731,7 @@ func (r httpRange) mimeHeader(contentType string, size int64) textproto.MIMEHead
 	}
 }
 
-// parseRange parses a Range header string as per RFC 2616.
+// parseRange parses a Range header string as per RFC 7233.
 // errNoOverlap is returned if none of the ranges overlap.
 func parseRange(s string, size int64) ([]httpRange, error) {
 	if s == "" {

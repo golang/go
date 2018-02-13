@@ -390,7 +390,7 @@ func (t *transferReader) protoAtLeast(m, n int) bool {
 }
 
 // bodyAllowedForStatus reports whether a given response status code
-// permits a body. See RFC 2616, section 4.4.
+// permits a body. See RFC 7230, section 3.3.
 func bodyAllowedForStatus(status int) bool {
 	switch {
 	case status >= 100 && status <= 199:
@@ -411,7 +411,7 @@ var (
 func suppressedHeaders(status int) []string {
 	switch {
 	case status == 304:
-		// RFC 2616 section 10.3.5: "the response MUST NOT include other entity-headers"
+		// RFC 7232 section 4.1
 		return suppressedHeaders304
 	case !bodyAllowedForStatus(status):
 		return suppressedHeadersNoBody
@@ -482,7 +482,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 
 	// If there is no Content-Length or chunked Transfer-Encoding on a *Response
 	// and the status is not 1xx, 204 or 304, then the body is unbounded.
-	// See RFC 2616, section 4.4.
+	// See RFC 7230, section 3.3.
 	switch msg.(type) {
 	case *Response:
 		if realLength == -1 &&
@@ -601,7 +601,7 @@ func (t *transferReader) fixTransferEncoding() error {
 	return nil
 }
 
-// Determine the expected body length, using RFC 2616 Section 4.4. This
+// Determine the expected body length, using RFC 7230 Section 3.3. This
 // function is not a method, because ultimately it should be shared by
 // ReadResponse and ReadRequest.
 func fixLength(isResponse bool, status int, requestMethod string, header Header, te []string) (int64, error) {
@@ -667,7 +667,7 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 	header.Del("Content-Length")
 
 	if isRequest {
-		// RFC 2616 neither explicitly permits nor forbids an
+		// RFC 7230 neither explicitly permits nor forbids an
 		// entity-body on a GET request so we permit one if
 		// declared, but we default to 0 here (not -1 below)
 		// if there's no mention of a body.
