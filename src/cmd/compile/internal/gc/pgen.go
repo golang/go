@@ -265,7 +265,7 @@ func compileSSA(fn *Node, worker int) {
 	}
 	pp := newProgs(fn, worker)
 	genssa(f, pp)
-	pp.Flush()
+	pp.Flush() // assemble, fill in boilerplate, etc.
 	// fieldtrack must be called after pp.Flush. See issue 20014.
 	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
 	pp.Free()

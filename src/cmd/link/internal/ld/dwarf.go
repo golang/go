@@ -1113,6 +1113,7 @@ func collectAbstractFunctions(ctxt *Link, fn *sym.Symbol, dsym *sym.Symbol, absf
 func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbol) (dwinfo *dwarf.DWDie, funcs []*sym.Symbol, absfuncs []*sym.Symbol) {
 
 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
+	is_stmt := uint8(1) // initially = recommended default_is_stmt = 1, tracks is_stmt toggles.
 
 	unitstart := int64(-1)
 	headerstart := int64(-1)
@@ -1154,7 +1155,7 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 
 	// cpos == unitstart + 4 + 2 + 4
 	ls.AddUint8(1)                // minimum_instruction_length
-	ls.AddUint8(1)                // default_is_stmt
+	ls.AddUint8(is_stmt)          // default_is_stmt
 	ls.AddUint8(LINE_BASE & 0xFF) // line_base
 	ls.AddUint8(LINE_RANGE)       // line_range
 	ls.AddUint8(OPCODE_BASE)      // opcode_base
@@ -1172,7 +1173,7 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 	// Create the file table. fileNums maps from global file
 	// indexes (created by numberfile) to CU-local indexes.
 	fileNums := make(map[int]int)
-	for _, s := range textp {
+	for _, s := range textp { // textp has been dead-code-eliminated already.
 		for _, f := range s.FuncInfo.File {
 			if _, ok := fileNums[int(f.Value)]; ok {
 				continue
@@ -1224,27 +1225,25 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 
 	var pcfile Pciter
 	var pcline Pciter
-	for _, s := range textp {
+	var pcstmt Pciter
+	for i, s := range textp {
 		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
 		funcs = append(funcs, dsym)
 		absfuncs = collectAbstractFunctions(ctxt, s, dsym, absfuncs)
 
 		finddebugruntimepath(s)
 
+		isStmtsSym := ctxt.Syms.ROLookup(dwarf.IsStmtPrefix+s.Name, int(s.Version))
+		pctostmtData := sym.Pcdata{P: isStmtsSym.P}
+
 		pciterinit(ctxt, &pcfile, &s.FuncInfo.Pcfile)
 		pciterinit(ctxt, &pcline, &s.FuncInfo.Pcline)
-		epc := pc
-		for pcfile.done == 0 && pcline.done == 0 {
-			if epc-s.Value >= int64(pcfile.nextpc) {
-				pciternext(&pcfile)
-				continue
-			}
+		pciterinit(ctxt, &pcstmt, &pctostmtData)
 
-			if epc-s.Value >= int64(pcline.nextpc) {
-				pciternext(&pcline)
-				continue
-			}
-
+		var thispc uint32
+		// TODO this loop looks like it could exit with work remaining.
+		for pcfile.done == 0 && pcline.done == 0 && pcstmt.done == 0 {
+			// Only changed if it advanced
 			if int32(file) != pcfile.value {
 				ls.AddUint8(dwarf.DW_LNS_set_file)
 				idx, ok := fileNums[int(pcfile.value)]
@@ -1255,16 +1254,40 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 				file = int(pcfile.value)
 			}
 
-			putpclcdelta(ctxt, dwarfctxt, ls, uint64(s.Value+int64(pcline.pc)-pc), int64(pcline.value)-int64(line))
-
-			pc = s.Value + int64(pcline.pc)
-			line = int(pcline.value)
-			if pcfile.nextpc < pcline.nextpc {
-				epc = int64(pcfile.nextpc)
-			} else {
-				epc = int64(pcline.nextpc)
+			// Only changed if it advanced
+			if is_stmt != uint8(pcstmt.value) {
+				is_stmt = uint8(pcstmt.value)
+				ls.AddUint8(uint8(dwarf.DW_LNS_negate_stmt))
 			}
-			epc += s.Value
+
+			// putpcldelta makes a row in the DWARF matrix, always, even if line is unchanged.
+			putpclcdelta(ctxt, dwarfctxt, ls, uint64(s.Value+int64(thispc)-pc), int64(pcline.value)-int64(line))
+
+			pc = s.Value + int64(thispc)
+			line = int(pcline.value)
+
+			// Take the minimum step forward for the three iterators
+			thispc = pcfile.nextpc
+			if pcline.nextpc < thispc {
+				thispc = pcline.nextpc
+			}
+			if pcstmt.nextpc < thispc {
+				thispc = pcstmt.nextpc
+			}
+
+			if pcfile.nextpc == thispc {
+				pciternext(&pcfile)
+			}
+			if pcstmt.nextpc == thispc {
+				pciternext(&pcstmt)
+			}
+			if pcline.nextpc == thispc {
+				pciternext(&pcline)
+			}
+		}
+		if is_stmt == 0 && i < len(textp)-1 {
+			// If there is more than one function, ensure default value is established.
+			ls.AddUint8(uint8(dwarf.DW_LNS_negate_stmt))
 		}
 	}
 

@@ -4,7 +4,10 @@
 
 package obj
 
-import "log"
+import (
+	"cmd/internal/src"
+	"log"
+)
 
 func addvarint(d *Pcdata, v uint32) {
 	for ; v >= 0x80; v >>= 7 {
@@ -230,6 +233,25 @@ func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg in
 	return oldval + p.Spadj
 }
 
+// pctostmt returns either,
+// if phase==0, then whether the current instruction is a step-target (Dwarf is_stmt)
+// else (phase == 1), zero.
+//
+func pctostmt(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
+	if phase == 1 {
+		return 0 // Ignored; also different from initial value of -1, if that ever matters.
+	}
+	s := p.Pos.IsStmt()
+	if s == src.PosIsStmt {
+		return 1
+	}
+	if s == src.PosNotStmt { // includes NoSrcPos case
+		return 0
+	}
+	// Line numbers in .s files will have no special setting, therefore default to is_stmt=1.
+	return 1
+}
+
 // pctopcdata computes the pcdata value in effect at p.
 // A PCDATA instruction sets the value in effect at future
 // non-PCDATA instructions.
@@ -246,6 +268,13 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
 	}
 
 	return int32(p.To.Offset)
+}
+
+// stmtData writes out pc-linked is_stmt data for eventual use in the DWARF line numbering table.
+func stmtData(ctxt *Link, cursym *LSym) {
+	var pctostmtData Pcdata
+	funcpctab(ctxt, &pctostmtData, cursym, "pctostmt", pctostmt, nil)
+	cursym.Func.dwarfIsStmtSym.P = pctostmtData.P
 }
 
 func linkpcln(ctxt *Link, cursym *LSym) {
