@@ -128,7 +128,8 @@ func TestTraceSymbolize(t *testing.T) {
 	wp.Write(data[:])
 	<-pipeReadDone
 
-	oldGoMaxProcs := runtime.GOMAXPROCS(1)
+	oldGoMaxProcs := runtime.GOMAXPROCS(0)
+	runtime.GOMAXPROCS(oldGoMaxProcs + 1)
 
 	Stop()
 
