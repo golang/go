@@ -210,6 +210,11 @@ again:
 	return f
 }
 
+// Bool returns a pseudo-random bool in [true, false].
+func (r *Rand) Bool() bool {
+	return r.Int63()%2 == 0
+}
+
 // Perm returns, as a slice of n ints, a pseudo-random permutation of the integers [0,n).
 func (r *Rand) Perm(n int) []int {
 	m := make([]int, n)
