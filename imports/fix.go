@@ -800,8 +800,8 @@ func findImportGoPath(pkgName string, symbols map[string]bool, filename string) 
 	// Fast path for the standard library.
 	// In the common case we hopefully never have to scan the GOPATH, which can
 	// be slow with moving disks.
-	if pkg, rename, ok := findImportStdlib(pkgName, symbols); ok {
-		return pkg, rename, nil
+	if pkg, ok := findImportStdlib(pkgName, symbols); ok {
+		return pkg, false, nil
 	}
 	if pkgName == "rand" && symbols["Read"] {
 		// Special-case rand.Read.
@@ -1047,7 +1047,7 @@ func (fn visitFn) Visit(node ast.Node) ast.Visitor {
 	return fn(node)
 }
 
-func findImportStdlib(shortPkg string, symbols map[string]bool) (importPath string, rename, ok bool) {
+func findImportStdlib(shortPkg string, symbols map[string]bool) (importPath string, ok bool) {
 	for symbol := range symbols {
 		key := shortPkg + "." + symbol
 		path := stdlib[key]
@@ -1055,18 +1055,18 @@ func findImportStdlib(shortPkg string, symbols map[string]bool) (importPath stri
 			if key == "rand.Read" {
 				continue
 			}
-			return "", false, false
+			return "", false
 		}
 		if importPath != "" && importPath != path {
 			// Ambiguous. Symbols pointed to different things.
-			return "", false, false
+			return "", false
 		}
 		importPath = path
 	}
 	if importPath == "" && shortPkg == "rand" && symbols["Read"] {
-		return "crypto/rand", false, true
+		return "crypto/rand", true
 	}
-	return importPath, false, importPath != ""
+	return importPath, importPath != ""
 }
 
 // fileInDir reports whether the provided file path looks like

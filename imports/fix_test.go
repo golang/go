@@ -1273,12 +1273,12 @@ func TestFindImportStdlib(t *testing.T) {
 		{"ioutil", []string{"Discard"}, "io/ioutil"},
 	}
 	for _, tt := range tests {
-		got, rename, ok := findImportStdlib(tt.pkg, strSet(tt.symbols))
+		got, ok := findImportStdlib(tt.pkg, strSet(tt.symbols))
 		if (got != "") != ok {
 			t.Error("findImportStdlib return value inconsistent")
 		}
-		if got != tt.want || rename {
-			t.Errorf("findImportStdlib(%q, %q) = %q, %t; want %q, false", tt.pkg, tt.symbols, got, rename, tt.want)
+		if got != tt.want {
+			t.Errorf("findImportStdlib(%q, %q) = %q, want %q", tt.pkg, tt.symbols, got, tt.want)
 		}
 	}
 }

@@ -209,7 +209,7 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 	// enclosing Function or Package.
 }
 
-func (s *sanity) checkFinalInstr(idx int, instr Instruction) {
+func (s *sanity) checkFinalInstr(instr Instruction) {
 	switch instr := instr.(type) {
 	case *If:
 		if nsuccs := len(s.block.Succs); nsuccs != 2 {
@@ -324,7 +324,7 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 		if j < n-1 {
 			s.checkInstr(j, instr)
 		} else {
-			s.checkFinalInstr(j, instr)
+			s.checkFinalInstr(instr)
 		}
 
 		// Check Instruction.Operands.

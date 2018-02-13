@@ -113,7 +113,7 @@ func parse(name string, mode present.ParseMode) (*present.Doc, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return present.Parse(f, name, 0)
+	return present.Parse(f, name, mode)
 }
 
 // dirList scans the given path and writes a directory listing to w.
