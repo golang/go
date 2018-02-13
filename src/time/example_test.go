@@ -598,3 +598,10 @@ func ExampleTime_AppendFormat() {
 	// Output:
 	// Time: 11:00AM
 }
+
+func ExampleFixedZone() {
+	loc := time.FixedZone("UTC-8", -8*60*60)
+	t := time.Date(2009, time.November, 10, 23, 0, 0, 0, loc)
+	fmt.Println("The time is:", t.Format(time.RFC822))
+	// Output: The time is: 10 Nov 09 23:00 UTC-8
+}
