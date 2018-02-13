@@ -1228,7 +1228,7 @@ func overflowFloat32(x float64) bool {
 }
 
 // OverflowInt reports whether the int64 x cannot be represented by v's type.
-// It panics if v's Kind is not Int, Int8, int16, Int32, or Int64.
+// It panics if v's Kind is not Int, Int8, Int16, Int32, or Int64.
 func (v Value) OverflowInt(x int64) bool {
 	k := v.kind()
 	switch k {
