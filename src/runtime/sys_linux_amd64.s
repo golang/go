@@ -10,6 +10,8 @@
 #include "go_tls.h"
 #include "textflag.h"
 
+#define AT_FDCWD -100
+
 #define SYS_read		0
 #define SYS_write		1
 #define SYS_close		3
@@ -66,7 +68,7 @@ TEXT runtime·exitThread(SB),NOSPLIT,$0-8
 
 TEXT runtime·open(SB),NOSPLIT,$0-20
 	// This uses openat instead of open, because Android O blocks open.
-	MOVL	$-100, DI // AT_FDCWD, so this acts like open
+	MOVL	$AT_FDCWD, DI // AT_FDCWD, so this acts like open
 	MOVQ	name+0(FP), SI
 	MOVL	mode+8(FP), DX
 	MOVL	perm+12(FP), R10
@@ -601,7 +603,7 @@ TEXT runtime·settls(SB),NOSPLIT,$32
 	// Same as in sys_darwin_386.s:/ugliness, different constant.
 	// DI currently holds m->tls, which must be fs:0x1d0.
 	// See cgo/gcc_android_amd64.c for the derivation of the constant.
-	SUBQ	$0x1d0, DI  // In android, the tls base 
+	SUBQ	$0x1d0, DI  // In android, the tls base
 #else
 	ADDQ	$8, DI	// ELF wants to use -8(FS)
 #endif
