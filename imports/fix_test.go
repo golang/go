@@ -5,7 +5,6 @@
 package imports
 
 import (
-	"bufio"
 	"bytes"
 	"flag"
 	"go/build"
@@ -2031,31 +2030,5 @@ const x = mypkg.Sprintf("%s", "my package")
 
 	if got := string(out); got != want {
 		t.Errorf("Process returned unexpected result.\ngot:\n%v\nwant:\n%v", got, want)
-	}
-}
-
-// Ensures a token that is larger that
-// https://golang.org/issues/18201
-func TestProcessTokenTooLarge(t *testing.T) {
-	const largeSize = maxScanTokenSize + 1
-	largeString := strings.Repeat("x", largeSize)
-
-	in := `package testimports
-
-import (
-	"fmt"
-	"mydomain.mystuff/mypkg"
-)
-
-const s = fmt.Sprintf("%s", "` + largeString + `")
-const x = mypkg.Sprintf("%s", "my package")
-
-// end
-`
-
-	_, err := Process("foo", []byte(in), nil)
-
-	if err != bufio.ErrTooLong {
-		t.Errorf("Process did not returned expected error.\n got:\n%v\nwant:\n%v", err, bufio.ErrTooLong)
 	}
 }

@@ -259,18 +259,18 @@ func matchSpace(orig []byte, src []byte) []byte {
 
 var impLine = regexp.MustCompile(`^\s+(?:[\w\.]+\s+)?"(.+)"`)
 
-// Used to set Scanner buffer size so that large tokens can be handled.
-// see https://github.com/golang/go/issues/18201
-const maxScanTokenSize = bufio.MaxScanTokenSize * 16
-
 func addImportSpaces(r io.Reader, breaks []string) ([]byte, error) {
 	var out bytes.Buffer
-	sc := bufio.NewScanner(r)
-	sc.Buffer(nil, maxScanTokenSize)
+	in := bufio.NewReader(r)
 	inImports := false
 	done := false
-	for sc.Scan() {
-		s := sc.Text()
+	for {
+		s, err := in.ReadString('\n')
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
 
 		if !inImports && !done && strings.HasPrefix(s, "import") {
 			inImports = true
@@ -291,7 +291,7 @@ func addImportSpaces(r io.Reader, breaks []string) ([]byte, error) {
 			}
 		}
 
-		fmt.Fprintln(&out, s)
+		fmt.Fprint(&out, s)
 	}
-	return out.Bytes(), sc.Err()
+	return out.Bytes(), nil
 }
