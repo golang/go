@@ -33234,7 +33234,7 @@ func rewriteValueAMD64_OpAMD64SARBconst_0(v *Value) bool {
 	}
 	// match: (SARBconst [c] (MOVQconst [d]))
 	// cond:
-	// result: (MOVQconst [d>>uint64(c)])
+	// result: (MOVQconst [int64(int8(d))>>uint64(c)])
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -33243,7 +33243,7 @@ func rewriteValueAMD64_OpAMD64SARBconst_0(v *Value) bool {
 		}
 		d := v_0.AuxInt
 		v.reset(OpAMD64MOVQconst)
-		v.AuxInt = d >> uint64(c)
+		v.AuxInt = int64(int8(d)) >> uint64(c)
 		return true
 	}
 	return false
@@ -33489,7 +33489,7 @@ func rewriteValueAMD64_OpAMD64SARLconst_0(v *Value) bool {
 	}
 	// match: (SARLconst [c] (MOVQconst [d]))
 	// cond:
-	// result: (MOVQconst [d>>uint64(c)])
+	// result: (MOVQconst [int64(int32(d))>>uint64(c)])
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -33498,7 +33498,7 @@ func rewriteValueAMD64_OpAMD64SARLconst_0(v *Value) bool {
 		}
 		d := v_0.AuxInt
 		v.reset(OpAMD64MOVQconst)
-		v.AuxInt = d >> uint64(c)
+		v.AuxInt = int64(int32(d)) >> uint64(c)
 		return true
 	}
 	return false
@@ -33809,7 +33809,7 @@ func rewriteValueAMD64_OpAMD64SARWconst_0(v *Value) bool {
 	}
 	// match: (SARWconst [c] (MOVQconst [d]))
 	// cond:
-	// result: (MOVQconst [d>>uint64(c)])
+	// result: (MOVQconst [int64(int16(d))>>uint64(c)])
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -33818,7 +33818,7 @@ func rewriteValueAMD64_OpAMD64SARWconst_0(v *Value) bool {
 		}
 		d := v_0.AuxInt
 		v.reset(OpAMD64MOVQconst)
-		v.AuxInt = d >> uint64(c)
+		v.AuxInt = int64(int16(d)) >> uint64(c)
 		return true
 	}
 	return false
