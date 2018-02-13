@@ -18,7 +18,3 @@ func hasSymlink() (ok bool, reason string) {
 
 	return true, ""
 }
-
-func IsWindowsXP() bool {
-	return false
-}

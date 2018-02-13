@@ -46,12 +46,3 @@ func hasSymlink() (ok bool, reason string) {
 
 	return false, ""
 }
-
-func IsWindowsXP() bool {
-	v, err := syscall.GetVersion()
-	if err != nil {
-		panic("GetVersion failed: " + err.Error())
-	}
-	major := byte(v)
-	return major < 6
-}
