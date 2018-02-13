@@ -110,7 +110,7 @@ type Request struct {
 	// For server requests the URL is parsed from the URI
 	// supplied on the Request-Line as stored in RequestURI.  For
 	// most requests, fields other than Path and RawQuery will be
-	// empty. (See RFC 2616, Section 5.1.2)
+	// empty. (See RFC 7230, Section 5.3)
 	//
 	// For client requests, the URL's Host specifies the server to
 	// connect to, while the Request's Host field optionally
@@ -207,9 +207,9 @@ type Request struct {
 	// Transport.DisableKeepAlives were set.
 	Close bool
 
-	// For server requests Host specifies the host on which the
-	// URL is sought. Per RFC 2616, this is either the value of
-	// the "Host" header or the host name given in the URL itself.
+	// For server requests Host specifies the host on which the URL
+	// is sought. Per RFC 7230, section 5.4, this is either the value
+	// of the "Host" header or the host name given in the URL itself.
 	// It may be of the form "host:port". For international domain
 	// names, Host may be in Punycode or Unicode form. Use
 	// golang.org/x/net/idna to convert it to either format if
@@ -268,8 +268,8 @@ type Request struct {
 	// This field is ignored by the HTTP client.
 	RemoteAddr string
 
-	// RequestURI is the unmodified Request-URI of the
-	// Request-Line (RFC 2616, Section 5.1) as sent by the client
+	// RequestURI is the unmodified request-target of the
+	// Request-Line (RFC 7230, Section 3.1.1) as sent by the client
 	// to a server. Usually the URL field should be used instead.
 	// It is an error to set this field in an HTTP client request.
 	RequestURI string
@@ -481,7 +481,7 @@ func (r *Request) Write(w io.Writer) error {
 // WriteProxy is like Write but writes the request in the form
 // expected by an HTTP proxy. In particular, WriteProxy writes the
 // initial Request-URI line of the request with an absolute URI, per
-// section 5.1.2 of RFC 2616, including the scheme and host.
+// section 5.3 of RFC 7230, including the scheme and host.
 // In either case, WriteProxy also writes a Host header, using
 // either r.Host or r.URL.Host.
 func (r *Request) WriteProxy(w io.Writer) error {
@@ -979,7 +979,7 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
 	}
 	req.Header = Header(mimeHeader)
 
-	// RFC 2616: Must treat
+	// RFC 7230, section 5.3: Must treat
 	//	GET /index.html HTTP/1.1
 	//	Host: www.google.com
 	// and
@@ -1094,8 +1094,8 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
 		return
 	}
 	ct := r.Header.Get("Content-Type")
-	// RFC 2616, section 7.2.1 - empty type
-	//   SHOULD be treated as application/octet-stream
+	// RFC 7231, section 3.1.1.5 - empty type
+	//   MAY be treated as application/octet-stream
 	if ct == "" {
 		ct = "application/octet-stream"
 	}

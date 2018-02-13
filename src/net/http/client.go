@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// HTTP client. See RFC 2616.
+// HTTP client. See RFC 7230 through 7235.
 //
 // This is the high-level Client interface.
 // The low-level implementation is in transport.go.

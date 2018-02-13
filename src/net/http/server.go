@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// HTTP server. See RFC 2616.
+// HTTP server. See RFC 7230 through 7235.
 
 package http
 
@@ -513,6 +513,7 @@ func (w *response) declareTrailer(k string) {
 	switch k {
 	case "Transfer-Encoding", "Content-Length", "Trailer":
 		// Forbidden by RFC 2616 14.40.
+		// TODO: inconsistent with RFC 7230, section 4.1.2
 		return
 	}
 	w.trailers = append(w.trailers, k)
@@ -937,7 +938,7 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 
 	c.r.setReadLimit(c.server.initialReadLimitSize())
 	if c.lastMethod == "POST" {
-		// RFC 2616 section 4.1 tolerance for old buggy clients.
+		// RFC 7230 section 3 tolerance for old buggy clients.
 		peek, _ := c.bufr.Peek(4) // ReadRequest will get err below
 		c.bufr.Discard(numLeadingCRorLF(peek))
 	}
@@ -1414,7 +1415,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 }
 
 // foreachHeaderElement splits v according to the "#rule" construction
-// in RFC 2616 section 2.1 and calls fn for each non-empty element.
+// in RFC 7230 section 7 and calls fn for each non-empty element.
 func foreachHeaderElement(v string, fn func(string)) {
 	v = textproto.TrimString(v)
 	if v == "" {
@@ -1431,7 +1432,7 @@ func foreachHeaderElement(v string, fn func(string)) {
 	}
 }
 
-// writeStatusLine writes an HTTP/1.x Status-Line (RFC 2616 Section 6.1)
+// writeStatusLine writes an HTTP/1.x Status-Line (RFC 7230 Section 3.1.2)
 // to bw. is11 is whether the HTTP request is HTTP/1.1. false means HTTP/1.0.
 // code is the response status code.
 // scratch is an optional scratch buffer. If it has at least capacity 3, it's used.
@@ -1868,11 +1869,11 @@ func (w *response) sendExpectationFailed() {
 	// make the ResponseWriter an optional
 	// "ExpectReplier" interface or something.
 	//
-	// For now we'll just obey RFC 2616 14.20 which says
-	// "If a server receives a request containing an
-	// Expect field that includes an expectation-
-	// extension that it does not support, it MUST
-	// respond with a 417 (Expectation Failed) status."
+	// For now we'll just obey RFC 7231 5.1.1 which says
+	// "A server that receives an Expect field-value other
+	// than 100-continue MAY respond with a 417 (Expectation
+	// Failed) status code to indicate that the unexpected
+	// expectation cannot be met."
 	w.Header().Set("Connection", "close")
 	w.WriteHeader(StatusExpectationFailed)
 	w.finishRequest()
@@ -1998,22 +1999,11 @@ func StripPrefix(prefix string, h Handler) Handler {
 func Redirect(w ResponseWriter, r *Request, url string, code int) {
 	// parseURL is just url.Parse (url is shadowed for godoc).
 	if u, err := parseURL(url); err == nil {
-		// If url was relative, make absolute by
+		// If url was relative, make its path absolute by
 		// combining with request path.
-		// The browser would probably do this for us,
+		// The client would probably do this for us,
 		// but doing it ourselves is more reliable.
-
-		// NOTE(rsc): RFC 2616 says that the Location
-		// line must be an absolute URI, like
-		// "http://www.google.com/redirect/",
-		// not a path like "/redirect/".
-		// Unfortunately, we don't know what to
-		// put in the host name section to get the
-		// client to connect to us again, so we can't
-		// know the right absolute URI to send back.
-		// Because of this problem, no one pays attention
-		// to the RFC; they all send back just a new path.
-		// So do we.
+		// See RFC 7231, section 7.1.2
 		if u.Scheme == "" && u.Host == "" {
 			oldpath := r.URL.Path
 			if oldpath == "" { // should not happen, but avoid a crash if it does
@@ -2048,8 +2038,8 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 	}
 	w.WriteHeader(code)
 
-	// RFC 2616 recommends that a short note "SHOULD" be included in the
-	// response because older user agents may not understand 301/307.
+	// RFC 7231 notes that a short hypertext note is usually included in
+	// the response because older user agents may not understand 301/307.
 	// Shouldn't send the response for POST or HEAD; that leaves GET.
 	if r.Method == "GET" {
 		note := "<a href=\"" + htmlEscape(url) + "\">" + statusText[code] + "</a>.\n"
