@@ -24,7 +24,14 @@
 TEXT cas<>(SB),NOSPLIT,$0
 	MOVW	$0xffff0fc0, R15 // R15 is hardware PC.
 
-TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0
+TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT|NOFRAME,$0
+	MOVB	runtime·goarm(SB), R11
+	CMP	$7, R11
+	BLT	2(PC)
+	JMP	·armcas(SB)
+	JMP	·kernelcas<>(SB)
+
+TEXT runtime∕internal∕atomic·kernelcas<>(SB),NOSPLIT,$0
 	MOVW	ptr+0(FP), R2
 	// trigger potential paging fault here,
 	// because we don't know how to traceback through __kuser_cmpxchg
