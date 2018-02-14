@@ -616,7 +616,7 @@ func (t *test) run() {
 			cmdline = append(cmdline, flags...)
 			cmdline = append(cmdline, long)
 			cmd := exec.Command(goTool(), cmdline...)
-			cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+arch)
+			cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+arch, "GOARM=7")
 
 			var buf bytes.Buffer
 			cmd.Stdout, cmd.Stderr = &buf, &buf
