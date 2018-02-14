@@ -1526,15 +1526,20 @@ func splitPkgConfigOutput(out []byte) []string {
 // Calls pkg-config if needed and returns the cflags/ldflags needed to build the package.
 func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, err error) {
 	if pkgs := p.CgoPkgConfig; len(pkgs) > 0 {
+		var pcflags []string
+		for len(pkgs) > 0 && strings.HasPrefix(pkgs[0], "--") {
+			pcflags = append(pcflags, pkgs[0])
+			pkgs = pkgs[1:]
+		}
 		for _, pkg := range pkgs {
 			if !load.SafeArg(pkg) {
 				return nil, nil, fmt.Errorf("invalid pkg-config package name: %s", pkg)
 			}
 		}
 		var out []byte
-		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.PkgconfigCmd(), "--cflags", "--", pkgs)
+		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.PkgconfigCmd(), "--cflags", pcflags, "--", pkgs)
 		if err != nil {
-			b.showOutput(p.Dir, b.PkgconfigCmd()+" --cflags "+strings.Join(pkgs, " "), string(out))
+			b.showOutput(p.Dir, b.PkgconfigCmd()+" --cflags "+strings.Join(pcflags, " ")+strings.Join(pkgs, " "), string(out))
 			b.Print(err.Error() + "\n")
 			return nil, nil, errPrintedOutput
 		}
@@ -1544,15 +1549,15 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 				return nil, nil, err
 			}
 		}
-		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.PkgconfigCmd(), "--libs", "--", pkgs)
+		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.PkgconfigCmd(), "--libs", pcflags, "--", pkgs)
 		if err != nil {
-			b.showOutput(p.Dir, b.PkgconfigCmd()+" --libs "+strings.Join(pkgs, " "), string(out))
+			b.showOutput(p.Dir, b.PkgconfigCmd()+" --libs "+strings.Join(pcflags, " ")+strings.Join(pkgs, " "), string(out))
 			b.Print(err.Error() + "\n")
 			return nil, nil, errPrintedOutput
 		}
 		if len(out) > 0 {
 			ldflags = strings.Fields(string(out))
-			if err := checkLinkerFlags("CFLAGS", "pkg-config --cflags", ldflags); err != nil {
+			if err := checkLinkerFlags("LDFLAGS", "pkg-config --libs", ldflags); err != nil {
 				return nil, nil, err
 			}
 		}
