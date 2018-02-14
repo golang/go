@@ -34589,7 +34589,7 @@ func rewriteValueS390X_OpS390XSRAW_0(v *Value) bool {
 func rewriteValueS390X_OpS390XSRAWconst_0(v *Value) bool {
 	// match: (SRAWconst [c] (MOVDconst [d]))
 	// cond:
-	// result: (MOVDconst [d>>uint64(c)])
+	// result: (MOVDconst [int64(int32(d))>>uint64(c)])
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -34598,7 +34598,7 @@ func rewriteValueS390X_OpS390XSRAWconst_0(v *Value) bool {
 		}
 		d := v_0.AuxInt
 		v.reset(OpS390XMOVDconst)
-		v.AuxInt = d >> uint64(c)
+		v.AuxInt = int64(int32(d)) >> uint64(c)
 		return true
 	}
 	return false
