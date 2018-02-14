@@ -45,7 +45,7 @@ func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh P
 		// base to compute the corresponding Pos value.
 		func(line, col uint, msg string) {
 			if msg[0] != '/' {
-				p.error_at(p.pos_at(line, col), msg)
+				p.errorAt(p.posAt(line, col), msg)
 				return
 			}
 
@@ -59,7 +59,7 @@ func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh P
 
 			// go: directive (but be conservative and test)
 			if pragh != nil && strings.HasPrefix(text, "go:") {
-				p.pragma |= pragh(p.pos_at(line, col), text)
+				p.pragma |= pragh(p.posAt(line, col), text)
 			}
 		},
 		directives,
@@ -85,7 +85,7 @@ func (p *parser) updateBase(line, col uint, text string) {
 
 	if !ok {
 		// text has a suffix :xxx but xxx is not a number
-		p.error_at(p.pos_at(line, col+i), "invalid line number: "+text[i:])
+		p.errorAt(p.posAt(line, col+i), "invalid line number: "+text[i:])
 		return
 	}
 
@@ -95,14 +95,14 @@ func (p *parser) updateBase(line, col uint, text string) {
 		i, i2 = i2, i
 		n, n2 = n2, n
 		if n2 == 0 {
-			p.error_at(p.pos_at(line, col+i2), "invalid column number: "+text[i2:])
+			p.errorAt(p.posAt(line, col+i2), "invalid column number: "+text[i2:])
 			return
 		}
 		text = text[:i2-1] // lop off :col
 	}
 
 	if n == 0 || n > lineMax {
-		p.error_at(p.pos_at(line, col+i), "invalid line number: "+text[i:])
+		p.errorAt(p.posAt(line, col+i), "invalid line number: "+text[i:])
 		return
 	}
 
@@ -151,7 +151,7 @@ func (p *parser) got(tok token) bool {
 
 func (p *parser) want(tok token) {
 	if !p.got(tok) {
-		p.syntax_error("expecting " + tokstring(tok))
+		p.syntaxError("expecting " + tokstring(tok))
 		p.advance()
 	}
 }
@@ -159,13 +159,13 @@ func (p *parser) want(tok token) {
 // ----------------------------------------------------------------------------
 // Error handling
 
-// pos_at returns the Pos value for (line, col) and the current position base.
-func (p *parser) pos_at(line, col uint) src.Pos {
+// posAt returns the Pos value for (line, col) and the current position base.
+func (p *parser) posAt(line, col uint) src.Pos {
 	return src.MakePos(p.base, line, col)
 }
 
 // error reports an error at the given position.
-func (p *parser) error_at(pos src.Pos, msg string) {
+func (p *parser) errorAt(pos src.Pos, msg string) {
 	err := Error{pos, msg}
 	if p.first == nil {
 		p.first = err
@@ -177,8 +177,8 @@ func (p *parser) error_at(pos src.Pos, msg string) {
 	p.errh(err)
 }
 
-// syntax_error_at reports a syntax error at the given position.
-func (p *parser) syntax_error_at(pos src.Pos, msg string) {
+// syntaxErrorAt reports a syntax error at the given position.
+func (p *parser) syntaxErrorAt(pos src.Pos, msg string) {
 	if trace {
 		p.print("syntax error: " + msg)
 	}
@@ -197,7 +197,7 @@ func (p *parser) syntax_error_at(pos src.Pos, msg string) {
 		msg = ", " + msg
 	default:
 		// plain error - we don't care about current token
-		p.error_at(pos, "syntax error: "+msg)
+		p.errorAt(pos, "syntax error: "+msg)
 		return
 	}
 
@@ -219,7 +219,7 @@ func (p *parser) syntax_error_at(pos src.Pos, msg string) {
 		tok = tokstring(p.tok)
 	}
 
-	p.error_at(pos, "syntax error: unexpected "+tok+msg)
+	p.errorAt(pos, "syntax error: unexpected "+tok+msg)
 }
 
 // tokstring returns the English word for selected punctuation tokens
@@ -235,9 +235,8 @@ func tokstring(tok token) string {
 }
 
 // Convenience methods using the current token position.
-func (p *parser) pos() src.Pos            { return p.pos_at(p.line, p.col) }
-func (p *parser) error(msg string)        { p.error_at(p.pos(), msg) }
-func (p *parser) syntax_error(msg string) { p.syntax_error_at(p.pos(), msg) }
+func (p *parser) pos() src.Pos           { return p.posAt(p.line, p.col) }
+func (p *parser) syntaxError(msg string) { p.syntaxErrorAt(p.pos(), msg) }
 
 // The stopset contains keywords that start a statement.
 // They are good synchronization points in case of syntax
@@ -332,7 +331,7 @@ func (p *parser) fileOrNil() *File {
 
 	// PackageClause
 	if !p.got(_Package) {
-		p.syntax_error("package statement must be first")
+		p.syntaxError("package statement must be first")
 		return nil
 	}
 	f.PkgName = p.name()
@@ -373,9 +372,9 @@ func (p *parser) fileOrNil() *File {
 		default:
 			if p.tok == _Lbrace && len(f.DeclList) > 0 && isEmptyFuncDecl(f.DeclList[len(f.DeclList)-1]) {
 				// opening { of function declaration on next line
-				p.syntax_error("unexpected semicolon or newline before {")
+				p.syntaxError("unexpected semicolon or newline before {")
 			} else {
-				p.syntax_error("non-declaration statement outside function body")
+				p.syntaxError("non-declaration statement outside function body")
 			}
 			p.advance(_Const, _Type, _Var, _Func)
 			continue
@@ -386,7 +385,7 @@ func (p *parser) fileOrNil() *File {
 		p.pragma = 0
 
 		if p.tok != _EOF && !p.got(_Semi) {
-			p.syntax_error("after top level declaration")
+			p.syntaxError("after top level declaration")
 			p.advance(_Const, _Type, _Var, _Func)
 		}
 	}
@@ -424,7 +423,7 @@ func (p *parser) list(open, sep, close token, f func() bool) src.Pos {
 		done = f()
 		// sep is optional before close
 		if !p.got(sep) && p.tok != close {
-			p.syntax_error(fmt.Sprintf("expecting %s or %s", tokstring(sep), tokstring(close)))
+			p.syntaxError(fmt.Sprintf("expecting %s or %s", tokstring(sep), tokstring(close)))
 			p.advance(_Rparen, _Rbrack, _Rbrace)
 			if p.tok != close {
 				// position could be better but we had an error so we don't care
@@ -480,7 +479,7 @@ func (p *parser) importDecl(group *Group) Decl {
 	}
 	d.Path = p.oliteral()
 	if d.Path == nil {
-		p.syntax_error("missing import path")
+		p.syntaxError("missing import path")
 		p.advance(_Semi, _Rparen)
 		return nil
 	}
@@ -524,7 +523,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 	d.Type = p.typeOrNil()
 	if d.Type == nil {
 		d.Type = p.bad()
-		p.syntax_error("in type declaration")
+		p.syntaxError("in type declaration")
 		p.advance(_Semi, _Rparen)
 	}
 	d.Group = group
@@ -583,7 +582,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	}
 
 	if p.tok != _Name {
-		p.syntax_error("expecting name or (")
+		p.syntaxError("expecting name or (")
 		p.advance(_Lbrace, _Semi)
 		return nil
 	}
@@ -706,7 +705,7 @@ func (p *parser) unaryExpr() Expr {
 				if dir == RecvOnly {
 					// t is type <-chan E but <-<-chan E is not permitted
 					// (report same error as for "type _ <-<-chan E")
-					p.syntax_error("unexpected <-, expecting chan")
+					p.syntaxError("unexpected <-, expecting chan")
 					// already progressed, no need to advance
 				}
 				c.Dir = RecvOnly
@@ -715,7 +714,7 @@ func (p *parser) unaryExpr() Expr {
 			if dir == SendOnly {
 				// channel dir is <- but channel element E is not a channel
 				// (report same error as for "type _ <-chan<-E")
-				p.syntax_error(fmt.Sprintf("unexpected %s, expecting chan", String(t)))
+				p.syntaxError(fmt.Sprintf("unexpected %s, expecting chan", String(t)))
 				// already progressed, no need to advance
 			}
 			return x
@@ -748,14 +747,14 @@ func (p *parser) callStmt() *CallStmt {
 
 	x := p.pexpr(p.tok == _Lparen) // keep_parens so we can report error below
 	if t := unparen(x); t != x {
-		p.error(fmt.Sprintf("expression in %s must not be parenthesized", s.Tok))
+		p.errorAt(x.Pos(), fmt.Sprintf("expression in %s must not be parenthesized", s.Tok))
 		// already progressed, no need to advance
 		x = t
 	}
 
 	cx, ok := x.(*CallExpr)
 	if !ok {
-		p.error(fmt.Sprintf("expression in %s must be function call", s.Tok))
+		p.errorAt(x.Pos(), fmt.Sprintf("expression in %s must be function call", s.Tok))
 		// already progressed, no need to advance
 		cx = new(CallExpr)
 		cx.pos = x.Pos()
@@ -841,7 +840,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 
 	default:
 		x := p.bad()
-		p.syntax_error("expecting expression")
+		p.syntaxError("expecting expression")
 		p.advance()
 		return x
 	}
@@ -907,7 +906,7 @@ loop:
 				p.want(_Rparen)
 
 			default:
-				p.syntax_error("expecting name or (")
+				p.syntaxError("expecting name or (")
 				p.advance(_Semi, _Rparen)
 			}
 
@@ -985,7 +984,7 @@ loop:
 				break loop
 			}
 			if t != x {
-				p.syntax_error("cannot parenthesize type in composite literal")
+				p.syntaxError("cannot parenthesize type in composite literal")
 				// already progressed, no need to advance
 			}
 			n := p.complitexpr()
@@ -1056,7 +1055,7 @@ func (p *parser) type_() Expr {
 	typ := p.typeOrNil()
 	if typ == nil {
 		typ = p.bad()
-		p.syntax_error("expecting type")
+		p.syntaxError("expecting type")
 		p.advance(_Comma, _Colon, _Semi, _Rparen, _Rbrack, _Rbrace)
 	}
 
@@ -1193,7 +1192,7 @@ func (p *parser) chanElem() Expr {
 	typ := p.typeOrNil()
 	if typ == nil {
 		typ = p.bad()
-		p.syntax_error("missing channel element type")
+		p.syntaxError("missing channel element type")
 		// assume element type is simply absent - don't advance
 	}
 
@@ -1333,7 +1332,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 			p.want(_Rparen)
 			tag := p.oliteral()
 			p.addField(styp, pos, nil, typ, tag)
-			p.syntax_error("cannot parenthesize embedded type")
+			p.syntaxError("cannot parenthesize embedded type")
 
 		} else {
 			// '(' embed ')' oliteral
@@ -1341,7 +1340,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 			p.want(_Rparen)
 			tag := p.oliteral()
 			p.addField(styp, pos, nil, typ, tag)
-			p.syntax_error("cannot parenthesize embedded type")
+			p.syntaxError("cannot parenthesize embedded type")
 		}
 
 	case _Star:
@@ -1352,7 +1351,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 			p.want(_Rparen)
 			tag := p.oliteral()
 			p.addField(styp, pos, nil, typ, tag)
-			p.syntax_error("cannot parenthesize embedded type")
+			p.syntaxError("cannot parenthesize embedded type")
 
 		} else {
 			// '*' embed oliteral
@@ -1362,7 +1361,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 		}
 
 	default:
-		p.syntax_error("expecting field name or embedded type")
+		p.syntaxError("expecting field name or embedded type")
 		p.advance(_Semi, _Rbrace)
 	}
 }
@@ -1398,7 +1397,7 @@ func (p *parser) methodDecl() *Field {
 			hasNameList = true
 		}
 		if hasNameList {
-			p.syntax_error("name list not allowed in interface type")
+			p.syntaxError("name list not allowed in interface type")
 			// already progressed, no need to advance
 		}
 
@@ -1415,7 +1414,7 @@ func (p *parser) methodDecl() *Field {
 		return f
 
 	case _Lparen:
-		p.syntax_error("cannot parenthesize embedded type")
+		p.syntaxError("cannot parenthesize embedded type")
 		f := new(Field)
 		f.pos = p.pos()
 		p.next()
@@ -1424,7 +1423,7 @@ func (p *parser) methodDecl() *Field {
 		return f
 
 	default:
-		p.syntax_error("expecting method or interface name")
+		p.syntaxError("expecting method or interface name")
 		p.advance(_Semi, _Rbrace)
 		return nil
 	}
@@ -1467,7 +1466,7 @@ func (p *parser) paramDeclOrNil() *Field {
 		f.Type = p.dotsType()
 
 	default:
-		p.syntax_error("expecting )")
+		p.syntaxError("expecting )")
 		p.advance(_Comma, _Rparen)
 		return nil
 	}
@@ -1488,7 +1487,7 @@ func (p *parser) dotsType() *DotsType {
 	t.Elem = p.typeOrNil()
 	if t.Elem == nil {
 		t.Elem = p.bad()
-		p.syntax_error("final argument in variadic function missing type")
+		p.syntaxError("final argument in variadic function missing type")
 	}
 
 	return t
@@ -1550,7 +1549,7 @@ func (p *parser) paramList() (list []*Field) {
 			}
 		}
 		if !ok {
-			p.syntax_error_at(pos, "mixed named and unnamed function parameters")
+			p.syntaxErrorAt(pos, "mixed named and unnamed function parameters")
 		}
 	}
 
@@ -1652,13 +1651,13 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
 			case *Name:
 				x.Lhs = lhs
 			case *ListExpr:
-				p.error_at(lhs.Pos(), fmt.Sprintf("cannot assign 1 value to %d variables", len(lhs.ElemList)))
+				p.errorAt(lhs.Pos(), fmt.Sprintf("cannot assign 1 value to %d variables", len(lhs.ElemList)))
 				// make the best of what we have
 				if lhs, ok := lhs.ElemList[0].(*Name); ok {
 					x.Lhs = lhs
 				}
 			default:
-				p.error_at(lhs.Pos(), fmt.Sprintf("invalid variable name %s in type switch", String(lhs)))
+				p.errorAt(lhs.Pos(), fmt.Sprintf("invalid variable name %s in type switch", String(lhs)))
 			}
 			s := new(ExprStmt)
 			s.pos = x.Pos()
@@ -1670,7 +1669,7 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
 		return as
 
 	default:
-		p.syntax_error("expecting := or = or comma")
+		p.syntaxError("expecting := or = or comma")
 		p.advance(_Semi, _Rbrace)
 		// make the best of what we have
 		if x, ok := lhs.(*ListExpr); ok {
@@ -1729,7 +1728,7 @@ func (p *parser) labeledStmtOrNil(label *Name) Stmt {
 	}
 
 	// report error at line of ':' token
-	p.syntax_error_at(s.pos, "missing statement after label")
+	p.syntaxErrorAt(s.pos, "missing statement after label")
 	// we are already at the end of the labeled statement - no need to advance
 	return nil // avoids follow-on errors (see e.g., fixedbugs/bug274.go)
 }
@@ -1745,7 +1744,7 @@ func (p *parser) blockStmt(context string) *BlockStmt {
 
 	// people coming from C may forget that braces are mandatory in Go
 	if !p.got(_Lbrace) {
-		p.syntax_error("expecting { after " + context)
+		p.syntaxError("expecting { after " + context)
 		p.advance(_Name, _Rbrace)
 		s.Rbrace = p.pos() // in case we found "}"
 		if p.got(_Rbrace) {
@@ -1793,7 +1792,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 
 	if p.tok == _Lbrace {
 		if keyword == _If {
-			p.syntax_error("missing condition in if statement")
+			p.syntaxError("missing condition in if statement")
 		}
 		return
 	}
@@ -1805,7 +1804,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 	if p.tok != _Semi {
 		// accept potential varDecl but complain
 		if p.got(_Var) {
-			p.syntax_error(fmt.Sprintf("var declaration not allowed in %s initializer", keyword.String()))
+			p.syntaxError(fmt.Sprintf("var declaration not allowed in %s initializer", keyword.String()))
 		}
 		init = p.simpleStmt(nil, keyword == _For)
 		// If we have a range clause, we are done (can only happen for keyword == _For).
@@ -1831,7 +1830,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 		if keyword == _For {
 			if p.tok != _Semi {
 				if p.tok == _Lbrace {
-					p.syntax_error("expecting for loop condition")
+					p.syntaxError("expecting for loop condition")
 					goto done
 				}
 				condStmt = p.simpleStmt(nil, false)
@@ -1840,7 +1839,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 			if p.tok != _Lbrace {
 				post = p.simpleStmt(nil, false)
 				if a, _ := post.(*AssignStmt); a != nil && a.Op == Def {
-					p.syntax_error_at(a.Pos(), "cannot declare in post statement of for loop")
+					p.syntaxErrorAt(a.Pos(), "cannot declare in post statement of for loop")
 				}
 			}
 		} else if p.tok != _Lbrace {
@@ -1857,9 +1856,9 @@ done:
 	case nil:
 		if keyword == _If && semi.pos.IsKnown() {
 			if semi.lit != "semicolon" {
-				p.syntax_error_at(semi.pos, fmt.Sprintf("unexpected %s, expecting { after if clause", semi.lit))
+				p.syntaxErrorAt(semi.pos, fmt.Sprintf("unexpected %s, expecting { after if clause", semi.lit))
 			} else {
-				p.syntax_error_at(semi.pos, "missing condition in if statement")
+				p.syntaxErrorAt(semi.pos, "missing condition in if statement")
 			}
 		}
 	case *ExprStmt:
@@ -1873,7 +1872,7 @@ done:
 		if as, ok := s.(*AssignStmt); ok && as.Op == 0 {
 			str = "assignment " + str
 		}
-		p.syntax_error(fmt.Sprintf("%s used as value", str))
+		p.syntaxError(fmt.Sprintf("%s used as value", str))
 	}
 
 	p.xnest = outer
@@ -1898,7 +1897,7 @@ func (p *parser) ifStmt() *IfStmt {
 		case _Lbrace:
 			s.Else = p.blockStmt("")
 		default:
-			p.syntax_error("else must be followed by if or statement block")
+			p.syntaxError("else must be followed by if or statement block")
 			p.advance(_Name, _Rbrace)
 		}
 	}
@@ -1917,7 +1916,7 @@ func (p *parser) switchStmt() *SwitchStmt {
 	s.Init, s.Tag, _ = p.header(_Switch)
 
 	if !p.got(_Lbrace) {
-		p.syntax_error("missing { after switch clause")
+		p.syntaxError("missing { after switch clause")
 		p.advance(_Case, _Default, _Rbrace)
 	}
 	for p.tok != _EOF && p.tok != _Rbrace {
@@ -1939,7 +1938,7 @@ func (p *parser) selectStmt() *SelectStmt {
 
 	p.want(_Select)
 	if !p.got(_Lbrace) {
-		p.syntax_error("missing { after select clause")
+		p.syntaxError("missing { after select clause")
 		p.advance(_Case, _Default, _Rbrace)
 	}
 	for p.tok != _EOF && p.tok != _Rbrace {
@@ -1968,7 +1967,7 @@ func (p *parser) caseClause() *CaseClause {
 		p.next()
 
 	default:
-		p.syntax_error("expecting case or default or }")
+		p.syntaxError("expecting case or default or }")
 		p.advance(_Colon, _Case, _Default, _Rbrace)
 	}
 
@@ -2008,7 +2007,7 @@ func (p *parser) commClause() *CommClause {
 		p.next()
 
 	default:
-		p.syntax_error("expecting case or default or }")
+		p.syntaxError("expecting case or default or }")
 		p.advance(_Colon, _Case, _Default, _Rbrace)
 	}
 
@@ -2135,7 +2134,7 @@ func (p *parser) stmtList() (l []Stmt) {
 		l = append(l, s)
 		// ";" is optional before "}"
 		if !p.got(_Semi) && p.tok != _Rbrace {
-			p.syntax_error("at end of statement")
+			p.syntaxError("at end of statement")
 			p.advance(_Semi, _Rbrace, _Case, _Default)
 			p.got(_Semi) // avoid spurious empty statement
 		}
@@ -2180,7 +2179,7 @@ func (p *parser) name() *Name {
 	}
 
 	n := p.newName("_")
-	p.syntax_error("expecting name")
+	p.syntaxError("expecting name")
 	p.advance()
 	return n
 }
@@ -2217,7 +2216,7 @@ func (p *parser) qualifiedName(name *Name) Expr {
 		name = p.name()
 	default:
 		name = p.newName("_")
-		p.syntax_error("expecting name")
+		p.syntaxError("expecting name")
 		p.advance(_Dot, _Semi, _Rbrace)
 	}
 
