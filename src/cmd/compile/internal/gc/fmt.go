@@ -701,15 +701,15 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 	}
 
 	if int(t.Etype) < len(basicnames) && basicnames[t.Etype] != "" {
-		prefix := ""
-		if mode == FErr && (t == types.Idealbool || t == types.Idealstring) {
-			prefix = "untyped "
+		name := basicnames[t.Etype]
+		if t == types.Idealbool || t == types.Idealstring {
+			name = "untyped " + name
 		}
-		return prefix + basicnames[t.Etype]
+		return name
 	}
 
 	if mode == FDbg {
-		return t.Etype.String() + "-" + typefmt(t, flag, 0, depth)
+		return t.Etype.String() + "-" + typefmt(t, flag, FErr, depth)
 	}
 
 	switch t.Etype {
