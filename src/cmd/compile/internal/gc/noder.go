@@ -1190,8 +1190,22 @@ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
 		}
 		p.linknames = append(p.linknames, linkname{pos, f[1], f[2]})
 
+	case strings.HasPrefix(text, "go:cgo_import_dynamic "):
+		// This is permitted for general use because Solaris
+		// code relies on it in golang.org/x/sys/unix and others.
+		fields := pragmaFields(text)
+		if len(fields) >= 4 {
+			lib := strings.Trim(fields[3], `"`)
+			if lib != "" && !safeArg(lib) && !isCgoGeneratedFile(pos) {
+				p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("invalid library name %q in cgo_import_dynamic directive", lib)})
+			}
+			p.pragcgobuf += p.pragcgo(pos, text)
+			return pragmaValue("go:cgo_import_dynamic")
+		}
+		fallthrough
 	case strings.HasPrefix(text, "go:cgo_"):
-		// For security, we disallow //go:cgo_* directives outside cgo-generated files.
+		// For security, we disallow //go:cgo_* directives other
+		// than cgo_import_dynamic outside cgo-generated files.
 		// Exception: they are allowed in the standard library, for runtime and syscall.
 		if !isCgoGeneratedFile(pos) && !compiling_std {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in cgo-generated code", text)})
@@ -1225,6 +1239,18 @@ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
 // See golang.org/issue/23672.
 func isCgoGeneratedFile(pos src.Pos) bool {
 	return strings.HasPrefix(filepath.Base(filepath.Clean(pos.AbsFilename())), "_cgo_")
+}
+
+// safeArg reports whether arg is a "safe" command-line argument,
+// meaning that when it appears in a command-line, it probably
+// doesn't have some special meaning other than its own name.
+// This is copied from SafeArg in cmd/go/internal/load/pkg.go.
+func safeArg(name string) bool {
+	if name == "" {
+		return false
+	}
+	c := name[0]
+	return '0' <= c && c <= '9' || 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || c == '.' || c == '_' || c == '/' || c >= utf8.RuneSelf
 }
 
 func mkname(sym *types.Sym) *Node {
