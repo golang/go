@@ -260,6 +260,9 @@ func TestSignalForwarding(t *testing.T) {
 }
 
 func TestSignalForwardingExternal(t *testing.T) {
+	if GOOS == "freebsd" {
+		t.Skipf("skipping on %s/%s; signal always goes to the Go runtime", GOOS, GOARCH)
+	}
 	checkSignalForwardingTest(t)
 
 	defer func() {
@@ -433,7 +436,7 @@ func TestSigaltstack(t *testing.T) {
 }
 
 const testar = `#!/usr/bin/env bash
-while expr $1 : '[-]' >/dev/null; do
+while [[ $1 == -* ]] >/dev/null; do
   shift
 done
 echo "testar" > $1

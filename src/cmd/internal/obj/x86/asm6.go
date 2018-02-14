@@ -4615,7 +4615,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 							log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
 
 						case objabi.Hlinux,
-							objabi.Hnacl:
+							objabi.Hnacl, objabi.Hfreebsd:
 							if ctxt.Flag_shared {
 								// Note that this is not generating the same insns as the other cases.
 								//     MOV TLS, dst
@@ -4687,9 +4687,9 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					default:
 						log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
 
-					case objabi.Hlinux:
+					case objabi.Hlinux, objabi.Hfreebsd:
 						if !ctxt.Flag_shared {
-							log.Fatalf("unknown TLS base location for linux without -shared")
+							log.Fatalf("unknown TLS base location for linux/freebsd without -shared")
 						}
 						// Note that this is not generating the same insn as the other cases.
 						//     MOV TLS, R_to

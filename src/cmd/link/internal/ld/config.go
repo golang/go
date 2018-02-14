@@ -52,6 +52,12 @@ func (mode *BuildMode) Set(s string) error {
 	case "c-archive":
 		switch objabi.GOOS {
 		case "darwin", "linux":
+		case "freebsd":
+			switch objabi.GOARCH {
+			case "amd64":
+			default:
+				return badmode()
+			}
 		case "windows":
 			switch objabi.GOARCH {
 			case "amd64", "386":
