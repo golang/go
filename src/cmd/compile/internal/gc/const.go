@@ -232,11 +232,17 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 	switch n.Op {
 	default:
 		if n.Type == types.Idealbool {
-			if t.IsBoolean() {
-				n.Type = t
-			} else {
-				n.Type = types.Types[TBOOL]
+			if !t.IsBoolean() {
+				t = types.Types[TBOOL]
 			}
+			switch n.Op {
+			case ONOT:
+				n.Left = convlit(n.Left, t)
+			case OANDAND, OOROR:
+				n.Left = convlit(n.Left, t)
+				n.Right = convlit(n.Right, t)
+			}
+			n.Type = t
 		}
 
 		if n.Type.Etype == TIDEAL {
