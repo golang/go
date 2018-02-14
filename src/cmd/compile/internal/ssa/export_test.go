@@ -184,31 +184,7 @@ func init() {
 		t.Align = uint8(typ.width)
 		types.Types[typ.et] = t
 	}
-
-	dummyTypes = Types{
-		Bool:       types.Types[types.TBOOL],
-		Int8:       types.Types[types.TINT8],
-		Int16:      types.Types[types.TINT16],
-		Int32:      types.Types[types.TINT32],
-		Int64:      types.Types[types.TINT64],
-		UInt8:      types.Types[types.TUINT8],
-		UInt16:     types.Types[types.TUINT16],
-		UInt32:     types.Types[types.TUINT32],
-		UInt64:     types.Types[types.TUINT64],
-		Float32:    types.Types[types.TFLOAT32],
-		Float64:    types.Types[types.TFLOAT64],
-		Int:        types.Types[types.TINT],
-		Uintptr:    types.Types[types.TUINTPTR],
-		String:     types.Types[types.TSTRING],
-		BytePtr:    types.NewPtr(types.Types[types.TUINT8]),
-		Int32Ptr:   types.NewPtr(types.Types[types.TINT32]),
-		UInt32Ptr:  types.NewPtr(types.Types[types.TUINT32]),
-		IntPtr:     types.NewPtr(types.Types[types.TINT]),
-		UintptrPtr: types.NewPtr(types.Types[types.TUINTPTR]),
-		Float32Ptr: types.NewPtr(types.Types[types.TFLOAT32]),
-		Float64Ptr: types.NewPtr(types.Types[types.TFLOAT64]),
-		BytePtrPtr: types.NewPtr(types.NewPtr(types.Types[types.TUINT8])),
-	}
+	dummyTypes.SetTypPtrs()
 }
 
 func (d DummyFrontend) DerefItab(sym *obj.LSym, off int64) *obj.LSym { return nil }
