@@ -407,12 +407,9 @@ func findnull(s *byte) int {
 	if s == nil {
 		return 0
 	}
-	p := (*[maxAlloc/2 - 1]byte)(unsafe.Pointer(s))
-	l := 0
-	for p[l] != 0 {
-		l++
-	}
-	return l
+	ss := stringStruct{unsafe.Pointer(s), maxAlloc/2 - 1}
+	t := *(*string)(unsafe.Pointer(&ss))
+	return stringsIndexByte(t, 0)
 }
 
 func findnullw(s *uint16) int {
