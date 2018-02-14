@@ -85,6 +85,8 @@ int main(int argc, char** argv) {
 				printf("write(2) unexpectedly succeeded\n");
 				return 0;
 			}
+			printf("did not receieve SIGPIPE\n");
+			return 0;
 		}
 		default:
 			printf("Unknown test: %d\n", test);

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !amd64
+// +build linux,!amd64 freebsd,!amd64
 
 package runtime
 
-// This version is used on Linux systems on which we don't use cgo to
-// call the C version of sigaction.
+// This version is used on Linux and FreeBSD systems on which we don't
+// use cgo to call the C version of sigaction.
 
 //go:nosplit
 //go:nowritebarrierrec
