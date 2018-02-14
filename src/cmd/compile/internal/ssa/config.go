@@ -73,6 +73,39 @@ type Types struct {
 	BytePtrPtr *types.Type
 }
 
+// Instantiate the SSA type pointers.
+func NewTypes() *Types {
+	t := new(Types)
+	t.SetTypPtrs()
+	return t
+}
+
+// Populate the SSA type pointers.
+func (t *Types) SetTypPtrs() {
+	t.Bool = types.Types[types.TBOOL]
+	t.Int8 = types.Types[types.TINT8]
+	t.Int16 = types.Types[types.TINT16]
+	t.Int32 = types.Types[types.TINT32]
+	t.Int64 = types.Types[types.TINT64]
+	t.UInt8 = types.Types[types.TUINT8]
+	t.UInt16 = types.Types[types.TUINT16]
+	t.UInt32 = types.Types[types.TUINT32]
+	t.UInt64 = types.Types[types.TUINT64]
+	t.Float32 = types.Types[types.TFLOAT32]
+	t.Float64 = types.Types[types.TFLOAT64]
+	t.Int = types.Types[types.TINT]
+	t.Uintptr = types.Types[types.TUINTPTR]
+	t.String = types.Types[types.TSTRING]
+	t.BytePtr = types.NewPtr(types.Types[types.TUINT8])
+	t.Int32Ptr = types.NewPtr(types.Types[types.TINT32])
+	t.UInt32Ptr = types.NewPtr(types.Types[types.TUINT32])
+	t.IntPtr = types.NewPtr(types.Types[types.TINT])
+	t.UintptrPtr = types.NewPtr(types.Types[types.TUINTPTR])
+	t.Float32Ptr = types.NewPtr(types.Types[types.TFLOAT32])
+	t.Float64Ptr = types.NewPtr(types.Types[types.TFLOAT64])
+	t.BytePtrPtr = types.NewPtr(types.NewPtr(types.Types[types.TUINT8]))
+}
+
 type Logger interface {
 	// Logf logs a message from the compiler.
 	Logf(string, ...interface{})

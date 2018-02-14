@@ -24,31 +24,7 @@ var ssaConfig *ssa.Config
 var ssaCaches []ssa.Cache
 
 func initssaconfig() {
-	types_ := ssa.Types{
-		Bool:       types.Types[TBOOL],
-		Int8:       types.Types[TINT8],
-		Int16:      types.Types[TINT16],
-		Int32:      types.Types[TINT32],
-		Int64:      types.Types[TINT64],
-		UInt8:      types.Types[TUINT8],
-		UInt16:     types.Types[TUINT16],
-		UInt32:     types.Types[TUINT32],
-		UInt64:     types.Types[TUINT64],
-		Float32:    types.Types[TFLOAT32],
-		Float64:    types.Types[TFLOAT64],
-		Int:        types.Types[TINT],
-		UInt:       types.Types[TUINT],
-		Uintptr:    types.Types[TUINTPTR],
-		String:     types.Types[TSTRING],
-		BytePtr:    types.NewPtr(types.Types[TUINT8]),
-		Int32Ptr:   types.NewPtr(types.Types[TINT32]),
-		UInt32Ptr:  types.NewPtr(types.Types[TUINT32]),
-		IntPtr:     types.NewPtr(types.Types[TINT]),
-		UintptrPtr: types.NewPtr(types.Types[TUINTPTR]),
-		Float32Ptr: types.NewPtr(types.Types[TFLOAT32]),
-		Float64Ptr: types.NewPtr(types.Types[TFLOAT64]),
-		BytePtrPtr: types.NewPtr(types.NewPtr(types.Types[TUINT8])),
-	}
+	types_ := ssa.NewTypes()
 
 	if thearch.SoftFloat {
 		softfloatInit()
@@ -69,7 +45,7 @@ func initssaconfig() {
 	_ = types.NewPtr(types.Types[TINT64])                             // *int64
 	_ = types.NewPtr(types.Errortype)                                 // *error
 	types.NewPtrCacheEnabled = false
-	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, types_, Ctxt, Debug['N'] == 0)
+	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, *types_, Ctxt, Debug['N'] == 0)
 	if thearch.LinkArch.Name == "386" {
 		ssaConfig.Set387(thearch.Use387)
 	}
