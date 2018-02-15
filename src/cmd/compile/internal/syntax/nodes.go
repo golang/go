@@ -215,8 +215,8 @@ type (
 	// Fun(ArgList[0], ArgList[1], ...)
 	CallExpr struct {
 		Fun     Expr
-		ArgList []Expr
-		HasDots bool // last argument is followed by ...
+		ArgList []Expr // nil means no arguments
+		HasDots bool   // last argument is followed by ...
 		expr
 	}
 

@@ -50,12 +50,13 @@ type FilenameHandler func(name string) string
 
 // Parse parses a single Go source file from src and returns the corresponding
 // syntax tree. If there are errors, Parse will return the first error found,
-// and a possibly partially constructed syntax tree, or nil if no correct package
-// clause was found. The base argument is only used for position information.
+// and a possibly partially constructed syntax tree, or nil.
 //
 // If errh != nil, it is called with each error encountered, and Parse will
-// process as much source as possible. If errh is nil, Parse will terminate
-// immediately upon encountering an error.
+// process as much source as possible. In this case, the returned syntax tree
+// is only nil if no correct package clause was found.
+// If errh is nil, Parse will terminate immediately upon encountering the first
+// error, and the returned syntax tree is nil.
 //
 // If pragh != nil, it is called with each pragma encountered.
 //

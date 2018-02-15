@@ -16,12 +16,16 @@ func TestPrint(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	ast, err := ParseFile(*src_, nil, nil, 0)
+	// provide a dummy error handler so parsing doesn't stop after first error
+	ast, err := ParseFile(*src_, func(error) {}, nil, 0)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-	Fprint(os.Stdout, ast, true)
-	fmt.Println()
+
+	if ast != nil {
+		Fprint(os.Stdout, ast, true)
+		fmt.Println()
+	}
 }
 
 func TestPrintString(t *testing.T) {
