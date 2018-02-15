@@ -248,7 +248,7 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "arm64",
 		os:      "linux",
-		imports: []string{"math/bits"},
+		imports: []string{"encoding/binary", "math/bits"},
 		tests:   linuxARM64Tests,
 	},
 	{
@@ -2750,6 +2750,80 @@ var linuxARM64Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"TBZ"},
+	},
+	// Load-combining tests.
+	{
+		fn: `
+		func $(b []byte) uint64 {
+			return binary.LittleEndian.Uint64(b)
+		}
+		`,
+		pos: []string{"\tMOVD\t\\(R[0-9]+\\)"},
+	},
+	{
+		fn: `
+		func $(b []byte, i int) uint64 {
+			return binary.LittleEndian.Uint64(b[i:])
+		}
+		`,
+		pos: []string{"\tMOVD\t\\(R[0-9]+\\)"},
+	},
+	{
+		fn: `
+		func $(b []byte) uint32 {
+			return binary.LittleEndian.Uint32(b)
+		}
+		`,
+		pos: []string{"\tMOVWU\t\\(R[0-9]+\\)"},
+	},
+	{
+		fn: `
+		func $(b []byte, i int) uint32 {
+			return binary.LittleEndian.Uint32(b[i:])
+		}
+		`,
+		pos: []string{"\tMOVWU\t\\(R[0-9]+\\)"},
+	},
+	{
+		fn: `
+		func $(b []byte) uint64 {
+			return binary.BigEndian.Uint64(b)
+		}
+		`,
+		pos: []string{"\tREV\t"},
+	},
+	{
+		fn: `
+		func $(b []byte, i int) uint64 {
+			return binary.BigEndian.Uint64(b[i:])
+		}
+		`,
+		pos: []string{"\tREV\t"},
+	},
+	{
+		fn: `
+		func $(b []byte) uint32 {
+			return binary.BigEndian.Uint32(b)
+		}
+		`,
+		pos: []string{"\tREVW\t"},
+	},
+	{
+		fn: `
+		func $(b []byte, i int) uint32 {
+			return binary.BigEndian.Uint32(b[i:])
+		}
+		`,
+		pos: []string{"\tREVW\t"},
+	},
+	{
+		fn: `
+		func $(s []byte) uint16 {
+			return uint16(s[0]) | uint16(s[1]) << 8
+		}
+		`,
+		pos: []string{"\tMOVHU\t\\(R[0-9]+\\)"},
+		neg: []string{"ORR\tR[0-9]+<<8\t"},
 	},
 }
 

@@ -805,111 +805,129 @@ func rewriteValueARM64_OpARM64ADD_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
-	// match: (ADD x (SLLconst [c] y))
-	// cond:
-	// result: (ADDshiftLL x y [c])
+	// match: (ADD x0 x1:(SLLconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (ADDshiftLL x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SLLconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SLLconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ADDshiftLL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (ADD (SLLconst [c] y) x)
-	// cond:
-	// result: (ADDshiftLL x y [c])
+	// match: (ADD x1:(SLLconst [c] y) x0)
+	// cond: clobberIfDead(x1)
+	// result: (ADDshiftLL x0 y [c])
 	for {
 		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64SLLconst {
+		x1 := v.Args[0]
+		if x1.Op != OpARM64SLLconst {
 			break
 		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		x0 := v.Args[1]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ADDshiftLL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (ADD x (SRLconst [c] y))
-	// cond:
-	// result: (ADDshiftRL x y [c])
+	// match: (ADD x0 x1:(SRLconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (ADDshiftRL x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SRLconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SRLconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ADDshiftRL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (ADD (SRLconst [c] y) x)
-	// cond:
-	// result: (ADDshiftRL x y [c])
+	// match: (ADD x1:(SRLconst [c] y) x0)
+	// cond: clobberIfDead(x1)
+	// result: (ADDshiftRL x0 y [c])
 	for {
 		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64SRLconst {
+		x1 := v.Args[0]
+		if x1.Op != OpARM64SRLconst {
 			break
 		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		x0 := v.Args[1]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ADDshiftRL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (ADD x (SRAconst [c] y))
-	// cond:
-	// result: (ADDshiftRA x y [c])
+	// match: (ADD x0 x1:(SRAconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (ADDshiftRA x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SRAconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SRAconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ADDshiftRA)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (ADD (SRAconst [c] y) x)
-	// cond:
-	// result: (ADDshiftRA x y [c])
+	// match: (ADD x1:(SRAconst [c] y) x0)
+	// cond: clobberIfDead(x1)
+	// result: (ADDshiftRA x0 y [c])
 	for {
 		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64SRAconst {
+		x1 := v.Args[0]
+		if x1.Op != OpARM64SRAconst {
 			break
 		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		x0 := v.Args[1]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ADDshiftRA)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
@@ -1304,114 +1322,132 @@ func rewriteValueARM64_OpARM64AND_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
-	// match: (AND x (SLLconst [c] y))
-	// cond:
-	// result: (ANDshiftLL x y [c])
+	// match: (AND x0 x1:(SLLconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (ANDshiftLL x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SLLconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SLLconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ANDshiftLL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (AND (SLLconst [c] y) x)
-	// cond:
-	// result: (ANDshiftLL x y [c])
+	// match: (AND x1:(SLLconst [c] y) x0)
+	// cond: clobberIfDead(x1)
+	// result: (ANDshiftLL x0 y [c])
 	for {
 		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64SLLconst {
+		x1 := v.Args[0]
+		if x1.Op != OpARM64SLLconst {
 			break
 		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		x0 := v.Args[1]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ANDshiftLL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (AND x (SRLconst [c] y))
-	// cond:
-	// result: (ANDshiftRL x y [c])
+	// match: (AND x0 x1:(SRLconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (ANDshiftRL x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SRLconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SRLconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ANDshiftRL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (AND (SRLconst [c] y) x)
-	// cond:
-	// result: (ANDshiftRL x y [c])
+	// match: (AND x1:(SRLconst [c] y) x0)
+	// cond: clobberIfDead(x1)
+	// result: (ANDshiftRL x0 y [c])
 	for {
 		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64SRLconst {
+		x1 := v.Args[0]
+		if x1.Op != OpARM64SRLconst {
 			break
 		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		x0 := v.Args[1]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ANDshiftRL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (AND x (SRAconst [c] y))
-	// cond:
-	// result: (ANDshiftRA x y [c])
+	// match: (AND x0 x1:(SRAconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (ANDshiftRA x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SRAconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SRAconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ANDshiftRA)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
 	return false
 }
 func rewriteValueARM64_OpARM64AND_10(v *Value) bool {
-	// match: (AND (SRAconst [c] y) x)
-	// cond:
-	// result: (ANDshiftRA x y [c])
+	// match: (AND x1:(SRAconst [c] y) x0)
+	// cond: clobberIfDead(x1)
+	// result: (ANDshiftRA x0 y [c])
 	for {
 		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64SRAconst {
+		x1 := v.Args[0]
+		if x1.Op != OpARM64SRAconst {
 			break
 		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		x0 := v.Args[1]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ANDshiftRA)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
@@ -1699,57 +1735,66 @@ func rewriteValueARM64_OpARM64BIC_0(v *Value) bool {
 		v.AuxInt = 0
 		return true
 	}
-	// match: (BIC x (SLLconst [c] y))
-	// cond:
-	// result: (BICshiftLL x y [c])
+	// match: (BIC x0 x1:(SLLconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (BICshiftLL x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SLLconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SLLconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64BICshiftLL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (BIC x (SRLconst [c] y))
-	// cond:
-	// result: (BICshiftRL x y [c])
+	// match: (BIC x0 x1:(SRLconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (BICshiftRL x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SRLconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SRLconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64BICshiftRL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (BIC x (SRAconst [c] y))
-	// cond:
-	// result: (BICshiftRA x y [c])
+	// match: (BIC x0 x1:(SRAconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (BICshiftRA x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SRAconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SRAconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64BICshiftRA)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
@@ -1959,116 +2004,134 @@ func rewriteValueARM64_OpARM64CMP_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (CMP x (SLLconst [c] y))
-	// cond:
-	// result: (CMPshiftLL x y [c])
+	// match: (CMP x0 x1:(SLLconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (CMPshiftLL x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SLLconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SLLconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64CMPshiftLL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (CMP (SLLconst [c] y) x)
-	// cond:
-	// result: (InvertFlags (CMPshiftLL x y [c]))
+	// match: (CMP x0:(SLLconst [c] y) x1)
+	// cond: clobberIfDead(x0)
+	// result: (InvertFlags (CMPshiftLL x1 y [c]))
 	for {
 		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64SLLconst {
+		x0 := v.Args[0]
+		if x0.Op != OpARM64SLLconst {
 			break
 		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
+		c := x0.AuxInt
+		y := x0.Args[0]
+		x1 := v.Args[1]
+		if !(clobberIfDead(x0)) {
+			break
+		}
 		v.reset(OpARM64InvertFlags)
 		v0 := b.NewValue0(v.Pos, OpARM64CMPshiftLL, types.TypeFlags)
 		v0.AuxInt = c
-		v0.AddArg(x)
+		v0.AddArg(x1)
 		v0.AddArg(y)
 		v.AddArg(v0)
 		return true
 	}
-	// match: (CMP x (SRLconst [c] y))
-	// cond:
-	// result: (CMPshiftRL x y [c])
+	// match: (CMP x0 x1:(SRLconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (CMPshiftRL x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SRLconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SRLconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64CMPshiftRL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (CMP (SRLconst [c] y) x)
-	// cond:
-	// result: (InvertFlags (CMPshiftRL x y [c]))
+	// match: (CMP x0:(SRLconst [c] y) x1)
+	// cond: clobberIfDead(x0)
+	// result: (InvertFlags (CMPshiftRL x1 y [c]))
 	for {
 		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64SRLconst {
+		x0 := v.Args[0]
+		if x0.Op != OpARM64SRLconst {
 			break
 		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
+		c := x0.AuxInt
+		y := x0.Args[0]
+		x1 := v.Args[1]
+		if !(clobberIfDead(x0)) {
+			break
+		}
 		v.reset(OpARM64InvertFlags)
 		v0 := b.NewValue0(v.Pos, OpARM64CMPshiftRL, types.TypeFlags)
 		v0.AuxInt = c
-		v0.AddArg(x)
+		v0.AddArg(x1)
 		v0.AddArg(y)
 		v.AddArg(v0)
 		return true
 	}
-	// match: (CMP x (SRAconst [c] y))
-	// cond:
-	// result: (CMPshiftRA x y [c])
+	// match: (CMP x0 x1:(SRAconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (CMPshiftRA x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SRAconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SRAconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64CMPshiftRA)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (CMP (SRAconst [c] y) x)
-	// cond:
-	// result: (InvertFlags (CMPshiftRA x y [c]))
+	// match: (CMP x0:(SRAconst [c] y) x1)
+	// cond: clobberIfDead(x0)
+	// result: (InvertFlags (CMPshiftRA x1 y [c]))
 	for {
 		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64SRAconst {
+		x0 := v.Args[0]
+		if x0.Op != OpARM64SRAconst {
 			break
 		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
+		c := x0.AuxInt
+		y := x0.Args[0]
+		x1 := v.Args[1]
+		if !(clobberIfDead(x0)) {
+			break
+		}
 		v.reset(OpARM64InvertFlags)
 		v0 := b.NewValue0(v.Pos, OpARM64CMPshiftRA, types.TypeFlags)
 		v0.AuxInt = c
-		v0.AddArg(x)
+		v0.AddArg(x1)
 		v0.AddArg(y)
 		v.AddArg(v0)
 		return true
@@ -6930,111 +6993,129 @@ func rewriteValueARM64_OpARM64OR_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (OR x (SLLconst [c] y))
-	// cond:
-	// result: (ORshiftLL  x y [c])
+	// match: (OR x0 x1:(SLLconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (ORshiftLL  x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SLLconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SLLconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ORshiftLL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (OR (SLLconst [c] y) x)
-	// cond:
-	// result: (ORshiftLL  x y [c])
+	// match: (OR x1:(SLLconst [c] y) x0)
+	// cond: clobberIfDead(x1)
+	// result: (ORshiftLL  x0 y [c])
 	for {
 		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64SLLconst {
+		x1 := v.Args[0]
+		if x1.Op != OpARM64SLLconst {
 			break
 		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		x0 := v.Args[1]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ORshiftLL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (OR x (SRLconst [c] y))
-	// cond:
-	// result: (ORshiftRL  x y [c])
+	// match: (OR x0 x1:(SRLconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (ORshiftRL  x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SRLconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SRLconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ORshiftRL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (OR (SRLconst [c] y) x)
-	// cond:
-	// result: (ORshiftRL  x y [c])
+	// match: (OR x1:(SRLconst [c] y) x0)
+	// cond: clobberIfDead(x1)
+	// result: (ORshiftRL  x0 y [c])
 	for {
 		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64SRLconst {
+		x1 := v.Args[0]
+		if x1.Op != OpARM64SRLconst {
 			break
 		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		x0 := v.Args[1]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ORshiftRL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (OR x (SRAconst [c] y))
-	// cond:
-	// result: (ORshiftRA  x y [c])
+	// match: (OR x0 x1:(SRAconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (ORshiftRA  x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SRAconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SRAconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ORshiftRA)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (OR (SRAconst [c] y) x)
-	// cond:
-	// result: (ORshiftRA  x y [c])
+	// match: (OR x1:(SRAconst [c] y) x0)
+	// cond: clobberIfDead(x1)
+	// result: (ORshiftRA  x0 y [c])
 	for {
 		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64SRAconst {
+		x1 := v.Args[0]
+		if x1.Op != OpARM64SRAconst {
 			break
 		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		x0 := v.Args[1]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64ORshiftRA)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
@@ -9628,57 +9709,66 @@ func rewriteValueARM64_OpARM64SUB_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (SUB x (SLLconst [c] y))
-	// cond:
-	// result: (SUBshiftLL x y [c])
+	// match: (SUB x0 x1:(SLLconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (SUBshiftLL x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SLLconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SLLconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64SUBshiftLL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (SUB x (SRLconst [c] y))
-	// cond:
-	// result: (SUBshiftRL x y [c])
+	// match: (SUB x0 x1:(SRLconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (SUBshiftRL x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SRLconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SRLconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64SUBshiftRL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (SUB x (SRAconst [c] y))
-	// cond:
-	// result: (SUBshiftRA x y [c])
+	// match: (SUB x0 x1:(SRAconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (SUBshiftRA x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SRAconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SRAconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64SUBshiftRA)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
@@ -10152,111 +10242,129 @@ func rewriteValueARM64_OpARM64XOR_0(v *Value) bool {
 		v.AuxInt = 0
 		return true
 	}
-	// match: (XOR x (SLLconst [c] y))
-	// cond:
-	// result: (XORshiftLL x y [c])
+	// match: (XOR x0 x1:(SLLconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (XORshiftLL x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SLLconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SLLconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64XORshiftLL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (XOR (SLLconst [c] y) x)
-	// cond:
-	// result: (XORshiftLL x y [c])
+	// match: (XOR x1:(SLLconst [c] y) x0)
+	// cond: clobberIfDead(x1)
+	// result: (XORshiftLL x0 y [c])
 	for {
 		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64SLLconst {
+		x1 := v.Args[0]
+		if x1.Op != OpARM64SLLconst {
 			break
 		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		x0 := v.Args[1]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64XORshiftLL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (XOR x (SRLconst [c] y))
-	// cond:
-	// result: (XORshiftRL x y [c])
+	// match: (XOR x0 x1:(SRLconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (XORshiftRL x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SRLconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SRLconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64XORshiftRL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (XOR (SRLconst [c] y) x)
-	// cond:
-	// result: (XORshiftRL x y [c])
+	// match: (XOR x1:(SRLconst [c] y) x0)
+	// cond: clobberIfDead(x1)
+	// result: (XORshiftRL x0 y [c])
 	for {
 		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64SRLconst {
+		x1 := v.Args[0]
+		if x1.Op != OpARM64SRLconst {
 			break
 		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		x0 := v.Args[1]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64XORshiftRL)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (XOR x (SRAconst [c] y))
-	// cond:
-	// result: (XORshiftRA x y [c])
+	// match: (XOR x0 x1:(SRAconst [c] y))
+	// cond: clobberIfDead(x1)
+	// result: (XORshiftRA x0 y [c])
 	for {
 		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SRAconst {
+		x0 := v.Args[0]
+		x1 := v.Args[1]
+		if x1.Op != OpARM64SRAconst {
 			break
 		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64XORshiftRA)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
-	// match: (XOR (SRAconst [c] y) x)
-	// cond:
-	// result: (XORshiftRA x y [c])
+	// match: (XOR x1:(SRAconst [c] y) x0)
+	// cond: clobberIfDead(x1)
+	// result: (XORshiftRA x0 y [c])
 	for {
 		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64SRAconst {
+		x1 := v.Args[0]
+		if x1.Op != OpARM64SRAconst {
 			break
 		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
+		c := x1.AuxInt
+		y := x1.Args[0]
+		x0 := v.Args[1]
+		if !(clobberIfDead(x1)) {
+			break
+		}
 		v.reset(OpARM64XORshiftRA)
 		v.AuxInt = c
-		v.AddArg(x)
+		v.AddArg(x0)
 		v.AddArg(y)
 		return true
 	}
