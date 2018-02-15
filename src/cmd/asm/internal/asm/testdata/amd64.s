@@ -145,3 +145,4 @@ loop:
 
 // LTYPE0 nonnon	{ outcode($1, &$2); }
 	RET // c3
+	RET	foo(SB)

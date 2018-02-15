@@ -488,7 +488,7 @@ func (t *test) run() {
 		action = "rundir"
 	case "cmpout":
 		action = "run" // the run case already looks for <dir>/<test>.out files
-	case "compile", "compiledir", "build", "builddir", "run", "buildrun", "runoutput", "rundir", "asmcheck":
+	case "compile", "compiledir", "build", "builddir", "buildrundir", "run", "buildrun", "runoutput", "rundir", "asmcheck":
 		// nothing to do
 	case "errorcheckandrundir":
 		wantError = false // should be no error if also will run
@@ -735,7 +735,7 @@ func (t *test) run() {
 			t.err = err
 		}
 
-	case "builddir":
+	case "builddir", "buildrundir":
 		// Build an executable from all the .go and .s files in a subdirectory.
 		useTmp = true
 		longdir := filepath.Join(cwd, t.goDirName())
@@ -788,11 +788,22 @@ func (t *test) run() {
 			t.err = err
 			break
 		}
-		cmd = []string{"go", "tool", "link", "all.a"}
+		cmd = []string{"go", "tool", "link", "-o", "a.exe", "all.a"}
 		_, err = runcmd(cmd...)
 		if err != nil {
 			t.err = err
 			break
+		}
+		if action == "buildrundir" {
+			cmd = append(findExecCmd(), filepath.Join(t.tempDir, "a.exe"))
+			out, err := runcmd(cmd...)
+			if err != nil {
+				t.err = err
+				break
+			}
+			if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
+				t.err = fmt.Errorf("incorrect output\n%s", out)
+			}
 		}
 
 	case "buildrun": // build binary, then run binary, instead of go run. Useful for timeout tests where failure mode is infinite loop.

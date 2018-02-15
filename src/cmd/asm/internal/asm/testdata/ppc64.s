@@ -1197,6 +1197,7 @@ label1:
 	BEQ	2(PC)
 	JMP	foo(SB)
 	CALL	foo(SB)
+	RET	foo(SB)
 
 // END
 //

@@ -1579,6 +1579,8 @@ jmp_label_3:
 	MOVHU	R5@>16, R1                                        // 7518ffe6
 	MOVHU	R5@>24, R1                                        // 751cffe6
 
+	RET	foo(SB)
+
 //
 // END
 //
