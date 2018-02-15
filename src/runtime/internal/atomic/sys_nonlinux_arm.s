@@ -19,3 +19,15 @@ TEXT	·Cas(SB),NOSPLIT,$0
 
 TEXT	·Casp1(SB),NOSPLIT,$0
 	JMP	·Cas(SB)
+
+TEXT runtime∕internal∕atomic·Load(SB),NOSPLIT|NOFRAME,$0-8
+	MOVW	addr+0(FP), R0
+	MOVW	(R0), R1
+
+	MOVB	runtime·goarm(SB), R11
+	CMP	$7, R11
+	BLT	2(PC)
+	DMB	MB_ISH
+
+	MOVW	R1, ret+4(FP)
+	RET
