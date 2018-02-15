@@ -20,6 +20,9 @@
 	BLT	2(PC); \
 	DMB	MB_ISH
 
+TEXT ·LoadUint32(SB),NOSPLIT|NOFRAME,$0
+	JMP	runtime∕internal∕atomic·Load(SB)
+
 TEXT ·armCompareAndSwapUint32(SB),NOSPLIT,$0-13
 	MOVW	addr+0(FP), R1
 	MOVW	old+4(FP), R2

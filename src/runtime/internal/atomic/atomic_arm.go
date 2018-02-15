@@ -69,22 +69,6 @@ func Xchguintptr(addr *uintptr, v uintptr) uintptr {
 }
 
 //go:nosplit
-func Load(addr *uint32) uint32 {
-	return Xadd(addr, 0)
-}
-
-// Should be a built-in for unsafe.Pointer?
-//go:nosplit
-func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(p) + x)
-}
-
-//go:nosplit
-func Loadp(addr unsafe.Pointer) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(Xadd((*uint32)(addr), 0)))
-}
-
-//go:nosplit
 func StorepNoWB(addr unsafe.Pointer, v unsafe.Pointer) {
 	for {
 		old := *(*unsafe.Pointer)(addr)
@@ -204,3 +188,9 @@ func And8(addr *uint8, v uint8) {
 
 //go:nosplit
 func armcas(ptr *uint32, old, new uint32) bool
+
+//go:noescape
+func Load(addr *uint32) uint32
+
+//go:noescape
+func Loadp(addr unsafe.Pointer) unsafe.Pointer

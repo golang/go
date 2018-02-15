@@ -54,18 +54,6 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0
 TEXT ·LoadInt32(SB),NOSPLIT,$0
 	B ·LoadUint32(SB)
 
-TEXT ·LoadUint32(SB),NOSPLIT,$0-8
-	MOVW addr+0(FP), R1
-load32loop:
-	LDREX (R1), R2		// loads R2
-	DMB MB_ISHST
-	STREX R2, (R1), R0	// stores R2
-	CMP $0, R0
-	BNE load32loop
-	DMB MB_ISH
-	MOVW R2, val+4(FP)
-	RET
-
 TEXT ·LoadInt64(SB),NOSPLIT,$0
 	B ·loadUint64(SB)
 
