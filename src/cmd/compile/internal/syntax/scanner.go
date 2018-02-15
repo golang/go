@@ -242,10 +242,6 @@ redo:
 		s.op, s.prec = Or, precAdd
 		goto assignop
 
-	case '~':
-		s.error("bitwise complement operator is ^")
-		fallthrough
-
 	case '^':
 		s.op, s.prec = Xor, precAdd
 		c = s.getr()
