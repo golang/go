@@ -408,3 +408,46 @@ func TestMatchGoImport(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateRepoRootScheme(t *testing.T) {
+	tests := []struct {
+		root string
+		err  string
+	}{
+		{
+			root: "",
+			err:  "no scheme",
+		},
+		{
+			root: "http://",
+			err:  "",
+		},
+		{
+			root: "a://",
+			err:  "",
+		},
+		{
+			root: "a#://",
+			err:  "invalid scheme",
+		},
+		{
+			root: "-config://",
+			err:  "invalid scheme",
+		},
+	}
+
+	for _, test := range tests {
+		err := validateRepoRootScheme(test.root)
+		if err == nil {
+			if test.err != "" {
+				t.Errorf("validateRepoRootScheme(%q) = nil, want %q", test.root, test.err)
+			}
+		} else if test.err == "" {
+			if err != nil {
+				t.Errorf("validateRepoRootScheme(%q) = %q, want nil", test.root, test.err)
+			}
+		} else if err.Error() != test.err {
+			t.Errorf("validateRepoRootScheme(%q) = %q, want %q", test.root, err, test.err)
+		}
+	}
+}
