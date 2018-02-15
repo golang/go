@@ -2701,7 +2701,7 @@ func (c *typeConv) badJNI(dt *dwarf.TypedefType) bool {
 }
 
 // jniTypes maps from JNI types that we want to be uintptrs, to the underlying type to which
-// they are mapped.  The base "jobject" maps to the empty string.
+// they are mapped. The base "jobject" maps to the empty string.
 var jniTypes = map[string]string{
 	"jobject":       "",
 	"jclass":        "jobject",
