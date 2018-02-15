@@ -343,7 +343,7 @@ func TestScanErrors(t *testing.T) {
 		{"\U0001d7d8" /* 𝟘 */, "identifier cannot begin with digit U+1D7D8 '𝟘'", 0, 0},
 		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid identifier character U+00BD '½'", 0, 8 /* byte offset */},
 
-		{"x + ~y", "bitwise complement operator is ^", 0, 4},
+		{"x + ~y", "invalid character U+007E '~'", 0, 4},
 		{"foo$bar = 0", "invalid character U+0024 '$'", 0, 3},
 		{"const x = 0xyz", "malformed hex constant", 0, 12},
 		{"0123456789", "malformed octal constant", 0, 10},
