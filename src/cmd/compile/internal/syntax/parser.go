@@ -758,7 +758,7 @@ func (p *parser) callStmt() *CallStmt {
 		// already progressed, no need to advance
 		cx = new(CallExpr)
 		cx.pos = x.Pos()
-		cx.Fun = p.bad()
+		cx.Fun = x // assume common error of missing parentheses (function invocation)
 	}
 
 	s.Call = cx
