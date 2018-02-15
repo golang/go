@@ -409,3 +409,7 @@ type Sysctlnode struct {
 	X_sysctl_parent [8]byte
 	X_sysctl_desc   [8]byte
 }
+
+type sigset struct {
+	X__bits [4]uint32
+}
