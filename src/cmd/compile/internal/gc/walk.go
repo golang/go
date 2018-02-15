@@ -3135,7 +3135,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 // init {
 //   n := len(a)
 //   if n > len(b) { n = len(b) }
-//   memmove(a.ptr, b.ptr, n*sizeof(elem(a)))
+//   if a.ptr != b.ptr { memmove(a.ptr, b.ptr, n*sizeof(elem(a))) }
 // }
 // n;
 //
@@ -3183,14 +3183,19 @@ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
 	nif.Nbody.Append(nod(OAS, nlen, nod(OLEN, nr, nil)))
 	l = append(l, nif)
 
-	// Call memmove.
-	fn := syslook("memmove")
+	// if to.ptr != frm.ptr { memmove( ... ) }
+	ne := nod(OIF, nod(ONE, nto, nfrm), nil)
+	ne.SetLikely(true)
+	l = append(l, ne)
 
+	fn := syslook("memmove")
 	fn = substArgTypes(fn, nl.Type.Elem(), nl.Type.Elem())
 	nwid := temp(types.Types[TUINTPTR])
-	l = append(l, nod(OAS, nwid, conv(nlen, types.Types[TUINTPTR])))
+	setwid := nod(OAS, nwid, conv(nlen, types.Types[TUINTPTR]))
+	ne.Nbody.Append(setwid)
 	nwid = nod(OMUL, nwid, nodintconst(nl.Type.Elem().Width))
-	l = append(l, mkcall1(fn, nil, init, nto, nfrm, nwid))
+	call := mkcall1(fn, nil, init, nto, nfrm, nwid)
+	ne.Nbody.Append(call)
 
 	typecheckslice(l, Etop)
 	walkstmtlist(l)
