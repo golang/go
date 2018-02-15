@@ -2027,6 +2027,7 @@ func typecheck1(n *Node, top int) *Node {
 		typecheckslice(n.Ninit.Slice(), Etop)
 		decldepth++
 		n.Left = typecheck(n.Left, Erv)
+		n.Left = defaultlit(n.Left, nil)
 		if n.Left != nil {
 			t := n.Left.Type
 			if t != nil && !t.IsBoolean() {
@@ -2041,6 +2042,7 @@ func typecheck1(n *Node, top int) *Node {
 		ok |= Etop
 		typecheckslice(n.Ninit.Slice(), Etop)
 		n.Left = typecheck(n.Left, Erv)
+		n.Left = defaultlit(n.Left, nil)
 		if n.Left != nil {
 			t := n.Left.Type
 			if t != nil && !t.IsBoolean() {
