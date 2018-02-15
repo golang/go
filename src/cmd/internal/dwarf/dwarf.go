@@ -1304,6 +1304,11 @@ func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev
 			return curscope
 		}
 
+		if len(scopes[curscope].Vars) == 0 {
+			curscope = putscope(ctxt, s, scopes, curscope, fnabbrev, encbuf)
+			continue
+		}
+
 		if len(scope.Ranges) == 1 {
 			Uleb128put(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE)
 			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].Start, s.StartPC)
@@ -1316,6 +1321,7 @@ func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev
 		}
 
 		curscope = putscope(ctxt, s, scopes, curscope, fnabbrev, encbuf)
+
 		Uleb128put(ctxt, s.Info, 0)
 	}
 	return curscope

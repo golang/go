@@ -128,6 +128,12 @@ type noder struct {
 	pragcgobuf string
 	err        chan syntax.Error
 	scope      ScopeID
+
+	// scopeVars is a stack tracking the number of variables declared in the
+	// current function at the moment each open scope was opened.
+	scopeVars []int
+
+	lastCloseScopePos syntax.Pos
 }
 
 func (p *noder) funchdr(n *Node) ScopeID {
@@ -147,6 +153,7 @@ func (p *noder) openScope(pos syntax.Pos) {
 
 	if trackScopes {
 		Curfn.Func.Parents = append(Curfn.Func.Parents, p.scope)
+		p.scopeVars = append(p.scopeVars, len(Curfn.Func.Dcl))
 		p.scope = ScopeID(len(Curfn.Func.Parents))
 
 		p.markScope(pos)
@@ -154,9 +161,34 @@ func (p *noder) openScope(pos syntax.Pos) {
 }
 
 func (p *noder) closeScope(pos syntax.Pos) {
+	p.lastCloseScopePos = pos
 	types.Popdcl()
 
 	if trackScopes {
+		scopeVars := p.scopeVars[len(p.scopeVars)-1]
+		p.scopeVars = p.scopeVars[:len(p.scopeVars)-1]
+		if scopeVars == len(Curfn.Func.Dcl) {
+			// no variables were declared in this scope, so we can retract it.
+
+			if int(p.scope) != len(Curfn.Func.Parents) {
+				Fatalf("scope tracking inconsistency, no variables declared but scopes were not retracted")
+			}
+
+			p.scope = Curfn.Func.Parents[p.scope-1]
+			Curfn.Func.Parents = Curfn.Func.Parents[:len(Curfn.Func.Parents)-1]
+
+			nmarks := len(Curfn.Func.Marks)
+			Curfn.Func.Marks[nmarks-1].Scope = p.scope
+			prevScope := ScopeID(0)
+			if nmarks >= 2 {
+				prevScope = Curfn.Func.Marks[nmarks-2].Scope
+			}
+			if Curfn.Func.Marks[nmarks-1].Scope == prevScope {
+				Curfn.Func.Marks = Curfn.Func.Marks[:nmarks-1]
+			}
+			return
+		}
+
 		p.scope = Curfn.Func.Parents[p.scope-1]
 
 		p.markScope(pos)
@@ -177,12 +209,7 @@ func (p *noder) markScope(pos syntax.Pos) {
 // "if" statements, as their implicit blocks always end at the same
 // position as an explicit block.
 func (p *noder) closeAnotherScope() {
-	types.Popdcl()
-
-	if trackScopes {
-		p.scope = Curfn.Func.Parents[p.scope-1]
-		Curfn.Func.Marks[len(Curfn.Func.Marks)-1].Scope = p.scope
-	}
+	p.closeScope(p.lastCloseScopePos)
 }
 
 // linkname records a //go:linkname directive.
