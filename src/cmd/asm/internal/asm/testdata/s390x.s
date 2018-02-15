@@ -365,6 +365,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	VSTEB	$15, V29, 4094(R12)     // e7d0cffef808
 
 	RET
+	RET	foo(SB)
 
 TEXT main·init(SB),DUPOK|NOSPLIT,$0 // TEXT main.init(SB), DUPOK|NOSPLIT, $0
 	RET

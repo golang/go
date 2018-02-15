@@ -426,6 +426,7 @@ again:
 //	}
 	BEQ	2(PC)
 	RET
+	RET	foo(SB)
 
 // More B/BL cases, and canonical names JMP, CALL.
 
