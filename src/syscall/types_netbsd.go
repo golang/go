@@ -242,3 +242,7 @@ type Termios C.struct_termios
 // Sysctl
 
 type Sysctlnode C.struct_sysctlnode
+
+// Signals
+
+type sigset C.sigset_t

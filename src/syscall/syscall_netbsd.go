@@ -118,6 +118,25 @@ func Pipe2(p []int, flags int) error {
 	return err
 }
 
+//sys paccept(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, sigmask *sigset, flags int) (nfd int, err error)
+func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
+	var rsa RawSockaddrAny
+	var len _Socklen = SizeofSockaddrAny
+	nfd, err = paccept(fd, &rsa, &len, nil, flags)
+	if err != nil {
+		return
+	}
+	if len > SizeofSockaddrAny {
+		panic("RawSockaddrAny too small")
+	}
+	sa, err = anyToSockaddr(&rsa)
+	if err != nil {
+		Close(nfd)
+		nfd = 0
+	}
+	return
+}
+
 //sys getdents(fd int, buf []byte) (n int, err error)
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	return getdents(fd, buf)
