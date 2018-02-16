@@ -34,6 +34,8 @@ for example 'go_nacl_386_exec a.out arguments...'. This allows execution of
 cross-compiled programs when a simulator or other execution method is
 available.
 
+The exit status of Run is not the exit status of the compiled binary.
+
 For more about build flags, see 'go help build'.
 
 See also: go build.
