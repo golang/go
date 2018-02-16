@@ -559,7 +559,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64RBIT,
 		ssa.OpARM64RBITW,
 		ssa.OpARM64CLZ,
-		ssa.OpARM64CLZW:
+		ssa.OpARM64CLZW,
+		ssa.OpARM64FRINTAD,
+		ssa.OpARM64FRINTMD,
+		ssa.OpARM64FRINTPD,
+		ssa.OpARM64FRINTZD:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()

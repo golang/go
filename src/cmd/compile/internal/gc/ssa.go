@@ -2918,22 +2918,22 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpTrunc, types.Types[TFLOAT64], args[0])
 		},
-		sys.PPC64, sys.S390X)
+		sys.ARM64, sys.PPC64, sys.S390X)
 	addF("math", "Ceil",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpCeil, types.Types[TFLOAT64], args[0])
 		},
-		sys.PPC64, sys.S390X)
+		sys.ARM64, sys.PPC64, sys.S390X)
 	addF("math", "Floor",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpFloor, types.Types[TFLOAT64], args[0])
 		},
-		sys.PPC64, sys.S390X)
+		sys.ARM64, sys.PPC64, sys.S390X)
 	addF("math", "Round",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpRound, types.Types[TFLOAT64], args[0])
 		},
-		sys.S390X)
+		sys.ARM64, sys.S390X)
 	addF("math", "RoundToEven",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpRoundToEven, types.Types[TFLOAT64], args[0])
