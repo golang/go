@@ -931,7 +931,7 @@ func TestOnlyWriteTimeout(t *testing.T) {
 		if err == nil {
 			t.Errorf("expected an error from Get request")
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatal("timeout waiting for Get error")
 	}
 	if err := <-afterTimeoutErrc; err == nil {
