@@ -119,6 +119,7 @@ var Anames = []string{
 	"STREX",
 	"LDREXD",
 	"STREXD",
+	"DMB",
 	"PLD",
 	"CLZ",
 	"REV",
