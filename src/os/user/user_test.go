@@ -44,15 +44,15 @@ func compare(t *testing.T, want, got *User) {
 	if want.Name != got.Name {
 		t.Errorf("got Name=%q; want %q", got.Name, want.Name)
 	}
-	// TODO(brainman): fix it once we know how.
+	if want.HomeDir != got.HomeDir {
+		t.Errorf("got HomeDir=%q; want %q", got.HomeDir, want.HomeDir)
+	}
+	// TODO: Gid is not set on Windows
 	if runtime.GOOS == "windows" {
-		t.Skip("skipping Gid and HomeDir comparisons")
+		t.Skip("skipping Gid comparisons")
 	}
 	if want.Gid != got.Gid {
 		t.Errorf("got Gid=%q; want %q", got.Gid, want.Gid)
-	}
-	if want.HomeDir != got.HomeDir {
-		t.Errorf("got HomeDir=%q; want %q", got.HomeDir, want.HomeDir)
 	}
 }
 

@@ -41,6 +41,7 @@ var (
 	modws2_32   = syscall.NewLazyDLL(sysdll.Add("ws2_32.dll"))
 	modnetapi32 = syscall.NewLazyDLL(sysdll.Add("netapi32.dll"))
 	modadvapi32 = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
+	moduserenv  = syscall.NewLazyDLL(sysdll.Add("userenv.dll"))
 	modpsapi    = syscall.NewLazyDLL(sysdll.Add("psapi.dll"))
 
 	procGetAdaptersAddresses      = modiphlpapi.NewProc("GetAdaptersAddresses")
@@ -62,6 +63,7 @@ var (
 	procAdjustTokenPrivileges     = modadvapi32.NewProc("AdjustTokenPrivileges")
 	procDuplicateTokenEx          = modadvapi32.NewProc("DuplicateTokenEx")
 	procSetTokenInformation       = modadvapi32.NewProc("SetTokenInformation")
+	procGetProfilesDirectoryW     = moduserenv.NewProc("GetProfilesDirectoryW")
 	procGetProcessMemoryInfo      = modpsapi.NewProc("GetProcessMemoryInfo")
 )
 
@@ -277,6 +279,18 @@ func DuplicateTokenEx(hExistingToken syscall.Token, dwDesiredAccess uint32, lpTo
 
 func SetTokenInformation(tokenHandle syscall.Token, tokenInformationClass uint32, tokenInformation uintptr, tokenInformationLength uint32) (err error) {
 	r1, _, e1 := syscall.Syscall6(procSetTokenInformation.Addr(), 4, uintptr(tokenHandle), uintptr(tokenInformationClass), uintptr(tokenInformation), uintptr(tokenInformationLength), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetProfilesDirectory(dir *uint16, dirLen *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procGetProfilesDirectoryW.Addr(), 2, uintptr(unsafe.Pointer(dir)), uintptr(unsafe.Pointer(dirLen)), 0)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
