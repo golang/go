@@ -43,7 +43,6 @@
 #define SYS_rt_sigaction	174
 #define SYS_rt_sigprocmask	175
 #define SYS_sigaltstack 	186
-#define SYS_ugetrlimit		191
 #define SYS_mmap2		192
 #define SYS_mincore		218
 #define SYS_madvise		219
@@ -130,14 +129,6 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	JLS	2(PC)
 	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
-	RET
-
-TEXT runtime·getrlimit(SB),NOSPLIT,$0
-	MOVL	$SYS_ugetrlimit, AX
-	MOVL	kind+0(FP), BX
-	MOVL	limit+4(FP), CX
-	INVOKE_SYSCALL
-	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$8

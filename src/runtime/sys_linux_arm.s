@@ -37,7 +37,6 @@
 #define SYS_tkill (SYS_BASE + 238)
 #define SYS_sched_yield (SYS_BASE + 158)
 #define SYS_pselect6 (SYS_BASE + 335)
-#define SYS_ugetrlimit (SYS_BASE + 191)
 #define SYS_sched_getaffinity (SYS_BASE + 242)
 #define SYS_clock_gettime (SYS_BASE + 263)
 #define SYS_epoll_create (SYS_BASE + 250)
@@ -96,14 +95,6 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	CMP	R1, R0
 	MOVW.HI	$-1, R0
 	MOVW	R0, ret+12(FP)
-	RET
-
-TEXT runtime·getrlimit(SB),NOSPLIT,$0
-	MOVW	kind+0(FP), R0
-	MOVW	limit+4(FP), R1
-	MOVW	$SYS_ugetrlimit, R7
-	SWI	$0
-	MOVW	R0, ret+8(FP)
 	RET
 
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0

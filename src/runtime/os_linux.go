@@ -350,8 +350,6 @@ func sigprocmask(how int32, new, old *sigset) {
 	rtsigprocmask(how, new, old, int32(unsafe.Sizeof(*new)))
 }
 
-//go:noescape
-func getrlimit(kind int32, limit unsafe.Pointer) int32
 func raise(sig uint32)
 func raiseproc(sig uint32)
 

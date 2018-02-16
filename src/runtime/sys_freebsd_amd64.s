@@ -107,14 +107,6 @@ TEXT runtime·write(SB),NOSPLIT,$-8
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·getrlimit(SB),NOSPLIT,$-8
-	MOVL	kind+0(FP), DI
-	MOVQ	limit+8(FP), SI
-	MOVL	$194, AX
-	SYSCALL
-	MOVL	AX, ret+16(FP)
-	RET
-
 TEXT runtime·raise(SB),NOSPLIT,$16
 	// thr_self(&8(SP))
 	LEAQ	8(SP), DI	// arg 1 &8(SP)

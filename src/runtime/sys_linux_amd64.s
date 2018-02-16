@@ -33,7 +33,6 @@
 #define SYS_exit		60
 #define SYS_kill		62
 #define SYS_fcntl		72
-#define SYS_getrlimit		97
 #define SYS_sigaltstack 	131
 #define SYS_arch_prctl		158
 #define SYS_gettid		186
@@ -112,14 +111,6 @@ TEXT runtime·read(SB),NOSPLIT,$0-28
 	JLS	2(PC)
 	MOVL	$-1, AX
 	MOVL	AX, ret+24(FP)
-	RET
-
-TEXT runtime·getrlimit(SB),NOSPLIT,$0-20
-	MOVL	kind+0(FP), DI
-	MOVQ	limit+8(FP), SI
-	MOVL	$SYS_getrlimit, AX
-	SYSCALL
-	MOVL	AX, ret+16(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$16
