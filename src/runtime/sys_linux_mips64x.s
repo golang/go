@@ -33,7 +33,6 @@
 #define SYS_rt_sigaction	5013
 #define SYS_rt_sigprocmask	5014
 #define SYS_sigaltstack		5129
-#define SYS_getrlimit		5095
 #define SYS_madvise		5027
 #define SYS_mincore		5026
 #define SYS_gettid		5178
@@ -110,14 +109,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	BEQ	R7, 2(PC)
 	MOVW	$-1, R2
 	MOVW	R2, ret+24(FP)
-	RET
-
-TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0-20
-	MOVW	kind+0(FP), R4	// _RLIMIT_AS = 6 on linux/mips
-	MOVV	limit+8(FP), R5
-	MOVV	$SYS_getrlimit, R2
-	SYSCALL
-	MOVW	R2, ret+16(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$16-4

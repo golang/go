@@ -25,7 +25,6 @@
 #define SYS_madvise (SYS_BASE + 75)
 #define SYS_setitimer (SYS_BASE + 83)
 #define SYS_fcntl (SYS_BASE + 92)
-#define SYS_getrlimit (SYS_BASE + 194)
 #define SYS___sysctl (SYS_BASE + 202)
 #define SYS_nanosleep (SYS_BASE + 240)
 #define SYS_clock_gettime (SYS_BASE + 232)
@@ -135,14 +134,6 @@ TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0
 	SWI $0
 	MOVW.CS	$-1, R0
 	MOVW	R0, ret+4(FP)
-	RET
-
-TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0
-	MOVW kind+0(FP), R0
-	MOVW limit+4(FP), R1
-	MOVW $SYS_getrlimit, R7
-	SWI $0
-	MOVW	R0, ret+8(FP)
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$8

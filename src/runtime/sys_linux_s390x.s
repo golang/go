@@ -29,7 +29,6 @@
 #define SYS_rt_sigaction        174
 #define SYS_rt_sigprocmask      175
 #define SYS_sigaltstack         186
-#define SYS_ugetrlimit          191
 #define SYS_madvise             219
 #define SYS_mincore             218
 #define SYS_gettid              236
@@ -104,14 +103,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	CMPUBLT	R2, R3, 2(PC)
 	MOVW	$-1, R2
 	MOVW	R2, ret+24(FP)
-	RET
-
-TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0-20
-	MOVW	kind+0(FP), R2
-	MOVD	limit+8(FP), R3
-	MOVW	$SYS_ugetrlimit, R1
-	SYSCALL
-	MOVW	R2, ret+16(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$16-4

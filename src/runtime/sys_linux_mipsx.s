@@ -32,7 +32,6 @@
 #define SYS_rt_sigaction	    4194
 #define SYS_rt_sigprocmask		4195
 #define SYS_sigaltstack		    4206
-#define SYS_getrlimit		    4076
 #define SYS_madvise		        4218
 #define SYS_mincore		        4217
 #define SYS_gettid		        4222
@@ -108,14 +107,6 @@ TEXT runtime·read(SB),NOSPLIT,$0-16
 	BEQ	R7, 2(PC)
 	MOVW	$-1, R2
 	MOVW	R2, ret+12(FP)
-	RET
-
-TEXT runtime·getrlimit(SB),NOSPLIT,$0-12
-	MOVW	kind+0(FP), R4
-	MOVW	limit+4(FP), R5
-	MOVW	$SYS_getrlimit, R2
-	SYSCALL
-	MOVW	R2, ret+8(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$28-4

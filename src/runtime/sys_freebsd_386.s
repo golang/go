@@ -102,12 +102,6 @@ TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·getrlimit(SB),NOSPLIT,$-4
-	MOVL	$194, AX
-	INT	$0x80
-	MOVL	AX, ret+8(FP)
-	RET
-
 TEXT runtime·raise(SB),NOSPLIT,$16
 	// thr_self(&8(SP))
 	LEAL	8(SP), AX
