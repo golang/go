@@ -163,9 +163,8 @@ type acLink struct {
 var arenaCollisionSink []*acLink
 
 func TestArenaCollision(t *testing.T) {
-	if GOOS == "nacl" {
-		t.Skip("nacl can't self-exec a test")
-	}
+	testenv.MustHaveExec(t)
+
 	// Test that mheap.sysAlloc handles collisions with other
 	// memory mappings.
 	if os.Getenv("TEST_ARENA_COLLISION") != "1" {
