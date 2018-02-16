@@ -580,37 +580,33 @@
 // Recognize bit tests: a&(1<<b) != 0 for b suitably bounded
 // Note that ULT and SETB check the carry flag; they are identical to CS and SETCS.
 // Same, mutatis mutandis, for UGE and SETAE, and CC and SETCC.
-(NE (TESTL (SHLL (MOVLconst [1]) x) y)) && !config.nacl -> (ULT (BTL x y))
-(EQ (TESTL (SHLL (MOVLconst [1]) x) y)) && !config.nacl -> (UGE (BTL x y))
-(NE (TESTQ (SHLQ (MOVQconst [1]) x) y)) && !config.nacl -> (ULT (BTQ x y))
-(EQ (TESTQ (SHLQ (MOVQconst [1]) x) y)) && !config.nacl -> (UGE (BTQ x y))
-(NE (TESTLconst [c] x)) && isPowerOfTwo(c) && log2(c) < 32 && !config.nacl -> (ULT (BTLconst [log2(c)] x))
-(EQ (TESTLconst [c] x)) && isPowerOfTwo(c) && log2(c) < 32 && !config.nacl -> (UGE (BTLconst [log2(c)] x))
-(NE (TESTQconst [c] x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (ULT (BTQconst [log2(c)] x))
-(EQ (TESTQconst [c] x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (UGE (BTQconst [log2(c)] x))
-(NE (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (ULT (BTQconst [log2(c)] x))
-(EQ (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (UGE (BTQconst [log2(c)] x))
-(SETNE (TESTL (SHLL (MOVLconst [1]) x) y)) && !config.nacl -> (SETB  (BTL x y))
-(SETEQ (TESTL (SHLL (MOVLconst [1]) x) y)) && !config.nacl -> (SETAE (BTL x y))
-(SETNE (TESTQ (SHLQ (MOVQconst [1]) x) y)) && !config.nacl -> (SETB  (BTQ x y))
-(SETEQ (TESTQ (SHLQ (MOVQconst [1]) x) y)) && !config.nacl -> (SETAE (BTQ x y))
-(SETNE (TESTLconst [c] x)) && isPowerOfTwo(c) && log2(c) < 32 && !config.nacl -> (SETB  (BTLconst [log2(c)] x))
-(SETEQ (TESTLconst [c] x)) && isPowerOfTwo(c) && log2(c) < 32 && !config.nacl -> (SETAE (BTLconst [log2(c)] x))
-(SETNE (TESTQconst [c] x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETB  (BTQconst [log2(c)] x))
-(SETEQ (TESTQconst [c] x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETAE (BTQconst [log2(c)] x))
-(SETNE (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETB  (BTQconst [log2(c)] x))
-(SETEQ (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETAE (BTQconst [log2(c)] x))
+((NE|EQ) (TESTL (SHLL (MOVLconst [1]) x) y)) && !config.nacl -> ((ULT|UGE) (BTL x y))
+((NE|EQ) (TESTQ (SHLQ (MOVQconst [1]) x) y)) && !config.nacl -> ((ULT|UGE) (BTQ x y))
+((NE|EQ) (TESTLconst [c] x)) && isPowerOfTwo(c) && log2(c) < 32 && !config.nacl
+    -> ((ULT|UGE) (BTLconst [log2(c)] x))
+((NE|EQ) (TESTQconst [c] x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl
+    -> ((ULT|UGE) (BTQconst [log2(c)] x))
+((NE|EQ) (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl
+    -> ((ULT|UGE) (BTQconst [log2(c)] x))
+(SET(NE|EQ) (TESTL (SHLL (MOVLconst [1]) x) y)) && !config.nacl -> (SET(B|AE)  (BTL x y))
+(SET(NE|EQ) (TESTQ (SHLQ (MOVQconst [1]) x) y)) && !config.nacl -> (SET(B|AE)  (BTQ x y))
+(SET(NE|EQ) (TESTLconst [c] x)) && isPowerOfTwo(c) && log2(c) < 32 && !config.nacl
+    -> (SET(B|AE)  (BTLconst [log2(c)] x))
+(SET(NE|EQ) (TESTQconst [c] x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl
+    -> (SET(B|AE)  (BTQconst [log2(c)] x))
+(SET(NE|EQ) (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl
+    -> (SET(B|AE)  (BTQconst [log2(c)] x))
 // SET..mem variant
-(SETNEmem [off] {sym} ptr (TESTL (SHLL (MOVLconst [1]) x) y) mem) && !config.nacl -> (SETBmem  [off] {sym} ptr (BTL x y) mem)
-(SETEQmem [off] {sym} ptr (TESTL (SHLL (MOVLconst [1]) x) y) mem) && !config.nacl -> (SETAEmem [off] {sym} ptr (BTL x y) mem)
-(SETNEmem [off] {sym} ptr (TESTQ (SHLQ (MOVQconst [1]) x) y) mem) && !config.nacl -> (SETBmem  [off] {sym} ptr (BTQ x y) mem)
-(SETEQmem [off] {sym} ptr (TESTQ (SHLQ (MOVQconst [1]) x) y) mem) && !config.nacl -> (SETAEmem [off] {sym} ptr (BTQ x y) mem)
-(SETNEmem [off] {sym} ptr (TESTLconst [c] x) mem) && isPowerOfTwo(c) && log2(c) < 32 && !config.nacl -> (SETBmem  [off] {sym} ptr (BTLconst [log2(c)] x) mem)
-(SETEQmem [off] {sym} ptr (TESTLconst [c] x) mem) && isPowerOfTwo(c) && log2(c) < 32 && !config.nacl -> (SETAEmem [off] {sym} ptr (BTLconst [log2(c)] x) mem)
-(SETNEmem [off] {sym} ptr (TESTQconst [c] x) mem) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETBmem  [off] {sym} ptr (BTQconst [log2(c)] x) mem)
-(SETEQmem [off] {sym} ptr (TESTQconst [c] x) mem) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETAEmem [off] {sym} ptr (BTQconst [log2(c)] x) mem)
-(SETNEmem [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETBmem  [off] {sym} ptr (BTQconst [log2(c)] x) mem)
-(SETEQmem [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETAEmem [off] {sym} ptr (BTQconst [log2(c)] x) mem)
+(SET(NE|EQ)mem [off] {sym} ptr (TESTL (SHLL (MOVLconst [1]) x) y) mem) && !config.nacl
+    -> (SET(B|AE)mem  [off] {sym} ptr (BTL x y) mem)
+(SET(NE|EQ)mem [off] {sym} ptr (TESTQ (SHLQ (MOVQconst [1]) x) y) mem) && !config.nacl
+    -> (SET(B|AE)mem  [off] {sym} ptr (BTQ x y) mem)
+(SET(NE|EQ)mem [off] {sym} ptr (TESTLconst [c] x) mem) && isPowerOfTwo(c) && log2(c) < 32 && !config.nacl
+    -> (SET(B|AE)mem  [off] {sym} ptr (BTLconst [log2(c)] x) mem)
+(SET(NE|EQ)mem [off] {sym} ptr (TESTQconst [c] x) mem) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl
+    -> (SET(B|AE)mem  [off] {sym} ptr (BTQconst [log2(c)] x) mem)
+(SET(NE|EQ)mem [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl
+    -> (SET(B|AE)mem  [off] {sym} ptr (BTQconst [log2(c)] x) mem)
 
 // Fold boolean negation into SETcc.
 (XORLconst [1] (SETNE x)) -> (SETEQ x)
