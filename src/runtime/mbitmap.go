@@ -574,13 +574,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 	if !writeBarrier.needed {
 		return
 	}
-	if !inheap(dst) {
-		gp := getg().m.curg
-		if gp != nil && gp.stack.lo <= dst && dst < gp.stack.hi {
-			// Destination is our own stack. No need for barriers.
-			return
-		}
-
+	if s := spanOf(dst); s == nil {
 		// If dst is a global, use the data or BSS bitmaps to
 		// execute write barriers.
 		for _, datap := range activeModules() {
@@ -595,6 +589,14 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 				return
 			}
 		}
+		return
+	} else if s.state != _MSpanInUse || dst < s.base() || s.limit <= dst {
+		// dst was heap memory at some point, but isn't now.
+		// It can't be a global. It must be either our stack,
+		// or in the case of direct channel sends, it could be
+		// another stack. Either way, no need for barriers.
+		// This will also catch if dst is in a freed span,
+		// though that should never have.
 		return
 	}
 
