@@ -81,7 +81,12 @@
 (Com16 x) -> (MVN x)
 (Com8 x) -> (MVN x)
 
+// math package intrinsics
 (Sqrt x) -> (FSQRTD x)
+(Ceil  x) -> (FRINTPD x)
+(Floor x) -> (FRINTMD x)
+(Round x) -> (FRINTAD x)
+(Trunc x) -> (FRINTZD x)
 
 (Ctz64 <t> x) -> (CLZ (RBIT <t> x))
 (Ctz32 <t> x) -> (CLZW (RBITW <t> x))

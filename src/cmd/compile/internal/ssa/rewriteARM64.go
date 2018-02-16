@@ -289,6 +289,8 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpBswap32_0(v)
 	case OpBswap64:
 		return rewriteValueARM64_OpBswap64_0(v)
+	case OpCeil:
+		return rewriteValueARM64_OpCeil_0(v)
 	case OpClosureCall:
 		return rewriteValueARM64_OpClosureCall_0(v)
 	case OpCom16:
@@ -393,6 +395,8 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpEqB_0(v)
 	case OpEqPtr:
 		return rewriteValueARM64_OpEqPtr_0(v)
+	case OpFloor:
+		return rewriteValueARM64_OpFloor_0(v)
 	case OpGeq16:
 		return rewriteValueARM64_OpGeq16_0(v)
 	case OpGeq16U:
@@ -607,6 +611,8 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpPopCount32_0(v)
 	case OpPopCount64:
 		return rewriteValueARM64_OpPopCount64_0(v)
+	case OpRound:
+		return rewriteValueARM64_OpRound_0(v)
 	case OpRound32F:
 		return rewriteValueARM64_OpRound32F_0(v)
 	case OpRound64F:
@@ -709,6 +715,8 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpSub8_0(v)
 	case OpSubPtr:
 		return rewriteValueARM64_OpSubPtr_0(v)
+	case OpTrunc:
+		return rewriteValueARM64_OpTrunc_0(v)
 	case OpTrunc16to8:
 		return rewriteValueARM64_OpTrunc16to8_0(v)
 	case OpTrunc32to16:
@@ -11318,6 +11326,17 @@ func rewriteValueARM64_OpBswap64_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueARM64_OpCeil_0(v *Value) bool {
+	// match: (Ceil x)
+	// cond:
+	// result: (FRINTPD x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARM64FRINTPD)
+		v.AddArg(x)
+		return true
+	}
+}
 func rewriteValueARM64_OpClosureCall_0(v *Value) bool {
 	// match: (ClosureCall [argwid] entry closure mem)
 	// cond:
@@ -12041,6 +12060,17 @@ func rewriteValueARM64_OpEqPtr_0(v *Value) bool {
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM64_OpFloor_0(v *Value) bool {
+	// match: (Floor x)
+	// cond:
+	// result: (FRINTMD x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARM64FRINTMD)
+		v.AddArg(x)
 		return true
 	}
 }
@@ -14717,6 +14747,17 @@ func rewriteValueARM64_OpPopCount64_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueARM64_OpRound_0(v *Value) bool {
+	// match: (Round x)
+	// cond:
+	// result: (FRINTAD x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARM64FRINTAD)
+		v.AddArg(x)
+		return true
+	}
+}
 func rewriteValueARM64_OpRound32F_0(v *Value) bool {
 	// match: (Round32F x)
 	// cond:
@@ -16076,6 +16117,17 @@ func rewriteValueARM64_OpSubPtr_0(v *Value) bool {
 		v.reset(OpARM64SUB)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM64_OpTrunc_0(v *Value) bool {
+	// match: (Trunc x)
+	// cond:
+	// result: (FRINTZD x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARM64FRINTZD)
+		v.AddArg(x)
 		return true
 	}
 }

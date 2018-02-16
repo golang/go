@@ -248,7 +248,7 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "arm64",
 		os:      "linux",
-		imports: []string{"encoding/binary", "math/bits"},
+		imports: []string{"encoding/binary", "math", "math/bits"},
 		tests:   linuxARM64Tests,
 	},
 	{
@@ -2848,6 +2848,47 @@ var linuxARM64Tests = []*asmTest{
 		`,
 		pos: []string{"\tMOVHU\t\\(R[0-9]+\\)"},
 		neg: []string{"ORR\tR[0-9]+<<8\t"},
+	},
+	// Intrinsic tests for math.
+	{
+		fn: `
+		func sqrt(x float64) float64 {
+			return math.Sqrt(x)
+		}
+		`,
+		pos: []string{"FSQRTD"},
+	},
+	{
+		fn: `
+		func ceil(x float64) float64 {
+			return math.Ceil(x)
+		}
+		`,
+		pos: []string{"FRINTPD"},
+	},
+	{
+		fn: `
+		func floor(x float64) float64 {
+			return math.Floor(x)
+		}
+		`,
+		pos: []string{"FRINTMD"},
+	},
+	{
+		fn: `
+		func round(x float64) float64 {
+			return math.Round(x)
+		}
+		`,
+		pos: []string{"FRINTAD"},
+	},
+	{
+		fn: `
+		func trunc(x float64) float64 {
+			return math.Trunc(x)
+		}
+		`,
+		pos: []string{"FRINTZD"},
 	},
 }
 
