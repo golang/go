@@ -451,8 +451,11 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 		if hint.down {
 			p -= n
 		}
-		if p+n < p || p+n >= memLimit-1 {
+		if p+n < p {
 			// We can't use this, so don't ask.
+			v = nil
+		} else if arenaIndex(p+n-1) >= uint(len(mheap_.arenas)) {
+			// Outside addressable heap. Can't use.
 			v = nil
 		} else {
 			v = sysReserve(unsafe.Pointer(p), n)
@@ -497,11 +500,23 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 		hint.next, mheap_.arenaHints = mheap_.arenaHints, hint
 	}
 
-	if v := uintptr(v); v+size < v || v+size >= memLimit-1 {
-		// This should be impossible on most architectures,
-		// but it would be really confusing to debug.
-		print("runtime: memory allocated by OS [", hex(v), ", ", hex(v+size), ") exceeds address space limit (", hex(int64(memLimit)), ")\n")
-		throw("memory reservation exceeds address space limit")
+	// Check for bad pointers or pointers we can't use.
+	{
+		var bad string
+		p := uintptr(v)
+		if p+size < p {
+			bad = "region exceeds uintptr range"
+		} else if arenaIndex(p) >= uint(len(mheap_.arenas)) {
+			bad = "base outside usable address space"
+		} else if arenaIndex(p+size-1) >= uint(len(mheap_.arenas)) {
+			bad = "end outside usable address space"
+		}
+		if bad != "" {
+			// This should be impossible on most architectures,
+			// but it would be really confusing to debug.
+			print("runtime: memory allocated by OS [", hex(p), ", ", hex(p+size), ") not in usable address space: ", bad, "\n")
+			throw("memory reservation exceeds address space limit")
+		}
 	}
 
 	if uintptr(v)&(heapArenaBytes-1) != 0 {
@@ -513,7 +528,7 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 
 mapped:
 	// Create arena metadata.
-	for ri := uintptr(v) / heapArenaBytes; ri < (uintptr(v)+size)/heapArenaBytes; ri++ {
+	for ri := arenaIndex(uintptr(v)); ri <= arenaIndex(uintptr(v)+size-1); ri++ {
 		if h.arenas[ri] != nil {
 			throw("arena already initialized")
 		}

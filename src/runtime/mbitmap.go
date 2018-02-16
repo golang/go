@@ -335,7 +335,7 @@ func (m *markBits) advance() {
 func heapBitsForAddr(addr uintptr) heapBits {
 	// 2 bits per word, 4 pairs per byte, and a mask is hard coded.
 	off := addr / sys.PtrSize
-	arena := addr / heapArenaBytes
+	arena := arenaIndex(addr)
 	ha := mheap_.arenas[arena]
 	// The compiler uses a load for nil checking ha, but in this
 	// case we'll almost never hit that cache line again, so it
@@ -971,7 +971,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	// machine instructions.
 
 	outOfPlace := false
-	if (x+size-1)/heapArenaBytes != uintptr(h.arena) {
+	if arenaIndex(x+size-1) != uint(h.arena) {
 		// This object spans heap arenas, so the bitmap may be
 		// discontiguous. Unroll it into the object instead
 		// and then copy it out.

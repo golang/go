@@ -492,9 +492,9 @@ func dumpparams() {
 	for i, ha := range mheap_.arenas {
 		if ha != nil {
 			if arenaStart == 0 {
-				arenaStart = uintptr(i) * heapArenaBytes
+				arenaStart = arenaBase(uint(i))
 			}
-			arenaEnd = uintptr(i+1) * heapArenaBytes
+			arenaEnd = arenaBase(uint(i)) + heapArenaBytes
 		}
 	}
 	dumpint(uint64(arenaStart))

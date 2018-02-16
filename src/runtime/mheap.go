@@ -99,6 +99,8 @@ type mheap struct {
 	// arenas is the heap arena index. arenas[va/heapArenaBytes]
 	// points to the metadata for the heap arena containing va.
 	//
+	// Use arenaIndex to compute indexes into this array.
+	//
 	// For regions of the address space that are not backed by the
 	// Go heap, the arena index contains nil.
 	//
@@ -407,6 +409,24 @@ func (sc spanClass) noscan() bool {
 	return sc&1 != 0
 }
 
+// arenaIndex returns the mheap_.arenas index of the arena containing
+// metadata for p. If p is outside the range of valid heap addresses,
+// it returns an index larger than len(mheap_.arenas).
+//
+// It is nosplit because it's called by spanOf and several other
+// nosplit functions.
+//
+//go:nosplit
+func arenaIndex(p uintptr) uint {
+	return uint(p / heapArenaBytes)
+}
+
+// arenaBase returns the low address of the region covered by heap
+// arena i.
+func arenaBase(i uint) uintptr {
+	return uintptr(i) * heapArenaBytes
+}
+
 // inheap reports whether b is a pointer into a (potentially dead) heap object.
 // It returns false for pointers into _MSpanManual spans.
 // Non-preemptible because it is used by write barriers.
@@ -446,10 +466,14 @@ func inHeapOrStack(b uintptr) bool {
 //
 //go:nosplit
 func spanOf(p uintptr) *mspan {
-	if p < minLegalPointer || p/heapArenaBytes >= uintptr(len(mheap_.arenas)) {
+	if p < minLegalPointer {
 		return nil
 	}
-	ha := mheap_.arenas[p/heapArenaBytes]
+	ri := arenaIndex(p)
+	if ri >= uint(len(mheap_.arenas)) {
+		return nil
+	}
+	ha := mheap_.arenas[ri]
 	if ha == nil {
 		return nil
 	}
@@ -463,7 +487,7 @@ func spanOf(p uintptr) *mspan {
 //
 //go:nosplit
 func spanOfUnchecked(p uintptr) *mspan {
-	return mheap_.arenas[p/heapArenaBytes].spans[(p/pageSize)%pagesPerArena]
+	return mheap_.arenas[arenaIndex(p)].spans[(p/pageSize)%pagesPerArena]
 }
 
 // spanOfHeap is like spanOf, but returns nil if p does not point to a
@@ -738,18 +762,18 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
 
 // setSpan modifies the span map so spanOf(base) is s.
 func (h *mheap) setSpan(base uintptr, s *mspan) {
-	h.arenas[base/heapArenaBytes].spans[(base/pageSize)%pagesPerArena] = s
+	h.arenas[arenaIndex(base)].spans[(base/pageSize)%pagesPerArena] = s
 }
 
 // setSpans modifies the span map so [spanOf(base), spanOf(base+npage*pageSize))
 // is s.
 func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
 	p := base / pageSize
-	ha := h.arenas[p/pagesPerArena]
+	ha := h.arenas[arenaIndex(base)]
 	for n := uintptr(0); n < npage; n++ {
 		i := (p + n) % pagesPerArena
 		if i == 0 {
-			ha = h.arenas[(p+n)/pagesPerArena]
+			ha = h.arenas[arenaIndex(base+n*pageSize)]
 		}
 		ha.spans[i] = s
 	}
