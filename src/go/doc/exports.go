@@ -25,6 +25,21 @@ func filterIdentList(list []*ast.Ident) []*ast.Ident {
 	return list[0:j]
 }
 
+var underscore = ast.NewIdent("_")
+
+// updateIdentList replaces all unexported identifiers with underscore
+// and reports whether at least one exported name exists.
+func updateIdentList(list []*ast.Ident) (hasExported bool) {
+	for i, x := range list {
+		if ast.IsExported(x.Name) {
+			hasExported = true
+		} else {
+			list[i] = underscore
+		}
+	}
+	return hasExported
+}
+
 // hasExportedName reports whether list contains any exported names.
 //
 func hasExportedName(list []*ast.Ident) bool {
@@ -156,10 +171,23 @@ func (r *reader) filterSpec(spec ast.Spec) bool {
 		// always keep imports so we can collect them
 		return true
 	case *ast.ValueSpec:
-		s.Names = filterIdentList(s.Names)
-		if len(s.Names) > 0 {
-			r.filterType(nil, s.Type)
-			return true
+		if len(s.Values) > 0 || s.Type == nil && len(s.Values) == 0 {
+			// If there are values declared on RHS, just replace the unexported
+			// identifiers on the LHS with underscore, so that it matches
+			// the sequence of expression on the RHS.
+			//
+			// Similarly, if there are no type and values, then this expression
+			// must be following an iota expression, where order matters.
+			if updateIdentList(s.Names) {
+				r.filterType(nil, s.Type)
+				return true
+			}
+		} else {
+			s.Names = filterIdentList(s.Names)
+			if len(s.Names) > 0 {
+				r.filterType(nil, s.Type)
+				return true
+			}
 		}
 	case *ast.TypeSpec:
 		if name := s.Name.Name; ast.IsExported(name) {
