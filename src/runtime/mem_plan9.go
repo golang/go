@@ -149,8 +149,15 @@ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
 func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 	mSysStatDec(sysStat, n)
 	lock(&memlock)
-	memFree(v, n)
-	memCheck()
+	if uintptr(v)+n == bloc {
+		// address range being freed is at the end of memory,
+		// so shrink the address space
+		bloc -= n
+		brk_(unsafe.Pointer(bloc))
+	} else {
+		memFree(v, n)
+		memCheck()
+	}
 	unlock(&memlock)
 }
 
@@ -171,8 +178,16 @@ func sysFault(v unsafe.Pointer, n uintptr) {
 
 func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	lock(&memlock)
-	p := memAlloc(n)
-	memCheck()
+	var p unsafe.Pointer
+	if uintptr(v) == bloc {
+		// address hint is the current end of memory,
+		// so try to extend the address space
+		p = sbrk(n)
+	}
+	if p == nil {
+		p = memAlloc(n)
+		memCheck()
+	}
 	unlock(&memlock)
 	return p
 }
