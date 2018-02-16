@@ -165,10 +165,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 			afterCall = (op == OCALLFUNC || op == OCALLMETH || op == OCALLINTER)
 		}
 
-	case ODEFER:
-		instrumentnode(&n.Left, init, 0, 0)
-
-	case OPROC:
+	case ODEFER, OPROC:
 		instrumentnode(&n.Left, init, 0, 0)
 
 	case OCALLINTER:
@@ -199,14 +196,9 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		instrumentnode(&n.Left, init, 0, 1)
 		callinstr(&n, init, wr, skip)
 
-	case ODOTPTR: // dst = (*x).f with implicit *; otherwise it's ODOT+OIND
+	case ODOTPTR, // dst = (*x).f with implicit *; otherwise it's ODOT+OIND
+		OIND: // *p
 		instrumentnode(&n.Left, init, 0, 0)
-
-		callinstr(&n, init, wr, skip)
-
-	case OIND: // *p
-		instrumentnode(&n.Left, init, 0, 0)
-
 		callinstr(&n, init, wr, skip)
 
 	case OSPTR, OLEN, OCAP:
@@ -219,22 +211,8 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 			callinstr(&n1, init, 0, skip)
 		}
 
-	case OLSH,
-		ORSH,
-		OAND,
-		OANDNOT,
-		OOR,
-		OXOR,
-		OSUB,
-		OMUL,
-		OEQ,
-		ONE,
-		OLT,
-		OLE,
-		OGE,
-		OGT,
-		OADD,
-		OCOMPLEX:
+	case OLSH, ORSH, OAND, OANDNOT, OOR, OXOR, OSUB,
+		OMUL, OEQ, ONE, OLT, OLE, OGE, OGT, OADD, OCOMPLEX:
 		instrumentnode(&n.Left, init, wr, 0)
 		instrumentnode(&n.Right, init, wr, 0)
 
@@ -250,10 +228,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 	case ONAME:
 		callinstr(&n, init, wr, skip)
 
-	case OCONV:
-		instrumentnode(&n.Left, init, wr, 0)
-
-	case OCONVNOP:
+	case OCONV, OCONVNOP:
 		instrumentnode(&n.Left, init, wr, 0)
 
 	case ODIV, OMOD:
@@ -291,10 +266,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 	case OEFACE:
 		instrumentnode(&n.Right, init, 0, 0)
 
-	case OITAB, OIDATA:
-		instrumentnode(&n.Left, init, 0, 0)
-
-	case OSTRARRAYBYTETMP:
+	case OITAB, OIDATA, OSTRARRAYBYTETMP:
 		instrumentnode(&n.Left, init, 0, 0)
 
 	case OAS2DOTTYPE:
