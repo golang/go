@@ -674,6 +674,14 @@ func runTest(cmd *base.Command, args []string) {
 				continue
 			}
 
+			// If using the race detector, silently ignore
+			// attempts to run coverage on the runtime
+			// packages. It will cause the race detector
+			// to be invoked before it has been initialized.
+			if cfg.BuildRace && p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal")) {
+				continue
+			}
+
 			if haveMatch {
 				testCoverPkgs = append(testCoverPkgs, p)
 			}
