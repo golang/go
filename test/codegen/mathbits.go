@@ -199,19 +199,19 @@ func TrailingZeros64(n uint64) int {
 }
 
 func TrailingZeros32(n uint32) int {
-	// amd64:"MOVQ\t\\$4294967296","ORQ\t[^$]","BSFQ"
+	// amd64:"BTSQ\\t\\$32","BSFQ"
 	// s390x:"FLOGR","MOVWZ"
 	return bits.TrailingZeros32(n)
 }
 
 func TrailingZeros16(n uint16) int {
-	// amd64:"BSFQ","ORQ\t\\$65536"
+	// amd64:"BSFQ","BTSQ\\t\\$16"
 	// s390x:"FLOGR","OR\t\\$65536"
 	return bits.TrailingZeros16(n)
 }
 
 func TrailingZeros8(n uint8) int {
-	// amd64:"BSFQ","ORQ\t\\$256"
+	// amd64:"BSFQ","BTSQ\\t\\$8"
 	// s390x:"FLOGR","OR\t\\$256"
 	return bits.TrailingZeros8(n)
 }

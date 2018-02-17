@@ -279,45 +279,6 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		pos: []string{"\tSHLQ\t\\$5,", "\tLEAQ\t\\(.*\\)\\(.*\\*2\\),"},
 	},
-	// Bit test ops on amd64, issue 18943.
-	{
-		fn: `
-		func f37(a, b uint64) int {
-			if a&(1<<(b&63)) != 0 {
-				return 1
-			}
-			return -1
-		}
-		`,
-		pos: []string{"\tBTQ\t"},
-	},
-	{
-		fn: `
-		func f38(a, b uint64) bool {
-			return a&(1<<(b&63)) != 0
-		}
-		`,
-		pos: []string{"\tBTQ\t"},
-	},
-	{
-		fn: `
-		func f39(a uint64) int {
-			if a&(1<<60) != 0 {
-				return 1
-			}
-			return -1
-		}
-		`,
-		pos: []string{"\tBTQ\t\\$60"},
-	},
-	{
-		fn: `
-		func f40(a uint64) bool {
-			return a&(1<<60) != 0
-		}
-		`,
-		pos: []string{"\tBTQ\t\\$60"},
-	},
 	// see issue 19595.
 	// We want to merge load+op in f58, but not in f59.
 	{
