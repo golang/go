@@ -186,6 +186,25 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
+	case ssa.OpARM64FMADDS,
+		ssa.OpARM64FMADDD,
+		ssa.OpARM64FNMADDS,
+		ssa.OpARM64FNMADDD,
+		ssa.OpARM64FMSUBS,
+		ssa.OpARM64FMSUBD,
+		ssa.OpARM64FNMSUBS,
+		ssa.OpARM64FNMSUBD:
+		rt := v.Reg()
+		ra := v.Args[0].Reg()
+		rm := v.Args[1].Reg()
+		rn := v.Args[2].Reg()
+		p := s.Prog(v.Op.Asm())
+		p.Reg = ra
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = rm
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: rn})
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = rt
 	case ssa.OpARM64ADDconst,
 		ssa.OpARM64SUBconst,
 		ssa.OpARM64ANDconst,
