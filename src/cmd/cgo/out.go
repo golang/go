@@ -1019,23 +1019,25 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 			fmt.Fprintf(fgcch, "};\n")
 			fmt.Fprintf(cdeclBuf, "struct %s_return", exp.ExpName)
 		}
-
 		cRet := cdeclBuf.String()
-
 		cdeclBuf = new(bytes.Buffer)
 		fmt.Fprintf(cdeclBuf, "(")
-		if fn.Recv != nil {
-			fmt.Fprintf(cdeclBuf, "%s recv", p.cgoType(fn.Recv.List[0].Type).C.String())
+		if len(fntype.Params.List) == 0 {
+			fmt.Fprintf(cdeclBuf, "void")
+		} else {
+			if fn.Recv != nil {
+				fmt.Fprintf(cdeclBuf, "%s recv", p.cgoType(fn.Recv.List[0].Type).C.String())
+			}
+			// Function parameters.
+			forFieldList(fntype.Params,
+				func(i int, aname string, atype ast.Expr) {
+					if i > 0 || fn.Recv != nil {
+						fmt.Fprintf(cdeclBuf, ", ")
+					}
+					t := p.cgoType(atype)
+					fmt.Fprintf(cdeclBuf, "%s p%d", t.C, i)
+				})
 		}
-		// Function parameters.
-		forFieldList(fntype.Params,
-			func(i int, aname string, atype ast.Expr) {
-				if i > 0 || fn.Recv != nil {
-					fmt.Fprintf(cdeclBuf, ", ")
-				}
-				t := p.cgoType(atype)
-				fmt.Fprintf(cdeclBuf, "%s p%d", t.C, i)
-			})
 		fmt.Fprintf(cdeclBuf, ")")
 		cParams := cdeclBuf.String()
 
