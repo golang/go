@@ -5750,6 +5750,21 @@ func TestAtomicCoverpkgAll(t *testing.T) {
 	}
 }
 
+// Issue 23882.
+func TestCoverpkgAllRuntime(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	tg.tempFile("src/x/x.go", `package x; import _ "runtime"; func F() {}`)
+	tg.tempFile("src/x/x_test.go", `package x; import "testing"; func TestF(t *testing.T) { F() }`)
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("test", "-coverpkg=all", "x")
+	if canRace {
+		tg.run("test", "-coverpkg=all", "-race", "x")
+	}
+}
+
 func TestBadCommandLines(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
