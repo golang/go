@@ -69,6 +69,10 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpARM64DIVW_0(v)
 	case OpARM64Equal:
 		return rewriteValueARM64_OpARM64Equal_0(v)
+	case OpARM64FADDD:
+		return rewriteValueARM64_OpARM64FADDD_0(v)
+	case OpARM64FADDS:
+		return rewriteValueARM64_OpARM64FADDS_0(v)
 	case OpARM64FMOVDgpfp:
 		return rewriteValueARM64_OpARM64FMOVDgpfp_0(v)
 	case OpARM64FMOVDload:
@@ -91,6 +95,10 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpARM64FNMULD_0(v)
 	case OpARM64FNMULS:
 		return rewriteValueARM64_OpARM64FNMULS_0(v)
+	case OpARM64FSUBD:
+		return rewriteValueARM64_OpARM64FSUBD_0(v)
+	case OpARM64FSUBS:
+		return rewriteValueARM64_OpARM64FSUBS_0(v)
 	case OpARM64GreaterEqual:
 		return rewriteValueARM64_OpARM64GreaterEqual_0(v)
 	case OpARM64GreaterEqualU:
@@ -2972,6 +2980,164 @@ func rewriteValueARM64_OpARM64Equal_0(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueARM64_OpARM64FADDD_0(v *Value) bool {
+	// match: (FADDD a (FMULD x y))
+	// cond:
+	// result: (FMADDD a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64FMULD {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		v.reset(OpARM64FMADDD)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (FADDD (FMULD x y) a)
+	// cond:
+	// result: (FMADDD a x y)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64FMULD {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		a := v.Args[1]
+		v.reset(OpARM64FMADDD)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (FADDD a (FNMULD x y))
+	// cond:
+	// result: (FMSUBD a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64FNMULD {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		v.reset(OpARM64FMSUBD)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (FADDD (FNMULD x y) a)
+	// cond:
+	// result: (FMSUBD a x y)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64FNMULD {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		a := v.Args[1]
+		v.reset(OpARM64FMSUBD)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64FADDS_0(v *Value) bool {
+	// match: (FADDS a (FMULS x y))
+	// cond:
+	// result: (FMADDS a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64FMULS {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		v.reset(OpARM64FMADDS)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (FADDS (FMULS x y) a)
+	// cond:
+	// result: (FMADDS a x y)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64FMULS {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		a := v.Args[1]
+		v.reset(OpARM64FMADDS)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (FADDS a (FNMULS x y))
+	// cond:
+	// result: (FMSUBS a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64FNMULS {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		v.reset(OpARM64FMSUBS)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (FADDS (FNMULS x y) a)
+	// cond:
+	// result: (FMSUBS a x y)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64FNMULS {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		a := v.Args[1]
+		v.reset(OpARM64FMSUBS)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
 func rewriteValueARM64_OpARM64FMOVDgpfp_0(v *Value) bool {
 	b := v.Block
 	_ = b
@@ -3450,6 +3616,164 @@ func rewriteValueARM64_OpARM64FNMULS_0(v *Value) bool {
 		}
 		x := v_1.Args[0]
 		v.reset(OpARM64FMULS)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64FSUBD_0(v *Value) bool {
+	// match: (FSUBD a (FMULD x y))
+	// cond:
+	// result: (FMSUBD a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64FMULD {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		v.reset(OpARM64FMSUBD)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (FSUBD (FMULD x y) a)
+	// cond:
+	// result: (FNMSUBD a x y)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64FMULD {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		a := v.Args[1]
+		v.reset(OpARM64FNMSUBD)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (FSUBD a (FNMULD x y))
+	// cond:
+	// result: (FMADDD a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64FNMULD {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		v.reset(OpARM64FMADDD)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (FSUBD (FNMULD x y) a)
+	// cond:
+	// result: (FNMADDD a x y)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64FNMULD {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		a := v.Args[1]
+		v.reset(OpARM64FNMADDD)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64FSUBS_0(v *Value) bool {
+	// match: (FSUBS a (FMULS x y))
+	// cond:
+	// result: (FMSUBS a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64FMULS {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		v.reset(OpARM64FMSUBS)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (FSUBS (FMULS x y) a)
+	// cond:
+	// result: (FNMSUBS a x y)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64FMULS {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		a := v.Args[1]
+		v.reset(OpARM64FNMSUBS)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (FSUBS a (FNMULS x y))
+	// cond:
+	// result: (FMADDS a x y)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64FNMULS {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		v.reset(OpARM64FMADDS)
+		v.AddArg(a)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (FSUBS (FNMULS x y) a)
+	// cond:
+	// result: (FNMADDS a x y)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64FNMULS {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		a := v.Args[1]
+		v.reset(OpARM64FNMADDS)
+		v.AddArg(a)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true
