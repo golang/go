@@ -140,3 +140,47 @@ func TestParseMetaGoImports(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateRepoRoot(t *testing.T) {
+	tests := []struct {
+		root string
+		ok   bool
+	}{
+		{
+			root: "",
+			ok:   false,
+		},
+		{
+			root: "http://",
+			ok:   true,
+		},
+		{
+			root: "git+ssh://",
+			ok:   true,
+		},
+		{
+			root: "http#://",
+			ok:   false,
+		},
+		{
+			root: "-config",
+			ok:   false,
+		},
+		{
+			root: "-config://",
+			ok:   false,
+		},
+	}
+
+	for _, test := range tests {
+		err := validateRepoRoot(test.root)
+		ok := err == nil
+		if ok != test.ok {
+			want := "error"
+			if test.ok {
+				want = "nil"
+			}
+			t.Errorf("validateRepoRoot(%q) = %q, want %s", test.root, err, want)
+		}
+	}
+}

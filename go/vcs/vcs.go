@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -566,8 +567,8 @@ func RepoRootForImportDynamic(importPath string, verbose bool) (*RepoRoot, error
 		}
 	}
 
-	if !strings.Contains(metaImport.RepoRoot, "://") {
-		return nil, fmt.Errorf("%s: invalid repo root %q; no scheme", urlStr, metaImport.RepoRoot)
+	if err := validateRepoRoot(metaImport.RepoRoot); err != nil {
+		return nil, fmt.Errorf("%s: invalid repo root %q: %v", urlStr, metaImport.RepoRoot, err)
 	}
 	rr := &RepoRoot{
 		VCS:  ByCmd(metaImport.VCS),
@@ -578,6 +579,19 @@ func RepoRootForImportDynamic(importPath string, verbose bool) (*RepoRoot, error
 		return nil, fmt.Errorf("%s: unknown vcs %q", urlStr, metaImport.VCS)
 	}
 	return rr, nil
+}
+
+// validateRepoRoot returns an error if repoRoot does not seem to be
+// a valid URL with scheme.
+func validateRepoRoot(repoRoot string) error {
+	url, err := url.Parse(repoRoot)
+	if err != nil {
+		return err
+	}
+	if url.Scheme == "" {
+		return errors.New("no scheme")
+	}
+	return nil
 }
 
 // metaImport represents the parsed <meta name="go-import"
