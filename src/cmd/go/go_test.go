@@ -4496,3 +4496,36 @@ func TestBadCgoDirectives(t *testing.T) {
 	tg.run("build", "-n", "x")
 	tg.grepStderr("-D@foo", "did not find -D@foo in commands")
 }
+
+func TestTwoPkgConfigs(t *testing.T) {
+	if !canCgo {
+		t.Skip("no cgo")
+	}
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		t.Skipf("no shell scripts on %s", runtime.GOOS)
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("src/x/a.go", `package x
+		// #cgo pkg-config: --static a
+		import "C"
+	`)
+	tg.tempFile("src/x/b.go", `package x
+		// #cgo pkg-config: --static a
+		import "C"
+	`)
+	tg.tempFile("pkg-config.sh", `#!/bin/sh
+echo $* >>`+tg.path("pkg-config.out"))
+	tg.must(os.Chmod(tg.path("pkg-config.sh"), 0755))
+	tg.setenv("GOPATH", tg.path("."))
+	tg.setenv("PKG_CONFIG", tg.path("pkg-config.sh"))
+	tg.run("build", "x")
+	out, err := ioutil.ReadFile(tg.path("pkg-config.out"))
+	tg.must(err)
+	out = bytes.TrimSpace(out)
+	want := "--cflags --static --static -- a a\n--libs --static --static -- a a"
+	if !bytes.Equal(out, []byte(want)) {
+		t.Errorf("got %q want %q", out, want)
+	}
+}
