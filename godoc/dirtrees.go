@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	pathpkg "path"
+	"runtime"
 	"strings"
 )
 
@@ -55,7 +56,13 @@ type treeBuilder struct {
 
 // ioGate is a semaphore controlling VFS activity (ReadDir, parseFile, etc).
 // Send before an operation and receive after.
-var ioGate = make(chan bool, 20)
+var ioGate = make(chan struct{}, 20)
+
+// workGate controls the number of concurrent workers. Too many concurrent
+// workers and performance degrades and the race detector gets overwhelmed. If
+// we cannot check out a concurrent worker, work is performed by the main thread
+// instead of spinning up another goroutine.
+var workGate = make(chan struct{}, runtime.NumCPU()*4)
 
 func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth int) *Directory {
 	if name == testdataDirName {
@@ -88,7 +95,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		}
 	}
 
-	ioGate <- true
+	ioGate <- struct{}{}
 	list, err := b.c.fs.ReadDir(path)
 	<-ioGate
 	if err != nil {
@@ -101,23 +108,34 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 
 	// determine number of subdirectories and if there are package files
 	var dirchs []chan *Directory
+	var dirs []*Directory
 
 	for _, d := range list {
 		filename := pathpkg.Join(path, d.Name())
 		switch {
 		case isPkgDir(d):
-			ch := make(chan *Directory, 1)
-			dirchs = append(dirchs, ch)
 			name := d.Name()
-			go func() {
-				ch <- b.newDirTree(fset, filename, name, depth+1)
-			}()
+			select {
+			case workGate <- struct{}{}:
+				ch := make(chan *Directory, 1)
+				dirchs = append(dirchs, ch)
+				go func() {
+					ch <- b.newDirTree(fset, filename, name, depth+1)
+					<-workGate
+				}()
+			default:
+				// no free workers, do work synchronously
+				dir := b.newDirTree(fset, filename, name, depth+1)
+				if dir != nil {
+					dirs = append(dirs, dir)
+				}
+			}
 		case !haveSummary && isPkgFile(d):
 			// looks like a package file, but may just be a file ending in ".go";
 			// don't just count it yet (otherwise we may end up with hasPkgFiles even
 			// though the directory doesn't contain any real package files - was bug)
 			// no "optimal" package synopsis yet; continue to collect synopses
-			ioGate <- true
+			ioGate <- struct{}{}
 			const flags = parser.ParseComments | parser.PackageClauseOnly
 			file, err := b.c.parseFile(fset, filename, flags)
 			<-ioGate
@@ -149,7 +167,6 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 	}
 
 	// create subdirectory tree
-	var dirs []*Directory
 	for _, ch := range dirchs {
 		if d := <-ch; d != nil {
 			dirs = append(dirs, d)
