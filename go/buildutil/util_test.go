@@ -8,7 +8,6 @@ import (
 	"go/build"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -18,7 +17,7 @@ import (
 func TestContainingPackage(t *testing.T) {
 	// unvirtualized:
 	goroot := runtime.GOROOT()
-	gopath := filepath.SplitList(os.Getenv("GOPATH"))[0]
+	gopath := gopathContainingTools(t)
 
 	type Test struct {
 		gopath, filename, wantPkg string
@@ -69,4 +68,14 @@ func TestContainingPackage(t *testing.T) {
 	}
 
 	// TODO(adonovan): test on virtualized GOPATH too.
+}
+
+// gopathContainingTools returns the path of the GOPATH workspace
+// with golang.org/x/tools, or fails the test if it can't locate it.
+func gopathContainingTools(t *testing.T) string {
+	p, err := build.Import("golang.org/x/tools", "", build.FindOnly)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p.Root
 }
