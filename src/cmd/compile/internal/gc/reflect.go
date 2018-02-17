@@ -53,7 +53,7 @@ type Sig struct {
 // the given map type. This type is not visible to users -
 // we include only enough information to generate a correct GC
 // program for it.
-// Make sure this stays in sync with ../../../../runtime/map.go!
+// Make sure this stays in sync with runtime/map.go.
 const (
 	BUCKETSIZE = 8
 	MAXKEYSIZE = 128
@@ -137,7 +137,7 @@ func bmap(t *types.Type) *types.Type {
 	// buckets can be marked as having no pointers.
 	// Arrange for the bucket to have no pointers by changing
 	// the type of the overflow field to uintptr in this case.
-	// See comment on hmap.overflow in ../../../../runtime/map.go.
+	// See comment on hmap.overflow in runtime/map.go.
 	otyp := types.NewPtr(bucket)
 	if !types.Haspointers(valtype) && !types.Haspointers(keytype) {
 		otyp = types.Types[TUINTPTR]
@@ -207,7 +207,7 @@ func bmap(t *types.Type) *types.Type {
 }
 
 // hmap builds a type representing a Hmap structure for the given map type.
-// Make sure this stays in sync with ../../../../runtime/map.go.
+// Make sure this stays in sync with runtime/map.go.
 func hmap(t *types.Type) *types.Type {
 	if t.MapType().Hmap != nil {
 		return t.MapType().Hmap
@@ -227,7 +227,7 @@ func hmap(t *types.Type) *types.Type {
 	//    nevacuate  uintptr
 	//    extra      unsafe.Pointer // *mapextra
 	// }
-	// must match ../../../../runtime/map.go:hmap.
+	// must match runtime/map.go:hmap.
 	fields := []*types.Field{
 		makefield("count", types.Types[TINT]),
 		makefield("flags", types.Types[TUINT8]),
@@ -257,7 +257,7 @@ func hmap(t *types.Type) *types.Type {
 }
 
 // hiter builds a type representing an Hiter structure for the given map type.
-// Make sure this stays in sync with ../../../../runtime/map.go.
+// Make sure this stays in sync with runtime/map.go.
 func hiter(t *types.Type) *types.Type {
 	if t.MapType().Hiter != nil {
 		return t.MapType().Hiter
@@ -284,7 +284,7 @@ func hiter(t *types.Type) *types.Type {
 	//    bucket      uintptr
 	//    checkBucket uintptr
 	// }
-	// must match ../../../../runtime/map.go:hiter.
+	// must match runtime/map.go:hiter.
 	fields := []*types.Field{
 		makefield("key", types.NewPtr(t.Key())),  // Used in range.go for TMAP.
 		makefield("val", types.NewPtr(t.Elem())), // Used in range.go for TMAP.

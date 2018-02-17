@@ -822,7 +822,7 @@ opswitch:
 		//   a = *var
 		a := n.List.First()
 
-		if w := t.Elem().Width; w <= 1024 { // 1024 must match ../../../../runtime/map.go:maxZero
+		if w := t.Elem().Width; w <= 1024 { // 1024 must match runtime/map.go:maxZero
 			fn := mapfn(mapaccess2[fast], t)
 			r = mkcall1(fn, fn.Type.Results(), init, typename(t), r.Left, key)
 		} else {
@@ -1196,7 +1196,7 @@ opswitch:
 				key = nod(OADDR, key, nil)
 			}
 
-			if w := t.Elem().Width; w <= 1024 { // 1024 must match ../../../../runtime/map.go:maxZero
+			if w := t.Elem().Width; w <= 1024 { // 1024 must match runtime/map.go:maxZero
 				n = mkcall1(mapfn(mapaccess1[fast], t), types.NewPtr(t.Elem()), init, typename(t), map_, key)
 			} else {
 				z := zeroaddr(w)
@@ -2816,7 +2816,7 @@ var mapassign = mkmapnames("mapassign", "ptr")
 var mapdelete = mkmapnames("mapdelete", "")
 
 func mapfast(t *types.Type) int {
-	// Check ../../runtime/map.go:maxValueSize before changing.
+	// Check runtime/map.go:maxValueSize before changing.
 	if t.Elem().Width > 128 {
 		return mapslow
 	}
