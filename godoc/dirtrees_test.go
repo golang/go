@@ -5,6 +5,8 @@
 package godoc
 
 import (
+	"go/build"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"testing"
@@ -36,5 +38,27 @@ func processDir(t *testing.T, dir *Directory) {
 
 	if sort.StringsAreSorted(list) == false {
 		t.Errorf("list: %v is not sorted\n", list)
+	}
+}
+
+func BenchmarkNewDirectory(b *testing.B) {
+	if testing.Short() {
+		b.Skip("not running tests requiring large file scan in short mode")
+	}
+
+	fsGate := make(chan bool, 20)
+
+	goroot := runtime.GOROOT()
+	rootfs := gatefs.New(vfs.OS(goroot), fsGate)
+	fs := vfs.NameSpace{}
+	fs.Bind("/", rootfs, "/", vfs.BindReplace)
+	for _, p := range filepath.SplitList(build.Default.GOPATH) {
+		fs.Bind("/src/golang.org", gatefs.New(vfs.OS(p), fsGate), "/src/golang.org", vfs.BindAfter)
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for tries := 0; tries < b.N; tries++ {
+		corpus := NewCorpus(fs)
+		corpus.newDirectory("/", -1)
 	}
 }
