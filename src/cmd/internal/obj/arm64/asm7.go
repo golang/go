@@ -696,9 +696,16 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			o = c.oplook(p)
 
 			/* very large branches */
-			if (o.type_ == 7 || o.type_ == 39) && p.Pcond != nil { // 7: BEQ and like, 39: CBZ and like
+			if (o.type_ == 7 || o.type_ == 39 || o.type_ == 40) && p.Pcond != nil { // 7: BEQ and like, 39: CBZ and like, 40: TBZ and like
 				otxt := p.Pcond.Pc - pc
-				if otxt <= -(1<<18)+10 || otxt >= (1<<18)-10 {
+				var toofar bool
+				switch o.type_ {
+				case 7, 39: // branch instruction encodes 19 bits
+					toofar = otxt <= -(1<<20)+10 || otxt >= (1<<20)-10
+				case 40: // branch instruction encodes 14 bits
+					toofar = otxt <= -(1<<15)+10 || otxt >= (1<<15)-10
+				}
+				if toofar {
 					q := c.newprog()
 					q.Link = p.Link
 					p.Link = q
