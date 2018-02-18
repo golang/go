@@ -204,7 +204,7 @@ func (tr *Reader) handleSparseFile(hdr *Header, rawHdr *block) error {
 // readGNUSparsePAXHeaders checks the PAX headers for GNU sparse headers.
 // If they are found, then this function reads the sparse map and returns it.
 // This assumes that 0.0 headers have already been converted to 0.1 headers
-// by the the PAX header parsing logic.
+// by the PAX header parsing logic.
 func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header) (sparseDatas, error) {
 	// Identify the version of GNU headers.
 	var is1x0 bool

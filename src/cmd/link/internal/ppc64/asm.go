@@ -693,7 +693,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 
 		return true
 	case objabi.R_POWER_TLS_LE:
-		// The thread pointer points 0x7000 bytes after the start of the the
+		// The thread pointer points 0x7000 bytes after the start of the
 		// thread local storage area as documented in section "3.7.2 TLS
 		// Runtime Handling" of "Power Architecture 64-Bit ELF V2 ABI
 		// Specification".
