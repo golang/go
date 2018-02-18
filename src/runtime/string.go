@@ -280,13 +280,20 @@ func rawruneslice(size int) (b []rune) {
 }
 
 // used by cmd/cgo
-func gobytes(p *byte, n int) []byte {
+func gobytes(p *byte, n int) (b []byte) {
 	if n == 0 {
 		return make([]byte, 0)
 	}
-	x := make([]byte, n)
-	memmove(unsafe.Pointer(&x[0]), unsafe.Pointer(p), uintptr(n))
-	return x
+
+	if n < 0 || uintptr(n) > maxAlloc {
+		panic(errorString("gobytes: length out of range"))
+	}
+
+	bp := mallocgc(uintptr(n), nil, false)
+	memmove(bp, unsafe.Pointer(p), uintptr(n))
+
+	*(*slice)(unsafe.Pointer(&b)) = slice{bp, n, n}
+	return
 }
 
 func gostring(p *byte) string {
