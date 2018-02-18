@@ -396,6 +396,18 @@
   && uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
   -> (Lsh(64|32|16|8)x64 x (Const64 <typ.UInt64> [c1-c2+c3]))
 
+// (x >> c) & uppermask = 0
+(And64 (Const64 [m]) (Rsh64Ux64 _ (Const64 [c]))) && c >= 64-ntz(m) -> (Const64 [0])
+(And32 (Const32 [m]) (Rsh32Ux64 _ (Const64 [c]))) && c >= 64-ntz(m) -> (Const32 [0])
+(And16 (Const16 [m]) (Rsh16Ux64 _ (Const64 [c]))) && c >= 64-ntz(m) -> (Const16 [0])
+(And8  (Const8  [m]) (Rsh8Ux64  _ (Const64 [c]))) && c >= 64-ntz(m) -> (Const8  [0])
+
+// (x << c) & lowermask = 0
+(And64 (Const64 [m]) (Lsh64x64  _ (Const64 [c]))) && c >= 64-nlz(m) -> (Const64 [0])
+(And32 (Const32 [m]) (Lsh32x64  _ (Const64 [c]))) && c >= 64-nlz(m) -> (Const32 [0])
+(And16 (Const16 [m]) (Lsh16x64  _ (Const64 [c]))) && c >= 64-nlz(m) -> (Const16 [0])
+(And8  (Const8  [m]) (Lsh8x64   _ (Const64 [c]))) && c >= 64-nlz(m) -> (Const8  [0])
+
 // replace shifts with zero extensions
 (Rsh16Ux64 (Lsh16x64 x (Const64  [8])) (Const64  [8])) -> (ZeroExt8to16  (Trunc16to8  <typ.UInt8>  x))
 (Rsh32Ux64 (Lsh32x64 x (Const64 [24])) (Const64 [24])) -> (ZeroExt8to32  (Trunc32to8  <typ.UInt8>  x))
