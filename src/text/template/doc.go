@@ -121,7 +121,7 @@ data, defined in detail in the corresponding sections that follow.
 		A block is shorthand for defining a template
 			{{define "name"}} T1 {{end}}
 		and then executing it in place
-			{{template "name" .}}
+			{{template "name" pipeline}}
 		The typical use is to define a set of root templates that are
 		then customized by redefining the block templates within.
 
