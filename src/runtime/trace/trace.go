@@ -71,7 +71,7 @@
 // interesting local operation which may require multiple goroutines
 // working together. Since tasks can involve multiple goroutines,
 // they are tracked via a context.Context object. NewContext creates
-// a new task and embeds it in the the returned context.Context object.
+// a new task and embeds it in the returned context.Context object.
 // Log messages and spans are attached to the task, if any, in the
 // Context passed to Log and WithSpan.
 //
