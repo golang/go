@@ -382,6 +382,11 @@ var execTests = []execTest{
 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 M0-", tVal, true},
 	{"pipeline func", "-{{call .VariadicFunc `llo` | call .VariadicFunc `he` }}-", "-<he+<llo>>-", tVal, true},
 
+	// Nil values aren't missing arguments.
+	{"nil pipeline", "{{ .Empty0 | call .NilOKFunc }}", "true", tVal, true},
+	{"nil call arg", "{{ call .NilOKFunc .Empty0 }}", "true", tVal, true},
+	{"bad nil pipeline", "{{ .Empty0 | .VariadicFunc }}", "", tVal, false},
+
 	// Parenthesized expressions
 	{"parens in pipeline", "{{printf `%d %d %d` (1) (2 | add 3) (add 4 (add 5 6))}}", "1 5 15", tVal, true},
 
