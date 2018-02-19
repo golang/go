@@ -125,8 +125,7 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
 		nt = t.New(name)
 	}
 	// Even if nt == t, we need to install it in the common.tmpl map.
-	replace := t.associate(nt, tree)
-	if replace || nt.Tree == nil {
+	if t.associate(nt, tree) || nt.Tree == nil {
 		nt.Tree = tree
 	}
 	return nt, nil
