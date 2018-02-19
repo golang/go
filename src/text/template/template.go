@@ -125,9 +125,8 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
 		nt = t.New(name)
 	}
 	// Even if nt == t, we need to install it in the common.tmpl map.
-	if replace, err := t.associate(nt, tree); err != nil {
-		return nil, err
-	} else if replace || nt.Tree == nil {
+	replace := t.associate(nt, tree)
+	if replace || nt.Tree == nil {
 		nt.Tree = tree
 	}
 	return nt, nil
@@ -212,15 +211,15 @@ func (t *Template) Parse(text string) (*Template, error) {
 // associate installs the new template into the group of templates associated
 // with t. The two are already known to share the common structure.
 // The boolean return value reports whether to store this tree as t.Tree.
-func (t *Template) associate(new *Template, tree *parse.Tree) (bool, error) {
+func (t *Template) associate(new *Template, tree *parse.Tree) bool {
 	if new.common != t.common {
 		panic("internal error: associate not common")
 	}
 	if old := t.tmpl[new.name]; old != nil && parse.IsEmptyTree(tree.Root) && old.Tree != nil {
 		// If a template by that name exists,
 		// don't replace it with an empty template.
-		return false, nil
+		return false
 	}
 	t.tmpl[new.name] = new
-	return true, nil
+	return true
 }
