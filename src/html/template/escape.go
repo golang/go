@@ -380,16 +380,6 @@ func appendCmd(cmds []*parse.CommandNode, cmd *parse.CommandNode) []*parse.Comma
 	return append(cmds, cmd)
 }
 
-// indexOfStr is the first i such that eq(s, strs[i]) or -1 if s was not found.
-func indexOfStr(s string, strs []string, eq func(a, b string) bool) int {
-	for i, t := range strs {
-		if eq(s, t) {
-			return i
-		}
-	}
-	return -1
-}
-
 // newIdentCmd produces a command containing a single identifier node.
 func newIdentCmd(identifier string, pos parse.Pos) *parse.CommandNode {
 	return &parse.CommandNode{
