@@ -207,3 +207,14 @@ func fixLongPath(path string) string {
 	}
 	return string(pathbuf[:w])
 }
+
+// fixRootDirectory fixes a reference to a drive's root directory to
+// have the required trailing slash.
+func fixRootDirectory(p string) string {
+	if len(p) == len(`\\?\c:`) {
+		if IsPathSeparator(p[0]) && IsPathSeparator(p[1]) && p[2] == '?' && IsPathSeparator(p[3]) && p[5] == ':' {
+			return p + `\`
+		}
+	}
+	return p
+}
