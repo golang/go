@@ -810,6 +810,12 @@
 (CMPW x (MOVDconst [c])) -> (CMPWconst [int64(int32(c))] x)
 (CMPW (MOVDconst [c]) x) -> (InvertFlags (CMPWconst [int64(int32(c))] x))
 
+// mul-neg -> mneg
+(NEG (MUL x y)) -> (MNEG x y)
+(NEG (MULW x y)) -> (MNEGW x y)
+(MUL (NEG x) y) -> (MNEG x y)
+(MULW (NEG x) y) -> (MNEGW x y)
+
 // mul by constant
 (MUL x (MOVDconst [-1])) -> (NEG x)
 (MUL _ (MOVDconst [0])) -> (MOVDconst [0])
@@ -832,6 +838,29 @@
 (MULW x (MOVDconst [c])) && c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c) -> (SLLconst [log2(c/5)] (ADDshiftLL <x.Type> x x [2]))
 (MULW x (MOVDconst [c])) && c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c) -> (SLLconst [log2(c/7)] (ADDshiftLL <x.Type> (NEG <x.Type> x) x [3]))
 (MULW x (MOVDconst [c])) && c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c) -> (SLLconst [log2(c/9)] (ADDshiftLL <x.Type> x x [3]))
+
+// mneg by constant
+(MNEG x (MOVDconst [-1])) -> x
+(MNEG _ (MOVDconst [0])) -> (MOVDconst [0])
+(MNEG x (MOVDconst [1])) -> (NEG x)
+(MNEG x (MOVDconst [c])) && isPowerOfTwo(c) -> (NEG (SLLconst <x.Type> [log2(c)] x))
+(MNEG x (MOVDconst [c])) && isPowerOfTwo(c-1) && c >= 3 -> (NEG (ADDshiftLL <x.Type> x x [log2(c-1)]))
+(MNEG x (MOVDconst [c])) && isPowerOfTwo(c+1) && c >= 7 -> (NEG (ADDshiftLL <x.Type> (NEG <x.Type> x) x [log2(c+1)]))
+(MNEG x (MOVDconst [c])) && c%3 == 0 && isPowerOfTwo(c/3) -> (NEG (SLLconst <x.Type> [log2(c/3)] (ADDshiftLL <x.Type> x x [1])))
+(MNEG x (MOVDconst [c])) && c%5 == 0 && isPowerOfTwo(c/5) -> (NEG (SLLconst <x.Type> [log2(c/5)] (ADDshiftLL <x.Type> x x [2])))
+(MNEG x (MOVDconst [c])) && c%7 == 0 && isPowerOfTwo(c/7) -> (NEG (SLLconst <x.Type> [log2(c/7)] (ADDshiftLL <x.Type> (NEG <x.Type> x) x [3])))
+(MNEG x (MOVDconst [c])) && c%9 == 0 && isPowerOfTwo(c/9) -> (NEG (SLLconst <x.Type> [log2(c/9)] (ADDshiftLL <x.Type> x x [3])))
+
+(MNEGW x (MOVDconst [c])) && int32(c)==-1 -> x
+(MNEGW _ (MOVDconst [c])) && int32(c)==0 -> (MOVDconst [0])
+(MNEGW x (MOVDconst [c])) && int32(c)==1 -> (NEG x)
+(MNEGW x (MOVDconst [c])) && isPowerOfTwo(c) -> (NEG (SLLconst <x.Type> [log2(c)] x))
+(MNEGW x (MOVDconst [c])) && isPowerOfTwo(c-1) && int32(c) >= 3 -> (NEG (ADDshiftLL <x.Type> x x [log2(c-1)]))
+(MNEGW x (MOVDconst [c])) && isPowerOfTwo(c+1) && int32(c) >= 7 -> (NEG (ADDshiftLL <x.Type> (NEG <x.Type> x) x [log2(c+1)]))
+(MNEGW x (MOVDconst [c])) && c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c) -> (NEG (SLLconst <x.Type> [log2(c/3)] (ADDshiftLL <x.Type> x x [1])))
+(MNEGW x (MOVDconst [c])) && c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c) -> (NEG (SLLconst <x.Type> [log2(c/5)] (ADDshiftLL <x.Type> x x [2])))
+(MNEGW x (MOVDconst [c])) && c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c) -> (NEG (SLLconst <x.Type> [log2(c/7)] (ADDshiftLL <x.Type> (NEG <x.Type> x) x [3])))
+(MNEGW x (MOVDconst [c])) && c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c) -> (NEG (SLLconst <x.Type> [log2(c/9)] (ADDshiftLL <x.Type> x x [3])))
 
 // div by constant
 (UDIV x (MOVDconst [1])) -> x
@@ -880,6 +909,8 @@
 (SRAconst [c] (MOVDconst [d]))  -> (MOVDconst [int64(d)>>uint64(c)])
 (MUL   (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c*d])
 (MULW  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(int32(c)*int32(d))])
+(MNEG  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [-c*d])
+(MNEGW (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [-int64(int32(c)*int32(d))])
 (DIV   (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(c)/int64(d)])
 (UDIV  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(uint64(c)/uint64(d))])
 (DIVW  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(int32(c)/int32(d))])
