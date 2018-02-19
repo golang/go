@@ -96,8 +96,9 @@ type mheap struct {
 	nlargefree  uint64                  // number of frees for large objects (>maxsmallsize)
 	nsmallfree  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
 
-	// arenas is the heap arena index. arenas[va/heapArenaBytes]
-	// points to the metadata for the heap arena containing va.
+	// arenas is the heap arena index.
+	// arenas[(va+arenaBaseOffset)/heapArenaBytes] points to the
+	// metadata for the heap arena containing va.
 	//
 	// Use arenaIndex to compute indexes into this array.
 	//
@@ -418,13 +419,13 @@ func (sc spanClass) noscan() bool {
 //
 //go:nosplit
 func arenaIndex(p uintptr) uint {
-	return uint(p / heapArenaBytes)
+	return uint((p + arenaBaseOffset) / heapArenaBytes)
 }
 
 // arenaBase returns the low address of the region covered by heap
 // arena i.
 func arenaBase(i uint) uintptr {
-	return uintptr(i) * heapArenaBytes
+	return uintptr(i)*heapArenaBytes - arenaBaseOffset
 }
 
 // inheap reports whether b is a pointer into a (potentially dead) heap object.
