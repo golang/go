@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const _BIT16SZ = 2
+const bitSize16 = 2
 
 func fileInfoFromStat(d *syscall.Dir) FileInfo {
 	fs := &fileStat{
@@ -46,7 +46,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 	size := syscall.STATFIXLEN + 16*4
 
 	for i := 0; i < 2; i++ {
-		buf := make([]byte, _BIT16SZ+size)
+		buf := make([]byte, bitSize16+size)
 
 		var n int
 		switch a := arg.(type) {
@@ -60,7 +60,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 			panic("phase error in dirstat")
 		}
 
-		if n < _BIT16SZ {
+		if n < bitSize16 {
 			return nil, &PathError{"stat", name, err}
 		}
 

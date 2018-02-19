@@ -14,6 +14,7 @@ package syscall
 import "unsafe"
 
 const ImplementsGetwd = true
+const bitSize16 = 2
 
 // ErrorString implements Error's String method by returning itself.
 type ErrorString string
@@ -164,6 +165,20 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 }
 
 func Mkdir(path string, mode uint32) (err error) {
+	// If path exists and is not a directory, Create will fail silently.
+	// Work around this by rejecting Mkdir if path exists.
+	statbuf := make([]byte, bitSize16)
+	// Remove any trailing slashes from path, otherwise the Stat will
+	// fail with ENOTDIR.
+	n := len(path)
+	for n > 1 && path[n-1] == '/' {
+		n--
+	}
+	_, err = Stat(path[0:n], statbuf)
+	if err == nil {
+		return EEXIST
+	}
+
 	fd, err := Create(path, O_RDONLY, DMDIR|mode)
 
 	if fd != -1 {
