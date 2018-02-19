@@ -161,15 +161,15 @@ func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCa
 			continue
 		} else {
 			// Close out the current range
-			endRange(crange, prevp)
+			endRange(crange, p)
 
 			// Begin new range
 			crange = beginRange(inlcalls.Calls, p, ii, imap)
 			curii = ii
 		}
 	}
-	if prevp != nil {
-		endRange(crange, prevp)
+	if crange != nil {
+		crange.End = fnsym.Size
 	}
 
 	// Debugging
