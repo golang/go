@@ -214,6 +214,17 @@ const (
 
 	pagesPerArena = heapArenaBytes / pageSize
 
+	// arenaBaseOffset is the pointer value that corresponds to
+	// index 0 in the heap arena index.
+	//
+	// On amd64, the address space is 48 bits, sign extended to 64
+	// bits. This offset lets us handle "negative" addresses (or
+	// high addresses if viewed as unsigned).
+	//
+	// On other platforms, the user address space is contiguous
+	// and starts at 0, so no offset is necessary.
+	arenaBaseOffset uintptr = sys.GoarchAmd64 * (1 << 47)
+
 	// Max number of threads to run garbage collection.
 	// 2, 3, and 4 are all plausible maximums depending
 	// on the hardware details of the machine. The garbage
