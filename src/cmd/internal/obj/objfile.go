@@ -456,11 +456,6 @@ func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
 		ls.WriteInt(c.Link, ls.Size, size, value)
 	}
 }
-func (c dwCtxt) AddCURelativeAddress(s dwarf.Sym, data interface{}, value int64) {
-	ls := s.(*LSym)
-	rsym := data.(*LSym)
-	ls.WriteCURelativeAddr(c.Link, ls.Size, rsym, value)
-}
 func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
 	ls := s.(*LSym)
 	rsym := t.(*LSym)

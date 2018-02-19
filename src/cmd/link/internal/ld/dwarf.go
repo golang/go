@@ -49,13 +49,6 @@ func (c dwctxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
 	s.(*sym.Symbol).AddAddrPlus(c.linkctxt.Arch, data.(*sym.Symbol), value)
 }
 
-func (c dwctxt) AddCURelativeAddress(s dwarf.Sym, data interface{}, value int64) {
-	if value != 0 {
-		value -= (data.(*sym.Symbol)).Value
-	}
-	s.(*sym.Symbol).AddCURelativeAddrPlus(c.linkctxt.Arch, data.(*sym.Symbol), value)
-}
-
 func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
 	ls := s.(*sym.Symbol)
 	switch size {
@@ -1481,6 +1474,11 @@ func writeranges(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 		}
 		rangeSym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
 		rangeSym.Type = sym.SDWARFRANGE
+		// LLVM doesn't support base address entries. Strip them out so LLDB and dsymutil don't get confused.
+		if ctxt.HeadType == objabi.Hdarwin {
+			fn := ctxt.Syms.ROLookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+			removeDwarfAddrListBaseAddress(ctxt, fn, rangeSym, false)
+		}
 		syms = append(syms, rangeSym)
 	}
 	return syms
@@ -1761,7 +1759,7 @@ func collectlocs(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit) []*sy
 					empty = false
 					// LLVM doesn't support base address entries. Strip them out so LLDB and dsymutil don't get confused.
 					if ctxt.HeadType == objabi.Hdarwin {
-						removeLocationListBaseAddress(ctxt, fn, reloc.Sym)
+						removeDwarfAddrListBaseAddress(ctxt, fn, reloc.Sym, true)
 					}
 					// One location list entry per function, but many relocations to it. Don't duplicate.
 					break
@@ -1779,7 +1777,9 @@ func collectlocs(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit) []*sy
 	return syms
 }
 
-func removeLocationListBaseAddress(ctxt *Link, info, list *sym.Symbol) {
+// removeDwarfAddrListBaseAddress removes base address selector entries from
+// DWARF location lists and range lists.
+func removeDwarfAddrListBaseAddress(ctxt *Link, info, list *sym.Symbol, isloclist bool) {
 	// The list symbol contains multiple lists, but they're all for the
 	// same function, and it's not empty.
 	fn := list.R[0].Sym
@@ -1820,7 +1820,9 @@ func removeLocationListBaseAddress(ctxt *Link, info, list *sym.Symbol) {
 
 		// Skip past the actual location.
 		i += ctxt.Arch.PtrSize * 2
-		i += 2 + int(ctxt.Arch.ByteOrder.Uint16(list.P[i:]))
+		if isloclist {
+			i += 2 + int(ctxt.Arch.ByteOrder.Uint16(list.P[i:]))
+		}
 	}
 
 	// Rewrite the DIE's relocations to point to the first location entry,
