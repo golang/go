@@ -75,6 +75,7 @@ var validCompilerFlags = []*regexp.Regexp{
 	re(`-pipe`),
 	re(`-pthread`),
 	re(`-?-std=([^@\-].*)`),
+	re(`-w`),
 	re(`-x([^@\-].*)`),
 }
 
