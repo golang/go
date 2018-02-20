@@ -302,8 +302,7 @@ func mallocinit() {
 
 	// Map the arena index. Most of this will never be written to,
 	// so we don't account it.
-	var untracked uint64
-	mheap_.arenas = (*[memLimit / heapArenaBytes]*heapArena)(persistentalloc(unsafe.Sizeof(*mheap_.arenas), sys.PtrSize, &untracked))
+	mheap_.arenas = (*[memLimit / heapArenaBytes]*heapArena)(persistentalloc(unsafe.Sizeof(*mheap_.arenas), sys.PtrSize, nil))
 	if mheap_.arenas == nil {
 		throw("failed to allocate arena index")
 	}
