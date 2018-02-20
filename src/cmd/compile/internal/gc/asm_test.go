@@ -340,6 +340,54 @@ var linuxAMD64Tests = []*asmTest{
 	},
 	{
 		fn: `
+		func $(b []byte, v uint64) {
+			binary.LittleEndian.PutUint64(b, v)
+		}
+		`,
+		neg: []string{"SHRQ"},
+	},
+	{
+		fn: `
+		func $(b []byte, i int, v uint64) {
+			binary.LittleEndian.PutUint64(b[i:], v)
+		}
+		`,
+		neg: []string{"SHRQ"},
+	},
+	{
+		fn: `
+		func $(b []byte, v uint32) {
+			binary.LittleEndian.PutUint32(b, v)
+		}
+		`,
+		neg: []string{"SHRL", "SHRQ"},
+	},
+	{
+		fn: `
+		func $(b []byte, i int, v uint32) {
+			binary.LittleEndian.PutUint32(b[i:], v)
+		}
+		`,
+		neg: []string{"SHRL", "SHRQ"},
+	},
+	{
+		fn: `
+		func $(b []byte, v uint16) {
+			binary.LittleEndian.PutUint16(b, v)
+		}
+		`,
+		neg: []string{"SHRW", "SHRL", "SHRQ"},
+	},
+	{
+		fn: `
+		func $(b []byte, i int, v uint16) {
+			binary.LittleEndian.PutUint16(b[i:], v)
+		}
+		`,
+		neg: []string{"SHRW", "SHRL", "SHRQ"},
+	},
+	{
+		fn: `
 		func f6(b []byte) uint64 {
 			return binary.BigEndian.Uint64(b)
 		}

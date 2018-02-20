@@ -2014,19 +2014,19 @@
   -> (MOVQstoreidx1 [ValAndOff(a).Off()] {s} p (SHLQconst <i.Type> [2] i) (MOVQconst [ValAndOff(a).Val()&0xffffffff | ValAndOff(c).Val()<<32]) mem)
 
 // Combine stores into larger (unaligned) stores.
-(MOVBstore [i] {s} p (SHRQconst [8] w) x:(MOVBstore [i-1] {s} p w mem))
+(MOVBstore [i] {s} p (SHR(W|L|Q)const [8] w) x:(MOVBstore [i-1] {s} p w mem))
   && x.Uses == 1
   && clobber(x)
   -> (MOVWstore [i-1] {s} p w mem)
-(MOVBstore [i] {s} p (SHRQconst [j] w) x:(MOVBstore [i-1] {s} p w0:(SHRQconst [j-8] w) mem))
+(MOVBstore [i] {s} p (SHR(L|Q)const [j] w) x:(MOVBstore [i-1] {s} p w0:(SHR(L|Q)const [j-8] w) mem))
   && x.Uses == 1
   && clobber(x)
   -> (MOVWstore [i-1] {s} p w0 mem)
-(MOVWstore [i] {s} p (SHRQconst [16] w) x:(MOVWstore [i-2] {s} p w mem))
+(MOVWstore [i] {s} p (SHR(L|Q)const [16] w) x:(MOVWstore [i-2] {s} p w mem))
   && x.Uses == 1
   && clobber(x)
   -> (MOVLstore [i-2] {s} p w mem)
-(MOVWstore [i] {s} p (SHRQconst [j] w) x:(MOVWstore [i-2] {s} p w0:(SHRQconst [j-16] w) mem))
+(MOVWstore [i] {s} p (SHR(L|Q)const [j] w) x:(MOVWstore [i-2] {s} p w0:(SHR(L|Q)const [j-16] w) mem))
   && x.Uses == 1
   && clobber(x)
   -> (MOVLstore [i-2] {s} p w0 mem)
@@ -2039,19 +2039,19 @@
   && clobber(x)
   -> (MOVQstore [i-4] {s} p w0 mem)
 
-(MOVBstoreidx1 [i] {s} p idx (SHRQconst [8] w) x:(MOVBstoreidx1 [i-1] {s} p idx w mem))
+(MOVBstoreidx1 [i] {s} p idx (SHR(W|L|Q)const [8] w) x:(MOVBstoreidx1 [i-1] {s} p idx w mem))
   && x.Uses == 1
   && clobber(x)
   -> (MOVWstoreidx1 [i-1] {s} p idx w mem)
-(MOVBstoreidx1 [i] {s} p idx (SHRQconst [j] w) x:(MOVBstoreidx1 [i-1] {s} p idx w0:(SHRQconst [j-8] w) mem))
+(MOVBstoreidx1 [i] {s} p idx (SHR(L|Q)const [j] w) x:(MOVBstoreidx1 [i-1] {s} p idx w0:(SHR(L|Q)const [j-8] w) mem))
   && x.Uses == 1
   && clobber(x)
   -> (MOVWstoreidx1 [i-1] {s} p idx w0 mem)
-(MOVWstoreidx1 [i] {s} p idx (SHRQconst [16] w) x:(MOVWstoreidx1 [i-2] {s} p idx w mem))
+(MOVWstoreidx1 [i] {s} p idx (SHR(L|Q)const [16] w) x:(MOVWstoreidx1 [i-2] {s} p idx w mem))
   && x.Uses == 1
   && clobber(x)
   -> (MOVLstoreidx1 [i-2] {s} p idx w mem)
-(MOVWstoreidx1 [i] {s} p idx (SHRQconst [j] w) x:(MOVWstoreidx1 [i-2] {s} p idx w0:(SHRQconst [j-16] w) mem))
+(MOVWstoreidx1 [i] {s} p idx (SHR(L|Q)const [j] w) x:(MOVWstoreidx1 [i-2] {s} p idx w0:(SHR(L|Q)const [j-16] w) mem))
   && x.Uses == 1
   && clobber(x)
   -> (MOVLstoreidx1 [i-2] {s} p idx w0 mem)
@@ -2064,7 +2064,7 @@
   && clobber(x)
   -> (MOVQstoreidx1 [i-4] {s} p idx w0 mem)
 
-(MOVWstoreidx2 [i] {s} p idx (SHRQconst [16] w) x:(MOVWstoreidx2 [i-2] {s} p idx w mem))
+(MOVWstoreidx2 [i] {s} p idx (SHR(L|Q)const [16] w) x:(MOVWstoreidx2 [i-2] {s} p idx w mem))
   && x.Uses == 1
   && clobber(x)
   -> (MOVLstoreidx1 [i-2] {s} p (SHLQconst <idx.Type> [1] idx) w mem)
