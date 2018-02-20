@@ -144,7 +144,7 @@ var stackpoolmu mutex
 // Global pool of large stack spans.
 var stackLarge struct {
 	lock mutex
-	free [memLimitBits - pageShift]mSpanList // free lists by log_2(s.npages)
+	free [heapAddrBits - pageShift]mSpanList // free lists by log_2(s.npages)
 }
 
 func stackinit() {

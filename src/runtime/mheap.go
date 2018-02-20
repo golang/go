@@ -112,7 +112,7 @@ type mheap struct {
 	//
 	// This structure is fully mapped by mallocinit, so it's safe
 	// to probe any index.
-	arenas *[memLimit / heapArenaBytes]*heapArena
+	arenas *[(1 << heapAddrBits) / heapArenaBytes]*heapArena
 
 	// heapArenaAlloc is pre-reserved space for allocating heapArena
 	// objects. This is only used on 32-bit, where we pre-reserve

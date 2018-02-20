@@ -147,7 +147,7 @@ type heapBits struct {
 
 // Make the compiler check that heapBits.arena is large enough to hold
 // the maximum arena index.
-var _ = heapBits{arena: memLimit / heapArenaBytes}
+var _ = heapBits{arena: (1<<heapAddrBits)/heapArenaBytes - 1}
 
 // markBits provides access to the mark bit for an object in the heap.
 // bytep points to the byte holding the mark bit.
