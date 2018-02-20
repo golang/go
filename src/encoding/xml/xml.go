@@ -198,7 +198,7 @@ type Decoder struct {
 	// charset-conversion readers, converting from the provided
 	// non-UTF-8 charset into UTF-8. If CharsetReader is nil or
 	// returns an error, parsing stops with an error. One of the
-	// the CharsetReader's result values must be non-nil.
+	// CharsetReader's result values must be non-nil.
 	CharsetReader func(charset string, input io.Reader) (io.Reader, error)
 
 	// DefaultSpace sets the default name space used for unadorned tags,

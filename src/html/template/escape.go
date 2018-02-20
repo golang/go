@@ -417,7 +417,7 @@ func nudge(c context) context {
 
 // join joins the two contexts of a branch template node. The result is an
 // error context if either of the input contexts are error contexts, or if the
-// the input contexts differ.
+// input contexts differ.
 func join(a, b context, node parse.Node, nodeName string) context {
 	if a.state == stateError {
 		return a

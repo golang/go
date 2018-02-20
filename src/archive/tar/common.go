@@ -187,7 +187,7 @@ type Header struct {
 	// The key and value should be non-empty UTF-8 strings.
 	//
 	// When Writer.WriteHeader is called, PAX records derived from the
-	// the other fields in Header take precedence over PAXRecords.
+	// other fields in Header take precedence over PAXRecords.
 	PAXRecords map[string]string
 
 	// Format specifies the format of the tar header.
