@@ -11,7 +11,7 @@ import "unsafe"
 const (
 	// addrBits is the number of bits needed to represent a virtual address.
 	//
-	// See memLimitBits for a table of address space sizes on
+	// See heapAddrBits for a table of address space sizes on
 	// various architectures. 48 bits is enough for all
 	// architectures except s390x.
 	//

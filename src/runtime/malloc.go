@@ -156,12 +156,32 @@ const (
 	//   plan9            | 4KB        | 3
 	_NumStackOrders = 4 - sys.PtrSize/4*sys.GoosWindows - 1*sys.GoosPlan9
 
-	// memLimitBits is the maximum number of bits in a heap address.
+	// heapAddrBits is the number of bits in a heap address. On
+	// amd64, addresses are sign-extended beyond heapAddrBits. On
+	// other arches, they are zero-extended.
 	//
-	// On 64-bit platforms, we limit this to 48 bits because that
-	// is the maximum supported by Linux across all 64-bit
-	// architectures, with the exception of s390x. Based on
-	// processor.h:
+	// On 64-bit platforms, we limit this to 48 bits based on a
+	// combination of hardware and OS limitations.
+	//
+	// amd64 hardware limits addresses to 48 bits, sign-extended
+	// to 64 bits. Addresses where the top 16 bits are not either
+	// all 0 or all 1 are "non-canonical" and invalid. Because of
+	// these "negative" addresses, we offset addresses by 1<<47
+	// (arenaBaseOffset) on amd64 before computing indexes into
+	// the heap arenas index. In 2017, amd64 hardware added
+	// support for 57 bit addresses; however, currently only Linux
+	// supports this extension and the kernel will never choose an
+	// address above 1<<47 unless mmap is called with a hint
+	// address above 1<<47 (which we never do).
+	//
+	// arm64 hardware (as of ARMv8) limits user addresses to 48
+	// bits, in the range [0, 1<<48).
+	//
+	// ppc64, mips64, and s390x support arbitrary 64 bit addresses
+	// in hardware. However, since Go only supports Linux on
+	// these, we lean on OS limits. Based on Linux's processor.h,
+	// the user address space is limited as follows on 64-bit
+	// architectures:
 	//
 	// Architecture  Name              Maximum Value (exclusive)
 	// ---------------------------------------------------------------------
@@ -171,15 +191,12 @@ const (
 	// mips64{,le}   TASK_SIZE64       0x00010000000000 (40 bit addresses)
 	// s390x         TASK_SIZE         1<<64 (64 bit addresses)
 	//
-	// These values may increase over time. In particular, ppc64
-	// and mips64 support arbitrary 64-bit addresses in hardware,
-	// but Linux imposes the above limits. amd64 has hardware
-	// support for 57 bit addresses as of 2017 (56 bits for user
-	// space), but Linux only uses addresses above 1<<47 for
-	// mappings that explicitly pass a high hint address.
-	//
-	// s390x supports full 64-bit addresses, but the allocator
-	// will panic in the unlikely event we exceed 48 bits.
+	// These limits may increase over time, but are currently at
+	// most 48 bits except on s390x. On all architectures, Linux
+	// starts placing mmap'd regions at addresses that are
+	// significantly below 48 bits, so even if it's possible to
+	// exceed Go's 48 bit limit, it's extremely unlikely in
+	// practice.
 	//
 	// On 32-bit platforms, we accept the full 32-bit address
 	// space because doing so is cheap.
@@ -187,22 +204,17 @@ const (
 	// we further limit it to 31 bits.
 	//
 	// The size of the arena index is proportional to
-	// 1<<memLimitBits, so it's important that this not be too
+	// 1<<heapAddrBits, so it's important that this not be too
 	// large. 48 bits is about the threshold; above that we would
 	// need to go to a two level arena index.
-	memLimitBits = _64bit*48 + (1-_64bit)*(32-(sys.GoarchMips+sys.GoarchMipsle))
-
-	// memLimit is one past the highest possible heap pointer value.
-	//
-	// This is also the maximum heap pointer value.
-	memLimit = 1 << memLimitBits
+	heapAddrBits = _64bit*48 + (1-_64bit)*(32-(sys.GoarchMips+sys.GoarchMipsle))
 
 	// maxAlloc is the maximum size of an allocation. On 64-bit,
-	// it's theoretically possible to allocate memLimit bytes. On
-	// 32-bit, however, this is one less than memLimit because the
+	// it's theoretically possible to allocate 1<<heapAddrBits bytes. On
+	// 32-bit, however, this is one less than 1<<32 because the
 	// number of bytes in the address space doesn't actually fit
 	// in a uintptr.
-	maxAlloc = memLimit - (1-_64bit)*1
+	maxAlloc = (1 << heapAddrBits) - (1-_64bit)*1
 
 	// heapArenaBytes is the size of a heap arena. The heap
 	// consists of mappings of size heapArenaBytes, aligned to
@@ -312,8 +324,7 @@ func mallocinit() {
 	}
 
 	// Map the arena index. Most of this will never be written to,
-	// so we don't account it.
-	mheap_.arenas = (*[memLimit / heapArenaBytes]*heapArena)(persistentalloc(unsafe.Sizeof(*mheap_.arenas), sys.PtrSize, nil))
+	mheap_.arenas = (*[(1 << heapAddrBits) / heapArenaBytes]*heapArena)(persistentalloc(unsafe.Sizeof(*mheap_.arenas), sys.PtrSize, nil))
 	if mheap_.arenas == nil {
 		throw("failed to allocate arena index")
 	}
