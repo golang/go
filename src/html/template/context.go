@@ -77,6 +77,8 @@ func (c context) mangle(templateName string) string {
 // is a single token in HTML's grammar but in a template spans several nodes.
 type state uint8
 
+//go:generate stringer -type state
+
 const (
 	// stateText is parsed character data. An HTML parser is in
 	// this state when its parse position is outside an HTML tag,
@@ -137,41 +139,6 @@ const (
 	stateError
 )
 
-var stateNames = [...]string{
-	stateText:        "stateText",
-	stateTag:         "stateTag",
-	stateAttrName:    "stateAttrName",
-	stateAfterName:   "stateAfterName",
-	stateBeforeValue: "stateBeforeValue",
-	stateHTMLCmt:     "stateHTMLCmt",
-	stateRCDATA:      "stateRCDATA",
-	stateAttr:        "stateAttr",
-	stateURL:         "stateURL",
-	stateSrcset:      "stateSrcset",
-	stateJS:          "stateJS",
-	stateJSDqStr:     "stateJSDqStr",
-	stateJSSqStr:     "stateJSSqStr",
-	stateJSRegexp:    "stateJSRegexp",
-	stateJSBlockCmt:  "stateJSBlockCmt",
-	stateJSLineCmt:   "stateJSLineCmt",
-	stateCSS:         "stateCSS",
-	stateCSSDqStr:    "stateCSSDqStr",
-	stateCSSSqStr:    "stateCSSSqStr",
-	stateCSSDqURL:    "stateCSSDqURL",
-	stateCSSSqURL:    "stateCSSSqURL",
-	stateCSSURL:      "stateCSSURL",
-	stateCSSBlockCmt: "stateCSSBlockCmt",
-	stateCSSLineCmt:  "stateCSSLineCmt",
-	stateError:       "stateError",
-}
-
-func (s state) String() string {
-	if int(s) < len(stateNames) {
-		return stateNames[s]
-	}
-	return fmt.Sprintf("illegal state %d", int(s))
-}
-
 // isComment is true for any state that contains content meant for template
 // authors & maintainers, not for end-users or machines.
 func isComment(s state) bool {
@@ -194,6 +161,8 @@ func isInTag(s state) bool {
 // delim is the delimiter that will end the current HTML attribute.
 type delim uint8
 
+//go:generate stringer -type delim
+
 const (
 	// delimNone occurs outside any attribute.
 	delimNone delim = iota
@@ -206,23 +175,11 @@ const (
 	delimSpaceOrTagEnd
 )
 
-var delimNames = [...]string{
-	delimNone:          "delimNone",
-	delimDoubleQuote:   "delimDoubleQuote",
-	delimSingleQuote:   "delimSingleQuote",
-	delimSpaceOrTagEnd: "delimSpaceOrTagEnd",
-}
-
-func (d delim) String() string {
-	if int(d) < len(delimNames) {
-		return delimNames[d]
-	}
-	return fmt.Sprintf("illegal delim %d", int(d))
-}
-
 // urlPart identifies a part in an RFC 3986 hierarchical URL to allow different
 // encoding strategies.
 type urlPart uint8
+
+//go:generate stringer -type urlPart
 
 const (
 	// urlPartNone occurs when not in a URL, or possibly at the start:
@@ -239,23 +196,11 @@ const (
 	urlPartUnknown
 )
 
-var urlPartNames = [...]string{
-	urlPartNone:        "urlPartNone",
-	urlPartPreQuery:    "urlPartPreQuery",
-	urlPartQueryOrFrag: "urlPartQueryOrFrag",
-	urlPartUnknown:     "urlPartUnknown",
-}
-
-func (u urlPart) String() string {
-	if int(u) < len(urlPartNames) {
-		return urlPartNames[u]
-	}
-	return fmt.Sprintf("illegal urlPart %d", int(u))
-}
-
 // jsCtx determines whether a '/' starts a regular expression literal or a
 // division operator.
 type jsCtx uint8
+
+//go:generate stringer -type jsCtx
 
 const (
 	// jsCtxRegexp occurs where a '/' would start a regexp literal.
@@ -266,24 +211,14 @@ const (
 	jsCtxUnknown
 )
 
-func (c jsCtx) String() string {
-	switch c {
-	case jsCtxRegexp:
-		return "jsCtxRegexp"
-	case jsCtxDivOp:
-		return "jsCtxDivOp"
-	case jsCtxUnknown:
-		return "jsCtxUnknown"
-	}
-	return fmt.Sprintf("illegal jsCtx %d", int(c))
-}
-
 // element identifies the HTML element when inside a start tag or special body.
 // Certain HTML element (for example <script> and <style>) have bodies that are
 // treated differently from stateText so the element type is necessary to
 // transition into the correct context at the end of a tag and to identify the
 // end delimiter for the body.
 type element uint8
+
+//go:generate stringer -type element
 
 const (
 	// elementNone occurs outside a special tag or special element body.
@@ -298,21 +233,6 @@ const (
 	// elementTitle corresponds to the RCDATA <title> element.
 	elementTitle
 )
-
-var elementNames = [...]string{
-	elementNone:     "elementNone",
-	elementScript:   "elementScript",
-	elementStyle:    "elementStyle",
-	elementTextarea: "elementTextarea",
-	elementTitle:    "elementTitle",
-}
-
-func (e element) String() string {
-	if int(e) < len(elementNames) {
-		return elementNames[e]
-	}
-	return fmt.Sprintf("illegal element %d", int(e))
-}
 
 //go:generate stringer -type attr
 
