@@ -3,32 +3,18 @@
 // license that can be found in the LICENSE file.
 
 // Lowering arithmetic
-(AddPtr x y) -> (ADDL  x y)
-(Add32  x y) -> (ADDL  x y)
-(Add16  x y) -> (ADDL  x y)
-(Add8   x y) -> (ADDL  x y)
-(Add32F x y) -> (ADDSS x y)
-(Add64F x y) -> (ADDSD x y)
-
+(Add(Ptr|32|16|8) x y) -> (ADDL  x y)
+(Add(32|64)F x y) -> (ADDS(S|D) x y)
 (Add32carry x y) -> (ADDLcarry x y)
 (Add32withcarry x y c) -> (ADCL x y c)
 
-(SubPtr x y) -> (SUBL  x y)
-(Sub32  x y) -> (SUBL  x y)
-(Sub16  x y) -> (SUBL  x y)
-(Sub8   x y) -> (SUBL  x y)
-(Sub32F x y) -> (SUBSS x y)
-(Sub64F x y) -> (SUBSD x y)
-
+(Sub(Ptr|32|16|8) x y) -> (SUBL  x y)
+(Sub(32|64)F x y) -> (SUBS(S|D) x y)
 (Sub32carry x y) -> (SUBLcarry x y)
 (Sub32withcarry x y c) -> (SBBL x y c)
 
-(Mul32  x y) -> (MULL  x y)
-(Mul16  x y) -> (MULL  x y)
-(Mul8   x y) -> (MULL  x y)
-(Mul32F x y) -> (MULSS x y)
-(Mul64F x y) -> (MULSD x y)
-
+(Mul(32|16|8)  x y) -> (MULL  x y)
+(Mul(32|64)F x y) -> (MULS(S|D) x y)
 (Mul32uhilo x y) -> (MULLQU x y)
 
 (Avg32u x y) -> (AVGLU x y)
@@ -53,29 +39,17 @@
 (Mod8   x y) -> (MODW  (SignExt8to16 x) (SignExt8to16 y))
 (Mod8u  x y) -> (MODWU (ZeroExt8to16 x) (ZeroExt8to16 y))
 
-(And32 x y) -> (ANDL x y)
-(And16 x y) -> (ANDL x y)
-(And8  x y) -> (ANDL x y)
+(And(32|16|8) x y) -> (ANDL x y)
+(Or(32|16|8) x y) -> (ORL x y)
+(Xor(32|16|8) x y) -> (XORL x y)
 
-(Or32 x y) -> (ORL x y)
-(Or16 x y) -> (ORL x y)
-(Or8  x y) -> (ORL x y)
-
-(Xor32 x y) -> (XORL x y)
-(Xor16 x y) -> (XORL x y)
-(Xor8  x y) -> (XORL x y)
-
-(Neg32  x) -> (NEGL x)
-(Neg16  x) -> (NEGL x)
-(Neg8   x) -> (NEGL x)
+(Neg(32|16|8)  x) -> (NEGL x)
 (Neg32F x) && !config.use387 -> (PXOR x (MOVSSconst <typ.Float32> [f2i(math.Copysign(0, -1))]))
 (Neg64F x) && !config.use387 -> (PXOR x (MOVSDconst <typ.Float64> [f2i(math.Copysign(0, -1))]))
 (Neg32F x) && config.use387 -> (FCHS x)
 (Neg64F x) && config.use387 -> (FCHS x)
 
-(Com32 x) -> (NOTL x)
-(Com16 x) -> (NOTL x)
-(Com8  x) -> (NOTL x)
+(Com(32|16|8) x) -> (NOTL x)
 
 // Lowering boolean ops
 (AndB x y) -> (ANDL x y)
@@ -362,11 +336,8 @@
 	(REPSTOSL destptr (MOVLconst [s/4]) (MOVLconst [0]) mem)
 
 // Lowering constants
-(Const8   [val]) -> (MOVLconst [val])
-(Const16  [val]) -> (MOVLconst [val])
-(Const32  [val]) -> (MOVLconst [val])
-(Const32F [val]) -> (MOVSSconst [val])
-(Const64F [val]) -> (MOVSDconst [val])
+(Const(8|16|32)   [val]) -> (MOVLconst [val])
+(Const(32|64)F [val]) -> (MOVS(S|D)const [val])
 (ConstNil) -> (MOVLconst [0])
 (ConstBool [b]) -> (MOVLconst [b])
 
@@ -1097,17 +1068,13 @@
 (XORL x x) -> (MOVLconst [0])
 
 // checking AND against 0.
-(CMPLconst (ANDL x y) [0]) -> (TESTL x y)
-(CMPWconst (ANDL x y) [0]) -> (TESTW x y)
-(CMPBconst (ANDL x y) [0]) -> (TESTB x y)
+(CMP(L|W|B)const (ANDL x y) [0]) -> (TEST(L|W|B) x y)
 (CMPLconst (ANDLconst [c] x) [0]) -> (TESTLconst [c] x)
 (CMPWconst (ANDLconst [c] x) [0]) -> (TESTWconst [int64(int16(c))] x)
 (CMPBconst (ANDLconst [c] x) [0]) -> (TESTBconst [int64(int8(c))] x)
 
 // TEST %reg,%reg is shorter than CMP
-(CMPLconst x [0]) -> (TESTL x x)
-(CMPWconst x [0]) -> (TESTW x x)
-(CMPBconst x [0]) -> (TESTB x x)
+(CMP(L|W|B)const x [0]) -> (TEST(L|W|B) x x)
 
 // Combining byte loads into larger (unaligned) loads.
 // There are many ways these combinations could occur.  This is
