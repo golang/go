@@ -617,7 +617,7 @@ func (z *Int) lehmerGCD(a, b *Int) *Int {
 			B.Add(r, w)
 
 		} else {
-			// single-digit calculations failed to simluate any quotients
+			// single-digit calculations failed to simulate any quotients
 			// do a standard Euclidean step
 			t.Rem(A, B)
 			A, B, t = B, t, A
