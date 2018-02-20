@@ -120,7 +120,7 @@ func arm64RegisterNumber(name string, n int16) (int16, bool) {
 	return 0, false
 }
 
-// ARM64RegisterExtension parses an ARM64 register with extension or arrangment.
+// ARM64RegisterExtension parses an ARM64 register with extension or arrangement.
 func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
 	rm := uint32(reg)
 	if isAmount {
@@ -222,7 +222,7 @@ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, i
 	return nil
 }
 
-// ARM64RegisterArrangement parses an ARM64 vector register arrangment.
+// ARM64RegisterArrangement parses an ARM64 vector register arrangement.
 func ARM64RegisterArrangement(reg int16, name, arng string) (int64, error) {
 	var curQ, curSize uint16
 	if name[0] != 'V' {

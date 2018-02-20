@@ -129,7 +129,7 @@ Go Assembly for ARM64 Reference Manual
 
     VSUB: Sub (scalar)
       VSUB	<Vm>, <Vn>, <Vd>
-        Subtract low 64-bit element in <Vm> from the correponding element in <Vn>,
+        Subtract low 64-bit element in <Vm> from the corresponding element in <Vn>,
         place the result into low 64-bit element of <Vd>.
 
     VUADDLV: Unsigned sum Long across Vector.

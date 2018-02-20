@@ -70,7 +70,7 @@ const (
 	// and for constructing the global offset table when internally linking a dynamic
 	// executable.
 	//
-	// TOOD(mwhudson): perhaps a better name for this is AttrNonGoSymbol.
+	// TODO(mwhudson): perhaps a better name for this is AttrNonGoSymbol.
 	AttrSubSymbol
 	// AttrContainer is set on text symbols that are present as the .Outer for some
 	// other symbol.

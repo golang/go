@@ -179,7 +179,7 @@ func (b *blockReader) Read(p []byte) (int, error) {
 // following the end of LZW data, the very next sub-block must be the block
 // terminator. If the very end of LZW data happened to fill one sub-block, at
 // most one more sub-block of length 1 may exist before the block-terminator.
-// These accomodations allow us to support GIFs created by less strict encoders.
+// These accommodations allow us to support GIFs created by less strict encoders.
 // See https://golang.org/issue/16146.
 func (b *blockReader) close() error {
 	if b.err == io.EOF {

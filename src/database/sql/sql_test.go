@@ -1375,7 +1375,7 @@ func TestInvalidNilValues(t *testing.T) {
 
 			err = conn.QueryRowContext(ctx, "SELECT|people|bdate|age=?", 1).Scan(tt.input)
 			if err == nil {
-				t.Fatal("expected error when querying nil column, but suceeded")
+				t.Fatal("expected error when querying nil column, but succeeded")
 			}
 			if err.Error() != tt.expectedError {
 				t.Fatalf("Expected error: %s\nReceived: %s", tt.expectedError, err.Error())

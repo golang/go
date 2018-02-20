@@ -608,7 +608,7 @@ func TestUnmarshalToLargeCoordinates(t *testing.T) {
 	copy(invalidX[33:], y.Bytes())
 
 	if X, Y := Unmarshal(curve, invalidX); X != nil || Y != nil {
-		t.Errorf("Unmarshal accpets invalid X coordinate")
+		t.Errorf("Unmarshal accepts invalid X coordinate")
 	}
 
 	// This is a point on the curve with a small y value, small enough that we can add p and still be within 32 bytes.
@@ -625,6 +625,6 @@ func TestUnmarshalToLargeCoordinates(t *testing.T) {
 	copy(invalidY[33:], y.Bytes())
 
 	if X, Y := Unmarshal(curve, invalidY); X != nil || Y != nil {
-		t.Errorf("Unmarshal accpets invalid Y coordinate")
+		t.Errorf("Unmarshal accepts invalid Y coordinate")
 	}
 }
