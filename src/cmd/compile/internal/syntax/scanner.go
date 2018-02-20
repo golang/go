@@ -348,7 +348,7 @@ func (s *scanner) ident() {
 
 	// possibly a keyword
 	if len(lit) >= 2 {
-		if tok := keywordMap[hash(lit)]; tok != 0 && tokstrings[tok] == string(lit) {
+		if tok := keywordMap[hash(lit)]; tok != 0 && tokStrFast(tok) == string(lit) {
 			s.nlsemi = contains(1<<_Break|1<<_Continue|1<<_Fallthrough|1<<_Return, tok)
 			s.tok = tok
 			return
@@ -358,6 +358,12 @@ func (s *scanner) ident() {
 	s.nlsemi = true
 	s.lit = string(lit)
 	s.tok = _Name
+}
+
+// tokStrFast is a faster version of token.String, which assumes that tok
+// is one of the valid tokens - and can thus skip bounds checks.
+func tokStrFast(tok token) string {
+	return _token_name[_token_index[tok-1]:_token_index[tok]]
 }
 
 func (s *scanner) isIdentRune(c rune, first bool) bool {
@@ -387,7 +393,7 @@ var keywordMap [1 << 6]token // size must be power of two
 func init() {
 	// populate keywordMap
 	for tok := _Break; tok <= _Var; tok++ {
-		h := hash([]byte(tokstrings[tok]))
+		h := hash([]byte(tok.String()))
 		if keywordMap[h] != 0 {
 			panic("imperfect hash")
 		}
