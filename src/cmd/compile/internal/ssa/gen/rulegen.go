@@ -60,18 +60,22 @@ func (r Rule) String() string {
 	return fmt.Sprintf("rule %q at %s", r.rule, r.loc)
 }
 
+func normalizeSpaces(s string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
+}
+
 // parse returns the matching part of the rule, additional conditions, and the result.
 func (r Rule) parse() (match, cond, result string) {
 	s := strings.Split(r.rule, "->")
 	if len(s) != 2 {
 		log.Fatalf("no arrow in %s", r)
 	}
-	match = strings.TrimSpace(s[0])
-	result = strings.TrimSpace(s[1])
+	match = normalizeSpaces(s[0])
+	result = normalizeSpaces(s[1])
 	cond = ""
 	if i := strings.Index(match, "&&"); i >= 0 {
-		cond = strings.TrimSpace(match[i+2:])
-		match = strings.TrimSpace(match[:i])
+		cond = normalizeSpaces(match[i+2:])
+		match = normalizeSpaces(match[:i])
 	}
 	return match, cond, result
 }
