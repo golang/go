@@ -27,6 +27,8 @@ type Regexp struct {
 	Name     string     // capturing name, for OpCapture
 }
 
+//go:generate stringer -type Op -trimprefix Op
+
 // An Op is a single regular expression operator.
 type Op uint8
 
