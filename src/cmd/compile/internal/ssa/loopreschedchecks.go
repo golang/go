@@ -56,7 +56,7 @@ func insertLoopReschedChecks(f *Func) {
 	//    are present in the graph, initially with trivial inputs.
 	// 4. Record all to-be-modified uses of mem;
 	//    apply modifications (split into two steps to simplify and
-	//    avoided nagging order-dependences).
+	//    avoided nagging order-dependencies).
 	// 5. Rewrite backedges to include reschedule check,
 	//    and modify destination phi function appropriately with new
 	//    definitions for mem.

@@ -40,7 +40,7 @@ func TestEscape(t *testing.T) {
 	}{
 		F: false,
 		T: true,
-		C: "<Cincinatti>",
+		C: "<Cincinnati>",
 		G: "<Goodbye>",
 		H: "<Hello>",
 		A: []string{"<a>", "<b>"},
@@ -61,7 +61,7 @@ func TestEscape(t *testing.T) {
 		{
 			"if",
 			"{{if .T}}Hello{{end}}, {{.C}}!",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"else",
@@ -71,17 +71,17 @@ func TestEscape(t *testing.T) {
 		{
 			"overescaping1",
 			"Hello, {{.C | html}}!",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"overescaping2",
 			"Hello, {{html .C}}!",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"overescaping3",
 			"{{with .C}}{{$msg := .}}Hello, {{$msg}}!{{end}}",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"assignment",
@@ -181,7 +181,7 @@ func TestEscape(t *testing.T) {
 		{
 			"urlBranchConflictMoot",
 			`<a href="{{if .T}}/foo?a={{else}}/bar#{{end}}{{.C}}">`,
-			`<a href="/foo?a=%3cCincinatti%3e">`,
+			`<a href="/foo?a=%3cCincinnati%3e">`,
 		},
 		{
 			"jsStrValue",
@@ -237,7 +237,7 @@ func TestEscape(t *testing.T) {
 			"jsStrNotUnderEscaped",
 			"<button onclick='alert({{.C | urlquery}})'>",
 			// URL escaped, then quoted for JS.
-			`<button onclick='alert(&#34;%3CCincinatti%3E&#34;)'>`,
+			`<button onclick='alert(&#34;%3CCincinnati%3E&#34;)'>`,
 		},
 		{
 			"jsRe",
@@ -405,7 +405,7 @@ func TestEscape(t *testing.T) {
 		{
 			"HTML comment",
 			"<b>Hello, <!-- name of world -->{{.C}}</b>",
-			"<b>Hello, &lt;Cincinatti&gt;</b>",
+			"<b>Hello, &lt;Cincinnati&gt;</b>",
 		},
 		{
 			"HTML comment not first < in text node.",
@@ -445,7 +445,7 @@ func TestEscape(t *testing.T) {
 		{
 			"Split HTML comment",
 			"<b>Hello, <!-- name of {{if .T}}city -->{{.C}}{{else}}world -->{{.W}}{{end}}</b>",
-			"<b>Hello, &lt;Cincinatti&gt;</b>",
+			"<b>Hello, &lt;Cincinnati&gt;</b>",
 		},
 		{
 			"JS line comment",

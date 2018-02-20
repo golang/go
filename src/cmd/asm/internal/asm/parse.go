@@ -591,7 +591,7 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
 	}
 }
 
-// registerExtension parses a register with extension or arrangment.
+// registerExtension parses a register with extension or arrangement.
 // There is known to be a register (current token) and an extension operator (peeked token).
 func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
 	if prefix != 0 {
