@@ -197,7 +197,7 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 
 		// if the previous line and the current line had single-
 		// line-expressions and the key sizes are small or the
-		// the ratio between the key sizes does not exceed a
+		// ratio between the key sizes does not exceed a
 		// threshold, align columns and do not use formfeed
 		if prevSize > 0 && size > 0 {
 			const smallSize = 20

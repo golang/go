@@ -167,7 +167,7 @@ const (
 
 	// R_ADDRPOWER_PCREL relocates two D-form instructions like R_ADDRPOWER, but
 	// inserts the displacement from the place being relocated to the address of the
-	// the relocated symbol instead of just its address.
+	// relocated symbol instead of just its address.
 	R_ADDRPOWER_PCREL
 
 	// R_ADDRPOWER_TOCREL relocates two D-form instructions like R_ADDRPOWER, but

@@ -2310,7 +2310,7 @@ func (s *Stmt) connStmt(ctx context.Context, strategy connReuseStrategy) (dc *dr
 	}
 
 	// In a transaction or connection, we always use the connection that the
-	// the stmt was created on.
+	// stmt was created on.
 	if s.cg != nil {
 		s.mu.Unlock()
 		dc, releaseConn, err = s.cg.grabConn(ctx) // blocks, waiting for the connection.

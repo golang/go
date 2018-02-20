@@ -1546,7 +1546,7 @@ func newMarkBits(nelems uintptr) *gcBits {
 // to be used for this span's alloc bits.
 // newAllocBits is used to provide newly initialized spans
 // allocation bits. For spans not being initialized the
-// the mark bits are repurposed as allocation bits when
+// mark bits are repurposed as allocation bits when
 // the span is swept.
 func newAllocBits(nelems uintptr) *gcBits {
 	return newMarkBits(nelems)
