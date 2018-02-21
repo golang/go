@@ -3,19 +3,11 @@
 // license that can be found in the LICENSE file.
 
 // Lowering arithmetic
-(Add64  x y) -> (ADD  x y)
-(AddPtr x y) -> (ADD  x y)
-(Add32  x y) -> (ADD x y)
-(Add16  x y) -> (ADD x y)
-(Add8   x y) -> (ADD x y)
+(Add(Ptr|64|32|16|8)  x y) -> (ADD  x y)
 (Add64F x y) -> (FADD x y)
 (Add32F x y) -> (FADDS x y)
 
-(Sub64  x y) -> (SUB  x y)
-(SubPtr x y) -> (SUB  x y)
-(Sub32  x y) -> (SUB x y)
-(Sub16  x y) -> (SUB x y)
-(Sub8   x y) -> (SUB x y)
+(Sub(Ptr|64|32|16|8)  x y) -> (SUB  x y)
 (Sub32F x y) -> (FSUBS x y)
 (Sub64F x y) -> (FSUB x y)
 
@@ -32,9 +24,7 @@
 (Avg64u <t> x y) -> (ADD (SRDconst <t> (SUB <t> x y) [1]) y)
 
 (Mul64  x y) -> (MULLD  x y)
-(Mul32  x y) -> (MULLW  x y)
-(Mul16  x y) -> (MULLW x y)
-(Mul8   x y) -> (MULLW x y)
+(Mul(32|16|8)  x y) -> (MULLW  x y)
 
 (Div64  x y) -> (DIVD  x y)
 (Div64u x y) -> (DIVDU x y)
@@ -45,10 +35,7 @@
 (Div8   x y) -> (DIVW  (SignExt8to32 x) (SignExt8to32 y))
 (Div8u  x y) -> (DIVWU (ZeroExt8to32 x) (ZeroExt8to32 y))
 
-(Hmul64  x y) -> (MULHD  x y)
-(Hmul64u  x y) -> (MULHDU x y)
-(Hmul32  x y) -> (MULHW  x y)
-(Hmul32u  x y) -> (MULHWU x y)
+(Hmul(64|64u|32|32u)  x y) -> (MULH(D|DU|W|WU)  x y)
 
 (Mul32F x y) -> (FMULS x y)
 (Mul64F x y) -> (FMUL x y)
@@ -70,8 +57,7 @@
 (Cvt32Fto64F x) -> x // Note x will have the wrong type for patterns dependent on Float32/Float64
 (Cvt64Fto32F x) -> (FRSP x)
 
-(Round32F x) -> (LoweredRound32F x)
-(Round64F x) -> (LoweredRound64F x)
+(Round(32|64)F x) -> (LoweredRound(32|64)F x)
 
 (Sqrt x) -> (FSQRT x)
 (Floor x) -> (FFLOOR x)
@@ -81,12 +67,8 @@
 (Abs x) -> (FABS x)
 
 // Lowering constants
-(Const8   [val]) -> (MOVDconst [val])
-(Const16  [val]) -> (MOVDconst [val])
-(Const32  [val]) -> (MOVDconst [val])
-(Const64  [val]) -> (MOVDconst [val])
-(Const32F [val]) -> (FMOVSconst [val])
-(Const64F [val]) -> (FMOVDconst [val])
+(Const(64|32|16|8)  [val]) -> (MOVDconst [val])
+(Const(32|64)F [val]) -> (FMOV(S|D)const [val])
 (ConstNil) -> (MOVDconst [0])
 (ConstBool [b]) -> (MOVDconst [b])
 
@@ -303,32 +285,15 @@
 (PopCount16 x) -> (POPCNTW (MOVHZreg x))
 (PopCount8 x) -> (POPCNTB (MOVBreg x))
 
-(And64 x y) -> (AND x y)
-(And32 x y) -> (AND x y)
-(And16 x y) -> (AND x y)
-(And8  x y) -> (AND x y)
+(And(64|32|16|8) x y) -> (AND x y)
+(Or(64|32|16|8) x y) -> (OR x y)
+(Xor(64|32|16|8) x y) -> (XOR x y)
 
-(Or64 x y) -> (OR x y)
-(Or32 x y) -> (OR x y)
-(Or16 x y) -> (OR x y)
-(Or8  x y) -> (OR x y)
-
-(Xor64 x y) -> (XOR x y)
-(Xor32 x y) -> (XOR x y)
-(Xor16 x y) -> (XOR x y)
-(Xor8  x y) -> (XOR x y)
-
+(Neg(64|32|16|8)  x) -> (NEG x)
 (Neg64F x) -> (FNEG x)
 (Neg32F x) -> (FNEG x)
-(Neg64  x) -> (NEG x)
-(Neg32  x) -> (NEG x)
-(Neg16  x) -> (NEG x)
-(Neg8   x) -> (NEG x)
 
-(Com64 x) -> (NOR x x)
-(Com32 x) -> (NOR x x)
-(Com16 x) -> (NOR x x)
-(Com8  x) -> (NOR x x)
+(Com(64|32|16|8) x) -> (NOR x x)
 
 // Lowering boolean ops
 (AndB x y) -> (AND x y)
@@ -391,8 +356,7 @@
 (Greater16 x y) -> (GreaterThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Greater32 x y) -> (GreaterThan (CMPW x y))
 (Greater64 x y) -> (GreaterThan (CMP x y))
-(Greater32F x y) -> (FGreaterThan (FCMPU x y))
-(Greater64F x y) -> (FGreaterThan (FCMPU x y))
+(Greater(32|64)F x y) -> (FGreaterThan (FCMPU x y))
 
 (Greater8U x y)  -> (GreaterThan (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Greater16U x y) -> (GreaterThan (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -403,8 +367,7 @@
 (Geq16 x y) -> (GreaterEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Geq32 x y) -> (GreaterEqual (CMPW x y))
 (Geq64 x y) -> (GreaterEqual (CMP x y))
-(Geq32F x y) -> (FGreaterEqual (FCMPU x y))
-(Geq64F x y) -> (FGreaterEqual (FCMPU x y))
+(Geq(32|64)F x y) -> (FGreaterEqual (FCMPU x y))
 
 (Geq8U x y)  -> (GreaterEqual (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Geq16U x y) -> (GreaterEqual (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -855,47 +818,32 @@
     (MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
 
 // atomic intrinsics
-(AtomicLoad32  ptr mem) -> (LoweredAtomicLoad32 ptr mem)
-(AtomicLoad64  ptr mem) -> (LoweredAtomicLoad64 ptr mem)
-(AtomicLoadPtr ptr mem) -> (LoweredAtomicLoadPtr ptr mem)
+(AtomicLoad(32|64|Ptr)  ptr mem) -> (LoweredAtomicLoad(32|64|Ptr) ptr mem)
 
-(AtomicStore32      ptr val mem) -> (LoweredAtomicStore32 ptr val mem)
-(AtomicStore64      ptr val mem) -> (LoweredAtomicStore64 ptr val mem)
+(AtomicStore(32|64)      ptr val mem) -> (LoweredAtomicStore(32|64) ptr val mem)
 //(AtomicStorePtrNoWB ptr val mem) -> (STLR  ptr val mem)
 
-(AtomicExchange32 ptr val mem) -> (LoweredAtomicExchange32 ptr val mem)
-(AtomicExchange64 ptr val mem) -> (LoweredAtomicExchange64 ptr val mem)
+(AtomicExchange(32|64) ptr val mem) -> (LoweredAtomicExchange(32|64) ptr val mem)
 
-(AtomicAdd32 ptr val mem) -> (LoweredAtomicAdd32 ptr val mem)
-(AtomicAdd64 ptr val mem) -> (LoweredAtomicAdd64 ptr val mem)
+(AtomicAdd(32|64) ptr val mem) -> (LoweredAtomicAdd(32|64) ptr val mem)
 
-(AtomicCompareAndSwap32 ptr old new_ mem) -> (LoweredAtomicCas32 ptr old new_ mem)
-(AtomicCompareAndSwap64 ptr old new_ mem) -> (LoweredAtomicCas64 ptr old new_ mem)
+(AtomicCompareAndSwap(32|64) ptr old new_ mem) -> (LoweredAtomicCas(32|64) ptr old new_ mem)
 
 (AtomicAnd8 ptr val mem) -> (LoweredAtomicAnd8 ptr val mem)
 (AtomicOr8  ptr val mem) -> (LoweredAtomicOr8  ptr val mem)
 
 // Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
-(SignExt8to16  x) -> (MOVBreg x)
-(SignExt8to32  x) -> (MOVBreg x)
-(SignExt8to64  x) -> (MOVBreg x)
-(SignExt16to32 x) -> (MOVHreg x)
-(SignExt16to64 x) -> (MOVHreg x)
+(SignExt8to(16|32|64)  x) -> (MOVBreg x)
+(SignExt16to(32|64) x) -> (MOVHreg x)
 (SignExt32to64 x) -> (MOVWreg x)
 
-(ZeroExt8to16  x) -> (MOVBZreg x)
-(ZeroExt8to32  x) -> (MOVBZreg x)
-(ZeroExt8to64  x) -> (MOVBZreg x)
-(ZeroExt16to32 x) -> (MOVHZreg x)
-(ZeroExt16to64 x) -> (MOVHZreg x)
+(ZeroExt8to(16|32|64)  x) -> (MOVBZreg x)
+(ZeroExt16to(32|64) x) -> (MOVHZreg x)
 (ZeroExt32to64 x) -> (MOVWZreg x)
 
-(Trunc16to8  x) -> (MOVBreg x)
-(Trunc32to8  x) -> (MOVBreg x)
-(Trunc32to16 x) -> (MOVHreg x)
-(Trunc64to8  x) -> (MOVBreg x)
-(Trunc64to16 x) -> (MOVHreg x)
+(Trunc(16|32|64)to8  x) -> (MOVBreg x)
+(Trunc(32|64)to16 x) -> (MOVHreg x)
 (Trunc64to32 x) -> (MOVWreg x)
 
 (Slicemask <t> x) -> (SRADconst (NEG <t> x) [63])
