@@ -111,6 +111,8 @@
 
 (Com(64|32|16|8) x) -> (NOR (MOVVconst [0]) x)
 
+(Sqrt x) -> (SQRTD x)
+
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
 (OrB x y) -> (OR x y)

@@ -551,6 +551,8 @@ func rewriteValueMIPS64(v *Value) bool {
 		return rewriteValueMIPS64_OpSignExt8to64_0(v)
 	case OpSlicemask:
 		return rewriteValueMIPS64_OpSlicemask_0(v)
+	case OpSqrt:
+		return rewriteValueMIPS64_OpSqrt_0(v)
 	case OpStaticCall:
 		return rewriteValueMIPS64_OpStaticCall_0(v)
 	case OpStore:
@@ -9575,6 +9577,17 @@ func rewriteValueMIPS64_OpSlicemask_0(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpMIPS64NEGV, t)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpSqrt_0(v *Value) bool {
+	// match: (Sqrt x)
+	// cond:
+	// result: (SQRTD x)
+	for {
+		x := v.Args[0]
+		v.reset(OpMIPS64SQRTD)
+		v.AddArg(x)
 		return true
 	}
 }
