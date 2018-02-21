@@ -354,7 +354,6 @@ var passes = [...]pass{
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
 		disabled: objabi.Preemptibleloops_enabled == 0}, // insert resched checks in loops.
-	{name: "tighten", fn: tighten}, // move values closer to their uses
 	{name: "lower", fn: lower, required: true},
 	{name: "lowered cse", fn: cse},
 	{name: "elim unread autos", fn: elimUnreadAutos},
@@ -362,6 +361,7 @@ var passes = [...]pass{
 	{name: "checkLower", fn: checkLower, required: true},
 	{name: "late phielim", fn: phielim},
 	{name: "late copyelim", fn: copyelim},
+	{name: "tighten", fn: tighten}, // move values closer to their uses
 	{name: "phi tighten", fn: phiTighten},
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
@@ -406,8 +406,6 @@ var passOrder = [...]constraint{
 	{"nilcheckelim", "fuse"},
 	// nilcheckelim relies on opt to rewrite user nil checks
 	{"opt", "nilcheckelim"},
-	// tighten should happen before lowering to avoid splitting naturally paired instructions such as CMP/SET
-	{"tighten", "lower"},
 	// tighten will be most effective when as many values have been removed as possible
 	{"generic deadcode", "tighten"},
 	{"generic cse", "tighten"},
