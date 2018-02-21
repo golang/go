@@ -116,11 +116,10 @@ func NewPresentation(c *Corpus) *Presentation {
 		},
 	}
 	p.cmdHandler = handlerServer{
-		p:           p,
-		c:           c,
-		pattern:     "/cmd/",
-		stripPrefix: "cmd/",
-		fsRoot:      "/src/cmd",
+		p:       p,
+		c:       c,
+		pattern: "/cmd/",
+		fsRoot:  "/src",
 	}
 	p.pkgHandler = handlerServer{
 		p:           p,
