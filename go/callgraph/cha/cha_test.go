@@ -30,6 +30,7 @@ var inputs = []string{
 	"testdata/func.go",
 	"testdata/iface.go",
 	"testdata/recv.go",
+	"testdata/issue23925.go",
 }
 
 func expectation(f *ast.File) (string, token.Pos) {
