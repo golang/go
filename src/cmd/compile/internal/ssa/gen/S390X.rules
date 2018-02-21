@@ -3,26 +3,18 @@
 // license that can be found in the LICENSE file.
 
 // Lowering arithmetic
-(Add64  x y) -> (ADD  x y)
-(AddPtr x y) -> (ADD  x y)
-(Add32  x y) -> (ADDW  x y)
-(Add16  x y) -> (ADDW  x y)
-(Add8   x y) -> (ADDW  x y)
+(Add(64|Ptr)  x y) -> (ADD  x y)
+(Add(32|16|8)  x y) -> (ADDW  x y)
 (Add32F x y) -> (FADDS x y)
 (Add64F x y) -> (FADD x y)
 
-(Sub64  x y) -> (SUB  x y)
-(SubPtr x y) -> (SUB  x y)
-(Sub32  x y) -> (SUBW  x y)
-(Sub16  x y) -> (SUBW  x y)
-(Sub8   x y) -> (SUBW  x y)
+(Sub(64|Ptr)  x y) -> (SUB  x y)
+(Sub(32|16|8)  x y) -> (SUBW  x y)
 (Sub32F x y) -> (FSUBS x y)
 (Sub64F x y) -> (FSUB x y)
 
 (Mul64  x y) -> (MULLD  x y)
-(Mul32  x y) -> (MULLW  x y)
-(Mul16  x y) -> (MULLW  x y)
-(Mul8   x y) -> (MULLW  x y)
+(Mul(32|16|8)  x y) -> (MULLW  x y)
 (Mul32F x y) -> (FMULS x y)
 (Mul64F x y) -> (FMUL x y)
 
@@ -40,13 +32,11 @@
 (Div8   x y) -> (DIVW  (MOVBreg x) (MOVBreg y))
 (Div8u  x y) -> (DIVWU (MOVBZreg x) (MOVBZreg y))
 
-(Hmul64  x y) -> (MULHD  x y)
-(Hmul64u x y) -> (MULHDU x y)
+(Hmul(64|64u)  x y) -> (MULH(D|DU)  x y)
 (Hmul32  x y) -> (SRDconst [32] (MULLD (MOVWreg x) (MOVWreg y)))
 (Hmul32u x y) -> (SRDconst [32] (MULLD (MOVWZreg x) (MOVWZreg y)))
 
-(Mod64  x y) -> (MODD  x y)
-(Mod64u x y) -> (MODDU x y)
+(Mod(64|64u)  x y) -> (MOD(D|DU)  x y)
 // MODW/MODWU has a 64-bit dividend and a 32-bit divisor,
 // so a sign/zero extension of the dividend is required.
 (Mod32  x y) -> (MODW  (MOVWreg x) y)
@@ -60,19 +50,13 @@
 (Avg64u <t> x y) -> (ADD (SRDconst <t> (SUB <t> x y) [1]) y)
 
 (And64 x y) -> (AND x y)
-(And32 x y) -> (ANDW x y)
-(And16 x y) -> (ANDW x y)
-(And8  x y) -> (ANDW x y)
+(And(32|16|8) x y) -> (ANDW x y)
 
 (Or64 x y) -> (OR x y)
-(Or32 x y) -> (ORW x y)
-(Or16 x y) -> (ORW x y)
-(Or8  x y) -> (ORW x y)
+(Or(32|16|8) x y) -> (ORW x y)
 
 (Xor64 x y) -> (XOR x y)
-(Xor32 x y) -> (XORW x y)
-(Xor16 x y) -> (XORW x y)
-(Xor8  x y) -> (XORW x y)
+(Xor(32|16|8) x y) -> (XORW x y)
 
 (Neg64  x) -> (NEG x)
 (Neg32  x) -> (NEGW x)
@@ -82,9 +66,7 @@
 (Neg64F x) -> (FNEG x)
 
 (Com64 x) -> (NOT x)
-(Com32 x) -> (NOTW x)
-(Com16 x) -> (NOTW x)
-(Com8  x) -> (NOTW x)
+(Com(32|16|8) x) -> (NOTW x)
 (NOT x) && true -> (XOR (MOVDconst [-1]) x)
 (NOTW x) && true -> (XORWconst [-1] x)
 
@@ -143,29 +125,20 @@
 
 // Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
-(SignExt8to16  x) -> (MOVBreg x)
-(SignExt8to32  x) -> (MOVBreg x)
-(SignExt8to64  x) -> (MOVBreg x)
-(SignExt16to32 x) -> (MOVHreg x)
-(SignExt16to64 x) -> (MOVHreg x)
+(SignExt8to(16|32|64)  x) -> (MOVBreg x)
+(SignExt16to(32|64) x) -> (MOVHreg x)
 (SignExt32to64 x) -> (MOVWreg x)
 
-(ZeroExt8to16  x) -> (MOVBZreg x)
-(ZeroExt8to32  x) -> (MOVBZreg x)
-(ZeroExt8to64  x) -> (MOVBZreg x)
-(ZeroExt16to32 x) -> (MOVHZreg x)
-(ZeroExt16to64 x) -> (MOVHZreg x)
+(ZeroExt8to(16|32|64)  x) -> (MOVBZreg x)
+(ZeroExt16to(32|64) x) -> (MOVHZreg x)
 (ZeroExt32to64 x) -> (MOVWZreg x)
 
 (Slicemask <t> x) -> (SRADconst (NEG <t> x) [63])
 
 // Lowering truncation
 // Because we ignore high parts of registers, truncates are just copies.
-(Trunc16to8  x) -> x
-(Trunc32to8  x) -> x
-(Trunc32to16 x) -> x
-(Trunc64to8  x) -> x
-(Trunc64to16 x) -> x
+(Trunc(16|32|64)to8  x) -> x
+(Trunc(32|64)to16 x) -> x
 (Trunc64to32 x) -> x
 
 // Lowering float <-> int
@@ -182,8 +155,7 @@
 (Cvt32Fto64F x) -> (LDEBR x)
 (Cvt64Fto32F x) -> (LEDBR x)
 
-(Round32F x) -> (LoweredRound32F x)
-(Round64F x) -> (LoweredRound64F x)
+(Round(32|64)F x) -> (LoweredRound(32|64)F x)
 
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
@@ -406,12 +378,8 @@
 	(LoweredZero [s%256] destptr (ADDconst <destptr.Type> destptr [(s/256)*256]) mem)
 
 // Lowering constants
-(Const8   [val]) -> (MOVDconst [val])
-(Const16  [val]) -> (MOVDconst [val])
-(Const32  [val]) -> (MOVDconst [val])
-(Const64  [val]) -> (MOVDconst [val])
-(Const32F [val]) -> (FMOVSconst [val])
-(Const64F [val]) -> (FMOVDconst [val])
+(Const(64|32|16|8)  [val]) -> (MOVDconst [val])
+(Const(32|64)F [val]) -> (FMOV(S|D)const [val])
 (ConstNil) -> (MOVDconst [0])
 (ConstBool [b]) -> (MOVDconst [b])
 
@@ -973,12 +941,7 @@
        (MOVDaddridx [off1+off2] {mergeSym(sym1,sym2)} x y)
 
 // Absorb InvertFlags into branches.
-(LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
-(GT (InvertFlags cmp) yes no) -> (LT cmp yes no)
-(LE (InvertFlags cmp) yes no) -> (GE cmp yes no)
-(GE (InvertFlags cmp) yes no) -> (LE cmp yes no)
-(EQ (InvertFlags cmp) yes no) -> (EQ cmp yes no)
-(NE (InvertFlags cmp) yes no) -> (NE cmp yes no)
+((LT|GT|LE|GE|EQ|NE) (InvertFlags cmp) yes no) -> ((GT|LT|GE|LE|EQ|NE) cmp yes no)
 
 // Constant comparisons.
 (CMPconst (MOVDconst [x]) [y]) && x==y -> (FlagEQ)
