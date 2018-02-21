@@ -16,23 +16,24 @@ const debug = false
 const trace = false
 
 type parser struct {
-	base  *src.PosBase
+	file  *src.PosBase
 	errh  ErrorHandler
 	fileh FilenameHandler
 	mode  Mode
 	scanner
 
-	first  error  // first error encountered
-	errcnt int    // number of errors encountered
-	pragma Pragma // pragma flags
+	base   *src.PosBase // current position base
+	first  error        // first error encountered
+	errcnt int          // number of errors encountered
+	pragma Pragma       // pragma flags
 
 	fnest  int    // function nesting level (for error handling)
 	xnest  int    // expression nesting level (for complit ambiguity resolution)
 	indent []byte // tracing support
 }
 
-func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh PragmaHandler, fileh FilenameHandler, mode Mode) {
-	p.base = base
+func (p *parser) init(file *src.PosBase, r io.Reader, errh ErrorHandler, pragh PragmaHandler, fileh FilenameHandler, mode Mode) {
+	p.file = file
 	p.errh = errh
 	p.fileh = fileh
 	p.mode = mode
@@ -65,6 +66,7 @@ func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh P
 		directives,
 	)
 
+	p.base = file
 	p.first = nil
 	p.errcnt = 0
 	p.pragma = 0
@@ -113,7 +115,7 @@ func (p *parser) updateBase(line, col uint, text string) {
 	}
 
 	// TODO(gri) pass column n2 to NewLinePragmaBase
-	p.base = src.NewLinePragmaBase(src.MakePos(p.base.Pos().Base(), line, col), filename, absFilename, uint(n) /*uint(n2)*/)
+	p.base = src.NewLinePragmaBase(src.MakePos(p.file, line, col), filename, absFilename, uint(n) /*uint(n2)*/)
 }
 
 func commentText(s string) string {
