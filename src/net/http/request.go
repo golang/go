@@ -431,7 +431,7 @@ func (r *Request) multipartReader(allowMixed bool) (*multipart.Reader, error) {
 		return nil, ErrNotMultipart
 	}
 	d, params, err := mime.ParseMediaType(v)
-	if err != nil || d != "multipart/form-data" || (allowMixed && d != "multipart/mixed") {
+	if err != nil || !(d == "multipart/form-data" || allowMixed && d == "multipart/mixed") {
 		return nil, ErrNotMultipart
 	}
 	boundary, ok := params["boundary"]
