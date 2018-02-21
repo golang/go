@@ -316,7 +316,7 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpAMD64SETEQ:
 		return rewriteValueAMD64_OpAMD64SETEQ_0(v) || rewriteValueAMD64_OpAMD64SETEQ_10(v)
 	case OpAMD64SETEQmem:
-		return rewriteValueAMD64_OpAMD64SETEQmem_0(v) || rewriteValueAMD64_OpAMD64SETEQmem_10(v) || rewriteValueAMD64_OpAMD64SETEQmem_20(v)
+		return rewriteValueAMD64_OpAMD64SETEQmem_0(v) || rewriteValueAMD64_OpAMD64SETEQmem_10(v)
 	case OpAMD64SETG:
 		return rewriteValueAMD64_OpAMD64SETG_0(v)
 	case OpAMD64SETGE:
@@ -336,7 +336,7 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpAMD64SETNE:
 		return rewriteValueAMD64_OpAMD64SETNE_0(v) || rewriteValueAMD64_OpAMD64SETNE_10(v)
 	case OpAMD64SETNEmem:
-		return rewriteValueAMD64_OpAMD64SETNEmem_0(v) || rewriteValueAMD64_OpAMD64SETNEmem_10(v) || rewriteValueAMD64_OpAMD64SETNEmem_20(v)
+		return rewriteValueAMD64_OpAMD64SETNEmem_0(v) || rewriteValueAMD64_OpAMD64SETNEmem_10(v)
 	case OpAMD64SHLL:
 		return rewriteValueAMD64_OpAMD64SHLL_0(v)
 	case OpAMD64SHLLconst:
@@ -37357,6 +37357,11 @@ func rewriteValueAMD64_OpAMD64SETEQmem_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64SETEQmem_10(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (SETEQmem [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
 	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
 	// result: (SETEQmem [off1+off2] {mergeSym(sym1,sym2)} base val mem)
@@ -37407,11 +37412,6 @@ func rewriteValueAMD64_OpAMD64SETEQmem_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64SETEQmem_10(v *Value) bool {
-	b := v.Block
-	_ = b
 	// match: (SETEQmem [off] {sym} ptr x:(FlagLT_ULT) mem)
 	// cond:
 	// result: (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
@@ -37458,11 +37458,6 @@ func rewriteValueAMD64_OpAMD64SETEQmem_10(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64SETEQmem_20(v *Value) bool {
-	b := v.Block
-	_ = b
 	// match: (SETEQmem [off] {sym} ptr x:(FlagGT_ULT) mem)
 	// cond:
 	// result: (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
@@ -39247,6 +39242,11 @@ func rewriteValueAMD64_OpAMD64SETNEmem_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64SETNEmem_10(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (SETNEmem [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
 	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
 	// result: (SETNEmem [off1+off2] {mergeSym(sym1,sym2)} base val mem)
@@ -39297,11 +39297,6 @@ func rewriteValueAMD64_OpAMD64SETNEmem_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64SETNEmem_10(v *Value) bool {
-	b := v.Block
-	_ = b
 	// match: (SETNEmem [off] {sym} ptr x:(FlagLT_ULT) mem)
 	// cond:
 	// result: (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
@@ -39348,11 +39343,6 @@ func rewriteValueAMD64_OpAMD64SETNEmem_10(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64SETNEmem_20(v *Value) bool {
-	b := v.Block
-	_ = b
 	// match: (SETNEmem [off] {sym} ptr x:(FlagGT_ULT) mem)
 	// cond:
 	// result: (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
