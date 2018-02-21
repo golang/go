@@ -385,6 +385,12 @@ flag not known to the go test command. Continuing the example above,
 the package list would have to appear before -myflag, but could appear
 on either side of -v.
 
+When 'go test' runs in package list mode, 'go test' caches successful
+package test results to avoid unnecessary repeated running of tests. To
+disable test caching, use any test flag or argument other than the
+cacheable flags. The idiomatic way to disable test caching explicitly
+is to use -count=1.
+
 To keep an argument for a test binary from being interpreted as a
 known flag or a package name, use -args (see 'go help test') which
 passes the remainder of the command line through to the test binary
