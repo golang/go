@@ -139,6 +139,7 @@ func clobberBlock(b *Block) {
 	b.Succs = nil
 	b.Aux = nil
 	b.SetControl(nil)
+	b.Likely = BranchUnknown
 	b.Kind = BlockInvalid
 }
 
