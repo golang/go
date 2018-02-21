@@ -1651,30 +1651,35 @@ func TestClientAltersCookiesOnRedirect(t *testing.T) {
 // Part of Issue 4800
 func TestShouldCopyHeaderOnRedirect(t *testing.T) {
 	tests := []struct {
-		header     string
-		initialURL string
-		destURL    string
-		want       bool
+		header       string
+		initialURL   string
+		destURL      string
+		headerPolicy func(string) bool
+		want         bool
 	}{
-		{"User-Agent", "http://foo.com/", "http://bar.com/", true},
-		{"X-Foo", "http://foo.com/", "http://bar.com/", true},
+		// No policy, header always included:
+		{"User-Agent", "http://foo.com/", "http://bar.com/", nil, true},
+		{"X-Foo", "http://foo.com/", "http://bar.com/", nil, true},
+
+		// Policy provided, do not include header:
+		{"User-Agent", "", "", func(string) bool { return false }, true},
 
 		// Sensitive headers:
-		{"cookie", "http://foo.com/", "http://bar.com/", false},
-		{"cookie2", "http://foo.com/", "http://bar.com/", false},
-		{"authorization", "http://foo.com/", "http://bar.com/", false},
-		{"www-authenticate", "http://foo.com/", "http://bar.com/", false},
+		{"cookie", "http://foo.com/", "http://bar.com/", nil, false},
+		{"cookie2", "http://foo.com/", "http://bar.com/", nil, false},
+		{"authorization", "http://foo.com/", "http://bar.com/", nil, false},
+		{"www-authenticate", "http://foo.com/", "http://bar.com/", nil, false},
 
 		// But subdomains should work:
-		{"www-authenticate", "http://foo.com/", "http://foo.com/", true},
-		{"www-authenticate", "http://foo.com/", "http://sub.foo.com/", true},
-		{"www-authenticate", "http://foo.com/", "http://notfoo.com/", false},
-		{"www-authenticate", "http://foo.com/", "https://foo.com/", false},
-		{"www-authenticate", "http://foo.com:80/", "http://foo.com/", true},
-		{"www-authenticate", "http://foo.com:80/", "http://sub.foo.com/", true},
-		{"www-authenticate", "http://foo.com:443/", "https://foo.com/", true},
-		{"www-authenticate", "http://foo.com:443/", "https://sub.foo.com/", true},
-		{"www-authenticate", "http://foo.com:1234/", "http://foo.com/", false},
+		{"www-authenticate", "http://foo.com/", "http://foo.com/", nil, true},
+		{"www-authenticate", "http://foo.com/", "http://sub.foo.com/", nil, true},
+		{"www-authenticate", "http://foo.com/", "http://notfoo.com/", nil, false},
+		{"www-authenticate", "http://foo.com/", "https://foo.com/", nil, false},
+		{"www-authenticate", "http://foo.com:80/", "http://foo.com/", nil, true},
+		{"www-authenticate", "http://foo.com:80/", "http://sub.foo.com/", nil, true},
+		{"www-authenticate", "http://foo.com:443/", "https://foo.com/", nil, true},
+		{"www-authenticate", "http://foo.com:443/", "https://sub.foo.com/", nil, true},
+		{"www-authenticate", "http://foo.com:1234/", "http://foo.com/", nil, false},
 	}
 	for i, tt := range tests {
 		u0, err := url.Parse(tt.initialURL)

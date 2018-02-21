@@ -75,6 +75,15 @@ type Client struct {
 	// which is to stop after 10 consecutive requests.
 	CheckRedirect func(req *Request, via []*Request) error
 
+	// HeadersPolicy specifies which headers will be sent on redirect.
+	//
+	// HeadersPolicy is called once per header to determine if that
+	// header should be sent along in a redirect request.
+	//
+	// If HeadersPolicy is nil, all headers will be forwarded on all
+	// subsequent redirects.
+	HeadersPolicy func(string) bool
+
 	// Jar specifies the cookie jar.
 	//
 	// The Jar is used to insert relevant cookies into every
@@ -689,13 +698,43 @@ func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
 		// Copy the initial request's Header values
 		// (at least the safe ones).
 		for k, vv := range ireqhdr {
-			if shouldCopyHeaderOnRedirect(k, preq.URL, req.URL) {
+			chk := CanonicalHeaderKey(k)
+			if shouldCopyHeaderOnRedirect(chk, preq.URL, req.URL, c.HeadersPolicy) {
 				req.Header[k] = vv
 			}
 		}
 
 		preq = req // Update previous Request with the current request
 	}
+}
+
+func shouldCopyHeaderOnRedirect(canonicalHeaderKey string, initial, dest *url.URL, headersPolicy func(string) bool) bool {
+	switch canonicalHeaderKey {
+	case "Authorization", "Www-Authenticate", "Cookie", "Cookie2":
+		// Permit sending auth/cookie headers from "foo.com"
+		// to "sub.foo.com".
+
+		// Note that we don't send all cookies to subdomains
+		// automatically. This function is only used for
+		// Cookies set explicitly on the initial outgoing
+		// client request. Cookies automatically added via the
+		// CookieJar mechanism continue to follow each
+		// cookie's scope as set by Set-Cookie. But for
+		// outgoing requests with the Cookie header set
+		// directly, we don't know their scope, so we assume
+		// it's for *.domain.com.
+
+		ihost := canonicalAddr(initial)
+		dhost := canonicalAddr(dest)
+		return isDomainOrSubdomain(dhost, ihost)
+	}
+
+	// All other headers are copied:
+	if headersPolicy == nil {
+		return true
+	}
+
+	return headersPolicy(canonicalHeaderKey)
 }
 
 func defaultCheckRedirect(req *Request, via []*Request) error {
@@ -838,30 +877,6 @@ func (b *cancelTimerBody) Close() error {
 	err := b.rc.Close()
 	b.stop()
 	return err
-}
-
-func shouldCopyHeaderOnRedirect(headerKey string, initial, dest *url.URL) bool {
-	switch CanonicalHeaderKey(headerKey) {
-	case "Authorization", "Www-Authenticate", "Cookie", "Cookie2":
-		// Permit sending auth/cookie headers from "foo.com"
-		// to "sub.foo.com".
-
-		// Note that we don't send all cookies to subdomains
-		// automatically. This function is only used for
-		// Cookies set explicitly on the initial outgoing
-		// client request. Cookies automatically added via the
-		// CookieJar mechanism continue to follow each
-		// cookie's scope as set by Set-Cookie. But for
-		// outgoing requests with the Cookie header set
-		// directly, we don't know their scope, so we assume
-		// it's for *.domain.com.
-
-		ihost := canonicalAddr(initial)
-		dhost := canonicalAddr(dest)
-		return isDomainOrSubdomain(dhost, ihost)
-	}
-	// All other headers are copied:
-	return true
 }
 
 // isDomainOrSubdomain reports whether sub is a subdomain (or exact
