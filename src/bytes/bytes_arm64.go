@@ -6,6 +6,12 @@ package bytes
 
 func countByte(s []byte, c byte) int // bytes_arm64.s
 
+// 8 bytes can be completely loaded into 1 register.
+const shortStringLen = 8
+
+//go:noescape
+func indexShortStr(s, sep []byte) int
+
 // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
 func Index(s, sep []byte) int {
 	n := len(sep)
@@ -21,6 +27,13 @@ func Index(s, sep []byte) int {
 		return -1
 	case n > len(s):
 		return -1
+	case n <= shortStringLen:
+		// Use brute force when both s and sep are small.
+		// Empirical data shows that it can get better
+		// performance when len(s) <= 16.
+		if len(s) <= 16 {
+			return indexShortStr(s, sep)
+		}
 	}
 	c := sep[0]
 	i := 0
