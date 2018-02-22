@@ -279,6 +279,7 @@ func (check *Checker) assignVars(lhs, rhs []ast.Expr) {
 }
 
 func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
+	top := len(check.delayed)
 	scope := check.scope
 
 	// collect lhs variables
@@ -318,6 +319,9 @@ func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 	}
 
 	check.initVars(lhsVars, rhs, token.NoPos)
+
+	// process function literals in rhs expressions before scope changes
+	check.processDelayed(top)
 
 	// declare new variables
 	if len(newVars) > 0 {

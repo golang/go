@@ -207,3 +207,25 @@ func issue20358() {
 	_ = T{t}
 	_ = P{f: p}
 }
+
+// Test that we don't declare lhs variables in short variable
+// declarations before we type-check function literals on the
+// rhs.
+func issue24026() {
+	f := func() int { f(0) /* must refer to outer f */; return 0 }
+	_ = f
+
+	_ = func() {
+		f := func() { _ = f() /* must refer to outer f */ }
+		_ = f
+	}
+
+	// b and c must not be visible inside function literal
+	a := 0
+	a, b, c := func() (int, int, int) {
+		return a, b /* ERROR undeclared */ , c /* ERROR undeclared */
+	}()
+	_, _ = b, c
+}
+
+func f(int) {} // for issue24026
