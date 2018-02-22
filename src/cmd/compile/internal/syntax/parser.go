@@ -52,7 +52,7 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
 			if strings.HasPrefix(text, "line ") {
 				var pos Pos // position immediately following the comment
 				if msg[1] == '/' {
-					// line comment
+					// line comment (newline is part of the comment)
 					pos = MakePos(p.file, line+1, colbase)
 				} else {
 					// regular comment
@@ -83,6 +83,9 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
 	p.indent = nil
 }
 
+// updateBase sets the current position base to a new line base at pos.
+// The base's filename, line, and column values are extracted from text
+// which is positioned at (line, col) (only needed for error messages).
 func (p *parser) updateBase(pos Pos, line, col uint, text string) {
 	i, n, ok := trailingDigits(text)
 	if i == 0 {
@@ -116,8 +119,12 @@ func (p *parser) updateBase(pos Pos, line, col uint, text string) {
 		return
 	}
 
+	// If we have a column (//line filename:line:col form),
+	// an empty filename means to use the previous filename.
 	filename := text[:i-1] // lop off :line
-	// TODO(gri) handle case where filename doesn't change (see #22662)
+	if filename == "" && ok2 {
+		filename = p.base.Filename()
+	}
 
 	p.base = NewLineBase(pos, filename, n, n2)
 }
@@ -133,7 +140,7 @@ func commentText(s string) string {
 	if s[i-1] == '\r' {
 		i--
 	}
-	return s[2:i] // lop off // and \r at end, if any
+	return s[2:i] // lop off //, and \r at end, if any
 }
 
 func trailingDigits(text string) (uint, uint, bool) {
