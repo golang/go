@@ -640,8 +640,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 				name := string(data)
 				mailbox, ok := parseRFC2821Mailbox(name)
 				if !ok {
-					// This certificate should not have parsed.
-					return errors.New("x509: internal error: rfc822Name SAN failed to parse")
+					return fmt.Errorf("x509: cannot parse rfc822Name %q", mailbox)
 				}
 
 				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "email address", name, mailbox,
@@ -653,6 +652,10 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 
 			case nameTypeDNS:
 				name := string(data)
+				if _, ok := domainToReverseLabels(name); !ok {
+					return fmt.Errorf("x509: cannot parse dnsName %q", name)
+				}
+
 				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "DNS name", name, name,
 					func(parsedName, constraint interface{}) (bool, error) {
 						return matchDomainConstraint(parsedName.(string), constraint.(string))
