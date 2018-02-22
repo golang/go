@@ -339,7 +339,7 @@ func (f *Func) funcInfo() funcInfo {
 
 // PCDATA and FUNCDATA table indexes.
 //
-// See funcdata.h and ../cmd/internal/obj/funcdata.go.
+// See funcdata.h and ../cmd/internal/objabi/funcdata.go.
 const (
 	_PCDATA_StackMapIndex       = 0
 	_PCDATA_InlTreeIndex        = 1

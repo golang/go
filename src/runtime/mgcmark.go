@@ -530,7 +530,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 		// store that clears it but an atomic check in every malloc
 		// would be a performance hit.
 		// Instead we recheck it here on the non-preemptable system
-		// stack to determine if we should preform an assist.
+		// stack to determine if we should perform an assist.
 
 		// GC is done, so ignore any remaining debt.
 		gp.gcAssistBytes = 0
