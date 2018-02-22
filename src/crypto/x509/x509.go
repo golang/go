@@ -420,10 +420,10 @@ func getSignatureAlgorithmFromAI(ai pkix.AlgorithmIdentifier) SignatureAlgorithm
 	// https://tools.ietf.org/html/rfc3447#section-8.1), that the
 	// salt length matches the hash length, and that the trailer
 	// field has the default value.
-	if !bytes.Equal(params.Hash.Parameters.FullBytes, asn1.NullBytes) ||
+	if (len(params.Hash.Parameters.FullBytes) != 0 && !bytes.Equal(params.Hash.Parameters.FullBytes, asn1.NullBytes)) ||
 		!params.MGF.Algorithm.Equal(oidMGF1) ||
 		!mgf1HashFunc.Algorithm.Equal(params.Hash.Algorithm) ||
-		!bytes.Equal(mgf1HashFunc.Parameters.FullBytes, asn1.NullBytes) ||
+		(len(mgf1HashFunc.Parameters.FullBytes) != 0 && !bytes.Equal(mgf1HashFunc.Parameters.FullBytes, asn1.NullBytes)) ||
 		params.TrailerField != 1 {
 		return UnknownSignatureAlgorithm
 	}
