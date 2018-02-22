@@ -96,14 +96,14 @@ type mheap struct {
 	nlargefree  uint64                  // number of frees for large objects (>maxsmallsize)
 	nsmallfree  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
 
-	// arenas is the heap arena index.
+	// arenas is the heap arena map.
 	// arenas[(va+arenaBaseOffset)/heapArenaBytes] points to the
 	// metadata for the heap arena containing va.
 	//
 	// Use arenaIndex to compute indexes into this array.
 	//
 	// For regions of the address space that are not backed by the
-	// Go heap, the arena index contains nil.
+	// Go heap, the arena map contains nil.
 	//
 	// Modifications are protected by mheap_.lock. Reads can be
 	// performed without locking; however, a given entry can

@@ -90,12 +90,12 @@
 // themselves allocated off-heap.
 //
 // Since arenas are aligned, the address space can be viewed as a
-// series of arena frames. The arena index (mheap_.arenas) maps from
+// series of arena frames. The arena map (mheap_.arenas) maps from
 // arena frame number to *heapArena, or nil for parts of the address
 // space not backed by the Go heap. Since arenas are large, the arena
 // index is just a single-level mapping.
 //
-// The arena index covers the entire possible address space, allowing
+// The arena map covers the entire possible address space, allowing
 // the Go heap to use any part of the address space. The allocator
 // attempts to keep arenas contiguous so that large spans (and hence
 // large objects) can cross arenas.
@@ -203,10 +203,10 @@ const (
 	// mips32 only has access to the low 2GB of virtual memory, so
 	// we further limit it to 31 bits.
 	//
-	// The size of the arena index is proportional to
+	// The size of the arena map is proportional to
 	// 1<<heapAddrBits, so it's important that this not be too
 	// large. 48 bits is about the threshold; above that we would
-	// need to go to a two level arena index.
+	// need to go to a two level arena map.
 	heapAddrBits = _64bit*48 + (1-_64bit)*(32-(sys.GoarchMips+sys.GoarchMipsle))
 
 	// maxAlloc is the maximum size of an allocation. On 64-bit,
@@ -227,7 +227,7 @@ const (
 	pagesPerArena = heapArenaBytes / pageSize
 
 	// arenaBaseOffset is the pointer value that corresponds to
-	// index 0 in the heap arena index.
+	// index 0 in the heap arena map.
 	//
 	// On amd64, the address space is 48 bits, sign extended to 64
 	// bits. This offset lets us handle "negative" addresses (or
@@ -323,10 +323,10 @@ func mallocinit() {
 		throw("bad system page size")
 	}
 
-	// Map the arena index. Most of this will never be written to,
+	// Map the arena map. Most of this will never be written to,
 	mheap_.arenas = (*[(1 << heapAddrBits) / heapArenaBytes]*heapArena)(persistentalloc(unsafe.Sizeof(*mheap_.arenas), sys.PtrSize, nil))
 	if mheap_.arenas == nil {
-		throw("failed to allocate arena index")
+		throw("failed to allocate arena map")
 	}
 
 	// Initialize the heap.
