@@ -561,7 +561,7 @@ retry:
 			goto retry
 		}
 		if s.sweepgen == sg-1 {
-			// the span is being sweept by background sweeper, skip
+			// the span is being swept by background sweeper, skip
 			continue
 		}
 		// already swept empty span,
@@ -751,7 +751,7 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
 		s.nelems = 0
 		s.elemsize = 0
 		s.limit = s.base() + s.npages<<_PageShift
-		// Manually manged memory doesn't count toward heap_sys.
+		// Manually managed memory doesn't count toward heap_sys.
 		memstats.heap_sys -= uint64(s.npages << _PageShift)
 	}
 

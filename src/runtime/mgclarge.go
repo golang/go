@@ -43,7 +43,7 @@ type treapNode struct {
 	parent    *treapNode // direct parent of this node, nil if root
 	npagesKey uintptr    // number of pages in spanKey, used as primary sort key
 	spanKey   *mspan     // span of size npagesKey, used as secondary sort key
-	priority  uint32     // random number used by treap algorithm keep tree probablistically balanced
+	priority  uint32     // random number used by treap algorithm to keep tree probabilistically balanced
 }
 
 func (t *treapNode) init() {
