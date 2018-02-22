@@ -237,8 +237,8 @@
 (Cvt32Fto64F x) -> (FCVTSD x)
 (Cvt64Fto32F x) -> (FCVTDS x)
 
-(Round32F x) -> x
-(Round64F x) -> x
+(Round32F x) -> (LoweredRound32F x)
+(Round64F x) -> (LoweredRound64F x)
 
 // comparisons
 (Eq8 x y)  -> (Equal (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))

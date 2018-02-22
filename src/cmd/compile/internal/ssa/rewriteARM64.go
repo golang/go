@@ -16318,11 +16318,10 @@ func rewriteValueARM64_OpRound_0(v *Value) bool {
 func rewriteValueARM64_OpRound32F_0(v *Value) bool {
 	// match: (Round32F x)
 	// cond:
-	// result: x
+	// result: (LoweredRound32F x)
 	for {
 		x := v.Args[0]
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpARM64LoweredRound32F)
 		v.AddArg(x)
 		return true
 	}
@@ -16330,11 +16329,10 @@ func rewriteValueARM64_OpRound32F_0(v *Value) bool {
 func rewriteValueARM64_OpRound64F_0(v *Value) bool {
 	// match: (Round64F x)
 	// cond:
-	// result: x
+	// result: (LoweredRound64F x)
 	for {
 		x := v.Args[0]
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpARM64LoweredRound64F)
 		v.AddArg(x)
 		return true
 	}
