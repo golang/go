@@ -188,6 +188,7 @@ var tooLarge int = PosMax + 1
 func TestLineDirectives(t *testing.T) {
 	// valid line directives lead to a syntax error after them
 	const valid = "syntax error: package statement must be first"
+	const filename = "directives.go"
 
 	for _, test := range []struct {
 		src, msg  string
@@ -195,33 +196,33 @@ func TestLineDirectives(t *testing.T) {
 		line, col uint // 0-based
 	}{
 		// ignored //line directives
-		{"//\n", valid, "", 1, 0},            // no directive
-		{"//line\n", valid, "", 1, 0},        // missing colon
-		{"//line foo\n", valid, "", 1, 0},    // missing colon
-		{"  //line foo:\n", valid, "", 1, 0}, // not a line start
-		{"//  line foo:\n", valid, "", 1, 0}, // space between // and line
+		{"//\n", valid, filename, 1, 0},            // no directive
+		{"//line\n", valid, filename, 1, 0},        // missing colon
+		{"//line foo\n", valid, filename, 1, 0},    // missing colon
+		{"  //line foo:\n", valid, filename, 1, 0}, // not a line start
+		{"//  line foo:\n", valid, filename, 1, 0}, // space between // and line
 
 		// invalid //line directives with one colon
-		{"//line :\n", "invalid line number: ", "", 0, 8},
-		{"//line :x\n", "invalid line number: x", "", 0, 8},
-		{"//line foo :\n", "invalid line number: ", "", 0, 12},
-		{"//line foo:x\n", "invalid line number: x", "", 0, 11},
-		{"//line foo:0\n", "invalid line number: 0", "", 0, 11},
-		{"//line foo:1 \n", "invalid line number: 1 ", "", 0, 11},
-		{"//line foo:-12\n", "invalid line number: -12", "", 0, 11},
-		{"//line C:foo:0\n", "invalid line number: 0", "", 0, 13},
-		{fmt.Sprintf("//line foo:%d\n", tooLarge), fmt.Sprintf("invalid line number: %d", tooLarge), "", 0, 11},
+		{"//line :\n", "invalid line number: ", filename, 0, 8},
+		{"//line :x\n", "invalid line number: x", filename, 0, 8},
+		{"//line foo :\n", "invalid line number: ", filename, 0, 12},
+		{"//line foo:x\n", "invalid line number: x", filename, 0, 11},
+		{"//line foo:0\n", "invalid line number: 0", filename, 0, 11},
+		{"//line foo:1 \n", "invalid line number: 1 ", filename, 0, 11},
+		{"//line foo:-12\n", "invalid line number: -12", filename, 0, 11},
+		{"//line C:foo:0\n", "invalid line number: 0", filename, 0, 13},
+		{fmt.Sprintf("//line foo:%d\n", tooLarge), fmt.Sprintf("invalid line number: %d", tooLarge), filename, 0, 11},
 
 		// invalid //line directives with two colons
-		{"//line ::\n", "invalid line number: ", "", 0, 9},
-		{"//line ::x\n", "invalid line number: x", "", 0, 9},
-		{"//line foo::123abc\n", "invalid line number: 123abc", "", 0, 12},
-		{"//line foo::0\n", "invalid line number: 0", "", 0, 12},
-		{"//line foo:0:1\n", "invalid line number: 0", "", 0, 11},
+		{"//line ::\n", "invalid line number: ", filename, 0, 9},
+		{"//line ::x\n", "invalid line number: x", filename, 0, 9},
+		{"//line foo::123abc\n", "invalid line number: 123abc", filename, 0, 12},
+		{"//line foo::0\n", "invalid line number: 0", filename, 0, 12},
+		{"//line foo:0:1\n", "invalid line number: 0", filename, 0, 11},
 
-		{"//line :123:0\n", "invalid column number: 0", "", 0, 12},
-		{"//line foo:123:0\n", "invalid column number: 0", "", 0, 15},
-		{fmt.Sprintf("//line foo:10:%d\n", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), "", 0, 14},
+		{"//line :123:0\n", "invalid column number: 0", filename, 0, 12},
+		{"//line foo:123:0\n", "invalid column number: 0", filename, 0, 15},
+		{fmt.Sprintf("//line foo:10:%d\n", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), filename, 0, 14},
 
 		// effect of valid //line directives on lines
 		{"//line foo:123\n   foo", valid, "foo", 123 - linebase, 3},
@@ -242,33 +243,39 @@ func TestLineDirectives(t *testing.T) {
 		{"//line foo :123:1000\n\n", valid, "foo ", 124 - linebase, 0},
 		{"//line ::123:1234\n", valid, ":", 123 - linebase, 1234 - colbase},
 
+		// //line directives with omitted filenames lead to empty filenames
+		{"//line :10\n", valid, "", 10 - linebase, 0},
+		{"//line :10:20\n", valid, filename, 10 - linebase, 20 - colbase},
+		{"//line bar:1\n//line :10\n", valid, "", 10 - linebase, 0},
+		{"//line bar:1\n//line :10:20\n", valid, "bar", 10 - linebase, 20 - colbase},
+
 		// ignored /*line directives
-		{"/**/", valid, "", 0, 4},             // no directive
-		{"/*line*/", valid, "", 0, 8},         // missing colon
-		{"/*line foo*/", valid, "", 0, 12},    // missing colon
-		{"  //line foo:*/", valid, "", 0, 15}, // not a line start
-		{"/*  line foo:*/", valid, "", 0, 15}, // space between // and line
+		{"/**/", valid, filename, 0, 4},             // no directive
+		{"/*line*/", valid, filename, 0, 8},         // missing colon
+		{"/*line foo*/", valid, filename, 0, 12},    // missing colon
+		{"  //line foo:*/", valid, filename, 0, 15}, // not a line start
+		{"/*  line foo:*/", valid, filename, 0, 15}, // space between // and line
 
 		// invalid /*line directives with one colon
-		{"/*line :*/", "invalid line number: ", "", 0, 8},
-		{"/*line :x*/", "invalid line number: x", "", 0, 8},
-		{"/*line foo :*/", "invalid line number: ", "", 0, 12},
-		{"/*line foo:x*/", "invalid line number: x", "", 0, 11},
-		{"/*line foo:0*/", "invalid line number: 0", "", 0, 11},
-		{"/*line foo:1 */", "invalid line number: 1 ", "", 0, 11},
-		{"/*line C:foo:0*/", "invalid line number: 0", "", 0, 13},
-		{fmt.Sprintf("/*line foo:%d*/", tooLarge), fmt.Sprintf("invalid line number: %d", tooLarge), "", 0, 11},
+		{"/*line :*/", "invalid line number: ", filename, 0, 8},
+		{"/*line :x*/", "invalid line number: x", filename, 0, 8},
+		{"/*line foo :*/", "invalid line number: ", filename, 0, 12},
+		{"/*line foo:x*/", "invalid line number: x", filename, 0, 11},
+		{"/*line foo:0*/", "invalid line number: 0", filename, 0, 11},
+		{"/*line foo:1 */", "invalid line number: 1 ", filename, 0, 11},
+		{"/*line C:foo:0*/", "invalid line number: 0", filename, 0, 13},
+		{fmt.Sprintf("/*line foo:%d*/", tooLarge), fmt.Sprintf("invalid line number: %d", tooLarge), filename, 0, 11},
 
 		// invalid /*line directives with two colons
-		{"/*line ::*/", "invalid line number: ", "", 0, 9},
-		{"/*line ::x*/", "invalid line number: x", "", 0, 9},
-		{"/*line foo::123abc*/", "invalid line number: 123abc", "", 0, 12},
-		{"/*line foo::0*/", "invalid line number: 0", "", 0, 12},
-		{"/*line foo:0:1*/", "invalid line number: 0", "", 0, 11},
+		{"/*line ::*/", "invalid line number: ", filename, 0, 9},
+		{"/*line ::x*/", "invalid line number: x", filename, 0, 9},
+		{"/*line foo::123abc*/", "invalid line number: 123abc", filename, 0, 12},
+		{"/*line foo::0*/", "invalid line number: 0", filename, 0, 12},
+		{"/*line foo:0:1*/", "invalid line number: 0", filename, 0, 11},
 
-		{"/*line :123:0*/", "invalid column number: 0", "", 0, 12},
-		{"/*line foo:123:0*/", "invalid column number: 0", "", 0, 15},
-		{fmt.Sprintf("/*line foo:10:%d*/", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), "", 0, 14},
+		{"/*line :123:0*/", "invalid column number: 0", filename, 0, 12},
+		{"/*line foo:123:0*/", "invalid column number: 0", filename, 0, 15},
+		{fmt.Sprintf("/*line foo:10:%d*/", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), filename, 0, 14},
 
 		// effect of valid /*line directives on lines
 		{"/*line foo:123*/   foo", valid, "foo", 123 - linebase, 3},
@@ -287,8 +294,15 @@ func TestLineDirectives(t *testing.T) {
 		{"/*line foo:123abc:1:1000*/", valid, "foo:123abc", 1 - linebase, 1000 - colbase},
 		{"/*line foo :123:1000*/\n", valid, "foo ", 124 - linebase, 0},
 		{"/*line ::123:1234*/", valid, ":", 123 - linebase, 1234 - colbase},
+
+		// /*line directives with omitted filenames lead to the previously used filenames
+		{"/*line :10*/", valid, "", 10 - linebase, 0},
+		{"/*line :10:20*/", valid, filename, 10 - linebase, 20 - colbase},
+		{"//line bar:1\n/*line :10*/", valid, "", 10 - linebase, 0},
+		{"//line bar:1\n/*line :10:20*/", valid, "bar", 10 - linebase, 20 - colbase},
 	} {
-		_, err := Parse(nil, strings.NewReader(test.src), nil, nil, 0)
+		base := NewFileBase(filename)
+		_, err := Parse(base, strings.NewReader(test.src), nil, nil, 0)
 		if err == nil {
 			t.Errorf("%s: no error reported", test.src)
 			continue
