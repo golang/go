@@ -153,16 +153,10 @@
 (Not (ConstBool [c])) -> (ConstBool [1-c])
 
 // Convert x * 1 to x.
-(Mul8  (Const8  [1]) x) -> x
-(Mul16 (Const16 [1]) x) -> x
-(Mul32 (Const32 [1]) x) -> x
-(Mul64 (Const64 [1]) x) -> x
+(Mul(8|16|32|64)  (Const(8|16|32|64)  [1]) x) -> x
 
 // Convert x * -1 to -x.
-(Mul8  (Const8  [-1]) x) -> (Neg8  x)
-(Mul16 (Const16 [-1]) x) -> (Neg16 x)
-(Mul32 (Const32 [-1]) x) -> (Neg32 x)
-(Mul64 (Const64 [-1]) x) -> (Neg64 x)
+(Mul(8|16|32|64)  (Const(8|16|32|64)  [-1]) x) -> (Neg(8|16|32|64)  x)
 
 // Convert multiplication by a power of two to a shift.
 (Mul8  <t> n (Const8  [c])) && isPowerOfTwo(c) -> (Lsh8x64  <t> n (Const64 <typ.UInt64> [log2(c)]))
@@ -457,39 +451,24 @@
 // simplifications
 (Or(64|32|16|8) x x) -> x
 (Or(64|32|16|8) (Const(64|32|16|8) [0]) x) -> x
-(Or64 (Const64 [-1]) _) -> (Const64 [-1])
-(Or32 (Const32 [-1]) _) -> (Const32 [-1])
-(Or16 (Const16 [-1]) _) -> (Const16 [-1])
-(Or8  (Const8  [-1]) _) -> (Const8  [-1])
+(Or(64|32|16|8) (Const(64|32|16|8) [-1]) _) -> (Const(64|32|16|8) [-1])
+
 (And(64|32|16|8) x x) -> x
 (And(64|32|16|8) (Const(64|32|16|8) [-1]) x) -> x
-(And64 (Const64 [0]) _) -> (Const64 [0])
-(And32 (Const32 [0]) _) -> (Const32 [0])
-(And16 (Const16 [0]) _) -> (Const16 [0])
-(And8  (Const8  [0]) _) -> (Const8  [0])
-(Xor64 x x) -> (Const64 [0])
-(Xor32 x x) -> (Const32 [0])
-(Xor16 x x) -> (Const16 [0])
-(Xor8  x x) -> (Const8  [0])
+(And(64|32|16|8) (Const(64|32|16|8) [0]) _) -> (Const(64|32|16|8) [0])
+
+(Xor(64|32|16|8) x x) -> (Const(64|32|16|8) [0])
 (Xor(64|32|16|8) (Const(64|32|16|8) [0]) x) -> x
+
 (Add(64|32|16|8) (Const(64|32|16|8) [0]) x) -> x
-(Sub64 x x) -> (Const64 [0])
-(Sub32 x x) -> (Const32 [0])
-(Sub16 x x) -> (Const16 [0])
-(Sub8  x x) -> (Const8  [0])
-(Mul64 (Const64 [0]) _) -> (Const64 [0])
-(Mul32 (Const32 [0]) _) -> (Const32 [0])
-(Mul16 (Const16 [0]) _) -> (Const16 [0])
-(Mul8  (Const8  [0]) _) -> (Const8  [0])
+(Sub(64|32|16|8) x x) -> (Const(64|32|16|8) [0])
+(Mul(64|32|16|8) (Const(64|32|16|8) [0]) _) -> (Const(64|32|16|8) [0])
+
 (Com(64|32|16|8) (Com(64|32|16|8)  x)) -> x
-(Com8  (Const8  [c])) -> (Const8  [^c])
-(Com16 (Const16 [c])) -> (Const16 [^c])
-(Com32 (Const32 [c])) -> (Const32 [^c])
-(Com64 (Const64 [c])) -> (Const64 [^c])
-(Neg8  (Sub8  x y)) -> (Sub8  y x)
-(Neg16 (Sub16 x y)) -> (Sub16 y x)
-(Neg32 (Sub32 x y)) -> (Sub32 y x)
-(Neg64 (Sub64 x y)) -> (Sub64 y x)
+(Com(64|32|16|8) (Const(64|32|16|8) [c])) -> (Const(64|32|16|8) [^c])
+
+(Neg(64|32|16|8) (Sub(64|32|16|8) x y)) -> (Sub(64|32|16|8) y x)
+
 (Add8  (Const8  [1]) (Com8  x)) -> (Neg8  x)
 (Add16 (Const16 [1]) (Com16 x)) -> (Neg16 x)
 (Add32 (Const32 [1]) (Com32 x)) -> (Neg32 x)
@@ -1229,16 +1208,15 @@
 (Mul8  (Const8  <t> [c]) (Mul8  (Const8  <t> [d]) x)) -> (Mul8  (Const8  <t> [int64(int8(c*d))]) x)
 
 // floating point optimizations
-(Add32F x (Const32F [0])) -> x
-(Add64F x (Const64F [0])) -> x
-(Sub32F x (Const32F [0])) -> x
-(Sub64F x (Const64F [0])) -> x
-(Mul32F x (Const32F [f2i(1)])) -> x
-(Mul64F x (Const64F [f2i(1)])) -> x
+(Add(32|64)F x (Const(32|64)F [0])) -> x
+(Sub(32|64)F x (Const(32|64)F [0])) -> x
+
+(Mul(32|64)F x (Const(32|64)F [f2i(1)])) -> x
 (Mul32F x (Const32F [f2i(-1)])) -> (Neg32F x)
 (Mul64F x (Const64F [f2i(-1)])) -> (Neg64F x)
 (Mul32F x (Const32F [f2i(2)])) -> (Add32F x x)
 (Mul64F x (Const64F [f2i(2)])) -> (Add64F x x)
+
 (Div32F x (Const32F <t> [c])) && reciprocalExact32(float32(i2f(c))) -> (Mul32F x (Const32F <t> [f2i(1/i2f(c))]))
 (Div64F x (Const64F <t> [c])) && reciprocalExact64(i2f(c))          -> (Mul64F x (Const64F <t> [f2i(1/i2f(c))]))
 
