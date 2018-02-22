@@ -543,11 +543,16 @@ func (c *Certificate) checkNameConstraints(count *int,
 	return nil
 }
 
+const (
+	checkingAgainstIssuerCert = iota
+	checkingAgainstLeafCert
+)
+
 // ekuPermittedBy returns true iff the given extended key usage is permitted by
 // the given EKU from a certificate. Normally, this would be a simple
 // comparison plus a special case for the “any” EKU. But, in order to support
 // existing certificates, some exceptions are made.
-func ekuPermittedBy(eku, certEKU ExtKeyUsage) bool {
+func ekuPermittedBy(eku, certEKU ExtKeyUsage, context int) bool {
 	if certEKU == ExtKeyUsageAny || eku == certEKU {
 		return true
 	}
@@ -564,18 +569,23 @@ func ekuPermittedBy(eku, certEKU ExtKeyUsage) bool {
 	eku = mapServerAuthEKUs(eku)
 	certEKU = mapServerAuthEKUs(certEKU)
 
-	if eku == certEKU ||
-		// ServerAuth in a CA permits ClientAuth in the leaf.
-		(eku == ExtKeyUsageClientAuth && certEKU == ExtKeyUsageServerAuth) ||
+	if eku == certEKU {
+		return true
+	}
+
+	// If checking a requested EKU against the list in a leaf certificate there
+	// are fewer exceptions.
+	if context == checkingAgainstLeafCert {
+		return false
+	}
+
+	// ServerAuth in a CA permits ClientAuth in the leaf.
+	return (eku == ExtKeyUsageClientAuth && certEKU == ExtKeyUsageServerAuth) ||
 		// Any CA may issue an OCSP responder certificate.
 		eku == ExtKeyUsageOCSPSigning ||
 		// Code-signing CAs can use Microsoft's commercial and
 		// kernel-mode EKUs.
-		((eku == ExtKeyUsageMicrosoftCommercialCodeSigning || eku == ExtKeyUsageMicrosoftKernelCodeSigning) && certEKU == ExtKeyUsageCodeSigning) {
-		return true
-	}
-
-	return false
+		(eku == ExtKeyUsageMicrosoftCommercialCodeSigning || eku == ExtKeyUsageMicrosoftKernelCodeSigning) && certEKU == ExtKeyUsageCodeSigning
 }
 
 // isValid performs validity checks on c given that it is a candidate to append
@@ -716,7 +726,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 
 			for _, caEKU := range c.ExtKeyUsage {
 				comparisonCount++
-				if ekuPermittedBy(eku, caEKU) {
+				if ekuPermittedBy(eku, caEKU, checkingAgainstIssuerCert) {
 					continue NextEKU
 				}
 			}
@@ -850,7 +860,7 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 	NextUsage:
 		for _, eku := range requestedKeyUsages {
 			for _, leafEKU := range c.ExtKeyUsage {
-				if ekuPermittedBy(eku, leafEKU) {
+				if ekuPermittedBy(eku, leafEKU, checkingAgainstLeafCert) {
 					continue NextUsage
 				}
 			}
