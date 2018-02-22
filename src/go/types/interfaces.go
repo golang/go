@@ -53,12 +53,14 @@ func (info *ifaceInfo) String() string {
 
 // methodInfo represents an interface method.
 // At least one of src or fun must be non-nil.
-// (Methods declared in the current package have a non-nil src,
-// and eventually a non-nil fun field; imported and predeclared
-// methods have a nil src, and only a non-nil fun field.)
+// (Methods declared in the current package have a non-nil scope
+// and src, and eventually a non-nil fun field; imported and pre-
+// declared methods have a nil scope and src, and only a non-nil
+// fun field.)
 type methodInfo struct {
-	src *ast.Field // syntax tree representation of interface method; or nil
-	fun *Func      // corresponding fully type-checked method type; or nil
+	scope *Scope     // scope of interface method; or nil
+	src   *ast.Field // syntax tree representation of interface method; or nil
+	fun   *Func      // corresponding fully type-checked method type; or nil
 }
 
 func (info *methodInfo) String() string {
@@ -124,7 +126,8 @@ func (check *Checker) reportAltMethod(m *methodInfo) {
 	}
 }
 
-// infoFromTypeLit computes the method set for the given interface iface.
+// infoFromTypeLit computes the method set for the given interface iface
+// declared in scope.
 // If a corresponding type name exists (tname != nil), it is used for
 // cycle detection and to cache the method set.
 // The result is the method set, or nil if there is a cycle via embedded
@@ -132,7 +135,7 @@ func (check *Checker) reportAltMethod(m *methodInfo) {
 // but they were either reported (e.g., blank methods), or will be found
 // (again) when computing the interface's type.
 // If tname is not nil it must be the last element in path.
-func (check *Checker) infoFromTypeLit(iface *ast.InterfaceType, tname *TypeName, path []*TypeName) (info *ifaceInfo) {
+func (check *Checker) infoFromTypeLit(scope *Scope, iface *ast.InterfaceType, tname *TypeName, path []*TypeName) (info *ifaceInfo) {
 	assert(iface != nil)
 
 	// lazy-allocate interfaces map
@@ -207,7 +210,7 @@ func (check *Checker) infoFromTypeLit(iface *ast.InterfaceType, tname *TypeName,
 					continue // ignore
 				}
 
-				m := &methodInfo{src: f}
+				m := &methodInfo{scope: scope, src: f}
 				if check.declareInMethodSet(&mset, f.Pos(), m) {
 					info.methods = append(info.methods, m)
 				}
@@ -333,7 +336,7 @@ typenameLoop:
 			return check.infoFromQualifiedTypeName(typ)
 		case *ast.InterfaceType:
 			// type tname interface{...}
-			return check.infoFromTypeLit(typ, tname, path)
+			return check.infoFromTypeLit(decl.file, typ, tname, path)
 		}
 		// type tname X // and X is not an interface type
 		return nil

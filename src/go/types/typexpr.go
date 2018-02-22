@@ -481,9 +481,9 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	// collect embedded interfaces
 	// Only needed for printing and API. Delay collection
 	// to end of type-checking when all types are complete.
-	interfaceScope := check.scope // capture for use in closure below
+	interfaceContext := check.context // capture for use in closure below
 	check.later(func() {
-		check.scope = interfaceScope
+		check.context = interfaceContext
 		if trace {
 			check.trace(iface.Pos(), "-- delayed checking embedded interfaces of %s", iface)
 			check.indent++
@@ -495,7 +495,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			if len(f.Names) == 0 {
 				typ := check.typ(f.Type)
 				// typ should be a named type denoting an interface
-				// (the parser will make sure it's a name type but
+				// (the parser will make sure it's a named type but
 				// constructed ASTs may be wrong).
 				if typ == Typ[Invalid] {
 					continue // error reported before
@@ -531,7 +531,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	if def != nil {
 		tname = def.obj
 	}
-	info := check.infoFromTypeLit(iface, tname, path)
+	info := check.infoFromTypeLit(check.scope, iface, tname, path)
 	if info == nil || info == &emptyIfaceInfo {
 		// error or empty interface - exit early
 		ityp.allMethods = markComplete
@@ -574,7 +574,11 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	}
 
 	// fix signatures now that we have collected all methods
+	savedContext := check.context
 	for _, minfo := range sigfix {
+		// (possibly embedded) methods must be type-checked within their scope and
+		// type-checking them must not affect the current context (was issue #23914)
+		check.context = context{scope: minfo.scope}
 		typ := check.typ(minfo.src.Type)
 		sig, _ := typ.(*Signature)
 		if sig == nil {
@@ -588,6 +592,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		sig.recv = old.recv
 		*old = *sig // update signature (don't replace pointer!)
 	}
+	check.context = savedContext
 
 	// sort to match NewInterface
 	// TODO(gri) we may be able to switch to source order
