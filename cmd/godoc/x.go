@@ -32,6 +32,7 @@ var xMap = map[string]xRepo{
 	"debug":      {"https://go.googlesource.com/debug", "git"},
 	"exp":        {"https://go.googlesource.com/exp", "git"},
 	"image":      {"https://go.googlesource.com/image", "git"},
+	"lint":       {"https://go.googlesource.com/lint", "git"},
 	"mobile":     {"https://go.googlesource.com/mobile", "git"},
 	"net":        {"https://go.googlesource.com/net", "git"},
 	"oauth2":     {"https://go.googlesource.com/oauth2", "git"},
@@ -46,6 +47,7 @@ var xMap = map[string]xRepo{
 	"time":       {"https://go.googlesource.com/time", "git"},
 	"tools":      {"https://go.googlesource.com/tools", "git"},
 	"tour":       {"https://go.googlesource.com/tour", "git"},
+	"vgo":        {"https://go.googlesource.com/vgo", "git"},
 }
 
 func init() {
