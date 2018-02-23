@@ -73,14 +73,12 @@ func typestring(x interface{}) string {
 }
 
 // printany prints an argument passed to panic.
+// If panic is called with a value that has a String or Error method,
+// it has already been converted into a string by preprintpanics.
 func printany(i interface{}) {
 	switch v := i.(type) {
 	case nil:
 		print("nil")
-	case stringer:
-		print(v.String())
-	case error:
-		print(v.Error())
 	case bool:
 		print(v)
 	case int:
