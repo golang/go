@@ -92,8 +92,10 @@
 // Since arenas are aligned, the address space can be viewed as a
 // series of arena frames. The arena map (mheap_.arenas) maps from
 // arena frame number to *heapArena, or nil for parts of the address
-// space not backed by the Go heap. Since arenas are large, the arena
-// index is just a single-level mapping.
+// space not backed by the Go heap. The arena map is structured as a
+// two-level array consisting of a "L1" arena map and many "L2" arena
+// maps; however, since arenas are large, on many architectures, the
+// arena map consists of a single, large L2 map.
 //
 // The arena map covers the entire possible address space, allowing
 // the Go heap to use any part of the address space. The allocator
@@ -202,11 +204,6 @@ const (
 	// space because doing so is cheap.
 	// mips32 only has access to the low 2GB of virtual memory, so
 	// we further limit it to 31 bits.
-	//
-	// The size of the arena map is proportional to
-	// 1<<heapAddrBits, so it's important that this not be too
-	// large. 48 bits is about the threshold; above that we would
-	// need to go to a two level arena map.
 	heapAddrBits = _64bit*48 + (1-_64bit)*(32-(sys.GoarchMips+sys.GoarchMipsle))
 
 	// maxAlloc is the maximum size of an allocation. On 64-bit,
@@ -219,12 +216,48 @@ const (
 	// heapArenaBytes is the size of a heap arena. The heap
 	// consists of mappings of size heapArenaBytes, aligned to
 	// heapArenaBytes. The initial heap mapping is one arena.
-	heapArenaBytes = (64<<20)*_64bit + (4<<20)*(1-_64bit)
+	//
+	// This is currently 64MB on 64-bit and 4MB on 32-bit.
+	heapArenaBytes = 1 << logHeapArenaBytes
+
+	// logHeapArenaBytes is log_2 of heapArenaBytes. For clarity,
+	// prefer using heapArenaBytes where possible (we need the
+	// constant to compute some other constants).
+	logHeapArenaBytes = (6+20)*_64bit + (2+20)*(1-_64bit)
 
 	// heapArenaBitmapBytes is the size of each heap arena's bitmap.
 	heapArenaBitmapBytes = heapArenaBytes / (sys.PtrSize * 8 / 2)
 
 	pagesPerArena = heapArenaBytes / pageSize
+
+	// arenaL1Bits is the number of bits of the arena number
+	// covered by the first level arena map.
+	//
+	// This number should be small, since the first level arena
+	// map requires PtrSize*(1<<arenaL1Bits) of space in the
+	// binary's BSS. It can be zero, in which case the first level
+	// index is effectively unused. There is a performance benefit
+	// to this, since the generated code can be more efficient,
+	// but comes at the cost of having a large L2 mapping.
+	arenaL1Bits = 0
+
+	// arenaL2Bits is the number of bits of the arena number
+	// covered by the second level arena index.
+	//
+	// The size of each arena map allocation is proportional to
+	// 1<<arenaL2Bits, so it's important that this not be too
+	// large. 48 bits leads to 32MB arena index allocations, which
+	// is about the practical threshold.
+	arenaL2Bits = heapAddrBits - logHeapArenaBytes - arenaL1Bits
+
+	// arenaL1Shift is the number of bits to shift an arena frame
+	// number by to compute an index into the first level arena map.
+	arenaL1Shift = arenaL2Bits
+
+	// arenaBits is the total bits in a combined arena map index.
+	// This is split between the index into the L1 arena map and
+	// the L2 arena map.
+	arenaBits = arenaL1Bits + arenaL2Bits
 
 	// arenaBaseOffset is the pointer value that corresponds to
 	// index 0 in the heap arena map.
@@ -323,12 +356,6 @@ func mallocinit() {
 		throw("bad system page size")
 	}
 
-	// Map the arena map. Most of this will never be written to,
-	mheap_.arenas = (*[(1 << heapAddrBits) / heapArenaBytes]*heapArena)(persistentalloc(unsafe.Sizeof(*mheap_.arenas), sys.PtrSize, nil))
-	if mheap_.arenas == nil {
-		throw("failed to allocate arena map")
-	}
-
 	// Initialize the heap.
 	mheap_.init()
 	_g_ := getg()
@@ -398,7 +425,7 @@ func mallocinit() {
 		// 3. We try to stake out a reasonably large initial
 		// heap reservation.
 
-		const arenaMetaSize = unsafe.Sizeof(heapArena{}) * uintptr(len(*mheap_.arenas))
+		const arenaMetaSize = unsafe.Sizeof([1 << arenaBits]heapArena{})
 		meta := uintptr(sysReserve(nil, arenaMetaSize))
 		if meta != 0 {
 			mheap_.heapArenaAlloc.init(meta, arenaMetaSize)
@@ -476,7 +503,7 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 		if p+n < p {
 			// We can't use this, so don't ask.
 			v = nil
-		} else if arenaIndex(p+n-1) >= uint(len(mheap_.arenas)) {
+		} else if arenaIndex(p+n-1) >= 1<<arenaBits {
 			// Outside addressable heap. Can't use.
 			v = nil
 		} else {
@@ -528,9 +555,9 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 		p := uintptr(v)
 		if p+size < p {
 			bad = "region exceeds uintptr range"
-		} else if arenaIndex(p) >= uint(len(mheap_.arenas)) {
+		} else if arenaIndex(p) >= 1<<arenaBits {
 			bad = "base outside usable address space"
-		} else if arenaIndex(p+size-1) >= uint(len(mheap_.arenas)) {
+		} else if arenaIndex(p+size-1) >= 1<<arenaBits {
 			bad = "end outside usable address space"
 		}
 		if bad != "" {
@@ -551,7 +578,17 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 mapped:
 	// Create arena metadata.
 	for ri := arenaIndex(uintptr(v)); ri <= arenaIndex(uintptr(v)+size-1); ri++ {
-		if h.arenas[ri] != nil {
+		l2 := h.arenas[ri.l1()]
+		if l2 == nil {
+			// Allocate an L2 arena map.
+			l2 = (*[1 << arenaL2Bits]*heapArena)(persistentalloc(unsafe.Sizeof(*l2), sys.PtrSize, nil))
+			if l2 == nil {
+				throw("out of memory allocating heap arena map")
+			}
+			atomic.StorepNoWB(unsafe.Pointer(&h.arenas[ri.l1()]), unsafe.Pointer(l2))
+		}
+
+		if l2[ri.l2()] != nil {
 			throw("arena already initialized")
 		}
 		var r *heapArena
@@ -567,7 +604,7 @@ mapped:
 		// new heap arena becomes visible before the heap lock
 		// is released (which shouldn't happen, but there's
 		// little downside to this).
-		atomic.StorepNoWB(unsafe.Pointer(&h.arenas[ri]), unsafe.Pointer(r))
+		atomic.StorepNoWB(unsafe.Pointer(&l2[ri.l2()]), unsafe.Pointer(r))
 	}
 
 	// Tell the race detector about the new heap memory.

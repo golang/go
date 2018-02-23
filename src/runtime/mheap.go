@@ -96,9 +96,9 @@ type mheap struct {
 	nlargefree  uint64                  // number of frees for large objects (>maxsmallsize)
 	nsmallfree  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
 
-	// arenas is the heap arena map.
-	// arenas[(va+arenaBaseOffset)/heapArenaBytes] points to the
-	// metadata for the heap arena containing va.
+	// arenas is the heap arena map. It points to the metadata for
+	// the heap for every arena frame of the entire usable virtual
+	// address space.
 	//
 	// Use arenaIndex to compute indexes into this array.
 	//
@@ -110,9 +110,13 @@ type mheap struct {
 	// transition from nil to non-nil at any time when the lock
 	// isn't held. (Entries never transitions back to nil.)
 	//
-	// This structure is fully mapped by mallocinit, so it's safe
-	// to probe any index.
-	arenas *[(1 << heapAddrBits) / heapArenaBytes]*heapArena
+	// In general, this is a two-level mapping consisting of an L1
+	// map and possibly many L2 maps. This saves space when there
+	// are a huge number of arena frames. However, on many
+	// platforms (even 64-bit), arenaL1Bits is 0, making this
+	// effectively a single-level map. In this case, arenas[0]
+	// will never be nil.
+	arenas [1 << arenaL1Bits]*[1 << arenaL2Bits]*heapArena
 
 	// heapArenaAlloc is pre-reserved space for allocating heapArena
 	// objects. This is only used on 32-bit, where we pre-reserve
@@ -410,22 +414,46 @@ func (sc spanClass) noscan() bool {
 	return sc&1 != 0
 }
 
-// arenaIndex returns the mheap_.arenas index of the arena containing
-// metadata for p. If p is outside the range of valid heap addresses,
-// it returns an index larger than len(mheap_.arenas).
+// arenaIndex returns the index into mheap_.arenas of the arena
+// containing metadata for p. This index combines of an index into the
+// L1 map and an index into the L2 map and should be used as
+// mheap_.arenas[ai.l1()][ai.l2()].
+//
+// If p is outside the range of valid heap addresses, either l1() or
+// l2() will be out of bounds.
 //
 // It is nosplit because it's called by spanOf and several other
 // nosplit functions.
 //
 //go:nosplit
-func arenaIndex(p uintptr) uint {
-	return uint((p + arenaBaseOffset) / heapArenaBytes)
+func arenaIndex(p uintptr) arenaIdx {
+	return arenaIdx((p + arenaBaseOffset) / heapArenaBytes)
 }
 
 // arenaBase returns the low address of the region covered by heap
 // arena i.
-func arenaBase(i uint) uintptr {
+func arenaBase(i arenaIdx) uintptr {
 	return uintptr(i)*heapArenaBytes - arenaBaseOffset
+}
+
+type arenaIdx uint
+
+func (i arenaIdx) l1() uint {
+	if arenaL1Bits == 0 {
+		// Let the compiler optimize this away if there's no
+		// L1 map.
+		return 0
+	} else {
+		return uint(i) >> arenaL1Shift
+	}
+}
+
+func (i arenaIdx) l2() uint {
+	if arenaL1Bits == 0 {
+		return uint(i)
+	} else {
+		return uint(i) & (1<<arenaL2Bits - 1)
+	}
 }
 
 // inheap reports whether b is a pointer into a (potentially dead) heap object.
@@ -467,14 +495,28 @@ func inHeapOrStack(b uintptr) bool {
 //
 //go:nosplit
 func spanOf(p uintptr) *mspan {
-	if p < minLegalPointer {
-		return nil
-	}
+	// This function looks big, but we use a lot of constant
+	// folding around arenaL1Bits to get it under the inlining
+	// budget. Also, many of the checks here are safety checks
+	// that Go needs to do anyway, so the generated code is quite
+	// short.
 	ri := arenaIndex(p)
-	if ri >= uint(len(mheap_.arenas)) {
+	if arenaL1Bits == 0 {
+		// If there's no L1, then ri.l1() can't be out of bounds but ri.l2() can.
+		if ri.l2() >= uint(len(mheap_.arenas[0])) {
+			return nil
+		}
+	} else {
+		// If there's an L1, then ri.l1() can be out of bounds but ri.l2() can't.
+		if ri.l1() >= uint(len(mheap_.arenas)) {
+			return nil
+		}
+	}
+	l2 := mheap_.arenas[ri.l1()]
+	if arenaL1Bits != 0 && l2 == nil { // Should never happen if there's no L1.
 		return nil
 	}
-	ha := mheap_.arenas[ri]
+	ha := l2[ri.l2()]
 	if ha == nil {
 		return nil
 	}
@@ -488,7 +530,8 @@ func spanOf(p uintptr) *mspan {
 //
 //go:nosplit
 func spanOfUnchecked(p uintptr) *mspan {
-	return mheap_.arenas[arenaIndex(p)].spans[(p/pageSize)%pagesPerArena]
+	ai := arenaIndex(p)
+	return mheap_.arenas[ai.l1()][ai.l2()].spans[(p/pageSize)%pagesPerArena]
 }
 
 // spanOfHeap is like spanOf, but returns nil if p does not point to a
@@ -763,18 +806,21 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
 
 // setSpan modifies the span map so spanOf(base) is s.
 func (h *mheap) setSpan(base uintptr, s *mspan) {
-	h.arenas[arenaIndex(base)].spans[(base/pageSize)%pagesPerArena] = s
+	ai := arenaIndex(base)
+	h.arenas[ai.l1()][ai.l2()].spans[(base/pageSize)%pagesPerArena] = s
 }
 
 // setSpans modifies the span map so [spanOf(base), spanOf(base+npage*pageSize))
 // is s.
 func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
 	p := base / pageSize
-	ha := h.arenas[arenaIndex(base)]
+	ai := arenaIndex(base)
+	ha := h.arenas[ai.l1()][ai.l2()]
 	for n := uintptr(0); n < npage; n++ {
 		i := (p + n) % pagesPerArena
 		if i == 0 {
-			ha = h.arenas[arenaIndex(base+n*pageSize)]
+			ai = arenaIndex(base + n*pageSize)
+			ha = h.arenas[ai.l1()][ai.l2()]
 		}
 		ha.spans[i] = s
 	}
