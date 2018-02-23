@@ -113,6 +113,14 @@ func (t *itabTableType) find(inter *interfacetype, typ *_type) *itab {
 // itabAdd adds the given itab to the itab hash table.
 // itabLock must be held.
 func itabAdd(m *itab) {
+	// Bugs can lead to calling this while mallocing is set,
+	// typically because this is called while panicing.
+	// Crash reliably, rather than only when we need to grow
+	// the hash table.
+	if getg().m.mallocing != 0 {
+		throw("malloc deadlock")
+	}
+
 	t := itabTable
 	if t.count >= 3*(t.size/4) { // 75% load factor
 		// Grow hash table.
