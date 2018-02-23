@@ -3245,6 +3245,24 @@ var linuxARM64Tests = []*asmTest{
 		pos: []string{"STP"},
 		neg: []string{"MOVB", "MOVH"},
 	},
+	{
+		fn: `
+		func $(a *[39]byte) {
+			*a = [39]byte{}
+		}
+		`,
+		pos: []string{"MOVD"},
+		neg: []string{"MOVB", "MOVH", "MOVW"},
+	},
+	{
+		fn: `
+		func $(a *[30]byte) {
+			*a = [30]byte{}
+		}
+		`,
+		pos: []string{"STP"},
+		neg: []string{"MOVB", "MOVH", "MOVW"},
+	},
 }
 
 var linuxMIPSTests = []*asmTest{

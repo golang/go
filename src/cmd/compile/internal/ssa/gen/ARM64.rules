@@ -399,10 +399,14 @@
 				(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem))))
 
 // strip off fractional word zeroing
-(Zero [s] ptr mem) && s%16 != 0 && s > 16 ->
-	(Zero [s-s%16]
-		(OffPtr <ptr.Type> ptr [s%16])
-		(Zero [s%16] ptr mem))
+(Zero [s] ptr mem) && s%16 != 0 && s%16 <= 8 && s > 16 ->
+	(Zero [8]
+		(OffPtr <ptr.Type> ptr [s-8])
+		(Zero [s-s%16] ptr mem))
+(Zero [s] ptr mem) && s%16 != 0 && s%16 > 8 && s > 16 ->
+	(Zero [16]
+		(OffPtr <ptr.Type> ptr [s-16])
+		(Zero [s-s%16] ptr mem))
 
 // medium zeroing uses a duff device
 // 4, 16, and 64 are magic constants, see runtime/mkduff.go
