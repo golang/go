@@ -1439,6 +1439,36 @@
 	&& clobber(o4) && clobber(o5) && clobber(s0)
 	-> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (REV <t> (MOVDload <t> {s} (OffPtr <p.Type> [i0] p) mem))
 
+// Combine zero stores into larger (unaligned) stores.
+(MOVBstorezero [i] {s} ptr0 x:(MOVBstorezero [j] {s} ptr1 mem))
+	&& x.Uses == 1
+	&& areAdjacentOffsets(i,j,1)
+	&& is32Bit(min(i,j))
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVHstorezero [min(i,j)] {s} ptr0 mem)
+(MOVHstorezero [i] {s} ptr0 x:(MOVHstorezero [j] {s} ptr1 mem))
+	&& x.Uses == 1
+	&& areAdjacentOffsets(i,j,2)
+	&& is32Bit(min(i,j))
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVWstorezero [min(i,j)] {s} ptr0 mem)
+(MOVWstorezero [i] {s} ptr0 x:(MOVWstorezero [j] {s} ptr1 mem))
+	&& x.Uses == 1
+	&& areAdjacentOffsets(i,j,4)
+	&& is32Bit(min(i,j))
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVDstorezero [min(i,j)] {s} ptr0 mem)
+(MOVDstorezero [i] {s} ptr0 x:(MOVDstorezero [j] {s} ptr1 mem))
+	&& x.Uses == 1
+	&& areAdjacentOffsets(i,j,8)
+	&& is32Bit(min(i,j))
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVQstorezero [min(i,j)] {s} ptr0 mem)
+
 // FP simplification
 (FNEGS (FMULS x y)) -> (FNMULS x y)
 (FNEGD (FMULD x y)) -> (FNMULD x y)
