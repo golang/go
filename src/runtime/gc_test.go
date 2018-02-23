@@ -43,7 +43,7 @@ func TestGcDeepNesting(t *testing.T) {
 	}
 }
 
-func TestGcHashmapIndirection(t *testing.T) {
+func TestGcMapIndirection(t *testing.T) {
 	defer debug.SetGCPercent(debug.SetGCPercent(1))
 	runtime.GC()
 	type T struct {
