@@ -109,7 +109,9 @@ it is expected to work. It is disabled by default when
 cross-compiling. You can control this by setting the CGO_ENABLED
 environment variable when running the go tool: set it to 1 to enable
 the use of cgo, and to 0 to disable it. The go tool will set the
-build constraint "cgo" if cgo is enabled.
+build constraint "cgo" if cgo is enabled. When the Go tool sees the
+special import "C", the "cgo" build constraint will be implied, causing
+the tool to skip the file if CGO_ENABLED is set to 0.
 
 When cross-compiling, you must specify a C cross-compiler for cgo to
 use. You can do this by setting the generic CC_FOR_TARGET or the
