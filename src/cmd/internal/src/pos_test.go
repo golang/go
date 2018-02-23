@@ -12,16 +12,19 @@ import (
 func TestPos(t *testing.T) {
 	f0 := NewFileBase("", "")
 	f1 := NewFileBase("f1", "f1")
-	f2 := NewLinePragmaBase(Pos{}, "f2", "f2", 10)
-	f3 := NewLinePragmaBase(MakePos(f1, 10, 1), "f3", "f3", 100)
-	f4 := NewLinePragmaBase(MakePos(f3, 10, 1), "f4", "f4", 100)
+	f2 := NewLinePragmaBase(Pos{}, "f2", "f2", 10, 0)
+	f3 := NewLinePragmaBase(MakePos(f1, 10, 1), "f3", "f3", 100, 1)
+	f4 := NewLinePragmaBase(MakePos(f3, 10, 1), "f4", "f4", 100, 1)
+
+	// line directives with non-1 columns
+	f5 := NewLinePragmaBase(MakePos(f1, 5, 5), "f5", "f5", 10, 1)
 
 	// line directives from issue #19392
 	fp := NewFileBase("p.go", "p.go")
-	fc := NewLinePragmaBase(MakePos(fp, 3, 0), "c.go", "c.go", 10)
-	ft := NewLinePragmaBase(MakePos(fp, 6, 0), "t.go", "t.go", 20)
-	fv := NewLinePragmaBase(MakePos(fp, 9, 0), "v.go", "v.go", 30)
-	ff := NewLinePragmaBase(MakePos(fp, 12, 0), "f.go", "f.go", 40)
+	fc := NewLinePragmaBase(MakePos(fp, 4, 1), "c.go", "c.go", 10, 1)
+	ft := NewLinePragmaBase(MakePos(fp, 7, 1), "t.go", "t.go", 20, 1)
+	fv := NewLinePragmaBase(MakePos(fp, 10, 1), "v.go", "v.go", 30, 1)
+	ff := NewLinePragmaBase(MakePos(fp, 13, 1), "f.go", "f.go", 40, 1)
 
 	for _, test := range []struct {
 		pos    Pos
@@ -32,22 +35,27 @@ func TestPos(t *testing.T) {
 		line, col uint
 
 		// relative info
-		relFilename string
-		relLine     uint
+		relFilename     string
+		relLine, relCol uint
 	}{
-		{Pos{}, "<unknown line number>", "", 0, 0, "", 0},
-		{MakePos(nil, 2, 3), ":2:3", "", 2, 3, "", 2},
-		{MakePos(f0, 2, 3), ":2:3", "", 2, 3, "", 2},
-		{MakePos(f1, 1, 1), "f1:1:1", "f1", 1, 1, "f1", 1},
-		{MakePos(f2, 7, 10), "f2:16[:7:10]", "", 7, 10, "f2", 16},
-		{MakePos(f3, 12, 7), "f3:101[f1:12:7]", "f1", 12, 7, "f3", 101},
-		{MakePos(f4, 25, 1), "f4:114[f3:25:1]", "f3", 25, 1, "f4", 114},
+		{Pos{}, "<unknown line number>", "", 0, 0, "", 0, 0},
+		{MakePos(nil, 2, 3), ":2:3", "", 2, 3, "", 2, 3},
+		{MakePos(f0, 2, 3), ":2:3", "", 2, 3, "", 2, 3},
+		{MakePos(f1, 1, 1), "f1:1:1", "f1", 1, 1, "f1", 1, 1},
+		{MakePos(f2, 7, 10), "f2:17[:7:10]", "", 7, 10, "f2", 17, 10},
+		{MakePos(f3, 12, 7), "f3:102[f1:12:7]", "f1", 12, 7, "f3", 102, 7},
+		{MakePos(f4, 25, 1), "f4:115[f3:25:1]", "f3", 25, 1, "f4", 115, 1},
+
+		// line directives with non-1 columns
+		{MakePos(f5, 5, 5), "f5:10[f1:5:5]", "f1", 5, 5, "f5", 10, 1},
+		{MakePos(f5, 5, 10), "f5:10[f1:5:10]", "f1", 5, 10, "f5", 10, 6},
+		{MakePos(f5, 6, 10), "f5:11[f1:6:10]", "f1", 6, 10, "f5", 11, 10},
 
 		// positions from issue #19392
-		{MakePos(fc, 4, 0), "c.go:10[p.go:4:0]", "p.go", 4, 0, "c.go", 10},
-		{MakePos(ft, 7, 0), "t.go:20[p.go:7:0]", "p.go", 7, 0, "t.go", 20},
-		{MakePos(fv, 10, 0), "v.go:30[p.go:10:0]", "p.go", 10, 0, "v.go", 30},
-		{MakePos(ff, 13, 0), "f.go:40[p.go:13:0]", "p.go", 13, 0, "f.go", 40},
+		{MakePos(fc, 4, 1), "c.go:10[p.go:4:1]", "p.go", 4, 1, "c.go", 10, 1},
+		{MakePos(ft, 7, 1), "t.go:20[p.go:7:1]", "p.go", 7, 1, "t.go", 20, 1},
+		{MakePos(fv, 10, 1), "v.go:30[p.go:10:1]", "p.go", 10, 1, "v.go", 30, 1},
+		{MakePos(ff, 13, 1), "f.go:40[p.go:13:1]", "p.go", 13, 1, "f.go", 40, 1},
 	} {
 		pos := test.pos
 		if got := pos.String(); got != test.string {
@@ -71,6 +79,9 @@ func TestPos(t *testing.T) {
 		}
 		if got := pos.RelLine(); got != test.relLine {
 			t.Errorf("%s: got relLine %d; want %d", test.string, got, test.relLine)
+		}
+		if got := pos.RelCol(); got != test.relCol {
+			t.Errorf("%s: got relCol %d; want %d", test.string, got, test.relCol)
 		}
 	}
 }
