@@ -489,9 +489,15 @@ func dumpparams() {
 	}
 	dumpint(sys.PtrSize)
 	var arenaStart, arenaEnd uintptr
-	for i, ha := range mheap_.arenas {
-		if ha != nil {
-			base := arenaBase(uint(i))
+	for i1 := range mheap_.arenas {
+		if mheap_.arenas[i1] == nil {
+			continue
+		}
+		for i, ha := range mheap_.arenas[i1] {
+			if ha == nil {
+				continue
+			}
+			base := arenaBase(arenaIdx(i1)<<arenaL1Shift | arenaIdx(i))
 			if arenaStart == 0 || base < arenaStart {
 				arenaStart = base
 			}

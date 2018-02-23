@@ -332,21 +332,23 @@ func (m *markBits) advance() {
 //
 // nosplit because it is used during write barriers and must not be preempted.
 //go:nosplit
-func heapBitsForAddr(addr uintptr) heapBits {
+func heapBitsForAddr(addr uintptr) (h heapBits) {
 	// 2 bits per word, 4 pairs per byte, and a mask is hard coded.
-	off := addr / sys.PtrSize
 	arena := arenaIndex(addr)
-	ha := mheap_.arenas[arena]
+	ha := mheap_.arenas[arena.l1()][arena.l2()]
 	// The compiler uses a load for nil checking ha, but in this
 	// case we'll almost never hit that cache line again, so it
 	// makes more sense to do a value check.
 	if ha == nil {
-		// addr is not in the heap. Crash without inhibiting inlining.
-		_ = *ha
+		// addr is not in the heap. Return nil heapBits, which
+		// we expect to crash in the caller.
+		return
 	}
-	bitp := &ha.bitmap[(off/4)%heapArenaBitmapBytes]
-	last := &ha.bitmap[len(ha.bitmap)-1]
-	return heapBits{bitp, uint32(off & 3), uint32(arena), last}
+	h.bitp = &ha.bitmap[(addr/(sys.PtrSize*4))%heapArenaBitmapBytes]
+	h.shift = uint32((addr / sys.PtrSize) & 3)
+	h.arena = uint32(arena)
+	h.last = &ha.bitmap[len(ha.bitmap)-1]
+	return
 }
 
 // findObject returns the base address for the heap object containing
@@ -432,18 +434,36 @@ func (h heapBits) next() heapBits {
 		h.bitp, h.shift = add1(h.bitp), 0
 	} else {
 		// Move to the next arena.
-		h.arena++
-		a := mheap_.arenas[h.arena]
-		if a == nil {
-			// We just passed the end of the object, which
-			// was also the end of the heap. Poison h. It
-			// should never be dereferenced at this point.
-			h.bitp, h.last = nil, nil
-		} else {
-			h.bitp, h.shift = &a.bitmap[0], 0
-			h.last = &a.bitmap[len(a.bitmap)-1]
-		}
+		return h.nextArena()
 	}
+	return h
+}
+
+// nextArena advances h to the beginning of the next heap arena.
+//
+// This is a slow-path helper to next. gc's inliner knows that
+// heapBits.next can be inlined even though it calls this. This is
+// marked noinline so it doesn't get inlined into next and cause next
+// to be too big to inline.
+//
+//go:nosplit
+//go:noinline
+func (h heapBits) nextArena() heapBits {
+	h.arena++
+	ai := arenaIdx(h.arena)
+	l2 := mheap_.arenas[ai.l1()]
+	if l2 == nil {
+		// We just passed the end of the object, which
+		// was also the end of the heap. Poison h. It
+		// should never be dereferenced at this point.
+		return heapBits{}
+	}
+	ha := l2[ai.l2()]
+	if ha == nil {
+		return heapBits{}
+	}
+	h.bitp, h.shift = &ha.bitmap[0], 0
+	h.last = &ha.bitmap[len(ha.bitmap)-1]
 	return h
 }
 
@@ -465,12 +485,13 @@ func (h heapBits) forward(n uintptr) heapBits {
 	// We're in a new heap arena.
 	past := nbitp - (uintptr(unsafe.Pointer(h.last)) + 1)
 	h.arena += 1 + uint32(past/heapArenaBitmapBytes)
-	a := mheap_.arenas[h.arena]
-	if a == nil {
-		h.bitp, h.last = nil, nil
-	} else {
+	ai := arenaIdx(h.arena)
+	if l2 := mheap_.arenas[ai.l1()]; l2 != nil && l2[ai.l2()] != nil {
+		a := l2[ai.l2()]
 		h.bitp = &a.bitmap[past%heapArenaBitmapBytes]
 		h.last = &a.bitmap[len(a.bitmap)-1]
+	} else {
+		h.bitp, h.last = nil, nil
 	}
 	return h
 }
@@ -971,7 +992,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	// machine instructions.
 
 	outOfPlace := false
-	if arenaIndex(x+size-1) != uint(h.arena) {
+	if arenaIndex(x+size-1) != arenaIdx(h.arena) {
 		// This object spans heap arenas, so the bitmap may be
 		// discontiguous. Unroll it into the object instead
 		// and then copy it out.
@@ -1375,12 +1396,14 @@ Phase4:
 		// x+size may not point to the heap, so back up one
 		// word and then call next().
 		end := heapBitsForAddr(x + size - sys.PtrSize).next()
-		if !outOfPlace && (end.bitp == nil || (end.shift == 0 && end.bitp == &mheap_.arenas[end.arena].bitmap[0])) {
+		endAI := arenaIdx(end.arena)
+		if !outOfPlace && (end.bitp == nil || (end.shift == 0 && end.bitp == &mheap_.arenas[endAI.l1()][endAI.l2()].bitmap[0])) {
 			// The unrolling code above walks hbitp just
 			// past the bitmap without moving to the next
 			// arena. Synthesize this for end.bitp.
-			end.bitp = addb(&mheap_.arenas[end.arena-1].bitmap[0], heapArenaBitmapBytes)
 			end.arena--
+			endAI = arenaIdx(end.arena)
+			end.bitp = addb(&mheap_.arenas[endAI.l1()][endAI.l2()].bitmap[0], heapArenaBitmapBytes)
 			end.last = nil
 		}
 		if typ.kind&kindGCProg == 0 && (hbitp != end.bitp || (w == nw+2) != (end.shift == 2)) {
