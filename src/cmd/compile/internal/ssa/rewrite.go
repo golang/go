@@ -782,12 +782,8 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 		OpAMD64ANDL, OpAMD64ANDLconst, OpAMD64ORL, OpAMD64ORLconst,
 		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL:
 		return true
-	case OpArg:
+	case OpArg, OpSelect0, OpSelect1:
 		return x.Type.Width == 4
-	case OpSelect0, OpSelect1:
-		// Disabled for now. See issue 23305.
-		// TODO: we could look into the arg of the Select to decide.
-		return false
 	case OpPhi:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.
