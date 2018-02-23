@@ -3919,11 +3919,14 @@ func deadcodeslice(nn Nodes) {
 		if n == nil {
 			continue
 		}
-		if n.Op == OIF && Isconst(n.Left, CTBOOL) {
-			if n.Left.Bool() {
-				n.Rlist = Nodes{}
-			} else {
-				n.Nbody = Nodes{}
+		if n.Op == OIF {
+			n.Left = deadcodeexpr(n.Left)
+			if Isconst(n.Left, CTBOOL) {
+				if n.Left.Bool() {
+					n.Rlist = Nodes{}
+				} else {
+					n.Nbody = Nodes{}
+				}
 			}
 		}
 		deadcodeslice(n.Ninit)
@@ -3931,4 +3934,33 @@ func deadcodeslice(nn Nodes) {
 		deadcodeslice(n.List)
 		deadcodeslice(n.Rlist)
 	}
+}
+
+func deadcodeexpr(n *Node) *Node {
+	// Perform dead-code elimination on short-circuited boolean
+	// expressions involving constants with the intent of
+	// producing a constant 'if' condition.
+	switch n.Op {
+	case OANDAND:
+		n.Left = deadcodeexpr(n.Left)
+		n.Right = deadcodeexpr(n.Right)
+		if Isconst(n.Left, CTBOOL) {
+			if n.Left.Bool() {
+				return n.Right // true && x => x
+			} else {
+				return n.Left // false && x => false
+			}
+		}
+	case OOROR:
+		n.Left = deadcodeexpr(n.Left)
+		n.Right = deadcodeexpr(n.Right)
+		if Isconst(n.Left, CTBOOL) {
+			if n.Left.Bool() {
+				return n.Left // true || x => true
+			} else {
+				return n.Right // false || x => x
+			}
+		}
+	}
+	return n
 }

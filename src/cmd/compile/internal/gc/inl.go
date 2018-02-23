@@ -344,6 +344,12 @@ func (v *hairyVisitor) visit(n *Node) bool {
 	case ODCLCONST, OEMPTY, OFALL, OLABEL:
 		// These nodes don't produce code; omit from inlining budget.
 		return false
+
+	case OIF:
+		if Isconst(n.Left, CTBOOL) {
+			// This if and the condition cost nothing.
+			return v.visitList(n.Nbody) || v.visitList(n.Rlist)
+		}
 	}
 
 	v.budget--
