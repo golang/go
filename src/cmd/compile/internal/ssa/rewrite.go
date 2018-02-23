@@ -769,6 +769,10 @@ func overlap(offset1, size1, offset2, size2 int64) bool {
 	return false
 }
 
+func areAdjacentOffsets(off1, off2, size int64) bool {
+	return off1+size == off2 || off1 == off2+size
+}
+
 // check if value zeroes out upper 32-bit of 64-bit register.
 // depth limits recursion depth. In AMD64.rules 3 is used as limit,
 // because it catches same amount of cases as 4.

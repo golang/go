@@ -5941,6 +5941,35 @@ func rewriteValueARM64_OpARM64MOVBstorezero_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	// match: (MOVBstorezero [i] {s} ptr0 x:(MOVBstorezero [j] {s} ptr1 mem))
+	// cond: x.Uses == 1 && areAdjacentOffsets(i,j,1) && is32Bit(min(i,j)) && isSamePtr(ptr0, ptr1) && clobber(x)
+	// result: (MOVHstorezero [min(i,j)] {s} ptr0 mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[1]
+		ptr0 := v.Args[0]
+		x := v.Args[1]
+		if x.Op != OpARM64MOVBstorezero {
+			break
+		}
+		j := x.AuxInt
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[1]
+		ptr1 := x.Args[0]
+		mem := x.Args[1]
+		if !(x.Uses == 1 && areAdjacentOffsets(i, j, 1) && is32Bit(min(i, j)) && isSamePtr(ptr0, ptr1) && clobber(x)) {
+			break
+		}
+		v.reset(OpARM64MOVHstorezero)
+		v.AuxInt = min(i, j)
+		v.Aux = s
+		v.AddArg(ptr0)
+		v.AddArg(mem)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64MOVDload_0(v *Value) bool {
@@ -6202,6 +6231,35 @@ func rewriteValueARM64_OpARM64MOVDstorezero_0(v *Value) bool {
 		v.AuxInt = off1 + off2
 		v.Aux = mergeSym(sym1, sym2)
 		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVDstorezero [i] {s} ptr0 x:(MOVDstorezero [j] {s} ptr1 mem))
+	// cond: x.Uses == 1 && areAdjacentOffsets(i,j,8) && is32Bit(min(i,j)) && isSamePtr(ptr0, ptr1) && clobber(x)
+	// result: (MOVQstorezero [min(i,j)] {s} ptr0 mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[1]
+		ptr0 := v.Args[0]
+		x := v.Args[1]
+		if x.Op != OpARM64MOVDstorezero {
+			break
+		}
+		j := x.AuxInt
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[1]
+		ptr1 := x.Args[0]
+		mem := x.Args[1]
+		if !(x.Uses == 1 && areAdjacentOffsets(i, j, 8) && is32Bit(min(i, j)) && isSamePtr(ptr0, ptr1) && clobber(x)) {
+			break
+		}
+		v.reset(OpARM64MOVQstorezero)
+		v.AuxInt = min(i, j)
+		v.Aux = s
+		v.AddArg(ptr0)
 		v.AddArg(mem)
 		return true
 	}
@@ -6744,6 +6802,35 @@ func rewriteValueARM64_OpARM64MOVHstorezero_0(v *Value) bool {
 		v.AuxInt = off1 + off2
 		v.Aux = mergeSym(sym1, sym2)
 		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHstorezero [i] {s} ptr0 x:(MOVHstorezero [j] {s} ptr1 mem))
+	// cond: x.Uses == 1 && areAdjacentOffsets(i,j,2) && is32Bit(min(i,j)) && isSamePtr(ptr0, ptr1) && clobber(x)
+	// result: (MOVWstorezero [min(i,j)] {s} ptr0 mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[1]
+		ptr0 := v.Args[0]
+		x := v.Args[1]
+		if x.Op != OpARM64MOVHstorezero {
+			break
+		}
+		j := x.AuxInt
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[1]
+		ptr1 := x.Args[0]
+		mem := x.Args[1]
+		if !(x.Uses == 1 && areAdjacentOffsets(i, j, 2) && is32Bit(min(i, j)) && isSamePtr(ptr0, ptr1) && clobber(x)) {
+			break
+		}
+		v.reset(OpARM64MOVWstorezero)
+		v.AuxInt = min(i, j)
+		v.Aux = s
+		v.AddArg(ptr0)
 		v.AddArg(mem)
 		return true
 	}
@@ -7376,6 +7463,35 @@ func rewriteValueARM64_OpARM64MOVWstorezero_0(v *Value) bool {
 		v.AuxInt = off1 + off2
 		v.Aux = mergeSym(sym1, sym2)
 		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVWstorezero [i] {s} ptr0 x:(MOVWstorezero [j] {s} ptr1 mem))
+	// cond: x.Uses == 1 && areAdjacentOffsets(i,j,4) && is32Bit(min(i,j)) && isSamePtr(ptr0, ptr1) && clobber(x)
+	// result: (MOVDstorezero [min(i,j)] {s} ptr0 mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[1]
+		ptr0 := v.Args[0]
+		x := v.Args[1]
+		if x.Op != OpARM64MOVWstorezero {
+			break
+		}
+		j := x.AuxInt
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[1]
+		ptr1 := x.Args[0]
+		mem := x.Args[1]
+		if !(x.Uses == 1 && areAdjacentOffsets(i, j, 4) && is32Bit(min(i, j)) && isSamePtr(ptr0, ptr1) && clobber(x)) {
+			break
+		}
+		v.reset(OpARM64MOVDstorezero)
+		v.AuxInt = min(i, j)
+		v.Aux = s
+		v.AddArg(ptr0)
 		v.AddArg(mem)
 		return true
 	}
