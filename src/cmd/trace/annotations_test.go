@@ -63,7 +63,9 @@ func TestAnalyzeAnnotations(t *testing.T) {
 	// TODO: classify taskless spans
 
 	// Run prog0 and capture the execution trace.
-	traceProgram(prog0, "TestAnalyzeAnnotations")
+	if err := traceProgram(prog0, "TestAnalyzeAnnotations"); err != nil {
+		t.Fatalf("failed to trace the program: %v", err)
+	}
 
 	res, err := analyzeAnnotations()
 	if err != nil {
@@ -126,7 +128,9 @@ func prog1() {
 
 func TestAnalyzeAnnotationTaskTree(t *testing.T) {
 	// Run prog1 and capture the execution trace.
-	traceProgram(prog1, "TestAnalyzeAnnotationTaskTree")
+	if err := traceProgram(prog1, "TestAnalyzeAnnotationTaskTree"); err != nil {
+		t.Fatalf("failed to trace the program: %v", err)
+	}
 
 	res, err := analyzeAnnotations()
 	if err != nil {
@@ -208,12 +212,15 @@ func prog2() (gcTime time.Duration) {
 
 func TestAnalyzeAnnotationGC(t *testing.T) {
 	var gcTime time.Duration
-	traceProgram(func() {
+	err := traceProgram(func() {
 		oldGC := debug.SetGCPercent(10000) // gc, and effectively disable GC
 		defer debug.SetGCPercent(oldGC)
 
 		gcTime = prog2()
 	}, "TestAnalyzeAnnotationGC")
+	if err != nil {
+		t.Fatalf("failed to trace the program: %v", err)
+	}
 
 	res, err := analyzeAnnotations()
 	if err != nil {
@@ -241,6 +248,13 @@ func TestAnalyzeAnnotationGC(t *testing.T) {
 		case "taskWithGC":
 			if got <= 0 || got >= gcTime {
 				t.Errorf("%s reported %v as overlapping GC time; want (0, %v): %v", task.name, got, gcTime, task)
+				buf := new(bytes.Buffer)
+				fmt.Fprintln(buf, "GC Events")
+				for _, ev := range res.gcEvents {
+					fmt.Fprintf(buf, " %s\n", ev)
+				}
+				fmt.Fprintf(buf, "%s\n", task)
+				t.Logf("%s", buf)
 			}
 		case "taskWithoutGC":
 			if got != 0 {
@@ -264,7 +278,7 @@ func traceProgram(f func(), name string) error {
 	trace.Stop()
 
 	saveTrace(buf, name)
-	res, err := traceparser.Parse(buf, "")
+	res, err := traceparser.Parse(buf, name+".faketrace")
 	if err != nil {
 		return err
 	}
