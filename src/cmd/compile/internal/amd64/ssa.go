@@ -266,7 +266,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 		// Issue -1 fixup code.
 		// n / -1 = -n
-		n1 := s.Prog(x86.ANEGQ)
+		var n1 *obj.Prog
+		switch v.Op {
+		case ssa.OpAMD64DIVQ:
+			n1 = s.Prog(x86.ANEGQ)
+		case ssa.OpAMD64DIVL:
+			n1 = s.Prog(x86.ANEGL)
+		case ssa.OpAMD64DIVW:
+			n1 = s.Prog(x86.ANEGW)
+		}
 		n1.To.Type = obj.TYPE_REG
 		n1.To.Reg = x86.REG_AX
 
