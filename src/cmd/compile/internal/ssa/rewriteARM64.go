@@ -18551,24 +18551,48 @@ func rewriteValueARM64_OpZero_20(v *Value) bool {
 	config := b.Func.Config
 	_ = config
 	// match: (Zero [s] ptr mem)
-	// cond: s%16 != 0 && s > 16
-	// result: (Zero [s-s%16] (OffPtr <ptr.Type> ptr [s%16]) (Zero [s%16] ptr mem))
+	// cond: s%16 != 0 && s%16 <= 8 && s > 16
+	// result: (Zero [8] (OffPtr <ptr.Type> ptr [s-8]) (Zero [s-s%16] ptr mem))
 	for {
 		s := v.AuxInt
 		_ = v.Args[1]
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(s%16 != 0 && s > 16) {
+		if !(s%16 != 0 && s%16 <= 8 && s > 16) {
 			break
 		}
 		v.reset(OpZero)
-		v.AuxInt = s - s%16
+		v.AuxInt = 8
 		v0 := b.NewValue0(v.Pos, OpOffPtr, ptr.Type)
-		v0.AuxInt = s % 16
+		v0.AuxInt = s - 8
 		v0.AddArg(ptr)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpZero, types.TypeMem)
-		v1.AuxInt = s % 16
+		v1.AuxInt = s - s%16
+		v1.AddArg(ptr)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Zero [s] ptr mem)
+	// cond: s%16 != 0 && s%16 > 8 && s > 16
+	// result: (Zero [16] (OffPtr <ptr.Type> ptr [s-16]) (Zero [s-s%16] ptr mem))
+	for {
+		s := v.AuxInt
+		_ = v.Args[1]
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(s%16 != 0 && s%16 > 8 && s > 16) {
+			break
+		}
+		v.reset(OpZero)
+		v.AuxInt = 16
+		v0 := b.NewValue0(v.Pos, OpOffPtr, ptr.Type)
+		v0.AuxInt = s - 16
+		v0.AddArg(ptr)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpZero, types.TypeMem)
+		v1.AuxInt = s - s%16
 		v1.AddArg(ptr)
 		v1.AddArg(mem)
 		v.AddArg(v1)
