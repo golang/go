@@ -112,8 +112,8 @@ the use of cgo, and to 0 to disable it. The go tool will set the
 build constraint "cgo" if cgo is enabled. The special import "C"
 implies the "cgo" build constraint, as though the file also said
 "// +build cgo".  Therefore, if cgo is disabled, files that import
-"C" will not be built by the go tool. 
-(For more about build constraints see https://golang.org/pkg/go/build/#hdr-Build_Constraints).
+"C" will not be built by the go tool. (For more about build constraints
+see https://golang.org/pkg/go/build/#hdr-Build_Constraints).
 
 When cross-compiling, you must specify a C cross-compiler for cgo to
 use. You can do this by setting the generic CC_FOR_TARGET or the
