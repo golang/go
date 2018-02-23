@@ -230,7 +230,7 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "386",
 		os:      "linux",
-		imports: []string{"encoding/binary"},
+		imports: []string{"encoding/binary", "math"},
 		tests:   linux386Tests,
 	},
 	{
@@ -254,13 +254,14 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "mips",
 		os:      "linux",
-		imports: []string{"math/bits"},
+		imports: []string{"math/bits", "math"},
 		tests:   linuxMIPSTests,
 	},
 	{
-		arch:  "mips64",
-		os:    "linux",
-		tests: linuxMIPS64Tests,
+		arch:    "mips64",
+		os:      "linux",
+		imports: []string{"math"},
+		tests:   linuxMIPS64Tests,
 	},
 	{
 		arch:    "ppc64le",
@@ -821,6 +822,14 @@ var linuxAMD64Tests = []*asmTest{
 			return bits.OnesCount(x)
 		}`,
 		pos: []string{"\tPOPCNTQ\t", "support_popcnt"},
+	},
+	{
+		fn: `
+		func $(x float64) float64 {
+			return math.Sqrt(x)
+		}
+		`,
+		pos: []string{"SQRTSD"},
 	},
 	// multiplication merging tests
 	{
@@ -1909,6 +1918,16 @@ var linux386Tests = []*asmTest{
 		`,
 		neg: []string{"memmove"},
 	},
+
+	// Intrinsic tests for math
+	{
+		fn: `
+		func $(x float64) float64 {
+			return math.Sqrt(x)
+		}
+		`,
+		pos: []string{"FSQRT|SQRTSD"}, // 387|sse2
+	},
 }
 
 var linuxS390XTests = []*asmTest{
@@ -2906,6 +2925,7 @@ var linuxARM64Tests = []*asmTest{
 }
 
 var linuxMIPSTests = []*asmTest{
+	// Intrinsic tests for math/bits
 	{
 		fn: `
 		func f0(a uint64) int {
@@ -2986,6 +3006,15 @@ var linuxMIPSTests = []*asmTest{
 		`,
 		pos: []string{"\tCLZ\t"},
 	},
+	// Intrinsic tests for math.
+	{
+		fn: `
+		func $(x float64) float64 {
+			return math.Sqrt(x)
+		}
+		`,
+		pos: []string{"SQRTD"},
+	},
 	{
 		// check that stack store is optimized away
 		fn: `
@@ -3008,6 +3037,15 @@ var linuxMIPS64Tests = []*asmTest{
 		`,
 		pos: []string{"SLLV\t\\$17"},
 		neg: []string{"SGT"},
+	},
+	// Intrinsic tests for math.
+	{
+		fn: `
+		func $(x float64) float64 {
+			return math.Sqrt(x)
+		}
+		`,
+		pos: []string{"SQRTD"},
 	},
 }
 
