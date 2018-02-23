@@ -213,17 +213,38 @@ const (
 	// in a uintptr.
 	maxAlloc = (1 << heapAddrBits) - (1-_64bit)*1
 
+	// The number of bits in a heap address, the size of heap
+	// arenas, and the L1 and L2 arena map sizes are related by
+	//
+	//   (1 << addrBits) = arenaBytes * L1entries * L2entries
+	//
+	// Currently, we balance these as follows:
+	//
+	//       Platform  Addr bits  Arena size  L1 entries  L2 size
+	// --------------  ---------  ----------  ----------  -------
+	//       */64-bit         48        64MB           1     32MB
+	// windows/64-bit         48         4MB          64      8MB
+	//       */32-bit         32         4MB           1      4KB
+	//     */mips(le)         31         4MB           1      2KB
+
 	// heapArenaBytes is the size of a heap arena. The heap
 	// consists of mappings of size heapArenaBytes, aligned to
 	// heapArenaBytes. The initial heap mapping is one arena.
 	//
-	// This is currently 64MB on 64-bit and 4MB on 32-bit.
+	// This is currently 64MB on 64-bit non-Windows and 4MB on
+	// 32-bit and on Windows. We use smaller arenas on Windows
+	// because all committed memory is charged to the process,
+	// even if it's not touched. Hence, for processes with small
+	// heaps, the mapped arena space needs to be commensurate.
+	// This is particularly important with the race detector,
+	// since it significantly amplifies the cost of committed
+	// memory.
 	heapArenaBytes = 1 << logHeapArenaBytes
 
 	// logHeapArenaBytes is log_2 of heapArenaBytes. For clarity,
 	// prefer using heapArenaBytes where possible (we need the
 	// constant to compute some other constants).
-	logHeapArenaBytes = (6+20)*_64bit + (2+20)*(1-_64bit)
+	logHeapArenaBytes = (6+20)*(_64bit*(1-sys.GoosWindows)) + (2+20)*(_64bit*sys.GoosWindows) + (2+20)*(1-_64bit)
 
 	// heapArenaBitmapBytes is the size of each heap arena's bitmap.
 	heapArenaBitmapBytes = heapArenaBytes / (sys.PtrSize * 8 / 2)
@@ -239,7 +260,11 @@ const (
 	// index is effectively unused. There is a performance benefit
 	// to this, since the generated code can be more efficient,
 	// but comes at the cost of having a large L2 mapping.
-	arenaL1Bits = 0
+	//
+	// We use the L1 map on 64-bit Windows because the arena size
+	// is small, but the address space is still 48 bits, and
+	// there's a high cost to having a large L2.
+	arenaL1Bits = 6 * (_64bit * sys.GoosWindows)
 
 	// arenaL2Bits is the number of bits of the arena number
 	// covered by the second level arena index.
