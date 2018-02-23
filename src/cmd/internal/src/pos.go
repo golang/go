@@ -18,8 +18,8 @@ import "strconv"
 // The position base is used to determine the "relative" position, that is the
 // filename and line number relative to the position base. If the base refers
 // to the current file, there is no difference between absolute and relative
-// positions. If it refers to a //line pragma, a relative position is relative
-// to that pragma. A position base in turn contains the position at which it
+// positions. If it refers to a //line directive, a relative position is relative
+// to that directive. A position base in turn contains the position at which it
 // was introduced in the current file.
 type Pos struct {
 	base *PosBase
@@ -68,8 +68,18 @@ func (p *Pos) SetBase(base *PosBase) { p.base = base }
 // RelFilename returns the filename recorded with the position's base.
 func (p Pos) RelFilename() string { return p.base.Filename() }
 
-// RelLine returns the line number relative to the positions's base.
+// RelLine returns the line number relative to the position's base.
 func (p Pos) RelLine() uint { b := p.base; return b.Line() + p.Line() - b.Pos().Line() }
+
+// RelCol returns the column number relative to the position's base.
+func (p Pos) RelCol() uint {
+	b := p.Base()
+	if p.Line() == b.Pos().Line() {
+		// p on same line as p's base => column is relative to p's base
+		return b.Col() + p.Col() - b.Pos().Col()
+	}
+	return p.Col()
+}
 
 // AbsFilename() returns the absolute filename recorded with the position's base.
 func (p Pos) AbsFilename() string { return p.base.AbsFilename() }
@@ -96,6 +106,9 @@ func (p Pos) Format(showCol, showOrig bool) string {
 		// base is file base (incl. nil)
 		return format(p.Filename(), p.Line(), p.Col(), showCol)
 	}
+
+	// TODO(gri): Column information should be printed if a line
+	// directive explicitly specified a column, per issue #22662.
 
 	// base is relative
 	// Print the column only for the original position since the
@@ -126,16 +139,16 @@ func format(filename string, line, col uint, showCol bool) string {
 // ----------------------------------------------------------------------------
 // PosBase
 
-// A PosBase encodes a filename and base line number.
-// Typically, each file and line pragma introduce a PosBase.
+// A PosBase encodes a filename and base position.
+// Typically, each file and line directive introduce a PosBase.
 // A nil *PosBase is a ready to use file PosBase for an unnamed
 // file with line numbers starting at 1.
 type PosBase struct {
-	pos         Pos
+	pos         Pos    // position at which the relative position is (line, col)
 	filename    string // file name used to open source file, for error messages
 	absFilename string // absolute file name, for PC-Line tables
 	symFilename string // cached symbol file name, to avoid repeated string concatenation
-	line        uint   // relative line number at pos
+	line, col   uint   // relative line, column number at pos
 	inl         int    // inlining index (see cmd/internal/obj/inl.go)
 }
 
@@ -155,11 +168,12 @@ func NewFileBase(filename, absFilename string) *PosBase {
 	return nil
 }
 
-// NewLinePragmaBase returns a new *PosBase for a line pragma of the form
-//      //line filename:line
+// NewLinePragmaBase returns a new *PosBase for a line directive of the form
+//      //line filename:line:col
+//      /*line filename:line:col*/
 // at position pos.
-func NewLinePragmaBase(pos Pos, filename, absFilename string, line uint) *PosBase {
-	return &PosBase{pos, filename, absFilename, FileSymPrefix + absFilename, line - 1, -1}
+func NewLinePragmaBase(pos Pos, filename, absFilename string, line, col uint) *PosBase {
+	return &PosBase{pos, filename, absFilename, FileSymPrefix + absFilename, line, col, -1}
 }
 
 // NewInliningBase returns a copy of the old PosBase with the given inlining
@@ -225,6 +239,15 @@ func (b *PosBase) SymFilename() string {
 func (b *PosBase) Line() uint {
 	if b != nil {
 		return b.line
+	}
+	return 0
+}
+
+// Col returns the column number recorded with the base.
+// If b == nil, the result is 0.
+func (b *PosBase) Col() uint {
+	if b != nil {
+		return b.col
 	}
 	return 0
 }

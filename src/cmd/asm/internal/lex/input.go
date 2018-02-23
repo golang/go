@@ -454,8 +454,8 @@ func (in *Input) line() {
 	if tok != '\n' {
 		in.Error("unexpected token at end of #line: ", tok)
 	}
-	pos := src.MakePos(in.Base(), uint(in.Line()), uint(in.Col()))
-	in.Stack.SetBase(src.NewLinePragmaBase(pos, file, objabi.AbsFile(objabi.WorkingDir(), file, *flags.TrimPath), uint(line)))
+	pos := src.MakePos(in.Base(), uint(in.Line())+1, 1) // +1 because #line nnn means line nnn starts on next line
+	in.Stack.SetBase(src.NewLinePragmaBase(pos, file, objabi.AbsFile(objabi.WorkingDir(), file, *flags.TrimPath), uint(line), 1))
 }
 
 // #undef processing
