@@ -226,6 +226,11 @@ func (re *Regexp) get() *machine {
 // grow to the maximum number of simultaneous matches
 // run using re.  (The cache empties when re gets garbage collected.)
 func (re *Regexp) put(z *machine) {
+	// Remove references to input data that we no longer need.
+	z.inputBytes.str = nil
+	z.inputString.str = ""
+	z.inputReader.r = nil
+
 	re.mu.Lock()
 	re.machine = append(re.machine, z)
 	re.mu.Unlock()
