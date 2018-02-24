@@ -298,7 +298,7 @@ var pkgDeps = map[string][]string{
 	"runtime/msan": {"C"},
 
 	// Plan 9 alone needs io/ioutil and os.
-	"os/user": {"L4", "CGO", "io/ioutil", "os", "syscall"},
+	"os/user": {"L4", "CGO", "io/ioutil", "os", "syscall", "internal/syscall/windows", "internal/syscall/windows/registry"},
 
 	// Internal package used only for testing.
 	"os/signal/internal/pty": {"CGO", "fmt", "os", "syscall"},

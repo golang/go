@@ -81,3 +81,5 @@ const (
 	TokenPrimary       TokenType = 1
 	TokenImpersonation TokenType = 2
 )
+
+//sys	GetProfilesDirectory(dir *uint16, dirLen *uint32) (err error) = userenv.GetProfilesDirectoryW
