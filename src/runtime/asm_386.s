@@ -424,24 +424,17 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-4
 	MOVL	g(CX), AX	// AX = g
 	MOVL	g_m(AX), BX	// BX = m
 
-	MOVL	m_gsignal(BX), DX	// DX = gsignal
-	CMPL	AX, DX
+	CMPL	AX, m_gsignal(BX)
 	JEQ	noswitch
 
 	MOVL	m_g0(BX), DX	// DX = g0
 	CMPL	AX, DX
 	JEQ	noswitch
 
-	MOVL	m_curg(BX), BP
-	CMPL	AX, BP
-	JEQ	switch
-	
-	// Bad: g is not gsignal, not g0, not curg. What is it?
-	// Hide call from linker nosplit analysis.
-	MOVL	$runtime·badsystemstack(SB), AX
-	CALL	AX
+	CMPL	AX, m_curg(BX)
+	JNE	bad
 
-switch:
+	// switch stacks
 	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
 	MOVL	$runtime·systemstack_switch(SB), (g_sched+gobuf_pc)(AX)
@@ -480,6 +473,12 @@ noswitch:
 	MOVL	DI, DX
 	MOVL	0(DI), DI
 	JMP	DI
+
+bad:
+	// Bad: g is not gsignal, not g0, not curg. What is it?
+	// Hide call from linker nosplit analysis.
+	MOVL	$runtime·badsystemstack(SB), AX
+	CALL	AX
 
 /*
  * support for morestack
