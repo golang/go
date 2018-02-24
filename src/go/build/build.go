@@ -813,7 +813,8 @@ Found:
 			})
 			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
 		}
-		if pf.Doc != nil && p.Doc == "" {
+		// Grab the first package comment as docs, provided it is not from a test file.
+		if pf.Doc != nil && p.Doc == "" && !isTest && !isXTest {
 			p.Doc = doc.Synopsis(pf.Doc.Text())
 		}
 
