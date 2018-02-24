@@ -64,7 +64,6 @@ func (tr *Reader) next() (*Header, error) {
 	// normally be visible to the outside. As such, this loop iterates through
 	// one or more "header files" until it finds a "normal file".
 	format := FormatUSTAR | FormatPAX | FormatGNU
-loop:
 	for {
 		// Discard the remainder of the file and any padding.
 		if err := discard(tr.r, tr.curr.PhysicalRemaining()); err != nil {
@@ -102,7 +101,7 @@ loop:
 					Format:     format,
 				}, nil
 			}
-			continue loop // This is a meta header affecting the next header
+			continue // This is a meta header affecting the next header
 		case TypeGNULongName, TypeGNULongLink:
 			format.mayOnlyBe(FormatGNU)
 			realname, err := ioutil.ReadAll(tr)
@@ -117,7 +116,7 @@ loop:
 			case TypeGNULongLink:
 				gnuLongLink = p.parseString(realname)
 			}
-			continue loop // This is a meta header affecting the next header
+			continue // This is a meta header affecting the next header
 		default:
 			// The old GNU sparse format is handled here since it is technically
 			// just a regular file with additional attributes.
