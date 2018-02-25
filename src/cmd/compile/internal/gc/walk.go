@@ -1700,10 +1700,7 @@ opswitch:
 		} else {
 			cmp = nod(OOROR, nod(ONE, lt, rt), nod(ONOT, call, nil))
 		}
-		cmp = typecheck(cmp, Erv)
-		cmp = walkexpr(cmp, init)
-		cmp.Type = n.Type
-		n = cmp
+		n = finishcompare(n, cmp, init)
 
 	case OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
 		if isStaticCompositeLiteral(n) && !canSSAType(n.Type) {
