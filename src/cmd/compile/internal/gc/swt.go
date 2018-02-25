@@ -315,16 +315,19 @@ func (s *exprSwitch) walkCases(cc []caseClause) *Node {
 				high := nod(OLE, s.exprname, rng[1])
 				a.Left = nod(OANDAND, low, high)
 				a.Left = typecheck(a.Left, Erv)
+				a.Left = defaultlit(a.Left, nil)
 				a.Left = walkexpr(a.Left, nil) // give walk the opportunity to optimize the range check
 			} else if (s.kind != switchKindTrue && s.kind != switchKindFalse) || assignop(n.Left.Type, s.exprname.Type, nil) == OCONVIFACE || assignop(s.exprname.Type, n.Left.Type, nil) == OCONVIFACE {
 				a.Left = nod(OEQ, s.exprname, n.Left) // if name == val
 				a.Left = typecheck(a.Left, Erv)
+				a.Left = defaultlit(a.Left, nil)
 			} else if s.kind == switchKindTrue {
 				a.Left = n.Left // if val
 			} else {
 				// s.kind == switchKindFalse
 				a.Left = nod(ONOT, n.Left, nil) // if !val
 				a.Left = typecheck(a.Left, Erv)
+				a.Left = defaultlit(a.Left, nil)
 			}
 			a.Nbody.Set1(n.Right) // goto l
 
@@ -354,6 +357,7 @@ func (s *exprSwitch) walkCases(cc []caseClause) *Node {
 		a.Left = le
 	}
 	a.Left = typecheck(a.Left, Erv)
+	a.Left = defaultlit(a.Left, nil)
 	a.Nbody.Set1(s.walkCases(cc[:half]))
 	a.Rlist.Set1(s.walkCases(cc[half:]))
 	return a
