@@ -861,7 +861,7 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 	//	MOVD addr, REGTMP
 	//	MOVD REGTMP, R
 	// where addr is the address of the DWORD containing the address of foo.
-	if p.As == AMOVD && a.Type != obj.TYPE_MEM || cls == C_ADDR || cls == C_VCON || int64(lit) != int64(int32(lit)) || uint64(lit) != uint64(uint32(lit)) {
+	if p.As == AMOVD && a.Type != obj.TYPE_MEM || cls == C_ADDR || cls == C_VCON || lit != int64(int32(lit)) || uint64(lit) != uint64(uint32(lit)) {
 		// conservative: don't know if we want signed or unsigned extension.
 		// in case of ambiguity, store 64-bit
 		t.As = ADWORD
@@ -2838,7 +2838,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if v == 0 {
 			c.ctxt.Diag("illegal system register:\n%v", p)
 		}
-		if (o1 & uint32(v&^(3<<19))) != 0 {
+		if (o1 & (v &^ (3 << 19))) != 0 {
 			c.ctxt.Diag("MRS register value overlap\n%v", p)
 		}
 
@@ -2858,7 +2858,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if v == 0 {
 			c.ctxt.Diag("illegal system register:\n%v", p)
 		}
-		if (o1 & uint32(v&^(3<<19))) != 0 {
+		if (o1 & (v &^ (3 << 19))) != 0 {
 			c.ctxt.Diag("MSR register value overlap\n%v", p)
 		}
 
@@ -3360,7 +3360,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			size = 2
 		} else if p.As == AVAND || p.As == AVEOR {
 			size = 0
-		} else if (p.As == AVFMLA || p.As == AVFMLS) {
+		} else if p.As == AVFMLA || p.As == AVFMLS {
 			if af == ARNG_2D {
 				size = 1
 			} else {
@@ -3512,7 +3512,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int(p.To.Reg)
 		imm5 := 0
 		o1 = 1<<30 | 7<<25 | 7<<10
-		index :=int(p.From.Index)
+		index := int(p.From.Index)
 		switch (p.To.Reg >> 5) & 15 {
 		case ARNG_B:
 			c.checkindex(p, index, 15)
@@ -3662,7 +3662,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		default:
 			c.ctxt.Diag("invalid arrangement on VMOV Rn, Vd.<T>: %v\n", p)
 		}
-		o1 |= (uint32(Q&1) << 30) | (uint32(imm5&0x1f) << 16)
+		o1 |= (Q & 1 << 30) | (imm5 & 0x1f << 16)
 		o1 |= (uint32(rf&31) << 5) | uint32(rt&31)
 
 	case 83: /* vmov Vn.<T>, Vd.<T> */
@@ -3883,7 +3883,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		o1 = c.opldrpp(p, p.As)
-		o1 |= (uint32(r&31) << 5) | (uint32((imm>>3)&0xfff) << 10) | (uint32(v & 31))
+		o1 |= (uint32(r&31) << 5) | ((imm >> 3) & 0xfff << 10) | (v & 31)
 
 	}
 	out[0] = o1

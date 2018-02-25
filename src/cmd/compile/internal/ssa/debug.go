@@ -95,7 +95,7 @@ func (state *stateAtPC) reset(live []liveSlot) {
 			reg := uint8(TrailingZeros64(mask))
 			mask &^= 1 << reg
 
-			registers[reg] = append(registers[reg], SlotID(live.slot))
+			registers[reg] = append(registers[reg], live.slot)
 		}
 	}
 	state.slots, state.registers = slots, registers
@@ -636,7 +636,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 				state.f.Fatalf("at %v: slot %v in register %v with no location entry", v, state.slots[slot], &state.registers[reg])
 				continue
 			}
-			regs := last.Registers &^ (1 << uint8(reg))
+			regs := last.Registers &^ (1 << reg)
 			setSlot(slot, VarLoc{regs, last.StackOffset})
 		}
 

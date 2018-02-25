@@ -5805,7 +5805,7 @@ func rewriteValuePPC64_OpPPC64CMPU_0(v *Value) bool {
 }
 func rewriteValuePPC64_OpPPC64CMPUconst_0(v *Value) bool {
 	// match: (CMPUconst (MOVDconst [x]) [y])
-	// cond: int64(x)==int64(y)
+	// cond: x==y
 	// result: (FlagEQ)
 	for {
 		y := v.AuxInt
@@ -5814,7 +5814,7 @@ func rewriteValuePPC64_OpPPC64CMPUconst_0(v *Value) bool {
 			break
 		}
 		x := v_0.AuxInt
-		if !(int64(x) == int64(y)) {
+		if !(x == y) {
 			break
 		}
 		v.reset(OpPPC64FlagEQ)
@@ -6112,7 +6112,7 @@ func rewriteValuePPC64_OpPPC64CMPWconst_0(v *Value) bool {
 }
 func rewriteValuePPC64_OpPPC64CMPconst_0(v *Value) bool {
 	// match: (CMPconst (MOVDconst [x]) [y])
-	// cond: int64(x)==int64(y)
+	// cond: x==y
 	// result: (FlagEQ)
 	for {
 		y := v.AuxInt
@@ -6121,14 +6121,14 @@ func rewriteValuePPC64_OpPPC64CMPconst_0(v *Value) bool {
 			break
 		}
 		x := v_0.AuxInt
-		if !(int64(x) == int64(y)) {
+		if !(x == y) {
 			break
 		}
 		v.reset(OpPPC64FlagEQ)
 		return true
 	}
 	// match: (CMPconst (MOVDconst [x]) [y])
-	// cond: int64(x)<int64(y)
+	// cond: x<y
 	// result: (FlagLT)
 	for {
 		y := v.AuxInt
@@ -6137,14 +6137,14 @@ func rewriteValuePPC64_OpPPC64CMPconst_0(v *Value) bool {
 			break
 		}
 		x := v_0.AuxInt
-		if !(int64(x) < int64(y)) {
+		if !(x < y) {
 			break
 		}
 		v.reset(OpPPC64FlagLT)
 		return true
 	}
 	// match: (CMPconst (MOVDconst [x]) [y])
-	// cond: int64(x)>int64(y)
+	// cond: x>y
 	// result: (FlagGT)
 	for {
 		y := v.AuxInt
@@ -6153,7 +6153,7 @@ func rewriteValuePPC64_OpPPC64CMPconst_0(v *Value) bool {
 			break
 		}
 		x := v_0.AuxInt
-		if !(int64(x) > int64(y)) {
+		if !(x > y) {
 			break
 		}
 		v.reset(OpPPC64FlagGT)

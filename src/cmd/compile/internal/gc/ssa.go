@@ -4752,11 +4752,11 @@ func genssa(f *ssa.Func, pp *Progs) {
 		e.curfn.Func.DebugInfo.GetPC = func(b, v ssa.ID) int64 {
 			switch v {
 			case ssa.BlockStart.ID:
-				return int64(bstart[b].Pc)
+				return bstart[b].Pc
 			case ssa.BlockEnd.ID:
-				return int64(e.curfn.Func.lsym.Size)
+				return e.curfn.Func.lsym.Size
 			default:
-				return int64(valueToProgAfter[v].Pc)
+				return valueToProgAfter[v].Pc
 			}
 		}
 	}

@@ -346,7 +346,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		o := p.As
 		switch o {
 		case obj.ATEXT:
-			autosize = int32(autoffset)
+			autosize = autoffset
 
 			if p.Mark&LEAF != 0 && autosize == 0 {
 				// A leaf function with no locals has no frame.

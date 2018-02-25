@@ -297,7 +297,7 @@
 (Zero [s] {t} ptr mem)
 	&& s%4 == 0 && s > 4 && s <= 512
 	&& t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice ->
-	(DUFFZERO [4 * (128 - int64(s/4))] ptr (MOVWconst [0]) mem)
+	(DUFFZERO [4 * (128 - s/4)] ptr (MOVWconst [0]) mem)
 
 // Large zeroing uses a loop
 (Zero [s] {t} ptr mem)
@@ -337,7 +337,7 @@
 (Move [s] {t} dst src mem)
 	&& s%4 == 0 && s > 4 && s <= 512
 	&& t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice ->
-	(DUFFCOPY [8 * (128 - int64(s/4))] dst src mem)
+	(DUFFCOPY [8 * (128 - s/4)] dst src mem)
 
 // Large move uses a loop
 (Move [s] {t} dst src mem)

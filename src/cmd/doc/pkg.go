@@ -622,7 +622,7 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 						// This a standalone identifier, as in the case of iota usage.
 						// Thus, assume the type comes from the previous type.
 						vspec.Type = &ast.Ident{
-							Name:    string(pkg.oneLineNode(typ)),
+							Name:    pkg.oneLineNode(typ),
 							NamePos: vspec.End() - 1,
 						}
 					}

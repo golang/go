@@ -575,7 +575,7 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 					ld.Errorf(s, "unexpected trampoline for shared or dynamic linking\n")
 				} else {
 					ctxt.AddTramp(tramp)
-					gentramp(ctxt.Arch, ctxt.LinkMode, tramp, r.Sym, int64(r.Add))
+					gentramp(ctxt.Arch, ctxt.LinkMode, tramp, r.Sym, r.Add)
 				}
 			}
 			r.Sym = tramp

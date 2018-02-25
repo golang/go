@@ -485,7 +485,7 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 func gentramp(arch *sys.Arch, linkmode ld.LinkMode, tramp, target *sym.Symbol, offset int64) {
 	tramp.Size = 12 // 3 instructions
 	tramp.P = make([]byte, tramp.Size)
-	t := ld.Symaddr(target) + int64(offset)
+	t := ld.Symaddr(target) + offset
 	o1 := uint32(0xe5900000 | 11<<12 | 15<<16) // MOVW (R15), R11 // R15 is actual pc + 8
 	o2 := uint32(0xe12fff10 | 11)              // JMP  (R11)
 	o3 := uint32(t)                            // WORD $target
@@ -538,8 +538,8 @@ func gentrampdyn(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
 		tramp.Size = 24 // 6 instructions
 		o6 = o5
 		o5 = o4
-		o4 = uint32(0xe2800000 | 11<<12 | 11<<16 | immrot(uint32(offset))) // ADD $offset, R11, R11
-		o1 = uint32(0xe5900000 | 11<<12 | 15<<16 | 12)                     // MOVW 12(R15), R11
+		o4 = 0xe2800000 | 11<<12 | 11<<16 | immrot(uint32(offset)) // ADD $offset, R11, R11
+		o1 = uint32(0xe5900000 | 11<<12 | 15<<16 | 12)             // MOVW 12(R15), R11
 	}
 	tramp.P = make([]byte, tramp.Size)
 	arch.ByteOrder.PutUint32(tramp.P, o1)

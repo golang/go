@@ -444,15 +444,15 @@
 (CMPWconst (MOVDconst [x]) [y]) && int32(x)<int32(y)  -> (FlagLT)
 (CMPWconst (MOVDconst [x]) [y]) && int32(x)>int32(y)  -> (FlagGT)
 
-(CMPconst (MOVDconst [x]) [y]) && int64(x)==int64(y) -> (FlagEQ)
-(CMPconst (MOVDconst [x]) [y]) && int64(x)<int64(y)  -> (FlagLT)
-(CMPconst (MOVDconst [x]) [y]) && int64(x)>int64(y)  -> (FlagGT)
+(CMPconst (MOVDconst [x]) [y]) && x==y -> (FlagEQ)
+(CMPconst (MOVDconst [x]) [y]) && x<y  -> (FlagLT)
+(CMPconst (MOVDconst [x]) [y]) && x>y  -> (FlagGT)
 
 (CMPWUconst (MOVDconst [x]) [y]) && int32(x)==int32(y)  -> (FlagEQ)
 (CMPWUconst (MOVDconst [x]) [y]) && uint32(x)<uint32(y) -> (FlagLT)
 (CMPWUconst (MOVDconst [x]) [y]) && uint32(x)>uint32(y) -> (FlagGT)
 
-(CMPUconst (MOVDconst [x]) [y]) && int64(x)==int64(y)  -> (FlagEQ)
+(CMPUconst (MOVDconst [x]) [y]) && x==y  -> (FlagEQ)
 (CMPUconst (MOVDconst [x]) [y]) && uint64(x)<uint64(y) -> (FlagLT)
 (CMPUconst (MOVDconst [x]) [y]) && uint64(x)>uint64(y) -> (FlagGT)
 

@@ -409,7 +409,7 @@
 (Zero [s] ptr mem)
 	&& s%16 == 0 && s > 64 && s <= 16*64
 	&& !config.noDuffDevice ->
-	(DUFFZERO [4 * (64 - int64(s/16))] ptr mem)
+	(DUFFZERO [4 * (64 - s/16)] ptr mem)
 
 // large zeroing uses a loop
 (Zero [s] ptr mem)
@@ -462,7 +462,7 @@
 (Move [s] dst src mem)
 	&& s%8 == 0 && s > 24 && s <= 8*128
 	&& !config.noDuffDevice ->
-	(DUFFCOPY [8 * (128 - int64(s/8))] dst src mem)
+	(DUFFCOPY [8 * (128 - s/8)] dst src mem)
 
 // large move uses a loop
 (Move [s] dst src mem)
@@ -904,18 +904,18 @@
 (SUBconst [c] (MOVDconst [d]))  -> (MOVDconst [d-c])
 (SUBconst [c] (SUBconst [d] x)) -> (ADDconst [-c-d] x)
 (SUBconst [c] (ADDconst [d] x)) -> (ADDconst [-c+d] x)
-(SLLconst [c] (MOVDconst [d]))  -> (MOVDconst [int64(d)<<uint64(c)])
+(SLLconst [c] (MOVDconst [d]))  -> (MOVDconst [d<<uint64(c)])
 (SRLconst [c] (MOVDconst [d]))  -> (MOVDconst [int64(uint64(d)>>uint64(c))])
-(SRAconst [c] (MOVDconst [d]))  -> (MOVDconst [int64(d)>>uint64(c)])
+(SRAconst [c] (MOVDconst [d]))  -> (MOVDconst [d>>uint64(c)])
 (MUL   (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c*d])
 (MULW  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(int32(c)*int32(d))])
 (MNEG  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [-c*d])
 (MNEGW (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [-int64(int32(c)*int32(d))])
-(DIV   (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(c)/int64(d)])
+(DIV   (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c/d])
 (UDIV  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(uint64(c)/uint64(d))])
 (DIVW  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(int32(c)/int32(d))])
 (UDIVW (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(uint32(c)/uint32(d))])
-(MOD   (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(c)%int64(d)])
+(MOD   (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c%d])
 (UMOD  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(uint64(c)%uint64(d))])
 (MODW  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(int32(c)%int32(d))])
 (UMODW (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(uint32(c)%uint32(d))])
@@ -938,10 +938,10 @@
 
 // constant comparisons
 (CMPconst  (MOVDconst [x]) [y]) && x==y -> (FlagEQ)
-(CMPconst  (MOVDconst [x]) [y]) && int64(x)<int64(y) && uint64(x)<uint64(y) -> (FlagLT_ULT)
-(CMPconst  (MOVDconst [x]) [y]) && int64(x)<int64(y) && uint64(x)>uint64(y) -> (FlagLT_UGT)
-(CMPconst  (MOVDconst [x]) [y]) && int64(x)>int64(y) && uint64(x)<uint64(y) -> (FlagGT_ULT)
-(CMPconst  (MOVDconst [x]) [y]) && int64(x)>int64(y) && uint64(x)>uint64(y) -> (FlagGT_UGT)
+(CMPconst  (MOVDconst [x]) [y]) && x<y && uint64(x)<uint64(y) -> (FlagLT_ULT)
+(CMPconst  (MOVDconst [x]) [y]) && x<y && uint64(x)>uint64(y) -> (FlagLT_UGT)
+(CMPconst  (MOVDconst [x]) [y]) && x>y && uint64(x)<uint64(y) -> (FlagGT_ULT)
+(CMPconst  (MOVDconst [x]) [y]) && x>y && uint64(x)>uint64(y) -> (FlagGT_UGT)
 (CMPWconst (MOVDconst [x]) [y]) && int32(x)==int32(y) -> (FlagEQ)
 (CMPWconst (MOVDconst [x]) [y]) && int32(x)<int32(y) && uint32(x)<uint32(y) -> (FlagLT_ULT)
 (CMPWconst (MOVDconst [x]) [y]) && int32(x)<int32(y) && uint32(x)>uint32(y) -> (FlagLT_UGT)
@@ -1182,25 +1182,25 @@
 // constant folding in *shift ops
 (ADDshiftLL x (MOVDconst [c]) [d]) -> (ADDconst x [int64(uint64(c)<<uint64(d))])
 (ADDshiftRL x (MOVDconst [c]) [d]) -> (ADDconst x [int64(uint64(c)>>uint64(d))])
-(ADDshiftRA x (MOVDconst [c]) [d]) -> (ADDconst x [int64(int64(c)>>uint64(d))])
+(ADDshiftRA x (MOVDconst [c]) [d]) -> (ADDconst x [c>>uint64(d)])
 (SUBshiftLL x (MOVDconst [c]) [d]) -> (SUBconst x [int64(uint64(c)<<uint64(d))])
 (SUBshiftRL x (MOVDconst [c]) [d]) -> (SUBconst x [int64(uint64(c)>>uint64(d))])
-(SUBshiftRA x (MOVDconst [c]) [d]) -> (SUBconst x [int64(int64(c)>>uint64(d))])
+(SUBshiftRA x (MOVDconst [c]) [d]) -> (SUBconst x [c>>uint64(d)])
 (ANDshiftLL x (MOVDconst [c]) [d]) -> (ANDconst x [int64(uint64(c)<<uint64(d))])
 (ANDshiftRL x (MOVDconst [c]) [d]) -> (ANDconst x [int64(uint64(c)>>uint64(d))])
-(ANDshiftRA x (MOVDconst [c]) [d]) -> (ANDconst x [int64(int64(c)>>uint64(d))])
+(ANDshiftRA x (MOVDconst [c]) [d]) -> (ANDconst x [c>>uint64(d)])
 (ORshiftLL  x (MOVDconst [c]) [d]) -> (ORconst  x [int64(uint64(c)<<uint64(d))])
 (ORshiftRL  x (MOVDconst [c]) [d]) -> (ORconst  x [int64(uint64(c)>>uint64(d))])
-(ORshiftRA  x (MOVDconst [c]) [d]) -> (ORconst  x [int64(int64(c)>>uint64(d))])
+(ORshiftRA  x (MOVDconst [c]) [d]) -> (ORconst  x [c>>uint64(d)])
 (XORshiftLL x (MOVDconst [c]) [d]) -> (XORconst x [int64(uint64(c)<<uint64(d))])
 (XORshiftRL x (MOVDconst [c]) [d]) -> (XORconst x [int64(uint64(c)>>uint64(d))])
-(XORshiftRA x (MOVDconst [c]) [d]) -> (XORconst x [int64(int64(c)>>uint64(d))])
+(XORshiftRA x (MOVDconst [c]) [d]) -> (XORconst x [c>>uint64(d)])
 (BICshiftLL x (MOVDconst [c]) [d]) -> (BICconst x [int64(uint64(c)<<uint64(d))])
 (BICshiftRL x (MOVDconst [c]) [d]) -> (BICconst x [int64(uint64(c)>>uint64(d))])
-(BICshiftRA x (MOVDconst [c]) [d]) -> (BICconst x [int64(int64(c)>>uint64(d))])
+(BICshiftRA x (MOVDconst [c]) [d]) -> (BICconst x [c>>uint64(d)])
 (CMPshiftLL x (MOVDconst [c]) [d]) -> (CMPconst x [int64(uint64(c)<<uint64(d))])
 (CMPshiftRL x (MOVDconst [c]) [d]) -> (CMPconst x [int64(uint64(c)>>uint64(d))])
-(CMPshiftRA x (MOVDconst [c]) [d]) -> (CMPconst x [int64(int64(c)>>uint64(d))])
+(CMPshiftRA x (MOVDconst [c]) [d]) -> (CMPconst x [c>>uint64(d)])
 
 // simplification with *shift ops
 (SUBshiftLL x (SLLconst x [c]) [d]) && c==d -> (MOVDconst [0])

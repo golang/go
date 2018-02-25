@@ -776,7 +776,7 @@ func GetAbbrev() []byte {
 		// See section 7.5.3
 		buf = AppendUleb128(buf, uint64(i))
 		buf = AppendUleb128(buf, uint64(abbrevs[i].tag))
-		buf = append(buf, byte(abbrevs[i].children))
+		buf = append(buf, abbrevs[i].children)
 		for _, f := range abbrevs[i].attr {
 			buf = AppendUleb128(buf, uint64(f.attr))
 			buf = AppendUleb128(buf, uint64(f.form))
@@ -1454,7 +1454,7 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
 	}
 
 	if abbrevUsesLoclist(abbrev) {
-		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, int64(s.Loc.Len()), s.Loc)
+		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, s.Loc.Len(), s.Loc)
 		v.PutLocationList(s.Loc, s.StartPC)
 	} else {
 		loc := encbuf[:0]
