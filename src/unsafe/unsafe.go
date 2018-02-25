@@ -158,7 +158,7 @@ type ArbitraryType int
 //	hdr.Len = n
 //
 // In this usage hdr.Data is really an alternate way to refer to the underlying
-// pointer in the slice header, not a uintptr variable itself.
+// pointer in the string header, not a uintptr variable itself.
 //
 // In general, reflect.SliceHeader and reflect.StringHeader should be used
 // only as *reflect.SliceHeader and *reflect.StringHeader pointing at actual
