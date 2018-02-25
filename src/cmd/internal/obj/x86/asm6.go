@@ -3930,7 +3930,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				} else {
 					regnum &= byte(p.GetFrom3().Reg - REG_Y0)
 				}
-				asmbuf.Put1(byte(o.op[z+2]) | regnum)
+				asmbuf.Put1(o.op[z+2] | regnum)
 				asmbuf.Put1(byte(p.From.Offset))
 
 			case Zvex_i_rm_v_r:

@@ -246,8 +246,8 @@ func insertInlCall(dwcalls *dwarf.InlCalls, inlIdx int, imap map[int]int) int {
 	}
 
 	// Create new entry for this inline
-	inlinedFn := Ctxt.InlTree.InlinedFunction(int(inlIdx))
-	callXPos := Ctxt.InlTree.CallPos(int(inlIdx))
+	inlinedFn := Ctxt.InlTree.InlinedFunction(inlIdx)
+	callXPos := Ctxt.InlTree.CallPos(inlIdx)
 	absFnSym := Ctxt.DwFixups.AbsFuncDwarfSym(inlinedFn)
 	pb := Ctxt.PosTable.Pos(callXPos).Base()
 	callFileSym := Ctxt.Lookup(pb.SymFilename())

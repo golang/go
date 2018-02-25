@@ -1350,7 +1350,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 			if len(data) <= strlen {
 				fatalf("invalid string literal")
 			}
-			strs[n] = string(data[:strlen])
+			strs[n] = data[:strlen]
 		}
 	}
 

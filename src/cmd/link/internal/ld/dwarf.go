@@ -1013,7 +1013,7 @@ func putpclcdelta(linkctxt *Link, ctxt dwarf.Context, s *sym.Symbol, deltaPC uin
 
 	// Subtract from deltaPC and deltaLC the amounts that the opcode will add.
 	deltaPC -= uint64((opcode - OPCODE_BASE) / LINE_RANGE)
-	deltaLC -= int64((opcode-OPCODE_BASE)%LINE_RANGE + LINE_BASE)
+	deltaLC -= (opcode-OPCODE_BASE)%LINE_RANGE + LINE_BASE
 
 	// Encode deltaPC.
 	if deltaPC != 0 {

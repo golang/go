@@ -524,7 +524,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.To.Type = obj.TYPE_MEM
 					q.To.Offset = int64(-autosize)
 					q.To.Reg = REGSP
-					q.Spadj = int32(autosize)
+					q.Spadj = autosize
 				} else {
 					// Frame size is too large for a MOVDU instruction.
 					// Store link register before decrementing SP, so if a signal comes

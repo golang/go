@@ -20066,7 +20066,7 @@ func rewriteValueARM_OpMove_0(v *Value) bool {
 	}
 	// match: (Move [s] {t} dst src mem)
 	// cond: s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice
-	// result: (DUFFCOPY [8 * (128 - int64(s/4))] dst src mem)
+	// result: (DUFFCOPY [8 * (128 - s/4)] dst src mem)
 	for {
 		s := v.AuxInt
 		t := v.Aux
@@ -20078,7 +20078,7 @@ func rewriteValueARM_OpMove_0(v *Value) bool {
 			break
 		}
 		v.reset(OpARMDUFFCOPY)
-		v.AuxInt = 8 * (128 - int64(s/4))
+		v.AuxInt = 8 * (128 - s/4)
 		v.AddArg(dst)
 		v.AddArg(src)
 		v.AddArg(mem)
@@ -21985,7 +21985,7 @@ func rewriteValueARM_OpZero_0(v *Value) bool {
 	}
 	// match: (Zero [s] {t} ptr mem)
 	// cond: s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice
-	// result: (DUFFZERO [4 * (128 - int64(s/4))] ptr (MOVWconst [0]) mem)
+	// result: (DUFFZERO [4 * (128 - s/4)] ptr (MOVWconst [0]) mem)
 	for {
 		s := v.AuxInt
 		t := v.Aux
@@ -21996,7 +21996,7 @@ func rewriteValueARM_OpZero_0(v *Value) bool {
 			break
 		}
 		v.reset(OpARMDUFFZERO)
-		v.AuxInt = 4 * (128 - int64(s/4))
+		v.AuxInt = 4 * (128 - s/4)
 		v.AddArg(ptr)
 		v0 := b.NewValue0(v.Pos, OpARMMOVWconst, typ.UInt32)
 		v0.AuxInt = 0

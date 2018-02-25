@@ -3409,31 +3409,31 @@ func walkcompare(n *Node, init *Nodes) *Node {
 			}
 			if step == 1 {
 				compare(
-					nod(OINDEX, cmpl, nodintconst(int64(i))),
-					nod(OINDEX, cmpr, nodintconst(int64(i))),
+					nod(OINDEX, cmpl, nodintconst(i)),
+					nod(OINDEX, cmpr, nodintconst(i)),
 				)
 				i++
 				remains -= t.Elem().Width
 			} else {
 				elemType := t.Elem().ToUnsigned()
-				cmplw := nod(OINDEX, cmpl, nodintconst(int64(i)))
+				cmplw := nod(OINDEX, cmpl, nodintconst(i))
 				cmplw = conv(cmplw, elemType) // convert to unsigned
 				cmplw = conv(cmplw, convType) // widen
-				cmprw := nod(OINDEX, cmpr, nodintconst(int64(i)))
+				cmprw := nod(OINDEX, cmpr, nodintconst(i))
 				cmprw = conv(cmprw, elemType)
 				cmprw = conv(cmprw, convType)
 				// For code like this:  uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 ...
 				// ssa will generate a single large load.
 				for offset := int64(1); offset < step; offset++ {
-					lb := nod(OINDEX, cmpl, nodintconst(int64(i+offset)))
+					lb := nod(OINDEX, cmpl, nodintconst(i+offset))
 					lb = conv(lb, elemType)
 					lb = conv(lb, convType)
-					lb = nod(OLSH, lb, nodintconst(int64(8*t.Elem().Width*offset)))
+					lb = nod(OLSH, lb, nodintconst(8*t.Elem().Width*offset))
 					cmplw = nod(OOR, cmplw, lb)
-					rb := nod(OINDEX, cmpr, nodintconst(int64(i+offset)))
+					rb := nod(OINDEX, cmpr, nodintconst(i+offset))
 					rb = conv(rb, elemType)
 					rb = conv(rb, convType)
-					rb = nod(OLSH, rb, nodintconst(int64(8*t.Elem().Width*offset)))
+					rb = nod(OLSH, rb, nodintconst(8*t.Elem().Width*offset))
 					cmprw = nod(OOR, cmprw, rb)
 				}
 				compare(cmplw, cmprw)

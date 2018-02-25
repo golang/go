@@ -417,7 +417,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 						o -= int64(r.Off) // relative to section offset, not symbol
 					} else if ctxt.Arch.Family == sys.ARM {
 						// see ../arm/asm.go:/machoreloc1
-						o += Symaddr(rs) - int64(s.Value) - int64(r.Off)
+						o += Symaddr(rs) - s.Value - int64(r.Off)
 					} else {
 						o += int64(r.Siz)
 					}
@@ -2006,7 +2006,7 @@ func (ctxt *Link) address() {
 	Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(*FlagRound)))
 	Segdwarf.Filelen = 0
 	if ctxt.HeadType == objabi.Hwindows {
-		Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(PEFILEALIGN)))
+		Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), PEFILEALIGN))
 	}
 	for i, s := range Segdwarf.Sections {
 		vlen := int64(s.Length)

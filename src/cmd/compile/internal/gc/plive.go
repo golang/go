@@ -1021,7 +1021,7 @@ Outer:
 		for _, v := range b.Values {
 			if issafepoint(v) {
 				lv.showlive(v, lv.livevars[remap[pos]])
-				lv.stackMapIndex[v] = int(remap[pos])
+				lv.stackMapIndex[v] = remap[pos]
 				pos++
 			}
 		}

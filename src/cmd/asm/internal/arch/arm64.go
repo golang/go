@@ -133,49 +133,49 @@ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, i
 		if !isAmount {
 			return errors.New("invalid register extension")
 		}
-		a.Reg = arm64.REG_UXTB + (reg & 31) + int16(num<<5)
+		a.Reg = arm64.REG_UXTB + (reg & 31) + num<<5
 		a.Offset = int64(((rm & 31) << 16) | (uint32(num) << 10))
 	case "UXTH":
 		if !isAmount {
 			return errors.New("invalid register extension")
 		}
-		a.Reg = arm64.REG_UXTH + (reg & 31) + int16(num<<5)
+		a.Reg = arm64.REG_UXTH + (reg & 31) + num<<5
 		a.Offset = int64(((rm & 31) << 16) | (1 << 13) | (uint32(num) << 10))
 	case "UXTW":
 		if !isAmount {
 			return errors.New("invalid register extension")
 		}
-		a.Reg = arm64.REG_UXTW + (reg & 31) + int16(num<<5)
+		a.Reg = arm64.REG_UXTW + (reg & 31) + num<<5
 		a.Offset = int64(((rm & 31) << 16) | (2 << 13) | (uint32(num) << 10))
 	case "UXTX":
 		if !isAmount {
 			return errors.New("invalid register extension")
 		}
-		a.Reg = arm64.REG_UXTX + (reg & 31) + int16(num<<5)
+		a.Reg = arm64.REG_UXTX + (reg & 31) + num<<5
 		a.Offset = int64(((rm & 31) << 16) | (3 << 13) | (uint32(num) << 10))
 	case "SXTB":
 		if !isAmount {
 			return errors.New("invalid register extension")
 		}
-		a.Reg = arm64.REG_SXTB + (reg & 31) + int16(num<<5)
+		a.Reg = arm64.REG_SXTB + (reg & 31) + num<<5
 		a.Offset = int64(((rm & 31) << 16) | (4 << 13) | (uint32(num) << 10))
 	case "SXTH":
 		if !isAmount {
 			return errors.New("invalid register extension")
 		}
-		a.Reg = arm64.REG_SXTH + (reg & 31) + int16(num<<5)
+		a.Reg = arm64.REG_SXTH + (reg & 31) + num<<5
 		a.Offset = int64(((rm & 31) << 16) | (5 << 13) | (uint32(num) << 10))
 	case "SXTW":
 		if !isAmount {
 			return errors.New("invalid register extension")
 		}
-		a.Reg = arm64.REG_SXTW + (reg & 31) + int16(num<<5)
+		a.Reg = arm64.REG_SXTW + (reg & 31) + num<<5
 		a.Offset = int64(((rm & 31) << 16) | (6 << 13) | (uint32(num) << 10))
 	case "SXTX":
 		if !isAmount {
 			return errors.New("invalid register extension")
 		}
-		a.Reg = arm64.REG_SXTX + (reg & 31) + int16(num<<5)
+		a.Reg = arm64.REG_SXTX + (reg & 31) + num<<5
 		a.Offset = int64(((rm & 31) << 16) | (7 << 13) | (uint32(num) << 10))
 	case "B8":
 		if isIndex {
