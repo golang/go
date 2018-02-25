@@ -415,6 +415,14 @@ p.link {
   margin-left: 20px;
 }
 
+.pagenumber {
+  color: #8c8c8c;
+  font-size: 75%;
+  position: absolute;
+  bottom: 0px;
+  right: 10px;
+}
+
 /* Code */
 div.code {
   outline: 0px solid transparent;
