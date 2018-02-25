@@ -93,7 +93,7 @@ func getProfilesDirectory() (string, error) {
 	}
 }
 
-// lookupUsernameAndDomain obtains username and domain for usid.
+// lookupUsernameAndDomain obtains the username and domain for usid.
 func lookupUsernameAndDomain(usid *syscall.SID) (username, domain string, e error) {
 	username, domain, t, e := usid.LookupAccount("")
 	if e != nil {
@@ -105,7 +105,7 @@ func lookupUsernameAndDomain(usid *syscall.SID) (username, domain string, e erro
 	return username, domain, nil
 }
 
-// findHomeDirInRegistry finds the user home path based on usid string
+// findHomeDirInRegistry finds the user home path based on the uid.
 func findHomeDirInRegistry(uid string) (dir string, e error) {
 	k, e := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\`+uid, registry.QUERY_VALUE)
 	if e != nil {
@@ -180,21 +180,21 @@ func newUserFromSid(usid *syscall.SID) (*User, error) {
 	if e != nil {
 		return nil, e
 	}
-	// if this user has logged at least once his home path should be stored
-	// in the registry under his SID. references:
+	// If this user has logged in at least once their home path should be stored
+	// in the registry under the specified SID. References:
 	// https://social.technet.microsoft.com/wiki/contents/articles/13895.how-to-remove-a-corrupted-user-profile-from-the-registry.aspx
 	// https://support.asperasoft.com/hc/en-us/articles/216127438-How-to-delete-Windows-user-profiles
 	//
-	// the registry is the most reliable way to find the home path as the user
-	// might have decided to move it outside of the default location
-	// (e.g. c:\users). reference:
+	// The registry is the most reliable way to find the home path as the user
+	// might have decided to move it outside of the default location,
+	// (e.g. C:\users). Reference:
 	// https://answers.microsoft.com/en-us/windows/forum/windows_7-security/how-do-i-set-a-home-directory-outside-cusers-for-a/aed68262-1bf4-4a4d-93dc-7495193a440f
 	dir, e := findHomeDirInRegistry(uid)
 	if e != nil {
-		// if the home path does not exists in the registry, the user might have
-		// not logged in yet; fall back to using getProfilesDirectory(). find the
-		// username based on a SID and append that to the result of
-		// getProfilesDirectory(). the domain is not of relevance here.
+		// If the home path does not exist in the registry, the user might
+		// have not logged in yet; fall back to using getProfilesDirectory().
+		// Find the username based on a SID and append that to the result of
+		// getProfilesDirectory(). The domain is not relevant here.
 		dir, e = getProfilesDirectory()
 		if e != nil {
 			return nil, e
