@@ -3452,18 +3452,14 @@ func walkcompare(n *Node, init *Nodes) *Node {
 // The result of finishcompare MUST be assigned back to n, e.g.
 // 	n.Left = finishcompare(n.Left, x, r, init)
 func finishcompare(n, r *Node, init *Nodes) *Node {
-	// Use nn here to avoid passing r to typecheck.
-	nn := r
-	nn = typecheck(nn, Erv)
-	nn = walkexpr(nn, init)
-	r = nn
+	r = typecheck(r, Erv)
+	r = walkexpr(r, init)
 	if r.Type != n.Type {
 		r = nod(OCONVNOP, r, nil)
 		r.Type = n.Type
-		r.SetTypecheck(1)
-		nn = r
+		r = typecheck(r, Erv)
 	}
-	return nn
+	return r
 }
 
 // isIntOrdering reports whether n is a <, ≤, >, or ≥ ordering between integers.
