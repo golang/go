@@ -302,3 +302,52 @@ func TestBuilderCopyPanic(t *testing.T) {
 		}
 	}
 }
+
+var someBytes = []byte("some bytes sdljlk jsklj3lkjlk djlkjw")
+
+var sinkS string
+
+func benchmarkBuilder(b *testing.B, f func(b *testing.B, numWrite int, grow bool)) {
+	b.Run("1Write_NoGrow", func(b *testing.B) {
+		b.ReportAllocs()
+		f(b, 1, false)
+	})
+	b.Run("3Write_NoGrow", func(b *testing.B) {
+		b.ReportAllocs()
+		f(b, 3, false)
+	})
+	b.Run("3Write_Grow", func(b *testing.B) {
+		b.ReportAllocs()
+		f(b, 3, true)
+	})
+}
+
+func BenchmarkBuildString_Builder(b *testing.B) {
+	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
+		for i := 0; i < b.N; i++ {
+			var buf Builder
+			if grow {
+				buf.Grow(len(someBytes) * numWrite)
+			}
+			for i := 0; i < numWrite; i++ {
+				buf.Write(someBytes)
+			}
+			sinkS = buf.String()
+		}
+	})
+}
+
+func BenchmarkBuildString_ByteBuffer(b *testing.B) {
+	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
+		for i := 0; i < b.N; i++ {
+			var buf bytes.Buffer
+			if grow {
+				buf.Grow(len(someBytes) * numWrite)
+			}
+			for i := 0; i < numWrite; i++ {
+				buf.Write(someBytes)
+			}
+			sinkS = buf.String()
+		}
+	})
+}
