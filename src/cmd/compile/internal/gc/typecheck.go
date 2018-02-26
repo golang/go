@@ -3114,7 +3114,18 @@ func typecheckcomplit(n *Node) *Node {
 					if ci := lookdot1(nil, l.Sym, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
 						yyerror("unknown field '%v' in struct literal of type %v (but does have %v)", l.Sym, t, ci.Sym)
 					} else {
-						yyerror("unknown field '%v' in struct literal of type %v", l.Sym, t)
+						p, _ := dotpath(l.Sym, t, nil, true)
+						if p == nil {
+							yyerror("unknown field '%v' in struct literal of type %v", l.Sym, t)
+							continue
+						}
+						// dotpath returns the parent embedded types in reverse order.
+						var ep []string
+						for ei := len(p) - 1; ei >= 0; ei-- {
+							ep = append(ep, p[ei].field.Type.Sym.Name)
+						}
+						ep = append(ep, l.Sym.Name)
+						yyerror("cannot use promoted field %v in struct literal of type %v", strings.Join(ep, "."), t)
 					}
 					continue
 				}
