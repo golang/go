@@ -621,3 +621,19 @@ func TestBadTraceback(t *testing.T) {
 		}
 	}
 }
+
+func TestTimePprof(t *testing.T) {
+	fn := runTestProg(t, "testprog", "TimeProf")
+	fn = strings.TrimSpace(fn)
+	defer os.Remove(fn)
+
+	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-top", "-nodecount=1", fn))
+	cmd.Env = append(cmd.Env, "PPROF_TMPDIR="+os.TempDir())
+	top, err := cmd.CombinedOutput()
+	t.Logf("%s", top)
+	if err != nil {
+		t.Error(err)
+	} else if bytes.Contains(top, []byte("ExternalCode")) {
+		t.Error("profiler refers to ExternalCode")
+	}
+}

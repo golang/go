@@ -218,13 +218,18 @@ TEXT runtime·walltime(SB),NOSPLIT,$0-12
 	// Save old SP. Use R13 instead of SP to avoid linker rewriting the offsets.
 	MOVW	R13, R4	// R4 is unchanged by C code.
 
-	MOVW	g_m(g), R1
-	MOVW	m_curg(R1), R0
+	MOVW	g_m(g), R5 // R5 is unchanged by C code.
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVW	LR, m_vdsoPC(R5)
+	MOVW	R13, m_vdsoSP(R5)
+
+	MOVW	m_curg(R5), R0
 
 	CMP	g, R0		// Only switch if on curg.
 	B.NE	noswitch
 
-	MOVW	m_g0(R1), R0
+	MOVW	m_g0(R5), R0
 	MOVW	(g_sched+gobuf_sp)(R0), R13	 // Set SP to g0 stack
 
 noswitch:
@@ -249,9 +254,10 @@ finish:
 	MOVW	12(R13), R2  // nsec
 
 	MOVW	R4, R13		// Restore real SP
+	MOVW	$0, R1
+	MOVW	R1, m_vdsoSP(R5)
 
 	MOVW	R0, sec_lo+0(FP)
-	MOVW	$0, R1
 	MOVW	R1, sec_hi+4(FP)
 	MOVW	R2, nsec+8(FP)
 	RET
@@ -263,13 +269,18 @@ TEXT runtime·nanotime(SB),NOSPLIT,$0-8
 	// Save old SP. Use R13 instead of SP to avoid linker rewriting the offsets.
 	MOVW	R13, R4	// R4 is unchanged by C code.
 
-	MOVW	g_m(g), R1
-	MOVW	m_curg(R1), R0
+	MOVW	g_m(g), R5 // R5 is unchanged by C code.
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVW	LR, m_vdsoPC(R5)
+	MOVW	R13, m_vdsoSP(R5)
+
+	MOVW	m_curg(R5), R0
 
 	CMP	g, R0		// Only switch if on curg.
 	B.NE	noswitch
 
-	MOVW	m_g0(R1), R0
+	MOVW	m_g0(R5), R0
 	MOVW	(g_sched+gobuf_sp)(R0), R13	// Set SP to g0 stack
 
 noswitch:
@@ -294,10 +305,11 @@ finish:
 	MOVW	12(R13), R2	// nsec
 
 	MOVW	R4, R13		// Restore real SP
+	MOVW	$0, R4
+	MOVW	R4, m_vdsoSP(R5)
 
 	MOVW	$1000000000, R3
 	MULLU	R0, R3, (R1, R0)
-	MOVW	$0, R4
 	ADD.S	R2, R0
 	ADC	R4, R1
 
