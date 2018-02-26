@@ -5921,3 +5921,11 @@ echo $* >>`+tg.path("pkg-config.out"))
 		t.Errorf("got %q want %q", out, want)
 	}
 }
+
+// Issue 23982
+func TestFilepathUnderCwdFormat(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "-x", "-cover", "log")
+	tg.grepStderrNot(`\.log\.cover\.go`, "-x output should contain correctly formatted filepath under cwd")
+}
