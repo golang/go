@@ -32,4 +32,6 @@ TEXT errors(SB),$0
 	VPGATHERDQ X2, 664(X2*8), X7    // ERROR "mask, index, and destination registers should be distinct"
 	VPGATHERDQ X2, 664(X7*8), X2    // ERROR "mask, index, and destination registers should be distinct"
 	VPGATHERDQ X7, 664(X2*8), X2    // ERROR "mask, index, and destination registers should be distinct"
+	// Non-X0 for Yxr0 should produce an error
+	BLENDVPD X1, (BX), X2           // ERROR "invalid instruction"
 	RET
