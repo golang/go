@@ -94,6 +94,7 @@ const (
 	SYS_DUP2           = 90  // { int sys_dup2(int from, int to); }
 	SYS_NANOSLEEP      = 91  // { int sys_nanosleep(const struct timespec *rqtp, \
 	SYS_FCNTL          = 92  // { int sys_fcntl(int fd, int cmd, ... void *arg); }
+	SYS_ACCEPT4        = 93  // { int sys_accept4(int s, struct sockaddr *name, \
 	SYS___THRSLEEP     = 94  // { int sys___thrsleep(const volatile void *ident, \
 	SYS_FSYNC          = 95  // { int sys_fsync(int fd); }
 	SYS_SETPRIORITY    = 96  // { int sys_setpriority(int which, id_t who, int prio); }

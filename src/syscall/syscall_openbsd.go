@@ -74,6 +74,25 @@ func Pipe(p []int) (err error) {
 	return
 }
 
+//sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
+func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
+	var rsa RawSockaddrAny
+	var len _Socklen = SizeofSockaddrAny
+	nfd, err = accept4(fd, &rsa, &len, flags)
+	if err != nil {
+		return
+	}
+	if len > SizeofSockaddrAny {
+		panic("RawSockaddrAny too small")
+	}
+	sa, err = anyToSockaddr(&rsa)
+	if err != nil {
+		Close(nfd)
+		nfd = 0
+	}
+	return
+}
+
 //sys getdents(fd int, buf []byte) (n int, err error)
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	return getdents(fd, buf)
