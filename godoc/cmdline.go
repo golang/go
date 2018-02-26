@@ -72,8 +72,8 @@ func CommandLine(w io.Writer, fs vfs.NameSpace, pres *Presentation, args []strin
 		abspath = pathpkg.Join(pres.PkgFSRoot(), toolsPath+path)
 		cinfo = pres.GetCmdPageInfo(abspath, relpath, mode)
 		if cinfo.IsEmpty() {
-			// Then try $GOROOT/cmd.
-			abspath = pathpkg.Join(pres.CmdFSRoot(), path)
+			// Then try $GOROOT/src/cmd.
+			abspath = pathpkg.Join(pres.CmdFSRoot(), cmdPrefix, path)
 			cinfo = pres.GetCmdPageInfo(abspath, relpath, mode)
 		}
 	}
