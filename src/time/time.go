@@ -158,7 +158,7 @@ func (t *Time) sec() int64 {
 	if t.wall&hasMonotonic != 0 {
 		return wallToInternal + int64(t.wall<<1>>(nsecShift+1))
 	}
-	return int64(t.ext)
+	return t.ext
 }
 
 // unixSec returns the time's seconds since Jan 1 1970 (Unix time).
@@ -205,7 +205,7 @@ func (t *Time) stripMono() {
 // setMono is a no-op.
 func (t *Time) setMono(m int64) {
 	if t.wall&hasMonotonic == 0 {
-		sec := int64(t.ext)
+		sec := t.ext
 		if sec < minWall || maxWall < sec {
 			return
 		}
@@ -855,7 +855,7 @@ func (t Time) Add(d Duration) Time {
 	t.addSec(dsec)
 	if t.wall&hasMonotonic != 0 {
 		te := t.ext + int64(d)
-		if d < 0 && te > int64(t.ext) || d > 0 && te < int64(t.ext) {
+		if d < 0 && te > t.ext || d > 0 && te < t.ext {
 			// Monotonic clock reading now out of range; degrade to wall-only.
 			t.stripMono()
 		} else {
@@ -871,8 +871,8 @@ func (t Time) Add(d Duration) Time {
 // To compute t-d for a duration d, use t.Add(-d).
 func (t Time) Sub(u Time) Duration {
 	if t.wall&u.wall&hasMonotonic != 0 {
-		te := int64(t.ext)
-		ue := int64(u.ext)
+		te := t.ext
+		ue := u.ext
 		d := Duration(te - ue)
 		if d < 0 && te > ue {
 			return maxDuration // t - u is positive out of range
