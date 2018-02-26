@@ -1176,7 +1176,9 @@ const (
 	SIOCSSPPPPARAMS                   = 0x80206993
 	SIOCSVH                           = 0xc02069f5
 	SIOCSVNETID                       = 0x802069a6
+	SOCK_CLOEXEC                      = 0x8000
 	SOCK_DGRAM                        = 0x2
+	SOCK_NONBLOCK                     = 0x4000
 	SOCK_RAW                          = 0x3
 	SOCK_RDM                          = 0x4
 	SOCK_SEQPACKET                    = 0x5
