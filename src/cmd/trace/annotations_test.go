@@ -17,6 +17,33 @@ import (
 
 var saveTraces = flag.Bool("savetraces", false, "save traces collected by tests")
 
+func TestOverlappingDuration(t *testing.T) {
+	cases := []struct {
+		start0, end0, start1, end1 int64
+		want                       time.Duration
+	}{
+		{
+			1, 10, 11, 20, 0,
+		},
+		{
+			1, 10, 5, 20, 5 * time.Nanosecond,
+		},
+		{
+			1, 10, 2, 8, 6 * time.Nanosecond,
+		},
+	}
+
+	for _, tc := range cases {
+		s0, e0, s1, e1 := tc.start0, tc.end0, tc.start1, tc.end1
+		if got := overlappingDuration(s0, e0, s1, e1); got != tc.want {
+			t.Errorf("overlappingDuration(%d, %d, %d, %d)=%v; want %v", s0, e0, s1, e1, got, tc.want)
+		}
+		if got := overlappingDuration(s1, e1, s0, e0); got != tc.want {
+			t.Errorf("overlappingDuration(%d, %d, %d, %d)=%v; want %v", s1, e1, s0, e0, got, tc.want)
+		}
+	}
+}
+
 // prog0 starts three goroutines.
 //
 //   goroutine 1: taskless span
@@ -247,14 +274,18 @@ func TestAnalyzeAnnotationGC(t *testing.T) {
 		switch task.name {
 		case "taskWithGC":
 			if got <= 0 || got >= gcTime {
-				t.Errorf("%s reported %v as overlapping GC time; want (0, %v): %v", task.name, got, gcTime, task)
+				t.Errorf("%s reported %v as overlapping GC time; want (0, %v):\n%v", task.name, got, gcTime, task)
 				buf := new(bytes.Buffer)
 				fmt.Fprintln(buf, "GC Events")
 				for _, ev := range res.gcEvents {
-					fmt.Fprintf(buf, " %s\n", ev)
+					fmt.Fprintf(buf, " %s -> %s\n", ev, ev.Link)
 				}
-				fmt.Fprintf(buf, "%s\n", task)
-				t.Logf("%s", buf)
+				fmt.Fprintln(buf, "Events in Task")
+				for i, ev := range task.events {
+					fmt.Fprintf(buf, " %d: %s\n", i, ev)
+				}
+
+				t.Logf("\n%s", buf)
 			}
 		case "taskWithoutGC":
 			if got != 0 {
