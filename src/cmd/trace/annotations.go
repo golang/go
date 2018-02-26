@@ -463,10 +463,10 @@ func overlappingDuration(start1, end1, start2, end2 int64) time.Duration {
 		return 0
 	}
 
-	if start1 > start2 {
+	if start1 < start2 { // choose the later one
 		start1 = start2
 	}
-	if end1 > end2 {
+	if end1 > end2 { // choose the earlier one
 		end1 = end2
 	}
 	return time.Duration(end1 - start1)
