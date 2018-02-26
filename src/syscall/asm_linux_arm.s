@@ -9,8 +9,6 @@
 // System calls for arm, Linux
 //
 
-// TODO(kaib): handle error returns
-
 // func Syscall(syscall uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
 TEXT ·Syscall(SB),NOSPLIT,$0-28
 	BL	runtime·entersyscall(SB)
