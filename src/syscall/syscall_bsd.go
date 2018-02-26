@@ -539,14 +539,6 @@ func Futimes(fd int, tv []Timeval) (err error) {
 
 //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
 
-// TODO: wrap
-//	Acct(name nil-string) (err error)
-//	Gethostuuid(uuid *byte, timeout *Timespec) (err error)
-//	Madvise(addr *byte, len int, behav int) (err error)
-//	Mprotect(addr *byte, len int, prot int) (err error)
-//	Msync(addr *byte, len int, flags int) (err error)
-//	Ptrace(req int, pid int, addr uintptr, data int) (ret uintptr, err error)
-
 var mapper = &mmapper{
 	active: make(map[*byte][]byte),
 	mmap:   mmap,

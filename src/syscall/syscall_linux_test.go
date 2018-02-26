@@ -180,8 +180,6 @@ func TestSyscallNoError(t *testing.T) {
 		t.Skip("skipping on non-32bit architecture")
 	}
 
-	// TODO(tklauser) is this check enough? Otherwise test for being in a non-k8s
-	// Linux VM via testenv.Builder().
 	if os.Getuid() != 0 {
 		t.Skip("skipping root only test")
 	}
