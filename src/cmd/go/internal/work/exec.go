@@ -1364,7 +1364,11 @@ func mayberemovefile(s string) {
 func (b *Builder) fmtcmd(dir string, format string, args ...interface{}) string {
 	cmd := fmt.Sprintf(format, args...)
 	if dir != "" && dir != "/" {
-		cmd = strings.Replace(" "+cmd, " "+dir, " .", -1)[1:]
+		dot := " ."
+		if dir[len(dir)-1] == filepath.Separator {
+			dot += string(filepath.Separator)
+		}
+		cmd = strings.Replace(" "+cmd, " "+dir, dot, -1)[1:]
 		if b.scriptDir != dir {
 			b.scriptDir = dir
 			cmd = "cd " + dir + "\n" + cmd
