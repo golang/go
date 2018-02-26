@@ -146,6 +146,7 @@ const (
 	Ytr7
 	Ymr
 	Ymm
+	Yxr0 // X0 only. "<XMM0>" notation in Intel manual.
 	Yxr
 	Yxm
 	Yxvm // VSIB vector array; vm32x/vm64x
@@ -162,6 +163,8 @@ const (
 	Zxxx = iota
 	Zlit
 	Zlitm_r
+	Zlitr_m
+	Zlit_m_r
 	Z_rp
 	Zbr
 	Zcall
@@ -183,6 +186,7 @@ const (
 	Zo_iw
 	Zm_o
 	Zm_r
+	Z_m_r
 	Zm2_r
 	Zm_r_xm
 	Zm_r_i_xm
@@ -465,6 +469,11 @@ var ymovq = []ytab{
 	{Zaut_r, 1, argList{Yiauto, Yrl}}, // 0 built-in LEAQ
 }
 
+var ymovbe = []ytab{
+	{Zlitm_r, 3, argList{Ym, Yrl}},
+	{Zlitr_m, 3, argList{Yrl, Ym}},
+}
+
 var ym_rl = []ytab{
 	{Zm_r, 1, argList{Ym, Yrl}},
 }
@@ -518,6 +527,7 @@ var yimul = []ytab{
 
 var yimul3 = []ytab{
 	{Zibm_r, 2, argList{Yi8, Yml, Yrl}},
+	{Zibm_r, 2, argList{Yi32, Yml, Yrl}},
 }
 
 var ybyte = []ytab{
@@ -543,6 +553,14 @@ var ypushl = []ytab{
 var ypopl = []ytab{
 	{Z_rp, 1, argList{Yrl}},
 	{Zo_m, 2, argList{Ym}},
+}
+
+var ywrfsbase = []ytab{
+	{Zm_o, 2, argList{Yrl}},
+}
+
+var yrdrand = []ytab{
+	{Zo_m, 2, argList{Yrl}},
 }
 
 var yclflush = []ytab{
@@ -742,6 +760,7 @@ var yxshuf = []ytab{
 
 var yextrw = []ytab{
 	{Zibm_r, 2, argList{Yu8, Yxr, Yrl}},
+	{Zibr_m, 2, argList{Yu8, Yxr, Yml}},
 }
 
 var yextr = []ytab{
@@ -769,6 +788,10 @@ var ycrc32l = []ytab{
 	{Zlitm_r, 0, argList{Yml, Yrl}},
 }
 
+var ycrc32b = []ytab{
+	{Zlitm_r, 0, argList{Ymb, Yrl}},
+}
+
 var yprefetch = []ytab{
 	{Zm_o, 2, argList{Ym}},
 }
@@ -791,6 +814,14 @@ var ylddqu = []ytab{
 
 var ypalignr = []ytab{
 	{Zibm_r, 2, argList{Yu8, Yxm, Yxr}},
+}
+
+var ysha256rnds2 = []ytab{
+	{Zlit_m_r, 0, argList{Yxr0, Yxm, Yxr}},
+}
+
+var yblendvpd = []ytab{
+	{Z_m_r, 1, argList{Yxr0, Yxm, Yxr}},
 }
 
 // VEX instructions that come in two forms:
@@ -1060,6 +1091,10 @@ var yextractps = []ytab{
 	{Zibr_m, 2, argList{Yu2, Yxr, Yml}},
 }
 
+var ysha1rnds4 = []ytab{
+	{Zibm_r, 2, argList{Yu2, Yxm, Yxr}},
+}
+
 /*
  * You are doasm, holding in your hand a *obj.Prog with p.As set to, say,
  * ACRC32, and p.From and p.To as operands (obj.Addr).  The linker scans optab
@@ -1160,6 +1195,7 @@ var optab =
 	{ABSRL, yml_rl, Pm, [23]uint8{0xbd}},
 	{ABSRQ, yml_rl, Pw, [23]uint8{0x0f, 0xbd}},
 	{ABSRW, yml_rl, Pq, [23]uint8{0xbd}},
+	{ABSWAPW, ybswap, Pe, [23]uint8{0x0f, 0xc8}},
 	{ABSWAPL, ybswap, Px, [23]uint8{0x0f, 0xc8}},
 	{ABSWAPQ, ybswap, Pw, [23]uint8{0x0f, 0xc8}},
 	{ABTCL, ybtl, Pm, [23]uint8{0xba, 07, 0xbb}},
@@ -1176,10 +1212,14 @@ var optab =
 	{ABTW, ybtl, Pq, [23]uint8{0xba, 04, 0xa3}},
 	{ABYTE, ybyte, Px, [23]uint8{1}},
 	{obj.ACALL, ycall, Px, [23]uint8{0xff, 02, 0xff, 0x15, 0xe8}},
+	{ACBW, ynone, Pe, [23]uint8{0x98}},
 	{ACDQ, ynone, Px, [23]uint8{0x99}},
+	{ACDQE, ynone, Pw, [23]uint8{0x98}},
+	{ACLAC, ynone, Pm, [23]uint8{01, 0xca}},
 	{ACLC, ynone, Px, [23]uint8{0xf8}},
 	{ACLD, ynone, Px, [23]uint8{0xfc}},
 	{ACLFLUSH, yclflush, Pm, [23]uint8{0xae, 07}},
+	{ACLFLUSHOPT, yclflush, Pq, [23]uint8{0xae, 07}},
 	{ACLI, ynone, Px, [23]uint8{0xfa}},
 	{ACLTS, ynone, Pm, [23]uint8{0x06}},
 	{ACMC, ynone, Px, [23]uint8{0xf5}},
@@ -1269,6 +1309,7 @@ var optab =
 	{ACVTTSS2SL, yxcvfl, Pf3, [23]uint8{0x2c}},
 	{ACVTTSS2SQ, yxcvfq, Pw, [23]uint8{Pf3, 0x2c}},
 	{ACWD, ynone, Pe, [23]uint8{0x99}},
+	{ACWDE, ynone, Px, [23]uint8{0x98}},
 	{ACQO, ynone, Pw, [23]uint8{0x99}},
 	{ADAA, ynone, P32, [23]uint8{0x27}},
 	{ADAS, ynone, P32, [23]uint8{0x2f}},
@@ -1302,20 +1343,23 @@ var optab =
 	{AIMULL, yimul, Px, [23]uint8{0xf7, 05, 0x6b, 0x69, Pm, 0xaf}},
 	{AIMULQ, yimul, Pw, [23]uint8{0xf7, 05, 0x6b, 0x69, Pm, 0xaf}},
 	{AIMULW, yimul, Pe, [23]uint8{0xf7, 05, 0x6b, 0x69, Pm, 0xaf}},
-	{AIMUL3Q, yimul3, Pw, [23]uint8{0x6b, 00}},
+	{AIMUL3W, yimul3, Pe, [23]uint8{0x6b, 00, 0x69, 00}},
+	{AIMUL3L, yimul3, Px, [23]uint8{0x6b, 00, 0x69, 00}},
+	{AIMUL3Q, yimul3, Pw, [23]uint8{0x6b, 00, 0x69, 00}},
 	{AINB, yin, Pb, [23]uint8{0xe4, 0xec}},
+	{AINW, yin, Pe, [23]uint8{0xe5, 0xed}},
+	{AINL, yin, Px, [23]uint8{0xe5, 0xed}},
 	{AINCB, yscond, Pb, [23]uint8{0xfe, 00}},
 	{AINCL, yincl, Px1, [23]uint8{0x40, 0xff, 00}},
 	{AINCQ, yincq, Pw, [23]uint8{0xff, 00}},
 	{AINCW, yincq, Pe, [23]uint8{0xff, 00}},
-	{AINL, yin, Px, [23]uint8{0xe5, 0xed}},
 	{AINSB, ynone, Pb, [23]uint8{0x6c}},
 	{AINSL, ynone, Px, [23]uint8{0x6d}},
 	{AINSERTPS, yxshuf, Pq, [23]uint8{0x3a, 0x21, 0}},
 	{AINSW, ynone, Pe, [23]uint8{0x6d}},
+	{AICEBP, ynone, Px, [23]uint8{0xf1}},
 	{AINT, yint, Px, [23]uint8{0xcd}},
 	{AINTO, ynone, P32, [23]uint8{0xce}},
-	{AINW, yin, Pe, [23]uint8{0xe5, 0xed}},
 	{AIRETL, ynone, Px, [23]uint8{0xcf}},
 	{AIRETQ, ynone, Pw, [23]uint8{0xcf}},
 	{AIRETW, ynone, Pe, [23]uint8{0xcf}},
@@ -1345,6 +1389,7 @@ var optab =
 	{AHSUBPS, yxm, Pf2, [23]uint8{0x7d}},
 	{ALAHF, ynone, Px, [23]uint8{0x9f}},
 	{ALARL, yml_rl, Pm, [23]uint8{0x02}},
+	{ALARQ, yml_rl, Pw, [23]uint8{0x0f, 0x02}},
 	{ALARW, yml_rl, Pq, [23]uint8{0x02}},
 	{ALDDQU, ylddqu, Pf2, [23]uint8{0xf0}},
 	{ALDMXCSR, ysvrs_mo, Pm, [23]uint8{0xae, 02, 0xae, 02}},
@@ -1363,8 +1408,13 @@ var optab =
 	{ALOOP, yloop, Px, [23]uint8{0xe2}},
 	{ALOOPEQ, yloop, Px, [23]uint8{0xe1}},
 	{ALOOPNE, yloop, Px, [23]uint8{0xe0}},
+	{ALTR, ydivl, Pm, [23]uint8{0x00, 03}},
+	{ALZCNTL, yml_rl, Pf3, [23]uint8{0xbd}},
+	{ALZCNTQ, yml_rl, Pfw, [23]uint8{0xbd}},
+	{ALZCNTW, yml_rl, Pef3, [23]uint8{0xbd}},
 	{ALSLL, yml_rl, Pm, [23]uint8{0x03}},
 	{ALSLW, yml_rl, Pq, [23]uint8{0x03}},
+	{ALSLQ, yml_rl, Pw, [23]uint8{0x0f, 0x03}},
 	{AMASKMOVOU, yxr, Pe, [23]uint8{0xf7}},
 	{AMASKMOVQ, ymr, Pm, [23]uint8{0xf7}},
 	{AMAXPD, yxm, Pe, [23]uint8{0x5f}},
@@ -1375,15 +1425,19 @@ var optab =
 	{AMINPS, yxm, Pm, [23]uint8{0x5d}},
 	{AMINSD, yxm, Pf2, [23]uint8{0x5d}},
 	{AMINSS, yxm, Pf3, [23]uint8{0x5d}},
+	{AMONITOR, ynone, Px, [23]uint8{0x0f, 0x01, 0xc8, 0}},
+	{AMWAIT, ynone, Px, [23]uint8{0x0f, 0x01, 0xc9, 0}},
 	{AMOVAPD, yxmov, Pe, [23]uint8{0x28, 0x29}},
 	{AMOVAPS, yxmov, Pm, [23]uint8{0x28, 0x29}},
 	{AMOVB, ymovb, Pb, [23]uint8{0x88, 0x8a, 0xb0, 0xc6, 00}},
 	{AMOVBLSX, ymb_rl, Pm, [23]uint8{0xbe}},
 	{AMOVBLZX, ymb_rl, Pm, [23]uint8{0xb6}},
 	{AMOVBQSX, ymb_rl, Pw, [23]uint8{0x0f, 0xbe}},
-	{AMOVBQZX, ymb_rl, Pm, [23]uint8{0xb6}},
+	{AMOVBQZX, ymb_rl, Pw, [23]uint8{0x0f, 0xb6}},
 	{AMOVBWSX, ymb_rl, Pq, [23]uint8{0xbe}},
+	{AMOVSWW, ymb_rl, Pe, [23]uint8{0x0f, 0xbf}},
 	{AMOVBWZX, ymb_rl, Pq, [23]uint8{0xb6}},
+	{AMOVZWW, ymb_rl, Pe, [23]uint8{0x0f, 0xb7}},
 	{AMOVO, yxmov, Pe, [23]uint8{0x6f, 0x7f}},
 	{AMOVOU, yxmov, Pf3, [23]uint8{0x6f, 0x7f}},
 	{AMOVHLPS, yxr, Pm, [23]uint8{0x12}},
@@ -1443,10 +1497,10 @@ var optab =
 	{AORW, yaddl, Pe, [23]uint8{0x83, 01, 0x0d, 0x81, 01, 0x09, 0x0b}},
 	{AOUTB, yin, Pb, [23]uint8{0xe6, 0xee}},
 	{AOUTL, yin, Px, [23]uint8{0xe7, 0xef}},
+	{AOUTW, yin, Pe, [23]uint8{0xe7, 0xef}},
 	{AOUTSB, ynone, Pb, [23]uint8{0x6e}},
 	{AOUTSL, ynone, Px, [23]uint8{0x6f}},
 	{AOUTSW, ynone, Pe, [23]uint8{0x6f}},
-	{AOUTW, yin, Pe, [23]uint8{0xe7, 0xef}},
 	{APABSB, yxm_q4, Pq4, [23]uint8{0x1c}},
 	{APABSD, yxm_q4, Pq4, [23]uint8{0x1e}},
 	{APABSW, yxm_q4, Pq4, [23]uint8{0x1d}},
@@ -1479,7 +1533,7 @@ var optab =
 	{APCMPGTW, ymm, Py1, [23]uint8{0x65, Pe, 0x65}},
 	{APCMPISTRI, yxshuf, Pq, [23]uint8{0x3a, 0x63, 0}},
 	{APCMPISTRM, yxshuf, Pq, [23]uint8{0x3a, 0x62, 0}},
-	{APEXTRW, yextrw, Pq, [23]uint8{0xc5, 00}},
+	{APEXTRW, yextrw, Pq, [23]uint8{0xc5, 0, 0x3a, 0x15, 0}},
 	{APEXTRB, yextr, Pq, [23]uint8{0x3a, 0x14, 00}},
 	{APEXTRD, yextr, Pq, [23]uint8{0x3a, 0x16, 00}},
 	{APEXTRQ, yextr, Pq3, [23]uint8{0x3a, 0x16, 00}},
@@ -1612,7 +1666,7 @@ var optab =
 	{ARORW, yshl, Pe, [23]uint8{0xd1, 01, 0xc1, 01, 0xd3, 01, 0xd3, 01}},
 	{ARSQRTPS, yxm, Pm, [23]uint8{0x52}},
 	{ARSQRTSS, yxm, Pf3, [23]uint8{0x52}},
-	{ASAHF, ynone, Px1, [23]uint8{0x9e, 00, 0x86, 0xe0, 0x50, 0x9d}}, /* XCHGB AH,AL; PUSH AX; POPFL */
+	{ASAHF, ynone, Px, [23]uint8{0x9e, 00, 0x86, 0xe0, 0x50, 0x9d}}, /* XCHGB AH,AL; PUSH AX; POPFL */
 	{ASALB, yshb, Pb, [23]uint8{0xd0, 04, 0xc0, 04, 0xd2, 04}},
 	{ASALL, yshl, Px, [23]uint8{0xd1, 04, 0xc1, 04, 0xd3, 04, 0xd3, 04}},
 	{ASALQ, yshl, Pw, [23]uint8{0xd1, 04, 0xc1, 04, 0xd3, 04, 0xd3, 04}},
@@ -1722,16 +1776,22 @@ var optab =
 	{AFCMOVEQ, yfcmv, Px, [23]uint8{0xda, 01}},
 	{AFCMOVHI, yfcmv, Px, [23]uint8{0xdb, 02}},
 	{AFCMOVLS, yfcmv, Px, [23]uint8{0xda, 02}},
+	{AFCMOVB, yfcmv, Px, [23]uint8{0xda, 00}},
+	{AFCMOVBE, yfcmv, Px, [23]uint8{0xda, 02}},
+	{AFCMOVNB, yfcmv, Px, [23]uint8{0xdb, 00}},
+	{AFCMOVNBE, yfcmv, Px, [23]uint8{0xdb, 02}},
+	{AFCMOVE, yfcmv, Px, [23]uint8{0xda, 01}},
 	{AFCMOVNE, yfcmv, Px, [23]uint8{0xdb, 01}},
 	{AFCMOVNU, yfcmv, Px, [23]uint8{0xdb, 03}},
+	{AFCMOVU, yfcmv, Px, [23]uint8{0xda, 03}},
 	{AFCMOVUN, yfcmv, Px, [23]uint8{0xda, 03}},
 	{AFCOMD, yfadd, Px, [23]uint8{0xdc, 02, 0xd8, 02, 0xdc, 02}},  /* botch */
 	{AFCOMDP, yfadd, Px, [23]uint8{0xdc, 03, 0xd8, 03, 0xdc, 03}}, /* botch */
 	{AFCOMDPP, ycompp, Px, [23]uint8{0xde, 03}},
 	{AFCOMF, yfmvx, Px, [23]uint8{0xd8, 02}},
 	{AFCOMFP, yfmvx, Px, [23]uint8{0xd8, 03}},
-	{AFCOMI, yfmvx, Px, [23]uint8{0xdb, 06}},
-	{AFCOMIP, yfmvx, Px, [23]uint8{0xdf, 06}},
+	{AFCOMI, yfcmv, Px, [23]uint8{0xdb, 06}},
+	{AFCOMIP, yfcmv, Px, [23]uint8{0xdf, 06}},
 	{AFCOML, yfmvx, Px, [23]uint8{0xda, 02}},
 	{AFCOMLP, yfmvx, Px, [23]uint8{0xda, 03}},
 	{AFCOMW, yfmvx, Px, [23]uint8{0xde, 02}},
@@ -1782,6 +1842,8 @@ var optab =
 	{AFSTSW, ystsw, Px, [23]uint8{0xdd, 07, 0xdf, 0xe0}},
 	{AF2XM1, ynone, Px, [23]uint8{0xd9, 0xf0}},
 	{AFABS, ynone, Px, [23]uint8{0xd9, 0xe1}},
+	{AFBLD, ysvrs_mo, Px, [23]uint8{0xdf, 04}},
+	{AFBSTP, yclflush, Px, [23]uint8{0xdf, 06}},
 	{AFCHS, ynone, Px, [23]uint8{0xd9, 0xe0}},
 	{AFCLEX, ynone, Px, [23]uint8{0xdb, 0xe2}},
 	{AFCOS, ynone, Px, [23]uint8{0xd9, 0xff}},
@@ -1815,12 +1877,15 @@ var optab =
 	{ACMPXCHGW, yrl_ml, Pe, [23]uint8{0x0f, 0xb1}},
 	{ACMPXCHGQ, yrl_ml, Pw, [23]uint8{0x0f, 0xb1}},
 	{ACMPXCHG8B, yscond, Pm, [23]uint8{0xc7, 01}},
+	{ACMPXCHG16B, yscond, Pw, [23]uint8{0x0f, 0xc7, 01}},
 	{AINVD, ynone, Pm, [23]uint8{0x08}},
 	{AINVLPG, ydivb, Pm, [23]uint8{0x01, 07}},
+	{AINVPCID, ycrc32l, Pe, [23]uint8{0x0f, 0x38, 0x82, 0}},
 	{ALFENCE, ynone, Pm, [23]uint8{0xae, 0xe8}},
 	{AMFENCE, ynone, Pm, [23]uint8{0xae, 0xf0}},
 	{AMOVNTIL, yrl_ml, Pm, [23]uint8{0xc3}},
 	{AMOVNTIQ, yrl_ml, Pw, [23]uint8{0x0f, 0xc3}},
+	{ARDPKRU, ynone, Pm, [23]uint8{0x01, 0xee, 0}},
 	{ARDMSR, ynone, Pm, [23]uint8{0x32}},
 	{ARDPMC, ynone, Pm, [23]uint8{0x33}},
 	{ARDTSC, ynone, Pm, [23]uint8{0x31}},
@@ -1829,12 +1894,15 @@ var optab =
 	{ASYSRET, ynone, Pm, [23]uint8{0x07}},
 	{AWBINVD, ynone, Pm, [23]uint8{0x09}},
 	{AWRMSR, ynone, Pm, [23]uint8{0x30}},
+	{AWRPKRU, ynone, Pm, [23]uint8{0x01, 0xef, 0}},
 	{AXADDB, yrb_mb, Pb, [23]uint8{0x0f, 0xc0}},
 	{AXADDL, yrl_ml, Px, [23]uint8{0x0f, 0xc1}},
 	{AXADDQ, yrl_ml, Pw, [23]uint8{0x0f, 0xc1}},
 	{AXADDW, yrl_ml, Pe, [23]uint8{0x0f, 0xc1}},
-	{ACRC32B, ycrc32l, Px, [23]uint8{0xf2, 0x0f, 0x38, 0xf0, 0}},
+	{ACRC32B, ycrc32b, Px, [23]uint8{0xf2, 0x0f, 0x38, 0xf0, 0}},
+	{ACRC32L, ycrc32l, Px, [23]uint8{0xf2, 0x0f, 0x38, 0xf1, 0}},
 	{ACRC32Q, ycrc32l, Pw, [23]uint8{0xf2, 0x0f, 0x38, 0xf1, 0}},
+	{ACRC32W, ycrc32l, Pe, [23]uint8{0xf2, 0x0f, 0x38, 0xf1, 0}},
 	{APREFETCHT0, yprefetch, Pm, [23]uint8{0x18, 01}},
 	{APREFETCHT1, yprefetch, Pm, [23]uint8{0x18, 02}},
 	{APREFETCHT2, yprefetch, Pm, [23]uint8{0x18, 03}},
@@ -1858,6 +1926,84 @@ var optab =
 	{AMOVDDUP, yxm, Pf2, [23]uint8{0x12}},
 	{AMOVSHDUP, yxm, Pf3, [23]uint8{0x16}},
 	{AMOVSLDUP, yxm, Pf3, [23]uint8{0x12}},
+
+	{ARDTSCP, ynone, Pm, [23]uint8{0x01, 0xf9, 0}},
+	{ASTAC, ynone, Pm, [23]uint8{0x01, 0xcb, 0}},
+	{AUD1, ynone, Pm, [23]uint8{0xb9, 0}},
+	{AUD2, ynone, Pm, [23]uint8{0x0b, 0}},
+	{ASYSENTER, ynone, Px, [23]uint8{0x0f, 0x34, 0}},
+	{ASYSENTER64, ynone, Pw, [23]uint8{0x0f, 0x34, 0}},
+	{ASYSEXIT, ynone, Px, [23]uint8{0x0f, 0x35, 0}},
+	{ASYSEXIT64, ynone, Pw, [23]uint8{0x0f, 0x35, 0}},
+	{ALMSW, ydivl, Pm, [23]uint8{0x01, 06}},
+	{ALLDT, ydivl, Pm, [23]uint8{0x00, 02}},
+	{ALIDT, ysvrs_mo, Pm, [23]uint8{0x01, 03}},
+	{ALGDT, ysvrs_mo, Pm, [23]uint8{0x01, 02}},
+	{ATZCNTW, ycrc32l, Pe, [23]uint8{0xf3, 0x0f, 0xbc, 0}},
+	{ATZCNTL, ycrc32l, Px, [23]uint8{0xf3, 0x0f, 0xbc, 0}},
+	{ATZCNTQ, ycrc32l, Pw, [23]uint8{0xf3, 0x0f, 0xbc, 0}},
+	{AXRSTOR, ydivl, Px, [23]uint8{0x0f, 0xae, 05}},
+	{AXRSTOR64, ydivl, Pw, [23]uint8{0x0f, 0xae, 05}},
+	{AXRSTORS, ydivl, Px, [23]uint8{0x0f, 0xc7, 03}},
+	{AXRSTORS64, ydivl, Pw, [23]uint8{0x0f, 0xc7, 03}},
+	{AXSAVE, yclflush, Px, [23]uint8{0x0f, 0xae, 04}},
+	{AXSAVE64, yclflush, Pw, [23]uint8{0x0f, 0xae, 04}},
+	{AXSAVEOPT, yclflush, Px, [23]uint8{0x0f, 0xae, 06}},
+	{AXSAVEOPT64, yclflush, Pw, [23]uint8{0x0f, 0xae, 06}},
+	{AXSAVEC, yclflush, Px, [23]uint8{0x0f, 0xc7, 04}},
+	{AXSAVEC64, yclflush, Pw, [23]uint8{0x0f, 0xc7, 04}},
+	{AXSAVES, yclflush, Px, [23]uint8{0x0f, 0xc7, 05}},
+	{AXSAVES64, yclflush, Pw, [23]uint8{0x0f, 0xc7, 05}},
+	{ASGDT, yclflush, Pm, [23]uint8{0x01, 00}},
+	{ASIDT, yclflush, Pm, [23]uint8{0x01, 01}},
+	{ARDRANDW, yrdrand, Pe, [23]uint8{0x0f, 0xc7, 06}},
+	{ARDRANDL, yrdrand, Px, [23]uint8{0x0f, 0xc7, 06}},
+	{ARDRANDQ, yrdrand, Pw, [23]uint8{0x0f, 0xc7, 06}},
+	{ARDSEEDW, yrdrand, Pe, [23]uint8{0x0f, 0xc7, 07}},
+	{ARDSEEDL, yrdrand, Px, [23]uint8{0x0f, 0xc7, 07}},
+	{ARDSEEDQ, yrdrand, Pw, [23]uint8{0x0f, 0xc7, 07}},
+	{ASTRW, yincq, Pe, [23]uint8{0x0f, 0x00, 01}},
+	{ASTRL, yincq, Px, [23]uint8{0x0f, 0x00, 01}},
+	{ASTRQ, yincq, Pw, [23]uint8{0x0f, 0x00, 01}},
+	{AXSETBV, ynone, Pm, [23]uint8{0x01, 0xd1, 0}},
+	{AMOVBEWW, ymovbe, Pq, [23]uint8{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
+	{AMOVBELL, ymovbe, Pm, [23]uint8{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
+	{AMOVBEQQ, ymovbe, Pw, [23]uint8{0x0f, 0x38, 0xf0, 0, 0x0f, 0x38, 0xf1, 0}},
+	{ANOPW, ydivl, Pe, [23]uint8{0x0f, 0x1f, 00}},
+	{ANOPL, ydivl, Px, [23]uint8{0x0f, 0x1f, 00}},
+	{ASLDTW, yincq, Pe, [23]uint8{0x0f, 0x00, 00}},
+	{ASLDTL, yincq, Px, [23]uint8{0x0f, 0x00, 00}},
+	{ASLDTQ, yincq, Pw, [23]uint8{0x0f, 0x00, 00}},
+	{ASMSWW, yincq, Pe, [23]uint8{0x0f, 0x01, 04}},
+	{ASMSWL, yincq, Px, [23]uint8{0x0f, 0x01, 04}},
+	{ASMSWQ, yincq, Pw, [23]uint8{0x0f, 0x01, 04}},
+	{ABLENDVPS, yblendvpd, Pq4, [23]uint8{0x14}},
+	{ABLENDVPD, yblendvpd, Pq4, [23]uint8{0x15}},
+	{APBLENDVB, yblendvpd, Pq4, [23]uint8{0x10}},
+	{ASHA1MSG1, yaes, Px, [23]uint8{0x0f, 0x38, 0xc9, 0}},
+	{ASHA1MSG2, yaes, Px, [23]uint8{0x0f, 0x38, 0xca, 0}},
+	{ASHA1NEXTE, yaes, Px, [23]uint8{0x0f, 0x38, 0xc8, 0}},
+	{ASHA256MSG1, yaes, Px, [23]uint8{0x0f, 0x38, 0xcc, 0}},
+	{ASHA256MSG2, yaes, Px, [23]uint8{0x0f, 0x38, 0xcd, 0}},
+	{ASHA1RNDS4, ysha1rnds4, Pm, [23]uint8{0x3a, 0xcc, 0}},
+	{ASHA256RNDS2, ysha256rnds2, Px, [23]uint8{0x0f, 0x38, 0xcb, 0}},
+	{ARDFSBASEL, yrdrand, Pf3, [23]uint8{0xae, 00}},
+	{ARDFSBASEQ, yrdrand, Pfw, [23]uint8{0xae, 00}},
+	{ARDGSBASEL, yrdrand, Pf3, [23]uint8{0xae, 01}},
+	{ARDGSBASEQ, yrdrand, Pfw, [23]uint8{0xae, 01}},
+	{AWRFSBASEL, ywrfsbase, Pf3, [23]uint8{0xae, 02}},
+	{AWRFSBASEQ, ywrfsbase, Pfw, [23]uint8{0xae, 02}},
+	{AWRGSBASEL, ywrfsbase, Pf3, [23]uint8{0xae, 03}},
+	{AWRGSBASEQ, ywrfsbase, Pfw, [23]uint8{0xae, 03}},
+	{ALFSW, ym_rl, Pe, [23]uint8{0x0f, 0xb4}},
+	{ALFSL, ym_rl, Px, [23]uint8{0x0f, 0xb4}},
+	{ALFSQ, ym_rl, Pw, [23]uint8{0x0f, 0xb4}},
+	{ALGSW, ym_rl, Pe, [23]uint8{0x0f, 0xb5}},
+	{ALGSL, ym_rl, Px, [23]uint8{0x0f, 0xb5}},
+	{ALGSQ, ym_rl, Pw, [23]uint8{0x0f, 0xb5}},
+	{ALSSW, ym_rl, Pe, [23]uint8{0x0f, 0xb2}},
+	{ALSSL, ym_rl, Px, [23]uint8{0x0f, 0xb2}},
+	{ALSSQ, ym_rl, Pw, [23]uint8{0x0f, 0xb2}},
 
 	{ABLENDPD, yxshuf, Pq, [23]uint8{0x3a, 0x0d, 0}},
 	{ABLENDPS, yxshuf, Pq, [23]uint8{0x3a, 0x0c, 0}},
@@ -2051,7 +2197,6 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		c = 0
 		for p := s.Func.Text; p != nil; p = p.Link {
 			if ctxt.Headtype == objabi.Hnacl && p.Isize > 0 {
-
 				// pad everything to avoid crossing 32-byte boundary
 				if c>>5 != (c+int32(p.Isize)-1)>>5 {
 					c = naclpad(ctxt, s, c, -c&31)
@@ -2290,7 +2435,10 @@ func instinit(ctxt *obj.Link) {
 	ycover[Ym*Ymax+Ymm] = 1
 	ycover[Ymr*Ymax+Ymm] = 1
 
+	ycover[Yxr0*Ymax+Yxr] = 1
+
 	ycover[Ym*Ymax+Yxm] = 1
+	ycover[Yxr0*Ymax+Yxm] = 1
 	ycover[Yxr*Ymax+Yxm] = 1
 
 	ycover[Ym*Ymax+Yym] = 1
@@ -2697,8 +2845,10 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		REG_M0 + 7:
 		return Ymr
 
-	case REG_X0 + 0,
-		REG_X0 + 1,
+	case REG_X0:
+		return Yxr0
+
+	case REG_X0 + 1,
 		REG_X0 + 2,
 		REG_X0 + 3,
 		REG_X0 + 4,
@@ -2891,6 +3041,19 @@ func (a *AsmBuf) PutInt64(v int64) {
 func (a *AsmBuf) Put(b []byte) {
 	copy(a.buf[a.off:], b)
 	a.off += len(b)
+}
+
+// PutOpBytesLit writes zero terminated sequence of bytes from op,
+// starting at specified offsed (e.g. z counter value).
+// Trailing 0 is not written.
+//
+// Intended to be used for literal Z cases.
+// Literal Z cases usually have "Zlit" in their name (Zlit, Zlitr_m, Zlitm_r).
+func (asmbuf *AsmBuf) PutOpBytesLit(offset int, op *[23]uint8) {
+	for int(op[offset]) != 0 {
+		asmbuf.Put1(byte(op[offset]))
+		offset++
+	}
 }
 
 // Insert inserts b at offset i.
@@ -3407,12 +3570,16 @@ var ymovtab = []Movtab{
 	{AMOVL, Ydr6, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 6, 0}},
 	{AMOVL, Ydr7, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 7, 0}},
 	{AMOVQ, Ydr0, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 0, 0}},
+	{AMOVQ, Ydr2, Ynone, Yrl, 3, [4]uint8{0x0f, 0x21, 2, 0}},
+	{AMOVQ, Ydr3, Ynone, Yrl, 3, [4]uint8{0x0f, 0x21, 3, 0}},
 	{AMOVQ, Ydr6, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 6, 0}},
 	{AMOVQ, Ydr7, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 7, 0}},
 	{AMOVL, Yml, Ynone, Ydr0, 4, [4]uint8{0x0f, 0x23, 0, 0}},
 	{AMOVL, Yml, Ynone, Ydr6, 4, [4]uint8{0x0f, 0x23, 6, 0}},
 	{AMOVL, Yml, Ynone, Ydr7, 4, [4]uint8{0x0f, 0x23, 7, 0}},
 	{AMOVQ, Yml, Ynone, Ydr0, 4, [4]uint8{0x0f, 0x23, 0, 0}},
+	{AMOVQ, Yml, Ynone, Ydr2, 4, [4]uint8{0x0f, 0x23, 2, 0}},
+	{AMOVQ, Yml, Ynone, Ydr3, 4, [4]uint8{0x0f, 0x23, 3, 0}},
 	{AMOVQ, Yml, Ynone, Ydr6, 4, [4]uint8{0x0f, 0x23, 6, 0}},
 	{AMOVQ, Yml, Ynone, Ydr7, 4, [4]uint8{0x0f, 0x23, 7, 0}},
 
@@ -3841,15 +4008,17 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					asmbuf.Put1(byte(op))
 				}
 
+			case Zlitr_m:
+				asmbuf.PutOpBytesLit(z, &o.op)
+				asmbuf.asmand(ctxt, cursym, p, &p.To, &p.From)
+
 			case Zlitm_r:
-				for ; ; z++ {
-					op = int(o.op[z])
-					if op == 0 {
-						break
-					}
-					asmbuf.Put1(byte(op))
-				}
+				asmbuf.PutOpBytesLit(z, &o.op)
 				asmbuf.asmand(ctxt, cursym, p, &p.From, &p.To)
+
+			case Zlit_m_r:
+				asmbuf.PutOpBytesLit(z, &o.op)
+				asmbuf.asmand(ctxt, cursym, p, p.GetFrom3(), &p.To)
 
 			case Zmb_r:
 				bytereg(&p.From, &p.Ft)
@@ -3858,6 +4027,10 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 			case Zm_r:
 				asmbuf.Put1(byte(op))
 				asmbuf.asmand(ctxt, cursym, p, &p.From, &p.To)
+
+			case Z_m_r:
+				asmbuf.Put1(byte(op))
+				asmbuf.asmand(ctxt, cursym, p, p.GetFrom3(), &p.To)
 
 			case Zm2_r:
 				asmbuf.Put2(byte(op), o.op[z+1])
@@ -3892,7 +4065,14 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				} else {
 					asmbuf.asmand(ctxt, cursym, p, p.GetFrom3(), &p.To)
 				}
-				asmbuf.Put1(byte(p.From.Offset))
+				switch {
+				default:
+					asmbuf.Put1(byte(p.From.Offset))
+				case yt.args[0] == Yi32 && o.prefix == Pe:
+					asmbuf.PutInt16(int16(p.From.Offset))
+				case yt.args[0] == Yi32:
+					asmbuf.PutInt32(int32(p.From.Offset))
+				}
 
 			case Zaut_r:
 				asmbuf.Put1(0x8d) // leal
