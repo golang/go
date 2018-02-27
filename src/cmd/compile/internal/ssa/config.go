@@ -73,14 +73,14 @@ type Types struct {
 	BytePtrPtr *types.Type
 }
 
-// Instantiate the SSA type pointers.
+// NewTypes creates and populates a Types.
 func NewTypes() *Types {
 	t := new(Types)
 	t.SetTypPtrs()
 	return t
 }
 
-// Populate the SSA type pointers.
+// SetTypPtrs populates t.
 func (t *Types) SetTypPtrs() {
 	t.Bool = types.Types[types.TBOOL]
 	t.Int8 = types.Types[types.TINT8]
