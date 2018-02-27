@@ -1494,6 +1494,58 @@
 	&& clobber(x)
 	-> (MOVQstorezero [min(i,j)] {s} ptr0 mem)
 
+// Combine stores into larger (unaligned) stores.
+(MOVBstore [i] {s} ptr0 (SRLconst [8] w) x:(MOVBstore [i-1] {s} ptr1 w mem))
+	&& x.Uses == 1
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVHstore [i-1] {s} ptr0 w mem)
+(MOVBstore [i] {s} ptr0 (SRLconst [8] (MOVHUreg w)) x:(MOVBstore [i-1] {s} ptr1 w mem))
+	&& x.Uses == 1
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVHstore [i-1] {s} ptr0 w mem)
+(MOVBstore [i] {s} ptr0 (SRLconst [8] (MOVWUreg w)) x:(MOVBstore [i-1] {s} ptr1 w mem))
+	&& x.Uses == 1
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVHstore [i-1] {s} ptr0 w mem)
+(MOVBstore [i] {s} ptr0 (SRLconst [j] w) x:(MOVBstore [i-1] {s} ptr1 w0:(SRLconst [j-8] w) mem))
+	&& x.Uses == 1
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVHstore [i-1] {s} ptr0 w0 mem)
+(MOVBstore [i] {s} ptr0 (SRLconst [j] (MOVWUreg w)) x:(MOVBstore [i-1] {s} ptr1 w0:(SRLconst [j-8] (MOVWUreg w)) mem))
+	&& x.Uses == 1
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVHstore [i-1] {s} ptr0 w0 mem)
+(MOVHstore [i] {s} ptr0 (SRLconst [16] w) x:(MOVHstore [i-2] {s} ptr1 w mem))
+	&& x.Uses == 1
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVWstore [i-2] {s} ptr0 w mem)
+(MOVHstore [i] {s} ptr0 (SRLconst [16] (MOVWUreg w)) x:(MOVHstore [i-2] {s} ptr1 w mem))
+	&& x.Uses == 1
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVWstore [i-2] {s} ptr0 w mem)
+(MOVHstore [i] {s} ptr0 (SRLconst [j] w) x:(MOVHstore [i-2] {s} ptr1 w0:(SRLconst [j-16] w) mem))
+	&& x.Uses == 1
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVWstore [i-2] {s} ptr0 w0 mem)
+(MOVWstore [i] {s} ptr0 (SRLconst [32] w) x:(MOVWstore [i-4] {s} ptr1 w mem))
+	&& x.Uses == 1
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVDstore [i-4] {s} ptr0 w mem)
+(MOVWstore [i] {s} ptr0 (SRLconst [j] w) x:(MOVWstore [i-4] {s} ptr1 w0:(SRLconst [j-32] w) mem))
+	&& x.Uses == 1
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVDstore [i-4] {s} ptr0 w0 mem)
+
 // FP simplification
 (FNEGS (FMULS x y)) -> (FNMULS x y)
 (FNEGD (FMULD x y)) -> (FNMULD x y)
