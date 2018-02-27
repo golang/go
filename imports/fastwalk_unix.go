@@ -24,7 +24,7 @@ const unknownFileMode os.FileMode = os.ModeNamedPipe | os.ModeSocket | os.ModeDe
 func readDir(dirName string, fn func(dirName, entName string, typ os.FileMode) error) error {
 	fd, err := syscall.Open(dirName, 0, 0)
 	if err != nil {
-		return err
+		return &os.PathError{Op: "open", Path: dirName, Err: err}
 	}
 	defer syscall.Close(fd)
 
