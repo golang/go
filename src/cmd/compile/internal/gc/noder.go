@@ -78,13 +78,13 @@ func (p *noder) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
 	b1, ok := p.basemap[b0]
 	if !ok {
 		fn := b0.Filename()
-		if p0 := b0.Pos(); p0.IsKnown() {
+		if b0.IsFileBase() {
+			b1 = src.NewFileBase(fn, absFilename(fn))
+		} else {
 			// line directive base
+			p0 := b0.Pos()
 			p1 := src.MakePos(p.makeSrcPosBase(p0.Base()), p0.Line(), p0.Col())
 			b1 = src.NewLinePragmaBase(p1, fn, fileh(fn), b0.Line(), b0.Col())
-		} else {
-			// file base
-			b1 = src.NewFileBase(fn, absFilename(fn))
 		}
 		p.basemap[b0] = b1
 	}
