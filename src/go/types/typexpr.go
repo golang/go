@@ -473,7 +473,7 @@ func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool
 
 func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named, path []*TypeName) {
 	// fast-track empty interface
-	if iface.Methods == nil {
+	if iface.Methods.List == nil {
 		ityp.allMethods = markComplete
 		return
 	}

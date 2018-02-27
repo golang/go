@@ -186,7 +186,7 @@ func (check *Checker) infoFromTypeLit(scope *Scope, iface *ast.InterfaceType, tn
 		check.interfaces[tname] = nil // computation started but not complete
 	}
 
-	if iface.Methods == nil {
+	if iface.Methods.List == nil {
 		// fast track for empty interface
 		info = &emptyIfaceInfo
 	} else {
