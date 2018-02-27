@@ -189,9 +189,8 @@ TEXT runtime·walltime(SB),NOSPLIT,$0-12
 	get_tls(CX)
 	MOVQ	g(CX), AX
 	MOVQ	g_m(AX), CX
-	MOVQ	m_curg(CX), DX
 
-	CMPQ	AX, DX		// Only switch if on curg.
+	CMPQ	AX, m_curg(CX)	// Only switch if on curg.
 	JNE	noswitch
 
 	MOVQ	m_g0(CX), DX
@@ -234,9 +233,8 @@ TEXT runtime·nanotime(SB),NOSPLIT,$0-8
 	get_tls(CX)
 	MOVQ	g(CX), AX
 	MOVQ	g_m(AX), CX
-	MOVQ	m_curg(CX), DX
 
-	CMPQ	AX, DX		// Only switch if on curg.
+	CMPQ	AX, m_curg(CX)	// Only switch if on curg.
 	JNE	noswitch
 
 	MOVQ	m_g0(CX), DX
