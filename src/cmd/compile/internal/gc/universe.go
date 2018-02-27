@@ -65,6 +65,17 @@ var builtinFuncs = [...]struct {
 	{"recover", ORECOVER},
 }
 
+// isBuiltinFuncName reports whether name matches a builtin function
+// name.
+func isBuiltinFuncName(name string) bool {
+	for _, fn := range builtinFuncs {
+		if fn.name == name {
+			return true
+		}
+	}
+	return false
+}
+
 var unsafeFuncs = [...]struct {
 	name string
 	op   Op
