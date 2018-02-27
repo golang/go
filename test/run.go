@@ -488,7 +488,7 @@ func (t *test) run() {
 		action = "rundir"
 	case "cmpout":
 		action = "run" // the run case already looks for <dir>/<test>.out files
-	case "compile", "compiledir", "build", "builddir", "run", "buildrun", "runoutput", "rundir":
+	case "compile", "compiledir", "build", "builddir", "run", "buildrun", "runoutput", "rundir", "asmcheck":
 		// nothing to do
 	case "errorcheckandrundir":
 		wantError = false // should be no error if also will run
@@ -592,6 +592,27 @@ func (t *test) run() {
 	switch action {
 	default:
 		t.err = fmt.Errorf("unimplemented action %q", action)
+
+	case "asmcheck":
+		ops, archs := t.wantedAsmOpcodes(long)
+		for _, arch := range archs {
+			os.Setenv("GOOS", "linux")
+			os.Setenv("GOARCH", arch)
+
+			cmdline := []string{"go", "build", "-gcflags", "-S"}
+			cmdline = append(cmdline, flags...)
+			cmdline = append(cmdline, long)
+			out, err := runcmd(cmdline...)
+			if err != nil {
+				t.err = err
+				return
+			}
+			t.err = t.asmCheck(string(out), long, arch, ops[arch])
+			if t.err != nil {
+				return
+			}
+		}
+		return
 
 	case "errorcheck":
 		// TODO(gri) remove need for -C (disable printing of columns in error messages)
@@ -1223,6 +1244,109 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 		}
 	}
 
+	return
+}
+
+var (
+	rxAsmCheck = regexp.MustCompile(`//(?:\s+(\w+):((?:"(?:.+?)")|(?:` + "`" + `(?:.+?)` + "`" + `)))+`)
+)
+
+type wantedAsmOpcode struct {
+	line     int
+	opcode   *regexp.Regexp
+	negative bool
+	found    bool
+}
+
+func (t *test) wantedAsmOpcodes(fn string) (map[string]map[string][]wantedAsmOpcode, []string) {
+	ops := make(map[string]map[string][]wantedAsmOpcode)
+	archs := make(map[string]bool)
+
+	src, _ := ioutil.ReadFile(fn)
+	for i, line := range strings.Split(string(src), "\n") {
+		matches := rxAsmCheck.FindStringSubmatch(line)
+		if len(matches) == 0 {
+			continue
+		}
+
+		lnum := fn + ":" + strconv.Itoa(i+1)
+		for j := 1; j < len(matches); j += 2 {
+			rxsrc, err := strconv.Unquote(matches[j+1])
+			if err != nil {
+				log.Fatalf("%s:%d: error unquoting string: %v", t.goFileName(), i+1, err)
+			}
+			oprx, err := regexp.Compile(rxsrc)
+			if err != nil {
+				log.Fatalf("%s:%d: %v", t.goFileName(), i+1, err)
+			}
+			arch := matches[j]
+			if ops[arch] == nil {
+				ops[arch] = make(map[string][]wantedAsmOpcode)
+			}
+			archs[arch] = true
+			ops[arch][lnum] = append(ops[arch][lnum], wantedAsmOpcode{
+				line:   i + 1,
+				opcode: oprx,
+			})
+		}
+	}
+
+	var sarchs []string
+	for a := range archs {
+		sarchs = append(sarchs, a)
+	}
+	sort.Strings(sarchs)
+
+	return ops, sarchs
+}
+
+func (t *test) asmCheck(outStr string, fn string, arch string, fullops map[string][]wantedAsmOpcode) (err error) {
+	defer func() {
+		if *verbose && err != nil {
+			log.Printf("%s gc output:\n%s", t, outStr)
+		}
+	}()
+
+	rxLine := regexp.MustCompile(fmt.Sprintf(`\((%s:\d+)\)\s+(.*)`, regexp.QuoteMeta(fn)))
+
+	for _, line := range strings.Split(outStr, "\n") {
+		matches := rxLine.FindStringSubmatch(line)
+		if len(matches) == 0 {
+			continue
+		}
+
+		ops := fullops[matches[1]]
+		asm := matches[2]
+		for i := range ops {
+			if !ops[i].found && ops[i].opcode.FindString(asm) != "" {
+				ops[i].found = true
+			}
+		}
+	}
+
+	var notfound []wantedAsmOpcode
+	for _, ops := range fullops {
+		for _, o := range ops {
+			if !o.found {
+				notfound = append(notfound, o)
+			}
+		}
+	}
+	if len(notfound) == 0 {
+		return
+	}
+
+	// At least one asmcheck failed; report them
+	sort.Slice(notfound, func(i, j int) bool {
+		return notfound[i].line < notfound[j].line
+	})
+
+	var errbuf bytes.Buffer
+	fmt.Fprintln(&errbuf)
+	for _, o := range notfound {
+		fmt.Fprintf(&errbuf, "%s:%d: %s: no match for opcode: %q\n", t.goFileName(), o.line, arch, o.opcode.String())
+	}
+	err = errors.New(errbuf.String())
 	return
 }
 
