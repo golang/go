@@ -5272,7 +5272,12 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
 func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 	idx := s.livenessMap.Get(v)
 	if !idx.Valid() {
-		Fatalf("missing stack map index for %v", v.LongString())
+		// typedmemclr and typedmemmove are write barriers and
+		// deeply non-preemptible. They are unsafe points and
+		// hence should not have liveness maps.
+		if sym, _ := v.Aux.(*obj.LSym); !(sym == typedmemclr || sym == typedmemmove) {
+			Fatalf("missing stack map index for %v", v.LongString())
+		}
 	}
 	p := s.Prog(obj.APCDATA)
 	Addrconst(&p.From, objabi.PCDATA_StackMapIndex)

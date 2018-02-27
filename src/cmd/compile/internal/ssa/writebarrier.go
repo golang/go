@@ -111,6 +111,7 @@ func writebarrier(f *Func) {
 		// order values in store order
 		b.Values = storeOrder(b.Values, sset, storeNumber)
 
+		firstSplit := true
 	again:
 		// find the start and end of the last contiguous WB store sequence.
 		// a branch will be inserted there. values after it will be moved
@@ -266,6 +267,23 @@ func writebarrier(f *Func) {
 		bEnd.Values = append(bEnd.Values, after...)
 		for _, w := range after {
 			w.Block = bEnd
+		}
+
+		// Preemption is unsafe between loading the write
+		// barrier-enabled flag and performing the write
+		// because that would allow a GC phase transition,
+		// which would invalidate the flag. Remember the
+		// conditional block so liveness analysis can disable
+		// safe-points. This is somewhat subtle because we're
+		// splitting b bottom-up.
+		if firstSplit {
+			// Add b itself.
+			b.Func.WBLoads = append(b.Func.WBLoads, b)
+			firstSplit = false
+		} else {
+			// We've already split b, so we just pushed a
+			// write barrier test into bEnd.
+			b.Func.WBLoads = append(b.Func.WBLoads, bEnd)
 		}
 
 		// if we have more stores in this block, do this block again
