@@ -116,6 +116,9 @@ type Liveness struct {
 
 	be []BlockEffects
 
+	// unsafePoints bit i is set if Value ID i is not a safe point.
+	unsafePoints bvec
+
 	// An array with a bit vector for each safe point tracking live variables.
 	// Indexed sequentially by safe points in Block and Value order.
 	livevars []bvec
@@ -367,6 +370,8 @@ func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkpt
 		be.avarinitany = bulk.next()
 		be.avarinitall = bulk.next()
 	}
+
+	lv.markUnsafePoints()
 	return lv
 }
 
@@ -470,10 +475,167 @@ func (lv *Liveness) pointerMap(liveout bvec, vars []*Node, args, locals bvec) {
 	}
 }
 
+// markUnsafePoints finds unsafe points and computes lv.unsafePoints.
+func (lv *Liveness) markUnsafePoints() {
+	if compiling_runtime || lv.f.NoSplit {
+		// No complex analysis necessary. Do this on the fly
+		// in issafepoint.
+		return
+	}
+
+	lv.unsafePoints = bvalloc(int32(lv.f.NumValues()))
+
+	// Mark write barrier unsafe points.
+	for _, wbBlock := range lv.f.WBLoads {
+		// Check that we have the expected diamond shape.
+		if len(wbBlock.Succs) != 2 {
+			lv.f.Fatalf("expected branch at write barrier block %v", wbBlock)
+		}
+		s0, s1 := wbBlock.Succs[0].Block(), wbBlock.Succs[1].Block()
+		if s0.Kind != ssa.BlockPlain || s1.Kind != ssa.BlockPlain {
+			lv.f.Fatalf("expected successors of write barrier block %v to be plain", wbBlock)
+		}
+		if s0.Succs[0].Block() != s1.Succs[0].Block() {
+			lv.f.Fatalf("expected successors of write barrier block %v to converge", wbBlock)
+		}
+
+		// Flow backwards from the control value to find the
+		// flag load. We don't know what lowered ops we're
+		// looking for, but all current arches produce a
+		// single op that does the memory load from the flag
+		// address, so we look for that.
+		var load *ssa.Value
+		v := wbBlock.Control
+		for {
+			if sym, ok := v.Aux.(*obj.LSym); ok && sym == writeBarrier {
+				load = v
+				break
+			}
+			switch v.Op {
+			case ssa.Op386TESTL:
+				// 386 lowers Neq32 to (TESTL cond cond),
+				if v.Args[0] == v.Args[1] {
+					v = v.Args[0]
+					continue
+				}
+			case ssa.OpPPC64MOVWZload, ssa.Op386MOVLload:
+				// Args[0] is the address of the write
+				// barrier control. Ignore Args[1],
+				// which is the mem operand.
+				v = v.Args[0]
+				continue
+			}
+			// Common case: just flow backwards.
+			if len(v.Args) != 1 {
+				v.Fatalf("write barrier control value has more than one argument: %s", v.LongString())
+			}
+			v = v.Args[0]
+		}
+
+		// Mark everything after the load unsafe.
+		found := false
+		for _, v := range wbBlock.Values {
+			found = found || v == load
+			if found {
+				lv.unsafePoints.Set(int32(v.ID))
+			}
+		}
+
+		// Mark the two successor blocks unsafe. These come
+		// back together immediately after the direct write in
+		// one successor and the last write barrier call in
+		// the other, so there's no need to be more precise.
+		for _, succ := range wbBlock.Succs {
+			for _, v := range succ.Block().Values {
+				lv.unsafePoints.Set(int32(v.ID))
+			}
+		}
+	}
+
+	// Find uintptr -> unsafe.Pointer conversions and flood
+	// unsafeness back to a call (which is always a safe point).
+	//
+	// Looking for the uintptr -> unsafe.Pointer conversion has a
+	// few advantages over looking for unsafe.Pointer -> uintptr
+	// conversions:
+	//
+	// 1. We avoid needlessly blocking safe-points for
+	// unsafe.Pointer -> uintptr conversions that never go back to
+	// a Pointer.
+	//
+	// 2. We don't have to detect calls to reflect.Value.Pointer,
+	// reflect.Value.UnsafeAddr, and reflect.Value.InterfaceData,
+	// which are implicit unsafe.Pointer -> uintptr conversions.
+	// We can't even reliably detect this if there's an indirect
+	// call to one of these methods.
+	//
+	// TODO: For trivial unsafe.Pointer arithmetic, it would be
+	// nice to only flood as far as the unsafe.Pointer -> uintptr
+	// conversion, but it's hard to know which argument of an Add
+	// or Sub to follow.
+	var flooded bvec
+	var flood func(b *ssa.Block, vi int)
+	flood = func(b *ssa.Block, vi int) {
+		if flooded.n == 0 {
+			flooded = bvalloc(int32(lv.f.NumBlocks()))
+		}
+		if flooded.Get(int32(b.ID)) {
+			return
+		}
+		for i := vi - 1; i >= 0; i-- {
+			v := b.Values[i]
+			if v.Op.IsCall() {
+				// Uintptrs must not contain live
+				// pointers across calls, so stop
+				// flooding.
+				return
+			}
+			lv.unsafePoints.Set(int32(v.ID))
+		}
+		if vi == len(b.Values) {
+			// We marked all values in this block, so no
+			// need to flood this block again.
+			flooded.Set(int32(b.ID))
+		}
+		for _, pred := range b.Preds {
+			flood(pred.Block(), len(pred.Block().Values))
+		}
+	}
+	for _, b := range lv.f.Blocks {
+		for i, v := range b.Values {
+			if !(v.Op == ssa.OpConvert && v.Type.IsPtrShaped()) {
+				continue
+			}
+			// Flood the unsafe-ness of this backwards
+			// until we hit a call.
+			flood(b, i+1)
+		}
+	}
+}
+
 // Returns true for instructions that are safe points that must be annotated
 // with liveness information.
-func issafepoint(v *ssa.Value) bool {
-	return v.Op.IsCall()
+func (lv *Liveness) issafepoint(v *ssa.Value) bool {
+	// The runtime was written with the assumption that
+	// safe-points only appear at call sites (because that's how
+	// it used to be). We could and should improve that, but for
+	// now keep the old safe-point rules in the runtime.
+	//
+	// go:nosplit functions are similar. Since safe points used to
+	// be coupled with stack checks, go:nosplit often actually
+	// means "no safe points in this function".
+	if compiling_runtime || lv.f.NoSplit {
+		return v.Op.IsCall()
+	}
+	switch v.Op {
+	case ssa.OpInitMem, ssa.OpArg, ssa.OpSP, ssa.OpSB,
+		ssa.OpSelect0, ssa.OpSelect1, ssa.OpGetG,
+		ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive,
+		ssa.OpPhi:
+		// These don't produce code (see genssa).
+		return false
+	}
+	return !lv.unsafePoints.Get(int32(v.ID))
 }
 
 // Initializes the sets for solving the live variables. Visits all the
@@ -680,7 +842,7 @@ func (lv *Liveness) epilogue() {
 				all.Set(pos)
 			}
 
-			if !issafepoint(v) {
+			if !lv.issafepoint(v) {
 				continue
 			}
 
@@ -728,7 +890,7 @@ func (lv *Liveness) epilogue() {
 		for i := len(b.Values) - 1; i >= 0; i-- {
 			v := b.Values[i]
 
-			if issafepoint(v) {
+			if lv.issafepoint(v) {
 				// Found an interesting instruction, record the
 				// corresponding liveness information.
 
@@ -829,7 +991,7 @@ func (lv *Liveness) clobber() {
 
 		// Copy values into schedule, adding clobbering around safepoints.
 		for _, v := range oldSched {
-			if !issafepoint(v) {
+			if !lv.issafepoint(v) {
 				b.Values = append(b.Values, v)
 				continue
 			}
@@ -1037,7 +1199,7 @@ Outer:
 	lv.livenessMap = LivenessMap{make(map[*ssa.Value]LivenessIndex)}
 	for _, b := range lv.f.Blocks {
 		for _, v := range b.Values {
-			if issafepoint(v) {
+			if lv.issafepoint(v) {
 				lv.showlive(v, lv.stackMaps[remap[pos]])
 				lv.livenessMap.m[v] = LivenessIndex{remap[pos]}
 				pos++
@@ -1048,6 +1210,11 @@ Outer:
 
 func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
 	if debuglive == 0 || lv.fn.funcname() == "init" || strings.HasPrefix(lv.fn.funcname(), ".") {
+		return
+	}
+	if !(v == nil || v.Op.IsCall()) {
+		// Historically we only printed this information at
+		// calls. Keep doing so.
 		return
 	}
 	if live.IsEmpty() {
@@ -1194,7 +1361,7 @@ func (lv *Liveness) printDebug() {
 				fmt.Printf("\n")
 			}
 
-			if !issafepoint(v) {
+			if !lv.issafepoint(v) {
 				continue
 			}
 
