@@ -385,7 +385,18 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 		if off&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
-		bv.Set(int32(off / int64(Widthptr)))   // pointer in first slot
+		// The first word of an interface is a pointer, but we don't
+		// treat it as such.
+		// 1. If it is a non-empty interface, the pointer points to an itab
+		//    which is always in persistentalloc space.
+		// 2. If it is an empty interface, the pointer points to a _type.
+		//   a. If it is a compile-time-allocated type, it points into
+		//      the read-only data section.
+		//   b. If it is a reflect-allocated type, it points into the Go heap.
+		//      Reflect is responsible for keeping a reference to
+		//      the underlying type so it won't be GCd.
+		// If we ever have a moving GC, we need to change this for 2b (as
+		// well as scan itabs to update their itab._type fields).
 		bv.Set(int32(off/int64(Widthptr) + 1)) // pointer in second slot
 
 	case TSLICE:
@@ -870,7 +881,7 @@ func clobberWalk(b *ssa.Block, v *Node, offset int64, t *types.Type) {
 		// struct { Itab *tab; void *data; }
 		// or, when isnilinter(t)==true:
 		// struct { Type *type; void *data; }
-		clobberPtr(b, v, offset)
+		// Note: the first word isn't a pointer. See comment in plive.go:onebitwalktype1.
 		clobberPtr(b, v, offset+int64(Widthptr))
 
 	case TSLICE:

@@ -422,7 +422,7 @@ var genericOps = []opData{
 
 	// Interfaces
 	{name: "IMake", argLength: 2},                // arg0=itab, arg1=data
-	{name: "ITab", argLength: 1, typ: "BytePtr"}, // arg0=interface, returns itable field
+	{name: "ITab", argLength: 1, typ: "Uintptr"}, // arg0=interface, returns itable field
 	{name: "IData", argLength: 1},                // arg0=interface, returns data field
 
 	// Structs

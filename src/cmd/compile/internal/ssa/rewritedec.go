@@ -230,7 +230,7 @@ func rewriteValuedec_OpLoad_0(v *Value) bool {
 	}
 	// match: (Load <t> ptr mem)
 	// cond: t.IsInterface()
-	// result: (IMake (Load <typ.BytePtr> ptr mem) (Load <typ.BytePtr> (OffPtr <typ.BytePtrPtr> [config.PtrSize] ptr) mem))
+	// result: (IMake (Load <typ.Uintptr> ptr mem) (Load <typ.BytePtr> (OffPtr <typ.BytePtrPtr> [config.PtrSize] ptr) mem))
 	for {
 		t := v.Type
 		_ = v.Args[1]
@@ -240,7 +240,7 @@ func rewriteValuedec_OpLoad_0(v *Value) bool {
 			break
 		}
 		v.reset(OpIMake)
-		v0 := b.NewValue0(v.Pos, OpLoad, typ.BytePtr)
+		v0 := b.NewValue0(v.Pos, OpLoad, typ.Uintptr)
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)

@@ -794,6 +794,7 @@ func typeptrdata(t *types.Type) int64 {
 	case TINTER:
 		// struct { Itab *tab;	void *data; } or
 		// struct { Type *type; void *data; }
+		// Note: see comment in plive.go:onebitwalktype1.
 		return 2 * int64(Widthptr)
 
 	case TSLICE:
@@ -1858,7 +1859,7 @@ func (p *GCProg) emit(t *types.Type, offset int64) {
 		p.w.Ptr(offset / int64(Widthptr))
 
 	case TINTER:
-		p.w.Ptr(offset / int64(Widthptr))
+		// Note: the first word isn't a pointer. See comment in plive.go:onebitwalktype1.
 		p.w.Ptr(offset/int64(Widthptr) + 1)
 
 	case TSLICE:

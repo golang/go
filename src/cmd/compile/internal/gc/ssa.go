@@ -5177,6 +5177,7 @@ func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 
 func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
+	u := types.Types[TUINTPTR]
 	t := types.NewPtr(types.Types[TUINT8])
 	if n.Class() == PAUTO && !n.Addrtaken() {
 		// Split this interface up into two separate variables.
@@ -5184,12 +5185,12 @@ func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
 		if n.Type.IsEmptyInterface() {
 			f = ".type"
 		}
-		c := e.splitSlot(&name, f, 0, t)
-		d := e.splitSlot(&name, ".data", t.Size(), t)
+		c := e.splitSlot(&name, f, 0, u) // see comment in plive.go:onebitwalktype1.
+		d := e.splitSlot(&name, ".data", u.Size(), t)
 		return c, d
 	}
 	// Return the two parts of the larger variable.
-	return ssa.LocalSlot{N: n, Type: t, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + int64(Widthptr)}
+	return ssa.LocalSlot{N: n, Type: u, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + int64(Widthptr)}
 }
 
 func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
