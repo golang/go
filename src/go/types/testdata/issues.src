@@ -229,3 +229,14 @@ func issue24026() {
 }
 
 func f(int) {} // for issue24026
+
+// Test that we don't report a "missing return statement" error
+// (due to incorrect context when type-checking interfaces).
+func issue24140(x interface{}) int {
+        switch x.(type) {
+        case interface{}:
+                return 0
+        default:
+                panic(0)
+        }
+}
