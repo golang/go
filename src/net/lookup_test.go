@@ -320,9 +320,7 @@ func TestLookupGoogleHost(t *testing.T) {
 }
 
 func TestLookupLongTXT(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; see https://golang.org/issue/22857")
-	}
+	testenv.SkipFlaky(t, 22857)
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
