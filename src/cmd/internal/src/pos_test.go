@@ -39,23 +39,23 @@ func TestPos(t *testing.T) {
 		relLine, relCol uint
 	}{
 		{Pos{}, "<unknown line number>", "", 0, 0, "", 0, 0},
-		{MakePos(nil, 2, 3), ":2:3", "", 2, 3, "", 2, 3},
+		{MakePos(nil, 2, 3), ":2:3", "", 2, 3, "", 0, 0},
 		{MakePos(f0, 2, 3), ":2:3", "", 2, 3, "", 2, 3},
 		{MakePos(f1, 1, 1), "f1:1:1", "f1", 1, 1, "f1", 1, 1},
-		{MakePos(f2, 7, 10), "f2:17[:7:10]", "", 7, 10, "f2", 17, 10},
-		{MakePos(f3, 12, 7), "f3:102[f1:12:7]", "f1", 12, 7, "f3", 102, 7},
-		{MakePos(f4, 25, 1), "f4:115[f3:25:1]", "f3", 25, 1, "f4", 115, 1},
+		{MakePos(f2, 7, 10), "f2:17[:7:10]", "", 7, 10, "f2", 17, 0 /* line base doesn't specify a column */},
+		{MakePos(f3, 12, 7), "f3:102:7[f1:12:7]", "f1", 12, 7, "f3", 102, 7},
+		{MakePos(f4, 25, 1), "f4:115:1[f3:25:1]", "f3", 25, 1, "f4", 115, 1},
 
 		// line directives with non-1 columns
-		{MakePos(f5, 5, 5), "f5:10[f1:5:5]", "f1", 5, 5, "f5", 10, 1},
-		{MakePos(f5, 5, 10), "f5:10[f1:5:10]", "f1", 5, 10, "f5", 10, 6},
-		{MakePos(f5, 6, 10), "f5:11[f1:6:10]", "f1", 6, 10, "f5", 11, 10},
+		{MakePos(f5, 5, 5), "f5:10:1[f1:5:5]", "f1", 5, 5, "f5", 10, 1},
+		{MakePos(f5, 5, 10), "f5:10:6[f1:5:10]", "f1", 5, 10, "f5", 10, 6},
+		{MakePos(f5, 6, 10), "f5:11:10[f1:6:10]", "f1", 6, 10, "f5", 11, 10},
 
 		// positions from issue #19392
-		{MakePos(fc, 4, 1), "c.go:10[p.go:4:1]", "p.go", 4, 1, "c.go", 10, 1},
-		{MakePos(ft, 7, 1), "t.go:20[p.go:7:1]", "p.go", 7, 1, "t.go", 20, 1},
-		{MakePos(fv, 10, 1), "v.go:30[p.go:10:1]", "p.go", 10, 1, "v.go", 30, 1},
-		{MakePos(ff, 13, 1), "f.go:40[p.go:13:1]", "p.go", 13, 1, "f.go", 40, 1},
+		{MakePos(fc, 4, 1), "c.go:10:1[p.go:4:1]", "p.go", 4, 1, "c.go", 10, 1},
+		{MakePos(ft, 7, 1), "t.go:20:1[p.go:7:1]", "p.go", 7, 1, "t.go", 20, 1},
+		{MakePos(fv, 10, 1), "v.go:30:1[p.go:10:1]", "p.go", 10, 1, "v.go", 30, 1},
+		{MakePos(ff, 13, 1), "f.go:40:1[p.go:13:1]", "p.go", 13, 1, "f.go", 40, 1},
 	} {
 		pos := test.pos
 		if got := pos.String(); got != test.string {
@@ -134,10 +134,10 @@ func TestLico(t *testing.T) {
 		string    string
 		line, col uint
 	}{
-		{0, ":0:0", 0, 0},
-		{makeLico(0, 0), ":0:0", 0, 0},
+		{0, ":0", 0, 0},
+		{makeLico(0, 0), ":0", 0, 0},
 		{makeLico(0, 1), ":0:1", 0, 1},
-		{makeLico(1, 0), ":1:0", 1, 0},
+		{makeLico(1, 0), ":1", 1, 0},
 		{makeLico(1, 1), ":1:1", 1, 1},
 		{makeLico(2, 3), ":2:3", 2, 3},
 		{makeLico(lineMax, 1), fmt.Sprintf(":%d:1", lineMax), lineMax, 1},

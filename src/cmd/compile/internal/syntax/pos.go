@@ -31,10 +31,26 @@ func (pos Pos) Base() *PosBase { return pos.base }
 func (pos Pos) Line() uint     { return uint(pos.line) }
 func (pos Pos) Col() uint      { return uint(pos.col) }
 
-func (pos Pos) RelFilename() string { b := pos.Base(); return b.Filename() }
-func (pos Pos) RelLine() uint       { b := pos.Base(); return b.Line() + (pos.Line() - b.Pos().Line()) }
+func (pos Pos) RelFilename() string { return pos.base.Filename() }
+
+func (pos Pos) RelLine() uint {
+	b := pos.base
+	if b.Line() == 0 {
+		// base line is unknown => relative line is unknown
+		return 0
+	}
+	return b.Line() + (pos.Line() - b.Pos().Line())
+}
+
 func (pos Pos) RelCol() uint {
-	b := pos.Base()
+	b := pos.base
+	if b.Col() == 0 {
+		// base column is unknown => relative column is unknown
+		// (the current specification for line directives requires
+		// this to apply until the next PosBase/line directive,
+		// not just until the new newline)
+		return 0
+	}
 	if pos.Line() == b.Pos().Line() {
 		// pos on same line as pos base => column is relative to pos base
 		return b.Col() + (pos.Col() - b.Pos().Col())
@@ -43,11 +59,32 @@ func (pos Pos) RelCol() uint {
 }
 
 func (pos Pos) String() string {
-	s := fmt.Sprintf("%s:%d:%d", pos.RelFilename(), pos.RelLine(), pos.RelCol())
-	if bpos := pos.Base().Pos(); bpos.IsKnown() {
-		s += fmt.Sprintf("[%s:%d:%d]", bpos.RelFilename(), pos.Line(), pos.Col())
+	rel := position_{pos.RelFilename(), pos.RelLine(), pos.RelCol()}
+	abs := position_{pos.Base().Pos().RelFilename(), pos.Line(), pos.Col()}
+	s := rel.String()
+	if rel != abs {
+		s += "[" + abs.String() + "]"
 	}
 	return s
+}
+
+// TODO(gri) cleanup: find better name, avoid conflict with position in error_test.go
+type position_ struct {
+	filename  string
+	line, col uint
+}
+
+func (p position_) String() string {
+	if p.line == 0 {
+		if p.filename == "" {
+			return "<unknown position>"
+		}
+		return p.filename
+	}
+	if p.col == 0 {
+		return fmt.Sprintf("%s:%d", p.filename, p.line)
+	}
+	return fmt.Sprintf("%s:%d:%d", p.filename, p.line, p.col)
 }
 
 // A PosBase represents the base for relative position information:
@@ -59,9 +96,12 @@ type PosBase struct {
 }
 
 // NewFileBase returns a new PosBase for the given filename.
-// The PosBase position is unknown in this case.
+// A file PosBase's position is relative to itself, with the
+// position being filename:1:1.
 func NewFileBase(filename string) *PosBase {
-	return &PosBase{filename: filename}
+	base := &PosBase{MakePos(nil, linebase, colbase), filename, linebase, colbase}
+	base.pos.base = base
+	return base
 }
 
 // NewLineBase returns a new PosBase for a line directive "line filename:line:col"
@@ -71,6 +111,13 @@ func NewFileBase(filename string) *PosBase {
 // belongs to the line comment).
 func NewLineBase(pos Pos, filename string, line, col uint) *PosBase {
 	return &PosBase{pos, filename, sat32(line), sat32(col)}
+}
+
+func (base *PosBase) IsFileBase() bool {
+	if base == nil {
+		return false
+	}
+	return base.pos.base == base
 }
 
 func (base *PosBase) Pos() (_ Pos) {

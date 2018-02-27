@@ -69,14 +69,28 @@ func (p *Pos) SetBase(base *PosBase) { p.base = base }
 func (p Pos) RelFilename() string { return p.base.Filename() }
 
 // RelLine returns the line number relative to the position's base.
-func (p Pos) RelLine() uint { b := p.base; return b.Line() + p.Line() - b.Pos().Line() }
+func (p Pos) RelLine() uint {
+	b := p.base
+	if b.Line() == 0 {
+		// base line is unknown => relative line is unknown
+		return 0
+	}
+	return b.Line() + (p.Line() - b.Pos().Line())
+}
 
 // RelCol returns the column number relative to the position's base.
 func (p Pos) RelCol() uint {
-	b := p.Base()
+	b := p.base
+	if b.Col() == 0 {
+		// base column is unknown => relative column is unknown
+		// (the current specification for line directives requires
+		// this to apply until the next PosBase/line directive,
+		// not just until the new newline)
+		return 0
+	}
 	if p.Line() == b.Pos().Line() {
 		// p on same line as p's base => column is relative to p's base
-		return b.Col() + p.Col() - b.Pos().Col()
+		return b.Col() + (p.Col() - b.Pos().Col())
 	}
 	return p.Col()
 }
@@ -93,10 +107,10 @@ func (p Pos) String() string {
 }
 
 // Format formats a position as "filename:line" or "filename:line:column",
-// controlled by the showCol flag. A position relative to a line directive
-// is always formatted without column information. In that case, if showOrig
-// is set, the original position (again controlled by showCol) is appended
-// in square brackets: "filename:line[origfile:origline:origcolumn]".
+// controlled by the showCol flag and if the column is known (!= 0).
+// For positions relative to line directives, the original position is
+// shown as well, as in "filename:line[origfile:origline:origcolumn] if
+// showOrig is set.
 func (p Pos) Format(showCol, showOrig bool) string {
 	if !p.IsKnown() {
 		return "<unknown line number>"
@@ -107,9 +121,6 @@ func (p Pos) Format(showCol, showOrig bool) string {
 		return format(p.Filename(), p.Line(), p.Col(), showCol)
 	}
 
-	// TODO(gri): Column information should be printed if a line
-	// directive explicitly specified a column, per issue #22662.
-
 	// base is relative
 	// Print the column only for the original position since the
 	// relative position's column information may be bogus (it's
@@ -118,7 +129,7 @@ func (p Pos) Format(showCol, showOrig bool) string {
 	// that's provided via a line directive).
 	// TODO(gri) This may not be true if we have an inlining base.
 	// We may want to differentiate at some point.
-	s := format(p.RelFilename(), p.RelLine(), 0, false)
+	s := format(p.RelFilename(), p.RelLine(), p.RelCol(), showCol)
 	if showOrig {
 		s += "[" + format(p.Filename(), p.Line(), p.Col(), showCol) + "]"
 	}
@@ -126,11 +137,11 @@ func (p Pos) Format(showCol, showOrig bool) string {
 }
 
 // format formats a (filename, line, col) tuple as "filename:line" (showCol
-// is false) or "filename:line:column" (showCol is true).
+// is false or col == 0) or "filename:line:column" (showCol is true and col != 0).
 func format(filename string, line, col uint, showCol bool) string {
 	s := filename + ":" + strconv.FormatUint(uint64(line), 10)
-	// col == colMax is interpreted as unknown column value
-	if showCol && col < colMax {
+	// col == 0 and col == colMax are interpreted as unknown column values
+	if showCol && 0 < col && col < colMax {
 		s += ":" + strconv.FormatUint(uint64(col), 10)
 	}
 	return s
@@ -141,8 +152,6 @@ func format(filename string, line, col uint, showCol bool) string {
 
 // A PosBase encodes a filename and base position.
 // Typically, each file and line directive introduce a PosBase.
-// A nil *PosBase is a ready to use file PosBase for an unnamed
-// file with line numbers starting at 1.
 type PosBase struct {
 	pos         Pos    // position at which the relative position is (line, col)
 	filename    string // file name used to open source file, for error messages
@@ -155,17 +164,16 @@ type PosBase struct {
 // NewFileBase returns a new *PosBase for a file with the given (relative and
 // absolute) filenames.
 func NewFileBase(filename, absFilename string) *PosBase {
-	if filename != "" {
-		base := &PosBase{
-			filename:    filename,
-			absFilename: absFilename,
-			symFilename: FileSymPrefix + absFilename,
-			inl:         -1,
-		}
-		base.pos = MakePos(base, 0, 0)
-		return base
+	base := &PosBase{
+		filename:    filename,
+		absFilename: absFilename,
+		symFilename: FileSymPrefix + absFilename,
+		line:        1,
+		col:         1,
+		inl:         -1,
 	}
-	return nil
+	base.pos = MakePos(base, 1, 1)
+	return base
 }
 
 // NewLinePragmaBase returns a new *PosBase for a line directive of the form
@@ -180,8 +188,8 @@ func NewLinePragmaBase(pos Pos, filename, absFilename string, line, col uint) *P
 // index. If old == nil, the resulting PosBase has no filename.
 func NewInliningBase(old *PosBase, inlTreeIndex int) *PosBase {
 	if old == nil {
-		base := &PosBase{inl: inlTreeIndex}
-		base.pos = MakePos(base, 0, 0)
+		base := &PosBase{line: 1, col: 1, inl: inlTreeIndex}
+		base.pos = MakePos(base, 1, 1)
 		return base
 	}
 	copy := *old

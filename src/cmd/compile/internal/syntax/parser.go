@@ -85,8 +85,8 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
 
 // updateBase sets the current position base to a new line base at pos.
 // The base's filename, line, and column values are extracted from text
-// which is positioned at (line, col) (only needed for error messages).
-func (p *parser) updateBase(pos Pos, line, col uint, text string) {
+// which is positioned at (tline, tcol) (only needed for error messages).
+func (p *parser) updateBase(pos Pos, tline, tcol uint, text string) {
 	i, n, ok := trailingDigits(text)
 	if i == 0 {
 		return // ignore (not a line directive)
@@ -95,38 +95,39 @@ func (p *parser) updateBase(pos Pos, line, col uint, text string) {
 
 	if !ok {
 		// text has a suffix :xxx but xxx is not a number
-		p.errorAt(p.posAt(line, col+i), "invalid line number: "+text[i:])
+		p.errorAt(p.posAt(tline, tcol+i), "invalid line number: "+text[i:])
 		return
 	}
 
+	var line, col uint
 	i2, n2, ok2 := trailingDigits(text[:i-1])
 	if ok2 {
 		//line filename:line:col
 		i, i2 = i2, i
-		n, n2 = n2, n
-		if n2 == 0 || n2 > PosMax {
-			p.errorAt(p.posAt(line, col+i2), "invalid column number: "+text[i2:])
+		line, col = n2, n
+		if col == 0 || col > PosMax {
+			p.errorAt(p.posAt(tline, tcol+i2), "invalid column number: "+text[i2:])
 			return
 		}
-		text = text[:i2-1] // lop off :col
+		text = text[:i2-1] // lop off ":col"
 	} else {
 		//line filename:line
-		n2 = colbase // use start of line for column
+		line = n
 	}
 
-	if n == 0 || n > PosMax {
-		p.errorAt(p.posAt(line, col+i), "invalid line number: "+text[i:])
+	if line == 0 || line > PosMax {
+		p.errorAt(p.posAt(tline, tcol+i), "invalid line number: "+text[i:])
 		return
 	}
 
 	// If we have a column (//line filename:line:col form),
 	// an empty filename means to use the previous filename.
-	filename := text[:i-1] // lop off :line
+	filename := text[:i-1] // lop off ":line"
 	if filename == "" && ok2 {
 		filename = p.base.Filename()
 	}
 
-	p.base = NewLineBase(pos, filename, n, n2)
+	p.base = NewLineBase(pos, filename, line, col)
 }
 
 func commentText(s string) string {
