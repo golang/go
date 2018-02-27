@@ -3290,6 +3290,34 @@ var linuxARM64Tests = []*asmTest{
 		pos: []string{"STP"},
 		neg: []string{"MOVB", "MOVH", "MOVW"},
 	},
+	// Check that stores are combine into larger stores
+	{
+		fn: `
+		func $(b []byte, v uint16) {
+			binary.LittleEndian.PutUint16(b, v)
+		}
+		`,
+		pos: []string{"MOVH"},
+		neg: []string{"MOVB"},
+	},
+	{
+		fn: `
+		func $(b []byte, v uint32) {
+			binary.LittleEndian.PutUint32(b, v)
+		}
+		`,
+		pos: []string{"MOVW"},
+		neg: []string{"MOVB", "MOVH"},
+	},
+	{
+		fn: `
+		func $(b []byte, v uint64) {
+			binary.LittleEndian.PutUint64(b, v)
+		}
+		`,
+		pos: []string{"MOVD"},
+		neg: []string{"MOVB", "MOVH", "MOVW"},
+	},
 }
 
 var linuxMIPSTests = []*asmTest{

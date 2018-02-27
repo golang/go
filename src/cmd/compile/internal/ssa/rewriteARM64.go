@@ -138,7 +138,7 @@ func rewriteValueARM64(v *Value) bool {
 	case OpARM64MOVBreg:
 		return rewriteValueARM64_OpARM64MOVBreg_0(v)
 	case OpARM64MOVBstore:
-		return rewriteValueARM64_OpARM64MOVBstore_0(v)
+		return rewriteValueARM64_OpARM64MOVBstore_0(v) || rewriteValueARM64_OpARM64MOVBstore_10(v)
 	case OpARM64MOVBstorezero:
 		return rewriteValueARM64_OpARM64MOVBstorezero_0(v)
 	case OpARM64MOVDload:
@@ -6079,6 +6079,250 @@ func rewriteValueARM64_OpARM64MOVBstore_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	// match: (MOVBstore [i] {s} ptr0 (SRLconst [8] w) x:(MOVBstore [i-1] {s} ptr1 w mem))
+	// cond: x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)
+	// result: (MOVHstore [i-1] {s} ptr0 w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		ptr0 := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64SRLconst {
+			break
+		}
+		if v_1.AuxInt != 8 {
+			break
+		}
+		w := v_1.Args[0]
+		x := v.Args[2]
+		if x.Op != OpARM64MOVBstore {
+			break
+		}
+		if x.AuxInt != i-1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[2]
+		ptr1 := x.Args[0]
+		if w != x.Args[1] {
+			break
+		}
+		mem := x.Args[2]
+		if !(x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)) {
+			break
+		}
+		v.reset(OpARM64MOVHstore)
+		v.AuxInt = i - 1
+		v.Aux = s
+		v.AddArg(ptr0)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64MOVBstore_10(v *Value) bool {
+	// match: (MOVBstore [i] {s} ptr0 (SRLconst [8] (MOVHUreg w)) x:(MOVBstore [i-1] {s} ptr1 w mem))
+	// cond: x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)
+	// result: (MOVHstore [i-1] {s} ptr0 w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		ptr0 := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64SRLconst {
+			break
+		}
+		if v_1.AuxInt != 8 {
+			break
+		}
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpARM64MOVHUreg {
+			break
+		}
+		w := v_1_0.Args[0]
+		x := v.Args[2]
+		if x.Op != OpARM64MOVBstore {
+			break
+		}
+		if x.AuxInt != i-1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[2]
+		ptr1 := x.Args[0]
+		if w != x.Args[1] {
+			break
+		}
+		mem := x.Args[2]
+		if !(x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)) {
+			break
+		}
+		v.reset(OpARM64MOVHstore)
+		v.AuxInt = i - 1
+		v.Aux = s
+		v.AddArg(ptr0)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstore [i] {s} ptr0 (SRLconst [8] (MOVWUreg w)) x:(MOVBstore [i-1] {s} ptr1 w mem))
+	// cond: x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)
+	// result: (MOVHstore [i-1] {s} ptr0 w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		ptr0 := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64SRLconst {
+			break
+		}
+		if v_1.AuxInt != 8 {
+			break
+		}
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpARM64MOVWUreg {
+			break
+		}
+		w := v_1_0.Args[0]
+		x := v.Args[2]
+		if x.Op != OpARM64MOVBstore {
+			break
+		}
+		if x.AuxInt != i-1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[2]
+		ptr1 := x.Args[0]
+		if w != x.Args[1] {
+			break
+		}
+		mem := x.Args[2]
+		if !(x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)) {
+			break
+		}
+		v.reset(OpARM64MOVHstore)
+		v.AuxInt = i - 1
+		v.Aux = s
+		v.AddArg(ptr0)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstore [i] {s} ptr0 (SRLconst [j] w) x:(MOVBstore [i-1] {s} ptr1 w0:(SRLconst [j-8] w) mem))
+	// cond: x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)
+	// result: (MOVHstore [i-1] {s} ptr0 w0 mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		ptr0 := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64SRLconst {
+			break
+		}
+		j := v_1.AuxInt
+		w := v_1.Args[0]
+		x := v.Args[2]
+		if x.Op != OpARM64MOVBstore {
+			break
+		}
+		if x.AuxInt != i-1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[2]
+		ptr1 := x.Args[0]
+		w0 := x.Args[1]
+		if w0.Op != OpARM64SRLconst {
+			break
+		}
+		if w0.AuxInt != j-8 {
+			break
+		}
+		if w != w0.Args[0] {
+			break
+		}
+		mem := x.Args[2]
+		if !(x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)) {
+			break
+		}
+		v.reset(OpARM64MOVHstore)
+		v.AuxInt = i - 1
+		v.Aux = s
+		v.AddArg(ptr0)
+		v.AddArg(w0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstore [i] {s} ptr0 (SRLconst [j] (MOVWUreg w)) x:(MOVBstore [i-1] {s} ptr1 w0:(SRLconst [j-8] (MOVWUreg w)) mem))
+	// cond: x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)
+	// result: (MOVHstore [i-1] {s} ptr0 w0 mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		ptr0 := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64SRLconst {
+			break
+		}
+		j := v_1.AuxInt
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpARM64MOVWUreg {
+			break
+		}
+		w := v_1_0.Args[0]
+		x := v.Args[2]
+		if x.Op != OpARM64MOVBstore {
+			break
+		}
+		if x.AuxInt != i-1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[2]
+		ptr1 := x.Args[0]
+		w0 := x.Args[1]
+		if w0.Op != OpARM64SRLconst {
+			break
+		}
+		if w0.AuxInt != j-8 {
+			break
+		}
+		w0_0 := w0.Args[0]
+		if w0_0.Op != OpARM64MOVWUreg {
+			break
+		}
+		if w != w0_0.Args[0] {
+			break
+		}
+		mem := x.Args[2]
+		if !(x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)) {
+			break
+		}
+		v.reset(OpARM64MOVHstore)
+		v.AuxInt = i - 1
+		v.Aux = s
+		v.AddArg(ptr0)
+		v.AddArg(w0)
+		v.AddArg(mem)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64MOVBstorezero_0(v *Value) bool {
@@ -6943,6 +7187,144 @@ func rewriteValueARM64_OpARM64MOVHstore_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	// match: (MOVHstore [i] {s} ptr0 (SRLconst [16] w) x:(MOVHstore [i-2] {s} ptr1 w mem))
+	// cond: x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)
+	// result: (MOVWstore [i-2] {s} ptr0 w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		ptr0 := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64SRLconst {
+			break
+		}
+		if v_1.AuxInt != 16 {
+			break
+		}
+		w := v_1.Args[0]
+		x := v.Args[2]
+		if x.Op != OpARM64MOVHstore {
+			break
+		}
+		if x.AuxInt != i-2 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[2]
+		ptr1 := x.Args[0]
+		if w != x.Args[1] {
+			break
+		}
+		mem := x.Args[2]
+		if !(x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)) {
+			break
+		}
+		v.reset(OpARM64MOVWstore)
+		v.AuxInt = i - 2
+		v.Aux = s
+		v.AddArg(ptr0)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHstore [i] {s} ptr0 (SRLconst [16] (MOVWUreg w)) x:(MOVHstore [i-2] {s} ptr1 w mem))
+	// cond: x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)
+	// result: (MOVWstore [i-2] {s} ptr0 w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		ptr0 := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64SRLconst {
+			break
+		}
+		if v_1.AuxInt != 16 {
+			break
+		}
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpARM64MOVWUreg {
+			break
+		}
+		w := v_1_0.Args[0]
+		x := v.Args[2]
+		if x.Op != OpARM64MOVHstore {
+			break
+		}
+		if x.AuxInt != i-2 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[2]
+		ptr1 := x.Args[0]
+		if w != x.Args[1] {
+			break
+		}
+		mem := x.Args[2]
+		if !(x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)) {
+			break
+		}
+		v.reset(OpARM64MOVWstore)
+		v.AuxInt = i - 2
+		v.Aux = s
+		v.AddArg(ptr0)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHstore [i] {s} ptr0 (SRLconst [j] w) x:(MOVHstore [i-2] {s} ptr1 w0:(SRLconst [j-16] w) mem))
+	// cond: x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)
+	// result: (MOVWstore [i-2] {s} ptr0 w0 mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		ptr0 := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64SRLconst {
+			break
+		}
+		j := v_1.AuxInt
+		w := v_1.Args[0]
+		x := v.Args[2]
+		if x.Op != OpARM64MOVHstore {
+			break
+		}
+		if x.AuxInt != i-2 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[2]
+		ptr1 := x.Args[0]
+		w0 := x.Args[1]
+		if w0.Op != OpARM64SRLconst {
+			break
+		}
+		if w0.AuxInt != j-16 {
+			break
+		}
+		if w != w0.Args[0] {
+			break
+		}
+		mem := x.Args[2]
+		if !(x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)) {
+			break
+		}
+		v.reset(OpARM64MOVWstore)
+		v.AuxInt = i - 2
+		v.Aux = s
+		v.AddArg(ptr0)
+		v.AddArg(w0)
+		v.AddArg(mem)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64MOVHstorezero_0(v *Value) bool {
@@ -7601,6 +7983,97 @@ func rewriteValueARM64_OpARM64MOVWstore_0(v *Value) bool {
 		v.Aux = sym
 		v.AddArg(ptr)
 		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVWstore [i] {s} ptr0 (SRLconst [32] w) x:(MOVWstore [i-4] {s} ptr1 w mem))
+	// cond: x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)
+	// result: (MOVDstore [i-4] {s} ptr0 w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		ptr0 := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64SRLconst {
+			break
+		}
+		if v_1.AuxInt != 32 {
+			break
+		}
+		w := v_1.Args[0]
+		x := v.Args[2]
+		if x.Op != OpARM64MOVWstore {
+			break
+		}
+		if x.AuxInt != i-4 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[2]
+		ptr1 := x.Args[0]
+		if w != x.Args[1] {
+			break
+		}
+		mem := x.Args[2]
+		if !(x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)) {
+			break
+		}
+		v.reset(OpARM64MOVDstore)
+		v.AuxInt = i - 4
+		v.Aux = s
+		v.AddArg(ptr0)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVWstore [i] {s} ptr0 (SRLconst [j] w) x:(MOVWstore [i-4] {s} ptr1 w0:(SRLconst [j-32] w) mem))
+	// cond: x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)
+	// result: (MOVDstore [i-4] {s} ptr0 w0 mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		ptr0 := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64SRLconst {
+			break
+		}
+		j := v_1.AuxInt
+		w := v_1.Args[0]
+		x := v.Args[2]
+		if x.Op != OpARM64MOVWstore {
+			break
+		}
+		if x.AuxInt != i-4 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[2]
+		ptr1 := x.Args[0]
+		w0 := x.Args[1]
+		if w0.Op != OpARM64SRLconst {
+			break
+		}
+		if w0.AuxInt != j-32 {
+			break
+		}
+		if w != w0.Args[0] {
+			break
+		}
+		mem := x.Args[2]
+		if !(x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)) {
+			break
+		}
+		v.reset(OpARM64MOVDstore)
+		v.AuxInt = i - 4
+		v.Aux = s
+		v.AddArg(ptr0)
+		v.AddArg(w0)
 		v.AddArg(mem)
 		return true
 	}
