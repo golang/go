@@ -1931,6 +1931,26 @@ eliminating the unused imports issue in practice.
 This program is easily connected to most editors to run automatically when a Go source file is written.
 </p>
 
+<h3 id="virus">
+Why does my virus-scanning software think my Go distribution or compiled binary is infected?</h3>
+
+<p>
+This is a common occurrence, especially on Windows machines, and is almost always a false positive.
+Commercial virus scanning programs are often confused by the structure of Go binaries, which
+they don't see as often as those compiled from other languages.
+</p>
+
+<p>
+If you've just installed the Go distribution and the system reports it is infected, that's certainly a mistake.
+To be really thorough, you can verify the download by comparing the checksum with those on the
+<a href="https://golang.org/dl/">downloads page</a>.
+</p>
+
+<p>
+In any case, if you believe the report is in error, please report a bug to the supplier of your virus scanner.
+Maybe in time virus scanners can learn to understand Go programs.
+</p>
+
 <h2 id="Performance">Performance</h2>
 
 <h3 id="Why_does_Go_perform_badly_on_benchmark_x">
