@@ -102,6 +102,7 @@ const (
 	SYS_CONNECT        = 98  // { int sys_connect(int s, const struct sockaddr *name, \
 	SYS_GETDENTS       = 99  // { int sys_getdents(int fd, void *buf, size_t buflen); }
 	SYS_GETPRIORITY    = 100 // { int sys_getpriority(int which, id_t who); }
+	SYS_PIPE2          = 101 // { int sys_pipe2(int *fdp, int flags); }
 	SYS_SIGRETURN      = 103 // { int sys_sigreturn(struct sigcontext *sigcntxp); }
 	SYS_BIND           = 104 // { int sys_bind(int s, const struct sockaddr *name, \
 	SYS_SETSOCKOPT     = 105 // { int sys_setsockopt(int s, int level, int name, \
