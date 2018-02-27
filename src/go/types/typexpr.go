@@ -480,10 +480,12 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 
 	// collect embedded interfaces
 	// Only needed for printing and API. Delay collection
-	// to end of type-checking when all types are complete.
+	// to end of type-checking (for package-global interfaces)
+	// when all types are complete. Local interfaces are handled
+	// after each statement (as each statement processes delayed
+	// functions).
 	interfaceContext := check.context // capture for use in closure below
 	check.later(func() {
-		check.context = interfaceContext
 		if trace {
 			check.trace(iface.Pos(), "-- delayed checking embedded interfaces of %s", iface)
 			check.indent++
@@ -491,6 +493,15 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 				check.indent--
 			}()
 		}
+
+		// The context must be restored since for local interfaces
+		// delayed functions are processed after each statement
+		// (was issue #24140).
+		defer func(ctxt context) {
+			check.context = ctxt
+		}(check.context)
+		check.context = interfaceContext
+
 		for _, f := range iface.Methods.List {
 			if len(f.Names) == 0 {
 				typ := check.typ(f.Type)
