@@ -752,7 +752,7 @@
 // interface ops
 (ConstInterface) ->
   (IMake
-    (ConstNil <typ.BytePtr>)
+    (ConstNil <typ.Uintptr>)
     (ConstNil <typ.BytePtr>))
 
 (NilCheck (GetG mem) mem) -> mem
@@ -779,7 +779,7 @@
 
 (Arg {n} [off]) && v.Type.IsInterface() ->
   (IMake
-    (Arg <typ.BytePtr> {n} [off])
+    (Arg <typ.Uintptr> {n} [off])
     (Arg <typ.BytePtr> {n} [off+config.PtrSize]))
 
 (Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 16 ->

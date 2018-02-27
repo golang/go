@@ -200,12 +200,13 @@ func decomposeComplexPhi(v *Value) {
 }
 
 func decomposeInterfacePhi(v *Value) {
+	uintptrType := v.Block.Func.Config.Types.Uintptr
 	ptrType := v.Block.Func.Config.Types.BytePtr
 
-	itab := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
+	itab := v.Block.NewValue0(v.Pos, OpPhi, uintptrType)
 	data := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
 	for _, a := range v.Args {
-		itab.AddArg(a.Block.NewValue1(v.Pos, OpITab, ptrType, a))
+		itab.AddArg(a.Block.NewValue1(v.Pos, OpITab, uintptrType, a))
 		data.AddArg(a.Block.NewValue1(v.Pos, OpIData, ptrType, a))
 	}
 	v.reset(OpIMake)

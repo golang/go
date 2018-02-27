@@ -81,7 +81,7 @@
 
 (Load <t> ptr mem) && t.IsInterface() ->
   (IMake
-    (Load <typ.BytePtr> ptr mem)
+    (Load <typ.Uintptr> ptr mem)
     (Load <typ.BytePtr>
       (OffPtr <typ.BytePtrPtr> [config.PtrSize] ptr)
       mem))

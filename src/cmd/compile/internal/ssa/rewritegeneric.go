@@ -6940,7 +6940,7 @@ func rewriteValuegeneric_OpArg_0(v *Value) bool {
 	}
 	// match: (Arg {n} [off])
 	// cond: v.Type.IsInterface()
-	// result: (IMake (Arg <typ.BytePtr> {n} [off]) (Arg <typ.BytePtr> {n} [off+config.PtrSize]))
+	// result: (IMake (Arg <typ.Uintptr> {n} [off]) (Arg <typ.BytePtr> {n} [off+config.PtrSize]))
 	for {
 		off := v.AuxInt
 		n := v.Aux
@@ -6948,7 +6948,7 @@ func rewriteValuegeneric_OpArg_0(v *Value) bool {
 			break
 		}
 		v.reset(OpIMake)
-		v0 := b.NewValue0(v.Pos, OpArg, typ.BytePtr)
+		v0 := b.NewValue0(v.Pos, OpArg, typ.Uintptr)
 		v0.AuxInt = off
 		v0.Aux = n
 		v.AddArg(v0)
@@ -7298,10 +7298,10 @@ func rewriteValuegeneric_OpConstInterface_0(v *Value) bool {
 	_ = typ
 	// match: (ConstInterface)
 	// cond:
-	// result: (IMake (ConstNil <typ.BytePtr>) (ConstNil <typ.BytePtr>))
+	// result: (IMake (ConstNil <typ.Uintptr>) (ConstNil <typ.BytePtr>))
 	for {
 		v.reset(OpIMake)
-		v0 := b.NewValue0(v.Pos, OpConstNil, typ.BytePtr)
+		v0 := b.NewValue0(v.Pos, OpConstNil, typ.Uintptr)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpConstNil, typ.BytePtr)
 		v.AddArg(v1)
@@ -10209,10 +10209,10 @@ func rewriteValuegeneric_OpEqInter_0(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpEqPtr)
-		v0 := b.NewValue0(v.Pos, OpITab, typ.BytePtr)
+		v0 := b.NewValue0(v.Pos, OpITab, typ.Uintptr)
 		v0.AddArg(x)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpITab, typ.BytePtr)
+		v1 := b.NewValue0(v.Pos, OpITab, typ.Uintptr)
 		v1.AddArg(y)
 		v.AddArg(v1)
 		return true
@@ -18008,10 +18008,10 @@ func rewriteValuegeneric_OpNeqInter_0(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpNeqPtr)
-		v0 := b.NewValue0(v.Pos, OpITab, typ.BytePtr)
+		v0 := b.NewValue0(v.Pos, OpITab, typ.Uintptr)
 		v0.AddArg(x)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpITab, typ.BytePtr)
+		v1 := b.NewValue0(v.Pos, OpITab, typ.Uintptr)
 		v1.AddArg(y)
 		v.AddArg(v1)
 		return true

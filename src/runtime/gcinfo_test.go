@@ -200,6 +200,6 @@ var (
 
 	infoString = []byte{typePointer, typeScalar}
 	infoSlice  = []byte{typePointer, typeScalar, typeScalar}
-	infoEface  = []byte{typePointer, typePointer}
-	infoIface  = []byte{typePointer, typePointer}
+	infoEface  = []byte{typeScalar, typePointer}
+	infoIface  = []byte{typeScalar, typePointer}
 )
