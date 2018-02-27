@@ -363,7 +363,8 @@ func (v *hairyVisitor) visit(n *Node) bool {
 	case OIF:
 		if Isconst(n.Left, CTBOOL) {
 			// This if and the condition cost nothing.
-			return v.visitList(n.Nbody) || v.visitList(n.Rlist)
+			return v.visitList(n.Ninit) || v.visitList(n.Nbody) ||
+				v.visitList(n.Rlist)
 		}
 	}
 
