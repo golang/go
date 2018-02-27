@@ -430,6 +430,9 @@ func isPrintable(b byte, asterisk asteriskFlag, ampersand ampersandFlag) bool {
 		b == ':' ||
 		b == '=' ||
 		b == '?' ||
+		// x509 certificates issuer or subject may have email address,
+		// so we need '@'.
+		b == '@' ||
 		// This is technically not allowed in a PrintableString.
 		// However, x509 certificates with wildcard strings don't
 		// always use the correct string type so we permit it.
